@@ -15,9 +15,10 @@ MODULE RotateOrbsData
     INTEGER(TagIntType) :: CoeffT1Tag
     INTEGER :: MemAllocRot
 
-! These are the labelling arrays which allow us to separate the occupied and virtual 
-!orbitals, mix all together, use spin or spatial 
-! orbitals and maitain symmetry etc.
+    ! These are the labelling arrays which allow us to separate the occupied and virtual 
+    ! orbitals, mix all together, use spin or spatial 
+    ! orbitals and maitain symmetry etc.
+    integer :: NoSymLabelCounts
     INTEGER , ALLOCATABLE :: SymLabelList2_rot(:),SymLabelCounts2_rot(:,:), &
                              SymLabelListInv_rot(:),SymLabelList3_rot(:), &
                              SymOrbs_rot(:)

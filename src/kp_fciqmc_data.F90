@@ -3,14 +3,12 @@
  
 module kp_fciqmc_data_mod
 
-    ! This module contains data associated with KP-FCIQMC to avoid circular
-    ! use statements.
-
+    use CalcData, only: subspace_in
     use constants
     use FciMCData, only: ll_node, perturbation
-    use ras_data, only: ras_parameters
 
     implicit none
+    save
 
     type kp_fciqmc_data
         ! The number of different initial walker configurations to start
@@ -39,6 +37,10 @@ module kp_fciqmc_data_mod
     ! every iteration.
     logical :: tExcitedStateKP
 
+    ! If true then calculate and output the spin squared operator in the
+    ! Krylov basis.
+    logical :: tCalcSpin
+
     ! Information for the krylov_vecs arrays, which holds all of the Krylov
     ! vectors together simultaneously.
     ! The number of hash values for the hash table used to access krylov_vecs.
@@ -60,12 +62,12 @@ module kp_fciqmc_data_mod
     ! The hash is table used to access determinant data in krylov_vecs.
     type(ll_node), pointer :: krylov_vecs_ht(:) 
 
-    ! These arrays are used if tExcitedState = .false. in calc_projected_hamil
+    ! These arrays are used if tExcitedStateKP = .false. in calc_projected_hamil
     ! in semi-stochasti calculations. They are used to store the deterministic
     ! vectors before and after the deterministic projection occurs. They have
     ! the same purpose as partial_determ_vecs and full_determ_vecs, except they
     ! are allocated to hold more vectors (all Krylov vectors), as is necessary
-    ! if tExcitedState = .false.
+    ! if tExcitedStateKP = .false.
     real(dp), allocatable, dimension(:,:) :: partial_determ_vecs_kp
     real(dp), allocatable, dimension(:,:) :: full_determ_vecs_kp
 
@@ -88,6 +90,10 @@ module kp_fciqmc_data_mod
     ! The total sign length for all Krylov vectors together.
     integer :: lenof_all_signs
 
+    ! If true then, in the stochastic determination of the projected
+    ! Hamiltonian, perform spawning from more highly weighted determinants
+    ! exactly.
+    logical :: tExactHamilSpawning
     ! If true then calculate the projected Hamiltonian exactly (useful for
     ! testing only, in practice).
     logical :: tExactHamil
@@ -116,6 +122,13 @@ module kp_fciqmc_data_mod
     ! how many spawns (on average) each of the walkers in each of the
     ! Kyrlov vectors contribute.
     real(dp) :: av_mc_excits_kp
+    ! When estimating the projected Hamiltonian, this parameter will be
+    ! used to decide how many determinants have *exact* spawning performed
+    ! for them. Specifically, if the total population on a determinant
+    ! (across all replicas) multiplied by kp_hamil_exact_frac is greater
+    ! than or equal to the number of determinants connected to the
+    ! Hartree-Fock, then exact spawning is performed.
+    real(dp) :: kp_hamil_exact_frac
     ! If true then use generate_init_config_this_proc to generate the initial
     ! walker distribution for finite-temperature calculations. This will always
     ! generate the requested number of walkers (except for rounding when splitting
@@ -187,8 +200,8 @@ module kp_fciqmc_data_mod
     ! The matrix used to transform the Krylov vectors to a orthonormal basis.
     real(dp), allocatable :: kp_transform_matrix(:,:)
     ! Matrix used as temporary space during the transformation of the
-    ! projected Hamiltonian into an orthonormal basis, in the Lowdin appraoch.
-    real(dp), allocatable :: kp_inter_hamil(:,:)
+    ! projected matrices into an orthonormal basis, in the Lowdin approach.
+    real(dp), allocatable :: kp_inter_matrix(:,:)
     ! The final eigenvectors, but in the basis of Krylov vectors.
     ! This is used in the Lowdin approach: diagonalising kp_final_hamil
     ! will give the final eigenvectors in the orthonormal basis, then
@@ -196,19 +209,31 @@ module kp_fciqmc_data_mod
     ! the Krylov basis.
     real(dp), allocatable :: kp_eigenvecs_krylov(:,:)
 
-    ! Options for the trial wave function space for excited-state calculations.
-    logical :: tPops_KP_Space
-    logical :: tRead_KP_Space
-    logical :: tDoubles_KP_Space
-    logical :: tCAS_KP_Space
-    logical :: tRAS_KP_Space
-    logical :: tMP1_KP_Space
-    logical :: tFCI_KP_Space
-    
-    integer :: n_kp_pops
-    integer :: Occ_KP_CasOrbs
-    integer :: Virt_KP_CasOrbs
-    integer :: kp_mp1_ndets
-    type(ras_parameters) :: kp_ras
+    ! If true then use an estimate of an excited state (or linear
+    ! combination of excited states) to form the initial wave function.
+    logical :: tExcitedInitState
+    ! When using the excited-init-state option, this array is read in
+    ! from the input file and specifies which excited states to take
+    ! a weighted average of to form the initial state.
+    integer, allocatable :: kpfciqmc_ex_labels(:)
+    ! How much weight do we give to each trial state in the initial
+    ! Krylov vector?
+    real(dp), allocatable :: kpfciqmc_ex_weights(:)
 
+    ! Type for the trial wave function space for excited-state calculations.
+    type(subspace_in) :: kp_trial_space_in
+
+    ! Arrays used to access the signs of different Krylov vector signs in the
+    ! Krylov vector arrays. If tPairedReplicas is .false. then these arrays
+    ! are identical, otherwise the first array gives access to the first set
+    ! of vectors and the second array to the second set.
+    integer, allocatable :: kp_ind_1(:), kp_ind_2(:)
+
+    ! If true then perform an orthogonalisation step at the end of each
+    ! iteration. This only applies to the CFQMC approach.
+    logical :: tOrthogKPReplicas
+    ! After which iteration should we start performing the orthogonalisation
+    ! step?
+    integer :: orthog_kp_iter
+    
 end module

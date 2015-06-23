@@ -7,21 +7,25 @@ C.. Method of evaluating the Coulomb integrals
 C  ========================================================              
       SUBROUTINE INITFOU(NMESHX,CK,COEFF,NMAX,
      &     A,TALPHA,ALPHA,OMEGA,ZIA)
-         STOP 'FFTW library not installed for CPMD NECI'
+         call stop_all('initfou',
+     &                'FFTW library not installed for CPMD NECI')
       RETURN 
       END
 C =========================================================
       SUBROUTINE GEN_CK_FFT(N,DIST,COEFF,A,TALPHA,ALPHA,OMEGA)
-         STOP 'FFTW library not installed for CPMD NECI'
+         call stop_all('gen_ck_fft',
+     &              'FFTW library not installed for CPMD NECI')
       RETURN
       END
 C ============================================================
       SUBROUTINE GEN_ZIA(KMAX,NMAX,ZIA)
-         STOP 'FFTW library not installed for CPMD NECI'
+         call stop_all('gen_zia',
+     &              'FFTW library not installed for CPMD NECI')
       RETURN
       END
       complex FUNCTION ZIO(K)
-         STOP 'FFTW library not installed for CPMD NECI'
+         call stop_all('zio',
+     &         'FFTW library not installed for CPMD NECI')
          zio = 0
       RETURN
       END
@@ -31,11 +35,13 @@ C.. Method of evaluating the Coulomb integrals
 C  ========================================================              
       SUBROUTINE INITFOU2D(NMESHX,CK,COEFF,NMAX,
      &     A,TALPHA,ALPHA,OMEGA)
-         STOP 'FFTW library not installed for CPMD NECI'
+         call stop_all('initfou2d',
+     &            'FFTW library not installed for CPMD NECI')
       RETURN 
       END
 C =========================================================
       SUBROUTINE GEN_CK_FFT2D(N,DIST,COEFF,A,TALPHA,ALPHA,OMEGA)
-         STOP 'FFTW library not installed for CPMD NECI'
+         call stop_all('gen_ck_fft2d',
+     &               'FFTW library not installed for CPMD NECI')
       RETURN
       END

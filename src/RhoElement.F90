@@ -28,9 +28,10 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
       complex(dp) FCK(*)
       real(dp) ALAT(3)  
       HElement_t hE,UExp,B,EDIAG
+      character(*), parameter :: this_routine = 'CALCRHO2'
       IF(NTAY(1).LT.0) THEN
 !.. We've actually hidden a matrix of rhos in the coeffs for calcing RHOa
-          STOP "GETRHOEXND has been removed."
+          call stop_all(this_routine, "GETRHOEXND has been removed.")
 !         CALL GETRHOEXND(NI,NJ,NEL,BETA,NMSH,FCK,UMAT,RH)
          RETURN
       ELSEIF(NTAY(1).EQ.0) THEN
@@ -41,7 +42,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
 !..      ZIA=CK
 !..      UMAT=NDET
 !..      ALAT=NMRKS
-          STOP "Exact RHO calculation broken."
+          call stop_all(this_routine, "Exact RHO calculation broken.")
 !          CALL CALCRHOEXND(NI,NJ,NEL,BETA,NMSH,FCK,UMAT,ALAT,I_P,RH)
          RETURN
       ENDIF
@@ -59,7 +60,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
           
       IF(tStoreAsExcitations.AND.nI(1).eq.-1.AND.nJ(1).eq.-1) THEN
 !Store as excitations.
-         IF(NTAY(2).NE.3) STOP "Store as Excitations only works for Fock-Partition-Lowdiag"
+         IF(NTAY(2).NE.3) call stop_all(this_routine, "Store as Excitations only works for Fock-Partition-Lowdiag")
 !Partition with Trotter with H(0) having just the Fock Operators
 !Fock-Partition-Lowdiag
          IF(tSAMED) THEN
@@ -77,7 +78,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
          ENDIF
          RETURN
       ELSEIF(nI(1).eq.-1.or.nJ(1).eq.-1) THEN
-         STOP "Store as Excitations used, but not allowed in CALCRHO2"
+         call stop_all(this_routine, "Store as Excitations used, but not allowed in CALCRHO2")
       ENDIF
       IF(NTAY(2).EQ.1) THEN
 !Diag-Partition

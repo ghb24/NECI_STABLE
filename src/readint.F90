@@ -276,7 +276,7 @@ contains
 !         endif
         
          !For Molpro, ISPINS should always be 2, and therefore NORB is spatial, and len is spin orbtials
-         IF(LEN.NE.ISPINS*NORB) STOP 'LEN .NE. NORB in GETFCIBASIS'
+         IF(LEN.NE.ISPINS*NORB) call stop_all(t_r, 'LEN .NE. NORB in GETFCIBASIS')
          G1(1:LEN)=NullBasisFn
          ARR=0.0_dp
 
@@ -306,7 +306,7 @@ contains
 
              IF(TBIN) THEN
                 if(tMolpro) call stop_all(t_r,'UHF Bin read not functional through molpro')
-                IF(UHF.or.tROHF) STOP 'UHF Bin read not functional'
+                IF(UHF.or.tROHF) call stop_all(t_r, 'UHF Bin read not functional')
                 MASK=(2**16)-1
                 
                 !IND contains all the indices in an integer(int64) - use mask of 16bit to extract them
@@ -566,6 +566,8 @@ contains
          INTEGER , ALLOCATABLE :: CacheInd(:)
          character(len=*), parameter :: t_r='READFCIINT'
          real(dp) :: diff
+         integer :: start_ind, end_ind
+         integer, parameter :: chunk_size = 1000000
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          LWRITE=.FALSE.
          UHF=.FALSE.
@@ -781,7 +783,7 @@ contains
                         UMAT(UMatInd(I,K,J,L,0,0))=Z
                     ENDIF
                 ELSEIF(TSTARSTORE.and.(.not.TUMAT2D)) THEN
-                    STOP 'Need UMAT2D with TSTARSTORE'
+                    call stop_all(t_r, 'Need UMAT2D with TSTARSTORE')
                 ELSEIF(tCacheFCIDUMPInts.or.tRIIntegrals) THEN
                     CALL Stop_All("ReadFCIInts","TUMAT2D should be set")
                 ELSE
@@ -825,8 +827,17 @@ contains
          ENDIF
          IF((.not.tRIIntegrals).and.(.not.tCacheFCIDUMPInts)) THEN
              CALL GetUMATSize(nBasis,NEl,UMatSize)
-!This is not an , as it is actually passed in as a real(dp), even though it is HElem in IntegralsData
-             CALL MPIBCast(UMAT,UMatSize)    
+
+             ! If we are on a 64bit system, the maximum dimensions for MPI are
+             ! still limited by 32bit limits.
+             ! --> We need to loop around this
+             start_ind = 1
+             end_ind = min(UMatSize, chunk_size)
+             do while(start_ind <= UMatSize)
+                 call MPIBcast(UMat(start_ind:end_ind), end_ind-start_ind+1)
+                 start_ind = end_ind + 1
+                 end_ind = min(UMatSize, end_ind + chunk_size)
+             end do
          ENDIF
          IF(tCacheFCIDUMPInts) THEN
 !Need to broadcast the cache...
@@ -877,6 +888,7 @@ contains
          integer(int64) MASK,IND
          INTEGER I,J,K,L,X,Y, iunit
          LOGICAL LWRITE
+         character(*), parameter :: this_routine = 'READFCIINTBIN'
          !NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
          LWRITE=.FALSE.
          !UHF=.FALSE.
@@ -952,7 +964,7 @@ contains
                     UMAT(UMatInd(I,K,J,L,0,0))=Z
                 ENDIF
             ELSEIF(TSTARSTORE.and.(.not.TUMAT2D)) THEN
-                STOP 'Need UMAT2D with TSTARSTORE'
+                call stop_all(this_routine, 'Need UMAT2D with TSTARSTORE')
             ELSE
                 UMAT(UMatInd(I,K,J,L,0,0))=Z
             ENDIF

@@ -7,9 +7,11 @@
       integer isize,nt_frz(8),ntd_frz(8)
       double precision pints(isize,3)
       double precision znuc(3),zcor(3)
+      character(*), parameter :: this_routine = 'GetDipMomInts'
       include "common/maxatm"
       include "common/tapes"
-      include "common/dumpinfow"
+!      include "common/dumpinfow"
+#include "common/dumpinfow.fh"
       include "common/cstate"
       include "common/maxbfn"
       include "common/corbdim"
@@ -53,7 +55,8 @@
             write(iout,*) "Molpro active orbital space: ",nactt(1:nirr)
             write(iout,*) "Size of molpro symmetry packed arrays: ",npr2
             write(iout,*) "Size of neci symmetry packed arrays: ",isize
-            stop 'Size of symmetry packed arrays wrong: GetDipMomInts'
+            call stop_all(this_routine,
+     &            'Size of symmetry packed arrays wrong: GetDipMomInts')
           endif
           iprop = icorr(npr2)
           do ipr = 4,6
@@ -97,11 +100,13 @@
       include "common/cpar"
 #include "common/cpfil.fh"
       include "common/maxatm"
-      include "common/dumpinfow"
+!      include "common/dumpinfow"
+#include "common/dumpinfow.fh"
       include "common/tapes"
       include "common/clseg"
       logical exists
       double precision origin(3)
+      character(*), parameter :: this_routine = 'GetDipMomInts_cisd'
 
       !First, get the MO coefficients, since we will need to transform the integrals ourselves
       ! get orbital coefficients
@@ -117,7 +122,8 @@
       !call in multiple places in the code, ie. ccsd/ccmp2.F, line 1842
       inquire(file='MOInts',exist=exists)
       if(.not.exists) then
-           stop 'Cannot find MO integrals-Run hacked CISD'
+           call stop_all(this_routine,
+     &             'Cannot find MO integrals-Run hacked CISD')
       endif
       iorbmo=icorr(ntqgcx(1))
       open(69,file='MOInts',status='old')
@@ -196,7 +202,7 @@
               do j = 1,nt_frz(isym) !isize
                   do k = 1,j
                      if(tri_neci(j,k,isym,nt_frz,ntd_frz).gt.isize) then
-                          stop 'indexing error'
+                          call stop_all(this_routine, 'indexing error')
                       endif
                       pints(tri_neci(j,k,isym,nt_frz,ntd_frz),i) =      &
      &                  q(iints+tri_neci(j+nfrz_neci(isym),             &
@@ -242,7 +248,8 @@
       !In case it doesn't like empty files
       subroutine null_wrapper
           implicit none
-          stop 'Should not be here'
+          character(*), parameter :: this_routine = 'null_wrapper'
+          call stop_all(this_routine, 'Should not be here')
       end subroutine null_wrapper
 
 #endif

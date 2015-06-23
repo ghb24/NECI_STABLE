@@ -854,7 +854,7 @@ contains
          enddo
          do i=0,7
              IF(mod((ClassCounts(1,i)+ClassCounts(2,i)),2).ne.0) THEN
-!                 STOP 'Error counting determinants'
+!                 call stop_all(this_routine, 'Error counting determinants')
                  WRITE(6,*) 'WARNING: Different number of symmetries between the alpha and beta orbitals.'
              ENDIF
 !             ClassCounts(i)=ClassCounts(i)/2
@@ -1017,6 +1017,7 @@ contains
          INTEGER :: FDetSym,NBetVirt
          real(dp) :: Space,SpaceGrow
          LOGICAL :: Sym(0:7)
+         character(*), parameter :: this_routine = 'FindSymSizeofTruncSpace'
 
          IF(.not.TwoCycleSymGens) THEN
              WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
@@ -1052,7 +1053,7 @@ contains
 !each symmetry irrep and then divide by two because we deal with alpha and beta separately.         
          do i=0,7
          IF(mod((ClassCountsOcc(i)+ClassCountsVirt(i)),2).ne.0) THEN
-             STOP 'Error counting determinants'
+             call stop_all(this_routine, 'Error counting determinants')
          ENDIF
          ClassCountsOccMax(i)=CEILING(REAL(ClassCountsOcc(i),dp)/2.0_dp)
          ClassCountsVirtMax(i)=CEILING(REAL(ClassCountsVirt(i),dp)/2.0_dp)

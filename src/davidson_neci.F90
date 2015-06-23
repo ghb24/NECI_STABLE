@@ -18,16 +18,16 @@ use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
 
 implicit none
 
-integer :: max_num_davidson_iters = 25
-real(dp) :: residual_norm_target = 0.0000001_dp
+integer, parameter :: max_num_davidson_iters = 25
+real(dp), parameter :: residual_norm_target = 0.0000001_dp
 
 integer :: hamil_type
 ! The value of hamil_type specifies what form the Hamiltonian is stored in.
 ! The following options are currently available:
-integer :: full_hamil_type = 1
-integer :: sparse_hamil_type = 2
-integer :: parallel_sparse_hamil_type = 3
-integer :: direct_ci_type = 4
+integer, parameter :: full_hamil_type = 1
+integer, parameter :: sparse_hamil_type = 2
+integer, parameter :: parallel_sparse_hamil_type = 3
+integer, parameter :: direct_ci_type = 4
 
 ! The dimension of the vector space we are working in, as determined by the number
 ! of rows and columns in the Hamiltonian matrix.
@@ -139,7 +139,7 @@ type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
 
         integer :: i, HFindex, mem_reqd, residual_mem_reqd, ierr
         integer(MPIArg) :: mpi_temp
-        real(dp), allocatable, dimension(:) :: hamil_diag_temp
+        real(dp), allocatable :: hamil_diag_temp(:)
         character (len=*), parameter :: t_r = "init_davidson"
 
         ! Allocate and define the Hamiltonian diagonal, if not done so already.
@@ -164,8 +164,9 @@ type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
         end if
 
         space_size = size(hamil_diag)
+
         if (print_info) then
-            write(6,'(1X,"Number of determinants:",'//int_fmt(space_size,1)//')') space_size; call neci_flush(6)
+            write(6,'(1X,"Number of determinants on this process:",'//int_fmt(space_size,1)//')') space_size; call neci_flush(6)
             write(6,'(1X,"Allocating space for up to",'//int_fmt(max_num_davidson_iters,1)//',1X,"Krylov vectors.")') &
             max_num_davidson_iters; call neci_flush(6)
         end if
@@ -203,6 +204,15 @@ type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
         call LogMemAlloc("davidson_eigenvector", space_size, 8, t_r, DavidsonTag, ierr)
         davidson_eigenvector = 0.0_dp
 
+        ! If there is only one state in the space being diagonalised:
+        if (space_size == 1) then
+            davidson_eigenvector(1) = 1.0_dp
+            if (iProcIndex == root) davidson_eigenvalue = hamil_diag(1)
+            call MPIBCast(davidson_eigenvalue)
+            skip_calc = .true.
+            return
+        end if
+
         if (iProcIndex == root) then
             HFindex = maxloc((-hamil_diag),1)
 
@@ -231,14 +241,6 @@ type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
             projected_hamil = 0.0_dp
             eigenvector_proj = 0.0_dp
             residual = 0.0_dp
-
-            ! If there is only one state in the space being diagonalised:
-            if (space_size == 1) then
-                davidson_eigenvector(1) = 1.0_dp
-                davidson_eigenvalue = hamil_diag(1)
-                max_num_davidson_iters = 0
-                return
-            end if
 
             ! For the initial basis vector, choose the Hartree-Fock state:
             basis_vectors(HFindex, 1) = 1.0_dp

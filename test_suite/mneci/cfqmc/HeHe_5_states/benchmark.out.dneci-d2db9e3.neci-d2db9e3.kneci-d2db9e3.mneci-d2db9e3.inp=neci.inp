@@ -1,0 +1,314 @@
+ STARTING NECI
+ Initing MPI
+ STARTING NECI
+ Initing MPI
+ Number of processors:                      2
+ Processor                      1 /                     2  as head node.
+ Number of processors:                      2
+ Processor                      2 /                     2 
+  moving to local output.
+ outfile=NodeFile2           
+ Sum:                      3
+ Memory Manager initialised with   2048.0 MB
+
+ ================================================================
+ Compiled on Mar  6 2015 at 12:09:46
+ Compiled using configuration:
+     PC-ifort64-MPI.(optimised)
+ VCS BASE repository version:
+     d2db9e3bd6a2a46d6b4626be70deb7fe2b207be8
+ Working directory: 
+     /home/nsb37/projects/NECI_2/test_suite/mneci/HeHe_5_states
+ Running on: dredd
+ Started running on 06/03/2015 at 12:32:04
+ ================================================================
+
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read
+nonuniformrandexcits 4ind-weighted
+system-replicas 10
+electrons 4
+spin-restrict 0
+endsys
+
+calc
+tau 0.005
+totalwalkers 500
+startsinglepart 600
+shiftdamp 0.5
+diagshift 0.0
+stepsshift 10
+memoryfacpart 5.0
+memoryfacspawn 1.0
+allrealcoeff
+realspawncutoff 0.25
+linscalefcimcalgo
+WARNING: LINSCALEFCIMCALGO option has been deprecated, and now does nothing
+semi-stochastic
+doubles-core
+seed 10
+endcalc
+
+kp-fciqmc
+excited-state-kp 5
+doubles-trial
+nreports 25
+num-iters-between-reports 20
+num-repeats-per-init-config 1
+averagemcexcits-hamil 120.0
+end-kp-fciqmc
+
+integral
+endint
+
+logging
+popsfile -1
+endlog
+end
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ Processor      Node
+         0         0
+         1         1
+ I am the node root for node                      0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     4
+  Restricting the spin state of the system, TSPN :  T
+  GLOBAL MS :                      0
+  *** GENERIC SYSTEM ***  
+  NUMBER OF SPIN ORBITALS IN BASIS :    20
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   8
+  Generating abelian symmetry table with  3 generators
+  Number of symmetry classes:   8
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -0.970328723       -0.970328723
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -0.970328723       -0.970328723
+      3      3      0      0      0     -1 ( 0, 0, 5) 5   0       -0.854768836       -0.854768836
+      4      4      0      0      0      1 ( 0, 0, 5) 5   0       -0.854768836       -0.854768836
+      5      5      0      0      0     -1 ( 0, 0, 0) 0   0        1.350805227        1.350805227
+      6      6      0      0      0      1 ( 0, 0, 0) 0   0        1.350805227        1.350805227
+      7      7      0      0      0     -1 ( 0, 0, 5) 5   0        1.506423311        1.506423311
+      8      8      0      0      0      1 ( 0, 0, 5) 5   0        1.506423311        1.506423311
+      9      9      0      0      0     -1 ( 0, 0, 0) 0   0        2.381814370        2.381814370
+     10     10      0      0      0      1 ( 0, 0, 0) 0   0        2.381814370        2.381814370
+     11     11      0      0      0     -1 ( 0, 0, 7) 7   0        2.502347398        2.502347398
+     12     12      0      0      0      1 ( 0, 0, 7) 7   0        2.502347398        2.502347398
+     13     13      0      0      0     -1 ( 0, 0, 6) 6   0        2.502347398        2.502347398
+     14     14      0      0      0      1 ( 0, 0, 6) 6   0        2.502347398        2.502347398
+     15     15      0      0      0     -1 ( 0, 0, 2) 2   0        2.548020639        2.548020639
+     16     16      0      0      0      1 ( 0, 0, 2) 2   0        2.548020639        2.548020639
+     17     17      0      0      0     -1 ( 0, 0, 3) 3   0        2.548020639        2.548020639
+     18     18      0      0      0      1 ( 0, 0, 3) 3   0        2.548020639        2.548020639
+     19     19      0      0      0     -1 ( 0, 0, 5) 5   0        2.840230366        2.840230366
+     20     20      0      0      0      1 ( 0, 0, 5) 5   0        2.840230366        2.840230366
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+Memory required for integral storage:     0.1174926758E-01 Mb/Shared Memory
+Allocated      12320 bytes of shared memory named: umat
+ ECORE=   1.33333333063330     
+ Setting normal GetUMatEl routine
+ N_alpha:  2 ; N_beta:  2 ; LMS:  0 ; NEl:  4
+ Fermi det (D0):(    1,    2,    3,    4)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:  -2.31686178784132     
+ Setting normal GetUMatEl routine
+ Setting replica count in bit representation:                     10
+Setting integer length of determinants as bit-strings to:     12
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+                    21  Symmetry PAIRS
+                     8  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ BETAP=  1.000000000000000E-004
+ RESETTING P 
+ *** WARNING I_P=              10000000
+ BETA, P :   1000.00000000000                   10000000
+ DBETA=  -1.00000000000000     
+ <D0|H|D0>=  -5.69708312235797     
+ <D0|T|D0>=  -10.4106369933570     
+ FDet has     2 alpha electrons, and     2 beta electrons.
+                          1  alpha-alpha occupied electron pairs
+                          1  beta-beta occupied electron pairs
+                          4  alpha-beta occupied electron pairs
+                         28 alpha-alpha (vacant) hole pairs
+                         28 beta-beta (vacant) hole pairs
+                         64 alpha-beta (vacant) hole pairs
+ 
+ Performing Parallel FCIQMC....
+ 
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+Value for seed is:           10
+Reference Energy set to:        -5.6970831224
+Highest energy determinant is (approximately):      6.24071158603921    
+Corresponding to a correlation energy of:      11.9377947083972    
+Brillouin theorem in use for calculation of projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+     60 double excitations, and       8 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.882353
+ pSingles set to:       0.117647
+Initial Diagonal Shift:         0.0000000000
+ Connectivity of HF determinant is:                     68
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         201649
+ Determinant related persistent storage requires:       1.538460 Mb / processor
+Spawning vectors allowing for a total of         2500 particles to be spawned in any one iteration per core.
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:             175
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        1
+Initial reference is: (    1,    2,    3,    4)
+Initial number of particles set to        600 and shift will be held at     0.000 until particle number gets to             500
+ Initial memory (without excitgens + temp arrays) consists of :      18.919281 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+
+============ Semi-stochastic initialisation ============
+Generating the deterministic space...
+Total size of deterministic space:       69
+Size of deterministic space on this processor:       33
+Generating the Hamiltonian in the deterministic space...
+Using the deterministic ground state as initial walker configuration.
+Performing Davidson calculation...
+Davidson calculation complete.
+Deterministic subspace correlation energy:   -0.0646316671
+Semi-stochastic initialisation complete.
+Total time (seconds) taken for semi-stochastic initialisation:    0.036
+
+============ KP-FCIQMC ============
+     About to allocate hash table to the spawning array. Memory required (MB): 0
+Allocating... Done.       
+Note that the hash table uses linked lists, and the memory usage will increase as further nodes are added.
+About to allocate various subspace matrices. Memory required (MB): 0
+Allocating... Done.       
+# 1. Iter.        2. Tot. parts     3. Tot. ref       4. Proj. E (cyc)  5. Shift. (cyc)   6. Dets occ.    7. Dets spawned 8. Iter. time     13. Tot. Proj. E 
+ Starting repeat number 1
+  MAXIMUM WIDTH OF HAMIL :                     43
+  TOTAL NUMBER OF NON-ZERO ELEMENTS :                   1075
+#               0    6000.00000        704.100691        0.00000000        0.00000000                  69               0    0.00000000       -5.69708312    
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population1
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population2
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population3
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population4
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population5
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population6
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population7
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population8
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population9
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population*
+               10    5914.20706        705.736299      -0.578296793E-01    0.00000000                 193             106    0.00000000       -5.75491280    
+               20    5715.93999        707.610332      -0.587543439E-01   0.242057916                 206             114    0.00000000       -5.75583747    
+               30    5566.73465        700.674057      -0.592316489E-01   0.550657306                 225             120    0.00000000       -5.75631477    
+               40    5446.13184        687.912462      -0.592969901E-01   0.816101529                 229             120    0.00000000       -5.75638011    
+               50    5374.21975        675.672227      -0.594112934E-01    1.00249419                 234             112    0.00000000       -5.75649442    
+               60    5348.04660        667.355094      -0.595452036E-01    1.10983863                 240             131    0.00000000       -5.75662833    
+               70    5303.94130        661.980289      -0.598761265E-01    1.15802398                 246             108    0.00000000       -5.75695925    
+               80    5294.20781        660.641574      -0.599286019E-01    1.21195379                 241             117    0.00000000       -5.75701172    
+               90    5278.34862        661.510064      -0.600661092E-01    1.21481006                 247             101    0.00000000       -5.75714923    
+              100    5236.81710        660.442867      -0.600436555E-01    1.29690730                 247             106    0.00000000       -5.75712678    
+              110    5223.51214        660.105175      -0.596633441E-01    1.34643124                 245             122    0.00000000       -5.75674647    
+              120    5207.67922        662.138991      -0.596743726E-01    1.36856626                 247             119    0.00000000       -5.75675749    
+              130    5182.48234        662.984636      -0.598157979E-01    1.41028585                 247             115    0.00000000       -5.75689892    
+              140    5197.59698        661.641971      -0.600050874E-01    1.42659852                 246             120    0.00000000       -5.75708821    
+              150    5218.61821        661.243256      -0.600672567E-01    1.40246602                 248             121    0.00000000       -5.75715038    
+              160    5245.45472        660.682254      -0.602417916E-01    1.35771762                 247             130    0.00000000       -5.75732491    
+              170    5290.12388        661.736340      -0.602326393E-01    1.29141499                 257             130    0.00000000       -5.75731576    
+              180    5272.90506        661.268778      -0.599068839E-01    1.24226085                 255             122    0.00000000       -5.75699001    
+              190    5220.70262        656.877099      -0.598276963E-01    1.30142842                 260             127    0.00000000       -5.75691082    
+              200    5183.25502        652.529068      -0.599433130E-01    1.39726255                 256             120    0.00000000       -5.75702644    
+              210    5188.43097        653.055376      -0.604152662E-01    1.45474321                 242             126    0.00000000       -5.75749839    
+              220    5182.93429        655.109904      -0.606230761E-01    1.43765314                 243             118    0.00000000       -5.75770620    
+              230    5213.57070        655.975338      -0.607371168E-01    1.41699379                 247             116    0.00000000       -5.75782024    
+              240    5210.32952        656.746509      -0.604806816E-01    1.36852470                 245             117    0.00000000       -5.75756380    
+              250    5190.15165        656.511113      -0.604285357E-01    1.43166354                 251             127    0.00000000       -5.75751166    
+              260    5177.69977        655.778525      -0.609523062E-01    1.43985735                 245             127    0.00000000       -5.75803543    
+              270    5170.92322        654.640561      -0.607582923E-01    1.45060656                 252             108    0.00000000       -5.75784141    
+              280    5186.74963        654.072309      -0.608348596E-01    1.46481757                 249             109    0.00000000       -5.75791798    
+              290    5179.10665        653.293761      -0.608398564E-01    1.44463230                 252             112    0.00000000       -5.75792298    
+              300    5156.54889        652.644302      -0.611403115E-01    1.45143531                 242             117    0.00000000       -5.75822343    
+              310    5200.21768        655.179140      -0.607936682E-01    1.45149492                 249             125    0.00000000       -5.75787679    
+              320    5223.59488        659.057363      -0.606687979E-01    1.40037066                 251             127    0.00000000       -5.75775192    
+              330    5208.15140        660.213314      -0.610733000E-01    1.35338211                 246             125    0.00000000       -5.75815642    
+              340    5187.39523        659.158105      -0.607649267E-01    1.38956246                 241             131    0.00000000       -5.75784805    
+              350    5190.72603        659.807383      -0.611469627E-01    1.43665843                 247             123    0.00000000       -5.75823009    
+              360    5180.56841        662.306350      -0.609492755E-01    1.41414951                 248              97    0.00000000       -5.75803240    
+              370    5221.54558        665.391412      -0.609931117E-01    1.41338269                 256             130    0.00000000       -5.75807623    
+              380    5232.16929        664.528593      -0.611427402E-01    1.35397999                 256             124    0.00000000       -5.75822586    
+              390    5211.57895        661.069612      -0.610017745E-01    1.35115535                 259             116    0.00000000       -5.75808490    
+              400    5176.88870        658.858307      -0.606085230E-01    1.40905082                 258             120    0.00000000       -5.75769165    
+              410    5183.27350        660.060487      -0.606156275E-01    1.46267483                 250             123    0.00000000       -5.75769875    
+              420    5192.69203        662.569720      -0.606511484E-01    1.42030584                 248             136    0.00000000       -5.75773427    
+              430    5167.96336        664.358295      -0.606185146E-01    1.43655175                 241             115    0.00000000       -5.75770164    
+              440    5191.74748        667.084319      -0.603925733E-01    1.44332145                 243             122    0.00000000       -5.75747570    
+              450    5208.59914        672.110761      -0.600425324E-01    1.40936257                 247             125    0.00000000       -5.75712565    
+              460    5215.80689        675.983573      -0.601507529E-01    1.39557723                 250             130    0.00000000       -5.75723388    
+              470    5232.17419        677.265564      -0.601941829E-01    1.36957607                 259             121    0.00000000       -5.75727731    
+              480    5209.65907        675.026971      -0.601940785E-01    1.35486708                 257             117    0.00000000       -5.75727720    
+
+ ================================================================
+ KP-FCIQMC testsuite data:
+ Sum of overlap matrix elements:             2.3016284956421E+05
+ Sum of H elements:                         -1.1036400245258E+06
+ ================================================================
+ 
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :    2048.0
+ Maximum memory used is    (MB) :      20.5
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkVecDets       InitFCIMCPar       not deallocated      18.5MB
+ global_determinantinit_global_det_datnot deallocated       1.5MB
+ SpawnVec          InitFCIMCPar       not deallocated     234.4KB
+ SpawnVec2         InitFCIMCPar       not deallocated     234.4KB
+ UMat              IntInit            IntCleanup           12.0KB
+ temp_store        calculate_det_hamilcalculate_det_hamil   6.5KB
+ full_determ_vecs  init_semi_stochastinot deallocated       5.4KB
+ full_determ_vecs_ainit_semi_stochastinot deallocated       5.4KB
+ core_space        store_whole_core_spnot deallocated       3.4KB
+ TMAT2D            SetupTMAT          not deallocated       3.1KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+
+ Procedure                    Calls       CPU    system     total
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ SubspaceHamilTime               25      4.91      0.00      4.91
+ WalkerTime                     480      0.81      0.00      0.81
+ SemiStochInitTime                1      0.04      0.00      0.04
+ NECICUBE                         1      0.02      0.00      0.02
+ AnnMainTime                    480      0.02      0.00      0.02
+ AnnihilTime                    480      0.01      0.00      0.01
+ SortTime                       480      0.01      0.00      0.01
+ Compression interface          480      0.00      0.00      0.00
+ SemiStochMultiplyTime          505      0.00      0.00      0.00
+ Compress Sort interface        480      0.00      0.00      0.00
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                   5.83      0.00      5.83
+
+ Global CPU time          5.93
+ Global system time       0.00
+ Global total time        5.93
+ ================================================================
+ Calculation ended 06/03/2015 at 12:32:10
+ ================================================================

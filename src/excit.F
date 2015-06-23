@@ -176,7 +176,7 @@
 !                 WRITE(6,*) ExcitMat(1,:),ExcitMat(2,:)
 !                 WRITE(6,*) "TSIGN= ",TSIGN
 !                 WRITE(6,*) "TParity,iPos= ",TParity,ipos
-!             STOP 'Parities different'
+!             call stop_all(this_routine, 'Parities different')
 !         ENDIF
 !         do j=1,IC
 !             IF(EX(1,j).ne.ExcitMat(1,j)) THEN
@@ -185,7 +185,7 @@
 !                 WRITE(6,*) "NEW: ",NI(:)
 !                 WRITE(6,*) EX(1,:),EX(2,:)
 !                 WRITE(6,*) ExcitMat(1,:),ExcitMat(2,:)
-!                 STOP 'Error 2 Here'
+!                 call stop_all(this_routine, 'Error 2 Here')
 !             ENDIF
 !         enddo
 !         do j=1,IC
@@ -195,7 +195,7 @@
 !                 WRITE(6,*) "NEW: ",NI(:)
 !                 WRITE(6,*) EX(1,:),EX(2,:)
 !                 WRITE(6,*) ExcitMat(1,:),ExcitMat(2,:)
-!                 STOP 'Error 2 Here'
+!                 call stop_all(this_routine, 'Error 2 Here')
 !             ENDIF
 !         enddo
 
@@ -390,7 +390,8 @@ C.. use a new excitation routine - THIS DOES NOT PRODUCE AN ORDERED LIST
                   IF(ICOUNT.GT.NLIST) THEN
                      WRITE(6,*) "Exctiation list size",NLIST
                      WRITE(6,*) "Requires size",ICOUNT
-                     STOP "EXCITATIONS LIST NOT LARGE ENOUGH"
+                     call stop_all(t_r,
+     &                          "EXCITATIONS LIST NOT LARGE ENOUGH")
                   ENDIF
                   call stop_all(t_r,"Call to symgenexcits removed due   &
      &                  to incorrect arguments passes")

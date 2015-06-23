@@ -15,10 +15,10 @@ module determ_proj
 
     use bit_rep_data, only: flag_deterministic, NIfD
     use bit_reps, only: test_flag
-    use CalcData, only: NMCyc, tSemiStochastic
+    use CalcData, only: NMCyc, tSemiStochastic, tOrthogonaliseReplicas
     use constants
     use DetBitOps, only: DetBitLT
-    use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, determ_sizes, &
+    use FciMCData, only: HFDet, ilutHF, iRefProc, CurrentDets, determ_sizes, &
                          determ_space_size, partial_determ_vecs, full_determ_vecs, &
                          determ_displs, TotWalkers
     use Parallel_neci, only: iProcIndex, MPIAllGatherV, MPISum
@@ -36,6 +36,7 @@ contains
         real(dp), allocatable, dimension(:) :: wavefunction
         real(dp), allocatable, dimension(:) :: ham_times_hf
         real(dp) :: energy_num, energy_denom, tot_e_num, tot_e_denom
+        character(*), parameter :: this_routine = 'perform_determ_proj'
 
         if ((.not. tSemiStochastic) .or. (.not. allocated(sparse_core_ham))) &
             call stop_all("determ_projection_only", "You must use the semi-stochastic &
@@ -53,7 +54,8 @@ contains
         energy_denom = 0.0_dp
 
         ! Find the index of the HF state in the vectors of the HF processor.
-        if (iProcIndex == iHFProc) then
+        ASSERT(.not. tOrthogonaliseReplicas)
+        if (iProcIndex == iRefProc(1)) then
             counter = 0
             do i = 1, TotWalkers
                 if (test_flag(CurrentDets(:,i),flag_deterministic)) then
@@ -65,7 +67,8 @@ contains
         end if
 
         wavefunction = 0.0_dp
-        if (iProcIndex == iHFProc) wavefunction(hf_index) = 1.0_dp
+        ASSERT(.not. tOrthogonaliseReplicas)
+        if (iProcIndex == iRefProc(1)) wavefunction(hf_index) = 1.0_dp
 
         call MPIAllGatherV(wavefunction, full_determ_vecs(1,:), determ_sizes, &
                             determ_displs)
@@ -91,7 +94,8 @@ contains
             wavefunction = wavefunction + partial_determ_vecs(1,:)
 
             energy_num = dot_product(ham_times_hf, wavefunction)
-            if (iProcIndex == iHFProc) energy_denom = wavefunction(hf_index)
+            ASSERT(.not. tOrthogonaliseReplicas)
+            if (iProcIndex == iRefProc(1)) energy_denom = wavefunction(hf_index)
 
             call MPISum(energy_num, tot_e_num)
             call MPISum(energy_denom, tot_e_denom)

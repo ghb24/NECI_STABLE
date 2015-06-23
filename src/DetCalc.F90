@@ -214,7 +214,7 @@ CONTAINS
 !C..
          IF(II.EQ.0) THEN
             WRITE(6,*) "No determinants found.  Cannot continue"
-            STOP "No determinants found.  Cannot continue"
+            call stop_all(this_routine, "No determinants found.  Cannot continue")
          ENDIF
 !C.. NEL now only includes active electrons
          WRITE(6,*) "Number of determinants found to be: ",II
@@ -404,7 +404,7 @@ CONTAINS
           WRITE(6,*) ' KOBS : ' , KOBS 
           WRITE(6,*) ' NMSH : ' , NMSH 
           IF(IOBS.GT.NMSH.OR.IOBS.LE.0.OR.JOBS.GT.NMSH.OR.JOBS.LE.0.OR.KOBS.GT.NMSH.OR.KOBS.LE.0) THEN
-            STOP ' !!! REFERENCE PARTICLE NOT IN BOX !!! '
+            call stop_all(this_routine, ' !!! REFERENCE PARTICLE NOT IN BOX !!! ')
           ENDIF
       ENDIF
 
@@ -479,8 +479,8 @@ CONTAINS
       IF(TENERGY) THEN
          IF(NBLK.NE.0) THEN
 !C..Things needed for Friesner-Pollard diagonalisation
-            IF(TMC) STOP 'TMC and TENERGY set - Stopping'
-            IF(HElement_t_size.NE.1)  STOP 'Cannot do Lanczos on Complex orbitals.'
+            IF(TMC) call stop_all(this_routine, 'TMC and TENERGY set - Stopping')
+            IF(HElement_t_size.NE.1)  call stop_all(this_routine, 'Cannot do Lanczos on Complex orbitals.')
             NKRY1=NKRY+1
             NBLOCK=MIN(NEVAL,NBLK)
             LSCR=MAX(NDET*NEVAL,8*NBLOCK*NKRY)
@@ -548,7 +548,7 @@ CONTAINS
 !C.. We splice in a non-Lanczos diagonalisin routine if NBLOCK=0
             IF(NEVAL.NE.NDET) THEN
                WRITE(6,*) "NEVAL.NE.NDET.",NEVAL,NDET," Cannot exactly diagonalize."
-               STOP
+               call stop_all(this_routine, "Cannot exactly diagonalise")
             ENDIF
             WRITE(6,*) "NBLK=0.  Doing exact diagonalization."
             IF(TCALCHMAT) THEN
@@ -1208,7 +1208,6 @@ END MODULE DetCalc
 !            CALL CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,WLRIS(I),WLSIS(I),TWARN)
 !            DLWDBS(I)=CALCDLWDB(I,NDET,NEVAL,CK,W,BETA)
 !         ENDDO
-!         STOP "DMONTECARLOEXWI is no longer functional."
          call stop_all('DMONTECARLOEXWI','No longer functional')
 !         EN=DMONTECARLOEXWI(NDET,WLRIS,WLSIS,DLWDBS,I_P,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS,ILOGGING)
 !         WRITE(6,*) "EXACT MC RESULT=",EN

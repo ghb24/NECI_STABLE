@@ -1,0 +1,43 @@
+title
+
+system read
+nonuniformrandexcits 4ind-weighted
+system-replicas 10
+electrons 4
+spin-restrict 0
+endsys
+
+calc
+tau 0.005
+totalwalkers 500
+startsinglepart 600
+shiftdamp 0.5
+diagshift 0.0
+stepsshift 10
+memoryfacpart 5.0
+memoryfacspawn 1.0
+allrealcoeff
+realspawncutoff 0.25
+linscalefcimcalgo
+semi-stochastic
+doubles-core
+seed 11
+endcalc
+
+kp-fciqmc
+excited-state-kp 5
+doubles-trial
+nreports 25
+num-iters-between-reports 20
+num-repeats-per-init-config 1
+exact-hamil-spawning
+exact-hamil-spawning-frac 0.0
+end-kp-fciqmc
+
+integral
+endint
+
+logging
+popsfile -1
+endlog
+end

@@ -12,6 +12,7 @@
       real(dp) :: W(NEVAL)
       integer :: NMAXCK,NMAYCK,NMAZCK
       real(dp) :: BOX,BOA,COA,C,BOXCK,BOACK,COACK
+      character(*), parameter :: this_routine = 'read_psi'
 C..
       OPEN(10,FILE='PSI_LONG',STATUS='OLD',ERR=10)
       READ(10,*) NMAXCK,NMAYCK,NMAZCK,NELCK,NEVALCK,NDETCK
@@ -19,12 +20,15 @@ C..
       IF(    NMAXCK.NE.NBASISMAX(1,2)
      &   .OR.NMAYCK.NE.NBASISMAX(2,2)
      &   .OR.NMAZCK.NE.NBASISMAX(3,2)) 
-     &               STOP ' !!! DIFFERENT SIZE BASIS !!! '
-      IF(NELCK.NE.NEL) STOP ' !!! DIFFERENT NUMBER OF ELECTRONS !!! '
-      IF(NEVALCK.NE.NEVAL) STOP ' !!! NEVAL DIFFERENT !!! '
-      IF(NDETCK.NE.NDET) STOP ' !!! DIFFERENT NUMBER OF DETS !!! '
+     &     call stop_all(this_routine, ' !!! DIFFERENT SIZE BASIS !!! ')
+      IF(NELCK.NE.NEL) call stop_all(this_routine, 
+     &                        ' !!! DIFFERENT NUMBER OF ELECTRONS !!! ')
+      IF(NEVALCK.NE.NEVAL) call stop_all(this_routine,
+     &                                      ' !!! NEVAL DIFFERENT !!! ')
+      IF(NDETCK.NE.NDET) call stop_all(this_routine, 
+     &                             ' !!! DIFFERENT NUMBER OF DETS !!! ')
       IF(BOXCK.NE.BOX.OR.BOACK.NE.BOA.OR.COACK.NE.COA) 
-     &               STOP ' !!! DIFFERENT SIZE CUBES !!! ' 
+     &    call stop_all(this_routine, ' !!! DIFFERENT SIZE CUBES !!! ' )
 C..
       DO I=1,NEVAL
         DO J=1,NDET
@@ -47,12 +51,15 @@ C.. PSI_LONG doesn't exist.  what about PSI_COMP
       IF(    NMAXCK.NE.NBASISMAX(1,2)
      &   .OR.NMAYCK.NE.NBASISMAX(2,2)
      &   .OR.NMAZCK.NE.NBASISMAX(3,2)) 
-     &               STOP ' !!! DIFFERENT SIZE BASIS !!! '
-      IF(NELCK.NE.NEL) STOP ' !!! DIFFERENT NUMBER OF ELECTRONS !!! '
-      IF(NEVALCK.NE.NEVAL) STOP ' !!! NEVAL DIFFERENT !!! '
-      IF(NDETCK.NE.NDET) STOP ' !!! DIFFERENT NUMBER OF DETS !!! '
+     &     call stop_all(this_routine, ' !!! DIFFERENT SIZE BASIS !!! ')
+      IF(NELCK.NE.NEL) call stop_all(this_routine,
+     &                        ' !!! DIFFERENT NUMBER OF ELECTRONS !!! ')
+      IF(NEVALCK.NE.NEVAL) call stop_all(this_routine,
+     &                                      ' !!! NEVAL DIFFERENT !!! ')
+      IF(NDETCK.NE.NDET) call stop_all(this_routine,
+     &                             ' !!! DIFFERENT NUMBER OF DETS !!! ')
       IF(BOXCK.NE.BOX.OR.BOACK.NE.BOA.OR.COACK.NE.COA) 
-     &               STOP ' !!! DIFFERENT SIZE CUBES !!! ' 
+     &    call stop_all(this_routine, ' !!! DIFFERENT SIZE CUBES !!! ' )
 C..
       I=1
       DO WHILE(I.NE.0)

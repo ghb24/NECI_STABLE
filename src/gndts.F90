@@ -147,7 +147,7 @@ contains
 
         use bit_rep_data, only: NIfD, NIfTot
         use DetBitOps, only: EncodeBitDet
-        use hash, only: DetermineDetNode
+        use load_balance_calcnodes, only: DetermineDetNode
         use Parallel_neci, only: iProcIndex
         use SystemData, only: nel, nbasis
 

@@ -148,6 +148,7 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          real(dp) COULCOUPLE,TOTSUM,SUM2
          INTEGER ND1,ND2,IQ,I,J,K
          real(dp) BTRANS(NSBASIS,NSBASIS,NSPINS)
+         character(*), parameter :: this_routine = 'SCR1T'
 C.. NB in HF we need to include TMAT element
 
 C..In this routine the determinants differ by only 1 spin orbital
@@ -198,7 +199,8 @@ C          ID(IQ) = GTID(NDET1(I))
            ENDIF 
          ENDDO 
 500      CONTINUE
-         IF(ND1.EQ.ND2) STOP ' !!! PROBLEM IN SCR1T !!! '
+         IF(ND1.EQ.ND2)
+     &        call stop_all(this_routine, ' !!! PROBLEM IN SCR1T !!! ')
 C         ID1 = GTID(ND1)
 C         ID2 = GTID(ND2)
 C..

@@ -913,7 +913,11 @@ MODULE HPHFRandExcitMod
         ASSERT(.not. (tCSF)) ! .or. tSpinProjDets
         
         if (tLatticeGens) then
-            call CalcPGenLattice (ex, pGen)
+            if (ic == 2) then
+                call CalcPGenLattice (ex, pGen)
+            else
+                pGen = 0
+            end if
         else if (tGen_4ind_weighted) then
             pgen = calc_pgen_4ind_weighted (nI, ilutI, ex, ic, &
                                             ClassCountUnocc2)

@@ -51,7 +51,8 @@ C            WRITE(6,*) "-----"
 !     &         0.0_dp, DLWDB)
          ELSEIF(I_HMAX.EQ.0) THEN
             WRITE(6,*) "I_HMAX=0"
-            STOP 'WARNING: Running old disfunctional CALCPATHS I_HMAX=0'
+            call stop_all(t_r,
+     &          'WARNING: Running old disfunctional CALCPATHS I_HMAX=0')
             CALCPATHS=0.0_dp
 C            IF(I_V.EQ.2) CALCPATHS=CALCPATHS_2(RHOII,RHOIJ,I_P)
 C            IF(I_V.EQ.3) CALCPATHS=CALCPATHS_3(RHOII,RHOIJ,I_P)
@@ -59,7 +60,8 @@ C            IF(I_V.EQ.4) CALCPATHS=CALCPATHS_4(RHOII,RHOIJ,I_P)
 C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
          ELSE
             WRITE(6,*) "I_HMAX>0"
-            STOP 'WARNING: Running old disfunctional CALCPATHS I_HMAX>0'
+            call stop_all(t_r,
+     &         'WARNING: Running old disfunctional CALCPATHS I_HMAX>0')
       
 C            CALCPATHS=CALCPATHS_R(IPATH,RHOII,RHOIJ,I_V,I_HMAX,I_P,
 C     &               NWHTAY,I_HIND,NEL,IPATH2,IP2,1.0_dp,RHOII2,I_VMAX,
@@ -143,7 +145,8 @@ C            WRITE(6,*) "-----"
      &         DBETA,DLWDB,HIJS,calcp_logweight)
          ELSEIF(I_HMAX.EQ.0) THEN
             WRITE(6,*) "I_HMAX=0"
-            STOP 'WARNING: Running old disfunctional CALCPATHS I_HMAX=0'
+            call stop_all(t_r,
+     &     'WARNING: Running old disfunctional CALCPATHS I_HMAX=0')
             CALCPATHS=0.0_dp
 C            IF(I_V.EQ.2) CALCPATHS=CALCPATHS_2(RHOII,RHOIJ,I_P)
 C            IF(I_V.EQ.3) CALCPATHS=CALCPATHS_3(RHOII,RHOIJ,I_P)
@@ -151,7 +154,8 @@ C            IF(I_V.EQ.4) CALCPATHS=CALCPATHS_4(RHOII,RHOIJ,I_P)
 C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
          ELSE
             WRITE(6,*) "I_HMAX>0"
-            STOP 'WARNING: Running old disfunctional CALCPATHS I_HMAX>0'
+            call stop_all(t_r,
+     &         'WARNING: Running old disfunctional CALCPATHS I_HMAX>0')
 !            CALCPATHS=CALCPATHS_R(IPATH,RHOII,RHOIJ,I_V,I_HMAX,I_P,
 !     &               NWHTAY,I_HIND,NEL,IPATH2,IP2,1.0_dp,RHOII2,I_VMAX,
 !     &               ILOGGING)

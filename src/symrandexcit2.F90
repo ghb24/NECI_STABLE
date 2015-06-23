@@ -1255,6 +1255,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
         real(dp) :: r,pGen
         LOGICAL :: tParity
+        character(*), parameter :: t_r = 'CreateSingleExcit'
 
 
         CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
@@ -1304,7 +1305,8 @@ MODULE GenRandSymExcitNUMod
                 WRITE(6,*) "***"
 !                WRITE(6,*) "ClassCountUnocc2(1,:)= ",ClassCountUnocc2(1,:)
 !                WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
-                CALL Stop_All("CreateSingleExcit","Cannot find single excitation from electrons after 250 attempts...")
+                call stop_all(t_r, "Cannot find single excitation from &
+                                   &electrons after 250 attempts...")
             ENDIF
             Attempts=Attempts+1
 
@@ -1364,7 +1366,8 @@ MODULE GenRandSymExcitNUMod
 
 !We now have our final orbitals. i=nI(Eleci). a=Orb.
             IF(z.ne.ChosenUnocc) THEN
-                CALL Stop_All("CreateSingleExcit","Could not find allowed unoccupied orbital to excite to.")
+                call stop_all(t_r, "Could not find allowed unoccupied orbital &
+                                   &to excite to.")
             ENDIF
 
         ELSE
@@ -1412,7 +1415,8 @@ MODULE GenRandSymExcitNUMod
 !                    WRITE(6,*) "***"
 !                    WRITE(6,*) "ClassCountUnocc2(1,:)= ",ClassCountUnocc2(1,:)
 !                    WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
-                    CALL Stop_All("CreateSingleExcit","Cannot find single excitation unoccupied orbital after 250 attempts...")
+                    call stop_all(t_r, "Cannot find single excitation &
+                                   &unoccupied orbital after 250 attempts...")
                 ENDIF
                 Attempts=Attempts+1
 
@@ -1424,9 +1428,11 @@ MODULE GenRandSymExcitNUMod
         call make_single (nI, nJ, eleci, orb, ExcitMat, tParity)
 
 #ifdef __DEBUG
-!These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
-!excitations, I recommend uncommenting these tests to check the results.
-        CALL IsSymAllowedExcit(nI,nJ,1,ExcitMat)
+        ! These are useful (but O[N]) operations to test the determinant
+        ! generated. If there are any problems with then excitations, I
+        ! recommend uncommenting these tests to check the results.
+        if (.not. SymAllowedExcit(nI, nJ, 1, ExcitMat)) &
+            call stop_all(t_r, 'Generated excitation invalid')
 #endif
 
 !Now we need to find the probability of creating this excitation.
@@ -1633,24 +1639,6 @@ MODULE GenRandSymExcitNUMod
 
     end subroutine
 
-
-
-!This function returns the label (0 -> nSymlabels-1) of the symmetry product of two symmetry labels.
-    PURE INTEGER FUNCTION RandExcitSymLabelProd(SymLabel1,SymLabel2)
-        IMPLICIT NONE
-        INTEGER , INTENT(IN) :: SymLabel1,SymLabel2
-
-        IF(tNoSymGenRandExcits) THEN
-            RandExcitSymLabelProd=0
-        ELSEIF(tKPntSym) THEN
-            !Look up the symmetry in the product table for labels (returning labels, not syms)
-            RandExcitSymLabelProd=SymTableLabels(SymLabel1,SymLabel2)
-        ELSE
-            RandExcitSymLabelProd=IEOR(SymLabel1,SymLabel2)
-!            WRITE(6,*) "***",SymLabel1,SymLabel2,RandExcitSymLabelProd
-        ENDIF
-
-    END FUNCTION RandExcitSymLabelProd
 
 
     !***********************  BIASED EXCITATION GENERATION ROUTINES *************************!
@@ -1889,7 +1877,8 @@ MODULE GenRandSymExcitNUMod
 
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
-!            CALL IsSymAllowedExcit(nI,nJ,1,ExcitMat,SymAllowed)
+!        if (.not. SymAllowedExcit(nI, nJ, 1, ExcitMat)) &
+!            call stop_all(t_r, 'Generated excitation invalid')
 
 !Once we have the definitive determinant, we also want to find out what sign the particles we want to create are.
 !iCreate is initially positive, so its sign can change depending on the sign of the connection and of the parent particle(s)
@@ -2753,6 +2742,7 @@ MODULE GenRandSymExcitNUMod
         logical :: brillouin_tmp(2)
         type(timer), save :: test_timer
         type(excit_gen_store_type) :: store
+        character(*), parameter :: t_r = 'TestGenRandSymExcitNU'
         HElement_t :: HElGen
 
         write(6,*) 'In HERE'
@@ -2967,7 +2957,8 @@ MODULE GenRandSymExcitNUMod
             !        ENDIF
 
             !Check excitation
-            CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
+            if (.not. SymAllowedExcit(nI, nJ, 1, ExcitMat)) &
+                call stop_all(t_r, 'Generated excitation invalid')
 
         enddo
         iter = iter_tmp
@@ -3568,87 +3559,4 @@ LOGICAL FUNCTION IsMomAllowedDet(nJ)
 
 END FUNCTION IsMomAllowedDet
 
-
-SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
-    use GenRandSymExcitNUMod , only: RandExcitSymLabelProd
-    use SymExcitDataMod , only: SymInvLabel,SpinOrbSymLabel 
-    Use SystemData , only : G1,NEl,tFixLz,tKPntSym,nBasis
-    Use SystemData , only : Symmetry,tNoSymGenRandExcits,ElecPairs
-    use Determinants, only: write_det
-    use Bit_Reps, only: NIfTot
-    use sym_mod
-    use constants
-    use DetBitOps, only: EncodeBitDet
-    IMPLICIT NONE
-    Type(Symmetry) :: SymProduct,SymProduct2
-    LOGICAL :: ISVALIDDET
-    INTEGER :: IC,ExcitMat(2,2),nI(NEl),nJ(NEl),ExcitLevel,iGetExcitLevel
-    INTEGER :: KOcc,KUnocc,SymprodnJ,SymprodnI,i
-    integer(n_int) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
-
-     Excitlevel=iGetExcitLevel(nI,nJ,NEl)
-     IF(Excitlevel.ne.IC) THEN
-         WRITE(6,*) "Have not created a correct excitation", ic
-        call write_det (6, nI, .true.)
-        call write_det (6, nJ, .true.)
-        call stop_all("IsSymAllowedExcit", "Have not created a correct excitation")
-     ENDIF
-     IF(.NOT.ISVALIDDET(nJ,NEL)) THEN
-         WRITE(6,*) "INVALID DET"
-         call write_det (6, nI, .true.)
-         call write_det (6, nJ, .true.)
-         STOP "INVALID DET"
-     ENDIF
-
-     SymprodnI=0
-     SymprodnJ=0
-     do i=1,NEl
-        SymprodnI=RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nI(i))),SymProdnI)
-        SymprodnJ=RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nJ(i))),SymProdnJ)
-     enddo
-     if(SymprodnJ.ne.SymprodnI) then
-         write(6,*) SymProdnI,SymProdnJ,IC,nBasis,elecpairs
-         call encodeBitDet(nI,iLutnI)
-         call encodeBitDet(nJ,iLutnJ)
-         call writebitex(6,iLutnI,iLutnJ,.true.)
-         write(6,*) nI
-         write(6,*) nJ
-         call stop_all("IsSymAllowedExcit","Excitation not of same symmetry as root.")
-     endif
-     
-     IF(.not.tNoSymGenRandExcits.and..not.tKPntSym) THEN
-         IF(IC.eq.2) THEN
-            SymProduct=SYMPROD(G1(ExcitMat(1,1))%Sym,G1(ExcitMat(1,2))%Sym)
-            SymProduct2=SYMPROD(G1(ExcitMat(2,1))%Sym,G1(ExcitMat(2,2))%Sym)
-            IF(.not.SYMEQ(SymProduct,SymProduct2)) THEN
-                WRITE(6,*) "Orbs: ",ExcitMat(1,1), ExcitMat(1,2), " -> ",ExcitMat(2,1),ExcitMat(2,2)
-                WRITE(6,*) "Syms: ",G1(ExcitMat(1,1))%Sym,G1(ExcitMat(1,2))%Sym, " -> ",G1(ExcitMat(2,1))%Sym,G1(ExcitMat(2,2))%Sym
-                CALL Stop_All("IsSymAllowedExcit","Excitation not a valid symmetry allowed double excitation")
-            ENDIF
-        ELSE
-            IF(.not.SYMEQ(G1(ExcitMat(1,1))%Sym,G1(ExcitMat(2,1))%Sym)) THEN
-                CALL Stop_All("IsSymAllowedExcit","Excitation not a valid symmetry allowed single excitation")
-            ENDIF
-            IF(G1(ExcitMat(1,1))%Ms.ne.G1(ExcitMat(2,1))%Ms) THEN
-                CALL Stop_All("IsSymAllowedExcit","Excitation not a valid spin-symmetry allowed single excitation")
-            ENDIF
-        ENDIF
-    ENDIF
-    IF(tFixLz) THEN
-        IF(IC.eq.1) THEN
-            IF(G1(ExcitMat(1,1))%Ml.ne.G1(ExcitMat(2,1))%Ml) THEN
-                CALL Stop_All("IsSymAllowedExcit","Excitation not a valid momentum allowed single excitation")
-            ENDIF
-        ELSE
-            kOcc=G1(ExcitMat(1,1))%Ml+G1(ExcitMat(1,2))%Ml
-            KUnocc=G1(ExcitMat(2,1))%Ml+G1(ExcitMat(2,2))%Ml
-            IF(Kocc.ne.KUnocc) THEN
-                write(6,*) G1(ExcitMat(1,1))%Ml,G1(ExcitMat(1,2))%Ml,"==>",G1(ExcitMat(2,1))%Ml,G1(ExcitMat(2,2))%Ml
-                CALL Stop_All("IsSymAllowedExcit","Excitation not a valid momentum allowed double excitation")
-            ENDIF
-        ENDIF
-    ENDIF
-        
-
-END SUBROUTINE IsSymAllowedExcit
 

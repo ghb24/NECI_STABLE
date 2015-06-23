@@ -113,7 +113,7 @@
             WRITE(6,*) "FMCPR3Star Only doubles."
             exFlag=2
          CASE(24)
-            STOP "Invalid combination of flags in NWHTAY"
+            call stop_all(this_routine, "Invalid combination of flags in NWHTAY")
          END SELECT
 !.. Count the excitations. - First call of GenSymExcitIt2 calculates memory needed for internal use in excitation generators
 
@@ -451,7 +451,7 @@
             
             proc_timer%timer_name='CalcExcitStar'
             call set_timer(proc_timer)
-            IF(HElement_t_size.ne.1) STOP 'Only real orbitals allowed'
+            IF(HElement_t_size.ne.1) call stop_all(this_routine, 'Only real orbitals allowed')
             
 !Allow only double excitations
             exFlag2=2
@@ -512,8 +512,8 @@
             do i=1,iExcit
                 temp=temp+NoExcitsInStar(i)
             enddo
-            IF(temp.ne.QuadExcits) STOP 'Error when counting excitations here'
-            IF(j.ne.iExcit) STOP 'Error when counting excitations'
+            IF(temp.ne.QuadExcits) call stop_all(this_routine, 'Error when counting excitations here')
+            IF(j.ne.iExcit) call stop_all(this_routine, 'Error when counting excitations')
             
 !Total number of excitations is equal to the total excitations for the excited stars, + the original double excitations
             TotExcits=iExcit+QuadExcits
@@ -545,7 +545,7 @@
             NextVertex=1
             do i=1,iExcit
                 
-                IF(ExcitStore(1,i).eq.0) STOP 'Problem Here!'
+                IF(ExcitStore(1,i).eq.0) call stop_all(this_routine, 'Problem Here!')
                 CALL GetFullPath(nI,nEl,2,ExcitStore(:,i),DoublePath(:))
 
 !Calculate rhi_ij and H_ij from HF to excited star root
@@ -593,7 +593,7 @@
                     IF((ICMPDETS(nJ,nI,nEl)).eq.0) THEN
                         IF(HFFound) THEN
                             WRITE(6,*) "Error-HF generated twice for Double excitation ",i
-                            STOP
+                            call stop_all(this_routine, 'Error-HF generated twice')
                         ENDIF
                         HFFound=.true.
                         CYCLE
@@ -609,12 +609,12 @@
                         CALL CalcRho2(nJ,nJ,Beta,i_P,nEl,G1,nBasis,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
                         ExcitStarInfo(j,0)=(rh/rhii)
 
-                        IF(j.gt.NoExcitsInStar(i)) STOP 'Incorrect Counting here'
+                        IF(j.gt.NoExcitsInStar(i)) call stop_all(this_routine, 'Incorrect Counting here')
                     ENDIF
 
                 enddo lp
-                IF(j.ne.NoExcitsInStar(i)) STOP 'Incorrect Counting here 2'
-                IF(.not.HFFound.and..not.TJustQuads) STOP 'HF excitation not generated in excited star'
+                IF(j.ne.NoExcitsInStar(i)) call stop_all(this_routine, 'Incorrect Counting here 2')
+                IF(.not.HFFound.and..not.TJustQuads) call stop_all(this_routine, 'HF excitation not generated in excited star')
 
 !Now need to prepare to diagonalise excited star
                 ALLOCATE(ExcitStarMat(j+1,j+1),stat=iErr)
@@ -645,7 +645,7 @@
                     WORK,3*(NoExcitsInStar(i)+1),INFO)
                 IF(INFO.ne.0) THEN
                     WRITE(6,*) "DSYEV error in CalcExcitStar: ",INFO
-                    STOP
+                    call stop_all(this_routine, 'DSYEV error')
                 ENDIF
 
                 do j=1,(NoExcitsInStar(i)+1)
@@ -670,7 +670,7 @@
             IF(NextVertex.ne.(TotExcits+1)) THEN
                 WRITE(6,*) "Next Vertex is: ",NextVertex
                 WRITE(6,*) "TotExcits is: ", TotExcits
-                STOP 'Incorrect Counting Here 3'
+                call stop_all(this_routine, 'Incorrect Counting Here 3')
             ENDIF
 
             iExcit=TotExcits
@@ -727,7 +727,7 @@
                 ExcitInfo(i-1,2)=tmp(3)
             enddo
             
-            IF(.not.abs(ExcitInfo(iExcit,0)).gt.0.1_dp) STOP 'Reordering incorrect'
+            IF(.not.abs(ExcitInfo(iExcit,0)).gt.0.1_dp) call stop_all(this_routine, 'Reordering incorrect')
             WRITE(6,*) "Minimum rho_jj is :", ExcitInfo(iExcit,0)
 
 ! Ensures that all determinants are non-degenerate - useful for testing
@@ -749,7 +749,7 @@
             enddo
             WRITE(6,*) "Number of degenerate sets of excited determinants = ", NoDegens
             IF(NoDegens.gt.iExcit) THEN
-                STOP 'Cannot have more degenerate sets that excitations!'
+                call stop_all(this_routine, 'Cannot have more degenerate sets that excitations!')
             ENDIF
 
             ALLOCATE(DegenPos(NoDegens),stat=iErr)
@@ -776,7 +776,7 @@
 !                WRITE(16,*) ExcitInfo(i-1,0),ExcitInfo(i-1,1)
 !            enddo
             IF(DegenPos(NoDegens).ne.iExcit) THEN
-                STOP 'Final element of DegenPos should equal iExcit to account for all degeneracies'
+                call stop_all(this_routine, 'Final element of DegenPos should equal iExcit to account for all degeneracies')
             ENDIF
             
             ALLOCATE(Vals(iExcit+1))
@@ -828,7 +828,7 @@
                 
                 IF(r.eq.1.0_dp) THEN
                     WRITE(6,"(A,F15.11)") "For root equal to 1, highest eigenvalue is ", Vals(iExcit+1)
-                    IF(j.ne.1) STOP 'Problem with counting'
+                    IF(j.ne.1) call stop_all(this_routine, 'Problem with counting')
                 ENDIF
 
 !                Write(6,*) Vals(1)
@@ -950,7 +950,7 @@
 
             proc_timer%timer_name='GetStarStars'
             call set_timer(proc_timer)
-            IF(HElement_t_size.ne.1) STOP 'Only real orbitals allowed in GetStarStars'
+            IF(HElement_t_size.ne.1) call stop_all(this_routine, 'Only real orbitals allowed in GetStarStars')
 
             WRITE(6,*) "Explicitly diagonalising approximate excited stars from HF star template"
             IF(TExcitStarsRootChange) THEN
@@ -1017,7 +1017,7 @@
                 enddo
 
                 IF(TRmRootExcitStarsRootChange.and..not.FoundRoot) THEN
-                    STOP 'Could not find the root in excited star to remove'
+                    call stop_all(this_routine, 'Could not find the root in excited star to remove')
                 ENDIF
 
 !Diagonalise
@@ -1078,7 +1078,7 @@
 
             proc_timer%timer_name='GetLinRootChangeStars'
             call set_timer(proc_timer)
-            IF(HElement_t_size.ne.1) STOP 'Only real orbitals allowed'
+            IF(HElement_t_size.ne.1) call stop_all(this_routine, 'Only real orbitals allowed')
             WRITE(6,*) "Stars where only root changes to be included, using a linear approximation of eigenvalues"
             
 !First it is necessary to order the rho_jj elements, so that the range that the linear approximation 
@@ -1102,7 +1102,7 @@
             enddo
 
             WRITE(6,*) "Total number of points from which to form linear approximation = ", LinePoints
-            IF(LinePoints.lt.2) STOP 'LinePoints cannot be less than two'
+            IF(LinePoints.lt.2) call stop_all(this_routine, 'LinePoints cannot be less than two')
 
 !Take 'Linepoints' points along the change in rho_jj to calculate the gradient of the line for 
 !each eigenvalue, and the first element of the eigenvectors.
@@ -1110,7 +1110,7 @@
 !approximation can be calculated.
 !Assign largest diagonal multiplicative constant to simply be the original star graph, i.e. rho_ii/rho_ii is the root
             IF((ABS(REAL(ExcitInfo(0,0),dp)-1.0_dp)).gt.1.0e-7_dp) THEN
-                STOP 'First element of original star matrix should equal 1.0_dp'
+                call stop_all(this_routine, 'First element of original star matrix should equal 1.0_dp')
             ENDIF
             LineRhoValues(1)=1.0_dp
 
@@ -1162,7 +1162,7 @@
 
 !LineRhoValues(LinePoints) should be the same as ExcitInfo(iExcit,0)
 !            IF(ABS(LineRhoValues(LinePoints)-(ExcitInfo(iExcit,0))).gt.1.0e-9_dp) THEN
-!                STOP 'LineRhoValues(LinePoints) should be the same as the lowest rho_jj value'
+!                call stop_all(this_routine, 'LineRhoValues(LinePoints) should be the same as the lowest rho_jj value')
 !            ENDIF
             IF(.NOT.BTEST(NWHTAY,0)) THEN
                 ALLOCATE(AllVals(iExcit+1),stat=ierr)
@@ -1192,7 +1192,8 @@
 !Find the values for eigenvalues and eigenvectors of this matrix, and put them into the relevant AlllVals and AllVecs
                     CALL GetValsnVecs(iExcit+1,DiagRhos,ExcitInfo(1:iExcit,1),AllVals,AllVecs)
 
-                    IF((RhoValue.eq.1.0_dp).and.(i.ne.1)) STOP 'Problem with assigning rho values for excited stars'
+                    IF((RhoValue.eq.1.0_dp).and.(i.ne.1)) &
+                        call stop_all(this_routine, 'Problem with assigning rho values for excited stars')
 
 !Save largest eigenvalue
                     IF(RhoValue.eq.1.0_dp) THEN
@@ -1218,7 +1219,7 @@
                     ENDIF
 
                 ELSE
-                    STOP 'Polynomial calculation of LinRootChangeStars not available yet'
+                    call stop_all(this_routine, 'Polynomial calculation of LinRootChangeStars not available yet')
 
                 ENDIF
 
@@ -1272,10 +1273,10 @@
 
             IF(Rsq.lt.0.95_dp) THEN
                 WRITE(6,*) "Problem with linear approximation of eigenvalues, R^2 value: ", Rsq
-                STOP
+                call stop_all(this_routine, "Linear approximation_problem")
             ELSEIF(Rsq.gt.1.0_dp) THEN
                 WRITE(6,*) "Fatal problem - R^2 value greater than 1!"
-                STOP
+                call stop_all(this_routine, "Fatal problem")
             ENDIF
 
 !Linearly change diagonal elements - rho_jj' = GradVal*(rho_jj - 1) + eigenmax
@@ -1371,7 +1372,7 @@
 
             proc_timer%timer_name='GetLinStarStars'
             call set_timer(proc_timer)
-            IF(HElement_t_size.ne.1) STOP 'Only real orbitals allowed'
+            IF(HElement_t_size.ne.1) call stop_all(this_routine, 'Only real orbitals allowed')
             WRITE(6,*) "Stars of double excitations to be included in calculation using a linear approximation of eigenvalues"
             WRITE(6,*) iExcit*(iExcit+1)," possible extra excitations"
             
@@ -1404,7 +1405,7 @@
 
 !Assign largest diagonal multiplicative constant to simply be the original star graph, i.e. rho_ii/rho_ii is the root
             IF((ABS(REAL(ExcitInfo(0,0),dp)-1.0_dp)).gt.1.0e-7_dp) THEN
-                STOP 'First element of original star matrix should equal 1.0_dp'
+                call stop_all(this_routine, 'First element of original star matrix should equal 1.0_dp')
             ENDIF
             LineRhoValues(1)=1.0_dp
 
@@ -1419,7 +1420,7 @@
 
 !LineRhoValues(LinePoints) should be the same as ExcitInfo(iExcit,0)
             IF(ABS(LineRhoValues(LinePoints)-REAL(ExcitInfo(iExcit,0),dp)).gt.1.0e-7_dp) THEN
-                STOP 'LineRhoValues(LinePoints) should be the same as the lowest rho_jj value'
+                call stop_all(this_routine, 'LineRhoValues(LinePoints) should be the same as the lowest rho_jj value')
             ENDIF
 
 !The values for the calculated eigenvectors (first elements) and eigenvalues for the 'LinePoints' 
@@ -1442,7 +1443,7 @@
 !Multiply the diagonal elements by the value of rho_jj we want                
                 do j=1,iExcit+1
                     IF(REAL(ExcitInfo(j-1,0),dp).lt.0.8_dp) THEN
-                        STOP 'rho_jj value too small, or incorrect for linear approximation'
+                        call stop_all(this_routine, 'rho_jj value too small, or incorrect for linear approximation')
                     ENDIF
                     NewDiagRhos(j)=(ExcitInfo(j-1,0))*RhoValue
                 enddo
@@ -1593,7 +1594,7 @@
                 ELSEIF((RsqVals(i).gt.1.0_dp).or.(RsqVecs(i).gt.1.0_dp)) THEN
                     WRITE(6,*) "Fatal problem in linear approximation, R^2 > 1 : ", RsqVals(i), &
                         " for eigenvalue/vector : ", i
-                    STOP
+                    call stop_all(this_routine, "Fatal problem")
                 ENDIF
 
             enddo
@@ -1661,7 +1662,7 @@
 
             IF((CSE.gt.iExcit).and.(TQuadValMax.or.TQuadVecMax)) THEN
                 WRITE(6,*) "Problem when considering only one quadruple eigenvector per double"
-                STOP
+                call stop_all(this_routine, "Eigenvector problem")
             ENDIF
 
             WRITE(6,"(A,I9,A)") "There are ", CSE," extra excitations, from the inclusion of stars of all double excitations"
@@ -1736,7 +1737,7 @@
 
                 enddo
 
-                IF(TVal.and.(ValMax.lt.1.0e-9_dp)) STOP 'Error in collecting maximum values'
+                IF(TVal.and.(ValMax.lt.1.0e-9_dp)) call stop_all(this_routine, 'Error in collecting maximum values')
                 
 !Put largest values into ExcitInfo2
                 IF((TQuadValMax.or.TQuadVecMax).and.(ValMax.gt.1.0e-9_dp).and.TVal) THEN
@@ -1748,9 +1749,9 @@
                 
             enddo
 
-            IF(NextVertex.ne.(TotExcits+1)) STOP 'Incorrect Counting in GetLinStarStars'
+            IF(NextVertex.ne.(TotExcits+1)) call stop_all(this_routine, 'Incorrect Counting in GetLinStarStars')
 
-!            IF((TQuadValMax.or.TQuadVecMax).and.(NextVertex.gt.2*iExcit+1)) STOP 'Incorrect Counting in GetLinStarStars2'
+!            IF((TQuadValMax.or.TQuadVecMax).and.(NextVertex.gt.2*iExcit+1)) call stop_all(this_routine, 'Incorrect Counting in GetLinStarStars2')
             
 !Return with the new information.
             iExcit=TotExcits
@@ -1828,7 +1829,7 @@
                 CALL DSYEV('V','U',Dimen,StarMat,Dimen,Vals,WORK,3*Dimen,INFO)
                 IF(INFO.ne.0) THEN
                     WRITE(6,*) "DYSEV error in GetValsnVecs: ",INFO
-                    STOP
+                    call stop_all(this_routine, "DSYEV error")
                 ENDIF
 
 !Store first elements of eigenvectors in 'Vecs'
@@ -1899,7 +1900,7 @@
                     ExcitInfo(0,1)=ExcitInfo(0,1)+rhiiadd
                     WRITE(6,*) "New root is now ",ExcitInfo(0,0) 
                 ELSE
-                    IF(abs(rhiiadd).gt.(0.0_dp)) STOP 'rhiiadd should be zero as no products'
+                    IF(abs(rhiiadd).gt.(0.0_dp)) call stop_all(this_routine, 'rhiiadd should be zero as no products')
                 ENDIF
             ENDIF
 
@@ -2127,7 +2128,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          real(dp) FMCPR3STAR2
          character(*), parameter :: this_routine='FMCPR3STAR'
   
-         IF(HElement_t_size.NE.1) STOP 'FMCPR3STAR cannot work with complex orbitals.' 
+         IF(HElement_t_size.NE.1) call stop_all(this_routine, 'FMCPR3STAR cannot work with complex orbitals.' )
          SELECT CASE (IAND(NWHTAY,24))
          CASE(0)
 !.. Allow both singles and doubles
@@ -2141,7 +2142,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
             NORDER=2
             NMIN=2
          CASE(24)
-            STOP "Invalid combination of flags in NWHTAY"
+            call stop_all(this_routine, "Invalid combination of flags in NWHTAY")
          END SELECT
 !.. Count the excitations.
          CALL GENEXCIT(NI,NORDER,NBASIS,NEL,LSTE,ICE,NLENLIST,NMIN,G1,TSYM,NBASISMAX,.TRUE.)
@@ -2267,7 +2268,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          INTEGER I,J,err
          character(*),parameter :: this_routine='STARDIAGREALPROD'
          
-         IF(HElement_t_size.GT.1) STOP "STARDIAGREALPROD cannot function with complex orbitals."
+         IF(HElement_t_size.GT.1) call stop_all(this_routine, "STARDIAGREALPROD cannot function with complex orbitals.")
 
          proc_timer%timer_name='STARDIAGRP'
          call set_timer(proc_timer)
@@ -2320,7 +2321,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          CALL DSYEV('V','L',TOTVERT,RIJMAT,TOTVERT,WLIST,WORK,WORKL,INFO)
          IF(INFO.NE.0) THEN
             WRITE(6,*) 'DYSEV error: ',INFO
-            STOP
+            call stop_all(this_routine, "DSYEV error")
          ENDIF
          deallocate(WORK)
          call LogMemDealloc(this_routine,tagWORK)
@@ -2373,7 +2374,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          INTEGER I,J,err
          character(*),parameter :: this_routine='STARDIAGSC'
 
-         IF(HElement_t_size.GT.1) STOP "STARDIAGSC cannot function with complex orbitals."
+         IF(HElement_t_size.GT.1) call stop_all(this_routine, "STARDIAGSC cannot function with complex orbitals.")
 
          proc_timer%timer_name='STARDIAGSC'
          call set_timer(proc_timer)
@@ -2395,7 +2396,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          DO I=2,NLIST
             DO J=(I+1),NLIST
                 IND=IND+1
-                IF(IND.gt.PRODVERT) STOP 'Error - IND larger than PRODVERT'
+                IF(IND.gt.PRODVERT) call stop_all(this_routine, 'Error - IND larger than PRODVERT')
                 AONDB(IND)=LIST(I,0)*LIST(J,0)
                 AOFFDB(IND,(I-1))=LIST(J,1)
                 AOFFDB(IND,(J-1))=LIST(I,1)
@@ -2406,7 +2407,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
             WRITE(6,*) "EXPECTED EXTRA VERTICES = ", PRODVERT
             WRITE(6,*) "VERTICES ADDED = ", IND
             CALL neci_flush(6)
-            STOP 'WRONG NUMBER OF ADDED VERTICES'
+            call stop_all(this_routine, 'WRONG NUMBER OF ADDED VERTICES')
         ENDIF
 
 !        DO I=1,(NLIST-1)
@@ -2459,7 +2460,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          CALL DSYEV('V','L',TOTVERT,RIJMAT,TOTVERT,WLIST,WORK,WORKL,INFO)
          IF(INFO.NE.0) THEN
             WRITE(6,*) 'DYSEV error: ',INFO
-            STOP
+            call stop_all(this_routine, "DSYEV error")
          ENDIF
          deallocate(WORK)
          call LogMemDealloc(this_routine,tagWORK)
@@ -2618,7 +2619,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
              CALL DSYEV('V','L',NList,HMat,NList,WList,Work,WorkL,Info)
              IF(Info.NE.0) THEN
                  WRITE(6,*) 'DYSEV error: ',Info
-                 STOP
+                 call stop_all(this_routine, "DSYEV error")
              ENDIF
 
 !Print out first few eigenvalues - want lowest ones
@@ -2738,7 +2739,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
                  enddo
                  IF((VecSlot-1).ne.InitWalkers) THEN
                      WRITE(6,*) "Problem scaling up walker number - exiting..."
-                     STOP 'Problem scaling up walker number - exiting...'
+                     call stop_all(this_routine, 'Problem scaling up walker number - exiting...')
                  ENDIF
 
 !Now deallocate and reallocate WalkVec2 with correct number of total walkers
@@ -2983,7 +2984,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
                         
                           IF((WalkVec2(j)%Det).gt.NList) THEN
                               WRITE(6,*) "Serious problem here..."
-                              STOP 'Serious problem here...'
+                              call stop_all(this_routine, 'Serious problem here...')
                           ENDIF
 
                           IF(WalkVec2(j)%WSign) THEN
@@ -3066,7 +3067,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
                  CALL neci_flush(6)
                  IF((DiagSft(1)).gt.0.0_dp) THEN
                      WRITE(6,*) "***WARNING*** - DiagSft trying to become positive...",DiagSft
-                     STOP
+                     call stop_all(this_routine, "Diagsft error")
                  ENDIF
                  TotWalkersOld=TotWalkers
              ENDIF
@@ -3376,7 +3377,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          CALL DSYEV('V','L',NLIST,RIJMAT,NLIST,WLIST,WORK,WORKL,INFO)
          IF(INFO.NE.0) THEN
             WRITE(6,*) 'DYSEV error: ',INFO
-            STOP
+            call stop_all(this_routine, "DSYEV error")
          ENDIF
          deallocate(WORK)
          call LogMemDealloc(this_routine,tagWORK)
@@ -3669,6 +3670,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          HElement_t UMat(*)
          real(dp) Beta, ALat(3),RhoEps,ECore
          HElement_t  ExcitInfo(0:iMaxExcit,0:2)
+         character(*), parameter :: this_routine = 'StarAddSingles'
 !.. New lists are generated here
 !.. This will contain all the info needed to work out the value of the
 !.. star
@@ -3776,14 +3778,14 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
                CALL DSYEV('V','U',iExc,StarMat,5,WLIST,WORK,3*iExc,INFO)
                IF(INFO.NE.0) THEN
                   WRITE(6,*) 'DYSEV error: ',INFO
-                  STOP
+                  call stop_all(this_routine, "DSYEV error")
                ENDIF
             ELSE
 !.. The complex case
                CALL ZHEEV('V','U',iExc,StarMat,5,WLIST,NWORK,4*iExc,WORK,INFO)
                IF(INFO.NE.0) THEN
                   WRITE(6,*) 'ZHEEV error: ',INFO
-                  STOP
+                  call stop_all(this_routine, "ZHEEV error")
                ENDIF
             ENDIF
 !.. StarMat now contains the eigenvectors, and WLIST the eigenvalues         
@@ -3838,6 +3840,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
         INTEGER :: nEl,nI(nEl),nJ(nEl),Orbchange(4),q,I,J
         LOGICAL :: FOUND
         LOGICAL :: ROOT(nEl),EXCIT(nEl)
+        character(*), parameter :: this_routine = 'GETEXCITSCHANGE'
         ROOT(:)=.TRUE.
         EXCIT(:)=.TRUE.
         
@@ -3860,7 +3863,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
                     Orbchange(2)=nI(I)
                     q=3
                 ELSEIF(q.eq.3) THEN
-                    STOP 'ERROR IN GETEXCITSCHANGE'
+                    call stop_all(this_routine, 'ERROR IN GETEXCITSCHANGE')
                 ENDIF
             ENDIF
         ENDDO
@@ -3875,12 +3878,12 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
                     Orbchange(4)=nJ(I)
                     RETURN
                 ELSE
-                    STOP 'ERROR IN GETEXCITSCHANGE'
+                    call stop_all(this_routine, 'ERROR IN GETEXCITSCHANGE')
                 ENDIF
             ENDIF
         ENDDO
 
-        STOP 'ERROR IN GETEXCITSCHANGE'
+        call stop_all(this_routine, 'ERROR IN GETEXCITSCHANGE')
 
         END
         

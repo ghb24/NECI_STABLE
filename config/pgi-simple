@@ -1,0 +1,20 @@
+[main]
+fc = mpif90 
+compiler = PGI-pgf95-on-LINUX
+cc = mpic++
+ccd = g++
+cpp = cpp -traditional
+cppflags =  -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64 -D__PGI -D__SHARED_MEM -DDISABLE_FFTW
+ld = mpif90
+libs = -lacml -lrt -lm -pgc++libs
+module_flag = -module
+
+[dbg]
+fflags = -g -r8 pc=64 -Msignextend -Minform=warn
+cflags = -g
+f90flags = -Mfree -Mbounds
+
+[opt]
+fflags = -fastsse -tp k8-64 -r8 pc=64 -Msignextend -Minform=warn
+cflags = -O
+f90flags = -Mfree 

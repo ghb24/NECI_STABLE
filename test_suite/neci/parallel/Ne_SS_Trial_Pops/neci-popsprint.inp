@@ -1,0 +1,38 @@
+title
+
+system read
+electrons 10
+hphf
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+memoryfacspawn 10.0
+memoryfacpart 5.0
+totalwalkers 5000
+tau 0.001
+startsinglepart
+shiftdamp 0.02
+stepsshift 10
+diagshift 1.0
+nmcyc 4000
+truncinitiator
+addtoinitiator 3
+allrealcoeff
+realspawncutoff 0.01
+semi-stochastic
+mp1-core 50
+trial-wavefunction
+mp1-trial 200
+endcalc
+
+integral
+freeze 2,0
+endint
+
+logging
+binarypops
+endlog
+end

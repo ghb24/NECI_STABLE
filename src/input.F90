@@ -843,8 +843,7 @@ do
   else
     call read_line(eof)
     if (eof) then
-      write(6,"(A)") "End of file while attempting to read a number"
-      stop
+      call stop_all('getf', "End of file while attempting to read a number")
     endif
   endif
 end do
@@ -865,8 +864,7 @@ do
   else
     call read_line(eof)
     if (eof) then
-      write(6,"(A)") "End of file while attempting to read a number"
-      stop
+      call stop_all('geti', "End of file while attempting to read a number")
     endif
   endif
 end do
@@ -887,8 +885,7 @@ do
   else
     call read_line(eof)
     if (eof) then
-      write(6,"(A)") "End of file while attempting to read a number"
-      stop
+      call stop_all('getiLong', "End of file while attempting to read a number")
     endif
   endif
 end do
@@ -910,8 +907,7 @@ do
   else
     call read_line(eof)
     if (eof) then
-      write(6,"(A)") "End of file while attempting to read a character string"
-      stop
+      call stop_all('geta', "End of file while attempting to read a character string")
     endif
   endif
 end do
@@ -1005,7 +1001,7 @@ if (present(reflect)) then
     write(6,"(3x,80a1)") (" ", i=i1,l), "*"
   end if
 end if
-stop
+call stop_all("report", 'Input error')
 
 END SUBROUTINE report
 

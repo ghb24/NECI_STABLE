@@ -6,17 +6,18 @@
 MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, &
-                          AB_elec_pairs, par_elec_pairs
+                          AB_elec_pairs, par_elec_pairs, tMultiReplicas
     use CalcData, only: tTruncInitiator, DiagSft, tWalkContGrow, nEquilSteps, &
-                        ScaleWalkers, tReadPopsRestart, &
+                        ScaleWalkers, tReadPopsRestart, tPopsJumpShift, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
                         iWeightPopRead, iPopsFileNoRead, Tau, &
-                        InitiatorWalkNo, MemoryFacPart, &
+                        InitiatorWalkNo, MemoryFacPart, tLetInitialPopDie, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
                         pops_norm, tWritePopsNorm
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt
-    use hash, only: DetermineDetNode, FindWalkerHash, clear_hash_table, &
+    use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
+    use hash, only: FindWalkerHash, clear_hash_table, &
                     fill_in_hash_table
     use Determinants, only: get_helement, write_det
     use hphf_integrals, only: hphf_diag_helement
@@ -36,6 +37,11 @@ MODULE PopsfileMod
         max_death_cpt
     use global_det_data, only: global_determinant_data, set_iter_occ, &
                                init_global_det_data, set_det_diagH
+    use fcimc_helper, only: update_run_reference, calc_inst_proje
+    use replica_data, only: set_initial_global_data
+    use load_balance, only: pops_init_balance_blocks
+    use load_balance_calcnodes, only: tLoadBalanceBlocks, balance_blocks
+    use util_mod
 
     implicit none
 
@@ -58,7 +64,7 @@ contains
     subroutine ReadFromPopsfile(EndPopsList, ReadBatch, CurrWalkers, &
                                 CurrParts, CurrHF, Dets, DetsLen, &
                                 pops_nnodes, pops_walkers, PopNifSgn, &
-                                PopNel, tCalcExtraInfo)
+                                PopNel, PopBalanceBlocks, tCalcExtraInfo)
 
         use MemoryManager, only: TagIntType
 
@@ -72,6 +78,7 @@ contains
         ! fill in the walker hash table.
         logical, intent(in) :: tCalcExtraInfo
         integer, intent(in) :: pops_nnodes
+        integer, intent(inout) :: PopBalanceBlocks
         integer(int64), intent(in) :: pops_walkers(0:nProcessors-1)
 
         real(dp) :: CurrParts(lenof_sign)
@@ -95,15 +102,15 @@ contains
         integer :: PopNIfTot, PopBlockingIter, read_nnodes, Popinum_runs
         integer :: PopRandomHash(1024)
         integer(int64) :: iPopAllTotWalkers
-        real(dp) :: PopDiagSft, PopDiagSft2, read_tau, read_psingles
+        real(dp) :: PopDiagSft(inum_runs), read_tau, read_psingles
         real(dp) :: read_pparallel
-        real(dp) , dimension(lenof_sign/inum_runs) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign) :: PopSumNoatHF
         integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
         integer, intent(in) :: DetsLen
         INTEGER(kind=n_int), intent(out) :: Dets(0:nIfTot,DetsLen)
         character(12) :: tmp_num
         character(255) :: tmp_char
-        HElement_t :: PopAllSumENum
+        HElement_t :: PopAllSumENum(inum_runs)
         integer :: sgn(lenof_sign), flg, part_on_node = 0
         type(ll_node), pointer :: Temp
         integer, allocatable :: TempnI(:)
@@ -125,10 +132,10 @@ contains
                     PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
             else
                 call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
-                    iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter, &
+                    iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
                     PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau, &
                     PopBlockingIter, PopRandomHash, read_psingles, read_pparallel, &
-                    read_nnodes, read_walkers_on_nodes)
+                    read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
             endif
 
             if(EndPopsList.ne.iPopAllTotWalkers) then
@@ -182,7 +189,9 @@ contains
         if (tSplitPops) then
             CurrWalkers = read_pops_splitpops (iunit, PopNel, TempnI, BinPops, &
                                                Dets, DetsLen, iunit_3, PopNIfSgn)
-        else if (pops_nnodes == nProcessors .and. PopsVersion == 4) then
+        else if (pops_nnodes == nProcessors .and. PopsVersion == 4 .and. &
+                 (balance_blocks == PopBalanceBlocks .or. &
+                  (.not. tLoadBalanceBlocks .and. PopBalanceBlocks == -1))) then
             CurrWalkers = read_pops_nnodes (iunit, PopNel, TempnI, BinPops, Dets, &
                                             DetsLen, read_walkers_on_nodes, &
                                             iunit_3, PopNIfSgn, iPopAllTotWalkers)
@@ -190,6 +199,9 @@ contains
             CurrWalkers = read_pops_general (iunit, PopNel, TempnI, BinPops, Dets, &
                                              DetsLen, ReadBatch, EndPopsList, &
                                              iunit_3, PopNIfSgn)
+            ! The walkers will be redistributed in a default manner. Ignore
+            ! the balancing information in the POPSFILE
+            PopBalanceBlocks = -1
         end if
 
         ! Add the contributions to the norm of the popsfile wave function from
@@ -252,7 +264,7 @@ contains
                 call extract_sign(Dets(:,i),SignTemp)
                 
                 CurrParts=CurrParts+abs(SignTemp)
-                if(DetBitEQ(Dets(:,i),iLutRef,NIfDBO)) then
+                if(DetBitEQ(Dets(:,i),iLutRef(:,1),NIfDBO)) then
                     if(CurrHF(1).ne.0) then
                         call stop_all(this_routine,"HF already found, but shouldn't have")
                     endif
@@ -273,6 +285,14 @@ contains
             enddo
 
         end if
+
+        ! If we are doing load balancing, do an initial balance now that we
+        ! have read the particles in
+        ! n.b. This must be done after the hash tables have been initialised
+        ! properly, or everything will break!
+        if (tLoadBalanceBlocks .and. tCalcExtraInfo) &
+            call pops_init_balance_blocks(PopBalanceBlocks)
+
 
         call mpibarrier(err)
 
@@ -452,20 +472,20 @@ contains
 
                 ! Read the next entry, and store the walker in ilut_tmp.
                 ! The decoded form is placed in det_tmp
-                CurrWalkers = CurrWalkers + 1
+                ! n.b. reading entry after CurrWalkers --> +1
                 tEOF = read_popsfile_det (iunit, PopNel, binary_pops, &
-                                          det_list(:, CurrWalkers), &
+                                          det_list(:, CurrWalkers+1), &
                                           det_tmp, PopNIfSgn, iunit_3, &
                                           .true., nread)
+
+                ! When we have got to the end of the file, we are done.
+                if (tEOF) exit
+
+                CurrWalkers = CurrWalkers + 1
 
                 ! Add the contribution from this determinant to the
                 ! norm of the popsfile wave function.
                 call add_pops_norm_contrib(det_list(:, CurrWalkers))
-
-                ! And store the current H-values
-
-                ! When we have got to the end of the file, we are done.
-                if (tEOF) exit
 
                 ! And a test that this split popsfile is somewhat valid...
                 proc = DetermineDetNode(PopNel, det_tmp, 0)
@@ -602,7 +622,6 @@ r_loop: do while (.not. tReadAllPops)
                 ! Prep the counts for transmitting the particles to all of
                 ! the nodes.
                 do j = 0, nNodes - 1
-                    write(6,*) 'J', popssendlist(j), popsinitialslots(j)
                     sendcounts(j+1) = &
                         int((PopsSendList(j) - PopsInitialSlots(j)) * &
                             (NIfTot + 1), MPIArg)
@@ -787,11 +806,11 @@ r_loop: do while(.not.tStoreDet)
         logical :: tPop64Bit, tPopHPHF, tPopLz, formpops, binpops
         integer(int64) :: iPopAllTotWalkers
         integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
-        real(dp) :: PopDiagSft, PopDiagSft2, read_tau
+        real(dp) :: PopDiagSft(inum_runs), read_tau
         real(dp) :: read_psingles, read_pparallel
-        real(dp), dimension(lenof_sign/inum_runs) :: PopSumNoatHF
-        HElement_t :: PopAllSumENum
-        integer :: perturb_ncreate, perturb_nannihilate
+        real(dp), dimension(lenof_sign) :: PopSumNoatHF
+        HElement_t :: PopAllSumENum(inum_runs)
+        integer :: perturb_ncreate, perturb_nannihilate, PopBalanceBlocks
 
         character(len=*), parameter :: t_r = "read_popsfile_wrapper"
 
@@ -802,10 +821,11 @@ r_loop: do while(.not.tStoreDet)
 
         if(PopsVersion == 4) then
             call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
-                    iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter, &
+                    iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
                     PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                     read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
-                    read_pparallel, read_nnodes, read_walkers_on_nodes)
+                    read_pparallel, read_nnodes, read_walkers_on_nodes, &
+                    PopBalanceBlocks)
         else
             call stop_all(t_r, "Only version 4 popsfile are supported with kp-fciqmc.")
         endif
@@ -821,7 +841,7 @@ r_loop: do while(.not.tStoreDet)
         end if
 
         call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
-                iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter, &
+                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
                 PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                 WalkerListSize,read_tau,PopBlockingIter, read_psingles, read_pparallel, &
                 perturb_ncreate, perturb_nannihilate)
@@ -829,15 +849,17 @@ r_loop: do while(.not.tStoreDet)
         if (iProcIndex == root) close(iunithead)
 
         call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, PopNel, read_nnodes, &
-                            read_walkers_on_nodes, perturbs)
+                            read_walkers_on_nodes, perturbs, PopBalanceBlocks,&
+                            PopDiagSft)
 
         ! If requested output the norm of the *unperturbed* walkers in the POPSFILE.
         if (tWritePopsNorm) call write_pops_norm()
 
     end subroutine read_popsfile_wrapper
 
-    subroutine InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, PopNel, pops_nnodes, &
-                              pops_walkers, perturbs)
+    subroutine InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, PopNel, &
+                              pops_nnodes, pops_walkers, perturbs, &
+                              PopBalanceBlocks, PopDiagSft)
 
         use CalcData, only : iReadWalkersRoot
         use hash, only: clear_hash_table, fill_in_hash_table
@@ -846,14 +868,17 @@ r_loop: do while(.not.tStoreDet)
 
         integer(int64), intent(in) :: iPopAllTotWalkers
         integer, intent(in) :: PopNIfSgn
+        integer, intent(inout) :: PopBalanceBlocks
         ! Note that PopNel might be recalculated in ReadFromPopsfile (and might
         ! not have even been set on input).
         integer, intent(inout) :: PopNel
         integer, intent(in) :: pops_nnodes
         integer(int64), intent(in) :: pops_walkers(0:nProcessors-1)
+        real(dp), intent(in) :: PopDiagSft(inum_runs)
         ! Perturbation operators to apply to the determinants after they have
         ! been read in.
         type(perturbation), intent(in), allocatable, optional :: perturbs(:)
+        integer(int64) :: tot_walkers
         integer :: run, ReadBatch
         integer :: nI(nel)
         logical :: apply_pert
@@ -884,7 +909,7 @@ r_loop: do while(.not.tStoreDet)
         if (apply_pert) then
             call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, TotParts, NoatHF, &
                                   popsfile_dets, MaxWalkersPart, pops_nnodes, pops_walkers, PopNIfSgn, &
-                                  PopNel, tCalcExtraInfo=.false.)
+                                  PopNel, PopBalanceBlocks, tCalcExtraInfo=.false.)
 
             TotWalkersIn = int(TotWalkers, sizeof_int)
             call apply_perturbation_array(perturbs, TotWalkersIn, popsfile_dets, CurrentDets)
@@ -892,7 +917,7 @@ r_loop: do while(.not.tStoreDet)
         else
             call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, TotParts, NoatHF, &
                                   CurrentDets, MaxWalkersPart, pops_nnodes, pops_walkers, PopNIfSgn, &
-                                  PopNel, tCalcExtraInfo=.false.)
+                                  PopNel, PopBalanceBlocks, tCalcExtraInfo=.false.)
         end if
 
         call fill_in_diag_helements()
@@ -902,10 +927,60 @@ r_loop: do while(.not.tStoreDet)
 
         call set_initial_global_data(TotWalkers, CurrentDets)
 
+        ! If we are doing load balancing, do an initial balance now that we
+        ! have read the particles in
+        ! n.b. This must be done after the hash tables have been initialised
+        ! properly, or everything will break!
+        if (tLoadBalanceBlocks) then
+            ! n.b. The free-slot list will be empty after reading from POPS
+            ! (which are densely packed). Not otherwised initialised by here.
+            iStartFreeSlot=1
+            iEndFreeSlot=0
+            call pops_init_balance_blocks(PopBalanceBlocks)
+        end if
+
+        ! If tWalkContGrow has been set, and therefore the shift reset, in
+        ! when the POPSFILE header was read, check that we aren't already
+        ! beyond the walker threshold. Otherwise unexpected (but technically
+        ! "correct") behaviour occurs.
+        !
+        ! n.b. 0.95 makes this a soft limit. Otherwise on restarting a calc
+        !      it might have (randomly) dropped just below the target.
+        if (tWalkContGrow) then
+            tot_walkers = 0.95 * InitWalkers * int(nNodes, int64)
+            do run = 1, inum_runs
+#ifdef __CMPLX
+                if ((tLetInitialPopDie .and. sum(AllTotParts) < tot_walkers) .or. &
+                    ((.not. tLetInitialPopDie) .and. sum(AllTotParts) > tot_walkers)) then
+                    write(6,'("WALKCONTGROW set in input, but simulation already exceeds target number of particles")')
+                    write(6,'("Continuing with DIAGSHIFT from POPSFILE")')
+                    tSinglePartPhase = .false.
+                    DiagSft = PopDiagSft
+                end if
+#else
+                if ((tLetInitialPopDie .and. AllTotParts(run) < tot_walkers) .or. &
+                    ((.not. tLetInitialPopDie) .and. AllTotParts(run) > tot_walkers)) then
+                    write(6,'("WALKCONTGROW set in input, but simulation already exceeds target number of particles")')
+                    write(6,'("Continuing with DIAGSHIFT from POPSFILE for run ",i4)') run
+                    tSinglePartPhase(run) = .false.
+                    DiagSft(run) = PopDiagSft(run)
+                end if
+#endif
+            end do
+        end if
+
+        ! If necessary, recalculate the instantaneous projected energy, and
+        ! then update the shift to that value.
+        if (tPopsJumpShift .and. .not. tWalkContGrow) then
+            call calc_inst_proje()
+            DiagSft = real(proje_iter, dp)
+        end if
+
+
     end subroutine InitFCIMC_pops
     
     subroutine CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                    iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                    iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                     PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                     WalkerListSize,read_tau,PopBlockingIter, read_psingles, &
                     read_pparallel, perturb_ncreate, perturb_nann)
@@ -914,10 +989,10 @@ r_loop: do while(.not.tStoreDet)
         integer , intent(in) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
         integer , intent(in) :: PopBlockingIter
         integer(int64) , intent(in) :: iPopAllTotWalkers
-        real(dp) , intent(in) :: PopDiagSft,PopDiagSft2,read_tau
+        real(dp) , intent(in) :: PopDiagSft(inum_runs),read_tau
         real(dp), intent(in) :: read_psingles, read_pparallel
         real(dp) , dimension(lenof_sign/inum_runs) , intent(in) :: PopSumNoatHF
-        HElement_t , intent(in) :: PopAllSumENum
+        HElement_t , intent(in) :: PopAllSumENum(inum_runs)
         integer, intent(in) :: perturb_ncreate, perturb_nann
         integer , intent(out) :: WalkerListSize
         character(len=*) , parameter :: this_routine='CheckPopsParams'
@@ -959,30 +1034,18 @@ r_loop: do while(.not.tStoreDet)
         endif
 
 
-        IF(.not.tWalkContGrow) THEN
-!If we want the walker number to be stable, take the shift from the POPSFILE, otherwise, keep the input value.
-            if (inum_runs.eq.2) then
-                if(Popinum_runs.eq.2) then
-                    DiagSft(1)=PopDiagSft
-                    DiagSft(inum_runs)=PopDiagSft2
-                else
-                    !Previously we only had a single run, now we are restarting with double run
-                    DiagSft(1)=PopDiagSft
-                    DiagSft(inum_runs)=PopDiagSft
-                endif
-            else
-                DiagSft=PopDiagSft
-            endif
-        ENDIF
+        if (.not. tWalkContGrow) then
+            DiagSft = PopDiagSft
+        end if
 
-        if(PopDiagSft.eq.0.0_dp) then
+        if(PopDiagSft(1) .eq. 0.0_dp) then
             !If the popsfile has a shift of zero, continue letting the population grow
             tWalkContGrow=.true.
             if (inum_runs.eq.2) then
-                DiagSft(1)=PopDiagSft
-                DiagSft(inum_runs)=PopDiagSft
+                DiagSft(1)=PopDiagSft(1)
+                DiagSft(inum_runs)=PopDiagSft(1)
             else
-                DiagSft=PopDiagSft
+                DiagSft=PopDiagSft(1)
             endif
         endif
 
@@ -996,18 +1059,15 @@ r_loop: do while(.not.tStoreDet)
             WalkerListSize=NINT(real(iPopAllTotWalkers,dp)/real(nNodes,dp))
         endif
 
+        AllSumENum(1:inum_runs) = PopAllSumENum
         if(inum_runs.eq.2) then
             AllSumNoatHF(1)=PopSumNoatHF(1)
             AllSumNoatHF(inum_runs)=PopSumNoatHF(1)
-            AllSumENum(1)=PopAllSumENum
-            AllSumENum(inum_runs)=PopAllSumENum
         elseif(lenof_sign.eq.2) then
             AllSumNoatHF(1)=PopSumNoatHF(1)
             AllSumNoatHF(lenof_sign)=PopSumNoatHF(lenof_sign)
-            AllSumENum=PopAllSumENum
         else
             AllSumNoatHF(1)=PopSumNoatHF(1)
-            AllSumENum=PopAllSumENum
         endif
 
         
@@ -1078,22 +1138,24 @@ r_loop: do while(.not.tStoreDet)
         logical , intent(out) :: tPop64Bit,tPopHPHF,tPopLz
         integer , intent(out) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
         integer(int64) , intent(out) :: iPopAllTotWalkers
-        real(dp) , intent(out) :: PopDiagSft
+        real(dp) , intent(out) :: PopDiagSft(inum_runs)
         real(dp) , dimension(lenof_sign/inum_runs) , intent(out) :: PopSumNoatHF
-        HElement_t, intent(out) :: PopAllSumENum
+        HElement_t, intent(out) :: PopAllSumENum(inum_runs)
         character(len=24) :: junk,junk2,junk3,junk4,junk5
         integer :: PopsVersion
 
         PopsVersion=FindPopsfileVersion(iunithead)
         if(PopsVersion.ne.3) call stop_all("ReadPopsfileHeadv3","Wrong popsfile version for this routine.")
             
+        PopDiagSft = 0
+        PopAllSumENum = 0
         if(iProcIndex.eq.root) then
             read(iunithead,'(A12,L5,A8,L5,A8,L5,A13,I5,A7,I6)') junk,tPop64Bit,junk2,tPopHPHF,junk3, &
                 tPopLz,junk4,iPopLenof_sign,junk5,iPopNEl
             read(iunithead,*) iPopAllTotWalkers
-            read(iunithead,*) PopDiagSft 
+            read(iunithead,*) PopDiagSft(1)
             read(iunithead,*) PopSumNoatHF 
-            read(iunithead,*) PopAllSumENum 
+            read(iunithead,*) PopAllSumENum(1)
             read(iunithead,*) iPopIter 
             read(iunithead,*) PopNIfD 
             read(iunithead,*) PopNIfY 
@@ -1122,23 +1184,24 @@ r_loop: do while(.not.tStoreDet)
 
     !Routine for reading in from iunit the header information from a popsile v4 file.
     subroutine ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF_out,PopAllSumENum,iPopIter,   &
+                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF_out,PopAllSumENum,iPopIter,   &
                 PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau, &
                 PopBlockingIter, PopRandomHash, read_psingles, read_pparallel, &
-                read_nnodes, read_walkers_on_nodes)
+                read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
         integer , intent(in) :: iunithead
         logical , intent(out) :: tPop64Bit,tPopHPHF,tPopLz
         integer, intent(out) :: iPopLenof_sign, iPopNel, iPopIter, PopNIfD
         integer, intent(out) :: PopNIfY, PopNIfSgn, PopNIfFlag, PopNIfTot
         integer, intent(out) :: PopBlockingIter, read_nnodes, Popinum_runs
-        integer, intent(out) :: PopRandomHash(1024)
+        integer, intent(out) :: PopRandomHash(1024), PopBalanceBlocks
         integer(int64), intent(out) :: read_walkers_on_nodes(0:nProcessors-1)
         integer(int64) , intent(out) :: iPopAllTotWalkers
-        real(dp) , intent(out) :: PopDiagSft,PopDiagSft2, read_tau, read_psingles
-        real(dp), intent(out) :: PopSumNoatHF_out(lenof_sign/inum_runs)
-        real(dp) :: PopSumNoatHF(1024)
+        real(dp) , intent(out) :: PopDiagSft(inum_runs),read_tau, read_psingles
+        real(dp), intent(out) :: PopSumNoatHF_out(lenof_sign)
+        real(dp) :: PopSumNoatHF(1024), PopMultiSft(1024)
+        real(dp) :: PopMultiSumENum(1024), PopMultiSumNoatHF(1024)
         real(dp), intent(out) :: read_pparallel
-        HElement_t , intent(out) :: PopAllSumENum
+        HElement_t , intent(out) :: PopAllSumENum(inum_runs)
         integer :: PopsVersion
         !Variables for the namelist
         logical :: Pop64Bit,PopHPHF,PopLz
@@ -1157,13 +1220,16 @@ r_loop: do while(.not.tStoreDet)
                     PopTau,PopiBlockingIter,PopRandomHash,PopPSingles, &
                     PopPParallel, PopNNodes, PopWalkersOnNodes, PopGammaSing, &
                     PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt, &
-                    PopTotImagTime, Popinum_runs, PopParBias
+                    PopTotImagTime, Popinum_runs, PopParBias, PopMultiSft, &
+                    PopMultiSumNoatHF, PopMultiSumENum, PopBalanceBlocks
 
         PopsVersion=FindPopsfileVersion(iunithead)
         if(PopsVersion.ne.4) call stop_all("ReadPopsfileHeadv4","Wrong popsfile version for this routine.")
 
         PopParBias = 0.0_dp
         PopPParallel = 0.0_dp
+        PopMultiSft = 0.0_dp
+        PopBalanceBlocks = -1
         if(iProcIndex.eq.root) then
             read(iunithead,POPSHEAD)
         endif
@@ -1176,8 +1242,6 @@ r_loop: do while(.not.tStoreDet)
         call MPIBCast(PopTotwalk)
         call MPIBCast(PopSft)
         call MPIBCast(PopSft2)
-        PopSumNoatHF_out = PopSumNoatHF(1:lenof_sign/inum_runs)
-        call MPIBCast(PopSumNoatHF_out)
         call MPIBCast(PopSumENum)
         call MPIBCast(PopCyc)
         call MPIBCast(PopNIfD)
@@ -1193,6 +1257,9 @@ r_loop: do while(.not.tStoreDet)
         call MPIBCast(PopParBias)
         call MPIBCast(PopNNodes)
         call MPIBcast(PopTotImagTime)
+        call MPIBCast(PopMultiSft)
+        call MPIBCast(PopMultiSumNoatHF)
+        call MPIBCast(PopMultiSumENum)
         if (PopNNodes == nProcessors) then
             ! What is the maximum number of nodes currently supported. We might
             ! need to update this...
@@ -1210,15 +1277,13 @@ r_loop: do while(.not.tStoreDet)
         call MPIBCast(PopGammaPar)
         call MPIBcast(PopMaxDeathCpt)
         call MPIBcast(PopRandomHash)
+        call MPIBcast(PopBalanceBlocks)
         tPop64Bit=Pop64Bit
         tPopHPHF=PopHPHF
         tPopLz=PopLz
         iPopLenof_sign=PopLensign
         iPopNel=PopNel
         iPopAllTotWalkers=PopTotwalk
-        PopDiagSft=PopSft
-        PopDiagSft2=PopSft2
-        PopAllSumENum=PopSumENum
         iPopIter=PopCyc
         read_tau=PopTau 
         PopBlockingIter=PopiBlockingIter
@@ -1230,6 +1295,31 @@ r_loop: do while(.not.tStoreDet)
         read_pParallel = PopPParallel
         read_nnodes = PopNNodes
         TotImagTime = PopTotImagTime
+
+        if (tReplicaReferencesDiffer) then
+            PopDiagSft = PopMultiSft(1:inum_runs)
+            PopAllSumENum = PopMultiSumENum(1:inum_runs)
+            PopSumNoatHF_out = PopMultiSumNoatHF(1:lenof_sign)
+        else
+            ! If we want the walker number to be stable, take the shift
+            ! from the POPSFILE, otherwise, keep the input value.
+            if (inum_runs.eq.2) then
+                if(Popinum_runs.eq.2) then
+                    PopDiagSft(1) = PopSft
+                    PopDiagSft(inum_runs) = PopSft2
+                else
+                    ! Previously we only had a single run, now we are
+                    ! restarting with double run
+                    PopDiagSft(1) = PopSft
+                    PopDiagSft(inum_runs) = PopSft
+                endif
+            else
+                PopDiagSft(1:inum_runs) = PopSft
+            endif
+            PopAllSumENum(1:inum_runs) = PopSumENum
+            PopSumNoatHF_out = PopSumNoatHF(1:lenof_sign)
+        end if
+        call MPIBCast(PopSumNoatHF_out)
 
         ! Fill the tau-searching accumulators, to avoid blips in tau etc.
         gamma_sing = PopGammaSing
@@ -1655,10 +1745,18 @@ r_loop: do while(.not.tStoreDet)
         write(iunit, '(a,l1,a,l1,a,i2,a,i3,a)') &
             'PopHPHF=', tHPHF, ',PopLz=', tFixLz, ',PopLensign=', &
             lenof_sign, ',PopNEl=', NEl, ','
-        write(iunit, '(a,i15,a,f18.12,a)') &
-            'PopTotwalk=', num_walkers, ',PopSft=', DiagSft(1), ','
-        write(iunit, *) 'PopSumNoatHF=', AllSumNoatHF(1), ','
-        write(iunit, *) 'PopSumENum=', AllSumENum(1), ','
+        write(iunit, '(a,i15)') 'PopTotwalk=', num_walkers
+        
+        if (.not. tMultiReplicas) then
+            write(iunit, *) 'PopSft=', DiagSft(1)
+            write(iunit, *) 'PopSumNoatHF=', AllSumNoatHF(1)
+            write(iunit, *) 'PopSumENum=', AllSumENum(1)
+        else
+            write(iunit, *) 'PopMultiSft=', DiagSft(1:inum_runs)
+            write(iunit, *) 'PopMultiSumNoatHF=', AllSumNoatHF(1:lenof_sign)
+            write(iunit, *) 'PopMultiSumENum=', AllSumENum(1:inum_runs)
+        end if
+
         write(iunit, '(a,i16,a,i2,a,i2,a,i2,a)') &
             'PopCyc=', Iter+PreviousCycles, ',PopNIfD=', NIfD, &
             ',PopNIfY=', NIfY, ',PopNIfSgn=' ,NIfSgn, ','
@@ -1681,6 +1779,9 @@ r_loop: do while(.not.tStoreDet)
                                       ',PopGammaPar=', gamma_par, &
                                       ',PopMaxDeathCpt=', max_death_cpt
 
+        if (tLoadBalanceBlocks) &
+            write(iunit, '(a,i7)') 'PopBalanceBlocks=', balance_blocks
+
         if (.not. tSplitPops) then
             ! Write out the number of particles on each processor.
             write(iunit, '(a,i6)') 'PopNNodes=', nNodes
@@ -1692,9 +1793,11 @@ r_loop: do while(.not.tStoreDet)
         end if
 
         ! Store the random hash in the header to allow later processing
+        ! n.b. RandomHash has been renamed to RandomOrbIndex for clarity
+        !      but we need to retain the POPSFILE format for compatibility
         write(iunit, '(a)', advance='no') "PopRandomHash= "
         do i = 1, nbasis
-            write(iunit,'(i12,",")', advance='no') RandomHash(i)
+            write(iunit,'(i12,",")', advance='no') RandomOrbIndex(i)
         end do
         write(iunit, *)
 
@@ -1755,7 +1858,7 @@ r_loop: do while(.not.tStoreDet)
                 abs(real_sgn(1)) > InitiatorWalkNo) then
                 ! Testing using the sign now, because after annihilation
                 ! the current flag will not necessarily be correct.
-                ex_level = FindBitExcitLevel(ilutRef, det, nel)
+                ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel)
                 nopen = count_open_orbs(det)
                 call decode_bit_det(nI, det)
                 if(tHPHF)then
@@ -1788,15 +1891,16 @@ r_loop: do while(.not.tStoreDet)
         INTEGER :: iLutTemp32(0:nBasis/32+1)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         INTEGER :: AvSumNoatHF,IntegerPart,TempnI(NEl),ExcitLevel
-        INTEGER :: NIfWriteOut,pos,orb,PopsVersion, iunit, iunit_3
+        integer :: NIfWriteOut, pos, orb, PopsVersion, iunit, iunit_3, run
         real(dp) :: r, FracPart, Gap, DiagSftTemp, tmp_dp
         HElement_t :: HElemTemp
-        CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
         character(255) :: popsfile,FirstLine
         character(len=24) :: junk,junk2,junk3,junk4
         LOGICAL :: tPop64BitDets,tPopHPHF,tPopLz,tPopInitiator
-        integer(n_int) :: ilut_largest(0:NIfTot)
-        real(dp) :: sign_largest
+        integer(n_int) :: ilut_largest(0:NIfTot, inum_runs)
+        real(dp) :: sign_largest(inum_runs)
+        character(*), parameter :: this_routine = 'ReadFromPopsfilePar'
+        character(*), parameter :: t_r = this_routine
 
         WRITE(6,*) "THIS IS THE POPSFILE ROUTINE WE'RE USING"
 
@@ -2132,10 +2236,12 @@ r_loop: do while(.not.tStoreDet)
             ENDIF
 
             ! Keep track of what the most highly weighted determinant is
-            if (abs(RealTempSign(1)) > sign_largest) then
-                sign_largest = abs(RealTempSign(1))
-                ilut_largest = iLutTemp
-            endif
+            do run = 1, inum_runs
+                if (abs(RealTempSign(run)) > sign_largest(run)) then
+                    sign_largest(run) = abs(RealTempSign(run))
+                    ilut_largest(:, run) = iLutTemp
+                endif
+            end do
         enddo
         CLOSE(iunit)
         TempCurrWalkers=int(CurrWalkers,int64)
@@ -2216,35 +2322,20 @@ r_loop: do while(.not.tStoreDet)
         ! If we are changing the reference determinant to the largest
         ! weighted one in the file, do it here
         if (tReadPopsChangeRef .or. tReadPopsRestart) then
-            if (.not. DetBitEq(ilut_largest, iLutRef, NIfDBO)) then
+            do run = 1, inum_runs
 
-                ! Set new reference
-                iLutRef = ilut_largest
-                call decode_bit_det (ProjEDet, iLutRef)
-                tNoBrillouin = .true.
+                ! If using the same reference for all runs, then don't consider
+                ! the populations seperately.
+                if (run /= 1 .and. .not. tReplicaReferencesDiffer) &
+                    exit
 
-                ! Recalculate the reference E
-                if (tHPHF) then
-                    HElemTemp = hphf_diag_helement (ProjEDet, iLutRef)
-                else
-                    HElemTemp = get_helement (ProjEDet, ProjEDet, 0)
-                endif
-                Hii = real(HElemTemp, dp)
+                if (.not. DetBitEq(ilut_largest(:,run), iLutRef(:,run))) &
+                    call update_run_reference(ilut_largest(:,run), run)
 
-                ! Output info on root node.
-                if (iProcIndex == root) then
-                    write(6, '(a)', advance='no') &
-                        "Changing projected energy reference determinant to: "
-                    call write_det (6, ProjEDet, .true.)
-                    write (6, '(a)') &
-                        "Ensuring that Brillouin's theorem is no longer used."
-                    write (6, '(a,g25.15)') &
-                        "Reference energy now set to: ", Hii
-                endif
-            endif
+            end do
         endif
 
-!Now find out the data needed for the particles which have been read in...
+        ! Calculate the stored data for the particlse that have been read in
         TotParts=0
         do j=1,int(TotWalkers,sizeof_int)
             call decode_bit_det (TempnI, currentDets(:,j))
@@ -2276,7 +2367,7 @@ r_loop: do while(.not.tStoreDet)
 
         if (tReadPopsRestart) then
             tPopsAlreadyRead = .true.
-            call ChangeRefDet (ProjEDet)
+            call ChangeRefDet (ProjEDet(:,1))
             tPopsAlreadyRead = .false.
         endif
 
@@ -2673,7 +2764,7 @@ r_loop: do while(.not.tStoreDet)
 
         if (tReadPopsRestart) then
             tPopsAlreadyRead = .true.
-            call ChangeRefDet (ProjEDet)
+            call ChangeRefDet (ProjEDet(:,1))
             tPopsAlreadyRead = .false.
         endif
 

@@ -5,10 +5,11 @@
 
 module global_det_data
 
-    use FciMCData, only: MaxWalkersPart
-    use LoggingData, only: tRDMonFly, tExplicitAllRDM
     use CalcData, only: tSurvivalInitiatorThreshold, tSurvivalInitMultThresh, &
-                        tSpawnCountInitiatorThreshold
+                        tSpawnCountInitiatorThreshold, tContTimeFCIMC, &
+                        tContTimeFull
+    use LoggingData, only: tRDMonFly, tExplicitAllRDM
+    use FciMCData, only: MaxWalkersPart
     use constants
     use util_mod
     implicit none
@@ -31,6 +32,7 @@ module global_det_data
     integer :: pos_iter_occ, len_iter_occ
     integer :: pos_tm_occ, len_tm_occ
     integer :: pos_spawn_cnt, len_spawn_cnt
+    integer :: pos_spawn_rate, len_spawn_rate
 
     ! And somewhere to store the actual data
     real(dp), pointer :: global_determinant_data(:,:) => null()
@@ -102,14 +104,21 @@ contains
             len_spawn_cnt = 1
         end if
 
+        ! If we are using continuous time, and storing the spawning rates
+        len_spawn_rate = 0
+        if (tContTimeFCIMC .and. tContTimeFull) then
+            len_spawn_rate = 1
+        end if
+
         ! Get the starting positions
         pos_av_sgn = pos_hel + len_hel
         pos_iter_occ = pos_av_sgn + len_av_sgn
         pos_tm_occ = pos_iter_occ + len_iter_occ
         pos_spawn_cnt = pos_tm_occ + len_tm_occ
+        pos_spawn_rate = pos_spawn_cnt + len_spawn_cnt
 
         tot_len = len_hel + len_av_sgn + len_iter_occ + len_tm_occ &
-                + len_spawn_cnt
+                + len_spawn_cnt + len_spawn_rate
 
         ! Allocate and log the required memory (globally)
         allocate(global_determinant_data(tot_len, MaxWalkersPart), stat=ierr)
@@ -305,5 +314,27 @@ contains
         end if
 
     end function
+
+    function get_spawn_rate(j) result(rate)
+
+        integer, intent(in) :: j
+        real(dp) :: rate
+        character(*), parameter :: this_routine = 'get_spawn_rate'
+
+        ASSERT(tContTimeFCIMC .and. tContTimeFull)
+        rate = global_determinant_data(pos_spawn_rate, j)
+
+    end function
+    
+    subroutine set_spawn_rate(j, rate) 
+
+        integer, intent(in) :: j
+        real(dp), intent(in) :: rate
+        character(*), parameter :: this_routine = 'set_spawn_rate'
+
+        ASSERT(tContTimeFCIMC .and. tContTimeFull)
+        global_determinant_data(pos_spawn_rate, j) = rate
+
+    end subroutine
 
 end module

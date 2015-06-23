@@ -260,6 +260,6 @@ C         enddo
 C       enddo
 C       sum=sqrt(real(csum)**2+dimag(csum)**2)
 C       write(6,*) X,csum,1.0_dp/sqrt(x*x*a(1)**2+y*y*a(2)**2)
-C       stop
+C       st--op
       RETURN
       END

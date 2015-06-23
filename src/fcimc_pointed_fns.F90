@@ -16,7 +16,7 @@ module fcimc_pointed_fns
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use bit_rep_data, only: NIfTot
     use tau_search, only: log_death_magnitude, log_spawn_magnitude
-    use nElRDMMod, only: calc_rdmbiasfac
+    use rdm_general, only: calc_rdmbiasfac
     use hist, only: add_hist_excit_tofrom
     use searching, only: BinSearchParts2
     use util_mod
@@ -436,7 +436,7 @@ module fcimc_pointed_fns
             if(fac(1).gt.2.0_dp) then
                 call stop_all("attempt_die_normal","Death probability > 2: Algorithm unstable. Reduce timestep.")
             else
-                write(iout,"(A,F20.10)") "** WARNING ** Death probability > 1: Creating Antiparticles. "&
+                write(iout,*) "** WARNING ** Death probability > 1: Creating Antiparticles. "&
                     & //"Timestep errors possible: ",fac
             endif
         endif

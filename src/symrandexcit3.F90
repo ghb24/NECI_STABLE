@@ -27,6 +27,7 @@ module symrandexcit3
     use FciMCData, only: pDoubles, iter, excit_gen_store_type
     use bit_reps, only: niftot, decode_bit_det_lists
     use constants, only: dp, n_int, bits_n_int
+    use sym_general_mod, only: SymAllowedExcit
     use timing_neci
     use Parallel_neci
     use util_mod, only: binary_search_first_ge
@@ -424,7 +425,8 @@ ASSERT(exFlag<=3.and.exFlag>=1)
 
 #ifdef __DEBUG
         ! For debugging purposes only (O[N] operation).
-        call IsSymAllowedExcit (nI, nJ, 1, ExcitMat)
+        if (.not. SymAllowedExcit(nI, nJ, 1, ExcitMat)) &
+            call stop_all(this_routine, 'Invalid excitation generated')
 #endif
 
         ! Return the generation probability
@@ -471,6 +473,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
     type(excit_gen_store_type) :: store
     logical :: brillouin_tmp(2)
     type(timer), save :: test_timer
+    character(*), parameter :: t_r = 'test_sym_excit3'
 
     WRITE(6,*) nI(:)
     WRITE(6,*) Iterations,pDoub,exFlag
@@ -669,7 +672,8 @@ lp2: do while(.true.)
 !        ENDIF
 
 !Check excitation
-        CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
+        if (SymAllowedExcit(nI, nJ, ic, excitmat)) &
+            call stop_all(t_r, 'Invalid determinant')
 
     enddo
     iter = iter_tmp

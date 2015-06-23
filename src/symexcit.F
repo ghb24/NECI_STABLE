@@ -275,6 +275,7 @@ C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
          INTEGER iCC
          TYPE(BasisFN) G1(*)
          INTEGER SYMPRODIND(1:2,1:3,1:nPr)
+         character(*), parameter :: t_r = 'SymSetupExcits_StoreOccPairs'
 
          ORBPAIRS(1:2,1:NPAIRS)=0
          L=0
@@ -293,7 +294,7 @@ C.. Find the product in the sorted symprod list
                   ENDDO
                   WRITE(6,"(A)",advance='no') "Illegal Symmetry"
                   CALL WRITESYM(6,PR,.TRUE.)
-                  STOP 'Illegal Symmetry Found'
+                  call stop_all(t_r, 'Illegal Symmetry Found')
                ENDIF
                ISPN=(G1(NI(I))%Ms+G1(NI(J))%Ms)/2+2
 
@@ -857,12 +858,13 @@ C.. And the doubles
          INTEGER SYMPRODIND(2,3,1:*)
          INTEGER LSTE(NEL,*),ICLIST(*),ICOUNT
          character(66) error_msg
+         character(*), parameter :: this_routine = 'SYMGENALLEXCITS'
 
          ICOUNT=0
          if(tAbelianFastExcitGen) then
              error_msg='Fast Abelian excitation generators do not work '
      &       //'for SymGenAllExcits'
-             STOP 
+             call stop_all(this_routine, "Wrong excitation generator")
          end if
 
 C.. Now work out all the excitations
@@ -1226,6 +1228,7 @@ C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
       INTEGER IC,ExcitMat(2,2)
       LOGICAL tDebugPrint
       INTEGER iMinElec1, iMaxElec1
+      character(*), parameter :: this_routine = 'SYMGENEXCITIT'
       tDebugPrint=.false.
 
       DO WHILE(.TRUE.)
@@ -1349,7 +1352,8 @@ C.. hoorah!  We've got an I in the det, and a K not in the det.  Create an excit
                NK(3)=0
                NK(4)=NI(I)
                NK(5)=ITOSL
-               STOP 'tStoreAsExcitations not tested for singles.'
+               call stop_all(this_routine,
+     &                'tStoreAsExcitations not tested for singles.')
             ELSE
 !               CALL NECI_ICOPY(NEL,NI,1,NK,1)
                NK(1:NEL)=NI(1:NEL)
@@ -1758,6 +1762,7 @@ C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
          INTEGER iMaxElec1
 
          INTEGER iRet
+         character(*),parameter:: this_routine='SymGenExcitIt_GenSingle'
          
 C.. singles
 C.. We always need a new K.  K and L run in parallel
@@ -1842,7 +1847,8 @@ C.. hoorah!  We've got an I in the det, and a K not in the det.  Create an excit
             NK(3)=0
             NK(4)=NI(I)
             NK(5)=ITOSL
-            STOP 'tStoreAsExcitations not tested for singles.'
+            call stop_all(this_routine,
+     &              'tStoreAsExcitations not tested for singles.')
          ELSE
 !            CALL NECI_ICOPY(NEL,NI,1,NK,1)
             NK(1:NEL)=NI(1:NEL)

@@ -22,7 +22,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,int_name,filename_in)
 
     ! main-level modules.
     use Calc, only: CalcDoCalc
-    use CalcData, only: tUseProcsAsNodes
+    use CalcData, only: tUseProcsAsNodes, s_global_start
     use kp_fciqmc_procs, only: kp_fciqmc_data
     use Parallel_neci, only: MPINodes, iProcIndex
     use ParallelHelper, only: Root
@@ -30,7 +30,8 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,int_name,filename_in)
 
     ! Utility modules.
     use global_utilities
-    use util_mod, only: get_free_unit
+    use constants
+    use util_mod
 
     Implicit none
     integer,intent(in) :: iCacheFlag
@@ -42,11 +43,12 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,int_name,filename_in)
     character(64) :: Filename
     logical :: toverride_input,tFCIDUMP_exist
     type(kp_fciqmc_data) :: kp
-#ifdef MOLPRO
-    include "common/tapes"
-#else
-    integer, parameter :: iout = 6
-#endif
+    real(sp) :: tend(2)
+
+    ! Measure when NECICore is called. We need to do this here, as molcas
+    ! and molpro can call NECI part way through a run, so it is no use to time
+    ! from when the _process_ began.
+    s_global_start = neci_etime(tend)
     
     tMolpro = tMolpro_local
 
@@ -93,7 +95,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,int_name,filename_in)
         ! NECICore.  This is to allow the NECI input filename(s) to be specified
         ! easily from within the CPMD/VASP input files.
         call ReadInputMain(Filename,ios,toverride_input,kp)
-        If (ios.ne.0) stop 'Error in Read'
+        If (ios.ne.0) call stop_all(this_routine, 'Error in Read')
     endif
 
     call MPINodes(tUseProcsAsNodes)  ! Setup MPI Node information - this is dependent upon knowing the job type configurations.
@@ -215,7 +217,6 @@ subroutine NECICalcInit(iCacheFlag)
     use Calc, only : CalcInit
     use HFCalc, only: HFDoCalc
     use RotateOrbsMod, only : RotateOrbs
-    use semi_stoch_gen, only: init_semi_stochastic
     use replica_data, only: init_replica_arrays
 
     implicit none

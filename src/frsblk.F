@@ -107,6 +107,24 @@ C ====================================================================
       real(sp) t1,t2,t3,tarr(2)
 C..temp
       real(dp) ::  H(*)
+      character(*), parameter :: this_routine = 'NECI_FRSBLK'
+
+      interface
+          subroutine neci_kryref(m, n, nkry, nconv, v0, v, am, bm, t, 
+     &                           ldt, wt, ldwt, h, scr, lscr, iscr,
+     &                           liscr, nhpsi, lab, nrow, tLargest,
+     &                           tDie2, tFail)
+            use constants
+            integer :: m, n, nkry, nconv, ldt, iscr(liscr), nhpsi
+            integer :: lab(m, *), nrow(m)
+            real(dp) :: v0(m, *), v(m, n, nkry+1), am(n, n, nkry+1)
+            real(dp) :: bm(n, n, nkry), wt(ldwt), h(*), scr(lscr)
+            real(dp) :: t(ldt)
+            logical :: tLargest, tDie2, tFail
+          end subroutine
+      end interface
+
+
 C..temp
 C ==-----------------------------------------------------------------==
       proc_timer%timer_name='    FRSBLK'
@@ -124,7 +142,7 @@ C.. scratch space for banded matrix diagonaliser
 C        WRITE(6,*) 'LSCR1:',LSCR1
 C        WRITE(6,*) 'LSCR2:',LSCR2
         WRITE(6,*) 'LSCR:',LSCR
-        STOP ' LSCR TOO SMALL '  
+        call stop_all(this_routine, ' LSCR TOO SMALL '  )
       ENDIF
       T1 = neci_etime(tarr) 
 C ====================================================================
@@ -334,22 +352,25 @@ C ======================================================================
       integer :: N,M,MA,NA,IBEG,JBEG,I,J
       real(dp) :: T(M,N),A(MA,NA)
       CHARACTER(1) CHAR
-      IF(MA*IBEG.GT.M) STOP ' MA+IBEG.GT.M'
-      IF(NA*JBEG.GT.N) STOP ' MA+IBEG.GT.M'
+      character(*), parameter :: this_routine = 'NECI_PUTTMAT'
+      IF(MA*IBEG.GT.M) call stop_all(this_routine, ' MA+IBEG.GT.M')
+      IF(NA*JBEG.GT.N) call stop_all(this_routine, ' MA+IBEG.GT.M')
       IF(CHAR.EQ.'N') THEN 
-        DO J=1,NA
-          DO I=1,MA 
-            T(I+MA*(IBEG-1),J+NA*(JBEG-1))=A(I,J)
-          ENDDO
-        ENDDO
+c        DO J=1,NA
+c          DO I=1,MA 
+c            T(I+MA*(IBEG-1),J+NA*(JBEG-1))=A(I,J)
+c          ENDDO
+c        ENDDO
+        T((ibeg-1)*MA+1:ibeg*MA, (jbeg-1)*MA+1:jbeg*MA) = A
       ELSEIF(CHAR.EQ.'T') THEN 
-        DO J=1,NA
-          DO I=1,MA 
-            T(I+MA*(IBEG-1),J+NA*(JBEG-1))=A(J,I)
-          ENDDO
-        ENDDO
+c        DO J=1,NA
+c          DO I=1,MA 
+c            T(I+MA*(IBEG-1),J+NA*(JBEG-1))=A(J,I)
+c          ENDDO
+c        ENDDO
+        T((ibeg-1)*MA+1:ibeg*MA, (jbeg-1)*MA+1:jbeg*MA) = transpose(A)
       ELSE
-        STOP 'ILLEGAL CHAR'
+        call stop_all(this_routine, 'ILLEGAL CHAR')
       ENDIF
       RETURN
       END
@@ -361,8 +382,9 @@ C ======================================================================
       integer :: N,M,MA,NA,IBEG,JBEG,I,J
       real(dp) :: T(M,N),A(MA,NA)
       CHARACTER(1) :: CHAR
-      IF(MA*IBEG.GT.M) STOP ' MA+IBEG.GT.M'
-      IF(NA*JBEG.GT.N) STOP ' MA+IBEG.GT.M'
+      character(*), parameter :: this_routine = 'NECI_GETMAT'
+      IF(MA*IBEG.GT.M) call stop_all(this_routine, ' MA+IBEG.GT.M')
+      IF(NA*JBEG.GT.N) call stop_all(this_routine, ' MA+IBEG.GT.M')
       IF(CHAR.EQ.'N') THEN 
         DO J=1,NA
           DO I=1,MA 
@@ -376,7 +398,7 @@ C ======================================================================
           ENDDO
         ENDDO
       ELSE
-        STOP 'ILLEGAL CHAR'
+        call stop_all(this_routine, 'ILLEGAL CHAR')
       ENDIF
       RETURN
       END
@@ -408,7 +430,8 @@ C     ==================================================================
       integer :: N,M,LAB(M,*),NROW(M),LSCR,LDWT,LDT,NKRY
       integer :: LISCR,J,NCONV,NHPSI,I,ISCR(LISCR)
       real(dp) :: V0(M,*),V(M,N,NKRY+1),AM(N,N,NKRY+1),BM(N,N,NKRY)
-      real(dp) :: T(LDT),WT(LDWT),H(*),SCR(LSCR)
+      real(dp) :: WT(LDWT),H(*),SCR(LSCR)
+      real(dp) :: T(LDT)
       LOGICAL :: TLargest,tDie2,tFail
       type(timer), save :: proc_timer
 C     ==================================================================
@@ -453,6 +476,7 @@ C        ENDDO
       ENDDO                     !  End loop over ikry
 C ==================================================================
 C..Setup T-matrix. First diagonal terms      
+
       I=NKRY
       T(1:(I*N)**2)=0
       CALL NECI_PUTTMAT('N',T,I*N,I*N,AM(1,1,1),N,N,1,1)
@@ -560,11 +584,12 @@ C =======================================================================
       IMPLICIT NONE
       integer :: N,LSCR,KD,I,IBEG,J
       real(dp) :: A(N,N),SCR(LSCR)
+      character(*), parameter :: this_routine = 'NECI_PUTTAB'
 C..
       IF(LSCR.LT.N) THEN 
         WRITE(6,*) ' LSCR:',LSCR
         WRITE(6,*) 'N:',N
-        STOP 'LSCR LT N '
+        call stop_all(this_routine, 'LSCR LT N ')
       ENDIF
       SCR(1:N)=0.0_dp
       DO J=1,N
@@ -617,6 +642,7 @@ C =======================================================================
       integer :: N,M
       real(dp) :: A(N,N),V1(M,N),V2(M,N)
       type(timer), save :: proc_timer
+      character(*), parameter :: this_routine = 'NECI_RSDBLK'
 C..V_I = V_I - V_(I-1) A_(I-1)
       proc_timer%timer_name='    NECI_RSDBLK'
       call set_timer(proc_timer)
@@ -625,7 +651,7 @@ C..V_I = V_I - V_(I-1) A_(I-1)
       ELSEIF(CHAR.EQ.'T') THEN 
         CALL DGEMM('N','T',M,N,N,-1.0_dp,V1,M,A,N,1.0_dp,V2,M)
       ELSE
-        STOP ' CHAR ILLEGAL IN NECI_RSDBLK ' 
+        call stop_all(this_routine, ' CHAR ILLEGAL IN NECI_RSDBLK ' )
       ENDIF
       call halt_timer(proc_timer)
       RETURN
@@ -687,6 +713,7 @@ C ==------------------------------------------------------------------==
       type(timer), save :: proc_timer
       INTEGER :: IFAIL(*),IN,LSCR,LISCR,N,MEVAL,INFO,ISCR(LISCR)
       REAL(dp) :: T(IN,IN,*),WT(IN),SCR(LSCR)
+      character(*), parameter :: this_routine = 'NECI_BANDM'
 C     ==================================================================
       proc_timer%timer_name='     BANDM'
       call set_timer(proc_timer)
@@ -695,12 +722,12 @@ C..Put T is form suitable for banded matrix diagonalisation
       IF(LSCR.LT.7*IN) THEN
         WRITE(6,*) ' 7*IN:',7*IN
         WRITE(6,*) 'LSCR:',LSCR
-        STOP ' LSCR TOO SMALL IN BANDM'
+        call stop_all(this_routine, ' LSCR TOO SMALL IN BANDM')
       ENDIF
       IF(LISCR.LT.5*IN) THEN
         WRITE(6,*) ' 5*IN:',5*IN
         WRITE(6,*) 'LISCR:',LISCR
-        STOP ' LISCR TOO SMALL IN BANDM'
+        call stop_all(this_routine, ' LISCR TOO SMALL IN BANDM')
       ENDIF
 C        CALL DSBEV('V','U',IN,N,T,IN,WT,T(1,2),IN,SCR,INFO)
       CALL DSBEVX('V','I','U',IN,N,T,IN,T(1,1,2),IN,1.0_dp,1.0_dp,

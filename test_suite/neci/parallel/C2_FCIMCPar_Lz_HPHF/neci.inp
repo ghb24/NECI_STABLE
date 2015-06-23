@@ -1,0 +1,33 @@
+title
+
+system read
+electrons 12
+nonuniformrandexcits
+lztot 0
+hphf
+endsys
+
+calc
+methods
+method vertex fcimc 
+endmethods
+nmcyc 1000   
+diagshift 0.05
+initwalkers 175000 
+tau 0.0025
+startsinglepart
+shiftdamp 0.15
+singlesbias 1.5
+memoryfacpart 1.4
+memoryfacspawn 0.3
+stepsshift 10
+endcalc
+
+integral
+freeze 4,12
+endint
+
+logging
+popsfile -1000
+endlog
+end

@@ -1,0 +1,53 @@
+system hubbard
+cell 12 1 1
+b -1
+u 1
+spin-restrict 0
+sym 0 0 0 0
+kpoints
+nonuniformrandexcits nosymgen
+lattice-excitgen
+electrons 12
+endsys
+
+calc
+memoryfacspawn 30.0
+memoryfacpart 300.0
+totalwalkers 750
+tau 0.01
+startsinglepart 1000
+shiftdamp 0.5
+stepsshift 1
+diagshift 0.0
+allrealcoeff
+realspawncutoff 0.01
+seed 101
+semi-stochastic
+doubles-core
+truncinitiator
+addtoinitiator 2
+stochastic-hf-spawning
+jump-shift off
+(Add the following line so that the reference does not change after this option was made default)
+proje-changeref 10000.0
+endcalc
+
+kp-fciqmc
+finite-temperature
+num-init-configs 2
+num-krylov-vecs 20
+num-iters-between-vecs-vary 2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38
+num-repeats-per-init-config 2
+num-walkers-per-site-init 1.0
+init-correct-walker-pop
+averagemcexcits-hamil 20.0
+all-sym-sectors
+end-kp-fciqmc
+
+integral
+endint
+
+logging
+popsfile -1
+endlog
+end

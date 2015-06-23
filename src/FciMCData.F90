@@ -20,7 +20,7 @@ MODULE FciMCData
       type ll_node
           integer :: ind
           type(ll_node), pointer :: next => null()
-      end type
+      end type ll_node
 
       integer :: iPopsTimers    !Number of timed popsfiles written out (initiatlised to 1)
 
@@ -129,7 +129,6 @@ MODULE FciMCData
       real(dp), allocatable :: norm_semistoch(:)
 
       INTEGER :: exFlag=3
-      real(dp) :: AccumRDMNorm, AccumRDMNorm_Inst, AllAccumRDMNorm
       
       !Hash tables to point to the correct determinants in CurrentDets
       type(ll_node), pointer :: HashIndex(:) 
@@ -250,7 +249,8 @@ MODULE FciMCData
                            SemiStoch_Multiply_Time, Trial_Search_Time, &
                            SemiStoch_Init_Time, Trial_Init_Time, &
                            kp_generate_time, Stats_Comms_Time, &
-                           subspace_hamil_time
+                           subspace_hamil_time, exact_subspace_h_time, &
+                           subspace_spin_time
       
       ! Store the current value of S^2 between update cycles
       real(dp), allocatable :: curr_S2(:), curr_S2_init(:)
@@ -269,6 +269,8 @@ MODULE FciMCData
       ! using the HF determinant, if using non-uniform random excitations.
       real(dp) :: pDoubles, pSingles, pParallel
       integer :: nSingles, nDoubles
+      ! The number of determinants connected to the Hartree-Fock determinant.
+      integer :: HFConn
       
       ! Bit representation of the HF determinant
       integer(kind=n_int), allocatable :: iLutHF(:), iLutHF_True(:)
@@ -319,9 +321,6 @@ MODULE FciMCData
                                                              !and external orbitals in the cas space
       INTEGER(KIND=n_int) , ALLOCATABLE :: CoreMask(:)       !These are masking arrays for the Core orbitals in the cas space
 
-      INTEGER , ALLOCATABLE :: RandomHash(:)    !This is a random indexing scheme by which the orbital indices 
-                                                !are randomised to attempt to provide a better hashing performance
-
       ! A second random hash, for use with hashing the location of walkers
       ! inside the main particle list.
       integer, allocatable :: RandomHash2(:)
@@ -334,22 +333,31 @@ MODULE FciMCData
       real(dp), allocatable :: InstShift(:)
       real(dp), allocatable :: OldAllNoatHF(:)
 
-      INTEGER :: iHFProc    !Processor index for HF determinant
+      ! Where is the reference site being stored?
+      integer, allocatable :: iRefProc(:)
 
       !This data is for calculating the highest population determinant, 
       !and potentially restarting the calculation based on this determinant, 
       !or changing the determiant which the energy is calculated from.
-      INTEGER :: iHighestPop
+      integer, allocatable:: iHighestPop(:)
       INTEGER :: QuadDetsEst !Estimate of the number of symmetry allowed determinants at excit level 4
       INTEGER :: DoubDetsEst !Estimate of the number of symmetry allowed determinants at excit level 2
-      INTEGER , ALLOCATABLE :: ProjEDet(:)
-      INTEGER(KIND=n_int) , ALLOCATABLE :: HighestPopDet(:),iLutRef(:)
-      INTEGER(n_int) , ALLOCATABLE :: iLutRefFlip(:)     !If we are using HPHF and projecting onto 
+      logical :: tReplicaReferencesDiffer
+
+      integer, allocatable :: ProjEDet(:, :)
+      integer(n_int), allocatable :: HighestPopDet(:,:), iLutRef(:, :)
+      integer(n_int), allocatable :: iLutRefFlip(:, :)     !If we are using HPHF and projecting onto 
                                                         !an open-shell determinant, then it is useful
                                                         !to store the spin-coupled determinant, 
                                                         !so we can calculate projection onto both.
-      INTEGER , ALLOCATABLE :: RefDetFlip(:)
-      LOGICAL :: tSpinCoupProjE
+
+      ! Even with multiple reference determinants, the calculation is done
+      ! relative to Hii. So we need to adjust the calculated projected energy
+      ! by a different amount.
+      real(dp), allocatable :: proje_ref_energy_offsets(:)
+
+      integer, allocatable :: RefDetFlip(:, :)
+      logical, allocatable :: tSpinCoupProjE(:)
       
       !Extra data recorded for using RealCoefficients
       INTEGER :: WalkersToSpawn
@@ -364,10 +372,10 @@ MODULE FciMCData
 
       real(dp), allocatable :: proje_denominator_cyc(:)
       real(dp), allocatable :: proje_denominator_sum(:)
-      logical :: tRestart   !Whether to restart a calculation
+      logical :: tRestart = .false.   !Whether to restart a calculation
 
       ! Diag shift from the input file, if it needed to be reset after restart
-      real(dp) :: InputDiagSft
+      real(dp), allocatable :: InputDiagSft(:)
       
 
       ! ********************** FCIMCPar control variables *****************
@@ -462,47 +470,53 @@ MODULE FciMCData
 
       ! Trial wavefunction data.
 
-      ! This list stores the iluts from which the trial wavefunction is formed, but only those that reside on this processor.
-      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
+      ! This list stores the iluts from which the trial wavefunction is formed,
+      ! but only those that reside on this processor.
       integer(n_int), allocatable, dimension(:,:) :: trial_space
       ! The number of states in the trial vector space.
       integer :: trial_space_size = 0
-      ! This list stores the iluts from which the trial wavefunction is formed, but only those that reside on this processor.
-      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
+      ! This list stores the iluts from which the trial wavefunction is formed,
+      ! but only those that reside on this processor.
       integer(n_int), allocatable, dimension(:,:) :: con_space
-      ! The number of states in the space connected to (but not including) the trial vector space.
+      ! The number of states in the space connected to (but not including) the
+      ! trial vector space.
       integer :: con_space_size = 0
 
-      ! This vector stores the trial wavefunction itself.
-      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
-      real(dp), allocatable, dimension(:) :: trial_wf
-      ! Holds the number of occupied trial states in CurrentDets.
-      integer :: ntrial_occ
+      ! This vector stores the trial wavefunction(s) themselves, but only the
+      ! components on this processor.
+      real(dp), allocatable, dimension(:,:) :: trial_wfs
 
-      real(dp) :: trial_energy
-      ! This vector's elements store the quantity
+      ! The energy eigenvalues of the trial wave functions in the trial
+      ! subspace.
+      real(dp), allocatable :: trial_energies(:)
+
+      ! This vector's elements store the quantities
       ! \sum_j H_{ij} \psi^T_j,
-      ! where \psi is the trial wavefunction. These elements are stored only in the space of states which are connected
-      ! to *but not included in* the trial vector space.
-      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
-      real(dp), allocatable, dimension(:) :: con_space_vector
-      ! Holds the number of occupied connected states in CurrentDets.
-      integer :: ncon_occ
+      ! where \psi^T are trial wavefunctions.
+      real(dp), allocatable, dimension(:,:) :: con_space_vecs
 
-      ! If index i in CurrentDets is a trial state then index i of this array stores the corresponding amplitude of
-      ! trial_wf. If index i in the CurrentDets is a connected state then index i of this array stores the corresponding
-      ! amplitude of con_space_vector. Else, it will be zero.
-      real(dp), allocatable, dimension(:) :: current_trial_amps
-      ! Only used with the linscalefcimcalgo option: Because in AnnihilateSpawendParts trial and connected states are
-      ! sorted in the same order, a smaller section of the trial and connected space can be searched for each state.
-      ! These indices hold the indices to be searched from next time.
+      ! If index i in CurrentDets is a trial state then index i of this array
+      ! stores the corresponding amplitudes of trial_wfs. If index i in the
+      ! CurrentDets is a connected state then index i of this array stores
+      ! the corresponding amplitudes of con_space_vecs. Else, it will be zero.
+      real(dp), allocatable, dimension(:,:) :: current_trial_amps
+      ! Only used when tTrialHash is .false. (it is .true. by default).
+      ! Because in AnnihilateSpawendParts trial and connected states are
+      ! sorted in the same order, a smaller section of the trial and connected
+      ! space can be searched for each state. These indices hold the indices to
+      ! be searched from next time.
       integer :: min_trial_ind, min_conn_ind
 
-      ! If true (which it is by default) then the trial and connected space states are stored in a trial_ht and
-      ! con_ht and are accessed by a hash lookup.
+      ! The number of trial wave functions for different excited states used.
+      integer :: ntrial_excits
+
+      ! If true (which it is by default) then the trial and connected space
+      ! states are stored in a trial_ht and con_ht and are accessed by a hash
+      ! lookup.
       logical :: tTrialHash
-      ! If true, include the walkers that get cancelled by the initiator criterion in the trial energy estimate.
-      ! tTrialHash needs to be used for this option.
+      ! If true, include the walkers that get cancelled by the initiator
+      ! criterion in the trial energy estimate. tTrialHash needs to be used
+      ! for this option.
       logical :: tIncCancelledInitEnergy
 
       ! Semi-stochastic tags:
@@ -546,75 +560,6 @@ MODULE FciMCData
 
       type(perturbation), allocatable :: pops_pert(:)
 
-contains
-
-    subroutine set_initial_global_data(ndets, ilut_list)
-
-        use bit_rep_data, only: NIfTot, NIfDBO, extract_sign
-        use Parallel_neci, only: iProcIndex, MPISumAll
-
-        ! Take in a list of determinants and calculate and set all of the
-        ! global data needed for the start of a FCIQMC calculation.
-
-        integer(int64), intent(in) :: ndets
-        integer(n_int), intent(inout) :: ilut_list(0:NIfTot,ndets)
-
-        integer :: i, run
-        real(dp) :: real_sign(lenof_sign)
-        character(*), parameter :: t_r = 'set_initial_global_data'
-
-        TotParts = 0.0_dp
-        NoAtHF = 0.0_dp
-
-        ! First, find the population of the walkers in walker_list.
-        do i = 1, ndets
-            call extract_sign(ilut_list(:,i), real_sign)
-            TotParts = TotParts + abs(real_sign)
-            if ( all(ilut_list(0:NIfDBO,i) == iLutRef(0:NIfDBO)) ) NoAtHF = real_sign
-        end do
-
-        TotWalkers = ndets
-        TotWalkersOld = TotWalkers
-        call MPISumAll(TotWalkers,AllTotWalkers)
-        AllTotWalkersOld = AllTotWalkers
-
-        TotPartsOld = TotParts
-        call MPISumAll(TotParts, AllTotParts)
-        AllTotPartsOld = AllTotParts
-
-        call MPISumAll(NoatHF, AllNoatHF)
-        OldAllNoatHF = AllNoatHF
-
-#ifdef __CMPLX
-        OldAllAvWalkersCyc = sum(AllTotParts)
-#else
-        OldAllAvWalkersCyc = AllTotParts
-#endif
-
-        do run = 1, inum_runs
-            OldAllHFCyc(run) = ARR_RE_OR_CPLX(AllNoatHF, run)
-        end do
-
-        AllNoAbortedOld(:) = 0.0_dp
-
-        iter_data_fciqmc%tot_parts_old = AllTotParts
-        
-        ! Calculate the projected energy for this iteration.
-        do run = 1, inum_runs
-            if (ARR_RE_OR_CPLX(AllSumNoAtHF,run) /= 0) &
-                ProjectionE(run) = AllSumENum(run) / ARR_RE_OR_CPLX(AllSumNoatHF,run)
-        enddo 
-
-        if (iProcIndex == iHFProc) then
-            SumNoatHF(:) = AllSumNoatHF(:)
-            SumENum(:) = AllSumENum(:)
-            InstNoatHF(:) = NoatHF(:)
-
-            if ( any(AllNoatHF /= NoatHF) ) then
-                call stop_all(t_r, "HF particles spread across different processors.")
-            endif
-        endif
-
-    end subroutine set_initial_global_data
+      real(dp), allocatable :: replica_overlaps(:,:)
 
 END MODULE FciMCData

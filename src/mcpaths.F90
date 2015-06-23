@@ -92,6 +92,7 @@ contains
          type(timer), save :: proc_timer
          type(timer), save :: proc_timer2
          type(timer), save :: proc_timerpre
+         character(*), parameter :: this_routine = 'MCPATHSR10'
          proc_timer%timer_name='MCPATHSR10'
          call set_timer(proc_timer)
          WRITE(6,*) "Running Multi-level graph calculation."
@@ -204,7 +205,7 @@ contains
      &              ECORE,DBETA,DLWDB2)         
                ELSEIF(TGraphMorph) THEN
 !This involves iterativly improving a graph in order to maximise the connections between determinants.
-                    IF(I_VMAX.ne.2) STOP 'Error in vertex number'
+                    IF(I_VMAX.ne.2) call stop_all(this_routine, 'Error in vertex number')
                     CALL MorphGraph(F(I_V),DLWDB2)
                ELSEIF(TStarTrips) THEN
 !Triple excitations are prediagonalised from each double
@@ -229,7 +230,7 @@ contains
                ENDIF
             ELSEIF(I_CHMAX.EQ.-11) THEN
                IF(I_V.EQ.I_VMAX) THEN
-                  STOP "FMCPR3NVSTAR has been removed."
+                  call stop_all(this_routine, "FMCPR3NVSTAR has been removed.")
                ELSE
                   F(I_V)=0.0_dp
                   L=0
@@ -464,6 +465,7 @@ contains
          real(dp) MP2E(2:I_VMAX),H00,FF
          real(dp) NTOTAL
          real(dp) FMCPR3STAR
+         character(*), parameter :: this_routine = 'MCPATHSR3'
          write(6,*) "MCPATHSR3:  I_HMAX=",I_HMAX
 ! Init the weight of the 1-v graph
          WLSI=1.0_dp
@@ -511,7 +513,7 @@ contains
             RETURN
          ELSEIF(I_HMAX.EQ.-6) THEN
 !C.. Pick the largest clustera
-            stop "MCPATHSR6 has been removed."
+            call stop_all(this_routine, "MCPATHSR6 has been removed.")
 !            CALL MCPATHSR6(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,  &
 !     &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,     &
 !     &               NWHTAY(1,1),ILOGGING,ECORE, WLRI,WLSI,DBETA,DLWDB)
@@ -527,7 +529,7 @@ contains
          ENDIF
          IF(I_VMAX.EQ.0) THEN
 !C.. Pick graphs which may not contain distinct vertices 
-            stop "MCPATHSR2 has been removed."
+            call stop_all(this_routine, "MCPATHSR2 has been removed.")
 !            CALL MCPATHSR2(NI,BETA,I_P,I_HMAX,NEL,NBASISMAX,G1,         &
 !     &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,     &
 !     &               LSTE,ICE,NWHTAY(1,1),ILOGGING,ECORE,ILMAX,WLRI,WLSI,    &
@@ -620,7 +622,7 @@ contains
      &              ECORE,DBETA,DLWDB2)       
                ELSEIF(TGraphMorph) THEN
 !This involves iterativly improving a graph in order to maximise the connections between determinants.
-                    IF(I_VMAX.ne.2) STOP 'Error in vertex number'
+                    IF(I_VMAX.ne.2) call stop_all(this_routine, 'Error in vertex number')
                     CALL MorphGraph(F(I_V),DLWDB2)
                ELSEIF(TStarTrips) THEN
 !Excited stars of triples from all doubles are prediagonalised
@@ -970,7 +972,7 @@ contains
 !C.. These two vertices are connected
 
 !C***********
-!C      STOP 'NB - LOOK AT RED GRAPH PIC'
+!C      call stop_all(this_routine, 'NB - LOOK AT RED GRAPH PIC')
 
 
 #ifdef __CMPLX
@@ -1090,6 +1092,7 @@ contains
          real(dp) VARSUM,SumX,SumY,SumXY,SumXsq,SumYsq,SumP
          DATA SumP/0.0_dp/
          SAVE SumX,SumY,SumXY,SumXsq,SumYsq,SumP
+         character(*), parameter :: this_routine = 'FMCPR3B'
 !         write(6, *) "FMCPR3B I_VIND:",I_VIND
          IF(BTEST(NWHTAY,0).AND.I_VIND.EQ.0) WRITE(6,*) "FMCPR3 ForceRoot."
          IF(BTEST(NWHTAY,1).AND.I_VIND.EQ.0) WRITE(6,*) "FMCPR3 ForceStar."
@@ -1105,7 +1108,7 @@ contains
             IF(I_VIND.EQ.0) WRITE(6,*) "FMCPR3 Only doubles."
             EXFLAG=2
          CASE(24)
-            STOP "Invalid combination of flags in NWHTAY"
+            call stop_all(this_routine, "Invalid combination of flags in NWHTAY")
          END SELECT
          IF(I_VIND.EQ.0) THEN
 !C.. 1st time in

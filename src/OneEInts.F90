@@ -375,7 +375,7 @@ contains
         IMPLICIT NONE
         integer Nirrep,nBasis,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
         integer iSize, iunit
-        character(len=*),parameter :: thisroutine='SetupTMAT'
+        character(*), parameter :: thisroutine = 'SetupTMAT'
         
         ! If this is a CPMD k-point calculation, then we're operating
         ! under Abelian symmetry: can use George's memory efficient
@@ -449,7 +449,7 @@ contains
                 write(iunit,*) NBI
                 CALL neci_flush(iunit)
                 close(iunit)
-                STOP 'Not all basis functions found while setting up TMAT'
+                call stop_all(thisroutine, 'Not all basis functions found while setting up TMAT')
             ENDIF
             !iSize=iSize+2
             !This is to allow the index of '-1' in the array to give a zero value
@@ -502,7 +502,7 @@ contains
         IMPLICIT NONE
         integer Nirrep,nBasisfrz,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
         integer iSize, iunit
-        character(len=*),parameter :: thisroutine='SetupTMAT2'
+        character(*),parameter :: thisroutine='SetupTMAT2'
         
         ! If this is a CPMD k-point calculation, then we're operating
         ! under Abelian symmetry: can use George's memory efficient
@@ -565,7 +565,7 @@ contains
                     WRITE(iunit,*) SYMLABELCOUNTS(2,i)
                     CALL neci_flush(iunit)
                 ENDDO
-                STOP 'Not all basis functions found while setting up TMAT2'
+                call stop_all(thisroutine, 'Not all basis functions found while setting up TMAT2')
             ENDIF
             !iSize=iSize+2
             !This is to allow the index of '-1' in the array to give a zero value
@@ -698,7 +698,7 @@ contains
              !Deallocate TMAT & reallocate with right size
              CALL DestroyTMAT(.false.)
              !CALL SetupTMAT(NBASIS,2,TMATINT)
-             !IF(TMATINT.ne.(NBASIS*NBASIS)) STOP 'Errorfrz'
+             !IF(TMATINT.ne.(NBASIS*NBASIS)) call stop_all(this_routine, 'Errorfrz')
              TMAT2D => TMAT2D2
              NULLIFY(TMAT2D2)
 !             DO I=1,NBASIS

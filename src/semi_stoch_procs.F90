@@ -12,8 +12,9 @@ module semi_stoch_procs
     use bit_reps, only: decode_bit_det
     use CalcData
     use constants
-    use FciMCData, only: determ_sizes, determ_displs, determ_space_size, SpawnedParts
-    use FciMCData, only: TotWalkers, CurrentDets, core_space
+    use FciMCData, only: determ_sizes, determ_displs, determ_space_size, &
+                         SpawnedParts, TotWalkers, CurrentDets, core_space, &
+                         MaxSpawned
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg
     use sparse_arrays, only: sparse_core_ham
     use SystemData, only: nel
@@ -195,19 +196,23 @@ contains
         real(dp) :: Hii_shift
         integer :: i, j
 
-        write(6,'(a56)') "Recalculating diagonal elements of the core Hamiltonian."
+        ! Only attempt this if we have already performed the semi-stochastic
+        ! initialisation, in which case determ_sizes will have been allocated.
+        if (allocated(determ_sizes)) then
+            write(6,'(a56)') "Recalculating diagonal elements of the core Hamiltonian."
 
-        Hii_shift = old_Hii - new_Hii
+            Hii_shift = old_Hii - new_Hii
 
-        do i = 1, determ_sizes(iProcIndex)
-            do j = 1, sparse_core_ham(i)%num_elements
-                if (sparse_core_ham(i)%positions(j) == i + determ_displs(iProcIndex)) then
-                    sparse_core_ham(i)%elements(j) = sparse_core_ham(i)%elements(j) + Hii_shift
-                end if
+            do i = 1, determ_sizes(iProcIndex)
+                do j = 1, sparse_core_ham(i)%num_elements
+                    if (sparse_core_ham(i)%positions(j) == i + determ_displs(iProcIndex)) then
+                        sparse_core_ham(i)%elements(j) = sparse_core_ham(i)%elements(j) + Hii_shift
+                    end if
+                end do
             end do
-        end do
 
-        core_ham_diag = core_ham_diag + Hii_shift
+            core_ham_diag = core_ham_diag + Hii_shift
+        end if
 
     end subroutine recalc_core_hamil_diag
 
@@ -339,31 +344,6 @@ contains
         end do
 
     end subroutine initialise_core_hash_table
-
-    subroutine remove_repeated_states(list, list_size)
-
-        use DetBitOps, only: ilut_lt, ilut_gt
-        use sort_mod, only: sort
-
-        integer, intent(inout) :: list_size
-        integer(n_int), intent(inout) :: list(0:NIfTot, list_size)
-        integer :: i, counter
-
-        ! Annihilation-like steps to remove repeated states.
-        call sort(list(:, 1:list_size), ilut_lt, ilut_gt)
-        counter = 1
-        do i = 2, list_size
-            ! If this state and the previous one were identical, don't add this state to the
-            ! list so that repeats aren't included.
-            if (.not. all(list(0:NIfD, i-1) == list(0:NIfD, i)) ) then
-                counter = counter + 1
-                list(:, counter) = list(:, i)
-            end if
-        end do
-
-        list_size = counter
-
-    end subroutine remove_repeated_states
 
     subroutine remove_high_energy_orbs(ilut_list, num_states, target_num_states, tParallel)
 
@@ -524,7 +504,7 @@ contains
 
         ! And also output the number of states on each processor in the space.
 
-        use hash, only: DetermineDetNode
+        use load_balance_calcnodes, only: DetermineDetNode
         use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
 
         integer, intent(in) :: ilut_list_size
@@ -728,8 +708,17 @@ contains
         real(dp) :: walker_sign(lenof_sign)
         type(ll_node), pointer :: temp_node
         logical :: tSuccess
+        character(*), parameter :: this_routine = 'add_core_states_currentdet'
 
         nwalkers = int(TotWalkers,sizeof_int)
+
+        ! Test that SpawnedParts is going to be big enough
+        if (determ_sizes(iProcIndex) > MaxSpawned) then
+            write(6,*) 'Spawned parts array will not be big enough for &
+                       &Semi-Stochastic initialisation'
+            write(6,*) 'Please increase MEMORYFACSPAWN'
+            call stop_all(this_routine, "Insufficient memory assigned")
+        end if
 
         ! First find which CurrentDet states are in the core space.
         ! The warning above refers to this bit of code: If a core determinant is not in the
@@ -771,6 +760,16 @@ contains
         do i = 1, int(TotWalkers,sizeof_int)
             if (.not. test_flag(CurrentDets(:,i), flag_deterministic)) then
                 i_non_core = i_non_core + 1
+
+                ! Add a quick test in, to ensure that we don't overflow the
+                ! spawned parts array...
+                if (i_non_core > MaxSpawned) then
+                    write(6,*) 'Spawned parts array too small for &
+                               &semi-stochastic initialisation'
+                    write(6,*) 'Please increase MEMORYFACSPAWN'
+                    call stop_all(this_routine, 'Insufficient memory assigned')
+                end if
+                
                 SpawnedParts(:,i_non_core) = CurrentDets(:,i)
             end if
         end do
@@ -1020,7 +1019,7 @@ contains
         ! This routine will copy all the core determinants *ON THIS PROCESS
         ! ONLY* to the SpawnedParts array.
 
-        use hash, only: DetermineDetNode
+        use load_balance_calcnodes, only: DetermineDetNode
 
         integer :: i, ncore, proc
         integer :: nI(nel)
@@ -1038,7 +1037,7 @@ contains
             end if
         end do
 
-        if (ncore /= determ_sizes(iProcIndex)) call stop_all("t_r", "The number of &
+        if (ncore /= determ_sizes(iProcIndex)) call stop_all(t_r, "The number of &
             &core determinants counted is less than was previously counted.")
 
     end subroutine copy_core_dets_to_spawnedparts
@@ -1111,18 +1110,77 @@ contains
 
     end subroutine return_mp1_amp_and_mp2_energy
 
+    subroutine reinit_current_trial_amps()
+
+        ! Recreate current trial amps, without using arrays such as trial_space
+        ! and trial_wfs, which are deallocated after the first init_trial_wf
+        ! call.
+
+        use bit_rep_data, only: flag_trial, flag_connected
+        use bit_reps, only: decode_bit_det, set_flag
+        use FciMCData, only: CurrentDets, TotWalkers, HashIndex, nWalkerHashes
+        use FciMCData, only: tTrialHash, current_trial_amps, ntrial_excits
+        use searching, only: hash_search_trial, bin_search_trial
+        use SystemData, only: nel
+
+        integer :: i
+        integer :: nI(nel)
+        real(dp) :: trial_amps(ntrial_excits)
+        logical :: tTrial, tCon
+
+        ! Don't do anything if this is called before the trial wave function
+        ! initialisation.
+        if (.not. allocated(current_trial_amps)) return
+
+        current_trial_amps = 0.0_dp
+
+        do i = 1, TotWalkers
+            if (tTrialHash) then
+                call decode_bit_det(nI, CurrentDets(:,i))
+                call hash_search_trial(CurrentDets(:,i), nI, trial_amps, tTrial, tCon)
+            else
+                call bin_search_trial(CurrentDets(:,i), trial_amps, tTrial, tCon)
+            end if
+
+            ! Set the appropraite flag (if any). Unset flags which aren't
+            ! appropriate, just in case.
+            if (tTrial) then
+                call set_flag(CurrentDets(:,i), flag_trial, .true.)
+                call set_flag(CurrentDets(:,i), flag_connected, .false.)
+            else if (tCon) then
+                call set_flag(CurrentDets(:,i), flag_trial, .false.)
+                call set_flag(CurrentDets(:,i), flag_connected, .true.)
+            else
+                call set_flag(CurrentDets(:,i), flag_trial, .false.)
+                call set_flag(CurrentDets(:,i), flag_connected, .false.)
+            end if
+
+            ! Set the amplitude (which may be zero).
+            current_trial_amps(:,i) = trial_amps
+        end do
+
+    end subroutine reinit_current_trial_amps
+
     subroutine end_semistoch()
 
         use FciMCData, only: partial_determ_vecs, full_determ_vecs, full_determ_vecs_av
         use FciMCData, only: PDetermTag, FDetermTag, FDetermAvTag, IDetermTag
-        use FciMCData, only: indices_of_determ_states
+        use FciMCData, only: indices_of_determ_states, core_ham_diag, hamiltonian
+        use FciMCData, only: core_space, determ_sizes, determ_displs, HamTag
+        use FciMCData, only: CoreSpaceTag
         use MemoryManager, only: LogMemDealloc
-        use sparse_arrays, only: SparseCoreHamilTags, deallocate_sparse_ham
+        use sparse_arrays, only: SparseCoreHamilTags, deallocate_sparse_ham, core_ht
+        use sparse_arrays, only: core_connections, deallocate_core_hashtable
+        use sparse_arrays, only: deallocate_sparse_matrix_int
 
         character(len=*), parameter :: t_r = "end_semistoch"
         integer :: ierr
 
         call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', SparseCoreHamilTags)
+
+        call deallocate_core_hashtable(core_ht)
+
+        call deallocate_sparse_matrix_int(core_connections)
 
         if (allocated(partial_determ_vecs)) then
             deallocate(partial_determ_vecs, stat=ierr)
@@ -1139,6 +1197,26 @@ contains
         if (allocated(indices_of_determ_states)) then
             deallocate(indices_of_determ_states, stat=ierr)
             call LogMemDealloc(t_r, IDetermTag, ierr)
+        end if
+        if (allocated(core_ham_diag)) then
+            deallocate(core_ham_diag, stat=ierr)
+            call LogMemDealloc(t_r, IDetermTag, ierr)
+        end if
+        if (allocated(core_space)) then
+            deallocate(core_space, stat=ierr)
+            call LogMemDealloc(t_r, CoreSpaceTag, ierr)
+        end if
+        if (allocated(hamiltonian)) then
+            deallocate(hamiltonian, stat=ierr)
+            call LogMemDealloc(t_r, HamTag, ierr)
+        end if
+        if (allocated(determ_sizes)) then
+            deallocate(determ_sizes, stat=ierr)
+            if (ierr /= 0) write(6,'("Error when deallocating determ_sizes:",1X,i8)') ierr
+        end if
+        if (allocated(determ_displs)) then
+            deallocate(determ_displs, stat=ierr)
+            if (ierr /= 0) write(6,'("Error when deallocating determ_displs:",1X,i8)') ierr
         end if
 
     end subroutine end_semistoch

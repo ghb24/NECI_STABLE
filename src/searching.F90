@@ -9,9 +9,9 @@ module searching
     use bit_reps, only: decode_bit_det, set_flag
     use constants
     use DetBitOps, only: DetBitLt, ilut_gt, DetBitEq
-    use FciMCData, only: CurrentDets, trial_space, min_trial_ind, trial_space_size, trial_wf, &
-                         con_space, min_conn_ind, con_space_size, con_space_vector, &
-                         trial_numerator, trial_denom, Trial_Search_Time
+    use FciMCData, only: CurrentDets, trial_space, min_trial_ind, trial_space_size, trial_wfs, &
+                         con_space, min_conn_ind, con_space_size, con_space_vecs, &
+                         trial_numerator, trial_denom, Trial_Search_Time, ntrial_excits
     use hash, only: FindWalkerHash
     use sparse_arrays, only: trial_ht, con_ht
     use SystemData, only: nel
@@ -137,22 +137,26 @@ contains
 
     END SUBROUTINE BinSearchParts
 
-    subroutine bin_search_trial(ilut, amp)
+    subroutine bin_search_trial(ilut, amp, tTrial, tCon)
 
-        integer(n_int), intent(inout) :: ilut(0:)
-        real(dp), intent(out) :: amp
+        integer(n_int), intent(in) :: ilut(0:)
+        real(dp), intent(out) :: amp(:)
+        logical, intent(out) :: tTrial, tCon
+
         integer :: i, pos
 
         amp = 0.0_dp
+        tTrial = .false.
+        tCon = .false.
 
         ! Search both the trial space and connected space to see if this state exists in either list.
         ! First the trial space:
         pos = binary_search_custom(trial_space(:, min_trial_ind:trial_space_size), ilut, NIfTot+1, ilut_gt)
 
         if (pos > 0) then
-            amp = trial_wf(pos+min_trial_ind-1)
+            amp = trial_wfs(:,pos+min_trial_ind-1)
             min_trial_ind = min_trial_ind + pos
-            call set_flag(ilut, flag_trial)
+            tTrial = .true.
         else
             ! The state is not in the trial space. Just update min_trial_ind accordingly.
             min_trial_ind = min_trial_ind - pos - 1
@@ -161,13 +165,12 @@ contains
         ! If pos > 0 then the state is in the trial space. A state cannot be in both the trial and
         ! connected space, so, unless pos < 0, don't bother doing the following binary search.
         if (pos < 0) then
-
             pos = binary_search_custom(con_space(:, min_conn_ind:con_space_size), ilut, NIfTot+1, ilut_gt)
 
             if (pos > 0) then
-                amp = con_space_vector(pos+min_conn_ind-1)
+                amp = con_space_vecs(:,pos+min_conn_ind-1)
                 min_conn_ind = min_conn_ind + pos
-                call set_flag(ilut, flag_connected)
+                tCon = .true.
             else
                 min_conn_ind = min_conn_ind - pos - 1
             end if
@@ -175,35 +178,42 @@ contains
 
     end subroutine bin_search_trial
 
-    subroutine hash_search_trial(ilut, nI, amp)
+    subroutine hash_search_trial(ilut, nI, amp, tTrial, tCon)
 
-        integer(n_int), intent(inout) :: ilut(0:)
+        integer(n_int), intent(in) :: ilut(0:)
         integer, intent(in) :: nI(nel)
-        real(dp), intent(out) :: amp
+        real(dp), intent(out) :: amp(:)
+        logical, intent(out) :: tTrial, tCon
+
         integer :: i, hash_val
 
         amp = 0.0_dp
-        
-        if (con_space_size > 0) then
+        tTrial = .false.
+        tCon = .false.
+
+        ! Note we search the trial space first, and don't add a contribution
+        ! from the connected space if we are also in the trial space.
+
+        if (trial_space_size > 0) then
             ! Find the hash value of this state.
-            hash_val = FindWalkerHash(nI, con_space_size)
-            ! Loop over all hash clashes for this hash value.
-            do i = 1, con_ht(hash_val)%nclash
-                if (DetBitEq(ilut, con_ht(hash_val)%states(0:NIfDBO,i))) then
-                    call set_flag(ilut, flag_connected)
-                    amp = transfer(con_ht(hash_val)%states(NIfDBO+1,i), amp)
+            hash_val = FindWalkerHash(nI, trial_space_size)
+            do i = 1, trial_ht(hash_val)%nclash
+                if (DetBitEq(ilut, trial_ht(hash_val)%states(0:NIfDBO,i))) then
+                    tTrial = .true.
+                    amp = transfer(trial_ht(hash_val)%states(NIfDBO+1:,i), amp)
                     return
                 end if
             end do
         end if
-
-        if (trial_space_size > 0) then
-            ! If it wasn't in the connected space, check to see if it is in the trial space.
-            hash_val = FindWalkerHash(nI, trial_space_size)
-            do i = 1, trial_ht(hash_val)%nclash
-                if (DetBitEq(ilut, trial_ht(hash_val)%states(0:NIfDBO,i))) then
-                    call set_flag(ilut, flag_trial)
-                    amp = transfer(trial_ht(hash_val)%states(NIfDBO+1,i), amp)
+        
+        ! If it wasn't in the trial space, check to see if it is in the connected space.
+        if (con_space_size > 0) then
+            hash_val = FindWalkerHash(nI, con_space_size)
+            ! Loop over all hash clashes for this hash value.
+            do i = 1, con_ht(hash_val)%nclash
+                if (DetBitEq(ilut, con_ht(hash_val)%states(0:NIfDBO,i))) then
+                    tCon = .true.
+                    amp = transfer(con_ht(hash_val)%states(NIfDBO+1:,i), amp)
                     return
                 end if
             end do
@@ -211,35 +221,72 @@ contains
 
     end subroutine hash_search_trial
 
-    subroutine add_trial_energy_contrib(ilut, RealwSign)
+    subroutine get_con_amp_trial_space(ilut, amps)
+
+        ! WARNING: This routines expects that the state passed in, ilut, is
+        ! definitely in the trial space, and performs a stop_all if not.
+
+        integer(n_int), intent(in) :: ilut(0:)
+        real(dp), intent(out) :: amps(:)
+
+        integer :: i, hash_val
+        integer :: nI(nel)
+
+        amps = 0.0_dp
+        call decode_bit_det(nI, ilut)
+
+        hash_val = FindWalkerHash(nI, con_space_size)
+        ! Loop over all hash clashes for this hash value.
+        do i = 1, con_ht(hash_val)%nclash
+            if (all(ilut(0:NIfDBO) == con_ht(hash_val)%states(0:NIfDBO,i))) then
+                amps = transfer(con_ht(hash_val)%states(NIfDBO+1:,i), amps)
+                return
+            end if
+        end do
+
+        call stop_all("get_trial_wf_amp","The input state is not in the trial space.")
+
+    end subroutine get_con_amp_trial_space
+
+    subroutine add_trial_energy_contrib(ilut, RealwSign, ireplica)
     
         integer(n_int), intent(in) :: ilut(0:)
         real(dp), intent(in) :: RealwSign
+        integer, intent(in) :: ireplica
+
         integer :: i, hash_val
         integer :: nI(nel)
-        real(dp) :: amp
+        real(dp) :: amp(ntrial_excits)
 
         call decode_bit_det(nI, ilut)
 
-        ! First search the connected space.
-        if (con_space_size > 0) then
-            hash_val = FindWalkerHash(nI, con_space_size)
-            do i = 1, con_ht(hash_val)%nclash
-                if (DetBitEq(con_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
-                    amp = transfer(con_ht(hash_val)%states(NIfDBO+1,i), amp)
-                    trial_numerator = trial_numerator + amp*RealwSign
+        ! First search the trial space.
+        if (trial_space_size > 0) then
+            hash_val = FindWalkerHash(nI, trial_space_size)
+            do i = 1, trial_ht(hash_val)%nclash
+                if (DetBitEq(trial_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
+                    amp = transfer(trial_ht(hash_val)%states(NIfDBO+1:,i), amp)
+                    if (ntrial_excits == 1) then
+                        trial_denom(ireplica) = trial_denom(ireplica) + amp(1)*RealwSign
+                    else if (ntrial_excits == lenof_sign) then
+                        trial_denom(ireplica) = trial_denom(ireplica) + amp(ireplica)*RealwSign
+                    end if
                     return
                 end if
             end do
         end if
 
-        ! If not in the connected space, search the trial space.
-        if (trial_space_size > 0) then
-            hash_val = FindWalkerHash(nI, trial_space_size)
-            do i = 1, trial_ht(hash_val)%nclash
-                if (DetBitEq(trial_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
-                    amp = transfer(trial_ht(hash_val)%states(NIfDBO+1,i), amp)
-                    trial_denom = trial_denom + amp*RealwSign
+        ! If not in the trial space, search the connected space.
+        if (con_space_size > 0) then
+            hash_val = FindWalkerHash(nI, con_space_size)
+            do i = 1, con_ht(hash_val)%nclash
+                if (DetBitEq(con_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
+                    amp = transfer(con_ht(hash_val)%states(NIfDBO+1:,i), amp)
+                    if (ntrial_excits == 1) then
+                        trial_numerator(ireplica) = trial_numerator(ireplica) + amp(1)*RealwSign
+                    else if (ntrial_excits == lenof_sign) then
+                        trial_numerator(ireplica) = trial_numerator(ireplica) + amp(ireplica)*RealwSign
+                    end if
                     return
                 end if
             end do
@@ -247,52 +294,18 @@ contains
 
     end subroutine add_trial_energy_contrib
 
-
-    subroutine find_trial_and_con_states_hash(num_states, ilut_list, ntrial, ncon)
-
-        integer(int64), intent(in) :: num_states
-        integer(n_int), intent(inout) :: ilut_list(0:,:)
-        integer, intent(out) :: ntrial, ncon
-        integer :: pos
-        integer(int64) :: i
-        integer :: nI(nel)
-        real(dp) :: amp
-
-        ntrial = 0
-        ncon = 0
-
-        call set_timer(Trial_Search_Time)
-
-        do i = 1, num_states
-            call decode_bit_det(nI, ilut_list(:,i))
-            ! Search the trial and connected list to see if this state exists in
-            ! either. If it is, this routine sets the corresponding flag and returns the
-            ! corresponding amplitude.
-            call hash_search_trial(ilut_list(:,i), nI, amp)
-
-            if (test_flag(ilut_list(:,i),flag_trial)) then
-                ! If this state is in the trial space.
-                ntrial = ntrial + 1
-            else if(test_flag(ilut_list(:,i),flag_connected)) then
-                ! If this state is in the connected space.
-                ncon = ncon + 1
-            end if
-        end do
-
-        call halt_timer(Trial_Search_Time)
-
-    end subroutine find_trial_and_con_states_hash
-
     ! This is the same as BinSearchParts1, but this time, it searches though the 
     ! full list of determinants created by the full diagonalizer when the 
     ! histogramming option is on. 
     !
     ! This is outside the module so it is accessible to AnnihilateMod
-    SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
+    subroutine BinSearchParts2(iLut, MinInd, MaxInd, PartInd, tSuccess)
+
         use DetCalcData , only : FCIDets
         use DetBitOps, only: DetBitLT
         use constants, only: n_int
         use bit_reps, only: NIfTot,NIfDBO
+
         IMPLICIT NONE
         INTEGER :: MinInd,MaxInd,PartInd
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
@@ -334,7 +347,6 @@ contains
                 ! N then the two bounds are consecutive and we have failed...
                 i=N
             ELSEIF(i.eq.N) THEN
-
 
                 IF(i.eq.MaxInd-1) THEN
                     ! This deals with the case where we are interested in the 
@@ -379,6 +391,128 @@ contains
         tSuccess=.false.
         PartInd=MAX(MinInd,i-1)
 
-    END SUBROUTINE BinSearchParts2
+    end subroutine BinSearchParts2
+
+    subroutine BinSearchParts_rdm(iLut,MinInd,MaxInd,PartInd,tSuccess)
+
+        ! Do a binary search in CurrentDets, between the indices of MinInd and
+        ! MaxInd. If successful, tSuccess will be true and  PartInd will be a
+        ! coincident determinant. If there are multiple values, the chosen one
+        ! may be any of them... If failure, then the index will be one less than
+        ! the index that the particle would be in if it was present in the list.
+        ! (or close enough!)
+
+        integer(kind=n_int) :: iLut(0:NIfTot)
+        integer :: MinInd, MaxInd, PartInd
+        integer :: i, j, N, Comp
+        logical :: tSuccess
+
+        i = MinInd
+        j = MaxInd
+        if (i-j .eq. 0) then
+            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),NIfDBO)
+            if (Comp .eq. 0) then
+                tSuccess = .true.
+                PartInd = MaxInd
+                return
+            else
+                tSuccess = .false.
+                PartInd = MinInd
+            end if
+        end if
+
+        do while(j-i .gt. 0)  ! End when the upper and lower bound are the same.
+            N = (i+j)/2       ! Find the midpoint of the two indices.
+
+            ! Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is
+            ! more or 0 if they are the same
+            Comp = DetBitLT(CurrentDets(:,N),iLut(:),NIfDBO)
+
+            if (Comp .eq. 0) then
+                ! Praise the lord, we've found it!
+                tSuccess = .true.
+                PartInd = N
+                return
+            else if ((Comp .eq. 1) .and. (i .ne. N)) then
+                ! The value of the determinant at N is LESS than the determinant
+                ! we're looking for. Therefore, move the lower bound of the search
+                ! up to N. However, if the lower bound is already equal to N then
+                ! the two bounds are consecutive and we have failed...
+                i = N
+            else if (i .eq. N) then
+
+
+                if (i .eq. MaxInd-1) then
+                    ! This deals with the case where we are interested in the
+                    ! final/first entry in the list. Check the final entry of
+                    ! the list and leave. We need to check the last index.
+                    Comp = DetBitLT(CurrentDets(:,i+1), iLut(:), NIfDBO)
+                    if (Comp .eq. 0) then
+                        tSuccess = .true.
+                        PartInd = i + 1
+                        return
+                    else if (Comp .eq. 1) then
+                        ! final entry is less than the one we want.
+                        tSuccess = .false.
+                        PartInd = i + 1
+                        return
+                    else
+                        tSuccess = .false.
+                        PartInd = i
+                        return
+                    end if
+
+                else if (i .eq. MinInd) then
+                    tSuccess = .false.
+                    PartInd = i
+                    return
+                else
+                    i = j
+                end if
+
+            else if (Comp .eq. -1) then
+                ! The value of the determinant at N is MORE than the determinant
+                ! we're looking for. Move the upper bound of the search down to N.
+                j = N
+            else
+                ! We have failed - exit loop.
+                i = j
+            end if
+
+        end do
+
+        ! If we have failed, then we want to find the index that is one less
+        ! than where the particle would have been.
+        tSuccess = .false.
+        PartInd = max(MinInd,i-1)
+
+    end subroutine BinSearchParts_rdm
+
+    subroutine remove_repeated_states(list, list_size)
+
+        use DetBitOps, only: ilut_lt, ilut_gt
+        use sort_mod, only: sort
+
+        integer, intent(inout) :: list_size
+        integer(n_int), intent(inout) :: list(0:,:)
+        integer :: i, counter
+
+        if (list_size > 0) then
+            ! Annihilation-like steps to remove repeated states.
+            call sort(list(:, 1:list_size), ilut_lt, ilut_gt)
+            counter = 1
+            do i = 2, list_size
+                ! If this state and the previous one were identical, don't add this state to the
+                ! list so that repeats aren't included.
+                if (.not. all(list(0:NIfDBO, i-1) == list(0:NIfDBO, i)) ) then
+                    counter = counter + 1
+                    list(:, counter) = list(:, i)
+                end if
+            end do
+
+            list_size = counter
+        end if
+
+    end subroutine remove_repeated_states
 
 end module searching

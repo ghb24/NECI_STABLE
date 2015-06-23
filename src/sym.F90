@@ -4,6 +4,8 @@
 module sym_mod
 
 use constants, only: dp,int64,sizeof_int
+use SymExcitDataMod, only: SymTableLabels
+use SystemData, only: tKpntSym, tNoSymGenRandExcits
 implicit none
 
 contains
@@ -35,6 +37,7 @@ contains
          TYPE(Symmetry) SYMPROD
          TYPE(Symmetry) IS1,IS2
          INTEGER I,J,Abel1(3),Abel2(3)
+         character(*), parameter :: this_routine = 'SYMPROD'
          if (TAbelian) then
 
              IF(TwoCycleSymGens) THEN
@@ -56,7 +59,7 @@ contains
                 SYMPROD%s=0
                 RETURN
              ENDIF
-             IF (.not.allocated(SYMTABLE)) STOP 'SYMMETRY TABLE NOT ALLOCATED'
+             IF (.not.allocated(SYMTABLE)) call stop_all(this_routine, 'SYMMETRY TABLE NOT ALLOCATED')
              IS1=ISYM1
              I=1
              SYMPROD%s=0
@@ -302,7 +305,7 @@ contains
                 Symreps(1,i)=NSL(i)
             enddo
         ELSE
-            IF(associated(SYMCLASSES2)) STOP 'Problem in freezing'
+            IF(associated(SYMCLASSES2)) call stop_all(this_routine, 'Problem in freezing')
             allocate(SymClasses2(nBasis/2))
             call LogMemAlloc('SymClasses2',nBasis/2,4,this_routine,tagSymClasses2)
             DO I=1,NHG,2
@@ -759,6 +762,17 @@ contains
 !   Identify all part-filled degenerate non-reduced representations
 !     Use SYMPROD and ADDELECSYM to generate the resultant symmetry of these
 
+      subroutine getsym_wrapper(det, sym)
+
+          use SystemData, only: G1, nel, nBasisMax, BasisFn
+
+          integer, intent(in) :: det(nel)
+          type(basisfn), intent(out) :: sym
+
+          call getsym(det, nel, G1, nBasisMax, sym)
+
+      end subroutine
+
 
       SUBROUTINE GETSYM(NI2,NEL,G1,NBASISMAX,ISYM)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
@@ -861,6 +875,7 @@ contains
          INTEGER NREPS,NROTOP
          real(dp) NORM
          LOGICAL TKP,INV,IMPROPER_OP(NROTOP)
+         character(*), parameter :: this_routine = 'GENIRREPS'
          NREPS=0
 !   Initialize the table with the totally symmetric rep.
          INV=.FALSE.
@@ -895,7 +910,7 @@ contains
          lp1:DO I=1,NSYM
                DO J=I,NSYM
                   NREPS=NREPS+1
-                  IF(NREPS.GT.NSYMLABELS*10) STOP 'TOO MANY REPS'
+                  IF(NREPS.GT.NSYMLABELS*10) call stop_all(this_routine, 'TOO MANY REPS')
                   DO K=1,NROT
                      REPCHARS(K,NREPS)=CONJG(IRREPCHARS(K,I))*IRREPCHARS(K,J)
                   ENDDO
@@ -908,7 +923,7 @@ contains
                      IF(ABS(NORM-NROT).LE.1.0e-2_dp) THEN
 !   if it's an irrep
                         NSYM=NSYM+1
-                        IF(NSYM.GT.64) STOP "MORE than 64 irreps"
+                        IF(NSYM.GT.64) call stop_all(this_routine, "MORE than 64 irreps")
                         DO K=1,NROT
                            IRREPCHARS(K,NSYM)=REPCHARS(K,NREPS)
                         ENDDO
@@ -935,7 +950,7 @@ contains
 !   Check to see if the next symlabel's char is decomposable
         lp2: DO WHILE (NEXTSYMLAB.LE.NSYMLABELS)
                NREPS=NREPS+1
-               IF(NREPS.GT.NSYMLABELS*10) STOP 'TOO MANY REPS'
+               IF(NREPS.GT.NSYMLABELS*10) call stop_all(this_routine, 'TOO MANY REPS')
                DO I=1,NROT
                   REPCHARS(I,NREPS)=SYMLABELCHARS(I,NEXTSYMLAB)
                ENDDO
@@ -945,7 +960,7 @@ contains
                   IF(ABS(NORM-NROT).LE.1.0e-2_dp) THEN
 !   if it's an irrep
                      NSYM=NSYM+1
-                     IF(NSYM.GT.64) STOP "MORE than 64 irreps"
+                     IF(NSYM.GT.64) call stop_all(this_routine, "MORE than 64 irreps")
                      DO I=1,NROT
                         IRREPCHARS(I,NSYM)=REPCHARS(I,NREPS)
                      ENDDO
@@ -980,7 +995,7 @@ contains
             WRITE(6,*) NREPS," non-reducible"
                CALL WRITEIRREPTAB(6,REPCHARS,NROT,NREPS)
 !            IF(NREPS.GT.1) THEN
-               STOP "More than 1 non-reducible reps found."
+               call stop_all(this_routine, "More than 1 non-reducible reps found.")
 !            ENDIF
 !   we can cope with a single reducible rep.
 !            NSYM=NSYM+1
@@ -1093,10 +1108,11 @@ contains
          real(dp) CNORM
          INTEGER I,J
          real(dp) NORM,DIFF
+         character(*), parameter :: this_routine = 'DECOMPOSEREP'
          if (TAbelian) then
              ! We shouldn't be here!  Using symmetry "quantum" numbers
              ! rather than irreps.
-             stop "Should not be decomposing irreps with Abelian sym"
+             call stop_all(this_routine, "Should not be decomposing irreps with Abelian sym")
          end if
          IDECOMP%s=0
          CALL DCOPY(NROT*2,CHARSIN,1,CHARS,1)
@@ -1128,7 +1144,7 @@ contains
                   CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"IRREP ")
                   CALL WRITECHARS(6,CHARS,NROT,"CHARS ")
                   WRITE(6,*) "Dot product: ",(TOT+0.0_dp)/NORM,TOT,NORM
-                  STOP 'Incomplete symmetry decomposition'
+                  call stop_all(this_routine, 'Incomplete symmetry decomposition')
 !   The given representation CHARS has fewer irreps in it than the one in IRREPCHARS, and is an irrep
 !   Hurrah!  Remove it from the one in IRREPCHARS, and keep on going)
                ELSEIF(ABS(TOT).GT.1.0e-2_dp) THEN
@@ -1163,10 +1179,11 @@ contains
          complex(dp) TOT
          INTEGER I,J
          logical TAbelian
+         character(*), parameter :: this_routine = 'GETIRREPDECOMP'
          if (TAbelian) then
              ! We shouldn't be here!  Using symmetry "quantum" numbers
              ! rather than irreps.
-             stop "Should not be decomposing irreps with Abelian sym"
+             call stop_all(this_routine, "Should not be decomposing irreps with Abelian sym")
          end if
          IDECOMP%s=0
 !,. First check norm of this state
@@ -1237,7 +1254,7 @@ contains
             IF(GETIRREPDECOMP(CHARS,IRREPCHARS,NSYM,NROT,IDECOMP,CNORM,TAbelian)) THEN
                WRITE(6,*) "Conjugate of SYM ",I," not reducible,"
                CALL WRITECHARS(6,CHARS,NROT,"REMAIN")
-               STOP "Symmetry table element not conjugable"
+               call stop_all(this_routine, "Symmetry table element not conjugable")
             ENDIF
             K=0
             DO WHILE(.NOT.BTEST(IDECOMP%s,0))
@@ -1247,7 +1264,7 @@ contains
             ENDDO
             IF(IDECOMP%s.NE.1) THEN
                WRITE(6,*) "Conjugate of SYM ",I," not a single SYM,"
-               STOP
+               call stop_all(this_routine, 'Incorrect sym conjugate')
             ENDIF
             SymConjTab(I)=K+1
             DO J=I,NSYM
@@ -1257,7 +1274,7 @@ contains
                IF(GETIRREPDECOMP(CHARS,IRREPCHARS,NSYM,NROT,IDECOMP,CNORM,TAbelian)) THEN
                   WRITE(6,*) "Multiplication of SYMS ",I,J," not reducible,"
                   CALL WRITECHARS(6,CHARS,NROT,"REMAIN")
-                  STOP "Symmetry table element not reducible"
+                  call stop_all(this_routine, "Symmetry table element not reducible")
                ENDIF
                SYMTABLE(I,J)=IDECOMP
                SYMTABLE(J,I)=IDECOMP
@@ -2087,5 +2104,24 @@ contains
         iSize=iSize+2
         !This is to allow the index of '-1' in the array to give a zero value
       END SUBROUTINE GETSYMTMATSIZE
+
+
+    ! This function returns the label (0 -> nSymlabels-1) of the symmetry
+    ! product of two symmetry labels.
+    PURE INTEGER FUNCTION RandExcitSymLabelProd(SymLabel1,SymLabel2)
+        IMPLICIT NONE
+        INTEGER , INTENT(IN) :: SymLabel1,SymLabel2
+
+        IF(tNoSymGenRandExcits) THEN
+            RandExcitSymLabelProd=0
+        ELSEIF(tKPntSym) THEN
+            !Look up the symmetry in the product table for labels (returning labels, not syms)
+            RandExcitSymLabelProd=SymTableLabels(SymLabel1,SymLabel2)
+        ELSE
+            RandExcitSymLabelProd=IEOR(SymLabel1,SymLabel2)
+!            WRITE(6,*) "***",SymLabel1,SymLabel2,RandExcitSymLabelProd
+        ENDIF
+
+    END FUNCTION RandExcitSymLabelProd
 
 end module sym_mod

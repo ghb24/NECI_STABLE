@@ -941,7 +941,8 @@ module errors
         !write(6,*) "Will be reduced to", new_length
         !write(6,*) "Loss of data", length-new_length*blocklength
         allocate(tmp(new_length),stat=ierr)
-        if (ierr < 0) stop
+        if (ierr < 0) &
+            call stop_all(t_r, 'Bad allocation')
         tmp=0.0_dp
         j=1 ! lazy but foolproof - counting elements
         do i=1,length,blocklength

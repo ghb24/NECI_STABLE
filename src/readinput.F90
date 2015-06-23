@@ -193,7 +193,13 @@ MODULE ReadInput_neci
                             InitiatorCutoffEnergy, tCheckHighestPop, &
                             tSurvivalInitiatorThreshold, tKP_FCIQMC, &
                             tSurvivalInitMultThresh, tAddToInitiator, &
-                            tMultiReplicaInitiators
+                            tMultiReplicaInitiators, tRealCoeffByExcitLevel, &
+                            tAllRealCoeff, tUseRealCoeffs, tChangeProjEDet, &
+                            tOrthogonaliseReplicas, tReadPops, tStartMP1, &
+                            tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
+                            tContTimeFull, tSurvivalInitiatorThreshold, &
+                            tSurvivalInitMultThresh, &
+                            tSpawnCountInitiatorThreshold
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -203,13 +209,14 @@ MODULE ReadInput_neci
         use LoggingData, only: iLogging, tCalcFCIMCPsi, tRDMOnFly, &
                            tCalcInstantS2, tDiagAllSpaceEver, &
                            tCalcVariationalEnergy, tCalcInstantS2Init, &
-                           tPopsFile
+                           tPopsFile, tRDMOnFly, tExplicitAllRDM
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
+        use load_balance_calcnodes, only: tLoadBalanceBlocks
         use input_neci
         use constants
         use global_utilities
         use spin_project, only: tSpinProject, spin_proj_nopen_max
-        use FciMCData, only: nWalkerHashes,HashLengthFrac
+        use FciMCData, only: nWalkerHashes, HashLengthFrac, InputDiagSft
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors
         use UMatCache, only: tDeferred_Umat2d
@@ -217,6 +224,7 @@ MODULE ReadInput_neci
         implicit none
 
         integer :: vv, kk, cc, ierr
+        real(dp) :: InputDiagSftSingle
         logical :: check
         character(*), parameter :: t_r='checkinput'
 
@@ -483,6 +491,11 @@ MODULE ReadInput_neci
             lenof_sign = 2
             inum_runs = 2
 
+            ! Correct the size of InputDiagSft:
+            InputDiagSftSingle = InputDiagSft(1)
+            deallocate(InputDiagSft)
+            allocate(InputDiagSft(inum_runs))
+            InputDiagSft = InputDiagSftSingle
         end if
 #endif
 
@@ -504,6 +517,12 @@ MODULE ReadInput_neci
                 tMultiReplicas = .true.
                 lenof_sign = 2
                 inum_runs = 2
+
+                ! Correct the size of InputDiagSft:
+                InputDiagSftSingle = InputDiagSft(1)
+                deallocate(InputDiagSft)
+                allocate(InputDiagSft(inum_runs))
+                InputDiagSft = InputDiagSftSingle
             end if
         end if
 #endif
@@ -515,9 +534,58 @@ MODULE ReadInput_neci
             call stop_all(t_r, 'RDMs without CheckHighestPop')
         end if
 
+        if (tSemiStochastic .and. .not.(tAllRealCoeff.and.tUseRealCoeffs)) then
+            write(6,*) 'Semi-stochastic simulations only supported when using &
+                       &ALLREALCOEFF option'
+            call stop_all(t_r, 'Semistochastic without ALLREALCOEFF')
+        end if
+
+        if (tAllRealCoeff .and. tRealCoeffByExcitLevel) then
+            call stop_all(t_r, 'Options ALLREALCOEFF and REALCOEFFBYEXCITLEVEL&
+                               & are incompatibile')
+        end if
+
+        if (tOrthogonaliseReplicas) then
+            if (.not. tMultiReplicas) then
+                call stop_all(t_r, 'Replica orthogonalisation requires &
+                                   &SYSTEM-REPLICAS to determine the number &
+                                   &of simulations')
+            end if
+
+            if (inum_runs /= lenof_sign) then
+                call stop_all(t_r, "Replica orthogonalisation is only &
+                                   &(currently) implemented for real systems")
+            end if
+
+            if (tStartMP1 .or. tStartCAS) then
+                call stop_all(t_r, "MP1 or CAS starting not implemented for &
+                                   &orthogonalised calculations")
+            end if
+        end if
+
+        if (tLoadBalanceBlocks) then
+            if (tUniqueHFNode) then
+                call stop_all(t_r, "UNIQUE-HF-NODE requires disabling &
+                                   &LOAD-BALANCE-BLOCKS")
+            end if
+
+            ! If there is only one node, then load balancing doesn't make
+            ! a great deal of sense, and only slows things down...
+            if (nNodes == 1) then
+                write(6,*) 'Disabling load balancing for single node calculation'
+                tLoadBalanceBlocks = .false.
+            end if
+
+            if (tSurvivalInitiatorThreshold .or. tSurvivalInitMultThresh .or. &
+                tSpawnCountInitiatorThreshold .or. &
+                (tContTimeFCIMC .and. tContTimeFull)) then
+                call stop_all(t_r, 'Load balancing not yet usable for &
+                             &calculations requiring accumulated determinant &
+                             &specific global data')
+            end if
+        end if
+
     end subroutine checkinput
 
 end Module ReadInput_neci
-
-        
 

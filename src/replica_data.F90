@@ -1,11 +1,14 @@
 ! Copyright (c) 2013, Ali Alavi unless otherwise noted.
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
  
+#include "macros.h"
+
 module replica_data
 
     use constants
     use FciMCData
     use CalcData
+    use util_mod
     use kp_fciqmc_data_mod
     implicit none
 
@@ -77,6 +80,10 @@ contains
                  Annihilated(inum_runs), AllAnnihilated(inum_runs), &
                  Acceptances(inum_runs), &
                  SpawnFromSing(inum_runs), AllSpawnFromSing(inum_runs), &
+                 iRefProc(inum_runs), proje_ref_energy_offsets(inum_runs), &
+                 iHighestPop(inum_runs), &
+                 replica_overlaps(inum_runs, inum_runs), &
+                 tSpinCoupProjE(inum_runs), &
 
                  NoatDoubs(inum_runs), AllNoatDoubs(inum_runs), &
                  AccRat(inum_runs), &
@@ -140,6 +147,10 @@ contains
                    IterRDM_HF, &
                    SumNoatHF, AllSumNoatHF, &
                    NoatHF, AllNoatHF, OldAllNoatHF, &
+                   iRefProc, proje_ref_energy_offsets, &
+                   iHighestPop, &
+                   replica_overlaps, &
+                   tSpinCoupProjE, &
 
                    TotParts, AllTotParts, &
                    TotPartsOld, AllTotPartsOld, &
@@ -205,7 +216,8 @@ contains
 
                    ! KPFCIQMC
                    TotPartsInit, &
-                   AllTotPartsInit)
+                   AllTotPartsInit, &
+                   tSinglePartPhaseKPInit)
 
         call clean_iter_data(iter_data_fciqmc)
 
@@ -241,6 +253,84 @@ contains
                    iter_data%tot_parts_old)
 
     end subroutine
+
+    subroutine set_initial_global_data(ndets, ilut_list)
+
+        use bit_rep_data, only: NIfTot, NIfDBO, extract_sign
+        use Parallel_neci, only: iProcIndex, MPISumAll
+
+        ! Take in a list of determinants and calculate and set all of the
+        ! global data needed for the start of a FCIQMC calculation.
+
+        integer(int64), intent(in) :: ndets
+        integer(n_int), intent(inout) :: ilut_list(0:NIfTot,ndets)
+
+        integer :: i, run, lbnd, ubnd
+        real(dp) :: real_sign(lenof_sign)
+        character(*), parameter :: t_r = 'set_initial_global_data'
+
+        TotParts = 0.0_dp
+        NoAtHF = 0.0_dp
+        iHighestPop = 0
+
+        ! First, find the population of the walkers in walker_list.
+        do i = 1, ndets
+            call extract_sign(ilut_list(:,i), real_sign)
+            TotParts = TotParts + abs(real_sign)
+            if ( all(ilut_list(0:NIfDBO,i) == iLutRef(0:NIfDBO, 1)) ) NoAtHF = real_sign
+
+            do run = 1, inum_runs
+                lbnd = min_part_type(run)
+                ubnd = max_part_type(run)
+                if (abs_sign(real_sign(lbnd:ubnd)) > iHighestPop(run)) then
+                    iHighestPop(run) = int(abs_sign(real_sign(lbnd:ubnd)))
+                    HighestPopDet(:,run) = ilut_list(:, i)
+                end if
+            end do
+        end do
+
+        TotWalkers = ndets
+        TotWalkersOld = TotWalkers
+        call MPISumAll(TotWalkers,AllTotWalkers)
+        AllTotWalkersOld = AllTotWalkers
+
+        TotPartsOld = TotParts
+        call MPISumAll(TotParts, AllTotParts)
+        AllTotPartsOld = AllTotParts
+
+        call MPISumAll(NoatHF, AllNoatHF)
+        OldAllNoatHF = AllNoatHF
+
+#ifdef __CMPLX
+        OldAllAvWalkersCyc = sum(AllTotParts)
+#else
+        OldAllAvWalkersCyc = AllTotParts
+#endif
+
+        do run = 1, inum_runs
+            OldAllHFCyc(run) = ARR_RE_OR_CPLX(AllNoatHF, run)
+        end do
+
+        AllNoAbortedOld(:) = 0.0_dp
+
+        iter_data_fciqmc%tot_parts_old = AllTotParts
+        
+        do run = 1, inum_runs
+
+            ! Calculate the projected energy for this iteration.
+            if (ARR_RE_OR_CPLX(AllSumNoAtHF,run) /= 0) &
+                ProjectionE(run) = AllSumENum(run) / ARR_RE_OR_CPLX(AllSumNoatHF,run)
+            
+            ! Keep track of where the particles are
+            if (iProcIndex == iRefProc(run)) then
+                SumNoatHF(run) = AllSumNoatHF(run)
+                SumENum(run) = AllSumENum(run)
+                InstNoatHF(run) = NoatHF(run)
+            end if
+
+        enddo 
+
+    end subroutine set_initial_global_data
 
 
 end module

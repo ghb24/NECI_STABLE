@@ -498,7 +498,7 @@ contains
          WRITE(6,'(A)') '*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***'
 !.. Generate the 2e integrals (UMAT)
          ISPINSKIP=NBasisMax(2,3)
-         IF(ISPINSKIP.le.0) STOP 'NBASISMAX(2,3) ISpinSkip unset'
+         IF(ISPINSKIP.le.0) call stop_all(this_routine, 'NBASISMAX(2,3) ISpinSkip unset')
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
          CALL GetUMatSize(nBasis,nEl,UMATINT)
 !         WRITE(6,*) "UMatSize: ",UMATINT
@@ -839,7 +839,7 @@ contains
        IF(NFROZEN.GT.0) THEN
           IF(ABS(ARR(NFROZEN,1)-ARR(NFROZEN+1,1)).LT.1.0e-6_dp.AND.       &
    &        G1(BRR(NFROZEN))%SYM%s.EQ.G1(BRR(NFROZEN+1))%SYM%s) THEN
-             STOP "Cannot freeze in the middle of a degenerate set"
+             call stop_all(this_routine, "Cannot freeze in the middle of a degenerate set")
           ELSE IF (ABS(ARR(NFROZEN,1)-ARR(NFROZEN+1,1)).LT.1.0e-6_dp) THEN
              write (6,'(a)') 'WARNING: Freezing in the middle of a degenerate set.'
              write (6,'(a)') 'This should only be done for debugging purposes.'
@@ -849,7 +849,7 @@ contains
           IF(ABS(ARR(NHG-NTFROZEN,1)-ARR(NHG-NTFROZEN+1,1)).LT.1.0e-6_dp  &
    &         .AND.G1(BRR(NHG-NTFROZEN))%SYM%s                         &
    &               .EQ.G1(BRR(NHG-NTFROZEN+1))%SYM%s) THEN
-             STOP "Cannot freeze in the middle of a degenerate virtual set"
+             call stop_all(this_routine, "Cannot freeze in the middle of a degenerate virtual set")
           ELSE IF (ABS(ARR(NHG-NTFROZEN,1)-ARR(NHG-NTFROZEN+1,1)).LT.1.0e-6_dp) THEN
              write (6,'(a)') 'WARNING: Freezing in the middle of a degenerate set.'
              write (6,'(a)') 'This should only be done for debugging purposes.'
@@ -858,7 +858,7 @@ contains
        IF(NFROZENIN.GT.0) THEN
           IF(ABS(ARR(NEL-NFROZENIN,1)-ARR(NEL-NFROZENIN+1,1)).LT.1.0e-6_dp.AND.       &
    &        G1(BRR(NEL-NFROZENIN))%SYM%s.EQ.G1(BRR(NEL-NFROZENIN+1))%SYM%s) THEN
-             STOP "Cannot freeze in the middle of a degenerate set"
+             call stop_all(this_routine, "Cannot freeze in the middle of a degenerate set")
           ELSE IF (ABS(ARR(NEL-NFROZENIN,1)-ARR(NEL-NFROZENIN+1,1)).LT.1.0e-6_dp) THEN
              write (6,'(a)') 'WARNING: Freezing in the middle of a degenerate set.'
              write (6,'(a)') 'This should only be done for debugging purposes.'
@@ -868,7 +868,7 @@ contains
           IF(ABS(ARR(NEL+NTFROZENIN,1)-ARR(NEL+NTFROZENIN+1,1)).LT.1.0e-6_dp  &
    &         .AND.G1(BRR(NEL+NTFROZENIN))%SYM%s                         &
    &               .EQ.G1(BRR(NEL+NTFROZENIN+1))%SYM%s) THEN
-             STOP "Cannot freeze in the middle of a degenerate virtual set"
+             call stop_all(this_routine, "Cannot freeze in the middle of a degenerate virtual set")
           ELSE IF (ABS(ARR(NEL+NTFROZENIN,1)-ARR(NEL+NTFROZENIN+1,1)).LT.1.0e-6_dp) THEN
              write (6,'(a)') 'WARNING: Freezing in the middle of a degenerate set.'
              write (6,'(a)') 'This should only be done for debugging purposes.'
@@ -1214,7 +1214,8 @@ contains
 
        IF(NBASISMAX(1,3).GE.0.AND.ISS.NE.0) THEN
 
-          CALL CREATEINVBRR2(BRR2,NBASIS)
+          if (tStarStore) CALL CREATEINVBRR2(BRR2,NBASIS)
+
 !CC Only do the below if we've a stored UMAT
 !C.. Now copy the relevant matrix elements of UMAT across
 !C.. the primed (...P) are the new versions
@@ -1284,7 +1285,7 @@ contains
                                                     IDL = GTID(LB)
                                                     IDLP = GTID(LPB)
                                                     IF(TSTARSTORE) THEN
-                                                       IF(.NOT.TUMAT2D) STOP 'UMAT2D should be on'
+                                                       IF(.NOT.TUMAT2D) call stop_all(this_routine, 'UMAT2D should be on')
                                                        IF((IDI.eq.IDJ.and.IDI.eq.IDK.and.IDI.eq.IDL).or.    &
                    &                                        (IDI.eq.IDK.and.IDJ.eq.IDL).or.                 &
                    &                                        (IDI.eq.IDL.and.IDJ.eq.IDK).or.                 &
@@ -2018,6 +2019,7 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   real(dp) OMEGA
   LOGICAL TPERIODIC
   real(dp), PARAMETER :: PI=3.1415926535897932384626433832795029_dp
+  character(*), parameter :: this_routine = 'CALCTMATUEG'
 
 !=================================================
   if (tUEG2) then
@@ -2026,7 +2028,7 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
       iunit = get_free_unit()
 
       OPEN(iunit,FILE='TMAT',STATUS='UNKNOWN')
-          IF(TSTARSTORE) STOP 'Cannot use TSTARSTORE with UEG'
+          IF(TSTARSTORE) call stop_all(this_routine, 'Cannot use TSTARSTORE with UEG')
           CALL SetupTMAT(NBASIS,2,iSIZE)
           DO I=1,NBASIS
               !K_OFFSET in cartesian coordinates
@@ -2045,7 +2047,7 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   IF(TPERIODIC) WRITE(6,*) "Periodic UEG"
   iunit = get_free_unit()
   OPEN(iunit,FILE='TMAT',STATUS='UNKNOWN')
-  IF(TSTARSTORE) STOP 'Cannot use TSTARSTORE with UEG'
+  IF(TSTARSTORE) call stop_all(this_routine, 'Cannot use TSTARSTORE with UEG')
   CALL SetupTMAT(NBASIS,2,iSIZE)
 
   DO I=1,NBASIS
