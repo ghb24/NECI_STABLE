@@ -491,7 +491,7 @@ contains
                         run = part_type_to_run(j)
                         if (.not. tIsStateDeterm) then
                             if (tInitOccThresh.and.test_flag(CurrentDets(:,i), flag_has_been_initiator(1)))then
-                                if ((abs(CurrentSign(j)) > 0.0) .and. (abs(CurrentSign(j)) < InitiatorOccupiedThresh)) then
+                                if ((abs(CurrentSign(j)) > 1.e-12_dp) .and. (abs(CurrentSign(j)) < InitiatorOccupiedThresh)) then
                                     ! We remove this walker with probability 1-RealSignTemp.
                                     pRemove = (InitiatorOccupiedThresh-abs(CurrentSign(j)))/InitiatorOccupiedThresh
                                     r = genrand_real2_dSFMT ()
@@ -518,7 +518,7 @@ contains
                                     end if
                                 end if
                             else
-                                if ((abs(CurrentSign(j)) > 0.0) .and. (abs(CurrentSign(j)) < OccupiedThresh)) then
+                                if ((abs(CurrentSign(j)) > 1.e-12_dp) .and. (abs(CurrentSign(j)) < OccupiedThresh)) then
                                 !We remove this walker with probability 1-RealSignTemp
                                 pRemove=(OccupiedThresh-abs(CurrentSign(j)))/OccupiedThresh
                                 r = genrand_real2_dSFMT ()
