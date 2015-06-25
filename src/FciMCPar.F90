@@ -24,7 +24,7 @@ module FciMCParMod
     use rdm_data, only: tCalc_RDMEnergy, rdms, rdm_estimates
     use rdm_general, only: FinaliseRDMs
     use rdm_filling, only: fill_rdm_offdiag_deterministic
-    use rdm_estimators, only: rdm_output_wrapper
+    use rdm_estimators, only: rdm_output_wrapper, write_rdm_estimates
     use rdm_explicit, only: fill_explicitrdm_this_iter, fill_hist_explicitrdm_this_iter
     use procedure_pointers, only: attempt_die_t, generate_excitation_t, &
                                   get_spawn_helement_t
@@ -410,8 +410,10 @@ module FciMCParMod
                 ! If we wish to calculate the energy, have started accumulating the RDMs, 
                 ! and this is an iteration where the energy should be calculated, do so.
                 if(tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)) .gt. IterRDMonFly) &
-                    .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .eq. 0) ) &
+                    .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .eq. 0) ) then
                         call rdm_output_wrapper(rdms(1), rdm_estimates(1))
+                        if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates)
+                end if
             end if
 
             if (tChangeVarsRDM) then

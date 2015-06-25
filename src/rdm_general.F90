@@ -500,13 +500,20 @@ contains
 
         if (iProcIndex .eq. 0) write(6,'(1X,"RDM memory allocation successful...")')
 
-        ! Open file to keep track of RDM Energies (if they're being calculated). 
+        ! Open file to keep track of RDM estimates. 
         if ((iProcIndex .eq. 0) .and. tCalc_RDMEnergy) then
             rdm_estimates_unit = get_free_unit()
             open(rdm_estimates_unit, file='RDMEstimates', status='unknown', position='append')
 
-            write(rdm_estimates_unit, &
-                "('#', 4X, 'Iteration', 6X, 'Energy numerator', 6X, 'Spin^2 numerator', 9X, 'Normalisation')")
+            write(rdm_estimates_unit, '("#", 4X, "Iteration")', advance='no')
+
+            do i = 1, nrdms
+                write(rdm_estimates_unit, '(4x,"Energy numerator",1x,i2)', advance='no') i
+                write(rdm_estimates_unit, '(4x,"Spin^2 numerator",1x,i2)', advance='no') i
+                write(rdm_estimates_unit, '(7x,"Normalisation",1x,i2)', advance='no') i
+            end do
+
+            write(rdm_estimates_unit,'()')
         end if
         tFinalRDMEnergy = .false.
 
@@ -548,7 +555,8 @@ contains
         use NatOrbsMod, only: NatOrbMat
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: rdm_t, rdm_estimates_t, tOpenShell, tCalc_RDMEnergy
-        use rdm_estimators, only: rdm_output_wrapper
+        use rdm_data, only: rdm_estimates
+        use rdm_estimators, only: rdm_output_wrapper, write_rdm_estimates
         use RotateOrbsData, only: SymLabelListInv_rot
         use SystemData, only: tStoreSpinOrbs
         use util_mod, only: get_free_unit
@@ -710,7 +718,10 @@ contains
 
         ! Calculate the energy for the matrices read in (if we're calculating more
         ! than the 1-RDM).
-        if (tCalc_RDMEnergy) call rdm_output_wrapper(rdm, est)
+        if (tCalc_RDMEnergy) then
+            call rdm_output_wrapper(rdm, est)
+            if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates)
+        end if
 
         ! Continue calculating the RDMs from the first iteration when the popsfiles
         ! (and RDMs) are read in. This overwrites the iteration number put in the input.
@@ -917,7 +928,7 @@ contains
         use Parallel_neci, only: iProcIndex, MPIBarrier
         use rdm_data, only: rdm_t, rdm_estimates_t, tRotatedNos, FinaliseRDMs_Time
         use rdm_estimators, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
-        use rdm_estimators, only: rdm_output_wrapper, CalcDipoles
+        use rdm_estimators, only: rdm_output_wrapper, CalcDipoles, write_rdm_estimates
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
         use util_mod, only: set_timer, halt_timer
 
@@ -990,6 +1001,8 @@ contains
             end if
 
         end do
+
+        if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates)
 
         call halt_timer(FinaliseRDMs_Time)
     

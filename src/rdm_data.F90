@@ -83,7 +83,7 @@ module rdm_data
     type rdm_estimates_t
         ! Quantities calculated from the RDM estimates.
         real(dp) :: RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst
-        real(dp) :: Norm_2RDM, Norm_2RDM_Inst, Trace_2RDM
+        real(dp) :: Norm_2RDM, Norm_2RDM_Inst, Trace_2RDM, Trace_2RDM_normalised
         real(dp) :: spin_est
     end type rdm_estimates_t
 
