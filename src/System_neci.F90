@@ -53,8 +53,7 @@ MODULE System
       tHPHFInts=.false.
       tHPHF=.false.
       tMaxHLGap=.false.
-      tUMatEps=.false.
-      UMatEps=0.0_dp
+      UMatEps = 1.0e-8
       tExactSizeSpace=.false.
       iRanLuxLev=3      !This is the default level of quality for the random number generator.
       tNoSymGenRandExcits=.false.
@@ -900,11 +899,16 @@ system: do
 ! and only these determinants will be allowed to be spawned at.
             CALL Stop_All("ReadSysInp","SPAWNLISTDETS option depreciated")
 !            tListDets=.true.
+
         case("UMATEPSILON")
-!This is an option for systems which are reaad in from an FCIDUMP file. Any two-electron integrals which are smaller in
-!magnitude than the value set for UMatEps will be set to zero.
+
+            ! For systems that read in from an FCIDUMP file, any two-electron
+            ! integrals are screened against a threshold parameter. Below
+            ! this they are ignored.
+            !
+            ! By default, this parameter is 10-e8, but it can be changed here.
             call readf(UMatEps)
-            tUMatEps=.true.
+
         case("NOSINGEXCITS")
 !This will mean that no single excitations are ever attempted to be generated.
             tNoSingExcits=.true.

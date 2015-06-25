@@ -535,7 +535,7 @@ contains
          use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,NEl
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,tMolpro
-         use SystemData, only: UMatEps,tUMatEps,tCacheFCIDUMPInts,tUHF
+         use SystemData, only: UMatEps,tCacheFCIDUMPInts,tUHF
          use SystemData, only: tRIIntegrals,nBasisMax,tROHF,tRotatedOrbsReal
          use SystemData, only: tReadFreeFormat
          USE UMatCache, only: UMatInd,UMatConj,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
@@ -611,6 +611,10 @@ contains
          ENDIF
 
          IF(iProcIndex.eq.0) THEN
+
+             write(6,'("Two-electron integrals with a magnitude over ", &
+                       &g16.7," are screened")') UMatEps
+
              if(tMolpro.and.tUHF) then
                  !In molpro, UHF FCIDUMPs are written out as:
                  !1: aaaa
@@ -654,6 +658,22 @@ contains
                  endif
              endif
 #endif
+
+             ! Remove integrals that are too small
+             if (abs(Z) < UMatEps) then
+                 if (ZeroedInt < 100) then
+                     write(6,'(a,2i4,a,2i4,a)', advance='no') &
+                         'Ignoring integral (chem. notation) (', i, j, '|', k, &
+                         l, '): '
+                     write(6,*) Z
+                 else if (ZeroedInt == 100) then
+                     write(6,*) 'Ignored more than 100 integrals.'
+                     write(6,*) 'Further threshold truncations not reported explicitly'
+                 end if
+                 ZeroedInt = ZeroedInt + 1
+                 goto 101
+             end if
+
              IF(tROHF.and.(.not.tMolpro)) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals (unless molpro).
                 IF(I.ne.0) THEN
@@ -784,18 +804,8 @@ contains
                 ELSEIF(tCacheFCIDUMPInts.or.tRIIntegrals) THEN
                     CALL Stop_All("ReadFCIInts","TUMAT2D should be set")
                 ELSE
-                    IF(tUMatEps) THEN
-!We have an epsilon cutoff for the size of the two-electron integrals - UMatEps
-                        IF(abs(Z).lt.UMatEps) THEN
-                            UMAT(UMatInd(I,K,J,L,0,0))=0.0_dp
-                            ZeroedInt=ZeroedInt+1
-                        ELSE
-                            UMAT(UMatInd(I,K,J,L,0,0))=Z
-                            NonZeroInt=NonZeroInt+1
-                        ENDIF
-                    ELSE
-                        UMAT(UMatInd(I,K,J,L,0,0))=Z
-                    ENDIF
+                    UMAT(UMatInd(I,K,J,L,0,0))=Z
+                    NonZeroInt=NonZeroInt+1
                 ENDIF
              ENDIF
 !             IF(I.NE.0) GOTO 101
@@ -841,17 +851,12 @@ contains
              CALL MPIBCast(UMATLABELS,nSlots*nPairs)
              CALL MPIBCast(UMatCacheData,nTypes*nSlots*nPairs)
          ENDIF
+
+         if (ZeroedInt /= 0 .and. iProcIndex == 0) then
+             write(6,*) 'Number of removed two-index integrals: ', zeroedint
+         end if
              
 
-         IF(tUMatEps) THEN
-!Write out statistics from zeroed integrals.
-             WRITE(6,"(A,G20.10,A)") "*** Zeroing all two-electron "    &
-     &          //"integrals with a magnitude of over ",UMatEps," ***" 
-             WRITE(6,*) ZeroedInt+NonZeroInt," 2E integrals read in..."
-             WRITE(6,*) ZeroedInt," integrals zeroed..."
-             WRITE(6,*) REAL(100*ZeroedInt,dp)/REAL(NonZeroInt+ZeroedInt,dp), &
-     &          " percent of 2E integrals zeroed."
-         ENDIF
          IF(tCacheFCIDUMPInts) THEN
              WRITE(6,*) "Ordering cache..."
              CALL FillUpCache()
