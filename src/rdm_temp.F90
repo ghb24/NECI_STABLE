@@ -162,7 +162,7 @@ contains
         logical, intent(in) :: tNormalise, tMake_Herm
 
         real(dp) :: ParityFactor, Divide_Factor
-        integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab, iunit_4
+        integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab
         integer :: No_Herm_Elements
         integer :: aaaa_RDM_unit, abab_RDM_unit, abba_RDM_unit
         integer :: bbbb_RDM_unit, baba_RDM_unit, baab_RDM_unit
