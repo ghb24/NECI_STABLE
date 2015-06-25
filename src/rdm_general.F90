@@ -719,7 +719,7 @@ contains
         ! Calculate the energy for the matrices read in (if we're calculating more
         ! than the 1-RDM).
         if (tCalc_RDMEnergy) then
-            call rdm_output_wrapper(rdm, est)
+            call rdm_output_wrapper(rdm, 1, est)
             if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates)
         end if
 
@@ -963,7 +963,7 @@ contains
                 tFinalRDMEnergy = .true.
 
                 ! 1-RDM is constructed here (in calc_1RDM_and_1RDM_energy).
-                call rdm_output_wrapper(rdms(i), rdm_estimates(i))
+                call rdm_output_wrapper(rdms(i), 1, rdm_estimates(i))
 
                 if (tPrint1RDM) then
                     call Finalise_1e_RDM(rdms(i), Norm_1RDM)

@@ -411,7 +411,7 @@ module FciMCParMod
                 ! and this is an iteration where the energy should be calculated, do so.
                 if(tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)) .gt. IterRDMonFly) &
                     .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .eq. 0) ) then
-                        call rdm_output_wrapper(rdms(1), rdm_estimates(1))
+                        call rdm_output_wrapper(rdms(1), 1, rdm_estimates(1))
                         if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates)
                 end if
             end if

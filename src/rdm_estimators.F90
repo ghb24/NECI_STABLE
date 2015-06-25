@@ -10,7 +10,7 @@ module rdm_estimators
 
 contains
 
-    subroutine rdm_output_wrapper(rdm, est)
+    subroutine rdm_output_wrapper(rdm, rdm_label, est)
 
         use FciMCData, only: tFinalRDMEnergy, Iter, IterRDMStart, PreviousCycles
         use LoggingData, only: tRDMInstEnergy, tWriteMultRDMs, IterWriteRDMs
@@ -22,6 +22,7 @@ contains
         use rdm_temp, only: Write_spinfree_RDM
 
         type(rdm_t), intent(inout) :: rdm
+        integer, intent(in) :: rdm_label
         type(rdm_estimates_t), intent(inout) :: est
 
         ! Normalise, make Hermitian, etc.
@@ -39,11 +40,11 @@ contains
             if (tFinalRDMEnergy .or. (tWriteMultRDMs .and. (mod((Iter+PreviousCycles-IterRDMStart)+1,IterWriteRDMs) .eq. 0))) then
 
                 ! Only ever want to print the 2-RDMs (for reading in) at the end.
-                if (tFinalRDMEnergy .and. tWrite_RDMs_to_read) call Write_out_2RDM(rdm, est%Norm_2RDM, .false., .false.)
+                if (tFinalRDMEnergy .and. tWrite_RDMs_to_read) call Write_out_2RDM(rdm, rdm_label, est%Norm_2RDM, .false., .false.)
 
                 ! This writes out the normalised, hermitian 2-RDMs.
                 ! IMPORTANT NOTE: We assume that we want tMake_Herm=.true. here.
-                if (tWrite_normalised_RDMs) call Write_out_2RDM(rdm, est%Norm_2RDM, .true., .true.)
+                if (tWrite_normalised_RDMs) call Write_out_2RDM(rdm, rdm_label, est%Norm_2RDM, .true., .true.)
 
                 if (tWriteSpinFreeRDM) call Write_spinfree_RDM(rdm, est%Norm_2RDM)
 
