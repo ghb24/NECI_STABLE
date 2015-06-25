@@ -718,6 +718,7 @@ module FciMCParMod
         endif
 
         do j = 1, int(TotWalkers,sizeof_int)
+
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
 

@@ -740,7 +740,7 @@ contains
             if (.not. tDetInCas .and. &
                 .not. (DetBitEQ(ilut, iLutRef(:,run), NIfDBO)) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
-                .and. ((diagH <= InitiatorCutoffEnergy .and. abs(sgn) <= init_thresh) .or. &
+                .and. ((diagH <= InitiatorCutoffEnergy .and. abs(sgn) <= (init_thresh+1.e-12_dp)) .or. &
                        (diagH > InitiatorCutoffEnergy .and. abs(sgn) <= low_init_thresh))) then
                 ! Population has fallen too low. Initiator status 
                 ! removed.
@@ -1574,7 +1574,7 @@ contains
         real(dp) :: prob_extra_walker, r
 
         nspawn = abs(int(parent_pop*av_spawns_per_walker))
-        if (abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp) > 0) then
+        if (abs(abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp)) > 1.e-12_dp) then
             prob_extra_walker = abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp)
             r = genrand_real2_dSFMT()
             if (prob_extra_walker > r) nspawn = nspawn + 1
