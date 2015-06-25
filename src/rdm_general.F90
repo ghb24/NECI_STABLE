@@ -36,6 +36,7 @@ contains
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data, only: rdm_estimates_unit, nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
+        use rdm_data, only: rdm_estimates
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
         use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
@@ -63,8 +64,8 @@ contains
                                & has not yet been implemented for more than one RDM.')
         end if
 
-        ! For now, just allocate one rdm.
         allocate(rdms(nrdms))
+        allocate(rdm_estimates(nrdms))
 
         ! Only spatial orbitals for the 2-RDMs (and F12).
         if (tStoreSpinOrbs .and. (RDMExcitLevel .ne. 1)) &
@@ -519,7 +520,7 @@ contains
                 write(6,'(A)') 'Ignoring the request to read in the RDMs and starting again.'
                 tReadRDMs = .false.
             else
-                call Read_In_RDMs(rdms(1))
+                call Read_In_RDMs(rdms(1), rdm_estimates(1))
             end if
         end if
 
@@ -535,7 +536,7 @@ contains
 
     end subroutine InitRDMs
 
-    subroutine Read_In_RDMs(rdm)
+    subroutine Read_In_RDMs(rdm, est)
 
         ! Reads in the arrays to restart the RDM calculation (and continue
         ! accumulating). These arrays are not normalised, so the trace is
@@ -546,13 +547,14 @@ contains
         use LoggingData, only: RDMExcitLevel
         use NatOrbsMod, only: NatOrbMat
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: rdm_t, tOpenShell, tCalc_RDMEnergy
+        use rdm_data, only: rdm_t, rdm_estimates_t, tOpenShell, tCalc_RDMEnergy
         use rdm_estimators, only: rdm_output_wrapper
         use RotateOrbsData, only: SymLabelListInv_rot
         use SystemData, only: tStoreSpinOrbs
         use util_mod, only: get_free_unit
 
         type(rdm_t), intent(inout) :: rdm
+        type(rdm_estimates_t), intent(inout) :: est
 
         logical :: exists_one
         logical :: exists_aaaa, exists_abab, exists_abba
@@ -708,7 +710,7 @@ contains
 
         ! Calculate the energy for the matrices read in (if we're calculating more
         ! than the 1-RDM).
-        if (tCalc_RDMEnergy) call rdm_output_wrapper(rdm, Norm_2RDM)
+        if (tCalc_RDMEnergy) call rdm_output_wrapper(rdm, est)
 
         ! Continue calculating the RDMs from the first iteration when the popsfiles
         ! (and RDMs) are read in. This overwrites the iteration number put in the input.
@@ -903,7 +905,7 @@ contains
 
     ! Routines called at the end of a simulation.
 
-    subroutine FinaliseRDMs(rdms)
+    subroutine FinaliseRDMs(rdms, rdm_estimates)
 
         ! This routine performs some finalisation, including summing each of
         ! the individual matrices from each processor, and calling the
@@ -913,13 +915,14 @@ contains
         use LoggingData, only: tBrokenSymNOs, occ_numb_diff, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo, tDipoles
         use Parallel_neci, only: iProcIndex, MPIBarrier
-        use rdm_data, only: rdm_t, tRotatedNos, FinaliseRDMs_Time
+        use rdm_data, only: rdm_t, rdm_estimates_t, tRotatedNos, FinaliseRDMs_Time
         use rdm_estimators, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
         use rdm_estimators, only: rdm_output_wrapper, CalcDipoles
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
         use util_mod, only: set_timer, halt_timer
 
         type(rdm_t), intent(inout) :: rdms(:)
+        type(rdm_estimates_t), intent(inout) :: rdm_estimates(:)
 
         integer :: i, error
         real(dp) :: Norm_2RDM, Norm_2RDM_Inst
@@ -949,7 +952,7 @@ contains
                 tFinalRDMEnergy = .true.
 
                 ! 1-RDM is constructed here (in calc_1RDM_and_1RDM_energy).
-                call rdm_output_wrapper(rdms(i), Norm_2RDM)
+                call rdm_output_wrapper(rdms(i), rdm_estimates(i))
 
                 if (tPrint1RDM) then
                     call Finalise_1e_RDM(rdms(i), Norm_1RDM)

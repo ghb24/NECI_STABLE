@@ -21,7 +21,7 @@ module FciMCParMod
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
                             attempt_die_spin_proj
-    use rdm_data, only: tCalc_RDMEnergy, rdms
+    use rdm_data, only: tCalc_RDMEnergy, rdms, rdm_estimates
     use rdm_general, only: FinaliseRDMs
     use rdm_filling, only: fill_rdm_offdiag_deterministic
     use rdm_estimators, only: rdm_output_wrapper
@@ -411,7 +411,7 @@ module FciMCParMod
                 ! and this is an iteration where the energy should be calculated, do so.
                 if(tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)) .gt. IterRDMonFly) &
                     .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .eq. 0) ) &
-                        call rdm_output_wrapper(rdms(1), Norm_2RDM)
+                        call rdm_output_wrapper(rdms(1), rdm_estimates(1))
             end if
 
             if (tChangeVarsRDM) then
@@ -474,7 +474,7 @@ module FciMCParMod
             CALL PrintOrbOccs(OrbOccs)
         ENDIF
 
-        if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) call FinaliseRDMs(rdms)
+        if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) call FinaliseRDMs(rdms, rdm_estimates)
 
         call PrintHighPops()
 

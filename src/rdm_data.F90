@@ -80,7 +80,15 @@ module rdm_data
         integer :: Rho_iiTag
     end type rdm_t
 
+    type rdm_estimates_t
+        ! Quantities calculated from the RDM estimates.
+        real(dp) :: RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst
+        real(dp) :: Norm_2RDM, Norm_2RDM_Inst, Trace_2RDM
+        real(dp) :: spin_est
+    end type rdm_estimates_t
+
     ! Array of type rdm_t, for holding multiple different RDM instances.
     type(rdm_t), allocatable :: rdms(:)
+    type(rdm_estimates_t), allocatable :: rdm_estimates(:)
 
 end module rdm_data
