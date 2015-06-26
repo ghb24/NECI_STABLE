@@ -58,6 +58,7 @@ module fcimc_helper
                                global_determinant_data, set_iter_occ, &
                                get_part_init_time, det_diagH, get_spawn_count
     use searching, only: BinSearchParts2
+    use rdm_data, only: nrdms
     implicit none
     save
 
@@ -1596,7 +1597,7 @@ contains
         real(dp), dimension(lenof_sign) :: iDie
         real(dp), dimension(lenof_sign) :: CopySign
         integer, intent(in) :: walkExcitLevel
-        integer :: i
+        integer :: i, irdm
         character(len=*), parameter :: t_r = "walker_death"
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
@@ -1648,7 +1649,9 @@ contains
         else
             ! All walkers died.
             if(tFillingStochRDMonFly) then
-                call det_removed_fill_diag_rdm(rdms, CurrentDets(:,DetPosition), DetPosition)
+                do irdm = 1, nrdms
+                    call det_removed_fill_diag_rdm(rdms(irdm), irdm, CurrentDets(:,DetPosition), DetPosition)
+                end do
                 ! Set the average sign and occupation iteration to zero, so
                 ! that the same contribution will not be added in in
                 ! CalcHashTableStats, if this determinant is not overwritten

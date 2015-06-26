@@ -646,7 +646,7 @@ module FciMCParMod
         HElement_t :: HDiagTemp,HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
         HElement_t, dimension(inum_runs) :: delta
-        integer :: proc, pos, determ_index
+        integer :: proc, pos, determ_index, irdm
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
         integer :: DetHash, FinalVal, clash, PartInd, k, y
         type(ll_node), pointer :: TempNode
@@ -768,10 +768,12 @@ module FciMCParMod
                 call set_iter_occ(j, IterRDMStartCurr)
                 ! If this is an iteration where we print out the RDM energy,
                 ! add in the diagonal contribution to the RDM for this
-                ! determinant.
+                ! determinant, for each rdm.
                 if (tFill_RDM .and. (.not. tNoNewRDMContrib)) then
-                    call fill_rdm_diag_currdet(rdms, CurrentDets(:,j), DetCurr, j, &
-                                                walkExcitLevel_toHF, tCoreDet)
+                    do irdm = 1, nrdms
+                        call fill_rdm_diag_currdet(rdms(irdm), irdm, CurrentDets(:,j), DetCurr, j, &
+                                                    walkExcitLevel_toHF, tCoreDet)
+                    end do
                 endif
             endif
 

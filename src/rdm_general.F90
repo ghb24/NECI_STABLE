@@ -1517,6 +1517,7 @@ contains
         !           AvSignI - the new average walker population during this time (also real).
 
         use bit_reps, only: extract_bit_rep
+        use CalcData, only: tPairedReplicas
         use FciMCData, only: PreviousCycles, Iter, IterRDMStart, excit_gen_store_type
         use global_det_data, only: get_iter_occ, get_av_sgn
         use LoggingData, only: RDMEnergyIter
@@ -1527,7 +1528,8 @@ contains
         real(dp), dimension(lenof_sign), intent(out) :: SignI
         real(dp), dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
         type(excit_gen_store_type), intent(inout), optional :: Store
-        integer :: part_ind
+
+        integer :: part_ind, irdm, ind1, ind2
 
         ! This is the iteration from which this determinant has been occupied.
         IterRDMStartI(1:lenof_sign) = get_iter_occ(j)
@@ -1551,49 +1553,58 @@ contains
             end do
         else
             ! Now let's consider other instances in which we need to start a new block:
-            if (inum_runs .eq. 2) then
+            if (tPairedReplicas) then
 #if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS) || defined(__CMPLX)
-                if ((SignI(1) .eq. 0) .and. (IterRDMStartI(1) .ne. 0)) then
-                    ! The population has just gone to zero on population 1.
-                    ! Therefore, we need to start a new averaging block.
-                    AvSignI(1) = 0
-                    IterRDMStartI(1) = 0
-                    AvSignI(2) = SignI(2)
-                    IterRDMStartI(2) = real(Iter + PreviousCycles,dp)
+                do irdm = 1, lenof_sign/2
 
-                else if ((SignI(2) .eq. 0) .and. (IterRDMStartI(2) .ne. 0)) then
-                    ! The population has just gone to zero on population 2.
-                    ! Therefore, we need to start a new averaging block.
-                    AvSignI(2) = 0
-                    IterRDMStartI(2) = 0
-                    AvSignI(1) = SignI(1)
-                    IterRDMStartI(1) = real(Iter + PreviousCycles,dp)
+                    ! The indicies of the first and second replicas in this
+                    ! particular pair, in the sign arrays.
+                    ind1 = irdm*2-1
+                    ind2 = irdm*2
 
-                else if ((SignI(1) .ne. 0) .and. (IterRDMStartI(1) .eq. 0)) then
-                    ! Population 1 has just become occupied.
-                    IterRDMStartI(1) = real(Iter + PreviousCycles,dp)
-                    IterRDMStartI(2) = real(Iter + PreviousCycles,dp)
-                    AvSignI(1) = SignI(1)
-                    AvSignI(2) = SignI(2)
-                    if (SignI(2) .eq. 0) IterRDMStartI(2) = 0
+                    if ((SignI(ind1) .eq. 0) .and. (IterRDMStartI(ind1) .ne. 0)) then
+                        ! The population has just gone to zero on population 1.
+                        ! Therefore, we need to start a new averaging block.
+                        AvSignI(ind1) = 0
+                        IterRDMStartI(ind1) = 0
+                        AvSignI(ind2) = SignI(ind2)
+                        IterRDMStartI(ind2) = real(Iter + PreviousCycles,dp)
 
-                else if ((SignI(2) .ne. 0) .and. (IterRDMStartI(2) .eq. 0)) then
-                    ! Population 2 has just become occupied.
-                    IterRDMStartI(1) = real(Iter + PreviousCycles,dp)
-                    IterRDMStartI(2) = real(Iter + PreviousCycles,dp)
-                    AvSignI(1) = SignI(1)
-                    AvSignI(2) = SignI(2)
-                    if (SignI(1) .eq. 0) IterRDMStartI(1) = 0
+                    else if ((SignI(ind2) .eq. 0) .and. (IterRDMStartI(ind2) .ne. 0)) then
+                        ! The population has just gone to zero on population 2.
+                        ! Therefore, we need to start a new averaging block.
+                        AvSignI(ind2) = 0
+                        IterRDMStartI(ind2) = 0
+                        AvSignI(ind1) = SignI(ind1)
+                        IterRDMStartI(ind1) = real(Iter + PreviousCycles,dp)
 
-                else
-                    ! Nothing unusual has happened so update both populations
-                    ! as normal.
-                    do part_ind = 1, lenof_sign
-                        ! Update the average population.
-                        AvSignI(part_ind) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * get_av_sgn(j, part_ind))&
-                            + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
-                    end do
-                end if
+                    else if ((SignI(ind1) .ne. 0) .and. (IterRDMStartI(ind1) .eq. 0)) then
+                        ! Population 1 has just become occupied.
+                        IterRDMStartI(ind1) = real(Iter + PreviousCycles,dp)
+                        IterRDMStartI(ind2) = real(Iter + PreviousCycles,dp)
+                        AvSignI(ind1) = SignI(ind1)
+                        AvSignI(ind2) = SignI(ind2)
+                        if (SignI(ind2) .eq. 0) IterRDMStartI(ind2) = 0
+
+                    else if ((SignI(ind2) .ne. 0) .and. (IterRDMStartI(ind2) .eq. 0)) then
+                        ! Population 2 has just become occupied.
+                        IterRDMStartI(ind1) = real(Iter + PreviousCycles,dp)
+                        IterRDMStartI(ind2) = real(Iter + PreviousCycles,dp)
+                        AvSignI(ind1) = SignI(ind1)
+                        AvSignI(ind2) = SignI(ind2)
+                        if (SignI(ind1) .eq. 0) IterRDMStartI(ind1) = 0
+
+                    else
+                        ! Nothing unusual has happened so update both populations
+                        ! as normal.
+                        do part_ind = 2*irdm-1, 2*irdm
+                            ! Update the average population.
+                            AvSignI(part_ind) = &
+                                ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * get_av_sgn(j, part_ind)) &
+                                  + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
+                        end do
+                    end if
+                end do
 #endif
             else
                 do part_ind = 1, lenof_sign

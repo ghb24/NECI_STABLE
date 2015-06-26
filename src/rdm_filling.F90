@@ -12,7 +12,7 @@ module rdm_filling
 
 contains
 
-    subroutine fill_rdm_diag_currdet_norm(rdms, iLutnI, nI, j, ExcitLevelI, tCoreSpaceDet)
+    subroutine fill_rdm_diag_currdet_norm(rdm, irdm, iLutnI, nI, j, ExcitLevelI, tCoreSpaceDet)
 
         ! This routine calculates the diagonal RDM contribution, and explicit
         ! connections to the HF, from the current determinant, for *every* RDM
@@ -39,7 +39,8 @@ contains
         use rdm_data, only: rdm_t
         use SystemData, only: nel, tHPHF
 
-        type(rdm_t), intent(inout) :: rdms(:)
+        type(rdm_t), intent(inout) :: rdm
+        integer, intent(in) :: irdm
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         integer, intent(in) :: nI(nel), ExcitLevelI, j
         logical, intent(in), optional :: tCoreSpaceDet
@@ -47,7 +48,7 @@ contains
         real(dp) :: IterDetOcc_all(lenof_sign), IterDetOcc_sing(nreplicas)
         real(dp) :: AvSignCurr_all(lenof_sign), AvSignCurr_sing(nreplicas)
         integer(n_int) :: SpinCoupDet(0:nIfTot)
-        integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel, part_type, i
+        integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel, part_type
         integer :: IterLastRDMFill, AvSignIters, IterRDM, sign_ind_1, sign_ind_2
 
         ! This is the number of iterations this determinant has been occupied,
@@ -61,12 +62,9 @@ contains
         ! energy was calculated.
         IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter)
 
-        ! Loop over all RDMs passed in, all of which need to be considered.
-        do i = 1, size(rdms)
-
             ! The indices of the signs for the RDM that we are considering.
-            sign_ind_1 = nreplicas*i-nreplicas+1
-            sign_ind_2 = nreplicas*i
+            sign_ind_1 = nreplicas*irdm-nreplicas+1
+            sign_ind_2 = nreplicas*irdm
 
             ! This is the number of iterations this determinant has been occupied,
             ! over the replicas relevant for the requested RDM.
@@ -86,7 +84,7 @@ contains
 
             if (tHPHF) then
                 if (.not. TestClosedShellDet(iLutnI)) then
-                    call Fill_Diag_RDM(rdms(i), nI, AvSignCurr_sing/sqrt(2.0_dp), tCoreSpaceDet, IterRDM)
+                    call Fill_Diag_RDM(rdm, nI, AvSignCurr_sing/sqrt(2.0_dp), tCoreSpaceDet, IterRDM)
 
                     ! C_X D_X = C_X / sqrt(2) [ D_I +/- D_I'] - for open shell dets,
                     ! divide stored C_X by sqrt(2). 
@@ -96,7 +94,7 @@ contains
                     ! Find out if it's + or - in the above expression
                     SignFac = hphf_sign(iLutnI)
 
-                    call Fill_Diag_RDM(rdms(i), nSpinCoup, real(SignFac,dp)*AvSignCurr_sing/sqrt(2.0_dp), &
+                    call Fill_Diag_RDM(rdm, nSpinCoup, real(SignFac,dp)*AvSignCurr_sing/sqrt(2.0_dp), &
                                        tCoreSpaceDet, IterRDM)
 
                     ! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
@@ -105,31 +103,29 @@ contains
                     ! excitation. Find excitation level between D_I and D_I' and add in the contribution if connected.
                     HPHFExcitLevel = FindBitExcitLevel(iLutnI, SpinCoupDet, 2)
                     if (HPHFExcitLevel .le. 2) then 
-                        call Add_RDM_From_IJ_Pair(rdms(i), nI, nSpinCoup, IterRDM*AvSignCurr_sing(1)/sqrt(2.0_dp), &
+                        call Add_RDM_From_IJ_Pair(rdm, nI, nSpinCoup, IterRDM*AvSignCurr_sing(1)/sqrt(2.0_dp), &
                                                   (real(SignFac,dp)*AvSignCurr_sing(nreplicas))/sqrt(2.0_dp), .true.)
                     end if
                 else
 
                     ! HPHFs on, but determinant closed shell.
-                    call Fill_Diag_RDM(rdms(i), nI, AvSignCurr_sing, tCoreSpaceDet, IterRDM)
+                    call Fill_Diag_RDM(rdm, nI, AvSignCurr_sing, tCoreSpaceDet, IterRDM)
 
                 end if
-                call Add_RDM_HFConnections_HPHF(rdms(i), iLutnI, nI, AvSignCurr_sing, ExcitLevelI, IterRDM)
+                call Add_RDM_HFConnections_HPHF(rdm, iLutnI, nI, AvSignCurr_sing, ExcitLevelI, IterRDM)
 
             else
                 ! Not using HPHFs.
                 if (AvSignCurr_sing(1)*AvSignCurr_sing(nreplicas) .ne. 0) &
-                    call Fill_Diag_RDM(rdms(i), nI, AvSignCurr_sing, tCoreSpaceDet, IterRDM)
+                    call Fill_Diag_RDM(rdm, nI, AvSignCurr_sing, tCoreSpaceDet, IterRDM)
 
-                call Add_RDM_HFConnections_Norm(rdms(i), iLutnI, nI, AvSignCurr_sing, ExcitLevelI, IterRDM)
+                call Add_RDM_HFConnections_Norm(rdm, iLutnI, nI, AvSignCurr_sing, ExcitLevelI, IterRDM)
 
             end if
 
-        end do
-
     end subroutine fill_rdm_diag_currdet_norm
 
-    subroutine det_removed_fill_diag_rdm(rdms, iLutnI, j)
+    subroutine det_removed_fill_diag_rdm(rdm, irdm, iLutnI, j)
 
         ! This routine is called if a determinant is removed from the list of
         ! currently occupied. At this point we need to add in its diagonal
@@ -148,7 +144,8 @@ contains
         use rdm_data, only: rdm_t
         use SystemData, only: nel, tRef_Not_HF
 
-        type(rdm_t), intent(inout) :: rdms(:)
+        type(rdm_t), intent(inout) :: rdm
+        integer, intent(in) :: irdm
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         integer, intent(in) :: j
 
@@ -157,7 +154,6 @@ contains
         ! If the determinant is removed on an iteration that the diagonal
         ! RDM elements are  already being calculated, it will already have
         ! been counted. So check this isn't the case first.
-
         if (.not. ((Iter .eq. NMCyc) .or. (mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter) .eq. 0))) then
             call decode_bit_det (nI, iLutnI)
             if (tRef_Not_HF) then
@@ -166,7 +162,7 @@ contains
                 ExcitLevel = FindBitExcitLevel(iLutRef, iLutnI, 2)
             end if
 
-            call fill_rdm_diag_currdet_norm(rdms, iLutnI, nI, j, ExcitLevel, .false.)
+            call fill_rdm_diag_currdet_norm(rdm, irdm, iLutnI, nI, j, ExcitLevel, .false.)
 
         end if
 
