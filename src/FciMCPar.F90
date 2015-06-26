@@ -34,7 +34,8 @@ module FciMCParMod
     use trial_wf_gen, only: update_compare_trial_file, &
                             update_compare_trial_file, init_trial_wf
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
-    use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps
+    use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
+                             orthogonalise_replica_pairs
     use load_balance, only: tLoadBalanceBlocks, adjust_load_balance
     use bit_reps, only: set_flag, clr_flag, add_ilut_lists
     use exact_diag, only: perform_exact_diag_all_symmetry
@@ -1004,7 +1005,11 @@ module FciMCParMod
         ! If we are orthogonalising the replica wavefunctions, to generate
         ! excited states, then do that here.
         if (tOrthogonaliseReplicas .and. iter > orthogonalise_iter) then
-            call orthogonalise_replicas(iter_data)
+            if (tPairedReplicas) then
+                call orthogonalise_replica_pairs(iter_data_fciqmc)
+            else
+                call orthogonalise_replicas(iter_data)
+            end if
         else if (tPrintReplicaOverlaps .and. inum_runs > 1) then
             call calc_replica_overlaps()
         end if
