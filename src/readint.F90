@@ -537,7 +537,7 @@ contains
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,tMolpro
          use SystemData, only: UMatEps,tCacheFCIDUMPInts,tUHF
          use SystemData, only: tRIIntegrals,nBasisMax,tROHF,tRotatedOrbsReal
-         use SystemData, only: tReadFreeFormat
+         use SystemData, only: tReadFreeFormat, G1, tFixLz
          USE UMatCache, only: UMatInd,UMatConj,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
          USE UMatCache, only: FillUpCache,GTID,nStates,nSlots,nTypes
          USE UMatCache, only: UMatCacheData,UMatLabels,GetUMatSize
@@ -553,7 +553,7 @@ contains
          HElement_t, intent(out) :: UMAT(:)
          HElement_t Z
          COMPLEX(dp) :: CompInt
-         INTEGER ZeroedInt,NonZeroInt
+         INTEGER ZeroedInt,NonZeroInt, LzDisallowed
          INTEGER I,J,K,L,X,Y,iunit,iSpinType
          INTEGER NORB,NELEC,MS2,ISYM,SYML(1000)
          integer(int64) ORBSYM(1000)
@@ -563,6 +563,7 @@ contains
          INTEGER , ALLOCATABLE :: CacheInd(:)
          character(len=*), parameter :: t_r='READFCIINT'
          real(dp) :: diff
+         logical :: tbad
          integer :: start_ind, end_ind
          integer, parameter :: chunk_size = 1000000
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
@@ -570,6 +571,7 @@ contains
          UHF=.FALSE.
          IUHF=0
          ZeroedInt=0
+         LzDisallowed=0
          NonZeroInt=0
          
          IF(iProcIndex.eq.0) THEN
@@ -664,7 +666,7 @@ contains
                  if (ZeroedInt < 100) then
                      write(6,'(a,2i4,a,2i4,a)', advance='no') &
                          'Ignoring integral (chem. notation) (', i, j, '|', k, &
-                         l, '): '
+                        l, '): '
                      write(6,*) Z
                  else if (ZeroedInt == 100) then
                      write(6,*) 'Ignored more than 100 integrals.'
@@ -673,6 +675,36 @@ contains
                  ZeroedInt = ZeroedInt + 1
                  goto 101
              end if
+
+             ! If we are fixing Lz symmetry, test if symmetry-zero elements
+             ! are being included
+             if (tFixLz) then
+                 tbad = .false.
+                 if (i /= 0 .and. j /= 0 .and. k /= 0 .and. l /= 0) then
+                     if (SymLz(i) + symLz(k) /= SymLz(j) + SymLz(l))  &
+                         tbad = .true.
+                 end if
+                 if (i /= 0 .and. j /= 0 .and. k == 0 .and. l == 0) then
+                     if (SymLz(i) /= SymLz(j))  &
+                         tbad = .true.
+                 end if
+                 if (tbad) then
+                     if (LzDisallowed < 100) then
+                         write(6,'(a,2i4,a,2i4,a)', advance='no') &
+                             'Ignoring Lz disallowed integral (chem. notation)&
+                             & (', i, j, '|', k, l, '): '
+                         write(6,*) Z
+                     else if (LzDisallowed == 100) then
+                         write(6,*) 'Ignored more than 100 integrals.'
+                         write(6,*) 'Further threshold truncations not reported explicitly'
+                     end if
+                     LzDisallowed = LzDisallowed + 1
+                     !if (abs(z) > 1.0e-8) &
+                     !    write(6,*) 'ODD', i, j, k, l, Z
+                     goto 101
+                 end if
+             end if
+
 
              IF(tROHF.and.(.not.tMolpro)) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals (unless molpro).
@@ -764,6 +796,7 @@ contains
 #endif
 !.. AJWT removed the restriction to TSTARSTORE
                 IF(TUMAT2D) THEN
+                    write(6,*) 'bleurgh'
                     IF(I.eq.J.and.I.eq.K.and.I.eq.L) THEN
                         !<ii|ii>
                         UMAT2D(I,I)=Z
@@ -796,6 +829,7 @@ contains
 
                         ENDIF
                     ELSE
+                        NonZeroInt=NonZeroInt+1
 !Read in all integrals as normal.
                         UMAT(UMatInd(I,K,J,L,0,0))=Z
                     ENDIF
@@ -819,6 +853,7 @@ contains
 
 !Now broadcast the data read in
          CALL MPIBCast(ZeroedInt,1)
+         CALL MPIBCast(LzDisallowed,1)
          CALL MPIBCast(NonZeroInt,1)
          CALL MPIBCast(ECore,1)
 !Need to find out size of TMAT before we can BCast
@@ -855,6 +890,11 @@ contains
          if (ZeroedInt /= 0 .and. iProcIndex == 0) then
              write(6,*) 'Number of removed two-index integrals: ', zeroedint
          end if
+         if (LzDisallowed /= 0 .and. iProcIndex == 0) then
+             write(6,*) 'Number of Lz disallowed two-index integrals: ', &
+                 LzDisallowed
+         end if
+         write(6,*) 'Number of non-zero integrals: ', NonZeroInt
              
 
          IF(tCacheFCIDUMPInts) THEN
