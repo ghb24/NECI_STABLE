@@ -119,6 +119,7 @@ module fcimc_initialisation
                                secondary_gen_store, ostag
     use get_excit, only: make_double
     use sltcnd_mod, only: sltcnd_0
+    use rdm_data, only: nrdms
     use Parallel_neci
     use FciMCData
     use util_mod
@@ -1088,6 +1089,14 @@ contains
 !        if(TotDets.gt.0) then
 !            WRITE(iout,"(A,I20)") "Approximate size of determinant space is: ",NINT(TotDets)
 !        endif
+
+         if (tRDMOnFly) then
+             if (tPairedReplicas) then
+                 nrdms = lenof_sign/2
+             else
+                 nrdms = lenof_sign
+             end if
+         end if
 
     END SUBROUTINE SetupParameters
 

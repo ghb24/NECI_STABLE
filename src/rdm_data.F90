@@ -7,6 +7,9 @@ module rdm_data
 
     implicit none
 
+    ! The number of rdms being calculated in this simulation.
+    integer :: nrdms = 0
+
     ! If true, then the RDM energy will be calculated and output.
     ! WARNING: despite its name, this variable is also required to be true in
     ! WARNING: order to output 2-RDMs.
