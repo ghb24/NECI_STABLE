@@ -699,8 +699,6 @@ contains
                          write(6,*) 'Further threshold truncations not reported explicitly'
                      end if
                      LzDisallowed = LzDisallowed + 1
-                     !if (abs(z) > 1.0e-8) &
-                     !    write(6,*) 'ODD', i, j, k, l, Z
                      goto 101
                  end if
              end if
