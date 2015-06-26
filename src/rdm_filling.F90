@@ -62,66 +62,66 @@ contains
         ! energy was calculated.
         IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter)
 
-            ! The indices of the signs for the RDM that we are considering.
-            sign_ind_1 = nreplicas*irdm-nreplicas+1
-            sign_ind_2 = nreplicas*irdm
+        ! The indices of the signs for the RDM that we are considering.
+        sign_ind_1 = nreplicas*irdm-nreplicas+1
+        sign_ind_2 = nreplicas*irdm
 
-            ! This is the number of iterations this determinant has been occupied,
-            ! over the replicas relevant for the requested RDM.
-            IterDetOcc_sing(1:nreplicas) = IterDetOcc_all(sign_ind_1:sign_ind_2)
+        ! This is the number of iterations this determinant has been occupied,
+        ! over the replicas relevant for the requested RDM.
+        IterDetOcc_sing(1:nreplicas) = IterDetOcc_all(sign_ind_1:sign_ind_2)
 
-            AvSignIters = min(IterDetOcc_sing(1), IterDetOcc_sing(nreplicas))
+        AvSignIters = min(IterDetOcc_sing(1), IterDetOcc_sing(nreplicas))
 
-            ! The number of iterations we want to weight this RDM contribution by is:
-            if (IterLastRDMFill .gt. 0) then
-                IterRDM = min(AvSignIters, IterLastRDMFill)
-            else
-                IterRDM = AvSignIters
-            end if
+        ! The number of iterations we want to weight this RDM contribution by is:
+        if (IterLastRDMFill .gt. 0) then
+            IterRDM = min(AvSignIters, IterLastRDMFill)
+        else
+            IterRDM = AvSignIters
+        end if
 
-            ! The signs corresponding to this RDM.
-            AvSignCurr_sing = AvSignCurr_all(sign_ind_1:sign_ind_2)
+        ! The signs corresponding to this RDM.
+        AvSignCurr_sing = AvSignCurr_all(sign_ind_1:sign_ind_2)
 
-            if (tHPHF) then
-                if (.not. TestClosedShellDet(iLutnI)) then
-                    call Fill_Diag_RDM(rdm, nI, AvSignCurr_sing/sqrt(2.0_dp), tCoreSpaceDet, IterRDM)
+        if (tHPHF) then
+            if (.not. TestClosedShellDet(iLutnI)) then
+                call Fill_Diag_RDM(rdm, nI, AvSignCurr_sing/sqrt(2.0_dp), tCoreSpaceDet, IterRDM)
 
-                    ! C_X D_X = C_X / sqrt(2) [ D_I +/- D_I'] - for open shell dets,
-                    ! divide stored C_X by sqrt(2). 
-                    ! Add in I.
-                    call FindExcitBitDetSym(iLutnI, SpinCoupDet)
-                    call decode_bit_det(nSpinCoup, SpinCoupDet)
-                    ! Find out if it's + or - in the above expression
-                    SignFac = hphf_sign(iLutnI)
+                ! C_X D_X = C_X / sqrt(2) [ D_I +/- D_I'] - for open shell dets,
+                ! divide stored C_X by sqrt(2). 
+                ! Add in I.
+                call FindExcitBitDetSym(iLutnI, SpinCoupDet)
+                call decode_bit_det(nSpinCoup, SpinCoupDet)
+                ! Find out if it's + or - in the above expression
+                SignFac = hphf_sign(iLutnI)
 
-                    call Fill_Diag_RDM(rdm, nSpinCoup, real(SignFac,dp)*AvSignCurr_sing/sqrt(2.0_dp), &
-                                       tCoreSpaceDet, IterRDM)
+                call Fill_Diag_RDM(rdm, nSpinCoup, real(SignFac,dp)*AvSignCurr_sing/sqrt(2.0_dp), &
+                                   tCoreSpaceDet, IterRDM)
 
-                    ! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
-                    ! Not only do we have diagonal < D_I | a_a+ a_b+ a_j a_i | D_I > terms, but also cross terms
-                    ! < D_I | a_a+ a_b+ a_j a_i | D_I' > if D_I and D_I' can be connected by a single or double 
-                    ! excitation. Find excitation level between D_I and D_I' and add in the contribution if connected.
-                    HPHFExcitLevel = FindBitExcitLevel(iLutnI, SpinCoupDet, 2)
-                    if (HPHFExcitLevel .le. 2) then 
-                        call Add_RDM_From_IJ_Pair(rdm, nI, nSpinCoup, IterRDM*AvSignCurr_sing(1)/sqrt(2.0_dp), &
-                                                  (real(SignFac,dp)*AvSignCurr_sing(nreplicas))/sqrt(2.0_dp), .true.)
-                    end if
-                else
-
-                    ! HPHFs on, but determinant closed shell.
-                    call Fill_Diag_RDM(rdm, nI, AvSignCurr_sing, tCoreSpaceDet, IterRDM)
-
+                ! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
+                ! Not only do we have diagonal < D_I | a_a+ a_b+ a_j a_i | D_I > terms, but also cross terms
+                ! < D_I | a_a+ a_b+ a_j a_i | D_I' > if D_I and D_I' can be connected by a single or double 
+                ! excitation. Find excitation level between D_I and D_I' and add in the contribution if connected.
+                HPHFExcitLevel = FindBitExcitLevel(iLutnI, SpinCoupDet, 2)
+                if (HPHFExcitLevel .le. 2) then 
+                    call Add_RDM_From_IJ_Pair(rdm, nI, nSpinCoup, IterRDM*AvSignCurr_sing(1)/sqrt(2.0_dp), &
+                                              (real(SignFac,dp)*AvSignCurr_sing(nreplicas))/sqrt(2.0_dp), .true.)
                 end if
-                call Add_RDM_HFConnections_HPHF(rdm, iLutnI, nI, AvSignCurr_sing, ExcitLevelI, IterRDM)
-
             else
-                ! Not using HPHFs.
-                if (AvSignCurr_sing(1)*AvSignCurr_sing(nreplicas) .ne. 0) &
-                    call Fill_Diag_RDM(rdm, nI, AvSignCurr_sing, tCoreSpaceDet, IterRDM)
 
-                call Add_RDM_HFConnections_Norm(rdm, iLutnI, nI, AvSignCurr_sing, ExcitLevelI, IterRDM)
+                ! HPHFs on, but determinant closed shell.
+                call Fill_Diag_RDM(rdm, nI, AvSignCurr_sing, tCoreSpaceDet, IterRDM)
 
             end if
+            call Add_RDM_HFConnections_HPHF(rdm, iLutnI, nI, AvSignCurr_sing, ExcitLevelI, IterRDM)
+
+        else
+            ! Not using HPHFs.
+            if (AvSignCurr_sing(1)*AvSignCurr_sing(nreplicas) .ne. 0) &
+                call Fill_Diag_RDM(rdm, nI, AvSignCurr_sing, tCoreSpaceDet, IterRDM)
+
+            call Add_RDM_HFConnections_Norm(rdm, iLutnI, nI, AvSignCurr_sing, ExcitLevelI, IterRDM)
+
+        end if
 
     end subroutine fill_rdm_diag_currdet_norm
 
