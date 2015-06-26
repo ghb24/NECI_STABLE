@@ -219,7 +219,7 @@ contains
         ! symmetrically.
         if ((walkExcitLevel .eq. 1) .or. (walkExcitLevel .eq. 2)) then
             call Add_RDM_From_IJ_Pair(rdm, HFDet_True, nJ, AvNoatHF(1), &
-                                      (1.0_dp/real(lenof_sign,dp))*IterRDM*AvSignJ(nreplicas), .true.)
+                                      (1.0_dp/real(nreplicas,dp))*IterRDM*AvSignJ(nreplicas), .true.)
 
             call Add_RDM_From_IJ_Pair(rdm, HFDet_True, nJ, AvNoatHF(nreplicas), &
                                       (1.0_dp/real(nreplicas,dp))*IterRDM*AvSignJ(1), .true.)
