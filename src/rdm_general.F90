@@ -963,7 +963,7 @@ contains
                 tFinalRDMEnergy = .true.
 
                 ! 1-RDM is constructed here (in calc_1RDM_and_1RDM_energy).
-                call rdm_output_wrapper(rdms(i), 1, rdm_estimates(i))
+                call rdm_output_wrapper(rdms(i), i, rdm_estimates(i))
 
                 if (tPrint1RDM) then
                     call Finalise_1e_RDM(rdms(i), Norm_1RDM)
