@@ -75,7 +75,7 @@ module FciMCParMod
 #endif
         integer :: iroot, isymh
         real(dp) :: Weight, Energyxw, BestEnergy
-        INTEGER :: error
+        INTEGER :: error, irdm
         LOGICAL :: TIncrement, tWritePopsFound, tSoftExitFound, tSingBiasChange, tPrintWarn
         REAL(sp) :: s_start, s_end, tstart(2), tend(2), totaltime
         real(dp) :: TotalTime8
@@ -412,14 +412,16 @@ module FciMCParMod
                 ! and this is an iteration where the energy should be calculated, do so.
                 if(tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)) .gt. IterRDMonFly) &
                     .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .eq. 0) ) then
-                        call rdm_output_wrapper(rdms(1), 1, rdm_estimates(1))
+                        do irdm = 1, nrdms
+                            call rdm_output_wrapper(rdms(irdm), irdm, rdm_estimates(irdm))
+                        end do
                         if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates)
                 end if
             end if
 
             if (tChangeVarsRDM) then
                 ! Decided during the CHANGEVARS that the RDMs should be calculated.
-                call InitRDMs(1)
+                call InitRDMs(nrdms)
                 tRDMonFly = .true.
                 tChangeVarsRDM = .false.
             endif

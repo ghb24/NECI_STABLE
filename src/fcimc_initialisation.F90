@@ -1364,7 +1364,7 @@ contains
             call init_yama_store ()
         endif
     
-        if (tRDMonFly) call InitRDMs(1)
+        if (tRDMonFly) call InitRDMs(nrdms)
         ! This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
         ! Initialises RDM stuff for both explicit and stochastic calculations of RDM.
 
