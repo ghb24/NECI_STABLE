@@ -1714,11 +1714,11 @@ contains
 
         tFullVaryShift=.false.
 
-        if (.not. tSinglePartPhase(1).and.(.not.tSinglePartPhase(inum_runs))) tFullVaryShift=.true.
+        if (all(.not. tSinglePartPhase)) tFullVaryShift = .true.
 
         ! If we're reading in the RDMs we've already started accumulating them in a previous calculation
         ! We don't want to put in an arbitrary break now!
-        if (tReadRDMs) IterRDMonFly=0
+        if (tReadRDMs) IterRDMonFly = 0
 
         if (tFullVaryShift .and. ((Iter - maxval(VaryShiftIter)).eq.(IterRDMonFly+1))) then
         ! IterRDMonFly is the number of iterations after the shift has changed that we want 
@@ -1728,10 +1728,10 @@ contains
             IterRDM_HF = Iter + PreviousCycles
 
             ! We have reached the iteration where we want to start filling the RDM.
-            if(tExplicitAllRDM) then
+            if (tExplicitAllRDM) then
                 ! Explicitly calculating all connections - expensive...
-                if(inum_runs.eq.2) call stop_all('check_start_rdm',"Cannot yet do replica RDM sampling with explicit RDMs. &
-                    & e.g Hacky bit in Gen_Hist_ExcDjs to make it compile")
+                if (tPairedReplicas) call stop_all('check_start_rdm',"Cannot yet do replica RDM sampling with explicit RDMs. &
+                    & e.g Hacky bit in Gen_Hist_ExcDjs to make it compile.")
                 
                 tFillingExplicRDMonFly = .true.
                 if(tHistSpawn) NHistEquilSteps = Iter
