@@ -407,7 +407,7 @@ module FciMCParMod
                 CALL WriteHistogram()
             ENDIF
 
-            if (tRDMonFly .and. (.not. tSinglePartPhase(1)) .and. (.not. tSinglePartPhase(inum_runs))) then
+            if (tRDMonFly .and. all(.not. tSinglePartPhase)) then
                 ! If we wish to calculate the energy, have started accumulating the RDMs, 
                 ! and this is an iteration where the energy should be calculated, do so.
                 if(tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)) .gt. IterRDMonFly) &
