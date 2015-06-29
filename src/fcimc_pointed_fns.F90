@@ -238,7 +238,7 @@ module fcimc_pointed_fns
 
                 ! And round this to an integer in the usual way
                 ! HACK: To use the same number of random numbers for the tests.
-                if (abs(nspawn - real(int(nspawn),dp)) < 1.e-12_dp) r = genrand_real2_dSFMT()
+                if (nspawn - real(int(nspawn),dp) == 0.0) r = genrand_real2_dSFMT()
                 nSpawn = real(stochastic_round (nSpawn), dp)
                 
             endif
