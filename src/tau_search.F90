@@ -327,7 +327,10 @@ contains
             if (abs(tau - tau_new) / tau > 0.001_dp) then
                 root_print "Updating time-step. New time-step = ", tau_new
             end if
-            tau = tau_new
+            ! Make the final tau smaller than tau_new by a small amount
+            ! (10^-6), so that we don't get spawns exactly equal to the
+            ! initiator threshold, but slightly below it instead.
+            tau = tau_new - 1.e-6_dp
         end if
 
         ! Make sure that we have at least some of both singles and doubles
