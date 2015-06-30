@@ -1177,7 +1177,7 @@ contains
 
     end subroutine Fill_Doubs_RDM
 
-    subroutine fill_RDM_offdiag_deterministic()
+    subroutine fill_RDM_offdiag_deterministic(rdms)
 
         use bit_rep_data, only: NIfD
         use bit_reps, only: decode_bit_det
@@ -1186,14 +1186,16 @@ contains
         use FciMCData, only: core_space, determ_sizes, determ_displs, full_determ_vecs_av
         use LoggingData, only: RDMExcitLevel, RDMEnergyIter
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: rdms
+        use rdm_data, only: rdm_t
         use sparse_arrays, only: sparse_core_ham, core_connections
         use SystemData, only: nel, tHPHF
 
-        integer :: i, j
+        type(rdm_t), intent(inout) :: rdms(:)
+
+        integer :: i, j, irdm, ind1, ind2
         integer :: SingEx(2,1), Ex(2,2)
         real(dp) :: InstSignI, InstSignJ
-        real(dp) :: AvSignI, AvSignJ
+        real(dp) :: AvSignI(lenof_sign), AvSignJ(lenof_sign)
         logical :: tParity
         integer(n_int) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer :: nI(nel), nJ(nel), IC
@@ -1220,7 +1222,7 @@ contains
             ! Connections to the HF are added in elsewhere, so skip them here.
             if (DetBitEq(iLutI, iLutHF_True, NifDBO)) cycle
            
-            AvSignI = full_determ_vecs_av(1,determ_displs(iProcIndex)+i)
+            AvSignI = full_determ_vecs_av(:,determ_displs(iProcIndex)+i)
 
             call decode_bit_det(nI,iLutI)
  
@@ -1239,7 +1241,7 @@ contains
                  ! Connections to the HF are added in elsewhere, so skip them here.
                  if (DetBitEq(iLutJ, iLutHF_True, NifDBO)) cycle
                  
-                 AvSignJ = full_determ_vecs_av(inum_runs,core_connections(i)%positions(j))
+                 AvSignJ = full_determ_vecs_av(:,core_connections(i)%positions(j))
 
                  connect_elem = core_connections(i)%elements(j)
 
@@ -1254,7 +1256,12 @@ contains
                  if (tHPHF) then
                      call decode_bit_det(nJ, iLutJ)
 
-                     call Fill_Spin_Coupled_RDM(rdms(1), iLutI, iLutJ, nI, nJ, AvSignI*IterRDM, AvSignJ, .false.)
+                     do irdm = 1, size(rdms)
+                         ind1 = nreplicas*irdm-nreplicas+1
+                         ind2 = nreplicas*irdm
+                         call Fill_Spin_Coupled_RDM(rdms(irdm), iLutI, iLutJ, nI, nJ, &
+                                                    AvSignI(ind1)*IterRDM, AvSignJ(ind2), .false.)
+                     end do
                  else
                      if (IC .eq. 1) then
                          ! Single excitation - contributes to 1- and 2-RDM
@@ -1268,14 +1275,23 @@ contains
                          ! No need to explicitly fill symmetrically as we'll
                          ! generate pairs of determinants both ways around using
                          ! the connectivity matrix.
-                         call Fill_Sings_RDM(rdms(1), nI, Ex, tParity, AvSignI*IterRDM, AvSignJ, .false.)
+                         do irdm = 1, size(rdms)
+                             ind1 = nreplicas*irdm-nreplicas+1
+                             ind2 = nreplicas*irdm
+                             call Fill_Sings_RDM(rdms(irdm), nI, Ex, tParity, AvSignI(ind1)*IterRDM, AvSignJ(ind2), .false.)
+                         end do
 
                      else if ((IC .eq. 2) .and. (RDMExcitLevel .ne. 1)) then
                          
                          ! Note: get_bit_excitmat may be buggy (DetBitOps),
                          ! but will do for now as we need the Ex...
                          call get_bit_excitmat(iLutI(0:NIfD), iLutJ(0:NIfD), Ex, IC)
-                         call Fill_Doubs_RDM(rdms(1), Ex, tParity, AvSignI*IterRDM, AvSignJ, .false.)
+
+                         do irdm = 1, size(rdms)
+                             ind1 = nreplicas*irdm-nreplicas+1
+                             ind2 = nreplicas*irdm
+                             call Fill_Doubs_RDM(rdms(irdm), Ex, tParity, AvSignI(ind1)*IterRDM, AvSignJ(ind2), .false.)
+                         end do
                      end if
                  end if
              end do

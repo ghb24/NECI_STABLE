@@ -975,7 +975,7 @@ module FciMCParMod
                 ! (the diagonal contributions are done in the same place for
                 ! all determinants, regardless of whether they are core or not,
                 ! so are not added in here).
-                if(tFill_RDM) call fill_RDM_offdiag_deterministic()
+                if (tFill_RDM) call fill_RDM_offdiag_deterministic(rdms)
             end if
         end if
 
