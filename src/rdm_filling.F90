@@ -1227,74 +1227,74 @@ contains
             call decode_bit_det(nI,iLutI)
  
             do j = 1, sparse_core_ham(i)%num_elements-1
-                 ! Running over all non-zero off-diag matrix elements
-                 ! Connections to whole space (1 row), excluding diagonal elements
+                ! Running over all non-zero off-diag matrix elements
+                ! Connections to whole space (1 row), excluding diagonal elements
 
-                 ! Note: determ_displs holds sum(determ_sizes(0:proc-1))
-                 ! Core space holds all the core determinants on every processor,
-                 ! so we need to shuffle up to the range of indices corresponding
-                 ! to this proc (using determ_displs) and then select the
-                 ! correct one, i.
-                 
-                 iLutJ = core_space(:,core_connections(i)%positions(j))
+                ! Note: determ_displs holds sum(determ_sizes(0:proc-1))
+                ! Core space holds all the core determinants on every processor,
+                ! so we need to shuffle up to the range of indices corresponding
+                ! to this proc (using determ_displs) and then select the
+                ! correct one, i.
+                
+                iLutJ = core_space(:,core_connections(i)%positions(j))
 
-                 ! Connections to the HF are added in elsewhere, so skip them here.
-                 if (DetBitEq(iLutJ, iLutHF_True, NifDBO)) cycle
-                 
-                 AvSignJ = full_determ_vecs_av(:,core_connections(i)%positions(j))
+                ! Connections to the HF are added in elsewhere, so skip them here.
+                if (DetBitEq(iLutJ, iLutHF_True, NifDBO)) cycle
+                
+                AvSignJ = full_determ_vecs_av(:,core_connections(i)%positions(j))
 
-                 connect_elem = core_connections(i)%elements(j)
+                connect_elem = core_connections(i)%elements(j)
 
-                 IC = abs(connect_elem)
+                IC = abs(connect_elem)
 
-                 if (sign(1, connect_elem) .gt. 0) then
-                     tParity = .false.
-                 else
-                     tParity = .true.
-                 end if
+                if (sign(1, connect_elem) .gt. 0) then
+                    tParity = .false.
+                else
+                    tParity = .true.
+                end if
 
-                 if (tHPHF) then
-                     call decode_bit_det(nJ, iLutJ)
+                if (tHPHF) then
+                    call decode_bit_det(nJ, iLutJ)
 
-                     do irdm = 1, size(rdms)
-                         ind1 = nreplicas*irdm-nreplicas+1
-                         ind2 = nreplicas*irdm
-                         call Fill_Spin_Coupled_RDM(rdms(irdm), iLutI, iLutJ, nI, nJ, &
-                                                    AvSignI(ind1)*IterRDM, AvSignJ(ind2), .false.)
-                     end do
-                 else
-                     if (IC .eq. 1) then
-                         ! Single excitation - contributes to 1- and 2-RDM
-                         ! (if calculated).
-                          
-                         ! Note: get_bit_excitmat may be buggy (DetBitOps),
-                         ! but will do for now as we need the Ex...
-                         call get_bit_excitmat(iLutI(0:NIfD),iLutJ(0:NIfD), SingEx, IC)
-                         Ex(:,1) = SingEx(:,1)
-                        
-                         ! No need to explicitly fill symmetrically as we'll
-                         ! generate pairs of determinants both ways around using
-                         ! the connectivity matrix.
-                         do irdm = 1, size(rdms)
-                             ind1 = nreplicas*irdm-nreplicas+1
-                             ind2 = nreplicas*irdm
-                             call Fill_Sings_RDM(rdms(irdm), nI, Ex, tParity, AvSignI(ind1)*IterRDM, AvSignJ(ind2), .false.)
-                         end do
-
-                     else if ((IC .eq. 2) .and. (RDMExcitLevel .ne. 1)) then
+                    do irdm = 1, size(rdms)
+                        ind1 = nreplicas*irdm-nreplicas+1
+                        ind2 = nreplicas*irdm
+                        call Fill_Spin_Coupled_RDM(rdms(irdm), iLutI, iLutJ, nI, nJ, &
+                                                   AvSignI(ind1)*IterRDM, AvSignJ(ind2), .false.)
+                    end do
+                else
+                    if (IC .eq. 1) then
+                        ! Single excitation - contributes to 1- and 2-RDM
+                        ! (if calculated).
                          
-                         ! Note: get_bit_excitmat may be buggy (DetBitOps),
-                         ! but will do for now as we need the Ex...
-                         call get_bit_excitmat(iLutI(0:NIfD), iLutJ(0:NIfD), Ex, IC)
+                        ! Note: get_bit_excitmat may be buggy (DetBitOps),
+                        ! but will do for now as we need the Ex...
+                        call get_bit_excitmat(iLutI(0:NIfD),iLutJ(0:NIfD), SingEx, IC)
+                        Ex(:,1) = SingEx(:,1)
+                       
+                        ! No need to explicitly fill symmetrically as we'll
+                        ! generate pairs of determinants both ways around using
+                        ! the connectivity matrix.
+                        do irdm = 1, size(rdms)
+                            ind1 = nreplicas*irdm-nreplicas+1
+                            ind2 = nreplicas*irdm
+                            call Fill_Sings_RDM(rdms(irdm), nI, Ex, tParity, AvSignI(ind1)*IterRDM, AvSignJ(ind2), .false.)
+                        end do
 
-                         do irdm = 1, size(rdms)
-                             ind1 = nreplicas*irdm-nreplicas+1
-                             ind2 = nreplicas*irdm
-                             call Fill_Doubs_RDM(rdms(irdm), Ex, tParity, AvSignI(ind1)*IterRDM, AvSignJ(ind2), .false.)
-                         end do
-                     end if
-                 end if
-             end do
+                    else if ((IC .eq. 2) .and. (RDMExcitLevel .ne. 1)) then
+                        
+                        ! Note: get_bit_excitmat may be buggy (DetBitOps),
+                        ! but will do for now as we need the Ex...
+                        call get_bit_excitmat(iLutI(0:NIfD), iLutJ(0:NIfD), Ex, IC)
+
+                        do irdm = 1, size(rdms)
+                            ind1 = nreplicas*irdm-nreplicas+1
+                            ind2 = nreplicas*irdm
+                            call Fill_Doubs_RDM(rdms(irdm), Ex, tParity, AvSignI(ind1)*IterRDM, AvSignJ(ind2), .false.)
+                        end do
+                    end if
+                end if
+            end do
         end do
 
     end subroutine fill_RDM_offdiag_deterministic 
