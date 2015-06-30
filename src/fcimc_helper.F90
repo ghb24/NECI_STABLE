@@ -740,7 +740,7 @@ contains
             if (.not. tDetInCas .and. &
                 .not. (DetBitEQ(ilut, iLutRef(:,run), NIfDBO)) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
-                .and. ((diagH <= InitiatorCutoffEnergy .and. abs(sgn) <= (init_thresh+1.e-12_dp)) .or. &
+                .and. ((diagH <= InitiatorCutoffEnergy .and. abs(sgn) <= init_thresh) .or. &
                        (diagH > InitiatorCutoffEnergy .and. abs(sgn) <= low_init_thresh))) then
                 ! Population has fallen too low. Initiator status 
                 ! removed.
