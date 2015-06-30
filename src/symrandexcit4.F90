@@ -305,7 +305,9 @@ contains
             call pgen_select_orb (ilutI, ex(1,:), ex(2,1), ex(2,2), int_cpt(2),&
                                   cum_sums(2))
 
-            if (cc_i_final == cc_j_final) then
+            if (any(cum_sums == 0)) then
+                pgen = 0
+            else if (cc_i_final == cc_j_final) then
                 pgen = pgen * ( &
                        (int_cpt(1) / cum_sums(1) * int_cpt(2) / cum_sums(2)) &
                      + (int_cpt(2) / cum_sums(1) * &
@@ -314,7 +316,6 @@ contains
                 pgen = pgen * (int_cpt(1) / cum_sums(1)) &
                             * (int_cpt(2) / cum_sums(2))
             end if
-
 
         else
             ! IC /= 1, 2 --> not connected by the excitation generator.
