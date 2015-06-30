@@ -15,8 +15,7 @@ contains
     subroutine fill_rdm_diag_currdet_norm(rdm, irdm, iLutnI, nI, j, ExcitLevelI, tCoreSpaceDet)
 
         ! This routine calculates the diagonal RDM contribution, and explicit
-        ! connections to the HF, from the current determinant, for *every* RDM
-        ! passed in through the rdms array.
+        ! connections to the HF, from the current determinant.
 
         ! j --> Which element of the main list CurrentDets are we considering?
         ! IterLastRDMFill is the number of iterations since the last time the
@@ -131,8 +130,6 @@ contains
         ! currently occupied. At this point we need to add in its diagonal
         ! contribution for the number of iterations it has been occupied (or
         ! since the contribution was last included).
-
-        ! This is done for *all* RDMs passed in through the rdms array.
 
         ! j --> which element of the main list CurrentDets are we considering.
 
