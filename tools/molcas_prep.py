@@ -44,7 +44,7 @@ def process_f(dir, fn, tgt_dir, tmp_dir):
     # Get the source and target full filenames. Note we convert .F to .f
     root, ext = os.path.splitext(fn)
     src_file = os.path.join(dir, fn)
-    tgt_file = os.path.join(tgt_dir, "{}.f".format(root))
+    tgt_file = os.path.join(tgt_dir, "{}.f".format(root.lower()))
     shutil.copyfile(src_file, tgt_file)
 
 
@@ -56,7 +56,7 @@ def process_f90(dir, fn, tgt_dir, tmp_dir):
     # Get the source and target full filenames. Note we convert .F90 to .f90
     root, ext = os.path.splitext(fn)
     src_file = os.path.join(dir, fn)
-    tgt_file = os.path.join(tgt_dir, "{}.f90".format(root))
+    tgt_file = os.path.join(tgt_dir, "{}.f90".format(root.lower()))
     assert ext == ".F90"
     assert src_file != tgt_file
 
@@ -102,7 +102,7 @@ def file_direct_copy(dir, fn, tgt_dir, tmp_dir):
     """
     Directly copy the specified file into the target directory
     """
-    shutil.copyfile(os.path.join(dir, fn), os.path.join(tgt_dir, fn))
+    shutil.copyfile(os.path.join(dir, fn), os.path.join(tgt_dir, fn.lower()))
 
 
 def drop_file(dir, fn, tgt_dir, tmp_dir):
