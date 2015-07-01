@@ -6,6 +6,9 @@ from the NECI source code
 Usage:
     molcas_prep.py [NECI directory] [tgt_directory]
 
+Note - this script creates the target directory, which must not exist prior to
+running it. This protects against accidental overwriting of files.
+
 --> Runs the templating engine to produce .F90 files from the .F90.template files
 --> Renames all .F* files to .f* for the molcas build system
 --> Ensures that each file contains only one module. This requires splitting files
