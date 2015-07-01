@@ -36,3 +36,5 @@ EIGV_DATA
 fciqmc_stats*
 *.x
 build/*
+*.pyc
+.idea
