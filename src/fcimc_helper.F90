@@ -824,10 +824,10 @@ contains
             if (tFullHFAv) then
                 Prev_AvNoatHF = AvNoatHF
 
-                do irdm = 1, nrdms
-                    if (IterRDM_HF(irdm) .ne. 0.0_dp) then
-                        AvNoatHF(irdm) = ( (real((Iter+PreviousCycles - IterRDM_HF(irdm)),dp) * Prev_AvNoatHF(irdm)) &
-                                                + InstNoatHF(irdm) ) / real((Iter+PreviousCycles - IterRDM_HF(irdm)) + 1, dp)
+                do ind1 = 1, lenof_sign
+                    if (IterRDM_HF(ind1) .ne. 0.0_dp) then
+                        AvNoatHF(ind1) = ( (real((Iter+PreviousCycles - IterRDM_HF(ind1)),dp) * Prev_AvNoatHF(ind1)) &
+                                                + InstNoatHF(ind1) ) / real((Iter+PreviousCycles - IterRDM_HF(ind1)) + 1, dp)
                     end if
                 end do
             else
