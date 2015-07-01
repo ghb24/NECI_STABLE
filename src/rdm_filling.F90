@@ -30,7 +30,7 @@ contains
 
         use bit_reps, only: decode_bit_det
         use DetBitOps, only: TestClosedShellDet, FindBitExcitLevel
-        use FciMCData, only: Iter, IterRDMStart, PreviousCycles
+        use FciMCData, only: Iter, IterRDMStart, PreviousCycles, AvNoAtHF
         use global_det_data, only: get_iter_occ, get_av_sgn
         use hphf_integrals, only: hphf_sign
         use HPHFRandExcitMod, only: FindExcitBitDetSym
@@ -45,7 +45,7 @@ contains
         logical, intent(in), optional :: tCoreSpaceDet
 
         real(dp) :: IterDetOcc_all(lenof_sign), IterDetOcc_sing(nreplicas)
-        real(dp) :: AvSignCurr_all(lenof_sign), AvSignCurr_sing(nreplicas)
+        real(dp) :: AvSignCurr_all(lenof_sign), AvSignCurr_sing(nreplicas), AvSignHF_sing(nreplicas)
         integer(n_int) :: SpinCoupDet(0:nIfTot)
         integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel, part_type
         integer :: IterLastRDMFill, AvSignIters, IterRDM, sign_ind_1, sign_ind_2
@@ -80,6 +80,7 @@ contains
 
         ! The signs corresponding to this RDM.
         AvSignCurr_sing = AvSignCurr_all(sign_ind_1:sign_ind_2)
+        AvSignHF_sing = AvNoAtHF(sign_ind_1:sign_ind_2)
 
         if (tHPHF) then
             if (.not. TestClosedShellDet(iLutnI)) then
@@ -111,14 +112,14 @@ contains
                 call Fill_Diag_RDM(rdm, nI, AvSignCurr_sing, tCoreSpaceDet, IterRDM)
 
             end if
-            call Add_RDM_HFConnections_HPHF(rdm, iLutnI, nI, AvSignCurr_sing, ExcitLevelI, IterRDM)
+            call Add_RDM_HFConnections_HPHF(rdm, iLutnI, nI, AvSignCurr_sing, AvSignHF_sing, ExcitLevelI, IterRDM)
 
         else
             ! Not using HPHFs.
             if (AvSignCurr_sing(1)*AvSignCurr_sing(nreplicas) .ne. 0) &
                 call Fill_Diag_RDM(rdm, nI, AvSignCurr_sing, tCoreSpaceDet, IterRDM)
 
-            call Add_RDM_HFConnections_Norm(rdm, iLutnI, nI, AvSignCurr_sing, ExcitLevelI, IterRDM)
+            call Add_RDM_HFConnections_Norm(rdm, iLutnI, nI, AvSignCurr_sing, AvSignHF_sing, ExcitLevelI, IterRDM)
 
         end if
 
@@ -165,7 +166,7 @@ contains
 
     end subroutine det_removed_fill_diag_rdm
 
-    subroutine Add_RDM_HFConnections_Norm(rdm, iLutJ, nJ, AvSignJ, walkExcitLevel, IterRDM)
+    subroutine Add_RDM_HFConnections_Norm(rdm, iLutJ, nJ, AvSignJ, AvSignHF, walkExcitLevel, IterRDM)
 
         ! This is called when we run over all TotWalkers in CurrentDets.    
         ! It is called for each CurrentDet which is a single or double of the HF.
@@ -173,7 +174,7 @@ contains
         ! the single or double D_j. This is the standard full space RDM calc (No HPHF).
         ! In this case the diagonal elements wll already be taken care of.
 
-        use FciMCData, only: InstNoatHF, HFDet_True, AvNoatHF
+        use FciMCData, only: InstNoatHF, HFDet_True
         use LoggingData, only: tFullHFAv
         use rdm_data, only: rdm_t
         use SystemData, only: nel
@@ -181,7 +182,7 @@ contains
         type(rdm_t), intent(inout) :: rdm
         integer(n_int), intent(in) :: iLutJ(0:NIfTot)
         integer, intent(in) :: nJ(nel)
-        real(dp), intent(in) :: AvSignJ(nreplicas)
+        real(dp), intent(in) :: AvSignJ(nreplicas), AvSignHF(nreplicas)
         integer, intent(in) :: IterRDM
         integer, intent(in) :: walkExcitLevel
 
@@ -211,23 +212,23 @@ contains
         ! If we have a single or double, add in the connection to the HF,
         ! symmetrically.
         if ((walkExcitLevel .eq. 1) .or. (walkExcitLevel .eq. 2)) then
-            call Add_RDM_From_IJ_Pair(rdm, HFDet_True, nJ, AvNoatHF(1), &
+            call Add_RDM_From_IJ_Pair(rdm, HFDet_True, nJ, AvSignHF(1), &
                                       (1.0_dp/real(nreplicas,dp))*IterRDM*AvSignJ(nreplicas), .true.)
 
-            call Add_RDM_From_IJ_Pair(rdm, HFDet_True, nJ, AvNoatHF(nreplicas), &
+            call Add_RDM_From_IJ_Pair(rdm, HFDet_True, nJ, AvSignHF(nreplicas), &
                                       (1.0_dp/real(nreplicas,dp))*IterRDM*AvSignJ(1), .true.)
         end if
 
     end subroutine Add_RDM_HFConnections_Norm
 
-    subroutine Add_RDM_HFConnections_HPHF(rdm, iLutJ, nJ, AvSignJ, walkExcitLevel, IterRDM)
+    subroutine Add_RDM_HFConnections_HPHF(rdm, iLutJ, nJ, AvSignJ, AvSignHF, walkExcitLevel, IterRDM)
 
         ! This is called when we run over all TotWalkers in CurrentDets.
         ! It is called for each CurrentDet which is a single or double of the HF.
         ! It adds in the HF - S/D connection. The diagonal elements will already
         ! have been taken care of by the extract routine.
 
-        use FciMCData, only: HFDet_True, iLutHF_True, AvNoatHF
+        use FciMCData, only: HFDet_True, iLutHF_True
         use LoggingData, only: tFullHFAv
         use rdm_data, only: rdm_t
         use SystemData, only: nel
@@ -236,7 +237,7 @@ contains
         integer(n_int), intent(in) :: iLutJ(0:NIfTot)
         integer, intent(in) :: nJ(nel)
         integer, intent(in) :: IterRDM
-        real(dp), intent(in) :: AvSignJ(nreplicas)
+        real(dp), intent(in) :: AvSignJ(nreplicas), AvSignHF(nreplicas)
         integer, intent(in) :: walkExcitLevel
 
         integer(n_int) :: SpinCoupDet(0:niftot)
@@ -261,7 +262,7 @@ contains
         ! add in the diagonal elements of this connection as well -
         ! symmetrically because no probabilities are involved.
         if ((walkExcitLevel .eq. 1) .or. (walkExcitLevel .eq. 2)) &
-            call Fill_Spin_Coupled_RDM(rdm, iLutHF_True, iLutJ, HFDet_True, nJ, AvNoatHF(1), &
+            call Fill_Spin_Coupled_RDM(rdm, iLutHF_True, iLutJ, HFDet_True, nJ, AvSignHF(1), &
                                           IterRDM*AvSignJ(nreplicas), .true.)
 
     end subroutine Add_RDM_HFConnections_HPHF
