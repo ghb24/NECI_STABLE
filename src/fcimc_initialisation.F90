@@ -1913,12 +1913,12 @@ contains
 
         integer :: nexcit, ndets_this_proc, i, det(nel)
         type(basisfn) :: sym
-        real(dp) :: evals(inum_runs)
+        real(dp) :: evals(inum_runs/nreplicas)
         real(dp), allocatable :: evecs_this_proc(:,:)
         integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
         character(*), parameter :: this_routine = 'InitFCIMC_trial'
 
-        nexcit = inum_runs
+        nexcit = inum_runs/nreplicas
 
         ! Create the trial excited states
         call calc_trial_states_lanczos(init_trial_in, nexcit, ndets_this_proc, &
@@ -1928,7 +1928,7 @@ contains
         call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
         ! Set the trial excited states as the FCIQMC wave functions
         call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts, &
-                              .false., .false.)
+                              .false., tPairedReplicas)
 
         deallocate(evecs_this_proc)
 
