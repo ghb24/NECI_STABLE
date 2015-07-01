@@ -16,6 +16,7 @@ module load_balance
                          tFillingStochRDMOnFly
     use searching, only: hash_search_trial, bin_search_trial
     use Determinants, only: get_helement, write_det
+    use LoggingData, only: tOutputLoadDistribution
     use rdm_filling, only: det_removed_fill_diag_rdm
     use hphf_integrals, only: hphf_diag_helement
     use cont_time_rates, only: spawn_rate_full
@@ -252,11 +253,11 @@ contains
 
         end do
 
-        if (iProcIndex == root) then
+        if (iProcIndex == root .and. tOutputLoadDistribution) then
             write(6, '("Load balancing distribution:")')
             write(6, '("node #, particles")')
             do j = 0, nNodes - 1
-                write(6,'(i7,i9)') j, proc_parts(j)
+                write(6,'(i8,i10)') j, proc_parts(j)
             end do
             write(6,*) '--'
         end if
@@ -292,7 +293,7 @@ contains
 
         ! Provide some feedback to the user.
         if (iProcIndex == root) then
-            write(6,'(a,i6,a,i6,a,i6)') 'Moving load balancing block ', &
+            write(6,'(a,i9,a,i6,a,i6)') 'Moving load balancing block ', &
                      block, ' from processor ', src_proc, ' to ', tgt_proc
         end if
 

@@ -149,6 +149,7 @@ MODULE Logging
       tRDMInstEnergy = .true.
       tFullHFAv = .false.
       tPrintDataTables = .true.
+      tOutputLoadDistribution = .false.
 
 #ifdef __PROG_NUMRUNS
       tFCIMCStats2 = .true.
@@ -975,6 +976,12 @@ MODULE Logging
 
         case("DONT-PRINT-DATA-TABLES")
             tPrintDataTables = .false.
+
+        case("LOAD-DISTRIBUTION")
+            ! By default we don't output the load balancing distribution of
+            ! particles between blocks, as for any reasonable sized system
+            ! there are _many_ blocks.
+            tOutputLoadDistribution = .true.
 
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)
