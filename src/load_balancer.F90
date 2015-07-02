@@ -591,45 +591,6 @@ contains
                     end if
                 end if
 
-                if (tFillingStochRDMonFly .and. (.not. tIsStateDeterm)) then
-                    if (tPairedReplicas) then
-
-                        do irdm = 1, lenof_sign/2
-
-                            ! The indicies of the first and second replicas in this
-                            ! particular pair, in the sign arrays.
-                            ind1 = irdm*2-1
-                            ind2 = irdm*2
-
-                            if ((CurrentSign(ind1) == 0 .and. get_iter_occ(i, ind1) /= 0) .or. &
-                                (CurrentSign(ind2) == 0 .and. get_iter_occ(i, ind2) /= 0) .or. &
-                                (CurrentSign(ind1) /= 0 .and. get_iter_occ(i, ind1) == 0) .or. &
-                                (CurrentSign(ind2) /= 0 .and. get_iter_occ(i, ind2) == 0)) then
-                                   
-                                ! At least one of the signs has just gone to zero or just become reoccupied
-                                ! so we need to consider adding in diagonal elements and connections to HF
-                                ! The block that's just ended was occupied in at least one population.
-                                call det_removed_fill_diag_rdm(rdms(irdm), irdm, CurrentDets(:,i), i)
-                            end if
-                        end do
-                    else
-                        do irdm = 1, lenof_sign
-                            if (CurrentSign(irdm) == 0) then
-                                call det_removed_fill_diag_rdm(rdms(irdm), irdm, CurrentDets(:,i), i)
-                            end if
-                        end do
-                    end if
-                end if
-
-                if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm) .and. tTruncInitiator) then
-                    do j=1,lenof_sign
-                        if (test_flag(CurrentDets(:,i),flag_initiator(j))) then
-                            !determinant was an initiator...it obviously isn't any more...
-                            NoAddedInitiators(j)=NoAddedInitiators(j)-1
-                        end if
-                    end do
-                end if
-
                 ! This InstNoAtHF call must be placed at the END of the routine
                 ! as the value of CurrentSign can change during it!
                 if (DetBitEQ(CurrentDets(:,i), iLutHF_True, NIfDBO)) then

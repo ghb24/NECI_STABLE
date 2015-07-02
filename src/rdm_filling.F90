@@ -12,6 +12,60 @@ module rdm_filling
 
 contains
 
+    subroutine fill_rdm_diag_wrapper(rdms, ilut_list, ndets)
+
+        ! Loop over all states in ilut_list and see if any signs have just
+        ! become unoccupied or become reoccupied. In which case, we have
+        ! started a new averaging block, so we need to add in the
+        ! contributions from the last block to the corresponding RDMs.
+
+        use bit_rep_data, only: extract_sign
+        use CalcData, only: tPairedReplicas
+        use global_det_data, only: get_iter_occ
+        use rdm_data, only: rdm_t
+
+        type(rdm_t), intent(inout) :: rdms(:)
+        integer(n_int), intent(in) :: ilut_list(:,:)
+        integer, intent(in) :: ndets
+
+        integer :: idet, irdm, ind1, ind2
+        real(dp) :: curr_sign(lenof_sign)
+
+        do idet = 1, ndets
+
+            call extract_sign(ilut_list(:,idet), curr_sign)
+
+            if (tPairedReplicas) then
+                do irdm = 1, size(rdms)
+
+                    ! The indicies of the first and second replicas in this
+                    ! particular pair, in the sign arrays.
+                    ind1 = irdm*2-1
+                    ind2 = irdm*2
+
+                    if ((curr_sign(ind1) == 0 .and. get_iter_occ(idet, ind1) /= 0) .or. &
+                        (curr_sign(ind2) == 0 .and. get_iter_occ(idet, ind2) /= 0) .or. &
+                        (curr_sign(ind1) /= 0 .and. get_iter_occ(idet, ind1) == 0) .or. &
+                        (curr_sign(ind2) /= 0 .and. get_iter_occ(idet, ind2) == 0)) then
+                           
+                        ! At least one of the signs has just gone to zero or just become reoccupied
+                        ! so we need to consider adding in diagonal elements and connections to HF
+                        ! The block that's just ended was occupied in at least one population.
+                        call det_removed_fill_diag_rdm(rdms(irdm), irdm, ilut_list(:,idet), idet)
+                    end if
+                end do
+            else
+                do irdm = 1, size(rdms)
+                    if (curr_sign(irdm) == 0) then
+                        call det_removed_fill_diag_rdm(rdms(irdm), irdm, ilut_list(:,idet), idet)
+                    end if
+                end do
+            end if
+
+        end do
+
+    end subroutine fill_rdm_diag_wrapper
+
     subroutine fill_rdm_diag_currdet_norm(rdm, irdm, iLutnI, nI, j, ExcitLevelI, tCoreSpaceDet)
 
         ! This routine calculates the diagonal RDM contribution, and explicit

@@ -23,7 +23,7 @@ module FciMCParMod
                             attempt_die_spin_proj
     use rdm_data, only: tCalc_RDMEnergy, rdms, rdm_estimates
     use rdm_general, only: FinaliseRDMs
-    use rdm_filling, only: fill_rdm_offdiag_deterministic
+    use rdm_filling, only: fill_rdm_offdiag_deterministic, fill_rdm_diag_wrapper
     use rdm_estimators, only: rdm_output_wrapper, write_rdm_estimates
     use rdm_explicit, only: fill_explicitrdm_this_iter, fill_hist_explicitrdm_this_iter
     use procedure_pointers, only: attempt_die_t, generate_excitation_t, &
@@ -1017,6 +1017,8 @@ module FciMCParMod
         else if (tPrintReplicaOverlaps .and. inum_runs > 1) then
             call calc_replica_overlaps()
         end if
+
+        if (tFillingStochRDMonFly .and. (.not. tCoreDet)) call fill_rdm_diag_wrapper(rdms, CurrentDets, TotWalkers)
 
         call update_iter_data(iter_data)
 
