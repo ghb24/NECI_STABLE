@@ -446,7 +446,7 @@ contains
             ! to be done in symmetry blocks (a lot quicker/easier).
             ! The 2-RDM does not need to be reordered as it's never diagonalised. 
 
-            allocate(SymLabelCounts2_rot(2, NoSymLabelCounts), stat=ierr)
+            if(.not.allocated(SymLabelCounts2_rot)) allocate(SymLabelCounts2_rot(2, NoSymLabelCounts), stat=ierr)
             if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating SymLabelCounts2_rot array,')
             call LogMemAlloc('SymLabelCounts2_rot', 2*NoSymLabelCounts, 4, this_routine, SymLabelCounts2_rotTag, ierr)
             SymLabelCounts2_rot(:,:) = 0
@@ -1201,7 +1201,11 @@ contains
             write(6,*) 'Writing out the *normalised* 1 electron density matrix to file'
             call neci_flush(6)
             OneRDM_unit = get_free_unit()
-            open(OneRDM_unit,file='OneRDM',status='unknown')
+#ifdef _MOLCAS_
+            call molcas_open(OneRDM_unit,'ONERDM')
+#else
+            OPEN(OneRDM_unit,file='OneRDM',status='unknown')
+#endif
         else
             ! Only every write out 1 of these at the moment.
             write(6,*) 'Writing out the *unnormalised* 1 electron density matrix to file for reading in'
