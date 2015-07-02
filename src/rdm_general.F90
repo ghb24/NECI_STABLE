@@ -1295,7 +1295,7 @@ contains
 
     end subroutine Write_out_1RDM
 
-    subroutine DeallocateRDM()
+    subroutine DeallocateRDMs()
 
         ! This routine just deallocates the arrays allocated in InitRDMs.
         ! If the NECI calculation softexits before the RDMs start to fill,
@@ -1316,7 +1316,7 @@ contains
         use util_mod, only: LogMemDealloc
 
         integer :: i
-        character(len=*), parameter :: t_r = 'DeallocateRDM'
+        character(len=*), parameter :: t_r = 'DeallocateRDMs'
 
         if (tExplicitAllRDM) then
 
@@ -1466,7 +1466,7 @@ contains
             end if
         end do
 
-    end subroutine DeallocateRDM
+    end subroutine DeallocateRDMs
 
 
     ! Some general routines used during the main simulation.
