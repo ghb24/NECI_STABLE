@@ -2,7 +2,7 @@
 fc = mpiifort
 cc = mpiicc
 ld = mpiifort
-ldflags = -L $(LD_LIBRARY_PATH) -rdynamic
+ldflags = -L $(LD_LIBRARY_PATH) -rdynamic -xHost
 compiler = INTEL-ifort9-on-LINUX
 cpp = cpp -traditional
 cppflags = -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64 -D__SHARED_MEM -DDISABLE_FFTW -D__IFORT
@@ -15,7 +15,7 @@ cflags = -g -C -traceback -DZLIB
 f90flags = -check bounds -stand f03
 
 [opt]
-fflags = -r8 -O3 -i8 -ipo -pc64 -auto -warn nousage
-cflags = -O -DZLIB -ipo
+fflags = -r8 -O3 -i8 -ipo -pc64 -auto -warn nousage -xHost
+cflags = -O -DZLIB -ipo -xHost
 f90flags = -stand f03
 ldflags = -L $(LD_LIBRARY_PATH) -rdynamic -ipo
