@@ -61,6 +61,7 @@ contains
         scaling_factor = 1.0_dp
 
         tPairedReplicas = .true.
+        nreplicas = 2
         tOrthogKPReplicas = .false.
         orthog_kp_iter = 0
 
@@ -285,6 +286,7 @@ contains
                 kp_trial_space_in%tFCI = .false.
             case("UNPAIRED-REPLICAS")
                 tPairedReplicas = .false.
+                nreplicas = 1
             case("ORTHOGONALISE-REPLICAS")
                 tOrthogKPReplicas = .true.
                 if (item < nitems) then

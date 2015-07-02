@@ -41,6 +41,7 @@ integer, parameter :: sizeof_sp = 4
 ! Give ourselves the option of lenof_sign/inum_runs being a runtime
 ! variable, rather than a compile-time constant
 #if defined(__PROG_NUMRUNS)
+    integer :: nreplicas = 1
     integer :: lenof_sign
     integer :: inum_runs
     integer :: lenof_sign_kp
@@ -49,6 +50,7 @@ integer, parameter :: sizeof_sp = 4
     integer, parameter :: sizeof_helement = 8
     real(dp), parameter :: HEl_zero = 0.0_dp
 #elif defined(__DOUBLERUN)
+    integer, parameter :: nreplicas = 2
     integer, parameter :: lenof_sign = 2
     integer, parameter :: inum_runs = lenof_sign
     integer, parameter :: lenof_sign_kp = 2
@@ -57,6 +59,7 @@ integer, parameter :: sizeof_sp = 4
     integer, parameter :: sizeof_helement = 8
     real(dp), parameter :: HEl_zero = 0.0_dp
 #elif defined(__CMPLX)
+    integer, parameter :: nreplicas = 1
     integer, parameter :: lenof_sign = 2
     integer, parameter :: inum_runs = 1
     integer, parameter :: lenof_sign_kp = 2
@@ -65,6 +68,7 @@ integer, parameter :: sizeof_sp = 4
     integer, parameter :: sizeof_helement = 16
     complex(dp), parameter :: HEl_zero = cmplx(0.0_dp, 0.0_dp, dp)
 #else
+    integer, parameter :: nreplicas = 1
     integer, parameter :: lenof_sign = 1
     integer, parameter :: inum_runs = 1
     integer, parameter :: lenof_sign_kp = 1

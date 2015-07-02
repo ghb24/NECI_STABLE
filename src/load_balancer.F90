@@ -4,7 +4,8 @@ module load_balance
     use CalcData, only: tUniqueHFNode, tSemiStochastic, tTruncInitiator, &
                         tCheckHighestPop, tEnhanceRemainder, OccupiedThresh, &
                         InitiatorOccupiedThresh, tContTimeFCIMC, &
-                        tContTimeFull, tTrialWavefunction, tInitOccThresh
+                        tContTimeFull, tTrialWavefunction, tInitOccThresh, &
+                        tPairedReplicas
     use global_det_data, only: global_determinant_data, get_iter_occ, &
                                set_det_diagH, set_part_init_time, &
                                inc_spawn_count, set_spawn_rate
@@ -463,7 +464,9 @@ contains
 
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
+
         integer :: i, j, AnnihilatedDet, lbnd, ubnd
+        integer :: irdm, ind1, ind2
         real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
         real(dp) :: pRemove, r
         integer :: nI(nel), run
@@ -587,35 +590,6 @@ contains
                         AvNoAtHF = 0.0_dp 
                         IterRDM_HF = Iter + 1 
                     end if
-                end if
-
-                if (tFillingStochRDMonFly .and. (.not. tIsStateDeterm)) then
-                    if (inum_runs == 2) then
-
-                        if ((CurrentSign(1) == 0 .and. get_iter_occ(i, 1) /= 0) .or. &
-                            (CurrentSign(inum_runs) == 0 .and. get_iter_occ(i, 2) /= 0) .or. &
-                            (CurrentSign(1) /= 0 .and. get_iter_occ(i, 1) == 0) .or. &
-                            (CurrentSign(inum_runs) /= 0 .and. get_iter_occ(i, 2) == 0)) then
-                               
-                            ! At least one of the signs has just gone to zero or just become reoccupied
-                            ! so we need to consider adding in diagonal elements and connections to HF
-                            ! The block that's just ended was occupied in at least one population.
-                            call det_removed_fill_diag_rdm(rdms(1), CurrentDets(:,i), i)
-                        end if
-                    else
-                        if (IsUnoccDet(CurrentSign)) then
-                            call det_removed_fill_diag_rdm(rdms(1), CurrentDets(:,i), i)
-                        end if
-                    end if
-                end if
-
-                if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm) .and. tTruncInitiator) then
-                    do j=1,lenof_sign
-                        if (test_flag(CurrentDets(:,i),flag_initiator(j))) then
-                            !determinant was an initiator...it obviously isn't any more...
-                            NoAddedInitiators(j)=NoAddedInitiators(j)-1
-                        end if
-                    end do
                 end if
 
                 ! This InstNoAtHF call must be placed at the END of the routine
