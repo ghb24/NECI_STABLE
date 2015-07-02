@@ -1408,63 +1408,77 @@ contains
             if (associated(rdms(i)%aaaa_inst)) then
                 deallocate(rdms(i)%aaaa_inst)
                 call LogMemDeAlloc(t_r,rdms(i)%aaaa_instTag)
+                nullify(rdms(i)%aaaa_inst)
             end if
 
             if (associated(rdms(i)%abab_inst)) then
                 deallocate(rdms(i)%abab_inst)
                 call LogMemDeAlloc(t_r,rdms(i)%abab_instTag)
+                nullify(rdms(i)%abab_inst)
             end if
 
             if (associated(rdms(i)%abba_inst)) then
                 deallocate(rdms(i)%abba_inst)
                 call LogMemDeAlloc(t_r,rdms(i)%abba_instTag)
+                nullify(rdms(i)%abba_inst)
             end if
 
             if (associated(rdms(i)%bbbb_inst)) then
                 deallocate(rdms(i)%bbbb_inst)
                 call LogMemDeAlloc(t_r,rdms(i)%bbbb_instTag)
+                nullify(rdms(i)%bbbb_inst)
             end if
 
             if (associated(rdms(i)%baba_inst)) then
                 deallocate(rdms(i)%baba_inst)
                 call LogMemDeAlloc(t_r,rdms(i)%baba_instTag)
+                nullify(rdms(i)%baba_inst)
             end if
 
             if (associated(rdms(i)%baab_inst)) then
                 deallocate(rdms(i)%baab_inst)
                 call LogMemDeAlloc(t_r,rdms(i)%baab_instTag)
+                nullify(rdms(i)%baab_inst)
             end if
 
             if (associated(rdms(i)%aaaa_full)) then
                 deallocate(rdms(i)%aaaa_full)
                 call LogMemDeAlloc(t_r,rdms(i)%aaaa_fullTag)
+                nullify(rdms(i)%aaaa_full)
             end if
 
             if (associated(rdms(i)%abab_full)) then
                 deallocate(rdms(i)%abab_full)
                 call LogMemDeAlloc(t_r,rdms(i)%abab_fullTag)
+                nullify(rdms(i)%abab_full)
             end if
 
             if (associated(rdms(i)%abba_full)) then
                 deallocate(rdms(i)%abba_full)
                 call LogMemDeAlloc(t_r,rdms(i)%abba_fullTag)
+                nullify(rdms(i)%abba_full)
             end if
 
             if (associated(rdms(i)%bbbb_full)) then
                 deallocate(rdms(i)%bbbb_full)
                 call LogMemDeAlloc(t_r,rdms(i)%bbbb_fullTag)
+                nullify(rdms(i)%bbbb_full)
             end if
 
             if (associated(rdms(i)%baba_full)) then
                 deallocate(rdms(i)%baba_full)
                 call LogMemDeAlloc(t_r,rdms(i)%baba_fullTag)
+                nullify(rdms(i)%baba_full)
             end if
 
             if (associated(rdms(i)%baab_full)) then
                 deallocate(rdms(i)%baab_full)
                 call LogMemDeAlloc(t_r,rdms(i)%baab_fullTag)
+                nullify(rdms(i)%baab_full)
             end if
         end do
+
+        deallocate(rdms)
 
     end subroutine DeallocateRDMs
 

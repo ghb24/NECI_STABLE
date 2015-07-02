@@ -53,14 +53,14 @@ module rdm_data
     type rdm_t
         ! Arrays to hold instantaneous estimates of 2-RDMs.
         ! The following three arrays are always used.
-        real(dp), pointer :: aaaa_inst(:,:), abab_inst(:,:), abba_inst(:,:)
+        real(dp), pointer :: aaaa_inst(:,:) => null(), abab_inst(:,:) => null(), abba_inst(:,:) => null()
         ! And the following three arrays are only used for open shell calculations
         ! (and possibly UHF systems in the future?).
-        real(dp), pointer :: bbbb_inst(:,:), baba_inst(:,:), baab_inst(:,:)
+        real(dp), pointer :: bbbb_inst(:,:) => null(), baba_inst(:,:) => null(), baab_inst(:,:) => null()
 
         ! Arrays to hold estimates of 2-RDMs, summed over the whole RDM calculation.
-        real(dp), pointer :: aaaa_full(:,:), abab_full(:,:), abba_full(:,:)
-        real(dp), pointer :: bbbb_full(:,:), baba_full(:,:), baab_full(:,:)
+        real(dp), pointer :: aaaa_full(:,:) => null(), abab_full(:,:) => null(), abba_full(:,:) => null()
+        real(dp), pointer :: bbbb_full(:,:) => null(), baba_full(:,:) => null(), baab_full(:,:) => null()
 
         ! Tags for the memory manager for the above RDM arrays.
         integer :: aaaa_instTag, abab_instTag, abba_instTag
