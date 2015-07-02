@@ -561,13 +561,6 @@ MODULE ReadInput_neci
             end if
         end if
 
-        if (tHPHF .and. tGen_4ind_weighted .and. &
-                (tGen_4ind_part_exact .or. tGen_4ind_lin_exact)) then
-            write(6,*) "Using 4IND-PART-EXACT or 4IND-LIN-EXACT with HPHFs &
-                       &requires updating pgen calculations for paired det"
-            call stop_all(t_r, "Modifications to 4ind weighted excit gen &
-                               &not (yet) available with HPHF")
-        end if
 
         if (tLoadBalanceBlocks) then
             if (tUniqueHFNode) then

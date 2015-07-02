@@ -238,6 +238,7 @@ contains
         integer :: norb, label_index, orb, i, j, iSpn, sum_ml
         integer :: cc_i, cc_j, cc_i_final, cc_j_final, sym_product
         real(dp) :: cpt, cpt_tgt, cum_sum, cum_sums(2), int_cpt(2), ntot
+        real(dp) :: cpt_pair(2), sum_pair(2)
         HElement_t :: hel
 
 
@@ -309,10 +310,19 @@ contains
             if (any(cum_sums == 0)) then
                 pgen = 0
             else if (cc_i_final == cc_j_final) then
-                pgen = pgen * ( &
-                       (int_cpt(1) / cum_sums(1) * int_cpt(2) / cum_sums(2)) &
-                     + (int_cpt(2) / cum_sums(1) * &
-                        int_cpt(1) / (cum_sums(1) - int_cpt(2))))
+                if (tGen_4ind_lin_exact .or. tGen_4ind_part_exact) then
+                    call pgen_select_orb(ilutI, ex(1,:), -1, ex(2,2), &
+                                         cpt_pair(1), sum_pair(1))
+                    call pgen_select_orb(ilutI, ex(1,:), ex(2,2), ex(2,1), &
+                                         cpt_pair(2), sum_pair(2))
+                else
+                    cpt_pair(1) = int_cpt(2)
+                    cpt_pair(2) = int_cpt(1)
+                    sum_pair(1) = cum_sums(1)
+                    sum_pair(2) = cum_sums(1) - int_cpt(2)
+                end if
+                pgen = pgen * (product(int_cpt) / product(cum_sums) + &
+                               product(cpt_pair) / product(sum_pair))
             else
                 pgen = pgen * (int_cpt(1) / cum_sums(1)) &
                             * (int_cpt(2) / cum_sums(2))
