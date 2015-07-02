@@ -194,7 +194,8 @@ MODULE ReadInput_neci
                               tFindCINatOrbs, tNoRenormRandExcits, LMS, STOT,&
                               tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
                               tGen_4ind_weighted, tGen_4ind_reverse, &
-                              tMultiReplicas
+                              tMultiReplicas, tGen_4ind_part_exact, &
+                              tGen_4ind_lin_exact
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -576,6 +577,7 @@ MODULE ReadInput_neci
                                    &orthogonalised calculations")
             end if
         end if
+
 
         if (tLoadBalanceBlocks) then
             if (tUniqueHFNode) then

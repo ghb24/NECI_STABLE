@@ -2025,4 +2025,16 @@ contains
 #endif
     end subroutine
 
+    subroutine clean_parallel()
+        if(allocated(Nodes)) deallocate(Nodes)
+        if(allocated(ProcNode)) deallocate(ProcNode)
+        if(allocated(NodeRoots)) deallocate(NodeRoots)
+        if(allocated(NodeLengths)) deallocate(NodeLengths)
+        if(allocated(CommNodes)) deallocate(CommNodes)
+        if(allocated(CommNodesDum)) deallocate(CommNodesDum)
+        if(allocated(GroupNodes)) deallocate(GroupNodes)
+        if(allocated(GroupNodesDum)) deallocate(GroupNodesDum)
+        if(allocated(NodeLengths)) deallocate(NodeLengths)
+    end subroutine
+
 end supermodule
