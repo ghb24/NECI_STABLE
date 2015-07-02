@@ -1,0 +1,44 @@
+title
+
+system read
+nonuniformrandexcits 4ind-weighted
+rohf
+electrons 7
+spin-restrict 3
+molpromimic
+freeformat
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+memoryfacspawn 15.0
+memoryfacpart 2.0
+truncinitiator
+keepdoubspawns
+addtoinitiator 3
+walkcontgrow
+diagshift 0.0
+stepsshift 10
+totalwalkers 10000
+tau 0.05 search
+startsinglepart 2000
+shiftdamp 0.1
+nmcyc 1500
+allrealcoeff
+realspawncutoff 0.5
+proje-changeref 1.2
+endcalc
+
+integral
+freeze 2,0
+endint
+
+logging
+popsfile -1
+write-spin-free-rdm
+printonerdm
+calcrdmonfly 3 500 50
+endlog
+end

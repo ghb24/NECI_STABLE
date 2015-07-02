@@ -1537,9 +1537,8 @@ contains
         character(*), parameter :: t_r = 'MPIInit'
 
 #ifdef PARALLEL
-        nNodes = 0  !Indicate we haven't setup nodes yet
-
         if (.not.initialised) then
+            nNodes = 0  !Indicate we haven't setup nodes yet
             
             if(tExternal) then
                 write(6,*) 'Using external MPI configuration'
@@ -1673,6 +1672,7 @@ contains
        ! Dummy set up for serial work.
        iProcIndex = 0
        nProcessors = 1
+       nNodes = 1
 #endif
        
     end subroutine

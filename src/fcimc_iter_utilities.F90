@@ -9,7 +9,10 @@ module fcimc_iter_utils
                         tLetInitialPopDie, InitWalkers, tCheckHighestPop, &
                         HFPopThresh, DiagSft, tShiftOnHFPop, iRestartWalkNum, &
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
-                        nShiftEquilSteps, TargetGrowRateWalk
+                        nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
+                        tContTimeFull, pop_change_min, tPositiveHFSign, &
+                        qmc_trial_wf
+    use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables
     use semi_stoch_procs, only: recalc_core_hamil_diag
     use fcimc_helper, only: update_run_reference
@@ -47,11 +50,15 @@ contains
         IterTime = IterTime / real(StepsSft,sp)
 
         ! Calculate the acceptance ratio
-        AccRat = real(Acceptances, dp) / SumWalkersCyc
+        if (tContTimeFCIMC .and. .not. tContTimeFull) then
+            AccRat = real(cont_spawn_success) / real(cont_spawn_attempts)
+        else
+            AccRat = real(Acceptances, dp) / SumWalkersCyc
+        end if
 
 
 #ifndef __CMPLX
-        if (.not. tKP_FCIQMC) then
+        if (tPositiveHFSign) then
             do part_type = 1, lenof_sign
                 if ((.not.tFillingStochRDMonFly).or.(inum_runs.eq.1)) then
                     if (AllNoAtHF(part_type) < 0.0_dp) then
@@ -146,7 +153,7 @@ contains
         ! If we are accumulating RDMs, then a temporary spawning array is
         ! required of <~ the size of the largest occupied det.
         !
-        ! This memry holds walkers spawned from one determinant. This
+        ! This memory holds walkers spawned from one determinant. This
         ! allows us to test if we are spawning onto the same Dj multiple
         ! times. If only using connections to the HF (tHF_Ref_Explicit)
         ! no stochastic RDM construction is done, and this is not
@@ -229,16 +236,17 @@ contains
             else
                 pop_change = FracLargerDet * abs(AllNoATHF(1))
             endif
-
+!            write(iout,*) "***",AllNoAtHF,FracLargerDet,pop_change, pop_highest,proc_highest
             ! Do we need to do a change?
-            if (pop_change < pop_highest(run) .and. pop_highest(run) > 50) then
-
-                ! Write out info!
-                changed_any = .true.
-                root_print 'Highest weighted determinant on run', run, &
-                           'not reference det: ', pop_highest, abs_sign(AllNoAtHF)
+            if (pop_change < pop_highest(run) .and. pop_highest(run) > pop_change_min) then
 
                 if (tChangeProjEDet) then
+
+                    ! Write out info!
+                    changed_any = .true.
+                    root_print 'Highest weighted determinant on run', run, &
+                               'not reference det: ', pop_highest, abs_sign(AllNoAtHF)
+
                     !
                     ! Here we are changing the reference det on the fly.
                     ! --> else block for restarting simulation.
@@ -432,19 +440,21 @@ contains
             call MPIAllReduce(trial_numerator, MPI_SUM, tot_trial_numerator)
             call MPIAllReduce(trial_denom, MPI_SUM, tot_trial_denom)
 
-            ! Becuase tot_trial_numerator/tot_trial_denom is the energy
-            ! relative to the the trial energy, add on this contribution to
-            ! make it relative to the HF energy.
-            if (ntrial_excits == 1) then
-                tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies(1))
-            else
-                if (tPairedReplicas) then
-                    do run = 2, inum_runs, 2
-                        tot_trial_numerator(run-1:run) = tot_trial_numerator(run-1:run) + &
-                            tot_trial_denom(run-1:run)*trial_energies(run/2)
-                    end do
+            if (.not. qmc_trial_wf) then
+                ! Becuase tot_trial_numerator/tot_trial_denom is the energy
+                ! relative to the the trial energy, add on this contribution to
+                ! make it relative to the HF energy.
+                if (ntrial_excits == 1) then
+                    tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies(1))
                 else
-                    tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies)
+                    if (tPairedReplicas) then
+                        do run = 2, inum_runs, 2
+                            tot_trial_numerator(run-1:run) = tot_trial_numerator(run-1:run) + &
+                                tot_trial_denom(run-1:run)*trial_energies(run/2)
+                        end do
+                    else
+                        tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies)
+                    end if
                 end if
             end if
         end if
@@ -814,6 +824,9 @@ contains
         iter_data%tot_parts_old = tot_parts_new_all
 
         max_cyc_spawn = 0
+
+        cont_spawn_attempts = 0
+        cont_spawn_success = 0
 
     end subroutine rezero_iter_stats_update_cycle
 

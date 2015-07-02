@@ -4,10 +4,11 @@ module orthogonalise
     use FciMCData, only: TotWalkers, CurrentDets, all_norm_psi_squared, &
                          NoBorn, NoDied, fcimc_iter_data, replica_overlaps, &
                          HolesInList
+    use CalcData, only: OccupiedThresh, tOrthogonaliseSymmetric, tSemiStochastic
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use AnnihilationMod, only: CalcHashTableStats
+    use load_balance, only: CalcHashTableStats
     use bit_reps, only: extract_sign, encode_sign
-    use CalcData, only: OccupiedThresh, tOrthogonaliseSymmetric
+    use semi_stoch_procs, only: check_determ_flag
     use Parallel_neci
     use constants
     use util_mod
@@ -27,6 +28,7 @@ contains
         real(dp) :: norms(inum_runs), overlaps(inum_runs, inum_runs)
         real(dp) :: all_norms(inum_runs), all_overlaps(inum_runs, inum_runs)
         real(dp) :: sgn(lenof_sign), sgn_orig, delta, r
+        logical :: tCoreDet
         character(*), parameter :: this_routine = 'orthogonalise_replicas'
 
         ASSERT(inum_runs == lenof_sign)
@@ -50,7 +52,8 @@ contains
 
                 ! n.b. We are using a non-contiguous list (Hash algorithm)
                 call extract_sign(CurrentDets(:,j), sgn)
-                if (IsUnoccDet(sgn)) then
+                tCoreDet = check_determ_flag(CurrentDets(:,j))
+                if (IsUnoccDet(sgn) .and. (.not. tCoreDet)) then
                     HolesInList = HolesInList + 1
                     cycle
                 end if
@@ -78,7 +81,11 @@ contains
                 ! Note that we shouldn't be able to kill all particles on a
                 ! site, as we can only change a run if there are particles in
                 ! a lower indexed run to change...
-                ASSERT(.not. IsUnoccDet(sgn))
+                ! The exception is when using semi-stochastic, where
+                ! unoccupied determinants can be stored.
+                if (.not. tSemiStochastic) then
+                    ASSERT(.not. IsUnoccDet(sgn))
+                end if
 
                 ! Now we need to to our accounting to make sure that NoBorn/
                 ! Died/etc. counters remain reasonable.
@@ -174,6 +181,7 @@ contains
         real(dp) :: norms(inum_runs/2), overlaps(inum_runs, inum_runs)
         real(dp) :: all_norms(inum_runs/2), all_overlaps(inum_runs, inum_runs)
         real(dp) :: sgn(lenof_sign), sgn_orig(2), delta, r
+        logical :: tCoreDet
         character(len=*), parameter :: this_routine = "orthogonalise_replica_pairs"
 
         ASSERT(inum_runs == lenof_sign)
@@ -192,7 +200,8 @@ contains
 
                 ! n.b. We are using a non-contiguous list (Hash algorithm).
                 call extract_sign(CurrentDets(:,j), sgn)
-                if (IsUnoccDet(sgn)) then
+                tCoreDet = check_determ_flag(CurrentDets(:,j))
+                if (IsUnoccDet(sgn) .and. (.not. tCoreDet)) then
                     HolesInList = HolesInList + 1
                     cycle
                 end if
@@ -231,7 +240,11 @@ contains
                 ! Note that we shouldn't be able to kill all particles on a
                 ! site, as we can only change a run if there are particles in
                 ! a lower indexed run to change...
-                ASSERT(.not. IsUnoccDet(sgn))
+                ! The exception is when using semi-stochastic, where
+                ! unoccupied determinants can be stored.
+                if (.not. tSemiStochastic) then
+                    ASSERT(.not. IsUnoccDet(sgn))
+                end if
 
                 ! Now we need to to our accounting to make sure that NoBorn/
                 ! Died/etc. counters remain reasonable.
@@ -374,7 +387,11 @@ contains
             ! Note that we shouldn't be able to kill all particles on a site,
             ! as we can only change run 2 if run 1 is occupied, and run 1
             ! doesn't change...
-            ASSERT(.not. IsUnoccDet(sgn))
+            ! The exception is when using semi-stochastic, where
+            ! unoccupied determinants can be stored.
+            if (.not. tSemiStochastic) then
+                ASSERT(.not. IsUnoccDet(sgn))
+            end if
 
             ! Now we need to do our accounting to make sure that the NoBorn/
             ! Died/etc. counters remain reasonable.
@@ -436,11 +453,12 @@ contains
         real(dp) :: S(inum_runs, inum_runs), S_all(inum_runs, inum_runs)
         real(dp) :: evecs(inum_runs, inum_runs), evecs_t(inum_runs, inum_runs)
         real(dp) :: S_half(inum_runs, inum_runs)
-        real(dp) :: elem, sgn(lenof_sign), norm, sgn_orig(lenof_sign)
-
+        real(dp) :: elem, sgn(lenof_sign), sgn_orig(lenof_sign)
         real(dp) :: work(3*inum_runs-1), evals(inum_runs)
-
+        real(dp) :: sgn_orig_norm(lenof_sign), sgn_norm(lenof_sign)
+        real(dp) :: norm(inum_runs)
         integer :: j, run, runa, runb, info, TotWalkersNew
+        logical :: tCoreDet
 
         ! Not implemented for complex (yet)
         ASSERT(inum_runs == lenof_sign)
@@ -470,9 +488,9 @@ contains
         ! constants)
         S = S_all
         do run = 1, inum_runs
-            norm = sqrt(S_all(run, run))
-            S(run, :) = S(run, :) / norm
-            S(:, run) = S(:, run) / norm
+            norm(run) = sqrt(S_all(run, run))
+            S(run, :) = S(run, :) / norm(run)
+            S(:, run) = S(:, run) / norm(run)
         end do
         evecs = S
 
@@ -507,18 +525,27 @@ contains
 
             ! n.b. We are using a non-contiguous list (Hash algorith)
             call extract_sign(CurrentDets(:,j), sgn_orig)
-            if (IsUnoccDet(sgn_orig)) then
+            tCoreDet = check_determ_flag(CurrentDets(:,j))
+            if (IsUnoccDet(sgn_orig) .and. (.not. tCoreDet)) then
                 HolesInList = HolesInList + 1
                 cycle
             end if
 
+            ! Ultimately, we want to use normalised signs for the Lowdin
+            ! expressions
+            sgn_orig_norm = sgn_orig / norm
+
             ! Obtain the new sign values
-            sgn = matmul(S_half, sgn_orig)
+            sgn_norm = matmul(S_half, sgn_orig_norm)
+            sgn = sgn_norm * norm
             call encode_sign(CurrentDets(:,j), sgn)
 
             ! We should not be able to kill all particles on a site. This is
-            ! a rotation.
-            ASSERT(.not. IsUnoccDet(sgn))
+            ! a rotation. The exception is when using semi-stochastic, where
+            ! unoccupied determinants can be stored.
+            if (.not. tSemiStochastic) then
+                ASSERT(.not. IsUnoccDet(sgn))
+            end if
 
             ! Do some particle accounting
             do run = 1, inum_runs
@@ -554,5 +581,56 @@ contains
         TotWalkers = TotWalkersNew
 
     end subroutine
+
+    subroutine calc_replica_overlaps()
+
+        ! A routine for just calculating the overlap, in cases where
+        ! orthogonalisation is not being performed.
+
+        integer :: j, run, tgt_run, src_run
+        real(dp) :: sgn(lenof_sign)
+        real(dp) :: norms(inum_runs), overlaps(inum_runs, inum_runs)
+        real(dp) :: all_norms(inum_runs), all_overlaps(inum_runs, inum_runs)
+        character(*), parameter :: this_routine = 'calc_replica_overlaps'
+
+        norms = 0.0_dp
+        overlaps = 0.0_dp
+        do j = 1, int(TotWalkers, sizeof_int)
+
+            ! n.b. We are using a non-contiguous list (Hash algorithm)
+            call extract_sign(CurrentDets(:,j), sgn)
+            if (IsUnoccDet(sgn)) cycle
+
+#ifndef __CMPLX
+            norms = norms + sgn*sgn
+#endif
+
+            do tgt_run = 1, inum_runs
+                do run = tgt_run + 1, inum_runs
+                    overlaps(tgt_run, run) = overlaps(tgt_run, run) &
+                                           + sgn(tgt_run) * sgn(run)
+                    overlaps(run, tgt_run) = 99999999.0_dp ! invalid
+                end do
+            end do
+
+        end do
+
+        ! And ensure that the norm/overlap data is accumulated onto all
+        ! of the processors.
+        call MPISumAll(norms, all_norms)
+        call MPISumAll(overlaps, all_overlaps)
+
+        ! Store a normalised overlap matrix for each of the replicas.
+        do src_run = 1, inum_runs - 1
+            do tgt_run = src_run + 1, inum_runs
+                replica_overlaps(src_run, tgt_run) = &
+                    all_overlaps(src_run, tgt_run) / &
+                    sqrt(all_norms(src_run) * all_norms(tgt_run))
+                replica_overlaps(src_run, tgt_run) = &
+                    replica_overlaps(src_run, tgt_run)
+            end do
+        end do
+
+    end subroutine calc_replica_overlaps
 
 end module

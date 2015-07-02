@@ -194,7 +194,10 @@ MODULE ReadInput_neci
                             tMultiReplicaInitiators, tRealCoeffByExcitLevel, &
                             tAllRealCoeff, tUseRealCoeffs, tChangeProjEDet, &
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &
-                            tStartCAS
+                            tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
+                            tContTimeFull, tSurvivalInitiatorThreshold, &
+                            tSurvivalInitMultThresh, &
+                            tSpawnCountInitiatorThreshold
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -204,8 +207,9 @@ MODULE ReadInput_neci
         use LoggingData, only: iLogging, tCalcFCIMCPsi, tRDMOnFly, &
                            tCalcInstantS2, tDiagAllSpaceEver, &
                            tCalcVariationalEnergy, tCalcInstantS2Init, &
-                           tPopsFile
+                           tPopsFile, tRDMOnFly, tExplicitAllRDM
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
+        use load_balance_calcnodes, only: tLoadBalanceBlocks
         use input_neci
         use constants
         use global_utilities
@@ -563,6 +567,28 @@ MODULE ReadInput_neci
                        &requires updating pgen calculations for paired det"
             call stop_all(t_r, "Modifications to 4ind weighted excit gen &
                                &not (yet) available with HPHF")
+        end if
+
+        if (tLoadBalanceBlocks) then
+            if (tUniqueHFNode) then
+                call stop_all(t_r, "UNIQUE-HF-NODE requires disabling &
+                                   &LOAD-BALANCE-BLOCKS")
+            end if
+
+            ! If there is only one node, then load balancing doesn't make
+            ! a great deal of sense, and only slows things down...
+            if (nNodes == 1) then
+                write(6,*) 'Disabling load balancing for single node calculation'
+                tLoadBalanceBlocks = .false.
+            end if
+
+            if (tSurvivalInitiatorThreshold .or. tSurvivalInitMultThresh .or. &
+                tSpawnCountInitiatorThreshold .or. &
+                (tContTimeFCIMC .and. tContTimeFull)) then
+                call stop_all(t_r, 'Load balancing not yet usable for &
+                             &calculations requiring accumulated determinant &
+                             &specific global data')
+            end if
         end if
 
     end subroutine checkinput

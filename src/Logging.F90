@@ -7,7 +7,7 @@ MODULE Logging
     use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
-    use CalcData, only: tCheckHighestPop, semistoch_shift_iter
+    use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, tPairedReplicas
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
     use DetBitOps, only: EncodeBitDet
@@ -116,14 +116,10 @@ MODULE Logging
       RDMExcitLevel=1
       tDo_Not_Calc_RDMEnergy = .false.
       tExplicitAllRDM = .false.
-!      tHF_S_D_Ref = .false.
-!      tHF_S_D = .false.
-!      tHF_Ref_Explicit = .false.
       twrite_normalised_RDMs = .true. 
       tWriteSpinFreeRDM = .false.
       twrite_RDMs_to_read = .false.
       tno_RDMs_to_read = .false.
-      !tReadRDMAvPop=.false.
       tReadRDMs = .false.
       tNoNewRDMContrib=.false.
       IterWriteRDMs = 10000
@@ -150,9 +146,10 @@ MODULE Logging
       rottwo = 0
       rotthree = 0
       rotfour = 0
-      tRDMInstEnergy=.true.
-      tFullHFAv=.false.
+      tRDMInstEnergy = .true.
+      tFullHFAv = .false.
       tPrintDataTables = .true.
+      tOutputLoadDistribution = .false.
 
 #ifdef __PROG_NUMRUNS
       tFCIMCStats2 = .true.
@@ -167,8 +164,6 @@ MODULE Logging
       ENDIF
 
     end subroutine SetLogDefaults
-
-
 
     subroutine LogReadInput()
 
@@ -505,7 +500,13 @@ MODULE Logging
             call readi(IterRDMonFly)
             call readi(RDMEnergyIter)
 
+            ! With this option, we want to use pairs of replicas.
+            tPairedReplicas = .true.
+
             if (IterRDMOnFly < semistoch_shift_iter) call stop_all(t_r,"Semi-stochastic needs to be turned on before &
+                                                                        &RDMs are turned on.")
+
+            if (IterRDMOnFly < trial_shift_iter) call stop_all(t_r,"Trial wavefunctions needs to be turned on before &
                                                                         &RDMs are turned on.")
 
         case("DIAGFLYONERDM")
@@ -610,20 +611,6 @@ MODULE Logging
 !Explicitly calculates all the elements of the RDM.            
             tExplicitAllRDM = .true.
 
-!        case("HFREFRDMEXPLICIT")
-!Uses the HF as a reference and explicitly calculates the RDM to find the energy - should be same as projected energy, 
-!when printing out every shift update.
-!            tHF_Ref_Explicit = .true.
-
-!        case("HFSDRDM")
-!Calculate the RDM for the HF, singles and doubles only - symmetrically.            
-!            tHF_S_D = .true.
-
-!        case("HFSDREFRDM")
-            ! Uses the HF, singles and doubles as a multiconfigurational
-            ! reference and calculates the RDM to find the energy.
-!            tHF_S_D_Ref = .true.
-
         case("WRITEINITIATORS")
             ! Requires a popsfile to be written out.  Writes out the initiator
             ! populations. 
@@ -647,17 +634,6 @@ MODULE Logging
                 tno_RDMs_to_read = .false. 
             ENDIF
 
-       ! case("READRDMAVPOP")
-            ! Use in conjunction with READRDMS.  This can be used in the
-            ! previous calculation had "WRITEBINRDMNODIAG" switched on. We will
-            ! read in the information in RDM_Av_Pop which contains some of the
-            ! data from CurrentH in the previous round -- the cumulative sum of
-            ! this determinant's populations during its lifetime (updated every
-            ! iter), and the number of iters it has been occupied. This
-            ! information will get assigned into currentH and allow us to
-            ! continue the RDM accumulation without bias.
-        !    tReadRDMAvPop=.true.
-
         case("NONORMRDMS")            
             ! Does not print out the normalised (final) RDMs - to be used if
             ! you know the calculation will not be converged, and don't want to
@@ -672,11 +648,11 @@ MODULE Logging
             tReadRDMs = .true.
         
         case("NONEWRDMCONTRIB")
-            !To be used with READRDMs.  This option makes sure that we don't add in any 
-            !new contributions to the RDM if filling stochastically
-            !This is useful if we want to read in an RDM from another calculation and then 
-            !just print out the analysis, without adding in any more information.
-            tNoNewRDMContrib=.true.
+            ! To be used with READRDMs.  This option makes sure that we don't add in any 
+            ! new contributions to the RDM if filling stochastically
+            ! This is useful if we want to read in an RDM from another calculation and then 
+            ! just print out the analysis, without adding in any more information.
+            tNoNewRDMContrib = .true.
 
         case("WRITERDMSEVERY")
 ! Write out the normalised, hermitian RDMs every IterWriteRDMs iterations.  
@@ -684,9 +660,9 @@ MODULE Logging
             call readi(IterWriteRDMs)
 
         case("THRESHOCCONLYRDMDIAG")
-            !Only add in a contribution to the diagonal elements of the RDM if the average sign 
-            !of the determinant is greater than [ThreshOccRDM]
-            tThreshOccRDMDiag=.true.
+            ! Only add in a contribution to the diagonal elements of the RDM if the average sign 
+            ! of the determinant is greater than [ThreshOccRDM]
+            tThreshOccRDMDiag = .true.
             call Getf(ThreshOccRDM)
 
         case("DUMPFORCESINFO")
@@ -1000,6 +976,12 @@ MODULE Logging
 
         case("DONT-PRINT-DATA-TABLES")
             tPrintDataTables = .false.
+
+        case("LOAD-DISTRIBUTION")
+            ! By default we don't output the load balancing distribution of
+            ! particles between blocks, as for any reasonable sized system
+            ! there are _many_ blocks.
+            tOutputLoadDistribution = .true.
 
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)

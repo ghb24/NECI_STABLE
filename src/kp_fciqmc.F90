@@ -11,7 +11,8 @@ module kp_fciqmc
     use bit_reps, only: flag_deterministic, flag_determ_parent, set_flag
     use bit_reps, only: extract_bit_rep
     use CalcData, only: AvMCExcits, tSemiStochastic, tTruncInitiator, StepsSft
-    use CalcData, only: tDetermHFSpawning, ss_space_in
+    use CalcData, only: tDetermHFSpawning, ss_space_in, tPairedReplicas
+    use CalcData, only: tPrintReplicaOverlaps
     use constants
     use DetBitOps, only: FindBitExcitLevel, return_ms
     use FciMCData, only: fcimc_excit_gen_store, FreeSlot, iEndFreeSlot
@@ -23,11 +24,10 @@ module kp_fciqmc
     use fcimc_initialisation, only: CalcApproxpDoubles
     use fcimc_helper, only: SumEContrib, end_iter_stats, create_particle_with_hash_table, &
                             CalcParentFlag, walker_death, decide_num_to_spawn
-    use fcimc_output, only: end_iteration_print_warn, WriteFCIMCStats, &
-                            write_fcimcstats2
+    use fcimc_output, only: end_iteration_print_warn
     use fcimc_iter_utils, only: calculate_new_shift_wrapper, update_iter_data
     use global_det_data, only: det_diagH
-    use LoggingData, only: tPopsFile, tPrintDataTables
+    use LoggingData, only: tPopsFile
     use Parallel_neci, only: iProcIndex
     use ParallelHelper, only: root
     use PopsFileMod, only: WriteToPopsFileParOneArr
@@ -45,6 +45,8 @@ contains
 
     subroutine perform_kp_fciqmc(kp)
 
+        use orthogonalise, only: calc_replica_overlaps
+
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: iiter, idet, ireplica, ispawn, ierr
         integer :: iconfig, irepeat, ivec, nlowdin
@@ -56,7 +58,7 @@ contains
         integer(n_int), pointer :: ilut_parent(:)
         real(dp) :: prob, unused_rdm_real, parent_hdiag
         real(dp) :: child_sign(lenof_sign), parent_sign(lenof_sign)
-        real(dp) :: unused_sign1(lenof_sign), unused_sign2(lenof_sign)
+        real(dp) :: unused_sign(lenof_sign)
         real(dp), allocatable :: lowdin_evals(:,:)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSoftExitFound, tSingBiasChange, tWritePopsFound
@@ -96,8 +98,7 @@ contains
                 overlap_matrix(:,:) = 0.0_dp
                 hamil_matrix(:,:) = 0.0_dp
 
-                call init_kp_fciqmc_repeat(iconfig, irepeat, kp%nrepeats, kp%nvecs)
-                if (tPrintDataTables) call WriteFCIMCStats()
+                call init_kp_fciqmc_repeat(iconfig, irepeat, kp%nrepeats, kp%nvecs, iter_data_fciqmc)
 
                 do ivec = 1, kp%nvecs
 
@@ -195,7 +196,7 @@ contains
                             if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
 
                             call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
-                                               parent_hdiag, 1.0_dp, tPairedKPReplicas, idet)
+                                               parent_hdiag, 1.0_dp, tPairedReplicas, idet)
 
                             ! If we're on the Hartree-Fock, and all singles and
                             ! doubles are in the core space, then there will be
@@ -247,7 +248,7 @@ contains
 
                                             child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
                                                                 nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                                                                ex_level_to_ref, ireplica, unused_sign2, unused_rdm_real)
+                                                                ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
 
                                         else
                                             child_sign = 0.0_dp
@@ -275,8 +276,7 @@ contains
                             ! determ_projection.
                             if (.not. tParentIsDeterm) then
                                 call walker_death (iter_data_fciqmc, nI_parent, ilut_parent, parent_hdiag, &
-                                                    parent_sign, unused_sign2, unused_sign1, idet, &
-                                                    ex_level_to_ref)
+                                                    parent_sign, idet, ex_level_to_ref)
                             end if
 
                         end do ! Over all determinants.
@@ -297,11 +297,13 @@ contains
 
                         call halt_timer(annihil_time)
 
+                        if (tPrintReplicaOverlaps) call calc_replica_overlaps()
+
                         call update_iter_data(iter_data_fciqmc)
 
                         if (mod(iter, StepsSft) == 0) then
                             call set_timer(Stats_Comms_Time)
-                            call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts, tPairedKPReplicas)
+                            call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts, tPairedReplicas)
                             call halt_timer(Stats_Comms_Time)
 
                             call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
@@ -364,6 +366,7 @@ contains
         use fcimc_helper, only: create_particle_with_hash_table
         use FciMCData, only: HashIndex, nWalkerHashes
         use orthogonalise, only: orthogonalise_replicas, orthogonalise_replica_pairs
+        use orthogonalise, only: calc_replica_overlaps
 
         type(kp_fciqmc_data), intent(inout) :: kp
 
@@ -377,7 +380,7 @@ contains
         integer(n_int), pointer :: ilut_parent(:)
         real(dp) :: prob, unused_rdm_real, parent_hdiag
         real(dp) :: child_sign(lenof_sign), parent_sign(lenof_sign)
-        real(dp) :: unused_sign1(lenof_sign), unused_sign2(lenof_sign)
+        real(dp) :: unused_sign(lenof_sign)
         real(dp), allocatable :: lowdin_evals(:,:), lowdin_spin(:,:)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSoftExitFound, tSingBiasChange, tWritePopsFound
@@ -415,8 +418,7 @@ contains
 
         outer_loop: do irepeat = 1, kp%nrepeats
 
-            call init_kp_fciqmc_repeat(iconfig, irepeat, kp%nrepeats, kp%nvecs)
-            call write_fcimcstats2(iter_data_fciqmc)
+            call init_kp_fciqmc_repeat(iconfig, irepeat, kp%nrepeats, kp%nvecs, iter_data_fciqmc)
             if (iProcIndex == root) call write_ex_state_header(kp%nvecs, irepeat)
 
             do ireport = 1, kp%nreports
@@ -555,7 +557,7 @@ contains
                         if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
 
                         call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
-                                           parent_hdiag, 1.0_dp, tPairedKPReplicas, idet)
+                                           parent_hdiag, 1.0_dp, tPairedReplicas, idet)
 
                         ! If we're on the Hartree-Fock, and all singles and
                         ! doubles are in the core space, then there will be no
@@ -597,7 +599,7 @@ contains
 
                                     child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
                                                         nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                                                        ex_level_to_ref, ireplica, unused_sign2, unused_rdm_real)
+                                                        ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
                                 else
                                     child_sign = 0.0_dp
                                 end if
@@ -623,7 +625,7 @@ contains
                         ! determ_projection.
                         if (.not. tParentIsDeterm) then
                             call walker_death (iter_data_fciqmc, nI_parent, ilut_parent, parent_hdiag, &
-                                                parent_sign, unused_sign2, unused_sign1, idet, ex_level_to_ref)
+                                                parent_sign, idet, ex_level_to_ref)
                         end if
 
                     end do ! Over all determinants.
@@ -645,18 +647,20 @@ contains
                     call halt_timer(annihil_time)
 
                     if (tOrthogKPReplicas .and. iter > orthog_kp_iter) then
-                        if (tPairedKPReplicas) then
+                        if (tPairedReplicas) then
                             call orthogonalise_replica_pairs(iter_data_fciqmc)
                         else
                             call orthogonalise_replicas(iter_data_fciqmc)
                         end if
+                    else if (tPrintReplicaOverlaps) then
+                        call calc_replica_overlaps()
                     end if
 
                     call update_iter_data(iter_data_fciqmc)
 
                     if (mod(iter, StepsSft) == 0) then
                         call set_timer(Stats_Comms_Time)
-                        call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts, tPairedKPReplicas)
+                        call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts, tPairedReplicas)
                         call halt_timer(Stats_Comms_Time)
 
                         call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)

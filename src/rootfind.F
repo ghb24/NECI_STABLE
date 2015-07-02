@@ -76,6 +76,7 @@ C.. A and B are sorted in ascending order of A
          real(dp) ROOTS(0:NROOTS),INITHIGH,INITLOW,DELTA
          real(dp) XHIGH,XLOW,X,VAL,DERIV,OX,VALLOW,VALHIGH
          LOGICAL LOWPOLE,HIGHPOLE
+         character(*), parameter :: this_routine = 'FINDROOTSTAR'
          NMIN=N-NROOTS
 !         write(76,*) n,nRoots
 !         do i=0,n
@@ -313,7 +314,8 @@ C.. Now polish off with some Newton Raphson
 !  If this STOP is reached then we've likely hit a pole with a very small numerator, so the root is very close to it.
 !    Try increasing the value for NRSTEPSMAX.  Setting a RhoEpsilon might help 
             IF(J.GT.(NRSTEPSMAX-1)) THEN
-                STOP "Newton Raphson failed to converge."
+                call stop_all(this_routine,
+     &                   "Newton Raphson failed to converge.")
 !                WRITE(55,*) "Newton Raphson failed to converge."
             ENDIF
 
@@ -477,7 +479,7 @@ C             WRITE(6,*) "Root found: ",IROOT,X
                CALL CALCSTARPOLYVALUE2(N,A,B,OXHIGH,NR,XVHIGH,.FALSE.)
                CALL CALCSTARPOLYVALUE2(N,A,B,OXLOW,NR,XVLOW,.TRUE.)
                WRITE(6,*) VAL,XVLOW,XVHIGH
-C               STOP "NO ROOT FOUND"
+C               call stop_all(this_routine, "NO ROOT FOUND")
             ENDIF
              IMODE=IMODE-1
              IF(IMODE.EQ.1) THEN

@@ -126,7 +126,6 @@ MODULE FciMCData
       real(dp), allocatable :: norm_semistoch(:)
 
       INTEGER :: exFlag=3
-      real(dp) :: AccumRDMNorm, AccumRDMNorm_Inst, AllAccumRDMNorm
       
       !Hash tables to point to the correct determinants in CurrentDets
       type(ll_node), pointer :: HashIndex(:) 
@@ -318,9 +317,6 @@ MODULE FciMCData
       INTEGER(KIND=n_int) , ALLOCATABLE :: CASMask(:)        !These are masking arrays for the core 
                                                              !and external orbitals in the cas space
       INTEGER(KIND=n_int) , ALLOCATABLE :: CoreMask(:)       !These are masking arrays for the Core orbitals in the cas space
-
-      INTEGER , ALLOCATABLE :: RandomHash(:)    !This is a random indexing scheme by which the orbital indices 
-                                                !are randomised to attempt to provide a better hashing performance
 
       ! A second random hash, for use with hashing the location of walkers
       ! inside the main particle list.
@@ -561,6 +557,6 @@ MODULE FciMCData
 
       type(perturbation), allocatable :: pops_pert(:)
 
-      real(dp), allocatable :: replica_overlaps(:, :)
+      real(dp), allocatable :: replica_overlaps(:,:)
 
 END MODULE FciMCData

@@ -218,6 +218,33 @@ contains
 
     end subroutine hash_search_trial
 
+    subroutine get_con_amp_trial_space(ilut, amps)
+
+        ! WARNING: This routines expects that the state passed in, ilut, is
+        ! definitely in the trial space, and performs a stop_all if not.
+
+        integer(n_int), intent(in) :: ilut(0:)
+        real(dp), intent(out) :: amps(:)
+
+        integer :: i, hash_val
+        integer :: nI(nel)
+
+        amps = 0.0_dp
+        call decode_bit_det(nI, ilut)
+
+        hash_val = FindWalkerHash(nI, con_space_size)
+        ! Loop over all hash clashes for this hash value.
+        do i = 1, con_ht(hash_val)%nclash
+            if (all(ilut(0:NIfDBO) == con_ht(hash_val)%states(0:NIfDBO,i))) then
+                amps = transfer(con_ht(hash_val)%states(NIfDBO+1:,i), amps)
+                return
+            end if
+        end do
+
+        call stop_all("get_trial_wf_amp","The input state is not in the trial space.")
+
+    end subroutine get_con_amp_trial_space
+
     subroutine add_trial_energy_contrib(ilut, RealwSign, ireplica)
     
         integer(n_int), intent(in) :: ilut(0:)
@@ -269,11 +296,13 @@ contains
     ! histogramming option is on. 
     !
     ! This is outside the module so it is accessible to AnnihilateMod
-    SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
+    subroutine BinSearchParts2(iLut, MinInd, MaxInd, PartInd, tSuccess)
+
         use DetCalcData , only : FCIDets
         use DetBitOps, only: DetBitLT
         use constants, only: n_int
         use bit_reps, only: NIfTot,NIfDBO
+
         IMPLICIT NONE
         INTEGER :: MinInd,MaxInd,PartInd
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
@@ -315,7 +344,6 @@ contains
                 ! N then the two bounds are consecutive and we have failed...
                 i=N
             ELSEIF(i.eq.N) THEN
-
 
                 IF(i.eq.MaxInd-1) THEN
                     ! This deals with the case where we are interested in the 
@@ -360,7 +388,102 @@ contains
         tSuccess=.false.
         PartInd=MAX(MinInd,i-1)
 
-    END SUBROUTINE BinSearchParts2
+    end subroutine BinSearchParts2
+
+    subroutine BinSearchParts_rdm(iLut,MinInd,MaxInd,PartInd,tSuccess)
+
+        ! Do a binary search in CurrentDets, between the indices of MinInd and
+        ! MaxInd. If successful, tSuccess will be true and  PartInd will be a
+        ! coincident determinant. If there are multiple values, the chosen one
+        ! may be any of them... If failure, then the index will be one less than
+        ! the index that the particle would be in if it was present in the list.
+        ! (or close enough!)
+
+        integer(kind=n_int) :: iLut(0:NIfTot)
+        integer :: MinInd, MaxInd, PartInd
+        integer :: i, j, N, Comp
+        logical :: tSuccess
+
+        i = MinInd
+        j = MaxInd
+        if (i-j .eq. 0) then
+            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),NIfDBO)
+            if (Comp .eq. 0) then
+                tSuccess = .true.
+                PartInd = MaxInd
+                return
+            else
+                tSuccess = .false.
+                PartInd = MinInd
+            end if
+        end if
+
+        do while(j-i .gt. 0)  ! End when the upper and lower bound are the same.
+            N = (i+j)/2       ! Find the midpoint of the two indices.
+
+            ! Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is
+            ! more or 0 if they are the same
+            Comp = DetBitLT(CurrentDets(:,N),iLut(:),NIfDBO)
+
+            if (Comp .eq. 0) then
+                ! Praise the lord, we've found it!
+                tSuccess = .true.
+                PartInd = N
+                return
+            else if ((Comp .eq. 1) .and. (i .ne. N)) then
+                ! The value of the determinant at N is LESS than the determinant
+                ! we're looking for. Therefore, move the lower bound of the search
+                ! up to N. However, if the lower bound is already equal to N then
+                ! the two bounds are consecutive and we have failed...
+                i = N
+            else if (i .eq. N) then
+
+
+                if (i .eq. MaxInd-1) then
+                    ! This deals with the case where we are interested in the
+                    ! final/first entry in the list. Check the final entry of
+                    ! the list and leave. We need to check the last index.
+                    Comp = DetBitLT(CurrentDets(:,i+1), iLut(:), NIfDBO)
+                    if (Comp .eq. 0) then
+                        tSuccess = .true.
+                        PartInd = i + 1
+                        return
+                    else if (Comp .eq. 1) then
+                        ! final entry is less than the one we want.
+                        tSuccess = .false.
+                        PartInd = i + 1
+                        return
+                    else
+                        tSuccess = .false.
+                        PartInd = i
+                        return
+                    end if
+
+                else if (i .eq. MinInd) then
+                    tSuccess = .false.
+                    PartInd = i
+                    return
+                else
+                    i = j
+                end if
+
+            else if (Comp .eq. -1) then
+                ! The value of the determinant at N is MORE than the determinant
+                ! we're looking for. Move the upper bound of the search down to N.
+                j = N
+            else
+                ! We have failed - exit loop.
+                i = j
+            end if
+
+        end do
+
+        ! If we have failed, then we want to find the index that is one less
+        ! than where the particle would have been.
+        tSuccess = .false.
+        PartInd = max(MinInd,i-1)
+
+    end subroutine BinSearchParts_rdm
 
     subroutine remove_repeated_states(list, list_size)
 

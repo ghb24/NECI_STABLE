@@ -90,6 +90,7 @@ module mcpathshdiag
          SAVE SumX,SumY,SumXY,SumXsq,SumYsq,SumP
 
          integer iGetExcitLevel
+         character(*), parameter :: this_routine = 'FMCPR3B2'
          RHOII(:)=0
             
             SELECT CASE (IAND(NWHTAY,24))
@@ -102,7 +103,7 @@ module mcpathshdiag
             CASE(16)
                 EXFLAG=2
             CASE(24)
-                STOP "Invalid combination of flags in NWHTAY"
+                call stop_all(this_routine, "Invalid combination of flags in NWHTAY")
             END SELECT
          IF(I_VIND.EQ.0) THEN
 !C.. 1st time in
@@ -575,6 +576,7 @@ end module
          DATA c/0/
          DATA SINGLE/0/
          DATA DOUBLE/0/
+         character(*), parameter :: this_routine = 'GetGraphstats'
          
          write (6,*) 'Warning: c has been changed from integer(int64) to *4'
          IF(I_V.eq.2) THEN
@@ -584,7 +586,7 @@ end module
          
             IF((EX(1,2).eq.0).and.(Weight.gt.0.0_dp)) THEN
 !               Energy=Arr(Ex(1,1),2)
-                STOP 'Should not be here for 2v graphs'
+                call stop_all(this_routine, 'Should not be here for 2v graphs')
                 RETURN
             ELSEIF(EX(1,2).ne.0) THEN   !only consider doubles
                 ISS=NBASISMAX(2,3)
@@ -670,7 +672,7 @@ end module
 
                     CALL GetEXCITATION(IPATH(1:NEL,0),IPATH(1:NEL,2),NEL,EX,T)
                     IF(EX(1,2).eq.0) THEN
-                        STOP 'Should not be single excits here'
+                        call stop_all(this_routine, 'Should not be single excits here')
                     ELSE
                         DOUBLE=DOUBLE+1
                         ISS=NBASISMAX(2,3)

@@ -39,14 +39,16 @@ module fcimc_helper
                         init_survival_mult, MaxWalkerBloom, &
                         tMultiReplicaInitiators, NMCyc, iSampleRDMIters, &
                         tSpawnCountInitiatorThreshold, init_spawn_thresh, &
-                        tOrthogonaliseReplicas
+                        tOrthogonaliseReplicas, tPairedReplicas
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
     use DetCalcData, only: FCIDetIndex, ICILevel, det
-    use hash, only: DetermineDetNode, remove_hash_table_entry
-    use nElRDMMod, only: store_parent_with_spawned, det_removed_fill_diag_rdm,&
-                         extract_bit_rep_avsign_norm
+    use hash, only: remove_hash_table_entry
+    use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
+    use load_balance, only: adjust_load_balance
+    use rdm_filling, only: det_removed_fill_diag_rdm
+    use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
     use Parallel_neci
     use FciMCLoggingMod, only: HistInitPopulations, WriteInitPops
     use csf_data, only: csf_orbital_mask
@@ -267,6 +269,9 @@ contains
     subroutine SumEContrib (nI, ExcitLevel, RealWSign, ilut, HDiagCurr, &
                             dProbFin, tPairedReplicas, ind)
 
+        use CalcData, only: qmc_trial_wf
+        use searching, only: get_con_amp_trial_space
+
         integer, intent(in) :: nI(nel), ExcitLevel
         real(dp), intent(in) :: RealwSign(lenof_sign)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -287,6 +292,8 @@ contains
         integer :: doub_parity, doub_parity2, parity
         character(*), parameter :: this_routine = 'SumEContrib'
 
+        real(dp) :: amps(size(current_trial_amps,1))
+
         if (tReplicaReferencesDiffer) then
             call SumEContrib_different_refs(nI, realWSign, ilut, dProbFin, tPairedReplicas, ind)
             return
@@ -303,6 +310,17 @@ contains
                 else if (ntrial_excits == lenof_sign) then
                     trial_denom = trial_denom + current_trial_amps(:,ind)*RealwSign
                 end if
+
+                if (qmc_trial_wf) then
+                    call get_con_amp_trial_space(ilut, amps)
+
+                    if (ntrial_excits == 1) then
+                        trial_numerator = trial_numerator + amps(1)*RealwSign
+                    else if (ntrial_excits == lenof_sign) then
+                        trial_numerator = trial_numerator + amps*RealwSign
+                    end if
+                end if
+
             else if (test_flag(ilut, flag_connected)) then
                 ! Note, only attempt to add in a contribution from the
                 ! connected space if we're not also in the trial space.
@@ -427,6 +445,9 @@ contains
 
     subroutine SumEContrib_different_refs(nI, sgn, ilut, dProbFin, tPairedReplicas, ind)
 
+        use CalcData, only: qmc_trial_wf
+        use searching, only: get_con_amp_trial_space
+
         ! This is a modified version of SumEContrib for use where the
         ! projected energies need to be calculated relative to differing
         ! references.
@@ -448,6 +469,8 @@ contains
         real(dp) :: sgn_run
         HElement_t :: hoffdiag
         character(*), parameter :: this_routine = 'SumEContrib_different_refs'
+
+        real(dp) :: amps(size(current_trial_amps,1))
 
         ASSERT(inum_runs == lenof_sign)
         ASSERT(tReplicaReferencesDiffer)
@@ -475,6 +498,23 @@ contains
                         trial_denom = trial_denom + current_trial_amps(:,ind)*sgn
                     end if
                 end if
+
+                if (qmc_trial_wf) then
+                    call get_con_amp_trial_space(ilut, amps)
+
+                    if (ntrial_excits == 1) then
+                        trial_numerator = trial_numerator + amps(1)*sgn
+                    else
+                        if (tPairedReplicas) then
+                            do run = 2, inum_runs, 2
+                                trial_numerator(run-1:run) = trial_numerator(run-1:run) + amps(run/2)*sgn(run-1:run)
+                            end do
+                        else
+                            trial_numerator = trial_numerator + amps*sgn
+                        end if
+                    end if
+                end if
+
             else if (test_flag(ilut, flag_connected)) then
                 ! Note, only attempt to add in a contribution from the
                 ! connected space if we're not also in the trial space.
@@ -700,8 +740,8 @@ contains
             if (.not. tDetInCas .and. &
                 .not. (DetBitEQ(ilut, iLutRef(:,run), NIfDBO)) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
-                .and. abs(sgn) <= init_thresh &
-                .and. diagH <= InitiatorCutoffEnergy) then
+                .and. ((diagH <= InitiatorCutoffEnergy .and. abs(sgn) <= init_thresh) .or. &
+                       (diagH > InitiatorCutoffEnergy .and. abs(sgn) <= low_init_thresh))) then
                 ! Population has fallen too low. Initiator status 
                 ! removed.
                 initiator = .false.
@@ -1534,7 +1574,7 @@ contains
         real(dp) :: prob_extra_walker, r
 
         nspawn = abs(int(parent_pop*av_spawns_per_walker))
-        if (abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp) > 0) then
+        if (abs(abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp)) > 1.e-12_dp) then
             prob_extra_walker = abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp)
             r = genrand_real2_dSFMT()
             if (prob_extra_walker > r) nspawn = nspawn + 1
@@ -1543,20 +1583,21 @@ contains
     end subroutine decide_num_to_spawn
 
     subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, RealwSign, &
-                            wAvSign, IterRDMStartCurr, DetPosition, walkExcitLevel)
+                             DetPosition, walkExcitLevel)
+
+        use rdm_data, only: rdms
 
         integer, intent(in) :: DetCurr(nel) 
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
         real(dp), intent(in) :: Kii
-        real(dp), intent(in), dimension(lenof_sign) :: wAvSign, IterRDMStartCurr
         integer, intent(in) :: DetPosition
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp), dimension(lenof_sign) :: iDie
         real(dp), dimension(lenof_sign) :: CopySign
         integer, intent(in) :: walkExcitLevel
         integer :: i
-        character(len=*), parameter :: t_r="walker_death"
+        character(len=*), parameter :: t_r = "walker_death"
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
@@ -1603,50 +1644,48 @@ contains
         if (any(CopySign /= 0)) then
             ! For the hashed walker main list, the particles don't move.
             ! Therefore just adjust the weight.
-            call encode_sign (CurrentDets(:,DetPosition), CopySign)
-            if (tFillingStochRDMonFly) then
-                call set_av_sgn(DetPosition, wAvSign)
-                call set_iter_occ(DetPosition, IterRDMStartCurr)
-            endif
+            call encode_sign (CurrentDets(:, DetPosition), CopySign)
         else
             ! All walkers died.
             if(tFillingStochRDMonFly) then
-                call det_removed_fill_diag_rdm(CurrentDets(:,DetPosition), DetPosition)
+                call det_removed_fill_diag_rdm(rdms(1), CurrentDets(:,DetPosition), DetPosition)
                 ! Set the average sign and occupation iteration to zero, so
                 ! that the same contribution will not be added in in
                 ! CalcHashTableStats, if this determinant is not overwritten
                 ! before then
-                global_determinant_data(:,DetPosition) = 0.0_dp
+                global_determinant_data(:, DetPosition) = 0.0_dp
             endif
-            if(tTruncInitiator) then
+
+            if (tTruncInitiator) then
                 ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
-                if(test_flag(iLutCurr,flag_initiator(1))) then
-                    NoAddedInitiators=NoAddedInitiators-1
-                elseif(test_flag(iLutCurr,flag_initiator(lenof_sign))) then
-                    NoAddedInitiators(inum_runs)=NoAddedInitiators(inum_runs)-1
-                endif
-            endif
+                if (test_flag(iLutCurr,flag_initiator(1))) then
+                    NoAddedInitiators = NoAddedInitiators - 1
+                else if (test_flag(iLutCurr,flag_initiator(lenof_sign))) then
+                    NoAddedInitiators(inum_runs) = NoAddedInitiators(inum_runs) - 1
+                end if
+            end if
 
             ! Remove the determinant from the indexing list
             call remove_hash_table_entry(HashIndex, DetCurr, DetPosition)
             ! Add to the "freeslot" list
-            iEndFreeSlot=iEndFreeSlot+1
-            FreeSlot(iEndFreeSlot)=DetPosition
+            iEndFreeSlot = iEndFreeSlot + 1
+            FreeSlot(iEndFreeSlot) = DetPosition
             ! Encode a null det to be picked up
-            call encode_sign(CurrentDets(:,DetPosition),null_part)
-        endif
+            call encode_sign(CurrentDets(:,DetPosition), null_part)
+        end if
 
-        !Test - testsuite, RDM still work, both still work with Linscalealgo (all in debug)
-        !Null particle not kept if antiparticles aborted.
-        !When are the null particles removed?
+        ! Test - testsuite, RDM still work, both still work with Linscalealgo (all in debug)
+        ! Null particle not kept if antiparticles aborted.
+        ! When are the null particles removed?
 
-    end subroutine
-
-    
+    end subroutine walker_death
 
     subroutine check_start_rdm()
-! This routine checks if we should start filling the RDMs - and does so if we should.        
-        use nElRDMMod , only : DeAlloc_Alloc_SpawnedParts
+
+        ! This routine checks if we should start filling the RDMs - 
+        ! and does so if we should. 
+
+        use rdm_general, only: DeAlloc_Alloc_SpawnedParts
         use LoggingData, only: tReadRDMs
         implicit none
         logical :: tFullVaryshift
@@ -1656,26 +1695,18 @@ contains
 
         if (.not. tSinglePartPhase(1).and.(.not.tSinglePartPhase(inum_runs))) tFullVaryShift=.true.
 
-        !If we're reading in the RDMs we've already started accumulating them in a previous calculation
+        ! If we're reading in the RDMs we've already started accumulating them in a previous calculation
         ! We don't want to put in an arbitrary break now!
-        if(tReadRDMs)   IterRDMonFly=0
+        if (tReadRDMs) IterRDMonFly=0
 
-        IF(tFullVaryShift .and. ((Iter - maxval(VaryShiftIter)).eq.(IterRDMonFly+1))) THEN
+        if (tFullVaryShift .and. ((Iter - maxval(VaryShiftIter)).eq.(IterRDMonFly+1))) then
         ! IterRDMonFly is the number of iterations after the shift has changed that we want 
         ! to fill the RDMs.  If this many iterations have passed, start accumulating the RDMs! 
         
-            IterRDMStart = Iter+PreviousCycles
-            IterRDM_HF = Iter+PreviousCycles
+            IterRDMStart = Iter + PreviousCycles
+            IterRDM_HF = Iter + PreviousCycles
 
-            !if(tReadRDMs .and. tReadRDMAvPop) then
-                !We need to read in the values of IterRDMStart and IterRDM_HF
-            !    iunit_4=get_free_unit()
-            !    OPEN(iunit_4,FILE='ITERRDMSTART',status='old')
-            !    read(iunit_4, *) IterRDMStart, IterRDM_HF, AvNoAtHF
-
-            !endif
-
-            !We have reached the iteration where we want to start filling the RDM.
+            ! We have reached the iteration where we want to start filling the RDM.
             if(tExplicitAllRDM) then
                 ! Explicitly calculating all connections - expensive...
                 if(inum_runs.eq.2) call stop_all('check_start_rdm',"Cannot yet do replica RDM sampling with explicit RDMs. &
@@ -1684,22 +1715,29 @@ contains
                 tFillingExplicRDMonFly = .true.
                 if(tHistSpawn) NHistEquilSteps = Iter
             else
+                
+                ! If we are load balancing, this will disable the load balancer
+                ! so we should do a last-gasp balance at this point.
+                if (tLoadBalanceBlocks) &
+                    call adjust_load_balance(iter_data_fciqmc)
+
                 extract_bit_rep_avsign => extract_bit_rep_avsign_norm
-                !By default - we will do a stochastic calculation of the RDM.
+                ! By default - we will do a stochastic calculation of the RDM.
                 tFillingStochRDMonFly = .true.
-                !if(.not.tHF_Ref_Explicit) call DeAlloc_Alloc_SpawnedParts()
+
                 call DeAlloc_Alloc_SpawnedParts()
-                !The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
-                !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
-                !Don't need any of this if we're just doing HF_Ref_Explicit calculation.
-                !This is all done in the add_rdm_hfconnections routine.
-            endif
-            if(RDMExcitLevel.eq.1) then
-                WRITE(6,'(A)') 'Calculating the 1 electron density matrix on the fly.'
+                ! The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
+                ! parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
+                ! Don't need any of this if we're just doing HF_Ref_Explicit calculation.
+                ! This is all done in the add_rdm_hfconnections routine.
+            end if
+
+            if (RDMExcitLevel .eq. 1) then
+                write(6,'(A)') 'Calculating the 1 electron density matrix on the fly.'
             else
-                WRITE(6,'(A)') 'Calculating the 2 electron density matrix on the fly.'
-            endif
-            WRITE(6,'(A,I10)') 'Beginning to fill the RDMs during iteration',Iter
+                write(6,'(A)') 'Calculating the 2 electron density matrix on the fly.'
+            end if
+            write(6,'(A,I10)') 'Beginning to fill the RDMs during iteration', Iter
         ENDIF
 
     end subroutine check_start_rdm
@@ -1801,12 +1839,18 @@ contains
             if (tSemiStochastic) &
                 call recalc_core_hamil_diag(old_Hii, Hii)
 
-            ! Ensure that the energy references for all of the runs are
-            ! relative to the new Hii
-            do i = 1, inum_runs
-                proje_ref_energy_offsets(i) = proje_ref_energy_offsets(i) &
-                                            + old_hii - hii
-            end do
+            if (tReplicaReferencesDiffer) then
+                ! Ensure that the energy references for all of the runs are
+                ! relative to the new Hii
+                do i = 1, inum_runs
+                    proje_ref_energy_offsets(i) = proje_ref_energy_offsets(i) &
+                                                + old_hii - hii
+                end do
+            end if
+
+            ! All of the shift energies are relative to Hii, so they need to
+            ! be offset
+            DiagSft = DiagSft + old_hii - hii
 
         end if ! run == 1
 
@@ -1822,5 +1866,46 @@ contains
         proje_ref_energy_offsets(run) = real(h_tmp, dp) - Hii
 
     end subroutine update_run_reference
+
+    subroutine calc_inst_proje()
+
+        ! Calculate an instantaneous value of the projected energy for the
+        ! given walkers distributions
+
+        integer :: ex_level, det(nel), j, run
+        real(dp), dimension(max(lenof_sign,inum_runs)) :: RealAllHFCyc
+        real(dp) :: sgn(lenof_sign)
+
+        ! Reset the accumulators
+        HFCyc = 0
+        ENumCyc = 0
+
+        ! Main loop
+        do j = 1, int(TotWalkers, sizeof_int)
+
+            ! n.b. non-contiguous list
+            call extract_sign(CurrentDets(:,j), sgn)
+            if (IsUnoccDet(sgn)) cycle
+
+            ex_level = FindBitExcitLevel (iLutRef, CurrentDets(:,j))
+
+            call decode_bit_det(det, CurrentDets(:,j))
+            call SumEContrib(det, ex_level, sgn, CurrentDets(:,j), 0.0_dp, &
+                             1.0_dp, tPairedReplicas, j)
+        end do
+
+        ! Accumulate values over all processors
+        call MPISum(HFCyc, RealAllHFCyc)
+        call MPISum(ENumCyc, AllENumCyc)
+
+        do run = 1, inum_runs
+            AllHFCyc(run) = ARR_RE_OR_CPLX(RealAllHFCyc, run)
+        end do
+
+        proje_iter = AllENumCyc / AllHFCyc + proje_ref_energy_offsets
+
+        write(6,*) 'Calculated instantaneous projected energy', proje_iter
+
+    end subroutine
 
 end module

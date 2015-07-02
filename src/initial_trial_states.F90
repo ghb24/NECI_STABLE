@@ -1,3 +1,5 @@
+#include "macros.h"
+
 module initial_trial_states
 
     use bit_rep_data
@@ -8,8 +10,8 @@ module initial_trial_states
 
 contains
 
-    subroutine calc_trial_states(space_in, nexcit, ndets_this_proc, trial_iluts, evecs_this_proc, evals, &
-                                 space_sizes, space_displs)
+    subroutine calc_trial_states_lanczos(space_in, nexcit, ndets_this_proc, trial_iluts, evecs_this_proc, evals, &
+                                         space_sizes, space_displs, reorder)
 
         use bit_reps, only: decode_bit_det
         use CalcData, only: subspace_in
@@ -30,16 +32,18 @@ contains
         real(dp), allocatable, intent(out) :: evecs_this_proc(:,:)
         real(dp), intent(out) :: evals(:)
         integer(MPIArg), intent(out) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
+        integer, optional, intent(in) :: reorder(nexcit)
 
         integer(n_int), allocatable :: ilut_list(:,:)
         integer, allocatable :: det_list(:,:)
         integer :: i, j, max_elem_ind(1), ierr
+        integer :: temp_reorder(nexcit)
         integer(MPIArg) :: ndets_all_procs, ndets_this_proc_mpi
         integer(MPIArg) :: sndcnts(0:nProcessors-1), displs(0:nProcessors-1)
         integer(MPIArg) :: rcvcnts
         integer, allocatable :: evec_abs(:)
         real(dp), allocatable :: evecs(:,:), evecs_transpose(:,:)
-        character(len=*), parameter :: t_r = "calc_trial_states"
+        character(len=*), parameter :: t_r = "calc_trial_states_lanczos"
 
         ndets_this_proc = 0
         trial_iluts = 0_n_int
@@ -47,7 +51,7 @@ contains
         ! Choose the correct generating routine.
         if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
         if (space_in%tPops) call generate_space_most_populated(space_in%npops, trial_iluts, ndets_this_proc)
-        if (space_in%tRead) call generate_space_from_file('DETFILE', trial_iluts, ndets_this_proc)
+        if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
         if (space_in%tDoubles) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
         if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
         if (space_in%tRAS) call generate_ras(space_in%ras, trial_iluts, ndets_this_proc)
@@ -74,6 +78,7 @@ contains
         if (ndets_all_procs < nexcit) call stop_all(t_r, "The number of excited states that you have asked &
             &for is larger than the size of the trial space used to create the excited states. Since this &
             &routine generates trial states that are orthogonal, this is not possible.")
+
         space_displs(0) = 0_MPIArg
         do i = 1, nProcessors-1
             space_displs(i) = sum(space_sizes(:i-1))
@@ -136,6 +141,14 @@ contains
             deallocate(det_list)
             deallocate(evec_abs)
 
+            ! Reorder the trial states, if the user has asked for this to be done.
+            if (present(reorder)) then
+                temp_reorder = reorder
+                call sort(temp_reorder, evals)
+                temp_reorder = reorder
+                call sort(temp_reorder, evecs)
+            end if
+
             ! Unfortunately to perform the MPIScatterV call we need the transpose
             ! of the eigenvector array.
             allocate(evecs_transpose(nexcit, ndets_all_procs), stat=ierr)
@@ -164,7 +177,147 @@ contains
         if (iProcIndex == root) deallocate(evecs)
         deallocate(evecs_transpose)
 
-    end subroutine calc_trial_states
+    end subroutine calc_trial_states_lanczos
+
+    subroutine calc_trial_states_qmc(space_in, nexcit, qmc_iluts, qmc_ht, paired_replicas, ndets_this_proc, &
+                                     trial_iluts, evecs_this_proc, space_sizes, space_displs)
+
+        use CalcData, only: subspace_in
+        use DetBitOps, only: ilut_lt, ilut_gt
+        use FciMCData, only: ilutHF
+        use Parallel_neci, only: nProcessors
+        use semi_stoch_gen
+        use sort_mod, only: sort
+        use SystemData, only: tAllSymSectors
+
+        type(subspace_in) :: space_in
+        integer, intent(in) :: nexcit
+        integer(n_int), intent(in) :: qmc_iluts(0:,:)
+        type(ll_node), pointer, intent(inout) :: qmc_ht(:)
+        logical, intent(in) :: paired_replicas
+        integer, intent(out) :: ndets_this_proc
+        integer(n_int), intent(out) :: trial_iluts(0:,:)
+        real(dp), allocatable, intent(out) :: evecs_this_proc(:,:)
+        integer(MPIArg), intent(out) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
+
+        integer(n_int), allocatable :: ilut_list(:,:)
+        integer, allocatable :: det_list(:,:)
+        integer :: i, j, ierr
+        integer(MPIArg) :: ndets_all_procs, ndets_this_proc_mpi
+        character(len=*), parameter :: this_routine = "calc_trial_states_qmc"
+
+        if (paired_replicas) then
+            ASSERT(nexcit == lenof_sign/2)
+        else
+            ASSERT(nexcit == lenof_sign)
+        end if
+
+        ndets_this_proc = 0
+        trial_iluts = 0_n_int
+
+        ! Choose the correct generating routine.
+        if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
+        if (space_in%tPops) call generate_space_most_populated(space_in%npops, trial_iluts, ndets_this_proc)
+        if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
+        if (space_in%tDoubles) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
+        if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
+        if (space_in%tRAS) call generate_ras(space_in%ras, trial_iluts, ndets_this_proc)
+        if (space_in%tOptimised) call generate_optimised_space(space_in%opt_data, space_in%tLimitSpace, &
+                                                         trial_iluts, ndets_this_proc, space_in%max_size)
+        if (space_in%tMP1) call generate_using_mp1_criterion(space_in%mp1_ndets, trial_iluts, ndets_this_proc)
+        if (space_in%tFCI) then
+            if (tAllSymSectors) then
+                call gndts_all_sym_this_proc(trial_iluts, .true., ndets_this_proc)
+            else
+                call generate_fci_core(trial_iluts, ndets_this_proc)
+            end if
+        end if
+
+        if (.not. (space_in%tPops .or. space_in%tRead .or. space_in%tDoubles .or. space_in%tCAS .or. &
+                   space_in%tRAS .or. space_in%tOptimised .or. space_in%tMP1 .or. space_in%tFCI)) then
+            call stop_all(this_routine, "A space for the trial functions was not chosen.")
+        end if
+
+        ndets_this_proc_mpi = int(ndets_this_proc, MPIArg)
+        call MPIAllGather(ndets_this_proc_mpi, space_sizes, ierr)
+        ndets_all_procs = sum(space_sizes)
+
+        space_displs(0) = 0_MPIArg
+        do i = 1, nProcessors-1
+            space_displs(i) = sum(space_sizes(:i-1))
+        end do
+
+        call sort(trial_iluts(:,1:ndets_this_proc), ilut_lt, ilut_gt)
+
+        allocate(evecs_this_proc(nexcit, ndets_this_proc), stat=ierr)
+
+        call get_qmc_trial_weights(trial_iluts, ndets_this_proc, qmc_iluts, qmc_ht, nexcit, paired_replicas, evecs_this_proc)
+
+    end subroutine calc_trial_states_qmc
+
+    subroutine get_qmc_trial_weights(trial_iluts, ntrial, qmc_iluts, qmc_ht, nexcit, paired_replicas, evecs_this_proc)
+
+        use bit_reps, only: decode_bit_det
+        use hash, only: hash_table_lookup
+        use Parallel_neci, only: MPISumAll
+        use SystemData, only: nel
+
+        integer(n_int), intent(in) :: trial_iluts(0:,:)
+        integer, intent(in) :: ntrial
+        integer(n_int), intent(in) :: qmc_iluts(0:,:)
+        type(ll_node), pointer, intent(inout) :: qmc_ht(:)
+        integer, intent(in) :: nexcit
+        logical, intent(in) :: paired_replicas
+        real(dp), intent(out) :: evecs_this_proc(:,:)
+
+        integer :: i, j, ind, hash_val
+        integer :: nI(nel)
+        real(dp) :: qmc_sign(lenof_sign), trial_sign(nexcit)
+        real(dp) :: norm(nexcit), tot_norm(nexcit)
+        logical :: found
+        character(*), parameter :: this_routine = 'get_qmc_trial_weights'
+
+        if (paired_replicas) then
+            ASSERT(nexcit == lenof_sign/2)
+        else
+            ASSERT(nexcit == lenof_sign)
+        end if
+
+        norm = 0.0_dp
+
+        ! Loop over all trial states.
+        do i = 1, ntrial
+            ! Check the QMC hash table to see if this state exists in the
+            ! QMC list. 
+            call decode_bit_det(nI, trial_iluts(:,i)) 
+            call hash_table_lookup(nI, trial_iluts(:,i), NIfDBO, qmc_ht, &
+                                   qmc_iluts, ind, hash_val, found)
+            if (found) then
+                call extract_sign(qmc_iluts(:,ind), qmc_sign)
+
+                ! If using paired replicas then average the sign on each pair.
+                if (paired_replicas) then
+                    do j = 2, lenof_sign, 2
+                        trial_sign(j/2) = sum(qmc_sign(j-1:j)/2.0_dp)
+                    end do
+                else
+                    trial_sign = qmc_sign
+                end if
+
+                norm = norm + trial_sign**2
+                evecs_this_proc(:,i) = trial_sign
+            else
+                evecs_this_proc(:,i) = 0.0_dp
+            end if
+        end do
+
+        call MPISumAll(norm, tot_norm)
+
+        do i = 1, ntrial
+            evecs_this_proc(:,i) = evecs_this_proc(:,i)/sqrt(tot_norm)
+        end do
+
+    end subroutine get_qmc_trial_weights
 
     subroutine set_trial_populations(nexcit, ndets_this_proc, trial_vecs)
 
@@ -205,7 +358,7 @@ contains
         use replica_data, only: set_initial_global_data
         use hash, only: clear_hash_table, fill_in_hash_table
         use semi_stoch_procs, only: fill_in_diag_helements, copy_core_dets_to_spawnedparts
-        use semi_stoch_procs, only: add_core_states_currentdet_hash
+        use semi_stoch_procs, only: add_core_states_currentdet_hash, reinit_current_trial_amps
 
         integer, intent(in) :: ndets_this_proc
         real(dp), intent(in) :: init_vecs(:,:)
@@ -267,55 +420,5 @@ contains
         call set_initial_global_data(TotWalkers, CurrentDets)
 
     end subroutine set_trial_states
-
-    subroutine reinit_current_trial_amps()
-
-        ! Recreate current trial amps, without using arrays such as trial_space
-        ! and trial_wfs, which are deallocated after the first init_trial_wf
-        ! call.
-
-        use bit_reps, only: decode_bit_det, set_flag
-        use FciMCData, only: CurrentDets, TotWalkers, HashIndex, nWalkerHashes
-        use FciMCData, only: tTrialHash, current_trial_amps, ntrial_excits
-        use searching, only: hash_search_trial, bin_search_trial
-        use SystemData, only: nel
-
-        integer :: i
-        integer :: nI(nel)
-        real(dp) :: trial_amps(ntrial_excits)
-        logical :: tTrial, tCon
-
-        ! Don't do anything is this is called before the trial wave function
-        ! initialisation.
-        if (.not. allocated(current_trial_amps)) return
-
-        current_trial_amps = 0.0_dp
-
-        do i = 1, TotWalkers
-            if (tTrialHash) then
-                call decode_bit_det(nI, CurrentDets(:,i))
-                call hash_search_trial(CurrentDets(:,i), nI, trial_amps, tTrial, tCon)
-            else
-                call bin_search_trial(CurrentDets(:,i), trial_amps, tTrial, tCon)
-            end if
-
-            ! Set the appropraite flag (if any). Unset flags which aren't
-            ! appropriate, just in case.
-            if (tTrial) then
-                call set_flag(CurrentDets(:,i), flag_trial, .true.)
-                call set_flag(CurrentDets(:,i), flag_connected, .false.)
-            else if (tCon) then
-                call set_flag(CurrentDets(:,i), flag_trial, .false.)
-                call set_flag(CurrentDets(:,i), flag_connected, .true.)
-            else
-                call set_flag(CurrentDets(:,i), flag_trial, .false.)
-                call set_flag(CurrentDets(:,i), flag_connected, .false.)
-            end if
-
-            ! Set the amplitude (which may be zero).
-            current_trial_amps(:,i) = trial_amps
-        end do
-
-    end subroutine reinit_current_trial_amps
 
 end module initial_trial_states

@@ -92,7 +92,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,int_name,filename_in)
         ! NECICore.  This is to allow the NECI input filename(s) to be specified
         ! easily from within the CPMD/VASP input files.
         call ReadInputMain(Filename,ios,toverride_input,kp)
-        If (ios.ne.0) stop 'Error in Read'
+        If (ios.ne.0) call stop_all(this_routine, 'Error in Read')
     endif
 
     call MPINodes(tUseProcsAsNodes)  ! Setup MPI Node information - this is dependent upon knowing the job type configurations.
