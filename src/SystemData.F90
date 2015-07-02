@@ -7,7 +7,7 @@ implicit none
 
 save
 
-logical :: tMolpro  !True if the code has been called from Molpro
+logical :: tMolpro,tMolcas  !True if the code has been called from Molpro or Molcas
 logical :: tMolproMimic !True if the code is being run from standalone neci, but designed to mimic the runtime 
                         !behaviour of molpro
 character(12) :: MolproID
