@@ -1211,7 +1211,8 @@ contains
 
        IF(NBASISMAX(1,3).GE.0.AND.ISS.NE.0) THEN
 
-          CALL CREATEINVBRR2(BRR2,NBASIS)
+          if (tStarStore) CALL CREATEINVBRR2(BRR2,NBASIS)
+
 !CC Only do the below if we've a stored UMAT
 !C.. Now copy the relevant matrix elements of UMAT across
 !C.. the primed (...P) are the new versions

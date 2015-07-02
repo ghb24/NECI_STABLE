@@ -22,6 +22,7 @@ module tau_search
     use bit_rep_data, only: NIfTot
     use DetBitOps, only: FindBitExcitLevel, TestClosedShellDet, &
                          EncodeBitDet
+    use sym_general_mod, only: SymAllowedExcit
     use Parallel_neci
     use constants
     implicit none
@@ -323,10 +324,17 @@ contains
         ! update it. Once we have a reasonable sample of excitations, then we
         ! can permit tau to increase if we have started too low.
         if (tau_new < tau .or. ((tUEG .or. enough_sing) .and. enough_doub))then
+
+            ! Make the final tau smaller than tau_new by a small amount
+            ! so that we don't get spawns exactly equal to the
+            ! initiator threshold, but slightly below it instead.
+            tau_new = tau_new * 0.99999_dp
+
             if (abs(tau - tau_new) / tau > 0.001_dp) then
                 root_print "Updating time-step. New time-step = ", tau_new
             end if
             tau = tau_new
+
         end if
 
         ! Make sure that we have at least some of both singles and doubles
@@ -426,6 +434,12 @@ contains
                 endif
                 call EncodeBitDet (nJ, iLutnJ)
             endif
+
+            ! Exclude an excitation if it isn't symmetry allowed.
+            ! Note that GenExcitations3 is not perfect, especially if there
+            ! additional restrictions, such as LzSymmetry.
+            if (.not. SymAllowedExcit(ProjEDet(:,1), nJ, ic, ex)) &
+                cycle
 
             !Find Hij
             if(tHPHF) then

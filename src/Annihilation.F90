@@ -539,6 +539,7 @@ module AnnihilationMod
         ! to zero.  These will be deleted at the end of the total annihilation
         ! step.
 
+        use rdm_data, only: rdms
         use rdm_filling, only: check_fillRDM_DiDj
 
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -590,7 +591,7 @@ module AnnihilationMod
 
                 tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic)
 
-                if (sum(abs(CurrentSign)) /= 0.0_dp .or. tDetermState) then
+                if (sum(abs(CurrentSign)) > 1.e-12_dp .or. tDetermState) then
                     ! Transfer new sign across.
                     call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
                     call encode_sign(SpawnedParts(:,i), null_part)
@@ -602,7 +603,7 @@ module AnnihilationMod
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
 #ifndef __CMPLX
-                        if (CurrentSign(j) == 0.0_dp) then
+                        if (abs(CurrentSign(j)) < 1.e-12_dp) then
                             ! This determinant is actually *unoccupied* for the
                             ! walker type/set we're considering. We need to
                             ! decide whether to abort it or not.
@@ -679,14 +680,14 @@ module AnnihilationMod
                         ! we're effectively taking the instantaneous value from the
                         ! next iter. This is fine as it's from the other population,
                         ! and the Di and Dj signs are already strictly uncorrelated.
-                        call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),TempCurrentSign)
+                        call check_fillRDM_DiDj(rdms(1), i, CurrentDets(:,PartInd), TempCurrentSign)
                     end if 
 
                 end if
 
             end if
                 
-            if ( (.not.tSuccess) .or. (tSuccess .and. sum(abs(CurrentSign)) == 0.0_dp .and. (.not. tDetermState)) ) then
+            if ( (.not.tSuccess) .or. (tSuccess .and. sum(abs(CurrentSign)) < 1.e-12_dp .and. (.not. tDetermState)) ) then
 
                 ! Determinant in newly spawned list is not found in CurrentDets.
                 ! Usually this would mean the walkers just stay in this list and
@@ -745,7 +746,7 @@ module AnnihilationMod
                         else
                             ! Either the determinant has never been an initiator,
                             ! or we want to treat them all the same, as before.
-                            if ((abs(SignTemp(j)) > 0.0_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
+                            if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
                                 ! We remove this walker with probability 1-RealSignTemp
                                 pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
                                 r = genrand_real2_dSFMT ()
@@ -788,7 +789,7 @@ module AnnihilationMod
                     
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
-                        if ((abs(SignTemp(j)) > 0.0_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
+                        if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
                             ! We remove this walker with probability 1-RealSignTemp.
                             pRemove = (OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
                             r = genrand_real2_dSFMT ()
@@ -822,7 +823,7 @@ module AnnihilationMod
 
                 if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
                     ! We must use the instantaneous value for the off-diagonal contribution.
-                    call check_fillRDM_DiDj(i,SpawnedParts(0:NifTot,i),SignTemp)
+                    call check_fillRDM_DiDj(rdms(1), i, SpawnedParts(0:NifTot,i), SignTemp)
                 end if 
             end if
 

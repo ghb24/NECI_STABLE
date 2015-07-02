@@ -1574,7 +1574,7 @@ contains
         real(dp) :: prob_extra_walker, r
 
         nspawn = abs(int(parent_pop*av_spawns_per_walker))
-        if (abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp) > 0) then
+        if (abs(abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp)) > 1.e-12_dp) then
             prob_extra_walker = abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp)
             r = genrand_real2_dSFMT()
             if (prob_extra_walker > r) nspawn = nspawn + 1
@@ -1584,6 +1584,8 @@ contains
 
     subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, RealwSign, &
                              DetPosition, walkExcitLevel)
+
+        use rdm_data, only: rdms
 
         integer, intent(in) :: DetCurr(nel) 
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
@@ -1642,34 +1644,35 @@ contains
         if (any(CopySign /= 0)) then
             ! For the hashed walker main list, the particles don't move.
             ! Therefore just adjust the weight.
-            call encode_sign (CurrentDets(:,DetPosition), CopySign)
+            call encode_sign (CurrentDets(:, DetPosition), CopySign)
         else
             ! All walkers died.
             if(tFillingStochRDMonFly) then
-                call det_removed_fill_diag_rdm(CurrentDets(:,DetPosition), DetPosition)
+                call det_removed_fill_diag_rdm(rdms(1), CurrentDets(:,DetPosition), DetPosition)
                 ! Set the average sign and occupation iteration to zero, so
                 ! that the same contribution will not be added in in
                 ! CalcHashTableStats, if this determinant is not overwritten
                 ! before then
-                global_determinant_data(:,DetPosition) = 0.0_dp
+                global_determinant_data(:, DetPosition) = 0.0_dp
             endif
-            if(tTruncInitiator) then
+
+            if (tTruncInitiator) then
                 ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
-                if(test_flag(iLutCurr,flag_initiator(1))) then
-                    NoAddedInitiators=NoAddedInitiators-1
-                elseif(test_flag(iLutCurr,flag_initiator(lenof_sign))) then
-                    NoAddedInitiators(inum_runs)=NoAddedInitiators(inum_runs)-1
-                endif
-            endif
+                if (test_flag(iLutCurr,flag_initiator(1))) then
+                    NoAddedInitiators = NoAddedInitiators - 1
+                else if (test_flag(iLutCurr,flag_initiator(lenof_sign))) then
+                    NoAddedInitiators(inum_runs) = NoAddedInitiators(inum_runs) - 1
+                end if
+            end if
 
             ! Remove the determinant from the indexing list
             call remove_hash_table_entry(HashIndex, DetCurr, DetPosition)
             ! Add to the "freeslot" list
-            iEndFreeSlot=iEndFreeSlot+1
-            FreeSlot(iEndFreeSlot)=DetPosition
+            iEndFreeSlot = iEndFreeSlot + 1
+            FreeSlot(iEndFreeSlot) = DetPosition
             ! Encode a null det to be picked up
-            call encode_sign(CurrentDets(:,DetPosition),null_part)
-        endif
+            call encode_sign(CurrentDets(:,DetPosition), null_part)
+        end if
 
         ! Test - testsuite, RDM still work, both still work with Linscalealgo (all in debug)
         ! Null particle not kept if antiparticles aborted.
