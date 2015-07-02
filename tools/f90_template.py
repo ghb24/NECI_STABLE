@@ -456,7 +456,7 @@ def process_file(fin, fout, silent=False, multifile=False):
         # If we are using one file per module, then we need to adjust the
         # filenames
         if multifile:
-            fn_out = os.path.join(dirname, "{}.{}{}".format(root, counter, ext))
+            fn_out = os.path.join(dirname, "{0}.{1}{2}".format(root, counter, ext))
             fmod = open(fn_out, 'w')
             filelist.append(fn_out)
         else:
