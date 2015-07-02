@@ -1630,6 +1630,8 @@ contains
         IF(tRDMonFly) CALL DeallocateRDM()
         if (allocated(refdetflip)) deallocate(refdetflip)
         if (allocated(ilutrefflip)) deallocate(ilutrefflip)
+        if (allocated(ValidSpawnedList)) deallocate(ValidSpawnedList)
+        if (allocated(InitialSpawnedSlots)) deallocate(InitialSpawnedSlots)
 
         ! Cleanup global storage
         call clean_global_det_data()

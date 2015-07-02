@@ -635,18 +635,18 @@ MODULE UMatCache
             Deallocate(UMatCacheData)
             CALL LogMemDealloc(thisroutine,tagUMATLABELS)
             Deallocate(UMatLabels)
-            IF(ASSOCIated(UMat2D)) THEN
-               CALL LogMemDealloc(thisroutine,tagUMat2D)
-               Deallocate(UMat2D)
-            ENDIF
-            IF(ASSOCIated(TransTable)) THEN
-               CALL LogMemDealloc(thisroutine,tagTransTable)
-               Deallocate(TransTable)
-            ENDIF
-            IF(ASSOCIated(InvTRANSTABLE)) THEN
-               CALL LogMemDealloc(thisroutine,tagInvTransTable)
-               Deallocate(InvTRANSTABLE)
-            ENDIF
+         end if
+         IF(ASSOCIated(UMat2D)) THEN
+            CALL LogMemDealloc(thisroutine,tagUMat2D)
+            Deallocate(UMat2D)
+         ENDIF
+         IF(ASSOCIated(TransTable)) THEN
+            CALL LogMemDealloc(thisroutine,tagTransTable)
+            Deallocate(TransTable)
+         ENDIF
+         IF(ASSOCIated(InvTRANSTABLE)) THEN
+            CALL LogMemDealloc(thisroutine,tagInvTransTable)
+            Deallocate(InvTRANSTABLE)
          ENDIF
       END SUBROUTINE DESTROYUMATCACHE
 

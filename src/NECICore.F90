@@ -15,7 +15,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
     !=    filename is the name of the input file to read in if necessary
 
     use ReadInput_neci, only : ReadInputMain
-    use SystemData, only : tMolpro,tMolproMimic,MolproID,tMolcas,Arr,Brr,G1, tagArr, tagBrr, tagG1
+    use SystemData, only : tMolpro,tMolproMimic,MolproID,tMolcas
     use MemoryManager
 
     ! main-level modules.
@@ -26,11 +26,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
     use read_fci, only: FCIDUMP_name
 
     use ParallelHelper
-    USE OneEInts , only : TMAT2D,tagTMat2D
-    Use Determinants, only: FDet, tagFDet
     use UMatCache, only: UMat2D, tagUMat2D
-    use FciMCData, only:ValidSpawnedList,InitialSpawnedSlots 
-    use SymExcitDataMod
 
     ! Utility modules.
     use global_utilities
@@ -156,36 +152,6 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
     endif
     call NECICodeEnd(tCPMD,tVASP)
 
-
-        deallocate(Arr)
-        call LogMemDealloc('NECICore',tagArr)
-        deallocate(Brr)
-        call LogMemDealloc('NECICore',tagBrr)
-        deallocate(G1)
-        call LogMemDealloc('NECICore',tagG1)
-        deallocate(TMAT2D)
-        call LogMemDealloc('NECICore',tagTMAT2D)
-        deallocate(FDet)
-        call LogMemDealloc('NECICore',tagFDet)
-        deallocate(UMat2D)
-        call LogMemDealloc('NECICore',tagUmat2D)
-
-        if(allocated(Nodes)) deallocate(Nodes)
-        if(allocated(ProcNode)) deallocate(ProcNode)
-        if(allocated(NodeRoots)) deallocate(NodeRoots)
-        if(allocated(NodeLengths)) deallocate(NodeLengths)
-        if(allocated(CommNodes)) deallocate(CommNodes)
-        if(allocated(CommNodesDum)) deallocate(CommNodesDum)
-        if(allocated(GroupNodes)) deallocate(GroupNodes)
-        if(allocated(GroupNodesDum)) deallocate(GroupNodesDum)
-        if(allocated(NodeLengths)) deallocate(NodeLengths)
-
-        if(allocated(ValidSpawnedList)) deallocate(ValidSpawnedList)
-        if(allocated(InitialSpawnedSlots)) deallocate(InitialSpawnedSlots)
-
-        if(allocated(SpinOrbSymLabel)) deallocate(SpinOrbSymLabel)
-        if(allocated(SymInvLabel)) deallocate(SymInvLabel)
-
     return
 End Subroutine NECICore
 
@@ -234,7 +200,9 @@ subroutine NECICodeEnd(tCPMD,tVASP)
     ! Utility modules
     use MemoryManager, only: LeaveMemoryManager
     use timing_neci, only: end_timing,print_timing_report
-    use SystemData, only : tMolpro,tMolproMimic,tMolcas
+    use SystemData, only: tMolpro, tMolproMimic, tMolcas, arr, brr, g1, &
+                          tagArr, tagBrr, tagG1
+    use Determinants, only: FDet, tagFDet
 #ifdef PARALLEL
     use Parallel_neci, only: MPIEnd
 #endif
@@ -248,6 +216,10 @@ subroutine NECICodeEnd(tCPMD,tVASP)
 #endif
 
 !    CALL N_MEMORY_CHECK
+
+    ! Cleanup any memory that hasn't been deallocated elsewhere, and isn't
+    ! immediately obvious where to deallocate it...
+
 
     if (.not.tCPMD .and. .not.tMolcas) call LeaveMemoryManager()
     call end_timing()
@@ -351,6 +323,12 @@ subroutine NECICalcEnd(iCacheFlag)
     use Calc, only: CalcCleanup
     use shared_alloc, only: cleanup_shared_alloc
     use replica_data, only: clean_replica_arrays
+    use OneEInts, only: DestroyTMat
+    use Parallel_neci, only: clean_parallel
+    use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel
+    use SystemData, only: arr, brr, g1, tagArr, tagBrr, tagG1
+    use Determinants, only: FDet, tagFDet
+    use MemoryManager
 
     implicit none
     integer,intent(in) :: iCacheFlag
@@ -359,9 +337,30 @@ subroutine NECICalcEnd(iCacheFlag)
     call CalcCleanup()
     call DetCleanup()
     call IntCleanup(iCacheFlag)
+    call DestroyTMAT(.true.)
+    call DestroyTMAT(.false.)
     call SysCleanup()
     call cleanup_shared_alloc ()
     call clean_replica_arrays()
+    call clean_parallel()
+    if(allocated(SpinOrbSymLabel)) deallocate(SpinOrbSymLabel)
+    if(allocated(SymInvLabel)) deallocate(SymInvLabel)
+    if (associated(arr)) then
+        deallocate(Arr)
+        call LogMemDealloc('NECICore',tagArr)
+    end if
+    if (associated(brr)) then
+        deallocate(Brr)
+        call LogMemDealloc('NECICore',tagBrr)
+    end if
+    if (associated(G1)) then
+        deallocate(G1)
+        call LogMemDealloc('NECICore',tagG1)
+    end if
+    if (associated(FDet)) then
+        deallocate(FDet)
+        call LogMemDealloc('NECICore',tagFDet)
+    end if
 
     return
 end subroutine NECICalcEnd
