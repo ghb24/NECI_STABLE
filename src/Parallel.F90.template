@@ -1533,6 +1533,7 @@ contains
         integer(MPIArg) :: iProcInd, nProcess, ierr
         integer :: a, g,MolpComm
         character(len=20) NodeFile
+        character(len=8) MCPUs
         logical, save :: initialised=.false.
         character(*), parameter :: t_r = 'MPIInit'
 
