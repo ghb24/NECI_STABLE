@@ -1009,11 +1009,7 @@ module FciMCParMod
         ! If we are orthogonalising the replica wavefunctions, to generate
         ! excited states, then do that here.
         if (tOrthogonaliseReplicas .and. iter > orthogonalise_iter) then
-            if (tPairedReplicas) then
-                call orthogonalise_replica_pairs(iter_data_fciqmc)
-            else
-                call orthogonalise_replicas(iter_data)
-            end if
+            call orthogonalise_replicas(iter_data)
         else if (tPrintReplicaOverlaps .and. inum_runs > 1) then
             call calc_replica_overlaps()
         end if

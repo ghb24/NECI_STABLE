@@ -171,7 +171,7 @@ contains
                 do a = 1, SpatOrbs
 
                     ! Adding in contributions effectively from the 1-RDM (although these are calculated 
-                    ! from the 2-RDM.
+                    ! from the 2-RDM).
                     call calc_1RDM_and_1RDM_energy(rdm, i, j, a, iSpin,jSpin, Norm_2RDM, Norm_2RDM_Inst, &
                                                    RDMEnergy_Inst, RDMEnergy1)
                     
