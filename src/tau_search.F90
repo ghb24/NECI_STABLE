@@ -328,7 +328,7 @@ contains
             ! Make the final tau smaller than tau_new by a small amount
             ! so that we don't get spawns exactly equal to the
             ! initiator threshold, but slightly below it instead.
-            tau_new = tau_new * 0.99999
+            tau_new = tau_new * 0.99999_dp
 
             if (abs(tau - tau_new) / tau > 0.001_dp) then
                 root_print "Updating time-step. New time-step = ", tau_new
