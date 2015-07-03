@@ -3144,12 +3144,6 @@ MODULE RotateOrbsMod
 
         CALL CalcConstraints(CoeffUncorT2,Constraint,TotConstraints)
 
- 
-! Write stats from the beginning of the iteration to output.            
-!        IF(Mod(Iteration,10).eq.0.or.Iteration.eq.1) THEN
-!            CALL WriteShakeOUTstats01()
-!        ENDIF
-
         CALL set_timer(Shake_Time,30)
 
         IF(tShakeDelay) THEN
@@ -3238,11 +3232,6 @@ MODULE RotateOrbsMod
 
 ! If the convergence criteria is met, exit out of this subroutine, a rotation has been made which keeps the coefficients 
 ! orthogonal.
-
-! Write out stats of interest to output:
-!            IF(Mod(Iteration,10).eq.0.or.Iteration.eq.1) THEN
-!                CALL WriteShakeOUTstats02(ShakeIteration,TotLambdas,ConvergeCount) ! add correction to this.
-!            ENDIF
 
 ! and to SHAKEstats file:
             CALL neci_flush(6)
@@ -3637,8 +3626,6 @@ MODULE RotateOrbsMod
 
     ENDSUBROUTINE TestShakeConvergence
 
-  
-
     SUBROUTINE FinalizeNewOrbs()
 ! At the end of the orbital rotation, have a set of coefficients CoeffT1 which transform 
 !the HF orbitals into a set of linear
@@ -3746,7 +3733,6 @@ MODULE RotateOrbsMod
         
 
     ENDSUBROUTINE FinalizeNewOrbs
-
 
     SUBROUTINE WriteSingHisttofile()
         INTEGER :: i,j,k,BinNo,a,b,iunit
@@ -4175,9 +4161,6 @@ MODULE RotateOrbsMod
 
 
     ENDSUBROUTINE WriteSingHisttofile 
-
-
-
 
     SUBROUTINE WriteDoubHisttofile()
         INTEGER :: i,j,k,l,BinNo, iunit
@@ -4741,9 +4724,6 @@ MODULE RotateOrbsMod
 
     ENDSUBROUTINE WriteDoubHisttofile 
 
-
-
-
     SUBROUTINE PrintIntegrals()
         INTEGER :: i,j,k,l, io1, io2
         real(dp) :: DiagOneElPot,ERPot,ijVirtOneElPot,ijVirtCoulPot,ijVirtExchPot
@@ -5306,15 +5286,12 @@ MODULE RotateOrbsMod
             CALL PrintROFCIDUMP()
         ENDIF
 
-
-
     ENDSUBROUTINE RefillUMATandTMAT2D
 
-
-    
-
     SUBROUTINE PrintROFCIDUMP()
-!This prints out a new FCIDUMP file in the same format as the old one.
+
+        !This prints out a new FCIDUMP file in the same format as the old one.
+
         INTEGER :: i,j,k,l,iunit
         CHARACTER(len=5) :: Label
         CHARACTER(len=20) :: LabelFull
@@ -5476,15 +5453,11 @@ MODULE RotateOrbsMod
                 g=SymLabelList3_rotInv(k)
                 do j=1,(NoOrbs-(NoFrozenVirt))
                     b=SymLabelList3_rotInv(j)
-!                    Sym=IEOR(INT(G1(j*2)%sym%S),IEOR(INT(G1(k*2)%sym%S),INT(G1(i*2)%sym%S)))
                     ! Potential to put symmetry in here, have currently taken it out, 
                     !because when we're only printing non-zero values,
                     ! it is kind of unnecessary - although it may be used to speed things up.
                     do l=1,j
                         d=SymLabelList3_rotInv(l)
-!                        Syml=INT(G1(l*2)%sym%S)
-!                        IF((Syml.eq.Sym).and.((REAL(UMat(UMatInd(i,j,k,l,0,0)),8)).ne.0.0_dp)) &
-!                        WRITE(6,*) i,a,k,g,j,b,l,d,FourIndInts(a,b,g,d)
                         IF((ABS(FourIndInts(a,g,b,d))).ne.0.0_dp) &
                                         &WRITE(iunit,'(F21.12,4I3)') FourIndInts(a,g,b,d),i,k,j,l 
  
@@ -5536,7 +5509,6 @@ MODULE RotateOrbsMod
             ENDIF
         ENDIF
 
-
         WRITE(iunit,'(F21.12,4I3)') ECore,0,0,0,0
         
         CALL neci_flush(iunit)
@@ -5545,19 +5517,14 @@ MODULE RotateOrbsMod
 
         CALL halt_timer(PrintROFCIDUMP_Time)
 
-
     ENDSUBROUTINE PrintRepeatROFCIDUMP
 
-
-
     SUBROUTINE DeallocateMem()
-        CHARACTER(len=*) , PARAMETER :: this_routine='DeallocateMem'
 
+        CHARACTER(len=*) , PARAMETER :: this_routine='DeallocateMem'
 
         DEALLOCATE(Lab)
         CALL LogMemDealloc(this_routine,LabTag)
-!        DEALLOCATE(CoeffT1Temp)
-!        CALL LogMemDealloc(this_routine,CoeffT1TempTag)
         DEALLOCATE(CoeffT1)
         CALL LogMemDealloc(this_routine,CoeffT1Tag)
         DEALLOCATE(CoeffCorT2)
@@ -5575,10 +5542,6 @@ MODULE RotateOrbsMod
 
         DEALLOCATE(DiagTMAT2Dfull)
         CALL LogMemDealloc(this_routine,DiagTMAT2DfullTag)
-!        DEALLOCATE(ThreeIndInts02Temp)
-!        CALL LogMemDealloc(this_routine,ThreeIndInts02TempTag)
-!        DEALLOCATE(FourIndInts02Temp)
-!        CALL LogMemDealloc(this_routine,FourIndInts02TempTag)
  
         DEALLOCATE(TwoIndInts01)
         CALL LogMemDealloc(this_routine,TwoIndInts01Tag)
@@ -5609,14 +5572,6 @@ MODULE RotateOrbsMod
             DEALLOCATE(TMAT2DRot)
             CALL LogMemDealloc(this_routine,TMAT2DRotTag)
      
-!            DEALLOCATE(TwoIndInts02Temp)
-!            CALL LogMemDealloc(this_routine,TwoIndInts02TempTag)
-!            DEALLOCATE(ThreeIndInts01Temp)
-!            CALL LogMemDealloc(this_routine,ThreeIndInts01TempTag)
-!            DEALLOCATE(ThreeIndInts03Temp)
-!            CALL LogMemDealloc(this_routine,ThreeIndInts03TempTag)
-!            DEALLOCATE(ThreeIndInts04Temp)
-!            CALL LogMemDealloc(this_routine,ThreeIndInts04TempTag)
             DEALLOCATE(TwoIndInts02)
             CALL LogMemDealloc(this_routine,TwoIndInts02Tag)
             DEALLOCATE(ThreeIndInts01)
@@ -5667,112 +5622,4 @@ MODULE RotateOrbsMod
 
     END SUBROUTINE DeallocateMem
  
-
-    SUBROUTINE WriteShakeOUTstats01()
-! Debbugging option
-        INTEGER :: i,j,l,m,a
-
-        WRITE(6,*) 'Original coefficients'
-        do m=1,NoOrbs
-            do a=1,NoOrbs
-                WRITE(6,'(4F20.10)',advance='no') CoeffT1(a,m)
-            enddo
-            WRITE(6,*) ''
-        enddo
-        
-        WRITE(6,*) 'Uncorrected Force'
-        do m=1,NoOrbs
-            do a=1,NoOrbs
-                WRITE(6,'(4F20.10)',advance='no') DerivCoeff(a,m)
-            enddo
-            WRITE(6,*) ''
-        enddo
-
-
-        WRITE(6,*) 'Coefficients at t2, having been shifted by the uncorrected force'
-        do m=1,NoOrbs
-            do a=1,NoOrbs
-                WRITE(6,'(4F20.10)',advance='no') CoeffUncorT2(a,m)
-            enddo
-            WRITE(6,*) ''
-        enddo
-
-        WRITE(6,*) 'The value of each constraint with these new unconstrained coefficients'
-        do l=1,TotNoConstraints
-            i=Lab(1,l)
-            j=Lab(2,l)
-            WRITE(6,'(F20.10)',advance='no') Constraint(l)
-            WRITE(6,*) l,i,j 
-        enddo
-        CALL neci_flush(6) 
-
-    ENDSUBROUTINE WriteShakeOUTstats01
-
-
-
-    SUBROUTINE WriteShakeOUTstats02(ShakeIteration,TotLambdas,ConvergeCount)
-! Debugging option    
-        INTEGER :: m,a,l,ConvergeCount,ShakeIteration
-        real(dp) :: TotLambdas 
-    
-            WRITE(6,*) 'Iteration number ,', ShakeIteration
-
-            WRITE(6,*) 'Lambdas used for this iteration'
-            do l=1,TotNoConstraints
-                WRITE(6,'(10F20.10)') ShakeLambda(l)
-                TotLambdas=TotLambdas+ShakeLambda(l)
-            enddo
-
-            WRITE(6,*) 'Corrected Force'
-            do m=1,NoOrbs
-                do a=1,NoOrbs
-                    WRITE(6,'(4F20.10)',advance='no') ForceCorrect(a,m)
-                enddo
-                WRITE(6,*) ''
-            enddo
-    
-            WRITE(6,*) 'Coefficients having been shifted by the corrected force (at t2)'
-            do m=1,NoOrbs
-                do a=1,NoOrbs
-                    WRITE(6,'(4F20.10)',advance='no') CoeffCorT2(a,m)
-                enddo
-                WRITE(6,*) ''
-            enddo
-            WRITE(6,*) 'total corrected force = ',TotCorrectedForce 
-
-            WRITE(6,*) 'The value of each constraint with the recent constrained coefficients'
-            do l=1,TotNoConstraints
-                WRITE(6,'(10F20.10)',advance='no') ConstraintCor(l)
-            enddo
-
-            WRITE(6,*) 'The number of constraints with values less than the convergence limit'
-            WRITE(6,*) ConvergeCount
-
-
-!            WRITE(6,*) 'Derivative of constraints w.r.t original coefficients (t1)'
-!            do m=1,NoOrbs
-!                WRITE(6,*) 'm equals ', m 
-!                do l=1,TotNoConstraints
-!                    WRITE(6,*) 'i, j equals ',Lab(1,l),Lab(2,l)
-!                    do a=1,NoOrbs
-!                        WRITE(6,'(4F20.10)',advance='no') DerivConstrT1(a,m,l)
-!                    enddo
-!                enddo
-!            enddo
-
-!            WRITE(6,*) 'Derivative of constraints w.r.t shifted coefficients (t2)'
-!            do m=1,NoOrbs
-!                WRITE(6,*) 'm equals ', m  
-!                do l=1,TotNoConstraints
-!                    WRITE(6,*) 'i,j equals ',Lab(1,l),Lab(2,l)
-!                    do a=1,NoOrbs
-!                        WRITE(6,'(4F20.10)',advance='no') DerivConstrT2(a,m,l)
-!                    enddo
-!                enddo
-!            enddo
-
-
-    ENDSUBROUTINE WriteShakeOUTstats02
-   
-
 END MODULE RotateOrbsMod
