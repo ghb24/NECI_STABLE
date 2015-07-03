@@ -78,7 +78,7 @@ contains
         i = int(r)
         res = r - real(i, dp)
 
-        if (res /= 0) then
+        if (abs(res) >= 1.0e-12_dp) then
             if (abs(res) > genrand_real2_dSFMT()) &
                 i = i + nint(sign(1.0_dp, r))
         end if
@@ -98,7 +98,7 @@ contains
         i = int(num)
         res = num - real(i, dp)
 
-        if (res /= 0) then
+        if (abs(res) >= 1.0e-12_dp) then
             if (abs(res) > r) &
                 i = i + nint(sign(1.0_dp, num))
         end if
