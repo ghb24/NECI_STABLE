@@ -591,7 +591,7 @@ module AnnihilationMod
 
                 tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic)
 
-                if (sum(abs(CurrentSign)) > 1.e-12_dp .or. tDetermState) then
+                if (sum(abs(CurrentSign)) >= 1.e-12_dp .or. tDetermState) then
                     ! Transfer new sign across.
                     call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
                     call encode_sign(SpawnedParts(:,i), null_part)
