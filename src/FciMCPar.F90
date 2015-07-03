@@ -21,10 +21,10 @@ module FciMCParMod
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
                             attempt_die_spin_proj
-    use rdm_data, only: tCalc_RDMEnergy, rdms
+    use rdm_data, only: tCalc_RDMEnergy, rdms, rdm_estimates
     use rdm_general, only: FinaliseRDMs
-    use rdm_filling, only: fill_rdm_offdiag_deterministic
-    use rdm_estimators, only: rdm_output_wrapper
+    use rdm_filling, only: fill_rdm_offdiag_deterministic, fill_rdm_diag_wrapper
+    use rdm_estimators, only: rdm_output_wrapper, write_rdm_estimates
     use rdm_explicit, only: fill_explicitrdm_this_iter, fill_hist_explicitrdm_this_iter
     use procedure_pointers, only: attempt_die_t, generate_excitation_t, &
                                   get_spawn_helement_t
@@ -34,7 +34,8 @@ module FciMCParMod
     use trial_wf_gen, only: update_compare_trial_file, &
                             update_compare_trial_file, init_trial_wf
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
-    use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps
+    use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
+                             orthogonalise_replica_pairs
     use load_balance, only: tLoadBalanceBlocks, adjust_load_balance
     use bit_reps, only: set_flag, clr_flag, add_ilut_lists
     use exact_diag, only: perform_exact_diag_all_symmetry
@@ -74,7 +75,7 @@ module FciMCParMod
 #endif
         integer :: iroot, isymh
         real(dp) :: Weight, Energyxw, BestEnergy
-        INTEGER :: error
+        INTEGER :: error, irdm
         LOGICAL :: TIncrement, tWritePopsFound, tSoftExitFound, tSingBiasChange, tPrintWarn
         REAL(sp) :: s_start, s_end, tstart(2), tend(2), totaltime
         real(dp) :: TotalTime8
@@ -406,17 +407,21 @@ module FciMCParMod
                 CALL WriteHistogram()
             ENDIF
 
-            if (tRDMonFly .and. (.not. tSinglePartPhase(1)) .and. (.not. tSinglePartPhase(inum_runs))) then
+            if (tRDMonFly .and. all(.not. tSinglePartPhase)) then
                 ! If we wish to calculate the energy, have started accumulating the RDMs, 
                 ! and this is an iteration where the energy should be calculated, do so.
                 if(tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)) .gt. IterRDMonFly) &
-                    .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .eq. 0) ) &
-                        call rdm_output_wrapper(rdms(1), Norm_2RDM)
+                    .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .eq. 0) ) then
+                        do irdm = 1, nrdms
+                            call rdm_output_wrapper(rdms(irdm), irdm, rdm_estimates(irdm))
+                        end do
+                        if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates)
+                end if
             end if
 
             if (tChangeVarsRDM) then
                 ! Decided during the CHANGEVARS that the RDMs should be calculated.
-                call InitRDMs(1)
+                call InitRDMs(nrdms)
                 tRDMonFly = .true.
                 tChangeVarsRDM = .false.
             endif
@@ -474,7 +479,7 @@ module FciMCParMod
             CALL PrintOrbOccs(OrbOccs)
         ENDIF
 
-        if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) call FinaliseRDMs(rdms)
+        if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) call FinaliseRDMs(rdms, rdm_estimates)
 
         call PrintHighPops()
 
@@ -641,7 +646,7 @@ module FciMCParMod
         HElement_t :: HDiagTemp,HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
         HElement_t, dimension(inum_runs) :: delta
-        integer :: proc, pos, determ_index
+        integer :: proc, pos, determ_index, irdm
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
         integer :: DetHash, FinalVal, clash, PartInd, k, y
         type(ll_node), pointer :: TempNode
@@ -764,10 +769,12 @@ module FciMCParMod
                 call set_iter_occ(j, IterRDMStartCurr)
                 ! If this is an iteration where we print out the RDM energy,
                 ! add in the diagonal contribution to the RDM for this
-                ! determinant.
-                if(tFill_RDM .and. (.not. tNoNewRDMContrib)) then
-                    call fill_rdm_diag_currdet(rdms(1), CurrentDets(:,j), DetCurr, j, &
-                                                walkExcitLevel_toHF, tCoreDet)
+                ! determinant, for each rdm.
+                if (tFill_RDM .and. (.not. tNoNewRDMContrib)) then
+                    do irdm = 1, nrdms
+                        call fill_rdm_diag_currdet(rdms(irdm), irdm, CurrentDets(:,j), DetCurr, j, &
+                                                    walkExcitLevel_toHF, tCoreDet)
+                    end do
                 endif
             endif
 
@@ -969,7 +976,7 @@ module FciMCParMod
                 ! (the diagonal contributions are done in the same place for
                 ! all determinants, regardless of whether they are core or not,
                 ! so are not added in here).
-                if(tFill_RDM) call fill_RDM_offdiag_deterministic()
+                if (tFill_RDM) call fill_RDM_offdiag_deterministic(rdms)
             end if
         end if
 
@@ -1007,6 +1014,8 @@ module FciMCParMod
         else if (tPrintReplicaOverlaps .and. inum_runs > 1) then
             call calc_replica_overlaps()
         end if
+
+        if (tFillingStochRDMonFly .and. (.not. tCoreDet)) call fill_rdm_diag_wrapper(rdms, CurrentDets, TotWalkers)
 
         call update_iter_data(iter_data)
 

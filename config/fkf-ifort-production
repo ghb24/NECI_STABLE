@@ -15,6 +15,7 @@ cflags = -g -C -traceback -DZLIB
 f90flags = -check bounds -stand f03
 
 [opt]
+# n.b. -xHost can be replaced with -xavx (or nothing) if processors are inhomogeneous in a cluster.
 fflags = -r8 -O3 -i8 -ipo -pc64 -auto -warn nousage -xHost
 cflags = -O -DZLIB -ipo -xHost
 f90flags = -stand f03

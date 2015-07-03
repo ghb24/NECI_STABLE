@@ -44,7 +44,7 @@ def process_f(dir, fn, tgt_dir, tmp_dir):
     # Get the source and target full filenames. Note we convert .F to .f
     root, ext = os.path.splitext(fn)
     src_file = os.path.join(dir, fn)
-    tgt_file = os.path.join(tgt_dir, "{}.f".format(root.lower()))
+    tgt_file = os.path.join(tgt_dir, "{0}.f".format(root.lower()))
     shutil.copyfile(src_file, tgt_file)
 
 
@@ -56,7 +56,7 @@ def process_f90(dir, fn, tgt_dir, tmp_dir):
     # Get the source and target full filenames. Note we convert .F90 to .f90
     root, ext = os.path.splitext(fn)
     src_file = os.path.join(dir, fn)
-    tgt_file = os.path.join(tgt_dir, "{}.f90".format(root.lower()))
+    tgt_file = os.path.join(tgt_dir, "{0}.f90".format(root.lower()))
     assert ext == ".F90"
     assert src_file != tgt_file
 
@@ -73,7 +73,7 @@ def process_f90(dir, fn, tgt_dir, tmp_dir):
         else:
             # We wish to move all modules other than the _last_ module into other
             # files.
-            print "Rejecting F90 file {} with {} modules".format(src_file, len(found_mods))
+            print "Rejecting F90 file {0} with {1} modules".format(src_file, len(found_mods))
             return
 
 

@@ -58,6 +58,7 @@ module fcimc_helper
                                global_determinant_data, set_iter_occ, &
                                get_part_init_time, det_diagH, get_spawn_count
     use searching, only: BinSearchParts2
+    use rdm_data, only: nrdms
     implicit none
     save
 
@@ -790,12 +791,12 @@ contains
 
     end function TestInitiator
 
-
-    subroutine rezero_iter_stats_each_iter (iter_data)
+    subroutine rezero_iter_stats_each_iter(iter_data)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
+
         real(dp) :: prev_AvNoatHF(lenof_sign), AllInstNoatHF(lenof_sign)
-        integer :: j
+        integer :: irdm, ind1, ind2, part_type
 
         NoInitDets = 0
         NoNonInitDets = 0
@@ -816,87 +817,105 @@ contains
 
         call InitHistMin()
 
-        if(tFillingStochRDMonFly) then
+        if (tFillingStochRDMonFly) then
             call MPISumAll(InstNoatHF, AllInstNoAtHF)
-            InstNoAtHF=AllInstNoAtHF
+            InstNoAtHF = AllInstNoAtHF
+
             if (tFullHFAv) then
-                Prev_AvNoatHF(1) = AvNoatHF(1)
-                if (IterRDM_HF(1).ne.0) AvNoatHF(1) = ( (real((Iter+PreviousCycles - IterRDM_HF(1)),dp) * Prev_AvNoatHF(1)) &
-                                            + InstNoatHF(1) ) / real((Iter+PreviousCycles - IterRDM_HF(1)) + 1,dp)
-                if(inum_runs.eq.2) then
-                    Prev_AvNoatHF(inum_runs) = AvNoatHF(inum_runs)
-                   if(IterRDM_HF(inum_runs).ne.0) AvNoatHF(inum_runs) = &
-                               & ( (real((Iter+PreviousCycles - IterRDM_HF(inum_runs)),dp) * &
-                                 &       Prev_AvNoatHF(inum_runs)) + InstNoatHF(inum_runs) ) &
-                                 &   / real((Iter+PreviousCycles - IterRDM_HF(inum_runs)) + 1,dp)
-                endif
+                Prev_AvNoatHF = AvNoatHF
+
+                do ind1 = 1, lenof_sign
+                    if (IterRDM_HF(ind1) .ne. 0.0_dp) then
+                        AvNoatHF(ind1) = ( (real((Iter+PreviousCycles - IterRDM_HF(ind1)),dp) * Prev_AvNoatHF(ind1)) &
+                                                + InstNoatHF(ind1) ) / real((Iter+PreviousCycles - IterRDM_HF(ind1)) + 1, dp)
+                    end if
+                end do
             else
-                if(((Iter+PreviousCycles-IterRDMStart).gt.0) .and. &
-                    & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0)) then 
-                ! The previous iteration was one where we added in diagonal elements
-                ! To keep things unbiased, we need to set up a new averaging block now.
-                    AvNoAtHF=InstNoAtHF
-                    IterRDM_HF(1)=real(Iter+PreviousCycles,dp)
-                    IterRDM_HF(inum_runs)=real(Iter+PreviousCycles,dp)
+                if (((Iter+PreviousCycles-IterRDMStart) .gt. 0) .and. &
+                    & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1), RDMEnergyIter) .eq. 0)) then 
+                    ! The previous iteration was one where we added in diagonal
+                    ! elements To keep things unbiased, we need to set up a new
+                    ! averaging block now.
+                    AvNoAtHF = InstNoAtHF
+                    IterRDM_HF = real(Iter + PreviousCycles, dp)
                 else
-                    if((InstNoatHF(1).eq.0.0).and.(InstNoAtHF(lenof_sign).eq.0.0) &
-                        .and. (.not. tSemiStochastic)) then
-                        !The HF determinant won't be in currentdets, so the CurrentH averages will have been wiped.
-                        !NB - there will be a small issue here if the HF determinant isn't in the core space
-                        IterRDM_HF(1) = 0.0_dp
-                        AvNoatHF(1) = 0.0_dp
-                        if(inum_runs.eq.2) then
-                            IterRDM_HF(inum_runs) = 0.0_dp 
-                            AvNoatHF(inum_runs) = 0.0_dp
-                        endif
-                    elseif(((InstNoAtHF(1).eq.0.0).and.(IterRDM_HF(1).ne.0)) .or. &
-                       &  ((InstNoAtHF(inum_runs).eq.0.0).and.(IterRDM_HF(inum_runs).ne.0))) then
-                        !At least one of the populations has just become zero
-                        !Start a new averaging block
-                        IterRDM_HF(1) = Iter+PreviousCycles  
-                        AvNoatHF(1) = InstNoAtHF(1)
-                        IterRDM_HF(inum_runs) = Iter+PreviousCycles  
-                        AvNoatHF(inum_runs) = InstNoAtHF(inum_runs)
-                        do j=1,inum_runs
-                            if(InstNoAtHF(j).eq.0) then
-                                IterRDM_HF(j)=0
-                            endif
-                        enddo
-                    elseif(((InstNoAtHF(1).ne.0).and.(IterRDM_HF(1).eq.0)) .or. &
-                           ((InstNoAtHF(inum_runs).ne.0).and.(IterRDM_HF(inum_runs).eq.0))) then
-                            !At least one of the populations has just become occupied
-                            !Start a new block here
-                            IterRDM_HF(1)=real(Iter+PreviousCycles,dp)
-                            IterRDM_HF(inum_runs)=real(Iter+PreviousCycles,dp)
-                            AvNoAtHF(1)=InstNoAtHF(1)
-                            AvNoAtHF(inum_runs)=InstNoAtHF(inum_runs)
-                            do j=1,inum_runs
-                                if(InstNoAtHF(j).eq.0) then
-                                    IterRDM_HF(j)=0
-                                endif
-                            enddo
+                    if (tPairedReplicas) then
+                        do irdm = 1, nrdms
+
+                            ! The indicies of the first and second replicas in this
+                            ! particular pair, in the sign arrays.
+                            ind1 = irdm*2-1
+                            ind2 = irdm*2
+
+                            if (((InstNoAtHF(ind1) .eq. 0.0_dp) .and. (IterRDM_HF(ind1) .ne. 0.0_dp)) .or. &
+                                ((InstNoAtHF(ind2) .eq. 0.0_dp) .and. (IterRDM_HF(ind2) .ne. 0.0_dp))) then
+                                ! At least one of the populations has just become
+                                ! zero. Start a new averaging block.
+                                IterRDM_HF(ind1) = Iter + PreviousCycles
+                                IterRDM_HF(ind2) = Iter + PreviousCycles
+                                AvNoatHF(ind1) = InstNoAtHF(ind1)
+                                AvNoatHF(ind2) = InstNoAtHF(ind2)
+                                if (InstNoAtHF(ind1) .eq. 0.0_dp) IterRDM_HF(ind1) = 0.0_dp
+                                if (InstNoAtHF(ind2) .eq. 0.0_dp) IterRDM_HF(ind2) = 0.0_dp
+
+                            else if (((InstNoAtHF(ind1) .ne. 0.0_dp) .and. (IterRDM_HF(ind1) .eq. 0.0_dp)) .or. &
+                                     ((InstNoAtHF(ind2) .ne. 0.0_dp) .and. (IterRDM_HF(ind2) .eq. 0.0_dp))) then
+                                ! At least one of the populations has just
+                                ! become occupied. Start a new block here.
+                                IterRDM_HF(ind1) = real(Iter + PreviousCycles, dp)
+                                IterRDM_HF(ind2) = real(Iter + PreviousCycles, dp)
+                                AvNoAtHF(ind1) = InstNoAtHF(ind1)
+                                AvNoAtHF(ind2) = InstNoAtHF(ind2)
+                                if (InstNoAtHF(ind1) .eq. 0.0_dp) IterRDM_HF(ind1) = 0.0_dp
+                                if (InstNoAtHF(ind2) .eq. 0.0_dp) IterRDM_HF(ind2) = 0.0_dp
+                            else
+                                Prev_AvNoatHF = AvNoatHF
+
+                                do part_type = 2*irdm-1, 2*irdm
+                                    if (IterRDM_HF(part_type) .ne. 0.0_dp) then
+                                         AvNoatHF(part_type) = ((real((Iter+PreviousCycles - IterRDM_HF(part_type)), dp) &
+                                                                    * Prev_AvNoatHF(part_type)) + InstNoatHF(part_type) ) &
+                                                                    / real((Iter+PreviousCycles - IterRDM_HF(part_type)) + 1, dp)
+                                    end if
+                                end do
+                            end if
+                        end do
+
                     else
-                        Prev_AvNoatHF(1) = AvNoatHF(1)
-                        if (IterRDM_HF(1).ne.0) AvNoatHF(1) =((real((Iter+PreviousCycles - IterRDM_HF(1)),dp) &
-                                                        * Prev_AvNoatHF(1)) + InstNoatHF(1) ) &
-                                                        / real((Iter+PreviousCycles - IterRDM_HF(1)) + 1,dp)
-                        if(inum_runs.eq.2) then
-                            Prev_AvNoatHF(inum_runs) = AvNoatHF(inum_runs)
-                           if(IterRDM_HF(inum_runs).ne.0) AvNoatHF(inum_runs)=&
-                                                ((real((Iter+PreviousCycles-IterRDM_HF(inum_runs)),dp) * &
-                                                Prev_AvNoatHF(inum_runs)) + InstNoatHF(inum_runs) ) &
-                                                / real((Iter+PreviousCycles - IterRDM_HF(inum_runs)) + 1,dp)
-                        endif
-                    endif
-                endif
-            endif
-        endif
+                        do irdm = 1, nrdms
+
+                            if ((InstNoAtHF(irdm) .eq. 0.0_dp) .and. (IterRDM_HF(irdm) .ne. 0.0_dp)) then
+                                ! At least one of the populations has just become
+                                ! zero. Start a new averaging block.
+                                IterRDM_HF(irdm) = 0.0_dp
+                                AvNoatHF(irdm) = 0.0_dp
+
+                            else if ((InstNoAtHF(irdm) .ne. 0.0_dp) .and. (IterRDM_HF(irdm) .eq. 0.0_dp)) then
+                                ! At least one of the populations has just
+                                ! become occupied. Start a new block here.
+                                IterRDM_HF(irdm) = real(Iter + PreviousCycles, dp)
+                                AvNoAtHF(irdm) = InstNoAtHF(irdm)
+                            else
+                                Prev_AvNoatHF = AvNoatHF
+
+                                if (IterRDM_HF(irdm) .ne. 0.0_dp) then
+                                     AvNoatHF(irdm) = ((real((Iter+PreviousCycles - IterRDM_HF(irdm)), dp) &
+                                                                * Prev_AvNoatHF(irdm)) + InstNoatHF(irdm) ) &
+                                                                / real((Iter+PreviousCycles - IterRDM_HF(irdm)) + 1, dp)
+                                end if
+                            end if
+                        end do
+
+                    end if
+                end if
+            end if
+        end if
         HFInd = 0
 
         min_trial_ind = 1
         min_conn_ind = 1
 
-    end subroutine
+    end subroutine rezero_iter_stats_each_iter
 
     subroutine InitHistMin ()
 
@@ -1596,7 +1615,7 @@ contains
         real(dp), dimension(lenof_sign) :: iDie
         real(dp), dimension(lenof_sign) :: CopySign
         integer, intent(in) :: walkExcitLevel
-        integer :: i
+        integer :: i, irdm
         character(len=*), parameter :: t_r = "walker_death"
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
@@ -1648,7 +1667,9 @@ contains
         else
             ! All walkers died.
             if(tFillingStochRDMonFly) then
-                call det_removed_fill_diag_rdm(rdms(1), CurrentDets(:,DetPosition), DetPosition)
+                do irdm = 1, nrdms
+                    call det_removed_fill_diag_rdm(rdms(irdm), irdm, CurrentDets(:,DetPosition), DetPosition)
+                end do
                 ! Set the average sign and occupation iteration to zero, so
                 ! that the same contribution will not be added in in
                 ! CalcHashTableStats, if this determinant is not overwritten
@@ -1693,11 +1714,11 @@ contains
 
         tFullVaryShift=.false.
 
-        if (.not. tSinglePartPhase(1).and.(.not.tSinglePartPhase(inum_runs))) tFullVaryShift=.true.
+        if (all(.not. tSinglePartPhase)) tFullVaryShift = .true.
 
         ! If we're reading in the RDMs we've already started accumulating them in a previous calculation
         ! We don't want to put in an arbitrary break now!
-        if (tReadRDMs) IterRDMonFly=0
+        if (tReadRDMs) IterRDMonFly = 0
 
         if (tFullVaryShift .and. ((Iter - maxval(VaryShiftIter)).eq.(IterRDMonFly+1))) then
         ! IterRDMonFly is the number of iterations after the shift has changed that we want 
@@ -1707,10 +1728,10 @@ contains
             IterRDM_HF = Iter + PreviousCycles
 
             ! We have reached the iteration where we want to start filling the RDM.
-            if(tExplicitAllRDM) then
+            if (tExplicitAllRDM) then
                 ! Explicitly calculating all connections - expensive...
-                if(inum_runs.eq.2) call stop_all('check_start_rdm',"Cannot yet do replica RDM sampling with explicit RDMs. &
-                    & e.g Hacky bit in Gen_Hist_ExcDjs to make it compile")
+                if (tPairedReplicas) call stop_all('check_start_rdm',"Cannot yet do replica RDM sampling with explicit RDMs. &
+                    & e.g Hacky bit in Gen_Hist_ExcDjs to make it compile.")
                 
                 tFillingExplicRDMonFly = .true.
                 if(tHistSpawn) NHistEquilSteps = Iter

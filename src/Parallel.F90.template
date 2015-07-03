@@ -1533,6 +1533,7 @@ contains
         integer(MPIArg) :: iProcInd, nProcess, ierr
         integer :: a, g,MolpComm
         character(len=20) NodeFile
+        character(len=8) MCPUs
         logical, save :: initialised=.false.
         character(*), parameter :: t_r = 'MPIInit'
 
@@ -1543,7 +1544,7 @@ contains
             if(tExternal) then
                 write(6,*) 'Using external MPI configuration'
             else 
-#ifndef MOLPRO
+#if !(defined(MOLPRO) || defined(_MOLCAS_))
                 write(6,*) 'Initing MPI'
 
                 call MPI_Init (ierr)
@@ -1573,6 +1574,10 @@ contains
                 call stop_all (t_r, 'MPI Error. Terminating.')
 
             call MPI_Comm_size (CommGlobal, nProcess, ierr)
+#ifdef _MOLCAS_
+            call getenvf('MOLCAS_CPUS',MCPUs)
+            Read(MCPUS,*) nProcess
+#endif
             nProcessors = nProcess
             if (ierr /= MPI_SUCCESS) &
                 call stop_all (t_r, 'MPI Error. Terminating.')
@@ -1768,11 +1773,11 @@ contains
         initialised=.true.
 
         ! Allocate (temporary) memory
-        allocate(Nodes(0:nProcessors-1))
-        allocate(ProcNode(0:nProcessors-1))
-        allocate(NodeRoots(0:nProcessors-1))
+        if(.not.allocated(Nodes)) allocate(Nodes(0:nProcessors-1))
+        if(.not.allocated(ProcNode)) allocate(ProcNode(0:nProcessors-1))
+        if(.not.allocated(NodeRoots)) allocate(NodeRoots(0:nProcessors-1))
 #ifdef PARALLEL
-        allocate(NodeLengths(0:nProcessors))  !Temp allocate for now
+        if(.not.allocated(NodeLengths)) allocate(NodeLengths(0:nProcessors)) !Temp allocate for now
         NodeLengths = 0
 
         if (iLogicalNodeSize /= 0) &
@@ -1857,11 +1862,11 @@ contains
         call MPIBCast(ProcNode)
         call MPIBCast(NodeRoots)
 
-        allocate(CommNodes(0:nNodes-1))
-        allocate(CommNodesDum(0:nNodes-1))
-        allocate(GroupNodes(0:nNodes-1))
-        allocate(GroupNodesDum(0:nNodes-1))
-        allocate(NodeLengths(0:nNodes-1))
+        if(.not.allocated(CommNodes)) allocate(CommNodes(0:nNodes-1))
+        if(.not.allocated(CommNodesDum)) allocate(CommNodesDum(0:nNodes-1))
+        if(.not.allocated(GroupNodes)) allocate(GroupNodes(0:nNodes-1))
+        if(.not.allocated(GroupNodesDum)) allocate(GroupNodesDum(0:nNodes-1))
+        if(.not.allocated(NodeLengths)) allocate(NodeLengths(0:nNodes-1))
         Node = Nodes(iProcIndex)
         iNodeIndex = Node%n  !Used as a plain integer version.
      !   write(6,*) iNodeIndex,iProcIndex,Node%n,size(NodeRoots)
@@ -1914,9 +1919,9 @@ contains
         ProcNode(0) = 0
         NodeRoots(0) = 0
         bNodeRoot = .true.
-        allocate(NodeLengths(0:nNodes-1))
-        allocate(CommNodes(0:nNodes-1))
-        allocate(GroupNodes(0:nNodes-1))
+        if(.not.allocated(NodeLengths)) allocate(NodeLengths(0:nNodes-1))
+        if(.not.allocated(CommNodes)) allocate(CommNodes(0:nNodes-1))
+        if(.not.allocated(GroupNodes)) allocate(GroupNodes(0:nNodes-1))
         NodeLengths(0) = 1
 #endif /* def PARALLEL */
         Roots%n = -1  !A communicator index between roots
@@ -2018,6 +2023,18 @@ contains
         iMinElec = 1
         iMaxElec = nEl
 #endif
+    end subroutine
+
+    subroutine clean_parallel()
+        if(allocated(Nodes)) deallocate(Nodes)
+        if(allocated(ProcNode)) deallocate(ProcNode)
+        if(allocated(NodeRoots)) deallocate(NodeRoots)
+        if(allocated(NodeLengths)) deallocate(NodeLengths)
+        if(allocated(CommNodes)) deallocate(CommNodes)
+        if(allocated(CommNodesDum)) deallocate(CommNodesDum)
+        if(allocated(GroupNodes)) deallocate(GroupNodes)
+        if(allocated(GroupNodesDum)) deallocate(GroupNodesDum)
+        if(allocated(NodeLengths)) deallocate(NodeLengths)
     end subroutine
 
 end supermodule

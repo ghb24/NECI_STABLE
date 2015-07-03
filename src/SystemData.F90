@@ -7,7 +7,7 @@ implicit none
 
 save
 
-logical :: tMolpro  !True if the code has been called from Molpro
+logical :: tMolpro,tMolcas  !True if the code has been called from Molpro or Molcas
 logical :: tMolproMimic !True if the code is being run from standalone neci, but designed to mimic the runtime 
                         !behaviour of molpro
 character(12) :: MolproID
@@ -218,7 +218,7 @@ LOGICAL :: tSymIgnoreEnergies
     logical :: tAllSymSectors
 
     logical :: tGenHelWeighted, tGen_4ind_weighted, tGen_4ind_reverse
-    logical :: tUEGNewGenerator
+    logical :: tUEGNewGenerator, tGen_4ind_part_exact, tGen_4ind_lin_exact
 
     ! Are we using multiple replicas?
     logical :: tMultiReplicas

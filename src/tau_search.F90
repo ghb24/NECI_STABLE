@@ -324,13 +324,17 @@ contains
         ! update it. Once we have a reasonable sample of excitations, then we
         ! can permit tau to increase if we have started too low.
         if (tau_new < tau .or. ((tUEG .or. enough_sing) .and. enough_doub))then
+
+            ! Make the final tau smaller than tau_new by a small amount
+            ! so that we don't get spawns exactly equal to the
+            ! initiator threshold, but slightly below it instead.
+            tau_new = tau_new * 0.99999_dp
+
             if (abs(tau - tau_new) / tau > 0.001_dp) then
                 root_print "Updating time-step. New time-step = ", tau_new
             end if
-            ! Make the final tau smaller than tau_new by a small amount
-            ! (10^-6), so that we don't get spawns exactly equal to the
-            ! initiator threshold, but slightly below it instead.
-            tau = tau_new - 1.e-6_dp
+            tau = tau_new
+
         end if
 
         ! Make sure that we have at least some of both singles and doubles
