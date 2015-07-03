@@ -144,6 +144,7 @@ contains
     integer(li), intent(in), optional :: MemSize
     logical, intent(in), optional :: print_err
     integer(li) :: MaxMemBytes,MemSizeMolcas
+    character(len=16) MMem
 #if defined(MOLPRO)
     integer(li), parameter :: MaxMemLimit=8192   !It would be nice to get this straight from molpro.
 #elif !defined(_MOLCAS_)

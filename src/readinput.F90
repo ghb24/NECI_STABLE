@@ -519,12 +519,7 @@ MODULE ReadInput_neci
         if (tRDMonFly) then
             write(6,*) 'RDM on fly'
 
-            if (tMultiReplicas) then
-                if (inum_runs /= lenof_sign .or. &
-                    .not. (inum_runs == 1 .or. inum_runs == 2)) &
-                    call stop_all(t_r, 'Stochastic filling of RDMs only works &
-                                       &with either 1 or 2 replicas')
-            else
+            if (.not. tMultiReplicas) then
                 write(6,*) 'unspecified'
                 write(6,*) 'Filling RDMs without explicitly specifying the &
                            &number of replica simplations'
