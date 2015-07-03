@@ -1056,14 +1056,14 @@ contains
             if (RDMExcitLevel .eq. 1) then
                 call make_1e_rdm_hermitian(Norm_1RDM)
                 
-                if (tForceCauchySchwarz)then
+                if (tForceCauchySchwarz) then
                     call Force_Cauchy_Schwarz(Norm_1RDM)
                 end if
 
             end if
             
             ! Write out the final, normalised, hermitian OneRDM.                
-            if (twrite_normalised_RDMs) call Write_out_1RDM(Norm_1RDM, .true.)
+            if (tWrite_normalised_RDMs) call Write_out_1RDM(Norm_1RDM, .true.)
 
             write(6,'(1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
 
@@ -1244,7 +1244,7 @@ contains
             write(6,'(1X,"Writing out the *normalised* 1 electron density matrix to file")')
             call neci_flush(6)
             OneRDM_unit = get_free_unit()
-            open(OneRDM_unit,file='OneRDM',status='unknown')
+            open(OneRDM_unit, file='OneRDM', status='unknown')
         else
             ! Only every write out 1 of these at the moment.
             write(6,'(1X,"Writing out the *unnormalised* 1 electron density matrix to file for reading in")')
@@ -1275,7 +1275,7 @@ contains
                         if (tNormalise .and. (i .le. j)) then
                             if (((mod(i,2).eq.0) .and. (mod(j,2) .eq. 0)) .or. &
                                 ((mod(i,2).ne.0) .and. (mod(j,2) .ne. 0))) then
-                                write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
+                                write(OneRDM_unit,"(2I6,G25.17)") i, j, & 
                                     ( NatOrbMat(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat)) &
                                                                     * Norm_1RDM ) / 2.0_dp
                             end if
