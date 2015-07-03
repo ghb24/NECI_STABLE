@@ -1,3 +1,7 @@
+#ifdef _MOLCAS_
+#include "molcas_wrapper.h"
+#endif
+
 #ifndef __CYGWIN__
 #include <execinfo.h>
 #endif

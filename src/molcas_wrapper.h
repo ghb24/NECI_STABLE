@@ -1,6 +1,3 @@
-! This file contains all of the relevant compiler defines for _MOLCAS_ so that we
-! don't have to pollute their build system
-
 #ifdef _MOLCAS_
 
 
@@ -14,7 +11,6 @@
 #define DSFMT_MEXP=19937
 
 
-! The Lemony dude needs to check this
 #ifdef _MOLCAS_MPP
 #define PARALLEL
 #define __SHARED_MEM
