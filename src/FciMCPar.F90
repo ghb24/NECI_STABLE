@@ -1015,7 +1015,8 @@ module FciMCParMod
             call calc_replica_overlaps()
         end if
 
-        if (tFillingStochRDMonFly .and. (.not. tCoreDet)) call fill_rdm_diag_wrapper(rdms, CurrentDets, TotWalkers)
+        if (tFillingStochRDMonFly .and. (.not. tCoreDet)) call fill_rdm_diag_wrapper(rdms, CurrentDets, &
+                                                                                     int(TotWalkers, sizeof_int))
 
         call update_iter_data(iter_data)
 

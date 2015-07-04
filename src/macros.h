@@ -76,9 +76,9 @@ endif
 #else
 #define ARR_RE_OR_CPLX(arr,index) cmplx(arr(1), arr(2), dp)
 #endif
-#elif __DOUBLERUN
+#elif defined(__DOUBLERUN)
 #define ARR_RE_OR_CPLX(arr,index) real(arr(index), dp)
-#elif __PROG_NUMRUNS
+#elif defined(__PROG_NUMRUNS)
 #define ARR_RE_OR_CPLX(arr,index) real(arr(index), dp)
 #else
 #define ARR_RE_OR_CPLX(arr,index) real(arr(1), dp)

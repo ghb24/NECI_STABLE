@@ -75,7 +75,7 @@ contains
                    &24.NumContribtoE(Im)  25.HF weight   26.|Psi|    &
                    &27.Inst S^2  28.SpawnedParts  29.MergedParts  &
                    &30.Zero elems   31.PartsDiffProc   32.MaxCycSpawn"
-#elif __DOUBLERUN
+#elif defined(__DOUBLERUN)
             write(fcimcstats_unit2, "(a,i4,a,l1,a,l1,a,l1)") &
                   "# FCIMCStats VERSION 2 - REAL : NEl=", nel, &
                   " HPHF=", tHPHF, ' Lz=', tFixLz, &
@@ -244,7 +244,7 @@ contains
                     Iter + PreviousCycles, DiagSft, DiagSftRe, DiagSftIm, &
                     sum(AllTotParts), AllTotParts(1), AllTotParts(lenof_sign)
             endif
-#elif __DOUBLERUN
+#elif defined(__DOUBLERUN)
             write(fcimcstats_unit2,"(i12,7g16.7,5g18.9e3,g13.5,i12,g13.5,g17.5,&
                                    &i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3,&
                                    &i13,2g16.7)",advance = 'no') &

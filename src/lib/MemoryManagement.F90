@@ -161,9 +161,10 @@ contains
     if (present(MemSize)) then
         MaxMemBytes=MemSize*1024**2
     else
-        MaxMemBytes=MaxMemLimit*1024**2
 #ifdef _MOLCAS_
-          MaxMemBytes = MemSizeMolcas*1024**2
+        MaxMemBytes = MemSizeMolcas*1024**2
+#else
+        MaxMemBytes=MaxMemLimit*1024**2
 #endif
     end if
     if (present(print_err)) then
