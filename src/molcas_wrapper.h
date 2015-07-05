@@ -8,7 +8,7 @@
 #define __INT64
 #define HAVE_SSE2
 #define __Linux
-#define DSFMT_MEXP=19937
+#define DSFMT_MEXP 19937
 
 
 #ifdef _MOLCAS_MPP

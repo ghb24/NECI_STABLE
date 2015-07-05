@@ -1,4 +1,4 @@
-#ifdef _MOLCAS_
+#if defined(_MOLCAS_)
 module EN2Molcas
 implicit NONE
 REAL, public :: NECI_E
@@ -18,10 +18,8 @@ end module EN2Molcas
 !        write(6,*) 'NECI_E in necimain', NECI_E
         NECIen=NECI_E
       end subroutine NECImain
-#endif
 
-#ifdef CBINDMPI
-
+#elif defined(CBINDMPI)
     ! If calling from C, then we need to have an available fortran calling
     ! point available to the C-start point
     
