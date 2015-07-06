@@ -10,8 +10,10 @@
 
 #define lenof(x) ((sizeof((x)))/(sizeof((x)[0])))
 
+#ifdef __cplusplus
 extern "C" void print_backtrace_neci ()
 {
+#endif
 #ifndef __CYGWIN__
 	void * buf[30];
 	int n = backtrace (buf, lenof(buf));
@@ -26,5 +28,7 @@ extern "C" void print_backtrace_neci ()
 	printf ("-----------------------------------\n");
 	free (strs);
 #endif
+#ifdef __cplusplus
 }
+#endif
 
