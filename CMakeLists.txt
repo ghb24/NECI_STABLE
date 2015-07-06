@@ -15,10 +15,8 @@ file(GLOB_RECURSE UNIT_TEST_FILES unit_tests/*.F90 unit_tests/*.f90)
 set(UNIT_TEST_FILES ${UNIT_TEST_FILES} ${F90_FILES})
 list(REMOVE_ITEM UNIT_TEST_FILES ${CMAKE_SOURCE_DIR}/src/necimain.F90)
 
-get_filename_component(Fortran_COMPILER_NAME ${CMAKE_Fortran_COMPILER} NAME)
-
 # Deal with compiler specific issues
-if (Fortran_COMPILER_NAME MATCHES "ifort.*")
+if(CMAKE_Fortran_COMPILER_ID STREQUAL Intel)
 	# -i_dynamic is incorrectly added in CMake ifort configuration
 	set(CMAKE_SHARED_LIBRARY_LINK_Fortran_FLAGS "")
 endif()
@@ -74,7 +72,7 @@ foreach(target ${TARGETS})
 	set_target_properties(${target} PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules/${target})
 
 	# Ensure that we use the Fortran compiler for linking
-	set_target_properties(neci PROPERTIES LINKER_LANGUAGE Fortran)
+	set_target_properties(${target} PROPERTIES LINKER_LANGUAGE Fortran)
 
 endforeach(target)
 
@@ -115,9 +113,18 @@ endif()
 add_definitions(-D__Linux)
 add_definitions(-DPOINTER8)
 add_definitions(-DHAVE_SSE2)
-add_definitions(-D__INT64)
-#add_definitions(-D__IFORT)
-add_definitions(-D__GFORTRAN__)
+
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+	add_definitions(-D__INT64)
+	add_definitions(-DPOINTER8)
+endif()
+
+if(CMAKE_Fortran_COMPILER_ID STREQUAL Intel)
+	add_definitions(-D__IFORT)
+else()
+	add_definitions(-D__GFORTRAN__)
+endif()
+
 add_definitions(-DMAXMEM=99999)
 add_definitions(-DDSFMT_MEXP=19937)
 add_definitions(-D_CONFIG="CMake-new")
