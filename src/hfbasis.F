@@ -793,7 +793,7 @@ C.. vector unless transposed
      &               (FRAND*RAN2(irand))
                ENDDO
             ENDDO
-            CALL GRAMSCHMIDT(FMAT(1,1,ISPN),NSBASIS)
+            CALL GRAMSCHMIDT_NECI(FMAT(1,1,ISPN),NSBASIS)
 C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
          ENDDO
          call sort (HFDet(1:nel))
@@ -872,7 +872,7 @@ C.. vector unless transposed
 C.. For N<2, Lowdin will return in FMAT exactly what we started with in OFMAT, which is
 C.. rather pointless in mixing, so we use Gram-Schmidt to mix things up a
 C.. bit.
-               CALL GRAMSCHMIDT(FMAT(1,1,ISPN),N)
+               CALL GRAMSCHMIDT_NECI(FMAT(1,1,ISPN),N)
             ELSE
                CALL LOWDIN_ORTH(FMAT(1,1,ISPN),N,R1,R2,WORK)
             ENDIF
