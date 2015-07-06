@@ -9,6 +9,7 @@
 #define HAVE_SSE2
 #define __Linux
 #define DSFMT_MEXP 19937
+#define DDISABLE_FFTW
 
 
 #ifdef _MOLCAS_MPP
