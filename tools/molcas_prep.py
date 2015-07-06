@@ -45,7 +45,13 @@ def process_f(dir, fn, tgt_dir, tmp_dir):
     root, ext = os.path.splitext(fn)
     src_file = os.path.join(dir, fn)
     tgt_file = os.path.join(tgt_dir, "{0}.f".format(root.lower()))
-    shutil.copyfile(src_file, tgt_file)
+
+    # Ensure the molcas wrapping header is inserted at the top of all files
+    with open(src_file, 'r') as fin:
+        contents = fin.read()
+        with open(tgt_file, 'w') as fout:
+            fout.write('#include "molcas_wrapper.h"\n')
+            fout.write(contents)
 
 
 def process_f90(dir, fn, tgt_dir, tmp_dir):
@@ -69,7 +75,10 @@ def process_f90(dir, fn, tgt_dir, tmp_dir):
         # If there is only one module (or fewer) in the file, then we can just copy this
         # file directly.
         if len(found_mods) in (0, 1):
-            shutil.copyfile(src_file, tgt_file)
+            # Ensure the molcas wrapping header is inserted at the top of all files
+            with open(tgt_file, 'w') as fout:
+                fout.write('#include "molcas_wrapper.h"\n')
+                fout.write(contents)
         else:
             # We wish to move all modules other than the _last_ module into other
             # files.

@@ -1,3 +1,7 @@
+#ifdef _MOLCAS_
+#include "molcas_wrapper.h"
+#endif
+
 
 /** 
  * @file dSFMT.h 
@@ -644,8 +648,11 @@ inline static void fill_array_close1_open2(double array[], int size) {
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "dSFMT-params.h"
-
+#ifdef _MOLCAS_
+  #include "dsfmt-params.h"
+#else
+  #include "dSFMT-params.h"
+#endif
 /** dsfmt mexp for check */
 static const int dsfmt_mexp = DSFMT_MEXP;
 
@@ -1361,7 +1368,11 @@ void dsfmt_chk_init_by_array(dsfmt_t *dsfmt, uint32_t init_key[],
 #  pragma warning(default:981)
 #endif
 
-#include "dSFMT_wrapper.h"
+#ifdef _MOLCAS_
+  #include "dsfmt_wrapper.h"
+#else
+  #include "dSFMT_wrapper.h"
+#endif
 
 // Wrap around the required dSFMT functions so that they're accessible from 
 // fortran. We use C++'s handy reference function to allow Fortran and C to 

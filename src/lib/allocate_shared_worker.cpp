@@ -1,3 +1,7 @@
+#ifdef _MOLCAS_
+#include "molcas_wrapper.h"
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 
