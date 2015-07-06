@@ -1384,8 +1384,10 @@ void dsfmt_chk_init_by_array(dsfmt_t *dsfmt, uint32_t init_key[],
 // This creates instantiations which may be linked, where before the
 // declarations are inline static, and so don't appear in the object files
 
+#ifdef __cplusplus
 extern "C"
 {
+#endif
     void init_gen_rand_fwrapper(uint32_t seed)
     {
         // Initialise random number generator.
@@ -1416,7 +1418,9 @@ extern "C"
         fill_array_close_open(array, size);
     }
 
+#ifdef __cplusplus
 }
+#endif
 
 /* this routine avoids compilers reporting warnings about unused inline functions */
 void dummy_dSFMT (dsfmt_t *dsfmt, int i, uint32_t a[], double b[]) {

@@ -13,7 +13,6 @@
 
 #ifdef _MOLCAS_MPP
 #define PARALLEL
-#define __SHARED_MEM
 #endif
 
 
