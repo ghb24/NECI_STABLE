@@ -16,23 +16,6 @@ set(UNIT_TEST_FILES ${UNIT_TEST_FILES} ${F90_FILES})
 list(REMOVE_ITEM UNIT_TEST_FILES ${CMAKE_SOURCE_DIR}/src/necimain.F90)
 
 get_filename_component(Fortran_COMPILER_NAME ${CMAKE_Fortran_COMPILER} NAME)
-#message("CMake compiler " ${CMAKE_Fortran_COMPILER})
-#message("CMake binary_dir " ${CMAKE_BINARY_DIR})
-#message("CMake project_binary_dir " ${CMAKE_PROJECT_BINARY_DIR})
-#message("CMake build dir: " ${CMAKE_BUILD_DIRECTORY})
-#message("CMake build files dir: " ${CMAKE_BUILD_FILES_DIRECTORY})
-#message("CMake runtime output: " ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-#message("CMake executable path: " ${EXECUTABLE_OUTPUT_PATH})
-#message("CMake cachefile dir: " ${CMAKE_CACHEFILE_DIR})
-#message("CMake compiler name: " ${CMAKE_Fortran_COMPILER})
-#message("CMake compiler name: " ${Fortran_COMPILER_NAME})
-#message("CMake compiler name: " ${CMAKE_C_COMPILER})
-#message("CMake compiler name: " ${CMAKE_CXX_COMPILER})
-#message("Shared link: " ${CMAKE_SHARED_LIBRARY_LINK_Fortran_FLAGS})
-#message("System: " ${CMAKE_SYSTEM_NAME})
-#message("Platform: " ${CMAKE_TARGET_BUILD_PLATFORM})
-#message("Module dir: " ${CMAKE_Fortran_MODULE_DIRECTORY})
-#message("Module dir: " ${Fortran_MODULE_DIRECTORY})
 
 # Deal with compiler specific issues
 if (Fortran_COMPILER_NAME MATCHES "ifort.*")
@@ -63,6 +46,12 @@ foreach(template_file ${F90_TEMPLATE_FILES})
 endforeach(template_file)
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/templated)
 
+#######################################################################
+#                                                                     #
+# Buildable targets                                                   #
+#                                                                     #
+#######################################################################
+
 #
 # Build the executable!
 add_executable(neci ${F90_FILES} ${TEMPLATE_TARGETS})
@@ -88,6 +77,17 @@ foreach(target ${TARGETS})
 	set_target_properties(neci PROPERTIES LINKER_LANGUAGE Fortran)
 
 endforeach(target)
+
+#
+# And add the target-specific compler flags.
+target_compile_definitions(neci PUBLIC -DHElement_t=real\(dp\))
+target_compile_definitions(dneci PUBLIC -DHElement_t=real\(dp\) -D__DOUBLERUN)
+target_compile_definitions(mneci PUBLIC -DHElement_t=real\(dp\) -D__PROG_NUMRUNS)
+target_compile_definitions(kneci PUBLIC -DHElement_t=complex\(dp\) -D__CMPLX)
+target_compile_definitions(neci_test PUBLIC -DHElement_t=real\(dp\))
+target_compile_definitions(dneci_test PUBLIC -DHElement_t=real\(dp\) -D__DOUBLERUN)
+target_compile_definitions(mneci_test PUBLIC -DHElement_t=real\(dp\) -D__PROG_NUMRUNS)
+target_compile_definitions(kneci_test PUBLIC -DHElement_t=complex\(dp\) -D__CMPLX)
 
 # TODO:
 # Test for compiler features, to enable specific flags
@@ -122,15 +122,6 @@ add_definitions(-DMAXMEM=99999)
 add_definitions(-DDSFMT_MEXP=19937)
 add_definitions(-D_CONFIG="CMake-new")
 
-# This is a real build. Consider kneci...
-target_compile_definitions(neci PUBLIC -DHElement_t=real\(dp\))
-target_compile_definitions(dneci PUBLIC -DHElement_t=real\(dp\) -D__DOUBLERUN)
-target_compile_definitions(mneci PUBLIC -DHElement_t=real\(dp\) -D__PROG_NUMRUNS)
-target_compile_definitions(kneci PUBLIC -DHElement_t=complex\(dp\) -D__CMPLX)
-target_compile_definitions(neci_test PUBLIC -DHElement_t=real\(dp\))
-target_compile_definitions(dneci_test PUBLIC -DHElement_t=real\(dp\) -D__DOUBLERUN)
-target_compile_definitions(mneci_test PUBLIC -DHElement_t=real\(dp\) -D__PROG_NUMRUNS)
-target_compile_definitions(kneci_test PUBLIC -DHElement_t=complex\(dp\) -D__CMPLX)
 
 include_directories(BEFORE SYSTEM ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/unit_tests)
 
