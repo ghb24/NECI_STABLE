@@ -31,7 +31,7 @@ end module EN2Molcas
         dummy1=' '
         dummy2=' '
         ! Indicate not called by CPMD, VASP, Molpro
-        call NECICore (0, .false., .false., .false.,dummy1,dummy2)
+        call NECICore (0, .false., .false., .false., .false., dummy1, dummy2)
 
     end subroutine
 
@@ -47,7 +47,7 @@ end module EN2Molcas
         dummy1=' '
         dummy2=' '
         ! Indicate not called by CPMD, VASP, Molpro
-        call NECICore(0,.False.,.False.,.false.,dummy1,dummy2)
+        call NECICore(0, .False., .False., .false., .false., dummy1, dummy2)
 
     end program NECI
 
