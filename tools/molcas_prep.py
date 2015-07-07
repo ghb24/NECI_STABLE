@@ -20,6 +20,7 @@ import sys
 import shutil
 import re
 import f90_template
+import subprocess
 
 
 def usage():
@@ -122,25 +123,27 @@ def process_cpp(dir, fn, tgt_dir, tmp_dir):
     tgt_file = os.path.join(tgt_dir, "{0}.c".format(root))
     shutil.copyfile(src_file, tgt_file)
 
-def git_version(dir, fn,tgt_dir):
+def append_git_version(tgt_file):
     """
     Add VCS_VERSION to the molcas_wrapper.h file
     """
-    import subprocess
     p = subprocess.Popen('git log --max-count=1 --pretty=format:%H', shell=True, stdout=subprocess.PIPE)
     p.wait()
-    line = p.stdout.read()
-    src_file = os.path.join(tgt_dir, fn)
-    with open(src_file,'a') as fin:
-       fin.write('\n#ifdef _MOLCAS_\n#define _VCS_VER %r \n#endif\n' % line)
+    shaid = p.stdout.read()
+
+    with open(tgt_file, 'a') as fout:
+       fout.write('\n#ifdef _MOLCAS_\n#define _VCS_VER %r \n#endif\n' % shaid)
 
 def file_direct_copy(dir, fn, tgt_dir, tmp_dir):
     """
     Directly copy the specified file into the target directory
     """
-    shutil.copyfile(os.path.join(dir, fn), os.path.join(tgt_dir, fn.lower()))
+    src_file = os.path.join(dir, fn)
+    tgt_file = os.path.join(tgt_dir, fn.lower())
+    shutil.copyfile(src_file, tgt_file)
     
-    if fn == 'molcas_wrapper.h': git_version(dir,fn,tgt_dir)
+    if fn == 'molcas_wrapper.h':
+        append_git_version(tgt_file)
 
 
 def drop_file(dir, fn, tgt_dir, tmp_dir):
