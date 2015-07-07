@@ -102,6 +102,7 @@ typedef unsigned __int64 uint64_t;
 #  endif
 #else
 #  include <inttypes.h>
+#  include <stdint.h>
 #  if !defined(inline)
 #    if defined(__GNUC__)
 #      define inline __inline__
@@ -1366,12 +1367,6 @@ void dsfmt_chk_init_by_array(dsfmt_t *dsfmt, uint32_t init_key[],
 }
 #if defined(__INTEL_COMPILER)
 #  pragma warning(default:981)
-#endif
-
-#ifdef _MOLCAS_
-  #include "dsfmt_wrapper.h"
-#else
-  #include "dSFMT_wrapper.h"
 #endif
 
 // Wrap around the required dSFMT functions so that they're accessible from 
