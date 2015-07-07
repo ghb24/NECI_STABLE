@@ -1369,12 +1369,6 @@ void dsfmt_chk_init_by_array(dsfmt_t *dsfmt, uint32_t init_key[],
 #  pragma warning(default:981)
 #endif
 
-#ifdef _MOLCAS_
-  #include "dsfmt_wrapper.h"
-#else
-  #include "dSFMT_wrapper.h"
-#endif
-
 // Wrap around the required dSFMT functions so that they're accessible from 
 // fortran. We use C++'s handy reference function to allow Fortran and C to 
 // communicate, despite the different approaches in passing arguments.
