@@ -25,7 +25,7 @@ contains
         type(rdm_t), intent(inout) :: rdm
 
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity
-        integer :: ierr
+        integer :: i, ierr
 
         ! If Iter = 0, this means we have just read in the TwoRDM_POPS_a*** matrices into a***_RDM_full, and 
         ! just want to calculate the old energy.
@@ -70,13 +70,38 @@ contains
             ! (summed over the energy update cycle). Whereas TwoElRDM_full is
             ! accumulated over the entire run.
             if (tRDMInstEnergy .and. (iProcIndex .eq. 0)) then
-                rdm%aaaa_full(:,:) = rdm%aaaa_full(:,:) + rdm%aaaa(:,:)
-                rdm%abba_full(:,:) = rdm%abba_full(:,:) + rdm%abba(:,:)
-                rdm%abab_full(:,:) = rdm%abab_full(:,:) + rdm%abab(:,:)
+
+                ! We have to add the RDMs column by column. Adding the whole
+                ! arrays in one go causes ifort to crash for large arrays,
+                ! presumably because of large arrays being created on the
+                ! stack, which ifort never likes.
+
+                do i = 1, size(rdm%aaaa, 2)
+                    rdm%aaaa_full(:,i) = rdm%aaaa_full(:,i) + rdm%aaaa(:,i)
+                end do
+
+                do i = 1, size(rdm%abba, 2)
+                    rdm%abba_full(:,i) = rdm%abba_full(:,i) + rdm%abba(:,i)
+                end do
+
+                do i = 1, size(rdm%abab, 2)
+                    rdm%abab_full(:,i) = rdm%abab_full(:,i) + rdm%abab(:,i)
+                end do
+
                 if (tOpenShell) then
-                    rdm%bbbb_full(:,:) = rdm%bbbb_full(:,:) + rdm%bbbb(:,:)
-                    rdm%baab_full(:,:) = rdm%baab_full(:,:) + rdm%baab(:,:)
-                    rdm%baba_full(:,:) = rdm%baba_full(:,:) + rdm%baba(:,:)
+
+                    do i = 1, size(rdm%bbbb, 2)
+                        rdm%bbbb_full(:,i) = rdm%bbbb_full(:,i) + rdm%bbbb(:,i)
+                    end do
+
+                    do i = 1, size(rdm%baab, 2)
+                        rdm%baab_full(:,i) = rdm%baab_full(:,i) + rdm%baab(:,i)
+                    end do
+
+                    do i = 1, size(rdm%baba, 2)
+                        rdm%baba_full(:,i) = rdm%baba_full(:,i) + rdm%baba(:,i)
+                    end do
+
                 end if
             end if
         end if
