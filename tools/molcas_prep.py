@@ -122,12 +122,25 @@ def process_cpp(dir, fn, tgt_dir, tmp_dir):
     tgt_file = os.path.join(tgt_dir, "{0}.c".format(root))
     shutil.copyfile(src_file, tgt_file)
 
+def git_version(dir, fn,tgt_dir):
+    """
+    Add VCS_VERSION to the molcas_wrapper.h file
+    """
+    import subprocess
+    p = subprocess.Popen('git log --max-count=1 --pretty=format:%H', shell=True, stdout=subprocess.PIPE)
+    p.wait()
+    line = p.stdout.read()
+    src_file = os.path.join(tgt_dir, fn)
+    with open(src_file,'a') as fin:
+       fin.write('\n#ifdef _MOLCAS_\n#define _VCS_VER %r \n#endif\n' % line)
 
 def file_direct_copy(dir, fn, tgt_dir, tmp_dir):
     """
     Directly copy the specified file into the target directory
     """
     shutil.copyfile(os.path.join(dir, fn), os.path.join(tgt_dir, fn.lower()))
+    
+    if fn == 'molcas_wrapper.h': git_version(dir,fn,tgt_dir)
 
 
 def drop_file(dir, fn, tgt_dir, tmp_dir):
@@ -187,5 +200,4 @@ if __name__ == '__main__':
 
     # And kick off the calculation
     process_files(src_dir, tgt_dir, tmp_dir)
-
 
