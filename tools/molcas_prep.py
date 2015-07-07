@@ -120,7 +120,7 @@ def process_cpp(dir, fn, tgt_dir, tmp_dir):
         return;
 
     src_file = os.path.join(dir, fn)
-    tgt_file = os.path.join(tgt_dir, "{0}.c".format(root))
+    tgt_file = os.path.join(tgt_dir, "{0}.c".format(root.lower()))
     shutil.copyfile(src_file, tgt_file)
 
 def append_git_version(tgt_file):
