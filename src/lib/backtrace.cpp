@@ -24,7 +24,8 @@ void print_backtrace_neci ()
 	printf ("Writing Backtrace\n");
 	printf ("-----------------------------------\n");
 	// n.b. We don't include the function 'print_backtrace' in the backtrace.
-	for (int i = 1; i < n; i++)
+	int i;
+	for (i = 1; i < n; i++)
 		printf("%d: %s\n", i-1, strs[i]);
 	printf ("-----------------------------------\n");
 	free (strs);
