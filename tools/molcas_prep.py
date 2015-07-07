@@ -107,6 +107,22 @@ def process_f90_template(dir, fn, tgt_dir, tmp_dir):
         process_f90(tmp_dir, name, tgt_dir, tmp_dir)
 
 
+def process_cpp(dir, fn, tgt_dir, tmp_dir):
+    """
+    Process a cpp file.
+
+    Molcas does not support cpp, so we only transfer accross those bits that
+    can happily be used in C. Other features will not be supported.
+    """
+    root, ext = os.path.splitext(fn)
+    if root in ['parallel_helper', 'allocate_shared_worker']:
+        return;
+
+    src_file = os.path.join(dir, fn)
+    tgt_file = os.path.join(tgt_dir, "{0}.c".format(root))
+    shutil.copyfile(src_file, tgt_file)
+
+
 def file_direct_copy(dir, fn, tgt_dir, tmp_dir):
     """
     Directly copy the specified file into the target directory
@@ -131,7 +147,7 @@ def process_files(src_dir, tgt_dir, tmp_dir):
         'F': process_f,
         'F90': process_f90,
         'F90.template': process_f90_template,
-        'cpp': file_direct_copy,
+        'cpp': process_cpp,
         'h': file_direct_copy
     }
 

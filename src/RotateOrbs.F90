@@ -1059,7 +1059,7 @@ MODULE RotateOrbsMod
         IF(tSeparateOccVirt) CALL ZeroOccVirtElements(CoeffT1)
 
 ! Orthonormalise starting matrix.        
-        CALL GRAMSCHMIDT(CoeffT1,NoOrbs)
+        CALL GRAMSCHMIDT_NECI(CoeffT1,NoOrbs)
 
 
 !        WRITE(6,*) 'coefft1'
@@ -3678,7 +3678,7 @@ MODULE RotateOrbsMod
                 enddo
             enddo
 
-            CALL GRAMSCHMIDT(CoeffTemp,SpatOrbs)
+            CALL GRAMSCHMIDT_NECI(CoeffTemp,SpatOrbs)
 
             CoeffT1(:,:)=0.0_dp
             do i=1,SpatOrbs
@@ -3688,7 +3688,7 @@ MODULE RotateOrbsMod
                 enddo
             enddo
         ELSEIF(.not.tMaxHLGap) THEN
-            CALL GRAMSCHMIDT(CoeffT1,NoOrbs)
+            CALL GRAMSCHMIDT_NECI(CoeffT1,NoOrbs)
         ENDIF
         
 

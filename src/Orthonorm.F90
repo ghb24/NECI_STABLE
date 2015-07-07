@@ -125,7 +125,7 @@ END SUBROUTINE OrthoNormx
 ! and we should be done, with an orthoganal matrix in MAT
       END SUBROUTINE LOWDIN_ORTH                      
  
-      SUBROUTINE GRAMSCHMIDT(MAT,LEN)
+      SUBROUTINE GRAMSCHMIDT_NECI(MAT,LEN)
 ! MAT(IELEMENT,IVECTOR)
          use constants, only: dp
          IMPLICIT NONE
@@ -161,6 +161,6 @@ END SUBROUTINE OrthoNormx
             ENDDO
          ENDDO
          RETURN
-      END SUBROUTINE GRAMSCHMIDT
+      END SUBROUTINE GRAMSCHMIDT_NECI
 
 
