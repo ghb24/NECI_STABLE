@@ -30,14 +30,14 @@ if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 	set(CMAKE_SHARED_LIBRARY_LINK_Fortran_FLAGS "")
 	add_definitions(-D__IFORT)
 
-	set (CMAKE_Fortran_FLAGS_DEBUG "-check bounds")
+	set (CMAKE_Fortran_FLAGS_DEBUG "-g -O0 -check bounds")
 
 elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
 
 	message("-- Using gfortran")
 	add_definitions(-D__GFORTRAN__)
 
-	set(CMAKE_Fortran_FLAGS_DEBUG "-fbounds-check")
+	set(CMAKE_Fortran_FLAGS_DEBUG "-g -O0 -fbounds-check")
 
 else()
 
