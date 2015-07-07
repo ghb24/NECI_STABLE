@@ -1,9 +1,10 @@
-#if defined(_MOLCAS_)
 module EN2Molcas
 implicit NONE
 REAL, public :: NECI_E
 DATA NECI_E /10.0/
 end module EN2Molcas
+
+#if defined(_MOLCAS_)
 
       subroutine NECImain(NECIen)
         USE EN2MOLCAS, only : NECI_E

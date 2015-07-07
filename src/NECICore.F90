@@ -321,7 +321,9 @@ subroutine NECICalcEnd(iCacheFlag)
     use Integrals_neci, only: IntCleanup
     use Determinants, only: DetCleanup
     use Calc, only: CalcCleanup
+#ifdef __SHARED_MEM
     use shared_alloc, only: cleanup_shared_alloc
+#endif
     use replica_data, only: clean_replica_arrays
     use OneEInts, only: DestroyTMat
     use Parallel_neci, only: clean_parallel
@@ -340,7 +342,9 @@ subroutine NECICalcEnd(iCacheFlag)
     call DestroyTMAT(.true.)
     call DestroyTMAT(.false.)
     call SysCleanup()
+#ifdef __SHARED_MEM
     call cleanup_shared_alloc ()
+#endif
     call clean_replica_arrays()
     call clean_parallel()
     if(allocated(SpinOrbSymLabel)) deallocate(SpinOrbSymLabel)
