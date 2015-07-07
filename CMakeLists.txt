@@ -45,6 +45,11 @@ else()
 
 endif()
 
+# And options that apply on all compilers
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+	add_definitions(-D__DEBUG)
+endif()
+
 #
 # Deal with the additional build step introduced by the templated
 # files
