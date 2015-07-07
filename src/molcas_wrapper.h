@@ -9,7 +9,7 @@
 #define __Linux
 #define DSFMT_MEXP 19937
 #define DDISABLE_FFTW
-#define _CONFIG Molcas
+#define _CONFIG 'Molcas'
 
 #ifdef _MOLCAS_MPP
 #define PARALLEL
