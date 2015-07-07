@@ -3,8 +3,10 @@
 
 // See notes in dSFMT_wrapper.cpp.
 
+#ifdef __cplusplus
 extern "C"
 {
+#endif
 
     void init_gen_rand_(uint32_t &seed);
 
@@ -12,6 +14,8 @@ extern "C"
 
     void fill_array_close_open_(double array[], int &size);
 
+#ifdef __cplusplus
 }
+#endif
 
 #endif // dSFMT_wrapper_H

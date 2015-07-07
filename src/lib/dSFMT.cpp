@@ -102,6 +102,7 @@ typedef unsigned __int64 uint64_t;
 #  endif
 #else
 #  include <inttypes.h>
+#  include <stdint.h>
 #  if !defined(inline)
 #    if defined(__GNUC__)
 #      define inline __inline__
