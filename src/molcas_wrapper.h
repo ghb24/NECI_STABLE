@@ -11,7 +11,7 @@
 #define DDISABLE_FFTW
 #define _CONFIG 'Molcas'
 
-#ifdef _MOLCAS_MPP
+#ifdef _MOLCAS_MPP_
 #define PARALLEL
 #endif
 
