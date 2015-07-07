@@ -35,7 +35,10 @@ void print_backtrace_neci ()
 
 
 // Wrapper to make NAG happy
-extern "C" size_t strlen_wrap (const char * str )
+#ifdef __cplusplus
+extern "C"
+#endif
+size_t strlen_wrap (const char * str )
 {
 	return strlen (str);
 }
