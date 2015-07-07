@@ -7,6 +7,7 @@
 #endif
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define lenof(x) ((sizeof((x)))/(sizeof((x)[0])))
 
@@ -31,4 +32,12 @@ void print_backtrace_neci ()
 	free (strs);
 #endif
 }
+
+
+// Wrapper to make NAG happy
+extern "C" size_t strlen_wrap (const char * str )
+{
+	return strlen (str);
+}
+
 
