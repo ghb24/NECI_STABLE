@@ -15,12 +15,31 @@ file(GLOB_RECURSE UNIT_TEST_FILES unit_tests/*.F90 unit_tests/*.f90)
 set(UNIT_TEST_FILES ${UNIT_TEST_FILES} ${F90_FILES})
 list(REMOVE_ITEM UNIT_TEST_FILES ${CMAKE_SOURCE_DIR}/src/necimain.F90)
 
-# Deal with compiler specific issues
-if(CMAKE_Fortran_COMPILER_ID STREQUAL Intel)
+
+
+##############################################################################
+#                                                                            #
+# Compiler specific configuration                                            #
+#                                                                            #
+##############################################################################
+
+message("Configuring Fortran compilers")
+if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
+	message("-- Using ifort")
 	# -i_dynamic is incorrectly added in CMake ifort configuration
 	set(CMAKE_SHARED_LIBRARY_LINK_Fortran_FLAGS "")
+	add_definitions(-D__IFORT)
+
+elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+
+	message("-- Using gfortran")
+	add_definitions(-D__GFORTRAN__)
+
+else()
+
+	message (FATAL_ERROR "Fortran compiler unknown: ${CMAKE_Fortran_COMPILER_ID}")
+
 endif()
-message("Shared link: " ${CMAKE_SHARED_LIBRARY_LINK_Fortran_FLAGS})
 
 #
 # Deal with the additional build step introduced by the templated
@@ -96,13 +115,16 @@ target_compile_definitions(kneci_test PUBLIC -DHElement_t=complex\(dp\) -D__CMPL
 
 #
 # If we can get the repository details, then do so.
+message("VCS configuration")
 find_package(Git)
 if (${Git_FOUND})
 	message("-- Git has been found")
 	Git_WC_INFO("." "DIR")
 	add_definitions(-D_VCS_VER='${DIR_WC_REVISION_HASH}')
+	message("-- SHAID: ${DIR_WC_REVISION_HASH}")
 	if (${DIR_WC_CHANGES} OR ${DIR_WC_CACHED_CHANGES})
 		add_definitions(-D_WORKING_DIR_CHANGES)
+		message("-- Working directory contains changes")
 	endif()
 else()
 	add_definitions(-D_VCS_VER='[Unknown]')
@@ -119,11 +141,6 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
 	add_definitions(-DPOINTER8)
 endif()
 
-if(CMAKE_Fortran_COMPILER_ID STREQUAL Intel)
-	add_definitions(-D__IFORT)
-else()
-	add_definitions(-D__GFORTRAN__)
-endif()
 
 add_definitions(-DMAXMEM=99999)
 add_definitions(-DDSFMT_MEXP=19937)
@@ -134,16 +151,19 @@ include_directories(BEFORE SYSTEM ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/un
 
 #
 # Some form of lapack is always needed (be that acml, mkl, LAPACK, ...)
+message("Configuring BLAS/LAPACK")
 find_package(LAPACK REQUIRED)
 set(NECI_LIBRARIES ${LAPACK_LIBRARIES})
-message("Using LAPACK libraries: " ${LAPACK_LIBRARIES})
+message("-- Using libraries: ${LAPACK_LIBRARIES}")
 
 # If FFTW is present, then we want to use it. Otherwise disable it in NECI
+message("Configuring FFTW")
 find_package(FFTW)
 if (${FFTW_FOUND})
+	message("-- Using libraries: ${FFTW_LIBRARIES}")
 	set(NECI_LIBRARIES ${NECI_LIBRARIES} ${FFTW_LIBRARIES})
 else()
-	message("Disabling FFTW")
+	message("-- Disabling FFTW")
 	add_definitions(-DDISABLE_FFTW)
 endif()
 
@@ -152,11 +172,6 @@ find_package(MPI)
 set(NECI_LIBRARIES ${NECI_LIBRARIES} ${MPI_Fortran_LIBRARIES})
 
 # Ensure that all of our executables link correctly
-target_link_libraries(neci ${NECI_LIBRARIES})
-target_link_libraries(mneci ${NECI_LIBRARIES})
-target_link_libraries(dneci ${NECI_LIBRARIES})
-target_link_libraries(kneci ${NECI_LIBRARIES})
-target_link_libraries(neci_test ${NECI_LIBRARIES})
-target_link_libraries(mneci_test ${NECI_LIBRARIES})
-target_link_libraries(dneci_test ${NECI_LIBRARIES})
-target_link_libraries(kneci_test ${NECI_LIBRARIES})
+foreach(target ${TARGETS})
+	target_link_libraries(${target} ${NECI_LIBRARIES})
+endforeach()
