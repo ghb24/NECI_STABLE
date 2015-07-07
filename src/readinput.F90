@@ -367,7 +367,6 @@ MODULE ReadInput_neci
         !.. We still need a specdet space even if we don't have a specdet.
 #ifndef _MOLCAS_
         if (.not. associated(SPECDET)) then
-            write(6,*) 'at readinput.f90 to allocate SPECDET'
             allocate(SPECDET(nel - nFrozen), stat=ierr)
             call LogMemAlloc('SPECDET', nel-nFrozen, 4, t_r, tagSPECDET, ierr)
         endif
@@ -514,7 +513,6 @@ MODULE ReadInput_neci
         end if
 #endif
 
-        write(6,*) 'CHECKING'
 #if __PROG_NUMRUNS
         if (tRDMonFly) then
             write(6,*) 'RDM on fly'
