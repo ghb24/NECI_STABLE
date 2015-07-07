@@ -31,7 +31,7 @@ module fcimc_initialisation
                         ss_space_in, trial_space_in, init_trial_in, &
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, &
-                        ntrial_ex_calc, tPairedReplicas
+                        ntrial_ex_calc, tPairedReplicas, tMultiRefShift
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -698,7 +698,7 @@ contains
         ! runs should be adjusted so that it is still relative to the first
         ! replica, but is offset by the replica's reference's diagonal energy.
         DiagSft = InputDiagSft
-        proje_ref_energy_offsets = 0
+        proje_ref_energy_offsets = 0.0_dp
         if (tOrthogonaliseReplicas) then
             do run = 1, inum_runs
                 if (tHPHF) then
@@ -708,9 +708,7 @@ contains
                 endif
                 proje_ref_energy_offsets(run) = real(TempHii, dp) - Hii
 
-                ! This is a bit of a hack...
-                if (all(InputDiagSft == 0)) &
-                    DiagSft(run) = DiagSft(run) + real(TempHii, dp) - Hii
+                if (tMultiRefShift) DiagSft(run) = proje_ref_energy_offsets(run)
             end do
         end if
 
@@ -1993,6 +1991,12 @@ contains
 
              end if
         end do
+
+        if (tMultiRefShift) then
+            do run = 1, inum_runs
+                DiagSft(run) = proje_ref_energy_offsets(run)
+            end do
+        end if
 
     end subroutine set_initial_run_references
 
