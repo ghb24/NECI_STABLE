@@ -167,11 +167,11 @@ contains
                 allocate_temp_parts = .true.
                 TempSpawnedPartsSize = 1000
             end if
-            if (1.1 * maxval(iHighestPop) > TempSpawnedPartsSize) then
+            if (1.5 * maxval(iHighestPop) > TempSpawnedPartsSize) then
                 ! This testing routine is only called once every update
-                ! cycle. The 1.1 gives us a buffer to cope with particle
+                ! cycle. The 1.5 gives us a buffer to cope with particle
                 ! growth
-                TempSpawnedPartsSize = iHighestPop(1) * 1.5
+                TempSpawnedPartsSize = maxval(iHighestPop) * 1.5
                 allocate_temp_parts = .true.
             end if
 
