@@ -64,8 +64,8 @@ contains
                                & has not yet been implemented for more than one RDM.')
         end if
 
-        allocate(rdms(nrdms))
-        allocate(rdm_estimates(nrdms))
+        if(.not.allocated(rdms))allocate(rdms(nrdms))
+        if(.not.allocated(rdm_estimates))allocate(rdm_estimates(nrdms))
 
         ! Only spatial orbitals for the 2-RDMs (and F12).
         if (tStoreSpinOrbs .and. (RDMExcitLevel .ne. 1)) &
