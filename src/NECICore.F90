@@ -331,6 +331,7 @@ subroutine NECICalcEnd(iCacheFlag)
     use SystemData, only: arr, brr, g1, tagArr, tagBrr, tagG1
     use Determinants, only: FDet, tagFDet
     use MemoryManager
+    use FciMCData, only:ValidSpawnedList,InitialSpawnedSlots 
 
     implicit none
     integer,intent(in) :: iCacheFlag
@@ -349,6 +350,8 @@ subroutine NECICalcEnd(iCacheFlag)
     call clean_parallel()
     if(allocated(SpinOrbSymLabel)) deallocate(SpinOrbSymLabel)
     if(allocated(SymInvLabel)) deallocate(SymInvLabel)
+    if(allocated(ValidSpawnedList)) deallocate(ValidSpawnedList)
+    if(allocated(InitialSpawnedSlots)) deallocate(InitialSpawnedSlots)
     if (associated(arr)) then
         deallocate(Arr)
         call LogMemDealloc('NECICore',tagArr)
