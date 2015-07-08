@@ -1539,6 +1539,7 @@ contains
 
 #ifdef PARALLEL
         if (.not.initialised) then
+            initialised = .true. !GLM added it for compatibility with Molcas loops
             nNodes = 0  !Indicate we haven't setup nodes yet
             
             if(tExternal) then
