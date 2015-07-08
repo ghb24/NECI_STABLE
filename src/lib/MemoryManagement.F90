@@ -153,7 +153,7 @@ contains
 
 #ifdef _MOLCAS_
     !MemSizeMolcas is already in MB.
-    call getenvf('MOLCASMEM',MMem)
+    call getenvf('MOLCAS_MEM',MMem)
     read(MMem,*) MemSizeMolcas
     initialised=.false.
 #endif
