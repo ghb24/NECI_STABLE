@@ -283,10 +283,14 @@ module AnnihilationMod
                         
                         ! Search to see which sign is non-zero, and therefore
                         ! find which simulation the spawning occured from and to.
+                        ! NOTE: it is safe to compare against zero exactly here,
+                        ! because all other components will have been set to zero
+                        ! exactly and can't have changed at all.
+                        Spawned_Parents(NIfDBO+2,Parent_Array_Ind) = 0
                         do part_type = 1, lenof_sign
-                            if (abs(temp_sign(part_type)) > 1.e-12_dp) then
+                            if (temp_sign(part_type) /= 0.0_dp) then
                                 Spawned_Parents(NIfDBO+2,Parent_Array_Ind) = part_type
-                                cycle
+                                exit
                             end if
                         end do
                         
