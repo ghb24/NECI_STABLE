@@ -74,6 +74,7 @@ contains
 
     subroutine write_rdm_estimates(est)
 
+        USE EN2MOLCAS, only : NECI_E
         use FciMCData, only: tFinalRDMEnergy, Iter, PreviousCycles
         use LoggingData, only: tRDMInstEnergy
         use rdm_data, only: rdm_estimates_t, rdm_estimates_unit
@@ -108,6 +109,7 @@ contains
             write(6,'(1x,"Energy contribution from the 1-RDM:",1x,es17.10)') est%RDMEnergy1
             write(6,'(1x,"Energy contribution from the 2-RDM:",1x,es17.10)') est%RDMEnergy2
             write(6,'(1x,"*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:",1x,es20.13)') est%RDMEnergy
+            NECI_E =  est(1)%RDMEnergy
             close(rdm_estimates_unit)
         end if
 
@@ -127,9 +129,6 @@ contains
         !
         !   Tr(h1 1RDM) = Sum_i,j [ h1(i,j) 1RDM(j,i) ]
         !   Tr(h2 2RDM) = Sum_i,j;k,l [ h2(i,j;k,l) 2RDM(k,l;i,j) ]
-#ifdef _MOLCAS_
-        USE EN2MOLCAS, only : NECI_E
-#endif
         use FciMCData, only: tFinalRDMEnergy
         use global_utilities, only: set_timer, halt_timer
         use IntegralsData, only: umat

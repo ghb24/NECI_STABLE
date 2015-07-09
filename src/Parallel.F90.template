@@ -1666,7 +1666,7 @@ contains
         write(6,"(A)") "***************************  WARNING  ******************************"
         write(6,"(A)") "********************************************************************"
         write(6,"(A)") "***                                                              ***"
-        write(6,"(A)") "*** FCIQMC module run in parallel, but molpro not compiled with  ***"
+        write(6,"(A)") "*** FCIQMC module run in parallel, but Molcas not compiled with  ***"
         write(6,"(A)") "*** MPI. FCIQMC module cannot support compilation with Global    ***"
         write(6,"(A)") "*** Arrays with TCGMSG, and so will now run in serial mode       ***" 
         write(6,"(A)") "*** instead. Recompilation of molpro with linking to MPI module  ***" 
