@@ -257,7 +257,7 @@ module AnnihilationMod
                 end if
 
                 ! Transfer all info to the other array.
-                SpawnedParts2(:,VecInd) = SpawnedParts(:, BeginningBlockDet)   
+                SpawnedParts2(:, VecInd) = SpawnedParts(:, BeginningBlockDet)
 
                 if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
                     ! SpawnedParts contains the determinants spawned on (Dj),
@@ -268,7 +268,7 @@ module AnnihilationMod
                     ! track of all Di's. As we compress SpawnedParts, we
                     ! therefore move all the parents (Di's) into Spawned_Parents.
                     ! If the compressed Dj is at position VecInd in SpawnedParts,
-                    ! then Spawned_Parents_Index(1,VecInd)  is the starting point
+                    ! then Spawned_Parents_Index(1,VecInd) is the starting point
                     ! of it's parents (Di) in Spawned_Parents, and there are 
                     ! Spawned_Parents_Index(2,VecInd) entries corresponding to
                     ! this Dj.
@@ -281,13 +281,14 @@ module AnnihilationMod
 
                         call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
                         
-                        if (temp_sign(1) /= 0) then
-                            ! The child (and therefore parent) are from population 1.
-                            Spawned_Parents(NIfDBO+2,Parent_Array_Ind) = 1
-                        else if (temp_sign(lenof_sign) /= 0) then
-                            ! The child (and therefore parent) are from population 2.
-                            Spawned_Parents(NIfDBO+2,Parent_Array_Ind) = lenof_sign
-                        end if
+                        ! Search to see which sign is non-zero, and therefore
+                        ! find which simulation the spawning occured from and to.
+                        do part_type = 1, lenof_sign
+                            if (abs(temp_sign(part_type)) > 1.e-12_dp) then
+                                Spawned_Parents(NIfDBO+2,Parent_Array_Ind) = part_type
+                                cycle
+                            end if
+                        end do
                         
                         ! The first NIfDBO of the Spawned_Parents entry is the
                         ! parent determinant, the NIfDBO + 1 entry is the Ci.
@@ -302,6 +303,7 @@ module AnnihilationMod
                         Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
                         Spawned_Parents_Index(2,VecInd) = 0
                     end if
+
                     call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
                     if (IsUnoccDet(temp_sign)) then
                         Spawned_Parts_Zero = Spawned_Parts_Zero + 1
@@ -310,7 +312,7 @@ module AnnihilationMod
 
                 VecInd = VecInd + 1
                 ! Move onto the next block of determinants.
-                BeginningBlockDet=CurrentBlockDet 
+                BeginningBlockDet = CurrentBlockDet 
                 cycle ! Skip the rest of this block.
             end if
 
@@ -318,7 +320,7 @@ module AnnihilationMod
             cum_det = 0_n_int
             cum_det (0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
         
-            if (tFillingStochRDMonFly.and.(.not.tNoNewRDmContrib)) then
+            if (tFillingStochRDMonFly .and. (.not.tNoNewRDMContrib)) then
                 ! This is the first Dj determinant - set the index for the
                 ! beginning of where the parents for this Dj can be found in
                 ! Spawned_Parents.
@@ -354,9 +356,9 @@ module AnnihilationMod
                 ! Transfer all info into the other array.
                 ! Usually this is only done if the final sign on the compressed
                 ! Dj is not equal to zero. But in the case of the stochastic RDM,
-                ! we are concerned with the sign of Dj in the CurrentDets  array,
+                ! we are concerned with the sign of Dj in the CurrentDets array,
                 ! not the newly spawned sign.  We still want to check if Dj has
-                ! a non-zero Cj in Current Dets, so we need to carry this Dj
+                ! a non-zero Cj in CurrentDets, so we need to carry this Dj
                 ! through to the stage of checking CurrentDets regardless of
                 ! the sign here.  Also getting rid of them here would make the
                 ! biased sign of Ci slightly wrong.
@@ -368,7 +370,7 @@ module AnnihilationMod
                 ! Spawned_Parts_Zero is the number of spawned parts that are
                 ! zero after compression of the spawned_parts list - and should
                 ! have been removed from SpawnedParts if we weren't calculating
-                ! the RDM. - need this for a check later.
+                ! the RDM - need this for a check later.
                 if (IsUnoccDet(temp_sign)) Spawned_Parts_Zero = Spawned_Parts_Zero + 1
             else
                 ! All particles from block have been annihilated.
@@ -454,6 +456,7 @@ module AnnihilationMod
         integer, intent(in) :: part_type, Spawned_No 
         integer, intent(inout) :: Parent_Array_Ind
         type(fcimc_iter_data), intent(inout) :: iter_data
+
         real(dp) :: new_sgn, cum_sgn, updated_sign, sgn_prod
         integer :: run
 
@@ -490,8 +493,7 @@ module AnnihilationMod
         if (((tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) .and. &
             (.not. DetBitZero(new_det(NIfTot+1:NIfTot+NIfDBO+1), NIfDBO)))) then
             if (abs(new_sgn) > 1.e-12_dp) then
-                ! No matter what the final sign is, always want to add any Di stored in 
-                ! SpawnedParts to the parent array.
+                ! Add parent (Di) stored in SpawnedParts to the parent array.
                 Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+NIfDBO+2)
                 Spawned_Parents(NIfDBO+2,Parent_Array_Ind) = part_type
                 Parent_Array_Ind = Parent_Array_Ind + 1
@@ -591,7 +593,7 @@ module AnnihilationMod
 
                 tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic)
 
-                if (sum(abs(CurrentSign)) /= 0.0_dp .or. tDetermState) then
+                if (sum(abs(CurrentSign)) >= 1.e-12_dp .or. tDetermState) then
                     ! Transfer new sign across.
                     call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
                     call encode_sign(SpawnedParts(:,i), null_part)
@@ -603,7 +605,7 @@ module AnnihilationMod
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
 #ifndef __CMPLX
-                        if (CurrentSign(j) == 0.0_dp) then
+                        if (abs(CurrentSign(j)) < 1.e-12_dp) then
                             ! This determinant is actually *unoccupied* for the
                             ! walker type/set we're considering. We need to
                             ! decide whether to abort it or not.
@@ -680,14 +682,14 @@ module AnnihilationMod
                         ! we're effectively taking the instantaneous value from the
                         ! next iter. This is fine as it's from the other population,
                         ! and the Di and Dj signs are already strictly uncorrelated.
-                        call check_fillRDM_DiDj(rdms(1), i, CurrentDets(:,PartInd), TempCurrentSign)
+                        call check_fillRDM_DiDj(rdms, i, CurrentDets(:,PartInd), TempCurrentSign)
                     end if 
 
                 end if
 
             end if
                 
-            if ( (.not.tSuccess) .or. (tSuccess .and. sum(abs(CurrentSign)) == 0.0_dp .and. (.not. tDetermState)) ) then
+            if ( (.not.tSuccess) .or. (tSuccess .and. sum(abs(CurrentSign)) < 1.e-12_dp .and. (.not. tDetermState)) ) then
 
                 ! Determinant in newly spawned list is not found in CurrentDets.
                 ! Usually this would mean the walkers just stay in this list and
@@ -699,7 +701,7 @@ module AnnihilationMod
 
                     call extract_sign (SpawnedParts(:,i), SignTemp)
 
-                    tPrevOcc=.false.
+                    tPrevOcc = .false.
                     if (.not. IsUnoccDet(SignTemp)) tPrevOcc=.true.   
                         
                     do j = 1, lenof_sign
@@ -746,7 +748,7 @@ module AnnihilationMod
                         else
                             ! Either the determinant has never been an initiator,
                             ! or we want to treat them all the same, as before.
-                            if ((abs(SignTemp(j)) > 0.0_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
+                            if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
                                 ! We remove this walker with probability 1-RealSignTemp
                                 pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
                                 r = genrand_real2_dSFMT ()
@@ -789,7 +791,7 @@ module AnnihilationMod
                     
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
-                        if ((abs(SignTemp(j)) > 0.0_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
+                        if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
                             ! We remove this walker with probability 1-RealSignTemp.
                             pRemove = (OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
                             r = genrand_real2_dSFMT ()
@@ -823,7 +825,7 @@ module AnnihilationMod
 
                 if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
                     ! We must use the instantaneous value for the off-diagonal contribution.
-                    call check_fillRDM_DiDj(rdms(1), i, SpawnedParts(0:NifTot,i), SignTemp)
+                    call check_fillRDM_DiDj(rdms, i, SpawnedParts(0:NifTot,i), SignTemp)
                 end if 
             end if
 

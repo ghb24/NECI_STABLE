@@ -53,8 +53,7 @@ MODULE System
       tHPHFInts=.false.
       tHPHF=.false.
       tMaxHLGap=.false.
-      tUMatEps=.false.
-      UMatEps=0.0_dp
+      UMatEps = 1.0e-8
       tExactSizeSpace=.false.
       iRanLuxLev=3      !This is the default level of quality for the random number generator.
       tNoSymGenRandExcits=.false.
@@ -170,6 +169,8 @@ MODULE System
       tAllSymSectors = .false.
       tGenHelWeighted = .false.
       tGen_4ind_weighted = .false.
+      tGen_4ind_part_exact = .false.
+      tGen_4ind_lin_exact = .false.
       tGen_4ind_reverse = .false.
       tUEGNewGenerator = .false.
 
@@ -885,6 +886,22 @@ system: do
                         ! doubles). This is effectively the "reverse" of
                         ! 4IND-WEIGHTED as above.
                         tGen_4ind_reverse = .true.
+                    case("4IND-WEIGHTED-PART-EXACT")
+                        ! Weight excitations as in 4IND-WEIGHTED, except for
+                        ! double excitations with the same spin which are
+                        ! weighted according to:
+                        ! sqrt(((ii|aa) + (jj|aa))(<ij|ab>-<ij|ba>))
+                        tGen_4ind_weighted = .true.
+                        tGen_4ind_part_exact = .true.
+                    case("4IND-WEIGHTED-LIN-EXACT")
+                        ! Weight excitations as in 4IND-WEIGHTED, except for
+                        ! double excitations with the same spin which are
+                        ! weighted according to:
+                        ! (1/M)(<ij|ab> - <ij|ba>)
+                        ! (The second half of this only affecting the choice
+                        ! of electron b)
+                        tGen_4ind_weighted = .true.
+                        tGen_4ind_lin_exact = .true.
                     case("UEG")
                         ! Use the new UEG excitation generator.
                         ! TODO: This probably isn't the best way to do this
@@ -900,11 +917,16 @@ system: do
 ! and only these determinants will be allowed to be spawned at.
             CALL Stop_All("ReadSysInp","SPAWNLISTDETS option depreciated")
 !            tListDets=.true.
+
         case("UMATEPSILON")
-!This is an option for systems which are reaad in from an FCIDUMP file. Any two-electron integrals which are smaller in
-!magnitude than the value set for UMatEps will be set to zero.
+
+            ! For systems that read in from an FCIDUMP file, any two-electron
+            ! integrals are screened against a threshold parameter. Below
+            ! this they are ignored.
+            !
+            ! By default, this parameter is 10-e8, but it can be changed here.
             call readf(UMatEps)
-            tUMatEps=.true.
+
         case("NOSINGEXCITS")
 !This will mean that no single excitations are ever attempted to be generated.
             tNoSingExcits=.true.

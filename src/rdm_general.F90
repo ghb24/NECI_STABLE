@@ -36,6 +36,7 @@ contains
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data, only: rdm_estimates_unit, nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
+        use rdm_data, only: rdm_estimates
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
         use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
@@ -63,8 +64,8 @@ contains
                                & has not yet been implemented for more than one RDM.')
         end if
 
-        ! For now, just allocate one rdm.
-        allocate(rdms(nrdms))
+        if(.not.allocated(rdms))allocate(rdms(nrdms))
+        if(.not.allocated(rdm_estimates))allocate(rdm_estimates(nrdms))
 
         ! Only spatial orbitals for the 2-RDMs (and F12).
         if (tStoreSpinOrbs .and. (RDMExcitLevel .ne. 1)) &
@@ -464,7 +465,7 @@ contains
             ! to be done in symmetry blocks (a lot quicker/easier).
             ! The 2-RDM does not need to be reordered as it's never diagonalised. 
 
-            allocate(SymLabelCounts2_rot(2, NoSymLabelCounts), stat=ierr)
+            if(.not.allocated(SymLabelCounts2_rot)) allocate(SymLabelCounts2_rot(2, NoSymLabelCounts), stat=ierr)
             if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating SymLabelCounts2_rot array,')
             call LogMemAlloc('SymLabelCounts2_rot', 2*NoSymLabelCounts, 4, t_r, SymLabelCounts2_rotTag, ierr)
             SymLabelCounts2_rot(:,:) = 0
@@ -499,13 +500,20 @@ contains
 
         if (iProcIndex .eq. 0) write(6,'(1X,"RDM memory allocation successful...")')
 
-        ! Open file to keep track of RDM Energies (if they're being calculated). 
+        ! Open file to keep track of RDM estimates. 
         if ((iProcIndex .eq. 0) .and. tCalc_RDMEnergy) then
             rdm_estimates_unit = get_free_unit()
             open(rdm_estimates_unit, file='RDMEstimates', status='unknown', position='append')
 
-            write(rdm_estimates_unit, &
-                "('#', 4X, 'Iteration', 6X, 'Energy numerator', 6X, 'Spin^2 numerator', 9X, 'Normalisation')")
+            write(rdm_estimates_unit, '("#", 4X, "Iteration")', advance='no')
+
+            do i = 1, nrdms
+                write(rdm_estimates_unit, '(4x,"Energy numerator",1x,i2)', advance='no') i
+                write(rdm_estimates_unit, '(4x,"Spin^2 numerator",1x,i2)', advance='no') i
+                write(rdm_estimates_unit, '(7x,"Normalisation",1x,i2)', advance='no') i
+            end do
+
+            write(rdm_estimates_unit,'()')
         end if
         tFinalRDMEnergy = .false.
 
@@ -519,7 +527,7 @@ contains
                 write(6,'(A)') 'Ignoring the request to read in the RDMs and starting again.'
                 tReadRDMs = .false.
             else
-                call Read_In_RDMs(rdms(1))
+                call Read_In_RDMs(rdms(1), rdm_estimates(1))
             end if
         end if
 
@@ -535,7 +543,7 @@ contains
 
     end subroutine InitRDMs
 
-    subroutine Read_In_RDMs(rdm)
+    subroutine Read_In_RDMs(rdm, est)
 
         ! Reads in the arrays to restart the RDM calculation (and continue
         ! accumulating). These arrays are not normalised, so the trace is
@@ -546,13 +554,15 @@ contains
         use LoggingData, only: RDMExcitLevel
         use NatOrbsMod, only: NatOrbMat
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: rdm_t, tOpenShell, tCalc_RDMEnergy
-        use rdm_estimators, only: rdm_output_wrapper
+        use rdm_data, only: rdm_t, rdm_estimates_t, tOpenShell, tCalc_RDMEnergy
+        use rdm_data, only: rdm_estimates
+        use rdm_estimators, only: rdm_output_wrapper, write_rdm_estimates
         use RotateOrbsData, only: SymLabelListInv_rot
         use SystemData, only: tStoreSpinOrbs
         use util_mod, only: get_free_unit
 
         type(rdm_t), intent(inout) :: rdm
+        type(rdm_estimates_t), intent(inout) :: est
 
         logical :: exists_one
         logical :: exists_aaaa, exists_abab, exists_abba
@@ -708,7 +718,10 @@ contains
 
         ! Calculate the energy for the matrices read in (if we're calculating more
         ! than the 1-RDM).
-        if (tCalc_RDMEnergy) call rdm_output_wrapper(rdm, Norm_2RDM)
+        if (tCalc_RDMEnergy) then
+            call rdm_output_wrapper(rdm, 1, est)
+            if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates)
+        end if
 
         ! Continue calculating the RDMs from the first iteration when the popsfiles
         ! (and RDMs) are read in. This overwrites the iteration number put in the input.
@@ -903,7 +916,7 @@ contains
 
     ! Routines called at the end of a simulation.
 
-    subroutine FinaliseRDMs(rdms)
+    subroutine FinaliseRDMs(rdms, rdm_estimates)
 
         ! This routine performs some finalisation, including summing each of
         ! the individual matrices from each processor, and calling the
@@ -913,13 +926,14 @@ contains
         use LoggingData, only: tBrokenSymNOs, occ_numb_diff, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo, tDipoles
         use Parallel_neci, only: iProcIndex, MPIBarrier
-        use rdm_data, only: rdm_t, tRotatedNos, FinaliseRDMs_Time
+        use rdm_data, only: rdm_t, rdm_estimates_t, tRotatedNos, FinaliseRDMs_Time
         use rdm_estimators, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
-        use rdm_estimators, only: rdm_output_wrapper, CalcDipoles
+        use rdm_estimators, only: rdm_output_wrapper, CalcDipoles, write_rdm_estimates
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
         use util_mod, only: set_timer, halt_timer
 
         type(rdm_t), intent(inout) :: rdms(:)
+        type(rdm_estimates_t), intent(inout) :: rdm_estimates(:)
 
         integer :: i, error
         real(dp) :: Norm_2RDM, Norm_2RDM_Inst
@@ -949,7 +963,7 @@ contains
                 tFinalRDMEnergy = .true.
 
                 ! 1-RDM is constructed here (in calc_1RDM_and_1RDM_energy).
-                call rdm_output_wrapper(rdms(i), Norm_2RDM)
+                call rdm_output_wrapper(rdms(i), i, rdm_estimates(i))
 
                 if (tPrint1RDM) then
                     call Finalise_1e_RDM(rdms(i), Norm_1RDM)
@@ -987,6 +1001,8 @@ contains
             end if
 
         end do
+
+        if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates)
 
         call halt_timer(FinaliseRDMs_Time)
     
@@ -1228,7 +1244,11 @@ contains
             write(6,'(1X,"Writing out the *normalised* 1 electron density matrix to file")')
             call neci_flush(6)
             OneRDM_unit = get_free_unit()
-            open(OneRDM_unit,file='OneRDM',status='unknown')
+#ifdef _MOLCAS_
+            call molcas_open(OneRDM_unit,'ONERDM')
+#else
+            OPEN(OneRDM_unit,file='OneRDM',status='unknown')
+#endif
         else
             ! Only every write out 1 of these at the moment.
             write(6,'(1X,"Writing out the *unnormalised* 1 electron density matrix to file for reading in")')
@@ -1279,7 +1299,7 @@ contains
 
     end subroutine Write_out_1RDM
 
-    subroutine DeallocateRDM()
+    subroutine DeallocateRDMs()
 
         ! This routine just deallocates the arrays allocated in InitRDMs.
         ! If the NECI calculation softexits before the RDMs start to fill,
@@ -1300,7 +1320,7 @@ contains
         use util_mod, only: LogMemDealloc
 
         integer :: i
-        character(len=*), parameter :: t_r = 'DeallocateRDM'
+        character(len=*), parameter :: t_r = 'DeallocateRDMs'
 
         if (tExplicitAllRDM) then
 
@@ -1393,72 +1413,84 @@ contains
                 deallocate(rdms(i)%aaaa_inst)
                 nullify(rdms(i)%aaaa_inst)
                 call LogMemDeAlloc(t_r,rdms(i)%aaaa_instTag)
+                nullify(rdms(i)%aaaa_inst)
             end if
 
             if (associated(rdms(i)%abab_inst)) then
                 deallocate(rdms(i)%abab_inst)
                 nullify(rdms(i)%abab_inst)
                 call LogMemDeAlloc(t_r,rdms(i)%abab_instTag)
+                nullify(rdms(i)%abab_inst)
             end if
 
             if (associated(rdms(i)%abba_inst)) then
                 deallocate(rdms(i)%abba_inst)
                 nullify(rdms(i)%abba_inst)
                 call LogMemDeAlloc(t_r,rdms(i)%abba_instTag)
+                nullify(rdms(i)%abba_inst)
             end if
 
             if (associated(rdms(i)%bbbb_inst)) then
                 deallocate(rdms(i)%bbbb_inst)
                 nullify(rdms(i)%bbbb_inst)
                 call LogMemDeAlloc(t_r,rdms(i)%bbbb_instTag)
+                nullify(rdms(i)%bbbb_inst)
             end if
 
             if (associated(rdms(i)%baba_inst)) then
                 deallocate(rdms(i)%baba_inst)
                 nullify(rdms(i)%baba_inst)
                 call LogMemDeAlloc(t_r,rdms(i)%baba_instTag)
+                nullify(rdms(i)%baba_inst)
             end if
 
             if (associated(rdms(i)%baab_inst)) then
                 deallocate(rdms(i)%baab_inst)
                 nullify(rdms(i)%baab_inst)
                 call LogMemDeAlloc(t_r,rdms(i)%baab_instTag)
+                nullify(rdms(i)%baab_inst)
             end if
 
             if (associated(rdms(i)%aaaa_full)) then
                 deallocate(rdms(i)%aaaa_full)
                 nullify(rdms(i)%aaaa_full)
                 call LogMemDeAlloc(t_r,rdms(i)%aaaa_fullTag)
+                nullify(rdms(i)%aaaa_full)
             end if
 
             if (associated(rdms(i)%abab_full)) then
                 deallocate(rdms(i)%abab_full)
                 nullify(rdms(i)%abab_full)
                 call LogMemDeAlloc(t_r,rdms(i)%abab_fullTag)
+                nullify(rdms(i)%abab_full)
             end if
 
             if (associated(rdms(i)%abba_full)) then
                 deallocate(rdms(i)%abba_full)
                 nullify(rdms(i)%abab_full)
                 call LogMemDeAlloc(t_r,rdms(i)%abba_fullTag)
+                nullify(rdms(i)%abba_full)
             end if
 
             if (associated(rdms(i)%bbbb_full)) then
                 deallocate(rdms(i)%bbbb_full)
                 nullify(rdms(i)%bbbb_full)
                 call LogMemDeAlloc(t_r,rdms(i)%bbbb_fullTag)
+                nullify(rdms(i)%bbbb_full)
             end if
 
             if (associated(rdms(i)%baba_full)) then
                 deallocate(rdms(i)%baba_full)
                 nullify(rdms(i)%baba_full)
                 call LogMemDeAlloc(t_r,rdms(i)%baba_fullTag)
+                nullify(rdms(i)%baba_full)
             end if
 
             if (associated(rdms(i)%baab_full)) then
                 deallocate(rdms(i)%baab_full)
                 nullify(rdms(i)%baba_full)
                 call LogMemDeAlloc(t_r,rdms(i)%baab_fullTag)
+                nullify(rdms(i)%baab_full)
             end if
 
             if (associated(rdms(i)%aaaa)) nullify(rdms(i)%aaaa)
@@ -1469,7 +1501,9 @@ contains
             if (associated(rdms(i)%baab)) nullify(rdms(i)%baab)
         end do
 
-    end subroutine DeallocateRDM
+        deallocate(rdms)
+
+    end subroutine DeallocateRDMs
 
 
     ! Some general routines used during the main simulation.
@@ -1520,6 +1554,7 @@ contains
         !           AvSignI - the new average walker population during this time (also real).
 
         use bit_reps, only: extract_bit_rep
+        use CalcData, only: tPairedReplicas
         use FciMCData, only: PreviousCycles, Iter, IterRDMStart, excit_gen_store_type
         use global_det_data, only: get_iter_occ, get_av_sgn
         use LoggingData, only: RDMEnergyIter
@@ -1530,7 +1565,8 @@ contains
         real(dp), dimension(lenof_sign), intent(out) :: SignI
         real(dp), dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
         type(excit_gen_store_type), intent(inout), optional :: Store
-        integer :: part_ind
+
+        integer :: part_ind, irdm, ind1, ind2
 
         ! This is the iteration from which this determinant has been occupied.
         IterRDMStartI(1:lenof_sign) = get_iter_occ(j)
@@ -1554,49 +1590,58 @@ contains
             end do
         else
             ! Now let's consider other instances in which we need to start a new block:
-            if (inum_runs .eq. 2) then
+            if (tPairedReplicas) then
 #if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS) || defined(__CMPLX)
-                if ((SignI(1) .eq. 0) .and. (IterRDMStartI(1) .ne. 0)) then
-                    ! The population has just gone to zero on population 1.
-                    ! Therefore, we need to start a new averaging block.
-                    AvSignI(1) = 0
-                    IterRDMStartI(1) = 0
-                    AvSignI(2) = SignI(2)
-                    IterRDMStartI(2) = real(Iter + PreviousCycles,dp)
+                do irdm = 1, lenof_sign/2
 
-                else if ((SignI(2) .eq. 0) .and. (IterRDMStartI(2) .ne. 0)) then
-                    ! The population has just gone to zero on population 2.
-                    ! Therefore, we need to start a new averaging block.
-                    AvSignI(2) = 0
-                    IterRDMStartI(2) = 0
-                    AvSignI(1) = SignI(1)
-                    IterRDMStartI(1) = real(Iter + PreviousCycles,dp)
+                    ! The indicies of the first and second replicas in this
+                    ! particular pair, in the sign arrays.
+                    ind1 = irdm*2-1
+                    ind2 = irdm*2
 
-                else if ((SignI(1) .ne. 0) .and. (IterRDMStartI(1) .eq. 0)) then
-                    ! Population 1 has just become occupied.
-                    IterRDMStartI(1) = real(Iter + PreviousCycles,dp)
-                    IterRDMStartI(2) = real(Iter + PreviousCycles,dp)
-                    AvSignI(1) = SignI(1)
-                    AvSignI(2) = SignI(2)
-                    if (SignI(2) .eq. 0) IterRDMStartI(2) = 0
+                    if ((SignI(ind1) .eq. 0) .and. (IterRDMStartI(ind1) .ne. 0)) then
+                        ! The population has just gone to zero on population 1.
+                        ! Therefore, we need to start a new averaging block.
+                        AvSignI(ind1) = 0
+                        IterRDMStartI(ind1) = 0
+                        AvSignI(ind2) = SignI(ind2)
+                        IterRDMStartI(ind2) = real(Iter + PreviousCycles,dp)
 
-                else if ((SignI(2) .ne. 0) .and. (IterRDMStartI(2) .eq. 0)) then
-                    ! Population 2 has just become occupied.
-                    IterRDMStartI(1) = real(Iter + PreviousCycles,dp)
-                    IterRDMStartI(2) = real(Iter + PreviousCycles,dp)
-                    AvSignI(1) = SignI(1)
-                    AvSignI(2) = SignI(2)
-                    if (SignI(1) .eq. 0) IterRDMStartI(1) = 0
+                    else if ((SignI(ind2) .eq. 0) .and. (IterRDMStartI(ind2) .ne. 0)) then
+                        ! The population has just gone to zero on population 2.
+                        ! Therefore, we need to start a new averaging block.
+                        AvSignI(ind2) = 0
+                        IterRDMStartI(ind2) = 0
+                        AvSignI(ind1) = SignI(ind1)
+                        IterRDMStartI(ind1) = real(Iter + PreviousCycles,dp)
 
-                else
-                    ! Nothing unusual has happened so update both populations
-                    ! as normal.
-                    do part_ind = 1, lenof_sign
-                        ! Update the average population.
-                        AvSignI(part_ind) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * get_av_sgn(j, part_ind))&
-                            + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
-                    end do
-                end if
+                    else if ((SignI(ind1) .ne. 0) .and. (IterRDMStartI(ind1) .eq. 0)) then
+                        ! Population 1 has just become occupied.
+                        IterRDMStartI(ind1) = real(Iter + PreviousCycles,dp)
+                        IterRDMStartI(ind2) = real(Iter + PreviousCycles,dp)
+                        AvSignI(ind1) = SignI(ind1)
+                        AvSignI(ind2) = SignI(ind2)
+                        if (SignI(ind2) .eq. 0) IterRDMStartI(ind2) = 0
+
+                    else if ((SignI(ind2) .ne. 0) .and. (IterRDMStartI(ind2) .eq. 0)) then
+                        ! Population 2 has just become occupied.
+                        IterRDMStartI(ind1) = real(Iter + PreviousCycles,dp)
+                        IterRDMStartI(ind2) = real(Iter + PreviousCycles,dp)
+                        AvSignI(ind1) = SignI(ind1)
+                        AvSignI(ind2) = SignI(ind2)
+                        if (SignI(ind1) .eq. 0) IterRDMStartI(ind1) = 0
+
+                    else
+                        ! Nothing unusual has happened so update both populations
+                        ! as normal.
+                        do part_ind = 2*irdm-1, 2*irdm
+                            ! Update the average population.
+                            AvSignI(part_ind) = &
+                                ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * get_av_sgn(j, part_ind)) &
+                                  + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
+                        end do
+                    end if
+                end do
 #endif
             else
                 do part_ind = 1, lenof_sign
@@ -1680,7 +1725,7 @@ contains
         real(dp), intent(in) :: RDMBiasFacCurr
         integer, intent(in) :: WalkerNumber, procJ
         integer, intent(in) :: DetSpawningAttempts
-        integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
+        integer(n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer, intent(in) :: part_type
         logical :: tRDMStoreParent
         integer :: j
@@ -1693,7 +1738,7 @@ contains
 
             ! First we want to check if this Di.Dj pair has already been accounted for.
             ! This means searching the Dj's that have already been spawned from this Di, to make sure 
-            ! the new Di being spawned on here is not the same.
+            ! the new Dj being spawned on here is not the same.
             ! The Dj children spawned by the current Di are being stored in the array TempSpawnedParts, 
             ! so that the reaccurance of a Di.Dj pair may be monitored.
 
@@ -1726,12 +1771,12 @@ contains
                 SpawnedParts(niftot+1:niftot+nifdbo+1, ValidSpawnedList(procJ)) = iLutI(0:nifdbo) 
 
                 ! We need to carry with the child (and the parent), the sign of the parent.
-                ! In actual fact this is the sign of the parent divided by the probability of generating 
+                ! In actual fact this is the sign of the parent divided by the probability of generating
                 ! that pair Di and Dj, to account for the 
                 ! fact that Di and Dj are not always added to the RDM, but only when Di spawns on Dj.
                 ! This RDMBiasFacCurr factor is turned into an integer to pass around to the relevant processors.
                 SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(procJ)) = &
-                    transfer(RDMBiasFacCurr,SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(procJ)))
+                    transfer(RDMBiasFacCurr, SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(procJ)))
 
             else
                 ! This Di has already spawned on this Dj - don't store the Di parent with this child, 

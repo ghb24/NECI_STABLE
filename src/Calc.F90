@@ -354,7 +354,7 @@ contains
 
           ! Allocate and set this default here, because we don't have inum_runs
           ! set when the other defaults are set.
-          allocate(InputDiagSft(inum_runs))
+          if(.not.allocated(InputDiagSft)) allocate(InputDiagSft(inum_runs))
           InputDiagSft=0.0_dp
 
           calc: do
