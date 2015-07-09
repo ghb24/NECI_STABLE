@@ -29,7 +29,9 @@ end module EN2Molcas
         implicit none
         character(64) :: dummy1,dummy2
 
+#ifdef __DEBUG
         write(6,*) 'STARTING NECI'
+#endif
         dummy1=' '
         dummy2=' '
         ! Indicate not called by CPMD, VASP, Molpro
@@ -45,7 +47,10 @@ end module EN2Molcas
         implicit none
         character(64) :: dummy1,dummy2
 
+#ifdef __DEBUG
         write(6,*) "STARTING NECI"
+#endif
+
         dummy1=' '
         dummy2=' '
         ! Indicate not called by CPMD, VASP, Molpro
