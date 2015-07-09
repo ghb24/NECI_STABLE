@@ -1713,7 +1713,12 @@ r_loop: do while(.not.tStoreDet)
 
         ! And stop timing
         call halt_timer(write_timer)
-
+#ifdef _MOLCAS_
+        if(allocated(Parts)) then 
+          deallocate(Parts)
+          call LogMemDealloc('Popsfile',PartsTag)
+        end if 
+#endif
         ! Reset some globals
         AllSumNoatHF = 0
         AllSumENum = 0

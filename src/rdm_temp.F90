@@ -28,7 +28,7 @@ contains
         type(rdm_t), intent(inout) :: rdm
 
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity
-        integer :: ierr
+        integer :: i, ierr
 
         ! If Iter = 0, this means we have just read in the TwoRDM_POPS_a*** matrices into a***_RDM_full, and 
         ! just want to calculate the old energy.
@@ -73,13 +73,38 @@ contains
             ! (summed over the energy update cycle). Whereas TwoElRDM_full is
             ! accumulated over the entire run.
             if (tRDMInstEnergy .and. (iProcIndex .eq. 0)) then
-                rdm%aaaa_full(:,:) = rdm%aaaa_full(:,:) + rdm%aaaa(:,:)
-                rdm%abba_full(:,:) = rdm%abba_full(:,:) + rdm%abba(:,:)
-                rdm%abab_full(:,:) = rdm%abab_full(:,:) + rdm%abab(:,:)
+
+                ! We have to add the RDMs column by column. Adding the whole
+                ! arrays in one go causes ifort to crash for large arrays,
+                ! presumably because of large arrays being created on the
+                ! stack, which ifort never likes.
+
+                do i = 1, size(rdm%aaaa, 2)
+                    rdm%aaaa_full(:,i) = rdm%aaaa_full(:,i) + rdm%aaaa(:,i)
+                end do
+
+                do i = 1, size(rdm%abba, 2)
+                    rdm%abba_full(:,i) = rdm%abba_full(:,i) + rdm%abba(:,i)
+                end do
+
+                do i = 1, size(rdm%abab, 2)
+                    rdm%abab_full(:,i) = rdm%abab_full(:,i) + rdm%abab(:,i)
+                end do
+
                 if (tOpenShell) then
-                    rdm%bbbb_full(:,:) = rdm%bbbb_full(:,:) + rdm%bbbb(:,:)
-                    rdm%baab_full(:,:) = rdm%baab_full(:,:) + rdm%baab(:,:)
-                    rdm%baba_full(:,:) = rdm%baba_full(:,:) + rdm%baba(:,:)
+
+                    do i = 1, size(rdm%bbbb, 2)
+                        rdm%bbbb_full(:,i) = rdm%bbbb_full(:,i) + rdm%bbbb(:,i)
+                    end do
+
+                    do i = 1, size(rdm%baab, 2)
+                        rdm%baab_full(:,i) = rdm%baab_full(:,i) + rdm%baab(:,i)
+                    end do
+
+                    do i = 1, size(rdm%baba, 2)
+                        rdm%baba_full(:,i) = rdm%baba_full(:,i) + rdm%baba(:,i)
+                    end do
+
                 end if
             end if
         end if
@@ -143,7 +168,7 @@ contains
 
     end subroutine calc_2e_norms
 
-    subroutine Write_out_2RDM(rdm, Norm_2RDM, tNormalise, tMake_Herm)
+    subroutine Write_out_2RDM(rdm, rdm_label, Norm_2RDM, tNormalise, tMake_Herm)
 
         ! Writes out the 2-RDMs. If tNormalise is true, we print the normalised
         ! (hermitian) matrix. Otherwise we print the unnormalised 2-RDMs, and
@@ -158,17 +183,19 @@ contains
         use LoggingData, only: tWriteMultRDMs
         use rdm_data, only: rdm_t, tOpenShell
         use RotateOrbsData, only: SpatOrbs
-        use util_mod, only: get_unique_filename, get_free_unit
+        use util_mod, only: get_unique_filename, get_free_unit, int_fmt
 
         type(rdm_t), intent(inout) :: rdm
+        integer, intent(in) :: rdm_label
         real(dp), intent(in) :: Norm_2RDM
         logical, intent(in) :: tNormalise, tMake_Herm
 
         real(dp) :: ParityFactor, Divide_Factor
-        integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab, iunit_4
+        integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab
         integer :: No_Herm_Elements
         integer :: aaaa_RDM_unit, abab_RDM_unit, abba_RDM_unit
         integer :: bbbb_RDM_unit, baba_RDM_unit, baab_RDM_unit
+        character(20) :: stem
         character(255) :: TwoRDM_aaaa_name, TwoRDM_abab_name, TwoRDM_abba_name
         character(255) :: TwoRDM_bbbb_name, TwoRDM_baba_name, TwoRDM_baab_name
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity, Sum_Herm_Percent 
@@ -179,28 +206,44 @@ contains
             call neci_flush(6)
             ! This takes the TwoRDM_aaaa, and if tWriteMultPops is true (and given that we've put 
             ! .true. in the 3rd position, it'll find the next unused TwoRDM_aaaa.X file name.
-            call get_unique_filename('TwoRDM_aaaa', tWriteMultRDMs, .true., 1, TwoRDM_aaaa_name)
+#ifdef _MOLCAS_
+            aaaa_RDM_unit = get_free_unit()
+            call molcas_open(aaaa_RDM_unit,'TWORDM1')
+
+            abab_RDM_unit = get_free_unit()
+            call molcas_open(abab_RDM_unit,'TWORDM2')
+
+            abba_RDM_unit = get_free_unit()
+            call molcas_open(abba_RDM_unit,'TWORDM3')
+#else
+            write(stem, '("TwoRDM_aaaa.",'//int_fmt(rdm_label,0)//')') rdm_label
+            call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_aaaa_name)
             aaaa_RDM_unit = get_free_unit()
             open(aaaa_RDM_unit, file=TwoRDM_aaaa_name, status='unknown')
 
-            call get_unique_filename('TwoRDM_abab', tWriteMultRDMs, .true., 1, TwoRDM_abab_name)
+            write(stem, '("TwoRDM_abab.",'//int_fmt(rdm_label,0)//')') rdm_label
+            call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_abab_name)
             abab_RDM_unit = get_free_unit()
             open(abab_RDM_unit, file=TwoRDM_abab_name, status='unknown')
 
-            call get_unique_filename('TwoRDM_abba', tWriteMultRDMs, .true., 1, TwoRDM_abba_name)
+            write(stem, '("TwoRDM_abba.",'//int_fmt(rdm_label,0)//')') rdm_label
+            call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_abba_name)
             abba_RDM_unit = get_free_unit()
             open(abba_RDM_unit, file=TwoRDM_abba_name, status='unknown')
-
+#endif
             if (tOpenShell) then
-                call get_unique_filename('TwoRDM_bbbb', tWriteMultRDMs, .true., 1, TwoRDM_bbbb_name)
+                write(stem, '("TwoRDM_bbbb.",'//int_fmt(rdm_label,0)//')') rdm_label
+                call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_bbbb_name)
                 bbbb_RDM_unit = get_free_unit()
                 open(bbbb_RDM_unit,file=TwoRDM_bbbb_name, status='unknown')
 
-                call get_unique_filename('TwoRDM_baba', tWriteMultRDMs, .true., 1, TwoRDM_baba_name)
+                write(stem, '("TwoRDM_baba.",'//int_fmt(rdm_label,0)//')') rdm_label
+                call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_baba_name)
                 baba_RDM_unit = get_free_unit()
                 open(baba_RDM_unit, file=TwoRDM_baba_name, status='unknown')
 
-                call get_unique_filename('TwoRDM_baab', tWriteMultRDMs, .true., 1, TwoRDM_baab_name)
+                write(stem, '("TwoRDM_baab.",'//int_fmt(rdm_label,0)//')') rdm_label
+                call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_baab_name)
                 baab_RDM_unit = get_free_unit()
                 open(baab_RDM_unit, file=TwoRDM_baab_name, status='unknown')
             end if
@@ -208,20 +251,31 @@ contains
         else
             write(6,'("Writing out the *unnormalised* 2 electron density matrix to file for reading in")')
             call neci_flush(6)
+
             aaaa_RDM_unit = get_free_unit()
-            open(aaaa_RDM_unit, file='TwoRDM_POPS_aaaa', status='unknown', form='unformatted')
+            write(stem, '("TwoRDM_POPS_aaaa.",'//int_fmt(rdm_label,0)//')') rdm_label
+            open(aaaa_RDM_unit, file=trim(stem), status='unknown', form='unformatted')
+
             abab_RDM_unit = get_free_unit()
-            open(abab_RDM_unit, file='TwoRDM_POPS_abab', status='unknown', form='unformatted')
+            write(stem, '("TwoRDM_POPS_abab.",'//int_fmt(rdm_label,0)//')') rdm_label
+            open(abab_RDM_unit, file=trim(stem), status='unknown', form='unformatted')
+
             abba_RDM_unit = get_free_unit()
-            open(abba_RDM_unit, file='TwoRDM_POPS_abba', status='unknown', form='unformatted')
+            write(stem, '("TwoRDM_POPS_abba.",'//int_fmt(rdm_label,0)//')') rdm_label
+            open(abba_RDM_unit, file=trim(stem), status='unknown', form='unformatted')
 
             if (tOpenShell) then
                 bbbb_RDM_unit = get_free_unit()
-                open(bbbb_RDM_unit, file='TwoRDM_POPS_bbbb', status='unknown', form='unformatted')
+                write(stem, '("TwoRDM_POPS_bbbb.",'//int_fmt(rdm_label,0)//')') rdm_label
+                open(bbbb_RDM_unit, file=trim(stem), status='unknown', form='unformatted')
+
                 baba_RDM_unit = get_free_unit()
-                open(baba_RDM_unit, file='TwoRDM_POPS_baba', status='unknown', form='unformatted')
+                write(stem, '("TwoRDM_POPS_baba.",'//int_fmt(rdm_label,0)//')') rdm_label
+                open(baba_RDM_unit, file=trim(stem), status='unknown', form='unformatted')
+
                 baab_RDM_unit = get_free_unit()
-                open(baab_RDM_unit, file='TwoRDM_POPS_baab', status='unknown', form='unformatted')
+                write(stem, '("TwoRDM_POPS_baab.",'//int_fmt(rdm_label,0)//')') rdm_label
+                open(baab_RDM_unit, file=trim(stem), status='unknown', form='unformatted')
             end if
         end if
        
@@ -615,6 +669,10 @@ contains
             end do  
         end do 
 
+
+        call neci_flush(aaaa_RDM_unit)
+        call neci_flush(abab_RDM_unit)
+        call neci_flush(abba_RDM_unit)
         close(aaaa_RDM_unit)
         close(abab_RDM_unit)
         close(abba_RDM_unit)

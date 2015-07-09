@@ -98,4 +98,7 @@ module LoggingData
 
     ! If not true then don't output data tables to FCIMCStats, INITIATORStats or standard output. 
     logical :: tPrintDataTables
+
+    ! Should we output the load-balanced distribution?
+    logical :: tOutputLoadDistribution
 end module LoggingData

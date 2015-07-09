@@ -7,7 +7,8 @@ module orthogonalise
     use FciMCData, only: TotWalkers, CurrentDets, all_norm_psi_squared, &
                          NoBorn, NoDied, fcimc_iter_data, replica_overlaps, &
                          HolesInList
-    use CalcData, only: OccupiedThresh, tOrthogonaliseSymmetric, tSemiStochastic
+    use CalcData, only: OccupiedThresh, tOrthogonaliseSymmetric, tSemiStochastic, &
+                        tPairedReplicas
     use dSFMT_interface, only: genrand_real2_dSFMT
     use load_balance, only: CalcHashTableStats
     use bit_reps, only: extract_sign, encode_sign
@@ -46,8 +47,9 @@ contains
             return
         end if
 
-        norms = 0
-        overlaps = 0
+        norms = 0.0_dp
+        overlaps = 0.0_dp
+
         do tgt_run = 1, inum_runs
 
             HolesInList = 0
@@ -63,21 +65,24 @@ contains
 
                 ! Loop over source runs, and subtract out components
                 sgn_orig = sgn(tgt_run)
-                do src_run = 1, tgt_run - 1
-                    delta = - sgn(src_run) * all_overlaps(src_run, tgt_run) &
-                                           / all_norms(src_run)
-                    sgn(tgt_run) = sgn(tgt_run) + delta
-                end do
 
-                ! Rounding is now done in CalcHashTableStats
-                !if (abs(sgn(tgt_run)) < OccupiedThresh) then
-                !    r = genrand_real2_dSFMT()
-                !    if (r > abs(sgn(tgt_run)) / OccupiedThresh) then
-                !        sgn(tgt_run) = sign(OccupiedThresh, sgn(tgt_run))
-                !    else
-                !        sgn(tgt_run) = 0.0_dp
-                !    end if
-                !end if
+                if (tPairedReplicas) then
+
+                    do src_run = 2-mod(tgt_run, 2), tgt_run - 2, 2
+                        delta = - sgn(src_run) * all_overlaps(src_run, tgt_run) &
+                                               / all_norms(src_run)
+                        sgn(tgt_run) = sgn(tgt_run) + delta
+                    end do
+
+                else
+
+                    do src_run = 1, tgt_run - 1
+                        delta = - sgn(src_run) * all_overlaps(src_run, tgt_run) &
+                                               / all_norms(src_run)
+                        sgn(tgt_run) = sgn(tgt_run) + delta
+                    end do
+
+                end if
 
                 call encode_sign(CurrentDets(:,j), sgn)
 
@@ -90,7 +95,7 @@ contains
                     ASSERT(.not. IsUnoccDet(sgn))
                 end if
 
-                ! Now we need to to our accounting to make sure that NoBorn/
+                ! Now we need to our accounting to make sure that NoBorn/
                 ! Died/etc. counters remain reasonable.
                 !
                 ! n.b. we don't worry about the delta=0 case, as adding 0 to
@@ -146,7 +151,6 @@ contains
                     replica_overlaps(src_run, tgt_run)
             end do
         end do
-
 
 #endif
 
@@ -249,7 +253,7 @@ contains
                     ASSERT(.not. IsUnoccDet(sgn))
                 end if
 
-                ! Now we need to to our accounting to make sure that NoBorn/
+                ! Now we need to our accounting to make sure that NoBorn/
                 ! Died/etc. counters remain reasonable.
                 !
                 ! n.b. we don't worry about the delta=0 case, as adding 0 to

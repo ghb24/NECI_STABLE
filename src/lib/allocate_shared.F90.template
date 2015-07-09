@@ -404,8 +404,10 @@ end module
 
 
 supermodule shared_alloc
+#ifdef __SHARED_MEM
     interface
         subroutine cleanup_shared_alloc () bind(c)
         end subroutine
     end interface
+#endif
 end supermodule

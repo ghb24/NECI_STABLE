@@ -89,7 +89,7 @@ module fcimc_initialisation
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD, only : InitHistInitPops
     use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
-    use rdm_general, only: DeallocateRDM, InitRDMs, extract_bit_rep_avsign_no_rdm
+    use rdm_general, only: DeallocateRDMs, InitRDMs, extract_bit_rep_avsign_no_rdm
     use rdm_filling, only: fill_rdm_diag_currdet_norm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
                          FindExcitBitDet, IsAllowedHPHF, DetBitEq, &
@@ -122,6 +122,7 @@ module fcimc_initialisation
                                secondary_gen_store, ostag
     use get_excit, only: make_double
     use sltcnd_mod, only: sltcnd_0
+    use rdm_data, only: nrdms
     use Parallel_neci
     use FciMCData
     use util_mod
@@ -1092,6 +1093,14 @@ contains
 !            WRITE(iout,"(A,I20)") "Approximate size of determinant space is: ",NINT(TotDets)
 !        endif
 
+         if (tRDMOnFly) then
+             if (tPairedReplicas) then
+                 nrdms = lenof_sign/2
+             else
+                 nrdms = lenof_sign
+             end if
+         end if
+
     END SUBROUTINE SetupParameters
 
     ! This initialises the calculation, by allocating memory, setting up the
@@ -1358,7 +1367,7 @@ contains
             call init_yama_store ()
         endif
     
-        if (tRDMonFly) call InitRDMs(1)
+        if (tRDMonFly) call InitRDMs(nrdms)
         ! This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
         ! Initialises RDM stuff for both explicit and stochastic calculations of RDM.
 
@@ -1630,9 +1639,11 @@ contains
             ENDIF
         ENDIF
 
-        IF(tRDMonFly) CALL DeallocateRDM()
+        IF(tRDMonFly) CALL DeallocateRDMs()
         if (allocated(refdetflip)) deallocate(refdetflip)
         if (allocated(ilutrefflip)) deallocate(ilutrefflip)
+        if (allocated(ValidSpawnedList)) deallocate(ValidSpawnedList)
+        if (allocated(InitialSpawnedSlots)) deallocate(InitialSpawnedSlots)
 
         ! Cleanup global storage
         call clean_global_det_data()
@@ -1907,12 +1918,12 @@ contains
 
         integer :: nexcit, ndets_this_proc, i, det(nel)
         type(basisfn) :: sym
-        real(dp) :: evals(inum_runs)
+        real(dp) :: evals(inum_runs/nreplicas)
         real(dp), allocatable :: evecs_this_proc(:,:)
         integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
         character(*), parameter :: this_routine = 'InitFCIMC_trial'
 
-        nexcit = inum_runs
+        nexcit = inum_runs/nreplicas
 
         ! Create the trial excited states
         call calc_trial_states_lanczos(init_trial_in, nexcit, ndets_this_proc, &
@@ -1922,7 +1933,7 @@ contains
         call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
         ! Set the trial excited states as the FCIQMC wave functions
         call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts, &
-                              .false., .false.)
+                              .false., tPairedReplicas)
 
         deallocate(evecs_this_proc)
 

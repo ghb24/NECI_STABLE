@@ -241,7 +241,6 @@ module fcimc_pointed_fns
 
                 ! And round this to an integer in the usual way
                 ! HACK: To use the same number of random numbers for the tests.
-                if (nspawn - real(int(nspawn),dp) == 0.0_dp) r = genrand_real2_dSFMT()
                 nSpawn = real(stochastic_round (nSpawn), dp)
                 
             endif
@@ -436,8 +435,12 @@ module fcimc_pointed_fns
             if(fac(1).gt.2.0_dp) then
                 call stop_all("attempt_die_normal","Death probability > 2: Algorithm unstable. Reduce timestep.")
             else
-                write(iout,*) "** WARNING ** Death probability > 1: Creating Antiparticles. "&
-                    & //"Timestep errors possible: ",fac
+                write(iout,'("** WARNING ** Death probability > 1: Creating Antiparticles. "&
+                    & //"Timestep errors possible: ")',advance='no')
+                do i = 1, lenof_sign
+                    write(iout,'(1X,f13.7)',advance='no') fac(i)
+                end do
+                write(iout,'()')
             endif
         endif
 

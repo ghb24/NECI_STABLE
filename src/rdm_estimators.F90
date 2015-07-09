@@ -13,29 +13,27 @@ module rdm_estimators
 
 contains
 
-    subroutine rdm_output_wrapper(rdm, Norm_2RDM)
+    subroutine rdm_output_wrapper(rdm, rdm_label, est)
 
         use FciMCData, only: tFinalRDMEnergy, Iter, IterRDMStart, PreviousCycles
         use LoggingData, only: tRDMInstEnergy, tWriteMultRDMs, IterWriteRDMs
         use LoggingData, only: tWrite_RDMs_to_read, tWrite_normalised_RDMs
         use LoggingData, only: tWriteSpinFreeRDM
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: rdm_t, rdms, tOpenShell, rdm_estimates_unit
+        use rdm_data, only: rdm_t, rdm_estimates_t, rdms, tOpenShell, rdm_estimates_unit
         use rdm_temp, only: Finalise_2e_RDM, calc_2e_norms, Write_out_2RDM
         use rdm_temp, only: Write_spinfree_RDM
 
         type(rdm_t), intent(inout) :: rdm
-        real(dp), intent(out) :: Norm_2RDM
-
-        real(dp) :: Norm_2RDM_Inst, Trace_2RDM, Trace_2RDM_New, spin_est
-        real(dp) :: RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst
+        integer, intent(in) :: rdm_label
+        type(rdm_estimates_t), intent(inout) :: est
 
         ! Normalise, make Hermitian, etc.
         call Finalise_2e_RDM(rdm)
 
         if (iProcIndex == 0) then
             ! Calculate the normalisations.
-            call calc_2e_norms(rdm, Norm_2RDM_Inst, Norm_2RDM, Trace_2RDM)
+            call calc_2e_norms(rdm, est%Norm_2RDM_Inst, est%Norm_2RDM, est%Trace_2RDM)
 
             ! There's no need to explicitly make the RDM hermitian here, as the
             ! integrals are already hermitian -- when we calculate the energy,
@@ -45,38 +43,21 @@ contains
             if (tFinalRDMEnergy .or. (tWriteMultRDMs .and. (mod((Iter+PreviousCycles-IterRDMStart)+1,IterWriteRDMs) .eq. 0))) then
 
                 ! Only ever want to print the 2-RDMs (for reading in) at the end.
-                if (tFinalRDMEnergy .and. tWrite_RDMs_to_read) call Write_out_2RDM(rdm, Norm_2RDM, .false., .false.)
+                if (tFinalRDMEnergy .and. tWrite_RDMs_to_read) call Write_out_2RDM(rdm, rdm_label, est%Norm_2RDM, .false., .false.)
 
                 ! This writes out the normalised, hermitian 2-RDMs.
                 ! IMPORTANT NOTE: We assume that we want tMake_Herm=.true. here.
-                if (tWrite_normalised_RDMs) call Write_out_2RDM(rdm, Norm_2RDM, .true., .true.)
+                if (tWrite_normalised_RDMs) call Write_out_2RDM(rdm, rdm_label, est%Norm_2RDM, .true., .true.)
 
-                if (tWriteSpinFreeRDM) call Write_spinfree_RDM(rdm, Norm_2RDM)
+                if (tWriteSpinFreeRDM) call Write_spinfree_RDM(rdm, est%Norm_2RDM)
 
              end if
 
-            call Calc_Energy_from_RDM(rdm, Norm_2RDM, Norm_2RDM_Inst, Trace_2RDM_New, RDMEnergy, &
-                                      RDMEnergy1, RDMEnergy2, RDMEnergy_Inst)
+            call Calc_Energy_from_RDM(rdm, est%Norm_2RDM, est%Norm_2RDM_Inst, est%Trace_2RDM_normalised, est%RDMEnergy, &
+                                      est%RDMEnergy1, est%RDMEnergy2, est%RDMEnergy_Inst)
 
             ! Calculate the instantaneous estimate of <S^2> using the 2RDM.
-            spin_est = calc_2rdm_spin_estimate(rdm, Norm_2RDM_Inst)
-
-            if (tRDMInstEnergy) then
-                write(rdm_estimates_unit, '(1X,I13,3(2X,es20.13))') Iter+PreviousCycles, RDMEnergy_Inst, &
-                                                                    spin_est, 1.0_dp/Norm_2RDM_Inst
-            else
-                write(rdm_estimates_unit, '(I31,F30.15)') Iter+PreviousCycles, RDMEnergy
-            end if
-            call neci_flush(rdm_estimates_unit)
-
-            if (tFinalRDMEnergy) then
-                write(6,'(1X,"Trace of 2-el-RDM before normalisation:",1X,es17.10)') Trace_2RDM
-                write(6,'(1X,"Trace of 2-el-RDM after normalisation:",1X,es17.10)') Trace_2RDM_New
-                write(6,'(1X,"Energy contribution from the 1-RDM:",1X,es17.10)') RDMEnergy1
-                write(6,'(1X,"Energy contribution from the 2-RDM:",1X,es17.10)') RDMEnergy2
-                write(6,'(1X,"*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:",1X,es20.13)') RDMEnergy
-                close(rdm_estimates_unit)
-            end if
+            est%spin_est = calc_2rdm_spin_estimate(rdm, est%Norm_2RDM_Inst)
         end if
 
         ! Zero all of the instantaneous RDM arrays and data.
@@ -94,7 +75,48 @@ contains
 
     end subroutine rdm_output_wrapper
 
-    subroutine Calc_Energy_from_RDM(rdm, Norm_2RDM, Norm_2RDM_Inst, Trace_2RDM_New, RDMEnergy, &
+    subroutine write_rdm_estimates(est)
+
+        use FciMCData, only: tFinalRDMEnergy, Iter, PreviousCycles
+        use LoggingData, only: tRDMInstEnergy
+        use rdm_data, only: rdm_estimates_t, rdm_estimates_unit
+
+        type(rdm_estimates_t), intent(inout) :: est(:)
+
+        integer :: i
+
+        if (tRDMInstEnergy) then
+            write(rdm_estimates_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
+            do i = 1, size(est)
+                write(rdm_estimates_unit, '(3(3x,es20.13))', advance='no') &
+                    est(i)%RDMEnergy_Inst, est(i)%spin_est, 1.0_dp/est(i)%Norm_2RDM_Inst
+            end do
+            write(rdm_estimates_unit,'()')
+
+        else
+
+            write(rdm_estimates_unit, '(1x,i13)') Iter+PreviousCycles
+            do i = 1, size(est)
+                write(rdm_estimates_unit, '(3(3x,es20.13))', advance='no') &
+                    est(i)%RDMEnergy, est(i)%spin_est, 1.0_dp/est(i)%Norm_2RDM_Inst
+            end do
+            write(rdm_estimates_unit, '()')
+        end if
+
+        call neci_flush(rdm_estimates_unit)
+
+        if (tFinalRDMEnergy) then
+            write(6,'(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%Trace_2RDM
+            write(6,'(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est%Trace_2RDM_normalised
+            write(6,'(1x,"Energy contribution from the 1-RDM:",1x,es17.10)') est%RDMEnergy1
+            write(6,'(1x,"Energy contribution from the 2-RDM:",1x,es17.10)') est%RDMEnergy2
+            write(6,'(1x,"*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:",1x,es20.13)') est%RDMEnergy
+            close(rdm_estimates_unit)
+        end if
+
+    end subroutine write_rdm_estimates
+
+    subroutine Calc_Energy_from_RDM(rdm, Norm_2RDM, Norm_2RDM_Inst, Trace_2RDM_normalised, RDMEnergy, &
                                     RDMEnergy1, RDMEnergy2, RDMEnergy_Inst)
 
         ! This routine takes the 1 electron and 2 electron reduced density
@@ -108,7 +130,9 @@ contains
         !
         !   Tr(h1 1RDM) = Sum_i,j [ h1(i,j) 1RDM(j,i) ]
         !   Tr(h2 2RDM) = Sum_i,j;k,l [ h2(i,j;k,l) 2RDM(k,l;i,j) ]
-
+#ifdef _MOLCAS_
+        USE EN2MOLCAS, only : NECI_E
+#endif
         use FciMCData, only: tFinalRDMEnergy
         use global_utilities, only: set_timer, halt_timer
         use IntegralsData, only: umat
@@ -122,7 +146,7 @@ contains
 
         type(rdm_t), intent(in) :: rdm
         real(dp), intent(in) :: Norm_2RDM, Norm_2RDM_Inst
-        real(dp), intent(out) :: Trace_2RDM_New, RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst
+        real(dp), intent(out) :: Trace_2RDM_normalised, RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst
 
         integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab, ierr
         integer :: iSpin, jSpin, error
@@ -132,7 +156,7 @@ contains
 
         call set_timer(RDMEnergy_Time, 30)
 
-        Trace_2RDM_New = 0.0_dp
+        Trace_2RDM_normalised = 0.0_dp
         RDMEnergy_Inst = 0.0_dp
         RDMEnergy1 = 0.0_dp
         RDMEnergy2 = 0.0_dp
@@ -152,7 +176,7 @@ contains
                 do a = 1, SpatOrbs
 
                     ! Adding in contributions effectively from the 1-RDM (although these are calculated 
-                    ! from the 2-RDM.
+                    ! from the 2-RDM).
                     call calc_1RDM_and_1RDM_energy(rdm, i, j, a, iSpin,jSpin, Norm_2RDM, Norm_2RDM_Inst, &
                                                    RDMEnergy_Inst, RDMEnergy1)
                     
@@ -211,9 +235,9 @@ contains
 
 
                             if (Ind1_aa .eq. Ind2_aa) then
-                                Trace_2RDM_New = Trace_2RDM_New + &
+                                Trace_2RDM_normalised = Trace_2RDM_normalised + &
                                                     rdm%aaaa_full(Ind1_aa,Ind2_aa) * Norm_2RDM
-                                if (tOpenShell) Trace_2RDM_New = Trace_2RDM_New + &
+                                if (tOpenShell) Trace_2RDM_normalised = Trace_2RDM_normalised + &
                                                     rdm%bbbb_full(Ind1_aa,Ind2_aa) * Norm_2RDM
                             end if
 
@@ -255,9 +279,9 @@ contains
                             end if 
 
                             if (Ind1_ab .eq. Ind2_ab) then
-                                Trace_2RDM_New = Trace_2RDM_New + &
+                                Trace_2RDM_normalised = Trace_2RDM_normalised + &
                                                     rdm%abab_full(Ind1_ab,Ind2_ab) * Norm_2RDM
-                                if (tOpenShell) Trace_2RDM_New = Trace_2RDM_New + &
+                                if (tOpenShell) Trace_2RDM_normalised = Trace_2RDM_normalised + &
                                                     rdm%baba_full(Ind1_ab,Ind2_ab) * Norm_2RDM
                             end if
 
@@ -381,10 +405,10 @@ contains
                             end if 
 
                             if (Ind1_ab .eq. Ind2_ab) then
-                                Trace_2RDM_New = Trace_2RDM_New + &
+                                Trace_2RDM_normalised = Trace_2RDM_normalised + &
                                                     rdm%abab_full(Ind1_ab,Ind2_ab) * Norm_2RDM
                                 if (tOpenShell) then
-                                    Trace_2RDM_New = Trace_2RDM_New + &
+                                    Trace_2RDM_normalised = Trace_2RDM_normalised + &
                                                     rdm%baba_full(Ind1_ab,Ind2_ab) * Norm_2RDM
                                 end if  
                             end if

@@ -7,7 +7,8 @@ module load_balance
     use CalcData, only: tUniqueHFNode, tSemiStochastic, tTruncInitiator, &
                         tCheckHighestPop, tEnhanceRemainder, OccupiedThresh, &
                         InitiatorOccupiedThresh, tContTimeFCIMC, &
-                        tContTimeFull, tTrialWavefunction, tInitOccThresh
+                        tContTimeFull, tTrialWavefunction, tInitOccThresh, &
+                        tPairedReplicas
     use global_det_data, only: global_determinant_data, get_iter_occ, &
                                set_det_diagH, set_part_init_time, &
                                inc_spawn_count, set_spawn_rate
@@ -19,6 +20,7 @@ module load_balance
                          tFillingStochRDMOnFly
     use searching, only: hash_search_trial, bin_search_trial
     use Determinants, only: get_helement, write_det
+    use LoggingData, only: tOutputLoadDistribution
     use rdm_filling, only: det_removed_fill_diag_rdm
     use hphf_integrals, only: hphf_diag_helement
     use cont_time_rates, only: spawn_rate_full
@@ -255,11 +257,11 @@ contains
 
         end do
 
-        if (iProcIndex == root) then
+        if (iProcIndex == root .and. tOutputLoadDistribution) then
             write(6, '("Load balancing distribution:")')
             write(6, '("node #, particles")')
             do j = 0, nNodes - 1
-                write(6,'(i7,i9)') j, proc_parts(j)
+                write(6,'(i8,i10)') j, proc_parts(j)
             end do
             write(6,*) '--'
         end if
@@ -295,7 +297,7 @@ contains
 
         ! Provide some feedback to the user.
         if (iProcIndex == root) then
-            write(6,'(a,i6,a,i6,a,i6)') 'Moving load balancing block ', &
+            write(6,'(a,i9,a,i6,a,i6)') 'Moving load balancing block ', &
                      block, ' from processor ', src_proc, ' to ', tgt_proc
         end if
 
@@ -465,7 +467,9 @@ contains
 
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
+
         integer :: i, j, AnnihilatedDet, lbnd, ubnd
+        integer :: irdm, ind1, ind2
         real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
         real(dp) :: pRemove, r
         integer :: nI(nel), run
@@ -494,7 +498,7 @@ contains
                         run = part_type_to_run(j)
                         if (.not. tIsStateDeterm) then
                             if (tInitOccThresh.and.test_flag(CurrentDets(:,i), flag_has_been_initiator(1)))then
-                                if ((abs(CurrentSign(j)) > 0.0) .and. (abs(CurrentSign(j)) < InitiatorOccupiedThresh)) then
+                                if ((abs(CurrentSign(j)) > 1.e-12_dp) .and. (abs(CurrentSign(j)) < InitiatorOccupiedThresh)) then
                                     ! We remove this walker with probability 1-RealSignTemp.
                                     pRemove = (InitiatorOccupiedThresh-abs(CurrentSign(j)))/InitiatorOccupiedThresh
                                     r = genrand_real2_dSFMT ()
@@ -521,7 +525,7 @@ contains
                                     end if
                                 end if
                             else
-                                if ((abs(CurrentSign(j)) > 0.0) .and. (abs(CurrentSign(j)) < OccupiedThresh)) then
+                                if ((abs(CurrentSign(j)) > 1.e-12_dp) .and. (abs(CurrentSign(j)) < OccupiedThresh)) then
                                 !We remove this walker with probability 1-RealSignTemp
                                 pRemove=(OccupiedThresh-abs(CurrentSign(j)))/OccupiedThresh
                                 r = genrand_real2_dSFMT ()
@@ -589,35 +593,6 @@ contains
                         AvNoAtHF = 0.0_dp 
                         IterRDM_HF = Iter + 1 
                     end if
-                end if
-
-                if (tFillingStochRDMonFly .and. (.not. tIsStateDeterm)) then
-                    if (inum_runs == 2) then
-
-                        if ((CurrentSign(1) == 0 .and. get_iter_occ(i, 1) /= 0) .or. &
-                            (CurrentSign(inum_runs) == 0 .and. get_iter_occ(i, 2) /= 0) .or. &
-                            (CurrentSign(1) /= 0 .and. get_iter_occ(i, 1) == 0) .or. &
-                            (CurrentSign(inum_runs) /= 0 .and. get_iter_occ(i, 2) == 0)) then
-                               
-                            ! At least one of the signs has just gone to zero or just become reoccupied
-                            ! so we need to consider adding in diagonal elements and connections to HF
-                            ! The block that's just ended was occupied in at least one population.
-                            call det_removed_fill_diag_rdm(rdms(1), CurrentDets(:,i), i)
-                        end if
-                    else
-                        if (IsUnoccDet(CurrentSign)) then
-                            call det_removed_fill_diag_rdm(rdms(1), CurrentDets(:,i), i)
-                        end if
-                    end if
-                end if
-
-                if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm) .and. tTruncInitiator) then
-                    do j=1,lenof_sign
-                        if (test_flag(CurrentDets(:,i),flag_initiator(j))) then
-                            !determinant was an initiator...it obviously isn't any more...
-                            NoAddedInitiators(j)=NoAddedInitiators(j)-1
-                        end if
-                    end do
                 end if
 
                 ! This InstNoAtHF call must be placed at the END of the routine

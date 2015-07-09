@@ -51,6 +51,7 @@ MODULE ReadInput_neci
         Integer             idDef       !What default set do we use
         integer neci_iargc
         logical, intent(in) :: tOverride_input  !If running through molpro, is this an override input?
+        integer, allocatable :: tmparr(:)
         type(kp_fciqmc_data), intent(inout) :: kp
         
         cTitle=""
@@ -58,9 +59,22 @@ MODULE ReadInput_neci
         ir=get_free_unit()              !default to a free unit which we'll open below
         If(cFilename.ne.'') Then
             Write(6,*) "Reading from file: ", Trim(cFilename)
+#ifdef _MOLCAS_
+           allocate(tmparr(10))
+           call f_Inquire('FCINP',tExists)
+           if(tExists) then
+              Call Molcas_Open(ir,'FCINP')
+!              call molcas_open_ext2(ir,'FCINP','SEQUENTIAL','FORMATTED',100,.false.,1,'OLD',.false.)
+              Rewind(ir)
+           else
+              call stop_all('ReadInputMain','File '//Trim(cFilename)//' does not exist.')
+           end if
+           deallocate(tmparr)
+#else
             inquire(file=cFilename,exist=tExists)
             if (.not.tExists) call stop_all('ReadInputMain','File '//Trim(cFilename)//' does not exist.')
             Open(ir,File=cFilename,Status='OLD',err=99,iostat=ios)
+#endif
         ElseIf(neci_iArgC().gt.0) then
     ! We have some arguments we can process instead
             Call neci_GetArg(1,cInp)      !Read argument 1 into inp
@@ -183,7 +197,8 @@ MODULE ReadInput_neci
                               tFindCINatOrbs, tNoRenormRandExcits, LMS, STOT,&
                               tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
                               tGen_4ind_weighted, tGen_4ind_reverse, &
-                              tMultiReplicas
+                              tMultiReplicas, tGen_4ind_part_exact, &
+                              tGen_4ind_lin_exact
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -353,10 +368,12 @@ MODULE ReadInput_neci
         endif
         
         !.. We still need a specdet space even if we don't have a specdet.
+#ifndef _MOLCAS_
         if (.not. associated(SPECDET)) then
             allocate(SPECDET(nel - nFrozen), stat=ierr)
             call LogMemAlloc('SPECDET', nel-nFrozen, 4, t_r, tagSPECDET, ierr)
         endif
+#endif
   
         !..   Testing ILOGGING
         !     ILOGGING = 0771
@@ -499,17 +516,11 @@ MODULE ReadInput_neci
         end if
 #endif
 
-        write(6,*) 'CHECKING'
 #if __PROG_NUMRUNS
         if (tRDMonFly) then
             write(6,*) 'RDM on fly'
 
-            if (tMultiReplicas) then
-                if (inum_runs /= lenof_sign .or. &
-                    .not. (inum_runs == 1 .or. inum_runs == 2)) &
-                    call stop_all(t_r, 'Stochastic filling of RDMs only works &
-                                       &with either 1 or 2 replicas')
-            else
+            if (.not. tMultiReplicas) then
                 write(6,*) 'unspecified'
                 write(6,*) 'Filling RDMs without explicitly specifying the &
                            &number of replica simplations'
@@ -562,6 +573,7 @@ MODULE ReadInput_neci
                                    &orthogonalised calculations")
             end if
         end if
+
 
         if (tLoadBalanceBlocks) then
             if (tUniqueHFNode) then
