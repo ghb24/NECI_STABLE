@@ -1546,7 +1546,9 @@ contains
                 write(6,*) 'Using external MPI configuration'
             else 
 #if !(defined(MOLPRO) || defined(_MOLCAS_))
+#ifdef __DEBUG
                 write(6,*) 'Initing MPI'
+#endif
 
                 call MPI_Init (ierr)
                 if (ierr /= MPI_SUCCESS) &
@@ -1582,7 +1584,8 @@ contains
             nProcessors = nProcess
             if (ierr /= MPI_SUCCESS) &
                 call stop_all (t_r, 'MPI Error. Terminating.')
-            write(6,*) 'Number of processors: ', nProcessors
+            if (iProcIndex == 0) &
+                write(6,*) 'Number of processors: ', nProcessors
 
 #ifdef MOLPRO
 #ifdef CBINDMPI
@@ -1624,6 +1627,7 @@ contains
                     write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                                ' as head node.'
                 else
+#ifdef __DEBUG
                     write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                                ' moving to local output.'
 
@@ -1642,6 +1646,7 @@ contains
                     open(6, file=NodeFile, recl=8192)
                     write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                                ' on local output.'
+#endif
                 endif
 
                 call GetProcElectrons (iProcIndex, iProcMinE, iProcMaxE) 
@@ -1666,7 +1671,7 @@ contains
         write(6,"(A)") "***************************  WARNING  ******************************"
         write(6,"(A)") "********************************************************************"
         write(6,"(A)") "***                                                              ***"
-        write(6,"(A)") "*** FCIQMC module run in parallel, but molpro not compiled with  ***"
+        write(6,"(A)") "*** FCIQMC module run in parallel, but Molcas not compiled with  ***"
         write(6,"(A)") "*** MPI. FCIQMC module cannot support compilation with Global    ***"
         write(6,"(A)") "*** Arrays with TCGMSG, and so will now run in serial mode       ***" 
         write(6,"(A)") "*** instead. Recompilation of molpro with linking to MPI module  ***" 
@@ -1791,13 +1796,17 @@ contains
             write(6,*) "Allocating each processor as a separate node."
             if(iProcIndex==root) then
                 nNodes=0
+#ifdef __DEBUG
                 write(6,*) "Processor      Node"
+#endif
                 do i=0,nProcessors-1
                     NodeRoots(nNodes) = i
                     ProcNode(i) = nNodes
                     Nodes(i)%n = nNodes
                     nNodes = nNodes+1
+#ifdef __DEBUG
                     write(6,"(2I10)") i, Nodes(i)%n
+#endif
                 enddo
             endif
         else 
