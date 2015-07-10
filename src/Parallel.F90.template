@@ -1642,8 +1642,10 @@ contains
                     end if
 
                     write(6,*) "outfile=", NodeFile
+#endif
                     close(6, status="keep")
                     open(6, file=NodeFile, recl=8192)
+#ifdef __DEBUG
                     write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                                ' on local output.'
 #endif
