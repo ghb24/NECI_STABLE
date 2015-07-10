@@ -173,7 +173,7 @@ MODULE System
       tGen_4ind_lin_exact = .false.
       tGen_4ind_reverse = .false.
       tUEGNewGenerator = .false.
-      tGen_4ind_take_2 = .true.
+      tGen_4ind_take_2 = .false.
 
       tMultiReplicas = .false.
 
