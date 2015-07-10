@@ -173,6 +173,7 @@ MODULE System
       tGen_4ind_lin_exact = .false.
       tGen_4ind_reverse = .false.
       tUEGNewGenerator = .false.
+      tGen_4ind_take_2 = .true.
 
       tMultiReplicas = .false.
 
@@ -902,6 +903,10 @@ system: do
                         ! of electron b)
                         tGen_4ind_weighted = .true.
                         tGen_4ind_lin_exact = .true.
+                    case("4IND-TAKE-TWO")
+                        ! Second attempt at 4ind weighted generator
+                        tGen_4ind_take_2 = .true.
+                        tGen_4ind_part_exact = .true.
                     case("UEG")
                         ! Use the new UEG excitation generator.
                         ! TODO: This probably isn't the best way to do this
