@@ -962,6 +962,8 @@ contains
             WRITE(iout,*) "Timestep set to: ",Tau
         ENDIF
 
+        tFillingStochRDMonFly = .false.      
+!       ^Needed inititalization 
         if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
             call init_tau_search()
         else

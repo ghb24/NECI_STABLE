@@ -2,9 +2,10 @@
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
  
 module EN2Molcas
-implicit NONE
-REAL, public :: NECI_E
-DATA NECI_E /10.0/
+   use constants
+   implicit NONE
+   save
+   real(dp) :: NECI_E
 end module EN2Molcas
 
 #if defined(_MOLCAS_)
@@ -12,8 +13,8 @@ end module EN2Molcas
       subroutine NECImain(NECIen)
         USE EN2MOLCAS, only : NECI_E
         character(64) :: dummy1,dummy2
-        real(8) :: NECIen
-        write(6,*) "STARTING NECI"
+        real(8), intent (out) :: NECIen
+        write(6,*) "STARTING NECI from Molcas"
         dummy1=' '
         dummy2=' '
        ! Indicate not called by CPMD, VASP, Molpro
@@ -31,7 +32,9 @@ end module EN2Molcas
         implicit none
         character(64) :: dummy1,dummy2
 
+#ifdef __DEBUG
         write(6,*) 'STARTING NECI'
+#endif
         dummy1=' '
         dummy2=' '
         ! Indicate not called by CPMD, VASP, Molpro
@@ -47,7 +50,10 @@ end module EN2Molcas
         implicit none
         character(64) :: dummy1,dummy2
 
+#ifdef __DEBUG
         write(6,*) "STARTING NECI"
+#endif
+
         dummy1=' '
         dummy2=' '
         ! Indicate not called by CPMD, VASP, Molpro
