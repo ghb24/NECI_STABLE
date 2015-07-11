@@ -1630,6 +1630,7 @@ contains
 #ifdef __DEBUG
                     write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                                ' moving to local output.'
+#endif
 
                     if (iProcIndex.lt.9) then
                         write (NodeFile,'(a,i1)') 'NodeFile', iProcIndex+1
@@ -1641,9 +1642,12 @@ contains
                         write (NodeFile,'(a,i4)') 'NodeFile', iProcIndex+1
                     end if
 
+#ifdef __DEBUG
                     write(6,*) "outfile=", NodeFile
+#endif
                     close(6, status="keep")
                     open(6, file=NodeFile, recl=8192)
+#ifdef __DEBUG
                     write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                                ' on local output.'
 #endif
