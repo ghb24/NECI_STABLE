@@ -347,7 +347,9 @@ subroutine NECICalcEnd(iCacheFlag)
     call cleanup_shared_alloc ()
 #endif
     call clean_replica_arrays()
+#ifndef _MOLCAS_
     call clean_parallel()
+#endif
     if(allocated(SpinOrbSymLabel)) deallocate(SpinOrbSymLabel)
     if(allocated(SymInvLabel)) deallocate(SymInvLabel)
     if(allocated(ValidSpawnedList)) deallocate(ValidSpawnedList)

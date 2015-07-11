@@ -922,10 +922,13 @@ contains
         ! the individual matrices from each processor, and calling the
         ! diagonalisation routines if we want to get the occupation numbers.
 
+#ifdef _MOLCAS_
+        USE EN2MOLCAS, only : NECI_E
+#endif
         use FciMCData, only: tFinalRDMEnergy
         use LoggingData, only: tBrokenSymNOs, occ_numb_diff, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo, tDipoles
-        use Parallel_neci, only: iProcIndex, MPIBarrier
+        use Parallel_neci, only: iProcIndex, MPIBarrier, MPIBCast
         use rdm_data, only: rdm_t, rdm_estimates_t, tRotatedNos, FinaliseRDMs_Time
         use rdm_estimators, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
         use rdm_estimators, only: rdm_output_wrapper, CalcDipoles, write_rdm_estimates
@@ -1003,6 +1006,12 @@ contains
         end do
 
         if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates)
+#ifdef _MOLCAS_
+            NECI_E = rdm_estimates(1)%RDMEnergy
+            call MPIBarrier(error)
+            call MPIBCast(NECI_E)
+            write(6,*) 'NECI_E at rdm_general.f90 ', NECI_E
+#endif
 
         call halt_timer(FinaliseRDMs_Time)
     
