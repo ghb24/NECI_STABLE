@@ -620,8 +620,8 @@ contains
              Call Molcas_Open(iunit,'FCIDMP')
              Rewind(iunit)
              READ(iunit,FCI)
-             write(6,*) 'FCI NAMELIST print 3'
-             WRITE(6,FCI)
+!             write(6,*) 'FCI NAMELIST print 3'
+!             WRITE(6,FCI)
              CALL neci_flush(6)
            else
               call Stop_All('InitFromFCID','FCIDUMP file does not exist')

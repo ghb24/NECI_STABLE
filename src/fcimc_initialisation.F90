@@ -959,9 +959,9 @@ contains
             WRITE(iout,*) "Timestep set to: ",Tau
         ENDIF
 
-        tFillingStochRDMonFly = .false.      
-!       ^Needed inititalization 
-        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
+!        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
+!                       ^ Removed by GLM as believed not necessary
+        if (tSearchTau) then
             call init_tau_search()
         else
             ! Add a couple of checks for sanity
