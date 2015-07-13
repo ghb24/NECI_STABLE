@@ -308,7 +308,7 @@ module FciMCParMod
                 ! things). Generally, collate information from all processors,
                 ! update statistics and output them to the user.
                 call set_timer(Stats_Comms_Time)
-                call calculate_new_shift_wrapper (iter_data_fciqmc, TotParts, .false.)
+                call calculate_new_shift_wrapper (iter_data_fciqmc, TotParts, tPairedReplicas)
                 call halt_timer(Stats_Comms_Time)
 
                 if(tRestart) cycle

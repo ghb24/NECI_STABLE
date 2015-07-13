@@ -2147,6 +2147,9 @@ contains
                 !     CASSCF calculations).
                 tPopsJumpShift = .true.
 
+            case("MULTI-REF-SHIFT")
+                tMultiRefShift = .true.
+
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)

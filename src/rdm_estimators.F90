@@ -49,7 +49,7 @@ contains
                 ! IMPORTANT NOTE: We assume that we want tMake_Herm=.true. here.
                 if (tWrite_normalised_RDMs) call Write_out_2RDM(rdm, rdm_label, est%Norm_2RDM, .true., .true.)
 
-                if (tWriteSpinFreeRDM) call Write_spinfree_RDM(rdm, est%Norm_2RDM)
+                if (tWriteSpinFreeRDM) call Write_spinfree_RDM(rdm, rdm_label, est%Norm_2RDM)
 
              end if
 

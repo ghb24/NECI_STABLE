@@ -1,42 +1,49 @@
 ! Copyright (c) 2013, Ali Alavi unless otherwise noted.
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
  
-MODULE RotateOrbsData
-! This just contains those variables which need to be used in other modules - in particular NatOrbsMod.
-    USE global_utilities
+module RotateOrbsData
+
+    ! This contains variables which need to be used in particular in NatOrbsMod.
+
+    use global_utilities
     use MemoryManager, only: TagIntType
     use constants, only: dp
-    IMPLICIT NONE
-    SAVE
 
+    implicit none
+    save
 
-    real(dp) , ALLOCATABLE :: CoeffT1(:,:)  ! This contains the transformation matrix which 
-                                            !rotates the HF orbitals into their new basis.
-    INTEGER(TagIntType) :: CoeffT1Tag
-    INTEGER :: MemAllocRot
+    ! This contains the transformation matrix which rotates the HF orbitals
+    ! into their new basis.
+    real(dp), allocatable :: CoeffT1(:,:)  
+    integer(TagIntType) :: CoeffT1Tag
+
+    integer :: MemAllocRot
 
     ! These are the labelling arrays which allow us to separate the occupied and virtual 
     ! orbitals, mix all together, use spin or spatial 
-    ! orbitals and maitain symmetry etc.
+    ! orbitals and maintain symmetry etc.
     integer :: NoSymLabelCounts
-    INTEGER , ALLOCATABLE :: SymLabelList2_rot(:),SymLabelCounts2_rot(:,:), &
-                             SymLabelListInv_rot(:),SymLabelList3_rot(:), &
-                             SymOrbs_rot(:)
-    INTEGER(TagIntType)  :: SymLabelList2_rotTag,SymLabelCounts2_rotTag, &
-                            SymLabelListInv_rotTag,SymLabelList3_rotTag, &
-                            SymOrbs_rotTag,EvaluesTruncTag
-    real(dp) , ALLOCATABLE :: EvaluesTrunc(:)
+    integer, allocatable :: SymLabelList2_rot(:), SymLabelCounts2_rot(:,:)
+    integer, allocatable :: SymLabelListInv_rot(:), SymLabelList3_rot(:)
+    integer, allocatable :: SymOrbs_rot(:)
 
-! NoOrbs is either nBasis or SpatOrbs depending on whether we are using spin or spatial orbitals.    
-    INTEGER :: NoOrbs,SpatOrbs,NoFrozenVirt,NoRotOrbs
+    integer(TagIntType) :: SymLabelList2_rotTag, SymLabelCounts2_rotTag
+    integer(TagIntType) :: SymLabelListInv_rotTag, SymLabelList3_rotTag
+    integer(TagIntType) :: SymOrbs_rotTag, EvaluesTruncTag
+
+    real(dp), allocatable :: EvaluesTrunc(:)
+
+    ! NoOrbs is either nBasis or SpatOrbs depending on whether we are using
+    ! spin or spatial orbitals.
+    integer :: NoOrbs, SpatOrbs, NoFrozenVirt, NoRotOrbs
     real(dp) :: TruncEval
 
-    ! unit to write the TRANSFORM file to.
+    ! Unit to write the TRANSFORM file to.
     integer :: transform_unit
 
-    TYPE(timer) :: FillOneRDM_Time,FillMP2VDM_Time,DiagNatOrbMat_Time, &
-                   OrderCoeff_Time,FillCoeff_Time
+    type(timer) :: FillOneRDM_Time, FillMP2VDM_Time, DiagNatOrbMat_Time
+    type(timer) :: OrderCoeff_Time, FillCoeff_Time
 
-    LOGICAL :: tTurnStoreSpinOff
+    logical :: tTurnStoreSpinOff
 
-END MODULE RotateOrbsData
+end module RotateOrbsData

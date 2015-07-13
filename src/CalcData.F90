@@ -300,4 +300,9 @@ logical :: tPairedReplicas = .false.
 ! Hartree-Fock population becomes negative.
 logical :: tPositiveHFSign = .false.
 
+! If true, then set the initial shift for each replica (in jobs with multiple
+! different references) based on the corresponding references that have
+! been assigned.
+logical :: tMultiRefShift = .false.
+
 end module CalcData
