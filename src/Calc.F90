@@ -742,8 +742,10 @@ contains
 !chosen from the lowest energy orbitals.
 !The 'HF' energy calculated should the be that of the defined determinant.
                 tDefineDet=.true.
-                ALLOCATE(DefDet(NEl),stat=ierr)
-                CALL LogMemAlloc('DefDet',NEl,4,t_r,tagDefDet,ierr)
+                if(.not.allocated(DefDet)) then
+                  ALLOCATE(DefDet(NEl),stat=ierr)
+                  CALL LogMemAlloc('DefDet',NEl,4,t_r,tagDefDet,ierr)
+                end if
                 DefDet(:)=0
                 do i=1,NEl
                     call geti(DefDet(i))
