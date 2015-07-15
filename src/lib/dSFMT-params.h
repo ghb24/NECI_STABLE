@@ -52,35 +52,64 @@
     #define ALTI_PERM    {12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3}
   #endif
 #endif
+#if !defined(_MOLCAS_)
+  #if DSFMT_MEXP == 521
+    #include "dSFMT-params521.h"
+  #elif DSFMT_MEXP == 1279
+    #include "dSFMT-params1279.h"
+  #elif DSFMT_MEXP == 2203
+    #include "dSFMT-params2203.h"
+  #elif DSFMT_MEXP == 4253
+    #include "dSFMT-params4253.h"
+  #elif DSFMT_MEXP == 11213
+    #include "dSFMT-params11213.h"
+  #elif DSFMT_MEXP == 19937
+    #include "dSFMT-params19937.h"
+  #elif DSFMT_MEXP == 44497
+    #include "dSFMT-params44497.h"
+  #elif DSFMT_MEXP == 86243
+    #include "dSFMT-params86243.h"
+  #elif DSFMT_MEXP == 132049
+    #include "dSFMT-params132049.h"
+  #elif DSFMT_MEXP == 216091
+    #include "dSFMT-params216091.h"
+  #else
+    #ifdef __GNUC__
+      #error "DSFMT_MEXP is not valid."
+      #undef DSFMT_MEXP
+    #else
+      #undef DSFMT_MEXP
+    #endif
+  #endif
+#else /* molcas_prep makes all lower case */
+  #if DSFMT_MEXP == 521
+    #include "dsfmt-params521.h"
+  #elif DSFMT_MEXP == 1279
+    #include "dsfmt-params1279.h"
+  #elif DSFMT_MEXP == 2203
+    #include "dsfmt-params2203.h"
+  #elif DSFMT_MEXP == 4253
+    #include "dsfmt-params4253.h"
+  #elif DSFMT_MEXP == 11213
+    #include "dsfmt-params11213.h"
+  #elif DSFMT_MEXP == 19937
+    #include "dsfmt-params19937.h"
+  #elif DSFMT_MEXP == 44497
+    #include "dsfmt-params44497.h"
+  #elif DSFMT_MEXP == 86243
+    #include "dsfmt-params86243.h"
+  #elif DSFMT_MEXP == 132049
+    #include "dsfmt-params132049.h"
+  #elif DSFMT_MEXP == 216091
+    #include "dsfmt-params216091.h"
+  #else
+    #ifdef __GNUC__
+      #error "DSFMT_MEXP is not valid."
+      #undef DSFMT_MEXP
+    #else
+      #undef DSFMT_MEXP
+    #endif
+  #endif
 
-#if DSFMT_MEXP == 521
-  #include "dSFMT-params521.h"
-#elif DSFMT_MEXP == 1279
-  #include "dSFMT-params1279.h"
-#elif DSFMT_MEXP == 2203
-  #include "dSFMT-params2203.h"
-#elif DSFMT_MEXP == 4253
-  #include "dSFMT-params4253.h"
-#elif DSFMT_MEXP == 11213
-  #include "dSFMT-params11213.h"
-#elif DSFMT_MEXP == 19937
-  #include "dSFMT-params19937.h"
-#elif DSFMT_MEXP == 44497
-  #include "dSFMT-params44497.h"
-#elif DSFMT_MEXP == 86243
-  #include "dSFMT-params86243.h"
-#elif DSFMT_MEXP == 132049
-  #include "dSFMT-params132049.h"
-#elif DSFMT_MEXP == 216091
-  #include "dSFMT-params216091.h"
-#else
-#ifdef __GNUC__
-  #error "DSFMT_MEXP is not valid."
-  #undef DSFMT_MEXP
-#else
-  #undef DSFMT_MEXP
 #endif
-
-#endif
-
 #endif /* DSFMT_PARAMS_H */

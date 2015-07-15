@@ -1,4 +1,4 @@
-#include  "macros.h"
+#include "macros.h"
 
 module semi_stoch_gen
 
@@ -35,7 +35,9 @@ contains
         use FciMCData, only: partial_determ_vecs, determ_space_size, determ_space_size_int
         use FciMCData, only: TotWalkers, TotWalkersOld, indices_of_determ_states, SpawnedParts
         use FciMCData, only: FDetermTag, FDetermAvTag, PDetermTag, IDetermTag, SemiStoch_Init_Time
-        use FciMCData, only: tStartCoreGroundState
+        use FciMCData, only: tStartCoreGroundState, iter_data_fciqmc
+        use load_balance, only: adjust_load_balance
+        use load_balance_calcnodes, only: tLoadBalanceBlocks
         use sort_mod, only: sort
         use SystemData, only: nel
 
@@ -45,6 +47,13 @@ contains
         integer :: nI(nel)
         integer(MPIArg) :: mpi_temp
         character (len=*), parameter :: t_r = "init_semi_stochastic"
+
+        ! If we are load balancing, this gets disabled once semi stochastic
+        ! has been initialised. Therefore we should do a last-gasp load
+        ! adjustment at this point.
+        if (tLoadBalanceBlocks) then
+            call adjust_load_balance(iter_data_fciqmc)
+        end if
 
 #ifdef __CMPLX
         call stop_all(t_r, "Semi-stochastic has not been implemented with complex coefficients.")
@@ -142,6 +151,11 @@ contains
         ! Move the states to CurrentDets.
         call add_core_states_currentdet_hash()
 
+        ! If using a trial wavefunction, and that initialisation has already
+        ! been performed, then the current_trial_amps array needs correcting
+        ! after the core states were added and sorted into CurrentDets.
+        call reinit_current_trial_amps()
+
         ! If starting from a popsfile then global_determinant_data will not
         ! have been initialised, or if in the middle of a calculation then new
         ! determinants may have been added.
@@ -188,7 +202,7 @@ contains
         ! Call the requested generating routines.
         if (core_in%tHF) call add_state_to_space(ilutHF, SpawnedParts, space_size)
         if (core_in%tPops) call generate_space_most_populated(core_in%npops, SpawnedParts, space_size)
-        if (core_in%tRead) call generate_space_from_file('DETFILE', SpawnedParts, space_size)
+        if (core_in%tRead) call generate_space_from_file(core_in%read_filename, SpawnedParts, space_size)
         if (.not. tCSFCore) then
             if (core_in%tDoubles) call generate_sing_doub_determinants(SpawnedParts, space_size, core_in%tHFConn)
             if (core_in%tCAS) call generate_cas(core_in%occ_cas, core_in%virt_cas, SpawnedParts, space_size)
@@ -266,7 +280,7 @@ contains
         ! In (optional): nI_in - A list of the occupied orbitals in the determinant.
 
         use DetBitOps, only: IsAllowedHPHF
-        use hash, only: DetermineDetNode
+        use load_balance_calcnodes, only: DetermineDetNode
         use SystemData, only: nel
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -957,7 +971,7 @@ contains
 
         use util_mod, only: get_free_unit
 
-        character(*), intent(in) :: filename
+        character(255), intent(in) :: filename
         integer(n_int), intent(inout) :: ilut_list(0:,:)
         integer, intent(inout) :: space_size
 
@@ -965,12 +979,12 @@ contains
         integer(n_int) :: ilut(0:NIfTot)
         logical :: does_exist
 
-        inquire(file=filename, exist=does_exist)
+        inquire(file=trim(filename), exist=does_exist)
         if (.not. does_exist) call stop_all("generate_space_from_file", &
-                                            "No "//filename//" file detected.")
+                                            "No "//trim(filename)//" file detected.")
 
         iunit = get_free_unit()
-        open(iunit, file=filename, status='old')
+        open(iunit, file=trim(filename), status='old')
 
         ilut = 0_n_int
 

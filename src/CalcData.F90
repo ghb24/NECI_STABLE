@@ -75,6 +75,8 @@ type subspace_in
     integer :: npops = 0
     ! When using the tMP1Core option, this specifies how many determinants to keep.
     integer :: mp1_ndets = 0
+
+    character(255) :: read_filename
 end type subspace_in
 
 LOGICAL :: TSTAR,TTROT,TGrowInitGraph
@@ -173,7 +175,7 @@ LOGICAL tUseProcsAsNodes  !Set if we treat each processor as its own node.
 INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of at most this size.
                           ! 0 means use physical nodes.
 
-    logical :: tJumpShift
+    logical :: tJumpShift, tPopsJumpShift
 
 ! Perform a Davidson calculation if true.
 logical :: tDavidson
@@ -190,7 +192,7 @@ type(subspace_in) :: ss_space_in
 logical :: tCSFCore ! Use CSFs for the core states.
 logical :: tSparseCoreHamil ! Use a sparse representation of the core Hamiltonian.
 
-! If this is non-zero then we turn semi-stochastic semistoch_shift_iter
+! If this is non-zero then we turn semi-stochastic on semistoch_shift_iter
 ! iterations after the shift starts to vary.
 integer :: semistoch_shift_iter
 
@@ -201,9 +203,28 @@ integer :: semistoch_shift_iter
 logical :: tDetermHFSpawning
 
 ! Options relating to the trial wavefunction.
-logical :: tTrialWavefunction ! Use a trial wavefunction-based energy estimator.
+
+! If true at a given point during a simulation then we are currently
+! calculating trial wave function-based energy estimates.
+logical :: tTrialWavefunction
+! How many excited states to calculate in the trial space, for the
+! trial wave functions estimates
+integer :: ntrial_ex_calc = 0
 ! Input type describing which space(s) type to use.
 type(subspace_in) :: trial_space_in
+
+! If true then start using a trial estimator later on in the calculation.
+logical :: tStartTrialLater = .false.
+! How many iterations after the shift starts to vary should be turn on the use
+! of trial estimators?
+integer :: trial_shift_iter
+
+! If false then create the trial wave function by diagonalising the
+! Hamiltonian in the trial subspace.
+! If true then create the trial wave function by taking the weights from the
+! QMC simulation in the trial subspace, at the point the that the trial
+! wave function is turned on.
+logical :: qmc_trial_wf = .false.
 
 ! True if running a kp-fciqmc calculation.
 logical :: tKP_FCIQMC
@@ -247,11 +268,38 @@ type(subspace_in) :: init_trial_in
 ! determinant multiple times.
 logical :: use_spawn_hash_table
 
+logical :: tMultipleInitialRefs = .false.
+integer, allocatable :: initial_refs(:,:)
+
+! Array to specify how to reorder the trial states (which are by default
+! ordered by the energy in the trial space).
+! First the trial states for the energy estimates:
+integer, allocatable :: trial_est_reorder(:)
+! And also the trial states used for the intial states:
+integer, allocatable :: trial_init_reorder(:)
+
+! If true then, when using the orthogonalise-replicas option, print out the
+! overlaps between replicas in a separate file.
+logical :: tPrintReplicaOverlaps = .true.
+
 ! Keep track of when the calculation began (globally)
 real(sp) :: s_global_start
 
 ! Use continuous time FCIQMC
 logical :: tContTimeFCIMC, tContTimeFull
 real(dp) :: cont_time_max_overspawn
+
+! Are we doing an mneci run where each state is represented by two FCIQMC
+! replicas?
+logical :: tPairedReplicas = .false.
+
+! If true then swap the sign of the FCIQMC wave function if the sign of the
+! Hartree-Fock population becomes negative.
+logical :: tPositiveHFSign = .false.
+
+! If true, then set the initial shift for each replica (in jobs with multiple
+! different references) based on the corresponding references that have
+! been assigned.
+logical :: tMultiRefShift = .false.
 
 end module CalcData

@@ -129,6 +129,7 @@ C..
       integer, intent(in) :: iFlg
       integer, intent(in) :: ND1(NEL), ND2(NEL)
       integer :: i, MS1, MS2
+      character(*), parameter :: t_r = 'CHK_MS'
 C..
       MS1=0
       MS2=0
@@ -140,9 +141,9 @@ C..
       MS2=MS2/2
 C..
       IF(MS1.NE.MS2) THEN
-        IF(IFLG.EQ.1) STOP ' PROBLEM IN TWO DIFFER '
-        IF(IFLG.EQ.2) STOP ' PROBLEM IN ONE DIFFER '
-        IF(IFLG.EQ.3) STOP ' PROBLEM IN SAME '
+        IF(IFLG.EQ.1) call stop_all(t_r, ' PROBLEM IN TWO DIFFER ')
+        IF(IFLG.EQ.2) call stop_all(t_r, ' PROBLEM IN ONE DIFFER ')
+        IF(IFLG.EQ.3) call stop_all(t_r, ' PROBLEM IN SAME ')
       ENDIF 
 C..
       RETURN

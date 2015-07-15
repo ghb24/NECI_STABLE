@@ -28,6 +28,13 @@ lowdin.*
 gram_schmidt.*
 RDMEstimates
 TwoRDM*
+OneRDM
+spinfree_TwoRDM.*
+NO_*
 FTLM_EIGV
 EIGV_DATA
 fciqmc_stats*
+*.x
+build/*
+*.pyc
+.idea

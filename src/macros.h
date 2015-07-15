@@ -8,7 +8,7 @@
 ! TODO: Use ilut_int/ilut_off here?
 #define IsOcc(ilut,orb) btest(ilut((orb-1)/bits_n_int), mod(orb-1,bits_n_int))
 #define IsNotOcc(ilut,orb) (.not.IsOcc(ilut,orb))
-#define IsUnoccDet(sgn) all(sgn==0)
+#define IsUnoccDet(sgn) all(abs(sgn) < 1.e-12_dp)
 
 ! Is the specified orbital alpha or beta? Generate the appropriate pair.
 #define is_beta(orb) btest(orb, 0)
@@ -17,6 +17,9 @@
 #define ab_pair(orb) (ieor(orb-1,1)+1)
 #define get_beta(orb) (ibclr(orb-1,0)+1)
 #define get_alpha(orb) (ibset(orb-1,0)+1)
+
+! Get the index of the replica that is paired with ind:
+#define paired_replica(ind) (ind+2*mod(ind,2)-1)
 
 ! The spin where 1=alpha, 2=beta
 #define get_spin(orb) (1+iand(orb,1))
@@ -73,9 +76,9 @@ endif
 #else
 #define ARR_RE_OR_CPLX(arr,index) cmplx(arr(1), arr(2), dp)
 #endif
-#elif __DOUBLERUN
+#elif defined(__DOUBLERUN)
 #define ARR_RE_OR_CPLX(arr,index) real(arr(index), dp)
-#elif __PROG_NUMRUNS
+#elif defined(__PROG_NUMRUNS)
 #define ARR_RE_OR_CPLX(arr,index) real(arr(index), dp)
 #else
 #define ARR_RE_OR_CPLX(arr,index) real(arr(1), dp)

@@ -1533,19 +1533,22 @@ contains
         integer(MPIArg) :: iProcInd, nProcess, ierr
         integer :: a, g,MolpComm
         character(len=20) NodeFile
+        character(len=8) MCPUs
         logical, save :: initialised=.false.
         character(*), parameter :: t_r = 'MPIInit'
 
 #ifdef PARALLEL
-        nNodes = 0  !Indicate we haven't setup nodes yet
-
         if (.not.initialised) then
+            initialised = .true. !GLM added it for compatibility with Molcas loops
+            nNodes = 0  !Indicate we haven't setup nodes yet
             
             if(tExternal) then
                 write(6,*) 'Using external MPI configuration'
             else 
-#ifndef MOLPRO
+#if !(defined(MOLPRO) || defined(_MOLCAS_))
+#ifdef __DEBUG
                 write(6,*) 'Initing MPI'
+#endif
 
                 call MPI_Init (ierr)
                 if (ierr /= MPI_SUCCESS) &
@@ -1574,10 +1577,15 @@ contains
                 call stop_all (t_r, 'MPI Error. Terminating.')
 
             call MPI_Comm_size (CommGlobal, nProcess, ierr)
+#ifdef _MOLCAS_
+            call getenvf('MOLCAS_CPUS',MCPUs)
+            Read(MCPUS,*) nProcess
+#endif
             nProcessors = nProcess
             if (ierr /= MPI_SUCCESS) &
                 call stop_all (t_r, 'MPI Error. Terminating.')
-            write(6,*) 'Number of processors: ', nProcessors
+            if (iProcIndex == 0) &
+                write(6,*) 'Number of processors: ', nProcessors
 
 #ifdef MOLPRO
 #ifdef CBINDMPI
@@ -1619,8 +1627,10 @@ contains
                     write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                                ' as head node.'
                 else
+#ifdef __DEBUG
                     write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                                ' moving to local output.'
+#endif
 
                     if (iProcIndex.lt.9) then
                         write (NodeFile,'(a,i1)') 'NodeFile', iProcIndex+1
@@ -1632,11 +1642,15 @@ contains
                         write (NodeFile,'(a,i4)') 'NodeFile', iProcIndex+1
                     end if
 
+#ifdef __DEBUG
                     write(6,*) "outfile=", NodeFile
+#endif
                     close(6, status="keep")
                     open(6, file=NodeFile, recl=8192)
+#ifdef __DEBUG
                     write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                                ' on local output.'
+#endif
                 endif
 
                 call GetProcElectrons (iProcIndex, iProcMinE, iProcMaxE) 
@@ -1661,7 +1675,7 @@ contains
         write(6,"(A)") "***************************  WARNING  ******************************"
         write(6,"(A)") "********************************************************************"
         write(6,"(A)") "***                                                              ***"
-        write(6,"(A)") "*** FCIQMC module run in parallel, but molpro not compiled with  ***"
+        write(6,"(A)") "*** FCIQMC module run in parallel, but Molcas not compiled with  ***"
         write(6,"(A)") "*** MPI. FCIQMC module cannot support compilation with Global    ***"
         write(6,"(A)") "*** Arrays with TCGMSG, and so will now run in serial mode       ***" 
         write(6,"(A)") "*** instead. Recompilation of molpro with linking to MPI module  ***" 
@@ -1673,6 +1687,7 @@ contains
        ! Dummy set up for serial work.
        iProcIndex = 0
        nProcessors = 1
+       nNodes = 1
 #endif
        
     end subroutine
@@ -1768,11 +1783,11 @@ contains
         initialised=.true.
 
         ! Allocate (temporary) memory
-        allocate(Nodes(0:nProcessors-1))
-        allocate(ProcNode(0:nProcessors-1))
-        allocate(NodeRoots(0:nProcessors-1))
+        if(.not.allocated(Nodes)) allocate(Nodes(0:nProcessors-1))
+        if(.not.allocated(ProcNode)) allocate(ProcNode(0:nProcessors-1))
+        if(.not.allocated(NodeRoots)) allocate(NodeRoots(0:nProcessors-1))
 #ifdef PARALLEL
-        allocate(NodeLengths(0:nProcessors))  !Temp allocate for now
+        if(.not.allocated(NodeLengths)) allocate(NodeLengths(0:nProcessors)) !Temp allocate for now
         NodeLengths = 0
 
         if (iLogicalNodeSize /= 0) &
@@ -1785,13 +1800,17 @@ contains
             write(6,*) "Allocating each processor as a separate node."
             if(iProcIndex==root) then
                 nNodes=0
+#ifdef __DEBUG
                 write(6,*) "Processor      Node"
+#endif
                 do i=0,nProcessors-1
                     NodeRoots(nNodes) = i
                     ProcNode(i) = nNodes
                     Nodes(i)%n = nNodes
                     nNodes = nNodes+1
+#ifdef __DEBUG
                     write(6,"(2I10)") i, Nodes(i)%n
+#endif
                 enddo
             endif
         else 
@@ -1857,11 +1876,11 @@ contains
         call MPIBCast(ProcNode)
         call MPIBCast(NodeRoots)
 
-        allocate(CommNodes(0:nNodes-1))
-        allocate(CommNodesDum(0:nNodes-1))
-        allocate(GroupNodes(0:nNodes-1))
-        allocate(GroupNodesDum(0:nNodes-1))
-        allocate(NodeLengths(0:nNodes-1))
+        if(.not.allocated(CommNodes)) allocate(CommNodes(0:nNodes-1))
+        if(.not.allocated(CommNodesDum)) allocate(CommNodesDum(0:nNodes-1))
+        if(.not.allocated(GroupNodes)) allocate(GroupNodes(0:nNodes-1))
+        if(.not.allocated(GroupNodesDum)) allocate(GroupNodesDum(0:nNodes-1))
+        if(.not.allocated(NodeLengths)) allocate(NodeLengths(0:nNodes-1))
         Node = Nodes(iProcIndex)
         iNodeIndex = Node%n  !Used as a plain integer version.
      !   write(6,*) iNodeIndex,iProcIndex,Node%n,size(NodeRoots)
@@ -1914,9 +1933,9 @@ contains
         ProcNode(0) = 0
         NodeRoots(0) = 0
         bNodeRoot = .true.
-        allocate(NodeLengths(0:nNodes-1))
-        allocate(CommNodes(0:nNodes-1))
-        allocate(GroupNodes(0:nNodes-1))
+        if(.not.allocated(NodeLengths)) allocate(NodeLengths(0:nNodes-1))
+        if(.not.allocated(CommNodes)) allocate(CommNodes(0:nNodes-1))
+        if(.not.allocated(GroupNodes)) allocate(GroupNodes(0:nNodes-1))
         NodeLengths(0) = 1
 #endif /* def PARALLEL */
         Roots%n = -1  !A communicator index between roots
@@ -2018,6 +2037,18 @@ contains
         iMinElec = 1
         iMaxElec = nEl
 #endif
+    end subroutine
+
+    subroutine clean_parallel()
+        if(allocated(Nodes)) deallocate(Nodes)
+        if(allocated(ProcNode)) deallocate(ProcNode)
+        if(allocated(NodeRoots)) deallocate(NodeRoots)
+        if(allocated(NodeLengths)) deallocate(NodeLengths)
+        if(allocated(CommNodes)) deallocate(CommNodes)
+        if(allocated(CommNodesDum)) deallocate(CommNodesDum)
+        if(allocated(GroupNodes)) deallocate(GroupNodes)
+        if(allocated(GroupNodesDum)) deallocate(GroupNodesDum)
+        if(allocated(NodeLengths)) deallocate(NodeLengths)
     end subroutine
 
 end supermodule

@@ -4,9 +4,10 @@ module orthogonalise
     use FciMCData, only: TotWalkers, CurrentDets, all_norm_psi_squared, &
                          NoBorn, NoDied, fcimc_iter_data, replica_overlaps, &
                          HolesInList
-    use CalcData, only: OccupiedThresh, tOrthogonaliseSymmetric, tSemiStochastic
+    use CalcData, only: OccupiedThresh, tOrthogonaliseSymmetric, tSemiStochastic, &
+                        tPairedReplicas
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use AnnihilationMod, only: CalcHashTableStats
+    use load_balance, only: CalcHashTableStats
     use bit_reps, only: extract_sign, encode_sign
     use semi_stoch_procs, only: check_determ_flag
     use Parallel_neci
@@ -43,8 +44,9 @@ contains
             return
         end if
 
-        norms = 0
-        overlaps = 0
+        norms = 0.0_dp
+        overlaps = 0.0_dp
+
         do tgt_run = 1, inum_runs
 
             HolesInList = 0
@@ -60,21 +62,24 @@ contains
 
                 ! Loop over source runs, and subtract out components
                 sgn_orig = sgn(tgt_run)
-                do src_run = 1, tgt_run - 1
-                    delta = - sgn(src_run) * all_overlaps(src_run, tgt_run) &
-                                           / all_norms(src_run)
-                    sgn(tgt_run) = sgn(tgt_run) + delta
-                end do
 
-                ! Rounding is now done in CalcHashTableStats
-                !if (abs(sgn(tgt_run)) < OccupiedThresh) then
-                !    r = genrand_real2_dSFMT()
-                !    if (r > abs(sgn(tgt_run)) / OccupiedThresh) then
-                !        sgn(tgt_run) = sign(OccupiedThresh, sgn(tgt_run))
-                !    else
-                !        sgn(tgt_run) = 0.0_dp
-                !    end if
-                !end if
+                if (tPairedReplicas) then
+
+                    do src_run = 2-mod(tgt_run, 2), tgt_run - 2, 2
+                        delta = - sgn(src_run) * all_overlaps(src_run, tgt_run) &
+                                               / all_norms(src_run)
+                        sgn(tgt_run) = sgn(tgt_run) + delta
+                    end do
+
+                else
+
+                    do src_run = 1, tgt_run - 1
+                        delta = - sgn(src_run) * all_overlaps(src_run, tgt_run) &
+                                               / all_norms(src_run)
+                        sgn(tgt_run) = sgn(tgt_run) + delta
+                    end do
+
+                end if
 
                 call encode_sign(CurrentDets(:,j), sgn)
 
@@ -87,7 +92,7 @@ contains
                     ASSERT(.not. IsUnoccDet(sgn))
                 end if
 
-                ! Now we need to to our accounting to make sure that NoBorn/
+                ! Now we need to our accounting to make sure that NoBorn/
                 ! Died/etc. counters remain reasonable.
                 !
                 ! n.b. we don't worry about the delta=0 case, as adding 0 to
@@ -143,7 +148,6 @@ contains
                     replica_overlaps(src_run, tgt_run)
             end do
         end do
-
 
 #endif
 
@@ -246,7 +250,7 @@ contains
                     ASSERT(.not. IsUnoccDet(sgn))
                 end if
 
-                ! Now we need to to our accounting to make sure that NoBorn/
+                ! Now we need to our accounting to make sure that NoBorn/
                 ! Died/etc. counters remain reasonable.
                 !
                 ! n.b. we don't worry about the delta=0 case, as adding 0 to
@@ -581,5 +585,56 @@ contains
         TotWalkers = TotWalkersNew
 
     end subroutine
+
+    subroutine calc_replica_overlaps()
+
+        ! A routine for just calculating the overlap, in cases where
+        ! orthogonalisation is not being performed.
+
+        integer :: j, run, tgt_run, src_run
+        real(dp) :: sgn(lenof_sign)
+        real(dp) :: norms(inum_runs), overlaps(inum_runs, inum_runs)
+        real(dp) :: all_norms(inum_runs), all_overlaps(inum_runs, inum_runs)
+        character(*), parameter :: this_routine = 'calc_replica_overlaps'
+
+        norms = 0.0_dp
+        overlaps = 0.0_dp
+        do j = 1, int(TotWalkers, sizeof_int)
+
+            ! n.b. We are using a non-contiguous list (Hash algorithm)
+            call extract_sign(CurrentDets(:,j), sgn)
+            if (IsUnoccDet(sgn)) cycle
+
+#ifndef __CMPLX
+            norms = norms + sgn*sgn
+#endif
+
+            do tgt_run = 1, inum_runs
+                do run = tgt_run + 1, inum_runs
+                    overlaps(tgt_run, run) = overlaps(tgt_run, run) &
+                                           + sgn(tgt_run) * sgn(run)
+                    overlaps(run, tgt_run) = 99999999.0_dp ! invalid
+                end do
+            end do
+
+        end do
+
+        ! And ensure that the norm/overlap data is accumulated onto all
+        ! of the processors.
+        call MPISumAll(norms, all_norms)
+        call MPISumAll(overlaps, all_overlaps)
+
+        ! Store a normalised overlap matrix for each of the replicas.
+        do src_run = 1, inum_runs - 1
+            do tgt_run = src_run + 1, inum_runs
+                replica_overlaps(src_run, tgt_run) = &
+                    all_overlaps(src_run, tgt_run) / &
+                    sqrt(all_norms(src_run) * all_norms(tgt_run))
+                replica_overlaps(src_run, tgt_run) = &
+                    replica_overlaps(src_run, tgt_run)
+            end do
+        end do
+
+    end subroutine calc_replica_overlaps
 
 end module

@@ -242,6 +242,7 @@ C.. Actually generate a det
       real(dp) PGEN
       TYPE(ExcitWeight),pointer :: ews(:)
       real(dp) ARR(NBASIS,2)
+      character(*), parameter :: this_routine = 'SYMGENRANDEXCITIT'
 !.. First generate a random excitation 
       PGEN=1.0_dp/ITOTAL
       I=int(ITOTAL*RAN2(ISEED),sizeof_int)
@@ -326,7 +327,8 @@ C.. Actually generate a det
                        WRITE(6,*)                                       &
      &                  (2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)+ISPN,  &
      &                     K=0,SYMLABELCOUNTS(2,ITO)-1)
-                        STOP "INVALID DET SYMGENRANDEXCITIT SINGLE"
+                        call stop_all(this_routine,
+     &                           "INVALID DET SYMGENRANDEXCITIT SINGLE")
                      ENDIF
                      IC=1
                      RETURN
@@ -485,7 +487,7 @@ C.. Actually generate a det
                     I=j
 !                    IF(.not.BTEST(ILUT((SpinOrb-1)/32)
 !     &                       ,mod(SpinOrb-1,32))) THEN
-!                        STOP 'ILUT failure'
+!                        call stop_all(this_routine, 'ILUT failure')
 !                    ENDIF
                     EXIT
                 ENDIF
@@ -603,14 +605,14 @@ C.. Actually generate a det
 !                   CALL WRITEDET(6,NI,NEL,.TRUE.)
 !                   CALL WRITEDET(6,NK,NEL,.TRUE.)
 !                   WRITE(6,*) I,SpinOrb
-!                    STOP "Have not created a single excitation"
+!                    call stop_all(this_routine, "Have not created a single excitation")
 !                ENDIF
 !                IF(.NOT.ISVALIDDET(NK,NEL)) THEN
 !                   WRITE(6,*) "INVALID DET SYMGENRANDEXCITIT SINGLE"
 !                   CALL WRITEDET(6,NI,NEL,.TRUE.)
 !                   CALL WRITEDET(6,NK,NEL,.TRUE.)
 !                   WRITE(6,*) I,SpinOrb
-!                   STOP "INVALID DET SYMGENRANDEXCITIT SINGLE"
+!                   call stop_all(this_routine, "INVALID DET SYMGENRANDEXCITIT SINGLE")
 !                ENDIF
                 EXIT
             ENDIF
@@ -641,6 +643,7 @@ C.. Actually generate a det
       
          LOGICAL IsValidDet
          real(dp) RAN2   
+         character(*),parameter :: t_r='SymGenRandExcitIt2_Single_GetTo'
 ! Now go through the list of possible excitations of it
          ICOUNT=0
 !  J is a loop variable.  We go through the loop once to count the number of possible excitations
@@ -687,7 +690,8 @@ C.. Actually generate a det
                        WRITE(6,*)                                       &
      &                  (2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)+ISPN,  &
      &                     K=0,SYMLABELCOUNTS(2,ITO)-1)
-                        STOP "INVALID DET SYMGENRANDEXCITIT SINGLE"
+                        call stop_all(t_r,
+     &                           "INVALID DET SYMGENRANDEXCITIT SINGLE")
                      ENDIF
                      RETURN
                   ELSE
@@ -720,6 +724,7 @@ C.. Actually generate a det
          INTEGER I,k,j
          LOGICAL found
          real(dp) RAN2
+         character(*), parameter :: t_r='SymGenRandExcitIt2_Doub_GF_NoW'
 !!.. SYMPRODIND(1,ISPN,I)+1 contains the index of the first element of spin ISPN of sym
 !!.. SYMPRODS(I) in ORBPAIRS
 !!.. SYMPRODIND(2,ISPN,I) contains the number of such elements
@@ -744,7 +749,8 @@ C.. Actually generate a det
                   WRITE(6,*) iSpn,iFrom,
      &               OrbPairs(j,I+SymProdInd(1,iSpn,iFrom))
                   WRITE(6,*) nI(:)
-                  STOP 'Cannot locate found occupied orbital pair'
+                  call stop_all(t_r,
+     &                    'Cannot locate found occupied orbital pair')
               ENDIF
           enddo
 !          WRITE(6,*) "NI= ",NI(:)
@@ -989,13 +995,13 @@ C.. Actually generate a det
 !            CALL WRITEDET(6,NK,NEL,.TRUE.)
 !            CALL WRITEDET(6,NI,NEL,.TRUE.)
 !            WRITE(6,*) I
-!            STOP "Have not created a double excitation"
+!            call stop_all(this_routine, "Have not created a double excitation")
 !         ENDIF
 !         IF(.NOT.ISVALIDDET(NK,NEL)) THEN
 !             WRITE(6,*) "INVALID DET SYMGENRANDEXCITIT DOUBLE"
 !             CALL WRITEDET(6,NK,NEL,.TRUE.)
 !             CALL WRITEDET(6,NI,NEL,.TRUE.)
-!             STOP "INVALID DET SYMGENRANDEXCITIT DOUBLE"
+!             call stop_all(this_routine, "INVALID DET SYMGENRANDEXCITIT DOUBLE")
 !         ENDIF
 
       End Subroutine SymGenRandExcitIt2_Doub_GT_NoW

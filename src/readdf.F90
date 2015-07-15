@@ -90,7 +90,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
 
          select case(iDFMethod)
          case(0)
-            STOP "No DF, but ReadDF2EIntegrals called."
+            call stop_all(this_routine, "No DF, but ReadDF2EIntegrals called.")
          case(1)
             WRITE(6,*) "DFMETHOD DFOVERLAP        1 - (ij|u|ab)= (ij|u|P)(P|ab)"
          case(2)
@@ -101,7 +101,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
             WRITE(6,*) "DFMETHOD DFCOULOMB        4 - (ij|u|ab)= (ij|u|P)[(P|u|Q)^-1](Q|u|ab)"
          case default
             WRITE(6,*) "Unknown DF Method: ",iDFMethod
-            STOP "Unknown DF Method"
+            call stop_all(this_routine, "Unknown DF Method")
          end select
 
          if(iDFMethod.gt.2) then
@@ -166,7 +166,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          select case(iDFMethod)
 ! 0 - no DF
          case(0)
-            STOP "DF Method 0 specified - no DF, but DF called."
+            call stop_all(this_routine, "DF Method 0 specified - no DF, but DF called.")
          case(1)
 ! DFOVERLAP        1 - (ij|u|ab)= (ij|u|P)(P|ab)
             do i=1,nAuxBasis
@@ -412,7 +412,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          CALL DSYEV('V','L',nAuxBasis,M,nAuxBasis,Eigenvalues,WORK,WORKL,INFO)
          IF(INFO.NE.0) THEN
             WRITE(6,*) 'DYSEV error: ',INFO
-            STOP
+            call stop_all(t_r, "DSYEV error")
          ENDIF
          iMinEigv=1
          if(dPower.lt.0) then

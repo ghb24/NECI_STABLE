@@ -29,7 +29,9 @@ module fcimc_initialisation
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
                         use_spawn_hash_table, tReplicaSingleDetStart, &
                         ss_space_in, trial_space_in, init_trial_in, &
-                        tContTimeFCIMC, tContTimeFull
+                        tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
+                        initial_refs, trial_init_reorder, tStartTrialLater, &
+                        ntrial_ex_calc, tPairedReplicas, tMultiRefShift
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -78,14 +80,14 @@ module fcimc_initialisation
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
                                        gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse
-    use hash, only: DetermineDetNode, FindWalkerHash, add_hash_table_entry, &
-                    init_hash_table
+    use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table
+    use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
-    use FciMCLoggingMOD , only : InitHistInitPops
+    use FciMCLoggingMOD, only : InitHistInitPops
     use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
-    use nElRDMMod, only: DeallocateRDM, InitRDM, fill_rdm_diag_currdet_norm, &
-                         extract_bit_rep_avsign_no_rdm
+    use rdm_general, only: DeallocateRDMs, InitRDMs, extract_bit_rep_avsign_no_rdm
+    use rdm_filling, only: fill_rdm_diag_currdet_norm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
                          FindExcitBitDet, IsAllowedHPHF, DetBitEq, &
                          EncodeBitDet
@@ -96,17 +98,18 @@ module fcimc_initialisation
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal
     use csf_data, only: csf_orbital_mask
-    use initial_trial_states, only: calc_trial_states, set_trial_populations, &
-                                    set_trial_states
+    use initial_trial_states, only: calc_trial_states_lanczos, &
+                                    set_trial_populations, set_trial_states
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
                                set_part_init_time, set_spawn_rate
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
-    use kp_fciqmc_data_mod, only: tExcitedStateKP, tPairedKPReplicas
+    use kp_fciqmc_data_mod, only: tExcitedStateKP
     use sym_general_mod, only: ClassCountInd
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
+    use load_balance, only: clean_load_balance, init_load_balance
     use ueg_excit_gens, only: gen_ueg_excit
     use gndts_mod, only: gndts
     use csf, only: get_csf_helement
@@ -116,6 +119,7 @@ module fcimc_initialisation
                                secondary_gen_store, ostag
     use get_excit, only: make_double
     use sltcnd_mod, only: sltcnd_0
+    use rdm_data, only: nrdms
     use Parallel_neci
     use FciMCData
     use util_mod
@@ -545,11 +549,11 @@ contains
         ! Option tRandomiseHashOrbs has now been removed.
         ! Its behaviour is now considered default
         ! --> Create a random mapping for the orbitals 
-        ALLOCATE(RandomHash(nBasis),stat=ierr)
+        ALLOCATE(RandomOrbIndex(nBasis),stat=ierr)
         IF(ierr.ne.0) THEN
-            CALL Stop_All(t_r,"Error in allocating RandomHash")
+            CALL Stop_All(t_r,"Error in allocating RandomOrbIndex")
         ENDIF
-        RandomHash(:)=0
+        RandomOrbIndex(:)=0
 
         ! We want another independent randomizing array for the hash table, so
         ! we do not introduce correlations between the two
@@ -564,7 +568,7 @@ contains
                 ! spin paired orbitals must be set equal
                 if (tSpatialOnlyHash) then
                     if (.not. btest(i, 0)) then
-                        RandomHash(i) = RandomHash(i - 1)
+                        RandomOrbIndex(i) = RandomOrbIndex(i - 1)
                         cycle
                     endif
                 endif
@@ -577,12 +581,12 @@ contains
 
                     ! Check all values which have already been set.
                     do j=1,nBasis
-                        IF(RandomHash(j).eq.ChosenOrb) EXIT
+                        IF(RandomOrbIndex(j).eq.ChosenOrb) EXIT
                     enddo
 
                     ! If not already used, then we can move on
                     if (j == nBasis+1) FoundPair = .true.
-                    RandomHash(i) = ChosenOrb
+                    RandomOrbIndex(i) = ChosenOrb
                 enddo
             enddo
 
@@ -622,14 +626,14 @@ contains
                 step = 1
             endif
             do i=1,nBasis
-                IF((RandomHash(i).eq.0).or.(RandomHash(i).gt.nBasis*1000)) THEN
+                IF((RandomOrbIndex(i).eq.0).or.(RandomOrbIndex(i).gt.nBasis*1000)) THEN
                     CALL Stop_All(t_r,"Random Hash incorrectly calculated")
                 ENDIF
                 IF((RandomHash2(i).eq.0).or.(RandomHash2(i).gt.nBasis*1000)) THEN
                     CALL Stop_All(t_r,"Random Hash 2 incorrectly calculated")
                 ENDIF
                 do j = i+step, nBasis, step
-                    IF(RandomHash(i).eq.RandomHash(j)) THEN
+                    IF(RandomOrbIndex(i).eq.RandomOrbIndex(j)) THEN
                         CALL Stop_All(t_r,"Random Hash incorrectly calculated")
                     ENDIF
                     IF(RandomHash2(i).eq.RandomHash2(j)) THEN
@@ -639,8 +643,10 @@ contains
             enddo
         ENDIF
         !Now broadcast to all processors
-        CALL MPIBCast(RandomHash,nBasis)
+        CALL MPIBCast(RandomOrbIndex,nBasis)
         call MPIBCast(RandomHash2,nBasis)
+
+        call init_load_balance()
 
         IF(tHPHF) THEN
             !IF(tLatticeGens) CALL Stop_All("SetupParameters","Cannot use HPHF with model systems currently.")
@@ -692,7 +698,7 @@ contains
         ! runs should be adjusted so that it is still relative to the first
         ! replica, but is offset by the replica's reference's diagonal energy.
         DiagSft = InputDiagSft
-        proje_ref_energy_offsets = 0
+        proje_ref_energy_offsets = 0.0_dp
         if (tOrthogonaliseReplicas) then
             do run = 1, inum_runs
                 if (tHPHF) then
@@ -702,9 +708,7 @@ contains
                 endif
                 proje_ref_energy_offsets(run) = real(TempHii, dp) - Hii
 
-                ! This is a bit of a hack...
-                if (all(InputDiagSft == 0)) &
-                    DiagSft(run) = DiagSft(run) + real(TempHii, dp) - Hii
+                if (tMultiRefShift) DiagSft(run) = proje_ref_energy_offsets(run)
             end do
         end if
 
@@ -953,7 +957,9 @@ contains
             WRITE(iout,*) "Timestep set to: ",Tau
         ENDIF
 
-        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
+!        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
+!                       ^ Removed by GLM as believed not necessary
+        if (tSearchTau) then
             call init_tau_search()
         else
             ! Add a couple of checks for sanity
@@ -1084,6 +1090,14 @@ contains
 !            WRITE(iout,"(A,I20)") "Approximate size of determinant space is: ",NINT(TotDets)
 !        endif
 
+         if (tRDMOnFly) then
+             if (tPairedReplicas) then
+                 nrdms = lenof_sign/2
+             else
+                 nrdms = lenof_sign
+             end if
+         end if
+
     END SUBROUTINE SetupParameters
 
     ! This initialises the calculation, by allocating memory, setting up the
@@ -1100,7 +1114,7 @@ contains
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
-        integer :: PopRandomHash(1024)
+        integer :: PopRandomHash(1024), PopBalanceBlocks
         integer(int64) :: iPopAllTotWalkers
         integer :: i
         real(dp) :: PopDiagSft(1:inum_runs)
@@ -1142,6 +1156,7 @@ contains
                     ! The following values were not read in...
                     read_tau = 0.0_dp
                     read_nnodes = 0
+                    PopBalanceBlocks = -1
                 elseif(PopsVersion.eq.4) then
                     ! The only difference between 3 & 4 is just that 4 reads 
                     ! in via a namelist, so that we can add more details 
@@ -1150,7 +1165,8 @@ contains
                             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
                             PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                             read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
-                            read_pparallel, read_nnodes, read_walkers_on_nodes)
+                            read_pparallel, read_nnodes, read_walkers_on_nodes,&
+                            PopBalanceBlocks)
                     ! Use the random hash from the Popsfile. This is so that,
                     ! if we are using the same number of processors as the job
                     ! which produced the Popsfile, we can send the determinants
@@ -1274,7 +1290,8 @@ contains
             ! If we have a popsfile, read the walkers in now.
             if(tReadPops .and. .not.tPopsAlreadyRead) then
                 call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, iPopNel, read_nnodes, &
-                                    read_walkers_on_nodes, pops_pert)
+                                    read_walkers_on_nodes, pops_pert, &
+                                    PopBalanceBLocks, PopDiagSft)
             else
                 if(tStartMP1) then
                     !Initialise walkers according to mp1 amplitude.
@@ -1347,9 +1364,9 @@ contains
             call init_yama_store ()
         endif
     
-        IF(tRDMonFly) CALL InitRDM()
-        !This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
-        !Initialises RDM stuff for both explicit and stochastic calculations of RDM.
+        if (tRDMonFly) call InitRDMs(nrdms)
+        ! This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
+        ! Initialises RDM stuff for both explicit and stochastic calculations of RDM.
 
         tFillingStochRDMonFly = .false.      
         tFillingExplicRDMonFly = .false.      
@@ -1357,7 +1374,7 @@ contains
 
         !If the iteration specified to start filling the RDM has already been, want to 
         !start filling as soon as possible.
-        if(tRDMonFly) then
+        if (tRDMonFly) then
             do run=1,inum_runs
                 if(.not.tSinglePartPhase(run)) VaryShiftIter(run) = 0
             enddo
@@ -1369,27 +1386,39 @@ contains
         ! arrays required to store and distribute the vectors in the deterministic space later.
         if (tSemiStochastic) call init_semi_stochastic(ss_space_in)
 
+        ! If the number of trial states to calculate hasn't been set by the
+        ! user, then simply use the minimum number
+        if ((tTrialWavefunction .or. tStartTrialLater) .and. (ntrial_ex_calc == 0)) then
+            ntrial_ex_calc = inum_runs
+        end if
+
         ! Initialise the trial wavefunction information which can be used for the energy estimator.
         ! This includes generating the trial space, generating the space connected to the trial space,
         ! diagonalising the trial space to find the trial wavefunction and calculating the vector
         ! in the connected space, required for the energy estimator.
         if (tTrialWavefunction) then
-            if (tOrthogonaliseReplicas .or. (tExcitedStateKP .and. .not. tPairedKPReplicas)) then
-                call init_trial_wf(trial_space_in, inum_runs)
-            else if (tExcitedStateKP .and. tPairedKPReplicas) then
-                call init_trial_wf(trial_space_in, inum_runs/2)
+            if (tPairedReplicas) then
+                call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs/2, .true.)
             else
-                call init_trial_wf(trial_space_in, 1)
+                call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs, .false.)
             end if
+        else if (tStartTrialLater) then
+            ! If we are going to turn on the use of a trial wave function
+            ! later in the calculation, then zero the trial estimate arrays
+            ! for now, to prevent junk being printed before then.
+            trial_numerator = 0.0_dp
+            tot_trial_numerator = 0.0_dp
+            trial_denom = 0.0_dp
+            tot_trial_denom = 0.0_dp
         end if
 
-        replica_overlaps(:, :) = 0
+        replica_overlaps(:, :) = 0.0_dp
 
     end subroutine InitFCIMCCalcPar
 
-    subroutine init_fcimc_fn_pointers ()
+    subroutine init_fcimc_fn_pointers()
 
-        ! Select the excitation generator
+        ! Select the excitation generator.
         if (tHPHF) then
             generate_excitation => gen_hphf_excit
         elseif (tUEGNewGenerator) then
@@ -1484,15 +1513,12 @@ contains
 
         extract_bit_rep_avsign => extract_bit_rep_avsign_no_rdm
 
-        !if(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
-        !    fill_rdm_diag_currdet => fill_rdm_diag_currdet_hfsd
-        !else
-            fill_rdm_diag_currdet => fill_rdm_diag_currdet_norm
-        !endif
+        fill_rdm_diag_currdet => fill_rdm_diag_currdet_norm
 
-    end subroutine
+    end subroutine init_fcimc_fn_pointers
 
-    SUBROUTINE DeallocFCIMCMemPar()
+    subroutine DeallocFCIMCMemPar()
+
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocFciMCMemPar'
         type(ll_node), pointer :: Curr, Prev
         integer :: i, ierr
@@ -1569,7 +1595,7 @@ contains
         CALL LogMemDealloc(this_routine,SpawnVecTag)
         DEALLOCATE(SpawnVec2)
         CALL LogMemDealloc(this_routine,SpawnVec2Tag)
-        !if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
+
         if(allocated(TempSpawnedParts)) then
             deallocate(TempSpawnedParts)
             log_dealloc(TempSpawnedPartsTag)
@@ -1582,7 +1608,7 @@ contains
         DEALLOCATE(iLutHF_True)
         DEALLOCATE(HFDet_True)
         IF(ALLOCATED(HighestPopDet)) DEALLOCATE(HighestPopDet)
-        IF(ALLOCATED(RandomHash)) DEALLOCATE(RandomHash)
+        IF(ALLOCATED(RandomOrbIndex)) DEALLOCATE(RandomOrbIndex)
 
         IF(ALLOCATED(SpinInvBrr)) THEN
             CALL LogMemDealloc(this_routine,SpinInvBRRTag)
@@ -1610,9 +1636,11 @@ contains
             ENDIF
         ENDIF
 
-        IF(tRDMonFly) CALL DeallocateRDM()
+        IF(tRDMonFly) CALL DeallocateRDMs()
         if (allocated(refdetflip)) deallocate(refdetflip)
         if (allocated(ilutrefflip)) deallocate(ilutrefflip)
+        if (allocated(ValidSpawnedList)) deallocate(ValidSpawnedList)
+        if (allocated(InitialSpawnedSlots)) deallocate(InitialSpawnedSlots)
 
         ! Cleanup global storage
         call clean_global_det_data()
@@ -1626,10 +1654,12 @@ contains
         ! Cleanup cont time
         call clean_cont_time()
 
+        ! Cleanup the load balancing
+        call clean_load_balance()
+
         if (tSemiStochastic) call end_semistoch()
 
         if (tTrialWavefunction) call end_trial_wf()
-
 
 !There seems to be some problems freeing the derived mpi type.
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
@@ -1647,7 +1677,7 @@ contains
 !            ENDIF
 !        ENDIF
 
-    END SUBROUTINE DeallocFCIMCMemPar
+    end subroutine DeallocFCIMCMemPar
 
     subroutine InitFCIMC_HF()
 
@@ -1885,36 +1915,36 @@ contains
 
         integer :: nexcit, ndets_this_proc, i, det(nel)
         type(basisfn) :: sym
-        real(dp) :: evals(inum_runs)
+        real(dp) :: evals(inum_runs/nreplicas)
         real(dp), allocatable :: evecs_this_proc(:,:)
         integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
         character(*), parameter :: this_routine = 'InitFCIMC_trial'
 
-        nexcit = inum_runs
-
-        ! For now, use the doubles to generate this space
-        init_trial_in%tDoubles = .true.
+        nexcit = inum_runs/nreplicas
 
         ! Create the trial excited states
-        call calc_trial_states(init_trial_in, nexcit, ndets_this_proc, &
+        call calc_trial_states_lanczos(init_trial_in, nexcit, ndets_this_proc, &
                                SpawnedParts, evecs_this_proc, evals, &
-                               space_sizes, space_displs)
+                               space_sizes, space_displs, trial_init_reorder)
         ! Determine the walker populations associated with these states
         call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
         ! Set the trial excited states as the FCIQMC wave functions
         call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts, &
-                              .false., .false.)
-        call set_initial_run_references()
+                              .false., tPairedReplicas)
 
         deallocate(evecs_this_proc)
 
-        ! Add an initialisation check on symmetries
-        do i = 1, TotWalkers
-            call decode_bit_det(det, CurrentDets(:,i))
-            call getsym_wrapper(det, sym)
-            if (sym%sym%S /= HFSym%sym%S .or. sym%ml /= HFSym%Ml) &
-                call stop_all(this_routine, "Invalid det found")
-        end do
+        call set_initial_run_references()
+
+        ! Add an initialisation check on symmetries.
+        if ((.not. tHub) .and. (.not. tUEG)) then
+            do i = 1, TotWalkers
+                call decode_bit_det(det, CurrentDets(:,i))
+                call getsym_wrapper(det, sym)
+                if (sym%sym%S /= HFSym%sym%S .or. sym%ml /= HFSym%Ml) &
+                    call stop_all(this_routine, "Invalid det found")
+            end do
+        end if
 
     end subroutine InitFCIMC_trial
 
@@ -1927,37 +1957,50 @@ contains
         real(dp) :: largest_coeff, sgn
         integer(n_int) :: largest_det(0:NIfTot)
         integer :: run, j, proc_highest
+        integer(n_int) :: ilut(0:NIfTot)
         integer(int32) :: int_tmp(2)
         character(*), parameter :: this_routine = 'set_initial_run_references'
 
         ASSERT(inum_runs == lenof_sign)
         do run = 1, inum_runs
 
-            ! Find the largest det on this processor
-            largest_coeff = 0
-            do j = 1, TotWalkers
-                sgn = extract_part_sign(CurrentDets(:,j), run)
-                if (abs(sgn) > largest_coeff) then
-                    largest_coeff = abs(sgn)
-                    largest_det = CurrentDets(:,j)
-                end if
-            end do
-            
-            ! Find the largest det on any processor (n.b. discard the
-            ! non-integer part. This isn't all that important).
-            call MPIAllReduceDatatype(&
-                (/int(largest_coeff, int32), int(iProcIndex, int32)/), 1, &
-                MPI_MAXLOC, MPI_2INTEGER, int_tmp)
-            proc_highest = int_tmp(2)
-            call MPIBCast(largest_det, NIfTot+1, proc_highest)
+            if (tMultipleInitialRefs) then
+                ! Use user specified reference states.
+                call EncodeBitDet(initial_refs(:,run), ilut)
+                call update_run_reference(ilut, run)
+            else
+                ! Find the largest det on this processor
+                largest_coeff = 0
+                do j = 1, TotWalkers
+                    sgn = extract_part_sign(CurrentDets(:,j), run)
+                    if (abs(sgn) > largest_coeff) then
+                        largest_coeff = abs(sgn)
+                        largest_det = CurrentDets(:,j)
+                    end if
+                end do
 
-            write(6,*) 'Setting ref', run
-            call writebitdet(6, largest_det, .true.)
+                ! Find the largest det on any processor (n.b. discard the
+                ! non-integer part. This isn't all that important).
+                call MPIAllReduceDatatype(&
+                    (/int(largest_coeff, int32), int(iProcIndex, int32)/), 1, &
+                    MPI_MAXLOC, MPI_2INTEGER, int_tmp)
+                proc_highest = int_tmp(2)
+                call MPIBCast(largest_det, NIfTot+1, proc_highest)
 
-            ! Set this det as the reference
-            call update_run_reference(largest_det, run)
+                write(6,*) 'Setting ref', run
+                call writebitdet(6, largest_det, .true.)
 
+                ! Set this det as the reference
+                call update_run_reference(largest_det, run)
+
+             end if
         end do
+
+        if (tMultiRefShift) then
+            do run = 1, inum_runs
+                DiagSft(run) = proje_ref_energy_offsets(run)
+            end do
+        end if
 
     end subroutine set_initial_run_references
 

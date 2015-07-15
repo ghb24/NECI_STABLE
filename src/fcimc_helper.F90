@@ -39,14 +39,16 @@ module fcimc_helper
                         init_survival_mult, MaxWalkerBloom, &
                         tMultiReplicaInitiators, NMCyc, iSampleRDMIters, &
                         tSpawnCountInitiatorThreshold, init_spawn_thresh, &
-                        tOrthogonaliseReplicas
+                        tOrthogonaliseReplicas, tPairedReplicas
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
     use DetCalcData, only: FCIDetIndex, ICILevel, det
-    use hash, only: DetermineDetNode, remove_hash_table_entry
-    use nElRDMMod, only: store_parent_with_spawned, det_removed_fill_diag_rdm,&
-                         extract_bit_rep_avsign_norm
+    use hash, only: remove_hash_table_entry
+    use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
+    use load_balance, only: adjust_load_balance
+    use rdm_filling, only: det_removed_fill_diag_rdm
+    use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
     use Parallel_neci
     use FciMCLoggingMod, only: HistInitPopulations, WriteInitPops
     use csf_data, only: csf_orbital_mask
@@ -56,6 +58,7 @@ module fcimc_helper
                                global_determinant_data, set_iter_occ, &
                                get_part_init_time, det_diagH, get_spawn_count
     use searching, only: BinSearchParts2
+    use rdm_data, only: nrdms
     implicit none
     save
 
@@ -267,6 +270,9 @@ contains
     subroutine SumEContrib (nI, ExcitLevel, RealWSign, ilut, HDiagCurr, &
                             dProbFin, tPairedReplicas, ind)
 
+        use CalcData, only: qmc_trial_wf
+        use searching, only: get_con_amp_trial_space
+
         integer, intent(in) :: nI(nel), ExcitLevel
         real(dp), intent(in) :: RealwSign(lenof_sign)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -287,6 +293,8 @@ contains
         integer :: doub_parity, doub_parity2, parity
         character(*), parameter :: this_routine = 'SumEContrib'
 
+        real(dp) :: amps(size(current_trial_amps,1))
+
         if (tReplicaReferencesDiffer) then
             call SumEContrib_different_refs(nI, realWSign, ilut, dProbFin, tPairedReplicas, ind)
             return
@@ -303,6 +311,17 @@ contains
                 else if (ntrial_excits == lenof_sign) then
                     trial_denom = trial_denom + current_trial_amps(:,ind)*RealwSign
                 end if
+
+                if (qmc_trial_wf) then
+                    call get_con_amp_trial_space(ilut, amps)
+
+                    if (ntrial_excits == 1) then
+                        trial_numerator = trial_numerator + amps(1)*RealwSign
+                    else if (ntrial_excits == lenof_sign) then
+                        trial_numerator = trial_numerator + amps*RealwSign
+                    end if
+                end if
+
             else if (test_flag(ilut, flag_connected)) then
                 ! Note, only attempt to add in a contribution from the
                 ! connected space if we're not also in the trial space.
@@ -427,6 +446,9 @@ contains
 
     subroutine SumEContrib_different_refs(nI, sgn, ilut, dProbFin, tPairedReplicas, ind)
 
+        use CalcData, only: qmc_trial_wf
+        use searching, only: get_con_amp_trial_space
+
         ! This is a modified version of SumEContrib for use where the
         ! projected energies need to be calculated relative to differing
         ! references.
@@ -448,6 +470,8 @@ contains
         real(dp) :: sgn_run
         HElement_t :: hoffdiag
         character(*), parameter :: this_routine = 'SumEContrib_different_refs'
+
+        real(dp) :: amps(size(current_trial_amps,1))
 
         ASSERT(inum_runs == lenof_sign)
         ASSERT(tReplicaReferencesDiffer)
@@ -475,6 +499,23 @@ contains
                         trial_denom = trial_denom + current_trial_amps(:,ind)*sgn
                     end if
                 end if
+
+                if (qmc_trial_wf) then
+                    call get_con_amp_trial_space(ilut, amps)
+
+                    if (ntrial_excits == 1) then
+                        trial_numerator = trial_numerator + amps(1)*sgn
+                    else
+                        if (tPairedReplicas) then
+                            do run = 2, inum_runs, 2
+                                trial_numerator(run-1:run) = trial_numerator(run-1:run) + amps(run/2)*sgn(run-1:run)
+                            end do
+                        else
+                            trial_numerator = trial_numerator + amps*sgn
+                        end if
+                    end if
+                end if
+
             else if (test_flag(ilut, flag_connected)) then
                 ! Note, only attempt to add in a contribution from the
                 ! connected space if we're not also in the trial space.
@@ -700,8 +741,8 @@ contains
             if (.not. tDetInCas .and. &
                 .not. (DetBitEQ(ilut, iLutRef(:,run), NIfDBO)) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
-                .and. abs(sgn) <= init_thresh &
-                .and. diagH <= InitiatorCutoffEnergy) then
+                .and. ((diagH <= InitiatorCutoffEnergy .and. abs(sgn) <= init_thresh) .or. &
+                       (diagH > InitiatorCutoffEnergy .and. abs(sgn) <= low_init_thresh))) then
                 ! Population has fallen too low. Initiator status 
                 ! removed.
                 initiator = .false.
@@ -750,12 +791,12 @@ contains
 
     end function TestInitiator
 
-
-    subroutine rezero_iter_stats_each_iter (iter_data)
+    subroutine rezero_iter_stats_each_iter(iter_data)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
+
         real(dp) :: prev_AvNoatHF(lenof_sign), AllInstNoatHF(lenof_sign)
-        integer :: j
+        integer :: irdm, ind1, ind2, part_type
 
         NoInitDets = 0
         NoNonInitDets = 0
@@ -776,87 +817,105 @@ contains
 
         call InitHistMin()
 
-        if(tFillingStochRDMonFly) then
+        if (tFillingStochRDMonFly) then
             call MPISumAll(InstNoatHF, AllInstNoAtHF)
-            InstNoAtHF=AllInstNoAtHF
+            InstNoAtHF = AllInstNoAtHF
+
             if (tFullHFAv) then
-                Prev_AvNoatHF(1) = AvNoatHF(1)
-                if (IterRDM_HF(1).ne.0) AvNoatHF(1) = ( (real((Iter+PreviousCycles - IterRDM_HF(1)),dp) * Prev_AvNoatHF(1)) &
-                                            + InstNoatHF(1) ) / real((Iter+PreviousCycles - IterRDM_HF(1)) + 1,dp)
-                if(inum_runs.eq.2) then
-                    Prev_AvNoatHF(inum_runs) = AvNoatHF(inum_runs)
-                   if(IterRDM_HF(inum_runs).ne.0) AvNoatHF(inum_runs) = &
-                               & ( (real((Iter+PreviousCycles - IterRDM_HF(inum_runs)),dp) * &
-                                 &       Prev_AvNoatHF(inum_runs)) + InstNoatHF(inum_runs) ) &
-                                 &   / real((Iter+PreviousCycles - IterRDM_HF(inum_runs)) + 1,dp)
-                endif
+                Prev_AvNoatHF = AvNoatHF
+
+                do ind1 = 1, lenof_sign
+                    if (IterRDM_HF(ind1) .ne. 0.0_dp) then
+                        AvNoatHF(ind1) = ( (real((Iter+PreviousCycles - IterRDM_HF(ind1)),dp) * Prev_AvNoatHF(ind1)) &
+                                                + InstNoatHF(ind1) ) / real((Iter+PreviousCycles - IterRDM_HF(ind1)) + 1, dp)
+                    end if
+                end do
             else
-                if(((Iter+PreviousCycles-IterRDMStart).gt.0) .and. &
-                    & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0)) then 
-                ! The previous iteration was one where we added in diagonal elements
-                ! To keep things unbiased, we need to set up a new averaging block now.
-                    AvNoAtHF=InstNoAtHF
-                    IterRDM_HF(1)=real(Iter+PreviousCycles,dp)
-                    IterRDM_HF(inum_runs)=real(Iter+PreviousCycles,dp)
+                if (((Iter+PreviousCycles-IterRDMStart) .gt. 0) .and. &
+                    & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1), RDMEnergyIter) .eq. 0)) then 
+                    ! The previous iteration was one where we added in diagonal
+                    ! elements To keep things unbiased, we need to set up a new
+                    ! averaging block now.
+                    AvNoAtHF = InstNoAtHF
+                    IterRDM_HF = real(Iter + PreviousCycles, dp)
                 else
-                    if((InstNoatHF(1).eq.0.0).and.(InstNoAtHF(lenof_sign).eq.0.0) &
-                        .and. (.not. tSemiStochastic)) then
-                        !The HF determinant won't be in currentdets, so the CurrentH averages will have been wiped.
-                        !NB - there will be a small issue here if the HF determinant isn't in the core space
-                        IterRDM_HF(1) = 0.0_dp
-                        AvNoatHF(1) = 0.0_dp
-                        if(inum_runs.eq.2) then
-                            IterRDM_HF(inum_runs) = 0.0_dp 
-                            AvNoatHF(inum_runs) = 0.0_dp
-                        endif
-                    elseif(((InstNoAtHF(1).eq.0.0).and.(IterRDM_HF(1).ne.0)) .or. &
-                       &  ((InstNoAtHF(inum_runs).eq.0.0).and.(IterRDM_HF(inum_runs).ne.0))) then
-                        !At least one of the populations has just become zero
-                        !Start a new averaging block
-                        IterRDM_HF(1) = Iter+PreviousCycles  
-                        AvNoatHF(1) = InstNoAtHF(1)
-                        IterRDM_HF(inum_runs) = Iter+PreviousCycles  
-                        AvNoatHF(inum_runs) = InstNoAtHF(inum_runs)
-                        do j=1,inum_runs
-                            if(InstNoAtHF(j).eq.0) then
-                                IterRDM_HF(j)=0
-                            endif
-                        enddo
-                    elseif(((InstNoAtHF(1).ne.0).and.(IterRDM_HF(1).eq.0)) .or. &
-                           ((InstNoAtHF(inum_runs).ne.0).and.(IterRDM_HF(inum_runs).eq.0))) then
-                            !At least one of the populations has just become occupied
-                            !Start a new block here
-                            IterRDM_HF(1)=real(Iter+PreviousCycles,dp)
-                            IterRDM_HF(inum_runs)=real(Iter+PreviousCycles,dp)
-                            AvNoAtHF(1)=InstNoAtHF(1)
-                            AvNoAtHF(inum_runs)=InstNoAtHF(inum_runs)
-                            do j=1,inum_runs
-                                if(InstNoAtHF(j).eq.0) then
-                                    IterRDM_HF(j)=0
-                                endif
-                            enddo
+                    if (tPairedReplicas) then
+                        do irdm = 1, nrdms
+
+                            ! The indicies of the first and second replicas in this
+                            ! particular pair, in the sign arrays.
+                            ind1 = irdm*2-1
+                            ind2 = irdm*2
+
+                            if (((InstNoAtHF(ind1) .eq. 0.0_dp) .and. (IterRDM_HF(ind1) .ne. 0.0_dp)) .or. &
+                                ((InstNoAtHF(ind2) .eq. 0.0_dp) .and. (IterRDM_HF(ind2) .ne. 0.0_dp))) then
+                                ! At least one of the populations has just become
+                                ! zero. Start a new averaging block.
+                                IterRDM_HF(ind1) = Iter + PreviousCycles
+                                IterRDM_HF(ind2) = Iter + PreviousCycles
+                                AvNoatHF(ind1) = InstNoAtHF(ind1)
+                                AvNoatHF(ind2) = InstNoAtHF(ind2)
+                                if (InstNoAtHF(ind1) .eq. 0.0_dp) IterRDM_HF(ind1) = 0.0_dp
+                                if (InstNoAtHF(ind2) .eq. 0.0_dp) IterRDM_HF(ind2) = 0.0_dp
+
+                            else if (((InstNoAtHF(ind1) .ne. 0.0_dp) .and. (IterRDM_HF(ind1) .eq. 0.0_dp)) .or. &
+                                     ((InstNoAtHF(ind2) .ne. 0.0_dp) .and. (IterRDM_HF(ind2) .eq. 0.0_dp))) then
+                                ! At least one of the populations has just
+                                ! become occupied. Start a new block here.
+                                IterRDM_HF(ind1) = real(Iter + PreviousCycles, dp)
+                                IterRDM_HF(ind2) = real(Iter + PreviousCycles, dp)
+                                AvNoAtHF(ind1) = InstNoAtHF(ind1)
+                                AvNoAtHF(ind2) = InstNoAtHF(ind2)
+                                if (InstNoAtHF(ind1) .eq. 0.0_dp) IterRDM_HF(ind1) = 0.0_dp
+                                if (InstNoAtHF(ind2) .eq. 0.0_dp) IterRDM_HF(ind2) = 0.0_dp
+                            else
+                                Prev_AvNoatHF = AvNoatHF
+
+                                do part_type = 2*irdm-1, 2*irdm
+                                    if (IterRDM_HF(part_type) .ne. 0.0_dp) then
+                                         AvNoatHF(part_type) = ((real((Iter+PreviousCycles - IterRDM_HF(part_type)), dp) &
+                                                                    * Prev_AvNoatHF(part_type)) + InstNoatHF(part_type) ) &
+                                                                    / real((Iter+PreviousCycles - IterRDM_HF(part_type)) + 1, dp)
+                                    end if
+                                end do
+                            end if
+                        end do
+
                     else
-                        Prev_AvNoatHF(1) = AvNoatHF(1)
-                        if (IterRDM_HF(1).ne.0) AvNoatHF(1) =((real((Iter+PreviousCycles - IterRDM_HF(1)),dp) &
-                                                        * Prev_AvNoatHF(1)) + InstNoatHF(1) ) &
-                                                        / real((Iter+PreviousCycles - IterRDM_HF(1)) + 1,dp)
-                        if(inum_runs.eq.2) then
-                            Prev_AvNoatHF(inum_runs) = AvNoatHF(inum_runs)
-                           if(IterRDM_HF(inum_runs).ne.0) AvNoatHF(inum_runs)=&
-                                                ((real((Iter+PreviousCycles-IterRDM_HF(inum_runs)),dp) * &
-                                                Prev_AvNoatHF(inum_runs)) + InstNoatHF(inum_runs) ) &
-                                                / real((Iter+PreviousCycles - IterRDM_HF(inum_runs)) + 1,dp)
-                        endif
-                    endif
-                endif
-            endif
-        endif
+                        do irdm = 1, nrdms
+
+                            if ((InstNoAtHF(irdm) .eq. 0.0_dp) .and. (IterRDM_HF(irdm) .ne. 0.0_dp)) then
+                                ! At least one of the populations has just become
+                                ! zero. Start a new averaging block.
+                                IterRDM_HF(irdm) = 0.0_dp
+                                AvNoatHF(irdm) = 0.0_dp
+
+                            else if ((InstNoAtHF(irdm) .ne. 0.0_dp) .and. (IterRDM_HF(irdm) .eq. 0.0_dp)) then
+                                ! At least one of the populations has just
+                                ! become occupied. Start a new block here.
+                                IterRDM_HF(irdm) = real(Iter + PreviousCycles, dp)
+                                AvNoAtHF(irdm) = InstNoAtHF(irdm)
+                            else
+                                Prev_AvNoatHF = AvNoatHF
+
+                                if (IterRDM_HF(irdm) .ne. 0.0_dp) then
+                                     AvNoatHF(irdm) = ((real((Iter+PreviousCycles - IterRDM_HF(irdm)), dp) &
+                                                                * Prev_AvNoatHF(irdm)) + InstNoatHF(irdm) ) &
+                                                                / real((Iter+PreviousCycles - IterRDM_HF(irdm)) + 1, dp)
+                                end if
+                            end if
+                        end do
+
+                    end if
+                end if
+            end if
+        end if
         HFInd = 0
 
         min_trial_ind = 1
         min_conn_ind = 1
 
-    end subroutine
+    end subroutine rezero_iter_stats_each_iter
 
     subroutine InitHistMin ()
 
@@ -1534,7 +1593,7 @@ contains
         real(dp) :: prob_extra_walker, r
 
         nspawn = abs(int(parent_pop*av_spawns_per_walker))
-        if (abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp) > 0) then
+        if (abs(abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp)) > 1.e-12_dp) then
             prob_extra_walker = abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp)
             r = genrand_real2_dSFMT()
             if (prob_extra_walker > r) nspawn = nspawn + 1
@@ -1543,20 +1602,21 @@ contains
     end subroutine decide_num_to_spawn
 
     subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, RealwSign, &
-                            wAvSign, IterRDMStartCurr, DetPosition, walkExcitLevel)
+                             DetPosition, walkExcitLevel)
+
+        use rdm_data, only: rdms
 
         integer, intent(in) :: DetCurr(nel) 
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
         real(dp), intent(in) :: Kii
-        real(dp), intent(in), dimension(lenof_sign) :: wAvSign, IterRDMStartCurr
         integer, intent(in) :: DetPosition
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp), dimension(lenof_sign) :: iDie
         real(dp), dimension(lenof_sign) :: CopySign
         integer, intent(in) :: walkExcitLevel
-        integer :: i
-        character(len=*), parameter :: t_r="walker_death"
+        integer :: i, irdm
+        character(len=*), parameter :: t_r = "walker_death"
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
@@ -1603,50 +1663,50 @@ contains
         if (any(CopySign /= 0)) then
             ! For the hashed walker main list, the particles don't move.
             ! Therefore just adjust the weight.
-            call encode_sign (CurrentDets(:,DetPosition), CopySign)
-            if (tFillingStochRDMonFly) then
-                call set_av_sgn(DetPosition, wAvSign)
-                call set_iter_occ(DetPosition, IterRDMStartCurr)
-            endif
+            call encode_sign (CurrentDets(:, DetPosition), CopySign)
         else
             ! All walkers died.
             if(tFillingStochRDMonFly) then
-                call det_removed_fill_diag_rdm(CurrentDets(:,DetPosition), DetPosition)
+                do irdm = 1, nrdms
+                    call det_removed_fill_diag_rdm(rdms(irdm), irdm, CurrentDets(:,DetPosition), DetPosition)
+                end do
                 ! Set the average sign and occupation iteration to zero, so
                 ! that the same contribution will not be added in in
                 ! CalcHashTableStats, if this determinant is not overwritten
                 ! before then
-                global_determinant_data(:,DetPosition) = 0.0_dp
+                global_determinant_data(:, DetPosition) = 0.0_dp
             endif
-            if(tTruncInitiator) then
+
+            if (tTruncInitiator) then
                 ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
-                if(test_flag(iLutCurr,flag_initiator(1))) then
-                    NoAddedInitiators=NoAddedInitiators-1
-                elseif(test_flag(iLutCurr,flag_initiator(lenof_sign))) then
-                    NoAddedInitiators(inum_runs)=NoAddedInitiators(inum_runs)-1
-                endif
-            endif
+                if (test_flag(iLutCurr,flag_initiator(1))) then
+                    NoAddedInitiators = NoAddedInitiators - 1
+                else if (test_flag(iLutCurr,flag_initiator(lenof_sign))) then
+                    NoAddedInitiators(inum_runs) = NoAddedInitiators(inum_runs) - 1
+                end if
+            end if
 
             ! Remove the determinant from the indexing list
             call remove_hash_table_entry(HashIndex, DetCurr, DetPosition)
             ! Add to the "freeslot" list
-            iEndFreeSlot=iEndFreeSlot+1
-            FreeSlot(iEndFreeSlot)=DetPosition
+            iEndFreeSlot = iEndFreeSlot + 1
+            FreeSlot(iEndFreeSlot) = DetPosition
             ! Encode a null det to be picked up
-            call encode_sign(CurrentDets(:,DetPosition),null_part)
-        endif
+            call encode_sign(CurrentDets(:,DetPosition), null_part)
+        end if
 
-        !Test - testsuite, RDM still work, both still work with Linscalealgo (all in debug)
-        !Null particle not kept if antiparticles aborted.
-        !When are the null particles removed?
+        ! Test - testsuite, RDM still work, both still work with Linscalealgo (all in debug)
+        ! Null particle not kept if antiparticles aborted.
+        ! When are the null particles removed?
 
-    end subroutine
-
-    
+    end subroutine walker_death
 
     subroutine check_start_rdm()
-! This routine checks if we should start filling the RDMs - and does so if we should.        
-        use nElRDMMod , only : DeAlloc_Alloc_SpawnedParts
+
+        ! This routine checks if we should start filling the RDMs - 
+        ! and does so if we should. 
+
+        use rdm_general, only: DeAlloc_Alloc_SpawnedParts
         use LoggingData, only: tReadRDMs
         implicit none
         logical :: tFullVaryshift
@@ -1654,52 +1714,51 @@ contains
 
         tFullVaryShift=.false.
 
-        if (.not. tSinglePartPhase(1).and.(.not.tSinglePartPhase(inum_runs))) tFullVaryShift=.true.
+        if (all(.not. tSinglePartPhase)) tFullVaryShift = .true.
 
-        !If we're reading in the RDMs we've already started accumulating them in a previous calculation
+        ! If we're reading in the RDMs we've already started accumulating them in a previous calculation
         ! We don't want to put in an arbitrary break now!
-        if(tReadRDMs)   IterRDMonFly=0
+        if (tReadRDMs) IterRDMonFly = 0
 
-        IF(tFullVaryShift .and. ((Iter - maxval(VaryShiftIter)).eq.(IterRDMonFly+1))) THEN
+        if (tFullVaryShift .and. ((Iter - maxval(VaryShiftIter)).eq.(IterRDMonFly+1))) then
         ! IterRDMonFly is the number of iterations after the shift has changed that we want 
         ! to fill the RDMs.  If this many iterations have passed, start accumulating the RDMs! 
         
-            IterRDMStart = Iter+PreviousCycles
-            IterRDM_HF = Iter+PreviousCycles
+            IterRDMStart = Iter + PreviousCycles
+            IterRDM_HF = Iter + PreviousCycles
 
-            !if(tReadRDMs .and. tReadRDMAvPop) then
-                !We need to read in the values of IterRDMStart and IterRDM_HF
-            !    iunit_4=get_free_unit()
-            !    OPEN(iunit_4,FILE='ITERRDMSTART',status='old')
-            !    read(iunit_4, *) IterRDMStart, IterRDM_HF, AvNoAtHF
-
-            !endif
-
-            !We have reached the iteration where we want to start filling the RDM.
-            if(tExplicitAllRDM) then
+            ! We have reached the iteration where we want to start filling the RDM.
+            if (tExplicitAllRDM) then
                 ! Explicitly calculating all connections - expensive...
-                if(inum_runs.eq.2) call stop_all('check_start_rdm',"Cannot yet do replica RDM sampling with explicit RDMs. &
-                    & e.g Hacky bit in Gen_Hist_ExcDjs to make it compile")
+                if (tPairedReplicas) call stop_all('check_start_rdm',"Cannot yet do replica RDM sampling with explicit RDMs. &
+                    & e.g Hacky bit in Gen_Hist_ExcDjs to make it compile.")
                 
                 tFillingExplicRDMonFly = .true.
                 if(tHistSpawn) NHistEquilSteps = Iter
             else
+                
+                ! If we are load balancing, this will disable the load balancer
+                ! so we should do a last-gasp balance at this point.
+                if (tLoadBalanceBlocks) &
+                    call adjust_load_balance(iter_data_fciqmc)
+
                 extract_bit_rep_avsign => extract_bit_rep_avsign_norm
-                !By default - we will do a stochastic calculation of the RDM.
+                ! By default - we will do a stochastic calculation of the RDM.
                 tFillingStochRDMonFly = .true.
-                !if(.not.tHF_Ref_Explicit) call DeAlloc_Alloc_SpawnedParts()
+
                 call DeAlloc_Alloc_SpawnedParts()
-                !The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
-                !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
-                !Don't need any of this if we're just doing HF_Ref_Explicit calculation.
-                !This is all done in the add_rdm_hfconnections routine.
-            endif
-            if(RDMExcitLevel.eq.1) then
-                WRITE(6,'(A)') 'Calculating the 1 electron density matrix on the fly.'
+                ! The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
+                ! parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
+                ! Don't need any of this if we're just doing HF_Ref_Explicit calculation.
+                ! This is all done in the add_rdm_hfconnections routine.
+            end if
+
+            if (RDMExcitLevel .eq. 1) then
+                write(6,'(A)') 'Calculating the 1 electron density matrix on the fly.'
             else
-                WRITE(6,'(A)') 'Calculating the 2 electron density matrix on the fly.'
-            endif
-            WRITE(6,'(A,I10)') 'Beginning to fill the RDMs during iteration',Iter
+                write(6,'(A)') 'Calculating the 2 electron density matrix on the fly.'
+            end if
+            write(6,'(A,I10)') 'Beginning to fill the RDMs during iteration', Iter
         ENDIF
 
     end subroutine check_start_rdm
@@ -1828,5 +1887,46 @@ contains
         proje_ref_energy_offsets(run) = real(h_tmp, dp) - Hii
 
     end subroutine update_run_reference
+
+    subroutine calc_inst_proje()
+
+        ! Calculate an instantaneous value of the projected energy for the
+        ! given walkers distributions
+
+        integer :: ex_level, det(nel), j, run
+        real(dp), dimension(max(lenof_sign,inum_runs)) :: RealAllHFCyc
+        real(dp) :: sgn(lenof_sign)
+
+        ! Reset the accumulators
+        HFCyc = 0
+        ENumCyc = 0
+
+        ! Main loop
+        do j = 1, int(TotWalkers, sizeof_int)
+
+            ! n.b. non-contiguous list
+            call extract_sign(CurrentDets(:,j), sgn)
+            if (IsUnoccDet(sgn)) cycle
+
+            ex_level = FindBitExcitLevel (iLutRef, CurrentDets(:,j))
+
+            call decode_bit_det(det, CurrentDets(:,j))
+            call SumEContrib(det, ex_level, sgn, CurrentDets(:,j), 0.0_dp, &
+                             1.0_dp, tPairedReplicas, j)
+        end do
+
+        ! Accumulate values over all processors
+        call MPISum(HFCyc, RealAllHFCyc)
+        call MPISum(ENumCyc, AllENumCyc)
+
+        do run = 1, inum_runs
+            AllHFCyc(run) = ARR_RE_OR_CPLX(RealAllHFCyc, run)
+        end do
+
+        proje_iter = AllENumCyc / AllHFCyc + proje_ref_energy_offsets
+
+        write(6,*) 'Calculated instantaneous projected energy', proje_iter
+
+    end subroutine
 
 end module

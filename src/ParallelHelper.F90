@@ -174,6 +174,7 @@ module ParallelHelper
    logical              :: bNodeRoot         !Set if this processor is root of its node
    integer, allocatable :: CommNodes(:)      !Each node has a separate communicator
    integer(MPIArg), allocatable :: GroupNodes(:)     !Each node has a separate communicator
+   integer(MPIArg), allocatable :: GroupNodesDum(:), CommNodesDum(:)
    type(CommI), allocatable :: Nodes(:)      !The node for each processor
    integer, allocatable :: ProcNode(:)   !The node for each processor (as a zero-based integer)
    integer, allocatable :: NodeRoots(:)      !The root for each node (zero-based)

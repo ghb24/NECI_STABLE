@@ -66,7 +66,7 @@
       LOGICAL COMPIPATH
       character(*), parameter :: t_r='fMCPR3StarNodes'
 
-      IF(HElement_t_size.GT.1) STOP "NODEDIAG cannot function with complex orbitals currently"
+      IF(HElement_t_size.GT.1) call stop_all(t_r, "NODEDIAG cannot function with complex orbitals currently")
 
 !First need to allocate memory to hold the maximum number of double excitations
 !No point to count them explicitly, since even if not connected to root, could still be connected to other double excitations.
@@ -117,7 +117,7 @@
 !Second call to calculate theoretical max number of excitations (iMaxExcit)
       nExcit(1)=0
       CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.TRUE.,nExcit,nJ,iMaxExcit,nStore,exFlag)
-      IF(iMaxExcit.gt.(noij*noab)) STOP 'Incorrect calculation of number of excits'
+      IF(iMaxExcit.gt.(noij*noab)) call stop_all(t_r, 'Incorrect calculation of number of excits')
       
 !Go through all excitations and store them, even if have no direct connection to root.
       noexcits=0
@@ -127,7 +127,7 @@
 !Shows that all double excitations have been accounted for
           IF(nJ(1).eq.0) exit lp
           
-          IF(iExcit.ne.2) STOP 'TUSEBRILLOUIN must be on for NODEDIAG'
+          IF(iExcit.ne.2) call stop_all(t_r, 'TUSEBRILLOUIN must be on for NODEDIAG')
           IF(COMPIPATH(nI,nJ,nEl)) THEN
               WRITE(6,*) "WARNING, nI and nJ the same!"
               WRITE(6,*) "nI = ", nI
@@ -311,7 +311,7 @@
        CALL DSYEV('V','L',novirt,NODERHOMAT,novirt,WLIST,WORK,WORKMEM,INFO)
         IF(INFO.NE.0) THEN
             WRITE(6,*) 'DYSEV error: ',INFO
-            STOP
+            call stop_all(t_r, "")
         ENDIF
         CALL LogMemDealloc(t_r,tagWORK)
         DEALLOCATE(WORK)
@@ -380,8 +380,9 @@
       FUNCTION TRIIND(I,J,nEl)
       IMPLICIT NONE
       INTEGER TRIIND,I,J,nEl
+      character(*), parameter :: this_routine = 'TRIIND'
       IF((I.gt.nEl).or.(J.gt.nEl)) THEN
-          STOP 'PROBLEM WITH INDEXING'
+          call stop_all(this_routine, 'PROBLEM WITH INDEXING')
       ENDIF
       IF(I.GT.J) THEN
           TRIIND=((I-1)*(I-2)/2)+J
@@ -390,7 +391,7 @@
           TRIIND=((J-1)*(J-2)/2)+I
           RETURN
       ELSE
-          STOP 'I should not equal J in TRIIND'
+          call stop_all(this_routine, 'I should not equal J in TRIIND')
       ENDIF
       END FUNCTION TRIIND
 

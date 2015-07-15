@@ -29,6 +29,7 @@ MODULE Calc
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption
     use ras_data, only: core_ras, trial_ras
+    use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
     use spectral_data
     use spectral_lanczos, only: n_lanc_vecs_sl
@@ -319,6 +320,9 @@ contains
           tContTimeFull = .false.
           cont_time_max_overspawn = 4.0
 
+          tLoadBalanceBlocks = .false.
+          tPopsJumpShift = .false.
+
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
@@ -341,7 +345,7 @@ contains
           CHARACTER (LEN=100) w
           CHARACTER (LEN=100) input_string
           CHARACTER(*),PARAMETER :: t_r='CalcReadInput'
-          integer :: l, i, j, ierr
+          integer :: l, i, j, line, ierr
           integer :: tempMaxNoatHF,tempHFPopThresh
           logical :: tExitNow
           integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
@@ -350,7 +354,7 @@ contains
 
           ! Allocate and set this default here, because we don't have inum_runs
           ! set when the other defaults are set.
-          allocate(InputDiagSft(inum_runs))
+          if(.not.allocated(InputDiagSft)) allocate(InputDiagSft(inum_runs))
           InputDiagSft=0.0_dp
 
           calc: do
@@ -738,12 +742,26 @@ contains
 !chosen from the lowest energy orbitals.
 !The 'HF' energy calculated should the be that of the defined determinant.
                 tDefineDet=.true.
-                ALLOCATE(DefDet(NEl),stat=ierr)
-                CALL LogMemAlloc('DefDet',NEl,4,t_r,tagDefDet,ierr)
+                if(.not.allocated(DefDet)) then
+                  ALLOCATE(DefDet(NEl),stat=ierr)
+                  CALL LogMemAlloc('DefDet',NEl,4,t_r,tagDefDet,ierr)
+                end if
                 DefDet(:)=0
                 do i=1,NEl
                     call geti(DefDet(i))
                 enddo
+
+            case("MULTIPLE-INITIAL-REFS")
+                tMultipleInitialRefs = .true.
+                allocate(initial_refs(nel, inum_runs), stat=ierr)
+                initial_refs = 0
+
+                do line = 1, inum_runs
+                    call read_line(eof)
+                    do i = 1, nel
+                        call geti(initial_refs(i, line))
+                    end do
+                end do
 
             case("FINDGUIDINGFUNCTION")
 ! At the end of a calculation, this keyword sets the spawning calculation to print out the iGuideDets
@@ -1052,6 +1070,7 @@ contains
                 call geti(ss_space_in%mp1_ndets)
             case("READ-CORE")
                 ss_space_in%tRead = .true.
+                ss_space_in%read_filename = 'CORESPACE'
             case("MAX-CORE-SIZE")
                 ss_space_in%tLimitSpace = .true.
                 call geti(ss_space_in%max_size)
@@ -1059,14 +1078,22 @@ contains
                 tDetermHFSpawning = .false.
 
             case("TRIAL-WAVEFUNCTION")
-                tTrialWavefunction = .true.
-                if (item < nitems) then
-                    call geti(trial_space_in%mp1_ndets)
-                    trial_space_in%tMP1 = .true.
+                if (item == nitems) then
+                    tTrialWavefunction = .true.
+                else if (item < nitems) then
+                    tStartTrialLater = .true.
+                    call geti(trial_shift_iter)
                 end if
+            case("NUM-TRIAL-STATES-CALC")
+                call geti(ntrial_ex_calc)
+            case("QMC-TRIAL-WF")
+               qmc_trial_wf = .true.
             case("MAX-TRIAL-SIZE")
                 trial_space_in%tLimitSpace = .true.
                 call geti(trial_space_in%max_size)
+            case("MP1-TRIAL")
+                trial_space_in%tMP1 = .true.
+                call geti(trial_space_in%mp1_ndets)
             case("DOUBLES-TRIAL")
                 trial_space_in%tDoubles = .true.
             case("CAS-TRIAL")
@@ -1109,12 +1136,74 @@ contains
                 call geti(trial_space_in%npops)
             case("READ-TRIAL")
                 trial_space_in%tRead = .true.
+                trial_space_in%read_filename = 'TRIALSPACE'
             case("FCI-TRIAL")
                 trial_space_in%tFCI = .true.
             case("HEISENBERG-FCI-TRIAL")
                 trial_space_in%tHeisenbergFCI = .true.
             case("TRIAL-BIN-SEARCH")
                 tTrialHash = .false.
+            case("TRIAL-ESTIMATE-REORDER")
+                allocate(trial_est_reorder(inum_runs))
+                trial_est_reorder = 0
+                do i = 1, inum_runs
+                    call geti(trial_est_reorder(i))
+                end do
+            case("TRIAL-INIT-REORDER")
+                allocate(trial_init_reorder(inum_runs))
+                trial_init_reorder = 0
+                do i = 1, inum_runs
+                    call geti(trial_init_reorder(i))
+                end do
+            case("MP1-INIT")
+                init_trial_in%tMP1 = .true.
+                call geti(init_trial_in%mp1_ndets)
+            case("DOUBLES-INIT")
+                init_trial_in%tDoubles = .true.
+            case("CAS-INIT")
+                init_trial_in%tCAS = .true.
+                tSpn = .true.
+                call geti(init_trial_in%occ_cas) ! Number of electrons in CAS
+                call geti(init_trial_in%virt_cas) ! Number of virtual spin-orbitals in CAS
+            case("RAS-INIT")
+                init_trial_in%tRAS = .true.
+                call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
+                call geti(ras_size_2)  ! Number of spatial orbitals in RAS2.
+                call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
+                call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs.
+                call geti(ras_max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
+                init_trial_in%ras%size_1 = int(ras_size_1,sp)
+                init_trial_in%ras%size_2 = int(ras_size_2,sp)
+                init_trial_in%ras%size_3 = int(ras_size_3,sp)
+                init_trial_in%ras%min_1 = int(ras_min_1,sp)
+                init_trial_in%ras%max_3 = int(ras_max_3,sp)
+            case("OPTIMISED-INIT")
+                init_trial_in%tOptimised = .true.
+            case("OPTIMISED-INIT-CUTOFF-AMP")
+                init_trial_in%opt_data%tAmpCutoff = .true.
+                init_trial_in%opt_data%ngen_loops = nitems - 1
+                allocate(init_trial_in%opt_data%cutoff_amps(init_trial_in%opt_data%ngen_loops))
+                do I = 1, init_trial_in%opt_data%ngen_loops
+                    call getf(init_trial_in%opt_data%cutoff_amps(I))
+                end do
+            case("OPTIMISED-INIT-CUTOFF-NUM")
+                init_trial_in%opt_data%tAmpCutoff = .false.
+                init_trial_in%opt_data%ngen_loops = nitems - 1
+                allocate(init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
+                do I = 1, init_trial_in%opt_data%ngen_loops
+                    call geti(init_trial_in%opt_data%cutoff_nums(I))
+                end do
+            case("HF-INIT")
+                init_trial_in%tHF = .true.
+            case("POPS-INIT")
+                init_trial_in%tPops = .true.
+                call geti(init_trial_in%npops)
+            case("READ-INIT")
+                init_trial_in%tRead = .true.
+            case("FCI-INIT")
+                init_trial_in%tFCI = .true.
+            case("HEISENBERG-FCI-INIT")
+                init_trial_in%tHeisenbergFCI = .true.
             case("START-FROM-HF")
                 tStartCoreGroundState = .false.
             case("INC-CANCELLED-INIT-ENERGY")
@@ -2009,6 +2098,11 @@ contains
                 ! this option
                 tReplicaSingleDetStart = .true.
 
+            case("DONT-PRINT-OVERLAPS")
+                ! Don't print overlaps between replicas when using the
+                ! orthogonalise-replicas option.
+                tPrintReplicaOverlaps = .false.
+
             case("USE-SPAWN-HASH-TABLE")
                 use_spawn_hash_table = .true.
 
@@ -2024,6 +2118,36 @@ contains
                 ! interplay between the oversampling rate, and the maximum
                 ! spawn allowed
                 call readf(cont_time_max_overspawn)
+
+            case("POSITIVE-HF-SIGN")
+                tPositiveHFSign = .true.
+
+            case("LOAD-BALANCE-BLOCKS")
+                ! When load balancing, have more blocks to distribute than
+                ! there are processors to do the redistributing. This allows
+                ! us to shuffle walkers around in the system
+                tLoadBalanceBlocks = .true.
+                if (item < nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("OFF", "NO", "DISABLE")
+                        tLoadBalanceBlocks = .false.
+                    case default
+                        tLoadBalanceBlocks = .true.
+                    end select
+                end if
+            
+            case("POPS-JUMP-SHIFT")
+                ! Use the same logic as JUMP-SHIFT, but reset the shift value
+                ! after restarting with a POPSFILE
+                !
+                ! --> This prevents undesirable behaviour if the simulation is
+                !     restarted with a different FCIDUMP file (i.e. during
+                !     CASSCF calculations).
+                tPopsJumpShift = .true.
+
+            case("MULTI-REF-SHIFT")
+                tMultiRefShift = .true.
 
             case default
                 call report("Keyword "                                &
@@ -2098,7 +2222,7 @@ contains
 
 !          IF(G_VMC_FAC.LE.0) THEN
 !             WRITE(6,*) "G_VMC_FAC=",G_VMC_FAC
-!             STOP "G_VNC_FAC LE 0"
+!             call stop_all(this_routine, "G_VNC_FAC LE 0")
 !          ENDIF
 
           IF(BETAP.NE.0.0_dp) THEN 
@@ -2206,7 +2330,7 @@ contains
              CALL GENSYMDETSS(MDK,NEL,G1,BRR,NBASIS,MCDET,NLIST,NBASISMAX)
              IF(NLIST.EQ.0) THEN
 !C.. we couldn't find a det of that symmetry
-                STOP 'Cannot find MC start determinant of correct symmetry'
+                call stop_all(this_routine, 'Cannot find MC start determinant of correct symmetry')
              ENDIF
           ELSE
 !C             CALL GENRANDOMDET(NEL,NBASIS,MCDET)
@@ -2262,6 +2386,7 @@ contains
           real(dp) EN,WeightDum,EnerDum
           integer iSeed,iunit
           type(kp_fciqmc_data), intent(inout) :: kp
+          character(*), parameter :: this_routine = 'CalcDoCalc'
           iSeed=7 
 
 !C.. we need to calculate a value for RHOEPS, so we approximate that
@@ -2367,7 +2492,7 @@ contains
              IF(NTAY(1).GT.0) THEN
                 WRITE(6,*) "Using approx RHOs generated on the fly, NTAY=",NTAY(1)
 !C.. NMAX is now ARR
-                STOP "DMONTECARLO2 is now non-functional."
+                call stop_all(this_routine, "DMONTECARLO2 is now non-functional.")
              ELSEIF(NTAY(1).EQ.0) THEN
                 IF(TENERGY) THEN
                    WRITE(6,*) "Using exact RHOs generated on the fly"
@@ -2379,12 +2504,12 @@ contains
 !C..         UMAT=NDET
 !C..         ALAT=NMRKS
 !C..         NMAX=ARR
-                STOP "DMONTECARLO2 is now non-functional."
+                call stop_all(this_routine, "DMONTECARLO2 is now non-functional.")
 !                   EN=DMONTECARLO2(MCDET,I_P,BETA,DBETA,I_HMAX,I_VMAX,IMCSTEPS,             &
 !     &                G1,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS,                                 &
 !     &                NEVAL,W,CK,ARR,NMRKS,NDET,NTAY,RHOEPS,NWHTAY,ILOGGING,ECORE,BETAEQ)
                 ELSE
-                   STOP "TENERGY not set, but NTAY=0" 
+                   call stop_all(this_routine, "TENERGY not set, but NTAY=0" )
                 ENDIF
              ENDIF
              WRITE(6,*) "MC Energy:",EN
@@ -2410,6 +2535,7 @@ contains
           INTEGER iDeg, III, iunit
           Type(BasisFN) iSym
           LOGICAL tWarn
+          character(*), parameter :: this_routine = 'DoExactVertexCalc'
           
           real(dp) CalcMCEn, CalcDLWDB, DoExMC
             
@@ -2460,7 +2586,7 @@ contains
              EN=DOEXMC(NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,0.0_dp,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS)
           ENDIF
           IF(TBEGRAPH) THEN
-             STOP 'BEGRAPH not implemented'
+             call stop_all(this_routine, 'BEGRAPH not implemented')
              IF(TENERGY) THEN
                 IF(NTAY(1).NE.0) THEN
 !                   CALL DOBEGRAPH(NDET,NEVAL,CK,W,I_P,ILOGGING,G1,NMRKS,nEl,NBASISMAX,nBasis,BRR)

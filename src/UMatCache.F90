@@ -213,6 +213,7 @@ MODULE UMatCache
          IMPLICIT NONE
          INTEGER, intent(in) :: I,J,K,L,NBASIS,NOCCUPIED
          INTEGER R,S,T,U,A,B,C,D,AA,BB
+         character(*), parameter :: this_routine = 'UMatInd'
          IF(TSTARSTORE) THEN
             !Rearrange, so that orbitals ordered over energy, and first two indices are occupied
             !Could be a problem in the future r.e. partially filled degenerate fermi levels - 
@@ -268,7 +269,7 @@ MODULE UMatCache
                     WRITE(6,*) "NOCC is: ",NOCC
                     WRITE(6,*) "SPIN-ORBITALS ",I*2,", ", J*2,", ",K*2,", ",L*2," requested."
                     CALL neci_flush(6)
-                    STOP 'NO OCCUPIED ORBITAL PAIR REQUESTED'
+                    call stop_all(this_routine, 'NO OCCUPIED ORBITAL PAIR REQUESTED')
                 ENDIF
             ELSE
                 IF((R.gt.NOCCUPIED).or.(S.gt.NOCCUPIED)) THEN
@@ -277,7 +278,7 @@ MODULE UMatCache
                     WRITE(6,*) "NOCC is: ",NOCC
                     WRITE(6,*) "SPIN-ORBITALS ",I*2,", ", J*2,", ",K*2,", ",L*2," requested."
                     CALL neci_flush(6)
-                    STOP 'NO OCCUPIED ORBITAL PAIR REQUESTED'
+                    call stop_all(this_routine, 'NO OCCUPIED ORBITAL PAIR REQUESTED')
                 ENDIF
             ENDIF
 
@@ -634,18 +635,18 @@ MODULE UMatCache
             Deallocate(UMatCacheData)
             CALL LogMemDealloc(thisroutine,tagUMATLABELS)
             Deallocate(UMatLabels)
-            IF(ASSOCIated(UMat2D)) THEN
-               CALL LogMemDealloc(thisroutine,tagUMat2D)
-               Deallocate(UMat2D)
-            ENDIF
-            IF(ASSOCIated(TransTable)) THEN
-               CALL LogMemDealloc(thisroutine,tagTransTable)
-               Deallocate(TransTable)
-            ENDIF
-            IF(ASSOCIated(InvTRANSTABLE)) THEN
-               CALL LogMemDealloc(thisroutine,tagInvTransTable)
-               Deallocate(InvTRANSTABLE)
-            ENDIF
+         end if
+         IF(ASSOCIated(UMat2D)) THEN
+            CALL LogMemDealloc(thisroutine,tagUMat2D)
+            Deallocate(UMat2D)
+         ENDIF
+         IF(ASSOCIated(TransTable)) THEN
+            CALL LogMemDealloc(thisroutine,tagTransTable)
+            Deallocate(TransTable)
+         ENDIF
+         IF(ASSOCIated(InvTRANSTABLE)) THEN
+            CALL LogMemDealloc(thisroutine,tagInvTransTable)
+            Deallocate(InvTRANSTABLE)
          ENDIF
       END SUBROUTINE DESTROYUMATCACHE
 

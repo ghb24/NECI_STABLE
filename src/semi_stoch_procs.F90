@@ -501,7 +501,7 @@ contains
 
         ! And also output the number of states on each processor in the space.
 
-        use hash, only: DetermineDetNode
+        use load_balance_calcnodes, only: DetermineDetNode
         use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
 
         integer, intent(in) :: ilut_list_size
@@ -592,7 +592,7 @@ contains
 
         ! Only let the root process write the states.
         if (iProcIndex == root) then
-            open(iunit, file='DETFILE', status='replace')
+            open(iunit, file='CORESPACE', status='replace')
 
             do i = 1, determ_space_size
                 do k = 0, NIfDBO
@@ -1016,7 +1016,7 @@ contains
         ! This routine will copy all the core determinants *ON THIS PROCESS
         ! ONLY* to the SpawnedParts array.
 
-        use hash, only: DetermineDetNode
+        use load_balance_calcnodes, only: DetermineDetNode
 
         integer :: i, ncore, proc
         integer :: nI(nel)
@@ -1107,18 +1107,77 @@ contains
 
     end subroutine return_mp1_amp_and_mp2_energy
 
+    subroutine reinit_current_trial_amps()
+
+        ! Recreate current trial amps, without using arrays such as trial_space
+        ! and trial_wfs, which are deallocated after the first init_trial_wf
+        ! call.
+
+        use bit_rep_data, only: flag_trial, flag_connected
+        use bit_reps, only: decode_bit_det, set_flag
+        use FciMCData, only: CurrentDets, TotWalkers, HashIndex, nWalkerHashes
+        use FciMCData, only: tTrialHash, current_trial_amps, ntrial_excits
+        use searching, only: hash_search_trial, bin_search_trial
+        use SystemData, only: nel
+
+        integer :: i
+        integer :: nI(nel)
+        real(dp) :: trial_amps(ntrial_excits)
+        logical :: tTrial, tCon
+
+        ! Don't do anything if this is called before the trial wave function
+        ! initialisation.
+        if (.not. allocated(current_trial_amps)) return
+
+        current_trial_amps = 0.0_dp
+
+        do i = 1, TotWalkers
+            if (tTrialHash) then
+                call decode_bit_det(nI, CurrentDets(:,i))
+                call hash_search_trial(CurrentDets(:,i), nI, trial_amps, tTrial, tCon)
+            else
+                call bin_search_trial(CurrentDets(:,i), trial_amps, tTrial, tCon)
+            end if
+
+            ! Set the appropraite flag (if any). Unset flags which aren't
+            ! appropriate, just in case.
+            if (tTrial) then
+                call set_flag(CurrentDets(:,i), flag_trial, .true.)
+                call set_flag(CurrentDets(:,i), flag_connected, .false.)
+            else if (tCon) then
+                call set_flag(CurrentDets(:,i), flag_trial, .false.)
+                call set_flag(CurrentDets(:,i), flag_connected, .true.)
+            else
+                call set_flag(CurrentDets(:,i), flag_trial, .false.)
+                call set_flag(CurrentDets(:,i), flag_connected, .false.)
+            end if
+
+            ! Set the amplitude (which may be zero).
+            current_trial_amps(:,i) = trial_amps
+        end do
+
+    end subroutine reinit_current_trial_amps
+
     subroutine end_semistoch()
 
         use FciMCData, only: partial_determ_vecs, full_determ_vecs, full_determ_vecs_av
         use FciMCData, only: PDetermTag, FDetermTag, FDetermAvTag, IDetermTag
-        use FciMCData, only: indices_of_determ_states
+        use FciMCData, only: indices_of_determ_states, core_ham_diag, hamiltonian
+        use FciMCData, only: core_space, determ_sizes, determ_displs, HamTag
+        use FciMCData, only: CoreSpaceTag
         use MemoryManager, only: LogMemDealloc
-        use sparse_arrays, only: SparseCoreHamilTags, deallocate_sparse_ham
+        use sparse_arrays, only: SparseCoreHamilTags, deallocate_sparse_ham, core_ht
+        use sparse_arrays, only: core_connections, deallocate_core_hashtable
+        use sparse_arrays, only: deallocate_sparse_matrix_int
 
         character(len=*), parameter :: t_r = "end_semistoch"
         integer :: ierr
 
         call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', SparseCoreHamilTags)
+
+        call deallocate_core_hashtable(core_ht)
+
+        call deallocate_sparse_matrix_int(core_connections)
 
         if (allocated(partial_determ_vecs)) then
             deallocate(partial_determ_vecs, stat=ierr)
@@ -1135,6 +1194,26 @@ contains
         if (allocated(indices_of_determ_states)) then
             deallocate(indices_of_determ_states, stat=ierr)
             call LogMemDealloc(t_r, IDetermTag, ierr)
+        end if
+        if (allocated(core_ham_diag)) then
+            deallocate(core_ham_diag, stat=ierr)
+            call LogMemDealloc(t_r, IDetermTag, ierr)
+        end if
+        if (allocated(core_space)) then
+            deallocate(core_space, stat=ierr)
+            call LogMemDealloc(t_r, CoreSpaceTag, ierr)
+        end if
+        if (allocated(hamiltonian)) then
+            deallocate(hamiltonian, stat=ierr)
+            call LogMemDealloc(t_r, HamTag, ierr)
+        end if
+        if (allocated(determ_sizes)) then
+            deallocate(determ_sizes, stat=ierr)
+            if (ierr /= 0) write(6,'("Error when deallocating determ_sizes:",1X,i8)') ierr
+        end if
+        if (allocated(determ_displs)) then
+            deallocate(determ_displs, stat=ierr)
+            if (ierr /= 0) write(6,'("Error when deallocating determ_displs:",1X,i8)') ierr
         end if
 
     end subroutine end_semistoch

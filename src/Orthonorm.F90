@@ -5,6 +5,7 @@ SUBROUTINE OrthoNormx(n,m,a)
    real(dp) :: work(n),tau(n),a(m,n)
    INTEGER(sp) info
    real(dp) , ALLOCATABLE :: aTa(:,:)
+   character(*), parameter :: this_routine = 'OrthoNormx'
 
 !Input the number of vectors, n, the dimensionality of the space, m, and the matrix of vectors, a(m,n). 
 !a is returned as n orthonormal vectors.
@@ -28,7 +29,7 @@ SUBROUTINE OrthoNormx(n,m,a)
         write (6, '(a)' ) ' '
         write (6, '(a)' ) 'Q_FACTOR - Warning:'
         write (6, '(a,i8)' ) '  DGEQRF returned nonzero INFO = ', info
-        stop
+        call stop_all(this_routine, "QGEQRF error")
     end if
 
 !  Construct Q explicitly.
@@ -39,7 +40,7 @@ SUBROUTINE OrthoNormx(n,m,a)
         write (6, '(a)' ) ' '
         write (6, '(a)' ) 'Q_FACTOR - Warning:'
         write (6, '(a,i8)' ) '  DORGQR returned nonzero INFO = ', info
-        stop
+        call stop_all(this_routine, "DORGQR error")
     end if
 
 
@@ -78,6 +79,7 @@ END SUBROUTINE OrthoNormx
          HElement_t WORK(3*N)
          INTEGER I,J
          integer(sp) info
+         character(*), parameter :: this_routine = 'LOWDIN_ORTH'
 !R=MAT
 !S= R1=1.0_dp * R * RT + 0.0_dp*R1
          IF(HElement_t_size.EQ.1) THEN
@@ -95,7 +97,7 @@ END SUBROUTINE OrthoNormx
 ! eigenvector 1 is given by R1(I,1)
          IF(INFO.NE.0) THEN
             WRITE(6,*) "INFO=",INFO," on diag in LOWDIN_ORTH. Stopping"
-            STOP 'Error in LOWDIN_ORTH.'
+            call stop_all(this_routine, 'Error in LOWDIN_ORTH.')
          ENDIF
 ! Calculate P = S^(-1/2) R = U L^(-1/2) UT R.  U=R1
 ! First let R2=U R. U=R1.  R=MAT
@@ -123,7 +125,7 @@ END SUBROUTINE OrthoNormx
 ! and we should be done, with an orthoganal matrix in MAT
       END SUBROUTINE LOWDIN_ORTH                      
  
-      SUBROUTINE GRAMSCHMIDT(MAT,LEN)
+      SUBROUTINE GRAMSCHMIDT_NECI(MAT,LEN)
 ! MAT(IELEMENT,IVECTOR)
          use constants, only: dp
          IMPLICIT NONE
@@ -159,6 +161,6 @@ END SUBROUTINE OrthoNormx
             ENDDO
          ENDDO
          RETURN
-      END SUBROUTINE GRAMSCHMIDT
+      END SUBROUTINE GRAMSCHMIDT_NECI
 
 

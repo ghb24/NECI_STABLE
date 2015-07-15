@@ -13,7 +13,7 @@ module fcimc_pointed_fns
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use bit_rep_data, only: NIfTot
     use tau_search, only: log_death_magnitude, log_spawn_magnitude
-    use nElRDMMod, only: calc_rdmbiasfac
+    use rdm_general, only: calc_rdmbiasfac
     use hist, only: add_hist_excit_tofrom
     use searching, only: BinSearchParts2
     use util_mod
@@ -238,7 +238,6 @@ module fcimc_pointed_fns
 
                 ! And round this to an integer in the usual way
                 ! HACK: To use the same number of random numbers for the tests.
-                if (nspawn - real(int(nspawn),dp) == 0.0_dp) r = genrand_real2_dSFMT()
                 nSpawn = real(stochastic_round (nSpawn), dp)
                 
             endif
@@ -417,6 +416,7 @@ module fcimc_pointed_fns
         real(dp), intent(in) :: Kii
         real(dp), dimension(lenof_sign) :: ndie
         integer, intent(in) :: WalkExcitLevel
+        character(*), parameter :: t_r = 'attempt_die_normal'
 
         real(dp) :: r, rat, probsign
         real(dp), dimension(inum_runs) :: fac
@@ -429,12 +429,27 @@ module fcimc_pointed_fns
             call log_death_magnitude (Kii - DiagSft(i))
         enddo
 
-        if(fac(1).gt.1.0_dp) then
-            if(fac(1).gt.2.0_dp) then
-                call stop_all("attempt_die_normal","Death probability > 2: Algorithm unstable. Reduce timestep.")
+        if(any(fac > 1.0_dp)) then
+            if (any(fac > 2.0_dp)) then
+                if (tSearchTau) then
+                    ! If we are early in the calculation, and are using tau
+                    ! searching, then this is not a big deal. Just let the
+                    ! searching deal with it
+                    write(iout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
+                    write(iout, '("** WARNING ** Truncating spawn to ensure stability")')
+                    do i = 1, inum_runs
+                        fac(i) = min(2.0_dp, fac(i))
+                    end do
+                else
+                    call stop_all(t_r, "Death probability > 2: Algorithm unstable. Reduce timestep.")
+                end if
             else
-                write(iout,*) "** WARNING ** Death probability > 1: Creating Antiparticles. "&
-                    & //"Timestep errors possible: ",fac
+                write(iout,'("** WARNING ** Death probability > 1: Creating Antiparticles. "&
+                    & //"Timestep errors possible: ")',advance='no')
+                do i = 1, inum_runs
+                    write(iout,'(1X,f13.7)',advance='no') fac(i)
+                end do
+                write(iout,'()')
             endif
         endif
 

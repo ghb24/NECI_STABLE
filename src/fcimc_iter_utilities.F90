@@ -10,7 +10,8 @@ module fcimc_iter_utils
                         HFPopThresh, DiagSft, tShiftOnHFPop, iRestartWalkNum, &
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
-                        tContTimeFull, pop_change_min
+                        tContTimeFull, pop_change_min, tPositiveHFSign, &
+                        qmc_trial_wf
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables
     use semi_stoch_procs, only: recalc_core_hamil_diag
@@ -57,7 +58,7 @@ contains
 
 
 #ifndef __CMPLX
-        if (.not. tKP_FCIQMC) then
+        if (tPositiveHFSign) then
             do part_type = 1, lenof_sign
                 if ((.not.tFillingStochRDMonFly).or.(inum_runs.eq.1)) then
                     if (AllNoAtHF(part_type) < 0.0_dp) then
@@ -152,7 +153,7 @@ contains
         ! If we are accumulating RDMs, then a temporary spawning array is
         ! required of <~ the size of the largest occupied det.
         !
-        ! This memry holds walkers spawned from one determinant. This
+        ! This memory holds walkers spawned from one determinant. This
         ! allows us to test if we are spawning onto the same Dj multiple
         ! times. If only using connections to the HF (tHF_Ref_Explicit)
         ! no stochastic RDM construction is done, and this is not
@@ -166,11 +167,11 @@ contains
                 allocate_temp_parts = .true.
                 TempSpawnedPartsSize = 1000
             end if
-            if (1.1 * maxval(iHighestPop) > TempSpawnedPartsSize) then
+            if (1.5 * maxval(iHighestPop) > TempSpawnedPartsSize) then
                 ! This testing routine is only called once every update
-                ! cycle. The 1.1 gives us a buffer to cope with particle
+                ! cycle. The 1.5 gives us a buffer to cope with particle
                 ! growth
-                TempSpawnedPartsSize = iHighestPop(1) * 1.5
+                TempSpawnedPartsSize = maxval(iHighestPop) * 1.5
                 allocate_temp_parts = .true.
             end if
 
@@ -239,12 +240,13 @@ contains
             ! Do we need to do a change?
             if (pop_change < pop_highest(run) .and. pop_highest(run) > pop_change_min) then
 
-                ! Write out info!
-                changed_any = .true.
-                root_print 'Highest weighted determinant on run', run, &
-                           'not reference det: ', pop_highest, abs_sign(AllNoAtHF)
-
                 if (tChangeProjEDet) then
+
+                    ! Write out info!
+                    changed_any = .true.
+                    root_print 'Highest weighted determinant on run', run, &
+                               'not reference det: ', pop_highest, abs_sign(AllNoAtHF)
+
                     !
                     ! Here we are changing the reference det on the fly.
                     ! --> else block for restarting simulation.
@@ -315,12 +317,12 @@ contains
 
     end subroutine population_check
 
-    subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all, tPairedReplicas)
+    subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all, replica_pairs)
 
         type(fcimc_iter_data) :: iter_data
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
         real(dp), dimension(lenof_sign), intent(out) :: tot_parts_new_all
-        logical, intent(in) :: tPairedReplicas
+        logical, intent(in) :: replica_pairs
 
         integer :: int_tmp(5+2*lenof_sign), proc, pos, i
         real(dp) :: sgn(lenof_sign)
@@ -438,19 +440,21 @@ contains
             call MPIAllReduce(trial_numerator, MPI_SUM, tot_trial_numerator)
             call MPIAllReduce(trial_denom, MPI_SUM, tot_trial_denom)
 
-            ! Becuase tot_trial_numerator/tot_trial_denom is the energy
-            ! relative to the the trial energy, add on this contribution to
-            ! make it relative to the HF energy.
-            if (ntrial_excits == 1) then
-                tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies(1))
-            else
-                if (tPairedReplicas) then
-                    do run = 2, inum_runs, 2
-                        tot_trial_numerator(run-1:run) = tot_trial_numerator(run-1:run) + &
-                            tot_trial_denom(run-1:run)*trial_energies(run/2)
-                    end do
+            if (.not. qmc_trial_wf) then
+                ! Becuase tot_trial_numerator/tot_trial_denom is the energy
+                ! relative to the the trial energy, add on this contribution to
+                ! make it relative to the HF energy.
+                if (ntrial_excits == 1) then
+                    tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies(1))
                 else
-                    tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies)
+                    if (replica_pairs) then
+                        do run = 2, inum_runs, 2
+                            tot_trial_numerator(run-1:run) = tot_trial_numerator(run-1:run) + &
+                                tot_trial_denom(run-1:run)*trial_energies(run/2)
+                        end do
+                    else
+                        tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies)
+                    end if
                 end if
             end if
         end if
@@ -826,14 +830,14 @@ contains
 
     end subroutine rezero_iter_stats_update_cycle
 
-    subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new, tPairedReplicas)
+    subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new, replica_pairs)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
         real(dp), dimension(lenof_sign) :: tot_parts_new_all
-        logical, intent(in) :: tPairedReplicas
+        logical, intent(in) :: replica_pairs
 
-        call collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all, tPairedReplicas)
+        call collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all, replica_pairs)
         call iter_diagnostics ()
         if(tRestart) return
         call population_check ()
