@@ -7,9 +7,9 @@
 
 echo "Loading modules for: $@"
 
-if [ "$@" == "fkf-ifort" ] || [ "$@" == "fkf-ifort -g" ]; then
+if [ "fkf-ifort -g" == "$@" ] || [ "fkf-ifort" == "$@" ]; then
 	module load ifort/15.0.3 mpi.intel/5.0.3
 else
 	echo "Module configuration not set"
 fi
-	
+
