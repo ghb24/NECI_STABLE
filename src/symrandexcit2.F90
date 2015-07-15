@@ -3147,6 +3147,7 @@ SUBROUTINE SpinOrbSymSetup()
     INTEGER :: kmaxX,kmaxY,kminX,kminY,kminZ,kmaxz,iSpinIndex,ktrial(3)
     type(Symmetry) :: SymProduct, SymI, SymJ
     character(len=*), parameter :: this_routine='SpinOrbSymSetup'
+    integer :: sym0
 
     ElecPairs=(NEl*(NEl-1))/2
     MaxABPairs=(nBasis*(nBasis-1)/2)
@@ -3234,6 +3235,11 @@ SUBROUTINE SpinOrbSymSetup()
     if(allocated(SymInvLabel)) deallocate(SymInvLabel)
     Allocate(SymInvLabel(0:nSymLabels-1))
     SymInvLabel=-999
+! dongxia changes the gamma point away from center
+    do i=1,nsymlabels
+      if(symlabels(i)%s.eq.0) sym0=i-1
+    end do
+!
     do i=0,nSymLabels-1
         if(tKPntSym) then
 !            SymInvLabel(i)=SymConjTab(i+1)-1    !Change the sym label back to the representation used by the
@@ -3243,7 +3249,8 @@ SUBROUTINE SpinOrbSymSetup()
             !Assume that label '0' is always the totally symmetric representation.
             do j=0,nSymLabels-1
                 !Run through all labels to find what gives totally symmetric rep
-                if(SymTableLabels(i,j).eq.0) then
+                if(SymTableLabels(i,j).eq.sym0) then
+!               if(SymTableLabels(i,j).eq.0) then
                     if(SymInvLabel(i).ne.-999) then
                         write(6,*) "SymLabel: ",i
                         call stop_all(this_routine,"Multiple inverse irreps found - error")
