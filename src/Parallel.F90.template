@@ -24,9 +24,9 @@ type1=logical(kind=int32)
 mpitype=MPI_LOGTYPE4
 conditional_enable = !defined(SX)
 
-[log8]
-type1=logical(kind=int64)
-mpitype=MPI_LOGTYPE8
+#[log8]
+#type1=logical(kind=int64)
+#mpitype=MPI_LOGTYPE8
 
 [comp]
 type1=complex(dp)
@@ -62,9 +62,9 @@ mpitype=MPI_DOUBLE_COMPLEX
 type1=logical(kind=int32), dimension(:)
 mpitype=MPI_LOGTYPE4
 
-[arr_log8]
-type1=logical(kind=int64), dimension(:)
-mpitype=MPI_LOGTYPE8
+#[arr_log8]
+#type1=logical(kind=int64), dimension(:)
+#mpitype=MPI_LOGTYPE8
 ######################
 # 2-D Arrays
 ######################
@@ -95,9 +95,9 @@ type1=logical(kind=int32), dimension(:,:)
 mpitype=MPI_LOGTYPE4
 conditional_enable = !defined(SX)
 
-[arr2_log8]
-type1=logical(kind=int64), dimension(:,:)
-mpitype=MPI_LOGTYPE8
+#[arr2_log8]
+#type1=logical(kind=int64), dimension(:,:)
+#mpitype=MPI_LOGTYPE8
 ######################
 # 3-D Arrays
 ######################

@@ -31,7 +31,7 @@ module tau_search
     real(dp) :: max_permitted_spawn
     integer :: cnt_sing, cnt_doub, cnt_opp, cnt_par
     integer :: n_opp, n_par
-    logical :: enough_sing, enough_doub, enough_opp, enough_par
+    logical(4) :: enough_sing, enough_doub, enough_opp, enough_par
     logical :: consider_par_bias
 
 contains
@@ -206,7 +206,7 @@ contains
     subroutine update_tau ()
 
         real(dp) :: psingles_new, tau_new, mpi_tmp, tau_death, pParallel_new
-        logical :: mpi_ltmp
+        logical(4) :: mpi_ltmp
         character(*), parameter :: this_routine = "update_tau"
 
         ! This is an override. In case we need to adjust tau due to particle
