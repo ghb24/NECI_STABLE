@@ -1780,7 +1780,7 @@ r_loop: do while(.not.tStoreDet)
 
         ! Write out accumulated data used for tau searching, to ensure there
         ! are no blips in particle growth, tau, etc.
-        write(iunit, '(5(a,f18.12))') 'PopGammaSing=', gamma_sing, &
+        write(iunit, '(5(a,g18.12))') 'PopGammaSing=', gamma_sing, &
                                       ',PopGammaDoub=', gamma_doub, &
                                       ',PopGammaOpp=', gamma_opp, &
                                       ',PopGammaPar=', gamma_par, &
