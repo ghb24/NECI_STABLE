@@ -27,7 +27,7 @@ MODULE PopsfileMod
     use LoggingData, only: iWritePopsEvery, tPopsFile, iPopsPartEvery, tBinPops, &
                        tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
-                       binarypops_min_weight
+                       binarypops_min_weight, tHDF5Pops
     use sort_mod
     use util_mod, only: get_free_unit,get_unique_filename
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
@@ -38,6 +38,7 @@ MODULE PopsfileMod
     use replica_data, only: set_initial_global_data
     use load_balance, only: pops_init_balance_blocks
     use load_balance_calcnodes, only: tLoadBalanceBlocks, balance_blocks
+    use hdf5_popsfile, only: write_popsfile_hdf5
     use util_mod
 
     implicit none
@@ -1453,6 +1454,12 @@ r_loop: do while(.not.tStoreDet)
         character(1024) :: out_tmp
         character(12) :: num_tmp
         type(timer), save :: write_timer
+
+        ! If we are using the new popsfile format, then use it!
+        if (tHDF5Pops) then
+            call write_popsfile_hdf5()
+            return
+        end if
 
         ! Tme the overall popsfile read in
         write_timer%timer_name = 'POPS-write'
