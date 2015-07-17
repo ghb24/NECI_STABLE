@@ -387,6 +387,7 @@ system: do
 ! the last number is the symmetry specification - and is placed in position 5
             IPARITY(5)=IPARITY(4)
             IPARITY(4)=0
+            tSymSet = .true.
         case("USEBRILLOUINTHEOREM")
           TUSEBRILLOUIN=.TRUE. 
           tNoBrillouin=.false.

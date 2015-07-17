@@ -54,7 +54,8 @@ contains
         real(dp), dimension(lenof_all_signs) :: child_sign, parent_sign
         integer(n_int) :: int_sign(lenof_all_signs)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied, tParity
-        logical :: tNearlyFull, tFinished, tAllFinished, all_excits_found, tTempUseBrill
+        logical :: tNearlyFull, tAllFinished, all_excits_found, tTempUseBrill
+        logical(4) :: tFinished
         HElement_t :: HElGen, HEl
 
         call set_timer(subspace_hamil_time)
@@ -273,7 +274,8 @@ contains
         logical :: ialpha, jalpha, ibeta, jbeta
         integer(n_int) :: int_sign(lenof_all_signs)
         real(dp) :: parent_sign(lenof_all_signs), child_sign(lenof_all_signs)
-        logical :: tNearlyFull, tFinished, tAllFinished, tParity
+        logical :: tNearlyFull, tAllFinished, tParity
+        logical(4) :: tFinished
         integer :: ex(2,2)
 
         call set_timer(subspace_spin_time)
@@ -501,9 +503,9 @@ contains
         real(dp), intent(in) :: fac
         real(dp), intent(inout) :: est_matrix(:,:)
 
-        logical, intent(in) :: tFinished
+        logical(4), intent(in) :: tFinished
         logical, intent(out) :: tAllFinished
-        logical :: tFinished_AllProcs(nProcessors)
+        logical(4) :: tFinished_AllProcs(nProcessors)
         integer :: nspawns_this_proc, ierr
 
         call distribute_spawns_kp_estimates(nspawns_this_proc)

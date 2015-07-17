@@ -285,8 +285,12 @@ contains
                                    "----  currently unused   ----", &
                                    "time                         "/)
 
-        logical :: exists, any_exist, eof, deleted, any_deleted, tSource
-        logical :: opts_selected(last_item)
+        ! Logical(4) datatypes for compilation with builds of openmpi that don't
+        ! have support for logical(8). Gah.
+        logical(4) :: deleted, any_deleted, opts_selected(last_item)
+        logical(4) :: exists, any_exist
+
+        logical :: eof, tSource
         logical, intent(out) :: tSingBiasChange, tSoftExitFound
         logical, intent(out) :: tWritePopsFound
         real(dp), dimension(lenof_sign) :: hfsign

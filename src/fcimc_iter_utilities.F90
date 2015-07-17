@@ -333,7 +333,7 @@ contains
         real(dp), dimension(max(lenof_sign,inum_runs)) :: RealAllHFCyc
         real(dp), dimension(inum_runs) :: all_norm_psi_squared, all_norm_semistoch_squared
         real(dp) :: bloom_sz_tmp(0:2)
-        logical :: ltmp
+        logical(4) :: ltmp
         integer :: run
     
         ! Communicate the integers needing summation

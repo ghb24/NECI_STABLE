@@ -87,7 +87,7 @@ module FciMCParMod
         TYPE(BasisFn) RefSym
         real(dp) :: mean_ProjE_re, mean_ProjE_im, mean_Shift
         real(dp) :: ProjE_Err_re, ProjE_Err_im, Shift_Err
-        logical :: tNoProjEValue, tNoShiftValue
+        logical(4) :: tNoProjEValue, tNoShiftValue
         real(dp) :: BestErr
         real(dp) :: start_time, stop_time
 #ifdef MOLPRO
