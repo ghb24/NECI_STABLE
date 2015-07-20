@@ -602,6 +602,7 @@ contains
 
         ! Initially, select a pair of electrons
         call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
+   !     call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
 
         ! Construct the list of possible symmetry pairs listed according to
         ! a unique choice of symmetry A (we enforce that sym(A) < sym(B)).
@@ -1676,5 +1677,125 @@ contains
         deallocate(generated_list)
 
     end subroutine
+
+
+    subroutine pick_weighted_elecs(nI, elecs, src, sym_prod, ispn, sum_ml, &
+                                   pgen)
+
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: elecs(2), src(2), sym_prod, ispn, sum_ml
+        real(dp), intent(out) :: pgen
+        character(*), parameter :: this_routine = 'pick_weighted_elecs'
+
+        logical, parameter :: tlinear = .false.
+
+        real(dp) :: cum_list(nel), cum_sum, cpt, final_cpt, r
+        real(dp) :: cum_sum_ii, cum_list_ii(nel), cpt_ii, cpt_jj
+        integer :: i, ind1, ind2, inds(nel)
+
+        ! Pick the first electron uniformly, or according to <ii|ii>,
+        ! and then pick the second electron according to <ji|ji>
+
+        inds = gtID(nI)
+        if (tlinear) then
+            ! Pick the first electron uniformly
+            elecs(1) = 1 + floor(genrand_real2_dSFMT() * nel)
+            cpt_ii = 1.0_dp
+            cum_sum_ii = nel
+        else
+            ! Pick the first electron according to <ii|ii>
+            cum_sum_ii = 0
+            do i = 1, nel
+                cum_sum_ii = cum_sum_ii &
+                           + abs(get_umat_el(inds(i), inds(i), &
+                                             inds(i), inds(i)))
+                cum_list_ii(i) = cum_sum_ii
+            end do
+
+            r = genrand_real2_dSFMT() * cum_sum_ii
+            elecs(1) = binary_search_first_ge(cum_list_ii, r)
+            if (elecs(1) == 1) then
+                cpt_ii = cum_list_ii(1)
+            else
+                cpt_ii = cum_list_ii(elecs(1)) - cum_list_ii(elecs(1) - 1)
+            end if
+        end if
+
+        ! Construct the weighted list <ji|ji>
+        cum_sum = 0
+        ind1 = inds(elecs(1))
+        do i = 1, nel
+            if (i == elecs(1)) then
+                cpt = 0
+            else
+                ! TODO: Can we do the biasing of parallel/opposite here?
+                cpt = abs(get_umat_el(ind1, inds(i), ind1, inds(i)))
+            end if
+            cum_sum = cum_sum + cpt
+            cum_list(i) = cum_sum
+        end do
+
+        ! Get the appropriate index
+        r = genrand_real2_dSFMT() * cum_sum
+        elecs(2) = binary_search_first_ge(cum_list, r)
+
+        ! Calculate the (partial) probability
+        if (elecs(2) == 1) then
+            cpt = cum_list(1)
+        else
+            cpt = cum_list(elecs(2)) - cum_list(elecs(2) - 1)
+        end if
+        pgen = (cpt_ii / cum_sum_ii) * cpt / cum_sum
+
+        ! To calculate the generation probability, we need to consider the
+        ! possibility of having picked the electrons in the order j, i.
+        ! Construct the reverse list
+        cum_sum = 0
+        ind2 = inds(elecs(2))
+        do i = 1, nel
+            if (i == elecs(2)) then
+                cpt = 0
+            else
+                cpt = abs(get_umat_el(ind2, inds(i), ind2, inds(i)))
+            endif
+            if (i == elecs(1)) final_cpt = cpt
+            cum_sum = cum_sum + cpt
+        end do
+
+        ! And get the component for the second electron in the initial list
+        if (tlinear) then
+            cpt_jj = 1.0_dp
+        else
+            if (elecs(2) == 1) then
+                cpt_jj = cum_list_ii(1)
+            else
+                cpt_jj = cum_list_ii(elecs(2)) - cum_list_ii(elecs(2) - 1)
+            end if
+        end if
+
+        ! Adjust the probability for the j,i choice and then the 1/N one
+        pgen = pgen + ((cpt_jj / cum_sum_ii) * (final_cpt / cum_sum))
+
+        ! Generate the orbitals under consideration
+        src = nI(elecs)
+
+        if (is_beta(src(1)) .eqv. is_beta(src(2))) then
+            if (is_beta(src(1))) then
+                iSpn = 1
+            else
+                iSpn = 3
+            end if
+        else
+            iSpn = 2
+        end if
+
+        ! The Ml value is obtained from the orbitals
+        sum_ml = sum(G1(src)%Ml)
+
+        ! And the spatial symmetries
+        sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(src(1)), &
+                                         SpinOrbSymLabel(src(2)))
+
+    end subroutine pick_weighted_elecs
 
 end module

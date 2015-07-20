@@ -195,7 +195,7 @@ MODULE ReadInput_neci
                               tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
-                              tGen_4ind_lin_exact
+                              tGen_4ind_lin_exact, tGen_4ind_take_2
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -447,7 +447,7 @@ MODULE ReadInput_neci
             write(6,*)
         end if
 
-        if (tGen_4ind_weighted .or. tGen_4ind_reverse) then
+        if (tGen_4ind_weighted .or. tGen_4ind_reverse .or. tGen_4ind_take_2) then
 
             ! We want to use UMAT2D...
             tDeferred_Umat2d = .true.
@@ -456,6 +456,9 @@ MODULE ReadInput_neci
                 call stop_all (t_r, 'Integral weighted excitation generators &
                               &not yet implemented with these keywords')
         end if
+
+        if (tGen_4ind_take_2 .and. tHPHF) &
+            call stop_all(t_r, "Not yet implemented")
 
         if (tHPHF .and. tUHF) then
             call stop_all(t_r, 'HPHF functions cannot work with UHF')
