@@ -2056,6 +2056,12 @@ contains
         if(allocated(NodeLengths)) deallocate(NodeLengths)
     end subroutine
 
+#ifdef __GFORTRAN__
+#define NECI_MPI_LOGICAL MPI_LOGICAL4
+#else
+#define NECI_MPI_LOGICAL MPI_LOGTYPE4
+#endif
+
     subroutine MPIAllReduceLogical(v, itype, ret, node)
 
         logical(4), intent(in) :: v
@@ -2078,8 +2084,8 @@ contains
 
         call GetComm (Comm, Node)
 
-        call MPI_AllReduce(val_in, val_out, 1_MPIArg, MPI_LOGTYPE4, MPI_LOR, &
-                           comm, ierr)
+        call MPI_AllReduce(val_in, val_out, 1_MPIArg, NECI_MPI_LOGICAL, &
+                           MPI_LOR, comm, ierr)
 
         if (ierr /= MPI_SUCCESS) &
             call stop_all(t_r, "MPI Error. Terminating")
@@ -2108,7 +2114,7 @@ contains
 
         call GetComm(comm, node, rt)
 
-        call MPI_Bcast(val_in, 1_MPIArg, MPI_LOGTYPE4, rt, comm, ierr)
+        call MPI_Bcast(val_in, 1_MPIArg, NECI_MPI_LOGICAL, rt, comm, ierr)
 
         if (Ierr /= MPI_SUCCESS) &
             call stop_all(t_r, 'MPIError. Terminating')
@@ -2139,7 +2145,7 @@ contains
         call MPIAllReducert(rt, nrt, comm, ierr)
 
         if (ierr == MPI_SUCCESS) then
-            call MPI_Bcast(val_in, 1_MPIArg, MPI_LOGTYPE4, nrt, comm, ierr)
+            call MPI_Bcast(val_in, 1_MPIArg, NECI_MPI_LOGICAL, nrt, comm, ierr)
         end if
 
         if (ierr /= MPI_SUCCESS) &
@@ -2168,7 +2174,7 @@ contains
         call GetComm(comm, node, rt)
 
         length = size(v)
-        call MPI_Bcast(val_in, length, MPI_LOGTYPE4, rt, comm, ierr)
+        call MPI_Bcast(val_in, length, NECI_MPI_LOGICAL, rt, comm, ierr)
 
         if (Ierr /= MPI_SUCCESS) &
             call stop_all(t_r, 'MPIError. Terminating')
@@ -2200,7 +2206,7 @@ contains
 
         if (ierr == MPI_SUCCESS) then
             length = size(v)
-            call MPI_Bcast(val_in, length, MPI_LOGTYPE4, nrt, comm, ierr)
+            call MPI_Bcast(val_in, length, NECI_MPI_LOGICAL, nrt, comm, ierr)
         end if
 
         if (ierr /= MPI_SUCCESS) &
@@ -2232,8 +2238,8 @@ contains
 
         length = size(ret)
 
-        call MPI_Allgather (val_in, 1_MPIArg, MPI_LOGTYPE4, val_out, length, &
-                            MPI_LOGTYPE4, comm, ierr)
+        call MPI_Allgather (val_in, 1_MPIArg, NECI_MPI_LOGICAL, val_out, &
+                            length, NECI_MPI_LOGICAL, comm, ierr)
 
         if (ierr /= MPI_SUCCESS) &
             call stop_all(t_r, "MPI Error. Terminating")
