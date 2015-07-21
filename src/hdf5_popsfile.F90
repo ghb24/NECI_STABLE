@@ -94,7 +94,8 @@ contains
         !      for initialising perturbations, etc.
 
         integer(int64), intent(out) :: dets(:, :)
-        integer(hid_t) :: err, file_id
+        integer(hid_t) :: err, file_id, plist_id
+        integer :: tmp
 
         write(6,*)
         write(6,*) '=='
@@ -104,12 +105,20 @@ contains
         ! Initialise the hdf5 fortran interface
         call h5open_f(err)
 
+        ! Set up a property list to ensure file handling across all nodes.
+        ! TODO: Check if we should be using a more specific communicator
+        call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
+        call h5pset_fapl_mpio_f(plist_id, MPI_COMM_WORLD, MPI_INFO_NULl, err)
+
         ! Open the popsfile
-        call h5fopen_f('popsfile.hdf5', H5F_ACC_RDONLY_F, file_id, err)
+        call h5fopen_f('popsfile.hdf5', H5F_ACC_RDONLY_F, file_id, err, &
+                       access_prp=plist_id)
 
         call read_metadata(file_id)
+        call read_calc_data(file_id)
 
         ! And we are done
+        call h5pclose_f(plist_id, err)
         call h5fclose_f(file_id, err)
         call h5close_f(err)
 
@@ -180,8 +189,7 @@ contains
         if (exists) write(6,*) 'Build date: ', trim(str_buf)
         call read_string_attribute(parent, nm_comp_time, str_buf, exists)
         if (exists) write(6,*) 'Build time: ', trim(str_buf)
-
-
+        write(6,*)
 
         ! Update values for the new calculation
         calc_seq_no = calc_seq_no + 1
@@ -191,7 +199,6 @@ contains
     subroutine write_calc_data(parent)
 
         use load_balance_calcnodes, only: RandomOrbIndex
-        use iso_c_hack
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: calc_grp, err
 
@@ -203,6 +210,22 @@ contains
 
         ! Clear stuff up
         call h5gclose_f(calc_grp, err)
+
+    end subroutine
+
+    subroutine read_calc_data(parent)
+
+        use load_balance_calcnodes, only: RandomOrbIndex
+        integer(hid_t), intent(in) :: parent
+        integer(hid_t) :: grp_id, err
+
+        call h5gopen_f(parent, nm_calc_grp, grp_id, err)
+
+        ! Read out the random orbital mapping index
+        call read_int64_1d_dataset(grp_id, nm_random_hash, RandomOrbIndex, &
+                                   required=.true.)
+
+        call h5gclose_f(grp_id, err)
 
     end subroutine
 

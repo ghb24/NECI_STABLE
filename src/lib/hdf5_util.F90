@@ -23,6 +23,11 @@ module hdf5_util
         module procedure read_int32_attribute_cast
     end interface
 
+    interface read_int64_1d_dataset
+        module procedure read_int64_1d_dataset_cast
+        module procedure read_int64_1d_dataset_main
+    end interface
+
 contains
 
     subroutine write_int32_attribute(parent, nm, val)
@@ -165,7 +170,8 @@ contains
 
     end subroutine write_2d_multi_arr_chunk_offset
 
-    subroutine read_int32_attribute_main(parent, nm, val, exists, default)
+    subroutine read_int32_attribute_main(parent, nm, val, exists, default, &
+                                         required)
 
         ! Read in a 32bit scalar attribute
 
@@ -173,7 +179,9 @@ contains
         character(*), intent(in) :: nm
         integer(int32), intent(out) :: val
         logical, intent(out), optional :: exists
+        logical, intent(in), optional :: required
         integer(int32), intent(in), optional :: default
+        character(*), parameter :: t_r = 'read_int32_attribute_main'
 
         integer(hid_t) :: attribute, err
         logical(hid_t) :: exists_
@@ -183,34 +191,46 @@ contains
             call h5aopen_f(parent, nm, attribute, err)
             call h5aread_f(attribute, H5T_NATIVE_INTEGER_4, val, &
                            [1_hsize_t], err)
+            call h5aclose_f(attribute, err)
         end if
 
+        if (present(required)) then
+            if (required .and. .not. exists_) then
+                write(6, *) nm
+                call stop_all(t_r, "Required field does not exist")
+            end if
+        end if
         if (present(exists)) exists = exists_
         if (present(default) .and. .not. exists_) val = default
 
     end subroutine
 
-    subroutine read_int32_attribute_cast(parent, nm, val, exists, default)
+    subroutine read_int32_attribute_cast(parent, nm, val, exists, default, &
+                                         required)
 
         integer(hid_t), intent(in) :: parent
         character(*), intent(in) :: nm
         integer(int64), intent(out) :: val
         logical, intent(out), optional :: exists
         integer(int32), intent(in), optional :: default
+        logical, intent(in), optional :: required
         integer(int32) :: val_tmp
 
-        call read_int32_attribute_main(parent, nm, val_tmp, exists, default)
+        call read_int32_attribute_main(parent, nm, val_tmp, exists, default, &
+                                       required)
         val = int(val_tmp, int64)
 
     end subroutine
 
-    subroutine read_string_attribute(parent, nm, val, exists, default)
+    subroutine read_string_attribute(parent, nm, val, exists, default, &
+                                     required)
 
         integer(hid_t), intent(in) :: parent
         character(*), intent(in) :: nm
         character(*), intent(out) :: val
         logical, intent(out), optional :: exists
         character(*), intent(in), optional :: default
+        logical, intent(in), optional :: required
         character(*), parameter :: t_r = 'read_string_attribute'
 
         integer(hid_t) :: attribute, err, type_id
@@ -221,6 +241,7 @@ contains
         if (exists_) then
             call h5aopen_f(parent, nm, attribute, err)
             call h5aget_type_f(attribute, type_id, err)
+            ! TODO: test that this is a string type/class
             !call h5tget_class_f(type_id, class_id, err)
             call h5tget_size_f(type_id, sz, err)
 
@@ -234,10 +255,103 @@ contains
                 call h5aread_f(attribute, type_id, val, [1_hsize_t], err)
                 val = val(1:sz)
             end if
+
+            call h5tclose_f(type_id, err)
+            call h5aclose_f(attribute, err)
         end if
 
+        if (present(required)) then
+            if (required .and. .not. exists_) then
+                write(6, *) nm
+                call stop_all(t_r, "Required field does not exist")
+            end if
+        end if
         if (present(exists)) exists = exists_
         if (present(default) .and. .not. exists_) val = trim(default)
+
+    end subroutine
+
+    subroutine read_int64_1d_dataset_cast( &
+                                parent, nm, val, exists, default, required)
+
+        ! Allow these values to be casted onto 32bit arrays if we are in a
+        ! 32-bit build
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        integer(int32), intent(out), target :: val(:)
+        logical, intent(out), optional :: exists
+        logical, intent(in), optional :: required
+        integer(int64), intent(in), optional :: default(:)
+
+        integer(int64) :: buf(size(val))
+
+        call read_int64_1d_dataset_main(parent, nm, buf, exists, default, &
+                                        required)
+        val = buf
+
+    end subroutine
+
+    subroutine read_int64_1d_dataset_main( &
+                                parent, nm, val, exists, default, required)
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        integer(int64), intent(out), target :: val(:)
+        logical, intent(out), optional :: exists
+        logical, intent(in), optional :: required
+        integer(int64), intent(in), optional :: default(:)
+        character(*), parameter :: t_r = 'read_int64_1d_dataset_main'
+
+        integer(hid_t) :: dataset, dataspace, type_id, class_id, rank, err
+        integer(hsize_t) :: sz, dims(1), dims_ds(1), max_dims(1)
+        logical(hid_t) :: exists_
+        integer(int32), pointer :: ptr(:)
+
+        ! TODO: Fix this!!!
+!        call h5dexists_f(parent, nm, exists_, err)
+        exists_ = .true.
+        if (exists_) then
+            call h5dopen_f(parent, nm, dataset, err)
+
+            ! Do some type checking!
+            call h5dget_type_f(dataset, type_id, err)
+            call h5tget_size_f(type_id, sz, err)
+            call h5tget_class_f(type_id, class_id, err)
+            if (sz /= 8 .or. class_id /= H5T_INTEGER_F) &
+                call stop_all(t_r, 'Invalid type found')
+
+            ! Get the dataspace that we are going to read. Check that the rank
+            ! and dimensionality of the dataset we are intending to read are
+            ! correct.
+            call h5dget_space_f(dataset, dataspace, err)
+            call h5sget_simple_extent_ndims_f(dataspace, rank, err)
+            if (rank /= 1) &
+                call stop_all(t_r, 'Unexpected rank found')
+
+            dims = [size(val)]
+            call h5sget_simple_extent_dims_f(dataspace, dims_ds, max_dims, err)
+            if (.not. all(dims == dims_ds)) &
+                call stop_all(t_r, 'Unexpected array dimensionality')
+
+            ! And actually read the data. Note that we manipulate the pointer
+            ! to be a 32bit integer, as that is always present in the library.
+            call int32_pointer_abuse(val, ptr)
+            call h5dread_f(dataset, type_id, ptr, dims, err)
+
+            call h5tclose_f(type_id, err)
+            call h5sclose_f(dataspace, err)
+            call h5dclose_f(dataset, err)
+        end if
+
+        if (present(required)) then
+            if (required .and. .not. exists_) then
+                write(6, *) nm
+                call stop_all(t_r, "Required field does not exist")
+            end if
+        end if
+        if (present(exists)) exists = exists_
+        if (present(default) .and. .not. exists_) val = default
 
     end subroutine
 
