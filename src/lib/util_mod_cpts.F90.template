@@ -41,10 +41,11 @@ module util_mod_cpts
     use SystemData, only: Symmetry, assignment(=)
     use symdata, only: SymPairProd, assignment(=)
     use StarDiagData
+    use iso_c_hack
     implicit none
 
     private
-    public :: swap
+    public :: swap, arr_2d_ptr, arr_2d_dims, int32_pointer_abuse
 
 contains
 
@@ -63,6 +64,57 @@ contains
         a = b
         b = tmp
         %(tmp_destroy)s(tmp)
+    end subroutine
+
+
+    function arr_2d_dims(arr) result(dims)
+
+        ! Return the array dimensions of the supplied 2d array
+
+        %(type)s, intent(in) :: arr(:,:)
+        integer(int64) :: dims(2)
+
+        dims = [ &
+            ubound(arr, 1) - lbound(arr, 1) + 1, &
+            ubound(arr, 2) - lbound(arr, 2) + 1 &
+        ]
+
+    end function
+
+
+    function arr_2d_ptr(arr) result(cptr)
+
+        ! Return a cpointer to the specified 2d array
+
+        %(type)s, intent(inout), target :: arr(:,:)
+        type(c_ptr) :: cptr
+
+        %(type)s, pointer :: elem1
+
+        ! Convert first to a single element, and then return the c pointer
+        ! to keep all compilers happy that the c-interoperability
+        ! requirements have been met. Some of them are unecessarily fragile...
+        elem1 => arr(lbound(arr, 1), lbound(arr, 2))
+        cptr = c_loc(elem1)
+
+    end function
+
+    subroutine int32_pointer_abuse(arr, ptr)
+
+        ! Return an int32 pointer to the target array. Ignore types.
+
+        %(type)s, intent(in), target :: arr(:)
+        integer(int32), intent(inout), pointer :: ptr(:)
+
+        type(c_ptr) :: cptr
+        %(type)s, pointer :: elem1
+
+        ! Convert first to a single element, then to a c pointer, and then
+        ! the target type
+        elem1 => arr(lbound(arr, 1))
+        cptr = c_loc(elem1)
+        call c_f_pointer(cptr, ptr, [1])
+
     end subroutine
 
 end module
