@@ -38,7 +38,7 @@ MODULE PopsfileMod
     use replica_data, only: set_initial_global_data
     use load_balance, only: pops_init_balance_blocks
     use load_balance_calcnodes, only: tLoadBalanceBlocks, balance_blocks
-    use hdf5_popsfile, only: write_popsfile_hdf5
+    use hdf5_popsfile, only: write_popsfile_hdf5, read_popsfile_hdf5
     use util_mod
 
     implicit none
@@ -120,97 +120,106 @@ contains
         process_timer%timer_name = 'POPS-process'
         call set_timer(read_timer)
 
-        call open_pops_head(iunit,formpops,binpops)
-        ! Determine version number.
-        PopsVersion=FindPopsfileVersion(iunit)
-        IF(FormPops) THEN
-            if(PopsVersion.eq.3) then
-                call ReadPopsHeadv3(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
-                    iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
-                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
-            else
-                call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
-                    iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
-                    PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau, &
-                    PopBlockingIter, PopRandomHash, read_psingles, read_pparallel, &
-                    read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
-            endif
+        if (tHDF5Pops) then
 
-            if(EndPopsList.ne.iPopAllTotWalkers) then
-                call stop_all(this_routine,"Error in assessing number of entries in POPSFILE")
-            endif
+            call read_popsfile_hdf5(dets)
 
-        else if (BinPops) then
-            ! If we are reading a binary popsfile, then we want to close the
-            ! header file and open the file containing the determinants.
-            ! We don't need to bother reading in the header, it has already
-            ! been done (as it has been for non-binary popsfiles, too).
-            if (iProcIndex == root .or. (bNodeRoot .and. tSplitPops)) then
-                ! Close the header file.
-                close(iunit)
-
-                ! Use the correct pops file name.
-                tmp_char = 'POPSFILEBIN'
-                if (tSplitPops) then
-                    write(tmp_num, '(i12)') iProcIndex
-                    tmp_char = trim(tmp_char) // '-' // trim(adjustl(tmp_num))
-                end if
-                call get_unique_filename(trim(tmp_char), tIncrementPops, &
-                                         .false., iPopsFileNoRead, popsfile)
-                open(iunit, file=popsfile, status='old', form='unformatted')
-            endif
-
-            ! We need to consider the same parameters for particle
-            ! distribution
-            read_nnodes = pops_nnodes
-            read_walkers_on_nodes = pops_walkers
-        end if
-
-        allocate(TempnI(PopNel))
-
-        call mpibarrier(err)
-
-        IF(iProcIndex.eq.Root) THEN
-            IF(iWeightPopRead.ne.0) THEN
-                WRITE(6,"(A,I15,A,es17.10,A)") "Although ",EndPopsList, &
-                " configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
-            else
-                write(6,"(A,I15,A)") "Reading in a total of ",EndPopsList, " configurations from POPSFILE."
-            ENDIF
-            if(ScaleWalkers.ne.1) then
-                call warning_neci(this_routine,"ScaleWalkers parameter found, but not implemented in POPSFILE v3 - ignoring.")
-            endif
-            call neci_flush(6)
-        ENDIF
-
-        ! Which of the POPSFILE reading routines are we going to make use of?
-        if (tSplitPops) then
-            CurrWalkers = read_pops_splitpops (iunit, PopNel, TempnI, BinPops, &
-                                               Dets, DetsLen, iunit_3, PopNIfSgn)
-        else if (pops_nnodes == nProcessors .and. PopsVersion == 4 .and. &
-                 (balance_blocks == PopBalanceBlocks .or. &
-                  (.not. tLoadBalanceBlocks .and. PopBalanceBlocks == -1))) then
-            CurrWalkers = read_pops_nnodes (iunit, PopNel, TempnI, BinPops, Dets, &
-                                            DetsLen, read_walkers_on_nodes, &
-                                            iunit_3, PopNIfSgn, iPopAllTotWalkers)
         else
-            CurrWalkers = read_pops_general (iunit, PopNel, TempnI, BinPops, Dets, &
-                                             DetsLen, ReadBatch, EndPopsList, &
-                                             iunit_3, PopNIfSgn)
-            ! The walkers will be redistributed in a default manner. Ignore
-            ! the balancing information in the POPSFILE
-            PopBalanceBlocks = -1
+
+            call open_pops_head(iunit,formpops,binpops)
+            ! Determine version number.
+            PopsVersion=FindPopsfileVersion(iunit)
+            IF(FormPops) THEN
+                if(PopsVersion.eq.3) then
+                    call ReadPopsHeadv3(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
+                        iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
+                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
+                else
+                    call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
+                        iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
+                        PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau, &
+                        PopBlockingIter, PopRandomHash, read_psingles, read_pparallel, &
+                        read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
+                endif
+
+                if(EndPopsList.ne.iPopAllTotWalkers) then
+                    call stop_all(this_routine,"Error in assessing number of entries in POPSFILE")
+                endif
+
+            else if (BinPops) then
+                ! If we are reading a binary popsfile, then we want to close the
+                ! header file and open the file containing the determinants.
+                ! We don't need to bother reading in the header, it has already
+                ! been done (as it has been for non-binary popsfiles, too).
+                if (iProcIndex == root .or. (bNodeRoot .and. tSplitPops)) then
+                    ! Close the header file.
+                    close(iunit)
+
+                    ! Use the correct pops file name.
+                    tmp_char = 'POPSFILEBIN'
+                    if (tSplitPops) then
+                        write(tmp_num, '(i12)') iProcIndex
+                        tmp_char = trim(tmp_char) // '-' // trim(adjustl(tmp_num))
+                    end if
+                    call get_unique_filename(trim(tmp_char), tIncrementPops, &
+                                             .false., iPopsFileNoRead, popsfile)
+                    open(iunit, file=popsfile, status='old', form='unformatted')
+                endif
+
+                ! We need to consider the same parameters for particle
+                ! distribution
+                read_nnodes = pops_nnodes
+                read_walkers_on_nodes = pops_walkers
+            end if
+
+            allocate(TempnI(PopNel))
+
+            call mpibarrier(err)
+
+            IF(iProcIndex.eq.Root) THEN
+                IF(iWeightPopRead.ne.0) THEN
+                    WRITE(6,"(A,I15,A,es17.10,A)") "Although ",EndPopsList, &
+                        " configurations will be read in, only determinants &
+                        &with a weight of over ",iWeightPopRead," will be stored."
+                else
+                    write(6,"(A,I15,A)") "Reading in a total of ",EndPopsList, " configurations from POPSFILE."
+                ENDIF
+                if(ScaleWalkers.ne.1) then
+                    call warning_neci(this_routine,"ScaleWalkers parameter found, but not implemented in POPSFILE v3 - ignoring.")
+                endif
+                call neci_flush(6)
+            ENDIF
+
+            ! Which of the POPSFILE reading routines are we going to make use of?
+            if (tSplitPops) then
+                CurrWalkers = read_pops_splitpops (iunit, PopNel, TempnI, BinPops, &
+                                                   Dets, DetsLen, iunit_3, PopNIfSgn)
+            else if (pops_nnodes == nProcessors .and. PopsVersion == 4 .and. &
+                     (balance_blocks == PopBalanceBlocks .or. &
+                      (.not. tLoadBalanceBlocks .and. PopBalanceBlocks == -1))) then
+                CurrWalkers = read_pops_nnodes (iunit, PopNel, TempnI, BinPops, Dets, &
+                                                DetsLen, read_walkers_on_nodes, &
+                                                iunit_3, PopNIfSgn, iPopAllTotWalkers)
+            else
+                CurrWalkers = read_pops_general (iunit, PopNel, TempnI, BinPops, Dets, &
+                                                 DetsLen, ReadBatch, EndPopsList, &
+                                                 iunit_3, PopNIfSgn)
+                ! The walkers will be redistributed in a default manner. Ignore
+                ! the balancing information in the POPSFILE
+                PopBalanceBlocks = -1
+            end if
+
+            ! Add the contributions to the norm of the popsfile wave function from
+            ! all processes.
+            pops_norm_temp = pops_norm
+            call MPISumAll(pops_norm_temp, pops_norm)
+
+            ! Close the popsfiles.
+            if(iProcIndex == Root .or. (tSplitPops .and. bNodeRoot)) then
+                close(iunit)
+            endif
+
         end if
-
-        ! Add the contributions to the norm of the popsfile wave function from
-        ! all processes.
-        pops_norm_temp = pops_norm
-        call MPISumAll(pops_norm_temp, pops_norm)
-
-        ! Close the popsfiles.
-        if(iProcIndex == Root .or. (tSplitPops .and. bNodeRoot)) then
-            close(iunit)
-        endif
 
         ! Test we have still got all determinants
         write(6,*) "CurrWalkers: ", CurrWalkers

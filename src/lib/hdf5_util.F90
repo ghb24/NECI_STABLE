@@ -18,6 +18,11 @@ module hdf5_util
     use hdf5
     implicit none
 
+    interface read_int32_attribute
+        module procedure read_int32_attribute_main
+        module procedure read_int32_attribute_cast
+    end interface
+
 contains
 
     subroutine write_int32_attribute(parent, nm, val)
@@ -159,5 +164,82 @@ contains
         call h5sclose_f(memspace, err)
 
     end subroutine write_2d_multi_arr_chunk_offset
+
+    subroutine read_int32_attribute_main(parent, nm, val, exists, default)
+
+        ! Read in a 32bit scalar attribute
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        integer(int32), intent(out) :: val
+        logical, intent(out), optional :: exists
+        integer(int32), intent(in), optional :: default
+
+        integer(hid_t) :: attribute, err
+        logical(hid_t) :: exists_
+
+        call h5aexists_f(parent, nm, exists_, err)
+        if (exists_) then
+            call h5aopen_f(parent, nm, attribute, err)
+            call h5aread_f(attribute, H5T_NATIVE_INTEGER_4, val, &
+                           [1_hsize_t], err)
+        end if
+
+        if (present(exists)) exists = exists_
+        if (present(default) .and. .not. exists_) val = default
+
+    end subroutine
+
+    subroutine read_int32_attribute_cast(parent, nm, val, exists, default)
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        integer(int64), intent(out) :: val
+        logical, intent(out), optional :: exists
+        integer(int32), intent(in), optional :: default
+        integer(int32) :: val_tmp
+
+        call read_int32_attribute_main(parent, nm, val_tmp, exists, default)
+        val = int(val_tmp, int64)
+
+    end subroutine
+
+    subroutine read_string_attribute(parent, nm, val, exists, default)
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        character(*), intent(out) :: val
+        logical, intent(out), optional :: exists
+        character(*), intent(in), optional :: default
+        character(*), parameter :: t_r = 'read_string_attribute'
+
+        integer(hid_t) :: attribute, err, type_id
+        integer(hsize_t) :: sz, buf_sz
+        logical(hid_t) :: exists_
+
+        call h5aexists_f(parent, nm, exists_, err)
+        if (exists_) then
+            call h5aopen_f(parent, nm, attribute, err)
+            call h5aget_type_f(attribute, type_id, err)
+            !call h5tget_class_f(type_id, class_id, err)
+            call h5tget_size_f(type_id, sz, err)
+
+            ! We can only read in if our buffer is big enough
+            buf_sz = len(val)
+            if (sz > buf_sz) then
+                write(6,*) 'WARNING: Insufficient read buffer in routine ', t_r
+                exists_ = .false.
+            else
+                ! Read in, and ensure that length/string termination is correct
+                call h5aread_f(attribute, type_id, val, [1_hsize_t], err)
+                val = val(1:sz)
+            end if
+        end if
+
+        if (present(exists)) exists = exists_
+        if (present(default) .and. .not. exists_) val = trim(default)
+
+    end subroutine
+
 
 end module

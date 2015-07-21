@@ -322,6 +322,7 @@ contains
 
           tLoadBalanceBlocks = .false.
           tPopsJumpShift = .false.
+          calc_seq_no = 1
 
         end subroutine SetCalcDefaults
 

@@ -40,6 +40,8 @@ module hdf5_popsfile
             nm_vcs_ver = 'vcs_ver', &
             nm_comp_time = 'compiled_at', &
             nm_comp_date = 'compiled_on', &
+            nm_date = 'date', &
+            nm_seq_no = 'seq_no', &
             nm_comp_config = 'config', &
             nm_comp_status = 'status', &
 
@@ -84,23 +86,48 @@ contains
     end subroutine write_popsfile_hdf5
 
 
-    subroutine read_popsfile_hdf5()
+    subroutine read_popsfile_hdf5(dets)
+
+        ! Read a popsfile in, prior to running a new calculation
+
+        ! n.b. This reads into the specified array, to allow use of popsfiles
+        !      for initialising perturbations, etc.
+
+        integer(int64), intent(out) :: dets(:, :)
+        integer(hid_t) :: err, file_id
+
+        write(6,*)
+        write(6,*) '=='
+        write(6,*) "Reading in from HDF5 popsfile"
+        write(6,*) '======================================'
+
+        ! Initialise the hdf5 fortran interface
+        call h5open_f(err)
+
+        ! Open the popsfile
+        call h5fopen_f('popsfile.hdf5', H5F_ACC_RDONLY_F, file_id, err)
+
+        call read_metadata(file_id)
+
+        ! And we are done
+        call h5fclose_f(file_id, err)
+        call h5close_f(err)
 
     end subroutine
 
 
     subroutine write_metadata(parent)
 
+        use CalcData, only: calc_seq_no
+
         ! Output macroscopic metadata applicable to a restart file, which may
         ! be used for establishing providence of calculations, etc.
 
         integer(hid_t), intent(in) :: parent
+        character(19) :: date_str
+        integer :: date_values(8)
 
-        ! Run by
-        ! Date
-        ! SHAid
-        ! Sequence number
-        call write_string_attribute(parent, "hi", "This is a test")
+        ! TODO: Run by
         call write_string_attribute(parent, nm_vcs_ver, _VCS_VER)
         call write_string_attribute(parent, nm_comp_date, __DATE__)
         call write_string_attribute(parent, nm_comp_time, __TIME__)
@@ -109,6 +136,55 @@ contains
         call write_string_attribute(parent, nm_comp_status, &
                                     "Working directory contains local changes")
 #endif
+
+        ! How many calculations have been run to get to this popsfile pt?
+        call write_int32_attribute(parent, nm_seq_no, int(calc_seq_no, int32))
+
+        ! When are we running this?
+        call date_and_time(values=date_values)
+
+        write(date_str, '(i4,"-",i2,"-",i2," ",i2,":",i2,":",i2)') &
+            date_values(1:3), date_values(5:7)
+        call write_string_attribute(parent, nm_date, date_str)
+
+    end subroutine
+
+    subroutine read_metadata(parent)
+
+        use CalcData, only: calc_seq_no
+
+        ! Read in the macroscopic metadata applicable to the restart file.
+
+        integer(hid_t), intent(in) :: parent
+        integer(hid_t) :: err, attribute
+
+        logical :: exists
+        character(100) :: str_buf
+
+        write(6,*) 'Previous calculation'
+
+        call read_string_attribute(parent, nm_date, str_buf, exists)
+        if (exists) write(6,*) 'Date: ', trim(str_buf)
+        call read_int32_attribute(parent, nm_seq_no,  calc_seq_no, &
+                                  default=1_int32)
+        write(6,*) 'Sequence no.:', calc_seq_no
+
+        ! Output nice details for usability
+        call read_string_attribute(parent, nm_vcs_ver, str_buf, exists)
+        if (exists) write(6,*) 'VCS ver: ', trim(str_buf)
+        call read_string_attribute(parent, nm_comp_config, str_buf, exists)
+        if (exists) write(6,*) 'Build config: ', trim(str_buf)
+        call read_string_attribute(parent, nm_comp_status, str_buf, exists)
+        if (exists) write(6,*) 'Build status: ', trim(str_buf)
+        call read_string_attribute(parent, nm_comp_date, str_buf, exists)
+        if (exists) write(6,*) 'Build date: ', trim(str_buf)
+        call read_string_attribute(parent, nm_comp_time, str_buf, exists)
+        if (exists) write(6,*) 'Build time: ', trim(str_buf)
+
+
+
+        ! Update values for the new calculation
+        calc_seq_no = calc_seq_no + 1
 
     end subroutine
 
