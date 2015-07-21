@@ -427,10 +427,10 @@ contains
         ! We should update tau searching if it is enabled, or if it has been
         ! enabled, and now tau is outside the range acceptable for tau
         ! searching
-        if (.not. tSearchTau) then
-            call MPIAllReduce(tSearchTauDeath, MPI_LOR, ltmp)
-            tSearchTauDeath = ltmp
-        end if
+!        if (.not. tSearchTau) then
+!!            call MPIAllReduce(tSearchTauDeath, MPI_LOR, ltmp)
+!            tSearchTauDeath = ltmp
+!        end if
         if ((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. &
                             .not. tFillingStochRDMOnFly) then   
             call update_tau()

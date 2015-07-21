@@ -76,7 +76,7 @@ contains
          CALL MPIBCast(SYML,1000)
          CALL MPIBCast(SYMLZ,1000)
          CALL MPIBCast(ISYM,1)
-         CALL MPIBCast(UHF,1)
+         CALL MPIBCast(UHF)
          CALL MPIBCast(PROPBITLEN,1)
          CALL MPIBCast(NPROP,3)
          ! If PropBitLen has been set then assume we're not using an Abelian
@@ -251,7 +251,7 @@ contains
          CALL MPIBCast(SYMLZ,1000)
          CALL MPIBCast(ISYM,1)
          CALL MPIBCast(IUHF,1)
-         CALL MPIBCast(UHF,1)
+         CALL MPIBCast(UHF)
          CALL MPIBCast(PROPBITLEN,1)
          CALL MPIBCast(NPROP,3)
          ! If PropBitLen has been set then assume we're not using an Abelian
@@ -644,7 +644,7 @@ contains
          CALL MPIBCast(SYMLZ,1000)
          CALL MPIBCast(ISYM,1)
          CALL MPIBCast(IUHF,1)
-         CALL MPIBCast(UHF,1)
+         CALL MPIBCast(UHF)
          CALL MPIBCast(PROPBITLEN,1)
          CALL MPIBCast(NPROP,3)
          ! If PropBitLen has been set then assume we're not using an Abelian

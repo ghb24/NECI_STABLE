@@ -298,10 +298,13 @@ contains
         real(dp) :: hfScaleFactor
         character(len=100) :: w
 
+        integer(MPIArg) :: ierr, ierr2, len
+        character(1000) :: message
+
         ! Test if the changevars file exists, and broadcast to all nodes.
         any_exist=.false.
         inquire (file='CHANGEVARS', exist=exists)
-        call MPIAllReduce (exists, 1, MPI_LOR, any_exist)
+        call MPIAllReduceLogical (exists, MPI_LOR, any_exist)
 
         ! Default values
         opts_selected = .false.
@@ -419,7 +422,7 @@ contains
 
                 ! Once one node has found and deleted the file, it is gone.
                 any_deleted=.false.
-                call MPIAllReduce (deleted, 1, MPI_LOR, any_deleted)
+                call MPIAllReduce (deleted, MPI_LOR, any_deleted)
                 if (any_deleted) exit
             enddo ! Loop to read CHANGEVARS
 

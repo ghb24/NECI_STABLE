@@ -514,7 +514,7 @@ contains
 
         ValidSpawnedList = InitialSpawnedSlots
 
-        call MPIAllGather(tFinished, 1, tFinished_AllProcs, 1, ierr)
+        call MPIAllGather(tFinished, tFinished_AllProcs, ierr)
 
         tAllFinished = all(tFinished_AllProcs)
 
