@@ -19,6 +19,20 @@ module hdf5_popsfile
     !
     ! /calculation/          - Details of the calculation
     !     /random_hash/      - Random values used in the orbital mapping
+    !     /tau_search/       - Values used in timestep optimisation
+    !         /gamma_sing/
+    !         /gamma_doub/
+    !         /gamma_opp/
+    !         /gamma_par/
+    !         /enough_sing/
+    !         /enough_doub/
+    !         /enough_opp/
+    !         /enough_par/
+    !         /cnt_sing/
+    !         /cnt_doub/
+    !         /cnt_opp/
+    !         /cnt_par/
+    !         /max_death_cpt/
     ! 
     ! /wavefunction/         - Details of a determinental Hilbert space
     !     A: width           - Width of the bit-rep in 64-bit integers
@@ -47,6 +61,21 @@ module hdf5_popsfile
 
             nm_calc_grp = 'calculation', &
             nm_random_hash = 'random_hash', &
+
+            nm_tau_grp = 'tau_search', &
+            nm_gam_sing = 'gamma_sing', &
+            nm_gam_doub = 'gamma_doub', &
+            nm_gam_opp = 'gamma_opp', &
+            nm_gam_par = 'gamma_par', &
+            nm_en_sing = 'enough_sing', &
+            nm_en_doub = 'enough_doub', &
+            nm_en_opp = 'enough_opp', &
+            nm_en_par = 'enough_par', &
+            nm_cnt_sing = 'cnt_sing', &
+            nm_cnt_doub = 'cnt_doub', &
+            nm_cnt_opp = 'cnt_opp', &
+            nm_cnt_par = 'cnt_par', &
+            nm_max_death = 'max_death', &
             
             nm_wfn_grp = 'wavefunction', &
             nm_rep_width = 'width', &
@@ -208,8 +237,59 @@ contains
         ! Write out the random orbital mapping index
         call write_int64_1d_dataset(calc_grp, nm_random_hash, RandomOrbIndex)
 
+        ! Output the values used for tau optimisation. Only output non-zero
+        ! (i.e. used) values.
+        call write_tau_opt(calc_grp)
+
+
         ! Clear stuff up
         call h5gclose_f(calc_grp, err)
+
+    end subroutine
+
+    subroutine write_tau_opt(parent)
+    
+        use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
+                              enough_sing, enough_doub, enough_opp, &
+                              enough_par, cnt_sing, cnt_doub, cnt_opp, &
+                              cnt_par, max_death_cpt
+
+        integer(hid_t), intent(in) :: parent
+        integer(hid_t) :: tau_grp, err
+
+        ! Create the group
+        call h5gcreate_f(parent, nm_tau_grp, tau_grp, err)
+
+        if (gamma_sing /= 0) &
+            call write_dp_scalar(tau_grp, nm_gam_sing, gamma_sing)
+        if (gamma_doub /= 0) &
+            call write_dp_scalar(tau_grp, nm_gam_doub, gamma_doub)
+        if (gamma_opp /= 0) &
+            call write_dp_scalar(tau_grp, nm_gam_opp, gamma_opp)
+        if (gamma_par /= 0) &
+            call write_dp_scalar(tau_grp, nm_gam_par, gamma_par)
+        if (max_death_cpt /= 0) &
+            call write_dp_scalar(tau_grp, nm_max_death, max_death_cpt)
+        if (enough_sing) &
+            call write_log_scalar(tau_grp, nm_en_sing, enough_sing)
+        if (enough_doub) &
+            call write_log_scalar(tau_grp, nm_en_doub, enough_doub)
+        if (enough_opp) &
+            call write_log_scalar(tau_grp, nm_en_opp, enough_opp)
+        if (enough_par) &
+            call write_log_scalar(tau_grp, nm_en_par, enough_par)
+        write(6,*) 'CNTS', cnt_sing, cnt_doub, cnt_Opp, cnt_par
+        if (cnt_sing /= 0) &
+            call write_int64_scalar(tau_grp, nm_cnt_sing, cnt_sing)
+        if (cnt_doub /= 0) &
+            call write_int64_scalar(tau_grp, nm_cnt_doub, cnt_doub)
+        if (cnt_opp /= 0) &
+            call write_int64_scalar(tau_grp, nm_cnt_opp, cnt_opp)
+        if (cnt_par /= 0) &
+            call write_int64_scalar(tau_grp, nm_cnt_par, cnt_par)
+
+        ! Clear up
+        call h5gclose_f(tau_grp, err)
 
     end subroutine
 

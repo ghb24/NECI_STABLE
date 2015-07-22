@@ -28,6 +28,11 @@ module hdf5_util
         module procedure read_int64_1d_dataset_main
     end interface
 
+    interface write_log_scalar
+        module procedure write_log_scalar_4
+        module procedure write_log_scalar_8
+    end interface
+
 contains
 
     subroutine write_int32_attribute(parent, nm, val)
@@ -74,6 +79,86 @@ contains
         call h5aclose_f(attribute, err)
         call h5sclose_f(dataspace, err)
         call h5tclose_f(type_id, err)
+
+    end subroutine
+
+    subroutine write_dp_scalar(parent, nm, val)
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        real(dp), intent(in) :: val
+
+        integer(hid_t) :: dataspace, dataset, err
+
+        ! Create a scalar dataspace, and dataset. Then write to it.
+        call h5screate_f(H5S_SCALAR_F, dataspace, err)
+        call h5dcreate_f(parent, nm, H5T_NATIVE_REAL_8, dataspace, &
+                         dataset, err)
+        call h5dwrite_f(dataset, H5T_NATIVE_REAL_8, val, [1_hsize_t], err)
+        call h5dclose_f(dataset, err)
+        call h5sclose_f(dataspace, err)
+
+    end subroutine
+
+    subroutine write_log_scalar_4(parent, nm, val)
+
+        ! All logical values should be stored as 32bit integers.
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        logical(int32), intent(in) :: val
+
+        integer(hid_t) :: dataspace, dataset, err
+        integer(int32) :: tmp
+
+        ! Store this as an integral value!
+        if (val) then
+            tmp = 1
+        else
+            tmp = 0
+        end if
+
+        ! Create a scalar dataspace, and dataset. Then write to it.
+        call h5screate_f(H5S_SCALAR_F, dataspace, err)
+        call h5dcreate_f(parent, nm, H5T_NATIVE_INTEGER_4, dataspace, &
+                         dataset, err)
+        call h5dwrite_f(dataset, H5T_NATIVE_INTEGER_4, tmp, [1_hsize_t], err)
+        call h5dclose_f(dataset, err)
+        call h5sclose_f(dataspace, err)
+
+    end subroutine
+
+    subroutine write_log_scalar_8(parent, nm, val)
+
+        ! Wrapper around the _4 routine
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        logical(int64), intent(in) :: val
+        logical(int32) :: tmp
+
+        tmp = val
+        call write_log_scalar_4(parent, nm, tmp)
+
+    end subroutine
+
+    subroutine write_int64_scalar(parent, nm, val)
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        integer(int64), intent(in) :: val
+
+        integer(hid_t) :: dataspace, dataset, err
+        integer(int32), pointer :: ptr
+
+        ! Create a scalar dataspace, and dataset. Then write to it.
+        call h5screate_f(H5S_SCALAR_F, dataspace, err)
+        call h5dcreate_f(parent, nm, H5T_NATIVE_INTEGER_8, dataspace, &
+                         dataset, err)
+        call int32_pointer_abuse_scalar(val, ptr)
+        call h5dwrite_f(dataset, H5T_NATIVE_INTEGER_8, ptr, [1_hsize_t], err)
+        call h5dclose_f(dataset, err)
+        call h5sclose_f(dataspace, err)
 
     end subroutine
 

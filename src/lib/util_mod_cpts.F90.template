@@ -46,6 +46,7 @@ module util_mod_cpts
 
     private
     public :: swap, arr_2d_ptr, arr_2d_dims, int32_pointer_abuse
+    public :: int32_pointer_abuse_scalar
 
 contains
 
@@ -117,4 +118,19 @@ contains
 
     end subroutine
 
+    subroutine int32_pointer_abuse_scalar(elem, ptr)
+
+        ! Return an int32 pointer to the target array. Ignore types.
+
+        %(type)s, intent(in), target :: elem
+        integer(int32), intent(inout), pointer :: ptr
+
+        type(c_ptr) :: cptr
+
+        ! Convert first to a single element, then to a c pointer, and then
+        ! the target type
+        cptr = c_loc(elem)
+        call c_f_pointer(cptr, ptr, [1])
+
+    end subroutine
 end module
