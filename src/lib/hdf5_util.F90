@@ -33,6 +33,11 @@ module hdf5_util
         module procedure write_log_scalar_8
     end interface
 
+    interface read_log_scalar
+        module procedure read_log_scalar_4
+        module procedure read_log_scalar_8
+    end interface
+
 contains
 
     subroutine write_int32_attribute(parent, nm, val)
@@ -58,6 +63,62 @@ contains
         call h5sclose_f(dataspace, err)
 
     end subroutine
+
+    subroutine write_int64_attribute(parent, nm, val)
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        integer(int64), intent(in) :: val
+
+        integer(hid_t) :: dataspace, attribute, err
+        integer(int32), pointer :: ptr
+
+        call h5screate_f(H5S_SCALAR_F, dataspace, err)
+        call h5acreate_f(parent, nm, H5T_NATIVE_INTEGER_8, dataspace, &
+                         attribute, err)
+        call int32_pointer_abuse_scalar(val, ptr)
+        call h5awrite_f(attribute, H5T_NATIVE_INTEGER_8, ptr, [1_hsize_t], err)
+        call h5aclose_f(attribute, err)
+        call h5sclose_f(dataspace, err)
+
+    end subroutine
+
+    subroutine read_int64_attribute(parent, nm, val, exists, default, &
+                                    required)
+
+        ! Read in a 64bit scalar attribute
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        integer(int64), intent(out) :: val
+        logical, intent(out), optional :: exists
+        logical, intent(in), optional :: required
+        integer(int64), intent(in), optional :: default
+        character(*), parameter :: t_r = 'read_int64_attribute'
+
+        integer(hid_t) :: attribute, err
+        logical(hid_t) :: exists_
+        integer(int32), pointer :: ptr
+
+        call h5aexists_f(parent, nm, exists_, err)
+        if (exists_) then
+            call h5aopen_f(parent, nm, attribute, err)
+            call int32_pointer_abuse_scalar(val, ptr)
+            call h5aread_f(attribute, H5T_NATIVE_INTEGER_8, ptr, &
+                           [1_hsize_t], err)
+            call h5aclose_f(attribute, err)
+        end if
+
+        if (present(required)) then
+            if (required .and. .not. exists_) then
+                write(6, *) nm
+                call stop_all(t_r, "Required field does not exist")
+            end if
+        end if
+        if (present(exists)) exists = exists_
+        if (present(default) .and. .not. exists_) val = default
+
+    end subroutine read_int64_attribute
 
     subroutine write_string_attribute(parent, nm, val)
 
@@ -99,6 +160,40 @@ contains
         call h5sclose_f(dataspace, err)
 
     end subroutine
+
+    subroutine read_dp_scalar(parent, nm, val, exists, default, required)
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        real(dp), intent(out) :: val
+        logical, intent(out), optional :: exists
+        logical, intent(in), optional :: required
+        real(dp), intent(in), optional :: default
+        character(*), parameter :: t_r = 'read_dp_scalar'
+
+        integer(hid_t) :: dataset, err
+        logical(hid_t) :: exists_
+
+        ! Test if the relevant key exists
+        call h5lexists_f(parent, nm, exists_, err)
+        if (exists_) then
+            call h5dopen_f(parent, nm, dataset, err)
+            call h5dread_f(dataset, H5T_NATIVE_REAL_8, val, [1_hsize_t], err)
+            if (err /= 0) &
+                call stop_all(t_r, 'Read error')
+            call h5dclose_f(dataset, err)
+        endif
+
+        if (present(required)) then
+            if (required .and. .not. exists_) then
+                write(6, *) nm
+                call stop_all(t_r, "Required field does not exist")
+            end if
+        end if
+        if (present(exists)) exists = exists_
+        if (present(default) .and. .not. exists_) val = default
+
+    end subroutine read_dp_scalar
 
     subroutine write_log_scalar_4(parent, nm, val)
 
@@ -142,6 +237,70 @@ contains
 
     end subroutine
 
+    subroutine read_log_scalar_4(parent, nm, val, exists, default, required)
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        logical(int32), intent(out) :: val
+        logical, intent(out), optional :: exists
+        logical, intent(in), optional :: required
+        logical(int32), intent(in), optional :: default
+        character(*), parameter :: t_r = 'read_log_scalar_4'
+
+        integer(hid_t) :: dataset, err
+        logical(hid_t) :: exists_
+        integer(int32) :: tmp
+
+        ! Test if the relevant key exists
+        call h5lexists_f(parent, nm, exists_, err)
+        if (exists_) then
+            call h5dopen_f(parent, nm, dataset, err)
+            call h5dread_f(dataset, H5T_NATIVE_INTEGER_4, tmp, [1_hsize_t], err)
+            if (err /= 0) &
+                call stop_all(t_r, 'Read error')
+            if (tmp == 0) then
+                val = .false.
+            else
+                val = .true.
+            end if
+            call h5dclose_f(dataset, err)
+        endif
+
+        if (present(required)) then
+            if (required .and. .not. exists_) then
+                write(6, *) nm
+                call stop_all(t_r, "Required field does not exist")
+            end if
+        end if
+        if (present(exists)) exists = exists_
+        if (present(default) .and. .not. exists_) val = default
+
+    end subroutine
+
+    subroutine read_log_scalar_8(parent, nm, val, exists, default, required)
+
+        ! Wrap the logical reading, such that it doesn't matter what type is
+        ! being used internally by the code, the data format in the file
+        ! should remain constant
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        logical(int64), intent(out) :: val
+        logical, intent(out), optional :: exists
+        logical(int32), intent(in), optional :: default
+        logical, intent(in), optional :: required
+
+        logical(int32) :: buf
+        logical :: exists_
+
+        call read_log_scalar_4(parent, nm, buf, exists_, default, required)
+
+        if (exists_ .or. present(default)) &
+            val = buf
+        if (present(exists)) exists = exists_
+
+    end subroutine
+
     subroutine write_int64_scalar(parent, nm, val)
 
         integer(hid_t), intent(in) :: parent
@@ -161,6 +320,42 @@ contains
         call h5sclose_f(dataspace, err)
 
     end subroutine
+
+    subroutine read_int64_scalar(parent, nm, val, exists, default, required)
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        integer(int64), intent(out) :: val
+        logical, intent(out), optional :: exists
+        logical, intent(in), optional :: required
+        integer(int64), intent(in), optional :: default
+        character(*), parameter :: t_r = 'read_int64_scalar'
+
+        integer(hid_t) :: dataset, err
+        logical(hid_t) :: exists_
+        integer(int32), pointer :: ptr
+
+        ! Test if the relevant key exists
+        call h5lexists_f(parent, nm, exists_, err)
+        if (exists_) then
+            call h5dopen_f(parent, nm, dataset, err)
+            call int32_pointer_abuse_scalar(val, ptr)
+            call h5dread_f(dataset, H5T_NATIVE_INTEGER_8, ptr, [1_hsize_t], err)
+            if (err /= 0) &
+                call stop_all(t_r, 'Read error')
+            call h5dclose_f(dataset, err)
+        endif
+
+        if (present(required)) then
+            if (required .and. .not. exists_) then
+                write(6, *) nm
+                call stop_all(t_r, "Required field does not exist")
+            end if
+        end if
+        if (present(exists)) exists = exists_
+        if (present(default) .and. .not. exists_) val = default
+
+    end subroutine read_int64_scalar
 
     subroutine write_int64_1d_dataset(parent, nm, val)
 
@@ -301,9 +496,14 @@ contains
         logical, intent(in), optional :: required
         integer(int32) :: val_tmp
 
-        call read_int32_attribute_main(parent, nm, val_tmp, exists, default, &
+        logical :: exists_
+
+        call read_int32_attribute_main(parent, nm, val_tmp, exists_, default, &
                                        required)
-        val = int(val_tmp, int64)
+
+        if (exists_ .or. present(default)) &
+            val = int(val_tmp, int64)
+        if (present(exists)) exists = exists_
 
     end subroutine
 
@@ -388,8 +588,8 @@ contains
         integer(int64), intent(in), optional :: default(:)
         character(*), parameter :: t_r = 'read_int64_1d_dataset_main'
 
-        integer(hid_t) :: dataset, dataspace, type_id, class_id, rank, err
-        integer(hsize_t) :: sz, dims(1), dims_ds(1), max_dims(1)
+        integer(hid_t) :: dataset, err, type_id
+        integer(hsize_t) :: dims(1)
         logical(hid_t) :: exists_
         integer(int32), pointer :: ptr(:)
 
@@ -398,26 +598,11 @@ contains
         exists_ = .true.
         if (exists_) then
             call h5dopen_f(parent, nm, dataset, err)
-
-            ! Do some type checking!
             call h5dget_type_f(dataset, type_id, err)
-            call h5tget_size_f(type_id, sz, err)
-            call h5tget_class_f(type_id, class_id, err)
-            if (sz /= 8 .or. class_id /= H5T_INTEGER_F) &
-                call stop_all(t_r, 'Invalid type found')
 
-            ! Get the dataspace that we are going to read. Check that the rank
-            ! and dimensionality of the dataset we are intending to read are
-            ! correct.
-            call h5dget_space_f(dataset, dataspace, err)
-            call h5sget_simple_extent_ndims_f(dataspace, rank, err)
-            if (rank /= 1) &
-                call stop_all(t_r, 'Unexpected rank found')
-
+            ! Check dimensions and types.
             dims = [size(val)]
-            call h5sget_simple_extent_dims_f(dataspace, dims_ds, max_dims, err)
-            if (.not. all(dims == dims_ds)) &
-                call stop_all(t_r, 'Unexpected array dimensionality')
+            call check_dataset_params(dataset, nm, 8, H5T_INTEGER_F, dims)
 
             ! And actually read the data. Note that we manipulate the pointer
             ! to be a 32bit integer, as that is always present in the library.
@@ -425,7 +610,6 @@ contains
             call h5dread_f(dataset, type_id, ptr, dims, err)
 
             call h5tclose_f(type_id, err)
-            call h5sclose_f(dataspace, err)
             call h5dclose_f(dataset, err)
         end if
 
@@ -440,5 +624,53 @@ contains
 
     end subroutine
 
+    subroutine check_dataset_params(dataset, nm, sz, class_id, dims)
+
+        ! Check that a dataset has the character that is required of it
+        ! before reading in.
+
+        integer(hid_t), intent(in) :: dataset, class_id
+        character(*), intent(in) :: nm
+        integer(hsize_t), intent(in) :: sz
+        integer(hsize_t), intent(in) :: dims(:)
+        character(*), parameter :: t_r = 'check_dataset_params'
+
+        integer(hid_t) :: rank, type_id, ds_class
+        
+        integer(hid_t) :: ds_rank, dataspace, err
+        integer(hsize_t) :: ds_dims(size(dims)), ds_max_dims(size(dims)), ds_sz
+
+        ! Get the type associated with the dataset. Check that it is an
+        ! array with components that have the right number of bytes, and the
+        ! correct base class type
+        call h5dget_type_f(dataset, type_id, err)
+        call h5tget_size_f(type_id, ds_sz, err)
+        call h5tget_class_f(type_id, ds_class, err)
+        call h5tclose_f(type_id, err)
+
+        if (ds_sz /= sz .or. ds_class /= class_id) then
+            write(6,*) 'Dataset name: ', nm
+            call stop_all(t_r, "Invalid dataset type information found")
+        end if
+
+        ! Get the dataspace for the dataset. Check that the dataset has the
+        ! requested dimensions
+        call h5dget_space_f(dataset, dataspace, err)
+        call h5sget_simple_extent_ndims_f(dataspace, ds_rank, err)
+
+        rank = size(dims)
+        if (rank /= ds_rank) then
+            write(6,*) 'Dataset name: ', nm
+            call stop_all(t_r, "Invalid dataset rank found")
+        end if
+
+        call h5sget_simple_extent_dims_f(dataspace, ds_dims, ds_max_dims, err)
+        if (.not. all(dims == ds_dims)) then
+            write(6,*) 'Dataset name: ', nm
+            call stop_all(t_r, "Invalid dataset dimensions found")
+        end if
+        call h5sclose_f(dataspace, err)
+
+    end subroutine check_dataset_params
 
 end module

@@ -36,6 +36,8 @@ module hdf5_popsfile
     ! 
     ! /wavefunction/         - Details of a determinental Hilbert space
     !     A: width           - Width of the bit-rep in 64-bit integers
+    !     A: num_dets        - Number of determinants in the file
+    !     A: lenof_sign      - Number of elements in the sign data
     !
     !     /ilut/             - The bit representations of the determinants
     !     /sgns/             - The occupation of the determinants
@@ -80,6 +82,7 @@ module hdf5_popsfile
             nm_wfn_grp = 'wavefunction', &
             nm_rep_width = 'width', &
             nm_sgn_len = 'lenof_sign', &
+            nm_num_dets = 'num_dets', &
             nm_ilut = 'ilut', &
             nm_sgns = 'sgns'
 
@@ -122,7 +125,7 @@ contains
         ! n.b. This reads into the specified array, to allow use of popsfiles
         !      for initialising perturbations, etc.
 
-        integer(int64), intent(out) :: dets(:, :)
+        integer(n_int), intent(out) :: dets(:, :)
         integer(hid_t) :: err, file_id, plist_id
         integer :: tmp
 
@@ -145,11 +148,15 @@ contains
 
         call read_metadata(file_id)
         call read_calc_data(file_id)
+        call read_walkers(file_id, dets)
 
         ! And we are done
         call h5pclose_f(plist_id, err)
         call h5fclose_f(file_id, err)
         call h5close_f(err)
+
+        call neci_flush(6)
+        call MPIBarrier(tmp)
 
     end subroutine
 
@@ -278,7 +285,6 @@ contains
             call write_log_scalar(tau_grp, nm_en_opp, enough_opp)
         if (enough_par) &
             call write_log_scalar(tau_grp, nm_en_par, enough_par)
-        write(6,*) 'CNTS', cnt_sing, cnt_doub, cnt_Opp, cnt_par
         if (cnt_sing /= 0) &
             call write_int64_scalar(tau_grp, nm_cnt_sing, cnt_sing)
         if (cnt_doub /= 0) &
@@ -291,7 +297,7 @@ contains
         ! Clear up
         call h5gclose_f(tau_grp, err)
 
-    end subroutine
+    end subroutine write_tau_opt
 
     subroutine read_calc_data(parent)
 
@@ -304,6 +310,47 @@ contains
         ! Read out the random orbital mapping index
         call read_int64_1d_dataset(grp_id, nm_random_hash, RandomOrbIndex, &
                                    required=.true.)
+
+        call read_tau_opt(grp_id)
+
+        ! TODO: Read nbasis, nel, ms2, etc.
+        !       --> Check that these values haven't changed from the
+        !           previous run
+
+        call h5gclose_f(grp_id, err)
+
+    end subroutine
+
+    subroutine read_tau_opt(parent)
+
+        use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
+                              enough_sing, enough_doub, enough_opp, &
+                              enough_par, cnt_sing, cnt_doub, cnt_opp, &
+                              cnt_par, max_death_cpt
+
+        ! Read accumulator values for the timestep optimisation
+        ! TODO: Add an option to reset these values...
+
+        integer(hid_t), intent(in) :: parent
+        integer(hid_t) :: grp_id, err
+
+        call h5gopen_f(parent, nm_tau_grp, grp_id, err)
+
+        ! These are all optional things to have in the popsfile. If they don't
+        ! exist, then they will be left unchanged.
+        call read_dp_scalar(grp_id, nm_gam_sing, gamma_sing)
+        call read_dp_scalar(grp_id, nm_gam_doub, gamma_doub)
+        call read_dp_scalar(grp_id, nm_gam_opp, gamma_opp)
+        call read_dp_scalar(grp_id, nm_gam_par, gamma_par)
+        call read_dp_scalar(grp_id, nm_max_death, max_death_cpt)
+        call read_log_scalar(grp_id, nm_en_sing, enough_sing)
+        call read_log_scalar(grp_id, nm_en_doub, enough_doub)
+        call read_log_scalar(grp_id, nm_en_opp, enough_opp)
+        call read_log_scalar(grp_id, nm_en_par, enough_par)
+        call read_int64_scalar(grp_id, nm_cnt_sing, cnt_sing)
+        call read_int64_scalar(grp_id, nm_cnt_doub, cnt_doub)
+        call read_int64_scalar(grp_id, nm_cnt_opp, cnt_opp)
+        call read_int64_scalar(grp_id, nm_cnt_par, cnt_par)
 
         call h5gclose_f(grp_id, err)
 
@@ -353,15 +400,16 @@ contains
             call stop_all(t_r, "Needs manual, careful, testing")
         end if
 
-        ! Output the bit-representation data
-        call write_int32_attribute(wfn_grp_id, nm_rep_width, bit_rep_width)
-        call write_int32_attribute(wfn_grp_id, nm_sgn_len, &
-                                   int(lenof_sign, int32))
-
         ! How many occuiped determinants are there on each of the processors
         call MPIAllGather(TotWalkers, counts, ierr)
         all_count = sum(counts)
         write_offset = [0_hsize_t, sum(counts(0:iProcIndex-1))]
+
+        ! Output the bit-representation data
+        call write_int32_attribute(wfn_grp_id, nm_rep_width, bit_rep_width)
+        call write_int32_attribute(wfn_grp_id, nm_sgn_len, &
+                                   int(lenof_sign, int32))
+        call write_int64_attribute(wfn_grp_id, nm_num_dets, all_count)
 
         ! Write out the determinant bit-representations
         call write_2d_multi_arr_chunk_offset( &
@@ -388,9 +436,104 @@ contains
 
         ! And we are done
         call h5gclose_f(wfn_grp_id, err)
-        
-
 
     end subroutine write_walkers
+
+    subroutine read_walkers(parent, dets)
+
+        use bit_rep_data, only: NIfD, NIfTot
+
+        ! This is the routine that has complexity!!!
+        !
+        ! We read chunks of the walkers datasets on _all_ of the processors,
+        ! and communicate the walkers to the correct node after each of the
+        ! blocks. This is essentially a giant annihilation step
+        !
+        ! We used the spawnedparts arrays as a buffer. These are split up per
+        ! processor in the same way as normally used for annihilation. We
+        ! keep looping over however much we can fit in this array unil
+        ! we are done.
+        !
+        ! --> This is quite complicated, but should equally be quite efficient
+
+        integer(hid_t), intent(in) :: parent
+        integer(n_int), intent(out) :: dets(:, :)
+        character(*), parameter :: t_r = 'read_walkers'
+
+        integer :: proc
+        integer(hid_t) :: grp_id, err
+        integer(hid_t) :: ds_sgns, ds_ilut
+
+        integer(int32) :: bit_rep_width, tmp_lenof_sign
+        integer(hsize_t) :: all_count, block_size, counts(0:nProcessors-1)
+        integer(hsize_t) :: offsets(0:nProcessors-1)
+
+        ! TODO:
+        ! - Read into a relatively small buffer. Make this such that all the
+        !   particles could be broadcast to a single processor and everything
+        !   would be fine (this is the only way to _ensure_ no overflows).
+        ! - Loop over these read walkers, decode and determine which proc
+        !   they are for
+        ! - MPIAllToAllV to the correct processor
+        ! - Ensure that these end up in the correct place in the main list,
+        !   and that we don't overflow anywhere!
+        ! - Writing and reading of flags, etc.
+        !    -- For flags, include attribute info with which bit is which
+        !       flag for supportability.
+
+        call h5gopen_f(parent, nm_wfn_grp, grp_id, err)
+
+        ! TODO: Make sure that this plays nicely with 32bit!!!
+        if (.not. build_64bit) &
+            call stop_all(t_r, "Needs manual, careful testing and adjustment")
+
+        ! Get attributes about the sizes of stuff in the popsfile.
+        ! ========
+
+        ! We can only read in bit representations that are the right size!
+        call read_int32_attribute(grp_id, nm_rep_width, bit_rep_width)
+        if (bit_rep_width /= NIfD + 1) &
+            call stop_all(t_r, "Mismatched bit representations")
+
+        ! TODO: Deal with increasing the number of runs (e.g. for seeding RDMs)
+        call read_int32_attribute(grp_id, nm_sgn_len, tmp_lenof_sign)
+        if (lenof_sign /= tmp_lenof_sign) &
+            call stop_all(t_r, "Mismatched sign length")
+
+        call read_int64_attribute(grp_id, nm_num_dets, all_count)
+        write(6,*) 'Reading in ', all_count, ' determinants ...'
+
+        ! How many particles should each processor read in (try and distribute
+        ! this as uniformly as possible. Also calculate the associated data
+        ! offsets
+        block_size = all_count / nProcessors
+        counts = block_size
+        counts(nProcessors - 1) = all_count - sum(counts(0:nProcessors-2))
+        if (sum(counts) /= all_count .or. any(counts < 0)) &
+            call stop_all(t_r, "Invalid particles counts")
+        do proc = 0, nProcessors - 1
+            offsets(proc) = sum(counts(0:proc-1))
+        end do
+
+        write(6,*) 'Reading in ', counts(iProcIndex), &
+                   ' determinants on this process'
+
+        ! TODO: Split this up into more manageable chunks!
+
+        ! Open the relevant datasets
+        call h5dopen_f(grp_id, nm_ilut, ds_ilut, err)
+        call h5dopen_f(grp_id, nm_sgns, ds_sgns, err)
+
+        ! Check that these datasets look like we expect them to.
+        call check_dataset_params(ds_ilut, nm_ilut, 8, H5T_INTEGER_F, &
+                                  [int(bit_rep_width, hsize_t), all_count])
+        call check_dataset_params(ds_sgns, nm_sgns, 8, H5T_FLOAT_F, &
+                                  [int(lenof_sign, hsize_t), all_count])
+
+        call h5dclose_f(ds_sgns, err)
+        call h5dclose_f(ds_ilut, err)
+        call h5gclose_f(grp_id, err)
+
+    end subroutine read_walkers
 
 end module
