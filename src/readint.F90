@@ -200,7 +200,7 @@ contains
          COMPLEX(dp) :: CompInt
          integer(int64) IND,MASK
          INTEGER I,J,K,L,I1, iunit
-         INTEGER ISYMNUM,ISNMAX,SYMMAX,SYMLZ(1000)
+         INTEGER ISYMNUM,ISNMAX,SYMLZ(1000)
          INTEGER NORB,NELEC,MS2,ISYM,ISPINS,ISPN,SYML(1000)
          integer(int64) ORBSYM(1000)
          INTEGER nPairs,iErr,MaxnSlot,MaxIndex,IUHF
