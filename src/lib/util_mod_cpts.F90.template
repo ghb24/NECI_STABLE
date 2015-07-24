@@ -46,7 +46,7 @@ module util_mod_cpts
 
     private
     public :: swap, arr_2d_ptr, arr_2d_dims, int32_pointer_abuse
-    public :: int32_pointer_abuse_scalar
+    public :: int32_pointer_abuse_scalar, int32_pointer_abuse_2d
 
 contains
 
@@ -115,6 +115,24 @@ contains
         elem1 => arr(lbound(arr, 1))
         cptr = c_loc(elem1)
         call c_f_pointer(cptr, ptr, [1])
+
+    end subroutine
+
+    subroutine int32_pointer_abuse_2d(arr, ptr)
+
+        ! Return an int32 pointer to the target array. Ignore types.
+
+        %(type)s, intent(in), target :: arr(:,:)
+        integer(int32), intent(inout), pointer :: ptr(:,:)
+
+        type(c_ptr) :: cptr
+        %(type)s, pointer :: elem1
+
+        ! Convert first to a single element, then to a c pointer, and then
+        ! the target type
+        elem1 => arr(lbound(arr, 1), lbound(arr, 2))
+        cptr = c_loc(elem1)
+        call c_f_pointer(cptr, ptr, [1,1])
 
     end subroutine
 

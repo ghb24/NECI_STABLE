@@ -87,6 +87,7 @@ module hdf5_popsfile
             nm_sgns = 'sgns'
 
     public :: write_popsfile_hdf5, read_popsfile_hdf5
+    public :: add_pops_norm_contrib
 
 contains
 
@@ -118,7 +119,7 @@ contains
     end subroutine write_popsfile_hdf5
 
 
-    subroutine read_popsfile_hdf5(dets)
+    function read_popsfile_hdf5(dets) result(CurrWalkers)
 
         ! Read a popsfile in, prior to running a new calculation
 
@@ -126,6 +127,7 @@ contains
         !      for initialising perturbations, etc.
 
         integer(n_int), intent(out) :: dets(:, :)
+        integer(int64) :: CurrWalkers
         integer(hid_t) :: err, file_id, plist_id
         integer :: tmp
 
@@ -148,7 +150,7 @@ contains
 
         call read_metadata(file_id)
         call read_calc_data(file_id)
-        call read_walkers(file_id, dets)
+        call read_walkers(file_id, dets, CurrWalkers)
 
         ! And we are done
         call h5pclose_f(plist_id, err)
@@ -158,7 +160,7 @@ contains
         call neci_flush(6)
         call MPIBarrier(tmp)
 
-    end subroutine
+    end function
 
 
     subroutine write_metadata(parent)
@@ -439,9 +441,11 @@ contains
 
     end subroutine write_walkers
 
-    subroutine read_walkers(parent, dets)
+    subroutine read_walkers(parent, dets, CurrWalkers)
 
         use bit_rep_data, only: NIfD, NIfTot
+        use CalcData, only: pops_norm
+        use FciMCData, only: InitialSpawnedSlots
 
         ! This is the routine that has complexity!!!
         !
@@ -458,15 +462,18 @@ contains
 
         integer(hid_t), intent(in) :: parent
         integer(n_int), intent(out) :: dets(:, :)
+        integer(int64), intent(out) :: CurrWalkers
         character(*), parameter :: t_r = 'read_walkers'
 
-        integer :: proc
+        integer :: proc, nreceived
         integer(hid_t) :: grp_id, err
         integer(hid_t) :: ds_sgns, ds_ilut
 
         integer(int32) :: bit_rep_width, tmp_lenof_sign
         integer(hsize_t) :: all_count, block_size, counts(0:nProcessors-1)
         integer(hsize_t) :: offsets(0:nProcessors-1)
+        integer(hsize_t) :: block_start, block_end, last_part
+        integer(hsize_t) :: this_block_size
 
         ! TODO:
         ! - Read into a relatively small buffer. Make this such that all the
@@ -530,10 +537,228 @@ contains
         call check_dataset_params(ds_sgns, nm_sgns, 8, H5T_FLOAT_F, &
                                   [int(lenof_sign, hsize_t), all_count])
 
+        ! The largest block of walkers that we should read are the walkers
+        ! that would fit into _one_ processors section of the spawned list.
+        block_size = MaxSpawned
+        do proc = 0, nProcessors - 2
+            block_size = min(block_size, &
+                InitialSpawnedSlots(proc+1) - InitialSpawnedSlots(proc))
+        end do
+        block_size = min(block_size, &
+                MaxSpawned - InitialSpawnedSlots(nProcessors-1))
+
+        ! Initialise relevant counters
+        CurrWalkers = 0
+        pops_norm = 0
+
+        ! Note that reading in the HDF5 library is zero based, not one based
+        ! TODO: We need to keep looping until all the processes are done, not
+        !       just the one!
+        block_start = offsets(iProcIndex)
+        if (iProcIndex == nProcessors - 1) then
+            last_part = all_count - 1
+        else
+            last_part = offsets(iProcIndex + 1) - 1
+        end if
+        block_end = min(block_start + block_size - 1, last_part)
+
+        do while (block_start <= last_part)
+
+            ! If this is the last block, its size will differ from the biggest
+            ! one allowed.
+            this_block_size = block_end - block_start + 1
+            call read_walker_block(ds_ilut, ds_sgns, block_start, &
+                                   this_block_size, bit_rep_width)
+
+            call assign_dets_to_procs(this_block_size)
+            nreceived = communicate_read_walkers()
+            call add_new_parts(dets, nreceived, CurrWalkers)
+
+            ! And update for the next block
+            block_start = block_end + 1
+            block_end = min(block_start + block_size - 1, last_part)
+
+        end do
+
         call h5dclose_f(ds_sgns, err)
         call h5dclose_f(ds_ilut, err)
         call h5gclose_f(grp_id, err)
 
     end subroutine read_walkers
+
+    subroutine read_walker_block(ds_ilut, ds_sgns, block_start, block_size, &
+                                 bit_rep_width)
+
+        use bit_rep_data, only: NIfD
+        use FciMCData, only: SpawnedParts2
+
+        ! Read the walkers into the array spawnedparts2
+        !
+        ! N.B. This routine is quite sensitive to the particular structure
+        !      of the bit representations determined in BitReps.F90
+        !
+        ! --> It would also be possible to read into scratch arrays, and then
+        !     do some transferring.
+
+        integer(hid_t), intent(in) :: ds_ilut, ds_sgns
+        integer(hsize_t), intent(in) :: block_start, block_size
+        integer(int32), intent(in) :: bit_rep_width
+
+        integer(hid_t) :: plist_id
+
+        call read_2d_multi_chunk( &
+                ds_ilut, SpawnedParts2, H5T_NATIVE_INTEGER_8, &
+                [int(bit_rep_width, hsize_t), block_size], &
+                [0_hsize_t, block_start], &
+                [0_hsize_t, 0_hsize_t])
+
+        call read_2d_multi_chunk( &
+                ds_sgns, SpawnedParts2, H5T_NATIVE_REAL_8, &
+                [int(lenof_sign, hsize_t), block_size], &
+                [0_hsize_t, block_start], &
+                [int(bit_rep_width, hsize_t), 0_hsize_t])
+
+        ! TODO: Flags here!!!
+
+    end subroutine read_walker_block
+
+    subroutine assign_dets_to_procs(block_size)
+
+        use load_balance_calcnodes, only: DetermineDetNode
+        use bit_reps, only: decode_bit_det, extract_sign
+        use FciMCData, only: SpawnedParts2, SpawnedParts, ValidSpawnedList, &
+                             InitialSpawnedSlots
+        use Determinants, only: write_det
+        use bit_rep_data, only: NIfD
+        use SystemData, only: nel
+
+        integer(hsize_t), intent(in) :: block_size
+        character(*), parameter :: t_r = 'distribute_walkers_from_block'
+
+        integer :: det(nel), j, proc, ierr
+        real(dp) :: sgn(lenof_sign), norm(lenof_sign)
+
+        ! Reset target locations for walkers
+        ValidSpawnedList = InitialSpawnedSlots
+
+        ! Iterate through walkers in SpawnedParts2. Decode & distribute to
+        ! Spawnedlist
+        norm = 0
+        do j = 1, block_size
+
+            ! Which processor does this determinant live on?
+            call decode_bit_det(det, SpawnedParts2(:, j))
+            proc = DetermineDetNode(nel, det, 0)
+
+#ifdef __DEBUG
+            ! Check that we aren't overrunning any lists. This can be a debug
+            ! only check, as we have set the max block_size such that it will
+            ! always fit.
+            if (proc == nNodes - 1) then
+                if (ValidSpawnedList(proc > MaxSpawned)) list_full = .true.
+            else
+                if (ValidSpawnedList(proc) >= InitialSpawnedSlots(proc+1)) &
+                    list_full = .true.
+            end if
+            if (list_full) &
+                call stop_all(t_r, 'Spawning list overflow')
+#endif
+
+            ! Add the determinant to the correct place in the spawnedlists
+            SpawnedParts(:, ValidSpawnedList(proc)) = SpawnedParts2(:, j)
+            ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
+
+        end do
+
+    end subroutine assign_dets_to_procs
+
+    function communicate_read_walkers() result(num_received)
+
+        integer :: num_received
+
+        integer(MPIArg) :: sendCounts(nProcessors), recvcounts(nProcessors)
+        integer(MPIArg) :: disps(nProcessors), recvdisps(nProcessors)
+        integer :: j, ierr
+
+        ! Communicate the number of particles that need to go to each proc
+        ! n.b. switch from one-based to zero-based indices.
+        disps(1) = 0
+        sendcounts(1) = ValidSpawnedList(0) - 1
+        do j = 2, nProcessors
+            disps(j) = disps(j - 1) + sendcounts(j - 1)
+            sendcounts(j) = ValidSpawnedList(j-1) - ValidSpawnedList(j-2)
+        end do
+        call MPIAllToAll(sendcounts, 1, recvcounts, 1, ierr)
+
+        ! We want the data to be contiguous after the move. So calculate the
+        ! offsets
+        recvdisps(1) = 0
+        do j = 2, nProcessors
+            recvdisps(j) = recvdisps(j-1) + recvcounts(j-1)
+        end do
+        num_received = recvdisps(nProcessors) + recvcounts(nProcessors)
+
+        call MPIAllToAllV(SpawnedParts, sendcounts, disps, SpawnedParts2, &
+                          recvcounts, recvdisps, ierr)
+
+    end function communicate_read_walkers
+
+    subroutine add_new_parts(dets, nreceived, CurrWalkers)
+
+        use CalcData, only: iWeightPopRead
+        use bit_reps, only: extract_sign
+
+        ! Integrate the just-read block of walkers into the main list.
+
+        integer(n_int), intent(inout) :: dets(:, :)
+        integer, intent(in) :: nreceived
+        integer(int64), intent(inout) :: CurrWalkers
+
+        integer :: j
+        real(dp) :: sgn(lenof_sign)
+
+            ! TODO: inum_runs == 2, PopNIfSgn == 1
+
+        do j = 1, nreceived
+
+            ! Check that the site is occupied, and passes the relevant
+            ! thresholds before adding it to the system.
+            call extract_sign(SpawnedParts2(: ,j), sgn)
+            if (any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) then
+
+                ! Add this site to the main list
+                CurrWalkers = CurrWalkers + 1
+                dets(:, CurrWalkers) = SpawnedParts2(:, j)
+                call add_pops_norm_contrib(dets(:, CurrWalkers))
+            end if
+        end do
+
+        ! TODO: Add check that we have read in the correct number of parts
+
+    end subroutine
+
+
+    !
+    ! This is only here for dependency circuit breaking
+    subroutine add_pops_norm_contrib(ilut)
+
+        use bit_rep_data, only: NIfTot
+        use bit_reps, only: extract_sign
+        use CalcData, only: pops_norm
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        real(dp) :: real_sign(lenof_sign)
+
+        call extract_sign(ilut, real_sign)
+
+#ifdef __DOUBLERUN
+        pops_norm = pops_norm + real_sign(1)*real_sign(2)
+#elif __CMPLX
+        pops_norm = pops_norm + real_sign(1)**2 + real_sign(2)**2
+#else
+        pops_norm = pops_norm + real_sign(1)*real_sign(1)
+#endif
+
+    end subroutine add_pops_norm_contrib
 
 end module

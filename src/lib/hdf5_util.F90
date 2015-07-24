@@ -429,6 +429,7 @@ contains
                                    dataspace_offset, mem_dims, err)
 
         ! Create a property list to do multi-process collective writes
+        ! TODO: Do we want MPIO_COLLECTIVE or MPIO_INDEPENDENT?
         call h5pcreate_f(H5P_DATASET_XFER_F, plist_id, err)
         call h5pset_dxpl_mpio_f(plist_id, H5FD_MPIO_COLLECTIVE_F, err)
 
@@ -449,6 +450,50 @@ contains
         call h5sclose_f(memspace, err)
 
     end subroutine write_2d_multi_arr_chunk_offset
+
+    subroutine read_2d_multi_chunk(dataset, val, itype, dims, src_offset, &
+                                   tgt_offset)
+
+        ! Read in a specified chunk of the specified dataset.
+
+        integer(hid_t), intent(in) :: dataset, itype
+        integer(int64), intent(out) :: val(:,:)
+        integer(hsize_t), intent(in) :: dims(2), src_offset(2), tgt_offset(2)
+
+        integer(hid_t) :: plist_id, dataspace, memspace, err
+        integer(hsize_t) :: mem_dims(2)
+        integer(int32), pointer :: ptr(:,:)
+
+        ! Create a property list to do multi-process collective reads
+        ! TODO: Do we want MPIO_COLLECTIVE or MPIO_INDEPENDENT?
+        call h5pcreate_f(H5P_DATASET_XFER_F, plist_id, err)
+        call h5pset_dxpl_mpio_f(plist_id, H5FD_MPIO_COLLECTIVE_F, err)
+
+        ! Create the target (memory) dataspace, and select the appropriate
+        ! hyperslab inside it.
+        mem_dims = [ &
+            ubound(val, 1) - lbound(val, 1) + 1, &
+            ubound(val, 2) - lbound(val, 2) + 1 &
+        ]
+        call h5screate_simple_f(2_hid_t, mem_dims, memspace, err)
+        call h5sselect_hyperslab_f(memspace, H5S_SELECT_SET_F, tgt_offset, &
+                                   dims, err)
+
+        ! Select the hyperslab in the array to be read
+        call h5dget_space_f(dataset, dataspace, err)
+        call h5sselect_hyperslab_f(dataspace, H5S_SELECT_SET_F, src_offset, &
+                                   dims, err)
+
+        ! And do the actual read!
+        call int32_pointer_abuse_2d(val, ptr)
+        call h5dread_f(dataset, itype, ptr, mem_dims, err, memspace, &
+                       dataspace, xfer_prp=plist_id)
+
+        call h5sclose_f(memspace, err)
+        call h5sclose_f(dataspace, err)
+        call h5pclose_f(plist_id, err)
+
+    end subroutine
 
     subroutine read_int32_attribute_main(parent, nm, val, exists, default, &
                                          required)

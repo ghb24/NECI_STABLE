@@ -38,7 +38,8 @@ MODULE PopsfileMod
     use replica_data, only: set_initial_global_data
     use load_balance, only: pops_init_balance_blocks
     use load_balance_calcnodes, only: tLoadBalanceBlocks, balance_blocks
-    use hdf5_popsfile, only: write_popsfile_hdf5, read_popsfile_hdf5
+    use hdf5_popsfile, only: write_popsfile_hdf5, read_popsfile_hdf5, &
+                             add_pops_norm_contrib
     use util_mod
 
     implicit none
@@ -122,7 +123,7 @@ contains
 
         if (tHDF5Pops) then
 
-            call read_popsfile_hdf5(dets)
+            CurrWalkers = read_popsfile_hdf5(dets)
 
         else
 
@@ -219,32 +220,32 @@ contains
                 close(iunit)
             endif
 
-        end if
+            ! Test we have still got all determinants
+            write(6,*) "CurrWalkers: ", CurrWalkers
+            call MPISum(CurrWalkers, 1, AllCurrWalkers)
+            if (iProcIndex == Root) then
+                if (iWeightPopRead == 0 .and. AllCurrWalkers /= EndPopsList) then
+                    write(6,*) "AllCurrWalkers: ", AllCurrWalkers
+                    write(6,*) "EndPopsList: ", EndPopsList
 
-        ! Test we have still got all determinants
-        write(6,*) "CurrWalkers: ", CurrWalkers
-        call MPISum(CurrWalkers, 1, AllCurrWalkers)
-        if (iProcIndex == Root) then
-            if (iWeightPopRead == 0 .and. AllCurrWalkers /= EndPopsList) then
-                write(6,*) "AllCurrWalkers: ", AllCurrWalkers
-                write(6,*) "EndPopsList: ", EndPopsList
+                    if (tSplitPops) then
+                        write(6,*)
+                        write(6,*) '*******************************************'
+                        write(6,*) 'Currently using: ', nProcessors, ' processors'
+                        write(6,*)
+                        write(6,*) 'Using pre-split popsfiles (SPLIT-POPS, &
+                                   &POPSFILEBIN-*).'
+                        write(6,*) 'Ensure that the number of processors and &
+                                   &number of POPSFILEs match.'
+                        write(6,*) '*******************************************'
+                    end if
 
-                if (tSplitPops) then
-                    write(6,*)
-                    write(6,*) '*******************************************'
-                    write(6,*) 'Currently using: ', nProcessors, ' processors'
-                    write(6,*)
-                    write(6,*) 'Using pre-split popsfiles (SPLIT-POPS, &
-                               &POPSFILEBIN-*).'
-                    write(6,*) 'Ensure that the number of processors and &
-                               &number of POPSFILEs match.'
-                    write(6,*) '*******************************************'
-                end if
-
-                call stop_All(this_routine, "Not all walkers accounted for &
-                                            &when reading in")
+                    call stop_All(this_routine, "Not all walkers accounted for &
+                                                &when reading in")
+                endif
             endif
-        endif
+
+        end if
 
         ! Clear all deterministic and trial flags so that they can be changed later.
         if (tUseFlags) then
@@ -2788,22 +2789,6 @@ r_loop: do while(.not.tStoreDet)
 
     END SUBROUTINE ReadFromPopsfileOnly
 
-    subroutine add_pops_norm_contrib(ilut)
-
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
-        real(dp) :: real_sign(lenof_sign)
-
-        call extract_sign(ilut, real_sign)
-
-#ifdef __DOUBLERUN
-        pops_norm = pops_norm + real_sign(1)*real_sign(2)
-#elif __CMPLX
-        pops_norm = pops_norm + real_sign(1)**2 + real_sign(2)**2
-#else
-        pops_norm = pops_norm + real_sign(1)*real_sign(1)
-#endif
-
-    end subroutine add_pops_norm_contrib
 
     subroutine write_pops_norm()
 
