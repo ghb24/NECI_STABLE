@@ -183,7 +183,7 @@ contains
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
          use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn,tMolpro,tUHF
          use SystemData, only: tCacheFCIDUMPInts,tROHF,tFixLz,iMaxLz,tRotatedOrbsReal
-         use SystemData, only: tReadFreeFormat
+         use SystemData, only: tReadFreeFormat,SYMMAX
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
          use UMatCache, only: GetCacheIndexStates,GTID
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
@@ -200,7 +200,7 @@ contains
          COMPLEX(dp) :: CompInt
          integer(int64) IND,MASK
          INTEGER I,J,K,L,I1, iunit
-         INTEGER ISYMNUM,ISNMAX,SYMMAX,SYMLZ(1000)
+         INTEGER ISYMNUM,ISNMAX,SYMLZ(1000)
          INTEGER NORB,NELEC,MS2,ISYM,ISPINS,ISPN,SYML(1000)
          integer(int64) ORBSYM(1000)
          INTEGER nPairs,iErr,MaxnSlot,MaxIndex,IUHF
@@ -850,7 +850,6 @@ contains
 #endif
 !.. AJWT removed the restriction to TSTARSTORE
                 IF(TUMAT2D) THEN
-                    write(6,*) 'bleurgh'
                     IF(I.eq.J.and.I.eq.K.and.I.eq.L) THEN
                         !<ii|ii>
                         UMAT2D(I,I)=Z
