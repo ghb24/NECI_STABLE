@@ -204,7 +204,7 @@ contains
         ! When are we running this?
         call date_and_time(values=date_values)
 
-        write(date_str, '(i4,"-",i2,"-",i2," ",i2,":",i2,":",i2)') &
+        write(date_str, '(i4.4,"-",i2.2,"-",i2.2," ",i2.2,":",i2.2,":",i2.2)') &
             date_values(1:3), date_values(5:7)
         call write_string_attribute(parent, nm_date, date_str)
 
