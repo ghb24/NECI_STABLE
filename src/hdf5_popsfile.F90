@@ -8,6 +8,9 @@ module hdf5_popsfile
     !
     !   --> Don't assume that only walker-data is going to be relevant
     !   --> Create groups appropriately.
+    !   --> Note that we use collective writing, so we write all data from all
+    !       nodes (except where explicitly managed), and the HDF library
+    !       ensures the writes happen in a sensible way.
     !
     ! A: vcs_ver             - The SHA ID of the git commit
     ! A: compiled_at         - The time of code compilation
@@ -33,6 +36,10 @@ module hdf5_popsfile
     !         /cnt_opp/
     !         /cnt_par/
     !         /max_death_cpt/
+    !
+    !         /psingles/     - And the values which have been optimised
+    !         /pdoubles/
+    !         /pparallel/
     ! 
     ! /wavefunction/         - Details of a determinental Hilbert space
     !     A: width           - Width of the bit-rep in 64-bit integers
@@ -80,6 +87,9 @@ module hdf5_popsfile
             nm_cnt_opp = 'cnt_opp', &
             nm_cnt_par = 'cnt_par', &
             nm_max_death = 'max_death', &
+            nm_psingles = 'psingles', &
+            nm_pdoubles = 'pdoubles', &
+            nm_pparallel = 'pparallel', &
             
             nm_wfn_grp = 'wavefunction', &
             nm_rep_width = 'width', &
@@ -254,7 +264,6 @@ contains
         ! (i.e. used) values.
         call write_tau_opt(calc_grp)
 
-
         ! Clear stuff up
         call h5gclose_f(calc_grp, err)
 
@@ -266,39 +275,74 @@ contains
                               enough_sing, enough_doub, enough_opp, &
                               enough_par, cnt_sing, cnt_doub, cnt_opp, &
                               cnt_par, max_death_cpt
+        use FciMCData, only: pSingles, pDoubles, pParallel
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: tau_grp, err
 
+        real(dp) :: max_gam_sing, max_gam_doub, max_gam_opp, max_gam_par
+        real(dp) :: max_max_death_cpt
+        logical :: all_en_sing, all_en_doub, all_en_opp, all_en_par
+        integer :: max_cnt_sing, max_cnt_doub, max_cnt_opp, max_cnt_par
+
+        real(dp) :: all_pdoub, all_psing, all_ppar
+
         ! Create the group
         call h5gcreate_f(parent, nm_tau_grp, tau_grp, err)
 
-        if (gamma_sing /= 0) &
-            call write_dp_scalar(tau_grp, nm_gam_sing, gamma_sing)
-        if (gamma_doub /= 0) &
-            call write_dp_scalar(tau_grp, nm_gam_doub, gamma_doub)
-        if (gamma_opp /= 0) &
-            call write_dp_scalar(tau_grp, nm_gam_opp, gamma_opp)
-        if (gamma_par /= 0) &
-            call write_dp_scalar(tau_grp, nm_gam_par, gamma_par)
-        if (max_death_cpt /= 0) &
-            call write_dp_scalar(tau_grp, nm_max_death, max_death_cpt)
-        if (enough_sing) &
-            call write_log_scalar(tau_grp, nm_en_sing, enough_sing)
-        if (enough_doub) &
-            call write_log_scalar(tau_grp, nm_en_doub, enough_doub)
-        if (enough_opp) &
-            call write_log_scalar(tau_grp, nm_en_opp, enough_opp)
-        if (enough_par) &
-            call write_log_scalar(tau_grp, nm_en_par, enough_par)
-        if (cnt_sing /= 0) &
-            call write_int64_scalar(tau_grp, nm_cnt_sing, cnt_sing)
-        if (cnt_doub /= 0) &
-            call write_int64_scalar(tau_grp, nm_cnt_doub, cnt_doub)
-        if (cnt_opp /= 0) &
-            call write_int64_scalar(tau_grp, nm_cnt_opp, cnt_opp)
-        if (cnt_par /= 0) &
-            call write_int64_scalar(tau_grp, nm_cnt_par, cnt_par)
+        ! We want to use the maximised values across all the processors
+        ! (there is nothing ensuring that all the processors are adjusted to
+        ! the same values...)
+        call MPIAllReduce(gamma_sing, MPI_MAX, max_gam_sing)
+        call MPIAllReduce(gamma_doub, MPI_MAX, max_gam_doub)
+        call MPIAllReduce(gamma_opp, MPI_MAX, max_gam_opp)
+        call MPIAllReduce(gamma_par, MPI_MAX, max_gam_par)
+        call MPIAllReduce(max_death_cpt, MPI_MAX, max_max_death_cpt)
+        call MPIAllReduce(enough_sing, MPI_LOR, all_en_sing)
+        call MPIAllReduce(enough_doub, MPI_LOR, all_en_doub)
+        call MPIAllReduce(enough_opp, MPI_LOR, all_en_opp)
+        call MPIAllReduce(enough_par, MPI_LOR, all_en_par)
+        call MPIAllReduce(cnt_sing, MPI_MAX, max_cnt_sing)
+        call MPIAllReduce(cnt_doub, MPI_MAX, max_cnt_doub)
+        call MPIAllReduce(cnt_opp, MPI_MAX, max_cnt_opp)
+        call MPIAllReduce(cnt_par, MPI_MAX, max_cnt_par)
+
+        if (max_gam_sing /= 0) &
+            call write_dp_scalar(tau_grp, nm_gam_sing, max_gam_sing)
+        if (max_gam_doub /= 0) &
+            call write_dp_scalar(tau_grp, nm_gam_doub, max_gam_doub)
+        if (max_gam_opp /= 0) &
+            call write_dp_scalar(tau_grp, nm_gam_opp, max_gam_opp)
+        if (max_gam_par /= 0) &
+            call write_dp_scalar(tau_grp, nm_gam_par, max_gam_par)
+        if (max_max_death_cpt /= 0) &
+            call write_dp_scalar(tau_grp, nm_max_death, max_max_death_cpt)
+        if (all_en_sing) &
+            call write_log_scalar(tau_grp, nm_en_sing, all_en_sing)
+        if (all_en_doub) &
+            call write_log_scalar(tau_grp, nm_en_doub, all_en_doub)
+        if (all_en_opp) &
+            call write_log_scalar(tau_grp, nm_en_opp, all_en_opp)
+        if (all_en_par) &
+            call write_log_scalar(tau_grp, nm_en_par, all_en_par)
+        if (max_cnt_sing /= 0) &
+            call write_int64_scalar(tau_grp, nm_cnt_sing, max_cnt_sing)
+        if (max_cnt_doub /= 0) &
+            call write_int64_scalar(tau_grp, nm_cnt_doub, max_cnt_doub)
+        if (max_cnt_opp /= 0) &
+            call write_int64_scalar(tau_grp, nm_cnt_opp, max_cnt_opp)
+        if (max_cnt_par /= 0) &
+            call write_int64_scalar(tau_grp, nm_cnt_par, max_cnt_par)
+
+        ! Use the probability values from the head node
+        all_psing = pSingles; all_pdoub = pDoubles; all_ppar = pParallel
+        call MPIBcast(all_psing)
+        call MPIBcast(all_pdoub)
+        call MPIBcast(all_ppar)
+
+        call write_dp_scalar(tau_grp, nm_psingles, all_psing)
+        call write_dp_scalar(tau_grp, nm_pdoubles, all_pdoub)
+        call write_dp_scalar(tau_grp, nm_pparallel, all_ppar)
 
         ! Clear up
         call h5gclose_f(tau_grp, err)
@@ -333,6 +377,7 @@ contains
                               enough_sing, enough_doub, enough_opp, &
                               enough_par, cnt_sing, cnt_doub, cnt_opp, &
                               cnt_par, max_death_cpt
+        use FciMCData, only: pSingles, pDoubles, pParallel
 
         ! Read accumulator values for the timestep optimisation
         ! TODO: Add an option to reset these values...
@@ -357,6 +402,10 @@ contains
         call read_int64_scalar(grp_id, nm_cnt_doub, cnt_doub)
         call read_int64_scalar(grp_id, nm_cnt_opp, cnt_opp)
         call read_int64_scalar(grp_id, nm_cnt_par, cnt_par)
+
+        call read_dp_scalar(grp_id, nm_psingles, psingles)
+        call read_dp_scalar(grp_id, nm_pdoubles, pdoubles)
+        call read_dp_scalar(grp_id, nm_pparallel, pparallel)
 
         call h5gclose_f(grp_id, err)
 
@@ -389,6 +438,7 @@ contains
         integer(int32) :: bit_rep_width
         integer(hsize_t) :: mem_offset(2), write_offset(2)
         integer(hsize_t) :: dims(2), hyperdims(2)
+        real(dp) :: all_parts(lenof_sign), all_norm_sqr(lenof_sign)
         integer :: ierr
 
         ! TODO: Add a (slower) fallback routine for weird cases, odd HDF libs
@@ -417,8 +467,14 @@ contains
                                    int(lenof_sign, int32))
         call write_int64_attribute(wfn_grp_id, nm_num_dets, all_count)
         ! TODO: Check these values. May need to sum them explicitly
-        call write_dp_1d_attribute(wfn_grp_id, nm_norm_sqr, norm_psi_squared)
-        call write_dp_1d_attribute(wfn_grp_id, nm_num_parts, AllTotParts)
+
+        ! Accumulated values only valid on head node. collate_iter_data
+        ! has not yet run.
+        all_parts = AllTotParts
+        call MPISumAll(norm_psi_squared, all_norm_sqr)
+        call MPIBcast(all_parts)
+        call write_dp_1d_attribute(wfn_grp_id, nm_norm_sqr, all_norm_sqr)
+        call write_dp_1d_attribute(wfn_grp_id, nm_num_parts, all_parts)
 
         ! Write out the determinant bit-representations
         call write_2d_multi_arr_chunk_offset( &
