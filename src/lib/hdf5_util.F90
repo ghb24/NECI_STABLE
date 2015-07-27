@@ -143,6 +143,61 @@ contains
 
     end subroutine
 
+    subroutine write_dp_1d_attribute(parent, nm, val)
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        real(dp), intent(in) :: val(:)
+
+        integer(hid_t) :: dataspace, attribute, err
+        integer(hsize_t) :: dims(1)
+
+        dims = [size(val)]
+        call h5screate_simple_f(1_hid_t, dims, dataspace, err)
+        call h5acreate_f(parent, nm, H5T_NATIVE_REAL_8, dataspace, attribute, &
+                         err)
+        call h5awrite_f(attribute, H5T_NATIVE_REAL_8, val, dims, err)
+        call h5aclose_f(attribute, err)
+        call h5sclose_f(dataspace, err)
+
+    end subroutine
+
+    subroutine read_dp_1d_attribute(parent, nm, val, exists, default, required)
+
+        ! Read in an array of real(dp)s
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        real(dp), intent(out) :: val(:)
+        logical, intent(out), optional :: exists
+        logical, intent(in), optional :: required
+        real(dp), intent(in), optional :: default
+        character(*), parameter :: t_r = 'read_dp_1d_attribute'
+
+        integer(hid_t) :: attribute, err
+        integer(hsize_t) :: dims(1)
+        logical(hid_t) :: exists_
+
+        call h5aexists_f(parent, nm, exists_, err)
+        if (exists_) then
+            call h5aopen_f(parent, nm, attribute, err)
+            dims = [size(val)]
+            call check_attribute_params(attribute, nm, 8, H5T_FLOAT_F, dims)
+            call h5aread_f(attribute, H5T_NATIVE_REAL_8, val, dims, err)
+            call h5aclose_f(attribute, err)
+        end if
+
+        if (present(required)) then
+            if (required .and. .not. exists_) then
+                write(6,*) nm
+                call stop_all(t_r, "Required field does not exist")
+            end if
+        end if
+        if (present(exists)) exists = exists_
+        if (present(default) .and. .not. exists_) val = default
+
+    end subroutine
+
     subroutine write_dp_scalar(parent, nm, val)
 
         integer(hid_t), intent(in) :: parent
@@ -717,5 +772,55 @@ contains
         call h5sclose_f(dataspace, err)
 
     end subroutine check_dataset_params
+
+    subroutine check_attribute_params(attribute, nm, sz, class_id, dims)
+
+        ! Check that a attribute has the character that is required of it
+        ! before reading in.
+
+        integer(hid_t), intent(in) :: attribute, class_id
+        character(*), intent(in) :: nm
+        integer(hsize_t), intent(in) :: sz
+        integer(hsize_t), intent(in) :: dims(:)
+        character(*), parameter :: t_r = 'check_dataset_params'
+
+        integer(hid_t) :: rank, type_id, ds_class
+        
+        integer(hid_t) :: ds_rank, dataspace, err
+        integer(hsize_t) :: ds_dims(size(dims)), ds_max_dims(size(dims)), ds_sz
+
+        ! Get the type associated with the attribute. Check that it is an
+        ! array with components that have the right number of bytes, and the
+        ! correct base class type
+        call h5aget_type_f(attribute, type_id, err)
+        call h5tget_size_f(type_id, ds_sz, err)
+        call h5tget_class_f(type_id, ds_class, err)
+        call h5tclose_f(type_id, err)
+
+        if (ds_sz /= sz .or. ds_class /= class_id) then
+            write(6,*) 'Attribute name: ', nm
+            call stop_all(t_r, "Invalid attribute type information found")
+        end if
+
+        ! Get the dataspace for the attribute. Check that the attribute has the
+        ! requested dimensions
+        call h5aget_space_f(attribute, dataspace, err)
+        call h5sget_simple_extent_ndims_f(dataspace, ds_rank, err)
+
+        rank = size(dims)
+        if (rank /= ds_rank) then
+            write(6,*) 'Attribute name: ', nm
+            write(6,*) 'ranks', rank, ds_rank
+            call stop_all(t_r, "Invalid attribute rank found")
+        end if
+
+        call h5sget_simple_extent_dims_f(dataspace, ds_dims, ds_max_dims, err)
+        if (.not. all(dims == ds_dims)) then
+            write(6,*) 'Attribute name: ', nm
+            call stop_all(t_r, "Invalid attribute dimensions found")
+        end if
+        call h5sclose_f(dataspace, err)
+
+    end subroutine check_attribute_params
 
 end module

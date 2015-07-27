@@ -38,6 +38,8 @@ module hdf5_popsfile
     !     A: width           - Width of the bit-rep in 64-bit integers
     !     A: num_dets        - Number of determinants in the file
     !     A: lenof_sign      - Number of elements in the sign data
+    !     A: norm_sqr        - sum(sgn**2) for each sign element
+    !     A: num_parts       - sum(abs(sgn)) for each sign element
     !
     !     /ilut/             - The bit representations of the determinants
     !     /sgns/             - The occupation of the determinants
@@ -84,7 +86,9 @@ module hdf5_popsfile
             nm_sgn_len = 'lenof_sign', &
             nm_num_dets = 'num_dets', &
             nm_ilut = 'ilut', &
-            nm_sgns = 'sgns'
+            nm_sgns = 'sgns', &
+            nm_norm_sqr = 'norm_sqr', &
+            nm_num_parts = 'num_parts'
 
     public :: write_popsfile_hdf5, read_popsfile_hdf5
     public :: add_pops_norm_contrib
@@ -412,6 +416,9 @@ contains
         call write_int32_attribute(wfn_grp_id, nm_sgn_len, &
                                    int(lenof_sign, int32))
         call write_int64_attribute(wfn_grp_id, nm_num_dets, all_count)
+        ! TODO: Check these values. May need to sum them explicitly
+        call write_dp_1d_attribute(wfn_grp_id, nm_norm_sqr, norm_psi_squared)
+        call write_dp_1d_attribute(wfn_grp_id, nm_num_parts, AllTotParts)
 
         ! Write out the determinant bit-representations
         call write_2d_multi_arr_chunk_offset( &
@@ -468,12 +475,15 @@ contains
         integer :: proc, nreceived
         integer(hid_t) :: grp_id, err
         integer(hid_t) :: ds_sgns, ds_ilut
+        integer(int64) :: nread_walkers
 
         integer(int32) :: bit_rep_width, tmp_lenof_sign
         integer(hsize_t) :: all_count, block_size, counts(0:nProcessors-1)
         integer(hsize_t) :: offsets(0:nProcessors-1)
         integer(hsize_t) :: block_start, block_end, last_part
         integer(hsize_t) :: this_block_size
+        real(dp) :: pops_num_parts(lenof_sign), pops_norm_sqr(lenof_sign)
+        real(dp) :: norm(lenof_sign), parts(lenof_sign)
 
         ! TODO:
         ! - Read into a relatively small buffer. Make this such that all the
@@ -507,7 +517,12 @@ contains
         if (lenof_sign /= tmp_lenof_sign) &
             call stop_all(t_r, "Mismatched sign length")
 
-        call read_int64_attribute(grp_id, nm_num_dets, all_count)
+        call read_int64_attribute(grp_id, nm_num_dets, all_count, &
+                                  required=.true.)
+        call read_dp_1d_attribute(grp_id, nm_norm_sqr, pops_norm_sqr, &
+                                  required=.true.)
+        call read_dp_1d_attribute(grp_id, nm_num_parts, pops_num_parts, &
+                                  required=.true.)
         write(6,*) 'Reading in ', all_count, ' determinants ...'
 
         ! How many particles should each processor read in (try and distribute
@@ -549,7 +564,10 @@ contains
 
         ! Initialise relevant counters
         CurrWalkers = 0
+        nread_walkers = 0
         pops_norm = 0
+        norm = 0
+        parts = 0
 
         ! Note that reading in the HDF5 library is zero based, not one based
         ! TODO: We need to keep looping until all the processes are done, not
@@ -572,7 +590,8 @@ contains
 
             call assign_dets_to_procs(this_block_size)
             nreceived = communicate_read_walkers()
-            call add_new_parts(dets, nreceived, CurrWalkers)
+            call add_new_parts(dets, nreceived, CurrWalkers, norm, parts)
+            nread_walkers = nread_walkers + nreceived
 
             ! And update for the next block
             block_start = block_end + 1
@@ -583,6 +602,10 @@ contains
         call h5dclose_f(ds_sgns, err)
         call h5dclose_f(ds_ilut, err)
         call h5gclose_f(grp_id, err)
+
+        ! Do some checking
+        call check_read_particles(nread_walkers, norm, parts, all_count, &
+                                  pops_num_parts, pops_norm_sqr)
 
     end subroutine read_walkers
 
@@ -636,14 +659,12 @@ contains
         character(*), parameter :: t_r = 'distribute_walkers_from_block'
 
         integer :: det(nel), j, proc, ierr
-        real(dp) :: sgn(lenof_sign), norm(lenof_sign)
 
         ! Reset target locations for walkers
         ValidSpawnedList = InitialSpawnedSlots
 
         ! Iterate through walkers in SpawnedParts2. Decode & distribute to
         ! Spawnedlist
-        norm = 0
         do j = 1, block_size
 
             ! Which processor does this determinant live on?
@@ -685,8 +706,8 @@ contains
         disps(1) = 0
         sendcounts(1) = ValidSpawnedList(0) - 1
         do j = 2, nProcessors
-            disps(j) = disps(j - 1) + sendcounts(j - 1)
-            sendcounts(j) = ValidSpawnedList(j-1) - ValidSpawnedList(j-2)
+            disps(j) = InitialSpawnedSlots(j-1) - 1
+            sendcounts(j) = ValidSpawnedList(j-1) - InitialSpawnedSlots(j-1)
         end do
         call MPIAllToAll(sendcounts, 1, recvcounts, 1, ierr)
 
@@ -698,12 +719,18 @@ contains
         end do
         num_received = recvdisps(nProcessors) + recvcounts(nProcessors)
 
+        ! Adjust offsets so that they match the size of the array
+        recvcounts = recvcounts * size(SpawnedParts, 1)
+        recvdisps = recvdisps * size(SpawnedParts, 1)
+        sendcounts = sendcounts * size(SpawnedParts, 1)
+        disps = disps * size(SpawnedParts, 1)
+
         call MPIAllToAllV(SpawnedParts, sendcounts, disps, SpawnedParts2, &
                           recvcounts, recvdisps, ierr)
 
     end function communicate_read_walkers
 
-    subroutine add_new_parts(dets, nreceived, CurrWalkers)
+    subroutine add_new_parts(dets, nreceived, CurrWalkers, norm, parts)
 
         use CalcData, only: iWeightPopRead
         use bit_reps, only: extract_sign
@@ -713,6 +740,7 @@ contains
         integer(n_int), intent(inout) :: dets(:, :)
         integer, intent(in) :: nreceived
         integer(int64), intent(inout) :: CurrWalkers
+        real(dp), intent(inout) :: norm(lenof_sign), parts(lenof_sign)
 
         integer :: j
         real(dp) :: sgn(lenof_sign)
@@ -730,6 +758,9 @@ contains
                 CurrWalkers = CurrWalkers + 1
                 dets(:, CurrWalkers) = SpawnedParts2(:, j)
                 call add_pops_norm_contrib(dets(:, CurrWalkers))
+                call extract_sign(SpawnedParts2(:,j), sgn)
+                norm = norm + sgn**2
+                parts = parts + abs(sgn)
             end if
         end do
 
@@ -737,6 +768,61 @@ contains
 
     end subroutine
 
+    subroutine check_read_particles(nread_walkers, norm, parts, &
+                                    pops_det_count, pops_num_parts, &
+                                    pops_norm_sqr)
+
+        use CalcData, only: pops_norm
+
+        ! Check that the values received in these routines are valid
+        !
+        ! nread_walkers  - Number of determinant/walker lines read (this proc)
+        ! norm           - Norm (this proc)
+        ! parts          - Coefficient weight (this proc)
+        ! pops_det_count - Total dets in popsfile (from header)
+        ! pops_num_parts - Total particle weight (from header)
+        ! pops_norm_sqr  - Total norm of wavefunction (from header)
+
+        integer(int64), intent(in) :: nread_walkers, pops_det_count
+        real(dp), intent(in) :: pops_num_parts(lenof_sign)
+        real(dp), intent(in) :: pops_norm_sqr(lenof_sign)
+        real(dp), intent(in) :: norm(lenof_sign), parts(lenof_sign)
+        character(*), parameter :: t_r = 'check_read_particles'
+
+        integer(int64) :: all_read_walkers
+        real(dp) :: all_norm(lenof_sign), all_parts(lenof_sign)
+
+        ! Have all the sites been correctly read in from the file
+        ! n.b. CurrWalkers may not equal pops_det_count, as any unoccupied
+        !      sites, or sites below the specified threshold will have been
+        !      dropped.
+        call MPISum(nread_walkers, all_read_walkers)
+        if (iProcIndex == 0 .and. all_read_walkers /= pops_det_count) then
+            write(6,*) 'Determinants in popsfile header: ', pops_det_count
+            write(6,*) 'Determinants read in: ', all_read_walkers
+            call stop_all(t_r, 'Particle number mismatch')
+        end if
+
+        ! Is the total number of walkers (sum of the sign values) correct?
+        call MPISumAll(parts, all_parts)
+        if (any(abs(all_parts - pops_num_parts) > 1.0e-6)) then
+            write(6,*) 'popsfile particles: ', pops_num_parts
+            write(6,*) 'read particles: ', all_parts
+            call stop_all(t_r, 'Incorrect particle weight read from popsfile')
+        end if
+
+        ! Is the total norm of the wavefunction correct
+        call MPISumAll(norm, all_norm)
+        if (any(abs(all_norm - pops_norm_sqr) > 1.0e-6)) then
+            write(6,*) 'popsfile norm**2: ', pops_norm_sqr
+            write(6,*) 'read norm**2: ', all_norm
+            call stop_all(t_r, 'Wavefunction norm incorrect')
+        end if
+
+        ! If the absolute sum, and the sum of the squares is correct, we can
+        ! be fairly confident that they have all been read in!...
+
+    end subroutine
 
     !
     ! This is only here for dependency circuit breaking
