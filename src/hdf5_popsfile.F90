@@ -15,6 +15,9 @@ module hdf5_popsfile
     ! A: vcs_ver             - The SHA ID of the git commit
     ! A: compiled_at         - The time of code compilation
     ! A: compiled_on         - The date of code compilation
+    ! A: date                - Date/time of calculation stored in popsfile
+    ! A: seq_no              - The sequence number of the calculation (i.e.
+    !                          how many restarts have there been).
     ! A: config              - The build configuration
     ! A: status              - (opt) indicates if local changes beyond SHA ID
     !
@@ -40,6 +43,7 @@ module hdf5_popsfile
     !         /psingles/     - And the values which have been optimised
     !         /pdoubles/
     !         /pparallel/
+    !     /completed_iters/  - How many iterations have already been completed
     ! 
     ! /wavefunction/         - Details of a determinental Hilbert space
     !     A: width           - Width of the bit-rep in 64-bit integers
@@ -72,6 +76,7 @@ module hdf5_popsfile
 
             nm_calc_grp = 'calculation', &
             nm_random_hash = 'random_hash', &
+            nm_iters = 'completed_iters', &
 
             nm_tau_grp = 'tau_search', &
             nm_gam_sing = 'gamma_sing', &
@@ -241,7 +246,6 @@ contains
         if (exists) write(6,*) 'Build date: ', trim(str_buf)
         call read_string_attribute(parent, nm_comp_time, str_buf, exists)
         if (exists) write(6,*) 'Build time: ', trim(str_buf)
-        write(6,*)
 
         ! Update values for the new calculation
         calc_seq_no = calc_seq_no + 1
@@ -251,6 +255,8 @@ contains
     subroutine write_calc_data(parent)
 
         use load_balance_calcnodes, only: RandomOrbIndex
+        use FciMCData, only: Iter, PreviousCycles
+
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: calc_grp, err
 
@@ -259,6 +265,9 @@ contains
 
         ! Write out the random orbital mapping index
         call write_int64_1d_dataset(calc_grp, nm_random_hash, RandomOrbIndex)
+
+        call MPIBcast(PreviousCycles)
+        call write_int64_scalar(calc_grp, nm_iters, iter + PreviousCycles)
 
         ! Output the values used for tau optimisation. Only output non-zero
         ! (i.e. used) values.
@@ -352,14 +361,22 @@ contains
     subroutine read_calc_data(parent)
 
         use load_balance_calcnodes, only: RandomOrbIndex
+        use FciMCData, only: PreviousCycles
+
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id, err
+        logical :: exists
 
         call h5gopen_f(parent, nm_calc_grp, grp_id, err)
 
         ! Read out the random orbital mapping index
         call read_int64_1d_dataset(grp_id, nm_random_hash, RandomOrbIndex, &
                                    required=.true.)
+
+        call read_int64_scalar(grp_id, nm_iters, PreviousCycles, &
+                               default=0, exists=exists)
+        if (exists) &
+            write(6,*) 'Completed iterations: ', PreviousCycles
 
         call read_tau_opt(grp_id)
 
@@ -579,7 +596,8 @@ contains
                                   required=.true.)
         call read_dp_1d_attribute(grp_id, nm_num_parts, pops_num_parts, &
                                   required=.true.)
-        write(6,*) 'Reading in ', all_count, ' determinants ...'
+        write(6,*)
+        write(6,*) 'Reading in ', all_count, ' determinants'
 
         ! How many particles should each processor read in (try and distribute
         ! this as uniformly as possible. Also calculate the associated data
@@ -594,7 +612,7 @@ contains
         end do
 
         write(6,*) 'Reading in ', counts(iProcIndex), &
-                   ' determinants on this process'
+                   ' determinants on this process ...'
 
         ! TODO: Split this up into more manageable chunks!
 
@@ -662,6 +680,9 @@ contains
         ! Do some checking
         call check_read_particles(nread_walkers, norm, parts, all_count, &
                                   pops_num_parts, pops_norm_sqr)
+
+        write(6,*) "... done"
+        write(6,*)
 
     end subroutine read_walkers
 
