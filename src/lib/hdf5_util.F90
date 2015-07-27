@@ -427,7 +427,7 @@ contains
         integer(int32), pointer :: ptr(:)
 
         ! Create the appropriate dataspace
-        dims = [ubound(val) - lbound(val) + 1]
+        dims = [size(val)]
         call h5screate_simple_f(1_hid_t, dims, dataspace, err)
 
         ! Create the dataset with the correct type
@@ -526,10 +526,7 @@ contains
 
         ! Create the target (memory) dataspace, and select the appropriate
         ! hyperslab inside it.
-        mem_dims = [ &
-            ubound(val, 1) - lbound(val, 1) + 1, &
-            ubound(val, 2) - lbound(val, 2) + 1 &
-        ]
+        mem_dims = [size(val, 1), size(val, 2)]
         call h5screate_simple_f(2_hid_t, mem_dims, memspace, err)
         call h5sselect_hyperslab_f(memspace, H5S_SELECT_SET_F, tgt_offset, &
                                    dims, err)
