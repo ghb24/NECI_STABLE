@@ -151,9 +151,7 @@ contains
         integer :: tmp
 
         write(6,*)
-        write(6,*) '=='
-        write(6,*) "Reading in from HDF5 popsfile"
-        write(6,*) '======================================'
+        write(6,*) "========== Reading in from HDF5 popsfile =========="
 
         ! Initialise the hdf5 fortran interface
         call h5open_f(err)
