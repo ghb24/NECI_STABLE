@@ -112,7 +112,28 @@ contains
 
     subroutine write_popsfile_hdf5()
 
+        use CalcData, only: iPopsFileNoWrite
+        use LoggingData, only: tIncrementPops
+
+        ! TODO:
+        ! 1) Deal with multiple filenames
+        ! 2) Deal with build configurations without HDF5
+        ! 3) Deal with HDF5 build configurations without MPIO
+        ! 4) Should we in some way make incrementpops default?
+
         integer(hid_t) :: plist_id, file_id, err
+        character(255) :: filename
+
+        ! Get a unique filename for this popsfile. This needs to be done on
+        ! the head node to avoid collisions.
+        if (iProcIndex == 0) &
+            call get_unique_filename('popsfile', tIncrementPops, .true., &
+                                     iPopsFileNoWrite, filename, ext='.h5')
+        call MPIBCast(filename)
+
+        write(6,*)
+        write(6,*) "============== Writing HDF5 popsfile =============="
+        write(6,*) "File name: ", trim(filename)
 
         ! Initialise the hdf5 fortran interface
         call h5open_f(err)
@@ -123,7 +144,7 @@ contains
         call h5pset_fapl_mpio_f(plist_id, MPI_COMM_WORLD, MPI_INFO_NULl, err)
 
         ! TODO: Do sensible file handling here...
-        call h5fcreate_f('popsfile.hdf5', H5F_ACC_TRUNC_F, file_id, err, &
+        call h5fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, err, &
                          access_prp=plist_id)
         call h5pclose_f(plist_id, err)
 
@@ -140,6 +161,9 @@ contains
 
     function read_popsfile_hdf5(dets) result(CurrWalkers)
 
+        use CalcData, only: iPopsFileNoRead
+        use LoggingData, only: tIncrementPops
+
         ! Read a popsfile in, prior to running a new calculation
 
         ! n.b. This reads into the specified array, to allow use of popsfiles
@@ -149,9 +173,17 @@ contains
         integer(int64) :: CurrWalkers
         integer(hid_t) :: err, file_id, plist_id
         integer :: tmp
+        character(255) :: filename
+
+        ! Get the name for the popsfile to read in
+        if (iProcIndex == 0) &
+            call get_unique_filename('popsfile', tIncrementPops, .false., &
+                                     iPopsFileNoRead, filename, ext='.h5')
+        call MPIBcast(filename)
 
         write(6,*)
         write(6,*) "========== Reading in from HDF5 popsfile =========="
+        write(6,*) 'File name: ', trim(filename)
 
         ! Initialise the hdf5 fortran interface
         call h5open_f(err)
@@ -162,7 +194,7 @@ contains
         call h5pset_fapl_mpio_f(plist_id, MPI_COMM_WORLD, MPI_INFO_NULl, err)
 
         ! Open the popsfile
-        call h5fopen_f('popsfile.hdf5', H5F_ACC_RDONLY_F, file_id, err, &
+        call h5fopen_f(filename, H5F_ACC_RDONLY_F, file_id, err, &
                        access_prp=plist_id)
 
         call read_metadata(file_id)

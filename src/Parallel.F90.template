@@ -1513,6 +1513,9 @@ supermodule Parallel
     save
     integer :: iProcMinE, iProcMaxE, nProcessors
 
+    interface MPIBcast
+        module procedure MPIBcast_character
+    end interface
    
 contains
 
@@ -2049,6 +2052,43 @@ contains
         if(allocated(GroupNodes)) deallocate(GroupNodes)
         if(allocated(GroupNodesDum)) deallocate(GroupNodesDum)
         if(allocated(NodeLengths)) deallocate(NodeLengths)
+    end subroutine
+
+    subroutine MPIBcast_character(v, Node)
+
+        ! A special case for broadcasting string data, which doesn't apply
+        ! to other datatypes.
+
+        ! n.b. we may need to explicitly broadcast the length of the strig,
+        !      as that is not part of the normal data.
+
+        character(*), intent(inout), target :: v
+        integer(MPIArg) :: ierr, comm, rt
+        type(CommI), intent(in), optional :: Node
+        character(*), parameter :: t_r = 'MPIBcast_character'
+        integer(MPIArg) :: length
+
+#ifdef PARALLEL
+#ifdef CBINDMPI
+#ifdef __GFORTRAN__
+        type(c_ptr) :: g_loc
+#endif
+        c_ptr_t :: vptr
+        vptr = loc_neci(v)
+#endif
+
+        call GetComm (Comm, Node, rt)
+
+        ! Broadcast the length
+        length = len_trim(v)
+        call MPIBCast(length, node)
+
+        call MPI_BCast(val_in, length, MPI_CHARACTER, rt, comm, ierr)
+        val_in = val_in(1:length)
+
+        if (ierr /= MPI_SUCCESS) &
+            call stop_all(t_r, 'MPI Error. Terminating')
+#endif
     end subroutine
 
 end supermodule
