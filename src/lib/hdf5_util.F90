@@ -12,6 +12,7 @@ module hdf5_util
     ! guarantee compatibility across programming languages, compilers and
     ! build configurations, then it helps to be explicit.
 
+#if __USE_HDF5
     use iso_c_hack
     use constants
     use util_mod
@@ -819,5 +820,6 @@ contains
         call h5sclose_f(dataspace, err)
 
     end subroutine check_attribute_params
+#endif
 
 end module

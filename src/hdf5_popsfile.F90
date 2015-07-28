@@ -59,7 +59,9 @@ module hdf5_popsfile
     use constants
     use hdf5_util
     use util_mod
+#ifdef __USE_HDF
     use hdf5
+#endif
     implicit none
     private
 
@@ -121,6 +123,8 @@ contains
         ! 3) Deal with HDF5 build configurations without MPIO
         ! 4) Should we in some way make incrementpops default?
 
+        character(*), parameter :: t_r = 'write_popsfile_hdf5'
+#ifdef __USE_HDF
         integer(hid_t) :: plist_id, file_id, err
         character(255) :: filename
 
@@ -155,6 +159,9 @@ contains
         ! And we are done!
         call h5fclose_f(file_id, err)
         call h5close_f(err)
+#else
+        call stop_all(t_r, 'HDF5 support not enabled at compile time')
+#endif
 
     end subroutine write_popsfile_hdf5
 
@@ -168,9 +175,10 @@ contains
 
         ! n.b. This reads into the specified array, to allow use of popsfiles
         !      for initialising perturbations, etc.
-
         integer(n_int), intent(out) :: dets(:, :)
         integer(int64) :: CurrWalkers
+        character(*), parameter :: t_r = 'write_popsfile_hdf5'
+#ifdef __USE_HDF
         integer(hid_t) :: err, file_id, plist_id
         integer :: tmp
         character(255) :: filename
@@ -208,10 +216,14 @@ contains
 
         call neci_flush(6)
         call MPIBarrier(tmp)
+#else
+        call stop_all(t_r, 'HDF5 support not enabled at compile time')
+#endif
 
     end function
 
 
+#ifdef __USE_HDF
     subroutine write_metadata(parent)
 
         use CalcData, only: calc_seq_no
@@ -930,6 +942,7 @@ contains
         ! be fairly confident that they have all been read in!...
 
     end subroutine
+#endif
 
     !
     ! This is only here for dependency circuit breaking
