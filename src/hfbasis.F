@@ -1057,8 +1057,9 @@ C.. Working space
                  call collapseDet(G1,FDET_tmp,nel)
 !                ^ Collapse electrons to lowest orbitals within each irrep
 !                 write(6,*) 'Energy =',get_helement(fDet_tmp,fDet_tmp,0)
-                 if(get_helement(fDet_tmp,fDet_tmp,0).lt.Energy) then
-                   Energy = get_helement(fDet_tmp,fDet_tmp,0)
+                 if(real(get_helement(fDet_tmp,fDet_tmp,0))
+     &                .lt.Energy) then
+                   Energy = real(get_helement(fDet_tmp,fDet_tmp,0))
                    do i = 1, nel
                      FDET(i) = fDet_tmp(i)
                    end do
