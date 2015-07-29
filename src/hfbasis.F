@@ -799,8 +799,76 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
          call sort (HFDet(1:nel))
          call write_det (6, HFDET, .true.)
       END
+
+      
+      SUBROUTINE GENFDET(FDET)
+
+          ! Generate an initial determinant of specified spin.
+          use SystemData, only: BasisFN, tMolpro, brr, g1, nbasis, lms,
+     &                          nel, tGiovannisBrokenInit
+          use util_mod, only: int_fmt
+          use sort_mod
+          implicit none
+
+          integer, intent(out) :: fdet(nel)
+
+          ! Working space
+          INTEGER NELS(2)
+          INTEGER NELR, IREAL, IS, ISPN, NSBASIS,I
+
+          ! eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
+          ! vector unless transposed
+          NSBASIS=NBASIS/2
+          NELS(2)=(LMS+NEL)/2
+          NELS(1)=NEL-NELS(2)
+          WRITE(6,'(4(A,'//int_fmt(nel)//'))') " N_alpha:",NELS(1),
+     &   " ; N_beta:",  NELS(2)," ; LMS:",LMS," ; NEl:",NEL
+
+          if (tGiovannisBrokenInit) then
+              call GLM_BROKEN_GENFDET(brr, g1, nbasis, lms, nel, fdet)
+              return
+          endif
+
+          if(tMolpro) then
+              !Assume that orbitals are ordered by occupation number
+              !Assuming LMS positive, NELS(2) > NELS(1)
+              do i=1,NELS(1)*2
+                  FDET(i)=i  !Fill up closed shells
+              enddo
+              do i=1,LMS !Fill up open shells in odd orbitals
+                  FDET(NELS(1)*2+i)=NELS(1)*2+(i*2-1)
+              enddo
+              return
+          endif
+          NEL=0
+          DO IS=1,2
+              IF(LMS.GE.0) THEN
+                  ISPN=3-IS
+              ELSE
+                  ISPN=IS
+              ENDIF
+              IREAL=1
+              DO I=1,NSBASIS
+                  if (ireal > nbasis) exit
+                  DO WHILE(G1(BRR(IREAL))%Ms.NE.(-3+2*ISPN))
+                      IREAL=IREAL+1
+                      if (ireal > nbasis) exit
+                  ENDDO
+                  NELR=(BRR(IREAL)-1)/2+1
+                  IF(I.LE.NELS(IS)) THEN
+                      NEL=NEL+1
+                      FDET(NEL)=BRR(IREAL)
+                  ENDIF
+                  IREAL=IREAL+1
+              ENDDO
+          ENDDO
+          call sort (fDet(1:nel))
+      END
+
+
+
 C.. Generate an initial determinant of specified spin
-      SUBROUTINE GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
+      SUBROUTINE GLM_BROKEN_GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
          use SystemData, only: BasisFN,tMolpro, IPARITY, nbasisMax,
      &       symmetry, symmax
          Use Determinants, only: write_det, write_det_len, get_helement
@@ -846,9 +914,7 @@ C.. Working space
          NELS(1)=NEL-NELS(2)        ! Beta  electrons as left over
          write(6,'(A30,I3)') ' Target symmetry:', ISYM%s + 1
          write(6,'(A30,I3)') ' Maximum number of symmetries:', SYMMAX
-         do i = 1, SYMMAX
-            NORB(i) = 0.0d0
-         end do
+         norb = 0
          do i = 1,nBasis,2
           norb(INT(G1(i)%sym%S)+1) = norb(INT(G1(i)%sym%S)+1) +1
          enddo

@@ -175,6 +175,7 @@ MODULE System
       tUEGNewGenerator = .false.
 
       tMultiReplicas = .false.
+      tGiovannisBrokenInit = .false.
 
 #ifdef __PROG_NUMRUNS
       inum_runs = 1
@@ -984,8 +985,16 @@ system: do
             endif
 #endif
 
-          case("HEISENBERG")
-              tHeisenberg = .true.
+        case("HEISENBERG")
+            tHeisenberg = .true.
+        
+        case("GIOVANNIS-BROKEN-INIT")
+            ! Giovanni's scheme for initialising determinants with the correct
+            ! spin an symmetry properties in a wider range of cases than
+            ! currently supported.
+
+            ! Looks nice, but it currently breaks lots of other stuff!
+            tGiovannisBrokenInit = .true.
 
         case("ENDSYS") 
             exit system
