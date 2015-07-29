@@ -304,7 +304,7 @@ contains
         ! Test if the changevars file exists, and broadcast to all nodes.
         any_exist=.false.
         !inquire (file='CHANGEVARS', exist=exists)
-        !call MPIAllReduceLogical (exists, MPI_LOR, any_exist)
+        call MPIAllLorLogical(exists, any_exist)
         any_exist = .false.
 
         ! Default values
@@ -423,7 +423,7 @@ contains
 
                 ! Once one node has found and deleted the file, it is gone.
                 any_deleted=.false.
-                call MPIAllReduce (deleted, MPI_LOR, any_deleted)
+                call MPIAllLORLogical(deleted, any_deleted)
                 if (any_deleted) exit
             enddo ! Loop to read CHANGEVARS
 
