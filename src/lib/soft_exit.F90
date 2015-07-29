@@ -287,8 +287,8 @@ contains
 
         ! Logical(4) datatypes for compilation with builds of openmpi that don't
         ! have support for logical(8). Gah.
-        logical(4) :: deleted, any_deleted, opts_selected(last_item)
-        logical(4) :: exists, any_exist
+        logical :: deleted, any_deleted, opts_selected(last_item)
+        logical :: exists, any_exist
 
         logical :: eof, tSource
         logical, intent(out) :: tSingBiasChange, tSoftExitFound
@@ -303,8 +303,9 @@ contains
 
         ! Test if the changevars file exists, and broadcast to all nodes.
         any_exist=.false.
-        inquire (file='CHANGEVARS', exist=exists)
-        call MPIAllReduceLogical (exists, MPI_LOR, any_exist)
+        !inquire (file='CHANGEVARS', exist=exists)
+        !call MPIAllReduceLogical (exists, MPI_LOR, any_exist)
+        any_exist = .false.
 
         ! Default values
         opts_selected = .false.

@@ -173,6 +173,7 @@ contains
                 ! growth
                 TempSpawnedPartsSize = maxval(iHighestPop) * 1.5
                 allocate_temp_parts = .true.
+                write(6,*) 1.5 * maxval(iHighestPop), TempSpawnedPartsSize
             end if
 
             ! If we need to allocate this array, then do so.
@@ -333,7 +334,7 @@ contains
         real(dp), dimension(max(lenof_sign,inum_runs)) :: RealAllHFCyc
         real(dp), dimension(inum_runs) :: all_norm_psi_squared, all_norm_semistoch_squared
         real(dp) :: bloom_sz_tmp(0:2)
-        logical(4) :: ltmp
+        logical :: ltmp
         integer :: run
     
         ! Communicate the integers needing summation
@@ -427,10 +428,10 @@ contains
         ! We should update tau searching if it is enabled, or if it has been
         ! enabled, and now tau is outside the range acceptable for tau
         ! searching
-!        if (.not. tSearchTau) then
-!!            call MPIAllReduce(tSearchTauDeath, MPI_LOR, ltmp)
-!            tSearchTauDeath = ltmp
-!        end if
+        if (.not. tSearchTau) then
+            call MPIAllLORLogical(tSearchTauDeath, ltmp)
+           tSearchTauDeath = ltmp
+        end if
         if ((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. &
                             .not. tFillingStochRDMOnFly) then   
             call update_tau()

@@ -20,7 +20,7 @@ module spin_project
 
     ! Logical(4) datatypes for compilation with builds of openmpi that don't
     ! have support for logical(8). Gah.
-    logical(4) :: spin_proj_spawn_initiators, spin_proj_no_death
+    logical :: spin_proj_spawn_initiators, spin_proj_no_death
 
     logical :: tSpinProject, spin_proj_stochastic_yama
     logical :: disable_spin_proj_varyshift

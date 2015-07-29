@@ -222,7 +222,7 @@ MODULE FciMCData
 
       ! This is true if tStartSinglePart is true, and we are still in the
       ! phase where the shift is fixed and particle numbers are growing
-      logical(4), allocatable :: tSinglePartPhase(:)
+      logical, allocatable :: tSinglePartPhase(:)
 
 !      INTEGER :: mpilongintegertype               !This is used to create an MPI derived type to cope with 8 byte integers
 
@@ -369,7 +369,7 @@ MODULE FciMCData
 
       real(dp), allocatable :: proje_denominator_cyc(:)
       real(dp), allocatable :: proje_denominator_sum(:)
-      logical(4) :: tRestart = .false.   !Whether to restart a calculation
+      logical :: tRestart = .false.   !Whether to restart a calculation
 
       ! Diag shift from the input file, if it needed to be reset after restart
       real(dp), allocatable :: InputDiagSft(:)
@@ -412,7 +412,7 @@ MODULE FciMCData
       !     particle death, when tSearchTau is disabled, but tSearchTauOption
       !     is enabled.
       logical :: tSearchTau, tSearchTauOption
-      logical(4) :: tSearchTauDeath
+      logical :: tSearchTauDeath
       real(dp) :: MaxTau
 
       !Variables for diagonalisation of the walker subspace

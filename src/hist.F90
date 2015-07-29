@@ -702,7 +702,7 @@ contains
         integer :: nI(nel), nJ(nel), proc
         integer(n_int), pointer :: detcurr(:)
         integer(n_int) :: splus(0:NIfTot), sminus(0:NIfTot)
-        logical(4) :: running, any_running
+        logical :: running, any_running
         real(dp), dimension(inum_runs) :: ssq, Allssq, tmp
         integer :: max_per_proc, max_spawned, run
         real(dp) :: sgn1(lenof_sign), sgn2(lenof_sign)
@@ -806,7 +806,7 @@ contains
             enddo
 
             ! Is there anything left to do on any process?
-            call MPIAllReduce (running, MPI_LOR, any_running)
+            call MPIAllLORLogical (running, any_running)
 
         enddo
 

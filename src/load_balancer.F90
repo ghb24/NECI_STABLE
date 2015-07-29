@@ -152,7 +152,7 @@ contains
         integer :: min_parts, max_parts, min_proc, max_proc
         integer :: smallest_block
         real(dp) :: sgn(lenof_sign), avg_parts
-        logical(4) :: unbalanced
+        logical :: unbalanced
         character(*), parameter :: this_routine = 'adjust_load_balance'
 
         ! TODO: Need to ensure we don't move around the semi-stochastic sites,
