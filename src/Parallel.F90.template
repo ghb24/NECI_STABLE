@@ -1431,6 +1431,19 @@ end module
 
 supermodule Parallel
 
+!
+! n.b HACK
+! We need to be able to do a bit of hackery when using C-based MPI
+!
+! --> We relabel things a bit...
+#ifdef CBINDMPI
+#define val_in vptr
+#define val_out rptr
+#else
+#define val_in v
+#define val_out Ret
+#endif
+
 ! MPI interface and helper routines for parallel work.
 ! If compiled without the PARALLEL c pre-processing statement, then
 ! contains dummy routines to enable the parallel calculation algorithms to
