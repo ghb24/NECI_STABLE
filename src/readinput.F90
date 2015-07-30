@@ -221,7 +221,7 @@ MODULE ReadInput_neci
         use LoggingData, only: iLogging, tCalcFCIMCPsi, tRDMOnFly, &
                            tCalcInstantS2, tDiagAllSpaceEver, &
                            tCalcVariationalEnergy, tCalcInstantS2Init, &
-                           tPopsFile, tRDMOnFly, tExplicitAllRDM
+                           tPopsFile, tRDMOnFly, tExplicitAllRDM, tHDF5Pops
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use input_neci
@@ -596,6 +596,12 @@ MODULE ReadInput_neci
                              &specific global data')
             end if
         end if
+
+#ifndef __USE_HDF5
+        if (tHDF5Pops) then
+            call stop_all(t_r, 'Support for HDF5 files disabled at compile time')
+        end if
+#endif
 
     end subroutine checkinput
 

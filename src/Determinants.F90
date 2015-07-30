@@ -83,7 +83,7 @@ contains
             end if
             tRef_Not_HF = .true.
         ELSE
-             CALL GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
+             CALL GENFDET(FDET)
              IF(tUEGSpecifyMomentum) THEN
                 WRITE(6,*) 'Defining FDet according to a momentum input'
                 CALL ModifyMomentum(FDET)

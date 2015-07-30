@@ -60,7 +60,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
 C ==--------------------------------------------------------------------=
          OPEN(10,FILE='UMAT2',STATUS='OLD')
          DO WHILE (.TRUE.)
-            
+
             READ(10,*,END=12) A,B,C,D,SUM1
               UMAT2(UMatInd(A,B,C,D,0,0))=SUM1
 C..Symmetries not needed by UMatInd
@@ -83,10 +83,10 @@ C..Symmetries not needed by UMatInd
          INTEGER BRR(NBASIS),ORBORDER(8,2)
          INTEGER I
 #ifdef __CMPLX
-         call stop_all('SETUPHFBASIS', 
+         call stop_all('SETUPHFBASIS',
      &                 'HF not implemented for complex orbitals.')
 #endif
- 
+
 C.. We now need to modify G1.  Pretend that all basis functions have
 C.. a different X quantum number, and all have the same spin.
          DO I=1,NBASIS
@@ -138,7 +138,7 @@ C.. Generic spatial symmetry
        call stop_all(this_routine,
      &    "HF UMAT calc broken through U/TMAT reindexing. Please fix")
 #ifdef __CMPLX
-         call stop_all('CALCHFUMAT', 
+         call stop_all('CALCHFUMAT',
      &                 'HF not implemented for complex orbitals.')
 #endif
 C ==--------------------------------------------------------------------==
@@ -360,7 +360,7 @@ C.. particle basis fns, separated into up and down blocks
          call LogMemDealloc(this_routine,tagR1)
          call LogMemDealloc(this_routine,tagR2)
          call LogMemDealloc(this_routine,tagHFES)
-         
+
          RETURN
       END
 C.. Unrestricted HF SCF code
@@ -438,7 +438,7 @@ C         EDELTA=1.0e-8_dp
      &           FMAT(1,1,IRHFB),1,FMAT(1,1,3-IRHFB),1)
             CALL DCOPY(NSBASIS*NSBASIS*HElement_t_size,
      &           DMAT(1,1,IRHFB),1,DMAT(1,1,3-IRHFB),1)
-         ENDIF 
+         ENDIF
        CALL DCOPY(NSBASIS*NSBASIS*NSPINS*HElement_t_size,
      &          DMAT,1,ODMAT,1)
        CALL DCOPY(NSBASIS*NSBASIS*NSPINS*HElement_t_size,
@@ -448,9 +448,9 @@ C.. Construct the Density Matrix
 C.. See how much our density matrix has changed from last time
          RMSD=0.0_dp
          DO ISPN=1,NSPINS
-            DO I=1,NSBASIS 
+            DO I=1,NSBASIS
                DO J=1,NSBASIS
-                  IF(.NOT.TRHF.OR.TRHF.AND.ISPN.EQ.IRHFB) 
+                  IF(.NOT.TRHF.OR.TRHF.AND.ISPN.EQ.IRHFB)
      &               RMSD=RMSD+abs(DMAT(I,J,ISPN)-ODMAT(I,J,ISPN))**2
                ENDDO
             ENDDO
@@ -467,7 +467,7 @@ C.. are not used in calculating the F matrix
      &         FMAT(1,1,3-IRHFB),1)
             CALL DCOPY(NSBASIS,HFES(1,IRHFB),1,
      &         HFES(1,3-IRHFB),1)
-         ENDIF 
+         ENDIF
 C.. FMAT now contains HF orbitals again, and ECUR the Fock Energy
 C.. eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
 C.. vector
@@ -491,11 +491,11 @@ C.. Now add back in some of our original F matrix
             BR=.FALSE.
          ENDIF
          ELAST=ECUR
-         
+
       ENDDO
       IF(BTEST(ILOGGING,11))
-     &   CALL WRITEHFPSIALL(NBASIS,FMAT,HFES,G1,NSPINS,NSBASIS,.FALSE.) 
-C.. We write out HFMAT  
+     &   CALL WRITEHFPSIALL(NBASIS,FMAT,HFES,G1,NSPINS,NSBASIS,.FALSE.)
+C.. We write out HFMAT
       HFBASIS=(0.0_dp)
          DO I=1,NSBASIS
             DO ISPN=1,NSPINS
@@ -550,12 +550,12 @@ C.. vector
                   DMAT(I,J,ISPN)=TOT
                   DMAT(J,I,ISPN)=TOT
                ENDDO
-            ENDDO 
-            IF(HFLogLevel.gt.0) 
+            ENDDO
+            IF(HFLogLevel.gt.0)
      &      CALL WRITE_HEMATRIX("DMAT",NSBASIS,NSBASIS,DMAT(1,1,ISPN))
          ENDDO
          RETURN
-      END 
+      END
       SUBROUTINE GENFMAT(FMAT,DMAT,NSBASIS,NSPINS)
          USE OneEInts, only: GetTMATEl
          USE UMatCache, only: GTID
@@ -618,7 +618,7 @@ C.. Now sum in the alpha and beta block of u matrix
 #endif
                ENDDO
             ENDDO
-            IF(HFLogLevel.gt.0) 
+            IF(HFLogLevel.gt.0)
      &      CALL WRITE_HEMATRIX("FMAT",NSBASIS,NSBASIS,FMAT(1,1,ISPN))
          ENDDO
          RETURN
@@ -655,7 +655,7 @@ C.. First calculate the HF energy double counting contrib
             ENDDO
          ENDDO
 
-C.. Now diagonalize the Fock matrix 
+C.. Now diagonalize the Fock matrix
          DO ISPN=1,NSPINS
             IF(HElement_t_size.EQ.1) THEN
                CALL DSYEV('V','U',NSBASIS,FMAT(1,1,ISPN),NSBASIS,
@@ -668,11 +668,11 @@ C.. eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
 C.. vector
             IF(INFO.NE.0) THEN
                WRITE(6,*) 'DYSEV error: ',INFO
-               call stop_all(this_routine, "DSYEV error")
+               call stop_all(this_routine, "DYSEV error")
             ENDIF
-            IF(HFLogLevel.gt.0) 
+            IF(HFLogLevel.gt.0)
      &      CALL WRITE_HEMATRIX("EIGVEC",NSBASIS,NSBASIS,FMAT(1,1,ISPN))
-            IF(HFLogLevel.gt.0) 
+            IF(HFLogLevel.gt.0)
      &      CALL NECI_WRITE_MATRIX("EIGVAL",1,NSBASIS,HFES(1,ISPN))
          ENDDO
 C.. now calculate the sum of the occupied Fock orbitals
@@ -707,10 +707,10 @@ C.. vector unless transposed
                WRITE(10,*) HFES(K,1)
                DO I=1,NSBASIS
                   IF(TRANSP) THEN
-                     WRITE(10,'(I7,1X,3I7,F19.9)') 
+                     WRITE(10,'(I7,1X,3I7,F19.9)')
      &               I,(G1((I-1)*NSPINS+1)%k(J),J=1,3),FMAT(K,I,1)
                   ELSE
-                     WRITE(10,'(I7,1X,3I7,F19.9)') 
+                     WRITE(10,'(I7,1X,3I7,F19.9)')
      &               I,(G1((I-1)*NSPINS+1)%k(J),J=1,3),FMAT(I,K,1)
                   ENDIF
                ENDDO
@@ -719,10 +719,10 @@ C.. vector unless transposed
             WRITE(10,*) HFES(K,2)
             DO I=1,NSBASIS
                IF(TRANSP) THEN
-                  WRITE(10,'(I7,1X,3I7,F19.9)') 
+                  WRITE(10,'(I7,1X,3I7,F19.9)')
      &            I,(G1((I-1)*NSPINS+2)%k(J),J=1,3),FMAT(K,I,2)
                ELSE
-                  WRITE(10,'(I7,1X,3I7,F19.9)') 
+                  WRITE(10,'(I7,1X,3I7,F19.9)')
      &            I,(G1((I-1)*NSPINS+2)%k(J),J=1,3),FMAT(I,K,2)
                ENDIF
             ENDDO
@@ -768,7 +768,7 @@ C.. vector unless transposed
             ENDIF
             IREAL=1
             WRITE(6,"(A,I2,A)",advance='no') "Spin ",IS,":"
-            
+
             DO I=1,NSBASIS
                DO WHILE(G1(BRR(IREAL))%Ms.NE.(-3+2*ISPN))
                   IREAL=IREAL+1
@@ -799,25 +799,153 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
          call sort (HFDet(1:nel))
          call write_det (6, HFDET, .true.)
       END
+
+      
+      SUBROUTINE GENFDET(FDET)
+
+          ! Generate an initial determinant of specified spin.
+          use SystemData, only: BasisFN, tMolpro, brr, g1, nbasis, lms,
+     &                          nel, tGiovannisBrokenInit
+          use util_mod, only: int_fmt
+          use sort_mod
+          implicit none
+
+          integer, intent(out) :: fdet(nel)
+
+          ! Working space
+          INTEGER NELS(2)
+          INTEGER NELR, IREAL, IS, ISPN, NSBASIS,I
+
+          ! eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
+          ! vector unless transposed
+          NSBASIS=NBASIS/2
+          NELS(2)=(LMS+NEL)/2
+          NELS(1)=NEL-NELS(2)
+          WRITE(6,'(4(A,'//int_fmt(nel)//'))') " N_alpha:",NELS(1),
+     &   " ; N_beta:",  NELS(2)," ; LMS:",LMS," ; NEl:",NEL
+
+          if (tGiovannisBrokenInit) then
+              call GLM_BROKEN_GENFDET(brr, g1, nbasis, lms, nel, fdet)
+              return
+          endif
+
+          if(tMolpro) then
+              !Assume that orbitals are ordered by occupation number
+              !Assuming LMS positive, NELS(2) > NELS(1)
+              do i=1,NELS(1)*2
+                  FDET(i)=i  !Fill up closed shells
+              enddo
+              do i=1,LMS !Fill up open shells in odd orbitals
+                  FDET(NELS(1)*2+i)=NELS(1)*2+(i*2-1)
+              enddo
+              return
+          endif
+          NEL=0
+          DO IS=1,2
+              IF(LMS.GE.0) THEN
+                  ISPN=3-IS
+              ELSE
+                  ISPN=IS
+              ENDIF
+              IREAL=1
+              DO I=1,NSBASIS
+                  if (ireal > nbasis) exit
+                  DO WHILE(G1(BRR(IREAL))%Ms.NE.(-3+2*ISPN))
+                      IREAL=IREAL+1
+                      if (ireal > nbasis) exit
+                  ENDDO
+                  NELR=(BRR(IREAL)-1)/2+1
+                  IF(I.LE.NELS(IS)) THEN
+                      NEL=NEL+1
+                      FDET(NEL)=BRR(IREAL)
+                  ENDIF
+                  IREAL=IREAL+1
+              ENDDO
+          ENDDO
+          call sort (fDet(1:nel))
+      END
+
+
+
 C.. Generate an initial determinant of specified spin
-      SUBROUTINE GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
-         use SystemData, only: BasisFN,tMolpro
+      SUBROUTINE GLM_BROKEN_GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
+         use SystemData, only: BasisFN,tMolpro, IPARITY, nbasisMax,
+     &       symmetry, symmax
+         Use Determinants, only: write_det, write_det_len, get_helement
          use util_mod, only: int_fmt
          use sort_mod
+         use sym_mod, only: getsym, writesym, symprod
+         use constants, only: dp
          IMPLICIT NONE
          INTEGER BRR(*)
-         TYPE(BasisFN) G1(*)
+         TYPE(BasisFN) G1(*),s
          INTEGER LMS
+         INTEGER minop,maxop,nopen,n_opn(2)
+         INTEGER NORB(SYMMAX),NORB_CLS(SYMMAX) 
+         INTEGER NORB_LFT(SYMMAX), norbOffset(SYMMAX)
+         TYPE(Symmetry) Sym_a, Sym_b,ProdString,isym,jsym,lsym
+         INTEGER n_left(2),ioff(2),ierr,NELString, leftOb
+
+!  -->   size of NORB (8) must be generalized for treating groups other
+!        than D2h and its subgroups.
+!  -->   ISYM is the target space symmetry for the reference determinant [0:7]
 C.. Working space
-         INTEGER NELS(2)
-         INTEGER FDET(*),NEL,NELR,IREAL,IS,ISPN,NBASIS,NSBASIS,I
-C.. eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
-C.. vector unless transposed
+         INTEGER NELS(2),NELCount
+         INTEGER CounterOrb, CounterSym, CounterTot,CounterDet
+         INTEGER CountTotSym,I,J,NBASIS,NSBASIS
+         INTEGER FDET(nel),FDET_Tmp(nel),NEL,NELR,IREAL,IS,ISPN
+         LOGICAL SymFound,SymFoundTmp
+         real(dp) Energy
+         INTEGER, ALLOCATABLE :: String_b(:)
+         INTEGER, ALLOCATABLE :: String_a(:)
+         character(len=*), parameter :: t_r="GENFDET"
+!************************************************************************         
+!****                         INITIALIZATION                        *****
+!************************************************************************         
+         Write (6,'(/,64("*"),/)')
+         write(6,*) ' Entering GENFDET:'
+         Write (6,'(/,64("*"),/)')
+         ISYM%s = IPARITY(5)
+!        ^ target space symmetry passed from Molcas to NECI via the FciInp
+!          INPUT file and the SYM keyword in the SYSTEM case.
          NSBASIS=NBASIS/2
-         NELS(2)=(LMS+NEL)/2
-         NELS(1)=NEL-NELS(2)
-         WRITE(6,'(4(A,'//int_fmt(nel)//'))') " N_alpha:",NELS(1),      &
-     &   " ; N_beta:",  NELS(2)," ; LMS:",LMS," ; NEl:",NEL
+!        ^ space orbitals
+         NELS(2)=(LMS+NEL)/2        ! Alpha electrons in eccess
+         NELS(1)=NEL-NELS(2)        ! Beta  electrons as left over
+         write(6,'(A30,I3)') ' Target symmetry:', ISYM%s + 1
+         write(6,'(A30,I3)') ' Maximum number of symmetries:', SYMMAX
+         norb = 0
+         do i = 1,nBasis,2
+          norb(INT(G1(i)%sym%S)+1) = norb(INT(G1(i)%sym%S)+1) +1
+         enddo
+         
+         norbOffset(1) = 1
+         do i=2,SYMMAX
+            norbOffset(i) = norbOffset(i-1) + norb(i-1)
+         end do
+         write(6,'(A30,I3)') ' Total No Orbs:', NSBASIS
+         write(6,'(A30,8I3)') ' Orbs per Sym:', norb
+         write(6,'(A30,8I3)') '  Orbs offset:', norbOffset
+         write(6,'(A30,I3)') ' 2*MS   :', LMS
+         write(6,'(A30,I3)') ' NACTEL :', NEL
+         write(6,'(A30,I3)') ' N_alpha:', NELS(2)
+         write(6,'(A30,I3)') ' N_beta :', NELS(1)
+         minop = max(0, LMS)
+!        ^minimum no of open orbitals
+         if(ISYM%s.ne.0.and.minop.eq.0) minop = 2
+!        ^ if we are optimizing for a non-totalsymmetric having minop=0
+!        is nosense as minop 0 will always lead to total symmetric det.
+         maxop = min(nel,2*NSBASIS-NEL)
+!        ^maximum no of open orbitals
+         write(6,'(A30,2I3)') 'minop and maxop:', minop, maxop
+         Write (6,'(/,64("*"),/)')
+!        allocate(String_b(maxop),stat=ierr)
+!        allocate(String_a(maxop),stat=ierr)
+         nOpen = minop
+         SymFound = .false.
+!************************************************************************
+!****                          MOLPRO CASE                          *****
+!************************************************************************
          if(tMolpro) then
              !Assume that orbitals are ordered by occupation number
              !Assuming LMS positive, NELS(2) > NELS(1)
@@ -829,29 +957,347 @@ C.. vector unless transposed
              enddo
              return
          endif
-         NEL=0
-         DO IS=1,2
-            IF(LMS.GE.0) THEN
-               ISPN=3-IS
-            ELSE
-               ISPN=IS
-            ENDIF
-            IREAL=1
-            DO I=1,NSBASIS
-               DO WHILE(G1(BRR(IREAL))%Ms.NE.(-3+2*ISPN))
+!************************************************************************
+!****               QUIT FOR NOT IMPLEMENTED CASES                  *****
+!************************************************************************
+         if(minop.gt.maxop) then
+            write(6,*) 'You can''t always get what you want'
+            write(6,*) 'You can''t always get what you want'
+            write(6,*) 'You can''t always get what you want'
+            write(6,*) 'But if you try sometimes           '
+            write(6,*) 'well you might find ...            '
+            write(6,*) '          You get what you need!!  '
+            write(6,*) '                           (Jagger)'
+            call stop_all(t_r,"Unpaired spins more than active orbs.")
+         end if
+         if(minop.gt.2) then
+            write(6,*) 'Only up to 2*MS=2 available, so far.'
+            call stop_all(t_r,"Consider DEFINEDET keyword instead.")
+         end if 
+!************************************************************************
+!****                  LOOP OVER NOPEN ORBITALS                     *****
+!************************************************************************
+         do while(.not.SymFound .and. nOpen.le.maxop)
+          n_opn(2) = (NOpen + LMS)/2        !alpha open electrons
+          n_opn(1) = (NOpen - LMS)/2        !beta open electrons
+          n_left(1) = NELS(1) - n_opn(1)    !left over beta
+          n_left(2) = NELS(2) - n_opn(2)    !left over alpha
+!************************************************************************
+!****  CASE 1:  nOPEN = 0                                           *****
+!************************************************************************
+          if(nopen.eq.0) then
+!         ^This case occurs for close shell total-symmetric singlets. It basically corresponds to the old code.
+             NELcount= 0
+             ioff(1) = 0
+             ioff(2) = 0
+             DO IS=1,2 
+!               ^ IS = 1 for beta, IS = 2  for alpha
+               IF(LMS.GE.0) THEN
+                  ISPN=3-IS
+               ELSE
+                  ISPN=IS
+               ENDIF
+               IREAL=1
+               DO I=1,NSBASIS
+                  DO WHILE(G1(BRR(IREAL))%Ms.NE.(-3+2*ISPN))
+! if true pick next element (it happens only for alpha)
+                     IREAL=IREAL+1
+                  ENDDO
+                  IF(I.LE.n_left(is)) THEN
+                     NELCount=NELCount+1
+                     FDET(NELCount)=BRR(IREAL)
+                     ioff(ISPN)= IREAL
+                  ENDIF
                   IREAL=IREAL+1
                ENDDO
-               NELR=(BRR(IREAL)-1)/2+1
-               IF(I.LE.NELS(IS)) THEN
-!                  WRITE(6,"(I4,A)",advance='no'),BRR(IREAL),","
-                  NEL=NEL+1
-                  FDET(NEL)=BRR(IREAL)
-               ENDIF
-               IREAL=IREAL+1
+             ENDDO
+             call sort (fDet(1:nel))
+!             call write_det (6, fDet, .true.)
+             Call GetSym(FDet,nEl,G1,nBasisMax,s)
+             SymFound = .true.
+!************************************************************************
+!****  CASE 2:  nOPEN = 1                                           *****
+!************************************************************************
+          elseif (nOpen.eq.1 .and. nOrb(ISYM%s+1).gt.0) then
+!         ^ This case occurs for doublets states. We just need to check
+!           if there is available active orbital in the ISYM Irrep required.
+!           If yes, drop electron off there and fill up left over
+!           orbitals in canonical ordering. If not, just go to next
+!           nopen given as nOpen = nopen + 2.
+            FDET(1) = BRR(2*norbOffset(ISYM%s+1))
+! Fill up left over orbitals in canonical ordering
+! Since following piece of code is repeated I d better move it into a
+! routine to simplify the code flow. Notice that NEL is initialized to 1
+! since the first open electron has been already dropped according to
+! symmetry. Also in filling up other orbitals we need to make sure not
+! to drop a second electron in spin orbital in position (2*norbOffset(ISYM+1)) 
+! as the open electron is located in there.
+            NELCount=1
+            ioff(1) = 0
+            ioff(2) = 0
+            DO IS=1,2 ! IS = 1 for beta, IS = 2  for alpha
+              IF(LMS.GE.0) THEN
+                 ISPN=3-IS
+              ELSE
+                 ISPN=IS
+              ENDIF
+              IREAL=1
+              DO I=1,NSBASIS
+                 DO WHILE(G1(BRR(IREAL))%Ms.NE.(-3+2*ISPN))
+! if true   condition pick next element (it happens only for alpha)
+                    IREAL=IREAL+1
+                 ENDDO
+                 IF(I.LE.n_left(is) .and. 
+     &              IREAL.ne.2*norbOffset(ISYM%s+1)) THEN
+                        NELCount=NELCount+1
+                        FDET(NELCount)=BRR(IREAL)
+                        ioff(ISPN)= IREAL
+                 ENDIF
+                 IREAL=IREAL+1
+              ENDDO
             ENDDO
-         ENDDO
-         call sort (fDet(1:nel))
+            call sort (fDet(1:NEL))
+!            call write_det (6, fDet, .true.)
+            call collapseDet(G1,FDET,nel)
+!           ^ Collapse electrons to lowest orbitals within each irrep
+            SymFound = .true.
+!************************************************************************
+!****  CASE 3:  nOPEN = 2                                           *****
+!************************************************************************
+          elseif(nOpen.eq.2) then
+!         ^ In this case we loop over available symmetries, JSYM. If an
+!           orbital is available in JSYM, find the other symmetry LSYM
+!           via SYMPROD function. If an active orbital is available in
+!           LSYM then drop two electrons (one alpha one beta for singlet,
+!           two alpha for triplet).
+            jsym%s = -1
+            Energy = 0.0d0
+            do while(jsym%s.lt.SYMMAX-1)
+               SymFoundTmp = .false.
+               jsym%s = jsym%s + 1
+               if(norb(jsym%s+1).gt.0) then
+                lsym=SYMPROD(jsym,ISYM)
+                countTotSym=0
+                if(LMS.ne.0.and.ISYM%s.eq.0) countTotSym=1
+                if(norb(lsym%s+1).gt.countTotSym) then
+                   FDET_tmp(1) = 2*norbOffset(jsym%s+1)     ! alpha electron
+                   FDET_tmp(2) = 2*norbOffset(lsym%s+1)-1   ! beta electron (for Ms = 0)
+                   if(LMS.ne.0)
+     &              FDET_tmp(2)=2*(norbOffset(lsym%s+1)+countTotSym)
+!                   ^ second alpha electron (for Ms.ne.0)
+                   SymFoundTmp = .true.
+                end if
+               end if
+               if(SymFoundTmp) then
+! Fill up left over orbitals in canonical ordering
+                 ioff(1) = 0
+                 ioff(2) = 0
+                 NEL=2
+                 DO IS=1,2
+                  NELCount=0
+                  IF(LMS.GE.0) THEN
+                    ISPN=3-IS
+                  ELSE
+                    ISPN=IS
+                  ENDIF
+                  IREAL=1
+                  DO I=1,NSBASIS
+                    DO WHILE(G1(BRR(IREAL))%Ms.NE.(-3+2*ISPN))
+                      IREAL=IREAL+1
+                    ENDDO
+                    IF(((NELCount+1).LE.n_left(is)).and.
+     &                (BRR(IREAL).ne.FDET_tmp(1)+1-IS)) THEN
+           if(((LMS.eq.0).and.(BRR(IREAL).ne.FDET_tmp(2)+2-IS)).or.
+     &        ((LMS.ne.0).and.(BRR(IREAL).ne.FDET_tmp(2)+1-IS)))then
+                        NELCount=NELCount+1
+                        FDET_tmp(NEL+NelCount)=BRR(IREAL)
+                        ioff(ISPN)= IREAL
+           end if 
+                    ENDIF
+                    IREAL=IREAL+1
+                  ENDDO
+                  NEL = NEL + NELCount
+                 ENDDO
+                 call sort (fDet_tmp(1:nel))
+!                 call write_det (6, fDet_tmp, .true.)
+                 call collapseDet(G1,FDET_tmp,nel)
+!                ^ Collapse electrons to lowest orbitals within each irrep
+!                 write(6,*) 'Energy =',get_helement(fDet_tmp,fDet_tmp,0)
+                 if(real(get_helement(fDet_tmp,fDet_tmp,0))
+     &                .lt.Energy) then
+                   Energy = real(get_helement(fDet_tmp,fDet_tmp,0))
+                   do i = 1, nel
+                     FDET(i) = fDet_tmp(i)
+                   end do
+                 end if
+                SymFound = .true.
+               end if
+!              ^End if(SymFoundTmp) Statement
+            end do
+!           ^ Loop over all symmetries. We want to have the energetically lowest 
+!             determinant possible within the space symmetry imposed and with 
+!             two open orbitals.
+          elseif(nOpen.eq.3) then
+
+          elseif(nOpen.eq.4) then
+
+          end if
+          nOpen = nOpen + 2
+        end do
+        if(.not.SymFound) then
+          write(6,*)'Code was not able to find the desired determinant.'
+          call stop_all(t_r,"Consider to use DEFINEDET")
+        end if
+!************************************************************************
+!****      Kick-in with beta  open orbitals in canonical order      *****
+!****      needed to build an alpha string prototype.               *****
+!************************************************************************
+!          write(6,'(A)') '============ Beta string ============'
+!          leftOb = NSBASIS-n_left(1)
+!          call StringGenerator(1,ioff(1),leftOb,n_opn(1),String_b,Sym_b)
+!          write(6,*) 'Beta string Sym:', Sym_b
+!************************************************************************
+!****      Kick-in with alpha open orbitals in canonical order      *****
+!****      needed to build an alpha string prototype.               *****
+!************************************************************************
+!          write(6,'(A)') '============ Alpha string ============'
+!          leftOb = NSBASIS-n_left(2)
+!          call StringGenerator(2,ioff(2),leftOb,n_opn(2),String_a,Sym_a)
+!          write(6,*) 'Beta string Sym:', Sym_a
+!************************************************************************
+!****   Symmetry check. If alpha-beta combination does not satisfy  *****
+!****   space symmetry constrain look for another string.           *****
+!************************************************************************
+!          prodString=SYMPROD(Sym_b,Sym_a)
+!          write(6,'(A20,I3)')'symmetry of open orbitals:',prodString
+!          If(prodString.eq.ISYM) then
+!            write(6,*) 'determinant of correct sym found!'
+!            call sort (fDet(1:nel))
+!            call write_det (6, fDet, .true.)
+!            Call GetSym(FDet,nEl,G1,nBasisMax,s)
+!            write(6,'(A20,I3)') " Symmetry: ", s%Sym
+!            return
+!          end if
+!************************************************************************
+!****    Fill low-lying orbitals in canonical order except NOPEN    *****
+!************************************************************************
+!          NEL=0
+!          ioff(1) = 0
+!          ioff(2) = 0
+!          DO IS=1,2 ! IS = 1 for beta, IS = 2  for alpha
+!            IF(LMS.GE.0) THEN
+!               ISPN=3-IS
+!            ELSE
+!               ISPN=IS
+!            ENDIF
+!            IREAL=1
+!            DO I=1,NSBASIS
+!               DO WHILE(G1(BRR(IREAL))%Ms.NE.(-3+2*ISPN))
+!! if true condition pick next element (it happens only for alpha)
+!                  IREAL=IREAL+1
+!               ENDDO
+!!               NELR=(BRR(IREAL)-1)/2+1
+!               IF(I.LE.n_left(is)) THEN
+!!                  WRITE(6,"(I4,A)",advance='no'),BRR(IREAL),","
+!                  NEL=NEL+1
+!                  FDET(NEL)=BRR(IREAL)
+!                  ioff(ISPN)= IREAL
+!               ENDIF
+!!               IREAL=IREAL+1
+!            ENDDO
+!          ENDDO
+!          write(6,'(A20,2I4)') 'NOPEN, NEL =', NOPEN,NEL
+!          write(6,'(A20,2I4)') 'IOFF b/a', ioff(1), ioff(2)
+!          call sort (fDet(1:nel))
+!          call write_det (6, fDet, .true.)
+!************************************************************************
+!****                 Orbitals per irrep                            *****
+!************************************************************************
+!          call fzero(NORB_cls,8)
+!          do i = 1,nel,2
+!            write(6,*) 'i, Sym :',i,INT(G1(BRR(i))%sym%S)+1
+!            norb_cls(INT(G1(BRR(i))%sym%S)+1) = 
+!     &                  norb_cls(INT(G1(BRR(i))%sym%S)+1)+1
+!          enddo
+!          do i = 1, 8
+!            norb_lft(i) = norb(i) - norb_cls(i)
+!          end do
+!          write(6,'(A20,8I3)') 'Orbital close:', norb_cls
+!          write(6,'(A20,8I3)') 'Orbital left :', norb_lft
+
+!************************************************************************
+!****                 Increase nOpen and loop again                 *****
+!************************************************************************
+!       ^ End loop over NOPEN
+!        deallocate(String_b)
+!        deallocate(String_a)
       END
+
+      SUBROUTINE collapseDet(G1,FDET,nel)
+         use SystemData, only: symmax,BasisFN, nbasisMax
+         Use Determinants, only: write_det
+         use util_mod, only: int_fmt
+         use sort_mod
+         use sym_mod, only: getsym
+         TYPE(BasisFN) G1(*),s
+         INTEGER FDET(*),nel
+
+              CounterTot = 0
+              CounterDet = 1
+              do j = 0, SYMMAX-1
+                do IS=1,2
+                  CounterSym = 0
+                  CounterOrb = CounterTot + counterSym + 3-IS
+                  do while(G1(CounterOrb)%Sym%s.eq.j)
+           if((G1(CounterOrb)%Sym%s.eq.G1(FDet(CounterDet))%Sym%s).and.
+     &        (G1(CounterOrb)%Ms.eq.G1(FDet(CounterDet))%Ms))then
+                     if(CounterOrb.lt.FDet(CounterDet))
+     &                     FDet(CounterDet) = CounterOrb
+                           CounterDet = CounterDet + 1 
+                     end if
+                     CounterOrb= CounterTot + 2*(counterSym+1) + 3-IS
+                     counterSym = counterSym + 1
+                  end do
+                end do
+                CounterTot = CounterTot + 2*CounterSym
+              end do
+              call sort (fDet(1:nel))
+              Call GetSym(FDet,nEl,G1,nBasisMax,s)
+!              write(6,'(A20,I3)') " Determinant Symmetry: ", s%Sym
+!              call write_det (6, fDet, .true.)
+      END          
+
+      SUBROUTINE StringGenerator(IS,ioff,OpnOrb,n_opn,String,StringSym)
+          use SystemData, only: G1, BRR, nBasisMax, BasisFN,
+     &        symmetry
+          Use Determinants, only: write_det_len
+          use sym_mod, only: getsym, writesym
+          INTEGER IREAL, ioff, NELString,I,OpnOrb, n_opn,String(*)
+          TYPE(Symmetry) StringSym
+          TYPE(BasisFN) s
+
+          ISPN=3-IS
+          IREAL=ioff + 1
+          NELString=0
+          write(6,'(A)') 'IREAL, BRR(IREAL), G1(BRR(IREAL))%Ms'
+          DO I=1,OpnOrb ! we loop over the left over space orbitals
+            write(6,'(3I4)') IREAL, BRR(IREAL), G1(BRR(IREAL))%Ms
+            DO WHILE(G1(BRR(IREAL))%Ms.NE.(3-2*ISPN))
+              IREAL=IREAL+1
+            ENDDO
+            IF(I.LE.n_opn) THEN
+              NELString=NELString+1
+              String(NELString)=BRR(IREAL)
+            ENDIF
+            IREAL=IREAL+1
+          ENDDO
+          write(6,*)'String:'
+          call write_det_len (6, String, nelString, .true.)
+          Call GetSym(String,nElString,G1,nBasisMax,s)
+          WRITE(6,'(A20,I3)') ' Symmetry of String: ',s%Sym
+          StringSym = s%Sym
+          Call WriteSym(6,s%Sym,.true.)
+      END 
 
       SUBROUTINE HFLINMIX(FMAT,OFMAT,NSPINS,N,FMIX,R1,R2,WORK)
          use constants, only: dp
@@ -925,7 +1371,7 @@ C.. Work out R2=(a-J)/(J+1.0_dp) * R1 * FMAT + 1.0_dp*R2.  a=FMIX
      &            R1,N,FMAT(1,1,ISPN),N,1.0_dp,R2,N)
                CALL DCOPY(N*N,R2,1,FMAT(1,1,ISPN),1)
             ENDDO
-C.. Now reorthoganalise, as this is just an approximation    
+C.. Now reorthoganalise, as this is just an approximation
             CALL LOWDIN_ORTH(FMAT(1,1,ISPN),N,R1,R2,WORK)
          ENDDO
       END
@@ -976,7 +1422,7 @@ C         real(dp) RMSD
          INTEGER IRHFB,JSPN
          real(dp) RMSD, EDELTA,CDELTA,EN,ECUR2
          INTEGER HFDET(*)
-         
+
          real(dp) GETHELEMENT2T
          character(*), parameter :: this_routine = 'UHFGRADDESC'
          irhfb = 0
@@ -999,7 +1445,7 @@ C         real(dp) RMSD
 C.. Cij - i corresponds to rows and new basis functions, phi_i
 C..       j corresponds to columns and old basis functions, u_j
 C.. phi_i=sum_j=1,M cij u_j
-         
+
 C         VMAT=0.0_dp
          IF(TREADHF) THEN
            CALL  READHFFMAT(NBASIS,CMAT,HFES,G1,NSPINS,NSBASIS,.TRUE.)
@@ -1028,7 +1474,7 @@ C.. Initialize our HF det in NDET1
                   I=I+1
                ENDIF
             ENDDO
-         ENDDO 
+         ENDDO
          call write_det (6, NDET1(1), .true.)
          BR=.TRUE.
          WRITE(6,*) "Iteration   Energy     MSD   Fock Energy"
@@ -1044,10 +1490,10 @@ C.. Initialize our HF det in NDET1
             IF(IRHFB.GT.0) THEN
                CALL DCOPY(NSBASIS*NSBASIS,CMAT(1,1,IRHFB),1,
      &            CMAT(1,1,3-IRHFB),1)
-            ENDIF 
+            ENDIF
             CALL DCOPY(NSBASIS*NSBASIS*NSPINS,CMAT,1,OCMAT,1)
             IHFIT=IHFIT+1
-C.. First Calculate dE/dcij         
+C.. First Calculate dE/dcij
 C.. dE/dcij is automatically 0 if i>N as the HF det only depends on
 C.. phi_1 to phi_N.  All values of j must be iterated as each phi_i is
 C.. dependent on all u_j
@@ -1056,7 +1502,7 @@ C.. dependent on all u_j
 C.. Calculate the Gradient
             IF(IHFMETHOD.EQ.1) THEN
              CALL CALCDEDCIJ(CMAT,DEDCIJ,NDET1,NSPINS,NSBASIS,
-     &         ECORE, NBASIS,NBASISMAX,NELS,NEL,ECUR)            
+     &         ECORE, NBASIS,NBASISMAX,NELS,NEL,ECUR)
             ELSEIF(IHFMETHOD.EQ.2) THEN
               CALL CALCDEDCIJ2(CMAT,DEDCIJ,NDET1,NSPINS,NSBASIS,
      &         UMAT,NELS,NEL)
@@ -1106,9 +1552,9 @@ C              WRITE(6,*)
             ENDDO
             RMSD=0.0_dp
             DO ISPN=1,NSPINS
-               DO I=1,NSBASIS 
+               DO I=1,NSBASIS
                   DO J=1,NSBASIS
-                   IF(.NOT.TRHF.OR.TRHF.AND.ISPN.EQ.IRHFB) 
+                   IF(.NOT.TRHF.OR.TRHF.AND.ISPN.EQ.IRHFB)
      &                RMSD=RMSD+(CMAT(I,J,ISPN)-OCMAT(I,J,ISPN))**2
                   ENDDO
                ENDDO
@@ -1159,7 +1605,7 @@ C.. calculate the orbital energies every time
 C.. we're not allowed to count the current electron again
                         CALL GETTRUMATEL(NELEX,NELEX2,NELEX,NELEX2,
      &                     CMAT,NSBASIS,NSPINS,EN)
-                        
+
 C                        HFES(I,ISPN)=HFES(I,ISPN)+EN
                         EN=0.0_dp
                         IF(ISPN.EQ.JSPN)
@@ -1174,7 +1620,7 @@ C                        HFES(I,ISPN)=HFES(I,ISPN)-EN
                INORDER(I,ISPN)=I
             ENDDO
             CALL DCOPY(NSBASIS,HFES(1,ISPN),1,EORDER(1,ISPN),1)
-            call sort (eorder(1:nsBasis, iSpn), 
+            call sort (eorder(1:nsBasis, iSpn),
      &                 inOrder(1:nsBasis, iSpn))
          ENDDO
       IF(BR) THEN
@@ -1197,8 +1643,8 @@ C            CALL DCOPY(NSBASIS*NSBASIS,R2,1,CMAT(1,1,ISPN),1)
      &            R1,NSBASIS,OCMAT(1,1,ISPN),NSBASIS,
      &            0.0_dp,R2,NSBASIS)
 C            CALL DCOPY(NSBASIS*NSBASIS,R2,1,OCMAT(1,1,ISPN),1)
-         ENDDO            
- 
+         ENDDO
+
             DO I=1,NSBASIS
                DO ISPN=1,NSPINS
 C                  WRITE(6,*) I,ISPN*2-3,HFES(I,ISPN)
@@ -1216,11 +1662,11 @@ C     &               INORDER(I,ISPN)
             ENDDO
       ENDIF
          IF(MOD(IHFIT,10).EQ.0.AND.BTEST(ILOGGING,11))
-     &    CALL WRITEHFPSIALL(NBASIS,CMAT,HFES,G1,NSPINS,NSBASIS,.TRUE.) 
+     &    CALL WRITEHFPSIALL(NBASIS,CMAT,HFES,G1,NSPINS,NSBASIS,.TRUE.)
       ENDDO
       IF(BTEST(ILOGGING,11))
-     &   CALL WRITEHFPSIALL(NBASIS,CMAT,HFES,G1,NSPINS,NSBASIS,.TRUE.) 
-C.. We write out HFMAT  
+     &   CALL WRITEHFPSIALL(NBASIS,CMAT,HFES,G1,NSPINS,NSBASIS,.TRUE.)
+C.. We write out HFMAT
       HFBASIS=0.0_dp
          DO I=1,NSBASIS
             DO ISPN=1,NSPINS
@@ -1236,13 +1682,13 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
             ENDDO
          ENDDO
          RETURN
-         
-      END 
+
+      END
 
 
 
       SUBROUTINE CALCDEDCIJ(CMAT,DEDCIJ,NDET1,NSPINS,NSBASIS,
-     &         ECORE, NBASIS,NBASISMAX,NELS,NEL,ECUR)            
+     &         ECORE, NBASIS,NBASISMAX,NELS,NEL,ECUR)
          use constants, only: dp
          IMPLICIT NONE
          INTEGER NSBASIS,NSPINS,NBASIS,NEL
@@ -1293,7 +1739,7 @@ C.. calculate how many positions move from Old to new electron, and work
 C.. out appropriate sign change
                      ISGNCH=(-1)**(IPOSN-IPOSO+NEL)
 C.. At this point, NDET2 contains a det which is Psi with  phi_i
-C.. replaced by phi_k and rerdered.  
+C.. replaced by phi_k and rerdered.
 C.. Now calculate <NDET2 | H | PSI>
                      SCRRES=GETHELEMENT2T(NDET1(1),NDET2,NEL,NBASISMAX,
      &                  NBASIS,ECORE,1,CMAT,NSBASIS,NSPINS)
@@ -1323,12 +1769,12 @@ C.. TOT now contains dE/dcij, so we store this
          INTEGER IDA,IDB,IDC,IDF
          real(dp) TOT,TOT1,TOT2,TOT1B
 #ifdef __CMPLX
-         call stop_all('CALCDEDCIJ2', 
+         call stop_all('CALCDEDCIJ2',
      &                 'HF not implemented for complex orbitals.')
 #endif
 C.. We calculate dE/dcij as
-C.. dE/dc_kf = 2(Sum_a c_ka <a|h|f> 
-C.. +Sum_j Sum_abc c_ja c_kb c_jc (<af|U|cb>-<af|U|bc>+<ab|U|cf>-<ab|U|fc>)) 
+C.. dE/dc_kf = 2(Sum_a c_ka <a|h|f>
+C.. +Sum_j Sum_abc c_ja c_kb c_jc (<af|U|cb>-<af|U|bc>+<ab|U|cf>-<ab|U|fc>))
          DEDCIJ=0.0_dp
          DO KSPN=1,NSPINS
 C.. K is an HF orbital
@@ -1363,7 +1809,7 @@ C.. Here A and C correspond to J and B corresponds to K
      &                                       ,0,0))
                               TOT2=TOT2+UMAT(UMatInd(IDA,IDB,IDC,IDF
      &                                       ,0,0))
-                              IF(KSPN.EQ.JSPN) THEN                  
+                              IF(KSPN.EQ.JSPN) THEN
                               TOT2=TOT2-UMAT(UmatInd(IDA,IDF,IDB,IDC
      &                                       ,0,0))
                               TOT2=TOT2-UMAT(UMatInd(IDA,IDB,IDF,IDC
@@ -1492,7 +1938,7 @@ C               G1(3,BRR(I))=J
       END
 
       SUBROUTINE Write_HEMatrix(CHAR,M,N,A)
-      use constants, only: dp 
+      use constants, only: dp
       use HElem, only: HElement_t_size
       IMPLICIT NONE
       CHARACTER(*) CHAR

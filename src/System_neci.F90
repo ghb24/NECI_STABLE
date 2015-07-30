@@ -176,6 +176,7 @@ MODULE System
       tGen_4ind_take_2 = .false.
 
       tMultiReplicas = .false.
+      tGiovannisBrokenInit = .false.
 
 #ifdef __PROG_NUMRUNS
       inum_runs = 1
@@ -388,6 +389,7 @@ system: do
 ! the last number is the symmetry specification - and is placed in position 5
             IPARITY(5)=IPARITY(4)
             IPARITY(4)=0
+            tSymSet = .true.
         case("USEBRILLOUINTHEOREM")
           TUSEBRILLOUIN=.TRUE. 
           tNoBrillouin=.false.
@@ -988,8 +990,16 @@ system: do
             endif
 #endif
 
-          case("HEISENBERG")
-              tHeisenberg = .true.
+        case("HEISENBERG")
+            tHeisenberg = .true.
+        
+        case("GIOVANNIS-BROKEN-INIT")
+            ! Giovanni's scheme for initialising determinants with the correct
+            ! spin an symmetry properties in a wider range of cases than
+            ! currently supported.
+
+            ! Looks nice, but it currently breaks lots of other stuff!
+            tGiovannisBrokenInit = .true.
 
         case("ENDSYS") 
             exit system

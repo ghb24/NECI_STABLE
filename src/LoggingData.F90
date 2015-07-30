@@ -23,13 +23,17 @@ module LoggingData
     LOGICAL tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tDo_Not_Calc_RDMEnergy
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
-    LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tPrintRODump, tno_RDMs_to_read, tReadRDMs, tNoNewRDMContrib 
+    LOGICAL tTruncDumpbyVal, tPrintRODump, tno_RDMs_to_read, tReadRDMs, tNoNewRDMContrib 
     LOGICAL tWriteTransMat,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit, tWriteMultRDMs
-    LOGICAL tExplicitAllRDM, twrite_normalised_RDMs, tWriteSpinFreeRDM, twrite_RDMs_to_read 
+    LOGICAL twrite_normalised_RDMs, tWriteSpinFreeRDM, twrite_RDMs_to_read 
     LOGICAL tNoNOTransform, tPrint1RDM, tPrintInitiators
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps
     INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter, IterWriteRDMs 
     INTEGER FCIMCDebug !FciMC Debugging Level 0-6.  Default 0
+
+    ! Logical(4) datatypes for compilation with builds of openmpi that don't
+    ! have support for logical(8). Gah.
+    logical :: tExplicitAllRDM, tChangeVarsRDM
 
     LOGICAL tSaveBlocking !Do not overwrite blocking files
     INTEGER iWriteBlockingEvery !How often to write out blocking files
@@ -98,4 +102,6 @@ module LoggingData
 
     ! Should we output the load-balanced distribution?
     logical :: tOutputLoadDistribution
+
+    logical :: tHDF5Pops
 end module LoggingData

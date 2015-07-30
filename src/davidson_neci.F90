@@ -76,7 +76,8 @@ type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
 
         integer, intent(in) :: input_hamil_type
         logical, intent(in) :: print_info_in
-        logical :: print_info, skip_calc
+        logical :: print_info
+        logical :: skip_calc
         integer :: i
         real(sp) :: start_time, end_time
 

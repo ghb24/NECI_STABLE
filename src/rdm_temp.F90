@@ -690,24 +690,35 @@ contains
 
     end subroutine Write_out_2RDM
 
-    subroutine Write_spinfree_RDM(rdm, Norm_2RDM)
+    subroutine Write_spinfree_RDM(rdm, rdm_label, Norm_2RDM)
 
         ! Write out the spinfree 2RDM for MPQC.
 
+        ! The final file will write out the spin-free 2RDM in the following way:
+        !
+        ! i j k l = \sum_{s,t} < a^+_{i,s} a^+_{j,t} a_{l,t} a_{k,s} >
+        !
+        ! where s and t are spin indices which are summed over.
+        !
+
         use rdm_data, only: rdm_t
         use RotateOrbsData, only: SpatOrbs
-        use util_mod, only: get_free_unit
+        use util_mod, only: get_free_unit, int_fmt
 
         type(rdm_t), intent(in) :: rdm
+        integer, intent(in) :: rdm_label
         real(dp), intent(in) :: Norm_2RDM
 
         integer :: i, j, a, b
         integer :: read_stat
         integer :: spinfree_RDM_unit
+        character(255) :: RDM_filename
 
-        write(6, '(1X,"Writing out the spinfree RDM")')
+        write(6, '(1X,"Writing out the spinfree RDM for state",'//int_fmt(rdm_label,1)//')') rdm_label
+
         spinfree_RDM_unit = get_free_unit()
-        open(spinfree_RDM_unit, file="spinfree_TwoRDM", status="replace")
+        write(RDM_filename, '("spinfree_TwoRDM.",'//int_fmt(rdm_label,0)//')') rdm_label
+        open(spinfree_RDM_unit, file=trim(RDM_filename), status="replace")
         
         do j = 1, SpatOrbs
             do b = 1, SpatOrbs

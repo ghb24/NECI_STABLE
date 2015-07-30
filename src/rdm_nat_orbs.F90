@@ -239,7 +239,7 @@ contains
         integer :: ierr,i,j,spin,Sym,LWORK2,WORK2Tag,SymStartInd,NoSymBlock
         integer :: EvaluesSymTag,NOMSymTag,k,MaxSym
         logical :: tDiffSym, tDiffLzSym
-        character(len=*), parameter :: t_r= 'DiagRDM'
+        character(len=*), parameter :: t_r = 'DiagRDM'
 
         ! Test that we're not breaking symmetry.
         ! And calculate the trace at the same time.

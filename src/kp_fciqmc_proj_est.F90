@@ -54,7 +54,8 @@ contains
         real(dp), dimension(lenof_all_signs) :: child_sign, parent_sign
         integer(n_int) :: int_sign(lenof_all_signs)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied, tParity
-        logical :: tNearlyFull, tFinished, tAllFinished, all_excits_found, tTempUseBrill
+        logical :: tNearlyFull, tAllFinished, all_excits_found, tTempUseBrill
+        logical :: tFinished
         HElement_t :: HElGen, HEl
 
         call set_timer(subspace_hamil_time)
@@ -273,7 +274,8 @@ contains
         logical :: ialpha, jalpha, ibeta, jbeta
         integer(n_int) :: int_sign(lenof_all_signs)
         real(dp) :: parent_sign(lenof_all_signs), child_sign(lenof_all_signs)
-        logical :: tNearlyFull, tFinished, tAllFinished, tParity
+        logical :: tNearlyFull, tAllFinished, tParity
+        logical :: tFinished
         integer :: ex(2,2)
 
         call set_timer(subspace_spin_time)
@@ -512,7 +514,7 @@ contains
 
         ValidSpawnedList = InitialSpawnedSlots
 
-        call MPIAllGather(tFinished, 1, tFinished_AllProcs, 1, ierr)
+        call MPIAllGather(tFinished, tFinished_AllProcs, ierr)
 
         tAllFinished = all(tFinished_AllProcs)
 

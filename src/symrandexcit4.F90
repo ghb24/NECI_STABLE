@@ -1093,14 +1093,14 @@ contains
             ! We want to select a pair of orbitals in a way which is biased
             ! towards pairs with opposing spins. This takes a simple form.
             if (is_alpha(ex(2,1)) .eqv. is_alpha(ex(2,2))) then
-                pgen = pgen * pParallel / real(par_elec_pairs, dp)
+                pgen = pgen * pParallel / real(par_hole_pairs, dp)
                 if (is_alpha(ex(2,1))) then
                     iSpn = 3
                 else
                     iSpn = 1
                 end if
             else
-                pgen = pgen * 1.0_dp / real(AB_elec_pairs, dp)
+                pgen = pgen * (1.0_dp - pParallel) / real(AB_hole_pairs, dp)
                 iSpn = 2
             end if
 

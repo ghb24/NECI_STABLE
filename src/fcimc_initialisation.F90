@@ -31,7 +31,7 @@ module fcimc_initialisation
                         ss_space_in, trial_space_in, init_trial_in, &
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, &
-                        ntrial_ex_calc, tPairedReplicas
+                        ntrial_ex_calc, tPairedReplicas, tMultiRefShift
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -48,7 +48,7 @@ module fcimc_initialisation
                            tHistInitPops, OrbOccsTag, tHistEnergies, &
                            HistInitPops, AllHistInitPops, OffDiagMax, &
                            OffDiagBinRange, iDiagSubspaceIter, &
-                           AllHistInitPopsTag, HistInitPopsTag
+                           AllHistInitPopsTag, HistInitPopsTag, tHDF5Pops
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
@@ -699,7 +699,7 @@ contains
         ! runs should be adjusted so that it is still relative to the first
         ! replica, but is offset by the replica's reference's diagonal energy.
         DiagSft = InputDiagSft
-        proje_ref_energy_offsets = 0
+        proje_ref_energy_offsets = 0.0_dp
         if (tOrthogonaliseReplicas) then
             do run = 1, inum_runs
                 if (tHPHF) then
@@ -709,9 +709,7 @@ contains
                 endif
                 proje_ref_energy_offsets(run) = real(TempHii, dp) - Hii
 
-                ! This is a bit of a hack...
-                if (all(InputDiagSft == 0)) &
-                    DiagSft(run) = DiagSft(run) + real(TempHii, dp) - Hii
+                if (tMultiRefShift) DiagSft(run) = proje_ref_energy_offsets(run)
             end do
         end if
 
@@ -960,9 +958,9 @@ contains
             WRITE(iout,*) "Timestep set to: ",Tau
         ENDIF
 
-        tFillingStochRDMonFly = .false.      
-!       ^Needed inititalization 
-        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
+!        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
+!                       ^ Removed by GLM as believed not necessary
+        if (tSearchTau) then
             call init_tau_search()
         else
             ! Add a couple of checks for sanity
@@ -1107,7 +1105,7 @@ contains
     ! initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
         INTEGER :: ierr,iunithead,DetHash,Slot,MemTemp,run
-        LOGICAL :: formpops,binpops
+        logical :: formpops, binpops
         INTEGER :: error,MemoryAlloc,PopsVersion,j,iLookup
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         integer :: PopBlockingIter
@@ -1129,7 +1127,7 @@ contains
         !default
         Popinum_runs=1
 
-        if(tReadPops.and..not.tPopsAlreadyRead) then
+        if(tReadPops .and. .not. (tPopsAlreadyRead .or. tHDF5Pops)) then
             call open_pops_head(iunithead,formpops,binpops)
             PopsVersion=FindPopsfileVersion(iunithead)
             if(iProcIndex.eq.root) close(iunithead)
@@ -1139,7 +1137,8 @@ contains
         ! Initialise measurement of norm, to avoid divide by zero
         norm_psi = 1.0_dp
 
-        if (tReadPops .and. (PopsVersion.lt.3) .and..not.tPopsAlreadyRead) then
+        if (tReadPops .and. (PopsVersion.lt.3) .and. &
+            .not. (tPopsAlreadyRead .or. tHDF5Pops)) then
 !Read in particles from multiple POPSFILES for each processor
             !Ugh - need to set up ValidSpawnedList here too...
             call SetupValidSpawned(int(InitWalkers,int64))
@@ -1148,7 +1147,7 @@ contains
         ELSE
 !initialise the particle positions - start at HF with positive sign
 !Set the maximum number of walkers allowed
-            if(tReadPops.and..not.tPopsAlreadyRead) then
+            if(tReadPops .and. .not. (tPopsAlreadyRead .or. tHDF5Pops)) then
                 !Read header.
                 call open_pops_head(iunithead,formpops,binpops)
                 if(PopsVersion.eq.3) then
@@ -2000,6 +1999,12 @@ contains
 
              end if
         end do
+
+        if (tMultiRefShift) then
+            do run = 1, inum_runs
+                DiagSft(run) = proje_ref_energy_offsets(run)
+            end do
+        end if
 
     end subroutine set_initial_run_references
 

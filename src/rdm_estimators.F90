@@ -46,7 +46,7 @@ contains
                 ! IMPORTANT NOTE: We assume that we want tMake_Herm=.true. here.
                 if (tWrite_normalised_RDMs) call Write_out_2RDM(rdm, rdm_label, est%Norm_2RDM, .true., .true.)
 
-                if (tWriteSpinFreeRDM) call Write_spinfree_RDM(rdm, est%Norm_2RDM)
+                if (tWriteSpinFreeRDM) call Write_spinfree_RDM(rdm, rdm_label, est%Norm_2RDM)
 
              end if
 
@@ -74,9 +74,6 @@ contains
 
     subroutine write_rdm_estimates(est)
 
-#ifdef _MOLCAS_
-        USE EN2MOLCAS, only : NECI_E
-#endif
         use FciMCData, only: tFinalRDMEnergy, Iter, PreviousCycles
         use LoggingData, only: tRDMInstEnergy
         use rdm_data, only: rdm_estimates_t, rdm_estimates_unit
@@ -111,9 +108,6 @@ contains
             write(6,'(1x,"Energy contribution from the 1-RDM:",1x,es17.10)') est%RDMEnergy1
             write(6,'(1x,"Energy contribution from the 2-RDM:",1x,es17.10)') est%RDMEnergy2
             write(6,'(1x,"*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:",1x,es20.13)') est%RDMEnergy
-#ifdef _MOLCAS_
-            NECI_E =  est(1)%RDMEnergy
-#endif
             close(rdm_estimates_unit)
         end if
 

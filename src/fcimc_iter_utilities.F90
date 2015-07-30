@@ -167,12 +167,13 @@ contains
                 allocate_temp_parts = .true.
                 TempSpawnedPartsSize = 1000
             end if
-            if (1.1 * maxval(iHighestPop) > TempSpawnedPartsSize) then
+            if (1.5 * maxval(iHighestPop) > TempSpawnedPartsSize) then
                 ! This testing routine is only called once every update
-                ! cycle. The 1.1 gives us a buffer to cope with particle
+                ! cycle. The 1.5 gives us a buffer to cope with particle
                 ! growth
-                TempSpawnedPartsSize = iHighestPop(1) * 1.5
+                TempSpawnedPartsSize = maxval(iHighestPop) * 1.5
                 allocate_temp_parts = .true.
+                write(6,*) 1.5 * maxval(iHighestPop), TempSpawnedPartsSize
             end if
 
             ! If we need to allocate this array, then do so.
@@ -317,12 +318,12 @@ contains
 
     end subroutine population_check
 
-    subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all, tPairedReplicas)
+    subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all, replica_pairs)
 
         type(fcimc_iter_data) :: iter_data
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
         real(dp), dimension(lenof_sign), intent(out) :: tot_parts_new_all
-        logical, intent(in) :: tPairedReplicas
+        logical, intent(in) :: replica_pairs
 
         integer :: int_tmp(5+2*lenof_sign), proc, pos, i
         real(dp) :: sgn(lenof_sign)
@@ -428,8 +429,8 @@ contains
         ! enabled, and now tau is outside the range acceptable for tau
         ! searching
         if (.not. tSearchTau) then
-            call MPIAllReduce(tSearchTauDeath, MPI_LOR, ltmp)
-            tSearchTauDeath = ltmp
+            call MPIAllLORLogical(tSearchTauDeath, ltmp)
+           tSearchTauDeath = ltmp
         end if
         if ((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. &
                             .not. tFillingStochRDMOnFly) then   
@@ -447,7 +448,7 @@ contains
                 if (ntrial_excits == 1) then
                     tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies(1))
                 else
-                    if (tPairedReplicas) then
+                    if (replica_pairs) then
                         do run = 2, inum_runs, 2
                             tot_trial_numerator(run-1:run) = tot_trial_numerator(run-1:run) + &
                                 tot_trial_denom(run-1:run)*trial_energies(run/2)
@@ -830,14 +831,14 @@ contains
 
     end subroutine rezero_iter_stats_update_cycle
 
-    subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new, tPairedReplicas)
+    subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new, replica_pairs)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
         real(dp), dimension(lenof_sign) :: tot_parts_new_all
-        logical, intent(in) :: tPairedReplicas
+        logical, intent(in) :: replica_pairs
 
-        call collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all, tPairedReplicas)
+        call collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all, replica_pairs)
         call iter_diagnostics ()
         if(tRestart) return
         call population_check ()

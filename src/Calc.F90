@@ -322,6 +322,7 @@ contains
 
           tLoadBalanceBlocks = .false.
           tPopsJumpShift = .false.
+          calc_seq_no = 1
 
         end subroutine SetCalcDefaults
 
@@ -742,8 +743,10 @@ contains
 !chosen from the lowest energy orbitals.
 !The 'HF' energy calculated should the be that of the defined determinant.
                 tDefineDet=.true.
-                ALLOCATE(DefDet(NEl),stat=ierr)
-                CALL LogMemAlloc('DefDet',NEl,4,t_r,tagDefDet,ierr)
+                if(.not.allocated(DefDet)) then
+                  ALLOCATE(DefDet(NEl),stat=ierr)
+                  CALL LogMemAlloc('DefDet',NEl,4,t_r,tagDefDet,ierr)
+                end if
                 DefDet(:)=0
                 do i=1,NEl
                     call geti(DefDet(i))
@@ -2143,6 +2146,9 @@ contains
                 !     restarted with a different FCIDUMP file (i.e. during
                 !     CASSCF calculations).
                 tPopsJumpShift = .true.
+
+            case("MULTI-REF-SHIFT")
+                tMultiRefShift = .true.
 
             case default
                 call report("Keyword "                                &
