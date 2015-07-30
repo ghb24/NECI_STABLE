@@ -2246,33 +2246,24 @@ contains
         integer(MPIArg) :: Comm, rt, length
         character(*), parameter :: t_r = 'MPIAllGatherLogical'
 
-        logical(int32), target :: v, ret(size(param_out))
+        integer :: v, ret(lbound(param_out, 1):ubound(param_out, 1)), j
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef __GFORTRAN__
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr, rptr
-        vptr = loc_neci(v)
-        rptr = loc_neci(ret)
-#endif
+        ! Cast this gather statement via integers. A bit of a faff, but works
+        ! around some nasties between MPI libraries - and it isn't performance
+        ! limiting, so so what!
 
-        call GetComm (Comm, Node, rt)
+        if (param_in) then
+            v = 1
+        else
+            v = 0
+        end if
 
-        v = param_in
-        length = size(ret)
+        call MPIAllGather(v, ret, ierr, node)
 
-        call MPI_Allgather (val_in, 1_MPIArg, NECI_MPI_LOGICAL, val_out, &
-                            length, NECI_MPI_LOGICAL, comm, ierr)
+        do j = lbound(param_out, 1), ubound(param_out, 1)
+            param_out(j) = ret(j) > 0
+        end do
 
-        if (ierr /= MPI_SUCCESS) &
-            call stop_all(t_r, "MPI Error. Terminating")
-        param_out = ret
-#else
-        param_out(1) = param_in
-        ierr = 0
-#endif
     end subroutine
 
 end supermodule
