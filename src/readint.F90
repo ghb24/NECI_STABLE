@@ -19,7 +19,7 @@ contains
          integer(int64) :: ORBSYM(1000)
          INTEGER NORB,NELEC,MS2,ISYM,i,SYML(1000), iunit,iuhf
          LOGICAL exists
-         logical(4) :: uhf
+         logical :: uhf
          logical tExists     !test for existence of input file.
          integer isfreeunit  !function returning integer for free unit
          CHARACTER(len=3) :: fmat
@@ -207,7 +207,7 @@ contains
          INTEGER , ALLOCATABLE :: MaxSlots(:)
          character(len=*), parameter :: t_r='GETFCIBASIS'
          LOGICAL TBIN
-         logical(4) :: uhf
+         logical :: uhf
          logical tExists     !test for existence of input file.
          integer isfreeunit  !function returning integer for free unit
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
@@ -595,7 +595,7 @@ contains
          INTEGER NORB,NELEC,MS2,ISYM,SYML(1000)
          integer(int64) ORBSYM(1000)
          LOGICAL LWRITE
-         logical(4) :: uhf
+         logical :: uhf
          INTEGER ISPINS,ISPN,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
          INTEGER UMatSize,TMatSize,IUHF
          INTEGER , ALLOCATABLE :: CacheInd(:)

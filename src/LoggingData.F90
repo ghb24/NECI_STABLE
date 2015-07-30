@@ -33,7 +33,7 @@ module LoggingData
 
     ! Logical(4) datatypes for compilation with builds of openmpi that don't
     ! have support for logical(8). Gah.
-    logical(4) :: tExplicitAllRDM, tChangeVarsRDM
+    logical :: tExplicitAllRDM, tChangeVarsRDM
 
     LOGICAL tSaveBlocking !Do not overwrite blocking files
     INTEGER iWriteBlockingEvery !How often to write out blocking files

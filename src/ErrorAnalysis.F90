@@ -28,7 +28,7 @@ module errors
         mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue, &
         equilshift,equilproje)
         implicit none
-        logical(4), intent(in) :: tSingPartPhase
+        logical, intent(in) :: tSingPartPhase
         integer , intent(inout) :: iShiftVary
         integer , intent(in) , optional :: equilshift,equilproje
         integer :: corrlength_denom,corrlength_num,corrlength_shift,corrlength_imnum
@@ -43,7 +43,7 @@ module errors
         real(dp) :: covariance_im, correction_im
         logical :: tFail_num,tFail_denom,tFail_imnum,tFail_shift
         logical :: tPrintIntermediateBlocking
-        logical(4), intent(out) :: tNoProjEValue,tNoShiftValue
+        logical, intent(out) :: tNoProjEValue,tNoShiftValue
         real(dp), intent(out) :: mean_ProjE_re,ProjE_Err_re,mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err
         character(len=*), parameter :: t_r='Error_analysis'
         logical :: tFailRead
@@ -1129,7 +1129,7 @@ module errors
 #endif
         real(dp) :: mean_ProjE_re,mean_ProjE_im,mean_Shift
         real(dp) :: ProjE_Err_re,ProjE_Err_im,Shift_Err
-        logical(4) :: tNoProjEValue,tNoShiftValue
+        logical :: tNoProjEValue,tNoShiftValue
         integer :: iroot,isymh,i
         TYPE(BasisFn) RefSym
         HElement_t :: h_tmp

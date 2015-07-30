@@ -227,6 +227,8 @@ logical :: tMultiReplicas
 ! Has the user set the symmetry using the 'SYM' option?
 logical :: tSymSet = .false.
 
+logical :: tGiovannisBrokenInit
+
 ! Operators for type(symmetry)
 interface assignment (=)
     module procedure SymAssign
