@@ -173,6 +173,7 @@ contains
                 ! growth
                 TempSpawnedPartsSize = maxval(iHighestPop) * 1.5
                 allocate_temp_parts = .true.
+                write(6,*) 1.5 * maxval(iHighestPop), TempSpawnedPartsSize
             end if
 
             ! If we need to allocate this array, then do so.
@@ -428,8 +429,8 @@ contains
         ! enabled, and now tau is outside the range acceptable for tau
         ! searching
         if (.not. tSearchTau) then
-            call MPIAllReduce(tSearchTauDeath, MPI_LOR, ltmp)
-            tSearchTauDeath = ltmp
+            call MPIAllLORLogical(tSearchTauDeath, ltmp)
+           tSearchTauDeath = ltmp
         end if
         if ((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. &
                             .not. tFillingStochRDMOnFly) then   

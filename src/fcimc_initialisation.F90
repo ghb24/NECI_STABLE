@@ -1104,7 +1104,7 @@ contains
     ! initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
         INTEGER :: ierr,iunithead,DetHash,Slot,MemTemp,run
-        LOGICAL :: formpops,binpops
+        logical :: formpops, binpops
         INTEGER :: error,MemoryAlloc,PopsVersion,j,iLookup
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         integer :: PopBlockingIter

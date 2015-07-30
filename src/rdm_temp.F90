@@ -694,6 +694,13 @@ contains
 
         ! Write out the spinfree 2RDM for MPQC.
 
+        ! The final file will write out the spin-free 2RDM in the following way:
+        !
+        ! i j k l = \sum_{s,t} < a^+_{i,s} a^+_{j,t} a_{l,t} a_{k,s} >
+        !
+        ! where s and t are spin indices which are summed over.
+        !
+
         use rdm_data, only: rdm_t
         use RotateOrbsData, only: SpatOrbs
         use util_mod, only: get_free_unit, int_fmt

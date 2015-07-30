@@ -19,15 +19,6 @@ mpitype=MPI_INTEGER8
 type1=real(dp)
 mpitype=MPI_DOUBLE_PRECISION
 
-[log4]
-type1=logical(kind=int32)
-mpitype=MPI_LOGTYPE4
-conditional_enable = !defined(SX)
-
-[log8]
-type1=logical(kind=int64)
-mpitype=MPI_LOGTYPE8
-
 [comp]
 type1=complex(dp)
 mpitype=MPI_DOUBLE_COMPLEX
@@ -58,13 +49,6 @@ mpitype=MPI_DOUBLE_PRECISION
 type1=complex(dp), dimension(:)
 mpitype=MPI_DOUBLE_COMPLEX
 
-[arr_log4]
-type1=logical(kind=int32), dimension(:)
-mpitype=MPI_LOGTYPE4
-
-[arr_log8]
-type1=logical(kind=int64), dimension(:)
-mpitype=MPI_LOGTYPE8
 ######################
 # 2-D Arrays
 ######################
@@ -90,14 +74,6 @@ mpitype=MPI_DOUBLE_PRECISION
 type1=complex(dp), dimension(:,:)
 mpitype=MPI_DOUBLE_COMPLEX
 
-[arr2_log4]
-type1=logical(kind=int32), dimension(:,:)
-mpitype=MPI_LOGTYPE4
-conditional_enable = !defined(SX)
-
-[arr2_log8]
-type1=logical(kind=int64), dimension(:,:)
-mpitype=MPI_LOGTYPE8
 ######################
 # 3-D Arrays
 ######################
@@ -519,8 +495,15 @@ contains
                 %(mpitype)s, &
                 itype, comm, ierr)
 
-        if (ierr /= MPI_SUCCESS) &
+        if (ierr /= MPI_SUCCESS) then
+            write(6,*) "V -- > R AAAAAAAA", v, ret
+            write(6,*) 'F name %(name)s'
+            write(6,*) 'F type %(mpitype)s'
+            write(6,*) 'F type2 %(type1)s'
+            write(6,*) 'Opp', itype
+            write(6,*) 'ierr', ierr
             call stop_all (t_r, 'MPI Error. Terminating')
+        end if
 #else
         ret = v
 #endif
@@ -558,8 +541,14 @@ contains
                 %(mpitype)s, &
                 itype, comm, ierr)
 
-        if (ierr /= MPI_SUCCESS) &
+        if (ierr /= MPI_SUCCESS) then
+            write(6,*) 'F name %(name)s'
+            write(6,*) 'F type %(mpitype)s'
+            write(6,*) 'F type2 %(type1)s'
+            write(6,*) 'Opp', itype
+            write(6,*) 'ierr', ierr
             call stop_all (t_r, 'MPI Error. Terminating.')
+        end if
 #else
         ret = v
 #endif
@@ -1442,6 +1431,19 @@ end module
 
 supermodule Parallel
 
+!
+! n.b HACK
+! We need to be able to do a bit of hackery when using C-based MPI
+!
+! --> We relabel things a bit...
+#ifdef CBINDMPI
+#define val_in vptr
+#define val_out rptr
+#else
+#define val_in v
+#define val_out Ret
+#endif
+
 ! MPI interface and helper routines for parallel work.
 ! If compiled without the PARALLEL c pre-processing statement, then
 ! contains dummy routines to enable the parallel calculation algorithms to
@@ -1515,6 +1517,15 @@ supermodule Parallel
 
     interface MPIBcast
         module procedure MPIBcast_character
+
+        module procedure MPIBCastLogical
+        module procedure MPIBCastLogical_logic
+        module procedure MPIBCastLogicalArr
+        module procedure MPIBCastLogicalArr_logic
+    end interface
+
+    interface MPIAllGather
+        module procedure MPIAllGatherLogical
     end interface
    
 contains
@@ -2089,6 +2100,208 @@ contains
         if (ierr /= MPI_SUCCESS) &
             call stop_all(t_r, 'MPI Error. Terminating')
 #endif
+    end subroutine
+
+#ifdef __GFORTRAN__
+#define NECI_MPI_LOGICAL MPI_LOGICAL4
+#else
+#define NECI_MPI_LOGICAL MPI_LOGTYPE4
+#endif
+
+    subroutine MPIAllLORLogical(param_in, param_out, node)
+
+        logical, intent(in) :: param_in
+        logical, intent(out) :: param_out
+        character(*), parameter :: t_r = 'MPIAllLORLogical'
+
+        type(CommI), intent(in), optional :: Node
+        integer(MPIArg) :: ierr, comm
+        integer :: v, ret
+
+#ifdef PARALLEL
+
+        call GetComm (Comm, Node)
+
+        ! We cast the logical to an integer. It is a bit yucky, but avoids
+        ! oddities in behaviour with some MPI implementations
+        if (param_in) then
+            v = 1
+        else
+            v = 0
+        end if
+
+        call MPIAllReduce(v, MPI_SUM, ret, node)
+
+        param_out = (ret > 0)
+#else
+        param_out = param_in
+#endif
+
+    end subroutine
+
+    subroutine MPIBCastLogical(param_inout, node)
+
+        logical, intent(inout) :: param_inout
+        type(CommI), intent(in), optional :: node
+        character(*), parameter :: t_r = 'MPIBCastLogical'
+
+        integer(MPIArg) :: ierr, comm, rt
+        logical(int32), target :: v
+
+#ifdef PARALLEL
+#ifdef CBINDMPI
+#ifdef __GFORTRAN__
+        type(c_ptr) :: g_loc
+#endif
+        c_ptr_t :: vptr
+        vptr = loc_neci(v)
+#endif
+
+        call GetComm(comm, node, rt)
+        v = param_inout
+
+        call MPI_Bcast(val_in, 1_MPIArg, NECI_MPI_LOGICAL, rt, comm, ierr)
+
+        if (Ierr /= MPI_SUCCESS) &
+            call stop_all(t_r, 'MPIError. Terminating')
+
+        param_inout = v
+#endif
+
+    end subroutine
+
+    subroutine MPIBCastLogical_logic(param_inout, tMe, node)
+
+        logical, intent(inout) :: param_inout
+        type(CommI), intent(in), optional :: Node
+        logical, intent(in) :: tMe
+        integer(MPIArg) :: ierr, comm, rt, nrt
+        character(*), parameter :: t_r = 'MPIBCastLogical_logic'
+        logical(int32), target :: v
+
+#ifdef PARALLEL
+#ifdef CBINDMPI
+#ifdef __GFORTRAN__
+        type(c_ptr) :: g_loc
+#endif
+        c_ptr_t :: vptr
+        vptr = loc_neci(v)
+#endif
+        call GetComm (Comm, Node, rt, tMe)
+
+        v = param_inout
+
+        ! Which processor is root?
+        call MPIAllReducert(rt, nrt, comm, ierr)
+
+        if (ierr == MPI_SUCCESS) then
+            call MPI_Bcast(val_in, 1_MPIArg, NECI_MPI_LOGICAL, nrt, comm, ierr)
+        end if
+
+        if (ierr /= MPI_SUCCESS) &
+            call stop_all(t_r, "MPI Error. Terminating")
+
+        param_inout = v
+#endif
+
+    end subroutine
+
+    subroutine MPIBCastLogicalArr(param_inout, node)
+
+        logical, intent(inout) :: param_inout(:)
+        type(CommI), intent(in), optional :: node
+        character(*), parameter :: t_r = 'MPIBCastLogical'
+
+        integer(MPIArg) :: ierr, comm, rt, length
+        logical(int32), target :: v(size(param_inout))
+
+#ifdef PARALLEL
+#ifdef CBINDMPI
+#ifdef __GFORTRAN__
+        type(c_ptr) :: g_loc
+#endif
+        c_ptr_t :: vptr
+        vptr = loc_neci(v)
+#endif
+
+        call GetComm(comm, node, rt)
+
+        v = param_inout
+
+        length = size(v)
+        call MPI_Bcast(val_in, length, NECI_MPI_LOGICAL, rt, comm, ierr)
+
+        if (Ierr /= MPI_SUCCESS) &
+            call stop_all(t_r, 'MPIError. Terminating')
+
+        param_inout = v
+#endif
+
+    end subroutine
+
+    subroutine MPIBCastLogicalArr_logic(param_inout, tMe, node)
+
+        logical, intent(inout) :: param_inout(:)
+        type(CommI), intent(in), optional :: Node
+        logical, intent(in) :: tMe
+        integer(MPIArg) :: ierr, comm, rt, nrt, length
+        character(*), parameter :: t_r = 'MPIBCastLogical'
+        logical(int32), target :: v(size(param_inout))
+
+#ifdef PARALLEL
+#ifdef CBINDMPI
+#ifdef __GFORTRAN__
+        type(c_ptr) :: g_loc
+#endif
+        c_ptr_t :: vptr
+        vptr = loc_neci(v)
+#endif
+
+        call GetComm (Comm, Node, rt, tMe)
+        v = param_inout
+
+        ! Which processor is root?
+        call MPIAllReducert(rt, nrt, comm, ierr)
+
+        if (ierr == MPI_SUCCESS) then
+            length = size(v)
+            call MPI_Bcast(val_in, length, NECI_MPI_LOGICAL, nrt, comm, ierr)
+        end if
+
+        if (ierr /= MPI_SUCCESS) &
+            call stop_all(t_r, "MPI Error. Terminating")
+        param_inout = v
+#endif
+
+    end subroutine
+
+    Subroutine MPIAllGatherLogical(param_in, param_out, ierr, Node)
+
+        logical, intent(in), target :: param_in
+        logical, intent(inout), target :: param_out(:)
+        integer, intent(out) :: ierr
+        type(CommI), intent(in), optional :: Node
+        integer(MPIArg) :: Comm, rt, length
+        character(*), parameter :: t_r = 'MPIAllGatherLogical'
+
+        integer :: v, ret(lbound(param_out, 1):ubound(param_out, 1)), j
+
+        ! Cast this gather statement via integers. A bit of a faff, but works
+        ! around some nasties between MPI libraries - and it isn't performance
+        ! limiting, so so what!
+
+        if (param_in) then
+            v = 1
+        else
+            v = 0
+        end if
+
+        call MPIAllGather(v, ret, ierr, node)
+
+        do j = lbound(param_out, 1), ubound(param_out, 1)
+            param_out(j) = ret(j) > 0
+        end do
+
     end subroutine
 
 end supermodule

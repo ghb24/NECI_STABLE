@@ -28,7 +28,7 @@ module errors
         mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue, &
         equilshift,equilproje)
         implicit none
-        logical , intent(in) :: tSingPartPhase
+        logical, intent(in) :: tSingPartPhase
         integer , intent(inout) :: iShiftVary
         integer , intent(in) , optional :: equilshift,equilproje
         integer :: corrlength_denom,corrlength_num,corrlength_shift,corrlength_imnum

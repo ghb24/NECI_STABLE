@@ -89,14 +89,16 @@ contains
         integer :: MaxSendIndex,err,DetHash
         integer(n_int) :: WalkerTemp(0:NIfTot)
         integer(int64) :: Det, AllCurrWalkers
-        logical :: FormPops,BinPops,tReadAllPops,tStoreDet
+        logical :: tReadAllPops, tStoreDet
+        logical :: formpops, binpops
         real(dp) , dimension(lenof_sign) :: SignTemp
         integer :: PopsVersion
         character(len=*) , parameter :: this_routine='ReadFromPopsfile'
         HElement_t :: HElemTemp
         character(255) :: popsfile
         !variables from header file
-        logical :: tPop64Bit, tPopHPHF, tPopLz, tEOF
+        logical :: tPopHPHF, tPopLz, tPop64Bit
+        logical :: tEOF
         integer :: iPopLenof_sign, iPopIter, PopNIfD, PopNIfY, PopNIfSgn, PopNIfFlag
         integer :: PopNIfTot, PopBlockingIter, read_nnodes, Popinum_runs
         integer :: PopRandomHash(1024)
@@ -530,7 +532,8 @@ contains
         integer(int64) :: CurrWalkers
         character(*), parameter :: this_routine = 'read_pops_general'
 
-        logical :: tEOF, tReadAllPops
+        logical :: tEOF
+        logical :: tReadAllPops
         integer(MPIArg) :: sendcounts(nNodes), disps(nNodes), recvcount
         integer(MPIArg) :: sendcounts2(nNodes), disps2(nNodes), recvcount2
         integer :: PopsInitialSlots(0:nNodes-1), PopsSendList(0:nNodes-1)
@@ -692,7 +695,8 @@ r_loop: do while (.not. tReadAllPops)
         integer, intent(out) :: nI(nel_loc)
         integer, intent(in) :: PopNifSgn
         integer, intent(in), optional :: iunit_3
-        logical, intent(in) :: BinPops, decode_det
+        logical, intent(in) :: decode_det
+        logical, intent(in) :: BinPops
         integer(int64), intent(out) :: nread
         integer(int64), intent(in), optional :: read_max
         integer(n_int) :: WalkerTemp2(0:NIfTot)
@@ -811,7 +815,8 @@ r_loop: do while(.not.tStoreDet)
         integer :: PopNIfSgn, PopNIfFlag, PopNIfTot, PopBlockingIter, read_nnodes
         integer :: Popinum_runs
         integer :: PopRandomHash(1024)
-        logical :: tPop64Bit, tPopHPHF, tPopLz, formpops, binpops
+        logical :: formpops, binpops
+        logical :: tPopHPHF, tPop64Bit, tPopLz
         integer(int64) :: iPopAllTotWalkers
         integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
         real(dp) :: PopDiagSft(inum_runs), read_tau
@@ -993,7 +998,7 @@ r_loop: do while(.not.tStoreDet)
                     WalkerListSize,read_tau,PopBlockingIter, read_psingles, &
                     read_pparallel, perturb_ncreate, perturb_nann)
         use LoggingData , only : tZeroProjE
-        logical , intent(in) :: tPop64Bit,tPopHPHF,tPopLz
+        logical, intent(in) :: tPop64Bit,tPopHPHF,tPopLz
         integer , intent(in) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
         integer , intent(in) :: PopBlockingIter
         integer(int64) , intent(in) :: iPopAllTotWalkers
@@ -1143,7 +1148,7 @@ r_loop: do while(.not.tStoreDet)
                 iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                 PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
         integer , intent(in) :: iunithead
-        logical , intent(out) :: tPop64Bit,tPopHPHF,tPopLz
+        logical, intent(out) :: tPop64Bit, tPopLz, tPopHPHF
         integer , intent(out) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft(inum_runs)
@@ -1197,7 +1202,7 @@ r_loop: do while(.not.tStoreDet)
                 PopBlockingIter, PopRandomHash, read_psingles, read_pparallel, &
                 read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
         integer , intent(in) :: iunithead
-        logical , intent(out) :: tPop64Bit,tPopHPHF,tPopLz
+        logical, intent(out) :: tPop64Bit,tPopHPHF,tPopLz
         integer, intent(out) :: iPopLenof_sign, iPopNel, iPopIter, PopNIfD
         integer, intent(out) :: PopNIfY, PopNIfSgn, PopNIfFlag, PopNIfTot
         integer, intent(out) :: PopBlockingIter, read_nnodes, Popinum_runs
@@ -1212,7 +1217,7 @@ r_loop: do while(.not.tStoreDet)
         HElement_t , intent(out) :: PopAllSumENum(inum_runs)
         integer :: PopsVersion
         !Variables for the namelist
-        logical :: Pop64Bit,PopHPHF,PopLz
+        logical :: Pop64Bit, PopLz, PopHPHF
         integer :: PopLensign,PopNEl,PopCyc,PopiBlockingIter
         integer, parameter :: max_nodes = 30000
         integer(int64) :: PopTotwalk, PopWalkersOnNodes(max_nodes)
@@ -1341,7 +1346,7 @@ r_loop: do while(.not.tStoreDet)
     !NOTE: This should only be used for the v3 POPSFILEs, since we only open the POPSFILE on the head node.
     subroutine open_pops_head(iunithead,formpops,binpops)
         integer , intent(out) :: iunithead
-        logical , intent(out) :: formpops,binpops
+        logical, intent(out) :: formpops,binpops
         character(255) :: popsfile
 
         if(iProcIndex.eq.root) then
@@ -1792,7 +1797,7 @@ r_loop: do while(.not.tStoreDet)
 
         ! Write out accumulated data used for tau searching, to ensure there
         ! are no blips in particle growth, tau, etc.
-        write(iunit, '(5(a,f18.12))') 'PopGammaSing=', gamma_sing, &
+        write(iunit, '(5(a,g18.12))') 'PopGammaSing=', gamma_sing, &
                                       ',PopGammaDoub=', gamma_doub, &
                                       ',PopGammaOpp=', gamma_opp, &
                                       ',PopGammaPar=', gamma_par, &
