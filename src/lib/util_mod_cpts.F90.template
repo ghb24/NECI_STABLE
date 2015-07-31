@@ -45,8 +45,8 @@ module util_mod_cpts
     implicit none
 
     private
-    public :: swap, arr_2d_ptr, arr_2d_dims, int32_pointer_abuse
-    public :: int32_pointer_abuse_scalar, int32_pointer_abuse_2d
+    public :: swap, arr_2d_ptr, arr_2d_dims, ptr_abuse_1d
+    public :: ptr_abuse_scalar, ptr_abuse_2d
 
 contains
 
@@ -100,7 +100,7 @@ contains
 
     end function
 
-    subroutine int32_pointer_abuse(arr, ptr)
+    subroutine ptr_abuse_1d(arr, ptr)
 
         ! Return an int32 pointer to the target array. Ignore types.
 
@@ -118,7 +118,7 @@ contains
 
     end subroutine
 
-    subroutine int32_pointer_abuse_2d(arr, ptr)
+    subroutine ptr_abuse_2d(arr, ptr)
 
         ! Return an int32 pointer to the target array. Ignore types.
 
@@ -136,7 +136,7 @@ contains
 
     end subroutine
 
-    subroutine int32_pointer_abuse_scalar(elem, ptr)
+    subroutine ptr_abuse_scalar(elem, ptr)
 
         ! Return an int32 pointer to the target array. Ignore types.
 
