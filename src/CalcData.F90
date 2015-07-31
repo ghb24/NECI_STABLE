@@ -302,4 +302,7 @@ logical :: tPositiveHFSign = .false.
 ! been assigned.
 logical :: tMultiRefShift = .false.
 
+! Keep track of where in the calculation sequence we are.
+integer :: calc_seq_no
+
 end module CalcData

@@ -150,6 +150,7 @@ MODULE Logging
       tFullHFAv = .false.
       tPrintDataTables = .true.
       tOutputLoadDistribution = .false.
+      tHDF5Pops = .false.
 
 #ifdef __PROG_NUMRUNS
       tFCIMCStats2 = .true.
@@ -780,6 +781,10 @@ MODULE Logging
             if (item < nitems) then
                 call readf(binarypops_min_weight)
             end if
+
+        case("HDF5-POPS")
+            ! Use the new HDF5 popsfile format
+            tHDF5Pops = .true.
 
         case("INCREMENTPOPS")
 ! Don't overwrite existing POPSFILES.

@@ -251,8 +251,6 @@ contains
         enough_sing = mpi_ltmp
         call MPIAllLORLogical(enough_doub, mpi_ltmp)
         enough_doub = mpi_ltmp
-        enough_sing = iter >= 450
-        enough_doub = iter >= 450
 
         if (consider_par_bias) then
 

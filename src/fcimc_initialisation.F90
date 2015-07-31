@@ -48,7 +48,7 @@ module fcimc_initialisation
                            tHistInitPops, OrbOccsTag, tHistEnergies, &
                            HistInitPops, AllHistInitPops, OffDiagMax, &
                            OffDiagBinRange, iDiagSubspaceIter, &
-                           AllHistInitPopsTag, HistInitPopsTag
+                           AllHistInitPopsTag, HistInitPopsTag, tHDF5Pops
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
@@ -1126,7 +1126,7 @@ contains
         !default
         Popinum_runs=1
 
-        if(tReadPops.and..not.tPopsAlreadyRead) then
+        if(tReadPops .and. .not. (tPopsAlreadyRead .or. tHDF5Pops)) then
             call open_pops_head(iunithead,formpops,binpops)
             PopsVersion=FindPopsfileVersion(iunithead)
             if(iProcIndex.eq.root) close(iunithead)
@@ -1136,7 +1136,8 @@ contains
         ! Initialise measurement of norm, to avoid divide by zero
         norm_psi = 1.0_dp
 
-        if (tReadPops .and. (PopsVersion.lt.3) .and..not.tPopsAlreadyRead) then
+        if (tReadPops .and. (PopsVersion.lt.3) .and. &
+            .not. (tPopsAlreadyRead .or. tHDF5Pops)) then
 !Read in particles from multiple POPSFILES for each processor
             !Ugh - need to set up ValidSpawnedList here too...
             call SetupValidSpawned(int(InitWalkers,int64))
@@ -1145,7 +1146,7 @@ contains
         ELSE
 !initialise the particle positions - start at HF with positive sign
 !Set the maximum number of walkers allowed
-            if(tReadPops.and..not.tPopsAlreadyRead) then
+            if(tReadPops .and. .not. (tPopsAlreadyRead .or. tHDF5Pops)) then
                 !Read header.
                 call open_pops_head(iunithead,formpops,binpops)
                 if(PopsVersion.eq.3) then
