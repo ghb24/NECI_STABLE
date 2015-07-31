@@ -305,7 +305,6 @@ contains
         any_exist=.false.
         !inquire (file='CHANGEVARS', exist=exists)
         call MPIAllLorLogical(exists, any_exist)
-        any_exist = .false.
 
         ! Default values
         opts_selected = .false.
