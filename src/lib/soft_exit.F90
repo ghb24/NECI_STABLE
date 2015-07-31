@@ -303,7 +303,7 @@ contains
 
         ! Test if the changevars file exists, and broadcast to all nodes.
         any_exist=.false.
-        !inquire (file='CHANGEVARS', exist=exists)
+        inquire (file='CHANGEVARS', exist=exists)
         call MPIAllLorLogical(exists, any_exist)
 
         ! Default values
