@@ -77,7 +77,7 @@ contains
         call h5screate_f(H5S_SCALAR_F, dataspace, err)
         call h5acreate_f(parent, nm, H5T_NATIVE_INTEGER_8, dataspace, &
                          attribute, err)
-        call int32_pointer_abuse_scalar(val, ptr)
+        call ptr_abuse_scalar(val, ptr)
         call h5awrite_f(attribute, H5T_NATIVE_INTEGER_8, ptr, [1_hsize_t], err)
         call h5aclose_f(attribute, err)
         call h5sclose_f(dataspace, err)
@@ -104,7 +104,7 @@ contains
         call h5aexists_f(parent, nm, exists_, err)
         if (exists_) then
             call h5aopen_f(parent, nm, attribute, err)
-            call int32_pointer_abuse_scalar(val, ptr)
+            call ptr_abuse_scalar(val, ptr)
             call h5aread_f(attribute, H5T_NATIVE_INTEGER_8, ptr, &
                            [1_hsize_t], err)
             call h5aclose_f(attribute, err)
