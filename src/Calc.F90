@@ -2150,6 +2150,14 @@ contains
             case("MULTI-REF-SHIFT")
                 tMultiRefShift = .true.
 
+            case("LINEAR-INIT-THRESHOLD")
+                ! Implement a linear interpolation between aborting particles
+                ! due to the initiator criterion, and accepting them, based
+                ! on the ratio of the parents coefficient and the value of
+                ! InitiatorWalkNo
+                tBroadcastParentCoeff = .true.
+                tLinearInitThresh = .true.
+
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)

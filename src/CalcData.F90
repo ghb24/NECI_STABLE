@@ -305,4 +305,10 @@ logical :: tMultiRefShift = .false.
 ! Keep track of where in the calculation sequence we are.
 integer :: calc_seq_no
 
+! During annihilation, do we need the coefficient on the parent site? If so
+! then attach it here
+logical :: tBroadcastParentCoeff = .false.
+
+logical :: tLinearInitThresh = .false.
+
 end module CalcData

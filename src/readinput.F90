@@ -600,6 +600,15 @@ MODULE ReadInput_neci
         end if
 #endif
 
+#ifdef __CMPLX
+        if (tBroadcastParentCoeff .or. tLinearInitThresh) then
+            write(6,*) 'Variable initiator thresholds require communication &
+                       &of parent coefficients during annihilation.'
+            write(6,*) 'This is not yet implemented during complex calculations'
+            call stop_all(t_r, 'Not implemented for complex walkers')
+        end if
+#endif
+
     end subroutine checkinput
 
 end Module ReadInput_neci
