@@ -240,6 +240,15 @@ contains
 
         WRITE(6,"(A,I6)") "Setting integer length of determinants as bit-strings to: ", NIfTot + 1
         WRITE(6,"(A,I6)") "Setting integer bit-length of determinants as bit-strings to: ", bits_n_int
+
+        ! By default we DO NOT initialise RDM parts of the bit rep now
+        bit_rdm_init = .false.
+
+        !
+        ! The broadcasted information, used in annihilation, may require more
+        ! information to be used.
+        ! TODO: We may not always need the flags array. Test that...
+        NIfBCast = NIfTot
          
     end subroutine
 
@@ -585,6 +594,54 @@ contains
         ilut(NOffFlag) = ibclr(ilut(NOffFlag), flg + flag_bit_offset)
 
     end subroutine clr_flag
+
+    function bit_parent_zero(ilut) result(zero)
+
+        ! Used by the RDM functions
+        ! Is the communicated parent zero?
+
+        integer(n_int), intent(in) :: ilut(0:nIfBCast)
+        logical :: zero
+
+        ASSERT(bit_rdm_init)
+
+        zero = all(ilut(NOffParent:NOffParent + NIfDBO) == 0)
+
+    end function
+
+    subroutine extract_parent(ilut, parent_ilut)
+
+        integer(n_int), intent(in) :: ilut(0:nIfBCast)
+        integer(n_int), intent(out) :: parent_ilut(0:NIfDBO)
+
+        ASSERT(bit_rdm_init)
+
+        parent_ilut = ilut(nOffParent:nOffParent + NIfDBO)
+
+    end subroutine
+
+    subroutine encode_parent(ilut, ilut_parent, RDMBiasFacCurr)
+
+        integer(n_int), intent(inout) :: ilut(0:NIfBCast)
+        integer(n_int), intent(in) :: ilut_parent(0:NIfDBO)
+        real(dp), intent(in) :: RDMBiasFacCurr
+
+        ilut(nOffParent:nOffParent + nIfDBO) = ilut_parent
+
+        ilut(nOffParent + nIfDBO + 1) = &
+            transfer(RDMBiasFacCurr, ilut(nOffParent + nIfDBO + 1))
+
+    end subroutine
+
+    subroutine zero_parent(ilut)
+
+        integer(n_int), intent(inout) :: ilut(0:nIfBCast)
+
+        ASSERT(bit_rdm_init)
+
+        ilut(nOffParent:nOffParent+nIfDBO+1) = 0
+
+    end subroutine
 
     ! function test_flag is in bit_rep_data
     ! This avoids a circular dependence with DetBitOps.

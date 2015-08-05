@@ -23,7 +23,7 @@ module AnnihilationMod
                         extract_part_sign, extract_bit_rep, &
                         nullify_ilut_part, clear_has_been_initiator, &
                         set_has_been_initiator, flag_has_been_initiator, &
-                        encode_flags
+                        encode_flags, bit_parent_zero
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
     use load_balance, only: DetermineDetNode, AddNewHashDet, &
@@ -232,8 +232,8 @@ module AnnihilationMod
             CurrentBlockDet = BeginningBlockDet + 1
     
             do while (CurrentBlockDet <= ValidSpawned)
-                if (.not. (DetBitEQ(SpawnedParts(0:NIfTot,BeginningBlockDet), &
-                                    SpawnedParts(0:NIfTot,CurrentBlockDet),NIfDBO))) exit
+                if (.not. (DetBitEQ(SpawnedParts(:, BeginningBlockDet), &
+                                    SpawnedParts(:, CurrentBlockDet)))) exit
                 ! Loop over walkers on the same determinant in SpawnedParts.
                 CurrentBlockDet = CurrentBlockDet + 1
             end do
@@ -272,12 +272,16 @@ module AnnihilationMod
                     ! of it's parents (Di) in Spawned_Parents, and there are 
                     ! Spawned_Parents_Index(2,VecInd) entries corresponding to
                     ! this Dj.
-                    if (.not. (DetBitZero(SpawnedParts(NIfTot+1:NIfTot+NIfDBO+1,BeginningBlockDet),NIfDBO))) then
+
+                    if (.not. bit_parent_zero(SpawnedParts(:, BeginningBlockDet))) then
+                    
                         ! If the parent determinant is null, the contribution to
                         ! the RDM is zero. No point in doing anything more with it.
 
+                        ! Why is this length nifdbo+2? What is the extra bit?
+
                         Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = &
-                            SpawnedParts(NIfTot+1:NIfTot+NIfDBO+2,BeginningBlockDet)
+                            SpawnedParts(nOffParent:nOffParent+nIfDBO+1, BeginningBlockDet)
 
                         call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
                         
