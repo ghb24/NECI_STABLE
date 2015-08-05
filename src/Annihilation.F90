@@ -7,7 +7,7 @@ module AnnihilationMod
                           tTruncInitiator, OccupiedThresh, tSemiStochastic, &
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
                           InitiatorOccupiedThresh, tInitOccThresh, &
-                          tContTimeFull
+                          tContTimeFull, InitiatorWalkNo, tLinearInitThresh
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -23,7 +23,7 @@ module AnnihilationMod
                         extract_part_sign, extract_bit_rep, &
                         nullify_ilut_part, clear_has_been_initiator, &
                         set_has_been_initiator, flag_has_been_initiator, &
-                        encode_flags, bit_parent_zero
+                        encode_flags, bit_parent_zero, extract_parent_coeff
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
     use load_balance, only: DetermineDetNode, AddNewHashDet, &
@@ -564,6 +564,11 @@ module AnnihilationMod
         character(len=*), parameter :: t_r = "AnnihilateSpawnedParts"
         integer :: run
 
+#ifdef __CMPLX
+        if (tLinearInitThresh) &
+            call stop_all(t_r, 'Not implemented (yet)')
+#endif
+
         ! Only node roots to do this.
         if (.not. bNodeRoot) return
 
@@ -714,7 +719,9 @@ module AnnihilationMod
                         
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
-                        if ( .not. test_flag (SpawnedParts(:,i), flag_initiator(j)) ) then
+
+                        if (test_abort_spawn(SpawnedParts(:, i), j)) then
+
                             ! If this option is on, include the walker to be
                             ! cancelled in the trial energy estimate.
                             if (tIncCancelledInitEnergy) call add_trial_energy_contrib(SpawnedParts(:,i), SignTemp(j), j)
@@ -852,5 +859,42 @@ module AnnihilationMod
         call halt_timer(AnnMain_time)
 
     end subroutine AnnihilateSpawnedParts
+    
+    function test_abort_spawn(ilut_spwn, part_type) result(abort)
+
+        ! Should this spawn be aborted (according to the initiator
+        ! criterion).
+
+        integer(n_int), intent(in) :: ilut_spwn(0:nIfBCast)
+        integer, intent(in) :: part_type
+        logical :: abort
+
+        real(dp) :: r, pabort, parent_coeff
+
+        ! By default, particles are aborted if they come from non-initiators
+        abort = .true.
+
+        ! If a particle comes from a site marked as an initiator, then it can
+        ! live
+        if (test_flag(ilut_spwn, flag_initiator(part_type))) then
+            abort = .false.
+            return
+        end if
+
+        ! Linearly interpolate the likelyhood of aborting a particle where
+        ! the parent coefficient is compared to the initiator threshold
+        if (tLinearInitThresh) then
+
+            parent_coeff = extract_parent_coeff(ilut_spwn)
+            if (abs(parent_coeff) > InitiatorWalkNo) then
+                abort = .false.
+            else
+                pabort = (abs(parent_coeff) - 1.0_dp) / (InitiatorWalkNo - 1.0_dp)
+                abort = (genrand_real2_dSFMT() < pabort)
+            end if
+
+        end if
+
+    end function
 
 end module AnnihilationMod
