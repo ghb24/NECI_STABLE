@@ -211,7 +211,7 @@ MODULE ReadInput_neci
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
                             tContTimeFull, tSurvivalInitiatorThreshold, &
                             tSurvivalInitMultThresh, tBroadcastParentCoeff, &
-                            tSpawnCountInitiatorThreshold, tLinearInitThresh
+                            tSpawnCountInitiatorThreshold, tInterpolateInitThresh
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -601,7 +601,7 @@ MODULE ReadInput_neci
 #endif
 
 #ifdef __CMPLX
-        if (tBroadcastParentCoeff .or. tLinearInitThresh) then
+        if (tBroadcastParentCoeff .or. tInterpolateInitThresh) then
             write(6,*) 'Variable initiator thresholds require communication &
                        &of parent coefficients during annihilation.'
             write(6,*) 'This is not yet implemented during complex calculations'
