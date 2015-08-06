@@ -2150,13 +2150,31 @@ contains
             case("MULTI-REF-SHIFT")
                 tMultiRefShift = .true.
 
-            case("LINEAR-INIT-THRESHOLD")
-                ! Implement a linear interpolation between aborting particles
+            case("INTERPOLATE-INITIATOR")
+                ! Implement interpolation between aborting particles
                 ! due to the initiator criterion, and accepting them, based
                 ! on the ratio of the parents coefficient and the value of
                 ! InitiatorWalkNo
+                !
+                ! This modifies the acceptance criterion such that
+                !
+                ! alpha = alpha_min + (((n_parent - OccupiedThresh) / (InitiatorWalkNo - OccupiedThresh)) ** gamma) * (alpha_max - alpha_min)
+                !
+                ! Additional optional parameters (with default):
+                !
+                ! i)   alpha_min (0.0)
+                ! ii)  alpha_max (1.0)
+                ! iii) gamma     (1.0)
+
                 tBroadcastParentCoeff = .true.
-                tLinearInitThresh = .true.
+                tInterpolateInitThresh = .true.
+
+                init_interp_min = 0.0_dp
+                init_interp_max = 1.0_dp
+                init_interp_exponent = 1.0_dp
+                if (item < nitems) call readf(init_interp_min)
+                if (item < nitems) call readf(init_interp_max)
+                if (item < nitems) call readf(init_interp_exponent)
 
             case default
                 call report("Keyword "                                &

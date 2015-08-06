@@ -7,7 +7,7 @@ module AnnihilationMod
                           tTruncInitiator, OccupiedThresh, tSemiStochastic, &
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
                           InitiatorOccupiedThresh, tInitOccThresh, &
-                          tContTimeFull, InitiatorWalkNo, tLinearInitThresh
+                          tContTimeFull, InitiatorWalkNo, tInterpolateInitThresh
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -565,7 +565,7 @@ module AnnihilationMod
         integer :: run
 
 #ifdef __CMPLX
-        if (tLinearInitThresh) &
+        if (tInterpolateInitThresh) &
             call stop_all(t_r, 'Not implemented (yet)')
 #endif
 
@@ -862,14 +862,28 @@ module AnnihilationMod
     
     function test_abort_spawn(ilut_spwn, part_type) result(abort)
 
+        use CalcData, only: tInterpolateInitThresh, init_interp_min, &
+                            init_interp_max, init_interp_exponent
+
         ! Should this spawn be aborted (according to the initiator
         ! criterion).
+        !
+        ! This function accepts an initiator spawn with probability
+        ! (1.0 - alpha(ilut_spwn, part_type)), which can be artibrarily
+        ! complicated.
+        !
+        ! With tInterpolateInitThresh:
+        !
+        ! alpha = alpha_min +
+        !       ( ( ((abs(n_parent) - OccupiedThresh) /
+        !            (InitiatorWalkNo - OccupiedThresh)) ** gamma) 
+        !        * (alpha_max - alpha_min))
 
         integer(n_int), intent(in) :: ilut_spwn(0:nIfBCast)
         integer, intent(in) :: part_type
         logical :: abort
 
-        real(dp) :: r, pabort, parent_coeff
+        real(dp) :: r, pkeep, parent_coeff
 
         ! By default, particles are aborted if they come from non-initiators
         abort = .true.
@@ -883,14 +897,20 @@ module AnnihilationMod
 
         ! Linearly interpolate the likelyhood of aborting a particle where
         ! the parent coefficient is compared to the initiator threshold
-        if (tLinearInitThresh) then
+        if (tInterpolateInitThresh) then
 
             parent_coeff = extract_parent_coeff(ilut_spwn)
             if (abs(parent_coeff) > InitiatorWalkNo) then
                 abort = .false.
             else
-                pabort = (abs(parent_coeff) - 1.0_dp) / (InitiatorWalkNo - 1.0_dp)
-                abort = (genrand_real2_dSFMT() < pabort)
+
+                pkeep = (abs(parent_coeff) - OccupiedThresh) &
+                      / (InitiatorWalkNo - OccupiedThresh)
+                pkeep = (pkeep ** init_interp_exponent) &
+                      * (init_interp_min - init_interp_min)
+                pkeep = pkeep + init_interp_min
+
+                abort = (genrand_real2_dSFMT() > pkeep)
             end if
 
         end if

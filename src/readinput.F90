@@ -210,8 +210,8 @@ MODULE ReadInput_neci
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
                             tContTimeFull, tSurvivalInitiatorThreshold, &
-                            tSurvivalInitMultThresh, &
-                            tSpawnCountInitiatorThreshold
+                            tSurvivalInitMultThresh, tBroadcastParentCoeff, &
+                            tSpawnCountInitiatorThreshold, tLinearInitThresh
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
