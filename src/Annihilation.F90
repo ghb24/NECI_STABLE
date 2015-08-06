@@ -907,7 +907,7 @@ module AnnihilationMod
                 pkeep = (abs(parent_coeff) - OccupiedThresh) &
                       / (InitiatorWalkNo - OccupiedThresh)
                 pkeep = (pkeep ** init_interp_exponent) &
-                      * (init_interp_min - init_interp_min)
+                      * (init_interp_max - init_interp_min)
                 pkeep = pkeep + init_interp_min
 
                 abort = (genrand_real2_dSFMT() > pkeep)
