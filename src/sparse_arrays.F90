@@ -317,9 +317,11 @@ contains
         allocate(temp_store(0:NIfTot, determ_space_size), stat=ierr)
         call LogMemAlloc('temp_store', determ_space_size*(NIfTot+1), 8, t_r, TempStoreTag, ierr)
 
-        ! Stick together the deterministic states from all processors, on all processors.
-        call MPIAllGatherV(SpawnedParts(:,1:determ_sizes(iProcIndex)), temp_store, &
-                       determ_sizes, determ_displs)
+        ! Stick together the deterministic states from all processors, on
+        ! all processors.
+        ! n.b. Explicitly use 0:NIfTot, as NIfTot may not equal NIfBCast
+        call MPIAllGatherV(SpawnedParts(0:NIfTot, 1:determ_sizes(iProcIndex)),&
+                           temp_store, determ_sizes, determ_displs)
 
         ! Loop over all deterministic states on this processor.
         do i = 1, determ_sizes(iProcIndex)
