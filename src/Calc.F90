@@ -2158,6 +2158,13 @@ contains
                 tBroadcastParentCoeff = .true.
                 tLinearInitThresh = .true.
 
+            case("SHIFT-PROJECT-GROWTH")
+                ! Extrapolate the expected number of walkers at the end of the
+                ! _next_ update cycle for calculating the shift. i.e. use
+                !
+                ! log((N_t + (N_t - N_(t-1))) / N_t)
+                tShiftProjectGrowth = .true.
+
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)

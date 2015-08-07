@@ -176,6 +176,7 @@ INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of 
                           ! 0 means use physical nodes.
 
     logical :: tJumpShift, tPopsJumpShift
+    logical :: tShiftProjectGrowth = .false.
 
 ! Perform a Davidson calculation if true.
 logical :: tDavidson
