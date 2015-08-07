@@ -310,6 +310,7 @@ integer :: calc_seq_no
 ! then attach it here
 logical :: tBroadcastParentCoeff = .false.
 
-logical :: tLinearInitThresh = .false.
+logical :: tInterpolateInitThresh = .false.
+real(dp) :: init_interp_min, init_interp_max, init_interp_exponent
 
 end module CalcData
