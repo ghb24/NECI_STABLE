@@ -53,7 +53,7 @@ module fcimc_initialisation
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
                              nVirtPartFrozen, nPartFrozen, nelVirtFrozen
-    use bit_rep_data, only: NIfTot, NIfD, NIfDBO, flag_initiator, &
+    use bit_rep_data, only: NIfTot, NIfD, NIfDBO, NIfBCast, flag_initiator, &
                             flag_deterministic
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det, nullify_ilut, encode_part_sign, &
@@ -1106,7 +1106,7 @@ contains
         INTEGER :: ierr,iunithead,DetHash,Slot,MemTemp,run
         logical :: formpops, binpops
         INTEGER :: error,MemoryAlloc,PopsVersion,j,iLookup
-        CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
+        character(*), parameter :: t_r = 'InitFCIMCPar', this_routine = t_r
         integer :: PopBlockingIter
         real(dp) :: Gap,ExpectedMemWalk,read_tau, read_psingles, read_pparallel
         integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
@@ -1231,12 +1231,12 @@ contains
             ! If we are doing cont time, then initialise it here
             call init_cont_time()
 
-            WRITE(iout,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned, &
+            write(iout,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned, &
                     " particles to be spawned in any one iteration per core."
-            ALLOCATE(SpawnVec(0:NIftot,MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVecTag,ierr)
-            ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
-            CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
+            allocate(SpawnVec(0:NIfBCast, MaxSpawned), &
+                     SpawnVec2(0:NIfBCast, MaxSpawned), stat=ierr)
+            log_alloc(SpawnVec, SpawnVecTag, ierr)
+            log_alloc(SpawnVec2, SpawnVec2Tag, ierr)
 
             if (use_spawn_hash_table) then
                 nhashes_spawn = 0.8*MaxSpawned

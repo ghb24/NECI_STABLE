@@ -138,6 +138,8 @@ contains
 
     subroutine init_bit_rep ()
 
+        use CalcData, only: tBroadcastParentCoeff
+
         ! Set the values of nifd etc.
 
         character(*), parameter :: this_routine = 'init_bit_rep'
@@ -240,6 +242,24 @@ contains
 
         WRITE(6,"(A,I6)") "Setting integer length of determinants as bit-strings to: ", NIfTot + 1
         WRITE(6,"(A,I6)") "Setting integer bit-length of determinants as bit-strings to: ", bits_n_int
+
+        ! By default we DO NOT initialise RDM parts of the bit rep now
+        bit_rdm_init = .false.
+
+        !
+        ! The broadcasted information, used in annihilation, may require more
+        ! information to be used.
+        ! TODO: We may not always need the flags array. Test that...
+
+        ! Create space for broadcasting the parent particle coefficient
+        nOffParentCoeff = NIfTot + 1
+        if (tBroadcastParentCoeff) then
+            nIfParentCoeff = 1
+        else
+            nIfParentCoeff = 0
+        end if
+
+        NIfBCast = NIfTot + nIfParentCoeff
          
     end subroutine
 
@@ -585,6 +605,96 @@ contains
         ilut(NOffFlag) = ibclr(ilut(NOffFlag), flg + flag_bit_offset)
 
     end subroutine clr_flag
+
+    function bit_parent_zero(ilut) result(zero)
+
+        ! Used by the RDM functions
+        ! Is the communicated parent zero?
+
+        integer(n_int), intent(in) :: ilut(0:nIfBCast)
+        logical :: zero
+        character(*), parameter :: this_routine = 'bit_parent_zero'
+
+        ASSERT(bit_rdm_init)
+
+        zero = all(ilut(NOffParent:NOffParent + NIfDBO) == 0)
+
+    end function
+
+    subroutine extract_parent(ilut, parent_ilut)
+
+        integer(n_int), intent(in) :: ilut(0:nIfBCast)
+        integer(n_int), intent(out) :: parent_ilut(0:NIfDBO)
+        character(*), parameter :: this_routine = 'extract_parent'
+
+        ASSERT(bit_rdm_init)
+
+        parent_ilut = ilut(nOffParent:nOffParent + NIfDBO)
+
+    end subroutine
+
+    subroutine encode_parent(ilut, ilut_parent, RDMBiasFacCurr)
+
+        integer(n_int), intent(inout) :: ilut(0:NIfBCast)
+        integer(n_int), intent(in) :: ilut_parent(0:NIfDBO)
+        real(dp), intent(in) :: RDMBiasFacCurr
+        character(*), parameter :: this_routine = 'encode_parent'
+
+        ASSERT(bit_rdm_init)
+
+        ilut(nOffParent:nOffParent + nIfDBO) = ilut_parent
+
+        ilut(nOffParent + nIfDBO + 1) = &
+            transfer(RDMBiasFacCurr, ilut(nOffParent + nIfDBO + 1))
+
+    end subroutine
+
+    subroutine zero_parent(ilut)
+
+        integer(n_int), intent(inout) :: ilut(0:nIfBCast)
+        character(*), parameter :: this_routine = 'zero_parent'
+
+        ASSERT(bit_rdm_init)
+
+        ilut(nOffParent:nOffParent+nIfDBO+1) = 0
+
+    end subroutine
+
+    subroutine set_parent_coeff(ilut, coeff)
+
+        use CalcData, only: tBroadcastParentCoeff
+
+        ! Store the coefficient of the parent walker of a spawn for more
+        ! complex initiator logic
+
+        integer(n_int), intent(inout) :: ilut(0:nIfBCast)
+        real(dp), intent(in) :: coeff
+        character(*), parameter :: this_routine = 'set_parent_coeff'
+
+        ASSERT(tBroadcastParentCoeff)
+        ASSERT(nIfParentCoeff == 1)
+
+        ilut(nOffParentCoeff) = transfer(coeff, ilut(nOffParentCoeff))
+
+    end subroutine
+
+    function extract_parent_coeff(ilut) result(coeff)
+
+        use CalcData, only: tBroadcastParentCoeff
+
+        ! Obtain the coefficient of the parent walker of a spawn for more
+        ! complex initiator logic
+
+        integer(n_int), intent(in) :: ilut(0:nIfBCast)
+        real(dp) :: coeff
+        character(*), parameter :: this_routine = 'extract_parent_coeff'
+
+        ASSERT(tBroadcastParentCoeff)
+        ASSERT(nIfParentCoeff == 1)
+
+        coeff = transfer(ilut(nOffParentCoeff), coeff)
+
+    end function
 
     ! function test_flag is in bit_rep_data
     ! This avoids a circular dependence with DetBitOps.

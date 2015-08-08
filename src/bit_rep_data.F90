@@ -33,6 +33,16 @@ module bit_rep_data
     integer :: nIfSgn   ! Number of integers used for signs
     integer :: nIfTotKP ! Upper bound of krylov_vecs.
 
+    integer :: nIfBCast ! Size of data to use in annihilation broadcast
+
+    ! Has the RDM component of the bit representation (For bcast) been inited.
+    logical :: bit_rdm_init
+    integer :: nOffParent
+
+    ! Somewhere to store the spawning parent coefficient (for funky
+    ! initiator thresholds).
+    integer :: nOffParentCoeff, nIfParentCoeff
+
     ! Flags which we can store
     logical :: tUseflags
     integer, parameter :: flag_deterministic = 0, &
