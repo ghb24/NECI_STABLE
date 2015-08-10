@@ -148,7 +148,7 @@ contains
         ! Convert first to a single element, then to a c pointer, and then
         ! the target type
         cptr = c_loc(elem)
-        call c_f_pointer(cptr, ptr, [1])
+        call c_f_pointer(cptr, ptr)
 
     end subroutine
 end module
