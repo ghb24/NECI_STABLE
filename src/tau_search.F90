@@ -91,8 +91,8 @@ contains
         ! excitation generators, then there is only one place that this logic
         ! needs to be updated!
         if (tGen_4ind_weighted) then
-            consider_par_bias = .false.
-            !consider_par_bias = .true.
+            !consider_par_bias = .false.
+            consider_par_bias = .true.
             !n_opp = AB_elec_pairs
             !n_par = par_elec_pairs
         else if (tGen_4ind_reverse) then

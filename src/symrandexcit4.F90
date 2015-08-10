@@ -1730,6 +1730,11 @@ contains
             else
                 ! TODO: Can we do the biasing of parallel/opposite here?
                 cpt = abs(get_umat_el(ind1, inds(i), ind1, inds(i)))
+                if (is_beta(nI(i)) .eqv. is_beta(nI(elecs(1)))) then
+                    cpt = cpt * pParallel
+                else
+                    cpt = cpt * (1.0_dp * pParallel)
+                end if
             end if
             cum_sum = cum_sum + cpt
             cum_list(i) = cum_sum
