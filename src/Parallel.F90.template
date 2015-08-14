@@ -147,7 +147,7 @@ mpitype=MPI_INTEGER8
 
 
 
-module Parallel_neci_internal
+module par_internal
     use ParallelHelper
     use CalcData, only: iLogicalNodeSize
     use iso_c_hack
@@ -1429,7 +1429,7 @@ end module
 
 
 
-supermodule Parallel_neci_internal
+supermodule par_internal
 
 !
 ! n.b HACK
