@@ -19,15 +19,6 @@ mpitype=MPI_INTEGER8
 type1=real(dp)
 mpitype=MPI_DOUBLE_PRECISION
 
-[log4]
-type1=logical(kind=int32)
-mpitype=MPI_LOGTYPE4
-conditional_enable = !defined(SX)
-
-[log8]
-type1=logical(kind=int64)
-mpitype=MPI_LOGTYPE8
-
 [comp]
 type1=complex(dp)
 mpitype=MPI_DOUBLE_COMPLEX
@@ -58,13 +49,6 @@ mpitype=MPI_DOUBLE_PRECISION
 type1=complex(dp), dimension(:)
 mpitype=MPI_DOUBLE_COMPLEX
 
-[arr_log4]
-type1=logical(kind=int32), dimension(:)
-mpitype=MPI_LOGTYPE4
-
-[arr_log8]
-type1=logical(kind=int64), dimension(:)
-mpitype=MPI_LOGTYPE8
 ######################
 # 2-D Arrays
 ######################
@@ -90,14 +74,6 @@ mpitype=MPI_DOUBLE_PRECISION
 type1=complex(dp), dimension(:,:)
 mpitype=MPI_DOUBLE_COMPLEX
 
-[arr2_log4]
-type1=logical(kind=int32), dimension(:,:)
-mpitype=MPI_LOGTYPE4
-conditional_enable = !defined(SX)
-
-[arr2_log8]
-type1=logical(kind=int64), dimension(:,:)
-mpitype=MPI_LOGTYPE8
 ######################
 # 3-D Arrays
 ######################
@@ -171,7 +147,7 @@ mpitype=MPI_INTEGER8
 
 
 
-module Parallel_neci
+module par_internal
     use ParallelHelper
     use CalcData, only: iLogicalNodeSize
     use iso_c_hack
@@ -519,8 +495,15 @@ contains
                 %(mpitype)s, &
                 itype, comm, ierr)
 
-        if (ierr /= MPI_SUCCESS) &
+        if (ierr /= MPI_SUCCESS) then
+            write(6,*) "V -- > R AAAAAAAA", v, ret
+            write(6,*) 'F name %(name)s'
+            write(6,*) 'F type %(mpitype)s'
+            write(6,*) 'F type2 %(type1)s'
+            write(6,*) 'Opp', itype
+            write(6,*) 'ierr', ierr
             call stop_all (t_r, 'MPI Error. Terminating')
+        end if
 #else
         ret = v
 #endif
@@ -558,8 +541,14 @@ contains
                 %(mpitype)s, &
                 itype, comm, ierr)
 
-        if (ierr /= MPI_SUCCESS) &
+        if (ierr /= MPI_SUCCESS) then
+            write(6,*) 'F name %(name)s'
+            write(6,*) 'F type %(mpitype)s'
+            write(6,*) 'F type2 %(type1)s'
+            write(6,*) 'Opp', itype
+            write(6,*) 'ierr', ierr
             call stop_all (t_r, 'MPI Error. Terminating.')
+        end if
 #else
         ret = v
 #endif
@@ -1440,7 +1429,20 @@ end module
 
 
 
-supermodule Parallel
+supermodule par_internal
+
+!
+! n.b HACK
+! We need to be able to do a bit of hackery when using C-based MPI
+!
+! --> We relabel things a bit...
+#ifdef CBINDMPI
+#define val_in vptr
+#define val_out rptr
+#else
+#define val_in v
+#define val_out Ret
+#endif
 
 ! MPI interface and helper routines for parallel work.
 ! If compiled without the PARALLEL c pre-processing statement, then
@@ -1513,7 +1515,6 @@ supermodule Parallel
     save
     integer :: iProcMinE, iProcMaxE, nProcessors
 
-   
 contains
 
     subroutine MPIInit (tExternal)
@@ -2050,5 +2051,6 @@ contains
         if(allocated(GroupNodesDum)) deallocate(GroupNodesDum)
         if(allocated(NodeLengths)) deallocate(NodeLengths)
     end subroutine
+
 
 end supermodule

@@ -29,7 +29,7 @@ gram_schmidt.*
 RDMEstimates
 TwoRDM*
 OneRDM
-spinfree_TwoRDM
+spinfree_TwoRDM*
 NO_*
 FTLM_EIGV
 EIGV_DATA
@@ -38,3 +38,4 @@ fciqmc_stats*
 build/*
 *.pyc
 .idea
+\\

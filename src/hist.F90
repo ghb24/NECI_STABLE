@@ -806,7 +806,7 @@ contains
             enddo
 
             ! Is there anything left to do on any process?
-            call MPIAllReduce (running, MPI_LOR, any_running)
+            call MPIAllLORLogical (running, any_running)
 
         enddo
 

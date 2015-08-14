@@ -322,6 +322,7 @@ contains
 
           tLoadBalanceBlocks = .false.
           tPopsJumpShift = .false.
+          calc_seq_no = 1
 
         end subroutine SetCalcDefaults
 
@@ -2148,6 +2149,39 @@ contains
 
             case("MULTI-REF-SHIFT")
                 tMultiRefShift = .true.
+
+            case("INTERPOLATE-INITIATOR")
+                ! Implement interpolation between aborting particles
+                ! due to the initiator criterion, and accepting them, based
+                ! on the ratio of the parents coefficient and the value of
+                ! InitiatorWalkNo
+                !
+                ! This modifies the acceptance criterion such that
+                !
+                ! alpha = alpha_min + (((n_parent - OccupiedThresh) / (InitiatorWalkNo - OccupiedThresh)) ** gamma) * (alpha_max - alpha_min)
+                !
+                ! Additional optional parameters (with default):
+                !
+                ! i)   alpha_min (0.0)
+                ! ii)  alpha_max (1.0)
+                ! iii) gamma     (1.0)
+
+                tBroadcastParentCoeff = .true.
+                tInterpolateInitThresh = .true.
+
+                init_interp_min = 0.0_dp
+                init_interp_max = 1.0_dp
+                init_interp_exponent = 1.0_dp
+                if (item < nitems) call readf(init_interp_min)
+                if (item < nitems) call readf(init_interp_max)
+                if (item < nitems) call readf(init_interp_exponent)
+
+            case("SHIFT-PROJECT-GROWTH")
+                ! Extrapolate the expected number of walkers at the end of the
+                ! _next_ update cycle for calculating the shift. i.e. use
+                !
+                ! log((N_t + (N_t - N_(t-1))) / N_t)
+                tShiftProjectGrowth = .true.
 
             case default
                 call report("Keyword "                                &
