@@ -39,6 +39,19 @@ module Parallel_neci
         module procedure MPIAllGatherLogical
     end interface
 
+#ifdef CBINDMPI
+    interface
+        subroutine MPI_Bcast (buf, cnt, dtype, rt, comm, ierr) &
+            bind(c, name='mpi_bcast_wrap')
+            use iso_c_hack
+            use constants
+            c_ptr_t, intent(in), value :: buf
+            integer(c_int), intent(in), value :: cnt, dtype, rt, comm
+            integer(c_int), intent(out) :: ierr
+        end subroutine
+    end interface
+#endif
+
 contains
 
 !
