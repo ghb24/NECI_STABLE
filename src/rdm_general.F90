@@ -1,6 +1,8 @@
 ! Copyright (c) 2013, Ali Alavi unless otherwise noted.
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
  
+#include "macros.h"
+
 module rdm_general
 
     ! This module contains general routines related to RDM calculation in
@@ -10,6 +12,7 @@ module rdm_general
 
     use bit_rep_data, only: NIfTot, NIfDBO
     use SystemData, only: NEl, nBasis
+    use util_mod
     use constants
 
     implicit none
@@ -893,27 +896,44 @@ contains
         use FciMCData, only: MaxSpawned, SpawnVec, SpawnVec2, SpawnVecTag, SpawnVec2Tag
         use FciMCData, only: SpawnedParts, SpawnedParts2
         use util_mod, only: LogMemAlloc, LogMemDealloc
+        use bit_rep_data, only: nifbcast, NOffParent, bit_rdm_init
 
-        integer :: ierr                               
+        integer :: ierr, nifbcast_old
         character(len=*), parameter :: t_r = 'DeAlloc_Alloc_SpawnedParts'
+
+        if (bit_rdm_init) &
+            call stop_all(t_r, 'RDM broadcast representation already initialised')
         
         deallocate(SpawnVec)
         call LogMemDealloc(t_r,SpawnVecTag)
         deallocate(SpawnVec2)
         call LogMemDealloc(t_r,SpawnVec2Tag)
+
+        ! Resize the RDM arrays
+        NIfBCast_old = NIfBCast
+        NOffParent = NIfBCast + 1
+
+        NIfBCast = NIfBCast + NIfDBO + 2
+
  
-        allocate(SpawnVec(0:(NIftot+NIfDBO+2), MaxSpawned), stat=ierr)
-        call LogMemAlloc('SpawnVec', MaxSpawned*(NIfTot+NIfDBO+3), size_n_int, t_r, SpawnVecTag, ierr)
-        allocate(SpawnVec2(0:(NIfTot+NIfDBO+2), MaxSpawned),stat=ierr)
-        call LogMemAlloc('SpawnVec2', MaxSpawned*(NIfTot+NIfDBO+3), size_n_int, t_r, SpawnVec2Tag, ierr)
+        allocate(SpawnVec(0:NIfBCast, MaxSpawned), &
+                 SpawnVec2(0:NIfBCast, MaxSpawned), stat=ierr)
+        log_alloc(SpawnVec, SpawnVecTag, ierr)
+        log_alloc(SpawnVec2, SpawnVec2Tag, ierr)
 
         ! Point at correct spawning arrays
         SpawnedParts => SpawnVec
         SpawnedParts2 => SpawnVec2
 
-        write(6,'(A54,F10.4,A4,F10.4,A13)') 'Memory requirement for spawned arrays increased from ',&
-                                        real(((NIfTot+1)*MaxSpawned*2*size_n_int),dp)/1048576.0_dp,' to ',&
-                                        real(((NIfTot+NIfDBO+3)*MaxSpawned*2*size_n_int),dp)/1048576.0_dp, ' Mb/Processor'
+        write(6,'(A54,F10.4,A4,F10.4,A13)') &
+            'Memory requirement for spawned arrays increased from ',&
+            real(((NIfBCast_old+1)*MaxSpawned*2*size_n_int),dp)/1048576.0_dp, &
+            ' to ', &
+            real(((NIfBCast+1)*MaxSpawned*2*size_n_int),dp)/1048576.0_dp, &
+            ' Mb/Processor'
+
+        ! And we are done
+        bit_rdm_init = .true.
 
     end subroutine DeAlloc_Alloc_SpawnedParts
 
@@ -1733,6 +1753,7 @@ contains
 
         use DetBitOps, only: DetBitEQ
         use FciMCData, only: SpawnedParts, ValidSpawnedList, TempSpawnedParts, TempSpawnedPartsInd
+        use bit_reps, only: zero_parent, encode_parent
 
         real(dp), intent(in) :: RDMBiasFacCurr
         integer, intent(in) :: WalkerNumber, procJ
@@ -1745,7 +1766,7 @@ contains
         if (RDMBiasFacCurr .eq. 0.0_dp) then
             ! If RDMBiasFacCurr is exactly zero, any contribution from Ci.Cj will be zero 
             ! so it is not worth carrying on. 
-            SpawnedParts(niftot+1:niftot+nifdbo+2, ValidSpawnedList(procJ)) = 0
+            call zero_parent(SpawnedParts(:, ValidSpawnedList(procJ)))
         else
 
             ! First we want to check if this Di.Dj pair has already been accounted for.
@@ -1780,22 +1801,21 @@ contains
                 end if
 
                 ! We also want to make sure the parent Di is stored with this Dj.
-                SpawnedParts(niftot+1:niftot+nifdbo+1, ValidSpawnedList(procJ)) = iLutI(0:nifdbo) 
 
                 ! We need to carry with the child (and the parent), the sign of the parent.
                 ! In actual fact this is the sign of the parent divided by the probability of generating
                 ! that pair Di and Dj, to account for the 
                 ! fact that Di and Dj are not always added to the RDM, but only when Di spawns on Dj.
                 ! This RDMBiasFacCurr factor is turned into an integer to pass around to the relevant processors.
-                SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(procJ)) = &
-                    transfer(RDMBiasFacCurr, SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(procJ)))
+                call encode_parent(SpawnedParts(:, ValidSpawnedList(procJ)), &
+                                   ilutI, RDMBiasFacCurr)
 
             else
                 ! This Di has already spawned on this Dj - don't store the Di parent with this child, 
                 ! so that the pair is not double counted.  
                 ! We are using the probability that Di spawns onto Dj *at least once*, so we don't want to 
                 ! double count this pair.
-                SpawnedParts(niftot+1:niftot+nifdbo+2, ValidSpawnedList(procJ)) = 0
+                call zero_parent(SpawnedParts(:, ValidSpawnedList(procJ)))
             end if
         end if
 

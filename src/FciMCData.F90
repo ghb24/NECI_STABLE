@@ -225,7 +225,7 @@ MODULE FciMCData
 
       ! This is true if tStartSinglePart is true, and we are still in the
       ! phase where the shift is fixed and particle numbers are growing
-      logical, allocatable :: tSinglePartPhase(:) 
+      logical, allocatable :: tSinglePartPhase(:)
 
 !      INTEGER :: mpilongintegertype               !This is used to create an MPI derived type to cope with 8 byte integers
 

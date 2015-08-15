@@ -157,7 +157,7 @@ contains
       else
           timer_level=30
       end if
-
+#ifndef _MOLCAS_
       if (timer_level.gt.iGlobalTimerLevel) then
           ! This object is too low-level to be timed.
           proc_timer%time=.false.
@@ -190,6 +190,7 @@ contains
               proc_timer%store%timing_on=.true.
           end if
       end if
+#endif
 
    end subroutine set_timer
 
@@ -209,6 +210,7 @@ contains
       real(sp) :: t(2)
       real(sp) :: time_cpu,time_system
 
+#ifndef _MOLCAS_
       if (.not.proc_timer%time) then
           ! Not timing this object: its level is below that of the
           ! iGLobalTimerLevel given via the logging option TIMING.
@@ -233,6 +235,7 @@ contains
           proc_timer%store%timing_on=.false.
           proc_timer%time=.true.
       end if
+#endif
 
    end subroutine halt_timer
 

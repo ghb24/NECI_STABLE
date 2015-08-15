@@ -208,9 +208,13 @@ contains
 
     subroutine update_tau ()
 
+        use FcimCData, only: iter
+
         real(dp) :: psingles_new, tau_new, mpi_tmp, tau_death, pParallel_new
         logical :: mpi_ltmp
         character(*), parameter :: this_routine = "update_tau"
+
+        integer :: itmp, itmp2
 
         ! This is an override. In case we need to adjust tau due to particle
         ! death rates, when it otherwise wouldn't be adjusted
@@ -246,9 +250,9 @@ contains
 
         ! What needs doing depends on the number of parametrs that are being
         ! updated.
-        call MPIAllReduce (enough_sing, MPI_LOR, mpi_ltmp)
+        call MPIAllLORLogical(enough_sing, mpi_ltmp)
         enough_sing = mpi_ltmp
-        call MPIAllReduce (enough_doub, MPI_LOR, mpi_ltmp)
+        call MPIAllLORLogical(enough_doub, mpi_ltmp)
         enough_doub = mpi_ltmp
 
         if (consider_par_bias) then
@@ -260,9 +264,9 @@ contains
             gamma_opp = mpi_tmp
             call MPIAllReduce (gamma_par, MPI_MAX, mpi_tmp)
             gamma_par = mpi_tmp
-            call MPIAllReduce (enough_opp, MPI_LOR, mpi_ltmp)
+            call MPIAllLORLogical(enough_opp, mpi_ltmp)
             enough_opp = mpi_ltmp
-            call MPIAllReduce (enough_par, MPI_LOR, mpi_ltmp)
+            call MPIAllLORLogical(enough_par, mpi_ltmp)
             enough_par = mpi_ltmp
 
             if (enough_sing .and. enough_doub) then

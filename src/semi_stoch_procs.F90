@@ -298,8 +298,10 @@ contains
                          CoreSpaceTag, ierr)
         core_space = 0_n_int
 
-        call MPIAllGatherV(SpawnedParts(:,1:determ_sizes(iProcIndex)), core_space, &
-                       determ_sizes, determ_displs)
+        ! Give explicit limits for SpawnedParts slice, as NIfTot is not nesc.
+        ! equal to NIfBCast. (It may be longer)
+        call MPIAllGatherV(SpawnedParts(0:NIfTot, 1:determ_sizes(iProcIndex)),&
+                           core_space, determ_sizes, determ_displs)
 
     end subroutine store_whole_core_space
 
@@ -770,14 +772,14 @@ contains
                     call stop_all(this_routine, 'Insufficient memory assigned')
                 end if
                 
-                SpawnedParts(:,i_non_core) = CurrentDets(:,i)
+                SpawnedParts(0:NIfTot,i_non_core) = CurrentDets(:,i)
             end if
         end do
 
         ! Now copy all the core states in SpawnedParts into CurrentDets.
         ! Note that the amplitude in CurrentDets was copied across, so this is fine.
         do i = 1, nwalkers
-            CurrentDets(:,i) = SpawnedParts(:,i)
+            CurrentDets(:,i) = SpawnedParts(0:NIfTot,i)
         end do
 
         call clear_hash_table(HashIndex)

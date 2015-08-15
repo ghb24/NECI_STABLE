@@ -10,6 +10,7 @@ implicit none
 
 save
 
+integer :: symmax ! Max number of irreps to deal with. Value computed in GETFCIBASIS readint.f90
 logical :: tMolpro,tMolcas  !True if the code has been called from Molpro or Molcas
 logical :: tMolproMimic !True if the code is being run from standalone neci, but designed to mimic the runtime 
                         !behaviour of molpro
@@ -206,25 +207,30 @@ LOGICAL :: tHFNoOrder
 !  and group them under the same symrep
 LOGICAL :: tSymIgnoreEnergies
 
-    ! These should really be in hist.F90, but we get circular dependencies
-    ! These are bad.
-    logical :: tHistSpinDist
-    integer(n_int), allocatable :: ilut_spindist(:)
-    integer :: hist_spin_dist_iter
-    integer, allocatable :: nI_spindist(:)
+! These should really be in hist.F90, but we get circular dependencies
+! These are bad.
+logical :: tHistSpinDist
+integer(n_int), allocatable :: ilut_spindist(:)
+integer :: hist_spin_dist_iter
+integer, allocatable :: nI_spindist(:)
 
-    ! Should we use |K| for FCIQMC?
-    logical :: modk_offdiag
+! Should we use |K| for FCIQMC?
+logical :: modk_offdiag
 
-    ! True if we are performing a calculation in all symmetry sectors at once.
-    ! This is used in finite-temperature KP-FCIQMC calculations.
-    logical :: tAllSymSectors
+! True if we are performing a calculation in all symmetry sectors at once.
+! This is used in finite-temperature KP-FCIQMC calculations.
+logical :: tAllSymSectors
 
-    logical :: tGenHelWeighted, tGen_4ind_weighted, tGen_4ind_reverse
-    logical :: tUEGNewGenerator, tGen_4ind_part_exact, tGen_4ind_lin_exact
+logical :: tGenHelWeighted, tGen_4ind_weighted, tGen_4ind_reverse
+logical :: tUEGNewGenerator, tGen_4ind_part_exact, tGen_4ind_lin_exact
 
-    ! Are we using multiple replicas?
-    logical :: tMultiReplicas
+! Are we using multiple replicas?
+logical :: tMultiReplicas
+
+! Has the user set the symmetry using the 'SYM' option?
+logical :: tSymSet = .false.
+
+logical :: tGiovannisBrokenInit
 
 ! Operators for type(symmetry)
 interface assignment (=)

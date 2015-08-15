@@ -21,7 +21,8 @@ contains
          integer SYMLZ(1000)
          integer(int64) :: ORBSYM(1000)
          INTEGER NORB,NELEC,MS2,ISYM,i,SYML(1000), iunit,iuhf
-         LOGICAL exists,UHF
+         LOGICAL exists
+         logical :: uhf
          logical tExists     !test for existence of input file.
          integer isfreeunit  !function returning integer for free unit
          CHARACTER(len=3) :: fmat
@@ -78,7 +79,7 @@ contains
          CALL MPIBCast(SYML,1000)
          CALL MPIBCast(SYMLZ,1000)
          CALL MPIBCast(ISYM,1)
-         CALL MPIBCast(UHF,1)
+         CALL MPIBCast(UHF)
          CALL MPIBCast(PROPBITLEN,1)
          CALL MPIBCast(NPROP,3)
          ! If PropBitLen has been set then assume we're not using an Abelian
@@ -185,7 +186,7 @@ contains
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
          use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn,tMolpro,tUHF
          use SystemData, only: tCacheFCIDUMPInts,tROHF,tFixLz,iMaxLz,tRotatedOrbsReal
-         use SystemData, only: tReadFreeFormat
+         use SystemData, only: tReadFreeFormat,SYMMAX
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
          use UMatCache, only: GetCacheIndexStates,GTID
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
@@ -202,13 +203,14 @@ contains
          COMPLEX(dp) :: CompInt
          integer(int64) IND,MASK
          INTEGER I,J,K,L,I1, iunit
-         INTEGER ISYMNUM,ISNMAX,SYMMAX,SYMLZ(1000)
+         INTEGER ISYMNUM,ISNMAX,SYMLZ(1000)
          INTEGER NORB,NELEC,MS2,ISYM,ISPINS,ISPN,SYML(1000)
          integer(int64) ORBSYM(1000)
          INTEGER nPairs,iErr,MaxnSlot,MaxIndex,IUHF
          INTEGER , ALLOCATABLE :: MaxSlots(:)
          character(len=*), parameter :: t_r='GETFCIBASIS'
-         LOGICAL TBIN,UHF
+         LOGICAL TBIN
+         logical :: uhf
          logical tExists     !test for existence of input file.
          integer isfreeunit  !function returning integer for free unit
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
@@ -252,7 +254,7 @@ contains
          CALL MPIBCast(SYMLZ,1000)
          CALL MPIBCast(ISYM,1)
          CALL MPIBCast(IUHF,1)
-         CALL MPIBCast(UHF,1)
+         CALL MPIBCast(UHF)
          CALL MPIBCast(PROPBITLEN,1)
          CALL MPIBCast(NPROP,3)
          ! If PropBitLen has been set then assume we're not using an Abelian
@@ -595,7 +597,8 @@ contains
          INTEGER I,J,K,L,X,Y,iunit,iSpinType
          INTEGER NORB,NELEC,MS2,ISYM,SYML(1000)
          integer(int64) ORBSYM(1000)
-         LOGICAL LWRITE,UHF
+         LOGICAL LWRITE
+         logical :: uhf
          INTEGER ISPINS,ISPN,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
          INTEGER UMatSize,TMatSize,IUHF
          INTEGER , ALLOCATABLE :: CacheInd(:)
@@ -644,7 +647,7 @@ contains
          CALL MPIBCast(SYMLZ,1000)
          CALL MPIBCast(ISYM,1)
          CALL MPIBCast(IUHF,1)
-         CALL MPIBCast(UHF,1)
+         CALL MPIBCast(UHF)
          CALL MPIBCast(PROPBITLEN,1)
          CALL MPIBCast(NPROP,3)
          ! If PropBitLen has been set then assume we're not using an Abelian
@@ -850,7 +853,6 @@ contains
 #endif
 !.. AJWT removed the restriction to TSTARSTORE
                 IF(TUMAT2D) THEN
-                    write(6,*) 'bleurgh'
                     IF(I.eq.J.and.I.eq.K.and.I.eq.L) THEN
                         !<ii|ii>
                         UMAT2D(I,I)=Z

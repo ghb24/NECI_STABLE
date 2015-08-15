@@ -700,7 +700,8 @@ contains
 
     end subroutine append_ext
 
-    subroutine get_unique_filename(stem, tincrement, tnext, istart, filename)
+    subroutine get_unique_filename(stem, tincrement, tnext, istart, filename, &
+                                   ext)
 
         ! Find a filename which is either the "newest" or the next to be used.
         ! The filename is assumed to be stem.x, where x is an integer.
@@ -717,6 +718,7 @@ contains
         !    istart: the integer of the first x value to check.
         !        If istart is negative, then the filename is set to be stem.x,
         !        where x = |istart+1|.  This overrides everything else.
+        !    ext: The file extension. Appended after the numbers.
         ! Out:
         !    filename.
 
@@ -724,6 +726,7 @@ contains
         logical, intent(in) :: tincrement, tnext
         integer, intent(in) :: istart
         character(*), intent(out) :: filename
+        character(*), intent(in), optional :: ext
 
         integer :: i
         logical :: exists
@@ -733,6 +736,7 @@ contains
             exists = .true.
             do while (exists)
                 call append_ext(stem, i, filename)
+                if (present(ext)) filename = trim(filename) // ext
                 inquire(file=filename,exist=exists)
                 i = i + 1
             end do
@@ -741,21 +745,27 @@ contains
                 ! this will return stem.istart if stem.istart doesn't exist.
                 i = max(istart,i - 2)
                 call append_ext(stem, i, filename)
+                if (present(ext)) filename = trim(filename) // ext
             end if
         else
             filename = stem
+            if (present(ext)) filename = trim(filename) // ext
         end if
 
         if (.not.tnext) then
             inquire(file=filename,exist=exists)
             if (.not.exists) then
                 inquire(file=stem,exist=exists)
-                if (exists) filename = stem
+                if (exists) then
+                    filename = stem
+                    if (present(ext)) filename = trim(filename) // ext
+                endif
             end if
         end if
 
         if (istart < 0) then
             call append_ext(stem, abs(i+1), filename)
+            if (present(ext)) filename = trim(filename) // ext
         end if
 
     end subroutine get_unique_filename

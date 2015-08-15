@@ -179,6 +179,7 @@ INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of 
                           ! 0 means use physical nodes.
 
     logical :: tJumpShift, tPopsJumpShift
+    logical :: tShiftProjectGrowth = .false.
 
 ! Perform a Davidson calculation if true.
 logical :: tDavidson
@@ -304,5 +305,15 @@ logical :: tPositiveHFSign = .false.
 ! different references) based on the corresponding references that have
 ! been assigned.
 logical :: tMultiRefShift = .false.
+
+! Keep track of where in the calculation sequence we are.
+integer :: calc_seq_no
+
+! During annihilation, do we need the coefficient on the parent site? If so
+! then attach it here
+logical :: tBroadcastParentCoeff = .false.
+
+logical :: tInterpolateInitThresh = .false.
+real(dp) :: init_interp_min, init_interp_max, init_interp_exponent
 
 end module CalcData
