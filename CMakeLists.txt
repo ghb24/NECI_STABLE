@@ -177,8 +177,19 @@ else()
 endif()
 
 # Look for MPI...
-find_package(MPI)
-set(NECI_LIBRARIES ${NECI_LIBRARIES} ${MPI_Fortran_LIBRARIES})
+if (PARALLEL)
+	message("Configuring parallel build")
+	find_package(MPI REQUIRED)
+	if (${MPI_FOUND})
+		message("-- Using MPI")
+		set(NECI_LIBRARIES ${NECI_LIBRARIES} ${MPI_Fortran_LIBRARIES})
+		set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${MPI_Fotran_COMPILE_FLAGS}")
+		message("-- MPI flags (fortran): ${MPI_Fortran_COMPILE_FLAGS}")
+		add_definitions(-DPARALLEL)
+	endif()
+else()
+	message("Parallel build disabled")
+endif()
 
 # Ensure that all of our executables link correctly
 foreach(target ${TARGETS})
