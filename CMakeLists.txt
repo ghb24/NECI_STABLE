@@ -15,7 +15,14 @@ file(GLOB_RECURSE UNIT_TEST_FILES unit_tests/*.F90 unit_tests/*.f90)
 set(UNIT_TEST_FILES ${UNIT_TEST_FILES} ${F90_FILES})
 list(REMOVE_ITEM UNIT_TEST_FILES ${CMAKE_SOURCE_DIR}/src/necimain.F90)
 
+##############################################################################
+#                                                                            #
+# User controllable options                                                  #
+#                                                                            #
+##############################################################################
 
+option(PARALLEL "Enable parallel build (MPI)" on)
+option(HDF "Enable HDF5 popsfiles" on)
 
 ##############################################################################
 #                                                                            #
@@ -184,11 +191,56 @@ if (PARALLEL)
 		message("-- Using MPI")
 		set(NECI_LIBRARIES ${NECI_LIBRARIES} ${MPI_Fortran_LIBRARIES})
 		set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${MPI_Fotran_COMPILE_FLAGS}")
+		include_directories(${MPI_Fortran_INCLUDE_PATH})
 		message("-- MPI flags (fortran): ${MPI_Fortran_COMPILE_FLAGS}")
+		message("-- MPI include: ${MPI_Fortran_INCLUDE_PATH}")
+		message("-- MPI link: ${MPI_Fortran_LINK_FLAG}")
 		add_definitions(-DPARALLEL)
 	endif()
 else()
 	message("Parallel build disabled")
+endif()
+
+#
+# HDF5 as an external dependency
+if (HDF)
+	message("Configuring HDF5 popsfiles")
+
+	find_package(HDF5 COMPONENTS Fortran)
+	if (${HDF5_FOUND})
+		message("-- Found HDF5")
+		message("-- definitions: ${HDF5_DEFINITIONS}")
+		message("-- libs: ${HDF5_Fortran_LIBRARIES} ${HDF5_LIBRARIES}")
+		message("-- include: ${HDF5_INCLUDE_DIRS}")
+		message("-- parallel: ${HDF5_IS_PARALLEL}")
+		set(NECI_LIBRARIES ${NECI_LIBRARIES} ${HDF5_Fortran_LIBRARIES} ${HDF5_LIBRARIES})
+		add_definitions(${HDF5_DEFINITIONS})
+		add_definitions(-D__USE_HDF)
+		include_directories(${HDF5_INCLUDE_DIRS})
+	else()
+		message(FATAL_ERROR "-- HDF5 not found")
+	endif()
+
+#	include(ExternalProject)
+#	ExternalProject_Add(
+#		hdf5
+#		# -- Download step ---
+#		PREFIX ${CMAKE_CURRENT_BINARY_DIR}/hdf5-prefix
+#		URL https://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.15-patch1/src/hdf5-1.8.15-patch1.tar.gz
+#		URL_MD5 4467c25ed9c0b126b194a4d9d66c29ac
+#		# -- Configure step --
+#		SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/hdf5
+#		CONFIGURE_COMMAND ""
+#		CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/hdf5/configure --enable-parallel --enable-fortran --enable-fortran2003 --prefix=${CMAKE_CURRENT_BINARY_DIR}/hdf5
+#		# -- Build step ------
+#		BUILD_COMMAND make
+#		BUILD_IN_SOURCE 1
+#		# -- install step ----
+#		INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/hdf5
+#		INSTALL_COMMAND "make install"
+#	)
+else()
+	message("Disabling HDF5 popsfiles")
 endif()
 
 # Ensure that all of our executables link correctly
