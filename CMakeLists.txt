@@ -21,8 +21,28 @@ list(REMOVE_ITEM UNIT_TEST_FILES ${CMAKE_SOURCE_DIR}/src/necimain.F90)
 #                                                                            #
 ##############################################################################
 
+# The build type, specifies the optimisation level
+if (NOT DEFINED CMAKE_BUILD_TYPE OR NOT CMAKE_BUILD_TYPE)
+	message("Setting type ${CMAKE_BUILD_TYPE}")
+	set(CMAKE_BUILD_TYPE "Release" CACHE STRING
+		"Type of build, options are: Debug Release RelWithDebInfo Cluster" FORCE)
+else()
+	message("Defined type --${CMAKE_BUILD_TYPE}--")
+endif()
+if (CMAKE_BUILD_TYPE STREQUAL "Cluster")
+	message(FATAL_ERROR "Not yet implemented")
+endif()
+
 option(PARALLEL "Enable parallel build (MPI)" on)
 option(HDF "Enable HDF5 popsfiles" on)
+option(WARNINGS "Enable lots of compile warnings" on)
+
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+	set(BITS32 false)
+else()
+	set(BITS32 true)
+endif()
+#option(BITS32 "Build a 32-bit build" off)
 
 ##############################################################################
 #                                                                            #
@@ -30,7 +50,15 @@ option(HDF "Enable HDF5 popsfiles" on)
 #                                                                            #
 ##############################################################################
 
+# If this was cmake 2.8.12 or later, then we could use add_compile_options.
+# But we can't. The older syntax is really verbose, so use a variable to
+# at least make it a bit more compact.
+set(ALL_COMPILE_FLAGS "")
+set(ALL_LINKER_FLAGS "")
+
 message("Configuring Fortran compilers")
+message("-- Build type: ${CMAKE_BUILD_TYPE}")
+message("-- Build type: ${CMAKE_BUILD_TYPE}")
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 	message("-- Using ifort")
 	# -i_dynamic is incorrectly added in CMake ifort configuration
@@ -45,6 +73,10 @@ elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
 	add_definitions(-D__GFORTRAN__)
 
 	set(CMAKE_Fortran_FLAGS_DEBUG "-g -O0 -fbounds-check")
+	set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -ffree-line-length-none -fdefault-real-8 -fdefault-integer-8")
+	if (NOT BITS32)
+		set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -fdefault-real-8 -fdefault-integer-8")
+	endif()
 
 else()
 
@@ -56,6 +88,24 @@ endif()
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 	add_definitions(-D__DEBUG)
 endif()
+if (WARNINGS)
+	set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -Wall -Wextra")
+endif()
+
+if (BITS32)
+	set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -m32")
+	set(ALL_LINKER_FLAGS "${ALL_LINKER_FLAGS} -m32")
+else()
+	set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -m64")
+	set(ALL_LINKER_FLAGS "${ALL_LINKER_FLAGS} -m64")
+endif()
+
+# And apply the accumulated flags here
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${ALL_COMPILE_FLAGS}")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ALL_COMPILE_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ALL_COMPILE_FLAGS}")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${ALL_LINKER_FLAGS}")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${ALL_LINKER_FLAGS}")
 
 #
 # Deal with the additional build step introduced by the templated
@@ -149,19 +199,16 @@ endif()
 
 # Add the compile definitions
 add_definitions(-D__Linux)
-add_definitions(-DPOINTER8)
 add_definitions(-DHAVE_SSE2)
-
-if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-	add_definitions(-D__INT64)
-	add_definitions(-DPOINTER8)
-endif()
-
 
 add_definitions(-DMAXMEM=99999)
 add_definitions(-DDSFMT_MEXP=19937)
-add_definitions(-D_CONFIG="CMake-new")
+add_definitions(-D_CONFIG="cmake-${CMAKE_Fortran_COMPILER_ID}-${CMAKE_BUILD_TYPE}")
 
+if (NOT BITS32)
+	add_definitions(-D__INT64)
+	add_definitions(-DPOINTER8)
+endif()
 
 include_directories(BEFORE SYSTEM ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/unit_tests)
 
