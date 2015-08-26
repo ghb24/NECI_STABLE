@@ -349,10 +349,10 @@ contains
         call MPIAllReduce(gamma_opp, MPI_MAX, max_gam_opp)
         call MPIAllReduce(gamma_par, MPI_MAX, max_gam_par)
         call MPIAllReduce(max_death_cpt, MPI_MAX, max_max_death_cpt)
-        call MPIAllReduce(enough_sing, MPI_LOR, all_en_sing)
-        call MPIAllReduce(enough_doub, MPI_LOR, all_en_doub)
-        call MPIAllReduce(enough_opp, MPI_LOR, all_en_opp)
-        call MPIAllReduce(enough_par, MPI_LOR, all_en_par)
+        call MPIAllLORLogical(enough_sing, all_en_sing)
+        call MPIAllLORLogical(enough_doub, all_en_doub)
+        call MPIAllLORLogical(enough_opp, all_en_opp)
+        call MPIAllLORLogical(enough_par, all_en_par)
         call MPIAllReduce(cnt_sing, MPI_MAX, max_cnt_sing)
         call MPIAllReduce(cnt_doub, MPI_MAX, max_cnt_doub)
         call MPIAllReduce(cnt_opp, MPI_MAX, max_cnt_opp)
@@ -416,7 +416,7 @@ contains
                                    required=.true.)
 
         call read_int64_scalar(grp_id, nm_iters, PreviousCycles, &
-                               default=0, exists=exists)
+                               default=0_int64, exists=exists)
         if (exists) &
             write(6,*) 'Completed iterations: ', PreviousCycles
 
@@ -663,9 +663,9 @@ contains
         call h5dopen_f(grp_id, nm_sgns, ds_sgns, err)
 
         ! Check that these datasets look like we expect them to.
-        call check_dataset_params(ds_ilut, nm_ilut, 8, H5T_INTEGER_F, &
+        call check_dataset_params(ds_ilut, nm_ilut, 8_hsize_t, H5T_INTEGER_F, &
                                   [int(bit_rep_width, hsize_t), all_count])
-        call check_dataset_params(ds_sgns, nm_sgns, 8, H5T_FLOAT_F, &
+        call check_dataset_params(ds_sgns, nm_sgns, 8_hsize_t, H5T_FLOAT_F, &
                                   [int(lenof_sign, hsize_t), all_count])
 
         ! The largest block of walkers that we should read are the walkers

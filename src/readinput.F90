@@ -594,7 +594,7 @@ MODULE ReadInput_neci
             end if
         end if
 
-#ifndef __USE_HDF5
+#ifndef __USE_HDF
         if (tHDF5Pops) then
             call stop_all(t_r, 'Support for HDF5 files disabled at compile time')
         end if
