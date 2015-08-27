@@ -13,9 +13,8 @@ module hdf5_popsfile
     !       ensures the writes happen in a sensible way.
 
         !namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopNEl, &
-        !            PopTotwalk,PopSumNoatHF,PopSumENum, &
-        !            PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
-        !            PopTau,PopiBlockingIter,PopRandomHash,PopPSingles, &
+        !            PopCyc,PopNIfFlag,PopNIfTot, &
+        !            PopTau,PopiBlockingIter,PopRandomHash&
         !            PopNNodes, PopWalkersOnNodes, &
         !            PopMultiSumNoatHF, PopMultiSumENum, PopBalanceBlocks
     !
@@ -50,6 +49,9 @@ module hdf5_popsfile
     !         /psingles/     - And the values which have been optimised
     !         /pdoubles/
     !         /pparallel/
+    !     /accumulators/     - Accumulated (output) data
+    !         /sum_no_ref/
+    !         /sum_enum/
     !     /completed_iters/  - How many iterations have already been completed
     !     /tot_imag_time/    - Total amount of imaginary time completed
     !     /shift/            - The diagshift value (absolute, invarient to a
@@ -109,6 +111,10 @@ module hdf5_popsfile
             nm_psingles = 'psingles', &
             nm_pdoubles = 'pdoubles', &
             nm_pparallel = 'pparallel', &
+
+            nm_acc_grp = 'accumulators', &
+            nm_sum_no_ref = 'sum_no_ref', &
+            nm_sum_enum = 'sum_enum', &
             
             nm_wfn_grp = 'wavefunction', &
             nm_rep_width = 'width', &
@@ -331,6 +337,9 @@ contains
         ! (i.e. used) values.
         call write_tau_opt(calc_grp)
 
+        ! Output accumulator data
+        call write_accumulator_data(calc_grp)
+
         ! Clear stuff up
         call h5gclose_f(calc_grp, err)
 
@@ -416,6 +425,28 @@ contains
 
     end subroutine write_tau_opt
 
+    subroutine write_accumulator_data(parent)
+
+        use FciMCData, only: AllSumNoatHF, AllSumENum
+
+        integer(hid_t), intent(in) :: parent
+        integer(hid_t) :: acc_grp, err
+
+        ! Create group
+        call h5gcreate_f(parent, nm_acc_grp, acc_grp, err)
+
+        ! Write the energy accumulator values
+        ! (n.b. ensure values on all procs)
+        call MPIBcast(AllSumENum)
+        call MPIBcast(AllSumNoatHF)
+        call write_dp_1d_dataset(acc_grp, nm_sum_enum, AllSumENum)
+        call write_dp_1d_dataset(acc_grp, nm_sum_no_ref, AllSumNoatHF)
+
+        ! Clear up
+        call h5gclose_f(acc_grp, err)
+
+    end subroutine
+
     subroutine read_calc_data(parent)
 
         use load_balance_calcnodes, only: RandomOrbIndex
@@ -457,6 +488,7 @@ contains
         end if
 
         call read_tau_opt(grp_id)
+        call read_accumulator_data(grp_id)
 
         ! TODO: Read nbasis, nel, ms2, etc.
         !       --> Check that these values haven't changed from the
@@ -504,6 +536,23 @@ contains
 
         call h5gclose_f(grp_id, err)
 
+    end subroutine
+
+    subroutine read_accumulator_data(parent)
+
+        use FciMCData, only: AllSumNoatHF, AllSumENum
+
+        integer(hid_t), intent(in) :: parent
+        integer(hid_t) :: grp_id, err
+
+        call h5gopen_f(parent, nm_acc_grp, grp_id, err)
+        call read_dp_1d_dataset(grp_id, nm_sum_no_ref, AllSumNoatHF, &
+                                required=.true.)
+        call read_dp_1d_dataset(grp_id, nm_sum_enum, AllSumENum, &
+                                required=.true.)
+
+        call h5gclose_f(grp_id, err)
+        
     end subroutine
 
     subroutine write_walkers(parent)
