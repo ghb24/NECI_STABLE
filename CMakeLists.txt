@@ -77,6 +77,9 @@ elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
 	if (NOT BITS32)
 		set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -fdefault-real-8 -fdefault-integer-8")
 	endif()
+	if (WARNINGS)
+		set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -Wall -Wextra")
+	endif()
 
 else()
 
@@ -87,9 +90,6 @@ endif()
 # And options that apply on all compilers
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 	add_definitions(-D__DEBUG)
-endif()
-if (WARNINGS)
-	set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -Wall -Wextra")
 endif()
 
 if (BITS32)
@@ -238,9 +238,11 @@ if (PARALLEL)
 		message("-- Using MPI")
 		set(NECI_LIBRARIES ${NECI_LIBRARIES} ${MPI_Fortran_LIBRARIES})
 		set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${MPI_Fotran_COMPILE_FLAGS}")
-		include_directories(${MPI_Fortran_INCLUDE_PATH})
+		#include_directories(${MPI_Fortran_INCLUDE_PATH})
+		include_directories(${MPI_INCLUDE_PATH})
 		message("-- MPI flags (fortran): ${MPI_Fortran_COMPILE_FLAGS}")
-		message("-- MPI include: ${MPI_Fortran_INCLUDE_PATH}")
+		#message("-- MPI include: ${MPI_Fortran_INCLUDE_PATH}")
+		message("-- MPI include: ${MPI_INCLUDE_PATH}")
 		message("-- MPI link: ${MPI_Fortran_LINK_FLAG}")
 		add_definitions(-DPARALLEL)
 	endif()
@@ -253,11 +255,41 @@ endif()
 if (HDF)
 	message("Configuring HDF5 popsfiles")
 
+	# Note that detection of intel MPI fails, as the names of the wrappers fail
+	# --> Need to wrap this for HDF compilation
+	if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
+		message("Tweaking environment vars")
+		set(CONFIGURE_OVERRIDE CC=mpiicc F9X=mpiifort CXX=mpiicpc)
+	else()
+		set(CONFIGURE_OVERRIDE "")
+	endif()
+
+	# This allows us to build hdf5, if we so choose.
+	set(HDF_DIR ${CMAKE_CURRENT_BINARY_DIR}/hdf5)
+	include(ExternalProject)
+	ExternalProject_Add(
+		hdf5
+		# -- Download step ---
+		PREFIX ${HDF_DIR}-prefix
+		URL https://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.15-patch1/src/hdf5-1.8.15-patch1.tar.gz
+		URL_MD5 4467c25ed9c0b126b194a4d9d66c29ac
+		# -- Configure step --
+		SOURCE_DIR ${HDF_DIR}
+		CONFIGURE_COMMAND env ${CONFIGURE_OVERRIDE} ${HDF_DIR}/configure --enable-parallel --enable-fortran --enable-fortran2003 --prefix=${HDF_DIR}
+		# -- Build step ------
+		BUILD_COMMAND "" #make && make install
+		BUILD_IN_SOURCE 1
+		# -- install step ----
+		INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/hdf5
+		# INSTALL_COMMAND "make install"
+	)
+	set(ENV{HDF5_ROOT} ${HDF_DIR})
+
 	find_package(HDF5 COMPONENTS Fortran)
 	if (${HDF5_FOUND})
 		message("-- Found HDF5")
 		message("-- definitions: ${HDF5_DEFINITIONS}")
-		message("-- libs: ${HDF5_Fortran_LIBRARIES} ${HDF5_LIBRARIES}")
+		message("-- libs: ${HDF5_LIBRARIES} ${HDF5_Fortran_LIBRARIES}")
 		message("-- include: ${HDF5_INCLUDE_DIRS}")
 		message("-- parallel: ${HDF5_IS_PARALLEL}")
 		set(NECI_LIBRARIES ${NECI_LIBRARIES} ${HDF5_Fortran_LIBRARIES} ${HDF5_LIBRARIES})
@@ -265,30 +297,13 @@ if (HDF)
 		add_definitions(-D__USE_HDF)
 		include_directories(${HDF5_INCLUDE_DIRS})
 	else()
-		message(FATAL_ERROR "-- HDF5 not found")
+		message("-- HDF5 not found")
 	endif()
 
-#	include(ExternalProject)
-#	ExternalProject_Add(
-#		hdf5
-#		# -- Download step ---
-#		PREFIX ${CMAKE_CURRENT_BINARY_DIR}/hdf5-prefix
-#		URL https://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.15-patch1/src/hdf5-1.8.15-patch1.tar.gz
-#		URL_MD5 4467c25ed9c0b126b194a4d9d66c29ac
-#		# -- Configure step --
-#		SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/hdf5
-#		CONFIGURE_COMMAND ""
-#		CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/hdf5/configure --enable-parallel --enable-fortran --enable-fortran2003 --prefix=${CMAKE_CURRENT_BINARY_DIR}/hdf5
-#		# -- Build step ------
-#		BUILD_COMMAND make
-#		BUILD_IN_SOURCE 1
-#		# -- install step ----
-#		INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/hdf5
-#		INSTALL_COMMAND "make install"
-#	)
 else()
 	message("Disabling HDF5 popsfiles")
 endif()
+
 
 # Ensure that all of our executables link correctly
 foreach(target ${TARGETS})
