@@ -502,6 +502,73 @@ contains
 
     end subroutine
 
+    subroutine write_dp_1d_dataset(parent, nm, val)
+
+        integer(hid_t) :: parent
+        character(*), intent(in) :: nm
+        real(dp), intent(in), target :: val(:)
+
+        integer(hid_t) :: dataspace, dataset, err
+        integer(hsize_t) :: dims(1)
+
+        ! Create the appropriate dataspace
+        dims = [size(val)]
+        call h5screate_simple_f(1_hid_t, dims, dataspace, err)
+
+        ! Create the dataset with the correct type
+        call h5dcreate_f(parent, nm, H5T_NATIVE_REAL_8, dataspace, &
+                         dataset, err)
+
+        ! write the data
+        call h5dwrite_f(dataset, H5T_NATIVE_REAL_8, val, dims, err)
+
+        ! Close the residual handles
+        call h5dclose_f(dataset, err)
+        call h5sclose_f(dataspace, err)
+
+    end subroutine
+
+    subroutine read_dp_1d_dataset(parent, nm, val, exists, default, required)
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        real(dp), intent(out), target :: val(:)
+        logical, intent(out), optional :: exists
+        logical, intent(in), optional :: required
+        real(dp), intent(in), optional :: default(:)
+        character(*), parameter :: t_r = 'read_dp_1d_dataset'
+
+        integer(hid_t) :: dataset, err, type_id
+        integer(hsize_t) :: dims(1)
+        logical(hid_t) :: exists_
+
+        call h5lexists_f(parent, nm, exists_, err)
+        if (exists_) then
+            call h5dopen_f(parent, nm, dataset, err)
+            call h5dget_type_f(dataset, type_id, err)
+
+            ! Check dimensions and types.
+            dims = [size(val)]
+            call check_dataset_params(dataset, nm, 8_hsize_t, H5T_FLOAT_F, dims)
+
+            ! And actually read the data.
+            call h5dread_f(dataset, type_id, val, dims, err)
+
+            call h5tclose_f(type_id, err)
+            call h5dclose_f(dataset, err)
+        end if
+
+        if (present(required)) then
+            if (required .and. .not. exists_) then
+                write(6, *) nm
+                call stop_all(t_r, "Required field does not exist")
+            end if
+        end if
+        if (present(exists)) exists = exists_
+        if (present(default) .and. .not. exists_) val = default
+
+    end subroutine read_dp_1d_dataset
+
     subroutine write_2d_multi_arr_chunk_offset( &
                        parent, nm, itype, cptr, arr_dims, mem_dims, mem_offset, &
                        dataspace_dims, dataspace_offset)
@@ -748,9 +815,7 @@ contains
         logical(hid_t) :: exists_
         integer(int32), pointer :: ptr(:)
 
-        ! TODO: Fix this!!!
-!        call h5dexists_f(parent, nm, exists_, err)
-        exists_ = .true.
+        call h5lexists_f(parent, nm, exists_, err)
         if (exists_) then
             call h5dopen_f(parent, nm, dataset, err)
             call h5dget_type_f(dataset, type_id, err)

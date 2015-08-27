@@ -11,6 +11,13 @@ module hdf5_popsfile
     !   --> Note that we use collective writing, so we write all data from all
     !       nodes (except where explicitly managed), and the HDF library
     !       ensures the writes happen in a sensible way.
+
+        !namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopNEl, &
+        !            PopTotwalk,PopSumNoatHF,PopSumENum, &
+        !            PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
+        !            PopTau,PopiBlockingIter,PopRandomHash,PopPSingles, &
+        !            PopNNodes, PopWalkersOnNodes, &
+        !            PopMultiSumNoatHF, PopMultiSumENum, PopBalanceBlocks
     !
     ! A: vcs_ver             - The SHA ID of the git commit
     ! A: compiled_at         - The time of code compilation
@@ -44,6 +51,9 @@ module hdf5_popsfile
     !         /pdoubles/
     !         /pparallel/
     !     /completed_iters/  - How many iterations have already been completed
+    !     /tot_imag_time/    - Total amount of imaginary time completed
+    !     /shift/            - The diagshift value (absolute, invarient to a
+    !                          change of reference)
     ! 
     ! /wavefunction/         - Details of a determinental Hilbert space
     !     A: width           - Width of the bit-rep in 64-bit integers
@@ -79,6 +89,8 @@ module hdf5_popsfile
             nm_calc_grp = 'calculation', &
             nm_random_hash = 'random_hash', &
             nm_iters = 'completed_iters', &
+            nm_tot_imag = 'tot_imag_time', &
+            nm_shift = 'shift', &
 
             nm_tau_grp = 'tau_search', &
             nm_gam_sing = 'gamma_sing', &
@@ -172,6 +184,7 @@ contains
         use LoggingData, only: tIncrementPops
 
         ! Read a popsfile in, prior to running a new calculation
+        ! TODO: Integrate with CheckPopsParams
 
         ! n.b. This reads into the specified array, to allow use of popsfiles
         !      for initialising perturbations, etc.
@@ -297,7 +310,8 @@ contains
     subroutine write_calc_data(parent)
 
         use load_balance_calcnodes, only: RandomOrbIndex
-        use FciMCData, only: Iter, PreviousCycles
+        use FciMCData, only: Iter, PreviousCycles, TotImagTime, Hii
+        use CalcData, only: DiagSft
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: calc_grp, err
@@ -310,6 +324,8 @@ contains
 
         call MPIBcast(PreviousCycles)
         call write_int64_scalar(calc_grp, nm_iters, iter + PreviousCycles)
+        call write_dp_scalar(calc_grp, nm_tot_imag, TotImagTime)
+        call write_dp_1d_dataset(calc_grp, nm_shift, DiagSft + Hii)
 
         ! Output the values used for tau optimisation. Only output non-zero
         ! (i.e. used) values.
@@ -403,7 +419,8 @@ contains
     subroutine read_calc_data(parent)
 
         use load_balance_calcnodes, only: RandomOrbIndex
-        use FciMCData, only: PreviousCycles
+        use FciMCData, only: PreviousCycles, Hii, TotImagTime
+        use CalcData, only: DiagSft, tWalkContGrow
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id, err
@@ -415,10 +432,29 @@ contains
         call read_int64_1d_dataset(grp_id, nm_random_hash, RandomOrbIndex, &
                                    required=.true.)
 
+        ! Previous iteration data.
         call read_int64_scalar(grp_id, nm_iters, PreviousCycles, &
                                default=0_int64, exists=exists)
         if (exists) &
             write(6,*) 'Completed iterations: ', PreviousCycles
+
+        call read_dp_scalar(grp_id, nm_tot_imag, TotImagTime, default=0.0_dp, &
+                            exists=exists)
+        if (exists) &
+            write(6,*) 'Resuming calculation after ', TotImagTime, ' a.u.'
+
+        ! Read in the diagsft. Note that it uses the absolute value (to be
+        ! independent of choice of reference), so we must subtract out the
+        ! reference
+        ! TODO: Do scale up from 1 --> 2 runs for RDMs
+        if (.not. tWalkContGrow) then
+            call read_dp_1d_dataset(grp_id, nm_shift, DiagSft, required=.true.)
+            DiagSft = DiagSft - Hii
+            tSinglePartPhase = (abs(DiagSft(1)) < 1.0e-6)
+            write(6,*) 'Initial shift: ', DiagSft
+        else
+            tSinglePartPhase = .true.
+        end if
 
         call read_tau_opt(grp_id)
 
@@ -546,8 +582,8 @@ contains
         )
 
         ! Write out the sign values on each of the processors
-        if (.not. tUseRealCoeffs) &
-            call stop_all(t_r, "This could go badly...")
+!        if (.not. tUseRealCoeffs) &
+!            call stop_all(t_r, "This could go badly...")
 
         call write_2d_multi_arr_chunk_offset( &
                 wfn_grp_id, nm_sgns, H5T_NATIVE_REAL_8, &
@@ -778,6 +814,7 @@ contains
         character(*), parameter :: t_r = 'distribute_walkers_from_block'
 
         integer :: det(nel), j, proc, ierr
+        logical :: list_full
 
         ! Reset target locations for walkers
         ValidSpawnedList = InitialSpawnedSlots
