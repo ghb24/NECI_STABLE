@@ -94,7 +94,7 @@ contains
         real(dp) , dimension(lenof_sign) :: SignTemp
         integer :: PopsVersion
         character(len=*) , parameter :: this_routine='ReadFromPopsfile'
-        HElement_t :: HElemTemp
+        HElement_t(dp) :: HElemTemp
         character(255) :: popsfile
         !variables from header file
         logical :: tPopHPHF, tPopLz, tPop64Bit
@@ -111,7 +111,7 @@ contains
         INTEGER(kind=n_int), intent(out) :: Dets(0:nIfTot,DetsLen)
         character(12) :: tmp_num
         character(255) :: tmp_char
-        HElement_t :: PopAllSumENum(inum_runs)
+        HElement_t(dp) :: PopAllSumENum(inum_runs)
         integer :: sgn(lenof_sign), flg, part_on_node = 0
         type(ll_node), pointer :: Temp
         integer, allocatable :: TempnI(:)
@@ -822,7 +822,7 @@ r_loop: do while(.not.tStoreDet)
         real(dp) :: PopDiagSft(inum_runs), read_tau
         real(dp) :: read_psingles, read_pparallel
         real(dp), dimension(lenof_sign) :: PopSumNoatHF
-        HElement_t :: PopAllSumENum(inum_runs)
+        HElement_t(dp) :: PopAllSumENum(inum_runs)
         integer :: perturb_ncreate, perturb_nannihilate, PopBalanceBlocks
 
         character(len=*), parameter :: t_r = "read_popsfile_wrapper"
@@ -1005,7 +1005,7 @@ r_loop: do while(.not.tStoreDet)
         real(dp) , intent(in) :: PopDiagSft(inum_runs),read_tau
         real(dp), intent(in) :: read_psingles, read_pparallel
         real(dp) , dimension(lenof_sign/inum_runs) , intent(in) :: PopSumNoatHF
-        HElement_t , intent(in) :: PopAllSumENum(inum_runs)
+        HElement_t(dp) , intent(in) :: PopAllSumENum(inum_runs)
         integer, intent(in) :: perturb_ncreate, perturb_nann
         integer , intent(out) :: WalkerListSize
         character(len=*) , parameter :: this_routine='CheckPopsParams'
@@ -1153,7 +1153,7 @@ r_loop: do while(.not.tStoreDet)
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft(inum_runs)
         real(dp) , dimension(lenof_sign/inum_runs) , intent(out) :: PopSumNoatHF
-        HElement_t, intent(out) :: PopAllSumENum(inum_runs)
+        HElement_t(dp), intent(out) :: PopAllSumENum(inum_runs)
         character(len=24) :: junk,junk2,junk3,junk4,junk5
         integer :: PopsVersion
 
@@ -1214,7 +1214,7 @@ r_loop: do while(.not.tStoreDet)
         real(dp) :: PopSumNoatHF(1024), PopMultiSft(1024)
         real(dp) :: PopMultiSumENum(1024), PopMultiSumNoatHF(1024)
         real(dp), intent(out) :: read_pparallel
-        HElement_t , intent(out) :: PopAllSumENum(inum_runs)
+        HElement_t(dp) , intent(out) :: PopAllSumENum(inum_runs)
         integer :: PopsVersion
         !Variables for the namelist
         logical :: Pop64Bit, PopLz, PopHPHF
@@ -1226,7 +1226,7 @@ r_loop: do while(.not.tStoreDet)
         real(dp) :: PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
         real(dp) :: PopTotImagTime, PopSft2, PopParBias
         character(*), parameter :: t_r = 'ReadPopsHeadv4'
-        HElement_t :: PopSumENum
+        HElement_t(dp) :: PopSumENum
         namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl, &
                     PopTotwalk,PopSft,PopSft2,PopSumNoatHF,PopSumENum, &
                     PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
@@ -1917,7 +1917,7 @@ r_loop: do while(.not.tStoreDet)
         INTEGER :: AvSumNoatHF,IntegerPart,TempnI(NEl),ExcitLevel
         integer :: NIfWriteOut, pos, orb, PopsVersion, iunit, iunit_3, run
         real(dp) :: r, FracPart, Gap, DiagSftTemp, tmp_dp
-        HElement_t :: HElemTemp
+        HElement_t(dp) :: HElemTemp
         character(255) :: popsfile,FirstLine
         character(len=24) :: junk,junk2,junk3,junk4
         LOGICAL :: tPop64BitDets,tPopHPHF,tPopLz,tPopInitiator
@@ -2423,7 +2423,7 @@ r_loop: do while(.not.tStoreDet)
         INTEGER :: AvSumNoatHF,IntegerPart,TempnI(NEl),ExcitLevel
         INTEGER :: NIfWriteOut,pos,orb,PopsVersion, iunit
         real(dp) :: r,FracPart,Gap,DiagSftTemp
-        HElement_t :: HElemTemp
+        HElement_t(dp) :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
         character(255) :: popsfile,FirstLine
         character(len=24) :: junk,junk2,junk3,junk4

@@ -76,7 +76,7 @@ C ==----------------------------------------------------------------==
       IMPLICIT NONE
       INTEGER nBasisMax(5,*)
       INTEGER I,NEVAL,NDET,NEL,J
-      HElement_t CK(NDET,NEVAL)
+      HElement_t(dp) CK(NDET,NEVAL)
       real(dp) W(NEVAL),BOA,BOX,COA
 C..
       OPEN(10,FILE='PSI_LONG',STATUS='UNKNOWN')
@@ -102,7 +102,7 @@ C..
       IMPLICIT NONE
       INTEGER I,NEVAL,NDET,NEL,J
       INTEGER nBasisMax(5,*)
-      HElement_t CK(NDET,NEVAL)
+      HElement_t(dp) CK(NDET,NEVAL)
       real(dp) W(NEVAL),BOA,BOX,COA
 C..
       OPEN(10,FILE='PSI_COMP',STATUS='UNKNOWN')

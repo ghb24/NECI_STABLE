@@ -643,9 +643,9 @@ module FciMCParMod
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
         real(dp) :: RDMBiasFacCurr
         real(dp), dimension(lenof_sign) :: AvSignCurr, IterRDMStartCurr
-        HElement_t :: HDiagTemp,HElGen
+        HElement_t(dp) :: HDiagTemp,HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
-        HElement_t, dimension(inum_runs) :: delta
+        HElement_t(dp), dimension(inum_runs) :: delta
         integer :: proc, pos, determ_index, irdm
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
         integer :: DetHash, FinalVal, clash, PartInd, k, y

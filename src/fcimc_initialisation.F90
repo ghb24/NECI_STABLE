@@ -138,7 +138,7 @@ contains
         INTEGER :: ierr,i,j,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
         INTEGER :: LargestOrb,nBits,HighEDet(NEl),orb
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
-        HElement_t :: TempHii
+        HElement_t(dp) :: TempHii
         real(dp) :: TotDets,SymFactor,r,Gap,UpperTau
         CHARACTER(len=*), PARAMETER :: t_r='SetupParameters'
         CHARACTER(len=12) :: abstr
@@ -1120,7 +1120,7 @@ contains
         real(dp) :: PopDiagSft(1:inum_runs)
         real(dp) , dimension(lenof_sign) :: InitialSign
         real(dp) , dimension(lenof_sign) :: PopSumNoatHF
-        HElement_t :: PopAllSumENum(1:inum_runs)
+        HElement_t(dp) :: PopAllSumENum(1:inum_runs)
         integer :: perturb_ncreate, perturb_nannihilate
         
         !default
@@ -1803,7 +1803,7 @@ contains
 
         integer :: run, site, hash_val, i
         logical :: repeated
-        HElement_t :: hdiag
+        HElement_t(dp) :: hdiag
         character(*), parameter :: this_routine = 'InitFCIMC_HF_orthog'
 
         ! Add some implementation guards
@@ -2020,7 +2020,7 @@ contains
         integer , pointer :: CASDetList(:,:) => null()
         integer(n_int) :: iLutnJ(0:NIfTot)
         logical :: tMC, tHPHF_temp, tHPHFInts_temp
-        HElement_t :: HDiagTemp
+        HElement_t(dp) :: HDiagTemp
         real(dp) , allocatable :: CK(:,:),W(:),CKN(:,:),Hamil(:),A_Arr(:,:),V(:),BM(:),T(:),WT(:)
         real(dp) , allocatable :: SCR(:),WH(:),Work2(:),V2(:,:),AM(:)
         real(dp) , allocatable :: Work(:)
@@ -2441,7 +2441,7 @@ contains
     !This hopefully will help with close-lying excited states of the same sym.
     subroutine InitFCIMC_MP1()
         real(dp) :: TotMP1Weight,amp,MP2Energy,PartFac,H0tmp,rat,r,energy_contrib
-        HElement_t :: hel,HDiagtemp
+        HElement_t(dp) :: hel,HDiagtemp
         integer :: iExcits, exflag, Ex(2,2), nJ(NEl), ic, DetIndex, iNode
         integer :: iInit, Slot, DetHash, ExcitLevel, run, i
         integer(n_int) :: iLutnJ(0:NIfTot)
@@ -2949,7 +2949,7 @@ contains
         integer :: ki2,kj2
         logical :: tParity,tMom
         real(dp) :: Ranger,mp2,mp2all,length,length_g,length_g_2
-        HElement_t :: hel,H0tmp
+        HElement_t(dp) :: hel,H0tmp
 
         !Divvy up the ij pairs
         Ranger=real(ElecPairs,dp)/real(nProcessors,dp)

@@ -338,7 +338,7 @@ contains
         integer :: excit(2,2)
         integer :: nsing, ndoub, ex_flag
         logical :: tAllExcitFound, tParity
-        HElement_t :: HEl
+        HElement_t(dp) :: HEl
 
         ! Always generate both the single and double excitations.
         ex_flag = 3
@@ -1208,7 +1208,7 @@ contains
         integer :: nJ(nel), hfdet_loc(nel), nStore(6), nExcitMemLen(1)
         logical :: tTempUseBrill
         character(*), parameter :: t_r = 'enumerate_doubles_kpnt'
-        HElement_t :: HEl
+        HElement_t(dp) :: HEl
 
         ! A quick hack. Count excitations as though we were a determinant.
         ! We could fix this later...

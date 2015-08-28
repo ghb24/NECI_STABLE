@@ -62,7 +62,7 @@ contains
         integer ierr, ms
         integer i,Lz,OrbOrder(8,2),FDetTemp(NEl)
         type(BasisFn) s
-        HElement_t :: OrbE
+        HElement_t(dp) :: OrbE
         character(25), parameter :: this_routine='DetPreFreezeInit'
         Allocate(FDet(nEl), stat=ierr)
         LogAlloc(ierr, 'FDet', nEl, 4, tagFDet)
@@ -314,7 +314,7 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel)
         integer(kind=n_int), intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: IC
-        HElement_t :: hel
+        HElement_t(dp) :: hel
 
         character(*), parameter :: this_routine = 'get_helement_compat'
 
@@ -360,7 +360,7 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel)
         integer(kind=n_int), intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(out), optional :: ICret
-        HElement_t :: hel
+        HElement_t(dp) :: hel
 
         character(*), parameter :: this_routine = 'get_helement_normal'
         integer :: ex(2,2), IC
@@ -426,7 +426,7 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel), IC
         integer, intent(in) :: ExcitMat(2,2)
         logical, intent(in) :: tParity
-        HElement_t :: hel
+        HElement_t(dp) :: hel
 
         character(*), parameter :: this_routine = 'get_helement_excit'
 
@@ -473,8 +473,8 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
-        HElement_t :: hel
-        HElement_t , intent(in) :: HElGen    !Not used - here for compatibility with other interfaces.
+        HElement_t(dp) :: hel
+        HElement_t(dp) , intent(in) :: HElGen    !Not used - here for compatibility with other interfaces.
 
         ! Eliminate compiler warnings
         integer(n_int) :: iUnused; integer :: iUnused2
@@ -490,7 +490,7 @@ contains
     end function
 
 
-    HElement_t function GetH0Element4(nI,HFDet)
+    HElement_t(dp) function GetH0Element4(nI,HFDet)
         ! Returns the matrix element of the unperturbed Hamiltonian,
         ! which is just the sum of the eigenvalues of the occupied
         ! orbitals and the core energy.
@@ -500,14 +500,14 @@ contains
         ! This is calculated by subtracting the required two electron terms
         ! from the diagonal matrix elements.
         integer, intent(in) :: nI(NEl),HFDet(NEl)
-        HElement_t :: hii,hel
+        HElement_t(dp) :: hii,hel
 
         hel = SumFock(nI,HFDet)
         GetH0Element4 = hel + ECore
 
     end function GetH0Element4
 
-    HElement_t function GetH0Element3(nI)
+    HElement_t(dp) function GetH0Element3(nI)
        ! Wrapper for GetH0Element.
        ! Returns the matrix element of the unperturbed Hamiltonian, which is
        ! just the sum of the eigenvalues of the occupied orbitals and the core
@@ -519,7 +519,7 @@ contains
        use constants, only: dp
        use SystemData, only: nEl,nBasis,Arr,ECore
        integer nI(nEl)
-       HElement_t hEl
+       HElement_t(dp) hEl
        call GetH0Element(nI,nEl,Arr(1:nBasis,1:2),nBasis,ECore,hEl)
        GetH0Element3=hEl
     end function
@@ -638,7 +638,7 @@ END MODULE Determinants
          use constants, only: dp
          implicit none
          integer nEl,nI(nEl),nBasis
-         HElement_t hEl
+         HElement_t(dp) hEl
          real(dp) Arr(nBasis,2),ECore
          integer i
          if(tStoreAsExcitations.and.nI(1).eq.-1) then

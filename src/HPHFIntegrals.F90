@@ -24,8 +24,8 @@ module hphf_integrals
         logical, intent(in) :: tParity
         integer :: iUnused
         logical :: lUnused
-        HElement_t :: hel
-        HElement_t, intent(in) :: HElGen
+        HElement_t(dp) :: hel
+        HElement_t(dp), intent(in) :: HElGen
 
         hel=HElGen
 
@@ -44,8 +44,8 @@ module hphf_integrals
         logical, intent(in) :: tParity
         integer :: iUnused
         logical :: lUnused
-        HElement_t :: hel
-        HElement_t , intent(in) :: HElGen
+        HElement_t(dp) :: hel
+        HElement_t(dp) , intent(in) :: HElGen
 
         hel = hphf_off_diag_helement_norm (nI, nJ, iLutI, iLutJ)
 
@@ -69,12 +69,12 @@ module hphf_integrals
 
         integer, intent(in) :: nI(nel), nJ(nel)
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot), iLutnJ(0:NIfTot)
-        HElement_t :: hel
+        HElement_t(dp) :: hel
 
         integer :: nI2(nel), iUnused
         integer(kind=n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, OpenOrbsI, OpenOrbsJ, Ex(2,2)
-        HElement_t :: MatEl2
+        HElement_t(dp) :: MatEl2
         logical :: tSign
 
         ! Avoid warnings
@@ -168,12 +168,12 @@ module hphf_integrals
 
         integer, intent(in) :: nI(nel) 
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
-        HElement_t :: hel
+        HElement_t(dp) :: hel
 
 !        integer :: nI2(nel)
         integer(kind=n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, OpenOrbs
-        HElement_t :: MatEl2
+        HElement_t(dp) :: MatEl2
 
         hel = sltcnd_excit (nI, 0)
         if (.not. TestClosedShellDet(iLutnI)) then

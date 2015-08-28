@@ -53,7 +53,7 @@ contains
 
         ! Unused:
         integer(kind=n_int), intent(out) :: iLutnJ(0:niftot)
-        HElement_t, intent(out) :: HElGen
+        HElement_t(dp), intent(out) :: HElGen
 
         ! We only need the spatial terms for the CSF stuff. However, keep the
         ! full 1-ScratchSize array, so we can pass it through to the normal
@@ -1819,7 +1819,7 @@ contains
         integer(kind=n_int) :: iLutnJ(0:niftot)
         type(excit_gen_store_type), target :: store
         integer, pointer :: CCDblS(:), CCSglS(:), CCUnS(:)
-        HElement_t :: HElGen
+        HElement_t(dp) :: HElGen
 
         ! Generate bit representation, and count open shell electrons
         call EncodeBitDet (nI, iLut)

@@ -568,7 +568,7 @@ contains
         integer :: Startab, Endab, NoOcc, NoOccC, Startc, Endc, Starti, Endi, Startj, Endj
         real(dp) :: MP2VDMSum
         character(len=*), parameter :: t_r = 'FillMP2VDM'
-        HElement_t :: HEl01,HEl02
+        HElement_t(dp) :: HEl01,HEl02
 
 #ifdef __CMPLX
          call stop_all('FillMP2VDM', 'Natural Orbitals not implemented for complex orbitals.')

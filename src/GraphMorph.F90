@@ -34,7 +34,7 @@ MODULE GraphMorph
 !    INTEGER :: GraphDetsTag=0
 !
 !!This will hold all the Hamiltononian elements in the graph (zero if > double excit) (H_11) = HF
-!    HElement_t , ALLOCATABLE :: HamElems(:)
+!    HElement_t(dp) , ALLOCATABLE :: HamElems(:)
 !    INTEGER :: HamElemsTag=0
 !    
 !!This will hold all the determinants of the excitations of the graph
@@ -49,20 +49,20 @@ MODULE GraphMorph
 !    INTEGER :: TotExcits
 !
 !!Holds the rho elements between each determinant and its excitations
-!    HElement_t , ALLOCATABLE :: ConnectionsToExcits(:)
+!    HElement_t(dp) , ALLOCATABLE :: ConnectionsToExcits(:)
 !    INTEGER :: ConnectionsToExcitsTag=0
 !
 !!The full Rho Matrix for the graph
-!    HElement_t , ALLOCATABLE :: GraphRhoMat(:,:)
+!    HElement_t(dp) , ALLOCATABLE :: GraphRhoMat(:,:)
 !    INTEGER :: GraphRhoMatTag=0
 !!The Largest Eigenvector for the graph
-!    HElement_t , ALLOCATABLE :: Eigenvector(:)
+!    HElement_t(dp) , ALLOCATABLE :: Eigenvector(:)
 !    INTEGER :: EigenvectorTag=0
 !!The largest Eigenvalue of the graph
 !    real(dp) :: Eigenvalue
 !
 !!This is the vector of propensity to move towards the excited determinants of the graph
-!    HElement_t , ALLOCATABLE :: ExcitsVector(:)
+!    HElement_t(dp) , ALLOCATABLE :: ExcitsVector(:)
 !    INTEGER :: ExcitsVectorTag=0
 !
 !!This is needed if we are using the MoveDets graph growing algorithm to store a copy of the rho matrix in
@@ -80,7 +80,7 @@ MODULE GraphMorph
 !    INTEGER :: GraphExcitLevelTag=0
 !
 !!The rho matrix and Hamiltonian element for the HF determinant
-!    HElement_t :: rhii,Hii
+!    HElement_t(dp) :: rhii,Hii
 !
 !!These are the weight and energy of the current graph respectively
 !    real(dp) :: SI,DLWDB
@@ -325,7 +325,7 @@ MODULE GraphMorph
 !        INTEGER :: nStore(6),exFlag,nExcitMemLen,iMaxExcit,nJ(NEl)
 !        INTEGER , ALLOCATABLE :: nExcit(:)
 !        INTEGER :: nExcitTag=0
-!        HElement_t :: rh
+!        HElement_t(dp) :: rh
 !        INTEGER :: iExcit,excitcount,i,j,k,IC,ICRoot,Numberadded
 !        CHARACTER(len=*), PARAMETER :: this_routine='ConstructExcitsInitGraph'
 !        INTEGER :: ierr,Root,RootDet(NEl),iGetExcitLevel,NoNotAtt_Same,NoNotAtt_NoConn
@@ -594,7 +594,7 @@ MODULE GraphMorph
 !        type(timer), save :: proc_timerInitStar
 !        INTEGER , ALLOCATABLE :: nExcit(:)
 !        INTEGER :: nExcitTag=0
-!        HElement_t :: rh
+!        HElement_t(dp) :: rh
 !        INTEGER :: iExcit,excitcount,i,j
 !        CHARACTER(len=*), PARAMETER :: this_routine='ConstructInitialStarGraph'
 !        
@@ -760,8 +760,8 @@ MODULE GraphMorph
 !        INTEGER :: ExcitGen(0:NDets)
 !#endif
 !        real(dp) , ALLOCATABLE :: Rhoii(:)
-!        HElement_t , ALLOCATABLE :: Rhoij(:,:),Hijs(:)
-!        HElement_t :: rh
+!        HElement_t(dp) , ALLOCATABLE :: Rhoij(:,:),Hijs(:)
+!        HElement_t(dp) :: rh
 !        INTEGER , ALLOCATABLE :: nExcit(:)
 !        real(dp) :: PGen,OldImport
 !        CHARACTER(len=*), PARAMETER :: this_routine='ConstructInitialGraph'
@@ -1063,7 +1063,7 @@ MODULE GraphMorph
 !        INTEGER :: MoveDetsFromPathsTag=0
 !        INTEGER :: AttemptDet(NEl),IndexofDetsFrom(NoMoveDets),ierr,Tries,NoVerts
 !        LOGICAL :: Remove,Attach,SameDet
-!        HElement_t :: rh
+!        HElement_t(dp) :: rh
 !        real(dp) :: r,Ran2
 !        CHARACTER(len=*), PARAMETER :: this_routine='MoveDets'
 !
@@ -1392,7 +1392,7 @@ MODULE GraphMorph
 !        INTEGER , ALLOCATABLE :: GrowGraph(:,:)
 !        real(dp) :: r,Ran2,Sumdetsprob,RootofNum,NormFactor
 !        LOGICAL :: Attach,OriginalPicked,SameDet
-!        HElement_t :: rh
+!        HElement_t(dp) :: rh
 !        CHARACTER(len=*), PARAMETER :: this_routine='PickNewDets'
 !
 !        GrowGraphTag=0
@@ -1753,7 +1753,7 @@ MODULE GraphMorph
 !!This is used to create normalised vectors for the MoveDets stochastic graph-growing algorithm
 !    SUBROUTINE NormaliseVectorSep()
 !        IMPLICIT NONE
-!        HElement_t :: Norm1,Norm2
+!        HElement_t(dp) :: Norm1,Norm2
 !        real(dp) :: RootofNum
 !        INTEGER :: i
 !        type(timer), save :: proc_timerNorm 
@@ -1963,7 +1963,7 @@ MODULE GraphMorph
 !        use IntegralsData, only: fck,nMax,UMat,nTay
 !        USE Determinants , only : GetHElement2
 !        IMPLICIT NONE
-!        HElement_t :: rh
+!        HElement_t(dp) :: rh
 !        real(dp) :: Prob
 !        type(timer), save :: proc_timerConns
 !        INTEGER :: attempts,NoExcitsCurr,Noatt

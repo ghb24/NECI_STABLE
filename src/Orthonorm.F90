@@ -74,9 +74,9 @@ END SUBROUTINE OrthoNormx
          use HElem
          IMPLICIT NONE
          INTEGER N
-         HElement_t MAT(N,N),R1(N,N),R2(N,N)
+         HElement_t(dp) MAT(N,N),R1(N,N),R2(N,N)
          real(dp) L(N),LL,RWORK(3*N)
-         HElement_t WORK(3*N)
+         HElement_t(dp) WORK(3*N)
          INTEGER I,J
          integer(sp) info
          character(*), parameter :: this_routine = 'LOWDIN_ORTH'
@@ -130,7 +130,7 @@ END SUBROUTINE OrthoNormx
          use constants, only: dp
          IMPLICIT NONE
          INTEGER LEN
-         HElement_t MAT(LEN,LEN),DOT
+         HElement_t(dp) MAT(LEN,LEN),DOT
          real(dp) NORM,SNORM
          INTEGER I,J,K
          DO I=1,LEN

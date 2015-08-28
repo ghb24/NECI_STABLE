@@ -40,7 +40,7 @@ module RPA_Mod
         real(dp), intent(out) :: Weight,Energy
         real(dp) :: Energy_stab,Temp_real,norm,Energy2,H0tmp,Fii
         real(dp) :: X_norm,Y_norm
-        HElement_t :: HDiagTemp,hel,hel1,hel2
+        HElement_t(dp) :: HDiagTemp,hel,hel1,hel2
         logical :: tAllExcitsFound,tParity
         real(dp), allocatable :: Stability(:,:),temp2(:,:),W2(:)
         real(dp), allocatable :: W(:),Work(:),S_half(:,:),temp(:,:)

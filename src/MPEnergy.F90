@@ -4,16 +4,16 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
    use CalcData , only : TMODMPTHEORY,TENPT
    IMPLICIT NONE
    INTEGER iV,nEl,nBasis,iMaxOrder
-   HElement_t Hij(0:iV,0:iV)
-   HElement_t V(1:iV,1:iV)
+   HElement_t(dp) Hij(0:iV,0:iV)
+   HElement_t(dp) V(1:iV,1:iV)
    real(dp) Arr(nBasis,2)
    INTEGER iPath(nEl,0:iV)
    LOGICAL tLog,tLogged
    INTEGER i,j
-   HElement_t Fi(1:iV),E1
+   HElement_t(dp) Fi(1:iV),E1
    INTEGER iOrder
    real(dp) MPEs(2:iMaxOrder),E,ECore
-   HElement_t MPE
+   HElement_t(dp) MPE
 !E1 is the HF Energy.  Ei are Fock energy differences.
    MPE=ECore
    DO i=1,iV
@@ -91,9 +91,9 @@ SUBROUTINE CalcVij(Hij,Vij,Fi,E1,iV)
    use constants, only: dp
    IMPLICIT NONE
    INTEGER iV,i,j
-   HElement_t Hij(1:iV+1,1:iV+1)
-   HElement_t Vij(1:iV,1:iV)
-   HElement_t Fi(1:iV),E1
+   HElement_t(dp) Hij(1:iV+1,1:iV+1)
+   HElement_t(dp) Vij(1:iV,1:iV)
+   HElement_t(dp) Fi(1:iV),E1
    DO i=1,iV
       DO j=1,iV
          Vij(i,j)=Hij(i,j)
@@ -111,7 +111,7 @@ END
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NBASIS
-         HElement_t HIJS(0:2)
+         HElement_t(dp) HIJS(0:2)
          real(dp) ARR(NBASIS,2)
          INTEGER IPATH(NEL,0:2)
          INTEGER NI(NEL),NJ(NEL)
@@ -189,7 +189,7 @@ END
          use constants, only: dp
          use SystemData, only: BasisFN
          implicit none
-         HElement_t hEl
+         HElement_t(dp) hEl
          integer nEl,nI(nEl),nJ(nEl)
          integer Ex(2,2),ex2(2,2)
          logical tSign

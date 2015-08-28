@@ -62,7 +62,7 @@ contains
         real(dp), allocatable :: lowdin_evals(:,:)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSoftExitFound, tSingBiasChange, tWritePopsFound
-        HElement_t :: HElGen
+        HElement_t(dp) :: HElGen
 
         ! Stores of the overlap and projected Hamiltonian matrices.
         real(dp), pointer :: overlap_matrices(:,:,:)
@@ -384,7 +384,7 @@ contains
         real(dp), allocatable :: lowdin_evals(:,:), lowdin_spin(:,:)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSoftExitFound, tSingBiasChange, tWritePopsFound
-        HElement_t :: HElGen
+        HElement_t(dp) :: HElGen
 
         ! Stores of the overlap, projected Hamiltonian and spin matrices.
         real(dp), pointer :: overlap_matrices(:,:,:,:)
