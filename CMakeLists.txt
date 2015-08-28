@@ -215,9 +215,19 @@ include_directories(BEFORE SYSTEM ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/un
 #
 # Some form of lapack is always needed (be that acml, mkl, LAPACK, ...)
 message("Configuring BLAS/LAPACK")
-find_package(LAPACK REQUIRED)
-set(NECI_LIBRARIES ${LAPACK_LIBRARIES})
-message("-- Using libraries: ${LAPACK_LIBRARIES}")
+
+find_package(MKL REQUIRED)
+if (${MKL_FOUND})
+	message("-- Found MKL")
+	set(NECI_LIBRARIES ${MKL_LIBRARIES})
+	include_directories(${MKL_INCLUDE_DIR})
+	message("-- Using libraries: ${MKL_LIBRARIES}")
+else()
+	find_package(LAPACK REQUIRED)
+	set(NECI_LIBRARIES ${LAPACK_LIBRARIES})
+	message("-- Found BLAS/Lapack")
+	message("-- Using libraries: ${LAPACK_LIBRARIES}")
+endif()
 
 # If FFTW is present, then we want to use it. Otherwise disable it in NECI
 message("Configuring FFTW")
