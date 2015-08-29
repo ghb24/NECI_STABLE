@@ -26,7 +26,7 @@ MODULE DetCalc
       INTEGER(TagIntType) :: tagNBLOCKSTARTS=0
       INTEGER NBLOCKS                        !Number of Symmetry blocks
       INTEGER iFDet                       ! The index of the Fermi det in the list of dets.
-      HElement_t, pointer :: CKN(:,:) !  (nDet,nEval)  Temporary storage for the Lanczos routine
+      HElement_t(dp), pointer :: CKN(:,:) !  (nDet,nEval)  Temporary storage for the Lanczos routine
       INTEGER(TagIntType) :: tagCKN=0
 
       real(dp) , ALLOCATABLE :: ExpandedHamil(:,:)    ! (NDet,NDet) This is the hamiltonian in expanded form, 
@@ -367,7 +367,7 @@ CONTAINS
       use hist_data, only: tHistSpawn
 
       real(dp) , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
-      HElement_t, ALLOCATABLE :: WORK(:)
+      HElement_t(dp), ALLOCATABLE :: WORK(:)
       INTEGER , ALLOCATABLE :: INDEX(:),ISCR(:),Temp(:)
       integer(TagIntType) :: TKETag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0
       INTEGER(TagIntType) :: WTTag=0,SCRTag=0,ISCRTag=0,INDEXTag=0,WHTag=0,Work2Tag=0,V2Tag=0,WorkTag=0
@@ -869,7 +869,7 @@ END MODULE DetCalc
          INTEGER NEL,I_P,I_HMAX,I_VMAX,NDET,nBasisMax(5,*),nBasis
          INTEGER BRR(*),NMSH,NMAX,NTAY(2),ILOGGING
          type(timer), save :: proc_timer
-         HElement_t UMat(*)
+         HElement_t(dp) UMat(*)
          real(dp) DLWDB, DLWDB2, DLWDB3, DLWDB4
          TYPE(BasisFN) G1(*)
          real(dp) ALAT(3)
@@ -878,7 +878,7 @@ END MODULE DetCalc
 
          
          INTEGER, ALLOCATABLE :: LSTE(:,:,:),ICE(:,:)
-         HElement_t , ALLOCATABLE :: RIJLIST(:,:)
+         HElement_t(dp) , ALLOCATABLE :: RIJLIST(:,:)
          INTEGER(TagIntType),SAVE :: RIJLISTTag=0,LSTEtag=0,ICEtag=0
          INTEGER NPATHS,ierr
          INTEGER III,NWHTAY(3,I_VMAX),IMAX,ILMAX
@@ -1033,7 +1033,7 @@ END MODULE DetCalc
          use util_mod, only: isnan_neci
          IMPLICIT NONE
          INTEGER NDET,NEVAL
-         HElement_t CK(NDET,NEVAL)
+         HElement_t(dp) CK(NDET,NEVAL)
          real(dp) W(NEVAL)
          real(dp) RHII,FLRI,FLSI,BETA,RH,R
          INTEGER I_P,I,IK
@@ -1101,7 +1101,7 @@ END MODULE DetCalc
          use constants, only: dp
          IMPLICIT NONE
          INTEGER NDET,NEVAL,IK,I
-         HElement_t CK(NDET,NEVAL)
+         HElement_t(dp) CK(NDET,NEVAL)
          real(dp)  W(NEVAL),BETA,DNORM,EN,CALCDLWDB
          EN=0.0_dp
          DNORM=0.0_dp
@@ -1121,7 +1121,7 @@ END MODULE DetCalc
       use HElem
       IMPLICIT NONE
       INTEGER NEL,NM(NEL,*),NDET,NEVAL, iunit
-      HElement_t CG(NDET,NEVAL)
+      HElement_t(dp) CG(NDET,NEVAL)
       real(dp) TKE(NEVAL)
       TYPE(BASISFN) G1(*)
       real(dp) PI,S,SUM1
@@ -1189,7 +1189,7 @@ END MODULE DetCalc
          use SystemData, only: BasisFn
          implicit none
          INTEGER NDET,NEVAL,I_P,ILOGGING, NBASISMAX(5,7), NBASIS, NEL, BRR(NBASIS), IMCSTEPS, NMRKS(:,:), IEQSTEPS
-         HElement_t CK(NEVAL)
+         HElement_t(dp) CK(NEVAL)
          type(BasisFn) G1(nBasis)
          real(dp) W(NEVAL),BETA,ECORE,DOEXMC
 

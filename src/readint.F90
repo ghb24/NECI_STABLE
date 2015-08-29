@@ -196,7 +196,7 @@ contains
          integer, intent(out) :: BRR(LEN)
          real(dp), intent(out) :: ARR(LEN,2)
          type(BasisFN), intent(out) :: G1(LEN)
-         HElement_t Z
+         HElement_t(dp) Z
          COMPLEX(dp) :: CompInt
          integer(int64) IND,MASK
          INTEGER I,J,K,L,I1, iunit
@@ -587,8 +587,8 @@ contains
          integer, intent(in) :: NBASIS
          logical, intent(in) :: tReadFreezeInts
          real(dp), intent(out) :: ECORE
-         HElement_t, intent(out) :: UMAT(:)
-         HElement_t Z
+         HElement_t(dp), intent(out) :: UMAT(:)
+         HElement_t(dp) Z
          COMPLEX(dp) :: CompInt
          INTEGER ZeroedInt,NonZeroInt, LzDisallowed
          INTEGER I,J,K,L,X,Y,iunit,iSpinType
@@ -978,8 +978,8 @@ contains
          use util_mod, only: get_free_unit
          IMPLICIT NONE
          real(dp), intent(out) :: ECORE
-         HElement_t, intent(out) :: UMAT(*)
-         HElement_t Z
+         HElement_t(dp), intent(out) :: UMAT(*)
+         HElement_t(dp) Z
          integer(int64) MASK,IND
          INTEGER I,J,K,L,X,Y, iunit
          LOGICAL LWRITE

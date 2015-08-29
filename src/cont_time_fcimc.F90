@@ -186,7 +186,7 @@ contains
         integer :: nspawn, spawn_sgn, det_spwn(nel), ic, i, y, nopen_spwn
         integer(n_int) :: ilut_spwn(0:NIfTot)
         logical :: child_survives
-        HElement_t :: hoffdiag, htmp
+        HElement_t(dp) :: hoffdiag, htmp
 
         ! A quick sanity check that we have calculated the spawning rate
         ! reasonably

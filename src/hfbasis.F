@@ -288,13 +288,13 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          real(dp) UMAT(*)
          real(dp) ECORE
          INTEGER BRR(NBASIS)
-         HElement_t HFBASIS(NBASIS,NBASIS)
+         HElement_t(dp) HFBASIS(NBASIS,NBASIS)
          real(dp) HFE(NBASIS)
-         HElement_t,allocatable :: FMAT(:),OFMAT(:)
-         HElement_t,allocatable :: DMAT(:),ODMAT(:)
-         HElement_t,allocatable :: WORK(:)
+         HElement_t(dp),allocatable :: FMAT(:),OFMAT(:)
+         HElement_t(dp),allocatable :: DMAT(:),ODMAT(:)
+         HElement_t(dp),allocatable :: WORK(:)
          real(dp),allocatable :: HFES(:)
-         HElement_t,allocatable :: R1(:),R2(:)
+         HElement_t(dp),allocatable :: R1(:),R2(:)
          integer(TagIntType), save :: tagR1=0,tagR2=0,tagHFES=0
          integer(TagIntType), save :: tagFMAT=0,tagOFMat=0
          integer(TagIntType), save :: tagWork=0,tagDMAT=0,tagODMat=0
@@ -377,12 +377,12 @@ C.. Unrestricted HF SCF code
          TYPE(BasisFn) G1(*)
          real(dp) ECORE
          INTEGER BRR(NBASIS)
-         HElement_t HFBASIS(NBASIS,NBASIS)
+         HElement_t(dp) HFBASIS(NBASIS,NBASIS)
          real(dp) HFES(NSBASIS,NSPINS),HFE(NBASIS)
-         HElement_t FMAT(NSBASIS,NSBASIS,NSPINS)
-         HElement_t OFMAT(NSBASIS,NSBASIS,NSPINS)
-         HElement_t DMAT(NSBASIS,NSBASIS,NSPINS)
-         HElement_t ODMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t(dp) FMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t(dp) OFMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t(dp) DMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t(dp) ODMAT(NSBASIS,NSBASIS,NSPINS)
          real(dp) WORK(NBASIS*3),HFMIX
          real(dp) R1(NSBASIS,NSBASIS),R2(NSBASIS,NSBASIS)
          INTEGER NHFIT,NEL
@@ -518,12 +518,12 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          use constants, only: dp
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS,NELS(NSPINS)
-         HElement_t FMAT(NSBASIS,NSBASIS,NSPINS)
-         HElement_t DMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t(dp) FMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t(dp) DMAT(NSBASIS,NSBASIS,NSPINS)
          LOGICAL LTRANS
 
          INTEGER ISPN,I,J,K
-         HElement_t TOT
+         HElement_t(dp) TOT
 C.. Construct the Density Matrix
          DO ISPN=1,NSPINS
             DO I=1,NSBASIS
@@ -566,10 +566,10 @@ C.. vector
          use IntegralsData, only: DMatEpsilon
          IMPLICIT NONE
          INTEGER NSBASIS,NSPINS
-         HElement_t FMAT(NSBASIS,NSBASIS,NSPINS)
-         HElement_t DMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t(dp) FMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t(dp) DMAT(NSBASIS,NSBASIS,NSPINS)
 !         real(dp) TMAT(NSBASIS*NSPINS,NSBASIS*NSPINS)
-         HElement_t TOT
+         HElement_t(dp) TOT
          INTEGER I,J,K,L,ISPN,ISPN2,ID1,ID2,ID3,ID4
          real(dp) RHFMUL
 C         IF(TRHF) THEN
@@ -632,14 +632,14 @@ C.. Now sum in the alpha and beta block of u matrix
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS,NELS(NSPINS)
          real(dp) HFES(NSBASIS,NSPINS)
-         HElement_t FMAT(NSBASIS,NSBASIS,NSPINS)
-         HElement_t DMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t(dp) FMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t(dp) DMAT(NSBASIS,NSBASIS,NSPINS)
 !         real(dp) TMAT(NSBASIS*NSPINS,NSBASIS*NSPINS)
          real(dp) ECUR,ECORE
-         HElement_t WORK(3*NSBASIS),RWORK(3*NSBASIS)
+         HElement_t(dp) WORK(3*NSBASIS),RWORK(3*NSBASIS)
 
          INTEGER*4 INFO
-         HElement_t TOT,TOT2
+         HElement_t(dp) TOT,TOT2
          INTEGER ISPN,I,J,K
          character(*), parameter :: this_routine = 'DIAGFMAT'
 
@@ -739,7 +739,7 @@ C.. Generate initial density matrix, as well as a guess at the HF DET
          use constants, only: dp
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
-         HElement_t FMAT(NSBASIS,NSBASIS,NSPINS)
+         HElement_t(dp) FMAT(NSBASIS,NSBASIS,NSPINS)
          real(dp) PI,R
          INTEGER ISPN,I,J,ISEED,irand
          real(dp) RAN2
@@ -1304,7 +1304,7 @@ C.. Working space
          IMPLICIT NONE
          INTEGER N,NSPINS
          real(dp) FMIX
-         HElement_t FMAT(N,N,NSPINS),OFMAT(N,N,NSPINS)
+         HElement_t(dp) FMAT(N,N,NSPINS),OFMAT(N,N,NSPINS)
          real(dp) R1(*),R2(*),WORK(*)
          INTEGER I,J,ISPN
          DO ISPN=1,NSPINS
@@ -1943,7 +1943,7 @@ C               G1(3,BRR(I))=J
       IMPLICIT NONE
       CHARACTER(*) CHAR
       Integer I,M,N,J
-      HElement_t A(M,N)
+      HElement_t(dp) A(M,N)
       WRITE(6,*) CHAR
       DO I=1,M
          IF(HElement_t_size.EQ.1) THEN

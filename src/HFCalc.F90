@@ -21,9 +21,9 @@ MODULE HFCalc
       use HElem, only: helement_t_size, helement_t_sizeb
       use MemoryManager, only: TagIntType
       character(25), parameter :: this_routine='HFDoCalc'
-      HElement_t,ALLOCATABLE :: HFBASIS(:),HFE(:)
-      HElement_t,pointer :: UMat2(:)
-      HElement_t,pointer :: TMat2D2(:,:)
+      HElement_t(dp),ALLOCATABLE :: HFBASIS(:),HFE(:)
+      HElement_t(dp),pointer :: UMat2(:)
+      HElement_t(dp),pointer :: TMat2D2(:,:)
       integer i
       integer nOrbUsed
       integer UMatInt, TMatInt

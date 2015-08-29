@@ -14,7 +14,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
       use SystemData , only : TSTOREASEXCITATIONS,BasisFN
       use global_utilities
       IMPLICIT NONE
-      HElement_t UMat(*),RH
+      HElement_t(dp) UMat(*),RH
       INTEGER I_P,NTAY(2),NEL,NBASIS
       INTEGER NI(NEL),NJ(NEL),NMAX,IC,IC2
       real(dp) BETA,ECORE
@@ -24,7 +24,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
       TYPE(BasisFN) G1(*)
       complex(dp) FCK(*)
       real(dp) ALAT(3)  
-      HElement_t hE,UExp,B,EDIAG
+      HElement_t(dp) hE,UExp,B,EDIAG
       character(*), parameter :: this_routine = 'CALCRHO2'
       IF(NTAY(1).LT.0) THEN
 !.. We've actually hidden a matrix of rhos in the coeffs for calcing RHOa
@@ -169,7 +169,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
          use SystemData, only: BasisFN
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
-         HElement_t Rho2OrderND2
+         HElement_t(dp) Rho2OrderND2
          INTEGER NEL,NBASIS,nBasisMax(5,*)
          INTEGER NI(NEL),NJ(NEL),IC2
          INTEGER LSTI(NEL,NBASIS*NBASIS*NEL*NEL)
@@ -178,7 +178,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
          INTEGER ICI(NBASIS*NBASIS*NEL*NEL)
          INTEGER ICJ(NBASIS*NBASIS*NEL*NEL),NLISTMAX
          INTEGER CMP,IGETEXCITLEVEL,ICMPDETS
-         HElement_t SUM1
+         HElement_t(dp) SUM1
          SUM1=0.0_dp
          NLISTMAX=NBASIS*NBASIS*NEL*NEL
          IC=IC2
@@ -223,7 +223,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
          integer nEl,nBasis
          integer nHFDet(nEl),nJ(nEl)
          type(BasisFN) G1(*)
-         HElement_t hEl
+         HElement_t(dp) hEl
          real(dp) ECore
          integer i,j,NMAX
          integer IDHF(nEl),IDJ(nEl)

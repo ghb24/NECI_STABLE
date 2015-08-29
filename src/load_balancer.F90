@@ -378,7 +378,7 @@ contains
         integer(n_int), intent(inout) :: iLutCurr(0:NIfTot)
         integer, intent(in) :: DetHash, nJ(nel)
         integer :: DetPosition
-        HElement_t :: HDiag
+        HElement_t(dp) :: HDiag
         real(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
         character(len=*), parameter :: t_r = "AddNewHashDet"

@@ -299,8 +299,8 @@ contains
         real(dp) :: ovp
         logical tSuccess
         integer :: iUEG1, iUEG2, ProjEBin
-        HElement_t :: HOffDiag(inum_runs)
-        HElement_t :: HDoubDiag
+        HElement_t(dp) :: HOffDiag(inum_runs)
+        HElement_t(dp) :: HDoubDiag
         integer :: DoubEx(2,2),DoubEx2(2,2),kDoub(3) ! For histogramming UEG doubles
         integer :: ExMat(2,2), nopen
         integer :: doub_parity, doub_parity2, parity
@@ -481,7 +481,7 @@ contains
 
         integer :: run, exlevel
         real(dp) :: sgn_run
-        HElement_t :: hoffdiag
+        HElement_t(dp) :: hoffdiag
         character(*), parameter :: this_routine = 'SumEContrib_different_refs'
 
         real(dp) :: amps(size(current_trial_amps,1))
@@ -1247,10 +1247,10 @@ contains
         integer(n_int) :: ilut(0:NIfTot)
         logical :: tmc,tSuccess
         real(dp) , allocatable :: A_Arr(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),W(:)
-        HElement_t, allocatable :: Work(:)
-        HElement_t, allocatable :: CkN(:,:),Hamil(:),TruncWavefunc(:)
-        HElement_t, allocatable :: Ck(:,:)  !This holds eigenvectors in the end
-        HElement_t :: Num,Denom,HDiagTemp
+        HElement_t(dp), allocatable :: Work(:)
+        HElement_t(dp), allocatable :: CkN(:,:),Hamil(:),TruncWavefunc(:)
+        HElement_t(dp), allocatable :: Ck(:,:)  !This holds eigenvectors in the end
+        HElement_t(dp) :: Num,Denom,HDiagTemp
         integer , allocatable :: LAB(:),NROW(:),INDEX(:),ISCR(:)
         integer(TagIntType) :: LabTag=0,NRowTag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0,tagCKN=0,tagCK=0
         integer(TagIntType) :: WTTag=0,SCRTag=0,ISCRTag=0,INDEXTag=0,WHTag=0,Work2Tag=0,V2Tag=0,tagW=0
@@ -1786,7 +1786,7 @@ contains
         integer, intent(in) :: run
         character(*), parameter :: this_routine = 'update_run_reference'
 
-        HElement_t :: h_tmp
+        HElement_t(dp) :: h_tmp
         real(dp) :: old_hii
         integer :: i, det(nel)
         logical :: tSwapped

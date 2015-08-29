@@ -44,7 +44,7 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
-        HElement_t, intent(out) :: HElGen
+        HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
 
         real(dp) :: r
@@ -466,7 +466,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
     INTEGER , ALLOCATABLE :: EXCITGEN(:)
     INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen(1),j,k,l,DetNum,DetNumS
     INTEGER :: Lz,excitcount,ForbiddenIter,error, iter_tmp
-    HElement_t :: HElGen
+    HElement_t(dp) :: HElGen
     type(excit_gen_store_type) :: store
     logical :: brillouin_tmp(2)
     type(timer), save :: test_timer

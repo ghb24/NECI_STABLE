@@ -35,9 +35,9 @@ module mcpathsismc
          type(timer), save :: proc_timer2
          CHARACTER(20) STR
          real(dp) TOTAL,RHOII(0:I_VMAX)
-         HElement_t RHOIJ(0:I_VMAX,0:I_VMAX),RH
+         HElement_t(dp) RHOIJ(0:I_VMAX,0:I_VMAX),RH
          real(dp) ALAT(3),RHOEPS,BETA
-         HElement_t UMAT(*)
+         HElement_t(dp) UMAT(*)
          complex(dp) FCK(*)
          real(dp) ECORE
          real(dp) FF
@@ -53,7 +53,7 @@ module mcpathsismc
          INTEGER IEXCITS
          type(egp) EXCITGEN(0:I_VMAX) 
          real(dp) DLWDB,DLWDB2,DLWDB3
-         HElement_t HIJS(0:I_VMAX)
+         HElement_t(dp) HIJS(0:I_VMAX)
          INTEGER INODE2(NEL)
          INTEGER, allocatable, target :: NMEM(:)
          INTEGER, target :: NMEMLEN(1)
@@ -76,7 +76,7 @@ module mcpathsismc
          REAL(sp) OTIME,NTIME,tarr(2)
          integer(int64) LP
          character(*), parameter :: this_routine = 'MCPATHSR4'
-         HElement_t :: hel
+         HElement_t(dp) :: hel
 
          ISEED=0  !Init the seed
          OTIME=neci_etime(tarr)
@@ -829,10 +829,10 @@ module mcpathsismc
          Type(BasisFn) G1(*)
          INTEGER NTAY(2),NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          real(dp) BETA,ALAT(*),ECORE
-         HElement_t UMAT(*)
+         HElement_t(dp) UMAT(*)
          complex(dp) FCK(*)
          real(dp) RHOEPS,RHOII(0:I_V)
-         HElement_t RHOIJ(0:I_V,0:I_V)
+         HElement_t(dp) RHOIJ(0:I_V,0:I_V)
          INTEGER NLIST
          INTEGER INODE(NEL),I_VNEXT,INODE2(NEL),ICOUNT
          INTEGER I,ICE,IC
@@ -842,10 +842,10 @@ module mcpathsismc
          INTEGER IGETEXCITLEVEL
          LOGICAL TLOG,TLOG2,TLOG3
          real(dp) RP,DBETA,DLWDB
-         HElement_t HIJS(0:I_V)
+         HElement_t(dp) HIJS(0:I_V)
          LOGICAL ISUHFDET
          INTEGER ICLS
-         HElement_t :: hel
+         HElement_t(dp) :: hel
          RP=0
          I_VNEXT=1
          CALL NECI_ICOPY(NEL,IPATH(1,0),1,INODE,1)
@@ -991,10 +991,10 @@ module mcpathsismc
          INTEGER nBasisMax(5,*),NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY(2),NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          real(dp) BETA,ALAT(*),ECORE
-         HElement_t UMAT(*)
+         HElement_t(dp) UMAT(*)
          complex(dp) FCK(*)
          real(dp) RHOEPS,RHOII(0:I_V)
-         HElement_t RHOIJ(0:I_V,0:I_V)
+         HElement_t(dp) RHOIJ(0:I_V,0:I_V)
          INTEGER LSTE(NEL),NLIST
          INTEGER INODE(NEL),I_VNEXT,INODE2(NEL),ICOUNT,ICURNODE
          INTEGER I,ICE,IC,IONODE
@@ -1004,10 +1004,10 @@ module mcpathsismc
          LOGICAL TLOG,TLOG2,TLOG3
          real(dp) RP,PP
          real(dp) DBETA,DLWDB
-         HElement_t HIJS(0:I_V)
+         HElement_t(dp) HIJS(0:I_V)
          INTEGER ICLS
          real(dp) RAN2
-         HElement_t :: hel
+         HElement_t(dp) :: hel
 !C.. we hard code RP as P/50, although this should be an empirical
 !C.. parameter.
          RP=-I_P/50.0_dp
@@ -1514,10 +1514,10 @@ module mcpathsismc
          real(dp) BETA,ALAT(*),ECORE
          complex(dp) FCK(*)
          INTEGER I_OVCUR,IOCLS,ITREE
-         HElement_t UMat(*) 
+         HElement_t(dp) UMat(*) 
          real(dp) RHOEPS
          real(dp) RHOII(0:I_V),INWI
-         HElement_t RHOIJ(0:I_V,0:I_V)
+         HElement_t(dp) RHOIJ(0:I_V,0:I_V)
          INTEGER I,IC
          real(dp) XIJ(0:I_V-1,0:I_V-1)         
          real(dp) CALCPATHS_N
@@ -1525,14 +1525,14 @@ module mcpathsismc
          LOGICAL TLOG,TLOG2,TLOG3
          real(dp) DBETA
          real(dp) DLWDB
-         HElement_t HIJS(0:I_V)
+         HElement_t(dp) HIJS(0:I_V)
          INTEGER NMEM(:)
          type(egp) ExcitGen(0:I_V)
          INTEGER ICLS
          real(dp) ORHOII(0:I_OVCUR)
-         HElement_t ORHOIJ(0:I_OVCUR,0:I_OVCUR)
+         HElement_t(dp) ORHOIJ(0:I_OVCUR,0:I_OVCUR)
          INTEGER OIPATH(NEL,0:I_OVCUR)
-         HElement_t OHIJS(0:I_OVCUR)
+         HElement_t(dp) OHIJS(0:I_OVCUR)
          real(dp) OXIJ(0:I_OVCUR-1,0:I_OVCUR-1),OPROB,PR,R2
          real(dp) OETILDE,WEIGHT,OWEIGHT,ETILDE
          INTEGER IACC
@@ -1714,7 +1714,7 @@ module mcpathsismc
          IMPLICIT NONE
          INTEGER NEL,I_V,IPATH(NEL,0:I_V),NI(NEL)
          real(dp) BETA,ALAT(*),ECORE
-         HElement_t Umat(*)
+         HElement_t(dp) Umat(*)
          TYPE(BasisFN) G1(*)
          INTEGER I_P,nBasisMax(5,*),NBASIS,NMSH
          INTEGER NMAX,NTAY(2)
@@ -1723,9 +1723,9 @@ module mcpathsismc
          INTEGER I_HMAX
          real(dp) RHOEPS
          real(dp) RHOII(0:I_V)
-         HElement_t RHOIJ(0:I_V,0:I_V)
+         HElement_t(dp) RHOIJ(0:I_V,0:I_V)
          real(dp) XIJ(0:I_V-1,0:I_V-1)         
-         HElement_t HIJS(0:I_V)
+         HElement_t(dp) HIJS(0:I_V)
          INTEGER ISEED
          real(dp) PEXCIT(I_V)
          type(egp) PVERTMEMS(0:I_V)
@@ -1738,14 +1738,14 @@ module mcpathsismc
          integer, pointer :: newex(:) => null()
          INTEGER STORE(6)
          real(dp) R
-         HElement_t RH
+         HElement_t(dp) RH
          INTEGER ICE,I,ICOUNT,IC
          INTEGER IGETEXCITLEVEL
          LOGICAL LISINPATH
          LOGICAL ISVALIDDET
          real(dp) RAN2
          real(dp) pGen,pGen2
-         HElement_t :: hel
+         HElement_t(dp) :: hel
          character(*), parameter :: this_routine = 'FMCPR4D2GENGRAPH'
 
          !Deallocate Excitation Generators after precalc

@@ -11,15 +11,15 @@
 !.. ExcitInfo(J,0) = RHOJJ
 !.. ExcitInfo(J,1) = RHOIJ
 !.. ExcitInfo(J,2) = HIJ
-         HElement_t, POINTER :: ExcitInfo(:,:)
-         HElement_t, ALLOCATABLE, TARGET :: ExcitInfo2(:,:)
+         HElement_t(dp), POINTER :: ExcitInfo(:,:)
+         HElement_t(dp), ALLOCATABLE, TARGET :: ExcitInfo2(:,:)
          integer(TagIntType) :: tagExcitInfo=0
          integer(TagIntType) :: tagExcitInfo2=0
-         HElement_t, ALLOCATABLE :: temprhos(:,:)
+         HElement_t(dp), ALLOCATABLE :: temprhos(:,:)
 
 !Offrho is used with TSumProd to store the original star off-diagonal elements when using i
 !TSumProd, which changes the values in EXCITINFO
-         HElement_t, ALLOCATABLE :: Offrho(:)
+         HElement_t(dp), ALLOCATABLE :: Offrho(:)
 
 !If we are keeping a list of excitations in the star, then allocate EXCITSTORE to hold the i
 !excitations, in the form of o o v v orbitals
@@ -34,7 +34,7 @@
          real(dp), ALLOCATABLE :: OffDiagProdRho(:,:)
 
 !Used with TSumProd, rhiiadd is the value to resum back into the root to account for quadruple excitations
-         HElement_t :: rhiiadd
+         HElement_t(dp) :: rhiiadd
 
          integer(TagIntType), save :: tagOnDiagProdRho=0,tagOffDiagProdRho=0,tagEXCITSTORE=0,tagOffrho=0,tagtemprhos=0
          integer(TagIntType), save :: tagProdPositions=0
@@ -56,11 +56,11 @@
          INTEGER nEl,nI(nEl),i_P,nBasisMax(5,*),nBasis,nMsh
          INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging
          complex(dp) fck(*)
-         HElement_t UMat(*)
+         HElement_t(dp) UMat(*)
          real(dp) Beta, ALat(3),RhoEps,ECore,dBeta,MaxDiag
          real(dp) dLWdB
          real(dp) fMCPR3StarNewExcit
-         HElement_t HIJS(0:2)
+         HElement_t(dp) HIJS(0:2)
 !         real(dp) LARGERHOJJ(10000)
          INTEGER iPath(nEl,0:2),UniqProd
          character(*), parameter :: this_routine='fMCPR3StarNewExcit'
@@ -78,7 +78,7 @@
          INTEGER nJ(nEl),iExcit,iMaxExcit,excitcount,Prodnum
          INTEGER iErr
          INTEGER nRoots,i
-         HElement_t rh,rhii,EHFDiff,Hii
+         HElement_t(dp) rh,rhii,EHFDiff,Hii
          real(dp) MP2E(2:2)        
          LOGICAL tStarSingles,tCountExcits
          INTEGER nIExcitFormat(nEl)
@@ -420,7 +420,7 @@
             use neci_intfce
             IMPLICIT NONE
             TYPE(BasisFN) G1(*)
-            HElement_t :: rhii,UMat(*),rh,rhij,Hij
+            HElement_t(dp) :: rhii,UMat(*),rh,rhij,Hij
             complex(dp) :: fck(*)
             real(dp) :: Beta,ALat(3),ECore,RhoEps
             INTEGER :: nEl
@@ -695,7 +695,7 @@
             LOGICAL :: degen
             real(dp) :: gap,minimum
             real(dp), ALLOCATABLE :: Vals(:),Vecs(:),DiagRhos(:)
-            HElement_t :: tmp(3)
+            HElement_t(dp) :: tmp(3)
             integer(TagIntType), save :: tagDegenPos=0
             character(*), parameter :: this_routine='GraphRootChange'
 
@@ -938,10 +938,10 @@
             INTEGER :: NextVertex,i,j,iErr,iMaxExcit,iExcit
             type(timer), save :: proc_timer
             real(dp), ALLOCATABLE :: NewDiagRhos(:),Vals(:),Vecs(:)
-            HElement_t, ALLOCATABLE :: NewOffDiagRhos(:)
+            HElement_t(dp), ALLOCATABLE :: NewOffDiagRhos(:)
             integer(TagIntType), save :: tagVals=0,tagVecs=0,tagNewDiagRhos=0,tagNewOffDiagRhos=0
             real(dp) :: RhoValue,RhoEps,OffRhoValue
-            HElement_t :: Rhoia
+            HElement_t(dp) :: Rhoia
             LOGICAL :: FoundRoot
             character(*), parameter :: this_routine='GetStarStars'
 
@@ -1070,7 +1070,7 @@
             LOGICAL :: ReachMax
             real(dp), ALLOCATABLE :: AllVals(:),AllVecs(:),DiagRhos(:)
             integer(TagIntType), save :: tagAllVals=0,tagAllVecs=0,tagDiagRhos=0
-            HElement_t :: tmp(3)
+            HElement_t(dp) :: tmp(3)
             character(*), parameter :: this_routine='GetLinRootChangeStars'
 
             proc_timer%timer_name='GetLinRootChangeStars'
@@ -1786,7 +1786,7 @@
             INTEGER :: Dimen,i,iErr
             INTEGER(int32) INFO
             real(dp) :: DiagRhos(1:Dimen),Vals(Dimen),Vecs(Dimen)
-            HElement_t :: OffDiagRhos(2:Dimen)
+            HElement_t(dp) :: OffDiagRhos(2:Dimen)
             real(dp), ALLOCATABLE :: StarMat(:,:),WORK(:)
             integer(TagIntType), save :: tagStarMat=0,tagWORK=0
             character(*), parameter :: this_routine='GetValsnVecs'
@@ -1854,7 +1854,7 @@
             INTEGER :: iExcit,ProdNum,Uniqprod,ProdOrbs(8),i_P,nEl,nBasis,nMsh,nMax,nTay(2),ierr,i,ni(nEl)
             INTEGER :: nj(nEl),nk(nEl),nl(nEl)
             complex(dp) fck(*)
-            HElement_t UMat(*),rh,rhii
+            HElement_t(dp) UMat(*),rh,rhii
             TYPE(BasisFN) G1(*)
             real(dp) :: Beta,ALat(3),ECore
             character(*), parameter :: this_routine='GetStarProds'
@@ -2182,7 +2182,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          INTEGER NEL,I_P,NBASIS,NMSH,NMAX
          INTEGER NTAY(2),NWHTAY,LT
          real(dp) ALAT(*),ECORE
-         HElement_t UMat(*)
+         HElement_t(dp) UMat(*)
          complex(dp) FCK(*)
          INTEGER NI(NEL),ILMAX
 !.. LSTE is a list of excitations (which we will generate)
@@ -2197,12 +2197,12 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !.. LIST(J,1) = RHOIJ
 !.. LIST(J,2) = HIJ
 
-         HElement_t LIST(0:ILMAX,0:2)
+         HElement_t(dp) LIST(0:ILMAX,0:2)
          real(dp) BETA,RHOEPS
          real(dp) DBETA,DLWDB
          INTEGER NLIST,NLCUR,I,L
 
-         HElement_t RHII,RH
+         HElement_t(dp) RHII,RH
          NLIST=ILMAX
 
          NLCUR=0
@@ -3452,10 +3452,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          IMPLICIT NONE
          INTEGER I_P
          INTEGER NLIST,ILMAX
-         HElement_t LIST(0:ILMAX-1,0:2)
+         HElement_t(dp) LIST(0:ILMAX-1,0:2)
          type(timer), save :: proc_timer
          real(dp) SI,DLWDB,DBETA,NORM,E0
-         HElement_t DLWDB2,RR
+         HElement_t(dp) DLWDB2,RR
          INTEGER I,J,NROOTS
          real(dp) ROOTS(0:NROOTS),RPN
          INTEGER iEigv,iDegen
@@ -3664,9 +3664,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          INTEGER nEl,nI(nEl),i_P,nBasis,nMsh
          INTEGER nMax,nTay(2),iMaxExcit
          complex(dp) fck(*)
-         HElement_t UMat(*)
+         HElement_t(dp) UMat(*)
          real(dp) Beta, ALat(3),RhoEps,ECore
-         HElement_t  ExcitInfo(0:iMaxExcit,0:2)
+         HElement_t(dp)  ExcitInfo(0:iMaxExcit,0:2)
          character(*), parameter :: this_routine = 'StarAddSingles'
 !.. New lists are generated here
 !.. This will contain all the info needed to work out the value of the
@@ -3678,12 +3678,12 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 
          INTEGER nJ(nEl),iEx(2,2),nK(nEl)
          LOGICAL tDummy
-         HElement_t StarMat(5,5),rh,rhii
+         HElement_t(dp) StarMat(5,5),rh,rhii
          integer i,iExcit,iExc
 
 !Needed for diagonalizer
          real(dp) WLIST(5),WORK(3*5)         
-         HElement_t NWORK(4*5)
+         HElement_t(dp) NWORK(4*5)
          INTEGER(int32) INFO
 
          StarMat=(0.0_dp)

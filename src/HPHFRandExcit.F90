@@ -137,13 +137,13 @@ MODULE HPHFRandExcitMod
         integer, intent(out) :: IC, ExcitMat(2,2)
         logical, intent(out) :: tParity ! Not used
         real(dp), intent(out) :: pGen
-        HElement_t, intent(out) :: HEl
+        HElement_t(dp), intent(out) :: HEl
         type(excit_gen_store_type), intent(inout), target :: store
 
         integer(kind=n_int) :: iLutnJ2(0:niftot)
         integer :: openOrbsI, openOrbsJ, nJ2(nel), ex2(2,2), excitLevel 
         real(dp) :: pGen2
-        HElement_t :: MatEl, MatEl2
+        HElement_t(dp) :: MatEl, MatEl2
         logical :: tSign, tSignOrig
         logical :: tSwapped
 

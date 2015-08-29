@@ -84,7 +84,7 @@ MODULE ReturnPathMCMod
 !    real(dp) :: MeanExit
 !
 !    real(dp) :: Hii,rhii
-!    HElement_t :: HFDiag
+!    HElement_t(dp) :: HFDiag
 
     contains
 
@@ -95,7 +95,7 @@ MODULE ReturnPathMCMod
         weight = weight; energyxw = energyxw
 !        INTEGER :: j
 !        CHARACTER , PARAMETER :: this_routine='ReturnPathMC'
-!        HElement_t :: HiiHEl,rhiiHEl
+!        HElement_t(dp) :: HiiHEl,rhiiHEl
 
         CALL Stop_All("ReturnPathMC","This code has been commented out.")
 
@@ -463,7 +463,7 @@ MODULE ReturnPathMCMod
 !        TYPE(Part) :: Particle
 !        INTEGER :: NewChainLength,VecSlot,nJ(NEl),ExcitLevel,IC
 !        real(dp) :: DiagElem,hHi0
-!        HElement_t :: ConntoHF
+!        HElement_t(dp) :: ConntoHF
 !        LOGICAL :: WSign
 !
 !        IF(Particle%ChainLength.eq.NewChainLength) THEN
@@ -694,7 +694,7 @@ MODULE ReturnPathMCMod
 !        LOGICAL :: LSame
 !        real(dp) :: Conn      !For off-diagonal, this = Hij. For Diagonal, this equals Ei-E0
 !        real(dp) :: UExp
-!        HElement_t :: EDiag,RH,EDiag2
+!        HElement_t(dp) :: EDiag,RH,EDiag2
 !
 !        IF(LSame) THEN
 !
@@ -841,7 +841,7 @@ MODULE ReturnPathMCMod
 !!However, if TRhoElems is on, then it returns Ei-E0 for diagonal elements.
 !    real(dp) FUNCTION GetConnection(nI,nJ,IC)
 !        INTEGER :: nI(NEl),nJ(NEl),IC
-!        HElement_t :: rhiiHEl,HiiHEl
+!        HElement_t(dp) :: rhiiHEl,HiiHEl
 !
 !        IF(TRhoElems.and.(IC.eq.0)) THEN
 !!We want to calculate rho transition matrix elements
@@ -909,7 +909,7 @@ MODULE ReturnPathMCMod
 !    SUBROUTINE InitRetPathMC()
 !        INTEGER :: ierr,j
 !        CHARACTER , PARAMETER :: this_routine='InitRetPath'
-!        HElement_t :: HiiHel,rhiiHel
+!        HElement_t(dp) :: HiiHel,rhiiHel
 !
 !        SumWalkersCyc=0
 !        MeanExit=0.0_dp

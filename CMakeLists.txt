@@ -163,14 +163,14 @@ endforeach(target)
 
 #
 # And add the target-specific compler flags.
-target_compile_definitions(neci PUBLIC -DHElement_t=real\(dp\))
-target_compile_definitions(dneci PUBLIC -DHElement_t=real\(dp\) -D__DOUBLERUN)
-target_compile_definitions(mneci PUBLIC -DHElement_t=real\(dp\) -D__PROG_NUMRUNS)
-target_compile_definitions(kneci PUBLIC -DHElement_t=complex\(dp\) -D__CMPLX)
-target_compile_definitions(neci_test PUBLIC -DHElement_t=real\(dp\))
-target_compile_definitions(dneci_test PUBLIC -DHElement_t=real\(dp\) -D__DOUBLERUN)
-target_compile_definitions(mneci_test PUBLIC -DHElement_t=real\(dp\) -D__PROG_NUMRUNS)
-target_compile_definitions(kneci_test PUBLIC -DHElement_t=complex\(dp\) -D__CMPLX)
+target_compile_definitions(neci PUBLIC -DHElement_t=real)
+target_compile_definitions(dneci PUBLIC -DHElement_t=real -D__DOUBLERUN)
+target_compile_definitions(mneci PUBLIC -DHElement_t=real -D__PROG_NUMRUNS)
+target_compile_definitions(kneci PUBLIC -DHElement_t=complex -D__CMPLX)
+target_compile_definitions(neci_test PUBLIC -DHElement_t=real)
+target_compile_definitions(dneci_test PUBLIC -DHElement_t=real -D__DOUBLERUN)
+target_compile_definitions(mneci_test PUBLIC -DHElement_t=real -D__PROG_NUMRUNS)
+target_compile_definitions(kneci_test PUBLIC -DHElement_t=complex -D__CMPLX)
 
 # TODO:
 # Test for compiler features, to enable specific flags
@@ -215,9 +215,19 @@ include_directories(BEFORE SYSTEM ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/un
 #
 # Some form of lapack is always needed (be that acml, mkl, LAPACK, ...)
 message("Configuring BLAS/LAPACK")
-find_package(LAPACK REQUIRED)
-set(NECI_LIBRARIES ${LAPACK_LIBRARIES})
-message("-- Using libraries: ${LAPACK_LIBRARIES}")
+
+find_package(MKL REQUIRED)
+if (${MKL_FOUND})
+	message("-- Found MKL")
+	set(NECI_LIBRARIES ${MKL_LIBRARIES})
+	include_directories(${MKL_INCLUDE_DIR})
+	message("-- Using libraries: ${MKL_LIBRARIES}")
+else()
+	find_package(LAPACK REQUIRED)
+	set(NECI_LIBRARIES ${LAPACK_LIBRARIES})
+	message("-- Found BLAS/Lapack")
+	message("-- Using libraries: ${LAPACK_LIBRARIES}")
+endif()
 
 # If FFTW is present, then we want to use it. Otherwise disable it in NECI
 message("Configuring FFTW")
@@ -232,19 +242,45 @@ endif()
 
 # Look for MPI...
 if (PARALLEL)
-	message("Configuring parallel build")
+
 	find_package(MPI REQUIRED)
 	if (${MPI_FOUND})
 		message("-- Using MPI")
-		set(NECI_LIBRARIES ${NECI_LIBRARIES} ${MPI_Fortran_LIBRARIES})
-		set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${MPI_Fotran_COMPILE_FLAGS}")
-		#include_directories(${MPI_Fortran_INCLUDE_PATH})
-		include_directories(${MPI_INCLUDE_PATH})
-		message("-- MPI flags (fortran): ${MPI_Fortran_COMPILE_FLAGS}")
-		#message("-- MPI include: ${MPI_Fortran_INCLUDE_PATH}")
-		message("-- MPI include: ${MPI_INCLUDE_PATH}")
-		message("-- MPI link: ${MPI_Fortran_LINK_FLAG}")
 		add_definitions(-DPARALLEL)
+
+		# If we are using ifort, and we have not found the mpiifort wrapper, then
+		# we need to force things to use the mpiifort wrapper executable, instead of
+		# doing the normal stuff.
+		#
+		# Otherwise FindMPI can end up finding the GNU stuff, e.g. when using
+		# mpi.ibm, which has both sets of wrappers avaialable
+		get_filename_component(WRAPPER_NM ${MPI_Fortran_COMPILER} NAME)
+		if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel" AND NOT WRAPPER_NM STREQUAL "mpiifort")
+			message("-- Forcing use of mpiifort wrapper")
+			set(MPI_Fortran_COMPILER mpiifort)
+			find_package(MPI REQUIRED)
+			if (NOT ${MPI_FOUND})
+				message(FATAL_ERROR "No suitable MPI wrapper found for ifort")
+			endif()
+			message("-- Fortran compiler: ${MPI_Fortran_COMPILER}")
+			set(CMAKE_Fortran_COMPILER ${MPI_Fortran_COMPILER})
+		else()
+			set(NECI_LIBRARIES ${NECI_LIBRARIES} ${MPI_Fortran_LIBRARIES})
+			set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${MPI_Fotran_COMPILE_FLAGS}")
+			include_directories(${MPI_INCLUDE_PATH})
+			message("-- MPI flags (fortran): ${MPI_Fortran_COMPILE_FLAGS}")
+			message("-- MPI include: ${MPI_INCLUDE_PATH}")
+			#message("-- MPI link: ${MPI_Fortran_LINK_FLAG}")
+			message("-- MPI libraries: ${MPI_Fortran_LIBRARIES}")
+		endif()
+
+		# Prevent poisoning our testing system on later runs
+		unset(MPI_Fortran_COMPILER)
+		unset(MPI_Fortran_COMPILER CACHE)
+	endif()
+
+	message("Configuring parallel build")
+	if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 	endif()
 else()
 	message("Parallel build disabled")

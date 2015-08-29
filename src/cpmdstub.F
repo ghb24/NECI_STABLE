@@ -19,7 +19,7 @@ C.. A stub containing dummy functions in CPMD, which will appear on linking appr
          type(BasisFN) :: G1(*)
          complex(dp) :: HarInt(*)
          integer :: nStates
-         HElement_t :: UMat2D(*)
+         HElement_t(dp) :: UMat2D(*)
          !eliminate warnings
          G1(1)=G1(1)
          nStates=nStates
