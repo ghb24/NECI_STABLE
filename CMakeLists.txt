@@ -29,9 +29,6 @@ if (NOT DEFINED CMAKE_BUILD_TYPE OR NOT CMAKE_BUILD_TYPE)
 else()
 	message("Defined type --${CMAKE_BUILD_TYPE}--")
 endif()
-if (CMAKE_BUILD_TYPE STREQUAL "Cluster")
-	message(FATAL_ERROR "Not yet implemented")
-endif()
 
 option(PARALLEL "Enable parallel build (MPI)" on)
 option(HDF "Enable HDF5 popsfiles" on)
@@ -55,6 +52,8 @@ endif()
 # at least make it a bit more compact.
 set(ALL_COMPILE_FLAGS "")
 set(ALL_LINKER_FLAGS "")
+set(CLUSTER_COMPILE_FLAGS "")
+set(CLUSTER_LINK_FLAGS "")
 
 message("Configuring Fortran compilers")
 message("-- Build type: ${CMAKE_BUILD_TYPE}")
@@ -66,6 +65,17 @@ if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 	add_definitions(-D__IFORT)
 
 	set (CMAKE_Fortran_FLAGS_DEBUG "-g -O0 -check bounds")
+	set (CLUSTER_COMPILE_FLAGS "-ipo")
+	set (CLUSTER_LINK_FLAGS "-ipo")
+	
+	# Test if we are on Hydra. Because this is an inhomogeneous cluster, it
+	# tweaks the available compile options slightly
+	site_name(HOSTNAME)
+	if (${HOSTNAME} MATCHES "hydra[0-9]*")
+		set (CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} -xavx")
+	else()
+		set (CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} -xHost")
+	endif()
 
 elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
 
@@ -106,6 +116,14 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ALL_COMPILE_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ALL_COMPILE_FLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${ALL_LINKER_FLAGS}")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${ALL_LINKER_FLAGS}")
+
+# Create the "Cluster" build type. This is based on the Release build type, but
+# also includes very slow optimisations (such as -ipo) that one wouldn't want
+# to do during a development cycle
+set(CMAKE_C_Flags_CLUSTER "${CMAKE_C_FLAGS_RELEASE} ${CLUSTER_COMPILE_FLAGS}")
+set(CMAKE_CXX_Flags_CLUSTER "${CMAKE_C_FLAGS_RELEASE} ${CLUSTER_COMPILE_FLAGS}")
+set(CMAKE_Fortran_FLAGS_CLUSTER "${CMAKE_Fortran_FLAGS_RELEASE} ${CLUSTER_COMPILE_FLAGS}")
+set(CMAKE_EXE_LINKER_FLAGS_EXE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} ${CLUSTER_LINK_FLAGS}")
 
 #
 # Deal with the additional build step introduced by the templated
