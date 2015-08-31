@@ -195,7 +195,7 @@ MODULE ReadInput_neci
                               tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
-                              tGen_4ind_lin_exact
+                              tGen_4ind_lin_exact, tComplexOrbs_RealInts
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -608,6 +608,22 @@ MODULE ReadInput_neci
             call stop_all(t_r, 'Not implemented for complex walkers')
         end if
 #endif
+
+        if (tFixLz .and. tComplexOrbs_RealInts) then
+            write(6,*)
+            write(6,*) '-------------------------------------'
+            write(6,*) 'Options LZTOT and COMPLEXORBS_REALINTS incompatible'
+            write(6,*)
+            write(6,*) '1. Using multiple options that filter integrals at runtime is unsupported.'
+            write(6,*) '   Only one integral filter may be used at once.'
+            write(6,*)
+            write(6,*) '2. This is almost certainly not what you intended to do.  LZTOT works using'
+            write(6,*) '   abelian symmetries combined with momentum information. COMPLEXORBS_REALINTS'
+            write(6,*) '   provides support for non-abelian symmetries in FCIDUMP files produced'
+            write(6,*) '   using VASP'
+            write(6,*)
+            call stop_all(t_r, 'Options incompatible')
+        end if
 
     end subroutine checkinput
 
