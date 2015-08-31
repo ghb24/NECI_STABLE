@@ -610,8 +610,6 @@ MODULE ReadInput_neci
 #endif
 
         if (tFixLz .and. tComplexOrbs_RealInts) then
-            write(6,*)
-            write(6,*) '-------------------------------------'
             write(6,*) 'Options LZTOT and COMPLEXORBS_REALINTS incompatible'
             write(6,*)
             write(6,*) '1. Using multiple options that filter integrals at runtime is unsupported.'
