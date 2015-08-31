@@ -110,7 +110,7 @@ contains
           else
               !We have defined our own reference determinant, but still use the first orbitals for the calculation
               !of 'orbital energies'
-              CALL GENFDET(BRR,G1,NBASIS,LMS,NEL,FDETTEMP)
+              CALL GENFDET(FDETTEMP)
           endif
           write(6,"(A)") "Calculating orbital energies..."
           do i=1,nBasis
