@@ -234,7 +234,7 @@ include_directories(BEFORE SYSTEM ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/un
 # Some form of lapack is always needed (be that acml, mkl, LAPACK, ...)
 message("Configuring BLAS/LAPACK")
 
-find_package(MKL REQUIRED)
+find_package(MKL)
 if (${MKL_FOUND})
 	message("-- Found MKL")
 	set(NECI_LIBRARIES ${MKL_LIBRARIES})
@@ -349,7 +349,27 @@ if (HDF)
 	)
 	set(ENV{HDF5_ROOT} ${HDF_DIR})
 
+	#
+	# Find an appropriate HDF5 package
+	# n.b. the default HDF5 searcher does not check that the fortran module
+	#      was produced with a compatible compiler. As such, we test this
+	#      manually, and explicitly, by building a test file contained in tools/
 	find_package(HDF5 COMPONENTS Fortran)
+	if (${HDF5_FOUND})
+		execute_process(
+			COMMAND	${CMAKE_Fortran_COMPILER} -I ${HDF5_INCLUDE_DIRS} -c ${CMAKE_SOURCE_DIR}/tools/hdf_module_test.f90
+			WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+			RESULT_VARIABLE TEST_RES
+		)
+		if (NOT ${TEST_RES} STREQUAL "0")
+			set (HDF5_FOUND false)
+			message("-- HDF5 fortran module not compatible")
+		endif()
+	endif()
+
+	#
+	# If we still think the HDF5 module exits, after testing that it functions
+	# correctly, then go ahead and use it!
 	if (${HDF5_FOUND})
 		message("-- Found HDF5")
 		message("-- definitions: ${HDF5_DEFINITIONS}")
@@ -362,6 +382,7 @@ if (HDF)
 		include_directories(${HDF5_INCLUDE_DIRS})
 	else()
 		message("-- HDF5 not found")
+		message("-- To build using HDF5, first run \"make hdf5\" and then rerun cmake")
 	endif()
 
 else()
