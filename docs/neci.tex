@@ -219,14 +219,23 @@
 	With the \code{build} directory as the current working directory,
 	execute
 	\begin{lstlisting}[gobble=4]
-		cmake [path_to_neci}
+	cmake [-DCMAKE_BUILD_TYPE=<type>] [path_to_neci]
 	\end{lstlisting}
 	pointing CMake at the root directory of the cloned NECI repository.
 
 	At this point CMake will automatically configure NECI according to the
 	currently loaded modules, and available compilers and libraries. If a
 	different set of modules or compilers are to be used a fresh directory
-	should be initialised (or equivalently 
+	should be initialised (or equivalently all contents of the directory
+	deleted).
+
+	By default CMake will configure a Release build. If this is not desired
+	an alternative build type may be specified by setting the
+	\code{CMAKE_BUILD_TYPE} above. The available options are \code{Debug} (no
+	optimisations, all checking enabled), \code{Release} (optimisations
+	enabled), \code{RelWithDebInfo} (same as release, but with debugging
+	symbols retained) or \code{Cluster} (inter-procedural optimisations
+	enabled, with very long compile times).
 
 	\begin{mdframed}[ %
 		linewidth = 2pt, %
