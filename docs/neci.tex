@@ -156,6 +156,13 @@
 			Math Library (ACML), the Intel Math Kernel Library (MKL), or the
 			more general Basic Linear Algebra Subprograms (BLAS)/Linear Algebra
 			Package (LAPACK) combination.
+		\headitem{HDF5}
+			To make use of the structured HDF5 format for reading/writing
+			POPSFILES (files storing the population of walkers, and other
+			information, to restart calculations). This library should be
+			built with MPI and fortran support
+			(\code{--enable-parallel} \code{--enable-fortran}\
+			\code{--enable-fortran2003}).
 		\headitem{FFTW}
 			A small number of options in NECI, which are not enabled by
 			default, require Fast Fourier Transforms. If these are re-enabled
@@ -196,9 +203,65 @@
 		\headitem{ifort (Max Planck FKF)}
 			\code{ifort mpi.intel}\linebreak
 			Note that the MKL library is included in the ifort module.
+		\headitem{ifort (hydra)}
+			\code{git intel mkl mpi.ibm hdf5-mpi cmake}
 	\end{description}
 
-\subsection{Configuring builds}
+\subsection{Building the code (using CMake)}
+	There are two ways of building NECI. The recommended approach is to use
+	the cmake build system. For legacy purposes, and for more explicitly
+	customised build configurations, the older Makefile system may also
+	be used.
+
+	CMake allows building the code in a separate directory. One directory
+	should be used per configuration that is to be built. This module can
+	be a subdirectory of the NECI directory, or otherwise.
+	With the \code{build} directory as the current working directory,
+	execute
+	\begin{lstlisting}[gobble=4]
+		cmake [path_to_neci}
+	\end{lstlisting}
+	pointing CMake at the root directory of the cloned NECI repository.
+
+	At this point CMake will automatically configure NECI according to the
+	currently loaded modules, and available compilers and libraries. If a
+	different set of modules or compilers are to be used a fresh directory
+	should be initialised (or equivalently 
+
+	\begin{mdframed}[ %
+		linewidth = 2pt, %
+		linecolor = red, %
+		roundcorner = 6pt, %
+		leftmargin = 10, %
+		rightmargin = 10, %
+		backgroundcolor = gray!20
+	]
+	If there is an available HDF5 library, which is compiled with support for
+	MPI and for the Fortran compiler in use, then CMake will happily make use
+	of it. Otherwise support for HDF5 POPSFILES will be disabled by default.
+
+	The CMake configuration for NECI contains the functionality to download,
+	compile and use HDF5. To do this just run
+	\begin{lstlisting}[gobble=4]
+		make [-j] hdf5
+	\end{lstlisting}
+	in the \code{build} directory and then re-run \code{cmake}.
+	\end{mdframed}
+
+	The code is then built using the command
+	\begin{lstlisting}[gobble=4]
+		make [-j [n]] [neci|kneci|dneci|mneci]
+	\end{lstlisting}
+	The optional flag \code{-j} specifies that the build should be
+	performed in parallel (with up to an optional number, \code{n},
+	threads).
+
+	The final argument specifies whether the normal code (\code{neci})
+	should be built, the complex code (\code{kneci}) the double run
+	code (\code{dneci}) or the multi run code (\code{mneci}) are
+	built. If not specified, all targets are built.
+
+\subsection{Configuring builds (Makefile system)}
 	A specific configuration for building NECI is initialised by using the
 	command
 	\begin{lstlisting}[gobble=4]
@@ -252,19 +315,20 @@
 	performant so are not used by default. These lines can be substituted in
 	the generated \code{Makefile} before compilation.
 
-\subsection{Building the code}
+\subsection{Building the code (Makefile system)}
 	The code is built using the command
 	\begin{lstlisting}[gobble=4]
-		make [-j [n]] [neci.x|kneci.x|dneci.x|both|all]
+		make [-j [n]] [neci.x|kneci.x|dneci.x|mneci.x|both|all]
 	\end{lstlisting}
 	The optional flag \code{-j} specifies that the build should be
 	performed in parallel (with up to an optional number, \code{n},
 	threads).
 
 	The final argument specifies whether the normal code (\code{neci.x})
-	should be built, the complex code (\code{kneci.x}) the double run
-	code (\code{dneci.x}) or both the normal and complex codes
-	(\code{both}) or all of the above and various extra utilities
+	should be built, the complex code (\code{kneci.x}), the double run
+	code (\code{dneci.x}), the multiple run code (\code{mneci.x}) or
+	both the normal and complex codes (\code{both}) or all of the above
+	and various extra utilities
 	(\code{all}).
 	
 \subsection{Git overview}
