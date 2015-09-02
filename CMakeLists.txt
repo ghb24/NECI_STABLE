@@ -347,7 +347,7 @@ if (HDF)
 		INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/hdf5
 		# INSTALL_COMMAND "make install"
 	)
-	set_target_properties(hdf5 EXCLUDE_FROM_ALL TRUE)
+	set_target_properties(hdf5 PROPERTIES EXCLUDE_FROM_ALL TRUE)
 	set(ENV{HDF5_ROOT} ${HDF_DIR})
 
 	#
