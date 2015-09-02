@@ -356,6 +356,13 @@ if (HDF)
 	set_target_properties(hdf5 PROPERTIES EXCLUDE_FROM_ALL TRUE)
 	set(ENV{HDF5_ROOT} ${HDF_DIR})
 
+	# Because we may be changing the location of the HDF5 libraries after building
+	# them, we need to clear existing settings for it
+	unset(HDF5_hdf5_LIBRARY_RELEASE)
+	unset(HDF5_hdf5_LIBRARY_RELEASE CACHE)
+	unset(HDF5_hdf5_fortran_LIBRARY_RELEASE)
+	unset(HDF5_hdf5_fortran_LIBRARY_RELEASE CACHE)
+
 	#
 	# Find an appropriate HDF5 package
 	# n.b. the default HDF5 searcher does not check that the fortran module
