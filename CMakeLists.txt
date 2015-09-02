@@ -203,7 +203,7 @@ message("VCS configuration")
 find_package(Git)
 if (${Git_FOUND})
 	message("-- Git has been found")
-	Git_WC_INFO("." "DIR")
+	Git_WC_INFO(${CMAKE_SOURCE_DIR} "DIR")
 	add_definitions(-D_VCS_VER='${DIR_WC_REVISION_HASH}')
 	message("-- SHAID: ${DIR_WC_REVISION_HASH}")
 	if (${DIR_WC_CHANGES} OR ${DIR_WC_CACHED_CHANGES})
@@ -234,7 +234,7 @@ include_directories(BEFORE SYSTEM ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/un
 # Some form of lapack is always needed (be that acml, mkl, LAPACK, ...)
 message("Configuring BLAS/LAPACK")
 
-find_package(MKL REQUIRED)
+find_package(MKL)
 if (${MKL_FOUND})
 	message("-- Found MKL")
 	set(NECI_LIBRARIES ${MKL_LIBRARIES})
@@ -276,12 +276,18 @@ if (PARALLEL)
 		if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel" AND NOT WRAPPER_NM STREQUAL "mpiifort")
 			message("-- Forcing use of mpiifort wrapper")
 			set(MPI_Fortran_COMPILER mpiifort)
+			set(MPI_C_COMPILER mpiicc)
+			set(MPI_CXX_COMPILER mpiicpc)
 			find_package(MPI REQUIRED)
 			if (NOT ${MPI_FOUND})
 				message(FATAL_ERROR "No suitable MPI wrapper found for ifort")
 			endif()
 			message("-- Fortran compiler: ${MPI_Fortran_COMPILER}")
+			message("-- C compiler: ${MPI_C_COMPILER}")
+			message("-- C++ compiler: ${MPI_CXX_COMPILER}")
 			set(CMAKE_Fortran_COMPILER ${MPI_Fortran_COMPILER})
+			set(CMAKE_C_COMPILER ${MPI_C_COMPILER})
+			set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
 		else()
 			set(NECI_LIBRARIES ${NECI_LIBRARIES} ${MPI_Fortran_LIBRARIES})
 			set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${MPI_Fotran_COMPILE_FLAGS}")
@@ -295,6 +301,10 @@ if (PARALLEL)
 		# Prevent poisoning our testing system on later runs
 		unset(MPI_Fortran_COMPILER)
 		unset(MPI_Fortran_COMPILER CACHE)
+		unset(MPI_C_COMPILER)
+		unset(MPI_C_COMPILER CACHE)
+		unset(MPI_CXX_COMPILER)
+		unset(MPI_CXX_COMPILER CACHE)
 	endif()
 
 	message("Configuring parallel build")
@@ -339,19 +349,44 @@ if (HDF)
 	)
 	set(ENV{HDF5_ROOT} ${HDF_DIR})
 
+	#
+	# Find an appropriate HDF5 package
+	# n.b. the default HDF5 searcher does not check that the fortran module
+	#      was produced with a compatible compiler. As such, we test this
+	#      manually, and explicitly, by building a test file contained in tools/
 	find_package(HDF5 COMPONENTS Fortran)
+	if (${HDF5_FOUND})
+		execute_process(
+			COMMAND	${CMAKE_Fortran_COMPILER} -I ${HDF5_INCLUDE_DIRS} -c ${CMAKE_SOURCE_DIR}/tools/hdf_module_test.f90
+			WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+			RESULT_VARIABLE TEST_RES
+		)
+		if (NOT ${TEST_RES} STREQUAL "0")
+			set (HDF5_FOUND false)
+			message("-- HDF5 fortran module not compatible")
+		endif()
+
+		if (NOT ${HDF5_IS_PARALLEL})
+			message("-- HDF5 not built with MPI support")
+			set (HDF5_FOUND false)
+		endif()
+	endif()
+
+	#
+	# If we still think the HDF5 module exits, after testing that it functions
+	# correctly, then go ahead and use it!
 	if (${HDF5_FOUND})
 		message("-- Found HDF5")
 		message("-- definitions: ${HDF5_DEFINITIONS}")
 		message("-- libs: ${HDF5_LIBRARIES} ${HDF5_Fortran_LIBRARIES}")
 		message("-- include: ${HDF5_INCLUDE_DIRS}")
-		message("-- parallel: ${HDF5_IS_PARALLEL}")
 		set(NECI_LIBRARIES ${NECI_LIBRARIES} ${HDF5_Fortran_LIBRARIES} ${HDF5_LIBRARIES})
 		add_definitions(${HDF5_DEFINITIONS})
 		add_definitions(-D__USE_HDF)
 		include_directories(${HDF5_INCLUDE_DIRS})
 	else()
 		message("-- HDF5 not found")
+		message("-- To build using HDF5, first run \"make hdf5\" and then rerun cmake")
 	endif()
 
 else()
