@@ -569,6 +569,93 @@ contains
 
     end subroutine read_dp_1d_dataset
 
+    subroutine h5t_complex_t(dtype)
+
+        ! Construct a datatype for complex numbers (dp)
+        integer(hid_t), intent(out) :: dtype
+        integer(hid_t) :: err
+
+        ! Complex numbers are two 8-byte floating points long
+        call h5tcreate_f(H5T_COMPOUND_F, 16_hsize_t, dtype, err)
+        call h5tinsert_f(dtype, "real", 0_hsize_t, H5T_NATIVE_REAL_8, err)
+        call h5tinsert_f(dtype, "real", 0_hsize_t, H5T_NATIVE_REAL_8, err)
+        call h5tinsert_f(dtype, "imag", 8_hsize_t, H5T_NATIVE_REAL_8, err)
+
+    end subroutine
+
+    subroutine write_cplx_1d_dataset(parent, nm, val)
+
+        integer(hid_t) :: parent
+        character(*), intent(in) :: nm
+        complex(dp), intent(in), target :: val(:)
+
+        integer(hid_t) :: dataspace, dataset, dtype, err
+        integer(hsize_t) :: dims(1)
+        integer(int32), pointer :: ptr(:)
+
+        ! Create the appropriate dataspace
+        dims = [size(val)]
+        call h5screate_simple_f(1_hid_t, dims, dataspace, err)
+
+        ! Create the dataset with the correct type
+        call h5t_complex_t(dtype)
+        call h5dcreate_f(parent, nm, dtype, dataspace, dataset, err)
+
+        ! write the data
+        call ptr_abuse_1d(val, ptr)
+        call h5dwrite_f(dataset, dtype, ptr, dims, err)
+
+        ! Close the residual handles
+        call h5tclose_f(dtype, err)
+        call h5dclose_f(dataset, err)
+        call h5sclose_f(dataspace, err)
+
+    end subroutine
+
+    subroutine read_cplx_1d_dataset(parent, nm, val, exists, default, required)
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        complex(dp), intent(out), target :: val(:)
+        logical, intent(out), optional :: exists
+        logical, intent(in), optional :: required
+        complex(dp), intent(in), optional :: default(:)
+        character(*), parameter :: t_r = 'read_dp_1d_dataset'
+
+        integer(hid_t) :: dataset, err, type_id
+        integer(hsize_t) :: dims(1)
+        integer(int32), pointer :: ptr(:)
+        logical(hid_t) :: exists_
+
+        call h5lexists_f(parent, nm, exists_, err)
+        if (exists_) then
+            call h5dopen_f(parent, nm, dataset, err)
+            call h5dget_type_f(dataset, type_id, err)
+
+            ! Check dimensions and types.
+            dims = [size(val)]
+            call check_dataset_params(dataset, nm, 16_hsize_t, H5T_COMPOUND_F, &
+                                      dims)
+
+            ! And actually read the data.
+            call ptr_abuse_1d(val, ptr)
+            call h5dread_f(dataset, type_id, ptr, dims, err)
+
+            call h5tclose_f(type_id, err)
+            call h5dclose_f(dataset, err)
+        end if
+
+        if (present(required)) then
+            if (required .and. .not. exists_) then
+                write(6, *) nm
+                call stop_all(t_r, "Required field does not exist")
+            end if
+        end if
+        if (present(exists)) exists = exists_
+        if (present(default) .and. .not. exists_) val = default
+
+    end subroutine read_cplx_1d_dataset
+
     subroutine write_2d_multi_arr_chunk_offset( &
                        parent, nm, itype, cptr, arr_dims, mem_dims, mem_offset, &
                        dataspace_dims, dataspace_offset)
