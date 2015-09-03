@@ -27,7 +27,7 @@ MODULE PopsfileMod
     use LoggingData, only: iWritePopsEvery, tPopsFile, iPopsPartEvery, tBinPops, &
                        tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
-                       binarypops_min_weight, tHDF5Pops
+                       binarypops_min_weight, tHDF5PopsRead, tHDF5PopsWrite
     use sort_mod
     use util_mod, only: get_free_unit,get_unique_filename
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
@@ -123,7 +123,7 @@ contains
         process_timer%timer_name = 'POPS-process'
         call set_timer(read_timer)
 
-        if (tHDF5Pops) then
+        if (tHDF5PopsRead) then
 
             CurrWalkers = read_popsfile_hdf5(dets)
 
@@ -1471,7 +1471,7 @@ r_loop: do while(.not.tStoreDet)
         type(timer), save :: write_timer
 
         ! If we are using the new popsfile format, then use it!
-        if (tHDF5Pops) then
+        if (tHDF5PopsWrite) then
             call write_popsfile_hdf5()
             return
         end if
