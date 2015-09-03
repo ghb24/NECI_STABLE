@@ -2150,6 +2150,9 @@ contains
             case("MULTI-REF-SHIFT")
                 tMultiRefShift = .true.
 
+            case("MP2-FIXED-NODE")
+                tMP2FixedNode = .true.
+
             case("INTERPOLATE-INITIATOR")
                 ! Implement interpolation between aborting particles
                 ! due to the initiator criterion, and accepting them, based

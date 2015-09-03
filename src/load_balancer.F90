@@ -461,6 +461,8 @@ contains
     subroutine CalcHashTableStats(TotWalkersNew, iter_data)
 
         use rdm_data, only: rdms
+        use CalcData, only: tMP2FixedNode
+        use DetBitOps, only: FindBitExcitLevel
 
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -469,8 +471,9 @@ contains
         integer :: irdm, ind1, ind2
         real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
         real(dp) :: pRemove, r
-        integer :: nI(nel), run
+        integer :: nI(nel), run, ic
         logical :: tIsStateDeterm
+        real(dp) :: hij
         character(*), parameter :: t_r = 'CalcHashTableStats'
 
         if (.not. bNodeRoot) return
@@ -485,12 +488,35 @@ contains
 
         if (TotWalkersNew > 0) then
             do i=1,TotWalkersNew
+
                 call extract_sign(CurrentDets(:,i),CurrentSign)
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
 
                 if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
                     AnnihilatedDet = AnnihilatedDet + 1 
                 else
+
+#if !(defined(__PROG_NUMRUNS) || defined(__CMPLX))
+                    if (tMP2FixedNode) then
+                        ic = FindBitExcitLevel(ilutRef(:,1), CurrentDets(:,i))
+                        call decode_bit_det(nI, CurrentDets(:,i))
+                        if (ic == 2) then
+                            hij = get_helement(nI, ProjEDet(:, 1), 2, CurrentDets(:,i), ilutRef(:,1))
+                            do j = 1, lenof_sign
+                                run = part_type_to_run(j)
+                                if (abs(hij) > 1.0e-6 .and. (CurrentSign(j) * hij * NoatHF(j)) > 0) then
+                                    NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
+                                    iter_data%nremoved(j) = iter_data%nremoved(j) + abs(CurrentSign(j))
+                                    CurrentSign(j) = 0
+                                    call nullify_ilut_part(CurrentDets(:, i), j)
+                                end if
+                            end do
+                        end if
+                    end if
+#else
+                    call stop_all(t_r, 'not yet implemented')
+#endif
+
                     do j=1, lenof_sign
                         run = part_type_to_run(j)
                         if (.not. tIsStateDeterm) then
