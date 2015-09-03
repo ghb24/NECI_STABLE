@@ -190,6 +190,12 @@ target_compile_definitions(dneci_test PUBLIC -DHElement_t=real -D__DOUBLERUN)
 target_compile_definitions(mneci_test PUBLIC -DHElement_t=real -D__PROG_NUMRUNS)
 target_compile_definitions(kneci_test PUBLIC -DHElement_t=complex -D__CMPLX)
 
+# We don't want to compile the test executables unless asked for
+set_target_properties(neci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(kneci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(mneci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(dneci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
+
 # TODO:
 # Test for compiler features, to enable specific flags
 # Add librt, libm as required
@@ -347,7 +353,15 @@ if (HDF)
 		INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/hdf5
 		# INSTALL_COMMAND "make install"
 	)
+	set_target_properties(hdf5 PROPERTIES EXCLUDE_FROM_ALL TRUE)
 	set(ENV{HDF5_ROOT} ${HDF_DIR})
+
+	# Because we may be changing the location of the HDF5 libraries after building
+	# them, we need to clear existing settings for it
+	unset(HDF5_hdf5_LIBRARY_RELEASE)
+	unset(HDF5_hdf5_LIBRARY_RELEASE CACHE)
+	unset(HDF5_hdf5_fortran_LIBRARY_RELEASE)
+	unset(HDF5_hdf5_fortran_LIBRARY_RELEASE CACHE)
 
 	#
 	# Find an appropriate HDF5 package

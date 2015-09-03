@@ -439,7 +439,11 @@ contains
         ! (n.b. ensure values on all procs)
         call MPIBcast(AllSumENum)
         call MPIBcast(AllSumNoatHF)
+#ifdef __CMPLX
+        call write_cplx_1d_dataset(acc_grp, nm_sum_enum, AllSumENum)
+#else
         call write_dp_1d_dataset(acc_grp, nm_sum_enum, AllSumENum)
+#endif
         call write_dp_1d_dataset(acc_grp, nm_sum_no_ref, AllSumNoatHF)
 
         ! Clear up
@@ -548,8 +552,13 @@ contains
         call h5gopen_f(parent, nm_acc_grp, grp_id, err)
         call read_dp_1d_dataset(grp_id, nm_sum_no_ref, AllSumNoatHF, &
                                 required=.true.)
+#ifdef __CMPLX
+        call read_cplx_1d_dataset(grp_id, nm_sum_enum, AllSumENum, &
+                                  required=.true.)
+#else
         call read_dp_1d_dataset(grp_id, nm_sum_enum, AllSumENum, &
                                 required=.true.)
+#endif
 
         call h5gclose_f(grp_id, err)
         
