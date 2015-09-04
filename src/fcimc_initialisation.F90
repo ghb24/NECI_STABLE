@@ -11,7 +11,7 @@ module fcimc_initialisation
                           tRotatedOrbs, MolproID, nBasis, arr, brr, nel, tCSF,&
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
-                          tUEGNewGenerator
+                          tUEGNewGenerator,tReltvy
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
                         tCheckHighestPop, tSpatialOnlyHash, tStartCAS, tau, &
@@ -2699,7 +2699,7 @@ contains
         LOGICAL :: tSpinPair
         
 !Standard cases.
-        IF((tHub.and.tReal).or.(tRotatedOrbs).or.((LMS.ne.0).and.(.not.tUHF))) THEN
+        IF((tHub.and.tReal).or.(tRotatedOrbs).or.((LMS.ne.0).and.(.not.tUHF)).or.tReltvy) THEN
 !Open shell, restricted.            
             tNoBrillouin=.true.
         ELSE

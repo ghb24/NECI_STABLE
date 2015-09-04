@@ -660,7 +660,7 @@ contains
 
       nHG=nBasis
             
-      CHEMPOT=(ARR(NEL,1)+ARR(NEL+1,1))/2.0_dp
+      if(NEL+1<nBasis) CHEMPOT=(ARR(NEL,1)+ARR(NEL+1,1))/2.0_dp
 !      WRITE(6,*) "Chemical Potential: ",CHEMPOT
       IF(NTFROZEN.LT.0) THEN
          WRITE(6,*) "NTFROZEN<0.  Leaving ", -NTFROZEN," unfrozen virtuals."
@@ -1378,7 +1378,6 @@ contains
        !    I,J,A,B: indices of integral.  These are in spin indices in
        !    unrestricted calculations and spatial indices in restricted.
        ! Returns <ij|ab>
-       use SystemData, only: ALAT,G1,iSpinSkip,nBasis,nBasisMax
        implicit none
        HElement_t(dp) GetUMatEl2
        integer :: I,J,A,B

@@ -30,6 +30,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tReltvy = .false.
       tComplexOrbs_RealInts = .false.
       tReadFreeFormat=.true.
       tMolproMimic=.false.
