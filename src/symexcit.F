@@ -546,9 +546,9 @@ C.. SYMPRODIND(2,ISPN,I) contains the number of such elements
                   if(tDebugPrint)
      &                  WRITE(6,*) "Occ removed", L
                   if(tDebugPrint) WRITE(6,*) "ET",NEXCITTYPES
-                  if(tDebugPrint)
-     &                  WRITE(6,"(14I5)") K,I,
-     &                  SYMPAIRPRODS(I),ISPN,L,KK,ICC
+!                  if(tDebugPrint)
+!     &                  WRITE(6,"(14I5)") K,I,
+!     &                  SYMPAIRPRODS(I),ISPN,L,KK,ICC
                   NDOUB=NDOUB+ICC
                   IF(ICC.GT.0) NEXCITTYPES=NEXCITTYPES+1
                ENDDO
