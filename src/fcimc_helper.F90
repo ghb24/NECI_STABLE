@@ -414,6 +414,12 @@ contains
             ENumCyc(run) = ENumCyc(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
             ENumCycAbs(run) = ENumCycAbs(run) + abs(HoffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) &
                                       / dProbFin
+            if (ENUmCyc(run) /= -ENumCycAbs(run)) then
+                write(6,*) 'abs', HoffDiag(run) * realwsign(run), ENumCyc(run), ENumCycAbs(run)
+                write(6,*) 'exlevel', excitlevel_local
+                call stop_all("oops", "splat")
+            end if
+            
         end do
 
         ! -----------------------------------

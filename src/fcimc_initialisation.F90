@@ -760,6 +760,7 @@ contains
         NoDied=0
         HFCyc=0.0_dp
         ENumCyc=0.0_dp
+        ENUmCycAbs = 0.0_dp
         VaryShiftCycles=0
         AvDiagSft(:)=0.0_dp
         SumDiagSft(:)=0.0_dp
@@ -797,6 +798,7 @@ contains
         AllNoDied(:)=0
         AllAnnihilated(:)=0
         AllENumCyc(:)=0.0_dp
+        AllENumCycAbs = 0.0_dp
         AllHFCyc(:)=0.0_dp
 !        AllDetsNorm=0.0_dp
         AllNoAborted=0

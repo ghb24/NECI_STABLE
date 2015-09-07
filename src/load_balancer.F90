@@ -504,11 +504,18 @@ contains
                             hij = get_helement(nI, ProjEDet(:, 1), 2, CurrentDets(:,i), ilutRef(:,1))
                             do j = 1, lenof_sign
                                 run = part_type_to_run(j)
-                                if (abs(hij) > 1.0e-6 .and. (CurrentSign(j) * hij * NoatHF(j)) > 0) then
+                                if (currentsign(j) * hij > 0.0) then
+                                    write(6,*) '--> ', hij, CurrentSign(j), hij, AllNoatHF(j), CurrentSign(j) * hij * NoatHF(j)
+                                    write(6,*) 'aaaaarg'
+                                end if
+                                if (abs(hij) > 1.0e-6 .and. (CurrentSign(j) * hij * AllNoatHF(j)) > 0) then
+                                    write(6,*) 'nullify', CurrentSign(j) * hij * AllNoatHF(j)
                                     NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
                                     iter_data%nremoved(j) = iter_data%nremoved(j) + abs(CurrentSign(j))
                                     CurrentSign(j) = 0
                                     call nullify_ilut_part(CurrentDets(:, i), j)
+                                else
+!                                    write(6,*) 'accept', CurrentSign(j) * hij * NoatHF(j)
                                 end if
                             end do
                         end if
