@@ -148,7 +148,7 @@ contains
         integer(int64) :: block_parts_all(balance_blocks)
         integer(int64) :: proc_parts(0:nProcessors-1)
         integer(int64) :: smallest_size
-        integer :: j, proc, nblocks, det(nel), block, TotWalkersTmp
+        integer :: j, proc, det(nel), block, TotWalkersTmp
         integer :: min_parts, max_parts, min_proc, max_proc
         integer :: smallest_block
         real(dp) :: sgn(lenof_sign), avg_parts
@@ -460,7 +460,6 @@ contains
 
     subroutine CalcHashTableStats(TotWalkersNew, iter_data)
 
-        use rdm_data, only: rdms
         use CalcData, only: tMP2FixedNode
         use DetBitOps, only: FindBitExcitLevel
 
@@ -468,8 +467,7 @@ contains
         type(fcimc_iter_data), intent(inout) :: iter_data
 
         integer :: i, j, AnnihilatedDet, lbnd, ubnd
-        integer :: irdm, ind1, ind2
-        real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
+        real(dp) :: CurrentSign(lenof_sign)
         real(dp) :: pRemove, r
         integer :: nI(nel), run, ic
         logical :: tIsStateDeterm
