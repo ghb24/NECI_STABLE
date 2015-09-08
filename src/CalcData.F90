@@ -313,4 +313,6 @@ logical :: tBroadcastParentCoeff = .false.
 logical :: tInterpolateInitThresh = .false.
 real(dp) :: init_interp_min, init_interp_max, init_interp_exponent
 
+logical :: tMP2FixedNode = .false.
+
 end module CalcData

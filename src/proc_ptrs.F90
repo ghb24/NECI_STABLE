@@ -25,7 +25,7 @@ module procedure_pointers
             integer(n_int), intent(out) :: ilutJ(0:NifTot)
             real(dp), intent(out) :: pGen
             logical, intent(out) :: tParity
-            HElement_t, intent(out) :: hel
+            HElement_t(dp), intent(out) :: hel
             type(excit_gen_store_type), intent(inout), target :: store
 
         end subroutine
@@ -51,7 +51,7 @@ module procedure_pointers
             real(dp), intent(inout) :: prob
             real(dp), dimension(lenof_sign), intent(in) :: AvSignCurr
             real(dp), intent(out) :: RDMBiasFacCurr
-            HElement_t, intent(in) :: HElGen
+            HElement_t(dp), intent(in) :: HElGen
             real(dp) :: child(lenof_sign)    
 
         end function
@@ -71,8 +71,8 @@ module procedure_pointers
             integer(n_int), intent(in) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
             integer, intent(in) :: ic, ex(2,2)
             logical, intent(in) :: tParity
-            HElement_t, intent(in) :: HElGen
-            HElement_t :: hel
+            HElement_t(dp), intent(in) :: HElGen
+            HElement_t(dp) :: hel
 
         end function
 
@@ -181,7 +181,7 @@ module procedure_pointers
             implicit none
 
             integer, intent(in) :: i, j, k, l
-            HElement_t :: hel
+            HElement_t(dp) :: hel
 
         end function
 

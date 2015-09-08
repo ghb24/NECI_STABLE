@@ -1132,7 +1132,7 @@ module errors
         logical :: tNoProjEValue,tNoShiftValue
         integer :: iroot,isymh,i
         TYPE(BasisFn) RefSym
-        HElement_t :: h_tmp
+        HElement_t(dp) :: h_tmp
         real(dp) :: Hii,BestEnergy,EnergyDiff
 #ifdef MOLPRO
         real(dp) :: get_scalar

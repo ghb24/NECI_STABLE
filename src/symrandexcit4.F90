@@ -50,7 +50,7 @@ contains
         integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
-        HElement_t, intent(out) :: HElGen
+        HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'gen_excit_hel_weighted'
@@ -81,7 +81,7 @@ contains
         integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
-        HElement_t, intent(out) :: HElGen
+        HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'gen_excit_hel_weighted'
@@ -161,7 +161,7 @@ contains
         integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
-        HElement_t, intent(out) :: HElGen
+        HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'gen_excit_4ind_weighted'
@@ -239,7 +239,7 @@ contains
         integer :: cc_i, cc_j, cc_i_final, cc_j_final, sym_product
         real(dp) :: cpt, cpt_tgt, cum_sum, cum_sums(2), int_cpt(2), ntot
         real(dp) :: cpt_pair(2), sum_pair(2)
-        HElement_t :: hel
+        HElement_t(dp) :: hel
 
 
         if (ic == 1) then
@@ -454,7 +454,7 @@ contains
         integer :: cc_index, label_index, norb, n_id(nel), id_src, id_tgt
         integer :: i, j, orb
         real(dp) :: cum_sum, cpt, cpt_tgt
-        HElement_t :: hel
+        HElement_t(dp) :: hel
 
         ! The electron to excite is picked uniformly at random
         pgen = 1.0_dp / real(nel, dp)
@@ -518,7 +518,7 @@ contains
         real(dp) :: cpt_arr(OrbClassCount(cc_index))
         integer :: orb, norb, label_index, orb_index, i, j
         integer :: n_id(nel), id_src, id
-        HElement_t :: hel
+        HElement_t(dp) :: hel
         
         ! How many orbitals of the correct symmetry are there?
         norb = OrbClassCount(cc_index)
@@ -1017,7 +1017,7 @@ contains
         integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
-        HElement_t, intent(out) :: HElGen
+        HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'gen_excit_4ind_reverse'
@@ -1077,7 +1077,7 @@ contains
         integer :: iSpn, sym_product, i, j, src(2), e_ispn, e_sym_prod, id(2)
         integer :: tgt(2), id_tgt(2), sum_ml, e_sum_ml
         real(dp) :: ntot, cum_sum, cpt, cpt_tgt
-        HElement_t :: hel
+        HElement_t(dp) :: hel
 
         if (ic == 1) then
 
@@ -1227,7 +1227,7 @@ contains
         integer :: n_id(nel), id_tgt, id_src, cc_src, j, src_elec
         integer :: tgt_sym, tgt_ml
         logical :: tgt_beta
-        HElement_t :: hel
+        HElement_t(dp) :: hel
 
         ! Don't consider symmetry categories, do the components separately.
         ! --> Slightly quicker
@@ -1307,7 +1307,7 @@ contains
 
         integer :: src(2), tgt(2), elecs(2), id_tgt(2), id(2), e_sum_ml
         integer :: sym_prod, ispn, e_ispn, e_sym_prod, idx, i, j, sum_ml
-        HElement_t :: hel
+        HElement_t(dp) :: hel
         real(dp) :: cum_arr(nel * (nel - 1) / 2)
         real(dp) :: val_arr(nel * (nel - 1) / 2)
         real(dp) :: val, cum_val, r
@@ -1568,7 +1568,7 @@ contains
         logical, allocatable :: generated_list(:)
         logical :: found_all, par
         real(dp) :: contrib, pgen
-        HElement_t :: helgen
+        HElement_t(dp) :: helgen
 
         ! Decode the determiant
         call decode_bit_det (src_det, ilut)

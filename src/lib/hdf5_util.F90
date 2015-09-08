@@ -12,7 +12,7 @@ module hdf5_util
     ! guarantee compatibility across programming languages, compilers and
     ! build configurations, then it helps to be explicit.
 
-#if __USE_HDF5
+#ifdef __USE_HDF
     use iso_c_hack
     use constants
     use util_mod
@@ -24,9 +24,14 @@ module hdf5_util
         module procedure read_int32_attribute_cast
     end interface
 
+    interface write_int64_1d_dataset
+        module procedure write_int64_1d_dataset_4
+        module procedure write_int64_1d_dataset_8
+    end interface
+
     interface read_int64_1d_dataset
-        module procedure read_int64_1d_dataset_cast
-        module procedure read_int64_1d_dataset_main
+        module procedure read_int64_1d_dataset_4
+        module procedure read_int64_1d_dataset_8
     end interface
 
     interface write_log_scalar
@@ -37,6 +42,16 @@ module hdf5_util
     interface read_log_scalar
         module procedure read_log_scalar_4
         module procedure read_log_scalar_8
+    end interface
+
+    interface write_int64_scalar
+        module procedure write_int64_scalar_4
+        module procedure write_int64_scalar_8
+    end interface
+
+    interface read_int64_scalar
+        module procedure read_int64_scalar_4
+        module procedure read_int64_scalar_8
     end interface
 
 contains
@@ -183,7 +198,7 @@ contains
         if (exists_) then
             call h5aopen_f(parent, nm, attribute, err)
             dims = [size(val)]
-            call check_attribute_params(attribute, nm, 8, H5T_FLOAT_F, dims)
+            call check_attribute_params(attribute, nm, 8_hsize_t, H5T_FLOAT_F, dims)
             call h5aread_f(attribute, H5T_NATIVE_REAL_8, val, dims, err)
             call h5aclose_f(attribute, err)
         end if
@@ -357,7 +372,7 @@ contains
 
     end subroutine
 
-    subroutine write_int64_scalar(parent, nm, val)
+    subroutine write_int64_scalar_8(parent, nm, val)
 
         integer(hid_t), intent(in) :: parent
         character(*), intent(in) :: nm
@@ -370,14 +385,24 @@ contains
         call h5screate_f(H5S_SCALAR_F, dataspace, err)
         call h5dcreate_f(parent, nm, H5T_NATIVE_INTEGER_8, dataspace, &
                          dataset, err)
-        call int32_pointer_abuse_scalar(val, ptr)
+        call ptr_abuse_scalar(val, ptr)
         call h5dwrite_f(dataset, H5T_NATIVE_INTEGER_8, ptr, [1_hsize_t], err)
         call h5dclose_f(dataset, err)
         call h5sclose_f(dataspace, err)
 
     end subroutine
 
-    subroutine read_int64_scalar(parent, nm, val, exists, default, required)
+    subroutine write_int64_scalar_4(parent, nm, val)
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        integer(int32), intent(in) :: val
+
+        call write_int64_scalar_8(parent, nm, int(val, int64))
+
+    end subroutine
+
+    subroutine read_int64_scalar_8(parent, nm, val, exists, default, required)
 
         integer(hid_t), intent(in) :: parent
         character(*), intent(in) :: nm
@@ -395,7 +420,7 @@ contains
         call h5lexists_f(parent, nm, exists_, err)
         if (exists_) then
             call h5dopen_f(parent, nm, dataset, err)
-            call int32_pointer_abuse_scalar(val, ptr)
+            call ptr_abuse_scalar(val, ptr)
             call h5dread_f(dataset, H5T_NATIVE_INTEGER_8, ptr, [1_hsize_t], err)
             if (err /= 0) &
                 call stop_all(t_r, 'Read error')
@@ -411,9 +436,29 @@ contains
         if (present(exists)) exists = exists_
         if (present(default) .and. .not. exists_) val = default
 
-    end subroutine read_int64_scalar
+    end subroutine read_int64_scalar_8
 
-    subroutine write_int64_1d_dataset(parent, nm, val)
+    subroutine read_int64_scalar_4(parent, nm, val, exists, default, required)
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        integer(int32), intent(out) :: val
+        logical, intent(out), optional :: exists
+        logical, intent(in), optional :: required
+        integer(int64), intent(in), optional :: default
+
+        integer(int64) :: buf
+        logical :: exists_
+
+        call read_int64_scalar_8(parent, nm, buf, exists_, default, required)
+
+        if (exists_ .or. present(default)) &
+            val = int(buf, int32)
+        if (present(exists)) exists = exists_
+
+    end subroutine
+
+    subroutine write_int64_1d_dataset_8(parent, nm, val)
 
         ! Write out a 64-bit array
         ! TODO: It may be worth refactoring multiple-types to remove the
@@ -436,7 +481,7 @@ contains
                          dataset, err)
 
         ! write the data
-        call int32_pointer_abuse(val, ptr)
+        call ptr_abuse_1d(val, ptr)
         call h5dwrite_f(dataset, H5T_NATIVE_INTEGER_8, ptr, dims, err)
 
         ! Close the residual handles
@@ -444,6 +489,172 @@ contains
         call h5sclose_f(dataspace, err)
 
     end subroutine
+
+    subroutine write_int64_1d_dataset_4(parent, nm, val)
+
+        ! Write out a 64-bit array
+
+        integer(hid_t) :: parent
+        character(*), intent(in) :: nm
+        integer(int32), intent(in), target :: val(:)
+
+        call write_int64_1d_dataset_8(parent, nm, int(val, int64))
+
+    end subroutine
+
+    subroutine write_dp_1d_dataset(parent, nm, val)
+
+        integer(hid_t) :: parent
+        character(*), intent(in) :: nm
+        real(dp), intent(in), target :: val(:)
+
+        integer(hid_t) :: dataspace, dataset, err
+        integer(hsize_t) :: dims(1)
+
+        ! Create the appropriate dataspace
+        dims = [size(val)]
+        call h5screate_simple_f(1_hid_t, dims, dataspace, err)
+
+        ! Create the dataset with the correct type
+        call h5dcreate_f(parent, nm, H5T_NATIVE_REAL_8, dataspace, &
+                         dataset, err)
+
+        ! write the data
+        call h5dwrite_f(dataset, H5T_NATIVE_REAL_8, val, dims, err)
+
+        ! Close the residual handles
+        call h5dclose_f(dataset, err)
+        call h5sclose_f(dataspace, err)
+
+    end subroutine
+
+    subroutine read_dp_1d_dataset(parent, nm, val, exists, default, required)
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        real(dp), intent(out), target :: val(:)
+        logical, intent(out), optional :: exists
+        logical, intent(in), optional :: required
+        real(dp), intent(in), optional :: default(:)
+        character(*), parameter :: t_r = 'read_dp_1d_dataset'
+
+        integer(hid_t) :: dataset, err, type_id
+        integer(hsize_t) :: dims(1)
+        logical(hid_t) :: exists_
+
+        call h5lexists_f(parent, nm, exists_, err)
+        if (exists_) then
+            call h5dopen_f(parent, nm, dataset, err)
+            call h5dget_type_f(dataset, type_id, err)
+
+            ! Check dimensions and types.
+            dims = [size(val)]
+            call check_dataset_params(dataset, nm, 8_hsize_t, H5T_FLOAT_F, dims)
+
+            ! And actually read the data.
+            call h5dread_f(dataset, type_id, val, dims, err)
+
+            call h5tclose_f(type_id, err)
+            call h5dclose_f(dataset, err)
+        end if
+
+        if (present(required)) then
+            if (required .and. .not. exists_) then
+                write(6, *) nm
+                call stop_all(t_r, "Required field does not exist")
+            end if
+        end if
+        if (present(exists)) exists = exists_
+        if (present(default) .and. .not. exists_) val = default
+
+    end subroutine read_dp_1d_dataset
+
+    subroutine h5t_complex_t(dtype)
+
+        ! Construct a datatype for complex numbers (dp)
+        integer(hid_t), intent(out) :: dtype
+        integer(hid_t) :: err
+
+        ! Complex numbers are two 8-byte floating points long
+        call h5tcreate_f(H5T_COMPOUND_F, 16_hsize_t, dtype, err)
+        call h5tinsert_f(dtype, "real", 0_hsize_t, H5T_NATIVE_REAL_8, err)
+        call h5tinsert_f(dtype, "real", 0_hsize_t, H5T_NATIVE_REAL_8, err)
+        call h5tinsert_f(dtype, "imag", 8_hsize_t, H5T_NATIVE_REAL_8, err)
+
+    end subroutine
+
+    subroutine write_cplx_1d_dataset(parent, nm, val)
+
+        integer(hid_t) :: parent
+        character(*), intent(in) :: nm
+        complex(dp), intent(in), target :: val(:)
+
+        integer(hid_t) :: dataspace, dataset, dtype, err
+        integer(hsize_t) :: dims(1)
+        integer(int32), pointer :: ptr(:)
+
+        ! Create the appropriate dataspace
+        dims = [size(val)]
+        call h5screate_simple_f(1_hid_t, dims, dataspace, err)
+
+        ! Create the dataset with the correct type
+        call h5t_complex_t(dtype)
+        call h5dcreate_f(parent, nm, dtype, dataspace, dataset, err)
+
+        ! write the data
+        call ptr_abuse_1d(val, ptr)
+        call h5dwrite_f(dataset, dtype, ptr, dims, err)
+
+        ! Close the residual handles
+        call h5tclose_f(dtype, err)
+        call h5dclose_f(dataset, err)
+        call h5sclose_f(dataspace, err)
+
+    end subroutine
+
+    subroutine read_cplx_1d_dataset(parent, nm, val, exists, default, required)
+
+        integer(hid_t), intent(in) :: parent
+        character(*), intent(in) :: nm
+        complex(dp), intent(out), target :: val(:)
+        logical, intent(out), optional :: exists
+        logical, intent(in), optional :: required
+        complex(dp), intent(in), optional :: default(:)
+        character(*), parameter :: t_r = 'read_dp_1d_dataset'
+
+        integer(hid_t) :: dataset, err, type_id
+        integer(hsize_t) :: dims(1)
+        integer(int32), pointer :: ptr(:)
+        logical(hid_t) :: exists_
+
+        call h5lexists_f(parent, nm, exists_, err)
+        if (exists_) then
+            call h5dopen_f(parent, nm, dataset, err)
+            call h5dget_type_f(dataset, type_id, err)
+
+            ! Check dimensions and types.
+            dims = [size(val)]
+            call check_dataset_params(dataset, nm, 16_hsize_t, H5T_COMPOUND_F, &
+                                      dims)
+
+            ! And actually read the data.
+            call ptr_abuse_1d(val, ptr)
+            call h5dread_f(dataset, type_id, ptr, dims, err)
+
+            call h5tclose_f(type_id, err)
+            call h5dclose_f(dataset, err)
+        end if
+
+        if (present(required)) then
+            if (required .and. .not. exists_) then
+                write(6, *) nm
+                call stop_all(t_r, "Required field does not exist")
+            end if
+        end if
+        if (present(exists)) exists = exists_
+        if (present(default) .and. .not. exists_) val = default
+
+    end subroutine read_cplx_1d_dataset
 
     subroutine write_2d_multi_arr_chunk_offset( &
                        parent, nm, itype, cptr, arr_dims, mem_dims, mem_offset, &
@@ -538,7 +749,7 @@ contains
                                    dims, err)
 
         ! And do the actual read!
-        call int32_pointer_abuse_2d(val, ptr)
+        call ptr_abuse_2d(val, ptr)
         call h5dread_f(dataset, itype, ptr, mem_dims, err, memspace, &
                        dataspace, xfer_prp=plist_id)
 
@@ -654,7 +865,7 @@ contains
 
     end subroutine
 
-    subroutine read_int64_1d_dataset_cast( &
+    subroutine read_int64_1d_dataset_4( &
                                 parent, nm, val, exists, default, required)
 
         ! Allow these values to be casted onto 32bit arrays if we are in a
@@ -669,13 +880,13 @@ contains
 
         integer(int64) :: buf(size(val))
 
-        call read_int64_1d_dataset_main(parent, nm, buf, exists, default, &
-                                        required)
+        call read_int64_1d_dataset_8(parent, nm, buf, exists, default, &
+                                     required)
         val = buf
 
     end subroutine
 
-    subroutine read_int64_1d_dataset_main( &
+    subroutine read_int64_1d_dataset_8( &
                                 parent, nm, val, exists, default, required)
 
         integer(hid_t), intent(in) :: parent
@@ -684,27 +895,25 @@ contains
         logical, intent(out), optional :: exists
         logical, intent(in), optional :: required
         integer(int64), intent(in), optional :: default(:)
-        character(*), parameter :: t_r = 'read_int64_1d_dataset_main'
+        character(*), parameter :: t_r = 'read_int64_1d_dataset_8'
 
         integer(hid_t) :: dataset, err, type_id
         integer(hsize_t) :: dims(1)
         logical(hid_t) :: exists_
         integer(int32), pointer :: ptr(:)
 
-        ! TODO: Fix this!!!
-!        call h5dexists_f(parent, nm, exists_, err)
-        exists_ = .true.
+        call h5lexists_f(parent, nm, exists_, err)
         if (exists_) then
             call h5dopen_f(parent, nm, dataset, err)
             call h5dget_type_f(dataset, type_id, err)
 
             ! Check dimensions and types.
             dims = [size(val)]
-            call check_dataset_params(dataset, nm, 8, H5T_INTEGER_F, dims)
+            call check_dataset_params(dataset, nm, 8_hsize_t, H5T_INTEGER_F, dims)
 
             ! And actually read the data. Note that we manipulate the pointer
             ! to be a 32bit integer, as that is always present in the library.
-            call int32_pointer_abuse(val, ptr)
+            call ptr_abuse_1d(val, ptr)
             call h5dread_f(dataset, type_id, ptr, dims, err)
 
             call h5tclose_f(type_id, err)
@@ -780,7 +989,7 @@ contains
         character(*), intent(in) :: nm
         integer(hsize_t), intent(in) :: sz
         integer(hsize_t), intent(in) :: dims(:)
-        character(*), parameter :: t_r = 'check_dataset_params'
+        character(*), parameter :: t_r = 'check_attribute_params'
 
         integer(hid_t) :: rank, type_id, ds_class
         

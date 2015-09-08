@@ -2150,6 +2150,9 @@ contains
             case("MULTI-REF-SHIFT")
                 tMultiRefShift = .true.
 
+            case("MP2-FIXED-NODE")
+                tMP2FixedNode = .true.
+
             case("INTERPOLATE-INITIATOR")
                 ! Implement interpolation between aborting particles
                 ! due to the initiator criterion, and accepting them, based
@@ -2226,7 +2229,7 @@ contains
           
           INTEGER I, IC,J, norb
           INTEGER nList
-          HElement_t HDiagTemp
+          HElement_t(dp) HDiagTemp
           character(*), parameter :: this_routine='CalcInit'
 
           Allocate(MCDet(nEl))
@@ -2930,7 +2933,7 @@ contains
          INTEGER NEL,NI(NEL),I,I_P
          INTEGER BRR(*)
          real(dp) RHOEPSILON,BETA,GETRHOEPS
-         HElement_t BP, tmp
+         HElement_t(dp) BP, tmp
          DO I=1,NEL
             NI(I)=BRR(I)
          ENDDO

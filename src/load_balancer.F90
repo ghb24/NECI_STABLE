@@ -148,7 +148,7 @@ contains
         integer(int64) :: block_parts_all(balance_blocks)
         integer(int64) :: proc_parts(0:nProcessors-1)
         integer(int64) :: smallest_size
-        integer :: j, proc, nblocks, det(nel), block, TotWalkersTmp
+        integer :: j, proc, det(nel), block, TotWalkersTmp
         integer :: min_parts, max_parts, min_proc, max_proc
         integer :: smallest_block
         real(dp) :: sgn(lenof_sign), avg_parts
@@ -378,7 +378,7 @@ contains
         integer(n_int), intent(inout) :: iLutCurr(0:NIfTot)
         integer, intent(in) :: DetHash, nJ(nel)
         integer :: DetPosition
-        HElement_t :: HDiag
+        HElement_t(dp) :: HDiag
         real(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
         character(len=*), parameter :: t_r = "AddNewHashDet"
@@ -460,17 +460,20 @@ contains
 
     subroutine CalcHashTableStats(TotWalkersNew, iter_data)
 
-        use rdm_data, only: rdms
+        use CalcData, only: tMP2FixedNode
+        use DetBitOps, only: FindBitExcitLevel
+        use hphf_integrals, only: hphf_off_diag_helement
+        use FciMCData, only: ProjEDet
 
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
 
         integer :: i, j, AnnihilatedDet, lbnd, ubnd
-        integer :: irdm, ind1, ind2
-        real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
+        real(dp) :: CurrentSign(lenof_sign)
         real(dp) :: pRemove, r
-        integer :: nI(nel), run
+        integer :: nI(nel), run, ic
         logical :: tIsStateDeterm
+        real(dp) :: hij
         character(*), parameter :: t_r = 'CalcHashTableStats'
 
         if (.not. bNodeRoot) return
@@ -485,12 +488,39 @@ contains
 
         if (TotWalkersNew > 0) then
             do i=1,TotWalkersNew
+
                 call extract_sign(CurrentDets(:,i),CurrentSign)
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
 
                 if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
                     AnnihilatedDet = AnnihilatedDet + 1 
                 else
+
+#if !(defined(__PROG_NUMRUNS) || defined(__CMPLX))
+                    if (tMP2FixedNode) then
+                        ic = FindBitExcitLevel(ilutRef(:,1), CurrentDets(:,i))
+                        call decode_bit_det(nI, CurrentDets(:,i))
+                        if (ic == 2) then
+                            if (tHPHF) then
+                                hij = hphf_off_diag_helement(nI, ProjEDet(:, 1), CurrentDets(:,i), ilutRef(:,1))
+                            else
+                                hij = get_helement(nI, ProjEDet(:, 1), 2, CurrentDets(:,i), ilutRef(:,1))
+                            end if
+                            do j = 1, lenof_sign
+                                run = part_type_to_run(j)
+                                if (abs(hij) > 1.0e-6 .and. (CurrentSign(j) * hij * AllNoatHF(j)) > 0) then
+                                    NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
+                                    iter_data%nremoved(j) = iter_data%nremoved(j) + abs(CurrentSign(j))
+                                    CurrentSign(j) = 0
+                                    call nullify_ilut_part(CurrentDets(:, i), j)
+                                end if
+                            end do
+                        end if
+                    end if
+#else
+                    call stop_all(t_r, 'not yet implemented')
+#endif
+
                     do j=1, lenof_sign
                         run = part_type_to_run(j)
                         if (.not. tIsStateDeterm) then

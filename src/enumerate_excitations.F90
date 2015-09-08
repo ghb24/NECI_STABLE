@@ -402,13 +402,13 @@ contains
         integer, intent(inout) :: ex_flag
         integer, intent(inout) :: excit(2,2)
         logical, intent(inout) :: tAllExcitFound
-        HElement_t, optional, intent(out) :: hel
+        HElement_t(dp), optional, intent(out) :: hel
         integer, optional, intent(inout) :: ncon
 
         integer(n_int) :: ilut_tmp(0:NIfTot)
         integer :: ic
         logical :: tParity
-        HElement_t :: hel_unused
+        HElement_t(dp) :: hel_unused
 
         ! Generate the next determinant.
         call GenExcitations3(nI, ilutI, nJ, ex_flag, excit, tParity, &
@@ -518,12 +518,12 @@ contains
         logical, intent(inout) :: tAllExcitFound
         integer, intent(inout) :: nStore(6)
         integer, intent(inout) :: excit_gen(:)
-        HElement_t, optional, intent(out) :: hel
+        HElement_t(dp), optional, intent(out) :: hel
         integer, optional, intent(inout) :: ncon
 
         integer(n_int) :: ilut_tmp(0:NIfTot)
         integer :: ic
-        HElement_t :: hel_unused
+        HElement_t(dp) :: hel_unused
 
         ! Generate the next determinant.
         call GenSymExcitIt2Par_worker(nI, nel, G1, nBasis, .false., excit_gen, nJ, &

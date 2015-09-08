@@ -21,7 +21,7 @@ MODULE UMatCache
 ! UMatLabels, and the values in UMatCache.
 ! nStates is the maximum number of states stored in the cache (which may not be all the states if there are frozen virtuals).
 
-      HElement_t, Pointer :: UMatCacheData(:,:,:) => null() !(0:nTypes-1,nSlots,nPairs)
+      HElement_t(dp), Pointer :: UMatCacheData(:,:,:) => null() !(0:nTypes-1,nSlots,nPairs)
       INTEGER, Pointer :: UMatLabels(:,:) => null() !(nSlots,nPairs)
       INTEGER :: nSlots, nPairs, nTypes
       INTEGER :: nStates
@@ -46,7 +46,7 @@ MODULE UMatCache
 !     UMAT2D : Stores the integrals of the form <ij|ij> and <ij|ji>
 !     <ij|ij> is stored in the upper diagaonal, <ij|ji> in the
 !     off-diagonal elements of the lower triangle.
-      HElement_t, Pointer :: UMat2D(:,:) => null() !(nStates,nStates)
+      HElement_t(dp), Pointer :: UMat2D(:,:) => null() !(nStates,nStates)
       LOGICAL :: tUMat2D, tDeferred_Umat2d
 
 ! This vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
@@ -327,9 +327,9 @@ MODULE UMatCache
          ENDIF
       END FUNCTION UMatInd
 
-      HElement_t function UMatConj(I,J,K,L,val)
+      HElement_t(dp) function UMatConj(I,J,K,L,val)
          integer, intent(in) :: I,J,K,L
-         HElement_t, intent(in) :: val
+         HElement_t(dp), intent(in) :: val
 #ifdef __CMPLX
          INTEGER :: IDI,IDJ,IDK,IDL,NewA,A
 
@@ -881,7 +881,7 @@ MODULE UMatCache
          use HElem, only: HElement_t_size
          IMPLICIT NONE
          INTEGER NewBasis,OldBasis,iSS,ierr,OrbTrans(OldBasis),i,j
-         HElement_t,POINTER :: NUMat2D(:,:)
+         HElement_t(dp),POINTER :: NUMat2D(:,:)
          integer(TagIntType) :: tagNUMat2D=0
          character(len=*),parameter :: thisroutine='FreezeUMat2D'
 
@@ -912,12 +912,12 @@ MODULE UMatCache
          use HElem, only: HElement_t_size
          IMPLICIT NONE
          INTEGER nOld,nNew,OrbTrans(nOld)
-         HElement_t,Pointer :: NUMat2D(:,:) !(nNew/2,nNew/2)
+         HElement_t(dp),Pointer :: NUMat2D(:,:) !(nNew/2,nNew/2)
          integer(TagIntType) :: tagNUMat2D=0
-         HElement_t El(0:nTypes-1)
+         HElement_t(dp) El(0:nTypes-1)
          INTEGER i,j,k,l,m,n
          INTEGER ni,nj,nk,nl,nm,nn,A,B,iType
-         HElement_t,Pointer :: OUMatCacheData(:,:,:) !(0:nTypes-1,onSlots,onPairs)
+         HElement_t(dp),Pointer :: OUMatCacheData(:,:,:) !(0:nTypes-1,onSlots,onPairs)
          INTEGER,Pointer :: OUMatLabels(:,:) !(onSlots,onPairs)
 
          INTEGER onSlots,onPairs,ierr
@@ -1014,7 +1014,7 @@ MODULE UMatCache
           use constants, only: dp
           IMPLICIT NONE
           INTEGER :: I,J,K,L,CacheInd(nPairs),ZeroedInt,NonZeroInt,A,B
-          HElement_t :: Z
+          HElement_t(dp) :: Z
 
           IF(abs(Z).lt.UMatEps) THEN
 !We have an epsilon cutoff for the size of the two-electron integrals - UMatEps
@@ -1082,7 +1082,7 @@ MODULE UMatCache
           use constants, only: dp
           IMPLICIT NONE
           INTEGER :: I,J,K,L,nPairs2,MaxSlots(1:nPairs2),A,B,C,D,X,Y
-          HElement_t :: Z
+          HElement_t(dp) :: Z
 
 !The (ii|jj) and (ij|ij) integrals are not stored in the cache (they are stored in UMAT2D, so
 !we do not want to include them in the consideration of the size of the cache.
@@ -1132,7 +1132,7 @@ MODULE UMatCache
       use util_mod, only: get_free_unit
       implicit none
       integer  i,j,k,l,iCache1,iCache2,A,B,readerr,iType, iunit
-      HElement_t UMatEl(0:nTypes-1),DummyUMatEl(0:nTypes-1)
+      HElement_t(dp) UMatEl(0:nTypes-1),DummyUMatEl(0:nTypes-1)
       logical  tDummy,testfile
       inquire(file="CacheDump",exist=testfile)
       if (.not.testfile) then
@@ -1180,7 +1180,7 @@ MODULE UMatCache
       implicit none
       ! Variables
       integer iPair,iSlot,i,j,k,l,iCache1,iCache2,A,B,iType
-      HElement_t UMatEl
+      HElement_t(dp) UMatEl
       type(Symmetry) Sym
       integer iunit
       iunit = get_free_unit()
@@ -1282,7 +1282,7 @@ MODULE UMatCache
          IMPLICIT NONE
          INTEGER IDI,IDJ,IDK,IDL,ICACHE,ICACHEI
          INTEGER ICACHEI1,ICACHEI2
-         HElement_t UMATEL
+         HElement_t(dp) UMATEL
          INTEGER A,B,ITYPE,ISTAR,ISWAP
 !         LOGICAL tDebug
 !         IF(IDI.eq.14.and.IDJ.eq.17.and.IDK.eq.23.and.IDL.eq.6) THEN
@@ -1496,7 +1496,7 @@ END MODULE UMatCache
          use UMatCache
          IMPLICIT NONE
          INTEGER B,ICACHE,ICACHEI
-         HElement_t UMATEL(0:NTYPES-1),TMP(0:NTYPES-1)
+         HElement_t(dp) UMATEL(0:NTYPES-1),TMP(0:NTYPES-1)
          INTEGER OLAB,IC1,ITOTAL
          INTEGER iType
          INTEGER iIntPos

@@ -77,7 +77,7 @@ contains
         real(dp), intent(in) :: rate, hdiag
         integer, intent(out) :: det_spwn(nel)
         integer(n_int), intent(out) :: ilut_spwn(0:NIfTot)
-        HElement_t, intent(out) :: hoffdiag
+        HElement_t(dp), intent(out) :: hoffdiag
         integer, intent(out) :: ic
         character(*), parameter :: this_routine = 'cont_time_gen_excit_full'
 
@@ -145,7 +145,7 @@ contains
         real(dp), intent(in) :: rate, hdiag
         integer, intent(out) :: det_spwn(nel)
         integer(n_int), intent(out) :: ilut_spwn(0:NIfTot)
-        HElement_t, intent(out) :: hoffdiag
+        HElement_t(dp), intent(out) :: hoffdiag
         integer, intent(out) :: ic, nspawn
         type(excit_gen_store_type), intent(inout) :: store
         character(*), parameter :: this_routine = 'cont_time_gen_excit_full'
@@ -154,7 +154,7 @@ contains
         real(dp) :: rate_diag, rate_offdiag, pdiag, r, pneeded, pkeep
         integer :: ex(2,2), i, j
         logical :: tParity
-        HElement_t :: helgen
+        HElement_t(dp) :: helgen
 
         ! By default we spawn one particle
         nspawn = 1

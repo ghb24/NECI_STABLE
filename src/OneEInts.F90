@@ -24,15 +24,15 @@ public
 ! where i and j must span the same representation in order for <i|h|j> 
 ! to be non-zero.
 ! The symmetries used in Dalton and Molpro are all Abelian.
-HElement_t, dimension(:), POINTER :: TMATSYM
+HElement_t(dp), dimension(:), POINTER :: TMATSYM
 ! For non-Abelian symmetries, we store the entire <i|h|j> matrix, as 
 ! the direct products of the representations can contain the totally
 ! symmetric representation (and are not necessarily the same).  We could
 ! compress this in a similar fashion at some point.
-HElement_t, dimension(:,:), POINTER :: TMAT2D
+HElement_t(dp), dimension(:,:), POINTER :: TMAT2D
 
-HElement_t, dimension(:), POINTER :: TMATSYM2
-HElement_t, dimension(:,:), POINTER :: TMAT2D2
+HElement_t(dp), dimension(:), POINTER :: TMATSYM2
+HElement_t(dp), dimension(:,:), POINTER :: TMAT2D2
 
 ! True if using TMatSym in CPMD (currently only if using k-points, which form
 ! an Abelian group).
@@ -173,9 +173,9 @@ contains
         ! In: i,j - Spin orbitals
 
         integer, intent(in) :: i, j
-        HElement_t :: ret
+        HElement_t(dp) :: ret
 #ifdef __CMPLX
-        HElement_t :: t
+        HElement_t(dp) :: t
 #endif
 
         if (tStarStore) then
@@ -215,7 +215,7 @@ contains
       ! Used post-freezing. See also GetTMatEl.
         IMPLICIT NONE
         INTEGER I,J
-        HElement_t GetNEWTMATEl
+        HElement_t(dp) GetNEWTMATEl
 
         IF(TSTARSTORE) THEN
             GetNEWTMATEl=TMATSYM2(NEWTMATInd(I,J))
