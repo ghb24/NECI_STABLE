@@ -234,9 +234,8 @@ contains
         real(dp) :: pgen
         character(*), parameter :: this_routine = 'calc_pgen_4ind_weighted'
 
-        integer :: cc_index, src, tgt, id_src, id_tgt, n_id(nel)
-        integer :: norb, label_index, orb, i, j, iSpn, sum_ml
-        integer :: cc_i, cc_j, cc_i_final, cc_j_final, sym_product
+        integer :: cc_index, tgt(2), sum_ml, iSpn, sym_product
+        integer :: cc_i, cc_j, cc_i_final, cc_j_final, cc_a, cc_b
         real(dp) :: cpt, cpt_tgt, cum_sum, cum_sums(2), int_cpt(2), ntot
         real(dp) :: cpt_pair(2), sum_pair(2)
         HElement_t(dp) :: hel
@@ -271,12 +270,12 @@ contains
             sym_product = RandExcitSymLabelProd(SpinOrbSymLabel(ex(1,1)), &
                                                 SpinOrbSymLabel(ex(1,2)))
             sum_ml = sum(G1(ex(1,:))%Ml)
-            cc_i = ClassCountInd(get_spin(ex(2,1)), SpinOrbSymLabel(ex(2,1)), &
+            cc_a = ClassCountInd(get_spin(ex(2,1)), SpinOrbSymLabel(ex(2,1)), &
                                  G1(ex(2,1))%Ml)
-            cc_j = ClassCountInd(get_spin(ex(2,2)), SpinOrbSymLabel(ex(2,2)), &
+            cc_b = ClassCountInd(get_spin(ex(2,2)), SpinOrbSymLabel(ex(2,2)), &
                                  G1(ex(2,2))%Ml)
-            cc_i_final = min(cc_i, cc_j)
-            cc_j_final = max(cc_i, cc_j)
+            cc_i_final = min(cc_a, cc_b)
+            cc_j_final = max(cc_a, cc_b)
             cum_sum = 0
             do cc_i = 1, ScratchSize
                 cc_j = get_paired_cc_ind (cc_i, sym_product, sum_ml, iSpn)
@@ -288,6 +287,14 @@ contains
                     if (cc_i == cc_i_final) then
                         ASSERT(cc_j == cc_j_final)
                         cpt_tgt = cpt
+
+                        ! ENSURE that the tgt orbitals match cc_i, cc_j as
+                        ! the choice of orbitals following is not symmetric.
+                        if (cc_i == cc_a) then
+                            tgt = ex(2,:)
+                        else
+                            tgt = [ex(2,2), ex(2,1)]
+                        end if
                     end if
                 end if
             end do
@@ -302,18 +309,18 @@ contains
 
             ! What is the likelihood of selecting the first orbital? And the
             ! second, given the first?
-            call pgen_select_orb (ilutI, ex(1,:), -1, ex(2,1), int_cpt(1), &
+            call pgen_select_orb (ilutI, ex(1,:), -1, tgt(1), int_cpt(1), &
                                   cum_sums(1))
-            call pgen_select_orb (ilutI, ex(1,:), ex(2,1), ex(2,2), int_cpt(2),&
+            call pgen_select_orb (ilutI, ex(1,:), tgt(1), tgt(2), int_cpt(2), &
                                   cum_sums(2))
 
             if (any(cum_sums == 0)) then
                 pgen = 0
             else if (cc_i_final == cc_j_final) then
                 if (tGen_4ind_lin_exact .or. tGen_4ind_part_exact) then
-                    call pgen_select_orb(ilutI, ex(1,:), -1, ex(2,2), &
+                    call pgen_select_orb(ilutI, ex(1,:), -1, tgt(2), &
                                          cpt_pair(1), sum_pair(1))
-                    call pgen_select_orb(ilutI, ex(1,:), ex(2,2), ex(2,1), &
+                    call pgen_select_orb(ilutI, ex(1,:), tgt(2), tgt(1), &
                                          cpt_pair(2), sum_pair(2))
                 else
                     cpt_pair(1) = int_cpt(2)
@@ -602,7 +609,7 @@ contains
 
         ! Initially, select a pair of electrons
         call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
-   !     call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
+!        call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
 
         ! Construct the list of possible symmetry pairs listed according to
         ! a unique choice of symmetry A (we enforce that sym(A) < sym(B)).
@@ -845,7 +852,7 @@ contains
             ! n.b. This can only be used for the case <ij|ba> == 0.
             ida = gtID(orba)
             idb = gtID(orbb)
-            contrib = sqrt(abs(get_umat_el(indi, indj, ida, idb)))
+            contrib = max(sqrt(abs(get_umat_el(indi, indj, ida, idb))), 0.0001)
         else if (tGen_4ind_lin_exact) then
             if (orbb > 0) then
                 ! Include a contribution of abs(<ij|ab>)
@@ -880,8 +887,8 @@ contains
             ! sqrt(abs(<ij|ab> - <ij|ba>))
             ida = gtID(orba)
             idb = gtID(orbb)
-            contrib = sqrt(abs(get_umat_el(indi, indj, ida, idb) &
-                             - get_umat_el(indi, indj, idb, ida)))
+            contrib = max(sqrt(abs(get_umat_el(indi, indj, ida, idb) &
+                                - get_umat_el(indi, indj, idb, ida))), 0.00001)
         else if (tGen_4ind_lin_exact) then
             if (orbb > 0) then
                 ! Include a contribution of:
@@ -1568,7 +1575,7 @@ contains
         logical, allocatable :: generated_list(:)
         logical :: found_all, par
         real(dp) :: contrib, pgen
-        HElement_t(dp) :: helgen
+        HElement_t(dp) :: helgen, hel
 
         ! Decode the determiant
         call decode_bit_det (src_det, ilut)
@@ -1617,8 +1624,10 @@ contains
         contrib = 0
         do i = 1, iterations
             if (mod(i, 10000) == 0) &
-                write(6,*) i, '/', iterations, ' - ', contrib / real(ndet*i,dp)
+                write(6,*) i, '/', iterations, ' - ', contrib / real(ndet*i,dp), ndet, pgen
 
+            !pSingles = 0.0
+            !pDoubles = 1.0
             call gen_excit_4ind_weighted (src_det, ilut, det, tgt_ilut, 3, &
                                           ic, ex, par, pgen, helgen, store)
             if (det(1) == 0) cycle
@@ -1662,14 +1671,28 @@ contains
         if (.not. all(generated_list)) then
             write(6,*) count(.not.generated_list), '/', size(generated_list), &
                        'not generated'
+            found_all = .true.
             do i = 1, ndet
-                if (.not. generated_list(i)) &
-                    call writebitdet(6, det_list(:,i), .true.)
+                if (.not. generated_list(i)) then
+                    call decode_bit_det(det, det_list(:,i))
+                    hel = get_helement(src_det, det, ilut, det_list(:,i))
+                    if (abs(hel) > 1.0e-6) then
+                        found_all = .false.
+                        call writebitdet(6, det_list(:,i), .false.)
+                        write(6,*) hel
+                    end if
+                end if
             end do
-            call stop_all(this_routine, "Determinant not generated")
+            if (.not. found_all) &
+                call stop_all(this_routine, "Determinant not generated")
         end if
-        if (any(abs(contrib_list / iterations - 1.0_dp) > 0.01_dp)) &
+        if (any(abs(contrib_list / iterations - 1.0_dp) > 0.01_dp)) then
+            do i = 1, ndet
+                call writebitdet(6, det_list(:,i), .false.)
+                write(6,*) contrib_list(i) / (iterations - 1.0_dp)
+            end do
             call stop_all(this_routine, "Insufficiently uniform generation")
+        end if
 
         ! Clean up
         deallocate(det_list)
@@ -1731,9 +1754,9 @@ contains
                 ! TODO: Can we do the biasing of parallel/opposite here?
                 cpt = abs(get_umat_el(ind1, inds(i), ind1, inds(i)))
                 if (is_beta(nI(i)) .eqv. is_beta(nI(elecs(1)))) then
-                    cpt = cpt * pParallel
+                    cpt = cpt !* pParallel
                 else
-                    cpt = cpt * (1.0_dp * pParallel)
+                    cpt = cpt !* (1.0_dp * pParallel)
                 end if
             end if
             cum_sum = cum_sum + cpt
