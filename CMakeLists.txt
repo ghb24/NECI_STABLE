@@ -82,7 +82,7 @@ elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
 	message("-- Using gfortran")
 	add_definitions(-D__GFORTRAN__)
 
-	set(CMAKE_Fortran_FLAGS_DEBUG "-g -O0 -fbounds-check")
+	set(CMAKE_Fortran_FLAGS_DEBUG "-g -O0 -fbounds-check -ffixed-line-length-none -ffree-line-length-none")
 	set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -ffree-line-length-none -fdefault-real-8 -fdefault-integer-8")
 	if (NOT BITS32)
 		set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -fdefault-real-8 -fdefault-integer-8")
