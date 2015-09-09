@@ -13,15 +13,19 @@ module excit_gen_5
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
     use SystemData, only: G1, tUHF, tStoreSpinOrbs, nbasis, nel, &
                           tGen_4ind_part_exact
-    use GenRandSymExcitNUMod, only: RandExcitSymLabelProd, &
-                                    construct_class_counts
+    use SymExcit3, only: CountExcitations3, GenExcitations3
+    use GenRandSymExcitNUMod, only: init_excit_gen_store
+    use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
+    use Determinants, only: write_det, get_helement
     use dSFMT_interface, only: genrand_real2_dSFMT
     use procedure_pointers, only: get_umat_el
     use sym_general_mod, only: ClassCountInd
+    use bit_rep_data, only: NIfTot, NIfD
+    use bit_reps, only: decode_bit_det
     use get_excit, only: make_double
-    use bit_rep_data, only: NIfTot
     use UMatCache, only: gtid
     use constants
+    use sort_mod
     use util_mod
     implicit none
 
@@ -43,14 +47,6 @@ contains
         real(dp) :: pgen2
 
         HElGen = HEl_zero
-        ! We now use the class counts to do the construction. This is an
-        ! O[N] opearation, and gives the number of occupied/unoccupied
-        ! spin-orbitals with each given spin/symmetry.
-        if (.not. store%tFilled) then
-            call construct_class_counts (nI, store%ClassCountOcc, &
-                                         store%ClassCountUnocc)
-            store%tFilled = .true.
-        end if
 
         ! Choose if we want to do a single or a double excitation
         ! TODO: We can (in principle) re-use this random number by subdivision
@@ -66,7 +62,7 @@ contains
             ! OK, we want to do a double excitation
             ic = 2
             call gen_double_4ind_ex2 (nI, ilutI, nJ, ilutJ, ExcitMat, tParity, &
-                                      pGen, store)
+                                      pGen)
             pgen = pgen * pDoubles
 
         end if
@@ -74,8 +70,7 @@ contains
         ! And a careful check!
 !#ifdef __DEBUG
 !        if (.not. IsNullDet(nJ)) then
-!            pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic, &
-!                                            store%ClassCountUnocc)
+!            pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
 !            if (abs(pgen - pgen2) > 1.0e-6_dp) then
 !                write(6,*) 'Calculated and actual pgens differ.'
 !                write(6,*) 'This will break HPHF calculations'
@@ -94,7 +89,7 @@ contains
     end subroutine
 
 
-    function calc_pgen_4ind_weighted2 (nI, ilutI, ex, ic, ClassCountUnocc) &
+    function calc_pgen_4ind_weighted2 (nI, ilutI, ex, ic) &
             result(pgen)
 
         ! What is the probability of the excitation _from_ determinant nI
@@ -102,7 +97,6 @@ contains
         ! being generated according to the 4ind_weighted excitaiton generator?
 
         integer, intent(in) :: nI(nel), ex(2,2), ic
-        integer, intent(in) :: ClassCountUnocc(ScratchSize)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         real(dp) :: pgen
         character(*), parameter :: this_routine = 'calc_pgen_4ind_weighted'
@@ -132,13 +126,12 @@ contains
     end function
 
 
-    subroutine gen_double_4ind_ex2 (nI, ilutI, nJ, ilutJ, ex, par, pgen, store)
+    subroutine gen_double_4ind_ex2 (nI, ilutI, nJ, ilutJ, ex, par, pgen)
 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ex(2,2)
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
-        type(excit_gen_store_type), intent(in) :: store
         logical, intent(out) :: par
         real(dp), intent(out) :: pgen
 
@@ -147,71 +140,40 @@ contains
         real(dp) :: int_cpt(2), cum_sum(2), cpt_pair(2), sum_pair(2)
 
         ! Pick the electrons in a weighted fashion
-        call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
-                                 pgen)
-        !call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
+        !call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
+        !                         pgen)
+        call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
 
-        if (iSpn == 1) then
-            cc_a = ClassCountInd(1)
-            cc_b = cc_a
-        else if (iSpn == 2) then
-            cc_a = ClassCountInd(1)
-            cc_b = ClassCountInd(2)
-        else
-            cc_a = ClassCountInd(2)
-            cc_b = cc_a
-        end if
+        ! Select the A orbital _excluding_ knowledge of symmetry information.
+        ! Only exclude terms that have no coupling elements.
+        ! TODO: The pick_a_orb selection should only work if there are avail
+        !       b orbs of the appropriate symmetry!
+        orbs(1) = pick_a_orb(ilutI, src, iSpn, int_cpt(1), cum_sum(1))
 
-        orbs(1) = select_orb (ilutI, src, cc_a, -1, int_cpt(1), cum_sum(1))
-        if (orbs(1) /= 0) &
+        ! Select the B orbital, in the same way as before!!
+        ! The symmetry of this second orbital depends on that of the first.
+        if (orbs(1) /= 0) then
+            cc_a = ClasSCountInd(orbs(1))
+            cc_b = get_paired_cc_ind(cc_a, sym_product, sum_ml, iSpn)
             orbs(2) = select_orb (ilutI, src, cc_b, orbs(1), int_cpt(2), &
                                   cum_sum(2))
+        end if
 
         if (any(orbs == 0)) then
             nJ(1) = 0
             return
         end if
 
-        if (.not. tGen_4ind_part_exact) call stop_all("bad", "part-exact")
-        if (cc_a == cc_b) then
-            call pgen_select_orb(ilutI, src, -1, orbs(2), cpt_pair(1), &
-                                 sum_pair(1))
-            call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
-                                 cpt_pair(2), sum_pair(2))
-            pgen = pgen * (product(int_cpt) / product(cum_sum) + &
-                           product(cpt_pair) / product(sum_pair))
-        else
-            pgen = pgen * (product(int_cpt) / product(cum_sum))
-        end if
-
-!        ! Select the A orbital _excluding_ knowledge of symmetry information.
-!        ! Only exclude terms that have no coupling elements.
-!        ! TODO: The pick_a_orb selection should only work if there are avail
-!        !       b orbs of the appropriate symmetry!
-!        orbs(1) = pick_a_orb(ilutI, src, int_cpt(1), cum_sum(1))
-!        if (orbs(1) == 0) then
-!            nJ(1) = 0
-!            return
-!        end if
-!
-!        ! Determine the symmtry of the desired B orbital
-!        cc_a = ClassCountInd(orbs(1))
-!        cc_b = get_paired_cc_ind(cc_a, sym_product, sum_ml, iSpn)
-!
-!        ! Select the B orbital, in the same way as before!!
-!        orbs(2) = select_orb(ilutI, src, cc_b, orbs(1), int_cpt(2), cum_sum(2))
-!        if (orbs(2) == 0) then
-!            nJ(1) = 0
-!            return
-!        end if
-!
-!        ! Calculate the pgens. For now just discard the paired excitations
-!        ! until we have things working!!!
-!        if (orbs(2) < orbs(1)) then
-!            nJ(1) = 0
-!            return
-!        end if
-!        pgen = pgen * product(int_cpt) / product(cum_sum)
+        ! Calculate the pgens. Note that all of these excitations can be
+        ! selected as both A--B or B--A. So these need to be calculated
+        ! explicitly.
+        ASSERT(tGen_4ind_part_exact)
+        call pgen_select_a_orb(ilutI, src, orbs(2), iSpn, cpt_pair(1), &
+                               sum_pair(1))
+        call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
+                             cpt_pair(2), sum_pair(2))
+        pgen = pgen * (product(int_cpt) / product(cum_sum) + &
+                       product(cpt_pair) / product(sum_pair))
 
         ! And generate the actual excitation
         call make_double (nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), &
@@ -225,17 +187,20 @@ contains
     end subroutine gen_double_4ind_ex2
 
 
-    function pick_a_orb(ilut, src, cpt, cum_sum) result(orb)
+    function pick_a_orb(ilut, src, ispn, cpt, cum_sum) result(orb)
 
         integer(n_int), intent(in) :: ilut(0:NifTot)
-        integer, intent(in) :: src(2)
+        integer, intent(in) :: src(2), iSpn
         real(dp), intent(out) :: cpt, cum_sum
         integer :: orb
-        character(*), parameter :: this_routine = 'ASSUMES RHF orbitals'
+        character(*), parameter :: t_r = 'pick_a_orb'
+        character(*), parameter :: this_routine = t_r
 
-        real(dp) :: cum_arr(nbasis), r
-        integer :: start_ind, nused, srcid(2)
+        real(dp) :: cum_arr(nbasis), r, cum_tst, cpt_tst
+        integer :: start_ind, srcid(2)
         logical :: occa, occb
+
+        logical :: beta, parallel, valid
 
         ! Just in case. eeep.
         ! Note that we scale spin/spatial orbitals here with factors of 2
@@ -243,54 +208,49 @@ contains
         if (tUHF .or. tStoreSpinOrbs) &
             call stop_all(this_routine, "ASSUMES RHF orbitals")
 
-        if (is_beta(src(1)) .eqv. is_beta(src(2))) then
-
-            ! If the two spins are aligned, then we only have to consider half
-            ! of the available orbitals.
-
-            ! Beta orbitals come before alpha orbs
-            start_ind = 2
-            if (is_beta(src(1))) start_ind = 1
-
-            nused = nbasis / 2
-            srcid = gtID(src)
-            cum_sum = 0
-            do orb = start_ind, nbasis, 2
-                if (IsNotOcc(ilut, orb)) then
-                    cpt = same_spin_pair_contrib(srcid(1), srcid(2), orb, -1)
-                    cum_sum = cum_sum + cpt
-                endif
-                ! Note the gtID in this line...
-                cum_arr(gtID(orb)) = cum_sum
-            end do
-
+        if (iSpn == 1) then
+            parallel = .true.
+            beta = .true.
+        else if (iSpn == 2) then
+            parallel = .false.
+            beta = .true.
         else
+            parallel = .true.
+            beta = .false.
+        end if
 
-            ! If the spins are not parallel, then we need to consider all
-            ! alpha/beta orbitals. On the plus side, we only need to consider
-            ! one element at a time...
-            nused = nbasis
-            srcid = gtID(src)
-            cum_sum = 0
-            do orb = 1, nbasis - 1, 2
+        cum_sum = 0
+        do orb = 1, nbasis
 
-                occa = IsOcc(ilut, orb+1)
-                occb = IsOcc(ilut, orb)
-                if (.not. (occa .and. occb)) then
+            ! TODO: This should be doable in a better way...
+            if (beta .eqv. is_beta(src(1))) then
+                srcid = gtID(src)
+            else
+                ASSERT(iSpn == 2)
+                ASSERT(beta .eqv. is_beta(src(2)))
+                srcid(1) = gtID(src(2))
+                srcid(2) = gtID(src(1))
+            end if
+
+            valid = .true.
+            !if (.not. parallel .or. is_beta(orb) .neqv. beta) valid = .false.
+
+            if (IsOcc(ilut, orb)) valid = .false.
+            if (parallel .and. (is_beta(orb) .neqv. beta)) valid = .false.
+
+            cpt = 0
+            if (valid) then
+                ! Get the correct element depending on spin terms
+                if (parallel) then
+                    cpt = same_spin_pair_contrib(srcid(1), srcid(2), orb, -1)
+                else
                     cpt = opp_spin_pair_contrib(srcid(1), srcid(2), orb, -1)
                 end if
-                if (.not. occb) then
-                    cum_sum = cum_sum + cpt
-                end if
-                cum_arr(orb) = cum_sum
-                if (.not. occa) then
-                    cum_sum = cum_sum + cpt
-                end if
-                cum_arr(orb + 1) = cum_sum
+            end if
 
-            end do
-
-        end if
+            cum_sum = cum_sum + cpt
+            cum_arr(orb) = cum_sum
+        end do
 
         ! And exit if invalid
         if (cum_sum == 0) then
@@ -298,27 +258,232 @@ contains
             return
         end if
 
-        ! Ensure that we get the correct spin when searching
+        ! Pick the orbital, and extract the relevant list components for
+        ! probability generation purposes
         r = genrand_real2_dSFMT() * cum_sum
-        orb = binary_search_first_ge(cum_arr(1:nused), r)
+        orb = binary_search_first_ge(cum_arr, r)
         if (orb == 1) then
             cpt = cum_arr(1)
         else
             cpt = cum_arr(orb) - cum_arr(orb - 1)
         end if
 
-        ! If the spins are equal, the above selection will select in spatial
-        ! orbitals. Convert to spin orbs
-        if (is_beta(src(1)) .eqv. is_beta(src(2))) then
-            orb = 2 * orb
-            if (is_beta(src(1))) then
-                orb = get_beta(orb)
-            else
-                orb = get_alpha(orb)
-            end if
+#ifdef __DEBUG
+        call pgen_select_a_orb(ilut, src, orb, iSpn, cpt_tst, cum_tst)
+        if (abs(cpt_tst - cpt) > 1e-6 .or. abs(cum_tst - cum_sum) > 1e-6) then
+            call stop_all(t_r, 'Calculated probability does not match')
         end if
+#endif
 
     end function pick_a_orb
+
+    subroutine pgen_select_a_orb(ilut, src, orb_in, iSpn, cpt_out, cum_sum)
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: src(2), orb_in, iSpn
+        real(dp), intent(out) :: cpt_out, cum_sum
+        character(*), parameter :: t_r = 'pgen_select_orb'
+        character(*), parameter :: this_routine = t_r
+
+        logical :: beta, parallel, valid
+        integer :: srcid(2), orb
+        real(dp) :: cpt
+
+        ASSERT(is_beta(src(1)) .or. iSpn /= 1)
+        ASSERT(is_beta(src(2)) .or. iSpn /= 1)
+        ASSERT(.not. is_beta(src(1)) .or. iSpn /= 3)
+        ASSERT(.not. is_beta(src(2)) .or. iSpn /= 3)
+
+        if (iSpn == 1) then
+            parallel = .true.
+            beta = .true.
+        else if (iSpn == 2) then
+            parallel = .false.
+            beta = .true.
+        else
+            parallel = .true.
+            beta = .false.
+        end if
+
+        cum_sum = 0
+        do orb = 1, nbasis
+
+            ! TODO: This should be doable in a better way...
+            if (beta .eqv. is_beta(src(1))) then
+                srcid = gtID(src)
+            else
+                ASSERT(iSpn == 2)
+                ASSERT(beta .eqv. is_beta(src(2)))
+                srcid(1) = gtID(src(2))
+                srcid(2) = gtID(src(1))
+            end if
+
+            valid = .true.
+            if (IsOcc(ilut, orb)) valid = .false.
+            if (parallel .and. (is_beta(orb) .neqv. beta)) valid = .false.
+
+            cpt = 0
+            if (valid) then
+                if (parallel) then
+                    cpt = same_spin_pair_contrib(srcid(1), srcid(2), orb, -1)
+                else
+                    cpt = opp_spin_pair_contrib(srcid(1), srcid(2), orb, -1)
+                end if
+            end if
+
+            if (orb_in == orb) cpt_out = cpt
+            cum_sum = cum_sum + cpt
+        end do
+
+        ! For us to be calculating the likelihood of selecting the B electron,
+        ! there must have been a possibility of selecting the A electron
+        ! originally.
+        if (cum_sum == 0) then
+            call stop_all(t_r, 'Invalid cumulative sum')
+        end if
+
+    end subroutine
+
+    subroutine test_excit_gen_take2 (ilut, iterations)
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: iterations
+        character(*), parameter :: this_routine = 'test_excit_gen_take2'
+
+        integer :: src_det(nel), det(nel), nsing, ndoub, nexcit, ndet, ex(2,2)
+        integer :: flag, ngen, pos, iunit, i, ic
+        type(excit_gen_store_type) :: store
+        integer(n_int) :: tgt_ilut(0:NifTot)
+        integer(n_int), allocatable :: det_list(:,:)
+        real(dp), allocatable :: contrib_list(:)
+        logical, allocatable :: generated_list(:)
+        logical :: found_all, par
+        real(dp) :: contrib, pgen
+        HElement_t :: helgen, hel
+
+        ! Decode the determiant
+        call decode_bit_det (src_det, ilut)
+
+        ! Initialise
+        call init_excit_gen_store (store)
+
+        ! How many connected determinants are we expecting?
+        call CountExcitations3 (src_det, 2, nsing, ndoub)
+        nexcit = nsing + ndoub
+        allocate(det_list(0:NIfTot, nexcit))
+
+        ! Loop through all of the possible excitations
+        ndet = 0
+        found_all = .false.
+        ex = 0
+        flag = 2
+        write(6,'("*****************************************")')
+        write(6,'("Enumerating excitations")')
+        write(6,'("Starting from: ")', advance='no')
+        call write_det (6, src_det, .true.)
+        write(6,*) 'Expecting ', nexcit, "excitations"
+        call GenExcitations3 (src_det, ilut, det, flag, ex, par, found_all, &
+                              .false.)
+        do while (.not. found_all)
+            ndet = ndet + 1
+            call EncodeBitDet (det, det_list(:,ndet))
+
+            call GenExcitations3 (src_det, ilut, det, flag, ex, par, &
+                                  found_all, .false.)
+        end do
+        if (ndet /= nexcit) &
+            call stop_all(this_routine,"Incorrect number of excitations found")
+
+        ! Sort the dets, so they are easy to find by binary searching
+        call sort(det_list, ilut_lt, ilut_gt)
+
+        ! Lists to keep track of things
+        allocate(generated_list(nexcit))
+        allocate(contrib_list(nexcit))
+        generated_list = .false.
+        contrib_list = 0
+
+        ! Repeated generation, and summing-in loop
+        psingles = 0.0
+        pdoubles = 1.0
+        ngen = 0
+        contrib = 0
+        do i = 1, iterations
+            if (mod(i, 10000) == 0) &
+                write(6,*) i, '/', iterations, ' - ', contrib / real(ndet*i,dp)
+
+            call gen_excit_4ind_weighted2 (src_det, ilut, det, tgt_ilut, 2, &
+                                           ic, ex, par, pgen, helgen, store)
+            if (det(1) == 0) cycle
+
+            call EncodeBitDet (det, tgt_ilut)
+            pos = binary_search(det_list, tgt_ilut, NIfD+1)
+            if (pos < 0) then
+                write(6,*) det
+                write(6,'(b64)') tgt_ilut(0)
+                write(6,*) 'FAILED DET', tgt_ilut
+                call writebitdet(6, tgt_ilut, .true.)
+                call stop_all(this_routine, 'Unexpected determinant generated')
+            else
+                generated_list(pos) = .true.
+
+                ! Count this det, and sum in its contribution.
+                ngen = ngen + 1
+                contrib = contrib + 1.0_dp / pgen
+                contrib_list(pos) = contrib_list(pos) + 1.0_dp / pgen
+            end if
+        end do
+
+        ! How many of the iterations generated a good det?
+        write(6,*) ngen, " dets generated in ", iterations, " iterations."
+        write(6,*) 100_dp * (iterations - ngen) / real(iterations,dp), &
+                   '% abortion rate'
+        ! Contribution averages
+        write(6, '("Averaged contribution: ", f15.10)') &
+                contrib / real(ndet * iterations,dp)
+
+        ! Output the determinant specific contributions
+        iunit = get_free_unit()
+        open(iunit, file="contribs_4ind", status='unknown')
+        do i = 1, ndet
+            call writebitdet(iunit, det_list(:,i), .false.)
+            write(iunit, *) contrib_list(i) / real(iterations, dp)
+        end do
+        close(iunit)
+
+        ! Check that all of the determinants were generated!!!
+        if (.not. all(generated_list)) then
+            write(6,*) count(.not.generated_list), '/', size(generated_list), &
+                       'not generated'
+            found_all = .true.
+            do i = 1, ndet
+                if (.not. generated_list(i)) then
+                    call decode_bit_det(det, det_list(:,i))
+                    hel = get_helement(src_det, det, ilut, det_list(:,i))
+                    if (abs(hel) > 1.0e-6) then
+                        found_all = .false.
+                        call writebitdet(6, det_list(:,i), .false.)
+                        write(6,*) hel
+                    end if
+                end if
+            end do
+            if (.not. found_all) &
+                call stop_all(this_routine, "Determinant not generated")
+        end if
+        if (any(abs(contrib_list / iterations - 1.0_dp) > 0.01_dp)) then
+            do i = 1, ndet
+                call writebitdet(6, det_list(:,i), .false.)
+                write(6,*) contrib_list(i) / (iterations - 1.0_dp)
+            end do
+            call stop_all(this_routine, "Insufficiently uniform generation")
+        end if
+
+        ! Clean up
+        deallocate(det_list)
+        deallocate(contrib_list)
+        deallocate(generated_list)
+
+    end subroutine
 
 
 end module
