@@ -496,8 +496,8 @@ contains
                     AnnihilatedDet = AnnihilatedDet + 1 
                 else
 
+                if (tMP2FixedNode) then
 #if !(defined(__PROG_NUMRUNS) || defined(__CMPLX))
-                    if (tMP2FixedNode) then
                         ic = FindBitExcitLevel(ilutRef(:,1), CurrentDets(:,i))
                         call decode_bit_det(nI, CurrentDets(:,i))
                         if (ic == 2) then
@@ -516,10 +516,10 @@ contains
                                 end if
                             end do
                         end if
-                    end if
 #else
-                    call stop_all(t_r, 'not yet implemented')
+                        call stop_all(t_r, 'not yet implemented')
 #endif
+                    end if
 
                     do j=1, lenof_sign
                         run = part_type_to_run(j)
