@@ -8,7 +8,7 @@ module excit_gen_5
                                        same_spin_pair_contrib, &
                                        pick_biased_elecs, &
                                        pick_weighted_elecs, select_orb, &
-                                       pgen_select_orb
+                                       pgen_select_orb, pgen_weighted_elecs
     use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel, ScratchSize
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
     use SystemData, only: G1, tUHF, tStoreSpinOrbs, nbasis, nel, &
@@ -101,15 +101,8 @@ contains
         real(dp) :: pgen
         character(*), parameter :: this_routine = 'calc_pgen_4ind_weighted'
 
-        integer :: cc_index, src, tgt, id_src, id_tgt, n_id(nel)
-        integer :: norb, label_index, orb, i, j, iSpn, sum_ml
-        integer :: cc_i, cc_j, cc_i_final, cc_j_final, sym_product
-        real(dp) :: cpt, cpt_tgt, cum_sum, cum_sums(2), int_cpt(2), ntot
-        real(dp) :: cpt_pair(2), sum_pair(2)
-        HElement_t :: hel
-
-        call stop_all("OOPS", "BLAM")
-
+        integer :: iSpn, src(2), tgt(2)
+        real(dp) :: cum_sums(2), int_cpt(2), cpt_pair(2), sum_pair(2)
 
         if (ic == 1) then
 
@@ -119,6 +112,48 @@ contains
 
         else if (ic == 2) then
 
+            ! This is a double excitation...
+            pgen = pDoubles
+
+            ! Get properties of source electrons
+            src = ex(1, :)
+            if (is_beta(src(1)) .eqv. is_beta(src(2))) then
+                if (is_beta(src(1))) then
+                    iSpn = 1
+                else
+                    iSpn = 2
+                end if
+            else
+                iSpn = 2
+            end if
+
+            ! Select a pair of electrons in a weighted fashion
+            write(6,*) 'pD', pgen
+            pgen = pgen * pgen_weighted_elecs(nI, src)
+            write(6,*) 'wt', pgen, pgen / pdoubles
+
+            ! Obtain the probability components of picking the electrons in
+            ! either A--B or B--A order
+            tgt = ex(2, :)
+            call pgen_select_a_orb(ilutI, src, tgt(1), iSpn, int_cpt(1), &
+                                   cum_sums(1))
+            call pgen_select_orb(ilutI, src, tgt(1), tgt(2), int_cpt(2), &
+                                 cum_sums(2))
+
+            call pgen_select_a_orb(ilutI, src, tgt(2), iSpn, cpt_pair(1), &
+                                   sum_pair(1))
+            call pgen_select_orb(ilutI, src, tgt(2), tgt(1), cpt_pair(2), &
+                                 sum_pair(2))
+
+            ! And adjust the probability for the components
+            pgen = pgen * (product(int_cpt) / product(cum_sums) + &
+                           product(cpt_pair) / product(sum_pair))
+            write(6,*) "orb", pgen
+
+        else
+
+            ! Deal with some outsider cases that can leak through the HPHF
+            ! system.
             pgen = 0.0_dp
 
         end if
@@ -141,9 +176,11 @@ contains
         real(dp) :: int_cpt(2), cum_sum(2), cpt_pair(2), sum_pair(2)
 
         ! Pick the electrons in a weighted fashion
-        !call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
-        !                         pgen)
-        call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
+        call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
+                                 pgen)
+        !call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
+        write(6,*) '============================'
+        write(6,*) 'pE', pgen
 
         ! Select the A orbital _excluding_ knowledge of symmetry information.
         ! Only exclude terms that have no coupling elements.
@@ -175,6 +212,13 @@ contains
                              cpt_pair(2), sum_pair(2))
         pgen = pgen * (product(int_cpt) / product(cum_sum) + &
                        product(cpt_pair) / product(sum_pair))
+
+        write(6,*) 'ORBS', orbs
+        write(6,*) int_cpt
+        write(6,*) cpt_pair
+        write(6,*) cum_sum
+        write(6,*) sum_pair
+        write(6,*) '--'
 
         ! And generate the actual excitation
         call make_double (nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), &
@@ -283,7 +327,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: src(2), orb_in, iSpn
         real(dp), intent(out) :: cpt_out, cum_sum
-        character(*), parameter :: t_r = 'pgen_select_orb'
+        character(*), parameter :: t_r = 'pgen_select_a_orb'
         character(*), parameter :: this_routine = t_r
 
         logical :: beta, parallel, valid
@@ -314,7 +358,6 @@ contains
                 srcid = gtID(src)
             else
                 ASSERT(iSpn == 2)
-                ASSERT(beta .eqv. is_beta(src(2)))
                 srcid(1) = gtID(src(2))
                 srcid(2) = gtID(src(1))
             end if

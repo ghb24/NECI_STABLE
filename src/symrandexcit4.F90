@@ -1826,4 +1826,65 @@ contains
 
     end subroutine pick_weighted_elecs
 
+
+    function pgen_weighted_elecs(nI, orbs) result(prob)
+
+        ! Return the probability of having picked the electrons, and the
+
+        integer, intent(in) :: nI(nel), orbs(2)
+        real(dp) :: prob
+        logical, parameter :: tlinear = .false.
+
+        real(dp) :: cpt1(2), cpt2(2), cum_sum1, cum_sum2(2), cpt, cpts(2)
+        integer :: i, inds(nel), ind1(2)
+
+        ! Enumerate possibilities for the first electron, and select the
+        ! relevant orbitals.
+        inds = gtID(nI)
+        ind1 = gtID(orbs)
+        if (tlinear) then
+            call stop_all("Not yet", "implemented")
+            
+        else
+            cum_sum1 = 0
+            do i = 1, nel
+
+                ! Contributions for selection of electron 1
+                cpt = abs(get_umat_el(inds(i), inds(i), inds(i), inds(i)))
+                cum_sum1 = cum_sum1 + cpt
+
+                ! Extract the necessary components for calculating first e-
+                ! probability, and grab list components for the second one.
+                ! Contributions for selection of electron 2
+                if (nI(i) == orbs(1)) then
+                    cpt1(1) = cpt
+                    cpts(2) = 0.0
+                else
+                    cpts(2) = abs(get_umat_el(ind1(1), inds(i), ind1(1), inds(i)))
+                end if
+                if (nI(i) == orbs(2)) then
+                    cpt1(2) = cpt
+                    cpts(1) = 0.0
+                else
+                    cpts(1) = abs(get_umat_el(ind1(2), inds(i), ind1(2), inds(i)))
+                end if
+
+                ! And extract the correct second electron components
+                if (nI(i) == orbs(1)) cpt2(1) = cpts(1)
+                if (nI(i) == orbs(2)) cpt2(2) = cpts(2)
+                cum_sum2 = cum_sum2 + cpts
+            end do
+        end if
+
+        ! And extract the combined probability
+        write(6,*) 'cpt 1', cpt1
+        write(6,*) 'cpt 2', cpt2
+        write(6,*) 'sum1', cum_sum1
+        write(6,*) 'sum2', cum_sum2
+        prob = ((cpt1(1) / cum_sum1) * (cpt2(1) / cum_sum2(1))) &
+             + ((cpt1(2) / cum_sum1) * (cpt2(2) / cum_sum2(2)))
+
+
+    end function
+
 end module
