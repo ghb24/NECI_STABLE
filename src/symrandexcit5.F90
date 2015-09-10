@@ -68,23 +68,23 @@ contains
         end if
 
         ! And a careful check!
-!#ifdef __DEBUG
-!        if (.not. IsNullDet(nJ)) then
-!            pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
-!            if (abs(pgen - pgen2) > 1.0e-6_dp) then
-!                write(6,*) 'Calculated and actual pgens differ.'
-!                write(6,*) 'This will break HPHF calculations'
-!                call write_det(6, nI, .false.)
-!                write(6, '(" --> ")', advance='no')
-!                call write_det(6, nJ, .true.)
-!                write(6,*) 'Excitation matrix: ', ExcitMat(1,1:ic), '-->', &
-!                           ExcitMat(2,1:ic)
-!                write(6,*) 'Generated pGen:  ', pgen
-!                write(6,*) 'Calculated pGen: ', pgen2
-!                call stop_all(this_routine, "Invalid pGen")
-!            end if
-!        end if
-!#endif
+#ifdef __DEBUG
+        if (.not. IsNullDet(nJ)) then
+            pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
+            if (abs(pgen - pgen2) > 1.0e-6_dp) then
+                write(6,*) 'Calculated and actual pgens differ.'
+                write(6,*) 'This will break HPHF calculations'
+                call write_det(6, nI, .false.)
+                write(6, '(" --> ")', advance='no')
+                call write_det(6, nJ, .true.)
+                write(6,*) 'Excitation matrix: ', ExcitMat(1,1:ic), '-->', &
+                           ExcitMat(2,1:ic)
+                write(6,*) 'Generated pGen:  ', pgen
+                write(6,*) 'Calculated pGen: ', pgen2
+                call stop_all(this_routine, "Invalid pGen")
+            end if
+        end if
+#endif
 
     end subroutine
 
@@ -134,6 +134,7 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         logical, intent(out) :: par
         real(dp), intent(out) :: pgen
+        character(*), parameter :: this_routine = 'gen_double_4ind_ex2'
 
         integer :: elecs(2), src(2), orbs(2), ispn, sum_ml, cc_a, cc_b
         integer :: sym_product
