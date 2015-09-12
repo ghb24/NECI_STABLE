@@ -121,16 +121,14 @@ contains
                 if (is_beta(src(1))) then
                     iSpn = 1
                 else
-                    iSpn = 2
+                    iSpn = 3
                 end if
             else
                 iSpn = 2
             end if
 
             ! Select a pair of electrons in a weighted fashion
-            write(6,*) 'pD', pgen
             pgen = pgen * pgen_weighted_elecs(nI, src)
-            write(6,*) 'wt', pgen, pgen / pdoubles
 
             ! Obtain the probability components of picking the electrons in
             ! either A--B or B--A order
@@ -148,7 +146,6 @@ contains
             ! And adjust the probability for the components
             pgen = pgen * (product(int_cpt) / product(cum_sums) + &
                            product(cpt_pair) / product(sum_pair))
-            write(6,*) "orb", pgen
 
         else
 
@@ -179,8 +176,6 @@ contains
         call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
                                  pgen)
         !call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
-        write(6,*) '============================'
-        write(6,*) 'pE', pgen
 
         ! Select the A orbital _excluding_ knowledge of symmetry information.
         ! Only exclude terms that have no coupling elements.
@@ -212,13 +207,6 @@ contains
                              cpt_pair(2), sum_pair(2))
         pgen = pgen * (product(int_cpt) / product(cum_sum) + &
                        product(cpt_pair) / product(sum_pair))
-
-        write(6,*) 'ORBS', orbs
-        write(6,*) int_cpt
-        write(6,*) cpt_pair
-        write(6,*) cum_sum
-        write(6,*) sum_pair
-        write(6,*) '--'
 
         ! And generate the actual excitation
         call make_double (nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), &
