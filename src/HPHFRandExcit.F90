@@ -11,7 +11,7 @@ MODULE HPHFRandExcitMod
 
     use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, &
                           tOddS_HPHF, modk_offdiag, tGen_4ind_weighted, &
-                          tGen_4ind_reverse, tLatticeGens
+                          tGen_4ind_reverse, tLatticeGens, tGen_4ind_take_2
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
@@ -29,6 +29,7 @@ MODULE HPHFRandExcitMod
     use SymExcitDataMod, only: excit_gen_store_type
     use excit_gens_int_weighted, only: calc_pgen_4ind_weighted, &
                                        calc_pgen_4ind_reverse
+    use excit_gen_5, only: calc_pgen_4ind_weighted2
     use sort_mod
     use HElem
     IMPLICIT NONE
@@ -915,6 +916,8 @@ MODULE HPHFRandExcitMod
             else
                 pGen = 0
             end if
+        else if (tGen_4ind_take_2) then
+            pgen = calc_pgen_4ind_weighted2(nI, ilutI, ex, ic)
         else if (tGen_4ind_weighted) then
             pgen = calc_pgen_4ind_weighted (nI, ilutI, ex, ic, &
                                             ClassCountUnocc2)
