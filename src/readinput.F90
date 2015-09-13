@@ -196,7 +196,7 @@ MODULE ReadInput_neci
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
                               tGen_4ind_lin_exact, tGen_4ind_take_2, &
-                              tComplexOrbs_RealInts
+                              tComplexOrbs_RealInts, tLatticeGens
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -623,6 +623,12 @@ MODULE ReadInput_neci
             write(6,*) '   using VASP'
             write(6,*)
             call stop_all(t_r, 'Options incompatible')
+        end if
+        
+        if (tLatticeGens) then
+            if (tGen_4ind_take_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then
+                call stop_all(t_r, "Invalid excitation options")
+            end if
         end if
 
     end subroutine checkinput

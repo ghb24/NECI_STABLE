@@ -1753,9 +1753,9 @@ contains
                 ! TODO: Can we do the biasing of parallel/opposite here?
                 cpt = abs(get_umat_el(ind1, inds(i), ind1, inds(i)))
                 if (is_beta(nI(i)) .eqv. is_beta(nI(elecs(1)))) then
-                    cpt = cpt !* pParallel
+                    cpt = cpt * pParallel
                 else
-                    cpt = cpt !* (1.0_dp * pParallel)
+                    cpt = cpt * (1.0_dp * pParallel)
                 end if
             end if
             cum_sum = cum_sum + cpt
@@ -1784,6 +1784,11 @@ contains
                 cpt = 0
             else
                 cpt = abs(get_umat_el(ind2, inds(i), ind2, inds(i)))
+                if (is_beta(nI(i)) .eqv. is_beta(nI(elecs(2)))) then
+                    cpt = cpt * pParallel
+                else
+                    cpt = cpt * (1.0_dp * pParallel)
+                end if
             endif
             if (i == elecs(1)) final_cpt = cpt
             cum_sum = cum_sum + cpt
@@ -1860,12 +1865,22 @@ contains
                     cpts(1) = 0.0
                 else
                     cpts(1) = abs(get_umat_el(ind1(1), inds(i), ind1(1), inds(i)))
+                    if (is_beta(nI(i)) .eqv. is_beta(orbs(1))) then
+                        cpts(1) = cpts(1) * pParallel
+                    else
+                        cpts(1) = cpts(1) * (1.0_dp * pParallel)
+                    end if
                 end if
                 if (nI(i) == orbs(2)) then
                     cpt1(2) = cpt
                     cpts(2) = 0.0
                 else
                     cpts(2) = abs(get_umat_el(ind1(2), inds(i), ind1(2), inds(i)))
+                    if (is_beta(nI(i)) .eqv. is_beta(orbs(2))) then
+                        cpts(2) = cpts(2) * pParallel
+                    else
+                        cpts(2) = cpts(2) * (1.0_dp * pParallel)
+                    end if
                 end if
 
                 ! And extract the correct second electron components
