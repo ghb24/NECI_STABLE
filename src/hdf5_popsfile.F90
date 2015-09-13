@@ -890,7 +890,7 @@ contains
             ! only check, as we have set the max block_size such that it will
             ! always fit.
             if (proc == nNodes - 1) then
-                if (ValidSpawnedList(proc > MaxSpawned)) list_full = .true.
+                if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
             else
                 if (ValidSpawnedList(proc) >= InitialSpawnedSlots(proc+1)) &
                     list_full = .true.
