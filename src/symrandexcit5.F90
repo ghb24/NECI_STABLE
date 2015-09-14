@@ -39,7 +39,7 @@ contains
         integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
-        HElement_t, intent(out) :: HElGen
+        HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'gen_excit_4ind_weighted'
@@ -391,7 +391,7 @@ contains
         logical, allocatable :: generated_list(:)
         logical :: found_all, par
         real(dp) :: contrib, pgen
-        HElement_t :: helgen, hel
+        HElement_t(dp) :: helgen, hel
 
         ! Decode the determiant
         call decode_bit_det (src_det, ilut)
