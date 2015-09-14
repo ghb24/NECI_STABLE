@@ -42,7 +42,7 @@ contains
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
-        character(*), parameter :: this_routine = 'gen_excit_4ind_weighted'
+        character(*), parameter :: this_routine = 'gen_excit_4ind_weighted2'
 
         real(dp) :: pgen2
 

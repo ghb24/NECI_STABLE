@@ -1851,6 +1851,7 @@ contains
             
         else
             cum_sum1 = 0
+            cum_sum2 = 0
             do i = 1, nel
 
                 ! Contributions for selection of electron 1
@@ -1894,7 +1895,6 @@ contains
         ! And extract the combined probability
         prob = ((cpt1(1) / cum_sum1) * (cpt2(1) / cum_sum2(1))) &
              + ((cpt1(2) / cum_sum1) * (cpt2(2) / cum_sum2(2)))
-
 
     end function
 
