@@ -236,6 +236,8 @@ contains
           tReadPopsRestart = .false.
           iLogicalNodeSize = 0 !Meaning use the physical node size
           tAllRealCoeff=.false.
+          tWeakInitiators=.false.
+          weakthresh= 1.0_dp
           tEnhanceRemainder=.true.
           tUseRealCoeffs = .false.
           tRealCoeffByExcitLevel=.false.
@@ -1787,6 +1789,14 @@ contains
                 ! unpaired electrons.
                 tTruncNOpen = .true.
                 call geti (trunc_nopen_max)
+
+            case("WEAKINITIATORS")
+                !Additionally allow the children of initiators to spawn freely
+                !This adaptation is applied stochastically with probability weakthresh
+                !Hence weakthresh = 1 --> Always on where applicable.
+                !weakthresh = 0 --> The original initiator scheme is maintained.
+                tWeakInitiators=.true.
+                call Getf(weakthresh)
 
             case("ALLREALCOEFF")
                 tAllRealCoeff=.true.
