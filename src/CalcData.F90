@@ -306,6 +306,10 @@ logical :: tMultiRefShift = .false.
 ! Keep track of where in the calculation sequence we are.
 integer :: calc_seq_no
 
+!Weak initiator extension
+logical :: tWeakInitiators
+real(dp) :: weakthresh
+
 ! During annihilation, do we need the coefficient on the parent site? If so
 ! then attach it here
 logical :: tBroadcastParentCoeff = .false.
