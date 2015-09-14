@@ -891,7 +891,7 @@ C.. Generate an initial determinant of specified spin
 !  -->   ISYM is the target space symmetry for the reference determinant [0:7]
 C.. Working space
          INTEGER NELS(2),NELCount
-         INTEGER CounterOrb, CounterSym, CounterTot,CounterDet
+         INTEGER CounterSym, CounterTot,CounterDet
          INTEGER CountTotSym,I,J,NBASIS,NSBASIS
          INTEGER FDET(nel),FDET_Tmp(nel),NEL,NELR,IREAL,IS,ISPN
          LOGICAL SymFound,SymFoundTmp
@@ -1240,7 +1240,7 @@ C.. Working space
          use sort_mod
          use sym_mod, only: getsym
          TYPE(BasisFN) G1(*),s
-         INTEGER FDET(*),nel
+         INTEGER FDET(*), nel, CounterOrb, CounterSym, is
 
               CounterTot = 0
               CounterDet = 1
