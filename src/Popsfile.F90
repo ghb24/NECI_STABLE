@@ -1470,15 +1470,18 @@ r_loop: do while(.not.tStoreDet)
         character(12) :: num_tmp
         type(timer), save :: write_timer
 
-        ! If we are using the new popsfile format, then use it!
-        if (tHDF5PopsWrite) then
-            call write_popsfile_hdf5()
-            return
-        end if
-
         ! Tme the overall popsfile read in
         write_timer%timer_name = 'POPS-write'
         call set_timer(write_timer)
+
+        ! If we are using the new popsfile format, then use it!
+        if (tHDF5PopsWrite) then
+            call write_popsfile_hdf5()
+
+            ! And stop timing
+            call halt_timer(write_timer)
+            return
+        end if
 
         CALL MPIBarrier(error)  !sync
 !        WRITE(6,*) "Get Here",nDets
