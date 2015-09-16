@@ -1058,7 +1058,7 @@ C.. Working space
             ENDDO
             call sort (fDet(1:NEL))
 !            call write_det (6, fDet, .true.)
-            call collapseDet(G1,FDET,nel)
+            call collapseDet(FDET)
 !           ^ Collapse electrons to lowest orbitals within each irrep
             SymFound = .true.
 !************************************************************************
@@ -1120,7 +1120,7 @@ C.. Working space
                  ENDDO
                  call sort (fDet_tmp(1:nel))
 !                 call write_det (6, fDet_tmp, .true.)
-                 call collapseDet(G1,FDET_tmp,nel)
+                 call collapseDet(FDET_tmp)
 !                ^ Collapse electrons to lowest orbitals within each irrep
 !                 write(6,*) 'Energy =',get_helement(fDet_tmp,fDet_tmp,0)
                  if(real(get_helement(fDet_tmp,fDet_tmp,0))
@@ -1233,14 +1233,18 @@ C.. Working space
 !        deallocate(String_a)
       END
 
-      SUBROUTINE collapseDet(G1,FDET,nel)
-         use SystemData, only: symmax,BasisFN, nbasisMax
+      SUBROUTINE collapseDet(FDET)
+         use SystemData, only: G1, symmax, BasisFN, nbasisMax, nel
          Use Determinants, only: write_det
          use util_mod, only: int_fmt
          use sort_mod
          use sym_mod, only: getsym
-         TYPE(BasisFN) G1(*),s
-         INTEGER FDET(*), nel, CounterOrb, CounterSym, is
+         implicit none
+
+         type(BasisFN) :: s
+         integer, intent(inout) :: FDET(*)
+         integer :: CounterOrb, CounterSym, CounterDet, CounterTot
+         integer :: is, j
 
               CounterTot = 0
               CounterDet = 1
