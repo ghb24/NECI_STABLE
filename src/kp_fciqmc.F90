@@ -647,11 +647,7 @@ contains
                     call halt_timer(annihil_time)
 
                     if (tOrthogKPReplicas .and. iter > orthog_kp_iter) then
-                        if (tPairedReplicas) then
-                            call orthogonalise_replica_pairs(iter_data_fciqmc)
-                        else
-                            call orthogonalise_replicas(iter_data_fciqmc)
-                        end if
+                        call orthogonalise_replicas(iter_data_fciqmc)
                     else if (tPrintReplicaOverlaps) then
                         call calc_replica_overlaps()
                     end if
