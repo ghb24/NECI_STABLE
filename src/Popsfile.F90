@@ -792,7 +792,9 @@ r_loop: do while(.not.tStoreDet)
             endif
             
             ! Test if we actually want to store this walker...
-            if (any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) then
+            ! SDS: If we have the odd empty site, don't worry about it.
+                                        !.and. .not. IsUnoccDet(sgn)) then
+            if (any(abs(sgn) >= iWeightPopRead)) then
                 tStoreDet = .true.
                 exit
             end if
