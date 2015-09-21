@@ -152,6 +152,7 @@ module par_internal
     use CalcData, only: iLogicalNodeSize
     use iso_c_hack
     use constants
+    use fmt_utils
     implicit none
 
     interface MPIReduce
@@ -1633,15 +1634,9 @@ contains
                                ' moving to local output.'
 #endif
 
-                    if (iProcIndex.lt.9) then
-                        write (NodeFile,'(a,i1)') 'NodeFile', iProcIndex+1
-                    elseif (iProcIndex.lt.99) then
-                        write (NodeFile,'(a,i2)') 'NodeFile', iProcIndex+1
-                    elseif (iProcIndex.lt.999) then
-                        write (NodeFile,'(a,i3)') 'NodeFile', iProcIndex+1
-                    else
-                        write (NodeFile,'(a,i4)') 'NodeFile', iProcIndex+1
-                    end if
+                    write(NodeFile, &
+                        '("NodeFile",' // int_fmt(iProcIndex+1) // ')') &
+                        iProcIndex + 1
 
 #ifdef __DEBUG
                     write(6,*) "outfile=", NodeFile
