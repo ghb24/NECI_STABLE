@@ -11,7 +11,7 @@ MODULE HPHFRandExcitMod
 
     use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, &
                           tOddS_HPHF, modk_offdiag, tGen_4ind_weighted, &
-                          tGen_4ind_reverse, tLatticeGens, tGen_4ind_take_2
+                          tGen_4ind_reverse, tLatticeGens, tGen_4ind_2
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
@@ -160,7 +160,7 @@ MODULE HPHFRandExcitMod
             call gen_excit_4ind_reverse (nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pGen, Hel,&
                                           store)
-        else if (tGen_4ind_take_2) then
+        else if (tGen_4ind_2) then
             call gen_excit_4ind_weighted2(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pGen, Hel, &
                                           store)
@@ -179,7 +179,7 @@ MODULE HPHFRandExcitMod
 
         ! Create bit representation of excitation - iLutnJ.
         ! n.b. 4ind_weighted does this already.
-        if (.not. (tGen_4ind_weighted .or. tGen_4ind_reverse .or. tGen_4ind_take_2)) &
+        if (.not. (tGen_4ind_weighted .or. tGen_4ind_reverse .or. tGen_4ind_2)) &
             CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
             
 !Test!
@@ -920,7 +920,7 @@ MODULE HPHFRandExcitMod
             else
                 pGen = 0
             end if
-        else if (tGen_4ind_take_2) then
+        else if (tGen_4ind_2) then
             pgen = calc_pgen_4ind_weighted2(nI, ilutI, ex, ic)
         else if (tGen_4ind_weighted) then
             pgen = calc_pgen_4ind_weighted (nI, ilutI, ex, ic, &

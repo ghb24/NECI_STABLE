@@ -11,7 +11,7 @@ module fcimc_initialisation
                           tRotatedOrbs, MolproID, nBasis, arr, brr, nel, tCSF,&
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
-                          tUEGNewGenerator, tGen_4ind_take_2
+                          tUEGNewGenerator, tGen_4ind_2
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
                         tCheckHighestPop, tSpatialOnlyHash, tStartCAS, tau, &
@@ -1433,7 +1433,7 @@ contains
             generate_excitation => gen_rand_excit3
         elseif (tGenHelWeighted) then
             generate_excitation => gen_excit_hel_weighted
-        elseif (tGen_4ind_take_2) then
+        elseif (tGen_4ind_2) then
             generate_excitation => gen_excit_4ind_weighted2
         elseif (tGen_4ind_weighted) then
             generate_excitation => gen_excit_4ind_weighted

@@ -195,7 +195,7 @@ MODULE ReadInput_neci
                               tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
-                              tGen_4ind_lin_exact, tGen_4ind_take_2, &
+                              tGen_4ind_lin_exact, tGen_4ind_2, &
                               tComplexOrbs_RealInts, tLatticeGens
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
@@ -449,7 +449,7 @@ MODULE ReadInput_neci
             write(6,*)
         end if
 
-        if (tGen_4ind_weighted .or. tGen_4ind_reverse .or. tGen_4ind_take_2) then
+        if (tGen_4ind_weighted .or. tGen_4ind_reverse .or. tGen_4ind_2) then
 
             ! We want to use UMAT2D...
             tDeferred_Umat2d = .true.
@@ -626,7 +626,7 @@ MODULE ReadInput_neci
         end if
         
         if (tLatticeGens) then
-            if (tGen_4ind_take_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then
+            if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then
                 call stop_all(t_r, "Invalid excitation options")
             end if
         end if

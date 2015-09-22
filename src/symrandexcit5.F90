@@ -12,7 +12,7 @@ module excit_gen_5
     use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel, ScratchSize
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
     use SystemData, only: G1, tUHF, tStoreSpinOrbs, nbasis, nel, &
-                          tGen_4ind_part_exact
+                          tGen_4ind_part_exact, tGen_4ind_2_symmetric
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use GenRandSymExcitNUMod, only: init_excit_gen_store
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
@@ -131,17 +131,30 @@ contains
             pgen = pgen * pgen_weighted_elecs(nI, src)
 
             ! Obtain the probability components of picking the electrons in
-            ! either A--B or B--A order
+            ! either A--B or B--A order.
+            ! Note that if tGen_4ind_symmtric is not true, then for
+            ! non-parallel electrons, one of these components will be zero.
+            ! Hence the optimisation comparing the cpt values for A selection
             tgt = ex(2, :)
             call pgen_select_a_orb(ilutI, src, tgt(1), iSpn, int_cpt(1), &
                                    cum_sums(1))
-            call pgen_select_orb(ilutI, src, tgt(1), tgt(2), int_cpt(2), &
-                                 cum_sums(2))
+            if (int_cpt(1) > 1.0e-8_dp) then
+                call pgen_select_orb(ilutI, src, tgt(1), tgt(2), int_cpt(2), &
+                                     cum_sums(2))
+            else
+                int_cpt(2) = 0.0_dp
+                cum_sums(2) = 1.0_dp
+            end if
 
             call pgen_select_a_orb(ilutI, src, tgt(2), iSpn, cpt_pair(1), &
                                    sum_pair(1))
-            call pgen_select_orb(ilutI, src, tgt(2), tgt(1), cpt_pair(2), &
-                                 sum_pair(2))
+            if (cpt_pair(1) > 1.0e-8_dp) then
+                call pgen_select_orb(ilutI, src, tgt(2), tgt(1), cpt_pair(2), &
+                                     sum_pair(2))
+            else
+                cpt_pair(2) = 0.0_dp
+                sum_pair(2) = 1.0_dp
+            end if
 
             ! And adjust the probability for the components
             pgen = pgen * (product(int_cpt) / product(cum_sums) + &
@@ -201,7 +214,7 @@ contains
         ! selected as both A--B or B--A. So these need to be calculated
         ! explicitly.
         ASSERT(tGen_4ind_part_exact)
-        if (cc_a == cc_b) then
+        if (cc_a == cc_b .or. tGen_4ind_2_symmetric) then
             call pgen_select_a_orb(ilutI, src, orbs(2), iSpn, cpt_pair(1), &
                                    sum_pair(1))
             call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
@@ -274,8 +287,8 @@ contains
             !if (.not. parallel .or. is_beta(orb) .neqv. beta) valid = .false.
 
             if (IsOcc(ilut, orb)) valid = .false.
-            !if (parallel .and. (is_beta(orb) .neqv. beta)) valid = .false.
-            if (is_beta(orb) .neqv. beta) valid = .false.
+            if (((.not. tGen_4ind_2_symmetric) .or. parallel) .and. &
+                (is_beta(orb) .neqv. beta)) valid = .false.
 
             cpt = 0
             if (valid) then
@@ -339,6 +352,14 @@ contains
         else if (iSpn == 2) then
             parallel = .false.
             beta = .true.
+
+            ! If we are not using symmetric calculations, and this electron
+            ! has the wrong spin, then the probability is (obviously) zero.
+            if (.not. is_beta(orb_in)) then
+                cpt_out = 0.0_dp
+                cum_sum = 1.0_dp
+                return
+            end if
         else
             parallel = .true.
             beta = .false.
@@ -358,8 +379,8 @@ contains
 
             valid = .true.
             if (IsOcc(ilut, orb)) valid = .false.
-            !if (parallel .and. (is_beta(orb) .neqv. beta)) valid = .false.
-            if (is_beta(orb) .neqv. beta) valid = .false.
+            if (((.not. tGen_4ind_2_symmetric) .or. parallel) .and. &
+                (is_beta(orb) .neqv. beta)) valid = .false.
 
             cpt = 0
             if (valid) then

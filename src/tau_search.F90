@@ -5,7 +5,7 @@ module tau_search
     use SystemData, only: AB_elec_pairs, par_elec_pairs, tGen_4ind_weighted, &
                           tHPHF, tCSF, tKpntSym, nel, G1, nbasis, &
                           AB_hole_pairs, par_hole_pairs, tGen_4ind_reverse, &
-                          nOccAlpha, nOccBeta, tUEG, tGen_4ind_take_2
+                          nOccAlpha, nOccBeta, tUEG, tGen_4ind_2
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
@@ -90,7 +90,7 @@ contains
         ! Do this logic here, so that if we add opposite spin bias to more
         ! excitation generators, then there is only one place that this logic
         ! needs to be updated!
-        if (tGen_4ind_weighted .or. tGen_4ind_take_2) then
+        if (tGen_4ind_weighted .or. tGen_4ind_2) then
             !consider_par_bias = .false.
             consider_par_bias = .true.
             !n_opp = AB_elec_pairs
