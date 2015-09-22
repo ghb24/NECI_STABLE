@@ -1856,9 +1856,6 @@ contains
         inds = gtID(nI)
         ind1 = gtID(orbs)
         if (tlinear) then
-            call stop_all("Not yet", "implemented")
-            
-        else
             cum_sum1 = 0
             cum_sum2 = 0
             do i = 1, nel
