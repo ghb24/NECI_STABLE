@@ -204,7 +204,7 @@ contains
                                   cum_sum(2))
         end if
 
-        ASSERT(cc_b <= cc_a)
+        ASSERT(cc_b <= cc_a .or. tGen_4ind_2_symmetric)
         if (any(orbs == 0)) then
             nJ(1) = 0
             return
@@ -355,7 +355,7 @@ contains
 
             ! If we are not using symmetric calculations, and this electron
             ! has the wrong spin, then the probability is (obviously) zero.
-            if (.not. is_beta(orb_in)) then
+            if (.not. tGen_4ind_2_symmetric .and. .not. is_beta(orb_in)) then
                 cpt_out = 0.0_dp
                 cum_sum = 1.0_dp
                 return
