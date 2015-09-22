@@ -147,7 +147,7 @@ contains
             ! We need to deal with the doubles
             if (consider_par_bias) then
 
-                ! In this case, distinguish between parallal and oppisite spins
+                ! In this case, distinguish between parallel and oppisite spins
                 if (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2))) then
                     tmp_prob = tmp_prob / pParallel
                     tmp_gamma = abs(matel) / tmp_prob

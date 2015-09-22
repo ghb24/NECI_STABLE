@@ -172,15 +172,14 @@ contains
         integer :: sym_product
         real(dp) :: int_cpt(2), cum_sum(2), cpt_pair(2), sum_pair(2)
 
+        real(dp) :: scratch_cpt, scratch_sm
+        integer :: scratch_orb
+
         ! Pick the electrons in a weighted fashion
         call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
                                  pgen)
         !call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
 
-        ! Select the A orbital _excluding_ knowledge of symmetry information.
-        ! Only exclude terms that have no coupling elements.
-        ! TODO: The pick_a_orb selection should only work if there are avail
-        !       b orbs of the appropriate symmetry!
         orbs(1) = pick_a_orb(ilutI, src, iSpn, int_cpt(1), cum_sum(1))
 
         ! Select the B orbital, in the same way as before!!
@@ -192,6 +191,7 @@ contains
                                   cum_sum(2))
         end if
 
+        ASSERT(cc_b <= cc_a)
         if (any(orbs == 0)) then
             nJ(1) = 0
             return
@@ -201,10 +201,15 @@ contains
         ! selected as both A--B or B--A. So these need to be calculated
         ! explicitly.
         ASSERT(tGen_4ind_part_exact)
-        call pgen_select_a_orb(ilutI, src, orbs(2), iSpn, cpt_pair(1), &
-                               sum_pair(1))
-        call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
-                             cpt_pair(2), sum_pair(2))
+        if (cc_a == cc_b) then
+            call pgen_select_a_orb(ilutI, src, orbs(2), iSpn, cpt_pair(1), &
+                                   sum_pair(1))
+            call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
+                                 cpt_pair(2), sum_pair(2))
+        else
+            cpt_pair = 0
+            sum_Pair = 1
+        end if
         pgen = pgen * (product(int_cpt) / product(cum_sum) + &
                        product(cpt_pair) / product(sum_pair))
 
@@ -269,7 +274,8 @@ contains
             !if (.not. parallel .or. is_beta(orb) .neqv. beta) valid = .false.
 
             if (IsOcc(ilut, orb)) valid = .false.
-            if (parallel .and. (is_beta(orb) .neqv. beta)) valid = .false.
+            !if (parallel .and. (is_beta(orb) .neqv. beta)) valid = .false.
+            if (is_beta(orb) .neqv. beta) valid = .false.
 
             cpt = 0
             if (valid) then
@@ -352,7 +358,8 @@ contains
 
             valid = .true.
             if (IsOcc(ilut, orb)) valid = .false.
-            if (parallel .and. (is_beta(orb) .neqv. beta)) valid = .false.
+            !if (parallel .and. (is_beta(orb) .neqv. beta)) valid = .false.
+            if (is_beta(orb) .neqv. beta) valid = .false.
 
             cpt = 0
             if (valid) then

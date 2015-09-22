@@ -1709,7 +1709,8 @@ contains
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = 'pick_weighted_elecs'
 
-        logical, parameter :: tlinear = .false.
+        logical, parameter :: tlinear = .true.
+        logical, parameter :: tlinear2 = .false.
 
         real(dp) :: cum_list(nel), cum_sum, cpt, final_cpt, r
         real(dp) :: cum_sum_ii, cum_list_ii(nel), cpt_ii, cpt_jj
@@ -1750,12 +1751,15 @@ contains
             if (i == elecs(1)) then
                 cpt = 0
             else
-                ! TODO: Can we do the biasing of parallel/opposite here?
-                cpt = abs(get_umat_el(ind1, inds(i), ind1, inds(i)))
+                if (tlinear2) then
+                    cpt = 1.0
+                else
+                    cpt = abs(get_umat_el(ind1, inds(i), ind1, inds(i)))
+                end if
                 if (is_beta(nI(i)) .eqv. is_beta(nI(elecs(1)))) then
                     cpt = cpt * pParallel
                 else
-                    cpt = cpt * (1.0_dp * pParallel)
+                    cpt = cpt * (1.0_dp - pParallel)
                 end if
             end if
             cum_sum = cum_sum + cpt
@@ -1783,11 +1787,15 @@ contains
             if (i == elecs(2)) then
                 cpt = 0
             else
-                cpt = abs(get_umat_el(ind2, inds(i), ind2, inds(i)))
+                if (tlinear2) then
+                    cpt = 1.0
+                else
+                    cpt = abs(get_umat_el(ind2, inds(i), ind2, inds(i)))
+                end if
                 if (is_beta(nI(i)) .eqv. is_beta(nI(elecs(2)))) then
                     cpt = cpt * pParallel
                 else
-                    cpt = cpt * (1.0_dp * pParallel)
+                    cpt = cpt * (1.0_dp - pParallel)
                 end if
             endif
             if (i == elecs(1)) final_cpt = cpt
@@ -1837,7 +1845,8 @@ contains
 
         integer, intent(in) :: nI(nel), orbs(2)
         real(dp) :: prob
-        logical, parameter :: tlinear = .false.
+        logical, parameter :: tlinear = .true.
+        logical, parameter :: tlinear2 = .false.
 
         real(dp) :: cpt1(2), cpt2(2), cum_sum1, cum_sum2(2), cpt, cpts(2)
         integer :: i, inds(nel), ind1(2)
@@ -1855,8 +1864,10 @@ contains
             do i = 1, nel
 
                 ! Contributions for selection of electron 1
-                cpt = abs(get_umat_el(inds(i), inds(i), inds(i), inds(i)))
-                cum_sum1 = cum_sum1 + cpt
+                if (.not. tlinear) then
+                    cpt = abs(get_umat_el(inds(i), inds(i), inds(i), inds(i)))
+                    cum_sum1 = cum_sum1 + cpt
+                end if
 
                 ! Extract the necessary components for calculating first e-
                 ! probability, and grab list components for the second one.
@@ -1865,22 +1876,32 @@ contains
                     cpt1(1) = cpt
                     cpts(1) = 0.0
                 else
-                    cpts(1) = abs(get_umat_el(ind1(1), inds(i), ind1(1), inds(i)))
+                    if (tlinear2) then
+                        cpts(1) = 1.0
+                    else
+                        cpts(1) = abs(get_umat_el(ind1(1), inds(i), ind1(1), &
+                                      inds(i)))
+                    end if
                     if (is_beta(nI(i)) .eqv. is_beta(orbs(1))) then
                         cpts(1) = cpts(1) * pParallel
                     else
-                        cpts(1) = cpts(1) * (1.0_dp * pParallel)
+                        cpts(1) = cpts(1) * (1.0_dp - pParallel)
                     end if
                 end if
                 if (nI(i) == orbs(2)) then
                     cpt1(2) = cpt
                     cpts(2) = 0.0
                 else
-                    cpts(2) = abs(get_umat_el(ind1(2), inds(i), ind1(2), inds(i)))
+                    if (tlinear2) then
+                        cpts(2) = 1.0
+                    else
+                        cpts(2) = abs(get_umat_el(ind1(2), inds(i), ind1(2), &
+                                      inds(i)))
+                    end if
                     if (is_beta(nI(i)) .eqv. is_beta(orbs(2))) then
                         cpts(2) = cpts(2) * pParallel
                     else
-                        cpts(2) = cpts(2) * (1.0_dp * pParallel)
+                        cpts(2) = cpts(2) * (1.0_dp - pParallel)
                     end if
                 end if
 
@@ -1890,6 +1911,13 @@ contains
                 if (nI(i) == orbs(1)) cpt2(2) = cpts(2)
                 cum_sum2 = cum_sum2 + cpts
             end do
+        end if
+
+        ! If we are selecting the first electron in a linear manner, then
+        ! we know the values exactly.
+        if (tlinear) then
+            cpt1 = 1.0
+            cum_sum1 = nel
         end if
 
         ! And extract the combined probability
