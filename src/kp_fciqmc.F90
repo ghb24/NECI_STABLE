@@ -34,7 +34,7 @@ module kp_fciqmc
     use procedure_pointers, only: generate_excitation, attempt_create, encode_child
     use procedure_pointers, only: new_child_stats, extract_bit_rep_avsign
     use semi_stoch_procs, only: is_core_state, check_determ_flag, determ_projection
-    use soft_exit, only: ChangeVars
+    use soft_exit, only: ChangeVars, tSoftExitFound
     use SystemData, only: nel, lms, nbasis, tAllSymSectors, nOccAlpha, nOccBeta
     use SystemData, only: tRef_Not_HF
     use timing_neci, only: set_timer, halt_timer
@@ -61,7 +61,7 @@ contains
         real(dp) :: unused_sign(lenof_sign)
         real(dp), allocatable :: lowdin_evals(:,:)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
-        logical :: tParity, tSoftExitFound, tSingBiasChange, tWritePopsFound
+        logical :: tParity, tSingBiasChange, tWritePopsFound
         HElement_t(dp) :: HElGen
 
         ! Stores of the overlap and projected Hamiltonian matrices.
@@ -306,7 +306,7 @@ contains
                             call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts, tPairedReplicas)
                             call halt_timer(Stats_Comms_Time)
 
-                            call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
+                            call ChangeVars(tSingBiasChange, tWritePopsFound)
                             if (tWritePopsFound) call WriteToPopsfileParOneArr(CurrentDets, TotWalkers)
                             if (tSingBiasChange) call CalcApproxpDoubles()
                             if (tSoftExitFound) exit outer_loop
@@ -383,7 +383,7 @@ contains
         real(dp) :: unused_sign(lenof_sign)
         real(dp), allocatable :: lowdin_evals(:,:), lowdin_spin(:,:)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
-        logical :: tParity, tSoftExitFound, tSingBiasChange, tWritePopsFound
+        logical :: tParity, tSingBiasChange, tWritePopsFound
         HElement_t(dp) :: HElGen
 
         ! Stores of the overlap, projected Hamiltonian and spin matrices.
@@ -659,7 +659,7 @@ contains
                         call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts, tPairedReplicas)
                         call halt_timer(Stats_Comms_Time)
 
-                        call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
+                        call ChangeVars(tSingBiasChange, tWritePopsFound)
                         if (tWritePopsFound) call WriteToPopsfileParOneArr(CurrentDets, TotWalkers)
                         if (tSingBiasChange) call CalcApproxpDoubles()
                         if (tSoftExitFound) exit outer_loop

@@ -118,6 +118,7 @@ module fcimc_initialisation
     use fcimc_helper, only: CalcParentFlag, update_run_reference
     use cont_time_rates, only: spawn_rate_full, oversample_factors, &
                                secondary_gen_store, ostag
+    use soft_exit, only: tSoftExitFound
     use get_excit, only: make_double
     use sltcnd_mod, only: sltcnd_0
     use rdm_data, only: nrdms
@@ -818,6 +819,7 @@ contains
         AbsProjE = 0
         norm_semistoch = 0
         norm_psi = 0
+        tSoftExitFound = .false.
 
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp
