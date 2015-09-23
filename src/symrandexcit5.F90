@@ -204,7 +204,7 @@ contains
                                   cum_sum(2))
         end if
 
-        ASSERT(cc_b <= cc_a .or. tGen_4ind_2_symmetric)
+        ASSERT((.not. (is_beta(orbs(2)) .and. .not. is_beta(orbs(1)))) .or. tGen_4ind_2_symmetric)
         if (any(orbs == 0)) then
             nJ(1) = 0
             return
@@ -214,7 +214,7 @@ contains
         ! selected as both A--B or B--A. So these need to be calculated
         ! explicitly.
         ASSERT(tGen_4ind_part_exact)
-        if (cc_a == cc_b .or. tGen_4ind_2_symmetric) then
+        if ((is_beta(orbs(1)) .eqv. is_beta(orbs(2))) .or. tGen_4ind_2_symmetric) then
             call pgen_select_a_orb(ilutI, src, orbs(2), iSpn, cpt_pair(1), &
                                    sum_pair(1))
             call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
