@@ -72,6 +72,8 @@ contains
 
     subroutine pops_init_balance_blocks(pops_blocks)
 
+        use LoggingData, only: tHDF5PopsRead
+
         integer, intent(in) :: pops_blocks
         integer :: det(nel), block, j
         integer :: mapping_tmp(balance_blocks)
@@ -84,8 +86,10 @@ contains
         ! they will have been distributed according to the already-initialised
         ! blocking structure
         ! --> all we need to do is rebalance things
+        ! --> This also applies if we are using the HDF5 popsfile routines,
+        !     which distribute the particles at read time
         ASSERT(allocated(LoadBalanceMapping))
-        if (pops_blocks == -1) then
+        if (pops_blocks == -1 .or. tHDF5PopsRead) then
             call adjust_load_balance(iter_data_fciqmc)
             return
         end if

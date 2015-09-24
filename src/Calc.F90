@@ -766,6 +766,18 @@ contains
                     end do
                 end do
 
+            case("MULTIPLE-INITIAL-STATES")
+                tMultipleInitialStates = .true.
+                allocate(initial_states(nel, inum_runs), stat=ierr)
+                initial_states = 0
+
+                do line = 1, inum_runs
+                    call read_line(eof)
+                    do i = 1, nel
+                        call geti(initial_states(i, line))
+                    end do
+                end do
+
             case("FINDGUIDINGFUNCTION")
 ! At the end of a calculation, this keyword sets the spawning calculation to print out the iGuideDets
 ! most populated determinants, to be read in as a guiding (or annihilating) function in a following calculation.
