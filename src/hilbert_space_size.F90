@@ -17,7 +17,7 @@ contains
          use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz
          use DeterminantData, only : FDet
          use dSFMT_interface
-         use soft_exit, only : ChangeVars
+         use soft_exit, only : ChangeVars, tSoftExitFound
          use Parallel_neci
          use DetBitops, only: EncodeBitDet
          use bit_rep_data, only: NIfTot
@@ -31,7 +31,7 @@ contains
          real(dp) :: ExcitLevBias(0:iMCCalcTruncLev)
          real(dp) :: FullSpace,r,Frac,SymSpace
          real(dp) :: SizeLevel(0:iMCCalcTruncLev) 
-         LOGICAL :: tDummy,tDummy2,tSoftExitFound
+         LOGICAL :: tDummy,tDummy2
 
          iExcitLevTest=iMCCalcTruncLev
 
@@ -128,7 +128,7 @@ contains
                  ExcitBinAll(0:iExcitLevTest)=0
                  TotalAttemptsAll=0
 
-                 CALL ChangeVars(tDummy,tSoftExitFound,tDummy2)
+                 call ChangeVars(tDummy, tDummy2)
                  IF(tSoftExitFound) EXIT
 
              ENDIF
@@ -388,7 +388,7 @@ contains
          use DeterminantData, only : FDet
          use DetCalcData, only : ICILevel
          use dSFMT_interface
-         use soft_exit, only : ChangeVars
+         use soft_exit, only : ChangeVars, tSoftExitFound
          use Parallel_neci
          use DetBitops, only: EncodeBitDet, IsAllowedHPHF, count_open_orbs
          use bit_rep_data, only: NIfTot
@@ -402,7 +402,7 @@ contains
          integer(int64) :: ExcitBin(0:NEl),ExcitBinAll(0:NEl)
          real(dp) :: FullSpace,r,Frac
          real(dp) :: SizeLevel(0:NEl) 
-         LOGICAL :: truncate_space,tDummy,tDummy2,tSoftExitFound
+         LOGICAL :: truncate_space,tDummy,tDummy2
          LOGICAL :: tNotAllowed,tAcc
          type(Symmetry) :: FDetKPntMom,KPntMom
 
@@ -770,7 +770,7 @@ contains
                  AcceptAll=0
                  ExcitBinAll(0:NEl)=0
 
-                 CALL ChangeVars(tDummy,tSoftExitFound,tDummy2)
+                 CALL ChangeVars(tDummy, tDummy2)
                  IF(tSoftExitFound) EXIT
 
              ENDIF

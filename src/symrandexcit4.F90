@@ -314,9 +314,14 @@ contains
             call pgen_select_orb (ilutI, ex(1,:), tgt(1), tgt(2), int_cpt(2), &
                                   cum_sums(2))
 
-            if (any(cum_sums == 0)) then
-                pgen = 0
-            else if (cc_i_final == cc_j_final) then
+            ! Deal with cases when there are no available excitations
+            ! with the given pathway.
+            if (any(cum_sums == 0.0)) then
+                cum_sums = 1.0
+                int_cpt = 0.0
+            end if
+
+            if (cc_i_final == cc_j_final) then
                 if (tGen_4ind_lin_exact .or. tGen_4ind_part_exact) then
                     call pgen_select_orb(ilutI, ex(1,:), -1, tgt(2), &
                                          cpt_pair(1), sum_pair(1))
@@ -328,6 +333,14 @@ contains
                     sum_pair(1) = cum_sums(1)
                     sum_pair(2) = cum_sums(1) - int_cpt(2)
                 end if
+                
+                ! Deal with cases when there are no available excitations
+                ! with the given pathway.
+                if (any(sum_pair == 0.0)) then
+                    sum_pair = 1.0
+                    cpt_pair = 0.0
+                end if
+
                 pgen = pgen * (product(int_cpt) / product(cum_sums) + &
                                product(cpt_pair) / product(sum_pair))
             else

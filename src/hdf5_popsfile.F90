@@ -1026,8 +1026,11 @@ contains
         end if
 
         ! Is the total norm of the wavefunction correct
+        ! The test condition is rather lax, as the hugely differing magnitudes
+        ! of the total numbers on each processor combined with the varying
+        ! summation orders can lead to larger errors here
         call MPISumAll(norm, all_norm)
-        if (any(abs(all_norm - pops_norm_sqr) > 1.0e-6)) then
+        if (any(abs(all_norm - pops_norm_sqr) > 1.0e-3)) then
             write(6,*) 'popsfile norm**2: ', pops_norm_sqr
             write(6,*) 'read norm**2: ', all_norm
             call stop_all(t_r, 'Wavefunction norm incorrect')

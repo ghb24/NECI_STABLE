@@ -1385,7 +1385,9 @@ contains
             do while (elecA /= -1)
                 orbs(1) = iand(nI(elecA), csf_orbital_mask)
                 orbs(2) = iand(nI(elecB), csf_orbital_mask)
-                syms = int(G1(orbs)%Sym%S,sizeof_int)
+                syms(1) = int(G1(orbs(1))%Sym%S,sizeof_int)
+                syms(1) = int(G1(orbs(1))%Sym%S,sizeof_int)
+                !syms = int(G1(orbs)%Sym%S,sizeof_int)
                 symProd = ieor(syms(1), syms(2))
                 sumMl = G1(orbs(1))%Ml + G1(orbs(2))%Ml
                 !paircount = paircount + 1
@@ -1608,7 +1610,9 @@ contains
                         call stop_all(this_routine, "Generated too many csfs")
                     orbs(1) = iand(nI(elecA), csf_orbital_mask)
                     orbs(2) = iand(nI(elecB), csf_orbital_mask)
-                    syms = int(G1(orbs)%Sym%S,sizeof_int)
+                    syms(1) = int(G1(orbs(1))%Sym%S, sizeof_int)
+                    syms(2) = int(G1(orbs(2))%Sym%S, sizeof_int)
+                    !syms = int(G1(orbs)%Sym%S,sizeof_int)
                     symProd = ieor(syms(1), syms(2))
                     sumMl = G1(orbs(1))%Ml + G1(orbs(2))%Ml
 

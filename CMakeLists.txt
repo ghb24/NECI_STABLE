@@ -50,6 +50,8 @@ endif()
 # If this was cmake 2.8.12 or later, then we could use add_compile_options.
 # But we can't. The older syntax is really verbose, so use a variable to
 # at least make it a bit more compact.
+set(CXX_COMPILE_FLAGS "")
+set(FORTRAN_COMPILE_FLAGS "")
 set(ALL_COMPILE_FLAGS "")
 set(ALL_LINKER_FLAGS "")
 set(CLUSTER_COMPILE_FLAGS "")
@@ -82,14 +84,41 @@ elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
 	message("-- Using gfortran")
 	add_definitions(-D__GFORTRAN__)
 
-	set(CMAKE_Fortran_FLAGS_DEBUG "-g -O0 -fbounds-check -ffixed-line-length-none -ffree-line-length-none")
-	set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -ffree-line-length-none -fdefault-real-8 -fdefault-integer-8")
+	set(CMAKE_Fortran_FLAGS_DEBUG "-g -O0 -fbounds-check")
+	set(FORTRAN_COMPILE_FLAGS "${FORTRAN_COMPILE_FLAGS} -ffree-line-length-none")
 	if (NOT BITS32)
-		set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -fdefault-real-8 -fdefault-integer-8")
+		set(FORTRAN_COMPILE_FLAGS "${FORTRAN_COMPILE_FLAGS} -fdefault-real-8 -fdefault-integer-8")
 	endif()
 	if (WARNINGS)
 		set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -Wall -Wextra")
 	endif()
+
+else (CMake_Fortran_COMPILER_ID STREQUAL "PGI")
+
+	message("-- Using PGI compilers")
+	add_definitions(-D__PGI)
+
+	# Note that pgcpp really is for pre-processing. Not sure why cmake selects
+	# this as the c++ compiler - but it doesn't work!
+	get_filename_component(CXX_NM ${CMAKE_CXX_COMPILER} NAME)
+	if (CXX_NM STREQUAL "pgcpp")
+		message("-- Forcing the use of pgc++ not pgcpp")
+		set(CMAKE_CXX_COMPILER pgc++)
+	endif()
+
+	set(FORTRAN_COMPILE_FLAGS "${FORTRAN_COMPILE_FLAGS} -Msignextend -r8 -i8")
+	set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -Mbounds")
+	set(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} -tp x64 -fastsse")
+	if (WARNINGS)
+		set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -Minform=warn")
+	endif()
+
+	# The linker command -lpthread doesn't work for the PGI linker (due to some
+	# internal trickery with the pthread library
+	# --> Force the rest of the code to think that libpthreads has already been
+	#     found, and then add the magic -pthread command
+	# SDS: This no longer seems needed for pgfortran, which does the work automagically
+	# set(ALL_LINKER_FLAGS "${ALL_LINKER_FLAGS} -pthread")
 
 else()
 
@@ -102,18 +131,30 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 	add_definitions(-D__DEBUG)
 endif()
 
+# Ensure that we signal to the code and the compilers that the correct number
+# of bits should be used.
 if (BITS32)
-	set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -m32")
-	set(ALL_LINKER_FLAGS "${ALL_LINKER_FLAGS} -m32")
+	if (CMake_Fortran_COMPILER_ID STREQUAL "PGI")
+		set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -pc=32")
+		set(ALL_LINKER_FLAGS "${ALL_LINKER_FLAGS} -pc=32")
+	else()
+		set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -m32")
+		set(ALL_LINKER_FLAGS "${ALL_LINKER_FLAGS} -m32")
+	endif()
 else()
-	set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -m64")
-	set(ALL_LINKER_FLAGS "${ALL_LINKER_FLAGS} -m64")
+	if (CMake_Fortran_COMPILER_ID STREQUAL "PGI")
+		set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -pc=64")
+		set(ALL_LINKER_FLAGS "${ALL_LINKER_FLAGS} -pc=64")
+	else()
+		set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -m64")
+		set(ALL_LINKER_FLAGS "${ALL_LINKER_FLAGS} -m64")
+	endif()
 endif()
 
 # And apply the accumulated flags here
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${ALL_COMPILE_FLAGS}")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ALL_COMPILE_FLAGS}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ALL_COMPILE_FLAGS}")
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${ALL_COMPILE_FLAGS} ${FORTRAN_COMPILE_FLAGS}")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ALL_COMPILE_FLAGS} ${CXX_COMPILE_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ALL_COMPILE_FLAGS} ${CXX_COMPILE_FLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${ALL_LINKER_FLAGS}")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${ALL_LINKER_FLAGS}")
 
@@ -247,10 +288,18 @@ if (${MKL_FOUND})
 	include_directories(${MKL_INCLUDE_DIR})
 	message("-- Using libraries: ${MKL_LIBRARIES}")
 else()
-	find_package(LAPACK REQUIRED)
-	set(NECI_LIBRARIES ${LAPACK_LIBRARIES})
-	message("-- Found BLAS/Lapack")
-	message("-- Using libraries: ${LAPACK_LIBRARIES}")
+	# Don't use the required flag on find_package here. Do the check manually.
+	# If we use the required flag, then the finder does a strict lookup for
+	# the pthread library - which will fail for PGI builds due to incompatibilities
+	# inside the PGI linker. These are worked around above.
+	find_package(LAPACK)
+	if (${LAPACK_FOUND})
+		set(NECI_LIBRARIES ${LAPACK_LIBRARIES})
+		message("-- Found BLAS/Lapack")
+		message("-- Using libraries: ${LAPACK_LIBRARIES}")
+	else()
+		message(FATAL_ERROR "-- BLAS/Lapack not found")
+	endif()
 endif()
 
 # If FFTW is present, then we want to use it. Otherwise disable it in NECI
@@ -330,7 +379,9 @@ if (HDF)
 	# --> Need to wrap this for HDF compilation
 	if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 		message("Tweaking environment vars")
-		set(CONFIGURE_OVERRIDE CC=mpiicc F9X=mpiifort CXX=mpiicpc)
+		set(CONFIGURE_OVERRIDE CC=mpiicc FC=mpiifort F9X=mpiifort CXX=mpiicpc)
+	elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "PGI")
+		set(CONFIGURE_OVERRIDE CC=mpicc FC=mpif90 F9X=mpif90 CXX=mpic++ CPP=cpp CXXPP=cpp)
 	else()
 		set(CONFIGURE_OVERRIDE "")
 	endif()

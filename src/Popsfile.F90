@@ -792,7 +792,9 @@ r_loop: do while(.not.tStoreDet)
             endif
             
             ! Test if we actually want to store this walker...
-            if (any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) then
+            ! SDS: If we have the odd empty site, don't worry about it.
+                                        !.and. .not. IsUnoccDet(sgn)) then
+            if (any(abs(sgn) >= iWeightPopRead)) then
                 tStoreDet = .true.
                 exit
             end if
@@ -1470,15 +1472,18 @@ r_loop: do while(.not.tStoreDet)
         character(12) :: num_tmp
         type(timer), save :: write_timer
 
-        ! If we are using the new popsfile format, then use it!
-        if (tHDF5PopsWrite) then
-            call write_popsfile_hdf5()
-            return
-        end if
-
         ! Tme the overall popsfile read in
         write_timer%timer_name = 'POPS-write'
         call set_timer(write_timer)
+
+        ! If we are using the new popsfile format, then use it!
+        if (tHDF5PopsWrite) then
+            call write_popsfile_hdf5()
+
+            ! And stop timing
+            call halt_timer(write_timer)
+            return
+        end if
 
         CALL MPIBarrier(error)  !sync
 !        WRITE(6,*) "Get Here",nDets
