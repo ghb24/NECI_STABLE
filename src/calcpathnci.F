@@ -28,7 +28,7 @@ C         IF(LSAME2) WRITE(10,*) "LSAME2",A,B,LSAME2
 
 C.. GETRHOELEMENT
 C.. Get matrix element of rho
-      FUNCTION GETRHOELEMENT(II,IJ,RHOIJ,RHOIJLAB,                      &
+      FUNCTION GETRHOELEMENT(II,IJ,RHOIJ,RHOIJLAB,
      &              RHOIJROWS,NDET)
       use constants, only: dp
       implicit none

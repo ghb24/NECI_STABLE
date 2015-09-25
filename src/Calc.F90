@@ -236,6 +236,8 @@ contains
           tReadPopsRestart = .false.
           iLogicalNodeSize = 0 !Meaning use the physical node size
           tAllRealCoeff=.false.
+          tWeakInitiators=.false.
+          weakthresh= 1.0_dp
           tEnhanceRemainder=.true.
           tUseRealCoeffs = .false.
           tRealCoeffByExcitLevel=.false.
@@ -761,6 +763,18 @@ contains
                     call read_line(eof)
                     do i = 1, nel
                         call geti(initial_refs(i, line))
+                    end do
+                end do
+
+            case("MULTIPLE-INITIAL-STATES")
+                tMultipleInitialStates = .true.
+                allocate(initial_states(nel, inum_runs), stat=ierr)
+                initial_states = 0
+
+                do line = 1, inum_runs
+                    call read_line(eof)
+                    do i = 1, nel
+                        call geti(initial_states(i, line))
                     end do
                 end do
 
@@ -1788,6 +1802,14 @@ contains
                 tTruncNOpen = .true.
                 call geti (trunc_nopen_max)
 
+            case("WEAKINITIATORS")
+                !Additionally allow the children of initiators to spawn freely
+                !This adaptation is applied stochastically with probability weakthresh
+                !Hence weakthresh = 1 --> Always on where applicable.
+                !weakthresh = 0 --> The original initiator scheme is maintained.
+                tWeakInitiators=.true.
+                call Getf(weakthresh)
+
             case("ALLREALCOEFF")
                 tAllRealCoeff=.true.
                 tUseRealCoeffs = .true.
@@ -2149,6 +2171,9 @@ contains
 
             case("MULTI-REF-SHIFT")
                 tMultiRefShift = .true.
+
+            case("MP2-FIXED-NODE")
+                tMP2FixedNode = .true.
 
             case("INTERPOLATE-INITIATOR")
                 ! Implement interpolation between aborting particles

@@ -61,10 +61,14 @@ module bit_rep_data
     integer, parameter :: flag_initiator(lenof_sign_max) &
                             = (/11, 12, 13, 14, 15, 16, 17, 18, 19, 20, &
                                 21, 22, 23, 24, 25, 26, 27, 28, 29, 30/), &
-                          num_flags = 31
+                          flag_weak_initiator(lenof_sign_max) &
+                            = (/31, 32, 33, 34, 35, 36, 37, 38, 39, 40, &
+                                41, 42, 43, 44, 45, 46, 47, 48, 49, 50/), &
+                          num_flags = 51
 #else
     integer, parameter :: flag_initiator(2) = (/11,12/), &
-                          num_flags = 13
+                          flag_weak_initiator(2) = (/13,14/), &
+                          num_flags = 15
 #endif
 
     ! IMPORTANT

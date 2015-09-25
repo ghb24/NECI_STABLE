@@ -218,8 +218,9 @@ logical :: modk_offdiag
 ! This is used in finite-temperature KP-FCIQMC calculations.
 logical :: tAllSymSectors
 
-logical :: tGenHelWeighted, tGen_4ind_weighted, tGen_4ind_reverse
-logical :: tUEGNewGenerator, tGen_4ind_part_exact, tGen_4ind_lin_exact
+    logical :: tGenHelWeighted, tGen_4ind_weighted, tGen_4ind_reverse
+    logical :: tUEGNewGenerator, tGen_4ind_part_exact, tGen_4ind_lin_exact
+    logical :: tGen_4ind_2, tGen_4ind_2_symmetric
 
 ! Are we using multiple replicas?
 logical :: tMultiReplicas

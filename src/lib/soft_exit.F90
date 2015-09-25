@@ -151,9 +151,11 @@ module soft_exit
     use Parallel_neci
     implicit none
 
+    logical, volatile :: tSoftExitFound = .false.
+
 contains
 
-    subroutine ChangeVars (tSingBiasChange, tSoftExitFound, tWritePopsFound)
+    subroutine ChangeVars (tSingBiasChange, tWritePopsFound)
 
         ! Read CHANGEVARS file as described in module header.
         !
@@ -291,7 +293,7 @@ contains
         logical :: exists, any_exist
 
         logical :: eof, tSource
-        logical, intent(out) :: tSingBiasChange, tSoftExitFound
+        logical, intent(out) :: tSingBiasChange
         logical, intent(out) :: tWritePopsFound
         real(dp), dimension(lenof_sign) :: hfsign
         integer :: i, proc, nmcyc_new, ios, pos, trunc_nop_new, IterRDMonFly_new, run
@@ -309,7 +311,6 @@ contains
         ! Default values
         opts_selected = .false.
         deleted = .false.
-        tSoftExitFound = .false.
         tWritePopsfound = .false.
         tSingBiasChange = .false.
         ios = 0
@@ -972,8 +973,11 @@ logical function test_SoftExit()
 
     logical :: tdummy1, tdummy2
 
-    call ChangeVars(tdummy1, test_SoftExit, tdummy2)
-    if (test_SoftExit) write (6,'(1X,a30)') 'Request for SOFTEXIT detected.'
+    tSoftExitFound = .false.
+    call ChangeVars(tdummy1, tdummy2)
+    if (tSoftExitFound) write (6,'(1X,a30)') 'Request for SOFTEXIT detected.'
+    test_SoftExit = tSoftExitFound
+    tSoftExitFound = .false.
 
 end function test_SoftExit
 

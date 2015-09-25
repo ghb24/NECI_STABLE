@@ -105,7 +105,7 @@
 
 !Since we have shifted all the orbitals in a certain range in the first insertion, we need to compensate for
 !this by changing the insertion point of the next orbital
-                     IF((EX2(1,2).gt.EX2(1,1)).and.                     &
+                     IF((EX2(1,2).gt.EX2(1,1)).and.
      &                    (EX2(1,2).lt.j)) THEN
                          EX2(1,2)=EX2(1,2)-1
                      ENDIF
@@ -146,7 +146,7 @@
 
 !Since we have shifted all the orbitals in a certain range in the first insertion, we need to compensate for
 !this by changing the insertion point of the next orbital
-                     IF((EX2(1,2).lt.EX2(1,1)).and.                     &
+                     IF((EX2(1,2).lt.EX2(1,1)).and.
      &                   (EX2(1,2).gt.j)) THEN
                          EX2(1,2)=EX2(1,2)+1
                      ENDIF
@@ -390,7 +390,7 @@ C.. use a new excitation routine - THIS DOES NOT PRODUCE AN ORDERED LIST
                      call stop_all(t_r,
      &                          "EXCITATIONS LIST NOT LARGE ENOUGH")
                   ENDIF
-                  call stop_all(t_r,"Call to symgenexcits removed due   &
+                  call stop_all(t_r,"Call to symgenexcits removed due
      &                  to incorrect arguments passes")
 !                  CALL SYMGENEXCITS(NI,NEL,STORE,
 !     &               LIST,ICLIST,ICOUNT)

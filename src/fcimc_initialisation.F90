@@ -11,7 +11,7 @@ module fcimc_initialisation
                           tRotatedOrbs, MolproID, nBasis, arr, brr, nel, tCSF,&
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
-                          tUEGNewGenerator
+                          tUEGNewGenerator, tGen_4ind_2
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
                         tCheckHighestPop, tSpatialOnlyHash, tStartCAS, tau, &
@@ -31,7 +31,8 @@ module fcimc_initialisation
                         ss_space_in, trial_space_in, init_trial_in, &
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, &
-                        ntrial_ex_calc, tPairedReplicas, tMultiRefShift
+                        ntrial_ex_calc, tPairedReplicas, tMultiRefShift, &
+                        tMultipleInitialStates, initial_states
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -48,7 +49,7 @@ module fcimc_initialisation
                            tHistInitPops, OrbOccsTag, tHistEnergies, &
                            HistInitPops, AllHistInitPops, OffDiagMax, &
                            OffDiagBinRange, iDiagSubspaceIter, &
-                           AllHistInitPopsTag, HistInitPopsTag, tHDF5Pops
+                           AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
@@ -112,11 +113,13 @@ module fcimc_initialisation
     use load_balance, only: clean_load_balance, init_load_balance
     use ueg_excit_gens, only: gen_ueg_excit
     use gndts_mod, only: gndts
+    use excit_gen_5, only: gen_excit_4ind_weighted2
     use csf, only: get_csf_helement
     use tau_search, only: init_tau_search
     use fcimc_helper, only: CalcParentFlag, update_run_reference
     use cont_time_rates, only: spawn_rate_full, oversample_factors, &
                                secondary_gen_store, ostag
+    use soft_exit, only: tSoftExitFound
     use get_excit, only: make_double
     use sltcnd_mod, only: sltcnd_0
     use rdm_data, only: nrdms
@@ -760,6 +763,7 @@ contains
         NoDied=0
         HFCyc=0.0_dp
         ENumCyc=0.0_dp
+        ENUmCycAbs = 0.0_dp
         VaryShiftCycles=0
         AvDiagSft(:)=0.0_dp
         SumDiagSft(:)=0.0_dp
@@ -797,6 +801,7 @@ contains
         AllNoDied(:)=0
         AllAnnihilated(:)=0
         AllENumCyc(:)=0.0_dp
+        AllENumCycAbs = 0.0_dp
         AllHFCyc(:)=0.0_dp
 !        AllDetsNorm=0.0_dp
         AllNoAborted=0
@@ -815,6 +820,7 @@ contains
         AbsProjE = 0
         norm_semistoch = 0
         norm_psi = 0
+        tSoftExitFound = .false.
 
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp
@@ -1126,7 +1132,7 @@ contains
         !default
         Popinum_runs=1
 
-        if(tReadPops .and. .not. (tPopsAlreadyRead .or. tHDF5Pops)) then
+        if(tReadPops .and. .not. (tPopsAlreadyRead .or. tHDF5PopsRead)) then
             call open_pops_head(iunithead,formpops,binpops)
             PopsVersion=FindPopsfileVersion(iunithead)
             if(iProcIndex.eq.root) close(iunithead)
@@ -1137,7 +1143,7 @@ contains
         norm_psi = 1.0_dp
 
         if (tReadPops .and. (PopsVersion.lt.3) .and. &
-            .not. (tPopsAlreadyRead .or. tHDF5Pops)) then
+            .not. (tPopsAlreadyRead .or. tHDF5PopsRead)) then
 !Read in particles from multiple POPSFILES for each processor
             !Ugh - need to set up ValidSpawnedList here too...
             call SetupValidSpawned(int(InitWalkers,int64))
@@ -1146,7 +1152,7 @@ contains
         ELSE
 !initialise the particle positions - start at HF with positive sign
 !Set the maximum number of walkers allowed
-            if(tReadPops .and. .not. (tPopsAlreadyRead .or. tHDF5Pops)) then
+            if(tReadPops .and. .not. (tPopsAlreadyRead .or. tHDF5PopsRead)) then
                 !Read header.
                 call open_pops_head(iunithead,formpops,binpops)
                 if(PopsVersion.eq.3) then
@@ -1430,6 +1436,8 @@ contains
             generate_excitation => gen_rand_excit3
         elseif (tGenHelWeighted) then
             generate_excitation => gen_excit_hel_weighted
+        elseif (tGen_4ind_2) then
+            generate_excitation => gen_excit_4ind_weighted2
         elseif (tGen_4ind_weighted) then
             generate_excitation => gen_excit_4ind_weighted
         elseif (tGen_4ind_reverse) then
@@ -1964,8 +1972,10 @@ contains
 
         ASSERT(inum_runs == lenof_sign)
         do run = 1, inum_runs
+                write(6,*) "Here1!"
 
             if (tMultipleInitialRefs) then
+                write(6,*) "Here2!"
                 ! Use user specified reference states.
                 call EncodeBitDet(initial_refs(:,run), ilut)
                 call update_run_reference(ilut, run)
@@ -3214,69 +3224,82 @@ contains
         real(dp) :: energies(nel), hdiag
         character(*), parameter :: this_routine = 'assign_reference_dets'
 
-        if (.not. tOrthogonaliseReplicas) then
-
-            ! This is the normal case. All simultions are essentially doing
-            ! the same thing...
-
-            do run = 1, inum_runs
-                ilutRef(:, run) = ilutHF
-                ProjEDet(:, run) = HFDet
-            end do
-
-            ! And make sure that the rest of the code knows this
-            tReplicaReferencesDiffer = .false.
-
-        else
+        ! If the user has specified all of the (multiple) reference states,
+        ! then just copy these across to the ilutRef array:
+        if (tMultipleInitialStates) then
 
             tReplicaReferencesDiffer = .true.
 
-            ! The first replica is just a normal FCIQMC simulation.
-            ilutRef(:, 1) = ilutHF
-            ProjEDet(:, 1) = HFDet
-
-            found_orbs = 0
-            do run = 2, inum_runs
-
-                ! Now we want to find the lowest energy single excitation with
-                ! the same symmetry as the reference site.
-                do i = 1, nel
-                    ! Find the excitations, and their energy
-                    orb = HFDet(i)
-                    cc_idx = ClassCountInd(orb)
-                    label_idx = SymLabelCounts2(1, cc_idx)
-                    norb = OrbClassCount(cc_idx)
-
-                    ! nb. sltcnd_0 does not depend on the ordering of the det,
-                    !     so we don't need to do any sorting here.
-                    energies(i) = 9999999.9_dp
-                    do j = 1, norb
-                        orb2 = SymLabelList2(label_idx + j - 1)
-                        if ((.not. any(orb2 == HFDet)) .and. &
-                            (.not. any(orb2 == found_orbs))) then
-                            det = HFDet
-                            det(i) = orb2
-                            hdiag = real(sltcnd_0(det), dp)
-                            if (hdiag < energies(i)) then
-                                energies(i) = hdiag
-                                orbs(i) = orb2
-                            end if
-                        end if
-                    end do
-                end do
-
-                ! Which of the electrons that is excited gives the lowest energy?
-                i = minloc(energies, 1)
-                found_orbs(run) = orbs(i)
-
-                ! Construct that determinant, and set it as the reference.
-                ProjEDet(:, run) = HFDet
-                ProjEDet(i, run) = orbs(i)
-                call sort(ProjEDet(:, run))
+            do run = 1, inum_runs
+                ProjEDet(:, run) = initial_states(:, run)
                 call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run))
-
             end do
 
+        else
+            if (.not. tOrthogonaliseReplicas) then
+
+                ! This is the normal case. All simultions are essentially doing
+                ! the same thing...
+
+                do run = 1, inum_runs
+                    ilutRef(:, run) = ilutHF
+                    ProjEDet(:, run) = HFDet
+                end do
+
+                ! And make sure that the rest of the code knows this
+                tReplicaReferencesDiffer = .false.
+
+            else
+
+                tReplicaReferencesDiffer = .true.
+
+                ! The first replica is just a normal FCIQMC simulation.
+                ilutRef(:, 1) = ilutHF
+                ProjEDet(:, 1) = HFDet
+
+                found_orbs = 0
+                do run = 2, inum_runs
+
+                    ! Now we want to find the lowest energy single excitation with
+                    ! the same symmetry as the reference site.
+                    do i = 1, nel
+                        ! Find the excitations, and their energy
+                        orb = HFDet(i)
+                        cc_idx = ClassCountInd(orb)
+                        label_idx = SymLabelCounts2(1, cc_idx)
+                        norb = OrbClassCount(cc_idx)
+
+                        ! nb. sltcnd_0 does not depend on the ordering of the det,
+                        !     so we don't need to do any sorting here.
+                        energies(i) = 9999999.9_dp
+                        do j = 1, norb
+                            orb2 = SymLabelList2(label_idx + j - 1)
+                            if ((.not. any(orb2 == HFDet)) .and. &
+                                (.not. any(orb2 == found_orbs))) then
+                                det = HFDet
+                                det(i) = orb2
+                                hdiag = real(sltcnd_0(det), dp)
+                                if (hdiag < energies(i)) then
+                                    energies(i) = hdiag
+                                    orbs(i) = orb2
+                                end if
+                            end if
+                        end do
+                    end do
+
+                    ! Which of the electrons that is excited gives the lowest energy?
+                    i = minloc(energies, 1)
+                    found_orbs(run) = orbs(i)
+
+                    ! Construct that determinant, and set it as the reference.
+                    ProjEDet(:, run) = HFDet
+                    ProjEDet(i, run) = orbs(i)
+                    call sort(ProjEDet(:, run))
+                    call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run))
+
+                end do
+
+            end if
         end if
 
         write(6,*) 'Generated reference determinants:'
