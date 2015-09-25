@@ -45,6 +45,7 @@ contains
         character(*), parameter :: this_routine = 'gen_excit_4ind_weighted2'
 
         real(dp) :: pgen2
+        real(dp) :: cum_arr(nbasis)
 
         HElGen = HEl_zero
 
@@ -70,7 +71,8 @@ contains
         ! And a careful check!
 #ifdef __DEBUG
         if (.not. IsNullDet(nJ)) then
-            pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
+            pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic, &
+                                             cum_arr, .true.)
             if (abs(pgen - pgen2) > 1.0e-6_dp) then
                 write(6,*) 'Calculated and actual pgens differ.'
                 write(6,*) 'This will break HPHF calculations'
@@ -99,7 +101,7 @@ contains
         integer, intent(in) :: nI(nel), ex(2,2), ic
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         real(dp) :: pgen, cum_arr(nbasis)
-        character(*), parameter :: this_routine = 'calc_pgen_4ind_weighted'
+        character(*), parameter :: this_routine = 'calc_pgen_4ind_weighted2'
 
         integer :: iSpn, src(2), tgt(2)
         real(dp) :: cum_sums(2), int_cpt(2), cpt_pair(2), sum_pair(2)
@@ -353,7 +355,8 @@ contains
         end if
 
 #ifdef __DEBUG
-        call pgen_select_a_orb(ilut, src, orb, iSpn, cpt_tst, cum_tst)
+        call pgen_select_a_orb(ilut, src, orb, iSpn, cpt_tst, cum_tst, &
+                               cum_arr, .false.)
         if (abs(cpt_tst - cpt) > 1e-6 .or. abs(cum_tst - cum_sum) > 1e-6) then
             call stop_all(t_r, 'Calculated probability does not match')
         end if
