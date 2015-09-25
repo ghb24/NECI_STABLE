@@ -98,7 +98,7 @@ contains
 
         integer, intent(in) :: nI(nel), ex(2,2), ic
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        real(dp) :: pgen
+        real(dp) :: pgen, cum_arr(nbasis)
         character(*), parameter :: this_routine = 'calc_pgen_4ind_weighted'
 
         integer :: iSpn, src(2), tgt(2)
@@ -137,7 +137,7 @@ contains
             ! Hence the optimisation comparing the cpt values for A selection
             tgt = ex(2, :)
             call pgen_select_a_orb(ilutI, src, tgt(1), iSpn, int_cpt(1), &
-                                   cum_sums(1))
+                                   cum_sums(1), cum_arr, .true.)
             if (int_cpt(1) > 1.0e-8_dp) then
                 call pgen_select_orb(ilutI, src, tgt(1), tgt(2), int_cpt(2), &
                                      cum_sums(2))
@@ -147,7 +147,7 @@ contains
             end if
 
             call pgen_select_a_orb(ilutI, src, tgt(2), iSpn, cpt_pair(1), &
-                                   sum_pair(1))
+                                   sum_pair(1), cum_arr, .false.)
             if (cpt_pair(1) > 1.0e-8_dp) then
                 call pgen_select_orb(ilutI, src, tgt(2), tgt(1), cpt_pair(2), &
                                      sum_pair(2))
@@ -185,6 +185,11 @@ contains
         integer :: sym_product
         real(dp) :: int_cpt(2), cum_sum(2), cpt_pair(2), sum_pair(2)
 
+        ! This array stores the cumulative list used in selecting the first
+        ! orbital so that it can be used for calculating the reverse
+        ! probability if required.
+        real(dp) :: cum_arr(nbasis)
+
         real(dp) :: scratch_cpt, scratch_sm
         integer :: scratch_orb
 
@@ -193,7 +198,7 @@ contains
                                  pgen)
         !call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
 
-        orbs(1) = pick_a_orb(ilutI, src, iSpn, int_cpt(1), cum_sum(1))
+        orbs(1) = pick_a_orb(ilutI, src, iSpn, int_cpt(1), cum_sum(1), cum_arr)
 
         ! Select the B orbital, in the same way as before!!
         ! The symmetry of this second orbital depends on that of the first.
@@ -216,7 +221,7 @@ contains
         ASSERT(tGen_4ind_part_exact)
         if ((is_beta(orbs(1)) .eqv. is_beta(orbs(2))) .or. tGen_4ind_2_symmetric) then
             call pgen_select_a_orb(ilutI, src, orbs(2), iSpn, cpt_pair(1), &
-                                   sum_pair(1))
+                                   sum_pair(1), cum_arr, .false.)
             call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
                                  cpt_pair(2), sum_pair(2))
         else
@@ -237,21 +242,24 @@ contains
 
     end subroutine gen_double_4ind_ex2
 
+    subroutine gen_a_orb_cum_list(ilut, src, ispn, cum_arr)
 
-    function pick_a_orb(ilut, src, ispn, cpt, cum_sum) result(orb)
+        ! This routine generates the cumulative list used in selecting the
+        ! first electron. This list is the same whether we are calculating
+        ! just the probability, or actually making the selection, so we should
+        ! have only one place it is generated.
 
-        integer(n_int), intent(in) :: ilut(0:NifTot)
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: src(2), iSpn
-        real(dp), intent(out) :: cpt, cum_sum
+        real(dp), intent(out) :: cum_arr(nbasis)
+
         integer :: orb
-        character(*), parameter :: t_r = 'pick_a_orb'
+        character(*), parameter :: t_r = 'gen_a_orb_cum_list'
         character(*), parameter :: this_routine = t_r
 
-        real(dp) :: cum_arr(nbasis), r, cum_tst, cpt_tst
-        integer :: start_ind, srcid(2)
-        logical :: occa, occb
-
+        integer :: srcid(2)
         logical :: beta, parallel, valid
+        real(dp) :: cum_sum, cpt
 
         ! Just in case. eeep.
         ! Note that we scale spin/spatial orbitals here with factors of 2
@@ -284,8 +292,6 @@ contains
             end if
 
             valid = .true.
-            !if (.not. parallel .or. is_beta(orb) .neqv. beta) valid = .false.
-
             if (IsOcc(ilut, orb)) valid = .false.
             if (((.not. tGen_4ind_2_symmetric) .or. parallel) .and. &
                 (is_beta(orb) .neqv. beta)) valid = .false.
@@ -304,7 +310,33 @@ contains
             cum_arr(orb) = cum_sum
         end do
 
-        ! And exit if invalid
+    end subroutine
+
+    function pick_a_orb(ilut, src, ispn, cpt, cum_sum, cum_arr) result(orb)
+
+        integer(n_int), intent(in) :: ilut(0:NifTot)
+        integer, intent(in) :: src(2), iSpn
+        real(dp), intent(out) :: cpt, cum_sum
+        real(dp), intent(inout) :: cum_arr(nbasis)
+        integer :: orb
+        character(*), parameter :: t_r = 'pick_a_orb'
+        character(*), parameter :: this_routine = t_r
+
+        real(dp) :: r, cum_tst, cpt_tst
+        integer :: start_ind, srcid(2)
+
+        logical :: beta, parallel, valid
+
+        ! Just in case. eeep.
+        ! Note that we scale spin/spatial orbitals here with factors of 2
+        ! which need more care if using spin orbitals
+        if (tUHF .or. tStoreSpinOrbs) &
+            call stop_all(this_routine, "ASSUMES RHF orbitals")
+
+        ! Generate the cumulative list for making the selection, and bail if
+        ! there is no selection avaialable
+        call gen_a_orb_cum_list(ilut, src, ispn, cum_arr)
+        cum_sum = cum_arr(nbasis)
         if (cum_sum == 0) then
             orb = 0
             return
@@ -329,77 +361,61 @@ contains
 
     end function pick_a_orb
 
-    subroutine pgen_select_a_orb(ilut, src, orb_in, iSpn, cpt_out, cum_sum)
+    subroutine pgen_select_a_orb(ilut, src, orb, iSpn, cpt, cum_sum, &
+                                 cum_arr, first)
+        
+        ! This calculates the probability of selecting the A orbital with the
+        ! parameters as specified
+        !
+        ! cum_arr contains the cumulative array used in making the selection.
+        ! This can either be generated in this routine, or generated by this
+        ! routine on a previous call, or generated in the pick_a_orb routine.
+        ! The parameter first determines if this routine is being called to
+        ! generate this array, or if it should be used to save computational
+        ! cost.
+
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer, intent(in) :: src(2), orb_in, iSpn
-        real(dp), intent(out) :: cpt_out, cum_sum
+        integer, intent(in) :: src(2), orb, iSpn
+        real(dp), intent(out) :: cpt, cum_sum
+        real(dp), intent(inout) :: cum_arr(nbasis)
+        logical, intent(in) :: first
         character(*), parameter :: t_r = 'pgen_select_a_orb'
         character(*), parameter :: this_routine = t_r
-
-        logical :: beta, parallel, valid
-        integer :: srcid(2), orb
-        real(dp) :: cpt
 
         ASSERT(is_beta(src(1)) .or. iSpn /= 1)
         ASSERT(is_beta(src(2)) .or. iSpn /= 1)
         ASSERT(.not. is_beta(src(1)) .or. iSpn /= 3)
         ASSERT(.not. is_beta(src(2)) .or. iSpn /= 3)
 
-        if (iSpn == 1) then
-            parallel = .true.
-            beta = .true.
-        else if (iSpn == 2) then
-            parallel = .false.
-            beta = .true.
-
-            ! If we are not using symmetric calculations, and this electron
-            ! has the wrong spin, then the probability is (obviously) zero.
-            if (.not. tGen_4ind_2_symmetric .and. .not. is_beta(orb_in)) then
-                cpt_out = 0.0_dp
-                cum_sum = 1.0_dp
-                return
-            end if
-        else
-            parallel = .true.
-            beta = .false.
+        ! If we are not using symmetric calculations, and this electron
+        ! has the wrong spin, then the probability is (obviously) zero.
+        if (iSpn == 2 .and. .not. tGen_4ind_2_symmetric .and. &
+                            .not. is_beta(orb)) then
+            cpt = 0.0_dp
+            cum_sum = 1.0_dp
+            return
         end if
 
-        cum_sum = 0
-        do orb = 1, nbasis
-
-            ! TODO: This should be doable in a better way...
-            if (beta .eqv. is_beta(src(1))) then
-                srcid = gtID(src)
-            else
-                ASSERT(iSpn == 2)
-                srcid(1) = gtID(src(2))
-                srcid(2) = gtID(src(1))
-            end if
-
-            valid = .true.
-            if (IsOcc(ilut, orb)) valid = .false.
-            if (((.not. tGen_4ind_2_symmetric) .or. parallel) .and. &
-                (is_beta(orb) .neqv. beta)) valid = .false.
-
-            cpt = 0
-            if (valid) then
-                if (parallel) then
-                    cpt = same_spin_pair_contrib(srcid(1), srcid(2), orb, -1)
-                else
-                    cpt = opp_spin_pair_contrib(srcid(1), srcid(2), orb, -1)
-                end if
-            end if
-
-            if (orb_in == orb) cpt_out = cpt
-            cum_sum = cum_sum + cpt
-        end do
+        ! If this is the first choice (i.e. selecting A of A-B, rather than B
+        ! of B-A), then we need to generate the list.
+        if (first) then
+            call gen_a_orb_cum_list(ilut, src, ispn, cum_arr)
+        end if
 
         ! For us to be calculating the likelihood of selecting the B electron,
         ! there must have been a possibility of selecting the A electron
         ! originally.
+        cum_sum = cum_arr(nbasis)
         if (cum_sum == 0) then
             call stop_all(t_r, 'Invalid cumulative sum')
+        end if
+
+        ! And extract the relevant component
+        if (orb == 1) then
+            cpt = cum_arr(1)
+        else
+            cpt = cum_arr(orb) - cum_arr(orb-1)
         end if
 
     end subroutine
