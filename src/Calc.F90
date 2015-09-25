@@ -322,7 +322,7 @@ contains
           tContTimeFull = .false.
           cont_time_max_overspawn = 4.0
 
-          tLoadBalanceBlocks = .false.
+          tLoadBalanceBlocks = .true.
           tPopsJumpShift = .false.
           calc_seq_no = 1
 
@@ -2158,6 +2158,11 @@ contains
                     case default
                         tLoadBalanceBlocks = .true.
                     end select
+
+                    if (tLoadBalanceBlocks) then
+                        write(iout, '("WARNING: LOAD-BALANCE-BLOCKS option is &
+                                    &now enabled by default.")')
+                    end if
                 end if
             
             case("POPS-JUMP-SHIFT")
