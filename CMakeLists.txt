@@ -41,6 +41,8 @@ else()
 endif()
 #option(BITS32 "Build a 32-bit build" off)
 
+option(SHARED_MEM "Enable shared memory" on)
+
 ##############################################################################
 #                                                                            #
 # Compiler specific configuration                                            #
@@ -239,13 +241,6 @@ set_target_properties(kneci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
 set_target_properties(mneci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
 set_target_properties(dneci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
-# TODO:
-# Test for compiler features, to enable specific flags
-# Add librt, libm as required
-# Enable shared memory
-# Select optimised, debug or production builds
-
-
 #
 # If we can get the repository details, then do so.
 message("VCS configuration")
@@ -271,6 +266,11 @@ add_definitions(-DHAVE_SSE2)
 add_definitions(-DMAXMEM=99999)
 add_definitions(-DDSFMT_MEXP=19937)
 add_definitions(-D_CONFIG="cmake-${CMAKE_Fortran_COMPILER_ID}-${CMAKE_BUILD_TYPE}")
+
+# Enable shared memory, unless disabled
+if (SHARED_MEM)
+	add_definitions(-D__SHARED_MEM)
+endif()
 
 if (NOT BITS32)
 	add_definitions(-D__INT64)
