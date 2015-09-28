@@ -104,6 +104,7 @@ contains
 
         integer :: iSpn, src(2), tgt(2)
         real(dp) :: cum_sums(2), int_cpt(2), cpt_pair(2), sum_pair(2)
+        logical :: generate_list
 
         if (ic == 1) then
 
@@ -142,13 +143,15 @@ contains
             if (int_cpt(1) > 1.0e-8_dp) then
                 call pgen_select_orb(ilutI, src, tgt(1), tgt(2), int_cpt(2), &
                                      cum_sums(2))
+                generate_list = .false.
             else
+                generate_list = .true.
                 int_cpt(2) = 0.0_dp
                 cum_sums(2) = 1.0_dp
             end if
 
             call pgen_select_a_orb(ilutI, src, tgt(2), iSpn, cpt_pair(1), &
-                                   sum_pair(1), cum_arr, .false.)
+                                   sum_pair(1), cum_arr, generate_list)
             if (cpt_pair(1) > 1.0e-8_dp) then
                 call pgen_select_orb(ilutI, src, tgt(2), tgt(1), cpt_pair(2), &
                                      sum_pair(2))
