@@ -71,8 +71,7 @@ contains
         ! And a careful check!
 #ifdef __DEBUG
         if (.not. IsNullDet(nJ)) then
-            pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic, &
-                                             cum_arr, .true.)
+            pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
             if (abs(pgen - pgen2) > 1.0e-6_dp) then
                 write(6,*) 'Calculated and actual pgens differ.'
                 write(6,*) 'This will break HPHF calculations'
