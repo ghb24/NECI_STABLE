@@ -406,12 +406,14 @@ contains
             call gen_a_orb_cum_list(ilut, src, ispn, cum_arr)
         end if
 
-        ! For us to be calculating the likelihood of selecting the B electron,
-        ! there must have been a possibility of selecting the A electron
-        ! originally.
+        ! If the selection is not possible (this can only happen when
+        ! calculating HPHF components) then we should ensure that the
+        ! pgen contribution is 0.0, whilst avoiding a divide by zero error.
         cum_sum = cum_arr(nbasis)
         if (cum_sum == 0) then
-            call stop_all(t_r, 'Invalid cumulative sum')
+            cpt = 0.0_dp
+            cum_sum = 1.0_dp
+            return
         end if
 
         ! And extract the relevant component
