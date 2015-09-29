@@ -71,8 +71,7 @@ contains
         ! And a careful check!
 #ifdef __DEBUG
         if (.not. IsNullDet(nJ)) then
-            pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic, &
-                                             cum_arr, .true.)
+            pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
             if (abs(pgen - pgen2) > 1.0e-6_dp) then
                 write(6,*) 'Calculated and actual pgens differ.'
                 write(6,*) 'This will break HPHF calculations'
@@ -105,6 +104,7 @@ contains
 
         integer :: iSpn, src(2), tgt(2)
         real(dp) :: cum_sums(2), int_cpt(2), cpt_pair(2), sum_pair(2)
+        logical :: generate_list
 
         if (ic == 1) then
 
@@ -143,13 +143,15 @@ contains
             if (int_cpt(1) > 1.0e-8_dp) then
                 call pgen_select_orb(ilutI, src, tgt(1), tgt(2), int_cpt(2), &
                                      cum_sums(2))
+                generate_list = .false.
             else
+                generate_list = .true.
                 int_cpt(2) = 0.0_dp
                 cum_sums(2) = 1.0_dp
             end if
 
             call pgen_select_a_orb(ilutI, src, tgt(2), iSpn, cpt_pair(1), &
-                                   sum_pair(1), cum_arr, .false.)
+                                   sum_pair(1), cum_arr, generate_list)
             if (cpt_pair(1) > 1.0e-8_dp) then
                 call pgen_select_orb(ilutI, src, tgt(2), tgt(1), cpt_pair(2), &
                                      sum_pair(2))
@@ -406,12 +408,14 @@ contains
             call gen_a_orb_cum_list(ilut, src, ispn, cum_arr)
         end if
 
-        ! For us to be calculating the likelihood of selecting the B electron,
-        ! there must have been a possibility of selecting the A electron
-        ! originally.
+        ! If the selection is not possible (this can only happen when
+        ! calculating HPHF components) then we should ensure that the
+        ! pgen contribution is 0.0, whilst avoiding a divide by zero error.
         cum_sum = cum_arr(nbasis)
         if (cum_sum == 0) then
-            call stop_all(t_r, 'Invalid cumulative sum')
+            cpt = 0.0_dp
+            cum_sum = 1.0_dp
+            return
         end if
 
         ! And extract the relevant component
