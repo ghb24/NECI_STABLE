@@ -124,7 +124,7 @@ contains
         ! Ensure that all of the mappings are set on one, and only one
         ! processor.
         call MPISumAll(mapping_test, mapping_test_all)
-        if (.not. all(mapping_test_all == 1)) then
+        if (.not. all(mapping_test_all == 1 .or. mapping_test_all == 0)) then
             call stop_all(this_routine, "Multi-processor mapping not &
                          &correctly determined")
         end if
