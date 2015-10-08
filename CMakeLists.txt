@@ -87,6 +87,9 @@ elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
 	add_definitions(-D__GFORTRAN__)
 
 	set(CMAKE_Fortran_FLAGS_DEBUG "-g -O0 -fbounds-check")
+	set (CLUSTER_COMPILE_FLAGS "-flto")
+	set (CLUSTER_LINK_FLAGS "-flto")
+
 	set(FORTRAN_COMPILE_FLAGS "${FORTRAN_COMPILE_FLAGS} -ffree-line-length-none")
 	if (NOT BITS32)
 		set(FORTRAN_COMPILE_FLAGS "${FORTRAN_COMPILE_FLAGS} -fdefault-real-8 -fdefault-integer-8")
