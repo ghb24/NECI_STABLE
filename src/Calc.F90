@@ -7,7 +7,7 @@ MODULE Calc
                           BB_elec_pairs, par_elec_pairs, AB_elec_pairs, &
                           AA_hole_pairs, BB_hole_pairs, AB_hole_pairs, &
                           par_hole_pairs, hole_pairs, nholes_a, nholes_b, &
-                          nholes
+                          nholes, tGUGA, t_guga_unit_tests
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, tSpinProject, &
                             spin_proj_gamma, spin_proj_shift, &
@@ -35,7 +35,8 @@ MODULE Calc
     use spectral_lanczos, only: n_lanc_vecs_sl
     use exact_spectrum
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
-
+    use guga_testsuite, only: runTestsGUGA
+    
     implicit none
 
 contains
@@ -2237,6 +2238,17 @@ contains
           ENDIF
 
 ! Find out the number of alpha and beta electrons. For restricted calculations, these should be the same.
+          ! TODO: in GUGA this information is not quite correct, since there 
+          ! is no notion of alpha/beta orbitals only positively or negatively
+          ! coupled orbitals, with respect to the total spin quantum number
+          ! but for now, leave it in to not break the remaining code, which 
+          ! esp. in the excitation generator depends on those values!
+          ! But change this in future and include a corresponding CalcInitGUGA()
+          if (tGUGA) then
+              write(6,*) " !! NOTE: running a GUGA simulation, so following info makes no sense!"
+              write(6,*) " but is kept for now to not break remaining code!"
+          end if
+
           if (tCSF) then
               nOccAlpha = (nel / 2) + LMS 
               nOccBeta =  (nel / 2) - LMS
@@ -2371,6 +2383,14 @@ contains
           type(kp_fciqmc_data), intent(inout) :: kp
           character(*), parameter :: this_routine = 'CalcDoCalc'
           iSeed=7 
+
+          ! call guga test routine here, so everything is correctly set up,
+          ! or atleast should be. only temporarily here.
+          if (tGUGA) then
+              ! only run guga - testsuite if flag is provided
+              if (t_guga_unit_tests) call runTestsGUGA()
+                  
+          end if
 
 !C.. we need to calculate a value for RHOEPS, so we approximate that
 !C.. RHO_II~=exp(-BETA*H_II/p).  RHOEPS is a %ge of this 

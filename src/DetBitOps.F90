@@ -183,7 +183,6 @@ module DetBitOps
         count_open_orbs = CountBits(alpha, NIfD)
     end function
 
-
     pure function FindBitExcitLevel(iLutnI, iLutnJ, maxExLevel) result(IC)
 
         ! Find the excitation level of one determinant relative to another

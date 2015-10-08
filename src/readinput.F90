@@ -180,7 +180,7 @@ MODULE ReadInput_neci
                               tFindCINatOrbs, tNoRenormRandExcits, LMS, STOT,&
                               tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
                               tGen_4ind_weighted, tGen_4ind_reverse, &
-                              tMultiReplicas
+                              tMultiReplicas, tGUGA, lNoSymmetry
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -217,6 +217,7 @@ MODULE ReadInput_neci
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors
         use UMatCache, only: tDeferred_Umat2d
+        use guga_init, only: checkInputGUGA
 
         implicit none
 
@@ -237,6 +238,12 @@ MODULE ReadInput_neci
 
         nWalkerHashes=nint(HashLengthFrac*InitWalkers)
 
+
+        ! ================ GUGA implementation ===============================
+        ! design convention to store as many guga related functionality in 
+        ! guga_*.F90 files and just call the routines in the main level modules
+        ! checkInputGUGA() is found in guga_init.F90
+        if (tGUGA) call checkInputGUGA()
 
         ! Turn on histogramming of fcimc wavefunction in order to find density
         ! matrix, or the orbital occupations
@@ -393,11 +400,11 @@ MODULE ReadInput_neci
             if (tCSF) &
                 call stop_all (t_r, "Spin projection must not be used with &
                                     &CSFs")
-        
+            
             if (.not. tSpn) &
                 call stop_all (t_r, "SPIN-RESTRICT must be used with SPIN-&
                                     &PROJECT to set the value of S, Ms")
-            
+             
             ! Unless specified, apply spin projection to ALL determinants.
             if (spin_proj_nopen_max == -1) &
                 spin_proj_nopen_max = nel

@@ -33,6 +33,8 @@ module bit_rep_data
     integer :: nIfSgn   ! Number of integers used for signs
     integer :: nIfTotKP ! Upper bound of krylov_vecs.
 
+    integer :: nIfGUGA
+
     ! Flags which we can store
     logical :: tUseflags
     integer, parameter :: flag_deterministic = 0, &
@@ -40,9 +42,9 @@ module bit_rep_data
                           flag_trial = 2, &
                           flag_connected = 3, &
                           flag_has_been_initiator(1) = 4, &
-                          flag_unused1 = 5, &
-                          flag_unused2 = 6, &
-                          flag_unused3 = 7, &
+                          flag_deltaB_single = 5, & ! new flags added for GUGA
+                          flag_deltaB_double = 6, & ! new flags added for GUGA
+                          flag_deltaB_sign = 7, &   ! new flags added for GUGA
                           flag_ic0_spawn = 8, &
                           flag_death_done = 9, &
                           flag_negative_sign = 10
@@ -73,7 +75,6 @@ contains
         ! In:  flg  - Integer index of flag to test
         !      ilut - Bit representation of determinant
         ! Ret: bSet - returns .true. if the flag is set, false otherwise
-
 
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer, intent(in) :: flg

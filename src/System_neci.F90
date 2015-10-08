@@ -30,6 +30,9 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tGUGA = .false. ! implementation of spin adapted GUGA approach
+      t_guga_unit_tests = .false.
+      n_guga_excit_gen = 0
       tComplexOrbs_RealInts = .false.
       tReadFreeFormat=.true.
       tMolproMimic=.false.
@@ -325,6 +328,34 @@ system: do
                LMS=0
             endif
             TSPN = .true.
+ 
+        ! ==================== GUGA Implementation ====================            
+        ! activate total spin preserving graphical unitary group approach and 
+        ! default total spin operator eigenvalue to 0, or else give as integer
+        ! CONVENTION: give S in units of h/2, so S directly relates to the 
+        ! number of unpaired electrons
+        case("GUGA")
+            if (item < nitems) then
+               call geti(STOT)
+            else
+               STOT = 0
+            endif
+            tGUGA = .true.
+
+        ! also set LMS value to the inputted STOT to misuse the reference 
+        ! determinant creation for a fixed LMS also for the GUGA approach...
+            LMS = STOT
+        ! =============================================================
+
+        case ("GUGA-TESTS")
+            if (item < nitems) then
+                call geti(n_guga_excit_gen)
+            else
+                ! use a default value of 1M test runs..
+                n_guga_excit_gen = 1000000
+            end if
+            t_guga_unit_tests = .true.
+
         case("CSF")
             if(item.lt.nitems) then
                call geti(STOT)
@@ -999,6 +1030,7 @@ system: do
       use legacy_data, only: CSF_NBSTART
       use read_fci
       use sym_mod
+      use guga_init, only: SysInitGUGA
       implicit none
       character(*), parameter :: this_routine='SysInit'
       integer ierr
@@ -1044,11 +1076,21 @@ system: do
 !C..Input parameters
       WRITE(6,'(A)') '======== SYSTEM =========='
       WRITE(6,'(A,I5)') '  NUMBER OF ELECTRONS : ' , NEL
-      IF(TSPN) THEN
-          WRITE(6,*) ' Restricting the spin state of the system, TSPN : ' , TSPN
-      ELSE
-          WRITE(6,*) ' No restriction on the spin state of the system, TSPN : ' , TSPN
-      ENDIF
+      ! IF(TSPN) THEN
+      !     WRITE(6,*) ' Restricting the spin state of the system, TSPN : ' , TSPN
+      ! ELSE
+      !     WRITE(6,*) ' No restriction on the spin state of the system, TSPN : ' , TSPN
+      ! ENDIF
+
+      if (TSPN) then
+          write(6,*) ' Restricting the S_z spin-projection of the system, TSPN : ', TSPN
+          write(6,'(A,I5)') ' S_z quantum number : ', LMS
+      else
+          write(6,*) ' No restriction on the S_z spin-projection of the system, TSPN : ', TSPN
+      end if
+
+     
+
       NBASISMAX(1:5,1:7)=0
       TSPINPOLAR=.FALSE.
       DO I=1,3
@@ -1091,7 +1133,9 @@ system: do
                LMS2=LMS  
           end if
       ENDIF
-      WRITE(6,*) ' GLOBAL MS : ' , LMS
+      ! global ms should only be outputted if we restrict the spin system 
+      ! otherwise not defined ...
+      if (TSPN) WRITE(6,*) ' GLOBAL MS : ' , LMS
 
       IF((NBASISMAX(2,3).eq.1).or.tROHF) THEN
 !If we are dealing with an open shell system, the calculation of symreps will sometimes fail.
@@ -1136,11 +1180,14 @@ system: do
               call stop_all (this_routine, "CSFs not compatible with HPHF")
           endif
 
-      endif
+      endif      
 
       if (tTruncateCSF .and. (.not. tCSF)) then
           call stop_all (this_routine, "CSFs required to use truncate-csf")
       endif
+
+
+
 
       TwoCycleSymGens=.false.
       IF(TCPMD) THEN
@@ -1882,6 +1929,26 @@ system: do
 !      WRITE(6,*) ' ETRIAL : ',ETRIAL
 !      IF(FCOUL.NE.1.0_dp)  WRITE(6,*) "WARNING: FCOUL is not 1.0_dp. FCOUL=",FCOUL
       IF(FCOULDAMPBETA.GT.0) WRITE(6,*) "FCOUL Damping.  Beta ",FCOULDAMPBETA," Mu ",FCOULDAMPMU
+
+ ! ====================== GUGA implementation ===========================
+      ! design decision to have as much guga related functionality stored in
+      ! guga_*.F90 files and only call necessary routines.
+      ! routine SysInitGUGA() is found in module guga_init.F90
+      ! it prints out info and sets the nReps to be the number of orbitals
+      ! have to call routine at this late stage in the initialisation, 
+      ! because it needs info of the number of orbitals from the integral 
+      ! input files..: lets hope FDET or something similar is not getting 
+      ! allocated before this point...
+      if (tGUGA) then
+          call SysInitGUGA()
+      else
+          ! have to set globally used nReps quantity for nI type 
+          ! arrays here. in guga nI have to of spatial orbital length
+          ! otherwise only of nEl length
+          nReps = nEl
+      end if
+
+
       call halt_timer(proc_timer)
     End Subroutine SysInit
 

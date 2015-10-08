@@ -3,8 +3,10 @@ MODULE Determinants
     use constants, only: dp, n_int, bits_n_int
     use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
-                          tCSF, tCPMD, tPickVirtUniform, LMS, modk_offdiag
+                          tCSF, tCPMD, tPickVirtUniform, LMS, modk_offdiag, &
+                          tGUGA, STOT
     use IntegralsData, only: UMat, FCK, NMAX
+    use guga_matrixElements, only: calcDiagMatEleGUGA_nI
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_2, sltcnd_compat, &
@@ -54,7 +56,7 @@ contains
     Subroutine DetPreFreezeInit()
         Use global_utilities
         use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,&
-                                tFixLz, tUEGSpecifyMomentum, tRef_Not_HF
+                                tFixLz, tUEGSpecifyMomentum, tRef_Not_HF, tGUGA
         use SystemData, only : tMolpro
         use sym_mod
         use util_mod, only: NECI_ICOPY
@@ -74,13 +76,26 @@ contains
 
             ! A quick check that we have defined a reasonable det.
             ms = sum(get_spin_pn(fdet(1:nel)))
-            if (abs(ms) /= abs(lms) .and. .not. tCSF) then
+            if (abs(ms) /= abs(lms) .and. .not. (tCSF .or. tGUGA)) then
                 write(6,*) 'LMS', lms
                 write(6,*) 'Calculated Ms', ms
                 call stop_all (this_routine, "Defined determinant has the &
                               &wrong Ms value. Change DEFINEDET or &
                               &SPIN-RESTRICT")
             end if
+            ! also use that to check correctness of guga csf 
+            ! remember in guga approach beta orbitals are associated with 
+            ! positive spin coupled orbitals and S >= 0 
+            if (tGUGA) then
+                if (ms < 0 .or. ms /= STOT) then
+                    write(6,*) "S: ", STOT
+                    write(6,*) "calculated S of inputted CSF: ", ms
+                    call stop_all(this_routine, " Defined CSF has the &
+                        &wrong total spin quantum number! Change DEFINEDET or &
+                        &S quantum numnber!")
+                end if
+            end if
+
             tRef_Not_HF = .true.
         ELSE
              CALL GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
@@ -322,6 +337,12 @@ contains
             call stop_all (this_routine, "Should not be calling HPHF &
                           &integrals from here.")
 
+        ! GUGA implementation: 
+        if (tGUGA) then
+            hel = calcDiagMatEleGUGA_nI(nI)
+            return
+        end if
+
         if (tCSF) then
             if (iscsf(nI) .or. iscsf(nJ)) then
                 hel = CSFGetHelement (nI, nJ)
@@ -370,6 +391,12 @@ contains
             call stop_all (this_routine, "Should not be calling HPHF &
                           &integrals from here.")
 
+        ! GUGA implementation: 
+        if (tGUGA) then
+            hel = calcDiagMatEleGUGA_nI(nI)
+            return
+        end if
+
         if (tCSF) then
             if (iscsf(nI) .or. iscsf(nJ)) then
                 hel = CSFGetHelement (nI, nJ)
@@ -377,6 +404,7 @@ contains
             endif
         endif
          
+
         if (tStoreAsExcitations .and. nI(1) == -1 .and. nJ(1) == -1) then
             ! TODO: how to express requirement for double?
             !if (IC /= 2) &

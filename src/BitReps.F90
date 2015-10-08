@@ -2,7 +2,8 @@
 
 module bit_reps
     use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart
-    use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level
+    use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level, &
+                        tGUGA
     use CalcData, only: tTruncInitiator, tUseRealCoeffs, tSemiStochastic, &
                         tCSFCore, tTrialWavefunction, semistoch_shift_iter, &
                         tStartTrialLater
@@ -183,7 +184,7 @@ contains
 
         ! Do we have any flags to store?
         if (tTruncInitiator .or. tSemiStochastic .or. tTrialWavefunction .or. &
-                tStartTrialLater .or. (semistoch_shift_iter /= 0)) then
+                tStartTrialLater .or. (semistoch_shift_iter /= 0) .or. tGUGA) then
             tUseFlags = .true.
         else
             tUseFlags = .false.
@@ -240,7 +241,26 @@ contains
 
         WRITE(6,"(A,I6)") "Setting integer length of determinants as bit-strings to: ", NIfTot + 1
         WRITE(6,"(A,I6)") "Setting integer bit-length of determinants as bit-strings to: ", bits_n_int
-         
+
+        if (tGUGA) then
+            ! set up a nIfGUGA variable to use a similar integer list to 
+            ! calculate excitations for a given GUGA CSF
+
+            ! Structure of a bit representation:
+
+            ! | 0-NIfD: Det | x0 | x1 | deltaB |
+            !
+            ! -------
+            ! (NIfD + 1) * 64-bits              Orbital rep.
+            !  1         * 64-bits              x0 matrix element
+            !  1         * 64-bits              x1 matrix element
+            !  1         * 32-bits              deltaB value
+
+            nIfGUGA = nIfD + 3
+            write(6,"(A,I6)") "For GUGA calculation set up a integer list of length: ", nIfGUGA + 1
+
+        end if 
+
     end subroutine
 
     subroutine extract_bit_rep (ilut, nI, real_sgn, flags, store)
@@ -879,10 +899,11 @@ contains
         real(dp) :: sign_1(lenof_sign), sign_2(lenof_sign), sign_out(lenof_sign)
 
         if (.not. sorted_lists) then
+            write(6,*) lbound(list_1, 1), ubound(list_1, 1), lbound(list_2, 1), ubound(list_2, 1)
+            call neci_flush(6)
             call sort(list_1(:,1:ndets_1), ilut_lt, ilut_gt)
             call sort(list_2(:,1:ndets_2), ilut_lt, ilut_gt)
         end if
-
         ndets_out = 0
         ! Where to start searching from in list 1:
         min_ind = 1
@@ -892,7 +913,7 @@ contains
             ! occupies in list 1.
             ! If list_2(:,i) is not in list 1 then -pos will equal the position
             ! that it should go in, to mantain the sorted ordering.
-            pos = binary_search_custom(list_1(:,min_ind:ndets_1), list_2(:,i), NIfTot+1, ilut_gt)
+            pos = binary_search_custom(list_1(:,min_ind:ndets_1), list_2(:,i), nifguga, ilut_gt)
 
             if (pos > 0) then
                 ! Move all the states from list 1 before min_ind+pos-1 across

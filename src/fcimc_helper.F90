@@ -5,7 +5,8 @@ module fcimc_helper
     use constants
     use util_mod
     use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
-                          tLatticeGens, nBasis, tHistSpinDist, tRef_Not_HF
+                          tLatticeGens, nBasis, tHistSpinDist, tRef_Not_HF, &
+                          tGUGA
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use semi_stoch_procs, only: recalc_core_hamil_diag
     use bit_reps, only: NIfTot, flag_initiator, test_flag, extract_flags, &
@@ -58,6 +59,8 @@ module fcimc_helper
                                global_determinant_data, set_iter_occ, &
                                get_part_init_time, det_diagH, get_spawn_count
     use searching, only: BinSearchParts2
+    use guga_matrixElements, only: calc_off_diag_guga
+    use guga_excitations, only: create_projE_list
     implicit none
     save
 
@@ -349,6 +352,25 @@ contains
         endif
 
         ! Perform normal projection onto reference determinant
+        if (tGUGA) then
+            ! for guga csfs its quite hard to determine the excitation to a 
+            ! reference determinant, due to the many possibilities 
+            ! of stepvector differences -> just brute force search in the 
+            ! reference_list all the time for non-zero excitLvl..
+            ! since atleast excitLvl = 0 gets determined correctly
+            if (ExcitLevel_local == 0) then
+                if (iter > NEquilSteps) &
+                    SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
+                NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
+                ! Number at HF * sign over course of update cycle
+                HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
+            else
+                ! also the NoAtDoubs is probably not correct in guga for now 
+                ! so jsut ignore it 
+                ! only calc. it to the reference det here 
+                HOffDiag(1:inum_runs) = calc_off_diag_guga(ilut)
+            end if
+        else
         if (ExcitLevel_local == 0) then
 
             if (iter > NEquilSteps) &
@@ -389,6 +411,7 @@ contains
             endif
 
         endif ! ExcitLevel_local == 1, 2, 3
+        endif ! GUGA
 
 
         ! Sum in energy contribution
@@ -568,6 +591,8 @@ contains
                 if (tHPHF) then
                     hoffdiag = hphf_off_diag_helement(ProjEDet(:,run), nI, &
                                                       iLutRef(:,run), ilut)
+
+                
                 else
                     hoffdiag = get_helement (ProjEDet(:,run), nI, exlevel, &
                                              ilutRef(:,run), ilut)
@@ -1773,6 +1798,12 @@ contains
               &energy reference determinant for run', run, &
               ' on the next update cycle to: '
         call write_det (iout, ProjEDet(:, run), .true.)
+
+        ! if in guga run, i also need to recreate the list of connected 
+        ! determinnant to the new reference det 
+        if (tGUGA) then
+            call create_projE_list()
+        end if
 
         if(tHPHF) then
             if(.not.Allocated(RefDetFlip)) then

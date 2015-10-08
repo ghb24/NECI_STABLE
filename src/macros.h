@@ -18,6 +18,22 @@
 #define get_beta(orb) (ibclr(orb-1,0)+1)
 #define get_alpha(orb) (ibset(orb-1,0)+1)
 
+! extract single step vector value of a spatial orbital from ilut 
+#define getStepvalue(ilut,sOrb) ishft(iand(ilut((sOrb-1)/bn2_),ishft(3,2*mod((sOrb-1),bn2_))),-2*mod((sOrb-1),bn2_))
+! also directly implement 0,1,2,3 comparisons
+! also directly implement 0,1,2,3 comparisons
+#define isZero(ilut,sOrb) (.not.(btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_)).or.btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_)+1)))
+#define isOne(ilut,sOrb) (btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_)).and.(.not.btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_)+1)))
+#define isTwo(ilut,sOrb) (btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_)+1).and.(.not.btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_))))
+#define isThree(ilut,sOrb) (btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_)+1).and.btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_)))
+#define isSingle(ilut,sOrb) (btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_)+1).neqv.btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_)))
+#define notSingle(ilut,sOrb) (.not.isSingle(ilut,sOrb))
+! could write that with already provided isOcc functions too, but would have to translate between spin and spatial orbs..
+
+! Convert spatial orbital indices to spin orbital indices
+#define spatToSpinBeta(sOrb) 2*(sOrb-1)
+#define spatToSpinAlpha(sOrb) 2*sOrb
+
 ! The spin where 1=alpha, 2=beta
 #define get_spin(orb) (1+iand(orb,1))
 ! The spin where 1=alpha, -1=beta

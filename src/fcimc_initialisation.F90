@@ -11,7 +11,7 @@ module fcimc_initialisation
                           tRotatedOrbs, MolproID, nBasis, arr, brr, nel, tCSF,&
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
-                          tUEGNewGenerator
+                          tUEGNewGenerator, tGUGA
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
                         tCheckHighestPop, tSpatialOnlyHash, tStartCAS, tau, &
@@ -113,6 +113,9 @@ module fcimc_initialisation
     use ueg_excit_gens, only: gen_ueg_excit
     use gndts_mod, only: gndts
     use csf, only: get_csf_helement
+    use guga_data, only: bVectorRef_ilut, bVectorRef_nI
+    use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut
+    use guga_excitations, only: generate_excitation_guga, create_projE_list
     use tau_search, only: init_tau_search
     use fcimc_helper, only: CalcParentFlag, update_run_reference
     use cont_time_rates, only: spawn_rate_full, oversample_factors, &
@@ -321,6 +324,20 @@ contains
             iLutHF_True = iLutHF
             HFDet_True = HFDet
         endif
+
+        ! for GUGA calculations also save the b vector of the reference det
+        ! also initialize the persistently stored list of H|ref> to 
+        ! calculate the projected energy
+        if (tGUGA) then
+            allocate(bVectorRef_nI(nEl), stat = ierr)
+            allocate(bVectorRef_ilut(nBasis/2), stat = ierr)
+
+            bVectorRef_nI = calcB_vector_nI(HFDet_True)
+            bVectorRef_ilut = calcB_vector_ilut(iLutHF_True)
+
+            call create_projE_list()
+            
+        end if
 
         if(tHPHF) then
             allocate(RefDetFlip(NEl, inum_runs), &
@@ -1424,6 +1441,8 @@ contains
             generate_excitation => gen_excit_4ind_weighted
         elseif (tGen_4ind_reverse) then
             generate_excitation => gen_excit_4ind_reverse
+        elseif (tGUGA) then
+            generate_excitation => generate_excitation_guga
         else
             generate_excitation => gen_rand_excit
         endif
@@ -1461,6 +1480,11 @@ contains
             else
                 get_spawn_helement => hphf_off_diag_helement_spawn
             endif
+        ! new guga addition: do not need to recalculate Helement
+        elseif (tGUGA) then
+            ! use hphf_routine also, since it does exactly what needed
+            get_spawn_helement => hphf_spawn_sign
+
         else
             get_spawn_helement => get_helement_det_only
         endif
@@ -1477,7 +1501,7 @@ contains
         endif
 
         ! Once we have generated the children, do we need to encode them?
-        if (.not. (tCSF .or. tHPHF .or. tGen_4ind_weighted)) then
+        if (.not. (tCSF .or. tHPHF .or. tGen_4ind_weighted .or. tGUGA)) then
             encode_child => FindExcitBitDet
         else
             encode_child => null_encode_child

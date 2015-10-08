@@ -464,7 +464,6 @@ module FciMCParMod
 
         IF(tHistSpawn) CALL WriteHistogram()
 
-
         IF(tHistEnergies) CALL WriteHistogramEnergies()
 
         IF(tPrintOrbOcc) THEN
@@ -863,6 +862,8 @@ module FciMCParMod
                 ! up by AvMCExcits if attempting multiple excitations from 
                 ! each walker (default 1.0_dp).
                 call decide_num_to_spawn(SignCurr(part_type), AvMCExcits, WalkersToSpawn)
+
+!                 print *, "walkerstoSpawn: ", WalkersToSpawn
 
                 do p = 1, WalkersToSpawn
                     ! Zero the bit representation, to ensure no extraneous

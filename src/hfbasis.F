@@ -801,7 +801,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
       END
 C.. Generate an initial determinant of specified spin
       SUBROUTINE GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
-         use SystemData, only: BasisFN,tMolpro
+         use SystemData, only: BasisFN,tMolpro, tGUGA
          use util_mod, only: int_fmt
          use sort_mod
          IMPLICIT NONE
@@ -816,8 +816,15 @@ C.. vector unless transposed
          NSBASIS=NBASIS/2
          NELS(2)=(LMS+NEL)/2
          NELS(1)=NEL-NELS(2)
-         WRITE(6,'(4(A,'//int_fmt(nel)//'))') " N_alpha:",NELS(1),      &
+
+         if (tGUGA) then
+            write(6,'(4(A,'//int_fmt(nel)//'))') "N_neg:",NELS(1), 
+     &   " ; N_pos:", NELS(2)," ; S:",LMS," ; nEl:", nEL
+         else
+            WRITE(6,'(4(A,'//int_fmt(nel)//'))') " N_alpha:",NELS(1),      &
      &   " ; N_beta:",  NELS(2)," ; LMS:",LMS," ; NEl:",NEL
+         end if
+
          if(tMolpro) then
              !Assume that orbitals are ordered by occupation number
              !Assuming LMS positive, NELS(2) > NELS(1)
