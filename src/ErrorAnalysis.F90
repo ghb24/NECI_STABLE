@@ -28,7 +28,7 @@ module errors
         mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue, &
         equilshift,equilproje)
         implicit none
-        logical , intent(in) :: tSingPartPhase
+        logical, intent(in) :: tSingPartPhase
         integer , intent(inout) :: iShiftVary
         integer , intent(in) , optional :: equilshift,equilproje
         integer :: corrlength_denom,corrlength_num,corrlength_shift,corrlength_imnum
@@ -1132,7 +1132,7 @@ module errors
         logical :: tNoProjEValue,tNoShiftValue
         integer :: iroot,isymh,i
         TYPE(BasisFn) RefSym
-        HElement_t :: h_tmp
+        HElement_t(dp) :: h_tmp
         real(dp) :: Hii,BestEnergy,EnergyDiff
 #ifdef MOLPRO
         real(dp) :: get_scalar

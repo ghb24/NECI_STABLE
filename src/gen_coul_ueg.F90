@@ -327,7 +327,7 @@ contains
     function get_hub_umat_el (i, j, k, l) result(hel)
         use sym_mod, only: roundsym, addelecsym, setupsym, lchksym
         integer, intent(in) :: i, j, k, l
-        HElement_t :: hel
+        HElement_t(dp) :: hel
         type(BasisFn) :: ka, kb
 
         call SetupSym (ka)
@@ -349,7 +349,7 @@ contains
 
         use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen, Madelung
         integer, intent(in) :: idi, idj, idk, idl
-        HElement_t :: hel
+        HElement_t(dp) :: hel
         integer :: i, j, k, l, a, b, c, iss, aneu
         real(dp) :: G, G2
         logical :: tCoulomb, tExchange          

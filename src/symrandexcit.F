@@ -206,10 +206,10 @@ C.. Actually generate a det
          ICOUNT=NMEM(23)
 !         call writedet(6,nI,nEl,.true.)
       END
-      SUBROUTINE SYMGENRANDEXCITIT(NI,NEL,EXCITTYPES,NEXCITTYPES,       &
-     &               CLASSES,                                           &
-     &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,    &
-     &               I,J,K,L,ITOTAL,ISEED,                              &
+      SUBROUTINE SYMGENRANDEXCITIT(NI,NEL,EXCITTYPES,NEXCITTYPES,
+     &               CLASSES,
+     &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,
+     &               I,J,K,L,ITOTAL,ISEED,
      &               NK,IC,NBASISMAX,ARR,NBASIS,PGEN)      
       use constants, only: dp,sizeof_int
       USE symexcit2
@@ -324,8 +324,8 @@ C.. Actually generate a det
                        call write_det (6, NK, .true.)
                        call write_det (6, NI, .true.)
                        WRITE(6,*) I,ITOSL,K,L
-                       WRITE(6,*)                                       &
-     &                  (2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)+ISPN,  &
+                       WRITE(6,*)
+     &                  (2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)+ISPN,
      &                     K=0,SYMLABELCOUNTS(2,ITO)-1)
                         call stop_all(this_routine,
      &                           "INVALID DET SYMGENRANDEXCITIT SINGLE")
@@ -687,8 +687,8 @@ C.. Actually generate a det
                        call write_det (6, NK, .true.)
                        call write_det (6, NI, .true.)
                        WRITE(6,*) I,ITOSL,K,L
-                       WRITE(6,*)                                       &
-     &                  (2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)+ISPN,  &
+                       WRITE(6,*)
+     &                  (2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)+ISPN,
      &                     K=0,SYMLABELCOUNTS(2,ITO)-1)
                         call stop_all(t_r,
      &                           "INVALID DET SYMGENRANDEXCITIT SINGLE")

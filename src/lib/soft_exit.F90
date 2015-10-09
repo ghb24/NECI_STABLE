@@ -151,9 +151,11 @@ module soft_exit
     use Parallel_neci
     implicit none
 
+    logical, volatile :: tSoftExitFound = .false.
+
 contains
 
-    subroutine ChangeVars (tSingBiasChange, tSoftExitFound, tWritePopsFound)
+    subroutine ChangeVars (tSingBiasChange, tWritePopsFound)
 
         ! Read CHANGEVARS file as described in module header.
         !
@@ -285,24 +287,30 @@ contains
                                    "----  currently unused   ----", &
                                    "time                         "/)
 
-        logical :: exists, any_exist, eof, deleted, any_deleted, tSource
-        logical :: opts_selected(last_item)
-        logical, intent(out) :: tSingBiasChange, tSoftExitFound
+        ! Logical(4) datatypes for compilation with builds of openmpi that don't
+        ! have support for logical(8). Gah.
+        logical :: deleted, any_deleted, opts_selected(last_item)
+        logical :: exists, any_exist
+
+        logical :: eof, tSource
+        logical, intent(out) :: tSingBiasChange
         logical, intent(out) :: tWritePopsFound
         real(dp), dimension(lenof_sign) :: hfsign
         integer :: i, proc, nmcyc_new, ios, pos, trunc_nop_new, IterRDMonFly_new, run
         real(dp) :: hfScaleFactor
         character(len=100) :: w
 
+        integer(MPIArg) :: ierr, ierr2, len
+        character(1000) :: message
+
         ! Test if the changevars file exists, and broadcast to all nodes.
         any_exist=.false.
         inquire (file='CHANGEVARS', exist=exists)
-        call MPIAllReduce (exists, 1, MPI_LOR, any_exist)
+        call MPIAllLorLogical(exists, any_exist)
 
         ! Default values
         opts_selected = .false.
         deleted = .false.
-        tSoftExitFound = .false.
         tWritePopsfound = .false.
         tSingBiasChange = .false.
         ios = 0
@@ -415,7 +423,7 @@ contains
 
                 ! Once one node has found and deleted the file, it is gone.
                 any_deleted=.false.
-                call MPIAllReduce (deleted, 1, MPI_LOR, any_deleted)
+                call MPIAllLORLogical(deleted, any_deleted)
                 if (any_deleted) exit
             enddo ! Loop to read CHANGEVARS
 
@@ -965,8 +973,11 @@ logical function test_SoftExit()
 
     logical :: tdummy1, tdummy2
 
-    call ChangeVars(tdummy1, test_SoftExit, tdummy2)
-    if (test_SoftExit) write (6,'(1X,a30)') 'Request for SOFTEXIT detected.'
+    tSoftExitFound = .false.
+    call ChangeVars(tdummy1, tdummy2)
+    if (tSoftExitFound) write (6,'(1X,a30)') 'Request for SOFTEXIT detected.'
+    test_SoftExit = tSoftExitFound
+    tSoftExitFound = .false.
 
 end function test_SoftExit
 

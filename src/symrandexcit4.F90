@@ -5,7 +5,8 @@ module excit_gens_int_weighted
     use SystemData, only: nel, nbasis, nOccAlpha, nOccBeta, G1, nOccAlpha, &
                           nOccBeta, tExch, AA_elec_pairs, BB_elec_pairs, &
                           AB_elec_pairs, par_elec_pairs, AA_hole_pairs, &
-                          par_hole_pairs, AB_hole_pairs, iMaxLz
+                          par_hole_pairs, AB_hole_pairs, iMaxLz, &
+                          tGen_4ind_part_exact, tGen_4ind_lin_exact
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
                                pDoubNew, ScratchSize, SpinOrbSymLabel, &
@@ -49,7 +50,7 @@ contains
         integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
-        HElement_t, intent(out) :: HElGen
+        HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'gen_excit_hel_weighted'
@@ -80,7 +81,7 @@ contains
         integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
-        HElement_t, intent(out) :: HElGen
+        HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'gen_excit_hel_weighted'
@@ -160,7 +161,7 @@ contains
         integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
-        HElement_t, intent(out) :: HElGen
+        HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'gen_excit_4ind_weighted'
@@ -233,11 +234,11 @@ contains
         real(dp) :: pgen
         character(*), parameter :: this_routine = 'calc_pgen_4ind_weighted'
 
-        integer :: cc_index, src, tgt, id_src, id_tgt, n_id(nel)
-        integer :: norb, label_index, orb, i, j, iSpn, sum_ml
-        integer :: cc_i, cc_j, cc_i_final, cc_j_final, sym_product
+        integer :: cc_index, tgt(2), sum_ml, iSpn, sym_product
+        integer :: cc_i, cc_j, cc_i_final, cc_j_final, cc_a, cc_b
         real(dp) :: cpt, cpt_tgt, cum_sum, cum_sums(2), int_cpt(2), ntot
-        HElement_t :: hel
+        real(dp) :: cpt_pair(2), sum_pair(2)
+        HElement_t(dp) :: hel
 
 
         if (ic == 1) then
@@ -269,12 +270,12 @@ contains
             sym_product = RandExcitSymLabelProd(SpinOrbSymLabel(ex(1,1)), &
                                                 SpinOrbSymLabel(ex(1,2)))
             sum_ml = sum(G1(ex(1,:))%Ml)
-            cc_i = ClassCountInd(get_spin(ex(2,1)), SpinOrbSymLabel(ex(2,1)), &
+            cc_a = ClassCountInd(get_spin(ex(2,1)), SpinOrbSymLabel(ex(2,1)), &
                                  G1(ex(2,1))%Ml)
-            cc_j = ClassCountInd(get_spin(ex(2,2)), SpinOrbSymLabel(ex(2,2)), &
+            cc_b = ClassCountInd(get_spin(ex(2,2)), SpinOrbSymLabel(ex(2,2)), &
                                  G1(ex(2,2))%Ml)
-            cc_i_final = min(cc_i, cc_j)
-            cc_j_final = max(cc_i, cc_j)
+            cc_i_final = min(cc_a, cc_b)
+            cc_j_final = max(cc_a, cc_b)
             cum_sum = 0
             do cc_i = 1, ScratchSize
                 cc_j = get_paired_cc_ind (cc_i, sym_product, sum_ml, iSpn)
@@ -286,6 +287,14 @@ contains
                     if (cc_i == cc_i_final) then
                         ASSERT(cc_j == cc_j_final)
                         cpt_tgt = cpt
+
+                        ! ENSURE that the tgt orbitals match cc_i, cc_j as
+                        ! the choice of orbitals following is not symmetric.
+                        if (cc_i == cc_a) then
+                            tgt = ex(2,:)
+                        else
+                            tgt = [ex(2,2), ex(2,1)]
+                        end if
                     end if
                 end if
             end do
@@ -300,21 +309,44 @@ contains
 
             ! What is the likelihood of selecting the first orbital? And the
             ! second, given the first?
-            call pgen_select_orb (ilutI, ex(1,:), -1, ex(2,1), int_cpt(1), &
+            call pgen_select_orb (ilutI, ex(1,:), -1, tgt(1), int_cpt(1), &
                                   cum_sums(1))
-            call pgen_select_orb (ilutI, ex(1,:), ex(2,1), ex(2,2), int_cpt(2),&
+            call pgen_select_orb (ilutI, ex(1,:), tgt(1), tgt(2), int_cpt(2), &
                                   cum_sums(2))
 
+            ! Deal with cases when there are no available excitations
+            ! with the given pathway.
+            if (any(cum_sums == 0.0)) then
+                cum_sums = 1.0
+                int_cpt = 0.0
+            end if
+
             if (cc_i_final == cc_j_final) then
-                pgen = pgen * ( &
-                       (int_cpt(1) / cum_sums(1) * int_cpt(2) / cum_sums(2)) &
-                     + (int_cpt(2) / cum_sums(1) * &
-                        int_cpt(1) / (cum_sums(1) - int_cpt(2))))
+                if (tGen_4ind_lin_exact .or. tGen_4ind_part_exact) then
+                    call pgen_select_orb(ilutI, ex(1,:), -1, tgt(2), &
+                                         cpt_pair(1), sum_pair(1))
+                    call pgen_select_orb(ilutI, ex(1,:), tgt(2), tgt(1), &
+                                         cpt_pair(2), sum_pair(2))
+                else
+                    cpt_pair(1) = int_cpt(2)
+                    cpt_pair(2) = int_cpt(1)
+                    sum_pair(1) = cum_sums(1)
+                    sum_pair(2) = cum_sums(1) - int_cpt(2)
+                end if
+                
+                ! Deal with cases when there are no available excitations
+                ! with the given pathway.
+                if (any(sum_pair == 0.0)) then
+                    sum_pair = 1.0
+                    cpt_pair = 0.0
+                end if
+
+                pgen = pgen * (product(int_cpt) / product(cum_sums) + &
+                               product(cpt_pair) / product(sum_pair))
             else
                 pgen = pgen * (int_cpt(1) / cum_sums(1)) &
                             * (int_cpt(2) / cum_sums(2))
             end if
-
 
         else
             ! IC /= 1, 2 --> not connected by the excitation generator.
@@ -442,7 +474,7 @@ contains
         integer :: cc_index, label_index, norb, n_id(nel), id_src, id_tgt
         integer :: i, j, orb
         real(dp) :: cum_sum, cpt, cpt_tgt
-        HElement_t :: hel
+        HElement_t(dp) :: hel
 
         ! The electron to excite is picked uniformly at random
         pgen = 1.0_dp / real(nel, dp)
@@ -506,7 +538,7 @@ contains
         real(dp) :: cpt_arr(OrbClassCount(cc_index))
         integer :: orb, norb, label_index, orb_index, i, j
         integer :: n_id(nel), id_src, id
-        HElement_t :: hel
+        HElement_t(dp) :: hel
         
         ! How many orbitals of the correct symmetry are there?
         norb = OrbClassCount(cc_index)
@@ -542,7 +574,6 @@ contains
                     hel = hel + get_umat_el (id_src, n_id(j), id, n_id(j))
                     if (is_beta(src) .eqv. is_beta(nI(j))) &
                         hel = hel - get_umat_el (id_src, n_id(j), n_id(j), id)
-            !        write(6,*) 'h', hel
                 end do
                 hel = hel + GetTMATEl(src, orb)
 
@@ -584,11 +615,13 @@ contains
 
         integer :: elecs(2), orbs(2), src(2)
         real(dp) :: int_cpt(2), cum_sum(2), cc_cum(ScratchSize), cc_tot, r
+        real(dp) :: cpt_pair(2), sum_pair(2)
         integer :: sym_product, ispn, sum_ml
         integer :: cc_i, cc_j
 
         ! Initially, select a pair of electrons
         call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
+!        call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
 
         ! Construct the list of possible symmetry pairs listed according to
         ! a unique choice of symmetry A (we enforce that sym(A) < sym(B)).
@@ -638,12 +671,21 @@ contains
         ! Adjust the probabilities. If we are selecting two orbitals from
         ! the same list, then we could have selected them either way around.
         if (cc_i == cc_j) then
-            pgen = pgen * ( &
-                   (int_cpt(1) / cum_sum(1) * int_cpt(2) / cum_sum(2)) &
-                 + (int_cpt(2) / cum_sum(1) * &
-                    int_cpt(1) / (cum_sum(1) - int_cpt(2))))
+            if (tGen_4ind_lin_exact .or. tGen_4ind_part_exact) then
+                call pgen_select_orb(ilutI, src, -1, orbs(2), cpt_pair(1), &
+                                     sum_pair(1))
+                call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
+                                     cpt_pair(2), sum_pair(2))
+            else
+                cpt_pair(1) = int_cpt(2)
+                cpt_pair(2) = int_cpt(1)
+                sum_pair(1) = cum_sum(1)
+                sum_pair(2) = cum_sum(1) - int_cpt(2)
+            end if
+            pgen = pgen * (product(int_cpt) / product(cum_sum) + &
+                           product(cpt_pair) / product(sum_pair))
         else
-            pgen = pgen * (int_cpt(1) / cum_sum(1)) * (int_cpt(2) / cum_sum(2))
+            pgen = pgen * (product(int_cpt) / product(cum_sum))
         end if
 
         ! And generate the actual excitation.
@@ -753,8 +795,8 @@ contains
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         real(dp) :: cpt, cum_sum
 
-        integer :: norb, label_index, orb, srcid(2), i, src_orb, src_id
-        integer :: cc_index, ms, orbid
+        integer :: norb, label_index, orb, srcid(2), i, src_id
+        integer :: cc_index, ms
         real(dp) :: tmp
 
         ! How many orbitals are available with the given symmetry?
@@ -772,11 +814,8 @@ contains
             do i = 1, norb
                 orb = SymLabelList2(label_index + i - 1)
                 if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
-                    orbid = gtID(orb)
-                    tmp = sqrt(abs_l1(UMat2D(max(srcid(1), orbid), &
-                                             min(srcid(1), orbid)))) &
-                        + sqrt(abs_l1(UMat2D(max(srcid(2), orbid), &
-                                             min(srcid(2), orbid))))
+                    tmp = same_spin_pair_contrib(srcid(1), srcid(2), &
+                                                 orb, orb_pair)
                     cum_sum = cum_sum + tmp
                     if (orb == tgt) cpt = tmp
                 end if
@@ -787,18 +826,17 @@ contains
             ! electron-hole interaction with the same spin is required
             ms = class_count_ms(cc_index)
             if (ms == G1(src(1))%Ms) then
-                src_orb = src(1)
+                srcid = gtID(src)
             else
-                src_orb = src(2)
+                srcid(1) = gtID(src(2))
+                srcid(2) = gtID(src(1))
             end if
 
-            src_id = gtID(src_orb)
             do i = 1, norb
                 orb = SymLabelList2(label_index + i - 1)
                 if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
-                    orbid = gtID(orb)
-                    tmp = sqrt(abs_l1(UMat2D(max(src_id, orbid), &
-                                             min(src_id, orbid))))
+                    tmp = opp_spin_pair_contrib(srcid(1), srcid(2), &
+                                                orb, orb_pair)
                     cum_sum = cum_sum + tmp
                     if (orb == tgt) cpt = tmp
                 end if
@@ -807,6 +845,85 @@ contains
 
 
     end subroutine
+
+
+    function opp_spin_pair_contrib(indi, indj, orba, orbb) result(contrib)
+
+        ! What term should we be summing into the list of contributions?
+        !
+        ! n.b. Because this routine is only passed the spatial index of i,j
+        !      it does _no_ checking that the appropriate spin terms have been
+        !      selected
+
+        integer, intent(in) :: indi, indj, orba, orbb
+        real(dp) :: contrib
+        integer :: ida, idb
+
+        if (tGen_4ind_part_exact .and. orbb > 0) then
+            ! Include a contribution of: sqrt(abs(<ij|ab>))
+            ! n.b. This can only be used for the case <ij|ba> == 0.
+            ida = gtID(orba)
+            idb = gtID(orbb)
+            contrib = max(sqrt(abs(get_umat_el(indi, indj, ida, idb))), 0.0001)
+        else if (tGen_4ind_lin_exact) then
+            if (orbb > 0) then
+                ! Include a contribution of abs(<ij|ab>)
+                ! n.b. This can only be used for the case <ij|ba> == 0.
+                ida = gtID(orba)
+                idb = gtID(orbb)
+                contrib = abs(get_umat_el(indi, indj, ida, idb))
+            else
+                ! Select first orbital linearly
+                contrib = 1.0_dp
+            end if
+        else
+            ! Include the contribution of this term sqrt(<ia|ia>)
+            ida = gtID(orba)
+            contrib = sqrt(abs_l1(UMat2D(max(indi, ida), min(indi, ida))))
+        end if
+
+    end function
+
+
+    function same_spin_pair_contrib(indi, indj, orba, orbb) result(contrib)
+
+        ! What term should be be summing into the list of the contributions
+        ! from the ij term
+
+        integer, intent(in) :: indi, indj, orba, orbb
+        real(dp) :: contrib
+        integer :: ida, idb
+
+        if (tGen_4ind_part_exact .and. orbb > 0) then
+            ! Include a contribution of:
+            ! sqrt(abs(<ij|ab> - <ij|ba>))
+            ida = gtID(orba)
+            idb = gtID(orbb)
+            contrib = max(sqrt(abs(get_umat_el(indi, indj, ida, idb) &
+                                - get_umat_el(indi, indj, idb, ida))), 0.00001)
+        else if (tGen_4ind_lin_exact) then
+            if (orbb > 0) then
+                ! Include a contribution of:
+                ! abs(<ij|ab> - <ij|ba>)
+                ida = gtID(orba)
+                idb = gtID(orbb)
+                contrib = abs(get_umat_el(indi, indj, ida, idb) &
+                            - get_umat_el(indi, indj, idb, ida))
+            else
+                ! Select first orbital linearly.
+                contrib = 1.0_dp
+            end if
+        else
+            ! Include a contribution of (orb can be a or b):
+            ! sqrt((ii|aa) + (jj|aa))
+            ida = gtID(orba)
+            contrib = sqrt(abs_l1(UMat2D(max(indi, ida), min(indi, ida))))&
+                    + sqrt(abs_l1(UMat2D(max(indj, ida), min(indj, ida))))
+            !sqrt(abs_l1(get_umat_el(srcid(1), srcid(1), ida, ida))) + &
+            !sqrt(abs_l1(get_umat_el(srcid(2), srcid(2), ida, ida)))
+        end if
+
+    end function
 
 
     function select_orb (ilut, src, cc_index, orb_pair, cpt, cum_sum) &
@@ -821,8 +938,8 @@ contains
         integer(n_int), intent(in) :: ilut(0:NifTot)
         integer :: orb
 
-        integer :: label_index, orb_index, norb, i, orbid, srcid(2), ms
-        integer :: src_orb, src_id
+        integer :: label_index, orb_index, norb, i, srcid(2), ms
+        integer :: src_id
 
         ! Our biasing arrays must consider all of the possible orbitals with
         ! the correct symmetry.
@@ -851,12 +968,8 @@ contains
             
                 orb = SymLabelList2(label_index + i - 1)
                 if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
-                    orbid = gtID(orb)
-                    cum_sum = cum_sum &
-                    + sqrt(abs_l1(UMat2D(max(srcid(1), orbid), &
-                                         min(srcid(1), orbid)))) &
-                    + sqrt(abs_l1(UMat2D(max(srcid(2), orbid), &
-                                         min(srcid(2), orbid))))
+                    cum_sum = cum_sum + same_spin_pair_contrib(&
+                                             srcid(1), srcid(2), orb, orb_pair)
                 end if
                 cumulative_arr(i) = cum_sum
 
@@ -868,21 +981,19 @@ contains
             ! electron-hole interaction with the same spin is required.
             ms = class_count_ms(cc_index)
             if (ms == G1(src(1))%Ms) then
-                src_orb = src(1)
+                srcid = gtID(src)
             else
-                src_orb = src(2)
+                srcid(1) = gtID(src(2))
+                srcid(2) = gtID(src(1))
             end if
 
             cum_sum = 0
-            src_id = gtID(src_orb)
             do i = 1, norb
 
                 orb = SymLabelList2(label_index + i - 1)
                 if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
-                    orbid = gtID(orb)
-                    cum_sum = cum_sum &
-                    + sqrt(abs_l1(UMat2D(max(src_id, orbid), &
-                                         min(src_id, orbid))))
+                    cum_sum = cum_sum + opp_spin_pair_contrib(&
+                                            srcid(1), srcid(2), orb, orb_pair)
                 end if
                 cumulative_arr(i) = cum_sum
 
@@ -902,19 +1013,11 @@ contains
         orb_index = binary_search_first_ge(cumulative_arr(1:norb), r)
 
         ! And return the relevant value.
-        ! TODO: We don't need to call get_umat_ell. Already known.
         orb = SymLabelList2(label_index + orb_index - 1)
-        orbid = gtID(orb)
-        if (G1(src(1))%Ms == G1(src(2))%Ms) then
-            cpt = sqrt(abs_l1(UMat2D(max(srcid(1), orbid), &
-                                     min(srcid(1), orbid)))) + &
-                  sqrt(abs_l1(UMat2D(max(srcid(2), orbid), &
-                                     min(srcid(2), orbid))))
-            !sqrt(abs_l1(get_umat_el(srcid(1), srcid(1), orbid, orbid))) + &
-            !sqrt(abs_l1(get_umat_el(srcid(2), srcid(2), orbid, orbid)))
+        if (orb_index == 1) then
+            cpt = cumulative_arr(1)
         else
-            cpt = sqrt(abs_l1(UMat2D(max(src_id, orbid), min(src_id, orbid))))
-            !get_umat_el(src_id, src_id, orbid, orbid)))
+            cpt = cumulative_arr(orb_index) - cumulative_arr(orb_index - 1)
         end if
 
     end function
@@ -933,7 +1036,7 @@ contains
         integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
-        HElement_t, intent(out) :: HElGen
+        HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'gen_excit_4ind_reverse'
@@ -993,7 +1096,7 @@ contains
         integer :: iSpn, sym_product, i, j, src(2), e_ispn, e_sym_prod, id(2)
         integer :: tgt(2), id_tgt(2), sum_ml, e_sum_ml
         real(dp) :: ntot, cum_sum, cpt, cpt_tgt
-        HElement_t :: hel
+        HElement_t(dp) :: hel
 
         if (ic == 1) then
 
@@ -1009,14 +1112,14 @@ contains
             ! We want to select a pair of orbitals in a way which is biased
             ! towards pairs with opposing spins. This takes a simple form.
             if (is_alpha(ex(2,1)) .eqv. is_alpha(ex(2,2))) then
-                pgen = pgen * pParallel / real(par_elec_pairs, dp)
+                pgen = pgen * pParallel / real(par_hole_pairs, dp)
                 if (is_alpha(ex(2,1))) then
                     iSpn = 3
                 else
                     iSpn = 1
                 end if
             else
-                pgen = pgen * 1.0_dp / real(AB_elec_pairs, dp)
+                pgen = pgen * (1.0_dp - pParallel) / real(AB_hole_pairs, dp)
                 iSpn = 2
             end if
 
@@ -1143,7 +1246,7 @@ contains
         integer :: n_id(nel), id_tgt, id_src, cc_src, j, src_elec
         integer :: tgt_sym, tgt_ml
         logical :: tgt_beta
-        HElement_t :: hel
+        HElement_t(dp) :: hel
 
         ! Don't consider symmetry categories, do the components separately.
         ! --> Slightly quicker
@@ -1223,7 +1326,7 @@ contains
 
         integer :: src(2), tgt(2), elecs(2), id_tgt(2), id(2), e_sum_ml
         integer :: sym_prod, ispn, e_ispn, e_sym_prod, idx, i, j, sum_ml
-        HElement_t :: hel
+        HElement_t(dp) :: hel
         real(dp) :: cum_arr(nel * (nel - 1) / 2)
         real(dp) :: val_arr(nel * (nel - 1) / 2)
         real(dp) :: val, cum_val, r
@@ -1484,7 +1587,7 @@ contains
         logical, allocatable :: generated_list(:)
         logical :: found_all, par
         real(dp) :: contrib, pgen
-        HElement_t :: helgen
+        HElement_t(dp) :: helgen, hel
 
         ! Decode the determiant
         call decode_bit_det (src_det, ilut)
@@ -1533,8 +1636,10 @@ contains
         contrib = 0
         do i = 1, iterations
             if (mod(i, 10000) == 0) &
-                write(6,*) i, '/', iterations, ' - ', contrib / real(ndet*i,dp)
+                write(6,*) i, '/', iterations, ' - ', contrib / real(ndet*i,dp), ndet, pgen
 
+            !pSingles = 0.0
+            !pDoubles = 1.0
             call gen_excit_4ind_weighted (src_det, ilut, det, tgt_ilut, 3, &
                                           ic, ex, par, pgen, helgen, store)
             if (det(1) == 0) cycle
@@ -1578,14 +1683,28 @@ contains
         if (.not. all(generated_list)) then
             write(6,*) count(.not.generated_list), '/', size(generated_list), &
                        'not generated'
+            found_all = .true.
             do i = 1, ndet
-                if (.not. generated_list(i)) &
-                    call writebitdet(6, det_list(:,i), .true.)
+                if (.not. generated_list(i)) then
+                    call decode_bit_det(det, det_list(:,i))
+                    hel = get_helement(src_det, det, ilut, det_list(:,i))
+                    if (abs(hel) > 1.0e-6) then
+                        found_all = .false.
+                        call writebitdet(6, det_list(:,i), .false.)
+                        write(6,*) hel
+                    end if
+                end if
             end do
-            call stop_all(this_routine, "Determinant not generated")
+            if (.not. found_all) &
+                call stop_all(this_routine, "Determinant not generated")
         end if
-        if (any(abs(contrib_list / iterations - 1.0_dp) > 0.01_dp)) &
+        if (any(abs(contrib_list / iterations - 1.0_dp) > 0.01_dp)) then
+            do i = 1, ndet
+                call writebitdet(6, det_list(:,i), .false.)
+                write(6,*) contrib_list(i) / (iterations - 1.0_dp)
+            end do
             call stop_all(this_routine, "Insufficiently uniform generation")
+        end if
 
         ! Clean up
         deallocate(det_list)
@@ -1593,5 +1712,228 @@ contains
         deallocate(generated_list)
 
     end subroutine
+
+
+    subroutine pick_weighted_elecs(nI, elecs, src, sym_prod, ispn, sum_ml, &
+                                   pgen)
+
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: elecs(2), src(2), sym_prod, ispn, sum_ml
+        real(dp), intent(out) :: pgen
+        character(*), parameter :: this_routine = 'pick_weighted_elecs'
+
+        logical, parameter :: tlinear = .true.
+        logical, parameter :: tlinear2 = .false.
+
+        real(dp) :: cum_list(nel), cum_sum, cpt, final_cpt, r
+        real(dp) :: cum_sum_ii, cum_list_ii(nel), cpt_ii, cpt_jj
+        integer :: i, ind1, ind2, inds(nel)
+
+        ! Pick the first electron uniformly, or according to <ii|ii>,
+        ! and then pick the second electron according to <ji|ji>
+
+        inds = gtID(nI)
+        if (tlinear) then
+            ! Pick the first electron uniformly
+            elecs(1) = 1 + floor(genrand_real2_dSFMT() * nel)
+            cpt_ii = 1.0_dp
+            cum_sum_ii = nel
+        else
+            ! Pick the first electron according to <ii|ii>
+            cum_sum_ii = 0
+            do i = 1, nel
+                cum_sum_ii = cum_sum_ii &
+                           + abs(get_umat_el(inds(i), inds(i), &
+                                             inds(i), inds(i)))
+                cum_list_ii(i) = cum_sum_ii
+            end do
+
+            r = genrand_real2_dSFMT() * cum_sum_ii
+            elecs(1) = binary_search_first_ge(cum_list_ii, r)
+            if (elecs(1) == 1) then
+                cpt_ii = cum_list_ii(1)
+            else
+                cpt_ii = cum_list_ii(elecs(1)) - cum_list_ii(elecs(1) - 1)
+            end if
+        end if
+
+        ! Construct the weighted list <ji|ji>
+        cum_sum = 0
+        ind1 = inds(elecs(1))
+        do i = 1, nel
+            if (i == elecs(1)) then
+                cpt = 0
+            else
+                if (tlinear2) then
+                    cpt = 1.0
+                else
+                    cpt = abs(get_umat_el(ind1, inds(i), ind1, inds(i)))
+                end if
+                if (is_beta(nI(i)) .eqv. is_beta(nI(elecs(1)))) then
+                    cpt = cpt * pParallel
+                else
+                    cpt = cpt * (1.0_dp - pParallel)
+                end if
+            end if
+            cum_sum = cum_sum + cpt
+            cum_list(i) = cum_sum
+        end do
+
+        ! Get the appropriate index
+        r = genrand_real2_dSFMT() * cum_sum
+        elecs(2) = binary_search_first_ge(cum_list, r)
+
+        ! Calculate the (partial) probability
+        if (elecs(2) == 1) then
+            cpt = cum_list(1)
+        else
+            cpt = cum_list(elecs(2)) - cum_list(elecs(2) - 1)
+        end if
+        pgen = (cpt_ii / cum_sum_ii) * cpt / cum_sum
+
+        ! To calculate the generation probability, we need to consider the
+        ! possibility of having picked the electrons in the order j, i.
+        ! Construct the reverse list
+        cum_sum = 0
+        ind2 = inds(elecs(2))
+        do i = 1, nel
+            if (i == elecs(2)) then
+                cpt = 0
+            else
+                if (tlinear2) then
+                    cpt = 1.0
+                else
+                    cpt = abs(get_umat_el(ind2, inds(i), ind2, inds(i)))
+                end if
+                if (is_beta(nI(i)) .eqv. is_beta(nI(elecs(2)))) then
+                    cpt = cpt * pParallel
+                else
+                    cpt = cpt * (1.0_dp - pParallel)
+                end if
+            endif
+            if (i == elecs(1)) final_cpt = cpt
+            cum_sum = cum_sum + cpt
+        end do
+
+        ! And get the component for the second electron in the initial list
+        if (tlinear) then
+            cpt_jj = 1.0_dp
+        else
+            if (elecs(2) == 1) then
+                cpt_jj = cum_list_ii(1)
+            else
+                cpt_jj = cum_list_ii(elecs(2)) - cum_list_ii(elecs(2) - 1)
+            end if
+        end if
+
+        ! Adjust the probability for the j,i choice and then the 1/N one
+        pgen = pgen + ((cpt_jj / cum_sum_ii) * (final_cpt / cum_sum))
+
+        ! Generate the orbitals under consideration
+        src = nI(elecs)
+
+        if (is_beta(src(1)) .eqv. is_beta(src(2))) then
+            if (is_beta(src(1))) then
+                iSpn = 1
+            else
+                iSpn = 3
+            end if
+        else
+            iSpn = 2
+        end if
+
+        ! The Ml value is obtained from the orbitals
+        sum_ml = sum(G1(src)%Ml)
+
+        ! And the spatial symmetries
+        sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(src(1)), &
+                                         SpinOrbSymLabel(src(2)))
+
+    end subroutine pick_weighted_elecs
+
+
+    function pgen_weighted_elecs(nI, orbs) result(prob)
+
+        ! Return the probability of having picked the electrons, and the
+
+        integer, intent(in) :: nI(nel), orbs(2)
+        real(dp) :: prob
+        logical, parameter :: tlinear = .true.
+        logical, parameter :: tlinear2 = .false.
+
+        real(dp) :: cpt1(2), cpt2(2), cum_sum1, cum_sum2(2), cpt, cpts(2)
+        integer :: i, inds(nel), ind1(2)
+
+        ! Enumerate possibilities for the first electron, and select the
+        ! relevant orbitals.
+        inds = gtID(nI)
+        ind1 = gtID(orbs)
+        if (tlinear) then
+            cum_sum1 = 0
+            cum_sum2 = 0
+            do i = 1, nel
+
+                ! Contributions for selection of electron 1
+                if (.not. tlinear) then
+                    cpt = abs(get_umat_el(inds(i), inds(i), inds(i), inds(i)))
+                    cum_sum1 = cum_sum1 + cpt
+                end if
+
+                ! Extract the necessary components for calculating first e-
+                ! probability, and grab list components for the second one.
+                ! Contributions for selection of electron 2
+                if (nI(i) == orbs(1)) then
+                    cpt1(1) = cpt
+                    cpts(1) = 0.0
+                else
+                    if (tlinear2) then
+                        cpts(1) = 1.0
+                    else
+                        cpts(1) = abs(get_umat_el(ind1(1), inds(i), ind1(1), &
+                                      inds(i)))
+                    end if
+                    if (is_beta(nI(i)) .eqv. is_beta(orbs(1))) then
+                        cpts(1) = cpts(1) * pParallel
+                    else
+                        cpts(1) = cpts(1) * (1.0_dp - pParallel)
+                    end if
+                end if
+                if (nI(i) == orbs(2)) then
+                    cpt1(2) = cpt
+                    cpts(2) = 0.0
+                else
+                    if (tlinear2) then
+                        cpts(2) = 1.0
+                    else
+                        cpts(2) = abs(get_umat_el(ind1(2), inds(i), ind1(2), &
+                                      inds(i)))
+                    end if
+                    if (is_beta(nI(i)) .eqv. is_beta(orbs(2))) then
+                        cpts(2) = cpts(2) * pParallel
+                    else
+                        cpts(2) = cpts(2) * (1.0_dp - pParallel)
+                    end if
+                end if
+
+                ! And extract the correct second electron components
+                ! n.b. this choice is for the second electron, hence 2,1
+                if (nI(i) == orbs(2)) cpt2(1) = cpts(1)
+                if (nI(i) == orbs(1)) cpt2(2) = cpts(2)
+                cum_sum2 = cum_sum2 + cpts
+            end do
+        end if
+
+        ! If we are selecting the first electron in a linear manner, then
+        ! we know the values exactly.
+        if (tlinear) then
+            cpt1 = 1.0
+            cum_sum1 = nel
+        end if
+
+        ! And extract the combined probability
+        prob = ((cpt1(1) / cum_sum1) * (cpt2(1) / cum_sum2(1))) &
+             + ((cpt1(2) / cum_sum1) * (cpt2(2) / cum_sum2(2)))
+
+    end function
 
 end module

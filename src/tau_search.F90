@@ -5,7 +5,7 @@ module tau_search
     use SystemData, only: AB_elec_pairs, par_elec_pairs, tGen_4ind_weighted, &
                           tHPHF, tCSF, tKpntSym, nel, G1, nbasis, &
                           AB_hole_pairs, par_hole_pairs, tGen_4ind_reverse, &
-                          nOccAlpha, nOccBeta, tUEG
+                          nOccAlpha, nOccBeta, tUEG, tGen_4ind_2
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
@@ -22,6 +22,7 @@ module tau_search
     use bit_rep_data, only: NIfTot
     use DetBitOps, only: FindBitExcitLevel, TestClosedShellDet, &
                          EncodeBitDet
+    use sym_general_mod, only: SymAllowedExcit
     use Parallel_neci
     use constants
     implicit none
@@ -89,10 +90,11 @@ contains
         ! Do this logic here, so that if we add opposite spin bias to more
         ! excitation generators, then there is only one place that this logic
         ! needs to be updated!
-        if (tGen_4ind_weighted) then
+        if (tGen_4ind_weighted .or. tGen_4ind_2) then
+            !consider_par_bias = .false.
             consider_par_bias = .true.
-            n_opp = AB_elec_pairs
-            n_par = par_elec_pairs
+            !n_opp = AB_elec_pairs
+            !n_par = par_elec_pairs
         else if (tGen_4ind_reverse) then
             consider_par_bias = .true.
             n_opp = AB_hole_pairs
@@ -145,7 +147,7 @@ contains
             ! We need to deal with the doubles
             if (consider_par_bias) then
 
-                ! In this case, distinguish between parallal and oppisite spins
+                ! In this case, distinguish between parallel and oppisite spins
                 if (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2))) then
                     tmp_prob = tmp_prob / pParallel
                     tmp_gamma = abs(matel) / tmp_prob
@@ -204,9 +206,13 @@ contains
 
     subroutine update_tau ()
 
+        use FcimCData, only: iter
+
         real(dp) :: psingles_new, tau_new, mpi_tmp, tau_death, pParallel_new
         logical :: mpi_ltmp
         character(*), parameter :: this_routine = "update_tau"
+
+        integer :: itmp, itmp2
 
         ! This is an override. In case we need to adjust tau due to particle
         ! death rates, when it otherwise wouldn't be adjusted
@@ -242,9 +248,9 @@ contains
 
         ! What needs doing depends on the number of parametrs that are being
         ! updated.
-        call MPIAllReduce (enough_sing, MPI_LOR, mpi_ltmp)
+        call MPIAllLORLogical(enough_sing, mpi_ltmp)
         enough_sing = mpi_ltmp
-        call MPIAllReduce (enough_doub, MPI_LOR, mpi_ltmp)
+        call MPIAllLORLogical(enough_doub, mpi_ltmp)
         enough_doub = mpi_ltmp
 
         if (consider_par_bias) then
@@ -256,9 +262,9 @@ contains
             gamma_opp = mpi_tmp
             call MPIAllReduce (gamma_par, MPI_MAX, mpi_tmp)
             gamma_par = mpi_tmp
-            call MPIAllReduce (enough_opp, MPI_LOR, mpi_ltmp)
+            call MPIAllLORLogical(enough_opp, mpi_ltmp)
             enough_opp = mpi_ltmp
-            call MPIAllReduce (enough_par, MPI_LOR, mpi_ltmp)
+            call MPIAllLORLogical(enough_par, mpi_ltmp)
             enough_par = mpi_ltmp
 
             if (enough_sing .and. enough_doub) then
@@ -323,10 +329,17 @@ contains
         ! update it. Once we have a reasonable sample of excitations, then we
         ! can permit tau to increase if we have started too low.
         if (tau_new < tau .or. ((tUEG .or. enough_sing) .and. enough_doub))then
+
+            ! Make the final tau smaller than tau_new by a small amount
+            ! so that we don't get spawns exactly equal to the
+            ! initiator threshold, but slightly below it instead.
+            tau_new = tau_new * 0.99999_dp
+
             if (abs(tau - tau_new) / tau > 0.001_dp) then
                 root_print "Updating time-step. New time-step = ", tau_new
             end if
             tau = tau_new
+
         end if
 
         ! Make sure that we have at least some of both singles and doubles
@@ -361,7 +374,7 @@ contains
         integer :: ex(2,2),ex2(2,2),exflag,iMaxExcit,nStore(6),nExcitMemLen(1)
         integer, allocatable :: Excitgen(:)
         real(dp) :: nAddFac,MagHel,pGen,pGenFac
-        HElement_t :: hel
+        HElement_t(dp) :: hel
         integer :: ic,nJ(nel),nJ2(nel),ierr,iExcit,ex_saved(2,2)
         integer(kind=n_int) :: iLutnJ(0:niftot),iLutnJ2(0:niftot)
 
@@ -426,6 +439,12 @@ contains
                 endif
                 call EncodeBitDet (nJ, iLutnJ)
             endif
+
+            ! Exclude an excitation if it isn't symmetry allowed.
+            ! Note that GenExcitations3 is not perfect, especially if there
+            ! additional restrictions, such as LzSymmetry.
+            if (.not. SymAllowedExcit(ProjEDet(:,1), nJ, ic, ex)) &
+                cycle
 
             !Find Hij
             if(tHPHF) then

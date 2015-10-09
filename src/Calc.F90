@@ -237,6 +237,8 @@ contains
           tReadPopsRestart = .false.
           iLogicalNodeSize = 0 !Meaning use the physical node size
           tAllRealCoeff=.false.
+          tWeakInitiators=.false.
+          weakthresh= 1.0_dp
           tEnhanceRemainder=.true.
           tUseRealCoeffs = .false.
           tRealCoeffByExcitLevel=.false.
@@ -321,7 +323,9 @@ contains
           tContTimeFull = .false.
           cont_time_max_overspawn = 4.0
 
-          tLoadBalanceBlocks = .false.
+          tLoadBalanceBlocks = .true.
+          tPopsJumpShift = .false.
+          calc_seq_no = 1
 
         end subroutine SetCalcDefaults
 
@@ -354,7 +358,7 @@ contains
 
           ! Allocate and set this default here, because we don't have inum_runs
           ! set when the other defaults are set.
-          allocate(InputDiagSft(inum_runs))
+          if(.not.allocated(InputDiagSft)) allocate(InputDiagSft(inum_runs))
           InputDiagSft=0.0_dp
 
           calc: do
@@ -742,8 +746,10 @@ contains
 !chosen from the lowest energy orbitals.
 !The 'HF' energy calculated should the be that of the defined determinant.
                 tDefineDet=.true.
-                ALLOCATE(DefDet(NEl),stat=ierr)
-                CALL LogMemAlloc('DefDet',NEl,4,t_r,tagDefDet,ierr)
+                if(.not.allocated(DefDet)) then
+                  ALLOCATE(DefDet(NEl),stat=ierr)
+                  CALL LogMemAlloc('DefDet',NEl,4,t_r,tagDefDet,ierr)
+                end if
                 DefDet(:)=0
                 do i=1,NEl
                     call geti(DefDet(i))
@@ -758,6 +764,18 @@ contains
                     call read_line(eof)
                     do i = 1, nel
                         call geti(initial_refs(i, line))
+                    end do
+                end do
+
+            case("MULTIPLE-INITIAL-STATES")
+                tMultipleInitialStates = .true.
+                allocate(initial_states(nel, inum_runs), stat=ierr)
+                initial_states = 0
+
+                do line = 1, inum_runs
+                    call read_line(eof)
+                    do i = 1, nel
+                        call geti(initial_states(i, line))
                     end do
                 end do
 
@@ -1068,6 +1086,7 @@ contains
                 call geti(ss_space_in%mp1_ndets)
             case("READ-CORE")
                 ss_space_in%tRead = .true.
+                ss_space_in%read_filename = 'CORESPACE'
             case("MAX-CORE-SIZE")
                 ss_space_in%tLimitSpace = .true.
                 call geti(ss_space_in%max_size)
@@ -1133,6 +1152,7 @@ contains
                 call geti(trial_space_in%npops)
             case("READ-TRIAL")
                 trial_space_in%tRead = .true.
+                trial_space_in%read_filename = 'TRIALSPACE'
             case("FCI-TRIAL")
                 trial_space_in%tFCI = .true.
             case("HEISENBERG-FCI-TRIAL")
@@ -1783,6 +1803,14 @@ contains
                 tTruncNOpen = .true.
                 call geti (trunc_nopen_max)
 
+            case("WEAKINITIATORS")
+                !Additionally allow the children of initiators to spawn freely
+                !This adaptation is applied stochastically with probability weakthresh
+                !Hence weakthresh = 1 --> Always on where applicable.
+                !weakthresh = 0 --> The original initiator scheme is maintained.
+                tWeakInitiators=.true.
+                call Getf(weakthresh)
+
             case("ALLREALCOEFF")
                 tAllRealCoeff=.true.
                 tUseRealCoeffs = .true.
@@ -2131,7 +2159,60 @@ contains
                     case default
                         tLoadBalanceBlocks = .true.
                     end select
+
+                    if (tLoadBalanceBlocks) then
+                        write(iout, '("WARNING: LOAD-BALANCE-BLOCKS option is &
+                                    &now enabled by default.")')
+                    end if
                 end if
+            
+            case("POPS-JUMP-SHIFT")
+                ! Use the same logic as JUMP-SHIFT, but reset the shift value
+                ! after restarting with a POPSFILE
+                !
+                ! --> This prevents undesirable behaviour if the simulation is
+                !     restarted with a different FCIDUMP file (i.e. during
+                !     CASSCF calculations).
+                tPopsJumpShift = .true.
+
+            case("MULTI-REF-SHIFT")
+                tMultiRefShift = .true.
+
+            case("MP2-FIXED-NODE")
+                tMP2FixedNode = .true.
+
+            case("INTERPOLATE-INITIATOR")
+                ! Implement interpolation between aborting particles
+                ! due to the initiator criterion, and accepting them, based
+                ! on the ratio of the parents coefficient and the value of
+                ! InitiatorWalkNo
+                !
+                ! This modifies the acceptance criterion such that
+                !
+                ! alpha = alpha_min + (((n_parent - OccupiedThresh) / (InitiatorWalkNo - OccupiedThresh)) ** gamma) * (alpha_max - alpha_min)
+                !
+                ! Additional optional parameters (with default):
+                !
+                ! i)   alpha_min (0.0)
+                ! ii)  alpha_max (1.0)
+                ! iii) gamma     (1.0)
+
+                tBroadcastParentCoeff = .true.
+                tInterpolateInitThresh = .true.
+
+                init_interp_min = 0.0_dp
+                init_interp_max = 1.0_dp
+                init_interp_exponent = 1.0_dp
+                if (item < nitems) call readf(init_interp_min)
+                if (item < nitems) call readf(init_interp_max)
+                if (item < nitems) call readf(init_interp_exponent)
+
+            case("SHIFT-PROJECT-GROWTH")
+                ! Extrapolate the expected number of walkers at the end of the
+                ! _next_ update cycle for calculating the shift. i.e. use
+                !
+                ! log((N_t + (N_t - N_(t-1))) / N_t)
+                tShiftProjectGrowth = .true.
 
             case default
                 call report("Keyword "                                &
@@ -2176,7 +2257,7 @@ contains
           
           INTEGER I, IC,J, norb
           INTEGER nList
-          HElement_t HDiagTemp
+          HElement_t(dp) HDiagTemp
           character(*), parameter :: this_routine='CalcInit'
 
           Allocate(MCDet(nEl))
@@ -2899,7 +2980,7 @@ contains
          INTEGER NEL,NI(NEL),I,I_P
          INTEGER BRR(*)
          real(dp) RHOEPSILON,BETA,GETRHOEPS
-         HElement_t BP, tmp
+         HElement_t(dp) BP, tmp
          DO I=1,NEL
             NI(I)=BRR(I)
          ENDDO

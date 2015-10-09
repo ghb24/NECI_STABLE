@@ -51,11 +51,11 @@ subroutine ParMP2(nI)
    integer :: ic,exlen(1),iC0,ExLevel
    integer, pointer :: Ex(:)
    integer :: nJ(nEl),weight
-   HElement_t dU(2)
+   HElement_t(dp) dU(2)
    real(dp) :: dE1,dE2
-   HElement_t :: dE,dEtot(2),dE0
+   HElement_t(dp) :: dE,dEtot(2),dE0
    ! MPIHelSum requires arrays as input/output.
-   HElement_t :: dEarr(2)
+   HElement_t(dp) :: dEarr(2)
    type(Symmetry) :: iSym1,iSym2
    type(Symmetry) :: iSym1Conj,iSym2Conj
    logical :: tSign
@@ -388,9 +388,9 @@ Subroutine Par2vSum(nI)
    integer ic,exlen(1),iC0
    integer, pointer :: Ex(:)
    integer nJ(nEl)
-   HElement_t dU
+   HElement_t(dp) dU
    real(dp) dE1,dE2
-   HElement_t dEw,dw,dEwtot,dwtot,dTots(2),dTots2(2)
+   HElement_t(dp) dEw,dw,dEwtot,dwtot,dTots(2),dTots2(2)
    iC0=0
    i=iProcIndex+1
    write(6,*) "Proc ",i,"/",nProcessors
@@ -455,7 +455,7 @@ subroutine getMP2E(dE1,dE2,dU,dE)
    use constants, only: dp
    implicit none
    real(dp) dE1,dE2
-   HElement_t dU,dE
+   HElement_t(dp) dU,dE
    dE=abs(dU)**2/(dE1-dE2)
 end subroutine getMP2E
 
@@ -489,9 +489,9 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
    use constants, only: dp
    implicit none
    real(dp) dE1,dE2
-   HElement_t dU,dEt,dw
+   HElement_t(dp) dU,dEt,dw
    real(dp) dBeta
-   HElement_t dEp,dEm,dD,dEx,dD2,dTmp
+   HElement_t(dp) dEp,dEm,dD,dEx,dD2,dTmp
    if(abs(dU).eq.0.0_dp) then
       ! Determinants are not connected.
       ! => zero contribution.

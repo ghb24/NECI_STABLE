@@ -1,0 +1,1044 @@
+ STARTING NECI
+ STARTING NECI
+ Initing MPI
+ Initing MPI
+ Number of processors:                      2
+ Processor                      1 /                     2  as head node.
+ Number of processors:                      2
+ Processor                      2 /                     2 
+  moving to local output.
+ outfile=NodeFile2           
+ Sum:                      3
+ Memory Manager initialised with   2048.0 MB
+
+ ================================================================
+ Compiled on Jul  9 2015 at 11:50:54
+ Compiled using configuration:
+     PC-ifort64-MPI.(optimised)
+ VCS BASE repository version:
+     3cd19c559e65613cb183769aba5fbb2393c15dff
+ Working directory: 
+     /home/nsb37/projects/NECI_ifort/test_suite/mneci/kpfciqmc/hub_10_two_body
+ Running on: eval
+ Started running on 09/07/2015 at 11:59:51
+ ================================================================
+
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+system hubbard
+cell 10 1 1
+b -1
+u 1
+spin-restrict 0
+sym 1 0 0 0
+kpoints
+nonuniformrandexcits nosymgen
+lattice-excitgen
+electrons 8
+endsys
+
+calc
+tau 0.01
+totalwalkers 2000
+shiftdamp 0.5
+diagshift 0.0
+stepsshift 1
+memoryfacpart 20.0
+memoryfacspawn 10.0
+allrealcoeff
+realspawncutoff 0.01
+semi-stochastic
+doubles-core
+stochastic-hf-spawning
+readpops
+pops-annihilate 1
+13 4
+definedet 6 7 8 9 10 11 12 15
+seed 26940
+endcalc
+
+kp-fciqmc
+num-krylov-vecs 35
+num-iters-between-vecs-vary 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34
+num-repeats-per-init-config 1
+averagemcexcits-hamil 10
+overlap-perturb-annihilate 1
+7 10
+scale-population
+end-kp-fciqmc
+
+integral
+endint
+
+logging
+popsfile -1
+endlog
+end
+
+****************************************************************
+
+ Using KPFCIQMC without explicitly specifying the number of replica simulations
+ Defaulting to using 2 replicas
+ CHECKING
+ Allocating each processor as a separate node.
+ Processor      Node
+         0         0
+         1         1
+ I am the node root for node                      0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     8
+  Restricting the spin state of the system, TSPN :  T
+  GLOBAL MS :                      0
+  *** HUBBARD MODEL ***  
+  MOMENTUM :                      1                     0                     0
+  NMAXX :    10
+  NMAXY :     1
+  NMAXZ :     1
+  NMSH :    32
+   HUBBARD T :            -1.00000
+   HUBBARD U :             1.00000
+  X-LENGTH OF HUBBARD CHAIN:                    10
+  Y-LENGTH OF HUBBARD CHAIN:                     1
+  Z-LENGTH OF HUBBARD CHAIN:                     1
+  Periodic Boundary Conditions: T
+  Orbital Energy Cutoff:  1.000000000000000E+020
+   VOLUME :            10.00000
+  TALPHA :  F
+   ALPHA :             0.00000
+   SCALED ALPHA :             0.00000
+  NUMBER OF SPIN ORBITALS IN BASIS :    20
+ Creating plane wave basis.
+  NUMBER OF BASIS FUNCTIONS :                     20
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      9      0      0      0     -1    1   0       -2.000000000       -2.000000000
+      2     10      0      0      0      1    1   0       -2.000000000       -2.000000000
+      3      7     -1      0      0     -1    1   0       -1.618033989       -1.618033989
+      4      8     -1      0      0      1    1   0       -1.618033989       -1.618033989
+      5     11      1      0      0     -1    1   0       -1.618033989       -1.618033989
+      6     12      1      0      0      1    1   0       -1.618033989       -1.618033989
+      7      5     -2      0      0     -1    1   0       -0.618033989       -0.618033989
+      8      6     -2      0      0      1    1   0       -0.618033989       -0.618033989
+      9     13      2      0      0     -1    1   0       -0.618033989       -0.618033989
+     10     14      2      0      0      1    1   0       -0.618033989       -0.618033989
+     11      3     -3      0      0     -1    1   0        0.618033989        0.618033989
+     12      4     -3      0      0      1    1   0        0.618033989        0.618033989
+     13     15      3      0      0     -1    1   0        0.618033989        0.618033989
+     14     16      3      0      0      1    1   0        0.618033989        0.618033989
+     15      1     -4      0      0     -1    1   0        1.618033989        1.618033989
+     16      2     -4      0      0      1    1   0        1.618033989        1.618033989
+     17     17      4      0      0     -1    1   0        1.618033989        1.618033989
+     18     18      4      0      0      1    1   0        1.618033989        1.618033989
+     19     19      5      0      0     -1    1   0        2.000000000        2.000000000
+     20     20      5      0      0      1    1   0        2.000000000        2.000000000
+Generating abelian symmetry table with 10 generators for Hubbard momentum
+ SIZES                     0                    20 F F F F
+ Symmetry, Symmetry Conjugate
+                     1                     1
+                     2                     9
+                     3                     8
+                     4                     7
+                     5                     6
+                     6                     5
+                     7                     4
+                     8                     3
+                     9                     2
+                    10                    10
+HF determinant not yet defined.
+      1      9      0      0      0     -1    1   0       -2.000000000       -2.000000000
+      2     10      0      0      0      1    1   0       -2.000000000       -2.000000000
+      3      7     -1      0      0     -1   10   0       -1.618033989       -1.618033989
+      4      8     -1      0      0      1   10   0       -1.618033989       -1.618033989
+      5     11      1      0      0     -1   20   0       -1.618033989       -1.618033989
+      6     12      1      0      0      1   20   0       -1.618033989       -1.618033989
+      7      5     -2      0      0     -1    8   0       -0.618033989       -0.618033989
+      8      6     -2      0      0      1    8   0       -0.618033989       -0.618033989
+      9     13      2      0      0     -1   40   0       -0.618033989       -0.618033989
+     10     14      2      0      0      1   40   0       -0.618033989       -0.618033989
+     11      3     -3      0      0     -1    4   0        0.618033989        0.618033989
+     12      4     -3      0      0      1    4   0        0.618033989        0.618033989
+     13     15      3      0      0     -1   80   0        0.618033989        0.618033989
+     14     16      3      0      0      1   80   0        0.618033989        0.618033989
+     15      1     -4      0      0     -1    2   0        1.618033989        1.618033989
+     16      2     -4      0      0      1    2   0        1.618033989        1.618033989
+     17     17      4      0      0     -1  100   0        1.618033989        1.618033989
+     18     18      4      0      0      1  100   0        1.618033989        1.618033989
+     19     19      5      0      0     -1  200   0        2.000000000        2.000000000
+     20     20      5      0      0      1  200   0        2.000000000        2.000000000
+ Not precomputing HUBBARD 2-e integrals
+Allocated          8 bytes of shared memory named: umat
+ Defining FDet according to input
+ Fermi det (D0):(    6,    7,    8,    9,   10,   11,   12,   15)
+ Symmetry:    20
+ Fock operator energy:  -10.4721359549996     
+ Calculation supports multiple parallel runs
+ Setting replica count in bit representation:                      2
+Setting integer length of determinants as bit-strings to:      4
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+    1    2    4    8   10   20   40   80  100  200
+    2   40   80  100  200    4    8   10    1   20
+    4   80  100  200    2    8   10    1   20   40
+    8  100  200    2    4   10    1   20   40   80
+   10  200    2    4    8    1   20   40   80  100
+   20    4    8   10    1   40   80  100  200    2
+   40    8   10    1   20   80  100  200    2    4
+   80   10    1   20   40  100  200    2    4    8
+  100    1   20   40   80  200    2    4    8   10
+  200   20   40   80  100    2    4    8   10    1
+ Fast Abelian excitation generators specified,
+ but abelian symmetry not in use.  Using slow generators.
+                    55  STATE PAIRS
+                    10  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Total momentum is                     1                     0
+                     0
+ Not storing the H matrix.
+ BETAP=  1.000000000000000E-004
+ RESETTING P 
+ *** WARNING I_P=              10000000
+ BETA, P :   1000.00000000000                   10000000
+ DBETA=  -1.00000000000000     
+ <D0|H|D0>=  -8.87213595499958     
+ <D0|T|D0>=  -10.4721359549996     
+ FDet has     4 alpha electrons, and     4 beta electrons.
+                          6  alpha-alpha occupied electron pairs
+                          6  beta-beta occupied electron pairs
+                         16  alpha-beta occupied electron pairs
+                         15 alpha-alpha (vacant) hole pairs
+                         15 beta-beta (vacant) hole pairs
+                         36 alpha-beta (vacant) hole pairs
+ 
+ Performing Parallel FCIQMC....
+ 
+ Generated reference determinants:
+(    6,    7,    8,    9,   10,   11,   12,   15) E =     -8.872135955
+(    6,    7,    8,    9,   10,   11,   12,   15) E =     -8.872135955
+ Using an open shell reference determinant in a basis of restricted HF orbitals; Brillouins theorem is being turned off. 
+Symmetry of reference determinant is:         32
+Value for seed is:        26940
+Reference Energy set to:        -8.8721359550
+Highest energy determinant is (approximately):      13.3082039324994    
+Corresponding to a correlation energy of:      22.1803398874989    
+ Since we are using a momentum-space hubbard model/UEG, only double excitaitons 
+                           are connected and will be generated.
+ Connectivity of HF determinant is:                     95
+ POPSFILE VERSION                      4  detected.
+ Number of iterations in previous simulation:                  10000
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         524288
+ Determinant related persistent storage requires:       4.000000 Mb / processor
+Spawning vectors allowing for a total of        20000 particles to be spawned in any one iteration per core.
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:             700
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        1
+Initial reference is: (    6,    7,    8,    9,   10,   11,   12,   15)
+Reading in a total of            2816 configurations from POPSFILE.
+Reading in a maximum of        20000 determinants at a time from POPSFILE'
+Number of batches required to distribute all determinants in POPSFILE:        1
+ Number of configurations read in to this process:                   1410
+ CurrWalkers:                   1410
+ Initial memory (without excitgens + temp arrays) consists of :      17.220703 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+
+============ Semi-stochastic initialisation ============
+Generating the deterministic space...
+Total size of deterministic space:       96
+Size of deterministic space on this processor:       37
+Generating the Hamiltonian in the deterministic space...
+Semi-stochastic initialisation complete.
+Total time (seconds) taken for semi-stochastic initialisation:    0.020
+
+
+============ KP-FCIQMC ============
+About to allocate array to hold all Krylov vectors. Memory required (MB): 28
+Allocating... Done.       
+About to allocate array to hold diagonal Hamiltonian elements for Krylov vectors. Memory required (MB): 0
+Allocating... Done.       
+About to allocate hash table to the Krylov vector array. Memory required (MB): 0
+Allocating... Done.       
+Note that the hash table uses linked lists, and the memory usage will increase as further nodes are added.
+     About to allocate hash table to the spawning array. Memory required (MB): 0
+Allocating... Done.       
+Note that the hash table uses linked lists, and the memory usage will increase as further nodes are added.
+About to allocate various subspace matrices. Memory required (MB): 0
+Allocating... Done.       
+# 1. Iter.        2. Tot. parts        3. Tot. ref          4. Proj. E (cyc)     5. Shift. (cyc)      9. Tot. Proj. E      10. Dets occ.   11. Dets spawne 12. Iter. time      
+ Starting repeat number 1
+ Number of iterations in previous simulation:                  10000
+Reading in a total of            2816 configurations from POPSFILE.
+Reading in a maximum of        20000 determinants at a time from POPSFILE'
+Number of batches required to distribute all determinants in POPSFILE:        1
+ Number of configurations read in to this process:                   1410
+ CurrWalkers:                   1410
+About to allocate array to hold the perturbed ground state. Memory requir 0
+Allocating... Done.       
+ Number of iterations in previous simulation:                  10000
+Reading in a total of            2816 configurations from POPSFILE.
+Reading in a maximum of        20000 determinants at a time from POPSFILE'
+Number of batches required to distribute all determinants in POPSFILE:        1
+ Number of configurations read in to this process:                   1410
+ CurrWalkers:                   1410
+#               0      3987.02345           172.397334           0.00000000           0.00000000          -8.87213595                  673               0      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 313 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 1.2552E-04
+                1      3968.56164           287.455789          0.328476669E-001     0.162735337          -8.83928829                  791            1445      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 356 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 2.7192E-04
+                2      3945.90412           287.361367          0.274549414E-001     0.394585677          -8.84468101                  881            1431      0.00000000     
+                3      3924.92806           287.749825          0.228719570E-001     0.681086405          -8.84926400                  952            1448      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 433 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 4.4063E-04
+                4      3922.74008           288.819637          0.176625221E-001     0.947388620          -8.85447343                 1019            1473      0.00000000     
+                5      3924.60471           290.734935          0.128501386E-001     0.975241438          -8.85928582                 1069            1421      0.00000000     
+                6      3927.30533           293.451964          0.823730055E-002     0.952716035          -8.86389865                 1109            1501      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 551 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 6.3660E-04
+                7      3948.29390           296.289811          0.385382749E-002     0.917774224          -8.86828213                 1166            1487      0.00000000     
+                8      3954.21001           299.099692         -0.449374629E-003     0.650684601          -8.87258533                 1199            1483      0.00000000     
+                9      3941.97929           301.847847         -0.481763672E-002     0.576860040          -8.87695359                 1205            1472      0.00000000     
+               10      3930.56488           303.828238         -0.895559274E-002     0.733123733          -8.88109155                 1234            1541      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 662 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 8.5198E-04
+               11      3913.55378           305.601727         -0.129319716E-001     0.879586744          -8.88506793                 1242            1527      0.00000000     
+               12      3930.69008           307.877486         -0.170344912E-001      1.09463965          -8.88917045                 1260            1536      0.00000000     
+               13      3959.32942           310.642404         -0.212503718E-001     0.873970006          -8.89338633                 1297            1523      0.00000000     
+               14      3938.33396           314.121293         -0.253136671E-001     0.513480787          -8.89744962                 1304            1558      0.00000000     
+               15      3921.32639           316.945539         -0.293279482E-001     0.778337402          -8.90146390                 1303            1565      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 769 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 1.0764E-03
+               16      3923.85864           318.645386         -0.328878155E-001     0.993250922          -8.90502377                 1318            1556      0.00000000     
+               17      3922.85727           321.220435         -0.366868621E-001     0.961012881          -8.90882282                 1329            1528      0.00000000     
+               18      3928.18559           324.528073         -0.401753007E-001     0.973742894          -8.91231126                 1342            1546      0.00000000     
+               19      3925.12670           327.778169         -0.438217462E-001     0.906499743          -8.91595770                 1357            1557      0.00000000     
+               20      3910.58702           331.114409         -0.474942672E-001     0.944828932          -8.91963022                 1350            1562      0.00000000     
+               21      3888.23353           334.277409         -0.510701852E-001      1.13160099          -8.92320614                 1351            1559      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 895 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 1.3094E-03
+               22      3895.19764           337.608094         -0.546471726E-001      1.41764190          -8.92678313                 1348            1544      0.00000000     
+               23      3908.07752           341.603321         -0.581199977E-001      1.32787868          -8.93025595                 1353            1544      0.00000000     
+               24      3924.37090           346.640568         -0.614916498E-001      1.16243958          -8.93362760                 1368            1579      0.00000000     
+               25      3946.53447           351.455371         -0.647504973E-001     0.954415891          -8.93688645                 1384            1569      0.00000000     
+               26      3944.25313           355.768397         -0.678279647E-001     0.672831087          -8.93996392                 1405            1566      0.00000000     
+               27      3948.18386           359.405216         -0.709752431E-001     0.701761796          -8.94311120                 1409            1597      0.00000000     
+               28      3943.00755           362.078495         -0.738174789E-001     0.652304863          -8.94595343                 1398            1581      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1010 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 1.5477E-03
+               29      3951.17561           364.886663         -0.767039859E-001     0.717841290          -8.94883994                 1412            1598      0.00000000     
+               30      3953.52994           367.546932         -0.795823543E-001     0.614216772          -8.95171831                 1429            1662      0.00000000     
+               31      3946.33974           370.479292         -0.822394636E-001     0.585367904          -8.95437542                 1445            1591      0.00000000     
+               32      3912.07465           373.061379         -0.850429591E-001     0.678954233          -8.95717891                 1451            1609      0.00000000     
+               33      3896.58406           375.568935         -0.878038217E-001      1.11369811          -8.95993978                 1428            1614      0.00000000     
+               34      3917.14053           378.468151         -0.906409899E-001      1.30985555          -8.96277694                 1424            1613      0.00000000     
+               35      3942.20445           383.053115         -0.932369694E-001      1.04671940          -8.96537292                 1432            1602      0.00000000     
+               36      3958.17492           388.436876         -0.959565837E-001     0.729345240          -8.96809254                 1458            1622      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1131 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 1.8002E-03
+               37      3957.30231           392.867508         -0.983197966E-001     0.527509480          -8.97045575                 1463            1653      0.00000000     
+               38      3944.91130           396.087877         -0.100972110          0.536666663          -8.97310806                 1450            1683      0.00000000     
+               39      3928.79183           398.549772         -0.103491714          0.693400192          -8.97562767                 1455            1637      0.00000000     
+               40      3922.06422           401.097163         -0.105760272          0.898685486          -8.97789623                 1466            1603      0.00000000     
+               41      3919.13136           404.303578         -0.108047375          0.986041931          -8.98018333                 1479            1621      0.00000000     
+               42      3907.96653           408.384177         -0.110235372           1.02121666          -8.98237133                 1469            1630      0.00000000     
+               43      3916.37078           412.886515         -0.112400509           1.16409328          -8.98453646                 1476            1583      0.00000000     
+               44      3928.33782           417.567598         -0.114548804           1.05741159          -8.98668476                 1473            1561      0.00000000     
+               45      3939.35411           422.895359         -0.116799117          0.904491377          -8.98893507                 1475            1654      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1260 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 2.0614E-03
+               46      3928.23688           427.839489         -0.118943804          0.764321642          -8.99107976                 1494            1635      0.00000000     
+               47      3937.45657           432.204225         -0.121014444          0.905548923          -8.99315040                 1488            1636      0.00000000     
+               48      3941.53549           436.020709         -0.122948123          0.788088968          -8.99508408                 1489            1611      0.00000000     
+               49      3924.24137           440.497749         -0.125076356          0.736251168          -8.99721231                 1466            1617      0.00000000     
+               50      3919.51475           444.516839         -0.126940479          0.956632405          -8.99907643                 1447            1606      0.00000000     
+               51      3960.52873           448.355768         -0.128547847           1.01654874          -9.00068380                 1469            1586      0.00000000     
+               52      3976.53451           453.228361         -0.130462711          0.496788481          -9.00259867                 1483            1604      0.00000000     
+               53      3990.68585           458.420814         -0.132051794          0.296021318          -9.00418775                 1501            1623      0.00000000     
+               54      3996.10237           461.292862         -0.133781098          0.116910526          -9.00591705                 1525            1664      0.00000000     
+               55      3958.83031           463.266552         -0.135656667          0.499796964E-001     -9.00779262                 1509            1572      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1361 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 2.3214E-03
+               56      3919.01580           464.436843         -0.137402425          0.518121215          -9.00953838                 1479            1625      0.00000000     
+               57      3915.46327           465.310607         -0.139153091           1.02300284          -9.01128905                 1476            1602      0.00000000     
+               58      3927.54836           468.376575         -0.140833919           1.06879470          -9.01296987                 1472            1583      0.00000000     
+               59      3960.10303           473.834783         -0.142488130          0.914275300          -9.01462409                 1484            1621      0.00000000     
+               60      3982.91123           479.587716         -0.143917683          0.501306093          -9.01605364                 1498            1587      0.00000000     
+               61      3959.49167           484.673995         -0.145238321          0.214980040          -9.01737428                 1500            1602      0.00000000     
+               62      3905.80840           487.800796         -0.146507747          0.510553505          -9.01864370                 1480            1645      0.00000000     
+               63      3884.77932           489.543637         -0.147940601           1.19148706          -9.02007656                 1451            1568      0.00000000     
+               64      3917.66640           492.745767         -0.149663574           1.46153987          -9.02179953                 1442            1588      0.00000000     
+               65      3968.57179           499.355193         -0.150964062           1.04005613          -9.02310002                 1448            1631      0.00000000     
+               66      4001.16385           507.411433         -0.152249181          0.394454713          -9.02438514                 1465            1596      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1438 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 2.5788E-03
+               67      3961.03395           513.456197         -0.153695842         -0.143857461E-001     -9.02583180                 1460            1609      0.00000000     
+               68      3918.72433           516.268094         -0.154949315          0.489909882          -9.02708527                 1450            1574      0.00000000     
+               69      3924.10093           516.998000         -0.156163613           1.02689413          -9.02829957                 1447            1538      0.00000000     
+               70      3954.75502           520.346629         -0.157437156          0.959204192          -9.02957311                 1462            1601      0.00000000     
+               71      3995.91521           526.520526         -0.158729722          0.569771508          -9.03086568                 1474            1586      0.00000000     
+               72      4012.94261           532.429926         -0.159772769          0.520478310E-001     -9.03190872                 1485            1579      0.00000000     
+               73      4022.85794           536.340422         -0.160747131         -0.160227308          -9.03288309                 1507            1652      0.00000000     
+               74      4004.78377           537.512967         -0.161956372         -0.284398092          -9.03409233                 1495            1607      0.00000000     
+               75      3961.77294           537.564569         -0.163244148         -0.596722485E-001     -9.03538010                 1484            1605      0.00000000     
+               76      3946.59701           536.944306         -0.164083772          0.480481583          -9.03621973                 1472            1579      0.00000000     
+               77      3940.51653           537.490874         -0.165123679          0.672682881          -9.03725963                 1459            1599      0.00000000     
+               78      3945.41504           540.934161         -0.166238536          0.750434007          -9.03837449                 1454            1592      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1513 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 2.8284E-03
+               79      3952.38784           545.437752         -0.167126774          0.687693096          -9.03926273                 1453            1569      0.00000000     
+               80      3969.09084           550.398213         -0.168116192          0.598872891          -9.04025215                 1451            1597      0.00000000     
+               81      3980.80326           555.081430         -0.169067371          0.387866050          -9.04120333                 1462            1585      0.00000000     
+               82      4007.01667           559.333035         -0.170085297          0.240656827          -9.04222125                 1464            1626      0.00000000     
+               83      4030.47753           562.454720         -0.170967320         -0.866621544E-001     -9.04310328                 1484            1616      0.00000000     
+               84      4001.99636           564.779271         -0.172004824         -0.379419025          -9.04414078                 1486            1634      0.00000000     
+               85      3944.28860           565.289884         -0.173240422         -0.246823101E-001     -9.04537638                 1480            1614      0.00000000     
+               86      3892.31321           564.135661         -0.174104737          0.702209520          -9.04624069                 1433            1560      0.00000000     
+               87      3910.86769           564.959818         -0.174861422           1.36532115          -9.04699738                 1418            1571      0.00000000     
+               88      3960.78069           569.882663         -0.175852968           1.12720043          -9.04798892                 1424            1568      0.00000000     
+               89      3990.56329           578.640322         -0.176775990          0.493319717          -9.04891194                 1428            1576      0.00000000     
+               90      3994.24320           586.169719         -0.177606937          0.118142860          -9.04974289                 1424            1602      0.00000000     
+               91      4016.18329           590.085977         -0.178474815          0.721750844E-001     -9.05061077                 1436            1520      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1586 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 3.0763E-03
+               92      4002.69784           591.839599         -0.179065919         -0.201622600          -9.05120187                 1450            1617      0.00000000     
+               93      3995.12818           593.333425         -0.179762312         -0.327400451E-001     -9.05189827                 1441            1585      0.00000000     
+               94      3979.65266           593.193778         -0.180426133          0.612600485E-001     -9.05256209                 1443            1611      0.00000000     
+               95      3981.92983           594.053612         -0.181141773          0.254992821          -9.05327773                 1447            1598      0.00000000     
+               96      3972.86168           595.487530         -0.182068589          0.226948826          -9.05420454                 1453            1558      0.00000000     
+               97      3989.76544           598.089846         -0.182989200          0.340491581          -9.05512515                 1432            1539      0.00000000     
+               98      4004.77588           600.546955         -0.183886495          0.129186114          -9.05602245                 1452            1555      0.00000000     
+               99      4020.81523           603.699887         -0.184615881         -0.593346478E-001     -9.05675184                 1450            1596      0.00000000     
+              100      4019.91777           605.608578         -0.185207567         -0.259032826          -9.05734352                 1466            1581      0.00000000     
+              101      3993.57962           606.382354         -0.185598418         -0.246747865          -9.05773437                 1451            1565      0.00000000     
+              102      3975.52865           605.953426         -0.186357035          0.823568729E-001     -9.05849299                 1444            1585      0.00000000     
+              103      3983.14043           605.622683         -0.186781504          0.306858154          -9.05891746                 1439            1541      0.00000000     
+              104      3989.35197           607.303256         -0.187639661          0.211268849          -9.05977562                 1440            1632      0.00000000     
+              105      4004.08806           610.313589         -0.188181614          0.133404962          -9.06031757                 1444            1593      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1646 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 3.3163E-03
+              106      4035.05601           612.738726         -0.188852515         -0.509910408E-001     -9.06098847                 1455            1541      0.00000000     
+              107      4033.43576           614.697659         -0.189696895         -0.436070181          -9.06183285                 1458            1601      0.00000000     
+              108      3996.39097           615.562396         -0.190335536         -0.415159233          -9.06247149                 1458            1611      0.00000000     
+              109      3975.06841           614.070315         -0.191041434          0.452751733E-001     -9.06317739                 1441            1606      0.00000000     
+              110      3979.87543           612.741804         -0.191578853          0.313238755          -9.06371481                 1432            1567      0.00000000     
+              111      3987.49976           614.212991         -0.192403333          0.252641571          -9.06453929                 1433            1557      0.00000000     
+              112      3991.77731           617.275269         -0.192967340          0.156889068          -9.06510329                 1434            1568      0.00000000     
+              113      3980.12460           619.991910         -0.193502685          0.102971467          -9.06563864                 1439            1618      0.00000000     
+              114      4022.12900           622.135024         -0.194093991          0.249636252          -9.06622995                 1443            1544      0.00000000     
+              115      4029.13620           623.970824         -0.194732742         -0.274925791          -9.06686870                 1445            1599      0.00000000     
+              116      4025.84767           626.712116         -0.195105619         -0.361593604          -9.06724157                 1457            1589      0.00000000     
+              117      4029.36103           626.176337         -0.195642998         -0.322031482          -9.06777895                 1474            1599      0.00000000     
+              118      4039.97328           625.102080         -0.196063276         -0.365629145          -9.06819923                 1493            1560      0.00000000     
+              119      4005.69352           624.318406         -0.196558787         -0.497179091          -9.06869474                 1478            1555      0.00000000     
+              120      3974.20493           623.257712         -0.196922220         -0.708114905E-001     -9.06905817                 1483            1568      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1696 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 3.5648E-03
+              121      3982.61391           621.384406         -0.197514941          0.323500045          -9.06965090                 1468            1570      0.00000000     
+              122      4001.41559           622.159040         -0.197980725          0.217854525          -9.07011668                 1481            1610      0.00000000     
+              123      4001.23150           625.406056         -0.198438736         -0.176514228E-001     -9.07057469                 1478            1624      0.00000000     
+              124      4016.13934           628.014365         -0.199027120         -0.153907714E-001     -9.07116308                 1477            1578      0.00000000     
+              125      4016.32481           629.149005         -0.199414234         -0.201332440          -9.07155019                 1488            1564      0.00000000     
+              126      4037.30211           630.307280         -0.199947678         -0.202003961          -9.07208363                 1499            1614      0.00000000     
+              127      4047.45256           630.297321         -0.200562683         -0.463084485          -9.07269864                 1513            1582      0.00000000     
+              128      4046.77613           630.261720         -0.200945493         -0.589249738          -9.07308145                 1517            1627      0.00000000     
+              129      4021.75630           628.596712         -0.201431481         -0.581303777          -9.07356744                 1502            1629      0.00000000     
+              130      3980.34661           626.154872         -0.201754434         -0.271208980          -9.07389039                 1484            1605      0.00000000     
+              131      3945.67748           623.778143         -0.202187863          0.248983172          -9.07432382                 1446            1593      0.00000000     
+              132      3948.74493           623.347450         -0.202684241          0.684312986          -9.07482020                 1435            1528      0.00000000     
+              133      3977.33538           626.160920         -0.203098624          0.644922827          -9.07523458                 1442            1539      0.00000000     
+              134      3994.28436           631.724698         -0.203399866          0.284146862          -9.07553582                 1431            1552      0.00000000     
+              135      4022.35591           637.088072         -0.203820520          0.722039818E-001     -9.07595648                 1436            1570      0.00000000     
+              136      4031.96079           640.193913         -0.204278956         -0.277103491          -9.07641491                 1451            1545      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1743 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 3.8158E-03
+              137      4024.40355           641.951358         -0.204670009         -0.397917226          -9.07680596                 1472            1537      0.00000000     
+              138      3990.45855           641.474367         -0.205055250         -0.303875776          -9.07719121                 1450            1606      0.00000000     
+              139      3975.20654           640.237099         -0.205387938          0.119410655          -9.07752389                 1432            1565      0.00000000     
+              140      3990.05799           639.607046         -0.205773864          0.310899981          -9.07790982                 1443            1536      0.00000000     
+              141      3993.35288           641.686948         -0.206137377          0.124741133          -9.07827333                 1431            1525      0.00000000     
+              142      4015.45437           645.004168         -0.206462952          0.836704163E-001     -9.07859891                 1426            1570      0.00000000     
+              143      4036.74479           647.138628         -0.206918358         -0.192428967          -9.07905431                 1441            1587      0.00000000     
+              144      4029.99926           649.019393         -0.207109492         -0.456689878          -9.07924545                 1441            1583      0.00000000     
+              145      4039.91704           649.117754         -0.207553825         -0.373449010          -9.07968978                 1443            1582      0.00000000     
+              146      4026.48268           647.507098         -0.208111513         -0.496488849          -9.08024747                 1454            1584      0.00000000     
+              147      4026.23535           646.441708         -0.208358154         -0.329704120          -9.08049411                 1438            1576      0.00000000     
+              148      4018.85388           644.578602         -0.208709711         -0.326549105          -9.08084567                 1439            1608      0.00000000     
+              149      4022.77328           643.806480         -0.208983834         -0.234977782          -9.08111979                 1442            1549      0.00000000     
+              150      4044.27315           643.060421         -0.209228342         -0.283697303          -9.08136430                 1457            1590      0.00000000     
+              151      4030.89698           642.903409         -0.209647895         -0.550192573          -9.08178385                 1453            1563      0.00000000     
+              152      4012.45335           642.417221         -0.210012458         -0.384236415          -9.08214841                 1435            1584      0.00000000     
+              153      3979.54886           640.222211         -0.210476048         -0.155403070          -9.08261200                 1429            1597      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1779 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 4.0567E-03
+              154      3994.49571           639.095857         -0.210885695          0.256491728          -9.08302165                 1415            1595      0.00000000     
+              155      4030.91498           639.448172         -0.211138797          0.702335116E-001     -9.08327475                 1417            1524      0.00000000     
+              156      4047.84964           642.432035         -0.211606324         -0.383911451          -9.08374228                 1429            1568      0.00000000     
+              157      4033.38855           644.228942         -0.212045623         -0.593911236          -9.08418158                 1438            1586      0.00000000     
+              158      3997.00085           643.117473         -0.212247690         -0.413221929          -9.08438364                 1428            1599      0.00000000     
+              159      4000.14512           640.664856         -0.212558403          0.375448734E-001     -9.08469436                 1434            1564      0.00000000     
+              160      4014.27442           639.391002         -0.212786842         -0.180299372E-002     -9.08492280                 1429            1526      0.00000000     
+              161      4038.34386           640.995151         -0.213119964         -0.178050980          -9.08525592                 1437            1569      0.00000000     
+              162      4043.88854           642.351655         -0.213417571         -0.476977223          -9.08555353                 1439            1552      0.00000000     
+              163      4062.65814           642.583669         -0.213875785         -0.545576178          -9.08601174                 1438            1611      0.00000000     
+              164      4041.94731           640.897145         -0.214110239         -0.776562251          -9.08624619                 1454            1576      0.00000000     
+              165      4023.00106           638.768191         -0.214422014         -0.520356173          -9.08655797                 1435            1543      0.00000000     
+              166      3986.90884           635.161386         -0.214704341         -0.285124282          -9.08684030                 1437            1581      0.00000000     
+              167      4000.71361           633.202352         -0.214940067          0.164737159          -9.08707602                 1429            1575      0.00000000     
+              168      4020.76417           632.747216         -0.215323920         -0.885362015E-002     -9.08745988                 1421            1550      0.00000000     
+              169      4048.60121           635.151472         -0.215547103         -0.258855141          -9.08768306                 1431            1593      0.00000000     
+              170      4041.06162           636.465610         -0.216081472         -0.603845140          -9.08821743                 1441            1580      0.00000000     
+              171      4008.64146           636.192280         -0.216377380         -0.510645552          -9.08851333                 1443            1490      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1812 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 4.2904E-03
+              172      4003.40468           633.726692         -0.216489167         -0.107547279          -9.08862512                 1444            1541      0.00000000     
+              173      3990.11141           631.863012         -0.216755163         -0.423997288E-001     -9.08889112                 1434            1515      0.00000000     
+              174      4008.60220           632.556493         -0.217032855          0.124727458          -9.08916881                 1423            1532      0.00000000     
+              175      4004.17502           633.664730         -0.217139725         -0.107311610          -9.08927568                 1399            1575      0.00000000     
+              176      4019.93671           635.842789         -0.217143791         -0.519624168E-001     -9.08927975                 1417            1579      0.00000000     
+              177      4020.06383           636.546934         -0.217308958         -0.248569132          -9.08944491                 1406            1573      0.00000000     
+              178      4034.10634           637.608480         -0.217533182         -0.250016985          -9.08966914                 1420            1528      0.00000000     
+              179      4036.11698           637.407255         -0.217675209         -0.423668392          -9.08981116                 1413            1544      0.00000000     
+              180      4033.12262           637.209852         -0.217862885         -0.449401075          -9.08999884                 1418            1546      0.00000000     
+              181      4009.59429           635.921349         -0.218236619         -0.411093064          -9.09037257                 1412            1519      0.00000000     
+              182      4009.56529           634.445574         -0.218581329         -0.118582168          -9.09071728                 1411            1607      0.00000000     
+              183      4028.36116           633.191507         -0.218888611         -0.118053639          -9.09102457                 1402            1563      0.00000000     
+              184      4019.53240           633.802148         -0.219128988         -0.353100116          -9.09126494                 1408            1575      0.00000000     
+              185      4009.99804           634.424702         -0.219427691         -0.243526621          -9.09156365                 1411            1571      0.00000000     
+              186      4004.49600           633.573394         -0.219555727         -0.124811582          -9.09169168                 1402            1580      0.00000000     
+              187      4040.83567           633.422539         -0.219769308         -0.548879856E-001     -9.09190526                 1416            1562      0.00000000     
+              188      4012.00691           634.023426         -0.219871644         -0.507541198          -9.09200760                 1416            1595      0.00000000     
+              189      4020.14661           635.062483         -0.220199083         -0.149861472          -9.09233504                 1400            1580      0.00000000     
+              190      4014.67183           633.238229         -0.220479453         -0.251165224          -9.09261541                 1395            1539      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1842 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 4.5307E-03
+              191      4012.42325           633.685371         -0.220594195         -0.182650111          -9.09273015                 1398            1560      0.00000000     
+              192      4010.57778           633.490811         -0.220891710         -0.155015083          -9.09302767                 1390            1521      0.00000000     
+              193      4014.63512           633.730995         -0.221063112         -0.132029034          -9.09319907                 1391            1509      0.00000000     
+              194      3993.39667           634.149401         -0.221426869         -0.181721017          -9.09356282                 1384            1561      0.00000000     
+              195      3960.62583           634.716358         -0.221540592          0.830378622E-001     -9.09367655                 1363            1567      0.00000000     
+              196      3994.78507           634.968021         -0.221793430          0.494615774          -9.09392939                 1363            1514      0.00000000     
+              197      3992.29001           636.906767         -0.221997524          0.656892209E-001     -9.09413348                 1344            1531      0.00000000     
+              198      4031.81467           641.471073         -0.222146922          0.973118229E-001     -9.09428288                 1350            1595      0.00000000     
+              199      4062.48751           643.311209         -0.222353090         -0.395994135          -9.09448904                 1364            1578      0.00000000     
+              200      4041.50294           645.363138         -0.222614701         -0.774832468          -9.09475066                 1370            1524      0.00000000     
+              201      4013.28462           644.244540         -0.222603897         -0.516033568          -9.09473985                 1360            1512      0.00000000     
+              202      4012.61417           640.688320         -0.222824821         -0.165782662          -9.09496078                 1352            1561      0.00000000     
+              203      4015.86665           638.811505         -0.222955527         -0.156941013          -9.09509148                 1365            1545      0.00000000     
+              204      4027.74172           639.176737         -0.223222249         -0.194438475          -9.09535820                 1367            1543      0.00000000     
+              205      4029.07419           639.594868         -0.223501757         -0.343389869          -9.09563771                 1378            1567      0.00000000     
+              206      4040.44116           639.774343         -0.223731021         -0.361304380          -9.09586698                 1372            1512      0.00000000     
+              207      4054.25231           639.021443         -0.223970813         -0.502975866          -9.09610677                 1383            1554      0.00000000     
+              208      4046.66993           638.160051         -0.224115878         -0.673271972          -9.09625183                 1380            1534      0.00000000     
+              209      4038.02993           636.380855         -0.224333262         -0.579660040          -9.09646922                 1375            1552      0.00000000     
+              210      4008.33615           633.510346         -0.224561635         -0.472068460          -9.09669759                 1364            1548      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1867 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 4.7617E-03
+              211      3990.36565           631.249101         -0.224746045         -0.103469405          -9.09688200                 1350            1531      0.00000000     
+              212      3975.87308           629.671045         -0.224821804          0.120787436          -9.09695776                 1342            1556      0.00000000     
+              213      3970.42179           630.427404         -0.224978474          0.302501903          -9.09711443                 1328            1534      0.00000000     
+              214      3988.11305           632.604956         -0.225163486          0.371467265          -9.09729944                 1328            1553      0.00000000     
+              215      4029.04285           635.942899         -0.225136337          0.149037265          -9.09727229                 1327            1494      0.00000000     
+              216      4038.70778           639.735909         -0.225427377         -0.361720524          -9.09756333                 1343            1531      0.00000000     
+              217      4036.37791           642.132492         -0.225593411         -0.480169724          -9.09772937                 1343            1539      0.00000000     
+              218      4023.50501           641.258677         -0.225626837         -0.452615152          -9.09776279                 1348            1533      0.00000000     
+              219      4035.20144           639.632775         -0.225734498         -0.292848648          -9.09787045                 1368            1581      0.00000000     
+              220      4031.01791           638.184554         -0.225851571         -0.438046242          -9.09798753                 1350            1544      0.00000000     
+              221      4027.21002           637.752363         -0.226092062         -0.385895354          -9.09822802                 1338            1530      0.00000000     
+              222      4036.76108           636.397967         -0.226146835         -0.338851624          -9.09828279                 1350            1541      0.00000000     
+              223      4037.02868           635.387585         -0.226327840         -0.456108362          -9.09846380                 1352            1572      0.00000000     
+              224      4035.46170           634.667564         -0.226568854         -0.459402244          -9.09870481                 1353            1546      0.00000000     
+              225      4025.54066           633.196773         -0.226836745         -0.440738176          -9.09897270                 1336            1541      0.00000000     
+              226      4010.95964           631.718494         -0.226907814         -0.318071841          -9.09904377                 1320            1531      0.00000000     
+              227      4021.06975           630.369506         -0.227166879         -0.136443524          -9.09930283                 1313            1544      0.00000000     
+              228      4061.36629           629.793484         -0.227238447         -0.261851515          -9.09937440                 1335            1543      0.00000000     
+              229      4071.74927           630.362521         -0.227558820         -0.761254022          -9.09969478                 1353            1555      0.00000000     
+              230      4043.48054           630.145602         -0.227932634         -0.888842977          -9.10006859                 1334            1585      0.00000000     
+              231      4016.76260           626.784927         -0.228055709         -0.540450442          -9.10019166                 1320            1516      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1893 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 4.9867E-03
+              232      4054.40400           622.641880         -0.228060798         -0.208905795          -9.10019675                 1329            1544      0.00000000     
+              233      4064.82825           620.697915         -0.228226723         -0.674109676          -9.10036268                 1354            1619      0.00000000     
+              234      4036.73255           620.820144         -0.228375213         -0.803798547          -9.10051117                 1356            1573      0.00000000     
+              235      4007.83873           618.062237         -0.228628305         -0.454782104          -9.10076426                 1364            1540      0.00000000     
+              236      4004.56756           614.510976         -0.228818704         -0.934507851E-001     -9.10095466                 1337            1551      0.00000000     
+              237      4027.77085           613.097430         -0.228987113         -0.539062802E-001     -9.10112307                 1344            1534      0.00000000     
+              238      4047.28514           613.913208         -0.229223629         -0.345324717          -9.10135958                 1373            1562      0.00000000     
+              239      4031.20725           614.999654         -0.229631546         -0.587549111          -9.10176750                 1373            1576      0.00000000     
+              240      4005.16781           614.301161         -0.229930366         -0.387628155          -9.10206632                 1371            1567      0.00000000     
+              241      4011.84859           612.109048         -0.230005717         -0.643360338E-001     -9.10214167                 1362            1536      0.00000000     
+              242      3999.59029           611.122060         -0.230160449         -0.147015602          -9.10229640                 1350            1527      0.00000000     
+              243      3978.30836           612.127580         -0.230348986          0.514316454E-002     -9.10248494                 1333            1500      0.00000000     
+              244      3976.87081           612.624647         -0.230545559          0.272009391          -9.10268151                 1312            1488      0.00000000     
+              245      4043.72055           614.067320         -0.230894393          0.290281237          -9.10303035                 1326            1514      0.00000000     
+              246      4049.61999           617.158117         -0.230891123         -0.543481359          -9.10302708                 1332            1556      0.00000000     
+              247      4035.27740           620.380091         -0.231051166         -0.616164875          -9.10318712                 1316            1504      0.00000000     
+              248      4043.30903           618.445090         -0.231175892         -0.438954575          -9.10331185                 1325            1543      0.00000000     
+              249      4048.56675           616.071797         -0.231459206         -0.537918314          -9.10359516                 1333            1545      0.00000000     
+              250      4023.73384           614.798538         -0.231597203         -0.602210993          -9.10373316                 1329            1556      0.00000000     
+              251      4008.38558           612.900916         -0.231706609         -0.292587335          -9.10384256                 1316            1547      0.00000000     
+              252      4007.37723           610.613428         -0.231993615         -0.102959172          -9.10412957                 1315            1506      0.00000000     
+              253      4030.38746           610.228572         -0.232070800         -0.921135201E-001     -9.10420676                 1328            1543      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1909 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 5.2151E-03
+              254      4044.02653           611.019933         -0.232263545         -0.378293497          -9.10439950                 1339            1516      0.00000000     
+              255      4078.29345           611.874884         -0.232283513         -0.547296146          -9.10441947                 1345            1588      0.00000000     
+              256      4078.15172           610.978142         -0.232608499         -0.969130301          -9.10474445                 1373            1543      0.00000000     
+              257      4037.80245           609.056794         -0.232816978         -0.967267238          -9.10495293                 1372            1569      0.00000000     
+              258      4024.66703           604.574761         -0.233027891         -0.469811571          -9.10516385                 1352            1563      0.00000000     
+              259      4016.53894           600.130956         -0.233278403         -0.307347804          -9.10541436                 1350            1524      0.00000000     
+              260      4010.48804           598.706067         -0.233414188         -0.204276643          -9.10555014                 1359            1555      0.00000000     
+              261      4032.89457           598.262730         -0.233678336         -0.129587924          -9.10581429                 1353            1511      0.00000000     
+              262      4053.97438           598.441574         -0.233774407         -0.409178896          -9.10591036                 1363            1600      0.00000000     
+              263      4045.81558           599.077323         -0.233955825         -0.668564861          -9.10609178                 1379            1580      0.00000000     
+              264      4026.46426           598.017671         -0.234158713         -0.567368538          -9.10629467                 1381            1565      0.00000000     
+              265      4021.42712           595.402033         -0.234251349         -0.329595096          -9.10638730                 1370            1565      0.00000000     
+              266      4018.85372           593.409409         -0.234558163         -0.266850181          -9.10669412                 1377            1596      0.00000000     
+              267      4018.10435           592.846203         -0.234826842         -0.234410045          -9.10696280                 1373            1537      0.00000000     
+              268      4024.22705           592.654134         -0.234977307         -0.225008091          -9.10711326                 1371            1568      0.00000000     
+              269      4028.31563           592.656532         -0.235063930         -0.301349485          -9.10719988                 1385            1551      0.00000000     
+              270      4024.27142           592.719522         -0.235149305         -0.352597111          -9.10728526                 1382            1539      0.00000000     
+              271      4024.57609           592.334020         -0.235170256         -0.302130082          -9.10730621                 1377            1562      0.00000000     
+              272      4001.58926           591.634146         -0.235327647         -0.306255884          -9.10746360                 1374            1537      0.00000000     
+              273      4040.74262           591.232076         -0.235470922         -0.189633338E-001     -9.10760688                 1395            1534      0.00000000     
+              274      4040.41431           590.814171         -0.235723503         -0.506417867          -9.10785946                 1401            1521      0.00000000     
+              275      4038.45310           592.086719         -0.235843504         -0.501975161          -9.10797946                 1404            1567      0.00000000     
+              276      4040.52684           590.483099         -0.236094673         -0.477255460          -9.10823063                 1398            1555      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1930 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 5.4490E-03
+              277      4026.78089           588.913324         -0.236424748         -0.503885773          -9.10856070                 1404            1539      0.00000000     
+              278      4049.42289           587.500411         -0.236633499         -0.333530809          -9.10876945                 1416            1557      0.00000000     
+              279      4041.38672           585.934690         -0.236792951         -0.612885221          -9.10892891                 1391            1562      0.00000000     
+              280      4039.67434           585.363276         -0.237037459         -0.513878692          -9.10917341                 1394            1597      0.00000000     
+              281      4024.55181           583.150971         -0.237292659         -0.493437836          -9.10942861                 1389            1574      0.00000000     
+              282      4003.97134           581.533267         -0.237509855         -0.303711316          -9.10964581                 1374            1562      0.00000000     
+              283      4008.75377           580.044928         -0.237809084         -0.460921952E-001     -9.10994504                 1377            1524      0.00000000     
+              284      4035.36289           579.660981         -0.238117592         -0.109243340          -9.11025355                 1375            1564      0.00000000     
+              285      4051.95497           580.788303         -0.238354983         -0.440078613          -9.11049094                 1385            1605      0.00000000     
+              286      4053.30192           581.542664         -0.238553749         -0.645168421          -9.11068970                 1392            1560      0.00000000     
+              287      4059.58634           580.368270         -0.238733793         -0.661669529          -9.11086975                 1415            1594      0.00000000     
+              288      4043.47666           578.003795         -0.238901079         -0.739241284          -9.11103703                 1409            1619      0.00000000     
+              289      4043.32435           575.552327         -0.239078702         -0.540388141          -9.11121466                 1417            1580      0.00000000     
+              290      4018.21924           572.669111         -0.239277891         -0.538034941          -9.11141385                 1405            1623      0.00000000     
+              291      4001.17964           570.939978         -0.239530487         -0.226786692          -9.11166644                 1394            1559      0.00000000     
+              292      4010.74020           569.227377         -0.239575831         -0.147097319E-001     -9.11171179                 1381            1523      0.00000000     
+              293      4058.05705           569.296084         -0.239680630         -0.133804153          -9.11181658                 1396            1560      0.00000000     
+              294      4082.26599           570.576390         -0.239973121         -0.720358845          -9.11210908                 1418            1612      0.00000000     
+              295      4072.13105           571.181447         -0.240173671          -1.01787176          -9.11230963                 1448            1631      0.00000000     
+              296      4046.98281           568.439302         -0.240427804         -0.893459039          -9.11256376                 1428            1618      0.00000000     
+              297      4021.35444           564.019466         -0.240738436         -0.583662891          -9.11287439                 1432            1576      0.00000000     
+              298      3999.28596           560.339078         -0.240927788         -0.266219796          -9.11306374                 1421            1551      0.00000000     
+              299      4001.04914           558.416373         -0.241065766          0.896024301E-002     -9.11320172                 1433            1525      0.00000000     
+              300      4013.81675           558.275844         -0.241175118         -0.130097573E-001     -9.11331107                 1405            1584      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1952 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 5.6894E-03
+              301      4032.23195           559.672716         -0.241579762         -0.172177741          -9.11371572                 1416            1580      0.00000000     
+              302      4011.01185           560.950884         -0.241849219         -0.401064851          -9.11398517                 1413            1578      0.00000000     
+              303      4006.90743           561.342469         -0.241889923         -0.136522516          -9.11402588                 1405            1576      0.00000000     
+              304      4014.03647           560.450964         -0.242110942         -0.839202314E-001     -9.11424690                 1408            1567      0.00000000     
+              305      4050.21847           561.049426         -0.242160687         -0.175051573          -9.11429664                 1407            1575      0.00000000     
+              306      4063.50933           561.956150         -0.242297961         -0.623289067          -9.11443392                 1410            1603      0.00000000     
+              307      4047.59361           562.340577         -0.242482550         -0.787471263          -9.11461851                 1415            1575      0.00000000     
+              308      4032.34271           560.182541         -0.242803481         -0.591055882          -9.11493944                 1422            1633      0.00000000     
+              309      4034.61941           557.124020         -0.243015041         -0.402643839          -9.11515100                 1422            1603      0.00000000     
+              310      4019.97459           555.175387         -0.243191121         -0.427909966          -9.11532708                 1432            1563      0.00000000     
+              311      4007.75142           554.288608         -0.243230484         -0.245477008          -9.11536644                 1423            1575      0.00000000     
+              312      3994.54369           553.285861         -0.243519765         -0.960871407E-001     -9.11565572                 1408            1561      0.00000000     
+              313      3995.32394           553.316044         -0.243544623          0.682930038E-001     -9.11568058                 1420            1587      0.00000000     
+              314      4004.07327           554.159065         -0.243682120          0.586133213E-001     -9.11581807                 1403            1573      0.00000000     
+              315      4031.91490           555.880301         -0.244095619         -0.496602529E-001     -9.11623157                 1414            1558      0.00000000     
+              316      4028.74335           557.550163         -0.244311181         -0.393638480          -9.11644714                 1417            1569      0.00000000     
+              317      4016.16658           558.597797         -0.244317862         -0.354483817          -9.11645382                 1399            1583      0.00000000     
+              318      4028.13578           557.710068         -0.244624035         -0.201670348          -9.11675999                 1387            1609      0.00000000     
+              319      4024.17370           557.065434         -0.244890137         -0.348410923          -9.11702609                 1373            1574      0.00000000     
+              320      4029.07822           557.305754         -0.244910284         -0.299900004          -9.11704624                 1379            1552      0.00000000     
+              321      4032.52267           556.737746         -0.245108840         -0.361866501          -9.11724480                 1396            1556      0.00000000     
+              322      4048.43846           556.449184         -0.245373137         -0.404852245          -9.11750909                 1392            1569      0.00000000     
+              323      4060.99913           555.812181         -0.245530679         -0.600601393          -9.11766663                 1391            1577      0.00000000     
+              324      4018.43770           554.931217         -0.245810381         -0.754145681          -9.11794634                 1390            1577      0.00000000     
+              325      3991.22456           552.934888         -0.245961712         -0.229265933          -9.11809767                 1375            1580      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1966 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 5.9129E-03
+              326      4004.22240           550.095393         -0.246169523          0.111397814          -9.11830548                 1367            1563      0.00000000     
+              327      4061.06022           550.180661         -0.246467078         -0.517424157E-001     -9.11860303                 1385            1575      0.00000000     
+              328      4068.22795           552.155692         -0.246562714         -0.757256683          -9.11869867                 1410            1562      0.00000000     
+              329      4044.16448           553.243270         -0.246866812         -0.845504979          -9.11900277                 1409            1630      0.00000000     
+              330      4026.76878           550.427893         -0.246921096         -0.548649908          -9.11905705                 1396            1603      0.00000000     
+              331      4036.53561           547.125331         -0.247037888         -0.333433237          -9.11917384                 1405            1589      0.00000000     
+              332      4032.21680           545.464234         -0.247074276         -0.454207835          -9.11921023                 1390            1564      0.00000000     
+              333      4015.83205           544.989636         -0.247309395         -0.400315222          -9.11944535                 1385            1605      0.00000000     
+              334      4025.15187           543.853780         -0.247470672         -0.196847332          -9.11960663                 1382            1588      0.00000000     
+              335      4028.07640           543.014282         -0.247545291         -0.313159181          -9.11968125                 1376            1573      0.00000000     
+              336      4024.30731           543.285915         -0.248036398         -0.349711445          -9.12017235                 1386            1604      0.00000000     
+              337      4035.27532           542.932072         -0.248251972         -0.302427612          -9.12038793                 1386            1577      0.00000000     
+              338      4066.60961           542.381569         -0.248608327         -0.436755163          -9.12074428                 1395            1583      0.00000000     
+              339      4083.88065           542.087288         -0.248969257         -0.824826440          -9.12110521                 1421            1634      0.00000000     
+              340      4076.09074           541.069979         -0.249392545          -1.03748163          -9.12152850                 1437            1600      0.00000000     
+              341      4023.26386           537.964775         -0.249647618         -0.941468787          -9.12178357                 1416            1604      0.00000000     
+              342      4000.97946           533.720604         -0.249905105         -0.289944701          -9.12204106                 1404            1569      0.00000000     
+              343      3995.98031           530.019893         -0.250130032         -0.111586616E-001     -9.12226599                 1396            1562      0.00000000     
+              344      4010.68872           529.808160         -0.250413386          0.505478304E-001     -9.12254934                 1396            1573      0.00000000     
+              345      4027.51113           531.082110         -0.250746181         -0.132432355          -9.12288214                 1400            1598      0.00000000     
+              346      4038.33878           532.688346         -0.250856299         -0.341450960          -9.12299225                 1399            1585      0.00000000     
+              347      4032.30949           533.304733         -0.251040652         -0.476937467          -9.12317661                 1410            1594      0.00000000     
+              348      4029.53639           532.812306         -0.251409344         -0.402170530          -9.12354530                 1397            1561      0.00000000     
+              349      4037.93118           531.610278         -0.251501877         -0.367713165          -9.12363783                 1409            1584      0.00000000     
+              350      4042.76331           530.808630         -0.251704854         -0.471649705          -9.12384081                 1417            1560      0.00000000     
+              351      4031.14102           530.192487         -0.251958799         -0.531683634          -9.12409475                 1416            1600      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1972 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 6.1517E-03
+              352      4016.12455           529.027204         -0.252205797         -0.387638427          -9.12434175                 1405            1562      0.00000000     
+              353      3993.71288           527.548932         -0.252255465         -0.201133139          -9.12439142                 1386            1615      0.00000000     
+              354      3986.92688           526.833892         -0.252419651          0.797400300E-001     -9.12455561                 1349            1568      0.00000000     
+              355      4017.70820           527.104005         -0.252584695          0.164208257          -9.12472065                 1378            1601      0.00000000     
+              356      4028.66865           528.855558         -0.252871128         -0.220142913          -9.12500708                 1372            1571      0.00000000     
+              357      4067.20062           531.065185         -0.252932913         -0.356736235          -9.12506887                 1397            1554      0.00000000     
+              358      4058.62398           531.231519         -0.253257010         -0.832853772          -9.12539296                 1410            1561      0.00000000     
+              359      4062.62788           530.679069         -0.253231143         -0.726393421          -9.12536710                 1437            1604      0.00000000     
+              360      4026.86614           527.603777         -0.253447221         -0.776160506          -9.12558318                 1421            1598      0.00000000     
+              361      4012.05902           525.112395         -0.253517873         -0.334696624          -9.12565383                 1395            1570      0.00000000     
+              362      4019.61478           522.375206         -0.253687420         -0.149074983          -9.12582338                 1416            1529      0.00000000     
+              363      4029.18243           521.953175         -0.253954983         -0.241850538          -9.12609094                 1414            1551      0.00000000     
+              364      4031.69700           522.484151         -0.253997191         -0.360947428          -9.12613315                 1419            1602      0.00000000     
+              365      4041.43546           522.535253         -0.254209174         -0.393452608          -9.12634513                 1412            1608      0.00000000     
+              366      4034.69478           521.979375         -0.254607200         -0.514410149          -9.12674315                 1420            1619      0.00000000     
+              367      4034.66060           521.264990         -0.254605796         -0.431351546          -9.12674175                 1426            1555      0.00000000     
+              368      4027.51205           519.924862         -0.254666445         -0.431337574          -9.12680240                 1417            1589      0.00000000     
+              369      4021.96509           519.019841         -0.255028708         -0.342640307          -9.12716466                 1410            1588      0.00000000     
+              370      4008.83465           518.110200         -0.255327673         -0.273789669          -9.12746363                 1388            1593      0.00000000     
+              371      3997.33915           517.650716         -0.255301742         -0.110307248          -9.12743770                 1392            1543      0.00000000     
+              372      4015.76491           517.551516         -0.255377837          0.332922374E-001     -9.12751379                 1383            1617      0.00000000     
+              373      4038.80837           518.303763         -0.255642432         -0.196670524          -9.12777839                 1408            1588      0.00000000     
+              374      4049.23417           519.798070         -0.255828693         -0.482757070          -9.12796465                 1410            1616      0.00000000     
+              375      4065.07317           520.106875         -0.255881137         -0.611390775          -9.12801709                 1422            1636      0.00000000     
+              376      4047.69889           518.929043         -0.256086972         -0.806818965          -9.12822293                 1426            1578      0.00000000     
+              377      4020.86299           517.073206         -0.256290657         -0.592705186          -9.12842661                 1429            1574      0.00000000     
+              378      4010.04557           514.222096         -0.256423985         -0.260095212          -9.12855994                 1404            1637      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1985 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 6.3854E-03
+              379      4000.59951           512.491680         -0.256765484         -0.124965321          -9.12890144                 1391            1575      0.00000000     
+              380      4021.19948           512.476821         -0.256875208         -0.714453438E-002     -9.12901116                 1393            1514      0.00000000     
+              381      4032.14680           513.140151         -0.256818622         -0.264128358          -9.12895458                 1388            1588      0.00000000     
+              382      4028.65618           514.412133         -0.257049384         -0.398948441          -9.12918534                 1402            1562      0.00000000     
+              383      4041.82056           514.370598         -0.257298580         -0.355283003          -9.12943453                 1396            1579      0.00000000     
+              384      4036.84623           513.630106         -0.257528145         -0.519354126          -9.12966410                 1394            1596      0.00000000     
+              385      4005.22114           513.122015         -0.257737463         -0.458444348          -9.12987342                 1398            1569      0.00000000     
+              386      4018.64462           511.781183         -0.257980780         -0.651364075E-001     -9.13011673                 1371            1548      0.00000000     
+              387      4005.89041           510.756223         -0.258283641         -0.231813187          -9.13041960                 1383            1589      0.00000000     
+              388      4008.64745           511.740707         -0.258619014         -0.730437564E-001     -9.13075497                 1354            1533      0.00000000     
+              389      4009.21431           511.873307         -0.258886857         -0.107929948          -9.13102281                 1352            1561      0.00000000     
+              390      4031.95149           512.823740         -0.258984538         -0.114871267          -9.13112049                 1347            1578      0.00000000     
+              391      4068.00761           513.598939         -0.259179665         -0.397766274          -9.13131562                 1374            1605      0.00000000     
+              392      4052.41334           514.338561         -0.259316141         -0.842908381          -9.13145210                 1389            1612      0.00000000     
+              393      4041.07449           513.626771         -0.259476677         -0.650762585          -9.13161263                 1371            1603      0.00000000     
+              394      4026.10416           510.630633         -0.259716010         -0.510793107          -9.13185197                 1370            1610      0.00000000     
+              395      4007.02494           508.632437         -0.259967348         -0.324902561          -9.13210330                 1367            1592      0.00000000     
+              396      4010.13653           507.356427         -0.260104802         -0.876764148E-001     -9.13224076                 1354            1558      0.00000000     
+              397      4033.73477           507.028193         -0.260454456         -0.126129129          -9.13259041                 1353            1568      0.00000000     
+              398      4054.31917           507.905155         -0.260498757         -0.419156967          -9.13263471                 1352            1594      0.00000000     
+              399      4047.62745           508.584345         -0.260888123         -0.673205772          -9.13302408                 1373            1572      0.00000000     
+              400      4024.59252           507.777844         -0.261068660         -0.591794489          -9.13320461                 1366            1629      0.00000000     
+              401      4019.96126           505.688003         -0.261173642         -0.306208143          -9.13330960                 1371            1578      0.00000000     
+              402      4035.96223           504.017566         -0.261548780         -0.248774966          -9.13368474                 1376            1568      0.00000000     
+              403      4020.19603           503.787863         -0.261501102         -0.447472715          -9.13363706                 1370            1545      0.00000000     
+              404      4042.08558           503.849709         -0.261602364         -0.251727510          -9.13373832                 1377            1629      0.00000000     
+              405      4060.03738           502.912171         -0.261592082         -0.522113525          -9.13372804                 1373            1578      0.00000000     
+              406      4020.58648           502.960687         -0.261685998         -0.743326105          -9.13382195                 1354            1568      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1993 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 6.6202E-03
+              407      4021.87437           501.648408         -0.261934237         -0.256095674          -9.13407019                 1353            1613      0.00000000     
+              408      4025.58290           499.237666         -0.261951674         -0.272194963          -9.13408763                 1346            1573      0.00000000     
+              409      4012.61877           499.274165         -0.262441200         -0.317597470          -9.13457715                 1356            1576      0.00000000     
+              410      4030.54728           499.216118         -0.262762646         -0.156242887          -9.13489860                 1363            1575      0.00000000     
+              411      4033.80193           498.931701         -0.262945147         -0.378981813          -9.13508110                 1364            1591      0.00000000     
+              412      4045.15587           499.459103         -0.263185255         -0.420693192          -9.13532121                 1370            1608      0.00000000     
+              413      4048.59705           498.882059         -0.263347257         -0.560669560          -9.13548321                 1379            1641      0.00000000     
+              414      4040.82775           498.095430         -0.263380325         -0.603433659          -9.13551628                 1372            1574      0.00000000     
+              415      4010.45707           496.610061         -0.263553969         -0.507758694          -9.13568992                 1364            1609      0.00000000     
+              416      4020.04051           494.921025         -0.263693397         -0.130477200          -9.13582935                 1376            1593      0.00000000     
+              417      4051.97543           493.713133         -0.263913030         -0.249693764          -9.13604898                 1387            1580      0.00000000     
+              418      4047.03795           494.371593         -0.263915165         -0.644911054          -9.13605112                 1387            1621      0.00000000     
+              419      4044.73989           494.441887         -0.263899182         -0.582850426          -9.13603514                 1397            1598      0.00000000     
+              420      4041.09106           492.559630         -0.263894287         -0.555927545          -9.13603024                 1406            1585      0.00000000     
+              421      4032.57029           490.996271         -0.263820003         -0.510953448          -9.13595596                 1406            1617      0.00000000     
+              422      4032.59050           489.567755         -0.264110993         -0.405147653          -9.13624695                 1407            1562      0.00000000     
+              423      4029.80524           488.355602         -0.264240032         -0.405726891          -9.13637599                 1409            1595      0.00000000     
+              424      4026.38843           487.675114         -0.264493193         -0.371171343          -9.13662915                 1392            1603      0.00000000     
+              425      4011.35653           486.987336         -0.264800751         -0.328687988          -9.13693671                 1384            1556      0.00000000     
+              426      4006.03827           486.467471         -0.265143720         -0.141521302          -9.13727968                 1364            1589      0.00000000     
+              427      4024.02578           486.153779         -0.265327254         -0.753421471E-001     -9.13746321                 1372            1593      0.00000000     
+              428      4048.95723           486.748734         -0.265665969         -0.299361737          -9.13780192                 1376            1578      0.00000000     
+              429      4028.35675           487.671755         -0.265918475         -0.607760165          -9.13805443                 1376            1572      0.00000000     
+              430      4014.62396           487.506008         -0.266209063         -0.353204584          -9.13834502                 1365            1559      0.00000000     
+              431      4040.46254           485.847521         -0.266618225         -0.182266714          -9.13875418                 1366            1534      0.00000000     
+              432      4049.11307           485.426008         -0.266880635         -0.502319586          -9.13901659                 1376            1612      0.00000000     
+              433      4025.52210           485.831178         -0.266967928         -0.610110605          -9.13910388                 1375            1604      0.00000000     
+              434      4029.12689           484.677871         -0.267060972         -0.318001329          -9.13919693                 1367            1598      0.00000000     
+              435      4036.73492           483.016612         -0.267262340         -0.362766672          -9.13939829                 1381            1590      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 2002 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 6.8495E-03
+              436      4047.02130           482.770803         -0.267227935         -0.456681737          -9.13936389                 1393            1588      0.00000000     
+              437      4049.24754           482.309673         -0.267597933         -0.584136555          -9.13973389                 1394            1589      0.00000000     
+              438      4039.25228           481.393618         -0.268124293         -0.611679040          -9.14026025                 1387            1584      0.00000000     
+              439      4037.28040           479.870875         -0.268270107         -0.487885187          -9.14040606                 1384            1571      0.00000000     
+              440      4033.23960           478.223402         -0.268503866         -0.463803849          -9.14063982                 1402            1649      0.00000000     
+              441      4021.06527           477.176127         -0.268915592         -0.412469223          -9.14105155                 1399            1578      0.00000000     
+              442      4015.67152           476.247402         -0.269216444         -0.259994908          -9.14135240                 1396            1571      0.00000000     
+              443      3999.67673           475.557221         -0.269207080         -0.194509223          -9.14134304                 1387            1567      0.00000000     
+              444      4040.13593           475.598613         -0.269221011          0.426992381E-002     -9.14135697                 1403            1613      0.00000000     
+              445      4032.64094           475.960165         -0.269305731         -0.499157753          -9.14144169                 1390            1593      0.00000000     
+              446      4032.56491           477.257024         -0.269674052         -0.406190993          -9.14181001                 1391            1553      0.00000000     
+              447      4043.08906           476.160027         -0.269827818         -0.405165993          -9.14196377                 1373            1586      0.00000000     
+              448      4033.60579           475.513861         -0.270652649         -0.535363184          -9.14278860                 1384            1589      0.00000000     
+              449      4028.43367           474.879030         -0.270813569         -0.418021359          -9.14294952                 1374            1605      0.00000000     
+              450      4019.74311           473.630030         -0.271018612         -0.353976044          -9.14315457                 1371            1610      0.00000000     
+              451      3991.63443           472.941856         -0.271554321         -0.245957221          -9.14369028                 1362            1594      0.00000000     
+              452      4013.59980           472.559578         -0.271871905          0.104823447          -9.14400786                 1339            1574      0.00000000     
+              453      4033.73736           472.672844         -0.272088305         -0.169539235          -9.14422426                 1358            1573      0.00000000     
+              454      4052.54853           474.447885         -0.272261713         -0.419327945          -9.14439767                 1376            1588      0.00000000     
+              455      4033.34078           474.941607         -0.272535959         -0.652417870          -9.14467191                 1368            1592      0.00000000     
+              456      4010.80366           474.258126         -0.273110644         -0.414857833          -9.14524660                 1353            1571      0.00000000     
+              457      4009.58724           472.467709         -0.273328551         -0.133832235          -9.14546451                 1335            1605      0.00000000     
+              458      4010.76380           471.789454         -0.273587778         -0.119256116          -9.14572373                 1333            1581      0.00000000     
+              459      4031.96398           472.427587         -0.273747701         -0.134343895          -9.14588366                 1328            1561      0.00000000     
+              460      4050.65143           473.146743         -0.274072093         -0.395466661          -9.14620805                 1346            1563      0.00000000     
+              461      4054.73759           473.809828         -0.274035980         -0.626014210          -9.14617193                 1353            1598      0.00000000     
+              462      4056.46938           473.256145         -0.274489059         -0.679482351          -9.14662501                 1367            1619      0.00000000     
+              463      4037.79381           471.630125         -0.274508385         -0.698859031          -9.14664434                 1379            1593      0.00000000     
+              464      4028.79962           469.729385         -0.274750317         -0.463312629          -9.14688627                 1363            1576      0.00000000     
+              465      4024.90086           467.692842         -0.274787949         -0.356128760          -9.14692390                 1371            1589      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 2013 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 7.0918E-03
+              466      4039.98258           466.748313         -0.274749785         -0.310292090          -9.14688574                 1372            1622      0.00000000     
+              467      4029.05252           466.349870         -0.274948445         -0.497217067          -9.14708440                 1355            1548      0.00000000     
+              468      4026.31939           466.185296         -0.275427517         -0.361497334          -9.14756347                 1358            1580      0.00000000     
+              469      4043.27536           465.152607         -0.275685898         -0.325296193          -9.14782185                 1364            1604      0.00000000     
+              470      4048.52516           464.756798         -0.275880806         -0.536932727          -9.14801676                 1367            1600      0.00000000     
+              471      4035.81957           464.540735         -0.275968628         -0.602651983          -9.14810458                 1369            1574      0.00000000     
+              472      4036.14937           463.345164         -0.276743566         -0.445749912          -9.14887952                 1362            1572      0.00000000     
+              473      4030.21180           461.845711         -0.276986845         -0.449745268          -9.14912280                 1382            1579      0.00000000     
+              474      4045.75405           461.067264         -0.277070027         -0.375910913          -9.14920598                 1391            1592      0.00000000     
+              475      4034.75011           460.264082         -0.277117373         -0.566861801          -9.14925333                 1402            1571      0.00000000     
+              476      4028.48792           459.797144         -0.277422564         -0.432423643          -9.14955852                 1386            1607      0.00000000     
+              477      3991.77826           458.440610         -0.277661052         -0.354830372          -9.14979701                 1355            1556      0.00000000     
+              478      4017.54618           457.727572         -0.277743672          0.104444389          -9.14987963                 1357            1544      0.00000000     
+              479      4038.89350           457.373796         -0.278062522         -0.218837085          -9.15019848                 1370            1584      0.00000000     
+              480      4044.60543           459.137160         -0.278206020         -0.483707671          -9.15034197                 1370            1612      0.00000000     
+              481      4041.63269           459.411470         -0.278458807         -0.554425338          -9.15059476                 1371            1570      0.00000000     
+              482      4058.86775           458.462725         -0.278729819         -0.516741279          -9.15086577                 1377            1573      0.00000000     
+              483      4066.32680           457.195028         -0.278937808         -0.730350290          -9.15107376                 1388            1580      0.00000000     
+              484      4069.96710           456.093418         -0.278918902         -0.822000370          -9.15105486                 1386            1608      0.00000000     
+              485      4058.20094           454.030812         -0.279346311         -0.866869457          -9.15148227                 1400            1625      0.00000000     
+              486      4049.41344           451.571401         -0.279813107         -0.722267532          -9.15194906                 1411            1633      0.00000000     
+              487      4053.78236           448.924643         -0.279844315         -0.613877809          -9.15198027                 1395            1639      0.00000000     
+              488      4047.55836           446.939085         -0.280437228         -0.667550108          -9.15257318                 1406            1590      0.00000000     
+              489      4049.01164           445.449790         -0.280668644         -0.590972182          -9.15280460                 1415            1633      0.00000000     
+              490      4045.12946           443.732810         -0.281139739         -0.608158210          -9.15327569                 1417            1620      0.00000000     
+              491      4049.60831           442.357502         -0.281348146         -0.560871663          -9.15348410                 1408            1624      0.00000000     
+              492      4057.14599           440.898943         -0.281803630         -0.616275918          -9.15393959                 1413            1628      0.00000000     
+              493      4065.24140           439.665325         -0.282056123         -0.709132573          -9.15419208                 1409            1623      0.00000000     
+              494      4069.77473           438.197002         -0.282574007         -0.808756708          -9.15470996                 1423            1589      0.00000000     
+              495      4062.66784           436.324138         -0.282942495         -0.864661255          -9.15507845                 1441            1605      0.00000000     
+              496      4037.85999           434.026357         -0.282951053         -0.777252495          -9.15508701                 1431            1621      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 2024 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 7.3443E-03
+              497      4016.66969           431.501222         -0.283287338         -0.471016301          -9.15542329                 1424            1571      0.00000000     
+              498      4006.22950           429.368845         -0.283329670         -0.207834329          -9.15546563                 1416            1631      0.00000000     
+              499      4008.71472           428.563459         -0.283313886         -0.773928577E-001     -9.15544984                 1423            1656      0.00000000     
+              500      4002.05928           428.888791         -0.283643376         -0.108567695          -9.15577933                 1404            1582      0.00000000     
+              501      4032.26141           429.777968         -0.283610661         -0.245328355E-001     -9.15574662                 1417            1618      0.00000000     
+              502      4058.90870           430.525341         -0.283718986         -0.401491962          -9.15585494                 1435            1646      0.00000000     
+              503      4053.67764           431.632699         -0.283784687         -0.730987236          -9.15592064                 1450            1646      0.00000000     
+              504      4020.35537           431.123425         -0.283987534         -0.665745135          -9.15612349                 1437            1618      0.00000000     
+              505      4015.94670           429.196362         -0.284145385         -0.253414949          -9.15628134                 1427            1634      0.00000000     
+              506      4016.23505           427.557256         -0.283968080         -0.198430237          -9.15610403                 1438            1607      0.00000000     
+              507      4016.24599           427.689303         -0.284227978         -0.202385421          -9.15636393                 1434            1596      0.00000000     
+              508      4031.10615           428.059772         -0.284481732         -0.202562868          -9.15661769                 1426            1606      0.00000000     
+              509      4020.21576           428.414212         -0.284819577         -0.386834698          -9.15695553                 1432            1622      0.00000000     
+              510      4050.54003           428.769671         -0.285059726         -0.250654068          -9.15719568                 1423            1596      0.00000000     
+              511      4044.58446           428.340988         -0.285341176         -0.625349672          -9.15747713                 1425            1558      0.00000000     
+              512      4025.81625           428.506185         -0.285782017         -0.554212764          -9.15791797                 1421            1638      0.00000000     
+              513      4030.82059           427.080982         -0.286010091         -0.321158908          -9.15814605                 1403            1617      0.00000000     
+              514      4021.67998           425.938119         -0.286262376         -0.380013402          -9.15839833                 1421            1629      0.00000000     
+              515      4007.51242           425.770879         -0.286471884         -0.267107082          -9.15860784                 1398            1590      0.00000000     
+              516      4000.91034           425.327793         -0.286586495         -0.928481326E-001     -9.15872245                 1373            1566      0.00000000     
+              517      4006.66226           425.384308         -0.286889785         -0.113777148E-001     -9.15902574                 1382            1567      0.00000000     
+              518      4030.88575           426.202578         -0.287212481         -0.819622116E-001     -9.15934844                 1381            1579      0.00000000     
+              519      4050.67957           427.378151         -0.287736772         -0.383342031          -9.15987273                 1387            1616      0.00000000     
+              520      4041.11966           428.261015         -0.288106853         -0.628952384          -9.16024281                 1381            1596      0.00000000     
+              521      4016.10916           427.861942         -0.288216503         -0.508892899          -9.16035246                 1377            1579      0.00000000     
+              522      4018.78447           426.394566         -0.288658810         -0.197599085          -9.16079477                 1366            1567      0.00000000     
+              523      4022.78019           425.440656         -0.288780165         -0.233578951          -9.16091612                 1360            1589      0.00000000     
+              524      4044.28418           425.823596         -0.289287642         -0.283675597          -9.16142360                 1367            1623      0.00000000     
+              525      4016.41431           426.064977         -0.289427285         -0.550170944          -9.16156324                 1375            1595      0.00000000     
+              526      4020.19718           426.093910         -0.289587076         -0.204640598          -9.16172303                 1349            1600      0.00000000     
+              527      4034.68986           424.989825         -0.289767065         -0.251428237          -9.16190302                 1358            1598      0.00000000     
+              528      4045.08958           425.347079         -0.290159329         -0.431665838          -9.16229528                 1364            1573      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 2030 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 7.5849E-03
+              529      4038.34298           425.504433         -0.290476489         -0.560257198          -9.16261244                 1358            1587      0.00000000     
+              530      4028.10749           424.901014         -0.290702910         -0.476987128          -9.16283886                 1362            1585      0.00000000     
+              531      3984.81682           423.752176         -0.291047803         -0.349142315          -9.16318376                 1337            1589      0.00000000     
+              532      3983.16448           422.963506         -0.291303531          0.191364620          -9.16343949                 1332            1564      0.00000000     
+              533      4021.96162           422.713892         -0.291514939          0.211455661          -9.16365089                 1339            1542      0.00000000     
+              534      4041.60450           424.754161         -0.291407220         -0.272666964          -9.16354317                 1345            1553      0.00000000     
+              535      4049.80746           426.892979         -0.291782423         -0.517116448          -9.16391838                 1340            1568      0.00000000     
+              536      4035.52865           426.982013         -0.292335820         -0.618643812          -9.16447178                 1335            1612      0.00000000     
+              537      4044.20963           426.028079         -0.292835640         -0.441897821          -9.16497159                 1346            1622      0.00000000     
+              538      4045.99070           424.635589         -0.293066638         -0.549080848          -9.16520259                 1357            1594      0.00000000     
+              539      4044.06038           423.997432         -0.293072730         -0.571580838          -9.16520869                 1364            1603      0.00000000     
+              540      4035.64958           422.904672         -0.293290911         -0.547289146          -9.16542687                 1369            1594      0.00000000     
+              541      4031.56386           421.726675         -0.293632681         -0.443313308          -9.16576864                 1361            1576      0.00000000     
+              542      4017.41459           420.661366         -0.293743674         -0.392986521          -9.16587963                 1362            1570      0.00000000     
+              543      4028.36125           420.037612         -0.293863686         -0.217024139          -9.16599964                 1357            1585      0.00000000     
+              544      4038.93959           419.622622         -0.294301835         -0.353203726          -9.16643779                 1363            1591      0.00000000     
+              545      4049.32855           419.952217         -0.294785773         -0.484134899          -9.16692173                 1348            1615      0.00000000     
+              546      4053.48454           419.703385         -0.294932134         -0.612681744          -9.16706809                 1357            1628      0.00000000     
+              547      4059.07340           418.902635         -0.295144421         -0.663808574          -9.16728038                 1355            1636      0.00000000     
+              548      4062.55399           417.568131         -0.295196790         -0.732309167          -9.16733275                 1369            1618      0.00000000     
+              549      4051.70082           416.023636         -0.295322585         -0.775587011          -9.16745854                 1373            1597      0.00000000     
+              550      4045.19474           414.199760         -0.295425915         -0.642025414          -9.16756187                 1373            1660      0.00000000     
+              551      4046.33111           412.209055         -0.295840567         -0.561146215          -9.16797652                 1388            1587      0.00000000     
+              552      4040.67253           410.781650         -0.296071824         -0.575374675          -9.16820778                 1397            1571      0.00000000     
+              553      4034.54462           409.692724         -0.296132150         -0.505590410          -9.16826810                 1385            1595      0.00000000     
+              554      4048.05141           408.550766         -0.296155982         -0.429853116          -9.16829194                 1368            1611      0.00000000     
+              555      4048.60967           407.698022         -0.296475029         -0.596676660          -9.16861098                 1383            1599      0.00000000     
+              556      4045.63704           407.156723         -0.296935038         -0.603675415          -9.16907099                 1379            1573      0.00000000     
+              557      4045.59205           405.941948         -0.297167019         -0.567058414          -9.16930297                 1391            1661      0.00000000     
+              558      4066.38720           404.703851         -0.297613109         -0.566504502          -9.16974906                 1404            1635      0.00000000     
+              559      4051.68356           403.619107         -0.297554130         -0.822801992          -9.16969008                 1403            1620      0.00000000     
+              560      4007.54233           402.539926         -0.297984604         -0.641253899          -9.17012056                 1401            1640      0.00000000     
+              561      4019.92210           400.419274         -0.298083022         -0.939268711E-001     -9.17021898                 1392            1597      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 2037 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 7.8279E-03
+              562      4028.03054           399.033133         -0.298233024         -0.248407684          -9.17036898                 1406            1632      0.00000000     
+              563      4048.13479           399.842441         -0.298811666         -0.347338582          -9.17094762                 1403            1653      0.00000000     
+              564      4037.60307           400.043761         -0.298981810         -0.597085650          -9.17111777                 1402            1601      0.00000000     
+              565      4037.20395           399.863024         -0.299214697         -0.467307098          -9.17135065                 1405            1620      0.00000000     
+              566      4012.95976           398.686796         -0.299157360         -0.462801315          -9.17129332                 1408            1614      0.00000000     
+              567      4008.00908           398.030121         -0.299281075         -0.161713832          -9.17141703                 1372            1608      0.00000000     
+              568      4039.69884           397.372475         -0.299728239         -0.992548182E-001     -9.17186419                 1376            1593      0.00000000     
+              569      4065.24202           397.917946         -0.299805602         -0.493758872          -9.17194156                 1396            1618      0.00000000     
+              570      4064.42036           398.698787         -0.300183202         -0.808347617          -9.17231916                 1389            1610      0.00000000     
+              571      4051.41563           397.929839         -0.300694853         -0.797707024          -9.17283081                 1387            1584      0.00000000     
+              572      4046.49358           395.922835         -0.300898546         -0.638033288          -9.17303450                 1394            1583      0.00000000     
+              573      4036.36134           393.977035         -0.301127497         -0.577818044          -9.17326345                 1406            1641      0.00000000     
+              574      4029.31895           392.667769         -0.301221178         -0.451206960          -9.17335713                 1391            1610      0.00000000     
+              575      4024.88114           391.581370         -0.301572183         -0.362451319          -9.17370814                 1389            1635      0.00000000     
+              576      4054.53290           390.965460         -0.301634318         -0.307444837          -9.17377027                 1397            1564      0.00000000     
+              577      4034.89556           390.691077         -0.301580532         -0.675592303          -9.17371649                 1415            1600      0.00000000     
+              578      4017.73803           390.642619         -0.301766953         -0.434236888          -9.17390291                 1387            1607      0.00000000     
+              579      4007.70078           389.170815         -0.301685586         -0.220374037          -9.17382154                 1399            1597      0.00000000     
+              580      4028.28339           388.656171         -0.301854533         -0.944245658E-001     -9.17399049                 1397            1575      0.00000000     
+              581      4044.63025           388.978110         -0.302175486         -0.352244721          -9.17431144                 1404            1582      0.00000000     
+              582      4043.48307           389.798427         -0.302069405         -0.553944525          -9.17420536                 1417            1626      0.00000000     
+              583      4028.04230           389.606174         -0.302645648         -0.538300666          -9.17478160                 1399            1588      0.00000000     
+              584      4011.26403           388.613087         -0.303164446         -0.348431336          -9.17530040                 1388            1570      0.00000000     
+              585      4014.21692           387.681700         -0.303179439         -0.140566144          -9.17531539                 1390            1606      0.00000000     
+              586      4031.76138           387.500982         -0.303621653         -0.176274633          -9.17575761                 1385            1582      0.00000000     
+              587      4024.27304           388.132443         -0.303452989         -0.394772646          -9.17558894                 1378            1594      0.00000000     
+              588      4008.02868           388.627373         -0.303929886         -0.302449290          -9.17606584                 1382            1596      0.00000000     
+              589      4006.72407           388.278714         -0.304254454         -0.100227028          -9.17639041                 1352            1553      0.00000000     
+              590      4017.83295           388.287561         -0.304679762         -0.839391499E-001     -9.17681572                 1346            1610      0.00000000     
+              591      4059.34338           389.083061         -0.304846949         -0.222405654          -9.17698290                 1370            1641      0.00000000     
+              592      4056.31771           389.944603         -0.305186042         -0.736326226          -9.17732200                 1374            1592      0.00000000     
+              593      4046.01787           390.268520         -0.305496520         -0.698057475          -9.17763248                 1361            1617      0.00000000     
+              594      4052.19923           388.585661         -0.305704843         -0.571046996          -9.17784080                 1366            1579      0.00000000     
+              595      4041.15096           387.071621         -0.305930657         -0.644688332          -9.17806661                 1362            1595      0.00000000     
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 2040 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 8.0740E-03
+
+ ================================================================
+ KP-FCIQMC testsuite data:
+ Sum of overlap matrix elements:             1.0326520427112E+08
+ Sum of H elements:                         -9.2851981985427E+08
+ ================================================================
+ 
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :    2048.0
+ Maximum memory used is    (MB) :      21.2
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkVecDets       InitFCIMCPar       not deallocated      16.0MB
+ global_determinantinit_global_det_datnot deallocated       4.0MB
+ SpawnVec          InitFCIMCPar       not deallocated     625.0KB
+ SpawnVec2         InitFCIMCPar       not deallocated     625.0KB
+ SymPairProds      GenSymStatePairs   EndSym                4.7KB
+ TMAT2D            SetupTMAT          not deallocated       3.1KB
+ temp_store        calculate_det_hamilcalculate_det_hamil   3.0KB
+ core_space        store_whole_core_spnot deallocated       1.8KB
+ full_determ_vecs  init_semi_stochastinot deallocated       1.5KB
+ full_determ_vecs_ainit_semi_stochastinot deallocated       1.5KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+
+ Procedure                    Calls       CPU    system     total
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                     595      0.66      0.00      0.66
+ SubspaceHamilTime                1      0.40      0.00      0.40
+ SyncTime                      1206      0.27      0.00      0.27
+ AnnMainTime                    595      0.17      0.00      0.17
+ NECICUBE                         1      0.14      0.00      0.14
+ Compress Sort interface        595      0.07      0.00      0.07
+ SortTime                       595      0.06      0.00      0.06
+ StatsCommsTime                 595      0.05      0.00      0.05
+ Compression interface          595      0.03      0.00      0.03
+ SemiStochInitTime                1      0.02      0.00      0.02
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                   1.85      0.00      1.85
+
+ Global CPU time          2.00
+ Global system time       0.00
+ Global total time        2.00
+ ================================================================
+ Calculation ended 09/07/2015 at 11:59:53
+ ================================================================

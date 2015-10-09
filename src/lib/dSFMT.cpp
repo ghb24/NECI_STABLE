@@ -1,3 +1,7 @@
+#ifdef _MOLCAS_
+#include "molcas_wrapper.h"
+#endif
+
 
 /** 
  * @file dSFMT.h 
@@ -98,6 +102,7 @@ typedef unsigned __int64 uint64_t;
 #  endif
 #else
 #  include <inttypes.h>
+#  include <stdint.h>
 #  if !defined(inline)
 #    if defined(__GNUC__)
 #      define inline __inline__
@@ -644,8 +649,11 @@ inline static void fill_array_close1_open2(double array[], int size) {
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "dSFMT-params.h"
-
+#ifdef _MOLCAS_
+  #include "dsfmt-params.h"
+#else
+  #include "dSFMT-params.h"
+#endif
 /** dsfmt mexp for check */
 static const int dsfmt_mexp = DSFMT_MEXP;
 
@@ -1361,8 +1369,6 @@ void dsfmt_chk_init_by_array(dsfmt_t *dsfmt, uint32_t init_key[],
 #  pragma warning(default:981)
 #endif
 
-#include "dSFMT_wrapper.h"
-
 // Wrap around the required dSFMT functions so that they're accessible from 
 // fortran. We use C++'s handy reference function to allow Fortran and C to 
 // communicate, despite the different approaches in passing arguments.
@@ -1373,8 +1379,10 @@ void dsfmt_chk_init_by_array(dsfmt_t *dsfmt, uint32_t init_key[],
 // This creates instantiations which may be linked, where before the
 // declarations are inline static, and so don't appear in the object files
 
+#ifdef __cplusplus
 extern "C"
 {
+#endif
     void init_gen_rand_fwrapper(uint32_t seed)
     {
         // Initialise random number generator.
@@ -1405,7 +1413,9 @@ extern "C"
         fill_array_close_open(array, size);
     }
 
+#ifdef __cplusplus
 }
+#endif
 
 /* this routine avoids compilers reporting warnings about unused inline functions */
 void dummy_dSFMT (dsfmt_t *dsfmt, int i, uint32_t a[], double b[]) {

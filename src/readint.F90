@@ -18,7 +18,10 @@ contains
          integer SYMLZ(1000)
          integer(int64) :: ORBSYM(1000)
          INTEGER NORB,NELEC,MS2,ISYM,i,SYML(1000), iunit,iuhf
-         LOGICAL exists,UHF
+         LOGICAL exists
+         logical :: uhf
+         logical tExists     !test for existence of input file.
+         integer isfreeunit  !function returning integer for free unit
          CHARACTER(len=3) :: fmat
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
@@ -27,6 +30,20 @@ contains
          NPROP = 0
          IUHF = 0
          IF(iProcIndex.eq.0) THEN
+#ifdef _MOLCAS_
+           call f_Inquire('FCIDMP',tExists)
+           if(tExists) then
+             iUnit=17
+             iUnit=IsFreeUnit(iUnit)
+             Call Molcas_Open(iunit,'FCIDMP')
+             Rewind(iunit)
+             READ(iunit,FCI)
+!             write(6,*) 'FCI NAMELIST print 1'
+!             WRITE(6,FCI)
+           else
+              call Stop_All('InitFromFCID','FCIDUMP file does not exist')
+           end if
+#else
              iunit = get_free_unit()
              IF(TBIN) THEN
                 INQUIRE(FILE='FCISYM',EXIST=exists)
@@ -47,6 +64,7 @@ contains
                 OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD',FORM='FORMATTED')
                 READ(iunit,FCI)
              ENDIF
+#endif
              CLOSE(iunit)
          ENDIF
 
@@ -58,7 +76,7 @@ contains
          CALL MPIBCast(SYML,1000)
          CALL MPIBCast(SYMLZ,1000)
          CALL MPIBCast(ISYM,1)
-         CALL MPIBCast(UHF,1)
+         CALL MPIBCast(UHF)
          CALL MPIBCast(PROPBITLEN,1)
          CALL MPIBCast(NPROP,3)
          ! If PropBitLen has been set then assume we're not using an Abelian
@@ -165,7 +183,7 @@ contains
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
          use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn,tMolpro,tUHF
          use SystemData, only: tCacheFCIDUMPInts,tROHF,tFixLz,iMaxLz,tRotatedOrbsReal
-         use SystemData, only: tReadFreeFormat
+         use SystemData, only: tReadFreeFormat,SYMMAX
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
          use UMatCache, only: GetCacheIndexStates,GTID
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
@@ -178,22 +196,39 @@ contains
          integer, intent(out) :: BRR(LEN)
          real(dp), intent(out) :: ARR(LEN,2)
          type(BasisFN), intent(out) :: G1(LEN)
-         HElement_t Z
+         HElement_t(dp) Z
          COMPLEX(dp) :: CompInt
          integer(int64) IND,MASK
          INTEGER I,J,K,L,I1, iunit
-         INTEGER ISYMNUM,ISNMAX,SYMMAX,SYMLZ(1000)
+         INTEGER ISYMNUM,ISNMAX,SYMLZ(1000)
          INTEGER NORB,NELEC,MS2,ISYM,ISPINS,ISPN,SYML(1000)
          integer(int64) ORBSYM(1000)
          INTEGER nPairs,iErr,MaxnSlot,MaxIndex,IUHF
          INTEGER , ALLOCATABLE :: MaxSlots(:)
          character(len=*), parameter :: t_r='GETFCIBASIS'
-         LOGICAL TBIN,UHF
+         LOGICAL TBIN
+         logical :: uhf
+         logical tExists     !test for existence of input file.
+         integer isfreeunit  !function returning integer for free unit
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
          IUHF=0
          SYMLZ(:) = 0
          IF(iProcIndex.eq.0) THEN
+#ifdef _MOLCAS_
+           call f_Inquire('FCIDMP',tExists)
+           if(tExists) then
+             iUnit=17
+             iUnit=IsFreeUnit(iUnit)
+             Call Molcas_Open(iunit,'FCIDMP')
+             Rewind(iunit)
+             READ(iunit,FCI)
+!            write(6,*) 'FCI NAMELIST print 2'
+!            WRITE(6,FCI)
+           else
+              call Stop_All('InitFromFCID','FCIDUMP file does not exist')
+           end if
+#else
              iunit = get_free_unit()
              IF(TBIN) THEN
                 OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
@@ -204,6 +239,7 @@ contains
                 OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD',FORM='FORMATTED')
                 READ(iunit,FCI)
              ENDIF
+#endif
          ENDIF
 
 !Now broadcast these values to the other processors (the values are only read in on root)
@@ -215,7 +251,7 @@ contains
          CALL MPIBCast(SYMLZ,1000)
          CALL MPIBCast(ISYM,1)
          CALL MPIBCast(IUHF,1)
-         CALL MPIBCast(UHF,1)
+         CALL MPIBCast(UHF)
          CALL MPIBCast(PROPBITLEN,1)
          CALL MPIBCast(NPROP,3)
          ! If PropBitLen has been set then assume we're not using an Abelian
@@ -375,6 +411,7 @@ contains
                 else
                     if(tMolpro.or.tReadFreeFormat) then
                         !If calling from within molpro, integrals are written out to greater precision
+                        !Here is where we read integrals in Molcas/NECI interface
                         read(iunit,*,END=99) Z,I,J,K,L
                     else
                         READ(iunit,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
@@ -535,9 +572,9 @@ contains
          use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,NEl
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,tMolpro
-         use SystemData, only: UMatEps,tUMatEps,tCacheFCIDUMPInts,tUHF
+         use SystemData, only: UMatEps,tCacheFCIDUMPInts,tUHF
          use SystemData, only: tRIIntegrals,nBasisMax,tROHF,tRotatedOrbsReal
-         use SystemData, only: tReadFreeFormat
+         use SystemData, only: tReadFreeFormat, G1, tFixLz
          USE UMatCache, only: UMatInd,UMatConj,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
          USE UMatCache, only: FillUpCache,GTID,nStates,nSlots,nTypes
          USE UMatCache, only: UMatCacheData,UMatLabels,GetUMatSize
@@ -550,30 +587,53 @@ contains
          integer, intent(in) :: NBASIS
          logical, intent(in) :: tReadFreezeInts
          real(dp), intent(out) :: ECORE
-         HElement_t, intent(out) :: UMAT(:)
-         HElement_t Z
+         HElement_t(dp), intent(out) :: UMAT(:)
+         HElement_t(dp) Z
          COMPLEX(dp) :: CompInt
-         INTEGER ZeroedInt,NonZeroInt
+         INTEGER ZeroedInt,NonZeroInt, LzDisallowed
          INTEGER I,J,K,L,X,Y,iunit,iSpinType
          INTEGER NORB,NELEC,MS2,ISYM,SYML(1000)
          integer(int64) ORBSYM(1000)
-         LOGICAL LWRITE,UHF
+         LOGICAL LWRITE
+         logical :: uhf
          INTEGER ISPINS,ISPN,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
          INTEGER UMatSize,TMatSize,IUHF
          INTEGER , ALLOCATABLE :: CacheInd(:)
          character(len=*), parameter :: t_r='READFCIINT'
          real(dp) :: diff
+         logical tExists     !test for existence of input file.
+         integer isfreeunit  !function returning integer for free unit
+         logical :: tbad
+         integer :: start_ind, end_ind
+         integer, parameter :: chunk_size = 1000000
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          LWRITE=.FALSE.
          UHF=.FALSE.
          IUHF=0
          ZeroedInt=0
+         LzDisallowed=0
          NonZeroInt=0
          
          IF(iProcIndex.eq.0) THEN
+#ifdef _MOLCAS_
+           call f_Inquire('FCIDMP',tExists)
+           if(tExists) then
+             iUnit=17
+             iUnit=IsFreeUnit(iUnit)
+             Call Molcas_Open(iunit,'FCIDMP')
+             Rewind(iunit)
+             READ(iunit,FCI)
+!             write(6,*) 'FCI NAMELIST print 3'
+!             WRITE(6,FCI)
+             CALL neci_flush(6)
+           else
+              call Stop_All('InitFromFCID','FCIDUMP file does not exist')
+           end if
+#else
              iunit = get_free_unit()
              OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD')
              READ(iunit,FCI)
+#endif
          ENDIF
 !Now broadcast these values to the other processors (the values are only read in on root)
          CALL MPIBCast(NORB,1)
@@ -584,7 +644,7 @@ contains
          CALL MPIBCast(SYMLZ,1000)
          CALL MPIBCast(ISYM,1)
          CALL MPIBCast(IUHF,1)
-         CALL MPIBCast(UHF,1)
+         CALL MPIBCast(UHF)
          CALL MPIBCast(PROPBITLEN,1)
          CALL MPIBCast(NPROP,3)
          ! If PropBitLen has been set then assume we're not using an Abelian
@@ -609,6 +669,10 @@ contains
          ENDIF
 
          IF(iProcIndex.eq.0) THEN
+
+             write(6,'("Two-electron integrals with a magnitude over ", &
+                       &g16.7," are screened")') UMatEps
+
              if(tMolpro.and.tUHF) then
                  !In molpro, UHF FCIDUMPs are written out as:
                  !1: aaaa
@@ -652,6 +716,50 @@ contains
                  endif
              endif
 #endif
+
+             ! Remove integrals that are too small
+             if (abs(Z) < UMatEps) then
+                 if (ZeroedInt < 100) then
+                     write(6,'(a,2i4,a,2i4,a)', advance='no') &
+                         'Ignoring integral (chem. notation) (', i, j, '|', k, &
+                        l, '): '
+                     write(6,*) Z
+                 else if (ZeroedInt == 100) then
+                     write(6,*) 'Ignored more than 100 integrals.'
+                     write(6,*) 'Further threshold truncations not reported explicitly'
+                 end if
+                 ZeroedInt = ZeroedInt + 1
+                 goto 101
+             end if
+
+             ! If we are fixing Lz symmetry, test if symmetry-zero elements
+             ! are being included
+             if (tFixLz) then
+                 tbad = .false.
+                 if (i /= 0 .and. j /= 0 .and. k /= 0 .and. l /= 0) then
+                     if (SymLz(i) + symLz(k) /= SymLz(j) + SymLz(l))  &
+                         tbad = .true.
+                 end if
+                 if (i /= 0 .and. j /= 0 .and. k == 0 .and. l == 0) then
+                     if (SymLz(i) /= SymLz(j))  &
+                         tbad = .true.
+                 end if
+                 if (tbad) then
+                     if (LzDisallowed < 100) then
+                         write(6,'(a,2i4,a,2i4,a)', advance='no') &
+                             'Ignoring Lz disallowed integral (chem. notation)&
+                             & (', i, j, '|', k, l, '): '
+                         write(6,*) Z
+                     else if (LzDisallowed == 100) then
+                         write(6,*) 'Ignored more than 100 integrals.'
+                         write(6,*) 'Further threshold truncations not reported explicitly'
+                     end if
+                     LzDisallowed = LzDisallowed + 1
+                     goto 101
+                 end if
+             end if
+
+
              IF(tROHF.and.(.not.tMolpro)) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals (unless molpro).
                 IF(I.ne.0) THEN
@@ -774,6 +882,7 @@ contains
 
                         ENDIF
                     ELSE
+                        NonZeroInt=NonZeroInt+1
 !Read in all integrals as normal.
                         UMAT(UMatInd(I,K,J,L,0,0))=Z
                     ENDIF
@@ -782,18 +891,8 @@ contains
                 ELSEIF(tCacheFCIDUMPInts.or.tRIIntegrals) THEN
                     CALL Stop_All("ReadFCIInts","TUMAT2D should be set")
                 ELSE
-                    IF(tUMatEps) THEN
-!We have an epsilon cutoff for the size of the two-electron integrals - UMatEps
-                        IF(abs(Z).lt.UMatEps) THEN
-                            UMAT(UMatInd(I,K,J,L,0,0))=0.0_dp
-                            ZeroedInt=ZeroedInt+1
-                        ELSE
-                            UMAT(UMatInd(I,K,J,L,0,0))=Z
-                            NonZeroInt=NonZeroInt+1
-                        ENDIF
-                    ELSE
-                        UMAT(UMatInd(I,K,J,L,0,0))=Z
-                    ENDIF
+                    UMAT(UMatInd(I,K,J,L,0,0))=Z
+                    NonZeroInt=NonZeroInt+1
                 ENDIF
              ENDIF
 !             IF(I.NE.0) GOTO 101
@@ -807,6 +906,7 @@ contains
 
 !Now broadcast the data read in
          CALL MPIBCast(ZeroedInt,1)
+         CALL MPIBCast(LzDisallowed,1)
          CALL MPIBCast(NonZeroInt,1)
          CALL MPIBCast(ECore,1)
 !Need to find out size of TMAT before we can BCast
@@ -822,25 +922,34 @@ contains
          ENDIF
          IF((.not.tRIIntegrals).and.(.not.tCacheFCIDUMPInts)) THEN
              CALL GetUMATSize(nBasis,NEl,UMatSize)
-!This is not an , as it is actually passed in as a real(dp), even though it is HElem in IntegralsData
-             CALL MPIBCast(UMAT,UMatSize)    
+
+             ! If we are on a 64bit system, the maximum dimensions for MPI are
+             ! still limited by 32bit limits.
+             ! --> We need to loop around this
+             start_ind = 1
+             end_ind = min(UMatSize, chunk_size)
+             do while(start_ind <= UMatSize)
+                 call MPIBcast(UMat(start_ind:end_ind), end_ind-start_ind+1)
+                 start_ind = end_ind + 1
+                 end_ind = min(UMatSize, end_ind + chunk_size)
+             end do
          ENDIF
          IF(tCacheFCIDUMPInts) THEN
 !Need to broadcast the cache...
              CALL MPIBCast(UMATLABELS,nSlots*nPairs)
              CALL MPIBCast(UMatCacheData,nTypes*nSlots*nPairs)
          ENDIF
+
+         if (ZeroedInt /= 0 .and. iProcIndex == 0) then
+             write(6,*) 'Number of removed two-index integrals: ', zeroedint
+         end if
+         if (LzDisallowed /= 0 .and. iProcIndex == 0) then
+             write(6,*) 'Number of Lz disallowed two-index integrals: ', &
+                 LzDisallowed
+         end if
+         write(6,*) 'Number of non-zero integrals: ', NonZeroInt
              
 
-         IF(tUMatEps) THEN
-!Write out statistics from zeroed integrals.
-             WRITE(6,"(A,G20.10,A)") "*** Zeroing all two-electron "    &
-     &          //"integrals with a magnitude of over ",UMatEps," ***" 
-             WRITE(6,*) ZeroedInt+NonZeroInt," 2E integrals read in..."
-             WRITE(6,*) ZeroedInt," integrals zeroed..."
-             WRITE(6,*) REAL(100*ZeroedInt,dp)/REAL(NonZeroInt+ZeroedInt,dp), &
-     &          " percent of 2E integrals zeroed."
-         ENDIF
          IF(tCacheFCIDUMPInts) THEN
              WRITE(6,*) "Ordering cache..."
              CALL FillUpCache()
@@ -869,8 +978,8 @@ contains
          use util_mod, only: get_free_unit
          IMPLICIT NONE
          real(dp), intent(out) :: ECORE
-         HElement_t, intent(out) :: UMAT(*)
-         HElement_t Z
+         HElement_t(dp), intent(out) :: UMAT(*)
+         HElement_t(dp) Z
          integer(int64) MASK,IND
          INTEGER I,J,K,L,X,Y, iunit
          LOGICAL LWRITE

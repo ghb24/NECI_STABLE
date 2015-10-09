@@ -4,7 +4,8 @@ module load_balance
     use CalcData, only: tUniqueHFNode, tSemiStochastic, tTruncInitiator, &
                         tCheckHighestPop, tEnhanceRemainder, OccupiedThresh, &
                         InitiatorOccupiedThresh, tContTimeFCIMC, &
-                        tContTimeFull, tTrialWavefunction, tInitOccThresh
+                        tContTimeFull, tTrialWavefunction, tInitOccThresh, &
+                        tPairedReplicas
     use global_det_data, only: global_determinant_data, get_iter_occ, &
                                set_det_diagH, set_part_init_time, &
                                inc_spawn_count, set_spawn_rate
@@ -16,7 +17,8 @@ module load_balance
                          tFillingStochRDMOnFly
     use searching, only: hash_search_trial, bin_search_trial
     use Determinants, only: get_helement, write_det
-    use rdms, only: det_removed_fill_diag_rdm
+    use LoggingData, only: tOutputLoadDistribution
+    use rdm_filling, only: det_removed_fill_diag_rdm
     use hphf_integrals, only: hphf_diag_helement
     use cont_time_rates, only: spawn_rate_full
     use SystemData, only: nel, tHPHF
@@ -70,6 +72,8 @@ contains
 
     subroutine pops_init_balance_blocks(pops_blocks)
 
+        use LoggingData, only: tHDF5PopsRead
+
         integer, intent(in) :: pops_blocks
         integer :: det(nel), block, j
         integer :: mapping_tmp(balance_blocks)
@@ -82,8 +86,10 @@ contains
         ! they will have been distributed according to the already-initialised
         ! blocking structure
         ! --> all we need to do is rebalance things
+        ! --> This also applies if we are using the HDF5 popsfile routines,
+        !     which distribute the particles at read time
         ASSERT(allocated(LoadBalanceMapping))
-        if (pops_blocks == -1) then
+        if (pops_blocks == -1 .or. tHDF5PopsRead) then
             call adjust_load_balance(iter_data_fciqmc)
             return
         end if
@@ -118,7 +124,7 @@ contains
         ! Ensure that all of the mappings are set on one, and only one
         ! processor.
         call MPISumAll(mapping_test, mapping_test_all)
-        if (.not. all(mapping_test_all == 1)) then
+        if (.not. all(mapping_test_all == 1 .or. mapping_test_all == 0)) then
             call stop_all(this_routine, "Multi-processor mapping not &
                          &correctly determined")
         end if
@@ -146,7 +152,7 @@ contains
         integer(int64) :: block_parts_all(balance_blocks)
         integer(int64) :: proc_parts(0:nProcessors-1)
         integer(int64) :: smallest_size
-        integer :: j, proc, nblocks, det(nel), block, TotWalkersTmp
+        integer :: j, proc, det(nel), block, TotWalkersTmp
         integer :: min_parts, max_parts, min_proc, max_proc
         integer :: smallest_block
         real(dp) :: sgn(lenof_sign), avg_parts
@@ -161,10 +167,12 @@ contains
 
         ! Count the number of particles inside each of the blocks
         block_parts = 0
+        HolesInList = 0
         do j = 1, int(TotWalkers, sizeof_int)
 
             call extract_sign(CurrentDets(:,j), sgn)
             if (IsUnoccDet(sgn)) then
+                HolesInList = HolesInList + 1
                 cycle
             end if
 
@@ -250,12 +258,14 @@ contains
 
         end do
 
-        write(6, '("Load balancing distribution:")')
-        write(6, '("node #, particles")')
-        do j = 0, nNodes - 1
-            write(6,'(i7,i9)') j, proc_parts(j)
-        end do
-        write(6,*) '--'
+        if (iProcIndex == root .and. tOutputLoadDistribution) then
+            write(6, '("Load balancing distribution:")')
+            write(6, '("node #, particles")')
+            do j = 0, nNodes - 1
+                write(6,'(i8,i10)') j, proc_parts(j)
+            end do
+            write(6,*) '--'
+        end if
 
         ! TODO: Only call this if we have made changes!
         TotWalkersTmp = int(TotWalkers, sizeof_int)
@@ -288,7 +298,7 @@ contains
 
         ! Provide some feedback to the user.
         if (iProcIndex == root) then
-            write(6,'(a,i6,a,i6,a,i6)') 'Moving load balancing block ', &
+            write(6,'(a,i9,a,i6,a,i6)') 'Moving load balancing block ', &
                      block, ' from processor ', src_proc, ' to ', tgt_proc
         end if
 
@@ -372,7 +382,7 @@ contains
         integer(n_int), intent(inout) :: iLutCurr(0:NIfTot)
         integer, intent(in) :: DetHash, nJ(nel)
         integer :: DetPosition
-        HElement_t :: HDiag
+        HElement_t(dp) :: HDiag
         real(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
         character(len=*), parameter :: t_r = "AddNewHashDet"
@@ -454,13 +464,20 @@ contains
 
     subroutine CalcHashTableStats(TotWalkersNew, iter_data)
 
+        use CalcData, only: tMP2FixedNode
+        use DetBitOps, only: FindBitExcitLevel
+        use hphf_integrals, only: hphf_off_diag_helement
+        use FciMCData, only: ProjEDet
+
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
+
         integer :: i, j, AnnihilatedDet, lbnd, ubnd
-        real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
+        real(dp) :: CurrentSign(lenof_sign)
         real(dp) :: pRemove, r
-        integer :: nI(nel), run
+        integer :: nI(nel), run, ic
         logical :: tIsStateDeterm
+        real(dp) :: hij
         character(*), parameter :: t_r = 'CalcHashTableStats'
 
         if (.not. bNodeRoot) return
@@ -475,17 +492,44 @@ contains
 
         if (TotWalkersNew > 0) then
             do i=1,TotWalkersNew
+
                 call extract_sign(CurrentDets(:,i),CurrentSign)
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
 
                 if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
                     AnnihilatedDet = AnnihilatedDet + 1 
                 else
+
+                if (tMP2FixedNode) then
+#if !(defined(__PROG_NUMRUNS) || defined(__CMPLX))
+                        ic = FindBitExcitLevel(ilutRef(:,1), CurrentDets(:,i))
+                        call decode_bit_det(nI, CurrentDets(:,i))
+                        if (ic == 2) then
+                            if (tHPHF) then
+                                hij = hphf_off_diag_helement(nI, ProjEDet(:, 1), CurrentDets(:,i), ilutRef(:,1))
+                            else
+                                hij = get_helement(nI, ProjEDet(:, 1), 2, CurrentDets(:,i), ilutRef(:,1))
+                            end if
+                            do j = 1, lenof_sign
+                                run = part_type_to_run(j)
+                                if (abs(hij) > 1.0e-6 .and. (CurrentSign(j) * hij * AllNoatHF(j)) > 0) then
+                                    NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
+                                    iter_data%nremoved(j) = iter_data%nremoved(j) + abs(CurrentSign(j))
+                                    CurrentSign(j) = 0
+                                    call nullify_ilut_part(CurrentDets(:, i), j)
+                                end if
+                            end do
+                        end if
+#else
+                        call stop_all(t_r, 'not yet implemented')
+#endif
+                    end if
+
                     do j=1, lenof_sign
                         run = part_type_to_run(j)
                         if (.not. tIsStateDeterm) then
                             if (tInitOccThresh.and.test_flag(CurrentDets(:,i), flag_has_been_initiator(1)))then
-                                if ((abs(CurrentSign(j)) > 0.0) .and. (abs(CurrentSign(j)) < InitiatorOccupiedThresh)) then
+                                if ((abs(CurrentSign(j)) > 1.e-12_dp) .and. (abs(CurrentSign(j)) < InitiatorOccupiedThresh)) then
                                     ! We remove this walker with probability 1-RealSignTemp.
                                     pRemove = (InitiatorOccupiedThresh-abs(CurrentSign(j)))/InitiatorOccupiedThresh
                                     r = genrand_real2_dSFMT ()
@@ -512,7 +556,7 @@ contains
                                     end if
                                 end if
                             else
-                                if ((abs(CurrentSign(j)) > 0.0) .and. (abs(CurrentSign(j)) < OccupiedThresh)) then
+                                if ((abs(CurrentSign(j)) > 1.e-12_dp) .and. (abs(CurrentSign(j)) < OccupiedThresh)) then
                                 !We remove this walker with probability 1-RealSignTemp
                                 pRemove=(OccupiedThresh-abs(CurrentSign(j)))/OccupiedThresh
                                 r = genrand_real2_dSFMT ()
@@ -580,35 +624,6 @@ contains
                         AvNoAtHF = 0.0_dp 
                         IterRDM_HF = Iter + 1 
                     end if
-                end if
-
-                if (tFillingStochRDMonFly .and. (.not. tIsStateDeterm)) then
-                    if (inum_runs == 2) then
-
-                        if ((CurrentSign(1) == 0 .and. get_iter_occ(i, 1) /= 0) .or. &
-                            (CurrentSign(inum_runs) == 0 .and. get_iter_occ(i, 2) /= 0) .or. &
-                            (CurrentSign(1) /= 0 .and. get_iter_occ(i, 1) == 0) .or. &
-                            (CurrentSign(inum_runs) /= 0 .and. get_iter_occ(i, 2) == 0)) then
-                               
-                            ! At least one of the signs has just gone to zero or just become reoccupied
-                            ! so we need to consider adding in diagonal elements and connections to HF
-                            ! The block that's just ended was occupied in at least one population.
-                            call det_removed_fill_diag_rdm(CurrentDets(:,i), i)
-                        end if
-                    else
-                        if (IsUnoccDet(CurrentSign)) then
-                            call det_removed_fill_diag_rdm(CurrentDets(:,i), i)
-                        end if
-                    end if
-                end if
-
-                if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm) .and. tTruncInitiator) then
-                    do j=1,lenof_sign
-                        if (test_flag(CurrentDets(:,i),flag_initiator(j))) then
-                            !determinant was an initiator...it obviously isn't any more...
-                            NoAddedInitiators(j)=NoAddedInitiators(j)-1
-                        end if
-                    end do
                 end if
 
                 ! This InstNoAtHF call must be placed at the END of the routine

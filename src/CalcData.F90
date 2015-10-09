@@ -75,6 +75,8 @@ type subspace_in
     integer :: npops = 0
     ! When using the tMP1Core option, this specifies how many determinants to keep.
     integer :: mp1_ndets = 0
+
+    character(255) :: read_filename
 end type subspace_in
 
 LOGICAL :: TSTAR,TTROT,TGrowInitGraph
@@ -173,7 +175,8 @@ LOGICAL tUseProcsAsNodes  !Set if we treat each processor as its own node.
 INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of at most this size.
                           ! 0 means use physical nodes.
 
-    logical :: tJumpShift
+    logical :: tJumpShift, tPopsJumpShift
+    logical :: tShiftProjectGrowth = .false.
 
 ! Perform a Davidson calculation if true.
 logical :: tDavidson
@@ -190,7 +193,7 @@ type(subspace_in) :: ss_space_in
 logical :: tCSFCore ! Use CSFs for the core states.
 logical :: tSparseCoreHamil ! Use a sparse representation of the core Hamiltonian.
 
-! If this is non-zero then we turn semi-stochastic semistoch_shift_iter
+! If this is non-zero then we turn semi-stochastic on semistoch_shift_iter
 ! iterations after the shift starts to vary.
 integer :: semistoch_shift_iter
 
@@ -266,8 +269,17 @@ type(subspace_in) :: init_trial_in
 ! determinant multiple times.
 logical :: use_spawn_hash_table
 
+! Used when the user specifies multiple reference states manually, using the
+! multiple-initial-refs option, similar to the definedet option but for more
+! than one states, when using multiple replicas.
 logical :: tMultipleInitialRefs = .false.
 integer, allocatable :: initial_refs(:,:)
+
+! As for the mutliple-initial-refs options above, but the
+! multiple-initial-states option allows the user to manually specify the
+! actual starting states, rather than the starting reference functions.
+logical :: tMultipleInitialStates = .false.
+integer, allocatable :: initial_states(:,:)
 
 ! Array to specify how to reorder the trial states (which are by default
 ! ordered by the energy in the trial space).
@@ -294,5 +306,26 @@ logical :: tPairedReplicas = .false.
 ! If true then swap the sign of the FCIQMC wave function if the sign of the
 ! Hartree-Fock population becomes negative.
 logical :: tPositiveHFSign = .false.
+
+! If true, then set the initial shift for each replica (in jobs with multiple
+! different references) based on the corresponding references that have
+! been assigned.
+logical :: tMultiRefShift = .false.
+
+! Keep track of where in the calculation sequence we are.
+integer :: calc_seq_no
+
+!Weak initiator extension
+logical :: tWeakInitiators
+real(dp) :: weakthresh
+
+! During annihilation, do we need the coefficient on the parent site? If so
+! then attach it here
+logical :: tBroadcastParentCoeff = .false.
+
+logical :: tInterpolateInitThresh = .false.
+real(dp) :: init_interp_min, init_interp_max, init_interp_exponent
+
+logical :: tMP2FixedNode = .false.
 
 end module CalcData

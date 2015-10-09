@@ -17,8 +17,8 @@
 !         INTEGER(n_int) :: TempBitRep(0:NIfTot),BitRepHF(0:NIfTot)
          INTEGER NDET
          INTEGER NROW(NDET),LAB(*)
-         HElement_t HAMIL(*),CK(NDET,NDET),WORK2(3*NDET),WORK
-!         HElement_t CopyCK(NDET,NDET)
+         HElement_t(dp) HAMIL(*),CK(NDET,NDET),WORK2(3*NDET),WORK
+!         HElement_t(dp) CopyCK(NDET,NDET)
          real(dp) W(NDET)
          INTEGER I,J,IND,INDZ,NBS!,nopen,k,Excit
          INTEGER(int32) INFO
@@ -136,7 +136,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          use constants, only: dp
          IMPLICIT NONE
          INTEGER NDET,i,j,NExcit,bin,nbins
-         HElement_t Vecs(NDET,NDET),HMAT(NDET,NDET),KMAT(NDET,NDET)
+         HElement_t(dp) Vecs(NDET,NDET),HMAT(NDET,NDET),KMAT(NDET,NDET)
          real(dp) Vals(NDET),S(NDET,NDET+1),SSUM
          real(dp) MinS,MaxS,RangeBins
          INTEGER , ALLOCATABLE :: SHist(:,:)
@@ -310,7 +310,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          INTEGER GELOWEST,IDEG
          type(timer), save :: proc_timer
          TYPE(BasisFN) BLOCKSYM(NBLOCKS)
-         HElement_t :: hel
+         HElement_t(dp) :: hel
          character(*),parameter :: this_routine='HDIAG_NH'
          proc_timer%timer_name=this_routine
          call set_timer(proc_timer)

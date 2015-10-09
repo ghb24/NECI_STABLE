@@ -56,8 +56,7 @@ MODULE System
       tHPHFInts=.false.
       tHPHF=.false.
       tMaxHLGap=.false.
-      tUMatEps=.false.
-      UMatEps=0.0_dp
+      UMatEps = 1.0e-8
       tExactSizeSpace=.false.
       iRanLuxLev=3      !This is the default level of quality for the random number generator.
       tNoSymGenRandExcits=.false.
@@ -173,10 +172,15 @@ MODULE System
       tAllSymSectors = .false.
       tGenHelWeighted = .false.
       tGen_4ind_weighted = .false.
+      tGen_4ind_part_exact = .false.
+      tGen_4ind_lin_exact = .false.
       tGen_4ind_reverse = .false.
       tUEGNewGenerator = .false.
+      tGen_4ind_2 = .false.
+      tGen_4ind_2_symmetric = .false.
 
       tMultiReplicas = .false.
+      tGiovannisBrokenInit = .false.
 
 #ifdef __PROG_NUMRUNS
       inum_runs = 1
@@ -417,6 +421,7 @@ system: do
 ! the last number is the symmetry specification - and is placed in position 5
             IPARITY(5)=IPARITY(4)
             IPARITY(4)=0
+            tSymSet = .true.
         case("USEBRILLOUINTHEOREM")
           TUSEBRILLOUIN=.TRUE. 
           tNoBrillouin=.false.
@@ -916,6 +921,40 @@ system: do
                         ! doubles). This is effectively the "reverse" of
                         ! 4IND-WEIGHTED as above.
                         tGen_4ind_reverse = .true.
+                    case("4IND-WEIGHTED-PART-EXACT")
+                        ! Weight excitations as in 4IND-WEIGHTED, except for
+                        ! double excitations with the same spin which are
+                        ! weighted according to:
+                        ! sqrt(((ii|aa) + (jj|aa))(<ij|ab>-<ij|ba>))
+                        tGen_4ind_weighted = .true.
+                        tGen_4ind_part_exact = .true.
+                    case("4IND-WEIGHTED-LIN-EXACT")
+                        ! Weight excitations as in 4IND-WEIGHTED, except for
+                        ! double excitations with the same spin which are
+                        ! weighted according to:
+                        ! (1/M)(<ij|ab> - <ij|ba>)
+                        ! (The second half of this only affecting the choice
+                        ! of electron b)
+                        tGen_4ind_weighted = .true.
+                        tGen_4ind_lin_exact = .true.
+                    case("4IND-WEIGHTED-2")
+                        ! Second attempt at 4ind weighted generator
+                        !
+                        ! This version disables symmetric selection of the
+                        ! orbitals. I.e. for non-parallel electron choice, the
+                        ! orbitals are chosen one spin first, then the other
+                        !
+                        ! --> Very slightly better Hij/pgen ratio
+                        ! --> Much faster runtime
+                        tGen_4ind_2 = .true.
+                        tGen_4ind_part_exact = .true.
+                        tGen_4ind_2_symmetric = .false.
+                    case("4IND-WEIGHTED-2-SYMMETRIC")
+                        ! The other version of this generator. This permits
+                        ! selecting orbitals in both directions
+                        tGen_4ind_2 = .true.
+                        tGen_4ind_part_exact = .true.
+                        tGen_4ind_2_symmetric = .true.
                     case("UEG")
                         ! Use the new UEG excitation generator.
                         ! TODO: This probably isn't the best way to do this
@@ -931,11 +970,16 @@ system: do
 ! and only these determinants will be allowed to be spawned at.
             CALL Stop_All("ReadSysInp","SPAWNLISTDETS option depreciated")
 !            tListDets=.true.
+
         case("UMATEPSILON")
-!This is an option for systems which are reaad in from an FCIDUMP file. Any two-electron integrals which are smaller in
-!magnitude than the value set for UMatEps will be set to zero.
+
+            ! For systems that read in from an FCIDUMP file, any two-electron
+            ! integrals are screened against a threshold parameter. Below
+            ! this they are ignored.
+            !
+            ! By default, this parameter is 10-e8, but it can be changed here.
             call readf(UMatEps)
-            tUMatEps=.true.
+
         case("NOSINGEXCITS")
 !This will mean that no single excitations are ever attempted to be generated.
             tNoSingExcits=.true.
@@ -992,8 +1036,16 @@ system: do
             endif
 #endif
 
-          case("HEISENBERG")
-              tHeisenberg = .true.
+        case("HEISENBERG")
+            tHeisenberg = .true.
+        
+        case("GIOVANNIS-BROKEN-INIT")
+            ! Giovanni's scheme for initialising determinants with the correct
+            ! spin an symmetry properties in a wider range of cases than
+            ! currently supported.
+
+            ! Looks nice, but it currently breaks lots of other stuff!
+            tGiovannisBrokenInit = .true.
 
         case("ENDSYS") 
             exit system

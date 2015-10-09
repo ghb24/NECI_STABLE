@@ -133,15 +133,17 @@ module ParallelHelper
     integer(MPIArg), parameter :: MpiDetInt = MPI_INTEGER4
 #endif
 
-! This is a hack to work around disagreement between compilers on what
-! datatype is acceptable for logical variables in MPI routines.
-#ifdef __MPILOGTYPE
-    integer(MPIArg), parameter :: MPI_LOGTYPE4 = MPI_LOGICAL4
-    integer(MPIArg), parameter :: MPI_LOGTYPE8 = MPI_LOGICAL8
-#else
-    integer(MPIArg), parameter :: MPI_LOGTYPE4 = MPI_INTEGER4
-    integer(MPIArg), parameter :: MPI_LOGTYPE8 = MPI_INTEGER8
-#endif
+! SDS: We just no longer use MPI logical variables, and work around with
+!      integers instead
+!! This is a hack to work around disagreement between compilers on what
+!! datatype is acceptable for logical variables in MPI routines.
+!#ifdef __MPILOGTYPE
+!    integer(MPIArg), parameter :: MPI_LOGTYPE4 = MPI_LOGICAL4
+!    integer(MPIArg), parameter :: MPI_LOGTYPE8 = MPI_LOGICAL8
+!#else
+!    integer(MPIArg), parameter :: MPI_LOGTYPE4 = MPI_INTEGER4
+!    integer(MPIArg), parameter :: MPI_LOGTYPE8 = MPI_INTEGER8
+!#endif
 #else
     ! In serial, set this to a nonsense value
     integer(MPIArg), parameter :: MpiDetInt = -1
@@ -174,6 +176,7 @@ module ParallelHelper
    logical              :: bNodeRoot         !Set if this processor is root of its node
    integer, allocatable :: CommNodes(:)      !Each node has a separate communicator
    integer(MPIArg), allocatable :: GroupNodes(:)     !Each node has a separate communicator
+   integer(MPIArg), allocatable :: GroupNodesDum(:), CommNodesDum(:)
    type(CommI), allocatable :: Nodes(:)      !The node for each processor
    integer, allocatable :: ProcNode(:)   !The node for each processor (as a zero-based integer)
    integer, allocatable :: NodeRoots(:)      !The root for each node (zero-based)

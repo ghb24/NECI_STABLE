@@ -15,7 +15,7 @@ C.. 12/7/05 - this should now just be the number 0.0_dp - it is not used
 
 
 C.. RHOII2 is constructed to contain the RHOII for each point in the path
-         HElement_t RHOIJ(0:I_V,0:I_V)
+         HElement_t(dp) RHOIJ(0:I_V,0:I_V)
          real(dp) RHOII(0:I_V),RHOII2(0:I_HMAX)
          real(dp) DLWDB
          INTEGER ILOGGING
@@ -91,7 +91,7 @@ C.. RHOII2 is constructed to contain the RHOII for each point in the path
 ! removed as no longer used
 !         real(dp) RHOII2(0:i_hmax)
          real(dp) CALCPATHS
-         HElement_t HIJS(1:I_V),RHOIJ(0:I_V,0:I_V)
+         HElement_t(dp) HIJS(1:I_V),RHOIJ(0:I_V,0:I_V)
          real(dp) WEIGHT
          real(dp) DBETA
          real(dp) DLWDB
@@ -176,7 +176,7 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
          use legacy_data, only: CALCP_N, CALCP_NT, CALCP_SUM, CALCP_HSUM
          IMPLICIT NONE
          INTEGER I_V
-         HElement_t RHOIJ(0:I_V,0:I_V)
+         HElement_t(dp) RHOIJ(0:I_V,0:I_V)
          real(dp) RHOC,HC,WEIGHT
          INTEGER ILG,ISGN,ICLASS
          INTEGER INCR
@@ -215,7 +215,7 @@ C            WRITE(32,*) I_V,ICLASS,RHOC
       SUBROUTINE CLASSPATH(RHOIJ,N,ICLASS)
         use constants
          INTEGER I,J,N,ICLASS
-         HElement_t RHOIJ(0:N,0:N)
+         HElement_t(dp) RHOIJ(0:N,0:N)
          ICLASS=0
          DO I=0,N-1
             DO J=I+1,N-1

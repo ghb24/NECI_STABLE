@@ -43,7 +43,7 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
    logical :: tOrder
    type(timer), save :: proc_timer
    integer :: I,J,II,A,B,nStatesUsed
-   HElement_t :: HarXC,HarXCSum
+   HElement_t(dp) :: HarXC,HarXCSum
    
    proc_timer%timer_name='VASPInitInts'
    call set_timer(proc_timer)

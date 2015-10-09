@@ -2,9 +2,11 @@
 
 module sym_general_mod
 
-    use SystemData, only: tFixLz, tNoSymGenRandExcits, iMaxLz, G1
+    use SystemData, only: tFixLz, tNoSymGenRandExcits, iMaxLz, G1, nel, &
+                          Symmetry, tKpntSym
     use SymExcitDataMod
     use Symdata, only: nSymLabels
+    use sym_mod, only: SYMPROD, RandExcitSymLabelProd, symeq
     use constants
 
     implicit none
@@ -236,5 +238,68 @@ contains
 
     end subroutine
 
+    function SymAllowedExcit(nI, nJ, ic, ex) result(bValid)
+
+        ! Provide a check that the determinant nJ is valid according to the
+        ! symmetry specification of the determinant nI. This also checks that
+        ! the excitation relating these two determinants (ic, ex) is valid.
+
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2, 2)
+        logical :: bValid
+
+        integer :: exLevel, ms1, ms2, ml1, ml2, i
+        integer :: sym_prod_i, sym_prod_j
+        type(Symmetry) :: sym_prod1, sym_prod2
+
+        logical :: IsValidDet ! In .F file.
+        integer :: iGetExcitLevel ! In .F file
+
+        ! Default initial value
+        bValid = .true.
+
+        ! Check reported excitation level
+        exLevel = iGetExcitLevel(nI, nJ, nel)
+        if (exLevel /= ic) &
+            bValid = .false.
+
+        ! Check that determinant is in increasing numerical order
+        if (.not. IsValidDet(nJ, nel)) &
+            bValid = .false.
+
+        ! Check that both determinants have the same overall symmetry
+        sym_prod_i = 0
+        sym_prod_j = 0
+        do i = 1, nel
+            sym_prod_i = RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nI(i))), sym_prod_i)
+            sym_prod_j = RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nJ(i))), sym_prod_j)
+        end do
+        if (sym_prod_i /= sym_prod_j) &
+            bValid = .false.
+
+        ! Check the symmetry properties of the excitation matrix
+        if (.not. tNoSymGenRandExcits .and. .not. tKPntSym) then
+            if (ic == 2) then
+                sym_prod1 = SYMPROD(G1(ex(1,1))%Sym, G1(ex(1,2))%Sym)
+                sym_prod2 = SYMPROD(G1(ex(2,1))%Sym, G1(ex(2,2))%Sym)
+                ms1 = G1(ex(1,1))%ms + G1(ex(1,2))%ms
+                ms2 = G1(ex(2,1))%ms + G1(ex(2,2))%ms
+            else
+                sym_prod1 = G1(ex(1,1))%Sym
+                sym_prod2 = G1(ex(2,1))%Sym
+                ms1 = G1(ex(1,1))%ms
+                ms2 = G1(ex(2,1))%ms
+            end if
+            if (.not. SYMEQ(sym_prod1, sym_prod2)) bValid = .false.
+            if (ms1 /= ms2) bValid = .false.
+        end if
+
+        ! Check that Lz angular momentum projection is preserved if necessary
+        if (tFixLz) then
+            ml1 = sum(G1(ex(1, 1:ic))%ml)
+            ml2 = sum(G1(ex(2, 1:ic))%ml)
+            if (ml1 /= ml2) bValid = .false.
+        end if
+
+    end function
 
 end module

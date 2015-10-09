@@ -34,7 +34,7 @@ module kp_fciqmc
     use procedure_pointers, only: generate_excitation, attempt_create, encode_child
     use procedure_pointers, only: new_child_stats, extract_bit_rep_avsign
     use semi_stoch_procs, only: is_core_state, check_determ_flag, determ_projection
-    use soft_exit, only: ChangeVars
+    use soft_exit, only: ChangeVars, tSoftExitFound
     use SystemData, only: nel, lms, nbasis, tAllSymSectors, nOccAlpha, nOccBeta
     use SystemData, only: tRef_Not_HF
     use timing_neci, only: set_timer, halt_timer
@@ -58,11 +58,11 @@ contains
         integer(n_int), pointer :: ilut_parent(:)
         real(dp) :: prob, unused_rdm_real, parent_hdiag
         real(dp) :: child_sign(lenof_sign), parent_sign(lenof_sign)
-        real(dp) :: unused_sign1(lenof_sign), unused_sign2(lenof_sign)
+        real(dp) :: unused_sign(lenof_sign)
         real(dp), allocatable :: lowdin_evals(:,:)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
-        logical :: tParity, tSoftExitFound, tSingBiasChange, tWritePopsFound
-        HElement_t :: HElGen
+        logical :: tParity, tSingBiasChange, tWritePopsFound
+        HElement_t(dp) :: HElGen
 
         ! Stores of the overlap and projected Hamiltonian matrices.
         real(dp), pointer :: overlap_matrices(:,:,:)
@@ -248,7 +248,7 @@ contains
 
                                             child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
                                                                 nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                                                                ex_level_to_ref, ireplica, unused_sign2, unused_rdm_real)
+                                                                ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
 
                                         else
                                             child_sign = 0.0_dp
@@ -276,8 +276,7 @@ contains
                             ! determ_projection.
                             if (.not. tParentIsDeterm) then
                                 call walker_death (iter_data_fciqmc, nI_parent, ilut_parent, parent_hdiag, &
-                                                    parent_sign, unused_sign2, unused_sign1, idet, &
-                                                    ex_level_to_ref)
+                                                    parent_sign, idet, ex_level_to_ref)
                             end if
 
                         end do ! Over all determinants.
@@ -307,7 +306,7 @@ contains
                             call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts, tPairedReplicas)
                             call halt_timer(Stats_Comms_Time)
 
-                            call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
+                            call ChangeVars(tSingBiasChange, tWritePopsFound)
                             if (tWritePopsFound) call WriteToPopsfileParOneArr(CurrentDets, TotWalkers)
                             if (tSingBiasChange) call CalcApproxpDoubles()
                             if (tSoftExitFound) exit outer_loop
@@ -381,11 +380,11 @@ contains
         integer(n_int), pointer :: ilut_parent(:)
         real(dp) :: prob, unused_rdm_real, parent_hdiag
         real(dp) :: child_sign(lenof_sign), parent_sign(lenof_sign)
-        real(dp) :: unused_sign1(lenof_sign), unused_sign2(lenof_sign)
+        real(dp) :: unused_sign(lenof_sign)
         real(dp), allocatable :: lowdin_evals(:,:), lowdin_spin(:,:)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
-        logical :: tParity, tSoftExitFound, tSingBiasChange, tWritePopsFound
-        HElement_t :: HElGen
+        logical :: tParity, tSingBiasChange, tWritePopsFound
+        HElement_t(dp) :: HElGen
 
         ! Stores of the overlap, projected Hamiltonian and spin matrices.
         real(dp), pointer :: overlap_matrices(:,:,:,:)
@@ -600,7 +599,7 @@ contains
 
                                     child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
                                                         nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                                                        ex_level_to_ref, ireplica, unused_sign2, unused_rdm_real)
+                                                        ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
                                 else
                                     child_sign = 0.0_dp
                                 end if
@@ -626,7 +625,7 @@ contains
                         ! determ_projection.
                         if (.not. tParentIsDeterm) then
                             call walker_death (iter_data_fciqmc, nI_parent, ilut_parent, parent_hdiag, &
-                                                parent_sign, unused_sign2, unused_sign1, idet, ex_level_to_ref)
+                                                parent_sign, idet, ex_level_to_ref)
                         end if
 
                     end do ! Over all determinants.
@@ -648,11 +647,7 @@ contains
                     call halt_timer(annihil_time)
 
                     if (tOrthogKPReplicas .and. iter > orthog_kp_iter) then
-                        if (tPairedReplicas) then
-                            call orthogonalise_replica_pairs(iter_data_fciqmc)
-                        else
-                            call orthogonalise_replicas(iter_data_fciqmc)
-                        end if
+                        call orthogonalise_replicas(iter_data_fciqmc)
                     else if (tPrintReplicaOverlaps) then
                         call calc_replica_overlaps()
                     end if
@@ -664,7 +659,7 @@ contains
                         call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts, tPairedReplicas)
                         call halt_timer(Stats_Comms_Time)
 
-                        call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
+                        call ChangeVars(tSingBiasChange, tWritePopsFound)
                         if (tWritePopsFound) call WriteToPopsfileParOneArr(CurrentDets, TotWalkers)
                         if (tSingBiasChange) call CalcApproxpDoubles()
                         if (tSoftExitFound) exit outer_loop

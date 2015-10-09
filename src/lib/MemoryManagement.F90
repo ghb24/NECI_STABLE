@@ -143,18 +143,29 @@ contains
 
     integer(li), intent(in), optional :: MemSize
     logical, intent(in), optional :: print_err
-    integer(li) :: MaxMemBytes
-#ifdef MOLPRO
+    integer(li) :: MaxMemBytes,MemSizeMolcas
+    character(len=16) MMem
+#if defined(MOLPRO)
     integer(li), parameter :: MaxMemLimit=8192   !It would be nice to get this straight from molpro.
-#else
+#elif !defined(_MOLCAS_)
     integer(li), parameter :: MaxMemLimit=MAXMEM ! Obtained via CPP in the makefile. MAXMEM in MB.
 #endif
 
+#ifdef _MOLCAS_
+    !MemSizeMolcas is already in MB.
+    call getenvf('MOLCAS_MEM',MMem)
+    read(MMem,*) MemSizeMolcas
+    initialised=.false.
+#endif
 
     if (present(MemSize)) then
         MaxMemBytes=MemSize*1024**2
     else
+#ifdef _MOLCAS_
+        MaxMemBytes = MemSizeMolcas*1024**2
+#else
         MaxMemBytes=MaxMemLimit*1024**2
+#endif
     end if
     if (present(print_err)) then
         err_output=print_err
@@ -175,9 +186,9 @@ contains
         endif
 
 
-        allocate(MemLog(MaxLen))
-        allocate(PeakMemLog(MaxLen))
-        allocate(LookupPointer(MaxLen))
+        if(.not.allocated(MemLog)) allocate(MemLog(MaxLen))
+        if(.not.allocated(PeakMemLog)) allocate(PeakMemLog(MaxLen))
+        if(.not.allocated(LookupPointer)) allocate(LookupPointer(MaxLen))
         lookuppointer = 0
         MaxMemory = MaxMemBytes
         MemoryUsed = 0

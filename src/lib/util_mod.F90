@@ -3,6 +3,7 @@ module util_mod
     use util_mod_numerical
     use util_mod_byte_size
     use util_mod_cpts
+    use fmt_utils
     use dSFMT_interface, only: genrand_real2_dSFMT
     use constants
     use iso_c_hack
@@ -48,6 +49,7 @@ module util_mod
         module procedure abs_l1_csp
     end interface
 
+
     ! sds: It would be nice to use a proper private/public interface here,
     !      BUT PGI throws a wobbly on using the public definition on
     !      a new declared operator. --> "Empty Operator" errors!
@@ -78,7 +80,7 @@ contains
         i = int(r)
         res = r - real(i, dp)
 
-        if (res /= 0) then
+        if (abs(res) >= 1.0e-12_dp) then
             if (abs(res) > genrand_real2_dSFMT()) &
                 i = i + nint(sign(1.0_dp, r))
         end if
@@ -98,7 +100,7 @@ contains
         i = int(num)
         res = num - real(i, dp)
 
-        if (res /= 0) then
+        if (abs(res) >= 1.0e-12_dp) then
             if (abs(res) > r) &
                 i = i + nint(sign(1.0_dp, num))
         end if
@@ -398,51 +400,6 @@ contains
         det_int_arr_eq = .true.
     end function det_int_arr_eq
 
-!--- Output utilties ---
-
-    elemental function int_fmt(i, padding) result(fmt1)
-
-        ! In:
-        !    i: an integer
-        !    padding (optional): amount of padding to add to format statement.
-        !        The default amount is 2.  The padding is used to include the
-        !        sign if i is negative.
-        ! Returns:
-        !    fmt1: a format statement for an integer field which will hold
-        !        i perfectly plus an amount of padding.
-
-        ! This does take i/o formatting to a slightly OCD level, admittedly...
-
-        character(2) :: fmt1
-        integer, intent(in) :: i
-        integer, intent(in), optional :: padding
-        integer :: p
-        real(sp) :: r
-
-        if (present(padding)) then
-            p = padding
-        else
-            p  = 2
-        end if
-
-        if (i == 0 .or. i==1) then
-            r = 1.0
-        else
-            r = log10(real(abs(i)+1,sp))
-        end if
-        p = ceiling(r+p)
-
-        if (p < 10) then
-            write (fmt1,'("i",i1)') p
-        else if (r < 100) then
-            write (fmt1,'("i",i2)') p
-        else
-            ! By this point we'll have hit integer overflow anyway...
-            write (fmt1,'("i",i3)') p
-        end if
-
-    end function int_fmt
-
 !--- Searching ---
 
     ! NOTE: This can only be used for binary searching determinant bit
@@ -707,7 +664,8 @@ contains
 
     end subroutine append_ext
 
-    subroutine get_unique_filename(stem, tincrement, tnext, istart, filename)
+    subroutine get_unique_filename(stem, tincrement, tnext, istart, filename, &
+                                   ext)
 
         ! Find a filename which is either the "newest" or the next to be used.
         ! The filename is assumed to be stem.x, where x is an integer.
@@ -724,6 +682,7 @@ contains
         !    istart: the integer of the first x value to check.
         !        If istart is negative, then the filename is set to be stem.x,
         !        where x = |istart+1|.  This overrides everything else.
+        !    ext: The file extension. Appended after the numbers.
         ! Out:
         !    filename.
 
@@ -731,6 +690,7 @@ contains
         logical, intent(in) :: tincrement, tnext
         integer, intent(in) :: istart
         character(*), intent(out) :: filename
+        character(*), intent(in), optional :: ext
 
         integer :: i
         logical :: exists
@@ -740,6 +700,7 @@ contains
             exists = .true.
             do while (exists)
                 call append_ext(stem, i, filename)
+                if (present(ext)) filename = trim(filename) // ext
                 inquire(file=filename,exist=exists)
                 i = i + 1
             end do
@@ -748,21 +709,27 @@ contains
                 ! this will return stem.istart if stem.istart doesn't exist.
                 i = max(istart,i - 2)
                 call append_ext(stem, i, filename)
+                if (present(ext)) filename = trim(filename) // ext
             end if
         else
             filename = stem
+            if (present(ext)) filename = trim(filename) // ext
         end if
 
         if (.not.tnext) then
             inquire(file=filename,exist=exists)
             if (.not.exists) then
                 inquire(file=stem,exist=exists)
-                if (exists) filename = stem
+                if (exists) then
+                    filename = stem
+                    if (present(ext)) filename = trim(filename) // ext
+                endif
             end if
         end if
 
         if (istart < 0) then
             call append_ext(stem, abs(i+1), filename)
+            if (present(ext)) filename = trim(filename) // ext
         end if
 
     end subroutine get_unique_filename
@@ -886,7 +853,6 @@ contains
 #endif
 
     end function neci_etime
-
 
 end module
 

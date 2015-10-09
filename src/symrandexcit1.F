@@ -4,14 +4,15 @@
 !== for abelian symmetry groups, where lists of symmetry pairs needn't be
 !== stored.
 
-      SUBROUTINE SymGenRandExcitIt2(NI,NEL,EXCITTYPES,                  &
-     &               CLASSES,                                           &
-     &               SYMPRODIND,ILUT,ORBPAIRS,iTotal,ISEED,             &
+      SUBROUTINE SymGenRandExcitIt2(NI,NEL,EXCITTYPES,
+     &               CLASSES,
+     &               SYMPRODIND,ILUT,ORBPAIRS,iTotal,ISEED,
      &               NK,IC,PGEN,EXCITMAT,TPARITY)      
          use CalcData, only: ExcitFuncs
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          USE symexcit2
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,nBasis
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: nBasis
          use SymData, only: SymClass,SymLabelCounts,SymLabelList
          use SymData, only: tAbelianFastExcitgen
          use SymData, only: tStoreStateList
@@ -109,4 +110,4 @@
 !.. Indicate we're a double.
             iC=2
          ENDIF
-      End Subroutine SymGenRandExcitIt2
+      End Subroutine

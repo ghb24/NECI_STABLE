@@ -74,7 +74,7 @@ MODULE GenRandSymExcitNUMod
 
         ! Not used
         integer(n_int), intent(out) :: ilutnJ(0:niftot)
-        HElement_t, intent(out) :: HElGen
+        HElement_t(dp), intent(out) :: HElGen
 
         real(dp) :: r
         character(*), parameter :: this_routine = 'gen_rand_excit'
@@ -1252,6 +1252,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
         real(dp) :: r,pGen
         LOGICAL :: tParity
+        character(*), parameter :: t_r = 'CreateSingleExcit'
 
 
         CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
@@ -1301,7 +1302,8 @@ MODULE GenRandSymExcitNUMod
                 WRITE(6,*) "***"
 !                WRITE(6,*) "ClassCountUnocc2(1,:)= ",ClassCountUnocc2(1,:)
 !                WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
-                CALL Stop_All("CreateSingleExcit","Cannot find single excitation from electrons after 250 attempts...")
+                call stop_all(t_r, "Cannot find single excitation from &
+                                   &electrons after 250 attempts...")
             ENDIF
             Attempts=Attempts+1
 
@@ -1361,7 +1363,8 @@ MODULE GenRandSymExcitNUMod
 
 !We now have our final orbitals. i=nI(Eleci). a=Orb.
             IF(z.ne.ChosenUnocc) THEN
-                CALL Stop_All("CreateSingleExcit","Could not find allowed unoccupied orbital to excite to.")
+                call stop_all(t_r, "Could not find allowed unoccupied orbital &
+                                   &to excite to.")
             ENDIF
 
         ELSE
@@ -1409,7 +1412,8 @@ MODULE GenRandSymExcitNUMod
 !                    WRITE(6,*) "***"
 !                    WRITE(6,*) "ClassCountUnocc2(1,:)= ",ClassCountUnocc2(1,:)
 !                    WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
-                    CALL Stop_All("CreateSingleExcit","Cannot find single excitation unoccupied orbital after 250 attempts...")
+                    call stop_all(t_r, "Cannot find single excitation &
+                                   &unoccupied orbital after 250 attempts...")
                 ENDIF
                 Attempts=Attempts+1
 
@@ -1421,9 +1425,11 @@ MODULE GenRandSymExcitNUMod
         call make_single (nI, nJ, eleci, orb, ExcitMat, tParity)
 
 #ifdef __DEBUG
-!These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
-!excitations, I recommend uncommenting these tests to check the results.
-        CALL IsSymAllowedExcit(nI,nJ,1,ExcitMat)
+        ! These are useful (but O[N]) operations to test the determinant
+        ! generated. If there are any problems with then excitations, I
+        ! recommend uncommenting these tests to check the results.
+        if (.not. SymAllowedExcit(nI, nJ, 1, ExcitMat)) &
+            call stop_all(t_r, 'Generated excitation invalid')
 #endif
 
 !Now we need to find the probability of creating this excitation.
@@ -1632,24 +1638,6 @@ MODULE GenRandSymExcitNUMod
 
 
 
-!This function returns the label (0 -> nSymlabels-1) of the symmetry product of two symmetry labels.
-    PURE INTEGER FUNCTION RandExcitSymLabelProd(SymLabel1,SymLabel2)
-        IMPLICIT NONE
-        INTEGER , INTENT(IN) :: SymLabel1,SymLabel2
-
-        IF(tNoSymGenRandExcits) THEN
-            RandExcitSymLabelProd=0
-        ELSEIF(tKPntSym) THEN
-            !Look up the symmetry in the product table for labels (returning labels, not syms)
-            RandExcitSymLabelProd=SymTableLabels(SymLabel1,SymLabel2)
-        ELSE
-            RandExcitSymLabelProd=IEOR(SymLabel1,SymLabel2)
-!            WRITE(6,*) "***",SymLabel1,SymLabel2,RandExcitSymLabelProd
-        ENDIF
-
-    END FUNCTION RandExcitSymLabelProd
-
-
     !***********************  BIASED EXCITATION GENERATION ROUTINES *************************!
     
     
@@ -1736,7 +1724,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ExcitMat(2,2),SpawnOrb(nBasis),Eleci,ElecSym,NExcit,VecInd,ispn,EndSymState,j
         real(dp) :: Tau,SpawnProb(nBasis),NormProb,r,rat
         LOGICAL :: tParity
-        HElement_t :: rh
+        HElement_t(dp) :: rh
 
 !First, we need to do an O[N] operation to find the number of occupied alpha electrons, number of occupied beta electrons
 !and number of occupied electrons of each symmetry class and spin. This is similar to the ClassCount array.
@@ -1886,7 +1874,8 @@ MODULE GenRandSymExcitNUMod
 
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
-!            CALL IsSymAllowedExcit(nI,nJ,1,ExcitMat,SymAllowed)
+!        if (.not. SymAllowedExcit(nI, nJ, 1, ExcitMat)) &
+!            call stop_all(t_r, 'Generated excitation invalid')
 
 !Once we have the definitive determinant, we also want to find out what sign the particles we want to create are.
 !iCreate is initially positive, so its sign can change depending on the sign of the connection and of the parent particle(s)
@@ -1913,7 +1902,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: Elec1Ind,Elec2Ind,nParts,SumMl
         REAL(dp) :: WSign
-        HElement_t :: rh
+        HElement_t(dp) :: rh
         LOGICAL :: tParity
         real(dp) :: Tau
 
@@ -1957,7 +1946,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: SpatOrbi,SpatOrbj,Spini,Spinj,i,aspn,bspn,SymA,SymB,SpatOrba,EndSymState,VecInd
         real(dp) :: Tau,SpawnProb(MaxABPairs),NormProb,rat,r
         INTEGER :: SpawnOrbs(2,MaxABPairs),j,nParts,SpinIndex,Ind
-        HElement_t :: HEl
+        HElement_t(dp) :: HEl
 
 !We want the spatial orbital number for the ij pair (Elec1Ind is the index in nI).
 !Later, we'll have to use GTID for UHF.
@@ -2750,7 +2739,8 @@ MODULE GenRandSymExcitNUMod
         logical :: brillouin_tmp(2)
         type(timer), save :: test_timer
         type(excit_gen_store_type) :: store
-        HElement_t :: HElGen
+        character(*), parameter :: t_r = 'TestGenRandSymExcitNU'
+        HElement_t(dp) :: HElGen
 
         write(6,*) 'In HERE'
         call neci_flush(6)
@@ -2964,7 +2954,8 @@ MODULE GenRandSymExcitNUMod
             !        ENDIF
 
             !Check excitation
-            CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
+            if (.not. SymAllowedExcit(nI, nJ, 1, ExcitMat)) &
+                call stop_all(t_r, 'Generated excitation invalid')
 
         enddo
         iter = iter_tmp
@@ -3147,6 +3138,7 @@ SUBROUTINE SpinOrbSymSetup()
     INTEGER :: kmaxX,kmaxY,kminX,kminY,kminZ,kmaxz,iSpinIndex,ktrial(3)
     type(Symmetry) :: SymProduct, SymI, SymJ
     character(len=*), parameter :: this_routine='SpinOrbSymSetup'
+    integer :: sym0
 
     ElecPairs=(NEl*(NEl-1))/2
     MaxABPairs=(nBasis*(nBasis-1)/2)
@@ -3234,39 +3226,49 @@ SUBROUTINE SpinOrbSymSetup()
     if(allocated(SymInvLabel)) deallocate(SymInvLabel)
     Allocate(SymInvLabel(0:nSymLabels-1))
     SymInvLabel=-999
-    do i=0,nSymLabels-1
+
+    ! Dongxia changes the gamma point away from center.
+    ! SDS: Provide a default sym0 for cases where this doesn't apply
+    sym0 = 0
+    do i = 1, nsymlabels
+        if (symlabels(i)%s == 0) sym0 = i - 1
+    end do
+
+    do i = 0, nSymLabels - 1
         if(tKPntSym) then
-!            SymInvLabel(i)=SymConjTab(i+1)-1    !Change the sym label back to the representation used by the
-                                                 !rest of the code, use SymConjTab, then change back to other rep of labels 
-            !SymConjTab only works when all irreps are self-inverse. 
-            !Therefore, instead, we will calculate the inverses by just finding the symmetry which will give A1.
-            !Assume that label '0' is always the totally symmetric representation.
-            do j=0,nSymLabels-1
-                !Run through all labels to find what gives totally symmetric rep
-                if(SymTableLabels(i,j).eq.0) then
-                    if(SymInvLabel(i).ne.-999) then
-                        write(6,*) "SymLabel: ",i
-                        call stop_all(this_routine,"Multiple inverse irreps found - error")
+            ! Change the sym label back to the representation used by the rest
+            ! of the code, use SymConjTab, then change back to other rep of
+            ! labels SymConjTab only works when all irreps are self-inverse.
+            ! Therefore, instead, we will calculate the inverses by just
+            ! finding the symmetry which will give A1.
+            do j = 0, nSymLabels - 1
+                ! Run through all labels to find what gives totally symmetric
+                ! rep
+                if(SymTableLabels(i,j) == sym0) then
+                    if(SymInvLabel(i) /= -999) then
+                        write(6,*) "SymLabel: ", i
+                        call stop_all(this_routine, &
+                                       "Multiple inverse irreps found - error")
                     endif
-                    !This is the inverse
-                    SymInvLabel(i)=j
+                    ! This is the inverse
+                    SymInvLabel(i) = j
                 endif
             enddo
-            if(SymInvLabel(i).eq.-999) then
-                write(6,*) "SymLabel: ",i
+            if (SymInvLabel(i) == -999) then
+                write(6,*) "SymLabel: ", i
                 call stop_all(this_routine,"No inverse symmetry found - error")
             endif
         else
-            SymInvLabel(i)=i    !They are self-inverses
+            ! If not using k-point sym, then we are self-inverse
+            SymInvLabel(i) = i
         endif
     enddo
 #ifdef __DEBUG
-    WRITE(6,*) "SymInvLabel: "
-    do i=0,nSymLabels-1
-        WRITE(6,*) i,SymInvLabel(i)
+    write(6,*) "SymInvLabel: "
+    do i = 0, nSymLabels - 1
+        write(6,*) i, SymInvLabel(i)
     enddo
 #endif
-
 
     if(tISKFuncs) then
         write(6,*) "Setting up inverse orbital lookup for use with ISK functions..."
@@ -3565,88 +3567,4 @@ LOGICAL FUNCTION IsMomAllowedDet(nJ)
 
 END FUNCTION IsMomAllowedDet
 
-
-SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
-    use GenRandSymExcitNUMod , only: RandExcitSymLabelProd
-    use SymExcitDataMod , only: SymInvLabel,SpinOrbSymLabel 
-    Use SystemData , only : G1,NEl,tFixLz,tKPntSym,nBasis
-    Use SystemData , only : Symmetry,tNoSymGenRandExcits,ElecPairs
-    use Determinants, only: write_det
-    use Bit_Reps, only: NIfTot
-    use sym_mod
-    use constants
-    use DetBitOps, only: EncodeBitDet
-    IMPLICIT NONE
-    Type(Symmetry) :: SymProduct,SymProduct2
-    LOGICAL :: ISVALIDDET
-    INTEGER :: IC,ExcitMat(2,2),nI(NEl),nJ(NEl),ExcitLevel,iGetExcitLevel
-    INTEGER :: KOcc,KUnocc,SymprodnJ,SymprodnI,i
-    integer(n_int) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
-    character(*), parameter :: this_routine = 'IsSymAllowedExcit'
-
-     Excitlevel=iGetExcitLevel(nI,nJ,NEl)
-     IF(Excitlevel.ne.IC) THEN
-         WRITE(6,*) "Have not created a correct excitation", ic
-        call write_det (6, nI, .true.)
-        call write_det (6, nJ, .true.)
-        call stop_all("IsSymAllowedExcit", "Have not created a correct excitation")
-     ENDIF
-     IF(.NOT.ISVALIDDET(nJ,NEL)) THEN
-         WRITE(6,*) "INVALID DET"
-         call write_det (6, nI, .true.)
-         call write_det (6, nJ, .true.)
-         call stop_all(this_routine, "INVALID DET")
-     ENDIF
-
-     SymprodnI=0
-     SymprodnJ=0
-     do i=1,NEl
-        SymprodnI=RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nI(i))),SymProdnI)
-        SymprodnJ=RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nJ(i))),SymProdnJ)
-     enddo
-     if(SymprodnJ.ne.SymprodnI) then
-         write(6,*) SymProdnI,SymProdnJ,IC,nBasis,elecpairs
-         call encodeBitDet(nI,iLutnI)
-         call encodeBitDet(nJ,iLutnJ)
-         call writebitex(6,iLutnI,iLutnJ,.true.)
-         write(6,*) nI
-         write(6,*) nJ
-         call stop_all("IsSymAllowedExcit","Excitation not of same symmetry as root.")
-     endif
-     
-     IF(.not.tNoSymGenRandExcits.and..not.tKPntSym) THEN
-         IF(IC.eq.2) THEN
-            SymProduct=SYMPROD(G1(ExcitMat(1,1))%Sym,G1(ExcitMat(1,2))%Sym)
-            SymProduct2=SYMPROD(G1(ExcitMat(2,1))%Sym,G1(ExcitMat(2,2))%Sym)
-            IF(.not.SYMEQ(SymProduct,SymProduct2)) THEN
-                WRITE(6,*) "Orbs: ",ExcitMat(1,1), ExcitMat(1,2), " -> ",ExcitMat(2,1),ExcitMat(2,2)
-                WRITE(6,*) "Syms: ",G1(ExcitMat(1,1))%Sym,G1(ExcitMat(1,2))%Sym, " -> ",G1(ExcitMat(2,1))%Sym,G1(ExcitMat(2,2))%Sym
-                CALL Stop_All("IsSymAllowedExcit","Excitation not a valid symmetry allowed double excitation")
-            ENDIF
-        ELSE
-            IF(.not.SYMEQ(G1(ExcitMat(1,1))%Sym,G1(ExcitMat(2,1))%Sym)) THEN
-                CALL Stop_All("IsSymAllowedExcit","Excitation not a valid symmetry allowed single excitation")
-            ENDIF
-            IF(G1(ExcitMat(1,1))%Ms.ne.G1(ExcitMat(2,1))%Ms) THEN
-                CALL Stop_All("IsSymAllowedExcit","Excitation not a valid spin-symmetry allowed single excitation")
-            ENDIF
-        ENDIF
-    ENDIF
-    IF(tFixLz) THEN
-        IF(IC.eq.1) THEN
-            IF(G1(ExcitMat(1,1))%Ml.ne.G1(ExcitMat(2,1))%Ml) THEN
-                CALL Stop_All("IsSymAllowedExcit","Excitation not a valid momentum allowed single excitation")
-            ENDIF
-        ELSE
-            kOcc=G1(ExcitMat(1,1))%Ml+G1(ExcitMat(1,2))%Ml
-            KUnocc=G1(ExcitMat(2,1))%Ml+G1(ExcitMat(2,2))%Ml
-            IF(Kocc.ne.KUnocc) THEN
-                write(6,*) G1(ExcitMat(1,1))%Ml,G1(ExcitMat(1,2))%Ml,"==>",G1(ExcitMat(2,1))%Ml,G1(ExcitMat(2,2))%Ml
-                CALL Stop_All("IsSymAllowedExcit","Excitation not a valid momentum allowed double excitation")
-            ENDIF
-        ENDIF
-    ENDIF
-        
-
-END SUBROUTINE IsSymAllowedExcit
 

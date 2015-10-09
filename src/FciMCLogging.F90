@@ -468,7 +468,7 @@ MODULE FciMCLoggingMod
     SUBROUTINE TrackSpawnAttempts(Child,DetCurr,nJ,IC,Ex,tParity)
         INTEGER :: Child,DetCurr(NEl),nJ(NEl),IC,Ex(2,2)
         LOGICAL :: tParity
-        HElement_t :: HEl
+        HElement_t(dp) :: HEl
 
 !        WRITE(6,*) 'Child',Child
 !        WRITE(6,*) 'DetCurr',DetCurr

@@ -48,6 +48,7 @@ MODULE ReadInput_neci
         Integer             idDef       !What default set do we use
         integer neci_iargc
         logical, intent(in) :: tOverride_input  !If running through molpro, is this an override input?
+        integer, allocatable :: tmparr(:)
         type(kp_fciqmc_data), intent(inout) :: kp
         
         cTitle=""
@@ -55,9 +56,22 @@ MODULE ReadInput_neci
         ir=get_free_unit()              !default to a free unit which we'll open below
         If(cFilename.ne.'') Then
             Write(6,*) "Reading from file: ", Trim(cFilename)
+#ifdef _MOLCAS_
+           allocate(tmparr(10))
+           call f_Inquire('FCINP',tExists)
+           if(tExists) then
+              Call Molcas_Open(ir,'FCINP')
+!              call molcas_open_ext2(ir,'FCINP','SEQUENTIAL','FORMATTED',100,.false.,1,'OLD',.false.)
+              Rewind(ir)
+           else
+              call stop_all('ReadInputMain','File '//Trim(cFilename)//' does not exist.')
+           end if
+           deallocate(tmparr)
+#else
             inquire(file=cFilename,exist=tExists)
             if (.not.tExists) call stop_all('ReadInputMain','File '//Trim(cFilename)//' does not exist.')
             Open(ir,File=cFilename,Status='OLD',err=99,iostat=ios)
+#endif
         ElseIf(neci_iArgC().gt.0) then
     ! We have some arguments we can process instead
             Call neci_GetArg(1,cInp)      !Read argument 1 into inp
@@ -180,7 +194,9 @@ MODULE ReadInput_neci
                               tFindCINatOrbs, tNoRenormRandExcits, LMS, STOT,&
                               tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
                               tGen_4ind_weighted, tGen_4ind_reverse, &
-                              tMultiReplicas, tGUGA, lNoSymmetry
+                              tMultiReplicas, tGen_4ind_part_exact, &
+                              tGen_4ind_lin_exact, tGen_4ind_2, &
+                              tComplexOrbs_RealInts, tLatticeGens, tGUGA
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -195,8 +211,8 @@ MODULE ReadInput_neci
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
                             tContTimeFull, tSurvivalInitiatorThreshold, &
-                            tSurvivalInitMultThresh, &
-                            tSpawnCountInitiatorThreshold
+                            tSurvivalInitMultThresh, tBroadcastParentCoeff, &
+                            tSpawnCountInitiatorThreshold, tInterpolateInitThresh
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -206,7 +222,8 @@ MODULE ReadInput_neci
         use LoggingData, only: iLogging, tCalcFCIMCPsi, tRDMOnFly, &
                            tCalcInstantS2, tDiagAllSpaceEver, &
                            tCalcVariationalEnergy, tCalcInstantS2Init, &
-                           tPopsFile, tRDMOnFly, tExplicitAllRDM
+                           tPopsFile, tRDMOnFly, tExplicitAllRDM, &
+                           tHDF5PopsRead, tHDF5PopsWrite
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use input_neci
@@ -357,10 +374,12 @@ MODULE ReadInput_neci
         endif
         
         !.. We still need a specdet space even if we don't have a specdet.
+#ifndef _MOLCAS_
         if (.not. associated(SPECDET)) then
             allocate(SPECDET(nel - nFrozen), stat=ierr)
             call LogMemAlloc('SPECDET', nel-nFrozen, 4, t_r, tagSPECDET, ierr)
         endif
+#endif
   
         !..   Testing ILOGGING
         !     ILOGGING = 0771
@@ -437,7 +456,7 @@ MODULE ReadInput_neci
             write(6,*)
         end if
 
-        if (tGen_4ind_weighted .or. tGen_4ind_reverse) then
+        if (tGen_4ind_weighted .or. tGen_4ind_reverse .or. tGen_4ind_2) then
 
             ! We want to use UMAT2D...
             tDeferred_Umat2d = .true.
@@ -503,17 +522,11 @@ MODULE ReadInput_neci
         end if
 #endif
 
-        write(6,*) 'CHECKING'
 #if __PROG_NUMRUNS
         if (tRDMonFly) then
             write(6,*) 'RDM on fly'
 
-            if (tMultiReplicas) then
-                if (inum_runs /= lenof_sign .or. &
-                    .not. (inum_runs == 1 .or. inum_runs == 2)) &
-                    call stop_all(t_r, 'Stochastic filling of RDMs only works &
-                                       &with either 1 or 2 replicas')
-            else
+            if (.not. tMultiReplicas) then
                 write(6,*) 'unspecified'
                 write(6,*) 'Filling RDMs without explicitly specifying the &
                            &number of replica simplations'
@@ -567,6 +580,7 @@ MODULE ReadInput_neci
             end if
         end if
 
+
         if (tLoadBalanceBlocks) then
             if (tUniqueHFNode) then
                 call stop_all(t_r, "UNIQUE-HF-NODE requires disabling &
@@ -586,6 +600,41 @@ MODULE ReadInput_neci
                 call stop_all(t_r, 'Load balancing not yet usable for &
                              &calculations requiring accumulated determinant &
                              &specific global data')
+            end if
+        end if
+
+#ifndef __USE_HDF
+        if (tHDF5PopsRead .or. tHDF5PopsWrite) then
+            call stop_all(t_r, 'Support for HDF5 files disabled at compile time')
+        end if
+#endif
+
+#ifdef __CMPLX
+        if (tBroadcastParentCoeff .or. tInterpolateInitThresh) then
+            write(6,*) 'Variable initiator thresholds require communication &
+                       &of parent coefficients during annihilation.'
+            write(6,*) 'This is not yet implemented during complex calculations'
+            call stop_all(t_r, 'Not implemented for complex walkers')
+        end if
+#endif
+
+        if (tFixLz .and. tComplexOrbs_RealInts) then
+            write(6,*) 'Options LZTOT and COMPLEXORBS_REALINTS incompatible'
+            write(6,*)
+            write(6,*) '1. Using multiple options that filter integrals at runtime is unsupported.'
+            write(6,*) '   Only one integral filter may be used at once.'
+            write(6,*)
+            write(6,*) '2. This is almost certainly not what you intended to do.  LZTOT works using'
+            write(6,*) '   abelian symmetries combined with momentum information. COMPLEXORBS_REALINTS'
+            write(6,*) '   provides support for non-abelian symmetries in FCIDUMP files produced'
+            write(6,*) '   using VASP'
+            write(6,*)
+            call stop_all(t_r, 'Options incompatible')
+        end if
+        
+        if (tLatticeGens) then
+            if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then
+                call stop_all(t_r, "Invalid excitation options")
             end if
         end if
 

@@ -1,6 +1,8 @@
 module sym_mod
 
 use constants, only: dp,int64,sizeof_int
+use SymExcitDataMod, only: SymTableLabels
+use SystemData, only: tKpntSym, tNoSymGenRandExcits
 implicit none
 
 contains
@@ -2099,5 +2101,24 @@ contains
         iSize=iSize+2
         !This is to allow the index of '-1' in the array to give a zero value
       END SUBROUTINE GETSYMTMATSIZE
+
+
+    ! This function returns the label (0 -> nSymlabels-1) of the symmetry
+    ! product of two symmetry labels.
+    PURE INTEGER FUNCTION RandExcitSymLabelProd(SymLabel1,SymLabel2)
+        IMPLICIT NONE
+        INTEGER , INTENT(IN) :: SymLabel1,SymLabel2
+
+        IF(tNoSymGenRandExcits) THEN
+            RandExcitSymLabelProd=0
+        ELSEIF(tKPntSym) THEN
+            !Look up the symmetry in the product table for labels (returning labels, not syms)
+            RandExcitSymLabelProd=SymTableLabels(SymLabel1,SymLabel2)
+        ELSE
+            RandExcitSymLabelProd=IEOR(SymLabel1,SymLabel2)
+!            WRITE(6,*) "***",SymLabel1,SymLabel2,RandExcitSymLabelProd
+        ENDIF
+
+    END FUNCTION RandExcitSymLabelProd
 
 end module sym_mod

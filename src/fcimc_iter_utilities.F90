@@ -143,7 +143,7 @@ contains
         integer :: det(nel), i, error, ierr, run
         integer(int32) :: int_tmp(2)
         logical :: tSwapped, allocate_temp_parts, changed_any
-        HElement_t :: h_tmp
+        HElement_t(dp) :: h_tmp
         character(*), parameter :: this_routine = 'population_check'
         character(*), parameter :: t_r = this_routine
 
@@ -153,7 +153,7 @@ contains
         ! If we are accumulating RDMs, then a temporary spawning array is
         ! required of <~ the size of the largest occupied det.
         !
-        ! This memry holds walkers spawned from one determinant. This
+        ! This memory holds walkers spawned from one determinant. This
         ! allows us to test if we are spawning onto the same Dj multiple
         ! times. If only using connections to the HF (tHF_Ref_Explicit)
         ! no stochastic RDM construction is done, and this is not
@@ -167,12 +167,13 @@ contains
                 allocate_temp_parts = .true.
                 TempSpawnedPartsSize = 1000
             end if
-            if (1.1 * maxval(iHighestPop) > TempSpawnedPartsSize) then
+            if (1.5 * maxval(iHighestPop) > TempSpawnedPartsSize) then
                 ! This testing routine is only called once every update
-                ! cycle. The 1.1 gives us a buffer to cope with particle
+                ! cycle. The 1.5 gives us a buffer to cope with particle
                 ! growth
-                TempSpawnedPartsSize = iHighestPop(1) * 1.5
+                TempSpawnedPartsSize = maxval(iHighestPop) * 1.5
                 allocate_temp_parts = .true.
+                write(6,*) 1.5 * maxval(iHighestPop), TempSpawnedPartsSize
             end if
 
             ! If we need to allocate this array, then do so.
@@ -317,17 +318,17 @@ contains
 
     end subroutine population_check
 
-    subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all, tPairedReplicas)
+    subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all, replica_pairs)
 
         type(fcimc_iter_data) :: iter_data
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
         real(dp), dimension(lenof_sign), intent(out) :: tot_parts_new_all
-        logical, intent(in) :: tPairedReplicas
+        logical, intent(in) :: replica_pairs
 
         integer :: int_tmp(5+2*lenof_sign), proc, pos, i
         real(dp) :: sgn(lenof_sign)
-        HElement_t :: helem_tmp(3*inum_runs)
-        HElement_t :: real_tmp(2*inum_runs) !*lenof_sign
+        HElement_t(dp) :: helem_tmp(3*inum_runs)
+        HElement_t(dp) :: real_tmp(2*inum_runs) !*lenof_sign
         integer(int64) :: int64_tmp(8),TotWalkersTemp
         character(len=*), parameter :: this_routine='collate_iter_data'
         real(dp), dimension(max(lenof_sign,inum_runs)) :: RealAllHFCyc
@@ -384,7 +385,7 @@ contains
 #endif
         
         call MPIReduce(SumNoatHF, MPI_SUM, AllSumNoAtHF)
-        ! HElement_t values (Calculates the energy by summing all on HF and 
+        ! HElement_t(dp) values (Calculates the energy by summing all on HF and 
         ! doubles)
 
         call MPISum ((/ENumCyc, SumENum, ENumCycAbs/), helem_tmp)
@@ -428,8 +429,8 @@ contains
         ! enabled, and now tau is outside the range acceptable for tau
         ! searching
         if (.not. tSearchTau) then
-            call MPIAllReduce(tSearchTauDeath, MPI_LOR, ltmp)
-            tSearchTauDeath = ltmp
+            call MPIAllLORLogical(tSearchTauDeath, ltmp)
+           tSearchTauDeath = ltmp
         end if
         if ((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. &
                             .not. tFillingStochRDMOnFly) then   
@@ -447,7 +448,7 @@ contains
                 if (ntrial_excits == 1) then
                     tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies(1))
                 else
-                    if (tPairedReplicas) then
+                    if (replica_pairs) then
                         do run = 2, inum_runs, 2
                             tot_trial_numerator(run-1:run) = tot_trial_numerator(run-1:run) + &
                                 tot_trial_denom(run-1:run)*trial_energies(run/2)
@@ -475,7 +476,7 @@ contains
 
     subroutine update_shift (iter_data)
 
-        use CalcData, only : tInstGrowthRate
+        use CalcData, only: tInstGrowthRate, tShiftProjectGrowth
      
         type(fcimc_iter_data), intent(in) :: iter_data
         integer(int64) :: tot_walkers
@@ -491,27 +492,14 @@ contains
         ! tested. Sometimes we want to defer this to the next cycle...
         defer_update(:) = .false.
 
-!        call neci_flush(iout)
-!        CALL MPIBarrier(error)
-
         ! collate_iter_data --> The values used are only valid on Root
         if (iProcIndex == Root) then
-            ! Calculate the growth rate
-!            WRITE(iout,*) "iter_data%nborn: ",iter_data%nborn(:)
-!            WRITE(iout,*) "iter_data%ndied: ",iter_data%ndied(:)
-!            WRITE(iout,*) "iter_data%nannihil: ",iter_data%nannihil(:)
-!            WRITE(iout,*) "iter_data%naborted: ",iter_data%naborted(:)
-!            WRITE(iout,*) "iter_data%update_growth: ",iter_data%update_growth(:)
-!            WRITE(iout,*) "iter_data%update_growth_tot: ",iter_data%update_growth_tot(:)
-!            WRITE(iout,*) "iter_data%tot_parts_old: ",iter_data%tot_parts_old(:)
-!            WRITE(iout,*) "iter_data%update_iters: ",iter_data%update_iters
-!            CALL neci_flush(iout)
-
 
             if(tInstGrowthRate) then
-!Calculate the growth rate simply using the two points at the beginning and the
-!end of the update cycle. 
-                if ((lenof_sign.eq.2).and.(inum_runs.eq.1)) then
+
+                ! Calculate the growth rate simply using the two points at
+                ! the beginning and the end of the update cycle. 
+                if (lenof_sign == 2 .and. inum_runs == 1) then
                     !COMPLEX
                     AllGrowRate = (sum(iter_data%update_growth_tot &
                                + iter_data%tot_parts_old)) &
@@ -523,44 +511,56 @@ contains
                                   / real(iter_data%tot_parts_old(run), dp)
                     enddo
                 endif
+
+            else if (tShiftProjectGrowth) then
+
+                ! Extrapolate the expected number of walkers at the end of the
+                ! _next_ update cycle for calculating the shift. i.e. use
+                !
+                ! log((N_t + (N_t - N_(t-1))) / N_t)
+                if (lenof_sign == 2 .and. inum_runs == 1) then
+                    !COMPLEX
+                        AllGrowRate(run) = &
+                            (2 * sum(AllSumWalkersCyc) - sum(OldAllAvWalkersCyc)) &
+                            / sum(AllSumWalkersCyc)
+                else
+                    do run = 1, inum_runs
+                        AllGrowRate(run) = &
+                            (2 * AllSumWalkersCyc(run) - OldAllAvWalkersCyc(run)) &
+                            / AllSumWalkersCyc(run)
+                    end do
+                endif
+
             else
-!Instead attempt to calculate the average growth over every iteration
-!over the update cycle
-                if ((lenof_sign.eq.2).and.(inum_runs.eq.1)) then
+
+                ! Instead attempt to calculate the average growth over every
+                ! iteration over the update cycle
+                if (lenof_sign == 2 .and. inum_runs == 1) then
                     !COMPLEX
                     AllGrowRate = (sum(AllSumWalkersCyc)/real(StepsSft,dp)) &
                                     /sum(OldAllAvWalkersCyc)
                 else
-
                     do run=1,inum_runs
                         AllGrowRate(run) = (AllSumWalkersCyc(run)/real(StepsSft,dp)) &
                                         /OldAllAvWalkersCyc(run)
                     enddo
                 endif
-            endif
+
+            end if
 
             ! For complex case, obtain both Re and Im parts
-            if ((lenof_sign.eq.2).and.(inum_runs.eq.1)) then
-                IF(iter_data%tot_parts_old(1).gt.0) THEN
+            if (lenof_sign == 2 .and. inum_runs == 1) then
+                if (iter_data%tot_parts_old(1) > 0) then
                     AllGrowRateRe = (iter_data%update_growth_tot(1) + &
                                      iter_data%tot_parts_old(1)) / &
                                      iter_data%tot_parts_old(1)
-                ENDIF
-                IF(iter_data%tot_parts_old(lenof_sign).gt.0) THEN
+                end if
+                if (iter_data%tot_parts_old(lenof_sign) > 0) then
                     AllGrowRateIm = (iter_data%update_growth_tot(lenof_sign) + &
                                          iter_data%tot_parts_old(lenof_sign)) / &
                                          iter_data%tot_parts_old(lenof_sign)
-                ENDIF
+                end if
             endif
-
-!AJWT commented this out as DMC says it's not being used, and it gave a divide by zero
-            ! Initiator abort growth rate
-!            if (tTruncInitiator) then
-!                AllGrowRateAbort = (sum(iter_data%update_growth_tot + &
-!                                    iter_data%tot_parts_old) + AllNoAborted) &
-!                                    / (sum(iter_data%tot_parts_old) &
-!                                       + AllNoAbortedOld)
-!            endif
 
             ! Exit the single particle phase if the number of walkers exceeds
             ! the value in the input file. If particle no has fallen, re-enter
@@ -830,14 +830,14 @@ contains
 
     end subroutine rezero_iter_stats_update_cycle
 
-    subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new, tPairedReplicas)
+    subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new, replica_pairs)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
         real(dp), dimension(lenof_sign) :: tot_parts_new_all
-        logical, intent(in) :: tPairedReplicas
+        logical, intent(in) :: replica_pairs
 
-        call collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all, tPairedReplicas)
+        call collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all, replica_pairs)
         call iter_diagnostics ()
         if(tRestart) return
         call population_check ()

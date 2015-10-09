@@ -25,7 +25,7 @@ module procedure_pointers
             integer(n_int), intent(out) :: ilutJ(0:NifTot)
             real(dp), intent(out) :: pGen
             logical, intent(out) :: tParity
-            HElement_t, intent(out) :: hel
+            HElement_t(dp), intent(out) :: hel
             type(excit_gen_store_type), intent(inout), target :: store
 
         end subroutine
@@ -51,7 +51,7 @@ module procedure_pointers
             real(dp), intent(inout) :: prob
             real(dp), dimension(lenof_sign), intent(in) :: AvSignCurr
             real(dp), intent(out) :: RDMBiasFacCurr
-            HElement_t, intent(in) :: HElGen
+            HElement_t(dp), intent(in) :: HElGen
             real(dp) :: child(lenof_sign)    
 
         end function
@@ -71,8 +71,8 @@ module procedure_pointers
             integer(n_int), intent(in) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
             integer, intent(in) :: ic, ex(2,2)
             logical, intent(in) :: tParity
-            HElement_t, intent(in) :: HElGen
-            HElement_t :: hel
+            HElement_t(dp), intent(in) :: HElGen
+            HElement_t(dp) :: hel
 
         end function
 
@@ -153,16 +153,19 @@ module procedure_pointers
 
         !
         ! Generic fill_rdm_diag_currdet routine
-        subroutine fill_rdm_diag_currdet_t (ilutI, nI, j, ExcitLevelI, &
+        subroutine fill_rdm_diag_currdet_t (rdm, irdm, ilutI, nI, j, ExcitLevelI, &
                                             tCoreSpaceDet)
 
             ! j --> Which slot in CurrentDets are we examining.
 
-            use SystemData, only: nel
             use bit_rep_data, only: NIfTot
             use constants
+            use rdm_data, only: rdm_t
+            use SystemData, only: nel
             implicit none
 
+            type(rdm_t), intent(inout) :: rdm
+            integer, intent(in) :: irdm
             integer(n_int), intent(in) :: ilutI(0:NIfTot)
             integer, intent(in) :: nI(nel), ExcitLevelI, j
             logical, intent(in), optional :: tCoreSpaceDet
@@ -178,7 +181,7 @@ module procedure_pointers
             implicit none
 
             integer, intent(in) :: i, j, k, l
-            HElement_t :: hel
+            HElement_t(dp) :: hel
 
         end function
 

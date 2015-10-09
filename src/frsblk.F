@@ -186,7 +186,7 @@ C..Residual: H(VY) - (VY)E and test for convergence
         ENDDO
 C..
         IF(PRINTOUT) THEN
-            WRITE(6,'(5X,I4,2X,I4,2X,2(E8.3,3X),F6.2)') 
+            WRITE(6,'(5X,I4,2X,I4,2X,2(E10.3,3X),F6.2)') 
      &       ICYCLE,NCONV,B2MAX,B2MIN,real(NHPSI,dp)/real(N,dp)
         ENDIF
 C..Order states         

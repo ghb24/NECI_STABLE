@@ -11,7 +11,7 @@
       use hphf_integrals, only: hphf_off_diag_helement
       use DetBitOps, only: EncodeBitDet
       IMPLICIT NONE
-      HElement_t HAMIL(*)
+      HElement_t(dp) HAMIL(*)
       INTEGER NDET,NEL
       INTEGER LAB(*)
       INTEGER NMRKS(NEL,*)
@@ -20,7 +20,7 @@
       LOGICAL TCOUNT,TMC
       INTEGER IGETEXCITLEVEL_2,STEP,IMAXJ
       integer(n_int) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
-      HElement_t totSUM
+      HElement_t(dp) totSUM
       type(timer), save :: proc_timer
 !      LOGICAL TSTAR
 C ==-------------------------------------------------------------------==

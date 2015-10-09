@@ -251,7 +251,7 @@ MODULE SymExcit2
          INTEGER I,J,K,L
          !type(timer), save :: proc_timer
          real(dp) WEIGHT,W2
-         HElement_t W
+         HElement_t(dp) W
          real(dp) Arr(nBasis,2)
          IF(G_VMC_EXCITWEIGHT(CUR_VERT).EQ.0.0_dp) THEN
             WEIGHT=1.0_dp
