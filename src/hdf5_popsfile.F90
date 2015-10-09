@@ -924,6 +924,7 @@ contains
             ! Check that we aren't overrunning any lists. This can be a debug
             ! only check, as we have set the max block_size such that it will
             ! always fit.
+            list_full = .false.
             if (proc == nNodes - 1) then
                 if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
             else
