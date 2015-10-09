@@ -713,6 +713,7 @@ contains
         integer(hsize_t) :: this_block_size
         real(dp) :: pops_num_parts(lenof_sign), pops_norm_sqr(lenof_sign)
         real(dp) :: norm(lenof_sign), parts(lenof_sign)
+        logical :: running, any_running
 
         ! TODO:
         ! - Read into a relatively small buffer. Make this such that all the
@@ -809,12 +810,18 @@ contains
             last_part = offsets(iProcIndex + 1) - 1
         end if
         block_end = min(block_start + block_size - 1, last_part)
+        running = .true.
+        any_running = .true.
 
-        do while (block_start <= last_part)
+        do while (any_running) !block_start <= last_part)
 
             ! If this is the last block, its size will differ from the biggest
             ! one allowed.
-            this_block_size = block_end - block_start + 1
+            if (running) then
+                this_block_size = block_end - block_start + 1
+            else
+                this_block_size = 0
+            end if
             call read_walker_block(ds_ilut, ds_sgns, block_start, &
                                    this_block_size, bit_rep_width)
 
@@ -824,8 +831,16 @@ contains
             nread_walkers = nread_walkers + nreceived
 
             ! And update for the next block
-            block_start = block_end + 1
-            block_end = min(block_start + block_size - 1, last_part)
+            if (running) then
+                block_start = block_end + 1
+                block_end = min(block_start + block_size - 1, last_part)
+
+                if (block_start <= last_part) running = .false.
+            end if
+
+            ! Test if _all_ of the processes have finished. If they have
+            ! not then
+            call MPIAllLORLogical(running, any_running)
 
         end do
 
