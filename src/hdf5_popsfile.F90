@@ -49,6 +49,7 @@ module hdf5_popsfile
     !         /psingles/     - And the values which have been optimised
     !         /pdoubles/
     !         /pparallel/
+    !         /tau/
     !     /accumulators/     - Accumulated (output) data
     !         /sum_no_ref/
     !         /sum_enum/
@@ -111,6 +112,7 @@ module hdf5_popsfile
             nm_psingles = 'psingles', &
             nm_pdoubles = 'pdoubles', &
             nm_pparallel = 'pparallel', &
+            nm_tau = 'tau', &
 
             nm_acc_grp = 'accumulators', &
             nm_sum_no_ref = 'sum_no_ref', &
@@ -352,6 +354,7 @@ contains
                               enough_par, cnt_sing, cnt_doub, cnt_opp, &
                               cnt_par, max_death_cpt
         use FciMCData, only: pSingles, pDoubles, pParallel
+        use CalcData, only: tau
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: tau_grp, err
@@ -361,7 +364,7 @@ contains
         logical :: all_en_sing, all_en_doub, all_en_opp, all_en_par
         integer :: max_cnt_sing, max_cnt_doub, max_cnt_opp, max_cnt_par
 
-        real(dp) :: all_pdoub, all_psing, all_ppar
+        real(dp) :: all_pdoub, all_psing, all_ppar, all_tau
 
         ! Create the group
         call h5gcreate_f(parent, nm_tau_grp, tau_grp, err)
@@ -412,13 +415,16 @@ contains
 
         ! Use the probability values from the head node
         all_psing = pSingles; all_pdoub = pDoubles; all_ppar = pParallel
+        all_tau = tau
         call MPIBcast(all_psing)
         call MPIBcast(all_pdoub)
         call MPIBcast(all_ppar)
+        call MPIBcast(all_tau)
 
         call write_dp_scalar(tau_grp, nm_psingles, all_psing)
         call write_dp_scalar(tau_grp, nm_pdoubles, all_pdoub)
         call write_dp_scalar(tau_grp, nm_pparallel, all_ppar)
+        call write_dp_scalar(tau_grp, nm_tau, all_tau)
 
         ! Clear up
         call h5gclose_f(tau_grp, err)
@@ -454,7 +460,7 @@ contains
     subroutine read_calc_data(parent)
 
         use load_balance_calcnodes, only: RandomOrbIndex
-        use FciMCData, only: PreviousCycles, Hii, TotImagTime
+        use FciMCData, only: PreviousCycles, Hii, TotImagTime, tSearchTauOption
         use CalcData, only: DiagSft, tWalkContGrow
 
         integer(hid_t), intent(in) :: parent
@@ -491,7 +497,12 @@ contains
             tSinglePartPhase = .true.
         end if
 
-        call read_tau_opt(grp_id)
+        if (tSearchTauOption) then
+            call read_tau_opt(grp_id)
+        else
+            write(6,*) 'Skipping tau optimisation data as tau optimisation is &
+                       &disabled'
+        end if
         call read_accumulator_data(grp_id)
 
         ! TODO: Read nbasis, nel, ms2, etc.
@@ -507,14 +518,16 @@ contains
         use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
                               enough_sing, enough_doub, enough_opp, &
                               enough_par, cnt_sing, cnt_doub, cnt_opp, &
-                              cnt_par, max_death_cpt
+                              cnt_par, max_death_cpt, update_tau
         use FciMCData, only: pSingles, pDoubles, pParallel
+        use CalcData, only: tau
 
         ! Read accumulator values for the timestep optimisation
         ! TODO: Add an option to reset these values...
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id, err
+        logical :: ppar_set, tau_set
 
         call h5gopen_f(parent, nm_tau_grp, grp_id, err)
 
@@ -536,9 +549,16 @@ contains
 
         call read_dp_scalar(grp_id, nm_psingles, psingles)
         call read_dp_scalar(grp_id, nm_pdoubles, pdoubles)
-        call read_dp_scalar(grp_id, nm_pparallel, pparallel)
+        call read_dp_scalar(grp_id, nm_pparallel, pparallel, exists=ppar_set)
+        call read_dp_scalar(grp_id, nm_tau, tau, exists=tau_set)
 
         call h5gclose_f(grp_id, err)
+
+        ! Deal with a previous bug, that leads to popsfiles existing with all
+        ! the optimising parameters excluding tau, such that the first
+        ! iteration results in chaos
+        if (ppar_set .and. .not. tau_set) &
+            call update_tau()
 
     end subroutine
 
