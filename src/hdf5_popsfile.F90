@@ -813,7 +813,7 @@ contains
         running = .true.
         any_running = .true.
 
-        do while (any_running) !block_start <= last_part)
+        do while (any_running)
 
             ! If this is the last block, its size will differ from the biggest
             ! one allowed.
@@ -835,7 +835,7 @@ contains
                 block_start = block_end + 1
                 block_end = min(block_start + block_size - 1, last_part)
 
-                if (block_start <= last_part) running = .false.
+                if (block_start > last_part) running = .false.
             end if
 
             ! Test if _all_ of the processes have finished. If they have
