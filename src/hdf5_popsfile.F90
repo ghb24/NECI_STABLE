@@ -713,6 +713,7 @@ contains
         integer(hsize_t) :: this_block_size
         real(dp) :: pops_num_parts(lenof_sign), pops_norm_sqr(lenof_sign)
         real(dp) :: norm(lenof_sign), parts(lenof_sign)
+        logical :: running, any_running
 
         ! TODO:
         ! - Read into a relatively small buffer. Make this such that all the
@@ -809,12 +810,18 @@ contains
             last_part = offsets(iProcIndex + 1) - 1
         end if
         block_end = min(block_start + block_size - 1, last_part)
+        running = .true.
+        any_running = .true.
 
-        do while (block_start <= last_part)
+        do while (any_running)
 
             ! If this is the last block, its size will differ from the biggest
             ! one allowed.
-            this_block_size = block_end - block_start + 1
+            if (running) then
+                this_block_size = block_end - block_start + 1
+            else
+                this_block_size = 0
+            end if
             call read_walker_block(ds_ilut, ds_sgns, block_start, &
                                    this_block_size, bit_rep_width)
 
@@ -824,8 +831,16 @@ contains
             nread_walkers = nread_walkers + nreceived
 
             ! And update for the next block
-            block_start = block_end + 1
-            block_end = min(block_start + block_size - 1, last_part)
+            if (running) then
+                block_start = block_end + 1
+                block_end = min(block_start + block_size - 1, last_part)
+
+                if (block_start > last_part) running = .false.
+            end if
+
+            ! Test if _all_ of the processes have finished. If they have
+            ! not then
+            call MPIAllLORLogical(running, any_running)
 
         end do
 
@@ -909,6 +924,7 @@ contains
             ! Check that we aren't overrunning any lists. This can be a debug
             ! only check, as we have set the max block_size such that it will
             ! always fit.
+            list_full = .false.
             if (proc == nNodes - 1) then
                 if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
             else
@@ -1006,7 +1022,7 @@ contains
                                     pops_det_count, pops_num_parts, &
                                     pops_norm_sqr)
 
-        use CalcData, only: pops_norm
+        use CalcData, only: pops_norm, OccupiedThresh
 
         ! Check that the values received in these routines are valid
         !
@@ -1038,8 +1054,14 @@ contains
         end if
 
         ! Is the total number of walkers (sum of the sign values) correct?
+        !
+        ! This is relative to the occupied threshold, as in absolute terms the
+        ! error will increase with the number of particles, but we are
+        ! fundamentally checking that no particles have been double counted
+        ! or skipped. If an error occurs, therefore, it will be of the order
+        ! of magnitude of OccupiedThresh.
         call MPISumAll(parts, all_parts)
-        if (any(abs(all_parts - pops_num_parts) > 1.0e-6)) then
+        if (any(abs(all_parts - pops_num_parts) > (OccupiedThresh / 100.0))) then
             write(6,*) 'popsfile particles: ', pops_num_parts
             write(6,*) 'read particles: ', all_parts
             call stop_all(t_r, 'Incorrect particle weight read from popsfile')
