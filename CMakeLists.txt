@@ -111,6 +111,11 @@ else (CMake_Fortran_COMPILER_ID STREQUAL "PGI")
 		set(CMAKE_CXX_COMPILER pgc++)
 	endif()
 
+	# We don't support shared memory in PGI builds
+	if (SHARED_MEM)
+		message(FATAL_ERROR "Shared memory not supported on PGI. Disable with -DSHARED_MEM=off")
+	endif()
+
 	set(FORTRAN_COMPILE_FLAGS "${FORTRAN_COMPILE_FLAGS} -Msignextend -r8 -i8")
 	set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -Mbounds")
 	set(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} -tp x64 -fastsse")
