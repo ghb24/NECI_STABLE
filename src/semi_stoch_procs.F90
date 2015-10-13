@@ -54,19 +54,39 @@ contains
 
             partial_determ_vecs = 0.0_dp
 
+#ifdef __COMPLX
+            do i = 1, determ_sizes(iProcIndex)
+                do j = 1, sparse_core_ham(i)%num_elements
+                    partial_determ_vecs(1,i) = partial_determ_vecs(1,i) - &
+                        Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(1,sparse_core_ham(i)%positions(j)) +&
+                        Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(2,sparse_core_ham(i)%positions(j))
+                    partial_determ_vecs(2,i) = partial_determ_vecs(2,i) - &
+                        Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(1,sparse_core_ham(i)%positions(j)) -&
+                        Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(2,sparse_core_ham(i)%positions(j))
+                end do
+            end do
+#else
             do i = 1, determ_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
                     partial_determ_vecs(:,i) = partial_determ_vecs(:,i) - &
                         sparse_core_ham(i)%elements(j)*full_determ_vecs(:,sparse_core_ham(i)%positions(j))
                 end do
             end do
+#endif
 
             ! Now add shift*full_determ_vecs to account for the shift, not stored in
             ! sparse_core_ham.
+#ifdef __CMPLX
+            do i = 1, determ_sizes(iProcIndex)
+                partial_determ_vecs(:,i) = partial_determ_vecs(:,i) + &
+                   DiagSft(1) * full_determ_vecs(:,i+determ_displs(iProcIndex))
+            end do
+#else
             do i = 1, determ_sizes(iProcIndex)
                 partial_determ_vecs(:,i) = partial_determ_vecs(:,i) + &
                    DiagSft * full_determ_vecs(:,i+determ_displs(iProcIndex))
             end do
+#endif
 
             ! Now multiply the vector by tau to get the final projected vector.
             partial_determ_vecs = partial_determ_vecs * tau
