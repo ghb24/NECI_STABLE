@@ -1767,7 +1767,7 @@ contains
                 
                 ! If we are load balancing, this will disable the load balancer
                 ! so we should do a last-gasp balance at this point.
-                if (tLoadBalanceBlocks) &
+                if (tLoadBalanceBlocks .and. .not. tSemiStochastic) &
                     call adjust_load_balance(iter_data_fciqmc)
 
                 extract_bit_rep_avsign => extract_bit_rep_avsign_norm
