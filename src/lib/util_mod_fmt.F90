@@ -26,11 +26,11 @@ contains
         if (i == 0 .or. i == 1) then
             logi = 1.0
         else
-            logi = log10(real(abs(i), dp))
+            logi = log10(real(abs(i)+1.0, dp))
         end if
         if (i < 0) logi = logi + 1
 
-        fmt_str = int_fmt_local(logi)
+        fmt_str = int_fmt_local(logi, padding)
 
     end function
 
@@ -47,11 +47,11 @@ contains
         if (i == 0 .or. i == 1) then
             logi = 1.0
         else
-            logi = log10(real(abs(i), dp))
+            logi = log10(real(abs(i)+1.0, dp))
         end if
         if (i < 0) logi = logi + 1
 
-        fmt_str = int_fmt_local(logi)
+        fmt_str = int_fmt_local(logi, padding)
 
     end function
 
@@ -65,7 +65,7 @@ contains
         character(4) :: fmt_str
         integer :: ndigit
 
-        ndigit = 1 + int(floor(logi))
+        ndigit = int(ceiling(logi))
 
         if (present(padding)) ndigit = ndigit + padding
 
