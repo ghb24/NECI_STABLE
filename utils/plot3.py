@@ -865,7 +865,7 @@ class plotter:
                 if self.x_time:
                     x = cumulative_time(cols['iter'], cols['it_time'])
                 elif self.x_walkers:
-                    x = cols['parts']
+                    x = cols['parts'][0]
                 elif self.x_itime:
                     x = cols['im_time']
                 else:
