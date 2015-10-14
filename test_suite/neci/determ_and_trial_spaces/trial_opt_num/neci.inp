@@ -21,7 +21,7 @@ nmcyc 300
 trial-wavefunction
 optimised-trial
 optimised-trial-cutoff-num 4 20 80
-linscalefcimcalgo
+load-balance-blocks off
 endcalc
 
 integral

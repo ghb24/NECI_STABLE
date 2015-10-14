@@ -24,6 +24,7 @@ linscalefcimcalgo
 readpops
 truncinitiator
 addtoinitiator 3
+load-balance-blocks off
 endcalc
 
 integral

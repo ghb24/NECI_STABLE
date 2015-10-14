@@ -27,6 +27,7 @@ memoryfacpart 1.75
 memoryfacspawn 0.5
 stepsshift 10
 positive-hf-sign
+load-balance-blocks off
 endcalc
 
 integral

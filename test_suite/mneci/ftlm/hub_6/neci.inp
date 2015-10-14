@@ -19,6 +19,7 @@ num-init-vecs-ftlm 20
 num-lanc-vecs-ftlm 40
 num-beta-ftlm 60
 jump-shift off
+load-balance-blocks off
 endcalc
 
 end
