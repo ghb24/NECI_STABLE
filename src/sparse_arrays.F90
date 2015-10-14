@@ -346,7 +346,7 @@ contains
                     ! We calculate and store the diagonal matrix element at
                     ! this point for later access.
                     if (.not. tReadPops) &
-                        call set_det_diagH(i, Real(hamiltonian_row(j)))
+                        call set_det_diagH(i, Real(hamiltonian_row(j), dp))
                     ! Always include the diagonal elements.
                     row_size = row_size + 1
                 else
