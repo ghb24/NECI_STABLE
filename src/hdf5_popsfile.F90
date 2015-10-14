@@ -1057,7 +1057,7 @@ contains
         !
         ! This is relative to the total number to account for relative errors
         call MPISumAll(parts, all_parts)
-        if (any(abs(all_parts - pops_num_parts) > (pop_num_parts * 1.0e-10_dp))) then
+        if (any(abs(all_parts - pops_num_parts) > (pops_num_parts * 1.0e-10_dp))) then
             write(6,*) 'popsfile particles: ', pops_num_parts
             write(6,*) 'read particles: ', all_parts
             call stop_all(t_r, 'Incorrect particle weight read from popsfile')
