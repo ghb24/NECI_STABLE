@@ -21,7 +21,7 @@ nmcyc 300
 semi-stochastic
 optimised-core
 optimised-core-cutoff-amp 0.02 0.002
-linscalefcimcalgo
+load-balance-blocks off
 endcalc
 
 integral

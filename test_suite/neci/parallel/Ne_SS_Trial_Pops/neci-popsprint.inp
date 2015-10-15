@@ -26,6 +26,7 @@ semi-stochastic
 mp1-core 50
 trial-wavefunction
 mp1-trial 200
+load-balance-blocks off
 endcalc
 
 integral

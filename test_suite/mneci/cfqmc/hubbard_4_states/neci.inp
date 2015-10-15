@@ -25,6 +25,7 @@ realspawncutoff 0.01
 semi-stochastic
 doubles-core
 seed 20
+load-balance-blocks off
 endcalc
 
 kp-fciqmc

@@ -7,10 +7,14 @@
 
 echo "Calling cmake for: $@"
 
-if [ "pgi-simple" == "$@" ] || [ "gfortran-simple" == "$@" ] || [ "fkf-ifort" == "$@" ]; then
+if [ "gfortran-simple" == "$@" ] || [ "fkf-ifort" == "$@" ]; then
 	cmake -DCMAKE_BUILD_TYPE=Release ..
-elif [ "pgi-simple -g" == "$@" ] || [ "gfortran-simple -g" == "$@" ] || [ "fkf-ifort -g" == "$@" ]; then
+elif [ "gfortran-simple -g" == "$@" ] || [ "fkf-ifort -g" == "$@" ]; then
 	cmake -DCMAKE_BUILD_TYPE=Debug ..
+elif [ "pgi-simple" == "$@" ]; then
+	cmake -DCMAKE_BUILD_TYPE=Release -DSHARED_MEM=off ..
+elif [ "pgi-simple -g" == "$@" ]; then
+	cmake -DCMAKE_BUILD_TYPE=Debug -DSHARED_MEM=off ..
 else
 	echo "Module not executed"
 fi

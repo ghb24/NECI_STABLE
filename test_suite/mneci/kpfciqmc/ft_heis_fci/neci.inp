@@ -22,6 +22,7 @@ semi-stochastic
 heisenberg-fci-core
 seed 92391
 jump-shift off
+load-balance-blocks off
 endcalc
 
 kp-fciqmc

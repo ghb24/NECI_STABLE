@@ -25,6 +25,7 @@ stepsshift 10
 seed 20
 allrealcoeff
 realspawncutoff 0.05
+load-balance-blocks off
 endcalc
 
 logging

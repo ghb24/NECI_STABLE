@@ -27,6 +27,7 @@ addtoinitiator 3
 seed 20
 allrealcoeff
 realspawncutoff 0.01
+load-balance-blocks off
 endcalc
 
 logging

@@ -24,6 +24,7 @@ realspawncutoff 0.01
 trial-wavefunction
 mp1-trial 500
 trial-bin-search
+load-balance-blocks off
 endcalc
 
 integral

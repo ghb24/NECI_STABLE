@@ -27,6 +27,7 @@ pops-trial 300
 semi-stochastic
 pops-core 500
 readpops
+load-balance-blocks off
 endcalc
 
 integral

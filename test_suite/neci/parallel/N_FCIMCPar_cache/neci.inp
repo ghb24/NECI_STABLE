@@ -23,6 +23,7 @@ shiftdamp 0.03
 memoryfacpart 1.75
 memoryfacspawn 0.25
 stepsshift 10
+load-balance-blocks off
 endcalc
 
 integral

@@ -32,6 +32,7 @@ directannihilation
 memoryfacpart 3.3
 memoryfacspawn 3.2
 stepsshift 100
+load-balance-blocks off
 endcalc
 
 integral

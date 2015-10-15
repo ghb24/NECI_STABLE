@@ -27,6 +27,7 @@ readpops
 pops-creation 1
 9
 definedet 3 5 6 7 8 9 11 12 13 14 16
+load-balance-blocks off
 endcalc
 
 kp-fciqmc

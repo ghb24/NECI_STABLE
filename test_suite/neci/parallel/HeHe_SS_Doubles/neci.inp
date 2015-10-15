@@ -22,6 +22,7 @@ realspawncutoff 0.01
 semi-stochastic
 doubles-core
 stochastic-hf-spawning
+load-balance-blocks off
 endcalc
 
 integral

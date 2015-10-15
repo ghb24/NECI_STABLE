@@ -20,8 +20,8 @@ realspawncutoff 0.01
 nmcyc 400
 trial-wavefunction
 doubles-trial
-linscalefcimcalgo
 trial-bin-search
+load-balance-blocks off
 endcalc
 
 integral

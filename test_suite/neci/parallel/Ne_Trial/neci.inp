@@ -23,6 +23,7 @@ allrealcoeff
 realspawncutoff 0.01
 trial-wavefunction
 mp1-trial 500
+load-balance-blocks off
 endcalc
 
 integral

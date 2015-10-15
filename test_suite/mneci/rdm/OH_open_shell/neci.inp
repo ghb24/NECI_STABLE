@@ -29,6 +29,7 @@ shiftdamp 0.1
 nmcyc 5000
 allrealcoeff
 realspawncutoff 0.5
+load-balance-blocks off
 endcalc
 
 integral

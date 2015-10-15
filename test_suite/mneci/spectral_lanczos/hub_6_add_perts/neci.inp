@@ -30,6 +30,7 @@ right-annihilate-spectral 2
 ground-energy-spectral -12.61441
 include-ground-spectral
 jump-shift off
+load-balance-blocks off
 endcalc
 
 logging

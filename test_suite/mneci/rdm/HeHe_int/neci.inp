@@ -16,6 +16,7 @@ stepsshift 10
 tau 0.01
 shiftdamp 0.05
 nmcyc 20000
+load-balance-blocks off
 endcalc
 
 integral

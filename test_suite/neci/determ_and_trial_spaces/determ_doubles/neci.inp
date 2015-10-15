@@ -20,10 +20,10 @@ realspawncutoff 0.01
 nmcyc 400
 semi-stochastic
 doubles-core
-linscalefcimcalgo
 truncinitiator
 addtoinitiator 2
 stochastic-hf-spawning
+load-balance-blocks off
 endcalc
 
 integral

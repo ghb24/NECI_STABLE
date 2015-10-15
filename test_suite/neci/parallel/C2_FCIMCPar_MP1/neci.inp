@@ -25,6 +25,7 @@ truncinitiator
 addtoinitiator 3
 proje-changeref 1.2
 regenexcitgens
+load-balance-blocks off
 endcalc
 
 integral
