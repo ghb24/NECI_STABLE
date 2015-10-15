@@ -233,9 +233,6 @@ logical :: tGiovannisBrokenInit
     ! ==================== GUGA Implementation ========================
     ! input for graphical unitary group approach (GUGA) CSF implementation
     logical :: tGUGA ! flag to indicate usage of GUGA
-    ! integer to indicate length of nI array depending if using GUGA CSFs
-    ! Slater Determinants or Simons CSF implementations
-    integer :: nReps 
 
     ! use a flag to determine if unit tests should be performed! with an 
     ! additional optional input how often the the excitation generator should 

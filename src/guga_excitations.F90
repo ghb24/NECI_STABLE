@@ -11,8 +11,7 @@ module guga_excitations
     use bit_rep_data, only: nifdbo
     use DetBitOps, only: EncodeBitDet, count_open_orbs, ilut_lt, ilut_gt
     use guga_data, only: excitationInformation, getSingleMatrixElement, &
-                    getDoubleMatrixElement, getMixedFullStop, singleWeight_data, &
-                    fullStartWeight_data, doubleWeight_data, singleOverlapWeight_data, &
+                    getDoubleMatrixElement, getMixedFullStop, &
                     weight_data, orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, &
                     funA_m1_1_overR2, funA_3_1_overR2, minFunA_0_2_overR2, &
                     funA_2_0_overR2, getDoubleContribution, projE_ilut_list, &
@@ -73,7 +72,7 @@ module guga_excitations
             implicit none
             real(dp), intent(in) :: negSwitches, posSwitches, bVal
             type(weight_data), intent(in) :: dat
-            real :: weight
+            real(dp) :: weight
         end function general_weight_zero
 
 !         function singleWeightDummy(nSwitches, bVal, single) result(weight)
@@ -262,6 +261,44 @@ module guga_excitations
 
 contains
 ! ! 
+    function calc_off_diag_guga_gen(ilutI, ilutJ, excitLvl) result(hel)
+        ! calculate the off-diagonal matrix element between ilutI and ilutJ
+        ! by acting with the hamiltonian on ilutJ and search if ilutI is in 
+        ! the list of conncected determinant 
+        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
+        integer, intent(in), optional :: excitLvl
+        HElement_t(dp) :: hel
+        character(*), parameter :: this_routine = "calc_off_diag_guga_gen"
+
+        integer :: pos, nExcit
+        integer(n_int) :: ilutG(0:nifguga)
+        integer(n_int), pointer :: excitations(:,:)
+
+
+        ! act the hamiltonian on ilutJ:
+        ! first convert to guga type representation
+        call convert_ilut(ilutJ, ilutG)
+
+        call actHamiltonian(ilutG, excitations, nExcit)
+
+        ! then binary search ilutI in the excitattions
+
+        ! convert ilutI to a guga representation
+        call convert_ilut(ilutI, ilutG)
+
+        ! and the search in excitations
+        pos = binary_search(excitations, ilutG, nifdbo + 1)
+
+        if ( pos > 0 ) then
+            hel = extract_matrix_element(excitations(:,pos),1)
+        else
+            hel = 0.0_dp
+        end if
+
+
+    end function calc_off_diag_guga_gen
+
+
 !     subroutine sum_E_contrib_GUGA(ilut, excitLevel, RealWSign)
 !         ! problem here is dont quite know which quantities excactly have to be
 !         ! updated ... probably have to ask simon...
@@ -431,7 +468,7 @@ contains
         logical, allocatable :: generated_list(:)
         logical :: par
         real(dp) :: contrib, pgen
-        HElement_t :: helgen
+        HElement_t(dp) :: helgen
         character(255) :: filename
 
         ! Decode the determiant
@@ -477,10 +514,11 @@ contains
 
         ! Repeated generation, and summing-in loop
         ngen = 0
-        contrib = 0
+        contrib = 0.0_dp
         do i = 1, iterations
-            if (mod(i, 10000) == 0) &
-                write(6,*) i, '/', iterations, ' - ', contrib / real(nexcit*i,dp)
+            if (mod(i, 10000) == 0) then
+                write(6,*) i, '/', iterations, ' - ', contrib / (real(nexcit,dp)*i)
+            end if
 
             call generate_excitation_guga (src_det, ilut, det, tgt_ilut, 3, &
                                           ic, ex, par, pgen, helgen, store)
@@ -600,7 +638,7 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
-        HElement_t, intent(out) :: HElGen
+        HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         character(*), parameter :: this_routine = "generate_excitation_guga"
 
@@ -18449,7 +18487,7 @@ contains
         character(*), parameter :: this_routine = "pickOrbitals_single"
         
         integer :: i, j, nOrbs, k, ierr, r, nSwitches
-        real :: factor
+        real(dp) :: factor
 !         real(dp) :: cum_sum
         ASSERT(isProperCSF_ilut(ilut))
 

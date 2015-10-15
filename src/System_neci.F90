@@ -1082,7 +1082,7 @@ system: do
       use legacy_data, only: CSF_NBSTART
       use read_fci
       use sym_mod
-      use guga_init, only: SysInitGUGA
+      use guga_data, only: init_guga
       implicit none
       character(*), parameter :: this_routine='SysInit'
       integer ierr
@@ -1985,21 +1985,14 @@ system: do
  ! ====================== GUGA implementation ===========================
       ! design decision to have as much guga related functionality stored in
       ! guga_*.F90 files and only call necessary routines.
-      ! routine SysInitGUGA() is found in module guga_init.F90
+      ! routine guga_init() is found in module guga_init.F90
       ! it prints out info and sets the nReps to be the number of orbitals
       ! have to call routine at this late stage in the initialisation, 
       ! because it needs info of the number of orbitals from the integral 
       ! input files..: lets hope FDET or something similar is not getting 
       ! allocated before this point...
-      if (tGUGA) then
-          call SysInitGUGA()
-      else
-          ! have to set globally used nReps quantity for nI type 
-          ! arrays here. in guga nI have to of spatial orbital length
-          ! otherwise only of nEl length
-          nReps = nEl
-      end if
-
+      ! CHANGE: switched init functions to guga_data
+      if (tGUGA) call init_guga()
 
       call halt_timer(proc_timer)
     End Subroutine SysInit

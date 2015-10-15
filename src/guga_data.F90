@@ -4,55 +4,30 @@
 ! GUGA approach.
 module guga_data
     ! dependencies: be EXPLICIT about them! 
-    use SystemData, only: nEl, nBasis, tGUGA, nReps
+    use SystemData, only: nBasis, tCSF, tSPN, tHPHF, lNoSymmetry, STOT, nEl, &
+                          tNoBrillouin, tExactSizeSpace, tUHF, tGUGA
     use CalcData, only: tUseRealCoeffs
+    use spin_project, only: tSpinProject
+    use bit_rep_data, only: tUseFlags
     use constants, only: dp, Root2, OverR2, n_int
     
     implicit none
 
     ! ========================== type defs ===================================
-!     type :: rangeType
-!         ! for overlap and non-overlap range, i would need empty arrays, which
-!         ! are inherently not possible in fortran. so define a TYPE to mimick
-!         ! this functionality
-!         ! update: actually can use  zero sized arrays, by just allocating to 
-!         ! size 0, and then checking with size() function -> this type not 
-!         ! needed anymore..
-!         integer :: length
-!         integer, allocatable :: ind(:)
-!     end type rangeType
 
-    ! maybe scrap all the others and only do one general data structure with
-    ! unfortunately more entries as needed somtimes
+    ! define types for the probabilistic weights functions used in the 
+    ! stochastic excitations generations
     type :: weight_data
-        real(dp) :: F = 0.0_dp, G = 0.0_dp, minus = 0.0_dp, plus = 0.0_dp, &
-            zero = 0.0_dp
+        real(dp) :: F = 0.0_dp, G = 0.0_dp, minus = 0.0_dp, plus = 0.0_dp, zero = 0.0_dp
     end type weight_data
     
-    type :: singleWeight_data
-        real(dp) :: F, G
-    end type singleWeight_data
-
-    type :: fullStartWeight_data
-        real(dp) :: F, G, minusOne, plusOne
-    end type fullStartWeight_data
-
-    type :: doubleWeight_data
-        real(dp) :: F, G, minusTwo, plusTwo, zero
-    end type doubleWeight_data
-
-    type :: singleOverlapWeight_data
-        real(dp) :: F, G, L, minusOne, plusOne
-    end type singleOverlapWeight_data
-
-
-
     ! define type structs for the probabilistic weights
     type :: branchWeight
-        logical :: initialized
-        real(dp) :: plusWeight, minusWeight, zeroWeight, F, G, L
-        procedure(dummyFunction), pointer, nopass :: minus, plus, zero
-        
+        logical :: initialized = .false.
+        real(dp) :: plusWeight = 0.0_dp, minusWeight = 0.0_dp, zeroWeight = 0.0_dp, &
+                F = 0.0_dp, G = 0.0_dp, L = 0.0_dp
+        procedure(dummyFunction), pointer, nopass :: minus => null(), plus => null(), &
+                                                     zero => null()
     end type branchWeight
 
     ! define a type structure to store excitation information between two
@@ -60,7 +35,7 @@ module guga_data
     ! this may also be used/needed for the excitation generation
     type :: excitationInformation
         ! indicate type of excitation: 1 ... single, 2 ... double
-        integer :: typ
+        integer :: typ = -1
         ! save type of excitation encoded as integer: all different possibs:
         ! 0 ... all kind of excitations which dont need much care
         ! 1 ... weight raising
@@ -95,7 +70,8 @@ module guga_data
         ! update: 
         ! new convention store, original indiced and the ordered ones in 
         ! the fullStart, etc. indices. 
-        integer :: i, j, k, l, fullStart, fullEnd, secondStart, firstEnd, weight
+        integer :: i = -1, j = -1, k = -1, l = -1, fullStart = -1, fullEnd = -1, &
+            secondStart = -1, firstEnd = -1, weight = -1
         ! also need the overlap and nonOverlapRange of the excitations for
         ! efficiently identifying and calculatint excitations for a given CSF
         ! and indices i,j,k,l
@@ -103,7 +79,7 @@ module guga_data
         ! update: 
         ! dont need overlaprange, and nonoverlaprange anywhere, just need to 
         ! indicate if its a non-overlap, single overlap or proper double!
-        integer :: overlap
+        integer :: overlap = -1
         ! 0 ... no overlap or single
         ! 1 ... single overlap
         ! >1 ... proper double overlap
@@ -115,10 +91,11 @@ module guga_data
         ! raising : +1
         ! weight:    0
         ! maybe need firstGen, lastGen, (even secondGen) maybe?
-        integer :: gen1, gen2, firstGen, lastGen, currentGen
+        integer :: gen1 = -2, gen2 = -2, firstGen = -2, lastGen = -2, &
+            currentGen = -2
         ! also store excitation level(number of occupation number differences)
         ! in this type, to have everything at one place
-        integer :: excitLvl
+        integer :: excitLvl = -1
         ! additional flags:
         ! for a 4 index double excitation, there is an additional flag 
         ! necessary to distiguish between certain kind of equally possible 
@@ -127,33 +104,15 @@ module guga_data
         ! the order of generators is some excitations has an influence on the 
         ! relative sign of the x_1 semi-stop matrix elements
         ! use a real here: 1.0 or -1.0 and just multiply x1 element 
-        real(dp) :: order, order1
+        real(dp) :: order = 0.0_dp, order1 = 0.0_dp
         !TODO maybe more necessary info needed.
         ! add a flag to indicate if the excitation is even possible or other
         ! wise cancel the excitation
-        logical :: valid
-
-        ! also use a integer to indicate a switch in stepvalues to indicate
-        ! up, or from where additional integral contributions for mixed 
-        ! full-starts or full-stops have to be calculated
-        integer :: switch
+        logical :: valid = .false.
     end type excitationInformation
 
     ! ======================== end TYPE defs ================================
-    ! define nReps quatity defining the length of the nI array, 
-    ! containing the occupied orbitals or b-vector, corresponding to
-    ! the bit-rep. iLut, depending if SD of GUGA-CSF calc. is used.
-    ! have to be careful, if and when nEl and/or nBasis get changed 
-    ! within NECI, when freezing orbitals eg. -> check with Simon
-
-    ! define container types, which have all the necessary functions for 
-    ! matrix element calculation and can be efficiently accessed.
-    !TODO ask simon on how to do that best
-    ! should also contain conversion of d'+d inputs to one integer to 
-    ! access the functions
-    ! maybe create it in such a way that -1,+1 access the columns to 
-    ! make it more apparent it is the Delta b value, which decides here!
-
+  
     ! ========================= INTERFACES ==================================
     ! create derived type to use array of procedure pointers to efficiently 
     ! access the functions necessary for the matrix element calculation
@@ -176,13 +135,13 @@ module guga_data
     end interface
 
     type :: procedurePtrArray
-        procedure(dummyFunction), pointer, nopass :: ptr
+        procedure(dummyFunction), pointer, nopass :: ptr => null()
         ! why the nopass flag is needed see:
         ! https://software.intel.com/en-us/forums/topic/508530
     end type procedurePtrArray
     
     type :: procPtrArrTwo
-        procedure(dummySubroutine), pointer, nopass :: ptr
+        procedure(dummySubroutine), pointer, nopass :: ptr => null()
     end type procPtrArrTwo
 
     ! all procedure pointers in an array have to use the same interface! 
@@ -190,8 +149,6 @@ module guga_data
     ! means that one has to use the most general one(3 input, 1 output) for 
     ! all, even if everytime a 1 is given as output, as in many cases -> 
     ! ask Simon if there is room for improvement here
-   
- 
 
     ! create an array of procedure pointers to all necessary functions for 
     ! single excitation matrix element calculation
@@ -217,7 +174,7 @@ module guga_data
     !singleMatElesGUGA(indArrOne(d',d,dB,G,b))
 
     ! do the same for double-excitation matrix elements
-    type(procedurePtrArray) :: doubleMatElesGUGA(60)
+!     type(procedurePtrArray) :: doubleMatElesGUGA(60)
     
     ! use two different arrays of procedure pointers for the x=0 and x=1 
     ! double excitation matrix element
@@ -337,7 +294,7 @@ module guga_data
     ! also need a list of determinants and matrix elements connceted to the 
     ! reference determinant 
     integer(n_int), allocatable :: projE_ilut_list(:,:)
-    real(dp), allocatable :: projE_hel_list(:)
+    HElement_t(dp), allocatable :: projE_hel_list(:)
     
     ! also make a global integer list of orbital indices, so i do not have to 
     ! remake them in every random orbital picker!
@@ -348,13 +305,116 @@ module guga_data
 
 contains
 
-   
+    subroutine checkInputGUGA()
+        ! routine to check if all the input parameters given are consistent
+        ! and otherwise stops the excecution
+        ! is called inf checkinput() in file readinput.F90
+        character(*), parameter :: routineName = 'checkInputGUGA'
+
+        ! check in certain system options have conflicts:
+        if (tCSF) then
+            call stop_all(routineName, &
+                "Cannot use two CSF implementations tGUGA and tCSF at the same time!")
+        end if
+
+        if (tSPN) then
+            call stop_all(routineName, &
+                "GUGA not yet implemented with spin restriction SPIN-RESTRICT!")
+        end if
+
+        if (tHPHF) then
+            call stop_all(routineName, &
+                "GUGA not compatible with HPHF option!")
+        end if
+
+        if (tSpinProject) then
+            call stop_all(routineName, &
+                "GUGA not compatible with tSpinProject!")
+        end if
+
+        if (.not. lNoSymmetry) then
+            call stop_all(routineName, &
+                "GUGA not yet implemented with k-point symmetry!")
+        end if
+        
+        if (tExactSizeSpace) then
+            call stop_all(routineName, &
+                "calculation of exact Hilbert space size not yet implemented with GUGA!")
+        end if
+
+        ! probably also have to assert against all the hist and exact 
+        ! calculation flags.. also rdms... and certain excitation generators
+!         if (tHistSpawn) then
+!             call stop_all(routineName, &
+!                 "HISTSPAWN not yet compatible with GUGA!")
+!         end if
+! 
+!         if (tCalcFCIMCPsi) then
+!             call stop_all(routineName, &
+!                 "PRINTFCIMCPSI not yet compatible with GUGA!")
+!         end if
+! 
+!         if (tPrintOrbOcc) then
+!             call stop_all(routineName, &
+!                 "PRINTORBOCCS not yet implemented with GUGA!")
+!         end if
+
+
+        if (.not. tNoBrillouin) then
+            call stop_all(routineName, &
+                "Brillouin theorem not valid for GUGA approach!(I think atleast...)")
+        end if
+
+        ! also check if provided input values match:
+        ! CONVENTION: STOT in units of h/2!
+        if (STOT .gt. nEl) then
+            call stop_all(routineName, &
+                "total spin S in units of h/2 cannot be higher than number of electrons!")
+        end if
+
+        if (mod(STOT,2) /= mod(nEl,2)) then
+            call stop_all(routineName, &
+                "number of electrons nEl and total spin S in units of h/2 must have same parity!")
+        end if
+
+        ! maybe more to come...
+        ! UHF basis is also not compatible with guga? or not... or atleast 
+        ! i am not yet implementing it in such a way so it can work
+        if (tUHF) then
+            call stop_all(routineName, &
+                "GUGA approach and UHF basis not yet (or never?) compatible!")
+        end if
+
+        ! assert that tUseFlags is set, to be able to encode deltaB values
+        ! in the ilut representation for excitation generation
+        !if (.not.tUseFlags) then
+        !    call stop_all(routineName, &
+        !        "tUseFlags has to be .true. to encode deltaB values in ilut!")
+        !end if
+        ! cannot do assertion here, since flag is set afterwards, but changed 
+        ! corresponding code, so flag is set.
+        
+    end subroutine checkInputGUGA
+
     ! in Fortran no executable code is allowed to be in the module header part
     ! so a initialization subroutine is needed, which has to be called in the 
     ! other modules using the guga_data module 
     subroutine init_guga()
         integer :: i, ierr
         ! main initialization routine
+
+   ! this routine is called in SysInit() of System_neci.F90
+        write(6,*) ' ************ Using the GUGA-CSF implementation **********'
+        write(6,*) ' Restricting the total spin of the system, tGUGA : ', tGUGA
+        write(6,'(A,I5)') '  Restricting total spin S in units of h/2 to ', STOT
+        write(6,*) ' So eg. S = 1 corresponds to one unpaired electron '
+        write(6,*) ' not quite sure yet how to deal with extensively used m_s quantum number..'
+        write(6,*) ' NOTE: for now, although SPIN-RESTRICT is set off, internally m_s(LMS) '
+        write(6,*) ' is set to STOT, to make use of reference determinant creations already implemented'
+        write(6,*) ' Since NECI always seems to take the beta orbitals first for open shell or '
+        write(6,*) ' spin restricted systems, associate those to positively coupled +h/2 orbitals '
+        write(6,*) ' to always ensure a S >= 0 value!' 
+        write(6,*) ' *********************************************************'
 
         ! init nReps variable, which in the future may take the place of nEl 
         ! in defining the length of the nI array
@@ -371,6 +431,9 @@ contains
         ! but probably have to set a few other things so it works with
         ! reals
         tUseRealCoeffs = .true.
+
+        tUseFlags = .true.
+
         ! maybe more to come...
 
         ! but also have to set up the global orbitalIndex list 
@@ -378,20 +441,7 @@ contains
         orbitalIndex = [ (i, i = 1, nBasis/2)]
 
     end subroutine init_guga
-
-    subroutine init_nReps()
-        ! if NECI is run in the GUGA-CSF basis sets the nReps variable to the 
-        ! number of spatial orbitals, otherwise to the number of electrons. 
-        ! thats because the use of the nI array is fundamentally different in 
-        ! the GUGA approach
-
-        if (tGUGA) then
-            nReps = nBasis
-        else
-            nReps = nEl
-        end if
-    end subroutine init_nReps
-
+! 
     subroutine init_guga_data_procPtrs()
         ! this subroutine initializes the procedure pointer arrays needed for
         ! the matrix element calculation
@@ -421,69 +471,69 @@ contains
 
         ! ----------- double excitation procedure pointer --------------------
         ! link to all different functions
-        ! involving one weight generator:
-        doubleMatElesGUGA(1)%ptr => funZero
-        doubleMatElesGUGA(2)%ptr => funA_0_1
-        doubleMatElesGUGA(3)%ptr => funA_2_1
-        doubleMatElesGUGA(4)%ptr => funA_1_0
-        doubleMatElesGUGA(5)%ptr => funA_1_2
-        doubleMatElesGUGA(6)%ptr => funTwo
-        doubleMatElesGUGA(7)%ptr => funMinus1
-        doubleMatElesGUGA(8)%ptr => minFunOverB_2
-        doubleMatElesGUGA(9)%ptr => funC_2
-        doubleMatElesGUGA(10)%ptr => funC_0
-        doubleMatElesGUGA(11)%ptr => funOverB_0
-        doubleMatElesGUGA(12)%ptr => funMinusTwo
-        doubleMatElesGUGA(13)%ptr => funC_1
-        doubleMatElesGUGA(14)%ptr => funOverB_1
-        doubleMatElesGUGA(15)%ptr => minFunOverB_1
-        ! two alike generators:
-        doubleMatElesGUGA(16)%ptr => funSqrt2
-        doubleMatElesGUGA(17)%ptr => funOverRoot2
-        doubleMatElesGUGA(18)%ptr => funPlus1
-        doubleMatElesGUGA(19)%ptr => funA_1_2overR2
-        doubleMatElesGUGA(20)%ptr => minFunOverR2
-        doubleMatElesGUGA(21)%ptr => funA_3_2overR2
-        doubleMatElesGUGA(22)%ptr => minFunA_3_2overR2
-        doubleMatElesGUGA(23)%ptr => funA_0_2overR2
-        doubleMatElesGUGA(24)%ptr => minFunA_0_2_overR2
-        doubleMatElesGUGA(25)%ptr => funA_3_2
-        doubleMatElesGUGA(26)%ptr => minFunA_3_2
-        doubleMatElesGUGA(27)%ptr => funA_1_0_overR2
-        doubleMatElesGUGA(28)%ptr => funA_m1_0
-        doubleMatElesGUGA(29)%ptr => minFunA_m1_0
-        doubleMatElesGUGA(30)%ptr => funA_m1_0_overR2
-        doubleMatElesGUGA(31)%ptr => minFunA_m1_0_overR2
-        doubleMatElesGUGA(32)%ptr => funA_2_0_overR2
-        doubleMatElesGUGA(33)%ptr => minFunA_2_0_overR2
-        doubleMatElesGUGA(34)%ptr => funA_0_1_overR2
-        doubleMatElesGUGA(35)%ptr => minFunA_0_1_overR2
-        doubleMatElesGUGA(36)%ptr => funA_2_1_overR2
-        doubleMatElesGUGA(37)%ptr => minFunA_2_1_overR2
-        doubleMatElesGUGA(38)%ptr => minFunA_1_2
-        doubleMatElesGUGA(39)%ptr => minFunA_1_0
-        doubleMatElesGUGA(40)%ptr => minFunA_0_1
-        doubleMatElesGUGA(41)%ptr => funA_3_1_overR2
-        doubleMatElesGUGA(42)%ptr => minFunA_3_1_overR2
-        doubleMatElesGUGA(43)%ptr => funA_m1_1_overR2
-        doubleMatElesGUGA(44)%ptr => minFunA_m1_1_overR2
-!         doubleMatElesGUGA(45)%ptr => funB_3_2
-        doubleMatElesGUGA(46)%ptr => funD_2
-        doubleMatElesGUGA(47)%ptr => funD_0
-        doubleMatElesGUGA(48)%ptr => minFunD_0
-        doubleMatElesGUGA(49)%ptr => funB_1_2
-        doubleMatElesGUGA(50)%ptr => funB_0_1
-        doubleMatElesGUGA(51)%ptr => funD_1
-        doubleMatElesGUGA(52)%ptr => minFunD_1
-        doubleMatElesGUGA(53)%ptr => funD_m1
-        doubleMatElesGUGA(54)%ptr => funB_m1_0
-        doubleMatElesGUGA(55)%ptr => minFunA_2_1
-        ! mixed generator additional functions:
-        doubleMatElesGUGA(56)%ptr => minFunC_2
-        doubleMatElesGUGA(57)%ptr => minFunC_0
-        doubleMatElesGUGA(58)%ptr => minFunOverB_2_R2
-        doubleMatElesGUGA(59)%ptr => minFunOverB_0_R2
-        doubleMatElesGUGA(60)%ptr => minFunB_0_2
+!         ! involving one weight generator:
+!         doubleMatElesGUGA(1)%ptr => funZero
+!         doubleMatElesGUGA(2)%ptr => funA_0_1
+!         doubleMatElesGUGA(3)%ptr => funA_2_1
+!         doubleMatElesGUGA(4)%ptr => funA_1_0
+!         doubleMatElesGUGA(5)%ptr => funA_1_2
+!         doubleMatElesGUGA(6)%ptr => funTwo
+!         doubleMatElesGUGA(7)%ptr => funMinus1
+!         doubleMatElesGUGA(8)%ptr => minFunOverB_2
+!         doubleMatElesGUGA(9)%ptr => funC_2
+!         doubleMatElesGUGA(10)%ptr => funC_0
+!         doubleMatElesGUGA(11)%ptr => funOverB_0
+!         doubleMatElesGUGA(12)%ptr => funMinusTwo
+!         doubleMatElesGUGA(13)%ptr => funC_1
+!         doubleMatElesGUGA(14)%ptr => funOverB_1
+!         doubleMatElesGUGA(15)%ptr => minFunOverB_1
+!         ! two alike generators:
+!         doubleMatElesGUGA(16)%ptr => funSqrt2
+!         doubleMatElesGUGA(17)%ptr => funOverRoot2
+!         doubleMatElesGUGA(18)%ptr => funPlus1
+!         doubleMatElesGUGA(19)%ptr => funA_1_2overR2
+!         doubleMatElesGUGA(20)%ptr => minFunOverR2
+!         doubleMatElesGUGA(21)%ptr => funA_3_2overR2
+!         doubleMatElesGUGA(22)%ptr => minFunA_3_2overR2
+!         doubleMatElesGUGA(23)%ptr => funA_0_2overR2
+!         doubleMatElesGUGA(24)%ptr => minFunA_0_2_overR2
+!         doubleMatElesGUGA(25)%ptr => funA_3_2
+!         doubleMatElesGUGA(26)%ptr => minFunA_3_2
+!         doubleMatElesGUGA(27)%ptr => funA_1_0_overR2
+!         doubleMatElesGUGA(28)%ptr => funA_m1_0
+!         doubleMatElesGUGA(29)%ptr => minFunA_m1_0
+!         doubleMatElesGUGA(30)%ptr => funA_m1_0_overR2
+!         doubleMatElesGUGA(31)%ptr => minFunA_m1_0_overR2
+!         doubleMatElesGUGA(32)%ptr => funA_2_0_overR2
+!         doubleMatElesGUGA(33)%ptr => minFunA_2_0_overR2
+!         doubleMatElesGUGA(34)%ptr => funA_0_1_overR2
+!         doubleMatElesGUGA(35)%ptr => minFunA_0_1_overR2
+!         doubleMatElesGUGA(36)%ptr => funA_2_1_overR2
+!         doubleMatElesGUGA(37)%ptr => minFunA_2_1_overR2
+!         doubleMatElesGUGA(38)%ptr => minFunA_1_2
+!         doubleMatElesGUGA(39)%ptr => minFunA_1_0
+!         doubleMatElesGUGA(40)%ptr => minFunA_0_1
+!         doubleMatElesGUGA(41)%ptr => funA_3_1_overR2
+!         doubleMatElesGUGA(42)%ptr => minFunA_3_1_overR2
+!         doubleMatElesGUGA(43)%ptr => funA_m1_1_overR2
+!         doubleMatElesGUGA(44)%ptr => minFunA_m1_1_overR2
+! !         doubleMatElesGUGA(45)%ptr => funB_3_2
+!         doubleMatElesGUGA(46)%ptr => funD_2
+!         doubleMatElesGUGA(47)%ptr => funD_0
+!         doubleMatElesGUGA(48)%ptr => minFunD_0
+!         doubleMatElesGUGA(49)%ptr => funB_1_2
+!         doubleMatElesGUGA(50)%ptr => funB_0_1
+!         doubleMatElesGUGA(51)%ptr => funD_1
+!         doubleMatElesGUGA(52)%ptr => minFunD_1
+!         doubleMatElesGUGA(53)%ptr => funD_m1
+!         doubleMatElesGUGA(54)%ptr => funB_m1_0
+!         doubleMatElesGUGA(55)%ptr => minFunA_2_1
+!         ! mixed generator additional functions:
+!         doubleMatElesGUGA(56)%ptr => minFunC_2
+!         doubleMatElesGUGA(57)%ptr => minFunC_0
+!         doubleMatElesGUGA(58)%ptr => minFunOverB_2_R2
+!         doubleMatElesGUGA(59)%ptr => minFunOverB_0_R2
+!         doubleMatElesGUGA(60)%ptr => minFunB_0_2
 
 
         ! ------ double excitation x0 matrix element part --------------------
@@ -599,7 +649,6 @@ contains
         call mixedGenFullStopMatEle(ind)%ptr(bValue, x0_element, x1_element)
 
     end subroutine getMixedFullStop 
-
 
     elemental function getDoubleContribution(step1,step2,deltaB,genFlag,bValue) &
             result (doubleContr)
@@ -1059,7 +1108,7 @@ contains
 
     function funZero(b) result(ret)
         real(dp), intent(in) :: b
-        real :: ret
+        real(dp) :: ret
         ret = 0.0_dp
     end function funZero
 

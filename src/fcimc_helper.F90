@@ -61,7 +61,7 @@ module fcimc_helper
                                global_determinant_data, set_iter_occ, &
                                get_part_init_time, det_diagH, get_spawn_count
     use searching, only: BinSearchParts2
-    use guga_matrixElements, only: calc_off_diag_guga
+    use guga_matrixElements, only: calc_off_diag_guga_ref
     use guga_excitations, only: create_projE_list
     use rdm_data, only: nrdms
     implicit none
@@ -396,7 +396,7 @@ contains
                 ! also the NoAtDoubs is probably not correct in guga for now 
                 ! so jsut ignore it 
                 ! only calc. it to the reference det here 
-                HOffDiag(1:inum_runs) = calc_off_diag_guga(ilut)
+                HOffDiag(1:inum_runs) = calc_off_diag_guga_ref(ilut)
             end if
         else
         if (ExcitLevel_local == 0) then

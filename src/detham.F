@@ -3,13 +3,15 @@
       use global_utilities
       use constants, only: dp, n_int
       Use Determinants, only: get_helement
-      use SystemData , only : BasisFN
+      use SystemData , only : BasisFN, tGUGA
       use CalcData , only : TStar
       use bit_rep_data, only: NIfTot
       use SystemData, only: tHPHF
       use hphf_integrals, only: hphf_diag_helement
       use hphf_integrals, only: hphf_off_diag_helement
       use DetBitOps, only: EncodeBitDet
+      use guga_matrixElements, only: calcDiagMatEleGuga_nI
+      use guga_excitations, only: calc_off_diag_guga_gen
       IMPLICIT NONE
       HElement_t(dp) HAMIL(*)
       INTEGER NDET,NEL
@@ -73,6 +75,13 @@ C..   Now we need to match up any two determinants
                 totsum = hphf_off_diag_helement(NMRKS(:,KI), 
      &                            NMRKS(:,KJ), ilutI, ilutJ)
               end if
+            else if (tGUGA) then
+              if (KI == KJ) then
+                  totsum = calcDiagMatEleGuga_nI(NMRKS(:,KI))
+              else
+                  totsum = calc_off_diag_guga_gen(ilutI, ilutJ)
+              end if
+
             else
               if (KI == KJ) then
                 totsum = get_helement(NMRKS(:,KI), NMRKS(:,KJ), 0)

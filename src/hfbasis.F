@@ -805,7 +805,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
 
           ! Generate an initial determinant of specified spin.
           use SystemData, only: BasisFN, tMolpro, brr, g1, nbasis, lms,
-     &                          nel, tGiovannisBrokenInit
+     &                          nel, tGiovannisBrokenInit, tGUGA
           use util_mod, only: int_fmt
           use sort_mod
           implicit none
@@ -952,7 +952,6 @@ C.. Working space
 !************************************************************************
 !****                          MOLPRO CASE                          *****
 !************************************************************************
->>>>>>> 780046480ec57758a74f6ede5e0e0cf2fa665ba8
          if(tMolpro) then
              !Assume that orbitals are ordered by occupation number
              !Assuming LMS positive, NELS(2) > NELS(1)

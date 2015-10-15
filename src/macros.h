@@ -19,7 +19,7 @@
 #define get_alpha(orb) (ibset(orb-1,0)+1)
 
 ! extract single step vector value of a spatial orbital from ilut 
-#define getStepvalue(ilut,sOrb) ishft(iand(ilut((sOrb-1)/bn2_),ishft(3,2*mod((sOrb-1),bn2_))),-2*mod((sOrb-1),bn2_))
+#define getStepvalue(ilut,sOrb) ishft(iand(ilut((sOrb-1)/bn2_),ishft(3_n_int,2*mod((sOrb-1),bn2_))),-2*mod((sOrb-1),bn2_))
 ! also directly implement 0,1,2,3 comparisons
 ! also directly implement 0,1,2,3 comparisons
 #define isZero(ilut,sOrb) (.not.(btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_)).or.btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_)+1)))

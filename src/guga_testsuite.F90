@@ -2383,7 +2383,7 @@ contains
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         logical :: tParity
         real(dp) :: pgen
-        HElement_t :: HElGen
+        HElement_t(dp) :: HElGen
         type(excit_gen_store_type), target :: store
         integer(n_int), pointer :: ex(:,:)
 
@@ -2789,7 +2789,7 @@ contains
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         logical :: tParity
         real(dp) :: pgen
-        HElement_t :: HElGen
+        HElement_t(dp) :: HElGen
         type(excit_gen_store_type), target :: store
         integer(n_int), pointer :: ex(:,:)
 
@@ -4004,7 +4004,7 @@ contains
         character(*), parameter :: this_routine = "test_pickRandomOrb"
         integer :: orb
         real(dp) :: pgen
-        integer :: ilut(0:nifguga)
+        integer(n_int) :: ilut(0:nifguga)
 
         call EncodeBitDet_guga([1,2,3,8], ilut)
 

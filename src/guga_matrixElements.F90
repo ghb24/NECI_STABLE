@@ -9,9 +9,11 @@ module guga_matrixElements
     use bit_reps, only: niftot, decode_bit_det, nifd
     use OneEInts, only: GetTMatEl
     use Integrals_neci, only: get_umat_el
-    use guga_bitRepOps, only: isDouble, calcB_vector_nI, isProperCSF_nI
+    use guga_bitRepOps, only: isDouble, calcB_vector_nI, isProperCSF_nI, &
+                            convert_ilut, extract_matrix_element
     use util_mod, only: binary_search
     use guga_data, only: projE_ilut_list, projE_hel_list
+    use bit_rep_data, only: nifdbo
 
     ! variable declarations:
     implicit none
@@ -30,30 +32,17 @@ module guga_matrixElements
     !    module procedure calcDiagExchangeGUGA_ilut
     !end interface calcDiagExchangeGUGA
 
-    interface calc_off_diag_guga
-        module procedure calc_off_diag_guga_ref
-        module procedure calc_off_diag_guga_gen
-    end interface calc_off_diag_guga
+!     interface calc_off_diag_guga
+!         module procedure calc_off_diag_guga_ref
+!         module procedure calc_off_diag_guga_gen
+!     end interface calc_off_diag_guga
 
 contains
-
-    function calc_off_diag_guga_gen(ilutI, ilutJ, excitLvl) result(hel)
-        ! calculate the off-diagonal matrix element between ilutI and ilutJ
-        ! by acting with the hamiltonian on ilutJ and search if ilutI is in 
-        ! the list of conncected determinant 
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        integer, intent(in), optional :: excitLvl
-        HElement_t :: hel
-        character(*), parameter :: this_routine = "calc_off_diag_guga_gen"
-
-
-    end function calc_off_diag_guga_gen
-
     function calc_off_diag_guga_ref(ilut) result(hel)
         ! calculated the off-diagonal element connected to the reference
         ! determinant only. 
         integer(n_int), intent(in) :: ilut(0:niftot)
-        HElement_t :: hel
+        HElement_t(dp) :: hel
         character(*), parameter :: this_routine = "calc_off_diag_guga_ref"
 
         integer :: pos 
@@ -79,7 +68,7 @@ contains
         ! calculates the diagonal Hamiltonian matrix element when a CSF in 
         ! nI(nEl) form is provided and returns hElement of type hElement_t
         integer, intent(in) :: nI(nEl)
-        HElement_t :: hel_ret
+        HElement_t(dp) :: hel_ret
         character(*), parameter :: this_routine = "calcDiagMatEleGUGA_nI"
         
         ! have to loop over the number of spatial orbitals i , and within
@@ -153,7 +142,7 @@ contains
         ! function to calculate the diagonal matrix element if a stepvector 
         ! in ilut format is given
         integer(n_int), intent(in) :: ilut(0:niftot)
-        HElement_t :: hElement
+        HElement_t(dp) :: hElement
 
         integer :: nI(nEl)
 

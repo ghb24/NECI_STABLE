@@ -213,7 +213,6 @@ contains
 
         step = calcStepvector(ilut)
 
-
         write(nunit,'("(")', advance='no')
 
         do i = 1, nBasis/2
@@ -513,7 +512,7 @@ contains
     subroutine convert_ilut_toNECI(ilutG, ilutN, HElement)
         integer(n_int), intent(in) :: ilutG(0:nifguga)
         integer(n_int), intent(inout) :: ilutN(0:niftot)
-        HElement_t, intent(out) :: HElement
+        HElement_t(dp), intent(out) :: HElement
         character(*), parameter :: this_routine = "convert_ilut_toNECI"
 
         ASSERT(isProperCSF_ilut(ilutG))
@@ -534,6 +533,7 @@ contains
 
         ! need only the det part essentially..
         ilutG(0:nifdbo) = ilutN(0:nifdbo)
+
 
         ! and set matrix elements to 1 and delta b to 0
         call encode_matrix_element(ilutG,1.0_dp,1)
@@ -689,7 +689,7 @@ contains
 
         do iOrb = 1, nBasis/2
             stepVector(iOrb) = getStepvalue(ilut, iOrb)
-        enddo
+        end do
     end function calcStepvector
 
     function calcOcc_vector_ilut(ilut) result(occVector)
@@ -817,16 +817,16 @@ contains
         end if
         
     end function getSpatialOccupation
-
-
-    function calcMeanB(nI) result(meanB)
-        ! function to calculate mean value of the b-vector, used in 
-        ! the branching probabilities for future switches
-        integer, intent(in) :: nI(nReps)
-        real(dp) :: meanB
-
-        meanB = sum(nI)/(max(1,nReps))
-
-    end function calcMeanB
-
+! 
+! 
+!     function calcMeanB(nI) result(meanB)
+!         ! function to calculate mean value of the b-vector, used in 
+!         ! the branching probabilities for future switches
+!         integer, intent(in) :: nI(nReps)
+!         real(dp) :: meanB
+! 
+!         meanB = sum(nI)/(max(1,nReps))
+! 
+!     end function calcMeanB
+! 
 end module guga_bitRepOps

@@ -234,7 +234,7 @@ MODULE ReadInput_neci
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors
         use UMatCache, only: tDeferred_Umat2d
-        use guga_init, only: checkInputGUGA
+        use guga_data, only: checkInputGUGA
 
         implicit none
 
