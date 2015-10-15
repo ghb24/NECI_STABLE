@@ -20,9 +20,9 @@ realspawncutoff 0.01
 nmcyc 400
 semi-stochastic
 read-core
-linscalefcimcalgo
 truncinitiator
 addtoinitiator 2
+load-balance-blocks off
 endcalc
 
 integral

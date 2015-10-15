@@ -20,7 +20,7 @@ realspawncutoff 0.01
 nmcyc 400
 semi-stochastic
 ras-core 2 0 8 1 3
-linscalefcimcalgo
+load-balance-blocks off
 endcalc
 
 integral

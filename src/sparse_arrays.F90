@@ -26,9 +26,8 @@ module sparse_arrays
     use global_det_data, only: set_det_diagH
 
     implicit none
-
     type sparse_matrix_real
-        real(dp), allocatable, dimension(:) :: elements
+        HElement_t(dp), allocatable, dimension(:) :: elements
         integer, allocatable, dimension(:) :: positions
         integer :: num_elements
     end type sparse_matrix_real
@@ -80,7 +79,7 @@ contains
         integer(n_int), intent(in) :: ilut_list(0:NIfTot, num_states)
         integer :: i, j, counter, ierr
         integer :: nI(nel), nJ(nel)
-        real(dp), allocatable, dimension(:) :: hamiltonian_row
+        HElement_t(dp), allocatable, dimension(:) :: hamiltonian_row
         integer, allocatable, dimension(:) :: sparse_diag_positions, sparse_row_sizes, indices
         integer(TagIntType) :: HRTag, SRTag, SDTag, ITag
         character(len=*), parameter :: t_r = "calculate_sparse_hamiltonian"
@@ -201,7 +200,7 @@ contains
         integer :: nI(nel), nJ(nel)
         integer(n_int), allocatable, dimension(:,:) :: temp_store
         integer(TagIntType) :: TempStoreTag, HRTag, SDTag
-        real(dp), allocatable, dimension(:) :: hamiltonian_row
+        HElement_t(dp), allocatable, dimension(:) :: hamiltonian_row
         character(len=*), parameter :: t_r = "calculate_sparse_ham_par"
 
         num_states_tot = int(sum(num_states), sizeof_int)
@@ -306,7 +305,7 @@ contains
         integer :: nI(nel), nJ(nel)
         integer(n_int), allocatable, dimension(:,:) :: temp_store
         integer(TagIntType) :: HRTag, TempStoreTag
-        real(dp), allocatable, dimension(:) :: hamiltonian_row
+        HElement_t(dp), allocatable, dimension(:) :: hamiltonian_row
         character(len=*), parameter :: t_r = "calculate_det_hamiltonian_sparse"
 
         allocate(sparse_core_ham(determ_sizes(iProcIndex)), stat=ierr)
@@ -347,7 +346,7 @@ contains
                     ! We calculate and store the diagonal matrix element at
                     ! this point for later access.
                     if (.not. tReadPops) &
-                        call set_det_diagH(i, hamiltonian_row(j))
+                        call set_det_diagH(i, Real(hamiltonian_row(j), dp))
                     ! Always include the diagonal elements.
                     row_size = row_size + 1
                 else

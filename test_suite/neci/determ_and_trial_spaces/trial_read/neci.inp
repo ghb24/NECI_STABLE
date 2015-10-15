@@ -20,9 +20,9 @@ realspawncutoff 0.01
 nmcyc 400
 trial-wavefunction
 read-trial
-linscalefcimcalgo
 truncinitiator
 addtoinitiator 3
+load-balance-blocks off
 endcalc
 
 integral

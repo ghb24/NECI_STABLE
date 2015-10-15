@@ -1022,7 +1022,7 @@ contains
                                     pops_det_count, pops_num_parts, &
                                     pops_norm_sqr)
 
-        use CalcData, only: pops_norm, OccupiedThresh
+        use CalcData, only: pops_norm
 
         ! Check that the values received in these routines are valid
         !
@@ -1055,13 +1055,9 @@ contains
 
         ! Is the total number of walkers (sum of the sign values) correct?
         !
-        ! This is relative to the occupied threshold, as in absolute terms the
-        ! error will increase with the number of particles, but we are
-        ! fundamentally checking that no particles have been double counted
-        ! or skipped. If an error occurs, therefore, it will be of the order
-        ! of magnitude of OccupiedThresh.
+        ! This is relative to the total number to account for relative errors
         call MPISumAll(parts, all_parts)
-        if (any(abs(all_parts - pops_num_parts) > (OccupiedThresh / 100.0))) then
+        if (any(abs(all_parts - pops_num_parts) > (pops_num_parts * 1.0e-10_dp))) then
             write(6,*) 'popsfile particles: ', pops_num_parts
             write(6,*) 'read particles: ', all_parts
             call stop_all(t_r, 'Incorrect particle weight read from popsfile')

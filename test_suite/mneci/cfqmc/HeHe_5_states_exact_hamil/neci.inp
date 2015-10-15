@@ -18,10 +18,10 @@ memoryfacpart 5.0
 memoryfacspawn 1.0
 allrealcoeff
 realspawncutoff 0.25
-linscalefcimcalgo
 semi-stochastic
 doubles-core
 seed 11
+load-balance-blocks off
 endcalc
 
 kp-fciqmc
