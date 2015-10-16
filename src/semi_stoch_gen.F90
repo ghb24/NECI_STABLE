@@ -900,7 +900,7 @@ contains
         allocate(amps_all_procs(total_length))
         call LogMemAlloc("amps_all_procs", int(total_length, sizeof_int), 8, t_r, TagB, ierr)
         allocate(indices_to_keep(n_pops_keep))
-        call LogMemAlloc("amps_all_procs", n_pops_keep, sizeof_int, t_r, TagC, ierr)
+        call LogMemAlloc("indices_to_keep", n_pops_keep, sizeof_int, t_r, TagC, ierr)
         allocate(largest_states(0:NIfTot, length_this_proc))
         call LogMemAlloc("largest_states", int(length_this_proc,sizeof_int)*(NIfTot+1), &
                          size_n_int, t_r, TagD, ierr)
