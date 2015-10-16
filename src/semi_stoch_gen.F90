@@ -879,10 +879,10 @@ contains
             ! this process. This is done instead of sending the best
             ! target_space_size states to all processes, which is often
             ! overkill and uses up too much memory.
-            length_this_proc = min( ceiling(real(10*target_space_size)/real(nProcessors), MPIArg), &
+            length_this_proc = min( ceiling(real(10*n_pops_keep)/real(nProcessors), MPIArg), &
                                    int(TotWalkers-nzero_dets,MPIArg) )
         else
-            length_this_proc = min( int(target_space_size, MPIArg), int(TotWalkers-nzero_dets,MPIArg) )
+            length_this_proc = min( int(n_pops_keep, MPIArg), int(TotWalkers-nzero_dets,MPIArg) )
         end if
 
         call MPIAllGather(length_this_proc, lengths, ierr)
