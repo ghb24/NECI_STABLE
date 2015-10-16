@@ -73,6 +73,10 @@ type subspace_in
     integer :: max_size = 0
     ! The number of states to use from a POPSFILE for the core space.
     integer :: npops = 0
+    ! If true then the space generated from the pops-core option may be very
+    ! slightly unoptimal, but should be very good, and sometimes exactly the
+    ! same as when this logical is false. Only applies to the pops-* options.
+    logical :: tApproxSpace = .false.
     ! When using the tMP1Core option, this specifies how many determinants to keep.
     integer :: mp1_ndets = 0
 
