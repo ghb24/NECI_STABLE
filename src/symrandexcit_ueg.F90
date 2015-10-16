@@ -35,7 +35,7 @@ contains
         integer, intent(out) :: nJ(nel), ic, ex(2,2)
         logical, intent(out) :: tPar
         real(dp), intent(out) :: pgen
-        HElement_t, intent(out) :: HelGen
+        HElement_t(dp), intent(out) :: HelGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'gen_ueg_excit'

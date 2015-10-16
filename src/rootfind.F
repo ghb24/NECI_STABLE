@@ -7,7 +7,7 @@
          use legacy_data, only: CALCP_N, CALCP_NT, CALCP_SUM, CALCP_HSUM
          IMPLICIT NONE
          INTEGER N,I,J
-         HElement_t A(0:N),B(0:N)
+         HElement_t(dp) A(0:N),B(0:N)
          real(dp) HIGHZ,DELTA,Z
          real(dp) STAR,STARPROD,PROD,PROD2,STARPROD2
 
@@ -75,7 +75,7 @@ C.. A and B are sorted in ascending order of A
          use IntegralsData , only : NRCONV,RFCONV,NRSTEPSMAX
          IMPLICIT NONE
          INTEGER N,I,J,NROOTS,NMIN,K
-         HElement_t A(0:N),B(0:N)
+         HElement_t(dp) A(0:N),B(0:N)
          real(dp) ROOTS(0:NROOTS),INITHIGH,INITLOW,DELTA
          real(dp) XHIGH,XLOW,X,VAL,DERIV,OX,VALLOW,VALHIGH
          LOGICAL LOWPOLE,HIGHPOLE
@@ -348,7 +348,7 @@ C               WRITE(6,*),I,A(I),B(I)
          use constants, only: dp
          IMPLICIT NONE
          INTEGER N
-         HElement_t A(0:N),B(0:N)
+         HElement_t(dp) A(0:N),B(0:N)
          real(dp) X,VAL
          INTEGER I
          VAL=(A(0))-X
@@ -361,7 +361,7 @@ C               WRITE(6,*),I,A(I),B(I)
          use constants, only: dp
          IMPLICIT NONE
          INTEGER N
-         HElement_t A(0:N),B(0:N)
+         HElement_t(dp) A(0:N),B(0:N)
          real(dp) X,VAL
          INTEGER I
          VAL=-1.0_dp

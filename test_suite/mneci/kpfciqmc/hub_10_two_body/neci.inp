@@ -28,6 +28,7 @@ pops-annihilate 1
 13 4
 definedet 6 7 8 9 10 11 12 15
 seed 26940
+load-balance-blocks off
 endcalc
 
 kp-fciqmc

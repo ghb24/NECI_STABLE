@@ -655,7 +655,7 @@ contains
       use global_utilities
       character(25), parameter ::this_routine='IntFreeze'            
 !//Locals
-      HElement_t, pointer :: UMAT2(:)
+      HElement_t(dp), pointer :: UMAT2(:)
       INTEGER(TagIntType) tagUMat2
       INTEGER nOcc
       integer UMATInt
@@ -810,9 +810,9 @@ contains
        IMPLICIT NONE
        INTEGER NHG,NBASIS,nBasisMax(5,*),ISS
        TYPE(BASISFN) G1(NHG),KSYM
-       HElement_t UMAT(*)
+       HElement_t(dp) UMAT(*)
 !!C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
-       HElement_t UMAT2(*)
+       HElement_t(dp) UMAT2(*)
        real(dp) ECORE
 !!C.. was (NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
        real(dp) ARR2(NBASIS,2)
@@ -1383,7 +1383,7 @@ contains
        ! Returns <ij|ab>
        use SystemData, only: ALAT,G1,iSpinSkip,nBasis,nBasisMax
        implicit none
-       HElement_t GetUMatEl2
+       HElement_t(dp) GetUMatEl2
        integer :: I,J,A,B
        
        GetUMatEl2 = get_umat_el(I,J,A,B)
@@ -1482,7 +1482,7 @@ contains
 
         integer, intent(in) :: idi, idj, idk, idl
         integer :: i, j
-        HElement_t :: hel
+        HElement_t(dp) :: hel
 
 
         if ( (idi == idj) .and. (idi == idk) .and. (idi == idl) ) then
@@ -1538,7 +1538,7 @@ contains
         integer :: i, j, k, l, a, b
         integer :: iType, iCache, iCacheI
         type(Symmetry) :: isym
-        HElement_t :: hel, UElems(0:nTypes-1)
+        HElement_t(dp) :: hel, UElems(0:nTypes-1)
         logical :: calc2ints
         complex(dp) :: vasp_int(1, 0:1)
 
@@ -1686,7 +1686,7 @@ contains
         !    i,j,k,l: spin-orbital indices.
         
         integer, intent(in) :: i, j, k, l
-        HElement_t :: hel
+        HElement_t(dp) :: hel
         type(Symmetry) :: SymX,SymY,SymX_C,symtot,sym_sym
 !        integer, dimension(3) :: ksymx,ksymy,ksymx_c
         character(len=*), parameter :: t_r='get_umat_el_comporb_spinorbs'
@@ -1744,7 +1744,7 @@ contains
         !    i,j,k,l: spatial orbital indices.
 
         integer, intent(in) :: i, j, k, l
-        HElement_t :: hel
+        HElement_t(dp) :: hel
         type(Symmetry) :: SymX,SymY,SymX_C,symtot,sym_sym
         character(len=*), parameter :: t_r='get_umat_el_comporb_notspinorbs'
         
@@ -1789,7 +1789,7 @@ contains
         !    i,j,k,l: spin-orbital indices.
         
         integer, intent(in) :: i, j, k, l
-        HElement_t :: hel
+        HElement_t(dp) :: hel
 
         ! If we are fixing Lz, then <ij|kl> != <kj|il> necessarily, since we
         ! have complex orbitals (though real integrals) and want to ensure
@@ -1817,7 +1817,7 @@ contains
         !    i,j,k,l: spatial orbital indices.
 
         integer, intent(in) :: i, j, k, l
-        HElement_t :: hel
+        HElement_t(dp) :: hel
 
         ! If we are fixing Lz, then <ij|kl> != <kj|il> necessarily, since we
         ! have complex orbitals (though real integrals) and want to ensure
@@ -1847,7 +1847,7 @@ contains
         !      calculations.
 
         integer, intent(in) :: idi, idj, idk, idl
-        HElement_t :: hel
+        HElement_t(dp) :: hel
 
         hel = UMAT (UMatInd(idi, idj, idk, idl, 0, 0))
 #ifdef __CMPLX
@@ -1875,7 +1875,7 @@ contains
 
         integer, intent(in) :: idi, idj, idk, idl
         integer :: i, j
-        HElement_t :: hel
+        HElement_t(dp) :: hel
 
         if ( (idi == idj) .and. (idi == idk) .and. (idi == idl) ) then
             hel = umat2d (idi, idi)

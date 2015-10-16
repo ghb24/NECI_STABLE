@@ -58,6 +58,7 @@ module FciMCParMod
     use soft_exit, only: ChangeVars
     use fcimc_initialisation
     use fcimc_iter_utils
+    use neci_signals
     use fcimc_helper
     use fcimc_output
     use FciMCData
@@ -79,7 +80,7 @@ module FciMCParMod
         integer :: iroot, isymh
         real(dp) :: Weight, Energyxw, BestEnergy
         INTEGER :: error, irdm
-        LOGICAL :: TIncrement, tWritePopsFound, tSoftExitFound, tSingBiasChange, tPrintWarn
+        LOGICAL :: TIncrement, tWritePopsFound, tSingBiasChange, tPrintWarn
         REAL(sp) :: s_start, s_end, tstart(2), tend(2), totaltime
         real(dp) :: TotalTime8
         INTEGER(int64) :: MaxWalkers, MinWalkers
@@ -133,6 +134,9 @@ module FciMCParMod
         call SetupParameters()
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers() 
+
+        ! Attach signal handlers to give a more graceful death-mannerism
+        call init_signals()
 
         ! We want to do some population checking before we run any iterations.
         ! In the normal case this is run between iterations, but it is
@@ -334,11 +338,12 @@ module FciMCParMod
                 call MPIBCast(TotalTime8)    !TotalTime is local - broadcast to all procs
 
 !This routine will check for a CHANGEVARS file and change the parameters of the calculation accordingly.
-                CALL ChangeVars(tSingBiasChange,tSoftExitFound,tWritePopsFound)
+                CALL ChangeVars(tSingBiasChange, tWritePopsFound)
                 IF(tSoftExitFound) THEN
                     !Now changed such that we do one more block of iterations and then exit, to allow for proper
                     !inclusion of all the RDM elements
                     NMCyc=Iter+StepsSft  
+                    tSoftExitFound = .false.
                     
                     !TIncrement=.false.
                     !! The diagonal elements of the RDM will not have been calculated (as we didn't know 
@@ -441,7 +446,7 @@ module FciMCParMod
             Iter=Iter+1
             if(tFillingStochRDMonFly) iRDMSamplingIter = iRDMSamplingIter + 1 
 
-!End of MC cycle
+        ! End of MC cycle
         enddo
 
         ! We are at the end - get the stop-time. Output the timing details
@@ -449,6 +454,10 @@ module FciMCParMod
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
         write(iout,*) 'Total loop-time: ', stop_time - start_time
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
+
+        ! Remove the signal handlers now that there is no way for the
+        ! soft-exit part to work
+        call clear_signals()
 
         ! Reduce the iteration count fro the POPSFILE since it is incremented
         ! upon leaving the loop (If done naturally).
@@ -646,9 +655,9 @@ module FciMCParMod
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
         real(dp) :: RDMBiasFacCurr
         real(dp), dimension(lenof_sign) :: AvSignCurr, IterRDMStartCurr
-        HElement_t :: HDiagTemp,HElGen
+        HElement_t(dp) :: HDiagTemp,HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
-        HElement_t, dimension(inum_runs) :: delta
+        HElement_t(dp), dimension(inum_runs) :: delta
         integer :: proc, pos, determ_index, irdm
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
         integer :: DetHash, FinalVal, clash, PartInd, k, y

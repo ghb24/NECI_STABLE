@@ -39,10 +39,10 @@
       INTEGER, ALLOCATABLE :: ijorbs(:,:)
 
 !Stores the final star matrix in the same way as in stardiag.F90
-      HElement_t, ALLOCATABLE :: EXCITINFO(:,:)
+      HElement_t(dp), ALLOCATABLE :: EXCITINFO(:,:)
 
 !The rho_ii rho matrix element
-      HElement_t :: rhii
+      HElement_t(dp) :: rhii
       real(dp) :: totlinks
       INTEGER :: crosslinks
 
@@ -62,7 +62,7 @@
       INTEGER nStore(6),iExcit,invsbrr(nBasis),orbone,orbtwo,t
       INTEGER, ALLOCATABLE :: nExcit(:)
       complex(dp) fck(*)
-      HElement_t UMat(*)
+      HElement_t(dp) UMat(*)
       real(dp) Beta,ALat(3),RhoEps,ECore,dBeta
       real(dp) dLWdB
       real(dp) fMCPR3StarNodes
@@ -207,7 +207,7 @@
         IMPLICIT NONE
         Type(BasisFN) G1(*)
         complex(dp) fck(*)
-        HElement_t UMat(*),rh,Hel
+        HElement_t(dp) UMat(*),rh,Hel
         INTEGER novirt,nEl,ierr,i,j,ijpair(2),node,nI(nEl),nJ(nEl),nK(nEl),i_P
         INTEGER nBasis,nMsh,nMax,nTay(2),WORKMEM
         INTEGER(int32) INFO

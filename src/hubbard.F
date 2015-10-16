@@ -304,7 +304,7 @@ C     &         *((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
          INTEGER iFindBasisFn
          character(*),parameter:: this_routine='GenHubMomIrrepsSymTable'
          nSym=nBasis/2
-         WRITE(6,"(A,I3,A)") "Generating abelian symmetry table with",  &
+         WRITE(6,"(A,I3,A)") "Generating abelian symmetry table with",
      &    nBasis/2 , " generators for Hubbard momentum" 
 
 C.. Now generate a list of sym labels.
@@ -496,11 +496,11 @@ C.. we have a new rep
             ELSE
       !.. Normal Hubbard
                 TALLOW=.TRUE.
-                IF(G%k(1).GT.NBASISMAX(1,2).OR.G%k(1).LT.NBASISMAX(1,1))&
+                IF(G%k(1).GT.NBASISMAX(1,2).OR.G%k(1).LT.NBASISMAX(1,1))
      &               TALLOW=.FALSE.
-                IF(G%k(2).GT.NBASISMAX(2,2).OR.G%k(2).LT.NBASISMAX(2,1))&
+                IF(G%k(2).GT.NBASISMAX(2,2).OR.G%k(2).LT.NBASISMAX(2,1))
      &               TALLOW=.FALSE.
-                IF(G%k(3).GT.NBASISMAX(3,2).OR.G%k(3).LT.NBASISMAX(3,1))&
+                IF(G%k(3).GT.NBASISMAX(3,2).OR.G%k(3).LT.NBASISMAX(3,1))
      &              TALLOW=.FALSE.
             ENDIF
         ENDIF         

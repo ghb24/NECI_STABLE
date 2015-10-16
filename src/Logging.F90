@@ -153,7 +153,8 @@ MODULE Logging
       tFullHFAv = .false.
       tPrintDataTables = .true.
       tOutputLoadDistribution = .false.
-      tHDF5Pops = .false.
+      tHDF5PopsRead = .false.
+      tHDF5PopsWrite = .false.
 
 #ifdef __PROG_NUMRUNS
       tFCIMCStats2 = .true.
@@ -787,7 +788,16 @@ MODULE Logging
 
         case("HDF5-POPS")
             ! Use the new HDF5 popsfile format
-            tHDF5Pops = .true.
+            tHDF5PopsRead = .true.
+            tHDF5PopsWrite = .true.
+
+        case("HDF5-POPS-READ")
+            ! Use the new HDF5 popsfile format just for reading
+            tHDF5PopsRead = .true.
+
+        case("HDF5-POPS-WRITE")
+            ! Use the new HDF5 popsfile format just for writing
+            tHDF5PopsWrite = .true.
 
         case("INCREMENTPOPS")
 ! Don't overwrite existing POPSFILES.

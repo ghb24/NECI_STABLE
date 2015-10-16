@@ -34,7 +34,7 @@ contains
         ! Ret: hel          - The H matrix element
 
         integer, intent(in) :: nI(nel), nJ(nel), IC
-        HElement_t :: hel
+        HElement_t(dp) :: hel
 
         integer :: ex(2,2)
         logical :: tParity
@@ -63,7 +63,7 @@ contains
     end function sltcnd_compat
 
 
-    HElement_t function sltcnd_excit (nI, IC, ex, tParity)
+    HElement_t(dp) function sltcnd_excit (nI, IC, ex, tParity)
         
         ! Use the Slater-Condon Rules to evaluate the H-matrix element between
         ! two determinants, where the excitation matrix is already known.
@@ -116,7 +116,7 @@ contains
         integer, intent(in) :: nI(nel)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: IC
-        HElement_t :: hel
+        HElement_t(dp) :: hel
         integer :: ex(2,2)
         logical :: tSign
 
@@ -144,7 +144,7 @@ contains
 
     end function
     
-    HElement_t function sltcnd (nI, iLutI, iLutJ, ICret)
+    HElement_t(dp) function sltcnd (nI, iLutI, iLutJ, ICret)
         
         ! Use the Slater-Condon Rules to evaluate the H matrix element between
         ! two determinants. Make no assumptions about ordering of orbitals.
@@ -178,7 +178,7 @@ contains
         !In: HFDet (HF Determinant)
         integer, intent(in) :: HFDet(nel),Orb
         integer :: idHF(NEl),idOrb,j,idN
-        HElement_t :: hel_sing,hel
+        HElement_t(dp) :: hel_sing,hel
 
         !GetTMATEl works with spin orbitals
         hel_sing = GetTMATEl(Orb,Orb)
@@ -219,7 +219,7 @@ contains
         ! integrals. The HF determinant needs to be supplied.
 
         integer , intent(in) :: nI(nel),HFDet(nel)
-        HElement_t :: hel,hel_doub,hel_tmp,hel_sing
+        HElement_t(dp) :: hel,hel_doub,hel_tmp,hel_sing
         integer :: i,j,idN,idX,id(nel),idHF(NEl)
         
         !Obtain the 1e terms
@@ -266,7 +266,7 @@ contains
         ! determinants are the same (so we only need to specify one).
 
         integer, intent(in) :: nI(nel)
-        HElement_t :: hel, hel_sing, hel_doub, hel_tmp
+        HElement_t(dp) :: hel, hel_sing, hel_doub, hel_tmp
         integer :: id(nel), i, j, idN, idX
 
         ! Sum in the one electron integrals (KE --> TMAT)
@@ -316,7 +316,7 @@ contains
 
         integer, intent(in) :: nI(nel), ex(2)
         logical, intent(in) :: tSign
-        HElement_t :: hel
+        HElement_t(dp) :: hel
         integer :: id_ex(2), id, i
 
         ! Obtain spatial rather than spin indices if required
@@ -364,7 +364,7 @@ contains
 
         integer, intent(in) :: ex(2,2)
         logical, intent(in) :: tSign
-        HElement_t :: hel
+        HElement_t(dp) :: hel
         integer :: id(2,2)
 
         ! Obtain spatial rather than spin indices if required

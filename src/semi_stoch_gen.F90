@@ -58,9 +58,9 @@ contains
             call adjust_load_balance(iter_data_fciqmc)
         end if
 
-#ifdef __CMPLX
-        call stop_all(t_r, "Semi-stochastic has not been implemented with complex coefficients.")
-#endif
+!#ifdef __CMPLX
+!        call stop_all(t_r, "Semi-stochastic has not been implemented with complex coefficients.")
+!#endif
 
         call MPIBarrier(ierr, tTimeIn=.false.)
 
@@ -204,7 +204,7 @@ contains
 
         ! Call the requested generating routines.
         if (core_in%tHF) call add_state_to_space(ilutHF, SpawnedParts, space_size)
-        if (core_in%tPops) call generate_space_most_populated(core_in%npops, SpawnedParts, space_size)
+        if (core_in%tPops) call generate_space_most_populated(core_in%npops, core_in%tApproxSpace, SpawnedParts, space_size)
         if (core_in%tRead) call generate_space_from_file(core_in%read_filename, SpawnedParts, space_size)
         if (.not. tCSFCore) then
             if (core_in%tDoubles) call generate_sing_doub_determinants(SpawnedParts, space_size, core_in%tHFConn)
@@ -341,7 +341,7 @@ contains
         integer :: excit(2,2)
         integer :: nsing, ndoub, ex_flag
         logical :: tAllExcitFound, tParity
-        HElement_t :: HEl
+        HElement_t(dp) :: HEl
 
         ! Always generate both the single and double excitations.
         ex_flag = 3
@@ -830,10 +830,13 @@ contains
 
     end subroutine generate_optimised_space
 
-    subroutine generate_space_most_populated(target_space_size, ilut_list, space_size)
+    subroutine generate_space_most_populated(target_space_size, tApproxSpace, ilut_list, space_size)
 
-        ! In: target_space_size - The number of determinants to attempt to keep from
-        !     if less determinants are present then use all of them.
+        ! In: target_space_size - The number of determinants to attempt to keep
+        !         from if less determinants are present then use all of them.
+        ! In: tApproxSpace - If true then only find *approximately* the best
+        !         space, to save memory (although in many cases it will end up
+        !         finding the best space).
         ! In/Out: ilut_list - List of determinants generated.
         ! In/Out: space_size - Number of determinants in the generated space.
         !             If ilut_list is not empty on input and you want to keep
@@ -848,6 +851,7 @@ contains
         use FciMCData, only: TotWalkers
 
         integer, intent(in) :: target_space_size
+        logical, intent(in) :: tApproxSpace
         integer(n_int), intent(inout) :: ilut_list(0:,:)
         integer, intent(inout) :: space_size
 
@@ -863,7 +867,15 @@ contains
         character (len=*), parameter :: t_r = "generate_space_most_populated"
         integer :: nzero_dets
 
-        n_pops_keep = target_space_size
+        if (tApproxSpace .and. nProcessors > 10) then
+            ! Look at ten times the number of states that we expect to keep on
+            ! this process. This is done instead of sending the best
+            ! target_space_size states to all processes, which is often
+            ! overkill and uses up too much memory.
+            n_pops_keep = 10*( ceiling(real(target_space_size)/real(nProcessors)) )
+        else
+            n_pops_keep = target_space_size
+        end if
 
         ! Quickly loop through and find the number of determinants with
         ! zero sign.
@@ -1211,7 +1223,7 @@ contains
         integer :: nJ(nel), hfdet_loc(nel), nStore(6), nExcitMemLen(1)
         logical :: tTempUseBrill
         character(*), parameter :: t_r = 'enumerate_doubles_kpnt'
-        HElement_t :: HEl
+        HElement_t(dp) :: HEl
 
         ! A quick hack. Count excitations as though we were a determinant.
         ! We could fix this later...
@@ -1405,7 +1417,7 @@ contains
         ! CurrentDets and copy them across to SpawnedParts, to the first
         ! space_size slots in it (overwriting anything which was there before,
         ! which presumably won't be needed now).
-        call generate_space_most_populated(target_space_size, SpawnedParts, space_size)
+        call generate_space_most_populated(target_space_size, .false., SpawnedParts, space_size)
 
         write(6,'("Writing the most populated states to DETFILE...")'); call neci_flush(6)
 

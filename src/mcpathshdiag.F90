@@ -51,14 +51,14 @@ module mcpathshdiag
          INTEGER NTAY(2),I_VIND,NWHTAY,ILOGGING,J,I_VMAX,II
          INTEGER I
          complex(dp) FCK(*)
-         HElement_t UMAT(*)
+         HElement_t(dp) UMAT(*)
          real(dp) ALAT(*),ECORE
          real(dp) TOTAL,FMCPR3B2RES,Prob
          real(dp) CALCPATHS_N
          INTEGER IPATH(NEL,0:I_V)
          real(dp) RHOII(0:I_V)
          real(dp) DLWDB,DLWDB2,EREF,WREF
-         HElement_t HIJ(0:I_V,0:I_V),RH
+         HElement_t(dp) HIJ(0:I_V,0:I_V),RH
          INTEGER INODE(NEL)
          INTEGER NI(NEL),NJ(NEL)
          INTEGER I_HMAX
@@ -66,7 +66,7 @@ module mcpathshdiag
          LOGICAL TSYM
          LOGICAL TLOG,TLOG2,TLOG3,TLOG4,TLOG5,TLOG6
          real(dp) DBETA
-         HElement_t HIJS(0:I_V)
+         HElement_t(dp) HIJS(0:I_V)
          INTEGER ICLS
          INTEGER,pointer :: NMEM(:)
 
@@ -570,7 +570,7 @@ end module
          INTEGER I,J,K,L,ISS,IDI,IDJ,IDL,IDK,nBasisMax(5,*)
          INTEGER EXCITLEV
          real(dp) Weight,DLWDB2
-         HElement_t ME
+         HElement_t(dp) ME
          LOGICAL AREDETSEXCITS,CONNECT23, T
          integer c
          integer(int64) SINGLE,DOUBLE,histogram(-20:3)

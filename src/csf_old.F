@@ -849,7 +849,7 @@ C.. remove NDCH if necessary
          use constants, only: dp
          use SystemData, only: basisfn
          integer nel,nci(nel),ncj(nel)
-         HElement_t TOTsum
+         HElement_t(dp) TOTsum
 
          call csfgethelement(nci,ncj,nel,TOTsum)
       end subroutine
@@ -863,7 +863,7 @@ C.. Get the Hamiltonian Element between two CSFs
          use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER NEL,NCI(NEL),NCJ(NEL)
-         HElement_t TOTSUM,SUM2,HEL
+         HElement_t(dp) TOTSUM,SUM2,HEL
          
          INTEGER,ALLOCATABLE :: LISTD1(:,:),LISTD2(:,:)
          INTEGER,ALLOCATABLE :: DOLISTD1(:),DOLISTD2(:)

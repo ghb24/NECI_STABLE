@@ -1,0 +1,239 @@
+GFORTRAN module version '10' created from /scratch/ghb24/NeciClean/src/GraphMorph.F90
+MD5:7667f0d59a8043f67043ff6646f3ffcd -- If you edit this, you'll get what you deserve.
+
+(() () () () () () () () () () () () () () () () () () () () () () ()
+() () () ())
+
+()
+
+(('timer' 'timing_neci' 2))
+
+(('mpi_fortran_argv_null' 3 0 0 '') ('mpi_fortran_argvs_null' 4 0 0 '')
+('mpi_fortran_bottom' 5 0 0 '') ('mpi_fortran_errcodes_ignore' 6 0 0 '')
+('mpi_fortran_in_place' 7 0 0 '') ('mpi_fortran_status_ignore' 8 0 0 '')
+('mpi_fortran_statuses_ignore' 9 0 0 '') ('mpi_fortran_unweighted' 10 0
+0 '') ('mpi_fortran_weights_empty' 11 0 0 ''))
+
+()
+
+()
+
+(3 'mpi_argv_null' 'mpi' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0 DIMENSION IN_COMMON) (CHARACTER 1 0 0 0 CHARACTER (
+(CONSTANT (INTEGER 4 0 0 0 INTEGER ()) 0 '1'))) 0 0 () (1 0 EXPLICIT (
+CONSTANT (INTEGER 4 0 0 0 INTEGER ()) 0 '1') (CONSTANT (INTEGER 4 0 0 0
+INTEGER ()) 0 '1')) 0 () () () 0 0)
+6 'mpi_errcodes_ignore' 'mpi' '' 1 ((VARIABLE UNKNOWN-INTENT
+UNKNOWN-PROC UNKNOWN UNKNOWN 0 0 DIMENSION IN_COMMON) (INTEGER 4 0 0 0
+INTEGER ()) 0 0 () (1 0 EXPLICIT (CONSTANT (INTEGER 4 0 0 0 INTEGER ())
+0 '1') (CONSTANT (INTEGER 4 0 0 0 INTEGER ()) 0 '1')) 0 () () () 0 0)
+8 'mpi_status_ignore' 'mpi' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0 DIMENSION IN_COMMON) (INTEGER 4 0 0 0 INTEGER ()) 0
+0 () (1 0 EXPLICIT (CONSTANT (INTEGER 4 0 0 0 INTEGER ()) 0 '1') (
+CONSTANT (INTEGER 4 0 0 0 INTEGER ()) 0 '6')) 0 () () () 0 0)
+7 'mpi_in_place' 'mpi' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0 IN_COMMON) (INTEGER 4 0 0 0 INTEGER ()) 0 0 () () 0
+() () () 0 0)
+5 'mpi_bottom' 'mpi' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN
+UNKNOWN 0 0 IN_COMMON) (INTEGER 4 0 0 0 INTEGER ()) 0 0 () () 0 () () ()
+0 0)
+10 'mpi_unweighted' 'mpi' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0 IN_COMMON) (INTEGER 4 0 0 0 INTEGER ()) 0 0 () () 0
+() () () 0 0)
+11 'mpi_weights_empty' 'mpi' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0 IN_COMMON) (INTEGER 4 0 0 0 INTEGER ()) 0 0 () () 0
+() () () 0 0)
+9 'mpi_statuses_ignore' 'mpi' '' 1 ((VARIABLE UNKNOWN-INTENT
+UNKNOWN-PROC UNKNOWN UNKNOWN 0 0 DIMENSION IN_COMMON) (INTEGER 4 0 0 0
+INTEGER ()) 0 0 () (2 0 EXPLICIT (CONSTANT (INTEGER 4 0 0 0 INTEGER ())
+0 '1') (CONSTANT (INTEGER 4 0 0 0 INTEGER ()) 0 '6') (CONSTANT (INTEGER
+4 0 0 0 INTEGER ()) 0 '1') (CONSTANT (INTEGER 4 0 0 0 INTEGER ()) 0 '1'))
+0 () () () 0 0)
+4 'mpi_argvs_null' 'mpi' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0 DIMENSION IN_COMMON) (CHARACTER 1 0 0 0 CHARACTER (
+(CONSTANT (INTEGER 4 0 0 0 INTEGER ()) 0 '1'))) 0 0 () (1 0 EXPLICIT (
+CONSTANT (INTEGER 4 0 0 0 INTEGER ()) 0 '1') (CONSTANT (INTEGER 4 0 0 0
+INTEGER ()) 0 '1')) 0 () () () 0 0)
+12 'Timer_object' 'timing_neci' '' 1 ((DERIVED UNKNOWN-INTENT
+UNKNOWN-PROC UNKNOWN UNKNOWN 0 0) (UNKNOWN 0 0 0 0 UNKNOWN ()) 0 0 () ()
+0 ((13 'timer_name' (CHARACTER 1 0 0 0 CHARACTER ((CONSTANT (INTEGER 8 0
+0 0 INTEGER ()) 0 '25'))) () (UNKNOWN-FL UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0) UNKNOWN-ACCESS ()) (14 'ncalls' (INTEGER 8 0 0 0
+INTEGER ()) () (UNKNOWN-FL UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN UNKNOWN 0
+0) UNKNOWN-ACCESS (CONSTANT (INTEGER 8 0 0 0 INTEGER ()) 0 '0')) (15
+'time_cpu' (REAL 4 0 0 0 REAL ()) () (UNKNOWN-FL UNKNOWN-INTENT
+UNKNOWN-PROC UNKNOWN UNKNOWN 0 0) UNKNOWN-ACCESS (CONSTANT (REAL 4 0 0 0
+REAL ()) 0 '0.0000000@0')) (16 'time_system' (REAL 4 0 0 0 REAL ()) () (
+UNKNOWN-FL UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN UNKNOWN 0 0)
+UNKNOWN-ACCESS (CONSTANT (REAL 4 0 0 0 REAL ()) 0 '0.0000000@0')) (17
+'sum_time_cpu' (REAL 4 0 0 0 REAL ()) () (UNKNOWN-FL UNKNOWN-INTENT
+UNKNOWN-PROC UNKNOWN UNKNOWN 0 0) UNKNOWN-ACCESS (CONSTANT (REAL 4 0 0 0
+REAL ()) 0 '0.0000000@0')) (18 'sum_time_system' (REAL 4 0 0 0 REAL ())
+() (UNKNOWN-FL UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN UNKNOWN 0 0)
+UNKNOWN-ACCESS (CONSTANT (REAL 4 0 0 0 REAL ()) 0 '0.0000000@0')) (19
+'timing_on' (LOGICAL 8 0 0 0 LOGICAL ()) () (UNKNOWN-FL UNKNOWN-INTENT
+UNKNOWN-PROC UNKNOWN UNKNOWN 0 0) UNKNOWN-ACCESS (CONSTANT (LOGICAL 8 0
+0 0 LOGICAL ()) 0 0))) PUBLIC (() () () ()) () 0 0 66783526)
+2 'Timer' 'timing_neci' '' 1 ((DERIVED UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0 POINTER_COMP) (UNKNOWN 0 0 0 0 UNKNOWN ()) 0 0 () ()
+0 ((20 'timer_name' (CHARACTER 1 0 0 0 CHARACTER ((CONSTANT (INTEGER 8 0
+0 0 INTEGER ()) 0 '25'))) () (UNKNOWN-FL UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0) UNKNOWN-ACCESS (CONSTANT (CHARACTER 1 0 0 0
+CHARACTER (())) 0 25 '                         ')) (21 'store' (DERIVED
+12 0 0 0 DERIVED ()) () (UNKNOWN-FL UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN
+UNKNOWN 0 0 POINTER) UNKNOWN-ACCESS (NULL (UNKNOWN 0 0 0 0 UNKNOWN ()) 0))
+(22 'time' (LOGICAL 8 0 0 0 LOGICAL ()) () (UNKNOWN-FL UNKNOWN-INTENT
+UNKNOWN-PROC UNKNOWN UNKNOWN 0 0) UNKNOWN-ACCESS (CONSTANT (LOGICAL 8 0
+0 0 LOGICAL ()) 0 1))) PUBLIC (() () () ()) () 0 0 50914872)
+23 'calcdata' 'calcdata' '' 1 ((MODULE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0) (UNKNOWN 0 0 0 0 UNKNOWN ()) 0 0 () () 0 () () () 0
+0)
+24 'constants' 'constants' '' 1 ((MODULE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0) (UNKNOWN 0 0 0 0 UNKNOWN ()) 0 0 () () 0 () () () 0
+0)
+25 'determinants' 'determinants' '' 1 ((MODULE UNKNOWN-INTENT
+UNKNOWN-PROC UNKNOWN UNKNOWN 0 0) (UNKNOWN 0 0 0 0 UNKNOWN ()) 0 0 () ()
+0 () () () 0 0)
+26 'dp' 'constants' '' 1 ((PARAMETER UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN
+IMPLICIT-SAVE 0 0) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () (CONSTANT (
+INTEGER 8 0 0 0 INTEGER ()) 0 '8') () 0 () () () 0 0)
+27 'fdet' 'determinantdata' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN IMPLICIT-SAVE 0 0 DIMENSION POINTER) (INTEGER 8 0 0 0 INTEGER ())
+0 0 () (1 0 DEFERRED () ()) 0 () () () 0 0)
+28 'get_total_time' 'timing_neci' '' 1 ((PROCEDURE UNKNOWN-INTENT
+MODULE-PROC DECL UNKNOWN 0 0 FUNCTION ALWAYS_EXPLICIT) (REAL 4 0 0 0
+REAL ()) 29 0 (30 31) () 28 () () () 0 0)
+32 'global_utilities' 'global_utilities' '' 1 ((MODULE UNKNOWN-INTENT
+UNKNOWN-PROC UNKNOWN UNKNOWN 0 0) (UNKNOWN 0 0 0 0 UNKNOWN ()) 0 0 () ()
+0 () () () 0 0)
+33 'graphbias' 'calcdata' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN EXPLICIT-SAVE 0 0) (REAL 8 0 0 0 REAL ()) 0 0 () () 0 () () () 0
+0)
+34 'graphmorph' 'graphmorph' '' 1 ((MODULE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0) (UNKNOWN 0 0 0 0 UNKNOWN ()) 0 0 () () 0 () () () 0
+0)
+35 'growgraphsexpo' 'calcdata' '' 1 ((VARIABLE UNKNOWN-INTENT
+UNKNOWN-PROC UNKNOWN EXPLICIT-SAVE 0 0) (REAL 8 0 0 0 REAL ()) 0 0 () ()
+0 () () () 0 0)
+36 'halt_timer' 'timing_neci' '' 1 ((PROCEDURE UNKNOWN-INTENT
+MODULE-PROC DECL UNKNOWN 0 0 SUBROUTINE) (UNKNOWN 0 0 0 0 UNKNOWN ()) 37
+0 (38) () 0 () () () 0 0)
+39 'imaxexcitlevel' 'calcdata' '' 1 ((VARIABLE UNKNOWN-INTENT
+UNKNOWN-PROC UNKNOWN EXPLICIT-SAVE 0 0) (INTEGER 8 0 0 0 INTEGER ()) 0 0
+() () 0 () () () 0 0)
+40 'iters' 'calcdata' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN EXPLICIT-SAVE 0 0) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () ()
+() 0 0)
+41 'loggingdata' 'loggingdata' '' 1 ((MODULE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0) (UNKNOWN 0 0 0 0 UNKNOWN ()) 0 0 () () 0 () () () 0
+0)
+42 'logmemalloc' 'memorymanager' '' 1 ((PROCEDURE UNKNOWN-INTENT
+MODULE-PROC DECL UNKNOWN 0 0 SUBROUTINE ALWAYS_EXPLICIT) (UNKNOWN 0 0 0
+0 UNKNOWN ()) 43 0 (44 45 46 47 48 49 50) () 0 () () () 0 0)
+51 'logmemdealloc' 'memorymanager' '' 1 ((PROCEDURE UNKNOWN-INTENT
+MODULE-PROC DECL UNKNOWN 0 0 SUBROUTINE ALWAYS_EXPLICIT) (UNKNOWN 0 0 0
+0 UNKNOWN ()) 52 0 (53 54 55) () 0 () () () 0 0)
+56 'morphgraph' 'graphmorph' '' 1 ((PROCEDURE UNKNOWN-INTENT MODULE-PROC
+DECL UNKNOWN 0 0 SUBROUTINE) (UNKNOWN 0 0 0 0 UNKNOWN ()) 57 0 (58 59) ()
+0 () () () 0 0)
+60 'ndets' 'calcdata' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN EXPLICIT-SAVE 0 0) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () ()
+() 0 0)
+61 'nel' 'systemdata' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN EXPLICIT-SAVE 0 0) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () ()
+() 0 0)
+62 'nomovedets' 'calcdata' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN EXPLICIT-SAVE 0 0) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () ()
+() 0 0)
+63 'set_timer' 'timing_neci' '' 1 ((PROCEDURE UNKNOWN-INTENT MODULE-PROC
+DECL UNKNOWN 0 0 SUBROUTINE ALWAYS_EXPLICIT) (UNKNOWN 0 0 0 0 UNKNOWN ())
+64 0 (65 66) () 0 () () () 0 0)
+67 'systemdata' 'systemdata' '' 1 ((MODULE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0) (UNKNOWN 0 0 0 0 UNKNOWN ()) 0 0 () () 0 () () () 0
+0)
+68 'tbiasing' 'calcdata' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN EXPLICIT-SAVE 0 0) (LOGICAL 8 0 0 0 LOGICAL ()) 0 0 () () 0 () ()
+() 0 0)
+69 'tdistrib' 'loggingdata' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN EXPLICIT-SAVE 0 0) (LOGICAL 8 0 0 0 LOGICAL ()) 0 0 () () 0 () ()
+() 0 0)
+70 'tgrowinitgraph' 'calcdata' '' 1 ((VARIABLE UNKNOWN-INTENT
+UNKNOWN-PROC UNKNOWN EXPLICIT-SAVE 0 0) (LOGICAL 8 0 0 0 LOGICAL ()) 0 0
+() () 0 () () () 0 0)
+71 'thdiag' 'calcdata' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN EXPLICIT-SAVE 0 0) (LOGICAL 8 0 0 0 LOGICAL ()) 0 0 () () 0 () ()
+() 0 0)
+72 'timer' 'timing_neci' '' 1 ((PROCEDURE UNKNOWN-INTENT UNKNOWN-PROC
+DECL UNKNOWN 0 0 FUNCTION GENERIC) (REAL 8 0 0 0 REAL ()) 0 0 () () 0 ()
+() () 0 0)
+73 'timing_neci' 'timing_neci' '' 1 ((MODULE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0) (UNKNOWN 0 0 0 0 UNKNOWN ()) 0 0 () () 0 () () () 0
+0)
+74 'tinitstar' 'calcdata' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN EXPLICIT-SAVE 0 0) (LOGICAL 8 0 0 0 LOGICAL ()) 0 0 () () 0 () ()
+() 0 0)
+75 'tlanczos' 'calcdata' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN EXPLICIT-SAVE 0 0) (LOGICAL 8 0 0 0 LOGICAL ()) 0 0 () () 0 () ()
+() 0 0)
+76 'tmaxexcit' 'calcdata' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN EXPLICIT-SAVE 0 0) (LOGICAL 8 0 0 0 LOGICAL ()) 0 0 () () 0 () ()
+() 0 0)
+77 'tmovedets' 'calcdata' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN EXPLICIT-SAVE 0 0) (LOGICAL 8 0 0 0 LOGICAL ()) 0 0 () () 0 () ()
+() 0 0)
+78 'tnosameexcit' 'calcdata' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN EXPLICIT-SAVE 0 0) (LOGICAL 8 0 0 0 LOGICAL ()) 0 0 () () 0 () ()
+() 0 0)
+79 'toneexcitconn' 'calcdata' '' 1 ((VARIABLE UNKNOWN-INTENT
+UNKNOWN-PROC UNKNOWN EXPLICIT-SAVE 0 0) (LOGICAL 8 0 0 0 LOGICAL ()) 0 0
+() () 0 () () () 0 0)
+80 'tsinglesexcitspace' 'calcdata' '' 1 ((VARIABLE UNKNOWN-INTENT
+UNKNOWN-PROC UNKNOWN EXPLICIT-SAVE 0 0) (LOGICAL 8 0 0 0 LOGICAL ()) 0 0
+() () 0 () () () 0 0)
+30 'proc_timer' '' '' 29 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN
+UNKNOWN 0 0 DUMMY) (DERIVED 2 0 0 0 DERIVED ()) 0 0 () () 0 () () () 0 0)
+31 't_elapsed' '' '' 29 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN
+UNKNOWN 0 0 OPTIONAL DUMMY) (LOGICAL 8 0 0 0 LOGICAL ()) 0 0 () () 0 ()
+() () 0 0)
+38 'proc_timer' '' '' 37 ((VARIABLE INOUT UNKNOWN-PROC UNKNOWN UNKNOWN 0
+0 DUMMY) (DERIVED 2 0 0 0 DERIVED ()) 0 0 () () 0 () () () 0 0)
+44 'objectname' '' '' 43 ((VARIABLE IN UNKNOWN-PROC UNKNOWN UNKNOWN 0 0
+DUMMY) (CHARACTER 1 0 0 0 CHARACTER (())) 0 0 () () 0 () () () 0 0)
+45 'objectsize' '' '' 43 ((VARIABLE IN UNKNOWN-PROC UNKNOWN UNKNOWN 0 0
+DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () () () 0 0)
+46 'elementsize' '' '' 43 ((VARIABLE IN UNKNOWN-PROC UNKNOWN UNKNOWN 0 0
+DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () () () 0 0)
+47 'allocroutine' '' '' 43 ((VARIABLE IN UNKNOWN-PROC UNKNOWN UNKNOWN 0
+0 DUMMY) (CHARACTER 1 0 0 0 CHARACTER (())) 0 0 () () 0 () () () 0 0)
+48 'tag' '' '' 43 ((VARIABLE OUT UNKNOWN-PROC UNKNOWN UNKNOWN 0 0 DUMMY)
+(INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () () () 0 0)
+49 'err' '' '' 43 ((VARIABLE IN UNKNOWN-PROC UNKNOWN UNKNOWN 0 0
+OPTIONAL DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () () () 0 0)
+50 'ncalls' '' '' 43 ((VARIABLE INOUT UNKNOWN-PROC UNKNOWN UNKNOWN 0 0
+OPTIONAL DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () () () 0 0)
+53 'deallocroutine' '' '' 52 ((VARIABLE IN UNKNOWN-PROC UNKNOWN UNKNOWN
+0 0 DUMMY) (CHARACTER 1 0 0 0 CHARACTER (())) 0 0 () () 0 () () () 0 0)
+54 'tag' '' '' 52 ((VARIABLE INOUT UNKNOWN-PROC UNKNOWN UNKNOWN 0 0
+DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () () () 0 0)
+55 'err' '' '' 52 ((VARIABLE IN UNKNOWN-PROC UNKNOWN UNKNOWN 0 0
+OPTIONAL DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () () () 0 0)
+58 'weight' '' '' 57 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN
+UNKNOWN 0 0 DUMMY) (REAL 8 0 0 0 REAL ()) 0 0 () () 0 () () () 0 0)
+59 'energyxw' '' '' 57 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN
+UNKNOWN 0 0 DUMMY) (REAL 8 0 0 0 REAL ()) 0 0 () () 0 () () () 0 0)
+65 'proc_timer' '' '' 64 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN
+UNKNOWN 0 0 DUMMY) (DERIVED 2 0 0 0 DERIVED ()) 0 0 () () 0 () () () 0 0)
+66 'obj_level' '' '' 64 ((VARIABLE IN UNKNOWN-PROC UNKNOWN UNKNOWN 0 0
+OPTIONAL DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () () () 0 0)
+)
+
+('Timer' 0 2 'calcdata' 0 23 'constants' 0 24 'determinants' 0 25 'dp' 0
+26 'fdet' 0 27 'get_total_time' 0 28 'global_utilities' 0 32 'graphbias'
+0 33 'graphmorph' 0 34 'growgraphsexpo' 0 35 'halt_timer' 0 36
+'imaxexcitlevel' 0 39 'iters' 0 40 'loggingdata' 0 41 'logmemalloc' 0 42
+'logmemdealloc' 0 51 'morphgraph' 0 56 'ndets' 0 60 'nel' 0 61
+'nomovedets' 0 62 'set_timer' 0 63 'systemdata' 0 67 'tbiasing' 0 68
+'tdistrib' 0 69 'tgrowinitgraph' 0 70 'thdiag' 0 71 'timer' 0 72
+'timing_neci' 0 73 'tinitstar' 0 74 'tlanczos' 0 75 'tmaxexcit' 0 76
+'tmovedets' 0 77 'tnosameexcit' 0 78 'toneexcitconn' 0 79
+'tsinglesexcitspace' 0 80)

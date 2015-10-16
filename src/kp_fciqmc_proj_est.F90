@@ -59,7 +59,7 @@ contains
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied, tParity
         logical :: tNearlyFull, tAllFinished, all_excits_found, tTempUseBrill
         logical :: tFinished
-        HElement_t :: HElGen, HEl
+        HElement_t(dp) :: HElGen, HEl
 
         call set_timer(subspace_hamil_time)
 

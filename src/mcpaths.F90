@@ -59,25 +59,25 @@ contains
          real(sp) otime,itime,tarr(2)
          real(dp) BETA,ECORE
          real(dp) WLRI,WLSI
-         HElement_t UMat(*),RH
+         HElement_t(dp) UMat(*),RH
          real(dp) NTOTAL
 
          real(dp) F(2:I_VMAX)
          CHARACTER(40) STR
          real(dp) TOTAL,RHOII(0:I_VMAX)
-         HElement_t RHOIJ(0:I_VMAX,0:I_VMAX)
+         HElement_t(dp) RHOIJ(0:I_VMAX,0:I_VMAX)
          real(dp) ALAT(3),RHOEPS
          INTEGER  nBasisMax(5,*)
          INTEGER LSTE(*),ILMAX
 !CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER ICE(*)
-         HElement_t RIJLIST(:,:)
+         HElement_t(dp) RIJLIST(:,:)
 !C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
          LOGICAL TLOG,TSYM
          real(dp) DBETA
          real(dp) DLWDB,DLWDB2,EREF
-         HElement_t  HIJS(0:I_VMAX)
+         HElement_t(dp)  HIJS(0:I_VMAX)
          TYPE(EGP) LOCTAB(I_VMAX)
          real(dp) FMCPR3STAR,FMCPR3NVSTAR
          INTEGER I_CHMAX,CNWHTAY
@@ -433,7 +433,7 @@ contains
          INTEGER IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL)
          complex(dp) FCK(*)
-         HElement_t UMat(*), RH
+         HElement_t(dp) UMat(*), RH
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,I,I_V
          type(timer), save :: proc_timer,proc_timer2
@@ -444,7 +444,7 @@ contains
          real(dp) WLRI,WLSI
          real(dp) F(2:I_VMAX)
          CHARACTER(40) STR
-         HElement_t RHOIJ(0:I_VMAX,0:I_VMAX)
+         HElement_t(dp) RHOIJ(0:I_VMAX,0:I_VMAX)
          real(dp) RHOII(0:I_VMAX),TOTAL
          real(dp) ALAT(3),RHOEPS
          INTEGER nBasisMax(5,*)
@@ -452,12 +452,12 @@ contains
          INTEGER ILMAX
 !CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER, allocatable :: ICE(:,:)
-         HElement_t RIJLIST(:,:)
+         HElement_t(dp) RIJLIST(:,:)
 !C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
          LOGICAL TLOG,TSYM
          real(dp) DBETA
-         HElement_t HIJS(0:I_VMAX)
+         HElement_t(dp) HIJS(0:I_VMAX)
          type(EGP), target ::  LOCTAB(I_VMAX)
          real(dp) DLWDB,DLWDB2,EREF
          real(dp) NTIME,OTIME,VARSUM
@@ -729,10 +729,10 @@ contains
          real(dp) ALAT(*),ECORE
          complex(dp) FCK(*)
          real(dp) CALCPATHS_N
-         HElement_t UMat(*),R
+         HElement_t(dp) UMat(*),R
          INTEGER IPATH(NEL,0:I_V)
          real(dp) TOTAL,RHOII(0:I_V)
-         HElement_t RHOIJ(0:I_V,0:I_V)
+         HElement_t(dp) RHOIJ(0:I_V,0:I_V)
          INTEGER INODE(NEL),ILMAX
 !C.. LSTE is a list of excitations (which we will generate)
 !C.. ICE is the IC of each excitation (i.e. how much it differs from us (INODE)
@@ -742,13 +742,13 @@ contains
          INTEGER LSTE(NEL,0:ILMAX,0:I_V-1),NI(NEL)
          INTEGER LSTP(0:I_V),LSTP2(0:I_V),NLIST(0:I_V)
          INTEGER ICE(0:ILMAX,0:I_V-1)
-         HElement_t RIJLIST(0:ILMAX,0:I_V-1)
+         HElement_t(dp) RIJLIST(0:ILMAX,0:I_V-1)
          INTEGER IVLEVEL,I_HMAX,BTABLE(0:I_V)
          real(dp) BETA,RHOEPS,DBETA
          LOGICAL TSYM
          LOGICAL TLOG,TLOG2,TLOG3,TLOG4,TLOG5
          real(dp) DLWDB,DLWDB2
-         HElement_t HIJS(0:I_V),RH
+         HElement_t(dp) HIJS(0:I_V),RH
          INTEGER ICLS
          real(dp) MP2E(:),NTOTAL
          INTEGER EXFLAG
@@ -1053,13 +1053,13 @@ contains
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),I_VIND,NWHTAY,ILOGGING,J,II
          complex(dp) FCK(*)
-         HElement_t UMAT(*)
+         HElement_t(dp) UMAT(*)
          real(dp) ALAT(*),ECORE,PR
          real(dp) TOTAL,FMCPR3BRES,WREF,EREF,PROB
          real(dp) CALCPATHS_N
          INTEGER IPATH(NEL,0:I_V)
          real(dp) RHOII(0:I_V),DLWDB,DLWDB2
-         HElement_t RHOIJ(0:I_V,0:I_V),RH,HIJS(0:I_V)
+         HElement_t(dp) RHOIJ(0:I_V,0:I_V),RH,HIJS(0:I_V)
          INTEGER INODE(NEL)
          INTEGER NI(NEL),NJ(NEL)
          INTEGER I_HMAX
@@ -1597,7 +1597,7 @@ end module mcpaths
          IMPLICIT NONE
          INTEGER NUNIT,I_V
          LOGICAL LTERM
-         HElement_t RHOIJ(0:I_V,0:I_V)
+         HElement_t(dp) RHOIJ(0:I_V,0:I_V)
          INTEGER J,K
          WRITE(NUNIT,"(A)",advance='no') "("
          DO J=0,I_V-1

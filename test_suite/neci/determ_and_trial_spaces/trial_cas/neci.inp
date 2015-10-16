@@ -20,7 +20,7 @@ realspawncutoff 0.01
 nmcyc 400
 trial-wavefunction
 cas-trial 2 6
-linscalefcimcalgo
+load-balance-blocks off
 endcalc
 
 integral

@@ -24,6 +24,7 @@ memoryfacspawn 0.5
 stepsshift 25
 truncinitiator
 addtoinitiator 3
+load-balance-blocks off
 endcalc
 
 logging

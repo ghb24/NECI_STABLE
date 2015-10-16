@@ -368,8 +368,8 @@ contains
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer, intent(in) :: ic, ex(2,2)
         logical, intent(in) :: tParity
-        HElement_t, intent(in) :: HElGen
-        HElement_t :: hel, tmp
+        HElement_t(dp), intent(in) :: HElGen
+        HElement_t(dp) :: hel, tmp
         
         integer :: iUnused
         integer(n_int) :: iUnused2
@@ -422,7 +422,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         integer, intent(out) :: ic, ex(2,2)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
-        HElement_t, intent(out) :: HElGen
+        HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
 
         integer :: nopen, nchoose, i
@@ -607,7 +607,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         integer, intent(out) :: ic, ex(2,2)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
-        HElement_t, intent(out) :: HElGen
+        HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
 
         integer :: nopen

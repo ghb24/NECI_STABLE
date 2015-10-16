@@ -59,12 +59,12 @@ contains
 
         integer, intent(in) :: NI(nel), NJ(nel)
         integer(n_int) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
-        HElement_t :: hel_ret
+        HElement_t(dp) :: hel_ret
 
         ! These are needed just for the interface with get_csf_helement
         integer :: ic, ex(2,2)
         logical :: tParity
-        HElement_t :: HElGen
+        HElement_t(dp) :: HElGen
 
         call EncodeBitDet (nI, iLutI)
         call EncodeBitDet (nJ, iLutJ)
@@ -78,8 +78,8 @@ contains
         integer, intent(in) :: notic, notex(2,2)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: nottParity
-        HElement_t :: hel_ret
-        HElement_t , intent(in) :: notHElGen
+        HElement_t(dp) :: hel_ret
+        HElement_t(dp) , intent(in) :: notHElGen
 
         integer :: nopen(2), nclosed(2), nup(2), ndets(2), IC, i
         integer :: S(2), Ms(2), iUnused
@@ -185,7 +185,7 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel), nopen(2), nclosed(2)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: nup(2), ndets(2), IC
-        HElement_t :: hel_ret
+        HElement_t(dp) :: hel_ret
 
         ! Working arrays. Sizes calculated in calling function.
         integer :: yama1(nopen(1)), yama2(nopen(2))
@@ -195,7 +195,7 @@ contains
         integer :: det_sum(ndets(1))
 
         integer :: det, i, j
-        HElement_t :: sum1, Hel
+        HElement_t(dp) :: sum1, Hel
         type(timer), save :: hel_timer0, hel_timer2, hel_timer1, hel_timer
 
         hel_timer%timer_name = 'Hel_timer'
@@ -313,7 +313,7 @@ contains
         integer, intent(in) :: nI(nel), nopen(2), nclosed(2)
         integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
         integer, intent(in) :: nup(2), ndets(2)
-        HElement_t :: hel_ret
+        HElement_t(dp) :: hel_ret
 
         ! Working arrays. Sizes calculated in calling function.
         integer :: yama(nopen(1))
@@ -322,7 +322,7 @@ contains
         integer(kind=n_int) :: ilut(0:NIfTot,ndets(1))
 
         integer :: det, i
-        HElement_t :: hel
+        HElement_t(dp) :: hel
 
         ! Extract the Yamanouchi symbol from the CSF
         call get_csf_yama (nI, yama, nopen(1))
@@ -372,12 +372,12 @@ contains
         integer, intent(in) :: dets1(nel,ndets)
         integer, intent(in) :: det_sum(ndets)
         logical, intent(in) :: bEqual
-        HElement_t :: hel_ret
+        HElement_t(dp) :: hel_ret
 
         integer :: nK(nel), id(nel), ex(2,2), elecs(2)
         integer :: ndown, idX, idN, ids, det, indj, i, j
         real(dp) :: diag_coeff
-        HElement_t :: hel, hel2
+        HElement_t(dp) :: hel, hel2
 
         ! TODO: bEqual
         ! TODO: commenting
@@ -531,7 +531,7 @@ contains
         integer, intent(in) :: yama1(nopen(1)), yama2(nopen(2))
         real(dp), intent(out) :: coeffs1(ndets(1)), coeffs2(ndets(2))
         integer, intent(inout) :: dets1(nel, ndets(1)), dets2(nel, ndets(2))
-        HElement_t :: hel_ret, hel, sum1, umatel(2)
+        HElement_t(dp) :: hel_ret, hel, sum1, umatel(2)
 
         integer :: nop_uniq(2), det, i, j, k, l, m, ex(2,2), &
                    uniq_id(4,2), ms1(ndets(1)), ms2(ndets(2)), &

@@ -176,6 +176,8 @@ MODULE System
       tGen_4ind_lin_exact = .false.
       tGen_4ind_reverse = .false.
       tUEGNewGenerator = .false.
+      tGen_4ind_2 = .false.
+      tGen_4ind_2_symmetric = .false.
 
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
@@ -907,6 +909,24 @@ system: do
                         ! of electron b)
                         tGen_4ind_weighted = .true.
                         tGen_4ind_lin_exact = .true.
+                    case("4IND-WEIGHTED-2")
+                        ! Second attempt at 4ind weighted generator
+                        !
+                        ! This version disables symmetric selection of the
+                        ! orbitals. I.e. for non-parallel electron choice, the
+                        ! orbitals are chosen one spin first, then the other
+                        !
+                        ! --> Very slightly better Hij/pgen ratio
+                        ! --> Much faster runtime
+                        tGen_4ind_2 = .true.
+                        tGen_4ind_part_exact = .true.
+                        tGen_4ind_2_symmetric = .false.
+                    case("4IND-WEIGHTED-2-SYMMETRIC")
+                        ! The other version of this generator. This permits
+                        ! selecting orbitals in both directions
+                        tGen_4ind_2 = .true.
+                        tGen_4ind_part_exact = .true.
+                        tGen_4ind_2_symmetric = .true.
                     case("UEG")
                         ! Use the new UEG excitation generator.
                         ! TODO: This probably isn't the best way to do this

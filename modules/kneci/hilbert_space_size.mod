@@ -1,0 +1,196 @@
+GFORTRAN module version '10' created from /scratch/ghb24/NeciClean/src/hilbert_space_size.F90
+MD5:80cea9c326a6e38e3f4be8fae334e2cf -- If you edit this, you'll get what you deserve.
+
+(() () () () () () () () () () () () () () () () () () () () () () ()
+() () () ())
+
+()
+
+()
+
+(('mpi_fortran_argv_null' 2 0 0 '') ('mpi_fortran_argvs_null' 3 0 0 '')
+('mpi_fortran_bottom' 4 0 0 '') ('mpi_fortran_errcodes_ignore' 5 0 0 '')
+('mpi_fortran_in_place' 6 0 0 '') ('mpi_fortran_status_ignore' 7 0 0 '')
+('mpi_fortran_statuses_ignore' 8 0 0 '') ('mpi_fortran_unweighted' 9 0 0
+'') ('mpi_fortran_weights_empty' 10 0 0 ''))
+
+()
+
+()
+
+(3 'mpi_argvs_null' 'mpi' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0 DIMENSION IN_COMMON) (CHARACTER 1 0 0 0 CHARACTER (
+(CONSTANT (INTEGER 4 0 0 0 INTEGER ()) 0 '1'))) 0 0 () (1 0 EXPLICIT (
+CONSTANT (INTEGER 4 0 0 0 INTEGER ()) 0 '1') (CONSTANT (INTEGER 4 0 0 0
+INTEGER ()) 0 '1')) 0 () () () 0 0)
+5 'mpi_errcodes_ignore' 'mpi' '' 1 ((VARIABLE UNKNOWN-INTENT
+UNKNOWN-PROC UNKNOWN UNKNOWN 0 0 DIMENSION IN_COMMON) (INTEGER 4 0 0 0
+INTEGER ()) 0 0 () (1 0 EXPLICIT (CONSTANT (INTEGER 4 0 0 0 INTEGER ())
+0 '1') (CONSTANT (INTEGER 4 0 0 0 INTEGER ()) 0 '1')) 0 () () () 0 0)
+6 'mpi_in_place' 'mpi' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0 IN_COMMON) (INTEGER 4 0 0 0 INTEGER ()) 0 0 () () 0
+() () () 0 0)
+4 'mpi_bottom' 'mpi' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN
+UNKNOWN 0 0 IN_COMMON) (INTEGER 4 0 0 0 INTEGER ()) 0 0 () () 0 () () ()
+0 0)
+8 'mpi_statuses_ignore' 'mpi' '' 1 ((VARIABLE UNKNOWN-INTENT
+UNKNOWN-PROC UNKNOWN UNKNOWN 0 0 DIMENSION IN_COMMON) (INTEGER 4 0 0 0
+INTEGER ()) 0 0 () (2 0 EXPLICIT (CONSTANT (INTEGER 4 0 0 0 INTEGER ())
+0 '1') (CONSTANT (INTEGER 4 0 0 0 INTEGER ()) 0 '6') (CONSTANT (INTEGER
+4 0 0 0 INTEGER ()) 0 '1') (CONSTANT (INTEGER 4 0 0 0 INTEGER ()) 0 '1'))
+0 () () () 0 0)
+7 'mpi_status_ignore' 'mpi' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0 DIMENSION IN_COMMON) (INTEGER 4 0 0 0 INTEGER ()) 0
+0 () (1 0 EXPLICIT (CONSTANT (INTEGER 4 0 0 0 INTEGER ()) 0 '1') (
+CONSTANT (INTEGER 4 0 0 0 INTEGER ()) 0 '6')) 0 () () () 0 0)
+10 'mpi_weights_empty' 'mpi' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0 IN_COMMON) (INTEGER 4 0 0 0 INTEGER ()) 0 0 () () 0
+() () () 0 0)
+9 'mpi_unweighted' 'mpi' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0 IN_COMMON) (INTEGER 4 0 0 0 INTEGER ()) 0 0 () () 0
+() () () 0 0)
+2 'mpi_argv_null' 'mpi' '' 1 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0 DIMENSION IN_COMMON) (CHARACTER 1 0 0 0 CHARACTER (
+(CONSTANT (INTEGER 4 0 0 0 INTEGER ()) 0 '1'))) 0 0 () (1 0 EXPLICIT (
+CONSTANT (INTEGER 4 0 0 0 INTEGER ()) 0 '1') (CONSTANT (INTEGER 4 0 0 0
+INTEGER ()) 0 '1')) 0 () () () 0 0)
+11 'bits_n_int' 'constants' '' 1 ((PARAMETER UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN IMPLICIT-SAVE 0 0) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () (
+CONSTANT (INTEGER 8 0 0 0 INTEGER ()) 0 '64') () 0 () () () 0 0)
+12 'choose' 'util_mod' '' 1 ((PROCEDURE UNKNOWN-INTENT MODULE-PROC DECL
+UNKNOWN 0 0 FUNCTION ELEMENTAL PURE ALWAYS_EXPLICIT) (REAL 8 0 0 0 REAL
+()) 13 0 (14 15) () 12 () () () 0 0)
+16 'constants' 'constants' '' 1 ((MODULE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0) (UNKNOWN 0 0 0 0 UNKNOWN ()) 0 0 () () 0 () () () 0
+0)
+17 'create_rand_det_no_sym' 'hilbert_space_size' '' 1 ((PROCEDURE
+UNKNOWN-INTENT MODULE-PROC DECL UNKNOWN 0 0 SUBROUTINE) (UNKNOWN 0 0 0 0
+UNKNOWN ()) 18 0 (19) () 0 () () () 0 0)
+20 'create_rand_heisenberg_det' 'hilbert_space_size' '' 1 ((PROCEDURE
+UNKNOWN-INTENT MODULE-PROC DECL UNKNOWN 0 0 SUBROUTINE) (UNKNOWN 0 0 0 0
+UNKNOWN ()) 21 0 (22) () 0 () () () 0 0)
+23 'createrandomexcitlevdet' 'hilbert_space_size' '' 1 ((PROCEDURE
+UNKNOWN-INTENT MODULE-PROC DECL UNKNOWN 0 0 SUBROUTINE) (UNKNOWN 0 0 0 0
+UNKNOWN ()) 24 0 (25 26 27 28 29 30) () 0 () () () 0 0)
+31 'createrandomexcitlevdetunbias' 'hilbert_space_size' '' 1 ((
+PROCEDURE UNKNOWN-INTENT MODULE-PROC DECL UNKNOWN 0 0 SUBROUTINE) (
+UNKNOWN 0 0 0 0 UNKNOWN ()) 32 0 (33 34 35 36 37 38) () 0 () () () 0 0)
+39 'dp' 'constants' '' 1 ((PARAMETER UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN
+IMPLICIT-SAVE 0 0) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () (CONSTANT (
+INTEGER 8 0 0 0 INTEGER ()) 0 '8') () 0 () () () 0 0)
+40 'findsymmcsizeexcitlevel' 'hilbert_space_size' '' 1 ((PROCEDURE
+UNKNOWN-INTENT MODULE-PROC DECL UNKNOWN 0 0 SUBROUTINE) (UNKNOWN 0 0 0 0
+UNKNOWN ()) 41 0 (42) () 0 () () () 0 0)
+43 'findsymmcsizeofspace' 'hilbert_space_size' '' 1 ((PROCEDURE
+UNKNOWN-INTENT MODULE-PROC DECL UNKNOWN 0 0 SUBROUTINE) (UNKNOWN 0 0 0 0
+UNKNOWN ()) 44 0 (45) () 0 () () () 0 0)
+46 'findsymsizeofspace' 'hilbert_space_size' '' 1 ((PROCEDURE
+UNKNOWN-INTENT MODULE-PROC DECL UNKNOWN 0 0 SUBROUTINE) (UNKNOWN 0 0 0 0
+UNKNOWN ()) 47 0 (48) () 0 () () () 0 0)
+49 'findsymsizeoftruncspace' 'hilbert_space_size' '' 1 ((PROCEDURE
+UNKNOWN-INTENT MODULE-PROC DECL UNKNOWN 0 0 SUBROUTINE) (UNKNOWN 0 0 0 0
+UNKNOWN ()) 50 0 (51) () 0 () () () 0 0)
+52 'get_free_unit' 'util_mod' '' 1 ((PROCEDURE UNKNOWN-INTENT
+MODULE-PROC DECL UNKNOWN 0 0 FUNCTION) (INTEGER 8 0 0 0 INTEGER ()) 0 0
+() () 53 () () () 0 0)
+54 'hilbert_space_size' 'hilbert_space_size' '' 1 ((MODULE
+UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN UNKNOWN 0 0) (UNKNOWN 0 0 0 0
+UNKNOWN ()) 0 0 () () 0 () () () 0 0)
+55 'int64' 'constants' '' 1 ((PARAMETER UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN IMPLICIT-SAVE 0 0) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () (
+CONSTANT (INTEGER 8 0 0 0 INTEGER ()) 0 '8') () 0 () () () 0 0)
+56 'n_int' 'constants' '' 1 ((PARAMETER UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN IMPLICIT-SAVE 0 0) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () (
+CONSTANT (INTEGER 8 0 0 0 INTEGER ()) 0 '8') () 0 () () () 0 0)
+57 'sizeof_int' 'constants' '' 1 ((PARAMETER UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN IMPLICIT-SAVE 0 0) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () (
+CONSTANT (INTEGER 8 0 0 0 INTEGER ()) 0 '8') () 0 () () () 0 0)
+58 'util_mod' 'util_mod' '' 1 ((MODULE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0) (UNKNOWN 0 0 0 0 UNKNOWN ()) 0 0 () () 0 () () () 0
+0)
+14 'n' '' '' 13 ((VARIABLE IN UNKNOWN-PROC UNKNOWN UNKNOWN 0 0 DUMMY) (
+INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () () () 0 0)
+15 'r' '' '' 13 ((VARIABLE IN UNKNOWN-PROC UNKNOWN UNKNOWN 0 0 DUMMY) (
+INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () () () 0 0)
+19 'ilut' '' '' 18 ((VARIABLE OUT UNKNOWN-PROC UNKNOWN UNKNOWN 0 0
+DIMENSION DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () (1 0 EXPLICIT (
+CONSTANT (INTEGER 8 0 0 0 INTEGER ()) 0 '0') (VARIABLE (INTEGER 8 0 0 0
+INTEGER ()) 0 59 ())) 0 () () () 0 0)
+22 'ilut' '' '' 21 ((VARIABLE OUT UNKNOWN-PROC UNKNOWN UNKNOWN 0 0
+DIMENSION DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () (1 0 EXPLICIT (
+CONSTANT (INTEGER 8 0 0 0 INTEGER ()) 0 '0') (VARIABLE (INTEGER 8 0 0 0
+INTEGER ()) 0 60 ())) 0 () () () 0 0)
+25 'iexcitlevtest' '' '' 24 ((VARIABLE IN UNKNOWN-PROC UNKNOWN UNKNOWN 0
+0 DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () () () 0 0)
+26 'fdet' '' '' 24 ((VARIABLE IN UNKNOWN-PROC UNKNOWN UNKNOWN 0 0
+DIMENSION DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () (1 0 EXPLICIT (
+CONSTANT (INTEGER 8 0 0 0 INTEGER ()) 0 '1') (VARIABLE (INTEGER 8 0 0 0
+INTEGER ()) 0 61 ())) 0 () () () 0 0)
+27 'fdetilut' '' '' 24 ((VARIABLE IN UNKNOWN-PROC UNKNOWN UNKNOWN 0 0
+DIMENSION DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () (1 0 EXPLICIT (
+CONSTANT (INTEGER 8 0 0 0 INTEGER ()) 0 '0') (VARIABLE (INTEGER 8 0 0 0
+INTEGER ()) 0 62 ())) 0 () () () 0 0)
+28 'ilut' '' '' 24 ((VARIABLE OUT UNKNOWN-PROC UNKNOWN UNKNOWN 0 0
+DIMENSION DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () (1 0 EXPLICIT (
+CONSTANT (INTEGER 8 0 0 0 INTEGER ()) 0 '0') (VARIABLE (INTEGER 8 0 0 0
+INTEGER ()) 0 62 ())) 0 () () () 0 0)
+29 'excitlev' '' '' 24 ((VARIABLE OUT UNKNOWN-PROC UNKNOWN UNKNOWN 0 0
+DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () () () 0 0)
+30 'attempts' '' '' 24 ((VARIABLE OUT UNKNOWN-PROC UNKNOWN UNKNOWN 0 0
+DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () () () 0 0)
+33 'iexcitlevtest' '' '' 32 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN UNKNOWN 0 0 DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () ()
+() 0 0)
+34 'fdet' '' '' 32 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN
+UNKNOWN 0 0 DIMENSION DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () (1 0
+EXPLICIT (CONSTANT (INTEGER 8 0 0 0 INTEGER ()) 0 '1') (VARIABLE (
+INTEGER 8 0 0 0 INTEGER ()) 0 63 ())) 0 () () () 0 0)
+35 'fdetilut' '' '' 32 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN
+UNKNOWN 0 0 DIMENSION DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () (1 0
+EXPLICIT (CONSTANT (INTEGER 8 0 0 0 INTEGER ()) 0 '0') (VARIABLE (
+INTEGER 8 0 0 0 INTEGER ()) 0 64 ())) 0 () () () 0 0)
+36 'ilut' '' '' 32 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN
+UNKNOWN 0 0 DIMENSION DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () (1 0
+EXPLICIT (CONSTANT (INTEGER 8 0 0 0 INTEGER ()) 0 '0') (VARIABLE (
+INTEGER 8 0 0 0 INTEGER ()) 0 64 ())) 0 () () () 0 0)
+37 'excitlev' '' '' 32 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN
+UNKNOWN 0 0 DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () () () 0 0)
+38 'attempts' '' '' 32 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN
+UNKNOWN 0 0 DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () () () 0 0)
+42 'iunit' '' '' 41 ((VARIABLE IN UNKNOWN-PROC UNKNOWN UNKNOWN 0 0 DUMMY)
+(INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () () () 0 0)
+45 'iunit' '' '' 44 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN
+UNKNOWN 0 0 DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () () () 0 0)
+48 'iunit' '' '' 47 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN
+UNKNOWN 0 0 DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () () () 0 0)
+51 'iunit' '' '' 50 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN
+UNKNOWN 0 0 DUMMY) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () () () 0 0)
+53 'free_unit' '' '' 65 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC UNKNOWN
+UNKNOWN 0 0 RESULT) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () () () 0
+0)
+59 'niftot' 'bit_rep_data' '' 18 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN IMPLICIT-SAVE 0 0) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () ()
+() 0 0)
+60 'niftot' 'bit_rep_data' '' 21 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN IMPLICIT-SAVE 0 0) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () ()
+() 0 0)
+61 'nel' 'systemdata' '' 24 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN EXPLICIT-SAVE 0 0) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () ()
+() 0 0)
+62 'niftot' 'bit_rep_data' '' 24 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN IMPLICIT-SAVE 0 0) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () ()
+() 0 0)
+63 'nel' 'systemdata' '' 32 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN EXPLICIT-SAVE 0 0) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () ()
+() 0 0)
+64 'niftot' 'bit_rep_data' '' 32 ((VARIABLE UNKNOWN-INTENT UNKNOWN-PROC
+UNKNOWN IMPLICIT-SAVE 0 0) (INTEGER 8 0 0 0 INTEGER ()) 0 0 () () 0 () ()
+() 0 0)
+)
+
+('bits_n_int' 0 11 'choose' 0 12 'constants' 0 16 'create_rand_det_no_sym'
+0 17 'create_rand_heisenberg_det' 0 20 'createrandomexcitlevdet' 0 23
+'createrandomexcitlevdetunbias' 0 31 'dp' 0 39 'findsymmcsizeexcitlevel'
+0 40 'findsymmcsizeofspace' 0 43 'findsymsizeofspace' 0 46
+'findsymsizeoftruncspace' 0 49 'get_free_unit' 0 52 'hilbert_space_size'
+0 54 'int64' 0 55 'n_int' 0 56 'sizeof_int' 0 57 'util_mod' 0 58)

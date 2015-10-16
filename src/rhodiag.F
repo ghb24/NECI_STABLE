@@ -495,16 +495,16 @@ C.. See 1/7/04
          IMPLICIT NONE
          INTEGER I_P,I_V
          type(timer), save :: proc_timer
-         HElement_t HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
+         HElement_t(dp) HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
          real(dp) WLIST(I_V),WORK(3*I_V)         
-         HElement_t NWORK(4*I_V)
+         HElement_t(dp) NWORK(4*I_V)
          INTEGER*4 INFO
          INTEGER I,J,IMISS,II,IJ
          real(dp) SI,SI2
 C.. do we subtract out lower vertices here or later?
          LOGICAL TSUB
          real(dp) BETA
-         HElement_t HIJS(I_V+1),HIJS2(I_V),DLWT,T,U
+         HElement_t(dp) HIJS(I_V+1),HIJS2(I_V),DLWT,T,U
          real(dp) HDiag_CPPRES
          real(dp) R,S,DLWDB,DD2
          real(dp) RII
@@ -630,8 +630,8 @@ C.. See 1/7/04
          IMPLICIT NONE
          INTEGER I_P,I_V
          type(timer), save :: proc_timer
-         HElement_t RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
-         HElement_t RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
+         HElement_t(dp) RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
+         HElement_t(dp) RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
          real(dp) WORK(3*I_V),R
          real(dp) WLIST(I_V)         
          INTEGER*4 INFO
@@ -817,8 +817,8 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
          IMPLICIT NONE
          INTEGER I_P,I_V
          type(timer), save :: proc_timer
-         HElement_t RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
-         HElement_t RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
+         HElement_t(dp) RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
+         HElement_t(dp) RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
          real(dp) WORK(3*I_V),R
          real(dp) WLIST(I_V)         
          INTEGER*4 INFO
@@ -929,15 +929,15 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
          IMPLICIT NONE
          INTEGER I_V
          type(timer), save :: proc_timer
-         HElement_t HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
+         HElement_t(dp) HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
          real(dp) WLIST(I_V),WORK(3*I_V)         
-         HElement_t NWORK(4*I_V)
+         HElement_t(dp) NWORK(4*I_V)
          INTEGER*4 INFO
          INTEGER I,J,II
          real(dp) SI,SI2
 C.. do we subtract out lower vertices here or later?
          real(dp) BETA
-         HElement_t HIJS(I_V+1),HIJS2(I_V),DLWT,T,U
+         HElement_t(dp) HIJS(I_V+1),HIJS2(I_V),DLWT,T,U
          real(dp) HDiag_CPPS2VS
          real(dp) R,S,DLWDB
          real(dp) RII

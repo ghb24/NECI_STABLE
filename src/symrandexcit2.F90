@@ -77,7 +77,7 @@ MODULE GenRandSymExcitNUMod
 
         ! Not used
         integer(n_int), intent(out) :: ilutnJ(0:niftot)
-        HElement_t, intent(out) :: HElGen
+        HElement_t(dp), intent(out) :: HElGen
 
         real(dp) :: r
         character(*), parameter :: this_routine = 'gen_rand_excit'
@@ -1727,7 +1727,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ExcitMat(2,2),SpawnOrb(nBasis),Eleci,ElecSym,NExcit,VecInd,ispn,EndSymState,j
         real(dp) :: Tau,SpawnProb(nBasis),NormProb,r,rat
         LOGICAL :: tParity
-        HElement_t :: rh
+        HElement_t(dp) :: rh
 
 !First, we need to do an O[N] operation to find the number of occupied alpha electrons, number of occupied beta electrons
 !and number of occupied electrons of each symmetry class and spin. This is similar to the ClassCount array.
@@ -1905,7 +1905,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: Elec1Ind,Elec2Ind,nParts,SumMl
         REAL(dp) :: WSign
-        HElement_t :: rh
+        HElement_t(dp) :: rh
         LOGICAL :: tParity
         real(dp) :: Tau
 
@@ -1949,7 +1949,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: SpatOrbi,SpatOrbj,Spini,Spinj,i,aspn,bspn,SymA,SymB,SpatOrba,EndSymState,VecInd
         real(dp) :: Tau,SpawnProb(MaxABPairs),NormProb,rat,r
         INTEGER :: SpawnOrbs(2,MaxABPairs),j,nParts,SpinIndex,Ind
-        HElement_t :: HEl
+        HElement_t(dp) :: HEl
 
 !We want the spatial orbital number for the ij pair (Elec1Ind is the index in nI).
 !Later, we'll have to use GTID for UHF.
@@ -2743,7 +2743,7 @@ MODULE GenRandSymExcitNUMod
         type(timer), save :: test_timer
         type(excit_gen_store_type) :: store
         character(*), parameter :: t_r = 'TestGenRandSymExcitNU'
-        HElement_t :: HElGen
+        HElement_t(dp) :: HElGen
 
         write(6,*) 'In HERE'
         call neci_flush(6)

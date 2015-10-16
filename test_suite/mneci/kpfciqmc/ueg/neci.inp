@@ -35,6 +35,7 @@ addtoinitiator 3
 jump-shift off
 (Add the following line so that the reference does not change after this option was made default)
 proje-changeref 100.0
+load-balance-blocks off
 endcalc
 
 kp-fciqmc

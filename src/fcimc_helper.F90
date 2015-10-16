@@ -17,7 +17,7 @@ module fcimc_helper
                         flag_trial, flag_connected, flag_deterministic, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
                         set_has_been_initiator, flag_has_been_initiator, &
-                        set_parent_coeff
+                        set_parent_coeff, flag_weak_initiator
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
@@ -44,7 +44,7 @@ module fcimc_helper
                         tMultiReplicaInitiators, NMCyc, iSampleRDMIters, &
                         tSpawnCountInitiatorThreshold, init_spawn_thresh, &
                         tOrthogonaliseReplicas, tPairedReplicas, &
-                        tBroadcastParentCoeff
+                        tBroadcastParentCoeff, tWeakInitiators, weakthresh
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
@@ -106,6 +106,7 @@ contains
         real(dp), intent(in), optional :: RDMBiasFacCurr
         integer, intent(in), optional :: WalkersToSpawn
         integer :: proc, j
+        real(dp) :: r
         integer, parameter :: flags = 0
         logical :: parent_init, list_full
         character(*), parameter :: this_routine = 'create_particle'
@@ -138,8 +139,21 @@ contains
         ! If the parent was an initiator then set the initiator flag for the
         ! child, to allow it to survive.
         if (tTruncInitiator) then
-            if (test_flag(ilutI, flag_initiator(part_type))) &
+            if (test_flag(ilutI, flag_initiator(part_type)).or.test_flag(ilutI, flag_weak_initiator(part_type))) &
                 call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_initiator(part_type))
+            if (tWeakInitiators) then
+              if(test_flag(ilutI, flag_initiator(part_type))) then
+                r = genrand_real2_dSFMT()
+                        if(weakthresh > r) then
+                             call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_weak_initiator(part_type))
+                        else
+                             call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_weak_initiator(part_type),.false.)
+                        endif
+              else
+                call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_weak_initiator(part_type),.false.)
+              endif
+            endif
+
         end if
 
         if (tFillingStochRDMonFly) then
@@ -302,8 +316,8 @@ contains
         real(dp) :: ovp
         logical tSuccess
         integer :: iUEG1, iUEG2, ProjEBin
-        HElement_t :: HOffDiag(inum_runs)
-        HElement_t :: HDoubDiag
+        HElement_t(dp) :: HOffDiag(inum_runs)
+        HElement_t(dp) :: HDoubDiag
         integer :: DoubEx(2,2),DoubEx2(2,2),kDoub(3) ! For histogramming UEG doubles
         integer :: ExMat(2,2), nopen
         integer :: doub_parity, doub_parity2, parity
@@ -417,6 +431,7 @@ contains
             ENumCyc(run) = ENumCyc(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
             ENumCycAbs(run) = ENumCycAbs(run) + abs(HoffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) &
                                       / dProbFin
+            
         end do
 
         ! -----------------------------------
@@ -484,7 +499,7 @@ contains
 
         integer :: run, exlevel
         real(dp) :: sgn_run
-        HElement_t :: hoffdiag
+        HElement_t(dp) :: hoffdiag
         character(*), parameter :: this_routine = 'SumEContrib_different_refs'
 
         real(dp) :: amps(size(current_trial_amps,1))
@@ -1250,10 +1265,10 @@ contains
         integer(n_int) :: ilut(0:NIfTot)
         logical :: tmc,tSuccess
         real(dp) , allocatable :: A_Arr(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),W(:)
-        HElement_t, allocatable :: Work(:)
-        HElement_t, allocatable :: CkN(:,:),Hamil(:),TruncWavefunc(:)
-        HElement_t, allocatable :: Ck(:,:)  !This holds eigenvectors in the end
-        HElement_t :: Num,Denom,HDiagTemp
+        HElement_t(dp), allocatable :: Work(:)
+        HElement_t(dp), allocatable :: CkN(:,:),Hamil(:),TruncWavefunc(:)
+        HElement_t(dp), allocatable :: Ck(:,:)  !This holds eigenvectors in the end
+        HElement_t(dp) :: Num,Denom,HDiagTemp
         integer , allocatable :: LAB(:),NROW(:),INDEX(:),ISCR(:)
         integer(TagIntType) :: LabTag=0,NRowTag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0,tagCKN=0,tagCK=0
         integer(TagIntType) :: WTTag=0,SCRTag=0,ISCRTag=0,INDEXTag=0,WHTag=0,Work2Tag=0,V2Tag=0,tagW=0
@@ -1755,7 +1770,7 @@ contains
                 
                 ! If we are load balancing, this will disable the load balancer
                 ! so we should do a last-gasp balance at this point.
-                if (tLoadBalanceBlocks) &
+                if (tLoadBalanceBlocks .and. .not. tSemiStochastic) &
                     call adjust_load_balance(iter_data_fciqmc)
 
                 extract_bit_rep_avsign => extract_bit_rep_avsign_norm
@@ -1789,7 +1804,7 @@ contains
         integer, intent(in) :: run
         character(*), parameter :: this_routine = 'update_run_reference'
 
-        HElement_t :: h_tmp
+        HElement_t(dp) :: h_tmp
         real(dp) :: old_hii
         integer :: i, det(nel)
         logical :: tSwapped

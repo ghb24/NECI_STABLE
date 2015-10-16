@@ -106,5 +106,5 @@ module LoggingData
     ! Should we output the load-balanced distribution?
     logical :: tOutputLoadDistribution
 
-    logical :: tHDF5Pops
+    logical :: tHDF5PopsRead, tHDF5PopsWrite
 end module LoggingData

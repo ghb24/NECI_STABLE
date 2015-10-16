@@ -40,7 +40,7 @@ MODULE ISKRandExcit
         logical, intent(out) :: tParity ! Not used
         type(excit_gen_store_type), intent(inout), target :: store
         real(dp), intent(out) :: pGen
-        HElement_t, intent(out) :: HEl
+        HElement_t(dp), intent(out) :: HEl
         character(*), parameter :: this_routine='gen_ISK_excit'
         logical :: tSignOrig,tSwapped,tSame_ISK,tCrossConnected,tSignCross
         integer(n_int) :: iLutnJSym(0:NIfTot)
@@ -363,7 +363,7 @@ MODULE ISKRandExcit
         logical :: tParityunused, tTmp
         type(excit_gen_store_type) :: store
         character(*), parameter :: this_routine = 'TestGenRandISKExcit'
-        HElement_t :: HEl
+        HElement_t(dp) :: HEl
 
         tUseBrillouin=.false.
 

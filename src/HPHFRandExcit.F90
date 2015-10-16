@@ -14,14 +14,16 @@ MODULE HPHFRandExcitMod
 
     use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, &
                           tOddS_HPHF, modk_offdiag, tGen_4ind_weighted, &
-                          tGen_4ind_reverse, tLatticeGens
+                          tGen_4ind_reverse, tLatticeGens, tGen_4ind_2
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
     use GenRandSymExcitNUMod, only: gen_rand_excit, calc_pgen_symrandexcit2, &
                                     ScratchSize, CalcPGenLattice
     use excit_gens_int_weighted, only: gen_excit_4ind_weighted, &
-                                       gen_excit_4ind_reverse
+                                       gen_excit_4ind_reverse, &
+                                       calc_pgen_4ind_weighted, &
+                                       calc_pgen_4ind_reverse
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel, MaskAlpha, MaskBeta, &
                          TestClosedShellDet, CalcOpenOrbs, IsAllowedHPHF
@@ -30,8 +32,7 @@ MODULE HPHFRandExcitMod
     use sltcnd_mod, only: sltcnd_excit
     use bit_reps, only: NIfD, NIfDBO, NIfTot
     use SymExcitDataMod, only: excit_gen_store_type
-    use excit_gens_int_weighted, only: calc_pgen_4ind_weighted, &
-                                       calc_pgen_4ind_reverse
+    use excit_gen_5, only: calc_pgen_4ind_weighted2, gen_excit_4ind_weighted2
     use sort_mod
     use HElem
     IMPLICIT NONE
@@ -140,13 +141,13 @@ MODULE HPHFRandExcitMod
         integer, intent(out) :: IC, ExcitMat(2,2)
         logical, intent(out) :: tParity ! Not used
         real(dp), intent(out) :: pGen
-        HElement_t, intent(out) :: HEl
+        HElement_t(dp), intent(out) :: HEl
         type(excit_gen_store_type), intent(inout), target :: store
 
         integer(kind=n_int) :: iLutnJ2(0:niftot)
         integer :: openOrbsI, openOrbsJ, nJ2(nel), ex2(2,2), excitLevel 
         real(dp) :: pGen2
-        HElement_t :: MatEl, MatEl2
+        HElement_t(dp) :: MatEl, MatEl2
         logical :: tSign, tSignOrig
         logical :: tSwapped
 
@@ -161,6 +162,10 @@ MODULE HPHFRandExcitMod
         else if (tGen_4ind_reverse) then
             call gen_excit_4ind_reverse (nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pGen, Hel,&
+                                          store)
+        else if (tGen_4ind_2) then
+            call gen_excit_4ind_weighted2(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
+                                          ExcitMat, tSignOrig, pGen, Hel, &
                                           store)
         else
             call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat,&
@@ -177,7 +182,7 @@ MODULE HPHFRandExcitMod
 
         ! Create bit representation of excitation - iLutnJ.
         ! n.b. 4ind_weighted does this already.
-        if (.not. (tGen_4ind_weighted .or. tGen_4ind_reverse)) &
+        if (.not. (tGen_4ind_weighted .or. tGen_4ind_reverse .or. tGen_4ind_2)) &
             CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
             
 !Test!
@@ -911,13 +916,15 @@ MODULE HPHFRandExcitMod
         ! We need to consider which of the excitation generators are in use,
         ! and call the correct routine in each case.
         ASSERT(.not. (tCSF)) ! .or. tSpinProjDets
-        
+
         if (tLatticeGens) then
             if (ic == 2) then
                 call CalcPGenLattice (ex, pGen)
             else
                 pGen = 0
             end if
+        else if (tGen_4ind_2) then
+            pgen = calc_pgen_4ind_weighted2(nI, ilutI, ex, ic)
         else if (tGen_4ind_weighted) then
             pgen = calc_pgen_4ind_weighted (nI, ilutI, ex, ic, &
                                             ClassCountUnocc2)

@@ -16,6 +16,7 @@ startsinglepart
 shiftdamp 0.1
 memoryfacpart 10.0
 stepsshift 10
+load-balance-blocks off
 endcalc
 
 integral

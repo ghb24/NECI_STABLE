@@ -41,7 +41,7 @@ module fcimc_pointed_fns
         real(dp), dimension(lenof_sign) :: child
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
-        HElement_t, intent(in) :: HElGen
+        HElement_t(dp), intent(in) :: HElGen
 
         if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
             child = attempt_create_normal (DetCurr, &
@@ -81,7 +81,7 @@ module fcimc_pointed_fns
         real(dp), dimension(lenof_sign) :: child
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
-        HElement_t , intent(in) :: HElGen
+        HElement_t(dp) , intent(in) :: HElGen
 
         call EncodeBitDet (nJ, iLutnJ)
         if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
@@ -108,14 +108,14 @@ module fcimc_pointed_fns
         real(dp), dimension(lenof_sign) :: child
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
-        HElement_t , intent(in) :: HElGen
+        HElement_t(dp) , intent(in) :: HElGen
         character(*), parameter :: this_routine = 'attempt_create_normal'
 
         real(dp) :: rat, r, walkerweight, pSpawn, nSpawn, MatEl, p_spawn_rdmfac
         integer :: extracreate, tgt_cpt, component, i, iUnused
         integer :: TargetExcitLevel
         logical :: tRealSpawning
-        HElement_t :: rh, rh_used
+        HElement_t(dp) :: rh, rh_used
 
         ! Just in case
         child = 0.0_dp

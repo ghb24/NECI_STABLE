@@ -146,7 +146,7 @@ contains
         integer :: det(nel), i, error, ierr, run
         integer(int32) :: int_tmp(2)
         logical :: tSwapped, allocate_temp_parts, changed_any
-        HElement_t :: h_tmp
+        HElement_t(dp) :: h_tmp
         character(*), parameter :: this_routine = 'population_check'
         character(*), parameter :: t_r = this_routine
 
@@ -330,8 +330,8 @@ contains
 
         integer :: int_tmp(5+2*lenof_sign), proc, pos, i
         real(dp) :: sgn(lenof_sign)
-        HElement_t :: helem_tmp(3*inum_runs)
-        HElement_t :: real_tmp(2*inum_runs) !*lenof_sign
+        HElement_t(dp) :: helem_tmp(3*inum_runs)
+        HElement_t(dp) :: real_tmp(2*inum_runs) !*lenof_sign
         integer(int64) :: int64_tmp(8),TotWalkersTemp
         character(len=*), parameter :: this_routine='collate_iter_data'
         real(dp), dimension(max(lenof_sign,inum_runs)) :: RealAllHFCyc
@@ -388,7 +388,7 @@ contains
 #endif
         
         call MPIReduce(SumNoatHF, MPI_SUM, AllSumNoAtHF)
-        ! HElement_t values (Calculates the energy by summing all on HF and 
+        ! HElement_t(dp) values (Calculates the energy by summing all on HF and 
         ! doubles)
 
         call MPISum ((/ENumCyc, SumENum, ENumCycAbs/), helem_tmp)

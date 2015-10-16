@@ -324,7 +324,7 @@ C.. Calculate <phi_a phi_b | U | phi_c phi_d> from <u_i u_j|U|u_k u_l>
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          INTEGER NSPINS,NSBASIS
          real(dp) BTRANS(NSBASIS,NSBASIS,NSPINS)
-         HElement_t TOTSUM,SUM1,SUM2,SUM3
+         HElement_t(dp) TOTSUM,SUM1,SUM2,SUM3
          INTEGER ASPN,BSPN,CSPN,DSPN,AE,BE,CE,DE
          INTEGER IDI,IDJ,IDK,IDL
          ASPN=MOD(A-1,NSPINS)+1

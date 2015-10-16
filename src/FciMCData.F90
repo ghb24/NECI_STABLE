@@ -138,19 +138,19 @@ MODULE FciMCData
 !The following variables are calculated as per processor, but at the end of each update cycle, 
 !are combined to the root processor
       real(dp) :: GrowRate,DieRat
-      HElement_t, allocatable :: SumENum(:)
+      HElement_t(dp), allocatable :: SumENum(:)
 
       ! The averaged projected energy - calculated from accumulated values.
-      HElement_t, allocatable :: ProjectionE(:)
-      HElement_t :: ProjectionE_tot
+      HElement_t(dp), allocatable :: ProjectionE(:)
+      HElement_t(dp) :: ProjectionE_tot
 
       ! The averaged projected energy - calculated over the last update cycle
-      HElement_t, allocatable :: proje_iter(:)
-      HElement_t :: proje_iter_tot
+      HElement_t(dp), allocatable :: proje_iter(:)
+      HElement_t(dp) :: proje_iter_tot
 
       ! The averaged 'absolute' projected energy - calculated over the last update cycle
       ! The magnitude of each contribution is taken before it is summed in
-      HElement_t, allocatable :: AbsProjE(:)
+      HElement_t(dp), allocatable :: AbsProjE(:)
 
       real(dp), allocatable :: trial_numerator(:), tot_trial_numerator(:)
       real(dp), allocatable :: trial_denom(:), tot_trial_denom(:)
@@ -181,21 +181,21 @@ MODULE FciMCData
       real(dp), allocatable :: SpawnFromSing (:), AllSpawnFromSing(:)
       REAL(dp), allocatable :: HFCyc(:)
       !This is the number of HF*sign particles on a given processor over the course of the update cycle
-      HElement_t, allocatable :: AllHFCyc(:) 
+      HElement_t(dp), allocatable :: AllHFCyc(:) 
       !This is the sum of HF*sign particles over all processors over the course of the update cycle
-      HElement_t, allocatable :: OldAllHFCyc(:) 
+      HElement_t(dp), allocatable :: OldAllHFCyc(:) 
       !This is the old *average* (not sum) of HF*sign over all procs over previous update cycle
-      HElement_t, allocatable :: ENumCyc(:)
+      HElement_t(dp), allocatable :: ENumCyc(:)
       !This is the sum of doubles*sign*Hij on a given processor over the course of the update c
-      HElement_t, allocatable :: AllENumCyc(:)
+      HElement_t(dp), allocatable :: AllENumCyc(:)
       !This is the sum of double*sign*Hij over all processors over the course of the update cyc
-      HElement_t, allocatable :: ENumCycAbs(:)
+      HElement_t(dp), allocatable :: ENumCycAbs(:)
       !This is the sum of abs(doubles*sign*Hij) on a given processor "" "" "" 
-      HElement_t, allocatable :: AllENumCycAbs(:)
+      HElement_t(dp), allocatable :: AllENumCycAbs(:)
       !This is the sum of abs(double*sign*Hij) over all processors over the course of the updat
 
       ! The projected energy over the current update cycle.
-      HElement_t, allocatable :: ProjECyc(:)
+      HElement_t(dp), allocatable :: ProjECyc(:)
       
       real(dp) :: bloom_sizes(0:2), bloom_max(0:2)
       integer :: bloom_count(0:2), all_bloom_count(0:2)
@@ -211,16 +211,16 @@ MODULE FciMCData
       real(dp), allocatable :: AllAnnihilated(:)
       real(dp), allocatable :: AllNoAtDoubs(:)
       real(dp), allocatable :: AllNoatHF(:)
-      HElement_t, allocatable :: sum_proje_denominator(:)
-      HElement_t, allocatable :: all_sum_proje_denominator(:)
-      HElement_t, allocatable :: cyc_proje_denominator(:)
-      HElement_t, allocatable :: all_cyc_proje_denominator(:)
+      HElement_t(dp), allocatable :: sum_proje_denominator(:)
+      HElement_t(dp), allocatable :: all_sum_proje_denominator(:)
+      HElement_t(dp), allocatable :: cyc_proje_denominator(:)
+      HElement_t(dp), allocatable :: all_cyc_proje_denominator(:)
       real(dp) :: AllAvSign,AllAvSignHFD
       INTEGER :: MaxSpawned
       real(dp), allocatable :: AllNoBorn(:), AllNoDied(:)
-      HElement_t, allocatable :: AllSumENum(:)
+      HElement_t(dp), allocatable :: AllSumENum(:)
 
-      HElement_t :: rhii
+      HElement_t(dp) :: rhii
       real(dp) :: Hii,Fii
 
       ! This is true if tStartSinglePart is true, and we are still in the

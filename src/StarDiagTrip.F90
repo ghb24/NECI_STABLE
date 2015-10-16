@@ -15,7 +15,7 @@
 !.. ExcitInfo(J,0) = RHOJJ
 !.. ExcitInfo(J,1) = RHOIJ
 !.. ExcitInfo(J,2) = HIJ
-!      HElement_t , ALLOCATABLE :: ExcitInfo(:,:)
+!      HElement_t(dp) , ALLOCATABLE :: ExcitInfo(:,:)
 !      INTEGER :: ExcitInfoTag=0
 !
 !!Triples stores info on the number of triples from each double
@@ -23,7 +23,7 @@
 !      INTEGER :: TriplesTag=0
 !
 !!TripsInfo stores the star information for the excited stars the same way as ExcitInfo
-!      HElement_t , ALLOCATABLE :: TripsInfo(:,:)
+!      HElement_t(dp) , ALLOCATABLE :: TripsInfo(:,:)
 !      INTEGER :: TripsInfoTag=0
 !
 !!Incase we want to do a complete diagonalisation of the triples star
@@ -36,8 +36,8 @@
 !      real(dp) , ALLOCATABLE :: Vecs(:)
 !      INTEGER :: ValsTag=0,VecsTag=0
 !      
-!      HElement_t :: rhii
-!      HElement_t :: Hii
+!      HElement_t(dp) :: rhii
+!      HElement_t(dp) :: Hii
 
       Contains
 
@@ -57,7 +57,7 @@
 !        INTEGER :: TempDiagsTag=0,WorkTag=0,Vals2Tag=0
 !        real(dp) :: Energy
         real(dp) :: Weight,Energyxw
-!        HElement_t :: rh,rhjj,rhij,Norm,OffDiagNorm,Hij,rhjk
+!        HElement_t(dp) :: rh,rhjj,rhij,Norm,OffDiagNorm,Hij,rhjk
 !        INTEGER , ALLOCATABLE :: nExcit(:),nExcit2(:)
 !        INTEGER :: nExcitTag,ierr,exFlagHF,exFlagDoub,iMaxExcit,ExcitCount
 !        INTEGER :: Meth,nStore(6),nExcitMemLen,nJ(NEl),iExcit,nStore2(6)

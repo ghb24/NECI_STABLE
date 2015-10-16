@@ -221,10 +221,10 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER NHG
-         HElement_t CPMD1EINT(NSTATES,NSTATES)
+         HElement_t(dp) CPMD1EINT(NSTATES,NSTATES)
          INTEGER I,J,NSTATESUSED,NORBUSED,II,JJ
          type(timer), save :: proc_timer
-         HElement_t TOT
+         HElement_t(dp) TOT
 
          TYPE(BASISFN) G1(NHG)
          real(dp) ECORE

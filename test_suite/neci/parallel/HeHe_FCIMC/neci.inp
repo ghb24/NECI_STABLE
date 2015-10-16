@@ -15,6 +15,7 @@ tau 0.002
 startsinglepart
 shiftdamp 0.01
 stepsshift 75
+load-balance-blocks off
 endcalc
 
 integral
