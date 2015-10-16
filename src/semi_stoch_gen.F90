@@ -864,15 +864,7 @@ contains
         character (len=*), parameter :: t_r = "generate_space_most_populated"
         integer :: nzero_dets
 
-        if (tApproxSpace .and. nProcessors > 10) then
-            ! Look at ten times the number of states that we expect to keep on
-            ! this process. This is done instead of sending the best
-            ! target_space_size states to all processes, which is often
-            ! overkill and uses up too much memory.
-            n_pops_keep = 10*( ceiling(real(target_space_size)/real(nProcessors)) )
-        else
-            n_pops_keep = target_space_size
-        end if
+        n_pops_keep = target_space_size
 
         ! Quickly loop through and find the number of determinants with
         ! zero sign.
@@ -882,7 +874,16 @@ contains
             if (sum(abs(real_sign)) < 1.e-8_dp) nzero_dets = nzero_dets + 1
         end do
 
-        length_this_proc = min(int(n_pops_keep,MPIArg), int(TotWalkers-nzero_dets,MPIArg))
+        if (tApproxSpace .and. nProcessors > 10) then
+            ! Look at ten times the number of states that we expect to keep on
+            ! this process. This is done instead of sending the best
+            ! target_space_size states to all processes, which is often
+            ! overkill and uses up too much memory.
+            length_this_proc = min( ceiling(real(10*target_space_size)/real(nProcessors), MPIArg), &
+                                   int(TotWalkers-nzero_dets,MPIArg) )
+        else
+            length_this_proc = min( int(target_space_size, MPIArg), int(TotWalkers-nzero_dets,MPIArg) )
+        end if
 
         call MPIAllGather(length_this_proc, lengths, ierr)
         total_length = sum(lengths)
