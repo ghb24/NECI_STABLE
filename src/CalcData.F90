@@ -73,6 +73,10 @@ type subspace_in
     integer :: max_size = 0
     ! The number of states to use from a POPSFILE for the core space.
     integer :: npops = 0
+    ! If true then the space generated from the pops-core option may be very
+    ! slightly unoptimal, but should be very good, and sometimes exactly the
+    ! same as when this logical is false. Only applies to the pops-* options.
+    logical :: tApproxSpace = .false.
     ! When using the tMP1Core option, this specifies how many determinants to keep.
     integer :: mp1_ndets = 0
 
@@ -269,8 +273,17 @@ type(subspace_in) :: init_trial_in
 ! determinant multiple times.
 logical :: use_spawn_hash_table
 
+! Used when the user specifies multiple reference states manually, using the
+! multiple-initial-refs option, similar to the definedet option but for more
+! than one states, when using multiple replicas.
 logical :: tMultipleInitialRefs = .false.
 integer, allocatable :: initial_refs(:,:)
+
+! As for the mutliple-initial-refs options above, but the
+! multiple-initial-states option allows the user to manually specify the
+! actual starting states, rather than the starting reference functions.
+logical :: tMultipleInitialStates = .false.
+integer, allocatable :: initial_states(:,:)
 
 ! Array to specify how to reorder the trial states (which are by default
 ! ordered by the energy in the trial space).
@@ -306,11 +319,17 @@ logical :: tMultiRefShift = .false.
 ! Keep track of where in the calculation sequence we are.
 integer :: calc_seq_no
 
+!Weak initiator extension
+logical :: tWeakInitiators
+real(dp) :: weakthresh
+
 ! During annihilation, do we need the coefficient on the parent site? If so
 ! then attach it here
 logical :: tBroadcastParentCoeff = .false.
 
 logical :: tInterpolateInitThresh = .false.
 real(dp) :: init_interp_min, init_interp_max, init_interp_exponent
+
+logical :: tMP2FixedNode = .false.
 
 end module CalcData

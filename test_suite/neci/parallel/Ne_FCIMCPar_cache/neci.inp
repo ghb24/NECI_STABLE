@@ -21,6 +21,7 @@ memoryfacpart 2.5
 memoryfacspawn 0.5
 stepsshift 10
 regenexcitgens
+load-balance-blocks off
 endcalc
 
 integral

@@ -29,6 +29,7 @@ nmcyc 1500
 allrealcoeff
 realspawncutoff 0.5
 proje-changeref 1.2
+load-balance-blocks off
 endcalc
 
 integral

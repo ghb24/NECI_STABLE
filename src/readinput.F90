@@ -195,7 +195,8 @@ MODULE ReadInput_neci
                               tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
-                              tGen_4ind_lin_exact, tComplexOrbs_RealInts
+                              tGen_4ind_lin_exact, tGen_4ind_2, &
+                              tComplexOrbs_RealInts, tLatticeGens
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -221,7 +222,8 @@ MODULE ReadInput_neci
         use LoggingData, only: iLogging, tCalcFCIMCPsi, tRDMOnFly, &
                            tCalcInstantS2, tDiagAllSpaceEver, &
                            tCalcVariationalEnergy, tCalcInstantS2Init, &
-                           tPopsFile, tRDMOnFly, tExplicitAllRDM, tHDF5Pops
+                           tPopsFile, tRDMOnFly, tExplicitAllRDM, &
+                           tHDF5PopsRead, tHDF5PopsWrite
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use input_neci
@@ -447,7 +449,7 @@ MODULE ReadInput_neci
             write(6,*)
         end if
 
-        if (tGen_4ind_weighted .or. tGen_4ind_reverse) then
+        if (tGen_4ind_weighted .or. tGen_4ind_reverse .or. tGen_4ind_2) then
 
             ! We want to use UMAT2D...
             tDeferred_Umat2d = .true.
@@ -595,7 +597,7 @@ MODULE ReadInput_neci
         end if
 
 #ifndef __USE_HDF
-        if (tHDF5Pops) then
+        if (tHDF5PopsRead .or. tHDF5PopsWrite) then
             call stop_all(t_r, 'Support for HDF5 files disabled at compile time')
         end if
 #endif
@@ -621,6 +623,12 @@ MODULE ReadInput_neci
             write(6,*) '   using VASP'
             write(6,*)
             call stop_all(t_r, 'Options incompatible')
+        end if
+        
+        if (tLatticeGens) then
+            if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then
+                call stop_all(t_r, "Invalid excitation options")
+            end if
         end if
 
     end subroutine checkinput

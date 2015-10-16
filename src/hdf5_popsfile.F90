@@ -49,6 +49,7 @@ module hdf5_popsfile
     !         /psingles/     - And the values which have been optimised
     !         /pdoubles/
     !         /pparallel/
+    !         /tau/
     !     /accumulators/     - Accumulated (output) data
     !         /sum_no_ref/
     !         /sum_enum/
@@ -111,6 +112,7 @@ module hdf5_popsfile
             nm_psingles = 'psingles', &
             nm_pdoubles = 'pdoubles', &
             nm_pparallel = 'pparallel', &
+            nm_tau = 'tau', &
 
             nm_acc_grp = 'accumulators', &
             nm_sum_no_ref = 'sum_no_ref', &
@@ -352,6 +354,7 @@ contains
                               enough_par, cnt_sing, cnt_doub, cnt_opp, &
                               cnt_par, max_death_cpt
         use FciMCData, only: pSingles, pDoubles, pParallel
+        use CalcData, only: tau
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: tau_grp, err
@@ -361,7 +364,7 @@ contains
         logical :: all_en_sing, all_en_doub, all_en_opp, all_en_par
         integer :: max_cnt_sing, max_cnt_doub, max_cnt_opp, max_cnt_par
 
-        real(dp) :: all_pdoub, all_psing, all_ppar
+        real(dp) :: all_pdoub, all_psing, all_ppar, all_tau
 
         ! Create the group
         call h5gcreate_f(parent, nm_tau_grp, tau_grp, err)
@@ -412,13 +415,16 @@ contains
 
         ! Use the probability values from the head node
         all_psing = pSingles; all_pdoub = pDoubles; all_ppar = pParallel
+        all_tau = tau
         call MPIBcast(all_psing)
         call MPIBcast(all_pdoub)
         call MPIBcast(all_ppar)
+        call MPIBcast(all_tau)
 
         call write_dp_scalar(tau_grp, nm_psingles, all_psing)
         call write_dp_scalar(tau_grp, nm_pdoubles, all_pdoub)
         call write_dp_scalar(tau_grp, nm_pparallel, all_ppar)
+        call write_dp_scalar(tau_grp, nm_tau, all_tau)
 
         ! Clear up
         call h5gclose_f(tau_grp, err)
@@ -439,7 +445,11 @@ contains
         ! (n.b. ensure values on all procs)
         call MPIBcast(AllSumENum)
         call MPIBcast(AllSumNoatHF)
+#ifdef __CMPLX
+        call write_cplx_1d_dataset(acc_grp, nm_sum_enum, AllSumENum)
+#else
         call write_dp_1d_dataset(acc_grp, nm_sum_enum, AllSumENum)
+#endif
         call write_dp_1d_dataset(acc_grp, nm_sum_no_ref, AllSumNoatHF)
 
         ! Clear up
@@ -450,7 +460,7 @@ contains
     subroutine read_calc_data(parent)
 
         use load_balance_calcnodes, only: RandomOrbIndex
-        use FciMCData, only: PreviousCycles, Hii, TotImagTime
+        use FciMCData, only: PreviousCycles, Hii, TotImagTime, tSearchTauOption
         use CalcData, only: DiagSft, tWalkContGrow
 
         integer(hid_t), intent(in) :: parent
@@ -487,7 +497,12 @@ contains
             tSinglePartPhase = .true.
         end if
 
-        call read_tau_opt(grp_id)
+        if (tSearchTauOption) then
+            call read_tau_opt(grp_id)
+        else
+            write(6,*) 'Skipping tau optimisation data as tau optimisation is &
+                       &disabled'
+        end if
         call read_accumulator_data(grp_id)
 
         ! TODO: Read nbasis, nel, ms2, etc.
@@ -503,14 +518,16 @@ contains
         use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
                               enough_sing, enough_doub, enough_opp, &
                               enough_par, cnt_sing, cnt_doub, cnt_opp, &
-                              cnt_par, max_death_cpt
+                              cnt_par, max_death_cpt, update_tau
         use FciMCData, only: pSingles, pDoubles, pParallel
+        use CalcData, only: tau
 
         ! Read accumulator values for the timestep optimisation
         ! TODO: Add an option to reset these values...
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id, err
+        logical :: ppar_set, tau_set
 
         call h5gopen_f(parent, nm_tau_grp, grp_id, err)
 
@@ -532,9 +549,16 @@ contains
 
         call read_dp_scalar(grp_id, nm_psingles, psingles)
         call read_dp_scalar(grp_id, nm_pdoubles, pdoubles)
-        call read_dp_scalar(grp_id, nm_pparallel, pparallel)
+        call read_dp_scalar(grp_id, nm_pparallel, pparallel, exists=ppar_set)
+        call read_dp_scalar(grp_id, nm_tau, tau, exists=tau_set)
 
         call h5gclose_f(grp_id, err)
+
+        ! Deal with a previous bug, that leads to popsfiles existing with all
+        ! the optimising parameters excluding tau, such that the first
+        ! iteration results in chaos
+        if (ppar_set .and. .not. tau_set) &
+            call update_tau()
 
     end subroutine
 
@@ -548,8 +572,13 @@ contains
         call h5gopen_f(parent, nm_acc_grp, grp_id, err)
         call read_dp_1d_dataset(grp_id, nm_sum_no_ref, AllSumNoatHF, &
                                 required=.true.)
+#ifdef __CMPLX
+        call read_cplx_1d_dataset(grp_id, nm_sum_enum, AllSumENum, &
+                                  required=.true.)
+#else
         call read_dp_1d_dataset(grp_id, nm_sum_enum, AllSumENum, &
                                 required=.true.)
+#endif
 
         call h5gclose_f(grp_id, err)
         
@@ -684,6 +713,7 @@ contains
         integer(hsize_t) :: this_block_size
         real(dp) :: pops_num_parts(lenof_sign), pops_norm_sqr(lenof_sign)
         real(dp) :: norm(lenof_sign), parts(lenof_sign)
+        logical :: running, any_running
 
         ! TODO:
         ! - Read into a relatively small buffer. Make this such that all the
@@ -780,12 +810,18 @@ contains
             last_part = offsets(iProcIndex + 1) - 1
         end if
         block_end = min(block_start + block_size - 1, last_part)
+        running = .true.
+        any_running = .true.
 
-        do while (block_start <= last_part)
+        do while (any_running)
 
             ! If this is the last block, its size will differ from the biggest
             ! one allowed.
-            this_block_size = block_end - block_start + 1
+            if (running) then
+                this_block_size = block_end - block_start + 1
+            else
+                this_block_size = 0
+            end if
             call read_walker_block(ds_ilut, ds_sgns, block_start, &
                                    this_block_size, bit_rep_width)
 
@@ -795,8 +831,16 @@ contains
             nread_walkers = nread_walkers + nreceived
 
             ! And update for the next block
-            block_start = block_end + 1
-            block_end = min(block_start + block_size - 1, last_part)
+            if (running) then
+                block_start = block_end + 1
+                block_end = min(block_start + block_size - 1, last_part)
+
+                if (block_start > last_part) running = .false.
+            end if
+
+            ! Test if _all_ of the processes have finished. If they have
+            ! not then
+            call MPIAllLORLogical(running, any_running)
 
         end do
 
@@ -880,8 +924,9 @@ contains
             ! Check that we aren't overrunning any lists. This can be a debug
             ! only check, as we have set the max block_size such that it will
             ! always fit.
+            list_full = .false.
             if (proc == nNodes - 1) then
-                if (ValidSpawnedList(proc > MaxSpawned)) list_full = .true.
+                if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
             else
                 if (ValidSpawnedList(proc) >= InitialSpawnedSlots(proc+1)) &
                     list_full = .true.
@@ -1009,16 +1054,21 @@ contains
         end if
 
         ! Is the total number of walkers (sum of the sign values) correct?
+        !
+        ! This is relative to the total number to account for relative errors
         call MPISumAll(parts, all_parts)
-        if (any(abs(all_parts - pops_num_parts) > 1.0e-6)) then
+        if (any(abs(all_parts - pops_num_parts) > (pops_num_parts * 1.0e-10_dp))) then
             write(6,*) 'popsfile particles: ', pops_num_parts
             write(6,*) 'read particles: ', all_parts
             call stop_all(t_r, 'Incorrect particle weight read from popsfile')
         end if
 
         ! Is the total norm of the wavefunction correct
+        ! The test condition is rather lax, as the hugely differing magnitudes
+        ! of the total numbers on each processor combined with the varying
+        ! summation orders can lead to larger errors here
         call MPISumAll(norm, all_norm)
-        if (any(abs(all_norm - pops_norm_sqr) > 1.0e-6)) then
+        if (any(abs(all_norm - pops_norm_sqr) > 1.0e-3)) then
             write(6,*) 'popsfile norm**2: ', pops_norm_sqr
             write(6,*) 'read norm**2: ', all_norm
             call stop_all(t_r, 'Wavefunction norm incorrect')

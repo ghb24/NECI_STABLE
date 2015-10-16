@@ -20,6 +20,7 @@ stepsshift 25
 jump-shift
 memoryfacspawn 2.0
 memoryfacpart 2.0
+load-balance-blocks off
 endcalc
 
 integral

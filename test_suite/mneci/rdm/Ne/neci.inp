@@ -17,6 +17,7 @@ truncinitiator
 addtoinitiator 3
 shiftdamp 0.03
 stepsshift 25
+load-balance-blocks off
 endcalc
 
 integral

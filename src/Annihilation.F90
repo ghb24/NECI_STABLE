@@ -7,7 +7,8 @@ module AnnihilationMod
                           tTruncInitiator, OccupiedThresh, tSemiStochastic, &
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
                           InitiatorOccupiedThresh, tInitOccThresh, &
-                          tContTimeFull, InitiatorWalkNo, tInterpolateInitThresh
+                          tContTimeFull, InitiatorWalkNo, tInterpolateInitThresh, &
+                          tWeakInitiators
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -480,6 +481,8 @@ module AnnihilationMod
             if ((abs(cum_sgn) > 1.e-12_dp .and. abs(new_sgn) > 1.e-12_dp) .or. &
                  test_flag(new_det, flag_initiator(part_type))) &
                 call set_flag(cum_det, flag_initiator(part_type))
+            if(tWeakInitiators.and.test_flag(new_det, flag_weak_initiator(part_type))) &
+                call set_flag(cum_det, flag_weak_initiator(part_type))
         end if
 
         sgn_prod = cum_sgn * new_sgn

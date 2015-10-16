@@ -27,7 +27,7 @@ MODULE PopsfileMod
     use LoggingData, only: iWritePopsEvery, tPopsFile, iPopsPartEvery, tBinPops, &
                        tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
-                       binarypops_min_weight, tHDF5Pops
+                       binarypops_min_weight, tHDF5PopsRead, tHDF5PopsWrite
     use sort_mod
     use util_mod, only: get_free_unit,get_unique_filename
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
@@ -115,6 +115,7 @@ contains
         integer :: sgn(lenof_sign), flg, part_on_node = 0
         type(ll_node), pointer :: Temp
         integer, allocatable :: TempnI(:)
+        logical :: trimmed_parts
         real(dp) :: pops_norm_temp
         type(timer), save :: read_timer, process_timer
 
@@ -123,7 +124,7 @@ contains
         process_timer%timer_name = 'POPS-process'
         call set_timer(read_timer)
 
-        if (tHDF5Pops) then
+        if (tHDF5PopsRead) then
 
             CurrWalkers = read_popsfile_hdf5(dets)
 
@@ -193,20 +194,26 @@ contains
                 call neci_flush(6)
             ENDIF
 
+            ! If read in particles are removed due to being unoccupied, or
+            ! below the threshold, this is recorded here.
+            trimmed_parts = .false.
+
             ! Which of the POPSFILE reading routines are we going to make use of?
             if (tSplitPops) then
                 CurrWalkers = read_pops_splitpops (iunit, PopNel, TempnI, BinPops, &
-                                                   Dets, DetsLen, iunit_3, PopNIfSgn)
+                                                   Dets, DetsLen, iunit_3, PopNIfSgn, &
+                                                   trimmed_parts)
             else if (pops_nnodes == nProcessors .and. PopsVersion == 4 .and. &
                      (balance_blocks == PopBalanceBlocks .or. &
                       (.not. tLoadBalanceBlocks .and. PopBalanceBlocks == -1))) then
                 CurrWalkers = read_pops_nnodes (iunit, PopNel, TempnI, BinPops, Dets, &
                                                 DetsLen, read_walkers_on_nodes, &
-                                                iunit_3, PopNIfSgn, iPopAllTotWalkers)
+                                                iunit_3, PopNIfSgn, iPopAllTotWalkers, &
+                                                trimmed_parts)
             else
                 CurrWalkers = read_pops_general (iunit, PopNel, TempnI, BinPops, Dets, &
                                                  DetsLen, ReadBatch, EndPopsList, &
-                                                 iunit_3, PopNIfSgn)
+                                                 iunit_3, PopNIfSgn, trimmed_parts)
                 ! The walkers will be redistributed in a default manner. Ignore
                 ! the balancing information in the POPSFILE
                 PopBalanceBlocks = -1
@@ -226,7 +233,7 @@ contains
             write(6,*) "CurrWalkers: ", CurrWalkers
             call MPISum(CurrWalkers, 1, AllCurrWalkers)
             if (iProcIndex == Root) then
-                if (iWeightPopRead == 0 .and. AllCurrWalkers /= EndPopsList) then
+                if (AllCurrWalkers /= EndPopsList .and. .not. trimmed_parts) then
                     write(6,*) "AllCurrWalkers: ", AllCurrWalkers
                     write(6,*) "EndPopsList: ", EndPopsList
 
@@ -314,7 +321,7 @@ contains
 
     function read_pops_nnodes (iunit, PopNel, unused, binary_pops, det_list, &
                                max_dets, read_walkers_on_nodes, iunit_3, &
-                               PopNIfSgn, totW) &
+                               PopNIfSgn, totW, trimmed_parts) &
                               result(CurrWalkers)
 
         ! A routine to read in popsfiles, making use of the stored information
@@ -329,6 +336,7 @@ contains
         integer(n_int), intent(out) :: det_list(0:NIfTot, max_dets)
         logical, intent(in) :: binary_pops
         integer(int64) :: CurrWalkers, cntW, cnt2
+        logical, intent(inout) :: trimmed_parts
         character(*), parameter :: this_routine = 'read_pops_nnodes'
 
         ! The buffer is able to store the maximum number of particles on any
@@ -385,7 +393,8 @@ contains
                                               buffer(:, ndets), unused, &
                                               PopNIfSgn, iunit_3, .false., &
                                               nread, &
-                                      read_walkers_on_nodes(proc) - nattempts)
+                                      read_walkers_on_nodes(proc) - nattempts,&
+                                      trimmed_parts=trimmed_parts)
                     nattempts = nattempts + nread
                     cnt2 = cnt2 + nread
 
@@ -443,7 +452,8 @@ contains
     end function
         
     function read_pops_splitpops (iunit, PopNel, det_tmp, binary_pops, &
-                                  det_list, max_dets, iunit_3, PopNIfSgn) &
+                                  det_list, max_dets, iunit_3, PopNIfSgn, &
+                                  trimmed_parts) &
                                   result(CurrWalkers)
 
         ! A routine to read in split popsfiles to each of the nodes.
@@ -456,6 +466,7 @@ contains
         integer(n_int), intent(out) :: det_list(0:NifTot, max_dets)
         logical, intent(in) :: binary_pops
         integer(int64) :: CurrWalkers
+        logical, intent(inout) :: trimmed_parts
         character(*), parameter :: this_routine = 'read_pops_splitpops'
 
         integer(n_int), allocatable :: BatchRead(:,:)
@@ -486,7 +497,8 @@ contains
                 tEOF = read_popsfile_det (iunit, PopNel, binary_pops, &
                                           det_list(:, CurrWalkers+1), &
                                           det_tmp, PopNIfSgn, iunit_3, &
-                                          .true., nread)
+                                          .true., nread, &
+                                          trimmed_parts=trimmed_parts)
 
                 ! When we have got to the end of the file, we are done.
                 if (tEOF) exit
@@ -514,7 +526,7 @@ contains
 
     function read_pops_general (iunit, PopNel, det_tmp, binary_pops, det_list, &
                                 max_dets, ReadBatch, EndPopsList, iunit_3, &
-                                PopNIfSgn) &
+                                PopNIfSgn, trimmed_parts) &
                                result(CurrWalkers)
 
         ! General all-purpose pops reading routine.
@@ -530,6 +542,7 @@ contains
         integer(n_int), intent(out) :: det_list(0:NIfTot, max_dets)
         integer(int64), intent(in) :: EndPopsList
         integer(int64) :: CurrWalkers
+        logical, intent(inout) :: trimmed_parts
         character(*), parameter :: this_routine = 'read_pops_general'
 
         logical :: tEOF
@@ -592,7 +605,8 @@ r_loop: do while (.not. tReadAllPops)
                     ! The decoded form is placed in det_tmp
                     tEOF = read_popsfile_det (iunit, PopNel, binary_pops, &
                                               ilut_tmp, det_tmp, PopNIfSgn, &
-                                              iunit_3, .true., nread)
+                                              iunit_3, .true., nread, &
+                                              trimmed_parts=trimmed_parts)
                     det_attempt = det_attempt + nread
 
                     ! When we have got to the end of the file, we are done.
@@ -687,7 +701,7 @@ r_loop: do while (.not. tReadAllPops)
     ! WalkerTemp = Determinant entry returned
     function read_popsfile_det (iunit, nel_loc, BinPops, WalkerTemp, nI, &
                                 PopNifSgn, iunit_3, decode_det, &
-                                nread, read_max) result(tEOF)
+                                nread, read_max, trimmed_parts) result(tEOF)
 
         integer, intent(in) :: iunit
         integer, intent(in) :: nel_loc
@@ -697,6 +711,7 @@ r_loop: do while (.not. tReadAllPops)
         integer, intent(in), optional :: iunit_3
         logical, intent(in) :: decode_det
         logical, intent(in) :: BinPops
+        logical, intent(inout), optional :: trimmed_parts
         integer(int64), intent(out) :: nread
         integer(int64), intent(in), optional :: read_max
         integer(n_int) :: WalkerTemp2(0:NIfTot)
@@ -792,8 +807,10 @@ r_loop: do while(.not.tStoreDet)
             endif
             
             ! Test if we actually want to store this walker...
+            ! SDS: If we have the odd empty site, don't worry about it.
             if (any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) then
                 tStoreDet = .true.
+                if (present(trimmed_parts)) trimmed_parts = .true.
                 exit
             end if
         enddo r_loop
@@ -1470,15 +1487,18 @@ r_loop: do while(.not.tStoreDet)
         character(12) :: num_tmp
         type(timer), save :: write_timer
 
-        ! If we are using the new popsfile format, then use it!
-        if (tHDF5Pops) then
-            call write_popsfile_hdf5()
-            return
-        end if
-
         ! Tme the overall popsfile read in
         write_timer%timer_name = 'POPS-write'
         call set_timer(write_timer)
+
+        ! If we are using the new popsfile format, then use it!
+        if (tHDF5PopsWrite) then
+            call write_popsfile_hdf5()
+
+            ! And stop timing
+            call halt_timer(write_timer)
+            return
+        end if
 
         CALL MPIBarrier(error)  !sync
 !        WRITE(6,*) "Get Here",nDets

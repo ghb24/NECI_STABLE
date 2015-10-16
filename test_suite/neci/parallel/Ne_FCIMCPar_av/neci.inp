@@ -19,6 +19,7 @@ averagemcexcits 3.0
 truncinitiator
 addtoinitiator 3
 tau-cnt-threshold 50
+load-balance-blocks off
 endcalc
 
 integral

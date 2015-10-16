@@ -14,7 +14,7 @@ module fcimc_helper
                         flag_trial, flag_connected, flag_deterministic, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
                         set_has_been_initiator, flag_has_been_initiator, &
-                        set_parent_coeff
+                        set_parent_coeff, flag_weak_initiator
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
@@ -41,7 +41,7 @@ module fcimc_helper
                         tMultiReplicaInitiators, NMCyc, iSampleRDMIters, &
                         tSpawnCountInitiatorThreshold, init_spawn_thresh, &
                         tOrthogonaliseReplicas, tPairedReplicas, &
-                        tBroadcastParentCoeff
+                        tBroadcastParentCoeff, tWeakInitiators, weakthresh
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
@@ -103,6 +103,7 @@ contains
         real(dp), intent(in), optional :: RDMBiasFacCurr
         integer, intent(in), optional :: WalkersToSpawn
         integer :: proc, j
+        real(dp) :: r
         integer, parameter :: flags = 0
         logical :: parent_init, list_full
         character(*), parameter :: this_routine = 'create_particle'
@@ -135,8 +136,21 @@ contains
         ! If the parent was an initiator then set the initiator flag for the
         ! child, to allow it to survive.
         if (tTruncInitiator) then
-            if (test_flag(ilutI, flag_initiator(part_type))) &
+            if (test_flag(ilutI, flag_initiator(part_type)).or.test_flag(ilutI, flag_weak_initiator(part_type))) &
                 call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_initiator(part_type))
+            if (tWeakInitiators) then
+              if(test_flag(ilutI, flag_initiator(part_type))) then
+                r = genrand_real2_dSFMT()
+                        if(weakthresh > r) then
+                             call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_weak_initiator(part_type))
+                        else
+                             call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_weak_initiator(part_type),.false.)
+                        endif
+              else
+                call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_weak_initiator(part_type),.false.)
+              endif
+            endif
+
         end if
 
         if (tFillingStochRDMonFly) then
@@ -414,6 +428,7 @@ contains
             ENumCyc(run) = ENumCyc(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
             ENumCycAbs(run) = ENumCycAbs(run) + abs(HoffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) &
                                       / dProbFin
+            
         end do
 
         ! -----------------------------------
@@ -1752,7 +1767,7 @@ contains
                 
                 ! If we are load balancing, this will disable the load balancer
                 ! so we should do a last-gasp balance at this point.
-                if (tLoadBalanceBlocks) &
+                if (tLoadBalanceBlocks .and. .not. tSemiStochastic) &
                     call adjust_load_balance(iter_data_fciqmc)
 
                 extract_bit_rep_avsign => extract_bit_rep_avsign_norm

@@ -58,9 +58,6 @@ if (MKLROOT_PATH)
 	find_library(LIB_MKL_RT NAMES mkl_rt HINTS ${MKL_LIBRARY_DIR})
 	find_library(LIB_PTHREAD NAMES pthread)	
 	find_library(LIB_M NAMES m HINTS ${MKL_LIBRARY_DIR} ${EXPECT_ICC_LIBPATH})
-	message("RT" ${LIB_MKL_RT})
-	message("PT" ${LIB_PTHREAD})
-	message("M" ${LIB_M})
 	
 endif (MKLROOT_PATH)
 

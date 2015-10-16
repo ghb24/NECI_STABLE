@@ -21,6 +21,7 @@ singlesbias 1.5
 memoryfacpart 1.4
 memoryfacspawn 0.3
 stepsshift 10
+load-balance-blocks off
 endcalc
 
 integral

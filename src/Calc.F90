@@ -236,6 +236,8 @@ contains
           tReadPopsRestart = .false.
           iLogicalNodeSize = 0 !Meaning use the physical node size
           tAllRealCoeff=.false.
+          tWeakInitiators=.false.
+          weakthresh= 1.0_dp
           tEnhanceRemainder=.true.
           tUseRealCoeffs = .false.
           tRealCoeffByExcitLevel=.false.
@@ -320,7 +322,7 @@ contains
           tContTimeFull = .false.
           cont_time_max_overspawn = 4.0
 
-          tLoadBalanceBlocks = .false.
+          tLoadBalanceBlocks = .true.
           tPopsJumpShift = .false.
           calc_seq_no = 1
 
@@ -764,6 +766,18 @@ contains
                     end do
                 end do
 
+            case("MULTIPLE-INITIAL-STATES")
+                tMultipleInitialStates = .true.
+                allocate(initial_states(nel, inum_runs), stat=ierr)
+                initial_states = 0
+
+                do line = 1, inum_runs
+                    call read_line(eof)
+                    do i = 1, nel
+                        call geti(initial_states(i, line))
+                    end do
+                end do
+
             case("FINDGUIDINGFUNCTION")
 ! At the end of a calculation, this keyword sets the spawning calculation to print out the iGuideDets
 ! most populated determinants, to be read in as a guiding (or annihilating) function in a following calculation.
@@ -1066,6 +1080,10 @@ contains
             case("POPS-CORE")
                 ss_space_in%tPops = .true.
                 call geti(ss_space_in%npops)
+            case("POPS-CORE-APPROX")
+                ss_space_in%tPops = .true.
+                ss_space_in%tApproxSpace = .true.
+                call geti(ss_space_in%npops)
             case("MP1-CORE")
                 ss_space_in%tMP1 = .true.
                 call geti(ss_space_in%mp1_ndets)
@@ -1134,6 +1152,10 @@ contains
                 trial_space_in%tHF = .true.
             case("POPS-TRIAL")
                 trial_space_in%tPops = .true.
+                call geti(trial_space_in%npops)
+            case("POPS-TRIAL-APPROX")
+                trial_space_in%tPops = .true.
+                trial_space_in%tApproxSpace = .true.
                 call geti(trial_space_in%npops)
             case("READ-TRIAL")
                 trial_space_in%tRead = .true.
@@ -1788,6 +1810,14 @@ contains
                 tTruncNOpen = .true.
                 call geti (trunc_nopen_max)
 
+            case("WEAKINITIATORS")
+                !Additionally allow the children of initiators to spawn freely
+                !This adaptation is applied stochastically with probability weakthresh
+                !Hence weakthresh = 1 --> Always on where applicable.
+                !weakthresh = 0 --> The original initiator scheme is maintained.
+                tWeakInitiators=.true.
+                call Getf(weakthresh)
+
             case("ALLREALCOEFF")
                 tAllRealCoeff=.true.
                 tUseRealCoeffs = .true.
@@ -2136,6 +2166,11 @@ contains
                     case default
                         tLoadBalanceBlocks = .true.
                     end select
+
+                    if (tLoadBalanceBlocks) then
+                        write(iout, '("WARNING: LOAD-BALANCE-BLOCKS option is &
+                                    &now enabled by default.")')
+                    end if
                 end if
             
             case("POPS-JUMP-SHIFT")
@@ -2149,6 +2184,9 @@ contains
 
             case("MULTI-REF-SHIFT")
                 tMultiRefShift = .true.
+
+            case("MP2-FIXED-NODE")
+                tMP2FixedNode = .true.
 
             case("INTERPOLATE-INITIATOR")
                 ! Implement interpolation between aborting particles
