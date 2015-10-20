@@ -47,7 +47,7 @@ subroutine stop_all (sub_name, error_msg)
     write (6,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
     write (6,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
 #ifdef PARALLEL
-    write (6,'(a12,15X,i3)') 'Processor: ',iProcIndex
+    write (6,'(a12,15X,i5)') 'Processor: ',iProcIndex
 #endif
     write (6,'(a11)') 'EXITING...'
     call neci_flush (6)
