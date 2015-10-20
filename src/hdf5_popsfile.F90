@@ -1070,8 +1070,10 @@ contains
         ! The test condition is rather lax, as the hugely differing magnitudes
         ! of the total numbers on each processor combined with the varying
         ! summation orders can lead to larger errors here
+        !
+        ! Same relative error test as before
         call MPISumAll(norm, all_norm)
-        if (any(abs(all_norm - pops_norm_sqr) > 1.0e-3)) then
+        if (any(abs(all_norm - pops_norm_sqr) > (pops_norm_sqr * 1.0e-10_dp))) then
             write(6,*) 'popsfile norm**2: ', pops_norm_sqr
             write(6,*) 'read norm**2: ', all_norm
             call stop_all(t_r, 'Wavefunction norm incorrect')
