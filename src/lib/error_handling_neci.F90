@@ -52,6 +52,16 @@ subroutine stop_all (sub_name, error_msg)
     write (6,'(a11)') 'EXITING...'
     call neci_flush (6)
 
+    ! Also push this to the stderr unit, so it hopefully ends up somewhere
+    ! more useful.
+    write (7,'(/a7)') 'ERROR.'
+    write (7,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
+    write (7,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
+#ifdef PARALLEL
+    write (7,'(a12,15X,i5)') 'Processor: ',iProcIndex
+#endif
+    write (7,'(a11)') 'EXITING...'
+
     call print_backtrace_neci()
 
 #ifdef __SHARED_MEM
