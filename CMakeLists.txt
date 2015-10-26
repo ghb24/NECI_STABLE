@@ -31,6 +31,7 @@ else()
 endif()
 
 option(PARALLEL "Enable parallel build (MPI)" on)
+set(EXPLICIT_MPI true)
 option(HDF "Enable HDF5 popsfiles" on)
 option(WARNINGS "Enable lots of compile warnings" on)
 
@@ -59,8 +60,30 @@ set(ALL_LINKER_FLAGS "")
 set(CLUSTER_COMPILE_FLAGS "")
 set(CLUSTER_LINK_FLAGS "")
 
+# Working on Archer is a bit odd. They have wrapper compilation scripts that
+# don't have the normal MPI wrapper names. So we need to disable the
+# automagical detection
+site_name(HOSTNAME)
+set(ARCHER_OVERRIDES false)
+if (${HOSTNAME} MATCHES "eslogin[0-9]*")
+	message("***************************************************************************************")
+	message("Compilation on Archer detected")
+	message("-- Archer is a somewhat weird system, with wrapper scripts that defeat autodetection")
+	message("--")
+	message("-- Ensure that the correct modules are loaded, then:")
+	message("-- Run cmake with -DCMAKE_Fortran_COMPILER=ftn -DCMAKE_CXX_COMPILER=g++")
+	message("-- Normal MPI detection is overridden. If the compiler is not specified, this will fail")
+	message("***************************************************************************************")
+	set(EXPLICIT_MPI false)
+	set(ARCHER_OVERRIDES true)
+
+	# We don't want to propagate the g++ link elements through into the fortran linker
+	# (These are found during the "Detecting CXX compiler ABI info" stage)
+	set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")
+endif()
+
+
 message("Configuring Fortran compilers")
-message("-- Build type: ${CMAKE_BUILD_TYPE}")
 message("-- Build type: ${CMAKE_BUILD_TYPE}")
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 	message("-- Using ifort")
@@ -98,7 +121,7 @@ elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
 		set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -Wall -Wextra")
 	endif()
 
-else (CMake_Fortran_COMPILER_ID STREQUAL "PGI")
+elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "PGI")
 
 	message("-- Using PGI compilers")
 	add_definitions(-D__PGI)
@@ -132,6 +155,13 @@ else (CMake_Fortran_COMPILER_ID STREQUAL "PGI")
 	# SDS: This no longer seems needed for pgfortran, which does the work automagically
 	# set(ALL_LINKER_FLAGS "${ALL_LINKER_FLAGS} -pthread")
 
+elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "Cray")
+
+	message("-- Using Cray compilers")
+
+	set(FORTRAN_COMPILE_FLAGS "${FORTRAN_COMPILE_FLAGS} -s integer64 -s real64 -N255 -em")
+	set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -R bcdps")
+
 else()
 
 	message (FATAL_ERROR "Fortran compiler unknown: ${CMAKE_Fortran_COMPILER_ID}")
@@ -146,17 +176,19 @@ endif()
 # Ensure that we signal to the code and the compilers that the correct number
 # of bits should be used.
 if (BITS32)
-	if (CMake_Fortran_COMPILER_ID STREQUAL "PGI")
+	if (CMAKE_Fortran_COMPILER_ID STREQUAL "PGI")
 		set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -pc=32")
 		set(ALL_LINKER_FLAGS "${ALL_LINKER_FLAGS} -pc=32")
+	elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "Cray")
 	else()
 		set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -m32")
 		set(ALL_LINKER_FLAGS "${ALL_LINKER_FLAGS} -m32")
 	endif()
 else()
-	if (CMake_Fortran_COMPILER_ID STREQUAL "PGI")
+	if (CMAKE_Fortran_COMPILER_ID STREQUAL "PGI")
 		set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -pc=64")
 		set(ALL_LINKER_FLAGS "${ALL_LINKER_FLAGS} -pc=64")
+	elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "Cray")
 	else()
 		set(ALL_COMPILE_FLAGS "${ALL_COMPILE_FLAGS} -m64")
 		set(ALL_LINKER_FLAGS "${ALL_LINKER_FLAGS} -m64")
@@ -280,9 +312,11 @@ set(NECI_LIBRARIES "")
 if (SHARED_MEM)
 	message("Configuring shared memory")
 	add_definitions(-D__SHARED_MEM)
-	find_package(LibRT REQUIRED)
-	set(NECI_LIBRARIES ${NECI_LIBRARIES} ${LIBRT_LIBRARIES})
-	message("-- RT libs: ${LIBRT_LIBRARIES}")
+	if (NOT ARCHER_OVERRIDES)
+		find_package(LibRT REQUIRED)
+		set(NECI_LIBRARIES ${NECI_LIBRARIES} ${LIBRT_LIBRARIES})
+		message("-- RT libs: ${LIBRT_LIBRARIES}")
+	endif()
 endif()
 
 if (NOT BITS32)
@@ -296,24 +330,28 @@ include_directories(BEFORE SYSTEM ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/un
 # Some form of lapack is always needed (be that acml, mkl, LAPACK, ...)
 message("Configuring BLAS/LAPACK")
 
-find_package(MKL)
-if (${MKL_FOUND})
-	message("-- Found MKL")
-	set(NECI_LIBRARIES ${NECI_LIBRARIES} ${MKL_LIBRARIES})
-	include_directories(${MKL_INCLUDE_DIR})
-	message("-- Using libraries: ${MKL_LIBRARIES}")
+if (ARCHER_OVERRIDES)
+	message("-- Explicit BLAS/LAPACK configuration not needed on Archer")
 else()
-	# Don't use the required flag on find_package here. Do the check manually.
-	# If we use the required flag, then the finder does a strict lookup for
-	# the pthread library - which will fail for PGI builds due to incompatibilities
-	# inside the PGI linker. These are worked around above.
-	find_package(LAPACK)
-	if (${LAPACK_FOUND})
-		set(NECI_LIBRARIES ${NECI_LIBRARIES} ${LAPACK_LIBRARIES})
-		message("-- Found BLAS/Lapack")
-		message("-- Using libraries: ${LAPACK_LIBRARIES}")
+	find_package(MKL)
+	if (${MKL_FOUND})
+		message("-- Found MKL")
+		set(NECI_LIBRARIES ${NECI_LIBRARIES} ${MKL_LIBRARIES})
+		include_directories(${MKL_INCLUDE_DIR})
+		message("-- Using libraries: ${MKL_LIBRARIES}")
 	else()
-		message(FATAL_ERROR "-- BLAS/Lapack not found")
+		# Don't use the required flag on find_package here. Do the check manually.
+		# If we use the required flag, then the finder does a strict lookup for
+		# the pthread library - which will fail for PGI builds due to incompatibilities
+		# inside the PGI linker. These are worked around above.
+		find_package(LAPACK)
+		if (${LAPACK_FOUND})
+			set(NECI_LIBRARIES ${NECI_LIBRARIES} ${LAPACK_LIBRARIES})
+			message("-- Found BLAS/Lapack")
+			message("-- Using libraries: ${LAPACK_LIBRARIES}")
+		else()
+			message(FATAL_ERROR "-- BLAS/Lapack not found")
+		endif()
 	endif()
 endif()
 
@@ -331,7 +369,7 @@ endif()
 # Look for MPI...
 if (PARALLEL)
 
-	find_package(MPI REQUIRED)
+	find_package(MPI)
 	if (${MPI_FOUND})
 		message("-- Using MPI")
 		add_definitions(-DPARALLEL)
@@ -376,6 +414,14 @@ if (PARALLEL)
 		unset(MPI_C_COMPILER CACHE)
 		unset(MPI_CXX_COMPILER)
 		unset(MPI_CXX_COMPILER CACHE)
+	else()
+		if (EXPLICIT_MPI)
+			message(FATAL_ERROR "No MPI libraries found")
+		else()
+			message("-- No MPI libraries found, but implicit-MPI override set")
+			message("-- Assuming Fortran wrapper provides MPI")
+			add_definitions(-DPARALLEL)
+		endif()
 	endif()
 
 	message("Configuring parallel build")
@@ -473,7 +519,6 @@ if (HDF)
 else()
 	message("Disabling HDF5 popsfiles")
 endif()
-
 
 # Ensure that all of our executables link correctly
 foreach(target ${TARGETS})
