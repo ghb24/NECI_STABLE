@@ -81,6 +81,7 @@ contains
         ! SpawnedParts on the correct processor. As they do this, they count the size of the
         ! deterministic space (on their own processor only).
         write(6,'("Generating the deterministic space...")'); call neci_flush(6)
+        if (core_in%tApproxSpace) write(6,'(" ... approximately using the factor of",1X,i5)') core_in%nApproxSpace
         call generate_space(core_in)
 
         ! So that all procs store the size of the deterministic spaces on all procs.
@@ -201,7 +202,8 @@ contains
 
         ! Call the requested generating routines.
         if (core_in%tHF) call add_state_to_space(ilutHF, SpawnedParts, space_size)
-        if (core_in%tPops) call generate_space_most_populated(core_in%npops, SpawnedParts, space_size)
+        if (core_in%tPops) call generate_space_most_populated(core_in%npops, & 
+                                    core_in%tApproxSpace, core_in%nApproxSpace, SpawnedParts, space_size)
         if (core_in%tRead) call generate_space_from_file(core_in%read_filename, SpawnedParts, space_size)
         if (.not. tCSFCore) then
             if (core_in%tDoubles) call generate_sing_doub_determinants(SpawnedParts, space_size, core_in%tHFConn)
@@ -827,10 +829,17 @@ contains
 
     end subroutine generate_optimised_space
 
-    subroutine generate_space_most_populated(target_space_size, ilut_list, space_size)
+    subroutine generate_space_most_populated(target_space_size, tApproxSpace, nApproxSpace, ilut_list, space_size)
 
-        ! In: target_space_size - The number of determinants to attempt to keep from
-        !     if less determinants are present then use all of them.
+        ! In: target_space_size - The number of determinants to attempt to keep
+        !         from if less determinants are present then use all of them.
+        ! In: tApproxSpace - If true then only find *approximately* the best
+        !         space, to save memory (although in many cases it will end up
+        !         finding the best space).
+        ! In: nApproxSpace - factor that defines how many states are kept on each 
+        !         process if tApproxSpace is true, 1 =< nApproxSpace =< nProcessors. 
+        !         The larger nApproxSpace, the more memory is consumed and the slower  
+        !         (but more accurate) the semi-stochastic initialisation is.
         ! In/Out: ilut_list - List of determinants generated.
         ! In/Out: space_size - Number of determinants in the generated space.
         !             If ilut_list is not empty on input and you want to keep
@@ -844,7 +853,8 @@ contains
         use bit_reps, only: extract_sign
         use FciMCData, only: TotWalkers
 
-        integer, intent(in) :: target_space_size
+        integer, intent(in) :: target_space_size, nApproxSpace
+        logical, intent(in) :: tApproxSpace
         integer(n_int), intent(inout) :: ilut_list(0:,:)
         integer, intent(inout) :: space_size
 
@@ -870,7 +880,16 @@ contains
             if (sum(abs(real_sign)) < 1.e-8_dp) nzero_dets = nzero_dets + 1
         end do
 
-        length_this_proc = min(int(n_pops_keep,MPIArg), int(TotWalkers-nzero_dets,MPIArg))
+        if (tApproxSpace .and. nProcessors > nApproxSpace) then
+            ! Look at nApproxSpace  times the number of states that we expect to keep on
+            ! this process. This is done instead of sending the best
+            ! target_space_size states to all processes, which is often
+            ! overkill and uses up too much memory.
+            length_this_proc = min( ceiling(real(nApproxSpace*n_pops_keep)/real(nProcessors), MPIArg), &
+                                   int(TotWalkers-nzero_dets,MPIArg) )
+        else
+            length_this_proc = min( int(n_pops_keep, MPIArg), int(TotWalkers-nzero_dets,MPIArg) )
+        end if
 
         call MPIAllGather(length_this_proc, lengths, ierr)
         total_length = sum(lengths)
@@ -887,7 +906,7 @@ contains
         allocate(amps_all_procs(total_length))
         call LogMemAlloc("amps_all_procs", int(total_length, sizeof_int), 8, t_r, TagB, ierr)
         allocate(indices_to_keep(n_pops_keep))
-        call LogMemAlloc("amps_all_procs", n_pops_keep, sizeof_int, t_r, TagC, ierr)
+        call LogMemAlloc("indices_to_keep", n_pops_keep, sizeof_int, t_r, TagC, ierr)
         allocate(largest_states(0:NIfTot, length_this_proc))
         call LogMemAlloc("largest_states", int(length_this_proc,sizeof_int)*(NIfTot+1), &
                          size_n_int, t_r, TagD, ierr)
@@ -1402,7 +1421,7 @@ contains
         ! CurrentDets and copy them across to SpawnedParts, to the first
         ! space_size slots in it (overwriting anything which was there before,
         ! which presumably won't be needed now).
-        call generate_space_most_populated(target_space_size, SpawnedParts, space_size)
+        call generate_space_most_populated(target_space_size, .false., 0, SpawnedParts, space_size)
 
         write(6,'("Writing the most populated states to DETFILE...")'); call neci_flush(6)
 

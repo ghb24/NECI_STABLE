@@ -73,6 +73,15 @@ type subspace_in
     integer :: max_size = 0
     ! The number of states to use from a POPSFILE for the core space.
     integer :: npops = 0
+    ! If true then the space generated from the pops-core option may be very
+    ! slightly unoptimal, but should be very good, and sometimes exactly the
+    ! same as when this logical is false. Only applies to the pops-* options.
+    logical :: tApproxSpace = .false.
+    ! if tApproxSpace is true, then nApproxSpace times target pops-core space is the size of the array  
+    ! kept on each processor, 1 =< nApproxSpace =< nProcessors. The larger nApproxSpace, the more  
+    ! memory is consumed and the slower (but more accurate) is the semi-stochastic initialisation   
+    ! (see subroutine generate_space_most_populated).
+    integer :: nApproxSpace = 100
     ! When using the tMP1Core option, this specifies how many determinants to keep.
     integer :: mp1_ndets = 0
 

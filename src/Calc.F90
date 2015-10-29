@@ -1081,6 +1081,13 @@ contains
             case("POPS-CORE")
                 ss_space_in%tPops = .true.
                 call geti(ss_space_in%npops)
+            case("POPS-CORE-APPROX")
+                ss_space_in%tPops = .true.
+                ss_space_in%tApproxSpace = .true.
+                call geti(ss_space_in%npops)
+                if(item.lt.nitems) then
+                   call geti(ss_space_in%nApproxSpace)
+                endif
             case("MP1-CORE")
                 ss_space_in%tMP1 = .true.
                 call geti(ss_space_in%mp1_ndets)
@@ -1149,6 +1156,10 @@ contains
                 trial_space_in%tHF = .true.
             case("POPS-TRIAL")
                 trial_space_in%tPops = .true.
+                call geti(trial_space_in%npops)
+            case("POPS-TRIAL-APPROX")
+                trial_space_in%tPops = .true.
+                trial_space_in%tApproxSpace = .true.
                 call geti(trial_space_in%npops)
             case("READ-TRIAL")
                 trial_space_in%tRead = .true.
