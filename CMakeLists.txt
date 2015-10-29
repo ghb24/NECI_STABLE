@@ -71,6 +71,7 @@ if (${HOSTNAME} MATCHES "eslogin[0-9]*")
 	message("-- Archer is a somewhat weird system, with wrapper scripts that defeat autodetection")
 	message("--")
 	message("-- Ensure that the correct modules are loaded, then:")
+	message("-- Use the module cray-hdf5-parallel for HDF5 support")
 	message("-- Run cmake with -DCMAKE_Fortran_COMPILER=ftn -DCMAKE_CXX_COMPILER=g++")
 	message("-- Normal MPI detection is overridden. If the compiler is not specified, this will fail")
 	message("***************************************************************************************")
@@ -443,6 +444,8 @@ if (HDF)
 		set(CONFIGURE_OVERRIDE CC=mpiicc FC=mpiifort F9X=mpiifort CXX=mpiicpc)
 	elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "PGI")
 		set(CONFIGURE_OVERRIDE CC=mpicc FC=mpif90 F9X=mpif90 CXX=mpic++ CPP=cpp CXXPP=cpp)
+	elseif (ARCHER_OVERRIDES)
+		set(CONFIGURE_OVERRIDE CC=cc FC=ftn F9X=ftn CXX=CC CPP=cpp)
 	else()
 		set(CONFIGURE_OVERRIDE "")
 	endif()
@@ -467,7 +470,6 @@ if (HDF)
 		# INSTALL_COMMAND "make install"
 	)
 	set_target_properties(hdf5 PROPERTIES EXCLUDE_FROM_ALL TRUE)
-	set(ENV{HDF5_ROOT} ${HDF_DIR})
 
 	# Because we may be changing the location of the HDF5 libraries after building
 	# them, we need to clear existing settings for it
@@ -481,6 +483,8 @@ if (HDF)
 	# n.b. the default HDF5 searcher does not check that the fortran module
 	#      was produced with a compatible compiler. As such, we test this
 	#      manually, and explicitly, by building a test file contained in tools/
+	set(SYS_HDF5_ROOT $ENV{HDF5_ROOT})
+	set(ENV{HDF5_ROOT} ${HDF_DIR}:$ENV{HDF5_ROOT})
 	find_package(HDF5 COMPONENTS Fortran)
 	if (${HDF5_FOUND})
 		execute_process(
@@ -497,6 +501,22 @@ if (HDF)
 			message("-- HDF5 not built with MPI support")
 			set (HDF5_FOUND false)
 		endif()
+	endif()
+	set(ENV{HDF5_ROOT} ${SYS_HDF5_ROOT})
+
+	# Archer is messed up. If we need to, then apply some overrides.
+	# Ensure we use the settings from the loaded module.
+	if (ARCHER_OVERRIDES AND NOT ${HDF5_FOUND})
+		# Some of these details are filled in before the finder fails
+		# HDF5_Fortran_LIBRARIES is already set, so we don't need these.
+		# n.b. would normally use .so files, but static link to .a to avoid other problems
+		#      (the hydra module seems to have been compiled as Position Independent Code).
+		set(HDF5_LIBRARIES "")
+		set(HDF5_Fortran_LIBRARIES ${SYS_HDF5_ROOT}/lib/libhdf5.a ${SYS_HDF5_ROOT}/lib/libhdf5_fortran.a)
+		message("-- Using Archer overrides to provide hdf5")
+		set(HDF5_DEFINITIONS "")
+		set(HDF5_INCLUDE_DIRS ${SYS_HDF5_ROOT}/include)
+		set(HDF5_FOUND true)
 	endif()
 
 	#
