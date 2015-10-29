@@ -270,6 +270,17 @@
 	code (\code{dneci}) or the multi run code (\code{mneci}) are
 	built. If not specified, all targets are built.
 
+\subsubsection{Special case: Archer}
+	Archer uses a number of custom compiler wrappers. These wrappers
+	defeat the auto-configuration built into the CMake system. As such
+	manual specification of the compilers will be needed:
+	\begin{lstlisting}[gobble=4]
+		cmake -DCMAKE_Fortran_COMPILER=ftn -DCMAKE_CXX_COMPILER=g++ [path_to_neci]
+	\end{lstlisting}
+	The CMake system will detect that compilation is taking place on
+	Archer and prompt the user to use these settings. If they are not
+	used, then the build will fail.
+
 \subsection{Configuring builds (Makefile system)}
 	A specific configuration for building NECI is initialised by using the
 	command
