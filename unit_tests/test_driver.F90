@@ -9,4 +9,5 @@ program fruit_driver
     call det_bit_ops_drive_tests
     call fruit_summary
     call fruit_finalize
+
 end program fruit_driver

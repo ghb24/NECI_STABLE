@@ -26,20 +26,21 @@ contains
         ! all pass the tests!
         procedure(count_bits_t), pointer :: proc
         proc => CountBits_sparse
-        call test_countbits_fn(proc)
+        call test_countbits_fn(proc, "sparse")
         proc => CountBits_nifty
-        call test_countbits_fn(proc)
+        call test_countbits_fn(proc, "nifty")
         proc => CountBits_elemental
-        call test_countbits_fn(proc)
+        call test_countbits_fn(proc, "elemental")
     end subroutine
 
-    subroutine test_countbits_fn(proc)
+    subroutine test_countbits_fn(proc, subname)
         ! This calls each of the relevant tests on the supplied function
         procedure(count_bits_t), pointer :: proc
-        TEST1(test_zero_bits, proc)
-        TEST1(test_max_bits, proc)
-        TEST1(test_nlast_restriction, proc)
-        TEST1(test_max_bits2, proc)
+        character(*), intent(in) :: subname
+        TESTs1(test_zero_bits, subname, proc)
+        TESTs1(test_max_bits, subname, proc)
+        TESTs1(test_nlast_restriction, subname, proc)
+        TESTs1(test_max_bits2, subname, proc)
     end subroutine
 
     subroutine test_zero_bits(proc)
