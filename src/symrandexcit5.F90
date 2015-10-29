@@ -207,7 +207,7 @@ contains
         ! Select the B orbital, in the same way as before!!
         ! The symmetry of this second orbital depends on that of the first.
         if (orbs(1) /= 0) then
-            cc_a = ClasSCountInd(orbs(1))
+            cc_a = ClassCountInd(orbs(1))
             cc_b = get_paired_cc_ind(cc_a, sym_product, sum_ml, iSpn)
             orbs(2) = select_orb (ilutI, src, cc_b, orbs(1), int_cpt(2), &
                                   cum_sum(2))

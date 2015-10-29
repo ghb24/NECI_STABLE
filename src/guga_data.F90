@@ -34,7 +34,6 @@ module guga_data
     ! CSFs needed in the matrix element calculation between them
     ! this may also be used/needed for the excitation generation
     type :: excitationInformation
-        ! indicate type of excitation: 1 ... single, 2 ... double
         integer :: typ = -1
         ! save type of excitation encoded as integer: all different possibs:
         ! 0 ... all kind of excitations which dont need much care
@@ -334,7 +333,7 @@ contains
 
         if (.not. lNoSymmetry) then
             call stop_all(routineName, &
-                "GUGA not yet implemented with k-point symmetry!")
+                "GUGA not yet implemented with symmetry!")
         end if
         
         if (tExactSizeSpace) then

@@ -3,7 +3,7 @@
 ! contains as much excitation related functionality as possible
 module guga_excitations
     ! modules
-    use SystemData, only: nEl, nBasis
+    use SystemData, only: nEl, nBasis, t_guga_unit_tests, ElecPairs, G1
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_
     use bit_reps, only: niftot, decode_bit_det, encode_det, encode_part_sign, &
@@ -29,8 +29,16 @@ module guga_excitations
     use Determinants, only: write_bit_rep
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, ilutRef
-    use util_mod, only: get_free_unit, binary_search, get_unique_filename
+    use util_mod, only: get_free_unit, binary_search, get_unique_filename, &
+                        binary_search_first_ge
     use sort_mod, only: sort
+    use symrandexcit3, only: pick_elec_pair
+    use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
+    use SymExcitDataMod, only: SpinOrbSymLabel, OrbClassCount, SymLabelCounts2, &
+                               SymLabelList2
+    use sym_general_mod, only: ClassCountInd
+    use excit_gens_int_weighted, only: get_paired_cc_ind
+
 
     ! variables
     implicit none
@@ -41,6 +49,11 @@ module guga_excitations
     ! also use a "global" occupation number vector, as it is needed in 
     ! the matrix element calculation. 
     real(dp), allocatable :: currentOcc_ilut(:)
+
+    ! use a global excitationInformation type variable to store information
+    ! about the last generated excitation to analyze matrix elements and 
+    ! pgens
+    type(excitationInformation) :: global_excitInfo
 
     abstract interface
         function calc_pgen_general(i) result(pgen)
@@ -464,10 +477,11 @@ contains
         type(excit_gen_store_type) :: store
         integer(n_int) :: tgt_ilut(0:NifTot)
         integer(n_int), allocatable :: det_list(:,:)
+        integer, allocatable :: excitTyp(:)
         real(dp), allocatable :: contrib_list(:), pgen_list(:), matEle_list(:)
         logical, allocatable :: generated_list(:)
         logical :: par
-        real(dp) :: contrib, pgen
+        real(dp) :: contrib, pgen, sum_helement, sum_pgens
         HElement_t(dp) :: helgen
         character(255) :: filename
 
@@ -475,7 +489,6 @@ contains
         call decode_bit_det (src_det, ilut)
         
         ! convert ilut to guga format
-
         call convert_ilut(ilut, ilutG)
 
         print *, ""
@@ -505,6 +518,7 @@ contains
         allocate(contrib_list(nexcit))
         allocate(pgen_list(nexcit))
         allocate(matEle_list(nExcit))
+        allocate(excitTyp(nExcit))
         generated_list = .false.
         contrib_list = 0
         pgen_list = 0.0_dp
@@ -542,8 +556,13 @@ contains
                 matEle_list(pos) = HElGen
                 pgen_list(pos) = pgen
                 contrib_list(pos) = contrib_list(pos) + 1.0_dp / pgen
+                excitTyp(pos) = global_excitInfo%typ
             end if
         end do
+
+        ! normalize matrix elements and pgens to compare with pgens
+        sum_helement = sum(abs(matEle_list))
+        sum_pgens = sum(pgen_list)
 
         ! How many of the iterations generated a good det?
         write(6,*) ngen, " dets generated in ", iterations, " iterations."
@@ -551,7 +570,7 @@ contains
                    '% abortion rate'
         ! Contribution averages
         write(6, '("Averaged contribution: ", f15.10)') &
-                contrib / real(nexcit * iterations,dp)
+                contrib / (real(nexcit,dp) * iterations)
 
         print *, "for CSF: "
         call write_det_guga(6, ilutG)
@@ -581,8 +600,9 @@ contains
         call write_det_guga(iunit, ilutG)
 
         do i = 1, nExcit
-            write(iunit, "(f16.7)", advance = 'no') pgen_list(i)
-            write(iunit, "(f16.7)") matEle_list(i)
+            write(iunit, "(f16.7)", advance = 'no') pgen_list(i)/sum_pgens
+            write(iunit, "(f16.7)", advance = 'no') matEle_list(i)/sum_helement
+            write(iunit, "(i3)") excitTyp(i)
         end do
         close(iunit)
 
@@ -1016,6 +1036,7 @@ contains
 
         !deallocate(currentB_ilut)
         !deallocate(currentOcc_ilut)
+        if (t_guga_unit_tests) global_excitInfo = excitInfo
 
     end subroutine createStochasticExcitation_double
 
@@ -6238,6 +6259,9 @@ contains
         !deallocate(currentB_ilut)
         !deallocate(currentOcc_ilut)
 
+        ! store the most recent excitation information
+        if (t_guga_unit_tests) global_excitInfo = excitInfo
+
     end subroutine createStochasticExcitation_single
 
 
@@ -7305,8 +7329,13 @@ contains
         ! routine add_ilut_lists, so maybe i constrain the number of 
         ! processed states with that
         nMax = 6 + 4 * (nBasis/2)**4 * (count_open_orbs(ilut) + 1)
+        ! todo: get an exact maximum formula for that which holds in all cases!
+        ! because that number above is WAYY too big!
+        ! also for excitations where the indices are known! 
+        ! and fot those pescy non-overlap excitations!
         
-        allocate(excitations(0:nifguga,nMax))
+        print *, nMax
+        allocate(excitations(0:nifguga,nMax), stat = ierr)
 
         ! maybe have to set to zero here then, or initialize somehow different
 
@@ -7590,7 +7619,8 @@ contains
                 allocate(excitations(0,0), stat = ierr)
                 return
             end if
-        else
+        end if
+!         else
             ! also check necessary ending restrictions and probability weights
             ! to check if no excitation is possible
             call calcRemainingSwitches(ilut, excitInfo, posSwitches, negSwitches)
@@ -7690,7 +7720,8 @@ contains
 
 
             end if
-        end if
+!         end if
+
 
     end subroutine calcAllExcitations_single
 
@@ -10513,6 +10544,7 @@ contains
         ! otherwise get excitation information
         excitInfo = excitationIdentifier(i, j, k, l)
 !
+        
         ! screw it. for now write a function which checks if indices and ilut
         ! are compatible, and not initiate the excitation right away
         ! but check cases again 
@@ -10670,13 +10702,13 @@ contains
 !             print *, "ijkl:", excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l
 !         end if
 
+
         ! for checking purposes encode umat/2 here to compare with sandeeps 
         ! results for now..
         do n = 1, nExcits
             call update_matrix_element(excitations(:,n), umat/2.0_dp, 1)
         end do
 
-   
     end subroutine calcAllExcitations_double
 
     subroutine calcDoubleR2L(ilut, excitInfo, excitations, nExcits, &
@@ -12457,7 +12489,7 @@ contains
 
         integer :: nMax, ierr, iOrb, start, ende, semi, gen
         integer(n_int) :: t(0:nifguga)
-        real(dp) :: tempWeight, minusWeight, plusWeight, bVal
+        real(dp) :: tempWeight, minusWeight, plusWeight, bVal, nOpen
         type(weight_obj) :: weights
         integer(n_int), pointer :: tempExcits(:,:)
 
@@ -12488,7 +12520,7 @@ contains
         ! additionally also already calculate the sign coming from the 
         ! pseudo double excitation which only depends on the number of open 
         ! orbitals in the overlap region
-        nMax = real(count_open_orbs_ij(ilut,start,semi-1),dp)
+        nOpen = real(count_open_orbs_ij(ilut,start,semi-1),dp)
 
         ! set 0->3
         set_orb(t, 2*start)
@@ -12522,7 +12554,7 @@ contains
             ! did something wrong with matrix elements before here.. the 3 
             ! semi-stop has an aditional sign...but all matrix elements 
             ! the same..
-            call encode_matrix_element(t, (-1.0_dp)**(nMax + 1.0_dp), 1)
+            call encode_matrix_element(t, (-1.0_dp)**(nOpen + 1.0_dp), 1)
 
             ! bullshit...
             if (minusWeight > 0.0_dp .and. plusWeight > 0.0_dp) then
@@ -12562,7 +12594,7 @@ contains
 
                 call getDoubleMatrixElement(2,3,0,1,1,bVal, 1.0_dp, tempWeight)
 
-                call encode_matrix_element(t, Root2*tempWeight*(-1.0_dp)**nMax, 1)
+                call encode_matrix_element(t, Root2*tempWeight*((-1.0_dp)**nOpen), 1)
 
                 call setDeltaB(1,t)
 
@@ -12603,7 +12635,7 @@ contains
             ! too in one go. one additional -1 due to semistop
 
             ! no Root2 here, since it cancels with t from matEle, 
-            call encode_matrix_element(t, Root2*tempWeight*(-1.0_dp)**(nMax),1)
+            call encode_matrix_element(t, Root2*tempWeight*((-1.0_dp)**(nOpen)),1)
 
             tempExcits(:,1) = t
 
@@ -12638,7 +12670,7 @@ contains
 
         integer :: nMax, ierr, iOrb, start, ende, semi, gen
         integer(n_int) :: t(0:nifguga)
-        real(dp) :: tempWeight, minusWeight, plusWeight, bVal
+        real(dp) :: tempWeight, minusWeight, plusWeight, bVal, nOpen
         type(weight_obj) :: weights
         integer(n_int), pointer :: tempExcits(:,:)
 
@@ -12668,7 +12700,7 @@ contains
         ! pseudo double excitation which only depends on the number of open 
         ! orbitals in the overlap region
         ! just also count the semi here to take that additional -sign into account
-        nMax = real(count_open_orbs_ij(ilut,start,semi),dp)
+        nOpen = real(count_open_orbs_ij(ilut,start,semi),dp)
 
         ! set 3->0
         clr_orb(t, 2*start)
@@ -12699,7 +12731,7 @@ contains
 
                 call getDoubleMatrixElement(1,0,0,-1,-1,bVal,  1.0_dp,tempWeight)
 
-                call encode_matrix_element(t, Root2*tempWeight*(-1.0_dp)**nMax, 1)
+                call encode_matrix_element(t, Root2*tempWeight*((-1.0_dp)**nOpen), 1)
 
                 call setDeltaB(-1,t)
 
@@ -12711,7 +12743,7 @@ contains
 
                 call getDoubleMatrixElement(2,0,0,-1,-1,bVal,  1.0_dp, tempWeight)
 
-                call encode_matrix_element(t, Root2*tempWeight*(-1.0_dp)**nMax, 1)
+                call encode_matrix_element(t, Root2*tempWeight*((-1.0_dp)**nOpen), 1)
 
                 call setDeltaB(1,t)
 
@@ -12727,7 +12759,7 @@ contains
 
                 call getDoubleMatrixElement(1,0,0,-1,-1,bVal,  1.0_dp,tempWeight)
 
-                call encode_matrix_element(t, Root2*tempWeight*(-1.0_dp)**nMax, 1)
+                call encode_matrix_element(t, Root2*tempWeight*((-1.0_dp)**nOpen), 1)
 
                 call setDeltaB(-1,t)
 
@@ -12742,7 +12774,7 @@ contains
 
                 call getDoubleMatrixElement(2,0,0,-1,-1,bVal,  1.0_dp, tempWeight)
 
-                call encode_matrix_element(t, Root2*tempWeight*(-1.0_dp)**nMax, 1)
+                call encode_matrix_element(t, Root2*tempWeight*((-1.0_dp)**nOpen), 1)
 
                 call setDeltaB(1,t)
 
@@ -12777,7 +12809,7 @@ contains
 
             ! encode fullstart contribution and pseudo overlap region here 
             ! too in one go. one additional -1 due to semistop
-            call encode_matrix_element(t, (-1.0_dp)**(nMax), 1)
+            call encode_matrix_element(t, ((-1.0_dp)**nOpen), 1)
 
             tempExcits(:,1) = t
 
@@ -15997,6 +16029,1125 @@ contains
 !     end subroutine startDoubleExcitation
 !     
 
+    subroutine pickOrbs_sym_uniform_mol_double(ilut, excitInfo, pgen)
+        ! new orbital picking routine, which is closer to simons already 
+        ! implemented one for the determinant version
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(excitationInformation), intent(out) :: excitInfo
+        real(dp), intent(out) :: pgen
+        character(*), parameter :: this_routine = "pickOrbitalsSym_double"
+
+        integer :: occ_orbs(2), sym_prod, orbs(2), cc_a, cc_b(2), sum_ml, ind_res, &
+                   min_ind, max_ind, orb_a, orb_b
+        real(dp) :: temp_pgen, int_contrib(2), cum_sum(2), cum_arr(nBasis), &
+                    contrib_pair(2), sum_pair(2), int_switch(2), cum_switch(2)
+        logical :: range_flag
+
+         ! pick 2 ocupied orbitals randomly:
+         call pick_elec_pair_uniform_guga(ilut, occ_orbs, sym_prod, sum_ml, &
+             temp_pgen)
+         ! the 2 picked electrons are ALWAYS ordered too! so i already know
+         ! that I < J 
+
+         ! the occ_orbs are given in "spin-orbital" form.. not sure yet which
+         ! implementation to choose!...
+
+         ! then pick orbital a, weighted with FCIDUMP integrals
+         call pick_a_orb_guga_mol(ilut, occ_orbs, int_contrib(1), cum_sum(1), &
+             cum_arr, orb_a)
+
+         ! pick_a_orb now gives me a spatial orbital again! 
+         ! kill excitation if orb_a == 0
+         if (orb_a == 0) then
+            excitInfo%valid = .false.
+            return
+         end if
+         ! now the additional GUGA and symmetry restrictions kick in..
+         
+         ! TODO: check if symmetries still work with GUGA so easily
+         ! here always index it with the beta_spin part by default! and figure 
+         ! out how to later access it to not restrict any excitations on spin!
+         cc_a = ClassCountInd(get_beta(orb_a))
+         ! hm have to think on how to use the symmetries of the spin-orbitals
+         ! in the GUGA case..
+         ! since original quanities sum_ml and iSpn are not really meaning 
+         ! anything in the CSF approach 
+         
+         ! picking i and j in determinental case gives me information if my 
+         ! electrons have parallel or antiparallel spin -> 
+         ! depending on that my classcount for b depends on iSpn and the "spin"
+         ! of orbitals b -> so i have to somehow exclude this info in the 
+         ! orbital choosing of b, and only consider spatial symmetries
+         ! the spin restriction is not valid in the guga case since i 
+         ! essentially pick spatial orbitals -> to take into account both 
+         ! spin-orbital types -> choose cc_a to always take the beta
+         ! orbital -> and choose both ispn = 2 and 3 to get all the 
+         ! possible spin_orbitals -> and then consruct a list of 
+         ! fitting spatial orbitals in the orbital picker!
+         cc_b(1) = get_paired_cc_ind(cc_a, sym_prod, sum_ml, 2)
+         cc_b(2) = get_paired_cc_ind(cc_a, sym_prod, sum_ml, 3)
+
+         ! determine the GUGA restrictions on the orbitals!
+         ! + to determine those restrictions also allows partially determining
+         ! the typ of excitation already! 
+         ! restrctions on b can be: 
+         ! only exclude orbital (a) -> this is always the case! -> no additional
+         ! exclude spin-orbital belonging to I or J 
+         ! b being strictly lower/higher than a certain orbital
+
+         ! those two are essentially the only restrictions
+         ! how to control that? do optional orbital input to the b orbital 
+         ! picker: 
+         ! if no additional input -> no additional restriction
+         ! if positive integer input: exclude this specific orbital
+         ! if integer + logical: if integer positive : excude everything above
+         !                       if negative exclude everything below! 
+
+
+         ! do this + the symmetry and integral contributions, then i should 
+         ! be finished..
+         
+         ! and write the corresponding logic out here to determine the cases
+         ! and to pre-determine the type of excitation
+         
+         ! now first check if the two spin_orb indices belong to the same 
+         ! spatial orbitals 
+
+         ! have to do the logic to determine the type of guga restrictions 
+         ! and determine the type of excitation here!
+         ! and this also influences the pgen calculation!
+
+         ! set default
+         ind_res = 0
+         range_flag = .false.
+
+         if (is_in_pair(occ_orbs(1),occ_orbs(2))) then
+             ! this implies d(i) == 3 and there is NO additional restriction
+             ! on hole a, excpet symmetries and stuff..
+             ! in this case: 
+             ! full-start lowering and 
+             ! full-stop raising
+             ! mixed raising into lowering single overlap
+             ! excitations are possible
+             ! depending where a and b are compared to I/J
+
+             ! additional there are no restrictions on picking b
+             call pick_b_orb_guga_mol(ilut, occ_orbs, orb_a, cc_b, int_contrib(2), &
+                 cum_sum(2), orb_b)
+             ! TODO: still have to decide if i output SPATIAL or SPIN orbital 
+             ! for picked b... so i might have to convert at some point here 
+             ! and below!
+
+             if (orb_b == 0) then
+                 excitInfo%valid = .false.
+                 return
+             end if
+
+             if (orb_a > occ_orbs(1) .and. orb_b > occ_orbs(1)) then
+                 ! _LL_(i) > ^LL(min(a,b)) -> ^L(max(a,b))
+
+             else if (orb_a < occ_orbs(1) .and. orb_b < occ_orbs(1)) then
+                 ! _R(min(a,b)) > _RR(max(a,b) > ^RR^(i)
+
+             else
+                 ! _R(min(a,b)) > ^RL_(i) > ^L(max(a,b))
+
+             end if
+
+             ! could have picked a and b in either way around..
+             ! have p(a)*p(b|a) have to determine p(b)*p(a|b)
+             ! can resuse cum_arrays form both picking 
+             ! no.. only first cum_arr -> have to reconstruct second one..
+             ! but actually dont need an array 
+             if (orb_b == 1) then
+                 int_switch(1) = cum_arr(1)
+             else
+                 int_switch(1) = cum_arr(orb_b) - cum_arr(orb_b - 1)
+             end if
+
+             cum_switch(1) = cum_sum(1)
+
+             call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_b, orb_a, &
+                 int_switch(2), cum_switch(2))
+
+             ! should not happen but assert here that the cummulative 
+             ! probabilty is not 0
+             ASSERT(cum_switch(2) > EPS)
+
+         else 
+             ! if they are not in a pair there are more possibilites
+             ! i know through the triangular mapping, that the 2 picked 
+             ! electrons are always ordered! 
+             if (IsDoub(ilut,occ_orbs(1))) then
+                 if (IsDoub(ilut,occ_orbs(2))) then
+                     ! no additional restrictions in picking b
+                     call pick_b_orb_guga_mol(ilut, occ_orbs, orb_a, cc_b, &
+                         int_contrib(2), cum_sum(2), orb_b)
+
+                     ! the good thing -> independent of the ordering, the pgens
+                     ! have the same restrictions independent of the order how
+                     ! a and b are picked! 
+
+                     if (orb_b == 1) then
+                         int_switch(1) = cum_arr(1)
+                     else
+                         int_switch(1) = cum_arr(orb_b) - cum_arr(orb_b - 1)
+                     end if
+                     cum_switch(1) = cum_sum(1)
+
+                     call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_b, orb_a, &
+                         int_switch(2), cum_switch(2))
+
+                     ! now determine the type of excitation:
+                     if (is_in_pair(orb_a,orb_b)) then
+                         if (orb_a > occ_orbs(2)) then
+                            ! _L(i) -> _LL(j) > ^LL^(a)
+                            
+                        else if (orb_a < occ_orbs(1)) then
+                            ! _RR_(a) > ^RR(i) > ^R(j)
+
+                        else
+                            ! _L(i) > ^LR_(a) > ^R(j)
+                        end if
+                     else
+                        ! only the maximums count..
+                        max_ind = max(orb_a,orb_b)
+                        min_ind = min(orb_a,orb_b)
+                        if (max_ind > occ_orbs(2)) then
+                            if (min_ind > occ_orbs(2)) then
+                                ! _L(i) > _LL(i) > ^LL(min) > ^L(max)
+                            else if (min_ind < occ_orbs(1)) then
+                                ! _R(min) > _LR(i) > ^RL(j) > ^L(max) 
+                            else
+                                ! _L(i) > _RL(min) > ^RL(j) > ^L(max)
+                            end if
+                        else if (max_ind < occ_orbs(1)) then
+                            ! this implies that min_ind < max_ind < I !
+                            ! _R(min) > _RR(max) > ^RR(i) > ^R(j)
+
+                        else 
+                            if (min_ind < occ_orbs(1)) then
+                                ! _R(min) > _LR(i) > ^LR(max) > ^R(j)
+                            else
+                                ! _L(i) > _RL(min) > ^LR(max) > ^R(j)
+                            end if 
+                        end if
+                     end if
+                 else 
+                     ! so its a [3 1] configuration to start with
+                     ! depending on the position of a there are restrictions
+                     ! on b
+                     ! have to check if A == J
+                     if (is_in_pair(orb_a,occ_orbs(2))) then
+                         ! then b has to be strictly lower then j!
+                        call pick_b_orb_guga_mol(ilut, occ_orbs, orb_a, cc_b, &
+                            int_contrib(2), cum_sum(2), orb_b, -occ_orbs(2), .true.)
+
+                        ! but for picking it the other way around there is no
+                        ! restriction on the orbitals
+                        ! although for the nasty mixed full-stops i have to 
+                        ! recalculate the pgens anyway..
+                        call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_b, &
+                            orb_a, int_switch(2), cum_switch(2))
+
+                        ! determine excit
+                        if (orb_b < occ_orbs(1)) then
+                            ! _R(b) > _LR(i) > ^RL^(ja)
+                            
+                        else
+                            ! _L(i) > _RL(b) > ^RL^(ja)
+                        end if
+
+                    else
+                        ! if its not j
+                         if (orb_a > occ_orbs(2)) then
+                             ! b can not be J! 
+                             call pick_b_orb_guga_mol(ilut, occ_orbs, orb_a, cc_b, &
+                                 int_contrib(2), cum_sum(2), orb_b, occ_orbs(2))
+
+                             ! depending on where b is the excitation is defined 
+                             ! and the pgen influence from picking a <-> b
+                             if (orb_b > occ_orbs(2)) then
+                                 ! both are on top -> same pgen
+                                 ! p(b) is always determinable from cum_arr... do 
+                                 ! it outside! 
+                                 call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_b, &
+                                     orb_a, int_switch(2), cum_switch(2), occ_orbs(2))
+
+                                 if (is_in_pair(orb_a,orb_b)) then
+                                     ! _L(i) > _LL(j) > ^LL^(ab)
+                                 else
+                                     min_ind = min(orb_a,orb_b)
+                                     max_ind = max(orb_a,orb_b)
+                                     ! _L(i) > _LL(j) > ^LL(min) > ^L(max)
+                                 end if
+
+                             else 
+                                 ! pgen is not restricted
+                                 call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_b, &
+                                     orb_a, int_switch(2), cum_switch(2))
+                                 if (orb_b < occ_orbs(1)) then
+                                     ! _R(b) > _LR(i) > ^RL(j) > ^L(a)
+
+                                 else
+                                     ! _L(i) > _RL(b) > ^RL(j) > ^L(a)
+                                 end if
+                             end if
+                         else
+                             ! there is no restriction in picking b
+                             call pick_b_orb_guga_mol(ilut, occ_orbs, orb_a, cc_b, & 
+                                 int_contrib(2), cum_sum(2), orb_b)
+
+                             ! check where b is 
+                             if (is_in_pair(orb_b,occ_orbs(2))) then
+                                 call pgen_select_orb_guga_mol(ilut, occ_orbs, &
+                                     orb_b, orb_a, int_switch(2), cum_switch(2), &
+                                     -occ_orbs(2), .true.)
+
+                                 if (orb_a < occ_orbs(1)) then
+                                     ! _R(a) > _LR(i) > ^RL^(ib)
+                                     
+                                 else
+                                     ! _L(i) > _RL(a) > ^RL^(ib)
+                                 end if
+
+                             else
+                                 if (orb_b > occ_orbs(2)) then
+                                     ! a could not have been j
+                                     call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                         orb_b,orb_a,int_switch(2),cum_switch(2),&
+                                         occ_orbs(2))
+                                     if (orb_a < occ_orbs(1)) then
+                                         ! _R(a) > _LR(i) > ^RL(j) > ^L(b)
+                                     else
+                                         ! _L(i) > _RL(a) > ^RL(j) > ^L(b)
+                                     end if
+                                 else
+                                     ! no restric, on other order
+                                     call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                         orb_b,orb_a,int_switch(2),cum_switch(2))
+
+                                     if (is_in_pair(orb_a,orb_b)) then
+                                         if (orb_a < occ_orbs(1)) then
+                                             ! _RR_(ab) > ^RR(i) > ^R(j)
+                                         else
+                                             ! _L(i) > ^LR(ab) > ^R(j)
+                                         end if
+                                     else
+                                         ! only min and max importtant
+                                         min_ind = min(orb_a,orb_b)
+                                         max_ind = max(orb_a,orb_b)
+
+                                         if (max_ind < occ_orbs(1)) then
+                                             ! _R(min) > _RR(max) > ^RR(i) > ^R(j)
+
+                                         else
+                                             if (min_ind < occ_orbs(1)) then
+                                                 ! _R(min) > _LR(i) > ^LR(max) > ^R(j)
+
+                                             else
+                                                 ! _L(i) > _RL(min) > ^LR(max) > ^R(j)
+                                             end if
+                                         end if
+                                     end if
+                                 end if
+                             end if
+                         end if
+                     end if
+                 end if
+             else
+                 if (IsDoub(ilut,occ_orbs(2))) then
+                     ! its a [1 3] configuration -> very similar to [3 1]
+                     if (is_in_pair(orb_a,occ_orbs(1))) then
+                         ! b has to be strictly higher then I
+                         call pick_b_orb_guga_mol(ilut,occ_orbs,orb_a,cc_b,&
+                             int_contrib(2),cum_sum(2),orb_b,occ_orbs(1),.true.)
+
+                         ! no restriction the other way around
+                         call pgen_select_orb_guga_mol(ilut,occ_orbs,orb_b,orb_a,&
+                             int_switch(2),cum_switch(2))
+
+                         if (orb_b > occ_orbs(2)) then
+                             ! _RL_(ia) > ^RL(j) > ^L(b)
+
+                         else
+                             ! _RL_(ia) > ^LR(b) > ^R(j)
+                         end if 
+
+                     else
+                         ! if its not i 
+                         if (orb_a < occ_orbs(1)) then
+                             ! b cannot be I
+                             call pick_b_orb_guga_mol(ilut,occ_orbs,orb_a,cc_b,&
+                                 int_contrib(2),cum_sum(2),orb_b,occ_orbs(1))
+
+                             if (orb_b < occ_orbs(1)) then
+                                 ! same pgen restrictions
+                                 call pgen_select_orb_guga_mol(ilut,occ_orbs, &
+                                     orb_b,orb_a,int_switch(2),cum_switch(2),occ_orbs(1))
+
+                                 if (is_in_pair(orb_a,orb_b)) then
+                                     ! _RR_(ab) > ^RR(i) > ^R(j)
+                                 else
+                                     min_ind = min(orb_a,orb_b)
+                                     max_ind = max(orb_a,orb_b)
+
+                                     ! _R(min) > _RR(max) > ^RR(i) > ^R(j)
+                                 end if
+                             else
+                                 ! pgen is not restricted 
+                                 call pgen_select_orb_guga_mol(ilut,occ_orbs, &
+                                     orb_b,orb_a,int_switch(2),cum_switch(2))
+
+                                 if (orb_b > occ_orbs(2)) then
+                                     ! _R(a) > _LR(i) > ^RL(j) > ^L(b)
+
+                                 else
+                                     ! _R(a) > _LR(i)> ^LR(b) > ^R(j)
+
+                                 end if
+                             end if
+                         else
+                             ! there is no restriction on b
+                             call pick_b_orb_guga_mol(ilut,occ_orbs,orb_a,cc_b,&
+                                 int_contrib(2),cum_sum(2),orb_b)
+
+                             ! check where b is:
+                             if (is_in_pair(orb_b,occ_orbs(1))) then
+                                 call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                     orb_b,orb_a,int_switch(2),cum_switch(2),&
+                                     occ_orbs(1),.true.)
+
+                                 if (orb_a > occ_orbs(2)) then
+                                     ! _RL_(ib) > ^RL(j) > ^L(a)
+
+                                 else 
+                                     ! _RL(ib) > ^LR(a) > ^R(j)
+                                 
+                                 end if
+
+                             else 
+                                 if (orb_b < occ_orbs(1)) then
+                                    ! a coud not have been i
+                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                        orb_b,orb_a,int_switch(2),cum_switch(2),&
+                                        occ_orbs(1))
+
+                                    if (orb_a > occ_orbs(2)) then
+                                        ! _R(b) > _LR(i) > ^RL(j) > ^L(a)
+
+                                    else
+                                        ! _R(b) > _RL(i) > ^LR(a) > ^R(j)
+                                        
+                                    end if
+
+                                else
+                                    ! no restrictions on pgen
+                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                        orb_b,orb_a,int_switch(2),cum_switch(2))
+
+                                    if (is_in_pair(orb_a,orb_b)) then
+                                        if (orb_a > occ_orbs(2)) then
+                                            ! _L(i) > _LL(j) > ^LL^(ab)
+
+                                        else
+                                            ! _L(i) > ^LR(ab) > ^R(j)
+                                            
+                                        end if
+
+                                    else
+                                        ! only extremes coun
+                                        min_ind = min(orb_a,orb_b)
+                                        max_ind = max(orb_a,orb_b)
+
+                                        if (min_ind > occ_orbs(2)) then
+                                            ! _L(i) > _LL(j) > ^LL(min) > ^L(max)
+
+                                        else
+                                            if (max_ind > occ_orbs(2)) then
+                                                ! _L(i) > _RL(min) > ^RL(j) > ^L(max)
+
+                                            else
+                                                ! _L(i) > _RL(min) ^LR(max) > ^R(j)
+                                            
+                                            end if
+                                        end if
+                                    end if
+                                end if
+                            end if
+                        end if
+                    end if
+                else
+                    ! [ 1 1 ] config
+                    if (is_in_pair(orb_a,occ_orbs(2))) then
+                        ! b has to be lower than J
+                        call pick_b_orb_guga_mol(ilut,occ_orbs,orb_a,cc_b,&
+                            int_contrib(2),cum_sum(2),orb_b,-occ_orbs(2),.true.)
+
+                        ! have to check where b is to determine switchen
+                        ! pgen contribution! 
+                        if (is_in_pair(orb_b,occ_orbs(1))) then
+                            ! a would have to have been > I 
+                            call pgen_select_orb_guga_mol(ilut,occ_orbs,orb_b,&
+                                orb_a,int_switch(2),cum_switch(2),occ_orbs(1),.true.)
+
+                            ! _RL_(ib) > ^RL^(ja)
+
+                        else 
+                            if (orb_b < occ_orbs(1)) then
+                                ! I is restricted for a
+                                call pgen_select_orb_guga_mol(ilut,occ_orbs,orb_b,&
+                                    orb_a,int_switch(2),cum_switch(2),occ_orbs(1))
+
+                                ! _R(b) > _RL(i) > ^RL^(ja)
+
+                            else
+                                ! no restrictions
+                                call pgen_select_orb_guga_mol(ilut,occ_orbs,orb_b,&
+                                    orb_a,int_switch(2),cum_switch(2))
+
+                                ! _L(i) > _RL(b) > ^RL^(ia)
+
+                            end if
+                        end if
+                    else if (is_in_pair(orb_a,occ_orbs(1))) then
+                        ! b has to be higher than I
+                        call pick_b_orb_guga_mol(ilut,occ_orbs,orb_a,cc_b,&
+                            int_contrib(2),cum_sum(2),orb_b,occ_orbs(1),.true.)
+
+                        ! check where b is 
+
+                        if (is_in_pair(orb_b,occ_orbs(2))) then
+                            ! a would have to have been < J
+                            call pgen_select_orb_guga_mol(ilut,occ_orbs,orb_b,&
+                                orb_a,int_switch(2),cum_switch(2),-occ_orbs(2),.true.)
+
+                            ! _RL_(ia) > ^RL^(jb)
+                        else
+                            if (orb_b  > occ_orbs(2)) then
+                                ! J would be restricted
+                                call pgen_select_orb_guga_mol(ilut,occ_orbs,orb_b,&
+                                    orb_a,int_switch(2),cum_switch(2),occ_orbs(2))
+
+                                ! _RL_(ia) > ^RL(j) > ^L(b)
+
+                            else
+                                ! no restrictions
+                                call pgen_select_orb_guga_mol(ilut,occ_orbs,orb_b,&
+                                    orb_a,int_switch(2),cum_switch(2))
+
+                                ! _RL_(ia) > ^LR(b) > ^R(j)
+                            end if
+                        end if
+                    else
+                        ! check were a is 
+                        if (orb_a > occ_orbs(2)) then
+                            ! b cant be J
+                            call pick_b_orb_guga_mol(ilut,occ_orbs,orb_a,cc_b,&
+                                int_contrib(2),cum_switch(2),orb_b,occ_orbs(2))
+
+                            ! check where b is
+                            if (is_in_pair(orb_b,occ_orbs(1))) then
+                                ! everything below I is restricted
+                                call pgen_select_orb_guga_mol(ilut,occ_orbs,orb_b,&
+                                    orb_a,int_switch(2),cum_switch(2),occ_orbs(1),.true.)
+
+                                ! _RL_(ib) > ^RL(i) > ^L(a)
+
+                            else
+                                if (orb_b < occ_orbs(1)) then
+                                    ! I would have been off limits
+                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                        orb_b,orb_a,int_switch(2),cum_switch(2),&
+                                        occ_orbs(1))
+
+                                    ! _R(b) > _LR(i) > ^RL(j) > ^L(a)
+
+                                else if (orb_b > occ_orbs(2)) then
+                                    ! only extremes count.. and J would have
+                                    ! been off-limits
+                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                        orb_b,orb_a,int_switch(2),cum_switch(2),&
+                                        occ_orbs(2))
+
+                                    min_ind = min(orb_a,orb_b)
+                                    max_ind = max(orb_a,orb_b)
+
+                                    ! _L(i) > _LL(j) > ^LL(min) > ^L(max)
+
+                                else
+                                    ! no restrictions
+                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                        orb_b,orb_a,int_switch(2),cum_switch(2))
+
+                                    ! _L(i) > _RL(b) > ^RL(j) > ^L(a)
+
+                                end if
+                            end if
+                        else if (orb_a < occ_orbs(1)) then
+                            ! b cant be I 
+                            call pick_b_orb_guga_mol(ilut,occ_orbs,orb_a,cc_b,&
+                                int_contrib(2),cum_switch(2),orb_b,occ_orbs(1))
+
+                            ! check where b is 
+                            if (is_in_pair(orb_b,occ_orbs(2))) then
+                                ! I would have been off limits
+                                call pgen_select_orb_guga_mol(ilut,occ_orbs,orb_b,&
+                                    orb_a,int_switch(2),cum_switch(2),-occ_orbs(2),.true.)
+
+                                ! _R(a) > _LR(i) > ^RL^(jb)
+
+                            else
+                                if (orb_b > occ_orbs(2)) then
+                                    ! J would have been off-limits
+                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                        orb_b,orb_a,int_switch(2),cum_switch(2),&
+                                        occ_orbs(2))
+
+                                    ! _L(a) > _RL(i)  > ^RL(j) > ^L(b)
+
+                                else if (orb_b < occ_orbs(1)) then
+                                    ! only extremes and I would have been off
+                                    ! lmits 
+                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                        orb_b,orb_a,int_switch(2),cum_switch(2),&
+                                        occ_orbs(1))
+
+                                    min_ind = min(orb_a,orb_b)
+                                    max_ind = max(orb_a,orb_b)
+
+                                    ! _R(min) > _RR(max) > ^RR(i) > ^R(j)
+
+                                else
+                                    ! no restrictions
+                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                        orb_b,orb_a,int_switch(2),cum_switch(2))
+
+                                    ! _R(a) > _LR(i) > ^LR(j) > ^R(b)
+                                end if
+                            end if
+                        else
+                            ! a is between i and j -> no b restrictions
+                            call pick_b_orb_guga_mol(ilut,occ_orbs,orb_a,cc_b,&
+                                int_contrib(2),cum_switch(2),orb_b)
+
+                            ! check where b is 
+                            if (is_in_pair(orb_a,orb_b)) then
+                                ! no restrictions on pgen
+                                call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                    orb_b,orb_a,int_switch(2),cum_switch(2))
+
+                                ! _L(i) > ^LR_(ab) > ^R(j)
+
+                            else if (is_in_pair(orb_b,occ_orbs(1))) then
+                                ! a > I 
+                                call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                    orb_b,orb_a,int_switch(2),cum_switch(2),&
+                                    occ_orbs(1),.true.)
+
+                                ! _RL_(ib) > ^LR(a) > ^R(j)
+
+                            else if (is_in_pair(orb_b,occ_orbs(2))) then
+                                ! a < J 
+                                call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                    orb_b,orb_a,int_switch(2),cum_switch(2),&
+                                    -occ_orbs(2),.true.)
+
+                                ! _L(i) > _RL(a) > ^RL^(jb)
+
+                            else
+                                if (orb_b < occ_orbs(1)) then
+                                    ! I off limits
+                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                        orb_b,orb_a,int_switch(2),cum_switch(2),&
+                                        occ_orbs(1))
+
+                                    ! _R(b) > _LR(i) > ^LR(a) > ^R(j)
+
+                                else if (orb_b > occ_orbs(2)) then
+                                    ! J off limits
+                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                        orb_b,orb_a,int_switch(2),cum_switch(2),&
+                                        occ_orbs(2))
+
+                                    ! _L(i) > _RL(a) > ^RL(j) > ^L(b)
+
+                                else
+                                    ! no restrictions
+                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                        orb_b,orb_a,int_switch(2),cum_switch(2))
+
+                                    ! only extremes count 
+                                    min_ind = min(orb_a,orb_b)
+                                    max_ind = max(orb_a,orb_b)
+
+                                    ! _L(i) > _RL(min) > ^LR(max) > ^R(j)
+                                end if
+                            end if
+                        end if 
+                    end if
+                end if
+            end if
+        end if
+
+    end subroutine pickOrbs_sym_uniform_mol_double
+
+    subroutine pgen_select_orb_guga_mol(ilut, occ_orbs, orb_1, orb_2, cpt, &
+            cum_sum, ind_res, range_flag)
+        ! routine to recalculate the pgen contribution if orbital (a) and (b) 
+        ! could have been picked in the opposite order 
+        ! additional GUGA-restrictions on orbitals are again dealt with 
+        ! optional input paramters
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: occ_orbs(2), orb_1, orb_2
+        real(dp), intent(out) :: cpt, cum_sum
+        integer, intent(in), optional :: ind_res
+        logical, intent(in), optional :: range_flag
+        character(*), parameter :: this_routine = "pgen_select_orb_guga_mol"
+
+        integer :: spin_1, cc_ind_1, cc_ind_2, label_index1, label_index2, &
+                   nOrbs1, nOrbs2, orb_res, i, orb
+        real(dp) :: tmp
+
+        ! first get the orbitals from the correct symmetry
+        ! again have to settle on a certain spin -> if beta spin was occupied 
+        ! originally for a -> take alpha spin component
+        ! otherwise choose beta
+        if (IsOcc(ilut,get_beta(orb_2))) then
+            spin_1 = get_alpha(orb_1)
+        else
+            spin_1 = get_beta(orb_1)
+        end if
+
+        ! need all allowed orbitals independent of actual "spin" of 
+        ! target orbita
+        cc_ind_1 = ClassCountInd(1, SpinOrbSymLabel(get_beta(orb_2)), &
+            G1(get_beta(orb_2))%Ml)
+        cc_ind_2 = ClassCountInd(2, SpinOrbSymLabel(get_beta(orb_2)), &
+            G1(get_beta(orb_2))%Ml)
+
+        label_index1 = SymLabelCounts2(1, cc_ind_1)
+        label_index2 = SymLabelCounts2(1, cc_ind_2)
+
+        nOrbs1 = OrbClassCount(cc_ind_1)
+        nOrbs2 = OrbClassCount(cc_ind_2)
+
+        cum_sum = 0.0_dp
+
+        if (present(range_flag)) then
+            ASSERT(present(ind_res))
+            ASSERT(ind_res /= 0)
+            if (ind_res < 0) then
+                ! only orbitals below restriction
+                orb_res = get_beta(abs(ind_res))
+
+                do i = 1, nOrbs1
+                    orb = SymLabelList2(label_index1 + i - 1)
+                    if (IsNotOcc(ilut,orb) .and. orb /= spin_1 .and. orb < orb_res) then
+                        tmp = get_guga_integral_contrib(occ_orbs, orb, orb_1)
+
+                        cum_sum = cum_sum + tmp
+                        if (orb == orb_2) cpt = tmp
+                    end if
+                end do
+
+                do i = 1, nOrbs2
+                    orb = SymLabelList2(label_index2 + i - 1)
+                    if (IsNotOcc(ilut,orb) .and. orb /= spin_1 .and. orb < orb_res) then
+                        tmp = get_guga_integral_contrib(occ_orbs, orb, orb_1)
+                        cum_sum = cum_sum + tmp
+                        if (orb == orb_2) cpt = tmp
+                    end if
+                end do
+
+            else
+                ! only orbitals above restriction
+                orb_res = get_alpha(ind_res)
+
+                do i = 1, nOrbs1
+                    orb = SymLabelList2(label_index1 + i - 1)
+                    if (IsNotOcc(ilut,orb) .and. orb /= spin_1 .and. orb > orb_res) then
+                        tmp = get_guga_integral_contrib(occ_orbs, orb, orb_1)
+
+                        cum_sum = cum_sum + tmp
+                        if (orb == orb_2) cpt = tmp
+                    end if
+                end do
+
+                do i = 1, nOrbs2
+                    orb = SymLabelList2(label_index2 + i - 1)
+                    if (IsNotOcc(ilut,orb) .and. orb /= spin_1 .and. orb > orb_res) then
+                        tmp = get_guga_integral_contrib(occ_orbs, orb, orb_1)
+                        cum_sum = cum_sum + tmp
+                        if (orb == orb_2) cpt = tmp
+                    end if
+                end do
+
+            end if 
+        else
+            if (present(ind_res) .and. ind_res /= 0) then
+                ! the orbital associated with ind_res are off-limits
+                
+                ! first symmetry list is over alpha orbitals
+                orb_res = get_alpha(ind_res)
+                do i = 1, nOrbs1
+                    orb = SymLabelList2(label_index1 + i - 1)
+
+                    if (IsNotOcc(ilut,orb) .and. orb /= spin_1 .and. orb /= orb_res) then
+                        tmp = get_guga_integral_contrib(occ_orbs, orb, orb_1)
+                        cum_sum = cum_sum + tmp
+                        if (orb == orb_2) cpt = tmp
+                    end if
+                end do
+                ! no restrict the associated beta orb
+                orb_res = get_beta(ind_res)
+                do i = 1, nOrbs2
+                    orb = SymLabelList2(label_index2 + i - 1)
+                    if (IsNotOcc(ilut,orb) .and. orb /= spin_1 .and. orb /= orb_res) then
+                        tmp = get_guga_integral_contrib(occ_orbs, orb, orb_1)
+                        cum_sum = cum_sum + tmp
+                        if (orb == orb_2) cpt = tmp
+                    end if
+                end do
+            else
+                ! no restriction except spin_1
+                do i = 1, nOrbs1
+                    orb = SymLabelList2(label_index1 + i - 1)
+                    if (IsNotOcc(ilut,orb) .and. orb /= spin_1) then
+                        tmp = get_guga_integral_contrib(occ_orbs, orb, orb_1)
+                        cum_sum = cum_sum + tmp
+                        if (orb == orb_2) cpt = tmp
+                    end if
+                end do
+                do i = 1, nOrbs2
+                    orb = SymLabelList2(label_index2 + i - 1)
+                    if (IsNotOcc(ilut,orb) .and. orb /= spin_1) then
+                        tmp = get_guga_integral_contrib(occ_orbs, orb, orb_1)
+                        cum_sum = cum_sum + tmp
+                        if (orb == orb_2) cpt = tmp
+                    end if
+                end do
+            end if
+        end if
+
+    end subroutine pgen_select_orb_guga_mol
+
+
+    subroutine pick_b_orb_guga_mol(ilut, occ_orbs, orb_a, cc_b, int_contrib, &
+            cum_sum, orb_b, ind_res, range_flag)
+        ! routine, which picks the second unoccupied orbital depending on the 
+        ! already picked orbitals, the symmetry restrictions and FCIDUMP integrals
+        ! the additional GUGA restrictions come into play through the optional 
+        ! ind_res and range_flag input
+        ! the inputed orb_a is again in "spin-orbital" form, so i can easily 
+        ! excluded that orbital from picking it for orbital b! 
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: occ_orbs(2), orb_a, cc_b(2)
+        real(dp), intent(out) :: int_contrib, cum_sum
+        integer, intent(out) :: orb_b
+        integer, intent(in), optional :: ind_res
+        logical, intent(in), optional :: range_flag
+        character(*), parameter :: this_routine = "pick_b_orb_guga_mol"
+
+        real(dp) :: cum_arr(OrbClassCount(cc_b(1)) + OrbClassCount(cc_b(2))), r
+        integer :: orb, nOrbs1, nOrbs2, i, label_index1, label_index2, orb_res, &
+                   orb_index, spin_a
+
+        ! to reuse already coded up symmetry information -> pick from 
+        ! "spin-orbitals" here again! also better to generally exclude 
+        ! already picked orbital a, generally to be picked! 
+        nOrbs1 = OrbClassCount(cc_b(1)) 
+        nOrbs2 = OrbClassCount(cc_b(2))
+
+        ! list 1 will be alpha orbitals
+        ! list 2 will be beta orbitals
+        ! atleast thats my understanding right now.. -> check for that
+        label_index1 = SymLabelCounts2(1, cc_b(1))
+        label_index2 = SymLabelCounts2(1, cc_b(2))
+
+        cum_sum = 0.0_dp
+
+        ! determine which "spin-orbital" was picked for A
+        ! if only one is empty -> choose this one 
+        ! if both were empty -> pick the beta orbital always! 
+        if (IsOcc(ilut,get_beta(orb_a))) then
+            spin_a = get_alpha(orb_a)
+
+        else
+            ! by definition use beta orbital in the two other cases
+            spin_a = get_beta(orb_a)
+        end if
+
+        ! set up the additional guga-restrictions
+        if (present(range_flag) .and. range_flag) then
+            ! so if the range flag is included original spatial orbital A 
+            ! is off-limits anyway. so depending on the direction ...
+            ! depends on the sign of the inputted index restriction ind_res
+            ASSERT(present(ind_res))
+            ASSERT(ind_res /= 0)
+            if (ind_res < 0) then
+                ! only allow orbitals below ind_res
+                orb_res = get_beta(abs(ind_res))
+
+                do i = 1, nOrbs1
+
+                    orb = SymLabelList2(label_index1 + i - 1)
+                    ! specific restrictions:
+                    if (IsNotOcc(ilut,orb) .and. orb /= spin_a .and. orb < orb_res) then
+                        cum_sum = cum_sum + &
+                            get_guga_integral_contrib(occ_orbs, spin_a, orb)
+                    end if
+                    cum_arr(i) = cum_sum
+
+                end do
+
+                do i = 1, nOrbs2
+                    orb = SymLabelList2(label_index2 + i - 1)
+
+                    if (IsNotOcc(ilut,orb) .and. orb /= spin_a .and. orb < orb_res) then
+                        cum_sum = cum_sum + &
+                            get_guga_integral_contrib(occ_orbs, spin_a, orb) 
+                    end if
+                    cum_arr(nOrbs1 + i) = cum_sum
+
+                end do
+
+            else
+                ! only allow orbitals above ind_res
+                orb_res = get_alpha(ind_res)
+
+                do i = 1, nOrbs1
+                    orb = SymLabelList2(label_index1 + i - 1)
+
+                    if (IsNotOcc(ilut,orb) .and. orb /= spin_a .and. orb > orb_res) then
+                        cum_sum = cum_sum + &
+                            get_guga_integral_contrib(occ_orbs, spin_a, orb)
+                    end if
+
+                    cum_arr(i) = cum_sum
+
+                end do
+
+                do i = 1, nOrbs2
+                    orb = SymLabelList2(label_index2 + i - 1)
+
+                    if (IsNotOcc(ilut,orb) .and. orb /= spin_a .and. orb > orb_res) then
+                        cum_sum = cum_sum + &
+                            get_guga_integral_contrib(occ_orbs, spin_a, orb)
+                    end if
+
+                    cum_arr(nOrbs1 + i) = cum_sum
+
+                end do
+            end if
+        else
+            if (present(ind_res) .and. ind_res /= 0) then
+                ! dont allow "spin-orbital" associated with ind_res to be 
+                ! picked
+                orb_res = get_alpha(ind_res)
+
+                do i = 1, nOrbs1
+                    ! thats a loop over alpha - orbital
+                    orb = SymLabelList2(label_index1 + i - 1)
+
+                    if (IsNotOcc(ilut,orb) .and. orb /= spin_a .and. orb /= orb_res) then
+                        cum_sum = cum_sum + &
+                            get_guga_integral_contrib(occ_orbs, spin_a, orb)
+                    end if
+                    cum_arr(i) = cum_sum
+
+                end do
+
+                orb_res = get_beta(ind_res)
+                do i = 1, nOrbs2
+                    ! thats a loop over beta - orbitals
+                    orb = SymLabelList2(label_index2 + i - 1)
+
+                    if (IsNotOcc(ilut,orb) .and. orb /= spin_a .and. orb /= orb_res) then
+                        cum_sum = cum_sum + &
+                            get_guga_integral_contrib(occ_orbs, spin_a, orb)
+                    end if
+
+                    cum_arr(nOrbs1 + i) = cum_sum
+
+                end do
+
+            else 
+                ! only the already picked A orbital is off-limits
+                ! as in also every case above..
+                ! but how exactly do i implement that? 
+                ! since i am picking, a spatial orbital for A
+
+                do i = 1, nOrbs1
+                    orb = SymLabelList2(label_index1 + i - 1)
+
+                    if (IsNotOcc(ilut,orb) .and. orb /= spin_a) then
+                        cum_sum = cum_sum + &
+                            get_guga_integral_contrib(occ_orbs, spin_a, orb)
+                    end if
+                    
+                    cum_arr(i) = cum_sum
+                end do
+
+                do i = 1, nOrbs2
+                    orb = SymLabelList2(label_index2 + i - 1)
+
+                    if (IsNotOcc(ilut,orb) .and. orb /= spin_a) then
+                        cum_sum = cum_sum + &
+                            get_guga_integral_contrib(occ_orbs, spin_a, orb)
+                    end if
+                    cum_arr(i) = cum_sum
+                end do
+
+            end if
+        end if
+
+        if (cum_sum < EPS) then
+            orb_b = 0
+            return
+        end if
+
+        r = genrand_real2_dSFMT() * cum_sum
+        orb_index = binary_search_first_ge(cum_arr, r)
+
+        ! hopefully it works to pick from one of the 2 lists..
+        if (orb_index <= nOrbs1) then
+            orb_b = SymLabelList2(label_index1 + orb_index - 1)
+
+        else 
+            orb_b = SymLabelList2(label_index2 + (orb_index - nOrbs1) - 1)
+
+        end if
+
+        if (orb_index == 1) then
+            int_contrib = cum_arr(orb_index)
+
+        else
+            int_contrib = cum_arr(orb_index) - cum_arr(orb_index - 1)
+        end if
+
+
+    end subroutine pick_b_orb_guga_mol
+
+
+    subroutine pick_a_orb_guga_mol(ilut, occ_orbs, contrib, cum_sum, cum_arr, orb_a)
+        ! general routine, which picks orbital a for a  double excitation in 
+        ! the guga formalism, with symmetry restrictions and weighted 
+        ! with the FCIDUMP integrals. This is for MOLECULAR calculations, 
+        ! since in Hubbard and UEG type calculation with existing k-point 
+        ! restrictions, there is a more efficient and direct way to pick 
+        ! weighted with the actual matrix elemetn 
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: occ_orbs(2)
+        real(dp), intent(out) :: contrib, cum_sum, cum_arr(nBasis/2)
+        integer, intent(out) :: orb_a
+        character(*), parameter :: this_routine = "pick_a_orb_guga_mol"
+
+        real(dp) :: r
+        ! there are no additional GUGA restrictions on the orbital a yet, only
+        ! that it has to be a non-occupied "spin"-orbital
+        ! so do it in the same way as already implemented in NECI in 
+        ! symrandexcit5!
+
+        ! generate the cummulative pgen list: 
+        call gen_a_orb_cum_list_guga_mol(ilut, occ_orbs, cum_arr)
+
+        cum_sum = cum_arr(nBasis)
+        ! check if no excitation is possible
+        if (cum_sum < EPS) then
+            orb_a = 0
+            return
+        end if
+
+        ! then pick the orbitals according to the list
+        r = genrand_real2_dSFMT() * cum_sum
+        orb_a = binary_search_first_ge(cum_arr, r)
+
+        if (orb_a == 1) then
+            contrib = cum_arr(1) 
+        else 
+            contrib = cum_arr(orb_a) - cum_arr(orb_a - 1)
+        end if
+
+        ! maybe similar to simon to a DEBUG check if the pgens are correct
+        ! TODO
+
+    end subroutine pick_a_orb_guga_mol
+
+    subroutine gen_a_orb_cum_list_guga_mol(ilut, occ_orbs, cum_arr)
+        ! subroutine to generate the molecular cumullative probability 
+        ! distribution. there are no (atleast until now) addiditonal restrictions
+        ! or some spin alignement restrictions to generate this list.. 
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: occ_orbs(2)
+        real(dp), intent(out) :: cum_arr(nBasis/2)
+        character(*), parameter :: this_routine = "gen_a_orb_cum_list_guga_mol"
+        
+        integer :: orb
+        real(dp) :: cum_sum, cpt
+        ! have to think about the ordering of the two electronic indices 
+        ! in the FCIDUMP integral choosing..
+        ! since there is a relative sign, but i have not yet figured out if 
+        ! i can predetermine this relative sign..
+
+        cum_sum = 0.0_dp
+        
+        do orb = 1, nBasis/2
+            ! only check non-double occupied orbitals
+            if (.not.isThree(ilut, orb)) then
+                cum_sum = cum_sum +  get_guga_integral_contrib(occ_orbs,orb,orb)
+            end if
+            cum_arr(orb) = cum_sum
+        end do
+
+    end subroutine gen_a_orb_cum_list_guga_mol
+
+    function get_guga_integral_contrib(occ_orbs, orb_a, orb_b) result(cpt)
+        ! routine which gets the correct FCIDUMP integral contribution for 
+        ! orbital a, where electrons i and j are already picked! 
+        ! have to still figure out how to do that correctly..
+        integer, intent(in) :: occ_orbs(2), orb_a, orb_b
+        real(dp) :: cpt
+
+        ! ATTENTION! occ_orbs is given in spin orbitals, while orb is a 
+        ! spatial orbital!
+
+        ! for now, since i dont know how to correctly do it, and for testing
+        ! purposes just add a uniformly factor to all of the orbitals.
+        cpt = 1.0_dp
+
+        ! TODO proper one
+
+    end function get_guga_integral_contrib
+
+    subroutine pick_elec_pair_uniform_guga(ilut, spin_orbs, sym_prod, sum_ml, &
+            temp_pgen)
+        ! pick two occupied "spin orbitals" uniform-randomly
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(out) :: spin_orbs(2), sym_prod, sum_ml
+        character(*), parameter :: this_routine = "pick_elec_pair_uniform_guga"
+
+        integer :: i, ind(2), nI(nEl)
+        real(dp) :: temp_pgen
+
+        i = 1 + int(ElecPairs * genrand_real2_dSFMT())
+
+        ind(1) = ceiling((1 + sqrt(1 + 8 * real(i,dp))) / 2)
+        ind(2) = i - ((ind(1) - 1) * (ind(1) - 2)) / 2
+
+        call decode_bit_det(nI, ilut)
+
+        spin_orbs = nI(ind)
+
+        sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(spin_orbs(1)), &
+                                         SpinOrbSymLabel(spin_orbs(2)))
+
+        temp_pgen = 1.0_dp/real(nEl * (nEl - 1), dp)
+
+        sum_ml = sum(G1(spin_orbs)%ml)
+
+    end subroutine pick_elec_pair_uniform_guga
+
     subroutine pickOrbitals_double(ilut, typ, excitInfo, pgen)
         ! function to pick 4 calid excitation orbitals given a CSF for a 
         ! double excitation and also determine the type of that excitation
@@ -18562,10 +19713,10 @@ contains
             ! determine excitation type:
             if (j > i) then
                 ! E_ij is always assumed to start with so -> raising
-                excitInfo = assign_excitInfo_values(1, i, j, i, j)
+                excitInfo = assign_excitInfo_values(1, i, j, i, j, 1)
 
             else 
-                excitInfo = assign_excitInfo_values(-1, i, j, j, i)
+                excitInfo = assign_excitInfo_values(-1, i, j, j, i, 2)
 
             end if
         
@@ -18585,11 +19736,11 @@ contains
             ! and determine excitation type
             if (j > i) then
                 ! lowering now
-                excitInfo = assign_excitInfo_values(-1,j,i,i,j)
+                excitInfo = assign_excitInfo_values(-1,j,i,i,j,2)
 
            else 
                 ! raising generator
-                excitInfo = assign_excitInfo_values(1,j,i,j,i)
+                excitInfo = assign_excitInfo_values(1,j,i,j,i,1)
 
             end if
 
@@ -18611,11 +19762,11 @@ contains
             if (isZero(ilut,j)) then
                 if (j > i) then
                     ! lowering generator 
-                    excitInfo = assign_excitInfo_values(-1,j,i,i,j)
+                    excitInfo = assign_excitInfo_values(-1,j,i,i,j,2)
 
                else
                     ! raising
-                    excitInfo = assign_excitInfo_values(1,j,i,j,i)
+                    excitInfo = assign_excitInfo_values(1,j,i,j,i,1)
 
                 end if
 
@@ -18636,10 +19787,10 @@ contains
 
                 else
                     if (i < j) then
-                        excitInfo = assign_excitInfo_values(1,i,j,i,j)
+                        excitInfo = assign_excitInfo_values(1,i,j,i,j,1)
 
                     else
-                        excitInfo = assign_excitInfo_values(-1,i,j,j,i)
+                        excitInfo = assign_excitInfo_values(-1,i,j,j,i,2)
                     end if
                 end if
 
@@ -18651,11 +19802,11 @@ contains
                 ! if its a 2 or 3 everything is fine
                 if (j > i) then
                     ! R
-                    excitInfo = assign_excitInfo_values(1,i,j,i,j)
+                    excitInfo = assign_excitInfo_values(1,i,j,i,j,1)
 
                 else 
                     ! L
-                    excitInfo = assign_excitInfo_values(-1,i,j,j,i)
+                    excitInfo = assign_excitInfo_values(-1,i,j,j,i,2)
 
                 end if
                 if (isThree(ilut,j)) then
@@ -18675,11 +19826,11 @@ contains
             if (isZero(ilut,j)) then
                 if (j > i) then
                     ! lowering generator 
-                    excitInfo = assign_excitInfo_values(-1,j,i,i,j)
+                    excitInfo = assign_excitInfo_values(-1,j,i,i,j,2)
 
                 else
                     ! raising
-                    excitInfo = assign_excitInfo_values(1,j,i,j,i)
+                    excitInfo = assign_excitInfo_values(1,j,i,j,i,1)
 
                 end if
 
@@ -18699,9 +19850,9 @@ contains
                     return
                 else 
                     if (i < j) then
-                        excitInfo = assign_excitInfo_values(1,i,j,i,j)
+                        excitInfo = assign_excitInfo_values(1,i,j,i,j,1)
                     else
-                        excitInfo = assign_excitInfo_values(-1,i,j,j,i)
+                        excitInfo = assign_excitInfo_values(-1,i,j,j,i,2)
                     end if
                 end if
 
@@ -18712,11 +19863,11 @@ contains
                 ! if its a 1 or 3 everything is fine
                 if (j > i) then
                     ! R
-                    excitInfo = assign_excitInfo_values(1,i,j,i,j)
+                    excitInfo = assign_excitInfo_values(1,i,j,i,j,1)
 
                 else 
                     ! L
-                    excitInfo = assign_excitInfo_values(-1,i,j,j,i)
+                    excitInfo = assign_excitInfo_values(-1,i,j,j,i,2)
 
                 end if
 
@@ -19708,14 +20859,20 @@ contains
 
     end function assign_excitInfo_values_double
 
-    function assign_excitInfo_values_single(gen, i, j, fullStart, fullEnd) &
+    function assign_excitInfo_values_single(gen, i, j, fullStart, fullEnd, typ) &
             result(excitInfo)
         integer, intent(in) :: gen, i, j, fullStart, fullEnd
+        integer, intent(in), optional :: typ
         type(excitationInformation) :: excitInfo
 
         ! set default values for single excitations: which cause errors if 
         ! called in incorrect places
-        excitInfo%typ = 0
+        if (present(typ)) then
+            excitInfo%typ = typ
+        else
+            excitInfo%typ = 0
+        end if
+
         if (i == j) then
             excitInfo%excitLvl = 0
             excitInfo%weight = i

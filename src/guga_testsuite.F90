@@ -276,6 +276,7 @@ contains
         integer :: nI(nBasis/2)
         integer(n_int), pointer :: ex(:,:)
         integer :: nEx, i
+        integer :: nTest
 
         ! use fdet as first determinant and test on all excitations from this..!
         ! maybe a bit too much for bigger system?
@@ -288,12 +289,15 @@ contains
 
         call actHamiltonian(ilut, ex, nEx)
 
-        print *, "running tests on nExcits: ", nEx
+        nTest = min(nEx,30)
+
+        print *, "running tests on nExcits: ", nTest
         call write_guga_list(6, ex(:,1:nEx))
         call test_excit_gen_guga(ilut, n_guga_excit_gen)
         ! then loop over the excitations and check the excitation generator
 
-        do i = 1, nEx
+        ! dont do it for all excitatons... too much
+        do i = 1, nTest
             call test_excit_gen_guga(ex(:,i), n_guga_excit_gen)
         end do
     

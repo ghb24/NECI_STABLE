@@ -418,7 +418,7 @@ contains
         ! not quite sure about LMSB or RMSB... todo
         mask = 0
         do k = 2*i - 1, 2*j ! convert to spin orbitals
-            mask = mask + 2**(k-1)
+            mask = mask + 2_n_int**(k-1)
         end do
 
     end function getExcitationRangeMask
