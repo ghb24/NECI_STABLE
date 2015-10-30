@@ -168,7 +168,7 @@ contains
 
 
   function equalEpsilon (number1, number2, epsilon ) result (resultValue)
-    real , intent (in) :: number1, number2, epsilon 
+    real(sp), intent (in) :: number1, number2, epsilon 
     logical :: resultValue 
 
     resultValue = .false.
@@ -187,7 +187,7 @@ contains
   end function equalEpsilon
 
   function floatEqual (number1, number2 ) result (resultValue)
-    real , intent (in) :: number1, number2
+    real(sp), intent (in) :: number1, number2
     real :: epsilon 
     logical :: resultValue 
 
