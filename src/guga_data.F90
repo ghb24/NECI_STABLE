@@ -455,6 +455,10 @@ contains
         allocate(orbitalIndex(nSpatOrbs), stat = ierr)
         orbitalIndex = [ (i, i = 1, nSpatOrbs)]
 
+        ! use a global flag to indicate a switch to a new determinant in the 
+        ! main routine to avoid recalculating b vector occupation and 
+        ! stepvector 
+        logical :: tNewDet
         ! maybe more to come...
 
     end subroutine init_guga

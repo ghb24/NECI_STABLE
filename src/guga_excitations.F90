@@ -17,7 +17,7 @@ module guga_excitations
                     weight_data, orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, &
                     funA_m1_1_overR2, funA_3_1_overR2, minFunA_0_2_overR2, &
                     funA_2_0_overR2, getDoubleContribution, projE_ilut_list, &
-                    projE_hel_list, nSpatOrbs, current_stepvector
+                    projE_hel_list, nSpatOrbs, current_stepvector, tNewDet
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, getDeltaB, &
                         setDeltaB, count_open_orbs_ij, calcOcc_vector_ilut, &
                         encode_matrix_element, update_matrix_element, &
@@ -695,14 +695,27 @@ contains
         ! NECI -> since it does this for every walker on an excitation
 
         ! could essentially calc. b vector and occupation vector here...
-        allocate(currentB_ilut(nSpatOrbs), stat = ierr)
-        currentB_ilut = calcB_vector_ilut(ilut)
+        ! do it only if tNewDet is set, so i only recalc this if i switch to a 
+        ! new determinant -> is set in FciMCPar!
+        if (tNewDet) then
+            if (allocated(currentB_ilut)) deallocate(currentB_ilut)
+            if (allocated(currentOcc_ilut)) deallocate(currentOcc_ilut)
+            if (allocated(current_stepvector)) deallocate(current_stepvector)
 
-        allocate(currentOcc_ilut(nSpatOrbs), stat = ierr)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+            allocate(currentB_ilut(nSpatOrbs), stat = ierr)
+            currentB_ilut = calcB_vector_ilut(ilut)
 
-        allocate(current_stepvector(nSpatOrbs), stat = ierr)
-        current_stepvector = calcStepvector(ilut)
+            allocate(currentOcc_ilut(nSpatOrbs), stat = ierr)
+            currentOcc_ilut = calcOcc_vector_ilut(ilut)
+
+            allocate(current_stepvector(nSpatOrbs), stat = ierr)
+            current_stepvector = calcStepvector(ilut)
+
+            ! then set tNewDet to false and only set it after the walker loop
+            ! in FciMCPar
+            tNewDet = .false.
+
+        end if
 !         call write_det_guga(6, ilut)
 
         if (genrand_real2_dSFMT() < pSingles) then
@@ -736,9 +749,10 @@ contains
 
         end if
 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(current_stepvector)
+
+!         deallocate(currentB_ilut)
+!         deallocate(currentOcc_ilut)
+!         deallocate(current_stepvector)
 
 ! #ifdef __DEBUG
 !         print *, "current det guga:"

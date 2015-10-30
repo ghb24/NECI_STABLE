@@ -60,6 +60,7 @@ module FciMCParMod
     use fcimc_output
     use FciMCData
     use constants
+    use guga_data, only: tNewDet
 
 #ifdef MOLPRO
     use outputResult
@@ -869,6 +870,11 @@ module FciMCParMod
                 call decide_num_to_spawn(SignCurr(part_type), AvMCExcits, WalkersToSpawn)
 
 !                 print *, "walkerstoSpawn: ", WalkersToSpawn
+            
+                ! GUGA addition: only recalc b vector and stuff once for each
+                ! CSF -> set tNewDet once for each determinant 
+                ! which is set to false inside the guga excitaiton generator
+                tNewDet = .true.
 
                 do p = 1, WalkersToSpawn
                     ! Zero the bit representation, to ensure no extraneous
