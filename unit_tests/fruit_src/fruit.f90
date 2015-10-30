@@ -24,6 +24,14 @@
 
 module fruit_util
   private
+
+  ! SDS: This is modified from the normal fruit sources to use
+  !      explicit data types for single/double precision
+  integer, parameter :: sp = selected_real_kind(6,37)
+  integer, parameter :: dp = selected_real_kind(15,307)
+  integer, parameter :: qp = selected_real_kind(33,4931)
+  integer, parameter :: int32 = selected_int_kind(8)
+  integer, parameter :: int64 = selected_int_kind(15)
   
   public :: equals, to_s, strip
   
@@ -41,7 +49,9 @@ module fruit_util
      module procedure to_s_real_
      module procedure to_s_logical_
      module procedure to_s_double_
+     module procedure to_s_quad_
      module procedure to_s_complex_
+     module procedure to_s_quad_complex_
      module procedure to_s_double_complex_
      module procedure to_s_string_
   end interface
@@ -64,7 +74,7 @@ contains
   function to_s_real_ (value)
     implicit none
     character(len=500):: to_s_real_
-    real, intent(in) :: value
+    real(sp), intent(in) :: value
     character(len=500) :: result
     write (result, *) value
     to_s_real_ = adjustl(trim(result))
@@ -73,16 +83,25 @@ contains
   function to_s_double_ (value)
     implicit none
     character(len=500):: to_s_double_
-    double precision, intent(in) :: value
+    real(dp), intent(in) :: value
     character(len=500) :: result
     write (result, *) value
     to_s_double_ = adjustl(trim(result))
   end function to_s_double_
 
+  function to_s_quad_ (value)
+    implicit none
+    character(len=500):: to_s_quad_
+    real(qp), intent(in) :: value
+    character(len=500) :: result
+    write (result, *) value
+    to_s_quad_ = adjustl(trim(result))
+  end function to_s_quad_
+
   function to_s_complex_ (value)
     implicit none
     character(len=500):: to_s_complex_
-    complex, intent(in) :: value
+    complex(sp), intent(in) :: value
     character(len=500) :: result
     write (result, *) value
     to_s_complex_ = adjustl(trim(result))
@@ -91,11 +110,20 @@ contains
   function to_s_double_complex_ (value)
     implicit none
     character(len=500):: to_s_double_complex_
-    complex(kind=kind(1.0D0)), intent(in) :: value
+    complex(dp), intent(in) :: value
     character(len=500) :: result
     write (result, *) value
     to_s_double_complex_ = adjustl(trim(result))
   end function to_s_double_complex_
+
+  function to_s_quad_complex_ (value)
+    implicit none
+    character(len=500):: to_s_quad_complex_
+    complex(qp), intent(in) :: value
+    character(len=500) :: result
+    write (result, *) value
+    to_s_quad_complex_ = adjustl(trim(result))
+  end function to_s_quad_complex_
 
   function to_s_logical_ (value)
     implicit none
