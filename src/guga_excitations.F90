@@ -17,7 +17,7 @@ module guga_excitations
                     weight_data, orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, &
                     funA_m1_1_overR2, funA_3_1_overR2, minFunA_0_2_overR2, &
                     funA_2_0_overR2, getDoubleContribution, projE_ilut_list, &
-                    projE_hel_list
+                    projE_hel_list, nSpatOrbs, current_stepvector
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, getDeltaB, &
                         setDeltaB, count_open_orbs_ij, calcOcc_vector_ilut, &
                         encode_matrix_element, update_matrix_element, &
@@ -690,13 +690,19 @@ contains
         ! maybe i need to copy the flags of ilutI onto ilutJ
         ilutJ = ilutI
 
+        ! TODO! probably have to do this allocation and calculation of 
+        ! those lists outside of generate_excitation in the main loop of 
+        ! NECI -> since it does this for every walker on an excitation
+
         ! could essentially calc. b vector and occupation vector here...
-        allocate(currentB_ilut(nBasis/2), stat = ierr)
+        allocate(currentB_ilut(nSpatOrbs), stat = ierr)
         currentB_ilut = calcB_vector_ilut(ilut)
 
-        allocate(currentOcc_ilut(nBasis/2), stat = ierr)
+        allocate(currentOcc_ilut(nSpatOrbs), stat = ierr)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
 
+        allocate(current_stepvector(nSpatOrbs), stat = ierr)
+        current_stepvector = calcStepvector(ilut)
 !         call write_det_guga(6, ilut)
 
         if (genrand_real2_dSFMT() < pSingles) then
@@ -732,6 +738,7 @@ contains
 
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(current_stepvector)
 
 ! #ifdef __DEBUG
 !         print *, "current det guga:"
@@ -769,7 +776,7 @@ contains
         real(dp) :: orb_pgen, branch_pgen
 ! #ifdef __DEBUG
         logical :: compFlag
-        real(dp) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 ! #endif
         ASSERT(isProperCSF_ilut(ilut))
 
@@ -800,10 +807,10 @@ contains
 !         end if
 
         ! if orb (i) is picked, chance to pick i again 1/nOrbs
-        if (genrand_real2_dSFMT() < 1.0_dp/real(nBasis/2,dp)) then
+        if (genrand_real2_dSFMT() < 1.0_dp/real(nSpatOrbs,dp)) then
             ! here choose between picking j also twice or not
             ! one orbitals has to be excluded
-            if (genrand_real2_dSFMT() < 1.0_dp/real(nBasis/2 - 1, dp)) then
+            if (genrand_real2_dSFMT() < 1.0_dp/real(nSpatOrbs - 1, dp)) then
                 ! (ii,jj)
                 excitLvl = 2
             else
@@ -1052,7 +1059,7 @@ contains
         character(*), parameter :: this_routine = "calcFullStartFullStopMixedStochastic"
 
         type(weight_obj) :: weights
-        real(dp) :: posSwitches(nBasis/2), negSwitches(nBasis/2), integral, &
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), integral, &
                     branch_pgen
         integer :: iOrb
         
@@ -1129,7 +1136,7 @@ contains
 
         logical :: flag
         integer :: first, last, i, j, k
-        real(dp) :: deltaB(nbasis/2), posSwitches(nBasis/2), negSwitches(nBasis/2), &
+        real(dp) :: deltaB(nbasis/2), posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
                     zeroWeight, minusWeight, plusWeight, probWeight, tempWeight
         type(weight_obj) :: weights
 
@@ -1143,7 +1150,7 @@ contains
         pgen = 0.0_dp
 
         do i = 1, first
-            do j = last, nBasis/2
+            do j = last, nSpatOrbs
                 ! can cycle over 0 or 3 stepvalues
                 flag = notSingle(ilut,i)
                 if (notSingle(ilut,j) .or. flag) then
@@ -1282,7 +1289,7 @@ contains
         end do
 
         ! and modify with the general 2*p(iijj)p(i)p(j|i) prob. 
-        pgen = pgen * 2.0_dp/real((nBasis/2)**2 * (nBasis/2-1) * (&
+        pgen = pgen * 2.0_dp/real((nSpatOrbs)**2 * (nSpatOrbs-1) * (&
             count(currentOcc_ilut == 1.0_dp) - 1),dp)
 
     end function calcMixedPgenContribution
@@ -1294,7 +1301,7 @@ contains
         character(*), parameter :: this_routine = "calcMixedContribution"
 
         real(dp) :: inter, tempWeight, tempWeight_1
-        integer :: i, j, k, step1, step2, bVector(nBasis/2), first, last
+        integer :: i, j, k, step1, step2, bVector(nSpatOrbs), first, last
         ! do it differently... since its always a mixed double overlap region
         ! and only 2 indices are involved.. just recalc all possible 
         ! matrix elements in this case.. 
@@ -1331,7 +1338,7 @@ contains
             if (notSingle(ilut,i)) then
                 cycle
             end if
-            do j = last, nBasis/2
+            do j = last, nSpatOrbs
 !                 if (isThree(ilut,j) .or. isZero(ilut,j)) cycle
                 if (notSingle(ilut,j)) then
                     cycle
@@ -1396,7 +1403,7 @@ contains
 
         integer :: iOrb, start2, ende1, ende2, start1, switch
         type(weight_obj) :: weights
-        real(dp) :: posSwitches(nBasis/2), negSwitches(nBasis/2), integral, &
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), integral, &
                     temp_pgen
         
         ASSERT(.not.isThree(ilut,excitInfo%fullStart))
@@ -1549,7 +1556,7 @@ contains
 
         integer :: iOrb, start2, ende1, ende2, start1, switch
         type(weight_obj) :: weights
-        real(dp) :: posSwitches(nBasis/2), negSwitches(nBasis/2), integral, &
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), integral, &
             temp_pgen
         
         ASSERT(.not.isZero(ilut,excitInfo%fullStart))
@@ -1676,7 +1683,7 @@ contains
 
         integer :: iOrb, start2, ende1, ende2, start1, switch
         type(weight_obj) :: weights
-        real(dp) :: posSwitches(nBasis/2), negSwitches(nBasis/2), integral, &
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), integral, &
                     temp_pgen
         
         ! have to create this additional routine to more efficiently 
@@ -1829,7 +1836,7 @@ contains
 
         integer :: iOrb, start2, ende1, ende2, start1
         type(weight_obj) :: weights
-        real(dp) :: posSwitches(nBasis/2), negSwitches(nBasis/2), integral, &
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), integral, &
                     temp_pgen
         
         ASSERT(.not.isThree(ilut,excitInfo%fullStart))
@@ -1942,7 +1949,7 @@ contains
 
         integer :: iOrb, start2, ende1, ende2, start1, switch
         type(weight_obj) :: weights
-        real(dp) :: posSwitches(nBasis/2), negSwitches(nBasis/2), integral, &
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), integral, &
             temp_pgen
         
 ! #ifdef __DEBUG
@@ -2076,7 +2083,7 @@ contains
 
         integer :: iOrb, start2, ende1, ende2, start1
         type(weight_obj) :: weights
-        real(dp) :: posSwitches(nBasis/2), negSwitches(nBasis/2), integral, &
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), integral, &
                     temp_pgen
        
 ! #ifdef __DEBUG
@@ -2210,8 +2217,8 @@ contains
 
         type(weight_obj) :: weights
         integer :: st, se, e, i, j, step, sw, step2
-        real(dp) :: posSwitches(nBasis/2), negSwitches(nBasis/2), umat, topCont, &
-            tempWeight, tempWeight_1, integral, deltaB(nBasis/2), minusWeight, &
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), umat, topCont, &
+            tempWeight, tempWeight_1, integral, deltaB(nSpatOrbs), minusWeight, &
             plusWeight, zeroWeight, switchWeight, branch_pgen, temp_pgen, &
             probWeight
         logical :: switchFlag
@@ -2322,7 +2329,7 @@ contains
         ! fuck that: for now write a new loop to calc. all contributing 
         ! pgen influences
         
-        if (e < nBasis/2) then
+        if (e < nSpatOrbs) then
 
             ! top contribution:
             if (isOne(ilut,e)) then
@@ -2353,7 +2360,7 @@ contains
 !                 return
 
 
-            do i = e+1,nBasis/2
+            do i = e+1,nSpatOrbs
 !                 if (isZero(ilut,i) .or. isThree(ilut,i)) cycle
                 if (notSingle(ilut,i)) then
                     cycle
@@ -2403,7 +2410,7 @@ contains
 
         deltaB = currentB_ilut - calcB_vector_ilut(t)
         ! fuck that to a new loop for the pgen contributions 
-        do i = sw, nBasis/2
+        do i = sw, nSpatOrbs
 
             ! can cycle if non-open orbitals
 !             if (isThree(ilut,i) .or. isZero(ilut,i)) cycle
@@ -2688,7 +2695,7 @@ contains
             get_umat_el(se,e,e,st))/2.0_dp + integral, 1)
 
         ! modify the pgen with the general 2*p(iijk)*p(i)*p(x|i) factor
-        pgen = pgen * real((nBasis/2 - 2),dp)/real(((nBasis/2)*(nBasis/2-1))**2,dp)
+        pgen = pgen * real((nSpatOrbs - 2),dp)/real(((nSpatOrbs)*(nSpatOrbs-1))**2,dp)
 
     end subroutine calcFullStopL2R_stochastic
 
@@ -2701,8 +2708,8 @@ contains
 
         type(weight_obj) :: weights
         integer :: st, se, en, i, j, step, sw, step2
-        real(dp) :: posSwitches(nBasis/2), negSwitches(nBasis/2), umat, topCont, &
-            tempWeight, tempWeight_1, integral, deltaB(nBasis/2), minusWeight, &
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), umat, topCont, &
+            tempWeight, tempWeight_1, integral, deltaB(nSpatOrbs), minusWeight, &
             plusWeight, zeroWeight, switchWeight, probWeight, branch_pgen, &
             temp_pgen
         logical :: switchFlag
@@ -2798,7 +2805,7 @@ contains
         end if
 
         integral = 0.0_dp
-        if (en < nBasis/2) then
+        if (en < nSpatOrbs) then
 
             ! top contribution:
             if (isOne(ilut,en)) then
@@ -2829,7 +2836,7 @@ contains
 !                 return
 !             end if
 
-            do i = en+1,nBasis/2
+            do i = en+1,nSpatOrbs
 
                 tempWeight = 1.0_dp
 !                 if (isZero(ilut,i) .or. isThree(ilut,i)) cycle
@@ -2880,7 +2887,7 @@ contains
         deltaB = currentB_ilut - calcB_vector_ilut(t)
 
         ! fuck that to a new loop for the pgen contributions 
-        do i = sw, nBasis/2
+        do i = sw, nSpatOrbs
             ! can cycle if non-open orbitals
 !             if (isThree(ilut,i) .or. isZero(ilut,i)) cycle
             if (notSingle(ilut,i)) then
@@ -3164,7 +3171,7 @@ contains
             get_umat_el(st,en,en,se))/2.0_dp + integral, 1)
 
         ! modify the pgen with the general 2*p(iijk)*p(i)*p(x|i) factor
-        pgen = pgen * real((nBasis/2 - 2),dp)/real(((nBasis/2)*(nBasis/2-1))**2,dp)
+        pgen = pgen * real((nSpatOrbs - 2),dp)/real(((nSpatOrbs)*(nSpatOrbs-1))**2,dp)
 
 
     end subroutine calcFullStopR2L_stochastic
@@ -3176,7 +3183,7 @@ contains
         integer, intent(in) :: s
         type(excitationInformation), intent(in) :: excitInfo
         type(weight_obj), intent(in) :: weights
-        real(dp), intent(in) :: negSwitches(nBasis/2), posSwitches(nBasis/2)
+        real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
         integer(n_int), intent(inout) :: t(0:nifguga)
         real(dp), intent(inout) :: probWeight
         character(*), parameter :: this_routine = "doubleUpdateStochastic"
@@ -3186,7 +3193,7 @@ contains
         real(dp) :: bVal, tempWeight, tempWeight_0, tempWeight_1, order
 
         ASSERT(isProperCSF_ilut(ilut))
-        ASSERT(s > 0 .and. s <= nBasis/2)
+        ASSERT(s > 0 .and. s <= nSpatOrbs)
 
 !         if (isZero(ilut,s) .or. isThree(ilut,s)) then
         if (notSingle(ilut,s)) then
@@ -3517,7 +3524,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         type(weight_obj), intent(in) :: weights
-        real(dp), intent(in) :: negSwitches(nBasis/2), posSwitches(nBasis/2)
+        real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
         integer(n_int), intent(inout) :: t(0:nifguga)
         real(dp), intent(inout) :: probWeight
         character(*), parameter :: this_routine = "calcRaisingSemiStartStochastic"
@@ -3692,7 +3699,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         type(weight_obj), intent(in) :: weights
-        real(dp), intent(in) :: negSwitches(nBasis/2), posSwitches(nBasis/2)
+        real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
         integer(n_int), intent(inout) :: t(0:nifguga)
         real(dp), intent(inout) :: probWeight
         character(*), parameter :: this_routine = "calcLoweringSemiStartStochastic"
@@ -3865,7 +3872,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         type(weight_obj), intent(in) :: weights
-        real(dp), intent(in) :: negSwitches(nBasis/2), posSwitches(nBasis/2)
+        real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
         integer(n_int), intent(inout) :: t(0:nifguga)
         real(dp), intent(inout) :: probWeight
         character(*), parameter :: this_routine = "calcRaisingSemiStopStochastic"
@@ -4030,7 +4037,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         type(weight_obj), intent(in) :: weights
-        real(dp), intent(in) :: negSwitches(nBasis/2), posSwitches(nBasis/2)
+        real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
         integer(n_int), intent(inout) :: t(0:nifguga)
         real(dp), intent(inout) :: probWeight
         character(*), parameter :: this_routine = "calcLoweringSemiStopStochastic"
@@ -4194,7 +4201,7 @@ contains
 
         integer :: i, st, en, se, gen, j, step, sw, step2
         type(weight_obj) :: weights
-        real(dp) :: posSwitches(nBasis/2), negSwitches(nBasis/2), &
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
                     integral, botCont, tempWeight, tempWeight_1, umat, &
                     zeroWeight, orbitalProb, origWeight, startProb, &
                     startWeight, switchWeight, branch_pgen, temp_pgen
@@ -4605,7 +4612,7 @@ contains
             get_umat_el(en,st,st,se))/2.0_dp + integral, 1)
 
         ! modify the pgen with the general 2*p(iijk)*p(i)*p(x|i) factor
-        pgen = pgen * real((nBasis/2 - 2),dp)/real(((nBasis/2)*(nBasis/2-1))**2,dp)
+        pgen = pgen * real((nSpatOrbs - 2),dp)/real(((nSpatOrbs)*(nSpatOrbs-1))**2,dp)
 
     end subroutine calcFullStartR2L_stochastic
 
@@ -4618,7 +4625,7 @@ contains
 
         integer :: i, st, en, se, gen, j, step, sw, step2
         type(weight_obj) :: weights
-        real(dp) :: posSwitches(nBasis/2), negSwitches(nBasis/2), &
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
                     integral, botCont, tempWeight, tempWeight_1, umat, &
                     zeroWeight, orbitalProb, origWeight, startProb, startWeight, &
                     switchWeight, branch_pgen, temp_pgen
@@ -5079,7 +5086,7 @@ contains
             get_umat_el(se,st,st,en))/2.0_dp + integral, 1)
 
         ! modify the pgen with the general 2*p(iijk)*p(i)*p(x|i) factor
-        pgen = pgen * real((nBasis/2 - 2),dp)/real(((nBasis/2)*(nBasis/2-1))**2,dp)
+        pgen = pgen * real((nSpatOrbs - 2),dp)/real(((nSpatOrbs)*(nSpatOrbs-1))**2,dp)
 
     end subroutine calcFullStartL2R_stochastic
 
@@ -5091,7 +5098,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         type(weight_obj), intent(in) :: weights
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: probWeight
         character(*), parameter :: this_routine = "mixedFullStartStochastic"
@@ -5231,7 +5238,7 @@ contains
         character(*), parameter :: this_routine = "calcSingleOverlapMixedStochastic"
 
         type(weight_obj) :: weights
-        real(dp) :: posSwitches(nBasis/2), negSwitches(nBasis/2), tempWeight, &
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), tempWeight, &
                     bVal, umat, temp_pgen
         integer :: iOrb, deltaB, iEx
 
@@ -5345,7 +5352,7 @@ contains
         real(dp), intent(out) :: branch_pgen
         character(*), parameter :: this_routine = "calcFullstopRaisingStochastic"
 
-        real(dp) :: umat, posSwitches(nBasis/2), negSwitches(nBasis/2), nOpen, &
+        real(dp) :: umat, posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), nOpen, &
                     tempWeight, bVal, temp_pgen
         type(weight_obj) :: weights
         integer :: iOrb, deltaB
@@ -5480,7 +5487,7 @@ contains
         real(dp), intent(out) :: branch_pgen
         character(*), parameter :: this_routine = "calcFullstopLoweringStochastic"
 
-        real(dp) :: umat, posSwitches(nBasis/2), negSwitches(nBasis/2), nOpen, &
+        real(dp) :: umat, posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), nOpen, &
                     tempWeight, bVal, temp_pgen
         type(weight_obj) :: weights
         integer :: iOrb, deltaB
@@ -5621,8 +5628,8 @@ contains
         real(dp), intent(out) :: branch_pgen
         character(*), parameter :: this_routine = "calcFullStartLoweringStochastic"
 
-        real(dp) :: tempWeight, minusWeight, plusWeight, posSwitches(nBasis/2),&
-                    negSwitches(nBasis/2), umat, nOpen, bVal, temp_pgen
+        real(dp) :: tempWeight, minusWeight, plusWeight, posSwitches(nSpatOrbs),&
+                    negSwitches(nSpatOrbs), umat, nOpen, bVal, temp_pgen
         integer :: start, ende, semi, gen, iOrb, deltaB
         type(weight_obj) :: weights
 
@@ -5783,8 +5790,8 @@ contains
         real(dp), intent(out) :: branch_pgen
         character(*), parameter :: this_routine = "calcFullStartRaisingStochastic"
 
-        real(dp) :: tempWeight, minusWeight, plusWeight, posSwitches(nBasis/2),&
-                    negSwitches(nBasis/2), umat, nOpen, bVal, temp_pgen
+        real(dp) :: tempWeight, minusWeight, plusWeight, posSwitches(nSpatOrbs),&
+                    negSwitches(nSpatOrbs), umat, nOpen, bVal, temp_pgen
         integer :: start, ende, semi, gen, iOrb, deltaB
         type(weight_obj) :: weights
 
@@ -5956,7 +5963,7 @@ contains
         character(*), parameter :: this_routine = "createStochasticExcitation_single"
 
         type(excitationInformation) :: excitInfo
-        real(dp) :: posSwitches(nBasis/2), negSwitches(nBasis/2), integral, prod, &
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), integral, prod, &
                     tempWeight, topCont, botCont, branch_pgen, orb_pgen, temp_pgen
 
         type(weight_obj) :: weights
@@ -6221,7 +6228,7 @@ contains
         
         ! also do the same loop on the orbitals above the fullEnd. to get 
         ! the double contribution
-        do iO = en + 1, nBasis/2
+        do iO = en + 1, nSpatOrbs
             ! do stuff
             if (isZero(ilut,iO)) cycle
 
@@ -6398,7 +6405,7 @@ contains
         integer, intent(in) :: s
         type(excitationInformation), intent(in) :: excitInfo
         type(weight_obj), intent(in) :: weights
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer(n_int), intent(out) :: t(0:nifguga) ! to use macros, have to use short names..
         real(dp), intent(out) :: probWeight
         character(*), parameter :: this_routine = "singleStochasticUpdate"
@@ -6407,7 +6414,7 @@ contains
         integer :: gen, deltaB, step
         ! is also very similar to full single update 
         ASSERT(isProperCSF_ilut(ilut))
-        ASSERT(s > 0 .and. s <= nBasis/2)
+        ASSERT(s > 0 .and. s <= nSpatOrbs)
 
         ! change! have to update the x1 matrix elements here too,
         ! to keep them seperated to use the individually for the contributing
@@ -6564,7 +6571,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         type(weight_obj), intent(in) :: weights
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer(n_int), intent(out) :: t(0:nifguga) ! to use macros, have to use short names..
         real(dp), intent(out) :: probWeight
         character(*), parameter :: this_routine = "createStochasticStart_single"
@@ -6767,7 +6774,7 @@ contains
         character(*), parameter :: this_routine = "init_singleWeight"
 
         ASSERT(isProperCSF_ilut(ilut))
-        ASSERT(sOrb > 0 .and. sOrb <= nBasis/2)
+        ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
 
         singleWeight%dat%F = endFx(ilut,sOrb)
         singleWeight%dat%G = endGx(ilut,sOrb)
@@ -6827,7 +6834,7 @@ contains
         type(weight_obj) :: doubleWeight
         character(*), parameter :: this_routine = "init_doubleWeight"
         ASSERT(isProperCSF_ilut(ilut))
-        ASSERT(sOrb > 0 .and. sOrb <= nBasis/2)
+        ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
         
         doubleWeight%dat%F = endFx(ilut,sOrb)
         doubleWeight%dat%G = endGx(ilut,sOrb)
@@ -6913,8 +6920,8 @@ contains
 
         type(weight_obj) :: single
         ASSERT(isProperCSF_ilut(ilut))
-        ASSERT(sOrb > 0 .and. sOrb <= nBasis/2)
-        ASSERT(pOrb > 0 .and. pOrb <= nBasis/2)
+        ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
+        ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
         ASSERT(negSwitches >= 0.0_dp)
         ASSERT(posSwitches >= 0.0_dp)
 !         ASSERT(bVal > 0.0_dp)
@@ -7019,8 +7026,8 @@ contains
         type(weight_obj) :: double
 
         ASSERT(isProperCSF_ilut(ilut))
-        ASSERT(sOrb > 0 .and. sOrb <= nBasis/2)
-        ASSERT(pOrb > 0 .and. pOrb <= nBasis/2)
+        ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
+        ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
         ASSERT(negSwitches >= 0.0_dp)
         ASSERT(posSwitches >= 0.0_dp)
 !         ASSERT(bVal > 0.0_dp)
@@ -7099,9 +7106,9 @@ contains
         type(weight_obj) :: fullStart
 
         ASSERT(isProperCSF_ilut(ilut))
-        ASSERT(sOrb > 0 .and. sOrb <= nBasis/2)
-        ASSERT(pOrb > 0 .and. pOrb <= nBasis/2)
-        ASSERT(oOrb > 0 .and. oOrb <= nBasis/2)
+        ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
+        ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
+        ASSERT(oOrb > 0 .and. oOrb <= nSpatOrbs)
         ASSERT(negSwitches1 >= 0.0_dp)
         ASSERT(negSwitches2 >= 0.0_dp)
         ASSERT(posSwitches1 >= 0.0_dp)
@@ -7138,8 +7145,8 @@ contains
         type (weight_obj) :: single
 
         ASSERT(isProperCSF_ilut(ilut))
-        ASSERT(sOrb > 0 .and. sOrb <= nBasis/2)
-        ASSERT(pOrb > 0 .and. pOrb <= nBasis/2)
+        ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
+        ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
         ASSERT(negSwitches >= 0.0_dp)
         ASSERT(posSwitches >= 0.0_dp)
 !         ASSERT(bVal > 0.0_dp)
@@ -7220,8 +7227,8 @@ contains
         type (weight_obj) :: single
 
         ASSERT(isProperCSF_ilut(ilut))
-        ASSERT(sOrb > 0 .and. sOrb <= nBasis/2)
-        ASSERT(pOrb > 0 .and. pOrb <= nBasis/2)
+        ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
+        ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
         ASSERT(negSwitches >= 0.0_dp)
         ASSERT(posSwitches >= 0.0_dp)
 !         ASSERT(bVal > 0.0_dp)
@@ -7332,7 +7339,7 @@ contains
         ! hm it seems i can give a number of determinants input to
         ! routine add_ilut_lists, so maybe i constrain the number of 
         ! processed states with that
-        nMax = 6 + 4 * (nBasis/2)**4 * (count_open_orbs(ilut) + 1)
+        nMax = 6 + 4 * (nSpatOrbs)**4 * (count_open_orbs(ilut) + 1)
         ! todo: get an exact maximum formula for that which holds in all cases!
         ! because that number above is WAYY too big!
         ! also for excitations where the indices are known! 
@@ -7354,15 +7361,15 @@ contains
         nTot = 0
 
         ! allocate and calc. b and occupation out here
-        allocate(currentB_ilut(nBasis/2), stat = ierr)
-        allocate(currentOcc_ilut(nBasis/2), stat = ierr)
+        allocate(currentB_ilut(nSpatOrbs), stat = ierr)
+        allocate(currentOcc_ilut(nSpatOrbs), stat = ierr)
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
 
         ! single excitations:
 !         if (pSingles > 0.0_dp) then
-        do i = 1, nBasis/2
-            do j = 1, nBasis/2
+        do i = 1, nSpatOrbs
+            do j = 1, nSpatOrbs
                 if (i == j) cycle ! do not calc. diagonal elements here
                 ! need integral contributions too... 
                 ! maybe only loop over non-zero index combinations or 
@@ -7418,10 +7425,10 @@ contains
         ! double excitations 
         ! do it really primitive for now. -> make it more elaborate later
 !         if (pDoubles > 0.0_dp) then
-        do i = 1, nBasis/2
-            do j = 1, nBasis/2
-                do k = 1, nBasis/2
-                    do l = 1, nBasis/2
+        do i = 1, nSpatOrbs
+            do j = 1, nSpatOrbs
+                do k = 1, nSpatOrbs
+                    do l = 1, nSpatOrbs
                         if (i == j .and. k == l) cycle
 
                         ! not only i=j and k=l index combinations can lead to 
@@ -7515,7 +7522,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         logical, intent(in) :: tmatFlag
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
         character(*), parameter :: this_routine = "calcAllExcitations_excitInfo_single"
@@ -7587,12 +7594,12 @@ contains
         type(excitationInformation) :: excitInfo
         integer(n_int), pointer :: tempExcits(:,:)
         integer :: ierr, iOrb, iEx, st
-        real(dp) :: posSwitches(nBasis/2), negSwitches(nBasis/2), tmat, &
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), tmat, &
                     tempWeight, plusWeight, minusWeight
         type(weight_obj) :: weights
 
-        ASSERT(i > 0 .and. i <= nBasis/2)
-        ASSERT(j > 0 .and. j <= nBasis/2)
+        ASSERT(i > 0 .and. i <= nSpatOrbs)
+        ASSERT(j > 0 .and. j <= nSpatOrbs)
 
         ! set nExcits to zero by default and only change when excitations 
         ! happen
@@ -8033,7 +8040,7 @@ contains
         type(weight_obj), intent(in) :: weights
         integer(n_int), intent(inout) :: tempExcits(:,:)
         integer, intent(inout) :: nExcits
-        real(dp), intent(in) :: negSwitches(nBasis/2), posSwitches(nBasis/2)
+        real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "doubleUpdate"
 
         real(dp) :: minusWeight, plusWeight, zeroWeight
@@ -8042,7 +8049,7 @@ contains
         integer(n_int) :: t(0:nifguga), s(0:nifguga)
 
         ASSERT(isProperCSF_ilut(ilut))
-        ASSERT(sO > 0 .and. sO <= nBasis/2)
+        ASSERT(sO > 0 .and. sO <= nSpatOrbs)
 
         if (notSingle(ilut,sO)) then
 !         if (isZero(ilut,sO) .or. isThree(ilut,sO)) then
@@ -8940,7 +8947,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: sOrb
         type(excitationInformation), intent(in) :: excitInfo
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         type(weight_obj) :: weightObj
         integer(n_int), intent(inout) :: tempExcits(:,:)
         integer, intent(inout) :: nExcits
@@ -8951,7 +8958,7 @@ contains
         real(dp) :: plusWeight, minusWeight, tempWeight, bVal
 
         ASSERT(isProperCSF_ilut(ilut))
-        ASSERT(sOrb > 0 .and. sOrb < nBasis/2)
+        ASSERT(sOrb > 0 .and. sOrb < nSpatOrbs)
 
         if (isZero(ilut, sOrb)) then
             ! do nothin actually.. not even change matrix elements
@@ -9189,7 +9196,7 @@ contains
 !         integer(n_int), intent(in) :: ilut(0:nifguga)
 !         integer, intent(in) :: sOrb
 !         type(excitationInformation), intent(in) :: excitInfo
-!         real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+!         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nBasis/2)
 !         integer(n_int), intent(inout) :: tempExcits(:,:)
 !         integer, intent(inout) :: nExcits
 !         character(*), parameter :: this_routine = "singleOverlapLoweringUpdate"
@@ -9673,7 +9680,7 @@ contains
         ! leading to zero weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         type(weight_obj), intent(in) :: weightObj
         integer(n_int), intent(out), pointer :: tempExcits(:,:)
         integer, intent(out) :: nExcits
@@ -10517,7 +10524,7 @@ contains
         integer, intent(out) :: nExcits
         character(*), parameter :: this_routine = "calcAllExcitations_double"
 
-        real(dp) :: umat, posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp) :: umat, posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer :: ierr, n
         type(excitationInformation) :: excitInfo
         logical :: compFlag
@@ -10528,10 +10535,10 @@ contains
             return
         end if
 
-        ASSERT(i > 0 .and. i <= nBasis/2)
-        ASSERT(j > 0 .and. j <= nBasis/2)
-        ASSERT(k > 0 .and. k <= nBasis/2)
-        ASSERT(l > 0 .and. l <= nBasis/2)
+        ASSERT(i > 0 .and. i <= nSpatOrbs)
+        ASSERT(j > 0 .and. j <= nSpatOrbs)
+        ASSERT(k > 0 .and. k <= nSpatOrbs)
+        ASSERT(l > 0 .and. l <= nSpatOrbs)
         ASSERT(isProperCSF_ilut(ilut))
 
         ! default:
@@ -10721,7 +10728,7 @@ contains
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcDoubleR2L"
 
         integer :: iOrb, start1, start2, ende1, ende2
@@ -10810,7 +10817,7 @@ contains
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcDoubleL2R"
 
         integer :: iOrb, start1, start2, ende1, ende2
@@ -10900,7 +10907,7 @@ contains
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcDoubleRaising"
 
         integer :: iOrb, start2, ende1, ende2
@@ -11000,7 +11007,7 @@ contains
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcDoubleLowering"
 
         integer :: iOrb, start2, ende1, ende2
@@ -11137,7 +11144,7 @@ contains
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits 
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullStartFullStopMixed"
 
 
@@ -11192,7 +11199,7 @@ contains
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits 
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullStartR2L"
 
         integer :: nMax, ierr, iOrb, start, ende, semi, gen, start2
@@ -11270,7 +11277,7 @@ contains
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits 
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullStartL2R"
 
         integer :: nMax, ierr, iOrb, start, ende, semi, gen
@@ -12488,7 +12495,7 @@ contains
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits 
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullStartRaising"
 
         integer :: nMax, ierr, iOrb, start, ende, semi, gen
@@ -12669,7 +12676,7 @@ contains
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits 
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullStartLowering"
 
         integer :: nMax, ierr, iOrb, start, ende, semi, gen
@@ -12844,7 +12851,7 @@ contains
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits 
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullStopR2L"
         
         ! not sure if single or double weight is necessary here...
@@ -12945,7 +12952,7 @@ contains
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits 
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullStopL2R"
         
         ! not sure if single or double weight is necessary here...
@@ -14508,7 +14515,7 @@ contains
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits 
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullstopLowering"
         
         ! not sure if single or double weight is necessary here...
@@ -14671,7 +14678,7 @@ contains
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits 
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullstopRaising"
         
         ! not sure if single or double weight is necessary here...
@@ -14827,7 +14834,7 @@ contains
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits 
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcSingleOverlapLowering"
 
         integer(n_int), pointer :: tempExcits(:,:)
@@ -15020,7 +15027,7 @@ contains
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcSingleOverlapRaising"
         
         integer(n_int), pointer :: tempExcits(:,:)
@@ -15194,7 +15201,7 @@ contains
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcSingleOverlapMixed"
 
         type(weight_obj) :: weights
@@ -15287,7 +15294,7 @@ contains
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcNonOverlapDouble"
         
         integer(n_int), pointer :: tempExcits(:,:), tempExcits2(:,:)
@@ -15348,7 +15355,7 @@ contains
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
-        real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcDoubleExcitationWeight"
         
         integer :: iEx, we
@@ -15382,8 +15389,8 @@ contains
         integer(n_int), intent(in) :: L(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         logical, intent(out) :: flag
-        real(dp), intent(out), optional :: posSwitches(nBasis/2), &
-                                           negSwitches(nBasis/2)
+        real(dp), intent(out), optional :: posSwitches(nSpatOrbs), &
+                                           negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "checkCompatibility"
 
         real(dp) :: pw, mw, zw
@@ -17249,7 +17256,7 @@ contains
         ! weighted with the actual matrix elemetn 
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: occ_orbs(2)
-        real(dp), intent(out) :: contrib, cum_sum, cum_arr(nBasis/2)
+        real(dp), intent(out) :: contrib, cum_sum, cum_arr(nSpatOrbs)
         integer, intent(out) :: orb_a
         character(*), parameter :: this_routine = "pick_a_orb_guga_mol"
 
@@ -17290,7 +17297,7 @@ contains
         ! or some spin alignement restrictions to generate this list.. 
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: occ_orbs(2)
-        real(dp), intent(out) :: cum_arr(nBasis/2)
+        real(dp), intent(out) :: cum_arr(nSpatOrbs)
         character(*), parameter :: this_routine = "gen_a_orb_cum_list_guga_mol"
         
         integer :: orb
@@ -17302,7 +17309,7 @@ contains
 
         cum_sum = 0.0_dp
         
-        do orb = 1, nBasis/2
+        do orb = 1, nSpatOrbs
             ! only check non-double occupied orbitals
             if (.not.isThree(ilut, orb)) then
                 cum_sum = cum_sum +  get_guga_integral_contrib(occ_orbs,orb,orb)
@@ -17390,8 +17397,8 @@ contains
 
         ! pick first orbital at total random and set pgen uniformly to 
         ! 1/nOrbs
-        i = 1 + floor( genrand_real2_dSFMT() * real(nBasis/2,dp))
-        pgen = 1.0_dp/real(nBasis/2,dp)
+        i = 1 + floor( genrand_real2_dSFMT() * real(nSpatOrbs,dp))
+        pgen = 1.0_dp/real(nSpatOrbs,dp)
 ! #ifdef __DEBUG
 !         print *, "picking double orbitals for ilut of type:", typ
 !         call write_det_guga(6, ilut)
@@ -17521,7 +17528,7 @@ contains
                 ! so p(i|j) = 1/n0
                 temp_pgen2 = 1.0_dp/real(count(currentOcc_ilut == 0.0_dp),dp)
 ! 
-                pgen = pgen**2/real(nBasis/2 - 1,dp) * (temp_pgen + temp_pgen2)
+                pgen = pgen**2/real(nSpatOrbs - 1,dp) * (temp_pgen + temp_pgen2)
 !                 pgen = pgen * 2.0_dp*(pgen*(temp_pgen**2 + temp_pgen2**2) + &
 !                     2.0_dp*temp_pgen * temp_pgen2 * (temp_pgen + temp_pgen2))
 
@@ -17550,7 +17557,7 @@ contains
                 
                 temp_pgen2 = 1.0_dp/real(count(currentOcc_ilut == 2.0_dp),dp)
 
-                pgen = pgen**2/real(nBasis/2 - 1,dp) * (temp_pgen + temp_pgen2)
+                pgen = pgen**2/real(nSpatOrbs - 1,dp) * (temp_pgen + temp_pgen2)
 !                 pgen = pgen * 2.0_dp*(pgen*(temp_pgen**2 + temp_pgen2**2) + &
 !                     2.0_dp*temp_pgen * temp_pgen2 * (temp_pgen + temp_pgen2))
 
@@ -17582,7 +17589,7 @@ contains
                 
                 temp_pgen2 = 1.0_dp/real(count(currentOcc_ilut == 1.0_dp)-1,dp)
 
-                pgen = pgen**2/real(nBasis/2 - 1,dp) * (temp_pgen + temp_pgen2)/2.0_dp
+                pgen = pgen**2/real(nSpatOrbs - 1,dp) * (temp_pgen + temp_pgen2)/2.0_dp
 
                 ! for these mixed excitations i have to adjust the pgens 
                 ! similar to the matrix elements as there are a lot 
@@ -17635,7 +17642,7 @@ contains
                 call pickRandomOrb(j, temp_pgen2, k, 0.0_dp)
 
                 pgen = 2.0_dp * pgen**2*temp_pgen*temp_pgen2*(1.0_dp-1.0_dp/&
-                    real(nBasis/2 - 1,dp))
+                    real(nSpatOrbs - 1,dp))
                 
                 ! due to the first picking of the repeated index pgens get a 
                 ! bit biased i think... 
@@ -17708,7 +17715,7 @@ contains
                 call pickRandomOrb(j, temp_pgen2, k, 2.0_dp)
 
                 pgen = 2.0_dp * pgen**2*temp_pgen*temp_pgen2*(1.0_dp-1.0_dp/&
-                    real(nBasis/2 - 1,dp))
+                    real(nSpatOrbs - 1,dp))
 
                 if ( i < j .and. j < k ) then
                     ! _LL_(i) ^LL(j) ^L(k)
@@ -17786,14 +17793,14 @@ contains
                     ! so i always get mixed fullstart or fullstop
                     ! so i 
                     if (i < j) then
-                        call pickRandomOrb(i,nBasis/2+1,temp_pgen2, k, 0.0_dp)
+                        call pickRandomOrb(i,nSpatOrbs+1,temp_pgen2, k, 0.0_dp)
                         temp_pgen3 = 1.0_dp/real(count(currentOcc_ilut(i+1:) /= 0.0_dp),dp)
                     else 
                         call pickRandomOrb(0,i, temp_pgen2, k, 0.0_dp)
                         temp_pgen3 = 1.0_dp/real(count(currentOcc_ilut(:i-1) /= 0.0_dp),dp)
                     end if
 
-                    pgen = pgen**2*(1.0_dp - 1.0_dp/real(nBasis/2 - 1,dp)) * &
+                    pgen = pgen**2*(1.0_dp - 1.0_dp/real(nSpatOrbs - 1,dp)) * &
                         temp_pgen*(temp_pgen2 + temp_pgen3)
 
 !                     k = pickRandomOrb(!=0 & != i)
@@ -17863,14 +17870,14 @@ contains
 !                     call pickRandomOrb(min(i,j), max(i,j), pgen, k, 2.0_dp)
 
                     if (i < j) then
-                        call pickRandomOrb(i,nBasis/2+1,temp_pgen2, k, 2.0_dp)
+                        call pickRandomOrb(i,nSpatOrbs+1,temp_pgen2, k, 2.0_dp)
                         temp_pgen3 = 1.0_dp/real(count(currentOcc_ilut(i+1:) /= 2.0_dp),dp)
                     else 
                         call pickRandomOrb(0,i, temp_pgen2, k, 2.0_dp)
                         temp_pgen3 = 1.0_dp/real(count(currentOcc_ilut(:i-1) /= 2.0_dp),dp)
                     end if
 
-                    pgen = pgen**2*(1.0_dp - 1.0_dp/real(nBasis/2 - 1,dp)) * &
+                    pgen = pgen**2*(1.0_dp - 1.0_dp/real(nSpatOrbs - 1,dp)) * &
                         temp_pgen*(temp_pgen2 + temp_pgen3)
 
 !                     ! pick d(k) != 3
@@ -17940,7 +17947,7 @@ contains
 
                     ! i have to exclude j here too...
                     if (i < j) then
-                        call pickRandomOrb(i,nBasis/2+1,temp_pgen2,k, j)
+                        call pickRandomOrb(i,nSpatOrbs+1,temp_pgen2,k, j)
                     else
                         call pickRandomOrb(0,i,temp_pgen2,k, j)
                     end if
@@ -18048,7 +18055,7 @@ contains
                             call stop_all(this_routine, "should not be here!")
                         end if
 
-                        pgen = pgen**2*(1.0_dp - 1.0_dp/real(nBasis/2 - 1,dp)) * &
+                        pgen = pgen**2*(1.0_dp - 1.0_dp/real(nSpatOrbs - 1,dp)) * &
                             temp_pgen*(temp_pgen2 + temp_pgen3)
 
                     else 
@@ -19463,7 +19470,7 @@ contains
         nEmpty = real(count(currentOcc_ilut == 0.0_dp),dp)
         nSingle = real(count(currentOcc_ilut == 1.0_dp),dp)
         nDouble = real(count(currentOcc_ilut == 2.0_dp),dp)
-        nOrbs = real(nBasis/2,dp)
+        nOrbs = real(nSpatOrbs,dp)
 
 !         pgen = 4.0_dp/(nOrbs**2) *( 1.0_dp/(nSingle + nDouble) + &
 !                                     1.0_dp/nEmpty + &
@@ -19491,7 +19498,7 @@ contains
         nEmpty = real(count(currentOcc_ilut == 0.0_dp),dp)
         nSingle = real(count(currentOcc_ilut == 1.0_dp),dp)
         nDouble = real(count(currentOcc_ilut == 2.0_dp),dp)
-        nOrbs = real(nBasis/2,dp)
+        nOrbs = real(nSpatOrbs,dp)
 ! 
 !         pgen = 2.0_dp/(nOrbs**2) * (&
 !             1.0_dp/(nOrbs - 2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
@@ -19524,7 +19531,7 @@ contains
         nEmpty = real(count(currentOcc_ilut == 0.0_dp),dp)
         nSingle = real(count(currentOcc_ilut == 1.0_dp),dp)
         nDouble = real(count(currentOcc_ilut == 2.0_dp),dp)
-        nOrbs = real(nBasis/2,dp)
+        nOrbs = real(nSpatOrbs,dp)
 
 !         pgen = 2.0_dp*pgen**2*(&
 !             1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nEmpty-1.0_dp) + &
@@ -19538,7 +19545,7 @@ contains
 !             1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
 !                                 1.0_dp/(nOrbs-3.0_dp)))
 
-        pgen = 4.0_dp/((real(nBasis/2,dp))**2)*(&
+        pgen = 4.0_dp/((real(nSpatOrbs,dp))**2)*(&
             1.0_dp/(nOrbs - 2.0_dp)*(2.0_dp/(nSingle + nEmpty - 1.0_dp) + &
                                      3.0_dp/(nOrbs - 3.0_dp)) + &
             1.0_dp/((nSingle + nEmpty)*(nSingle + nEmpty - 1.0_dp)))
@@ -19556,7 +19563,7 @@ contains
         nEmpty = real(count(currentOcc_ilut == 0.0_dp),dp)
         nSingle = real(count(currentOcc_ilut == 1.0_dp),dp)
         nDouble = real(count(currentOcc_ilut == 2.0_dp),dp)
-        nOrbs = real(nBasis/2,dp)
+        nOrbs = real(nSpatOrbs,dp)
 
 !         pgen = 1.0_dp*pgen**2*( 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))
 
@@ -19573,7 +19580,7 @@ contains
         character(*), parameter :: this_routine = "pickRandomOrb_restricted_index"
 
         integer :: r, nOrbs, ierr
-        logical :: mask(nBasis/2)
+        logical :: mask(nSpatOrbs)
         integer, allocatable :: resOrbs(:)
 !         ASSERT(start > 0 .and. start <= nBasis/2)
 !         ASSERT(ende > 0 .and. ende <= nBasis/2)
@@ -19617,7 +19624,7 @@ contains
         character(*), parameter :: this_routine = "pickRandomOrb_restricted"
 
         integer :: r, nOrbs, ierr
-        logical :: mask(nBasis/2)
+        logical :: mask(nSpatOrbs)
         integer, allocatable :: resOrbs(:)
 !         ASSERT(start > 0 .and. start <= nBasis/2)
 !         ASSERT(ende > 0 .and. ende <= nBasis/2)
@@ -19666,10 +19673,10 @@ contains
         character(*), parameter :: this_routine = "pickRandomOrb_vector"
 
         integer :: r, nOrbs, ierr, num, i
-        logical :: mask(nBasis/2)
+        logical :: mask(nSpatOrbs)
         integer, allocatable :: resOrbs(:)
 
-        ASSERT(all(orbRes >= 0 .and. orbRes <= nBasis/2))
+        ASSERT(all(orbRes >= 0 .and. orbRes <= nSpatOrbs))
 
         num = size(orbRes)
 
@@ -19723,7 +19730,7 @@ contains
         character(*), parameter :: this_routine = "pickRandomOrb_forced"
 
         integer :: r, nOrbs, ierr
-        logical :: mask(nBasis/2)
+        logical :: mask(nSpatOrbs)
         integer, allocatable :: resOrbs(:)
 
         ASSERT(occRes >= 0.0_dp .and. occRes <= 2.0_dp)
@@ -19731,7 +19738,7 @@ contains
         mask = (currentOcc_ilut == occRes) 
 
         if (present(orbRes1)) then
-            ASSERT(orbRes1 > 0 .and. orbRes1 <= nBasis/2)
+            ASSERT(orbRes1 > 0 .and. orbRes1 <= nSpatOrbs)
 
             mask = (mask .and. orbitalIndex /= orbRes1)
         end if
@@ -19775,10 +19782,10 @@ contains
         character(*), parameter :: this_routine = "pickRandomOrb_scalar"
 
         integer :: r, nOrbs, ierr
-        logical :: mask(nBasis/2)
+        logical :: mask(nSpatOrbs)
         integer, allocatable :: resOrbs(:)
 
-        ASSERT(orbRes >= 0 .and. orbRes <= nBasis/2)
+        ASSERT(orbRes >= 0 .and. orbRes <= nSpatOrbs)
         ! could make this a global, permanent variable... should even!
 !         orbInd = [ (r, r = 1, nBasis/2) ]
 
@@ -19860,9 +19867,9 @@ contains
         ! excitInfo%i = pickRandomOrb(1,nBasis)
 
         ! pick any random orbitals first
-        i = 1 + floor(genrand_real2_dSFMT() * real(nBasis/2,dp))
+        i = 1 + floor(genrand_real2_dSFMT() * real(nSpatOrbs,dp))
         ! which makes pgen = 1/nOrbs
-        pgen = 1.0_dp/real((nBasis/2),dp)
+        pgen = 1.0_dp/real((nSpatOrbs),dp)
 
 !         print *, "orb i: ", i, "d(i): ", getStepvalue(ilut,i)
         ! have to then combine that somehow with the weighted cauchy schwartz
@@ -19917,7 +19924,7 @@ contains
                 nOrbs = count(currentOcc_ilut /= 2.0_dp)
             else
                 ! else its singly occupied
-                nOrbs = nBasis/2 - 1
+                nOrbs = nSpatOrbs - 1
             end if
 
             ! determine excitation type:
@@ -19940,7 +19947,7 @@ contains
                 nOrbs = count(currentOcc_ilut /= 0.0_dp)
 
             else 
-                nOrbs = nBasis/2 - 1
+                nOrbs = nSpatOrbs - 1
             end if
 
             ! and determine excitation type
@@ -20006,7 +20013,7 @@ contains
 
                 factor = 2.0_dp
 
-                nOrbs = nBasis/2 - 1
+                nOrbs = nSpatOrbs - 1
                 
             else 
                 ! if its a 2 or 3 everything is fine
@@ -20022,7 +20029,7 @@ contains
                 if (isThree(ilut,j)) then
                     nOrbs = count(currentOcc_ilut /= 2.0_dp)
                 else
-                    nOrbs = nBasis/2 - 1
+                    nOrbs = nSpatOrbs - 1
                     factor = 2.0_dp
 
                 end if
@@ -20066,7 +20073,7 @@ contains
                     end if
                 end if
 
-                nOrbs = nBasis/2 - 1
+                nOrbs = nSpatOrbs - 1
                 factor = 2.0_dp
 
             else 
@@ -20084,13 +20091,13 @@ contains
                 if (isThree(ilut,j)) then
                     nOrbs = count(currentOcc_ilut /= 2.0_dp)
                 else
-                    nOrbs = nBasis/2 - 1
+                    nOrbs = nSpatOrbs - 1
                     factor = 2.0_dp
                 end if
             end if
         end if
 
-        pgen = (pgen + 1.0_dp/real(nBasis/2 * nOrbs, dp))/factor
+        pgen = (pgen + 1.0_dp/real(nSpatOrbs * nOrbs, dp))/factor
 
         ! check if the orbital chosen are valid
         if (i == 0 .or. j == 0) then
@@ -20115,10 +20122,10 @@ contains
         character(*), parameter :: this_routine = "excitationIdentifier_double"
         integer :: ierr, start1, end1, start2, end2, num, iOrb, ind
 
-        ASSERT(i > 0 .and. i <= nBasis/2)
-        ASSERT(j > 0 .and. j <= nBasis/2)
-        ASSERT(k <= nBasis/2)
-        ASSERT(l <= nBasis/2)
+        ASSERT(i > 0 .and. i <= nSpatOrbs)
+        ASSERT(j > 0 .and. j <= nSpatOrbs)
+        ASSERT(k <= nSpatOrbs)
+        ASSERT(l <= nSpatOrbs)
         ! if accessed with k = l = 0 redirect to single excitation identifier
         ! and exit
         if (k == 0 .or. l == 0) then
@@ -20471,8 +20478,8 @@ contains
         character(*), parameter :: this_routine = "excitationIdentifier_single"
         integer :: ierr, ind
 
-        ASSERT( i > 0 .and. i <= nBasis/2)
-        ASSERT( j > 0 .and. j <= nBasis/2)
+        ASSERT( i > 0 .and. i <= nSpatOrbs)
+        ASSERT( j > 0 .and. j <= nSpatOrbs)
 
         ! type of excitation, be more specific here and use the available 
         ! information in the calculation of the excitations also. 
@@ -20571,7 +20578,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
 !         integer, intent(in) :: sOrb, pOrb
-        real(dp), intent(out) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(out) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         
         integer :: iOrb
         real(dp) :: oneCount, twoCount
@@ -20609,7 +20616,7 @@ contains
         ! assume exitInfo is already calculated
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: sOrb, pOrb
-        real(dp), intent(out) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(out) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         
         integer :: iOrb
         real(dp) :: oneCount, twoCount
@@ -20641,7 +20648,7 @@ contains
         ! the excitationInformation
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: i, j, k, l
-        real(dp), intent(out) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(out) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         character(*), parameter :: this_routine = "calcRemainingSwitches_double"
         type(excitationInformation) :: excitInfo
@@ -20651,10 +20658,10 @@ contains
             call calcRemainingSwitches(ilut, i, j, posSwitches, negSwitches)
 
         else 
-            ASSERT(i > 0 .and. i <= nBasis/2)
-            ASSERT(j > 0 .and. j <= nBasis/2)
-            ASSERT(k > 0 .and. k <= nBasis/2)
-            ASSERT(l > 0 .and. l <= nBasis/2)
+            ASSERT(i > 0 .and. i <= nSpatOrbs)
+            ASSERT(j > 0 .and. j <= nSpatOrbs)
+            ASSERT(k > 0 .and. k <= nSpatOrbs)
+            ASSERT(l > 0 .and. l <= nSpatOrbs)
 
             excitInfo = excitationIdentifier(i, j, k, l)
 
@@ -20674,7 +20681,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         integer, intent(in) :: flag
-        real(dp), intent(out) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
+        real(dp), intent(out) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         integer :: iOrb, end1, start2, end2
         real(dp) :: oneCount, twoCount
@@ -20911,10 +20918,10 @@ contains
 
         
         ! check input:
-        ASSERT(i > 0 .and. i <= nBasis/2)
-        ASSERT(j > 0 .and. j <= nBasis/2)
-        ASSERT(k > 0 .and. k <= nBasis/2)
-        ASSERT(l > 0 .and. l <= nBasis/2)
+        ASSERT(i > 0 .and. i <= nSpatOrbs)
+        ASSERT(j > 0 .and. j <= nSpatOrbs)
+        ASSERT(k > 0 .and. k <= nSpatOrbs)
+        ASSERT(l > 0 .and. l <= nSpatOrbs)
 
 
         if (i == j .or. k == l) then
@@ -22531,7 +22538,7 @@ contains
         real(dp) :: pgen
 
         pgen = 1.0_dp/real(count(currentOcc_ilut(i+1:) /= 0.0_dp),dp) + &
-               1.0_dp/real(nBasis/2 - i - 1, dp)
+               1.0_dp/real(nSpatOrbs - i - 1, dp)
 
     end function calc_pgen_yix_start_01
 
@@ -22540,7 +22547,7 @@ contains
         real(dp) :: pgen 
 
         pgen = 1.0_dp/real(count(currentOcc_ilut(i+1:) /= 2.0_dp),dp) + &
-               1.0_dp/real(nBasis/2 - i - 1, dp)
+               1.0_dp/real(nSpatOrbs - i - 1, dp)
 
     end function calc_pgen_yix_start_21
 
@@ -22548,7 +22555,7 @@ contains
         integer, intent(in) :: i
         real(dp) :: pgen
 
-        pgen = 1.0_dp/real(nBasis/2 - i - 1, dp)
+        pgen = 1.0_dp/real(nSpatOrbs - i - 1, dp)
 
     end function calc_pgen_yix_start_11
 

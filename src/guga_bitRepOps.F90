@@ -85,7 +85,7 @@ contains
 
         ! set it to impossible value, so contribution does not get 
         ! calculated if no switch happened, (which shouldnt be reached anyway)
-        orb = nBasis/2 + 1
+        orb = nSpatOrbs + 1
 
         do iOrb = ende, semi + 1, -1
             a = getStepvalue(ilutI,iOrb)
@@ -210,15 +210,15 @@ contains
         integer, intent(in) :: nunit
         logical, intent(in), optional :: flag
 
-        integer :: step(nBasis/2), i
+        integer :: step(nSpatOrbs), i
 
         step = calcStepvector(ilut)
 
         write(nunit,'("(")', advance='no')
 
-        do i = 1, nBasis/2
+        do i = 1, nSpatOrbs
             write(nunit, '(i3)', advance = 'no') step(i)
-            if (i /= nBasis/2) write(nunit, '(",")', advance = 'no')
+            if (i /= nSpatOrbs) write(nunit, '(",")', advance = 'no')
         end do
         write(nunit,'(")")', advance='no')
         
@@ -304,8 +304,8 @@ contains
 
         integer(n_int) :: mask(0:nifd), beta(0:nifd), alpha(0:nifd)
 
-        ASSERT(i > 0 .and. i <= nBasis/2)
-        ASSERT(j > 0 .and. j <= nBasis/2)
+        ASSERT(i > 0 .and. i <= nSpatOrbs)
+        ASSERT(j > 0 .and. j <= nSpatOrbs)
 
         nOpen = 0
 
@@ -339,8 +339,8 @@ contains
 
         integer(n_int) :: mask(0:nifd), alpha(0:nifd), beta(0:nifd)
 
-        ASSERT(i > 0 .and. i <= nBasis/2)
-        ASSERT(j > 0 .and. j <= nBasis/2)
+        ASSERT(i > 0 .and. i <= nSpatOrbs)
+        ASSERT(j > 0 .and. j <= nSpatOrbs)
 
         nOpen = 0
 
@@ -374,8 +374,8 @@ contains
         logical :: flag
         integer(n_int) :: mask
 
-        ASSERT(i > 0 .and. i <= nBasis/2)
-        ASSERT(j > 0 .and. j <= nBasis/2)
+        ASSERT(i > 0 .and. i <= nSpatOrbs)
+        ASSERT(j > 0 .and. j <= nSpatOrbs)
 !         ASSERT(i < j)
         ! scrap this assert and change in that way to output 0 if the indices
         ! dont fit or are reversed. to deal with to short overlap ranges
@@ -412,8 +412,8 @@ contains
 
         integer :: k
 
-        ASSERT(i > 0 .and. i <= nBasis/2)
-        ASSERT(j > 0 .and. j <= nBasis/2)
+        ASSERT(i > 0 .and. i <= nSpatOrbs)
+        ASSERT(j > 0 .and. j <= nSpatOrbs)
         ASSERT(j > i)
 
         ! not quite sure about LMSB or RMSB... todo
@@ -683,10 +683,10 @@ contains
         ! there is probably a very efficient way of programming that! 
         !TODO ask simon for improvements.
         integer(n_int), intent(in) :: ilut(0:nIfD)
-        integer :: stepVector(nBasis/2)
+        integer :: stepVector(nSpatOrbs)
         integer :: iOrb
 
-        do iOrb = 1, nBasis/2
+        do iOrb = 1, nSpatOrbs
             stepVector(iOrb) = getStepvalue(ilut, iOrb)
         end do
     end function calcStepvector
@@ -695,11 +695,11 @@ contains
         ! probably more efficiently implemented by simon already... 
         ! but for now do it in this stupid way todo -> ask simon
         integer(n_int), intent(in) :: ilut(0:nIfD)
-        real(dp) :: occVector(nBasis/2)
+        real(dp) :: occVector(nSpatOrbs)
 
         integer :: iOrb
 
-        do iOrb = 1, nBasis/2
+        do iOrb = 1, nSpatOrbs
             occVector(iOrb) = getSpatialOccupation(ilut,iOrb)
         end do
 
@@ -722,7 +722,7 @@ contains
         ! problems when accessing b vector at the end of an excitaiton if 
         ! that is the last orbital..
         integer(n_int), intent(in) :: ilut(0:nIfD)
-        real(dp) :: bVector(nBasis/2)        ! b-vector stored in bVector
+        real(dp) :: bVector(nSpatOrbs)        ! b-vector stored in bVector
         integer :: i
         real(dp) :: bValue 
 
@@ -733,7 +733,7 @@ contains
         bVector = 0.0_dp
         bValue = 0.0_dp
 
-        do i = 1, nBasis/2
+        do i = 1, nSpatOrbs
 
             if (isOne(ilut,i)) then
                 bValue = bValue + 1.0_dp

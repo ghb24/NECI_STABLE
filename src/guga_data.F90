@@ -304,9 +304,15 @@ module guga_data
     ! also make a global integer list of orbital indices, so i do not have to 
     ! remake them in every random orbital picker!
     integer, allocatable :: orbitalIndex(:)
-    
-    
 
+    ! also define a global variable nBasis/2 = nSpatOrbs, since otherwise 
+    ! integer division nBAsis/2 is done to often! 
+    integer :: nSpatOrbs
+
+    ! in the end to make logic in excitation generation more efficient 
+    ! do create an allocatable integer array which stores the current 
+    ! stepvector for a CSF and do a select case() abfrage
+    integer, allocatable :: current_stepvector(:)
 
 contains
 
@@ -442,11 +448,14 @@ contains
 
         tUseFlags = .true.
 
-        ! maybe more to come...
+        ! define global variable of spatial orbitals 
+        nSpatOrbs = nBasis / 2
 
         ! but also have to set up the global orbitalIndex list 
-        allocate(orbitalIndex(nBasis/2), stat = ierr)
-        orbitalIndex = [ (i, i = 1, nBasis/2)]
+        allocate(orbitalIndex(nSpatOrbs), stat = ierr)
+        orbitalIndex = [ (i, i = 1, nSpatOrbs)]
+
+        ! maybe more to come...
 
     end subroutine init_guga
 ! 
