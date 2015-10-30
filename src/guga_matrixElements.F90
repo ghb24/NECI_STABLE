@@ -1,7 +1,7 @@
 #include "macros.h"
 ! GUGA module containg as much matrix element calculation functionality as 
 ! possible. 
-
+#ifndef __CMPLX
 module guga_matrixElements
     ! used modules: 
     use SystemData, only: nEl, nBasis, ECore
@@ -231,4 +231,4 @@ contains
     end function functionA
 
 end module guga_matrixElements
-    
+#endif 

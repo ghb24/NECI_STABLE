@@ -18,13 +18,19 @@ module guga_data
     ! define types for the probabilistic weights functions used in the 
     ! stochastic excitations generations
     type :: weight_data
-        real(dp) :: F = 0.0_dp, G = 0.0_dp, minus = 0.0_dp, plus = 0.0_dp, zero = 0.0_dp
+        real(dp) :: F = 0.0_dp
+        real(dp) :: G = 0.0_dp
+        real(dp) :: minus = 0.0_dp
+        real(dp) :: plus = 0.0_dp
+        real(dp) :: zero = 0.0_dp
     end type weight_data
     
     ! define type structs for the probabilistic weights
     type :: branchWeight
         logical :: initialized = .false.
-        real(dp) :: plusWeight = 0.0_dp, minusWeight = 0.0_dp, zeroWeight = 0.0_dp, &
+        real(dp) :: plusWeight = 0.0_dp
+        real(dp) :: minusWeight = 0.0_dp
+        real(dp) :: zeroWeight = 0.0_dp, &
                 F = 0.0_dp, G = 0.0_dp, L = 0.0_dp
         procedure(dummyFunction), pointer, nopass :: minus => null(), plus => null(), &
                                                      zero => null()
@@ -311,6 +317,9 @@ contains
         character(*), parameter :: routineName = 'checkInputGUGA'
 
         ! check in certain system options have conflicts:
+#ifdef __CMPLX
+        call stop_all(routineName, "GUGA not yet imlemented with complex NECI!")
+#endif
         if (tCSF) then
             call stop_all(routineName, &
                 "Cannot use two CSF implementations tGUGA and tCSF at the same time!")
@@ -1255,4 +1264,3 @@ contains
 
 
 end module
-

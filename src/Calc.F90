@@ -35,8 +35,11 @@ MODULE Calc
     use spectral_lanczos, only: n_lanc_vecs_sl
     use exact_spectrum
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
+
+#ifndef __CMPLX
     use guga_testsuite, only: runTestsGUGA
-    
+#endif
+
     implicit none
 
 contains
@@ -2336,11 +2339,12 @@ contains
           ! but for now, leave it in to not break the remaining code, which 
           ! esp. in the excitation generator depends on those values!
           ! But change this in future and include a corresponding CalcInitGUGA()
+#ifndef __CMPLX
           if (tGUGA) then
               write(6,*) " !! NOTE: running a GUGA simulation, so following info makes no sense!"
               write(6,*) " but is kept for now to not break remaining code!"
           end if
-
+#endif
           if (tCSF) then
               nOccAlpha = (nel / 2) + LMS 
               nOccBeta =  (nel / 2) - LMS
@@ -2476,6 +2480,7 @@ contains
           character(*), parameter :: this_routine = 'CalcDoCalc'
           iSeed=7 
 
+#ifndef __CMPLX
           ! call guga test routine here, so everything is correctly set up,
           ! or atleast should be. only temporarily here.
           if (tGUGA) then
@@ -2483,6 +2488,7 @@ contains
               if (t_guga_unit_tests) call runTestsGUGA()
                   
           end if
+#endif
 
 !C.. we need to calculate a value for RHOEPS, so we approximate that
 !C.. RHO_II~=exp(-BETA*H_II/p).  RHOEPS is a %ge of this 

@@ -10,8 +10,11 @@
       use hphf_integrals, only: hphf_diag_helement
       use hphf_integrals, only: hphf_off_diag_helement
       use DetBitOps, only: EncodeBitDet
+
+#ifndef __CMPLX
       use guga_matrixElements, only: calcDiagMatEleGuga_nI
       use guga_excitations, only: calc_off_diag_guga_gen
+#endif
       IMPLICIT NONE
       HElement_t(dp) HAMIL(*)
       INTEGER NDET,NEL
@@ -75,12 +78,15 @@ C..   Now we need to match up any two determinants
                 totsum = hphf_off_diag_helement(NMRKS(:,KI), 
      &                            NMRKS(:,KJ), ilutI, ilutJ)
               end if
+
+#ifndef __CMPLX
             else if (tGUGA) then
               if (KI == KJ) then
                   totsum = calcDiagMatEleGuga_nI(NMRKS(:,KI))
               else
                   totsum = calc_off_diag_guga_gen(ilutI, ilutJ)
               end if
+#endif
 
             else
               if (KI == KJ) then

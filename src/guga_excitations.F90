@@ -1,9 +1,11 @@
 #include "macros.h"
 ! GUGA excitations module:
 ! contains as much excitation related functionality as possible
+#ifndef __CMPLX
 module guga_excitations
     ! modules
-    use SystemData, only: nEl, nBasis, t_guga_unit_tests, ElecPairs, G1
+    use SystemData, only: nEl, nBasis, t_guga_unit_tests, ElecPairs, G1, nmaxx, &
+                          nmaxy, nmaxz, OrbECutoff, tOrbECutoff
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_
     use bit_reps, only: niftot, decode_bit_det, encode_det, encode_part_sign, &
@@ -35,7 +37,7 @@ module guga_excitations
     use symrandexcit3, only: pick_elec_pair
     use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
     use SymExcitDataMod, only: SpinOrbSymLabel, OrbClassCount, SymLabelCounts2, &
-                               SymLabelList2
+                               SymLabelList2, KPointToBasisFn
     use sym_general_mod, only: ClassCountInd
     use excit_gens_int_weighted, only: get_paired_cc_ind
 
@@ -5984,6 +5986,8 @@ contains
             return
         end if
 
+        ! have to have these short variable names or otherwise compilation
+        ! fails due to line-length restrictions with is Three(), etc. macros
         st = excitInfo%fullStart
         en = excitInfo%fullEnd
 
@@ -16029,6 +16033,212 @@ contains
 !     end subroutine startDoubleExcitation
 !     
 
+    subroutine pickOrbs_sym_uniform_ueg_double(ilut, excitInfo, pgen)
+        ! specific orbital picker for hubbard and UEG type models with 
+        ! full k-point symmetry 
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(excitationInformation), intent(out) :: excitInfo
+        real(dp), intent(out) :: pgen
+        character(*), parameter :: this_routine = "pickOrbs_sym_uniform_ueg_double"
+
+        integer :: occ_orbs(2), ind, eleci, elecj, orb_a, ki(3), kj(3), &
+                   ka(3), kb(3), orb_b, nI(nEl)
+        real(dp) :: cum_sum, cum_arr(nBasis), testE, contrib, pelec
+        type(excitationInformation) :: excit_arr(nBasis)
+
+        ! pick 2 electrons uniformly first: 
+!         call pick_elec_pair_uniform_guga(ilut, occ_orbs, sym_prod, sum_ml, &
+!             temp_pgen)
+        ! or since other symmetries are usually not used in the hubbard just:
+        ! Pick a pair of electrons (i,j) to generate from.
+        ! This uses a triangular mapping to pick them uniformly.
+        ind = 1 + int(ElecPairs * genrand_real2_dSFMT())
+        eleci = ceiling((1 + sqrt(1 + 8*real(ind, dp))) / 2)
+        elecj = ind - ((eleci - 1) * (eleci - 2)) / 2
+        pelec = 1.0_dp / real(ElecPairs, dp)
+
+        call decode_bit_det(nI, ilut)
+
+        ! Obtain the orbitals and their momentum vectors for the given elecs.
+        occ_orbs(1) = nI(eleci)
+        occ_orbs(2) = nI(elecj)
+
+        call gen_ab_cum_list_ueg(ilut, occ_orbs, cum_arr, excit_arr)
+
+
+    end subroutine pickOrbs_sym_uniform_ueg_double
+
+    subroutine gen_ab_cum_list_ueg(ilut, occ_orbs, cum_arr, excit_arr)
+        ! create the cummulative probability array for (ab) orbital pairs 
+        ! in the hubbard/UEG case with k-point symmetry
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: occ_orbs(2)
+        real(dp), intent(out) :: cum_arr(nBasis)
+        type(excitationInformation), intent(out) :: excit_arr(nBasis)
+        character(*), parameter :: this_routine = "gen_ab_cum_list_ueg"
+
+        ! determine the GUGA restrictions: 
+        if (is_in_pair(occ_orbs(1),occ_orbs(2))) then
+            call gen_ab_cum_list_3(ilut, occ_orbs, cum_arr, excit_arr)
+
+        else
+            ! determine the different types
+            if (IsDoub(ilut,occ_orbs(1))) then
+                if (IsDoub(ilut,occ_orbs(2))) then
+                     ! the 3 3 case 
+!                      call gen_ab_cum_list_3_3(ilut, occ_orbs, cum_arr, excit_arr)
+
+                 else
+                     ! the 3 1 case 
+!                      call gen_ab_cum_list_3_1(ilut, occ_orbs, cum_arr, excit_arr)
+                     
+                 end if
+             else
+                 if (IsDoub(ilut, occ_orbs(2))) then 
+                     ! the 1 3 case 
+!                      call gen_ab_cum_list_1_3(ilut, occ_orbs, cum_arr, excit_arr)
+
+                 else
+                     ! the 1 1 case 
+!                      call gen_ab_cum_list_1_1(ilut, occ_orbs, cum_arr, excit_arr)
+
+                 end if
+             end if
+         end if
+
+    end subroutine gen_ab_cum_list_ueg
+
+    subroutine gen_ab_cum_list_3(ilut, occ_orbs, cum_arr, excit_arr)
+        ! specific routine, when 2 already picked orbtitals are from same 
+        ! spatial orbital
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: occ_orbs(2)
+        real(dp), intent(out) :: cum_arr(nBasis)
+        type(excitationInformation), intent(out) :: excit_arr(nBasis)
+        character(*), parameter :: this_routine = "gen_ab_cum_list_3"
+
+        integer :: ki(3), kj(3), ka(3), kb(3), orb_a, orb_b
+        real(dp) :: cum_sum, contrib, testE
+
+        ki = G1(occ_orbs(1))%k
+        kj = G1(occ_orbs(2))%k
+
+        cum_sum = 0.0_dp
+        ! GUGA restrictions change depending on n(i), n(j)
+        ! I == J -> n(i) = 3 
+        ! no restrictions on a 
+        do orb_a = 1, occ_orbs(1)
+            contrib = 0.0_dp
+
+            if (IsNotOcc(ilut,orb_a)) then
+                ! determine fiting b by k-point restrictions -> 
+                ! and only allow b > a 
+                ka = G1(orb_a)%k
+                kb = ki + kj - ka
+
+                ! is b allowed by the size of space? -> TODO: what does that mean?
+                testE = real(sum(kb**2),dp)
+                if (abs(kb(1)) <= nmaxx .and. abs(kb(2)) <= nmaxy .and. &
+                    abs(kb(3)) <= nmaxz .and. &
+                    (.not. (tOrbECutoff .and. (testE > orbECutOff)))) then
+
+                    ! there is no "spin" restriction in the guga case 
+                    ! so both possible b orbs have to be checked 
+                    orb_b = KPointToBasisFn(kb(1), kb(2), kb(3), 1)
+                    ! this should work as we pick beta orbital first 
+!                         orb_b_2 = orb_b_1 + 1
+
+                    ! does 2 always belong to the same spatial orbital
+                    ! so i only have to check if orb_b_2 is > orb_a 
+                    ! since it always the higher alpha orbital, but i have 
+                    ! to check if ONE of them in non-occupied since there 
+                    ! is no spin-restriction + with the b > a restriction 
+                    ! i avoid loosing any possible excitations
+                    if (orb_b + 1 > orb_a .and. &
+                        (IsNotOcc(ilut, orb_b) .or. IsNotOcc(ilut,orb_b+1))) then
+                        
+                        ! have to get the matrix element contribs
+                        contrib = get_guga_integral_contrib(occ_orbs, &
+                            orb_a, orb_b)
+                        ! and have to determine the excitation type ! 
+                        if (is_in_pair(orb_a,orb_b) .or. is_in_pair(orb_a,orb_b+1)) then
+                            ! _RR_(ab) > ^RR^(ij)
+                            ! have to create a list to keep track of the 
+                            ! type of excertation and all necessary info!
+
+                        else
+                            ! have to find the position of b
+                            if (orb_b > occ_orbs(1)) then
+                                ! _R(a) > ^RL_(ij) > ^L(b)
+
+                            else
+                                ! _R(a) > _RR(b) > ^RR^(ij)
+                            
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+
+            ! update the cumsum
+            cum_sum = cum_sum + contrib
+            cum_arr(orb_a) = cum_sum
+        end do
+
+        ! now loop over the rest of the orbitals
+        do orb_a = occ_orbs(2), nBasis
+            contrib = 0.0_dp
+            if (IsNotOcc(ilut,orb_a)) then
+                ! determine fiting b by k-point restrictions -> 
+                ! and only allow b > a 
+                ka = G1(orb_a)%k
+                kb = ki + kj - ka
+
+                ! is b allowed by the size of space? -> TODO: what does that mean?
+                testE = real(sum(kb**2),dp)
+                if (abs(kb(1)) <= nmaxx .and. abs(kb(2)) <= nmaxy .and. &
+                    abs(kb(3)) <= nmaxz .and. &
+                    (.not. (tOrbECutoff .and. (testE > orbECutOff)))) then
+
+                    ! there is no "spin" restriction in the guga case 
+                    ! so both possible b orbs have to be checked 
+                    orb_b = KPointToBasisFn(kb(1), kb(2), kb(3), 1)
+                    ! this should work as we pick beta orbital first 
+!                         orb_b_2 = orb_b_1 + 1
+
+                    ! does 2 always belong to the same spatial orbital
+                    ! so i only have to check if orb_b_2 is > orb_a 
+                    ! since it always the higher alpha orbital, but i have 
+                    ! to check if ONE of them in non-occupied since there 
+                    ! is no spin-restriction + with the b > a restriction 
+                    ! i avoid loosing any possible excitations
+                    if (orb_b + 1 > orb_a .and. &
+                        (IsNotOcc(ilut, orb_b) .or. IsNotOcc(ilut,orb_b+1))) then
+                        
+                        ! have to get the matrix element contribs
+                        contrib = get_guga_integral_contrib(occ_orbs, &
+                            orb_a, orb_b)
+                        ! and have to determine the excitation type ! 
+                        if (is_in_pair(orb_a,orb_b) .or. is_in_pair(orb_a,orb_b+1)) then
+                            ! _LL_(ij) > ^LL^(ab)
+
+                        else
+                            ! since b > a always i know in this case wich 
+                            ! type already 
+                            ! _LL_(ij) > ^LL(a) > ^L(b)
+                        end if
+                    end if
+                end if
+            end if
+
+            ! update the cumsum
+            cum_sum = cum_sum + contrib
+            cum_arr(orb_a) = cum_sum
+        end do
+
+
+    end subroutine gen_ab_cum_list_3
+
     subroutine pickOrbs_sym_uniform_mol_double(ilut, excitInfo, pgen)
         ! new orbital picking routine, which is closer to simons already 
         ! implemented one for the determinant version
@@ -20379,8 +20589,7 @@ contains
 
             if (isOne(ilut,iOrb)) then
                 oneCount = oneCount + 1.0_dp
-            end if
-            if (isTwo(ilut,iOrb)) then
+            else if (isTwo(ilut,iOrb)) then
                 twoCount = twoCount + 1.0_dp
             end if
 
@@ -20418,8 +20627,7 @@ contains
 
             if (isOne(ilut,iOrb)) then
                 oneCount = oneCount + 1.0_dp
-            end if
-            if (isTwo(ilut,iOrb)) then
+            else if (isTwo(ilut,iOrb)) then
                 twoCount = twoCount + 1.0_dp
             end if
         end do
@@ -22388,3 +22596,4 @@ contains
 
 
 end module guga_excitations
+#endif

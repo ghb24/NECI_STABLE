@@ -115,9 +115,6 @@ module fcimc_initialisation
     use gndts_mod, only: gndts
     use excit_gen_5, only: gen_excit_4ind_weighted2
     use csf, only: get_csf_helement
-    use guga_data, only: bVectorRef_ilut, bVectorRef_nI
-    use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut
-    use guga_excitations, only: generate_excitation_guga, create_projE_list
     use tau_search, only: init_tau_search
     use fcimc_helper, only: CalcParentFlag, update_run_reference
     use cont_time_rates, only: spawn_rate_full, oversample_factors, &
@@ -134,6 +131,11 @@ module fcimc_initialisation
     use HElem
     use constants
 
+#ifndef __CMPLX
+    use guga_data, only: bVectorRef_ilut, bVectorRef_nI
+    use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut
+    use guga_excitations, only: generate_excitation_guga, create_projE_list
+#endif
     implicit none
 
 contains
@@ -329,6 +331,7 @@ contains
             HFDet_True = HFDet
         endif
 
+#ifndef __CMPLX
         ! for GUGA calculations also save the b vector of the reference det
         ! also initialize the persistently stored list of H|ref> to 
         ! calculate the projected energy
@@ -342,6 +345,7 @@ contains
             call create_projE_list()
             
         end if
+#endif
 
         if(tHPHF) then
             allocate(RefDetFlip(NEl, inum_runs), &
@@ -1459,8 +1463,10 @@ contains
             generate_excitation => gen_excit_4ind_weighted
         elseif (tGen_4ind_reverse) then
             generate_excitation => gen_excit_4ind_reverse
+#ifndef __CMPLX
         elseif (tGUGA) then
             generate_excitation => generate_excitation_guga
+#endif
         else
             generate_excitation => gen_rand_excit
         endif
@@ -1498,11 +1504,12 @@ contains
             else
                 get_spawn_helement => hphf_off_diag_helement_spawn
             endif
+#ifndef __CMPLX
         ! new guga addition: do not need to recalculate Helement
         elseif (tGUGA) then
             ! use hphf_routine also, since it does exactly what needed
             get_spawn_helement => hphf_spawn_sign
-
+#endif
         else
             get_spawn_helement => get_helement_det_only
         endif

@@ -5,6 +5,7 @@
 ! some of these functions should be replaced by bit-ops defined in the 
 ! macros.h header file, but for clarity and test purposes write them down
 ! explicetly too
+#ifndef __CMPLX
 module guga_bitRepOps
 
     use SystemData, only: nEl, Stot
@@ -523,7 +524,6 @@ contains
         ! and then extract the matrix element 
         HElement = extract_matrix_element(ilutG, 1)
 
-
     end subroutine convert_ilut_toNECI
 
     subroutine convert_ilut_toGUGA(ilutN, ilutG)
@@ -534,10 +534,9 @@ contains
         ! need only the det part essentially..
         ilutG(0:nifdbo) = ilutN(0:nifdbo)
 
-
         ! and set matrix elements to 1 and delta b to 0
         call encode_matrix_element(ilutG,1.0_dp,1)
-        call encode_matrix_element(ilutG,1.0_dp,1)
+        call encode_matrix_element(ilutG,1.0_dp,2)
 
         call setDeltaB(0,ilutG)
 
@@ -738,8 +737,7 @@ contains
 
             if (isOne(ilut,i)) then
                 bValue = bValue + 1.0_dp
-            end if
-            if (isTwo(ilut,i)) then
+            else if (isTwo(ilut,i)) then
                 bValue = bValue - 1.0_dp
             end if
             ! define bvalue to always only get updated for the next
@@ -830,3 +828,4 @@ contains
 !     end function calcMeanB
 ! 
 end module guga_bitRepOps
+#endif

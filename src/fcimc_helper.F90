@@ -61,8 +61,12 @@ module fcimc_helper
                                global_determinant_data, set_iter_occ, &
                                get_part_init_time, det_diagH, get_spawn_count
     use searching, only: BinSearchParts2
+
+#ifndef __CMPLX
     use guga_matrixElements, only: calc_off_diag_guga_ref
     use guga_excitations, only: create_projE_list
+#endif
+
     use rdm_data, only: nrdms
     implicit none
     save
@@ -380,6 +384,7 @@ contains
         endif
 
         ! Perform normal projection onto reference determinant
+#ifndef __CMPLX
         if (tGUGA) then
             ! for guga csfs its quite hard to determine the excitation to a 
             ! reference determinant, due to the many possibilities 
@@ -399,6 +404,7 @@ contains
                 HOffDiag(1:inum_runs) = calc_off_diag_guga_ref(ilut)
             end if
         else
+#endif
         if (ExcitLevel_local == 0) then
 
             if (iter > NEquilSteps) &
@@ -439,8 +445,9 @@ contains
             endif
 
         endif ! ExcitLevel_local == 1, 2, 3
+#ifndef __CMPLX
         endif ! GUGA
-
+#endif
 
         ! Sum in energy contribution
         do run=1, inum_runs
@@ -1841,9 +1848,11 @@ contains
 
         ! if in guga run, i also need to recreate the list of connected 
         ! determinnant to the new reference det 
+#ifndef __CMPLX
         if (tGUGA) then
             call create_projE_list()
         end if
+#endif
 
         if(tHPHF) then
             if(.not.Allocated(RefDetFlip)) then

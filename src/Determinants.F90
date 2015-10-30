@@ -6,7 +6,6 @@ MODULE Determinants
                           tCSF, tCPMD, tPickVirtUniform, LMS, modk_offdiag, &
                           tGUGA, STOT
     use IntegralsData, only: UMat, FCK, NMAX
-    use guga_matrixElements, only: calcDiagMatEleGUGA_nI
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_2, sltcnd_compat, &
@@ -17,6 +16,11 @@ MODULE Determinants
     use DeterminantData
     use bit_reps, only: NIfTot
     use MemoryManager, only: TagIntType
+
+#ifndef __CMPLX
+    use guga_matrixElements, only: calcDiagMatEleGUGA_nI
+#endif
+
     implicit none
 
     ! TODO: Add an interface for getting a diagonal helement with an ordered
@@ -86,6 +90,7 @@ contains
             ! also use that to check correctness of guga csf 
             ! remember in guga approach beta orbitals are associated with 
             ! positive spin coupled orbitals and S >= 0 
+#ifndef __CMPLX
             if (tGUGA) then
                 if (ms < 0 .or. ms /= STOT) then
                     write(6,*) "S: ", STOT
@@ -95,7 +100,7 @@ contains
                         &S quantum numnber!")
                 end if
             end if
-
+#endif
             tRef_Not_HF = .true.
         ELSE
              CALL GENFDET(FDET)
@@ -338,10 +343,12 @@ contains
                           &integrals from here.")
 
         ! GUGA implementation: 
+#ifndef __CMPLX
         if (tGUGA) then
             hel = calcDiagMatEleGUGA_nI(nI)
             return
         end if
+#endif
 
         if (tCSF) then
             if (iscsf(nI) .or. iscsf(nJ)) then
@@ -391,11 +398,13 @@ contains
             call stop_all (this_routine, "Should not be calling HPHF &
                           &integrals from here.")
 
+#ifndef __CMPLX
         ! GUGA implementation: 
         if (tGUGA) then
             hel = calcDiagMatEleGUGA_nI(nI)
             return
         end if
+#endif
 
         if (tCSF) then
             if (iscsf(nI) .or. iscsf(nJ)) then

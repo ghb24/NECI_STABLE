@@ -7,6 +7,7 @@
 ! like electrons, orbitals etc... 
 ! since otherwise all test cases are quite input dependent... 
 ! discuss with simon how to implement that optimally
+#ifndef __CMPLX
 module guga_testsuite
    
     ! check if i can use some sort of unit test framework, like fruit,
@@ -5693,3 +5694,4 @@ contains
 
 
 end module guga_testsuite
+#endif
