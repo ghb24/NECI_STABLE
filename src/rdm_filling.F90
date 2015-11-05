@@ -456,9 +456,6 @@ contains
         character(*), parameter :: t_r = 'Fill_Spin_Coupled_RDM'
 
         if (TestClosedShellDet(iLutnI)) then
-            if (tOddS_HPHF) then
-                call stop_all(t_r, "Should not be any closed shell determinants in high S states")
-            end if
 
             if (TestClosedShellDet(iLutnJ)) then
                 ! Closed shell -> Closed shell - just as in determinant case
