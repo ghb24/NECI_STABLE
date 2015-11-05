@@ -208,11 +208,8 @@ contains
         ! been counted. So check this isn't the case first.
         if (.not. ((Iter .eq. NMCyc) .or. (mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter) .eq. 0))) then
             call decode_bit_det (nI, iLutnI)
-            if (tRef_Not_HF) then
-                ExcitLevel = FindBitExcitLevel(iLutHF_True, iLutnI, 2)
-            else
-                ExcitLevel = FindBitExcitLevel(iLutRef, iLutnI, 2)
-            end if
+
+            ExcitLevel = FindBitExcitLevel(iLutHF_True, iLutnI, 2)
 
             call fill_rdm_diag_currdet_norm(rdm, irdm, iLutnI, nI, j, ExcitLevel, .false.)
 
