@@ -1084,6 +1084,9 @@ contains
                 ss_space_in%tPops = .true.
                 ss_space_in%tApproxSpace = .true.
                 call geti(ss_space_in%npops)
+                if(item.lt.nitems) then
+                   call geti(ss_space_in%nApproxSpace)
+                endif
             case("MP1-CORE")
                 ss_space_in%tMP1 = .true.
                 call geti(ss_space_in%mp1_ndets)
