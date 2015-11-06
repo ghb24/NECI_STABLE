@@ -50,8 +50,8 @@ contains
 
         ! Choose the correct generating routine.
         if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
-        if (space_in%tPops) call generate_space_most_populated(space_in%npops, space_in%tApproxSpace, trial_iluts, &
-                                                                ndets_this_proc)
+        if (space_in%tPops) call generate_space_most_populated(space_in%npops, & 
+                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc)
         if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
         if (space_in%tDoubles) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
         if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
@@ -218,8 +218,8 @@ contains
 
         ! Choose the correct generating routine.
         if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
-        if (space_in%tPops) call generate_space_most_populated(space_in%npops, space_in%tApproxSpace, trial_iluts, &
-                                                                ndets_this_proc)
+        if (space_in%tPops) call generate_space_most_populated(space_in%npops, & 
+                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc)
         if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
         if (space_in%tDoubles) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
         if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
