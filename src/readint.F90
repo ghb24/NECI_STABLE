@@ -126,10 +126,18 @@ contains
                  endif
                  lNoSymmetry=.true.
                  EXIT
-             elseif(OrbSym(i).ne.1) then
-                 tDetectSym=.false.
              ENDIF
          ENDDO
+         if(tDetectSym) then
+             !Check that there is more than one irrep
+             tDetectSym=.false.
+             do i = 1,Norb
+                 if(OrbSym(i).ne.1) then
+                     tDetectSym=.true.
+                     exit
+                 endif
+             enddo
+         endif
          if(.not.tDetectSym) then
              write(6,*) "Only one irrep found. Turning off symmetry for rest of calculation."
              tNoSymGenRandExcits = .true.
