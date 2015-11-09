@@ -30,6 +30,7 @@ contains
          NPROP = 0
          IUHF = 0
          TREL = .false.
+         SYMLZ(:) = 0
          IF(iProcIndex.eq.0) THEN
 #ifdef _MOLCAS_
            call f_Inquire('FCIDMP',tExists)
@@ -233,7 +234,11 @@ contains
          integer isfreeunit  !function returning integer for free unit
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
-         IUHF=0
+         fmat='NO'
+         PROPBITLEN = 0
+         NPROP = 0
+         IUHF = 0
+         TREL = .false.
          SYMLZ(:) = 0
          IF(iProcIndex.eq.0) THEN
 #ifdef _MOLCAS_
@@ -634,6 +639,9 @@ contains
          UHF=.FALSE.
          TREL=.false.
          IUHF=0
+         PROPBITLEN = 0
+         NPROP = 0
+         SYMLZ(:) = 0
          ZeroedInt=0
          LzDisallowed=0
          NonZeroInt=0
