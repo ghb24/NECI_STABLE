@@ -234,7 +234,6 @@ contains
          integer isfreeunit  !function returning integer for free unit
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
-         fmat='NO'
          PROPBITLEN = 0
          NPROP = 0
          IUHF = 0
