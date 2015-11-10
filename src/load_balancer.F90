@@ -14,7 +14,7 @@ module load_balance
     use bit_reps, only: set_flag, nullify_ilut_part, clear_has_been_initiator,&
                         encode_part_sign, nullify_ilut
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
-                         tFillingStochRDMOnFly
+                         tFillingStochRDMOnFly, full_determ_vecs
     use searching, only: hash_search_trial, bin_search_trial
     use Determinants, only: get_helement, write_det
     use LoggingData, only: tOutputLoadDistribution
@@ -154,7 +154,7 @@ contains
         integer(int64) :: smallest_size
         integer :: j, proc, det(nel), block, TotWalkersTmp
         integer :: min_parts, max_parts, min_proc, max_proc
-        integer :: smallest_block
+        integer :: smallest_block,iBlockMoves
         real(dp) :: sgn(lenof_sign), avg_parts
         logical :: unbalanced
         character(*), parameter :: this_routine = 'adjust_load_balance'
@@ -162,8 +162,16 @@ contains
         ! TODO: Need to ensure we don't move around the semi-stochastic sites,
         ! or we need to be a bit more clever!!!
         ! TODO: What happens if we move reference sites around?
-        ASSERT(.not. tSemiStochastic)
-        ASSERT(.not. tFillingStochRDMOnFly)
+        ! Actually, we can call this with tSemiStochastic=.true. if we haven't yet
+        ! set up the deterministic space.
+        if(allocated(full_determ_vecs)) then
+            call stop_all(this_routine, &
+                'Should not be dynamically load-balancing with fixed deterministic space')
+        endif
+        if(tFillingStochRDMOnFly) then
+            call stop_all(this_routine, &
+                'Should not be dynamically load-balancing while sampling RDMs')
+        endif
 
         ! Count the number of particles inside each of the blocks
         block_parts = 0
@@ -186,6 +194,7 @@ contains
         ! Accumulate the data from all of the processors (on root)
         call MPISum(block_parts, block_parts_all)
 
+        iBlockMoves = 0
         do while (.true.)
 
             ! n.b. the required data is only available on the root node.
@@ -245,7 +254,11 @@ contains
 
             ! If this is sufficiently balanced, then we make no (further)
             ! changes.
-            if (.not. unbalanced) exit
+            if (.not. unbalanced) then
+                exit
+            else
+                iBlockMoves = iBlockMoves + 1
+            endif
 
             ! Broadcast the parameters for the change!
             call MPIBCast(min_proc)
@@ -267,10 +280,19 @@ contains
             write(6,*) '--'
         end if
 
-        ! TODO: Only call this if we have made changes!
-        TotWalkersTmp = int(TotWalkers, sizeof_int)
-        call CalcHashTableStats(TotWalkersTmp, iter_data)
-        TotWalkers = TotWalkersTmp
+        if(iBlockMoves.gt.0) then
+            !Only redo hash table if blocks have been moved around
+            !Not only is this an optimization, but it also seems to hide the fact
+            !that for gfortran and openmpi 1.6, going through this code at 
+            !the initialization step of the calculation starting from a single
+            !walker seems to cause a race condition later on in the calculation,
+            !even though this code has no mpi calls, and is not doing anything with
+            !a single determinant.
+            !Very confusing...
+            TotWalkersTmp = int(TotWalkers, sizeof_int)
+            call CalcHashTableStats(TotWalkersTmp, iter_data)
+            TotWalkers = int(TotWalkersTmp, int64)
+        endif
 
         !   -- Test if sufficiently uniform
         !   -- If not, pick largest, and smallest, sites
@@ -500,7 +522,7 @@ contains
                     AnnihilatedDet = AnnihilatedDet + 1 
                 else
 
-                if (tMP2FixedNode) then
+                    if (tMP2FixedNode) then
 #if !(defined(__PROG_NUMRUNS) || defined(__CMPLX))
                         ic = FindBitExcitLevel(ilutRef(:,1), CurrentDets(:,i))
                         call decode_bit_det(nI, CurrentDets(:,i))
@@ -557,32 +579,31 @@ contains
                                 end if
                             else
                                 if ((abs(CurrentSign(j)) > 1.e-12_dp) .and. (abs(CurrentSign(j)) < OccupiedThresh)) then
-                                !We remove this walker with probability 1-RealSignTemp
-                                pRemove=(OccupiedThresh-abs(CurrentSign(j)))/OccupiedThresh
-                                r = genrand_real2_dSFMT ()
-                                if (pRemove  >  r) then
-                                    !Remove this walker
-                                    NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
-                                    iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                                          + abs(CurrentSign(j))
-                                    CurrentSign(j) = 0.0_dp
-                                    call nullify_ilut_part(CurrentDets(:,i), j)
-                                    call decode_bit_det(nI, CurrentDets(:,i))
-                                    if (IsUnoccDet(CurrentSign)) then
-                                        call remove_hash_table_entry(HashIndex, nI, i)
-                                        iEndFreeSlot=iEndFreeSlot+1
-                                        FreeSlot(iEndFreeSlot)=i
+                                    !We remove this walker with probability 1-RealSignTemp
+                                    pRemove=(OccupiedThresh-abs(CurrentSign(j)))/OccupiedThresh
+                                    r = genrand_real2_dSFMT ()
+                                    if (pRemove  >  r) then
+                                        !Remove this walker
+                                        NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
+                                        iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                                              + abs(CurrentSign(j))
+                                        CurrentSign(j) = 0.0_dp
+                                        call nullify_ilut_part(CurrentDets(:,i), j)
+                                        call decode_bit_det(nI, CurrentDets(:,i))
+                                        if (IsUnoccDet(CurrentSign)) then
+                                            call remove_hash_table_entry(HashIndex, nI, i)
+                                            iEndFreeSlot=iEndFreeSlot+1
+                                            FreeSlot(iEndFreeSlot)=i
+                                        end if
+                                    else if (tEnhanceRemainder) then
+                                        NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(CurrentSign(j))
+                                        iter_data%nborn(j) = iter_data%nborn(j) &
+                                             + OccupiedThresh - abs(CurrentSign(j))
+                                        CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
+                                        call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                                     end if
-                                else if (tEnhanceRemainder) then
-                                    NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(CurrentSign(j))
-                                    iter_data%nborn(j) = iter_data%nborn(j) &
-                                         + OccupiedThresh - abs(CurrentSign(j))
-                                    CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
-                                    call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                                 end if
                             end if
-                            end if
-                            !!!!
                         end if
                     end do
 
