@@ -170,7 +170,7 @@ else()
 endif()
 
 # And options that apply on all compilers
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+if (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "debug" OR CMAKE_BUILD_TYPE STREQUAL "DEBUG")
 	add_definitions(-D__DEBUG)
 endif()
 
