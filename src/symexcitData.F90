@@ -16,6 +16,9 @@ MODULE SymExcitDataMod
     ! Do we want to extract lists of occupied / unoccupied orbitals when
     ! decoding bit determinants in the main FCIMC loop?
     logical :: tBuildOccVirtList = .false.
+    ! Do we want to extract seperate alpha and beta orbital lists when
+    ! decoding the bit determinants in the main FCIMC loop?
+    logical :: tBuildSpinSepLists = .false.
 !This is set up in SpinOrbSymSetup, and is a default ClassCount excitation generator, 
 !from which it is then easier to set up the determinant specific ones.
     INTEGER , ALLOCATABLE :: OrbClassCount(:)  
@@ -45,6 +48,9 @@ MODULE SymExcitDataMod
         integer, pointer :: scratch3(:) => null()
         integer, pointer :: occ_list(:,:) => null()
         integer, pointer :: virt_list(:,:) => null()
+        integer, pointer :: nI_alpha(:) => null()
+        integer, pointer :: nI_beta(:) => null()
+        integer :: nel_alpha
         logical :: tFilled
         integer, pointer :: dorder_i (:) => null()
         integer, pointer :: dorder_j (:) => null()
