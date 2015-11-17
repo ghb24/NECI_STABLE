@@ -11,6 +11,7 @@ module bit_reps
     use DetBitOps, only: count_open_orbs, CountBits
     use bit_rep_data
     use SymExcitDataMod, only: excit_gen_store_type, tBuildOccVirtList, &
+                               tBuildSpinSepLists, &
                                OrbClassCount, ScratchSize, SymLabelList2, &
                                SymLabelCounts2
     use sym_general_mod, only: ClassCountInd
@@ -37,6 +38,7 @@ module bit_reps
     interface decode_bit_det
 !        module procedure decode_bit_det_bitwise
         module procedure decode_bit_det_chunks
+!        module procedure decode_bit_det_lists
     end interface
         
     integer, parameter :: l1(1:33)=(/0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,1,2,0,0,0,0,0,0,0,2,1,2,0,0,0/)
@@ -273,8 +275,13 @@ contains
         real(dp), intent(out) :: real_sgn(lenof_sign)
         integer(n_int) :: sgn(lenof_sign)
 
+
         if (tBuildOccVirtList .and. present(store)) then
-            call decode_bit_det_lists (nI, ilut, store)
+            if(tBuildSpinSepLists) then
+                call decode_bit_det_spinsep (nI, ilut, store)
+            else
+                call decode_bit_det_lists (nI, ilut, store)
+            endif
         else
             call decode_bit_det (nI, ilut)
         endif
@@ -723,8 +730,11 @@ contains
         type(excit_gen_store_type), intent(inout) :: store
         integer :: i, j, elec, orb, ind, virt(ScratchSize)
         integer :: nel_loc
-
+        
         nel_loc = size(nI)
+
+        print *, "nel_loc", nel_loc
+        call exit(0)
 
         ! Initialise the class counts
         store%ClassCountOcc = 0
@@ -776,7 +786,93 @@ contains
             !endif
         endforall
 
+
     end subroutine
+
+
+
+
+
+    subroutine decode_bit_det_spinsep (nI, iLut, store)
+
+        ! This routine decodes a determinant in bit form and constructs
+        ! the natural ordered integer representation of the det.
+        !
+        ! It also constructs lists of the occupied and unoccupied orbitals
+        ! within a symmetry.
+
+        integer(n_int), intent(in) :: iLut(0:niftot)
+        integer, intent(out) :: nI(:)
+        type(excit_gen_store_type), intent(inout) :: store
+        integer :: i, j, elec, orb, ind, virt(ScratchSize)
+        integer :: nel_loc
+
+        nel_loc = size(nI)
+
+        ! Initialise the class counts
+        store%ClassCountOcc = 0
+        virt = 0
+
+        elec = 0
+        store%nel_alpha = 0
+        do i = 0, NIfD
+            do j = 0, end_n_int
+                orb = (i * bits_n_int) + (j + 1)
+                ind = ClassCountInd(orb)
+                if (btest(iLut(i), j)) then
+                    !An electron is at this orbital
+                    elec = elec + 1
+                    nI(elec) = orb
+                    
+                    ! is the orbital spin alpha or beta?
+                    if (is_alpha(orb)) then
+                        store%nel_alpha = store%nel_alpha+1
+                        store%nI_alpha(store%nel_alpha) = orb
+                    else
+                        store%nI_beta(1-store%nel_alpa) = orb
+                    endif 
+
+                    ! Update class counts
+                    store%ClassCountOcc(ind) = store%ClassCountOcc(ind) + 1
+
+                    ! Store orbital INDEX in list of occ. orbs.
+                    store%occ_list(store%ClassCountOcc(ind), ind) = elec
+
+                    if (elec == nel_loc) exit
+                else
+                    ! Update count
+                    virt(ind) = virt(ind) + 1
+
+                    ! Store orbital in list of unocc. orbs.
+                    store%virt_list(virt(ind), ind) = orb
+                endif
+            enddo
+            if (elec == nel_loc) exit
+        enddo
+
+        ! Give final class count
+        store%ClassCountUnocc = OrbClassCount - store%ClassCountOcc
+        store%tFilled = .true.
+        store%scratch3(1) = -1
+
+        ! Fill in the remainder of the virtuals list
+        forall (ind = 1:ScratchSize)
+            !if (virt(ind) /= store%ClassCountUnocc(ind)) then
+                store%virt_list ( &
+                    virt(ind) + 1 : &
+                    store%ClassCountUnocc(ind), ind) = &
+                SymLabelList2 (&
+                    SymLabelCounts2(1, ind) + virt(ind) + &
+                        store%ClassCountOcc(ind) : &
+                    SymLabelCounts2(1, ind) + OrbClassCount(ind) - 1)
+            !endif
+        endforall
+    end subroutine
+
+
+
+
+
 
 
     subroutine decode_bit_det_chunks (nI, iLut)
@@ -883,7 +979,7 @@ contains
     subroutine decode_bit_det_bitwise (nI, iLut)
 
         ! This is a routine to take a determinant in bit form and construct 
-        ! the natural ordered integer forim of the det.
+        ! the natural ordered integer form of the det.
         ! If CSFs are enabled, transfer the yamanouchi symbol as well.
 
         integer(n_int), intent(in) :: iLut(0:NIfTot)
