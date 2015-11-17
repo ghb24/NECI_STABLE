@@ -829,7 +829,7 @@ contains
                         store%nel_alpha = store%nel_alpha+1
                         store%nI_alpha(store%nel_alpha) = orb
                     else
-                        store%nI_beta(1-store%nel_alpa) = orb
+                        store%nI_beta(j-store%nel_alpa) = orb
                     endif 
 
                     ! Update class counts
