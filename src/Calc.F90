@@ -75,7 +75,7 @@ contains
           FracLargerDet=1.2_dp
           iReadWalkersRoot=0 
           tShiftonHFPop=.false.
-          MaxWalkerBloom=-1
+          MaxWalkerBloom=2
           tSearchTau=.true.
           tSearchTauOption = .true.
           tSearchTauDeath = .false.
@@ -223,7 +223,7 @@ contains
           tDefineDet=.false.
           tTruncInitiator=.false.
           tAddtoInitiator=.false.
-          InitiatorWalkNo=10.0_dp
+          InitiatorWalkNo=3.0_dp
           tInitIncDoubs=.false.
           MaxNoatHF=0.0_dp
           HFPopThresh=0
