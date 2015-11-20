@@ -733,9 +733,6 @@ contains
         
         nel_loc = size(nI)
 
-        print *, "nel_loc", nel_loc
-        call exit(0)
-
         ! Initialise the class counts
         store%ClassCountOcc = 0
         virt = 0
@@ -815,6 +812,8 @@ contains
 
         elec = 0
         store%nel_alpha = 0
+
+
         do i = 0, NIfD
             do j = 0, end_n_int
                 orb = (i * bits_n_int) + (j + 1)
@@ -829,7 +828,7 @@ contains
                         store%nel_alpha = store%nel_alpha+1
                         store%nI_alpha(store%nel_alpha) = orb
                     else
-                        store%nI_beta(j-store%nel_alpa) = orb
+                        store%nI_beta(elec-store%nel_alpha) = orb
                     endif 
 
                     ! Update class counts
@@ -867,6 +866,7 @@ contains
                     SymLabelCounts2(1, ind) + OrbClassCount(ind) - 1)
             !endif
         endforall
+
     end subroutine
 
 
