@@ -1,6 +1,6 @@
 #include "macros.h"
 
-module symrandexcit3
+module symrandexcit_Ex_mag
 
     ! This is another version of the excitation generators. It creates 
     ! random excitations with a calculable, but non-uniform, probability.
@@ -14,6 +14,7 @@ module symrandexcit3
                           tNoSymGenRandExcits, nOccAlpha, nOccBeta
     use SymExcitDataMod, only: ScratchSize, SpinOrbSymLabel, SymInvLabel, &
                                SymLabelList2, SymLabelCounts2, pDoubNew, &
+                               pSingNew, pSing_spindiff1_new, pDoub_spindiff1_new, pDoub_spindiff2_new, &
                                OrbClassCount, ScratchSize1, ScratchSize2, &
                                ScratchSize3
     use SymData, only: nSymLabels
@@ -21,7 +22,8 @@ module symrandexcit3
     use GenRandSymExcitNUMod, only: RandExcitSymLabelProd, ClassCountInd, &
                                     CreateSingleExcit, CreateExcitLattice, &
                                     init_excit_gen_store,clean_excit_gen_store
-    use FciMCData, only: pDoubles, iter, excit_gen_store_type
+    use FciMCData, only: pDoubles, pSingles, iter, excit_gen_store_type, &
+                         pDoub_spindiff1, pDoub_spindiff2, pSing_spindiff1
     use bit_reps, only: niftot, decode_bit_det_lists
     use constants, only: dp, n_int, bits_n_int
     use sym_general_mod, only: SymAllowedExcit
@@ -32,7 +34,7 @@ module symrandexcit3
 
 contains
 
-    subroutine gen_rand_excit3 (nI, ilutI, nJ, ilutJ, exFlag, IC, ExcitMat, &
+    subroutine gen_rand_excit_Ex_mag (nI, ilutI, nJ, ilutJ, exFlag, IC, ExcitMat, &
                                 tParity, pGen, HElGen, store)
 
         ! This generator _requires_ store to have already been filled. This
@@ -46,9 +48,8 @@ contains
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
-
         real(dp) :: r
-        character(*), parameter :: this_routine = 'gen_rand_excit3'
+        character(*), parameter :: this_routine = 'gen_rand_excit_Ex_Mag'
 
         ! Just in case
         ilutJ(0) = -1
@@ -68,13 +69,25 @@ contains
         ! If exFlag is 3, select singles or doubles randomly, according
         ! to the value in pDoubles. Otherwise exFlag = 1 gives a single,
         ! and exFlag = 2 gives a double.
+
+
 ASSERT(exFlag<=3.and.exFlag>=1)
         IC = exFlag
         select case(IC)
         case(1)
+            ! normalise single probabilities
+            pSingNew = pSingles / (pSingles + pSing_spindiff1)
+            pSing_spindiff1_new = pSing_spindiff1 / (pSingles + pSing_spindiff1)
             pDoubNew = 0
+            pDoub_spindiff1_new = 0
+            pDoub_spindiff2_new = 0
         case(2)
-            pDoubNew = 1
+            pSingNew = 0 
+            pSing_spindiff1_new = 0
+            ! normalise double probabilities
+            pDoubNew = pDoubles / (pDoubles + pDoub_spindiff1 + pDoub_spindiff2)
+            pDoub_spindiff1_new = pDoub_spindiff1 / (pDoubles + pDoub_spindiff1 + pDoub_spindiff2)
+            pDoub_spindiff2_new = pDoub_spindiff2 / (pDoubles + pDoub_spindiff1 + pDoub_spindiff2)
         case(3)
             r = genrand_real2_dSFMT()
             if (r < pDoubles) then
@@ -82,45 +95,91 @@ ASSERT(exFlag<=3.and.exFlag>=1)
             else
                 IC = 1
             endif
+            pSingNew = pSingles
+            pSing_spindiff1_new = pSing_spindiff1
             pDoubNew = pDoubles
+            pDoub_spindiff1_new = pDoub_spindiff1
+            pDoub_spindiff2_new = pDoub_spindiff2
         end select
 
+        call select_spin_diff(IC)
         ! Call the actual single/double excitation generators.
-        if (IC == 2) then
-            pGen = gen_double (nI, nJ, iLutI, ExcitMat, tParity, &
-                               store%ClassCountUnocc, store%virt_list)
-        else
+        if (IC==1 .or. IC==3) then
             pGen = gen_single (nI, nJ, ilutI, ExcitMat, tParity, &
                                store%ClassCountOcc, store%ClassCountUnocc, &
                                store%scratch3, store%occ_list, &
-                               store%virt_list)
+                               store%virt_list, IC)
+
+        else
+            pGen = gen_double (nI, nJ, iLutI, ExcitMat, tParity, store, IC)
         endif
 
     end subroutine
 
 
-    function gen_double (nI, nJ, iLutI, ExcitMat, tParity, CCUnocc, &
-                         virt_list) result(pGen)
+    subroutine select_spin_diff(IC)
+        integer, intent(inout) :: IC
+        real(dp) :: r
+
+        r = genrand_real2_dSFMT()
+        select case(IC)
+        case(1)
+            ! single excitation has been selected
+            if (r<pSingles) then
+                IC = 1
+            else
+                IC = 3
+            endif
+        case(2)
+            ! double excitation has been selected
+            if (r<pDoubles) then
+                IC = 2
+                return
+            elseif (r<pDoubles+pDoub_spindiff1) then
+                IC = 4
+                return
+            endif
+        end select
+    end subroutine
+
+            
+    function gen_double (nI, nJ, iLutI, ExcitMat, tParity, store, IC) result(pGen)
 
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: nJ(nel)
-        integer, intent(in) :: CCUnocc(ScratchSize)
-        integer, intent(in) :: virt_list(:,:)
         integer(n_int), intent(in) :: iLutI(0:niftot)
         integer, intent(out) :: ExcitMat(2,2)
         logical, intent(out) :: tParity
+        integer, intent(in) :: IC
+        type(excit_gen_store_type), intent(inout), target :: store
+        real(dp) :: r
         real(dp) :: pGen
 
         real(dp) :: pElecs
-        integer :: elecs(2), spn(2), orbs(2), sym_inds(2)
+        integer :: elecs(2), elec_spn(2), virt_spn(2), orbs(2), sym_inds(2)
         integer :: sym_prod, rint, tot_pairs
         integer :: pair_list(0:nSymLabels-1)
 
-        ! Pick and unbiased, distinct, electron pair.
-        call pick_elec_pair (nI, elecs, sym_prod, spn)
-
+        if (IC == 5) then
+            ! Pick a pair of electrons with the constraint that they have a commom spin
+            call pick_likespin_elec_pair(nI, elecs, sym_prod, elec_spn, store)
+        else
+            ! Pick an unbiased, distinct, electron pair.
+            call pick_elec_pair (nI, elecs, sym_prod, elec_spn)
+        endif
         ! Pick a pair of symmetries, such that 
-        tot_pairs = count_orb_pairs (sym_prod, spn, CCUnocc, pair_list)
+        
+        virt_spn = elec_spn
+        select case(IC)
+        ! f(n) = 3-n maps 1->2 and 2->1
+        case(4) !S->S+1
+            virt_spn(1) = 3-virt_spn(1)
+        case(5) !S->S+2
+            virt_spn(1) = 3-virt_spn(1)
+            virt_spn(2) = 3-virt_spn(2)
+        end select
+        
+        tot_pairs = count_orb_pairs (sym_prod, virt_spn, orbs, store%ClassCountUnocc, pair_list)
 
         ! If there are no possible excitations for the electron pair picked, 
         ! then we abort the excitation
@@ -135,20 +194,87 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         rint = 1 + int(genrand_real2_dSFMT() * tot_pairs)
 
         ! Select a pair of symmetries to choose from
-        call select_syms(rint, sym_inds, sym_prod, spn, CCUnocc, &
+        call select_syms(rint, sym_inds, sym_prod, virt_spn, store%ClassCountUnocc, &
                          pair_list)
 
         ! Select a pair of orbitals from the symmetries above.
-        call select_orb_pair (rint, sym_inds, ilutI, orbs, CCUnocc, &
-                              virt_list)
+        call select_orb_pair (rint, sym_inds, ilutI, orbs, store%ClassCountUnocc, &
+                              store%virt_list)
 
         ! Generate the final determinant.
         call create_excit_det2 (nI, nJ, tParity, ExcitMat, elecs, orbs)
        
         ! Return the final probability
-        pGen = pDoubNew / real(ElecPairs * tot_pairs, dp)
+        select case(IC)
+        case(2)
+            pGen = pDoubNew / real(ElecPairs * tot_pairs, dp)
+        case(4)
+            pGen = pDoub_spindiff1_new / real(ElecPairs * tot_pairs, dp)
+        case(5)
+            pGen = pDoub_spindiff2_new / real(ElecPairs * tot_pairs, dp)
+        end select
 
     end function
+
+    subroutine pick_likespin_elec_pair (nI, elecs, sym_prod, spn, store)
+        integer :: nPairs, nPairs_alpha, nPairs_beta, nel_beta
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: elecs(2), sym_prod, spn(2)
+        integer :: ind, orbs(2)
+        type(excit_gen_store_type), intent(inout), target :: store
+        
+        ! Elecpairs is normally given by the number of elements in a triangular indexing system
+        ! Nel * (Nel-1)/2 pairs.
+        ! Here we demand that each electron in the pair has the same spin
+        ! e.g. for 6 electrons we would normally have the mapping:
+        !
+        !                   21                     1
+        !               32  31                 3   2
+        !           43  42  41  ==>        6   5   4
+        !       54  53  52  51         10  9   8   7
+        !   65  64  63  62  61     15  14  13  12  11  
+        !
+        ! But for 3 alpha electrons and 3 beta electrons in the parallel spin picking scheme:
+        !
+        !                   21              1
+        !               32  31          3   2
+        !                       ==>
+        !                   21              4
+        !               32  31          6   5
+        !
+        
+        nel_beta = nel - store%nel_alpha
+        nPairs_alpha = (store%nel_alpha * (store%nel_alpha-1))/2
+        nPairs_beta = (nel_beta*(nel_beta-1))/2
+        nPairs = nPairs_alpha + nPairs_beta
+
+        ! Generate a random integer 1 <= i <= nPairs
+        ! then shift by the appropriate pair number and use the normal mapping from random number to indices
+ 
+        ind = 1 + int(nPairs * genrand_real2_dSFMT())
+        if (ind <= nPairs_alpha) then
+            elecs(1) = ceiling((1 + sqrt(1 + 8*real(ind,dp))) / 2)
+            elecs(2) = ind - ((elecs(1) - 1) * (elecs(1) - 2)) / 2
+            elecs = 2*elecs
+            print *, elecs
+            orbs = nI(elecs)
+            ! alpha = 1
+            spn = get_spin(orbs)!(/1,1/)
+            sym_prod = RandExcitSymLabelProd (SpinOrbSymLabel(orbs(1)), &
+                                          SpinOrbSymLabel(orbs(2)))
+        else
+            ind = ind - nPairs_beta
+            elecs(1) = ceiling((1 + sqrt(1 + 8*real(ind,dp))) / 2)
+            elecs(2) = ind - ((elecs(1) - 1) * (elecs(1) - 2)) / 2
+            elecs = 2*elecs-(/1,1/)
+            orbs = nI(elecs)
+            ! beta = 2
+            spn = get_spin(orbs)!(/2,2/)
+            sym_prod = RandExcitSymLabelProd (SpinOrbSymLabel(orbs(1)), &
+                                          SpinOrbSymLabel(orbs(2)))
+        endif
+
+    end subroutine
 
 
     subroutine pick_elec_pair (nI, elecs, sym_prod, spn)
@@ -191,11 +317,12 @@ ASSERT(exFlag<=3.and.exFlag>=1)
 
     end subroutine
     
-    function count_orb_pairs (sym_prod, spn, CCUnocc, num_pairs) &
+    function count_orb_pairs (sym_prod, spn, orb, CCUnocc, num_pairs) &
                               result(tot_pairs)
 
         integer, intent(in) :: sym_prod
-        integer, intent(inout) :: spn(2)
+        integer, intent(in) :: spn(2)
+        integer, intent(out) :: orb(2)
         integer, intent(in) :: CCUnocc(ScratchSize)
         integer, intent(inout) :: num_pairs(0:nSymLabels-1)
         integer :: tot_pairs
@@ -205,10 +332,14 @@ ASSERT(exFlag<=3.and.exFlag>=1)
 
         ! TODO: Are we going to be able to store this one in ScratchSize
         !       arrays as well?
+
         tot_pairs = 0
         if (spn(1) == spn(2)) then
-            indA = spn(1)
+            ! given a product of symmetry labels, and given that the irreps of the
+            ! point group are abelian, find the corresponding symB for every symA
+            ! such that their product is the same as that of the chosen elec pair
             do symA = 0, nSymLabels - 1
+                indA = ClassCountInd(spn(1), symA, -1)
                 symB = RandExcitSymLabelProd(SymInvLabel(symA), sym_prod)
 
                 if (symA == symB) then
@@ -220,7 +351,6 @@ ASSERT(exFlag<=3.and.exFlag>=1)
                 endif
 
                 num_pairs(symA) = tot_pairs
-                indA = indA + 2
             enddo
 
         else ! spn(1) /= spn(2)
@@ -361,7 +491,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
     end subroutine
 
     function gen_single (nI, nJ, iLutI, ExcitMat,  tParity, CCOcc, CCUnocc, &
-                         pair_list, occ_list, virt_list) result(pGen)
+                         pair_list, occ_list, virt_list, IC) result(pGen)
 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
@@ -370,6 +500,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         integer, intent(in) :: CCOcc(ScratchSize), CCUnocc(ScratchSize)
         integer, intent(out) :: pair_list(ScratchSize)
         integer, intent(in) :: occ_list(:,:), virt_list(:,:)
+        integer, intent(in) :: IC
         real(dp) :: pGen
         character(*), parameter :: this_routine = 'gen_single'
 
@@ -379,11 +510,29 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         ASSERT(.not. tFixLz)
 
         ! Find the number of available pairs in each symmetry & overall
+
+        ! If we are changing spin, we want the number of pairs is the product
+        ! of the number of occupied orbitals of class (spin, symlabel) and the
+        ! number of unoccupied orbitals of class (3-spin, symlabel)
+
         if (pair_list(1) == -1) then
-            pair_list(1) = CCOcc(1) * CCUnocc(1)
-            do i = 2, ScratchSize
-                pair_list(i) = pair_list(i-1) + (CCOcc(i) * CCUnocc(i))
-            enddo
+            ! this is the first run for the current det
+            if (IC==1) then
+                pair_list(1) = CCOcc(1) * CCUnocc(1)
+                do i = 2, ScratchSize
+                    pair_list(i) = pair_list(i-1) + (CCOcc(i) * CCUnocc(i))
+                enddo
+            else ! spin changing
+                pair_list(1) = CCOcc(1) * CCUnocc(2)
+                do i = 2, ScratchSize
+                    ! if i is even, we want the unocc count of class i-1
+                    ! if i is odd, we want that of class i+1 
+                    ! mod(i,2) is either 0 or 1 (even, odd)
+                    ! 2*mod(i,2)-1 is either -1 or 1
+                    ! therefore i+2*mod(i,2)-1 = i-1 (even) or i+1 (odd) as required
+                    pair_list(i) = pair_list(i-1) + (CCOcc(i) * CCUnocc( i+2*mod(i,2)-1 ))
+                enddo
+            endif
         endif
         npairs = pair_list(ScratchSize)
 
@@ -397,7 +546,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         ! Pick a pair
         rint = int(1.0_dp + (genrand_real2_dSFMT() * real(npairs,dp)),sizeof_int)
         
-        ! Select which symmetry/spin category we want.
+        ! Select which symmetry/spin category we want for the currently  occupied orbital
         !ind = binary_search_first_ge (pair_list, rint)
         do ind = 1, ScratchSize
             if (pair_list(ind) >= rint) exit
@@ -409,7 +558,11 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         ! --> There must be no overlap, so use a rectangular selection.
         if (ind > 1) rint = rint - pair_list(ind - 1)
         src = mod(rint - 1, CCOcc(ind)) + 1
-        tgt = floor((real(rint,dp) - 1) / CCOcc(ind)) + 1
+        if (IC==1) then
+            tgt = floor((real(rint,dp) - 1) / CCOcc(ind)) + 1
+        else
+            tgt = floor((real(rint,dp) - 1) / CCOcc(ind)) + 1 + (2*mod(ind,2)-1)
+        endif
 
         ! Find the index of the src orbital in the list and the target orbital
         ! (the tgt'th vacant orbital in the given symmetry)
@@ -427,7 +580,11 @@ ASSERT(exFlag<=3.and.exFlag>=1)
 #endif
 
         ! Return the generation probability
-        pGen = (1 - pDoubNew) / real(npairs, dp)
+        if (IC==1) then
+            pGen = pSingNew / real(npairs, dp)
+        else
+            pGen = pSing_spindiff1_new / real(npairs, dp)
+        endif
 
     end function
 
@@ -581,7 +738,7 @@ lp2: do while(.true.)
             CALL neci_flush(6)
         ENDIF
 
-        call gen_rand_excit3 (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
+        call gen_rand_excit_Ex_Mag (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
                              tParity, pGen, HElGen, store)
         IF(nJ(1).eq.0) THEN
 !            ForbiddenIter=ForbiddenIter+1
@@ -771,17 +928,17 @@ end module
 
 
 ! N.B. This is outside the module *sigh*
-subroutine virt_uniform_sym_setup ()
+!subroutine virt_uniform_sym_setup ()
 
-    use SymExcitDataMod, only: ScratchSize, ScratchSize3
-    implicit none
+!    use SymExcitDataMod, only: ScratchSize, ScratchSize3
+!    implicit none
 
     ! We use the third scratch array to store data for single
     ! excitations
 
-    call SpinOrbSymSetup ()
+!    call SpinOrbSymSetup ()
 
-    ScratchSize3 = ScratchSize
+!    ScratchSize3 = ScratchSize
 
-end subroutine
+!end subroutine
 
