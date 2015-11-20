@@ -3,7 +3,7 @@ MODULE SymExcitDataMod
     IMPLICIT NONE
     SAVE
 
-    real(dp) :: pDoubNew
+    real(dp) :: pSingNew, pDoubNew, pSing_spindiff1_new, pDoub_spindiff1_new, pDoub_spindiff2_new
     INTEGER , ALLOCATABLE :: SymLabelList2(:),SymLabelCounts2(:,:)
 
     ! What are the upper bounds for the scratch arrays neede for excitation
