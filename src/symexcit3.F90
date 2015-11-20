@@ -15,6 +15,104 @@ MODULE SymExcit3
 
     CONTAINS
 
+    subroutine CountExcitations_Ex_Mag(nI, exFlag, nSing, nSing_spindiff1, nDoub, nDoub_spindiff1, nDoub_spindiff2)
+        ! based on CountExcitations3
+        use SymData, only: nSymLabels
+        use SystemData , only: ElecPairs,tFixLz,iMaxLz
+        use GenRandSymExcitNUMod , only: PickElecPair,construct_class_counts,ClassCountInd,ScratchSize 
+        integer, intent(inout) :: nSing,nSing_spindiff1
+        integer, intent(inout) :: nDoub,nDoub_spindiff1,nDoub_spindiff2,nI(NEl), exFlag
+        integer :: Symi, i, Spini
+        integer :: iSpn,Elec1Ind,Elec2Ind,SymProduct
+        integer :: Syma,Symb,Spina,Spinb,StartSpin,EndSpin
+        integer :: CCount2(ScratchSize)
+        integer :: CCUnocc2(ScratchSize), sumMl
+        call construct_class_counts(nI,CCount2,CCUnocc2)
+
+        nSing = 0
+        nSing_spindiff1 = 0
+        nDoub = 0
+        nDoub_spindiff1 = 0
+        nDoub_spindiff2 = 0
+
+        if (exFlag .ne. 2) then 
+            ! count the singles
+            do i=1,NEl
+                Symi=SpinOrbSymLabel(nI(i))
+                if((G1(nI(i))%Ms).eq.-1) Spini=2        ! G1(i)%Ms is -1 for beta, and 1 for alpha.
+                if((G1(nI(i))%Ms).eq.1) Spini=1         ! Translate this into 1 for alpha and 2 for beta
+                                                        ! for the ClassCount arrays.
+                ! This electron in orbital of SymI and SpinI can only be excited to orbitals with the same
+                ! spin and symmetry. Then add in the number of unoccupied orbitals with the same spin and 
+                ! symmetry to which each electron may be excited.
+            
+                nSing=nSing+CCUnocc2(ClassCountInd(Spini,Symi,-1))
+                nSing_spindiff1=nSing_spindiff1+CCUnocc2(ClassCountInd(3-Spini,Symi,-1))
+            enddo
+        endif
+
+        if(exFlag .ne. 1) then
+            ! count the doubles
+            write(*,*) "elecpairs", elecpairs
+            do i=1,ElecPairs
+
+! iSpn=2 for alpha beta pair, ispn=3 for alpha alpha pair and ispn=1 for beta beta pair.
+                call PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,sumMl,i)
+
+                StartSpin=1
+                EndSpin=2
+                if(iSpn.eq.3) EndSpin=1
+                if(iSpn.eq.1) StartSpin=2
+                do Spina=StartSpin,EndSpin            ! Run through both spins, orbital a may be alpha or beta.
+                    if(iSpn.eq.2) then
+                        ! Spin of orbital b should be opposite to that of orbital a.                    
+                        if(Spina.eq.1) Spinb=2
+                        if(Spina.eq.2) Spinb=1
+                    else
+                        ! Spin of orbital b should be the same as that of orbital a.                    
+                        IF(Spina.eq.1) Spinb=1
+                        IF(Spina.eq.2) Spinb=2
+                    ENDIF
+
+                    do Syma=0,nSymLabels-1
+
+                        ! Need to work out the symmetry of b, given the symmetry of a (Sym).                    
+                        Symb=IEOR(Syma,SymProduct)
+
+                            
+                        if(Spina.eq.Spinb) then
+                            if (Syma.eq.Symb) then
+                                ! If the spin and spatial symmetries of a and b are the same
+                                ! there will exist a case where Orba = Orbb, want to remove this.
+                                nDoub=nDoub+(CCUnocc2(ClassCountInd(Spina,Syma,-1)) &
+                                        *(CCUnocc2(ClassCountInd(Spina,Symb,-1))-1))
+                            else
+                                nDoub=nDoub+(CCUnocc2(ClassCountInd(Spina,Syma,-1)) &
+                                        *CCUnocc2(ClassCountInd(Spina,Symb,-1)))
+                                ! S->S+1: change one spin
+                                nDoub_spindiff1=nDoub_spindiff1+(CCUnocc2(ClassCountInd(Spina,Syma,-1)) &
+                                        *(CCUnocc2(ClassCountInd(3-Spina,Symb,-1))))
+                                ! S->S+2: change both spins
+                                nDoub_spindiff2=nDoub_spindiff2+(CCUnocc2(ClassCountInd(3-Spina,Syma,-1)) &
+                                        *(CCUnocc2(ClassCountInd(3-Spina,Symb,-1))))
+                            endif
+                        else
+                            nDoub=nDoub+(CCUnocc2(ClassCountInd(Spina,Syma,-1)) &
+                                    *CCUnocc2(ClassCountInd(Spina,Symb,-1)))
+                            ! S->S+1: change one spin
+                            nDoub_spindiff1=nDoub_spindiff1+(CCUnocc2(ClassCountInd(Spina,Syma,-1)) &
+                                    *(CCUnocc2(ClassCountInd(3-Spina,Symb,-1))))
+                        endif
+                    enddo
+                enddo
+            enddo
+            ! each excitation will have been counted twice with the choices (a,b) and (b,a)
+            nDoub=nDoub/2
+            nDoub_spindiff1=nDoub_spindiff1/2
+            nDoub_spindiff2=nDoub_spindiff2/2
+        endif
+
+    end subroutine CountExcitations_Ex_Mag
 
     SUBROUTINE CountExcitations3(nI,exflag,nSingleExcits,nDoubleExcits)
 ! This routine simply counts the excitations in terms of single and doubles from the nI determinant.    
@@ -29,7 +127,6 @@ MODULE SymExcit3
         INTEGER :: ClassCount2(ScratchSize),SumMl
         INTEGER :: ClassCountUnocc2(ScratchSize)
         INTEGER :: StartMl, EndMl, Mla, Mlb
-
         CALL construct_class_counts(nI,ClassCount2,ClassCountUnocc2)
 ! This sets up arrays containing the number of occupied and unoccupied in each symmetry.
 ! ClassCounts2(1,:)=No alpha occupied, ClassCounts2(2,:)=No Beta occupied.
