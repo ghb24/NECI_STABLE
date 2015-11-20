@@ -58,7 +58,7 @@ module fcimc_initialisation
                             flag_deterministic
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det, nullify_ilut, encode_part_sign, &
-                        extract_part_sign
+                        extract_part_sign, tBuildSpinSepLists 
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
                          BeforeNormHist, InstHist, iNoBins, AllInstHist, &
                          HistogramEnergy, AllHistogramEnergy, AllHistogram, &
@@ -78,12 +78,13 @@ module fcimc_initialisation
                                   fill_rdm_diag_currdet, new_child_stats, &
                                   get_conn_helement
     use symrandexcit3, only: gen_rand_excit3
+    use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
                                        gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse
     use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
-    use SymExcit3, only: CountExcitations3, GenExcitations3
+    use SymExcit3, only: CountExcitations3, GenExcitations3, CountExcitations_Ex_Mag
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD, only : InitHistInitPops
     use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
@@ -1433,7 +1434,11 @@ contains
         elseif (tCSF) then
             generate_excitation => gen_csf_excit
         elseif (tPickVirtUniform) then
-            generate_excitation => gen_rand_excit3
+            !if (tReltvy) then
+                generate_excitation => gen_rand_excit_Ex_Mag
+            !else
+            !    generate_excitation => gen_rand_excit3
+            !endif
         elseif (tGenHelWeighted) then
             generate_excitation => gen_excit_hel_weighted
         elseif (tGen_4ind_2) then
@@ -1445,7 +1450,6 @@ contains
         else
             generate_excitation => gen_rand_excit
         endif
-
         ! In the main loop, we only need to find out if a determinant is
         ! connected to the reference det or not (so no ex. level above 2 is
         ! required). Except in some cases where we need to know the maximum
@@ -2707,7 +2711,8 @@ contains
     SUBROUTINE CheckforBrillouins()
         INTEGER :: i,j
         LOGICAL :: tSpinPair
-        
+       
+
 !Standard cases.
         IF((tHub.and.tReal).or.(tRotatedOrbs).or.((LMS.ne.0).and.(.not.tUHF)).or.tReltvy) THEN
 !Open shell, restricted.            
@@ -2777,8 +2782,8 @@ contains
     ENDSUBROUTINE CheckforBrillouins
 
     SUBROUTINE CalcApproxpDoubles()
-        INTEGER :: iTotal
-        integer :: nSing, nDoub, ncsf, ierr
+        real(dp) :: rTotal
+        integer :: nSing, nDoub, nSing_spindiff1, nDoub_spindiff1, nDoub_spindiff2, ncsf, ierr
         integer :: hfdet_loc(nel)
 
         ! A quick hack. Count excitations as though we were a determinant.
@@ -2793,18 +2798,24 @@ contains
         endif
         nSing=0
         nDoub=0
+        if (tReltvy) then
+            nSing_spindiff1 = 0
+            nDoub_spindiff1 = 0
+            nDoub_spindiff2 = 0
+        endif
 
         IF(tHub.or.tUEG) THEN
             IF(tReal) THEN
                 WRITE(iout,*) "Since we are using a real-space hubbard model, only single excitations are connected &
                 &   and will be generated."
-                pDoubles=0.0_dp
-                return
+                nDoub = 0
+                nDoub_spindiff1=0
+                nDoub_spindiff2=0
             ELSE
                 WRITE(iout,*) "Since we are using a momentum-space hubbard model/UEG, only double excitaitons &
      &                          are connected and will be generated."
-                pDoubles=1.0_dp
-                return
+                nSing = 0
+                nSing_spindiff1=0
             ENDIF
         elseif(tNoSingExcits) then
             write(iout,*) "Only double excitations will be generated"
@@ -2813,16 +2824,38 @@ contains
 
 !NSing=Number singles from HF, nDoub=No Doubles from HF
 
-        WRITE(iout,"(A)") " Calculating approximate pDoubles for use with &
+        WRITE(iout,"(A)") " Calculating approximate probabilities for use with &
                        &excitation generator by looking a excitations from &
                        &reference."
         exflag=3
         IF(tKPntSym) THEN
             call enumerate_sing_doub_kpnt(exFlag, .false., nSing, nDoub, .false.) 
         ELSE
-            CALL CountExcitations3(HFDet_loc,exflag,nSing,nDoub)
+            if (tReltvy) then
+                write(iout,*) "Counting magnetic excitations"
+                call CountExcitations_Ex_Mag(HFDet_loc,exflag,nSing,nSing_spindiff1,&
+                    nDoub, nDoub_spindiff1, nDoub_spindiff2)
+            else
+                CALL CountExcitations3(HFDet_loc,exflag,nSing,nDoub)
+            endif
         ENDIF
-        iTotal=nSing + nDoub + ncsf
+
+
+        if (tReltvy) then
+            if (tCSF) then
+                rTotal = real(nSing,dp) + real(nSing_spindiff1,dp) + real(nDoub,dp) &
+                    + real(nDoub_spindiff1,dp) + real(nDoub_spindiff2,dp) + real(ncsf, dp)
+            else
+                rTotal = real(nSing,dp) + real(nSing_spindiff1,dp) + real(nDoub,dp) &
+                    + real(nDoub_spindiff1,dp) + real(nDoub_spindiff2,dp)
+            endif
+        else
+            if (tCSF) then
+                rTotal=real(nSing, dp)*SinglesBias + real(nDoub,dp) + real(ncsf,dp)
+            else
+                rTotal=real(nSing, dp)*SinglesBias + real(nDoub,dp)
+            endif
+        endif
 
         WRITE(iout,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing, &
             " single excitations found from reference. This will be used to calculate pDoubles."
@@ -2832,10 +2865,6 @@ contains
                 SinglesBias," to determine pDoubles."
         ENDIF
 
-        IF((NSing+nDoub+ncsf).ne.iTotal) THEN
-            CALL Stop_All("CalcApproxpDoubles","Sum of number of singles and number of doubles does " &
-            & //"not equal total number of excitations")
-        ENDIF
         IF((NSing.eq.0).or.(NDoub.eq.0)) THEN
             WRITE(iout,*) "Number of singles or doubles found equals zero. pDoubles will be set to 0.95. Is this correct?"
             pDoubles = 0.95_dp
@@ -2849,35 +2878,35 @@ contains
 
         ! Set pDoubles to be the fraction of double excitations.
         ! If using CSFs, also consider only changing Yamanouchi Symbol
-        if (tCSF) then
-            pDoubles = real(nDoub,dp) / &
-                   ((real(nSing,dp)*SinglesBias)+real(nDoub,dp)+real(ncsf,dp))
-            pSingles = real(nSing,dp) / &
-                   ((real(nSing,dp)*SinglesBias)+real(nDoub,dp)+real(ncsf,dp))
+        
+        pDoubles = real(nDoub, dp) / rTotal
+        pSingles = real(nSing, dp) / rTotal
 
-        else
-            pDoubles = real(nDoub,dp) / &
-                   ((real(NSing,dp)*SinglesBias) + real(NDoub,dp))
-            pSingles = real(nSing,dp) * SinglesBias/ &
-                   ((real(nSing,dp)*SinglesBias) + real(nDoub,dp))
+        if (tReltvy) then
+            pSing_spindiff1 = real(nSing_spindiff1,dp) / rTotal
+            pDoub_spindiff1 = real(nDoub_spindiff1,dp) / rTotal
+            pDoub_spindiff2 = real(nDoub_spindiff2,dp) / rTotal
         endif
 
-        IF(SinglesBias.ne.1.0_dp) THEN
-            write (iout, '("pDoubles set to ", f14.6, &
-                       &" rather than (without bias): ", f14.6)') &
-                       pDoubles, real(nDoub,dp) / real(iTotal,dp)
-            write (iout, '("pSingles set to ", f14.6, &
-                       &" rather than (without bias): ", f14.6)') &
-                       pSingles, real(nSing,dp) / real(iTotal,dp)
+!        IF(SinglesBias.ne.1.0_dp) THEN
+!            write (iout, '("pDoubles set to ", f14.6, &
+!                       &" rather than (without bias): ", f14.6)') &
+!                       pDoubles, real(nDoub,dp) / real(iTotal,dp)
+!            write (iout, '("pSingles set to ", f14.6, &
+!                       &" rather than (without bias): ", f14.6)') &
+!                       pSingles, real(nSing,dp) / real(iTotal,dp)
 
 !            WRITE(iout,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ", &
 !                & real(nDoub,dp)/real(iTotal,dp)
-        ELSE
+!        ELSE
             write (iout,'(A,F14.6)') " pDoubles set to: ", pDoubles
             write (iout,'(A,F14.6)') " pSingles set to: ", pSingles
-        ENDIF
+            write (iout,'(A,F14.6)') " pSing_spindiff1 set to: ", pSing_spindiff1
+            write (iout,'(A,F14.6)') " pDoub_spindiff1 set to: ", pDoub_spindiff1
+            write (iout,'(A,F14.6)') " pDoub_spindiff2 set to: ", pDoub_spindiff2
+!        ENDIF
 
-    END SUBROUTINE CalcApproxpDoubles
+    end subroutine CalcApproxpDoubles
 
     SUBROUTINE CreateSpinInvBRR()
 
