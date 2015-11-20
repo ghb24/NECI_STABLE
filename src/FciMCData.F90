@@ -265,6 +265,7 @@ MODULE FciMCData
       ! The approximate fraction of singles and doubles. This is calculated
       ! using the HF determinant, if using non-uniform random excitations.
       real(dp) :: pDoubles, pSingles, pParallel
+      real(dp) :: pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
       integer :: nSingles, nDoubles
       ! The number of determinants connected to the Hartree-Fock determinant.
       integer :: HFConn
@@ -300,6 +301,7 @@ MODULE FciMCData
       !This is whether to generate matrix elements as generating excitations for the HPHF/MI/ISK options
       LOGICAL , PARAMETER :: tGenMatHEl=.true.      
 
+      ! Number of update cycles that the shift has been allowed to vary
       ! Number of update cycles that the shift has been allowed to vary
       integer, allocatable :: VaryShiftCycles(:)
 
@@ -559,4 +561,4 @@ MODULE FciMCData
 
       real(dp), allocatable :: replica_overlaps(:,:)
 
-END MODULE FciMCData
+end module FciMCData
