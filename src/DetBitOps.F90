@@ -758,10 +758,11 @@ module DetBitOps
         !      ExcitMat(2,2)   - Excitation Matrix
         ! Out: iLutnJ (0:NIfD) - New bit det
 
-        integer, intent(in) :: IC, ExcitMat(2,2)
+        integer, intent(in) :: IC
+        integer, intent(in) :: ExcitMat(2,2)
         integer(kind=n_int), intent(in) :: iLutnI (0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ (0:NIfTot)
-        integer :: pos(2,2), bit(2,2), i
+        integer :: pos(2,2), bit(2,2), i, ic_tmp
 
         iLutnJ = iLutnI
         if (IC == 0) then
@@ -773,8 +774,17 @@ module DetBitOps
             pos = (excitmat - 1) / bits_n_int
             bit = mod(excitmat - 1, bits_n_int)
 
+            ic_tmp = ic
+            if (ic==3) then
+                ! single excitation: only one populated column in ExcitMat
+                ic_tmp=1
+            elseif (ic==4 .or. ic==5) then
+                ! double excitation: both columns populated in ExcitMat
+                ic_tmp=2
+            endif
+
             ! Clear bits for excitation source, and set bits for target
-            do i=1,IC
+            do i=1,ic_tmp
                 iLutnJ(pos(1,i)) = ibclr(iLutnJ(pos(1,i)), bit(1,i))
                 iLutnJ(pos(2,i)) = ibset(iLutnJ(pos(2,i)), bit(2,i))
             enddo
