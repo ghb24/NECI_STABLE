@@ -2782,6 +2782,7 @@ contains
     ENDSUBROUTINE CheckforBrillouins
 
     SUBROUTINE CalcApproxpDoubles()
+        implicit none
         real(dp) :: rTotal
         integer :: nSing, nDoub, nSing_spindiff1, nDoub_spindiff1, nDoub_spindiff2, ncsf, ierr
         integer :: hfdet_loc(nel)
