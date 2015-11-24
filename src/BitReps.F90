@@ -788,6 +788,95 @@ contains
 
 
 
+    subroutine print_pictorial (nI, norbs)
+        ! for debugging purposes
+        integer, intent(in) :: nI(:), norbs
+        integer :: i, occupation(norbs)
+
+        do i=1,norbs
+            occupation(i)=0
+        enddo
+
+        do i=1,size(nI)
+            occupation(nI(i)) = 1
+        enddo
+
+        i = norbs
+        do while (i>1)
+            if (occupation(i)==1) then
+                ! alpha here
+                if (occupation(i-1)==1) then
+                    write(*,*) "ab"
+                else
+                    write(*,*) "a-"
+                endif
+            else
+                if (occupation(i-1)==1) then
+                    ! only a beta here
+                    write(*,*) "-b"
+                else
+                    write(*,*) "--"
+                endif
+            endif
+            i = i-2
+        enddo
+
+    end subroutine
+
+    subroutine print_pictorial_comparison (nI, nJ, norbs)
+        ! for debugging purposes
+        integer, intent(in) :: nI(:), nJ(:), norbs
+        integer :: i, Ioccupation(norbs), Joccupation(norbs)
+
+        do i=1,norbs
+            Ioccupation(i)=0
+            Joccupation(i)=0
+        enddo
+
+        do i=1,size(nI)
+            Ioccupation(nI(i)) = 1
+        enddo
+        
+        do i=1,size(nJ)
+            Joccupation(nJ(i)) = 1
+        enddo
+
+        i = norbs
+        do while (i>1)
+            if (Ioccupation(i)==1) then
+                ! alpha here
+                if (Ioccupation(i-1)==1) then
+                    write(*,'(A)',advance='no') "ab    "
+                else
+                    write(*,'(A)',advance='no') "a-    "
+                endif
+            else
+                if (Ioccupation(i-1)==1) then
+                    ! only a beta here
+                    write(*,'(A)',advance='no') "-b    "
+                else
+                    write(*,'(A)',advance='no') "--    "
+                endif
+            endif
+            if (Joccupation(i)==1) then
+                ! alpha here
+                if (Joccupation(i-1)==1) then
+                    write(*,*) "ab    "
+                else
+                    write(*,*) "a-    "
+                endif
+            else
+                if (Joccupation(i-1)==1) then
+                    ! only a beta here
+                    write(*,*) "-b    "
+                else
+                    write(*,*) "--    "
+                endif
+            endif
+            i = i-2
+        enddo
+
+    end subroutine
 
 
     subroutine decode_bit_det_spinsep (nI, iLut, store)
