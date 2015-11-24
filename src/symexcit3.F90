@@ -59,58 +59,79 @@ MODULE SymExcit3
 ! iSpn=2 for alpha beta pair, ispn=3 for alpha alpha pair and ispn=1 for beta beta pair.
                 call PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,sumMl,i)
 
-                StartSpin=1
-                EndSpin=2
-                if(iSpn.eq.3) EndSpin=1
-                if(iSpn.eq.1) StartSpin=2
-                do Spina=StartSpin,EndSpin            ! Run through both spins, orbital a may be alpha or beta.
-                    if(iSpn.eq.2) then
-                        ! Spin of orbital b should be opposite to that of orbital a.                    
-                        if(Spina.eq.1) Spinb=2
-                        if(Spina.eq.2) Spinb=1
-                    else
-                        ! Spin of orbital b should be the same as that of orbital a.                    
-                        IF(Spina.eq.1) Spinb=1
-                        IF(Spina.eq.2) Spinb=2
-                    ENDIF
-
-                    do Syma=0,nSymLabels-1
-
-                        ! Need to work out the symmetry of b, given the symmetry of a (Sym).                    
-                        Symb=IEOR(Syma,SymProduct)
-
-                            
-                        if(Spina.eq.Spinb) then
-                            if (Syma.eq.Symb) then
-                                ! If the spin and spatial symmetries of a and b are the same
-                                ! there will exist a case where Orba = Orbb, want to remove this.
-                                nDoub=nDoub+(CCUnocc2(ClassCountInd(Spina,Syma,-1)) &
-                                        *(CCUnocc2(ClassCountInd(Spina,Symb,-1))-1))
-                            else
-                                nDoub=nDoub+(CCUnocc2(ClassCountInd(Spina,Syma,-1)) &
-                                        *CCUnocc2(ClassCountInd(Spina,Symb,-1)))
-                                ! S->S+1: change one spin
-                                nDoub_spindiff1=nDoub_spindiff1+(CCUnocc2(ClassCountInd(Spina,Syma,-1)) &
-                                        *(CCUnocc2(ClassCountInd(3-Spina,Symb,-1))))
-                                ! S->S+2: change both spins
-                                nDoub_spindiff2=nDoub_spindiff2+(CCUnocc2(ClassCountInd(3-Spina,Syma,-1)) &
-                                        *(CCUnocc2(ClassCountInd(3-Spina,Symb,-1))))
-                            endif
+                ! alpha = 1, beta = 2
+                if (iSpn==1) then
+                    ! beta beta pair
+                    do syma = 0,nSymLabels-1
+                        symb = ieor(syma, symProduct)
+                        if (syma==symb) then
+                            ! spin and sym are equal, so one config has two e- in the same spin orb.
+                            nDoub=nDoub+(CCUnocc2(ClassCountInd(2,Syma,-1)) &
+                                       *(CCUnocc2(ClassCountInd(2,Syma,-1))-1))
                         else
-                            nDoub=nDoub+(CCUnocc2(ClassCountInd(Spina,Syma,-1)) &
-                                    *CCUnocc2(ClassCountInd(Spina,Symb,-1)))
-                            ! S->S+1: change one spin
-                            nDoub_spindiff1=nDoub_spindiff1+(CCUnocc2(ClassCountInd(Spina,Syma,-1)) &
-                                    *(CCUnocc2(ClassCountInd(3-Spina,Symb,-1))))
+                            nDoub=nDoub+(CCUnocc2(ClassCountInd(2,Syma,-1)) &
+                                       *(CCUnocc2(ClassCountInd(2,Symb,-1))))
+                        endif
+
+                        nDoub_spindiff1=nDoub_spindiff1+(CCUnocc2(ClassCountInd(1,Syma,-1)) &
+                                       *(CCUnocc2(ClassCountInd(2,Symb,-1))))+(CCUnocc2(ClassCountInd(2,Syma,-1)) &
+                                       *(CCUnocc2(ClassCountInd(1,Symb,-1)))) 
+
+
+                        nDoub_spindiff2=nDoub_spindiff2+(CCUnocc2(ClassCountInd(1,Syma,-1)) &
+                                       *(CCUnocc2(ClassCountInd(1,Symb,-1))))
+                    enddo
+
+                elseif (iSpn==3) then
+                    ! alpha alpha pair
+                    do syma = 0,nSymLabels-1
+                        symb = ieor(syma, symProduct)
+                        if (syma==symb) then
+                            ! spin and sym are equal, so one config has two e- in the same spin orb.
+                            nDoub=nDoub+(CCUnocc2(ClassCountInd(1,Syma,-1)) &
+                                       *(CCUnocc2(ClassCountInd(1,Syma,-1))-1))
+                        else
+                            nDoub=nDoub+(CCUnocc2(ClassCountInd(1,Syma,-1)) &
+                                       *(CCUnocc2(ClassCountInd(1,Symb,-1))))
+                        endif
+
+                        nDoub_spindiff1=nDoub_spindiff1+(CCUnocc2(ClassCountInd(2,Syma,-1)) &
+                                       *(CCUnocc2(ClassCountInd(1,Symb,-1))))+(CCUnocc2(ClassCountInd(1,Syma,-1)) &
+                                       *(CCUnocc2(ClassCountInd(2,Symb,-1))))
+
+                        nDoub_spindiff2=nDoub_spindiff2+(CCUnocc2(ClassCountInd(2,Syma,-1)) &
+                                       *(CCUnocc2(ClassCountInd(2,Symb,-1))))
+                    enddo
+
+                elseif (iSpn==2) then
+                    ! alpha alpha pair
+                    do syma = 0,nSymLabels-1
+                        symb = ieor(syma, symProduct)
+                        
+                        nDoub=nDoub+(CCUnocc2(ClassCountInd(1,Syma,-1)) &
+                                   *(CCUnocc2(ClassCountInd(2,Symb,-1))))+(CCUnocc2(ClassCountInd(2,Syma,-1)) &
+                                   *(CCUnocc2(ClassCountInd(1,Symb,-1))))
+                        if (syma==symb) then
+                            nDoub_spindiff1=nDoub_spindiff1+(CCUnocc2(ClassCountInd(1,Syma,-1)) &
+                                       *(CCUnocc2(ClassCountInd(1,Symb,-1))-1)) +(CCUnocc2(ClassCountInd(2,Syma,-1)) &
+                                       *(CCUnocc2(ClassCountInd(2,Symb,-1))-1))
+                        else
+                            nDoub_spindiff1=nDoub_spindiff1+(CCUnocc2(ClassCountInd(1,Syma,-1)) &
+                                       *(CCUnocc2(ClassCountInd(1,Symb,-1)))) +(CCUnocc2(ClassCountInd(2,Syma,-1)) &
+                                       *(CCUnocc2(ClassCountInd(2,Symb,-1))))
                         endif
                     enddo
-                enddo
+                endif
             enddo
-            ! each excitation will have been counted twice with the choices (a,b) and (b,a)
-            nDoub=nDoub/2
-            nDoub_spindiff1=nDoub_spindiff1/2
-            nDoub_spindiff2=nDoub_spindiff2/2
         endif
+
+        ! electrons are indistinguishable:
+        ! i.e. the excitations which involve one pair of like-spin orbitals have been counted twice
+        ! and those which involve two like-spin orbital pairs have been counted four times
+        ! we adjust for this here:
+        nDoub = nDoub/2
+        nDoub_spindiff1 = nDoub_spindiff1/2
+        nDoub_spindiff2 = nDoub_spindiff2/4
 
     end subroutine CountExcitations_Ex_Mag
 
