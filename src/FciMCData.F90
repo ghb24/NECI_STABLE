@@ -302,7 +302,6 @@ MODULE FciMCData
       LOGICAL , PARAMETER :: tGenMatHEl=.true.      
 
       ! Number of update cycles that the shift has been allowed to vary
-      ! Number of update cycles that the shift has been allowed to vary
       integer, allocatable :: VaryShiftCycles(:)
 
       ! The iteration the shift is allowed to vary from
