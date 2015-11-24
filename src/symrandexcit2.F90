@@ -3062,6 +3062,12 @@ MODULE GenRandSymExcitNUMod
             allocate(store%virt_list(maxval(OrbClassCount), Scratchsize1))
         endif
 
+        if (tBuildSpinSepLists) then
+            allocate(store%nI_alpha(nel))
+            allocate(store%nI_beta(nel))
+            !store%nel_alpha = 0
+        endif
+
         if (tSpinProject) then
             allocate(store%dorder_i(nel))
             allocate(store%dorder_j(nel))
