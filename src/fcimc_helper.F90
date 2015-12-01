@@ -209,17 +209,19 @@ contains
 
     end subroutine create_particle
 
-    subroutine create_particle_with_hash_table (nI_child, ilut_child, child_sign, part_type, ilut_parent)
+    subroutine create_particle_with_hash_table (nI_child, ilut_child, child_sign, part_type, ilut_parent, iter_data)
 
         use hash, only: hash_table_lookup, add_hash_table_entry
 
         integer, intent(in) :: nI_child(nel), part_type
         integer(n_int), intent(in) :: ilut_child(0:NIfTot), ilut_parent(0:NIfTot)
         real(dp), intent(in) :: child_sign(lenof_sign)
+        type(fcimc_iter_data), intent(inout) :: iter_data
 
-        integer :: proc, ind, hash_val
+        integer :: proc, ind, hash_val, i
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign_old(lenof_sign), real_sign_new(lenof_sign)
+        real(dp) :: sgn_prod(lenof_sign)
         logical :: list_full, tSuccess
         integer, parameter :: flags = 0
         character(*), parameter :: this_routine = 'create_particle_with_hash_table'
@@ -230,6 +232,17 @@ contains
             ! If the spawned child is already in the spawning array.
             ! Extract the old sign.
             call extract_sign(SpawnedParts(:,ind), real_sign_old)
+
+            ! If the new child has an opposite sign to that of walkers already
+            ! on the site, then annihilation occurs. The stats for this need
+            ! accumulating.
+            sgn_prod = real_sign_old * child_sign
+            do i = 1, lenof_sign
+                if (sgn_prod(i) < 0.0_dp) then
+                    iter_data%nannihil(i) = iter_data%nannihil(i) + 2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
+                end if
+            end do
+
             ! Find the total new sign.
             real_sign_new = real_sign_old + child_sign
             ! Encode the new sign.

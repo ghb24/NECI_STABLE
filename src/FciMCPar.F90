@@ -944,8 +944,8 @@ module FciMCParMod
                                               child, parent_flags, part_type)
 
                         if (use_spawn_hash_table) then
-                            call create_particle_with_hash_table (nJ, ilutnJ, child, &
-                                                                  part_type, CurrentDets(:,j))
+                            call create_particle_with_hash_table (nJ, ilutnJ, child, part_type, &
+                                                                   CurrentDets(:,j), iter_data)
                         else
                             call create_particle (nJ, iLutnJ, child, part_type, & 
                                                   CurrentDets(:,j), SignCurr, p, &
