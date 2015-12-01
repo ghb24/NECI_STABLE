@@ -770,6 +770,8 @@ contains
         store%tFilled = .true.
         store%scratch3(1) = -1
 
+        write(*,*) "virt_list", store%virt_list
+
         ! Fill in the remaineder of the virtuals list
         forall (ind = 1:ScratchSize)
             !if (virt(ind) /= store%ClassCountUnocc(ind)) then
@@ -787,96 +789,65 @@ contains
     end subroutine
 
 
+    pure function getExcitationType(ExMat, IC) result(exTypeFlag)
+        integer, intent(in) :: ExMat(2,2), IC
+        integer :: exTypeFlag
 
-    subroutine print_pictorial (nI, norbs)
-        ! for debugging purposes
-        integer, intent(in) :: nI(:), norbs
-        integer :: i, occupation(norbs)
+        if (IC==1) then
+            if (is_beta(ExMat(2,1)) .neqv. is_beta(ExMat(1,1))) then
+                exTypeFlag = 3
+                return
+            else
+                exTypeFlag = 1
+            endif
 
-        do i=1,norbs
-            occupation(i)=0
-        enddo
-
-        do i=1,size(nI)
-            occupation(nI(i)) = 1
-        enddo
-
-        i = norbs
-        do while (i>1)
-            if (occupation(i)==1) then
-                ! alpha here
-                if (occupation(i-1)==1) then
-                    write(*,*) "ab"
+        elseif (IC==2) then
+            if (is_beta(ExMat(1,1)) .and. is_beta(ExMat(1,2))) then
+                ! elec orbs are both beta
+                if (is_beta(ExMat(2,1)) .and. is_beta(ExMat(2,2))) then
+                    ! virt orbs are both beta
+                    exTypeFlag = 2
+                    return
+                elseif (is_alpha(ExMat(2,1)) .and. is_alpha(ExMat(2,2))) then
+                    ! virt orbs are both alpha
+                    exTypeFlag = 5
+                    return
                 else
-                    write(*,*) "a-"
+                    ! one of the spins changes
+                    exTypeFlag = 4
+                    return
+                endif
+            elseif (is_alpha(ExMat(1,1)) .and. is_alpha(ExMat(1,2))) then
+                ! elec orbs are both alpha
+                if (is_alpha(ExMat(2,1)) .and. is_alpha(ExMat(2,2))) then
+                    ! virt orbs are both alpha
+                    exTypeFlag = 2
+                    return
+                elseif (is_beta(ExMat(2,1)) .and. is_beta(ExMat(2,2))) then
+                    ! virt orbs are both beta
+                    exTypeFlag = 5
+                    return
+                else
+                    ! one of the spins changes
+                    exTypeFlag = 4
+                    return
                 endif
             else
-                if (occupation(i-1)==1) then
-                    ! only a beta here
-                    write(*,*) "-b"
+                ! elec orb spins are different
+                if (is_beta(ExMat(2,1)) .neqv. is_beta(ExMat(2,2))) then
+                    ! virt orbs are of opposite spin
+                    exTypeFlag = 2
+                    return
                 else
-                    write(*,*) "--"
+                    ! virt orbs are of the same spin
+                    exTypeFlag = 4
+                    return
                 endif
             endif
-            i = i-2
-        enddo
+        endif
 
-    end subroutine
+    end function
 
-    subroutine print_pictorial_comparison (nI, nJ, norbs)
-        ! for debugging purposes
-        integer, intent(in) :: nI(:), nJ(:), norbs
-        integer :: i, Ioccupation(norbs), Joccupation(norbs)
-
-        do i=1,norbs
-            Ioccupation(i)=0
-            Joccupation(i)=0
-        enddo
-
-        do i=1,size(nI)
-            Ioccupation(nI(i)) = 1
-        enddo
-        
-        do i=1,size(nJ)
-            Joccupation(nJ(i)) = 1
-        enddo
-
-        i = norbs
-        do while (i>1)
-            if (Ioccupation(i)==1) then
-                ! alpha here
-                if (Ioccupation(i-1)==1) then
-                    write(*,'(A)',advance='no') "ab    "
-                else
-                    write(*,'(A)',advance='no') "a-    "
-                endif
-            else
-                if (Ioccupation(i-1)==1) then
-                    ! only a beta here
-                    write(*,'(A)',advance='no') "-b    "
-                else
-                    write(*,'(A)',advance='no') "--    "
-                endif
-            endif
-            if (Joccupation(i)==1) then
-                ! alpha here
-                if (Joccupation(i-1)==1) then
-                    write(*,*) "ab    "
-                else
-                    write(*,*) "a-    "
-                endif
-            else
-                if (Joccupation(i-1)==1) then
-                    ! only a beta here
-                    write(*,*) "-b    "
-                else
-                    write(*,*) "--    "
-                endif
-            endif
-            i = i-2
-        enddo
-
-    end subroutine
 
 
     subroutine decode_bit_det_spinsep (nI, iLut, store)
@@ -902,7 +873,6 @@ contains
         elec = 0
         store%nel_alpha = 0
 
-
         do i = 0, NIfD
             do j = 0, end_n_int
                 orb = (i * bits_n_int) + (j + 1)
@@ -911,13 +881,16 @@ contains
                     !An electron is at this orbital
                     elec = elec + 1
                     nI(elec) = orb
-                    
+                   
                     ! is the orbital spin alpha or beta?
-                    if (is_alpha(orb)) then
+                    if (mod(ind,2)==1) then
+                        ! alpha
                         store%nel_alpha = store%nel_alpha+1
                         store%nI_alpha(store%nel_alpha) = orb
+                        store%nI_alpha_inds(store%nel_alpha) = elec
                     else
                         store%nI_beta(elec-store%nel_alpha) = orb
+                        store%nI_beta_inds(elec-store%nel_alpha) = elec
                     endif 
 
                     ! Update class counts
@@ -930,7 +903,7 @@ contains
                 else
                     ! Update count
                     virt(ind) = virt(ind) + 1
-
+        !            write(*,*) "filling virt"
                     ! Store orbital in list of unocc. orbs.
                     store%virt_list(virt(ind), ind) = orb
                 endif
@@ -957,10 +930,6 @@ contains
         endforall
 
     end subroutine
-
-
-
-
 
 
 
