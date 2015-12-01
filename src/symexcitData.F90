@@ -48,8 +48,13 @@ MODULE SymExcitDataMod
         integer, pointer :: scratch3(:) => null()
         integer, pointer :: occ_list(:,:) => null()
         integer, pointer :: virt_list(:,:) => null()
+        ! these are the spin orbital numbers occupied by alpha and beta electrons respectively
         integer, pointer :: nI_alpha(:) => null()
         integer, pointer :: nI_beta(:) => null()
+        ! these are the indices of the full determinant nI which are occupied by alpha and beta electrons respectively
+        integer, pointer :: nI_alpha_inds(:) => null()
+        integer, pointer :: nI_beta_inds(:) => null()
+        ! keeping track of the overall spin polarisation
         integer :: nel_alpha
         logical :: tFilled
         integer, pointer :: dorder_i (:) => null()
