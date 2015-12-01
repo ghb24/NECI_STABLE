@@ -24,7 +24,7 @@ module symrandexcit_Ex_mag
                                     init_excit_gen_store,clean_excit_gen_store
     use FciMCData, only: pDoubles, pSingles, iter, excit_gen_store_type, &
                          pDoub_spindiff1, pDoub_spindiff2, pSing_spindiff1
-    use bit_reps, only: niftot, decode_bit_det_lists, print_pictorial, print_pictorial_comparison
+    use bit_reps, only: niftot, decode_bit_det_lists, getExcitationType
     use constants, only: dp, n_int, bits_n_int
     use sym_general_mod, only: SymAllowedExcit
     use timing_neci
@@ -49,8 +49,8 @@ contains
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         real(dp) :: r
-        character(*), parameter :: this_routine = 'gen_rand_excit_Ex_Mag'
-        
+        character(*), parameter :: this_routine = 'gen_rand_excit_Ex_Mag' 
+        integer :: excitType, i
         ! Just in case
         ilutJ(0) = -1
         HElGen = 0.0_dp
@@ -96,38 +96,44 @@ ASSERT(exFlag<=3.and.exFlag>=1)
             pDoub_spindiff2_new = pDoub_spindiff2
         end select
 
- 
-!        write(*,*)    "pSingNew", pSingles
-!        write(*,*)       "pSing_spindiff1_new", pSing_spindiff1
-!        write(*,*)        "pDoubNew", pDoubles
-!        write(*,*)        "pDoub_spindiff1_new", pDoub_spindiff1
-!        write(*,*)        "pDoub_spindiff2_new" , pDoub_spindiff2
-!        write(*,*)
-
-        call select_spin_diff(IC)
+        call select_spin_diff(excitType, IC)
 
         ! Call the actual single/double excitation generators.
-        if (IC==1 .or. IC==3) then
+       
+        if (excitType==1 .or. excitType==3) then
             pGen = gen_single (nI, nJ, ilutI, ExcitMat, tParity, &
                                store%ClassCountOcc, store%ClassCountUnocc, &
                                store%scratch3, store%occ_list, &
-                               store%virt_list, IC)
+                               store%virt_list, store, IC, excitType)
 
         else
-            pGen = gen_double (nI, nJ, iLutI, ExcitMat, tParity, store, IC)
+            pGen = gen_double (nI, nJ, iLutI, ExcitMat, tParity, store, excitType)
         endif
-        
 
-!        if (IC==3 .or. IC==1) then
-!            write(*,*) "parent", nI
-!            write(*,*) "child", nJ
-!        endif
+
+        if (excitType.ne.getExcitationType(ExcitMat, IC)) then
+            write(*,*) "NI", ni
+            write(*,*) "NJ", nj
+            write(*,*) "--- excit type wanted", excitType
+            write(*,*) "--- generated excit type", getExcitationType(ExcitMat, IC)
+            write(*,*) "--- ic", ic
+            write(*,*) pSingles
+            write(*,*) pSing_spindiff1
+            write(*,*) pDoubles
+            write(*,*) pDoub_spindiff1
+            write(*,*) pDoub_spindiff2
+             
+            call stop_all(this_routine, "invalid single excitation generated")
+        endif
+
+ASSERT(excitType == getExcitationType(ExcitMat, IC))
+
 
     end subroutine
 
 
-    subroutine select_spin_diff(IC)
-        integer, intent(inout) :: IC
+    subroutine select_spin_diff(excitType, IC)
+        integer, intent(inout) :: excitType, IC
         real(dp) :: r, ptot
 
         r = genrand_real2_dSFMT()
@@ -135,55 +141,60 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         case(1)
             ! single excitation has been selected
             if (r<pSingles) then
-                IC = 1
+                excitType = 1
             else
-                IC = 3
+                excitType = 3
             endif
         case(2)
             ! double excitation has been selected
             if (r<pDoubles) then
-                IC = 2
+                excitType = 2
                 return
             elseif (r<pDoubles+pDoub_spindiff1) then
-                IC = 4
+                excitType = 4
                 return
             else
-                IC = 5
+                excitType = 5
             endif
         case(3)
             ptot = pSingles
             if(r<pTot) then
+                excitType = 1
                 IC = 1
                 return
             endif
             ptot = ptot+pSing_spindiff1
             if(r<ptot) then
-                IC = 3
+                excitType = 3
+                IC = 1
                 return
             endif
             ptot = ptot+pDoubles
             if(r<ptot) then
+                excitType = 2
                 IC = 2
                 return
             endif
             ptot = ptot+pDoub_spindiff1
             if(r<ptot) then
-                IC = 4
+                excitType = 4
+                IC = 2
                 return
             endif
-            IC = 5
+            excitType = 5
+            IC = 2
         end select
     end subroutine
 
             
-    function gen_double (nI, nJ, iLutI, ExcitMat, tParity, store, IC) result(pGen)
+    function gen_double (nI, nJ, iLutI, ExcitMat, tParity, store, excitType) result(pGen)
 
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: nJ(nel)
         integer(n_int), intent(in) :: iLutI(0:niftot)
         integer, intent(out) :: ExcitMat(2,2)
         logical, intent(out) :: tParity
-        integer, intent(in) :: IC
+        integer, intent(in) :: excitType
         type(excit_gen_store_type), intent(inout), target :: store
         real(dp) :: r
         real(dp) :: pGen
@@ -193,7 +204,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         integer :: sym_prod, rint, tot_pairs
         integer :: pair_list(0:nSymLabels-1)
 
-        if (IC == 5) then
+        if (excitType == 5) then
             ! Pick a pair of electrons with the constraint that they have a commom spin
             call pick_likespin_elec_pair(nI, elecs, sym_prod, elec_spn, store)
         else
@@ -203,7 +214,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         ! Pick a pair of symmetries, such that 
         
         virt_spn = elec_spn
-        select case(IC)
+        select case(excitType)
         ! f(n) = 3-n maps 1->2 and 2->1
         case(4) !S->S+1
             virt_spn(1) = 3-virt_spn(1)
@@ -212,7 +223,11 @@ ASSERT(exFlag<=3.and.exFlag>=1)
             virt_spn(2) = 3-virt_spn(2)
         end select
         
+!        write(*,*) "virt_spin", virt_spn
+
         tot_pairs = count_orb_pairs (sym_prod, virt_spn, orbs, store%ClassCountUnocc, pair_list)
+
+!        write(*,*) "tot_pairs", tot_pairs
 
         ! If there are no possible excitations for the electron pair picked, 
         ! then we abort the excitation
@@ -230,15 +245,19 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         call select_syms(rint, sym_inds, sym_prod, virt_spn, store%ClassCountUnocc, &
                          pair_list)
 
+!        write(*,*) "sym_inds", sym_inds
+
         ! Select a pair of orbitals from the symmetries above.
         call select_orb_pair (rint, sym_inds, ilutI, orbs, store%ClassCountUnocc, &
                               store%virt_list)
 
+!        write(*,*) "orbs", orbs
+
         ! Generate the final determinant.
         call create_excit_det2 (nI, nJ, tParity, ExcitMat, elecs, orbs)
-       
+
         ! Return the final probability
-        select case(IC)
+        select case(excitType)
         case(2)
             pGen = pDoubNew / real(ElecPairs * tot_pairs, dp)
         case(4)
@@ -288,23 +307,20 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         if (ind <= nPairs_alpha) then
             elecs(1) = ceiling((1 + sqrt(1 + 8*real(ind,dp))) / 2)
             elecs(2) = ind - ((elecs(1) - 1) * (elecs(1) - 2)) / 2
-            elecs = 2*elecs
-            orbs = nI(elecs)
+            orbs = store%nI_alpha(elecs)
+            elecs = store%nI_alpha_inds(elecs)
             ! alpha = 1
-            spn = get_spin(orbs)!(/1,1/)
-            sym_prod = RandExcitSymLabelProd (SpinOrbSymLabel(orbs(1)), &
-                                          SpinOrbSymLabel(orbs(2)))
         else
-            ind = ind - nPairs_beta
+            ind = ind - nPairs_alpha
             elecs(1) = ceiling((1 + sqrt(1 + 8*real(ind,dp))) / 2)
-            elecs(2) = ind - ((elecs(1) - 1) * (elecs(1) - 2)) / 2
-            elecs = 2*elecs-(/1,1/)
-            orbs = nI(elecs)
+            elecs(2) = (ind - ((elecs(1) - 1) * (elecs(1) - 2)) / 2)
+            orbs = store%nI_beta(elecs)
+            elecs = store%nI_beta_inds(elecs)
             ! beta = 2
-            spn = get_spin(orbs)!(/2,2/)
-            sym_prod = RandExcitSymLabelProd (SpinOrbSymLabel(orbs(1)), &
-                                          SpinOrbSymLabel(orbs(2)))
         endif
+        spn = get_spin(orbs)
+        sym_prod = RandExcitSymLabelProd (SpinOrbSymLabel(orbs(1)), &
+                                          SpinOrbSymLabel(orbs(2)))
 
     end subroutine
 
@@ -522,19 +538,22 @@ ASSERT(exFlag<=3.and.exFlag>=1)
 
     end subroutine
 
+    ! note: should tidy this up so that ccocc, ccunocc, pair_list, occ_list and virt_list are
+    ! referenced directly from the store variable
     function gen_single (nI, nJ, iLutI, ExcitMat,  tParity, CCOcc, CCUnocc, &
-                         pair_list, occ_list, virt_list, IC) result(pGen)
+                         pair_list, occ_list, virt_list, store, IC, excitType) result(pGen)
 
-        integer, intent(in) :: nI(nel)
+        integer, intent(in) :: nI(nel), IC
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: nJ(nel), ExcitMat(2,2)
         logical, intent(out) :: tParity
         integer, intent(in) :: CCOcc(ScratchSize), CCUnocc(ScratchSize)
         integer, intent(out) :: pair_list(ScratchSize)
         integer, intent(in) :: occ_list(:,:), virt_list(:,:)
+        type(excit_gen_store_type), intent(inout), target :: store
         ! encode_child interface uses value of IC in this scope,
         ! so intent is changed here to inout in order to avoid having to change the interface.
-        integer, intent(inout) :: IC
+        integer, intent(inout) :: excitType
         real(dp) :: pGen
         character(*), parameter :: this_routine = 'gen_single'
 
@@ -543,29 +562,34 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         ! We still do not work with lz symmetry
         ASSERT(.not. tFixLz)
         ! Find the number of available pairs in each symmetry & overall
-
+        
         ! If we are changing spin, we want the number of pairs is the product
         ! of the number of occupied orbitals of class (spin, symlabel) and the
         ! number of unoccupied orbitals of class (3-spin, symlabel)
-        if (pair_list(1) == -1) then
+        
+
+        ! This outer loop has been tentatively removed, since we now need two different
+        ! pairs lists to accomodate magnetic excitations.
+
+!        if (pair_list(1) == -1) then
             ! this is the first run for the current det
-            if (IC==1) then
+            if (excitType==1) then
                 pair_list(1) = CCOcc(1) * CCUnocc(1)
                 do i = 2, ScratchSize
                     pair_list(i) = pair_list(i-1) + (CCOcc(i) * CCUnocc(i))
                 enddo
-            else ! spin changing
+            else ! magnetic excitation
                 pair_list(1) = CCOcc(1) * CCUnocc(2)
                 do i = 2, ScratchSize
                     ! if i is even, we want the unocc count of class i-1
                     ! if i is odd, we want that of class i+1 
-                    ! mod(i,2) is either 0 or 1 (even, odd)
+                    ! mod(i,2) is either (0, 1) (i even, i odd)
                     ! 2*mod(i,2)-1 is either -1 or 1
                     ! therefore i+2*mod(i,2)-1 = i-1 (i even) or i+1 (i odd) as required
                     pair_list(i) = pair_list(i-1) + (CCOcc(i) * CCUnocc( i+2*mod(i,2)-1 ))
                 enddo
             endif
-        endif
+!        endif
         npairs = pair_list(ScratchSize)
 
         ! If there are no possible singles, then abandon.
@@ -589,29 +613,49 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         ! unoccupied list
         ! --> There must be no overlap, so use a rectangular selection.
         if (ind > 1) rint = rint - pair_list(ind - 1)
-        src = mod(rint - 1, CCOcc(ind)) + 1
-        tgt = floor((real(rint,dp) - 1) / CCOcc(ind)) + 1
+        ! we now have a random number between 1 and the number of pairs in the selected class
+        ! virt_list has the indices  
+        !src = mod(rint - 1, CCOcc(ind)) + 1
+        if (excitType == 1) then
+            src = (rint-1)/CCUnocc(ind) + 1
+            tgt = (rint-1)/CCOcc(ind) + 1
+        else
+            src = (rint-1)/CCUnocc(ind+2*mod(ind,2)-1) + 1
+            tgt = (rint-1)/CCOcc(ind) + 1
+        endif
 
         ! Find the index of the src orbital in the list and the target orbital
         ! (the tgt'th vacant orbital in the given symmetry)
         ExcitMat(1,1) = occ_list(src, ind)
-        if (IC==1) then
+        if (excitType==1) then
             ExcitMat(2,1) = virt_list(tgt, ind)
-        elseif (IC==3) then
+        elseif (excitType==3) then
             ExcitMat(2,1) = virt_list(tgt, ind+2*mod(ind,2)-1)
         endif
 
         ! Generate the new determinant
         nJ = nI
         call FindExcitDet (ExcitMat, nJ, 1, tParity)
-
+!            write(*,*)
+!            write(*,*) "exciting from", excitMat(1,1), "to", excitMat(2,1)
+!        call print_pictorial_comparison(nI, nJ, 28)
 #ifdef __DEBUG
         ! For debugging purposes only (O[N] operation).
-        if (.not. SymAllowedExcit(nI, nJ, 1, ExcitMat)) &
-            call stop_all(this_routine, 'Invalid excitation generated')
+        if (.not. SymAllowedExcit(nI, nJ, 1, ExcitMat) .or. ExcitMat(1,1)*ExcitMat(2,1)==0) then
+            write(*,*) "ccocc(1)", ccocc(1)
+            write(*,*) "ccocc(2)", ccocc(2)
+            write(*,*) "ccunocc(1)", ccunocc(1)
+            write(*,*) "ccunocc(2)", ccunocc(2)
+            write(*,*) "ind", ind
+            write(*,*) "pair_list", pair_list
+            write(*,*) "alpha count", store%nel_alpha
+            write(*,*) "src", src, "tgt", tgt
+            write(*,*) "excitmat", excitmat(1,1), excitmat(2,1)
+            call stop_all(this_routine, "invalid single excitation generated")
+        endif
 #endif
         ! Return the generation probability
-        if (IC==1) then
+        if (excitType==1) then
             pGen = pSingNew / real(npairs, dp)
         else
             pGen = pSing_spindiff1_new / real(npairs, dp)
