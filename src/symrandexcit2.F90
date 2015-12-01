@@ -3065,6 +3065,8 @@ MODULE GenRandSymExcitNUMod
         if (tBuildSpinSepLists) then
             allocate(store%nI_alpha(nel))
             allocate(store%nI_beta(nel))
+            allocate(store%nI_alpha_inds(nel))
+            allocate(store%nI_beta_inds(nel))
             !store%nel_alpha = 0
         endif
 
