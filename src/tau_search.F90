@@ -21,6 +21,7 @@ module tau_search
     use HPHF_integrals, only: hphf_off_diag_helement_norm
     use SymExcitDataMod, only: excit_gen_store_type
     use bit_rep_data, only: NIfTot
+    use bit_reps, only: getExcitationType
     use DetBitOps, only: FindBitExcitLevel, TestClosedShellDet, &
                          EncodeBitDet
     use sym_general_mod, only: SymAllowedExcit
@@ -139,8 +140,8 @@ contains
         real(dp), intent(in) :: prob, matel
         real(dp) :: tmp_gamma, tmp_prob
         integer, parameter :: cnt_threshold = 50
-       
-        select case(ic)
+      
+        select case(getExcitationType(ex, ic))
         case(1)
             ! no spin changing
             ! Log the details if necessary!
@@ -187,12 +188,11 @@ contains
         case(4) 
             ! We need to unbias the probability for pDoubles
             tmp_prob = prob / pDoub_spindiff1
-
             ! We are not playing around with the same/opposite spin bias
             ! then we should just treat doubles like the singles
             tmp_gamma = abs(matel) / tmp_prob
             if (tmp_gamma > gamma_doub_spindiff1) &
-                gamma_doub = tmp_gamma
+                gamma_doub_spindiff1 = tmp_gamma
             ! And keep count
             if (.not. enough_doub) then
                 cnt_doub = cnt_doub + 1
@@ -207,7 +207,7 @@ contains
             ! then we should just treat doubles like the singles
             tmp_gamma = abs(matel) / tmp_prob
             if (tmp_gamma > gamma_doub_spindiff2) &
-                gamma_doub = tmp_gamma
+                gamma_doub_spindiff2 = tmp_gamma
             ! And keep count
             if (.not. enough_doub) then
                 cnt_doub = cnt_doub + 1
@@ -364,14 +364,22 @@ contains
                     psingles_new, ", pDoubles = ", 1.0_dp - psingles_new
             end if
             pSingles = psingles_new
-            pDoubles = 1.0_dp - pSingles
             if (tReltvy) then
                 pSing_spindiff1 = pSing_spindiff1_new
                 pDoub_spindiff1 = pDoub_spindiff1_new
                 pDoub_spindiff2 = pDoub_spindiff2_new
                 pDoubles = 1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2
+            else
+                pDoubles = 1.0_dp - pSingles
             endif
         end if
+
+
+        write(*,*) "pSingles", pSingles
+        write(*,*) "pSing_spindiff1", pSing_spindiff1
+        write(*,*) "pDoubles", pDoubles
+        write(*,*) "pDoub_spindiff1", pDoub_spindiff1
+        write(*,*) "pDoub_spindiff2", pDoub_spindiff2
 
     end subroutine
 
