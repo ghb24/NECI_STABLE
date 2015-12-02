@@ -1144,7 +1144,7 @@ contains
 
         integer :: i
         integer :: nI(nel)
-        real(dp) :: trial_amps(ntrial_excits)
+        HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
 
         ! Don't do anything if this is called before the trial wave function
