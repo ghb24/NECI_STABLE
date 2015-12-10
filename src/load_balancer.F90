@@ -405,7 +405,7 @@ contains
         integer, intent(in) :: DetHash, nJ(nel)
         integer :: DetPosition
         HElement_t(dp) :: HDiag
-        real(dp) :: trial_amps(ntrial_excits)
+        HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
         character(len=*), parameter :: t_r = "AddNewHashDet"
 

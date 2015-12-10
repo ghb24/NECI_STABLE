@@ -149,8 +149,8 @@ MODULE FciMCData
       ! The magnitude of each contribution is taken before it is summed in
       HElement_t(dp), allocatable :: AbsProjE(:)
 
-      real(dp), allocatable :: trial_numerator(:), tot_trial_numerator(:)
-      real(dp), allocatable :: trial_denom(:), tot_trial_denom(:)
+      HElement_t(dp), allocatable :: trial_numerator(:), tot_trial_numerator(:)
+      HElement_t(dp), allocatable :: trial_denom(:), tot_trial_denom(:)
 
       ! The sum over all previous cycles of the number of particles on the
       ! reference site
@@ -482,7 +482,7 @@ MODULE FciMCData
 
       ! This vector stores the trial wavefunction(s) themselves, but only the
       ! components on this processor.
-      real(dp), allocatable, dimension(:,:) :: trial_wfs
+      HElement_t(dp), allocatable, dimension(:,:) :: trial_wfs
 
       ! The energy eigenvalues of the trial wave functions in the trial
       ! subspace.
@@ -491,13 +491,13 @@ MODULE FciMCData
       ! This vector's elements store the quantities
       ! \sum_j H_{ij} \psi^T_j,
       ! where \psi^T are trial wavefunctions.
-      real(dp), allocatable, dimension(:,:) :: con_space_vecs
+      HElement_t(dp), allocatable, dimension(:,:) :: con_space_vecs
 
       ! If index i in CurrentDets is a trial state then index i of this array
       ! stores the corresponding amplitudes of trial_wfs. If index i in the
       ! CurrentDets is a connected state then index i of this array stores
       ! the corresponding amplitudes of con_space_vecs. Else, it will be zero.
-      real(dp), allocatable, dimension(:,:) :: current_trial_amps
+      HElement_t(dp), allocatable, dimension(:,:) :: current_trial_amps
       ! Only used when tTrialHash is .false. (it is .true. by default).
       ! Because in AnnihilateSpawendParts trial and connected states are
       ! sorted in the same order, a smaller section of the trial and connected

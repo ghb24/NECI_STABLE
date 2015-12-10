@@ -137,7 +137,7 @@ contains
     subroutine bin_search_trial(ilut, amp, tTrial, tCon)
 
         integer(n_int), intent(in) :: ilut(0:)
-        real(dp), intent(out) :: amp(:)
+        HElement_t(dp), intent(out) :: amp(:)
         logical, intent(out) :: tTrial, tCon
 
         integer :: i, pos
@@ -179,7 +179,7 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:)
         integer, intent(in) :: nI(nel)
-        real(dp), intent(out) :: amp(:)
+        HElement_t(dp), intent(out) :: amp(:)
         logical, intent(out) :: tTrial, tCon
 
         integer :: i, hash_val
@@ -224,7 +224,7 @@ contains
         ! definitely in the trial space, and performs a stop_all if not.
 
         integer(n_int), intent(in) :: ilut(0:)
-        real(dp), intent(out) :: amps(:)
+        HElement_t(dp), intent(out) :: amps(:)
 
         integer :: i, hash_val
         integer :: nI(nel)

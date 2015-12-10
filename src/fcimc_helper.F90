@@ -328,6 +328,7 @@ contains
         integer :: iUEG1, iUEG2, ProjEBin
         HElement_t(dp) :: HOffDiag(inum_runs)
         HElement_t(dp) :: HDoubDiag
+        complex(dp) :: CmplxwSign
         integer :: DoubEx(2,2),DoubEx2(2,2),kDoub(3) ! For histogramming UEG doubles
         integer :: ExMat(2,2), nopen
         integer :: doub_parity, doub_parity2, parity
@@ -344,6 +345,29 @@ contains
 
         ! Add in the contributions to the numerator and denominator of the trial
         ! estimator, if it is being used.
+#ifdef __CMPLX then
+        CmplxwSign = ARR_RE_OR_CPLX(realwsign, 1)
+
+        if (tTrialWavefunction .and. present(ind)) then
+            if (test_flag(ilut,flag_trial)) then
+                if(ntrial_excits == 1) then
+                   trial_denom = trial_denom + conjg(current_trial_amps(1,ind))*CmplxwSign
+                else if(ntrial_excits == lenof_sign) then
+                   call stop_all(this_routine, 'ntrial_excits has to be 1 currently for complex')
+                end if
+
+                if(qmc_trial_wf) then
+                   call stop_all(this_routine, 'qmc_trial_wf currently not implemented for complex')
+                end if
+            else if (test_flag(ilut,flag_connected)) then
+                if(ntrial_excits == 1) then
+                   trial_numerator = trial_numerator + conjg(current_trial_amps(1,ind))*cmplxwsign
+                else if(ntrial_excits == lenof_sign) then
+                   call stop_all(this_routine, 'ntrial_excits has to be 1 currently for complex')
+                end if
+            end if
+        end if
+#else
         if (tTrialWavefunction .and. present(ind)) then
             if (test_flag(ilut, flag_trial)) then
                 if (ntrial_excits == 1) then
@@ -365,13 +389,14 @@ contains
             else if (test_flag(ilut, flag_connected)) then
                 ! Note, only attempt to add in a contribution from the
                 ! connected space if we're not also in the trial space.
-                if (ntrial_excits == 1) then
+                 if (ntrial_excits == 1) then
                     trial_numerator = trial_numerator + current_trial_amps(1,ind)*RealwSign
                 else if (ntrial_excits == lenof_sign) then
                     trial_numerator = trial_numerator + current_trial_amps(:,ind)*RealwSign
                 end if
             end if
         end if
+#endif
 
         ! ExcitLevel indicates the excitation level between the det and
         ! *one* of the determinants in an HPHF/MomInv function. If needed,
@@ -512,7 +537,7 @@ contains
         HElement_t(dp) :: hoffdiag
         character(*), parameter :: this_routine = 'SumEContrib_different_refs'
 
-        real(dp) :: amps(size(current_trial_amps,1))
+        HElement_t(dp) :: amps(size(current_trial_amps,1))
 
         ASSERT(inum_runs == lenof_sign)
         ASSERT(tReplicaReferencesDiffer)
