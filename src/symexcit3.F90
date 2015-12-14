@@ -20,8 +20,9 @@ MODULE SymExcit3
         use SymData, only: nSymLabels
         use SystemData , only: ElecPairs,tFixLz,iMaxLz
         use GenRandSymExcitNUMod , only: PickElecPair,construct_class_counts,ClassCountInd,ScratchSize 
-        integer, intent(inout) :: nSing,nSing_spindiff1
-        integer, intent(inout) :: nDoub,nDoub_spindiff1,nDoub_spindiff2,nI(NEl), exFlag
+        integer, intent(out) :: nSing,nSing_spindiff1
+        integer, intent(out) :: nDoub,nDoub_spindiff1,nDoub_spindiff2
+        integer, intent(in) :: exFlag,nI(NEl)
         integer :: Symi, i, Spini
         integer :: iSpn,Elec1Ind,Elec2Ind,SymProduct
         integer :: Syma,Symb,Spina,Spinb,StartSpin,EndSpin

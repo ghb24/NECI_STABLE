@@ -225,7 +225,7 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
         
 !        write(*,*) "virt_spin", virt_spn
 
-        tot_pairs = count_orb_pairs (sym_prod, virt_spn, orbs, store%ClassCountUnocc, pair_list)
+        tot_pairs = count_orb_pairs (sym_prod, virt_spn, store%ClassCountUnocc, pair_list)
 
 !        write(*,*) "tot_pairs", tot_pairs
 
@@ -365,12 +365,11 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
 
     end subroutine
     
-    function count_orb_pairs (sym_prod, spn, orb, CCUnocc, num_pairs) &
+    function count_orb_pairs (sym_prod, spn, CCUnocc, num_pairs) &
                               result(tot_pairs)
 
         integer, intent(in) :: sym_prod
         integer, intent(in) :: spn(2)
-        integer, intent(out) :: orb(2)
         integer, intent(in) :: CCUnocc(ScratchSize)
         integer, intent(inout) :: num_pairs(0:nSymLabels-1)
         integer :: tot_pairs
@@ -462,7 +461,7 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(in) :: CCUnocc(ScratchSize)
         integer, intent(in) :: virt_list(:,:)
-        integer :: orbs(2)
+        integer, intent(out) :: orbs(2)
         character(*), parameter :: this_routine = 'select_orb_pair'
 
         integer :: i
@@ -665,7 +664,8 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
 
 
 
-    subroutine test_sym_excit3 (nI, iterations, pDoub, exFlag)
+    subroutine test_sym_excit_ExMag (nI, iterations)
+
     use SystemData, only: NEl, nBasis, G1, nBasisMax, LzTot, tUEG, &
                           tLatticeGens, tHub,tKPntSym, tFixLz
     use GenRandSymExcitNUMod, only: gen_rand_excit, ScratchSize
@@ -674,8 +674,9 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
     use DetBitOps , only : EncodeBitDet, FindExcitBitDet
     use GenRandSymExcitNUMod, only: IsMomentumAllowed
     use constants, only: n_int
-    use bit_reps, only: NIfTot
+    use bit_reps, only: NIfTot,decode_bit_det_spinsep
     use sym_mod, only: mompbcsym, GetLz
+    use SymExcit3, only: CountExcitations_Ex_Mag
     use neci_intfce
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
@@ -697,68 +698,36 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
 
     INTEGER , ALLOCATABLE :: EXCITGEN(:)
     INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen(1),j,k,l,DetNum,DetNumS
-    INTEGER :: Lz,excitcount,ForbiddenIter,error, iter_tmp
+    INTEGER :: Lz,excitcount,ForbiddenIter,error, iter_tmp,nSing,nSing_1,nDoub,nDoub_1,nDoub_2
     HElement_t(dp) :: HElGen
     type(excit_gen_store_type) :: store
     logical :: brillouin_tmp(2)
     type(timer), save :: test_timer
-    character(*), parameter :: t_r = 'test_sym_excit3'
+    character(*), parameter :: t_r = 'test_sym_excit_ExMag'
 
     WRITE(6,*) nI(:)
-    WRITE(6,*) Iterations,pDoub,exFlag
+    WRITE(6,*) Iterations
     WRITE(6,*) "nSymLabels: ",nSymLabels
     CALL neci_flush(6)
 
-    ! The old excitation generator will not generate singles from the HF
-    ! unless tNoBrillouin is set
-    brillouin_tmp(1) = tNoBrillouin
-    brillouin_tmp(2) = tUseBrillouin
-    tNoBrillouin = .true.
-    tUseBrillouin = .false.
+    call CountExcitations_Ex_Mag(nI,3,nSing,nSing_1,nDoub,nDoub_1,nDoub_2)
 
-!Find the number of symmetry allowed excitations there should be by looking at the full excitation generator.
-!Setup excit generators for this determinant
-    iMaxExcit=0
-    nStore(1:6)=0
-    CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
-    ALLOCATE(EXCITGEN(nExcitMemLen(1)),stat=ierr)
-    IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
-    EXCITGEN(:)=0
-    CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
-!    CALL GetSymExcitCount(EXCITGEN,DetConn)
-    excitcount=0
+    write(6,*) "nSing: ",nSing
+    write(6,*) "nSing_1: ",nSing_1
+    write(6,*) "nDoub: ",nDoub
+    write(6,*) "nDoub_1: ",nDoub_1
+    write(6,*) "nDoub_2: ",nDoub_2
 
-lp2: do while(.true.)
-        CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.false.,EXCITGEN,nJ,iExcit,nStore,exFlag)
-        IF(nJ(1).eq.0) exit lp2
-        IF(tUEG.or.tHub) THEN
-            IF (IsMomentumAllowed(nJ)) THEN
-                excitcount=excitcount+1
-                CALL EncodeBitDet(nJ,iLutnJ)
-                IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
-            ENDIF
-        ELSEIF(tFixLz) THEN
+    !HACK
+    nDoub_2 = 792
 
-            CALL GetLz(nJ,NEl,Lz)
-            IF(Lz.eq.LzTot) THEN
-                excitcount=excitcount+1
-                CALL EncodeBitDet(nJ,iLutnJ)
-                IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
-            ENDIF
-        ELSEIF(tKPntSym) THEN
-            IF(IsMomAllowedDet(nJ)) THEN
-                excitcount=excitcount+1
-                CALL EncodeBitDet(nJ,iLutnJ)
-                IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,nJ(:)
-            ENDIF
-        ELSE
-            excitcount=excitcount+1
-            CALL EncodeBitDet(nJ,iLutnJ)
-            IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
-        ENDIF
-    enddo lp2
-    tNoBrillouin = brillouin_tmp(1)
-    tUseBrillouin = brillouin_tmp(2)
+    excitcount = nSing + nSing_1 + nDoub + nDoub_1 + nDoub_2
+
+    pSingles = real(nSing,dp)/real(excitcount,dp)
+    pSing_spindiff1 = real(nSing_1,dp)/real(excitcount,dp)
+    pDoubles = real(nDoub,dp)/real(excitcount,dp)
+    pDoub_spindiff1 = real(nDoub_1,dp)/real(excitcount,dp)
+    pDoub_spindiff2 = real(nDoub_2,dp)/real(excitcount,dp)
 
     WRITE(6,*) "Determinant has ",excitcount," total excitations from it."
     CALL neci_flush(6)
@@ -787,13 +756,11 @@ lp2: do while(.true.)
     AllSinglesCount = 0
 
     CALL EncodeBitDet(nI, iLut)
+    CALL decode_bit_det_spinsep(nJ,iLut,store)
 
-    ! Build the lists we need
-    store%tFilled = .false.
-    store%ClassCountOcc = 0
-    store%ClassCountUnocc = 0
-    store%scratch3 = 0
-    call decode_bit_det_lists (nI, ilut, store)
+    do i = 1,NEl
+        if(nI(i).ne.nJ(i)) stop 'Error with det'
+    enddo
 
     AverageContrib=0.0_dp
     AllAverageContrib=0.0_dp
@@ -806,50 +773,18 @@ lp2: do while(.true.)
     iter_tmp = iter
     do i=1,Iterations
         iter = i
-
     
-        IF(mod(i,400000).eq.0) THEN
+        IF(mod(i,1).eq.0) THEN
+        !IF(mod(i,40000).eq.0) THEN
             WRITE(6,"(A,I10)") "Iteration: ",i
             CALL neci_flush(6)
         ENDIF
 
-        call gen_rand_excit_Ex_Mag (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
+        call gen_rand_excit_Ex_Mag (nI, iLut, nJ, iLutnJ, 3, IC, ExcitMat, &
                              tParity, pGen, HElGen, store)
         IF(nJ(1).eq.0) THEN
 !            ForbiddenIter=ForbiddenIter+1
             CYCLE
-        ENDIF
-        IF(tKPntSym) THEN
-            test=IsMomAllowedDet(nJ)
-        ENDIF
-        ! This is implemented for the old excitation generators, that could only handle momentum conservation under
-        ! zero momentum conditions
-        IF(tUEG.and.(.not.tLatticeGens)) THEN
-            kx=0
-            ky=0
-            kz=0
-            do j=1,NEl
-                kx=kx+G1(nJ(j))%k(1)
-                ky=ky+G1(nJ(j))%k(2)
-                kz=kz+G1(nJ(j))%k(3)
-            enddo
-            IF(.not.(kx.eq.0.and.ky.eq.0.and.kz.eq.0)) THEN
-                CYCLE
-            ENDIF
-        ELSEIF(tHub.and.(.not.tLatticeGens)) THEN
-            kx=0
-            ky=0
-            kz=0
-            do j=1,NEl
-                kx=kx+G1(nJ(j))%k(1)
-                ky=ky+G1(nJ(j))%k(2)
-                kz=kz+G1(nJ(j))%k(3)
-            enddo
-            ktrial=(/kx,ky,0/)
-            CALL MomPbcSym(ktrial,nBasisMax)
-            IF(.not.(ktrial(1).eq.0.and.ktrial(2).eq.0.and.kz.eq.0)) THEN
-                CYCLE
-            ENDIF
         ENDIF
         AverageContrib=AverageContrib+1.0_dp/pGen
 
@@ -901,8 +836,14 @@ lp2: do while(.true.)
 !        ENDIF
 
 !Check excitation
-        if (SymAllowedExcit(nI, nJ, ic, excitmat)) &
+        if (.not.SymAllowedExcit(nI, nJ, ic, excitmat)) then
+            write(6,*) "nI: ",nI
+            write(6,*) "nJ: ",nJ
+            write(6,*) "IC: ",IC
+            write(6,*) "electrons ",excitmat(1,:)
+            write(6,*) "holes: ",excitmat(2,:)
             call stop_all(t_r, 'Invalid determinant')
+        endif
 
     enddo
     iter = iter_tmp

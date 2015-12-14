@@ -637,6 +637,7 @@ module FciMCParMod
     end subroutine FciMCPar
 
     subroutine PerformFCIMCycPar(iter_data)
+        use symrandexcit_Ex_Mag, only: test_sym_excit_ExMag 
         
         ! Iteration specific data
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -757,6 +758,8 @@ module FciMCParMod
             call extract_bit_rep_avsign (CurrentDets(:,j), j, &
                                         DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
                                         AvSignCurr, fcimc_excit_gen_store)
+        
+            call test_sym_excit_ExMag(DetCurr,1000000)
 
             ! We only need to find out if determinant is connected to the
             ! reference (so no ex. level above 2 required, 
