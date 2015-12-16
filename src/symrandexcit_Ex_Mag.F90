@@ -122,6 +122,8 @@ ASSERT(exFlag<=3.and.exFlag>=1)
             write(*,*) pDoubles
             write(*,*) pDoub_spindiff1
             write(*,*) pDoub_spindiff2
+            write(*,*) "first excit", excitMat(:,1)
+            write(*,*) "second excit", excitMat(:,2)
              
             call stop_all(this_routine, "invalid single excitation generated")
         endif
@@ -211,13 +213,21 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
             ! Pick an unbiased, distinct, electron pair.
             call pick_elec_pair (nI, elecs, sym_prod, elec_spn)
         endif
+
+
+        r=genrand_real2_dSFMT()
+
         ! Pick a pair of symmetries, such that 
-        
         virt_spn = elec_spn
         select case(excitType)
         ! f(n) = 3-n maps 1->2 and 2->1
         case(4) !S->S+1
-            virt_spn(1) = 3-virt_spn(1)
+            ! use the part of the PRN that won't be needed for choosing pairs
+            if (mod(int(r*10**15),2)==0) then
+                virt_spn(1) = 3-virt_spn(1)
+            else
+                virt_spn(2) = 3-virt_spn(2)
+            endif
         case(5) !S->S+2
             virt_spn(1) = 3-virt_spn(1)
             virt_spn(2) = 3-virt_spn(2)
@@ -225,9 +235,10 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
         
 !        write(*,*) "virt_spin", virt_spn
 
+
         tot_pairs = count_orb_pairs (sym_prod, virt_spn, store%ClassCountUnocc, pair_list)
 
-!        write(*,*) "tot_pairs", tot_pairs
+        !write(*,*) "tot_pairs", tot_pairs, excitType
 
         ! If there are no possible excitations for the electron pair picked, 
         ! then we abort the excitation
@@ -237,9 +248,9 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
             return
         endif
 
+        rint = 1 + int(r * tot_pairs)
         ! Given a random number, the remainder of the generation is entirely
         ! deterministic
-        rint = 1 + int(genrand_real2_dSFMT() * tot_pairs)
 
         ! Select a pair of symmetries to choose from
         call select_syms(rint, sym_inds, sym_prod, virt_spn, store%ClassCountUnocc, &
@@ -250,8 +261,6 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
         ! Select a pair of orbitals from the symmetries above.
         call select_orb_pair (rint, sym_inds, ilutI, orbs, store%ClassCountUnocc, &
                               store%virt_list)
-
-!        write(*,*) "orbs", orbs
 
         ! Generate the final determinant.
         call create_excit_det2 (nI, nJ, tParity, ExcitMat, elecs, orbs)
@@ -382,11 +391,13 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
 
         tot_pairs = 0
         if (spn(1) == spn(2)) then
+            !write(*,*) "spins same"
             ! given a product of symmetry labels, and given that the irreps of the
             ! point group are abelian, find the corresponding symB for every symA
             ! such that their product is the same as that of the chosen elec pair
+            indA = spn(1)
             do symA = 0, nSymLabels - 1
-                indA = ClassCountInd(spn(1), symA, -1)
+        !        indA = ClassCountInd(spn(1), symA, -1)
                 symB = RandExcitSymLabelProd(SymInvLabel(symA), sym_prod)
 
                 if (symA == symB) then
@@ -398,9 +409,11 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
                 endif
 
                 num_pairs(symA) = tot_pairs
+                indA = indA+2
             enddo
 
         else ! spn(1) /= spn(2)
+            !write(*,*) "spins different"
 
             indA = spn(1)
             do symA = 0, nSymLabels - 1
@@ -420,6 +433,8 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
                 indA = indA + 2
             enddo
         endif
+
+        !write(*,*)
 
     end function
 
@@ -612,16 +627,13 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
         ! unoccupied list
         ! --> There must be no overlap, so use a rectangular selection.
         if (ind > 1) rint = rint - pair_list(ind - 1)
+        ASSERT(1.le. rint .and. rint.le.pair_list(ind))
         ! we now have a random number between 1 and the number of pairs in the selected class
         ! virt_list has the indices  
         !src = mod(rint - 1, CCOcc(ind)) + 1
-        if (excitType == 1) then
-            src = (rint-1)/CCUnocc(ind) + 1
-            tgt = (rint-1)/CCOcc(ind) + 1
-        else
-            src = (rint-1)/CCUnocc(ind+2*mod(ind,2)-1) + 1
-            tgt = (rint-1)/CCOcc(ind) + 1
-        endif
+
+        src = mod((rint-1),CCOcc(ind)) + 1
+        tgt = (rint-1)/CCOcc(ind) + 1
 
         ! Find the index of the src orbital in the list and the target orbital
         ! (the tgt'th vacant orbital in the given symmetry)
@@ -649,7 +661,7 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
             write(*,*) "pair_list", pair_list
             write(*,*) "alpha count", store%nel_alpha
             write(*,*) "src", src, "tgt", tgt
-            write(*,*) "excitmat", excitmat(1,1), excitmat(2,1)
+            write(*,*) "excitmat", excitmat(1,:)
             call stop_all(this_routine, "invalid single excitation generated")
         endif
 #endif
@@ -698,6 +710,7 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
 
     INTEGER , ALLOCATABLE :: EXCITGEN(:)
     INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen(1),j,k,l,DetNum,DetNumS
+    integer :: DetNumD0, DetNumD1, DetNumD2, DetNumS1, DetNumS0
     INTEGER :: Lz,excitcount,ForbiddenIter,error, iter_tmp,nSing,nSing_1,nDoub,nDoub_1,nDoub_2
     HElement_t(dp) :: HElGen
     type(excit_gen_store_type) :: store
@@ -776,7 +789,7 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
     
         IF(mod(i,1).eq.0) THEN
         !IF(mod(i,40000).eq.0) THEN
-            WRITE(6,"(A,I10)") "Iteration: ",i
+            !WRITE(6,"(A,I10)") "Iteration: ",i
             CALL neci_flush(6)
         ENDIF
 
@@ -868,13 +881,27 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
     IF(iProcIndex.eq.0) THEN
         OPEN(8,FILE="DoublesHist3",STATUS="UNKNOWN")
         DetNum=0
+        DetNumD0=0
+        DetNumD1=0
+        DetNumD2=0
         do i=1,nBasis-1
             do j=i+1,nBasis
                 do k=1,nBasis-1
                     do l=k+1,nBasis
                         IF(AllDoublesHist(i,j,k,l).gt.0.0_dp) THEN
     !                        DoublesHist(i,j,k,l)=DoublesHist(i,j,k,l)/real(Iterations,8)
+                        
                             DetNum=DetNum+1
+
+                            select case(getExcitationType(excitMat, 2))
+                            case(2)
+                                DetNumD0 = DetNumD0+1
+                            case(4)
+                                DetNumD1 = DetNumD1+1
+                            case(5)
+                                DetNumD2 = DetNumD2+1                            
+                            end select
+
                             ExcitMat(1,1)=i
                             ExcitMat(1,2)=j
                             ExcitMat(2,1)=k
@@ -897,13 +924,24 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
             enddo
         enddo
         CLOSE(8)
-        WRITE(6,*) DetNum," Double excitations found from nI"
+        WRITE(6,*) DetNum," Total double excitations found from nI"
+        WRITE(6,*) DetNumD0," Double spindiff0 excitations found from nI"
+        WRITE(6,*) DetNumD1," Double spindiff1 excitations found from nI"
+        WRITE(6,*) DetNumD2," Double spindiff2 excitations found from nI"
         OPEN(9,FILE="SinglesHist3",STATUS="UNKNOWN")
         DetNumS=0
+        DetNumS0=0
+        DetNumS1=0
         do i=1,nBasis
             do j=1,nBasis
                 IF(AllSinglesHist(i,j).gt.0.0_dp) THEN
                     DetNumS=DetNumS+1
+                    select case(getExcitationType(excitMat, 1))
+                    case(1)
+                        DetNumS0 = DetNumS0+1
+                    case(3)
+                        DetNumS1 = DetNumS1+1
+                    end select
                     ExcitMat(1,1)=i
                     ExcitMat(2,1)=j
                     CALL FindExcitBitDet(iLut,iLutnJ,1,ExcitMat)
@@ -916,6 +954,10 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
         enddo
         CLOSE(9)
         WRITE(6,*) DetNumS," Single excitations found from nI"
+        WRITE(6,*) DetNumS0," Single spindiff0 excitations found from nI"
+        WRITE(6,*) DetNumS1," Single spindiff1 excitations found from nI"
+
+        WRITE(6,*) DetNumS+DetNum," Total excitations found from nI"
         IF((DetNum+DetNumS).ne.ExcitCount) THEN
             CALL construct_class_counts(nI, store%ClassCountOcc, &
                                             store%ClassCountUnocc, &

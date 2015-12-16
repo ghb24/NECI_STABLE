@@ -759,7 +759,8 @@ module FciMCParMod
                                         DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
                                         AvSignCurr, fcimc_excit_gen_store)
         
-            call test_sym_excit_ExMag(DetCurr,1000000)
+            !call test_sym_excit_ExMag(DetCurr,1000000)
+            !call exit(0)
 
             ! We only need to find out if determinant is connected to the
             ! reference (so no ex. level above 2 required, 

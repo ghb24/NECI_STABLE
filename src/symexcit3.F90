@@ -79,8 +79,10 @@ MODULE SymExcit3
                                        *(CCUnocc2(ClassCountInd(1,Symb,-1)))) 
 
 
-                        nDoub_spindiff2=nDoub_spindiff2+(CCUnocc2(ClassCountInd(1,Syma,-1)) &
-                                       *(CCUnocc2(ClassCountInd(1,Symb,-1))))
+                        nDoub_spindiff2=nDoub_spindiff2+(CCUnocc2(ClassCountInd(2,Syma,-1)) &
+                                       *(CCUnocc2(ClassCountInd(2,Symb,-1))-1))+(CCUnocc2(ClassCountInd(2,Symb,-1)) &
+                                       *(CCUnocc2(ClassCountInd(2,Syma,-1))-1))
+
                     enddo
 
                 elseif (iSpn==3) then
@@ -100,12 +102,13 @@ MODULE SymExcit3
                                        *(CCUnocc2(ClassCountInd(1,Symb,-1))))+(CCUnocc2(ClassCountInd(1,Syma,-1)) &
                                        *(CCUnocc2(ClassCountInd(2,Symb,-1))))
 
-                        nDoub_spindiff2=nDoub_spindiff2+(CCUnocc2(ClassCountInd(2,Syma,-1)) &
-                                       *(CCUnocc2(ClassCountInd(2,Symb,-1))))
+                        nDoub_spindiff2=nDoub_spindiff2+(CCUnocc2(ClassCountInd(1,Syma,-1)) &
+                                       *(CCUnocc2(ClassCountInd(1,Symb,-1))-1))+(CCUnocc2(ClassCountInd(1,Symb,-1)) &
+                                       *(CCUnocc2(ClassCountInd(1,Syma,-1))-1))
                     enddo
 
                 elseif (iSpn==2) then
-                    ! alpha alpha pair
+                    ! alpha beta pair
                     do syma = 0,nSymLabels-1
                         symb = ieor(syma, symProduct)
                         
