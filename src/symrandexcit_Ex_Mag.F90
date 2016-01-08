@@ -30,18 +30,11 @@ module symrandexcit_Ex_mag
     use timing_neci
     use Parallel_neci
     use util_mod, only: binary_search_first_ge
+    use symrandexcit3, only: pick_elec_pair, count_orb_pairs, select_syms, select_orb_pair, &
+                             create_excit_det2, construct_class_counts
     implicit none
 
 contains
-
-
-
-
-
-
-
-
-
 
 
     subroutine gen_rand_excit_Ex_mag (nI, ilutI, nJ, ilutJ, exFlag, IC, ExcitMat, &
@@ -112,9 +105,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
        
         if (excitType==1 .or. excitType==3) then
             pGen = gen_single (nI, nJ, ilutI, ExcitMat, tParity, &
-                               store%ClassCountOcc, store%ClassCountUnocc, &
-                               store%scratch3, store%occ_list, &
-                               store%virt_list, store, IC, excitType)
+                               store, IC, excitType)
 
         else
             pGen = gen_double (nI, nJ, iLutI, ExcitMat, tParity, store, excitType)
@@ -264,7 +255,6 @@ ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
         call select_syms(rint, sym_inds, sym_prod, virt_spn, store%ClassCountUnocc, &
                          pair_list)
 
-!        write(*,*) "sym_inds", sym_inds
 
         ! Select a pair of orbitals from the symmetries above.
         call select_orb_pair (rint, sym_inds, ilutI, orbs, store%ClassCountUnocc, &
@@ -349,234 +339,16 @@ ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
     end subroutine
 
 
-    subroutine pick_elec_pair (nI, elecs, sym_prod, spn)
-
-        ! Use a triangular indexing system.
-        !  --> Only need one random number to pick two distinct electrons
-        !      from N(N-1)/2 pairs.
-        !
-        ! i.e.              21                     1
-        !               32  31   ==>           3   2
-        !           43  42  41             6   5   4
-        !       54  53  52  51         10  9   8   7
-        !
-        ! We can obtain the first index, A, by considering the largest
-        ! integer, i, which can give an element on that row. For an integer
-        ! 1 <= i <= npair:
-        ! 
-        !   --> A = ceil((1 + sqrt(1 + 8*i)) / 2)
-        !   --> B = i - (A-1)(A-2)/2
-
-        integer, intent(in) :: nI(nel)
-        integer, intent(out) :: elecs(2), sym_prod, spn(2)
-
-        integer :: ind, orbs(2)
-
-        ! Generate a random integer 1 <= i <= nel(nel-1)/2 (ElecPairs)
-        ind = 1 + int(ElecPairs * genrand_real2_dSFMT())
-
-        ! Generate the two indices, and obtain the associated orbitals
-        elecs(1) = ceiling((1 + sqrt(1 + 8*real(ind,dp))) / 2)
-        elecs(2) = ind - ((elecs(1) - 1) * (elecs(1) - 2)) / 2
-        orbs = nI(elecs)
-
-        ! Obtain the symmetry product label
-        sym_prod = RandExcitSymLabelProd (SpinOrbSymLabel(orbs(1)), &
-                                          SpinOrbSymLabel(orbs(2)))
-
-        ! Obtain spins
-        spn = get_spin(orbs)
-
-    end subroutine
-    
-    function count_orb_pairs (sym_prod, spn, CCUnocc, num_pairs) &
-                              result(tot_pairs)
-
-        integer, intent(in) :: sym_prod
-        integer, intent(in) :: spn(2)
-        integer, intent(in) :: CCUnocc(ScratchSize)
-        integer, intent(inout) :: num_pairs(0:nSymLabels-1)
-        integer :: tot_pairs
-        character(*), parameter :: this_routine = 'count_orb_pairs'
-
-        integer :: symA, symB, indA, indB, rint, tmp_tot
-
-        ! TODO: Are we going to be able to store this one in ScratchSize
-        !       arrays as well?
-
-        tot_pairs = 0
-
-        if (spn(1) == spn(2)) then
-            !write(*,*) "spins same"
-            ! given a product of symmetry labels, and given that the irreps of the
-            ! point group are abelian, find the corresponding symB for every symA
-            ! such that their product is the same as that of the chosen elec pair
-            indA = spn(1)
-            do symA = 0, nSymLabels - 1
-!                    indA = ClassCountInd(spn(1), symA, -1)
-                symB = RandExcitSymLabelProd(SymInvLabel(symA), sym_prod)
-                if (symA == symB) then
-                    tot_pairs = tot_pairs + (CCUnocc(indA) * &
-                                         max(CCUnocc(indA) - 1,0)) / 2
-                elseif (symB > symA) then
-                    indB = ClassCountInd(spn(1), symB, -1)
-                    tot_pairs = tot_pairs + (CCUnocc(indA) * CCUNocc(indB))
-                endif
-
-                num_pairs(symA) = tot_pairs
-                indA = indA+2
-            enddo
-
-        else ! spn(1) /= spn(2)
-            !write(*,*) "spins different"
-
-            indA = spn(1)
-            do symA = 0, nSymLabels - 1
-                symB = RandExcitSymLabelProd(SymInvLabel(symA), sym_prod)
-
-                if (symA == symB) then
-                    tot_pairs = tot_pairs + (CCUnocc(indA) * &
-                                         CCUNocc(ieor(indA-1,1)+1))
-                else
-                    ! Don't restrict to A < B. Use the B < A case to count
-                    ! the equivalent with the spins swapped.
-                    indB = ClassCountInd(spn(2), symB, -1)
-                    tot_pairs = tot_pairs + (CCUnocc(indA) * CCUnocc(indB))
-                endif
-
-                num_pairs(symA) = tot_pairs
-                indA = indA + 2
-            enddo
-        endif
-
-    end function
-
-    subroutine select_syms (rint, sym_inds, sym_prod, spn, CCUnocc, &
-                            num_pairs)
-
-        integer, intent(inout) :: rint, spn(2)
-        integer, intent(out) :: sym_inds(2)
-        integer, intent(in) :: sym_prod
-        integer, intent(in) :: CCUnocc(ScratchSize), num_pairs(0:nSymLabels-1)
-
-        integer :: syms(2), npairs, inds(2), tmp, symA
-
-        ! Select a symA/symB pair biased by the number of possible 
-        ! excitations which can be made into them.
-        do symA = 0, nSymLabels - 1
-            if (num_pairs(symA) >= rint) then
-                syms(1) = symA
-                syms(2) = RandExcitSymLabelProd(SymInvLabel(symA), sym_prod)
-                exit
-            endif
-        enddo
-
-        ! Modify rint such that it now specifies which of the orbital pairs
-        ! within the selected symmetry categories is desired.
-        if (symA /= 0) rint = rint - num_pairs(symA - 1)
-
-        ! Return the symmetry indices, rather than the symmetry labels
-        ! as that is what we will need for the selections.        
-        sym_inds = ClassCountInd(spn, syms, -1)
-
-    end subroutine
-
-
-    subroutine select_orb_pair (rint, sym_inds, ilutI, orbs, CCUnocc, &
-                                virt_list)
-
-        integer, intent(in) :: rint, sym_inds(2)
-        integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(in) :: CCUnocc(ScratchSize)
-        integer, intent(in) :: virt_list(:,:)
-        integer, intent(out) :: orbs(2)
-        character(*), parameter :: this_routine = 'select_orb_pair'
-
-        integer :: i
-
-        if (sym_inds(1) == sym_inds(2)) then
-            ! We are picking two orbitals from the same category
-            ! --> Use the triangular scheme previously for selecting
-            !     electrons.
-
-            ! Select the positions of the two orbitals in the vacant list.
-            orbs(1) = ceiling((1 + sqrt(1 + 8*real(rint,dp))) / 2)
-            orbs(2) = rint - ((orbs(1) - 1) * (orbs(1) - 2) / 2)
-        else
-            ! We are picking two orbitals from different categories
-            ! --> use a 'rectangular', mapping scheme.
-            orbs(1) = mod(rint - 1, CCUnocc(sym_inds(1))) + 1
-            orbs(2) = floor((real(rint,dp) - 1) / CCUnocc(sym_inds(1))) + 1
-        endif
-        
-        ! Extract the orbitals from the vacant list.
-        orbs(1) = virt_list (orbs(1), sym_inds(1))
-        orbs(2) = virt_list (orbs(2), sym_inds(2))
-
-    end subroutine
-
-
-    subroutine create_excit_det2 (nI, nJ, tParity, ExcitMat, elecs, orbs)
-
-        integer, intent(in) :: nI(nel), elecs(2), orbs(2)
-        integer, intent(out) :: nJ(nel), ExcitMat(2,2)
-        logical, intent(out) :: tParity
-
-        ExcitMat(1,:) = elecs
-        ExcitMat(2,:) = orbs
-        nJ = nI
-
-        ! TODO FindExcitDet (excit.F) is not modularised/interfaced yet
-        call FindExcitDet(ExcitMat, nJ, 2, tParity)
-
-    end subroutine
-
-    subroutine construct_class_counts (nI, CCOcc, CCUnocc, pair_list)
-
-        ! Return two arrays of length ScratchSize, containing information on
-        ! the number of orbitals - occupied and unoccupied - in each symmetry.
-        !
-        ! The arrays are indexed via the indices returned by ClassCountInd
-        ! n.b. this is O[nel], so we should store this if we can.
-        
-        integer, intent(in) :: nI(nel)
-        integer, intent(out) :: CCOcc(ScratchSize), CCUnocc(ScratchSize)
-        integer, intent(out) :: pair_list(ScratchSize)
-
-        integer :: ind_alpha, ind_beta, i, ind, tot
-
-        CCOcc = 0
-        if (tNoSymGenRandExcits) then
-            ind_alpha = ClassCountInd(1,0,0)
-            ind_beta = ClassCountInd(2,0,0)
-            CCOcc(ind_alpha) = nOccAlpha
-            CCOcc(ind_beta) = nOccBeta
-        else
-            do i = 1, nel
-                ind = ClasscountInd(nI(i))
-                CCOcc(ind) = CCOcc(ind) + 1
-            enddo
-        endif
-        CCUnocc = OrbClassCount - CCOcc
-
-        ! Store a -1 to indicate to the singles routine that this 
-        ! structure hasn't been filled in yet.
-        pair_list(1) = -1
-
-    end subroutine
-
     ! note: should tidy this up so that ccocc, ccunocc, pair_list, occ_list and virt_list are
     ! referenced directly from the store variable
-    function gen_single (nI, nJ, iLutI, ExcitMat,  tParity, CCOcc, CCUnocc, &
-                         pair_list, occ_list, virt_list, store, IC, excitType) result(pGen)
+    function gen_single (nI, nJ, iLutI, ExcitMat,  tParity, &
+                         store, IC, excitType) result(pGen)
 
         integer, intent(in) :: nI(nel), IC
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: nJ(nel), ExcitMat(2,2)
         logical, intent(out) :: tParity
-        integer, intent(in) :: CCOcc(ScratchSize), CCUnocc(ScratchSize)
-        integer, intent(out) :: pair_list(ScratchSize)
-        integer, intent(in) :: occ_list(:,:), virt_list(:,:)
+        ! pair_list is in store%scratch3
         type(excit_gen_store_type), intent(inout), target :: store
         ! encode_child interface uses value of IC in this scope,
         ! so intent is changed here to inout in order to avoid having to change the interface.
@@ -601,23 +373,23 @@ ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
 !        if (pair_list(1) == -1) then
             ! this is the first run for the current det
             if (excitType==1) then
-                pair_list(1) = CCOcc(1) * CCUnocc(1)
+                store%scratch3(1) = store%ClassCountOcc(1) * store%ClassCountUnocc(1)
                 do i = 2, ScratchSize
-                    pair_list(i) = pair_list(i-1) + (CCOcc(i) * CCUnocc(i))
+                    store%scratch3(i) = store%scratch3(i-1) + (store%ClassCountOcc(i) * store%ClassCountUnocc(i))
                 enddo
             else ! magnetic excitation
-                pair_list(1) = CCOcc(1) * CCUnocc(2)
+                store%scratch3(1) = store%ClassCountOcc(1) * store%ClassCountUnocc(2)
                 do i = 2, ScratchSize
                     ! if i is even, we want the unocc count of class i-1
                     ! if i is odd, we want that of class i+1 
                     ! mod(i,2) is either (0, 1) (i even, i odd)
                     ! 2*mod(i,2)-1 is either -1 or 1
                     ! therefore i+2*mod(i,2)-1 = i-1 (i even) or i+1 (i odd) as required
-                    pair_list(i) = pair_list(i-1) + (CCOcc(i) * CCUnocc( i+2*mod(i,2)-1 ))
+                    store%scratch3(i) = store%scratch3(i-1) + (store%ClassCountOcc(i) * store%ClassCountUnocc( i+2*mod(i,2)-1 ))
                 enddo
             endif
 !        endif
-        npairs = pair_list(ScratchSize)
+        npairs = store%scratch3(ScratchSize)
 
         ! If there are no possible singles, then abandon.
         if (npairs == 0) then
@@ -632,29 +404,29 @@ ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
         ! Select which symmetry/spin category we want for the currently  occupied orbital
         !ind = binary_search_first_ge (pair_list, rint)
         do ind = 1, ScratchSize
-            if (pair_list(ind) >= rint) exit
+            if (store%scratch3(ind) >= rint) exit
         enddo
         ASSERT(ind <= ScratchSize)
 
         ! We are selecting one from the occupied list, and one from the
         ! unoccupied list
         ! --> There must be no overlap, so use a rectangular selection.
-        if (ind > 1) rint = rint - pair_list(ind - 1)
-        ASSERT(1.le. rint .and. rint.le.pair_list(ind))
+        if (ind > 1) rint = rint - store%scratch3(ind - 1)
+        ASSERT(1.le. rint .and. rint.le.store%scratch3(ind))
         ! we now have a random number between 1 and the number of pairs in the selected class
         ! virt_list has the indices  
         !src = mod(rint - 1, CCOcc(ind)) + 1
 
-        src = mod((rint-1),CCOcc(ind)) + 1
-        tgt = (rint-1)/CCOcc(ind) + 1
+        src = mod((rint-1),store%ClassCountOcc(ind)) + 1
+        tgt = (rint-1)/store%ClassCountOcc(ind) + 1
 
         ! Find the index of the src orbital in the list and the target orbital
         ! (the tgt'th vacant orbital in the given symmetry)
-        ExcitMat(1,1) = occ_list(src, ind)
+        ExcitMat(1,1) = store%occ_list(src, ind)
         if (excitType==1) then
-            ExcitMat(2,1) = virt_list(tgt, ind)
+            ExcitMat(2,1) = store%virt_list(tgt, ind)
         elseif (excitType==3) then
-            ExcitMat(2,1) = virt_list(tgt, ind+2*mod(ind,2)-1)
+            ExcitMat(2,1) = store%virt_list(tgt, ind+2*mod(ind,2)-1)
         endif
 
         ! Generate the new determinant
@@ -663,12 +435,12 @@ ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
 #ifdef __DEBUG
         ! For debugging purposes only (O[N] operation).
         if (.not. SymAllowedExcit(nI, nJ, 1, ExcitMat) .or. ExcitMat(1,1)*ExcitMat(2,1)==0) then
-            write(*,*) "ccocc(1)", ccocc(1)
-            write(*,*) "ccocc(2)", ccocc(2)
-            write(*,*) "ccunocc(1)", ccunocc(1)
-            write(*,*) "ccunocc(2)", ccunocc(2)
+            write(*,*) "ccocc(1)", store%ClassCountOcc(1)
+            write(*,*) "ccocc(2)", store%ClassCountOcc(2)
+            write(*,*) "ccunocc(1)", store%ClassCountUnocc(1)
+            write(*,*) "ccunocc(2)", store%ClassCountUnocc(2)
             write(*,*) "ind", ind
-            write(*,*) "pair_list", pair_list
+            write(*,*) "pair_list", store%scratch3
             write(*,*) "alpha count", store%nel_alpha
             write(*,*) "src", src, "tgt", tgt
             write(*,*) "excitmat", excitmat(1,:)
