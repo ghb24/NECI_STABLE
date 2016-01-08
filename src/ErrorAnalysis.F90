@@ -252,17 +252,17 @@ module errors
             call reblock_data(numerator_data,final_corrlength_proj)
             call analyze_data(pophf_data,mean_denom,error_denom,eie_denom)
             call analyze_data(numerator_data,mean_num,error_num,eie_num)
-            write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_denominator:", mean_denom, " +/- ", error_denom, &
+            write(6,"(A,F22.10,A,G20.8,A,G22.10)") "ProjE_denominator:", mean_denom, " +/- ", error_denom, &
                 " Relative error: ", abs(error_denom/mean_denom)
             if(lenof_sign.eq.2) then
                 call reblock_data(imnumerator_data,final_corrlength_proj)
                 call analyze_data(imnumerator_data,mean_imnum,error_imnum,eie_imnum)
-                write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_numerator (Re):", mean_num, " +/- ", error_num, &
+                write(6,"(A,F22.10,A,G20.8,A,G22.10)") "ProjE_numerator (Re):", mean_num, " +/- ", error_num, &
                     " Relative error: ", abs(error_num/mean_num)
-                write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_numerator (Im):", mean_imnum, " +/- ", error_imnum, &
+                write(6,"(A,F22.10,A,G20.8,A,G22.10)") "ProjE_numerator (Im):", mean_imnum, " +/- ", error_imnum, &
                     " Relative error: ", abs(error_imnum/mean_imnum)
             else
-                write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_numerator:  ", mean_num, " +/- ", error_num, &
+                write(6,"(A,F22.10,A,G20.8,A,G22.10)") "ProjE_numerator:  ", mean_num, " +/- ", error_num, &
                     " Relative error: ", abs(error_num/mean_num)
             endif
         endif
@@ -521,6 +521,7 @@ module errors
                         improje, &                   !8.     Im   \sum[ nj H0j / n0 ]
                         reinstproje, &                 !9.     
                         iminstproje, &                    !10.
+                        tote, &       ! Tot.ProjE.iter (Re)
                         insthf(1), &                         !11.
                         insthf(lenof_sign), &                         !12.
                         doubs, &                         !13.
@@ -656,6 +657,7 @@ module errors
                         improje, &                   !8.     Im   \sum[ nj H0j / n0 ]
                         reinstproje, &                 !9.     
                         iminstproje, &                    !10.
+                        tote,  &     ! Tot.PorjE.iter (Rm)
                         insthf(1), &                         !11.
                         insthf(lenof_sign), &                         !12.
                         doubs, &                         !13.
