@@ -34,6 +34,16 @@ module symrandexcit_Ex_mag
 
 contains
 
+
+
+
+
+
+
+
+
+
+
     subroutine gen_rand_excit_Ex_mag (nI, ilutI, nJ, ilutJ, exFlag, IC, ExcitMat, &
                                 tParity, pGen, HElGen, store)
 
@@ -110,8 +120,8 @@ ASSERT(exFlag<=3.and.exFlag>=1)
             pGen = gen_double (nI, nJ, iLutI, ExcitMat, tParity, store, excitType)
         endif
 
-
-        if (excitType.ne.getExcitationType(ExcitMat, IC)) then
+        
+        if (nJ(1)/=0 .and. excitType.ne.getExcitationType(ExcitMat, IC)) then
             write(*,*) "NI", ni
             write(*,*) "NJ", nj
             write(*,*) "--- excit type wanted", excitType
@@ -125,10 +135,10 @@ ASSERT(exFlag<=3.and.exFlag>=1)
             write(*,*) "first excit", excitMat(:,1)
             write(*,*) "second excit", excitMat(:,2)
              
-            call stop_all(this_routine, "invalid single excitation generated")
+            call stop_all(this_routine, "invalid excitation generated")
         endif
 
-ASSERT(excitType == getExcitationType(ExcitMat, IC))
+ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
 
 
     end subroutine
@@ -137,6 +147,7 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
     subroutine select_spin_diff(excitType, IC)
         integer, intent(inout) :: excitType, IC
         real(dp) :: r, ptot
+
 
         r = genrand_real2_dSFMT()
         select case(IC)
@@ -185,6 +196,7 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
             endif
             excitType = 5
             IC = 2
+
         end select
     end subroutine
 
@@ -203,27 +215,25 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
 
         real(dp) :: pElecs
         integer :: elecs(2), elec_spn(2), virt_spn(2), orbs(2), sym_inds(2)
-        integer :: sym_prod, rint, tot_pairs
+        integer :: sym_prod, rint, tot_pairs, realised_elecpairs
         integer :: pair_list(0:nSymLabels-1)
 
         if (excitType == 5) then
             ! Pick a pair of electrons with the constraint that they have a commom spin
-            call pick_likespin_elec_pair(nI, elecs, sym_prod, elec_spn, store)
+            call pick_likespin_elec_pair(nI, elecs, sym_prod, elec_spn, realised_elecpairs, store)
         else
             ! Pick an unbiased, distinct, electron pair.
             call pick_elec_pair (nI, elecs, sym_prod, elec_spn)
+            realised_elecpairs = elecpairs
         endif
 
-
-        r=genrand_real2_dSFMT()
 
         ! Pick a pair of symmetries, such that 
         virt_spn = elec_spn
         select case(excitType)
         ! f(n) = 3-n maps 1->2 and 2->1
         case(4) !S->S+1
-            ! use the part of the PRN that won't be needed for choosing pairs
-            if (mod(int(r*10**15),2)==0) then
+            if (nint(genrand_real2_dSFMT())==1) then
                 virt_spn(1) = 3-virt_spn(1)
             else
                 virt_spn(2) = 3-virt_spn(2)
@@ -232,14 +242,9 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
             virt_spn(1) = 3-virt_spn(1)
             virt_spn(2) = 3-virt_spn(2)
         end select
-        
-!        write(*,*) "virt_spin", virt_spn
-
 
         tot_pairs = count_orb_pairs (sym_prod, virt_spn, store%ClassCountUnocc, pair_list)
-
-        !write(*,*) "tot_pairs", tot_pairs, excitType
-
+        
         ! If there are no possible excitations for the electron pair picked, 
         ! then we abort the excitation
         if (tot_pairs == 0) then
@@ -248,9 +253,12 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
             return
         endif
 
+        r=genrand_real2_dSFMT()
         rint = 1 + int(r * tot_pairs)
         ! Given a random number, the remainder of the generation is entirely
         ! deterministic
+
+                
 
         ! Select a pair of symmetries to choose from
         call select_syms(rint, sym_inds, sym_prod, virt_spn, store%ClassCountUnocc, &
@@ -264,23 +272,30 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
 
         ! Generate the final determinant.
         call create_excit_det2 (nI, nJ, tParity, ExcitMat, elecs, orbs)
+        
+        if (excitType==4) then
+            if (virt_spn(1)==virt_spn(2) .or. (virt_spn(1)/=virt_spn(2) .and. orbs(1)==orbs(2) )) then
+                tot_pairs = 2*tot_pairs
+            endif
+        endif
+
 
         ! Return the final probability
         select case(excitType)
         case(2)
-            pGen = pDoubNew / real(ElecPairs * tot_pairs, dp)
+            pGen = pDoubNew / real(realised_elecPairs * tot_pairs, dp)
         case(4)
-            pGen = pDoub_spindiff1_new / real(ElecPairs * tot_pairs, dp)
+            pGen = pDoub_spindiff1_new / real(realised_elecPairs * tot_pairs, dp)
         case(5)
-            pGen = pDoub_spindiff2_new / real(ElecPairs * tot_pairs, dp)
+            pGen = pDoub_spindiff2_new / real(realised_elecPairs * tot_pairs, dp)
         end select
 
     end function
 
-    subroutine pick_likespin_elec_pair (nI, elecs, sym_prod, spn, store)
-        integer :: nPairs, nPairs_alpha, nPairs_beta, nel_beta
+    subroutine pick_likespin_elec_pair (nI, elecs, sym_prod, spn, nPairs, store)
+        integer :: nPairs_alpha, nPairs_beta, nel_beta
         integer, intent(in) :: nI(nel)
-        integer, intent(out) :: elecs(2), sym_prod, spn(2)
+        integer, intent(out) :: elecs(2), sym_prod, spn(2), nPairs
         integer :: ind, orbs(2)
         type(excit_gen_store_type), intent(inout), target :: store
         
@@ -390,6 +405,7 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
         !       arrays as well?
 
         tot_pairs = 0
+
         if (spn(1) == spn(2)) then
             !write(*,*) "spins same"
             ! given a product of symmetry labels, and given that the irreps of the
@@ -397,12 +413,11 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
             ! such that their product is the same as that of the chosen elec pair
             indA = spn(1)
             do symA = 0, nSymLabels - 1
-        !        indA = ClassCountInd(spn(1), symA, -1)
+!                    indA = ClassCountInd(spn(1), symA, -1)
                 symB = RandExcitSymLabelProd(SymInvLabel(symA), sym_prod)
-
                 if (symA == symB) then
                     tot_pairs = tot_pairs + (CCUnocc(indA) * &
-                                             max(CCUnocc(indA) - 1,0)) / 2
+                                         max(CCUnocc(indA) - 1,0)) / 2
                 elseif (symB > symA) then
                     indB = ClassCountInd(spn(1), symB, -1)
                     tot_pairs = tot_pairs + (CCUnocc(indA) * CCUNocc(indB))
@@ -421,7 +436,7 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
 
                 if (symA == symB) then
                     tot_pairs = tot_pairs + (CCUnocc(indA) * &
-                                             CCUNocc(ieor(indA-1,1)+1))
+                                         CCUNocc(ieor(indA-1,1)+1))
                 else
                     ! Don't restrict to A < B. Use the B < A case to count
                     ! the equivalent with the spins swapped.
@@ -433,8 +448,6 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
                 indA = indA + 2
             enddo
         endif
-
-        !write(*,*)
 
     end function
 
@@ -647,9 +660,6 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
         ! Generate the new determinant
         nJ = nI
         call FindExcitDet (ExcitMat, nJ, 1, tParity)
-!            write(*,*)
-!            write(*,*) "exciting from", excitMat(1,1), "to", excitMat(2,1)
-!        call print_pictorial_comparison(nI, nJ, 28)
 #ifdef __DEBUG
         ! For debugging purposes only (O[N] operation).
         if (.not. SymAllowedExcit(nI, nJ, 1, ExcitMat) .or. ExcitMat(1,1)*ExcitMat(2,1)==0) then
@@ -730,9 +740,6 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
     write(6,*) "nDoub: ",nDoub
     write(6,*) "nDoub_1: ",nDoub_1
     write(6,*) "nDoub_2: ",nDoub_2
-
-    !HACK
-    nDoub_2 = 792
 
     excitcount = nSing + nSing_1 + nDoub + nDoub_1 + nDoub_2
 
@@ -893,6 +900,12 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
                         
                             DetNum=DetNum+1
 
+                            ExcitMat(1,1)=i
+                            ExcitMat(1,2)=j
+                            ExcitMat(2,1)=k
+                            ExcitMat(2,2)=l
+
+
                             select case(getExcitationType(excitMat, 2))
                             case(2)
                                 DetNumD0 = DetNumD0+1
@@ -902,15 +915,13 @@ ASSERT(excitType == getExcitationType(ExcitMat, IC))
                                 DetNumD2 = DetNumD2+1                            
                             end select
 
-                            ExcitMat(1,1)=i
-                            ExcitMat(1,2)=j
-                            ExcitMat(2,1)=k
-                            ExcitMat(2,2)=l
+
+
                             CALL FindExcitBitDet(iLut,iLutnJ,2,ExcitMat)
-                            write(8,"(i12,f20.12,2i5,'->',2i5,2i15)") DetNum,&
+                            write(8,"(i12,f20.12,2i5,'->',2i5,2i15,i12)") DetNum,&
                                 AllDoublesHist(i,j,k,l) / (real(Iterations,dp)&
                                                         * nProcessors), &
-                                i, j, k, l, iLutnJ(0),AllDoublesCount(i,j,k,l)
+                                i, j, k, l, iLutnJ(0),AllDoublesCount(i,j,k,l),getExcitationType(excitMat,2)
 !                            WRITE(6,*) DetNum,DoublesHist(i,j,k,l),i,j,"->",k,l
                             IF(tHub.or.tUEG) THEN
                                 write(8,*) "#",G1(i)%k(1),G1(i)%k(2)
