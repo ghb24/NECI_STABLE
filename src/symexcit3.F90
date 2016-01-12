@@ -1,3 +1,4 @@
+#include "macros.h"
 MODULE SymExcit3
 ! This module contains excitation generators able to enumerate all possible excitations given a starting determinant.
 ! Unlike symexcit.F90 however, these excitation generators are able to deal with cases where the alpha and beta orbitals 
@@ -488,12 +489,12 @@ MODULE SymExcit3
 ! This involves a way of ordering the electron pairs i,j and a,b so that given an i,j and a,b we can find the next.
 ! The overall symmetry must also be maintained - i.e. if i and j are alpha and beta, a and b must be alpha and beta
 ! or vice versa.
-        USE SystemData , only: ElecPairs, tFixLz, iMaxLz
+        USE SystemData , only: ElecPairs, tFixLz, iMaxLz, tReltvy
         USE GenRandSymExcitNUMod , only: PickElecPair
         use constants, only: bits_n_int
         INTEGER :: nI(NEl),Orbj,Orbi,Orba,Orbb,Syma,Symb,NewSym
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-        INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,Spinb,nJ(NEl),ExcitMat3(2,2),SumMl
+        INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,Spinb,nJ(NEl),ExcitMat3(2,2),SumMl, iSpnPicked
         INTEGER , SAVE :: ijInd,OrbaChosen,OrbbIndex,Spina,SymInd
         LOGICAL :: tDoubleExcitFound,tFirsta,tFirstb,tNewij,tNewa,tAllExcitFound,tParity,tij_lt_ab_only
         INTEGER :: Mli, Mla, Mlb, Indij
@@ -509,15 +510,32 @@ MODULE SymExcit3
         Orbj=ExcitMat3(1,2)
         Orba=ExcitMat3(2,1)
         Orbb=ExcitMat3(2,2)
-!        WRITE(6,*) 'Orbi,Orbj,Orba,Orbb',Orbi,Orbj,Orba,Orbb
 
+        
+        if (orbi==0) then
+            iSpn = 1
+        else 
+! recover the iSpn value from the last pass
+            if(is_beta(orba) .and. is_beta(orbb)) then
+                iSpn = 1
+            elseif(is_alpha(orba) .and. is_alpha(orbb)) then
+                iSpn = 3
+            else
+                iSpn = 2
+            endif
+        endif
+
+        spnCaseLp : do
+        
         IF(Orbi.eq.0) THEN
             ijInd=1
-! If Orbi, then we are choosing the first double.             
+! If Orbi=0, then we are choosing the first double.             
 ! It is therefore also the first set of a and b for this electron pair i,j.
             tFirsta=.true.
             tFirstb=.true.
-        ENDIF
+            tNewij=.true.
+            tAllExcitFound = .false.
+        endif
 
         lp: do while (.not.tDoubleExcitFound)
 
@@ -526,7 +544,11 @@ MODULE SymExcit3
 ! The i and j orbitals are then given by nI(Elec1Ind) and nI(Elec2Ind), and the symmetry product of the two is 
 ! SymProduct and the spin iSpn.
 ! iSpn=2 for alpha beta pair, ispn=3 for alpha alpha pair and ispn=1 for beta beta pair.
-            CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,ijInd)
+            CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpnPicked,SumMl,ijInd)
+
+            if (.not. tReltvy) then
+                iSpn = iSpnPicked
+            endif
 
             Indij = (( ( (nI(Elec2Ind)-2) * (nI(Elec2Ind)-1) ) / 2 ) + nI(Elec1Ind))
 
@@ -747,10 +769,22 @@ MODULE SymExcit3
         if(tDoubleExcitFound.and.(.not.tAllExcitFound)) then
             call make_double (nI, nJ, elec1ind, elec2ind, orbA, orbB, &
                               ExcitMat3, tParity)
-!        else
-!            write(6,*) "Exiting loop with all excitations found: ",tAllExcitFound
-        endif
+            exit spnCaseLp
 
+        elseif(tReltvy) then
+            ! can we advance to the next iSpn?
+            if (iSpn .lt. 3) then
+                iSpn = iSpn+1
+                orbi = 0
+                orbj = 0
+                orba = 0
+                orbb = 0
+            else
+                ! all excitations found
+                exit spnCaseLp
+            endif
+        endif
+        enddo spnCaseLp
         
 !        WRITE(6,*) 'From',ExcitMat3(1,:),'To',ExcitMat3(2,:)
 !
@@ -760,7 +794,6 @@ MODULE SymExcit3
 !        WRITE(6,*) 'These have symmetries : ',G1(ExcitMat3(1,1))%Ml,G1(ExcitMat3(1,2))%Ml,' to ',G1(Orba)%Ml,G1(Orbb)%Ml
 !        WRITE(6,*) 'The new determinant is : ',nJ(:)
 !        CALL neci_flush(6)
-
 
     ENDSUBROUTINE GenDoubleExcit
 
