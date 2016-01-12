@@ -99,7 +99,9 @@ module DetBitOps
         integer, intent(in), optional :: nBitsMax
         integer, intent(in) :: nLast
         integer(kind=n_int), intent(in) :: iLut(0:nLast)
-        integer :: nbits
+        integer :: nbits, unused
+
+        unused = nBitsMax
 
         nbits = sum(count_set_bits(iLut))
         
@@ -196,7 +198,10 @@ module DetBitOps
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
         integer, intent(in), optional :: maxExLevel
         integer(kind=n_int) :: tmp(0:NIfD)
-        integer :: IC
+        integer :: IC, unused
+
+        ! Unused
+        unused = maxExLevel
 
         ! Obtain a bit string with only the excited orbitals one one det.
         tmp = ieor(iLutnI, iLutnJ)
@@ -461,7 +466,6 @@ module DetBitOps
         ! decided by comparing the integers that the bitstring represent.
 
         integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
-        integer(n_int) :: det_flag_I, det_flag_J
         integer :: i
         logical :: bLt
 
@@ -484,7 +488,6 @@ module DetBitOps
         ! decided by comparing the integers that the bitstring represent.
 
         integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
-        integer(n_int) :: det_flag_I, det_flag_J
         integer :: i
         logical :: bGt
 
@@ -527,12 +530,10 @@ module DetBitOps
 
     ! This will return 1 if iLutI is "less" than iLutJ, 0 if the determinants
     ! are identical, or -1 if iLutI is "more" than iLutJ
-    pure integer function DetBitLT(iLutI,iLutJ,nLast,use_flags_opt)
+    pure integer function DetBitLT(iLutI,iLutJ,nLast)
         integer, intent(in), optional :: nLast
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
-        logical, intent(in), optional :: use_flags_opt
         integer :: i, lnLast
-        integer(kind=n_int) :: det_flag_I, det_flag_J
 
         !First, compare first integers
         IF(iLutI(0).lt.iLutJ(0)) THEN
@@ -933,7 +934,7 @@ module DetBitOps
             bAllowed = .false.
         else
             call spin_sym_ilut (ilut, ilut_tmp)
-            if (DetBitLt(ilut, ilut_tmp, NIfD, .false.) > 0) then
+            if (DetBitLt(ilut, ilut_tmp, NIfD) > 0) then
                 bAllowed = .false.
             else
                 bAllowed = .true.
@@ -969,7 +970,7 @@ module DetBitOps
         integer, intent(in) :: src, tgt
         integer(n_int), intent(in) :: ilut(0:NIfTot)
 
-        integer(n_int) :: tmp(0:NIfD), mask(0:NIfD)
+        integer(n_int) :: mask(0:NIfD)
         integer :: min_orb, max_orb, par, min_int, max_int, cnt
         integer :: min_in_int, max_in_int
 
@@ -1017,10 +1018,7 @@ module DetBitOps
         integer, intent(in) :: src(2), tgt(2)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
 
-        integer(n_int) :: tmp(0:NIfD), mask(0:NIfD)
-        integer :: min_orb, max_orb, par, min_int, max_int, cnt
-        integer :: min_in_int, max_in_int
-
+        integer :: par
 
         if (all(tgt > maxval(src)) .or. all(tgt < minval(src))) then
 
@@ -1064,7 +1062,6 @@ end module
         !        True if an odd number of permutations is required to line up
         !        the determinants.
 
-        use SystemData, only: nel
         use bit_rep_data, only: NIfD
         use DetBitOps, only: count_set_bits
         use constants, only: n_int,bits_n_int,end_n_int
