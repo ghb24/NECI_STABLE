@@ -413,7 +413,7 @@ MODULE HPHFRandExcitMod
         ! iLutnI is 'less' than iLutSym, so iLutSym is the determinant with 
         ! the first open-shell = alpha. Swap them around.
         ! Only count up to NIfD to avoid Yamanouchi symbol etc.
-        i=DetBitLT(iLutnI,iLutSym,NIfD, .false.)
+        i=DetBitLT(iLutnI, iLutSym, NIfD)
         IF(i.eq.1) THEN
             iLutTemp(:)=iLutnI(:)
             iLutnI(:)=iLutSym(:)
