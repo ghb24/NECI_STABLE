@@ -253,6 +253,7 @@ add_executable(dneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
 add_executable(kneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
 
 # Add libraries
+set(BUILD_SHARED_LIBS "on")
 add_library(libneci ${F90_FILES} ${TEMPLATE_TARGETS})
 set_target_properties(libneci PROPERTIES OUTPUT_NAME "neci")
 add_library(libmneci ${F90_FILES} ${TEMPLATE_TARGETS})
