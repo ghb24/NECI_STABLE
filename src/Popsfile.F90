@@ -3,7 +3,7 @@
 MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, &
-                          AB_elec_pairs, par_elec_pairs, tMultiReplicas
+                          AB_elec_pairs, par_elec_pairs, tMultiReplicas, tReltvy
     use CalcData, only: tTruncInitiator, DiagSft, tWalkContGrow, nEquilSteps, &
                         ScaleWalkers, tReadPopsRestart, tPopsJumpShift, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
@@ -31,7 +31,7 @@ MODULE PopsfileMod
     use sort_mod
     use util_mod, only: get_free_unit,get_unique_filename
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
-        max_death_cpt
+        gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, max_death_cpt
     use global_det_data, only: global_determinant_data, set_iter_occ, &
                                init_global_det_data, set_det_diagH
     use fcimc_helper, only: update_run_reference, calc_inst_proje
@@ -1241,7 +1241,8 @@ r_loop: do while(.not.tStoreDet)
         integer :: PopNNodes
         real(dp) :: PopSft, PopTau, PopPSingles, PopPParallel, PopGammaSing
         real(dp) :: PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
-        real(dp) :: PopTotImagTime, PopSft2, PopParBias
+        real(dp) :: PopTotImagTime, PopSft2, PopParBias        
+        real(dp) :: PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2
         character(*), parameter :: t_r = 'ReadPopsHeadv4'
         HElement_t(dp) :: PopSumENum
         namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl, &
@@ -1250,6 +1251,7 @@ r_loop: do while(.not.tStoreDet)
                     PopTau,PopiBlockingIter,PopRandomHash,PopPSingles, &
                     PopPParallel, PopNNodes, PopWalkersOnNodes, PopGammaSing, &
                     PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt, &
+                    PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2, &
                     PopTotImagTime, Popinum_runs, PopParBias, PopMultiSft, &
                     PopMultiSumNoatHF, PopMultiSumENum, PopBalanceBlocks
 
@@ -1303,6 +1305,9 @@ r_loop: do while(.not.tStoreDet)
         end if
         call MPIBcast(PopGammaSing)
         call MPIBcast(PopGammaDoub)
+        call MPIBcast(PopGammaSing_spindiff1)
+        call MPIBcast(PopGammaDoub_spindiff1)
+        call MPIBcast(PopGammaDoub_spindiff2)
         call MPIBcast(PopGammaOpp)
         call MPIBCast(PopGammaPar)
         call MPIBcast(PopMaxDeathCpt)
@@ -1354,6 +1359,11 @@ r_loop: do while(.not.tStoreDet)
         ! Fill the tau-searching accumulators, to avoid blips in tau etc.
         gamma_sing = PopGammaSing
         gamma_doub = PopGammaDoub
+        if (tReltvy) then
+            gamma_sing_spindiff1 = PopGammaSing_spindiff1
+            gamma_doub_spindiff1 = PopGammaDoub_spindiff1
+            gamma_doub_spindiff2 = PopGammaDoub_spindiff2
+        endif
         gamma_opp = PopGammaOpp
         gamma_par = PopGammaPar
         max_death_cpt = PopMaxDeathCpt
@@ -1822,6 +1832,10 @@ r_loop: do while(.not.tStoreDet)
                                       ',PopGammaOpp=', gamma_opp, &
                                       ',PopGammaPar=', gamma_par, &
                                       ',PopMaxDeathCpt=', max_death_cpt
+        if (tReltvy) &
+        write(iunit, '(5(a,g18.12))') ',PopGammaSing_spindiff1=', gamma_sing_spindiff1, &
+                                      ',PopGammaDoub_spindiff1=', gamma_doub_spindiff1, &
+                                      ',PopGammaDoub_spindiff2=', gamma_doub_spindiff2
 
         if (tLoadBalanceBlocks) &
             write(iunit, '(a,i7)') 'PopBalanceBlocks=', balance_blocks
