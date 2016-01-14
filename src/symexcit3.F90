@@ -309,8 +309,60 @@ MODULE SymExcit3
     ENDSUBROUTINE GenExcitations3
 
 
+    subroutine GenSingleExcit(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only)
 
-    SUBROUTINE GenSingleExcit(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only)
+        ! this subroutine has been made into a wrapper around the original logic, which has been moved to
+        ! GenSingleExcitMag and modified to generate either spin conserving or spin sym violating exciations
+        ! given the value of a new logical flag
+
+        use SystemData, only : tReltvy
+        integer, intent(in) :: nI(nel), exFlag
+        integer, intent(inout) :: ExcitMat3(2,2)
+        integer, intent(out) :: nJ(nel)
+        integer(kind=n_int), intent(in) :: iLut(0:NifTot)
+        logical, intent(in) :: tParity, ti_lt_a_only
+        logical, intent(out) :: tAllExcitFound
+
+        logical :: tBreakingSpnSym
+        integer :: orba, orbi
+
+        orbi = excitmat3(1,1)
+        orba = excitmat3(2,1)
+
+        if (tReltvy) then
+            if (orbi*orba/=0 .and. btest(orbi+orba, 0)) then
+                ! last excitation broke spin sym
+                tBreakingSpnSym = .true.
+            else
+                tBreakingSpnSym = .false.
+            endif
+        else
+            tBreakingSpnSym = .false.
+        endif
+        
+
+        
+        call GenSingleExcitMag(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only, tBreakingSpnSym)
+        
+        orbi = excitmat3(1,1)
+        orba = excitmat3(2,1)
+
+        if (tReltvy) then
+            if (tAllExcitFound .and. .not. tBreakingSpnSym) then
+                ! we have exhausted all spin conserving singles, now move on to the spin breaking ones
+                tBreakingSpnSym = .true.
+                tAllExcitFound = .false.
+                excitmat3(:,:) = 0
+                call GenSingleExcitMag(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only, tBreakingSpnSym)
+            endif
+        endif
+
+
+    endsubroutine GenSingleExcit
+
+
+
+    SUBROUTINE GenSingleExcitMag(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only, tBreakingSpnSym)
 ! Despite being fed four indices, this routine finds single excitations.  Orbi -> Orba. (Orbj and Orbb remain 0).
 ! Feeding in 0 indices indicates it is the first excitation that needs to be found.
 ! The single excitation goes from orbital i to a, from determinant nI to nJ.
@@ -324,6 +376,7 @@ MODULE SymExcit3
         INTEGER :: NoOcc,ExcitMat3(2,2),exflag,SymInd,Spina, Mla
         LOGICAL :: tInitOrbsFound,tParity,tAllExcitFound,tEndaOrbs,ti_lt_a_only
         INTEGER , SAVE :: OrbiIndex,OrbaIndex,Spini,NewSym,Mli
+        logical, intent(in) :: tBreakingSpnSym
 
 !        WRITE(6,*) 'Original Determinant',nI
 !        WRITE(6,*) "SymLabelList2(:)",SymLabelList2(:)
@@ -331,7 +384,7 @@ MODULE SymExcit3
         tInitOrbsFound=.false.
         Orbi=ExcitMat3(1,1)
         Orba=ExcitMat3(2,1)
-!        WRITE(6,*) "Getting single",OrbiIndex,OrbaIndex,Orbi,Orba
+        WRITE(6,*) "Getting single",OrbiIndex,OrbaIndex,Orbi,Orba
 
         IF((Orbi.eq.0).or.(Orba.eq.0)) THEN           ! Want to find the first excitation.
 
@@ -347,14 +400,24 @@ MODULE SymExcit3
                 Mli = 0
             ENDIF
 !            write(6,*) "***",Spini,Symi,Mli
-            OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,Mli))  ! Start considering a at the first allowed symmetry.
+            if (tBreakingSpnSym) then 
+                ! Start considering a at the first allowed symmetry.
+                OrbaIndex=SymLabelCounts2(1,ClassCountInd(3-Spini,Symi,Mli))
+            else
+                OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,Mli))
+            endif
 
         ELSE
             Orbi=nI(OrbiIndex)                              ! Begin by using the same i as last time - check if there are any 
                                                             ! more possible excitations from this.
 
 ! At this stage, OrbaIndex is the a from the previous excitation.
-            SymInd=ClassCountInd(Spini,SpinOrbSymLabel(Orbi),Mli)
+            if (tBreakingSpnSym) then 
+                SymInd=ClassCountInd(3-Spini,SpinOrbSymLabel(Orbi),Mli)
+            else
+                SymInd=ClassCountInd(Spini,SpinOrbSymLabel(Orbi),Mli)
+            endif
+
 !            write(6,*) "symind = ", symind
 
             IF(OrbaIndex.eq.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
@@ -375,7 +438,12 @@ MODULE SymExcit3
                         Mli = 0
                     ENDIF
 !                    write(6,*) "*****", ClassCountInd(Spini,Symi,Mli),Spini,Symi,Mli
-                    OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,Mli))
+                    if (tBreakingSpnSym) then
+                        OrbaIndex=SymLabelCounts2(1,ClassCountInd(3-Spini,Symi,Mli))
+                    else
+                        OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,Mli))
+                    endif
+
                 ELSE
                     IF(exflag.ne.1) THEN
                         ExcitMat3(:,:)=0
@@ -421,7 +489,11 @@ MODULE SymExcit3
                 Orba=SymLabelList2(OrbaIndex)
             ENDIF
 
-            SymInd=ClassCountInd(Spini,SpinOrbSymLabel(Orbi),Mli)
+            if (tBreakingSpnSym) then
+                SymInd=ClassCountInd(3-Spini,SpinOrbSymLabel(Orbi),Mli)
+            else
+                SymInd=ClassCountInd(Spini,SpinOrbSymLabel(Orbi),Mli)
+            endif
 
 ! Need to also make sure orbital a is unoccupied, so make sure the orbital is not in nI.
             NoOcc=0
@@ -453,10 +525,12 @@ MODULE SymExcit3
                 ENDIF
             ENDIF
 
-            IF(NewSym.eq.Symi.and.(Spina.eq.Spini).and.(Mli.eq.Mla).and.(.not.tEndaOrbs)) THEN
+            IF(NewSym.eq.Symi.and.(Mli.eq.Mla).and.(.not.tEndaOrbs)) THEN
+                if ((Spina.eq.Spini).and.(.not. tBreakingSpnSym) .or. (.not.(spina.eq.spini)) .and. tBreakingSpnSym) then
 ! If not, then these are the new Orbi and Orba.                
-                tInitOrbsFound=.true.
-                OrbaIndex=OrbaIndex+NoOcc
+                    tInitOrbsFound=.true.
+                    OrbaIndex=OrbaIndex+NoOcc
+                endif
             ELSE
 
 ! If we have, move onto the next occupied orbital i, no symmetry allowed single excitations exist from the first.                
@@ -472,7 +546,11 @@ MODULE SymExcit3
                         Mli = 0
                     ENDIF
 !                    write(6,*) "Symind3 = ",ClassCountInd(Spini,Symi,Mli)
-                    OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,Mli))
+                    if (tBreakingSpnSym) then
+                        OrbaIndex=SymLabelCounts2(1,ClassCountInd(3-Spini,Symi,Mli))
+                    else
+                        OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,Mli))
+                    endif
                 ENDIF
             ENDIF
 
@@ -480,7 +558,7 @@ MODULE SymExcit3
 
         IF((ExcitMat3(1,2).eq.0).and.(.not.tAllExcitFound)) CALL FindNewSingDet(nI,nJ,OrbiIndex,OrbA,ExcitMat3,tParity)
             
-    ENDSUBROUTINE GenSingleExcit
+    ENDSUBROUTINE GenSingleExcitMag
 
 
 
