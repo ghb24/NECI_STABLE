@@ -58,7 +58,7 @@ contains
         i=MinInd
         j=MaxInd
         IF(i-j.eq.0) THEN
-            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),NIfDBO,.false.)
+            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),NIfDBO)
             IF(Comp.eq.0) THEN
                 tSuccess=.true.
                 PartInd=MaxInd
@@ -74,7 +74,7 @@ contains
 !            WRITE(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(CurrentDets(:,N),iLut(:),NIfDBO,.false.)
+            Comp=DetBitLT(CurrentDets(:,N),iLut(:),NIfDBO)
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -92,7 +92,7 @@ contains
                 IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry 
 !of the list and leave.  We need to check the last index.
-                    Comp=DetBitLT(CurrentDets(:,i+1),iLut(:),NIfDBO,.false.)
+                    Comp=DetBitLT(CurrentDets(:,i+1),iLut(:),NIfDBO)
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1

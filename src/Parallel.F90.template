@@ -1580,7 +1580,8 @@ contains
 
             call MPI_Comm_size (CommGlobal, nProcess, ierr)
 #ifdef _MOLCAS_
-            call getenvf('MOLCAS_CPUS',MCPUs)
+            ! call getenvf('MOLCAS_CPUS',MCPUs) replaced by the newer env variable MOLCAS_NPROCS
+            call getenvf('MOLCAS_NPROCS',MCPUs)
             Read(MCPUS,*) nProcess
 #endif
             nProcessors = nProcess

@@ -4,16 +4,16 @@ project(neci Fortran CXX C)
 # Add our custom Modules directory, so that we can search for libraries
 # that are not provided with finders by default
 # (see www.cmake.org/Wiki/CMake:How_To_Find_Libraries)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/Modules")
 
 # Consider the possible source files
 file(GLOB_RECURSE F90_FILES src/*.F90 src/*.F src/*.cpp)
 file(GLOB_RECURSE F90_TEMPLATE_FILES src/*.F90.template)
-list(REMOVE_ITEM F90_FILES ${CMAKE_SOURCE_DIR}/src/libstub.F)
+list(REMOVE_ITEM F90_FILES ${PROJECT_SOURCE_DIR}/src/libstub.F)
 
 file(GLOB_RECURSE UNIT_TEST_FILES unit_tests/*.F90 unit_tests/*.f90)
 set(UNIT_TEST_FILES ${UNIT_TEST_FILES} ${F90_FILES})
-list(REMOVE_ITEM UNIT_TEST_FILES ${CMAKE_SOURCE_DIR}/src/necimain.F90)
+list(REMOVE_ITEM UNIT_TEST_FILES ${PROJECT_SOURCE_DIR}/src/necimain.F90)
 
 ##############################################################################
 #                                                                            #
@@ -226,7 +226,7 @@ foreach(template_file ${F90_TEMPLATE_FILES})
 
 	add_custom_command(
 		OUTPUT ${target_filename}
-		COMMAND ${CMAKE_SOURCE_DIR}/tools/f90_template.py ${template_file} ${target_filename}
+		COMMAND ${PROJECT_SOURCE_DIR}/tools/f90_template.py ${template_file} ${target_filename}
 		DEPENDS ${template_file}
 	)
 
@@ -252,8 +252,19 @@ add_executable(mneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
 add_executable(dneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
 add_executable(kneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
 
+# Add libraries
+set(BUILD_SHARED_LIBS "on")
+add_library(libneci ${F90_FILES} ${TEMPLATE_TARGETS})
+set_target_properties(libneci PROPERTIES OUTPUT_NAME "neci")
+add_library(libmneci ${F90_FILES} ${TEMPLATE_TARGETS})
+set_target_properties(libmneci PROPERTIES OUTPUT_NAME "mneci")
+add_library(libdneci ${F90_FILES} ${TEMPLATE_TARGETS})
+set_target_properties(libdneci PROPERTIES OUTPUT_NAME "dneci")
+add_library(libkneci ${F90_FILES} ${TEMPLATE_TARGETS})
+set_target_properties(libkneci PROPERTIES OUTPUT_NAME "kneci")
+
 # List of targets. Then loop over repeated target properties
-set(TARGETS neci mneci dneci kneci neci_test mneci_test dneci_test kneci_test)
+set(TARGETS neci mneci dneci kneci neci_test mneci_test dneci_test kneci_test libneci libmneci libdneci libkneci)
 foreach(target ${TARGETS})
 
 	# Set the fortran modules directory for cleanliness, and to avoid collisions
@@ -275,6 +286,10 @@ target_compile_definitions(neci_test PUBLIC -DHElement_t=real)
 target_compile_definitions(dneci_test PUBLIC -DHElement_t=real -D__DOUBLERUN)
 target_compile_definitions(mneci_test PUBLIC -DHElement_t=real -D__PROG_NUMRUNS)
 target_compile_definitions(kneci_test PUBLIC -DHElement_t=complex -D__CMPLX)
+target_compile_definitions(libneci PUBLIC -DHElement_t=real)
+target_compile_definitions(libdneci PUBLIC -DHElement_t=real -D__DOUBLERUN)
+target_compile_definitions(libmneci PUBLIC -DHElement_t=real -D__PROG_NUMRUNS)
+target_compile_definitions(libkneci PUBLIC -DHElement_t=complex -D__CMPLX)
 
 # We don't want to compile the test executables unless asked for
 set_target_properties(neci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
@@ -282,13 +297,19 @@ set_target_properties(kneci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
 set_target_properties(mneci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
 set_target_properties(dneci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
+# Ditto for libraries
+set_target_properties(libneci PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(libkneci PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(libmneci PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(libdneci PROPERTIES EXCLUDE_FROM_ALL TRUE)
+
 #
 # If we can get the repository details, then do so.
 message("VCS configuration")
 find_package(Git)
 if (${Git_FOUND})
 	message("-- Git has been found")
-	Git_WC_INFO(${CMAKE_SOURCE_DIR} "DIR")
+	Git_WC_INFO(${PROJECT_SOURCE_DIR} "DIR")
 	add_definitions(-D_VCS_VER='${DIR_WC_REVISION_HASH}')
 	message("-- SHAID: ${DIR_WC_REVISION_HASH}")
 	if (${DIR_WC_CHANGES} OR ${DIR_WC_CACHED_CHANGES})
@@ -325,7 +346,7 @@ if (NOT BITS32)
 	add_definitions(-DPOINTER8)
 endif()
 
-include_directories(BEFORE SYSTEM ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/unit_tests)
+include_directories(BEFORE SYSTEM ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/unit_tests)
 
 #
 # Some form of lapack is always needed (be that acml, mkl, LAPACK, ...)
@@ -488,7 +509,7 @@ if (HDF)
 	find_package(HDF5 COMPONENTS Fortran)
 	if (${HDF5_FOUND})
 		execute_process(
-			COMMAND	${CMAKE_Fortran_COMPILER} -I ${HDF5_INCLUDE_DIRS} -c ${CMAKE_SOURCE_DIR}/tools/hdf_module_test.f90
+			COMMAND	${CMAKE_Fortran_COMPILER} -I ${HDF5_INCLUDE_DIRS} -c ${PROJECT_SOURCE_DIR}/tools/hdf_module_test.f90
 			WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 			RESULT_VARIABLE TEST_RES
 		)
