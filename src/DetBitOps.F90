@@ -99,9 +99,7 @@ module DetBitOps
         integer, intent(in), optional :: nBitsMax
         integer, intent(in) :: nLast
         integer(kind=n_int), intent(in) :: iLut(0:nLast)
-        integer :: nbits, unused
-
-        unused = nBitsMax
+        integer :: nbits
 
         nbits = sum(count_set_bits(iLut))
         
