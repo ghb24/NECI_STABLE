@@ -384,7 +384,7 @@ MODULE SymExcit3
         tInitOrbsFound=.false.
         Orbi=ExcitMat3(1,1)
         Orba=ExcitMat3(2,1)
-        WRITE(6,*) "Getting single",OrbiIndex,OrbaIndex,Orbi,Orba
+!        WRITE(6,*) "Getting single",OrbiIndex,OrbaIndex,Orbi,Orba
 
         IF((Orbi.eq.0).or.(Orba.eq.0)) THEN           ! Want to find the first excitation.
 
