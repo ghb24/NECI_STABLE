@@ -375,11 +375,11 @@ contains
         end if
 
 
-        write(*,*) "pSingles", pSingles
-        write(*,*) "pSing_spindiff1", pSing_spindiff1
-        write(*,*) "pDoubles", pDoubles
-        write(*,*) "pDoub_spindiff1", pDoub_spindiff1
-        write(*,*) "pDoub_spindiff2", pDoub_spindiff2
+        !write(*,*) "pSingles", pSingles
+        !write(*,*) "pSing_spindiff1", pSing_spindiff1
+        !write(*,*) "pDoubles", pDoubles
+        !write(*,*) "pDoub_spindiff1", pDoub_spindiff1
+        !write(*,*) "pDoub_spindiff2", pDoub_spindiff2
 
     end subroutine
 
