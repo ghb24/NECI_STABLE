@@ -3,7 +3,7 @@ module FciMCParMod
 
     ! This module contains the main loop for FCIMC calculations, and the
     ! main per-iteration processing loop.
-    use SystemData, only: nel, tUEG2, hist_spin_dist_iter
+    use SystemData, only: nel, tUEG2, hist_spin_dist_iter, tReltvy
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
@@ -475,6 +475,11 @@ module FciMCParMod
             ENDIF
         ENDIF
 
+        ! mswalkercounts
+        if (tReltvy) then
+            call writeMsWalkerCountsAndCloseUnit()
+        endif
+
         ! If requested, write the most populated states in CurrentDets to a
         ! CORESPACE file, for use in future semi-stochastic calculations.
         if (tWriteCoreEnd) call write_most_pop_core_at_end(write_end_core_size)
@@ -661,6 +666,9 @@ module FciMCParMod
         integer :: DetHash, FinalVal, clash, PartInd, k, y
         type(ll_node), pointer :: TempNode
 
+        integer :: ms
+
+
         call set_timer(Walker_Time,30)
 
         MaxInitPopPos=0.0_dp
@@ -758,9 +766,10 @@ module FciMCParMod
             call extract_bit_rep_avsign (CurrentDets(:,j), j, &
                                         DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
                                         AvSignCurr, fcimc_excit_gen_store)
-        
-            !call test_sym_excit_ExMag(DetCurr,1000000)
-            !call exit(0)
+       
+
+            !call test_sym_excit_ExMag(DetCurr,100000000)
+            !call stop_all(this_routine, "Test complete")
 
             ! We only need to find out if determinant is connected to the
             ! reference (so no ex. level above 2 required, 
@@ -915,6 +924,14 @@ module FciMCParMod
                                             ! Note these last two, AvSignCurr and 
                                             ! RDMBiasFacCurr are not used unless we're 
                                             ! doing an RDM calculation.
+                                            
+                        ms = sum(get_spin_pn(nJ(1:nel)))
+
+                        if (any(child/=0)) then 
+                            ! update walker populations on ms sectors
+                            walkPopByMsReal(1+nel/2+ms/2) = walkPopByMsReal(1+nel/2+ms/2)+abs(child(1))
+                            walkPopByMsImag(1+nel/2+ms/2) = walkPopByMsImag(1+nel/2+ms/2)+abs(child(2))
+                        endif
 
                     else
                         child = 0.0_dp

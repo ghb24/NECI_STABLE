@@ -29,6 +29,7 @@ MODULE FciMCData
       integer :: fcimcstats_unit2 ! FCIMCStats
       integer :: initiatorstats_unit ! INITIATORStats
       integer :: ComplexStats_unit ! COMPLEXStats
+      integer :: mswalkercounts_unit
       integer :: Tot_Unique_Dets_Unit 
 
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
@@ -559,5 +560,10 @@ MODULE FciMCData
       type(perturbation), allocatable :: pops_pert(:)
 
       real(dp), allocatable :: replica_overlaps(:,:)
+
+
+      ! counting the total walker population all determinants of each ms value
+      real(dp), allocatable :: walkPopByMsReal(:), walkPopByMsImag(:)
+
 
 end module FciMCData

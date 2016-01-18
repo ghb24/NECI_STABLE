@@ -626,6 +626,23 @@ contains
 
     end subroutine write_fcimcstats2
 
+    subroutine writeMsWalkerCountsAndCloseUnit()
+        integer :: i, ms
+        real(dp) :: totWalkPopByMsReal(nel+1), totWalkPopByMsImag(nel+1)
+        ! sum the populations from all processors
+        call MPISumAll(walkPopByMsReal, totWalkPopByMsReal)
+        call MPISumAll(walkPopByMsImag, totWalkPopByMsImag)
+        ms = -1*nel
+        do i =1,nel+1
+            write(mswalkercounts_unit,*) ms, totWalkPopByMsReal(i),&
+                totWalkPopByMsImag(i), (totWalkPopByMsReal(i)**2+totWalkPopByMsImag(i)**2)**(0.5)
+            ms = ms+2
+        enddo
+        close(mswalkercounts_unit)
+
+    endsubroutine writeMsWalkerCountsAndCloseUnit
+
+
 
 
 

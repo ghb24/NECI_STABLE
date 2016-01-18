@@ -646,6 +646,19 @@ contains
                 enddo
             enddo
         ENDIF
+
+        ! Initiate mswalkercounts
+        if (tReltvy) then
+            allocate(walkPopByMsReal(nel+1))
+            allocate(walkPopByMsImag(nel+1))
+            do i=1, nel+1
+                walkPopByMsReal(i) = 0.0_dp
+                walkPopByMsImag(i) = 0.0_dp
+            enddo
+        endif
+
+
+
         !Now broadcast to all processors
         CALL MPIBCast(RandomOrbIndex,nBasis)
         call MPIBCast(RandomHash2,nBasis)
@@ -826,6 +839,13 @@ contains
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp
         iter_data_fciqmc%update_iters = 0
+
+            if (tReltvy) then
+                ! write out the column headings for the MSWALKERCOUNTS
+                open(mswalkercounts_unit, file='MSWALKERCOUNTS', status='UNKNOWN')
+                write(mswalkercounts_unit, "(A)") "# ms real    imag    magnitude"
+            endif
+
  
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)) THEN
             ALLOCATE(HistMinInd(NEl))
@@ -865,7 +885,6 @@ contains
                 ENDIF
                 InstAnnihil(:,:)=0.0_dp
             ENDIF
-
             IF(iProcIndex.eq.0) THEN
                 IF(tHistSpawn) THEN
                     Tot_Unique_Dets_Unit = get_free_unit()
