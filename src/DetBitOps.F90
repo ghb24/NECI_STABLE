@@ -99,7 +99,9 @@ module DetBitOps
         integer, intent(in), optional :: nBitsMax
         integer, intent(in) :: nLast
         integer(kind=n_int), intent(in) :: iLut(0:nLast)
-        integer :: nbits
+        integer :: nbits, unused
+
+        if (present(nBitsMax)) unused = nBitsMax
 
         nbits = sum(count_set_bits(iLut))
         
@@ -199,7 +201,7 @@ module DetBitOps
         integer :: IC, unused
 
         ! Unused
-        unused = maxExLevel
+        if (present(maxExLevel)) unused = maxExLevel
 
         ! Obtain a bit string with only the excited orbitals one one det.
         tmp = ieor(iLutnI, iLutnJ)
