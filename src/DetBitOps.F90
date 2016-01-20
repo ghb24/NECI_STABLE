@@ -201,7 +201,7 @@ module DetBitOps
         integer :: IC, unused
 
         ! Unused
-        unused = maxExLevel
+        if (present(maxExLevel)) unused = maxExLevel
 
         ! Obtain a bit string with only the excited orbitals one one det.
         tmp = ieor(iLutnI, iLutnJ)
