@@ -44,6 +44,11 @@ endif()
 
 option(SHARED_MEM "Enable shared memory" on)
 
+option(MOLCAS "Enable Molcas interface" off)
+if (MOLCAS)
+	add_definitions(-D_MOLCAS_)
+endif()
+
 ##############################################################################
 #                                                                            #
 # Compiler specific configuration                                            #
