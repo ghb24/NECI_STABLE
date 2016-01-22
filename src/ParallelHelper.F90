@@ -191,6 +191,9 @@ module ParallelHelper
    ! A communicator between the roots on each node
    integer(MPIArg)      :: CommRoot
 
+   ! A null-info structure
+   integer(MPIArg)      :: mpiInfoNull
+
    ! A 'node' which communicates between roots on each node
    type(CommI)          :: Roots
 

@@ -1590,6 +1590,8 @@ contains
             if (iProcIndex == 0) &
                 write(6,*) 'Number of processors: ', nProcessors
 
+            mpiInfoNull = MPI_INFO_NULL
+
 #ifdef MOLPRO
 #ifdef CBINDMPI
             if(molpro_helper_server.and.(nProcessors.gt.1)) then
