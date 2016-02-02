@@ -1,4 +1,6 @@
 /dest
+build*/
+.*
 /kdest
 /Makefile*
 /makefile*

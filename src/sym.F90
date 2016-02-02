@@ -389,7 +389,7 @@ contains
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use global_utilities
          use SymData
-         use SymExcitDataMod , only : SymLabelList2,SymLabelCounts2
+         use SymExcitDataMod , only : SymLabelList2,SymLabelCounts2, sym_label_list_spat
          use SymExcitDataMod , only : OrbClassCount
          IMPLICIT NONE
          character(*), parameter :: this_routine='EndSym'
@@ -449,6 +449,9 @@ contains
          end if
          if (allocated(SymLabelList2)) then
              deallocate(SymLabelList2)
+         end if
+         if (allocated(sym_label_list_spat)) then
+             deallocate(sym_label_list_spat)
          end if
          if (allocated(SymLabelCounts2)) then
              deallocate(SymLabelCounts2)

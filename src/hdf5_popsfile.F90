@@ -68,6 +68,7 @@ module hdf5_popsfile
     !     /ilut/             - The bit representations of the determinants
     !     /sgns/             - The occupation of the determinants
 
+    use ParallelHelper
     use Parallel_neci
     use constants
     use hdf5_util
@@ -166,6 +167,7 @@ contains
         ! TODO: Check if we should be using a more specific communicator
         call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
         call h5pset_fapl_mpio_f(plist_id, MPI_COMM_WORLD, MPI_INFO_NULl, err)
+!         call h5pset_fapl_mpio_f(plist_id, CommGlobal, mpiInfoNull, err)
 
         ! TODO: Do sensible file handling here...
         call h5fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, err, &
@@ -221,6 +223,7 @@ contains
         ! TODO: Check if we should be using a more specific communicator
         call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
         call h5pset_fapl_mpio_f(plist_id, MPI_COMM_WORLD, MPI_INFO_NULl, err)
+!         call h5pset_fapl_mpio_f(plist_id, CommGlobal, mpiInfoNull, err)
 
         ! Open the popsfile
         call h5fopen_f(filename, H5F_ACC_RDONLY_F, file_id, err, &
@@ -349,12 +352,11 @@ contains
 
     subroutine write_tau_opt(parent)
     
-        use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
-                              enough_sing, enough_doub, enough_opp, &
-                              enough_par, cnt_sing, cnt_doub, cnt_opp, &
-                              cnt_par, max_death_cpt
+        use procedure_pointers, only: update_tau
+        use tau_search, only:  cnt_sing, cnt_doub, cnt_opp, cnt_par
         use FciMCData, only: pSingles, pDoubles, pParallel
-        use CalcData, only: tau
+        use CalcData, only: tau, gamma_sing, gamma_doub, gamma_opp, gamma_par, &
+                            enough_sing, enough_doub, enough_opp, enough_par, max_death_cpt
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: tau_grp, err
@@ -515,12 +517,12 @@ contains
 
     subroutine read_tau_opt(parent)
 
-        use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
-                              enough_sing, enough_doub, enough_opp, &
-                              enough_par, cnt_sing, cnt_doub, cnt_opp, &
-                              cnt_par, max_death_cpt, update_tau
+        use tau_search, only: cnt_sing, cnt_doub, cnt_opp, cnt_par 
         use FciMCData, only: pSingles, pDoubles, pParallel
-        use CalcData, only: tau
+        use CalcData, only: tau, gamma_sing, gamma_doub, gamma_opp, gamma_par,&
+                            enough_sing, enough_doub, enough_opp, enough_par, &
+                            max_death_cpt, consider_par_bias
+        use procedure_pointers, only: update_tau
 
         ! Read accumulator values for the timestep optimisation
         ! TODO: Add an option to reset these values...

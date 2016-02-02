@@ -19,10 +19,13 @@ module guga_testsuite
     use guga_excitations
     use guga_matrixElements
     use guga_data
+    use guga_init
+    use guga_procedure_pointers
     use constants
     use DetBitOps
     use Determinants
     use bit_reps
+    use FciMCData
     use dsfmt_interface, only: dsfmt_init
     implicit none
 
@@ -89,8 +92,24 @@ contains
      
     subroutine run_test_excit_gen_guga
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
+        pSingles = 0.1_dp
+        pDoubles = 1.0_dp - pSingles
+
+        pExcit4 = (1.0_dp - 1.0_dp / real(nSpatOrbs,dp))
+!         pExcit4 = 0.0_dp
+        pExcit2 = 1.0_dp / real(nSpatOrbs - 1, dp)
+!         pExcit2 = 0.0_dp
+
+        if (t_consider_diff_bias) then
+            pExcit2_same = 0.5_dp
+            pExcit3_same = 0.5_dp
+        else
+            pExcit2_same = 1.0_dp
+            pExcit3_same = 1.0_dp
+        end if
+
+        pExcit2_same = 0.9_dp
+        pExcit3_same = 0.9_dp
 
         if (nEl == 4 .and. nBasis/2 == 4 .and. STOT == 2) then
             call run_test_excit_gen_guga_S2
@@ -177,9 +196,15 @@ contains
             ! guessed HF determinant as a start and uses some of the 
             ! exactly created determinants from that to check for pgen and 
             ! matrix element consistency! 
+!             call run_test_excit_gen_guga_multiple(&
+!                 [1,2,3,4,5,6,7,8,15,16])
             call run_test_excit_gen_guga_general
-        end if 
+!             call run_test_excit_gen_guga_multiple(&
+!                 [1,4,5,8,9,12,13,16,17,20])
+!             call run_test_excit_gen_guga_single(&
+!                 [1,4,5,6,7,8,9,10,11,12])
 
+        end if 
 
     end subroutine run_test_excit_gen_guga
 
@@ -274,15 +299,12 @@ contains
     subroutine run_test_excit_gen_guga_general
         character(*), parameter :: this_routine = "run_test_excit_gen_guga_general"
         integer(n_int) :: ilut(0:niftot)
-        integer :: nI(nBasis/2)
         integer(n_int), pointer :: ex(:,:)
         integer :: nEx, i
         integer :: nTest
 
         ! use fdet as first determinant and test on all excitations from this..!
         ! maybe a bit too much for bigger system?
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         print *, "running general test_excit_gen_guga()"
 
         ! first act the hamiltonian on the fdet
@@ -290,7 +312,7 @@ contains
 
         call actHamiltonian(ilut, ex, nEx)
 
-        nTest = min(nEx,30)
+        nTest = min(nEx,10)
 
         print *, "running tests on nExcits: ", nTest
         call write_guga_list(6, ex(:,1:nEx))
@@ -304,6 +326,52 @@ contains
     
         
     end subroutine run_test_excit_gen_guga_general
+
+    subroutine run_test_excit_gen_guga_single(nI)
+        integer, intent(in), optional :: nI(nEl)
+        character(*), parameter :: this_routine = "run_test_excit_gen_guga_single"
+        integer(n_int) :: ilut(0:niftot)
+        integer :: test_det(nEl)
+
+        if (present(nI)) then
+            test_det = nI 
+        else
+            test_det = fdet
+        end if
+
+        call EncodeBitDet(test_det, ilut)
+
+        call test_excit_gen_guga(ilut, n_guga_excit_gen)
+
+    end subroutine run_test_excit_gen_guga_single
+    
+    subroutine run_test_excit_gen_guga_multiple(nI)
+        integer, intent(in), optional :: nI(nEl) 
+        character(*), parameter :: this_routine = "run_test_excit_gen_guga_multiple"
+        integer(n_int) :: ilut(0:niftot)
+        integer :: test_det(nEl), nEx, i, nTest
+        integer(n_int), pointer :: ex(:,:)
+
+
+        if (present(nI)) then
+            test_det = nI
+        else
+            test_det = fdet 
+        end if
+
+        call EncodeBitDet(test_det, ilut)
+
+        call actHamiltonian(ilut, ex, nEx)
+
+        nTest = min(nEx, 20)
+
+        call test_excit_gen_guga(ilut, n_guga_excit_gen)
+
+        do i = 1, nTest
+            call test_excit_gen_guga(ex(:,i), n_guga_excit_gen)
+        end do
+
+    end subroutine run_test_excit_gen_guga_multiple
 
 
     subroutine test_findSwitches
@@ -552,8 +620,6 @@ contains
         integer(n_int):: ilut(0:niftot)
         integer :: nI(3)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
 
         print *, "running: test_excit_gen_guga() for nEl = 3, S = 1"
 
@@ -667,8 +733,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(6)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         print *, "running: test_excit_gen_guga() on the 6 orbital, nEl = 6, S = 2 system"
 
         ! 331100
@@ -757,8 +821,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(6)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         print *, "running: test_excit_gen_guga() on the 6 orbital, nEl = 6, S = 4 system"
         ! 311110
         nI = [1,2,3,5,7,9]
@@ -831,8 +893,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(4)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         print *, "running: test_excit_gen_guga() on the 6 orbital, nEl = 4, S = 0 system"
 
         ! 311000
@@ -895,8 +955,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(5)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         print *, "running: test_excit_gen_guga() on the 9 orbital, nEl = 5, S = 1 system"
         ! 331000000
         nI = [1,2,3,4,5]
@@ -987,8 +1045,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(18)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         ! 111212212121322102
         nI = [1,3,5,8,9,12,14,15,18,19,22,23,25,26,28,30,31,36]
         call EncodeBitDet(nI, ilut)
@@ -1008,8 +1064,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(9)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         ! 333102100
         nI = [1,2,3,4,5,6,7,12,13]
         call EncodeBitDet(nI, ilut)
@@ -1092,8 +1146,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(9)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         ! 331111200
         nI = [1,2,3,4,5,7,9,11,14]
         call EncodeBitDet(nI, ilut)
@@ -1118,8 +1170,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(10)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         ! 331211030
         nI = [1,2,3,4,5,8,9,11,15,16]
         call EncodeBitDet(nI, ilut)
@@ -1133,8 +1183,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(10)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         ! 313031110
         nI = [1,2,3,5,6,9,10,11,13,15]
         call EncodeBitDet(nI, ilut)
@@ -1149,8 +1197,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(10)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
 
         print *, "running: test_excit_gen_guga() on the 9 orbital, Nel = 10, S = 6"
         ! 311111121
@@ -1182,8 +1228,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(10)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         print *, "running: test_excit_gen_guga() on the 9 orbital, nEl = 10, S = 0 system"
         ! 333330000
         nI = [1,2,3,4,5,6,7,8,9,10]
@@ -1230,8 +1274,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(5)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         print *, "running: test_excit_gen_guga() on the 9 orbital, nEl = 5, S = 3 system"
         ! 311100000
         nI = [1,2,3,5,7]
@@ -1298,8 +1340,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(7)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         print *, "running: test_excit_gen_guga() on the 9 orbital, nEl = 7, S = 3 system"
         ! 331110000
         nI = [1,2,3,4,5,7,9]
@@ -1345,8 +1385,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(7)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         print *, "running: test_excit_gen_guga() on the 9 orbital, nEl = 7, S = 1 system"
         ! 33310000
         nI = [1,2,3,4,5,6,7]
@@ -1388,8 +1426,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(7)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         print *, "running: test_excit_gen_guga() on the 6 orbital, nEl = 7, S = 3 system"
         ! 331110
         nI = [1,2,3,4,5,7,9]
@@ -1455,8 +1491,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(7)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         print *, "running: test_excit_gen_guga() on the 6 orbital, nEl = 7, S = 1 system"
         ! 333100
         nI = [1,2,3,4,5,6,7]
@@ -1539,8 +1573,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(5)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         print *, "running: test_excit_gen_guga() on the 6 orbital, nEl = 5, S = 3 system"
         ! 311100
         nI = [1,2,3,5,7]
@@ -1617,8 +1649,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(5)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         print *, "running: test_excit_gen_guga() on the 6 orbital, nEl = 5, S = 1 system"
 
         ! 331000
@@ -1695,8 +1725,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(4)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         print *, "running: test_excit_gen_guga() on the 6 orbital, nEl = 4, S = 0 system"
         ! 330000
         nI = [1,2,3,4]
@@ -1762,8 +1790,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(6)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         print *, "running: test_excit_gen_guga() on the 6 orbital, nEl = 6, S = 0 system"
 
         ! 333000
@@ -1907,8 +1933,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(6)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
         print *, "running: test_excit_gen_guga() on the nEl = 6, S = 0 system"
         ! 3123
         nI = [1,2,3,6,7,8]
@@ -1969,8 +1993,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(5)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
 
         print *, "running: test_excit_gen_guga() on the nEl = 5, S = 1 system"
         ! 3310
@@ -2083,8 +2105,6 @@ contains
         integer(n_int):: ilut(0:niftot)
         integer :: nI(2)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
 
         print *, "running test_excit_gen_guga() gor the nEl = 2, S = 0 system"
 ! 
@@ -2151,12 +2171,8 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(4)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
 
         print *, "running: test_excit_gen_guga(ilut,iter) for the S = 2 system"
-        print *, "pSingles set to: ", pSingles
-        print *, "pDoubles set to: ", pDoubles
 ! 
         ! 0311
         nI = [3,4,5,7]
@@ -2244,8 +2260,6 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(4)
 
-        pSingles = 0.5_dp
-        pDoubles = 0.5_dp
 
         print *, "running: test_excit_gen_guga(ilut,n_guga_excit_gen)"
         print *, "pSingles set to: ", pSingles
@@ -2395,7 +2409,7 @@ contains
         exFlag = 1
         ! make only double excitations:
         pSingles = 0.0_dp
-        pDoubles = 1.0_dp
+        pDoubles = 1.0_dp - pSingles
 
         print *, "testing generate_excitation_guga:"
         ! 3300:
@@ -3903,8 +3917,8 @@ contains
         ! randomly and adjust the pgens accordingly...
         
         print *, "testing pickOrbitals_double(ilut, excitLvl):"
-        call pickOrbitals_double(ilut,3, excitInfo, pgen)
-        call pickOrbitals_double(ilut,4, excitInfo, pgen)
+        call pickOrbitals_double(ilut, excitInfo, pgen)
+        call pickOrbitals_double(ilut, excitInfo, pgen)
 
 
         print *, "pickOrbitals_double tests passed!"
@@ -3917,6 +3931,7 @@ contains
         character(*), parameter :: this_routine = "test_createStochasticExcitation_double"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         real(dp) :: pgen
+        integer :: dummy(2)
 
         call EncodeBitDet_guga([1,5,6,8], ilut)
         allocate(currentB_ilut(4))
@@ -3925,7 +3940,7 @@ contains
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
 
         print *, "testing createStochasticExcitation_double(ilut, ex, pgen):"
-        call createStochasticExcitation_double(ilut,ex,pgen)
+        call createStochasticExcitation_double(ilut,ex,pgen,dummy)
 
         print *, "createStochasticExcitation_double tests passed!"
 

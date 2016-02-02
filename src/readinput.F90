@@ -234,8 +234,10 @@ MODULE ReadInput_neci
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors
         use UMatCache, only: tDeferred_Umat2d
-        use guga_data, only: checkInputGUGA
 
+#ifndef __CMPLX
+        use guga_init, only: checkInputGUGA
+#endif
         implicit none
 
         integer :: vv, kk, cc, ierr
@@ -260,8 +262,9 @@ MODULE ReadInput_neci
         ! design convention to store as many guga related functionality in 
         ! guga_*.F90 files and just call the routines in the main level modules
         ! checkInputGUGA() is found in guga_init.F90
+#ifndef __CMPLX
         if (tGUGA) call checkInputGUGA()
-
+#endif
         ! Turn on histogramming of fcimc wavefunction in order to find density
         ! matrix, or the orbital occupations
         if (tFindCINatOrbs) tCalcFCIMCPsi = .true.
@@ -419,11 +422,11 @@ MODULE ReadInput_neci
             if (tCSF) &
                 call stop_all (t_r, "Spin projection must not be used with &
                                     &CSFs")
-            
+        
             if (.not. tSpn) &
                 call stop_all (t_r, "SPIN-RESTRICT must be used with SPIN-&
                                     &PROJECT to set the value of S, Ms")
-             
+            
             ! Unless specified, apply spin projection to ALL determinants.
             if (spin_proj_nopen_max == -1) &
                 spin_proj_nopen_max = nel

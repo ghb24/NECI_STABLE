@@ -3115,7 +3115,7 @@ END MODULE GenRandSymExcitNUMod
 SUBROUTINE SpinOrbSymSetup()
     use SymExcitDataMod, only:  ScratchSize, ScratchSize1, ScratchSize2, &
                                 SymLabelList2, SymLabelCounts2, kTotal, &
-                                OrbClassCount, kPointToBasisFn
+                                OrbClassCount, kPointToBasisFn, sym_label_list_spat
     use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel, &
                                SymTableLabels, KPntInvSymOrb
     use GenRandSymExcitNUMod , only : ClassCountInd
@@ -3125,6 +3125,7 @@ SUBROUTINE SpinOrbSymSetup()
     use SystemData , only : Symmetry,tHPHF,tSpn,tISKFuncs,Arr,tNoSymGenRandExcits, Elecpairs
     use SystemData , only : MaxABPairs, tUEG2, kvec
     use Determinants, only : FDet
+    use umatcache, only: gtID
     use sym_mod, only: mompbcsym,SymProd
     use constants, only: dp
 
@@ -3345,6 +3346,7 @@ SUBROUTINE SpinOrbSymSetup()
 !SymLabelList from SymLabelCounts(1,sym) to SymLabelCounts(1,sym)+SymLabelCounts(2,sym)-1
 
     Allocate(SymLabelList2(nBasis))
+    allocate(sym_label_list_spat(nBasis))
     Allocate(SymLabelCounts2(2,ScratchSize))
     SymLabelList2(:)=0          !Indices:   spin-orbital number
     SymLabelCounts2(:,:)=0      !Indices:   index/Number , symmetry(inc. spin)
@@ -3375,6 +3377,8 @@ SUBROUTINE SpinOrbSymSetup()
         SymLabelList2(Temp(SymInd))=j
         Temp(SymInd)=Temp(SymInd)+1
     enddo
+    ! get also only the spatial orbitals 
+    sym_label_list_spat = gtID(SymLabelList2)
 
 !    write(6,*) "SymLabelCounts2: ",SymLabelCounts2(1,:)
 !    write(6,*) "SymLabelCounts2: ",SymLabelCounts2(2,:)

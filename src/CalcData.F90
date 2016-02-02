@@ -337,4 +337,18 @@ real(dp) :: init_interp_min, init_interp_max, init_interp_exponent
 
 logical :: tMP2FixedNode = .false.
 
+! make variables for automated tau determination, globally available 
+! 4ind-weighted variables:
+real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt, &
+            max_permitted_spawn
+logical :: enough_sing, enough_doub, enough_opp, enough_par, consider_par_bias
+
+! guga non-weighted excitation generator tau-update variables
+real(dp) :: gamma_two_same, gamma_two_mixed, gamma_three_same, gamma_three_mixed, &
+            gamma_four
+logical :: enough_two, enough_two_same, enough_two_mixed, enough_three, &
+           enough_three_same, enough_three_mixed, enough_four
+
+! also need multiple new specific excitation type probabilites, but they are 
+! defined in FciMCdata module! 
 end module CalcData

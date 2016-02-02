@@ -30,9 +30,14 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
-      tGUGA = .false. ! implementation of spin adapted GUGA approach
+      ! implementation of spin adapted GUGA approach
+      tGUGA = .false. 
       t_guga_unit_tests = .false.
       n_guga_excit_gen = 0
+      tGen_nosym_guga = .false.
+      tGen_sym_guga_ueg = .false.
+      tGen_sym_guga_mol = .false.
+      t_consider_diff_bias = .true.
       tComplexOrbs_RealInts = .false.
       tReadFreeFormat=.true.
       tMolproMimic=.false.
@@ -889,6 +894,15 @@ system: do
             do while (item.lt.nitems)
                 call readu(w)
                 select case(w)
+                    case ("NOSYM_GUGA")
+                        tGen_nosym_guga = .true.
+
+                    case ("UEG_GUGA")
+                        tGen_sym_guga_ueg = .true.
+
+                    case ("MOL_GUGA")
+                        tGen_sym_guga_mol = .true.
+
                     case("CYCLETHRUORBS")
                         tCycleOrbs=.true.
                     case("NOSYMGEN")
@@ -1082,7 +1096,9 @@ system: do
       use legacy_data, only: CSF_NBSTART
       use read_fci
       use sym_mod
-      use guga_data, only: init_guga
+#ifndef __CMPLX
+      use guga_init, only: init_guga
+#endif
       implicit none
       character(*), parameter :: this_routine='SysInit'
       integer ierr
@@ -1232,14 +1248,11 @@ system: do
               call stop_all (this_routine, "CSFs not compatible with HPHF")
           endif
 
-      endif      
+      endif
 
       if (tTruncateCSF .and. (.not. tCSF)) then
           call stop_all (this_routine, "CSFs required to use truncate-csf")
       endif
-
-
-
 
       TwoCycleSymGens=.false.
       IF(TCPMD) THEN
@@ -1992,7 +2005,16 @@ system: do
       ! input files..: lets hope FDET or something similar is not getting 
       ! allocated before this point...
       ! CHANGE: switched init functions to guga_data
+      
+      ! init guga needs nSpatOrbs quantity! so init it here from the 
+      ! already determined spinorbitals
+      nSpatOrbs = nBasis / 2
+
+#ifndef __CMPLX
       if (tGUGA) call init_guga()
+#endif
+
+
 
       call halt_timer(proc_timer)
     End Subroutine SysInit

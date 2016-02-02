@@ -8,11 +8,11 @@ module fcimc_pointed_fns
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo
     use DetCalcData, only: FciDetIndex, det
-    use procedure_pointers, only: get_spawn_helement
+    use procedure_pointers, only: get_spawn_helement, log_spawn_magnitude
     use fcimc_helper, only: CheckAllowedTruncSpawn
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use bit_rep_data, only: NIfTot
-    use tau_search, only: log_death_magnitude, log_spawn_magnitude
+    use tau_search, only: log_death_magnitude!, log_spawn_magnitude
     use rdm_general, only: calc_rdmbiasfac
     use hist, only: add_hist_excit_tofrom
     use searching, only: BinSearchParts2

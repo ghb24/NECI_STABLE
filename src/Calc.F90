@@ -79,7 +79,7 @@ contains
           FracLargerDet=1.2_dp
           iReadWalkersRoot=0 
           tShiftonHFPop=.false.
-          MaxWalkerBloom=-1
+          MaxWalkerBloom=2
           tSearchTau=.true.
           tSearchTauOption = .true.
           tSearchTauDeath = .false.
@@ -227,7 +227,7 @@ contains
           tDefineDet=.false.
           tTruncInitiator=.false.
           tAddtoInitiator=.false.
-          InitiatorWalkNo=10.0_dp
+          InitiatorWalkNo=3.0_dp
           tInitIncDoubs=.false.
           MaxNoatHF=0.0_dp
           HFPopThresh=0
@@ -2489,6 +2489,8 @@ contains
                   
           end if
 #endif
+
+        ! integral driven tests suite 
 
 !C.. we need to calculate a value for RHOEPS, so we approximate that
 !C.. RHO_II~=exp(-BETA*H_II/p).  RHOEPS is a %ge of this 

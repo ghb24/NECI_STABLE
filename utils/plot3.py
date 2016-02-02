@@ -24,6 +24,7 @@ import subprocess
 import tempfile
 from scipy import optimize
 
+rcParams.update({'figure.autolayout': True})
 def _general_function(params, xdata, ydata, function):
     return function(xdata, *params) - ydata
 
@@ -120,7 +121,6 @@ def curve_fit(f, xdata, ydata, p0=None, sigma=None, **kw):
         pcov = inf
 
     return popt, pcov
-
 
 ####################
 # A colour management class for plots
@@ -697,7 +697,7 @@ class plotter:
         nsplits = naxes - nshared
 
         # New figure
-        self.fig = figure()
+        self.fig = figure(figsize=(4,3))
         self.fig.subplots_adjust(hspace=0)
 
         # Keep track of what we have achieved
@@ -715,14 +715,11 @@ class plotter:
                 if x.label_left or not x.shared:
                     pos_curr -= 1
 
-
-
     def clear_axes (self):
 
             for x in reversed(self.axes):
                 if x.plot:
                     x.ax.cla()
-
             
     def axis_labels (self):
         '''Set the axis labels. This needs to be done after plotting
@@ -881,8 +878,8 @@ class plotter:
                 if self.E.plot:
                     ax = self.E.ax
                     fmt = '' if self.E.plot_lines else ','
-                    for s in cols['shift']:
-                        ax.plot (x, s, col()+fmt, label=' '.join([leg_pre,'Inst. Shift']))
+#                     for s in cols['shift']:
+#                         ax.plot (x, s, col()+fmt, label=' '.join([leg_pre,'Inst. Shift']))
                     if self.E.total_energies:
                         for p in cols['proje_tot']:
                             ax.plot (x, p, col()+fmt, label=' '.join([leg_pre,'Proj. E']))

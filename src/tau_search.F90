@@ -5,12 +5,19 @@ module tau_search
     use SystemData, only: AB_elec_pairs, par_elec_pairs, tGen_4ind_weighted, &
                           tHPHF, tCSF, tKpntSym, nel, G1, nbasis, &
                           AB_hole_pairs, par_hole_pairs, tGen_4ind_reverse, &
-                          nOccAlpha, nOccBeta, tUEG, tGen_4ind_2
+                          nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, &
+                          tGen_nosym_guga, nSpatOrbs, t_consider_diff_bias
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
-                        InitiatorWalkNo, tWalkContGrow
+                        InitiatorWalkNo, tWalkContGrow, max_permitted_spawn, &
+                    gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt,&
+                    enough_sing, enough_doub, enough_opp, enough_par, consider_par_bias, &
+                    gamma_two_same, gamma_two_mixed, gamma_three_same, gamma_three_mixed, &
+                    gamma_four, enough_two_same, enough_two_mixed, enough_three_same, &
+                    enough_three_mixed, enough_four, enough_two, enough_three
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          ProjEDet, ilutRef, MaxTau, tSearchTau, &
-                         tSearchTauOption, tSearchTauDeath
+                         tSearchTauOption, tSearchTauDeath, pExcit2, pExcit4, &
+                         pExcit2_same, pExcit3_same
     use GenRandSymExcitNUMod, only: construct_class_counts, &
                                     init_excit_gen_store, clean_excit_gen_store
     use SymExcit3, only: GenExcitations3
@@ -27,12 +34,13 @@ module tau_search
     use constants
     implicit none
 
-    real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt
-    real(dp) :: max_permitted_spawn
+!     real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt
+!     real(dp) :: max_permitted_spawn
     integer :: cnt_sing, cnt_doub, cnt_opp, cnt_par
+    ! guga-specific:
+    integer :: cnt_four, cnt_three_same, cnt_three_mixed, cnt_two_same, cnt_two_mixed
     integer :: n_opp, n_par
-    logical :: enough_sing, enough_doub, enough_opp, enough_par
-    logical :: consider_par_bias
+!     logical :: enough_sing, enough_doub, enough_opp, enough_par, consider_par_bias
 
 contains
 
@@ -44,8 +52,83 @@ contains
         ! We want to start off with zero-values
         gamma_sing = 0
         gamma_doub = 0
-        gamma_opp = 0
-        gamma_par = 0
+
+        if (tGen_nosym_guga) then
+            ! implement a specific tau-update for the non-weighed guga
+            ! excitation generatort without symmetry: 
+
+            ! then i have to consider the different general types of 
+            ! excitations
+            ! for (ii,jj) excitations i could differentiate between the easy
+            ! _RR_ -> ^RR^
+            ! _LL_ -> ^LL^
+            ! and the notorious:
+            ! _LR_ -> ^LR^ 
+            ! excitation
+            gamma_two_same = 0.0_dp
+            gamma_two_mixed = 0.0_dp
+            ! for the (ii,jk):
+            ! here i can differentiate between full-stop and full-start mixed
+            ! x -> ^RL^
+            ! _RL_ -> x 
+            ! which are problematic 
+            ! and the "other"
+            gamma_three_same = 0.0_dp
+            gamma_three_mixed = 0.0_dp
+            ! for (ijkl) there is not really reason to differentiate
+            gamma_four = 0.0_dp
+            
+            cnt_two_same = 0
+            cnt_two_mixed = 0
+            cnt_three_same = 0
+            cnt_three_mixed = 0
+            cnt_four = 0
+
+            enough_two_same = .false.
+            enough_two_mixed = .false.
+            enough_three_same = .false.
+            enough_three_mixed = .false.
+            enough_four = .false.
+
+            ! initialize the specific probabilites first: 
+            pExcit4 = (1.0_dp - 1.0_dp / real(nSpatOrbs, dp))
+!             pExcit2 = (1.0_dp - pExcit4) / real(nSpatOrbs - 1, dp)
+            pExcit2 = 1.0_dp / real(nSpatOrbs - 1, dp) 
+
+            root_print "initial pExcit4 set to: ", pExcit4
+            root_print "initial pExcit2 set to: ", pExcit2
+
+            ! to what values should i initialize pExcit2_same and 
+            ! pExcit3_same ? 
+            ! do 50/50 for now
+            ! the same-type excitation are much more likely to yield 
+            ! non-zero excitation at the start of the calculation, since 
+            ! i usually start from a HF-like determinant 
+            ! -> so weight more towards RR/LL type excitations
+            if (t_consider_diff_bias) then
+                pExcit2_same = 0.9_dp
+                pExcit3_same = 0.9_dp
+            else
+                pExcit2_same = 1.0_dp
+                pExcit3_same = 1.0_dp
+            end if
+
+            root_print "initial pExcit2_same set to: ", pExcit2_same
+            root_print "initial pExcit3_same set to: ", pExcit3_same
+
+        else
+            ! for the "normal" implementation
+
+            gamma_opp = 0
+            gamma_par = 0
+
+            cnt_opp = 0
+            cnt_par = 0
+
+            enough_opp = .false.
+            enough_par = .false.
+
+        end if
 
         ! And what is the maximum death-component found
         max_death_cpt = 0
@@ -54,13 +137,8 @@ contains
         ! early
         cnt_sing = 0
         cnt_doub = 0
-        cnt_opp = 0
-        cnt_par = 0
         enough_sing = .false.
         enough_doub = .false.
-        enough_opp = .false.
-        enough_par = .false.
-
         ! Unless it is already specified, set an initial value for tau
         if (.not. tRestart .and. .not. tReadPops .and. tau == 0) &
             call FindMaxTauDoubs()
@@ -90,7 +168,7 @@ contains
         ! Do this logic here, so that if we add opposite spin bias to more
         ! excitation generators, then there is only one place that this logic
         ! needs to be updated!
-        if (tGen_4ind_weighted .or. tGen_4ind_2) then
+        if (tGen_4ind_weighted .or. tGen_4ind_2 ) then
             !consider_par_bias = .false.
             consider_par_bias = .true.
             !n_opp = AB_elec_pairs
@@ -118,7 +196,7 @@ contains
 
     end subroutine
 
-    subroutine log_spawn_magnitude (ic, ex, matel, prob)
+    subroutine log_spawn_magnitude_default(ic, ex, matel, prob)
 
         integer, intent(in) :: ic, ex(2,2)
         real(dp), intent(in) :: prob, matel
@@ -204,7 +282,7 @@ contains
 
     end subroutine
 
-    subroutine update_tau ()
+    subroutine update_tau_default ()
 
         use FcimCData, only: iter
 
@@ -279,7 +357,7 @@ contains
                 tau_new = max_permitted_spawn * &
                         min(pSingles / gamma_sing, &
                         min(pDoubles * pParallel / gamma_par, &
-                            pDoubles * pParallel / gamma_opp))
+                            pDoubles * (1.0_dp - pParallel )/ gamma_opp))
             end if
 
             ! We only want to update the opposite spins bias here, as we only
@@ -356,7 +434,6 @@ contains
         end if
 
     end subroutine
-
 
     subroutine FindMaxTauDoubs()
 

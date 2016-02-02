@@ -230,16 +230,23 @@ logical :: tSymSet = .false.
 
 logical :: tGiovannisBrokenInit
 
-    ! ==================== GUGA Implementation ========================
-    ! input for graphical unitary group approach (GUGA) CSF implementation
-    logical :: tGUGA ! flag to indicate usage of GUGA
+! ==================== GUGA Implementation ========================
+! input for graphical unitary group approach (GUGA) CSF implementation
+logical :: tGUGA ! flag to indicate usage of GUGA
 
-    ! use a flag to determine if unit tests should be performed! with an 
-    ! additional optional input how often the the excitation generator should 
-    ! be tested! 
-    logical :: t_guga_unit_tests
-    integer :: n_guga_excit_gen
+! use a flag to determine if unit tests should be performed! with an 
+! additional optional input how often the the excitation generator should 
+! be tested! 
+logical :: t_guga_unit_tests
+integer :: n_guga_excit_gen
 
+! use new flags for the new guga excitation generator implementations
+logical :: tGen_nosym_guga, tGen_sym_guga_ueg, tGen_sym_guga_mol
+
+logical :: t_consider_diff_bias
+
+! also store the number of spatial orbitals here, to use it generally
+integer :: nSpatOrbs
 
 ! Operators for type(symmetry)
 interface assignment (=)

@@ -6,6 +6,9 @@ MODULE SymExcitDataMod
     real(dp) :: pDoubNew
     INTEGER , ALLOCATABLE :: SymLabelList2(:),SymLabelCounts2(:,:)
 
+    ! also make a globally used list of the spatial orbitals using symmetry
+    integer, allocatable :: sym_label_list_spat(:)
+
     ! What are the upper bounds for the scratch arrays neede for excitation
     ! generation.
     integer :: ScratchSize

@@ -413,7 +413,7 @@ MODULE HPHFRandExcitMod
         ! iLutnI is 'less' than iLutSym, so iLutSym is the determinant with 
         ! the first open-shell = alpha. Swap them around.
         ! Only count up to NIfD to avoid Yamanouchi symbol etc.
-        i=DetBitLT(iLutnI,iLutSym,NIfD, .false.)
+        i=DetBitLT(iLutnI, iLutSym, NIfD)
         IF(i.eq.1) THEN
             iLutTemp(:)=iLutnI(:)
             iLutnI(:)=iLutSym(:)
@@ -927,6 +927,10 @@ MODULE HPHFRandExcitMod
                                             ClassCountUnocc2)
         else if (tGen_4ind_reverse) then
             pgen = calc_pgen_4ind_reverse (nI, ilutI, ex, ic)
+        
+!         else if (t_int_driven) then
+!             pgen = calc_pgen_int_driven(nI, ilutI, ex, ic) 
+
         else
             ! Here we assume that the normal excitation generators in
             ! symrandexcit2.F90 are being used.

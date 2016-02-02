@@ -8,7 +8,7 @@
 #ifndef __CMPLX
 module guga_bitRepOps
 
-    use SystemData, only: nEl, Stot
+    use SystemData, only: nEl, Stot, nSpatOrbs
     use guga_data ! get explicit here too!
     use bit_reps, only: niftot, set_flag, nIfGUGA, nIfD, nifdbo
     use constants, only: dp, n_int, bits_n_int, bni_, bn2_
@@ -34,6 +34,10 @@ module guga_bitRepOps
         module procedure isProperCSF_sys
     end interface isProperCSF_ilut
 
+    interface find_switches
+        module procedure find_switches_ilut
+        module procedure find_switches_stepvector
+    end interface find_switches
 !     interface calcB_vector
 !         module procedure calcB_vector_nI
 !         module procedure calcB_vector_ilut
@@ -46,6 +50,190 @@ module guga_bitRepOps
 !     end interface isProperCSF
 
 contains
+
+    subroutine getExcitation_guga(nI, nJ, ex) 
+        ! routine to determine excitation in guga basis
+        ! for now to it very naively and unellegant by converting to ilut 
+        ! format and calculating occupation vectors
+        integer, intent(in) :: nI(nEl), nJ(nEl) 
+        integer, intent(out) :: ex(2,2)
+        character(*), parameter :: this_routine = "getExcitation_guga"
+
+        integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot) 
+        real(dp) :: occI(nSpatOrbs), occJ(nSpatOrbs)
+        integer :: first, last, cnt_e, cnt_h, occ_diff(nSpatOrbs), i
+
+        call EncodeBitDet_guga(nI, ilutI)
+        call EncodeBitDet_guga(nJ, ilutJ) 
+
+        occI = calcOcc_vector_ilut(ilutI)
+        occJ = calcOcc_vector_ilut(ilutJ)
+
+        occ_diff = int(occI - occJ)
+
+        select case(sum(abs(occ_diff)))
+
+            case (0)
+                ! there is a different definition of RDMs in the guga case or? 
+                ! because for _RL_ -> ^RL^ excitations or nI = nJ i end up here
+                ! but a lot of orbital index combinations can lead to 
+                ! this type of excitation.. where should i assign it to..? 
+                ! read the R.Shephard paper and think of a new calculation of 
+                ! the RDM calculation in the GUGA case.. 
+
+                ! ... for now, but in the indices of the first and last switch..
+
+                first = findFirstSwitch(ilutI, ilutJ, 1, nSpatOrbs)
+
+                last = findLastSwitch(ilutI, ilutJ, first, nSpatOrbs)
+
+                ex(1,1) = 2*first
+                ex(1,2) = 2*last-1
+
+                ex(2,1) = 2*first-1
+                ex(2,2) = 2*last
+
+            case (2) 
+
+                ! this is a "normal" double excitation 
+                ! find the electron in nI which gets excited
+
+                ex(1,2) = 0
+                ex(2,2) = 0
+
+                do i = 1, nSpatOrbs
+                    if (occ_diff(i) == 1.0_dp) ex(1,1) = 2 * i
+                    if (occ_diff(i) == -1.0_dp) ex(2,1) = 2 * i
+                end do
+
+            case (4)
+
+                ! keep count of the already found electrons and holes 
+                cnt_e = 1
+                cnt_h = 1
+
+                do i = 1, nSpatOrbs
+
+                    select case(occ_diff(i))
+                        
+                        ! this choice of default spin-orbitals below 
+                        ! makes certain two_rdm samplings as default alos..
+                        ! not sure if this choice alone is valid..
+                        ! also have to ensure i get the "spins" right so the 
+                        ! rest of the NECI RDM routines can handle that..
+                        case (2)
+                            ! two eletrons get excited from orb i: 
+                            ex(1,1) = 2 * i - 1
+                            ex(1,2) = 2 * i
+
+                        case (1) 
+                            ! one electron gets excited from i 
+                            ! at the first encountered electron cnt_e = 1
+                            ! -> so this below gives me an alpha electron! 
+                            ! -> at the second it will be an beta to ensure 
+                            ! i get "correct" spins..
+                            ex(1,cnt_e) = 2 * i - cnt_e + 1
+
+                            cnt_e = cnt_e + 1 
+
+                        case (-1) 
+                            ! one hole found 
+                            ex(2,cnt_h) = 2 * i - cnt_h + 1
+
+                            cnt_h = cnt_h + 1
+
+                        case (-2)
+                            ! two electron get excited to orb i
+                            ex(2,1) = 2 * i - 1
+                            ex(2,2) = 2 * i 
+
+                    end select 
+
+                end do
+                
+        end select
+
+    end subroutine getExcitation_guga
+        
+    subroutine find_switches_ilut(ilut, ind, lower, upper)
+        ! for single excitations this checks for available switches around an 
+        ! already chosen index
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: ind
+        integer, intent(out) :: lower, upper
+        character(*), parameter :: this_routine = "find_switches_ilut"
+
+        integer :: i
+        ! set defaults if no such switches are available
+        lower = 1
+        upper = nSpatOrbs
+
+        if (isOne(ilut,ind)) then
+            do i = ind - 1, 2, -1
+                if (isTwo(ilut,i)) then
+                    lower = i
+                    exit
+                end if
+            end do
+            do i = ind + 1, nSpatOrbs - 1
+                if (isTwo(ilut,i)) then
+                    upper = i
+                    exit
+                end if
+            end do
+        else if (isTwo(ilut,ind)) then
+            do i = ind - 1, 2, -1
+                if (isOne(ilut,i)) then
+                    lower = i
+                    exit
+                end if
+            end do
+            do i = ind + 1, nSpatOrbs - 1
+                if (isOne(ilut,i)) then
+                    upper = i
+                    exit
+                end if
+            end do
+        end if
+
+    end subroutine find_switches_ilut
+
+    subroutine find_switches_stepvector(ind, lower, upper) 
+        ! same as above but using the already calculated stepvector 
+        integer, intent(in) :: ind
+        integer, intent(out) :: lower, upper
+        character(*), parameter :: this_routine = "find_switches_stepvector"
+
+        integer :: switch, i
+        ! set defaults
+        lower = 1
+        upper = nSpatOrbs
+
+        if (current_stepvector(ind) == 1) then
+            switch = 2
+
+        else if (current_stepvector(ind) == 2) then
+            switch = 1
+
+        else
+            ! wrong input! 
+            call stop_all(this_routine, "wrong input! stepvalue /= {1,2}!")
+        end if
+
+        do i = ind - 1, 2, -1
+            if (current_stepvector(i) == switch) then
+                lower = i
+                exit
+            end if
+        end do
+        do i = ind + 1, nSpatOrbs - 1
+            if (current_stepvector(i) == switch) then
+                upper = i
+                exit
+            end if
+        end do
+
+    end subroutine find_switches_stepvector
 
     function findFirstSwitch(iI, iJ, start, semi) result(orb)
         ! write a scratch implementation to find the first change in 
@@ -598,8 +786,21 @@ contains
         ! if system flag is also given as input also check if the CSF fits 
         ! concerning total S and the number of electrons
         if (sysFlag) then
-            if (abs(return_ms(ilut)) /= STOT) flag = .false.
-            if (int(sum(calcOcc_vector_ilut(ilut))) /= nEl) flag = .false.
+            if (abs(return_ms(ilut)) /= STOT) then
+                print *, "CSF does not have correct total spin!:"
+                call write_det_guga(6,ilut)
+                print *, "System S: ", STOT
+                print *, "CSF S: ", abs(return_ms(ilut))
+                flag = .false.
+            end if
+
+            if (int(sum(calcOcc_vector_ilut(ilut))) /= nEl) then
+                print *, "CSF does not have right number of electrons!:"
+                call write_det_guga(6,ilut)
+                print *, "System electrons: ", nEl
+                print *, "CSF electrons: ", int(sum(calcOcc_vector_ilut(ilut)))
+                flag = .false.
+            end if
         end if
 
     end function isProperCSF_sys

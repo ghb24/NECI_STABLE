@@ -600,8 +600,6 @@ contains
 
     end function
 
-
-
     
     subroutine gen_double_4ind_ex (nI, ilutI, nJ, ilutJ, ex, par, pgen, store)
 

@@ -21,7 +21,7 @@ module fcimc_iter_utils
     use global_det_data, only: set_det_diagH
     use Determinants, only: get_helement
     use LoggingData, only: tFCIMCStats2
-    use tau_search, only: update_tau
+!     use tau_search, only: update_tau
     use Parallel_neci
     use fcimc_initialisation
     use fcimc_output
@@ -29,6 +29,7 @@ module fcimc_iter_utils
     use FciMCData
     use constants
     use util_mod
+    use procedure_pointers, only: update_tau
 
     implicit none
 

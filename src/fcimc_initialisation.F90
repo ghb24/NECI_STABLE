@@ -11,7 +11,8 @@ module fcimc_initialisation
                           tRotatedOrbs, MolproID, nBasis, arr, brr, nel, tCSF,&
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
-                          tUEGNewGenerator, tGUGA, tGen_4ind_2
+                          tUEGNewGenerator, tGUGA, tGen_4ind_2, tGen_nosym_guga, &
+                          tGen_sym_guga_ueg, tGen_sym_guga_mol
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
                         tCheckHighestPop, tSpatialOnlyHash, tStartCAS, tau, &
@@ -76,7 +77,7 @@ module fcimc_initialisation
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
                                   fill_rdm_diag_currdet, new_child_stats, &
-                                  get_conn_helement
+                                  get_conn_helement, log_spawn_magnitude, update_tau
     use symrandexcit3, only: gen_rand_excit3
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
                                        gen_excit_4ind_weighted, &
@@ -115,7 +116,7 @@ module fcimc_initialisation
     use gndts_mod, only: gndts
     use excit_gen_5, only: gen_excit_4ind_weighted2
     use csf, only: get_csf_helement
-    use tau_search, only: init_tau_search
+    use tau_search, only: init_tau_search, update_tau_default, log_spawn_magnitude_default
     use fcimc_helper, only: CalcParentFlag, update_run_reference
     use cont_time_rates, only: spawn_rate_full, oversample_factors, &
                                secondary_gen_store, ostag
@@ -130,6 +131,8 @@ module fcimc_initialisation
     use sym_mod
     use HElem
     use constants
+    use guga_tausearch, only: init_tau_search_guga_nosym, log_spawn_magnitude_guga_nosym, &
+                              update_tau_guga_nosym
 
 #ifndef __CMPLX
     use guga_data, only: bVectorRef_ilut, bVectorRef_nI
@@ -1124,7 +1127,6 @@ contains
                  nrdms = lenof_sign
              end if
          end if
-
     END SUBROUTINE SetupParameters
 
     ! This initialises the calculation, by allocating memory, setting up the
@@ -1554,6 +1556,21 @@ contains
         extract_bit_rep_avsign => extract_bit_rep_avsign_no_rdm
 
         fill_rdm_diag_currdet => fill_rdm_diag_currdet_norm
+
+        ! tau-search functions, dependent on the excitation generator in use
+        if (tGen_nosym_guga) then 
+            ! for now, only the non-weighed guga excitation generator without
+            ! symmetry uses specific tau-search routines
+            log_spawn_magnitude => log_spawn_magnitude_guga_nosym 
+            update_tau => update_tau_guga_nosym
+
+        else
+            log_spawn_magnitude => log_spawn_magnitude_default
+            update_tau => update_tau_default
+            
+        end if
+
+
 
     end subroutine init_fcimc_fn_pointers
 

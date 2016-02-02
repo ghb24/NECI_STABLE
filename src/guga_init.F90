@@ -1,36 +1,288 @@
 #include "macros.h"
 ! guga module containing all necessary functionality needed to initialize 
 ! a guga simulation
+#ifndef __CMPLX
 module guga_init
     ! module use statements
     use SystemData, only: tCSF, tSPN, tHPHF, lNoSymmetry, STOT, nEl, &
-        nBasis, tGUGA, tNoBrillouin, tExactSizeSpace, tUHF
+        nBasis, tGUGA, tNoBrillouin, tExactSizeSpace, tUHF, tUEGNewGenerator, &
+                          tPickVirtUniform, tGenHelWeighted, tGen_4ind_2, tGen_4ind_weighted, &
+                          tGen_4ind_reverse, tGen_sym_guga_ueg, tGen_sym_guga_mol, &
+                          tGen_nosym_guga, nSpatOrbs, t_consider_diff_bias
+    use CalcData, only: tUseRealCoeffs
     use hist_data, only: tHistSpawn
     use LoggingData, only: tCalcFCIMCPsi, tPrintOrbOcc
     use spin_project, only: tSpinProject
     use bit_rep_data, only: tUseFlags
-    use guga_data, only: init_guga
+    use guga_data, only: init_guga_data_procPtrs, orbitalIndex
+    use guga_procedure_pointers, only: pickOrbitals_single, pickOrbitals_double, &
+                        calc_orbital_pgen_contr, calc_mixed_contr, calc_mixed_start_l2r_contr, &
+                        calc_mixed_start_r2l_contr, calc_mixed_end_r2l_contr, calc_mixed_end_l2r_contr, &
+                        pick_first_orbital
+
+    use guga_excitations, only: pickOrbs_sym_uniform_ueg_single, pickOrbs_sym_uniform_ueg_double, &
+                        pickOrbs_sym_uniform_mol_single, pickOrbs_sym_uniform_mol_double, &
+                        pickOrbitals_nosym_single, pickOrbitals_nosym_double, &
+                        calc_orbital_pgen_contr_ueg, calc_orbital_pgen_contr_mol, &
+                        calc_mixed_contr_sym, calc_mixed_contr_nosym, calc_mixed_start_l2r_contr_nosym, &
+                        calc_mixed_start_r2l_contr_nosym, calc_mixed_start_contr_sym,&
+                        calc_mixed_x2x_ueg, calc_mixed_end_l2r_contr_nosym, calc_mixed_end_r2l_contr_nosym, &
+                        calc_mixed_end_contr_sym, pick_first_orbital_nosym_guga_diff, &
+                        pick_first_orbital_nosym_guga_uniform
+
     ! variable declaration
     implicit none
 
 contains
 
-    subroutine SysInitGUGA()
-        ! in general this just prints out information of the state of the 
-        ! guga calculation and to avoid having repeating code elements, does 
-        ! not check input options and values again
-     
-        ! have to ensure to use flags to be able to encode deltaB values
-        ! in the ilut bit representation for the excitation generation
+    subroutine init_guga_orbital_pickers()
+        ! this routine, depending on the input set the orbital pickers 
+        ! to differentiate between the different excitation generators
 
-        ! initialize the pointers...
-        call init_guga()
+        if (tGen_sym_guga_ueg) then
+            pickOrbitals_single => pickOrbs_sym_uniform_ueg_single
+            pickOrbitals_double => pickOrbs_sym_uniform_ueg_double
+            calc_mixed_contr => calc_mixed_contr_sym
+            calc_orbital_pgen_contr => calc_orbital_pgen_contr_ueg
+            calc_mixed_start_r2l_contr => calc_mixed_x2x_ueg
+            calc_mixed_start_l2r_contr => calc_mixed_x2x_ueg
+            calc_mixed_end_r2l_contr => calc_mixed_x2x_ueg
+            calc_mixed_end_l2r_contr => calc_mixed_x2x_ueg
+            
+        else if (tGen_sym_guga_mol) then
+            pickOrbitals_single => pickOrbs_sym_uniform_mol_single
+            pickOrbitals_double => pickOrbs_sym_uniform_mol_double
+            calc_mixed_contr => calc_mixed_contr_sym
+            calc_orbital_pgen_contr => calc_orbital_pgen_contr_mol
+            calc_mixed_start_l2r_contr => calc_mixed_start_contr_sym
+            calc_mixed_start_r2l_contr => calc_mixed_start_contr_sym
+            calc_mixed_end_l2r_contr => calc_mixed_end_contr_sym
+            calc_mixed_end_r2l_contr => calc_mixed_end_contr_sym
 
-    end subroutine SysInitGUGA
+        else if (tGen_nosym_guga) then
+            pickOrbitals_single => pickOrbitals_nosym_single
+            pickOrbitals_double => pickOrbitals_nosym_double
+            calc_mixed_contr => calc_mixed_contr_nosym
+            calc_mixed_start_l2r_contr => calc_mixed_start_l2r_contr_nosym
+            calc_mixed_start_r2l_contr => calc_mixed_start_r2l_contr_nosym
+            calc_mixed_end_l2r_contr => calc_mixed_end_l2r_contr_nosym
+            calc_mixed_end_r2l_contr => calc_mixed_end_r2l_contr_nosym
+
+            ! for specific probability updates: 
+            if (t_consider_diff_bias) then
+                pick_first_orbital => pick_first_orbital_nosym_guga_diff
+            else
+                pick_first_orbital => pick_first_orbital_nosym_guga_uniform
+            end if
+
+        else ! standardly also use nosymmetry version
+            pickOrbitals_single => pickOrbitals_nosym_single
+            pickOrbitals_double => pickOrbitals_nosym_double
+            calc_mixed_contr => calc_mixed_contr_nosym
+            calc_mixed_start_l2r_contr => calc_mixed_start_l2r_contr_nosym
+            calc_mixed_start_r2l_contr => calc_mixed_start_r2l_contr_nosym
+            calc_mixed_end_l2r_contr => calc_mixed_end_l2r_contr_nosym
+            calc_mixed_end_r2l_contr => calc_mixed_end_r2l_contr_nosym
+
+            ! for specific probability updates: 
+            if (t_consider_diff_bias) then
+                pick_first_orbital => pick_first_orbital_nosym_guga_diff
+            else
+                pick_first_orbital => pick_first_orbital_nosym_guga_uniform
+            end if
+
+        end if
+
+    end subroutine init_guga_orbital_pickers
+
+    ! in Fortran no executable code is allowed to be in the module header part
+    ! so a initialization subroutine is needed, which has to be called in the 
+    ! other modules using the guga_data module 
+    subroutine init_guga()
+        integer :: i, ierr
+        ! main initialization routine
+
+   ! this routine is called in SysInit() of System_neci.F90
+        write(6,*) ' ************ Using the GUGA-CSF implementation **********'
+        write(6,*) ' Restricting the total spin of the system, tGUGA : ', tGUGA
+        write(6,'(A,I5)') '  Restricting total spin S in units of h/2 to ', STOT
+        write(6,*) ' So eg. S = 1 corresponds to one unpaired electron '
+        write(6,*) ' not quite sure yet how to deal with extensively used m_s quantum number..'
+        write(6,*) ' NOTE: for now, although SPIN-RESTRICT is set off, internally m_s(LMS) '
+        write(6,*) ' is set to STOT, to make use of reference determinant creations already implemented'
+        write(6,*) ' Since NECI always seems to take the beta orbitals first for open shell or '
+        write(6,*) ' spin restricted systems, associate those to positively coupled +h/2 orbitals '
+        write(6,*) ' to always ensure a S >= 0 value!' 
+        write(6,*) ' *********************************************************'
+
+        ! init nReps variable, which in the future may take the place of nEl 
+        ! in defining the length of the nI array
+!         call init_nReps()
+
+        ! initialize the procedure pointer arrays, needed in the matrix 
+        ! element calculation
+        call init_guga_data_procPtrs()
+
+        ! initialize and point the excitation generator functions to the 
+        ! correct ones
+        call init_guga_orbital_pickers()
+
+
+        ! also have to set tRealCoeffs true to use it in excitation creation
+        ! dont actually need realCoeffs anymore since i changed the accessing
+        ! of the ilut lists used for excitation creation
+        ! but probably have to set a few other things so it works with
+        ! reals
+        tUseRealCoeffs = .true.
+
+        tUseFlags = .true.
+
+        ! define global variable of spatial orbitals 
+        ! do that in a more general setup routine! where nBasis is defined 
+        ! eg
+!         nSpatOrbs = nBasis / 2
+
+        ! but also have to set up the global orbitalIndex list 
+        allocate(orbitalIndex(nSpatOrbs), stat = ierr)
+        orbitalIndex = [ (i, i = 1, nSpatOrbs)]
+
+        ! maybe more to come...
+
+    end subroutine init_guga
+  
+    subroutine checkInputGUGA()
+        ! routine to check if all the input parameters given are consistent
+        ! and otherwise stops the excecution
+        ! is called inf checkinput() in file readinput.F90
+        character(*), parameter :: this_routine = 'checkInputGUGA'
+
+        ! check in certain system options have conflicts:
+#ifdef __CMPLX
+        call stop_all(this_routine, "GUGA not yet imlemented with complex NECI!")
+#endif
+        if (tCSF) then
+            call stop_all(this_routine, &
+                "Cannot use two CSF implementations tGUGA and tCSF at the same time!")
+        end if
+
+        if (tSPN) then
+            call stop_all(this_routine, &
+                "GUGA not yet implemented with spin restriction SPIN-RESTRICT!")
+        end if
+
+        if (tHPHF) then
+            call stop_all(this_routine, &
+                "GUGA not compatible with HPHF option!")
+        end if
+
+        if (tSpinProject) then
+            call stop_all(this_routine, &
+                "GUGA not compatible with tSpinProject!")
+        end if
+
+        ! with the new UEG/Hubbard implementation of the excitation generator
+        ! i need symmetry actually!! or otherwise its wrong 
+        ! have to somehow find out how to check if k-point symmetry is 
+        ! provided 
+        if (tGen_sym_guga_ueg .and. lNoSymmetry) then
+            call stop_all(this_routine, &
+                "UEG/Hubbard implementation of GUGA excitation generator needs symmetry but NOSYMMETRY set! abort!")
+        end if
+
+        if (tGen_sym_guga_mol .and. lNoSymmetry) then
+            call stop_all(this_routine, &
+                "symmetric molecular GUGA excitation generator chosen, but NOSYMMETRY set! check input!")
+        end if
+        
+        if (tExactSizeSpace) then
+            call stop_all(this_routine, &
+                "calculation of exact Hilbert space size not yet implemented with GUGA!")
+        end if
+
+        if (tUEGNewGenerator) then
+            call stop_all(this_routine, &
+                "wrong input: ueg excitation generator chosen! abort!")
+        end if
+
+        if (tPickVirtUniform) then
+            call stop_all(this_routine, &
+                "wrong input: tPickVirtUniform excitation generator chosen! abort!")
+        end if
+
+        if (tGenHelWeighted) then
+            call stop_all(this_routine, &
+                "wrong input: tGenHelWeighted excitation generator chosen with GUGA! abort!")
+        end if
+
+        if (tGen_4ind_2) then
+            call stop_all(this_routine, &
+                "wrong input: tGen_4ind_2 excitation generator chosen with GUGA! abort!")
+        end if
+
+        if (tGen_4ind_weighted) then
+            call stop_all(this_routine, &
+                "wrong input: tGen_4ind_weighted excitation generator chosen with GUGA! abort!")
+        end if
+
+        if (tGen_4ind_reverse) then
+            call stop_all(this_routine, &
+                "wrong input: tGen_4ind_reverse excitation generator chosen with GUGA! abort!")
+        end if
+
+        ! probably also have to assert against all the hist and exact 
+        ! calculation flags.. also rdms... and certain excitation generators
+!         if (tHistSpawn) then
+!             call stop_all(this_routine, &
+!                 "HISTSPAWN not yet compatible with GUGA!")
+!         end if
+! 
+!         if (tCalcFCIMCPsi) then
+!             call stop_all(this_routine, &
+!                 "PRINTFCIMCPSI not yet compatible with GUGA!")
+!         end if
+! 
+!         if (tPrintOrbOcc) then
+!             call stop_all(this_routine, &
+!                 "PRINTORBOCCS not yet implemented with GUGA!")
+!         end if
+
+
+        if (.not. tNoBrillouin) then
+            call stop_all(this_routine, &
+                "Brillouin theorem not valid for GUGA approach!(I think atleast...)")
+        end if
+
+        ! also check if provided input values match:
+        ! CONVENTION: STOT in units of h/2!
+        if (STOT .gt. nEl) then
+            call stop_all(this_routine, &
+                "total spin S in units of h/2 cannot be higher than number of electrons!")
+        end if
+
+        if (mod(STOT,2) /= mod(nEl,2)) then
+            call stop_all(this_routine, &
+                "number of electrons nEl and total spin S in units of h/2 must have same parity!")
+        end if
+
+        ! maybe more to come...
+        ! UHF basis is also not compatible with guga? or not... or atleast 
+        ! i am not yet implementing it in such a way so it can work
+        if (tUHF) then
+            call stop_all(this_routine, &
+                "GUGA approach and UHF basis not yet (or never?) compatible!")
+        end if
+
+        ! assert that tUseFlags is set, to be able to encode deltaB values
+        ! in the ilut representation for excitation generation
+        !if (.not.tUseFlags) then
+        !    call stop_all(this_routine, &
+        !        "tUseFlags has to be .true. to encode deltaB values in ilut!")
+        !end if
+        ! cannot do assertion here, since flag is set afterwards, but changed 
+        ! corresponding code, so flag is set.
+        
+    end subroutine checkInputGUGA
+
+
 end module guga_init
-
-
-
-
-
-         
+#endif

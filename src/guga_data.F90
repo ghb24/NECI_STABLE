@@ -75,8 +75,18 @@ module guga_data
         ! update: 
         ! new convention store, original indiced and the ordered ones in 
         ! the fullStart, etc. indices. 
-        integer :: i = -1, j = -1, k = -1, l = -1, fullStart = -1, fullEnd = -1, &
-            secondStart = -1, firstEnd = -1, weight = -1
+        integer :: i = -1
+        integer :: j = -1
+        integer :: k = -1
+        integer :: l = -1
+        integer :: fullStart = -1
+        integer :: fullEnd = -1
+        integer :: secondStart = -1
+        integer :: firstEnd = -1
+        integer :: weight = -1 ! can get rid of this in future! 
+        ! misuse secondstart firstend -> as weight as it is not used in the typ
+        ! of excitations where weights is needed
+
         ! also need the overlap and nonOverlapRange of the excitations for
         ! efficiently identifying and calculatint excitations for a given CSF
         ! and indices i,j,k,l
@@ -84,7 +94,11 @@ module guga_data
         ! update: 
         ! dont need overlaprange, and nonoverlaprange anywhere, just need to 
         ! indicate if its a non-overlap, single overlap or proper double!
-        integer :: overlap = -1
+        integer :: overlap = -1 ! in rework get rid of this too! 
+        ! not needed, %typ could be used to get same results
+        ! since eg. calcRemainingSwitches is only needed in cases, where there 
+        ! is atleast one overlap site or in single excitations! 
+        ! where there is no overlap at all!
         ! 0 ... no overlap or single
         ! 1 ... single overlap
         ! >1 ... proper double overlap
@@ -96,11 +110,24 @@ module guga_data
         ! raising : +1
         ! weight:    0
         ! maybe need firstGen, lastGen, (even secondGen) maybe?
-        integer :: gen1 = -2, gen2 = -2, firstGen = -2, lastGen = -2, &
-            currentGen = -2
+        integer :: gen1 = -2
+        integer :: gen2 = -2
+        integer :: firstGen = -2
+        integer :: lastGen = -2
+        integer :: currentGen = -2
         ! also store excitation level(number of occupation number differences)
         ! in this type, to have everything at one place
-        integer :: excitLvl = -1
+        integer :: excitLvl = -1 ! definetly get rid of that! never used 
+        ! at all! -> UPDATE! with changing of relative probabilities of 
+        ! those excitations, i definetly need this type of information! 
+        ! misuse it in such a way, that i store 5 different types of double 
+        ! excitations!: 
+        ! 0.. (ii,jj) RR/LL
+        ! 1.. (ii,jj) RL
+        ! 2.. (ii,jk) RR/LL
+        ! 3.. (ii,jk) RL
+        ! 4.. (ij,kl) x
+
         ! additional flags:
         ! for a 4 index double excitation, there is an additional flag 
         ! necessary to distiguish between certain kind of equally possible 
@@ -109,7 +136,12 @@ module guga_data
         ! the order of generators is some excitations has an influence on the 
         ! relative sign of the x_1 semi-stop matrix elements
         ! use a real here: 1.0 or -1.0 and just multiply x1 element 
-        real(dp) :: order = 0.0_dp, order1 = 0.0_dp
+        real(dp) :: order = 0.0_dp
+        real(dp) :: order1 = 0.0_dp
+        ! maybe can get rid of order parameters.. since i could in general
+        ! always choose such generators that the order parameter is +1
+        ! but that did not work beforhand... ? hm
+        ! 
         !TODO maybe more necessary info needed.
         ! add a flag to indicate if the excitation is even possible or other
         ! wise cancel the excitation
@@ -128,15 +160,14 @@ module guga_data
             real(dp), intent(in) :: bValue
             real(dp) :: ret
         end function dummyFunction
-    end interface
    
-    abstract interface
         subroutine dummySubroutine(bValue, x0, x1)
             use constants, only: dp
             implicit none
             real(dp), intent(in) :: bValue
             real(dp), intent(out), optional :: x0, x1
         end subroutine dummySubroutine
+
     end interface
 
     type :: procedurePtrArray
@@ -307,162 +338,21 @@ module guga_data
 
     ! also define a global variable nBasis/2 = nSpatOrbs, since otherwise 
     ! integer division nBAsis/2 is done to often! 
-    integer :: nSpatOrbs
+    ! but store that in SystemData module
+!     integer :: nSpatOrbs
 
     ! in the end to make logic in excitation generation more efficient 
     ! do create an allocatable integer array which stores the current 
     ! stepvector for a CSF and do a select case() abfrage
     integer, allocatable :: current_stepvector(:)
 
+    ! use a global flag to indicate a switch to a new determinant in the 
+    ! main routine to avoid recalculating b vector occupation and 
+    ! stepvector 
+    logical :: tNewDet
+
 contains
 
-    subroutine checkInputGUGA()
-        ! routine to check if all the input parameters given are consistent
-        ! and otherwise stops the excecution
-        ! is called inf checkinput() in file readinput.F90
-        character(*), parameter :: routineName = 'checkInputGUGA'
-
-        ! check in certain system options have conflicts:
-#ifdef __CMPLX
-        call stop_all(routineName, "GUGA not yet imlemented with complex NECI!")
-#endif
-        if (tCSF) then
-            call stop_all(routineName, &
-                "Cannot use two CSF implementations tGUGA and tCSF at the same time!")
-        end if
-
-        if (tSPN) then
-            call stop_all(routineName, &
-                "GUGA not yet implemented with spin restriction SPIN-RESTRICT!")
-        end if
-
-        if (tHPHF) then
-            call stop_all(routineName, &
-                "GUGA not compatible with HPHF option!")
-        end if
-
-        if (tSpinProject) then
-            call stop_all(routineName, &
-                "GUGA not compatible with tSpinProject!")
-        end if
-
-        if (.not. lNoSymmetry) then
-            call stop_all(routineName, &
-                "GUGA not yet implemented with symmetry!")
-        end if
-        
-        if (tExactSizeSpace) then
-            call stop_all(routineName, &
-                "calculation of exact Hilbert space size not yet implemented with GUGA!")
-        end if
-
-        ! probably also have to assert against all the hist and exact 
-        ! calculation flags.. also rdms... and certain excitation generators
-!         if (tHistSpawn) then
-!             call stop_all(routineName, &
-!                 "HISTSPAWN not yet compatible with GUGA!")
-!         end if
-! 
-!         if (tCalcFCIMCPsi) then
-!             call stop_all(routineName, &
-!                 "PRINTFCIMCPSI not yet compatible with GUGA!")
-!         end if
-! 
-!         if (tPrintOrbOcc) then
-!             call stop_all(routineName, &
-!                 "PRINTORBOCCS not yet implemented with GUGA!")
-!         end if
-
-
-        if (.not. tNoBrillouin) then
-            call stop_all(routineName, &
-                "Brillouin theorem not valid for GUGA approach!(I think atleast...)")
-        end if
-
-        ! also check if provided input values match:
-        ! CONVENTION: STOT in units of h/2!
-        if (STOT .gt. nEl) then
-            call stop_all(routineName, &
-                "total spin S in units of h/2 cannot be higher than number of electrons!")
-        end if
-
-        if (mod(STOT,2) /= mod(nEl,2)) then
-            call stop_all(routineName, &
-                "number of electrons nEl and total spin S in units of h/2 must have same parity!")
-        end if
-
-        ! maybe more to come...
-        ! UHF basis is also not compatible with guga? or not... or atleast 
-        ! i am not yet implementing it in such a way so it can work
-        if (tUHF) then
-            call stop_all(routineName, &
-                "GUGA approach and UHF basis not yet (or never?) compatible!")
-        end if
-
-        ! assert that tUseFlags is set, to be able to encode deltaB values
-        ! in the ilut representation for excitation generation
-        !if (.not.tUseFlags) then
-        !    call stop_all(routineName, &
-        !        "tUseFlags has to be .true. to encode deltaB values in ilut!")
-        !end if
-        ! cannot do assertion here, since flag is set afterwards, but changed 
-        ! corresponding code, so flag is set.
-        
-    end subroutine checkInputGUGA
-
-    ! in Fortran no executable code is allowed to be in the module header part
-    ! so a initialization subroutine is needed, which has to be called in the 
-    ! other modules using the guga_data module 
-    subroutine init_guga()
-        integer :: i, ierr
-        ! main initialization routine
-
-   ! this routine is called in SysInit() of System_neci.F90
-        write(6,*) ' ************ Using the GUGA-CSF implementation **********'
-        write(6,*) ' Restricting the total spin of the system, tGUGA : ', tGUGA
-        write(6,'(A,I5)') '  Restricting total spin S in units of h/2 to ', STOT
-        write(6,*) ' So eg. S = 1 corresponds to one unpaired electron '
-        write(6,*) ' not quite sure yet how to deal with extensively used m_s quantum number..'
-        write(6,*) ' NOTE: for now, although SPIN-RESTRICT is set off, internally m_s(LMS) '
-        write(6,*) ' is set to STOT, to make use of reference determinant creations already implemented'
-        write(6,*) ' Since NECI always seems to take the beta orbitals first for open shell or '
-        write(6,*) ' spin restricted systems, associate those to positively coupled +h/2 orbitals '
-        write(6,*) ' to always ensure a S >= 0 value!' 
-        write(6,*) ' *********************************************************'
-
-        ! init nReps variable, which in the future may take the place of nEl 
-        ! in defining the length of the nI array
-!         call init_nReps()
-
-        ! initialize the procedure pointer arrays, needed in the matrix 
-        ! element calculation
-        call init_guga_data_procPtrs()
-
-
-        ! also have to set tRealCoeffs true to use it in excitation creation
-        ! dont actually need realCoeffs anymore since i changed the accessing
-        ! of the ilut lists used for excitation creation
-        ! but probably have to set a few other things so it works with
-        ! reals
-        tUseRealCoeffs = .true.
-
-        tUseFlags = .true.
-
-        ! define global variable of spatial orbitals 
-        nSpatOrbs = nBasis / 2
-
-        ! but also have to set up the global orbitalIndex list 
-        allocate(orbitalIndex(nSpatOrbs), stat = ierr)
-        orbitalIndex = [ (i, i = 1, nSpatOrbs)]
-
-        ! use a global flag to indicate a switch to a new determinant in the 
-        ! main routine to avoid recalculating b vector occupation and 
-        ! stepvector 
-        logical :: tNewDet
-        ! maybe more to come...
-
-    end subroutine init_guga
-! 
     subroutine init_guga_data_procPtrs()
         ! this subroutine initializes the procedure pointer arrays needed for
         ! the matrix element calculation

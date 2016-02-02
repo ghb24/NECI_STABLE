@@ -7,7 +7,10 @@ module rdm_filling
 
     use bit_rep_data, only: NIfTot, NIfDBO
     use constants
-
+    use SystemData, only: tGUGA
+#ifndef __CMPLX
+    use guga_bitRepOps, only: getExcitation_guga
+#endif
     implicit none
 
 contains
@@ -208,11 +211,8 @@ contains
         ! been counted. So check this isn't the case first.
         if (.not. ((Iter .eq. NMCyc) .or. (mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter) .eq. 0))) then
             call decode_bit_det (nI, iLutnI)
-            if (tRef_Not_HF) then
-                ExcitLevel = FindBitExcitLevel(iLutHF_True, iLutnI, 2)
-            else
-                ExcitLevel = FindBitExcitLevel(iLutRef, iLutnI, 2)
-            end if
+
+            ExcitLevel = FindBitExcitLevel(iLutHF_True, iLutnI, 2)
 
             call fill_rdm_diag_currdet_norm(rdm, irdm, iLutnI, nI, j, ExcitLevel, .false.)
 
@@ -459,9 +459,6 @@ contains
         character(*), parameter :: t_r = 'Fill_Spin_Coupled_RDM'
 
         if (TestClosedShellDet(iLutnI)) then
-            if (tOddS_HPHF) then
-                call stop_all(t_r, "Should not be any closed shell determinants in high S states")
-            end if
 
             if (TestClosedShellDet(iLutnJ)) then
                 ! Closed shell -> Closed shell - just as in determinant case
@@ -538,7 +535,16 @@ contains
 
         ! Ex(1,:) comes out as the orbital(s) excited from, i.e. i,j.
         ! Ex(2,:) comes out as the orbital(s) excited to, i.e. a,b.
+#ifndef __CMPLX
+        if (tGUGA) then 
+            call getExcitation_guga(nI, nJ, Ex)
+
+        else
+            call GetExcitation(nI, nJ, nel, Ex, tParity)
+        end if
+#else
         call GetExcitation(nI, nJ, nel, Ex, tParity)
+#endif
 
         if (Ex(1,1) .le. 0) then
             ! Error.
