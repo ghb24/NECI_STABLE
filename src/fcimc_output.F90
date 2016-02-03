@@ -62,19 +62,28 @@ contains
                    "# FCIMCStats VERSION 2 - COMPLEX : NEl=", nel, &
                    " HPHF=", tHPHF, ' Lz=', tFixLz, &
                    ' Initiator=', tTruncInitiator
-            write(fcimcstats_unit, "(a)") &
+            write(fcimcstats_unit, "(a)", advance = 'no') &
                    "#     1.Step   2.Shift    3.WalkerCng(Re)  &
                    &4.WalkerCng(Im)   5.TotWalkers(Re)  6.TotWalkers(Im)  &
                    &7.Proj.E(Re)   8.Proj.E(Im)   9.Proj.E.ThisCyc(Re)  &
-                   &10.Proj.E.ThisCyc(Im)  11.NoatHF(Re)   12.NoatHF(Im)  &
-                   &13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime &
-                   &17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime &
-                   &  20.HFInstShift  21.TotInstShift  &
-                   &22.HFContribtoE(Both)  &
-                   &23.NumContribtoE(Re)  &
-                   &24.NumContribtoE(Im)  25.HF weight   26.|Psi|    &
-                   &27.Inst S^2  28.SpawnedParts  29.MergedParts  &
-                   &30.Zero elems   31.PartsDiffProc   32.MaxCycSpawn"
+                   &10.Proj.E.ThisCyc(Im)  11.Tot-Proj.E.ThisCyc(Re)  12.NoatHF(Re)  &
+                   &13.NoatHF(Im)  14.NoatDoubs  15.AccRat  16.UniqueDets  17.IterTime &
+                   &18.FracSpawnFromSing  19.WalkersDiffProc  20.TotImagTime &
+                   &  21.HFInstShift  22.TotInstShift  &
+                   &23.HFContribtoE(Both)  &
+                   &24.NumContribtoE(Re)  &
+                   &25.NumContribtoE(Im)  26.HF weight   27.|Psi|    &
+                   &28.Inst S^2  29.PartsDiffProc   30.MaxCycSpawn"
+! Dongxia comment 28-30 off because they are not printed out
+! 28.SpawnedParts  29.MergedParts  30.Zero elems   31.PartsDiffProc   32.MaxCycSpawn"
+            if (tTrialWavefunction .or. tStartTrialLater) then
+                   write(fcimcstats_unit, "(A)", advance = 'no') &
+                   "  31.TrialNumerator(Re)  32.TrialNumerator(Im)  33.TrialDenom(Re)  &
+                   &  34.TrialDenom(Im)  35.TrialOverlap  36.TrialProjE(Re)  37.TrialProjE(Im)"
+            end if
+
+            write(fcimcstats_unit, "()", advance = 'yes')
+
 #elif defined(__DOUBLERUN)
             write(fcimcstats_unit2, "(a,i4,a,l1,a,l1,a,l1)") &
                   "# FCIMCStats VERSION 2 - REAL : NEl=", nel, &
@@ -178,10 +187,10 @@ contains
         if (iProcIndex == root) then
 
 #ifdef __CMPLX
-            write(fcimcstats_unit,"(I12,5G16.7,7G18.9e3,&
+            write(fcimcstats_unit,"(I12,5G16.7,8G18.9e3,&
                                   &G13.5,I12,G13.5,G17.5,I13,G13.5,8G18.9e3,I13,&
 
-                                  &g16.7)") &
+                                  &g16.7)",advance='no') &
                 Iter + PreviousCycles, &                !1.
                 DiagSft, &                              !2.
                 AllTotParts(1) - AllTotPartsOld(1), &   !3.
@@ -192,25 +201,34 @@ contains
                 aimag(projectionE), &                   !8.     Im   \sum[ nj H0j / n0 ]
                 real(proje_iter, dp), &                 !9.     
                 aimag(proje_iter), &                    !10.
-                AllNoatHF(1), &                         !11.
-                AllNoatHF(2), &                         !12.
-                AllNoatDoubs, &                         !13.
-                AccRat, &                               !14.
-                AllTotWalkers, &                        !15.
-                IterTime, &                             !16.
-                FracFromSing(1), &                      !17.
-                WalkersDiffProc, &                           !18.
-                TotImagTime, &                               !19.
-                HFShift, &                                   !20.
-                InstShift, &                                 !21.
-                real((AllHFCyc*conjg(AllHFCyc)),dp), &     !22 |n0|^2  denominator for both calcs
-                real((AllENumCyc*conjg(AllHFCyc)),dp), &   !23. Re[\sum njH0j]xRe[n0]+Im[\sum njH0j]xIm[n0]   No div by StepsSft
-                aimag(AllENumCyc*conjg(AllHFCyc)), &       !24.Im[\sum njH0j]xRe[n0]-Re[\sum njH0j]xIm[n0]   since no physicality
-                sqrt(sum(AllNoatHF**2)) / norm_psi, & !25
-                norm_psi, &                           !26
-                curr_S2, &                            !27
-                PartsDiffProc, &                      !28
-                all_max_cyc_spawn                     !29.
+                real(proje_iter,dp) + Hii, &            !11.
+                AllNoatHF(1), &                         !12.
+                AllNoatHF(2), &                         !13.
+                AllNoatDoubs, &                         !14.
+                AccRat, &                               !15.
+                AllTotWalkers, &                        !16.
+                IterTime, &                             !17.
+                FracFromSing(1), &                      !18.
+                WalkersDiffProc, &                           !19.
+                TotImagTime, &                               !20.
+                HFShift, &                                   !21.
+                InstShift, &                                 !22.
+                real((AllHFCyc*conjg(AllHFCyc)),dp), &     !23 |n0|^2  denominator for both calcs
+                real((AllENumCyc*conjg(AllHFCyc)),dp), &   !24. Re[\sum njH0j]xRe[n0]+Im[\sum njH0j]xIm[n0]   No div by StepsSft
+                aimag(AllENumCyc*conjg(AllHFCyc)), &       !25.Im[\sum njH0j]xRe[n0]-Re[\sum njH0j]xIm[n0]   since no physicality
+                sqrt(sum(AllNoatHF**2)) / norm_psi, & !26
+                norm_psi, &                           !27
+                curr_S2, &                            !28
+                PartsDiffProc, &                      !29
+                all_max_cyc_spawn                     !30.
+                if (tTrialWavefunction .or. tStartTrialLater) then
+                    write(fcimcstats_unit, "(7(1X,es18.11))", advance = 'no') &
+                    (tot_trial_numerator(1) / StepsSft), &              ! 31. 32
+                    (tot_trial_denom(1) / StepsSft), &                  ! 33. 34
+                    abs((tot_trial_denom(1) / (norm_psi(1)*StepsSft))), &  ! 35.
+                    tot_trial_numerator(1)/tot_trial_denom(1)           ! 36. 37.
+                end if
+                write(fcimcstats_unit, "()", advance = 'yes')
 
             if(tMCOutput) then
                 write (iout, "(I12,13G16.7,2I12,G13.5)") &

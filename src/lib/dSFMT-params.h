@@ -52,7 +52,7 @@
     #define ALTI_PERM    {12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3}
   #endif
 #endif
-#if !defined(_MOLCAS_)
+#if !defined(_MOLCAS_PREP_)
   #if DSFMT_MEXP == 521
     #include "dSFMT-params521.h"
   #elif DSFMT_MEXP == 1279

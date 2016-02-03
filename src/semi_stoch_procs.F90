@@ -654,7 +654,7 @@ contains
                 ! If there is only one state in CurrentDets to check then BinSearchParts doesn't
                 ! return the desired value for PartInd, so do this separately...
                 if (MinInd == nwalkers) then
-                    comp = DetBitLT(CurrentDets(:,MinInd), SpawnedParts(:,i), NIfDBO, .false.)
+                    comp = DetBitLT(CurrentDets(:,MinInd), SpawnedParts(:,i), NIfDBO)
                     if (comp == 0) then
                         tSuccess = .true.
                         PartInd = MinInd
@@ -1144,7 +1144,7 @@ contains
 
         integer :: i
         integer :: nI(nel)
-        real(dp) :: trial_amps(ntrial_excits)
+        HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
 
         ! Don't do anything if this is called before the trial wave function

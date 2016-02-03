@@ -20,6 +20,7 @@ truncinitiator
 addtoinitiator 3
 tau-cnt-threshold 50
 load-balance-blocks off
+maxwalkerbloom 3.0
 endcalc
 
 integral

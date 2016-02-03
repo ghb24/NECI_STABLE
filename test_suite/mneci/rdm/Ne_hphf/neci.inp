@@ -25,6 +25,7 @@ pops-core 2000
 trial-wavefunction 150
 pops-trial 100
 load-balance-blocks off
+maxwalkerbloom 3.0
 endcalc
 
 integral

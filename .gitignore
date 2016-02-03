@@ -43,5 +43,11 @@ fciqmc_stats*
 build/*
 *.pyc
 .idea
+build*/
+*~
+*.save
+.*f
+.*F90
 \\
 .nfs*
+*.swp

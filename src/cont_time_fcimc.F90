@@ -304,7 +304,7 @@ contains
                     if (use_spawn_hash_table) then
                         call create_particle_with_hash_table( &
                                          det_spwn, ilut_spwn, child, &
-                                         part_type, ilut)
+                                         part_type, ilut, iter_data)
                     else
                         call create_particle(det_spwn, ilut_spwn, child, &
                                              part_type, ilut)

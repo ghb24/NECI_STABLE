@@ -216,17 +216,19 @@ contains
 
     end subroutine create_particle
 
-    subroutine create_particle_with_hash_table (nI_child, ilut_child, child_sign, part_type, ilut_parent)
+    subroutine create_particle_with_hash_table (nI_child, ilut_child, child_sign, part_type, ilut_parent, iter_data)
 
         use hash, only: hash_table_lookup, add_hash_table_entry
 
         integer, intent(in) :: nI_child(nel), part_type
         integer(n_int), intent(in) :: ilut_child(0:NIfTot), ilut_parent(0:NIfTot)
         real(dp), intent(in) :: child_sign(lenof_sign)
+        type(fcimc_iter_data), intent(inout) :: iter_data
 
-        integer :: proc, ind, hash_val
+        integer :: proc, ind, hash_val, i
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign_old(lenof_sign), real_sign_new(lenof_sign)
+        real(dp) :: sgn_prod(lenof_sign)
         logical :: list_full, tSuccess
         integer, parameter :: flags = 0
         character(*), parameter :: this_routine = 'create_particle_with_hash_table'
@@ -237,6 +239,17 @@ contains
             ! If the spawned child is already in the spawning array.
             ! Extract the old sign.
             call extract_sign(SpawnedParts(:,ind), real_sign_old)
+
+            ! If the new child has an opposite sign to that of walkers already
+            ! on the site, then annihilation occurs. The stats for this need
+            ! accumulating.
+            sgn_prod = real_sign_old * child_sign
+            do i = 1, lenof_sign
+                if (sgn_prod(i) < 0.0_dp) then
+                    iter_data%nannihil(i) = iter_data%nannihil(i) + 2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
+                end if
+            end do
+
             ! Find the total new sign.
             real_sign_new = real_sign_old + child_sign
             ! Encode the new sign.
@@ -322,6 +335,7 @@ contains
         integer :: iUEG1, iUEG2, ProjEBin
         HElement_t(dp) :: HOffDiag(inum_runs)
         HElement_t(dp) :: HDoubDiag
+        complex(dp) :: CmplxwSign
         integer :: DoubEx(2,2),DoubEx2(2,2),kDoub(3) ! For histogramming UEG doubles
         integer :: ExMat(2,2), nopen
         integer :: doub_parity, doub_parity2, parity
@@ -338,6 +352,29 @@ contains
 
         ! Add in the contributions to the numerator and denominator of the trial
         ! estimator, if it is being used.
+#ifdef __CMPLX then
+        CmplxwSign = ARR_RE_OR_CPLX(realwsign, 1)
+
+        if (tTrialWavefunction .and. present(ind)) then
+            if (test_flag(ilut,flag_trial)) then
+                if(ntrial_excits == 1) then
+                   trial_denom = trial_denom + conjg(current_trial_amps(1,ind))*CmplxwSign
+                else if(ntrial_excits == lenof_sign) then
+                   call stop_all(this_routine, 'ntrial_excits has to be 1 currently for complex')
+                end if
+
+                if(qmc_trial_wf) then
+                   call stop_all(this_routine, 'qmc_trial_wf currently not implemented for complex')
+                end if
+            else if (test_flag(ilut,flag_connected)) then
+                if(ntrial_excits == 1) then
+                   trial_numerator = trial_numerator + conjg(current_trial_amps(1,ind))*cmplxwsign
+                else if(ntrial_excits == lenof_sign) then
+                   call stop_all(this_routine, 'ntrial_excits has to be 1 currently for complex')
+                end if
+            end if
+        end if
+#else
         if (tTrialWavefunction .and. present(ind)) then
             if (test_flag(ilut, flag_trial)) then
                 if (ntrial_excits == 1) then
@@ -359,13 +396,14 @@ contains
             else if (test_flag(ilut, flag_connected)) then
                 ! Note, only attempt to add in a contribution from the
                 ! connected space if we're not also in the trial space.
-                if (ntrial_excits == 1) then
+                 if (ntrial_excits == 1) then
                     trial_numerator = trial_numerator + current_trial_amps(1,ind)*RealwSign
                 else if (ntrial_excits == lenof_sign) then
                     trial_numerator = trial_numerator + current_trial_amps(:,ind)*RealwSign
                 end if
             end if
         end if
+#endif
 
         ! ExcitLevel indicates the excitation level between the det and
         ! *one* of the determinants in an HPHF/MomInv function. If needed,
@@ -529,7 +567,7 @@ contains
         HElement_t(dp) :: hoffdiag
         character(*), parameter :: this_routine = 'SumEContrib_different_refs'
 
-        real(dp) :: amps(size(current_trial_amps,1))
+        HElement_t(dp) :: amps(size(current_trial_amps,1))
 
         ASSERT(inum_runs == lenof_sign)
         ASSERT(tReplicaReferencesDiffer)

@@ -143,8 +143,7 @@ contains
 
     integer(li), intent(in), optional :: MemSize
     logical, intent(in), optional :: print_err
-    integer(li) :: MaxMemBytes,MemSizeMolcas
-    character(len=16) MMem
+    integer(li) :: MaxMemBytes
 #if defined(MOLPRO)
     integer(li), parameter :: MaxMemLimit=8192   !It would be nice to get this straight from molpro.
 #elif !defined(_MOLCAS_)
@@ -152,6 +151,9 @@ contains
 #endif
 
 #ifdef _MOLCAS_
+    integer(li) :: MemSizeMolcas
+    character(len=16) MMem
+
     !MemSizeMolcas is already in MB.
     call getenvf('MOLCAS_MEM',MMem)
     read(MMem,*) MemSizeMolcas

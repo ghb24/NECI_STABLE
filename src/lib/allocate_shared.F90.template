@@ -277,7 +277,6 @@ contains
         integer(int64) :: sz
         type(c_ptr) :: tmp
         %(type)s, dimension(%(dim)s), pointer :: ptr_tmp
-        integer :: error
 
         ! Prepare name of shared memory object to pass to C.
         call conv_name (nm, name_tmp, node)
@@ -324,7 +323,6 @@ contains
 #ifdef __SHARED_MEM
         integer(int64) :: sz
         type(c_ptr) :: tmp
-        integer :: error
 
         ! Prepare name of shared memory object to pass to C.
         call conv_name(nm,name_tmp,node)

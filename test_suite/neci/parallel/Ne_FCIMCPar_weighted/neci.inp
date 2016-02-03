@@ -19,6 +19,7 @@ shiftdamp 0.03
 stepsshift 25
 jump-shift
 load-balance-blocks off
+maxwalkerbloom 3.0
 endcalc
 
 integral

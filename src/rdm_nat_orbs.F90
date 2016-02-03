@@ -891,7 +891,7 @@ contains
                         ! UMatInd is in physical notation <ij|kl>, but the indices
                         ! printed in the FCIDUMP are in chemical notation (ik|jl).
                         if ((abs(real(UMat(UMatInd(i,j,k,l,0,0)),dp))).ne.0.0_dp) &
-                                write(iunit,'(F21.12,4I3)') &
+                                write(iunit,'(F21.12,4I5)') &
                                 real(UMat(UMatInd(i,j,k,l,0,0)),dp), i, k, j, l 
  
                     end do
@@ -904,10 +904,10 @@ contains
             ! Symmetry?
             do k=1,NoOrbs
                 if (tStoreSpinOrbs) then
-                    if ((real(TMAT2D(i,k),dp)).ne.0.0_dp) write(iunit,'(F21.12,4I3)') &
+                    if ((real(TMAT2D(i,k),dp)).ne.0.0_dp) write(iunit,'(F21.12,4I5)') &
                                                         real(TMAT2D(i,k),dp),i,k,0,0
                 else
-                    if ((real(TMAT2D(2*i,2*k),dp)).ne.0.0_dp) write(iunit,'(F21.12,4I3)') &
+                    if ((real(TMAT2D(2*i,2*k),dp)).ne.0.0_dp) write(iunit,'(F21.12,4I5)') &
                                                         real(TMAT2D(2*i,2*k),dp),i,k,0,0
                 end if
             end do
@@ -919,13 +919,13 @@ contains
 
         do k=1,NoOrbs
             if (tStoreSpinOrbs) then
-                write(iunit,'(F21.12,4I3)') Arr(k,2), k, 0, 0, 0
+                write(iunit,'(F21.12,4I5)') Arr(k,2), k, 0, 0, 0
             else
-                write(iunit,'(F21.12,4I3)') Arr(2*k,2), k, 0, 0, 0
+                write(iunit,'(F21.12,4I5)') Arr(2*k,2), k, 0, 0, 0
             end if
         end do
 
-        write(iunit,'(F21.12,4I3)') ECore, 0, 0, 0, 0
+        write(iunit,'(F21.12,4I5)') ECore, 0, 0, 0, 0
         
         call neci_flush(iunit)
 

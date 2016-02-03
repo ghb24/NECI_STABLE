@@ -502,10 +502,12 @@ MODULE Logging
             call readi(IterRDMonFly)
             call readi(RDMEnergyIter)
 
+#if defined(__PROG_NUMRUNS)
             ! With this option, we want to use pairs of replicas.
             tPairedReplicas = .true.
-#if defined(__PROG_NUMRUNS)
             nreplicas = 2
+#elif defined(__DOUBLERUN)
+            tPairedReplicas = .true.
 #endif
 
             if (IterRDMOnFly < semistoch_shift_iter) call stop_all(t_r,"Semi-stochastic needs to be turned on before &

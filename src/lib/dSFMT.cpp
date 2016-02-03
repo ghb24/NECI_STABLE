@@ -649,7 +649,7 @@ inline static void fill_array_close1_open2(double array[], int size) {
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#ifdef _MOLCAS_
+#ifdef _MOLCAS_PREP_
   #include "dsfmt-params.h"
 #else
   #include "dSFMT-params.h"

@@ -603,7 +603,7 @@ contains
             ! The function gndts always outputs the reference state. This is already included, so
             ! we want to cycle when we get to this state to ignore it.
             ! comp will be 0 if ilut and ilutHF are the same.
-            comp = DetBitLT(ilut, ilutHF, NIfD, .false.)
+            comp = DetBitLT(ilut, ilutHF, NIfD)
             if (comp == 0) cycle
 
             if (tCSFCore) then
