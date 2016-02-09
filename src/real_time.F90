@@ -126,6 +126,8 @@
 
 module real_time
 
+    implicit none
+
 contains
 
     ! need a routine which prepares the converged groundstates from an
@@ -156,16 +158,20 @@ contains
         ! need to quit the calulcation after that cleanly
         ! check logging options provided!
         
+        ! have moved all this functionality to a CHANGEVARS induced print out 
+        ! of popsfiles and softexit afterwards
 
     end subroutine prepare_real_time_calc
 
+    subroutine init_real_time_calc()
+        ! what do i need to setup for the real-time simulation? 
+        ! essentially its a restarted calculation from a popsfile with 
+        ! different dynamics and modifications on the popsfile before 
+        ! starting..
+        ! 1) so i need to check that the specified amount of popsfile exist 
+        ! 
 
-
-
-    
-
-
-
+    end subroutine init_real_time_calc
 
 
 end module real_time

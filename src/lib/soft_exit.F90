@@ -103,6 +103,10 @@
 !   DIAGFLYONERDM        Requests to diagonalise the 1-RDM at the end.
 !   REFSHIFT             Change the default use of the shift to now keep HF 
 !                        populations constant.
+!   PREPARE_REAL_TIME n m   start the print out of the current walker population
+!                        n times with m cycles between them, which in turn 
+!                        will be used to start a subsequent real-time 
+!                        calculations with these popsfile as the groundstate
 !   TIME                 Specify a total elapsed-time before the calculation
 !                        performs an automatic soft-exit. If specified as -1,
 !                        we don't stop automatically. 
@@ -135,7 +139,8 @@ module soft_exit
                        IterStartBlocking, tHFPopStartBlock, NHistEquilSteps, &
                        IterRDMonFly_value => IterRDMonFly, RDMExcitLevel, &
                        tExplicitAllRDM, tRDMonFly, tChangeVarsRDM, &
-                       RDMEnergyIter, tDiagRDM
+                       RDMEnergyIter, tDiagRDM, tPopsFile, tPrintPopsDefault, &
+                       tIncrementPops, iWritePopsEvery
     use FCIMCLoggingMOD, only: PrintBlocking, RestartBlocking, &
                                PrintShiftBlocking_proc => PrintShiftBlocking,&
                                RestartShiftBlocking_proc=>RestartShiftBlocking
@@ -149,6 +154,7 @@ module soft_exit
     use load_balance_calcnodes, only: DetermineDetNode
     use hist_data, only: Histogram, tHistSpawn
     use Parallel_neci
+    use real_time_data, only: n_real_time_copies, t_prepare_real_time
     implicit none
 
     logical, volatile :: tSoftExitFound = .false.
@@ -190,7 +196,7 @@ contains
                               targetgrowrate = 38, refshift = 39, & 
                               calc_rdm = 40, calc_explic_rdm = 41, &
                               fill_rdm_iter = 42, diag_one_rdm = 43, &
-                              !! = 44, & -- Currently unused
+                              prepare_real_time = 44, &
                               time = 45
         integer, parameter :: last_item = time
         integer, parameter :: max_item_len = 30
@@ -284,7 +290,7 @@ contains
                                    "calcexplicitrdm              ", &
                                    "fillrdmiter                  ", &
                                    "diagflyonerdm                ", &
-                                   "----  currently unused   ----", &
+                                   "prepare_real_time            ", &
                                    "time                         "/)
 
         ! Logical(4) datatypes for compilation with builds of openmpi that don't
@@ -411,6 +417,25 @@ contains
                             call readi (RDMEnergyIter)
                         elseif (i == fill_rdm_iter) then
                             call readi (IterRDMonFly_new)
+
+                        elseif (i == prepare_real_time) then
+                            ! after equilibration start the preparation of 
+                            ! snapshots of the stochastic goundstate by 
+                            ! printing out a set amount of popsfiles
+                            ! use the already provided incremented popsfile 
+                            ! output 
+                            tPopsFile = .true.
+                            tPrintPopsDefault = .false.
+                            tIncrementPops = .true.
+                            t_prepare_real_time = .true.
+                            if (item < nitems) then
+                                call readi(n_real_time_copies)
+                                call readi(iWritePopsEvery)
+                            else
+                                iWritePopsEvery = 1
+                            end if
+
+
                         elseif (i == time) then
                             call readf (MaxTimeExit)
                         endif

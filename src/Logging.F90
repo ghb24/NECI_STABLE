@@ -15,6 +15,8 @@ MODULE Logging
     use errors, only: Errordebug 
     use LoggingData
     use spectral_data, only: tPrint_sl_eigenvecs
+    use real_time_data, only: n_real_time_copies, t_prepare_real_time, &
+                              cnt_real_time_copies
 
     IMPLICIT NONE
 
@@ -25,6 +27,11 @@ MODULE Logging
 
       use default_sets
       implicit none
+
+      ! real-time implementation changes: 
+      n_real_time_copies = 1
+      cnt_real_time_copies = 1
+      t_prepare_real_time = .false.
 
       tDipoles = .false.
       tPrintInitiators = .false.

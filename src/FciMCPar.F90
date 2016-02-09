@@ -60,6 +60,8 @@ module FciMCParMod
     use fcimc_output
     use FciMCData
     use constants
+    use real_time_data, only: t_prepare_real_time, n_real_time_copies, &    
+                              cnt_real_time_copies
 
 #ifdef MOLPRO
     use outputResult
@@ -403,8 +405,28 @@ module FciMCParMod
             endif
 
             IF(TPopsFile.and.(.not.tPrintPopsDefault).and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
-!This will write out the POPSFILE if wanted
-                CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
+                ! differentiate between normal routine and the real-time 
+                ! preperation 
+                if (t_prepare_real_time) then
+                    if (cnt_real_time_copies < n_real_time_copies) then
+                        CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
+                        cnt_real_time_copies = cnt_real_time_copies + 1
+                    else 
+                        ! if the number of wanted copies is reached exit the 
+                        ! calculation. REMINDER: at the end of the calc. an
+                        ! additional popsfile is printed -> so start count at 1
+                        ! todo: cleanly exit calc. here! 
+                        NMCyc=Iter+StepsSft  
+                        t_prepare_real_time = .false.
+                        ! do want to finish all the rdm stuff to go on, but 
+                        ! do not want anymore popsfile to be printed except
+                        ! at the very end.. 
+                        tPrintPopsDefault = .true.
+                    end if
+                else
+                    !This will write out the POPSFILE if wanted
+                    CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
+                end if
             ENDIF
 !            IF(TAutoCorr) CALL WriteHistogrammedDets()
 
