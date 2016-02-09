@@ -442,9 +442,9 @@ MODULE FciMCData
       ! on this processor, before it is combined to give the whole vector, which is stored in full_determ_vecs.
       ! Later in the iteration, it is also used to store the result of the multiplication by the core Hamiltonian on
       ! full_determ_vecs.
-      real(dp), allocatable, dimension(:,:) :: partial_determ_vecs
-      real(dp), allocatable, dimension(:,:) :: full_determ_vecs
-      real(dp), allocatable, dimension(:,:) :: full_determ_vecs_av
+      HElement_t(dp), allocatable, dimension(:,:) :: partial_determ_vecs
+      HElement_t(dp), allocatable, dimension(:,:) :: full_determ_vecs
+      HElement_t(dp), allocatable, dimension(:,:) :: full_determ_vecs_av
 
       ! determ_sizes(i) holds the core space size on processor i.
       integer(MPIArg), allocatable, dimension(:) :: determ_sizes
