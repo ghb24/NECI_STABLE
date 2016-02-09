@@ -1580,7 +1580,8 @@ contains
 
             call MPI_Comm_size (CommGlobal, nProcess, ierr)
 #ifdef _MOLCAS_
-            call getenvf('MOLCAS_CPUS',MCPUs)
+            ! call getenvf('MOLCAS_CPUS',MCPUs) replaced by the newer env variable MOLCAS_NPROCS
+            call getenvf('MOLCAS_NPROCS',MCPUs)
             Read(MCPUS,*) nProcess
 #endif
             nProcessors = nProcess
@@ -1588,6 +1589,8 @@ contains
                 call stop_all (t_r, 'MPI Error. Terminating.')
             if (iProcIndex == 0) &
                 write(6,*) 'Number of processors: ', nProcessors
+
+            mpiInfoNull = MPI_INFO_NULL
 
 #ifdef MOLPRO
 #ifdef CBINDMPI

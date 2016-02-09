@@ -583,8 +583,7 @@ contains
         do while (hi /= lo)
             pos = int(real(hi + lo,sp) / 2_sp)
 
-            if (DetBitLT(arr(data_lo:data_hi,pos), val(val_lo:val_hi), &
-                    use_flags_opt = .false.) == 0) then
+            if (DetBitLT(arr(data_lo:data_hi,pos), val(val_lo:val_hi)) == 0) then
                 exit
             else if (custom_gt(val(val_lo:val_hi), arr(data_lo:data_hi,pos))) then
                 ! val is "greater" than arr(:len,pos).
@@ -608,8 +607,7 @@ contains
         ! then return -pos to indicate that the item is not present, but that
         ! this is the location it should be in.
         if (hi == lo) then
-            if (DetBitLT(arr(data_lo:data_hi,hi), val(val_lo:val_hi), &
-                    use_flags_opt = .false.) == 0) then
+            if (DetBitLT(arr(data_lo:data_hi,hi), val(val_lo:val_hi)) == 0) then
                 pos = hi
             else if (custom_gt(val(val_lo:val_hi), arr(data_lo:data_hi,hi))) then
                 pos = -hi - 1
