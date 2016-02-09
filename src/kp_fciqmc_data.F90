@@ -65,8 +65,8 @@ module kp_fciqmc_data_mod
     ! the same purpose as partial_determ_vecs and full_determ_vecs, except they
     ! are allocated to hold more vectors (all Krylov vectors), as is necessary
     ! if tExcitedStateKP = .false.
-    real(dp), allocatable, dimension(:,:) :: partial_determ_vecs_kp
-    real(dp), allocatable, dimension(:,:) :: full_determ_vecs_kp
+    HElement_t(dp), allocatable, dimension(:,:) :: partial_determ_vecs_kp
+    HElement_t(dp), allocatable, dimension(:,:) :: full_determ_vecs_kp
 
     ! The number of elements in krylov_vecs which are used to store amplitudes.
     integer(int64) :: nkrylov_amp_elems_tot

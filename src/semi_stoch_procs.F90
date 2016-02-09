@@ -102,8 +102,8 @@ contains
         use FciMCData, only: Hii, SemiStoch_Comms_Time, SemiStoch_Multiply_Time
         use Parallel_neci, only: MPIBarrier, MPIAllGatherV
 
-        real(dp), allocatable, intent(inout) :: partial_vecs(:,:)
-        real(dp), allocatable, intent(inout) :: full_vecs(:,:)
+        HElement_t(dp), allocatable, intent(inout) :: partial_vecs(:,:)
+        HElement_t(dp), allocatable, intent(inout) :: full_vecs(:,:)
         integer(MPIArg), allocatable, intent(in) :: determ_sizes(:), determ_disps(:)
 
         integer :: i, j, info, ierr

@@ -30,9 +30,9 @@ contains
 
         integer :: counter, iter, comp, hf_index, ierr
         integer(int64) :: i, j
-        real(dp), allocatable, dimension(:) :: wavefunction
-        real(dp), allocatable, dimension(:) :: ham_times_hf
-        real(dp) :: energy_num, energy_denom, tot_e_num, tot_e_denom
+        HElement_t(dp), allocatable, dimension(:) :: wavefunction
+        HElement_t(dp), allocatable, dimension(:) :: ham_times_hf
+        HElement_t(dp) :: energy_num, energy_denom, tot_e_num, tot_e_denom
         character(*), parameter :: this_routine = 'perform_determ_proj'
 
         if ((.not. tSemiStochastic) .or. (.not. allocated(sparse_core_ham))) &
@@ -97,7 +97,7 @@ contains
             call MPISum(energy_num, tot_e_num)
             call MPISum(energy_denom, tot_e_denom)
 
-            write(6,'(i9,7X,f13.10)') iter, tot_e_num/tot_e_denom
+            write(6,'(i9,7X,2f13.10)') iter, tot_e_num/tot_e_denom
             call neci_flush(6)
 
             iter = iter + 1
