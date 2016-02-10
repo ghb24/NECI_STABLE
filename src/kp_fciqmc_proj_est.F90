@@ -41,7 +41,7 @@ contains
         type(ll_node), pointer, intent(in) :: krylov_ht(:)
         integer, intent(in) :: ndets
         real(dp), intent(out) :: h_matrix(:,:)
-        HElement_t(dp), allocatable, intent(inout), optional :: partial_vecs(:,:), full_vecs(:,:)
+        real(dp), allocatable, intent(inout), optional :: partial_vecs(:,:), full_vecs(:,:)
         real(dp), intent(in), optional :: h_diag(:)
 
         integer :: idet, ispawn, nspawn, i, j, ex_level_to_hf
@@ -652,7 +652,7 @@ contains
         integer, intent(in) :: nvecs
         integer(n_int), intent(in) :: krylov_array(0:,:)
         real(dp), intent(inout) :: h_matrix(:,:)
-        HElement_t(dp), intent(in) :: partial_vecs(:,:)
+        real(dp), intent(in) :: partial_vecs(:,:)
 
         integer :: idet, i, j
         integer :: nI_spawn(nel)
