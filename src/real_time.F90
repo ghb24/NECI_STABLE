@@ -1,5 +1,11 @@
 #include "macros.h"
 
+module real_time
+
+    use real_time_init, only: init_real_time_calc_single
+
+    implicit none
+
 ! main module file for the real-time implementation of the FCIQMC algorithm
 ! created on 04.02.2016 by Werner Dobrautz
 
@@ -124,56 +130,30 @@
 
 ! 4) do the actual real time propagation! 
 
-module real_time
-
-    implicit none
-
 contains
 
-    ! need a routine which prepares the converged groundstates from an
-    ! imaginary-time FCIQMC calculation 
+    subroutine perform_real_time_fciqmc
+        ! main real-time calculation routine
+        ! do all the setup, read-in and calling of the "new" real-time MC loop
+        implicit none
 
-    ! use code provided in the NECI GreensFuncs branch by George Booth
-    ! in general reuse as much of the already provided functionality! 
+        character(*), parameter :: this_routine = "perform_real_time_fciqmc"
 
-    ! need a setup routine in the regular imag-time neci routine, which prints
-    ! out the specified amount of GS wavefunctions
-    ! and which sets the necessary flags and stuff
+        ! call the real-time setup routine and all the initialization
+        call init_real_time_calc_single()
 
-    ! i want through the CHANGEVARS facility start the print out of 
-    ! the input specified print out of POPSFILES between certain intervals
+        ! rewrite the major original neci core loop here and adapt it to 
+        ! the new necessary real-time stuff
+        ! check nicks kp code, to have a guideline in how to go into that! 
 
-    subroutine prepare_real_time_calc() 
-        ! this routine sets up the popsfile input for consequent GF 
-        ! real-time calculations
-        ! this is triggered through the changevars utility for now, to 
-        ! spectate if the calculation is already converged and equilibrated 
-        ! enough
-
-        ! think about what needs to be specified?
-        ! need to print out detailed info about the wavefunction
-        ! no hdf5 for now! 
-        ! need to do it at certain time intervals: there is some utility 
-        ! provided for that already! 
-        ! need to quit the calulcation after that cleanly
-        ! check logging options provided!
-        
-        ! have moved all this functionality to a CHANGEVARS induced print out 
-        ! of popsfiles and softexit afterwards
-
-    end subroutine prepare_real_time_calc
-
-    subroutine init_real_time_calc()
-        ! what do i need to setup for the real-time simulation? 
-        ! essentially its a restarted calculation from a popsfile with 
-        ! different dynamics and modifications on the popsfile before 
-        ! starting..
-        ! 1) so i need to check that the specified amount of popsfile exist 
-        ! 
-
-    end subroutine init_real_time_calc
-
-
+    end subroutine perform_real_time_fciqmc
 end module real_time
 
+! wrapper (dont know why this is necessary quite..)
+subroutine perform_real_time_fciqcm_wrap
+    use real_time, only: perform_real_time_fciqmc
+    implicit none
 
+    call perform_real_time_fciqmc
+
+end subroutine perform_real_time_fciqcm_wrap

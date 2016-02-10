@@ -26,6 +26,7 @@ MODULE ReadInput_neci
         use Parallel_neci,   only : iProcIndex
         use default_sets
         use util_mod, only: get_free_unit
+        use real_time_init, only: real_time_read_input
 !#ifdef NAGF95
 !    !  USe doesn't get picked up by the make scripts
 !        USe f90_unix_env, ONLY: getarg,iargc
@@ -167,6 +168,10 @@ MODULE ReadInput_neci
                 tKP_FCIQMC = .true.
                 tUseProcsAsNodes = .true.
                 call kp_fciqmc_read_inp(kp)
+        
+            case ("REALTIME")
+                call real_time_read_input()
+
             case("END")
                 exit
             case default

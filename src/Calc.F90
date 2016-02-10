@@ -35,6 +35,7 @@ MODULE Calc
     use spectral_lanczos, only: n_lanc_vecs_sl
     use exact_spectrum
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
+    use real_time_data, only: t_real_time_fciqmc
 
     implicit none
 
@@ -272,6 +273,9 @@ contains
 
           hash_shift=0
           tUniqueHFNode = .false.
+
+          ! real-time fciqmc:
+          t_real_time_fciqmc = .false.
 
           ! Semi-stochastic and trial wavefunction options.
           tSemiStochastic = .false.
@@ -2454,6 +2458,7 @@ contains
           use kp_fciqmc, only: perform_kp_fciqmc, perform_subspace_fciqmc
           use kp_fciqmc_data_mod, only: tExcitedStateKP
           use kp_fciqmc_procs, only: kp_fciqmc_data
+          use real_time, only: perform_real_time_fciqmc
 
 !Calls
 !          real(dp) DMonteCarlo2
@@ -2502,6 +2507,10 @@ contains
                  else
                      call perform_kp_fciqmc(kp)
                  end if
+
+             else if (t_real_time_fciqmc) then
+                 call perform_real_time_fciqmc()
+
              else
                  WRITE(6,*) "Calculating ",NPATHS," W_Is..."
                  iunit =get_free_unit()
