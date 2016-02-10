@@ -54,7 +54,7 @@ contains
 
             partial_determ_vecs = 0.0_dp
 
-#ifdef __COMPLX
+#ifdef __CMPLX
             do i = 1, determ_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
                     partial_determ_vecs(1,i) = partial_determ_vecs(1,i) - &
