@@ -838,7 +838,7 @@ contains
             hdiag = det_diagH(site_idx) - DiagSft(part_type)
             if (hdiag > 0) then
                 expected_lifetime = &
-                    log(2.0_dp * max(MaxWalkerBloom, 1)) / hdiag
+                    log(2.0_dp * max(MaxWalkerBloom, 1.0_dp)) / hdiag
                 if ((TotImagTime - init_tm) > & !0.5_dp) then !&
                         init_survival_mult * expected_lifetime) then
                     initiator = .true.
