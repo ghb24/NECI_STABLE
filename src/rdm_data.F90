@@ -94,4 +94,26 @@ module rdm_data
     type(rdm_t), allocatable :: rdms(:)
     type(rdm_estimates_t), allocatable :: rdm_estimates(:)
 
+    ! ---- Data for Parralel RDM implementation -------------------------------
+
+    ! Array for holding RDM contributions before they are sent to the
+    ! correct processor.
+    integer :: rdm_spawn(:,:)
+    ! Hash table to the RDM spawning array.
+    type(ll_node), pointer :: rdm_spawn_ht(:)
+
+    ! Array used to hold the result of the MPI communication to send RDM
+    ! contributions.
+    integer :: rdm_spawn_recv(:,:)
+
+    ! Array which holds the RDM elements.
+    integer :: rdm_arr(:,:)
+    ! Hash table to the RDM array.
+    type(ll_node), pointer :: rdm_arr_ht(:)
+
+    ! Size of RDM arrays. The same size is currently used for both the spawning
+    ! and actual RDM arrays.
+    integer :: rdm_arr_size
+    integer :: nhashes_rdm
+
 end module rdm_data

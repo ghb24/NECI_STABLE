@@ -60,6 +60,8 @@ contains
         call stop_all(t_r, 'Filling of reduced density matrices not working with complex walkers yet.')
 #endif
 
+        call init_parallel_rdms(nrdms)
+
         if (nrdms > 1 .and. (tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles .or. RDMExcitLevel == 1)) then
             call stop_all(t_r, 'The RDM feature you have requested is not currently implemented &
                                &with multiple RDMs. In particular, forces, dipole moments, printing &
