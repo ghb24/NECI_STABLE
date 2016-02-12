@@ -181,7 +181,69 @@ contains
 
         print *, " overlap: ",  sqrt(gf_overlap(1)) / sqrt(pops_norm) 
 
+        ! main part of the initialization, concerning the walker lists 
+        ! and operator application works now.. 
+        ! so next step is to finish up the whole initialization to be able 
+        ! to run a (mk)neci with the new walker dynamics provided by the 
+        ! real-time Schroedinger equation
+
+        ! enter the main real-time fciqmc loop here
+        fciqmc_loop: do while (.true.)
+
+            ! do all the necessary preperation(resetting pointers etc.)
+            call init_real_time_iteration()
+            
+            ! perform the actual iteration(excitation generation etc.) 
+            call perform_real_time_iteration() 
+
+            ! update various variables.. time-step, initiator criteria etc.
+            call update_real_time_iteration()
+
+            ! update, print and log all the global variables and interesting 
+            ! quantities
+            call log_real_time_iteration() 
+
+            ! check if somthing happpened to stop the iteration or something
+            call check_real_time_iteration()
+
+        end do fciqmc_loop
+        
+
     end subroutine perform_real_time_fciqmc
+
+    subroutine update_real_time_iteration()
+        ! routine to update certain global variables each loop iteration in 
+        ! the real-time fciqmc 
+        character(*), parameter :: this_routine = "update_real_time_iteration"
+
+    end subroutine update_real_time_iteration
+
+    subroutine log_real_time_iteration
+        ! routine to log all the interesting quantities in the real-time 
+        ! fciqmc 
+        character(*), parameter :: this_routine = "log_real_time_iteration"
+
+    end subroutine log_real_time_iteration
+
+    subroutine check_real_time_iteration
+        ! routine to check if somthing wrong happened during the main 
+        ! real-time fciqmc loop or the external CHANGEVARS utility does smth
+        character(*), parameter :: this_routine = "check_real_time_iteration"
+
+    end subroutine check_real_time_iteration
+
+    subroutine init_real_time_iteration()
+        ! routine to reinitialize all the necessary variables and pointers 
+        ! for a sucessful real-time fciqmc iteration
+        character(*), parameter :: this_routine = "init_real_time_iteration"
+
+    end subroutine init_real_time_iteration
+    
+    subroutine perform_real_time_iteration()
+        ! routine which performs one real-time fciqmc iteration
+
+    end subroutine perform_real_time_iteration
+
 end module real_time
 
 ! wrapper (dont know why this is necessary quite..)

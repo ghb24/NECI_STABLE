@@ -4,7 +4,7 @@
 
 module real_time_init
 
-    use real_time_data, only: t_real_time_fciqmc, gf_type
+    use real_time_data, only: t_real_time_fciqmc, gf_type, real_time_info
     use real_time_procs, only: create_perturbed_ground
 
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
@@ -92,6 +92,7 @@ contains
         character(*), parameter :: this_routine = "real_time_read_input"
 
         integer :: i
+        integer, parameter :: lesser = -1, greater = 1
 
         ! set the flag that this is a real time calculation
         t_real_time_fciqmc = .true.
@@ -109,6 +110,10 @@ contains
 
             select case (w)
             ! have to enter all the different input options here
+
+            case ("MAX_TIME")
+                ! input the targeted end time 
+                ! a specified   
 
             ! use nicks perturbation & kp-fciqmc stuff here as much as 
             ! possible too
@@ -135,7 +140,7 @@ contains
                 ! step
 
                 ! store the information of the type of greensfunction 
-                gf_type = -1
+                gf_type = lesser
 
                 ! probably have to loop over spin-orbitals dont i? yes!
 
@@ -195,7 +200,7 @@ contains
                 ! step
 
                 ! store type of greensfunction
-                gf_type = 1
+                gf_type = greater
 
                 ! if no specific orbital is specified-> loop over all j! 
                 ! but only do that later

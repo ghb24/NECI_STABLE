@@ -31,5 +31,33 @@ module real_time_data
     ! walkers remaining in the perturbed ground state
     integer(int64) :: TotWalkers_pert, TotWalkers_orig
 
+    type real_time_type
+        ! number of starting vectors = number of parallel mneci calculations
+        ! also necessary to have atleast that many popsfile.n
+        integer :: n_starting_vec = 1
 
+        ! use a equidistant time-step -> this turns off automated time-step
+        ! optimization. but this way i can define a specific end time 
+        logical :: t_equidistant_time = .false.
+        ! this input should also be provided with a predefined time-step
+        real(dp) :: time_step = -1.0_dp
+        ! and a end time to stop the simulation afterwards
+        real(dp) :: max_time = -1.0_dp
+
+        ! later also store the type of operators and spinorbitals in this 
+        ! type! 
+
+        ! store the type of the greensfunction calculated 
+        !  1 ... greater GF: creation operator applied! 
+        ! -1 ... lesser GF: annihilation operator applied!
+        integer :: gf_type = 0
+
+    end type real_time_type
+
+    type(real_time_type) :: real_time_info
+
+
+
+
+        
 end module real_time_data
