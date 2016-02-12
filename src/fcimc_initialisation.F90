@@ -155,7 +155,7 @@ contains
         if(nProcessors.gt.1) then
             WRITE(iout,*) "Performing Parallel FCIQMC...."
         else
-            write(iout,*) "Performing FCIQMC...."
+            write(iout,*) "Performing single-core FCIQMC...."
         endif
         WRITE(iout,*) 
         

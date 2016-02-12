@@ -3,6 +3,10 @@
 module real_time
 
     use real_time_init, only: init_real_time_calc_single
+    use CalcData, only: pops_norm
+    use real_time_data, only: gf_type
+    use FciMCData, only: pops_pert
+    use kp_fciqmc_data_mod, only: overlap_pert
 
     implicit none
 
@@ -135,16 +139,47 @@ contains
     subroutine perform_real_time_fciqmc
         ! main real-time calculation routine
         ! do all the setup, read-in and calling of the "new" real-time MC loop
+        use real_time_procs, only: update_gf_overlap
+        use real_time_data, only: gf_overlap
         implicit none
 
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
 
+        print *, " ========================================================== "
+        print *, " ------------------ Real-time FCIQMC ---------------------- "
+        print *, " ========================================================== "
+
         ! call the real-time setup routine and all the initialization
         call init_real_time_calc_single()
 
+        print *, " Real-time FCIQMC initialized! "
         ! rewrite the major original neci core loop here and adapt it to 
         ! the new necessary real-time stuff
         ! check nicks kp code, to have a guideline in how to go into that! 
+
+        ! as a first test if everything is set up correctly calculate the 
+        ! initial overlap for the same indiced of creation and annihilation
+        ! operators <y(0)|a^+_i a_i |y(0)> = n_i 
+        ! and       <y(0)|a_i a^+_i |y(0)> = 1 - n_i 
+        ! if normed correctly
+        ! in the quantity perturbed_ground the left hand side and in 
+        ! CurrentDets the right hand side should be stored ..
+        ! should write a routine which calulated the overlap of CurrentDets
+        ! with the perturbed groundstate and stores it in a pre-allocated list
+        ! shouldnt geourge have some of those routines..
+
+        call update_gf_overlap()
+
+        print *, "test on overlap at t = 0: "
+        if (gf_type == -1) then
+            print *, " for lesser GF  <y(0)| a^+_i a_j |y(0) >; i,j: ", &
+                overlap_pert(1)%ann_orbs(1), pops_pert(1)%ann_orbs(1)
+        else if (gf_type == 1) then
+            print *, " for greater GF <y(0)| a_i a^+_j |y(0)> ; i,j: ", &
+                overlap_pert(1)%crtn_orbs(1), pops_pert(1)%crtn_orbs(1)
+        end if
+
+        print *, " overlap: ",  sqrt(gf_overlap(1)) / sqrt(pops_norm) 
 
     end subroutine perform_real_time_fciqmc
 end module real_time

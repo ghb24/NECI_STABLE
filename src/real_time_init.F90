@@ -5,21 +5,26 @@
 module real_time_init
 
     use real_time_data, only: t_real_time_fciqmc, gf_type
+    use real_time_procs, only: create_perturbed_ground
 
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
     use Parallel_neci, only: nProcessors
     use ParallelHelper, only: iProcIndex, root
     use util_mod, only: get_unique_filename
     use Logging, only: tIncrementPops
-    use CalcData, only: iPopsFileNoRead
-    use kp_fciqmc_data_mod, only: scaling_factor, tMultiplePopStart, tScalePopulation
-    use CalcData, only: tChangeProjEDet, tReadPops, tRestartHighPop
-    use FciMCData, only: tSearchTau, alloc_popsfile_dets
+    use CalcData, only: iPopsFileNoRead, tWritePopsNorm
+    use kp_fciqmc_data_mod, only: scaling_factor, tMultiplePopStart, tScalePopulation, &
+                                  tOverlapPert, overlap_pert
+    use CalcData, only: tChangeProjEDet, tReadPops, tRestartHighPop, tFCIMC, &
+                        tStartSinglePart
+    use FciMCData, only: tSearchTau, alloc_popsfile_dets, pops_pert, tPopsAlreadyRead
     use SystemData, only: nBasis
     use perturbations, only: init_perturbation_annihilation, &
                              init_perturbation_creation
     use fcimc_initialisation, only: SetupParameters, InitFCIMCCalcPar, &
                                     init_fcimc_fn_pointers 
+
+    use kp_fciqmc_init, only: create_overlap_pert_vec
 
     implicit none
 
@@ -32,6 +37,7 @@ contains
         implicit none
         character(*), parameter :: this_routine = "init_real_time_calc_single"
 
+        print *, " Entering real-time FCIQMC initialisation "
         ! think about what variables have to be set for a succesful calc.
 
         ! do a last test if all he input is compatible and correctly set
@@ -40,6 +46,8 @@ contains
 
         ! also call the "normal" NECI setup routines to allow calculation
         call SetupParameters()
+
+
         ! have to think about the the order about the above setup routines! 
         ! within this Init a readpops is called.. and 
         call InitFCIMCCalcPar()
@@ -53,7 +61,8 @@ contains
 
         ! definetly read-in stored popsfile here. 
         ! need to store both <y(0)| and also create a_j y(0)> during read-in!
-        call read_popsfile_real_time()
+!         call read_popsfile_real_time()
+        ! actually the InitFCIMCCalcPar should do that now correctly already
 
     end subroutine init_real_time_calc_single
 
@@ -62,6 +71,14 @@ contains
         ! number of copies etc. sets up the final needed quantities to run 
         ! a simulation
         character(*), parameter :: this_routine = "setup_real_time_fciqmc"
+
+        ! also need to create the perturbed ground state to calculate the 
+        ! overlaps to |y(t)> 
+
+        ! so have to call this routine before the InitFCIMCCalcPar, where the 
+        ! time evolved y(t) will be stored in the CurrentDets array
+        call create_perturbed_ground()
+
 
     end subroutine setup_real_time_fciqmc
 
@@ -100,9 +117,15 @@ contains
             ! or photoabsorption (greater GF) and the orbital we want the 
             ! corresponding operator apply on 
             ! the type of GF considered also changes the sign of the FT exponent
+
+            ! decision for now: input a specific GF matrix element and the type 
+            ! of the greensfunction to be calculated(lesser,greater) eg:
+            ! lesser i j : <y(0)| a^+_i a_j |y(0)> 
             case ("LESSER")
                 ! lesser GF -> photo emission: apply a annihilation operator
                 alloc_popsfile_dets = .true.
+                tOverlapPert = .true.
+                tWritePopsNorm = .true.
                 ! i probably also can use the overlap-perturbed routines 
                 ! from nick
                 ! but since applying <y(0)|a^+_i for all i is way cheaper 
@@ -111,32 +134,48 @@ contains
                 ! step and stored, and then just calc. the overlap each time 
                 ! step
 
+                ! store the information of the type of greensfunction 
+                gf_type = -1
+
                 ! probably have to loop over spin-orbitals dont i? yes!
 
                 ! if no specific orbital is specified-> loop over all j! 
                 ! but only do that later: input is a SPINORBITAL!
                 if (item < nitems) then
                     ! allocate the perturbation object
-                    allocate(gf_type(1))
+                    allocate(pops_pert(1))
+                    ! and also the lefthand perturbation object for overlap
+                    allocate(overlap_pert(1))
 
-                    gf_type%nannihilate = 1
-                    allocate(gf_type(1)%ann_orbs(1))
-                    call readi(gf_type(1)%ann_orbs(1))
+                    pops_pert%nannihilate = 1
+                    overlap_pert%nannihilate = 1
 
-                    call init_perturbation_annihilation(gf_type(1)) 
+                    allocate(pops_pert(1)%ann_orbs(1))
+                    allocate(overlap_pert(1)%ann_orbs(1))
+
+                    ! read left hand operator first
+                    call readi(overlap_pert(1)%ann_orbs(1))
+                    call readi(pops_pert(1)%ann_orbs(1))
+
+
+                    call init_perturbation_annihilation(overlap_pert(1))
+                    call init_perturbation_annihilation(pops_pert(1)) 
 
                 else
                     ! otherwise the whole possible orbitals are to be applied
 
-                    allocate(gf_type(nBasis))
+                    print *, "no specific annihilation orbitals specified! loop over all!"
+                    call stop_all(this_routine, "not yet implemented!")
+
+                    allocate(pops_pert(nBasis))
 
                     do i = 1, nBasis
-                        gf_type(i)%nannihilate = 1
-                        allocate(gf_type(i)%ann_orbs(1))
+                        pops_pert(i)%nannihilate = 1
+                        allocate(pops_pert(i)%ann_orbs(1))
 
-                        gf_type(i)%ann_orbs(1) = i 
+                        pops_pert(i)%ann_orbs(1) = i 
 
-                        call init_perturbation_annihilation(gf_type(i))
+                        call init_perturbation_annihilation(pops_pert(i))
 
                     end do
                 end if
@@ -144,6 +183,9 @@ contains
             case ("GREATER")
                 ! greater GF -> photo absorption: apply a creation operator
                 alloc_popsfile_dets = .true.
+                tOverlapPert = .true.
+                tWritePopsNorm = .true.
+
                 ! i probably also can use the overlap-perturbed routines 
                 ! from nick
                 ! but since applying <y(0)|a_i for all i is way cheaper 
@@ -152,30 +194,44 @@ contains
                 ! step and stored, and then just calc. the overlap each time 
                 ! step
 
+                ! store type of greensfunction
+                gf_type = 1
+
                 ! if no specific orbital is specified-> loop over all j! 
                 ! but only do that later
                 if (item < nitems) then
                     ! allocate the perturbation object
-                    allocate(gf_type(1))
+                    allocate(pops_pert(1))
+                    allocate(overlap_pert(1))
 
-                    gf_type%ncreate = 1
-                    allocate(gf_type(1)%crtn_orbs(1))
-                    call readi(gf_type(1)%crtn_orbs(1))
+                    pops_pert%ncreate = 1
+                    overlap_pert%ncreate = 1
 
-                    call init_perturbation_creation(gf_type(1)) 
+                    allocate(pops_pert(1)%crtn_orbs(1))
+                    allocate(overlap_pert(1)%crtn_orbs(1))
+
+                    call readi(overlap_pert(1)%crtn_orbs(1))
+                    call readi(pops_pert(1)%crtn_orbs(1))
+
+
+                    call init_perturbation_creation(overlap_pert(1))
+                    call init_perturbation_creation(pops_pert(1)) 
 
                 else
                     ! otherwise the whole possible orbitals are to be applied
                     ! input is a SPINORBITAL!
-                    allocate(gf_type(nBasis))
+                    allocate(pops_pert(nBasis))
+
+                    print *, "no specific creation orbital specified! loop over all!"
+                    call stop_all(this_routine, "not yet implented!")
 
                     do i = 1, nBasis
-                        gf_type(i)%ncreate = 1
-                        allocate(gf_type(i)%crtn_orbs(1))
+                        pops_pert(i)%ncreate = 1
+                        allocate(pops_pert(i)%crtn_orbs(1))
 
-                        gf_type(i)%crtn_orbs(1) = i 
+                        pops_pert(i)%crtn_orbs(1) = i 
 
-                        call init_perturbation_creation(gf_type(i))
+                        call init_perturbation_creation(pops_pert(i))
 
                     end do
                 end if
@@ -186,7 +242,7 @@ contains
                 
 
 
-            case ("END")
+            case ("ENDREALTIME")
                 exit real_time
 
             case default
@@ -212,6 +268,9 @@ contains
         ! neci init routines
         tReadPops = .true.
 
+        ! startsinglepart does not work with popsfile and is not wanted too
+        tStartSinglePart = .false.
+
         ! probably not change reference anymore.. but check
         tChangeProjEDet = .false.
 
@@ -228,12 +287,24 @@ contains
         ! provided
         tMultiplePopStart = .false.
 
+        ! from my way of outputting popsfiles i always do it in popsfile.n
+        ! format -> so i probably have to set tIncrementPops and the count
+        tIncrementPops = .true.
+        iPopsFileNoRead = -1
+
+        ! have to set, that popsfile is not yet read in:
+        tPopsAlreadyRead = .false.
+
+        ! overwrite tfcimc flag to not enter the regular fcimc routine 
+        tFCIMC = .false.
+
     end subroutine set_real_time_defaults
 
     subroutine check_input_real_time()
         ! routine to ensure all calculation parameter are set up correctly
         ! and abort otherwise 
         character(*), parameter :: this_routine = "check_input_real_time"
+
 
     end subroutine check_input_real_time
 

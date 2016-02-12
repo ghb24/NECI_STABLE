@@ -41,6 +41,7 @@ MODULE PopsfileMod
     use hdf5_popsfile, only: write_popsfile_hdf5, read_popsfile_hdf5, &
                              add_pops_norm_contrib
     use util_mod
+    use real_time_data, only: t_real_time_fciqmc, TotWalkers_orig
 
     implicit none
 
@@ -230,7 +231,7 @@ contains
             endif
 
             ! Test we have still got all determinants
-            write(6,*) "CurrWalkers: ", CurrWalkers
+            write(6,*) "initial number of walker read-in: CurrWalkers: ", CurrWalkers
             call MPISum(CurrWalkers, 1, AllCurrWalkers)
             if (iProcIndex == Root) then
                 if (AllCurrWalkers /= EndPopsList .and. .not. trimmed_parts) then
@@ -930,6 +931,7 @@ r_loop: do while(.not.tStoreDet)
         apply_pert = .false.
         if (present(perturbs)) then
             if (allocated(perturbs)) apply_pert = .true.
+            
          end if
 
         ! If applying perturbations, read the popsfile into the array
@@ -941,9 +943,21 @@ r_loop: do while(.not.tStoreDet)
                                   popsfile_dets, MaxWalkersPart, pops_nnodes, pops_walkers, PopNIfSgn, &
                                   PopNel, PopBalanceBlocks, tCalcExtraInfo=.false.)
 
+            print *, "Applying perturbation to read-in walker confguration!"
+            print *, "Total number of walkers before perturbation: ", TotWalkers
+
+            print *, "is norm higher here?", sqrt(pops_norm)
+            ! also store the original walker number in the real-time FCIQMC
+
             TotWalkersIn = int(TotWalkers, sizeof_int)
+
+            ! also store this original value
+            if (t_real_time_fciqmc) TotWalkers_orig = TotWalkersIn
+
             call apply_perturbation_array(perturbs, TotWalkersIn, popsfile_dets, CurrentDets)
             TotWalkers = int(TotWalkersIn, int64)
+
+            print *, "Total number of walkers after perturbation: ", TotWalkers
         else
             call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, TotParts, NoatHF, &
                                   CurrentDets, MaxWalkersPart, pops_nnodes, pops_walkers, PopNIfSgn, &
