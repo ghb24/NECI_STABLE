@@ -89,11 +89,15 @@ integer, parameter :: MPIArg=int32
 integer, parameter :: n_int=int64
 logical :: build_64bit = .true.
 
+integer, parameter :: int_rdm=int64
+
 #else
 
 ! Kind parameter for 32-bit integers.
 integer, parameter :: n_int=int32
 logical :: build_64bit = .false.
+
+integer, parameter :: int_rdm=int32
 
 #endif
 
