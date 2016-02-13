@@ -13,42 +13,66 @@ module rdm_parallel
 
     implicit none
 
+    type rdm_spawn_t
+        ! The number of RDMs to be held by this spawning array.
+        integer :: nrdms
+        ! The number of rows in the RDM.
+        integer :: nrows
+
+        ! Array for holding RDM contributions before they are sent to the
+        ! correct processor.
+        integer(int_rdm), allocatable :: contribs(:,:)
+        ! Array used to hold the result of the MPI communication to send RDM
+        ! contributions.
+        integer(int_rdm), allocatable :: contribs_recv(:,:)
+        ! Length of RDM arrays above.
+        integer :: contribs_length
+
+        ! Hash table to the RDM spawning array.
+        type(ll_node), pointer :: hash_table(:)
+        ! Number of hashes available in the RDM hash tables.
+        integer :: nhashes_rdm
+
+        ! free_slots(i) holds the next available spawning slot in rdm_spawn
+        ! for processor i.
+        integer, allocatable :: free_slots(:)
+        ! init_free_slots(i) holds the index in rdm_spawn where the very
+        ! first RDM entry to be sent to processor i will be added.
+        integer, allocatable :: init_free_slots(:)
+    end type rdm_spawn_t
+
+    type(rdm_spawn_t) :: rdm_spawn
+
 contains
 
-    subroutine init_parallel_rdms(nrdms)
+    subroutine init_rdm_spawn_t(spawn, nrdms, nrows, contribs_length, nhashes_rdm)
 
-        ! This routine initialises all arrays and data used for the parallel
-        ! implementation of RDMs.
+        ! Initialise an rdm_spawn_t object.
+
+        ! Out: spawn - rdm_spawn_t object to be initialised.
+        ! In:  nrdms - the number of RDMs to be stored in the array.
+        ! In:  nrows - the number of rows in the RDM.
+        ! In:  contribs_length - the length of the RDM spawning arrays.
+        ! In:  nhashes_rdm - the number of unique hashes for indexing the hash table.
 
         use hash, only: init_hash_table
-        use rdm_data, only: rdm_arr , rdm_arr_ht, rdm_spawn, rdm_spawn_ht
-        use rdm_data, only: rdm_spawn_recv, rdm_arr_length, nhashes_rdm, rdm_nrows
 
-        integer, intent(in) :: nrdms
+        type(rdm_spawn_t), intent(out) :: spawn
+        integer, intent(in) :: nrdms, nrows, contribs_length, nhashes_rdm
         integer :: ierr
 
-        rdm_nrows = nbasis*(nbasis-1)/2
+        spawn%nrdms = nrdms
+        spawn%nrows = nrows
+        spawn%contribs_length = contribs_length
+        spawn%nhashes_rdm = nhashes_rdm
 
-        ! For now, create RDM arrays big enough so that *all* RDM elements on
-        ! a particular processor can be stored, using the usual approximations
-        ! to take symmetry into account. Include a factor of 1.2 to account for
-        ! factors such as imperfect load balancing (which affects the spawned
-        ! array).
-        rdm_arr_length = 1.2*rdm_nrows/(32*nProcessors)
-        nhashes_rdm = 0.8*rdm_arr_length
+        allocate(spawn%contribs(0:nrdms, contribs_length))
+        allocate(spawn%contribs_recv(0:nrdms, contribs_length))
 
-        allocate(rdm_spawn(0:nrdms, rdm_arr_length))
-        allocate(rdm_spawn_recv(0:nrdms, rdm_arr_length))
-        allocate(rdm_arr(0:nrdms, rdm_arr_length))
+        allocate(spawn%hash_table(nhashes_rdm), stat=ierr)
+        call init_hash_table(spawn%hash_table)
 
-        ! Allocate and initialise hash tables.
-        allocate(rdm_spawn_ht(nhashes_rdm), stat=ierr)
-        call init_hash_table(rdm_spawn_ht)
-
-        allocate(rdm_spawn_ht(nhashes_rdm), stat=ierr)
-        call init_hash_table(rdm_arr_ht)
-
-    end subroutine init_parallel_rdms
+    end subroutine init_rdm_spawn_t
 
     pure subroutine calc_combined_rdm_labels(i, j, k, l, ij, kl, ijkl)
 
@@ -120,58 +144,49 @@ contains
 
     end subroutine encode_sign_rdm
 
-    subroutine add_to_rdm_spawn(i, j, k, l, nrdms, contrib_sign, spawn_arr, spawn_arr_ht, spawn_slots, init_spawn_slots)
+    subroutine add_to_rdm_spawn_t(spawn, i, j, k, l, contrib_sign)
 
+        ! In/Out: rdm_spawn - the rdm_spawn_t type to which contributions will be added.
         ! In: i, j, k l - spin orbitals of the RDM contribution.
-        ! In: contrib_sign - the amplitude of the contribution to the RDM.
-        ! In/Out: spawn_arr - the RDM spawning array to add to.
-        ! In/Out: spawn_arr_ht - the hash table to spawn_arr.
-        ! In/Out: spawn_slots - array holding the next free slots in
-        !             spawn_arr for each processor.
-        ! In: init_spawn_slots - array holding the positions of the first
-        !         entry in spawn_arr for each processor.
+        ! In: contrib_sign - the sign (amplitude) of the contribution to be added.
 
         use hash, only: hash_table_lookup, add_hash_table_entry
-        use rdm_data, only: rdm_nrows
 
-        integer, intent(in) :: i, j, k, l, nrdms
-        real(dp), intent(in) :: contrib_sign(nrdms)
-        integer(int_rdm), intent(inout) :: spawn_arr(0:,:)
-        type(ll_node), pointer, intent(inout) :: spawn_arr_ht(:)
-        integer, intent(inout) :: spawn_slots(:)
-        integer, intent(in) :: init_spawn_slots(:)
+        type(rdm_spawn_t), intent(inout) :: spawn
+        integer, intent(in) :: i, j, k, l
+        real(dp), intent(in) :: contrib_sign(spawn%nrdms)
 
         integer :: ij, kl, proc, ind, hash_val
         integer(int_rdm) :: ijkl
-        real(dp) :: real_sign_old(nrdms), real_sign_new(nrdms)
+        real(dp) :: real_sign_old(spawn%nrdms), real_sign_new(spawn%nrdms)
         logical :: tSuccess, list_full
         character(*), parameter :: this_routine = 'add_to_rdm_spawn'
 
         ! Calculate combined RDM labels.
         call calc_combined_rdm_labels(i, j, k, l, ij, kl, ijkl)
 
-        ! Search to see if this RDM element is already in the spawn_arr array.
+        ! Search to see if this RDM element is already in the contribs array.
         ! If it, tSuccess will be true and ind will hold the position of the
-        ! entry in spawn_arr.
-        call hash_table_lookup((/i,j,k,l/), (/ijkl/), 0, spawn_arr_ht, spawn_arr, ind, hash_val, tSuccess)
+        ! entry in contribs.
+        call hash_table_lookup((/i,j,k,l/), (/ijkl/), 0, spawn%hash_table, spawn%contribs, ind, hash_val, tSuccess)
 
         if (tSuccess) then
             ! Extract the existing sign.
-            call extract_sign_rdm(spawn_arr(:,ind), real_sign_old)
+            call extract_sign_rdm(spawn%contribs(:,ind), real_sign_old)
             ! Update the total sign.
             real_sign_new = real_sign_old + contrib_sign
             ! Encode the new sign.
-            call encode_sign_rdm(spawn_arr(:,ind), real_sign_new)
+            call encode_sign_rdm(spawn%contribs(:,ind), real_sign_new)
         else
             ! Calculate processor for the element.
-            proc = ij*nProcessors/rdm_nrows
+            proc = ij*nProcessors/spawn%nrows
 
             ! Check that there is enough memory for the new spawned RDM entry.
             list_full = .false.
             if (proc == nProcessors - 1) then
-                if (spawn_slots(proc) > size(spawn_arr,2)) list_full = .true.
+                if (spawn%free_slots(proc) > size(spawn%contribs,2)) list_full = .true.
             else
-                if (spawn_slots(proc) > init_spawn_slots(proc+1)) list_full = .true.
+                if (spawn%free_slots(proc) > spawn%init_free_slots(proc+1)) list_full = .true.
             end if
             if (list_full) then
                 write(6,'("Attempting to add an RDM contribution to the spawned list on processor:",&
@@ -180,14 +195,14 @@ contains
                 call stop_all(this_routine, "Out of memory for spawned RDM contributions.")
             end if
 
-            spawn_arr(0, spawn_slots(proc)) = ijkl
-            call encode_sign_rdm(spawn_arr(:,spawn_slots(proc)), contrib_sign)
+            spawn%contribs(0, spawn%free_slots(proc)) = ijkl
+            call encode_sign_rdm(spawn%contribs(:, spawn%free_slots(proc)), contrib_sign)
 
-            call add_hash_table_entry(spawn_arr_ht, spawn_slots(proc), hash_val)
+            call add_hash_table_entry(spawn%hash_table, spawn%free_slots(proc), hash_val)
 
-            spawn_slots(proc) = spawn_slots(proc) + 1
+            spawn%free_slots(proc) = spawn%free_slots(proc) + 1
         end if
 
-    end subroutine add_to_rdm_spawn
+    end subroutine add_to_rdm_spawn_t
 
 end module rdm_parallel

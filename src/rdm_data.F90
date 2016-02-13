@@ -95,36 +95,11 @@ module rdm_data
     type(rdm_t), allocatable :: rdms(:)
     type(rdm_estimates_t), allocatable :: rdm_estimates(:)
 
-    ! ---- Data for Parralel RDM implementation -------------------------------
-
-    ! Array for holding RDM contributions before they are sent to the
-    ! correct processor.
-    integer(int_rdm), allocatable :: rdm_spawn(:,:)
-    ! Hash table to the RDM spawning array.
-    type(ll_node), pointer :: rdm_spawn_ht(:)
-    ! valid_spawned_rdm(i) holds the next available spawning slot in rdm_spawn
-    ! for processor i.
-    integer, allocatable :: valid_spawned_rdm(:)
-    ! init_spawned_slots_rdm(i) holds the index in rdm_spawn where the very
-    ! first RDM entry to be sent to processor i will be added.
-    integer, allocatable :: init_spawned_slots_rdm(:)
-
-    ! Array used to hold the result of the MPI communication to send RDM
-    ! contributions.
-    integer(int_rdm), allocatable :: rdm_spawn_recv(:,:)
+    ! Data for parallel RDM implementation.
 
     ! Array which holds the RDM elements.
     integer(int_rdm), allocatable :: rdm_arr(:,:)
     ! Hash table to the RDM array.
     type(ll_node), pointer :: rdm_arr_ht(:)
-
-    ! Length of RDM arrays. The same length is currently used for both the
-    ! spawning and actual RDM arrays.
-    integer :: rdm_arr_length
-    ! Number of hashes available in the RDM hash tables.
-    integer :: nhashes_rdm
-
-    ! The number of rows (and columns) in the full RDM.
-    integer :: rdm_nrows
 
 end module rdm_data
