@@ -3,6 +3,7 @@ module rdm_data
     ! Module containing global data and derived types used for RDM calculation.
 
     use constants
+    use FciMCData, only: ll_node
     use global_utilities, only: timer
 
     implicit none

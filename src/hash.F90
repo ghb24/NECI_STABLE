@@ -13,8 +13,8 @@ module hash
     implicit none
 
     interface hash_table_lookup
-        module procedure hash_table_lookup_int32
-        module procedure hash_table_lookup_int64
+        module procedure hash_table_lookup_int_32
+        module procedure hash_table_lookup_int_64
     end interface
 
     contains
@@ -235,7 +235,7 @@ module hash
             do while (associated(temp_node))
                 ! Check using the index stored in temp_node to see if we have
                 ! found the searched-for determinant.
-                if (all(targ(1:max_elem) == targ_array(1:max_elem, temp_node%ind))) then
+                if (all(targ(0:max_elem) == targ_array(0:max_elem, temp_node%ind))) then
                     found = .true.
                     ind = temp_node%ind
                     exit
@@ -258,12 +258,12 @@ module hash
         ! returned as .false. and ind will be unset.
 
         integer, intent(in) :: orbs(:)
-        integer(int32), intent(in) :: targ(:)
+        integer(int64), intent(in) :: targ(0:)
         integer, intent(in) :: max_elem
         ! Note that hash_table won't actually change, but we need the inout
         ! label to make this routine pure.
         type(ll_node), pointer, intent(inout) :: hash_table(:)
-        integer(int32), intent(in) :: targ_array(:,:)
+        integer(int64), intent(in) :: targ_array(0:,:)
         integer, intent(out) :: ind
         integer, intent(out) :: hash_val
         logical, intent(out) :: found
@@ -281,7 +281,7 @@ module hash
             do while (associated(temp_node))
                 ! Check using the index stored in temp_node to see if we have
                 ! found the searched-for determinant.
-                if (all(targ(1:max_elem) == targ_array(1:max_elem, temp_node%ind))) then
+                if (all(targ(0:max_elem) == targ_array(0:max_elem, temp_node%ind))) then
                     found = .true.
                     ind = temp_node%ind
                     exit

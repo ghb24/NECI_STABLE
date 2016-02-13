@@ -20,10 +20,12 @@ contains
         ! This routine initialises all arrays and data used for the parallel
         ! implementation of RDMs.
 
+        use hash, only: init_hash_table
         use rdm_data, only: rdm_arr , rdm_arr_ht, rdm_spawn, rdm_spawn_ht
         use rdm_data, only: rdm_spawn_recv, rdm_arr_length, nhashes_rdm, rdm_nrows
 
         integer, intent(in) :: nrdms
+        integer :: ierr
 
         rdm_nrows = nbasis*(nbasis-1)/2
 
@@ -96,18 +98,29 @@ contains
 
     end subroutine calc_separate_rdm_labels
 
-    subroutine encode_sign_rdm(rdm_entry, real_sign)
+    pure subroutine extract_sign_rdm(rdm_entry, real_sign)
+
+        integer(n_int), intent(in) :: rdm_entry(0:)
+        real(dp), intent(out) :: real_sign(size(rdm_entry)-1)
+        integer(n_int) :: int_sign(size(rdm_entry)-1)
+
+        int_sign = rdm_entry(1:size(int_sign))
+        real_sign = transfer(int_sign, real_sign)
+
+    end subroutine extract_sign_rdm
+
+    pure subroutine encode_sign_rdm(rdm_entry, real_sign)
 
         integer(int_rdm), intent(inout) :: rdm_entry(0:)
         real(dp), intent(in) :: real_sign(1:size(rdm_entry)-1)
         integer(int_rdm) :: int_sign(1:size(rdm_entry)-1)
 
-        int_sign = transfer(real_sign, sign)
+        int_sign = transfer(real_sign, int_sign)
         rdm_entry(1:size(int_sign)) = int_sign
 
     end subroutine encode_sign_rdm
 
-    subroutine add_to_rdm_spawn(i, j, k, l, contrib_sign, spawn_arr, spawn_arr_ht, spawn_slots, init_spawn_slots)
+    subroutine add_to_rdm_spawn(i, j, k, l, nrdms, contrib_sign, spawn_arr, spawn_arr_ht, spawn_slots, init_spawn_slots)
 
         ! In: i, j, k l - spin orbitals of the RDM contribution.
         ! In: contrib_sign - the amplitude of the contribution to the RDM.
@@ -118,19 +131,19 @@ contains
         ! In: init_spawn_slots - array holding the positions of the first
         !         entry in spawn_arr for each processor.
 
-        use bit_reps, only: encode_sign_rdm
+        use hash, only: hash_table_lookup, add_hash_table_entry
         use rdm_data, only: rdm_nrows
 
-        integer, intent(in) :: i, j, k, l
-        real(dp), intent(in) :: contrib_sign
+        integer, intent(in) :: i, j, k, l, nrdms
+        real(dp), intent(in) :: contrib_sign(nrdms)
         integer(int_rdm), intent(inout) :: spawn_arr(0:,:)
-        type(ll_node), pointer, intent(inout) :: hash_table(:)
+        type(ll_node), pointer, intent(inout) :: spawn_arr_ht(:)
         integer, intent(inout) :: spawn_slots(:)
         integer, intent(in) :: init_spawn_slots(:)
 
         integer :: ij, kl, proc, ind, hash_val
         integer(int_rdm) :: ijkl
-        real(dp) :: real_sign_old(lenof_sign), real_sign_new(lenof_sign)
+        real(dp) :: real_sign_old(nrdms), real_sign_new(nrdms)
         logical :: tSuccess, list_full
         character(*), parameter :: this_routine = 'add_to_rdm_spawn'
 
@@ -140,11 +153,11 @@ contains
         ! Search to see if this RDM element is already in the spawn_arr array.
         ! If it, tSuccess will be true and ind will hold the position of the
         ! entry in spawn_arr.
-        call hash_table_lookup((/i,j,k,l/), (/ijkl/), 1, spawn_arr_ht, spawn_arr, ind, hash_val, tSuccess)
+        call hash_table_lookup((/i,j,k,l/), (/ijkl/), 0, spawn_arr_ht, spawn_arr, ind, hash_val, tSuccess)
 
         if (tSuccess) then
             ! Extract the existing sign.
-            call extract_sign(spawn_arr(:,ind), real_sign_old)
+            call extract_sign_rdm(spawn_arr(:,ind), real_sign_old)
             ! Update the total sign.
             real_sign_new = real_sign_old + contrib_sign
             ! Encode the new sign.
@@ -156,14 +169,14 @@ contains
             ! Check that there is enough memory for the new spawned RDM entry.
             list_full = .false.
             if (proc == nProcessors - 1) then
-                if (spawn_slots(proc) > rdm_spawn_size) list_full = .true.
+                if (spawn_slots(proc) > size(spawn_arr,2)) list_full = .true.
             else
                 if (spawn_slots(proc) > init_spawn_slots(proc+1)) list_full = .true.
             end if
             if (list_full) then
                 write(6,'("Attempting to add an RDM contribution to the spawned list on processor:",&
                            &1X,'//int_fmt(proc,0)//')') proc
-                write(6,'("No memory slots available for this spawn.)')
+                write(6,'("No memory slots available for this spawn.")')
                 call stop_all(this_routine, "Out of memory for spawned RDM contributions.")
             end if
 
