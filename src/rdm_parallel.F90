@@ -74,7 +74,7 @@ contains
 
     end subroutine init_rdm_spawn_t
 
-    pure subroutine calc_combined_rdm_labels(i, j, k, l, ij, kl, ijkl)
+    pure subroutine calc_combined_rdm_labels(i, j, k, l, ijkl)
 
         ! Combine the four 2-RDM spin orbital labels into unique integers.
         ! i and j are combined into one number, ij. k and l are combined into
@@ -91,13 +91,11 @@ contains
         ! spin orbital labels.
 
         ! In: i, j, k l - spin orbitals of the RDM contribution.
-        ! Out: ij - Label combining i and j.
-        ! Out: kl - Label combining k and l.
         ! Out: ijkl - Label combining i, j, k and l.
 
         integer, intent(in) :: i, j, k, l
-        integer, intent(out) :: ij, kl
         integer(int_rdm), intent(out) :: ijkl
+        integer :: ij, kl
 
         ij = (i-1)*nbasis + j
         kl = (k-1)*nbasis + l
@@ -147,7 +145,7 @@ contains
     subroutine add_to_rdm_spawn_t(spawn, i, j, k, l, contrib_sign)
 
         ! In/Out: rdm_spawn - the rdm_spawn_t type to which contributions will be added.
-        ! In: i, j, k l - spin orbitals of the RDM contribution.
+        ! In: i, j, k l - spin orbitals of the RDM contribution, with i>j, k>l.
         ! In: contrib_sign - the sign (amplitude) of the contribution to be added.
 
         use hash, only: hash_table_lookup, add_hash_table_entry
@@ -156,14 +154,14 @@ contains
         integer, intent(in) :: i, j, k, l
         real(dp), intent(in) :: contrib_sign(spawn%nrdms)
 
-        integer :: ij, kl, proc, ind, hash_val
+        integer :: ij_compressed, proc, ind, hash_val
         integer(int_rdm) :: ijkl
         real(dp) :: real_sign_old(spawn%nrdms), real_sign_new(spawn%nrdms)
         logical :: tSuccess, list_full
-        character(*), parameter :: this_routine = 'add_to_rdm_spawn'
+        character(*), parameter :: this_routine = 'add_to_rdm_spawn_t'
 
         ! Calculate combined RDM labels.
-        call calc_combined_rdm_labels(i, j, k, l, ij, kl, ijkl)
+        call calc_combined_rdm_labels(i, j, k, l, ijkl)
 
         ! Search to see if this RDM element is already in the contribs array.
         ! If it, tSuccess will be true and ind will hold the position of the
@@ -178,8 +176,11 @@ contains
             ! Encode the new sign.
             call encode_sign_rdm(spawn%contribs(:,ind), real_sign_new)
         else
+            ! The following maps (i,j), with i>j, to single integers with no gaps.
+            ! It is benefical to have no gaps here, for good load balancing.
+            ij_compressed = (i-1)*(i-2)/2 + j
             ! Calculate processor for the element.
-            proc = ij*nProcessors/spawn%nrows
+            proc = ij_compressed*nProcessors/spawn%nrows
 
             ! Check that there is enough memory for the new spawned RDM entry.
             list_full = .false.
