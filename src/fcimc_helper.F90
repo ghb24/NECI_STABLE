@@ -14,7 +14,8 @@ module fcimc_helper
                         flag_trial, flag_connected, flag_deterministic, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
                         set_has_been_initiator, flag_has_been_initiator, &
-                        set_parent_coeff, flag_weak_initiator
+                        set_parent_coeff, flag_weak_initiator, &
+                        get_initiator_flag, get_weak_initiator_flag
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet

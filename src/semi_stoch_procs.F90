@@ -6,7 +6,7 @@
 module semi_stoch_procs
 
     use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag
-    use bit_reps, only: decode_bit_det
+    use bit_reps, only: decode_bit_det, get_initiator_flag
     use CalcData
     use constants
     use FciMCData, only: determ_sizes, determ_displs, determ_space_size, &

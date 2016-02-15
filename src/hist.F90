@@ -20,7 +20,8 @@ module hist
     use constants, only: n_int, bits_n_int, size_n_int, lenof_sign
     use bit_rep_data, only: NIfTot, NIfD, extract_sign
     use bit_reps, only: encode_sign, extract_bit_rep, NOffSgn, &
-                        decode_bit_det, flag_initiator, test_flag
+                        decode_bit_det, flag_initiator, test_flag, &
+                        get_initiator_flag, get_weak_initiator_flag
     use parallel_neci
     use csf, only: get_num_csfs, csf_coeff, csf_get_yamas, write_yama, &
                    extract_dorder

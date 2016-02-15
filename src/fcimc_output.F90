@@ -636,7 +636,7 @@ contains
             ms = sum(get_spin_pn(Tempni(1:nel)))
             walkPopByMsReal(1+nel/2+ms/2) = walkPopByMsReal(1+nel/2+ms/2)+abs(TempSign(1))
             walkPopByMsImag(1+nel/2+ms/2) = walkPopByMsImag(1+nel/2+ms/2)+abs(TempSign(2))
-            write(88,*) ms, TempSign
+            write(mswalkercounts_unit,*) ms, TempSign
         enddo
 
         totWalkPopByMsReal = walkPopByMsReal

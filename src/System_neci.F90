@@ -6,7 +6,7 @@ MODULE System
                         occCASorbs, virtCASorbs, tPairedReplicas
 
     use sort_mod
-    use SymExcitDataMod, only: tBuildOccVirtList
+    use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use constants
     use iso_c_hack
     use util_mod, only: error_function, error_function_c
@@ -30,6 +30,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tReltvy = .false.
       tComplexOrbs_RealInts = .false.
       tReadFreeFormat=.true.
       tMolproMimic=.false.
@@ -873,6 +874,13 @@ system: do
                         ! (symrandexcit3.F90)
                         tPickVirtUniform = .true.
                         tBuildOccVirtList = .true.
+                    case("PICK-VIRT-UNIFORM-MAG")
+                        ! Pick virtual orbitals randomly and uniformly in the
+                        ! 3rd generation of random excitation generators
+                        ! (symrandexcit3.F90)
+                        tPickVirtUniform = .true.
+                        tBuildOccVirtList = .true.
+                        tBuildSpinSepLists = .true.
                     case("HEL-WEIGHTED-SLOW")
                         ! Pick excitations from any site with a generation
                         ! probability proportional to the connectiong HElement

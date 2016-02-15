@@ -11,6 +11,7 @@ module bit_reps
     use DetBitOps, only: count_open_orbs, CountBits
     use bit_rep_data
     use SymExcitDataMod, only: excit_gen_store_type, tBuildOccVirtList, &
+                               tBuildSpinSepLists, &
                                OrbClassCount, ScratchSize, SymLabelList2, &
                                SymLabelCounts2
     use sym_general_mod, only: ClassCountInd
@@ -37,6 +38,7 @@ module bit_reps
     interface decode_bit_det
 !        module procedure decode_bit_det_bitwise
         module procedure decode_bit_det_chunks
+        module procedure decode_bit_det_lists
     end interface
         
     integer, parameter :: l1(1:33)=(/0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,1,2,0,0,0,0,0,0,0,2,1,2,0,0,0/)
@@ -284,7 +286,11 @@ contains
         integer(n_int) :: sgn(lenof_sign)
 
         if (tBuildOccVirtList .and. present(store)) then
-            call decode_bit_det_lists (nI, ilut, store)
+            if(tBuildSpinSepLists) then
+                call decode_bit_det_spinsep (nI, ilut, store)
+            else
+                call decode_bit_det_lists (nI, ilut, store)
+            endif
         else
             call decode_bit_det (nI, ilut)
         endif
@@ -427,8 +433,9 @@ contains
     end subroutine encode_flags
 
 
-    pure function get_initiator_flag(sgn_index), result flag
-        integer :: sgn_index
+    pure function get_initiator_flag(sgn_index) result (flag)
+        integer, intent(in) :: sgn_index
+        integer :: flag
 #ifdef __CMPLX
         ! map 1->1, 2->1, 3->2, 4->2 with integer division
         flag = flag_initiator((sgn_index-1)/2+1) 
@@ -438,8 +445,9 @@ contains
     end function get_initiator_flag
 
 
-    pure function get_weak_initiator_flag(sgn_index), result flag
-        integer :: sgn_index
+    pure function get_weak_initiator_flag(sgn_index) result (flag)
+        integer, intent(in) :: sgn_index
+        integer :: flag
 #ifdef __CMPLX
         ! map 1->1, 2->1, 3->2, 4->2 with integer division
         flag = flag_weak_initiator((sgn_index-1)/2+1) 
@@ -814,6 +822,155 @@ contains
         endforall
 
     end subroutine
+
+
+ 
+
+
+    pure function getExcitationType(ExMat, IC) result(exTypeFlag)
+        integer, intent(in) :: ExMat(2,2), IC
+        integer :: exTypeFlag
+
+        if (IC==1) then
+            if (is_beta(ExMat(2,1)) .neqv. is_beta(ExMat(1,1))) then
+                exTypeFlag = 3
+                return
+            else
+                exTypeFlag = 1
+            endif
+
+        elseif (IC==2) then
+            if (is_beta(ExMat(1,1)) .and. is_beta(ExMat(1,2))) then
+                ! elec orbs are both beta
+                if (is_beta(ExMat(2,1)) .and. is_beta(ExMat(2,2))) then
+                    ! virt orbs are both beta
+                    exTypeFlag = 2
+                    return
+                elseif (is_alpha(ExMat(2,1)) .and. is_alpha(ExMat(2,2))) then
+                    ! virt orbs are both alpha
+                    exTypeFlag = 5
+                    return
+                else
+                    ! one of the spins changes
+                    exTypeFlag = 4
+                    return
+                endif
+            elseif (is_alpha(ExMat(1,1)) .and. is_alpha(ExMat(1,2))) then
+                ! elec orbs are both alpha
+                if (is_alpha(ExMat(2,1)) .and. is_alpha(ExMat(2,2))) then
+                    ! virt orbs are both alpha
+                    exTypeFlag = 2
+                    return
+                elseif (is_beta(ExMat(2,1)) .and. is_beta(ExMat(2,2))) then
+                    ! virt orbs are both beta
+                    exTypeFlag = 5
+                    return
+                else
+                    ! one of the spins changes
+                    exTypeFlag = 4
+                    return
+                endif
+            else
+                ! elec orb spins are different
+                if (is_beta(ExMat(2,1)) .neqv. is_beta(ExMat(2,2))) then
+                    ! virt orbs are of opposite spin
+                    exTypeFlag = 2
+                    return
+                else
+                    ! virt orbs are of the same spin
+                    exTypeFlag = 4
+                    return
+                endif
+            endif
+        endif
+
+    end function
+
+
+
+    subroutine decode_bit_det_spinsep (nI, iLut, store)
+
+        ! This routine decodes a determinant in bit form and constructs
+        ! the natural ordered integer representation of the det.
+        !
+        ! It also constructs lists of the occupied and unoccupied orbitals
+        ! within a symmetry.
+
+        integer(n_int), intent(in) :: iLut(0:niftot)
+        integer, intent(out) :: nI(:)
+        type(excit_gen_store_type), intent(inout) :: store
+        integer :: i, j, elec, orb, ind, virt(ScratchSize)
+        integer :: nel_loc
+
+        nel_loc = size(nI)
+
+        ! Initialise the class counts
+        store%ClassCountOcc = 0
+        virt = 0
+
+        elec = 0
+        store%nel_alpha = 0
+
+        do i = 0, NIfD
+            do j = 0, end_n_int
+                orb = (i * bits_n_int) + (j + 1)
+                ind = ClassCountInd(orb)
+                if (btest(iLut(i), j)) then
+                    !An electron is at this orbital
+                    elec = elec + 1
+                    nI(elec) = orb
+                   
+                    ! is the orbital spin alpha or beta?
+                    if (mod(ind,2)==1) then
+                        ! alpha
+                        store%nel_alpha = store%nel_alpha+1
+                        store%nI_alpha(store%nel_alpha) = orb
+                        store%nI_alpha_inds(store%nel_alpha) = elec
+                    else
+                        store%nI_beta(elec-store%nel_alpha) = orb
+                        store%nI_beta_inds(elec-store%nel_alpha) = elec
+                    endif 
+
+                    ! Update class counts
+                    store%ClassCountOcc(ind) = store%ClassCountOcc(ind) + 1
+
+                    ! Store orbital INDEX in list of occ. orbs.
+                    store%occ_list(store%ClassCountOcc(ind), ind) = elec
+
+                    if (elec == nel_loc) exit
+                else
+                    ! Update count
+                    virt(ind) = virt(ind) + 1
+        !            write(*,*) "filling virt"
+                    ! Store orbital in list of unocc. orbs.
+                    store%virt_list(virt(ind), ind) = orb
+                endif
+            enddo
+            if (elec == nel_loc) exit
+        enddo
+
+        ! Give final class count
+        store%ClassCountUnocc = OrbClassCount - store%ClassCountOcc
+        store%tFilled = .true.
+        store%scratch3(1) = -1
+
+        ! Fill in the remainder of the virtuals list
+        forall (ind = 1:ScratchSize)
+            !if (virt(ind) /= store%ClassCountUnocc(ind)) then
+                store%virt_list ( &
+                    virt(ind) + 1 : &
+                    store%ClassCountUnocc(ind), ind) = &
+                SymLabelList2 (&
+                    SymLabelCounts2(1, ind) + virt(ind) + &
+                        store%ClassCountOcc(ind) : &
+                    SymLabelCounts2(1, ind) + OrbClassCount(ind) - 1)
+            !endif
+        endforall
+
+    end subroutine
+
+
+
 
 
     subroutine decode_bit_det_chunks (nI, iLut)
