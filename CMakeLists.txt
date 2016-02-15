@@ -44,6 +44,11 @@ endif()
 
 option(SHARED_MEM "Enable shared memory" on)
 
+option(MOLCAS "Enable Molcas interface" off)
+if (MOLCAS)
+	add_definitions(-D_MOLCAS_)
+endif()
+
 ##############################################################################
 #                                                                            #
 # Compiler specific configuration                                            #
@@ -245,12 +250,16 @@ add_executable(neci ${F90_FILES} ${TEMPLATE_TARGETS})
 add_executable(mneci ${F90_FILES} ${TEMPLATE_TARGETS})
 add_executable(dneci ${F90_FILES} ${TEMPLATE_TARGETS})
 add_executable(kneci ${F90_FILES} ${TEMPLATE_TARGETS})
+add_executable(kdneci ${F90_FILES} ${TEMPLATE_TARGETS})
+add_executable(kmneci ${F90_FILES} ${TEMPLATE_TARGETS})
 
 # Add the testing executables
 add_executable(neci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
 add_executable(mneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
 add_executable(dneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
 add_executable(kneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
+add_executable(kdneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
+add_executable(kmneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
 
 # Add libraries
 set(BUILD_SHARED_LIBS "on")
@@ -262,9 +271,13 @@ add_library(libdneci ${F90_FILES} ${TEMPLATE_TARGETS})
 set_target_properties(libdneci PROPERTIES OUTPUT_NAME "dneci")
 add_library(libkneci ${F90_FILES} ${TEMPLATE_TARGETS})
 set_target_properties(libkneci PROPERTIES OUTPUT_NAME "kneci")
+add_library(libkdneci ${F90_FILES} ${TEMPLATE_TARGETS})
+set_target_properties(libkdneci PROPERTIES OUTPUT_NAME "kdneci")
+add_library(libkmneci ${F90_FILES} ${TEMPLATE_TARGETS})
+set_target_properties(libkmneci PROPERTIES OUTPUT_NAME "kmneci")
 
 # List of targets. Then loop over repeated target properties
-set(TARGETS neci mneci dneci kneci neci_test mneci_test dneci_test kneci_test libneci libmneci libdneci libkneci)
+set(TARGETS neci mneci dneci kneci kdneci kmneci neci_test mneci_test dneci_test kneci_test libneci libmneci libdneci libkneci)
 foreach(target ${TARGETS})
 
 	# Set the fortran modules directory for cleanliness, and to avoid collisions
@@ -282,24 +295,34 @@ target_compile_definitions(neci PUBLIC -DHElement_t=real)
 target_compile_definitions(dneci PUBLIC -DHElement_t=real -D__DOUBLERUN)
 target_compile_definitions(mneci PUBLIC -DHElement_t=real -D__PROG_NUMRUNS)
 target_compile_definitions(kneci PUBLIC -DHElement_t=complex -D__CMPLX)
+target_compile_definitions(kdneci PUBLIC -DHElement_t=complex -D__CMPLX -D__DOUBLERUN)
+target_compile_definitions(kmneci PUBLIC -DHElement_t=complex -D__CMPLX -D__PROG_NUMRUNS)
 target_compile_definitions(neci_test PUBLIC -DHElement_t=real)
 target_compile_definitions(dneci_test PUBLIC -DHElement_t=real -D__DOUBLERUN)
 target_compile_definitions(mneci_test PUBLIC -DHElement_t=real -D__PROG_NUMRUNS)
 target_compile_definitions(kneci_test PUBLIC -DHElement_t=complex -D__CMPLX)
+target_compile_definitions(kdneci_test PUBLIC -DHElement_t=complex -D__CMPLX -D__DOUBLERUN)
+target_compile_definitions(kmneci_test PUBLIC -DHElement_t=complex -D__CMPLX -D__PROG_NUMRUNS)
 target_compile_definitions(libneci PUBLIC -DHElement_t=real)
 target_compile_definitions(libdneci PUBLIC -DHElement_t=real -D__DOUBLERUN)
 target_compile_definitions(libmneci PUBLIC -DHElement_t=real -D__PROG_NUMRUNS)
 target_compile_definitions(libkneci PUBLIC -DHElement_t=complex -D__CMPLX)
+target_compile_definitions(libkdneci PUBLIC -DHElement_t=complex -D__CMPLX -D__DOUBLERUN)
+target_compile_definitions(libkmneci PUBLIC -DHElement_t=complex -D__CMPLX -D__PROG_NUMRUNS)
 
 # We don't want to compile the test executables unless asked for
 set_target_properties(neci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
 set_target_properties(kneci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(kdneci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(kmneci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
 set_target_properties(mneci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
 set_target_properties(dneci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
 # Ditto for libraries
 set_target_properties(libneci PROPERTIES EXCLUDE_FROM_ALL TRUE)
 set_target_properties(libkneci PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(libkdneci PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(libkmneci PROPERTIES EXCLUDE_FROM_ALL TRUE)
 set_target_properties(libmneci PROPERTIES EXCLUDE_FROM_ALL TRUE)
 set_target_properties(libdneci PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
@@ -405,9 +428,9 @@ if (PARALLEL)
 		get_filename_component(WRAPPER_NM ${MPI_Fortran_COMPILER} NAME)
 		if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel" AND NOT WRAPPER_NM STREQUAL "mpiifort")
 			message("-- Forcing use of mpiifort wrapper")
-			set(MPI_Fortran_COMPILER mpif90)
-			set(MPI_C_COMPILER mpicc)
-			set(MPI_CXX_COMPILER mpicxx)
+			set(MPI_Fortran_COMPILER mpiifort)
+			set(MPI_C_COMPILER mpiicc)
+			set(MPI_CXX_COMPILER mpiicpc)
 			find_package(MPI REQUIRED)
 			if (NOT ${MPI_FOUND})
 				message(FATAL_ERROR "No suitable MPI wrapper found for ifort")
@@ -462,7 +485,7 @@ if (HDF)
 	# --> Need to wrap this for HDF compilation
 	if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 		message("Tweaking environment vars")
-		set(CONFIGURE_OVERRIDE CC=mpicc FC=mpif90 F9X=mpif90 CXX=mpicxx)
+		set(CONFIGURE_OVERRIDE CC=mpiicc FC=mpiifort F9X=mpiifort CXX=mpiicpc)
 	elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "PGI")
 		set(CONFIGURE_OVERRIDE CC=mpicc FC=mpif90 F9X=mpif90 CXX=mpic++ CPP=cpp CXXPP=cpp)
 	elseif (ARCHER_OVERRIDES)

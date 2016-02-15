@@ -41,15 +41,41 @@ integer, parameter :: sizeof_sp = 4
 ! Give ourselves the option of lenof_sign/inum_runs being a runtime
 ! variable, rather than a compile-time constant
 #if defined(__PROG_NUMRUNS)
+#if defined(__CMPLX)
+!Complex integrals, (arbitrary, run-time) multiple replicas
+    integer :: nreplicas = 1    !1 or 2   
+    integer :: lenof_sign       !2 x inum_runs
+    integer :: inum_runs        !nreplicas x nstates
+    integer :: lenof_sign_kp
+    integer, parameter :: lenof_sign_max = 20
+    integer, parameter :: inum_runs_max = 20
+    integer, parameter :: sizeof_helement = 16
+    real(dp), parameter :: HEl_zero = cmplx(0.0_dp, 0.0_dp, dp)
+#else
+!Real integrals, (arbitrary, run-time) multiple replicas
     integer :: nreplicas = 1
     integer :: lenof_sign
     integer :: inum_runs
     integer :: lenof_sign_kp
     integer, parameter :: lenof_sign_max = 20
     integer, parameter :: inum_runs_max = 20
-    integer, parameter :: sizeof_helement = 8
+    integer, parameter :: sizeof_helement = 16
     real(dp), parameter :: HEl_zero = 0.0_dp
+#endif
+
 #elif defined(__DOUBLERUN)
+#if defined(__CMPLX)
+!Complex integrals, double replica
+    integer, parameter :: nreplicas = 2
+    integer, parameter :: lenof_sign = 4
+    integer, parameter :: inum_runs = 2          
+    integer, parameter :: lenof_sign_kp = 4
+    integer, parameter :: lenof_sign_max = lenof_sign
+    integer, parameter :: inum_runs_max = inum_runs
+    integer, parameter :: sizeof_helement = 16
+    real(dp), parameter :: HEl_zero = cmplx(0.0_dp, 0.0_dp, dp)
+#else
+!Real integrals, double replica
     integer, parameter :: nreplicas = 2
     integer, parameter :: lenof_sign = 2
     integer, parameter :: inum_runs = lenof_sign
@@ -58,7 +84,11 @@ integer, parameter :: sizeof_sp = 4
     integer, parameter :: inum_runs_max = inum_runs
     integer, parameter :: sizeof_helement = 8
     real(dp), parameter :: HEl_zero = 0.0_dp
-#elif defined(__CMPLX)
+#endif
+
+#else
+#if defined(__CMPLX)
+!Complex integrals, single replica
     integer, parameter :: nreplicas = 1
     integer, parameter :: lenof_sign = 2
     integer, parameter :: inum_runs = 1
@@ -68,6 +98,7 @@ integer, parameter :: sizeof_sp = 4
     integer, parameter :: sizeof_helement = 16
     complex(dp), parameter :: HEl_zero = cmplx(0.0_dp, 0.0_dp, dp)
 #else
+!Real, single replica
     integer, parameter :: nreplicas = 1
     integer, parameter :: lenof_sign = 1
     integer, parameter :: inum_runs = 1
@@ -77,6 +108,8 @@ integer, parameter :: sizeof_sp = 4
     integer, parameter :: sizeof_helement = 8
     real(dp), parameter :: HEl_zero = 0.0_dp
 #endif
+#endif
+
 real(dp), dimension(lenof_sign_max), parameter :: null_part = 0.0_dp
 
 !This is the integer type which is used in MPI call arguments
