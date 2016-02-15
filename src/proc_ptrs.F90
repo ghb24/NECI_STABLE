@@ -153,7 +153,7 @@ module procedure_pointers
 
         !
         ! Generic fill_rdm_diag_currdet routine
-        subroutine fill_rdm_diag_currdet_t (rdm, irdm, ilutI, nI, j, ExcitLevelI, &
+        subroutine fill_rdm_diag_currdet_t (spawn, rdm, irdm, ilutI, nI, j, ExcitLevelI, &
                                             tCoreSpaceDet)
 
             ! j --> Which slot in CurrentDets are we examining.
@@ -161,9 +161,11 @@ module procedure_pointers
             use bit_rep_data, only: NIfTot
             use constants
             use rdm_data, only: rdm_t
+            use rdm_parallel, only: rdm_spawn_t
             use SystemData, only: nel
             implicit none
 
+            type(rdm_spawn_t), intent(inout) :: spawn
             type(rdm_t), intent(inout) :: rdm
             integer, intent(in) :: irdm
             integer(n_int), intent(in) :: ilutI(0:NIfTot)

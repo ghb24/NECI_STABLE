@@ -41,7 +41,7 @@ module rdm_parallel
         integer, allocatable :: init_free_slots(:)
     end type rdm_spawn_t
 
-    type(rdm_spawn_t) :: rdm_spawn
+    type(rdm_spawn_t) :: two_rdm_spawn
 
 contains
 
@@ -59,7 +59,8 @@ contains
 
         type(rdm_spawn_t), intent(out) :: spawn
         integer, intent(in) :: nrdms, nrows, contribs_length, nhashes_rdm
-        integer :: ierr
+        integer :: i, ierr
+        real(dp) :: slots_per_proc
 
         spawn%nrdms = nrdms
         spawn%nrows = nrows
@@ -71,6 +72,18 @@ contains
 
         allocate(spawn%hash_table(nhashes_rdm), stat=ierr)
         call init_hash_table(spawn%hash_table)
+
+        allocate(spawn%free_slots(0:nProcessors-1), stat=ierr)
+        allocate(spawn%init_free_slots(0:nProcessors-1), stat=ierr)
+
+        ! Equally divide contribs across all processors.
+        slots_per_proc = real(contribs_length, dp)/real(nProcessors, dp)
+        do i = 0, nProcessors-1
+            spawn%init_free_slots(i) = nint(slots_per_proc*i)+1
+        end do
+
+        ! Set the free slots array to its initial value.
+        spawn%free_slots = spawn%init_free_slots
 
     end subroutine init_rdm_spawn_t
 
@@ -180,12 +193,12 @@ contains
             ! It is benefical to have no gaps here, for good load balancing.
             ij_compressed = (i-1)*(i-2)/2 + j
             ! Calculate processor for the element.
-            proc = ij_compressed*nProcessors/spawn%nrows
+            proc = (ij_compressed-1)*nProcessors/spawn%nrows
 
             ! Check that there is enough memory for the new spawned RDM entry.
             list_full = .false.
             if (proc == nProcessors - 1) then
-                if (spawn%free_slots(proc) > size(spawn%contribs,2)) list_full = .true.
+                if (spawn%free_slots(proc) > spawn%contribs_length) list_full = .true.
             else
                 if (spawn%free_slots(proc) > spawn%init_free_slots(proc+1)) list_full = .true.
             end if
@@ -203,6 +216,8 @@ contains
 
             spawn%free_slots(proc) = spawn%free_slots(proc) + 1
         end if
+
+        if (i < j .or. k < l) call stop_all("Here","Here")
 
     end subroutine add_to_rdm_spawn_t
 

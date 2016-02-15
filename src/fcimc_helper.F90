@@ -1671,6 +1671,7 @@ contains
                              DetPosition, walkExcitLevel)
 
         use rdm_data, only: rdms
+        use rdm_parallel, only: two_rdm_spawn
 
         integer, intent(in) :: DetCurr(nel) 
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
@@ -1734,7 +1735,7 @@ contains
             ! All walkers died.
             if(tFillingStochRDMonFly) then
                 do irdm = 1, nrdms
-                    call det_removed_fill_diag_rdm(rdms(irdm), irdm, CurrentDets(:,DetPosition), DetPosition)
+                    call det_removed_fill_diag_rdm(two_rdm_spawn, rdms(irdm), irdm, CurrentDets(:,DetPosition), DetPosition)
                 end do
                 ! Set the average sign and occupation iteration to zero, so
                 ! that the same contribution will not be added in in

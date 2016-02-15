@@ -40,7 +40,7 @@ contains
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data, only: rdm_estimates_unit, nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
         use rdm_data, only: rdm_estimates
-        use rdm_parallel, only: init_rdm_spawn_t, rdm_spawn
+        use rdm_parallel, only: init_rdm_spawn_t, two_rdm_spawn
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
         use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
@@ -69,9 +69,9 @@ contains
         ! factors such as imperfect load balancing (which affects the spawned
         ! array).
         rdm_nrows = nbasis*(nbasis-1)/2
-        contribs_length = 1.2*(rdm_nrows**2)/(32*nProcessors)
+        contribs_length = 1.2*(rdm_nrows**2)/(8*nProcessors)
         nhashes_rdm = 0.8*contribs_length
-        call init_rdm_spawn_t(rdm_spawn, nrdms, rdm_nrows, contribs_length, nhashes_rdm)
+        call init_rdm_spawn_t(two_rdm_spawn, nrdms, rdm_nrows, contribs_length, nhashes_rdm)
 
         if (nrdms > 1 .and. (tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles .or. RDMExcitLevel == 1)) then
             call stop_all(t_r, 'The RDM feature you have requested is not currently implemented &
