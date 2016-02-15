@@ -1072,7 +1072,6 @@ end module
         integer :: i, j, iexcit1, iexcit2, perm, iel1, iel2, max_excit
         integer :: set_bits
         logical :: testI, testJ
-        integer :: num_set_bits
 
         tSign=.true.
         max_excit = Ex(1,1)
@@ -1186,14 +1185,18 @@ end module
 !        enddo
 !        LargestOrb=LargestOrb+(i*32)
 
-        outer: do i=NIfD,0,-1
-            do j=end_n_int,0,-1
-                IF(BTEST(iLut(i),j)) THEN
-                    EXIT outer
-                ENDIF
+        ! Initialise with invalid value (in case being erroniously called on empty bit-string).
+        ASSERT(ilut /= 0)
+        LargestOrb = 99999
+
+        do i = NIfD, 0, -1
+            do j = end_n_int, 0, -1
+                if (btest(iLut(i), j)) then
+                    LargestOrb = (i * bits_n_int) + j + 1
+                    return
+                end if
             enddo
-        enddo outer
-        LargestOrb=(i*bits_n_int)+j+1
+        enddo
 
     END SUBROUTINE LargestBitSet
 
