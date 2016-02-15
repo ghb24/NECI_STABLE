@@ -646,8 +646,8 @@ contains
 
         ssq = 0
         do i = 1, int(TotWalkers,sizeof_int)
-            if ((test_flag(CurrentDets(:,i), flag_initiator(1)) .or. &
-                 test_flag(CurrentDets(:,i), flag_initiator(lenof_sign)))&
+            if ((test_flag(CurrentDets(:,i), get_initiator_flag(1)) .or. &
+                 test_flag(CurrentDets(:,i), get_initiator_flag(lenof_sign)))&
                  .and. .not. TestClosedShellDet(CurrentDets(:,i))) then
                 ssq = ssq + ssquared_contrib (CurrentDets(:,i), only_init)
             end if
@@ -873,9 +873,9 @@ contains
                             if (nsend == max_per_proc) exit
 
                             if (test_flag(CurrentDets(:,i), &
-                                          flag_initiator(1)) .or. &
+                                          get_initiator_flag(1)) .or. &
                                 test_flag(CurrentDets(:,i), &
-                                          flag_initiator(lenof_sign))) then
+                                          get_initiator_flag(lenof_sign))) then
                                 nsend = nsend + 1
                                 recv_dets(:,nsend) = CurrentDets(:,i)
 
@@ -1032,9 +1032,9 @@ contains
                             inc = .true.
                             if (tTruncInitiator .and. only_init) then
                                 if (test_flag(CurrentDets(:,pos), &
-                                              flag_initiator(1)) .or. &
+                                              get_initiator_flag(1)) .or. &
                                     test_flag(CurrentDets(:,pos), &
-                                              flag_initiator(lenof_sign)))&
+                                              get_initiator_flag(lenof_sign)))&
                                                                     then
                                     inc = .true.
                                 else

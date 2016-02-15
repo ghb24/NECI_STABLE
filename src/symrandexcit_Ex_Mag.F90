@@ -32,6 +32,7 @@ module symrandexcit_Ex_mag
     use util_mod, only: binary_search_first_ge
     use symrandexcit3, only: pick_elec_pair, count_orb_pairs, select_syms, select_orb_pair, &
                              create_excit_det2, construct_class_counts
+    use symexcit3, only: GenSingleExcit
     implicit none
 
 contains
@@ -54,9 +55,34 @@ contains
         real(dp) :: r
         character(*), parameter :: this_routine = 'gen_rand_excit_Ex_Mag' 
         integer :: excitType, i
+        
+        logical tAllExcitFound, tij_lt_ab_only, tSpinRestrict
+        integer doubleExcitsFound
+
+ 
         ! Just in case
         ilutJ(0) = -1
         HElGen = 0.0_dp
+
+        
+!        tAllExcitFound = .false.
+!        tij_lt_ab_only = .true.
+!        tSpinRestrict = .true.
+
+!        doubleExcitsFound = -1
+
+ !       ExcitMat(1,1)=0
+ !       do while(.not. tAllExcitFound)        
+ !           call GenSingleExcit(nI,iLutI,nJ,1,ExcitMat,tParity,tAllExcitFound,tij_lt_ab_only)
+ !           doubleExcitsFound = doubleExcitsFound + 1
+ !       enddo
+
+!        write(*,*) "single excits found", doubleExcitsFound
+!        call stop_all(this_routine, "found excits")
+
+
+
+
 
         ! UEG and Hubbard interjection for now
         ! TODO: This should be made into its own fn-pointered case.

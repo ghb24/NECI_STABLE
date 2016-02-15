@@ -479,10 +479,10 @@ module AnnihilationMod
         ! set.
         if (tTruncInitiator) then
             if ((abs(cum_sgn) > 1.e-12_dp .and. abs(new_sgn) > 1.e-12_dp) .or. &
-                 test_flag(new_det, flag_initiator(part_type))) &
-                call set_flag(cum_det, flag_initiator(part_type))
-            if(tWeakInitiators.and.test_flag(new_det, flag_weak_initiator(part_type))) &
-                call set_flag(cum_det, flag_weak_initiator(part_type))
+                 test_flag(new_det, get_initiator_flag(part_type))) &
+                call set_flag(cum_det, get_initiator_flag(part_type))
+            if(tWeakInitiators.and.test_flag(new_det, get_weak_initiator_flag(part_type))) &
+                call set_flag(cum_det, get_weak_initiator_flag(part_type))
         end if
 
         sgn_prod = cum_sgn * new_sgn
@@ -626,7 +626,7 @@ module AnnihilationMod
                             ! walker type/set we're considering. We need to
                             ! decide whether to abort it or not.
                             if (tTruncInitiator) then
-                                if (.not. test_flag (SpawnedParts(:,i), flag_initiator(j)) .and. &
+                                if (.not. test_flag (SpawnedParts(:,i), get_initiator_flag(j)) .and. &
                                      .not. tDetermState) then
                                     ! Walkers came from outside initiator space.
                                     NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
@@ -893,7 +893,7 @@ module AnnihilationMod
 
         ! If a particle comes from a site marked as an initiator, then it can
         ! live
-        if (test_flag(ilut_spwn, flag_initiator(part_type))) then
+        if (test_flag(ilut_spwn, get_initiator_flag(part_type))) then
             abort = .false.
             return
         end if

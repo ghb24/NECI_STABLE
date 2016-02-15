@@ -11,7 +11,6 @@ module bit_reps
     use DetBitOps, only: count_open_orbs, CountBits
     use bit_rep_data
     use SymExcitDataMod, only: excit_gen_store_type, tBuildOccVirtList, &
-                               tBuildSpinSepLists, &
                                OrbClassCount, ScratchSize, SymLabelList2, &
                                SymLabelCounts2
     use sym_general_mod, only: ClassCountInd
@@ -38,7 +37,6 @@ module bit_reps
     interface decode_bit_det
 !        module procedure decode_bit_det_bitwise
         module procedure decode_bit_det_chunks
-!        module procedure decode_bit_det_lists
     end interface
         
     integer, parameter :: l1(1:33)=(/0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,1,2,0,0,0,0,0,0,0,2,1,2,0,0,0/)
@@ -191,6 +189,16 @@ contains
             tUseFlags = .true.
         else
             tUseFlags = .false.
+            if(flag_bit_offset<19) then
+                write(6,"(A)") "The determinant weight is being packaged up with"   &
+                    //"the sign information for faster communication"
+                write(6,"(A)") "However, the number of bits remaining for the"  &
+                    //"weight corresponds to less than 250,000 walkers on a single determinant"
+                write(6,"(A)") "Recompile with 64-bit, remove flags, or use" &
+                    //"seperate flag integer highly recommended"
+                call warning(this_routine,"The determinant weight and flag" &
+                        //"information is dangerously oversubscribed!")
+            endif
         end if
 #ifdef __PROG_NUMRUNS
         if (lenof_sign_max /= 20) then
@@ -275,13 +283,8 @@ contains
         real(dp), intent(out) :: real_sgn(lenof_sign)
         integer(n_int) :: sgn(lenof_sign)
 
-
         if (tBuildOccVirtList .and. present(store)) then
-            if(tBuildSpinSepLists) then
-                call decode_bit_det_spinsep (nI, ilut, store)
-            else
-                call decode_bit_det_lists (nI, ilut, store)
-            endif
+            call decode_bit_det_lists (nI, ilut, store)
         else
             call decode_bit_det (nI, ilut)
         endif
@@ -310,6 +313,7 @@ contains
 
     end subroutine extract_bit_rep
 
+    !Extract all flags as a single integer
     function extract_flags (iLut) result(flags)
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer :: flags
@@ -322,6 +326,7 @@ contains
 
     end function extract_flags
 
+    !Extract the sign (as a real_dp) for a particular element in the lenof_sign "array"
     function extract_part_sign (ilut, part_type) result(real_sgn)
 
         integer(n_int), intent(in) :: ilut(0:niftot)
@@ -349,6 +354,8 @@ contains
 
     end function
 
+    !From the determinants, array of signs, and flag integer, create the
+    !"packaged walker" representation
     subroutine encode_bit_rep (ilut, Det, real_sgn, flag)
         integer(n_int), intent(out) :: ilut(0:nIfTot)
         real(dp), intent(in) :: real_sgn(lenof_sign)
@@ -412,11 +419,34 @@ contains
         ! including both in the same integer.
         !
         ! This includes not trampling on the sign bit stored with the flags.
-        iLut(NOffFlag) = ior(iand(ilut(NOffFlag), sign_neg_mask), &
+
+        iLut(NOffFlag) = ior( iand(ilut(NOffFlag), sign_neg_mask), &
                              ishft(int(ibclr(flag,flag_negative_sign), n_int),&
                                    flag_bit_offset))
 
     end subroutine encode_flags
+
+
+    pure function get_initiator_flag(sgn_index), result flag
+        integer :: sgn_index
+#ifdef __CMPLX
+        ! map 1->1, 2->1, 3->2, 4->2 with integer division
+        flag = flag_initiator((sgn_index-1)/2+1) 
+#else
+        flag = flag_initiator(sgn_index) 
+#endif
+    end function get_initiator_flag
+
+
+    pure function get_weak_initiator_flag(sgn_index), result flag
+        integer :: sgn_index
+#ifdef __CMPLX
+        ! map 1->1, 2->1, 3->2, 4->2 with integer division
+        flag = flag_weak_initiator((sgn_index-1)/2+1) 
+#else
+        flag = flag_weak_initiator(sgn_index) 
+#endif
+    end function get_weak_initiator_flag
 
     subroutine clear_all_flags (ilut)
 
@@ -730,7 +760,7 @@ contains
         type(excit_gen_store_type), intent(inout) :: store
         integer :: i, j, elec, orb, ind, virt(ScratchSize)
         integer :: nel_loc
-        
+
         nel_loc = size(nI)
 
         ! Initialise the class counts
@@ -769,8 +799,6 @@ contains
         store%ClassCountUnocc = OrbClassCount - store%ClassCountOcc
         store%tFilled = .true.
         store%scratch3(1) = -1
-
-        write(*,*) "virt_list", store%virt_list
 
         ! Fill in the remaineder of the virtuals list
         forall (ind = 1:ScratchSize)
@@ -785,152 +813,7 @@ contains
             !endif
         endforall
 
-
     end subroutine
-
-
-    pure function getExcitationType(ExMat, IC) result(exTypeFlag)
-        integer, intent(in) :: ExMat(2,2), IC
-        integer :: exTypeFlag
-
-        if (IC==1) then
-            if (is_beta(ExMat(2,1)) .neqv. is_beta(ExMat(1,1))) then
-                exTypeFlag = 3
-                return
-            else
-                exTypeFlag = 1
-            endif
-
-        elseif (IC==2) then
-            if (is_beta(ExMat(1,1)) .and. is_beta(ExMat(1,2))) then
-                ! elec orbs are both beta
-                if (is_beta(ExMat(2,1)) .and. is_beta(ExMat(2,2))) then
-                    ! virt orbs are both beta
-                    exTypeFlag = 2
-                    return
-                elseif (is_alpha(ExMat(2,1)) .and. is_alpha(ExMat(2,2))) then
-                    ! virt orbs are both alpha
-                    exTypeFlag = 5
-                    return
-                else
-                    ! one of the spins changes
-                    exTypeFlag = 4
-                    return
-                endif
-            elseif (is_alpha(ExMat(1,1)) .and. is_alpha(ExMat(1,2))) then
-                ! elec orbs are both alpha
-                if (is_alpha(ExMat(2,1)) .and. is_alpha(ExMat(2,2))) then
-                    ! virt orbs are both alpha
-                    exTypeFlag = 2
-                    return
-                elseif (is_beta(ExMat(2,1)) .and. is_beta(ExMat(2,2))) then
-                    ! virt orbs are both beta
-                    exTypeFlag = 5
-                    return
-                else
-                    ! one of the spins changes
-                    exTypeFlag = 4
-                    return
-                endif
-            else
-                ! elec orb spins are different
-                if (is_beta(ExMat(2,1)) .neqv. is_beta(ExMat(2,2))) then
-                    ! virt orbs are of opposite spin
-                    exTypeFlag = 2
-                    return
-                else
-                    ! virt orbs are of the same spin
-                    exTypeFlag = 4
-                    return
-                endif
-            endif
-        endif
-
-    end function
-
-
-
-    subroutine decode_bit_det_spinsep (nI, iLut, store)
-
-        ! This routine decodes a determinant in bit form and constructs
-        ! the natural ordered integer representation of the det.
-        !
-        ! It also constructs lists of the occupied and unoccupied orbitals
-        ! within a symmetry.
-
-        integer(n_int), intent(in) :: iLut(0:niftot)
-        integer, intent(out) :: nI(:)
-        type(excit_gen_store_type), intent(inout) :: store
-        integer :: i, j, elec, orb, ind, virt(ScratchSize)
-        integer :: nel_loc
-
-        nel_loc = size(nI)
-
-        ! Initialise the class counts
-        store%ClassCountOcc = 0
-        virt = 0
-
-        elec = 0
-        store%nel_alpha = 0
-
-        do i = 0, NIfD
-            do j = 0, end_n_int
-                orb = (i * bits_n_int) + (j + 1)
-                ind = ClassCountInd(orb)
-                if (btest(iLut(i), j)) then
-                    !An electron is at this orbital
-                    elec = elec + 1
-                    nI(elec) = orb
-                   
-                    ! is the orbital spin alpha or beta?
-                    if (mod(ind,2)==1) then
-                        ! alpha
-                        store%nel_alpha = store%nel_alpha+1
-                        store%nI_alpha(store%nel_alpha) = orb
-                        store%nI_alpha_inds(store%nel_alpha) = elec
-                    else
-                        store%nI_beta(elec-store%nel_alpha) = orb
-                        store%nI_beta_inds(elec-store%nel_alpha) = elec
-                    endif 
-
-                    ! Update class counts
-                    store%ClassCountOcc(ind) = store%ClassCountOcc(ind) + 1
-
-                    ! Store orbital INDEX in list of occ. orbs.
-                    store%occ_list(store%ClassCountOcc(ind), ind) = elec
-
-                    if (elec == nel_loc) exit
-                else
-                    ! Update count
-                    virt(ind) = virt(ind) + 1
-        !            write(*,*) "filling virt"
-                    ! Store orbital in list of unocc. orbs.
-                    store%virt_list(virt(ind), ind) = orb
-                endif
-            enddo
-            if (elec == nel_loc) exit
-        enddo
-
-        ! Give final class count
-        store%ClassCountUnocc = OrbClassCount - store%ClassCountOcc
-        store%tFilled = .true.
-        store%scratch3(1) = -1
-
-        ! Fill in the remainder of the virtuals list
-        forall (ind = 1:ScratchSize)
-            !if (virt(ind) /= store%ClassCountUnocc(ind)) then
-                store%virt_list ( &
-                    virt(ind) + 1 : &
-                    store%ClassCountUnocc(ind), ind) = &
-                SymLabelList2 (&
-                    SymLabelCounts2(1, ind) + virt(ind) + &
-                        store%ClassCountOcc(ind) : &
-                    SymLabelCounts2(1, ind) + OrbClassCount(ind) - 1)
-            !endif
-        endforall
-
-    end subroutine
-
 
 
     subroutine decode_bit_det_chunks (nI, iLut)
@@ -1037,7 +920,7 @@ contains
     subroutine decode_bit_det_bitwise (nI, iLut)
 
         ! This is a routine to take a determinant in bit form and construct 
-        ! the natural ordered integer form of the det.
+        ! the natural ordered integer forim of the det.
         ! If CSFs are enabled, transfer the yamanouchi symbol as well.
 
         integer(n_int), intent(in) :: iLut(0:NIfTot)

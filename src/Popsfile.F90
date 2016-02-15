@@ -800,10 +800,10 @@ r_loop: do while(.not.tStoreDet)
             if (tUseFlags) call encode_flags (WalkerTemp, flg)
 
             if((inum_runs.eq.2).and.(PopNifSgn.eq.1)) then
-                if (test_flag(WalkerTemp, flag_initiator(1))) then
-                    call set_flag(WalkerTemp, flag_initiator(2))
+                if (test_flag(WalkerTemp, get_initiator_flag(1))) then
+                    call set_flag(WalkerTemp, get_initiator_flag(2))
                 else
-                    call clr_flag(WalkerTemp, flag_initiator(2))
+                    call clr_flag(WalkerTemp, get_initiator_flag(2))
                 endif
             endif
             

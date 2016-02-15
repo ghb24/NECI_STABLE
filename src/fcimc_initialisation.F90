@@ -1742,8 +1742,8 @@ contains
             ! Set reference determinant as an initiator if
             ! tTruncInitiator is set, for both imaginary and real flags
             if (tTruncInitiator) then
-                call set_flag (CurrentDets(:,1), flag_initiator(1))
-                call set_flag (CurrentDets(:,1), flag_initiator(2))
+                call set_flag (CurrentDets(:,1), get_initiator_flag(1))
+                call set_flag (CurrentDets(:,1), get_initiator_flag(2))
             endif
 
             ! If running a semi-stochastic simulation, set flag to specify the Hartree-Fock is in the
@@ -1884,7 +1884,7 @@ contains
 
                 ! Set reference determinant as an initiator if tTruncInitiator
                 if (tTruncInitiator) then
-                    call set_flag(CurrentDets(:, site), flag_initiator(run))
+                    call set_flag(CurrentDets(:, site), get_initiator_flag(run))
 #ifdef __CMPLX
                     call stop_all(this_routine, "Needs adjusting")
 #endif
@@ -2670,8 +2670,8 @@ contains
                 call encode_sign(CurrentDets(:,DetIndex),temp_sign)
                 if(tTruncInitiator) then
                     !Set initiator flag (always for HF)
-                    call set_flag(CurrentDets(:,DetIndex),flag_initiator(1))
-                    call set_flag(CurrentDets(:,DetIndex),flag_initiator(2))
+                    call set_flag(CurrentDets(:,DetIndex),get_initiator_flag(1))
+                    call set_flag(CurrentDets(:,DetIndex),get_initiator_flag(2))
                 endif
                 call set_det_diagH(DetIndex, 0.0_dp)
 

@@ -50,25 +50,27 @@ module bit_rep_data
                           flag_trial = 2, &
                           flag_connected = 3, &
                           flag_has_been_initiator(1) = 4, &
-                          flag_unused1 = 5, &
-                          flag_unused2 = 6, &
-                          flag_unused3 = 7, &
-                          flag_ic0_spawn = 8, &
-                          flag_death_done = 9, &
-                          flag_negative_sign = 10
+                          flag_negative_sign = 5
+
+!                          flag_unused1 = 5, &
+!                          flag_unused2 = 6, &
+!                          flag_unused3 = 7, &
+!                          flag_ic0_spawn = 8, &
+!                          flag_death_done = 9, &
+!                          flag_negative_sign = 10
 
 #ifdef __PROG_NUMRUNS
     integer, parameter :: flag_initiator(lenof_sign_max) &
-                            = (/11, 12, 13, 14, 15, 16, 17, 18, 19, 20, &
-                                21, 22, 23, 24, 25, 26, 27, 28, 29, 30/), &
+                            = (/6, 7, 8, 9, 10, 11, 12, 13, 14, 15, &
+                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25/), &
                           flag_weak_initiator(lenof_sign_max) &
-                            = (/31, 32, 33, 34, 35, 36, 37, 38, 39, 40, &
-                                41, 42, 43, 44, 45, 46, 47, 48, 49, 50/), &
-                          num_flags = 51
+                            = (/26, 27, 28, 29, 30, 31, 32, 33, 34, 35, &
+                                36, 37, 38, 39, 40, 41, 42, 43, 44, 45/), &
+                          num_flags = 46
 #else
-    integer, parameter :: flag_initiator(2) = (/11,12/), &
-                          flag_weak_initiator(2) = (/13,14/), &
-                          num_flags = 15
+    integer, parameter :: flag_initiator(2) = (/6,7/), &
+                          flag_weak_initiator(2) = (/8,9/), &
+                          num_flags = 10
 #endif
 
     ! IMPORTANT

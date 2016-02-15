@@ -40,7 +40,7 @@ module fcimc_helper
                         init_survival_mult, MaxWalkerBloom, &
                         tMultiReplicaInitiators, NMCyc, iSampleRDMIters, &
                         tSpawnCountInitiatorThreshold, init_spawn_thresh, &
-                        tOrthogonaliseReplicas, tPairedReplicas, &
+                        tPairedReplicas, &
                         tBroadcastParentCoeff, tWeakInitiators, weakthresh
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
@@ -136,18 +136,18 @@ contains
         ! If the parent was an initiator then set the initiator flag for the
         ! child, to allow it to survive.
         if (tTruncInitiator) then
-            if (test_flag(ilutI, flag_initiator(part_type)).or.test_flag(ilutI, flag_weak_initiator(part_type))) &
-                call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_initiator(part_type))
+            if (test_flag(ilutI, get_initiator_flag(part_type)).or.test_flag(ilutI, get_weak_initiator_flag(part_type))) &
+                call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type))
             if (tWeakInitiators) then
-              if(test_flag(ilutI, flag_initiator(part_type))) then
+              if(test_flag(ilutI, get_initiator_flag(part_type))) then
                 r = genrand_real2_dSFMT()
                         if(weakthresh > r) then
-                             call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_weak_initiator(part_type))
+                             call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_weak_initiator_flag(part_type))
                         else
-                             call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_weak_initiator(part_type),.false.)
+                             call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_weak_initiator_flag(part_type),.false.)
                         endif
               else
-                call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_weak_initiator(part_type),.false.)
+                call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_weak_initiator_flag(part_type),.false.)
               endif
             endif
 
@@ -187,12 +187,12 @@ contains
             ! Test the specific flag corresponding to the parent, of type
             ! 'part_type'
             parent_init = test_flag(SpawnedParts(:,ValidSpawnedList(proc)), &
-                                    flag_initiator(part_type))
+                                    get_initiator_flag(part_type))
             ! Assign this flag to all spawned children.
             do j=1,lenof_sign
                 if (child(j) /= 0) then
                     call set_flag (SpawnedParts(:,ValidSpawnedList(proc)), &
-                                   flag_initiator(j), parent_init)
+                                   get_initiator_flag(j), parent_init)
                 endif
             enddo
         end if
@@ -253,8 +253,8 @@ contains
             ! then set the initiator flag. Also if this child was spawned from
             ! an initiator, set the initiator flag.
             if (tTruncInitiator) then
-                if (abs(real_sign_old(part_type)) > 1.e-12_dp .or. test_flag(ilut_parent, flag_initiator(part_type))) &
-                    call set_flag(SpawnedParts(:,ind), flag_initiator(part_type))
+                if (abs(real_sign_old(part_type)) > 1.e-12_dp .or. test_flag(ilut_parent, get_initiator_flag(part_type))) &
+                    call set_flag(SpawnedParts(:,ind), get_initiator_flag(part_type))
             end if
         else
             ! Determine which processor the particle should end up on in the
@@ -283,8 +283,8 @@ contains
             ! If the parent was an initiator then set the initiator flag for the
             ! child, to allow it to survive.
             if (tTruncInitiator) then
-                if (test_flag(ilut_parent, flag_initiator(part_type))) &
-                    call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_initiator(part_type))
+                if (test_flag(ilut_parent, get_initiator_flag(part_type))) &
+                    call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type))
             end if
 
             call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
@@ -499,7 +499,7 @@ contains
                 if (tPrintOrbOccInit) &
                     write(6,*) 'Only doing so for initiator determinants'
             end if
-            if ((tPrintOrbOccInit .and. test_flag(ilut,flag_initiator(1)))&
+            if ((tPrintOrbOccInit .and. test_flag(ilut,get_initiator_flag(1)))&
                 .or. .not. tPrintOrbOccInit) then
                 forall (i = 1:nel) OrbOccs(iand(nI(i), csf_orbital_mask)) &
                         = OrbOccs(iand(nI(i), csf_orbital_mask)) &
@@ -687,7 +687,7 @@ contains
             !      there to be initiators on multiple particle types, there
             !      must be some merging happening.
             if (tMultiReplicaInitiators) then
-                parent_init = test_flag (CurrentDets(:,j), flag_initiator(1))
+                parent_init = test_flag (CurrentDets(:,j), get_initiator_flag(1))
                 ! We sum the sign. Given that the reference site always has
                 ! positive walkers on it, this is a sensible test.
                 parent_init = TestInitiator(CurrentDets(:,j), parent_init, &
@@ -700,7 +700,7 @@ contains
 
                 if (.not. tMultiReplicaInitiators) then
                     ! By default, the parent_flags are the flags of the parent.
-                    parent_init = test_flag (CurrentDets(:,j), flag_initiator(part_type))
+                    parent_init = test_flag (CurrentDets(:,j), get_initiator_flag(part_type))
 
                     ! Should this particle be considered to be an initiator
                     ! for spawning purposes.
@@ -719,7 +719,7 @@ contains
                 endif
 
                 ! Update the parent flag as required.
-                call set_flag (CurrentDets(:,j), flag_initiator(part_type), parent_init)
+                call set_flag (CurrentDets(:,j), get_initiator_flag(part_type), parent_init)
 
                 if (parent_init) &
                     call set_has_been_initiator(CurrentDets(:,j), &
@@ -1719,7 +1719,7 @@ contains
                     NoAborted = NoAborted + abs(CopySign(i))
                     iter_data%naborted(i) = iter_data%naborted(i) &
                                           + abs(CopySign(i))
-                    if (test_flag(ilutCurr, flag_initiator(i))) &
+                    if (test_flag(ilutCurr, get_initiator_flag(i))) &
                         NoAddedInitiators = NoAddedInitiators - 1
                     CopySign(i) = 0
                 end if
@@ -1745,9 +1745,9 @@ contains
 
             if (tTruncInitiator) then
                 ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
-                if (test_flag(iLutCurr,flag_initiator(1))) then
+                if (test_flag(iLutCurr,get_initiator_flag(1))) then
                     NoAddedInitiators = NoAddedInitiators - 1
-                else if (test_flag(iLutCurr,flag_initiator(lenof_sign))) then
+                else if (test_flag(iLutCurr,get_initiator_flag(lenof_sign))) then
                     NoAddedInitiators(inum_runs) = NoAddedInitiators(inum_runs) - 1
                 end if
             end if

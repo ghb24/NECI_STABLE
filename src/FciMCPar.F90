@@ -925,13 +925,13 @@ module FciMCParMod
                                             ! RDMBiasFacCurr are not used unless we're 
                                             ! doing an RDM calculation.
                                             
-                        ms = sum(get_spin_pn(nJ(1:nel)))
+                        !ms = sum(get_spin_pn(nJ(1:nel)))
 
-                        if (any(child/=0)) then 
+                        !rjaif (any(child/=0)) then 
                             ! update walker populations on ms sectors
-                            walkPopByMsReal(1+nel/2+ms/2) = walkPopByMsReal(1+nel/2+ms/2)+abs(child(1))
-                            walkPopByMsImag(1+nel/2+ms/2) = walkPopByMsImag(1+nel/2+ms/2)+abs(child(2))
-                        endif
+                        !    walkPopByMsReal(1+nel/2+ms/2) = walkPopByMsReal(1+nel/2+ms/2)+abs(child(1))
+                        !    walkPopByMsImag(1+nel/2+ms/2) = walkPopByMsImag(1+nel/2+ms/2)+abs(child(2))
+                        !endif
 
                     else
                         child = 0.0_dp

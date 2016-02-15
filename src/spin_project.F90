@@ -518,7 +518,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         if (tTruncInitiator) then
             do i = 1, lenof_sign
                 ! We always want our particles to survive.
-                call set_flag (ilutJ, flag_initiator(i))
+                call set_flag (ilutJ, get_initiator_flag(i))
             enddo
         endif
 

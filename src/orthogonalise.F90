@@ -35,7 +35,7 @@ contains
         ASSERT(inum_runs == lenof_sign)
 #ifndef __PROG_NUMRUNS
         call stop_all(this_routine, "orthogonalise replicas requires mneci.x")
-#else
+#endif
 
         ! If we are using the symmetric orthogonaliser, then bypass this
         ! routine...
@@ -149,7 +149,6 @@ contains
             end do
         end do
 
-#endif
 
         ! We now need to aggregate statistics here, rather than at the end
         ! of annihilation, as they have been modified by this routine...

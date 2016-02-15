@@ -677,7 +677,7 @@ contains
                 call set_flag(CurrentDets(:,PartInd), flag_deterministic)
                 if (tTruncInitiator) then
                     do j = 1, lenof_sign
-                        call set_flag(CurrentDets(:,PartInd), flag_initiator(j))
+                        call set_flag(CurrentDets(:,PartInd), get_initiator_flag(j))
                     end do
                 end if
                 MinInd = PartInd

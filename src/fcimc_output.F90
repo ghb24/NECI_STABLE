@@ -627,8 +627,21 @@ contains
     end subroutine write_fcimcstats2
 
     subroutine writeMsWalkerCountsAndCloseUnit()
-        integer :: i, ms
-        real(dp) :: totWalkPopByMsReal(nel+1), totWalkPopByMsImag(nel+1)
+        integer :: i, ms, tempni(1:nel)
+        real(dp) :: totWalkPopByMsReal(nel+1), totWalkPopByMsImag(nel+1), tempSign(2)
+        
+        do i=1,TotWalkers
+            call extract_sign(WalkVecDets(:,i),TempSign)
+            call decode_bit_det(TempnI, WalkVecDets(:,i))
+            ms = sum(get_spin_pn(Tempni(1:nel)))
+            walkPopByMsReal(1+nel/2+ms/2) = walkPopByMsReal(1+nel/2+ms/2)+abs(TempSign(1))
+            walkPopByMsImag(1+nel/2+ms/2) = walkPopByMsImag(1+nel/2+ms/2)+abs(TempSign(2))
+            write(88,*) ms, TempSign
+        enddo
+
+        totWalkPopByMsReal = walkPopByMsReal
+        totWalkPopByMsImag = walkPopByMsImag
+
         ! sum the populations from all processors
         call MPISumAll(walkPopByMsReal, totWalkPopByMsReal)
         call MPISumAll(walkPopByMsImag, totWalkPopByMsImag)

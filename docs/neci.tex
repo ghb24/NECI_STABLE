@@ -281,6 +281,23 @@
 	Archer and prompt the user to use these settings. If they are not
 	used, then the build will fail.
 
+\subsubsection{Compilation on ADA}
+	Begin by clearing out the build environment. At the terminal execute:
+	\begin{lstlisting}[gobble=4]
+		module purge
+		module load environments/addons/cmake-2.8.2
+	\end{lstlisting}
+	Next, for GNU:
+	\begin{lstlisting}[gobble=4]
+		module load environments/programming/gcc-4.8.2
+	\end{lstlisting}
+	Or Intel:
+	\begin{lstlisting}[gobble=4]
+		module load compilers/intel/15.0.0.090
+		module load mpi/openmpi/1.8.2/intel15.0-threads
+	\end{lstlisting}
+	then run Cmake as normal.
+
 \subsection{Configuring builds (Makefile system)}
 	A specific configuration for building NECI is initialised by using the
 	command
