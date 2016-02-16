@@ -57,7 +57,7 @@ contains
 
     end subroutine init_rdm_spawn_t
 
-    pure subroutine calc_combined_rdm_label(p, q, r, s pqrs)
+    pure subroutine calc_combined_rdm_label(p, q, r, s, pqrs)
 
         ! Combine the four 2-RDM spin orbital labels into unique integers.
         ! p and q are combined into one number, pq. r and s are combined into
@@ -261,6 +261,6 @@ contains
         ! normalisation to be (nel*(nel-1))/2.
         rdm_trace = rdm_trace * 2.0_dp/(nel*(nel-1))
 
-    end subroutine calc_rdm_energy
+    end subroutine calc_rdm_trace
 
 end module rdm_parallel
