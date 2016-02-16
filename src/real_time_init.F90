@@ -4,27 +4,32 @@
 
 module real_time_init
 
-    use real_time_data, only: t_real_time_fciqmc, gf_type, real_time_info
-    use real_time_procs, only: create_perturbed_ground
+    use real_time_data, only: t_real_time_fciqmc, gf_type, real_time_info, &
+                              t_complex_ints, gf_overlap, wf_norm, temp_det_list, &
+                              temp_det_pointer, temp_det_hash, temp_freeslot
+    use real_time_procs, only: create_perturbed_ground, setup_temp_det_list
 
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
     use Parallel_neci, only: nProcessors
-    use ParallelHelper, only: iProcIndex, root
+    use ParallelHelper, only: iProcIndex, root, MPIbarrier
     use util_mod, only: get_unique_filename
     use Logging, only: tIncrementPops
-    use CalcData, only: iPopsFileNoRead, tWritePopsNorm
     use kp_fciqmc_data_mod, only: scaling_factor, tMultiplePopStart, tScalePopulation, &
                                   tOverlapPert, overlap_pert
     use CalcData, only: tChangeProjEDet, tReadPops, tRestartHighPop, tFCIMC, &
-                        tStartSinglePart
-    use FciMCData, only: tSearchTau, alloc_popsfile_dets, pops_pert, tPopsAlreadyRead
-    use SystemData, only: nBasis
+                        tStartSinglePart, tau, nmcyc, iPopsFileNoRead, tWritePopsNorm, &
+                        tWalkContGrow, diagSft
+    use FciMCData, only: tSearchTau, alloc_popsfile_dets, pops_pert, tPopsAlreadyRead, &
+                         tSinglePartPhase, iter_data_fciqmc, iter, PreviousCycles, &
+                         AllGrowRate, spawn_ht
+    use SystemData, only: nBasis, lms
     use perturbations, only: init_perturbation_annihilation, &
                              init_perturbation_creation
     use fcimc_initialisation, only: SetupParameters, InitFCIMCCalcPar, &
                                     init_fcimc_fn_pointers 
-
     use kp_fciqmc_init, only: create_overlap_pert_vec
+    use LoggingData, only: tZeroProjE, tFCIMCStats2
+    use fcimc_output, only: write_fcimcstats2, WriteFciMCStatsHeader
 
     implicit none
 
@@ -37,6 +42,8 @@ contains
         implicit none
         character(*), parameter :: this_routine = "init_real_time_calc_single"
 
+        integer :: ierr
+
         print *, " Entering real-time FCIQMC initialisation "
         ! think about what variables have to be set for a succesful calc.
 
@@ -46,7 +53,6 @@ contains
 
         ! also call the "normal" NECI setup routines to allow calculation
         call SetupParameters()
-
 
         ! have to think about the the order about the above setup routines! 
         ! within this Init a readpops is called.. and 
@@ -64,6 +70,9 @@ contains
 !         call read_popsfile_real_time()
         ! actually the InitFCIMCCalcPar should do that now correctly already
 
+        ! do an MPIbarrier here.. although don't quite know why
+        call MPIBarrier(ierr)
+
     end subroutine init_real_time_calc_single
 
     subroutine setup_real_time_fciqmc()
@@ -72,6 +81,8 @@ contains
         ! a simulation
         character(*), parameter :: this_routine = "setup_real_time_fciqmc"
 
+        integer :: ierr
+
         ! also need to create the perturbed ground state to calculate the 
         ! overlaps to |y(t)> 
 
@@ -79,6 +90,138 @@ contains
         ! time evolved y(t) will be stored in the CurrentDets array
         call create_perturbed_ground()
 
+        ! change the flags dependent on the real-time input 
+        if (real_time_info%t_equidistant_time) then
+            print *, " The equdistant time step option is set for the real-time calculation"
+            tSearchTau = .false.
+            if (real_time_info%time_step > 0.0_dp) then
+                print *, " A specific time-step is chosen by input!"
+                tau = real_time_info%time_step
+            else
+                print *, " No specific time-step is chosen by input! Use tau from Popsfile!"
+                real_time_info%time_step = tau
+            end if
+
+            print *, " time-step: ", real_time_info%time_step
+        end if
+
+        ! initialize the storage containers for the calculated overlaps
+        ! depending on the input 
+        if (real_time_info%n_time_steps < 0) then
+            ! if no specific number if iterations is inputted
+            print *, " No specific number of time-steps is chosen by input!"
+
+            if (real_time_info%t_equidistant_time) then
+                ! if the max-time is set in input calculate from that the number 
+                ! of elements 
+                if (real_time_info%max_time > 0.0_dp) then
+                    print *, " A maximum time is chosen by input: ", real_time_info%max_time
+                    real_time_info%n_time_steps = int(real_time_info%max_time / tau )
+                    print *, " this leads to n_time_steps of: ", real_time_info%n_time_steps
+                else
+                    ! otherwise calculate it from the number of iterations
+                    print *, " No maximum time is chosen by input! "
+                    real_time_info%n_time_steps = nmcyc
+                    print *, " Use maximum cycle number as n_time_steps: ", nmcyc
+                    real_time_info%max_time = real(nmcyc,dp) * tau 
+                    print *, " This leads to maximum time: ", real_time_info%max_time
+                end if
+            else
+                ! if the time-step is not fixed, we can only limit the calculation
+                ! by the maximum number of cycles. 
+                ! we could essentially also define a maximum time, but we cannot 
+                ! initialize the gf overlap and wf norm variables depending on it
+                ! so we have to ensure that a nmcyc is defined if the equidistant 
+                ! time flag is set to false! 
+                print *, " Use maximum cycle number as n_time_steps: ", nmcyc
+                real_time_info%n_time_steps = nmcyc
+                if (real_time_info%max_time > 0.0_dp) then
+                    print *, " Maximum time is chosen by input: ", real_time_info%max_time
+                    print *, " Stop simulation at whatever is reached first: n_time_steps or max_time!"
+                else
+                    print *, " No maximum time is chosen by input! Stop simulation after n_time_steps! "
+                end if
+            end if
+        else
+            print *, " A specific number of time-steps is chosen by input! "
+            print *, " n_time_steps: ", real_time_info%n_time_steps
+            if (real_time_info%t_equidistant_time) then
+                ! check if input is consistent.. although already do that 
+                ! in check_input routine! 
+                ! no do it here, since in check_input the popsfile tau is not 
+                ! yet known! 
+                if (real_time_info%max_time > 0.0_dp) then
+                    if (real(real_time_info%n_time_steps,dp)*real_time_info%time_step &
+                        /= real_time_info%max_time) then
+                        print *, " number of timesteps and time step not congruent with max_time!"
+                        real_time_info%max_time = real(real_time_info%n_time_steps,dp) &
+                            * real_time_info%time_step
+                        print *, " setting max_time to: ", real_time_info%max_time
+                    end if
+                else 
+                    ! set max_time! 
+                    print *, " no max_time inputted! set it to be congruent with time-steps"
+                    real_time_info%max_time = real(real_time_info%n_time_steps,dp) &
+                        * real_time_info%time_step
+                    print *, " setting max_time to: ", real_time_info%max_time
+                end if
+            else
+                print *, " non-equidistant time-step used!" 
+                if (real_time_info%max_time > 0.0_dp) then
+                    print *, " Stop simulation at whatever is reached first: n_time_steps or max_time!"
+                    print *, " max_time: ", real_time_info%max_time
+                else
+                    print *, " stop simulation after n_time_steps is reached!"
+                end if
+            end if
+        end if
+
+        ! allocate the according quantities! 
+        ! n_time_steps have to be set here!
+        print *, " Allocating greensfunction and wavefunction norm arrays!"
+        allocate(gf_overlap(0:real_time_info%n_time_steps), stat = ierr)
+        allocate(wf_norm(0:real_time_info%n_time_steps), stat = ierr)
+
+        gf_overlap = 0.0_dp
+        wf_norm = 0.0_dp
+
+        ! check for set lms.. i think that does not quite work yet 
+        print *, "mz spin projection: ", lms
+
+        print *, "tSinglePartPhase?:",tSinglePartPhase
+        print *, "tWalkContGrow?", tWalkContGrow
+        print *, "diagSft:", diagSft
+
+        ! intialize the 2nd temporary determinant list needed in the 
+        ! real-time fciqmc 
+
+        ! also maybe use the spawn_ht hash table, so allocated it here! 
+        call setup_temp_det_list()
+
+        print *, "allocated(temp_det_list)?", allocated(temp_det_list)
+        print *, "associated(temp_det_pointer)?", associated(temp_det_pointer)
+        print *, "associated(temp_det_hash)?", associated(temp_det_hash)
+        print *, "allocated(temp_freeslot)?", allocated(temp_freeslot)
+
+        print *, "associated(spawn_ht)?", associated(spawn_ht)
+
+        print *, "Allgrowrate: ", AllGrowRate
+        ! print out the first infos on the calculation.. 
+        ! although that definetly has to be changed for the real-time fciqmc
+        if (tFCIMCStats2) then
+            call write_fcimcstats2(iter_data_fciqmc, initial = .true.)
+        else
+            call WriteFciMCStatsHeader()
+        end if
+
+        ! set the iter variable to 0 probably
+        iter = 0
+        
+        ! and also the PreviousCycles var. since its essentially regarded as 
+        ! a new calulcation
+        PreviousCycles = 0
+
+        
 
     end subroutine setup_real_time_fciqmc
 
@@ -111,9 +254,36 @@ contains
             select case (w)
             ! have to enter all the different input options here
 
-            case ("MAX_TIME")
+            case ("EQUIDISTANT-TIME")
+                ! use equidistant time: do this for the beginning 
+                ! thats probably helpful is i calculate the GFs for 
+                ! different orbitals, to calculate the spectrum from all 
+                ! different contributions
+                ! set tau-search to false later on dependent on that! 
+                real_time_info%t_equidistant_time = .true.
+
+                ! its possible to input the wanted time-step here too
+                if (item < nitems) then
+                    call readf(real_time_info%time_step)
+                end if
+
+            case ("MAX-TIME")
                 ! input the targeted end time 
                 ! a specified   
+                call readf(real_time_info%max_time)
+
+            case ("NUM-TIMESTEPS")
+                ! also able to directly input the number of calculated 
+                ! gf time-steps
+                ! this option is compatible with and without tau-search
+                ! but not directly with the max-time option
+                call readi(real_time_info%n_time_steps)
+
+            case ("BROADENING")
+                ! to reduce the explosive spread of walkers through the 
+                ! Hilbert space a small imaginery energy can be introduced in
+                ! the Schroedinger equation id/dt y(t) = (H-E0-ie)y(t)
+                call readf(real_time_info%broadening)
 
             ! use nicks perturbation & kp-fciqmc stuff here as much as 
             ! possible too
@@ -245,7 +415,12 @@ contains
             case ("SCALE-POPULATION")
                 tScalePopulation = .true.
                 
-
+            case ("COMPLEX-INTEGRALS")
+                ! in the real-time implementation, since we need the complex 
+                ! functionality anyway, we have to additionally tell the 
+                ! program, that the FCIDUMP input is complex
+                ! the default is that they are real! 
+                t_complex_ints = .true.
 
             case ("ENDREALTIME")
                 exit real_time
@@ -276,6 +451,12 @@ contains
         ! startsinglepart does not work with popsfile and is not wanted too
         tStartSinglePart = .false.
 
+        ! but to ensure that the shift does not vary anymore, since there is 
+        ! no such concept as the varying shift in the real-time fciqmc
+        tWalkContGrow = .true.
+        ! tSinglePartPhase is not yet allocated during readinput!
+!         tSinglePartPhase = .true.
+
         ! probably not change reference anymore.. but check
         tChangeProjEDet = .false.
 
@@ -303,12 +484,27 @@ contains
         ! overwrite tfcimc flag to not enter the regular fcimc routine 
         tFCIMC = .false.
 
+        ! usually only real-valued FCIDUMPs
+        t_complex_ints = .false.
+
+        ! probably should zero the projected energy, since its a total 
+        ! different system 
+        tZeroProjE = .true.
+
     end subroutine set_real_time_defaults
 
     subroutine check_input_real_time()
         ! routine to ensure all calculation parameter are set up correctly
         ! and abort otherwise 
         character(*), parameter :: this_routine = "check_input_real_time"
+
+        ! if non-equidistant time-steps are used we have to either have 
+        ! nmcyc or the n_time_steps quantity set to be able to allocate 
+        ! the gf overlap and wf norm quantities
+        if (.not. real_time_info%t_equidistant_time) then
+            ASSERT(nmcyc > 0 .or. real_time_info%n_time_steps > 0)
+        end if
+
 
 
     end subroutine check_input_real_time

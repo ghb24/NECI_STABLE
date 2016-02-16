@@ -3,10 +3,20 @@
 module real_time
 
     use real_time_init, only: init_real_time_calc_single
+    use real_time_procs, only: save_current_dets, reset_spawned_list, &
+                               reload_current_dets
     use CalcData, only: pops_norm
     use real_time_data, only: gf_type
-    use FciMCData, only: pops_pert
+    use FciMCData, only: pops_pert, walker_time, iter, ValidSpawnedList, &
+                         spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot, &
+                         fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
+                         TotWalkers
     use kp_fciqmc_data_mod, only: overlap_pert
+    use timing_neci, only: set_timer, halt_timer
+    use FciMCParMod, only: rezero_iter_stats_each_iter
+    use hash, only: clear_hash_table
+    use constants, only: int64, sizeof_int
+    use AnnihilationMod, only: DirectAnnihilation
 
     implicit none
 
@@ -144,6 +154,7 @@ contains
         implicit none
 
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
+        integer :: n_determ_states
 
         print *, " ========================================================== "
         print *, " ------------------ Real-time FCIQMC ---------------------- "
@@ -179,7 +190,7 @@ contains
                 overlap_pert(1)%crtn_orbs(1), pops_pert(1)%crtn_orbs(1)
         end if
 
-        print *, " overlap: ",  sqrt(gf_overlap(1)) / sqrt(pops_norm) 
+        print *, " overlap: ",  sqrt(gf_overlap(0)) / sqrt(pops_norm) 
 
         ! main part of the initialization, concerning the walker lists 
         ! and operator application works now.. 
@@ -190,8 +201,13 @@ contains
         ! enter the main real-time fciqmc loop here
         fciqmc_loop: do while (.true.)
 
-            ! do all the necessary preperation(resetting pointers etc.)
-            call init_real_time_iteration()
+            ! the timing stuff has to be done a bit differently in the 
+            ! real-time fciqmc, since there are 2 spawing and annihilation 
+            ! steps involved...
+            call set_timer(walker_time)
+
+            iter = iter + 1
+
             
             ! perform the actual iteration(excitation generation etc.) 
             call perform_real_time_iteration() 
@@ -206,6 +222,8 @@ contains
             ! check if somthing happpened to stop the iteration or something
             call check_real_time_iteration()
 
+            call stop_all(this_routine, "stop for now to avoid endless loop")
+
         end do fciqmc_loop
         
 
@@ -218,29 +236,124 @@ contains
 
     end subroutine update_real_time_iteration
 
-    subroutine log_real_time_iteration
+    subroutine log_real_time_iteration()
         ! routine to log all the interesting quantities in the real-time 
         ! fciqmc 
         character(*), parameter :: this_routine = "log_real_time_iteration"
 
     end subroutine log_real_time_iteration
 
-    subroutine check_real_time_iteration
+    subroutine check_real_time_iteration()
         ! routine to check if somthing wrong happened during the main 
         ! real-time fciqmc loop or the external CHANGEVARS utility does smth
         character(*), parameter :: this_routine = "check_real_time_iteration"
 
     end subroutine check_real_time_iteration
 
-    subroutine init_real_time_iteration()
+    subroutine init_real_time_iteration(iter_data, n_determ_states)
         ! routine to reinitialize all the necessary variables and pointers 
         ! for a sucessful real-time fciqmc iteration
+        type(fcimc_iter_data), intent(inout) :: iter_data
+        integer, intent(out) :: n_determ_states
         character(*), parameter :: this_routine = "init_real_time_iteration"
+
+        ! reuse parts of nicks routine and add additional real-time fciqmc
+        ! specific quantities
+        
+        ! Reset positions to spawn into in the spawning array.
+        ValidSpawnedList = InitialSpawnedSlots
+
+        ! Reset the array which holds empty slots in CurrentDets.
+        ! hm, where is the iEndFreeSlot var. set? 
+        ! well i guess it uses the value from the last iteration and then 
+        ! gets reset..
+        FreeSlot(1:iEndFreeSlot) = 0
+        iStartFreeSlot = 1
+        iEndFreeSlot = 0
+
+
+        ! Index for counting deterministic states.
+        n_determ_states = 1
+
+        ! Clear the hash table for the spawning array.
+        call clear_hash_table(spawn_ht)
+
+        call rezero_iter_stats_each_iter(iter_data)
+
+        ! additionaly i have to copy the CurrentDets array and all the 
+        ! associated pointers and hashtable related stuff to the 
+        ! temporary 2nd list 
+        call save_current_dets() 
 
     end subroutine init_real_time_iteration
     
     subroutine perform_real_time_iteration()
         ! routine which performs one real-time fciqmc iteration
+        character(*), parameter :: this_routine = "perform_real_time_iteration"
+
+        integer :: n_determ_states, idet 
+        integer(int64) :: temp_totWalkers, TotWalkersNew
+
+        ! 0)
+        ! do all the necessary preperation(resetting pointers etc.)
+        call init_real_time_iteration(iter_data_fciqmc, n_determ_states)
+        ! 1)
+        ! do a "normal" spawning step and combination to y(n) + k1/2
+        ! into CurrentDets: 
+        !   
+        do idet = 1, int(TotWalkers, sizeof_int) 
+            ! todo: includes walker_death too..
+            ! so think on how to exclude that
+        end do
+
+        TotWalkersNew = int(TotWalkers, sizeof_int)
+
+        ! Annihilation is done after loop over walkers
+        call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
+
+        TotWalkers = int(TotWalkersNew, sizeof_int)
+
+        ! 2)
+        ! reset the spawned list and do a second spawning step to create 
+        ! the spawend list k2 
+        ! but DO NOT yet recombine with stored walker list 
+        call reset_spawned_list(n_determ_states) 
+
+        ! create a second spawned list from y(n) + k1/2
+        do idet = 1, int(TotWalkers, sizeof_int)
+
+            ! have to think to exclude death_step here and store this 
+            ! information into the spawned k2 list..
+            ! quick solution would be to loop again over reloaded y(n)
+            ! and do a death step for wach walker
+
+        end do
+
+        ! 3) 
+        ! reload stored temp_det_list y(n) into CurrentDets 
+        call reload_current_dets()
+
+        ! 4)
+        ! for the death_step for now: loop once again over the walker list 
+        ! and do a death_step for each walker..
+        ! meh.. that seems really inefficient, better do it more cleverly 
+        ! in the creation of the k2 spawned list + annihilation!
+
+!         do idet = 1, int(TotWalkers, sizeof_int)
+! 
+!             ! do death_step only.. maybe..
+!         end do
+
+        ! combine y(n+1) = y(n) + k2 into CurrentDets to finish time-step
+        ! this should be done with a single Annihilation step between
+        ! y(n) = CurrentDets and k2 = SpawnedWalkers
+
+        TotWalkersNew = int(TotWalkers, sizeof_int)
+
+        ! Annihilation is done after loop over walkers
+        call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
+
+        TotWalkers = int(TotWalkersNew, sizeof_int)
 
     end subroutine perform_real_time_iteration
 

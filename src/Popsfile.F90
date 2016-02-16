@@ -41,7 +41,7 @@ MODULE PopsfileMod
     use hdf5_popsfile, only: write_popsfile_hdf5, read_popsfile_hdf5, &
                              add_pops_norm_contrib
     use util_mod
-    use real_time_data, only: t_real_time_fciqmc, TotWalkers_orig
+    use real_time_data, only: t_real_time_fciqmc, TotWalkers_orig, real_time_info
 
     implicit none
 
@@ -1054,9 +1054,12 @@ r_loop: do while(.not.tStoreDet)
             &in the POPSFILE is not consistent with the number you have asked to run with.")
         if(PopNIfD.ne.NIfD) call stop_all(this_routine,"Popsfile NIfD and calculated NIfD not same")
         if(PopNIfY.ne.NIfY) call stop_all(this_routine,"Popsfile NIfY and calculated NIfY not same")
-        if(inum_runs.eq.1) then
+        if(inum_runs.eq.1 .and. (.not. t_real_time_fciqmc)) then
             !We allow these two values to be different if we're reading in a popsfile fine inum_runs=1 and we want to
             !continue the calculation with inum_runs=2
+            ! also allow these values to differ for a real-time fciqmc calc.
+            ! started from a converged groundstate, which is assumed to be 
+            ! real valued only
             if(iPopLenof_sign.ne.lenof_sign) call stop_all(this_routine,"Popsfile lenof_sign and input lenof_sign not same")
             if(PopNIfSgn.ne.NIfSgn) call stop_all(this_routine,"Popsfile NIfSgn and calculated NIfSgn not same")
         endif
@@ -1065,7 +1068,7 @@ r_loop: do while(.not.tStoreDet)
         ! the flags in memory, PopsNIfFlag depends on tUseFlags. The are 
         ! allowed to differ.
 !        if(PopNIfFlag.ne.NIfFlag) call stop_all(this_routine,"Popsfile NIfFlag and calculated NIfFlag not same")
-        if (inum_runs.eq.1) then
+        if (inum_runs.eq.1 .and. .not. t_real_time_fciqmc) then
             if (tUseFlags .and. NIfFlag == 0) then
                 if (PopNIFTot /= NIfTot + 1) &
                     call stop_all(this_routine, "Popsfile NIfTot and &
@@ -1138,6 +1141,36 @@ r_loop: do while(.not.tStoreDet)
             write(6,*) "Therefore automatic blocking will only start from current run"
             iBlockingIter = PreviousCycles
         else
+#ifdef __REALTIME 
+            ! its a bit different in the real-time, since i do not 
+            ! want to use tau-search for now! 
+            ! but still leave the option open and also reuse the read-in 
+            ! time-step if no time-step is specified in the real-time option 
+            ! block! 
+            if (real_time_info%time_step < 0.0_dp) then
+                ! no real-time time-step input is given -> so use the popsfile
+                print *, " no real-time time-step is provided! use POPSFILE tau!"
+                tau = read_tau
+            else
+                print *, " real-time time-step is provided! use it! "
+                tau = real_time_info%time_step
+            end if
+            ! also use the adjusted pSingle etc. if provided
+            if (read_psingles /= 0.0_dp) then
+                pSingles = read_psingles
+                pDoubles = 1.0_dp - pSingles
+                print *, " use pSingles and pDoubles provided by POPSFILE!"
+                print *, " pSingles set to: ", pSingles
+                print *, " pDoubles set to: ", pDoubles
+            end if
+
+            ! also do that for pParallel
+            if (read_pparallel /= 0.0_dp) then
+                print *, " use pParallel provided by POPSFILE: ", read_pparallel
+                pParallel = read_pparallel
+            end if
+#else
+
             !Using popsfile v.4, where tau is written out and read in
             if(tSearchTau) then
                 if((.not.tSinglePartPhase(1)).or.(.not.tSinglePartPhase(inum_runs))) then
@@ -1164,10 +1197,13 @@ r_loop: do while(.not.tStoreDet)
                 !Tau specified. if it is different, write this here.
                 if(abs(read_tau-Tau).gt.1.0e-5_dp) then
                     call warning_neci(this_routine,"Timestep specified in input file is different to that in the popsfile.")
+                    
                     write(6,"(A,F12.8)") "Old timestep: ",read_tau
                     write(6,"(A,F12.8)") "New timestep: ",tau
+                    
                 endif
             endif
+#endif
             iBlockingIter = PopBlockingIter
         endif
     
@@ -1257,7 +1293,14 @@ r_loop: do while(.not.tStoreDet)
         real(dp) :: PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
         real(dp) :: PopTotImagTime, PopSft2, PopParBias
         character(*), parameter :: t_r = 'ReadPopsHeadv4'
+#ifdef __REALTIME
+        ! need dummy read-in variable, since we start from a converged real 
+        ! calculation usually! atleast thats the default for now! 
+        real(dp) :: PopSumENum
+#else
         HElement_t(dp) :: PopSumENum
+#endif
+        
         namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl, &
                     PopTotwalk,PopSft,PopSft2,PopSumNoatHF,PopSumENum, &
                     PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &

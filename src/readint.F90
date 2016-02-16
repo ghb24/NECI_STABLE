@@ -190,6 +190,7 @@ contains
          use Parallel_neci
          use constants, only: dp,sizeof_int
          use util_mod, only: get_free_unit
+         use real_time_data, only: t_real_time_fciqmc, t_complex_ints
          IMPLICIT NONE
          integer, intent(in) :: LEN
          integer, intent(inout) :: nBasisMax(5,*)
@@ -210,6 +211,9 @@ contains
          logical :: uhf
          logical tExists     !test for existence of input file.
          integer isfreeunit  !function returning integer for free unit
+#ifdef __REALTIME
+         real(dp) :: real_time_Z
+#endif
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
          IUHF=0
@@ -383,8 +387,17 @@ contains
                  ! functions and so the integer labels run into each other.
                  ! This means it won't work with more than 999 basis
                  ! functions...
-#ifdef __CMPLX
-1               READ(iunit,*,END=99) Z,I,J,K,L
+#if defined(__CMPLX) && defined(__REALTIME)
+                ! here i have to check if its actually a complex input in DUMP
+                ! this slows down the read in and setup of FCIDUMPs though..
+1               if (t_complex_ints) then
+                    read(iunit,*,END=99) Z, I, J, K, L
+                else
+                    read(iunit,*,END=99) real_time_Z, I, J, K, L
+                    Z = complex(real_time_Z, 0.0_dp)
+                end if
+#elif defined(__CMPLX) && !defined(__REALTIME)
+1               READ(iunit,*,END=99) real_time_Z,I,J,K,L
 #else
 1               CONTINUE
                 !It is possible that the FCIDUMP can be written out in complex notation, but still only
@@ -583,6 +596,7 @@ contains
          use Parallel_neci
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use util_mod, only: get_free_unit
+         use real_time_data, only: t_complex_ints
          IMPLICIT NONE
          integer, intent(in) :: NBASIS
          logical, intent(in) :: tReadFreezeInts
@@ -606,6 +620,9 @@ contains
          logical :: tbad
          integer :: start_ind, end_ind
          integer, parameter :: chunk_size = 1000000
+#ifdef __REALTIME
+         real(dp) :: real_time_Z
+#endif
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          LWRITE=.FALSE.
          UHF=.FALSE.
@@ -693,7 +710,14 @@ contains
              ! functions and so the integer labels run into each other.
              ! This means it won't work with more than 999 basis
              ! functions...
-#ifdef __CMPLX
+#if defined(__CMPLX) && defined(__REALTIME)
+101          if (t_complex_ints) then
+                READ(iunit,*,END=199) Z,I,J,K,L
+            else 
+                read(iunit,*,END=199) real_time_Z,I,J,K,L
+                Z = complex(real_time_Z, 0.0_dp)
+            end if
+#elif defined(__CMPLX) && !defined(__REALTIME)
 101          READ(iunit,*,END=199) Z,I,J,K,L
 #else
 101          CONTINUE

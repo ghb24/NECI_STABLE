@@ -250,12 +250,14 @@ add_executable(neci ${F90_FILES} ${TEMPLATE_TARGETS})
 add_executable(mneci ${F90_FILES} ${TEMPLATE_TARGETS})
 add_executable(dneci ${F90_FILES} ${TEMPLATE_TARGETS})
 add_executable(kneci ${F90_FILES} ${TEMPLATE_TARGETS})
+add_executable(rneci ${F90_FILES} ${TEMPLATE_TARGETS})
 
 # Add the testing executables
 add_executable(neci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
 add_executable(mneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
 add_executable(dneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
 add_executable(kneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
+add_executable(rneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
 
 # Add libraries
 set(BUILD_SHARED_LIBS "on")
@@ -267,9 +269,11 @@ add_library(libdneci ${F90_FILES} ${TEMPLATE_TARGETS})
 set_target_properties(libdneci PROPERTIES OUTPUT_NAME "dneci")
 add_library(libkneci ${F90_FILES} ${TEMPLATE_TARGETS})
 set_target_properties(libkneci PROPERTIES OUTPUT_NAME "kneci")
+add_library(librneci ${F90_FILES} ${TEMPLATE_TARGETS})
+set_target_properties(librneci PROPERTIES OUTPUT_NAME "rneci")
 
 # List of targets. Then loop over repeated target properties
-set(TARGETS neci mneci dneci kneci neci_test mneci_test dneci_test kneci_test libneci libmneci libdneci libkneci)
+set(TARGETS neci mneci dneci kneci rneci neci_test mneci_test dneci_test kneci_test rneci_test libneci libmneci libdneci libkneci librneci)
 foreach(target ${TARGETS})
 
 	# Set the fortran modules directory for cleanliness, and to avoid collisions
@@ -287,26 +291,31 @@ target_compile_definitions(neci PUBLIC -DHElement_t=real)
 target_compile_definitions(dneci PUBLIC -DHElement_t=real -D__DOUBLERUN)
 target_compile_definitions(mneci PUBLIC -DHElement_t=real -D__PROG_NUMRUNS)
 target_compile_definitions(kneci PUBLIC -DHElement_t=complex -D__CMPLX)
+target_compile_definitions(rneci PUBLIC -DHElement_t=complex -D__REALTIME -D__CMPLX)
 target_compile_definitions(neci_test PUBLIC -DHElement_t=real)
 target_compile_definitions(dneci_test PUBLIC -DHElement_t=real -D__DOUBLERUN)
 target_compile_definitions(mneci_test PUBLIC -DHElement_t=real -D__PROG_NUMRUNS)
 target_compile_definitions(kneci_test PUBLIC -DHElement_t=complex -D__CMPLX)
+target_compile_definitions(rneci_test PUBLIC -DHElement_t=complex -D__REALTIME -D__CMPLX)
 target_compile_definitions(libneci PUBLIC -DHElement_t=real)
 target_compile_definitions(libdneci PUBLIC -DHElement_t=real -D__DOUBLERUN)
 target_compile_definitions(libmneci PUBLIC -DHElement_t=real -D__PROG_NUMRUNS)
 target_compile_definitions(libkneci PUBLIC -DHElement_t=complex -D__CMPLX)
+target_compile_definitions(librneci PUBLIC -DHElement_t=complex -D__REALTIME -D__CMPLX)
 
 # We don't want to compile the test executables unless asked for
 set_target_properties(neci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
 set_target_properties(kneci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
 set_target_properties(mneci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
 set_target_properties(dneci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(rneci_test PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
 # Ditto for libraries
 set_target_properties(libneci PROPERTIES EXCLUDE_FROM_ALL TRUE)
 set_target_properties(libkneci PROPERTIES EXCLUDE_FROM_ALL TRUE)
 set_target_properties(libmneci PROPERTIES EXCLUDE_FROM_ALL TRUE)
 set_target_properties(libdneci PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(librneci PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
 #
 # If we can get the repository details, then do so.

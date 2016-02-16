@@ -1,4 +1,4 @@
-.DEFAULT_GOAL := bin/neci.x
+.DEFAULT_GOAL := rneci
 
 %:
-	cd .. && $(MAKE) $@
+	cd ../build_debug_laptop && $(MAKE) $@
