@@ -638,7 +638,7 @@ module FciMCParMod
 
     subroutine PerformFCIMCycPar(iter_data)
 
-        use rdm_parallel, only: two_rdm_spawn
+        use rdm_data, only: two_rdm_spawn
         
         ! Iteration specific data
         type(fcimc_iter_data), intent(inout) :: iter_data

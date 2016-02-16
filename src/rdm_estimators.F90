@@ -499,7 +499,7 @@ contains
         use rdm_data, only: rdm_t, tOpenShell
         use rdm_temp, only: Find_Spatial_2RDM_Chem
         use RotateOrbsMod, only: SymLabelList2_rot, SymLabelListInv_rot, SpatOrbs
-        use UMatCache, only: gtID, UMatInd
+        use UMatCache, only: UMatInd
 
         type(rdm_t), intent(inout) :: rdm
         real(dp), intent(in) :: Norm_2RDM
@@ -1010,7 +1010,6 @@ contains
         use SymData, only: Sym_Psi, SymLabelCounts, nSymLabels
         use SymExcitDataMod, only: SpinOrbSymLabel,SymLabelCounts2
         use SystemData, only: nEl, nbasis, LMS, ECore
-        use UMatCache, only: GTID
 
         type(rdm_t), intent(in) :: rdm
 

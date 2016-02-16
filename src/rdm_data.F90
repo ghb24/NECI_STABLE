@@ -97,6 +97,36 @@ module rdm_data
 
     ! Data for parallel RDM implementation.
 
+    type rdm_spawn_t
+        ! The number of RDMs to be held by this spawning array.
+        integer :: nrdms
+        ! The number of rows in the RDM.
+        integer :: nrows
+
+        ! Array for holding RDM contributions before they are sent to the
+        ! correct processor.
+        integer(int_rdm), allocatable :: contribs(:,:)
+        ! Array used to hold the result of the MPI communication to send RDM
+        ! contributions.
+        integer(int_rdm), allocatable :: contribs_recv(:,:)
+        ! Length of RDM arrays above.
+        integer :: contribs_length
+
+        ! Hash table to the RDM spawning array.
+        type(ll_node), pointer :: hash_table(:)
+        ! Number of hashes available in the RDM hash tables.
+        integer :: nhashes_rdm
+
+        ! free_slots(i) holds the next available spawning slot in rdm_spawn
+        ! for processor i.
+        integer, allocatable :: free_slots(:)
+        ! init_free_slots(i) holds the index in rdm_spawn where the very
+        ! first RDM entry to be sent to processor i will be added.
+        integer, allocatable :: init_free_slots(:)
+    end type rdm_spawn_t
+
+    type(rdm_spawn_t) :: two_rdm_spawn
+
     ! Array which holds the RDM elements.
     integer(int_rdm), allocatable :: rdm_arr(:,:)
     ! Hash table to the RDM array.

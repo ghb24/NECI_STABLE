@@ -7,7 +7,7 @@ module rdm_filling
 
     use bit_rep_data, only: NIfTot, NIfDBO
     use constants
-    use rdm_parallel, only: rdm_spawn_t
+    use rdm_data, only: rdm_spawn_t
 
     implicit none
 
@@ -599,7 +599,7 @@ contains
             ! calculating this obv).
             call Fill_Doubs_RDM(rdm, Ex, tParity, realSignI, realSignJ, tFill_CiCj_Symm)
 
-            call add_to_rdm_spawn_t(spawn, Ex(2,2), Ex(2,1), Ex(1,2), Ex(1,1), full_sign)
+            call add_to_rdm_spawn_t(spawn, Ex(2,1), Ex(2,2), Ex(1,1), Ex(1,2), full_sign)
         end if
 
     end subroutine Add_RDM_From_IJ_Pair
@@ -615,9 +615,9 @@ contains
 
         integer :: iel, jel
 
-        ! Looking at elements of the type Gamma(i,j,i,j)).
-        do jel = 1, nel-1
-            do iel = jel+1, nel
+        ! Looking at elements of the type Gamma(i,j,i,j).
+        do iel = 1, nel-1
+            do jel = iel+1, nel
                 associate(i => nI(iel), j => nI(jel))
                     call add_to_rdm_spawn_t(spawn, i, j, i, j, full_sign)
                 end associate
@@ -642,13 +642,13 @@ contains
         do iel = 1, nel
             associate(k => nI(iel))
                 if (k < Ex(1,1) .and. k < Ex(2,1)) then
-                    call add_to_rdm_spawn_t(spawn, Ex(1,1), k, Ex(2,1), k, full_sign)
+                    call add_to_rdm_spawn_t(spawn, k, Ex(2,1), k, Ex(1,1), full_sign)
                 else if (k < Ex(1,1) .and. k > Ex(2,1)) then
-                    call add_to_rdm_spawn_t(spawn, Ex(1,1), k, k, Ex(2,1), -full_sign)
+                    call add_to_rdm_spawn_t(spawn, Ex(2,1), k, k, Ex(1,1), -full_sign)
                 else if (k > Ex(1,1) .and. k < Ex(2,1)) then
-                    call add_to_rdm_spawn_t(spawn, k, Ex(1,1), Ex(2,1), k, -full_sign)
+                    call add_to_rdm_spawn_t(spawn, k, Ex(2,1), Ex(1,1), k, -full_sign)
                 else if (k > Ex(1,1) .and. k > Ex(2,1)) then
-                    call add_to_rdm_spawn_t(spawn, k, Ex(1,1), k, Ex(2,1), full_sign)
+                    call add_to_rdm_spawn_t(spawn, Ex(2,1), k, Ex(1,1), k, full_sign)
                 end if
             end associate
         end do

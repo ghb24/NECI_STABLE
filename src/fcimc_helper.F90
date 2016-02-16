@@ -1670,8 +1670,7 @@ contains
     subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, RealwSign, &
                              DetPosition, walkExcitLevel)
 
-        use rdm_data, only: rdms
-        use rdm_parallel, only: two_rdm_spawn
+        use rdm_data, only: rdms, two_rdm_spawn
 
         integer, intent(in) :: DetCurr(nel) 
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign

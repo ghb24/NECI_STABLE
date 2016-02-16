@@ -552,9 +552,8 @@ module AnnihilationMod
         ! to zero.  These will be deleted at the end of the total annihilation
         ! step.
 
-        use rdm_data, only: rdms
+        use rdm_data, only: rdms, two_rdm_spawn
         use rdm_filling, only: check_fillRDM_DiDj
-        use rdm_parallel, only: two_rdm_spawn
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(inout) :: TotWalkersNew

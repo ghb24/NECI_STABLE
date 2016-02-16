@@ -39,8 +39,8 @@ contains
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data, only: rdm_estimates_unit, nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
-        use rdm_data, only: rdm_estimates
-        use rdm_parallel, only: init_rdm_spawn_t, two_rdm_spawn
+        use rdm_data, only: rdm_estimates, two_rdm_spawn
+        use rdm_parallel, only: init_rdm_spawn_t
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
         use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
@@ -65,11 +65,11 @@ contains
 
         ! For now, create RDM arrays big enough so that *all* RDM elements on
         ! a particular processor can be stored, using the usual approximations
-        ! to take symmetry into account. Include a factor of 1.2 to account for
+        ! to take symmetry into account. Include a factor of 1.3 to account for
         ! factors such as imperfect load balancing (which affects the spawned
         ! array).
         rdm_nrows = nbasis*(nbasis-1)/2
-        contribs_length = 1.2*(rdm_nrows**2)/(8*nProcessors)
+        contribs_length = 1.3*(rdm_nrows**2)/(8*nProcessors)
         nhashes_rdm = 0.8*contribs_length
         call init_rdm_spawn_t(two_rdm_spawn, nrdms, rdm_nrows, contribs_length, nhashes_rdm)
 
