@@ -57,53 +57,52 @@ contains
 
     end subroutine init_rdm_spawn_t
 
-    pure subroutine calc_combined_rdm_labels(i, j, k, l, ijkl)
+    pure subroutine calc_combined_rdm_label(p, q, r, s pqrs)
 
         ! Combine the four 2-RDM spin orbital labels into unique integers.
-        ! i and j are combined into one number, ij. k and l are combined into
-        ! one number, kl. Both of these are then combined into one single
-        ! number, ijkl. The largest value for ijkl is M^4, where M is the
+        ! p and q are combined into one number, pq. r and s are combined into
+        ! one number, rs. Both of these are then combined into one single
+        ! number, pqrs. The largest value for pqrs is M^4, where M is the
         ! number of spin orbitals.
         
         ! The compression defined in this routine will not give a fully
-        ! compressed RDM index labelling, because it allows a separate ij
-        ! integer if i and j are equal, which will always give a zero
-        ! RDM element, and the same for k and l. It also doesn't take
+        ! compressed RDM index labelling, because it allows a separate pq
+        ! integer if p and q are equal, which will always give a zero
+        ! RDM element, and the same for r and s. It also doesn't take
         ! spatial symmetry into account. But this is fine if one just
         ! seeks a unique combined label for each combination of individual
         ! spin orbital labels.
 
-        ! In: i, j, k l - spin orbitals of the RDM contribution.
-        ! Out: ijkl - Label combining i, j, k and l.
+        ! In: p, q, r, s - spin orbitals of the RDM contribution.
+        ! Out: pqrs - Label combining p, q, r and s.
 
         use SystemData, only: nbasis
 
-        integer, intent(in) :: i, j, k, l
-        integer(int_rdm), intent(out) :: ijkl
-        integer :: ij, kl
+        integer, intent(in) :: p, q, r, s
+        integer(int_rdm), intent(out) :: pqrs
+        integer :: pq, rs
 
-        ij = (i-1)*nbasis + j
-        kl = (k-1)*nbasis + l
-        ijkl = (ij-1)*(nbasis**2) + kl
+        pq = (p-1)*nbasis + q
+        rs = (r-1)*nbasis + s
+        pqrs = (pq-1)*(nbasis**2) + rs
 
-    end subroutine calc_combined_rdm_labels
+    end subroutine calc_combined_rdm_label
 
-    pure subroutine calc_separate_rdm_labels(ijkl, i, j, k, l)
+    pure subroutine calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
 
         use SystemData, only: nbasis
 
-        integer(int_rdm), intent(in) :: ijkl
-        integer, intent(out) :: i, j, k, l
-        integer :: ij, kl
+        integer(int_rdm), intent(in) :: pqrs
+        integer, intent(out) :: pq, rs, p, q, r, s
 
-        kl = mod(ijkl, nbasis**2)
-        ij = (ijkl - kl)/(nbasis**2) + 1
+        rs = mod(pqrs, nbasis**2)
+        pq = (pqrs - rs)/(nbasis**2) + 1
 
-        j = mod(ij, nbasis)
-        i = (ij - i)/nbasis + 1
+        q = mod(pq, nbasis)
+        p = (pq - q)/nbasis + 1
 
-        l = mod(kl, nbasis)
-        k = (kl - i)/nbasis + 1
+        s = mod(rs, nbasis)
+        r = (rs - s)/nbasis + 1
 
     end subroutine calc_separate_rdm_labels
 
@@ -148,7 +147,7 @@ contains
         character(*), parameter :: this_routine = 'add_to_rdm_spawn_t'
 
         ! Calculate combined RDM labels.
-        call calc_combined_rdm_labels(p, q, r, s, pqrs)
+        call calc_combined_rdm_label(p, q, r, s, pqrs)
 
         ! Search to see if this RDM element is already in the contribs array.
         ! If it, tSuccess will be true and ind will hold the position of the
@@ -196,16 +195,18 @@ contains
 
     end subroutine add_to_rdm_spawn_t
 
-    subroutine calc_rdm_energy(spawn)
+    subroutine calc_rdm_energy(spawn, rdm_energy)
 
         use rdm_data, only: rdm_spawn_t
         use rdm_integral_fns, only: one_elec_int, two_elec_int
-        use SystemData, only: nel
+        use SystemData, only: nel, nbasis
 
         type(rdm_spawn_t), intent(inout) :: spawn
+        real(dp), intent(out) :: rdm_energy(spawn%nrdms)
 
-        integer :: i, pqrs, p, q, r, s
-        real(dp) :: rdm_sign(spawn%nrdms), rdm_energy(spawn%nrdms)
+        integer(int_rdm) :: pqrs
+        integer :: i, pq, rs, p, q, r, s
+        real(dp) :: rdm_sign(spawn%nrdms)
 
         rdm_energy = 0.0_dp
 
@@ -213,8 +214,10 @@ contains
         ! as a check - this will be corrected.
         do i = 1, spawn%free_slots(0)-1
             pqrs = spawn%contribs(0,i)
-            call calc_separate_rdm_labels(pqrs, p, q, r, s)
             call extract_sign_rdm(spawn%contribs(:,i), rdm_sign)
+
+            ! Decode pqrs label into p, q, r and s labels.
+            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
 
             ! The 2-RDM contribution to the energy:
             rdm_energy = rdm_energy + rdm_sign*two_elec_int(p,q,r,s)
@@ -224,6 +227,39 @@ contains
             if (p == s) rdm_energy = rdm_energy - rdm_sign*one_elec_int(q,r)/(nel-1)
             if (q == r) rdm_energy = rdm_energy - rdm_sign*one_elec_int(p,s)/(nel-1)
         end do
+
+    end subroutine calc_rdm_energy
+
+    subroutine calc_rdm_trace(spawn, rdm_trace)
+
+        use rdm_data, only: rdm_spawn_t
+        use rdm_integral_fns, only: one_elec_int, two_elec_int
+        use SystemData, only: nel
+
+        type(rdm_spawn_t), intent(inout) :: spawn
+        real(dp), intent(out) :: rdm_trace(spawn%nrdms)
+
+        integer(int_rdm) :: pqrs
+        integer :: i, pq, rs, p, q, r, s
+        real(dp) :: rdm_sign(spawn%nrdms)
+
+        rdm_trace = 0.0_dp
+
+        ! Just working with one processor and the spawned list for now,
+        ! as a check - this will be corrected.
+        do i = 1, spawn%free_slots(0)-1
+            pqrs = spawn%contribs(0,i)
+            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+
+            if (pq == rs) then
+                call extract_sign_rdm(spawn%contribs(:,i), rdm_sign)
+                rdm_trace = rdm_trace + rdm_sign
+            end if
+        end do
+
+        ! When dividing the RDM by the output trace, we want the new
+        ! normalisation to be (nel*(nel-1))/2.
+        rdm_trace = rdm_trace * 2.0_dp/(nel*(nel-1))
 
     end subroutine calc_rdm_energy
 
