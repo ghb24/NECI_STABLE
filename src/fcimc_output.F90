@@ -569,6 +569,39 @@ contains
                                 'Ref (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., DiagSft(p) + Hii, &
                                 'Shift (' // trim(adjustl(tmpc)) // ")")
+#ifdef __CMPLX
+                call stats_out (state, .false., real(proje_iter(p) + Hii), &
+                                'Tot ProjE real (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., aimag(proje_iter(p) + Hii), &
+                                'Tot ProjE imag (' // trim(adjustl(tmpc)) // ")")
+
+                call stats_out (state, .false., real(AllHFCyc(p) / StepsSft), &
+                                'ProjE Denom real (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., aimag(AllHFCyc(p) / StepsSft), &
+                                'ProjE Denom imag (' // trim(adjustl(tmpc)) // ")")
+
+                call stats_out (state, .false., &
+                                real((AllENumCyc(p) + Hii*AllHFCyc(p))) / StepsSft,&
+                                'ProjE Num real (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., &
+                                aimag((AllENumCyc(p) + Hii*AllHFCyc(p))) / StepsSft,&
+                                'ProjE Num imag (' // trim(adjustl(tmpc)) // ")")
+                if (tTrialWavefunction .or. tStartTrialLater) then
+                    call stats_out (state, .false., &
+                                    real(tot_trial_numerator(p) / StepsSft), &
+                                    'TrialE Num real (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out (state, .false., &
+                                    aimag(tot_trial_numerator(p) / StepsSft), &
+                                    'TrialE Num imag (' // trim(adjustl(tmpc)) // ")")
+
+                    call stats_out (state, .false., &
+                                    real(tot_trial_denom(p) / StepsSft), &
+                                    'TrialE Denom (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out (state, .false., &
+                                    aimag(tot_trial_denom(p) / StepsSft), &
+                                    'TrialE Denom (' // trim(adjustl(tmpc)) // ")")
+                end if
+#else
                 call stats_out (state, .false., proje_iter(p) + Hii, &
                                 'Tot ProjE (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., AllHFCyc(p) / StepsSft, &
@@ -576,7 +609,6 @@ contains
                 call stats_out (state, .false., &
                                 (AllENumCyc(p) + Hii*AllHFCyc(p)) / StepsSft,&
                                 'ProjE Num (' // trim(adjustl(tmpc)) // ")")
-
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     call stats_out (state, .false., &
                                     tot_trial_numerator(p) / StepsSft, &
@@ -585,6 +617,8 @@ contains
                                     tot_trial_denom(p) / StepsSft, &
                                     'TrialE Denom (' // trim(adjustl(tmpc)) // ")")
                 end if
+#endif
+
 
                 call stats_out (state, .false., &
                                 AllNoBorn(p), &

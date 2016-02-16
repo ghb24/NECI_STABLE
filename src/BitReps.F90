@@ -198,7 +198,7 @@ contains
                     //"weight corresponds to less than 250,000 walkers on a single determinant"
                 write(6,"(A)") "Recompile with 64-bit, remove flags, or use" &
                     //"seperate flag integer highly recommended"
-                call warning(this_routine,"The determinant weight and flag" &
+                call warning_neci(this_routine,"The determinant weight and flag" &
                         //"information is dangerously oversubscribed!")
             endif
         end if
