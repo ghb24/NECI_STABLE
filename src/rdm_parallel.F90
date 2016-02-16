@@ -95,13 +95,13 @@ contains
         integer(int_rdm), intent(in) :: pqrs
         integer, intent(out) :: pq, rs, p, q, r, s
 
-        rs = mod(pqrs, nbasis**2)
+        rs = mod(pqrs-1, nbasis**2) + 1
         pq = (pqrs - rs)/(nbasis**2) + 1
 
-        q = mod(pq, nbasis)
+        q = mod(pq-1, nbasis) + 1
         p = (pq - q)/nbasis + 1
 
-        s = mod(rs, nbasis)
+        s = mod(rs-1, nbasis) + 1
         r = (rs - s)/nbasis + 1
 
     end subroutine calc_separate_rdm_labels
@@ -188,7 +188,7 @@ contains
             call add_hash_table_entry(spawn%hash_table, spawn%free_slots(proc), hash_val)
 
             spawn%free_slots(proc) = spawn%free_slots(proc) + 1
-            write(6,*) "num_entries:", spawn%free_slots(proc), "on proc", proc; flush(6)
+            !write(6,*) "num_entries:", spawn%free_slots(proc), "on proc", proc; flush(6)
         end if
 
         if (p > q .or. r > s) call stop_all("Here","Here")
