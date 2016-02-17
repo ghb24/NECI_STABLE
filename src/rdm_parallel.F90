@@ -294,30 +294,43 @@ contains
             r_spat = (r-1)/2 + 1
             s_spat = (s-1)/2 + 1
 
-            if (p_spat == r_spat .and. q_spat == s_spat .and. p_spat == q_spat) then
-                if (is_beta(p) .and. is_alpha(q) .and. is_beta(r) .and. is_alpha(s)) then
-                    call extract_sign_rdm(spawn%contribs(:,i), rdm_sign)
-                    rdm_spin = rdm_spin - 6.0_dp*rdm_sign
-                end if
+            ! Note to the reader for the following code: if mod(p,2) == 1 then
+            ! p is a beta (b) orbital, if mod(p,2) == 0 then it is an alpha (a) obrital.
 
-            else if (p_spat == r_spat .and. q_spat == s_spat) then
+            ! The following if statement allows IJIJ spatial combinations.
+            if (p_spat == r_spat .and. q_spat == s_spat) then
+                ! If we get to this point then we definitely have a contribution
+                ! to add in, so extract the sign.
                 call extract_sign_rdm(spawn%contribs(:,i), rdm_sign)
 
-                if (is_alpha(p) .and. is_alpha(q) .and. is_alpha(r) .and. is_alpha(s)) then
-                    rdm_spin = rdm_spin + 2.0_dp*rdm_sign
-                else if (is_beta(p) .and. is_beta(q) .and. is_beta(r) .and. is_beta(s)) then
-                    rdm_spin = rdm_spin + 2.0_dp*rdm_sign
-                else if (is_beta(p) .and. is_alpha(q) .and. is_beta(r) .and. is_alpha(s)) then
-                    rdm_spin = rdm_spin - 2.0_dp*rdm_sign
-                else if (is_alpha(p) .and. is_beta(q) .and. is_alpha(r) .and. is_beta(s)) then
-                    rdm_spin = rdm_spin - 2.0_dp*rdm_sign
-                else if (is_beta(p) .and. is_alpha(q) .and. is_alpha(r) .and. is_beta(s)) then
-                    rdm_spin = rdm_spin + 4.0_dp*rdm_sign
-                else if (is_alpha(p) .and. is_beta(q) .and. is_beta(r) .and. is_alpha(s)) then
-                    rdm_spin = rdm_spin + 4.0_dp*rdm_sign
-                end if
+                ! If all labels have the same spatial part (IIII):
+                if (p_spat == q_spat) then
+                    if (is_beta(p) .and. is_alpha(q) .and. is_beta(r) .and. is_alpha(s)) then
+                        rdm_spin = rdm_spin - 6.0_dp*rdm_sign
+                    end if
 
+                else
+                    ! We only get here if the spatial parts obey IJIJ, for I /= J:
+
+                    ! The following if statement allows the following spin combinations:
+                    ! aaaa, bbbb, abab and baba.
+                    if (mod(p,2) == mod(r,2) .and. mod(q,2) == mod(s,2)) then
+
+                        if (mod(p,2) == mod(q,2)) then
+                            ! aaaa and bbbb.
+                            rdm_spin = rdm_spin + 2.0_dp*rdm_sign
+                        else
+                            ! abab and baba.
+                            rdm_spin = rdm_spin - 2.0_dp*rdm_sign
+                        end if
+                    else
+                        ! We only get here if the spin parts are abba or baab.
+                        rdm_spin = rdm_spin + 4.0_dp*rdm_sign
+                    end if
+
+                end if
             end if
+
         end do
 
         rdm_spin = rdm_spin + 3.0_dp*real(nel,dp)*rdm_trace
