@@ -38,7 +38,9 @@ contains
         spawn%nhashes_rdm = nhashes_rdm
 
         allocate(spawn%contribs(0:nrdms, contribs_length))
+        spawn%contribs = 0_int_rdm
         allocate(spawn%contribs_recv(0:nrdms, contribs_length))
+        spawn%contribs_recv = 0_int_rdm
 
         allocate(spawn%hash_table(nhashes_rdm), stat=ierr)
         call init_hash_table(spawn%hash_table)
@@ -262,5 +264,62 @@ contains
         rdm_trace = rdm_trace * 2.0_dp/(nel*(nel-1))
 
     end subroutine calc_rdm_trace
+
+    subroutine calc_rdm_spin(spawn, rdm_trace, rdm_spin)
+
+        ! Return the (unnormalised) estimate of <S^2> from the instantaneous
+        ! 2RDM estimates.
+
+        use rdm_data, only: rdm_spawn_t
+        use SystemData, only: nel
+
+        type(rdm_spawn_t), intent(in) :: spawn
+        real(dp), intent(in) :: rdm_trace(spawn%nrdms)
+        real(dp), intent(out) :: rdm_spin(spawn%nrdms)
+
+        integer(int_rdm) :: pqrs
+        integer :: i, pq, rs, p, q, r, s
+        integer :: p_spat, q_spat, r_spat, s_spat
+        real(dp) :: rdm_sign(spawn%nrdms)
+
+        rdm_spin = 0.0_dp
+
+        do i = 1, spawn%free_slots(0)-1
+            pqrs = spawn%contribs(0,i)
+            ! Obtain spin orbital labels.
+            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+            ! Obtain spatial orbital labels.
+            p_spat = (p-1)/2 + 1
+            q_spat = (q-1)/2 + 1
+            r_spat = (r-1)/2 + 1
+            s_spat = (s-1)/2 + 1
+
+            if (p_spat == r_spat .and. q_spat == s_spat .and. p_spat == q_spat) then
+                if (is_beta(p) .and. is_alpha(q) .and. is_beta(r) .and. is_alpha(s)) then
+                    call extract_sign_rdm(spawn%contribs(:,i), rdm_sign)
+                    rdm_spin = rdm_spin - 6.0_dp*rdm_sign
+                end if
+
+            else if (p_spat == r_spat .and. q_spat == s_spat) then
+                call extract_sign_rdm(spawn%contribs(:,i), rdm_sign)
+
+                if (is_alpha(p) .and. is_alpha(q) .and. is_alpha(r) .and. is_alpha(s)) then
+                    rdm_spin = rdm_spin + 2.0_dp*rdm_sign
+                else if (is_beta(p) .and. is_beta(q) .and. is_beta(r) .and. is_beta(s)) then
+                    rdm_spin = rdm_spin + 2.0_dp*rdm_sign
+                else if (is_beta(p) .and. is_alpha(q) .and. is_beta(r) .and. is_alpha(s)) then
+                    rdm_spin = rdm_spin - 4.0_dp*rdm_sign
+                else if (is_beta(p) .and. is_alpha(q) .and. is_alpha(r) .and. is_beta(s)) then
+                    rdm_spin = rdm_spin + 8.0_dp*rdm_sign
+                end if
+
+            end if
+        end do
+
+        rdm_spin = rdm_spin + 3.0_dp*real(nel,dp)*rdm_trace
+
+        rdm_spin = rdm_spin/4.0_dp
+
+    end subroutine calc_rdm_spin
 
 end module rdm_parallel

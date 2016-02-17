@@ -420,6 +420,12 @@ module FciMCParMod
                         do irdm = 1, nrdms
                             call rdm_output_wrapper(rdms(irdm), irdm, rdm_estimates(irdm))
                         end do
+
+                        !TODO: Move this to a more sensible place when everything is working.
+                        two_rdm_spawn%free_slots = two_rdm_spawn%init_free_slots
+                        call clear_hash_table(two_rdm_spawn%hash_table)
+                        two_rdm_spawn%contribs = 0_int_rdm
+
                         if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates)
                 end if
             end if

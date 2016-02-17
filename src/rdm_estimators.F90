@@ -21,9 +21,16 @@ contains
         use rdm_temp, only: Finalise_2e_RDM, calc_2e_norms, Write_out_2RDM
         use rdm_temp, only: Write_spinfree_RDM
 
+        use rdm_data, only: two_rdm_spawn
+        use rdm_parallel, only: calc_rdm_trace, calc_rdm_spin
+        use hash, only: clear_hash_table
+
         type(rdm_t), intent(inout) :: rdm
         integer, intent(in) :: rdm_label
         type(rdm_estimates_t), intent(inout) :: est
+
+        real(dp) :: rdm_energy(two_rdm_spawn%nrdms), rdm_trace(two_rdm_spawn%nrdms)
+        real(dp) :: rdm_spin(two_rdm_spawn%nrdms)
 
         ! Normalise, make Hermitian, etc.
         call Finalise_2e_RDM(rdm)
@@ -70,6 +77,11 @@ contains
             end if
         end if
 
+        call calc_rdm_trace(two_rdm_spawn, rdm_trace)
+        est%new_trace = rdm_trace(rdm_label)
+        call calc_rdm_spin(two_rdm_spawn, rdm_trace, rdm_spin)
+        est%new_spin = rdm_spin(rdm_label)
+
     end subroutine rdm_output_wrapper
 
     subroutine write_rdm_estimates(est)
@@ -85,8 +97,8 @@ contains
         if (tRDMInstEnergy) then
             write(rdm_estimates_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
             do i = 1, size(est)
-                write(rdm_estimates_unit, '(3(3x,es20.13))', advance='no') &
-                    est(i)%RDMEnergy_Inst, est(i)%spin_est, 1.0_dp/est(i)%Norm_2RDM_Inst
+                write(rdm_estimates_unit, '(5(3x,es20.13))', advance='no') &
+                    est(i)%RDMEnergy_Inst, est(i)%spin_est, 1.0_dp/est(i)%Norm_2RDM_Inst, est(i)%new_spin, est(i)%new_trace
             end do
             write(rdm_estimates_unit,'()')
 

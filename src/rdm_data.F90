@@ -89,6 +89,8 @@ module rdm_data
         real(dp) :: RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst
         real(dp) :: Norm_2RDM, Norm_2RDM_Inst, Trace_2RDM, Trace_2RDM_normalised
         real(dp) :: spin_est
+        real(dp) :: new_trace
+        real(dp) :: new_spin
     end type rdm_estimates_t
 
     ! Array of type rdm_t, for holding multiple different RDM instances.
