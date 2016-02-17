@@ -308,9 +308,13 @@ contains
                 else if (is_beta(p) .and. is_beta(q) .and. is_beta(r) .and. is_beta(s)) then
                     rdm_spin = rdm_spin + 2.0_dp*rdm_sign
                 else if (is_beta(p) .and. is_alpha(q) .and. is_beta(r) .and. is_alpha(s)) then
-                    rdm_spin = rdm_spin - 4.0_dp*rdm_sign
+                    rdm_spin = rdm_spin - 2.0_dp*rdm_sign
+                else if (is_alpha(p) .and. is_beta(q) .and. is_alpha(r) .and. is_beta(s)) then
+                    rdm_spin = rdm_spin - 2.0_dp*rdm_sign
                 else if (is_beta(p) .and. is_alpha(q) .and. is_alpha(r) .and. is_beta(s)) then
-                    rdm_spin = rdm_spin + 8.0_dp*rdm_sign
+                    rdm_spin = rdm_spin + 4.0_dp*rdm_sign
+                else if (is_alpha(p) .and. is_beta(q) .and. is_beta(r) .and. is_alpha(s)) then
+                    rdm_spin = rdm_spin + 4.0_dp*rdm_sign
                 end if
 
             end if

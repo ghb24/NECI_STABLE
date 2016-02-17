@@ -71,6 +71,8 @@ module FciMCParMod
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
 
+        use rdm_data, only: two_rdm_spawn
+
 #ifdef MOLPRO
         integer :: nv, ityp(1)
 #endif
