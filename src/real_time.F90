@@ -4,19 +4,42 @@ module real_time
 
     use real_time_init, only: init_real_time_calc_single
     use real_time_procs, only: save_current_dets, reset_spawned_list, &
-                               reload_current_dets
-    use CalcData, only: pops_norm
-    use real_time_data, only: gf_type
+                               reload_current_dets, walker_death_realtime, &
+                               walker_death_spawn, attempt_die_realtime, &
+                               create_diagonal_as_spawn
+    use real_time_data, only: gf_type, temp_freeslot, temp_iendfreeslot
+    use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
+                        tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft
     use FciMCData, only: pops_pert, walker_time, iter, ValidSpawnedList, &
                          spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot, &
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
-                         TotWalkers
+                         TotWalkers, fcimc_excit_gen_store, ilutRef, max_calc_ex_level, &
+                         iLutHF_true, indices_of_determ_states, partial_determ_vecs, &
+                         exFlag, CurrentDets, TotParts, ilutHF
     use kp_fciqmc_data_mod, only: overlap_pert
     use timing_neci, only: set_timer, halt_timer
     use FciMCParMod, only: rezero_iter_stats_each_iter
     use hash, only: clear_hash_table
-    use constants, only: int64, sizeof_int
+    use constants, only: int64, sizeof_int, n_int, lenof_sign, dp, EPS
     use AnnihilationMod, only: DirectAnnihilation
+    use bit_reps, only: extract_bit_rep
+    use SystemData, only: nel, tRef_Not_HF, tAllSymSectors, nOccAlpha, nOccBeta, &
+                          nbasis
+    use DetBitOps, only: FindBitExcitLevel, return_ms
+    use semi_stoch_procs, only: check_determ_flag, is_core_state, determ_projection
+    use global_det_data, only: det_diagH
+    use fcimc_helper, only: CalcParentFlag, decide_num_to_spawn, &
+                            create_particle_with_hash_table, walker_death, &
+                            SumEContrib
+    use procedure_pointers, only: generate_excitation, encode_child, &
+                                  attempt_create, new_child_stats
+    use bit_rep_data, only: tUseFlags, nOffFlag, niftot, extract_sign
+    use bit_reps, only: set_flag, flag_deterministic, flag_determ_parent
+    use fcimc_iter_utils, only: update_iter_data
+    use soft_exit, only: ChangeVars, tSoftExitFound
+    use fcimc_initialisation, only: CalcApproxpDoubles
+    use LoggingData, only: tPopsFile
+    use PopsFileMod, only: WriteToPopsfileParOneArr
 
     implicit none
 
@@ -208,7 +231,6 @@ contains
 
             iter = iter + 1
 
-            
             ! perform the actual iteration(excitation generation etc.) 
             call perform_real_time_iteration() 
 
@@ -222,10 +244,13 @@ contains
             ! check if somthing happpened to stop the iteration or something
             call check_real_time_iteration()
 
-            call stop_all(this_routine, "stop for now to avoid endless loop")
+            if (tSoftExitFound) exit fciqmc_loop
+
+!             if (iter == 1000) call stop_all(this_routine, "stop for now to avoid endless loop")
 
         end do fciqmc_loop
         
+        if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
 
     end subroutine perform_real_time_fciqmc
 
@@ -247,14 +272,21 @@ contains
         ! routine to check if somthing wrong happened during the main 
         ! real-time fciqmc loop or the external CHANGEVARS utility does smth
         character(*), parameter :: this_routine = "check_real_time_iteration"
+        logical :: tSingBiasChange, tWritePopsFound
+
+        if (mod(iter, StepsSft) == 0) then
+            call ChangeVars(tSingBiasChange, tWritePopsFound)
+            if (tWritePopsFound) call WriteToPopsfileParOneArr(CurrentDets, TotWalkers)
+            if (tSingBiasChange) call CalcApproxpDoubles()
+        end if
 
     end subroutine check_real_time_iteration
 
-    subroutine init_real_time_iteration(iter_data, n_determ_states)
+    subroutine init_real_time_iteration(iter_data)
         ! routine to reinitialize all the necessary variables and pointers 
         ! for a sucessful real-time fciqmc iteration
         type(fcimc_iter_data), intent(inout) :: iter_data
-        integer, intent(out) :: n_determ_states
+!         integer, intent(out) :: n_determ_states
         character(*), parameter :: this_routine = "init_real_time_iteration"
 
         ! reuse parts of nicks routine and add additional real-time fciqmc
@@ -271,9 +303,14 @@ contains
         iStartFreeSlot = 1
         iEndFreeSlot = 0
 
+        ! also reset the temporary variables
+        ! this probably has not to be done, since at the end of the first 
+        ! spawn i set it to the freeslot array anyway..
+!         tmp_freeslot(1:tmp_iendfreeslot) = 0
+!         temp_iendfreeslot = 0
 
         ! Index for counting deterministic states.
-        n_determ_states = 1
+!         n_determ_states = 1
 
         ! Clear the hash table for the spawning array.
         call clear_hash_table(spawn_ht)
@@ -286,51 +323,431 @@ contains
         call save_current_dets() 
 
     end subroutine init_real_time_iteration
-    
-    subroutine perform_real_time_iteration()
-        ! routine which performs one real-time fciqmc iteration
-        character(*), parameter :: this_routine = "perform_real_time_iteration"
 
-        integer :: n_determ_states, idet 
-        integer(int64) :: temp_totWalkers, TotWalkersNew
+    subroutine second_real_time_spawn()
+        ! routine for the second spawning step in the 2nd order RK method
+        ! to create the k2 spawning list. An important change: 
+        ! this "spawning" list also has to contain the diagonal death/cloning
+        ! step influence to combine it with the original y(n) 
+!         integer, intent(inout) :: n_determ_states
+        character(*), parameter :: this_routine = "second_real_time_spawn"
 
-        ! 0)
-        ! do all the necessary preperation(resetting pointers etc.)
-        call init_real_time_iteration(iter_data_fciqmc, n_determ_states)
-        ! 1)
-        ! do a "normal" spawning step and combination to y(n) + k1/2
-        ! into CurrentDets: 
-        !   
-        do idet = 1, int(TotWalkers, sizeof_int) 
-            ! todo: includes walker_death too..
-            ! so think on how to exclude that
-        end do
+        ! mimic the most of this routine to the already written first
+        ! spawning step, but with a different death step and without the 
+        ! annihilation step at the end! 
+        integer :: idet, parent_flags, nI_parent(nel), unused_flags, ex_level_to_ref, &
+                   ms_parent, ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,2), &
+                   ex_level_to_hf
+        integer(n_int), pointer :: ilut_parent(:) 
+        integer(n_int) :: ilut_child(0:niftot)
+        real(dp) :: parent_sign(lenof_sign), parent_hdiag, prob, child_sign(lenof_sign), &
+                    unused_sign(lenof_sign), unused_rdm_real, diag_sign(lenof_sign)
+        logical :: tParentIsDeterm, tParentUnoccupied, tParity, tChildIsDeterm
+        HElement_t(dp) :: HelGen
+        integer(int64) :: TotWalkersNew
 
+        ! use part of nicks code, and remove the parts, that dont matter 
+        do idet = 1, int(TotWalkers, sizeof_int)
+
+            ! The 'parent' determinant from which spawning is to be attempted.
+            ilut_parent => CurrentDets(:,idet)
+            parent_flags = 0_n_int
+
+            ! Indicate that the scratch storage used for excitation generation from the
+            ! same walker has not been filled (it is filled when we excite from the first
+            ! particle on a determinant).
+            fcimc_excit_gen_store%tFilled = .false.
+
+            call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
+                                  fcimc_excit_gen_store)
+
+            ex_level_to_ref = FindBitExcitLevel(iLutRef, ilut_parent, max_calc_ex_level)
+            if(tRef_Not_HF) then
+                ex_level_to_hf = FindBitExcitLevel (iLutHF_true, ilut_parent, max_calc_ex_level)
+            else
+                ex_level_to_hf = ex_level_to_ref
+            endif
+
+            tParentIsDeterm = check_determ_flag(ilut_parent)
+            tParentUnoccupied = IsUnoccDet(parent_sign)
+
+            ! If this determinant is in the deterministic space then store the relevant
+            ! data in arrays for later use.
+            ! do not use the deterministic option yet in the rt-fciqmc, as i
+            ! am not yet sure how to do the deterministic projection with the 
+            ! new -i H walker dynamics... todo!
+!             if (tParentIsDeterm) then
+!                 ! Store the index of this state, for use in annihilation later.
+!                 indices_of_determ_states(n_determ_states) = idet
+!                 ! Add the amplitude to the deterministic vector.
+!                 partial_determ_vecs(:,n_determ_states) = parent_sign
+!                 n_determ_states = n_determ_states + 1
+! 
+!                 ! The deterministic states are always kept in CurrentDets, even when
+!                 ! the amplitude is zero. Hence we must check if the amplitude is zero
+!                 ! and, if so, skip the state.
+!                 if (tParentUnoccupied) cycle
+!             end if
+
+            ! If this slot is unoccupied (and also not a core determinant) then add it to
+            ! the list of free slots and cycle.
+            ! actually dont need to update this here since nothing gets merged
+            ! at the end.. only k2 gets created
+            if (tParentUnoccupied) then
+                iEndFreeSlot = iEndFreeSlot + 1
+                FreeSlot(iEndFreeSlot) = idet
+                cycle
+            end if
+
+            ! The current diagonal matrix element is stored persistently.
+            parent_hdiag = det_diagH(idet)
+
+            if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
+
+            ! do i need to calc. the energy contributions in the rt-fciqmc?
+            ! leavi it for now.. and figure out later..
+            ! definetly do not need it in the second spawn, since it is only 
+            ! an intermediate list, and not an actual representation of the 
+            ! wavefunction
+!             call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
+!                                parent_hdiag, 1.0_dp, tPairedReplicas, idet)
+
+            ! If we're on the Hartree-Fock, and all singles and
+            ! doubles are in the core space, then there will be
+            ! no stochastic spawning from this determinant, so
+            ! we can the rest of this loop.
+            if (ss_space_in%tDoubles .and. ex_level_to_hf == 0 .and. tDetermHFSpawning) cycle
+
+            ! i dont thin i need this below..
+!             if (tAllSymSectors) then
+!                 ms_parent = return_ms(ilut_parent)
+!                 nOccAlpha = (nel+ms_parent)/2
+!                 nOccBeta = (nel-ms_parent)/2
+!             end if
+! 
+            ! If this condition is not met (if all electrons have spin up or all have spin down)
+            ! then there will be no determinants to spawn to, so don't attempt spawning.
+            ! thats a really specific condition.. shouldnt be checked each 
+            ! cycle.. since this is only input dependent..
+            do ireplica = 1, lenof_sign
+
+                call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
+                
+                do ispawn = 1, nspawn
+
+                    ! Zero the bit representation, to ensure no extraneous data gets through.
+                    ilut_child = 0_n_int
+
+                    call generate_excitation (nI_parent, ilut_parent, nI_child, &
+                                        ilut_child, exFlag, ic, ex, tParity, prob, &
+                                        HElGen, fcimc_excit_gen_store)
+
+                    ! If a valid excitation.
+                    if (.not. IsNullDet(nI_child)) then
+
+                        call encode_child (ilut_parent, ilut_child, ic, ex)
+                        if (tUseFlags) ilut_child(nOffFlag) = 0_n_int
+
+                        if (tSemiStochastic) then
+                            tChildIsDeterm = is_core_state(ilut_child, nI_child)
+
+                            ! Is the parent state in the core space?
+                            if (tParentIsDeterm) then
+                                ! If spawning is both from and to the core space, cancel it.
+                                if (tChildIsDeterm) cycle
+                                call set_flag(ilut_child, flag_determ_parent)
+                            else
+                                if (tChildIsDeterm) call set_flag(ilut_child, flag_deterministic)
+                            end if
+                        end if
+
+                        child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
+                                            nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
+                                            ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
+
+                    else
+                        child_sign = 0.0_dp
+                    end if
+
+                    ! If any (valid) children have been spawned.
+                    if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
+
+                        ! not quite sure about how to collect the child
+                        ! stats in the new rt-fciqmc ..
+                        call new_child_stats (iter_data_fciqmc, ilut_parent, &
+                                              nI_child, ilut_child, ic, ex_level_to_ref, &
+                                              child_sign, parent_flags, ireplica)
+
+                        call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
+                                                               ireplica, ilut_parent, iter_data_fciqmc)
+
+                    end if ! If a child was spawned.
+
+                end do ! Over mulitple particles on same determinant.
+
+            end do ! Over the replicas on the same determinant.
+
+            ! If this is a core-space determinant then the death step is done in
+            ! determ_projection.
+            if (.not. tParentIsDeterm) then
+                ! essentially have to treat the diagonal clone/death step like 
+                ! a spawning step and store the result into the spawned array..
+!                 call walker_death_spawn ()!iter_data_fciqmc, nI_parent,  &
+!                     ilut_parent, parent_hdiag, parent_sign, idet, ex_level_to_ref)
+
+                ! also not quite sure how to do the child_stats here ...
+                ! or in general for now in the rt-fciqmc
+                ! have to write all new book-keeping routines i guess.. 
+                diag_sign = attempt_die_realtime(nI_parent, parent_sign, ilut_parent, &
+                    parent_hdiag, idet, iter_data_fciqmc, ex_level_to_ref)
+                
+                if (any(abs(diag_sign) > EPS)) then
+
+                    call create_diagonal_as_spawn(nI_parent, ilut_parent, &
+                        diag_sign, iter_data_fciqmc)
+                end if
+
+            end if
+
+        end do ! Over all determinants.
+
+        if (tSemiStochastic) call determ_projection()
+
+    end subroutine second_real_time_spawn
+
+
+    subroutine first_real_time_spawn()
+        ! routine which first loops over the CurrentDets array and creates the 
+        ! first spawning list k1 and combines it to y(n) + k1/2
+!         integer, intent(inout) :: n_determ_states
+        character(*), parameter :: this_routine = "first_real_time_spawn"
+        integer :: idet, parent_flags, nI_parent(nel), unused_flags, ex_level_to_ref, &
+                   ms_parent, ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,2), &
+                   ex_level_to_hf
+        integer(n_int), pointer :: ilut_parent(:) 
+        integer(n_int) :: ilut_child(0:niftot)
+        real(dp) :: parent_sign(lenof_sign), parent_hdiag, prob, child_sign(lenof_sign), &
+                    unused_sign(lenof_sign), unused_rdm_real
+        logical :: tParentIsDeterm, tParentUnoccupied, tParity, tChildIsDeterm
+        HElement_t(dp) :: HelGen
+        integer(int64) :: TotWalkersNew
+
+        ! use part of nicks code, and remove the parts, that dont matter 
+        do idet = 1, int(TotWalkers, sizeof_int)
+
+            ! The 'parent' determinant from which spawning is to be attempted.
+            ilut_parent => CurrentDets(:,idet)
+            parent_flags = 0_n_int
+
+            ! Indicate that the scratch storage used for excitation generation from the
+            ! same walker has not been filled (it is filled when we excite from the first
+            ! particle on a determinant).
+            fcimc_excit_gen_store%tFilled = .false.
+
+            call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
+                                  fcimc_excit_gen_store)
+
+            ex_level_to_ref = FindBitExcitLevel(iLutRef, ilut_parent, max_calc_ex_level)
+            if(tRef_Not_HF) then
+                ex_level_to_hf = FindBitExcitLevel (iLutHF_true, ilut_parent, max_calc_ex_level)
+            else
+                ex_level_to_hf = ex_level_to_ref
+            endif
+
+            tParentIsDeterm = check_determ_flag(ilut_parent)
+            tParentUnoccupied = IsUnoccDet(parent_sign)
+
+            ! If this determinant is in the deterministic space then store the relevant
+            ! data in arrays for later use.
+            ! for now, do not use deterministic option in the real-time fciqmc
+            ! add that later.. todo!
+!             if (tParentIsDeterm) then
+!                 ! Store the index of this state, for use in annihilation later.
+!                 indices_of_determ_states(n_determ_states) = idet
+!                 ! Add the amplitude to the deterministic vector.
+!                 partial_determ_vecs(:,n_determ_states) = parent_sign
+!                 n_determ_states = n_determ_states + 1
+! 
+!                 ! The deterministic states are always kept in CurrentDets, even when
+!                 ! the amplitude is zero. Hence we must check if the amplitude is zero
+!                 ! and, if so, skip the state.
+!                 if (tParentUnoccupied) cycle
+!             end if
+
+            ! If this slot is unoccupied (and also not a core determinant) then add it to
+            ! the list of free slots and cycle.
+            if (tParentUnoccupied) then
+                iEndFreeSlot = iEndFreeSlot + 1
+                FreeSlot(iEndFreeSlot) = idet
+                cycle
+            end if
+
+            ! The current diagonal matrix element is stored persistently.
+            parent_hdiag = det_diagH(idet)
+
+            if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
+
+            ! do i need to calc. the energy contributions in the rt-fciqmc?
+            ! leave it for now.. and figure out later..
+            call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
+                               parent_hdiag, 1.0_dp, tPairedReplicas, idet)
+
+            ! If we're on the Hartree-Fock, and all singles and
+            ! doubles are in the core space, then there will be
+            ! no stochastic spawning from this determinant, so
+            ! we can the rest of this loop.
+            if (ss_space_in%tDoubles .and. ex_level_to_hf == 0 .and. tDetermHFSpawning) cycle
+
+            ! i dont thin i need this below..
+!             if (tAllSymSectors) then
+!                 ms_parent = return_ms(ilut_parent)
+!                 nOccAlpha = (nel+ms_parent)/2
+!                 nOccBeta = (nel-ms_parent)/2
+!             end if
+! 
+            ! If this condition is not met (if all electrons have spin up or all have spin down)
+            ! then there will be no determinants to spawn to, so don't attempt spawning.
+            ! thats a really specific condition.. shouldnt be checked each 
+            ! cycle.. since this is only input dependent..
+            do ireplica = 1, lenof_sign
+
+                call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
+                
+                do ispawn = 1, nspawn
+
+                    ! Zero the bit representation, to ensure no extraneous data gets through.
+                    ilut_child = 0_n_int
+
+                    call generate_excitation (nI_parent, ilut_parent, nI_child, &
+                                        ilut_child, exFlag, ic, ex, tParity, prob, &
+                                        HElGen, fcimc_excit_gen_store)
+
+                    ! If a valid excitation.
+                    if (.not. IsNullDet(nI_child)) then
+
+                        call encode_child (ilut_parent, ilut_child, ic, ex)
+                        if (tUseFlags) ilut_child(nOffFlag) = 0_n_int
+
+                        if (tSemiStochastic) then
+                            tChildIsDeterm = is_core_state(ilut_child, nI_child)
+
+                            ! Is the parent state in the core space?
+                            if (tParentIsDeterm) then
+                                ! If spawning is both from and to the core space, cancel it.
+                                if (tChildIsDeterm) cycle
+                                call set_flag(ilut_child, flag_determ_parent)
+                            else
+                                if (tChildIsDeterm) call set_flag(ilut_child, flag_deterministic)
+                            end if
+                        end if
+
+                        child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
+                                            nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
+                                            ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
+
+                    else
+                        child_sign = 0.0_dp
+                    end if
+
+                    ! If any (valid) children have been spawned.
+                    if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
+
+                        ! not quite sure about how to collect the child
+                        ! stats in the new rt-fciqmc ..
+                        call new_child_stats (iter_data_fciqmc, ilut_parent, &
+                                              nI_child, ilut_child, ic, ex_level_to_ref, &
+                                              child_sign, parent_flags, ireplica)
+
+                        call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
+                                                               ireplica, ilut_parent, iter_data_fciqmc)
+
+                    end if ! If a child was spawned.
+
+                end do ! Over mulitple particles on same determinant.
+
+            end do ! Over the replicas on the same determinant.
+
+            ! If this is a core-space determinant then the death step is done in
+            ! determ_projection.
+
+            ! in the 2nd RK loop of the real-time fciqmc the death step 
+            ! should not act on the currently looped over walker list y(n)+k1/2
+            ! but should be added to the spawned list k2, to then apply it to 
+            ! the original y(n) + k2 
+            if (.not. tParentIsDeterm) then
+                call walker_death_realtime (iter_data_fciqmc, nI_parent,  &
+                    ilut_parent, parent_hdiag, parent_sign, idet, ex_level_to_ref)
+            end if
+
+        end do ! Over all determinants.
+
+        if (tSemiStochastic) call determ_projection()
+
+        ! also update the temp. variables to reuse in y(n) + k2 comb.
+        ! this should be done before the annihilaiton step, as there these 
+        ! values get changed! 
+        temp_iendfreeslot = iEndFreeSlot 
+        temp_freeslot = FreeSlot
+
+        print *, iStartFreeSlot, iEndFreeSlot
+        ! this is the original number of dets.
         TotWalkersNew = int(TotWalkers, sizeof_int)
 
+        ! the number TotWalkersNew changes below in annihilation routine
         ! Annihilation is done after loop over walkers
         call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
 
         TotWalkers = int(TotWalkersNew, sizeof_int)
 
+    end subroutine first_real_time_spawn
+
+    subroutine perform_real_time_iteration()
+        ! routine which performs one real-time fciqmc iteration
+        character(*), parameter :: this_routine = "perform_real_time_iteration"
+
+        integer :: idet !, n_determ_states 
+        integer(int64) :: TotWalkersNew
+        real(dp) :: tmp_sign(lenof_sign)
+
+        ! 0)
+        ! do all the necessary preperation(resetting pointers etc.)
+        call init_real_time_iteration(iter_data_fciqmc)
+        ! 1)
+        ! do a "normal" spawning step and combination to y(n) + k1/2
+        ! into CurrentDets: 
+        
+        print *, "TotParts and totDets before first spawn: ", TotParts, TotWalkers
+        call extract_sign(CurrentDets(:,1), tmp_sign)
+!         print *, "hf occ before death:", tmp_sign
+        call first_real_time_spawn()
+        call extract_sign(CurrentDets(:,1), tmp_sign)
+!         print *, "hf occ after death:", tmp_sign
+        print *, "TotParts and totDets after first spawn: ", TotParts, TotWalkers
+        print *, "=========================="
+
+        ! for now update the iter data here, although in the final 
+        ! implementation i only should do that after the 2nd RK step
+        ! or keep track of two different iter_datas for first and second 
+        ! spawning..
+        call update_iter_data(iter_data_fciqmc)
         ! 2)
         ! reset the spawned list and do a second spawning step to create 
         ! the spawend list k2 
         ! but DO NOT yet recombine with stored walker list 
-        call reset_spawned_list(n_determ_states) 
+        call reset_spawned_list() 
 
         ! create a second spawned list from y(n) + k1/2
-        do idet = 1, int(TotWalkers, sizeof_int)
+        ! have to think to exclude death_step here and store this 
+        ! information into the spawned k2 list..
+        ! quick solution would be to loop again over reloaded y(n)
+        ! and do a death step for wach walker
 
-            ! have to think to exclude death_step here and store this 
-            ! information into the spawned k2 list..
-            ! quick solution would be to loop again over reloaded y(n)
-            ! and do a death step for wach walker
-
-        end do
+        call second_real_time_spawn()
 
         ! 3) 
         ! reload stored temp_det_list y(n) into CurrentDets 
+        ! have to figure out how to effectively save the previous hash_table
+        ! or maybe just use two with different types of update functions..
         call reload_current_dets()
 
         ! 4)

@@ -21,7 +21,7 @@ module real_time_init
                         tWalkContGrow, diagSft
     use FciMCData, only: tSearchTau, alloc_popsfile_dets, pops_pert, tPopsAlreadyRead, &
                          tSinglePartPhase, iter_data_fciqmc, iter, PreviousCycles, &
-                         AllGrowRate, spawn_ht
+                         AllGrowRate, spawn_ht, pDoubles, pSingles
     use SystemData, only: nBasis, lms
     use perturbations, only: init_perturbation_annihilation, &
                              init_perturbation_creation
@@ -221,7 +221,10 @@ contains
         ! a new calulcation
         PreviousCycles = 0
 
-        
+        ! for intermediate test_purposes turn off spawning to check if the 
+        ! diagonal step works as intented 
+!         pSingles = 0.0_dp
+!         pDoubles = 0.0_dp
 
     end subroutine setup_real_time_fciqmc
 
@@ -279,11 +282,11 @@ contains
                 ! but not directly with the max-time option
                 call readi(real_time_info%n_time_steps)
 
-            case ("BROADENING")
+            case ("DAMPING")
                 ! to reduce the explosive spread of walkers through the 
                 ! Hilbert space a small imaginery energy can be introduced in
                 ! the Schroedinger equation id/dt y(t) = (H-E0-ie)y(t)
-                call readf(real_time_info%broadening)
+                call readf(real_time_info%damping)
 
             ! use nicks perturbation & kp-fciqmc stuff here as much as 
             ! possible too

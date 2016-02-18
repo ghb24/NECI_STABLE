@@ -59,7 +59,7 @@ module real_time_data
         ! to reduce the explosive spread of walkers through the 
         ! Hilbert space a small imaginery energy can be introduced in
         ! the Schroedinger equation id/dt y(t) = (H-E0-ie)y(t)
-        real(dp) :: broadening = 0.0_dp
+        real(dp) :: damping = 0.0_dp
 
     end type real_time_type
 
@@ -81,10 +81,8 @@ module real_time_data
 
     ! also need the freeslot quantitiy 
     integer, allocatable :: temp_freeslot(:)
+    ! also need temporary variables to store the iStart- and iEndFreeSlot 
+    ! variables(actually dont need tmp_start var.)
+    integer :: temp_iEndFreeslot
 
-
-
-
-
-        
 end module real_time_data

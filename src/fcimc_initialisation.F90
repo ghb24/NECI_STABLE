@@ -130,6 +130,8 @@ module fcimc_initialisation
     use sym_mod
     use HElem
     use constants
+    use real_time_data, only: t_real_time_fciqmc
+    use real_time_procs, only: attempt_create_realtime
 
     implicit none
 
@@ -1465,6 +1467,8 @@ contains
             else
                 attempt_create => att_create_trunc_spawn_enc
             endif
+        else if (t_real_time_fciqmc) then
+            attempt_create => attempt_create_realtime
         else
             attempt_create => attempt_create_normal
         endif
