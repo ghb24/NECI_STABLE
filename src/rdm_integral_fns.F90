@@ -25,12 +25,12 @@ contains
         integer :: ex(2,2)
         real(dp) :: integral
 
-        ex(1,1) = k
-        ex(1,2) = l
-        ex(2,1) = i
-        ex(2,2) = j
+        ex(1,1) = j
+        ex(1,2) = i
+        ex(2,1) = l
+        ex(2,2) = k
 
-        integral = sltcnd_2(ex, .false.)
+        integral = real(sltcnd_2(ex, .false.), dp)
 
     end function two_elec_int
 

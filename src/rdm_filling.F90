@@ -549,7 +549,7 @@ contains
         real(dp), intent(in) :: realSignI, realSignJ
         logical, intent(in) :: tFill_CiCj_Symm
 
-        integer :: Ex(2,2), j
+        integer :: Ex(2,2), Ex_symm(2,2), j
         logical :: tParity
         real(dp) :: full_sign(spawn%nrdms)
 
@@ -591,6 +591,11 @@ contains
             call Fill_Sings_RDM(rdm, nI, Ex, tParity, realSignI, realSignJ, tFill_CiCj_Symm)
 
             call fill_spawn_rdm_singles(spawn, nI, Ex, full_sign)
+            if (tFill_CiCj_Symm) then
+                Ex_symm(1,:) = Ex(2,:)
+                Ex_symm(2,:) = Ex(1,:)
+                call fill_spawn_rdm_singles(spawn, nI, Ex_symm, full_sign)
+            end if
     
         else if (RDMExcitLevel .ne. 1) then
 
@@ -600,6 +605,7 @@ contains
             call Fill_Doubs_RDM(rdm, Ex, tParity, realSignI, realSignJ, tFill_CiCj_Symm)
 
             call add_to_rdm_spawn_t(spawn, Ex(2,1), Ex(2,2), Ex(1,1), Ex(1,2), full_sign)
+            if (tFill_CiCj_Symm) call add_to_rdm_spawn_t(spawn, Ex(2,1), Ex(2,2), Ex(1,1), Ex(1,2), full_sign)
         end if
 
     end subroutine Add_RDM_From_IJ_Pair
