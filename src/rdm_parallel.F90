@@ -190,7 +190,6 @@ contains
             call add_hash_table_entry(spawn%hash_table, spawn%free_slots(proc), hash_val)
 
             spawn%free_slots(proc) = spawn%free_slots(proc) + 1
-            !write(6,*) "num_entries:", spawn%free_slots(proc), "on proc", proc; flush(6)
         end if
 
         if (p > q .or. r > s) call stop_all("Here","Here")

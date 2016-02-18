@@ -145,7 +145,7 @@ contains
         if (tHPHF) then
             if (.not. TestClosedShellDet(iLutnI)) then
                 call Fill_Diag_RDM(rdm, nI, AvSignCurr_sing/sqrt(2.0_dp), tCoreSpaceDet, IterRDM)
-                full_sign(irdm) = IterRDM*AvSignCurr_sing(1)*AvSignCurr_sing(nreplicas)/sqrt(2.0_dp)
+                full_sign(irdm) = IterRDM*AvSignCurr_sing(1)*AvSignCurr_sing(nreplicas)/2.0_dp
                 call fill_spawn_rdm_diag(spawn, nI, full_sign)
 
                 ! C_X D_X = C_X / sqrt(2) [ D_I +/- D_I'] - for open shell dets,
@@ -158,7 +158,7 @@ contains
 
                 call Fill_Diag_RDM(rdm, nSpinCoup, real(SignFac,dp)*AvSignCurr_sing/sqrt(2.0_dp), &
                                    tCoreSpaceDet, IterRDM)
-                full_sign(irdm) = real(SignFac,dp)*IterRDM*AvSignCurr_sing(1)*AvSignCurr_sing(nreplicas)/sqrt(2.0_dp)
+                full_sign(irdm) = IterRDM*AvSignCurr_sing(1)*AvSignCurr_sing(nreplicas)/2.0_dp
                 call fill_spawn_rdm_diag(spawn, nI, full_sign)
 
                 ! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
