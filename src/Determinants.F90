@@ -138,10 +138,8 @@ contains
     Subroutine DetInit()
         Use global_utilities
         use constants, only: dp,int64
-        use SystemData, only: nel, Alat, Boa, Coa, BOX, BRR, ECore
-        use SystemData, only: G1, LMS, nBasis, STot, tCSFOLD, Arr,tHub,tUEG
+        use SystemData, only: nel, G1, nBasis, Arr, tHub, tUEG
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
-        use IntegralsData, only: nfrozen
         use sym_mod
       
       real(dp) DNDET
@@ -477,8 +475,8 @@ contains
         HElement_t(dp) , intent(in) :: HElGen    !Not used - here for compatibility with other interfaces.
 
         ! Eliminate compiler warnings
-        integer(n_int) :: iUnused; integer :: iUnused2
-        iUnused=iLutJ(1); iUnused=iLutI(1); iUnused2=nJ(1)
+        integer(n_int) :: iUnused; integer :: iUnused2; HElement_t(dp) :: hUnused
+        iUnused=iLutJ(1); iUnused=iLutI(1); iUnused2=nJ(1); hUnused = helgen
 
         hel = sltcnd_excit (nI, IC, ex, tParity)
 
@@ -500,7 +498,7 @@ contains
         ! This is calculated by subtracting the required two electron terms
         ! from the diagonal matrix elements.
         integer, intent(in) :: nI(NEl),HFDet(NEl)
-        HElement_t(dp) :: hii,hel
+        HElement_t(dp) :: hel
 
         hel = SumFock(nI,HFDet)
         GetH0Element4 = hel + ECore
@@ -553,7 +551,7 @@ contains
         integer(n_int), intent(out), optional :: ilut_gen(0:NIfTot)
         !integer, intent(out), optional :: det(nel)
 
-        integer :: nI(nel), i, nfound, orb, clro
+        integer :: i, nfound, orb, clro
         integer(n_int) :: ilut_tmp(0:NIfTot)
 
         ! If we haven't initialised the generator, do that now.
