@@ -605,7 +605,7 @@ contains
             call Fill_Doubs_RDM(rdm, Ex, tParity, realSignI, realSignJ, tFill_CiCj_Symm)
 
             call add_to_rdm_spawn_t(spawn, Ex(2,1), Ex(2,2), Ex(1,1), Ex(1,2), full_sign)
-            if (tFill_CiCj_Symm) call add_to_rdm_spawn_t(spawn, Ex(2,1), Ex(2,2), Ex(1,1), Ex(1,2), full_sign)
+            if (tFill_CiCj_Symm) call add_to_rdm_spawn_t(spawn, Ex(1,1), Ex(1,2), Ex(2,1), Ex(2,2), full_sign)
         end if
 
     end subroutine Add_RDM_From_IJ_Pair
