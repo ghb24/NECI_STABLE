@@ -602,7 +602,7 @@ contains
         if (present(tCoreSpaceDetIn)) tCoreSpaceDet = tCoreSpaceDetIn
 
         ! This is the single-run cutoff being applied (do not use in DR mode):
-        if (.not. tCoreSpaceDetIn) then
+        if (.not. tCoreSpaceDet) then
             ! Dets in the core space are never removed from main list, so
             ! strictly do not require corrections.
             if (tThreshOccRDMDiag .and. (abs(RealSignDi(1)) .le. ThreshOccRDM)) ScaleContribFac = 0.0_dp
