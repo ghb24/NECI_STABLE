@@ -18,6 +18,7 @@ module Integrals_neci
     use Parallel_neci, only: iProcIndex
     use bit_reps, only: init_bit_rep
     use procedure_pointers, only: get_umat_el, get_umat_el_secondary
+    use constants
 
     implicit none
 
@@ -88,7 +89,7 @@ contains
 
     SUBROUTINE IntReadInput()
       USE input_neci
-      use SystemData , only : NEL,TUSEBRILLOUIN,tStarStore,OrbOrder,NMSH,BasisFN
+      use SystemData, only: NEL, TUSEBRILLOUIN, OrbOrder, BasisFN
       use UMatCache, only: tReadInCache,nSlotsInit,nMemInit,iDumpCacheFlag,iDFMethod
       IMPLICIT NONE
       LOGICAL eof
@@ -348,7 +349,6 @@ contains
     Subroutine IntInit(iCacheFlag)
 !who knows what for
       Use global_utilities
-      use constants, only: dp
       Use OneEInts, only: SetupTMat!,GetTMatEl
       USE UMatCache, only : FreezeTransfer, CreateInvBRR, GetUMatSize, SetupUMat2D_df
       Use UMatCache, only: InitStarStoreUMat,SetupUMatCache!,GTID,UMatInd
@@ -360,7 +360,6 @@ contains
       use MemoryManager, only: TagIntType
       use sym_mod, only: GenSymStatePairs
       use read_fci
-      use constants, only: Pi, Pi2, THIRD
       INTEGER iCacheFlag
       complex(dp),ALLOCATABLE :: ZIA(:)
       INTEGER(TagIntType),SAVE :: tagZIA=0
@@ -641,13 +640,11 @@ contains
 
         
     Subroutine IntFreeze
-      use SystemData, only: Alat,Brr,CoulDampOrb,ECore,fCoulDampMu
+      use SystemData, only: Brr,CoulDampOrb,ECore,fCoulDampMu
       use SystemData, only: G1,iSpinSkip
       use SystemData, only: nBasis,nEl,arr,nbasismax
       use UMatCache, only: GetUMatSize
-      use constants, only: dp,bits_n_int
       use SymData , only : TwoCycleSymGens
-      use FciMCData , only : tDebug
       use MemoryManager, only: TagIntType
       use global_utilities
       character(25), parameter ::this_routine='IntFreeze'            
@@ -756,7 +753,6 @@ contains
 
 
     subroutine IntCleanup (iCacheFlag)
-        use SystemData, only: G1, nBasis
         use UMatCache, only: iDumpCacheFlag, tReadInCache, nStates, &
                              nStatesDump, DumpUMatCache, DestroyUMatCache, &
                              WriteUMatCacheStats
@@ -794,8 +790,7 @@ contains
 !This routine takes the frozen orbitals and modifies ECORE, UMAT, BRR etc accordingly.
     SUBROUTINE IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE,           &
    &         G1,NBASISMAX,ISS,BRR,NFROZEN,NTFROZEN,NFROZENIN,NTFROZENIN,NEL)
-       use constants, only: dp
-       use SystemData, only: Symmetry,BasisFN,BasisFNSize,arr,tagarr,tHub
+       use SystemData, only: Symmetry, BasisFN, arr, tagarr
        use OneEInts
        USE UMatCache, only: FreezeTransfer,UMatCacheData,UMatInd,TUMat2D
        Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
@@ -1378,7 +1373,6 @@ contains
        !    I,J,A,B: indices of integral.  These are in spin indices in
        !    unrestricted calculations and spatial indices in restricted.
        ! Returns <ij|ab>
-       use SystemData, only: ALAT,G1,iSpinSkip,nBasis,nBasisMax
        implicit none
        HElement_t(dp) GetUMatEl2
        integer :: I,J,A,B
@@ -1390,7 +1384,6 @@ contains
     subroutine init_getumatel_fn_pointers ()
 
         integer :: iss
-        character(*), parameter :: this_routine = 'init_getumatel_fn_pointers'
 
         if (nBasisMax(1,3) >= 0) then
             ! This is a hack. iss is not what it should be. grr.
@@ -1686,7 +1679,9 @@ contains
         HElement_t(dp) :: hel
         type(Symmetry) :: SymX,SymY,SymX_C,symtot,sym_sym
 !        integer, dimension(3) :: ksymx,ksymy,ksymx_c
+#ifdef __CMPLX
         character(len=*), parameter :: t_r='get_umat_el_comporb_spinorbs'
+#endif
 
         ! If we have complex orbitals, then <ij|kl> != <kj|il> necessarily, since we
         ! have complex orbitals (though real integrals) and want to ensure
@@ -1743,7 +1738,9 @@ contains
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
         type(Symmetry) :: SymX,SymY,SymX_C,symtot,sym_sym
+#ifdef __CMPLX
         character(len=*), parameter :: t_r='get_umat_el_comporb_notspinorbs'
+#endif
         
         ! If we have complex orbitals, then <ij|kl> != <kj|il> necessarily, since we
         ! have complex orbitals (though real integrals) and want to ensure
@@ -1904,9 +1901,7 @@ contains
 
 
     SUBROUTINE WRITESYMCLASSES(NBASIS)
-      use constants, only: dp
-      use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-      use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+      use SystemData, only: BasisFN, Symmetry
       USE UMatCache
       use SymData, only: SymClasses,SymLabelCounts,nSymLabels
       use util_mod, only: get_free_unit
