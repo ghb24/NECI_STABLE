@@ -347,14 +347,17 @@ contains
 
     function get_ueg_umat_el (idi, idj, idk, idl) result(hel)
 
-        use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen, Madelung
+        use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen
         integer, intent(in) :: idi, idj, idk, idl
         HElement_t(dp) :: hel
-        integer :: i, j, k, l, a, b, c, iss, aneu
+        integer :: i, j, k, l, a, b, c, iss
         real(dp) :: G, G2
         logical :: tCoulomb, tExchange          
         real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024_dp
         character(*), parameter :: this_routine = 'get_ueg_umat_el'
+
+        ! Initialisation to satisfy compiler warnings
+        hel = 0
 
         !==================================================      
         if (tUEG2) then

@@ -5,9 +5,8 @@ module read_fci
 contains
 
     SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
-         use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF,tHub,tUEG
-         use SystemData , only : tStoreSpinOrbs,tKPntSym,tRotatedOrbsReal,tFixLz,tUHF
-         use SystemData , only : tMolpro,tReadFreeFormat
+         use SystemData, only: tNoSymGenRandExcits, lNoSymmetry, tROHF, tHub, tUEG, tStoreSpinOrbs, &
+                               tKPntSym, tRotatedOrbsReal, tFixLz, tUHF, tMolpro
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel_neci
          use util_mod, only: get_free_unit
@@ -20,8 +19,12 @@ contains
          INTEGER NORB,NELEC,MS2,ISYM,i,SYML(1000), iunit,iuhf
          LOGICAL exists
          logical :: uhf
-         logical tExists     !test for existence of input file.
-         integer isfreeunit  !function returning integer for free unit
+
+#ifdef _MOLCAS_
+         logical :: tExists     !test for existence of input file.
+         integer :: isfreeunit  !function returning integer for free unit
+#endif
+
          CHARACTER(len=3) :: fmat
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
@@ -181,9 +184,8 @@ contains
 
 
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
-         use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn,tMolpro,tUHF
-         use SystemData, only: tCacheFCIDUMPInts,tROHF,tFixLz,iMaxLz,tRotatedOrbsReal
-         use SystemData, only: tReadFreeFormat,SYMMAX
+         use SystemData, only: BasisFN, Symmetry, NullBasisFn, tMolpro, tCacheFCIDUMPInts, &
+                               tROHF, tFixLz, iMaxLz, tRotatedOrbsReal, tReadFreeFormat, SYMMAX
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
          use UMatCache, only: GetCacheIndexStates,GTID
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
@@ -199,8 +201,8 @@ contains
          HElement_t(dp) Z
          COMPLEX(dp) :: CompInt
          integer(int64) IND,MASK
-         INTEGER I,J,K,L,I1, iunit
-         INTEGER ISYMNUM,ISNMAX,SYMLZ(1000)
+         INTEGER I,J,K,L,I1
+         INTEGER ISYMNUM,ISNMAX,SYMLZ(1000), iunit
          INTEGER NORB,NELEC,MS2,ISYM,ISPINS,ISPN,SYML(1000)
          integer(int64) ORBSYM(1000)
          INTEGER nPairs,iErr,MaxnSlot,MaxIndex,IUHF
@@ -208,9 +210,14 @@ contains
          character(len=*), parameter :: t_r='GETFCIBASIS'
          LOGICAL TBIN
          logical :: uhf
-         logical tExists     !test for existence of input file.
-         integer isfreeunit  !function returning integer for free unit
+
+#ifdef _MOLCAS_
+         logical :: tExists     !test for existence of input file.
+         integer :: isfreeunit  !function returning integer for free unit
+#endif
+
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
+         iunit = 0
          UHF=.FALSE.
          IUHF=0
          SYMLZ(:) = 0
@@ -570,11 +577,8 @@ contains
 !If tReadFreezeInts is false, then if we are cacheing the FCIDUMP file, then we will read and cache all the integrals.
       SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,tReadFreezeInts)
          use constants, only: dp
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,NEl
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,tMolpro
-         use SystemData, only: UMatEps,tCacheFCIDUMPInts,tUHF
-         use SystemData, only: tRIIntegrals,nBasisMax,tROHF,tRotatedOrbsReal
-         use SystemData, only: tReadFreeFormat, G1, tFixLz
+         use SystemData, only: Symmetry, NEl, BasisFN, tMolpro, UMatEps, tCacheFCIDUMPInts, tUHF, &
+                               tRIIntegrals,tROHF,tRotatedOrbsReal, tReadFreeFormat, tFixLz
          USE UMatCache, only: UMatInd,UMatConj,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
          USE UMatCache, only: FillUpCache,GTID,nStates,nSlots,nTypes
          USE UMatCache, only: UMatCacheData,UMatLabels,GetUMatSize
@@ -591,7 +595,7 @@ contains
          HElement_t(dp) Z
          COMPLEX(dp) :: CompInt
          INTEGER ZeroedInt,NonZeroInt, LzDisallowed
-         INTEGER I,J,K,L,X,Y,iunit,iSpinType
+         INTEGER I,J,K,L,X,Y,iSpinType, iunit
          INTEGER NORB,NELEC,MS2,ISYM,SYML(1000)
          integer(int64) ORBSYM(1000)
          LOGICAL LWRITE
@@ -601,11 +605,15 @@ contains
          INTEGER , ALLOCATABLE :: CacheInd(:)
          character(len=*), parameter :: t_r='READFCIINT'
          real(dp) :: diff
-         logical tExists     !test for existence of input file.
-         integer isfreeunit  !function returning integer for free unit
          logical :: tbad
          integer :: start_ind, end_ind
          integer, parameter :: chunk_size = 1000000
+
+#ifdef _MOLCAS_
+         logical :: tExists     !test for existence of input file.
+         integer :: isfreeunit  !function returning integer for free unit
+#endif
+
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          LWRITE=.FALSE.
          UHF=.FALSE.
@@ -613,6 +621,7 @@ contains
          ZeroedInt=0
          LzDisallowed=0
          NonZeroInt=0
+         iunit = 0
          
          IF(iProcIndex.eq.0) THEN
 #ifdef _MOLCAS_
@@ -971,8 +980,7 @@ contains
       !This is a copy of the routine above, but now for reading in binary files of integrals
       SUBROUTINE READFCIINTBIN(UMAT,ECORE)
          use constants, only: dp,int64,sizeof_int
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry, BasisFN
          USE UMatCache , only : UMatInd,UMAT2D,TUMAT2D
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          use util_mod, only: get_free_unit

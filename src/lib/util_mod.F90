@@ -95,7 +95,6 @@ contains
         real(dp), intent(in) :: num, r
         integer :: i
         real(dp) :: res
-        character(*), parameter :: this_routine = 'stochastic_round_r'
 
         i = int(num)
         res = num - real(i, dp)
@@ -114,7 +113,7 @@ contains
         !     STDOUT within fortran.
 
         character(c_char), intent(in) :: str(*)
-        integer :: l, i
+        integer :: l
 
         l = strlen_wrap(str)
         call print_cstr_local (str, l)
@@ -479,7 +478,6 @@ contains
 
     function binary_search_real (arr, val, thresh) &
                                  result(pos)
-        use constants, only: n_int
 
         real(dp), intent(in) :: arr(:)
         real(dp), intent(in) :: val
@@ -890,6 +888,9 @@ end module
 #else
         integer :: j
 #endif
+
+        ! Eliminate compiler warnings
+        j = j
 
 #if defined(CBINDMPI) && !defined(MOLPRO)
         ! Define interfaces that we need
