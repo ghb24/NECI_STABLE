@@ -1329,6 +1329,7 @@ contains
         use LoggingData, only: RDMExcitLevel, RDMEnergyIter
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: rdm_t
+        use rdm_parallel, only: add_to_rdm_spawn_t
         use sparse_arrays, only: sparse_core_ham, core_connections
         use SystemData, only: nel, tHPHF
 
@@ -1339,6 +1340,7 @@ contains
         integer :: SingEx(2,1), Ex(2,2)
         real(dp) :: InstSignI, InstSignJ
         real(dp) :: AvSignI(lenof_sign), AvSignJ(lenof_sign)
+        real(dp) :: full_sign(spawn%nrdms)
         logical :: tParity
         integer(n_int) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer :: nI(nel), nJ(nel), IC
@@ -1392,12 +1394,18 @@ contains
 
                 if (sign(1, connect_elem) .gt. 0) then
                     tParity = .false.
+                    ! For nreplicas=2, this will multiply the odd indices of AvSignI_Par
+                    ! (representing replica 1) by the even indices of AvSignJ (representing
+                    ! replica 2).
+                    full_sign = AvSignI(1:lenof_sign:nreplicas) * AvSignJ(2:lenof_sign:nreplicas) * IterRDM
                 else
                     tParity = .true.
+                    full_sign = -AvSignI(1:lenof_sign:nreplicas) * AvSignJ(2:lenof_sign:nreplicas) * IterRDM
                 end if
 
                 if (tHPHF) then
                     call decode_bit_det(nJ, iLutJ)
+
 
                     do irdm = 1, size(rdms)
                         ind1 = nreplicas*irdm-nreplicas+1
@@ -1418,6 +1426,7 @@ contains
                         ! No need to explicitly fill symmetrically as we'll
                         ! generate pairs of determinants both ways around using
                         ! the connectivity matrix.
+                        call fill_spawn_rdm_singles(spawn, nI, Ex, full_sign)
                         do irdm = 1, size(rdms)
                             ind1 = nreplicas*irdm-nreplicas+1
                             ind2 = nreplicas*irdm
@@ -1430,6 +1439,7 @@ contains
                         ! but will do for now as we need the Ex...
                         call get_bit_excitmat(iLutI(0:NIfD), iLutJ(0:NIfD), Ex, IC)
 
+                        call add_to_rdm_spawn_t(spawn, Ex(2,1), Ex(2,2), Ex(1,1), Ex(1,2), full_sign)
                         do irdm = 1, size(rdms)
                             ind1 = nreplicas*irdm-nreplicas+1
                             ind2 = nreplicas*irdm
