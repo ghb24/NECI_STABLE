@@ -71,7 +71,7 @@ module FciMCParMod
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
 
-        use rdm_data, only: two_rdm_spawn
+        use rdm_data, only: rdm_arr_ht, nrdm_elements
 
 #ifdef MOLPRO
         integer :: nv, ityp(1)
@@ -424,9 +424,8 @@ module FciMCParMod
                         end do
 
                         !TODO: Move this to a more sensible place when everything is working.
-                        two_rdm_spawn%free_slots = two_rdm_spawn%init_free_slots
-                        call clear_hash_table(two_rdm_spawn%hash_table)
-                        two_rdm_spawn%contribs = 0_int_rdm
+                        call clear_hash_table(rdm_arr_ht)
+                        nrdm_elements = 0
 
                         if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates)
                 end if
@@ -646,7 +645,8 @@ module FciMCParMod
 
     subroutine PerformFCIMCycPar(iter_data)
 
-        use rdm_data, only: two_rdm_spawn
+        use rdm_data, only: two_rdm_spawn, rdm_arr, rdm_arr_ht, nrdm_elements
+        use rdm_parallel, only: communicate_rdm_spawn_t, copy_spawns_to_rdm
         
         ! Iteration specific data
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -1018,6 +1018,11 @@ module FciMCParMod
         !HolesInList is returned from direct annihilation with the number of unoccupied determinants in the list
         !They have already been removed from the hash table though.
         call DirectAnnihilation (totWalkersNew, iter_data, .false.) !.false. for not single processor
+
+        if (tFillingStochRDMonFly) then
+            call communicate_rdm_spawn_t(two_rdm_spawn)
+            call copy_spawns_to_rdm(rdm_arr, rdm_arr_ht, nrdm_elements, two_rdm_spawn)
+        end if
 
         ! This indicates the number of determinants in the list + the number
         ! of holes that have been introduced due to annihilation.

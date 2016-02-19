@@ -196,6 +196,106 @@ contains
 
     end subroutine add_to_rdm_spawn_t
 
+    subroutine communicate_rdm_spawn_t(spawn)
+
+        use hash, only: clear_hash_table
+        use Parallel_neci, only: MPIAlltoAll, MPIAlltoAllv
+
+        type(rdm_spawn_t), intent(inout) :: spawn
+
+        integer :: i, ierr
+        integer(MPIArg) :: send_sizes(0:nProcessors-1), recv_sizes(0:nProcessors-1)
+        integer(MPIArg) :: send_displs(0:nProcessors-1), recv_displs(0:nProcessors-1)
+
+        ! How many rows of data to send to each processor.
+        do i = 0, nProcessors-1
+            send_sizes(i) = int(spawn%free_slots(i) - spawn%init_free_slots(i), MPIArg)
+        end do
+
+        ! The displacement of the beginning of each processor's section of the
+        ! free_slots array, relative to the first element of this array.
+        send_displs = int(spawn%init_free_slots-1, MPIArg)
+
+        call MPIAlltoAll(send_sizes, 1, recv_sizes, 1, ierr)
+
+        recv_displs(0) = 0
+        do i = 1, nProcessors-1
+            recv_displs(i) = recv_displs(i-1) + recv_sizes(i-1)
+        end do
+
+        ! The total number of RDM elements sent to this processor.
+        spawn%ncontribs_recv = int(sum(recv_sizes), sizeof_int)
+
+        send_sizes = send_sizes*size(spawn%contribs,1)
+        recv_sizes = recv_sizes*size(spawn%contribs,1)
+        send_displs = send_displs*size(spawn%contribs,1)
+        recv_displs = recv_displs*size(spawn%contribs,1)
+
+        ! Perform the communication.
+        call MPIAlltoAllv(spawn%contribs, send_sizes, send_displs, &
+                          spawn%contribs_recv, recv_sizes, recv_displs, ierr)
+
+        ! Now we can reset the contribs and free_slots array.
+        spawn%free_slots = spawn%init_free_slots
+        call clear_hash_table(spawn%hash_table)
+
+    end subroutine communicate_rdm_spawn_t
+
+    subroutine copy_spawns_to_rdm(rdm, rdm_ht, nrdm_elems, spawn)
+
+        use hash, only: hash_table_lookup, add_hash_table_entry
+
+        integer(int_rdm), intent(inout) :: rdm(0:,:)
+        type(ll_node), pointer, intent(inout) :: rdm_ht(:)
+        integer, intent(inout) :: nrdm_elems
+        type(rdm_spawn_t), intent(in) :: spawn
+
+        integer :: i, pq, rs, p, q, r, s
+        integer(int_rdm) :: pqrs
+        integer :: ind, hash_val
+        real(dp) :: real_sign_old(spawn%nrdms), real_sign_new(spawn%nrdms)
+        real(dp) :: spawn_sign(spawn%nrdms)
+        logical :: tSuccess
+        character(*), parameter :: this_routine = 'copy_spawns_to_rdm'
+
+        do i = 1, spawn%ncontribs_recv
+            ! Decode the compressed RDm labels.
+            pqrs = spawn%contribs_recv(0,i)
+            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+
+            ! Extract the spawned sign.
+            call extract_sign_rdm(spawn%contribs_recv(:,i), spawn_sign)
+
+            ! Search to see if this RDM element is already in the rdm array.
+            ! If it, tSuccess will be true and ind will hold the position of the
+            ! element in rdm.
+            call hash_table_lookup((/p,q,r,s/), (/pqrs/), 0, rdm_ht, rdm, ind, hash_val, tSuccess)
+
+            if (tSuccess) then
+                ! Extract the existing sign.
+                call extract_sign_rdm(rdm(:,ind), real_sign_old)
+
+                ! Update the total sign.
+                real_sign_new = real_sign_old + spawn_sign
+                ! Encode the new sign.
+                call encode_sign_rdm(rdm(:,ind), real_sign_new)
+            else
+                ! Check that there is enough memory for the new RDM element.
+                if (nrdm_elems+1 > size(rdm,2)) then
+                    write(6,'("Ran out of memory while adding new elements to the RDM array.")')
+                    call stop_all(this_routine, "Out of memory for RDM elements.")
+                end if
+
+                ! Update the rdm array, and its hash table.
+                nrdm_elems = nrdm_elems + 1
+                rdm(0, nrdm_elems) = pqrs
+                call encode_sign_rdm(rdm(:, nrdm_elems), spawn_sign)
+                call add_hash_table_entry(rdm_ht, nrdm_elems, hash_val)
+            end if
+        end do
+
+    end subroutine copy_spawns_to_rdm
+
     subroutine calc_rdm_energy(spawn, rdm_energy)
 
         use rdm_data, only: rdm_spawn_t

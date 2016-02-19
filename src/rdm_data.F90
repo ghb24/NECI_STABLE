@@ -115,6 +115,9 @@ module rdm_data
         ! Length of RDM arrays above.
         integer :: contribs_length
 
+        ! The number of RDM elements received in the parallel communication.
+        integer :: ncontribs_recv
+
         ! Hash table to the RDM spawning array.
         type(ll_node), pointer :: hash_table(:)
         ! Number of hashes available in the RDM hash tables.
@@ -134,5 +137,7 @@ module rdm_data
     integer(int_rdm), allocatable :: rdm_arr(:,:)
     ! Hash table to the RDM array.
     type(ll_node), pointer :: rdm_arr_ht(:)
+    ! The number of RDM elements entered into the rdm_arr array.
+    integer :: nrdm_elements = 0
 
 end module rdm_data
