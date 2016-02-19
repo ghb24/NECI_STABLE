@@ -24,7 +24,6 @@ contains
 
         type(rdm_t), intent(inout) :: rdm
 
-        real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity
         integer :: i, ierr
 
         ! If Iter = 0, this means we have just read in the TwoRDM_POPS_a*** matrices into a***_RDM_full, and 
@@ -187,7 +186,7 @@ contains
         real(dp), intent(in) :: Norm_2RDM
         logical, intent(in) :: tNormalise, tMake_Herm
 
-        real(dp) :: ParityFactor, Divide_Factor
+        real(dp) :: Divide_Factor
         integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab
         integer :: No_Herm_Elements
         integer :: aaaa_RDM_unit, abab_RDM_unit, abba_RDM_unit
@@ -197,6 +196,11 @@ contains
         character(255) :: TwoRDM_bbbb_name, TwoRDM_baba_name, TwoRDM_baab_name
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity, Sum_Herm_Percent 
         real(dp) :: Temp
+
+        ! Eliminate compiler warnings (no functional impact)
+        bbbb_RDM_unit = 0
+        baba_RDM_unit = 0
+        baab_RDM_unit = 0
 
         if (tNormalise) then
             write(6,'("Writing out the *normalised* 2 electron density matrix to file")')
@@ -307,8 +311,8 @@ contains
                         
                         if ((i .ne. j) .and. (a .ne. b)) then
 
-                            if ( (rdm%aaaa_full(Ind1_aa,Ind2_aa) .ne. 0.0_dp) .or. &
-                                 (rdm%aaaa_full(Ind2_aa,Ind1_aa) .ne. 0.0_dp) ) then
+                            if ( (abs(rdm%aaaa_full(Ind1_aa,Ind2_aa)) > 1.0e-12_dp) .or. &
+                                 (abs(rdm%aaaa_full(Ind2_aa,Ind1_aa)) > 1.0e-12_dp) ) then
                                 ! If we're normalising (and have made the matrix hermitian) we only 
                                 ! need to write out Ind1 < Ind2.
                                 ! Otherwise we print out Ind1, Ind2 and Ind2, Ind1 so we can 
@@ -359,8 +363,8 @@ contains
 
                             if (tOpenShell) then
 
-                                if ( (rdm%bbbb_full(Ind1_aa,Ind2_aa) .ne. 0.0_dp) .or. &
-                                     (rdm%bbbb_full(Ind2_aa,Ind1_aa) .ne. 0.0_dp) ) then
+                                if ( (abs(rdm%bbbb_full(Ind1_aa,Ind2_aa)) > 1.0e-12_dp) .or. &
+                                     (abs(rdm%bbbb_full(Ind2_aa,Ind1_aa)) > 1.0e-12_dp) ) then
 
                                     ! If we're normalising (and have made the matrix hermitian) we only 
                                     ! need to write out Ind1 < Ind2.
@@ -413,8 +417,8 @@ contains
 
                             if (tOpenShell) then
 
-                                if ( (rdm%abba_full(Ind1_aa,Ind2_aa) .ne. 0.0_dp) .or. &
-                                     (rdm%baab_full(Ind2_aa,Ind1_aa) .ne. 0.0_dp) ) then
+                                if ( (abs(rdm%abba_full(Ind1_aa,Ind2_aa)) > 1.0e-12_dp) .or. &
+                                     (abs(rdm%baab_full(Ind2_aa,Ind1_aa)) > 1.0e-12_dp) ) then
 
                                     if (tNormalise .and. (Ind1_aa .le. Ind2_aa)) then
 
@@ -454,8 +458,8 @@ contains
                                     end if
                                 end if ! rdm%abba_full rdm%baab_full
 
-                                if ( (rdm%baab_full(Ind1_aa,Ind2_aa) .ne. 0.0_dp) .or. &
-                                     (rdm%abba_full(Ind2_aa,Ind1_aa) .ne. 0.0_dp) ) then
+                                if ( (abs(rdm%baab_full(Ind1_aa,Ind2_aa)) > 1.0e-12_dp) .or. &
+                                     (abs(rdm%abba_full(Ind2_aa,Ind1_aa)) > 1.0e-12_dp) ) then
 
                                 if (tNormalise .and. (Ind1_aa .le. Ind2_aa)) then
 
@@ -497,8 +501,8 @@ contains
 
                             else ! not tOpenShell
 
-                                if ( (rdm%abba_full(Ind1_aa,Ind2_aa) .ne. 0.0_dp) .or. &
-                                     (rdm%abba_full(Ind2_aa,Ind1_aa) .ne. 0.0_dp) ) then
+                                if ( (abs(rdm%abba_full(Ind1_aa,Ind2_aa)) > 1.0e-12_dp) .or. &
+                                     (abs(rdm%abba_full(Ind2_aa,Ind1_aa)) > 1.0e-12_dp) ) then
 
                                     if (tNormalise .and. (Ind1_aa .le. Ind2_aa)) then
                                         if ((abs((rdm%abba_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
@@ -539,8 +543,8 @@ contains
 
                         end if  ! (i.ne.j) .and. (a.ne.b) 
 
-                        if ( (rdm%abab_full(Ind1_ab,Ind2_ab) .ne. 0.0_dp) .or. &
-                             (rdm%abab_full(Ind2_ab,Ind1_ab) .ne. 0.0_dp) ) then
+                        if ( (abs(rdm%abab_full(Ind1_ab,Ind2_ab)) > 1.0e-12_dp) .or. &
+                             (abs(rdm%abab_full(Ind2_ab,Ind1_ab)) > 1.0e-12_dp) ) then
 
                             if ((abs((rdm%abab_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
                                         - (rdm%abab_full(Ind2_ab,Ind1_ab)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
@@ -580,8 +584,8 @@ contains
 
                         if (tOpenShell .and. ( (a .ne. b) .or. (i .ne. j) ))then
 
-                            if ( (rdm%baba_full(Ind1_ab,Ind2_ab) .ne. 0.0_dp).or. &
-                                 (rdm%baba_full(Ind2_ab,Ind1_ab) .ne. 0.0_dp) ) then
+                            if ( (abs(rdm%baba_full(Ind1_ab,Ind2_ab)) > 1.0e-12_dp).or. &
+                                 (abs(rdm%baba_full(Ind2_ab,Ind1_ab)) > 1.0e-12_dp) ) then
 
                                 if ((abs((rdm%baba_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
                                             - (rdm%baba_full(Ind2_ab,Ind1_ab)*Norm_2RDM))) .gt. Max_Error_Hermiticity) &
@@ -621,8 +625,8 @@ contains
 
                          else if (tOpenShell) then !a=b & i=j -> baba term saved in abab
 
-                            if ( (rdm%abab_full(Ind1_ab,Ind2_ab) .ne. 0.0_dp) .or. &
-                                (rdm%abab_full(Ind2_ab,Ind1_ab) .ne. 0.0_dp) ) then
+                            if ( (abs(rdm%abab_full(Ind1_ab,Ind2_ab)) > 1.0e-12_dp) .or. &
+                                (abs(rdm%abab_full(Ind2_ab,Ind1_ab)) > 1.0e-12_dp) ) then
 
                                 if ((abs((rdm%abab_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
                                             - (rdm%abab_full(Ind2_ab,Ind1_ab)*Norm_2RDM))) .gt. Max_Error_Hermiticity) &
@@ -710,7 +714,6 @@ contains
         real(dp), intent(in) :: Norm_2RDM
 
         integer :: i, j, a, b
-        integer :: read_stat
         integer :: spinfree_RDM_unit
         character(255) :: RDM_filename
 
