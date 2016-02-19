@@ -1193,11 +1193,11 @@ contains
                 ! First nOccBeta, then nOccAlpha.
                 do i = 1,(2*nOccBeta),2
                     k = 1
-                    do while(OccEnergies(k) == 0.0_dp)
+                    do while(abs(OccEnergies(k)) < 1.0e-10_dp)
                         k = k+2
                     end do
                     do j = 1,(2*nOccBeta),2
-                        if ((OccEnergies(j) < OccEnergies(k)) .and. (OccEnergies(j) /= 0.0_dp)) k = j
+                        if ((OccEnergies(j) < OccEnergies(k)) .and. (abs(OccEnergies(j)) > 1.0e-10_dp)) k = j
                     end do
                     l = ceiling(real(k,dp)/2.0_dp)
                     CoeffT1(:,i) = NatOrbMat(:,l)
@@ -1207,11 +1207,11 @@ contains
                 end do
                 do i = 2, (2*nOccAlpha), 2
                     k = 2
-                    do while(OccEnergies(k) == 0.0_dp)
+                    do while(abs(OccEnergies(k)) < 1.0e-10_dp)
                         k = k+2
                     end do
                     do j =2,(2*nOccAlpha),2
-                        if ((OccEnergies(j) < OccEnergies(k)).and.(OccEnergies(j) /= 0.0_dp)) k = j
+                        if ((OccEnergies(j) < OccEnergies(k)).and.(abs(OccEnergies(j)) > 1.0e-10_dp)) k = j
                     end do
                     l= (k/2)+SpatOrbs
                     CoeffT1(:,i) = NatOrbMat(:,l)
@@ -1248,11 +1248,11 @@ contains
 
                 do i = 1, NEl/2
                     k = 1
-                    do while(OccEnergies(k) == 0.0_dp)
+                    do while(abs(OccEnergies(k)) < 1.0e-10_dp)
                         k = k+1
                     end do
                     do j = 1, NEl/2
-                        if ((OccEnergies(j) < OccEnergies(k)) .and. (OccEnergies(j) /= 0.0_dp)) k = j
+                        if ((OccEnergies(j) < OccEnergies(k)) .and. (abs(OccEnergies(j)) >  1.0e-10_dp)) k = j
                     end do
                     CoeffT1(:,i) = NatOrbMat(:,k)
                     EvaluesTrunc(i) = Evalues(k)
@@ -1423,7 +1423,7 @@ contains
 
     subroutine CalcOccEnergies(OccEnergies)
 
-        use RotateOrbsData, only: CoeffT1, NoRotOrbs
+        use RotateOrbsData, only: NoRotOrbs
 
         real(dp) :: OccEnergies(1:NoRotOrbs)
         integer :: i, a, b, NoOcc, x, Prev, k
@@ -1526,7 +1526,7 @@ contains
         ! reduced density matrix.
 
         real(dp) :: Norm,OrbOccs(nBasis),AllOrbOccs(nBasis)
-        integer :: i, error, iunit
+        integer :: i, iunit
         logical :: tWarning
 
         AllOrbOccs = 0.0_dp
@@ -1544,7 +1544,7 @@ contains
                     tWarning = .true.
                 end if
             end do
-            if (Norm /= 0.0_dp) then
+            if (Norm > 1.0e-8_dp) then
                 do i = 1,nBasis
                     AllOrbOccs(i) = AllOrbOccs(i)/Norm
                 end do
