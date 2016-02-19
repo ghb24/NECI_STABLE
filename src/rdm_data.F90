@@ -100,44 +100,54 @@ module rdm_data
 
     ! Data for parallel RDM implementation.
 
-    type rdm_spawn_t
-        ! The number of RDMs to be held by this spawning array.
-        integer :: nrdms
-        ! The number of rows in the RDM.
-        integer :: nrows
-
-        ! Array for holding RDM contributions before they are sent to the
-        ! correct processor.
-        integer(int_rdm), allocatable :: contribs(:,:)
-        ! Array used to hold the result of the MPI communication to send RDM
-        ! contributions.
-        integer(int_rdm), allocatable :: contribs_recv(:,:)
-        ! Length of RDM arrays above.
-        integer :: contribs_length
-
-        ! The number of RDM elements received in the parallel communication.
-        integer :: ncontribs_recv
-
-        ! Hash table to the RDM spawning array.
+    ! This data type is used for storing RDMs as 1D lists. A specific
+    ! ordering of RDM elements in this list is not required - rather, a
+    ! hash table can be used to access elements.
+    type rdm_list_t
+        ! The number of integers available to store signs, for each
+        ! RDM element in the elements array.
+        integer :: sign_length = 0
+        ! Array which holds the RDM elements.
+        integer(int_rdm), allocatable :: elements(:,:)
+        ! Hash table to the rdm array.
         type(ll_node), pointer :: hash_table(:)
-        ! Number of hashes available in the RDM hash tables.
-        integer :: nhashes_rdm
+        ! The allocated size of the elements array.
+        integer :: max_nelements = 0
+        ! The number of RDM elements currently entered into the elements array.
+        integer :: nelements = 0
+        ! Number of unique hashes available in hash_table.
+        integer :: nhashes = 0
+    end type rdm_list_t
 
-        ! free_slots(i) holds the next available spawning slot in rdm_spawn
+    ! This data type is used for accumulating contributions to an RDM, spawned
+    ! on this processor. There are a collection of routines which then work
+    ! specifically with this data structure, to perform communication.
+    type rdm_spawn_t
+        ! The number of rows in the RDM.
+        integer :: nrows = 0
+
+        ! This object holds the spawning array for the RDM elements themselves,
+        ! as well as relevant metadata which is stored with the RDM list.
+        type(rdm_list_t) :: rdm
+
+        ! Array used to hold the result of the MPI communication of the RDM
+        ! spawn lists.
+        integer(int_rdm), allocatable :: rdm_recv(:,:)
+        ! The allocated length of rdm_recv.
+        integer :: max_nelements_recv = 0
+        ! The number of RDM elements received on this process in the parallel
+        ! communication.
+        integer :: nelements_recv = 0
+
+        ! free_slots(i) holds the next available spawning slot in rdm%elements
         ! for processor i.
         integer, allocatable :: free_slots(:)
-        ! init_free_slots(i) holds the index in rdm_spawn where the very
-        ! first RDM entry to be sent to processor i will be added.
+        ! init_free_slots(i) holds the index in rdm%elements where the very
+        ! first RDM element to be sent to processor i will be added.
         integer, allocatable :: init_free_slots(:)
     end type rdm_spawn_t
 
     type(rdm_spawn_t) :: two_rdm_spawn
-
-    ! Array which holds the RDM elements.
-    integer(int_rdm), allocatable :: rdm_arr(:,:)
-    ! Hash table to the RDM array.
-    type(ll_node), pointer :: rdm_arr_ht(:)
-    ! The number of RDM elements entered into the rdm_arr array.
-    integer :: nrdm_elements = 0
+    type(rdm_list_t) :: rdm_main
 
 end module rdm_data

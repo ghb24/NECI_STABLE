@@ -16,13 +16,13 @@ contains
         use LoggingData, only: tRDMInstEnergy, tWriteMultRDMs, IterWriteRDMs
         use LoggingData, only: tWrite_RDMs_to_read, tWrite_normalised_RDMs
         use LoggingData, only: tWriteSpinFreeRDM
-        use Parallel_neci, only: iProcIndex
+        use Parallel_neci, only: iProcIndex, MPISumAll
         use rdm_data, only: rdm_t, rdm_estimates_t, rdms, tOpenShell, rdm_estimates_unit
         use rdm_temp, only: Finalise_2e_RDM, calc_2e_norms, Write_out_2RDM
         use rdm_temp, only: Write_spinfree_RDM
 
         use hash, only: clear_hash_table
-        use rdm_data, only: two_rdm_spawn
+        use rdm_data, only: rdm_main
         use rdm_parallel, only: calc_rdm_trace, calc_rdm_spin, calc_rdm_energy
         use SystemData, only: ecore
 
@@ -30,8 +30,9 @@ contains
         integer, intent(in) :: rdm_label
         type(rdm_estimates_t), intent(inout) :: est
 
-        real(dp) :: rdm_energy(two_rdm_spawn%nrdms), rdm_trace(two_rdm_spawn%nrdms)
-        real(dp) :: rdm_spin(two_rdm_spawn%nrdms)
+        real(dp) :: rdm_energy(rdm_main%sign_length), rdm_trace(rdm_main%sign_length)
+        real(dp) :: rdm_spin(rdm_main%sign_length), all_rdm_energy(rdm_main%sign_length)
+        real(dp) :: all_rdm_trace(rdm_main%sign_length), all_rdm_spin(rdm_main%sign_length)
 
         ! Normalise, make Hermitian, etc.
         call Finalise_2e_RDM(rdm)
@@ -78,13 +79,16 @@ contains
             end if
         end if
 
-        call calc_rdm_energy(two_rdm_spawn, rdm_energy)
-        call calc_rdm_trace(two_rdm_spawn, rdm_trace)
-        call calc_rdm_spin(two_rdm_spawn, rdm_trace, rdm_spin)
+        call calc_rdm_energy(rdm_main, rdm_energy)
+        call MPISumAll(rdm_energy, all_rdm_energy)
+        call calc_rdm_trace(rdm_main, rdm_trace)
+        call MPISumAll(rdm_trace, all_rdm_trace)
+        call calc_rdm_spin(rdm_main, rdm_trace, rdm_spin)
+        call MPISumAll(rdm_spin, all_rdm_spin)
 
-        est%new_trace = rdm_trace(rdm_label)
-        est%new_energy = rdm_energy(rdm_label) + ecore*rdm_trace(rdm_label)
-        est%new_spin = rdm_spin(rdm_label)
+        est%new_trace = all_rdm_trace(rdm_label)
+        est%new_energy = all_rdm_energy(rdm_label) + ecore*all_rdm_trace(rdm_label)
+        est%new_spin = all_rdm_spin(rdm_label)
 
     end subroutine rdm_output_wrapper
 

@@ -39,15 +39,13 @@ contains
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data, only: rdm_estimates_unit, nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
-        use rdm_data, only: rdm_estimates, two_rdm_spawn, rdm_arr, rdm_arr_ht
-        use rdm_parallel, only: init_rdm_spawn_t
+        use rdm_data, only: rdm_estimates, two_rdm_spawn, rdm_main
+        use rdm_parallel, only: init_rdm_spawn_t, init_rdm_list_t
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
         use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
         use SystemData, only: tStoreSpinOrbs, tHPHF, tFixLz, iMaxLz, tROHF
         use util_mod, only: get_free_unit, LogMemAlloc
-
-        use hash, only: init_hash_table
 
         integer, intent(in) :: nrdms
 
@@ -55,7 +53,7 @@ contains
         integer :: MemoryAlloc, MemoryAlloc_Root
         character(len=*), parameter :: t_r = 'InitRDMs'
 
-        integer :: rdm_nrows, contribs_length, nhashes_rdm
+        integer :: rdm_nrows, max_nelems, nhashes_rdm
 
         ! First thing is to check we're not trying to fill the RDMs in a way
         ! that is not compatible with the code (not every case has been
@@ -71,14 +69,12 @@ contains
         ! factors such as imperfect load balancing (which affects the spawned
         ! array).
         rdm_nrows = nbasis*(nbasis-1)/2
-        contribs_length = 1.3*(rdm_nrows**2)/(8*nProcessors)
-        nhashes_rdm = 0.8*contribs_length
-        call init_rdm_spawn_t(two_rdm_spawn, nrdms, rdm_nrows, contribs_length, nhashes_rdm)
+        max_nelems = 1.3*(rdm_nrows**2)/(8*nProcessors)
+        nhashes_rdm = 0.8*max_nelems
+        call init_rdm_list_t(rdm_main, nrdms, max_nelems, nhashes_rdm)
 
-        allocate(rdm_arr(0:nrdms, contribs_length))
-        rdm_arr = 0_int_rdm
-        allocate(rdm_arr_ht(nhashes_rdm), stat=ierr)
-        call init_hash_table(rdm_arr_ht)
+        ! Initialise the main RDM array data structure.
+        call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems, max_nelems, nhashes_rdm)
 
         if (nrdms > 1 .and. (tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles .or. RDMExcitLevel == 1)) then
             call stop_all(t_r, 'The RDM feature you have requested is not currently implemented &

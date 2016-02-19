@@ -71,7 +71,7 @@ module FciMCParMod
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
 
-        use rdm_data, only: rdm_arr_ht, nrdm_elements
+        use rdm_data, only: rdm_main
 
 #ifdef MOLPRO
         integer :: nv, ityp(1)
@@ -424,8 +424,8 @@ module FciMCParMod
                         end do
 
                         !TODO: Move this to a more sensible place when everything is working.
-                        call clear_hash_table(rdm_arr_ht)
-                        nrdm_elements = 0
+                        call clear_hash_table(rdm_main%hash_table)
+                        rdm_main%nelements = 0
 
                         if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates)
                 end if
@@ -645,8 +645,8 @@ module FciMCParMod
 
     subroutine PerformFCIMCycPar(iter_data)
 
-        use rdm_data, only: two_rdm_spawn, rdm_arr, rdm_arr_ht, nrdm_elements
-        use rdm_parallel, only: communicate_rdm_spawn_t, copy_spawns_to_rdm
+        use rdm_data, only: two_rdm_spawn, rdm_main
+        use rdm_parallel, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2
         
         ! Iteration specific data
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -1019,11 +1019,6 @@ module FciMCParMod
         !They have already been removed from the hash table though.
         call DirectAnnihilation (totWalkersNew, iter_data, .false.) !.false. for not single processor
 
-        if (tFillingStochRDMonFly) then
-            call communicate_rdm_spawn_t(two_rdm_spawn)
-            call copy_spawns_to_rdm(rdm_arr, rdm_arr_ht, nrdm_elements, two_rdm_spawn)
-        end if
-
         ! This indicates the number of determinants in the list + the number
         ! of holes that have been introduced due to annihilation.
         TotWalkers = TotWalkersNew
@@ -1052,6 +1047,11 @@ module FciMCParMod
             else
                 call Fill_ExplicitRDM_this_Iter(TotWalkers)
             end if
+        end if
+
+        if (tFillingStochRDMonFly) then
+            call communicate_rdm_spawn_t(two_rdm_spawn)
+            call add_rdm_1_to_rdm_2(two_rdm_spawn%rdm_recv, two_rdm_spawn%nelements_recv, rdm_main)
         end if
 
     end subroutine PerformFCIMCycPar
