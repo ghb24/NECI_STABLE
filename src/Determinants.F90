@@ -198,7 +198,8 @@ contains
             NDET=(NDET*(nBasis-I))/(I+1)
             DNDET=(DNDET*real(nBasis-I,dp))/real(I+1,dp)
          ENDDO
-        IF(NDET.ne.DNDET) THEN
+
+        IF (abs(real(NDET) - dndet) > 1.0e-6) THEN
 !         WRITE(6,*) ' NUMBER OF DETERMINANTS : ' , DNDET
          NDET=-1
         ELSE
