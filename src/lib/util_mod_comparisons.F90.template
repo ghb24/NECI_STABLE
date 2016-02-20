@@ -59,8 +59,9 @@ contains
         length = min(size(a), size(b))
 
         ! Sort by the first item first...
+        ! Use > and < comparison, not ==, so that it works with all types (don't want to compare reals)
         do i = 1, length
-            if (a(i) /= b(i)) exit
+            if (a(i) > b(i) .or. a(i) < b(i)) exit
         enddo
 
         ! Make the comparison
@@ -86,8 +87,9 @@ contains
         length = min(size(a), size(b))
 
         ! Sort by the first item first...
+        ! Use > and < comparison, not ==, so that it works with all types (don't want to compare reals)
         do i = 1, length
-            if (a(i) /= b(i)) exit
+            if (a(i) > b(i) .or. a(i) < b(i)) exit
         enddo
 
         ! Make the comparison
