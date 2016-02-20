@@ -69,8 +69,7 @@ contains
         !   preceeding the block i and j are in.  This is given by SYMLABELINTSCUM(symI-1).
         !        TMatInd=k*(k-1)/2+l + SymLabelIntsCum(symI-1).
         !   If the element is zero by symmetry, return -1 (TMatSym(-1) is set to 0). 
-        use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-        use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use SystemData, only: Symmetry, BasisFN
         use SymData, only: SymClasses,StateSymMap,SymLabelIntsCum
         IMPLICIT NONE
         integer, intent(in) :: i, j
@@ -123,8 +122,7 @@ contains
       !    i,j: spin orbitals.
       ! Return the index of the <i|h|j> element in TMatSym2.
       ! See notes for TMatInd. Used post-freezing.
-        use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-        use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use SystemData, only: Symmetry, BasisFN
         use SymData, only: SymClasses2,StateSymMap,SymLabelIntsCum2
         IMPLICIT NONE
         INTEGER I,J,A,B,symI,symJ,Block,ind,K,L
@@ -246,8 +244,7 @@ contains
       SUBROUTINE WriteTMat(NBASIS)
         ! In:
         !    nBasis: size of basis (# orbitals).
-        use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-        use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use SystemData, only: Symmetry, BasisFN
         use SymData, only: SymLabelCounts,SymLabelCountsCum,nSymLabels
         use SymData, only: SymLabelIntsCum,SymLabelIntsCum2,SymLabelCountsCum2
         IMPLICIT NONE
@@ -361,9 +358,7 @@ contains
         ! Initial allocation of TMat2D or TMatSym (if using symmetry-compressed
         ! storage of the <i|h|j> integrals).
         use CPMDData, only: tKP
-        use SystemData, only: tCPMD,tVASP
-        use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-        use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use SystemData, only: tCPMD, tVASP, Symmetry, BasisFN
         use SymData, only: SymLabelCounts,SymLabelCountsCum,SymClasses
         use SymData, only: SymLabelIntsCum,nSymLabels,StateSymMap
         use SymData, only: tagSymLabelIntsCum,tagStateSymMap,tagSymLabelCountsCum
@@ -406,6 +401,10 @@ contains
             call LogMemAlloc('StateSymMap',nBi,4,thisroutine,tagStateSymMap)
             SYMLABELCOUNTSCUM(1:Nirrep)=0
             SYMLABELINTSCUM(1:Nirrep)=0
+
+            ! Ensure no compiler warnings
+            basirrep=SYMLABELCOUNTS(2, 1)
+
             do i=1,Nirrep
                 basirrep=SYMLABELCOUNTS(2,i)
                 ! Block diagonal.
@@ -488,9 +487,7 @@ contains
         ! storage of the <i|h|j> integrals) for post-freezing.
         ! See also notes in SetupTMat.
         use CPMDData, only: tKP
-        use SystemData, only: tCPMD,tVASP
-        use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-        use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use SystemData, only: tCPMD, tVASP, Symmetry, BasisFN
         use SymData, only: SymLabelCounts,SymClasses2,SymLabelCountsCum2
         use SymData, only: SymLabelIntsCum2,nSymLabels,StateSymMap2
         use SymData, only: tagSymLabelIntsCum2,tagStateSymMap2,tagSymLabelCountsCum2
@@ -527,6 +524,10 @@ contains
             call LogMemAlloc('StateSymMap2',nBi,4,thisroutine,tagStateSymMap2)
             SYMLABELINTSCUM2(1:Nirrep)=0
             SYMLABELCOUNTSCUM2(1:Nirrep)=0
+
+            ! Ensure no compiler warnings
+            basirrep=SYMLABELCOUNTS(2, 1)
+
             do i=1,Nirrep
             !SYMLABELCOUNTS is now mbas only for the frozen orbitals
                 basirrep=SYMLABELCOUNTS(2,i)
@@ -647,10 +648,8 @@ contains
         ! post-freezing.  Once freezing is done, clear all the pre-freezing
         ! arrays and point them to the post-freezing arrays, so the code
         ! referencing pre-freezing arrays can be used post-freezing.
-        use constants, only: dp
         USE UMatCache
-        use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-        use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use SystemData, only: Symmetry, BasisFN
         use SymData, only: SymLabelCountsCum,SymLabelIntsCum
         use SymData, only: SymLabelCountsCum2,SymLabelIntsCum2
         use SymData, only: tagSymLabelCountsCum,tagSymLabelIntsCum
