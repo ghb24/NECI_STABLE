@@ -1175,6 +1175,10 @@ end module
         INTEGER :: LargestOrb, NIfD,i,j
         INTEGER(KIND=n_int) :: iLut(0:NIfD)
 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = 'LargestBitSet'
+#endif
+
 !        do i=NIfD,0,-1
 !!Count down through the integers in the bit string.
 !!The largest set bit is equal to INT(log_2 (N))
@@ -1186,7 +1190,7 @@ end module
 !        LargestOrb=LargestOrb+(i*32)
 
         ! Initialise with invalid value (in case being erroniously called on empty bit-string).
-        ASSERT(ilut /= 0)
+        ASSERT(.not. all(ilut /= 0))
         LargestOrb = 99999
 
         do i = NIfD, 0, -1
