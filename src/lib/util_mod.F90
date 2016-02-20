@@ -728,12 +728,15 @@ contains
         ! Returns:
         !    The first free file unit above 10 and less than or equal to
         !    the paramater max_unit (currently set to 200).
+        !
+        !    If max_unit is exceeded, the function returns -1
 
         integer, parameter :: max_unit = 100
         integer :: free_unit
         integer :: i
         logical :: t_open, t_exist
 
+        free_unit = -1
         do i = 10, max_unit
             inquire(unit=i, opened=t_open, exist=t_exist)
             if (.not.t_open .and. t_exist) then
@@ -890,7 +893,7 @@ end module
 #endif
 
         ! Eliminate compiler warnings
-        j = j
+        j = i
 
 #if defined(CBINDMPI) && !defined(MOLPRO)
         ! Define interfaces that we need
