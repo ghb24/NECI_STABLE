@@ -325,8 +325,8 @@ contains
 
         integer, intent(in) :: nopen, dorder(nopen)
         integer, pointer :: yamas(:,:)
-        integer :: i, ncsf, ind
-        real(dp) :: ret, tmp, r
+        integer :: i, ncsf
+        real(dp) :: ret, tmp
 
         ! Generate the list of CSFs
         !ncsf = ubound(yamas, 1)
@@ -366,12 +366,12 @@ contains
         integer, intent(in) :: ic, ex(2,2)
         logical, intent(in) :: tParity
         HElement_t(dp), intent(in) :: HElGen
-        HElement_t(dp) :: hel, tmp
+        HElement_t(dp) :: hel
         
         integer :: iUnused
         integer(n_int) :: iUnused2
         logical :: lUnused
-        integer, pointer :: dorder_i(:), dorder_j(:)
+        HElement_t(dp) :: hUnused
 #ifdef __DEBUG
         character(*), parameter :: this_routine = 'get_spawn_helement_spin_proj'
 #endif
@@ -396,7 +396,8 @@ ASSERT(count_open_orbs(ilutI) /= 0)
 
         ! Avoid warnings
         lUnused = tParity; iUnused = IC; iUnused = ex(1,1)
-        iUnused2 = iLutI(0); iUnused2 = iLutJ(0)
+        iUnused2 = iLutI(0); iUnused2 = iLutJ(0); iUnused=nI(1)
+        iUnused=nJ(1); hUnused=helgen
 
     end function get_spawn_helement_spin_proj
 
@@ -533,7 +534,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
 
         ! Protect against compiler warnings
         ex(1,1) = ex(1,1); IC = IC; iUnused = exFlag; tParity = tParity
-        HelGen = HelGen
+        HelGen = HelGen; iUnused=store%nopen
 
     end subroutine generate_excit_spin_proj
 
@@ -546,7 +547,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         integer, intent(in) :: WalkExcitLevel
 
         real(dp) :: elem, r, rat, rUnused
-        integer :: i
+        integer :: i, iUnused
 
         ! If we are not allowing death, or we are below the cutoff for 
         ! consideration, then the particle cannot die
@@ -588,7 +589,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         endif
 
         ! Protect against compiler warnings
-        rUnused = Kii
+        rUnused = Kii; iUnused = nI(1)
 
     end function attempt_die_spin_proj
 
