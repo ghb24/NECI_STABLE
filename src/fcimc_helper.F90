@@ -108,6 +108,11 @@ contains
         logical :: list_full
         character(*), parameter :: this_routine = 'create_particle'
 
+#ifdef __CMPLX
+        integer :: j
+        logical :: parent_init
+#endif
+
         ! Determine which processor the particle should end up on in the
         ! DirectAnnihilation algorithm.
         proc = DetermineDetNode(nel,nJ,0)    ! (0 -> nNodes-1)
@@ -323,6 +328,10 @@ contains
         integer :: run
         HElement_t(dp) :: HOffDiag(inum_runs)
         character(*), parameter :: this_routine = 'SumEContrib'
+
+#ifdef __CMPLX
+        complex(dp) :: CmplxwSign
+#endif
 
         real(dp) :: amps(size(current_trial_amps,1))
 

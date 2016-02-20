@@ -68,7 +68,6 @@ contains
         type(ras_vector), intent(in) :: vec_in(ras%num_classes, ras%num_classes, 0:7)
         type(ras_vector), intent(inout) :: vec_out(ras%num_classes, ras%num_classes, 0:7)
 
-        real(dp), allocatable, dimension(:) :: factor
         type(ras_factors) :: factors(ras%num_classes, 0:7)
         real(dp), allocatable, dimension(:) :: alpha_beta_fac
         integer, allocatable, dimension(:) :: r
@@ -466,7 +465,7 @@ contains
         integer(n_int), intent(out) :: ras_iluts(0:NIfD, ras%num_strings)
         type(direct_ci_excit), intent(out) :: ras_excit(ras%num_strings)
         integer(n_int) :: ilut_i(0:NIfD)
-        integer :: i, j, class_i, class_j, ind, new_ind, counter
+        integer :: class_i, ind, new_ind, counter
         integer :: nras1, nras3, par
         integer :: ex(2)
         integer :: string_i(tot_nelec)
