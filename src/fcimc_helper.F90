@@ -346,7 +346,7 @@ contains
 
         ! Add in the contributions to the numerator and denominator of the trial
         ! estimator, if it is being used.
-#ifdef __CMPLX then
+#ifdef __CMPLX
         CmplxwSign = ARR_RE_OR_CPLX(realwsign, 1)
 
         if (tTrialWavefunction .and. present(ind)) then
@@ -706,7 +706,7 @@ contains
                     ! Should this particle be considered to be an initiator
                     ! for spawning purposes.
                     parent_init = TestInitiator(CurrentDets(:,j), parent_init, &
-                                                CurrentSign(part_type), diagH, &
+                                                CurrentSign, diagH, &
                                                 j, part_type)
                 end if
 
@@ -764,11 +764,11 @@ contains
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         logical, intent(in) :: is_init
         real(dp), intent(in) :: diagH
-#ifdef __CMPLX
-        real(dp) :: sgn(2)
-#else
-        real(dp) :: sgn
-#endif
+
+        real(dp) :: sgn(lenof_sign)
+        ! the following value is either a single sgn or an aggregate
+        real(dp) :: tot_sgn
+
         integer, intent(in) :: site_idx, part_type
         character(*), parameter :: this_routine = 'TestInitiator'
 
@@ -776,6 +776,7 @@ contains
         real(dp) :: init_thresh, low_init_thresh, init_tm, expected_lifetime
         real(dp) :: hdiag
         integer :: spwn_cnt, run
+
 
         ! By default the particles status will stay the same
         initiator = is_init
@@ -785,6 +786,8 @@ contains
         low_init_thresh = InitiatorCutoffWalkNo
         run = part_type_to_run(part_type)
 
+        tot_sgn = getTotSgn(sgn, run)
+
         if (.not. is_init) then
 
             ! Determinant wasn't previously initiator 
@@ -792,8 +795,8 @@ contains
             !   population to become an initiator.
 
             if ((diagH > InitiatorCutoffEnergy &
-                 .and. threshTest(sgn,low_init_thresh)) &
-                .or. threshTest(sgn, init_thresh)) then
+                 .and. (tot_sgn>=low_init_thresh)) &
+                .or. (tot_sgn>=init_thresh)) then
                 initiator = .true.
                 NoAddedInitiators = NoAddedInitiators + 1
             endif
@@ -814,8 +817,8 @@ contains
             if (.not. tDetInCas .and. &
                 .not. (DetBitEQ(ilut, iLutRef(:,run), NIfDBO)) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
-                .and. ((diagH <= InitiatorCutoffEnergy .and. threshTest(sgn, init_thresh)) .or. &
-                       (diagH > InitiatorCutoffEnergy .and. threshTest(sgn, low_init_thresh)))) then
+                .and. ((diagH <= InitiatorCutoffEnergy .and. (tot_sgn>=init_thresh)) .or. &
+                       (diagH > InitiatorCutoffEnergy .and. (tot_sgn>=low_init_thresh)))) then
                 ! Population has fallen too low. Initiator status 
                 ! removed.
                 initiator = .false.
@@ -864,19 +867,31 @@ contains
 
     end function TestInitiator
 
-    pure function threshTest(sgn, thresh) result(tPass)
-        real(dp), intent(in) :: thresh
-        logical :: tPass
+    pure function getTotSgn(sgn, run) result(tot_sgn)
+        real(dp), intent(in) :: sgn(lenof_sign)
+        real(dp) :: tot_sgn
+        ! run variable is ignored in the case of tMultiReplicaInitiators
+        integer, intent(in) :: run
+        integer ::  i
+      
+        tot_sgn = 0
+
 #ifdef __CMPLX
-        real(dp), intent(in) :: sgn(2)
+        if (tMultiReplicaInitiators) then
+            do i = 1, lenof_sign/2
+                tot_sgn = tot_sgn + (sgn(i)**2 + sgn(i+1)**2)**0.5_dp
+            end do
+        else
+            tot_sgn = sgn(run*2-1)**2 + sgn(run*2)
+        endif
 #else
-        real(dp), intent(in) :: sgn
-#endif
-        tPass = .false.
-#ifdef __CMPLX
-        if (sgn(1)**2+sgn(2)**2>=thresh**2) tPass = .true.
-#else
-        if (abs(sgn)>=thresh) tPass = .true.
+        if (tMultiReplicaInitiators) then
+            do i = 1, lenof_sign
+                tot_sgn = tot_sgn + abs(sgn(i))
+            end do
+        else
+            tot_sgn = abs(sgn(run))
+        endif
 #endif
     end function
 
