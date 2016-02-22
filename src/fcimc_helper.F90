@@ -692,7 +692,7 @@ contains
                 ! We sum the sign. Given that the reference site always has
                 ! positive walkers on it, this is a sensible test.
                 parent_init = TestInitiator(CurrentDets(:,j), parent_init, &
-                                            sum(CurrentSign), diagH, &
+                                            CurrentSign, diagH, &
                                             j, part_type)
             end if
 
@@ -763,7 +763,12 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         logical, intent(in) :: is_init
-        real(dp), intent(in) :: sgn, diagH
+        real(dp), intent(in) :: diagH
+#ifdef __CMPLX
+        real(dp) :: sgn(2)
+#else
+        real(dp) :: sgn
+#endif
         integer, intent(in) :: site_idx, part_type
         character(*), parameter :: this_routine = 'TestInitiator'
 
@@ -785,9 +790,10 @@ contains
             ! Determinant wasn't previously initiator 
             ! - want to test if it has now got a large enough 
             !   population to become an initiator.
+
             if ((diagH > InitiatorCutoffEnergy &
-                 .and. abs(sgn) > low_init_thresh) &
-                .or. abs(sgn) > init_thresh) then
+                 .and. threshTest(sgn,low_init_thresh)) &
+                .or. threshTest(sgn, init_thresh)) then
                 initiator = .true.
                 NoAddedInitiators = NoAddedInitiators + 1
             endif
@@ -808,8 +814,8 @@ contains
             if (.not. tDetInCas .and. &
                 .not. (DetBitEQ(ilut, iLutRef(:,run), NIfDBO)) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
-                .and. ((diagH <= InitiatorCutoffEnergy .and. abs(sgn) <= init_thresh) .or. &
-                       (diagH > InitiatorCutoffEnergy .and. abs(sgn) <= low_init_thresh))) then
+                .and. ((diagH <= InitiatorCutoffEnergy .and. threshTest(sgn, init_thresh)) .or. &
+                       (diagH > InitiatorCutoffEnergy .and. threshTest(sgn, low_init_thresh)))) then
                 ! Population has fallen too low. Initiator status 
                 ! removed.
                 initiator = .false.
@@ -857,6 +863,23 @@ contains
         end if
 
     end function TestInitiator
+
+    pure function threshTest(sgn, thresh) result(tPass)
+        real(dp), intent(in) :: thresh
+        logical :: tPass
+#ifdef __CMPLX
+        real(dp), intent(in) :: sgn(2)
+#else
+        real(dp), intent(in) :: sgn
+#endif
+        tPass = .false.
+#ifdef __CMPLX
+        if (sgn(1)**2+sgn(2)**2>=thresh**2) tPass = .true.
+#else
+        if (abs(sgn)>=thresh) tPass = .true.
+#endif
+    end function
+
 
     subroutine rezero_iter_stats_each_iter(iter_data)
 
