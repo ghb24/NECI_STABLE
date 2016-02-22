@@ -1190,7 +1190,7 @@ end module
 !        LargestOrb=LargestOrb+(i*32)
 
         ! Initialise with invalid value (in case being erroniously called on empty bit-string).
-        ASSERT(.not. all(ilut /= 0))
+        ASSERT(.not. all(ilut == 0))
         LargestOrb = 99999
 
         do i = NIfD, 0, -1
