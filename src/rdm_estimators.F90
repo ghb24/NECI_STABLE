@@ -21,9 +21,8 @@ contains
         use rdm_temp, only: Finalise_2e_RDM, calc_2e_norms, Write_out_2RDM
         use rdm_temp, only: Write_spinfree_RDM
 
-        use hash, only: clear_hash_table
         use rdm_data, only: rdm_main
-        use rdm_parallel, only: calc_rdm_trace, calc_rdm_spin, calc_rdm_energy
+        use rdm_parallel, only: calc_rdm_trace, calc_rdm_spin, calc_rdm_energy, print_rdms_with_spin
         use SystemData, only: ecore
 
         type(rdm_t), intent(inout) :: rdm
@@ -89,6 +88,8 @@ contains
         est%new_trace = all_rdm_trace(rdm_label)
         est%new_energy = all_rdm_energy(rdm_label) + ecore*all_rdm_trace(rdm_label)
         est%new_spin = all_rdm_spin(rdm_label)
+
+        if (tFinalRDMEnergy .and. tWrite_Normalised_RDMs) call print_rdms_with_spin(rdm_main, all_rdm_trace)
 
     end subroutine rdm_output_wrapper
 

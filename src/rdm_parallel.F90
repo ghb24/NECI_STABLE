@@ -160,6 +160,7 @@ contains
         ! In: contrib_sign - the sign (amplitude) of the contribution to be added.
 
         use hash, only: hash_table_lookup, add_hash_table_entry
+        use SystemData, only: nbasis
 
         type(rdm_spawn_t), intent(inout) :: spawn
         integer, intent(in) :: p, q, r, s
@@ -189,7 +190,8 @@ contains
         else
             ! The following maps (p,q), with p<q, to single integers with no gaps.
             ! It is benefical to have no gaps here, for good load balancing.
-            pq_compressed = (q-1)*(q-2)/2 + p
+            ! The final integers are ordered so that p is dominant over q.
+            pq_compressed = nbasis*(p-1) - p*(p-1)/2 + q - p
             ! Calculate processor for the element.
             proc = (pq_compressed-1)*nProcessors/spawn%nrows
 
@@ -470,5 +472,107 @@ contains
         rdm_spin = rdm_spin/4.0_dp
 
     end subroutine calc_rdm_spin
+
+    subroutine print_rdms_with_spin(rdm, rdm_trace)
+
+        use Parallel_neci, only: MPIBarrier
+        use sort_mod, only: sort
+        use util_mod, only: get_free_unit
+
+        type(rdm_list_t), intent(inout) :: rdm
+        real(dp), intent(in) :: rdm_trace(rdm%sign_length)
+
+        integer(int_rdm) :: pqrs
+        integer :: i, ierr, iproc, write_unit
+        integer :: iunit_aaaa, iunit_abab, iunit_abba
+        integer :: iunit_bbbb, iunit_baba, iunit_baab
+        integer :: pq, rs, p, q, r, s
+        integer :: p_spat, q_spat, r_spat, s_spat
+        real(dp) :: rdm_sign(rdm%sign_length)
+        character(3) :: sgn_len
+
+        ! Store rdm%sign_length as a string, for the formatting string.
+        write(sgn_len,'(i3)') rdm%sign_length
+
+        call sort(rdm%elements(:,1:rdm%nelements))
+
+        do iproc = 0, nProcessors-1
+            if (iproc == iProcIndex) then
+
+                ! Open all the files to be written to:
+                ! Let the first processor clear all the files to start with.
+                if (iproc == 0) then
+                    iunit_aaaa = get_free_unit()
+                    open(iunit_aaaa, file='test_aaaa', status='replace')
+                    iunit_abab = get_free_unit()
+                    open(iunit_abab, file='test_abab', status='replace')
+                    iunit_abba = get_free_unit()
+                    open(iunit_abba, file='test_abba', status='replace')
+                    iunit_bbbb = get_free_unit()
+                    open(iunit_bbbb, file='test_bbbb', status='replace')
+                    iunit_baba = get_free_unit()
+                    open(iunit_baba, file='test_baba', status='replace')
+                    iunit_baab = get_free_unit()
+                    open(iunit_baab, file='test_baab', status='replace')
+                else
+                    iunit_aaaa = get_free_unit()
+                    open(iunit_aaaa, file='test_aaaa', status='old', position='append')
+                    iunit_abab = get_free_unit()
+                    open(iunit_abab, file='test_abab', status='old', position='append')
+                    iunit_abba = get_free_unit()
+                    open(iunit_abba, file='test_abba', status='old', position='append')
+                    iunit_bbbb = get_free_unit()
+                    open(iunit_bbbb, file='test_bbbb', status='old', position='append')
+                    iunit_baba = get_free_unit()
+                    open(iunit_baba, file='test_baba', status='old', position='append')
+                    iunit_baab = get_free_unit()
+                    open(iunit_baab, file='test_baab', status='old', position='append')
+                end if
+
+                do i = 1, rdm%nelements
+                    pqrs = rdm%elements(0,i)
+                    ! Obtain spin orbital labels.
+                    call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+                    call extract_sign_rdm(rdm%elements(:,i), rdm_sign)
+
+                    ! Find out what the spin labels are, and print the RDM
+                    ! element to the appropriate file.
+                    if (is_alpha(p) .and. is_alpha(q) .and. is_alpha(r) .and. is_alpha(s)) then
+                        write_unit = iunit_aaaa
+                    else if (is_alpha(p) .and. is_beta(q) .and. is_alpha(r) .and. is_beta(s)) then
+                        write_unit = iunit_abab
+                    else if (is_alpha(p) .and. is_beta(q) .and. is_beta(r) .and. is_alpha(s)) then
+                        write_unit = iunit_abba
+                    else if (is_beta(p) .and. is_beta(q) .and. is_beta(r) .and. is_beta(s)) then
+                        write_unit = iunit_bbbb
+                    else if (is_beta(p) .and. is_alpha(q) .and. is_beta(r) .and. is_alpha(s)) then
+                        write_unit = iunit_baba
+                    else if (is_beta(p) .and. is_alpha(q) .and. is_alpha(r) .and. is_beta(s)) then
+                        write_unit = iunit_baab
+                    end if
+
+                    p_spat = (p-1)/2 + 1
+                    q_spat = (q-1)/2 + 1
+                    r_spat = (r-1)/2 + 1
+                    s_spat = (s-1)/2 + 1
+
+                    write(write_unit,'(4i6,'//trim(sgn_len)//'g25.17)') p_spat, q_spat, r_spat, s_spat, rdm_sign/rdm_trace
+                end do
+
+                close(iunit_aaaa)
+                close(iunit_abab)
+                close(iunit_abba)
+                close(iunit_bbbb)
+                close(iunit_baba)
+                close(iunit_baab)
+                close(iunit_abab)
+                close(iunit_abba)
+            end if
+
+            ! Wait for the current processor to finish printing its RDM elements.
+            call MPIBarrier(ierr)
+        end do
+
+    end subroutine print_rdms_with_spin
 
 end module rdm_parallel
