@@ -38,19 +38,19 @@ tolerance = (5e-10, None, 'energy_summed')
 
 [mneci/kpfciqmc/fci_all_sym/]
 program = mneci
-tolerance = (2e-8, None, 'hamil_sum')
+tolerance = (2e-8, None, 'overlap_sum')
 
 [mneci/ftlm/hub_6/]
 program = mneci
-tolerance = (2e-9, None, 'overlap_sum')
+tolerance = (2e-9, None, 'hamil_sum')
 
 [mneci/cfqmc/HeHe_5_states/]
 program = mneci
-tolerance = (3e-8, None, 'hamil_sum'), (2e-7, None, 'overlap_sum')
+tolerance = (3e-8, None, 'overlap_sum'), (2e-7, None, 'hamil_sum')
 
 [mneci/cfqmc/HeHe_5_states_exact_hamil/]
 program = mneci
-tolerance = (5.01e-8, None, 'hamil_sum'), (3.01e-7, None, 'overlap_sum')
+tolerance = (5.01e-8, None, 'overlap_sum'), (3.01e-7, None, 'hamil_sum')
 
 [categories]
 
