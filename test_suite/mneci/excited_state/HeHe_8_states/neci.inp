@@ -28,6 +28,7 @@ doubles-core
 trial-wavefunction 1000
 pops-trial 200
 load-balance-blocks off
+seed 10
 endcalc
 
 integral
