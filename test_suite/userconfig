@@ -19,5 +19,5 @@ extract_program = ./tools/extract.py
 [user]
 diff = vimdiff
 default_program = neci
-benchmark = neci-3cd19c5.kneci-3cd19c5.mneci-3cd19c5
+benchmark = neci-1f04704.kneci-1f04704.mneci-1f04704
 
