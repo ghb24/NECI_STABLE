@@ -33,6 +33,7 @@ spinfree_TwoRDM*
 NO_*
 FTLM_EIGV
 EIGV_DATA
+DETFILE
 fciqmc_stats*
 *.x
 build/*

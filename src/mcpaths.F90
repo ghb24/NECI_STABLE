@@ -90,6 +90,9 @@ contains
          type(timer), save :: proc_timer2
          type(timer), save :: proc_timerpre
          character(*), parameter :: this_routine = 'MCPATHSR10'
+
+         real(dp), allocatable :: final_energy(:)
+
          proc_timer%timer_name='MCPATHSR10'
          call set_timer(proc_timer)
          WRITE(6,*) "Running Multi-level graph calculation."
@@ -210,7 +213,7 @@ contains
                ELSEIF(TFCIMC) THEN
 !A MC simulation involving replicating particles is run
 !                    WRITE(6,*) "Get Here!: ",I_V,F(I_V),DLWDB2
-                    CALL FciMCPar(F(I_V),DLWDB2)
+                    CALL FciMCPar(final_energy)
 !                    WRITE(6,*) "Get Here!: ",I_V,F(I_V),DLWDB2
                ELSEIF(TReturnPathMC) THEN
 !A MC simulation involving replicating particles, constrained to returning paths is run
@@ -463,6 +466,9 @@ contains
          real(dp) NTOTAL
          real(dp) FMCPR3STAR
          character(*), parameter :: this_routine = 'MCPATHSR3'
+
+         real(dp), allocatable :: final_energy(:)
+
          write(6,*) "MCPATHSR3:  I_HMAX=",I_HMAX
 ! Init the weight of the 1-v graph
          WLSI=1.0_dp
@@ -626,7 +632,7 @@ contains
                     CALL StarDiagTrips(DLWDB2,F(I_V))
                ELSEIF(TFCIMC) THEN
 !A MC simulation involving replicating particles is run
-                    CALL FciMCPar(F(I_V),DLWDB2)
+                    CALL FciMCPar(final_energy)
                ELSEIF(TReturnPathMC) THEN
 !A MC simulation involving replicating particles, constrained to returning paths is run
                     CALL ReturnPathMC(F(I_V),DLWDB2)
