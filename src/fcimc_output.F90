@@ -640,10 +640,22 @@ contains
                 if (tPrintReplicaOverlaps) then
                     do q = p+1, inum_runs
                         write(tmpc2, '(i5)') q
-                        call stats_out(state, .false., replica_overlaps(p, q),&
+#ifdef __CMPLX
+                        call stats_out(state, .false.,  replica_overlaps_real(p, q),&
+                                       '<psi_' // trim(adjustl(tmpc)) // '|' &
+                                       // 'psi_' // trim(adjustl(tmpc2)) &
+                                       // '> (real)')
+                        call stats_out(state, .false.,  replica_overlaps_imag(p, q),&
+                                       '<psi_' // trim(adjustl(tmpc)) // '|' &
+                                       // 'psi_' // trim(adjustl(tmpc2)) &
+                                       // '> (imag)')
+            
+#else
+                        call stats_out(state, .false.,  replica_overlaps_real(p, q),&
                                        '<psi_' // trim(adjustl(tmpc)) // '|' &
                                        // 'psi_' // trim(adjustl(tmpc2)) &
                                        // '>')
+#endif
 
                     end do
                 end if

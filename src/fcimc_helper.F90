@@ -15,7 +15,8 @@ module fcimc_helper
                         extract_part_sign, encode_part_sign, decode_bit_det, &
                         set_has_been_initiator, flag_has_been_initiator, &
                         set_parent_coeff, flag_weak_initiator, &
-                        get_initiator_flag, get_weak_initiator_flag
+                        get_initiator_flag, get_weak_initiator_flag, &
+                        get_initiator_flag_by_run, get_weak_initiator_flag_by_run
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
@@ -669,7 +670,7 @@ contains
         integer, intent(out) :: parent_flags
         real(dp) :: CurrentSign(lenof_sign)
         real(dp), intent(in) :: diagH
-        integer :: part_type, nopen
+        integer :: run, nopen
         logical :: tDetinCAS, parent_init
         real(dp) :: init_tm, expected_lifetime, hdiag
         character(*), parameter :: this_routine = 'CalcParentFlag'
@@ -693,34 +694,34 @@ contains
                 ! positive walkers on it, this is a sensible test.
                 parent_init = TestInitiator(CurrentDets(:,j), parent_init, &
                                             CurrentSign, diagH, &
-                                            j, part_type)
+                                            j, run)
             end if
 
             ! Now loop over the particle types, and update the flags
-            do part_type = 1, lenof_sign
+            do run = 1, inum_runs
 
                 if (.not. tMultiReplicaInitiators) then
                     ! By default, the parent_flags are the flags of the parent.
-                    parent_init = test_flag (CurrentDets(:,j), get_initiator_flag(part_type))
+                    parent_init = test_flag (CurrentDets(:,j), get_initiator_flag_by_run(run))
 
                     ! Should this particle be considered to be an initiator
                     ! for spawning purposes.
                     parent_init = TestInitiator(CurrentDets(:,j), parent_init, &
                                                 CurrentSign, diagH, &
-                                                j, part_type)
+                                                j, run)
                 end if
 
                 ! Update counters as required.
                 if (parent_init) then
                     NoInitDets = NoInitDets + 1
-                    NoInitWalk = NoInitWalk + abs(CurrentSign(part_type))
+                    NoInitWalk = NoInitWalk + getRunMagnitude(CurrentSign, run)
                 else
                     NoNonInitDets = NoNonInitDets + 1
-                    NoNonInitWalk = NoNonInitWalk + abs(CurrentSign(part_type))
+                    NoNonInitWalk = NoNonInitWalk + getRunMagnitude(CurrentSign, run)
                 endif
 
                 ! Update the parent flag as required.
-                call set_flag (CurrentDets(:,j), get_initiator_flag(part_type), parent_init)
+                call set_flag (CurrentDets(:,j), get_initiator_flag_by_run(run), parent_init)
 
                 if (parent_init) &
                     call set_has_been_initiator(CurrentDets(:,j), &
@@ -749,7 +750,7 @@ contains
     end subroutine CalcParentFlag
 
 
-    function TestInitiator(ilut, is_init, sgn, diagH, site_idx, part_type) result(initiator)
+    function TestInitiator(ilut, is_init, sgn, diagH, site_idx, run) result(initiator)
 
         ! For a given particle (with its given particle type), should it
         ! be considered as an initiator for the purposes of spawning.
@@ -769,13 +770,13 @@ contains
         ! the following value is either a single sgn or an aggregate
         real(dp) :: tot_sgn
 
-        integer, intent(in) :: site_idx, part_type
+        integer, intent(in) :: site_idx, run
         character(*), parameter :: this_routine = 'TestInitiator'
 
         logical :: initiator, tDetInCAS
         real(dp) :: init_thresh, low_init_thresh, init_tm, expected_lifetime
         real(dp) :: hdiag
-        integer :: spwn_cnt, run
+        integer :: spwn_cnt
 
 
         ! By default the particles status will stay the same
@@ -784,7 +785,6 @@ contains
         ! Nice numbers
         init_thresh = InitiatorWalkNo
         low_init_thresh = InitiatorCutoffWalkNo
-        run = part_type_to_run(part_type)
 
         tot_sgn = getTotSgn(sgn, run)
 
@@ -845,7 +845,7 @@ contains
 
         if (.not. initiator .and. tSurvivalInitMultThresh) then
             init_tm = get_part_init_time(site_idx)
-            hdiag = det_diagH(site_idx) - DiagSft(part_type)
+            hdiag = det_diagH(site_idx) - DiagSft(run)
             if (hdiag > 0) then
                 expected_lifetime = &
                     log(2.0_dp * max(MaxWalkerBloom, 1)) / hdiag
@@ -876,22 +876,25 @@ contains
       
         tot_sgn = 0
 
+        if (tMultiReplicaInitiators) then
+            do i = 1, inum_runs
+                tot_sgn = tot_sgn + getRunMagnitude(sgn, i)
+            end do
+        else
+            tot_sgn = getRunMagnitude(sgn, run)
+        endif
+
+    end function
+
+
+    pure function getRunMagnitude(sgn, run) result(mag)
+        real(dp), intent(in) :: sgn(lenof_sign)
+        integer, intent(in) :: run
+        real(dp) :: mag
 #ifdef __CMPLX
-        if (tMultiReplicaInitiators) then
-            do i = 1, lenof_sign/2
-                tot_sgn = tot_sgn + (sgn(i)**2 + sgn(i+1)**2)**0.5_dp
-            end do
-        else
-            tot_sgn = sgn(run*2-1)**2 + sgn(run*2)
-        endif
+            mag = ( sgn(2*(run-1)+1)**2 + sgn(2*(run-1)+2)**2 )**0.5_dp
 #else
-        if (tMultiReplicaInitiators) then
-            do i = 1, lenof_sign
-                tot_sgn = tot_sgn + abs(sgn(i))
-            end do
-        else
-            tot_sgn = abs(sgn(run))
-        endif
+            mag = abs(sgn(run))
 #endif
     end function
 

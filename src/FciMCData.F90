@@ -559,7 +559,10 @@ MODULE FciMCData
 
       type(perturbation), allocatable :: pops_pert(:)
 
-      real(dp), allocatable :: replica_overlaps(:,:)
+      real(dp), allocatable :: replica_overlaps_real(:,:)
+#ifdef __CMPLX
+      real(dp), allocatable :: replica_overlaps_imag(:,:)
+#endif
 
 
       ! counting the total walker population all determinants of each ms value

@@ -1440,7 +1440,10 @@ contains
             tot_trial_denom = 0.0_dp
         end if
 
-        replica_overlaps(:, :) = 0.0_dp
+         replica_overlaps_real(:, :) = 0.0_dp
+#ifdef __CMPLX
+         replica_overlaps_imag(:, :) = 0.0_dp
+#endif
 
     end subroutine InitFCIMCCalcPar
 

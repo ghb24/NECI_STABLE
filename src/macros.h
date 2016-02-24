@@ -85,27 +85,27 @@ endif
 #endif
 
 #ifdef __CMPLX
-
-#ifdef __PROG_NUMRUNS
-
 ! 1->1 ,2->1, 3->2 ...
 #define part_type_to_run(pt) 1+(pt-1)/2
+#ifdef __PROG_NUMRUNS
 #define min_part_type(run) 2*run-1
-#define max_part_type(run) 2*run+1
+#define max_part_type(run) 2*run
 #else
-#define part_type_to_run(pt) 1
+#ifdef __DOUBLERUN
+#define min_part_type(run) 2*run-1
+#define max_part_type(run) 2*run
+#else
 #define min_part_type(run) 1
 #define max_part_type(run) 2
 #endif
-
+#endif
 #else
-
-#ifdef __PROG_NUMRUNS
+! 1->1 ,2->2, 3->3 ...
 #define part_type_to_run(pt) pt
+#ifdef __PROG_NUMRUNS
 #define min_part_type(run) run
 #define max_part_type(run) run
 #else
-#define part_type_to_run(pt) 1
 #ifdef __DOUBLERUN
 #define min_part_type(run) 1
 #define max_part_type(run) 2
@@ -113,9 +113,7 @@ endif
 #define min_part_type(run) 1
 #define max_part_type(run) 1
 #endif
-
 #endif
-
 #endif
 
 

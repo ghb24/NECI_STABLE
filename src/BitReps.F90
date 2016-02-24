@@ -444,6 +444,29 @@ contains
 #endif
     end function get_initiator_flag
 
+    pure function get_initiator_flag_by_run(run) result (flag)
+        integer, intent(in) :: run
+        integer :: flag
+#ifdef __CMPLX
+        ! map 1->1, 2->3, 3->5, 4->7
+        flag = flag_initiator((run-1)*2+1) 
+#else
+        flag = flag_initiator(run) 
+#endif
+    end function get_initiator_flag_by_run
+
+
+    pure function get_weak_initiator_flag_by_run(run) result (flag)
+        integer, intent(in) :: run
+        integer :: flag
+#ifdef __CMPLX
+        ! map 1->1, 2->3, 3->5, 4->7
+        flag = flag_initiator((run-1)*2+1) 
+#else
+        flag = flag_initiator(run) 
+#endif
+    end function get_weak_initiator_flag_by_run
+
 
     pure function get_weak_initiator_flag(sgn_index) result (flag)
         integer, intent(in) :: sgn_index
