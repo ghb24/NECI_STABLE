@@ -1973,10 +1973,8 @@ contains
 
         ASSERT(inum_runs == lenof_sign)
         do run = 1, inum_runs
-                write(6,*) "Here1!"
 
             if (tMultipleInitialRefs) then
-                write(6,*) "Here2!"
                 ! Use user specified reference states.
                 call EncodeBitDet(initial_refs(:,run), ilut)
                 call update_run_reference(ilut, run)
