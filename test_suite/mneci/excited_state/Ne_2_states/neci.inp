@@ -6,6 +6,7 @@ nonuniformrandexcits 4ind-weighted
 spin-restrict 0
 sym 0 0 0 0
 system-replicas 2
+molpromimic
 freeformat
 endsys
 
@@ -18,7 +19,7 @@ nmcyc 2400
 totalwalkers 2000
 startsinglepart 10
 shiftdamp 0.5
-stepsshift 10
+stepsshift 1
 diagshift 0.5 1.0
 memoryfacpart 13.0
 memoryfacspawn 10.0
@@ -35,6 +36,7 @@ doubles-init
 tau 0.02 search
 truncinitiator 
 addtoinitiator 3
+definedet 1 2 3 4 5 6 23 24 33 34
 endcalc
 
 integral
