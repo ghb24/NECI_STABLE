@@ -35,6 +35,7 @@ FTLM_EIGV
 EIGV_DATA
 DETFILE
 fciqmc_stats*
+fort.7
 *.x
 build/*
 *.pyc
