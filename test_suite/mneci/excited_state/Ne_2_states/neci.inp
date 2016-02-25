@@ -5,7 +5,7 @@ electrons 10
 nonuniformrandexcits 4ind-weighted
 spin-restrict 0
 sym 0 0 0 0
-system-replicas 4
+system-replicas 2
 freeformat
 endsys
 
@@ -14,12 +14,12 @@ methods
 method vertex fcimc
 endmethods
 seed 100
-nmcyc 1200
+nmcyc 2400
 totalwalkers 2000
 startsinglepart 10
 shiftdamp 0.5
 stepsshift 10
-diagshift 0.5 1.0 1.0 1.0
+diagshift 0.5 1.0
 memoryfacpart 13.0
 memoryfacspawn 10.0
 allrealcoeff
@@ -32,6 +32,7 @@ trial-wavefunction 400
 doubles-trial
 dont-print-overlaps
 doubles-init
+tau 0.02 search
 endcalc
 
 integral
