@@ -33,6 +33,8 @@ doubles-trial
 dont-print-overlaps
 doubles-init
 tau 0.02 search
+truncinitiator 
+addtoinitiator 3
 endcalc
 
 integral
