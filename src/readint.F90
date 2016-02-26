@@ -576,7 +576,7 @@ contains
 !The UMAT2D integrals will also be read in in this case.
 !If tReadFreezeInts is false, then if we are cacheing the FCIDUMP file, then we will read and cache all the integrals.
       SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,tReadFreezeInts)
-         use constants, only: dp
+         use constants, only: dp,sizeof_int
          use SystemData, only: Symmetry, NEl, BasisFN, tMolpro, UMatEps, tCacheFCIDUMPInts, tUHF, &
                                tRIIntegrals,tROHF,tRotatedOrbsReal, tReadFreeFormat, tFixLz
          USE UMatCache, only: UMatInd,UMatConj,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
@@ -939,7 +939,7 @@ contains
              start_ind = 1
              end_ind = min(UMatSize, chunk_size)
              do while(start_ind <= UMatSize)
-                 call MPIBcast(UMat(start_ind:end_ind), end_ind-start_ind+1)
+                 call MPIBcast(UMat(start_ind:end_ind), int(end_ind-start_ind+1,sizeof_int))
                  start_ind = end_ind + 1
                  end_ind = min(UMatSize, end_ind + chunk_size)
              end do
