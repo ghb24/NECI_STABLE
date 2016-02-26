@@ -1,6 +1,6 @@
 #include "macros.h"
 MODULE HFCalc
-   use constants, only: dp
+   use constants, only: dp, int64
    implicit none
    save
    contains
@@ -26,7 +26,8 @@ MODULE HFCalc
       HElement_t(dp),pointer :: TMat2D2(:,:)
       integer i
       integer nOrbUsed
-      integer UMatInt, TMatInt
+      integer TMatInt
+      integer(int64) :: UMatInt
       integer(TagIntType),save :: tagUMat2=0,tagHFE=0,tagHFBasis=0
          
 !C.. If we are using an HF basis instead of our primitive basis, we need
@@ -92,7 +93,7 @@ MODULE HFCalc
                CALL GetUMatSize(nBasis,nEl,UMATINT)
                call shared_allocate ("umat2", umat2, (/UMatInt/))
                !Allocate(UMat2(UMatInt), stat=ierr)
-               LogAlloc(ierr,'UMAT2', UMatInt, HElement_t_SizeB, tagUMat2)
+               LogAlloc(ierr,'UMAT2', int(UMatInt), HElement_t_SizeB, tagUMat2)
                UMAT2 = 0.0_dp
 !C.. We need to pass the TMAT to CALCHFUMAT as TMAT is no longer diagona
 !C.. This also modified G1, ARR, BRR

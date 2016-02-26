@@ -601,13 +601,14 @@ contains
          LOGICAL LWRITE
          logical :: uhf
          INTEGER ISPINS,ISPN,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
-         INTEGER UMatSize,TMatSize,IUHF
+         INTEGER TMatSize,IUHF
+         integer(int64) :: UMatSize
          INTEGER , ALLOCATABLE :: CacheInd(:)
          character(len=*), parameter :: t_r='READFCIINT'
          real(dp) :: diff
          logical :: tbad
-         integer :: start_ind, end_ind
-         integer, parameter :: chunk_size = 1000000
+         integer(int64) :: start_ind, end_ind
+         integer(int64), parameter :: chunk_size = 1000000
 
 #ifdef _MOLCAS_
          logical :: tExists     !test for existence of input file.
