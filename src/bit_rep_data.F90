@@ -50,8 +50,13 @@ module bit_rep_data
                           flag_trial = 2, &
                           flag_connected = 3, &
                           flag_has_been_initiator(1) = 4, &
-                          flag_unused1 = 5, &
-                          flag_unused2 = 6, &
+#ifdef __REALTIME
+                          ! use these unused to mark diagonal "spawns"
+                          flag_diag_spawn(lenof_sign) = (/5, 6/), &
+#else
+                          flag_unused1 = 5, & 
+                          flag_unused2 = 6, & 
+#endif
                           flag_unused3 = 7, &
                           flag_ic0_spawn = 8, &
                           flag_death_done = 9, &

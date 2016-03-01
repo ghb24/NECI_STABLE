@@ -29,6 +29,15 @@ module fcimc_iter_utils
     use FciMCData
     use constants
     use util_mod
+#ifdef __REALTIME
+    use real_time_data, only: SpawnFromSing_1, AllSpawnFromSing_1, &
+        NoBorn_1, NoDied_1, AllNoBorn_1, AllNoDied_1, NoAtDoubs_1, AllNoAtDoubs_1, &
+        Annihilated_1, AllAnnihilated_1, AllNoAddedInitiators_1, AllNoInitDets_1, &
+        AllNoNonInitDets_1, AllInitRemoved_1, bloom_count_1, bloom_sizes_1, &
+        AllNoAborted_1, AllNoInitWalk_1, AllNoNonInitWalk_1, AllNoRemoved_1, &
+        all_bloom_count_1, NoAddedInitiators_1, AccRat_1, SumWalkersCyc_1, &
+        nspawned_1, nspawned_tot_1
+#endif
 
     implicit none
 
@@ -53,6 +62,11 @@ contains
         if (tContTimeFCIMC .and. .not. tContTimeFull) then
             AccRat = real(cont_spawn_success) / real(cont_spawn_attempts)
         else
+            ! in the real-time fciqmc keep track of both distinct RK steps
+            ! -> also need to keep track of the SumWalkersCyc... todo..
+#ifdef __REALTIME
+            AccRat_1 = real(Acceptances_1, dp) / SumWalkersCyc_1
+#endif
             AccRat = real(Acceptances, dp) / SumWalkersCyc
         end if
 
@@ -102,6 +116,11 @@ contains
         endif
         call MPIBCast(tRestart)
         if(tRestart) then
+            ! a restart not wanted in the real-time fciqmc.. 
+#ifdef __REALTIME 
+            call stop_all(this_routine, &
+                "a restart due to all died walkers not wanted in the real-time fciqmc!")
+#endif
 !Initialise variables for calculation on each node
             Iter=1
             CALL DeallocFCIMCMemPar()
@@ -347,6 +366,18 @@ contains
         call MPIReduce(NoAtDoubs, MPI_SUM, AllNoAtDoubs)
         call MPIReduce(Annihilated, MPI_SUM, AllAnnihilated)
         
+        ! also do the same for the stats of the intermediate RK step in the 
+        ! real-time fciqmc
+#ifdef __REALTIME
+        call MPIReduce(SpawnFromSing_1, MPI_SUM, AllSpawnFromSing_1)
+        call MPIReduce(NoBorn_1, MPI_SUM, AllNoBorn_1)
+        call MPIReduce(NoDied_1, MPI_SUM, AllNoDied_1)
+!         call MPIReduce(HFCyc, MPI_SUM, RealAllHFCyc)
+        call MPIReduce(NoAtDoubs_1, MPI_SUM, AllNoAtDoubs_1)
+        call MPIReduce(Annihilated_1, MPI_SUM, AllAnnihilated_1)
+!         call MPIReduce(iter_data%update_growth, MPI_SUM, iter_data%update_growth_tot)
+#endif
+
         do run=1,inum_runs
             AllHFCyc(run)=ARR_RE_OR_CPLX(RealAllHFCyc,run)
         enddo
@@ -366,6 +397,21 @@ contains
             call MPIReduce(NoRemoved, MPI_SUM, AllNoRemoved)
             call MPIReduce(NoNonInitWalk, MPI_SUM, AllNoNonInitWalk)
             call MPIReduce(NoInitWalk, MPI_SUM, AllNoInitWalk)
+#ifdef __REALTIME 
+            call MPISum((/NoAddedInitiators_1(1), NoInitDets_1(1), &
+                NoNonInitDets_1(1), NoExtraInitdoubs(1), InitRemoved_1(1)/),&
+                int64_tmp(1:5))
+
+            AllNoAddedInitiators_1(1) = int64_tmp(1)
+            AllNoInitDets_1(1) = int64_tmp(2)
+            AllNoNonInitDets_1(1) = int64_tmp(3)
+            AllInitRemoved_1(1) = int64_tmp(5)
+
+            call MPIReduce(NoAborted_1, MPI_SUM, AllNoAborted_1)
+            call MPIReduce(NoRemoved_1, MPI_SUM, AllNoRemoved_1)
+            call MPIReduce(NoNonInitWalk_1, MPI_SUM, AllNoNonInitWalk_1)
+            call MPIReduce(NoInitWalk_1, MPI_SUM, AllNoInitWalk_1)
+#endif
         endif
 
         ! 64bit integers
@@ -401,6 +447,12 @@ contains
             call MPISum(bloom_count(1:2), all_bloom_count(1:2))
             call MPIReduce(bloom_sizes(1:2), MPI_MAX, bloom_sz_tmp(1:2))
             bloom_sizes(1:2) = bloom_sz_tmp(1:2)
+
+#ifdef __REALTIME
+            call MPISum(bloom_count_1(1:2), all_bloom_count_1(1:2))
+            call MPIReduce(bloom_sizes_1(1:2), MPI_MAX, bloom_sz_tmp(1:2))
+            bloom_sizes_1(1:2) = bloom_sz_tmp(1:2)
+#endif
 !        end if
 
         ! real(dp) values
@@ -422,6 +474,11 @@ contains
 
         ! The total number of spawned determinants.
         call MPISum (nspawned, nspawned_tot)
+
+        ! seperate again the 2 RK steps
+#ifdef __REALTIME 
+        call MPISum(nspawned_1, nspawned_tot_1)
+#endif
 
         !        WRITE(iout,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
 
@@ -800,6 +857,18 @@ contains
         trial_numerator = 0.0_dp
         trial_denom = 0.0_dp
 
+        ! also reset the real-time specific quantities: 
+        ! and maybe have to call this routine twice to rezero also the 
+        ! inputted iter_data for both RK steps..
+#ifdef __REALTIME 
+        SumWalkersCyc_1(:) = 0.0_dp
+        Annihilated_1 = 0.0_dp
+        Acceptances_1 = 0.0_dp
+        NoBorn_1 = 0.0_dp
+        SpawnFromSing_1 = 0.0_dp
+        NoDied = 0.0_dp
+#endif
+
         ! Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld = TotWalkers
         TotPartsOld = TotParts
@@ -816,7 +885,6 @@ contains
         AllTotWalkersOld = AllTotWalkers
         AllTotPartsOld = AllTotParts
         AllNoAbortedOld = AllNoAborted
-
 
         ! Reset the counters
         iter_data%update_growth = 0.0_dp

@@ -6,10 +6,13 @@ module real_time
     use real_time_procs, only: save_current_dets, reset_spawned_list, &
                                reload_current_dets, walker_death_realtime, &
                                walker_death_spawn, attempt_die_realtime, &
-                               create_diagonal_as_spawn
-    use real_time_data, only: gf_type, temp_freeslot, temp_iendfreeslot
+                               create_diagonal_as_spawn, count_holes_in_currentDets, &
+                               DirectAnnihilation_diag
+    use real_time_data, only: gf_type, temp_freeslot, temp_iendfreeslot, wf_norm, &
+                              pert_norm, second_spawn_iter_data, runge_kutta_step
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
-                        tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft
+                        tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
+                        tChangeProjEDet, tInstGrowthRate
     use FciMCData, only: pops_pert, walker_time, iter, ValidSpawnedList, &
                          spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot, &
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
@@ -20,7 +23,7 @@ module real_time
     use timing_neci, only: set_timer, halt_timer
     use FciMCParMod, only: rezero_iter_stats_each_iter
     use hash, only: clear_hash_table
-    use constants, only: int64, sizeof_int, n_int, lenof_sign, dp, EPS
+    use constants, only: int64, sizeof_int, n_int, lenof_sign, dp, EPS, inum_runs
     use AnnihilationMod, only: DirectAnnihilation
     use bit_reps, only: extract_bit_rep
     use SystemData, only: nel, tRef_Not_HF, tAllSymSectors, nOccAlpha, nOccBeta, &
@@ -203,7 +206,6 @@ contains
         ! shouldnt geourge have some of those routines..
 
         call update_gf_overlap()
-
         print *, "test on overlap at t = 0: "
         if (gf_type == -1) then
             print *, " for lesser GF  <y(0)| a^+_i a_j |y(0) >; i,j: ", &
@@ -213,7 +215,9 @@ contains
                 overlap_pert(1)%crtn_orbs(1), pops_pert(1)%crtn_orbs(1)
         end if
 
-        print *, " overlap: ",  sqrt(gf_overlap(0)) / sqrt(pops_norm) 
+!         print *, " overlap: ",  sqrt(gf_overlap(0)) / sqrt(pops_norm) 
+!         print *, " overlap2:", sqrt(gf_overlap(0)) / sqrt(wf_norm(0))
+!         print *, pops_norm, pert_norm, wf_norm(0)
 
         ! main part of the initialization, concerning the walker lists 
         ! and operator application works now.. 
@@ -221,8 +225,20 @@ contains
         ! to run a (mk)neci with the new walker dynamics provided by the 
         ! real-time Schroedinger equation
 
+        print *, "toto: changeref: ", tChangeProjEDet
+        print *, "toto: instgrowrate: ", tInstGrowthRate
         ! enter the main real-time fciqmc loop here
         fciqmc_loop: do while (.true.)
+
+
+            ! update the overlap each time step.. could do that in some of 
+            ! the loops down there too.. but for now do it here seperately 
+            ! to make it more organized
+
+            call update_gf_overlap()
+
+            ! do also need to update the norm of the wavefunction, but this 
+            ! i should definetly do in the first RK loop over the CurrentDets
 
             ! the timing stuff has to be done a bit differently in the 
             ! real-time fciqmc, since there are 2 spawing and annihilation 
@@ -233,6 +249,9 @@ contains
 
             ! perform the actual iteration(excitation generation etc.) 
             call perform_real_time_iteration() 
+
+            print *, "overlap: ", gf_overlap(1,iter-1) / wf_norm(iter-1), &
+                gf_overlap(2,iter-1) / wf_norm(iter-1), gf_overlap(2,iter-1)
 
             ! update various variables.. time-step, initiator criteria etc.
             call update_real_time_iteration()
@@ -257,13 +276,34 @@ contains
     subroutine update_real_time_iteration()
         ! routine to update certain global variables each loop iteration in 
         ! the real-time fciqmc 
+        ! from the 2 distince spawn/death/cloning info stored in the 
+        ! two iter_data vars, i have to combine the general updated 
+        ! statistics for the actual time step
         character(*), parameter :: this_routine = "update_real_time_iteration"
 
+        ! how to combine those 2? 
+        ! in iter_data_fciqmc the info on the born, died, aborted, removed and 
+        ! annihilated particles of the first spawn and y(n) + k1/2 step is stored
+
+        ! in the second_spawn_iter_data, the number of born particles in the 
+        ! spawing step is stored first.. 
+        ! note: in the create_particle routine the global variable 
+        ! acceptances gets updated, and i essentially update that 
+        ! quantity twice when calling it in the first and second spawn 
+        ! loop -> i think i have to store 2 of those variables and 
+        ! update and reset both of them seperately to keep track of the 
+        ! statistics correctly
+        ! and the NoBorn, NoDied and similar variables also get used in the 
+        ! statistics about the simulation.. maybe i need to adjust them too
+        ! so take the 2 RK loops into account
+        ! 
     end subroutine update_real_time_iteration
 
     subroutine log_real_time_iteration()
         ! routine to log all the interesting quantities in the real-time 
         ! fciqmc 
+        ! have to figure out what i want to have an output of.. and then 
+        ! print that to a FCIMCstats file!
         character(*), parameter :: this_routine = "log_real_time_iteration"
 
     end subroutine log_real_time_iteration
@@ -282,10 +322,11 @@ contains
 
     end subroutine check_real_time_iteration
 
-    subroutine init_real_time_iteration(iter_data)
+    subroutine init_real_time_iteration(iter_data, iter_data2)
         ! routine to reinitialize all the necessary variables and pointers 
         ! for a sucessful real-time fciqmc iteration
         type(fcimc_iter_data), intent(inout) :: iter_data
+        type(fcimc_iter_data), intent(inout), optional :: iter_data2
 !         integer, intent(out) :: n_determ_states
         character(*), parameter :: this_routine = "init_real_time_iteration"
 
@@ -306,8 +347,9 @@ contains
         ! also reset the temporary variables
         ! this probably has not to be done, since at the end of the first 
         ! spawn i set it to the freeslot array anyway..
-!         tmp_freeslot(1:tmp_iendfreeslot) = 0
-!         temp_iendfreeslot = 0
+        ! with changed temp_ var. usage i have to reset them! 
+        temp_freeslot(1:temp_iendfreeslot) = 0
+        temp_iendfreeslot = 0
 
         ! Index for counting deterministic states.
 !         n_determ_states = 1
@@ -316,6 +358,10 @@ contains
         call clear_hash_table(spawn_ht)
 
         call rezero_iter_stats_each_iter(iter_data)
+
+        if (present(iter_data2)) then
+            call rezero_iter_stats_each_iter(iter_data2)
+        end if
 
         ! additionaly i have to copy the CurrentDets array and all the 
         ! associated pointers and hashtable related stuff to the 
@@ -345,6 +391,9 @@ contains
         logical :: tParentIsDeterm, tParentUnoccupied, tParity, tChildIsDeterm
         HElement_t(dp) :: HelGen
         integer(int64) :: TotWalkersNew
+
+        ! declare this is the second runge kutta step
+        runge_kutta_step = 2
 
         ! use part of nicks code, and remove the parts, that dont matter 
         do idet = 1, int(TotWalkers, sizeof_int)
@@ -474,12 +523,12 @@ contains
 
                         ! not quite sure about how to collect the child
                         ! stats in the new rt-fciqmc ..
-                        call new_child_stats (iter_data_fciqmc, ilut_parent, &
+                        call new_child_stats (second_spawn_iter_data, ilut_parent, &
                                               nI_child, ilut_child, ic, ex_level_to_ref, &
                                               child_sign, parent_flags, ireplica)
 
                         call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
-                                                               ireplica, ilut_parent, iter_data_fciqmc)
+                                                               ireplica, ilut_parent, second_spawn_iter_data)
 
                     end if ! If a child was spawned.
 
@@ -498,13 +547,17 @@ contains
                 ! also not quite sure how to do the child_stats here ...
                 ! or in general for now in the rt-fciqmc
                 ! have to write all new book-keeping routines i guess.. 
-                diag_sign = attempt_die_realtime(nI_parent, parent_sign, ilut_parent, &
-                    parent_hdiag, idet, iter_data_fciqmc, ex_level_to_ref)
+                ! i also have to change the sign convention here, since in 
+                ! the annihilation(and in the spawing routine above) the 
+                ! particles get merged with a + instead of the - in the 
+                ! original death routine for a "normal" death
+                diag_sign = -attempt_die_realtime(nI_parent, parent_hdiag, &
+                    parent_sign, ex_level_to_ref)
                 
                 if (any(abs(diag_sign) > EPS)) then
 
                     call create_diagonal_as_spawn(nI_parent, ilut_parent, &
-                        diag_sign, iter_data_fciqmc)
+                        diag_sign, second_spawn_iter_data)
                 end if
 
             end if
@@ -515,7 +568,6 @@ contains
 
     end subroutine second_real_time_spawn
 
-
     subroutine first_real_time_spawn()
         ! routine which first loops over the CurrentDets array and creates the 
         ! first spawning list k1 and combines it to y(n) + k1/2
@@ -523,14 +575,20 @@ contains
         character(*), parameter :: this_routine = "first_real_time_spawn"
         integer :: idet, parent_flags, nI_parent(nel), unused_flags, ex_level_to_ref, &
                    ms_parent, ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,2), &
-                   ex_level_to_hf
+                   ex_level_to_hf, i
         integer(n_int), pointer :: ilut_parent(:) 
         integer(n_int) :: ilut_child(0:niftot)
         real(dp) :: parent_sign(lenof_sign), parent_hdiag, prob, child_sign(lenof_sign), &
-                    unused_sign(lenof_sign), unused_rdm_real
+                    unused_sign(lenof_sign), unused_rdm_real, tmp_norm
         logical :: tParentIsDeterm, tParentUnoccupied, tParity, tChildIsDeterm
         HElement_t(dp) :: HelGen
         integer(int64) :: TotWalkersNew
+
+        ! declare this is the first runge kutta step
+        runge_kutta_step = 1
+
+        ! also calculate the norm of the current y(n) 
+        tmp_norm = 0.0_dp
 
         ! use part of nicks code, and remove the parts, that dont matter 
         do idet = 1, int(TotWalkers, sizeof_int)
@@ -579,8 +637,20 @@ contains
             if (tParentUnoccupied) then
                 iEndFreeSlot = iEndFreeSlot + 1
                 FreeSlot(iEndFreeSlot) = idet
+
+                ! also update the temporary variables here, as the also get 
+                ! influenced in the death-step below
+                temp_iendfreeslot = temp_iendfreeslot + 1
+                temp_freeslot(temp_iendfreeslot) = idet
+
                 cycle
             end if
+
+            ! add up norm here: 
+!             do i = 1, lenof_sign
+!                 tmp_norm = tmp_norm + parent_sign(i)**2
+!             end do
+            tmp_norm = tmp_norm + sum(parent_sign**2)
 
             ! The current diagonal matrix element is stored persistently.
             parent_hdiag = det_diagH(idet)
@@ -674,6 +744,8 @@ contains
             ! should not act on the currently looped over walker list y(n)+k1/2
             ! but should be added to the spawned list k2, to then apply it to 
             ! the original y(n) + k2 
+            ! the iEndFreeSlot variable also gets influenced in the 
+            ! death-step (duh) -> so keep count of the temp iEndFreeSlot above
             if (.not. tParentIsDeterm) then
                 call walker_death_realtime (iter_data_fciqmc, nI_parent,  &
                     ilut_parent, parent_hdiag, parent_sign, idet, ex_level_to_ref)
@@ -686,10 +758,9 @@ contains
         ! also update the temp. variables to reuse in y(n) + k2 comb.
         ! this should be done before the annihilaiton step, as there these 
         ! values get changed! 
-        temp_iendfreeslot = iEndFreeSlot 
-        temp_freeslot = FreeSlot
+        ! have to do that above in the loop as it gets influenced in the 
+        ! death-step too, 
 
-        print *, iStartFreeSlot, iEndFreeSlot
         ! this is the original number of dets.
         TotWalkersNew = int(TotWalkers, sizeof_int)
 
@@ -698,6 +769,9 @@ contains
         call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
 
         TotWalkers = int(TotWalkersNew, sizeof_int)
+
+        ! also store the new norm information 
+        wf_norm(iter-1) = sqrt(pert_norm * tmp_norm)
 
     end subroutine first_real_time_spawn
 
@@ -711,19 +785,26 @@ contains
 
         ! 0)
         ! do all the necessary preperation(resetting pointers etc.)
-        call init_real_time_iteration(iter_data_fciqmc)
+        ! concerning the statistics: i could use the "normal" iter_data
+        ! for the first spawn, except change it for the new death-step, as 
+        ! there the particles also change from Re <-> Im 
+        call init_real_time_iteration(iter_data_fciqmc, second_spawn_iter_data)
         ! 1)
         ! do a "normal" spawning step and combination to y(n) + k1/2
         ! into CurrentDets: 
         
+        print *, "nruns: ", inum_runs
+
         print *, "TotParts and totDets before first spawn: ", TotParts, TotWalkers
         call extract_sign(CurrentDets(:,1), tmp_sign)
-!         print *, "hf occ before death:", tmp_sign
+        print *, "hf occ before first spawn:", tmp_sign
         call first_real_time_spawn()
         call extract_sign(CurrentDets(:,1), tmp_sign)
-!         print *, "hf occ after death:", tmp_sign
+        print *, "hf occ after first spawn:", tmp_sign
         print *, "TotParts and totDets after first spawn: ", TotParts, TotWalkers
         print *, "=========================="
+
+        
 
         ! for now update the iter data here, although in the final 
         ! implementation i only should do that after the 2nd RK step
@@ -734,6 +815,9 @@ contains
         ! reset the spawned list and do a second spawning step to create 
         ! the spawend list k2 
         ! but DO NOT yet recombine with stored walker list 
+        ! if i want to keep track of the two distinct spawns in 2 different 
+        ! iter_datas i probably have to reset some values before the 
+        ! second spawn.. to then keep the new values in the 2nd list
         call reset_spawned_list() 
 
         ! create a second spawned list from y(n) + k1/2
@@ -742,13 +826,22 @@ contains
         ! quick solution would be to loop again over reloaded y(n)
         ! and do a death step for wach walker
 
+!         iStartFreeSlot = 1
+!         iEndFreeSlot = 0
+!         FreeSlot = 0
+
         call second_real_time_spawn()
+        call extract_sign(CurrentDets(:,1), tmp_sign)
+        print *, "hf occ after second spawn:", tmp_sign
 
         ! 3) 
         ! reload stored temp_det_list y(n) into CurrentDets 
         ! have to figure out how to effectively save the previous hash_table
         ! or maybe just use two with different types of update functions..
         call reload_current_dets()
+
+        call extract_sign(CurrentDets(:,1), tmp_sign)
+        print *, "hf occ after reload:", tmp_sign
 
         ! 4)
         ! for the death_step for now: loop once again over the walker list 
@@ -765,11 +858,25 @@ contains
         ! this should be done with a single Annihilation step between
         ! y(n) = CurrentDets and k2 = SpawnedWalkers
 
+        ! UPDATE! have changed the 2nd diagonal event, so these particles get 
+        ! stored in a seperate DiagParts array -> so i have to do two 
+        ! annihilation events, first with the diagonal list and then with 
+        ! the actual spawned particles, to best mimick the old algorithm and 
+        ! also to correctly keep the stats of the events! 
         TotWalkersNew = int(TotWalkers, sizeof_int)
 
-        ! Annihilation is done after loop over walkers
-        call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
+        call DirectAnnihilation_diag(TotWalkersNew, second_spawn_iter_data, .false.)
 
+        call extract_sign(CurrentDets(:,1), tmp_sign)
+        print *, "hf occ after second death:", tmp_sign
+!         TotWalkersNew = int(TotWalkersNew, sizeof_int)
+
+        ! and then do the "normal" annihilation with the SpawnedParts array!
+        ! Annihilation is done after loop over walkers
+        call DirectAnnihilation (TotWalkersNew, second_spawn_iter_data, .false.)
+
+        call extract_sign(CurrentDets(:,1), tmp_sign)
+        print *, "hf occ after second annihil:", tmp_sign
         TotWalkers = int(TotWalkersNew, sizeof_int)
 
     end subroutine perform_real_time_iteration

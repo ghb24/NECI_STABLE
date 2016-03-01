@@ -61,6 +61,9 @@ module fcimc_helper
                                get_part_init_time, det_diagH, get_spawn_count
     use searching, only: BinSearchParts2
     use rdm_data, only: nrdms
+    use real_time_data, only: t_complex_ints, acceptances_1, runge_kutta_step, &
+                        NoInitDets_1, NoNonInitDets_1, NoInitWalk_1, NoNonInitWalk_1, &
+                        InitRemoved_1, NoAborted_1, NoRemoved_1, NoatHF_1, NoatDoubs_1
     implicit none
     save
 
@@ -226,7 +229,8 @@ contains
         integer, parameter :: flags = 0
         character(*), parameter :: this_routine = 'create_particle_with_hash_table'
 
-        call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, SpawnedParts, ind, hash_val, tSuccess)
+        call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, &
+            SpawnedParts, ind, hash_val, tSuccess)
 
         if (tSuccess) then
             ! If the spawned child is already in the spawning array.
@@ -236,7 +240,34 @@ contains
             ! If the new child has an opposite sign to that of walkers already
             ! on the site, then annihilation occurs. The stats for this need
             ! accumulating.
+
+            ! in the second real-time spawn loop, i can spawn also to 
+            ! determinants, which are actually diagonal particles
+            ! hence i have to update the diag_spawn flag if i annihilate all
+            ! particles eg. and maybe also update the ndied and nborn 
+            ! quantities, as this then is not done in the Annihilation if 
+            ! no info about the diagonal particles remain ...
+
+            ! but to know if its a death or a cloning event i have to know
+            ! the original sign in the stored y(n) array... but i dont 
+            ! wanna do a lookup in this original list..
+            ! hm: an idea, maybe in the end create a new SpawnedPartsDiag
+            ! array to store the "spawning" from the diagonal step which
+            ! where annhilations in the DirectAnnihilation routine gets 
+            ! treated as deaths/births.. -> yes! thats a good idea! 
+            ! also there i would be sure to not find the determinants if 
+            ! i loop over them, since it essentially is only a copy of the 
+            ! worked on y(n) + k1/2 list
+            ! and it would be nicer to seperate those 2 steps as they are 
+            ! essentially smth different...
+            ! and i also wouldnt need those additional flags to keep track of
+            ! what a diagonal spawn was and what not..
+
+            ! UPDATE! decided to store the diagonal particles in the 2nd 
+            ! RK loop in a seperate DiagParts array -> so no need to 
+            ! distinguish here, as only "proper" spawns are treated here!
             sgn_prod = real_sign_old * child_sign
+
             do i = 1, lenof_sign
                 if (sgn_prod(i) < 0.0_dp) then
                     iter_data%nannihil(i) = iter_data%nannihil(i) + 2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
@@ -247,15 +278,54 @@ contains
             real_sign_new = real_sign_old + child_sign
             ! Encode the new sign.
             call encode_sign(SpawnedParts(:,ind), real_sign_new)
-
             ! Set the initiator flags appropriately.
             ! If this determinant (on this replica) has already been spawned to
             ! then set the initiator flag. Also if this child was spawned from
             ! an initiator, set the initiator flag.
+            ! this is not correctly considered for the real-time or complex 
+            ! code .. probably nobody thought about using this in the __cmplx
+            ! implementation..
+#ifdef __REALTIME
+            if (tTruncInitiator) then
+                ! i have to check if complex ints are provided.. then i have
+                ! spawning to both types of particles
+                if (t_complex_ints) then
+                    ! in the complex ints case i have spawns to both Re and Im
+                    ! parts of the child determinant
+                    ! i have to check which type is spawned actually if no 
+                    ! particles of a certain type got spawned -> no need to 
+                    ! set init flag
+                    do i = 1, lenof_sign
+                        if (abs(child_sign(i)) > EPS) then
+                            if (abs(real_sign_old(i)) > EPS .or. &
+                                test_flag(ilut_parent, flag_initiator(part_type))) then
+
+                                call set_flag(SpawnedParts(:,ind), flag_initiator(i))
+
+                            end if
+                        end if
+                    end do
+
+                else
+                    ! here only Re -> Im and v.v. spawns
+                    ! part_type is the type of the parent particle! 
+                    ! 3 - part_type gives me the child partivle type in this 
+                    ! case 
+                    if (abs(real_sign_old(3-part_type)) > EPS .or. &
+                        test_flag(ilut_parent, flag_initiator(part_type))) then
+                        
+                        ! then set the child as initiator
+                        call set_flag(SpawnedParts(:,ind), flag_initiator(3-part_type))
+
+                    end if
+                end if
+            end if
+#else
             if (tTruncInitiator) then
                 if (abs(real_sign_old(part_type)) > 1.e-12_dp .or. test_flag(ilut_parent, flag_initiator(part_type))) &
                     call set_flag(SpawnedParts(:,ind), flag_initiator(part_type))
             end if
+#endif
         else
             ! Determine which processor the particle should end up on in the
             ! DirectAnnihilation algorithm.
@@ -282,10 +352,34 @@ contains
             call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), ilut_child(0:NIfDBO), child_sign, flags)
             ! If the parent was an initiator then set the initiator flag for the
             ! child, to allow it to survive.
+
+#ifdef __REALTIME
+            ! also have to change this for the real-time implementation
+            if (tTruncInitiator) then
+                if (t_complex_ints) then
+                    ! both types of particles can get spawned -> check if
+                    if (test_flag(ilut_parent, flag_initiator(part_type))) then
+                        do i = 1,lenof_sign
+                            if (abs(child_sign(i)) > EPS) then
+                                call set_flag(SpawnedParts(:,ValidSpawnedList(proc)), &
+                                    flag_initiator(i))
+                            end if
+                        end do
+                    end if
+                else
+                    ! only Re -> Im and v.v. spawning
+                    if (test_flag(ilut_parent, flag_initiator(part_type))) then
+                        call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), &
+                            flag_initiator(3-part_type))
+                    end if
+                end if
+            end if
+#else
             if (tTruncInitiator) then
                 if (test_flag(ilut_parent, flag_initiator(part_type))) &
                     call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_initiator(part_type))
             end if
+#endif
 
             call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
 
@@ -293,7 +387,16 @@ contains
         end if
         
         ! Sum the number of created children to use in acceptance ratio.
-#ifdef __CMPLX
+        ! in the rt-fciqmc i have to track the stats of the 2 RK steps 
+        ! seperately
+
+#if defined(__REALTIME)
+        if (runge_kutta_step == 1) then
+            acceptances_1(1) = acceptances_1(1) + sum(abs(child_sign))
+        else 
+            acceptances(1) = acceptances(1) + sum(abs(child_sign))
+        end if
+#elif defined(__CMPLX) && !defined(__REALTIME)
         acceptances(1) = acceptances(1) + sum(abs(child_sign))
 #else
         acceptances = acceptances + abs(child_sign)
@@ -875,6 +978,21 @@ contains
         NoatHF = 0.0_dp
         NoatDoubs = 0.0_dp
 
+        ! for the real-time fciqmc also rezero the info on the intermediate
+        ! RK step
+#ifdef __REALTIME 
+        NoInitDets_1 = 0
+        NoNonInitDets_1 = 0
+        NoInitWalk_1 = 0.0_dp
+        NoNonInitWalk_1 = 0.0_dp
+        InitRemoved_1 = 0
+
+        NoAborted_1 = 0.0_dp
+        NoRemoved_1 = 0.0_dp
+        NoatHF_1 = 0.0_dp
+        NoatDoubs_1 = 0.0_dp
+#endif
+
         iter_data%nborn = 0
         iter_data%ndied = 0
         iter_data%nannihil = 0
@@ -999,7 +1117,6 @@ contains
 
     end subroutine
 
-
     subroutine end_iter_stats (TotWalkersNew)
 
         integer, intent(in) :: TotWalkersNew
@@ -1008,6 +1125,8 @@ contains
 
         ! SumWalkersCyc calculates the total number of walkers over an update
         ! cycle on each process.
+        ! in the real-time, for now, also keep track of the intermediate 
+        ! walker number per cycle..
 #ifdef __CMPLX
         SumWalkersCyc = SumWalkersCyc + sum(TotParts)
 #else

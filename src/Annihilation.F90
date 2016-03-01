@@ -32,6 +32,10 @@ module AnnihilationMod
     use global_det_data, only: get_iter_occ, inc_spawn_count
     use searching
     use hash
+#ifdef __REALTIME
+    use real_time_data, only: NoAborted_1, Annihilated_1, runge_kutta_step, &
+                              nspawned_1
+#endif
 
     implicit none
 
@@ -145,7 +149,17 @@ module AnnihilationMod
         call MPIAlltoAll(sendcounts,1,recvcounts,1,error)
 
         ! Set this global data - the total number of spawned determants.
+        ! again in the realtime i have to distinguish between the 2 RK steps
+#ifdef __REALTIME 
+        if (runge_kutta_step == 1) then
+            nspawned_1 = sum(recvcounts)
+        else
+            nspawned = sum(recvcounts)
+        end if
+#else
         nspawned = sum(recvcounts)
+#endif
+
 
         ! We can now get recvdisps from recvcounts, since we want the data to
         ! be contiguous after the move.
@@ -488,9 +502,20 @@ module AnnihilationMod
         sgn_prod = cum_sgn * new_sgn
 
         ! Update annihilation statistics.
+        ! in the real-time fciqmc i have to keep track of the 2 runge-kutta 
+        ! step stats seperately.. -> so distinguish here! 
         if (sgn_prod < 0.0_dp) then
             run = part_type_to_run(part_type)
+#ifdef __REALTIME
+            if (runge_kutta_step == 1) then
+                Annihilated_1(run) = Annihilated_1(run) + &
+                    2*min(abs(cum_sgn), abs(new_sgn))
+            else if (runge_kutta_step == 2) then
+                Annihilated(run) = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
+            end if
+#else 
             Annihilated(run) = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
+#endif
             iter_data%nannihil(part_type) = iter_data%nannihil(part_type)&
                 + 2 * min(abs(cum_sgn), abs(new_sgn))
         end if
@@ -620,7 +645,20 @@ module AnnihilationMod
 
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
-#ifndef __CMPLX
+                        ! here it seems, it treats both the real and complex 
+                        ! walker occupation for the same initiator criteria
+                        ! meaning if, any of the real or imaginary occupations
+                        ! is an initiator, the whole determinant is an 
+                        ! initiator.. hm.. do i want this? if yes i have 
+                        ! to change a lot of the previous implemented code 
+                        ! which distinguished between real and imaginary 
+                        ! initiators..
+                        ! for now, stick to the distinction! but ask ali! 
+                        ! news: keep track of first and second step of 
+                        ! runge-kutta stats seperately -> also NoBorn values
+                        ! etc..
+#if defined(__REALTIME) || !defined(__CMPLX)                        
+! #ifndef __CMPLX
                         if (abs(CurrentSign(j)) < 1.e-12_dp) then
                             ! This determinant is actually *unoccupied* for the
                             ! walker type/set we're considering. We need to
@@ -629,7 +667,16 @@ module AnnihilationMod
                                 if (.not. test_flag (SpawnedParts(:,i), flag_initiator(j)) .and. &
                                      .not. tDetermState) then
                                     ! Walkers came from outside initiator space.
-                                    NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
+                                    ! have to also keep track which RK step
+#ifdef __REALTIME 
+                                    if (runge_kutta_step == 1) then
+                                        NoAborted_1(run) = NoAborted_1(run) + abs(SpawnedSign(j))
+                                    else if (runge_kutta_step == 2) then
+                                        NoAborted(run) = NoAborted(run) + abs(SpawnedSign(j))
+                                    end if
+#else
+                                    NoAborted(run) = NoAborted(run) + abs(SpawnedSign(j))
+#endif
                                     iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
                                     call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
                                 end if
@@ -638,10 +685,24 @@ module AnnihilationMod
 #else
                         if (SignProd(j) < 0) then
 #endif
+                            ! in the real-time for the final combination
+                            ! y(n) + k2 i have to check if the "spawned" 
+                            ! particle is actually a diagonal death/born
+                            ! walker
                             ! This indicates that the particle has found the
                             ! same particle of opposite sign to annihilate with.
                             ! In this case we just need to update some statistics:
+                            ! in the real-time fciqmc i have to keep track of 
+                            ! the runge-kutta-step
+#ifdef __REALTIME
+                            if (runge_kutta_step == 1) then
+                                Annihilated_1(run) = Annihilated_1(run) + 2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
+                            else if (runge_kutta_step == 2) then
+                                Annihilated(run) = Annihilated(run) + 2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
+                            end if
+#else
                             Annihilated(run) = Annihilated(run) + 2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
+#endif
                             iter_data%nannihil(j) = iter_data%nannihil(j) + &
                                 2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
 
@@ -730,7 +791,16 @@ module AnnihilationMod
                             if (tIncCancelledInitEnergy) call add_trial_energy_contrib(SpawnedParts(:,i), SignTemp(j), j)
 
                             ! Walkers came from outside initiator space.
-                            NoAborted(j) = NoAborted(j) + abs(SignTemp(j))
+                            ! in the real-time keep track which RK step
+#ifdef __REALTIME
+                            if (runge_kutta_step == 1) then
+                                NoAborted_1(run) = NoAborted_1(run) + abs(SignTemp(j))
+                            else
+                                NoAborted(run) = NoAborted(run) + abs(SignTemp(j))
+                            end if
+#else
+                            NoAborted(run) = NoAborted(run) + abs(SignTemp(j))
+#endif
                             iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
                             ! We've already counted the walkers where SpawnedSign
                             ! become zero in the compress, and in the merge, all
@@ -742,6 +812,9 @@ module AnnihilationMod
 
                         end if
                         
+                        ! this below, probably has to be adjusted for the 
+                        ! real-time in the future too! if we use non-integer
+                        ! occupations.. todo
                         if (tInitOccThresh .and. test_flag(CurrentDets(:,j), flag_has_been_initiator(1)))then
                             if ((abs(SignTemp(j)) > 0.0_dp).and.(abs(SignTemp(j)) < InitiatorOccupiedThresh)) then
                                 pRemove=(InitiatorOccupiedThresh-abs(SignTemp(j)))/InitiatorOccupiedThresh

@@ -6,22 +6,25 @@ module real_time_init
 
     use real_time_data, only: t_real_time_fciqmc, gf_type, real_time_info, &
                               t_complex_ints, gf_overlap, wf_norm, temp_det_list, &
-                              temp_det_pointer, temp_det_hash, temp_freeslot
-    use real_time_procs, only: create_perturbed_ground, setup_temp_det_list
-
+                              temp_det_pointer, temp_det_hash, temp_freeslot, &
+                              pert_norm, second_spawn_iter_data, DiagParts, &
+                              DiagParts2, DiagVec, DiagVec2, valid_diag_spawn_list
+    use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
+                               calc_perturbed_norm
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
     use Parallel_neci, only: nProcessors
-    use ParallelHelper, only: iProcIndex, root, MPIbarrier
+    use ParallelHelper, only: iProcIndex, root, MPIbarrier, nNodes
     use util_mod, only: get_unique_filename
     use Logging, only: tIncrementPops
     use kp_fciqmc_data_mod, only: scaling_factor, tMultiplePopStart, tScalePopulation, &
                                   tOverlapPert, overlap_pert
     use CalcData, only: tChangeProjEDet, tReadPops, tRestartHighPop, tFCIMC, &
                         tStartSinglePart, tau, nmcyc, iPopsFileNoRead, tWritePopsNorm, &
-                        tWalkContGrow, diagSft
+                        tWalkContGrow, diagSft, pops_norm
     use FciMCData, only: tSearchTau, alloc_popsfile_dets, pops_pert, tPopsAlreadyRead, &
                          tSinglePartPhase, iter_data_fciqmc, iter, PreviousCycles, &
-                         AllGrowRate, spawn_ht, pDoubles, pSingles
+                         AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
+                         MaxSpawned, InitialSpawnedSlots, tSearchTauOption
     use SystemData, only: nBasis, lms
     use perturbations, only: init_perturbation_annihilation, &
                              init_perturbation_creation
@@ -30,6 +33,8 @@ module real_time_init
     use kp_fciqmc_init, only: create_overlap_pert_vec
     use LoggingData, only: tZeroProjE, tFCIMCStats2
     use fcimc_output, only: write_fcimcstats2, WriteFciMCStatsHeader
+    use replica_data, only: allocate_iter_data
+    use bit_rep_data, only: nifbcast
 
     implicit none
 
@@ -90,10 +95,15 @@ contains
         ! time evolved y(t) will be stored in the CurrentDets array
         call create_perturbed_ground()
 
+        ! calc. the norm of this perturbed ground-state
+        pert_norm = calc_perturbed_norm()
+
         ! change the flags dependent on the real-time input 
         if (real_time_info%t_equidistant_time) then
             print *, " The equdistant time step option is set for the real-time calculation"
             tSearchTau = .false.
+            ! also have to turn off:
+            tSearchTauOption = .false.
             if (real_time_info%time_step > 0.0_dp) then
                 print *, " A specific time-step is chosen by input!"
                 tau = real_time_info%time_step
@@ -179,11 +189,16 @@ contains
         ! allocate the according quantities! 
         ! n_time_steps have to be set here!
         print *, " Allocating greensfunction and wavefunction norm arrays!"
-        allocate(gf_overlap(0:real_time_info%n_time_steps), stat = ierr)
+        allocate(gf_overlap(lenof_sign,0:real_time_info%n_time_steps), stat = ierr)
         allocate(wf_norm(0:real_time_info%n_time_steps), stat = ierr)
 
         gf_overlap = 0.0_dp
-        wf_norm = 0.0_dp
+
+        ! to avoid dividing by 0 if not all entries get filled
+        wf_norm = 1.0_dp
+
+        ! set the fist value here for now
+        wf_norm(0) = sqrt(pops_norm * pert_norm)
 
         ! check for set lms.. i think that does not quite work yet 
         print *, "mz spin projection: ", lms
@@ -225,6 +240,46 @@ contains
         ! diagonal step works as intented 
 !         pSingles = 0.0_dp
 !         pDoubles = 0.0_dp
+
+        ! also initialize the second_spawn_iter_data type
+        call allocate_iter_data(second_spawn_iter_data)
+
+        ! and also initialize the values: 
+        second_spawn_iter_data%ndied = 0.0_dp
+        second_spawn_iter_data%nborn = 0.0_dp
+        second_spawn_iter_data%nannihil = 0.0_dp
+        second_spawn_iter_data%naborted = 0.0_dp
+        second_spawn_iter_data%nremoved = 0.0_dp
+        second_spawn_iter_data%update_growth = 0.0_dp
+        second_spawn_iter_data%update_growth_tot = 0.0_dp
+        second_spawn_iter_data%tot_parts_old = TotParts
+        second_spawn_iter_data%update_iters = 0
+
+
+        ! also intitialize the 2nd spawning array to deal with the 
+        ! diagonal death step in the 2nd rt-fciqmc loop
+        ! have to make this list as large as the original walker list? 
+        ! hm, probably not, as due to the tau multiplicative factor 
+        ! for not hihgly populated dets also a succesful death step is not 
+        ! so likely.. make it as big as MaxSpawned for now, maybe increase 
+        ! later if this turns out to be to small..
+        allocate(DiagVec(0:nifbcast, MaxSpawned), DiagVec2(0:nifbcast, MaxSpawned),&
+            stat = ierr)
+
+        DiagVec = 0
+        DiagVec2 = 0
+
+        DiagParts => DiagVec
+        DiagParts2 => DiagVec2
+
+        ! also need to setup this valid spawn list and crap..
+        allocate(valid_diag_spawn_list(0:nNodes-1), stat = ierr)
+
+        ! and the initial_spawn_slots equivalent
+        ! although i think i can reuse the initialSpawnedSlots..
+!         allocate(initial_diag_spawn_list(0:nNodes-1), stat = ierr) 
+
+        valid_diag_spawn_list(:) = InitialSpawnedSlots(:)
 
     end subroutine setup_real_time_fciqmc
 

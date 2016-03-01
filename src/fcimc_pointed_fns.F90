@@ -19,6 +19,10 @@ module fcimc_pointed_fns
     use util_mod
     use FciMCData
     use constants
+#ifdef __REALTIME
+    use real_time_data, only: NoBorn_1, SpawnFromSing_1, bloom_count_1, &
+                              bloom_sizes_1, runge_kutta_step
+#endif
 
     implicit none
 
@@ -367,7 +371,29 @@ module fcimc_pointed_fns
         endif
 
         ! Count the number of children born
-#ifdef __CMPLX
+        ! in the real-time fciqmc, it is probably good to keep track of the 
+        ! stats of the 2 distinct RK loops .. use a global variable for the step
+#if defined(__REALTIME) 
+        if (runge_kutta_step == 1) then
+            NoBorn_1(1) = NoBorn_1(1) + sum(abs(child))
+            if (ic == 1) SpawnFromSing_1(1) = SpawnFromSing_1(1) + sum(abs(child))
+
+            if (sum(abs(child)) > InitiatorWalkNo) then
+                bloom_count_1(ic) = bloom_count_1(ic) + 1
+                bloom_sizes_1(ic) = max(real(sum(abs(child)),dp), bloom_sizes_1(ic))
+            end if
+
+        else if (runge_kutta_step == 2) then
+            NoBorn(1) = NoBorn(1) + sum(abs(child))
+            if (ic == 1) SpawnFromSing(1) = SpawnFromSing(1) + sum(abs(child))
+            
+            ! Count particle blooms, and their sources
+            if (sum(abs(child)) > InitiatorWalkNo) then
+                bloom_count(ic) = bloom_count(ic) + 1
+                bloom_sizes(ic) = max(real(sum(abs(child)), dp), bloom_sizes(ic))
+            end if
+        end if
+#elif defined( __CMPLX) && !defined(__REALTIME)
         NoBorn(1) = NoBorn(1) + sum(abs(child))
         if (ic == 1) SpawnFromSing(1) = SpawnFromSing(1) + sum(abs(child))
         

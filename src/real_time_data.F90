@@ -5,7 +5,7 @@
 module real_time_data
     
     use constants, only: dp, int64, n_int
-    use FciMCData, only: perturbation, ll_node
+    use FciMCData, only: perturbation, ll_node, fcimc_iter_data
     implicit none
 
     ! number of copies to start the real-time simulation from
@@ -16,6 +16,10 @@ module real_time_data
     ! global flag indicating real-time calculation
     logical :: t_real_time_fciqmc
 
+    ! also use a second iter_data type to keep track of the 2 distinct 
+    ! spawning events
+    type(fcimc_iter_data) :: second_spawn_iter_data
+
     ! store the type of greensfunction as an integer, or maybe later on even
     ! create a type like nick did, to store all the general information like 
     ! timestep, which orbitals are manipulated etc. in it 
@@ -25,9 +29,12 @@ module real_time_data
     ! determined by the max. cycle
 !     real(dp), allocatable :: gf_overlap(:)
     ! for tests now only make it of length 1
-    real(dp), allocatable :: gf_overlap(:)
+    real(dp), allocatable :: gf_overlap(:,:)
     ! also store the norm of the time-evolved wavefunction
     real(dp), allocatable :: wf_norm(:)
+
+    ! also store the norm of the perturbed ground state to adjust the 
+    real(dp) :: pert_norm
 
     ! need additional info of the original walker number and the number of 
     ! walkers remaining in the perturbed ground state
@@ -84,5 +91,55 @@ module real_time_data
     ! also need temporary variables to store the iStart- and iEndFreeSlot 
     ! variables(actually dont need tmp_start var.)
     integer :: temp_iEndFreeslot
+
+    ! also need to store the original number of determinants(and walkers maybe)
+    ! of the y(n) list to reload correctly
+    integer :: temp_totWalkers
+
+    ! also start to store the diagonal "spawns" in the second rt-fciqmc loop
+    ! in a seperate Spawned Parts array, to better keep track of stats and 
+    ! do seperate different distinct processes
+    integer(n_int), pointer :: DiagParts(:,:), DiagParts2(:,:)
+
+    ! also need the associated actual arrays to point to
+    integer(n_int), allocatable, target :: DiagVec(:,:), DiagVec2(:,:)
+
+    ! i dont think i need a hash table to go with that..
+    ! but i need this valid_spawned list thingy.. 
+    ! which holds the next free slot to spawn to.. for each proc
+    integer, allocatable :: valid_diag_spawn_list(:)
+
+    ! also keep a global var. of the number of diag-spawns in a cycle
+    integer :: n_diag_spawned
+
+    ! also need a var. to keep track of the number of spawned dets in 
+    ! the first RK steo
+    integer :: nspawned_1, nspawned_tot_1
+
+    ! keep stats track of the two runge kutta steps seperately -> need new
+    ! global variables! 
+    real(dp), allocatable :: NoAborted_1(:), AllNoAborted_1(:), AllNoAbortedOld_1(:), &
+                NoRemoved_1(:), AllNoRemoved_1(:), AllNoRemovedOld_1(:), &
+                NoBorn_1(:), AllNoBorn_1(:), NoDied_1(:), AllNoDied_1(:), &
+                Annihilated_1(:), AllAnnihilated_1(:), Acceptances_1(:), &
+                SpawnFromSing_1(:), AllSpawnFromSing_1(:), NoatDoubs_1(:), &
+                AllNoatDoubs_1(:), AccRat_1(:), AllGrowRate_1(:), NoInitWalk_1(:), &
+                NoNonInitWalk_1(:), NoatHF_1(:), AllNoInitWalk_1(:), &
+                AllNoNonInitWalk_1(:), SumWalkersCyc_1(:)
+
+    integer(int64), allocatable :: NoAddedInitiators_1(:),InitRemoved_1(:), &
+                NoInitDets_1(:), NoNonInitDets_1(:), AllNoAddedInitiators_1(:), &
+                AllNoInitDets_1(:),AllNoNonInitDets_1(:), AllInitRemoved_1(:), &
+                AllGrowRateAbort_1(:)
+
+    
+    ! also keept track of blooms seperately
+    integer :: bloom_count_1(0:2), all_bloom_count_1(0:2)
+    real(dp) :: bloom_sizes_1(0:2), bloom_max_1(0:2)
+
+    ! use a global integer to specifiy the current runge-kutta step (1 or 2) 
+    ! to keep stats correclty
+    integer :: runge_kutta_step
+
 
 end module real_time_data
