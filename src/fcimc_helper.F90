@@ -723,6 +723,9 @@ contains
                 ! Update the parent flag as required.
                 call set_flag (CurrentDets(:,j), get_initiator_flag_by_run(run), parent_init)
 
+                write(*,*) "get_initiator_flag_by_run", get_initiator_flag_by_run(run)
+                write(*,*) "parent_init", parent_init
+
                 if (parent_init) &
                     call set_has_been_initiator(CurrentDets(:,j), &
                                                 flag_has_been_initiator(1))
@@ -795,8 +798,8 @@ contains
             !   population to become an initiator.
 
             if ((diagH > InitiatorCutoffEnergy &
-                 .and. (tot_sgn>=low_init_thresh)) &
-                .or. (tot_sgn>=init_thresh)) then
+                 .and. (tot_sgn>low_init_thresh)) &
+                .or. (tot_sgn>init_thresh)) then
                 initiator = .true.
                 NoAddedInitiators = NoAddedInitiators + 1
             endif
@@ -817,8 +820,8 @@ contains
             if (.not. tDetInCas .and. &
                 .not. (DetBitEQ(ilut, iLutRef(:,run), NIfDBO)) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
-                .and. ((diagH <= InitiatorCutoffEnergy .and. (tot_sgn>=init_thresh)) .or. &
-                       (diagH > InitiatorCutoffEnergy .and. (tot_sgn>=low_init_thresh)))) then
+                .and. ((diagH <= InitiatorCutoffEnergy .and. (tot_sgn<=init_thresh)) .or. &
+                       (diagH > InitiatorCutoffEnergy .and. (tot_sgn<=low_init_thresh)))) then
                 ! Population has fallen too low. Initiator status 
                 ! removed.
                 initiator = .false.

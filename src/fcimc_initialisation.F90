@@ -1448,7 +1448,6 @@ contains
     end subroutine InitFCIMCCalcPar
 
     subroutine init_fcimc_fn_pointers()
-
         ! Select the excitation generator.
         if (tHPHF) then
             generate_excitation => gen_hphf_excit
@@ -1457,11 +1456,11 @@ contains
         elseif (tCSF) then
             generate_excitation => gen_csf_excit
         elseif (tPickVirtUniform) then
-            !if (tReltvy) then
+            if (tReltvy) then
                 generate_excitation => gen_rand_excit_Ex_Mag
-            !else
-            !    generate_excitation => gen_rand_excit3
-            !endif
+            else
+                generate_excitation => gen_rand_excit3
+            endif
         elseif (tGenHelWeighted) then
             generate_excitation => gen_excit_hel_weighted
         elseif (tGen_4ind_2) then
