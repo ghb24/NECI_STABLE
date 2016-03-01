@@ -723,9 +723,6 @@ contains
                 ! Update the parent flag as required.
                 call set_flag (CurrentDets(:,j), get_initiator_flag_by_run(run), parent_init)
 
-                write(*,*) "get_initiator_flag_by_run", get_initiator_flag_by_run(run)
-                write(*,*) "parent_init", parent_init
-
                 if (parent_init) &
                     call set_has_been_initiator(CurrentDets(:,j), &
                                                 flag_has_been_initiator(1))
