@@ -1984,6 +1984,107 @@ and a range of other guidelines.
 	aggressively used case can be found elsewhere.
 
 \section{Testing}
+NECI comes with a set of tests in the test_suite directory. Each of these
+tests have a benchmark file. When you run the tests, the results of your
+calculation will be compared against those from the benchmark files. If the
+values of certain results agree to within a predefined tolerance, the test
+will pass.
+
+The test suite is run using a python program called testcode2. This program
+will call the desired tests, compare the results against benchmarks, and let
+the user know the outcome of each test.
+
+You can clone testcode2 from github with the following command:
+
+\$ git clone https://github.com/jsspencer/testcode ~/testcode2
+
+There are tests for each of the three executables: neci, mneci and kneci.
+These are stored in the three directories with the corresponding names.
+These directories are then divided into further directories for the
+different types of tests. For example, mneci has subdirectories called
+rdm, excited_state, kpfciqmc and so on, with tests for each of these
+corresponding features of NECI.
+
+To run the entire test suite, just do
+
+\$ ~/testcode2/bin/testcode.py
+
+in the test_suite directory (assuming you cloned testcode2 to your home
+directory). To run this, you will have to have all of neci, mneci and
+kneci compiled.  However, you can also run a subset of tests. For example,
+to run all mneci tests do
+
+\$ ~/testcode2/bin/testcode.py -c mneci
+
+or to run a particular single test do
+
+\$ ~/testcode2/bin/testcode.py -c mneci/rdm/HeHe_int
+
+or to run two particular tests do
+
+\$ ~/testcode2/bin/testcode.py -c mneci/rdm/HeHe_int -c mneci/rdm/HeHe_real
+
+By default, testcode will just tell you whether or not the test passed.
+If the test failed, you can get further information by increasing the
+verbosity of the output. For example,
+
+\$ ~/testcode2/bin/testcode.py -c mneci/rdm/HeHe_int -v
+
+or
+
+\$ ~/testcode2/bin/testcode.py -c mneci/rdm/HeHe_int -vv
+
+which will tell you why the individual test did not pass. You can also
+use the verbosity flags when running the entire set of all tests.
+
+\subsection{Adding a new test}
+To add a new test, first create a directory in the appropriate subdirectory
+(for a parallel neci job, inside ./neci/parallel). In this directory add the
+test's input file (with a name ending in '.inp') and any necessary additional
+files, such as integral files or POPSFILEs.
+
+You should then add these files to git, for example:
+
+\$ git add neci/parallel/new_test
+
+If the test is added to a new subdirectory then you may need to add it to
+./jobconfig. If you added it to an already-exisiting directory, such as
+neci/parallel, then it should be automatically found by testcode using the
+globbing in jobconfig.
+
+You must then create a benchmark file by running the test suite. To create a
+new benchmark for \emph{only} the new test then run, for example,
+
+\$ testcode2/bin/testcode.py make-benchmarks -ic neci/parallel/new_test
+
+This should run just the new test. You will be told that the test has failed,
+and asked if you would like to set the new benchmark. If you believe that the
+test has run correctly then do so with 'y'.
+
+'-i' tells testcode to 'insert' the new benchmark ID at the start of the old
+list of benchmarks (located in ./userconfig). When testcode is run later, it
+will use the benchmark files with these IDs to compare against.
+
+If you don't include '-i' then testcode will remove all previous benchmarks.
+This is useful if you want to reset benchmarks for the whole test suite, which
+can be done with:
+
+\$ testcode2/bin/testcode.py make-benchmarks
+
+Finally, once this is done you need to add the new benchmark file to git.
+If the new benchmark ID is, for example,
+
+mneci-c3462e0.kneci-c3462e0.neci-c3462e0
+
+then you can do:
+
+\$ git add neci/parallel/new_test/*dneci-c3462e0.kneci-c3462e0.neci-c3462e0*
+
+You should then commit the newly added files. You might like to try running
+testcode on the new test, and making sure it runs and passes as expected,
+confirming the that the test was added correctly:
+
+\$ ~/testcode2/bin/testcode.py -c neci/parallel/new_test
 
 \section{Interfacing C (and C++) code}
 Developers have always mixed Fortran code with external routines implemented
