@@ -8,7 +8,17 @@ module real_time_init
                               t_complex_ints, gf_overlap, wf_norm, temp_det_list, &
                               temp_det_pointer, temp_det_hash, temp_freeslot, &
                               pert_norm, second_spawn_iter_data, DiagParts, &
-                              DiagParts2, DiagVec, DiagVec2, valid_diag_spawn_list
+                              DiagParts2, DiagVec, DiagVec2, valid_diag_spawn_list, &
+                              NoatHF_1, Annihilated_1, Acceptances_1, NoBorn_1, &
+                              SpawnFromSing_1, NoDied_1, NoAborted_1, NoRemoved_1, &
+                              NoAddedInitiators_1, NoInitDets_1, NoNonInitDets_1, &
+                              NoInitWalk_1, NoNonInitWalk_1, InitRemoved_1, &
+                              AllNoatHF_1, AllNoatHF_1, AllGrowRate_1, AllGrowRateAbort_1, &
+                              AllNoBorn_1, AllSpawnFromSing_1, AllNoDied_1, &
+                              AllAnnihilated_1, AllNoAborted_1, AllNoRemoved_1, &
+                              AllNoAddedInitiators_1, AllNoInitDets_1, AllNoNonInitDets_1, &
+                              AllNoInitWalk_1, AllNoNonInitWalk_1, AllInitRemoved_1, &
+                              AccRat_1, AllNoatDoubs_1, AllSumWalkersCyc_1
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_perturbed_norm
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
@@ -222,7 +232,11 @@ contains
 
         print *, "Allgrowrate: ", AllGrowRate
         ! print out the first infos on the calculation.. 
-        ! although that definetly has to be changed for the real-time fciqmc
+        ! although that definetly has to be changed for the real-time fciqm
+
+        ! use new output format! 
+        tFCIMCStats2 = .true.
+
         if (tFCIMCStats2) then
             call write_fcimcstats2(iter_data_fciqmc, initial = .true.)
         else
@@ -280,6 +294,42 @@ contains
 !         allocate(initial_diag_spawn_list(0:nNodes-1), stat = ierr) 
 
         valid_diag_spawn_list(:) = InitialSpawnedSlots(:)
+
+        ! also initialize all the relevant first RK step quantities.. 
+        NoatHF_1 = 0.0_dp 
+        Annihilated_1 = 0.0_dp
+        Acceptances_1 = 0.0_dp
+        NoBorn_1 = 0.0_dp
+        SpawnFromSing_1 = 0 
+        NoDied_1 = 0.0_dp
+        NoAborted_1 = 0.0_dp
+        NoRemoved_1 = 0.0_dp
+        NoAddedInitiators_1 = 0
+        NoInitDets_1 = 0
+        NoNonInitDets_1 = 0
+        NoInitWalk_1 = 0.0_dp
+        NoNonInitWalk_1 = 0.0_dp
+        InitRemoved_1 = 0
+        
+        ! also the global variables 
+        AllNoatHF_1 = 0.0_dp
+        AllNoatDoubs_1 = 0.0_dp
+        AllGrowRate_1 = 0.0_dp
+        AllGrowRateAbort_1 = 0
+        AllNoBorn_1 = 0.0_dp
+        AllSpawnFromSing_1 = 0
+        AllNoDied_1 = 0.0_dp
+        AllAnnihilated_1 = 0.0_dp
+        AllNoAborted_1 = 0.0_dp
+        AllNoRemoved_1 = 0.0_dp
+        AllNoAddedInitiators_1 = 0
+        AllNoInitDets_1 = 0
+        AllNoNonInitDets_1 = 0
+        AllNoInitWalk_1 = 0.0_dp
+        AllNoNonInitWalk_1 = 0.0_dp
+        AllInitRemoved_1 = 0
+        AccRat_1 = 0.0_dp
+        AllSumWalkersCyc_1 = 0.0_dp
 
     end subroutine setup_real_time_fciqmc
 

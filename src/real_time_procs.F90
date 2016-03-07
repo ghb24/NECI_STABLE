@@ -12,7 +12,8 @@ module real_time_procs
                               temp_iendfreeslot, temp_det_list, temp_det_pointer, &
                               temp_det_hash, temp_totWalkers, pert_norm, &
                               valid_diag_spawn_list, DiagParts, n_diag_spawned, &
-                              DiagParts2, NoDied_1, NoBorn_1, SumWalkersCyc_1
+                              DiagParts2, NoDied_1, NoBorn_1, SumWalkersCyc_1, &
+                              current_overlap
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
                          sizeof_int, MPIArg
@@ -1222,9 +1223,9 @@ contains
                 ! then the entries in ndie kill the parent, but only maximally
                 ! the already occupying walkers can get killed 
                 iter_data%ndied(i) = iter_data%ndied(i) + &
-                    min(abs(RealwSign(i)),abs(ndie(i)))
+                    abs(min(abs(RealwSign(i)),abs(ndie(i))))
 
-                NoDied_1(1) = NoDied_1(1) + min(abs(ndie(i)),abs(RealwSign(i)))
+                NoDied_1(1) = NoDied_1(1) + abs(min(abs(ndie(i)),abs(RealwSign(i))))
                 ! if ndie is bigger than the original occupation i am actually
                 ! spawning 'anti-particles' which i have to count as born
                 ! and reduce the ndied number.. or not? 
@@ -1710,7 +1711,8 @@ contains
 
         ! also save the number of particles from this spawning to calc. 
         ! first step specific acceptance rate
-        SumWalkersCyc_1 = SumWalkersCyc_1 + sum(TotParts)
+        ! changed that! this has to be done BEFORE the annihilation step! 
+!         SumWalkersCyc_1 = SumWalkersCyc_1 + sum(TotParts)
 
     end subroutine reset_spawned_list
 
@@ -1843,6 +1845,7 @@ contains
 
         ! need the timestep here... or the cycle of the current real-time loop
         gf_overlap(:,iter) = overlap 
+
 
     end subroutine update_gf_overlap
 

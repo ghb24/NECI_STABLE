@@ -28,6 +28,9 @@ module load_balance
     use constants
     use util_mod
     use hash
+#ifdef __REALTIME
+    use real_time_data, only: runge_kutta_step, TotParts_1
+#endif
 
     implicit none
 
@@ -655,6 +658,12 @@ contains
 
             end do
         end if
+
+#ifdef __REALTIME 
+        ! in the real-time fciqmc i also want to keep track of the number 
+        ! of particles after the first RK step
+        if (runge_kutta_step == 1) TotParts_1 = TotParts
+#endif
 
         if (AnnihilatedDet /= HolesInList) then
             write(6,*) "TotWalkersNew: ", TotWalkersNew

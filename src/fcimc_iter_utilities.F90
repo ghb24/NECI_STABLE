@@ -36,8 +36,10 @@ module fcimc_iter_utils
         AllNoNonInitDets_1, AllInitRemoved_1, bloom_count_1, bloom_sizes_1, &
         AllNoAborted_1, AllNoInitWalk_1, AllNoNonInitWalk_1, AllNoRemoved_1, &
         all_bloom_count_1, NoAddedInitiators_1, AccRat_1, SumWalkersCyc_1, &
-        nspawned_1, nspawned_tot_1
-#endif
+        nspawned_1, nspawned_tot_1, second_spawn_iter_data, TotParts_1, &
+        AllTotParts_1, AllTotPartsOld_1, TotWalkers_1, AllTotWalkers_1, &
+        AllTotWalkersOld_1, AllSumWalkersCyc_1, OldAllAvWalkersCyc_1
+#endif 
 
     implicit none
 
@@ -375,7 +377,13 @@ contains
 !         call MPIReduce(HFCyc, MPI_SUM, RealAllHFCyc)
         call MPIReduce(NoAtDoubs_1, MPI_SUM, AllNoAtDoubs_1)
         call MPIReduce(Annihilated_1, MPI_SUM, AllAnnihilated_1)
-!         call MPIReduce(iter_data%update_growth, MPI_SUM, iter_data%update_growth_tot)
+        call MPIReduce(iter_data_fciqmc%update_growth, MPI_SUM, &
+            iter_data_fciqmc%update_growth_tot)
+        ! NOTE: i kind of mix up where what is stored... in the second_spawn 
+        ! the most necessary info of the actual second step is stored.. 
+        ! and in the NoDied vars. above, but the info of the first step is 
+        ! in the general iter_data_fciqmc, and in the specific NoDied_1 ..
+        ! dont mix that up!
 #endif
 
         do run=1,inum_runs
@@ -422,6 +430,21 @@ contains
         call MPIReduce(norm_semistoch_squared,MPI_SUM,all_norm_semistoch_squared)
         call MPIReduce(Totparts,MPI_SUM,AllTotParts)
         call MPIReduce(tot_parts_new,MPI_SUM,tot_parts_new_all)
+
+#ifdef __REALTIME 
+        ! hm.. how do i remove the number of old holes from the 1st RK step..
+        ! damn.. this gets messy.. 
+        TotWalkersTemp = TotWalkers_1 - HolesInList
+        call MPIReduce(TotWalkersTemp, MPI_SUM, AllTotWalkers_1)
+#endif
+        ! also keep track of the real-time fciqmc specific runge-kutta steps
+        ! quantities 
+#ifdef __REALTIME 
+        call MPIReduce(TotParts_1, MPI_SUM, AllTotParts_1) 
+        ! do i need that:
+!         call MPIReduce(tot_parts_new_1, MPI_SUM, tot_parts_new_all_1)
+#endif
+
 #ifdef __CMPLX
         norm_psi = sqrt(sum(all_norm_psi_squared))
         norm_semistoch = sqrt(sum(all_norm_semistoch_squared))
@@ -472,6 +495,11 @@ contains
         call MPISumAll (NoatHF, AllNoatHF)
         call MPISumAll (SumWalkersCyc, AllSumWalkersCyc)
 
+        ! hm.. do i need the grow rate.. and how to calc. it correctly.. 
+#ifdef __REALTIME 
+        call MPISum(SumWalkersCyc_1, AllSumWalkersCyc_1)
+#endif
+
         ! The total number of spawned determinants.
         call MPISum (nspawned, nspawned_tot)
 
@@ -518,6 +546,37 @@ contains
         end if
         
 #ifdef __DEBUG
+#ifdef __REALTIME
+        ! change that here in the real-time to handle it correctly for the 2 
+        ! distinct RK steps..
+        if ((iProcIndex == root) .and. .not. tSpinProject .and. &
+            ! iter_data is the first step -> so i neet info about the first totparts
+            ! i "just" could change the input so that second_spawn_iter_data 
+            ! is the iter_data input -> so the correct info is stored and 
+            ! handled in the same way..
+            all(abs(iter_data_fciqmc%update_growth_tot - &
+                (AllTotParts_1 - AllTotPartsOld_1)) > 1.0e-5)) then
+            write(iout,*) " wrong info in the FIRST Runge-Kutta step: "
+            write(iout,*) "update_growth: ", iter_data_fciqmc%update_growth_tot
+            write(iout,*) "AllTotParts: ", AllTotParts_1
+            write(iout,*) "AllTotPartsOld: ", AllTotPartsOld_1
+            call stop_all(this_routine, &
+                "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
+        end if
+
+        if ((iProcIndex == root) .and. .not. tSpinProject .and. &
+            all(abs(iter_data%update_growth_tot - &
+            (AllTotParts - AllTotPartsOld)) > 1.0e-5)) then
+            write(iout,*) " wrong info in the SECOND Runge-Kutta step: "
+            write(iout,*) "update_growth: ", iter_data%update_growth_tot
+            write(iout,*) "AllTotParts: ", AllTotParts
+            write(iout,*) "AllTotPartsOld: ", AllTotPartsOld
+            call stop_all(this_routine, &
+                "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
+        end if
+
+#else
+
         ! Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
         if ((iProcIndex == root) .and. .not. tSpinProject .and. &
          all(abs(iter_data%update_growth_tot-(AllTotParts-AllTotPartsOld)) > 1.0e-5)) then
@@ -527,6 +586,7 @@ contains
             call stop_all (this_routine, &
                 "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
         endif
+#endif
 #endif
     
     end subroutine collate_iter_data
@@ -596,6 +656,11 @@ contains
                     !COMPLEX
                     AllGrowRate = (sum(AllSumWalkersCyc)/real(StepsSft,dp)) &
                                     /sum(OldAllAvWalkersCyc)
+#ifdef __REALTIME
+                    print *, "toto: am i here?"
+                    AllGrowRate_1 = (sum(AllSumWalkersCyc_1)/real(StepsSft,dp))  & 
+                                    / sum(OldAllAvWalkersCyc_1)
+#endif
                 else
                     do run=1,inum_runs
                         AllGrowRate(run) = (AllSumWalkersCyc(run)/real(StepsSft,dp)) &
@@ -881,10 +946,20 @@ contains
         !TODO CMO: are these summed across real/complex? 
         OldAllAvWalkersCyc = AllSumWalkersCyc/real(StepsSft,dp)
 
+#ifdef __REALTIME
+        OldAllAvWalkersCyc_1 = AllSumWalkersCyc_1 / real(StepsSft,dp)
+#endif
+
         ! Also the cumulative global variables
         AllTotWalkersOld = AllTotWalkers
         AllTotPartsOld = AllTotParts
         AllNoAbortedOld = AllNoAborted
+
+#ifdef __REALTIME 
+        AllTotPartsOld_1 = AllTotParts_1
+        AllTotWalkersOld_1 = AllTotWalkers_1
+        ! do i need old det numner and aborted number? 
+#endif
 
         ! Reset the counters
         iter_data%update_growth = 0.0_dp

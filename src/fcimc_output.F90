@@ -30,6 +30,14 @@ module fcimc_output
     use constants
     use sort_mod
     use util_mod
+#ifdef __REALTIME 
+    use real_time_data, only: AllNoBorn_1, AllNoAborted_1, AllAnnihilated_1, &
+                              AllNoDied_1, AllTotWalkers_1, nspawned_tot_1,  &
+                              AllTotParts_1, AccRat_1, AllGrowRate_1, &
+                              current_overlap
+#endif
+
+
 
     implicit none
 
@@ -458,8 +466,6 @@ contains
 
     end subroutine
 
-
-
     subroutine write_fcimcstats2(iter_data, initial)
 
         ! Write output to our FCIMCStats file.
@@ -520,6 +526,9 @@ contains
             call stats_out(state,.true., iter + PreviousCycles, 'Iter.')
             if (.not. tOrthogonaliseReplicas) then
                 call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. parts')
+#ifdef __REALTIME 
+                call stats_out(state,.true., sum(abs(AllTotParts_1)), 'Tot. parts 1st RK')
+#endif
                 call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
 #ifdef __CMPLX
                 call stats_out(state,.true., real(proje_iter_tot), 'Re Proj. E')
@@ -531,8 +540,15 @@ contains
                 call stats_out(state,.false., sum(AllNoBorn), 'No. born')
                 call stats_out(state,.false., sum(AllNoDied), 'No. died')
                 call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
-!!            call stats_out(state,.false., AllGrowRate(1), 'Growth fac.')
-!!            call stats_out(state,.false., AccRat(1), 'Acc. rate')
+#ifdef __REALTIME 
+                call stats_out(state,.false., sum(AllNoBorn_1), 'No. born 1st RK')
+                call stats_out(state,.false., sum(AllNoDied_1), 'No. died 1st RK')
+                call stats_out(state,.false., sum(AllAnnihilated_1), 'No. annihil 1st RK')
+                call stats_out(state,.false., AllGrowRate(1), 'Growth fac.')
+                call stats_out(state,.false., AccRat(1), 'Acc. rate')
+                call stats_out(state,.false., AllGrowRate_1(1), 'Growth fac. 1st RK')
+                call stats_out(state,.false., AccRat_1(1), 'Acc. rate 1st RK')
+#endif
 #ifdef __CMPLX
                 call stats_out(state,.true., real(proje_iter_tot) + Hii, &
                                'Tot. Proj. E')
@@ -545,9 +561,17 @@ contains
             end if
             call stats_out(state,.true., AllTotWalkers, 'Dets occ.')
             call stats_out(state,.true., nspawned_tot, 'Dets spawned')
+#ifdef __REALTIME
+            call stats_out(state,.true., AllTotWalkers_1, 'Dets occ. 1st RK')
+            call stats_out(state,.true., nspawned_tot_1, 'Dets spawned 1st RK')
+#endif
 
             call stats_out(state,.true., IterTime, 'Iter. time')
+#ifdef __REALTIME 
+            call stats_out(state, .false., TotImagTime, 'Re. time')
+#else
             call stats_out(state,.false., TotImagTime, 'Im. time')
+#endif
 
             ! Put the conditional columns at the end, so that the column
             ! numbers of the data are as stable as reasonably possible (for
@@ -555,9 +579,18 @@ contains
             ! frequently).
             ! This also makes column contiguity on resumes as likely as
             ! possible.
-            if (tTruncInitiator) &
+            if (tTruncInitiator) then 
                 call stats_out(state,.false., AllNoAborted(1), 'No. aborted')
+#ifdef __REALTIME 
+                call stats_out(state,.false., AllNoAborted_1(1), 'No. aborted 1st RK')
+#endif
+            end if
 
+#ifdef __REALTIME 
+            ! also output the overlaps and norm.. 
+            call stats_out(state,.false.,current_overlap(1), 'Re. <y(0)|y(t)>')
+            call stats_out(state,.false.,current_overlap(2), 'Im. <y(0)|y(t)>')
+#endif
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
 #ifdef __PROG_NUMRUNS

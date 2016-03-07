@@ -63,7 +63,8 @@ module fcimc_helper
     use rdm_data, only: nrdms
     use real_time_data, only: t_complex_ints, acceptances_1, runge_kutta_step, &
                         NoInitDets_1, NoNonInitDets_1, NoInitWalk_1, NoNonInitWalk_1, &
-                        InitRemoved_1, NoAborted_1, NoRemoved_1, NoatHF_1, NoatDoubs_1
+                        InitRemoved_1, NoAborted_1, NoRemoved_1, NoatHF_1, NoatDoubs_1, &
+                        NoatHF_1, NoatDoubs_1
     implicit none
     save
 
@@ -522,7 +523,19 @@ contains
 
             if (iter > NEquilSteps) &
                 SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
+            ! for the real-time i have to distinguish between the first and 
+            ! second RK step, if i want to keep track of the statistics 
+            ! seperately: in the first loop i analyze the the wavefunction 
+            ! from on step behind.. so store it in the "normal" noathf var
+#ifdef __REALTIME 
+            if (runge_kutta_step == 1) then
+                NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
+            else
+                NoatHF_1(1:lenof_sign) = NoatHF_1(1:lenof_sign) + RealwSign
+            end if
+#else
             NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
+#endif
             ! Number at HF * sign over course of update cycle
             HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
 
@@ -539,7 +552,13 @@ contains
             ! along with the doubles
             
             if (ExcitLevel_local == 2) then
-#ifdef __CMPLX
+#if defined(__REALTIME) 
+                if (runge_kutta_step == 1) then
+                    NoatDoubs(1) = NoatDoubs(1) + sum(abs(RealwSign))
+                else
+                    NoatDoubs_1(1) = NoatDoubs_1(1) + sum(abs(RealwSign))
+                endif
+#elif defined(__CMPLX) && !defined(__REALTIME)
                 NoatDoubs(1) = NoatDoubs(1) + sum(abs(RealwSign))
 #else
                 do run = 1, inum_runs
@@ -547,7 +566,6 @@ contains
                 end do
 #endif
             end if
-
             ! Obtain off-diagonal element
             if (tHPHF) then
                 HOffDiag(1:inum_runs) = hphf_off_diag_helement (ProjEDet(:,1), nI, &
@@ -558,6 +576,15 @@ contains
             endif
 
         endif ! ExcitLevel_local == 1, 2, 3
+
+
+        ! if in the real-time fciqmc: when we are in the 2nd loop 
+        ! return here since, the energy got already calculated in the 
+        ! first RK step, and doing it on the intermediate step would 
+        ! be meaningless
+#ifdef __REALTIME
+        if (runge_kutta_step == 2) return
+#endif
 
 
         ! Sum in energy contribution

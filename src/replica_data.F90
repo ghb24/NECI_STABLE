@@ -157,6 +157,9 @@ contains
                  NoatHF_1(lenof_sign), AllNoInitDets_1(lenof_sign), &
                  AllNoNonInitDets_1(lenof_sign), AllNoInitWalk_1(lenof_sign), &
                  AllNoNonInitWalk_1(lenof_sign), SumWalkersCyc_1(inum_runs), &
+                 TotParts_1(lenof_sign), AllTotParts_1(lenof_sign), &
+                 AllTotPartsOld_1(lenof_sign), AllNoatHF_1(lenof_sign), &
+                 AllSumWalkersCyc_1(inum_runs), OldAllAvWalkersCyc_1(inum_runs), &
                  stat = ierr)
 #endif
         ! KPFCIQMC

@@ -9,7 +9,8 @@ module real_time
                                create_diagonal_as_spawn, count_holes_in_currentDets, &
                                DirectAnnihilation_diag
     use real_time_data, only: gf_type, temp_freeslot, temp_iendfreeslot, wf_norm, &
-                              pert_norm, second_spawn_iter_data, runge_kutta_step
+                              pert_norm, second_spawn_iter_data, runge_kutta_step,&
+                              current_overlap, SumWalkersCyc_1
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
                         tChangeProjEDet, tInstGrowthRate
@@ -18,7 +19,7 @@ module real_time
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
                          TotWalkers, fcimc_excit_gen_store, ilutRef, max_calc_ex_level, &
                          iLutHF_true, indices_of_determ_states, partial_determ_vecs, &
-                         exFlag, CurrentDets, TotParts, ilutHF
+                         exFlag, CurrentDets, TotParts, ilutHF, SumWalkersCyc
     use kp_fciqmc_data_mod, only: overlap_pert
     use timing_neci, only: set_timer, halt_timer
     use FciMCParMod, only: rezero_iter_stats_each_iter
@@ -38,7 +39,8 @@ module real_time
                                   attempt_create, new_child_stats
     use bit_rep_data, only: tUseFlags, nOffFlag, niftot, extract_sign
     use bit_reps, only: set_flag, flag_deterministic, flag_determ_parent
-    use fcimc_iter_utils, only: update_iter_data
+    use fcimc_iter_utils, only: update_iter_data, collate_iter_data, iter_diagnostics, &
+                                population_check, update_shift, calculate_new_shift_wrapper
     use soft_exit, only: ChangeVars, tSoftExitFound
     use fcimc_initialisation, only: CalcApproxpDoubles
     use LoggingData, only: tPopsFile
@@ -225,11 +227,8 @@ contains
         ! to run a (mk)neci with the new walker dynamics provided by the 
         ! real-time Schroedinger equation
 
-        print *, "toto: changeref: ", tChangeProjEDet
-        print *, "toto: instgrowrate: ", tInstGrowthRate
         ! enter the main real-time fciqmc loop here
         fciqmc_loop: do while (.true.)
-
 
             ! update the overlap each time step.. could do that in some of 
             ! the loops down there too.. but for now do it here seperately 
@@ -250,6 +249,8 @@ contains
             ! perform the actual iteration(excitation generation etc.) 
             call perform_real_time_iteration() 
 
+            current_overlap = gf_overlap(:,iter-1) / wf_norm(iter - 1)
+
             print *, "overlap: ", gf_overlap(1,iter-1) / wf_norm(iter-1), &
                 gf_overlap(2,iter-1) / wf_norm(iter-1), gf_overlap(2,iter-1)
 
@@ -257,8 +258,9 @@ contains
             call update_real_time_iteration()
 
             ! update, print and log all the global variables and interesting 
-            ! quantities
-            call log_real_time_iteration() 
+            ! quantities -> combine that functionality in the above 
+            ! update_ routine !
+!             call log_real_time_iteration() 
 
             ! check if somthing happpened to stop the iteration or something
             call check_real_time_iteration()
@@ -280,6 +282,7 @@ contains
         ! two iter_data vars, i have to combine the general updated 
         ! statistics for the actual time step
         character(*), parameter :: this_routine = "update_real_time_iteration"
+        real(dp) :: tot_parts_new_all(lenof_sign)
 
         ! how to combine those 2? 
         ! in iter_data_fciqmc the info on the born, died, aborted, removed and 
@@ -296,7 +299,45 @@ contains
         ! and the NoBorn, NoDied and similar variables also get used in the 
         ! statistics about the simulation.. maybe i need to adjust them too
         ! so take the 2 RK loops into account
-        ! 
+        ! do i want to use the new_shift_wrapper here? .. 
+        ! no i think i just want to combine the important infos from both the 
+        ! iter_datas so to get the correct and valid info for the full 
+        ! time-step ... hm.. 
+
+        ! do a correct combination of the essential parts of the new_shift_wrapper
+        ! in the end i could just use the calc_new_shift_wrapper.. 
+
+        ! still have to do more combination of necessary data..
+
+        ! combine log_real_time into this routine too! 
+        if (mod(iter, StepsSft) == 0) then
+            call calculate_new_shift_wrapper(second_spawn_iter_data, totParts, &
+                tPairedReplicas)
+        end if
+! 
+!         if (mod(iter, StepsSft) == 0) then
+!             call collate_iter_data(iter_data_fciqmc, TotParts, tot_parts_new_all, .false.)
+!             ! in the collate_iter_data the second_spawning_iter_data does not 
+!             ! get updated .. do that out here.. 
+!             ! and also for the totParts after the first RK step -> i should 
+!             ! save that information before
+!             ! and wait a minute... most of the actual info is in the 
+!             ! second_spawn_iter_data, like in the usual NoDied etc. vars. 
+!             ! whereas the first step info is in iter_data_fciqmc and in the 
+!             ! NoDied_1 and etc. vars...
+! !             call MPIReduce(second_spawn_iter_data%update_growth, MPI_SUM, &
+! !                 second_real_time_spawn%update_growth_tot) 
+!             ! change the collate iter data more, to do that update..
+!             call iter_diagnostics()
+!             call population_check()
+!             ! do i need the update_shift routine? 
+!             call update_shift(second_spawn_iter_data)
+!             if (tPrintDataTables
+!             
+!             
+!         end if
+! 
+!         
     end subroutine update_real_time_iteration
 
     subroutine log_real_time_iteration()
@@ -458,8 +499,10 @@ contains
             ! definetly do not need it in the second spawn, since it is only 
             ! an intermediate list, and not an actual representation of the 
             ! wavefunction
-!             call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
-!                                parent_hdiag, 1.0_dp, tPairedReplicas, idet)
+            ! UPDATE: call this routine anyway to update info on noathf 
+            ! and noatdoubs, for the intermediate step
+            call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
+                              parent_hdiag, 1.0_dp, tPairedReplicas, idet)
 
             ! If we're on the Hartree-Fock, and all singles and
             ! doubles are in the core space, then there will be
@@ -761,8 +804,14 @@ contains
         ! have to do that above in the loop as it gets influenced in the 
         ! death-step too, 
 
+
         ! this is the original number of dets.
         TotWalkersNew = int(TotWalkers, sizeof_int)
+
+        ! have to call end_iter_stats to get correct acceptance rate
+!         call end_iter_stats(TotWalkersNew)
+        ! but end iter stats for me is only uses to get SumWalkersCyc .. 
+        SumWalkersCyc_1 = SumWalkersCyc_1 + sum(TotParts)
 
         ! the number TotWalkersNew changes below in annihilation routine
         ! Annihilation is done after loop over walkers
@@ -772,6 +821,7 @@ contains
 
         ! also store the new norm information 
         wf_norm(iter-1) = sqrt(pert_norm * tmp_norm)
+
 
     end subroutine first_real_time_spawn
 
@@ -867,6 +917,9 @@ contains
 
         call DirectAnnihilation_diag(TotWalkersNew, second_spawn_iter_data, .false.)
 
+        ! also have to set the SumWalkersCyc before the "proper" annihilaiton 
+        SumWalkersCyc = SumWalkersCyc + sum(TotParts)
+
         call extract_sign(CurrentDets(:,1), tmp_sign)
         print *, "hf occ after second death:", tmp_sign
 !         TotWalkersNew = int(TotWalkersNew, sizeof_int)
@@ -878,6 +931,10 @@ contains
         call extract_sign(CurrentDets(:,1), tmp_sign)
         print *, "hf occ after second annihil:", tmp_sign
         TotWalkers = int(TotWalkersNew, sizeof_int)
+
+        ! also do the update on the second_spawn_iter_data to combine both of 
+        ! them outside this function 
+        call update_iter_data(second_spawn_iter_data)
 
     end subroutine perform_real_time_iteration
 

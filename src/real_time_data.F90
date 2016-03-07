@@ -4,7 +4,7 @@
 
 module real_time_data
     
-    use constants, only: dp, int64, n_int
+    use constants, only: dp, int64, n_int, lenof_sign
     use FciMCData, only: perturbation, ll_node, fcimc_iter_data
     implicit none
 
@@ -32,6 +32,9 @@ module real_time_data
     real(dp), allocatable :: gf_overlap(:,:)
     ! also store the norm of the time-evolved wavefunction
     real(dp), allocatable :: wf_norm(:)
+
+    ! also store the current overlap of the cycle.. 
+    real(dp) :: current_overlap(lenof_sign)
 
     ! also store the norm of the perturbed ground state to adjust the 
     real(dp) :: pert_norm
@@ -125,12 +128,16 @@ module real_time_data
                 SpawnFromSing_1(:), AllSpawnFromSing_1(:), NoatDoubs_1(:), &
                 AllNoatDoubs_1(:), AccRat_1(:), AllGrowRate_1(:), NoInitWalk_1(:), &
                 NoNonInitWalk_1(:), NoatHF_1(:), AllNoInitWalk_1(:), &
-                AllNoNonInitWalk_1(:), SumWalkersCyc_1(:)
+                AllNoNonInitWalk_1(:), SumWalkersCyc_1(:), AllTotParts_1(:), &
+                AllTotPartsOld_1(:), TotParts_1(:), AllNoatHF_1(:), AllSumWalkersCyc_1(:), &
+                OldAllAvWalkersCyc_1(:)
 
     integer(int64), allocatable :: NoAddedInitiators_1(:),InitRemoved_1(:), &
                 NoInitDets_1(:), NoNonInitDets_1(:), AllNoAddedInitiators_1(:), &
                 AllNoInitDets_1(:),AllNoNonInitDets_1(:), AllInitRemoved_1(:), &
                 AllGrowRateAbort_1(:)
+
+    integer(int64) :: TotWalkers_1, AllTotWalkers_1, AllTotWalkersOld_1
 
     
     ! also keept track of blooms seperately
