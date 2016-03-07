@@ -36,7 +36,7 @@ end module
 #ifdef __ISO_C_HACK
 subroutine c_f_pointer (a, b, dims)
 
-    integer, intent(in) :: dims(:)
+    integer(int64), intent(in) :: dims(:)
     integer, dimension(:), pointer :: a
     integer, dimension(:), pointer :: b
 

@@ -203,7 +203,7 @@ contains
         baab_RDM_unit = 0
 
         if (tNormalise) then
-            write(6,'("Writing out the *normalised* 2 electron density matrix to file")')
+            write(6,'(1X,"Writing out the *normalised* 2 electron density matrix to a file...")')
             call neci_flush(6)
             ! This takes the TwoRDM_aaaa, and if tWriteMultPops is true (and given that we've put 
             ! .true. in the 3rd position, it'll find the next unused TwoRDM_aaaa.X file name.
@@ -684,12 +684,13 @@ contains
         end if
 
         if (tNormalise) then
-            write(6,'(I15,F30.20,A20,A39)') Iter+PreviousCycles, Max_Error_Hermiticity, &
-                                            '( Iteration,',' MAX ABS ERROR IN HERMITICITY )'
-            write(6,'(I15,F30.20,A20,A39)') Iter+PreviousCycles, Sum_Error_Hermiticity, &
-                                            '( Iteration,',' SUM ABS ERROR IN HERMITICITY )'
-            write(6,'(I15,F30.20,A20,A51)') Iter+PreviousCycles, Sum_Herm_Percent/real(No_Herm_Elements,dp), &
-                                            '( Iteration,',' AVERAGE ABS PERCENTAGE HERMITICITY ERROR )'
+            write(6,'(1X,"Stochastic error measures for RDM",1X,'//int_fmt(rdm_label)//',":")') rdm_label
+            write(6,'(1X,I15,F30.20,5X,A41)') Iter+PreviousCycles, Max_Error_Hermiticity, &
+                                            '(Iteration, MAX ABS ERROR IN HERMITICITY)'
+            write(6,'(1X,I15,F30.20,5X,A41)') Iter+PreviousCycles, Sum_Error_Hermiticity, &
+                                            '(Iteration, SUM ABS ERROR IN HERMITICITY)'
+            write(6,'(1X,I15,F30.20,5X,A53,/)') Iter+PreviousCycles, Sum_Herm_Percent/real(No_Herm_Elements,dp), &
+                                            '(Iteration, AVERAGE ABS PERCENTAGE HERMITICITY ERROR)'
         end if
 
     end subroutine Write_out_2RDM

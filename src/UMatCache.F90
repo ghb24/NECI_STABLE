@@ -1,6 +1,6 @@
 
 MODULE UMatCache
-    use constants, only: dp,sizeof_int
+    use constants, only: dp,sizeof_int,int64
     use SystemData , only : TSTARSTORE, tROHF,tStoreSpinOrbs
     use util_mod, only: swap
     use sort_mod
@@ -417,7 +417,7 @@ MODULE UMatCache
          IMPLICIT NONE
          INTEGER nBasis,iSS
          INTEGER iPairs,nBi,nEl,noccup
-         INTEGER :: iSize
+         INTEGER(int64) :: iSize
          IF(tStoreSpinOrbs) THEN
              iSS=1
          ELSE
@@ -439,6 +439,7 @@ MODULE UMatCache
             iPairs=(nBi*(nBi+1))/2
             iSize=(iPairs*(iPairs+1))/2
 #ifdef __CMPLX
+            !Since we now only have 4-fold symmetry, rather than 8-fold.
             iSize = iSize * 2
 #endif
          ENDIF

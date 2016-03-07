@@ -576,7 +576,7 @@ contains
 !The UMAT2D integrals will also be read in in this case.
 !If tReadFreezeInts is false, then if we are cacheing the FCIDUMP file, then we will read and cache all the integrals.
       SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,tReadFreezeInts)
-         use constants, only: dp
+         use constants, only: dp,sizeof_int
          use SystemData, only: Symmetry, NEl, BasisFN, tMolpro, UMatEps, tCacheFCIDUMPInts, tUHF, &
                                tRIIntegrals,tROHF,tRotatedOrbsReal, tReadFreeFormat, tFixLz
          USE UMatCache, only: UMatInd,UMatConj,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
@@ -601,13 +601,14 @@ contains
          LOGICAL LWRITE
          logical :: uhf
          INTEGER ISPINS,ISPN,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
-         INTEGER UMatSize,TMatSize,IUHF
+         INTEGER TMatSize,IUHF
+         integer(int64) :: UMatSize
          INTEGER , ALLOCATABLE :: CacheInd(:)
          character(len=*), parameter :: t_r='READFCIINT'
          real(dp) :: diff
          logical :: tbad
-         integer :: start_ind, end_ind
-         integer, parameter :: chunk_size = 1000000
+         integer(int64) :: start_ind, end_ind
+         integer(int64), parameter :: chunk_size = 1000000
 
 #ifdef _MOLCAS_
          logical :: tExists     !test for existence of input file.
@@ -938,7 +939,7 @@ contains
              start_ind = 1
              end_ind = min(UMatSize, chunk_size)
              do while(start_ind <= UMatSize)
-                 call MPIBcast(UMat(start_ind:end_ind), end_ind-start_ind+1)
+                 call MPIBcast(UMat(start_ind:end_ind), int(end_ind-start_ind+1,sizeof_int))
                  start_ind = end_ind + 1
                  end_ind = min(UMatSize, end_ind + chunk_size)
              end do

@@ -77,6 +77,7 @@ contains
         use FciMCData, only: tFinalRDMEnergy, Iter, PreviousCycles
         use LoggingData, only: tRDMInstEnergy
         use rdm_data, only: rdm_estimates_t, rdm_estimates_unit
+        use util_mod, only: int_fmt
 
         type(rdm_estimates_t), intent(inout) :: est(:)
 
@@ -103,11 +104,14 @@ contains
         call neci_flush(rdm_estimates_unit)
 
         if (tFinalRDMEnergy) then
-            write(6,'(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%Trace_2RDM
-            write(6,'(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est%Trace_2RDM_normalised
-            write(6,'(1x,"Energy contribution from the 1-RDM:",1x,es17.10)') est%RDMEnergy1
-            write(6,'(1x,"Energy contribution from the 2-RDM:",1x,es17.10)') est%RDMEnergy2
-            write(6,'(1x,"*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:",1x,es20.13)') est%RDMEnergy
+            do i = 1, size(est)
+                write(6,'(1x,"FINAL ESTIMATES FOR RDM",1X,'//int_fmt(i)//',":",)') i
+                write(6,'(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est(i)%Trace_2RDM
+                write(6,'(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est(i)%Trace_2RDM_normalised
+                write(6,'(1x,"Energy contribution from the 1-RDM:",1x,es17.10)') est(i)%RDMEnergy1
+                write(6,'(1x,"Energy contribution from the 2-RDM:",1x,es17.10)') est(i)%RDMEnergy2
+                write(6,'(1x,"*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:",1x,es20.13,/)') est(i)%RDMEnergy
+            end do
             close(rdm_estimates_unit)
         end if
 
@@ -155,8 +159,6 @@ contains
         RDMEnergy2 = 0.0_dp
         RDMEnergy = 0.0_dp
     
-        if (tFinalRDMEnergy) write(6,'(/,1X,"Calculating the final RDM energy")')
-
         do i = 1, SpatOrbs
             iSpin = 2 * i
 

@@ -2434,7 +2434,7 @@ contains
     
     
     
-        Subroutine CalcDoCalc(kp)
+        subroutine CalcDoCalc(kp)
           use SystemData, only: Alat, Arr,Brr, Beta, ECore, G1, LMS, LMS2, nBasis,NMSH, nBasisMax
           use SystemData, only: SymRestrict, tCSFOLD, tParity, tSpn, ALat, Beta,tMolpro,tMolproMimic
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB,nEl
@@ -2454,15 +2454,15 @@ contains
           use kp_fciqmc, only: perform_kp_fciqmc, perform_subspace_fciqmc
           use kp_fciqmc_data_mod, only: tExcitedStateKP
           use kp_fciqmc_procs, only: kp_fciqmc_data
+          use util_mod, only: int_fmt
 
-!Calls
-!          real(dp) DMonteCarlo2
-!Local Vars
-          real(dp) EN,WeightDum,EnerDum
-          integer iSeed,iunit
+          real(dp) :: EN,WeightDum, EnerDum
+          real(dp), allocatable :: final_energy(:)
+          integer :: iSeed, iunit, i
           type(kp_fciqmc_data), intent(inout) :: kp
           character(*), parameter :: this_routine = 'CalcDoCalc'
-          iSeed=7 
+
+          iSeed = 7
 
 !C.. we need to calculate a value for RHOEPS, so we approximate that
 !C.. RHO_II~=exp(-BETA*H_II/p).  RHOEPS is a %ge of this 
@@ -2490,9 +2490,15 @@ contains
 !             ENDIF
 
              if(tFCIMC) then
-                 call FciMCPar(WeightDum,EnerDum)
-
-                 if((.not.tMolpro).and.(.not.tMolproMimic)) WRITE(6,*) "Summed approx E(Beta)=",EnerDum
+                 call FciMCPar(final_energy)
+                 if ((.not.tMolpro) .and. (.not.tMolproMimic)) then
+                     if (allocated(final_energy)) then
+                         do i = 1, size(final_energy)
+                             write(6,'(1X,"Final energy estimate for state",1X,'//int_fmt(i)//',":",g25.14)') &
+                                 i, final_energy(i)
+                         end do
+                     end if
+                 end if
              elseif(tRPA_QBA) then
                 call RunRPA_QBA(WeightDum,EnerDum)
                 WRITE(6,*) "Summed approx E(Beta)=",EnerDum
