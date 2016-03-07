@@ -167,7 +167,7 @@ contains
             ! part of the SpawnedParts array from NIfTot+1 --> NIfTot+1+NIfDBO
             call store_parent_with_spawned (RDMBiasFacCurr, WalkerNo, &
                                             ilutI, WalkersToSpawn, ilutJ, &
-                                            proc, part_type)
+                                            proc)
         end if
 
         ! If we are storing the parent coefficient with the particle, then
