@@ -1198,7 +1198,7 @@ contains
 
                 call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                         iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
-                        PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
+                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfTot, &
                         MaxWalkersUncorrected,read_tau,PopBlockingIter, read_psingles, read_pparallel, &
                         perturb_ncreate, perturb_nannihilate)
 
