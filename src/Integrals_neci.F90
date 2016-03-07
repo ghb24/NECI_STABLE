@@ -272,7 +272,7 @@ contains
 ! two ways of specifying open orbitals
 ! if orborder2(I,1) is integral, then if it's odd, we have a single
 ! open orbital
-               IF(ORBORDER2(I).EQ.INT(ORBORDER2(I))) THEN
+               IF(abs(ORBORDER2(I) - INT(ORBORDER2(I))) < 1.0e-12_dp) THEN
                   ORBORDER(I,1)=IAND(INT(ORBORDER2(I)),65534)
                   IF((INT(ORBORDER2(I))-ORBORDER(I,1)).GT.0) THEN
 ! we have an open orbital
