@@ -17,7 +17,7 @@ contains
         use LoggingData, only: tWrite_RDMs_to_read, tWrite_normalised_RDMs
         use LoggingData, only: tWriteSpinFreeRDM
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: rdm_t, rdm_estimates_t, rdms, tOpenShell, rdm_estimates_unit
+        use rdm_data, only: rdm_t, rdm_estimates_t, tOpenShell
         use rdm_temp, only: Finalise_2e_RDM, calc_2e_norms, Write_out_2RDM
         use rdm_temp, only: Write_spinfree_RDM
 
@@ -131,7 +131,6 @@ contains
         use global_utilities, only: set_timer, halt_timer
         use IntegralsData, only: umat
         use LoggingData, only: tRDMInstEnergy
-        use Parallel_neci, only: iProcIndex
         use rdm_data, only: RDMEnergy_Time, tOpenShell
         use rdm_data, only: rdm_t
         use RotateOrbsData, only: SpatOrbs
@@ -142,11 +141,11 @@ contains
         real(dp), intent(in) :: Norm_2RDM, Norm_2RDM_Inst
         real(dp), intent(out) :: Trace_2RDM_normalised, RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst
 
-        integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab, ierr
-        integer :: iSpin, jSpin, error
-        real(dp) :: Coul, Exch, Parity_Factor
-        real(dp) :: Coul_aaaa, Coul_bbbb, Coul_abba, Coul_baab, Coul_abab, Coul_baba
-        real(dp) :: Exch_aaaa, Exch_bbbb, Exch_abba, Exch_baab, Exch_abab, Exch_baba
+        integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab
+        integer :: iSpin, jSpin
+        real(dp) :: Coul, Exch
+        real(dp) :: Coul_aaaa, Coul_bbbb, Coul_abab, Coul_baba
+        real(dp) :: Exch_aaaa, Exch_bbbb, Exch_abba, Exch_baab
 
         call set_timer(RDMEnergy_Time, 30)
 
@@ -171,7 +170,7 @@ contains
 
                     ! Adding in contributions effectively from the 1-RDM (although these are calculated 
                     ! from the 2-RDM).
-                    call calc_1RDM_and_1RDM_energy(rdm, i, j, a, iSpin,jSpin, Norm_2RDM, Norm_2RDM_Inst, &
+                    call calc_1RDM_and_1RDM_energy(rdm, i, j, a, iSpin,jSpin, Norm_2RDM, &
                                                    RDMEnergy_Inst, RDMEnergy1)
                     
                     do b = a, SpatOrbs
@@ -492,24 +491,21 @@ contains
         !   2RDM_ijkl = <Psi| a_i+ a_k+ a_l a_j|Psi>
 
         use IntegralsData, only: UMAT
-        use Logging, only: tDumpForcesInfo, tPrintLagrangian
         use NatOrbsMod, only: NatOrbMat
         use OneEInts, only: TMAT2D
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: rdm_t, tOpenShell
         use rdm_temp, only: Find_Spatial_2RDM_Chem
-        use RotateOrbsMod, only: SymLabelList2_rot, SymLabelListInv_rot, SpatOrbs
+        use RotateOrbsMod, only: SymLabelListInv_rot, SpatOrbs
         use UMatCache, only: gtID, UMatInd
 
         type(rdm_t), intent(inout) :: rdm
         real(dp), intent(in) :: Norm_2RDM
         real(dp), intent(in) :: Norm_1RDM
 
-        integer :: p, q, r, s, t, ierr, stat
-        integer :: pSpin, qSpin, rSpin, error
-        real(dp) :: Norm_2RDM_Inst
-        real(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch, Parity_Factor 
-        real(dp) :: RDMEnergy1, RDMEnergy2
+        integer :: p, q, r, s, t, ierr
+        integer :: pSpin, rSpin
+        real(dp) :: Coul
         real(dp) :: qrst, rqst
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity, Temp
 
@@ -600,7 +596,7 @@ contains
 
     end subroutine Calc_Lagrangian_from_RDM
 
-    subroutine calc_1RDM_and_1RDM_energy(rdm, i, j, a, iSpin, jSpin, Norm_2RDM, Norm_2RDM_Inst, &
+    subroutine calc_1RDM_and_1RDM_energy(rdm, i, j, a, iSpin, jSpin, Norm_2RDM, &
                                          RDMEnergy_Inst, RDMEnergy1)
 
         ! This routine calculates the 1-RDM part of the RDM energy, and
@@ -621,7 +617,7 @@ contains
 
         type(rdm_t), intent(in) :: rdm
         integer, intent(in) :: i, j, a, iSpin, jSpin
-        real(dp), intent(in) :: Norm_2RDM, Norm_2RDM_Inst
+        real(dp), intent(in) :: Norm_2RDM
         real(dp), intent(inout) :: RDMEnergy_Inst, RDMEnergy1
         real(dp) :: Parity_Factor, fac_doublecount
 
@@ -1000,16 +996,15 @@ contains
     subroutine convert_mats_Molpforces(rdm, Norm_1RDM, Norm_2RDM)
 
         use GenRandSymExcitNUMod, only: ClassCountInd, RandExcitSymLabelProd
-        use IntegralsData, only: nFrozen
         use NatOrbsMod, only: NatOrbMat
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: rdm_t, tOpenShell
         use rdm_temp, only: Find_Spatial_2RDM_Chem
         use RotateOrbsData, only: SpatOrbs, SymLabelListInv_rot
         use sym_mod
-        use SymData, only: Sym_Psi, SymLabelCounts, nSymLabels
+        use SymData, only: Sym_Psi, nSymLabels
         use SymExcitDataMod, only: SpinOrbSymLabel,SymLabelCounts2
-        use SystemData, only: nEl, nbasis, LMS, ECore
+        use SystemData, only: nEl, LMS
         use UMatCache, only: GTID
 
         type(rdm_t), intent(in) :: rdm
@@ -1018,7 +1013,7 @@ contains
         integer :: posn1, posn2
         integer :: i, j, k, l
         integer :: myname, ifil, intrel, iout
-        integer :: orb1, orb2, Sym_i, Sym_j, Sym_ij
+        integer :: Sym_i, Sym_j, Sym_ij
         integer :: Sym_k, Sym_l, Sym_kl
         integer, dimension(8) :: iact, ldact !iact(:) # of active orbs per sym, 
                                              !ldact(:) - # Pairs of orbs that multiply to give given sym
@@ -1033,8 +1028,9 @@ contains
         real(dp), allocatable :: SymmetryPackedLagrangian(:)
         real(dp), allocatable :: FC_Lagrangian(:)
         integer :: iWfRecord, iWfSym
-        real(dp) :: WfRecord
+#ifdef MOLPRO
         character(len=*), parameter :: t_r='convert_mats_Molpforces'
+#endif
 
 #ifdef __int64
         intrel = 1
@@ -1179,16 +1175,17 @@ contains
 
     subroutine molpro_set_igrdsav(igrsav_)
 
-        implicit double precision(a-h,o-z)
-        implicit integer(i-n)
-        character(len=*), parameter :: t_r = 'molpro_set_igrdsav'
+        integer, intent(in) :: igrsav_
 
 #ifdef MOLPRO
         include "common/cwsave"
         ! tell gradient programs where gradient information is stored
         igrsav = igrsav_
 #else
+        character(len=*), parameter :: t_r = 'molpro_set_igrdsav'
+        integer :: iunused
         call stop_all(t_r,'Should be being called from within MOLPRO')
+        iunused = igrsav_
 #endif
 
     end subroutine molpro_set_igrdsav
@@ -1203,7 +1200,11 @@ contains
         iWfRecord = wf(1)
         iWfSym = isyref
 #else
+        integer :: iunused
         iWfRecord = 21402
+
+        ! ELiminate warnings
+        iunused = iWfSym
 #endif
 
     end subroutine molpro_get_reference_info
@@ -1229,8 +1230,6 @@ contains
         eps,leps, &
         epsc,lepsc,iout,intrel)
 
-        implicit double precision(a-h,o-z)
-    
         !  Use the following subroutine to dump the information needed for molpro
         !  forces calculations, such that it is in the exact format that molpro
         !  would have dumped from a MCSCF calculation.  When interfaced with Molpro,
@@ -1285,11 +1284,15 @@ contains
 
         integer, dimension(30) :: header
         integer :: i, ncore
-        character(len=6), parameter :: label='MCGRAD'
         integer :: lhead
 
-#ifndef MOLPRO
-          call stop_all(t_r,'Should not be here if not running through molpro')
+        real(dp) :: runused
+
+#ifdef MOLPRO
+        character(len=6), parameter :: label='MCGRAD'
+#else
+        character(*), parameter :: t_r = 'molpro_dump_mcscf_dens_for_grad'
+        call stop_all(t_r,'Should not be here if not running through molpro')
 #endif
 
         ncore = 0
@@ -1346,6 +1349,10 @@ contains
         !>        ' saved on record  ',i8,'.',i1)
         !return
 
+        ! Eliminate compiler warnings
+        runused = den1(1); runused = den2(1); runused = eps(1); runused = epsc(1)
+
+
     end subroutine molpro_dump_mcscf_dens_for_grad
 
     ! To calculate the dipole moments, the casscf routine has to be called from molpro. i.e.
@@ -1401,6 +1408,7 @@ contains
         ! The only thing needed is the 1RDM (normalized)
         real(dp), intent(in) :: Norm_1RDM
         character(len=*), parameter :: t_r='CalcDipoles'
+        real(dp) :: runused
 
 #ifdef MOLPRO
 
@@ -1504,6 +1512,9 @@ contains
 #else
         call warning_neci(t_r, 'Cannot compute dipole moments if not running within molpro. Exiting...')
 #endif
+
+        ! Eliminate compiler warnings
+        runused = norm_1rdm
 
     end subroutine CalcDipoles
 
