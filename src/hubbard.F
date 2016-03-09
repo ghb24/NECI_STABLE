@@ -503,3 +503,25 @@ C.. we have a new rep
         KALLOWED=TALLOW
         RETURN
       END FUNCTION KALLOWED
+
+      INTEGER FUNCTION IFINDBASISFN(NQNS,G1,NBASIS)
+         use SystemData, only: BasisFN
+         IMPLICIT NONE
+         INTEGER NBASIS,I,J
+         TYPE(BasisFN) G1(NBASIS),NQNS
+         LOGICAL L
+         DO I=1,NBASIS
+            L=.TRUE.
+            DO J=1,3
+               IF(G1(I)%k(J).NE.NQNS%k(J)) L=.FALSE.
+            ENDDO
+            IF(G1(I)%Sym%s.NE.NQNS%Sym%s) L=.FALSE.
+            IF(G1(I)%Ms.NE.NQNS%Ms) L=.FALSE.
+            IF(L) THEN
+               IFINDBASISFN=I
+               RETURN
+            ENDIF
+         ENDDO
+         IFINDBASISFN=0
+         RETURN
+      END FUNCTION IFINDBASISFN
