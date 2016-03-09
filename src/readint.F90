@@ -582,7 +582,7 @@ contains
          USE UMatCache, only: UMatInd,UMatConj,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
          USE UMatCache, only: FillUpCache,GTID,nStates,nSlots,nTypes
          USE UMatCache, only: UMatCacheData,UMatLabels,GetUMatSize
-         use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
+         use OneEInts, only: TMatind,TMat2D,TMATSYM
          use OneEInts, only: CalcTMatSize
          use Parallel_neci
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
@@ -695,9 +695,7 @@ contains
              else
                  iSpinType=0
              endif
-             IF(.not.TSTARSTORE) THEN
-                 TMAT2D(:,:)=(0.0_dp)
-             ENDIF
+             TMAT2D(:,:)=(0.0_dp)
              ! Can't use * as need to be backward compatible with existing 
              ! FCIDUMP files, some of which have more than 100 basis
              ! functions and so the integer labels run into each other.
@@ -828,29 +826,24 @@ contains
 !                LWRITE=.TRUE.
              ELSEIF(K.EQ.0) THEN
 !.. 1-e integrals
-                IF(TSTARSTORE) THEN
-! If TSTARSTORE, the one-el integrals are stored in symmetry classes, as spatial orbitals
-                    TMATSYM(TMatInd(2*J,2*I))=Z
-                ELSE
 !.. These are stored as spinorbitals (with elements between different spins being 0
-                    DO ISPN=1,ISPINS
+                DO ISPN=1,ISPINS
 
-                        ! Have read in T_ij.  Check it's consistent with T_ji
-                        ! (if T_ji has been read in).
-                       diff = abs(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)-Z)
-                       IF(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1) /= 0.0_dp .and. diff > 1.0e-7_dp) then
-                            WRITE(6,*) i,j,Z,TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)
-                            CALL Stop_All("ReadFCIInt","Error filling TMAT - different values for same orbitals")
-                       ENDIF
+                    ! Have read in T_ij.  Check it's consistent with T_ji
+                    ! (if T_ji has been read in).
+                   diff = abs(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)-Z)
+                   IF(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1) /= 0.0_dp .and. diff > 1.0e-7_dp) then
+                        WRITE(6,*) i,j,Z,TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)
+                        CALL Stop_All("ReadFCIInt","Error filling TMAT - different values for same orbitals")
+                   ENDIF
 
-                       TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)=Z
+                   TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)=Z
 #ifdef __CMPLX
-                       TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=conjg(Z)
+                   TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=conjg(Z)
 #else
-                       TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=Z
+                   TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=Z
 #endif
-                    enddo
-                ENDIF
+                enddo
              ELSE
 !.. 2-e integrals
 !.. UMAT is stored as just spatial orbitals (not spinorbitals)
@@ -858,7 +851,6 @@ contains
 #ifdef __CMPLX
                 Z = UMatConj(I,K,J,L,Z)
 #endif
-!.. AJWT removed the restriction to TSTARSTORE
                 IF(TUMAT2D) THEN
                     IF(I.eq.J.and.I.eq.K.and.I.eq.L) THEN
                         !<ii|ii>
@@ -896,8 +888,6 @@ contains
 !Read in all integrals as normal.
                         UMAT(UMatInd(I,K,J,L,0,0))=Z
                     ENDIF
-                ELSEIF(TSTARSTORE.and.(.not.TUMAT2D)) THEN
-                    call stop_all(t_r, 'Need UMAT2D with TSTARSTORE')
                 ELSEIF(tCacheFCIDUMPInts.or.tRIIntegrals) THEN
                     CALL Stop_All("ReadFCIInts","TUMAT2D should be set")
                 ELSE
@@ -921,11 +911,7 @@ contains
          CALL MPIBCast(ECore,1)
 !Need to find out size of TMAT before we can BCast
          CALL CalcTMATSize(nBasis,TMATSize)
-         IF(tStarStore) THEN
-             CALL MPIBCast(TMATSYM,TMATSize)
-         ELSE
-             CALL MPIBCast(TMAT2D,TMATSize)
-         ENDIF
+         CALL MPIBCast(TMAT2D,TMATSize)
          IF(TUMAT2D) THEN
 !Broadcast TUMAT2D...
              CALL MPIBCast(UMAT2D,nStates**2)
@@ -983,7 +969,7 @@ contains
          use constants, only: dp,int64,sizeof_int
          use SystemData, only: Symmetry, BasisFN
          USE UMatCache , only : UMatInd,UMAT2D,TUMAT2D
-         use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
+         use OneEInts, only: TMatind,TMat2D,TMATSYM
          use util_mod, only: get_free_unit
          IMPLICIT NONE
          real(dp), intent(out) :: ECORE
@@ -1031,47 +1017,16 @@ contains
 !            LWRITE=.TRUE.
          ELSEIF(K.EQ.0) THEN
 !.. 1-e integrals
-            IF(TSTARSTORE) THEN
-! If TSTARSTORE, the one-el integrals are stored in symmetry classes, as spatial orbitals
-                TMATSYM(TMatInd(2*J,2*I))=Z
-            ELSE
 !.. These are stored as spinorbitals (with elements between different spins being 0
-                TMAT2D(2*I-1,2*J-1)=Z
-                TMAT2D(2*I,2*J)=Z
-                TMAT2D(2*J-1,2*I-1)=Z
-                TMAT2D(2*J,2*I)=Z
-            ENDIF
+            TMAT2D(2*I-1,2*J-1)=Z
+            TMAT2D(2*I,2*J)=Z
+            TMAT2D(2*J-1,2*I-1)=Z
+            TMAT2D(2*J,2*I)=Z
          ELSE
 !.. 2-e integrals
 !.. UMAT is stored as just spatial orbitals (not spinorbitals)
 !..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
-            IF(TSTARSTORE.and.TUMAT2D) THEN
-                IF(I.eq.J.and.I.eq.K.and.I.eq.L) THEN
-                    !<ii|ii>
-                    UMAT2D(I,I)=Z
-                ELSEIF((I.eq.J.and.K.eq.L)) THEN
-                    !<ij|ij> - coulomb - 1st arg > 2nd arg
-                    X=MAX(I,K)
-                    Y=MIN(I,K)
-                    UMAT2D(Y,X)=Z
-                ELSEIF(I.eq.L.and.J.eq.K) THEN
-                    !<ij|ji> - exchange - 1st arg < 2nd arg
-                    X=MIN(I,J)
-                    Y=MAX(I,J)
-                    UMAT2D(Y,X)=Z
-                ELSEIF(I.eq.K.and.J.eq.L) THEN
-                    !<ii|jj> - equivalent exchange for real orbs
-                    X=MIN(I,J)
-                    Y=MAX(I,J)
-                    UMAT2D(Y,X)=Z
-                ELSE
-                    UMAT(UMatInd(I,K,J,L,0,0))=Z
-                ENDIF
-            ELSEIF(TSTARSTORE.and.(.not.TUMAT2D)) THEN
-                call stop_all(this_routine, 'Need UMAT2D with TSTARSTORE')
-            ELSE
-                UMAT(UMatInd(I,K,J,L,0,0))=Z
-            ENDIF
+            UMAT(UMatInd(I,K,J,L,0,0))=Z
          ENDIF
 !         WRITE(14,'(1X,F20.12,4I3)') Z,I,J,K,L
          IF(I.NE.0) GOTO 101

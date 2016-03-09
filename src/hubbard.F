@@ -99,8 +99,8 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
       SUBROUTINE CALCTMATHUB(NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,TPBC)
          use constants, only: dp
          use SystemData, only: BasisFN
-         USE OneEInts,only : TMat2D,TMATSYM,TSTARSTORE,TMatInd,SetupTMAT
-         USE Parallel_neci , only : iProcIndex
+         USE OneEInts, only: TMat2D,TMATSYM,SetupTMAT
+         USE Parallel_neci, only : iProcIndex
          IMPLICIT NONE
          INTEGER NBASIS,nBasisMax(5,*)
          TYPE(BasisFN) G1(nBasis)
@@ -112,8 +112,6 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          real(dp) TOTSUM
          character(*), parameter :: this_routine = 'CALCTMATHUB'
          IF(iProcIndex.eq.0) OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
-         IF(TSTARSTORE) call stop_all(this_routine,
-     &                       'Using TSTARSTORE with HUB?!')
          CALL SetupTMAT(NBASIS,2,iSize)
          TOTSUM=0.0_dp
          LX=NBASISMAX(1,2)-NBASISMAX(1,1)
@@ -145,13 +143,8 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
                   ENDIF
                   IF(DX+DY+DZ.EQ.1.AND.G1(I)%Ms.EQ.G1(J)%MS) THEN
 !This is for if the site can interact with a periodic image.
-                     IF(TSTARSTORE) THEN
-                        TMATSYM(TMatInd(I,J))=TOTSUM
-                        IF(iProcIndex.eq.0) WRITE(10,*) I,J,TOTSUM
-                     ELSE
-                        TMAT2D(I,J)=TOTSUM
-                        IF(iProcIndex.eq.0) WRITE(10,*) I,J,TOTSUM
-                     ENDIF
+                    TMAT2D(I,J)=TOTSUM
+                    IF(iProcIndex.eq.0) WRITE(10,*) I,J,TOTSUM
                   ENDIF
                ENDDO
             ENDDO

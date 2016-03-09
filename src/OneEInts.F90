@@ -9,7 +9,6 @@ module OneEInts
 ! pre-freezing stage.
 
 use constants, only: dp
-use SystemData, only: TSTARSTORE
 use MemoryManager, only: TagIntType
 use util_mod, only: get_free_unit
 
@@ -51,8 +50,6 @@ contains
         ! In: 
         !    i,j: spin orbitals.
         ! Return the index of the <i|h|j> element in TMatSym2.
-        ! This is only used with TSTARSTORE, where the TMAT is compressed to only store states, not spin-orbitals,
-        ! Added compression supplied by only storing symmetry allowed integrals - therefore needs SymData info.
         ! We assume a restricted calculation.  We note that TMat is a Hermitian matrix.
         ! For the TMat(i,j) to be non-zero, i and j have to belong to the same symmetry, as we're working in Abelian groups.
         ! We store the non-zero elements in TMatSym(:).
@@ -176,9 +173,7 @@ contains
         HElement_t(dp) :: t
 #endif
 
-        if (tStarStore) then
-            ret = TMatSym(TMatInd(i, j))
-        else if (tCPMDSymTMat) then
+        if (tCPMDSymTMat) then
             ! TMat is Hermitian, rather than symmetric.
             ! Only the upper diagonal of each symmetry block is stored
             if (j .ge. i) then
@@ -215,9 +210,7 @@ contains
         INTEGER I,J
         HElement_t(dp) GetNEWTMATEl
 
-        IF(TSTARSTORE) THEN
-            GetNEWTMATEl=TMATSYM2(NEWTMATInd(I,J))
-        else if (tCPMDSymTMat) then
+        if (tCPMDSymTMat) then
 #ifdef __CMPLX
             if (j.ge.i) then
                 GetNewTMatEl=TMATSYM2(TMatInd(I,J))
@@ -292,22 +285,11 @@ contains
             CALL neci_flush(iunit)
         ENDIF
         WRITE(iunit,*) "TMAT:"
-        IF(TSTARSTORE) THEN
-            DO II=1,NSYMLABELS
-                DO I=SYMLABELCOUNTSCUM(II-1)+1,SYMLABELCOUNTSCUM(II)
-                    DO J=SYMLABELCOUNTSCUM(II-1)+1,I
-                        WRITE(iunit,*) I,J,GetTMATEl((2*I),(2*J))
-                        CALL neci_flush(iunit)
-                    ENDDO
-                ENDDO
+        DO I=1,NBASIS,2
+            DO J=1,NBASIS,2
+                WRITE(iunit,*) (I+1)/2,(J+1)/2, GetTMATEl(I,J)
             ENDDO
-        ELSE
-            DO I=1,NBASIS,2
-                DO J=1,NBASIS,2
-                    WRITE(iunit,*) (I+1)/2,(J+1)/2, GetTMATEl(I,J)
-                ENDDO
-            ENDDO
-        ENDIF
+        ENDDO
         WRITE(iunit,*) "**********************************"
         CALL neci_flush(iunit)
         IF(ASSOCIated(TMATSYM2).or.ASSOCIated(TMAT2D2)) THEN
@@ -331,7 +313,7 @@ contains
       use SymData, only: SymLabelCounts,nSymLabels
       INTEGER :: iSize,nBasis,basirrep,i,Nirrep
 
-          IF(TSTARSTORE.or.tCPMDSymTMat) THEN 
+          IF(tCPMDSymTMat) THEN 
               iSize=0
               Nirrep=NSYMLABELS
               do i=1,Nirrep
@@ -374,7 +356,7 @@ contains
         ! TMAT.  
         if (tCPMD) tCPMDSymTMat=tKP
         if (tVASP) tCPMDSymTMat=.true.
-        IF(TSTARSTORE.or.tCPMDSymTMat) THEN 
+        IF(tCPMDSymTMat) THEN 
             ! Set up info for indexing scheme (see TMatInd for full description).
             Nirrep=NSYMLABELS
             nBi=nBasis/iSS
@@ -503,7 +485,7 @@ contains
         ! TMAT.
         if (tCPMD) tCPMDSymTMat=tKP
         if (tVASP) tCPMDSymTMat=.true.
-        IF(TSTARSTORE.or.tCPMDSymTMat) THEN 
+        IF(tCPMDSymTMat) THEN 
             ! Set up info for indexing scheme (see TMatInd for full description).
             Nirrep=NSYMLABELS
             nBi=nBasisFRZ/iSS
@@ -604,39 +586,20 @@ contains
         LOGICAL :: NEWTMAT
         character(len=*), parameter :: thisroutine='DestroyTMat'
 
-        IF(TSTARSTORE) THEN
-            IF(NEWTMAT) THEN
-                IF(ASSOCIATED(TMATSYM2)) THEN
-                    CALL LogMemDealloc(thisroutine,tagTMatSym2)
-                    Deallocate(TMATSYM2)
-                    NULLIFY(TMATSYM2)
-                ENDIF
-            ELSE
-                IF(ASSOCIATED(TMATSYM)) THEN
-                    CALL LogMemDealloc(thisroutine,tagTMatSym)
-                    Deallocate(TMATSYM)
-                    NULLIFY(TMATSYM)
-                ENDIF
+        IF(NEWTMAT) THEN
+            IF(ASSOCIATED(TMAT2D2)) THEN
+                call LogMemDealloc(thisroutine,tagTMat2D2)
+                Deallocate(TMAT2D2)
+                NULLIFY(TMAT2D2)
             ENDIF
         ELSE
-            IF(NEWTMAT) THEN
-                IF(ASSOCIATED(TMAT2D2)) THEN
-                    call LogMemDealloc(thisroutine,tagTMat2D2)
-                    Deallocate(TMAT2D2)
-                    NULLIFY(TMAT2D2)
-                ENDIF
-            ELSE
-                IF(ASSOCIATED(TMAT2D)) THEN
-                    Deallocate(TMAT2D)
-                    call LogMemDealloc(thisroutine,tagTMat2D)
-                    NULLIFY(TMAT2D)
-                ENDIF
+            IF(ASSOCIATED(TMAT2D)) THEN
+                Deallocate(TMAT2D)
+                call LogMemDealloc(thisroutine,tagTMat2D)
+                NULLIFY(TMAT2D)
             ENDIF
         ENDIF
       END SUBROUTINE DestroyTMat
-
-   
-
 
       SUBROUTINE SwapTMat(NBASIS,NHG,GG)
         ! In:
@@ -660,53 +623,11 @@ contains
         integer NBASIS,NHG,GG(NHG)
         character(*),parameter :: this_routine='SwapTMat'
 
-         IF(TSTARSTORE) THEN
-            !Transfer across the vectors for indexing TMAT
-            deallocate(SymClasses2)
-            call LogMemDealloc(this_routine,tagSymClasses2)
-            !copy across the new frozen symclasses and symlabelstuff
-            CALL FREEZESYMLABELS(NHG,NBASIS,GG,.false.)
-            !Redo SYMLABELCOUNTS
-            CALL GENSymStatePairs(NBASIS/2,.false.)
-            deallocate(SYMLABELCOUNTSCUM)
-            call LogMemDealloc(this_routine,tagSYMLABELCOUNTSCUM)
-            deallocate(SYMLABELINTSCUM)
-            call LogMemDealloc(this_routine,tagSYMLABELINTSCUM)
-            SYMLABELCOUNTSCUM=>SYMLABELCOUNTSCUM2
-            nullify(SymLabelCountsCum2)
-            SYMLABELINTSCUM=>SYMLABELINTSCUM2
-            nullify(SymLabelIntsCum2)
-             !Deallocate TMAT & reallocate with right size
-             CALL DestroyTMAT(.false.)
-             !CALL SetupTMAT(NBASIS,2,TMATINT)
-             !DO LG=1,TMATINT
-             !    TMATSYM(LG)=TMATSYM2(LG)
-             !ENDDO
-             !CALL DestroyTMAT(.true.)
-             TMATSYM => TMATSYM2
-             NULLIFY(TMATSYM2)
-             !Swap the INVBRR and deallocate old one
-             CALL LogMemDealloc(this_routine,tagINVBRR)
-             Deallocate(INVBRR)
-             INVBRR => INVBRR2
-             NULLIFY(INVBRR2)
-         ELSE
-             !Deallocate TMAT & reallocate with right size
-             CALL DestroyTMAT(.false.)
-             !CALL SetupTMAT(NBASIS,2,TMATINT)
-             !IF(TMATINT.ne.(NBASIS*NBASIS)) call stop_all(this_routine, 'Errorfrz')
-             TMAT2D => TMAT2D2
-             NULLIFY(TMAT2D2)
-!             DO I=1,NBASIS
-!                 DO J=1,NBASIS
-!                     TMAT2D(NBASIS,NBASIS)=
-!     &               TMAT2D2(NBASIS,NBASIS)
-!                 ENDDO
-!             ENDDO
-             !CALL DestroyTMAT(.true.)
-         ENDIF
+        ! Deallocate TMAT & reallocate with right size
+        CALL DestroyTMAT(.false.)
+        TMAT2D => TMAT2D2
+        NULLIFY(TMAT2D2)
+
       END SUBROUTINE SwapTMat
-      
-      
 
 end module OneEInts

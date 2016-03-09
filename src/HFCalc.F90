@@ -6,7 +6,7 @@ MODULE HFCalc
    contains
       subroutine HFDoCalc()
       Use global_utilities
-      use SystemData, only: tStarStore, BasisFN
+      use SystemData, only: BasisFN
       use IntegralsData, only: tHFBasis, tHFCalc, iHFMethod, tReadHF, nHFIt, HFMix, HFCDelta, HFEDelta
       use IntegralsData, only: HFRand, tRHF, ntFrozen, tReadTUMat
       use SystemData, only : tCPMD,  tHFOrder,nBasisMax, G1, Arr, Brr, ECore, nEl, nBasis, iSpinSkip, LMS
@@ -78,7 +78,6 @@ MODULE HFCalc
             !THIS ROUTINE NO LONGER WORKS WITH NEW TMAT/UMAT MODULARISATION
             IF(THFBASIS) THEN
                WRITE(6,*) "Allocating TMAT2"
-               IF(TSTARSTORE) call stop_all(this_routine, 'TSTARSTORE WITH HFBASIS?!')
                CALL SetupTMAT2(nBasis,2,TMATINT)
                NORBUSED=NBASIS-NTFROZEN
                IF(TREADTUMAT) THEN

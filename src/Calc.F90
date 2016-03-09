@@ -2558,7 +2558,6 @@ contains
       subroutine inpgetmethod(I_HMAX,NWHTAY,I_V)
          use constants
          use input_neci
-         use UMatCache, only: tStarStore
          use CalcData, only: calcp_sub2vstar, calcp_logWeight, tMCDirectSum, &
                              g_multiweight, g_vmc_fac, tMPTheory, StarProd, &
                              tDiagNodes, tStarStars, tGraphMorph, tStarTrips, &
@@ -2697,9 +2696,6 @@ contains
                         IF(I_HMAX.NE.-21)  call report(        &
      &                     "Error - cannot use ADDSINGLES"     &
      &                     //" without STAR NEW",.true.)
-                        IF(TSTARSTORE) call report("Error - "  &
-     &                   //"can only use STARSTOREREAD with "  &
-     &                   //"double excitations of HF",.true.)
                      case("DIAG")
                          NWHTAY=IBCLR(NWHTAY,0)
                      case("POLY")

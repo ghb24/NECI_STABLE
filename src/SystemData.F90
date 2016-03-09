@@ -20,7 +20,7 @@ logical :: tHPHF, tHPHFInts, tUHF, tSPN, tParity, tUseBrillouin, tExch, tReal
 logical :: tTilt, tOneElIntMax, tOnePartOrbEnMax, tROHF, tBrillouinsDefault
 logical :: tNoBrillouin, tVirtCoulombMax, tVirtExchangeMin, tHijSqrdMin
 logical :: tDiagonalizehij, tHFSingDoubExcMax, tSpinOrbs, tReadInCoeff
-logical :: tUseMP2VarDenMat, tAlpha, tStoreAsExcitations, tBin, tStarStore
+logical :: tUseMP2VarDenMat, tAlpha, tStoreAsExcitations, tBin
 logical :: tVASP, tOffDiagSqrdMin, tOffDiagSqrdMax, tOffDiagmax, tShakeDelay
 logical :: tSeparateOccVirt, tExactSizeSpace, tRotatedOrbs
 logical :: tImportanceSample, tERLocalization, tOffDiagMin, tFindCINatOrbs
