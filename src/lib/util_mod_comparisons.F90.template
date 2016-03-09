@@ -27,7 +27,6 @@ module util_mod_comparisons
                           operator(.gt.), operator(.lt.)
     use symdata, only: SymPairProd, operator(.eq.), operator(.ne.), &
                        operator(.gt.), operator(.lt.)
-    use StarDiagData
     implicit none
 
     ! Operator and function to test if arr1 > arr2 (if the first differing
