@@ -11,6 +11,7 @@ MODULE System
     use iso_c_hack
     use util_mod, only: error_function, error_function_c
 
+
     IMPLICIT NONE
 
     contains
@@ -33,6 +34,7 @@ MODULE System
       ! implementation of spin adapted GUGA approach
       tGUGA = .false. 
       t_guga_unit_tests = .false.
+      t_full_guga_tests = .false.
       n_guga_excit_gen = 0
       tGen_nosym_guga = .false.
       tGen_sym_guga_ueg = .false.
@@ -364,6 +366,15 @@ system: do
                 n_guga_excit_gen = 1000000
             end if
             t_guga_unit_tests = .true.
+
+        case("FULL-GUGA-TESTS")
+            if (item < nitems) then
+                call geti(n_guga_excit_gen)
+            else
+                n_guga_excit_gen = 10000
+            end if
+            t_guga_unit_tests = .true.
+            t_full_guga_tests = .true.
 
         case("CSF")
             if(item.lt.nitems) then

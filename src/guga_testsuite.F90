@@ -47,7 +47,7 @@ contains
         print *, " seed: ", 0
         call dsfmt_init(0)
 
-        if (nEl == 4 .and. nBasis/2 == 4 .and. STOT == 0) then
+        if (nEl == 4 .and. nBasis/2 == 4 .and. STOT == 0 .and. t_full_guga_tests) then
             print *, "running full test suite: "
             print *, "ATTENTION: make sure the H = 1 FCIDUMP is used!!"
 

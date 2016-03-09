@@ -237,8 +237,9 @@ logical :: tGUGA ! flag to indicate usage of GUGA
 ! use a flag to determine if unit tests should be performed! with an 
 ! additional optional input how often the the excitation generator should 
 ! be tested! 
-logical :: t_guga_unit_tests
+logical :: t_guga_unit_tests, t_full_guga_tests
 integer :: n_guga_excit_gen
+
 
 ! use new flags for the new guga excitation generator implementations
 logical :: tGen_nosym_guga, tGen_sym_guga_ueg, tGen_sym_guga_mol

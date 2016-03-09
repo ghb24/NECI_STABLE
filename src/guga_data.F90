@@ -351,6 +351,11 @@ module guga_data
     ! stepvector 
     logical :: tNewDet
 
+    ! define a new flag to specify if we really want to run the full test
+    ! suite -> You have to ensure that H = 1 is used otherwise it crashes! 
+    ! for now, still define that in SystemData, like the other guga stuff.
+!      logical :: t_full_guga_tests
+
 contains
 
     subroutine init_guga_data_procPtrs()
