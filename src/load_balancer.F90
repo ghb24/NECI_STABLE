@@ -609,8 +609,14 @@ contains
 
                     TotParts = TotParts + abs(CurrentSign)
 #if defined(__CMPLX)
-                    norm_psi_squared = norm_psi_squared + sum(CurrentSign**2)
-                    if (tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + sum(CurrentSign**2)
+                    do run = 1, inum_runs
+                        norm_psi_squared(run) = norm_psi_squared(run) + sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
+                        if (tIsStateDeterm) then
+                            norm_semistoch_squared(run) = norm_semistoch_squared(run) &
+                                + sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
+                        endif
+                    enddo
+
 #else
                     norm_psi_squared = norm_psi_squared + CurrentSign**2
                     if (tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + CurrentSign**2

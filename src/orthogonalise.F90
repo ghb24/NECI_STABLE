@@ -44,7 +44,6 @@ contains
         character(*), parameter :: this_routine = 'orthogonalise_replicas'
 
         ASSERT(.not.tPairedReplicas)
-        ASSERT(inum_runs == lenof_sign)
 #ifndef __PROG_NUMRUNS
         call stop_all(this_routine, "orthogonalise replicas requires mneci.x")
 #endif

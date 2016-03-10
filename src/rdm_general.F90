@@ -1595,7 +1595,7 @@ contains
         real(dp), dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
         type(excit_gen_store_type), intent(inout), optional :: Store
 
-        integer :: part_ind, irdm, ind1, ind2
+        integer :: part_ind, irdm, ind1, ind2, lb1, ub1, lb2, ub2
 
         ! This is the iteration from which this determinant has been occupied.
         IterRDMStartI(1:lenof_sign) = get_iter_occ(j)
@@ -1620,14 +1620,16 @@ contains
         else
             ! Now let's consider other instances in which we need to start a new block:
             if (tPairedReplicas) then
-#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS) || defined(__CMPLX)
-                do irdm = 1, lenof_sign/2
-
+! Dongxia 2016: kneci shouldn't go through this check about the real and imaginary populations.
+!#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS) || defined(__CMPLX)
+!                do irdm = 1, lenof_sign/2
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
+                do irdm = 1, inum_runs/2
                     ! The indicies of the first and second replicas in this
                     ! particular pair, in the sign arrays.
                     ind1 = irdm*2-1
                     ind2 = irdm*2
-
+#ifndef __CMPLX
                     if ((SignI(ind1) .eq. 0) .and. (IterRDMStartI(ind1) .ne. 0)) then
                         ! The population has just gone to zero on population 1.
                         ! Therefore, we need to start a new averaging block.
@@ -1670,6 +1672,62 @@ contains
                                   + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
                         end do
                     end if
+#else
+                    lb1 = 2*ind1 - 1
+                    ub1 = 2*ind1
+                    lb2 = 2*ind2 - 1
+                    ub2 = 2*ind2
+                    if ((abs_sign(SignI(lb1:ub1)) .eq. 0) .and. (IterRDMStartI(ind1) .ne. 0)) then
+                        ! The population has just gone to zero on population 1.
+                        ! Therefore, we need to start a new averaging block.
+                        AvSignI(lb1) = 0
+                        AvSignI(ub1) = 0
+                        IterRDMStartI(ind1) = 0
+                        AvSignI(lb2) = SignI(lb2)
+                        AvSignI(ub2) = signI(ub2)
+                        IterRDMStartI(ind2) = real(Iter + PreviousCycles,dp)
+
+                    else if ((abs_sign(SignI(lb2:ub2)) .eq. 0) .and. (IterRDMStartI(ind2) .ne. 0)) then
+                        ! The population has just gone to zero on population 2.
+                        ! Therefore, we need to start a new averaging block.
+                        AvSignI(lb2) = 0
+                        AvSignI(ub2) = 0
+                        IterRDMStartI(ind2) = 0
+                        AvSignI(lb1) = SignI(lb1)
+                        AvSignI(ub1) = SignI(ub1)
+                        IterRDMStartI(ind1) = real(Iter + PreviousCycles,dp)
+
+                    else if ((abs_sign(SignI(lb1:ub1)) .ne. 0) .and. (IterRDMStartI(ind1) .eq. 0)) then
+                        ! Population 1 has just become occupied.
+                        IterRDMStartI(ind1) = real(Iter + PreviousCycles,dp)
+                        IterRDMStartI(ind2) = real(Iter + PreviousCycles,dp)
+                        AvSignI(lb1) = SignI(lb1)
+                        AvSignI(ub1) = SignI(ub1)
+                        AvSignI(lb2) = SignI(lb2)
+                        AvSignI(ub2) = SignI(ub2)
+                        if (abs_sign(SignI(lb2:ub2)) .eq. 0) IterRDMStartI(ind2) = 0
+
+                    else if ((abs_sign(SignI(lb2:ub2)) .ne. 0) .and. (IterRDMStartI(ind2) .eq. 0)) then
+                        ! Population 2 has just become occupied.
+                        IterRDMStartI(ind1) = real(Iter + PreviousCycles,dp)
+                        IterRDMStartI(ind2) = real(Iter + PreviousCycles,dp)
+                        AvSignI(lb1) = SignI(lb1)
+                        AvSignI(ub1) = SignI(ub1)
+                        AvSignI(lb2) = SignI(lb2)
+                        AvSignI(ub2) = SignI(ub2)
+                        if (abs_sign(SignI(lb1:ub1)) .eq. 0) IterRDMStartI(ind1) = 0
+
+                    else
+                        ! Nothing unusual has happened so update both populations
+                        ! as normal.
+                        do part_ind = lb1, ub2
+                            ! Update the average population.
+                            AvSignI(part_ind) = &
+                                ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * get_av_sgn(j, part_ind)) &
+                                  + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
+                        end do
+                    end if
+#endif
                 end do
 #endif
             else
@@ -1696,7 +1754,7 @@ contains
         real(dp), intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: p_spawn_rdmfac
         real(dp) :: p_notlist_rdmfac, p_spawn, p_not_spawn, p_max_walktospawn
-        character(len=*), parameter :: t_r = 'attempt_create_normal'
+        character(len=*), parameter :: t_r = 'calc_rdmbiasfac'
 
         ! We eventually turn this real bias factor into an integer to be passed
         ! around with the spawned children and their parents - this only works

@@ -350,6 +350,7 @@ module fcimc_pointed_fns
         real(dp), dimension(lenof_sign), intent(in) :: child
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer(n_int) :: iUnused
+        integer :: run
 
         ! Write out some debugging information if asked
         IFDEBUG(FCIMCDebug,3) then
@@ -368,14 +369,17 @@ module fcimc_pointed_fns
 
         ! Count the number of children born
 #ifdef __CMPLX
-        NoBorn(1) = NoBorn(1) + sum(abs(child))
-        if (ic == 1) SpawnFromSing(1) = SpawnFromSing(1) + sum(abs(child))
+        do run = 1, inum_runs
+            NoBorn(run) = NoBorn(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
+            if (ic == 1) SpawnFromSing(run) = SpawnFromSing(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
+
         
-        ! Count particle blooms, and their sources
-        if (sum(abs(child)) > InitiatorWalkNo) then
-            bloom_count(ic) = bloom_count(ic) + 1
-            bloom_sizes(ic) = max(real(sum(abs(child)), dp), bloom_sizes(ic))
-        end if
+           ! Count particle blooms, and their sources
+            if (sum(abs(child(min_part_type(run):max_part_type(run)))) > InitiatorWalkNo) then
+                bloom_count(ic) = bloom_count(ic) + 1
+                bloom_sizes(ic) = max(real( sum(abs(child(min_part_type(run):max_part_type(run)))),dp), bloom_sizes(ic))
+            end if
+        enddo
 #else
         NoBorn = NoBorn + abs(child)
         if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child)
@@ -420,7 +424,7 @@ module fcimc_pointed_fns
 
         real(dp) :: r, rat, probsign
         real(dp), dimension(inum_runs) :: fac
-        integer :: i, iUnused
+        integer :: i, run, iUnused
 
         do i=1, inum_runs
             fac(i)=tau*(Kii-DiagSft(i))
@@ -457,21 +461,20 @@ module fcimc_pointed_fns
         if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
             .or. tAllRealCoeff ) then
 #ifdef __CMPLX
-            ndie=fac(1)*abs(realwSign)
+        do run=1, inum_runs
+            ndie=fac(run)*abs(realwSign(min_part_type(run):max_part_type(run)))
+        enddo
 #else
             ndie=fac*abs(realwSign)
 #endif
 
         else
-            do i=1,lenof_sign
+            do run=1,inum_runs
                 
                 ! Subtract the current value of the shift, and multiply by tau.
                 ! If there are multiple particles, scale the probability.
-#ifdef __CMPLX
-                    rat = fac(1) * abs(realwSign(i))
-#else
-                    rat = fac(i) * abs(realwSign(i))
-#endif
+                
+                rat = fac(run) * abs_sign(realwSign(min_part_type(run):max_part_type(run)))
 
                 ndie(i) = real(int(rat), dp)
                 rat = rat - ndie(i)

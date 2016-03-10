@@ -596,10 +596,10 @@ contains
 
                     call stats_out (state, .false., &
                                     real(tot_trial_denom(p) / StepsSft), &
-                                    'TrialE Denom (' // trim(adjustl(tmpc)) // ")")
+                                    'TrialE Denom real (' // trim(adjustl(tmpc)) // ")")
                     call stats_out (state, .false., &
                                     aimag(tot_trial_denom(p) / StepsSft), &
-                                    'TrialE Denom (' // trim(adjustl(tmpc)) // ")")
+                                    'TrialE Denom imag (' // trim(adjustl(tmpc)) // ")")
                 end if
 #else
                 call stats_out (state, .false., proje_iter(p) + Hii, &

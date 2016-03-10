@@ -178,9 +178,11 @@ contains
         write(6,*) 'Setting replica count in bit representation: ', NIfSgn
 #elif defined(__DOUBLERUN)
         WRITE(6,*) "Double run in use."
-#elif defined(__CMPLX)
+#endif
+#if defined(__CMPLX)
         WRITE(6,*) "Complex walkers in use."
 #endif
+
 
         ! The number of integers used for sorting / other bit manipulations
         NIfDBO = NIfD + NIfY

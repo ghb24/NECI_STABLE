@@ -1842,10 +1842,10 @@ contains
 
         ! Add some implementation guards
 #ifdef __CMPLX
-        call stop_all(this_routine, "Complex not yet supported")
+        !call stop_all(this_routine, "Complex not yet supported")
 #endif
-        if (inum_runs /= lenof_sign) &
-            call stop_all(this_routine, "Not yet supported")
+        !if (inum_runs /= lenof_sign) &
+        !    call stop_all(this_routine, "Not yet supported")
 
         ! Default values, unless overridder for individual procs
         NoatHF = 0.0_dp
@@ -1888,9 +1888,6 @@ contains
                 ! Set reference determinant as an initiator if tTruncInitiator
                 if (tTruncInitiator) then
                     call set_flag(CurrentDets(:, site), get_initiator_flag(run))
-#ifdef __CMPLX
-                    call stop_all(this_routine, "Needs adjusting")
-#endif
                 end if
 
                 ! The global reference is the HF and is primary for printed

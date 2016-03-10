@@ -182,7 +182,11 @@ MODULE System
 
 #ifdef __PROG_NUMRUNS
       inum_runs = 1
+#ifdef __CMPLX
+      lenof_sign = 2
+#else
       lenof_sign = 1
+#endif
 #endif
 
 !Feb08 defaults:

@@ -980,13 +980,15 @@ r_loop: do while(.not.tStoreDet)
         if (tWalkContGrow) then
             tot_walkers = 0.95 * InitWalkers * int(nNodes, int64)
             do run = 1, inum_runs
+
+
 #ifdef __CMPLX
-                if ((tLetInitialPopDie .and. sum(AllTotParts) < tot_walkers) .or. &
-                    ((.not. tLetInitialPopDie) .and. sum(AllTotParts) > tot_walkers)) then
+                if ((tLetInitialPopDie .and. sum(AllTotParts(min_part_type(run):max_part_type(run))) < tot_walkers) .or. &
+                    ((.not. tLetInitialPopDie) .and. sum(AllTotParts(min_part_type(run):max_part_type(run))) > tot_walkers)) then
                     write(6,'("WALKCONTGROW set in input, but simulation already exceeds target number of particles")')
                     write(6,'("Continuing with DIAGSHIFT from POPSFILE")')
-                    tSinglePartPhase = .false.
-                    DiagSft = PopDiagSft
+                    tSinglePartPhase(run) = .false.
+                    DiagSft(run) = PopDiagSft(run)
                 end if
 #else
                 if ((tLetInitialPopDie .and. AllTotParts(run) < tot_walkers) .or. &

@@ -72,7 +72,7 @@ endif
 ! Make Re / Cplx builds easier
 #ifdef __CMPLX
 #ifdef __PROG_NUMRUNS
-#define ARR_RE_OR_CPLX(arr,index) cmplx(arr(2*(index-1)+1), arr(2*(index-1)+2), dp)
+#define ARR_RE_OR_CPLX(arr,index) cmplx(arr(2*index-1), arr(2*index), dp)
 #else
 #define ARR_RE_OR_CPLX(arr,index) cmplx(arr(1), arr(2), dp)
 #endif

@@ -504,7 +504,11 @@ MODULE ReadInput_neci
                        &number of replica simulations'
             write(6,*) 'Defaulting to using 2 replicas'
             tMultiReplicas = .true.
+#ifdef __CMPLX
+            lenof_sign = 4
+#else            
             lenof_sign = 2
+#endif            
             inum_runs = 2
 
             ! Correct the size of InputDiagSft:
@@ -560,11 +564,6 @@ MODULE ReadInput_neci
                 call stop_all(t_r, 'Replica orthogonalisation requires &
                                    &SYSTEM-REPLICAS to determine the number &
                                    &of simulations')
-            end if
-
-            if (inum_runs /= lenof_sign) then
-                call stop_all(t_r, "Replica orthogonalisation is only &
-                                   &(currently) implemented for real systems")
             end if
 
             if (tStartMP1 .or. tStartCAS) then

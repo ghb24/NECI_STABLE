@@ -123,6 +123,8 @@ contains
                  InstShift(inum_runs), &
                  AvDiagSft(inum_runs), SumDiagSft(inum_runs), &
                  DiagSft(inum_runs), &
+                 DiagSftRe(inum_runs), &
+                 DiagSftIm(inum_runs), &
                  tSinglePartPhase(inum_runs), stat=ierr)
 
         ! Iteration data
@@ -268,7 +270,7 @@ contains
         integer(int64), intent(in) :: ndets
         integer(n_int), intent(inout) :: ilut_list(0:NIfTot,ndets)
 
-        integer :: i, run, lbnd, ubnd
+        integer :: i, run
         real(dp) :: real_sign(lenof_sign)
         character(*), parameter :: t_r = 'set_initial_global_data'
 
@@ -283,10 +285,8 @@ contains
             if ( all(ilut_list(0:NIfDBO,i) == iLutRef(0:NIfDBO, 1)) ) NoAtHF = real_sign
 
             do run = 1, inum_runs
-                lbnd = min_part_type(run)
-                ubnd = max_part_type(run)
-                if (abs_sign(real_sign(lbnd:ubnd)) > iHighestPop(run)) then
-                    iHighestPop(run) = int(abs_sign(real_sign(lbnd:ubnd)))
+                if (abs_sign(real_sign(min_part_type(run):max_part_type(run))) > iHighestPop(run)) then
+                    iHighestPop(run) = int(abs_sign(real_sign(min_part_type(run):max_part_type(run))))
                     HighestPopDet(:,run) = ilut_list(:, i)
                 end if
             end do
@@ -304,8 +304,10 @@ contains
         call MPISumAll(NoatHF, AllNoatHF)
         OldAllNoatHF = AllNoatHF
 
-#ifdef __CMPLX
-        OldAllAvWalkersCyc = sum(AllTotParts)
+#ifdef __PROG_NUMRUNS
+        do run = 1, inum_runs
+            OldAllAvWalkersCyc(run) = sum(AllTotParts(min_part_type(run):max_part_type(run)))
+        enddo
 #else
         OldAllAvWalkersCyc = AllTotParts
 #endif

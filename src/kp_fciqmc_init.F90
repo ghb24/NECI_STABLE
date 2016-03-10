@@ -373,12 +373,23 @@ contains
         ! replicas for each excited state. If tExcitedState = .false. (doing
         ! the old KP-FCIQMC algorithm), this is the number of repeats for the
         ! KP-FCIQMC wave function.
+
+#ifndef __CMPLX
         if (tPairedReplicas) then
             lenof_sign_kp = 2
         else
             lenof_sign_kp = 1
         end if
+#else
+        if (tPairedReplicas) then
+            lenof_sign_kp = 4
+        else
+            lenof_sign_kp = 2
+        end if
 #endif
+#endif
+
+
         ! The number of elements required to store all replicas of all Krylov vectors.
         lenof_all_signs = lenof_sign_kp*kp%nvecs
         ! The total length of a bitstring containing all Krylov vectors.

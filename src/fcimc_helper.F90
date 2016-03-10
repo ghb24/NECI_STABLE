@@ -104,7 +104,7 @@ contains
         integer, intent(in), optional :: WalkerNo
         real(dp), intent(in), optional :: RDMBiasFacCurr
         integer, intent(in), optional :: WalkersToSpawn
-        integer :: proc, j
+        integer :: proc, run
         real(dp) :: r
         integer, parameter :: flags = 0
         logical :: parent_init, list_full
@@ -204,7 +204,9 @@ contains
         
         ! Sum the number of created children to use in acceptance ratio.
 #ifdef __CMPLX
-        acceptances(1) = acceptances(1) + sum(abs(child))
+        do run = 1, inum_runs
+            acceptances(run) = acceptances(run) + sum( abs(child(min_part_type(run):max_part_type(run))) )
+        end do
 #else
         acceptances = acceptances + abs(child)
 #endif
@@ -220,7 +222,7 @@ contains
         real(dp), intent(in) :: child_sign(lenof_sign)
         type(fcimc_iter_data), intent(inout) :: iter_data
 
-        integer :: proc, ind, hash_val, i
+        integer :: proc, ind, hash_val, i, run
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign_old(lenof_sign), real_sign_new(lenof_sign)
         real(dp) :: sgn_prod(lenof_sign)
@@ -296,7 +298,9 @@ contains
         
         ! Sum the number of created children to use in acceptance ratio.
 #ifdef __CMPLX
-        acceptances(1) = acceptances(1) + sum(abs(child_sign))
+        do run = 1, inum_runs
+            acceptances(run) = acceptances(run) + sum( abs(child_sign(min_part_type(run):max_part_type(run))) )
+        end do
 #else
         acceptances = acceptances + abs(child_sign)
 #endif
@@ -439,7 +443,9 @@ contains
             
             if (ExcitLevel_local == 2) then
 #ifdef __CMPLX
-                NoatDoubs(1) = NoatDoubs(1) + sum(abs(RealwSign))
+            do run = 1, inum_runs
+                NoatDoubs(run) = NoatDoubs(run) + sum(abs(RealwSign(min_part_type(run):max_part_type(run))))
+            enddo
 #else
                 do run = 1, inum_runs
                     NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
@@ -541,11 +547,6 @@ contains
 
         HElement_t(dp) :: amps(size(current_trial_amps,1))
 
-        ASSERT(inum_runs == lenof_sign)
-        ASSERT(tReplicaReferencesDiffer)
-#ifdef __CMPLX
-        call stop_all(this_routine, "Complex not supported")
-#endif
         if (tHistSpawn .or. &
             (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. &
             tHistSpinDist .or. tPrintOrbOcc) &
@@ -904,7 +905,7 @@ contains
         type(fcimc_iter_data), intent(inout) :: iter_data
 
         real(dp) :: prev_AvNoatHF(lenof_sign), AllInstNoatHF(lenof_sign)
-        integer :: irdm, ind1, ind2, part_type
+        integer :: irdm, ind1, ind2, part_type, run
 
         NoInitDets = 0
         NoNonInitDets = 0
@@ -1044,14 +1045,18 @@ contains
 
     subroutine end_iter_stats (TotWalkersNew)
 
+        implicit none
         integer, intent(in) :: TotWalkersNew
         integer :: proc, pos, i, k
         real(dp) :: sgn(lenof_sign)
+        integer :: run 
 
         ! SumWalkersCyc calculates the total number of walkers over an update
         ! cycle on each process.
 #ifdef __CMPLX
-        SumWalkersCyc = SumWalkersCyc + sum(TotParts)
+        do run = 1, inum_runs
+            SumWalkersCyc(run) = SumWalkersCyc(run) + sum(TotParts(min_part_type(run):max_part_type(run)))
+        enddo
 #else
         SumWalkersCyc = SumWalkersCyc + TotParts
 #endif
@@ -1723,7 +1728,7 @@ contains
         real(dp), dimension(lenof_sign) :: iDie
         real(dp), dimension(lenof_sign) :: CopySign
         integer, intent(in) :: walkExcitLevel
-        integer :: i, irdm
+        integer :: i, irdm, run
         character(len=*), parameter :: t_r = "walker_death"
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
@@ -1737,7 +1742,10 @@ contains
         ! Update death counter
         iter_data%ndied = iter_data%ndied + min(iDie, abs(RealwSign))
 #ifdef __CMPLX
-        NoDied(1) = NoDied(1) + sum(min(iDie, abs(RealwSign)))
+        do run = 1, inum_runs
+            NoDied(run) = NoDied(run) &
+                + sum(min(iDie(min_part_type(run):max_part_type(run)), abs(RealwSign(min_part_type(run):max_part_type(run)) )))
+        enddo
 #else
         NoDied = NoDied + min(iDie, abs(RealwSign))
 #endif
@@ -1745,7 +1753,11 @@ contains
         ! Count any antiparticles
         iter_data%nborn = iter_data%nborn + max(iDie - abs(RealwSign), 0.0_dp)
 #ifdef __CMPLX
-        NoBorn(1) = NoBorn(1) + sum(max(iDie - abs(RealwSign), 0.0_dp))
+        do run = 1, inum_runs
+            NoBorn(run) = NoBorn(run) &
+                + sum(max(iDie(min_part_type(run):max_part_type(run)) &
+                - abs(RealwSign(min_part_type(run):max_part_type(run))), 0.0_dp))
+        enddo
 #else
         NoBorn = NoBorn + max(iDie - abs(RealwSign), 0.0_dp)
 #endif
