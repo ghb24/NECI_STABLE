@@ -16,15 +16,15 @@ module guga_excitations
                     getDoubleMatrixElement, getMixedFullStop, &
                     weight_data, orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, &
                     funA_m1_1_overR2, funA_3_1_overR2, minFunA_0_2_overR2, &
-                    funA_2_0_overR2, getDoubleContribution, projE_ilut_list, &
-                    projE_hel_list, current_stepvector, tNewDet
+                    funA_2_0_overR2, getDoubleContribution, projE_replica, &
+                    current_stepvector, tNewDet
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, getDeltaB, &
                         setDeltaB, count_open_orbs_ij, calcOcc_vector_ilut, &
                         encode_matrix_element, update_matrix_element, &
-                        extract_matrix_element, write_det_guga, convert_ilut, &
+                        extract_matrix_element, write_det_guga, convert_ilut_toGUGA, &
                         write_guga_list, add_guga_lists, count_alpha_orbs_ij, &
                         count_beta_orbs_ij, findFirstSwitch, findLastSwitch, &
-                        calcStepvector, find_switches
+                        calcStepvector, find_switches, convert_ilut_toNECI
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut
     use OneEInts, only: GetTMatEl
     use Integrals_neci, only: get_umat_el
@@ -547,14 +547,14 @@ contains
 
         ! act the hamiltonian on ilutJ:
         ! first convert to guga type representation
-        call convert_ilut(ilutJ, ilutG)
+        call convert_ilut_toGUGA(ilutJ, ilutG)
 
         call actHamiltonian(ilutG, excitations, nExcit)
 
         ! then binary search ilutI in the excitattions
 
         ! convert ilutI to a guga representation
-        call convert_ilut(ilutI, ilutG)
+        call convert_ilut_toGUGA(ilutI, ilutG)
 
         ! and the search in excitations
         pos = binary_search(excitations, ilutG, nifdbo + 1)
@@ -679,10 +679,13 @@ contains
 ! 
 !     end function attempt_create_guga
 
-    subroutine create_projE_list(ilutN)
+    subroutine create_projE_list(run, ilutN)
         ! creates a list of determinants and matrix elements connnected to
         ! the determinant ilutRef
         ! since ilutRef globally available make input optional
+        ! change that to be able to handle multiple runs, but that breaks 
+        ! the optional ilutN input for now!
+        integer, intent(in) :: run
         integer(n_int), intent(in), optional :: ilutN(0:niftot)
         character(*), parameter :: this_routine = "create_projE_list"
 
@@ -692,10 +695,10 @@ contains
         
         ! convert ilut to guga format 
         if (present(ilutN)) then
-            call convert_ilut(ilutN, ilutG)
+            call convert_ilut_toGUGA(ilutN, ilutG)
         else
             ASSERT(allocated(ilutRef))
-            call convert_ilut(ilutRef(0:niftot,1), ilutG)
+            call convert_ilut_toGUGA(ilutRef(0:niftot,run), ilutG)
         end if
 
         ! calc. all excitations from it 
@@ -705,16 +708,21 @@ contains
 
         ! allocate the nececarry output, for changing reference check if
         ! already allocated 
-        if (allocated(projE_ilut_list)) deallocate(projE_ilut_list)
-        if (allocated(projE_hel_list)) deallocate(projE_hel_list)
+        ! use temporary pointers..
 
-        allocate(projE_ilut_list(0:niftot,nExcit), stat = ierr)
-        allocate(projE_hel_list(nExcit), stat = ierr)
+        if (allocated(projE_replica(run)%projE_ilut_list)) &
+            deallocate(projE_replica(run)%projE_ilut_list)
+        if (allocated(projE_replica(run)%projE_hel_list)) &
+            deallocate(projE_replica(run)%projE_hel_list)
+
+        allocate(projE_replica(run)%projE_ilut_list(0:niftot,nExcit), stat = ierr)
+        allocate(projE_replica(run)%projE_hel_list(nExcit), stat = ierr)
 
         ! and convert them back to neci format and store the matrix elements 
         do i = 1, nExcit
-            call convert_ilut(excitations(:,i), projE_ilut_list(:,i), &
-                projE_hel_list(i))
+            call convert_ilut_toNECI(excitations(:,i), &
+                projE_replica(run)%projE_ilut_list(:,i), &
+                projE_replica(run)%projE_hel_list(i))
         end do
 
         ! that should be it... 
@@ -746,7 +754,7 @@ contains
         call decode_bit_det (src_det, ilut)
         
         ! convert ilut to guga format
-        call convert_ilut(ilut, ilutG)
+        call convert_ilut_toGUGA(ilut, ilutG)
 
         print *, ""
         print *, "========================================================="
@@ -763,7 +771,7 @@ contains
         allocate(det_list(0:niftot, nexcit))
 
         do i = 1, nexcit
-            call convert_ilut(excitations(:,i), det_list(:,i), helgen)
+            call convert_ilut_toNECI(excitations(:,i), det_list(:,i), helgen)
 !             call write_bit_rep(6, det_list(:,i), .true.)
         end do
 
@@ -841,7 +849,7 @@ contains
         call write_det_guga(iunit, ilutG)
         write(iunit,*) "=============================="
         do i = 1, nexcit
-            call convert_ilut(det_list(:,i), ilutG)
+            call convert_ilut_toGUGA(det_list(:,i), ilutG)
             call write_det_guga(iunit, ilutG, .false.)
             write(iunit,"(f16.7)", advance='no') contrib_list(i) / real(iterations, dp)
             write(iunit, "(f16.7)", advance='no') pgen_list(i)
@@ -854,7 +862,7 @@ contains
         call get_unique_filename("pgen_vs_matrixElements",.true.,.true.,1,filename)
         open(iunit, file=filename,status='unknown')
         write(iunit,*) "pgens and matrix elements for CSF:"
-        call convert_ilut(ilut, ilutG)
+        call convert_ilut_toGUGA(ilut, ilutG)
         call write_det_guga(iunit, ilutG)
 
         do i = 1, nExcit
@@ -878,7 +886,7 @@ contains
             do i = 1, nexcit
                 if (.not. generated_list(i)) then
 !                     call writebitdet(6, det_list(:,i), .true.)
-                    call convert_ilut(det_list(:,i), ilutG)
+                    call convert_ilut_toGUGA(det_list(:,i), ilutG)
                     call write_det_guga(6, ilutG)
                 end if
 
@@ -943,7 +951,7 @@ contains
         ! GUGA...
         
         ! and before i have to convert to GUGA iluts..
-        call convert_ilut(ilutI, ilut)
+        call convert_ilut_toGUGA(ilutI, ilut)
 
         ASSERT(isProperCSF_ilut(ilut))
 
@@ -1016,7 +1024,7 @@ contains
 
             ASSERT(isProperCSF_ilut(excitation, .true.))
             ! otherwise extract H element and convert to 0
-            call convert_ilut(excitation, ilutJ, HElgen)
+            call convert_ilut_toNECI(excitation, ilutJ, HElgen)
             call decode_bit_det(nJ, ilutJ)
 
         end if

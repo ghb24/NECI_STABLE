@@ -329,8 +329,15 @@ module guga_data
 
     ! also need a list of determinants and matrix elements connceted to the 
     ! reference determinant 
-    integer(n_int), allocatable :: projE_ilut_list(:,:)
-    HElement_t(dp), allocatable :: projE_hel_list(:)
+    ! adapt that to multiple neci runs.. hope that works as intended..
+    ! probably have to use it as a type, to store lists or different lists 
+    ! in it, and also be able to (de)allocate them individually
+    type projE_type
+        integer(n_int), allocatable :: projE_ilut_list(:,:)
+        HElement_t(dp), allocatable :: projE_hel_list(:)
+    end type projE_type
+
+    type(projE_type), allocatable :: projE_replica(:)
     
     ! also make a global integer list of orbital indices, so i do not have to 
     ! remake them in every random orbital picker!

@@ -24,11 +24,11 @@ module guga_bitRepOps
 
     ! interfaces
     
-    interface convert_ilut
-        module procedure convert_ilut_toGUGA
-        module procedure convert_ilut_toNECI
-    end interface convert_ilut
-
+!     interface convert_ilut
+!         module procedure convert_ilut_toGUGA
+!         module procedure convert_ilut_toNECI
+!     end interface convert_ilut
+! 
     interface isProperCSF_ilut
         module procedure isProperCSF_b
         module procedure isProperCSF_sys
@@ -701,7 +701,7 @@ contains
     subroutine convert_ilut_toNECI(ilutG, ilutN, HElement)
         integer(n_int), intent(in) :: ilutG(0:nifguga)
         integer(n_int), intent(inout) :: ilutN(0:niftot)
-        HElement_t(dp), intent(out) :: HElement
+        HElement_t(dp), intent(out), optional :: HElement
         character(*), parameter :: this_routine = "convert_ilut_toNECI"
 
         ASSERT(isProperCSF_ilut(ilutG))
@@ -710,7 +710,9 @@ contains
         ilutN(0:nifdbo) = ilutG(0:nifdbo)
 
         ! and then extract the matrix element 
-        HElement = extract_matrix_element(ilutG, 1)
+        if (present(HElement)) then
+            HElement = extract_matrix_element(ilutG, 1)
+        end if
 
     end subroutine convert_ilut_toNECI
 

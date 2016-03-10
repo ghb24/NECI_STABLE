@@ -10,9 +10,9 @@ module guga_matrixElements
     use OneEInts, only: GetTMatEl
     use Integrals_neci, only: get_umat_el
     use guga_bitRepOps, only: isDouble, calcB_vector_nI, isProperCSF_nI, &
-                            convert_ilut, extract_matrix_element
+                            extract_matrix_element
     use util_mod, only: binary_search
-    use guga_data, only: projE_ilut_list, projE_hel_list
+    use guga_data, only: projE_replica
     use bit_rep_data, only: nifdbo
 
     ! variable declarations:
@@ -38,24 +38,34 @@ module guga_matrixElements
 !     end interface calc_off_diag_guga
 
 contains
-    function calc_off_diag_guga_ref(ilut) result(hel)
+    function calc_off_diag_guga_ref(ilut, run) result(hel)
         ! calculated the off-diagonal element connected to the reference
         ! determinant only. 
         integer(n_int), intent(in) :: ilut(0:niftot)
+        integer, intent(in), optional :: run
         HElement_t(dp) :: hel
         character(*), parameter :: this_routine = "calc_off_diag_guga_ref"
 
-        integer :: pos 
+        integer :: pos, ind
         ! have the list of conncected dets to ilutRef stored persistently 
         ! so only need to search if ilut is in this list and return 
         ! the corresponing matrix element 
-        ASSERT(allocated(projE_ilut_list))
+        ! for now change that to the first replica reference...
+        ! since this is done also in the fcimc_helper in the sumEcontrib...
+        ! im not quite sure why this is done in such a way in the main routine.
+        if (present(run)) then
+            ind = run
+        else
+            ind = 1
+        end if
 
-        pos = binary_search(projE_ilut_list, ilut, NIfD + 1)
+        ASSERT(allocated(projE_replica(ind)%projE_ilut_list))
+
+        pos = binary_search(projE_replica(ind)%projE_ilut_list, ilut, NIfD + 1)
 
         if (pos > 0) then
             ! if found output the matrix element 
-            hel = projE_hel_list(pos)
+            hel = projE_replica(ind)%projE_hel_list(pos)
         else 
             ! otherwise its zero
             hel = 0.0_dp

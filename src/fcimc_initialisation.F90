@@ -135,9 +135,11 @@ module fcimc_initialisation
                               update_tau_guga_nosym
 
 #ifndef __CMPLX
-    use guga_data, only: bVectorRef_ilut, bVectorRef_nI
-    use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut
-    use guga_excitations, only: generate_excitation_guga, create_projE_list
+    use guga_data, only: bVectorRef_ilut, bVectorRef_nI, projE_replica
+    use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut, convert_ilut_toNECI
+    use guga_excitations, only: generate_excitation_guga, create_projE_list, &
+            actHamiltonian
+    use guga_matrixElements, only: calcDiagMatEleGUGA_ilut 
 #endif
     implicit none
 
@@ -345,7 +347,14 @@ contains
             bVectorRef_nI = calcB_vector_nI(HFDet_True)
             bVectorRef_ilut = calcB_vector_ilut(iLutHF_True)
 
-            call create_projE_list()
+            ! for multiple runs i have to initialize all the necessary 
+            ! projected energy lists
+            ! have to first allocate the type proje_replica
+            allocate(projE_replica(inum_runs), stat = ierr)
+
+            do run = 1, inum_runs
+                call create_projE_list(run)
+            end do
             
         end if
 #endif
@@ -3272,6 +3281,15 @@ contains
         real(dp) :: energies(nel), hdiag
         character(*), parameter :: this_routine = 'assign_reference_dets'
 
+#ifndef __CMPLX 
+        ! for now guga only works with non-complex code
+        integer(n_int), pointer :: excitations(:,:)
+        integer :: n_excits, ierr
+        real(dp), allocatable :: diag_energies(:)
+        logical, allocatable :: found_mask(:)
+#endif
+
+
         ! If the user has specified all of the (multiple) reference states,
         ! then just copy these across to the ilutRef array:
         if (tMultipleInitialStates) then
@@ -3306,46 +3324,100 @@ contains
                 ProjEDet(:, 1) = HFDet
 
                 found_orbs = 0
-                do run = 2, inum_runs
 
-                    ! Now we want to find the lowest energy single excitation with
-                    ! the same symmetry as the reference site.
-                    do i = 1, nel
-                        ! Find the excitations, and their energy
-                        orb = HFDet(i)
-                        cc_idx = ClassCountInd(orb)
-                        label_idx = SymLabelCounts2(1, cc_idx)
-                        norb = OrbClassCount(cc_idx)
+                ! in the GUGA approach we have to change that simple 
+                ! single excitation of course or otherwise we get non-
+                ! allowed CSF or the wrong STOT symmetry sector.
+#ifndef __CMPLX
+                if (tGUGA) then 
+                    ! run the exact single excitations on the HF det 
+                    ! and find inum_runs lowest energetically ones..
 
-                        ! nb. sltcnd_0 does not depend on the ordering of the det,
-                        !     so we don't need to do any sorting here.
-                        energies(i) = 9999999.9_dp
-                        do j = 1, norb
-                            orb2 = SymLabelList2(label_idx + j - 1)
-                            if ((.not. any(orb2 == HFDet)) .and. &
-                                (.not. any(orb2 == found_orbs))) then
-                                det = HFDet
-                                det(i) = orb2
-                                hdiag = real(sltcnd_0(det), dp)
-                                if (hdiag < energies(i)) then
-                                    energies(i) = hdiag
-                                    orbs(i) = orb2
-                                end if
-                            end if
-                        end do
+                    ! create all excitations from the HF 
+                    call actHamiltonian(ilutHF, excitations, n_excits) 
+
+                    ! if no excitations possible... there is something wrong
+                    if (.not.(n_excits > 0) .or. n_excits < inum_runs-1) then 
+                        call stop_all(this_routine, "not enough excitations from HF!")
+                    end if
+
+                    ! and the choose the inum_runs - 1 lowest energetically 
+                    ! excitations 
+
+                    ! also have to calculate the correct diagonal element to 
+                    ! compare energies 
+                    allocate(diag_energies(n_excits), stat = ierr) 
+                    allocate(found_mask(n_excits), stat = ierr) 
+                    found_mask = .true.
+
+                    do i = 1, n_excits
+                        diag_energies(i) = &
+                            calcDiagMatEleGUGA_ilut(excitations(:,i))
                     end do
 
-                    ! Which of the electrons that is excited gives the lowest energy?
-                    i = minloc(energies, 1)
-                    found_orbs(run) = orbs(i)
+                    ! can i sort the excitation list, according to energies? 
+                    do run = 2, inum_runs
+                        ! find the minimum energy
+                        i = minloc(diag_energies, 1, found_mask) 
+                        ! dont find that specific one again
+                        found_mask(i) = .false.
+                        ! assign the reference determinant(transform between
+                        ! guga and actual iluts!) 
+                        call convert_ilut_toNECI(excitations(:,i), ilutRef(:,run))
+                        ! and calc. the nI representation
+                        call decode_bit_det(ProjEDet(:,run), ilutRef(:,run))
+                        ! that should be it.. should the diagonal element also
+                        ! be already stored within the ilut? is that done here? 
+                    end do
 
-                    ! Construct that determinant, and set it as the reference.
-                    ProjEDet(:, run) = HFDet
-                    ProjEDet(i, run) = orbs(i)
-                    call sort(ProjEDet(:, run))
-                    call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run))
+                else
+#endif
 
-                end do
+                    do run = 2, inum_runs
+
+                        ! Now we want to find the lowest energy single excitation with
+                        ! the same symmetry as the reference site.
+                    
+                        do i = 1, nel
+                            ! Find the excitations, and their energy
+                            orb = HFDet(i)
+                            cc_idx = ClassCountInd(orb)
+                            label_idx = SymLabelCounts2(1, cc_idx)
+                            norb = OrbClassCount(cc_idx)
+
+                            ! nb. sltcnd_0 does not depend on the ordering of the det,
+                            !     so we don't need to do any sorting here.
+                            energies(i) = 9999999.9_dp
+                            do j = 1, norb
+                                orb2 = SymLabelList2(label_idx + j - 1)
+                                if ((.not. any(orb2 == HFDet)) .and. &
+                                    (.not. any(orb2 == found_orbs))) then
+                                    det = HFDet
+                                    det(i) = orb2
+                                    hdiag = real(sltcnd_0(det), dp)
+                                    if (hdiag < energies(i)) then
+                                        energies(i) = hdiag
+                                        orbs(i) = orb2
+                                    end if
+                                end if
+                            end do
+                        end do
+
+                        ! Which of the electrons that is excited gives the lowest energy?
+                        i = minloc(energies, 1)
+                        found_orbs(run) = orbs(i)
+
+                        ! Construct that determinant, and set it as the reference.
+                        ProjEDet(:, run) = HFDet
+                        ProjEDet(i, run) = orbs(i)
+                        call sort(ProjEDet(:, run))
+                        call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run))
+
+
+                    end do
+#ifndef __CMPLX
+                end if
+#endif
 
             end if
         end if

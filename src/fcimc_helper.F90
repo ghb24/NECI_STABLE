@@ -439,6 +439,8 @@ contains
                 ! also the NoAtDoubs is probably not correct in guga for now 
                 ! so jsut ignore it 
                 ! only calc. it to the reference det here 
+                ! why is only the overlap to the first replica considered??
+                ! that does not make so much sense or... ? 
                 HOffDiag(1:inum_runs) = calc_off_diag_guga_ref(ilut)
             end if
         else
@@ -666,7 +668,10 @@ contains
                     hoffdiag = hphf_off_diag_helement(ProjEDet(:,run), nI, &
                                                       iLutRef(:,run), ilut)
 
-                
+#ifndef __CMPLX
+                else if (tGUGA) then
+                    hoffdiag = calc_off_diag_guga_ref(ilut)
+#endif
                 else
                     hoffdiag = get_helement (ProjEDet(:,run), nI, exlevel, &
                                              ilutRef(:,run), ilut)
@@ -1888,7 +1893,7 @@ contains
         ! determinnant to the new reference det 
 #ifndef __CMPLX
         if (tGUGA) then
-            call create_projE_list()
+            call create_projE_list(run)
         end if
 #endif
 
