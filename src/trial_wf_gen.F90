@@ -104,17 +104,13 @@ contains
             allocate(trial_wfs(nexcit_keep, trial_space_size), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, "Error allocating trial_wfs.")
             ! Go through each replica and find which trial state matches it best.
-#ifndef __CMPLX
             if (nexcit_calc > 1) then
                 call assign_trial_states(replica_pairs, CurrentDets, HashIndex, trial_space, temp_wfs, &
                                          trial_wfs, temp_energies, trial_energies)
             else
-#endif
                 trial_wfs = temp_wfs
                 trial_energies = temp_energies
-#ifndef __CMPLX
             end if
-#endif
             deallocate(temp_wfs, stat=ierr)
             if (ierr /= 0) call stop_all(t_r, "Error deallocating temp_wfs.")
         end if
@@ -278,14 +274,8 @@ contains
         integer(n_int), intent(in) :: ilut_list(0:,:)
         type(ll_node), pointer, intent(inout) :: ilut_ht(:)
         integer(n_int), intent(in) :: trial_dets(0:,:)
-#ifdef __CMPLX 
-        ! not using an interface for this, since logic is the same in both cases
         HElement_t(dp), intent(in) :: trial_amps(:,:)
         HElement_t(dp), intent(out) :: trials_kept(:,:)
-#else
-        real(dp), intent(in) :: trial_amps(:,:)
-        real(dp), intent(out) :: trials_kept(:,:)
-#endif
         real(dp), intent(in) :: energies(:)
         real(dp), intent(out) :: energies_kept(:)
 
