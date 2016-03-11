@@ -886,12 +886,12 @@ contains
                     ELSE
                         NonZeroInt=NonZeroInt+1
 !Read in all integrals as normal.
-                        UMAT(UMatInd(I,K,J,L,0,0))=Z
+                        UMAT(UMatInd(I,K,J,L))=Z
                     ENDIF
                 ELSEIF(tCacheFCIDUMPInts.or.tRIIntegrals) THEN
                     CALL Stop_All("ReadFCIInts","TUMAT2D should be set")
                 ELSE
-                    UMAT(UMatInd(I,K,J,L,0,0))=Z
+                    UMAT(UMatInd(I,K,J,L))=Z
                     NonZeroInt=NonZeroInt+1
                 ENDIF
              ENDIF
@@ -1026,7 +1026,7 @@ contains
 !.. 2-e integrals
 !.. UMAT is stored as just spatial orbitals (not spinorbitals)
 !..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
-            UMAT(UMatInd(I,K,J,L,0,0))=Z
+            UMAT(UMatInd(I,K,J,L))=Z
          ENDIF
 !         WRITE(14,'(1X,F20.12,4I3)') Z,I,J,K,L
          IF(I.NE.0) GOTO 101

@@ -182,17 +182,17 @@ contains
 
                         ! UMAT in chemical notation.
                         ! In spin or spatial orbitals.
-                        Coul = real(UMAT(UMatInd(i, j, a, b, 0, 0)), dp)
-                        Exch = real(UMAT(UMatInd(i, j, b, a, 0, 0)), dp)
+                        Coul = real(UMAT(UMatInd(i, j, a, b)), dp)
+                        Exch = real(UMAT(UMatInd(i, j, b, a)), dp)
                         
                         if ((i .ne. j) .and. (a .ne. b)) then
                             ! Cannot get i=j or a=b contributions in aaaa.
 
                             if (tStoreSpinOrbs)then
-                                Coul_aaaa = real(UMAT(UMatInd(2*i, 2*j, 2*a, 2*b, 0, 0)),dp)
-                                Coul_bbbb = real(UMAT(UMatInd(2*i-1, 2*j-1, 2*a-1, 2*b-1, 0, 0)),dp)
-                                Exch_aaaa = real(UMAT(UMatInd(2*i, 2*j, 2*b, 2*a, 0, 0)),dp)
-                                Exch_bbbb = real(UMAT(UMatInd(2*i-1, 2*j-1, 2*b-1, 2*a-1, 0, 0)),dp)     
+                                Coul_aaaa = real(UMAT(UMatInd(2*i, 2*j, 2*a, 2*b)),dp)
+                                Coul_bbbb = real(UMAT(UMatInd(2*i-1, 2*j-1, 2*a-1, 2*b-1)),dp)
+                                Exch_aaaa = real(UMAT(UMatInd(2*i, 2*j, 2*b, 2*a)),dp)
+                                Exch_bbbb = real(UMAT(UMatInd(2*i-1, 2*j-1, 2*b-1, 2*a-1)),dp)     
 
                                 if (tRDMInstEnergy) then 
                                     RDMEnergy_Inst = RDMEnergy_Inst + (rdm%aaaa(Ind1_aa,Ind2_aa) &
@@ -239,8 +239,8 @@ contains
                             ! For abab cases, coul element will be non-zero, exchange zero.
 
                             if (tStoreSpinOrbs) then
-                                Coul_abab = real(UMAT(UMatInd(2*i, 2*j-1, 2*a, 2*b-1, 0, 0)), dp)
-                                Coul_baba = real(UMAT(UMatInd(2*i-1, 2*j, 2*a-1, 2*b, 0, 0)), dp)
+                                Coul_abab = real(UMAT(UMatInd(2*i, 2*j-1, 2*a, 2*b-1)), dp)
+                                Coul_baba = real(UMAT(UMatInd(2*i-1, 2*j, 2*a-1, 2*b)), dp)
 
                                 call neci_flush(6)
 
@@ -283,8 +283,8 @@ contains
                             ! For abba cases, coul element will be zero, exchange non-zero.
 
                             if (tStoreSpinOrbs) then
-                                Exch_abba = real(UMAT(UMatInd(2*i, 2*j-1, 2*b, 2*a-1, 0, 0)), dp)
-                                Exch_baab = real(UMAT(UMatInd(2*i-1, 2*j, 2*b-1, 2*a, 0, 0)), dp)
+                                Exch_abba = real(UMAT(UMatInd(2*i, 2*j-1, 2*b, 2*a-1)), dp)
+                                Exch_baab = real(UMAT(UMatInd(2*i-1, 2*j, 2*b-1, 2*a)), dp)
 
                                 if (tRDMInstEnergy) then 
                                     RDMEnergy_Inst = RDMEnergy_Inst - ( rdm%abba(Ind1_aa,Ind2_aa) &
@@ -321,12 +321,12 @@ contains
                             ! For abab/baba Exch = 0, and for abba/baab Coul=0
                             ! abba/baab saved in abab/baba. Changes the sign. 
                             if (tStoreSpinOrbs) then
-                                Coul_abab = real(UMAT(UMatInd(2*i, 2*j-1, 2*a, 2*b-1, 0, 0)), dp)
-                                Coul_baba = real(UMAT(UMatInd(2*i-1, 2*j, 2*a-1, 2*b, 0, 0)), dp)
+                                Coul_abab = real(UMAT(UMatInd(2*i, 2*j-1, 2*a, 2*b-1)), dp)
+                                Coul_baba = real(UMAT(UMatInd(2*i-1, 2*j, 2*a-1, 2*b)), dp)
 
                                 if ( (i .eq. j) .and. (a .eq. b) ) then
                                     ! This term is saved in abab only
-                                    Exch_abba = real(UMAT(UMatInd(2*i, 2*j-1, 2*b, 2*a-1, 0, 0)), dp)
+                                    Exch_abba = real(UMAT(UMatInd(2*i, 2*j-1, 2*b, 2*a-1)), dp)
 
                                     if (tRDMInstEnergy) then
                                         RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * rdm%abab(Ind1_ab,Ind2_ab) &
@@ -340,8 +340,8 @@ contains
                                 else if (i .eq. j) then
                                     ! i = j : Swap first indeces to get abba/baab terms
                                     ! abba saved in baba, baab saved in abab (sign changes)
-                                    Exch_abba = real(UMAT(UMatInd(2*j, 2*i-1, 2*b, 2*a-1, 0, 0)), dp)
-                                    Exch_baab = real(UMAT(UMatInd(2*j-1, 2*i, 2*b-1, 2*a, 0, 0)), dp)
+                                    Exch_abba = real(UMAT(UMatInd(2*j, 2*i-1, 2*b, 2*a-1)), dp)
+                                    Exch_baab = real(UMAT(UMatInd(2*j-1, 2*i, 2*b-1, 2*a)), dp)
 
                                     if (tRDMInstEnergy) then
                                         RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * rdm%abab(Ind1_ab,Ind2_ab) &
@@ -361,8 +361,8 @@ contains
                                 else if (a .eq. b) then
                                     ! a = b : Swap last indeces to get abba/baab terms
                                     ! abba saved in abab, baab saved in baba (sign changes)
-                                    Exch_abba = real(UMAT(UMatInd(2*i, 2*j-1, 2*a, 2*b-1, 0, 0)), dp)
-                                    Exch_baab = real(UMAT(UMatInd(2*i-1, 2*j, 2*a-1, 2*b, 0, 0)), dp)
+                                    Exch_abba = real(UMAT(UMatInd(2*i, 2*j-1, 2*a, 2*b-1)), dp)
+                                    Exch_baab = real(UMAT(UMatInd(2*i-1, 2*j, 2*a-1, 2*b)), dp)
 
                                     if (tRDMInstEnergy) then
                                         RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * rdm%abab(Ind1_ab,Ind2_ab) &
@@ -561,7 +561,7 @@ contains
                                 !Integral (pr|st) = <ps|rt>
                                 !Give indices in PHYSICAL NOTATION
                                 !NB, FCIDUMP is labelled in chemical notation
-                                Coul = real(UMAT(UMatInd(p, s, r, t, 0, 0)),8)
+                                Coul = real(UMAT(UMatInd(p, s, r, t)),dp)
 
                                 qrst = Find_Spatial_2RDM_Chem(rdm, q, r, s, t, Norm_2RDM)
                                 rqst = Find_Spatial_2RDM_Chem(rdm, r, q, s, t, Norm_2RDM)

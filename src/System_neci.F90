@@ -1473,7 +1473,6 @@ system: do
           IF(NEL.GT.NBASIS) call stop_all(this_routine, 'MORE ELECTRONS THAN BASIS FUNCTIONS')
           CALL neci_flush(6)    
 
-      !This is used in a test in UMatInd
           NOCC=NEl/2 
           IF(TREADINT) THEN
       !C.. we're reading in integrals and have a molpro symmetry table
@@ -1859,7 +1858,6 @@ system: do
          NBASISMAX(2,3)=1
       ENDIF      
 
-      !This is used in a test in UMatInd
       NOCC=NEl/2 
       IF(TREADINT) THEN
 !C.. we're reading in integrals and have a molpro symmetry table
