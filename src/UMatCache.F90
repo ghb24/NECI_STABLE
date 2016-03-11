@@ -188,7 +188,7 @@ MODULE UMatCache
 
 
 
-      INTEGER FUNCTION UMatInd(I,J,K,L,NBASIS,NOCCUPIED)
+      INTEGER(int64) FUNCTION UMatInd(I,J,K,L)
          ! Get the index of physical order UMAT element <IJ|KL>.
          ! Indices are internally reordered such that I>K, J>L,(I,K)>(J,L)
          ! Note: (i,k)>(j,l) := (k>l) || ((k==l)&&(i>j))
@@ -200,9 +200,8 @@ MODULE UMatCache
          !    nOccupied: # of occupied orbitals.  If =0, then nOcc is used.
          !    Should only be passed as non-zero during the freezing process.
          IMPLICIT NONE
-         INTEGER, intent(in) :: I,J,K,L,NBASIS,NOCCUPIED
-         INTEGER R,S,T,U,A,B,C,D,AA,BB
-         character(*), parameter :: this_routine = 'UMatInd'
+         INTEGER, intent(in) :: I,J,K,L
+         INTEGER A,B
 
          !Combine indices I and K, ensuring I>K
          IF(I.GT.K) THEN
@@ -220,9 +219,9 @@ MODULE UMatCache
 
          !Combine (IK) and (JL) in a unique way  (k > l or if k = l then i > j)
          IF(A.GT.B) THEN
-             UMatInd=(A*(A-1))/2+B
+             UMatInd=(int(A,int64)*int(A-1,int64))/2+int(B,int64)
          ELSE
-             UMatInd=(B*(B-1))/2+A
+             UMatInd=(int(B,int64)*int(B-1,int64))/2+int(A,int64)
          ENDIF
 #ifdef __CMPLX
          UMatInd = (UmatInd-1)*2 + 1

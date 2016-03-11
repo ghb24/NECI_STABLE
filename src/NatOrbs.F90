@@ -692,30 +692,30 @@ contains
 
                                             else if (tStoreSpinOrbs) then
                                                 if (abs(ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) < 1.0e-12_dp) then
-                                                    if (abs(real(UMAT(UMatInd(a,c,i,j,0,0)),dp)) > 1.0e-12_dp) then
-                                                        write(6,*) i, j, a, c, real(UMAT(UMatInd(a, c, i, j, 0, 0)), dp)
+                                                    if (abs(real(UMAT(UMatInd(a,c,i,j)),dp)) > 1.0e-12_dp) then
+                                                        write(6,*) i, j, a, c, real(UMAT(UMatInd(a, c, i, j)), dp)
                                                         call stop_all(t_r, "Dividing a non-zero by zero.")
                                                     end if
                                                 end if
                                                 MP2VDMSum = MP2VDMSum + &
-                                                   (((real(UMAT(UMatInd(a, c, i, j, 0, 0)),dp)) & 
-                                                   * (2.0_dp*(real(UMAT(UMatInd(b, c, i, j, 0, 0)),dp))))/&
+                                                   (((real(UMAT(UMatInd(a, c, i, j)),dp)) & 
+                                                   * (2.0_dp*(real(UMAT(UMatInd(b, c, i, j)),dp))))/&
                                                    ( (ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) &
                                                    * (ARR(i,2)+ARR(j,2)-ARR(b,2)-ARR(c,2)) ) )
                                                 MP2VDMSum=MP2VDMSum-&
-                                                    (( (real(UMAT(UMatInd(a, c, i, j, 0, 0)),dp)) &
-                                                    * (real(UMAT(UMatInd(c, b, i, j, 0, 0)),dp)) )/ &
+                                                    (( (real(UMAT(UMatInd(a, c, i, j)),dp)) &
+                                                    * (real(UMAT(UMatInd(c, b, i, j)),dp)) )/ &
                                                     ( (ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) &
                                                     * (ARR(i,2)+ARR(j,2)-ARR(c,2)-ARR(b,2)) ) )
                                             else
                                                 MP2VDMSum = MP2VDMSum + &
-                                                    (( (real(UMAT(UMatInd(a, c, i, j, 0, 0)),dp)) &
-                                                    * (2.0_dp*(real(UMAT(UMatInd(b, c, i, j, 0, 0)),dp))) )/&
+                                                    (( (real(UMAT(UMatInd(a, c, i, j)),dp)) &
+                                                    * (2.0_dp*(real(UMAT(UMatInd(b, c, i, j)),dp))) )/&
                                                     ((ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) &
                                                     * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*b,2)-ARR(2*c,2))))
                                                MP2VDMSum = MP2VDMSum - &
-                                                    (( (real(UMAT(UMatInd(a, c, i, j, 0, 0)),dp)) &
-                                                    * (real(UMAT(UMatInd(c, b, i, j, 0, 0)),dp)) )/&
+                                                    (( (real(UMAT(UMatInd(a, c, i, j)),dp)) &
+                                                    * (real(UMAT(UMatInd(c, b, i, j)),dp)) )/&
                                                     ( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) &
                                                     * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*c,2)-ARR(2*b,2))))
                                             end if

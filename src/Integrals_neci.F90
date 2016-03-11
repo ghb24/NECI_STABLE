@@ -601,7 +601,7 @@ contains
 !                     IDj = GTID(j)
 !                     IDk = GTID(k)
 !                     IDl = GTID(l)
-!                     Index1=UMatInd(idi,idj,idk,idl,0,0)
+!                     Index1=UMatInd(idi,idj,idk,idl)
 !                     WRITE(37,"(9I5,G25.10)") i,j,k,l,
 !idi,idj,idk,idl,Index1,GetUMatEl(NBasisMax,UMAT,ALAT,nBasis,ISpinSkip,G1,idi,idj,idk,idl)
 !                 enddo
@@ -1227,8 +1227,8 @@ contains
                                                  IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
                                                     IDL = GTID(LB)
                                                     IDLP = GTID(LPB)
-                                                    UMAT2(UMatInd(IDIP,IDJP,IDKP,IDLP,0,0)) = &
-                   &                                             UMAT(UMatInd(IDI,IDJ,IDK,IDL,NHG/2,0))
+                                                    UMAT2(UMatInd(IDIP,IDJP,IDKP,IDLP)) = &
+                   &                                             UMAT(UMatInd(IDI,IDJ,IDK,IDL))
                                                  ENDIF
                                               ENDIF
                                          ENDDO
@@ -1774,7 +1774,7 @@ contains
         integer, intent(in) :: idi, idj, idk, idl
         HElement_t(dp) :: hel
 
-        hel = UMAT (UMatInd(idi, idj, idk, idl, 0, 0))
+        hel = UMAT (UMatInd(idi, idj, idk, idl))
 #ifdef __CMPLX
         hel = UMatConj(idi, idj, idk, idl, hel)
 #endif
@@ -1827,8 +1827,8 @@ contains
             do k = 2,i,2
                 do j = 2,nBasis,2
                     do l = 2,j,2
-                        if((abs(real(umat(umatind(i/2,j/2,k/2,l/2,0,0)),dp))).gt.1.0e-9_dp) then
-                            write(iunit,'(F21.12,4I3)') REAL(UMat(UMatInd(i/2,j/2,k/2,l/2,0,0)),dp),i/2,k/2,j/2,l/2
+                        if((abs(real(umat(umatind(i/2,j/2,k/2,l/2)),dp))).gt.1.0e-9_dp) then
+                            write(iunit,'(F21.12,4I3)') REAL(UMat(UMatInd(i/2,j/2,k/2,l/2)),dp),i/2,k/2,j/2,l/2
                         endif
                     enddo
                 enddo
