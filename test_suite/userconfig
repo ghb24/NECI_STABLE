@@ -1,17 +1,17 @@
 [neci]
-exe = ../bin/neci.x
+exe = ../build/neci
 inputs_args = ('*.inp', '')
 vcs = git
 extract_program = ./tools/extract.py
 
 [mneci]
-exe = ../bin/mneci.x
+exe = ../build/mneci
 inputs_args = ('*.inp', '')
 vcs = git
 extract_program = ./tools/extract.py
 
 [kneci]
-exe = ../bin/kneci.x
+exe = ../build/kneci
 inputs_args = ('*.inp', '')
 vcs = git
 extract_program = ./tools/extract.py
@@ -19,5 +19,5 @@ extract_program = ./tools/extract.py
 [user]
 diff = vimdiff
 default_program = neci
-benchmark = neci-275c67b.kneci-275c67b.mneci-275c67b neci-3cd19c5.kneci-3cd19c5.mneci-3cd19c5
+benchmark = neci-275c67b.kneci-275c67b.mneci-275c67b neci-f617824.kneci-f617824.mneci-f617824 neci-c64530b.kneci-c64530b.mneci-c64530b neci-31cfa9b.kneci-31cfa9b.mneci-31cfa9b neci-7559a3c.kneci-7559a3c.mneci-7559a3c neci-1f04704.kneci-1f04704.mneci-1f04704
 
