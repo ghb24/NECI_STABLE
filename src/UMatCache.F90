@@ -334,7 +334,7 @@ MODULE UMatCache
 !         WRITE(6,*) iSS,nBasis,nBi
 !         CALL neci_flush(6)
          iPairs=(nBi*(nBi+1))/2
-         iSize=(iPairs*(iPairs+1))/2
+         iSize=(int(iPairs,int64)*int(iPairs+1,int64))/2
 #ifdef __CMPLX
          !Since we now only have 4-fold symmetry, rather than 8-fold.
          iSize = iSize * 2
