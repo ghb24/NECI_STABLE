@@ -1,17 +1,17 @@
 [neci]
-exe = ../bin/neci.x
+exe = ../build/neci
 inputs_args = ('*.inp', '')
 vcs = git
 extract_program = ./tools/extract.py
 
 [mneci]
-exe = ../bin/mneci.x
+exe = ../build/mneci
 inputs_args = ('*.inp', '')
 vcs = git
 extract_program = ./tools/extract.py
 
 [kneci]
-exe = ../bin/kneci.x
+exe = ../build/kneci
 inputs_args = ('*.inp', '')
 vcs = git
 extract_program = ./tools/extract.py
