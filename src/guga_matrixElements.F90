@@ -38,11 +38,12 @@ module guga_matrixElements
 !     end interface calc_off_diag_guga
 
 contains
-    function calc_off_diag_guga_ref(ilut, run) result(hel)
+    function calc_off_diag_guga_ref(ilut, run, exlevel) result(hel)
         ! calculated the off-diagonal element connected to the reference
         ! determinant only. 
         integer(n_int), intent(in) :: ilut(0:niftot)
         integer, intent(in), optional :: run
+        integer, intent(out), optional :: exlevel
         HElement_t(dp) :: hel
         character(*), parameter :: this_routine = "calc_off_diag_guga_ref"
 
@@ -66,9 +67,17 @@ contains
         if (pos > 0) then
             ! if found output the matrix element 
             hel = projE_replica(ind)%projE_hel_list(pos)
+            if (present(exlevel)) then
+                exlevel = projE_replica(ind)%exlevel(pos)
+            end if
         else 
             ! otherwise its zero
             hel = 0.0_dp
+            if (present(exlevel)) then
+                ! which value should i give exlevel in this case? 3,-1 ..
+                ! have to deal with it outside..
+                exlevel = -1
+            end if
         end if
 
     end function calc_off_diag_guga_ref

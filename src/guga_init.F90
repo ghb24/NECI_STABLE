@@ -9,7 +9,7 @@ module guga_init
                           tPickVirtUniform, tGenHelWeighted, tGen_4ind_2, tGen_4ind_weighted, &
                           tGen_4ind_reverse, tGen_sym_guga_ueg, tGen_sym_guga_mol, &
                           tGen_nosym_guga, nSpatOrbs, t_consider_diff_bias
-    use CalcData, only: tUseRealCoeffs
+    use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh
     use hist_data, only: tHistSpawn
     use LoggingData, only: tCalcFCIMCPsi, tPrintOrbOcc
     use spin_project, only: tSpinProject
@@ -272,6 +272,13 @@ contains
                 "GUGA approach and UHF basis not yet (or never?) compatible!")
         end if
 
+        if (tRealCoeffByExcitLevel) then
+            if (RealCoeffExcitThresh > 2) then
+                call stop_all(this_routine, &
+                    "can only determine up to excit level 2 in GUGA for now!")
+            end if
+        end if
+        
         ! assert that tUseFlags is set, to be able to encode deltaB values
         ! in the ilut representation for excitation generation
         !if (.not.tUseFlags) then

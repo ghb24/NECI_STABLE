@@ -335,6 +335,9 @@ module guga_data
     type projE_type
         integer(n_int), allocatable :: projE_ilut_list(:,:)
         HElement_t(dp), allocatable :: projE_hel_list(:)
+        ! also store the excitation level in the projected list, since otherwise
+        ! it is really hard to determine it in the GUGA formalism
+        integer, allocatable :: exlevel(:)
     end type projE_type
 
     type(projE_type), allocatable :: projE_replica(:)

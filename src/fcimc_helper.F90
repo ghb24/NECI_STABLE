@@ -441,7 +441,15 @@ contains
                 ! only calc. it to the reference det here 
                 ! why is only the overlap to the first replica considered??
                 ! that does not make so much sense or... ? 
-                HOffDiag(1:inum_runs) = calc_off_diag_guga_ref(ilut)
+                HOffDiag(1:inum_runs) = &
+                    calc_off_diag_guga_ref(ilut, exlevel = ExcitLevel_local)
+
+                if (ExcitLevel_local == 2) then
+                    do run = 1, inum_runs
+                        NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
+                    end do
+                end if
+
             end if
         else
 #endif
@@ -648,36 +656,63 @@ contains
             sgn_run = sgn(run)
 
             hoffdiag = 0
-            if (exlevel == 0) then
-
-                if (iter > nEquilSteps) &
-                    SumNoatHF(run) = SumNoatHF(run) + sgn_run
-                NoatHF(run) = NoatHF(run) + sgn_run
-                HFCyc(run) = HFCyc(run) + sgn_run
-
-            else if (exlevel == 2 .or. (exlevel == 1 .and. tNoBrillouin)) then
-
-                ! n.b. Brillouins theorem cannot hold for real-space Hubbard
-                ! model or for rotated orbitals.
-
-                if (exlevel == 2) &
-                    NoatDoubs(run) = NoatDoubs(run) + sgn_run
-
-                ! Obtain the off-diagonal elements
-                if (tHPHF) then
-                    hoffdiag = hphf_off_diag_helement(ProjEDet(:,run), nI, &
-                                                      iLutRef(:,run), ilut)
-
 #ifndef __CMPLX
-                else if (tGUGA) then
-                    hoffdiag = calc_off_diag_guga_ref(ilut)
-#endif
-                else
-                    hoffdiag = get_helement (ProjEDet(:,run), nI, exlevel, &
-                                             ilutRef(:,run), ilut)
-                endif
+            if (tGUGA) then
+                if (exlevel == 0) then
+                    if (iter > nEquilSteps) SumNoatHF(run) = SumNoatHF(run) + sgn_run
+                    NoatHF(run) = NoatHF(run) + sgn_run
+                    HFCyc(run) = HFCyc(run) + sgn_run
 
+                else
+                    ! NoatDoubs still wrong for the GUGA implementation since
+                    ! i still have no working funtion do determine the 
+                    ! type of excitation(single,double) between two CSFs..
+                    ! so only calc. the off-diagonal matrix element here...
+                    ! i could make an additional output in the off-diagonal 
+                    ! matrix element calculator to give me the excitation
+                    ! level, by indicating in the reference list the type of 
+                    ! excitation..! yes, thats good!
+                    hoffdiag = calc_off_diag_guga_ref(ilut, run, exlevel) 
+
+                    ! store Noatdoubs!!
+                    ! why here no abs(sgn) while thats done in the 
+                    ! single reference sumEcontrib???
+                    if (exlevel == 2) then
+                        NoatDoubs(run) = NoatDoubs(run) + sgn_run
+                    end if
+
+                end if
+            else
+#endif
+                if (exlevel == 0) then
+
+                    if (iter > nEquilSteps) &
+                        SumNoatHF(run) = SumNoatHF(run) + sgn_run
+                    NoatHF(run) = NoatHF(run) + sgn_run
+                    HFCyc(run) = HFCyc(run) + sgn_run
+                
+                else if (exlevel == 2 .or. (exlevel == 1 .and. tNoBrillouin)) then
+
+                    ! n.b. Brillouins theorem cannot hold for real-space Hubbard
+                    ! model or for rotated orbitals.
+
+                    if (exlevel == 2) &
+                        NoatDoubs(run) = NoatDoubs(run) + sgn_run
+
+                    ! Obtain the off-diagonal elements
+                    if (tHPHF) then
+                        hoffdiag = hphf_off_diag_helement(ProjEDet(:,run), nI, &
+                                                          iLutRef(:,run), ilut)
+
+                    else
+                        hoffdiag = get_helement (ProjEDet(:,run), nI, exlevel, &
+                                                 ilutRef(:,run), ilut)
+                    endif
+
+                end if
+#ifndef __CMPLX
             end if
+#endif
 
             ! Sum in energy contributions
             if (iter > nEquilSteps) &

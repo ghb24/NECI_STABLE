@@ -714,15 +714,26 @@ contains
             deallocate(projE_replica(run)%projE_ilut_list)
         if (allocated(projE_replica(run)%projE_hel_list)) &
             deallocate(projE_replica(run)%projE_hel_list)
+        if (allocated(projE_replica(run)%exlevel)) &
+            deallocate(projE_replica(run)%exlevel)
 
         allocate(projE_replica(run)%projE_ilut_list(0:niftot,nExcit), stat = ierr)
         allocate(projE_replica(run)%projE_hel_list(nExcit), stat = ierr)
+        allocate(projE_replica(run)%exlevel(nExcit), stat = ierr)
 
         ! and convert them back to neci format and store the matrix elements 
         do i = 1, nExcit
             call convert_ilut_toNECI(excitations(:,i), &
                 projE_replica(run)%projE_ilut_list(:,i), &
                 projE_replica(run)%projE_hel_list(i))
+
+            ASSERT(getDeltaB(excitations(:,i)) == 1 .or. getDeltaB(excitations(:,i)) == 2)
+            if (.not.(getDeltaB(excitations(:,i)) == 1 .or. &
+                getDeltaB(excitations(:,i)) == 2)) then
+                call stop_all(this_routine, "wrong excit level information!")
+            end if
+
+            projE_replica(run)%exlevel(i) = getDeltaB(excitations(:,i))
         end do
 
         ! that should be it... 
@@ -9622,6 +9633,13 @@ contains
                 call singleEnd(ilut, excitInfo, tempExcits, &
                     nExcits, excitations)
 
+                ! encode IC = 1 in the deltB information of the GUGA 
+                ! excitation to handle it in the remaining NECI code 
+                ! correctly 
+                do iEx = 1, nExcits
+                    call setDeltaB(1, excitations(:,iEx))
+                end do
+
 
 
             end if
@@ -12418,7 +12436,7 @@ contains
         character(*), parameter :: this_routine = "calcAllExcitations_double"
 
         real(dp) :: umat, posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        integer :: ierr, n
+        integer :: ierr, n, exlevel
         type(excitationInformation) :: excitInfo
         logical :: compFlag
 
@@ -12479,13 +12497,19 @@ contains
             call calcDoubleExcitation_withWeight(ilut, excitInfo, excitations,&
                 nExcits, posSwitches, negSwitches)
 
+            exlevel = 1
+
         case(2) ! weight + raising gen
             call calcDoubleExcitation_withWeight(ilut, excitInfo, excitations,&
                 nExcits, posSwitches, negSwitches)
 
+            exlevel = 1
+
         case(3) ! non overlap 
             call calcNonOverlapDouble(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
+
+            exlevel = 2
 
         case(4) ! single overlap two lowering
             ! how can i efficiently adress that?
@@ -12494,46 +12518,61 @@ contains
             call calcSingleOverlapLowering(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
 
+            exlevel = 1
+
         case(5) ! single overlap raising 
             call calcSingleOverlapRaising(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
+
+            exlevel = 1
 
         case (6) ! single overlap lowering into raising
             call calcSingleOverlapMixed(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
 
+            exlevel = 2
+
         case (7) ! single overlap raising into lowering
             call calcSingleOverlapMixed(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
+
+            exlevel = 2
 
         case (8) ! normal double overlap two lowering
             call calcDoubleLowering(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
 
+            exlevel = 2
 
         case (9) ! normal double overlap two raising
             call calcDoubleRaising(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
 
+            exlevel = 2
 
         case (10) ! lowering into raising into lowering
             call calcDoubleRaising(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
 
+            exlevel = 2
 
         case (11) ! raising into lowering into raising
             call calcDoubleLowering(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
 
+            exlevel = 2
 
         case (12) ! lowering into raising double
             call calcDoubleL2R(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
 
+            exlevel = 2
 
         case (13) ! raising into lowering double
             call calcDoubleR2L(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
+
+            exlevel = 2
 
         case (14) ! full stop 2 lowering
             ! can i write a function for both alike generator combinations
@@ -12541,38 +12580,55 @@ contains
             call calcFullstopLowering(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
 
+            exlevel = 2
+
         case (15) ! full stop 2 raising
             call calcFullstopRaising(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
+
+            exlevel = 2
 
         case (16) ! full stop lowering into raising 
             call calcFullStopL2R(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
 
+            ! in this case there is also the possibility for one single-like 
+            ! excitation if there is no change in the double overlap region! 
+            ! todo! how to fix that? is that so important? its only max. 1 
+            exlevel = 2
 
         case (17) ! full stop raising into lowering 
             call calcFullStopR2L(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
 
+            ! same as for 16
+            exlevel = 2
+
         case (18) ! full start 2 lowering
             call calcFullStartLowering(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
 
+            exlevel = 2
 
         case (19) ! full start 2 raising
             call calcFulLStartRaising(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
 
+            exlevel = 2
 
         case (20) ! full start lowering into raising
             call calcFullStartL2R(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
 
+            ! same as for 16
+            exlevel = 2
 
         case (21) ! full start raising into lowering
             call calcFullStartR2L(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
 
+            ! same as for 16
+            exlevel = 2
 
         case (22) ! full start into full stop alike
             call calcFullStartFullStopAlike(ilut, excitInfo, excitations)
@@ -12582,6 +12638,9 @@ contains
         case (23) ! full start into full stop mixed
             call calcFullStartFullStopMixed(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
+
+            ! same as for 16
+            exlevel = 2
 
         end select
 ! 
@@ -12611,6 +12670,10 @@ contains
         ! results for now..
         do n = 1, nExcits
             call update_matrix_element(excitations(:,n), umat/2.0_dp, 1)
+            ! and also use the deltaB value for finished excitations to 
+            ! indicate the level of excitation IC for the remaining NECI code
+            !
+            call setDeltaB(exlevel, excitations(:,n))
         end do
 
     end subroutine calcAllExcitations_double
@@ -17230,6 +17293,10 @@ contains
             do iEx2 = 1, tmpNum
                 call update_matrix_element(tempExcits2(:,iEx2), &
                     extract_matrix_element(tempExcits(:,iEx), 1), 1)
+                
+                ! also use the deltaB value of the finished excitations to 
+                ! handle IC in the NECI code correctly... 
+                call setDeltaB(2, tempExcits2(:,iEx2))
             end do
 
             ! and add it up to one list (maybe i can set sorted to true? 
@@ -17272,6 +17339,13 @@ contains
             end do
             end if
         end if
+
+        ! also use the deltaB value of the finished excitations to indicate
+        ! the IC level for the remaining NECI code 
+        do iEx = 1, nExcits
+            ! is a single excitation in this case! 
+            call setDeltaB(1, excitations(:,iEx))
+        end do
 
     end subroutine calcDoubleExcitation_withWeight
 
