@@ -527,10 +527,8 @@ contains
                 ! Instead attempt to calculate the average growth over every
                 ! iteration over the update cycle
                 do run = 1, inum_runs
-                    lb = min_part_type(run)
-                    ub = max_part_type(run)
-                    AllGrowRate(run) = (sum(AllSumWalkersCyc(lb:ub))/real(StepsSft,dp)) &
-                                    /sum(OldAllAvWalkersCyc(lb:ub))
+                    AllGrowRate(run) = AllSumWalkersCyc(run)/real(StepsSft,dp) &
+                                    /OldAllAvWalkersCyc(run)
                 enddo
 
             end if
