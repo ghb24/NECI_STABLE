@@ -104,7 +104,7 @@ contains
         integer, intent(in), optional :: WalkerNo
         real(dp), intent(in), optional :: RDMBiasFacCurr
         integer, intent(in), optional :: WalkersToSpawn
-        integer :: proc, run
+        integer :: proc, j, run
         real(dp) :: r
         integer, parameter :: flags = 0
         logical :: parent_init, list_full
