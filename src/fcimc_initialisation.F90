@@ -59,7 +59,7 @@ module fcimc_initialisation
                             flag_deterministic
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det, nullify_ilut, encode_part_sign, &
-                        extract_part_sign
+                        extract_part_sign, nifguga
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
                          BeforeNormHist, InstHist, iNoBins, AllInstHist, &
                          HistogramEnergy, AllHistogramEnergy, AllHistogram, &
@@ -136,9 +136,10 @@ module fcimc_initialisation
 
 #ifndef __CMPLX
     use guga_data, only: bVectorRef_ilut, bVectorRef_nI, projE_replica
-    use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut, convert_ilut_toNECI
+    use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut, convert_ilut_toNECI, &
+                              convert_ilut_toGUGA
     use guga_excitations, only: generate_excitation_guga, create_projE_list, &
-            actHamiltonian
+                                actHamiltonian
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut 
 #endif
     implicit none
@@ -2516,6 +2517,10 @@ contains
         logical :: tAllExcitsFound, tParity
         type(ll_node), pointer :: TempNode
         character(len=*), parameter :: this_routine="InitFCIMC_MP1"
+#ifndef __CMPLX
+        integer(n_int) :: ilutG(0:nifguga)
+        integer(n_int), pointer :: excitations(:,:)
+#endif
 
 #ifdef __CMPLX
         call stop_all(this_routine,"StartMP1 currently does not work with complex walkers")
@@ -2548,6 +2553,23 @@ contains
             exflag=3
         endif
         Ex(:,:)=0
+        ! for GUGA, this whole excitation generation is different! 
+#ifndef __CMPLX 
+        if (tGUGA) then
+            ! should finally do some general routine, which does all this 
+            ! below...
+            call convert_ilut_toGUGA(ilutHF, ilutG)
+            call actHamiltonian(ilutG, excitations, iExcits)
+            do i = 1, iExcits
+                call convert_ilut_toNECI(excitations(:,i), ilutnJ)
+                call decode_bit_det(nJ, iLutnJ)
+                call return_mp1_amp_and_mp2_energy(nJ,iLutnJ,Ex,tParity,amp,energy_contrib)
+                TotMP1Weight = TotMP1Weight + abs(amp)
+                MP2Energy = MP2Energy + energy_contrib
+            end do
+
+        else
+#endif
         do while(.true.)
             call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound,.false.)
             if(tAllExcitsFound) exit !All excits found
@@ -2563,8 +2585,11 @@ contains
             TotMP1Weight=TotMP1Weight+abs(amp)
             MP2Energy=MP2Energy+energy_contrib
         enddo
+#ifndef __CMPLX
+        endif
+#endif
 
-        if((.not.tHPHF).and.(iExcits.ne.(nDoubles+nSingles))) then
+        if((.not.tHPHF .and. .not. tGUGA).and.(iExcits.ne.(nDoubles+nSingles))) then
             write(iout,*) nDoubles,nSingles,iExcits
             call stop_all(this_routine,"Not all excitations accounted for in StartMP1")
         endif
@@ -2593,6 +2618,8 @@ contains
 
 
         !Now generate all excitations again, creating the required number of walkers on each one.
+        ! puh... for GUGA this gets messy to change below.. damn
+
         DetIndex=1
         TotParts=0.0
         tAllExcitsFound=.false.
@@ -2602,6 +2629,13 @@ contains
             exflag=3
         endif
         Ex(:,:)=0
+#ifndef __CMPLX
+        if (tGUGA) then
+            ! todo
+            call stop_all(this_routine, "todo!")
+            ! call generate_required_mp1_walkers()
+        else
+#endif
         do while(.true.)
             call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound,.false.)
             if(tAllExcitsFound) exit !All excits found
@@ -2682,7 +2716,16 @@ contains
 
             
         enddo
+#ifndef __CMPLX
+        endif
 
+        if (tGUGA) then
+            ! todo!
+            call stop_all(this_routine, "todo!")
+            ! call generate_required_mp1_hf()
+
+        else
+#endif
         !Now for the walkers on the HF det
         if(iRefProc(1) .eq. iProcIndex) then
             if (tAllRealCoeff .or. tRealCoeffByExcitLevel) then
@@ -2739,7 +2782,10 @@ contains
         else
             NoatHF(:)=0.0_dp
         endif
-            
+#ifndef __CMPLX
+        endif ! tGUGA
+#endif
+
         TotWalkers=DetIndex-1   !This is the number of occupied determinants on each node
         TotWalkersOld=TotWalkers
 

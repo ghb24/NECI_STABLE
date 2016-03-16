@@ -281,6 +281,9 @@ contains
                     ! The positions of the non-zero and non-diagonal elements in this row i.
                     core_connections(i)%positions(counter) = sparse_core_ham(i)%positions(j)
 
+                    ! for the GUGA implementation this has to be changed in the 
+                    ! future. but since this routine is only called if we calc.
+                    ! RDMs on the fly, i can postpone that until then.. todo
                     ic = FindBitExcitLevel(SpawnedParts(:,i), temp_store(:, sparse_core_ham(i)%positions(j)))
                     call GetBitExcitation(SpawnedParts(0:NIfD,i), temp_store(0:NIfD, &
                                           sparse_core_ham(i)%positions(j)),Ex,tSign)
@@ -499,6 +502,9 @@ contains
             num_sing_doub = 0
             block_size = 0
             do i = 1, num_states
+                ! for GUGA this would have to be changed, but apparently this 
+                ! function is never called in the rest of the code so 
+                ! ignore it for now..
                 excit_level = FindBitExcitLevel(ilut_list(:,i), ilutHF)
                 if (excit_level <= 2) then
                     num_sing_doub = num_sing_doub + 1
@@ -1074,7 +1080,11 @@ contains
         use FciMCData, only: ilutHF, HFDet, Fii
         use hphf_integrals, only: hphf_off_diag_helement
         use SystemData, only: tHPHF, tUEG
-
+#ifndef __CMPLX
+        use SystemData, only: tGUGA
+        use guga_matrixElements, only: calcDiagMatEleGUGA_nI
+        use guga_excitations, only: calc_off_diag_guga_gen
+#endif
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: ex(2,2)
@@ -1097,6 +1107,10 @@ contains
             ! beta orbitals of the same spatial orbital have the same
             ! fock energies, so can consider either.
             hel = hphf_off_diag_helement(HFDet, nI, iLutHF, ilut)
+#ifndef __CMPLX
+        else if (tGUGA) then
+            hel = calc_off_diag_guga_gen(ilut, ilutHF)
+#endif
         else
             hel = get_helement(HFDet, nI, ic, ex, tParity)
         end if
@@ -1105,6 +1119,12 @@ contains
             ! This will calculate the MP2 energies without having to use the fock eigenvalues.
             ! This is done via the diagonal determinant hamiltonian energies.
             H0tmp = getH0Element4(nI, HFDet)
+#ifndef __CMPLX
+        else if (tGUGA) then
+            ! do i have a routine to calculate the diagonal and double 
+            ! contributions for GUGA csfs? yes! 
+            H0tmp = calcDiagMatEleGUGA_nI(nI)
+#endif
         else
             H0tmp = getH0Element3(nI)
         end if

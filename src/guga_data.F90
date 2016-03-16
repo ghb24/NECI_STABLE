@@ -148,6 +148,10 @@ module guga_data
         logical :: valid = .false.
     end type excitationInformation
 
+    ! logical to indicate that GUGA and core space, like doubles and singles 
+    ! are used as the semi-stochastic core space
+    logical :: tGUGACore = .false.
+
     ! ======================== end TYPE defs ================================
   
     ! ========================= INTERFACES ==================================

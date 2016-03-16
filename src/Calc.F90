@@ -37,6 +37,7 @@ MODULE Calc
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
 
 #ifndef __CMPLX
+    use guga_data, only: tGUGACore
     use guga_testsuite, only: runTestsGUGA
 #endif
 
@@ -280,6 +281,7 @@ contains
           ! Semi-stochastic and trial wavefunction options.
           tSemiStochastic = .false.
           tCSFCore = .false.
+          tGUGACore = .false.
           semistoch_shift_iter = 0
           tTrialWavefunction = .false.
           tKP_FCIQMC = .false.
@@ -1037,6 +1039,13 @@ contains
                 tCSFCore = .true.
                 tCSF = .true.
                 LMS = STOT
+
+            case ("GUGA-CORE DOUBLES")
+                tGUGACore = .true.
+                ! convention! if we input GUGA core, we specifiy tDoubles 
+                ! implicitly! Since we only ever will implement this (for now)
+                ss_space_in%tDoubles = .true.
+
             case("DOUBLES-CORE")
                 ss_space_in%tDoubles = .true.
             case("HF-CONN-CORE")

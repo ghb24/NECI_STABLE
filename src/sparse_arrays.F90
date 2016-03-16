@@ -24,6 +24,10 @@ module sparse_arrays
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, MPIAllGatherV
     use SystemData, only: tHPHF, nel
     use global_det_data, only: set_det_diagH
+#ifndef __CMPLX
+    use SystemData, only: tGUGA
+    use guga_excitations, only: calc_off_diag_guga_gen
+#endif
 
     implicit none
     type sparse_matrix_real
@@ -340,6 +344,8 @@ contains
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_diag_helement(nI, SpawnedParts(:,i)) - Hii
                     else
+                        ! for guga: the diagonal is fine, since i overwrite 
+                        ! that within get_helement
                         hamiltonian_row(j) = get_helement(nI, nJ, 0) - Hii
                     end if
                     core_ham_diag(i) = hamiltonian_row(j)
@@ -352,6 +358,13 @@ contains
                 else
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, SpawnedParts(:,i), temp_store(:,j))
+#ifndef __CMPLX
+                    else if (tGUGA) then
+                        ! for the off-diagonal elements i have to call the GUGA
+                        ! specific function
+                        hamiltonian_row(j) = calc_off_diag_guga_gen( & 
+                            SpawnedParts(:,i), temp_store(:,j))
+#endif
                     else
                         hamiltonian_row(j) = get_helement(nI, nJ, SpawnedParts(:, i), temp_store(:, j))
                     end if

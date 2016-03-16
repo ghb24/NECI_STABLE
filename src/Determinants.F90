@@ -9,7 +9,7 @@ MODULE Determinants
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_2, sltcnd_compat, &
-    sltcnd_knowIC, sltcnd_0, SumFock 
+                          sltcnd_knowIC, sltcnd_0, SumFock 
     use global_utilities
     use sort_mod
     use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det
@@ -402,6 +402,11 @@ contains
         ! GUGA implementation: 
         if (tGUGA) then
             hel = calcDiagMatEleGUGA_nI(nI)
+            ! make a check, that this is only called for diagonal elements.. 
+            if (.not.all(nI == nJ)) then
+                call stop_all(this_routine,&
+                    "get_helement in GUGA should only be called for diagonal elements!")
+            end if
             return
         end if
 #endif

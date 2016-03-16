@@ -1141,7 +1141,6 @@ contains
 !         end if
 
         if (.not.compFlag) then
-!             if (excitInfo%excitLvl == 1) print *, "no"
             excitation = 0
             pgen = 0.0_dp
             return
@@ -5500,10 +5499,12 @@ contains
         se = excitInfo%firstEnd
         gen = excitInfo%lastGen
         
-!         if (st == 2 .and. en == 16 .and. se == 5) then
-!             call print_excitInfo(excitInfo)
+!         if (isOne(ilut,1) .and. isTwo(ilut,2) .and. isThree(ilut,3)) then
+!             if ((st == 1 .or. st == 2) .and. se == 3 .and. en == 4) then
+!                 call print_excitInfo(excitInfo)
+!             end if
 !         end if
-! 
+! ! 
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
 
         ! create correct weights:
@@ -5529,6 +5530,9 @@ contains
 
             ! check validity 
             if (abs(extract_matrix_element(t,2))<EPS .or. branch_pgen<EPS)then
+                print *, "double update failed:"
+                call print_excitInfo(excitInfo)
+                call write_det_guga(6, t)
                 t = 0
                 return
             end if
@@ -5539,6 +5543,12 @@ contains
         weights = init_singleWeight(ilut, en)
         call calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
+
+        if (branch_pgen < EPS) then
+            print *, "branch pgen = 0 after semi-stop:"
+            call print_excitInfo(excitInfo)
+            call write_det_guga(6, t)
+        end if
 
         ! check validity
         if (branch_pgen <EPS) return
@@ -5572,6 +5582,13 @@ contains
         if (abs(extract_matrix_element(t,1))<EPS) then
             t = 0
             return
+        end if
+
+        if (isOne(ilut,1) .and. isTwo(ilut,2) .and. isThree(ilut,3)) then
+            if ((st == 1 .or. st == 2) .and. se == 3 .and. en == 4) then
+                print *, "end of excit:"
+                call print_excitInfo(excitInfo)
+            end if
         end if
 
         call calc_mixed_start_r2l_contr(ilut, t, excitInfo, branch_pgen, pgen,&

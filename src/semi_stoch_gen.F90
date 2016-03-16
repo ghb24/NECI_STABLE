@@ -3,7 +3,7 @@
 module semi_stoch_gen
 
     use bit_rep_data, only: nIfDBO, NIfD, NIfTot
-    use bit_reps, only: decode_bit_det
+    use bit_reps, only: decode_bit_det, nifguga
     use CalcData
     use constants
     use DetBitOps, only: EncodeBitDet
@@ -17,7 +17,11 @@ module semi_stoch_gen
     use semi_stoch_procs
     use sparse_arrays
     use timing_neci
-
+#ifndef __CMPLX
+    use guga_excitations, only: actHamiltonian
+    use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
+    use guga_data, only: tGUGACore
+#endif
     implicit none
 
 contains
@@ -221,6 +225,30 @@ contains
             else if (core_in%tHeisenbergFCI) then
                 call generate_heisenberg_fci(SpawnedParts, space_size)
             end if
+#ifndef __CMPLX
+        else if (tGUGACore) then
+            if (core_in%tDoubles) then
+                call generate_sing_doub_guga(SpawnedParts, space_size, core_in%tHFConn)
+            else if (core_in%tCAS) then
+                call stop_all("init_semi_stochastic", "CAS core space with CSFs is not &
+                              &currently implemented.")
+            else if (core_in%tCAS) then
+                call stop_all("init_semi_stochastic", "Cannot use a RAS core space with &
+                              &CSFs.")
+
+            else if (core_in%tOptimised) then
+                call generate_optimised_space(core_in%opt_data, core_in%tLimitSpace, &
+                    SpawnedParts, space_size, core_in%max_size)
+
+            else if (core_in%tLowE) then
+                call stop_all("init_semi_stochastic", "Low energy core space with CSFs is not &
+                              &currently implemented.")
+            else if (core_in%tMP1) then
+                call generate_using_mp1_criterion(core_in%mp1_ndets, SpawnedParts, space_size)
+!                 call stop_all("init_semi_stochastic", "The use of the MP1 wave function criterion &
+!                               &with CSFs is not implemented.")
+            end if
+#endif
         else if (tCSFCore) then
             if (core_in%tDoubles) then
                 call generate_sing_doub_csfs(SpawnedParts, space_size)
@@ -270,6 +298,52 @@ contains
         end if
 
     end subroutine generate_space
+
+#ifndef __CMPLX
+    subroutine generate_sing_doub_guga(ilut_list, space_size, only_keep_conn)
+
+        ! routine to generate the singles and doubles core space from the 
+        ! HF (or current reference determinant) used in the semi-stochastic 
+        ! code when GUGA is in use 
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        integer, intent(inout) :: space_size
+        logical, intent(in) :: only_keep_conn
+        character(*), parameter :: this_routine = "generate_sing_doub_guga"
+
+        integer(n_int) :: ilutG(0:nifguga)
+        integer(n_int), pointer :: excitations(:,:)
+        integer :: nexcit, i
+        integer(n_int) :: temp_ilut(0:niftot)
+        HElement_t(dp) :: temp_hel
+        integer :: temp_nI(nel)
+
+        ! essentially use the acthamiltonian on the HFdet and since i 
+        ! only keep non-zero matrix elements anyway as output, the 
+        ! only_keep_conn is kind of implicitly .true. always.. 
+
+        call add_state_to_space(ilutHF, ilut_list, space_size)
+
+        ! to the exact guga excitation to the HF det
+        call convert_ilut_toGUGA(ilutHF, ilutG)
+
+        call actHamiltonian(ilutG, excitations, nexcit)
+
+        do i = 1, nexcit
+            ! check if matrix element is zero if we only want to keep the 
+            ! connected determinants(not sure if thats implicitly done in the 
+            ! actHamiltonian routine(i think it only keeps non-zero excitations
+            call convert_ilut_toNECI(excitations(:,i), temp_ilut, temp_hel)
+
+            if (only_keep_conn .and. abs(real(temp_hel)) < EPS) cycle
+
+            call decode_bit_det(temp_nI, temp_ilut)
+
+            call add_state_to_space(temp_ilut, ilut_list, space_size, temp_nI)
+        end do
+
+
+    end subroutine generate_sing_doub_guga
+#endif
 
     subroutine add_state_to_space(ilut, ilut_list, space_size, nI_in)
 
@@ -1110,6 +1184,10 @@ contains
         integer :: pos, i
         real(dp) :: amp, energy_contrib
         logical :: tAllExcitFound, tParity
+#ifndef __CMPLX
+        integer(n_int), pointer :: excitations(:,:)
+        integer(n_int) :: ilutG(0:nifguga)
+#endif
 
         allocate(amp_list(target_ndets))
         allocate(temp_list(0:NIfD, target_ndets))
@@ -1146,7 +1224,40 @@ contains
 
         ! Loop through all connections to the HF determinant and keep the required number which
         ! have the largest MP1 weights.
+        
+#ifndef __CMPLX
+        if (tGUGA) then
+            ! in guga, create all excitations at once and then check for the 
+            ! MP1 amplitude in an additional loop
+            call convert_ilut_toGUGA(ilutHF, ilutG)
+            call actHamiltonian(ilutG, excitations, ndets)
+            do i = 1, ndets
+                call convert_ilut_toNECI(excitations(:,i), ilut)
+                call decode_bit_det(nI,ilut)
 
+                call return_mp1_amp_and_mp2_energy(nI, ilut, ex, tParity, amp,&
+                    energy_contrib)
+
+                pos = binary_search_real(amp_list, -abs(amp), 1.0e-8_dp)
+
+                if (pos < 0) pos = -pos
+
+                if (pos > 0 .and. pos <= target_ndets) then
+                    ! Shuffle all less significant determinants down one slot, and throw away the
+                    ! previous least significant determinant.
+                    temp_list(0:NIfD, pos+1:target_ndets) = temp_list(0:NIfD, pos:target_ndets-1)
+                    amp_list(pos+1:target_ndets) = amp_list(pos:target_ndets-1)
+
+                    ! Add in the new ilut and amplitude in the correct position.
+                    temp_list(0:NIfD, pos) = ilut(0:NIfD)
+                    ! Store the negative absolute value, because the binary search sorts from
+                    ! lowest (most negative) to highest.
+                    amp_list(pos) = -abs(amp)
+                end if
+            end do
+
+        else
+#endif
         do while (.true.)
             call GenExcitations3(HFDet, ilutHF, nI, ex_flag, ex, tParity, tAllExcitFound, .false.)
             ! When no more basis functions are found, this value is returned and the loop is exited.
@@ -1184,6 +1295,9 @@ contains
 
             end if
         end do
+#ifndef __CMPLX
+        endif
+#endif
 
         call warning_neci("generate_using_mp1_criterion", &
             "Note that there are less connections to the Hartree-Fock than the requested &

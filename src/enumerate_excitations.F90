@@ -343,11 +343,22 @@ contains
         ! (regardless of the system being studied), otherwise it will generate all connected
         ! determinants.
 
+#ifndef __CMPLX
+        use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
+        use guga_excitations, only: actHamiltonian
+        use bit_reps, only: nifguga
+        use SystemData, only: tGUGA
+        integer :: nexcit, j
+        integer(n_int), pointer :: excitations(:,:)
+        integer(n_int) :: ilutG(0:nifguga)
+#endif
+
         integer, intent(in) :: original_space_size
         integer(n_int), intent(in) :: original_space(0:NIfTot, original_space_size)
         integer, intent(inout) :: connected_space_size
         integer(n_int), optional, intent(out) :: connected_space(0:NIfTot, connected_space_size)
         logical, intent(in), optional :: tSinglesOnlyOpt
+        character(*), parameter :: this_routine = "generate_connection_normal"
 
         integer(n_int) :: ilutJ(0:NIfTot), ilut_tmp(0:NIfTot)
         integer :: nI(nel), nJ(nel)
@@ -355,7 +366,6 @@ contains
         integer, allocatable :: excit_gen(:)
         integer :: nStore(6)
         logical :: tAllExcitFound, tStoreConnSpace, tSinglesOnly, tTempUseBrill
-
         if (present(connected_space)) then
             tStoreConnSpace = .true.
         else
@@ -374,24 +384,62 @@ contains
 
             call decode_bit_det(nI, original_space(:,i))
 
-            call init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
-            if (tSinglesOnly) ex_flag = 1
+#ifndef __CMPLX
+            ! do the GUGA changes here, I want to do all the excitations from 
+            ! the currently looped over original_space(:,i) 
+            if (tGUGA) then
+                ! in GUGA don't do the tSinglesOnly option
+                if (tSinglesOnly) then
+                    call stop_all(this_routine, "dont use tSinglesOnly with GUGA!")
+                end if
 
-            do while(.true.)
+                ! only STORE the excitations if the proper flag is set, 
+                ! otherwise only, increase the counter for the connected space
+                ! why is this done??
+                call convert_ilut_toGUGA(original_space(:,i), ilutG)
 
-                call generate_connection_normal(nI, original_space(:,i), nJ, ilutJ, ex_flag, excit, &
-                                                 tAllExcitFound, ncon=connected_space_size)
-                if (tAllExcitFound) exit
+                call actHamiltonian(ilutG, excitations, nexcit) 
 
-                if (tStoreConnSpace) connected_space(0:NIfD, connected_space_size) = ilutJ(0:NIfD)
 
-            end do
+                ! and if store flag is present: 
+                if (tStoreConnSpace) then
+                    do j = 1, nexcit
+                        call convert_ilut_toNECI(excitations(:,j), &
+                            connected_space(:, connected_space_size + j))
+                    end do
+                end if
+
+                ! update connected_space_size afterwards
+                connected_space_size = connected_space_size + nexcit
+
+            else
+#endif
+
+                call init_generate_connected_space(nI, ex_flag, tAllExcitFound,&
+                    excit, excit_gen, nstore, tTempUseBrill)
+
+                if (tSinglesOnly) ex_flag = 1
+
+                do while(.true.)
+
+                    call generate_connection_normal(nI, original_space(:,i), nJ,&
+                        ilutJ, ex_flag, excit, tAllExcitFound, ncon=connected_space_size)
+                    if (tAllExcitFound) exit
+
+                    if (tStoreConnSpace) connected_space(0:NIfD, connected_space_size) = ilutJ(0:NIfD)
+
+                end do
+
+#ifndef __CMPLX
+            end if ! tGUGA
+#endif
 
         end do
 
     end subroutine generate_connected_space_normal
 
-    subroutine generate_connection_normal(nI, ilutI, nJ, ilutJ, ex_flag, excit, tAllExcitFound, hel, ncon)
+    subroutine generate_connection_normal(nI, ilutI, nJ, ilutJ, ex_flag, excit,&
+            tAllExcitFound, hel, ncon)
 
         use procedure_pointers, only: get_conn_helement
 
@@ -484,17 +532,22 @@ contains
 
             call decode_bit_det(nI, original_space(:,i))
 
-            call init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
+            call init_generate_connected_space(nI, ex_flag, tAllExcitFound, &
+                excit, excit_gen, nstore, tTempUseBrill)
+
             if (tSinglesOnly) ex_flag = 1
 
             do while(.true.)
 
-                call generate_connection_kpnt(nI, original_space(:,i), nJ, ilutJ, ex_flag, tAllExcitFound, &
-                                               nStore, excit_gen, ncon=connected_space_size)
+                call generate_connection_kpnt(nI, original_space(:,i), nJ, &
+                    ilutJ, ex_flag, tAllExcitFound, nStore, excit_gen, &
+                    ncon=connected_space_size)
 
                 if (tAllExcitFound) exit
 
-                if (tStoreConnSpace) connected_space(0:NIfD, connected_space_size) = ilutJ(0:NIfD)
+                if (tStoreConnSpace) then
+                    connected_space(0:NIfD, connected_space_size) = ilutJ(0:NIfD)
+                end if
 
             end do
 
