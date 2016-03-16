@@ -48,14 +48,29 @@ contains
         ndets_this_proc = 0
         trial_iluts = 0_n_int
 
+        ! do some GUGA checks to abort non-supported trial wavefunctions
+        if (tGUGA .and. (space_in%tCAS .or. space_in%tRAS .or. space_in%tFCI)) then
+            call stop_all(t_r, "non-supported trial space for GUGA!")
+        end if
+
         ! Choose the correct generating routine.
         if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
         if (space_in%tPops) call generate_space_most_populated(space_in%npops, & 
                                     space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc)
         if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
-        if (space_in%tDoubles) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
         if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
         if (space_in%tRAS) call generate_ras(space_in%ras, trial_iluts, ndets_this_proc)
+        if (space_in%tDoubles) then
+#ifndef __CMPLX
+        if (tGUGA) then 
+            call generate_sing_doub_guga(trial_iluts, ndets_this_proc, .false.)
+        else 
+            call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
+        end if
+#else
+            call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
+#endif
+        end if
         if (space_in%tOptimised) call generate_optimised_space(space_in%opt_data, space_in%tLimitSpace, &
                                                          trial_iluts, ndets_this_proc, space_in%max_size)
         if (space_in%tMP1) call generate_using_mp1_criterion(space_in%mp1_ndets, trial_iluts, ndets_this_proc)
@@ -217,7 +232,7 @@ contains
         HElement_t(dp), allocatable :: evecs(:,:), evecs_transpose(:,:)
         HElement_t(dp), allocatable :: work(:)
         real(dp), allocatable :: evals_all(:), rwork(:)
-        character(len=*), parameter :: t_r = "calc_trial_states_lanczos"
+        character(len=*), parameter :: t_r = "calc_trial_states_direct"
 
         ndets_this_proc = 0
         trial_iluts = 0_n_int

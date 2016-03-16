@@ -2,7 +2,7 @@
 
 module fcimc_pointed_fns
 
-    use SystemData, only: nel
+    use SystemData, only: nel, tGUGA
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
@@ -150,6 +150,9 @@ module fcimc_pointed_fns
         if (tAllRealCoeff) then
             tRealSpawning = .true.
         elseif (tRealCoeffByExcitLevel) then
+            if (tGUGA) call stop_all(this_routine,&
+                "excit level does not work with GUGA here...")
+
             TargetExcitLevel = FindBitExcitLevel (iLutRef, iLutnJ)
             if (TargetExcitLevel <= RealCoeffExcitThresh) &
                 tRealSpawning = .true.
@@ -312,6 +315,9 @@ module fcimc_pointed_fns
             call stop_all (this_routine, 'Cannot find determinant nI in list')
 
         childExLevel = FindBitExcitLevel (iLutHF, iLutJ, nel)
+        if (tGUGA) call stop_all(this_routine, &
+            "excit level does not work with GUGA here...")
+
         if (childExLevel == nel) then
             call BinSearchParts2 (iLutJ, FCIDetIndex(childExLevel), Det, &
                                   partIndChild, tSuccess)

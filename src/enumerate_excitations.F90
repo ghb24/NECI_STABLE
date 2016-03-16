@@ -15,7 +15,7 @@ module enumerate_excitations
     use SymExcitDataMod
     use sym_general_mod
     use SystemData, only: nel, nBasis, G1, tFixLz, Arr, Brr, tHPHF, tHub, &
-                          tUEG, tKPntSym, tReal, tUseBrillouin
+                          tUEG, tKPntSym, tReal, tUseBrillouin, tGUGA
 
     implicit none
 
@@ -322,6 +322,12 @@ contains
         integer, intent(inout) :: connected_space_size
         integer(n_int), optional, intent(out) :: connected_space(0:NIfTot, connected_space_size)
         logical, intent(in), optional :: tSinglesOnlyOpt
+        character(*), parameter :: this_routine = "generate_connected_space"
+
+        if (tGUGA .and. tKPntSym) then
+            call stop_all(this_routine, &
+                "k-point symmetry and GUGA + semi-stochastic or trial-wavefunction not yet implemented!")
+        end if
 
         if (tKPntSym) then
             call generate_connected_space_kpnt(original_space_size, original_space, &

@@ -80,6 +80,7 @@ contains
         write(6,'("Generating the trial space...")'); call neci_flush(6)
 
 #ifdef __CMPLX
+             ! thats never called in GUGA for now, due to complex
              call calc_trial_states_direct(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
                                            temp_energies, trial_counts, trial_displs, trial_est_reorder)
 #else
@@ -440,10 +441,15 @@ contains
                         H_ij = hphf_diag_helement(nI, trial_space(:,j))
                     end if
                 else
-                    if (.not. tHPHF) then
-                        H_ij = get_helement(nI, nJ, con_space(:,i), trial_space(:,j))
-                    else
+                    ! need guga changes here! 
+                    if (tHPHF) then 
                         H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
+#ifndef __CMPLX
+                    else if (tGUGA) then
+                        H_ij = calc_off_diag_guga_gen(nI,nJ)
+#endif
+                    else
+                        H_ij = get_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     end if
                 end if
                 con_vecs(:,i) = con_vecs(:,i) + H_ij*trial_vecs(:,j)

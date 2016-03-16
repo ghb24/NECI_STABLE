@@ -1902,6 +1902,7 @@ r_loop: do while(.not.tStoreDet)
                 abs(real_sgn(1)) > InitiatorWalkNo) then
                 ! Testing using the sign now, because after annihilation
                 ! the current flag will not necessarily be correct.
+                ! note: ex_level for GUGA CSFs is wrong in this case..
                 ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel)
                 nopen = count_open_orbs(det)
                 call decode_bit_det(nI, det)
@@ -2383,6 +2384,8 @@ r_loop: do while(.not.tStoreDet)
         TotParts=0
         do j=1,int(TotWalkers,sizeof_int)
             call decode_bit_det (TempnI, currentDets(:,j))
+            ! note on GUGA: here it is fine since working out excit level = 0 
+            ! works and thats all what is necessary here! 
             Excitlevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j), 2)
             IF(Excitlevel.eq.0) THEN
                 call set_det_diagH(j, 0.0_dp)

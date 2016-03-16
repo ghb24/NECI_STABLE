@@ -1108,6 +1108,7 @@ contains
         abschild = sum(abs(child))
 
         ! Get the excitation levels of the source and target
+        ASSERT(.not. tGUGA)
         exlevelI = FindBitExcitLevel(ilutRef, ilutI)
         exlevelJ = FindBitExcitLevel(ilutRef, ilutJ)
 
