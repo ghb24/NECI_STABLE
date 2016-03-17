@@ -355,8 +355,9 @@ contains
       use SystemData, only : nBasisMax, Alpha,BHub, BRR,nmsh,nEl
       use SystemData, only : Ecore,G1,iSpinSkip,nBasis,nMax,nMaxZ
       use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER,tRIIntegrals
-      use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP
-      use SystemData, only: uhub, arr,alat,treal,tCacheFCIDUMPInts
+      use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP, tPickVirtUniform
+      use SystemData, only: uhub, arr,alat,treal,tCacheFCIDUMPInts, tReltvy
+      use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
       use MemoryManager, only: TagIntType
       use sym_mod, only: GenSymStatePairs
       use read_fci
@@ -584,6 +585,11 @@ contains
             CALL CALCTMATUEG(NBASIS,ALAT,G1,CST,NBASISMAX(1,1).LE.0,OMEGA)
          ENDIF
       ENDIF
+
+      if ((tPickVirtUniform .and. tBuildSpinSepLists .and. tBuildOccVirtList) .and. .not. tReltvy) then
+        call stop_all(this_routine, "pick-virt-uniform-mag option needs TREL=.TRUE. in FCIDUMP")
+      endif
+
       !ENDIF
 
 !      WRITE(6,*) "ONE ELECTRON"
