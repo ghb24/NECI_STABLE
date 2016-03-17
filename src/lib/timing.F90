@@ -289,7 +289,7 @@ contains
       !=    iunit (optional): file unit to which the timing  report is printed.
       !=    Default value: 6 (stdout).
 
-      Use LoggingData, only: nPrintTimer,iGlobalTimerLevel
+      Use LoggingData, only: nPrintTimer
       implicit none
       integer, optional, intent(in) :: ntimer_objects
       integer, optional, intent(in) :: iunit

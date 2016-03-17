@@ -140,7 +140,7 @@ contains
         HElement_t(dp), intent(out) :: amp(:)
         logical, intent(out) :: tTrial, tCon
 
-        integer :: i, pos
+        integer :: pos
 
         amp = 0.0_dp
         tTrial = .false.

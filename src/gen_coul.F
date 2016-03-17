@@ -39,12 +39,12 @@ C     &        G1(1,K),G1(1,L),NMSH,FCK,NMAX,SUM)
               ID2 = GTID(J)
               ID3 = GTID(K)
               ID4 = GTID(L)
-              IF(UMAT(UMatInd(ID1,ID2,ID3,ID4,0,0)).NE.0.0_dp) GOTO 100
+              IF(UMAT(UMatInd(ID1,ID2,ID3,ID4)).NE.0.0_dp) GOTO 100
               CALL SLATCOULFOU(G1(I)%k,G1(J)%k,
      &        G1(K)%k,G1(L)%k,NMSH,FCK,NMAX,ZIA,SUM)
 c              SUM=SUM*COUPLE 
 C..Original call
-              UMAT(UMatInd(ID1,ID2,ID3,ID4,0,0))=SUM
+              UMAT(UMatInd(ID1,ID2,ID3,ID4))=SUM
 !              UMAT(ID1,ID2,ID3,ID4)=SUM
 C..Symmetries
 !              UMAT(ID3,ID4,ID1,ID2)=SUM

@@ -107,8 +107,13 @@ contains
         integer :: proc, j, run
         real(dp) :: r
         integer, parameter :: flags = 0
-        logical :: parent_init, list_full
+        logical :: list_full
         character(*), parameter :: this_routine = 'create_particle'
+
+#ifdef __CMPLX
+        integer :: j
+        logical :: parent_init
+#endif
 
         ! Determine which processor the particle should end up on in the
         ! DirectAnnihilation algorithm.
@@ -164,7 +169,7 @@ contains
             ! part of the SpawnedParts array from NIfTot+1 --> NIfTot+1+NIfDBO
             call store_parent_with_spawned (RDMBiasFacCurr, WalkerNo, &
                                             ilutI, WalkersToSpawn, ilutJ, &
-                                            proc, part_type)
+                                            proc)
         end if
 
         ! If we are storing the parent coefficient with the particle, then
@@ -326,19 +331,14 @@ contains
         logical, intent(in) :: tPairedReplicas
         integer, intent(in), optional :: ind
 
-        integer :: i, k, bin, pos, ExcitLevel_local, ExcitLevelSpinCoup
-        integer :: PartInd, OpenOrbs, spatial_ic, run
-        integer(n_int) :: iLutSym(0:NIfTot)
-        real(dp) :: ovp
-        logical tSuccess
-        integer :: iUEG1, iUEG2, ProjEBin
+        integer :: i, ExcitLevel_local, ExcitLevelSpinCoup
+        integer :: run
         HElement_t(dp) :: HOffDiag(inum_runs)
-        HElement_t(dp) :: HDoubDiag
-        complex(dp) :: CmplxwSign
-        integer :: DoubEx(2,2),DoubEx2(2,2),kDoub(3) ! For histogramming UEG doubles
-        integer :: ExMat(2,2), nopen
-        integer :: doub_parity, doub_parity2, parity
         character(*), parameter :: this_routine = 'SumEContrib'
+
+#ifdef __CMPLX
+        complex(dp) :: CmplxwSign
+#endif
 
         real(dp) :: amps(size(current_trial_amps,1))
 
@@ -561,9 +561,13 @@ contains
                     trial_denom = trial_denom + current_trial_amps(1,ind)*sgn
                 else
                     if (tPairedReplicas) then
+#ifdef MULTI_RUN
                         do run = 2, inum_runs, 2
                             trial_denom(run-1:run) = trial_denom(run-1:run) + current_trial_amps(run/2,ind)*sgn(run-1:run)
                         end do
+#else
+                        call stop_all(this_routine, "INVALID")
+#endif
                     else
                         trial_denom = trial_denom + current_trial_amps(:,ind)*sgn
                     end if
@@ -576,9 +580,13 @@ contains
                         trial_numerator = trial_numerator + amps(1)*sgn
                     else
                         if (tPairedReplicas) then
+#ifdef MULTI_RUN
                             do run = 2, inum_runs, 2
                                 trial_numerator(run-1:run) = trial_numerator(run-1:run) + amps(run/2)*sgn(run-1:run)
                             end do
+#else
+                            call stop_all(this_routine, "INVALID")
+#endif
                         else
                             trial_numerator = trial_numerator + amps*sgn
                         end if
@@ -592,9 +600,13 @@ contains
                     trial_numerator = trial_numerator + current_trial_amps(1,ind)*sgn
                 else
                     if (tPairedReplicas) then
+#ifdef MULTI_RUN
                         do run = 2, inum_runs, 2
                             trial_numerator(run-1:run) = trial_numerator(run-1:run) + current_trial_amps(run/2,ind)*sgn(run-1:run)
                         end do
+#else
+                        call stop_all(this_routine, "INVALID")
+#endif
                     else
                         trial_numerator = trial_numerator + current_trial_amps(:,ind)*sgn
                     end if
@@ -772,7 +784,9 @@ contains
         real(dp) :: tot_sgn
 
         integer, intent(in) :: site_idx, run
+#ifdef __DEBUG
         character(*), parameter :: this_routine = 'TestInitiator'
+#endif
 
         logical :: initiator, tDetInCAS
         real(dp) :: init_thresh, low_init_thresh, init_tm, expected_lifetime
@@ -849,7 +863,7 @@ contains
             hdiag = det_diagH(site_idx) - DiagSft(run)
             if (hdiag > 0) then
                 expected_lifetime = &
-                    log(2.0_dp * max(MaxWalkerBloom, 1)) / hdiag
+                    log(2.0_dp * max(MaxWalkerBloom, 1.0_dp)) / hdiag
                 if ((TotImagTime - init_tm) > & !0.5_dp) then !&
                         init_survival_mult * expected_lifetime) then
                     initiator = .true.
@@ -934,7 +948,7 @@ contains
                 Prev_AvNoatHF = AvNoatHF
 
                 do ind1 = 1, lenof_sign
-                    if (IterRDM_HF(ind1) .ne. 0.0_dp) then
+                    if (abs(IterRDM_HF(ind1)) > 1.0e-12_dp) then
                         AvNoatHF(ind1) = ( (real((Iter+PreviousCycles - IterRDM_HF(ind1)),dp) * Prev_AvNoatHF(ind1)) &
                                                 + InstNoatHF(ind1) ) / real((Iter+PreviousCycles - IterRDM_HF(ind1)) + 1, dp)
                     end if
@@ -946,7 +960,7 @@ contains
                     ! elements To keep things unbiased, we need to set up a new
                     ! averaging block now.
                     AvNoAtHF = InstNoAtHF
-                    IterRDM_HF = real(Iter + PreviousCycles, dp)
+                    IterRDM_HF = Iter + PreviousCycles
                 else
                     if (tPairedReplicas) then
                         do irdm = 1, nrdms
@@ -956,32 +970,32 @@ contains
                             ind1 = irdm*2-1
                             ind2 = irdm*2
 
-                            if (((InstNoAtHF(ind1) .eq. 0.0_dp) .and. (IterRDM_HF(ind1) .ne. 0.0_dp)) .or. &
-                                ((InstNoAtHF(ind2) .eq. 0.0_dp) .and. (IterRDM_HF(ind2) .ne. 0.0_dp))) then
+                            if ((abs(InstNoAtHF(ind1)) < 1.0e-12_dp .and. abs(IterRDM_HF(ind1)) > 1.0e-12_dp) .or.&
+                                (abs(InstNoAtHF(ind2)) < 1.0e-12_dp .and. abs(IterRDM_HF(ind2)) > 1.0e-12_dp)) then
                                 ! At least one of the populations has just become
                                 ! zero. Start a new averaging block.
                                 IterRDM_HF(ind1) = Iter + PreviousCycles
                                 IterRDM_HF(ind2) = Iter + PreviousCycles
                                 AvNoatHF(ind1) = InstNoAtHF(ind1)
                                 AvNoatHF(ind2) = InstNoAtHF(ind2)
-                                if (InstNoAtHF(ind1) .eq. 0.0_dp) IterRDM_HF(ind1) = 0.0_dp
-                                if (InstNoAtHF(ind2) .eq. 0.0_dp) IterRDM_HF(ind2) = 0.0_dp
+                                if (abs(InstNoAtHF(ind1)) < 1.0e-12_dp) IterRDM_HF(ind1) = 0
+                                if (abs(InstNoAtHF(ind2)) < 1.0e-12_dp) IterRDM_HF(ind2) = 0
 
-                            else if (((InstNoAtHF(ind1) .ne. 0.0_dp) .and. (IterRDM_HF(ind1) .eq. 0.0_dp)) .or. &
-                                     ((InstNoAtHF(ind2) .ne. 0.0_dp) .and. (IterRDM_HF(ind2) .eq. 0.0_dp))) then
+                            else if ((abs(InstNoAtHF(ind1)) > 1.0e-12_dp .and. abs(IterRDM_HF(ind1)) < 1.0e-12_dp) .or. &
+                                     (abs(InstNoAtHF(ind2)) > 1.0e-12_dp .and. abs(IterRDM_HF(ind2)) < 1.0e-12_dp)) then
                                 ! At least one of the populations has just
                                 ! become occupied. Start a new block here.
-                                IterRDM_HF(ind1) = real(Iter + PreviousCycles, dp)
-                                IterRDM_HF(ind2) = real(Iter + PreviousCycles, dp)
+                                IterRDM_HF(ind1) = Iter + PreviousCycles
+                                IterRDM_HF(ind2) = Iter + PreviousCycles
                                 AvNoAtHF(ind1) = InstNoAtHF(ind1)
                                 AvNoAtHF(ind2) = InstNoAtHF(ind2)
-                                if (InstNoAtHF(ind1) .eq. 0.0_dp) IterRDM_HF(ind1) = 0.0_dp
-                                if (InstNoAtHF(ind2) .eq. 0.0_dp) IterRDM_HF(ind2) = 0.0_dp
+                                if (abs(InstNoAtHF(ind1)) < 1.0e-12_dp) IterRDM_HF(ind1) = 0
+                                if (abs(InstNoAtHF(ind2)) < 1.0e-12_dp) IterRDM_HF(ind2) = 0
                             else
                                 Prev_AvNoatHF = AvNoatHF
 
                                 do part_type = 2*irdm-1, 2*irdm
-                                    if (IterRDM_HF(part_type) .ne. 0.0_dp) then
+                                    if (abs(IterRDM_HF(part_type)) > 1.0e-12_dp) then
                                          AvNoatHF(part_type) = ((real((Iter+PreviousCycles - IterRDM_HF(part_type)), dp) &
                                                                     * Prev_AvNoatHF(part_type)) + InstNoatHF(part_type) ) &
                                                                     / real((Iter+PreviousCycles - IterRDM_HF(part_type)) + 1, dp)
@@ -993,21 +1007,21 @@ contains
                     else
                         do irdm = 1, nrdms
 
-                            if ((InstNoAtHF(irdm) .eq. 0.0_dp) .and. (IterRDM_HF(irdm) .ne. 0.0_dp)) then
+                            if (abs(InstNoAtHF(irdm)) < 1.0e-12_dp .and. abs(IterRDM_HF(irdm)) > 1.0e-12_dp) then
                                 ! At least one of the populations has just become
                                 ! zero. Start a new averaging block.
-                                IterRDM_HF(irdm) = 0.0_dp
+                                IterRDM_HF(irdm) = 0
                                 AvNoatHF(irdm) = 0.0_dp
 
-                            else if ((InstNoAtHF(irdm) .ne. 0.0_dp) .and. (IterRDM_HF(irdm) .eq. 0.0_dp)) then
+                            else if (abs(InstNoAtHF(irdm)) > 1.0e-12_dp .and. abs(IterRDM_HF(irdm)) < 1.0e-12_dp) then
                                 ! At least one of the populations has just
                                 ! become occupied. Start a new block here.
-                                IterRDM_HF(irdm) = real(Iter + PreviousCycles, dp)
+                                IterRDM_HF(irdm) = Iter + PreviousCycles
                                 AvNoAtHF(irdm) = InstNoAtHF(irdm)
                             else
                                 Prev_AvNoatHF = AvNoatHF
 
-                                if (IterRDM_HF(irdm) .ne. 0.0_dp) then
+                                if (IterRDM_HF(irdm) /= 0) then
                                      AvNoatHF(irdm) = ((real((Iter+PreviousCycles - IterRDM_HF(irdm)), dp) &
                                                                 * Prev_AvNoatHF(irdm)) + InstNoatHF(irdm) ) &
                                                                 / real((Iter+PreviousCycles - IterRDM_HF(irdm)) + 1, dp)
@@ -1200,8 +1214,8 @@ contains
         ! population, and HighPopoutNeg(1) is the highest negative population.
         ! HighPopoutPos(2) is the processor the highest population came from.
 
-        IF(iProcIndex.eq.HighPopOutNeg(2)) DetNeg(:)=CurrentDets(:,HighPopNeg)
-        IF(iProcIndex.eq.HighPopOutPos(2)) DetPos(:)=CurrentDets(:,HighPopPos)
+        if (abs(iProcIndex - HighPopOutNeg(2)) < 1.0e-12_dp) DetNeg(:)=CurrentDets(:,HighPopNeg)
+        if (abs(iProcIndex - HighPopOutPos(2)) < 1.0e-12_dp) DetPos(:)=CurrentDets(:,HighPopPos)
 
         ! This is a horrible hack, because the process argument should be of 
         ! type 'integer' - whatever that is, but the highpopoutneg is
@@ -1245,8 +1259,7 @@ contains
         integer(n_int), intent(in) :: ilutnJ(0:NIfTot)
         logical :: bAllowed
 
-        integer :: NoInFrozenCore, MinVirt, ExcitLevel, nopen, i
-        ! For UEG
+        integer :: NoInFrozenCore, MinVirt, ExcitLevel, i 
         integer :: k(3)
 
         bAllowed = .true.
@@ -1736,7 +1749,7 @@ contains
         iDie = attempt_die (DetCurr, Kii, realwSign, WalkExcitLevel)
 
         IFDEBUG(FCIMCDebug,3) then 
-            if(sum(abs(iDie)).ne.0) write(iout,"(A,2f10.5)") "Death: ",iDie(:)
+            if (sum(abs(iDie)) > 1.0e-10_dp) write(iout,"(A,2f10.5)") "Death: ",iDie(:)
         endif
 
         ! Update death counter
@@ -1766,10 +1779,9 @@ contains
         CopySign = RealwSign - (iDie * sign(1.0_dp, RealwSign))
 
         ! In the initiator approximation, abort any anti-particles.
-        if (tTruncInitiator .and. any(CopySign /= 0)) then
+        if (tTruncInitiator .and. any(abs(CopySign) > 1.0e-12_dp)) then
             do i = 1, lenof_sign
-                if (sign(1.0_dp, CopySign(i)) /= &
-                        sign(1.0_dp, RealwSign(i))) then
+                if (CopySign(i) > 0.0_dp .neqv. RealwSign(i) > 0.0_dp) then
                     NoAborted = NoAborted + abs(CopySign(i))
                     iter_data%naborted(i) = iter_data%naborted(i) &
                                           + abs(CopySign(i))
@@ -1780,7 +1792,7 @@ contains
             end do
         end if
 
-        if (any(CopySign /= 0)) then
+        if (any(abs(CopySign) > 1.0e-12_dp)) then
             ! For the hashed walker main list, the particles don't move.
             ! Therefore just adjust the weight.
             call encode_sign (CurrentDets(:, DetPosition), CopySign)
@@ -1830,7 +1842,6 @@ contains
         use LoggingData, only: tReadRDMs
         implicit none
         logical :: tFullVaryshift
-        integer :: iunit_4
 
         tFullVaryShift=.false.
 

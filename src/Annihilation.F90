@@ -294,7 +294,7 @@ module AnnihilationMod
                         ! exactly and can't have changed at all.
                         Spawned_Parents(NIfDBO+2,Parent_Array_Ind) = 0
                         do part_type = 1, lenof_sign
-                            if (temp_sign(part_type) /= 0.0_dp) then
+                            if (abs(temp_sign(part_type)) > 1.0e-12_dp) then
                                 Spawned_Parents(NIfDBO+2,Parent_Array_Ind) = part_type
                                 exit
                             end if
@@ -519,7 +519,6 @@ module AnnihilationMod
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer :: i, j
-        integer :: nI(nel)
         real(dp), dimension(lenof_sign) :: SpawnedSign, CurrentSign, SignProd
 
         ! Copy across the weights from partial_determ_vecs (the result of the deterministic projection)
@@ -565,10 +564,11 @@ module AnnihilationMod
         real(dp) :: pRemove, r
         integer :: ExcitLevel, DetHash, nJ(nel)
         logical :: tSuccess, tSuc, tPrevOcc, tDetermState
-        character(len=*), parameter :: t_r = "AnnihilateSpawnedParts"
         integer :: run
 
 #ifdef __CMPLX
+        character(len=*), parameter :: t_r = "AnnihilateSpawnedParts"
+
         if (tInterpolateInitThresh) &
             call stop_all(t_r, 'Not implemented (yet)')
 #endif
@@ -887,7 +887,7 @@ module AnnihilationMod
         integer, intent(in) :: part_type
         logical :: abort
 
-        real(dp) :: r, pkeep, parent_coeff
+        real(dp) :: pkeep, parent_coeff
 
         ! By default, particles are aborted if they come from non-initiators
         abort = .true.

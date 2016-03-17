@@ -110,7 +110,7 @@ contains
         real(dp), allocatable, intent(inout) :: full_vecs(:,:)
         integer(MPIArg), allocatable, intent(in) :: determ_sizes(:), determ_disps(:)
 
-        integer :: i, j, info, ierr
+        integer :: i, j, ierr
 
         call MPIBarrier(ierr)
 
@@ -144,7 +144,7 @@ contains
 
     subroutine average_determ_vector()
 
-        use FciMCData, only: Iter, tFillingStochRDMonFly, IterRDMStart
+        use FciMCData, only: Iter, IterRDMStart
         use FciMCData, only: full_determ_vecs, full_determ_vecs_av, PreviousCycles
         use LoggingData, only: RDMEnergyIter
 
@@ -251,8 +251,6 @@ contains
         integer(TagIntType) :: TempStoreTag
         character(len=*), parameter :: t_r = "calculate_det_hamiltonian_sparse"
 
-        integer :: nI(nel), nJ(nel)
-
         allocate(core_connections(determ_sizes(iProcIndex)))
 
         allocate(temp_store(0:NIfTot, determ_space_size), stat=ierr)
@@ -336,7 +334,6 @@ contains
 
         integer :: nI(nel)
         integer :: i, ierr, hash_val
-        character(len=*), parameter :: t_r = "initialise_core_hash_table"
 
         allocate(core_ht(determ_space_size), stat=ierr)
 
@@ -386,6 +383,7 @@ contains
         logical :: occupied
 
         states_rmvd_this_proc = 0
+        num_orbs_rmvd = 0
 
         if (tParallel) then
             call MPISumAll(int(num_states, MPIArg), tot_num_states)
@@ -427,7 +425,7 @@ contains
             ! degenerate orbitals too, before giving the program chance to quit.
             if (i > 1) then
                 ! If the orbitals energies are the same:
-                if ( Arr(i, 1) == Arr((i-1), 1) ) cycle
+                if (abs(Arr(i, 1) - Arr((i-1), 1)) < 1.0e-12_dp ) cycle
             end if
 
             if (tot_num_states-states_rmvd_all_procs <= target_num_states) exit
@@ -609,8 +607,6 @@ contains
         use util_mod, only: get_free_unit
 
         integer :: i, k, iunit, ierr
-        logical :: texist
-        character(len=*), parameter :: t_r='write_core_space'
 
         write(6,'(a35)') "Writing the core space to a file..."
 
@@ -1141,8 +1137,7 @@ contains
 
         use bit_rep_data, only: flag_trial, flag_connected
         use bit_reps, only: decode_bit_det, set_flag
-        use FciMCData, only: CurrentDets, TotWalkers, HashIndex, nWalkerHashes
-        use FciMCData, only: tTrialHash, current_trial_amps, ntrial_excits
+        use FciMCData, only: CurrentDets, TotWalkers, tTrialHash, current_trial_amps, ntrial_excits
         use searching, only: hash_search_trial, bin_search_trial
         use SystemData, only: nel
 

@@ -53,6 +53,7 @@ integer, parameter :: sizeof_sp = 4
     real(dp), parameter :: HEl_zero = cmplx(0.0_dp, 0.0_dp, dp)
 #else
 !Real integrals, (arbitrary, run-time) multiple replicas
+#define MULTI_RUN
     integer :: nreplicas = 1
     integer :: lenof_sign
     integer :: inum_runs
@@ -76,6 +77,7 @@ integer, parameter :: sizeof_sp = 4
     real(dp), parameter :: HEl_zero = cmplx(0.0_dp, 0.0_dp, dp)
 #else
 !Real integrals, double replica
+#define MULTI_RUN
     integer, parameter :: nreplicas = 2
     integer, parameter :: lenof_sign = 2
     integer, parameter :: inum_runs = lenof_sign

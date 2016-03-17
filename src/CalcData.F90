@@ -141,7 +141,7 @@ real(dp), allocatable :: InitialPartVec(:)
 INTEGER :: OccCASorbs,VirtCASorbs,iAnnInterval
 integer :: iPopsFileNoRead, iPopsFileNoWrite,iRestartWalkNum
 real(dp) :: iWeightPopRead
-integer :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
+real(dp) :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
 INTEGER(int64) :: HFPopThresh
 real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo
 
