@@ -1597,7 +1597,7 @@ contains
         real(dp), dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
         type(excit_gen_store_type), intent(inout), optional :: Store
 
-        integer :: part_ind, irdm, ind1, ind2, lb1, ub1, lb2, ub2
+        integer :: part_ind, irdm, ind1, ind2, lb1, ub1, lb2, ub2, iunused
 
         ! This is the iteration from which this determinant has been occupied.
         IterRDMStartI(1:lenof_sign) = get_iter_occ(j)

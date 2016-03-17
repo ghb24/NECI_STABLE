@@ -110,10 +110,7 @@ contains
         logical :: list_full
         character(*), parameter :: this_routine = 'create_particle'
 
-#ifdef __CMPLX
-        integer :: j
         logical :: parent_init
-#endif
 
         ! Determine which processor the particle should end up on in the
         ! DirectAnnihilation algorithm.
