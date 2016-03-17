@@ -473,9 +473,9 @@ module FciMCParMod
         ENDIF
 
         ! mswalkercounts
-        if (tReltvy) then
-            call writeMsWalkerCountsAndCloseUnit()
-        endif
+!        if (tReltvy) then
+!            call writeMsWalkerCountsAndCloseUnit()
+!        endif
 
         ! If requested, write the most populated states in CurrentDets to a
         ! CORESPACE file, for use in future semi-stochastic calculations.

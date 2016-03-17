@@ -12,6 +12,7 @@ module fcimc_initialisation
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
                           tUEGNewGenerator, tGen_4ind_2, tReltvy
+    use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
                         tCheckHighestPop, tSpatialOnlyHash, tStartCAS, tau, &
@@ -649,14 +650,14 @@ contains
         ENDIF
 
         ! Initiate mswalkercounts
-        if (tReltvy) then
-            allocate(walkPopByMsReal(nel+1))
-            allocate(walkPopByMsImag(nel+1))
-            do i=1, nel+1
-                walkPopByMsReal(i) = 0.0_dp
-                walkPopByMsImag(i) = 0.0_dp
-            enddo
-        endif
+!        if (tReltvy) then
+!            allocate(walkPopByMsReal(nel+1))
+!            allocate(walkPopByMsImag(nel+1))
+!            do i=1, nel+1
+!                walkPopByMsReal(i) = 0.0_dp
+!                walkPopByMsImag(i) = 0.0_dp
+!            enddo
+!        endif
 
 
 
@@ -1455,6 +1456,7 @@ contains
         elseif (tCSF) then
             generate_excitation => gen_csf_excit
         elseif (tPickVirtUniform) then
+            ! pick-uniform-random-mag is on
             if (tReltvy) then
                 generate_excitation => gen_rand_excit_Ex_Mag
             else
