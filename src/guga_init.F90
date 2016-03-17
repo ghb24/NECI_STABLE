@@ -18,7 +18,7 @@ module guga_init
     use guga_procedure_pointers, only: pickOrbitals_single, pickOrbitals_double, &
                         calc_orbital_pgen_contr, calc_mixed_contr, calc_mixed_start_l2r_contr, &
                         calc_mixed_start_r2l_contr, calc_mixed_end_r2l_contr, calc_mixed_end_l2r_contr, &
-                        pick_first_orbital
+                        pick_first_orbital, orb_pgen_contrib_type_2, orb_pgen_contrib_type_3
 
     use guga_excitations, only: pickOrbs_sym_uniform_ueg_single, pickOrbs_sym_uniform_ueg_double, &
                         pickOrbs_sym_uniform_mol_single, pickOrbs_sym_uniform_mol_double, &
@@ -28,7 +28,9 @@ module guga_init
                         calc_mixed_start_r2l_contr_nosym, calc_mixed_start_contr_sym,&
                         calc_mixed_x2x_ueg, calc_mixed_end_l2r_contr_nosym, calc_mixed_end_r2l_contr_nosym, &
                         calc_mixed_end_contr_sym, pick_first_orbital_nosym_guga_diff, &
-                        pick_first_orbital_nosym_guga_uniform
+                        pick_first_orbital_nosym_guga_uniform, orb_pgen_contrib_type_2_diff, &
+                        orb_pgen_contrib_type_3_diff, orb_pgen_contrib_type_2_uniform, &
+                        orb_pgen_contrib_type_3_uniform
 
     ! variable declaration
     implicit none
@@ -71,8 +73,12 @@ contains
             ! for specific probability updates: 
             if (t_consider_diff_bias) then
                 pick_first_orbital => pick_first_orbital_nosym_guga_diff
+                orb_pgen_contrib_type_2 => orb_pgen_contrib_type_2_diff
+                orb_pgen_contrib_type_3 => orb_pgen_contrib_type_3_diff
             else
                 pick_first_orbital => pick_first_orbital_nosym_guga_uniform
+                orb_pgen_contrib_type_2 => orb_pgen_contrib_type_2_uniform
+                orb_pgen_contrib_type_3 => orb_pgen_contrib_type_3_uniform
             end if
 
         else ! standardly also use nosymmetry version
@@ -87,8 +93,12 @@ contains
             ! for specific probability updates: 
             if (t_consider_diff_bias) then
                 pick_first_orbital => pick_first_orbital_nosym_guga_diff
+                orb_pgen_contrib_type_2 => orb_pgen_contrib_type_2_diff
+                orb_pgen_contrib_type_3 => orb_pgen_contrib_type_3_diff
             else
                 pick_first_orbital => pick_first_orbital_nosym_guga_uniform
+                orb_pgen_contrib_type_2 => orb_pgen_contrib_type_2_uniform
+                orb_pgen_contrib_type_3 => orb_pgen_contrib_type_3_uniform
             end if
 
         end if

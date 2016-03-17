@@ -46,7 +46,7 @@ module guga_excitations
     use guga_procedure_pointers, only: pickOrbitals_single, pickOrbitals_double, &
                 calc_orbital_pgen_contr, calc_mixed_contr, calc_mixed_start_r2l_contr, &
                 calc_mixed_start_l2r_contr, calc_mixed_end_l2r_contr, calc_mixed_end_r2l_contr, &
-                pick_first_orbital
+                pick_first_orbital, orb_pgen_contrib_type_3, orb_pgen_contrib_type_2
 
     use guga_types, only: weight_obj
 
@@ -2111,8 +2111,13 @@ contains
         end do
 
         ! and modify with the general 2*p(iijj)p(i)p(j|i) prob. 
-        pgen = pgen * 2.0_dp/real((nSpatOrbs)**2 * (nSpatOrbs-1) * (&
-            count(currentOcc_ilut == 1.0_dp) - 1),dp)
+!         pgen = pgen * 2.0_dp/real((nSpatOrbs)**2 * (nSpatOrbs-1) * (&
+!             count(currentOcc_ilut == 1.0_dp) - 1),dp)
+        
+        pgen = pgen * orb_pgen_contrib_type_2()
+
+        ! this above must also be adjusted for the use of the pExcit4/3 etc.
+        ! quantities and depending if i consider diff bias!
 
     end function calcMixedPgenContribution
 
@@ -3125,7 +3130,11 @@ contains
             get_umat_el(se,e,e,st))/2.0_dp + integral, 1)
 
         ! modify the pgen with the general 2*p(iijk)*p(i)*p(x|i) factor
-        pgen = pgen * real((nSpatOrbs - 2),dp)/real(((nSpatOrbs)*(nSpatOrbs-1))**2,dp)
+        ! do that within the calc_mixed_end routines.. has that to change 
+        ! compared to mol_sym mode? fuck...
+        ! no that was definetly a bug that this was done here.. since it is 
+        ! not done in the other similar routines... damn..
+!         pgen = pgen * real((nSpatOrbs - 2),dp)/real(((nSpatOrbs)*(nSpatOrbs-1))**2,dp)
 
     end subroutine calcFullStopL2R_stochastic
 
@@ -3539,6 +3548,8 @@ contains
                 get_umat_el(se,sw,sw,st))/2.0_dp
 
         end if
+
+        pgen = pgen * orb_pgen_contrib_type_3()
 
     end subroutine calc_mixed_end_l2r_contr_nosym
 
@@ -4454,7 +4465,9 @@ contains
 
         end if
         ! modify the pgen with the general 2*p(iijk)*p(i)*p(x|i) factor
-        pgen = pgen * real((nSpatOrbs - 2),dp)/real(((nSpatOrbs)*(nSpatOrbs-1))**2,dp)
+!         pgen = pgen * real((nSpatOrbs - 2),dp)/real(((nSpatOrbs)*(nSpatOrbs-1))**2,dp)
+
+        pgen = pgen * orb_pgen_contrib_type_3()
 
     end subroutine calc_mixed_end_r2l_contr_nosym
 
@@ -5288,6 +5301,8 @@ contains
             ! this is indicated by a non-zero x0-matrix element 
             if (extract_matrix_element(t,1)*tempWeight_0 /= 0.0_dp) then
                 probWeight = 0.0_dp
+!                 call write_det_guga(6, t)
+!                 print *, tempWeight_0
                 t = 0
                 return
             end if
@@ -5303,6 +5318,8 @@ contains
         if (abs(extract_matrix_element(t,1)*tempWeight_0)<EPS .and. &
             abs(extract_matrix_element(t,2)*tempWeight_1)<EPS) then
             probWeight = 0.0_dp
+!             call write_det_guga(6, t)
+!             print *, tempWeight_0, tempWeight_1
             t = 0
             return
         end if
@@ -5530,9 +5547,9 @@ contains
 
             ! check validity 
             if (abs(extract_matrix_element(t,2))<EPS .or. branch_pgen<EPS)then
-                print *, "double update failed:"
-                call print_excitInfo(excitInfo)
-                call write_det_guga(6, t)
+!                 print *, "double update failed:"
+!                 call print_excitInfo(excitInfo)
+!                 call write_det_guga(6, t)
                 t = 0
                 return
             end if
@@ -5544,11 +5561,11 @@ contains
         call calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
 
-        if (branch_pgen < EPS) then
-            print *, "branch pgen = 0 after semi-stop:"
-            call print_excitInfo(excitInfo)
-            call write_det_guga(6, t)
-        end if
+!         if (branch_pgen < EPS) then
+!             print *, "branch pgen = 0 after semi-stop:"
+!             call print_excitInfo(excitInfo)
+!             call write_det_guga(6, t)
+!         end if
 
         ! check validity
         if (branch_pgen <EPS) return
@@ -5584,15 +5601,21 @@ contains
             return
         end if
 
-        if (isOne(ilut,1) .and. isTwo(ilut,2) .and. isThree(ilut,3)) then
-            if ((st == 1 .or. st == 2) .and. se == 3 .and. en == 4) then
-                print *, "end of excit:"
-                call print_excitInfo(excitInfo)
-            end if
-        end if
-
         call calc_mixed_start_r2l_contr(ilut, t, excitInfo, branch_pgen, pgen,&
             integral)
+
+        if (isOne(ilut,1) .and. isTwo(ilut,2) .and. isThree(ilut,3)) then
+            if ((st == 1 .or. st == 2) .and. se == 3 .and. en == 4) then
+!                 print *, "================================="
+!                 print *, "end of excit:"
+!                 call print_excitInfo(excitInfo)
+!                 call write_det_guga(6, t)
+!                 print *, branch_pgen
+!                 print *, pgen
+!                 print *, "================================="
+
+            end if
+        end if
 
         ! and finally update the matrix element with all contributions
         call update_matrix_element(t, (get_umat_el(st,en,se,st) + &
@@ -5945,9 +5968,82 @@ contains
         end if
 
         ! modify the pgen with the general 2*p(iijk)*p(i)*p(x|i) factor
-        pgen = pgen * real((nSpatOrbs - 2),dp)/real(((nSpatOrbs)*(nSpatOrbs-1))**2,dp)
+!         pgen = pgen * real((nSpatOrbs - 2),dp)/real(((nSpatOrbs)*(nSpatOrbs-1))**2,dp)
+
+        ! this is not correct in general... the probability of picking 
+        ! p(x|i) is not always 1/(nOrbs-1) .. or atleast not anymore..
+        ! did I always forget to change that???
+        ! essentially it depends on the occupation from the already 
+        ! picked i orbital..
+        ! NO, when i am here i alway no that the (ii) orbitals is singly 
+        ! occupied! so, it is true that p(x|) = 1 / (norbs - 1) !!
+        ! does this change if t_consider_diff_bias = .true. ?
+        ! NO it luckily doesnt! 
+        ! so if we do not consider diff bias, this below should to the work:
+!         pgen = pgen * (1.0_dp - pExcit4) * (1.0_dp - pExcit2) / &
+!             real(nSpatOrbs*(nSpatOrbs - 1), dp)
+        ! but if we consider diff bias (1.0_dp - pExcit3_same) has to be 
+        ! multiplied and p(i) has to be changed to only consider 
+        ! the number of singly occupied orbitals! 
+        ! but i could do that outside these routines at the end of 
+        ! the specific excitation routines! yeah... essentially i can in the 
+        ! end just use the orb_pgen after all.. or?! modified only with
+        ! p(x|i) which is 1/(norbs-1)...
+        ! no i can not do it outside, due to the generality of the outside 
+        ! routines for all kind of excitation generators(mol_sym, ueg etc) 
+        ! so do it here, but write a general procedure pointed fncs, which 
+        ! is pointed depending on if t_consider_diff_bias is set or not! 
+        pgen = pgen * orb_pgen_contrib_type_3()
 
     end subroutine calc_mixed_start_r2l_contr_nosym
+
+    function orb_pgen_contrib_type_3_uniform() result(orb_pgen)
+        ! function to get the p(iijk)*p(i)*p(x|i) influence for 
+        ! mixed full-start or full-stop excitations if t_consider_diff_bias 
+        ! is not set! 
+        real(dp) :: orb_pgen
+        character(*), parameter :: this_routine = "orb_pgen_contrib_type_3_uniform"
+
+        ! for the non diff biasing it is only: 
+        orb_pgen = (1.0_dp - pExcit4) * (1.0_dp - pExcit2) / &
+            real(nSpatOrbs*(nSpatOrbs - 1), dp)
+
+    end function orb_pgen_contrib_type_3_uniform
+
+    function orb_pgen_contrib_type_3_diff() result(orb_pgen)
+        ! while considering diff bias i have to adjust for pExcit3_same too
+        ! and p(i) is the number of singly occupied orbitals inverse 
+        real(dp) :: orb_pgen
+        character(*), parameter :: this_routine = "orb_pgen_contrib_type_3_diff"
+
+        ! p(x|i) is still 1 / (nOrbs-1) in this case! always
+        orb_pgen = (1.0_dp - pExcit4) * (1.0_dp - pExcit2) * (1.0_dp - pExcit3_same) / &
+            real(count(current_stepvector == 1.0_dp)*(nSpatOrbs-1), dp)
+
+    end function orb_pgen_contrib_type_3_diff
+
+    function orb_pgen_contrib_type_2_uniform() result(orb_pgen)
+        ! similar function as above but for (iijj) mixed fullstart into 
+        ! fullstop excitations
+        real(dp) :: orb_pgen
+        character(*), parameter :: this_routine = "orb_pgen_contrib_type_2_uniform"
+
+        orb_pgen = 2.0_dp * (1.0_dp - pExcit4) * pExcit2 / &
+            real(nSpatOrbs * (count(currentOcc_ilut == 1.0_dp) - 1), dp)
+
+    end function orb_pgen_contrib_type_2_uniform
+
+    function orb_pgen_contrib_type_2_diff() result(orb_pgen) 
+        ! same as above but if diff bias is considered..
+        real(dp) :: orb_pgen
+        character(*), parameter :: this_routine = "orb_pgen_contrib_type_2_diff"
+
+        ! here p(i) is again the number of singly occupied inverse 
+
+        orb_pgen = 2.0_dp * (1.0_dp - pExcit4) * pExcit2 * (1.0_dp - pExcit2_same) / &
+            real(count(currentOcc_ilut == 1.0_dp)*(count(currentOcc_ilut == 1.0_dp) - 1 ), dp)
+
+    end function orb_pgen_contrib_type_2_diff
 
 
     subroutine calcFullStartL2R_stochastic(ilut, excitInfo, t, pgen)
@@ -6972,8 +7068,18 @@ contains
         end if
 
         ! modify the pgen with the general 2*p(iijk)*p(i)*p(x|i) factor
-        pgen = pgen * real((nSpatOrbs - 2),dp)/real(((nSpatOrbs)*(nSpatOrbs-1))**2,dp)
+!         pgen = pgen * real((nSpatOrbs - 2),dp)/real(((nSpatOrbs)*(nSpatOrbs-1))**2,dp)
 
+        ! UPDATE: 17.03.2016: only figured that out now.. damn, for the 
+        ! on the fly adaptation of the time-step depending on the chosen 
+        ! type of excitation, i have to consider pExcit4, pExcit2 etc. 
+        ! also have to differentiate if i consider t_consider_diff_bias ..
+
+!         pgen = pgen * (1.0_dp - pExcit4) * (1.0_dp - pExcit2)/real(nSpatOrbs*(nSpatOrbs-1),dp)
+!         print *, "here?:", pExcit4, pExcit2
+
+        pgen = pgen * orb_pgen_contrib_type_3()
+        
     end subroutine calc_mixed_start_l2r_contr_nosym
 
 
@@ -9335,14 +9441,14 @@ contains
 !         end if
 
         ! print out all single excitations:
-#ifdef __DEBUG
+! #ifdef __DEBUG
 !         print *, " all single excitations for ilut. nTot: ", nTot
 !         call write_det_guga(6, ilut)
 !         call write_guga_list(6, excitations(:,1:nTot))
 ! 
 !         call stop_all(this_routine, "for no")
 
-#endif
+! #endif
 
         ! double excitations 
         ! do it really primitive for now. -> make it more elaborate later
@@ -21176,6 +21282,7 @@ contains
         if (genrand_real2_dSFMT() > pExcit4) then
             ! here choose between picking j also twice or not
             ! one orbitals has to be excluded
+
             if (genrand_real2_dSFMT() < pExcit2) then
                 ! (ii,jj)
                 excitLvl = 2

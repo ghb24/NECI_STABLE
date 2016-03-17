@@ -95,10 +95,10 @@ contains
         pSingles = 0.1_dp
         pDoubles = 1.0_dp - pSingles
 
-        pExcit4 = (1.0_dp - 1.0_dp / real(nSpatOrbs,dp))
-!         pExcit4 = 0.0_dp
-        pExcit2 = 1.0_dp / real(nSpatOrbs - 1, dp)
-!         pExcit2 = 0.0_dp
+!         pExcit4 = (1.0_dp - 1.0_dp / real(nSpatOrbs,dp))
+        pExcit4 = 0.5_dp
+!         pExcit2 = 1.0_dp / real(nSpatOrbs - 1, dp)
+        pExcit2 = 0.5_dp
 
         if (t_consider_diff_bias) then
             pExcit2_same = 0.5_dp
@@ -198,11 +198,11 @@ contains
             ! matrix element consistency! 
 !             call run_test_excit_gen_guga_multiple(&
 !                 [1,2,3,4,5,6,7,8,15,16])
-!             call run_test_excit_gen_guga_general
+            call run_test_excit_gen_guga_general
 !             call run_test_excit_gen_guga_multiple(&
 !                 [1,4,5,8,9,12,13,16,17,20])
-            call run_test_excit_gen_guga_single(&
-                [1,4,5,6])
+!             call run_test_excit_gen_guga_single(&
+!                 [1,4,5,6])
 
         end if 
 

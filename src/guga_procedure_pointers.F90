@@ -72,6 +72,11 @@ module guga_procedure_pointers
             real(dp), intent(out) :: pgen 
         end subroutine pick_first_orbital_t
 
+        function orb_pgen_contrib_type_t() result(orb_pgen)
+            use constants, only: dp
+            real(dp) :: orb_pgen
+        end function orb_pgen_contrib_type_t
+
     end interface 
 
     procedure(pickOrbitals_t), pointer :: pickOrbitals_single
@@ -84,5 +89,7 @@ module guga_procedure_pointers
     procedure(calc_mixed_start_contr_t), pointer :: calc_mixed_end_l2r_contr
 
     procedure(pick_first_orbital_t), pointer :: pick_first_orbital
+    procedure(orb_pgen_contrib_type_t), pointer :: orb_pgen_contrib_type_3
+    procedure(orb_pgen_contrib_type_t), pointer :: orb_pgen_contrib_type_2
 
 end module
