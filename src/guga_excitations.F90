@@ -6018,7 +6018,7 @@ contains
 
         ! p(x|i) is still 1 / (nOrbs-1) in this case! always
         orb_pgen = (1.0_dp - pExcit4) * (1.0_dp - pExcit2) * (1.0_dp - pExcit3_same) / &
-            real(count(current_stepvector == 1.0_dp)*(nSpatOrbs-1), dp)
+            real(count(currentOcc_ilut == 1.0_dp)*(nSpatOrbs-1), dp)
 
     end function orb_pgen_contrib_type_3_diff
 
