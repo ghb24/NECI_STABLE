@@ -1072,7 +1072,6 @@ end module
         integer :: i, j, iexcit1, iexcit2, perm, iel1, iel2, max_excit
         integer :: set_bits
         logical :: testI, testJ
-        integer :: num_set_bits
 
         tSign=.true.
         max_excit = Ex(1,1)
@@ -1176,6 +1175,10 @@ end module
         INTEGER :: LargestOrb, NIfD,i,j
         INTEGER(KIND=n_int) :: iLut(0:NIfD)
 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = 'LargestBitSet'
+#endif
+
 !        do i=NIfD,0,-1
 !!Count down through the integers in the bit string.
 !!The largest set bit is equal to INT(log_2 (N))
@@ -1186,14 +1189,18 @@ end module
 !        enddo
 !        LargestOrb=LargestOrb+(i*32)
 
-        outer: do i=NIfD,0,-1
-            do j=end_n_int,0,-1
-                IF(BTEST(iLut(i),j)) THEN
-                    EXIT outer
-                ENDIF
+        ! Initialise with invalid value (in case being erroniously called on empty bit-string).
+        ASSERT(.not. all(ilut == 0))
+        LargestOrb = 99999
+
+        do i = NIfD, 0, -1
+            do j = end_n_int, 0, -1
+                if (btest(iLut(i), j)) then
+                    LargestOrb = (i * bits_n_int) + j + 1
+                    return
+                end if
             enddo
-        enddo outer
-        LargestOrb=(i*bits_n_int)+j+1
+        enddo
 
     END SUBROUTINE LargestBitSet
 

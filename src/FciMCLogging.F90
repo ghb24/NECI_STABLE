@@ -277,7 +277,7 @@ MODULE FciMCLoggingMod
             MeanEnSqrd=BlockSqrdSum(i)/REAL(NoBlocks,dp)
 
             StandardDev=SQRT(MeanEnSqrd-(MeanEn**2))
-            IF(StandardDev.eq.0.0_dp) THEN
+            IF (abs(StandardDev) < 1.0e-12_dp) THEN
                 Error=0.0_dp
                 ErrorinError=0.0_dp
             ELSE
@@ -329,7 +329,7 @@ MODULE FciMCLoggingMod
             MeanShiftSqrd=ShiftBlockSqrdSum(i)/REAL(NoBlocks,dp)
 
             StandardDev=SQRT(MeanShiftSqrd-(MeanShift**2))
-            IF(StandardDev.eq.0.0_dp) THEN
+            IF (abs(StandardDev) < 1.0e-12_dp) THEN
                 Error=0.0_dp
                 ErrorinError=0.0_dp
             ELSE
@@ -429,7 +429,7 @@ MODULE FciMCLoggingMod
     SUBROUTINE WriteInitPops(Iter)
         use util_mod, only: get_free_unit
         CHARACTER(len=21) :: abstr
-        INTEGER :: i,Iter,error, iunit
+        INTEGER :: i, Iter, iunit
         real(dp) :: InitBinCurr
 
 !This will open a file called InitPops-"Iter" on unit number 17.
@@ -489,7 +489,7 @@ MODULE FciMCLoggingMod
             ! Spawn accepted.
             NoAccept=NoAccept+1.0_dp
             TotHElAccept=TotHElAccept+ABS(REAL(HEl,dp))
-            IF((MinHElAccept.eq.0.0_dp).or.(ABS(REAL(HEl,dp)).lt.ABS(MinHElAccept))) MinHElAccept=ABS(REAL(HEl,dp))
+            IF (abs(MinHElAccept) < 1.0e-12_dp .or. (ABS(REAL(HEl,dp)).lt.ABS(MinHElAccept))) MinHElAccept=ABS(REAL(HEl,dp))
         ENDIF
 
     ENDSUBROUTINE TrackSpawnAttempts
@@ -524,13 +524,13 @@ MODULE FciMCLoggingMod
             MinHElAccept=0.0_dp
             IF(AllStats(4).gt.0.0_dp) THEN
                 do i=1,nProcessors
-                    IF(AllMinHElAccept(i).ne.0.0_dp) THEN
+                    IF(abs(AllMinHElAccept(i)) > 1.0e-12_dp) THEN
                         MinHElAccept=ABS(AllMinHElAccept(i))
                         EXIT
                     ENDIF
                 enddo
                 do i=1,nProcessors
-                    IF((AllMinHElAccept(i).ne.0.0_dp).and.(ABS(AllMinHElAccept(i)).lt.ABS(MinHElAccept))) &
+                    IF(abs(AllMinHElAccept(i)) > 1.0e-12_dp .and. (ABS(AllMinHElAccept(i)).lt.ABS(MinHElAccept))) &
                     MinHElAccept=ABS(AllMinHElAccept(i))
                 enddo
             ENDIF
@@ -549,7 +549,6 @@ MODULE FciMCLoggingMod
         integer, intent(in) :: VecSlot
         real(dp), intent(in) :: SignCurr
         integer :: InitBinNo
-        character(*), parameter :: this_routine = 'HistInitPopulations'
 
         if (abs(SignCurr) > InitiatorWalkNo) then
             ! Just summing in those determinants which are initiators. 

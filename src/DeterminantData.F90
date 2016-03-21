@@ -47,7 +47,8 @@ contains
         integer :: i, elec
         logical open_shell, bCSF
 
-        if(nlen>0) then
+        bCSF = .false.
+        if(nlen > 0) then
            ! Is this a csf?
            bCSF = tCSF .and. iscsf(nI)
            open_shell = .false.

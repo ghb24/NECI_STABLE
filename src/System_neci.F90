@@ -59,7 +59,6 @@ MODULE System
       tNoSymGenRandExcits=.false.
       tNonUniRandExcits=.true. 
       tCycleOrbs=.false.
-      TSTARSTORE=.false.
       TSTARBIN=.false.
       TREADINT=.false.
       THFORDER=.false.
@@ -212,32 +211,6 @@ MODULE System
       call readu(w)
       select case(w)
 
-! The following systems are retained for backward compatibility:
-! StarStoreRead, StarBinRead, DFRead, BinRead.  For these "systems", 
-! the system should be given as Read and the appropriate option given
-! in the main System section.
-! At some point, these four options will be removed.
-      case("STARSTOREREAD")      ! Instead, specify StarStore within the system block.
-          TSTARSTORE = .true.
-          TREADINT = .true.
-          call readu(w)
-          select case(w)
-          case("ORDER")
-              THFORDER = .true.
-          case("NOORDER")
-              THFNOORDER = .true.
-          end select
-      case("STARBINREAD")        ! Instead, specify StarStore Binary within the system block.
-          TSTARSTORE=.true.
-          TBIN=.true.
-          TREADINT=.true.
-          call readu(w)
-          select case(w)
-          case("ORDER")
-              THFORDER=.true.
-          case("NOORDER")
-              THFNOORDER = .true.
-          end select
       case("DFREAD")             ! Instead, specify DensityFitted within the system block.
           TREADINT = .true.
           TDFREAD = .true.
@@ -302,15 +275,6 @@ system: do
 
         ! Options for molecular (READ) systems: control how the integral file 
         ! is read in.
-        case("STARSTORE")
-            tStarStore=.true.
-            if (item.lt.nitems) then
-                call readu(w)
-                select case(w)
-                case("BINARY")
-                    tBin=.true.
-                end select
-            end if
         case("BINARY")
             tBin=.true.
         case("DENSITYFITTED")
@@ -1250,9 +1214,6 @@ system: do
                 WRITE(6,'(A)') "  High-spin restricted calculation. Seriously Cave Arthropodia.  "
             ENDIF
          ELSE
-            IF(TSTARSTORE) THEN
-                WRITE(6,'(A)') "  Reading 2-vertex integrals of double excitations only  "
-            ENDIF
             LMSBASIS=LMS
 !            WRITE(6,*) "TBIN:",tBin
             CALL INITFROMFCID(NEL,NBASISMAX,LEN,LMSBASIS,TBIN)
@@ -1512,7 +1473,6 @@ system: do
           IF(NEL.GT.NBASIS) call stop_all(this_routine, 'MORE ELECTRONS THAN BASIS FUNCTIONS')
           CALL neci_flush(6)    
 
-      !This is used in a test in UMatInd
           NOCC=NEl/2 
           IF(TREADINT) THEN
       !C.. we're reading in integrals and have a molpro symmetry table
@@ -1898,7 +1858,6 @@ system: do
          NBASISMAX(2,3)=1
       ENDIF      
 
-      !This is used in a test in UMatInd
       NOCC=NEl/2 
       IF(TREADINT) THEN
 !C.. we're reading in integrals and have a molpro symmetry table

@@ -577,7 +577,6 @@ contains
         use rdm_data, only: rdm_estimates
         use rdm_estimators, only: rdm_output_wrapper, write_rdm_estimates
         use RotateOrbsData, only: SymLabelListInv_rot
-        use SystemData, only: tStoreSpinOrbs
         use util_mod, only: get_free_unit
 
         type(rdm_t), intent(inout) :: rdm
@@ -588,7 +587,7 @@ contains
         logical :: exists_bbbb, exists_baba, exists_baab
         integer :: RDM_unit, FileEnd
         integer :: i, j, a, b, Ind1, Ind2
-        real(dp) :: Temp_RDM_Element, Norm_2RDM
+        real(dp) :: Temp_RDM_Element
         character(len=*), parameter :: t_r = 'Read_In_RDMs'
 
         if (iProcIndex .eq. 0) then 
@@ -762,7 +761,7 @@ contains
         use util_mod, only: LogMemAlloc, LogMemDealloc
 
         integer, allocatable :: SymOrbs_rot(:)
-        integer :: LabOrbsTag, SymOrbs_rotTag, ierr, i, j, SpatSym, LzSym 
+        integer :: SymOrbs_rotTag, ierr, i, j, SpatSym, LzSym 
         integer :: lo, hi, Symi, SymCurr, Symi2, SymCurr2
         character(len=*), parameter :: t_r = 'SetUpSymLabels_RDM'
 
@@ -975,9 +974,8 @@ contains
         type(rdm_estimates_t), intent(inout) :: rdm_estimates(:)
 
         integer :: i, error
-        real(dp) :: Norm_2RDM, Norm_2RDM_Inst
+        real(dp) :: Norm_2RDM
         real(dp) :: Norm_1RDM, Trace_1RDM, SumN_Rho_ii
-        character(len=*), parameter :: t_r = 'FinaliseRDMs'
 
         call set_timer(FinaliseRDMs_Time)
 
@@ -1069,7 +1067,7 @@ contains
         type(rdm_t), intent(inout) :: rdm
         real(dp), intent(out) :: Norm_1RDM
                              
-        integer :: i, ierr
+        integer :: ierr
         real(dp) :: Trace_1RDM, SumN_Rho_ii
         real(dp), allocatable :: AllNode_NatOrbMat(:,:)
 
@@ -1102,7 +1100,7 @@ contains
                 call make_1e_rdm_hermitian(Norm_1RDM)
                 
                 if (tForceCauchySchwarz) then
-                    call Force_Cauchy_Schwarz(Norm_1RDM)
+                    call Force_Cauchy_Schwarz()
                 end if
 
             end if
@@ -1232,12 +1230,11 @@ contains
 
     end subroutine make_1e_rdm_hermitian
 
-    subroutine Force_Cauchy_Schwarz(Norm_1RDM)
+    subroutine Force_Cauchy_Schwarz()
 
         use NatOrbsMod, only: NatOrbMat
         use RotateOrbsData, only: SymLabelListInv_rot
 
-        real(dp), intent(in) :: Norm_1RDM
         integer :: i, j
         real(dp) :: UpperBound
 
@@ -1306,7 +1303,7 @@ contains
         do i = 1, nBasis
             do j = 1, nBasis
                 if (tOpenShell) then
-                    if (NatOrbMat(SymLabelListInv_rot(i), SymLabelListInv_rot(j)) .ne. 0.0_dp) then 
+                    if (abs(NatOrbMat(SymLabelListInv_rot(i), SymLabelListInv_rot(j))) > 1.0e-12_dp) then 
                         if (tNormalise .and. (i .le. j)) then
                             write(OneRDM_unit,"(2I6,G25.17)") i, j, &
                                 NatOrbMat(SymLabelListInv_rot(i), SymLabelListInv_rot(j)) * Norm_1RDM
@@ -1320,7 +1317,7 @@ contains
                 else
                     iSpat = gtID(i)
                     jSpat = gtID(j)
-                    if (NatOrbMat(SymLabelListInv_rot(iSpat), SymLabelListInv_rot(jSpat)) .ne. 0.0_dp) then
+                    if (abs(NatOrbMat(SymLabelListInv_rot(iSpat), SymLabelListInv_rot(jSpat))) > 1.0e-12_dp) then
                         if (tNormalise .and. (i .le. j)) then
                             if (((mod(i,2).eq.0) .and. (mod(j,2) .eq. 0)) .or. &
                                 ((mod(i,2).ne.0) .and. (mod(j,2) .ne. 0))) then
@@ -1568,12 +1565,17 @@ contains
         real(dp), dimension(lenof_sign), intent(out) :: SignI
         real(dp), dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
         type(excit_gen_store_type), intent(inout), optional :: Store
+
+        integer :: iunused
         
         ! This extracts everything.
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI, store)
 
         IterRDMStartI(:) = 0.0_dp
         AvSignI(:) = 0.0_dp
+
+        ! Eliminate warnings
+        iunused = j
 
     end subroutine extract_bit_rep_avsign_no_rdm
 
@@ -1611,7 +1613,10 @@ contains
         real(dp), dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
         type(excit_gen_store_type), intent(inout), optional :: Store
 
-        integer :: part_ind, irdm, ind1, ind2
+        integer :: part_ind, iunused
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS) || defined(__CMPLX)
+        integer :: irdm, ind1, ind2
+#endif
 
         ! This is the iteration from which this determinant has been occupied.
         IterRDMStartI(1:lenof_sign) = get_iter_occ(j)
@@ -1692,7 +1697,7 @@ contains
                 do part_ind = 1, lenof_sign
                     ! If there is nothing stored there yet, the first iteration
                     ! the determinant became occupied is this one.
-                    if (IterRDMStartI(part_ind) .eq. 0.0_dp) IterRDMStartI(part_ind) = real(Iter+PreviousCycles, dp)
+                    if (abs(IterRDMStartI(part_ind)) < 1.0e-12_dp) IterRDMStartI(part_ind) = real(Iter+PreviousCycles, dp)
 
                     ! Update the average population. This just comes out as the
                     ! current population (SignI) if this is the first  time the
@@ -1702,6 +1707,9 @@ contains
                 end do
             end if
         end if
+
+        ! Eliminate warnings
+        iunused = store%nopen
 
     end subroutine extract_bit_rep_avsign_norm
 
@@ -1736,7 +1744,7 @@ contains
 
         ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i].
 
-        if (real(int(SignCurr),dp) .ne. SignCurr) then
+        if (abs(real(int(SignCurr), dp) - SignCurr) > 1.0e-12_dp) then
             ! There's a non-integer population on this determinant. We need to
             ! consider both possibilities - whether we attempted to spawn 
             ! int(SignCurr) times or int(SignCurr)+1 times.
@@ -1756,7 +1764,7 @@ contains
 
     end subroutine calc_rdmbiasfac
 
-    subroutine store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, DetSpawningAttempts, iLutJ, procJ, part_type)
+    subroutine store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, DetSpawningAttempts, iLutJ, procJ)
 
         ! We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
         ! This routine stores the parent (D_i) with the spawned child (D_j) so
@@ -1772,11 +1780,10 @@ contains
         integer, intent(in) :: WalkerNumber, procJ
         integer, intent(in) :: DetSpawningAttempts
         integer(n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
-        integer, intent(in) :: part_type
         logical :: tRDMStoreParent
         integer :: j
 
-        if (RDMBiasFacCurr .eq. 0.0_dp) then
+        if (abs(RDMBiasFacCurr) < 1.0e-12_dp) then
             ! If RDMBiasFacCurr is exactly zero, any contribution from Ci.Cj will be zero 
             ! so it is not worth carrying on. 
             call zero_parent(SpawnedParts(:, ValidSpawnedList(procJ)))

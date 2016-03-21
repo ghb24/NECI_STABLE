@@ -45,10 +45,10 @@ contains
                     ind1 = irdm*2-1
                     ind2 = irdm*2
 
-                    if ((curr_sign(ind1) == 0 .and. get_iter_occ(idet, ind1) /= 0) .or. &
-                        (curr_sign(ind2) == 0 .and. get_iter_occ(idet, ind2) /= 0) .or. &
-                        (curr_sign(ind1) /= 0 .and. get_iter_occ(idet, ind1) == 0) .or. &
-                        (curr_sign(ind2) /= 0 .and. get_iter_occ(idet, ind2) == 0)) then
+                    if ((abs(curr_sign(ind1)) < 1.0e-10 .and. abs(get_iter_occ(idet, ind1)) > 1.0e-10_dp) .or. &
+                        (abs(curr_sign(ind2)) < 1.0e-10 .and. abs(get_iter_occ(idet, ind2)) > 1.0e-10_dp) .or. &
+                        (abs(curr_sign(ind1)) > 1.0e-10 .and. abs(get_iter_occ(idet, ind1)) < 1.0e-10_dp) .or. &
+                        (abs(curr_sign(ind2)) > 1.0e-10 .and. abs(get_iter_occ(idet, ind2)) < 1.0e-10_dp)) then
                            
                         ! At least one of the signs has just gone to zero or just become reoccupied
                         ! so we need to consider adding in diagonal elements and connections to HF
@@ -58,7 +58,7 @@ contains
                 end do
             else
                 do irdm = 1, size(rdms)
-                    if (curr_sign(irdm) == 0) then
+                    if (abs(curr_sign(irdm)) < 1.0e-10_dp) then
                         call det_removed_fill_diag_rdm(spawn, rdms(irdm), irdm, ilut_list(:,idet), idet)
                     end if
                 end do
@@ -105,7 +105,7 @@ contains
         real(dp) :: AvSignCurr_all(lenof_sign), AvSignCurr_sing(nreplicas), AvSignHF_sing(nreplicas)
         real(dp) :: full_sign(spawn%rdm%sign_length)
         integer(n_int) :: SpinCoupDet(0:nIfTot)
-        integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel, part_type
+        integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
         integer :: IterLastRDMFill, AvSignIters, IterRDM, sign_ind_1, sign_ind_2
 
         ! This is the number of iterations this determinant has been occupied,
@@ -127,7 +127,7 @@ contains
         ! over the replicas relevant for the requested RDM.
         IterDetOcc_sing(1:nreplicas) = IterDetOcc_all(sign_ind_1:sign_ind_2)
 
-        AvSignIters = min(IterDetOcc_sing(1), IterDetOcc_sing(nreplicas))
+        AvSignIters = int(min(IterDetOcc_sing(1), IterDetOcc_sing(nreplicas)))
 
         ! The number of iterations we want to weight this RDM contribution by is:
         if (IterLastRDMFill .gt. 0) then
@@ -182,7 +182,7 @@ contains
 
         else
             ! Not using HPHFs.
-            if (AvSignCurr_sing(1)*AvSignCurr_sing(nreplicas) .ne. 0) then
+            if (abs(AvSignCurr_sing(1) * AvSignCurr_sing(nreplicas)) > 1.0e-10_dp) then
                 call Fill_Diag_RDM(rdm, nI, AvSignCurr_sing, tCoreSpaceDet, IterRDM)
                 full_sign(irdm) = IterRDM*AvSignCurr_sing(1)*AvSignCurr_sing(nreplicas)
                 call fill_spawn_rdm_diag(spawn, nI, full_sign)
@@ -206,10 +206,10 @@ contains
         use bit_reps, only: decode_bit_det
         use DetBitOps, only: FindBitExcitLevel
         use CalcData, only: NMCyc
-        use FciMCData, only: iLutRef, iLutHF_True, Iter, IterRDMStart, PreviousCycles
+        use FciMCData, only: iLutHF_True, Iter, IterRDMStart, PreviousCycles
         use LoggingData, only: RDMEnergyIter
         use rdm_data, only: rdm_t
-        use SystemData, only: nel, tRef_Not_HF
+        use SystemData, only: nel
 
         type(rdm_spawn_t), intent(inout) :: spawn
         type(rdm_t), intent(inout) :: rdm
@@ -217,7 +217,7 @@ contains
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         integer, intent(in) :: j
 
-        integer :: nI(nel), ExcitLevel, IterLastRDMFill
+        integer :: nI(nel), ExcitLevel
 
         ! If the determinant is removed on an iteration that the diagonal
         ! RDM elements are  already being calculated, it will already have
@@ -241,8 +241,8 @@ contains
         ! the single or double D_j. This is the standard full space RDM calc (No HPHF).
         ! In this case the diagonal elements wll already be taken care of.
 
-        use FciMCData, only: InstNoatHF, HFDet_True
-        use LoggingData, only: tFullHFAv
+        use FciMCData, only: HFDet_True
+        ! use LoggingData, only: tFullHFAv
         use rdm_data, only: rdm_t
         use SystemData, only: nel
 
@@ -255,8 +255,7 @@ contains
         integer, intent(in) :: IterRDM
         integer, intent(in) :: walkExcitLevel
 
-        integer(n_int) :: SpinCoupDet(0:niftot)
-        integer :: nSpinCoup(nel), HPHFExcitLevel, part_type
+        integer(n_int) :: iUnused
 
         !! Quick check that the HF population is being calculated correctly.
         !if (.not. tFullHFAv) then
@@ -288,6 +287,9 @@ contains
                                       (1.0_dp/real(nreplicas,dp))*IterRDM*AvSignJ(1), .true.)
         end if
 
+        ! Eliminate compiler warnings
+        iUnused = ilutJ(0)
+
     end subroutine Add_RDM_HFConnections_Norm
 
     subroutine Add_RDM_HFConnections_HPHF(spawn, rdm, irdm, iLutJ, nJ, AvSignJ, AvSignHF, walkExcitLevel, IterRDM)
@@ -298,7 +300,7 @@ contains
         ! have been taken care of by the extract routine.
 
         use FciMCData, only: HFDet_True, iLutHF_True
-        use LoggingData, only: tFullHFAv
+        ! use LoggingData, only: tFullHFAv
         use rdm_data, only: rdm_t
         use SystemData, only: nel
 
@@ -310,9 +312,6 @@ contains
         integer, intent(in) :: IterRDM
         real(dp), intent(in) :: AvSignJ(nreplicas), AvSignHF(nreplicas)
         integer, intent(in) :: walkExcitLevel
-
-        integer(n_int) :: SpinCoupDet(0:niftot)
-        integer :: nSpinCoup(nel), HPHFExcitLevel, part_type
 
         !if (.not. tFullHFAv) then
         !    ! If tFullHFAv, we continue the accumulation of AvNoAtHF even
@@ -356,8 +355,6 @@ contains
         integer(n_int), intent(in) :: iLutJ(0:NIfTot)
         real(dp), intent(in) :: realSignJ(lenof_sign)
 
-        integer :: ExcitLevel
-    
         if (.not. DetBitEQ(iLutHF_True, iLutJ, NIfDBO)) then
                 call DiDj_Found_FillRDM(spawn, rdms, Spawned_No, iLutJ, realSignJ)
         end if
@@ -383,10 +380,9 @@ contains
         integer(n_int), intent(in) :: iLutJ(0:NIfTot)
         real(dp), intent(in) :: realSignJ(lenof_sign)
 
-        integer :: i, j, rdm_ind, nI(nel), nJ(nel), walkExcitLevel
+        integer :: i, rdm_ind, nI(nel), nJ(nel)
         real(dp) :: part_realSignI
         integer :: dest_part_type, source_part_type
-        logical :: tParity, tDetAdded
 
         ! Spawning from multiple parents, to iLutJ, which has SignJ.        
 
@@ -463,7 +459,7 @@ contains
         use hphf_integrals, only: hphf_sign
         use HPHFRandExcitMod, only: FindExcitBitDetSym, FindDetSpinSym
         use rdm_data, only: rdm_t
-        use SystemData, only: nel, tOddS_hphf
+        use SystemData, only: nel
 
         type(rdm_spawn_t), intent(inout) :: spawn
         type(rdm_t), intent(inout) :: rdm
@@ -477,7 +473,6 @@ contains
         integer :: nI2(nel), nJ2(nel)
         real(dp) :: NewSignJ, NewSignI, PermSignJ, PermSignI
         integer :: I_J_ExcLevel, ICoup_J_ExcLevel
-        character(*), parameter :: t_r = 'Fill_Spin_Coupled_RDM'
 
         if (TestClosedShellDet(iLutnI)) then
 
@@ -549,7 +544,7 @@ contains
         real(dp), intent(in) :: realSignI, realSignJ
         logical, intent(in) :: tFill_CiCj_Symm
 
-        integer :: Ex(2,2), Ex_symm(2,2), j
+        integer :: Ex(2,2), Ex_symm(2,2)
         logical :: tParity
         real(dp) :: full_sign(spawn%rdm%sign_length)
 
@@ -689,7 +684,7 @@ contains
 
         ScaleContribFac = 1.0
         
-        RDMIters = 1.0_dp
+        RDMIters = 1
         if (present(RDMItersIn)) RDMIters = RDMItersIn
 
         tCoreSpaceDet = .false.
@@ -1337,7 +1332,6 @@ contains
 
         integer :: i, j, irdm, ind1, ind2
         integer :: SingEx(2,1), Ex(2,2)
-        real(dp) :: InstSignI, InstSignJ
         real(dp) :: AvSignI(lenof_sign), AvSignJ(lenof_sign)
         real(dp) :: full_sign(spawn%rdm%sign_length)
         logical :: tParity
@@ -1396,10 +1390,10 @@ contains
                     ! For nreplicas=2, this will multiply the odd indices of AvSignI_Par
                     ! (representing replica 1) by the even indices of AvSignJ (representing
                     ! replica 2).
-                    full_sign = AvSignI(1:lenof_sign:nreplicas) * AvSignJ(2:lenof_sign:nreplicas) * IterRDM
+                    full_sign = AvSignI(1:lenof_sign:nreplicas) * AvSignJ(nreplicas:lenof_sign:nreplicas) * IterRDM
                 else
                     tParity = .true.
-                    full_sign = -AvSignI(1:lenof_sign:nreplicas) * AvSignJ(2:lenof_sign:nreplicas) * IterRDM
+                    full_sign = -AvSignI(1:lenof_sign:nreplicas) * AvSignJ(nreplicas:lenof_sign:nreplicas) * IterRDM
                 end if
 
                 if (tHPHF) then
