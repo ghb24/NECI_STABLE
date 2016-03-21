@@ -155,7 +155,7 @@ contains
 
     subroutine add_to_rdm_spawn_t(spawn, p, q, r, s, contrib_sign)
 
-        ! In/Out: rdm_spawn - the rdm_spawn_t type to which contributions will be added.
+        ! In/Out: rdm_spawn - the rdm_spawn_t object to which contributions will be added.
         ! In: p, q, r, s - spin orbitals of the RDM contribution, with p<q, r<s.
         ! In: contrib_sign - the sign (amplitude) of the contribution to be added.
 
@@ -220,7 +220,7 @@ contains
         if (p > q .or. r > s) then
             write(6,'("p, q, r, s:", 1X,'//int_fmt(p,0)//', 1X,'//int_fmt(q,0)//', &
                        &1X,'//int_fmt(r,0)//', 1X,'//int_fmt(s,0)//')') p, q, r, s
-            call stop_all(this_routine,"Incorrect ordering of the RDM orbitals.")
+            call stop_all(this_routine,"Incorrect ordering of RDM orbitals passed to RDM spawning routine.")
         end if
 
     end subroutine add_to_rdm_spawn_t
