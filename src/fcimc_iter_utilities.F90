@@ -364,6 +364,8 @@ contains
         ! occupied determinants.
         TotWalkersTemp = TotWalkers - HolesInList
 
+        sizes = 0
+
         ! low will represent the lower bound of an array slice.
         low = 0
         ! upp will represent the upper bound of an array slice.
