@@ -557,7 +557,7 @@ contains
                     trial_denom = trial_denom + current_trial_amps(1,ind)*sgn
                 else
                     if (tPairedReplicas) then
-#ifdef MULTI_RUN
+#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
                         do run = 2, inum_runs, 2
                             trial_denom(run-1:run) = trial_denom(run-1:run) + current_trial_amps(run/2,ind)*sgn(run-1:run)
                         end do
@@ -576,7 +576,7 @@ contains
                         trial_numerator = trial_numerator + amps(1)*sgn
                     else
                         if (tPairedReplicas) then
-#ifdef MULTI_RUN
+#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
                             do run = 2, inum_runs, 2
                                 trial_numerator(run-1:run) = trial_numerator(run-1:run) + amps(run/2)*sgn(run-1:run)
                             end do
@@ -596,7 +596,7 @@ contains
                     trial_numerator = trial_numerator + current_trial_amps(1,ind)*sgn
                 else
                     if (tPairedReplicas) then
-#ifdef MULTI_RUN
+#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
                         do run = 2, inum_runs, 2
                             trial_numerator(run-1:run) = trial_numerator(run-1:run) + current_trial_amps(run/2,ind)*sgn(run-1:run)
                         end do
