@@ -475,6 +475,13 @@ contains
 
     subroutine print_rdms_with_spin(rdm, rdm_trace)
 
+        ! Print the RDM stored in rdm to files, normalised by rdm_trace.
+
+        ! This routine will print out *all* the spin cobminations separately,
+        ! including both aaaa and bbbb arrays, and all other combinations.
+
+        ! The files are called 'rdm_aaaa', 'rdm_abab', 'rdm_abba', etc...
+
         use Parallel_neci, only: MPIBarrier
         use sort_mod, only: sort
         use util_mod, only: get_free_unit
@@ -503,30 +510,30 @@ contains
                 ! Let the first processor clear all the files to start with.
                 if (iproc == 0) then
                     iunit_aaaa = get_free_unit()
-                    open(iunit_aaaa, file='test_aaaa', status='replace')
+                    open(iunit_aaaa, file='rdm_aaaa', status='replace')
                     iunit_abab = get_free_unit()
-                    open(iunit_abab, file='test_abab', status='replace')
+                    open(iunit_abab, file='rdm_abab', status='replace')
                     iunit_abba = get_free_unit()
-                    open(iunit_abba, file='test_abba', status='replace')
+                    open(iunit_abba, file='rdm_abba', status='replace')
                     iunit_bbbb = get_free_unit()
-                    open(iunit_bbbb, file='test_bbbb', status='replace')
+                    open(iunit_bbbb, file='rdm_bbbb', status='replace')
                     iunit_baba = get_free_unit()
-                    open(iunit_baba, file='test_baba', status='replace')
+                    open(iunit_baba, file='rdm_baba', status='replace')
                     iunit_baab = get_free_unit()
-                    open(iunit_baab, file='test_baab', status='replace')
+                    open(iunit_baab, file='rdm_baab', status='replace')
                 else
                     iunit_aaaa = get_free_unit()
-                    open(iunit_aaaa, file='test_aaaa', status='old', position='append')
+                    open(iunit_aaaa, file='rdm_aaaa', status='old', position='append')
                     iunit_abab = get_free_unit()
-                    open(iunit_abab, file='test_abab', status='old', position='append')
+                    open(iunit_abab, file='rdm_abab', status='old', position='append')
                     iunit_abba = get_free_unit()
-                    open(iunit_abba, file='test_abba', status='old', position='append')
+                    open(iunit_abba, file='rdm_abba', status='old', position='append')
                     iunit_bbbb = get_free_unit()
-                    open(iunit_bbbb, file='test_bbbb', status='old', position='append')
+                    open(iunit_bbbb, file='rdm_bbbb', status='old', position='append')
                     iunit_baba = get_free_unit()
-                    open(iunit_baba, file='test_baba', status='old', position='append')
+                    open(iunit_baba, file='rdm_baba', status='old', position='append')
                     iunit_baab = get_free_unit()
-                    open(iunit_baab, file='test_baab', status='old', position='append')
+                    open(iunit_baab, file='rdm_baab', status='old', position='append')
                 end if
 
                 do i = 1, rdm%nelements
