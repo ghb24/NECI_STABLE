@@ -133,9 +133,9 @@ contains
 
     pure subroutine extract_sign_rdm(rdm_entry, real_sign)
 
-        integer(n_int), intent(in) :: rdm_entry(0:)
+        integer(int_rdm), intent(in) :: rdm_entry(0:)
         real(dp), intent(out) :: real_sign(size(rdm_entry)-1)
-        integer(n_int) :: int_sign(size(rdm_entry)-1)
+        integer(int_rdm) :: int_sign(size(rdm_entry)-1)
 
         int_sign = rdm_entry(1:size(int_sign))
         real_sign = transfer(int_sign, real_sign)
