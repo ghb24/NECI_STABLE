@@ -115,7 +115,9 @@ module rdm_data
         integer :: max_nelements = 0
         ! The number of RDM elements currently entered into the elements array.
         integer :: nelements = 0
-        ! Number of unique hashes available in hash_table.
+        ! Maximum number of unique hashes available in hash_table (not the
+        ! number of currently unused ones, but the total number, i.e. the
+        ! length of the hash_table array).
         integer :: nhashes = 0
     end type rdm_list_t
 
