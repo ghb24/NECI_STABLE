@@ -128,24 +128,20 @@ module rdm_data
         ! The number of rows in the RDM.
         integer :: nrows = 0
 
-        ! This object holds the spawning array for the RDM elements themselves,
-        ! as well as relevant metadata which is stored with the RDM list.
-        type(rdm_list_t) :: rdm
+        ! This object holds the spawning array for the RDM elements before
+        ! they are communicated, as well as relevant metadata which is stored
+        ! with the RDM list. Note that the nelements component won't be used
+        ! or relevant, since the list won't be contiguous.
+        type(rdm_list_t) :: rdm_send
 
-        ! Array used to hold the result of the MPI communication of the RDM
-        ! spawn lists.
-        integer(int_rdm), allocatable :: rdm_recv(:,:)
-        ! The allocated length of rdm_recv.
-        integer :: max_nelements_recv = 0
-        ! The number of RDM elements received on this process in the parallel
-        ! communication.
-        integer :: nelements_recv = 0
+        ! This objects holds the received RDM elements after communication.
+        type(rdm_list_t) :: rdm_recv
 
-        ! free_slots(i) holds the next available spawning slot in rdm%elements
-        ! for processor i.
+        ! free_slots(i) holds the next available spawning slot in
+        ! rdm_send%elements for processor i.
         integer, allocatable :: free_slots(:)
-        ! init_free_slots(i) holds the index in rdm%elements where the very
-        ! first RDM element to be sent to processor i will be added.
+        ! init_free_slots(i) holds the index in rdm_send%elements where the
+        ! very first RDM element to be sent to process i will be added.
         integer, allocatable :: init_free_slots(:)
     end type rdm_spawn_t
 

@@ -43,36 +43,39 @@ contains
 
     end subroutine init_rdm_list_t
 
-    subroutine init_rdm_spawn_t(spawn, nrows, sign_length, max_nelements, max_nelements_recv, nhashes)
+    subroutine init_rdm_spawn_t(spawn, nrows, sign_length, max_nelements_send, max_nelements_recv, nhashes)
 
         ! Initialise an rdm_spawn_t object.
+
+        ! * IMPORTANT * - This routine will not allocate the hash table for the
+        ! received RDM, spawn%rdm_recv%hash_table, since it usually won't be
+        ! used. If it is needed for a particular application then it must be
+        ! allocated and initialised separately.
 
         ! Out: spawn - rdm_spawn_t object to be initialised.
         ! In:  nrows - the number of rows in the RDM.
         ! In:  sign_length - the number of signs which can be stored for each element.
-        ! In:  max_nelements - the length of the spawn%rdm%elements array.
-        ! In:  max_nelements_recv - the length of the spawn%rdm_recv array.
-        ! In:  nhashes - the number of unique hashes for indexing spawn%rdm%hash_table.
+        ! In:  max_nelements_send - the length of the spawn%rdm_send%elements array.
+        ! In:  max_nelements_recv - the length of the spawn%rdm_recv%elements array.
+        ! In:  nhashes - the number of unique hashes for indexing spawn%rdm_send%hash_table.
 
         type(rdm_spawn_t), intent(out) :: spawn
         integer, intent(in) :: nrows, sign_length, nhashes
-        integer, intent(in) :: max_nelements, max_nelements_recv
+        integer, intent(in) :: max_nelements_send, max_nelements_recv
         integer :: i, ierr
         real(dp) :: slots_per_proc
 
         spawn%nrows = nrows
-        spawn%max_nelements_recv = max_nelements_recv
 
-        call init_rdm_list_t(spawn%rdm, sign_length, max_nelements, nhashes)
-
-        allocate(spawn%rdm_recv(0:sign_length, max_nelements_recv))
-        spawn%rdm_recv = 0_int_rdm
+        call init_rdm_list_t(spawn%rdm_send, sign_length, max_nelements_send, nhashes)
+        ! Don't need the hash table for the received list, so pass 0 for nhashes.
+        call init_rdm_list_t(spawn%rdm_recv, sign_length, max_nelements_recv, 0)
 
         allocate(spawn%free_slots(0:nProcessors-1), stat=ierr)
         allocate(spawn%init_free_slots(0:nProcessors-1), stat=ierr)
 
         ! Equally divide RDM rows across all processors.
-        slots_per_proc = real(max_nelements, dp)/real(nProcessors, dp)
+        slots_per_proc = real(max_nelements_send, dp)/real(nProcessors, dp)
         do i = 0, nProcessors-1
             spawn%init_free_slots(i) = nint(slots_per_proc*i)+1
         end do
@@ -164,64 +167,68 @@ contains
 
         type(rdm_spawn_t), intent(inout) :: spawn
         integer, intent(in) :: p, q, r, s
-        real(dp), intent(in) :: contrib_sign(spawn%rdm%sign_length)
+        real(dp), intent(in) :: contrib_sign(spawn%rdm_send%sign_length)
 
         integer :: pq_compressed, proc, ind, hash_val
         integer(int_rdm) :: pqrs
-        real(dp) :: real_sign_old(spawn%rdm%sign_length), real_sign_new(spawn%rdm%sign_length)
+        real(dp) :: real_sign_old(spawn%rdm_send%sign_length), real_sign_new(spawn%rdm_send%sign_length)
         logical :: tSuccess, list_full
         character(*), parameter :: this_routine = 'add_to_rdm_spawn_t'
 
-        ! Calculate combined RDM labels.
-        call calc_combined_rdm_label(p, q, r, s, pqrs)
+        associate(rdm => spawn%rdm_send)
 
-        ! Search to see if this RDM element is already in the RDM array.
-        ! If it, tSuccess will be true and ind will hold the position of the
-        ! entry in spawn%rdm%elements.
-        call hash_table_lookup((/p,q,r,s/), (/pqrs/), 0, spawn%rdm%hash_table, spawn%rdm%elements, ind, hash_val, tSuccess)
+            ! Calculate combined RDM labels.
+            call calc_combined_rdm_label(p, q, r, s, pqrs)
 
-        if (tSuccess) then
-            ! Extract the existing sign.
-            call extract_sign_rdm(spawn%rdm%elements(:,ind), real_sign_old)
-            ! Update the total sign.
-            real_sign_new = real_sign_old + contrib_sign
-            ! Encode the new sign.
-            call encode_sign_rdm(spawn%rdm%elements(:,ind), real_sign_new)
-        else
-            ! The following maps (p,q), with p<q, to single integers with no gaps.
-            ! It is benefical to have no gaps here, for good load balancing.
-            ! The final integers are ordered so that p is dominant over q.
-            pq_compressed = nbasis*(p-1) - p*(p-1)/2 + q - p
-            ! Calculate processor for the element.
-            proc = (pq_compressed-1)*nProcessors/spawn%nrows
+            ! Search to see if this RDM element is already in the RDM array.
+            ! If it, tSuccess will be true and ind will hold the position of the
+            ! entry in rdm%elements.
+            call hash_table_lookup((/p,q,r,s/), (/pqrs/), 0, rdm%hash_table, rdm%elements, ind, hash_val, tSuccess)
 
-            ! Check that there is enough memory for the new spawned RDM entry.
-            list_full = .false.
-            if (proc == nProcessors - 1) then
-                if (spawn%free_slots(proc) > spawn%rdm%max_nelements) list_full = .true.
+            if (tSuccess) then
+                ! Extract the existing sign.
+                call extract_sign_rdm(rdm%elements(:,ind), real_sign_old)
+                ! Update the total sign.
+                real_sign_new = real_sign_old + contrib_sign
+                ! Encode the new sign.
+                call encode_sign_rdm(rdm%elements(:,ind), real_sign_new)
             else
-                if (spawn%free_slots(proc) > spawn%init_free_slots(proc+1)) list_full = .true.
+                ! The following maps (p,q), with p<q, to single integers with no gaps.
+                ! It is benefical to have no gaps here, for good load balancing.
+                ! The final integers are ordered so that p is dominant over q.
+                pq_compressed = nbasis*(p-1) - p*(p-1)/2 + q - p
+                ! Calculate processor for the element.
+                proc = (pq_compressed-1)*nProcessors/spawn%nrows
+
+                ! Check that there is enough memory for the new spawned RDM entry.
+                list_full = .false.
+                if (proc == nProcessors - 1) then
+                    if (spawn%free_slots(proc) > rdm%max_nelements) list_full = .true.
+                else
+                    if (spawn%free_slots(proc) > spawn%init_free_slots(proc+1)) list_full = .true.
+                end if
+                if (list_full) then
+                    write(6,'("Attempting to add an RDM contribution to the spawned list on processor:",&
+                               &1X,'//int_fmt(proc,0)//')') proc
+                    write(6,'("No memory slots available for this spawn.")')
+                    call stop_all(this_routine, "Out of memory for spawned RDM contributions.")
+                end if
+
+                rdm%elements(0, spawn%free_slots(proc)) = pqrs
+                call encode_sign_rdm(rdm%elements(:, spawn%free_slots(proc)), contrib_sign)
+
+                call add_hash_table_entry(rdm%hash_table, spawn%free_slots(proc), hash_val)
+
+                spawn%free_slots(proc) = spawn%free_slots(proc) + 1
             end if
-            if (list_full) then
-                write(6,'("Attempting to add an RDM contribution to the spawned list on processor:",&
-                           &1X,'//int_fmt(proc,0)//')') proc
-                write(6,'("No memory slots available for this spawn.")')
-                call stop_all(this_routine, "Out of memory for spawned RDM contributions.")
-            end if
 
-            spawn%rdm%elements(0, spawn%free_slots(proc)) = pqrs
-            call encode_sign_rdm(spawn%rdm%elements(:, spawn%free_slots(proc)), contrib_sign)
+            !if (p > q .or. r > s) then
+            !    write(6,'("p, q, r, s:", 1X,'//int_fmt(p,0)//', 1X,'//int_fmt(q,0)//', &
+            !               &1X,'//int_fmt(r,0)//', 1X,'//int_fmt(s,0)//')') p, q, r, s
+            !    call stop_all(this_routine,"Incorrect ordering of RDM orbitals passed to RDM spawning routine.")
+            !end if
 
-            call add_hash_table_entry(spawn%rdm%hash_table, spawn%free_slots(proc), hash_val)
-
-            spawn%free_slots(proc) = spawn%free_slots(proc) + 1
-        end if
-
-        if (p > q .or. r > s) then
-            write(6,'("p, q, r, s:", 1X,'//int_fmt(p,0)//', 1X,'//int_fmt(q,0)//', &
-                       &1X,'//int_fmt(r,0)//', 1X,'//int_fmt(s,0)//')') p, q, r, s
-            call stop_all(this_routine,"Incorrect ordering of RDM orbitals passed to RDM spawning routine.")
-        end if
+        end associate
 
     end subroutine add_to_rdm_spawn_t
 
@@ -254,27 +261,27 @@ contains
         end do
 
         ! The total number of RDM elements sent to this processor.
-        spawn%nelements_recv = int(sum(recv_sizes), sizeof_int)
+        spawn%rdm_recv%nelements = int(sum(recv_sizes), sizeof_int)
 
-        if (spawn%nelements_recv > spawn%max_nelements_recv) then
+        if (spawn%rdm_recv%nelements > spawn%rdm_recv%max_nelements) then
             write(6,'("Attempting to receive RDM elements on processor:",&
                        &1X,'//int_fmt(iProcIndex,0)//')') iProcIndex
             write(6,'("Insufficient space in the receiving RDM array.")')
             call stop_all(this_routine, "Not enough memory to communicate RDM elements.")
         end if
 
-        send_sizes = send_sizes*size(spawn%rdm%elements,1)
-        recv_sizes = recv_sizes*size(spawn%rdm%elements,1)
-        send_displs = send_displs*size(spawn%rdm%elements,1)
-        recv_displs = recv_displs*size(spawn%rdm%elements,1)
+        send_sizes = send_sizes*size(spawn%rdm_send%elements,1)
+        recv_sizes = recv_sizes*size(spawn%rdm_send%elements,1)
+        send_displs = send_displs*size(spawn%rdm_send%elements,1)
+        recv_displs = recv_displs*size(spawn%rdm_send%elements,1)
 
         ! Perform the communication.
-        call MPIAlltoAllv(spawn%rdm%elements, send_sizes, send_displs, &
-                          spawn%rdm_recv, recv_sizes, recv_displs, ierr)
+        call MPIAlltoAllv(spawn%rdm_send%elements, send_sizes, send_displs, &
+                          spawn%rdm_recv%elements, recv_sizes, recv_displs, ierr)
 
-        ! Now we can reset the spawn%rdm%elements and free_slots array.
+        ! Now we can reset the free_slots array and reset the hash table.
         spawn%free_slots = spawn%init_free_slots
-        call clear_hash_table(spawn%rdm%hash_table)
+        call clear_hash_table(spawn%rdm_send%hash_table)
 
     end subroutine communicate_rdm_spawn_t
 
@@ -472,6 +479,178 @@ contains
         rdm_spin = rdm_spin/4.0_dp
 
     end subroutine calc_rdm_spin
+
+    subroutine apply_spin_sym_to_rdm(rdm, spawn)
+
+        ! Loop through all elements of the RDM, and whenever we have a bbbb
+        ! term, move it to the equivalent aaaa element, and similarly for baba
+        ! to abab and baab and abba (here a means alpha spin, b means beta spin).
+        ! Also, only include terms above the diagonal - so average off-diagonal
+        ! terms of the RDM. The ordering conforms with that of the printed
+        ! RDMs from NECI prior to distribution of RDMs.
+
+        use SystemData, only: nbasis
+
+        type(rdm_list_t), intent(in) :: rdm
+        type(rdm_spawn_t), intent(inout) :: spawn
+
+        integer(int_rdm) :: pqrs
+        integer :: i, pq, rs, p, q, r, s
+        integer :: pq_legacy, rs_legacy
+        integer :: p_temp, q_temp, r_temp
+        integer :: p_spat, q_spat, r_spat, s_spat
+        real(dp) :: rdm_sign(rdm%sign_length)
+
+        do i = 1, rdm%nelements
+            pqrs = rdm%elements(0,i)
+            ! Obtain spin orbital labels and the RDM element.
+            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+            call extract_sign_rdm(rdm%elements(:,i), rdm_sign)
+
+            p_spat = (p-1)/2 + 1
+            q_spat = (q-1)/2 + 1
+            r_spat = (r-1)/2 + 1
+            s_spat = (s-1)/2 + 1
+
+            ! When we calculate the combined labels, pq and rs, we would
+            ! usually have p and q swapped below, and similarly with r and s.
+            ! However, to be consistent with the old RDM code's printing
+            ! system, we use the following. These will be used in deciding
+            ! which of the equivalent elements we print when applying the
+            ! symmetry of the RDM about the diagonal.
+            ! Note we use spatial labels here, too.
+            pq_legacy = (q_spat-1)*nbasis + p_spat
+            rs_legacy = (s_spat-1)*nbasis + r_spat
+
+            ! Apply symmetry (for *real* RDMs), to only print elements from
+            ! one half of the RDM, using the legacy ordering.
+            if (pq_legacy > rs_legacy) then
+                p_temp = p; q_temp = q;
+                p = r; q = s;
+                r = p_temp; s = q_temp;
+            end if
+
+            ! If the first label has beta spin then we definitely want to move
+            ! this RDM element to the equivalent alpha term, so go ahead and
+            ! flip all the spins. Otherwise, move straight on.
+            if (is_beta(p)) then
+                ! The ab_pair macro swaps alpha and beta spins of a label while
+                ! keeping the spatial orbital unchanged.
+                p = ab_pair(p)
+                q = ab_pair(q)
+                r = ab_pair(r)
+                s = ab_pair(s)
+            end if
+
+            ! If either p and q or r and s have the same spatial labels
+            ! then we enforce the ordering abab by swapping orbitals and
+            ! introducing minus signs as necessary.
+            if (p_spat == q_spat .or. r_spat == s_spat) then
+                ! If the above condition is met then we must have either abab
+                ! or abba at this point. In the latter case, just swap the
+                ! spins, and introduce a minus sign.
+                ! * This logic is only valid if we are working in a fixed Ms
+                ! spin sector *
+                if (is_beta(r)) then
+                    r = ab_pair(r)
+                    s = ab_pair(s)
+                    rdm_sign = -rdm_sign
+                end if
+            end if
+
+            ! If the spatial parts of p and q are the same, and the spatial
+            ! parts of r and s are *also* the same, then the RDM element won't
+            ! have been added into both equivalent spin-flipped arrays, so we
+            ! don't count twice. But otherwise, include a factor a half to
+            ! account for double counting.
+            if (.not. (is_in_pair(p,q) .and. is_in_pair(r,s))) rdm_sign = rdm_sign*0.5_dp
+
+            ! If we're on a spatial off-diagonal element then the element is
+            ! included twice from both above and below the diagonal. So divide
+            ! by two to take the average.
+            if (pq_legacy /= rs_legacy) rdm_sign = rdm_sign*0.5_dp
+
+            call add_to_rdm_spawn_t(spawn, p, q, r, s, rdm_sign)
+        end do
+
+        call communicate_rdm_spawn_t(spawn)
+        call annihilate_rdm_list(spawn%rdm_recv)
+
+    end subroutine apply_spin_sym_to_rdm
+
+    subroutine print_rdms_spin_sym_wrapper(rdm, spawn, rdm_trace)
+
+        ! Compress the full spinned-RDMs by summing over spin-equivalent terms
+        ! (i.e. aaaa and bbbb rdms), and also applying symmetry of (*real*)
+        ! RDMs. The result will be stored in spawn%rdm_recv. Then, print with
+        ! out to a file.
+
+        use hash, only: clear_hash_table
+
+        type(rdm_list_t), intent(inout) :: rdm
+        type(rdm_spawn_t), intent(inout) :: spawn
+        real(dp), intent(in) :: rdm_trace(rdm%sign_length)
+
+        spawn%free_slots = spawn%init_free_slots
+        call clear_hash_table(spawn%rdm_send%hash_table)
+
+        call apply_spin_sym_to_rdm(rdm, spawn)
+        call print_rdms_with_spin(spawn%rdm_recv, rdm_trace)
+
+    end subroutine print_rdms_spin_sym_wrapper
+
+    subroutine annihilate_rdm_list(rdm)
+
+        ! Perform annihilation on RDM elements in rdm%elements.
+
+        ! * WARNING * rdm%hash_table is not used by this routine, and will not
+        ! be updated by it after reordering and compressing rdm%elements.
+
+        use sort_mod, only: sort
+
+        type(rdm_list_t), intent(inout) :: rdm
+
+        integer :: i, counter
+        integer(int_rdm) :: pqrs
+        real(dp) :: rdm_sign(rdm%sign_length), summed_rdm_sign(rdm%sign_length)
+
+        if (rdm%nelements > 0) then
+            call sort(rdm%elements(:,1:rdm%nelements))
+
+            summed_rdm_sign = 0.0_dp
+            counter = 0
+
+            do i = 1, rdm%nelements-1
+                call extract_sign_rdm(rdm%elements(:,i), rdm_sign)
+                summed_rdm_sign = summed_rdm_sign + rdm_sign
+
+                ! Is the next RDM element the same as this one? If so then
+                ! don't keep this element yet, but wait until all signs on
+                ! this RDM element have been summed (annihilated).
+                if (.not. (rdm%elements(0,i) == rdm%elements(0, i+1))) then
+                    ! If this element is zero for all RDMs, then don't keep it.
+                    if (any(abs(summed_rdm_sign) > 1.0e-12_dp)) then
+                        counter = counter + 1
+                        rdm%elements(0, counter) = rdm%elements(0,i)
+                        call encode_sign_rdm(rdm%elements(:, counter), summed_rdm_sign)
+                    end if
+                    summed_rdm_sign = 0.0_dp
+                end if
+            end do
+
+            ! Account for the final element separately.
+            call extract_sign_rdm(rdm%elements(:,rdm%nelements), rdm_sign)
+            summed_rdm_sign = summed_rdm_sign + rdm_sign
+            if (any(abs(summed_rdm_sign) > 1.0-12_dp)) then
+                counter = counter + 1
+                rdm%elements(0, counter) = rdm%elements(0,rdm%nelements)
+                call encode_sign_rdm(rdm%elements(:, counter), summed_rdm_sign)
+            end if
+
+            rdm%nelements = counter
+        end if
+
+    end subroutine annihilate_rdm_list
 
     subroutine print_rdms_with_spin(rdm, rdm_trace)
 

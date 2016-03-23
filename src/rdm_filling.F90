@@ -103,7 +103,7 @@ contains
 
         real(dp) :: IterDetOcc_all(lenof_sign), IterDetOcc_sing(nreplicas)
         real(dp) :: AvSignCurr_all(lenof_sign), AvSignCurr_sing(nreplicas), AvSignHF_sing(nreplicas)
-        real(dp) :: full_sign(spawn%rdm%sign_length)
+        real(dp) :: full_sign(spawn%rdm_send%sign_length)
         integer(n_int) :: SpinCoupDet(0:nIfTot)
         integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
         integer :: IterLastRDMFill, AvSignIters, IterRDM, sign_ind_1, sign_ind_2
@@ -546,7 +546,7 @@ contains
 
         integer :: Ex(2,2), Ex_symm(2,2)
         logical :: tParity
-        real(dp) :: full_sign(spawn%rdm%sign_length)
+        real(dp) :: full_sign(spawn%rdm_send%sign_length)
 
         Ex(:,:) = 0
         Ex(1,1) = 2         ! Maximum excitation level - we know they are connected by
@@ -612,7 +612,7 @@ contains
 
         type(rdm_spawn_t), intent(inout) :: spawn
         integer, intent(in) :: nI(nel)
-        real(dp), intent(in) :: full_sign(spawn%rdm%sign_length)
+        real(dp), intent(in) :: full_sign(spawn%rdm_send%sign_length)
 
         integer :: iel, jel
 
@@ -634,7 +634,7 @@ contains
 
         type(rdm_spawn_t), intent(inout) :: spawn
         integer, intent(in) :: nI(nel), Ex(2,2)
-        real(dp), intent(in) :: full_sign(spawn%rdm%sign_length)
+        real(dp), intent(in) :: full_sign(spawn%rdm_send%sign_length)
 
         integer :: iel
 
@@ -1333,7 +1333,7 @@ contains
         integer :: i, j, irdm, ind1, ind2
         integer :: SingEx(2,1), Ex(2,2)
         real(dp) :: AvSignI(lenof_sign), AvSignJ(lenof_sign)
-        real(dp) :: full_sign(spawn%rdm%sign_length)
+        real(dp) :: full_sign(spawn%rdm_send%sign_length)
         logical :: tParity
         integer(n_int) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer :: nI(nel), nJ(nel), IC

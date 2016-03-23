@@ -421,8 +421,8 @@ module FciMCParMod
                         end do
 
                         !TODO: Move this to a more sensible place when everything is working.
-                        call clear_hash_table(rdm_main%hash_table)
-                        rdm_main%nelements = 0
+                        !call clear_hash_table(rdm_main%hash_table)
+                        !rdm_main%nelements = 0
 
                         if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates)
                 end if
@@ -1048,7 +1048,7 @@ module FciMCParMod
 
         if (tFillingStochRDMonFly) then
             call communicate_rdm_spawn_t(two_rdm_spawn)
-            call add_rdm_1_to_rdm_2(two_rdm_spawn%rdm_recv, two_rdm_spawn%nelements_recv, rdm_main)
+            call add_rdm_1_to_rdm_2(two_rdm_spawn%rdm_recv%elements, two_rdm_spawn%rdm_recv%nelements, rdm_main)
         end if
 
     end subroutine PerformFCIMCycPar
