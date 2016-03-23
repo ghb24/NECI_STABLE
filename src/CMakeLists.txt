@@ -200,6 +200,9 @@ neci_add_library(
     DEFINITIONS
         "${NECI_GLOBAL_DEFINES}"
         HElement_t=real
+
+    LIBS
+        "${${PROJECT_NAME}_LAPACK_LIBRARIES}"
 )
 
 neci_add_library(
@@ -215,6 +218,9 @@ neci_add_library(
         "${NECI_GLOBAL_DEFINES}"
         HElement_t=complex
         __CMPLX
+
+    LIBS
+        "${${PROJECT_NAME}_LAPACK_LIBRARIES}"
 )
 
 neci_add_executable(

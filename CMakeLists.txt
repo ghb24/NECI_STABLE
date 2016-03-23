@@ -39,6 +39,20 @@ neci_add_option(
     DESCRIPTION "Enable functionality requiring FFTW"
     REQUIRED_PACKAGES FFTW)
 
+# Required packages
+
+# Add force for BLAS includes
+if ( NOT DEFINED ${PROJECT_NAME}_LAPACK_LIBRARIES )
+    find_package(MKL)
+    if ( ${MKL_FOUND} )
+        set( ${PROJECT_NAME}_LAPACK_LIBRARIES "${MKL_LIBRARIES}" )
+        set( ${PROJECT_NAME}_LAPACK_INCLUDES "${MKL_INCLUDE_DIR}" )
+    else()
+        find_package( LAPACK REQUIRED )
+        set( ${PROJECT_NAME}_LAPACK_LIBRARIES "${LAPACK_LIBRARIES}" )
+    endif()
+endif()
+
 
 # Global (always on) defines
 list(APPEND NECI_GLOBAL_DEFINES

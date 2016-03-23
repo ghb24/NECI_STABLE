@@ -10,6 +10,7 @@
 #                     [ TEMPLATED_SOURCES <source1> [<source2> ...] ]
 #                     [ TYPE SHARED|STATIC|MODULE ]
 #                     [ PRIVATE_INCLUDEs <dir1> [<dir2> ...] ]
+#                     [ LIBS <lib1> [<lib2> ...] ]
 #                     [ DEFINITIONS <define1> [<define3> ...] ]
 #                     [ OUTPUT_NAME <name> ]
 #
@@ -33,6 +34,9 @@
 #   list of paths to add to include directories that will NOT be exported to other projects. Currently
 #   the PUBLIC_INCLUDES functionality is not implemented in this project.
 #
+# LIBS : optional
+#   list of libraries to link against (CMake targets, or external libraries)
+#
 # DEFINITIONS : optional
 #   list of definitions to add to preprocessor defines
 #
@@ -49,7 +53,7 @@ macro( neci_add_library )
 
     set( options  )
     set( single_value_args TARGET TYPE OUTPUT_NAME )
-    set( multi_value_args SOURCES DEFINITIONS TEMPLATED_SOURCES PRIVATE_INCLUDES )
+    set( multi_value_args SOURCES DEFINITIONS TEMPLATED_SOURCES PRIVATE_INCLUDES LIBS )
 
     cmake_parse_arguments( _p "${options}" "${single_value_args}" "${multi_value_args}" ${_FIRST_ARG} ${ARGN} )
 
@@ -121,6 +125,15 @@ macro( neci_add_library )
         else()
           target_include_directories( ${_p_TARGET} PRIVATE ${include_path} )
         endif()
+      endforeach()
+    endif()
+
+    # Add the link libraries
+
+    if ( _p_LIBS )
+      list( REMOVE_DUPLICATES _p_LIBS )
+      foreach( lib ${_p_LIBS} )
+        target_link_libraries( ${_p_TARGET} ${lib} )
       endforeach()
     endif()
 
