@@ -568,6 +568,11 @@ contains
             ! If we're on a spatial off-diagonal element then the element is
             ! included twice from both above and below the diagonal. So divide
             ! by two to take the average.
+            ! (Note that the element can also be above or below the diagonal
+            ! by having the same spatial part and different spins, but this is
+            ! taken care of when summing over spin-flipped configurations - no
+            ! extra double counting occurs, so it is correct to consider
+            ! spatial orbitals here, not spin orbitals).
             if (pq_legacy /= rs_legacy) rdm_sign = rdm_sign*0.5_dp
 
             call add_to_rdm_spawn_t(spawn, p, q, r, s, rdm_sign)
