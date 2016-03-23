@@ -1048,7 +1048,7 @@ module FciMCParMod
 
         if (tFillingStochRDMonFly) then
             call communicate_rdm_spawn_t(two_rdm_spawn)
-            call add_rdm_1_to_rdm_2(two_rdm_spawn%rdm_recv%elements, two_rdm_spawn%rdm_recv%nelements, rdm_main)
+            call add_rdm_1_to_rdm_2(two_rdm_spawn%rdm_recv, rdm_main)
         end if
 
     end subroutine PerformFCIMCycPar

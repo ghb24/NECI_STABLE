@@ -285,12 +285,11 @@ contains
 
     end subroutine communicate_rdm_spawn_t
 
-    subroutine add_rdm_1_to_rdm_2(rdm_1_elems, num_rdm_1_elems, rdm_2)
+    subroutine add_rdm_1_to_rdm_2(rdm_1, rdm_2)
 
         use hash, only: hash_table_lookup, add_hash_table_entry
 
-        integer(int_rdm), intent(in) :: rdm_1_elems(0:,:)
-        integer, intent(in) :: num_rdm_1_elems
+        type(rdm_list_t), intent(in) :: rdm_1
         type(rdm_list_t), intent(inout) :: rdm_2
 
         integer :: i, pq, rs, p, q, r, s
@@ -301,13 +300,13 @@ contains
         logical :: tSuccess
         character(*), parameter :: this_routine = 'add_rdm_1_to_rdm_2'
 
-        do i = 1, num_rdm_1_elems
+        do i = 1, rdm_1%nelements
             ! Decode the compressed RDM labels.
-            pqrs = rdm_1_elems(0,i)
+            pqrs = rdm_1%elements(0,i)
             call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
 
             ! Extract the spawned sign.
-            call extract_sign_rdm(rdm_1_elems(:,i), spawn_sign)
+            call extract_sign_rdm(rdm_1%elements(:,i), spawn_sign)
 
             ! Search to see if this RDM element is already in the RDM 2.
             ! If it, tSuccess will be true and ind will hold the position of the
