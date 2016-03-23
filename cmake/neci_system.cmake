@@ -31,6 +31,9 @@ endif()
 # ============================================================
 if( PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME )
 
+    # Add extra macros from the contrib/ directory (externally sourced finders)
+    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/contrib" )
+
     # CMake provided macro sets
 
     include(CMakeParseArguments)
@@ -39,5 +42,36 @@ if( PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME )
 
     include( neci_add_option )
     include( neci_add_library )
+    include( neci_print_summary )
 
+    include( ${CMAKE_CURRENT_LIST_DIR}/contrib/GetGitRevisionDescription.cmake )
+
+endif()
+
+# ========================================================================================================
+# Initialise the project
+# ========================================================================================================
+
+# Reset the list of target libraries and executables
+set ( ${PROJECT_NAME}_ALL_LIBS "" CACHE INTERNAL "")
+set ( ${PROJECT_NAME}_ALL_EXES "" CACHE INTERNAL "")
+
+# This should be a git project, but it is possible that people will copy it, so check for that
+
+if( EXISTS ${PROJECT_SOURCE_DIR}/.git )
+    get_git_head_revision( GIT_REFSPEC ${PROJECT_NAME}_GIT_SHA1 )
+    if ( NOT ${PROJECT_NAME}_GIT_SHA1 )
+        message( WARNING "WARNING: Unable to get git SHA1 ID. Using placeholder")
+        set( ${PROJECT_NAME}_GIT_SHA1 "GIT-UNKNOWN" )
+    endif()
+else()
+    message( WARNING "WARNING: Source code not under version control")
+endif()
+
+# Read and parse the version file
+set( ${PROJECT_NAME}_VERSION_STR "0.0.0" )
+if ( EXISTS ${PROJECT_SOURCE_DIR}/VERSION.cmake )
+    include( ${PROJECT_SOURCE_DIR}/VERSION.cmake )
+else()
+    message( WARNING "WARNING: Version number not set. Using default ${${PROJECT_NAME}_VERSION_STR}" )
 endif()

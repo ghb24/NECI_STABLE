@@ -53,11 +53,4 @@ add_subdirectory(src)
 
 # And we are done
 
-message("")
-message("  +-------------------------------------------------+")
-message("  | NECI configuration now complete                 |")
-message("  | VERSION ${NECI_VERSION}                         |")
-message("  | SHAID ${NECI_SHAID}                             |")
-message("  +-------------------------------------------------+")
-message("")
-message("  You can now do 'make' to compile the software.")
+neci_print_summary()

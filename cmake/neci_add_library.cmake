@@ -28,6 +28,7 @@
 #
 ##############################################################################
 
+
 macro( neci_add_library )
 
     set( options  )
@@ -69,5 +70,9 @@ macro( neci_add_library )
         message( STATUS "Library ${_p_TARGET} using definitions: ${_target_defs}" )
         set_property( TARGET ${_p_TARGET} PROPERTY COMPILE_DEFINITIONS ${_target_defs} )
     endif()
+
+    # Add to the global list of libraries
+    #list( APPEND ${PROJECT_NAME}_ALL_LIBS ${_p_TARGET} )
+    set( ${PROJECT_NAME}_ALL_LIBS ${${PROJECT_NAME}_ALL_LIBS} ${_p_TARGET} CACHE INTERNAL "" )
 
 endmacro()

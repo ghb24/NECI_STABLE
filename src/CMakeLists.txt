@@ -206,7 +206,7 @@ set( TEMPLATED_SRC_FILES
 
 neci_add_library(
     
-    TARGET neci
+    TARGET libneci
     TYPE STATIC
     SOURCES ${SRC_FILES}
     DEFINITIONS "${NECI_GLOBAL_DEFINES}"
