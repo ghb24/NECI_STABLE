@@ -86,15 +86,12 @@ set( SRC_FILES
     load_balancer.F90
     LoggingData.F90
     Logging.F90
-    macros.h
     Makefile
     matmul.F
-    molcas_wrapper.h
     NatOrbs.F90
     NECICore.F90
     neci_intfce.F90
     necimain.F90
-    neci_molpro.h
     OneEInts.F90
     orthogonalise.F90
     Orthonorm.F90
@@ -165,17 +162,6 @@ set( SRC_FILES
     lib/cons_neci.F90
     lib/dSFMT.cpp
     lib/dSFMT_interface.F90
-    lib/dSFMT-params11213.h
-    lib/dSFMT-params1279.h
-    lib/dSFMT-params132049.h
-    lib/dSFMT-params19937.h
-    lib/dSFMT-params216091.h
-    lib/dSFMT-params2203.h
-    lib/dSFMT-params4253.h
-    lib/dSFMT-params44497.h
-    lib/dSFMT-params521.h
-    lib/dSFMT-params86243.h
-    lib/dSFMT-params.h
     lib/environment_report.F90
     lib/error_handling_neci.F90
     lib/hdf5_util.F90
@@ -187,7 +173,6 @@ set( SRC_FILES
     lib/signals_helper.cpp
     lib/soft_exit.F90
     lib/timing.F90
-    lib/types.h
     lib/util_mod.F90
     lib/util_mod_fmt.F90
 )
@@ -208,7 +193,27 @@ neci_add_library(
     
     TARGET libneci
     TYPE STATIC
+    OUTPUT_NAME neci
     SOURCES ${SRC_FILES}
-    DEFINITIONS "${NECI_GLOBAL_DEFINES}"
+    TEMPLATED_SOURCES ${TEMPLATED_SRC_FILES}
+    PRIVATE_INCLUDES ${CMAKE_SOURCE_DIR}/src
+
+    DEFINITIONS
+        "${NECI_GLOBAL_DEFINES}"
+        HElement_t=real
 )
 
+neci_add_library(
+    
+    TARGET libkneci
+    TYPE STATIC
+    OUTPUT_NAME kneci
+    SOURCES ${SRC_FILES}
+    TEMPLATED_SOURCES ${TEMPLATED_SRC_FILES}
+    PRIVATE_INCLUDES ${CMAKE_SOURCE_DIR}/src
+
+    DEFINITIONS
+        "${NECI_GLOBAL_DEFINES}"
+        HElement_t=complex
+        __CMPLX
+)

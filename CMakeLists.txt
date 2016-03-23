@@ -20,6 +20,10 @@ include(neci_system)
 #    x) Attack GIT to get version info
 #   xi) List all configured (a) libraries, (b) executables at the end
 #  xii) Summary of options, etc, at the end.
+# xiii) PARALLEL
+#  xiv) hdf5
+#   xv) Which targets should be included in ALL (see EXCLUDE_FROM_ALL)
+#  xvi) Module directory
 
 # Declare options that this project uses
 
@@ -43,6 +47,7 @@ list(APPEND NECI_GLOBAL_DEFINES
     MAXMEM=99999
     DSFMT_MEXP=19937
     _CONFIG="cmake-TODO"
+    _VCS_VER="${${PROJECT_NAME}_GIT_SHA1}"
 )
 
 
