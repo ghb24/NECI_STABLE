@@ -8,13 +8,23 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 include(neci_system)
 
 # TODO:
-#   i) Add source code in subdirs
-#  ii) Add templating tools
-# iii) Add toolchain files
-#  iv) Add executables
-#   v) Add unit tests (are they ctest compatible?)
+#    i) Add source code in subdirs
+#   ii) Add templating tools
+#  iii) Add toolchain files
+#   iv) Add executables
+#    v) Add unit tests (are they ctest compatible?)
+#   vi) Add searching for packages within options (e.g. MPI...)
+#  vii) Pick up VERSION.cmake
+# viii) Turn off an option if a required package is unavailabe
+#   ix) Add option to cmake gui
 
 # Declare options that this project uses
+
+neci_add_option(
+    FEATURE MPI
+    DEFAULT ON
+    DESCRIPTION "Use MPI for parallel compilation")
+
 
 
 # Include source directory
