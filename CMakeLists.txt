@@ -25,6 +25,12 @@ neci_add_option(
     DEFAULT ON
     DESCRIPTION "Use MPI for parallel compilation")
 
+neci_add_option(
+    FEATURE FFTW
+    DEFAULT ON
+    DESCRIPTION "Enable functionality requiring FFTW"
+    REQUIRED_PACKAGES FFTW)
+
 
 
 # Include source directory
