@@ -24,6 +24,7 @@ include(neci_system)
 #  xiv) hdf5
 #   xv) Which targets should be included in ALL (see EXCLUDE_FROM_ALL)
 #  xvi) Module directory
+# xvii) LINKER_LANGUAGE Fortran
 
 # Declare options that this project uses
 

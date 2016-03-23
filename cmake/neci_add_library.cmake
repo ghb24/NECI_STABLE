@@ -5,13 +5,13 @@
 #
 # Add a library with a given list of source files. ::
 #
-#   neci_add_library( TARGET <name>
-#                        SOURCES <source1> [<source2> ...]
-#                        [ TEMPLATED_SOURCES <source1> [<source2> ...] ]
-#                        [ TYPE SHARED|STATIC|MODULE ]
-#                        [ PRIVATE_INCLUDEs <dir1> [<dir2> ...] ]
-#                        [ DEFINITIONS <define1> [<define3> ...] ]
-#                        [ OUTPUT_NAME <name> ]
+#   neci_add_library(   TARGET <name>
+#                       SOURCES <source1> [<source2> ...]
+#                     [ TEMPLATED_SOURCES <source1> [<source2> ...] ]
+#                     [ TYPE SHARED|STATIC|MODULE ]
+#                     [ PRIVATE_INCLUDEs <dir1> [<dir2> ...] ]
+#                     [ DEFINITIONS <define1> [<define3> ...] ]
+#                     [ OUTPUT_NAME <name> ]
 #
 # Options
 # -------
@@ -130,6 +130,15 @@ macro( neci_add_library )
       message( STATUS "Library ${_p_TARGET}: Output name is ${_p_OUTPUT_NAME}" )
       set_property( TARGET ${_p_TARGET} PROPERTY OUTPUT_NAME ${_p_OUTPUT_NAME} )
     endif()
+
+    # Where do we put the Fortran modules?
+
+    set_property( TARGET ${_p_TARGET} PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules/${_p_TARGET} )
+
+    # Where do the files get built to
+
+    set_property( TARGET ${_p_TARGET} PROPERTY LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib )
+    set_property( TARGET ${_p_TARGET} PROPERTY ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib )
 
     # Add to the global list of libraries
     #list( APPEND ${PROJECT_NAME}_ALL_LIBS ${_p_TARGET} )

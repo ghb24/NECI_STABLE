@@ -42,6 +42,7 @@ if( PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME )
 
     include( neci_add_option )
     include( neci_add_library )
+    include( neci_add_executable )
     include( neci_print_summary )
 
     include( ${CMAKE_CURRENT_LIST_DIR}/contrib/GetGitRevisionDescription.cmake )

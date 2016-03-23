@@ -91,7 +91,6 @@ set( SRC_FILES
     NatOrbs.F90
     NECICore.F90
     neci_intfce.F90
-    necimain.F90
     OneEInts.F90
     orthogonalise.F90
     Orthonorm.F90
@@ -217,3 +216,16 @@ neci_add_library(
         HElement_t=complex
         __CMPLX
 )
+
+neci_add_executable(
+    TARGET neci
+    SOURCES necimain.F90
+    LIBS libneci
+)
+
+neci_add_executable(
+    TARGET kneci
+    SOURCES necimain.F90
+    LIBS libkneci
+)
+
