@@ -15,8 +15,11 @@ include(neci_system)
 #    v) Add unit tests (are they ctest compatible?)
 #   vi) Add searching for packages within options (e.g. MPI...)
 #  vii) Pick up VERSION.cmake
-# viii) Turn off an option if a required package is unavailabe
+# viii) Add configuration name to _CONFIG define
 #   ix) Add option to cmake gui
+#    x) Attack GIT to get version info
+#   xi) List all configured (a) libraries, (b) executables at the end
+#  xii) Summary of options, etc, at the end.
 
 # Declare options that this project uses
 
@@ -30,6 +33,17 @@ neci_add_option(
     DEFAULT ON
     DESCRIPTION "Enable functionality requiring FFTW"
     REQUIRED_PACKAGES FFTW)
+
+
+# Global (always on) defines
+list(APPEND NECI_GLOBAL_DEFINES
+        
+    __Linux
+    HAVE_SSE2
+    MAXMEM=99999
+    DSFMT_MEXP=19937
+    _CONFIG="cmake-TODO"
+)
 
 
 

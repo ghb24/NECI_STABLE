@@ -38,5 +38,6 @@ if( PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME )
     # Our local macros
 
     include( neci_add_option )
+    include( neci_add_library )
 
 endif()

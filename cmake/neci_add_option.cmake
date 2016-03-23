@@ -35,15 +35,14 @@
 #
 # Unlike eckit, we don't yet have the ability to automagically turn a feature off if a package
 # is not available.
-# TODO: Turn off options when a package is not available
 
 macro( neci_add_option )
 
-    # set( options ADVANCED ) 
+    set( options ) 
     set( single_value_args FEATURE DEFAULT DESCRIPTION )
     set( multi_value_args  REQUIRED_PACKAGES ) # CONDITION
 
-    cmake_parse_arguments( _p "" "${single_value_args}" "${multi_value_args}" ${_FIRST_ARG} ${ARGN} )
+    cmake_parse_arguments( _p "${options}" "${single_value_args}" "${multi_value_args}" ${_FIRST_ARG} ${ARGN} )
 
     if( _p_UNPARSED_ARGUMENTS )
       message(FATAL_ERROR "Unknown arguments passed to neci_add_option(): \"${_p_UNPARSED_ARGUMENTS}\"")
