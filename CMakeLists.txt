@@ -11,6 +11,8 @@ include(neci_system)
 #    i) Add compiler ID to the build name
 #   ii) Add build hostname to the output
 #  iii) Add toolchain files
+#   iv) We shouldn't have to rebuild everything for just changing version info --> restrict to header
+#          Use -- set_property( SOURCE <> PROPERTY COMPILE_DEFINITIONS ... )
 #    v) Add unit tests (are they ctest compatible?)
 # viii) Add configuration name to _CONFIG define
 #   ix) Add option to cmake gui
@@ -60,7 +62,7 @@ list(APPEND NECI_GLOBAL_DEFINES
     HAVE_SSE2
     MAXMEM=99999
     DSFMT_MEXP=19937
-    _CONFIG="cmake-$<$<BOOL:${HAVE_MPI}>:par>"
+    _CONFIG="cmake-${CMAKE_Fortran_COMPILER_ID}-$<$<BOOL:${HAVE_MPI}>:par>"
     _VCS_VER="${${PROJECT_NAME}_GIT_SHA1}"
 
     # Global defines that depend on options
