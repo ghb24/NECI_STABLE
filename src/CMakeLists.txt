@@ -212,10 +212,12 @@ neci_add_library(
 
     LIBS
         "${${PROJECT_NAME}_LAPACK_LIBRARIES}"
-        "${MPI_Fortran_LIBRARIES}"
+        "$<$<BOOL:${HAVE_MPI}>:${MPI_Fortran_LIBRARIES}>"
         "${LIBRT_LIBRARIES}"
+        "$<$<BOOL:${HAVE_FFTW}>:${FFTW_LIBRARIES}>"
 )
 
+message("FFTW: ${FFTW_LIBRARIES}")
 neci_add_library(
     
     TARGET libkneci
@@ -236,8 +238,9 @@ neci_add_library(
 
     LIBS
         "${${PROJECT_NAME}_LAPACK_LIBRARIES}"
-        "${MPI_Fortran_LIBRARIES}"
+        "$<$<BOOL:${HAVE_MPI}>:${MPI_Fortran_LIBRARIES}>"
         "${LIBRT_LIBRARIES}"
+        "$<$<BOOL:${HAVE_FFTW}>:${FFTW_LIBRARIES}>"
 )
 
 neci_add_executable(

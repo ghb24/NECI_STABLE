@@ -8,13 +8,11 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 include(neci_system)
 
 # TODO:
-#    i) Add compiler ID to the build name
 #   ii) Add build hostname to the output
 #  iii) Add toolchain files
 #   iv) We shouldn't have to rebuild everything for just changing version info --> restrict to header
 #          Use -- set_property( SOURCE <> PROPERTY COMPILE_DEFINITIONS ... )
 #    v) Add unit tests (are they ctest compatible?)
-# viii) Add configuration name to _CONFIG define
 #   ix) Add option to cmake gui
 #  xii) Summary of options, etc, at the end.
 #  xiv) hdf5
@@ -68,6 +66,7 @@ list(APPEND NECI_GLOBAL_DEFINES
     # Global defines that depend on options
     $<$<BOOL:${HAVE_MPI}>:PARALLEL>
     $<$<BOOL:${HAVE_SHARED_MEMORY}>:__SHARED_MEM>
+    $<$<NOT:$<BOOL:${HAVE_FFTW}>>:DISABLE_FFTW>
 )
 
 
