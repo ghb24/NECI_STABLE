@@ -70,7 +70,7 @@ contains
                         ! Get the index of physical order UMAT element <IJ|KL>
                         ! Indices are internally reordered such that:
                         ! i >= k, j >= l, (i,k) >= (j,l)
-                        UMAT(UMatInd(id1, id2, id3, id3, 0, 0)) = sum
+                        UMAT(UMatInd(id1, id2, id3, id3)) = sum
                         if (abs(sum) > 1.0e-10_dp) &
                             write (10, '(4i7,f19.9)') id1, id2, id3, id4, sum
                     enddo
@@ -215,7 +215,7 @@ contains
                         ! Get the index of physical order UMAT element <IJ|KL>
                         ! Indices are internally ! reordered such that:
                         !i >= k, j >= l, (i,k) >= (j,l)
-                        UMAT(UMatInd(id1, id2, id3, id4, 0, 0)) = sum
+                        UMAT(UMatInd(id1, id2, id3, id4)) = sum
                         if (abs(sum) > 1.0e-10_dp) &
                             write (10, '(4i7,f19.9)') id1, id2, id3, id4, sum
                     enddo

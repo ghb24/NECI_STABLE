@@ -594,7 +594,7 @@ module FciMCParMod
         endif
         write(iout,"(A)")
         if(tNoProjEValue) then
-            write(iout,"(A,F20.8)") " Total projected energy ",ProjectionE(1) + Hii
+            write(iout,"(A,F20.8)") " Total projected energy ",real(ProjectionE(1),dp) + Hii
         else
             write(iout,"(A,F20.8,A,G15.6)") " Total projected energy ", &
                 mean_ProjE_re+Hii," +/- ",ProjE_Err_re

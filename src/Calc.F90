@@ -2464,11 +2464,6 @@ contains
 
           iSeed = 7
 
-!C.. we need to calculate a value for RHOEPS, so we approximate that
-!C.. RHO_II~=exp(-BETA*H_II/p).  RHOEPS is a %ge of this 
-!C.. If we haven't already calced RHOEPS, do it now
-          Call DoExactVertexCalc()
-
           IF (tMP2Standalone) then
               call ParMP2(FDet)
 ! Parallal 2v sum currently for testing only.
@@ -2508,60 +2503,6 @@ contains
                  else
                      call perform_kp_fciqmc(kp)
                  end if
-             else
-                 WRITE(6,*) "Calculating ",NPATHS," W_Is..."
-                 iunit =get_free_unit()
-                 IF(BTEST(ILOGGING,1)) THEN
-                    IF(I_HMAX.EQ.-10) THEN
-                       OPEN(iunit,FILE="MCSUMMARY",STATUS="UNKNOWN")
-                       WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
-                       CLOSE(iunit)
-                    ELSE
-                       OPEN(iunit,FILE="MCPATHS",STATUS="UNKNOWN")
-                       WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
-                       CLOSE(iunit)
-                    ENDIF
-                 ENDIF
-                 IF(NTAY(1).GT.0) THEN
-                    WRITE(6,*) "Using list of determinants."
-                    WRITE(6,*) "Using approx RHOs generated on the fly,NTAY=",NTAY(1)
-    !C.. we haven't calculated the energy, so we're calculating the weights
-    !C.. with approx RHOs
-                    IF(TENERGY) THEN
-    !C.. If we've generated a list of dets
-    !C.. Instead of NMAX, we put ARR
-                         CALL CALCRHOPII2(BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,               &
-         &                 NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,          &
-         &                 RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
-         &                 DETINV,TSPECDET,SPECDET)
-    !                      WRITE(6,*) "Out Here 2"
-    !                      CALL neci_flush(6)
-                    ELSE
-                       IF(TCSFOLD) THEN
-                          IF(.NOT.TSPECDET) THEN
-                             WRITE(6,*) "SPECDET not specified. Using Fermi determinant ONLY"
-                             TSPECDET=.TRUE.
-                             CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
-                          ENDIF
-                       ENDIF
-                      IF(TPARITY) THEN
-                          WRITE(6,*) "Using symmetry restriction:"
-                          CALL WRITEALLSYM(6,SymRestrict,.TRUE.)
-                      ENDIF
-                      IF(TSPN) THEN
-                          WRITE(6,*) "Using spin restriction:",LMS
-                      ENDIF
-    !C.. Instead of NMAX we have ARR 
-                      CALL CALCRHOPII3(BETA,I_P,I_HMAX,I_VMAX,NEL,                         &
-         &               NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,              &
-         &               RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,               &
-         &               DETINV,TSPN,LMS2,TPARITY,SymRestrict,TSPECDET,SPECDET,            &
-         &               nActiveBasis)
-                    ENDIF
-                 ELSE
-                     WRITE(6,*) "Invalid combination of NTAY and TENERGY.  No NPATHS calculated"
-                     WRITE(6,*) "NTAY: ",NTAY(1)," TENERGY: ",TENERGY
-                 ENDIF
               ENDIF
           endif
           IF(TMONTE.and..not.tMP2Standalone) THEN
@@ -2600,117 +2541,6 @@ contains
 !C.. /AJWT
         End Subroutine CalcDoCalc
 
-        Subroutine DoExactVertexCalc()
-          use SystemData, only: Alat, Beta, Brr, ECORE, G1, nBasis, nBasisMax,nMsh, Arr,nEl
-          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB
-          use IntegralsData, only: fck, nMax, UMat,nTay
-          Use DetCalc, only: cK, nDet, nEval, tEnergy, tRead, W, NMRKS, DetInv
-          Use Determinants, only: specdet, tSpecDet
-          Use LoggingData, only: iLogging
-          Use util_mod, only: get_free_unit
-          Use DetCalc, only: tFindDets
-          use sym_mod
-          real(dp) flri, flsi
-          real(dp) En, ExEn, GSEn
-          real(dp) RH
-          INTEGER iDeg, III, iunit
-          Type(BasisFN) iSym
-          LOGICAL tWarn
-          character(*), parameter :: this_routine = 'DoExactVertexCalc'
-          
-          real(dp) CalcMCEn, CalcDLWDB, DoExMC
-            
-          IF(TENERGY.and.(.not.tFindDets)) THEN
-             RHOEPS=RHOEPSILON*EXP(-BETA*(W(1))/I_P)
-!            WRITE(6,*) "RHOEPS:",RHOEPS
-             IF(TREAD) THEN
-                EXEN=CALCMCEN(NEVAL,W,BETA)
-                WRITE(6,"(A,F19.5)") "EXACT E(BETA)=",EXEN
-                GSEN=CALCDLWDB(1,NDET,NEVAL,CK,W,BETA)
-                WRITE(6,"(A,F19.5)") "EXACT DLWDB(D0)=",GSEN
-             ENDIF
-             iunit = get_free_unit()
-             OPEN(iunit,FILE='RHOPIIex',STATUS='UNKNOWN')
-             IF(NDETWORK.EQ.0.OR.NDETWORK.GT.NDET) NDETWORK=NDET
-             DO III=1,NDETWORK
-             
-                CALL CALCRHOPII(III,NDET,NEVAL,CK,W,BETA,I_P,FLRI,FLSI,TWARN)
-                IF(TWARN) THEN
-                   IF(III.EQ.1) THEN
-                      WRITE(6,*) "Warning received from CALCRHOPII."
-                      IF(TREAD) THEN
-                         WRITE(6,*) "TREAD set. Cannot calculate RHOII."
-                      ELSE
-                      WRITE(6,*) "Calculating RHOII using 1st order Taylor."
-                      ENDIF
-                   ENDIF
-                   IF(.NOT.TREAD) THEN
-                   CALL CALCRHO2(NMRKS(1:NEl,III),NMRKS(1:NEl,III),BETA,I_P,NEL, G1,NBASIS,NMSH, &
-                    FCK,NMAX,ALAT,UMAT,RH,1,0,ECORE)
-!C                   WRITE(6,*) RH
-                   FLRI=LOG(RH)
-                   FLSI=FLSI-I_P*FLRI
-                   ENDIF
-                ENDIF
-                call write_det (iunit, NMRKS(:,III), .false.)
-                GSEN=CALCDLWDB(III,NDET,NEVAL,CK,W,BETA)
-                CALL GETSYM(NMRKS(:,III),NEL,G1,NBASISMAX,ISYM)
-                CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
-                WRITE(iunit,"(4G25.16,I5)") EXP(FLSI+I_P*FLRI),FLRI*I_P,FLSI,GSEN,IDEG
-             ENDDO
-!C             CLOSE(17)
-             CLOSE(iunit)
-          ENDIF
-        
-          IF(TMONTE.AND.TENERGY.AND.NTAY(1).EQ.-1) THEN
-             WRITE(6,*) "Calculating Exact MC Energy..."
-             EN=DOEXMC(NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,0.0_dp,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS)
-          ENDIF
-          IF(TBEGRAPH) THEN
-             call stop_all(this_routine, 'BEGRAPH not implemented')
-             IF(TENERGY) THEN
-                IF(NTAY(1).NE.0) THEN
-!                   CALL DOBEGRAPH(NDET,NEVAL,CK,W,I_P,ILOGGING,G1,NMRKS,nEl,NBASISMAX,nBasis,BRR)
-                ELSE
-!C..     NTAY=0 signifying we're going to calculate the RHO values when we
-!C..     need them from the list of eigenvalues.   
-!C..     Hide NMSH=NEVAL
-!C..          FCK=W
-!C..          ZIA=CK
-!C..          UMAT=NDET
-!C..          ALAT=NMRKS        
-!                   CALL DOBEGRAPHAP(I_P,I_HMAX,I_VMAX,NEL,NDET,             &
-!     &                NBASISMAX,G1,nBasis,BRR,NEVAL,W,CK,NMAX,NMRKS,NDET,      &
-!     &                NTAY,RHOEPS,NWHTAY,NPATHS,ILOGGING)
-                ENDIF
-             ELSE
-!                CALL DOBEGRAPHAP(I_P,I_HMAX,I_VMAX,NEL,NDET,                &
-!     &                NBASISMAX,G1,nBasis,BRR,NMSH,FCK,NMAX,ALAT,UMAT,         &
-!     &                NTAY,RHOEPS,NWHTAY,NPATHS,ILOGGING)
-             ENDIF
-          ENDIF
-          IF(NTAY(1).EQ.0.AND.TENERGY) THEN
-              WRITE(6,*) "Using exact RHOs generated on the fly"
-!C.. we've calculated energies, and we're passing them through to
-!C.. calculate the exact RHOS
-!C.. NTAY=0 signifying we're going to calculate the RHO values when we
-!C.. need them from the list of eigenvalues.   
-!C.. Hide NMSH=NEVAL
-!C..          FCK=W
-!C..          ZIA=CK
-!C..          UMAT=NDET
-!C..          ALAT=NMRKS
-!C..          NMAX=ARR
-!              CALL CALCRHOPII2(BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,                        &
-!     &               NBASISMAX,G1,nBasis,BRR,NEVAL,W,CK,ARR,NMRKS,NDET,NTAY,           &
-!     &                RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
-!     &                DETINV,TSPECDET,SPECDET)
-!a
-              call stop_all("DoExactVertexCalc","DoExactVertexCalc non-functional.")
-          endif
-            
-        End Subroutine DoExactVertexCalc
-
         Subroutine CalcCleanup()
            != Clean up (e.g. via deallocation) mess from Calc routines.
            use global_utilities
@@ -2728,7 +2558,6 @@ contains
       subroutine inpgetmethod(I_HMAX,NWHTAY,I_V)
          use constants
          use input_neci
-         use UMatCache, only: tStarStore
          use CalcData, only: calcp_sub2vstar, calcp_logWeight, tMCDirectSum, &
                              g_multiweight, g_vmc_fac, tMPTheory, StarProd, &
                              tDiagNodes, tStarStars, tGraphMorph, tStarTrips, &
@@ -2867,9 +2696,6 @@ contains
                         IF(I_HMAX.NE.-21)  call report(        &
      &                     "Error - cannot use ADDSINGLES"     &
      &                     //" without STAR NEW",.true.)
-                        IF(TSTARSTORE) call report("Error - "  &
-     &                   //"can only use STARSTOREREAD with "  &
-     &                   //"double excitations of HF",.true.)
                      case("DIAG")
                          NWHTAY=IBCLR(NWHTAY,0)
                      case("POLY")
