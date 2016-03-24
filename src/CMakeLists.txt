@@ -188,6 +188,11 @@ set( TEMPLATED_SRC_FILES
     lib/util_mod_numerical.F90.template
 )
 
+
+# ---------------------------------------------------------------------------------
+# Build the main parts as static libraries
+# --> They don't need to be recompiled to be included in unit tests/python/...
+
 neci_add_library(
     
     TARGET libneci
@@ -195,7 +200,11 @@ neci_add_library(
     OUTPUT_NAME neci
     SOURCES ${SRC_FILES}
     TEMPLATED_SOURCES ${TEMPLATED_SRC_FILES}
-    PRIVATE_INCLUDES ${CMAKE_SOURCE_DIR}/src
+
+    PRIVATE_INCLUDES
+        ${CMAKE_SOURCE_DIR}/src
+        "${MPI_INCLUDE_PATH}"
+        "${MPI_Fortran_INCLUDE_PATH}"
 
     DEFINITIONS
         "${NECI_GLOBAL_DEFINES}"
@@ -203,6 +212,8 @@ neci_add_library(
 
     LIBS
         "${${PROJECT_NAME}_LAPACK_LIBRARIES}"
+        "${MPI_Fortran_LIBRARIES}"
+        "${LIBRT_LIBRARIES}"
 )
 
 neci_add_library(
@@ -212,7 +223,11 @@ neci_add_library(
     OUTPUT_NAME kneci
     SOURCES ${SRC_FILES}
     TEMPLATED_SOURCES ${TEMPLATED_SRC_FILES}
-    PRIVATE_INCLUDES ${CMAKE_SOURCE_DIR}/src
+
+    PRIVATE_INCLUDES
+        ${CMAKE_SOURCE_DIR}/src
+        "${MPI_INCLUDE_PATH}"
+        "${MPI_Fortran_INCLUDE_PATH}"
 
     DEFINITIONS
         "${NECI_GLOBAL_DEFINES}"
@@ -221,6 +236,8 @@ neci_add_library(
 
     LIBS
         "${${PROJECT_NAME}_LAPACK_LIBRARIES}"
+        "${MPI_Fortran_LIBRARIES}"
+        "${LIBRT_LIBRARIES}"
 )
 
 neci_add_executable(

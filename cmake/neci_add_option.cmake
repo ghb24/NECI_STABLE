@@ -73,7 +73,7 @@ macro( neci_add_option )
       set( ENABLE_${_p_FEATURE} ON CACHE BOOL "" FORCE )
       message( STATUS "Option ENABLE_${_p_FEATURE} was required" )
       set( ${_p_FEATURE}_user_provided_input 1 CACHE BOOL "" FORCE )
-    elseif ( NOT ENABLE_${_p_FEATURE} STREQUAL "" AND _in_cache )
+    elseif ( NOT "${ENABLE_${_p_FEATURE}}" STREQUAL "") # AND _in_cache )
       message( STATUS "Option ENABLE_${_p_FEATURE} was found in the cache" )
       set( ${_p_FEATURE}_user_provided_input 1 CACHE BOOL "" )
     else()
@@ -87,7 +87,7 @@ macro( neci_add_option )
     # as ENABLE_<feature> is for the user provided option, and we want to reserve the right to have
     # some logic between these values
 
-    if ( ${_p_FEATURE}_user_provided_input )
+    if ( ${${_p_FEATURE}_user_provided_input} )
       set ( HAVE_${_p_FEATURE} ${ENABLE_${_p_FEATURE}} )
     else()
       set ( HAVE_${_p_FEATURE} ${_p_DEFAULT} )
@@ -96,7 +96,7 @@ macro( neci_add_option )
     # If we want to enable a package, then check that its required packages exist. If they do not,
     # then we need to disable the package (unless REQUIRED is set, in which case we return an error.
 
-    if ( HAVE_${_p_FEATURE} )
+    if ( ${HAVE_${_p_FEATURE}} )
         
       set( ${_p_FEATURE}_packages_found ON )
       set( ${_p_FEATURE}_failed_list "" )
@@ -125,7 +125,7 @@ macro( neci_add_option )
     
     # And finally some pretty output.
 
-    if ( HAVE_${_p_FEATURE} )
+    if ( ${HAVE_${_p_FEATURE}} )
       message( STATUS "Feature ${_p_FEATURE} enabled." )
     else()
       message( STATUS "Feature ${_p_FEATURE} disabled." )
