@@ -80,7 +80,6 @@ set( SRC_FILES
     kp_fciqmc_proj_est.F90
     lanczos_wrapper.F90
     legacy_data.F90
-    libstub.F
     lineup.F
     load_balance_calcnodes.F90
     load_balancer.F90
@@ -208,16 +207,19 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
         PRIVATE_INCLUDES
             ${CMAKE_SOURCE_DIR}/src
             "${MPI_NECI_INCLUDE_PATH}"
+            "${HDF5_NECI_INCLUDE_PATH}"
 
         DEFINITIONS
             "${NECI_GLOBAL_DEFINES}"
             "${${PROJECT_NAME}_${_config}_DEFINITIONS}"
+            "${HDF5_NECI_DEFINITIONS}"
 
         LIBS
             "${LAPACK_NECI_LIBRARIES}"
             "$<$<BOOL:${HAVE_MPI}>:${MPI_NECI_Fortran_LIBRARIES}>"
             "${LIBRT_LIBRARIES}"
             "$<$<BOOL:${HAVE_FFTW}>:${FFTW_LIBRARIES}>"
+            "$<$<BOOL:${HAVE_HDF5}>:${HDF5_NECI_LIBRARIES}>"
     )
 
     message(STATUS "Adding executable for configuration ${_config}")

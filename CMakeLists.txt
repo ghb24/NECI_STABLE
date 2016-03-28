@@ -43,6 +43,12 @@ neci_add_option(
     DESCRIPTION "Use shared memory to store integrals"
     REQUIRED_PACKAGES LibRT )
 
+neci_add_option(
+    FEATURE HDF5
+    DEFAULT ON
+    DESCRIPTION "Use shared memory to store integrals"
+    REQUIRED_PACKAGES HDF5_NECI ) # HDF5_NECI adds the Fortran COMPONENT to the default (and the ability to build)
+
 # REQUIRED packages
 # <Package>_NECI has a custom finder that does a bit more work than normal...
 
@@ -63,13 +69,14 @@ list(APPEND NECI_GLOBAL_DEFINES
     HAVE_SSE2
     MAXMEM=99999
     DSFMT_MEXP=19937
-    _CONFIG="cmake-${CMAKE_Fortran_COMPILER_ID}-$<$<BOOL:${HAVE_MPI}>:par>"
+    _CONFIG="cmake-${CMAKE_Fortran_COMPILER_ID}-$<$<BOOL:${HAVE_MPI}>:par>-${CMAKE_BUILD_TYPE}"
     _VCS_VER="${${PROJECT_NAME}_GIT_SHA1}"
 
     # Global defines that depend on options
     $<$<BOOL:${HAVE_MPI}>:PARALLEL>
     $<$<BOOL:${HAVE_SHARED_MEMORY}>:__SHARED_MEM>
     $<$<NOT:$<BOOL:${HAVE_FFTW}>>:DISABLE_FFTW>
+    $<$<BOOL:${HAVE_HDF5}>:__USE_HDF>
 )
 
 
