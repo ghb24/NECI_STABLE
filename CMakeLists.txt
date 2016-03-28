@@ -16,17 +16,20 @@ include(neci_system)
 #    v) Add unit tests (are they ctest compatible?)
 #   vi) Add warnings option
 #   ix) Add option to cmake gui
-#  xii) Summary of options, etc, at the end.
+#  xii) Summary of options, etc, at the end. (see feature_summary, ecbuild_feature).
 #  xiv) hdf5
 #   xv) Which targets should be included in ALL (see EXCLUDE_FROM_ALL)
 
 # Declare options that this project uses
+# <Package>_NECI has a custom finder that does a bit more work than normal...
+
+find_package( MPI_NECI )
 
 neci_add_option(
     FEATURE MPI
     DEFAULT ON
     DESCRIPTION "Use MPI for parallel compilation"
-    REQUIRED_PACKAGES MPI )
+    REQUIRED_PACKAGES MPI_NECI )
 
 neci_add_option(
     FEATURE FFTW
@@ -40,6 +43,11 @@ neci_add_option(
     DESCRIPTION "Use shared memory to store integrals"
     REQUIRED_PACKAGES LibRT )
 
+# REQUIRED packages
+# <Package>_NECI has a custom finder that does a bit more work than normal...
+
+find_package( LAPACK_NECI REQUIRED )
+
 # Build-type configuration
 
 set(${PROJECT_NAME}_CONFIGURATIONS neci kneci dneci mneci)
@@ -47,20 +55,6 @@ set(${PROJECT_NAME}_neci_DEFINITIONS HElement_t=real)
 set(${PROJECT_NAME}_kneci_DEFINITIONS HElement_t=complex __CMPLX)
 set(${PROJECT_NAME}_dneci_DEFINITIONS HElement_t=real __DOUBLERUN)
 set(${PROJECT_NAME}_mneci_DEFINITIONS HElement_t=real __PROG_NUMRUNS)
-
-# Required packages
-
-# Add force for BLAS includes
-if ( NOT DEFINED ${PROJECT_NAME}_LAPACK_LIBRARIES )
-    find_package(MKL)
-    if ( ${MKL_FOUND} )
-        set( ${PROJECT_NAME}_LAPACK_LIBRARIES "${MKL_LIBRARIES}" )
-        set( ${PROJECT_NAME}_LAPACK_INCLUDES "${MKL_INCLUDE_DIR}" )
-    else()
-        find_package( LAPACK REQUIRED )
-        set( ${PROJECT_NAME}_LAPACK_LIBRARIES "${LAPACK_LIBRARIES}" )
-    endif()
-endif()
 
 # Global (always on) defines
 

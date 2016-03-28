@@ -207,16 +207,15 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
 
         PRIVATE_INCLUDES
             ${CMAKE_SOURCE_DIR}/src
-            "${MPI_INCLUDE_PATH}"
-            "${MPI_Fortran_INCLUDE_PATH}"
+            "${MPI_NECI_INCLUDE_PATH}"
 
         DEFINITIONS
             "${NECI_GLOBAL_DEFINES}"
             "${${PROJECT_NAME}_${_config}_DEFINITIONS}"
 
         LIBS
-            "${${PROJECT_NAME}_LAPACK_LIBRARIES}"
-            "$<$<BOOL:${HAVE_MPI}>:${MPI_Fortran_LIBRARIES}>"
+            "${LAPACK_NECI_LIBRARIES}"
+            "$<$<BOOL:${HAVE_MPI}>:${MPI_NECI_Fortran_LIBRARIES}>"
             "${LIBRT_LIBRARIES}"
             "$<$<BOOL:${HAVE_FFTW}>:${FFTW_LIBRARIES}>"
     )

@@ -14,6 +14,12 @@ CMAKE_FORCE_Fortran_COMPILER ( mpif90 GNU )
 
 # Override MPI searching. Override arbitrary package searching...
 
+
+# n.b. We can also define:
+#
+# set( ${PACKAGE_NAME}_FOUND ON )
+# set( ${PACKAGE_NAME}_LIBRARIES ... )
+
 set( NECI_FIND_MPI OFF )
 set( NECI_FIND_LibRT OFF )
 

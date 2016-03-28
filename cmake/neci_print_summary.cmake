@@ -19,6 +19,11 @@ message(STATUS "Global C++ compile flags: ${CMAKE_CXX_FLAGS_RELEASE}")
 message(STATUS "Global Fortran compile flags: ${CMAKE_Fortran_FLAGS}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
+#if ( ${CMAKE_VERSION} VERSION_LESS "2.8.6" )
+#    feature_summary( WHAT ALL )
+#else()
+#    feature_summary( WHAT ALL INCLUDE_QUIET_PACKAGES)
+#endif()
 
 message(STATUS "")
 message(STATUS "  +---------------------------------------------------+")
