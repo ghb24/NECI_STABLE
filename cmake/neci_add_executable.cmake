@@ -21,13 +21,17 @@
 # LIBS : optional
 #   list of libraries to link against (CMake targets, or external libraries)
 #
+# LINKER_LANGUAGE : optional
+#   what language should be used to link the executable. If not specified, cmake will determine this automatically
+#   Values: C, CXX, Fortran
+#
 ##############################################################################
 
 
 macro( neci_add_executable )
 
     set( options  )
-    set( single_value_args TARGET )
+    set( single_value_args TARGET LINKER_LANGUAGE )
     set( multi_value_args SOURCES LIBS )
 
     cmake_parse_arguments( _p "${options}" "${single_value_args}" "${multi_value_args}" ${_FIRST_ARG} ${ARGN} )
@@ -44,6 +48,7 @@ macro( neci_add_executable )
 
     # Actually create the executable
 
+    message(STATUS "Adding executable: ${_p_TARGET}")
     add_executable( ${_p_TARGET} ${_p_SOURCES} )
 
     # Add the link libraries
@@ -62,6 +67,21 @@ macro( neci_add_executable )
     # Where do the files get built to
 
     set_property( TARGET ${_p_TARGET} PROPERTY RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin )
+
+    # Specify the linker language manually
+
+    if( DEFINED _p_LINKER_LANGUAGE )
+      set_property( TARGET ${_p_TARGET} PROPERTY LINKER_LANGUAGE ${_p_LINKER_LANGUAGE} )
+      message(STATUS "Executable ${_p_TARGET}: Setting linker language to ${_p_LINKER_LANGUAGE}" )
+      if( DEFINED NECI_${_p_LINKER_LANGUAGE}_EXE_LINK_LIBRARIES )
+        target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_EXE_LINK_LIBRARIES} )
+        message(STATUS "Executable ${_p_TARGET}: Adding link libraries ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES}" )
+      endif()
+      if( DEFINED NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES )
+        target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES} )
+        message(STATUS "Executable ${_p_TARGET}: Adding link libraries ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES}" )
+      endif()
+    endif()
 
     # Add to the global list of libraries
     set( ${PROJECT_NAME}_ALL_EXES ${${PROJECT_NAME}_ALL_EXES} ${_p_TARGET} CACHE INTERNAL "" )

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.4 FATAL_ERROR)
 
-project(neci Fortran CXX C)
+project(NECI Fortran CXX C)
 
 # Get access to custom cmake modules
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
@@ -8,16 +8,17 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 include(neci_system)
 
 # TODO:
+#    i) Correct 32-bit support
 #   ii) Add build hostname to the output
 #  iii) Add toolchain files
 #   iv) We shouldn't have to rebuild everything for just changing version info --> restrict to header
 #          Use -- set_property( SOURCE <> PROPERTY COMPILE_DEFINITIONS ... )
 #    v) Add unit tests (are they ctest compatible?)
+#   vi) Add warnings option
 #   ix) Add option to cmake gui
 #  xii) Summary of options, etc, at the end.
 #  xiv) hdf5
 #   xv) Which targets should be included in ALL (see EXCLUDE_FROM_ALL)
-# xvii) LINKER_LANGUAGE Fortran
 
 # Declare options that this project uses
 
@@ -38,6 +39,14 @@ neci_add_option(
     DEFAULT ON
     DESCRIPTION "Use shared memory to store integrals"
     REQUIRED_PACKAGES LibRT )
+
+# Build-type configuration
+
+set(${PROJECT_NAME}_CONFIGURATIONS neci kneci dneci mneci)
+set(${PROJECT_NAME}_neci_DEFINITIONS HElement_t=real)
+set(${PROJECT_NAME}_kneci_DEFINITIONS HElement_t=complex __CMPLX)
+set(${PROJECT_NAME}_dneci_DEFINITIONS HElement_t=real __DOUBLERUN)
+set(${PROJECT_NAME}_mneci_DEFINITIONS HElement_t=real __PROG_NUMRUNS)
 
 # Required packages
 

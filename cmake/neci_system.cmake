@@ -47,6 +47,12 @@ if( PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME )
 
     include( ${CMAKE_CURRENT_LIST_DIR}/contrib/GetGitRevisionDescription.cmake )
 
+    # Start off the build process!!!
+
+    include( neci_compiler_flags )
+
+    message(STATUS "------------------------------------------------------------")
+
 endif()
 
 # ========================================================================================================
@@ -76,3 +82,21 @@ if ( EXISTS ${PROJECT_SOURCE_DIR}/VERSION.cmake )
 else()
     message( WARNING "WARNING: Version number not set. Using default ${${PROJECT_NAME}_VERSION_STR}" )
 endif()
+
+
+# ========================================================================================================
+# Manage overrides from any toolchain files
+# ========================================================================================================
+if ( DEFINED ${PROJECT_NAME}_EXE_LINKER_FLAGS)
+    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${${PROJECT_NAME}_EXE_LINKER_FLAGS}")
+endif()
+if ( DEFINED ${PROJECT_NAME}_EXE_LINKER_FLAGS)
+    set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${${PROJECT_NAME}_SHARED_LINKER_FLAGS}")
+endif()
+
+# TODO - all the configurations?
+if ( DEFINED ${PROJECT_NAME}_CXX_FLAGS_RELEASE )
+    message("SETTING: " ${${PROJECT_NAME}_CXX_FLAGS_RELEASE} )
+    set( CMAKE_CXX_FLAGS_RELEASE ${${PROJECT_NAME}_CXX_FLAGS_RELEASE} )
+endif()
+

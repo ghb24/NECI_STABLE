@@ -148,7 +148,6 @@ set( SRC_FILES
     symrandexcit_ueg.F90
     SystemData.F90
     System_neci.F90
-    tags
     tau_search.F90
     trial_wf_gen.F90
     UMatCache.F90
@@ -193,65 +192,42 @@ set( TEMPLATED_SRC_FILES
 # Build the main parts as static libraries
 # --> They don't need to be recompiled to be included in unit tests/python/...
 
-neci_add_library(
+foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
+
+    message(STATUS "Adding library for configuration ${_config}")
+    message(STATUS "Library definitions: ${${PROJECT_NAME}_${_config}_DEFINITIONS}")
+    neci_add_library(
     
-    TARGET libneci
-    TYPE STATIC
-    OUTPUT_NAME neci
-    SOURCES ${SRC_FILES}
-    TEMPLATED_SOURCES ${TEMPLATED_SRC_FILES}
+        TARGET lib${_config}
+        TYPE STATIC
+        OUTPUT_NAME ${_config}
+        SOURCES ${SRC_FILES}
+        TEMPLATED_SOURCES ${TEMPLATED_SRC_FILES}
+        LINKER_LANGUAGE Fortran
 
-    PRIVATE_INCLUDES
-        ${CMAKE_SOURCE_DIR}/src
-        "${MPI_INCLUDE_PATH}"
-        "${MPI_Fortran_INCLUDE_PATH}"
+        PRIVATE_INCLUDES
+            ${CMAKE_SOURCE_DIR}/src
+            "${MPI_INCLUDE_PATH}"
+            "${MPI_Fortran_INCLUDE_PATH}"
 
-    DEFINITIONS
-        "${NECI_GLOBAL_DEFINES}"
-        HElement_t=real
+        DEFINITIONS
+            "${NECI_GLOBAL_DEFINES}"
+            "${${PROJECT_NAME}_${_config}_DEFINITIONS}"
 
-    LIBS
-        "${${PROJECT_NAME}_LAPACK_LIBRARIES}"
-        "$<$<BOOL:${HAVE_MPI}>:${MPI_Fortran_LIBRARIES}>"
-        "${LIBRT_LIBRARIES}"
-        "$<$<BOOL:${HAVE_FFTW}>:${FFTW_LIBRARIES}>"
-)
+        LIBS
+            "${${PROJECT_NAME}_LAPACK_LIBRARIES}"
+            "$<$<BOOL:${HAVE_MPI}>:${MPI_Fortran_LIBRARIES}>"
+            "${LIBRT_LIBRARIES}"
+            "$<$<BOOL:${HAVE_FFTW}>:${FFTW_LIBRARIES}>"
+    )
 
-message("FFTW: ${FFTW_LIBRARIES}")
-neci_add_library(
-    
-    TARGET libkneci
-    TYPE STATIC
-    OUTPUT_NAME kneci
-    SOURCES ${SRC_FILES}
-    TEMPLATED_SOURCES ${TEMPLATED_SRC_FILES}
+    message(STATUS "Adding executable for configuration ${_config}")
+    neci_add_executable(
+        TARGET ${_config}
+        SOURCES necimain.F90
+        LIBS lib${_config}
+        LINKER_LANGUAGE Fortran
+    )
 
-    PRIVATE_INCLUDES
-        ${CMAKE_SOURCE_DIR}/src
-        "${MPI_INCLUDE_PATH}"
-        "${MPI_Fortran_INCLUDE_PATH}"
-
-    DEFINITIONS
-        "${NECI_GLOBAL_DEFINES}"
-        HElement_t=complex
-        __CMPLX
-
-    LIBS
-        "${${PROJECT_NAME}_LAPACK_LIBRARIES}"
-        "$<$<BOOL:${HAVE_MPI}>:${MPI_Fortran_LIBRARIES}>"
-        "${LIBRT_LIBRARIES}"
-        "$<$<BOOL:${HAVE_FFTW}>:${FFTW_LIBRARIES}>"
-)
-
-neci_add_executable(
-    TARGET neci
-    SOURCES necimain.F90
-    LIBS libneci
-)
-
-neci_add_executable(
-    TARGET kneci
-    SOURCES necimain.F90
-    LIBS libkneci
-)
+endforeach()
 
