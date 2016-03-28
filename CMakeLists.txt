@@ -72,12 +72,18 @@ list(APPEND NECI_GLOBAL_DEFINES
     _CONFIG="cmake-${CMAKE_Fortran_COMPILER_ID}-$<$<BOOL:${HAVE_MPI}>:par>-${CMAKE_BUILD_TYPE}"
     _VCS_VER="${${PROJECT_NAME}_GIT_SHA1}"
 
+    # Is this a 32/64bit build
+    $<$<BOOL:${${PROJECT_NAME}_64BIT_BUILD}>:__INT64>
+    $<$<BOOL:${${PROJECT_NAME}_64BIT_BUILD}>:POINTER8>
+
     # Global defines that depend on options
     $<$<BOOL:${HAVE_MPI}>:PARALLEL>
     $<$<BOOL:${HAVE_SHARED_MEMORY}>:__SHARED_MEM>
     $<$<NOT:$<BOOL:${HAVE_FFTW}>>:DISABLE_FFTW>
     $<$<BOOL:${HAVE_HDF5}>:__USE_HDF>
 )
+
+if (
 
 
 # Include source directory

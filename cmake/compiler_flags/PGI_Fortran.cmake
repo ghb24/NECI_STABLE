@@ -1,0 +1,9 @@
+# Special defines for the PGI fortran compiler
+
+# Treat 32bit/64bit compilation differently
+
+set( ${PROJECT_NAME}_32BIT_Fortran_FLAGS -pc=32 )
+set( ${PROJECT_NAME}_32BIT_LINKER_FLAGS -pc=32 )
+
+set( ${PROJECT_NAME}_64BIT_Fortran_FLAGS -pc=64 -r8 -i8 )
+set( ${PROJECT_NAME}_64BIT_LINKER_FLAGS -pc=64 )

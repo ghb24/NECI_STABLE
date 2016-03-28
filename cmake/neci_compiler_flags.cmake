@@ -20,7 +20,7 @@ macro( neci_compiler_flags _lang )
 
     if( CMAKE_${_lang}_COMPILER_LOADED )
 
-        set( _lang_compiler_defs_file "${CMAKE_CURRENT_LIST_DIR}/${CMAKE_${_lang}_COMPILER_ID}_${_lang}.cmake" )
+        set( _lang_compiler_defs_file "${CMAKE_CURRENT_LIST_DIR}/compiler_flags/${CMAKE_${_lang}_COMPILER_ID}_${_lang}.cmake" )
 
         message(STATUS "${_lang} complier: Attempting to load flags from ${_lang_compiler_defs_file}")
 

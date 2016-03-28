@@ -50,6 +50,7 @@ if( PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME )
     # Start off the build process!!!
 
     include( neci_compiler_flags )
+    include( neci_build_bits )
 
     message(STATUS "------------------------------------------------------------")
 
