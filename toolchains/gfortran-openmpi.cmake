@@ -24,6 +24,8 @@ set( NECI_FIND_MPI OFF )
 set( NECI_FIND_LibRT OFF )
 
 # Compile flags
+# n.b. FORCE_ in the toolchain overrides the cmake/compiler_flags settings.
+#      NECI_ does not overrider compiler_flags settings, but works with CMAKE_FORCE_*_COMPILER
 
 # Arbitrary compile flags can be overriden here.
 # e.g.

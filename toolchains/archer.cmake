@@ -2,15 +2,20 @@
 
 set(CMAKE_SYSTEM_NAME Linux)
 
-# We don't need to forcibly set the compiler. That will happen just fine automatically.
+# Set the compiler. We don't need to use the force-detection as:
+#
+#  i) We are wanting to use the compiler wrappers (ftn), but we want the user to be able to supply to the
+#     Archer build system which compilers that should be.
+# ii) We don't want to add dependencies on specific versions of compilers and their linking needs
 
+set( CMAKE_Fortran_COMPILER ftn )
+set( CMAKE_CXX_COMPILER g++ )
 
 # Some packages are automagically included on archer.
 
 set( NECI_FIND_MPI_NECI OFF )
 set( NECI_FIND_LAPACK_NECI OFF )
 set( NECI_FIND_LibRT_NECI OFF )
-
 
 # Ensure that the loaded module is used for hdf5.
 # Normally we would link against automatically discovered .so files, but hydra seems to mess this up
@@ -22,19 +27,21 @@ set( HDF5_NECI_INCLUDE_PATH $ENV{HDF5_ROOT}/include )
 set( HDF5_NECI_FOUND true )
 
 # Compile flags
+# n.b. FORCE_ in the toolchain overrides the cmake/compiler_flags settings.
+#      NECI_ does not overrider compiler_flags settings, but works with 
 
 # Arbitrary compile flags can be overriden here.
 # e.g.
 #
-# set( NECI_CXX_FLAGS_RELEASE -O3 )   # Release mode specific CXX flags (also: DEBUG, CLUSTER)
-# set( NECI_Fortran_FLAGS -O3 )       # All build-type fortran flags
+# set( FORCE_CXX_FLAGS_RELEASE -O3 )   # Release mode specific CXX flags (also: DEBUG, CLUSTER)
+# set( FORCE_Fortran_FLAGS -O3 )       # All build-type fortran flags
 
 # Link flags
 
 # Arbitrary compile flags can be overriden here.
 # e.g.
 #
-# set( NECI_CXX_LINK_FLAGS -O3 )
+# set( FORCE_CXX_LINK_FLAGS -O3 )
 
 # Linker libraries
 
@@ -47,7 +54,9 @@ set( HDF5_NECI_FOUND true )
 # set ( NECI_Fortran_EXE_LINK_LIBRARIES stdc++ )       # Impacts executables
 # set ( NECI_Fortran_LINK_LIBRARIES m )                # Impacts both libraries and executables
 
-# By using CMakeForceCompiler, we break the autodetction of the c++ library requirement
-# (STATIC --> adds these only to libneci, libkneci, ... not directly to the executables)
-set( NECI_Fortran_STATIC_LINK_LIBRARIES stdc++ rt )
+# We don't want to propagate the g++ link elements through into the fortran linker.
+# (these are found during the "Detecting CXX compiler ABI info" stage).
+set( NECI_CXX_IMPLICIT_LINK_DIRECTORIES "" )
+
+
 

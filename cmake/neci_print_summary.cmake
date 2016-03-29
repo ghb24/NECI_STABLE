@@ -7,6 +7,11 @@ message(STATUS "")
 message(STATUS " BUILD SUMMARY")
 message(STATUS "")
 
+if( DEFINED ${PROJECT_NAME}_KNOWN_CLUSTER )
+    message(STATUS "Detected cluster: ${${PROJECT_NAME}_KNOWN_CLUSTER}")
+    message(STATUS "")
+endif()
+
 message(STATUS "---------------------------------------------------------")
 message(STATUS "Target libraries: ${${PROJECT_NAME}_ALL_LIBS}")
 message(STATUS "Target executables: ${${PROJECT_NAME}_ALL_EXES}")

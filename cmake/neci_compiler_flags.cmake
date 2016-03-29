@@ -28,26 +28,51 @@ macro( neci_compiler_flags _lang )
 
     endif()
 
-    # Set the CMAKE flags from these
+    # Language specific compilation flags (build type dependent)
+
     foreach( _btype DEBUG RELEASE RELWITHDEBINFO CLUSTER )
       if ( DEFINED NECI_${_lang}_FLAGS_${_btype} )
         message(STATUS "${_lang} compiler: Overriding ${_btype} flags")
         set( CMAKE_${_lang}_FLAGS_${_btype} ${NECI_${_lang}_FLAGS_${_btype}} )
       endif()
+      if ( DEFINED FORCE_${_lang}_FLAGS_${_btype} )
+        message(STATUS "${_lang} compiler: (Forced) Overriding ${_btype} flags")
+        set( CMAKE_${_lang}_FLAGS_${_btype} ${FORCE_${_lang}_FLAGS_${_btype}} )
+      endif()
       mark_as_advanced( CMAKE_${_lang}_FLAGS_${_btype} )
     endforeach()
+
+    # Language specific compilation flags (not build type dependent)
 
     if ( DEFINED NECI_${_lang}_FLAGS )
       message(STATUS "${_lang} compiler: Overriding global flags")
       set( CMAKE_${_lang}_FLAGS ${NECI_${_lang}_FLAGS} )
     endif()
+    if ( DEFINED FORCE_${_lang}_FLAGS )
+      message(STATUS "${_lang} compiler: (Forced) Overriding global flags")
+      set( CMAKE_${_lang}_FLAGS ${FORCE_${_lang}_FLAGS} )
+    endif()
     mark_as_advanced( CMAKE_${_lang}_FLAGS )
+
+    # Language specific linker flags (not build type dependent)
 
     if ( DEFINED NECI_${_lang}_LINK_FLAGS )
       message(STATUS "${_lang} compiler: Overriding global linker flags")
       set( CMAKE_${_lang}_LINK_FLAGS ${NECI_${_lang}_LINK_FLAGS} )
     endif()
+    if ( DEFINED FORCE_${_lang}_LINK_FLAGS )
+      message(STATUS "${_lang} compiler: (Forced) Overriding global linker flags")
+      set( CMAKE_${_lang}_LINK_FLAGS ${FORCE_${_lang}_LINK_FLAGS} )
+    endif()
     mark_as_advanced( CMAKE_${_lang}_FLAGS )
+
+    # Language specific implicit link directories (not build type dependent)
+    # (needed for archer toolchain)
+
+    if ( DEFINED NECI_${_lang}_IMPLICIT_LINK_DIRECTORIES )
+        message(STATUS "${_lang} compiler: Overriding global implicit link directories")
+        set( CMAKE_${_lang}_IMPLICIT_LINK_DIRECTORIES ${NECI_${_lang}_IMPLICIT_LINK_DIRECTORIES} )
+    endif()
 
 endmacro()
 
