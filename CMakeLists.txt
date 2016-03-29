@@ -86,6 +86,11 @@ list(APPEND NECI_GLOBAL_DEFINES
     $<$<BOOL:${HAVE_SHARED_MEMORY}>:__SHARED_MEM>
     $<$<NOT:$<BOOL:${HAVE_FFTW}>>:DISABLE_FFTW>
     $<$<BOOL:${HAVE_HDF5}>:__USE_HDF>
+
+    # Identify the compiler to the code
+    $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},"Intel">:__IFORT>
+    $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},"GNU">:__GFORTRAN__>
+    $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},"PGI">:__PGI>
 )
 
 if (
