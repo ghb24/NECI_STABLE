@@ -14,6 +14,10 @@ if ( NOT LAPACK_NECI_FOUND )
         set( LAPACK_NECI_LIBRARIES ${MKL_LIBRARIES} )
         set( LAPACK_NECI_INCLUDE_PATH ${MKL_INCLUDE_DIR} )
     else()
+        # Note that we do not pass REQUIRED in here. This has two benefits:
+        # i) It integrates with the error reporting below (like all the other _NECI finders)
+        # ii) It avoids a hard-failure using PGI, which fails on the search for the pthreads library,
+        #     even if LAPACK is found.
         find_package( LAPACK )
         set( LAPACK_NECI_FOUND ${LAPACK_FOUND} )
         if( LAPACK_FOUND )

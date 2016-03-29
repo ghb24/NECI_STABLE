@@ -20,6 +20,11 @@ include(neci_system)
 #  xiv) hdf5
 #   xv) Which targets should be included in ALL (see EXCLUDE_FROM_ALL)
 
+# TEST WITH:
+# ifort
+# toolchain on archer
+# PGI
+
 # Declare options that this project uses
 # <Package>_NECI has a custom finder that does a bit more work than normal...
 
