@@ -95,7 +95,7 @@ module fcimc_pointed_fns
                                     walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel)
-        integer, intent(in) :: part_type    ! 1 = Real parent particle, 2 = Imag parent particle
+        integer, intent(in) :: part_type    ! odd = Real parent particle, even = Imag parent particle
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
         integer, intent(in) :: ic, ex(2,2), walkExcitLevel
@@ -167,6 +167,7 @@ module fcimc_pointed_fns
         ! imaginary parent particles has slightly different rules:
         !       - Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P
         !       - Attempt to spawn IMAG walkers with prob -REAL(Hij)/P
+
 #if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
         child = 0.0_dp
         tgt_cpt = part_type
@@ -176,27 +177,39 @@ module fcimc_pointed_fns
         do tgt_cpt = 1, (lenof_sign/inum_runs)
 
             ! Real, single run:    inum_runs=1, lenof_sign=1 --> 1 loop
+            ! Real, double run:    inum_runs=2, lenof_sign=1 --> 1 loop
             ! Complex, single run: inum_runs=1, lenof_sign=2 --> 2 loops
-            ! Real, double run:    inum_runs=2, lenof_sign=2 --> 1 loop
+            ! Complex, double run: inum_runs=2, lenof_sign=4 --> 2 loops
+            ! Complex, multiple run: inum_runs=m, lenof_sign=2*m --> 2 loops
 
             ! For spawning from imaginary particles, we cross-match the 
             ! real/imaginary matrix-elements/target-particles.
-            component = tgt_cpt
 
+
+#if defined(__CMPLX) && defined(__MULTIRUN)
+            component = part_type+tgt_cpt-1
+            if ((.not. btest(part_type,0)) then
+                ! even part_type => imag replica =>  map 4->3,4 ; 6->5,6 etc.
+                component = part_type - tgt_cpt + 1
+            endif
+#else
+            component = tgt_cpt
             if ((part_type.eq.2).and.(inum_runs.eq.1)) component = 3 - tgt_cpt
+#endif
 
             ! Get the correct part of the matrix element
             walkerweight = sign(1.0_dp, RealwSign(part_type))
-            if (component == 1) then
+            if (btest(component,0)) then
+                ! real component
                 MatEl = real(rh_used, dp)
             else
 #ifdef __CMPLX
                 MatEl = real(aimag(rh_used), dp)
                 ! n.b. In this case, spawning is of opposite sign.
-                if (part_type == 2) walkerweight = -walkerweight
-#else
-                call stop_all('attempt_create_normal', &
-                        & "ERROR: We shouldn't reach this part of the code unless complex calc")
+                if (.not. btest(part_type,0)) then
+                    ! imaginary component
+                    walkerweight = -walkerweight
+                endif
 #endif
             end if
 #endif
@@ -244,7 +257,7 @@ module fcimc_pointed_fns
             ! And create the parcticles
             child(tgt_cpt) = nSpawn
 
-#if !(defined(__PROG_NUMRUNS) || defined(__DOUBLERUN))
+#if !defined(__PROG_NUMRUNS) && !defined(__DOUBLERUN)
         enddo
 #endif
 
@@ -462,7 +475,7 @@ module fcimc_pointed_fns
             .or. tAllRealCoeff ) then
 #ifdef __CMPLX
         do run=1, inum_runs
-            ndie=fac(run)*abs(realwSign(min_part_type(run):max_part_type(run)))
+            ndie(run)=fac(run)*abs_sign(realwSign(min_part_type(run):max_part_type(run)))
         enddo
 #else
             ndie=fac*abs(realwSign)
