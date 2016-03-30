@@ -18,6 +18,9 @@
 #define get_beta(orb) (ibclr(orb-1,0)+1)
 #define get_alpha(orb) (ibset(orb-1,0)+1)
 
+! Do the two orbitals have the same spin?
+#define same_spin(orb1, orb2) (mod(orb1,2) == mod(orb2,2))
+
 ! Get the index of the replica that is paired with ind:
 #define paired_replica(ind) (ind+2*mod(ind,2)-1)
 

@@ -156,7 +156,7 @@ contains
 
     end subroutine encode_sign_rdm
 
-    subroutine add_to_rdm_spawn_t(spawn, p, q, r, s, contrib_sign)
+    subroutine add_to_rdm_spawn_t(spawn, p, q, r, s, contrib_sign, spinfree)
 
         ! In/Out: rdm_spawn - the rdm_spawn_t object to which contributions will be added.
         ! In: p, q, r, s - spin orbitals of the RDM contribution, with p<q, r<s.
@@ -168,6 +168,7 @@ contains
         type(rdm_spawn_t), intent(inout) :: spawn
         integer, intent(in) :: p, q, r, s
         real(dp), intent(in) :: contrib_sign(spawn%rdm_send%sign_length)
+        logical, intent(in) :: spinfree
 
         integer :: pq_compressed, proc, ind, hash_val
         integer(int_rdm) :: pqrs
@@ -177,8 +178,14 @@ contains
 
         associate(rdm => spawn%rdm_send)
 
-            ! Calculate combined RDM labels.
-            call calc_combined_rdm_label(p, q, r, s, pqrs)
+            ! Calculate combined RDM labels. A different ordering is used for
+            ! outputting RDMs with and without spin. The following definitions
+            ! will aid ordering via a sort operation later.
+            if (.not. spinfree) then
+                call calc_combined_rdm_label(p, q, r, s, pqrs)
+            else
+                call calc_combined_rdm_label(r, s, q, p, pqrs)
+            end if
 
             ! Search to see if this RDM element is already in the RDM array.
             ! If it, tSuccess will be true and ind will hold the position of the
@@ -193,12 +200,22 @@ contains
                 ! Encode the new sign.
                 call encode_sign_rdm(rdm%elements(:,ind), real_sign_new)
             else
-                ! The following maps (p,q), with p<q, to single integers with no gaps.
-                ! It is benefical to have no gaps here, for good load balancing.
-                ! The final integers are ordered so that p is dominant over q.
-                pq_compressed = nbasis*(p-1) - p*(p-1)/2 + q - p
-                ! Calculate processor for the element.
-                proc = (pq_compressed-1)*nProcessors/spawn%nrows
+                ! Determine the process label.
+                if (.not. spinfree) then
+                    ! The following maps (p,q), with p<q, to single integers
+                    ! with no gaps. It is benefical to have no gaps here, for
+                    ! good load balancing. The final integers are ordered so
+                    ! that p is dominant over q.
+                    pq_compressed = nbasis*(p-1) - p*(p-1)/2 + q - p
+                    ! Calculate the process for the element.
+                    proc = (pq_compressed-1)*nProcessors/spawn%nrows
+                else
+                    ! For spin-free case, we halve the number of labels. Also,
+                    ! the last two labels are dominant in the ordering, so use
+                    ! these instead, to allow writing out in the correct order.
+                    pq_compressed = (nbasis/2)*(r-1) + s
+                    proc = (pq_compressed-1)*nProcessors/(nbasis**2/4)
+                end if
 
                 ! Check that there is enough memory for the new spawned RDM entry.
                 list_full = .false.
@@ -412,6 +429,7 @@ contains
 
         use rdm_data, only: rdm_spawn_t
         use SystemData, only: nel
+        use UMatCache, only: spatial
 
         type(rdm_list_t), intent(in) :: rdm
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
@@ -429,10 +447,8 @@ contains
             ! Obtain spin orbital labels.
             call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
             ! Obtain spatial orbital labels.
-            p_spat = (p-1)/2 + 1
-            q_spat = (q-1)/2 + 1
-            r_spat = (r-1)/2 + 1
-            s_spat = (s-1)/2 + 1
+            p_spat = spatial(p); q_spat = spatial(q);
+            r_spat = spatial(r); s_spat = spatial(s);
 
             ! Note to the reader for the following code: if mod(p,2) == 1 then
             ! p is a beta (b) orbital, if mod(p,2) == 0 then it is an alpha (a) obrital.
@@ -479,6 +495,34 @@ contains
 
     end subroutine calc_rdm_spin
 
+    subroutine make_hermitian_rdm(rdm, spawn)
+
+        type(rdm_list_t), intent(in) :: rdm
+        type(rdm_spawn_t), intent(inout) :: spawn
+
+        integer(int_rdm) :: pqrs
+        integer :: i, pq, rs, p, q, r, s
+        integer :: p_temp, q_temp
+        real(dp) :: rdm_sign(rdm%sign_length)
+
+        do i = 1, rdm%nelements
+            pqrs = rdm%elements(0,i)
+            ! Obtain spin orbital labels and the RDM element.
+            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+            call extract_sign_rdm(rdm%elements(:,i), rdm_sign)
+
+            ! If in the lower half of the RDM, reflect to the upper half.
+            if (pq > rs) then
+                p_temp = p; q_temp = q;
+                p = r; q = s;
+                r = p_temp; s = q_temp;
+            end if
+
+            call add_to_rdm_spawn_t(spawn, p, q, r, s, rdm_sign, .false.)
+        end do
+
+    end subroutine make_hermitian_rdm
+
     subroutine apply_spin_sym_to_rdm(rdm, spawn)
 
         ! Loop through all elements of the RDM, and whenever we have a bbbb
@@ -489,6 +533,7 @@ contains
         ! RDMs from NECI prior to distribution of RDMs.
 
         use SystemData, only: nbasis
+        use UMatCache, only: spatial
 
         type(rdm_list_t), intent(in) :: rdm
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -506,10 +551,9 @@ contains
             call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
             call extract_sign_rdm(rdm%elements(:,i), rdm_sign)
 
-            p_spat = (p-1)/2 + 1
-            q_spat = (q-1)/2 + 1
-            r_spat = (r-1)/2 + 1
-            s_spat = (s-1)/2 + 1
+            ! Get the spatial orbital labels from the spin orbital ones.
+            p_spat = spatial(p); q_spat = spatial(q);
+            r_spat = spatial(r); s_spat = spatial(s);
 
             ! When we calculate the combined labels, pq and rs, we would
             ! usually have p and q swapped below, and similarly with r and s.
@@ -574,7 +618,7 @@ contains
             ! spatial orbitals here, not spin orbitals).
             if (pq_legacy /= rs_legacy) rdm_sign = rdm_sign*0.5_dp
 
-            call add_to_rdm_spawn_t(spawn, p, q, r, s, rdm_sign)
+            call add_to_rdm_spawn_t(spawn, p, q, r, s, rdm_sign, .false.)
         end do
 
         call communicate_rdm_spawn_t(spawn)
@@ -602,6 +646,166 @@ contains
         call print_rdms_with_spin(spawn%rdm_recv, rdm_trace)
 
     end subroutine print_rdms_spin_sym_wrapper
+
+    subroutine create_spinfree_2rdm(rdm, spawn)
+
+        ! Take an standard (spinned) 2-RDM, stored in rdm, and output the
+        ! spinfree version of it to the spawn%rdm_recv object.
+
+        ! The input RDM has elements equal to:
+        !
+        ! \Gamma_{ij,kl} = < a^+_i a^+_j a_l a_k >
+        !
+        ! where i, j, k and l are spin orbital labels, and the output spinfree
+        ! RDM has elements equal to:
+        !
+        ! \Gamma^{spinfree}_{pq,rs} = \sum_{x,y} < a^+_{p,x} a^+_{q,y} a_{s,y} a_{r,x} >
+        !
+        ! where p, q, r, s are spatial orbital labels, and x and y are spin
+        ! labels (alpha or beta) which are summed over.
+
+        ! Thus, all terms with spin signature aaaa, abab, bbbb or baba are
+        ! summed together. Terms with spin signature abba or baab have their
+        ! final two spin orbital labels swapped (introducing a minus sign), so
+        ! that they give a contribution to the resulting spinfree RDM element.
+
+        use SystemData, only: nbasis
+        use UMatCache, only: spatial
+
+        type(rdm_list_t), intent(in) :: rdm
+        type(rdm_spawn_t), intent(inout) :: spawn
+
+        integer(int_rdm) :: pqrs
+        integer :: i, pq, rs, p, q, r, s
+        integer :: pq_spat, rs_spat
+        integer :: p_spat, q_spat, r_spat, s_spat
+        integer :: r_orig, s_orig
+        real(dp) :: rdm_sign(rdm%sign_length)
+
+        do i = 1, rdm%nelements
+            pqrs = rdm%elements(0,i)
+            ! Obtain spin orbital labels and the RDM element.
+            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+            call extract_sign_rdm(rdm%elements(:,i), rdm_sign)
+
+            ! Store the original labels, before we possibly swap them.
+            r_orig = r; s_orig = s;
+
+            ! If this term is abba or baab then we can make it abab or baba by
+            ! swapping the last two indices, which introduces a minus sign.
+            ! It will then contribute to a spinfree 2-RDM element.
+            if (.not. same_spin(p,r)) then
+                s = r_orig
+                r = s_orig
+                rdm_sign = -rdm_sign
+            end if
+
+            ! Get the spatial orbital labels from the spin orbital ones.
+            p_spat = spatial(p); q_spat = spatial(q);
+            r_spat = spatial(r); s_spat = spatial(s);
+            ! The 'combined' labels.
+            pq_spat = (p_spat-1)*nbasis + q_spat
+            rs_spat = (r_spat-1)*nbasis + s_spat
+
+            ! If the RDM is not symmetrised then the same term will be added
+            ! from both above below the diagonal, so in this case we want a
+            ! factor of a half to average and not double count.
+            if (pq_spat /= rs_spat) rdm_sign = rdm_sign*0.5_dp
+
+            ! Due to the fact that RDM elements are only stored with p < q and
+            ! r < s, the following terms are only store with baba spin, never
+            ! with abab. Double this term to make up for it.
+            if (p_spat == q_spat .and. r_spat == s_spat) rdm_sign = 2.0_dp*rdm_sign
+
+            ! Add all spinfree 2-RDM elements corresponding to these labels.
+            call add_rdm_elements(p_spat, q_spat, r_spat, s_spat, rdm_sign, spawn)
+
+            ! If this is an aaaa or bbbb term then *minus* this RDM element will
+            ! be equal to the equivalent RDM element with the last two labels
+            ! swapped. So, add this contribution into that RDM element. We
+            ! don't have to do this, but doing so applies some extra averaging.
+            if (same_spin(p, q)) then
+                ! Re-extract sign in case it has been modified.
+                call extract_sign_rdm(rdm%elements(:,i), rdm_sign)
+
+                ! Swap the spatial labels.
+                r_spat = spatial(s_orig); s_spat = spatial(r_orig);
+                rs_spat = (r_spat-1)*nbasis + s_spat
+
+                if (pq_spat /= rs_spat) rdm_sign = rdm_sign*0.5_dp
+                rdm_sign = -rdm_sign
+
+                call add_rdm_elements(p_spat, q_spat, r_spat, s_spat, rdm_sign, spawn)
+            end if
+
+        end do
+
+        call communicate_rdm_spawn_t(spawn)
+        call annihilate_rdm_list(spawn%rdm_recv)
+
+    contains
+
+        subroutine add_rdm_elements(p_spat, q_spat, r_spat, s_spat, rdm_sign, spawn)
+
+            ! Add in the single contribution rdm_sign to the following elements
+            ! of the spinfree 2-RDM:
+            !
+            ! \Gamma^{spinfree}_{pq,rs} = \sum_{x,y} < a^+_{p,x} a^+_{q,y} a_{s,y} a_{r,x} >
+            ! \Gamma^{spinfree}_{qp,sr} = \sum_{x,y} < a^+_{q,x} a^+_{p,y} a_{r,y} a_{s,x} >
+            ! \Gamma^{spinfree}_{rs,pq} = \sum_{x,y} < a^+_{r,x} a^+_{s,y} a_{q,y} a_{p,x} >
+            ! \Gamma^{spinfree}_{sr,qp} = \sum_{x,y} < a^+_{s,x} a^+_{r,y} a_{p,y} a_{q,x} >
+            !
+            ! where x and y are spin labels which are summed over in the final
+            ! esult.
+            !
+            ! For a *REAL* spinfree 2-RDM, all of these elements are rigorously
+            ! equal, so it is appropriate that we add all contributions in
+            ! together like this.
+            !
+            ! The if-statements in here prevent adding to the same RDM element
+            ! twice.
+
+            integer, intent(in) :: p_spat, q_spat, r_spat, s_spat
+            real(dp), intent(in) :: rdm_sign(:)
+            type(rdm_spawn_t), intent(inout) :: spawn
+
+            ! RDM element \Gamma_{pq,rs}.
+            call add_to_rdm_spawn_t(spawn, p_spat, q_spat, r_spat, s_spat, rdm_sign, .true.)
+
+            ! RDM element \Gamma_{qp,sr}.
+            if (.not. (p_spat == q_spat .and. r_spat == s_spat)) then
+                call add_to_rdm_spawn_t(spawn, q_spat, p_spat, s_spat, r_spat, rdm_sign, .true.)
+            end if
+
+            if (pq_spat /= rs_spat) then
+                ! RDM element \Gamma_{rs,pq}.
+                call add_to_rdm_spawn_t(spawn, r_spat, s_spat, p_spat, q_spat, rdm_sign, .true.)
+
+                ! RDM element \Gamma_{sr,qp}.
+                if (.not. (p_spat == q_spat .and. r_spat == s_spat)) then
+                    call add_to_rdm_spawn_t(spawn, s_spat, r_spat, q_spat, p_spat, rdm_sign, .true.)
+                end if
+            end if
+
+        end subroutine add_rdm_elements
+
+    end subroutine create_spinfree_2rdm
+
+    subroutine print_spinfree_2rdm_wrapper(rdm, spawn, rdm_trace)
+
+        use hash, only: clear_hash_table
+
+        type(rdm_list_t), intent(inout) :: rdm
+        type(rdm_spawn_t), intent(inout) :: spawn
+        real(dp), intent(in) :: rdm_trace(rdm%sign_length)
+
+        spawn%free_slots = spawn%init_free_slots
+        call clear_hash_table(spawn%rdm_send%hash_table)
+
+        call create_spinfree_2rdm(rdm, spawn)
+        call print_spinfree_2rdm(spawn%rdm_recv, rdm_trace)
+
+    end subroutine print_spinfree_2rdm_wrapper
 
     subroutine annihilate_rdm_list(rdm)
 
@@ -667,6 +871,7 @@ contains
 
         use Parallel_neci, only: MPIBarrier
         use sort_mod, only: sort
+        use UMatCache, only: spatial
         use util_mod, only: get_free_unit
 
         type(rdm_list_t), intent(inout) :: rdm
@@ -741,10 +946,8 @@ contains
                         write_unit = iunit_baab
                     end if
 
-                    p_spat = (p-1)/2 + 1
-                    q_spat = (q-1)/2 + 1
-                    r_spat = (r-1)/2 + 1
-                    s_spat = (s-1)/2 + 1
+                    p_spat = spatial(p); q_spat = spatial(q);
+                    r_spat = spatial(r); s_spat = spatial(s);
 
                     write(write_unit,'(4i6,'//trim(sgn_len)//'g25.17)') p_spat, q_spat, r_spat, s_spat, rdm_sign/rdm_trace
                 end do
@@ -764,5 +967,79 @@ contains
         end do
 
     end subroutine print_rdms_with_spin
+
+    subroutine print_spinfree_2rdm(rdm, rdm_trace)
+
+        ! Print all the RDM elements stored in rdm to a single file (for each
+        ! state being sampled).
+
+        ! The stem of the filenames is "spinfree_TwoRDM", and a final line
+        ! required by MPQC to read spinfree 2-RDMs is also printed. This
+        ! routine also assumes that the RDM element labels are already in
+        ! spatial form, performing no transformation from spin to spatial
+        ! form. This routine is therefore appropriate for printing spinfree
+        ! 2-RDMs.
+
+        use Parallel_neci, only: MPIBarrier
+        use ParallelHelper, only: root
+        use sort_mod, only: sort
+        use util_mod, only: get_free_unit
+
+        type(rdm_list_t), intent(inout) :: rdm
+        real(dp), intent(in) :: rdm_trace(rdm%sign_length)
+
+        integer(int_rdm) :: pqrs
+        integer :: i, irdm, iunit, iproc, ierr
+        integer :: pq_spat, rs_spat
+        integer :: p_spat, q_spat, r_spat, s_spat
+        real(dp) :: rdm_sign(rdm%sign_length)
+        character(30) :: rdm_filename
+
+        call sort(rdm%elements(:,1:rdm%nelements))
+
+        do iproc = 0, nProcessors-1
+            if (iproc == iProcIndex) then
+
+                ! Loop over all RDMs beings sampled.
+                do irdm = 1, rdm%sign_length
+                    write(rdm_filename, '("new_spinfree_TwoRDM.",'//int_fmt(irdm,0)//')') irdm
+                    ! Open the file to be written to.
+                    iunit = get_free_unit()
+                    ! Let the first process clear the file, if it already exist.
+                    if (iproc == 0) then
+                        open(iunit, file=rdm_filename, status='replace')
+                    else
+                        open(iunit, file=rdm_filename, status='old', position='append')
+                    end if
+
+                    do i = 1, rdm%nelements
+                        pqrs = rdm%elements(0,i)
+                        ! Obtain spin orbital labels.
+                        call calc_separate_rdm_labels(pqrs, pq_spat, rs_spat, r_spat, s_spat, q_spat, p_spat)
+                        call extract_sign_rdm(rdm%elements(:,i), rdm_sign)
+                        ! Normalise.
+                        rdm_sign = rdm_sign/rdm_trace
+
+                        if (abs(rdm_sign(irdm)) > 1.e-12_dp) then
+                            write(iunit,"(4I15, F30.20)") p_spat, q_spat, r_spat, s_spat, rdm_sign(irdm)
+                        end if
+                    end do
+
+                    ! The following final line is required by (I assume!) MPQC.
+                    ! Let the last process print it.
+                    if (iProcIndex == nProcessors-1) then
+                        write(iunit, "(4I15, F30.20)") -1, -1, -1, -1, -1.0_dp
+                    end if
+
+                    close(iunit)
+                end do
+
+            end if
+
+            ! Wait for the current processor to finish printing its RDM elements.
+            call MPIBarrier(ierr)
+        end do
+
+    end subroutine print_spinfree_2rdm
 
 end module rdm_parallel

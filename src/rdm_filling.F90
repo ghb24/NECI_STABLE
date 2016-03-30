@@ -599,8 +599,8 @@ contains
             ! calculating this obv).
             call Fill_Doubs_RDM(rdm, Ex, tParity, realSignI, realSignJ, tFill_CiCj_Symm)
 
-            call add_to_rdm_spawn_t(spawn, Ex(2,1), Ex(2,2), Ex(1,1), Ex(1,2), full_sign)
-            if (tFill_CiCj_Symm) call add_to_rdm_spawn_t(spawn, Ex(1,1), Ex(1,2), Ex(2,1), Ex(2,2), full_sign)
+            call add_to_rdm_spawn_t(spawn, Ex(2,1), Ex(2,2), Ex(1,1), Ex(1,2), full_sign, .false.)
+            if (tFill_CiCj_Symm) call add_to_rdm_spawn_t(spawn, Ex(1,1), Ex(1,2), Ex(2,1), Ex(2,2), full_sign, .false.)
         end if
 
     end subroutine Add_RDM_From_IJ_Pair
@@ -620,7 +620,7 @@ contains
         do iel = 1, nel-1
             do jel = iel+1, nel
                 associate(i => nI(iel), j => nI(jel))
-                    call add_to_rdm_spawn_t(spawn, i, j, i, j, full_sign)
+                    call add_to_rdm_spawn_t(spawn, i, j, i, j, full_sign, .false.)
                 end associate
             end do
         end do
@@ -642,13 +642,13 @@ contains
         do iel = 1, nel
             associate(k => nI(iel))
                 if (k < Ex(1,1) .and. k < Ex(2,1)) then
-                    call add_to_rdm_spawn_t(spawn, k, Ex(2,1), k, Ex(1,1), full_sign)
+                    call add_to_rdm_spawn_t(spawn, k, Ex(2,1), k, Ex(1,1), full_sign, .false.)
                 else if (k < Ex(1,1) .and. k > Ex(2,1)) then
-                    call add_to_rdm_spawn_t(spawn, Ex(2,1), k, k, Ex(1,1), -full_sign)
+                    call add_to_rdm_spawn_t(spawn, Ex(2,1), k, k, Ex(1,1), -full_sign, .false.)
                 else if (k > Ex(1,1) .and. k < Ex(2,1)) then
-                    call add_to_rdm_spawn_t(spawn, k, Ex(2,1), Ex(1,1), k, -full_sign)
+                    call add_to_rdm_spawn_t(spawn, k, Ex(2,1), Ex(1,1), k, -full_sign, .false.)
                 else if (k > Ex(1,1) .and. k > Ex(2,1)) then
-                    call add_to_rdm_spawn_t(spawn, Ex(2,1), k, Ex(1,1), k, full_sign)
+                    call add_to_rdm_spawn_t(spawn, Ex(2,1), k, Ex(1,1), k, full_sign, .false.)
                 end if
             end associate
         end do
@@ -1432,7 +1432,7 @@ contains
                         ! but will do for now as we need the Ex...
                         call get_bit_excitmat(iLutI(0:NIfD), iLutJ(0:NIfD), Ex, IC)
 
-                        call add_to_rdm_spawn_t(spawn, Ex(2,1), Ex(2,2), Ex(1,1), Ex(1,2), full_sign)
+                        call add_to_rdm_spawn_t(spawn, Ex(2,1), Ex(2,2), Ex(1,1), Ex(1,2), full_sign, .false.)
                         do irdm = 1, size(rdms)
                             ind1 = nreplicas*irdm-nreplicas+1
                             ind2 = nreplicas*irdm
