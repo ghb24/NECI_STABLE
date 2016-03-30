@@ -20,8 +20,8 @@ message(STATUS "Fortran compiler: ${CMAKE_Fortran_COMPILER} (${CMAKE_Fortran_COM
 message(STATUS "C++ compiler: ${CMAKE_CXX_COMPILER} (${CMAKE_CXX_COMPILER_ID})")
 message(STATUS "Implicit C++ linker flags: ${CMAKE_CXX_IMPLICIT_LINK_LIBRARIES}")
 message(STATUS "Implicit Fortran linker flags: ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES}")
-message(STATUS "Global C++ compile flags: ${CMAKE_CXX_FLAGS_RELEASE}")
-message(STATUS "Global Fortran compile flags: ${CMAKE_Fortran_FLAGS}")
+message(STATUS "Global C++ compile flags: ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE}}")
+message(STATUS "Global Fortran compile flags: ${CMAKE_Fortran_FLAGS} ${CMAKE_Fortran_FLAGS_${CMAKE_BUILD_TYPE}}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 #if ( ${CMAKE_VERSION} VERSION_LESS "2.8.6" )
