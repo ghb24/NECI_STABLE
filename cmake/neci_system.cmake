@@ -52,6 +52,7 @@ if( PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME )
     include( neci_compiler_flags )
     include( neci_build_bits )
     include( neci_cluster_detection ) # This should go AFTER any automatic tweaking
+    include( neci_build_types )
 
     message(STATUS "------------------------------------------------------------")
 

@@ -29,30 +29,34 @@ foreach( _type C CXX Fortran )
         set( ${PROJECT_NAME}_${_bits}BIT_${_type}_FLAGS "-m${_bits}" )
     endif()
 
-    message(STATUS "Adding ${_bits}-bit flags for ${_type}: ${${PROJECT_NAME}_${_bits}BIT_FLAGS}" )
-    set( CMAKE_${_type}_FLAGS ${CMAKE_${_type}_FLAGS} ${${PROJECT_NAME}_${_bits}BIT_FLAGS} )
+    if ( DEFINED ${PROJECT_NAME}_${_bits}BIT_FLAGS AND NOT ${PROJECT_NAME}_${_bits}BIT_FLAGS STREQUAL "" )
+        message(STATUS "Adding ${_bits}-bit flags for ${_type}: ${${PROJECT_NAME}_${_bits}BIT_FLAGS}" )
+        set( CMAKE_${_type}_FLAGS "${CMAKE_${_type}_FLAGS} ${${PROJECT_NAME}_${_bits}BIT_FLAGS}" )
+    endif()
 
-    message(STATUS "${PROJECT_NAME}_${_bits}BIT_${_type}_FLAGS" )
-    message(STATUS "${${PROJECT_NAME}_${_bits}BIT_${_type}_FLAGS}" )
     if ( DEFINED ${PROJECT_NAME}_${_bits}BIT_${_type}_FLAGS )
         message(STATUS "Adding ${_bits}-bit flags for ${_type}: ${${PROJECT_NAME}_${_bits}BIT_${_type}_FLAGS}" )
-        set( CMAKE_${_type}_FLAGS ${CMAKE_${_type}_FLAGS} ${${PROJECT_NAME}_${_bits}BIT_${_type}_FLAGS} )
+        set( CMAKE_${_type}_FLAGS "${CMAKE_${_type}_FLAGS} ${${PROJECT_NAME}_${_bits}BIT_${_type}_FLAGS}" )
     endif()
 endforeach()
 
 # And the same for linker flags
 
 # Provide some defaults that work with almost all compilers
-if ( NOT DEFINED ${PROJECT_NAME}_${_bits}BIT_LINKER_FLAGS )
-    set( ${PROJECT_NAME}_${_bits}BIT_LINKER_FLAGS "-m${_bits}" )
-endif()
+#if ( NOT DEFINED ${PROJECT_NAME}_${_bits}BIT_LINKER_FLAGS )
+#    set( ${PROJECT_NAME}_${_bits}BIT_LINKER_FLAGS "-m${_bits}" )
+#endif()
 
 foreach( _type C EXE SHARED STATIC MODULE)
-    message(STATUS "Adding ${_bits}-bit linker flags for ${_type}: ${${PROJECT_NAME}_${_bits}BIT_LINKER_FLAGS}" )
-    set( CMAKE_${_type}_FLAGS ${CMAKE_${_type}_LINKER_FLAGS} ${${PROJECT_NAME}_${_bits}BIT_LINKER_FLAGS} )
+
+    if ( DEFINED ${PROJECT_NAME}_${_bits}BIT_LINKER_FLAGS AND
+            NOT ${PROJECT_NAME}_${_bits}BIT_LINKER_FLAGS STREQUAL "" )
+        message(STATUS "Adding ${_bits}-bit linker flags for ${_type}: ${${PROJECT_NAME}_${_bits}BIT_LINKER_FLAGS}" )
+        set( CMAKE_${_type}_LINKER_FLAGS "${CMAKE_${_type}_LINKER_FLAGS} ${${PROJECT_NAME}_${_bits}BIT_LINKER_FLAGS}" )
+    endif()
 
     if ( DEFINED ${PROJECT_NAME}_${_bits}BIT_${_type}_LINKER_FLAGS )
         message(STATUS "Adding ${_bits}-bit flags for ${_type}: ${${PROJECT_NAME}_${_bits}BIT_${_type}_LINKER_FLAGS}" )
-        set( CMAKE_${_type}_FLAGS ${CMAKE_${_type}_LINKER_FLAGS} ${${PROJECT_NAME}_${_bits}BIT_${_type}_LINKER_FLAGS} )
+        set( CMAKE_${_type}_LINKER_FLAGS "${CMAKE_${_type}_LINKER_FLAGS} ${${PROJECT_NAME}_${_bits}BIT_${_type}_LINKER_FLAGS}" )
     endif()
 endforeach()

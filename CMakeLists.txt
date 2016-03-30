@@ -93,9 +93,6 @@ list(APPEND NECI_GLOBAL_DEFINES
     $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},"PGI">:__PGI>
 )
 
-if (
-
-
 # Include source directory
 
 add_subdirectory(src)
@@ -103,3 +100,4 @@ add_subdirectory(src)
 # And we are done
 
 neci_print_summary()
+
