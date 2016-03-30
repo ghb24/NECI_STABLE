@@ -8,6 +8,7 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 include(neci_system)
 
 # TODO:
+# ENSURE that Fortran_FLAGS is not OVERRIDDEN, but EXTENDED, by _DEBUG, _RELEASE, ...
 #    i) Correct 32-bit support
 #   ii) Add build hostname to the output
 #  iii) Add toolchain files
@@ -15,6 +16,8 @@ include(neci_system)
 #          Use -- set_property( SOURCE <> PROPERTY COMPILE_DEFINITIONS ... )
 #    v) Add unit tests (are they ctest compatible?)
 #   vi) Add warnings option
+#  vii) Test the compiler options for Intel
+# viii) Get the override order right for specified options
 #   ix) Add option to cmake gui
 #  xii) Summary of options, etc, at the end. (see feature_summary, ecbuild_feature).
 #  xiv) hdf5
@@ -54,6 +57,12 @@ neci_add_option(
     DESCRIPTION "Use shared memory to store integrals"
     REQUIRED_PACKAGES HDF5_NECI ) # HDF5_NECI adds the Fortran COMPONENT to the default (and the ability to build)
 
+# Special option overrides
+
+if( HAVE_SHARED_MEMORY AND CMAKE_Fortran_COMPILER_ID STREQUAL "PGI" )
+    message(FATAL_ERROR "Shared memory not supported in PGI builds. Run cmake again with -DENABLE_SHARED_MEMORY=OFF")
+endif()
+
 # REQUIRED packages
 # <Package>_NECI has a custom finder that does a bit more work than normal...
 
@@ -80,6 +89,9 @@ list(APPEND NECI_GLOBAL_DEFINES
     # Is this a 32/64bit build
     $<$<BOOL:${${PROJECT_NAME}_64BIT_BUILD}>:__INT64>
     $<$<BOOL:${${PROJECT_NAME}_64BIT_BUILD}>:POINTER8>
+
+    # Is this a debug build
+    $<$<STREQUAL:${CMAKE_BUILD_TYPE},"DEBUG">:__DEBUG>
 
     # Global defines that depend on options
     $<$<BOOL:${HAVE_MPI}>:PARALLEL>

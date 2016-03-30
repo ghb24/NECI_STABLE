@@ -1,4 +1,4 @@
-# Special defines for the PGI fortran compiler
+# Special defines for the PGI C compiler
 
 # Treat 32bit/64bit compilation differently
 

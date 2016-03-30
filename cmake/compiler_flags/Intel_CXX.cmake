@@ -1,4 +1,4 @@
-# Special defines for gnu C++ compiler
+# Special defines for Intel c++ compiler
 
 # Treat 32bit/64bit compilation differently
 

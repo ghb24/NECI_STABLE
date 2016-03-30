@@ -1,4 +1,4 @@
-# Special defines for gnu fortran compiler
+# Special defines for Cray CXX compiler
 
 # Treat 32bit/64bit compilation differently
 
