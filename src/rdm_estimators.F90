@@ -90,8 +90,8 @@ contains
         est%new_energy = all_rdm_energy(rdm_label) + ecore*all_rdm_trace(rdm_label)
         est%new_spin = all_rdm_spin(rdm_label)
 
-        if (tFinalRDMEnergy .and. tWrite_Normalised_RDMs) call print_spinfree_2rdm_wrapper(rdm_main, two_rdm_spawn, all_rdm_trace)
-        !if (tFinalRDMEnergy .and. tWrite_Normalised_RDMs) call print_rdms_spin_sym_wrapper(rdm_main, two_rdm_spawn, all_rdm_trace)
+        !if (tFinalRDMEnergy .and. tWrite_Normalised_RDMs) call print_spinfree_2rdm_wrapper(rdm_main, two_rdm_spawn, all_rdm_trace)
+        if (tFinalRDMEnergy .and. tWrite_Normalised_RDMs) call print_rdms_spin_sym_wrapper(rdm_main, two_rdm_spawn, all_rdm_trace)
         !if (tFinalRDMEnergy .and. tWrite_Normalised_RDMs) call print_rdms_with_spin(rdm_main, all_rdm_trace)
 
     end subroutine rdm_output_wrapper
