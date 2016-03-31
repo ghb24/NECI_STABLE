@@ -23,6 +23,7 @@ message(STATUS "Implicit Fortran linker flags: ${CMAKE_Fortran_IMPLICIT_LINK_LIB
 message(STATUS "Global C++ compile flags: ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE}}")
 message(STATUS "Global Fortran compile flags: ${CMAKE_Fortran_FLAGS} ${CMAKE_Fortran_FLAGS_${CMAKE_BUILD_TYPE}}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "Build host: ${${PROJECT_NAME}_BUILD_HOSTNAME}" )
 
 #if ( ${CMAKE_VERSION} VERSION_LESS "2.8.6" )
 #    feature_summary( WHAT ALL )

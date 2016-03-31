@@ -22,6 +22,7 @@ include(neci_system)
 #  xii) Summary of options, etc, at the end. (see feature_summary, ecbuild_feature).
 #  xiv) hdf5
 #   xv) Which targets should be included in ALL (see EXCLUDE_FROM_ALL)
+#   xvi) Make advanced: _hostname, HDF5_DIR (should be HDF5_NECI), ...
 
 # TEST WITH:
 # ifort

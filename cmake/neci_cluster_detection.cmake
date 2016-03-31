@@ -45,3 +45,7 @@ if( ${_hostname} MATCHES "hydra[0-9]" )
     endif()
 
 endif()
+
+set( ${PROJECT_NAME}_BUILD_HOSTNAME ${_hostname} )
+mark_as_advanced( _hostname ${PROJECT_NAME}_BUILD_HOSTNAME )
+
