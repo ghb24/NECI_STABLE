@@ -11,7 +11,7 @@ include(neci_system)
 # ENSURE that Fortran_FLAGS is not OVERRIDDEN, but EXTENDED, by _DEBUG, _RELEASE, ...
 #    i) Correct 32-bit support
 #   ii) Add build hostname to the output
-#  iii) Add toolchain files
+#  iii) Add language-specific linker functionality (and enforce LINKER_LANGUAGE)
 #   iv) We shouldn't have to rebuild everything for just changing version info --> restrict to header
 #          Use -- set_property( SOURCE <> PROPERTY COMPILE_DEFINITIONS ... )
 #    v) Add unit tests (are they ctest compatible?)

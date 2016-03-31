@@ -28,3 +28,4 @@ if( NOT _valid_type )
     message( FATAL_ERROR "Specified build type not valid. Choices are: ${CMAKE_CONFIGURATION_TYPES}" )
 endif()
 set( CMAKE_BUILD_TYPE ${_build_type} )
+

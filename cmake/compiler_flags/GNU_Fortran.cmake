@@ -5,6 +5,10 @@ set( ${PROJECT_NAME}_Fortran_FLAGS_DEBUG "-g -O0 -fbounds-check" )
 set( ${PROJECT_NAME}_Fortran_FLAGS_RELEASE "-O3" )
 set( ${PROJECT_NAME}_Fortran_FLAGS_CLUSTER "-flto" )
 
+# Linker flags
+
+set( ${PROJECT_NAME}_Fortran_LINKER_FLAGS_CLUSTER "-flto" )
+
 # Warning flags ...
 
 set( ${PROJECT_NAME}_Fortran_WARNING_FLAGS "-Wall -Wextra" )

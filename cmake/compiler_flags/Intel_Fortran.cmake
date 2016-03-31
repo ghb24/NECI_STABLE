@@ -5,6 +5,14 @@ set( ${PROJECT_NAME}_Fortran_FLAGS_CLUSTER "-ipo" )
 
 # Warning flags ...
 
+# Linker flags
+
+set( ${PROJECT_NAME}_Fortran_LINKER_FLAGS_CLUSTER "-ipo" )
+
+# A particular ifort fix (I can't find any other reference to this CMake variable...)
+
+# -i_dynamic is incorrectly added in CMake ifort configuration
+set(CMAKE_SHARED_LIBRARY_LINK_Fortran_FLAGS "")
 
 # Treat 32bit/64bit compilation differently
 

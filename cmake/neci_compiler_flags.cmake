@@ -10,7 +10,7 @@
 #
 # ii) We can specify override flags in any toolchain files
 #
-# iii) We can also override linker flags both by language (NECI_Fortran_LINK_FLAGS) and by object type
+# iii) We can also override linker flags both by language (NECI_Fortran_LINKER_FLAGS) and by object type
 #      (NECI_EXE_LINKER_FLAGS_DEBUG)
 #
 # n.b. It is also possible to use the NECI_<lang>_LINK_LIBRARIES command to force additional
@@ -56,13 +56,17 @@ macro( neci_compiler_flags _lang )
 
     # Language specific linker flags (not build type dependent)
 
-    if ( DEFINED NECI_${_lang}_LINK_FLAGS )
+    # N.B. CMake does not have build-type specific linker flags. We want to have them
+    #  --> We can use NECI_<lang>_LINKER_FLAGS_CLUSTER
+    #  --> These get inserted appropriately in neci_add_library/neci_add_executable
+
+    if ( DEFINED NECI_${_lang}_LINKER_FLAGS )
       message(STATUS "${_lang} compiler: Overriding global linker flags")
-      set( CMAKE_${_lang}_LINK_FLAGS ${NECI_${_lang}_LINK_FLAGS} )
+      set( CMAKE_${_lang}_LINKER_FLAGS ${NECI_${_lang}_LINKER_FLAGS} )
     endif()
-    if ( DEFINED FORCE_${_lang}_LINK_FLAGS )
+    if ( DEFINED FORCE_${_lang}_LINKER_FLAGS )
       message(STATUS "${_lang} compiler: (Forced) Overriding global linker flags")
-      set( CMAKE_${_lang}_LINK_FLAGS ${FORCE_${_lang}_LINK_FLAGS} )
+      set( CMAKE_${_lang}_LINKER_FLAGS ${FORCE_${_lang}_LINKER_FLAGS} )
     endif()
     mark_as_advanced( CMAKE_${_lang}_FLAGS )
 
@@ -89,3 +93,13 @@ foreach( _btype DEBUG RELEASE RELWITHDEBINFO CLUSTER )
       endif()
     endforeach()
 endforeach()
+
+# The CLUSTER build type should be simply an extension of the release one
+foreach( _lang C CXX Fortran )
+  set( CMAKE_${_lang}_FLAGS_CLUSTER "${CMAKE_${_lang}_FLAGS_RELEASE} ${CMAKE_${_lang}_FLAGS_CLUSTER}" )
+  set( CMAKE_${_lang}_LINKER_FLAGS_CLUSTER "${CMAKE_${_lang}_LINKER_FLAGS_RELEASE} ${CMAKE_${_lang}_LINKER_FLAGS_CLUSTER}" )
+endforeach()
+foreach( _type EXE SHARED MODULE )
+  set( CMAKE_${_type}_LINKER_FLAGS_CLUSTER "${CMAKE_${_type}_LINKER_FLAGS_RELEASE} ${CMAKE_${_type}_LINKER_FLAGS_CLUSTER}" )
+endforeach()
+

@@ -18,12 +18,14 @@
 # SOURCES : required
 #   list of source files
 #
-# LIBS : optional
-#   list of libraries to link against (CMake targets, or external libraries)
-#
-# LINKER_LANGUAGE : optional
+# LINKER_LANGUAGE : required
 #   what language should be used to link the executable. If not specified, cmake will determine this automatically
 #   Values: C, CXX, Fortran
+#
+#   required so that <project>_<lang>_linker_flags can be made to work
+#
+# LIBS : optional
+#   list of libraries to link against (CMake targets, or external libraries)
 #
 ##############################################################################
 
@@ -70,17 +72,27 @@ macro( neci_add_executable )
 
     # Specify the linker language manually
 
-    if( DEFINED _p_LINKER_LANGUAGE )
-      set_property( TARGET ${_p_TARGET} PROPERTY LINKER_LANGUAGE ${_p_LINKER_LANGUAGE} )
-      message(STATUS "Executable ${_p_TARGET}: Setting linker language to ${_p_LINKER_LANGUAGE}" )
-      if( DEFINED NECI_${_p_LINKER_LANGUAGE}_EXE_LINK_LIBRARIES )
-        target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_EXE_LINK_LIBRARIES} )
-        message(STATUS "Executable ${_p_TARGET}: Adding link libraries ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES}" )
-      endif()
-      if( DEFINED NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES )
-        target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES} )
-        message(STATUS "Executable ${_p_TARGET}: Adding link libraries ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES}" )
-      endif()
+    if( NOT DEFINED _p_LINKER_LANGUAGE OR NOT _p_LINKER_LANGUAGE MATCHES "(C|CXX|Fortran)" )
+      message( FATAL_ERROR "LINKER_LANGUAGE not set for executable: ${_p_TARGET}" )
+    endif()
+
+    set_property( TARGET ${_p_TARGET} PROPERTY LINKER_LANGUAGE ${_p_LINKER_LANGUAGE} )
+    message(STATUS "Executable ${_p_TARGET}: Setting linker language to ${_p_LINKER_LANGUAGE}" )
+    if( DEFINED NECI_${_p_LINKER_LANGUAGE}_EXE_LINK_LIBRARIES )
+      target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_EXE_LINK_LIBRARIES} )
+      message(STATUS "Executable ${_p_TARGET}: Adding link libraries ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES}" )
+    endif()
+    if( DEFINED NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES )
+      target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES} )
+      message(STATUS "Executable ${_p_TARGET}: Adding link libraries ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES}" )
+    endif()
+    if( DEFINED NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS )
+      target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS} )
+      message(STATUS "Executable ${_p_TARGET}: Adding linker flags ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS}" )
+    endif()
+    if( DEFINED NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS_${CMAKE_BUILD_TYPE} )
+      target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS_${CMAKE_BUILD_TYPE}} )
+      message(STATUS "Library ${_p_TARGET}: Adding linker flags ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS_${CMAKE_BUILD_TYPE}}" )
     endif()
 
     # Add to the global list of libraries

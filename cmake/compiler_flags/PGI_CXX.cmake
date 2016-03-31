@@ -1,4 +1,19 @@
+
+# For some reason, the CMake auto-detection often picks up pgcpp as the PGI c++ compiler, but that is
+# really just the preprocessor. Replace it with the actual compiler
+get_filename_component( _cxx_nm ${CMAKE_CXX_COMPILER} NAME )
+if ( _cxx_nm STREQUAL "pgcpp" )
+    message( STATUS "Forcing the use of pgc++ not pgcc" )
+    set( CMAKE_CXX_COMPILER pgc++ )
+endif()
+
 # Special defines for the PGI C++ compiler
+
+set( ${PROJECT_NAME}_CXX_FLAGS "-mcmodel=medium" )
+
+# Warning flags
+
+set( ${PROJECT_NAME}_Fortran_WARNING_FLAGS "-Minform=warn" )
 
 # Treat 32bit/64bit compilation differently
 
