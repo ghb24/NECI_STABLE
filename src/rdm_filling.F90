@@ -666,7 +666,6 @@ contains
 
         use rdm_data, only: rdm_t, tOpenShell
         use LoggingData, only: RDMExcitLevel, ThreshOccRDM, tThreshOccRDMDiag
-        use NatOrbsMod, only: NatOrbMat
         use RotateOrbsData, only: SymLabelListInv_rot
         use SystemData, only: nel
         use UMatCache, only: gtID
@@ -705,7 +704,7 @@ contains
                     ! SymLabelListInv_rot will be in spat orbitals too.
                     iInd = SymLabelListInv_rot(gtID(nI(i)))
                 end if
-                NatOrbMat(iInd,iInd) = NatOrbMat(iInd,iInd) &
+                rdm%matrix(iInd,iInd) = rdm%matrix(iInd,iInd) &
                                           + ( realSignDi(1) * realSignDi(nreplicas) * RDMIters )*ScaleContribFac 
             end do
         else
@@ -780,7 +779,6 @@ contains
 
         use rdm_data, only: rdm_t, tOpenShell
         use LoggingData, only: RDMExcitLevel
-        use NatOrbsMod, only: NatOrbMat
         use RotateOrbsData, only: SymLabelListInv_rot
         use SystemData, only: nel
         use UMatCache, only: gtID
@@ -812,10 +810,10 @@ contains
             Indak = SymLabelListInv_rot(aInd)    ! Position of a.
             
             ! Adding to 1-RDM(i,a), ci.cj effectively.
-            NatOrbMat( Indik, Indak ) = NatOrbMat( Indik, Indak ) + (ParityFactor * realSignDi * realSignDj)
+            rdm%matrix( Indik, Indak ) = rdm%matrix( Indik, Indak ) + (ParityFactor * realSignDi * realSignDj)
 
             if (tFill_CiCj_Symm) then                                
-                NatOrbMat( Indak, Indik ) = NatOrbMat( Indak, Indik ) + (ParityFactor * realSignDi * realSignDj)
+                rdm%matrix( Indak, Indik ) = rdm%matrix( Indak, Indik ) + (ParityFactor * realSignDi * realSignDj)
             end if
         else
             ! Looking at elements of the type Gamma(i,k,a,k).

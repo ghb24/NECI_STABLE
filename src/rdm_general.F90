@@ -32,7 +32,7 @@ contains
         use LoggingData, only: tDo_Not_Calc_RDMEnergy, tNo_RDMs_To_Read, tWrite_RDMs_to_read
         use LoggingData, only: tRDMInstEnergy, RDMExcitLevel, tExplicitAllRDM, tPrint1RDM
         use LoggingData, only: tDiagRDM, tReadRDMs, tPopsfile, tDumpForcesInfo, tDipoles
-        use NatOrbsMod, only: NatOrbMat, NatOrbMatTag, Evalues, EvaluesTag
+        use NatOrbsMod, only: Evalues, EvaluesTag
         use Parallel_neci, only: iProcIndex, nProcessors
         use rdm_data, only: rdms, tOpenShell, tCalc_RDMEnergy, Sing_ExcDjs, Doub_ExcDjs
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
@@ -75,13 +75,6 @@ contains
 
         ! Initialise the main RDM array data structure.
         call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems, max_nelems, nhashes_rdm)
-
-        if (nrdms > 1 .and. (tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles .or. RDMExcitLevel == 1)) then
-            call stop_all(t_r, 'The RDM feature you have requested is not currently implemented &
-                               &with multiple RDMs. In particular, forces, dipole moments, printing &
-                               &1-RDMs, diagonalising 1-RDMs, or anything to do with natural orbitals &
-                               & has not yet been implemented for more than one RDM.')
-        end if
 
         if(.not.allocated(rdms))allocate(rdms(nrdms))
         if(.not.allocated(rdm_estimates))allocate(rdm_estimates(nrdms))
@@ -142,16 +135,15 @@ contains
         ! First for the storage of the actual 1- or 2-RMD.
         if (RDMExcitLevel .eq. 1) then
 
-            ! This is the AllnElRDM, called NatOrbMat simply because we use the
-            ! natural orbital routines to diagonalise etc. We don't have an
-            ! instantaneous 1-RDM.
-            allocate(NatOrbMat(NoOrbs, NoOrbs), stat=ierr)
-            if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating NatOrbMat array,')
-            call LogMemAlloc('NatOrbMat', NoOrbs**2, 8, t_r, NatOrbMatTag, ierr)
-            NatOrbMat(:,:) = 0.0_dp
+            do i = 1, nrdms
+                allocate(rdms(i)%matrix(NoOrbs, NoOrbs), stat=ierr)
+                if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating 1-RDM array,')
+                call LogMemAlloc('rdms(i)%matrix', NoOrbs**2, 8, t_r, rdms(i)%matrix_tag, ierr)
+                rdms(i)%matrix(:,:) = 0.0_dp
 
-            MemoryAlloc = MemoryAlloc + ( NoOrbs * NoOrbs * 8 )
-            MemoryAlloc_Root = MemoryAlloc_Root + ( NoOrbs * NoOrbs * 8 )
+                MemoryAlloc = MemoryAlloc + ( NoOrbs * NoOrbs * 8 )
+                MemoryAlloc_Root = MemoryAlloc_Root + ( NoOrbs * NoOrbs * 8 )
+            end do
         else
             ! If we're calculating the 2-RDM, the 1-RDM does not need to be
             ! calculated as well because all its info is in the 2-RDM anyway.
@@ -336,18 +328,18 @@ contains
                         rdms(i)%baba => rdms(i)%baba_full
                     end if
                 end if ! Not instantaneous
-            end do ! Looping over all RDMs.
 
-            if (iProcindex .eq. 0) then
-                if (tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
-                    ! Still need to allocate 1-RDM to get nat orb occupation numbers.
-                    allocate(NatOrbMat(NoOrbs, NoOrbs), stat=ierr)
-                    if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating NatOrbMat array,')
-                    call LogMemAlloc('NatOrbMat', NoOrbs**2,8, t_r, NatOrbMatTag, ierr)
-                    NatOrbMat(:,:) = 0.0_dp
-                    MemoryAlloc_Root = MemoryAlloc_Root + ( NoOrbs * NoOrbs * 8 )
+                if (iProcindex .eq. 0) then
+                    if (tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
+                        ! Still need to allocate 1-RDM to get nat orb occupation numbers.
+                        allocate(rdms(i)%matrix(NoOrbs, NoOrbs), stat=ierr)
+                        if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating 1-RDM array,')
+                        call LogMemAlloc('rdms(i)%matrix', NoOrbs**2,8, t_r, rdms(i)%matrix_tag, ierr)
+                        rdms(i)%matrix(:,:) = 0.0_dp
+                        MemoryAlloc_Root = MemoryAlloc_Root + ( NoOrbs * NoOrbs * 8 )
+                    end if
                 end if
-            end if
+            end do ! Looping over all RDMs.
 
         end if            
 
@@ -505,10 +497,12 @@ contains
                 call LogMemAlloc('Evalues', NoOrbs, 8, t_r, EvaluesTag, ierr)
                 Evalues(:) = 0.0_dp
 
-                allocate(rdms(1)%Rho_ii(NoOrbs), stat=ierr)
-                if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Rho_ii array,')
-                call LogMemAlloc('Rho_ii', NoOrbs, 8, t_r, rdms(1)%Rho_iiTag, ierr)
-                rdms(1)%Rho_ii(:) = 0.0_dp
+                do i = 1, nrdms
+                    allocate(rdms(i)%Rho_ii(NoOrbs), stat=ierr)
+                    if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Rho_ii array,')
+                    call LogMemAlloc('Rho_ii', NoOrbs, 8, t_r, rdms(i)%Rho_iiTag, ierr)
+                    rdms(i)%Rho_ii(:) = 0.0_dp
+                end do
             end if
 
             ! This routine actually sets up the symmetry labels for the 1-RDM.
@@ -571,7 +565,6 @@ contains
 
         use LoggingData, only: IterRDMonFly
         use LoggingData, only: RDMExcitLevel
-        use NatOrbsMod, only: NatOrbMat
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: rdm_t, rdm_estimates_t, tOpenShell, tCalc_RDMEnergy
         use rdm_data, only: rdm_estimates
@@ -609,7 +602,7 @@ contains
                         if (FileEnd .gt. 0) call stop_all(t_r, "Error reading OneRDM_POPS")
                         if (FileEnd .lt. 0) exit
 
-                        NatOrbMat(SymLabelListInv_rot(i), SymLabelListInv_rot(j)) = Temp_RDM_Element
+                        rdm%matrix(SymLabelListInv_rot(i), SymLabelListInv_rot(j)) = Temp_RDM_Element
                     end do
                     close(RDM_unit)
                 else
@@ -747,7 +740,7 @@ contains
 
     end subroutine Read_In_RDMs
 
-    subroutine SetUpSymLabels_RDM() 
+    subroutine SetUpSymLabels_RDM()
 
         ! This routine just sets up the symmetry labels so that the orbitals
         ! are ordered according to symmetry (all beta then all alpha if spin orbs).
@@ -990,7 +983,7 @@ contains
         do i = 1, size(rdms)
 
             if (RDMExcitLevel .eq. 1) then
-                call Finalise_1e_RDM(rdms(i), Norm_1RDM)
+                call Finalise_1e_RDM(rdms(i), i, Norm_1RDM)
             else
                 ! We always want to calculate one final RDM energy, whether or not we're 
                 ! calculating the energy throughout the calculation.
@@ -1003,14 +996,14 @@ contains
                 call rdm_output_wrapper(rdms(i), i, rdm_estimates(i))
 
                 if (tPrint1RDM) then
-                    call Finalise_1e_RDM(rdms(i), Norm_1RDM)
+                    call Finalise_1e_RDM(rdms(i), i, Norm_1RDM)
                 else if (tDiagRDM .and. (iProcIndex .eq. 0)) then
                     call calc_1e_norms(rdms(i), Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
                     write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
                 end if
 
                 if (tDumpForcesInfo) then
-                    if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(i), Norm_1RDM)
+                    if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(i), i, Norm_1RDM)
                     call Calc_Lagrangian_from_RDM(rdms(i), Norm_1RDM, Norm_2RDM)
                     call convert_mats_Molpforces(rdms(i), Norm_1RDM, Norm_2RDM)
                 end if
@@ -1022,19 +1015,19 @@ contains
             ! Call the routines from NatOrbs that diagonalise the one electron
             ! reduced density matrix.
             tRotatedNOs = .false. ! Needed for BrokenSymNo routine
-            if (tDiagRDM) call find_nat_orb_occ_numbers(rdms(i))
+            if (tDiagRDM) call find_nat_orb_occ_numbers(rdms(i), i)
 
             ! This is where we would likely call any further calculations of
             ! forces, etc.
             if (tDipoles) then
-                if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(i), Norm_1RDM)
-                call CalcDipoles(Norm_1RDM)
+                if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(i), i, Norm_1RDM)
+                call CalcDipoles(rdms(i), Norm_1RDM)
             end if
 
             ! After all the NO calculations are finished we'd like to do another
             ! rotation to obtain symmetry-broken natural orbitals
             if (tBrokenSymNOs) then
-                call BrokenSymNO(occ_numb_diff)
+                call BrokenSymNO(rdms(i), occ_numb_diff)
             end if
 
         end do
@@ -1051,36 +1044,36 @@ contains
     
     end subroutine FinaliseRDMs
 
-    subroutine Finalise_1e_RDM(rdm, Norm_1RDM) 
+    subroutine Finalise_1e_RDM(rdm, irdm, Norm_1RDM) 
 
-        ! This routine takes the 1-RDM (NatOrbMat), normalises it, makes it 
+        ! This routine takes the 1-RDM (rdm%matrix), normalises it, makes it 
         ! hermitian if required, and prints out the versions we're interested
         ! in. This is only ever called at the very end of a calculation.
 
         use LoggingData, only: twrite_RDMs_to_read, twrite_normalised_RDMs, tForceCauchySchwarz
         use LoggingData, only: RDMExcitLevel
-        use NatOrbsMod, only: NatOrbMat
         use Parallel_neci, only: iProcIndex, MPISumAll
         use rdm_data, only: rdm_t
         use RotateOrbsData, only: NoOrbs
 
         type(rdm_t), intent(inout) :: rdm
+        integer, intent(in) :: irdm
         real(dp), intent(out) :: Norm_1RDM
                              
         integer :: ierr
         real(dp) :: Trace_1RDM, SumN_Rho_ii
-        real(dp), allocatable :: AllNode_NatOrbMat(:,:)
+        real(dp), allocatable :: AllNode_one_rdm(:,:)
 
         Norm_1RDM = 0.0_dp
 
         if (RDMExcitLevel .eq. 1) then
 
-            allocate(AllNode_NatOrbMat(NoOrbs, NoOrbs), stat=ierr)
+            allocate(AllNode_one_rdm(NoOrbs, NoOrbs), stat=ierr)
             
-            call MPISumAll(NatOrbMat, AllNode_NatOrbMat)
-            NatOrbMat = AllNode_NatOrbMat
+            call MPISumAll(rdm%matrix, AllNode_one_rdm)
+            rdm%matrix = AllNode_one_rdm
             
-            deallocate(AllNode_NatOrbMat)
+            deallocate(AllNode_one_rdm)
 
         end if
 
@@ -1090,23 +1083,23 @@ contains
             call calc_1e_norms(rdm, Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
 
             ! Write out the unnormalised, non-hermitian OneRDM_POPS.
-            if (twrite_RDMs_to_read) call Write_out_1RDM(Norm_1RDM, .false.)
+            if (twrite_RDMs_to_read) call Write_out_1RDM(rdm, irdm, Norm_1RDM, .false.)
 
             ! Enforce the hermiticity condition.  If the RDMExcitLevel is not 1, the 
             ! 1-RDM has been constructed from the hermitian 2-RDM, so this will not 
             ! be necessary.
             ! The HF_Ref and HF_S_D_Ref cases are not hermitian by definition.
             if (RDMExcitLevel .eq. 1) then
-                call make_1e_rdm_hermitian(Norm_1RDM)
+                call make_1e_rdm_hermitian(rdm, Norm_1RDM) 
                 
                 if (tForceCauchySchwarz) then
-                    call Force_Cauchy_Schwarz()
+                    call Force_Cauchy_Schwarz(rdm)
                 end if
 
             end if
             
-            ! Write out the final, normalised, hermitian OneRDM.                
-            if (tWrite_normalised_RDMs) call Write_out_1RDM(Norm_1RDM, .true.)
+            ! Write out the final, normalised, hermitian OneRDM.
+            if (tWrite_normalised_RDMs) call Write_out_1RDM(rdm, irdm, Norm_1RDM, .true.)
 
             write(6,'(1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
 
@@ -1126,7 +1119,6 @@ contains
 
         use FciMCData, only: HFDet_True
         use LoggingData, only: tDiagRDM
-        use NatOrbsMod, only: NatOrbMat
         use rdm_data, only: rdm_t, tOpenShell
         use RotateOrbsData, only: SymLabelListInv_rot, NoOrbs
         use SystemData, only: BRR
@@ -1141,7 +1133,7 @@ contains
         Norm_1RDM = 0.0_dp
 
         do i = 1, NoOrbs
-            Trace_1RDM = Trace_1RDM + NatOrbMat(i,i)
+            Trace_1RDM = Trace_1RDM + rdm%matrix(i,i)
         end do
 
         Norm_1RDM = ( real(NEl, dp) / Trace_1RDM )
@@ -1163,26 +1155,26 @@ contains
             ! index with the second lowest energy. Brr is always in spin
             ! orbitals. i gives the energy level, BRR gives the orbital,
             ! SymLabelListInv_rot gives the position of  this orbital in
-            ! NatOrbMat.
-
+            ! one_rdm.
+            
             if (tDiagRDM) then
                 if (tOpenShell) then
-                    rdm%Rho_ii(i) = NatOrbMat(SymLabelListInv_rot(BRR(i)),SymLabelListInv_rot(BRR(i))) * Norm_1RDM
+                    rdm%Rho_ii(i) = rdm%matrix(SymLabelListInv_rot(BRR(i)),SymLabelListInv_rot(BRR(i))) * Norm_1RDM
                 else
                     BRR_ID = gtID(BRR(2*i))
-                    rdm%Rho_ii(i) = NatOrbMat(SymLabelListInv_rot(BRR_ID),SymLabelListInv_rot(BRR_ID)) * Norm_1RDM
+                    rdm%Rho_ii(i) = rdm%matrix(SymLabelListInv_rot(BRR_ID),SymLabelListInv_rot(BRR_ID)) * Norm_1RDM
                 end if
             end if
     
             if (i.le.NEl) then
                 if (tOpenShell) then
                     SumN_Rho_ii = SumN_Rho_ii + &
-                            ( NatOrbMat(SymLabelListInv_rot(HFDet_True(i)),SymLabelListInv_rot(HFDet_True(i))) &
+                            ( rdm%matrix(SymLabelListInv_rot(HFDet_True(i)),SymLabelListInv_rot(HFDet_True(i))) &
                                 * Norm_1RDM )
                 else
                     HFDet_ID = gtID(HFDet_True(i))
                     SumN_Rho_ii = SumN_Rho_ii + &
-                            ( NatOrbMat(SymLabelListInv_rot(HFDet_ID),SymLabelListInv_rot(HFDet_ID)) &
+                            ( rdm%matrix(SymLabelListInv_rot(HFDet_ID),SymLabelListInv_rot(HFDet_ID)) &
                                 * Norm_1RDM ) / 2.0_dp
                 end if
             end if
@@ -1190,15 +1182,17 @@ contains
 
     end subroutine calc_1e_norms
 
-    subroutine make_1e_rdm_hermitian(Norm_1RDM)
+    subroutine make_1e_rdm_hermitian(rdm, Norm_1RDM)
 
         ! Simply average the 1-RDM(i,j) and 1-RDM(j,i) elements which should
         ! be equal in a perfect world.
 
-        use NatOrbsMod, only: NatOrbMat
+        use rdm_data, only: rdm_t
         use RotateOrbsData, only: SymLabelListInv_rot, NoOrbs
 
+        type(rdm_t), intent(inout) :: rdm
         real(dp), intent(in) :: Norm_1RDM
+
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity 
         integer :: i, j
         real(dp) :: Temp
@@ -1207,20 +1201,20 @@ contains
         Sum_Error_Hermiticity = 0.0_dp
         do i = 1, NoOrbs
             do j = i, NoOrbs
-                if ((abs((NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
-                        (NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))).gt.Max_Error_Hermiticity) &
-                    Max_Error_Hermiticity = abs((NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
-                                                (NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))
+                if ((abs((rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
+                        (rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))).gt.Max_Error_Hermiticity) &
+                    Max_Error_Hermiticity = abs((rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
+                                                (rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))
 
                 Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                        abs((NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
-                                            (NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))
+                                        abs((rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
+                                            (rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))
 
-                Temp = (NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) + &
-                        NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)))/2.0_dp
+                Temp = (rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) + &
+                        rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)))/2.0_dp
 
-                NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = Temp
-                NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = Temp
+                rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = Temp
+                rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = Temp
             end do
         end do
 
@@ -1230,10 +1224,12 @@ contains
 
     end subroutine make_1e_rdm_hermitian
 
-    subroutine Force_Cauchy_Schwarz()
+    subroutine Force_Cauchy_Schwarz(rdm)
 
-        use NatOrbsMod, only: NatOrbMat
+        use rdm_data, only: rdm_t
         use RotateOrbsData, only: SymLabelListInv_rot
+
+        type(rdm_t), intent(inout) :: rdm
 
         integer :: i, j
         real(dp) :: UpperBound
@@ -1243,15 +1239,15 @@ contains
         do i = 1, nBasis
             do j = 1, nBasis
 
-                UpperBound = sqrt(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(i))&
-                    *NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(j)))
+                UpperBound = sqrt(rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(i))&
+                    *rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(j)))
 
-                if (abs(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))) .gt. UpperBound)then
+                if (abs(rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))) .gt. UpperBound)then
 
-                    if (NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) .lt. 0.0_dp)then
-                        NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = -UpperBound
-                    else if (NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) .gt. 0.0_dp)then
-                        NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = UpperBound
+                    if (rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) .lt. 0.0_dp)then
+                        rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = -UpperBound
+                    else if (rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) .gt. 0.0_dp)then
+                        rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = UpperBound
                     end if
 
                     write(6,'("Changing element:")') i, j
@@ -1263,23 +1259,26 @@ contains
 
     end subroutine Force_Cauchy_Schwarz
 
-    subroutine Write_out_1RDM(Norm_1RDM, tNormalise)
+    subroutine Write_out_1RDM(rdm, irdm, Norm_1RDM, tNormalise)
 
         ! This routine writes out the OneRDM. If tNormalise is true, we are
         ! printing the normalised, hermitian matrix. Otherwise, Norm_1RDM is
         ! ignored and we print both 1-RDM(i,j) and 1-RDM(j,i) (in binary) 
         ! for the OneRDM_POPS file to be read in in a restart calculation.
 
-        use NatOrbsMod, only: NatOrbMat
-        use rdm_data, only: tOpenShell
+        use rdm_data, only: rdm_t, tOpenShell
         use RotateOrbsData, only: SymLabelListInv_rot
         use UMatCache, only: gtID
-        use util_mod, only: get_free_unit
+        use util_mod, only: get_free_unit, int_fmt
 
+        type(rdm_t), intent(in) :: rdm
+        integer, intent(in) :: irdm
         real(dp), intent(in) :: Norm_1RDM
         logical, intent(in) :: tNormalise
+
         integer :: i, j, iSpat, jSpat
         integer :: OneRDM_unit
+        character(20) :: filename
 
         if (tNormalise) then
             ! Haven't got the capabilities to produce multiple 1-RDMs yet.
@@ -1287,9 +1286,10 @@ contains
             call neci_flush(6)
             OneRDM_unit = get_free_unit()
 #ifdef _MOLCAS_
-            call molcas_open(OneRDM_unit, 'ONERDM')
+            call molcas_open(OneRDM_unit, "ONERDM")
 #else
-            open(OneRDM_unit, file='OneRDM', status='unknown')
+            write(filename, '("OneRDM.",'//int_fmt(irdm,0)//')') irdm
+            open(OneRDM_unit, file=trim(filename), status='unknown')
 #endif
         else
             ! Only every write out 1 of these at the moment.
@@ -1303,33 +1303,33 @@ contains
         do i = 1, nBasis
             do j = 1, nBasis
                 if (tOpenShell) then
-                    if (abs(NatOrbMat(SymLabelListInv_rot(i), SymLabelListInv_rot(j))) > 1.0e-12_dp) then 
+                    if (abs(rdm%matrix(SymLabelListInv_rot(i), SymLabelListInv_rot(j))) > 1.0e-12_dp) then 
                         if (tNormalise .and. (i .le. j)) then
                             write(OneRDM_unit,"(2I6,G25.17)") i, j, &
-                                NatOrbMat(SymLabelListInv_rot(i), SymLabelListInv_rot(j)) * Norm_1RDM
+                                rdm%matrix(SymLabelListInv_rot(i), SymLabelListInv_rot(j)) * Norm_1RDM
                         else if (.not. tNormalise) then
                             ! For the pops, we haven't made the 1-RDM hermitian yet, 
                             ! so print both the 1-RDM(i,j) and 1-RDM(j,i) elements.
                             ! This is written in binary.
-                            write(OneRDM_unit) i, j, NatOrbMat(SymLabelListInv_rot(i), SymLabelListInv_rot(j))
+                            write(OneRDM_unit) i, j, rdm%matrix(SymLabelListInv_rot(i), SymLabelListInv_rot(j))
                         end if
                     end if
                 else
                     iSpat = gtID(i)
                     jSpat = gtID(j)
-                    if (abs(NatOrbMat(SymLabelListInv_rot(iSpat), SymLabelListInv_rot(jSpat))) > 1.0e-12_dp) then
+                    if (abs(rdm%matrix(SymLabelListInv_rot(iSpat), SymLabelListInv_rot(jSpat))) > 1.0e-12_dp) then
                         if (tNormalise .and. (i .le. j)) then
                             if (((mod(i,2).eq.0) .and. (mod(j,2) .eq. 0)) .or. &
                                 ((mod(i,2).ne.0) .and. (mod(j,2) .ne. 0))) then
                                 write(OneRDM_unit,"(2I6,G25.17)") i, j, & 
-                                    ( NatOrbMat(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat)) &
+                                    ( rdm%matrix(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat)) &
                                                                     * Norm_1RDM ) / 2.0_dp
                             end if
                         else if (.not. tNormalise) then
                             ! The popsfile can be printed in spatial orbitals.
                             if ((mod(i,2) .eq. 0) .and. (mod(j,2) .eq. 0)) then
                                 write(OneRDM_unit) iSpat, jSpat, & 
-                                    NatOrbMat(SymLabelListInv_rot(iSpat), SymLabelListInv_rot(jSpat)) 
+                                    rdm%matrix(SymLabelListInv_rot(iSpat), SymLabelListInv_rot(jSpat)) 
                             end if
                         end if
                     end if
@@ -1350,7 +1350,7 @@ contains
         use FciMCData, only: Spawned_Parents, Spawned_Parents_Index
         use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
         use LoggingData, only: RDMExcitLevel, tExplicitAllRDM
-        use NatOrbsMod, only: NatOrbMat, NatOrbMatTag, Evalues, EvaluesTag
+        use NatOrbsMod, only: Evalues, EvaluesTag
         use rdm_data, only: rdms, Sing_ExcDjs, Doub_ExcDjs
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag
@@ -1415,11 +1415,6 @@ contains
 
         end if
 
-        if (allocated(NatOrbMat)) then
-            deallocate(NatOrbMat)
-            call LogMemDeAlloc(t_r,NatOrbMatTag)
-        end if
-
         if (allocated(Evalues)) then
             deallocate(Evalues)
             call LogMemDeAlloc(t_r,EvaluesTag)
@@ -1446,6 +1441,11 @@ contains
         end if
 
         do i = 1, size(rdms)
+            if (allocated(rdms(i)%matrix)) then
+                deallocate(rdms(i)%matrix)
+                call LogMemDeAlloc(t_r,rdms(i)%matrix_tag)
+            end if
+
             if (allocated(rdms(i)%Rho_ii)) then
                 deallocate(rdms(i)%Rho_ii)
                 call LogMemDeAlloc(t_r,rdms(i)%Rho_iiTag)

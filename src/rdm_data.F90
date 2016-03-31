@@ -78,10 +78,15 @@ module rdm_data
         real(dp), pointer :: baba(:,:) => null()
         real(dp), pointer :: baab(:,:) => null()
 
+        ! The 1-RDM.
+        real(dp), allocatable :: matrix(:,:)
+        ! The eigenvalues of the 1-RDM.
+        real(dp), allocatable :: Evalues(:)
         ! Arrays to hold the diagonal of the 1-RDM, and the Lagrangian.
         real(dp), allocatable :: Rho_ii(:)
         real(dp), allocatable :: Lagrangian(:,:)
-        integer :: Rho_iiTag
+
+        integer :: Rho_iiTag, matrix_tag, EvaluesTag
     end type rdm_t
 
     type rdm_estimates_t
