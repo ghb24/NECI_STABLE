@@ -1027,7 +1027,7 @@ contains
             ! After all the NO calculations are finished we'd like to do another
             ! rotation to obtain symmetry-broken natural orbitals
             if (tBrokenSymNOs) then
-                call BrokenSymNO(rdms(i), occ_numb_diff)
+                call BrokenSymNO(occ_numb_diff)
             end if
 
         end do
@@ -1534,6 +1534,9 @@ contains
                 call LogMemDeAlloc(t_r,rdms(i)%baab_fullTag)
                 nullify(rdms(i)%baab_full)
             end if
+
+            if (allocated(rdms(i)%sym_list_no)) deallocate(rdms(i)%sym_list_no)
+            if (allocated(rdms(i)%sym_list_inv_no)) deallocate(rdms(i)%sym_list_inv_no)
 
             if (associated(rdms(i)%aaaa)) nullify(rdms(i)%aaaa)
             if (associated(rdms(i)%abab)) nullify(rdms(i)%abab)

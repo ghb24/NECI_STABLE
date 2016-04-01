@@ -87,6 +87,11 @@ module rdm_data
         real(dp), allocatable :: Lagrangian(:,:)
 
         integer :: Rho_iiTag, matrix_tag, EvaluesTag
+
+        ! TODO: Comment.
+        integer, allocatable :: sym_list_no(:)
+        integer, allocatable :: sym_list_inv_no(:)
+
     end type rdm_t
 
     type rdm_estimates_t
