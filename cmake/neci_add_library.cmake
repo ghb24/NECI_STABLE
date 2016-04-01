@@ -7,6 +7,7 @@
 #
 #   neci_add_library(   TARGET <name>
 #                       SOURCES <source1> [<source2> ...]
+#                       LINKER_LANGUAGE <(C|CXX|Fortran)>
 #                     [ TEMPLATED_SOURCES <source1> [<source2> ...] ]
 #                     [ TYPE SHARED|STATIC|MODULE ]
 #                     [ PRIVATE_INCLUDEs <dir1> [<dir2> ...] ]

@@ -106,9 +106,13 @@ list(APPEND NECI_GLOBAL_DEFINES
     $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},"PGI">:__PGI>
 )
 
+# Add the source directory as an include path for everything
+include_directories( ${CMAKE_SOURCE_DIR}/src )
+
 # Include source directory
 
 add_subdirectory(src)
+add_subdirectory(unit_tests)
 
 # And we are done
 

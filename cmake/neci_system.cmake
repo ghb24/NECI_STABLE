@@ -38,10 +38,15 @@ if( PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME )
 
     include(CMakeParseArguments)
 
+    # Enable testing
+    include(CTest)
+    enable_testing()
+
     # Our local macros
 
     include( neci_add_option )
     include( neci_add_library )
+    include( neci_add_test )
     include( neci_add_executable )
     include( neci_print_summary )
 
@@ -66,6 +71,7 @@ endif()
 # Reset the list of target libraries and executables
 set ( ${PROJECT_NAME}_ALL_LIBS "" CACHE INTERNAL "")
 set ( ${PROJECT_NAME}_ALL_EXES "" CACHE INTERNAL "")
+set ( ${PROJECT_NAME}_ALL_TESTS "" CACHE INTERNAL "")
 
 # This should be a git project, but it is possible that people will copy it, so check for that
 
