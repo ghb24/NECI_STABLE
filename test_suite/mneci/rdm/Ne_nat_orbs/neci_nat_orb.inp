@@ -1,0 +1,32 @@
+title
+
+system read
+electrons 8
+nonuniformrandexcits 4ind-weighted
+read_rofcidump
+endsys
+
+calc
+methods
+method vertex fcimc 
+endmethods
+nmcyc 3700
+totalwalkers 5000
+tau 0.001 search
+startsinglepart
+truncinitiator
+addtoinitiator 3
+shiftdamp 0.03
+stepsshift 25
+load-balance-blocks off
+maxwalkerbloom 3.0
+seed 12824
+endcalc
+
+integral
+endint
+
+logging
+popsfile -1
+endlog
+end
