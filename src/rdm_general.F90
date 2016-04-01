@@ -1629,8 +1629,8 @@ contains
                 do irdm = 1, inum_runs/2
                     ! The indicies of the first and second replicas in this
                     ! particular pair, in the sign arrays.
-                    ind1 = irdm*2-1
-                    ind2 = irdm*2
+                    ind1 = min_part_type(irdm)
+                    ind2 = max_part_type(irdm)
 #ifndef __CMPLX
                     if ((SignI(ind1) .eq. 0) .and. (IterRDMStartI(ind1) .ne. 0)) then
                         ! The population has just gone to zero on population 1.

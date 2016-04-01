@@ -1344,6 +1344,7 @@ contains
                     endif
                    
                     call InitFCIMC_HF()
+                    write(88,*) "totparts after hf", totparts
 
                 endif   !tStartmp1
             endif  
@@ -1907,14 +1908,14 @@ contains
                 ! Obtain the initial sign
                 if (.not. tStartSinglePart) &
                     call stop_all(this_routine, "Only startsinglepart supported")
-                call encode_part_sign(CurrentDets(:,site), InitialPart, run)
+                call encode_part_sign(CurrentDets(:,site), InitialPart, min_part_type(run))
                 
                 ! Initial control values
                 TotWalkers = site
                 TotWalkersOld = site
-                NoatHF(run) = InitialPart
-                TotParts(run) = real(InitialPart, dp)
-                TotPartsOld(run) = real(InitialPart, dp)
+                NoatHF(min_part_type(run)) = InitialPart
+                TotParts(min_part_type(run)) = real(InitialPart, dp)
+                TotPartsOld(min_part_type(run)) = real(InitialPart, dp)
             end if
         end do
 

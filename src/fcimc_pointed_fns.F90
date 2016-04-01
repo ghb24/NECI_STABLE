@@ -168,7 +168,9 @@ module fcimc_pointed_fns
         !       - Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P
         !       - Attempt to spawn IMAG walkers with prob -REAL(Hij)/P
 
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+
+
+#if !defined(__CMPLX) && (defined(__PROG_NUMRUNS) || defined(__DOUBLERUN))
         child = 0.0_dp
         tgt_cpt = part_type
         walkerweight = sign(1.0_dp, RealwSign(part_type))
@@ -186,9 +188,9 @@ module fcimc_pointed_fns
             ! real/imaginary matrix-elements/target-particles.
 
 
-#if defined(__CMPLX) && defined(__MULTIRUN)
+#if defined(__CMPLX) && (defined(__PROG_NUMRUNS) || defined(__DOUBLERUN))
             component = part_type+tgt_cpt-1
-            if ((.not. btest(part_type,0)) then
+            if (.not. btest(part_type,0)) then
                 ! even part_type => imag replica =>  map 4->3,4 ; 6->5,6 etc.
                 component = part_type - tgt_cpt + 1
             endif
@@ -207,14 +209,16 @@ module fcimc_pointed_fns
                 MatEl = real(aimag(rh_used), dp)
                 ! n.b. In this case, spawning is of opposite sign.
                 if (.not. btest(part_type,0)) then
-                    ! imaginary component
+                    ! imaginary parent -> imaginary child
                     walkerweight = -walkerweight
                 endif
 #endif
             end if
 #endif
-            
             nSpawn = - tau * MatEl * walkerweight / prob
+!            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
+!            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
+
             
             ! n.b. if we ever end up with |walkerweight| /= 1, then this
             !      will need to ffed further through.
@@ -255,9 +259,17 @@ module fcimc_pointed_fns
                 
             endif
             ! And create the parcticles
+!            write(88,*) "part_type, run, id", part_type, part_type_to_run(part_type), (part_type_to_run(part_type)-1)*2+tgt_cpt
+            write(77, *) tgt_cpt, part_Type,  (part_type_to_run(part_type)-1)*2+tgt_cpt
+            write(66,*) part_type, nspawn
+            write(66,*)
+#ifdef __CMPLX
+            child((part_type_to_run(part_type)-1)*2+tgt_cpt) = nSpawn
+#else
             child(tgt_cpt) = nSpawn
+#endif
 
-#if !defined(__PROG_NUMRUNS) && !defined(__DOUBLERUN)
+#if defined(__CMPLX) || !defined(__PROG_NUMRUNS) && !defined(__DOUBLERUN)
         enddo
 #endif
 
@@ -278,6 +290,8 @@ module fcimc_pointed_fns
 
         ! Avoid compiler warnings
         iUnused = walkExcitLevel
+
+!        write(88,*) "--- child", child
 
     end function
 
