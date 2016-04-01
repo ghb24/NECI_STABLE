@@ -57,9 +57,9 @@ macro( neci_add_executable )
     # Add the link libraries
 
     if ( _p_LIBS )
-      list( REMOVE_DUPLICATES _p_LIBS )
-      foreach( lib ${_p_LIBS} )
-        target_link_libraries( ${_p_TARGET} ${lib} )
+	  list( REMOVE_DUPLICATES _p_LIBS )
+      foreach( _lib ${_p_LIBS} )
+		target_link_libraries( ${_p_TARGET} ${_lib} )
       endforeach()
     endif()
 

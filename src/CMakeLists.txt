@@ -188,6 +188,22 @@ set( TEMPLATED_SRC_FILES
 
 
 # ---------------------------------------------------------------------------------
+
+# Don't use generator expressions for including libraries, as this causes problems when there are list
+# expansions.
+set( _conditional_libraries "" )
+if (HAVE_MPI)
+    list(APPEND _conditional_libraries ${MPI_NECI_Fortran_LIBRARIES} )
+endif()
+if (HAVE_FFTW)
+    list(APPEND _conditional_librarise ${FFTW_LIBRARIES} )
+endif()
+if (HAVE_HDF5)
+    message("H HDF: " ${HDF5_NECI_LIBRARIES})
+    list(APPEND _conditional_libraries ${HDF5_NECI_LIBRARIES} )
+endif()
+
+# ---------------------------------------------------------------------------------
 # Build the main parts as static libraries
 # --> They don't need to be recompiled to be included in unit tests/python/...
 
@@ -215,10 +231,8 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
 
         LIBS
             "${LAPACK_NECI_LIBRARIES}"
-            "$<$<BOOL:${HAVE_MPI}>:${MPI_NECI_Fortran_LIBRARIES}>"
             "${LIBRT_LIBRARIES}"
-            "$<$<BOOL:${HAVE_FFTW}>:${FFTW_LIBRARIES}>"
-            "$<$<BOOL:${HAVE_HDF5}>:${HDF5_NECI_LIBRARIES}>"
+            "${_conditional_libraries}"
     )
 
     message(STATUS "Adding executable for configuration ${_config}")

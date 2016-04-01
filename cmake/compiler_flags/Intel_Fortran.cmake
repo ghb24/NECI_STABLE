@@ -5,7 +5,7 @@ set( ${PROJECT_NAME}_Fortran_FLAGS_CLUSTER "-ipo" )
 
 # Warning flags ...
 
-set( ${PROJECT_NAME}_Fortran_WARNING_FLAGS "-warn all" )
+#set( ${PROJECT_NAME}_Fortran_WARNING_FLAGS "-warn all" )
 
 # Linker flags
 
