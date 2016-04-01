@@ -1,10 +1,11 @@
 # Special defines for the PGI C compiler
 
 set( ${PROJECT_NAME}_C_FLAGS "-mcmodel=medium" )
+set( ${PROJECT_NAME}_C_FLAGS_CLUSTER "-Mipa=fast" )
 
 # Warning flags
 
-set( ${PROJECT_NAME}_Fortran_WARNING_FLAGS "-Minform=warn" )
+set( ${PROJECT_NAME}_C_WARNING_FLAGS "-Minform=warn" )
 
 # Treat 32bit/64bit compilation differently
 
