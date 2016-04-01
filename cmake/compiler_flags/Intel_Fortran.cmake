@@ -19,4 +19,3 @@ set(CMAKE_SHARED_LIBRARY_LINK_Fortran_FLAGS "")
 set( ${PROJECT_NAME}_32BIT_Fortran_FLAGS "-m32" )
 
 set( ${PROJECT_NAME}_64BIT_Fortran_FLAGS "-m64" )
-

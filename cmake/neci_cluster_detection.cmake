@@ -26,7 +26,7 @@ if( ${_hostname} MATCHES "eslogin[0-9]" )
         get_filename_compontent( _toolchain_file ${CMAKE_TOOLCHAIN_FILE} NAME )
     endif()
 
-    if ( NOT DEFINED CMAKE_TOOLCHAIN_FILE 
+    if ( NOT DEFINED CMAKE_TOOLCHAIN_FILE OR
          NOT _toolchain_file STREQUAL "archer.cmake" )
         message(FATAL_ERROR "Compiling on Archer requires the archer.cmake toolchain file")
     endif()
