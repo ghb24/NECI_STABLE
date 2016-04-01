@@ -563,7 +563,7 @@ module AnnihilationMod
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
         real(dp) :: pRemove, r
         integer :: ExcitLevel, DetHash, nJ(nel)
-        logical :: tSuccess, tSuc, tPrevOcc, tDetermState
+        logical :: tSuccess, tSuc, tDetermState
         integer :: run
 
 #ifdef __CMPLX
@@ -621,10 +621,10 @@ module AnnihilationMod
 
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
-#ifndef __CMPLX
-                        if (abs(CurrentSign(j)) < 1.e-12_dp) then
+
+                        if (is_run_unnocc(CurrentSign,run)) then
                             ! This determinant is actually *unoccupied* for the
-                            ! walker type/set we're considering. We need to
+                            ! run we're considering. We need to
                             ! decide whether to abort it or not.
                             if (tTruncInitiator) then
                                 if (.not. test_flag (SpawnedParts(:,i), get_initiator_flag(j)) .and. &
@@ -635,10 +635,10 @@ module AnnihilationMod
                                     call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
                                 end if
                             end if
-                        else if (SignProd(j) < 0) then
-#else
+                        end if
+                            
+
                         if (SignProd(j) < 0) then
-#endif
                             ! This indicates that the particle has found the
                             ! same particle of opposite sign to annihilate with.
                             ! In this case we just need to update some statistics:
@@ -706,7 +706,7 @@ module AnnihilationMod
 
             end if
                 
-            if ( (.not.tSuccess) .or. (tSuccess .and. sum(abs(CurrentSign)) < 1.e-12_dp .and. (.not. tDetermState)) ) then
+            if ( (.not.tSuccess) .or. (tSuccess .and. IsUnoccDet(CurrentSign) .and. (.not. tDetermState)) ) then
 
                 ! Determinant in newly spawned list is not found in CurrentDets.
                 ! Usually this would mean the walkers just stay in this list and
@@ -718,9 +718,6 @@ module AnnihilationMod
 
                     call extract_sign (SpawnedParts(:,i), SignTemp)
 
-                    tPrevOcc = .false.
-                    if (.not. IsUnoccDet(SignTemp)) tPrevOcc=.true.   
-                        
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
 
@@ -804,9 +801,6 @@ module AnnihilationMod
                     ! Determinant in newly spawned list is not found in
                     ! CurrentDets. If coeff <1, apply removal criterion.
                     call extract_sign (SpawnedParts(:,i), SignTemp)
-                    
-                    tPrevOcc = .false.
-                    if (.not. IsUnoccDet(SignTemp)) tPrevOcc = .true. 
                     
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)

@@ -98,6 +98,7 @@ endif
 #define min_part_type(run) 1
 #define max_part_type(run) 2
 #endif
+#define is_run_unnocc(signs, run) (signs(min_part_type(run))**2 + signs(max_part_type(run))**2)**2e-1_dp <1.0e-12_dp 
 #endif
 #else
 ! 1->1 ,2->2, 3->3 ...
@@ -114,6 +115,7 @@ endif
 #define max_part_type(run) 1
 #endif
 #endif
+#define is_run_unnocc(signs, run) abs(signs(run))<1.0e-12_dp 
 #endif
 
 

@@ -112,6 +112,9 @@ contains
 
         logical :: parent_init
 
+        !Only one element of child should be non-zero
+        ASSERT((sum(abs(child))-max(abs(child)))<1.0e-12_dp)
+
         ! Determine which processor the particle should end up on in the
         ! DirectAnnihilation algorithm.
         proc = DetermineDetNode(nel,nJ,0)    ! (0 -> nNodes-1)
@@ -180,38 +183,13 @@ contains
                                   SignCurr(part_type))
         end if
 
-#ifdef __CMPLX
-        if (tTruncInitiator) then
-            ! With complex walkers, things are a little more tricky.
-            ! We want to transfer the flag for all particles created (both
-            ! real and imag) from the specific type of parent particle. This
-            ! can mean real walker flags being transfered to imaginary
-            ! children and vice versa.
-            ! This is unneccesary for real walkers.
-            ! Test the specific flag corresponding to the parent, of type
-            ! 'part_type'
-            parent_init = test_flag(SpawnedParts(:,ValidSpawnedList(proc)), &
-                                    get_initiator_flag(part_type))
-            ! Assign this flag to all spawned children.
-            do j=1,lenof_sign
-                if (child(j) /= 0) then
-                    call set_flag (SpawnedParts(:,ValidSpawnedList(proc)), &
-                                   get_initiator_flag(j), parent_init)
-                endif
-            enddo
-        end if
-#endif
-
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
         
         ! Sum the number of created children to use in acceptance ratio.
-#ifdef __CMPLX
-        do run = 1, inum_runs
-            acceptances(run) = acceptances(run) + sum( abs(child(min_part_type(run):max_part_type(run))) )
-        end do
-#else
-        acceptances = acceptances + abs(child)
-#endif
+        ! Note that if child is an array, it should only have one non-zero
+        ! element which has changed.
+        acceptances(part_type_to_run(part_type)) = &
+            acceptances(part_type_to_run(part_type)) + max(abs(child))
 
     end subroutine create_particle
 
@@ -231,6 +209,9 @@ contains
         logical :: list_full, tSuccess
         integer, parameter :: flags = 0
         character(*), parameter :: this_routine = 'create_particle_with_hash_table'
+        
+        !Only one element of child should be non-zero
+        ASSERT((sum(abs(child_sign))-max(abs(child_sign)))<1.0e-12_dp)
 
         call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, SpawnedParts, ind, hash_val, tSuccess)
 
@@ -299,13 +280,10 @@ contains
         end if
         
         ! Sum the number of created children to use in acceptance ratio.
-#ifdef __CMPLX
-        do run = 1, inum_runs
-            acceptances(run) = acceptances(run) + sum( abs(child_sign(min_part_type(run):max_part_type(run))) )
-        end do
-#else
-        acceptances = acceptances + abs(child_sign)
-#endif
+        ! Note that if child is an array, it should only have one non-zero
+        ! element which has changed.
+        acceptances(part_type_to_run(part_type)) = &
+            acceptances(part_type_to_run(part_type)) + max(abs(child_sign))
 
     end subroutine create_particle_with_hash_table
 
