@@ -58,6 +58,11 @@ neci_add_option(
     DESCRIPTION "Use shared memory to store integrals"
     REQUIRED_PACKAGES HDF5_NECI ) # HDF5_NECI adds the Fortran COMPONENT to the default (and the ability to build)
 
+neci_add_option(
+    FEATURE MOLCAS
+    DEFAULT OFF
+    DESCRIPTION "Build NECI with molcas functionality" )
+
 # Special option overrides
 
 if( HAVE_SHARED_MEMORY AND CMAKE_Fortran_COMPILER_ID STREQUAL "PGI" )
@@ -99,6 +104,7 @@ list(APPEND NECI_GLOBAL_DEFINES
     $<$<BOOL:${HAVE_SHARED_MEMORY}>:__SHARED_MEM>
     $<$<NOT:$<BOOL:${HAVE_FFTW}>>:DISABLE_FFTW>
     $<$<BOOL:${HAVE_HDF5}>:__USE_HDF>
+    $<$<BOOL:${HAVE_MOLCAS}>:_MOLCAS_>
 
     # Identify the compiler to the code
     $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},"Intel">:__IFORT>
