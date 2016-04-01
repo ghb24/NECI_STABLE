@@ -966,7 +966,6 @@ contains
         type(rdm_estimates_t), intent(inout) :: rdm_estimates(:)
 
         integer :: i, error
-        real(dp) :: Norm_2RDM
         real(dp) :: Norm_1RDM, Trace_1RDM, SumN_Rho_ii
 
         call set_timer(FinaliseRDMs_Time)
@@ -1003,8 +1002,8 @@ contains
 
                 if (tDumpForcesInfo) then
                     if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(i), i, Norm_1RDM)
-                    call Calc_Lagrangian_from_RDM(rdms(i), Norm_1RDM, Norm_2RDM)
-                    call convert_mats_Molpforces(rdms(i), Norm_1RDM, Norm_2RDM)
+                    call Calc_Lagrangian_from_RDM(rdms(i), Norm_1RDM, rdm_estimates(i)%Norm_2RDM)
+                    call convert_mats_Molpforces(rdms(i), Norm_1RDM, rdm_estimates(i)%Norm_2RDM)
                 end if
 
             end if
