@@ -32,7 +32,6 @@ contains
         use LoggingData, only: tDo_Not_Calc_RDMEnergy, tNo_RDMs_To_Read, tWrite_RDMs_to_read
         use LoggingData, only: tRDMInstEnergy, RDMExcitLevel, tExplicitAllRDM, tPrint1RDM
         use LoggingData, only: tDiagRDM, tReadRDMs, tPopsfile, tDumpForcesInfo, tDipoles
-        use NatOrbsMod, only: Evalues, EvaluesTag
         use Parallel_neci, only: iProcIndex, nProcessors
         use rdm_data, only: rdms, tOpenShell, tCalc_RDMEnergy, Sing_ExcDjs, Doub_ExcDjs
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
@@ -492,12 +491,12 @@ contains
             SymLabelListInv_rot(:) = 0   
 
             if ((iProcIndex .eq. 0) .and. tDiagRDM) then
-                allocate(Evalues(NoOrbs), stat=ierr)
-                if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Evalues array,')
-                call LogMemAlloc('Evalues', NoOrbs, 8, t_r, EvaluesTag, ierr)
-                Evalues(:) = 0.0_dp
-
                 do i = 1, nrdms
+                    allocate(rdms(i)%Evalues(NoOrbs), stat=ierr)
+                    if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Evalues array,')
+                    call LogMemAlloc('rdms(i)%Evalues', NoOrbs, 8, t_r, rdms(i)%EvaluesTag, ierr)
+                    rdms(i)%Evalues(:) = 0.0_dp
+
                     allocate(rdms(i)%Rho_ii(NoOrbs), stat=ierr)
                     if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Rho_ii array,')
                     call LogMemAlloc('Rho_ii', NoOrbs, 8, t_r, rdms(i)%Rho_iiTag, ierr)
@@ -1027,7 +1026,7 @@ contains
             ! After all the NO calculations are finished we'd like to do another
             ! rotation to obtain symmetry-broken natural orbitals
             if (tBrokenSymNOs) then
-                call BrokenSymNO(occ_numb_diff)
+                call BrokenSymNO(rdms(i)%Evalues, occ_numb_diff)
             end if
 
         end do
@@ -1350,7 +1349,6 @@ contains
         use FciMCData, only: Spawned_Parents, Spawned_Parents_Index
         use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
         use LoggingData, only: RDMExcitLevel, tExplicitAllRDM
-        use NatOrbsMod, only: Evalues, EvaluesTag
         use rdm_data, only: rdms, Sing_ExcDjs, Doub_ExcDjs
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag
@@ -1415,11 +1413,6 @@ contains
 
         end if
 
-        if (allocated(Evalues)) then
-            deallocate(Evalues)
-            call LogMemDeAlloc(t_r,EvaluesTag)
-        end if
-
         if (allocated(FourIndInts)) then
             deallocate(FourIndInts)
             call LogMemDeAlloc(t_r,FourIndIntsTag)
@@ -1444,6 +1437,11 @@ contains
             if (allocated(rdms(i)%matrix)) then
                 deallocate(rdms(i)%matrix)
                 call LogMemDeAlloc(t_r,rdms(i)%matrix_tag)
+            end if
+
+            if (allocated(rdms(i)%Evalues)) then
+                deallocate(rdms(i)%Evalues)
+                call LogMemDeAlloc(t_r,rdms(i)%EvaluesTag)
             end if
 
             if (allocated(rdms(i)%Rho_ii)) then

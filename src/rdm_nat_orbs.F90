@@ -4,7 +4,6 @@ module rdm_nat_orbs
     ! stochastically sampled reduced density matrices.
 
     use constants
-    use NatOrbsMod, only: Evalues, EvaluesTag
     use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot
     use RotateOrbsData, only: SymLabelListInv_rot, NoOrbs, SpatOrbs
     use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag
@@ -99,7 +98,7 @@ contains
             Norm_Evalues = 2.0_dp*(SumDiag/real(NEl,dp))
         end if
 
-        ! Write out normalised evalues to file and calculate the correlation
+        ! Write out normalised Evalues to file and calculate the correlation
         ! entropy.
         Corr_Entropy = 0.0_dp
 
@@ -117,27 +116,27 @@ contains
 
         do i = 1, NoOrbs
             if (tOpenShell) then
-                write(Evalues_unit,'(I6,G35.17,I15,G35.17)') i, Evalues(i)/Norm_Evalues, &
+                write(Evalues_unit,'(I6,G35.17,I15,G35.17)') i, rdm%Evalues(i)/Norm_Evalues, &
                                                                 BRR(i), rdm%Rho_ii(i)
-                if (Evalues(i) .gt. 0.0_dp) then
-                    Corr_Entropy = Corr_Entropy - ( abs(Evalues(i)/ Norm_Evalues) &
-                                                    * LOG(abs(Evalues(i)/ Norm_Evalues)) )
+                if (rdm%Evalues(i) .gt. 0.0_dp) then
+                    Corr_Entropy = Corr_Entropy - ( abs(rdm%Evalues(i)/ Norm_Evalues) &
+                                                    * LOG(abs(rdm%Evalues(i)/ Norm_Evalues)) )
                 else
                     tNegEvalue = .true.
                 end if
-                if (i .le. NEl) SumN_NO_Occ = SumN_NO_Occ + (Evalues(i)/Norm_Evalues)
+                if (i .le. NEl) SumN_NO_Occ = SumN_NO_Occ + (rdm%Evalues(i)/Norm_Evalues)
             else
-                write(Evalues_unit,'(I6,G35.17,I15,G35.17)') (2*i)-1,Evalues(i)/Norm_Evalues, &
+                write(Evalues_unit,'(I6,G35.17,I15,G35.17)') (2*i)-1,rdm%Evalues(i)/Norm_Evalues, &
                                                             BRR((2*i)-1), rdm%Rho_ii(i)/2.0_dp
-                if (Evalues(i).gt.0.0_dp) then
-                    Corr_Entropy = Corr_Entropy - (2.0_dp * ( abs(Evalues(i)/Norm_Evalues) &
-                                                    * LOG(abs(Evalues(i)/Norm_Evalues)) ) )
+                if (rdm%Evalues(i).gt.0.0_dp) then
+                    Corr_Entropy = Corr_Entropy - (2.0_dp * ( abs(rdm%Evalues(i)/Norm_Evalues) &
+                                                    * LOG(abs(rdm%Evalues(i)/Norm_Evalues)) ) )
                 else
                     tNegEvalue = .true.
                 end if
-                write(Evalues_unit,'(I6,G35.17,I15,G35.17)') 2*i,Evalues(i)/Norm_Evalues, &
+                write(Evalues_unit,'(I6,G35.17,I15,G35.17)') 2*i,rdm%Evalues(i)/Norm_Evalues, &
                                                             BRR(2*i), rdm%Rho_ii(i)/2.0_dp
-                if (i .le. (NEl/2)) SumN_NO_Occ = SumN_NO_Occ + (2.0_dp * (Evalues(i)/Norm_Evalues))
+                if (i .le. (NEl/2)) SumN_NO_Occ = SumN_NO_Occ + (2.0_dp * (rdm%Evalues(i)/Norm_Evalues))
             end if
         end do
         close(Evalues_unit)
@@ -150,8 +149,8 @@ contains
 
         ! Write out the evectors to file.
         ! This is the matrix that transforms the molecular orbitals into the
-        ! natural orbitals. Evalue(i) corresponds to Evector NatOrbsMat(1:nBasis,i)
-        ! We just want the Evalues in the same order as above, but the
+        ! natural orbitals. rdm%Evalues(i) corresponds to Evector NatOrbsMat(1:nBasis,i)
+        ! We just want the rdm%Evalues in the same order as above, but the
         ! 1:nBasis part (corresponding to the molecular orbitals), needs to
         ! refer to the actual orbital labels. Want these orbitals to preferably
         ! be in order, run through the orbital, need the position to find the
@@ -189,7 +188,7 @@ contains
                         else
                             if (rdm%matrix(arr_ind(jInd),i_no) .ne. 0.0_dp) then
                                 write(NatOrbs_unit,'(2I6,2G35.17)') j, NO_Number, rdm%matrix(arr_ind(jInd),i_no), &
-                                                                    Evalues(i_no)/Norm_Evalues
+                                                                    rdm%Evalues(i_no)/Norm_Evalues
                                 tWrittenEvalue = .true.
                             end if
                         end if
@@ -210,7 +209,7 @@ contains
                             else
                                 if (rdm%matrix(arr_ind(jSpat),i_no) .ne. 0.0_dp) then
                                     write(NatOrbs_unit,'(2I6,2G35.17)') j, NO_Number, rdm%matrix(arr_ind(jSpat),i_no), &
-                                                                        Evalues(i_no)/Norm_Evalues
+                                                                        rdm%Evalues(i_no)/Norm_Evalues
                                     tWrittenEvalue = .true.
                                 end if
                             end if
@@ -380,7 +379,7 @@ contains
                 ! EvaluesSym comes out as the eigenvalues in ascending order.
 
                 do i = 1, NoSymBlock
-                    Evalues(SymStartInd+i) = EvaluesSym(NoSymBlock-i+1)
+                    rdm%Evalues(SymStartInd+i) = EvaluesSym(NoSymBlock-i+1)
                 end do
 
                 ! CAREFUL if eigenvalues are put in ascending order, this may not be 
@@ -409,7 +408,7 @@ contains
             else if (NoSymBlock .eq. 1) then
                 ! The eigenvalue is the lone value, while the eigenvector is 1.
 
-                Evalues(SymStartInd+1) = rdm%matrix(SymStartInd+1, SymStartInd+1)
+                rdm%Evalues(SymStartInd+1) = rdm%matrix(SymStartInd+1, SymStartInd+1)
                 rdm%matrix(SymStartInd+1, SymStartInd+1) = 1.0_dp
             end if
 
@@ -421,7 +420,7 @@ contains
 
         SumDiagTrace = 0.0_dp
         do i = 1, NoOrbs
-            SumDiagTrace = SumDiagTrace + Evalues(i)
+            SumDiagTrace = SumDiagTrace + rdm%Evalues(i)
         end do
 
         if ((abs(SumDiagTrace-SumTrace)).gt.1.0_dp) then
@@ -494,7 +493,7 @@ contains
         ! Unfortunately this sort routine orders the orbitals in ascending
         ! order... which is not quite what we want.  Just remember this when
         ! printing out the Evalues.
-        call sort (EValues(startSort:endSort), &
+        call sort (rdm%EValues(startSort:endSort), &
                    rdm%matrix(1:NoOrbs, startSort:endSort), &
                    rdm%sym_list_no(startSort:endSort))
 
@@ -502,7 +501,7 @@ contains
             StartSort = SpatOrbs + 1
             EndSort = nBasis
 
-            call sort(EValues(startSort:endSort), &
+            call sort(rdm%EValues(startSort:endSort), &
                       rdm%matrix(1:NoOrbs, startSort:endSort), &
                       rdm%sym_list_no(startSort:endSort))
 
@@ -538,10 +537,10 @@ contains
         end do
 
         SymLabelList_temp = rdm%sym_list_no
-        EvaluesTemp = Evalues
+        EvaluesTemp = rdm%Evalues
         do i = 1, NoOrbs
             rdm%sym_list_no(i) = SymLabelList_temp(NoOrbs-i+1)
-            Evalues(i) = EvaluesTemp(NoOrbs-i+1)
+            rdm%Evalues(i) = EvaluesTemp(NoOrbs-i+1)
         end do
 
         deallocate(one_rdm_Temp)
@@ -962,7 +961,7 @@ contains
 
     end subroutine PrintROFCIDUMP_RDM
 
-    subroutine BrokenSymNO(occ_numb_diff)
+    subroutine BrokenSymNO(Evalues, occ_numb_diff)
 
         ! This rouine finds natural orbitals (NOs) whose occupation
         ! numbers differ by a small relative threshold (occ_numb_diff) and
@@ -981,6 +980,7 @@ contains
         use SystemData, only: nel, tStoreSpinOrbs
         use UMatCache, only: UMatInd
 
+        real(dp), intent(in) :: Evalues(:)
         real(dp), intent(in) :: occ_numb_diff
 
         real(dp) :: diffnorm, SumDiag, sum_old, sum_new, selfint_old
