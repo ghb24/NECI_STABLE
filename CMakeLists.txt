@@ -10,17 +10,9 @@ include(neci_system)
 # TODO:
 # ENSURE that Fortran_FLAGS is not OVERRIDDEN, but EXTENDED, by _DEBUG, _RELEASE, ...
 #    i) Correct 32-bit support
-#   ii) Add build hostname to the output
-#  iii) Add current time to the output
-#   iv) We shouldn't have to rebuild everything for just changing version info --> restrict to header
+#   ii) We shouldn't have to rebuild everything for just changing version info --> restrict to header
 #          Use -- set_property( SOURCE <> PROPERTY COMPILE_DEFINITIONS ... )
-#   vi) Add warnings option
-#  vii) Test the compiler options for Intel
-# viii) Get the override order right for specified options
-#   ix) Add option to cmake gui
-#  xii) Summary of options, etc, at the end. (see feature_summary, ecbuild_feature).
-#   xv) Which targets should be included in ALL (see EXCLUDE_FROM_ALL)
-#   xvi) Make advanced: _hostname, HDF5_DIR (should be HDF5_NECI), ...
+#  iii) Which targets should be included in ALL (see EXCLUDE_FROM_ALL)
 
 # TEST WITH:
 # toolchain on archer
