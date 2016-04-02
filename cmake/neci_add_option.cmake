@@ -93,6 +93,10 @@ macro( neci_add_option )
       set ( HAVE_${_p_FEATURE} ${_p_DEFAULT} )
     endif()
 
+    # Ensure that the option appears in the ccmake gui
+
+    option( ENABLE_${_p_FEATURE} "${_p_DESCRIPTION}" ${_p_DEFAULT} )
+
     # If we want to enable a package, then check that its required packages exist. If they do not,
     # then we need to disable the package (unless REQUIRED is set, in which case we return an error.
 
@@ -129,6 +133,7 @@ macro( neci_add_option )
     
     # And finally some pretty output.
 
+    add_feature_info( ${_p_FEATURE} ${HAVE_${_p_FEATURE}} ${_p_DESCRIPTION} )
     if ( ${HAVE_${_p_FEATURE}} )
       message( STATUS "Feature ${_p_FEATURE} enabled." )
     else()

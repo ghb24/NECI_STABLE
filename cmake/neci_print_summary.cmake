@@ -26,11 +26,11 @@ message(STATUS "Global Fortran compile flags: ${CMAKE_Fortran_FLAGS} ${CMAKE_For
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "Build host: ${${PROJECT_NAME}_BUILD_HOSTNAME}" )
 
-#if ( ${CMAKE_VERSION} VERSION_LESS "2.8.6" )
-#    feature_summary( WHAT ALL )
-#else()
-#    feature_summary( WHAT ALL INCLUDE_QUIET_PACKAGES)
-#endif()
+if ( ${CMAKE_VERSION} VERSION_LESS "2.8.6" )
+    feature_summary( WHAT ALL )
+else()
+    feature_summary( WHAT ALL INCLUDE_QUIET_PACKAGES)
+endif()
 
 message(STATUS "")
 message(STATUS "  +---------------------------------------------------+")

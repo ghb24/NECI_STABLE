@@ -37,6 +37,7 @@ if( PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME )
     # CMake provided macro sets
 
     include(CMakeParseArguments)
+    include(FeatureSummary)
 
     # Enable testing
     include(CTest)
