@@ -9,7 +9,8 @@
 #                    SOURCES <source1> [<source2> ...]
 #                    LINKER_LANGUAGE <(C|CXX|Fortran)>
 #                  [ MPI <nprocessors> ]
-#                  [ LIBS <lib1> [<lib2> ...] ]
+#                  [ LIBS <lib1> [<lib2> ...]
+#                  [ META_TARGET <target> ]
 #
 # Options
 # -------
@@ -34,12 +35,15 @@
 # LIBS : optional
 #   list of libraries to link against (CMake targets, or external libraries)
 #
+# META_TARGET : optional
+#   add the test to the specified meta target (and create that target if required)
+#
 ##############################################################################
 
 macro( neci_add_test )
 
     set( options )
-    set( single_value_args TARGET LINKER_LANGUAGE MPI )
+    set( single_value_args TARGET LINKER_LANGUAGE MPI META_TARGET )
     set( multi_value_args SOURCES LIBS )
 
     cmake_parse_arguments( _p "${options}" "${single_value_args}" "${multi_value_args}" ${_FIRST_ARG} ${ARGN} )
@@ -108,6 +112,19 @@ macro( neci_add_test )
     message(STATUS "Added unit test: ${_p_TARGET}" )
 
     # Add to the global list of tests
+
     set( ${PROJECT_NAME}_ALL_TESTS ${${PROJECT_NAME}_ALL_TESTS} ${_p_TARGET} CACHE INTERNAL "" )
+
+    # Add to the metatarget if necessary
+
+    if( _p_META_TARGET  )
+        list(FIND ${PROJECT_NAME}_ALL_META_TARGETS ${_p_META_TARGET} _idx)
+        if( NOT DEFINED _idx OR "${_idx}" EQUAL -1 )
+            add_custom_target(${_p_META_TARGET})
+            set( ${PROJECT_NAME}_ALL_META_TARGETS ${${PROJECT_NAME}_ALL_META_TARGETS} ${_p_META_TARGET} CACHE INTERNAL "")
+        endif()
+        add_dependencies( ${_p_META_TARGET} ${_p_TARGET} )
+        message(STATUS "Added test ${_p_TARGET} to meta target ${_p_META_TARGET}")
+    endif()
 
 endmacro()
