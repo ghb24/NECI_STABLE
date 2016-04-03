@@ -17,7 +17,6 @@ if( HAVE_WARNINGS )
       if( CMAKE_${_lang}_COMPILER_LOADED )
         if( DEFINED ${PROJECT_NAME}_${_lang}_WARNING_FLAGS AND
             NOT ${PROJECT_NAME}_${_lang}_WARNING_FLAGS STREQUAL "" )
-          message("SETTING ${_lang} .. ${CMAKE_${_lang}_FLAGS} .. ${${PROJECT_NAME}_${_lang}_WARNING_FLAGS} " )
           set( CMAKE_${_lang}_FLAGS "${CMAKE_${_lang}_FLAGS} ${${PROJECT_NAME}_${_lang}_WARNING_FLAGS}" )
         endif()
       endif()
