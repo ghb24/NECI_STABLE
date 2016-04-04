@@ -90,15 +90,16 @@ endif
 #ifdef __PROG_NUMRUNS
 #define min_part_type(run) 2*run-1
 #define max_part_type(run) 2*run
+#define is_run_unnocc(signs, run) (signs(min_part_type(run))**2 + signs(max_part_type(run))**2)**2e-1_dp <1.0e-12_dp 
 #else
 #ifdef __DOUBLERUN
 #define min_part_type(run) 2*run-1
 #define max_part_type(run) 2*run
+#define is_run_unnocc(signs, run) (signs(min_part_type(run))**2 + signs(max_part_type(run))**2)**2e-1_dp <1.0e-12_dp 
 #else
 #define min_part_type(run) 1
 #define max_part_type(run) 2
 #endif
-#define is_run_unnocc(signs, run) (signs(min_part_type(run))**2 + signs(max_part_type(run))**2)**2e-1_dp <1.0e-12_dp 
 #endif
 #else
 ! 1->1 ,2->2, 3->3 ...

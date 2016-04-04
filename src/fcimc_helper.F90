@@ -113,7 +113,7 @@ contains
         logical :: parent_init
 
         !Only one element of child should be non-zero
-        ASSERT((sum(abs(child))-max(abs(child)))<1.0e-12_dp)
+        ASSERT((sum(abs(child))-maxval(abs(child)))<1.0e-12_dp)
 
         ! Determine which processor the particle should end up on in the
         ! DirectAnnihilation algorithm.
@@ -189,7 +189,7 @@ contains
         ! Note that if child is an array, it should only have one non-zero
         ! element which has changed.
         acceptances(part_type_to_run(part_type)) = &
-            acceptances(part_type_to_run(part_type)) + max(abs(child))
+            acceptances(part_type_to_run(part_type)) + maxval(abs(child))
 
     end subroutine create_particle
 
@@ -211,7 +211,7 @@ contains
         character(*), parameter :: this_routine = 'create_particle_with_hash_table'
         
         !Only one element of child should be non-zero
-        ASSERT((sum(abs(child_sign))-max(abs(child_sign)))<1.0e-12_dp)
+        ASSERT((sum(abs(child_sign))-maxval(abs(child_sign)))<1.0e-12_dp)
 
         call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, SpawnedParts, ind, hash_val, tSuccess)
 
@@ -283,7 +283,7 @@ contains
         ! Note that if child is an array, it should only have one non-zero
         ! element which has changed.
         acceptances(part_type_to_run(part_type)) = &
-            acceptances(part_type_to_run(part_type)) + max(abs(child_sign))
+            acceptances(part_type_to_run(part_type)) + maxval(abs(child_sign))
 
     end subroutine create_particle_with_hash_table
 
@@ -1786,11 +1786,11 @@ contains
 
             if (tTruncInitiator) then
                 ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
-                if (test_flag(iLutCurr,get_initiator_flag(1))) then
-                    NoAddedInitiators = NoAddedInitiators - 1
-                else if (test_flag(iLutCurr,get_initiator_flag(lenof_sign))) then
-                    NoAddedInitiators(inum_runs) = NoAddedInitiators(inum_runs) - 1
-                end if
+                do i = 1, lenof_sign
+                    if (test_flag(iLutCurr,get_initiator_flag(i))) then
+                        NoAddedInitiators(i) = NoAddedInitiators(i) - 1
+                    endif
+                enddo
             end if
 
             ! Remove the determinant from the indexing list

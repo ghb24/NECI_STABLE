@@ -194,7 +194,7 @@ contains
 
         type(subspace_in) :: core_in
 
-        integer :: space_size, i, j, ierr
+        integer :: space_size, i, ierr, run
         real(dp) :: zero_sign(lenof_sign)
         character (len=*), parameter :: t_r = "generate_space"
 
@@ -253,8 +253,8 @@ contains
 
             call set_flag(SpawnedParts(:,i), flag_deterministic)
             if (tTruncInitiator) then
-                do j = 1, lenof_sign
-                    call set_flag(SpawnedParts(:,i), get_initiator_flag(j))
+                do run = 1, inum_runs
+                    call set_flag(SpawnedParts(:,i), get_initiator_flag_by_run(run))
                 end do
             end if
         end do

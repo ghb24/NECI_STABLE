@@ -201,7 +201,7 @@ MODULE ReadInput_neci
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
                             TNoSameExcit, TInitStar, tMP2Standalone, &
-                            MemoryFacPart, tTruncInitiator, tSemiStochastic, &
+                            MemoryFacPart, tSemiStochastic, &
                             tSpatialOnlyHash, InitWalkers, tUniqueHFNode, &
                             InitiatorCutoffEnergy, tCheckHighestPop, &
                             tSurvivalInitiatorThreshold, tKP_FCIQMC, &

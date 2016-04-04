@@ -6,7 +6,7 @@
 module semi_stoch_procs
 
     use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag
-    use bit_reps, only: decode_bit_det, get_initiator_flag
+    use bit_reps, only: decode_bit_det, get_initiator_flag_by_run
     use CalcData
     use constants
     use FciMCData, only: determ_sizes, determ_displs, determ_space_size, &
@@ -642,7 +642,7 @@ contains
         use searching, only: BinSearchParts
         use sort_mod, only: sort
 
-        integer :: i, j, comp, MinInd, PartInd, nwalkers
+        integer :: i, run, comp, MinInd, PartInd, nwalkers
         logical :: tSuccess
 
         MinInd = 1
@@ -676,8 +676,8 @@ contains
             if (tSuccess) then
                 call set_flag(CurrentDets(:,PartInd), flag_deterministic)
                 if (tTruncInitiator) then
-                    do j = 1, lenof_sign
-                        call set_flag(CurrentDets(:,PartInd), get_initiator_flag(j))
+                    do run = 1, inum_runs
+                        call set_flag(CurrentDets(:,PartInd), get_initiator_flag_by_run(run))
                     end do
                 end if
                 MinInd = PartInd

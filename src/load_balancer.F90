@@ -1,7 +1,7 @@
 #include "macros.h"
 module load_balance
 
-    use CalcData, only: tUniqueHFNode, tSemiStochastic, tTruncInitiator, &
+    use CalcData, only: tUniqueHFNode, tSemiStochastic, &
                         tCheckHighestPop, tEnhanceRemainder, OccupiedThresh, &
                         InitiatorOccupiedThresh, tContTimeFCIMC, &
                         tContTimeFull, tTrialWavefunction, tInitOccThresh, &

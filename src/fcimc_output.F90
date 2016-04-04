@@ -19,7 +19,7 @@ module fcimc_output
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
                              nel_pre_freezing
     use DetCalcData, only: det, fcidets, ReIndex, NDet, NRow, HAMIL, LAB
-    use bit_reps, only: decode_bit_det, test_flag, extract_sign
+    use bit_reps, only: decode_bit_det, test_flag, extract_sign, get_initiator_flag
     use semi_stoch_procs, only: return_most_populated_states
     use bit_rep_data, only: niftot, nifd, flag_initiator
     use hist, only: calc_s_squared_star, calc_s_squared
@@ -1373,7 +1373,7 @@ contains
                     if(.not.tTruncInitiator) then
                         write(iout,"(A3)",advance='no') 'Y'
                     else
-                        if(test_flag(GlobalLargestWalkers(:,i),flag_initiator(j))) then
+                        if(test_flag(GlobalLargestWalkers(:,i),get_initiator_flag(j))) then
                             write(iout,"(A3)",advance='no') 'Y'
                         else
                             write(iout,"(A3)",advance='no') 'N'

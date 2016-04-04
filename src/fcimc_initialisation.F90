@@ -60,7 +60,8 @@ module fcimc_initialisation
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det, nullify_ilut, encode_part_sign, &
                         extract_part_sign, tBuildSpinSepLists , &
-                        get_initiator_flag, get_weak_initiator_flag
+                        get_initiator_flag, get_weak_initiator_flag, &
+                        get_initiator_flag_by_run
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
                          BeforeNormHist, InstHist, iNoBins, AllInstHist, &
                          HistogramEnergy, AllHistogramEnergy, AllHistogram, &
@@ -1747,8 +1748,9 @@ contains
             ! Set reference determinant as an initiator if
             ! tTruncInitiator is set, for both imaginary and real flags
             if (tTruncInitiator) then
-                call set_flag (CurrentDets(:,1), get_initiator_flag(1))
-                call set_flag (CurrentDets(:,1), get_initiator_flag(2))
+                do run = 1, inum_runs
+                    call set_flag (CurrentDets(:,1), get_initiator_flag_by_run(run))
+                enddo
             endif
 
             ! If running a semi-stochastic simulation, set flag to specify the Hartree-Fock is in the
@@ -1889,7 +1891,7 @@ contains
 
                 ! Set reference determinant as an initiator if tTruncInitiator
                 if (tTruncInitiator) then
-                    call set_flag(CurrentDets(:, site), get_initiator_flag(run))
+                    call set_flag(CurrentDets(:, site), get_initiator_flag_by_run(run))
                 end if
 
                 ! The global reference is the HF and is primary for printed
@@ -2478,7 +2480,7 @@ contains
         real(dp) :: TotMP1Weight,amp,MP2Energy,PartFac,rat,r,energy_contrib
         HElement_t(dp) :: HDiagtemp
         integer :: iExcits, exflag, Ex(2,2), nJ(NEl), DetIndex, iNode
-        integer :: iInit, DetHash, ExcitLevel, run
+        integer :: iInit, DetHash, ExcitLevel, run, part_type
         integer(n_int) :: iLutnJ(0:NIfTot)
         real(dp) :: NoWalkers, temp_sign(lenof_sign)
         logical :: tAllExcitsFound, tParity
@@ -2642,8 +2644,8 @@ contains
                     nullify(TempNode)
 
                     DetIndex=DetIndex+1
-                    do run=1,inum_runs
-                        TotParts(run)=TotParts(run)+abs(NoWalkers)
+                    do part_type=1,lenof_sign
+                        TotParts(part_type)=TotParts(part_type)+abs(NoWalkers)
                     enddo
                 endif
             endif   !End if desired node
@@ -2672,8 +2674,9 @@ contains
                 call encode_sign(CurrentDets(:,DetIndex),temp_sign)
                 if(tTruncInitiator) then
                     !Set initiator flag (always for HF)
-                    call set_flag(CurrentDets(:,DetIndex),get_initiator_flag(1))
-                    call set_flag(CurrentDets(:,DetIndex),get_initiator_flag(2))
+                    do run = 1, inum_runs
+                        call set_flag(CurrentDets(:,DetIndex),get_initiator_flag(run))
+                    enddo
                 endif
                 call set_det_diagH(DetIndex, 0.0_dp)
 

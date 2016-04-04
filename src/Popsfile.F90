@@ -4,7 +4,7 @@ MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, &
                           AB_elec_pairs, par_elec_pairs, tMultiReplicas, tReltvy
-    use CalcData, only: tTruncInitiator, DiagSft, tWalkContGrow, nEquilSteps, &
+    use CalcData, only: DiagSft, tWalkContGrow, nEquilSteps, &
                         ScaleWalkers, tReadPopsRestart, tPopsJumpShift, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
                         iWeightPopRead, iPopsFileNoRead, Tau, &

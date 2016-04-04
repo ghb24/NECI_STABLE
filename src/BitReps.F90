@@ -434,7 +434,6 @@ contains
 
     end subroutine encode_flags
 
-
     pure function get_initiator_flag(sgn_index) result (flag)
         integer, intent(in) :: sgn_index
         integer :: flag
@@ -481,6 +480,20 @@ contains
 #endif
     end function get_weak_initiator_flag
 
+    pure function any_run_is_initiator(ilut) result (t)
+        integer(n_int), intent(in) :: ilut(0:niftot)
+        integer :: run
+        logical :: t
+        t = .false.
+        do run = 1, inum_runs
+            if (test_flag(ilut, get_initiator_flag_by_run(run))) then
+                t = .true.
+                return
+            endif
+        enddo
+    end function any_run_is_initiator
+
+
     subroutine clear_all_flags (ilut)
 
         ! Clear all of the flags
@@ -492,6 +505,8 @@ contains
             ilut(NOffFlag) = iand(ilut(NOffFlag), sign_neg_mask)
 
     end subroutine clear_all_flags
+
+
 
     subroutine encode_sign (ilut, real_sgn)
 
@@ -538,8 +553,9 @@ contains
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         integer, intent(in) :: run
         real(dp), intent(in) :: real_sgn, imag_sgn
+        character(*), parameter :: this_routine='encode_run_sign'
 
-        ASSERT(run_type<=inum_runs)
+        ASSERT(run<=inum_runs)
         call encode_part_sign(ilut, real_sgn, min_part_type(run))
 #ifdef __CMPLX
         call encode_part_sign(ilut, imag_sgn, max_part_type(run))
