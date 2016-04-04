@@ -1528,7 +1528,7 @@ and a range of other guidelines.
 
 	There is one, major, exception to this rule. Code that only exists for
 	testing purposes (such as the contents of \code{ASSERT} statements,
-	or unit tests if they are ever added) may be as explicitly duplicated as
+	or unit tests) may be as explicitly duplicated as
 	desired. Their \emph{purpose} is to explicitly flag up when anything
 	elsewhere changes - so the risk of them getting out of sync with the code
 	base is their purpose.
@@ -2179,6 +2179,60 @@ confirming the that the test was added correctly:
 \begin{lstlisting}[language=bash]
     $ ~/testcode2/bin/testcode.py -c neci/parallel/new_test
 \end{lstlisting}
+
+\subsection{Unit tests}
+    Unit tests should test discrete, small, elements of functionality. Ideally these should be
+    the smallest elements such that functionality is then composed from ``units'' that have all
+    been tested. By considering each of the elements explicitly, it is possible to writ tests
+    for edge-case behaviour, where it is difficult to ensure that this behaviour will be tested
+    in a full integration test case.
+
+    Unit tests are found in the \code{unit_tests} directory. They are arranged in subdirectories,
+    each of which corresponds to one of the \emph{files} of NECI source code. There are a number
+    of technical steps to integrating new unit tests. 
+    \begin{enumerate}
+        \item
+            A passing test is an executable that returns 0, and any other return value indicates
+            failure. The developer has an entirely free choice to determine how they wish to
+            write test executables.
+        \item
+            The library FRUIT is provided to assist in writing unit tests. Within a given test
+            (i.e. testing a given function, or unit), there should be a \emph{suite} of tests
+            to cover all possbile cases. FRUIT provides helper functionality to keep track of
+            which element of a suite is currently running (using the \code{TEST()} macros),
+            check values (using \code{call assert_equals}, \code{call assert_true} and so forth),
+            keep track of where errors occurred and report them in an easily readible form. The
+            module can be imported with \code{use fruit}. See existing tests for examples.
+        \item
+            If the current directory of tests does not contain a \code{CMakeLists.txt} file, create it.
+            Ensure that it contains a \code{foreach()} loop over the available
+            \code|\${PROJECT_NAME}_CONFIGURATIONS| so that all the build configurations of
+            neci get tested. The directory should be added to the main \code{CMakeLists.txt} in
+            the \code{unit_tests} directory using the \code{add_subdirectory()} command.
+        \item
+            Add the test to the \code{CMakeLists.txt} file in the directory in which it resides
+            using the \code{neci_add_test} command. This will require you to specify a name for
+            the test, and the appropriate .F90 file.
+        \item
+            To test the appropriate configuration of neci, add \code|lib{k,m,d,}neci| to the
+            LIBS line. To use the FRUIT helpers, add \code{fruit} to this line.
+    \end{enumerate}
+    The easiest way to get these details correct is to copy existing examples.
+
+    Unit tests can be run using the command
+    \begin{lstlisting}[gobble=4]
+        ctest [-R <regex>]
+    \end{lstlisting}
+    which is a built in part of the CMake toolkit. By default this will execute all avaialable
+    tests and print a report on successes and failures. The optional \code{-R} flag specifies
+    a regular expression, and only tests matching this will be executed. There are a number
+    of further options available.
+
+    A test can also be run directly by running its executable manually. This can be more
+    straightforward for capturing the output of a failing test whilst debugging. The
+    executables are found in the same position in the build directory as the source files
+    are in the main repository (i.e.\ \code[breaklines=true]{unit_tests/det_bit_ops/test_countbits.F90}
+    gives \code[breaklines=true]{<build_dir>/unit_tests/det_bit_ops/test_countbits}).
 
 \section{Interfacing C (and C++) code}
 Developers have always mixed Fortran code with external routines implemented
