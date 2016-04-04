@@ -270,6 +270,31 @@
 	code (\code{dneci}) or the multi run code (\code{mneci}) are
 	built. If not specified, all targets are built.
 
+\subsubsection{Options}
+    Whilst every effort has been made to provide NECI with sensible default options, the user
+    may wish to play around further. To (dis)able an option, the following should be passed as
+    an argument to cmake:
+    \begin{lstlisting}[gobble=4]
+        -DENABLE_<option>=<(ON|OFF)>
+    \end{lstlisting}
+    The following options are available. Where an option is default "on", if the required libraries
+    are not available, the option will be disabled and this will be noted in the build summary.
+    \begin{description}
+        \codeitem{HDF5}
+            Make use of hdf5 for popsfiles (default=on).
+        \codeitem{FFTW}
+            Functionality requiring FFTW (default=on).
+        \codeitem{MOLCAS}
+            Build with the \_MOLCAS\_ flag (default=off).
+        \codeitem{MPI}
+            Build with parallel functionality (default=off).
+        \codeitem{SHARED\_MEMORY}
+            Use shared memory for storing integrals (default=on).
+        \codeitem{WARNING}
+            Compile with verbose compiler warnings (default=on).
+    \end{description}
+\subsubsection{Toolchain files}
+
 \subsubsection{Special case: Archer}
 	Archer uses a number of custom compiler wrappers. These wrappers
 	defeat the auto-configuration built into the CMake system. As such
