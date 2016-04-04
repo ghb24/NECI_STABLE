@@ -175,14 +175,14 @@ contains
         NIfSgn = lenof_sign
 #ifdef __PROG_NUMRUNS
         write(6,*) 'Calculation supports multiple parallel runs'
-        write(6,*) 'Setting replica count in bit representation: ', NIfSgn
 #elif defined(__DOUBLERUN)
         WRITE(6,*) "Double run in use."
 #endif
 #if defined(__CMPLX)
         WRITE(6,*) "Complex walkers in use."
 #endif
-
+        write(6,*) 'Number of simultaneous walker distributions: ',inum_runs
+        write(6,*) 'Number of sign components in bit representation of determinant: ', NIfSgn
 
         ! The number of integers used for sorting / other bit manipulations
         NIfDBO = NIfD + NIfY

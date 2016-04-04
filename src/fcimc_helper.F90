@@ -112,8 +112,12 @@ contains
 
         logical :: parent_init
 
-        !Only one element of child should be non-zero
-        ASSERT((sum(abs(child))-maxval(abs(child)))<1.0e-12_dp)
+        !Ensure no cross spawning between runs - run of child same as run of
+        !parent
+#ifdef __DEBUG
+        run = part_type_to_run(part_type)
+        ASSERT(sum(abs(child))-sum(abs(child(min_part_type(run):max_part_type(run)))) < 1.0e-12_dp)
+#endif
 
         ! Determine which processor the particle should end up on in the
         ! DirectAnnihilation algorithm.
@@ -188,8 +192,8 @@ contains
         ! Sum the number of created children to use in acceptance ratio.
         ! Note that if child is an array, it should only have one non-zero
         ! element which has changed.
-        acceptances(part_type_to_run(part_type)) = &
-            acceptances(part_type_to_run(part_type)) + maxval(abs(child))
+        run = part_type_to_run(part_type)
+        acceptances(run) = acceptances(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
 
     end subroutine create_particle
 
