@@ -50,8 +50,8 @@ contains
 
         ! Choose the correct generating routine.
         if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
-        if (space_in%tPops) call generate_space_most_populated(space_in%npops, space_in%tApproxSpace, trial_iluts, &
-                                                                ndets_this_proc)
+        if (space_in%tPops) call generate_space_most_populated(space_in%npops, & 
+                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc)
         if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
         if (space_in%tDoubles) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
         if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
@@ -180,6 +180,229 @@ contains
 
     end subroutine calc_trial_states_lanczos
 
+
+
+    subroutine calc_trial_states_direct(space_in, nexcit, ndets_this_proc, trial_iluts, evecs_this_proc, evals, &
+                                         space_sizes, space_displs, reorder)
+
+        use bit_reps, only: decode_bit_det
+        use CalcData, only: subspace_in
+        use DetBitOps, only: ilut_lt, ilut_gt
+        use FciMCData, only: ilutHF
+        use Parallel_neci, only: MPIScatterV, MPIGatherV, MPIBCast, MPIArg, iProcIndex
+        use Parallel_neci, only: nProcessors
+        use ParallelHelper, only: root
+        use semi_stoch_gen
+        use sort_mod, only: sort
+        use SystemData, only: nel, tAllSymSectors
+
+        type(subspace_in) :: space_in
+        integer, intent(in) :: nexcit
+        integer, intent(out) :: ndets_this_proc
+        integer(n_int), intent(out) :: trial_iluts(0:,:)
+        HElement_t(dp), allocatable, intent(out) :: evecs_this_proc(:,:)
+        real(dp), intent(out) :: evals(:)
+        integer(MPIArg), intent(out) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
+        integer, optional, intent(in) :: reorder(nexcit)
+
+        integer(n_int), allocatable :: ilut_list(:,:)
+        integer, allocatable :: det_list(:,:)
+        integer :: i, j, max_elem_ind(1), ierr,info,ndets_int
+        integer :: temp_reorder(nexcit)
+        integer(MPIArg) :: ndets_all_procs, ndets_this_proc_mpi
+        integer(MPIArg) :: sndcnts(0:nProcessors-1), displs(0:nProcessors-1)
+        integer(MPIArg) :: rcvcnts
+        integer, allocatable :: evec_abs(:)
+        HElement_t(dp), allocatable :: H_tmp(:,:)
+        HElement_t(dp), allocatable :: evecs(:,:), evecs_transpose(:,:)
+        HElement_t(dp), allocatable :: work(:)
+        real(dp), allocatable :: evals_all(:), rwork(:)
+        character(len=*), parameter :: t_r = "calc_trial_states_lanczos"
+
+        ndets_this_proc = 0
+        trial_iluts = 0_n_int
+
+        ! Choose the correct generating routine.
+        if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
+        if (space_in%tPops) call generate_space_most_populated(space_in%npops, & 
+                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc)
+        if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
+        if (space_in%tDoubles) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
+        if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
+        if (space_in%tRAS) call generate_ras(space_in%ras, trial_iluts, ndets_this_proc)
+        if (space_in%tOptimised) call generate_optimised_space(space_in%opt_data, space_in%tLimitSpace, &
+                                                         trial_iluts, ndets_this_proc, space_in%max_size)
+        if (space_in%tMP1) call generate_using_mp1_criterion(space_in%mp1_ndets, trial_iluts, ndets_this_proc)
+        if (space_in%tFCI) then
+            if (tAllSymSectors) then
+                call gndts_all_sym_this_proc(trial_iluts, .true., ndets_this_proc)
+            else
+                call generate_fci_core(trial_iluts, ndets_this_proc)
+            end if
+        end if
+
+        if (.not. (space_in%tPops .or. space_in%tRead .or. space_in%tDoubles .or. space_in%tCAS .or. &
+                   space_in%tRAS .or. space_in%tOptimised .or. space_in%tMP1 .or. space_in%tFCI)) then
+            call stop_all(t_r, "A space for the trial functions was not chosen.")
+        end if
+
+        ndets_this_proc_mpi = int(ndets_this_proc, MPIArg)
+        call MPIAllGather(ndets_this_proc_mpi, space_sizes, ierr)
+        ndets_all_procs = sum(space_sizes)
+
+        if (ndets_all_procs < nexcit) call stop_all(t_r, "The number of excited states that you have asked &
+            &for is larger than the size of the trial space used to create the excited states. Since this &
+            &routine generates trial states that are orthogonal, this is not possible.")
+
+        space_displs(0) = 0_MPIArg
+        do i = 1, nProcessors-1
+            space_displs(i) = sum(space_sizes(:i-1))
+        end do
+
+        call sort(trial_iluts(:,1:ndets_this_proc), ilut_lt, ilut_gt)
+
+        if (iProcIndex == root) then
+            allocate(ilut_list(0:NIfTot, ndets_all_procs))
+        else
+            ! On these other processes ilut_list and evecs_transpose are not
+            ! needed, but we need them to be allocated for the MPI wrapper
+            ! function to work, so just allocate them to be small.
+            allocate(ilut_list(1,1))
+            allocate(evecs_transpose(1,1))
+        end if
+
+        call MPIGatherV(trial_iluts(:,1:space_sizes(iProcIndex)), ilut_list, &
+                        space_sizes, space_displs, ierr)
+
+        ! Only perform the diagonalisation on the root process.
+        if (iProcIndex == root) then
+            allocate(det_list(nel, ndets_all_procs))
+
+            do i = 1, ndets_all_procs
+                call decode_bit_det(det_list(:,i), ilut_list(:,i))
+            end do
+
+
+            allocate(evecs(ndets_all_procs, nexcit), stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error allocating eigenvectors array.")
+            evecs = 0.0_dp
+
+            allocate(evec_abs(ndets_all_procs), stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error allocating evec_abs array.")
+            evec_abs = 0.0_dp
+            
+
+! Perform a direct diagonalisation in the trial space.
+
+! First to build the Hamiltonian matrix
+            ndets_int=int(ndets_all_procs,sizeof_int)
+            allocate(H_tmp(ndets_all_procs,ndets_all_procs), stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error allocating H_tmp array")
+            H_tmp = 0.0_dp
+
+            do i = 1, ndets_all_procs
+              ! diagonal elements
+              if (tHPHF) then
+                 H_tmp(i,i) = hphf_diag_helement(det_list(:,i),ilut_list(:,i))
+              else
+                 H_tmp(i,i) = get_helement(det_list(:,i),det_list(:,i),0)
+              end if
+              ! off diagonal elements
+              do j = 1,i-1
+                if (tHPHF) then
+                   H_tmp(i,j) = hphf_off_diag_helement(det_list(:,i),det_list(:,j),ilut_list(:,i), &
+                                ilut_list(:,j))
+                else
+                   H_tmp(i,j) = get_helement(det_list(:,i),det_list(:,j),ilut_list(:,i),ilut_list(:,j))
+                end if 
+              end do
+            end do
+! The H matrix if ready. Now diagonalize it.
+            allocate(work(3*ndets_all_procs),stat=ierr)
+             work = 0.0_dp
+            allocate(evals_all(ndets_all_procs),stat=ierr)
+             evals_all=0.0_dp
+#ifdef __CMPLX
+            allocate(rwork(3*ndets_all_procs),stat=ierr)
+            call zheev('V','L',ndets_int,H_tmp,ndets_int,evals_all,work,3*ndets_int,rwork,info)
+            deallocate(rwork)
+#else
+            call dsyev('V','L',ndets_int,H_tmp,ndets_int,evals_all,work,3*ndets_int,info)
+#endif
+! copy H_tmp to evecs, and keep only the first nexcit entries of evalvs_all
+            do i=1,nexcit
+              evals(i)=evals_all(i)
+              do j=1,ndets_all_procs
+                evecs(j,i)=H_tmp(j,i)
+              end do
+            end do
+            deallocate(evals_all)
+            deallocate(work)
+
+            deallocate(H_tmp)
+            deallocate(ilut_list)
+            ! For consistency between compilers, enforce a rule for the sign of
+            ! the eigenvector. To do this, make sure that the largest component
+            ! of each vector is positive. The largest component is found using
+            ! maxloc. If there are multiple determinants with the same weight
+            ! then the FORTRAN standard says that the first such component will
+            ! be used, so this will hopefully be consistent across compilers.
+            ! To avoid numerical errors bwteen compilers for such elements, we
+            ! also round the array components to integers. Because evecs will
+            ! be normalised, also multiply by 100000 before rounding.
+            do i = 1, nexcit
+                ! First find the maximum element.
+                evec_abs = nint(100000.0_dp*abs(evecs(:,i)))
+                max_elem_ind = maxloc(evec_abs)
+                if (Real(evecs(max_elem_ind(1),i),dp) < 0.0_dp) then
+                    evecs(:,i) = -evecs(:,i)
+                end if
+            end do
+
+            deallocate(det_list)
+            deallocate(evec_abs)
+
+            ! Reorder the trial states, if the user has asked for this to be done.
+            if (present(reorder)) then
+                temp_reorder = reorder
+                call sort(temp_reorder, evals)
+                temp_reorder = reorder
+                call sort(temp_reorder, evecs)
+            end if
+
+            ! Unfortunately to perform the MPIScatterV call we need the transpose
+            ! of the eigenvector array.
+            allocate(evecs_transpose(nexcit, ndets_all_procs), stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error allocating transposed eigenvectors array.")
+            evecs_transpose = transpose(evecs)
+        else
+            deallocate(ilut_list)
+        end if
+
+        call MPIBCast(evals, size(evals), root)
+
+        ndets_this_proc_mpi = space_sizes(iProcIndex)
+        ! The number of elements to send and receive in the MPI call, and the
+        ! displacements.
+        sndcnts = space_sizes*int(nexcit, MPIArg)
+        rcvcnts = ndets_this_proc_mpi*int(nexcit, MPIArg)
+        displs = space_displs*int(nexcit, MPIArg)
+
+        ! Send the components to the correct processors using the following
+        ! array as temporary space.
+        allocate(evecs_this_proc(nexcit, ndets_this_proc), stat=ierr)
+        call MPIScatterV(evecs_transpose, sndcnts, displs, evecs_this_proc, rcvcnts, ierr)
+        if (ierr /= 0) call stop_all(t_r, "Error in MPIScatterV call.")
+
+        ! Clean up.
+        if (iProcIndex == root) deallocate(evecs)
+        deallocate(evecs_transpose)
+
+    end subroutine calc_trial_states_direct
+
+
+
+
     subroutine calc_trial_states_qmc(space_in, nexcit, qmc_iluts, qmc_ht, paired_replicas, ndets_this_proc, &
                                      trial_iluts, evecs_this_proc, space_sizes, space_displs)
 
@@ -218,8 +441,8 @@ contains
 
         ! Choose the correct generating routine.
         if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
-        if (space_in%tPops) call generate_space_most_populated(space_in%npops, space_in%tApproxSpace, trial_iluts, &
-                                                                ndets_this_proc)
+        if (space_in%tPops) call generate_space_most_populated(space_in%npops, & 
+                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc)
         if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
         if (space_in%tDoubles) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
         if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)

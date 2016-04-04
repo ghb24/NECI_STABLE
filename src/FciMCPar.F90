@@ -69,7 +69,9 @@ module FciMCParMod
 
     contains
 
-    SUBROUTINE FciMCPar(Weight,Energyxw)
+    SUBROUTINE FciMCPar(energy_final_output)
+
+        real(dp), intent(out), allocatable :: energy_final_output(:)
 
 #ifdef MOLPRO
         integer :: nv, ityp(1)
@@ -104,11 +106,6 @@ module FciMCParMod
         character(*), parameter :: this_routine = 'FciMCPar'
         character(6), parameter :: excit_descriptor(0:2) = &
                                         (/"IC0   ", "single", "double"/)
-
-        ! Set the output energy value to zero, as it is not used by all
-        ! of the calculations, and is therefore giving spurious uninitialised
-        ! values for the testcode to pick up...
-        Energyxw = 0.0_dp
 
         if (tJustBlocking) then
             ! Just reblock the current data, and do not perform an fcimc calculation.
@@ -521,7 +518,7 @@ module FciMCParMod
             write (iout,'(1X,a34,1X,i18,/)') 'Max number of determinants/process:',MaxWalkers
         end if
        
-        !Automatic error analysis
+        ! Automatic error analysis.
         call error_analysis(tSinglePartPhase(1),iBlockingIter(1),mean_ProjE_re,ProjE_Err_re,  &
             mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue)
 
@@ -534,21 +531,21 @@ module FciMCParMod
         call MPIBCast(Shift_Err)
         call MPIBCast(tNoProjEValue)
         call MPIBCast(tNoShiftValue)
-        Weight=(0.0_dp)
+
         if (tTrialWavefunction) then
-            Energyxw = tot_trial_numerator(1)/tot_trial_denom(1)
+            allocate(energy_final_output(size(tot_trial_denom)))
+            energy_final_output = tot_trial_numerator/tot_trial_denom
         else
-            Energyxw=(ProjectionE(1)+Hii)
+            allocate(energy_final_output(size(ProjectionE)))
+            energy_final_output = ProjectionE + Hii
         end if
         
         iroot=1
         CALL GetSym(ProjEDet(:,1),NEl,G1,NBasisMax,RefSym)
         isymh=int(RefSym%Sym%S,sizeof_int)+1
-        write (iout,10101) iroot,isymh
-10101   format(//'RESULTS FOR STATE',i2,'.',i1/'====================='/)
         write (iout,'('' Current reference energy'',T52,F19.12)') Hii 
         if(tNoProjEValue) then
-            write (iout,'('' Projected correlation energy'',T52,F19.12)') ProjectionE
+            write (iout,'('' Projected correlation energy'',T52,F19.12)') ProjectionE(1)
             write (iout,"(A)") " No automatic errorbar obtained for projected energy"
         else
             write (iout,'('' Projected correlation energy'',T52,F19.12)') mean_ProjE_re
@@ -592,12 +589,12 @@ module FciMCParMod
             BestEnergy = mean_shift + Hii
             BestErr = shift_err 
         else
-            BestEnergy = ProjectionE(1)+Hii
+            BestEnergy = ProjectionE(1) + Hii
             BestErr = 0.0_dp
         endif
         write(iout,"(A)")
         if(tNoProjEValue) then
-            write(iout,"(A,F20.8)") " Total projected energy ",ProjectionE+Hii
+            write(iout,"(A,F20.8)") " Total projected energy ",real(ProjectionE(1),dp) + Hii
         else
             write(iout,"(A,F20.8,A,G15.6)") " Total projected energy ", &
                 mean_ProjE_re+Hii," +/- ",ProjE_Err_re
@@ -944,8 +941,8 @@ module FciMCParMod
                                               child, parent_flags, part_type)
 
                         if (use_spawn_hash_table) then
-                            call create_particle_with_hash_table (nJ, ilutnJ, child, &
-                                                                  part_type, CurrentDets(:,j))
+                            call create_particle_with_hash_table (nJ, ilutnJ, child, part_type, &
+                                                                   CurrentDets(:,j), iter_data)
                         else
                             call create_particle (nJ, iLutnJ, child, part_type, & 
                                                   CurrentDets(:,j), SignCurr, p, &
@@ -1024,8 +1021,7 @@ module FciMCParMod
             call calc_replica_overlaps()
         end if
 
-        if (tFillingStochRDMonFly .and. (.not. tCoreDet)) call fill_rdm_diag_wrapper(rdms, CurrentDets, &
-                                                                                     int(TotWalkers, sizeof_int))
+        if (tFillingStochRDMonFly) call fill_rdm_diag_wrapper(rdms, CurrentDets, int(TotWalkers, sizeof_int))
 
         call update_iter_data(iter_data)
 

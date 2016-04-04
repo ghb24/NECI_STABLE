@@ -24,7 +24,7 @@ contains
         use FciMCData, only: MaxWalkersPart, tTrialHash, tIncCancelledInitEnergy
         use FciMCData, only: con_space_vecs, ntrial_excits, trial_numerator, trial_denom
         use FciMCData, only: tot_trial_numerator, tot_trial_denom, HashIndex
-        use initial_trial_states, only: calc_trial_states_lanczos, calc_trial_states_qmc
+        use initial_trial_states, only: calc_trial_states_lanczos, calc_trial_states_qmc, calc_trial_states_direct
         use LoggingData, only: tWriteTrial, tCompareTrialAmps
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
         use ParallelHelper, only: root
@@ -44,14 +44,14 @@ contains
         integer(MPIArg) :: con_sendcounts(0:nProcessors-1), con_recvcounts(0:nProcessors-1)
         integer(MPIArg) :: con_senddispls(0:nProcessors-1), con_recvdispls(0:nProcessors-1)
         integer(n_int), allocatable, dimension(:,:) :: temp_space
-        real(dp), allocatable :: trial_wfs_all_procs(:,:), temp_wfs(:,:)
-        real(dp) :: trial_amp, temp_energies(nexcit_calc)
+        HElement_t(dp), allocatable :: trial_wfs_all_procs(:,:), temp_wfs(:,:)
+        real(dp) :: temp_energies(nexcit_calc)
         character (len=*), parameter :: t_r = "init_trial_wf"
 
-#ifdef __CMPLX
-        call stop_all(t_r, "Trial wave function-based estimators have not been implemented with &
-                           &complex coefficients.")
-#endif
+!#ifdef __CMPLX
+!        call stop_all(t_r, "Trial wave function-based estimators have not been implemented with &
+!                           &complex coefficients.")
+!#endif
 
         ! Perform checks.
         if (tIncCancelledInitEnergy .and. (.not. tTrialHash)) &
@@ -79,13 +79,20 @@ contains
 
         write(6,'("Generating the trial space...")'); call neci_flush(6)
 
+#ifdef __CMPLX
+             call calc_trial_states_direct(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
+                                           temp_energies, trial_counts, trial_displs, trial_est_reorder)
+#else
         if (qmc_trial_wf) then
             call calc_trial_states_qmc(trial_in, nexcit_keep, CurrentDets, HashIndex, replica_pairs, &
                                        trial_space_size, trial_space, trial_wfs, trial_counts, trial_displs)
         else
             call calc_trial_states_lanczos(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
                                            temp_energies, trial_counts, trial_displs, trial_est_reorder)
+!           call calc_trial_states_direct(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
+!                                         temp_energies, trial_counts, trial_displs, trial_est_reorder)
         end if
+#endif
 
         write(6,'("Size of trial space on this processor:",1X,i8)') trial_space_size; call neci_flush(6)
 
@@ -95,13 +102,17 @@ contains
             allocate(trial_wfs(nexcit_keep, trial_space_size), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, "Error allocating trial_wfs.")
             ! Go through each replica and find which trial state matches it best.
+#ifndef __CMPLX
             if (nexcit_calc > 1) then
                 call assign_trial_states(replica_pairs, CurrentDets, HashIndex, trial_space, temp_wfs, &
                                          trial_wfs, temp_energies, trial_energies)
             else
+#endif
                 trial_wfs = temp_wfs
                 trial_energies = temp_energies
+#ifndef __CMPLX
             end if
+#endif
             deallocate(temp_wfs, stat=ierr)
             if (ierr /= 0) call stop_all(t_r, "Error deallocating temp_wfs.")
         end if
@@ -397,8 +408,8 @@ contains
     subroutine generate_connected_space_vector(trial_space, trial_vecs, con_space, con_vecs)
 
         ! Calculate the vector
-        ! \sum_j H_{ij} \psi^T_j,
-        ! where \psi^T is the trial vector, j runs over all trial space
+        ! \sum_j H_{ij} \psi_j,
+        ! where \psi is the trial vector, j runs over all trial space
         ! states and i runs over all connected space states. This is output
         ! in con_vecs.
 
@@ -406,13 +417,13 @@ contains
         use MemoryManager, only: LogMemAlloc
 
         integer(n_int), intent(in) :: trial_space(0:,:)
-        real(dp), intent(in) :: trial_vecs(:,:)
+        HElement_t(dp), intent(in) :: trial_vecs(:,:)
         integer(n_int), intent(in) :: con_space(0:,:)
-        real(dp), intent(out) :: con_vecs(:,:)
+        HElement_t(dp), intent(out) :: con_vecs(:,:)
 
         integer :: i, j, ierr
         integer :: nI(nel), nJ(nel)
-        real(dp) :: H_ij
+        HElement_t(dp) :: H_ij
         character (len=*), parameter :: t_r = "generate_connected_space_vector"
 
         con_vecs = 0.0_dp
@@ -435,7 +446,6 @@ contains
                         H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     end if
                 end if
-
                 con_vecs(:,i) = con_vecs(:,i) + H_ij*trial_vecs(:,j)
             end do
         end do
@@ -671,7 +681,11 @@ contains
     
         integer :: i, nclash, hash_val, mode, ierr
         integer :: nI(nel)
+#ifdef __CMPLX
+        integer(n_int) :: temp(2*nexcit)
+#else
         integer(n_int) :: temp(nexcit)
+#endif
         character(len=*), parameter :: t_r = "create_trial_hashtables"
 
         ! Create the trial space hash table.
@@ -704,7 +718,11 @@ contains
             if (mode == 1) then
                 do i = 1, size(trial_ht)
                     nclash = trial_ht(i)%nclash
+#ifdef __CMPLX
+                    allocate(trial_ht(i)%states(0:NIfDBO+2*nexcit,nclash))
+#else
                     allocate(trial_ht(i)%states(0:NIfDBO+nexcit,nclash))
+#endif
                     ! Set this back to zero to use it as a counter next time
                     ! around (when mode == 2).
                     trial_ht(i)%nclash = 0
@@ -752,7 +770,11 @@ contains
             if (mode == 1) then
                 do i = 1, size(con_ht)
                     nclash = con_ht(i)%nclash
+#ifdef __CMPLX
+                    allocate(con_ht(i)%states(0:NIfDBO+2*nexcit,nclash))
+#else
                     allocate(con_ht(i)%states(0:NIfDBO+nexcit,nclash))
+#endif
                     ! Set this back to zero to use it as a counter next time
                     ! around (when mode == 2).
                     con_ht(i)%nclash = 0

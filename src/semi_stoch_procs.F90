@@ -31,7 +31,7 @@ contains
         use FciMCData, only: SemiStoch_Multiply_Time
         use Parallel_neci, only: MPIBarrier, MPIAllGatherV
 
-        integer :: i, j, k, info, ierr
+        integer :: i, j, ierr
 
         call MPIBarrier(ierr)
 
@@ -54,7 +54,7 @@ contains
 
             partial_determ_vecs = 0.0_dp
 
-#ifdef __COMPLX
+#ifdef __CMPLX
             do i = 1, determ_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
                     partial_determ_vecs(1,i) = partial_determ_vecs(1,i) - &
@@ -106,7 +106,7 @@ contains
         real(dp), allocatable, intent(inout) :: full_vecs(:,:)
         integer(MPIArg), allocatable, intent(in) :: determ_sizes(:), determ_disps(:)
 
-        integer :: i, j, info, ierr
+        integer :: i, j, ierr
 
         call MPIBarrier(ierr)
 
@@ -140,7 +140,7 @@ contains
 
     subroutine average_determ_vector()
 
-        use FciMCData, only: Iter, tFillingStochRDMonFly, IterRDMStart
+        use FciMCData, only: Iter, IterRDMStart
         use FciMCData, only: full_determ_vecs, full_determ_vecs_av, PreviousCycles
         use LoggingData, only: RDMEnergyIter
 
@@ -247,8 +247,6 @@ contains
         integer(TagIntType) :: TempStoreTag
         character(len=*), parameter :: t_r = "calculate_det_hamiltonian_sparse"
 
-        integer :: nI(nel), nJ(nel)
-
         allocate(core_connections(determ_sizes(iProcIndex)))
 
         allocate(temp_store(0:NIfTot, determ_space_size), stat=ierr)
@@ -332,7 +330,6 @@ contains
 
         integer :: nI(nel)
         integer :: i, ierr, hash_val
-        character(len=*), parameter :: t_r = "initialise_core_hash_table"
 
         allocate(core_ht(determ_space_size), stat=ierr)
 
@@ -382,6 +379,7 @@ contains
         logical :: occupied
 
         states_rmvd_this_proc = 0
+        num_orbs_rmvd = 0
 
         if (tParallel) then
             call MPISumAll(int(num_states, MPIArg), tot_num_states)
@@ -423,7 +421,7 @@ contains
             ! degenerate orbitals too, before giving the program chance to quit.
             if (i > 1) then
                 ! If the orbitals energies are the same:
-                if ( Arr(i, 1) == Arr((i-1), 1) ) cycle
+                if (abs(Arr(i, 1) - Arr((i-1), 1)) < 1.0e-12_dp ) cycle
             end if
 
             if (tot_num_states-states_rmvd_all_procs <= target_num_states) exit
@@ -605,8 +603,6 @@ contains
         use util_mod, only: get_free_unit
 
         integer :: i, k, iunit, ierr
-        logical :: texist
-        character(len=*), parameter :: t_r='write_core_space'
 
         write(6,'(a35)') "Writing the core space to a file..."
 
@@ -654,7 +650,7 @@ contains
                 ! If there is only one state in CurrentDets to check then BinSearchParts doesn't
                 ! return the desired value for PartInd, so do this separately...
                 if (MinInd == nwalkers) then
-                    comp = DetBitLT(CurrentDets(:,MinInd), SpawnedParts(:,i), NIfDBO, .false.)
+                    comp = DetBitLT(CurrentDets(:,MinInd), SpawnedParts(:,i), NIfDBO)
                     if (comp == 0) then
                         tSuccess = .true.
                         PartInd = MinInd
@@ -1137,14 +1133,13 @@ contains
 
         use bit_rep_data, only: flag_trial, flag_connected
         use bit_reps, only: decode_bit_det, set_flag
-        use FciMCData, only: CurrentDets, TotWalkers, HashIndex, nWalkerHashes
-        use FciMCData, only: tTrialHash, current_trial_amps, ntrial_excits
+        use FciMCData, only: CurrentDets, TotWalkers, tTrialHash, current_trial_amps, ntrial_excits
         use searching, only: hash_search_trial, bin_search_trial
         use SystemData, only: nel
 
         integer :: i
         integer :: nI(nel)
-        real(dp) :: trial_amps(ntrial_excits)
+        HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
 
         ! Don't do anything if this is called before the trial wave function

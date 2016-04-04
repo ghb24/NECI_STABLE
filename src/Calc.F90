@@ -75,7 +75,7 @@ contains
           FracLargerDet=1.2_dp
           iReadWalkersRoot=0 
           tShiftonHFPop=.false.
-          MaxWalkerBloom=-1
+          MaxWalkerBloom=2
           tSearchTau=.true.
           tSearchTauOption = .true.
           tSearchTauDeath = .false.
@@ -223,7 +223,7 @@ contains
           tDefineDet=.false.
           tTruncInitiator=.false.
           tAddtoInitiator=.false.
-          InitiatorWalkNo=10.0_dp
+          InitiatorWalkNo=3.0_dp
           tInitIncDoubs=.false.
           MaxNoatHF=0.0_dp
           HFPopThresh=0
@@ -996,7 +996,7 @@ contains
 
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
-                call geti(MaxWalkerBloom)
+                call getf(MaxWalkerBloom)
             case("SHIFTDAMP")
 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
                 call getf(SftDamp)
@@ -1084,6 +1084,9 @@ contains
                 ss_space_in%tPops = .true.
                 ss_space_in%tApproxSpace = .true.
                 call geti(ss_space_in%npops)
+                if(item.lt.nitems) then
+                   call geti(ss_space_in%nApproxSpace)
+                endif
             case("MP1-CORE")
                 ss_space_in%tMP1 = .true.
                 call geti(ss_space_in%mp1_ndets)
@@ -2431,7 +2434,7 @@ contains
     
     
     
-        Subroutine CalcDoCalc(kp)
+        subroutine CalcDoCalc(kp)
           use SystemData, only: Alat, Arr,Brr, Beta, ECore, G1, LMS, LMS2, nBasis,NMSH, nBasisMax
           use SystemData, only: SymRestrict, tCSFOLD, tParity, tSpn, ALat, Beta,tMolpro,tMolproMimic
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB,nEl
@@ -2451,20 +2454,15 @@ contains
           use kp_fciqmc, only: perform_kp_fciqmc, perform_subspace_fciqmc
           use kp_fciqmc_data_mod, only: tExcitedStateKP
           use kp_fciqmc_procs, only: kp_fciqmc_data
+          use util_mod, only: int_fmt
 
-!Calls
-!          real(dp) DMonteCarlo2
-!Local Vars
-          real(dp) EN,WeightDum,EnerDum
-          integer iSeed,iunit
+          real(dp) :: EN,WeightDum, EnerDum
+          real(dp), allocatable :: final_energy(:)
+          integer :: iSeed, iunit, i
           type(kp_fciqmc_data), intent(inout) :: kp
           character(*), parameter :: this_routine = 'CalcDoCalc'
-          iSeed=7 
 
-!C.. we need to calculate a value for RHOEPS, so we approximate that
-!C.. RHO_II~=exp(-BETA*H_II/p).  RHOEPS is a %ge of this 
-!C.. If we haven't already calced RHOEPS, do it now
-          Call DoExactVertexCalc()
+          iSeed = 7
 
           IF (tMP2Standalone) then
               call ParMP2(FDet)
@@ -2487,9 +2485,15 @@ contains
 !             ENDIF
 
              if(tFCIMC) then
-                 call FciMCPar(WeightDum,EnerDum)
-
-                 if((.not.tMolpro).and.(.not.tMolproMimic)) WRITE(6,*) "Summed approx E(Beta)=",EnerDum
+                 call FciMCPar(final_energy)
+                 if ((.not.tMolpro) .and. (.not.tMolproMimic)) then
+                     if (allocated(final_energy)) then
+                         do i = 1, size(final_energy)
+                             write(6,'(1X,"Final energy estimate for state",1X,'//int_fmt(i)//',":",g25.14)') &
+                                 i, final_energy(i)
+                         end do
+                     end if
+                 end if
              elseif(tRPA_QBA) then
                 call RunRPA_QBA(WeightDum,EnerDum)
                 WRITE(6,*) "Summed approx E(Beta)=",EnerDum
@@ -2499,60 +2503,6 @@ contains
                  else
                      call perform_kp_fciqmc(kp)
                  end if
-             else
-                 WRITE(6,*) "Calculating ",NPATHS," W_Is..."
-                 iunit =get_free_unit()
-                 IF(BTEST(ILOGGING,1)) THEN
-                    IF(I_HMAX.EQ.-10) THEN
-                       OPEN(iunit,FILE="MCSUMMARY",STATUS="UNKNOWN")
-                       WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
-                       CLOSE(iunit)
-                    ELSE
-                       OPEN(iunit,FILE="MCPATHS",STATUS="UNKNOWN")
-                       WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
-                       CLOSE(iunit)
-                    ENDIF
-                 ENDIF
-                 IF(NTAY(1).GT.0) THEN
-                    WRITE(6,*) "Using list of determinants."
-                    WRITE(6,*) "Using approx RHOs generated on the fly,NTAY=",NTAY(1)
-    !C.. we haven't calculated the energy, so we're calculating the weights
-    !C.. with approx RHOs
-                    IF(TENERGY) THEN
-    !C.. If we've generated a list of dets
-    !C.. Instead of NMAX, we put ARR
-                         CALL CALCRHOPII2(BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,               &
-         &                 NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,          &
-         &                 RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
-         &                 DETINV,TSPECDET,SPECDET)
-    !                      WRITE(6,*) "Out Here 2"
-    !                      CALL neci_flush(6)
-                    ELSE
-                       IF(TCSFOLD) THEN
-                          IF(.NOT.TSPECDET) THEN
-                             WRITE(6,*) "SPECDET not specified. Using Fermi determinant ONLY"
-                             TSPECDET=.TRUE.
-                             CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
-                          ENDIF
-                       ENDIF
-                      IF(TPARITY) THEN
-                          WRITE(6,*) "Using symmetry restriction:"
-                          CALL WRITEALLSYM(6,SymRestrict,.TRUE.)
-                      ENDIF
-                      IF(TSPN) THEN
-                          WRITE(6,*) "Using spin restriction:",LMS
-                      ENDIF
-    !C.. Instead of NMAX we have ARR 
-                      CALL CALCRHOPII3(BETA,I_P,I_HMAX,I_VMAX,NEL,                         &
-         &               NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,              &
-         &               RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,               &
-         &               DETINV,TSPN,LMS2,TPARITY,SymRestrict,TSPECDET,SPECDET,            &
-         &               nActiveBasis)
-                    ENDIF
-                 ELSE
-                     WRITE(6,*) "Invalid combination of NTAY and TENERGY.  No NPATHS calculated"
-                     WRITE(6,*) "NTAY: ",NTAY(1)," TENERGY: ",TENERGY
-                 ENDIF
               ENDIF
           endif
           IF(TMONTE.and..not.tMP2Standalone) THEN
@@ -2591,117 +2541,6 @@ contains
 !C.. /AJWT
         End Subroutine CalcDoCalc
 
-        Subroutine DoExactVertexCalc()
-          use SystemData, only: Alat, Beta, Brr, ECORE, G1, nBasis, nBasisMax,nMsh, Arr,nEl
-          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB
-          use IntegralsData, only: fck, nMax, UMat,nTay
-          Use DetCalc, only: cK, nDet, nEval, tEnergy, tRead, W, NMRKS, DetInv
-          Use Determinants, only: specdet, tSpecDet
-          Use LoggingData, only: iLogging
-          Use util_mod, only: get_free_unit
-          Use DetCalc, only: tFindDets
-          use sym_mod
-          real(dp) flri, flsi
-          real(dp) En, ExEn, GSEn
-          real(dp) RH
-          INTEGER iDeg, III, iunit
-          Type(BasisFN) iSym
-          LOGICAL tWarn
-          character(*), parameter :: this_routine = 'DoExactVertexCalc'
-          
-          real(dp) CalcMCEn, CalcDLWDB, DoExMC
-            
-          IF(TENERGY.and.(.not.tFindDets)) THEN
-             RHOEPS=RHOEPSILON*EXP(-BETA*(W(1))/I_P)
-!            WRITE(6,*) "RHOEPS:",RHOEPS
-             IF(TREAD) THEN
-                EXEN=CALCMCEN(NEVAL,W,BETA)
-                WRITE(6,"(A,F19.5)") "EXACT E(BETA)=",EXEN
-                GSEN=CALCDLWDB(1,NDET,NEVAL,CK,W,BETA)
-                WRITE(6,"(A,F19.5)") "EXACT DLWDB(D0)=",GSEN
-             ENDIF
-             iunit = get_free_unit()
-             OPEN(iunit,FILE='RHOPIIex',STATUS='UNKNOWN')
-             IF(NDETWORK.EQ.0.OR.NDETWORK.GT.NDET) NDETWORK=NDET
-             DO III=1,NDETWORK
-             
-                CALL CALCRHOPII(III,NDET,NEVAL,CK,W,BETA,I_P,FLRI,FLSI,TWARN)
-                IF(TWARN) THEN
-                   IF(III.EQ.1) THEN
-                      WRITE(6,*) "Warning received from CALCRHOPII."
-                      IF(TREAD) THEN
-                         WRITE(6,*) "TREAD set. Cannot calculate RHOII."
-                      ELSE
-                      WRITE(6,*) "Calculating RHOII using 1st order Taylor."
-                      ENDIF
-                   ENDIF
-                   IF(.NOT.TREAD) THEN
-                   CALL CALCRHO2(NMRKS(1:NEl,III),NMRKS(1:NEl,III),BETA,I_P,NEL, G1,NBASIS,NMSH, &
-                    FCK,NMAX,ALAT,UMAT,RH,1,0,ECORE)
-!C                   WRITE(6,*) RH
-                   FLRI=LOG(RH)
-                   FLSI=FLSI-I_P*FLRI
-                   ENDIF
-                ENDIF
-                call write_det (iunit, NMRKS(:,III), .false.)
-                GSEN=CALCDLWDB(III,NDET,NEVAL,CK,W,BETA)
-                CALL GETSYM(NMRKS(:,III),NEL,G1,NBASISMAX,ISYM)
-                CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
-                WRITE(iunit,"(4G25.16,I5)") EXP(FLSI+I_P*FLRI),FLRI*I_P,FLSI,GSEN,IDEG
-             ENDDO
-!C             CLOSE(17)
-             CLOSE(iunit)
-          ENDIF
-        
-          IF(TMONTE.AND.TENERGY.AND.NTAY(1).EQ.-1) THEN
-             WRITE(6,*) "Calculating Exact MC Energy..."
-             EN=DOEXMC(NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,0.0_dp,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS)
-          ENDIF
-          IF(TBEGRAPH) THEN
-             call stop_all(this_routine, 'BEGRAPH not implemented')
-             IF(TENERGY) THEN
-                IF(NTAY(1).NE.0) THEN
-!                   CALL DOBEGRAPH(NDET,NEVAL,CK,W,I_P,ILOGGING,G1,NMRKS,nEl,NBASISMAX,nBasis,BRR)
-                ELSE
-!C..     NTAY=0 signifying we're going to calculate the RHO values when we
-!C..     need them from the list of eigenvalues.   
-!C..     Hide NMSH=NEVAL
-!C..          FCK=W
-!C..          ZIA=CK
-!C..          UMAT=NDET
-!C..          ALAT=NMRKS        
-!                   CALL DOBEGRAPHAP(I_P,I_HMAX,I_VMAX,NEL,NDET,             &
-!     &                NBASISMAX,G1,nBasis,BRR,NEVAL,W,CK,NMAX,NMRKS,NDET,      &
-!     &                NTAY,RHOEPS,NWHTAY,NPATHS,ILOGGING)
-                ENDIF
-             ELSE
-!                CALL DOBEGRAPHAP(I_P,I_HMAX,I_VMAX,NEL,NDET,                &
-!     &                NBASISMAX,G1,nBasis,BRR,NMSH,FCK,NMAX,ALAT,UMAT,         &
-!     &                NTAY,RHOEPS,NWHTAY,NPATHS,ILOGGING)
-             ENDIF
-          ENDIF
-          IF(NTAY(1).EQ.0.AND.TENERGY) THEN
-              WRITE(6,*) "Using exact RHOs generated on the fly"
-!C.. we've calculated energies, and we're passing them through to
-!C.. calculate the exact RHOS
-!C.. NTAY=0 signifying we're going to calculate the RHO values when we
-!C.. need them from the list of eigenvalues.   
-!C.. Hide NMSH=NEVAL
-!C..          FCK=W
-!C..          ZIA=CK
-!C..          UMAT=NDET
-!C..          ALAT=NMRKS
-!C..          NMAX=ARR
-!              CALL CALCRHOPII2(BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,                        &
-!     &               NBASISMAX,G1,nBasis,BRR,NEVAL,W,CK,ARR,NMRKS,NDET,NTAY,           &
-!     &                RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
-!     &                DETINV,TSPECDET,SPECDET)
-!a
-              call stop_all("DoExactVertexCalc","DoExactVertexCalc non-functional.")
-          endif
-            
-        End Subroutine DoExactVertexCalc
-
         Subroutine CalcCleanup()
            != Clean up (e.g. via deallocation) mess from Calc routines.
            use global_utilities
@@ -2719,7 +2558,6 @@ contains
       subroutine inpgetmethod(I_HMAX,NWHTAY,I_V)
          use constants
          use input_neci
-         use UMatCache, only: tStarStore
          use CalcData, only: calcp_sub2vstar, calcp_logWeight, tMCDirectSum, &
                              g_multiweight, g_vmc_fac, tMPTheory, StarProd, &
                              tDiagNodes, tStarStars, tGraphMorph, tStarTrips, &
@@ -2858,9 +2696,6 @@ contains
                         IF(I_HMAX.NE.-21)  call report(        &
      &                     "Error - cannot use ADDSINGLES"     &
      &                     //" without STAR NEW",.true.)
-                        IF(TSTARSTORE) call report("Error - "  &
-     &                   //"can only use STARSTOREREAD with "  &
-     &                   //"double excitations of HF",.true.)
                      case("DIAG")
                          NWHTAY=IBCLR(NWHTAY,0)
                      case("POLY")

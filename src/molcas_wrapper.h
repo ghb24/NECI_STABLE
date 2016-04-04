@@ -1,6 +1,6 @@
 #ifdef _MOLCAS_
 
-#define HElement_t real(dp)
+#define HElement_t real
 #define __DOUBLERUN
 #define DISABLE_FFTW
 #define POINTER8

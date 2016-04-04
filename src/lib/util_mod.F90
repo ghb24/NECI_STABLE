@@ -95,7 +95,6 @@ contains
         real(dp), intent(in) :: num, r
         integer :: i
         real(dp) :: res
-        character(*), parameter :: this_routine = 'stochastic_round_r'
 
         i = int(num)
         res = num - real(i, dp)
@@ -114,7 +113,7 @@ contains
         !     STDOUT within fortran.
 
         character(c_char), intent(in) :: str(*)
-        integer :: l, i
+        integer :: l
 
         l = strlen_wrap(str)
         call print_cstr_local (str, l)
@@ -479,7 +478,6 @@ contains
 
     function binary_search_real (arr, val, thresh) &
                                  result(pos)
-        use constants, only: n_int
 
         real(dp), intent(in) :: arr(:)
         real(dp), intent(in) :: val
@@ -583,8 +581,7 @@ contains
         do while (hi /= lo)
             pos = int(real(hi + lo,sp) / 2_sp)
 
-            if (DetBitLT(arr(data_lo:data_hi,pos), val(val_lo:val_hi), &
-                    use_flags_opt = .false.) == 0) then
+            if (DetBitLT(arr(data_lo:data_hi,pos), val(val_lo:val_hi)) == 0) then
                 exit
             else if (custom_gt(val(val_lo:val_hi), arr(data_lo:data_hi,pos))) then
                 ! val is "greater" than arr(:len,pos).
@@ -608,8 +605,7 @@ contains
         ! then return -pos to indicate that the item is not present, but that
         ! this is the location it should be in.
         if (hi == lo) then
-            if (DetBitLT(arr(data_lo:data_hi,hi), val(val_lo:val_hi), &
-                    use_flags_opt = .false.) == 0) then
+            if (DetBitLT(arr(data_lo:data_hi,hi), val(val_lo:val_hi)) == 0) then
                 pos = hi
             else if (custom_gt(val(val_lo:val_hi), arr(data_lo:data_hi,hi))) then
                 pos = -hi - 1
@@ -732,12 +728,15 @@ contains
         ! Returns:
         !    The first free file unit above 10 and less than or equal to
         !    the paramater max_unit (currently set to 200).
+        !
+        !    If max_unit is exceeded, the function returns -1
 
         integer, parameter :: max_unit = 100
         integer :: free_unit
         integer :: i
         logical :: t_open, t_exist
 
+        free_unit = -1
         do i = 10, max_unit
             inquire(unit=i, opened=t_open, exist=t_exist)
             if (.not.t_open .and. t_exist) then
@@ -892,6 +891,9 @@ end module
 #else
         integer :: j
 #endif
+
+        ! Eliminate compiler warnings
+        j = i
 
 #if defined(CBINDMPI) && !defined(MOLPRO)
         ! Define interfaces that we need
