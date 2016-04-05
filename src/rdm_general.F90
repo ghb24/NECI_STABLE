@@ -976,7 +976,8 @@ contains
         use rdm_estimators, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
         use rdm_estimators, only: rdm_output_wrapper, CalcDipoles, write_rdm_estimates
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
-        use rdm_parallel, only: calc_rdm_trace, calc_1rdms_from_2rdms, create_spinfree_2rdm
+        use rdm_parallel, only: calc_rdm_trace, calc_1rdms_from_2rdms
+        use rdm_parallel, only: create_spinfree_2rdm, calc_1rdms_from_spinfree_2rdms
         use util_mod, only: set_timer, halt_timer
 
         ! TODO: remove.
@@ -1025,12 +1026,6 @@ contains
                     write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
                 end if
 
-                Trace_1RDM = 0.0_dp
-                do j = 1, NoOrbs
-                    Trace_1RDM = Trace_1RDM + rdms(1)%matrix(j,j)
-                end do
-                write(6,*) "Trace old:", Trace_1RDM; flush(6)
-
                 if (tDumpForcesInfo) then
                     if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(i), i, Norm_1RDM)
                     call Calc_Lagrangian_from_RDM(rdms(i), Norm_1RDM, rdm_estimates(i)%Norm_2RDM)
@@ -1065,11 +1060,12 @@ contains
             call calc_rdm_trace(rdm_main, rdm_trace)
             call MPISumAll(rdm_trace, all_rdm_trace)
 
-            !two_rdm_spawn%free_slots = two_rdm_spawn%init_free_slots
-            !call clear_hash_table(two_rdm_spawn%rdm_send%hash_table)
-            !call create_spinfree_2rdm(rdm_main, two_rdm_spawn)
+            two_rdm_spawn%free_slots = two_rdm_spawn%init_free_slots
+            call clear_hash_table(two_rdm_spawn%rdm_send%hash_table)
+            call create_spinfree_2rdm(rdm_main, two_rdm_spawn)
+            call calc_1rdms_from_spinfree_2rdms(one_rdms, two_rdm_spawn%rdm_recv, all_rdm_trace)
 
-            call calc_1rdms_from_2rdms(one_rdms, rdm_main, all_rdm_trace, tOpenShell)
+            !call calc_1rdms_from_2rdms(one_rdms, rdm_main, all_rdm_trace, tOpenShell)
 
             if (iProcIndex == 0) then
                 do i = 1, size(one_rdms)

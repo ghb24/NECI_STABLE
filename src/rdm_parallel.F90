@@ -497,9 +497,26 @@ contains
 
     subroutine calc_1rdms_from_spinfree_2rdms(one_rdms, two_rdms, rdm_trace)
 
-        ! For each 2-RDM being sampled, calculate the corresponding 1-RDM:
+        ! For each 2-RDM in two_rdms, calculate the corresponding spin-free
+        ! 1-RDM:
         !
-        ! \gamma_{i,j} = \frac{1}{N-1} \sum_a \Gamma
+        ! \gamma^{spinfree}_{p,q} = \frac{1}{N-1} \sum_a \Gamma^{spinfree}_{pa,qa}
+        !
+        ! Here, p, q and a are spatial labels. N is the number of electrons.
+
+        ! The spinfree 1-RDM is defined in terms of the spinned 1-RDM by:
+        !
+        ! \gamma^{spinfree}_{p,q} = \gamma_{p\alpha,q\alpha) + \gamma_{p\beta,q\beta)
+
+        ! IMPORTANT: This routine should *only* be used by taking *spin-free*
+        ! 2-RDMs as the input. Specifically, it takes spin-free RDMs as returned
+        ! by the create_spinfree_2rdm routine, which does *not* restrict the
+        ! labels allowed. Inputting 2-RDMs in other will give incorrect results!
+
+        ! The output 1-RDM elements are sorted in the standard form: elements
+        ! are indexed using the SymLabelListInv_rot array, so that the 1-RDMs
+        ! will be in block-diagonal form, with elements within each symmetry
+        ! block stored together.
 
         use Parallel_neci, only: MPISumAll
         use RotateOrbsData, only: SymLabelListInv_rot
@@ -531,6 +548,7 @@ contains
             call extract_sign_rdm(two_rdms%elements(:,ielem), rdm_sign)
 
             associate(ind => SymLabelListInv_rot)
+                ! An element of the form \Gamma_{pa,ra}.
                 if (q == s) then
                     do irdm = 1, size(one_rdms)
                         one_rdms(irdm)%matrix(ind(p), ind(r)) = one_rdms(irdm)%matrix(ind(p), ind(r)) + rdm_sign(irdm)
@@ -555,9 +573,25 @@ contains
 
     subroutine calc_1rdms_from_2rdms(one_rdms, two_rdms, rdm_trace, open_shell)
 
-        ! For each 2-RDM being sampled, calculate the corresponding 1-RDM:
+        ! For each 2-RDM in two_rdms, if open_shell is true then calculate the
+        ! full spinned 1-RDM, otherwise calculate the spinfree 1-RDM. The
+        ! former case is defined by:
         !
-        ! \gamma_{i,j} = \frac{1}{N-1} \sum_a \Gamma
+        ! \gamma_{i,j} = \frac{1}{N-1} \sum_k \Gamma_{ik,jk}
+        !
+        ! Here, i, j and k are spatial labels. N is the number of electrons.
+        !
+        ! The spinfree case is then a contraction over the spin labels of the
+        ! spinned 1-RDM:
+        !
+        ! \gamma^{spinfree}_{p,q} = \gamma_{p\alpha,q\alpha) + \gamma_{p\beta,q\beta)
+        !
+        ! where p and q are spatial labels.
+
+        ! The output 1-RDM elements are sorted in the standard form: elements
+        ! are indexed using the SymLabelListInv_rot array, so that the 1-RDMs
+        ! will be in block-diagonal form, with elements within each symmetry
+        ! block stored together.
 
         use Parallel_neci, only: MPISumAll
         use RotateOrbsData, only: SymLabelListInv_rot
@@ -588,9 +622,10 @@ contains
             ! Obtain spin orbital labels and the RDM element.
             call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
 
-            ! Get the spatial orbital labels from the spin orbital ones.
+            ! For closed shell systems we work with spatial orbitals, to
+            ! calculate spin-free 1RDMs.
             if (open_shell) then
-                p = i; q = j
+                p = i; q = j;
                 r = k; s = l;
             else
                 p = spatial(i); q = spatial(j);
@@ -611,11 +646,13 @@ contains
 
             associate(ind => SymLabelListInv_rot)
 
+                ! An element of the form \Gamma_{aq,as}.
                 if (p == r) then
                     do irdm = 1, size(one_rdms)
                         one_rdms(irdm)%matrix(ind(q), ind(s)) = one_rdms(irdm)%matrix(ind(q), ind(s)) + rdm_sign(irdm)
                     end do
                 end if
+                ! An element of the form \Gamma_{pa,ra}.
                 if (q == s) then
                     do irdm = 1, size(one_rdms)
                         one_rdms(irdm)%matrix(ind(p), ind(r)) = one_rdms(irdm)%matrix(ind(p), ind(r)) + rdm_sign(irdm)
@@ -628,11 +665,13 @@ contains
                 ! abab (for example), then swapping as below would give abba
                 ! or baab terms, which don't contribute to the 1-RDM.
                 if (same_spin(k,l)) then
+                    ! An element of the form \Gamma_{pa,as}.
                     if (p == s) then
                         do irdm = 1, size(one_rdms)
                             one_rdms(irdm)%matrix(ind(q), ind(r)) = one_rdms(irdm)%matrix(ind(q), ind(r)) - rdm_sign(irdm)
                         end do
                     end if
+                    ! An element of the form \Gamma_{aq,ra}.
                     if (q == r) then
                         do irdm = 1, size(one_rdms)
                             one_rdms(irdm)%matrix(ind(p), ind(s)) = one_rdms(irdm)%matrix(ind(p), ind(s)) - rdm_sign(irdm)
