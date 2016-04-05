@@ -38,7 +38,7 @@ contains
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data, only: rdm_estimates_unit, nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
-        use rdm_data, only: rdm_estimates, two_rdm_spawn, rdm_main
+        use rdm_data, only: rdm_estimates, one_rdms, two_rdm_spawn, rdm_main
         use rdm_parallel, only: init_rdm_spawn_t, init_rdm_list_t
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
@@ -75,8 +75,9 @@ contains
         ! Initialise the main RDM array data structure.
         call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems, max_nelems, nhashes_rdm)
 
-        if(.not.allocated(rdms))allocate(rdms(nrdms))
-        if(.not.allocated(rdm_estimates))allocate(rdm_estimates(nrdms))
+        if (.not. allocated(rdms)) allocate(rdms(nrdms))
+        if (.not. allocated(one_rdms)) allocate(one_rdms(nrdms))
+        if (.not. allocated(rdm_estimates)) allocate(rdm_estimates(nrdms))
 
         ! Only spatial orbitals for the 2-RDMs (and F12).
         if (tStoreSpinOrbs .and. (RDMExcitLevel .ne. 1)) &
@@ -130,6 +131,20 @@ contains
         ! Here we're allocating arrays for the actual calculation of the RDM.
         MemoryAlloc = 0
         MemoryAlloc_Root = 0 ! Memory allocated in bytes.
+
+        ! TODO: allocate one_rdm_t objects properly!
+        ! Quickly hack in allocation of new 1-RDMS.
+        if (RDMExcitLevel == 1 .or. RDMExcitLevel == 3) then
+            do i = 1, nrdms
+                allocate(one_rdms(i)%matrix(NoOrbs, NoOrbs), stat=ierr)
+                if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating 1-RDM array,')
+                call LogMemAlloc('one_rdms(i)%matrix', NoOrbs**2, 8, t_r, one_rdms(i)%matrix_tag, ierr)
+                one_rdms(i)%matrix(:,:) = 0.0_dp
+
+                MemoryAlloc = MemoryAlloc + ( NoOrbs * NoOrbs * 8 )
+                MemoryAlloc_Root = MemoryAlloc_Root + ( NoOrbs * NoOrbs * 8 )
+            end do
+        end if
 
         ! First for the storage of the actual 1- or 2-RMD.
         if (RDMExcitLevel .eq. 1) then
@@ -955,18 +970,28 @@ contains
         use FciMCData, only: tFinalRDMEnergy
         use LoggingData, only: tBrokenSymNOs, occ_numb_diff, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo, tDipoles
-        use Parallel_neci, only: iProcIndex, MPIBarrier, MPIBCast
+        use Parallel_neci, only: iProcIndex, MPIBarrier, MPIBCast, MPISumAll
         use rdm_data, only: rdm_t, rdm_estimates_t, tRotatedNos, FinaliseRDMs_Time
+        use rdm_data, only: rdm_main, one_rdms, two_rdm_spawn, tOpenShell
         use rdm_estimators, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
         use rdm_estimators, only: rdm_output_wrapper, CalcDipoles, write_rdm_estimates
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
+        use rdm_parallel, only: calc_rdm_trace, calc_1rdms_from_2rdms, create_spinfree_2rdm
         use util_mod, only: set_timer, halt_timer
+
+        ! TODO: remove.
+        use hash, only: clear_hash_table
+        use RotateOrbsData, only: NoOrbs
 
         type(rdm_t), intent(inout) :: rdms(:)
         type(rdm_estimates_t), intent(inout) :: rdm_estimates(:)
 
         integer :: i, error
         real(dp) :: Norm_1RDM, Trace_1RDM, SumN_Rho_ii
+        real(dp) :: rdm_trace(rdm_main%sign_length), all_rdm_trace(rdm_main%sign_length)
+
+        ! TODO remove.
+        integer :: j
 
         call set_timer(FinaliseRDMs_Time)
 
@@ -1000,6 +1025,12 @@ contains
                     write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
                 end if
 
+                Trace_1RDM = 0.0_dp
+                do j = 1, NoOrbs
+                    Trace_1RDM = Trace_1RDM + rdms(1)%matrix(j,j)
+                end do
+                write(6,*) "Trace old:", Trace_1RDM; flush(6)
+
                 if (tDumpForcesInfo) then
                     if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(i), i, Norm_1RDM)
                     call Calc_Lagrangian_from_RDM(rdms(i), Norm_1RDM, rdm_estimates(i)%Norm_2RDM)
@@ -1029,6 +1060,23 @@ contains
             end if
 
         end do
+
+        if (tPrint1RDM) then
+            call calc_rdm_trace(rdm_main, rdm_trace)
+            call MPISumAll(rdm_trace, all_rdm_trace)
+
+            !two_rdm_spawn%free_slots = two_rdm_spawn%init_free_slots
+            !call clear_hash_table(two_rdm_spawn%rdm_send%hash_table)
+            !call create_spinfree_2rdm(rdm_main, two_rdm_spawn)
+
+            call calc_1rdms_from_2rdms(one_rdms, rdm_main, all_rdm_trace, tOpenShell)
+
+            if (iProcIndex == 0) then
+                do i = 1, size(one_rdms)
+                    call Write_out_1RDM(one_rdms(i)%matrix, i, 1.0_dp, .true., .true.)
+                end do
+            end if
+        end if
 
         if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates)
 #ifdef _MOLCAS_
@@ -1081,7 +1129,7 @@ contains
             call calc_1e_norms(rdm, Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
 
             ! Write out the unnormalised, non-hermitian OneRDM_POPS.
-            if (twrite_RDMs_to_read) call Write_out_1RDM(rdm, irdm, Norm_1RDM, .false.)
+            if (twrite_RDMs_to_read) call Write_out_1RDM(rdm%matrix, irdm, Norm_1RDM, .false.)
 
             ! Enforce the hermiticity condition.  If the RDMExcitLevel is not 1, the 
             ! 1-RDM has been constructed from the hermitian 2-RDM, so this will not 
@@ -1095,9 +1143,9 @@ contains
                 end if
 
             end if
-            
+
             ! Write out the final, normalised, hermitian OneRDM.
-            if (tWrite_normalised_RDMs) call Write_out_1RDM(rdm, irdm, Norm_1RDM, .true.)
+            if (tWrite_normalised_RDMs) call Write_out_1RDM(rdm%matrix, irdm, Norm_1RDM, .true.)
 
             write(6,'(1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
 
@@ -1257,7 +1305,7 @@ contains
 
     end subroutine Force_Cauchy_Schwarz
 
-    subroutine Write_out_1RDM(rdm, irdm, Norm_1RDM, tNormalise)
+    subroutine Write_out_1RDM(one_rdm, irdm, Norm_1RDM, tNormalise, tDifferentName)
 
         ! This routine writes out the OneRDM. If tNormalise is true, we are
         ! printing the normalised, hermitian matrix. Otherwise, Norm_1RDM is
@@ -1269,10 +1317,12 @@ contains
         use UMatCache, only: gtID
         use util_mod, only: get_free_unit, int_fmt
 
-        type(rdm_t), intent(in) :: rdm
+        real(dp), intent(in) :: one_rdm(:,:)
         integer, intent(in) :: irdm
         real(dp), intent(in) :: Norm_1RDM
         logical, intent(in) :: tNormalise
+        ! TODO: REMOVE. Just for testing...
+        logical, optional, intent(in) :: tDifferentName
 
         integer :: i, j, iSpat, jSpat
         integer :: OneRDM_unit
@@ -1286,8 +1336,13 @@ contains
 #ifdef _MOLCAS_
             call molcas_open(OneRDM_unit, "ONERDM")
 #else
-            write(filename, '("OneRDM.",'//int_fmt(irdm,0)//')') irdm
-            open(OneRDM_unit, file=trim(filename), status='unknown')
+            if (present(tDifferentName)) then
+                write(filename, '("new_OneRDM.",'//int_fmt(irdm,0)//')') irdm
+                open(OneRDM_unit, file=trim(filename), status='unknown')
+            else
+                write(filename, '("OneRDM.",'//int_fmt(irdm,0)//')') irdm
+                open(OneRDM_unit, file=trim(filename), status='unknown')
+            end if
 #endif
         else
             ! Only every write out 1 of these at the moment.
@@ -1301,33 +1356,33 @@ contains
         do i = 1, nBasis
             do j = 1, nBasis
                 if (tOpenShell) then
-                    if (abs(rdm%matrix(SymLabelListInv_rot(i), SymLabelListInv_rot(j))) > 1.0e-12_dp) then 
+                    if (abs(one_rdm(SymLabelListInv_rot(i), SymLabelListInv_rot(j))) > 1.0e-12_dp) then 
                         if (tNormalise .and. (i .le. j)) then
                             write(OneRDM_unit,"(2I6,G25.17)") i, j, &
-                                rdm%matrix(SymLabelListInv_rot(i), SymLabelListInv_rot(j)) * Norm_1RDM
+                                one_rdm(SymLabelListInv_rot(i), SymLabelListInv_rot(j)) * Norm_1RDM
                         else if (.not. tNormalise) then
                             ! For the pops, we haven't made the 1-RDM hermitian yet, 
                             ! so print both the 1-RDM(i,j) and 1-RDM(j,i) elements.
                             ! This is written in binary.
-                            write(OneRDM_unit) i, j, rdm%matrix(SymLabelListInv_rot(i), SymLabelListInv_rot(j))
+                            write(OneRDM_unit) i, j, one_rdm(SymLabelListInv_rot(i), SymLabelListInv_rot(j))
                         end if
                     end if
                 else
                     iSpat = gtID(i)
                     jSpat = gtID(j)
-                    if (abs(rdm%matrix(SymLabelListInv_rot(iSpat), SymLabelListInv_rot(jSpat))) > 1.0e-12_dp) then
+                    if (abs(one_rdm(SymLabelListInv_rot(iSpat), SymLabelListInv_rot(jSpat))) > 1.0e-12_dp) then
                         if (tNormalise .and. (i .le. j)) then
                             if (((mod(i,2).eq.0) .and. (mod(j,2) .eq. 0)) .or. &
                                 ((mod(i,2).ne.0) .and. (mod(j,2) .ne. 0))) then
                                 write(OneRDM_unit,"(2I6,G25.17)") i, j, & 
-                                    ( rdm%matrix(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat)) &
+                                    ( one_rdm(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat)) &
                                                                     * Norm_1RDM ) / 2.0_dp
                             end if
                         else if (.not. tNormalise) then
                             ! The popsfile can be printed in spatial orbitals.
                             if ((mod(i,2) .eq. 0) .and. (mod(j,2) .eq. 0)) then
                                 write(OneRDM_unit) iSpat, jSpat, & 
-                                    rdm%matrix(SymLabelListInv_rot(iSpat), SymLabelListInv_rot(jSpat)) 
+                                    one_rdm(SymLabelListInv_rot(iSpat), SymLabelListInv_rot(jSpat)) 
                             end if
                         end if
                     end if

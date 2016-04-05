@@ -80,7 +80,8 @@ module rdm_data
 
         ! The 1-RDM.
         real(dp), allocatable :: matrix(:,:)
-        ! The eigenvalues of the 1-RDM.
+
+        ! Eigenvalues of the 1-RDM.
         real(dp), allocatable :: Evalues(:)
         ! Arrays to hold the diagonal of the 1-RDM, and the Lagrangian.
         real(dp), allocatable :: Rho_ii(:)
@@ -93,6 +94,25 @@ module rdm_data
         integer, allocatable :: sym_list_inv_no(:)
 
     end type rdm_t
+
+    type one_rdm_t
+
+        ! The 1-RDM.
+        real(dp), allocatable :: matrix(:,:)
+
+        ! Eigenvalues of the 1-RDM.
+        real(dp), allocatable :: Evalues(:)
+        ! Arrays to hold the diagonal of the 1-RDM, and the Lagrangian.
+        real(dp), allocatable :: Rho_ii(:)
+        real(dp), allocatable :: Lagrangian(:,:)
+
+        integer :: Rho_iiTag, matrix_tag, EvaluesTag
+
+        ! TODO: Comment.
+        integer, allocatable :: sym_list_no(:)
+        integer, allocatable :: sym_list_inv_no(:)
+
+    end type one_rdm_t
 
     type rdm_estimates_t
         ! Quantities calculated from the RDM estimates.
@@ -155,6 +175,7 @@ module rdm_data
         integer, allocatable :: init_free_slots(:)
     end type rdm_spawn_t
 
+    type(one_rdm_t), allocatable :: one_rdms(:)
     type(rdm_spawn_t) :: two_rdm_spawn
     type(rdm_list_t) :: rdm_main
 

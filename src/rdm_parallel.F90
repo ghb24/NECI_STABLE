@@ -8,7 +8,7 @@ module rdm_parallel
     use bit_rep_data, only: NIfTot, NIfDBO
     use constants
     use Parallel_neci, only: iProcIndex, nProcessors
-    use rdm_data, only: rdm_list_t, rdm_spawn_t
+    use rdm_data, only: nrdms, rdm_list_t, rdm_spawn_t, one_rdm_t
     use util_mod
 
     implicit none
@@ -494,6 +494,174 @@ contains
         rdm_spin = rdm_spin/4.0_dp
 
     end subroutine calc_rdm_spin
+
+    subroutine calc_1rdms_from_spinfree_2rdms(one_rdms, two_rdms, rdm_trace)
+
+        ! For each 2-RDM being sampled, calculate the corresponding 1-RDM:
+        !
+        ! \gamma_{i,j} = \frac{1}{N-1} \sum_a \Gamma
+
+        use Parallel_neci, only: MPISumAll
+        use RotateOrbsData, only: SymLabelListInv_rot
+        use SystemData, only: nel
+        use UMatCache, only: spatial
+
+        type(one_rdm_t), intent(inout) :: one_rdms(:)
+        type(rdm_list_t), intent(in) :: two_rdms
+        real(dp), intent(in) :: rdm_trace(:)
+
+        integer(int_rdm) :: pqrs
+        integer :: ielem, irdm, ierr
+        integer :: pq, rs, p, q, r, s
+        real(dp) :: rdm_sign(two_rdms%sign_length)
+        real(dp), allocatable :: temp_rdm(:,:)
+
+        do irdm = 1, size(one_rdms)
+            one_rdms(irdm)%matrix = 0.0_dp
+        end do
+
+        ! Loop over all elements of the 2-RDM, \Gamma_{pq,rs}, where p, q, r
+        ! and s are spatial labels. If at least two spatial indices are the
+        ! same then we have a contribution to the 1-RDM.
+        do ielem = 1, two_rdms%nelements
+            pqrs = two_rdms%elements(0,ielem)
+            ! Obtain spin orbital labels and the RDM element.
+            call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
+
+            call extract_sign_rdm(two_rdms%elements(:,ielem), rdm_sign)
+
+            associate(ind => SymLabelListInv_rot)
+                if (q == s) then
+                    do irdm = 1, size(one_rdms)
+                        one_rdms(irdm)%matrix(ind(p), ind(r)) = one_rdms(irdm)%matrix(ind(p), ind(r)) + rdm_sign(irdm)
+                    end do
+                end if
+            end associate
+        end do
+
+        ! Allocate a temporary array in which to receive the MPI communication.
+        allocate(temp_rdm(size(one_rdms(1)%matrix,1), size(one_rdms(1)%matrix,2)), stat=ierr)
+
+        ! Perform a sum over all processes, for each 1-RDM being sampled.
+        do irdm = 1, size(one_rdms)
+            call MPISumAll(one_rdms(irdm)%matrix, temp_rdm)
+            ! Copy summed RDM back to the main array, and normalise.
+            one_rdms(irdm)%matrix = temp_rdm / (rdm_trace(irdm)*real(nel-1,dp))
+        end do
+
+        deallocate(temp_rdm, stat=ierr)
+
+    end subroutine calc_1rdms_from_spinfree_2rdms
+
+    subroutine calc_1rdms_from_2rdms(one_rdms, two_rdms, rdm_trace, open_shell)
+
+        ! For each 2-RDM being sampled, calculate the corresponding 1-RDM:
+        !
+        ! \gamma_{i,j} = \frac{1}{N-1} \sum_a \Gamma
+
+        use Parallel_neci, only: MPISumAll
+        use RotateOrbsData, only: SymLabelListInv_rot
+        use SystemData, only: nel
+        use UMatCache, only: spatial
+
+        type(one_rdm_t), intent(inout) :: one_rdms(:)
+        type(rdm_list_t), intent(in) :: two_rdms
+        real(dp), intent(in) :: rdm_trace(:)
+        logical, intent(in) :: open_shell
+
+        integer(int_rdm) :: ijkl
+        integer :: ielem, irdm, ierr
+        integer :: ij, kl, i, j, k, l
+        integer :: p, q, r, s
+        real(dp) :: rdm_sign(two_rdms%sign_length)
+        real(dp), allocatable :: temp_rdm(:,:)
+
+        do irdm = 1, size(one_rdms)
+            one_rdms(irdm)%matrix = 0.0_dp
+        end do
+
+        ! Loop over all elements of the 2-RDM, \Gamma_{pq,rs}, where p, q, r
+        ! and s are spatial labels. If at least two spatial indices are the
+        ! same then we have a contribution to the 1-RDM.
+        do ielem = 1, two_rdms%nelements
+            ijkl = two_rdms%elements(0,ielem)
+            ! Obtain spin orbital labels and the RDM element.
+            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+
+            ! Get the spatial orbital labels from the spin orbital ones.
+            if (open_shell) then
+                p = i; q = j
+                r = k; s = l;
+            else
+                p = spatial(i); q = spatial(j);
+                r = spatial(k); s = spatial(l);
+            end if
+
+            call extract_sign_rdm(two_rdms%elements(:,ielem), rdm_sign)
+
+            ! If abba or baab term - swap last two indices and sign.
+            if (.not. same_spin(i,k)) then
+                r = spatial(l); s = spatial(k);
+                rdm_sign = -rdm_sign
+            end if
+
+            associate(ind => SymLabelListInv_rot)
+
+                if (p == r) then
+                    do irdm = 1, size(one_rdms)
+                        one_rdms(irdm)%matrix(ind(q), ind(s)) = one_rdms(irdm)%matrix(ind(q), ind(s)) + rdm_sign(irdm)
+                    end do
+                end if
+                if (q == s) then
+                    do irdm = 1, size(one_rdms)
+                        one_rdms(irdm)%matrix(ind(p), ind(r)) = one_rdms(irdm)%matrix(ind(p), ind(r)) + rdm_sign(irdm)
+                    end do
+                end if
+
+                ! The below cases give contributions by swapping one pair of
+                ! indices. Only include these contributions if we have aaaa or
+                ! bbbb terms. This because if we had a term with spin signature
+                ! abab (for example), then swapping as below would give abba
+                ! or baab terms, which don't contribute to the 1-RDM.
+                if (same_spin(k,l)) then
+                    if (p == s) then
+                        do irdm = 1, size(one_rdms)
+                            one_rdms(irdm)%matrix(ind(q), ind(r)) = one_rdms(irdm)%matrix(ind(q), ind(r)) - rdm_sign(irdm)
+                        end do
+                    end if
+                    if (q == r) then
+                        do irdm = 1, size(one_rdms)
+                            one_rdms(irdm)%matrix(ind(p), ind(s)) = one_rdms(irdm)%matrix(ind(p), ind(s)) - rdm_sign(irdm)
+                        end do
+                    end if
+                end if
+
+            end associate
+        end do
+
+        ! Allocate a temporary RDM array.
+        allocate(temp_rdm(size(one_rdms(1)%matrix,1), size(one_rdms(1)%matrix,2)), stat=ierr)
+
+        ! Make every RDM symmetric. This could have been done when adding
+        ! contribution in above, but hopefully the code will be clearer if
+        ! done here.
+        do irdm = 1, size(one_rdms)
+            ! Use temp_rdm as temporary space for the transpose, to (hopefully)
+            ! prevent a temporary array being created in the sum below.
+            temp_rdm = transpose(one_rdms(irdm)%matrix)
+            one_rdms(irdm)%matrix = (one_rdms(irdm)%matrix + temp_rdm)/2.0_dp
+        end do
+
+        ! Perform a sum over all processes, for each 1-RDM being sampled.
+        do irdm = 1, size(one_rdms)
+            call MPISumAll(one_rdms(irdm)%matrix, temp_rdm)
+            ! Copy summed RDM back to the main array, and normalise.
+            one_rdms(irdm)%matrix = temp_rdm / (rdm_trace(irdm)*real(nel-1,dp))
+        end do
+
+        deallocate(temp_rdm, stat=ierr)
+
+    end subroutine calc_1rdms_from_2rdms
 
     subroutine make_hermitian_rdm(rdm, spawn)
 
