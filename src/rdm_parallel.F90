@@ -601,7 +601,11 @@ contains
 
             ! If abba or baab term - swap last two indices and sign.
             if (.not. same_spin(i,k)) then
-                r = spatial(l); s = spatial(k);
+                if (open_shell) then
+                    r = l; s = k;
+                else
+                    r = spatial(l); s = spatial(k);
+                end if
                 rdm_sign = -rdm_sign
             end if
 
