@@ -281,7 +281,9 @@ contains
           ! Semi-stochastic and trial wavefunction options.
           tSemiStochastic = .false.
           tCSFCore = .false.
+#ifndef __CMPLX
           tGUGACore = .false.
+#endif
           semistoch_shift_iter = 0
           tTrialWavefunction = .false.
           tKP_FCIQMC = .false.
@@ -1040,11 +1042,13 @@ contains
                 tCSF = .true.
                 LMS = STOT
 
+#ifndef __CMPLX
             case ("GUGA-CORE DOUBLES")
                 tGUGACore = .true.
                 ! convention! if we input GUGA core, we specifiy tDoubles 
                 ! implicitly! Since we only ever will implement this (for now)
                 ss_space_in%tDoubles = .true.
+#endif
 
             case("DOUBLES-CORE")
                 ss_space_in%tDoubles = .true.

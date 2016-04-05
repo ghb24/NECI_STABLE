@@ -66,8 +66,9 @@ contains
         call EncodeBitDet_guga(nI, ilutI)
         call EncodeBitDet_guga(nJ, ilutJ) 
 
-        occI = calcOcc_vector_ilut(ilutI)
-        occJ = calcOcc_vector_ilut(ilutJ)
+        occI = calcOcc_vector_ilut(ilutI(0:nifd))
+        occJ = calcOcc_vector_ilut(ilutJ(0:nifd))
+
 
         occ_diff = int(occI - occJ)
 
@@ -308,7 +309,7 @@ contains
 
         do i = 1, nDets2
            
-            pos = binary_search(list1(:,min_ind:ndets1), list2(:,i), nifdbo + 1)
+            pos = binary_search(list1(:,min_ind:ndets1), list2(:,i), nifd + 1)
 
             if (pos > 0) then
                 ! try new implementation of that without the need of an extra
@@ -390,6 +391,7 @@ contains
             call write_det_guga(nunit, ilut(:,i))
         end do
         print *, " ==========="
+
     end subroutine write_guga_list
 
     subroutine write_det_guga(nunit, ilut, flag)
@@ -400,7 +402,7 @@ contains
 
         integer :: step(nSpatOrbs), i
 
-        step = calcStepvector(ilut)
+        step = calcStepvector(ilut(0:nifd))
 
         write(nunit,'("(")', advance='no')
 
@@ -605,13 +607,13 @@ contains
         ASSERT(j > i)
 
         ! not quite sure about LMSB or RMSB... todo
-        mask = 0
+        mask = 0_n_int
+
         do k = 2*i - 1, 2*j ! convert to spin orbitals
             mask = mask + 2_n_int**(k-1)
         end do
 
     end function getExcitationRangeMask
-
 
     subroutine setDeltaB(deltaB, ilut)
         ! routine to encode the deltaB value in a given CSF in ilut bit
@@ -662,7 +664,6 @@ contains
 !         end select
     end subroutine setDeltaB
 
-
     function getDeltaB(ilut) result(deltaB)
         ! function to get the deltaB value encoded in the flag-byte in ilut
         integer(n_int), intent(in) :: ilut(0:nIfGUGA)
@@ -707,11 +708,18 @@ contains
         ASSERT(isProperCSF_ilut(ilutG))
 
         ! i think i just need to copy over the det part again
-        ilutN(0:nifdbo) = ilutG(0:nifdbo)
+        ilutN(0:nifd) = ilutG(0:nifd)
 
         ! and then extract the matrix element 
+        ! here i need to check what type of matrix element is necessary 
+        ! dependent on which type of compilation, 
+        ! extract_matrix_element always gives a real(dp)!
         if (present(HElement)) then
+#ifdef __CMPLX
+            HElement = complex(extract_matrix_element(ilutG,1), 0.0_dp)
+#else
             HElement = extract_matrix_element(ilutG, 1)
+#endif
         end if
 
     end subroutine convert_ilut_toNECI
@@ -722,7 +730,7 @@ contains
         character(*), parameter :: this_routine = "convert_ilut_toGUGA"
 
         ! need only the det part essentially..
-        ilutG(0:nifdbo) = ilutN(0:nifdbo)
+        ilutG(0:nifd) = ilutN(0:nifd)
 
         ! and set matrix elements to 1 and delta b to 0
         call encode_matrix_element(ilutG,1.0_dp,1)
@@ -762,21 +770,23 @@ contains
         flag = .true.
 
         ! check if b value drops below zero
-        if (any(calcB_vector_ilut(ilut) < 0.0_dp)) flag = .false.
+        if (any(calcB_vector_ilut(ilut(0:nifd)) < 0.0_dp)) flag = .false.
 
     end function isProperCSF_b
 
     function isProperCSF_sys(ilut, sysFlag) result(flag)
         ! function to check if provided CSF in ilut format is a proper CSF
         ! checks b vector positivity and is total S is correct
-        integer(n_int), intent(in) :: ilut(0:nIfD)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
         logical, intent(in):: sysFlag
         logical :: flag
+
+        integer(n_int) :: tmp_ilut(0:niftot)
 
         flag = .true.
 
         ! check if b value drops below zero
-        if (any(calcB_vector_ilut(ilut) < 0.0_dp)) flag = .false.
+        if (any(calcB_vector_ilut(ilut(0:nifd)) < 0.0_dp)) flag = .false.
 
         ! check if total spin is same as input, cant avoid loop here i think..
         !calcS = 0
@@ -785,22 +795,25 @@ contains
         !    if (isTwo(ilut,iOrb)) calcS = calcS - 1
         !end do
         
+        tmp_ilut = 0_n_int
+        tmp_ilut(0:nifd) = ilut(0:nifd)
+
         ! if system flag is also given as input also check if the CSF fits 
         ! concerning total S and the number of electrons
         if (sysFlag) then
-            if (abs(return_ms(ilut)) /= STOT) then
+            if (abs(return_ms(tmp_ilut)) /= STOT) then
                 print *, "CSF does not have correct total spin!:"
                 call write_det_guga(6,ilut)
                 print *, "System S: ", STOT
-                print *, "CSF S: ", abs(return_ms(ilut))
+                print *, "CSF S: ", abs(return_ms(tmp_ilut))
                 flag = .false.
             end if
 
-            if (int(sum(calcOcc_vector_ilut(ilut))) /= nEl) then
+            if (int(sum(calcOcc_vector_ilut(ilut(0:nifd)))) /= nEl) then
                 print *, "CSF does not have right number of electrons!:"
                 call write_det_guga(6,ilut)
                 print *, "System electrons: ", nEl
-                print *, "CSF electrons: ", int(sum(calcOcc_vector_ilut(ilut)))
+                print *, "CSF electrons: ", int(sum(calcOcc_vector_ilut(ilut(0:nifd))))
                 flag = .false.
             end if
         end if
@@ -892,6 +905,7 @@ contains
         do iOrb = 1, nSpatOrbs
             stepVector(iOrb) = getStepvalue(ilut, iOrb)
         end do
+
     end function calcStepvector
 
     function calcOcc_vector_ilut(ilut) result(occVector)
@@ -994,11 +1008,13 @@ contains
 
         integer :: i, pos
 
-        ilut = 0
+        ilut = 0_n_int
+
         do i = 1, nEl
             pos = (nI(i) - 1) / bits_n_int
             ilut(pos) = ibset(ilut(pos), mod(nI(i)-1, bits_n_int))
         end do
+
     end subroutine EncodeBitDet_guga
             
     function getSpatialOccupation(iLut, s) result(nOcc)

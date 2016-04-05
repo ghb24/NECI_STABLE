@@ -557,12 +557,12 @@ contains
         call convert_ilut_toGUGA(ilutI, ilutG)
 
         ! and the search in excitations
-        pos = binary_search(excitations, ilutG, nifdbo + 1)
+        pos = binary_search(excitations, ilutG, nifd + 1)
 
         if ( pos > 0 ) then
             hel = extract_matrix_element(excitations(:,pos),1)
         else
-            hel = 0.0_dp
+            hel = HEl_zero
         end if
 
 
@@ -982,13 +982,13 @@ contains
             if (allocated(current_stepvector)) deallocate(current_stepvector)
 
             allocate(currentB_ilut(nSpatOrbs), stat = ierr)
-            currentB_ilut = calcB_vector_ilut(ilut)
+            currentB_ilut = calcB_vector_ilut(ilut(0:nifd))
 
             allocate(currentOcc_ilut(nSpatOrbs), stat = ierr)
-            currentOcc_ilut = calcOcc_vector_ilut(ilut)
+            currentOcc_ilut = calcOcc_vector_ilut(ilut(0:nifd))
 
             allocate(current_stepvector(nSpatOrbs), stat = ierr)
-            current_stepvector = calcStepvector(ilut)
+            current_stepvector = calcStepvector(ilut(0:nifd))
 
             ! then set tNewDet to false and only set it after the walker loop
             ! in FciMCPar
@@ -1609,7 +1609,7 @@ contains
 
         pgen = 0.0_dp
 
-        deltaB = int(currentB_ilut - calcB_vector_ilut(t))
+        deltaB = int(currentB_ilut - calcB_vector_ilut(t(0:nifd)))
 
         inter = 1.0_dp
         integral = 0.0_dp
@@ -1967,7 +1967,7 @@ contains
         first = findFirstSwitch(ilut, t, excitInfo%fullStart, excitInfo%fullEnd)
         last = findLastSwitch(ilut, t, first, excitInfo%fullEnd)
 
-        deltaB = currentB_ilut - calcB_vector_ilut(t)
+        deltaB = currentB_ilut - calcB_vector_ilut(t(0:nifd))
 
         pgen = 0.0_dp
 
@@ -2140,7 +2140,7 @@ contains
 
         ! calc. the intermediate matrix element..
         ! but what is the deltaB value inbetween? calculate it on the fly..
-        bVector = int(calcB_vector_ilut(ilut) - calcB_vector_ilut(t))
+        bVector = int(calcB_vector_ilut(ilut(0:nifd)) - calcB_vector_ilut(t(0:nifd)))
 
         inter = 1.0_dp
         integral = 0.0_dp
@@ -3267,7 +3267,7 @@ contains
         ! already set above
 !         pgen = 0.0_dp
 
-        deltaB = currentB_ilut - calcB_vector_ilut(t)
+        deltaB = currentB_ilut - calcB_vector_ilut(t(0:nifd))
         ! fuck that to a new loop for the pgen contributions 
         do i = sw, nSpatOrbs
 
@@ -3657,7 +3657,7 @@ contains
 
         integer :: i, step, delta_b(nSpatOrbs), exc_stepvector
 
-        delta_b = int(currentB_ilut - calcB_vector_ilut(t))
+        delta_b = int(currentB_ilut - calcB_vector_ilut(t(0:nifd)))
 
         ! i know that a start was possible -> only check what the excitation 
         ! stepvalue is 
@@ -4182,7 +4182,7 @@ contains
         ! already set above 
 !         pgen = 0.0_dp
 
-        deltaB = currentB_ilut - calcB_vector_ilut(t)
+        deltaB = currentB_ilut - calcB_vector_ilut(t(0:nifd))
 
         ! fuck that to a new loop for the pgen contributions 
         do i = sw, nSpatOrbs
@@ -8616,7 +8616,7 @@ contains
         ASSERT(excitInfo%currentGen /= 0)
         ASSERT(isProperCSF_ilut(ilut))
         ! also check if calculated b vector really fits to ilut
-        ASSERT(all(currentB_ilut == calcB_vector_ilut(ilut)))
+        ASSERT(all(currentB_ilut == calcB_vector_ilut(ilut(0:nifd))))
         if (excitInfo%currentGen == 1) then
             ASSERT(.not.isThree(ilut,excitInfo%fullStart))
 !             ASSERT(.not.isZero(ilut,excitInfo%fullEnd))
@@ -9391,8 +9391,8 @@ contains
         ! allocate and calc. b and occupation out here
         allocate(currentB_ilut(nSpatOrbs), stat = ierr)
         allocate(currentOcc_ilut(nSpatOrbs), stat = ierr)
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentB_ilut = calcB_vector_ilut(ilut(0:nifd))
+        currentOcc_ilut = calcOcc_vector_ilut(ilut(0:nifd))
 
         ! single excitations:
 !         if (pSingles > 0.0_dp) then
@@ -9734,7 +9734,6 @@ contains
                         return
                     end if
                 end if
-
 
                 ! have to give probabilistic weight object as input, to deal 
                 call createSingleStart(ilut, excitInfo, posSwitches, &

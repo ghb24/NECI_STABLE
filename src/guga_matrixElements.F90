@@ -5,7 +5,7 @@
 module guga_matrixElements
     ! used modules: 
     use SystemData, only: nEl, nBasis, ECore
-    use constants, only: dp, n_int
+    use constants, only: dp, n_int, hel_zero
     use bit_reps, only: niftot, decode_bit_det, nifd
     use OneEInts, only: GetTMatEl
     use Integrals_neci, only: get_umat_el
@@ -38,6 +38,7 @@ module guga_matrixElements
 !     end interface calc_off_diag_guga
 
 contains
+
     function calc_off_diag_guga_ref(ilut, run, exlevel) result(hel)
         ! calculated the off-diagonal element connected to the reference
         ! determinant only. 
@@ -72,7 +73,7 @@ contains
             end if
         else 
             ! otherwise its zero
-            hel = 0.0_dp
+            hel = hel_zero
             if (present(exlevel)) then
                 ! which value should i give exlevel in this case? 3,-1 ..
                 ! have to deal with it outside..

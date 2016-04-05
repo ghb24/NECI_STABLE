@@ -23,7 +23,7 @@ contains
         use ParallelHelper, only: root
         use semi_stoch_gen
         use sort_mod, only: sort
-        use SystemData, only: nel, tAllSymSectors
+        use SystemData, only: nel, tAllSymSectors, tGUGA
 
         type(subspace_in) :: space_in
         integer, intent(in) :: nexcit

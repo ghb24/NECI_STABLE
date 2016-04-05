@@ -347,7 +347,7 @@ contains
             allocate(bVectorRef_ilut(nBasis/2), stat = ierr)
 
             bVectorRef_nI = calcB_vector_nI(HFDet_True)
-            bVectorRef_ilut = calcB_vector_ilut(iLutHF_True)
+            bVectorRef_ilut = calcB_vector_ilut(iLutHF_True(0:nifd))
 
             ! for multiple runs i have to initialize all the necessary 
             ! projected energy lists

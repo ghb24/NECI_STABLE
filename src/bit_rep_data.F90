@@ -33,7 +33,7 @@ module bit_rep_data
     integer :: nIfSgn   ! Number of integers used for signs
     integer :: nIfTotKP ! Upper bound of krylov_vecs.
 
-    integer :: nIfGUGA
+    integer :: nIfGUGA ! number of integers needed for the GUGA CSFs and flags
     
     integer :: nIfBCast ! Size of data to use in annihilation broadcast
 
