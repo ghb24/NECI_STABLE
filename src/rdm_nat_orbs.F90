@@ -565,7 +565,7 @@ contains
         ! Calculating the two-transformed, four index integrals.
 
         ! The untransformed <alpha beta | gamma delta> integrals are found from 
-        ! UMAT(UMatInd(i,j,k,l,0,0)
+        ! UMAT(UMatInd(i,j,k,l)
         ! All our arrays are in spin orbitals - if tStoreSpinOrbs is false,
         ! UMAT will be in spatial orbitals - need to account for this.
 
@@ -585,7 +585,7 @@ contains
                         ! chemical (just to make it more clear in these
                         ! transformations). This means that here, a and g are
                         ! interchangable, and so are b and d.
-                        FourIndInts(a,g,b,d) = real(UMAT(UMatInd(a2,b2,g2,d2,0,0)),dp)
+                        FourIndInts(a,g,b,d) = real(UMAT(UMatInd(a2,b2,g2,d2)),dp)
                     end do
                 end do
 
@@ -755,7 +755,7 @@ contains
                         a = SymLabelList2_rot(i)
                         ! The FourIndInts are in chemical notation, the UMatInd
                         ! in physical.
-                        UMAT(UMatInd(a,b,g,d,0,0)) = FourIndInts(i,j,k,l)
+                        UMAT(UMatInd(a,b,g,d)) = FourIndInts(i,j,k,l)
                     end do
                 end do
             end do
@@ -893,9 +893,9 @@ contains
                     do k = 1, i
                         ! UMatInd is in physical notation <ij|kl>, but the indices
                         ! printed in the FCIDUMP are in chemical notation (ik|jl).
-                        if ((abs(real(UMat(UMatInd(i,j,k,l,0,0)),dp))).ne.0.0_dp) &
-                                write(iunit,'(F21.12,4I3)') &
-                                real(UMat(UMatInd(i,j,k,l,0,0)),dp), i, k, j, l 
+                        if ((abs(real(UMat(UMatInd(i,j,k,l)),dp))).ne.0.0_dp) &
+                                write(iunit,'(F21.12,4I5)') &
+                                real(UMat(UMatInd(i,j,k,l)),dp), i, k, j, l 
  
                     end do
                 end do
@@ -907,10 +907,10 @@ contains
             ! Symmetry?
             do k=1,NoOrbs
                 if (tStoreSpinOrbs) then
-                    if ((real(TMAT2D(i,k),dp)).ne.0.0_dp) write(iunit,'(F21.12,4I3)') &
+                    if ((real(TMAT2D(i,k),dp)).ne.0.0_dp) write(iunit,'(F21.12,4I5)') &
                                                         real(TMAT2D(i,k),dp),i,k,0,0
                 else
-                    if ((real(TMAT2D(2*i,2*k),dp)).ne.0.0_dp) write(iunit,'(F21.12,4I3)') &
+                    if ((real(TMAT2D(2*i,2*k),dp)).ne.0.0_dp) write(iunit,'(F21.12,4I5)') &
                                                         real(TMAT2D(2*i,2*k),dp),i,k,0,0
                 end if
             end do
@@ -922,13 +922,13 @@ contains
 
         do k=1,NoOrbs
             if (tStoreSpinOrbs) then
-                write(iunit,'(F21.12,4I3)') Arr(k,2), k, 0, 0, 0
+                write(iunit,'(F21.12,4I5)') Arr(k,2), k, 0, 0, 0
             else
-                write(iunit,'(F21.12,4I3)') Arr(2*k,2), k, 0, 0, 0
+                write(iunit,'(F21.12,4I5)') Arr(2*k,2), k, 0, 0, 0
             end if
         end do
 
-        write(iunit,'(F21.12,4I3)') ECore, 0, 0, 0, 0
+        write(iunit,'(F21.12,4I5)') ECore, 0, 0, 0, 0
         
         call neci_flush(iunit)
 
@@ -1016,7 +1016,7 @@ contains
             ! Self-interactions.
             selfint(:) = 0.0_dp
             do l1 = 1,NoOrbs
-                selfint(l1) = Umat(UmatInd(l1,l1,l1,l1,0,0))
+                selfint(l1) = Umat(UmatInd(l1,l1,l1,l1))
             end do
 
             write(6,*) 'Self-interactions for NOs:'
@@ -1354,16 +1354,16 @@ contains
         indicesij(2) = j
         trans_2orbs_coeffs(:,:) = 0.0_dp
 
-        ! Umat(UMatInd(i,j,k,l,0,0)) contains the four-index integrals
+        ! Umat(UMatInd(i,j,k,l)) contains the four-index integrals
         ! <ij|kl> (physical notation) in the NO basis
 
-        coeffcos = Umat(UmatInd(i,i,i,j,0,0)) + Umat(UmatInd(i,i,j,i,0,0)) + Umat(UmatInd(i,j,i,i,0,0)) &
-            & - Umat(UmatInd(i,j,j,j,0,0)) + Umat(UmatInd(j,i,i,i,0,0)) - Umat(UmatInd(j,i,j,j,0,0)) &
-            & - Umat(UmatInd(j,j,i,j,0,0)) - Umat(UmatInd(j,j,j,i,0,0))
+        coeffcos = Umat(UmatInd(i,i,i,j)) + Umat(UmatInd(i,i,j,i)) + Umat(UmatInd(i,j,i,i)) &
+            & - Umat(UmatInd(i,j,j,j)) + Umat(UmatInd(j,i,i,i)) - Umat(UmatInd(j,i,j,j)) &
+            & - Umat(UmatInd(j,j,i,j)) - Umat(UmatInd(j,j,j,i))
 
-        coeffsin = -Umat(UmatInd(i,i,i,i,0,0)) + Umat(UmatInd(i,i,j,j,0,0)) + Umat(UmatInd(i,j,i,j,0,0)) &
-            & + Umat(UmatInd(i,j,j,i,0,0)) + Umat(UmatInd(j,i,i,j,0,0)) + Umat(UmatInd(j,i,j,i,0,0)) &
-            & + Umat(UmatInd(j,j,i,i,0,0)) - Umat(UmatInd(j,j,j,j,0,0))
+        coeffsin = -Umat(UmatInd(i,i,i,i)) + Umat(UmatInd(i,i,j,j)) + Umat(UmatInd(i,j,i,j)) &
+            & + Umat(UmatInd(i,j,j,i)) + Umat(UmatInd(j,i,i,j)) + Umat(UmatInd(j,i,j,i)) &
+            & + Umat(UmatInd(j,j,i,i)) - Umat(UmatInd(j,j,j,j))
 
         ! atan return a value in [-pi/2,pi/2]
         ! because of the 4*alpha in the equation there are 8 distinct solutions
@@ -1401,7 +1401,7 @@ contains
                             selfinteractions(l1) = selfinteractions(l1) + trans_2orbs_coeffs(l2,1)&
                                 &*trans_2orbs_coeffs(l3,1)*&
                                 &trans_2orbs_coeffs(l4,1)*trans_2orbs_coeffs(l5,1)*&
-                                &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5),0,0))
+                                &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5)))
                         end do
                     end do
                 end do
@@ -1413,7 +1413,7 @@ contains
                             selfinteractions(l1) = selfinteractions(l1) + trans_2orbs_coeffs(l2,2)&
                                 &*trans_2orbs_coeffs(l3,2)*&
                                 &trans_2orbs_coeffs(l4,2)*trans_2orbs_coeffs(l5,2)*&
-                                &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5),0,0))
+                                &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5)))
                         end do
                     end do
                 end do
@@ -1449,12 +1449,12 @@ contains
                         selfintorb1 = selfintorb1 + trans_2orbs_coeffs(l2,1)&
                             &*trans_2orbs_coeffs(l3,1)*&
                             &trans_2orbs_coeffs(l4,1)*trans_2orbs_coeffs(l5,1)*&
-                            &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5),0,0))
+                            &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5)))
 
                         selfintorb2 = selfintorb2 + trans_2orbs_coeffs(l2,2)&
                             &*trans_2orbs_coeffs(l3,2)*&
                             &trans_2orbs_coeffs(l4,2)*trans_2orbs_coeffs(l5,2)*&
-                            &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5),0,0))
+                            &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5)))
                     end do
                 end do
             end do

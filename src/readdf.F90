@@ -263,7 +263,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
       SUBROUTINE ReadDalton1EIntegrals(G1,nBasis,ECore)
          use constants, only: dp
          use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn
-         USE OneEInts, only : TMATind,TMAT2D,TMATSYM,TSTARSTORE
+         USE OneEInts, only : TMATind,TMAT2D,TMATSYM
          use sym_mod
          implicit none
          integer nBasis,i,j
@@ -279,17 +279,10 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
             if(i.eq.0) then
                ECore=val
             elseif(j.ne.0) then
-                IF(TSTARSTORE) THEN
-                    TMatSYM(TMATInd(i*2-1,j*2-1))=(val)
-                    TMatSYM(TMATInd(i*2,j*2))=(val)
-                    TMatSYM(TMATInd(j*2-1,i*2-1))=(val)
-                    TMatSYM(TMATInd(j*2,i*2))=(val)
-                ELSE
-                    TMat2D(i*2-1,j*2-1)=(val)
-                    TMat2D(i*2,j*2)=(val)
-                    TMat2D(j*2-1,i*2-1)=(val)
-                    TMat2D(j*2,i*2)=(val)
-                ENDIF
+                TMat2D(i*2-1,j*2-1)=(val)
+                TMat2D(i*2,j*2)=(val)
+                TMat2D(j*2-1,i*2-1)=(val)
+                TMat2D(j*2,i*2)=(val)
             endif
          enddo
          close(11)

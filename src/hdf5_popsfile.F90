@@ -71,6 +71,7 @@ module hdf5_popsfile
     !     /ilut/             - The bit representations of the determinants
     !     /sgns/             - The occupation of the determinants
 
+    use ParallelHelper
     use Parallel_neci
     use constants
     use hdf5_util
@@ -168,7 +169,7 @@ contains
         ! Set up a property list to ensure file handling across all nodes.
         ! TODO: Check if we should be using a more specific communicator
         call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
-        call h5pset_fapl_mpio_f(plist_id, MPI_COMM_WORLD, MPI_INFO_NULl, err)
+        call h5pset_fapl_mpio_f(plist_id, CommGlobal, mpiInfoNull, err)
 
         ! TODO: Do sensible file handling here...
         call h5fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, err, &
@@ -223,7 +224,7 @@ contains
         ! Set up a property list to ensure file handling across all nodes.
         ! TODO: Check if we should be using a more specific communicator
         call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
-        call h5pset_fapl_mpio_f(plist_id, MPI_COMM_WORLD, MPI_INFO_NULl, err)
+        call h5pset_fapl_mpio_f(plist_id, CommGlobal, mpiInfoNull, err)
 
         ! Open the popsfile
         call h5fopen_f(filename, H5F_ACC_RDONLY_F, file_id, err, &

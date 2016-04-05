@@ -2531,7 +2531,6 @@ MODULE GenRandSymExcitNUMod
     ! Based around a very simple generation algorithm: find unique i, j, a, b, then reject
     ! Currently not working
     SUBROUTINE CreateExcitLattice2(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
-        Use SystemData , only : NMAXX,NMAXY,NMAXZ
 
         INTEGER :: Elec1, Elec2, Hole1, Hole2,ms_sum
         INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ExcitMat(2,2),rejections
@@ -3122,8 +3121,7 @@ SUBROUTINE SpinOrbSymSetup()
     use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel, &
                                SymTableLabels, KPntInvSymOrb
     use GenRandSymExcitNUMod , only : ClassCountInd
-    use SymData, only: nSymLabels,TwoCycleSymGens,SymClasses
-    use SymData, only: SymLabelList,SymLabelCounts,SymConjTab,SymLabels
+    use SymData, only: nSymLabels, SymClasses, SymLabels
     use SystemData , only : NMAXZ,tFixLz,iMaxLz,nBasis,tUEG,tKPntSym,G1,tHub,nBasisMax,NEl
     use SystemData , only : Symmetry,tHPHF,tSpn,tISKFuncs,Arr,tNoSymGenRandExcits, Elecpairs
     use SystemData , only : MaxABPairs, tUEG2, kvec

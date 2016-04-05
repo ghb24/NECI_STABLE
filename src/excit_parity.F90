@@ -18,7 +18,9 @@ contains
         integer, intent(in) :: nI(nel), elec, tgt
         integer, intent(out) :: ex(2,2), nJ(nel)
         logical, intent(out) :: tParity
+#ifdef __DEBUG
         character(*), parameter :: this_routine = 'make_single'
+#endif
         integer :: i, src
 
         ! Initialise return values, Returned excitation matrix includes the
@@ -74,7 +76,9 @@ contains
         integer, intent(in) :: nI(nel), elec1, elec2, tgt1, tgt2
         integer, intent(out) :: ex(2,2), nJ(nel)
         logical, intent(out) :: tParity
+#ifdef __DEBUG
         character(*), parameter :: this_routine = 'make_double'
+#endif
         integer :: i, k, elecs(2), srcs(2), tgts(2), pos_moved
 
         ! Get the source/target terms in order!

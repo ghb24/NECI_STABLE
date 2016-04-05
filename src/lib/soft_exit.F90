@@ -300,9 +300,6 @@ contains
         real(dp) :: hfScaleFactor
         character(len=100) :: w
 
-        integer(MPIArg) :: ierr, ierr2, len
-        character(1000) :: message
-
         ! Test if the changevars file exists, and broadcast to all nodes.
         any_exist=.false.
         inquire (file='CHANGEVARS', exist=exists)

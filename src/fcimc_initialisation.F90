@@ -145,13 +145,13 @@ contains
         INTEGER :: LargestOrb,nBits,HighEDet(NEl),orb
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         HElement_t(dp) :: TempHii
-        real(dp) :: TotDets,SymFactor,r,Gap,UpperTau
+        real(dp) :: UpperTau,r
         CHARACTER(len=*), PARAMETER :: t_r='SetupParameters'
         CHARACTER(len=12) :: abstr
         character(len=24) :: filename, filename2
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,tAlreadyOcc
-        INTEGER :: HFLz,ChosenOrb,KPnt(3), step,SymFinal, run
-        integer(int64) :: ExcitLevPop,SymHF
+        INTEGER :: HFLz,ChosenOrb,step,SymFinal, run
+        integer(int64) :: SymHF
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(iout,*) 
@@ -960,7 +960,7 @@ contains
         ENDIF
 !        WRITE(iout,*) "Non-uniform excitation generators in use."
         CALL CalcApproxpDoubles()
-        IF(TauFactor.ne.0.0_dp) THEN
+        IF(abs(TauFactor) > 1.0e-12_dp) THEN
             WRITE(iout,*) "TauFactor detected. Resetting Tau based on connectivity of: ",HFConn
             Tau=TauFactor/REAL(HFConn,dp)
             WRITE(iout,*) "Timestep set to: ",Tau
@@ -980,7 +980,7 @@ contains
             end if
         end if
 
-        IF(StepsSftImag.ne.0.0_dp) THEN
+        IF(abs(StepsSftImag) > 1.0e-12_dp) THEN
             WRITE(iout,*) "StepsShiftImag detected. Resetting StepsShift."
             StepsSft=NINT(StepsSftImag/Tau)
             IF(StepsSft.eq.0) StepsSft=1
@@ -1112,12 +1112,12 @@ contains
     ! This initialises the calculation, by allocating memory, setting up the
     ! initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
-        INTEGER :: ierr,iunithead,DetHash,Slot,MemTemp,run
+        INTEGER :: ierr,iunithead
         logical :: formpops, binpops
-        INTEGER :: error,MemoryAlloc,PopsVersion,j,iLookup
+        INTEGER :: error,MemoryAlloc,PopsVersion
         character(*), parameter :: t_r = 'InitFCIMCPar', this_routine = t_r
         integer :: PopBlockingIter
-        real(dp) :: Gap,ExpectedMemWalk,read_tau, read_psingles, read_pparallel
+        real(dp) :: ExpectedMemWalk,read_tau, read_psingles, read_pparallel
         integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
         integer :: read_nnodes
         !Variables from popsfile header...
@@ -1125,9 +1125,8 @@ contains
         integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
         integer :: PopRandomHash(1024), PopBalanceBlocks
         integer(int64) :: iPopAllTotWalkers
-        integer :: i
+        integer :: i, run
         real(dp) :: PopDiagSft(1:inum_runs)
-        real(dp) , dimension(lenof_sign) :: InitialSign
         real(dp) , dimension(lenof_sign) :: PopSumNoatHF
         HElement_t(dp) :: PopAllSumENum(1:inum_runs)
         integer :: perturb_ncreate, perturb_nannihilate
@@ -1202,7 +1201,7 @@ contains
 
                 call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                         iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
-                        PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
+                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfTot, &
                         MaxWalkersUncorrected,read_tau,PopBlockingIter, read_psingles, read_pparallel, &
                         perturb_ncreate, perturb_nannihilate)
 
@@ -1248,7 +1247,7 @@ contains
             log_alloc(SpawnVec2, SpawnVec2Tag, ierr)
 
             if (use_spawn_hash_table) then
-                nhashes_spawn = 0.8*MaxSpawned
+                nhashes_spawn = ceiling(0.8*MaxSpawned)
                 allocate(spawn_ht(nhashes_spawn), stat=ierr)
                 call init_hash_table(spawn_ht)
             end if
@@ -1355,7 +1354,7 @@ contains
         MaxInitPopPos=0.0
         MaxInitPopNeg=0.0
 
-        IF(MaxNoatHF.eq.0) THEN
+        IF (abs(MaxNoatHF) < 1.0e-12_dp) THEN
             MaxNoatHF=InitWalkers*nNodes
             HFPopThresh=int(MaxNoatHF,int64)
         ENDIF
@@ -1762,8 +1761,8 @@ contains
             call encode_sign (CurrentDets(:,1), InitialSign)
         ELSE
             NoatHF(:) = 0.0_dp
-            TotWalkers = 0.0_dp
-            TotWalkersOld = 0.0_dp
+            TotWalkers = 0
+            TotWalkersOld = 0
         ENDIF
 
         OldAllNoatHF(:)=0.0_dp
@@ -1826,8 +1825,8 @@ contains
 
         ! Default values, unless overridder for individual procs
         NoatHF = 0.0_dp
-        TotWalkers = 0.0_dp
-        TotWalkersOld = 0.0_dp
+        TotWalkers = 0
+        TotWalkersOld = 0
         tRef_Not_HF = .true.
         tNoBrillouin = .true.
 
@@ -1971,14 +1970,14 @@ contains
         integer :: run, j, proc_highest
         integer(n_int) :: ilut(0:NIfTot)
         integer(int32) :: int_tmp(2)
+#ifdef __DEBUG
         character(*), parameter :: this_routine = 'set_initial_run_references'
+#endif
 
         ASSERT(inum_runs == lenof_sign)
         do run = 1, inum_runs
-                write(6,*) "Here1!"
 
             if (tMultipleInitialRefs) then
-                write(6,*) "Here2!"
                 ! Use user specified reference states.
                 call EncodeBitDet(initial_refs(:,run), ilut)
                 call update_run_reference(ilut, run)
@@ -2024,9 +2023,9 @@ contains
         ! This hopefully will help with close-lying excited states of the same sym.
 
         type(BasisFN) :: CASSym
-        integer :: i, j, ierr, nEval, NKRY1, NBLOCK, LSCR, LISCR, DetIndex
-        integer :: iNode, nBlocks, nBlockStarts(2), DetHash, Slot
-        integer :: CASSpinBasisSize, elec, nCASDet, ICMax, GC, LenHamil, iInit
+        integer :: i, ierr, nEval, NKRY1, NBLOCK, LSCR, LISCR, DetIndex
+        integer :: iNode, nBlocks, nBlockStarts(2), DetHash
+        integer :: CASSpinBasisSize, nCASDet, ICMax, GC, LenHamil, iInit
         integer :: nHPHFCAS, iCasDet, ExcitLevel
         real(dp) :: NoWalkers
         integer , allocatable :: CASBrr(:),CASDet(:),CASFullDets(:,:),nRow(:),Lab(:),ISCR(:),INDEX(:)
@@ -2373,7 +2372,7 @@ contains
                     endif
                 endif
 
-                if(NoWalkers.ne.0.0) then
+                if (abs(NoWalkers) > 1.0e-12_dp) then
                     call EncodeBitDet(CASFullDets(:,i),iLutnJ)
                     if(DetBitEQ(iLutnJ, iLutRef(:,1), NIfDBO)) then
                         !Check if this determinant is reference determinant, so we can count number on hf.
@@ -2453,10 +2452,10 @@ contains
     !Routine to initialise the particle distribution according to the MP1 wavefunction.
     !This hopefully will help with close-lying excited states of the same sym.
     subroutine InitFCIMC_MP1()
-        real(dp) :: TotMP1Weight,amp,MP2Energy,PartFac,H0tmp,rat,r,energy_contrib
-        HElement_t(dp) :: hel,HDiagtemp
-        integer :: iExcits, exflag, Ex(2,2), nJ(NEl), ic, DetIndex, iNode
-        integer :: iInit, Slot, DetHash, ExcitLevel, run, i
+        real(dp) :: TotMP1Weight,amp,MP2Energy,PartFac,rat,r,energy_contrib
+        HElement_t(dp) :: HDiagtemp
+        integer :: iExcits, exflag, Ex(2,2), nJ(NEl), DetIndex, iNode
+        integer :: iInit, DetHash, ExcitLevel, run
         integer(n_int) :: iLutnJ(0:NIfTot)
         real(dp) :: NoWalkers, temp_sign(lenof_sign)
         logical :: tAllExcitsFound, tParity
@@ -2579,7 +2578,7 @@ contains
                     end if
                 end if
                 
-                if(NoWalkers.ne.0.0) then
+                if (abs(NoWalkers) > 1.0e-12_dp) then
                     call encode_det(CurrentDets(:,DetIndex),iLutnJ)
                     call clear_all_flags(CurrentDets(:,DetIndex))
                     do run=1, inum_runs
@@ -2641,7 +2640,7 @@ contains
                 r=genrand_real2_dSFMT()
                 if(abs(rat).gt.r) NoWalkers=NoWalkers+1
             endif
-            if(NoWalkers.ne.0) then
+            if(abs(NoWalkers) > 1.0e-12_dp) then
                 call encode_det(CurrentDets(:,DetIndex),iLutHF)
                 call clear_all_flags(CurrentDets(:,DetIndex))
                 do run=1,inum_runs
@@ -2781,7 +2780,7 @@ contains
 
     SUBROUTINE CalcApproxpDoubles()
         INTEGER :: iTotal
-        integer :: nSing, nDoub, ncsf, ierr
+        integer :: nSing, nDoub, ncsf
         integer :: hfdet_loc(nel)
 
         ! A quick hack. Count excitations as though we were a determinant.
@@ -2830,7 +2829,7 @@ contains
         WRITE(iout,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing, &
             " single excitations found from reference. This will be used to calculate pDoubles."
 
-        IF(SinglesBias.ne.1.0_dp) THEN
+        IF (abs(SinglesBias - 1.0_dp) > 1.0e-12_dp) THEN
             WRITE(iout,*) "Singles Bias detected. Multiplying single excitation connectivity of HF determinant by ", &
                 SinglesBias," to determine pDoubles."
         ENDIF
@@ -2865,7 +2864,7 @@ contains
                    ((real(nSing,dp)*SinglesBias) + real(nDoub,dp))
         endif
 
-        IF(SinglesBias.ne.1.0_dp) THEN
+        IF (abs(SinglesBias - 1.0_dp) > 1.0e-12_dp) THEN
             write (iout, '("pDoubles set to ", f14.6, &
                        &" rather than (without bias): ", f14.6)') &
                        pDoubles, real(nDoub,dp) / real(iTotal,dp)
@@ -2923,7 +2922,7 @@ contains
 
       implicit none
       integer(int64), intent(in) :: WalkerListSize
-      integer ierr,i,j
+      integer ierr,j
       real(dp) Gap
 
       !When running normally, WalkerListSize will be equal to initwalkers
@@ -2953,15 +2952,15 @@ contains
 
     subroutine CalcUEGMP2()
         use SymExcitDataMod, only: kPointToBasisFn
-        use SystemData, only: ElecPairs,NMAXX,NMAXY,NMAXZ,OrbECutOff,tGCutoff,GCutoff, &
+        use SystemData, only: ElecPairs,NMAXX,NMAXY,NMAXZ,OrbECutOff, &
                                 tMP2UEGRestrict,kiRestrict,kiMsRestrict,kjRestrict,kjMsRestrict, &
                                 Madelung,tMadelung,tUEGFreeze,FreezeCutoff, kvec, tUEG2
         use Determinants, only: GetH0Element4, get_helement_excit
         integer :: Ki(3),Kj(3),Ka(3),LowLoop,HighLoop,X,i,Elec1Ind,Elec2Ind,K,Orbi,Orbj
-        integer :: iSpn,FirstA,nJ(NEl),a_loc,Ex(2,2),kx,ky,kz,OrbB,FirstB
+        integer :: iSpn,FirstA,nJ(NEl),a_loc,Ex(2,2),kx,ky,kz,OrbB
         integer :: ki2,kj2
-        logical :: tParity,tMom
-        real(dp) :: Ranger,mp2,mp2all,length,length_g,length_g_2
+        logical :: tParity
+        real(dp) :: Ranger,mp2,mp2all,length
         HElement_t(dp) :: hel,H0tmp
 
         !Divvy up the ij pairs
@@ -3168,7 +3167,7 @@ contains
 #ifdef NAGF95
         USe f90_unix_dir, only: rename
 #endif
-        integer :: extension,stat
+        integer :: extension
         logical :: exists
         character(len=22) :: abstr
 !        character(len=36) :: command
@@ -3225,7 +3224,6 @@ contains
         integer :: det(nel), orbs(nel), orb, orb2, norb
         integer :: run, cc_idx, label_idx, i, j, found_orbs(inum_runs)
         real(dp) :: energies(nel), hdiag
-        character(*), parameter :: this_routine = 'assign_reference_dets'
 
         ! If the user has specified all of the (multiple) reference states,
         ! then just copy these across to the ilutRef array:

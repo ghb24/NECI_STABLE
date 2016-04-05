@@ -563,8 +563,6 @@ type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
 
     subroutine end_davidson()
 
-        integer :: ierr
-
         ! Deallocate all Davidson arrays. Note that the eigenvector is not deallocated,
         ! so that it can be used later.
         if (allocated(basis_vectors)) deallocate(basis_vectors)

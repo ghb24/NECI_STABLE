@@ -95,7 +95,6 @@ contains
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer, intent(in) :: flg
         logical :: bSet
-        integer :: off, ind
 
         !Commented out code is for when we need multiple integers for storing flags (unlikely!)
 !        ind = NOffFlag + flg / bits_n_int

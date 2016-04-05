@@ -3,8 +3,8 @@
  
 
 MODULE UMatCache
-    use constants, only: dp,sizeof_int
-    use SystemData , only : TSTARSTORE, tROHF,tStoreSpinOrbs
+    use constants, only: dp,sizeof_int,int64
+    use SystemData, only: tROHF,tStoreSpinOrbs
     use util_mod, only: swap
     use sort_mod
     use MemoryManager, only: TagIntType
@@ -127,17 +127,6 @@ MODULE UMatCache
 
       Contains
 
-      Subroutine InitStarStoreUMat(nOccSpatOrbs,nSpatOrbs)
-! AJWT Hopefully Initialize data needed to store special StarStore UMat, which hold integrals <ij|ab>
-!       In:
-!          nOccSpatOrbs: the number of occupied spatial orbitals (probably nEl/2)
-!          nSpatOrbs: the total number of spatial orbitals (probably nBasis/2)
-         integer nOccSpatOrbs, nSpatOrbs
-         nOcc=nOccSpatOrbs
-         nStates=nSpatOrbs
-      End Subroutine InitStarStoreUMat
-
-
       SUBROUTINE CreateInvBRR2(BRR2,NBASIS)
       ! Create new INVBRR for the freezing process
       ! In:
@@ -202,7 +191,7 @@ MODULE UMatCache
 
 
 
-      INTEGER FUNCTION UMatInd(I,J,K,L,NBASIS,NOCCUPIED)
+      INTEGER(int64) FUNCTION UMatInd(I,J,K,L)
          ! Get the index of physical order UMAT element <IJ|KL>.
          ! Indices are internally reordered such that I>K, J>L,(I,K)>(J,L)
          ! Note: (i,k)>(j,l) := (k>l) || ((k==l)&&(i>j))
@@ -214,120 +203,37 @@ MODULE UMatCache
          !    nOccupied: # of occupied orbitals.  If =0, then nOcc is used.
          !    Should only be passed as non-zero during the freezing process.
          IMPLICIT NONE
-         INTEGER, intent(in) :: I,J,K,L,NBASIS,NOCCUPIED
-         INTEGER R,S,T,U,A,B,C,D,AA,BB
-         character(*), parameter :: this_routine = 'UMatInd'
-         IF(TSTARSTORE) THEN
-            !Rearrange, so that orbitals ordered over energy, and first two indices are occupied
-            !Could be a problem in the future r.e. partially filled degenerate fermi levels - 
-            !is BRR then the best way to determine if an orbital is occupied or not??
-            IF(NOCCUPIED.EQ.0) THEN
-                R=INVBRR(I)
-                S=INVBRR(J)
-                T=INVBRR(K)
-                U=INVBRR(L)
-            ELSE
-                R=INVBRR2(I)
-                S=INVBRR2(J)
-                T=INVBRR2(K)
-                U=INVBRR2(L)
-            ENDIF
+         INTEGER, intent(in) :: I,J,K,L
+         INTEGER A,B
 
-            !Need to create unique pairings from all permutations of indices
-            IF(R.le.T) THEN
-                A=R
-                C=T
-            ELSE
-                A=T
-                C=R
-            ENDIF
-            IF(S.le.U) THEN
-                B=S
-                D=U
-            ELSE
-                B=U
-                D=S
-            ENDIF
-            IF((A.lt.B).or.((A.eq.B).and.(C.le.D))) THEN
-                R=A
-                S=B
-                T=C
-                U=D
-            ELSE
-                R=B
-                S=A
-                T=D
-                U=C
-            ENDIF
-            !During the freezing routine, it tries to lookup <ia|ib>, for the h_ab integrals 
- !where a & b are distinct and virtual, but these are unneeded if just considering double excitations.
-            IF(FREEZETRANSFER.and.(S.gt.NOCC)) THEN
-                UMatInd=-1
-                RETURN
-            ENDIF
-            IF(NOCCUPIED.EQ.0) THEN
-                IF((R.gt.NOCC).or.(S.gt.NOCC)) THEN
-                    WRITE(6,*) "NO OCCUPIED ORBITAL PAIR REQUESTED - STARBINREAD CANNOT BE USED"
-                    WRITE(6,*) "USING ORIGINAL UMAT AND STORED NOCC"
-                    WRITE(6,*) "NOCC is: ",NOCC
-                    WRITE(6,*) "SPIN-ORBITALS ",I*2,", ", J*2,", ",K*2,", ",L*2," requested."
-                    CALL neci_flush(6)
-                    call stop_all(this_routine, 'NO OCCUPIED ORBITAL PAIR REQUESTED')
-                ENDIF
-            ELSE
-                IF((R.gt.NOCCUPIED).or.(S.gt.NOCCUPIED)) THEN
-                    WRITE(6,*) "NO OCCUPIED ORBITAL PAIR REQUESTED - STARBINREAD CANNOT BE USED"
-                    WRITE(6,*) "USING UMAT2 AND NOCC FROM ARGUMENT"
-                    WRITE(6,*) "NOCC is: ",NOCC
-                    WRITE(6,*) "SPIN-ORBITALS ",I*2,", ", J*2,", ",K*2,", ",L*2," requested."
-                    CALL neci_flush(6)
-                    call stop_all(this_routine, 'NO OCCUPIED ORBITAL PAIR REQUESTED')
-                ENDIF
-            ENDIF
-
-
-            IF(NBASIS.ne.0) THEN
-                BB=((S-1)*NBASIS)+U
-                AA=((R-1)*NBASIS)+T
-            ELSE
-                BB=((S-1)*nStates)+U
-                AA=((R-1)*nStates)+T
-            ENDIF
-
-            UMatInd=((BB*(BB-1))/2)+AA
-            RETURN
-
-         ELSE   ! Normal Indexing scheme
-
-            !Combine indices I and K, ensuring I>K
-            IF(I.GT.K) THEN
-                A=(I*(I-1))/2+K
-            ELSE
-                A=(K*(K-1))/2+I
-            ENDIF
-
-            !Combine indices J and L, ensuring J>K
-            IF(J.GT.L) THEN
-                B=(J*(J-1))/2+L
-            ELSE
-                B=(L*(L-1))/2+J
-            ENDIF
-
-            !Combine (IK) and (JL) in a unique way  (k > l or if k = l then i > j)
-            IF(A.GT.B) THEN
-                UMatInd=(A*(A-1))/2+B
-            ELSE
-                UMatInd=(B*(B-1))/2+A
-            ENDIF
-#ifdef __CMPLX
-            UMatInd = (UmatInd-1)*2 + 1
-            !We need to test whether we have swapped i and k or j and l independantly of each other
-            !If we have done this, it is one of the 'other' integrals - add one.
-            if (((I.gt.K).and.(J.lt.L)) .or. ((I.lt.K).and.(J.gt.L))) then
-               UMatInd = UMatInd + 1
-            endif
-#endif
+         !Combine indices I and K, ensuring I>K
+         IF(I.GT.K) THEN
+             A=(I*(I-1))/2+K
+         ELSE
+             A=(K*(K-1))/2+I
          ENDIF
+
+         !Combine indices J and L, ensuring J>K
+         IF(J.GT.L) THEN
+             B=(J*(J-1))/2+L
+         ELSE
+             B=(L*(L-1))/2+J
+         ENDIF
+
+         !Combine (IK) and (JL) in a unique way  (k > l or if k = l then i > j)
+         IF(A.GT.B) THEN
+             UMatInd=(int(A,int64)*int(A-1,int64))/2+int(B,int64)
+         ELSE
+             UMatInd=(int(B,int64)*int(B-1,int64))/2+int(A,int64)
+         ENDIF
+#ifdef __CMPLX
+         UMatInd = (UmatInd-1)*2 + 1
+         !We need to test whether we have swapped i and k or j and l independantly of each other
+         !If we have done this, it is one of the 'other' integrals - add one.
+         if (((I.gt.K).and.(J.lt.L)) .or. ((I.lt.K).and.(J.gt.L))) then
+            UMatInd = UMatInd + 1
+         endif
+#endif
       END FUNCTION UMatInd
 
       HElement_t(dp) function UMatConj(I,J,K,L,val)
@@ -420,7 +326,7 @@ MODULE UMatCache
          IMPLICIT NONE
          INTEGER nBasis,iSS
          INTEGER iPairs,nBi,nEl,noccup
-         INTEGER :: iSize
+         INTEGER(int64) :: iSize
          IF(tStoreSpinOrbs) THEN
              iSS=1
          ELSE
@@ -430,21 +336,12 @@ MODULE UMatCache
          nBi=nBasis/iSS
 !         WRITE(6,*) iSS,nBasis,nBi
 !         CALL neci_flush(6)
-         IF(TSTARSTORE) THEN
-            IF(MOD(nel,2).ne.0) THEN
-                noccup=(nel+1)/iSS
-            ELSE
-                noccup=nel/iSS
-            ENDIF
-            iPairs=noccup*nBi
-            iSize=(iPairs*(iPairs+1))/2
-         ELSE
-            iPairs=(nBi*(nBi+1))/2
-            iSize=(iPairs*(iPairs+1))/2
+         iPairs=(nBi*(nBi+1))/2
+         iSize=(int(iPairs,int64)*int(iPairs+1,int64))/2
 #ifdef __CMPLX
-            iSize = iSize * 2
+         !Since we now only have 4-fold symmetry, rather than 8-fold.
+         iSize = iSize * 2
 #endif
-         ENDIF
       END SUBROUTINE GetUMatSize
 
 
@@ -528,7 +425,7 @@ MODULE UMatCache
          INTEGER ierr
          complex(dp) HarInt(nStates,nStates)
          character(len=*),parameter :: thisroutine='SETUPUMAT2D'
-         IF((NSLOTSINIT.LT.0).AND.(.not.TSTARSTORE)) THEN
+         IF((NSLOTSINIT.LT.0)) THEN
             TUMAT2D=.FALSE.
             WRITE(6,*) "Not using UMAT2D."
          ELSE
@@ -558,9 +455,7 @@ MODULE UMatCache
             Allocate(UMat2D(nStates,nStates),STAT=ierr)
 !            WRITE(6,*) "nStates for UMat2D: ",nStates
             call LogMemAlloc('UMat2D',nStates**2,8*HElement_t_size,thisroutine,tagUMat2D,ierr)
-            IF(TSTARSTORE) THEN
-                RETURN
-            ELSEIF(tRIIntegrals.or.tCacheFCIDUMPInts) THEN
+            IF(tRIIntegrals.or.tCacheFCIDUMPInts) THEN
         !        CALL ReadRI2EIntegrals(nStates,UMat2D,tUMat2D)
          !  This happens later
             ELSE

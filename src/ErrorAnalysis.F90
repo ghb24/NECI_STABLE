@@ -255,17 +255,17 @@ module errors
             call reblock_data(numerator_data,final_corrlength_proj)
             call analyze_data(pophf_data,mean_denom,error_denom,eie_denom)
             call analyze_data(numerator_data,mean_num,error_num,eie_num)
-            write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_denominator:", mean_denom, " +/- ", error_denom, &
+            write(6,"(A,F22.10,A,G20.8,A,G22.10)") "ProjE_denominator:", mean_denom, " +/- ", error_denom, &
                 " Relative error: ", abs(error_denom/mean_denom)
             if(lenof_sign.eq.2) then
                 call reblock_data(imnumerator_data,final_corrlength_proj)
                 call analyze_data(imnumerator_data,mean_imnum,error_imnum,eie_imnum)
-                write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_numerator (Re):", mean_num, " +/- ", error_num, &
+                write(6,"(A,F22.10,A,G20.8,A,G22.10)") "ProjE_numerator (Re):", mean_num, " +/- ", error_num, &
                     " Relative error: ", abs(error_num/mean_num)
-                write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_numerator (Im):", mean_imnum, " +/- ", error_imnum, &
+                write(6,"(A,F22.10,A,G20.8,A,G22.10)") "ProjE_numerator (Im):", mean_imnum, " +/- ", error_imnum, &
                     " Relative error: ", abs(error_imnum/mean_imnum)
             else
-                write(6,"(A,F20.10,A,G20.8,A,G22.10)") "ProjE_numerator:  ", mean_num, " +/- ", error_num, &
+                write(6,"(A,F22.10,A,G20.8,A,G22.10)") "ProjE_numerator:  ", mean_num, " +/- ", error_num, &
                     " Relative error: ", abs(error_num/mean_num)
             endif
         endif
@@ -326,7 +326,7 @@ module errors
         character(len=*), intent(in) :: filename
         integer,intent(in) :: blocklength ! this is the minimum step size (e.g. 2)
         real(dp) :: mean1, error1, eie1,mean2,error2,eie2
-        real(dp) :: covariance,correction,mean_proje,final_error,final_eie
+        real(dp) :: covariance,mean_proje,final_error,final_eie
         real(dp), allocatable :: this(:),that(:) ! stores this array
 
         iunit = get_free_unit()
@@ -403,6 +403,7 @@ module errors
         allocate(error_array(blocking_events+1))
         allocate(eie_array(blocking_events+1))
         
+        iunit = 0
         if(tPrint) then
             iunit = get_free_unit()
             open(iunit,file=filename)
@@ -524,6 +525,7 @@ module errors
                         improje, &                   !8.     Im   \sum[ nj H0j / n0 ]
                         reinstproje, &                 !9.     
                         iminstproje, &                    !10.
+                        tote, &       ! Tot.ProjE.iter (Re)
                         insthf(1), &                         !11.
                         insthf(lenof_sign), &                         !12.
                         doubs, &                         !13.
@@ -659,6 +661,7 @@ module errors
                         improje, &                   !8.     Im   \sum[ nj H0j / n0 ]
                         reinstproje, &                 !9.     
                         iminstproje, &                    !10.
+                        tote,  &     ! Tot.PorjE.iter (Rm)
                         insthf(1), &                         !11.
                         insthf(lenof_sign), &                         !12.
                         doubs, &                         !13.
@@ -753,8 +756,8 @@ module errors
             call stop_all(t_r,"Data arrays not filled correctly 1")
         endif
 
-        if(shift_data(validdata).eq.0.0_dp.or.pophf_data(validdata).eq.0.0_dp.or. &
-            numerator_data(validdata).eq.0.0_dp) then
+        if(abs(shift_data(validdata)) < 1.0e-10_dp .or. abs(pophf_data(validdata)) < 1.0e-10_dp .or. &
+            abs(numerator_data(validdata)) < 1.0e-10_dp) then
             write(6,*) shift_data(validdata), pophf_data(validdata), numerator_data(validdata)
             call stop_all(t_r,"Data arrays not filled correctly 2")
         endif
@@ -783,7 +786,7 @@ module errors
                 new(i-remove)=this(i)
             endif
         enddo
-        if (new(length-remove).eq.0.0_dp) call stop_all(t_r,"Resize failed")
+        if (abs(new(length-remove)) < 1.0e-10_dp) call stop_all(t_r,"Resize failed")
         deallocate(this)
         allocate(this(length-remove))
         this=new
@@ -896,7 +899,6 @@ module errors
 
         real(dp), intent(in) :: this(:)
         real(dp), intent(out) :: mean,error,eie
-        real(dp) :: s_dev ! standard deviation
         real(dp) :: mean2 ! squared value mean
         integer :: length
         integer :: i
@@ -952,7 +954,7 @@ module errors
             endif
             j=j+1
         enddo
-        if (tmp(new_length).eq.0.0_dp) call stop_all(t_r,"Whole length of new vector not properly used")
+        if (abs(tmp(new_length)) < 1.0e-10_dp) call stop_all(t_r,"Whole length of new vector not properly used")
         deallocate(this)
         allocate(this(new_length))
         this=0.0_dp
@@ -976,8 +978,10 @@ module errors
         do i=1,length
             s=s+this(i)
         enddo
-        if (length.ne.0) then
-            average_vector=s/length
+        if (length == 0) then
+            average_vector = 0
+        else
+            average_vector = s / length
         endif
 
     end function average_vector
@@ -1098,7 +1102,6 @@ module errors
         integer :: i
         real(dp) :: sx,sy,sxy ! sums
         real(dp) :: meanx,meany
-        real(dp) :: mean_this, mean_that
         real(dp) :: calc_covariance
         character(len=*), parameter :: t_r='calc_covariance'
 
@@ -1133,7 +1136,7 @@ module errors
         real(dp) :: mean_ProjE_re,mean_ProjE_im,mean_Shift
         real(dp) :: ProjE_Err_re,ProjE_Err_im,Shift_Err
         logical :: tNoProjEValue,tNoShiftValue
-        integer :: iroot,isymh,i
+        integer :: iroot,isymh
         TYPE(BasisFn) RefSym
         HElement_t(dp) :: h_tmp
         real(dp) :: Hii,BestEnergy,EnergyDiff

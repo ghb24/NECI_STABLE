@@ -194,6 +194,9 @@ module ParallelHelper
    ! A communicator between the roots on each node
    integer(MPIArg)      :: CommRoot
 
+   ! A null-info structure
+   integer(MPIArg)      :: mpiInfoNull
+
    ! A 'node' which communicates between roots on each node
    type(CommI)          :: Roots
 
@@ -310,7 +313,7 @@ contains
         integer, intent(in) :: rnks(:)
         integer, intent(out) :: ierr
         integer(MPIArg), intent(out) :: ogrp
-        integer(MPIArg) :: err, out_grp
+        integer(MPIArg) :: err
 
 #ifdef PARALLEL
         call MPI_Group_incl (int(grp, MPIArg), int(n, MPIArg), &

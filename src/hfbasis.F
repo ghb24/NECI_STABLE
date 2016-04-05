@@ -5,7 +5,7 @@ C.. Ti=Sum_a,b(c_ia* c_ib <u_a(1)|h(1)|u_b(1)>)
 C..   =Sum_a(|c_ia|^2 <u_a|(p^2)/2|u_a>)
       SUBROUTINE CALCHFTMAT(NBASIS,HFBASIS,NORBUSED)
         use constants, only: dp
-        USE OneEInts, only : GetTMATEl,TMAT2D,TMAT2D2,TSTARSTORE
+        USE OneEInts, only : GetTMATEl,TMAT2D,TMAT2D2
          IMPLICIT NONE
          INTEGER :: NBASIS
          real(dp) HFBASIS(NBASIS,NBASIS)
@@ -65,7 +65,7 @@ C ==--------------------------------------------------------------------=
          DO WHILE (.TRUE.)
 
             READ(10,*,END=12) A,B,C,D,SUM1
-              UMAT2(UMatInd(A,B,C,D,0,0))=SUM1
+              UMAT2(UMatInd(A,B,C,D))=SUM1
 C..Symmetries not needed by UMatInd
 !              UMAT2(C,D,A,B)=SUM1
 !              UMAT2(B,A,D,C)=SUM1
@@ -161,9 +161,9 @@ C.. Thus the sum1 A+C must be even, as must B+D
              DO I=1,NHG
               ID1 = GTID(I)
               SUM1=SUM1+HFBASIS(A,I)
-     &               *UMAT(UMatInd(ID1,J,K,L,0,0))
+     &               *UMAT(UMatInd(ID1,J,K,L))
              ENDDO
-             UMATT(UMatInd(J,K,L,A,0,0))=SUM1
+             UMATT(UMatInd(J,K,L,A))=SUM1
 !             IF(ABS(SUM1).GT.1.0e-9_dp) WRITE(6,*) J,K,L,A,SUM1
             ENDDO
            ENDDO
@@ -178,9 +178,9 @@ C.. Thus the sum1 A+C must be even, as must B+D
              DO J=1,NHG
               ID2 = GTID(J)
               SUM1=SUM1+HFBASIS(B,J)
-     &               *UMATT(UMatInd(ID2,K,L,A,0,0))
+     &               *UMATT(UMatInd(ID2,K,L,A))
              ENDDO
-             UMAT2(UMatInd(K,L,A,B,0,0))=SUM1
+             UMAT2(UMatInd(K,L,A,B))=SUM1
 !             IF(ABS(SUM1).GT.1.0e-9_dp) WRITE(6,*) K,L,A,B,SUM1
             ENDDO
            ENDDO
@@ -195,9 +195,9 @@ C.. Thus the sum1 A+C must be even, as must B+D
              DO K=1,NHG
               ID3 = GTID(K)
               SUM1=SUM1+HFBASIS(C,K)
-     &               *UMAT2(UMatInd(ID3,L,A,B,0,0))
+     &               *UMAT2(UMatInd(ID3,L,A,B))
              ENDDO
-             UMATT(UMatInd(L,A,B,C,0,0))=SUM1
+             UMATT(UMatInd(L,A,B,C))=SUM1
 !             IF(ABS(SUM1).GT.1.0e-9_dp) WRITE(6,*) L,A,B,C,SUM1
             ENDDO
            ENDDO
@@ -210,14 +210,14 @@ C.. Thus the sum1 A+C must be even, as must B+D
            DO C=1,NORBUSED
             DO D=1,NORBUSED
              LSPN=(MOD(A+C,2).EQ.0).AND.(MOD(B+D,2).EQ.0)
-             IF(LSPN.AND.UMAT2(UMatInd(A,B,C,D,0,0)).EQ.0.0_dp) THEN
+             IF(LSPN.AND.UMAT2(UMatInd(A,B,C,D)).EQ.0.0_dp) THEN
               SUM1=0.0_dp
               DO L=1,NHG
                ID4 = GTID(L)
                SUM1=SUM1+HFBASIS(D,L)
-     &                *UMATT(UMatInd(ID4,A,B,C,0,0))
+     &                *UMATT(UMatInd(ID4,A,B,C))
               ENDDO
-              UMAT2(UMatInd(A,B,C,D,0,0))=SUM1
+              UMAT2(UMatInd(A,B,C,D))=SUM1
 C..Symmetries not needed by UMatInd
 !              UMAT2(C,D,A,B)=SUM1
 !              UMAT2(B,A,D,C)=SUM1
@@ -1812,15 +1812,11 @@ C.. Here A and C correspond to J and B corresponds to K
                            DO C=1,NSBASIS
                               TOT2=0.0_dp
                               IDC = GTID((C-1)*NSPINS+1+JSPN-1)
-                              TOT2=TOT2+UMAT(UMatInd(IDA,IDF,IDC,IDB
-     &                                       ,0,0))
-                              TOT2=TOT2+UMAT(UMatInd(IDA,IDB,IDC,IDF
-     &                                       ,0,0))
+                              TOT2=TOT2+UMAT(UMatInd(IDA,IDF,IDC,IDB))
+                              TOT2=TOT2+UMAT(UMatInd(IDA,IDB,IDC,IDF))
                               IF(KSPN.EQ.JSPN) THEN
-                              TOT2=TOT2-UMAT(UmatInd(IDA,IDF,IDB,IDC
-     &                                       ,0,0))
-                              TOT2=TOT2-UMAT(UMatInd(IDA,IDB,IDF,IDC
-     &                                       ,0,0))
+                              TOT2=TOT2-UMAT(UmatInd(IDA,IDF,IDB,IDC))
+                              TOT2=TOT2-UMAT(UMatInd(IDA,IDB,IDF,IDC))
                               ENDIF
                               TOT1B=TOT1B+TOT2*CMAT(J,C,JSPN)
                            ENDDO

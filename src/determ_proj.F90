@@ -60,7 +60,7 @@ contains
             do i = 1, TotWalkers
                 if (test_flag(CurrentDets(:,i),flag_deterministic)) then
                     counter = counter + 1
-                    comp = DetBitLT(CurrentDets(:,i), ilutHF, NIfD, .false.)
+                    comp = DetBitLT(CurrentDets(:,i), ilutHF, NIfD)
                     if (comp == 0) hf_index = counter
                 end if
             end do

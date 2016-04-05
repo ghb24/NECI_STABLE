@@ -352,7 +352,7 @@ contains
         integer(n_int), optional, intent(out) :: connected_space(0:NIfTot, connected_space_size)
         logical, intent(in), optional :: tSinglesOnlyOpt
 
-        integer(n_int) :: ilutJ(0:NIfTot), ilut_tmp(0:NIfTot)
+        integer(n_int) :: ilutJ(0:NIfTot)
         integer :: nI(nel), nJ(nel)
         integer :: i, excit(2,2), ex_flag
         integer, allocatable :: excit_gen(:)
@@ -461,10 +461,10 @@ contains
         integer(n_int), optional, intent(out) :: connected_space(0:NIfTot, connected_space_size)
         logical, intent(in), optional :: tSinglesOnlyOpt
 
-        integer(n_int) :: ilutJ(0:NIfTot), ilut_tmp(0:NIfTot)
+        integer(n_int) :: ilutJ(0:NIfTot)
         integer :: nI(nel), nJ(nel)
         integer :: i, excit(2,2), ex_flag
-        integer :: nStore(6), iMaxExcit
+        integer :: nStore(6)
         integer, allocatable :: excit_gen(:)
         logical :: tStoreConnSpace, tSinglesOnly, tTempUseBrill, tAllExcitFound
 
@@ -526,7 +526,6 @@ contains
 
         integer(n_int) :: ilut_tmp(0:NIfTot)
         integer :: ic
-        HElement_t(dp) :: hel_unused
 
         ! Generate the next determinant.
         call GenSymExcitIt2Par_worker(nI, nel, G1, nBasis, .false., excit_gen, nJ, &

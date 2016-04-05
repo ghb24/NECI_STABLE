@@ -61,7 +61,7 @@ contains
         i=MinInd
         j=MaxInd
         IF(i-j.eq.0) THEN
-            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),NIfDBO,.false.)
+            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),NIfDBO)
             IF(Comp.eq.0) THEN
                 tSuccess=.true.
                 PartInd=MaxInd
@@ -77,7 +77,7 @@ contains
 !            WRITE(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(CurrentDets(:,N),iLut(:),NIfDBO,.false.)
+            Comp=DetBitLT(CurrentDets(:,N),iLut(:),NIfDBO)
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -95,7 +95,7 @@ contains
                 IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry 
 !of the list and leave.  We need to check the last index.
-                    Comp=DetBitLT(CurrentDets(:,i+1),iLut(:),NIfDBO,.false.)
+                    Comp=DetBitLT(CurrentDets(:,i+1),iLut(:),NIfDBO)
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1
@@ -140,10 +140,10 @@ contains
     subroutine bin_search_trial(ilut, amp, tTrial, tCon)
 
         integer(n_int), intent(in) :: ilut(0:)
-        real(dp), intent(out) :: amp(:)
+        HElement_t(dp), intent(out) :: amp(:)
         logical, intent(out) :: tTrial, tCon
 
-        integer :: i, pos
+        integer :: pos
 
         amp = 0.0_dp
         tTrial = .false.
@@ -182,7 +182,7 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:)
         integer, intent(in) :: nI(nel)
-        real(dp), intent(out) :: amp(:)
+        HElement_t(dp), intent(out) :: amp(:)
         logical, intent(out) :: tTrial, tCon
 
         integer :: i, hash_val
@@ -227,7 +227,7 @@ contains
         ! definitely in the trial space, and performs a stop_all if not.
 
         integer(n_int), intent(in) :: ilut(0:)
-        real(dp), intent(out) :: amps(:)
+        HElement_t(dp), intent(out) :: amps(:)
 
         integer :: i, hash_val
         integer :: nI(nel)

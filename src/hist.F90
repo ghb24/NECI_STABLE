@@ -409,11 +409,6 @@ contains
         integer, intent(out) :: PartInd
         logical , intent(out) :: tSuccess
 
-        integer :: open_orbs
-        integer(n_int) :: ilut_sym(0:NIfTot)
-        real(dp) :: delta(lenof_sign)
-        character(*), parameter :: t_r = 'add_hist_spawn'
-
         tSuccess = .false.
         if (ExcitLevel == nel) then
             call BinSearchParts2 (ilut,  FCIDetIndex(ExcitLevel), det, PartInd,&
@@ -439,12 +434,17 @@ contains
         real(dp), intent(in) :: HDiag
         integer :: bin
         character(*), parameter :: t_r = "add_hist_energies"
+
+        integer(n_int) :: iUnused
         
         bin = int(HDiag / BinRange) + 1
         if (bin > iNoBins) &
             call stop_all (t_r, "Histogramming energies higher than the &
                          &arrays can cope with. Increase iNoBins or BinRange")
         HistogramEnergy(bin) = HistogramEnergy(bin) + sum(abs(Sign))
+
+        ! Avoid compiler warnings
+        iUnused = ilut(0)
 
     end subroutine
 
@@ -460,7 +460,7 @@ contains
 
         integer :: nopen, ntot, S, ncsf, off, flg, j, k, epos
         integer :: dorder(nel), nI(nel)
-        real(dp) :: coeff, S_coeffs(LMS:nel), norm, S2, S22
+        real(dp) :: coeff, S_coeffs(LMS:nel), norm, S2
         real(dp) :: sgn(lenof_sign)
         real(dp) :: AllNode_S_coeffs(LMS:nel)
 
@@ -661,7 +661,7 @@ contains
         ssq = tmp
 
         do run = 1, inum_runs
-            if (all_norm_psi_squared(run) == 0) then
+            if (abs(all_norm_psi_squared(run)) < 1.0e-10_dp) then
                 ssq(run) = 0.0_dp
             else
 
@@ -706,7 +706,7 @@ contains
         integer(n_int), pointer :: detcurr(:)
         integer(n_int) :: splus(0:NIfTot), sminus(0:NIfTot)
         logical :: running, any_running
-        real(dp), dimension(inum_runs) :: ssq, Allssq, tmp
+        real(dp), dimension(inum_runs) :: ssq, tmp
         integer :: max_per_proc, max_spawned, run
         real(dp) :: sgn1(lenof_sign), sgn2(lenof_sign)
 
@@ -817,7 +817,7 @@ contains
         ssq = tmp
 
         do run = 1, inum_runs
-            if (all_norm_psi_squared(run) == 0) then
+            if (abs(all_norm_psi_squared(run)) < 1.0e-10_dp) then
                 ssq(run) = 0.0_dp
             else
                 ssq(run) = ssq(run) / all_norm_psi_squared(run)
@@ -943,7 +943,7 @@ contains
         ssq_sum=All_ssq_sum
 
         do run = 1, inum_runs
-            if (psi_squared(run) == 0) then
+            if (abs(psi_squared(run)) < 1.0e-10_dp) then
                 ssq(run) = 0.0_dp
             else
                 ssq(run) = real(ssq_sum(run),dp) / psi_squared(run)

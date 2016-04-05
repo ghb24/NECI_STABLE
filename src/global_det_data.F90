@@ -269,7 +269,6 @@ contains
 
         integer, intent(in) :: j
         real(dp), intent(in) :: tm
-        character(*), parameter :: this_routine = 'set_part_init_time'
 
         if (tSurvivalInitiatorThreshold .or. tSurvivalInitMultThresh) then
             global_determinant_data(pos_tm_occ, j) = tm
@@ -281,7 +280,6 @@ contains
 
         integer, intent(in) :: j
         real(dp) :: tm
-        character(*), parameter :: this_routine = 'get_part_init_time'
 
         if (tSurvivalInitiatorThreshold .or. tSurvivalInitMultThresh) then
             tm = global_determinant_data(pos_tm_occ, j)
@@ -308,7 +306,7 @@ contains
         integer :: cnt
 
         if (tSpawnCountInitiatorThreshold) then
-            cnt = global_determinant_data(pos_spawn_cnt, j)
+            cnt = int(global_determinant_data(pos_spawn_cnt, j))
         else
             cnt = 0
         end if
@@ -319,7 +317,9 @@ contains
 
         integer, intent(in) :: j
         real(dp) :: rate
+#ifdef __DEBUG
         character(*), parameter :: this_routine = 'get_spawn_rate'
+#endif
 
         ASSERT(tContTimeFCIMC .and. tContTimeFull)
         rate = global_determinant_data(pos_spawn_rate, j)
@@ -330,7 +330,9 @@ contains
 
         integer, intent(in) :: j
         real(dp), intent(in) :: rate
+#ifdef __DEBUG
         character(*), parameter :: this_routine = 'set_spawn_rate'
+#endif
 
         ASSERT(tContTimeFCIMC .and. tContTimeFull)
         global_determinant_data(pos_spawn_rate, j) = rate

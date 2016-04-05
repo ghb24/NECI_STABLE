@@ -197,7 +197,6 @@ MODULE SymExcit3
 ! When the last single is found it then finds the first double excitation, unless exflag=1 in which tAllExcitFound 
 ! becomes true and no more excitations are generated.
         use SystemData , only : tFixLz
-        USE SymData, only: nSymLabels
         use constants, only: bits_n_int
         INTEGER :: nI(NEl),Orbi,Orba,Symi,nJ(NEl)
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
@@ -372,12 +371,12 @@ MODULE SymExcit3
         USE SystemData , only: ElecPairs, tFixLz, iMaxLz
         USE GenRandSymExcitNUMod , only: PickElecPair
         use constants, only: bits_n_int
-        INTEGER :: nI(NEl),Orbj,Orbi,Orba,Orbb,Syma,Symb,NewSym
+        INTEGER :: nI(NEl),Orbj,Orbi,Orba,Orbb,Syma,Symb
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,Spinb,nJ(NEl),ExcitMat3(2,2),SumMl
         INTEGER , SAVE :: ijInd,OrbaChosen,OrbbIndex,Spina,SymInd
         LOGICAL :: tDoubleExcitFound,tFirsta,tFirstb,tNewij,tNewa,tAllExcitFound,tParity,tij_lt_ab_only
-        INTEGER :: Mli, Mla, Mlb, Indij
+        INTEGER :: Mla, Mlb, Indij
 
 !        write(6,*) "SymLabelCounts2: ",SymLabelCounts2(1,:)
 !        write(6,*) "SymLabelCounts2: ",SymLabelCounts2(2,:)

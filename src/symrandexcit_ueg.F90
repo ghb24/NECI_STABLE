@@ -38,15 +38,14 @@ contains
         HElement_t(dp), intent(out) :: HelGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
-        character(*), parameter :: this_routine = 'gen_ueg_excit'
 
         real(dp) :: cum_sum, cum_arr(nbasis), pelec, porb, elem, r, testE
-        integer :: eleci, elecj, spnb, ind, iSpn
+        integer :: eleci, elecj, spnb, ind, iSpn, iUnused
         integer :: orbi, orbj, orba, orbb
         integer :: ki(3), kj(3), ka(3), kb(3)
 
         ! Mitigate warnings
-        HelGen = 0.0_dp
+        HelGen = 0.0_dp; iUnused=exFlag; iUnused=store%nopen
 
         ! Pick a pair of electrons (i,j) to generate from.
         ! This uses a triangular mapping to pick them uniformly.
@@ -101,7 +100,11 @@ contains
                     if (iSpn == 1) then
                         spnb = 1
                     elseif (iSpn == 2) then
-                        spnb = (G1(orba)%Ms)/2 + 1
+                        ! w.d: bug found by peter jeszenski and confirmed by 
+                        ! simon! 
+                        ! messed up alpa and beta spin here.. 
+                        spnb = (-G1(orba)%Ms + 1)/2 + 1
+!                         spnb = (G1(orba)%Ms)/2 + 1
                     elseif(iSpn == 3) then
                         spnb = 2
                     end if
@@ -129,7 +132,7 @@ contains
 
         ! If there are no available excitations, then we need to reject this
         ! excitation
-        if (cum_sum == 0.0_dp) then
+        if (abs(cum_sum) < 1.0e-12_dp) then
             nJ(1) = 0
             return
         end if
@@ -145,7 +148,11 @@ contains
         if (iSpn == 1) then
             spnb = 1
         elseif (iSpn == 2) then
-            spnb = (G1(orba)%Ms)/2 + 1
+        ! w.d: bug found by peter jeszenski and confirmed by 
+        ! simon! 
+        ! messed up alpa and beta spin here.. 
+        spnb = (-G1(orba)%Ms + 1)/2 + 1
+!       spnb = (G1(orba)%Ms)/2 + 1
         elseif(iSpn == 3) then
             spnb = 2
         end if

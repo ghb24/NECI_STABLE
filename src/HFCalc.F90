@@ -3,13 +3,13 @@
  
 #include "macros.h"
 MODULE HFCalc
-   use constants, only: dp
+   use constants, only: dp, int64
    implicit none
    save
    contains
       subroutine HFDoCalc()
       Use global_utilities
-      use SystemData, only: tStarStore, BasisFN
+      use SystemData, only: BasisFN
       use IntegralsData, only: tHFBasis, tHFCalc, iHFMethod, tReadHF, nHFIt, HFMix, HFCDelta, HFEDelta
       use IntegralsData, only: HFRand, tRHF, ntFrozen, tReadTUMat
       use SystemData, only : tCPMD,  tHFOrder,nBasisMax, G1, Arr, Brr, ECore, nEl, nBasis, iSpinSkip, LMS
@@ -29,7 +29,8 @@ MODULE HFCalc
       HElement_t(dp),pointer :: TMat2D2(:,:)
       integer i
       integer nOrbUsed
-      integer UMatInt, TMatInt
+      integer TMatInt
+      integer(int64) :: UMatInt
       integer(TagIntType),save :: tagUMat2=0,tagHFE=0,tagHFBasis=0
          
 !C.. If we are using an HF basis instead of our primitive basis, we need
@@ -80,7 +81,6 @@ MODULE HFCalc
             !THIS ROUTINE NO LONGER WORKS WITH NEW TMAT/UMAT MODULARISATION
             IF(THFBASIS) THEN
                WRITE(6,*) "Allocating TMAT2"
-               IF(TSTARSTORE) call stop_all(this_routine, 'TSTARSTORE WITH HFBASIS?!')
                CALL SetupTMAT2(nBasis,2,TMATINT)
                NORBUSED=NBASIS-NTFROZEN
                IF(TREADTUMAT) THEN
@@ -95,7 +95,7 @@ MODULE HFCalc
                CALL GetUMatSize(nBasis,nEl,UMATINT)
                call shared_allocate ("umat2", umat2, (/UMatInt/))
                !Allocate(UMat2(UMatInt), stat=ierr)
-               LogAlloc(ierr,'UMAT2', UMatInt, HElement_t_SizeB, tagUMat2)
+               LogAlloc(ierr,'UMAT2', int(UMatInt), HElement_t_SizeB, tagUMat2)
                UMAT2 = 0.0_dp
 !C.. We need to pass the TMAT to CALCHFUMAT as TMAT is no longer diagona
 !C.. This also modified G1, ARR, BRR

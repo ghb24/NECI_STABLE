@@ -193,7 +193,7 @@ MODULE ReadInput_neci
 
         ! Check that the specified runtime options are consistent and valid
 
-        use SystemData, only: nel, tStarStore, tUseBrillouin, beta, tFixLz, &
+        use SystemData, only: nel, tUseBrillouin, beta, tFixLz, &
                               tFindCINatOrbs, tNoRenormRandExcits, LMS, STOT,&
                               tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
                               tGen_4ind_weighted, tGen_4ind_reverse, &
@@ -403,12 +403,6 @@ MODULE ReadInput_neci
             write(6,*) "Random excitations WILL have to be renormalised, &
                        &since an excitation weighting has been detected."
         ENDIF
-  
-        !IF FINDD or USED specified without using Excitweighting option
-        if ((I_VMAX >= 3) .and. (tStarStore)) then 
-            call report("Error - can only use STARSTOREREAD with double &
-                        &excitations of HF",.true.)
-        endif
   
         ! Check details for spin projection
         if (tSpinProject) then
