@@ -446,7 +446,8 @@ contains
                         H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
 #ifndef __CMPLX
                     else if (tGUGA) then
-                        H_ij = calc_off_diag_guga_gen(nI,nJ)
+                        H_ij = calc_off_diag_guga_gen(con_space(:,i), &
+                            trial_space(:,j))
 #endif
                     else
                         H_ij = get_helement(nI, nJ, con_space(:,i), trial_space(:,j))
