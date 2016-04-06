@@ -75,8 +75,8 @@ module fcimc_initialisation
     use procedure_pointers, only: generate_excitation, attempt_create, &
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
-                                  fill_rdm_diag_currdet, new_child_stats, &
-                                  get_conn_helement
+                                  fill_rdm_diag_currdet_old, fill_rdm_diag_currdet, &
+                                  new_child_stats, get_conn_helement
     use symrandexcit3, only: gen_rand_excit3
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
                                        gen_excit_4ind_weighted, &
@@ -88,7 +88,8 @@ module fcimc_initialisation
     use FciMCLoggingMOD, only : InitHistInitPops
     use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
     use rdm_general, only: DeallocateRDMs, InitRDMs, extract_bit_rep_avsign_no_rdm
-    use rdm_filling_old, only: fill_rdm_diag_currdet_norm
+    use rdm_filling_old, only: fill_rdm_diag_currdet_norm_old
+    use rdm_filling, only: fill_rdm_diag_currdet_norm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
                          FindExcitBitDet, IsAllowedHPHF, DetBitEq, &
                          EncodeBitDet
@@ -1522,6 +1523,7 @@ contains
         extract_bit_rep_avsign => extract_bit_rep_avsign_no_rdm
 
         fill_rdm_diag_currdet => fill_rdm_diag_currdet_norm
+        fill_rdm_diag_currdet_old => fill_rdm_diag_currdet_norm_old
 
     end subroutine init_fcimc_fn_pointers
 

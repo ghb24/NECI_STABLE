@@ -49,7 +49,8 @@ module fcimc_helper
     use hash, only: remove_hash_table_entry
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
     use load_balance, only: adjust_load_balance
-    use rdm_filling_old, only: det_removed_fill_diag_rdm
+    use rdm_filling_old, only: det_removed_fill_diag_rdm_old
+    use rdm_filling, only: det_removed_fill_diag_rdm
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
     use Parallel_neci
     use FciMCLoggingMod, only: HistInitPopulations, WriteInitPops
@@ -1678,7 +1679,7 @@ contains
     subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, RealwSign, &
                              DetPosition, walkExcitLevel)
 
-        use rdm_data, only: one_rdms, rdms, two_rdm_spawn
+        use rdm_data, only: one_rdms, two_rdm_spawn, rdms
 
         integer, intent(in) :: DetCurr(nel) 
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
@@ -1740,8 +1741,8 @@ contains
             ! All walkers died.
             if(tFillingStochRDMonFly) then
                 do irdm = 1, nrdms
-                    call det_removed_fill_diag_rdm(two_rdm_spawn, one_rdms(irdm), rdms(irdm), irdm, &
-                                                    CurrentDets(:,DetPosition), DetPosition)
+                    call det_removed_fill_diag_rdm_old(rdms(irdm), irdm, CurrentDets(:,DetPosition), DetPosition)
+                    call det_removed_fill_diag_rdm(two_rdm_spawn, one_rdms(irdm), irdm, CurrentDets(:,DetPosition), DetPosition)
                 end do
                 ! Set the average sign and occupation iteration to zero, so
                 ! that the same contribution will not be added in in

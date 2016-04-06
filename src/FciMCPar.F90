@@ -23,7 +23,8 @@ module FciMCParMod
                             attempt_die_spin_proj
     use rdm_data, only: tCalc_RDMEnergy, rdms, rdm_estimates
     use rdm_general, only: FinaliseRDMs
-    use rdm_filling_old, only: fill_rdm_offdiag_deterministic, fill_rdm_diag_wrapper
+    use rdm_filling_old, only: fill_rdm_offdiag_deterministic_old, fill_rdm_diag_wrapper_old
+    use rdm_filling, only: fill_rdm_offdiag_deterministic, fill_rdm_diag_wrapper
     use rdm_estimators, only: rdm_output_wrapper, write_rdm_estimates
     use rdm_explicit, only: fill_explicitrdm_this_iter, fill_hist_explicitrdm_this_iter
     use procedure_pointers, only: attempt_die_t, generate_excitation_t, &
@@ -788,8 +789,10 @@ module FciMCParMod
                 ! determinant, for each rdm.
                 if (tFill_RDM .and. (.not. tNoNewRDMContrib)) then
                     do irdm = 1, nrdms
-                        call fill_rdm_diag_currdet(two_rdm_spawn, one_rdms(irdm), rdms(irdm), irdm, CurrentDets(:,j), &
-                                                    DetCurr, j, walkExcitLevel_toHF, tCoreDet)
+                        call fill_rdm_diag_currdet_old(rdms(irdm), irdm, CurrentDets(:,j), DetCurr, j, &
+                                                    walkExcitLevel_toHF, tCoreDet)
+                        call fill_rdm_diag_currdet(two_rdm_spawn, one_rdms(irdm), irdm, CurrentDets(:,j), DetCurr, j, &
+                                                    walkExcitLevel_toHF, tCoreDet)
                     end do
                 endif
             endif
@@ -992,7 +995,8 @@ module FciMCParMod
                 ! (the diagonal contributions are done in the same place for
                 ! all determinants, regardless of whether they are core or not,
                 ! so are not added in here).
-                if (tFill_RDM) call fill_RDM_offdiag_deterministic(two_rdm_spawn, one_rdms, rdms)
+                if (tFill_RDM) call fill_RDM_offdiag_deterministic_old(rdms)
+                if (tFill_RDM) call fill_RDM_offdiag_deterministic(two_rdm_spawn, one_rdms)
             end if
         end if
 
@@ -1032,7 +1036,8 @@ module FciMCParMod
         end if
 
         if (tFillingStochRDMonFly) then
-            call fill_rdm_diag_wrapper(two_rdm_spawn, one_rdms, rdms, CurrentDets, int(TotWalkers, sizeof_int))
+            call fill_rdm_diag_wrapper_old(rdms, CurrentDets, int(TotWalkers, sizeof_int))
+            call fill_rdm_diag_wrapper(two_rdm_spawn, one_rdms, CurrentDets, int(TotWalkers, sizeof_int))
         end if
 
         call update_iter_data(iter_data)
