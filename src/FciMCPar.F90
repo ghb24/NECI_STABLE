@@ -642,7 +642,7 @@ module FciMCParMod
 
     subroutine PerformFCIMCycPar(iter_data)
 
-        use rdm_data, only: two_rdm_spawn, rdm_main
+        use rdm_data, only: two_rdm_spawn, rdm_main, one_rdms
         use rdm_parallel, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2
         
         ! Iteration specific data
@@ -788,8 +788,8 @@ module FciMCParMod
                 ! determinant, for each rdm.
                 if (tFill_RDM .and. (.not. tNoNewRDMContrib)) then
                     do irdm = 1, nrdms
-                        call fill_rdm_diag_currdet(two_rdm_spawn, rdms(irdm), irdm, CurrentDets(:,j), DetCurr, j, &
-                                                    walkExcitLevel_toHF, tCoreDet)
+                        call fill_rdm_diag_currdet(two_rdm_spawn, one_rdms(irdm), rdms(irdm), irdm, CurrentDets(:,j), &
+                                                    DetCurr, j, walkExcitLevel_toHF, tCoreDet)
                     end do
                 endif
             endif
@@ -992,7 +992,7 @@ module FciMCParMod
                 ! (the diagonal contributions are done in the same place for
                 ! all determinants, regardless of whether they are core or not,
                 ! so are not added in here).
-                if (tFill_RDM) call fill_RDM_offdiag_deterministic(two_rdm_spawn, rdms)
+                if (tFill_RDM) call fill_RDM_offdiag_deterministic(two_rdm_spawn, one_rdms, rdms)
             end if
         end if
 
@@ -1031,7 +1031,9 @@ module FciMCParMod
             call calc_replica_overlaps()
         end if
 
-        if (tFillingStochRDMonFly) call fill_rdm_diag_wrapper(two_rdm_spawn, rdms, CurrentDets, int(TotWalkers, sizeof_int))
+        if (tFillingStochRDMonFly) then
+            call fill_rdm_diag_wrapper(two_rdm_spawn, one_rdms, rdms, CurrentDets, int(TotWalkers, sizeof_int))
+        end if
 
         call update_iter_data(iter_data)
 

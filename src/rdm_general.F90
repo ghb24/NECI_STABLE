@@ -137,12 +137,14 @@ contains
         if (RDMExcitLevel == 1 .or. RDMExcitLevel == 3) then
             do i = 1, nrdms
                 allocate(one_rdms(i)%matrix(NoOrbs, NoOrbs), stat=ierr)
-                if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating 1-RDM array,')
+                if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating 1-RDM array.')
                 call LogMemAlloc('one_rdms(i)%matrix', NoOrbs**2, 8, t_r, one_rdms(i)%matrix_tag, ierr)
                 one_rdms(i)%matrix(:,:) = 0.0_dp
 
-                MemoryAlloc = MemoryAlloc + ( NoOrbs * NoOrbs * 8 )
-                MemoryAlloc_Root = MemoryAlloc_Root + ( NoOrbs * NoOrbs * 8 )
+                allocate(one_rdms(i)%Rho_ii(NoOrbs), stat=ierr)
+                if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating 1-RDM diagonal array (Rho_ii).')
+                call LogMemAlloc('one_rdms(i)%Rho_ii', NoOrbs, 8, t_r, one_rdms(i)%Rho_iiTag, ierr)
+                one_rdms(i)%Rho_ii(:) = 0.0_dp
             end do
         end if
 
@@ -1007,7 +1009,7 @@ contains
         do i = 1, size(rdms)
 
             if (RDMExcitLevel .eq. 1) then
-                call Finalise_1e_RDM(rdms(i), i, Norm_1RDM)
+                call Finalise_1e_RDM(rdms(i)%matrix, rdms(i)%Rho_ii, i, Norm_1RDM)
             else
                 ! We always want to calculate one final RDM energy, whether or not we're 
                 ! calculating the energy throughout the calculation.
@@ -1020,14 +1022,14 @@ contains
                 call rdm_output_wrapper(rdms(i), i, rdm_estimates(i))
 
                 if (tPrint1RDM) then
-                    call Finalise_1e_RDM(rdms(i), i, Norm_1RDM)
+                    call Finalise_1e_RDM(rdms(i)%matrix, rdms(i)%Rho_ii, i, Norm_1RDM)
                 else if (tDiagRDM .and. (iProcIndex .eq. 0)) then
-                    call calc_1e_norms(rdms(i), Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
+                    call calc_1e_norms(rdms(i)%matrix, rdms(i)%Rho_ii, Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
                     write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
                 end if
 
                 if (tDumpForcesInfo) then
-                    if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(i), i, Norm_1RDM)
+                    if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(i)%matrix, rdms(i)%Rho_ii, i, Norm_1RDM)
                     call Calc_Lagrangian_from_RDM(rdms(i), Norm_1RDM, rdm_estimates(i)%Norm_2RDM)
                     call convert_mats_Molpforces(rdms(i), Norm_1RDM, rdm_estimates(i)%Norm_2RDM)
                 end if
@@ -1044,7 +1046,7 @@ contains
             ! This is where we would likely call any further calculations of
             ! forces, etc.
             if (tDipoles) then
-                if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(i), i, Norm_1RDM)
+                if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(i)%matrix, rdms(i)%Rho_ii, i, Norm_1RDM)
                 call CalcDipoles(rdms(i), Norm_1RDM)
             end if
 
@@ -1057,20 +1059,26 @@ contains
         end do
 
         if (tPrint1RDM) then
-            call calc_rdm_trace(rdm_main, rdm_trace)
-            call MPISumAll(rdm_trace, all_rdm_trace)
-
-            two_rdm_spawn%free_slots = two_rdm_spawn%init_free_slots
-            call clear_hash_table(two_rdm_spawn%rdm_send%hash_table)
-            call create_spinfree_2rdm(rdm_main, two_rdm_spawn)
-            call calc_1rdms_from_spinfree_2rdms(one_rdms, two_rdm_spawn%rdm_recv, all_rdm_trace)
-
-            !call calc_1rdms_from_2rdms(one_rdms, rdm_main, all_rdm_trace, tOpenShell)
-
-            if (iProcIndex == 0) then
+            if (RDMExcitLevel == 1) then
                 do i = 1, size(one_rdms)
-                    call Write_out_1RDM(one_rdms(i)%matrix, i, 1.0_dp, .true., .true.)
+                    call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%Rho_ii, i, Norm_1RDM, .true.)
                 end do
+            else
+                call calc_rdm_trace(rdm_main, rdm_trace)
+                call MPISumAll(rdm_trace, all_rdm_trace)
+
+                !two_rdm_spawn%free_slots = two_rdm_spawn%init_free_slots
+                !call clear_hash_table(two_rdm_spawn%rdm_send%hash_table)
+                !call create_spinfree_2rdm(rdm_main, two_rdm_spawn)
+                !call calc_1rdms_from_spinfree_2rdms(one_rdms, two_rdm_spawn%rdm_recv, all_rdm_trace)
+
+                call calc_1rdms_from_2rdms(one_rdms, rdm_main, all_rdm_trace, tOpenShell)
+
+                if (iProcIndex == 0) then
+                    do i = 1, size(one_rdms)
+                        call Write_out_1RDM(one_rdms(i)%matrix, i, 1.0_dp, .true., .true.)
+                    end do
+                end if
             end if
         end if
 
@@ -1086,9 +1094,9 @@ contains
     
     end subroutine FinaliseRDMs
 
-    subroutine Finalise_1e_RDM(rdm, irdm, Norm_1RDM) 
+    subroutine Finalise_1e_RDM(matrix, matrix_diag, irdm, Norm_1RDM, tDifferentName) 
 
-        ! This routine takes the 1-RDM (rdm%matrix), normalises it, makes it 
+        ! This routine takes the 1-RDM (matrix), normalises it, makes it 
         ! hermitian if required, and prints out the versions we're interested
         ! in. This is only ever called at the very end of a calculation.
 
@@ -1098,9 +1106,11 @@ contains
         use rdm_data, only: rdm_t
         use RotateOrbsData, only: NoOrbs
 
-        type(rdm_t), intent(inout) :: rdm
+        real(dp), intent(inout) :: matrix(:,:)
+        real(dp), intent(inout) :: matrix_diag(:)
         integer, intent(in) :: irdm
         real(dp), intent(out) :: Norm_1RDM
+        logical, optional, intent(in) :: tDifferentName
                              
         integer :: ierr
         real(dp) :: Trace_1RDM, SumN_Rho_ii
@@ -1108,40 +1118,40 @@ contains
 
         Norm_1RDM = 0.0_dp
 
-        if (RDMExcitLevel .eq. 1) then
+        if (RDMExcitLevel == 1) then
 
             allocate(AllNode_one_rdm(NoOrbs, NoOrbs), stat=ierr)
             
-            call MPISumAll(rdm%matrix, AllNode_one_rdm)
-            rdm%matrix = AllNode_one_rdm
+            call MPISumAll(matrix, AllNode_one_rdm)
+            matrix = AllNode_one_rdm
             
             deallocate(AllNode_one_rdm)
 
         end if
 
-        if (iProcIndex .eq. 0) then 
+        if (iProcIndex == 0) then
 
             ! Find the normalisation.
-            call calc_1e_norms(rdm, Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
+            call calc_1e_norms(matrix, matrix_diag, Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
 
             ! Write out the unnormalised, non-hermitian OneRDM_POPS.
-            if (twrite_RDMs_to_read) call Write_out_1RDM(rdm%matrix, irdm, Norm_1RDM, .false.)
+            if (twrite_RDMs_to_read) call Write_out_1RDM(matrix, irdm, Norm_1RDM, .false.)
 
             ! Enforce the hermiticity condition.  If the RDMExcitLevel is not 1, the 
             ! 1-RDM has been constructed from the hermitian 2-RDM, so this will not 
             ! be necessary.
             ! The HF_Ref and HF_S_D_Ref cases are not hermitian by definition.
-            if (RDMExcitLevel .eq. 1) then
-                call make_1e_rdm_hermitian(rdm, Norm_1RDM) 
+            if (RDMExcitLevel == 1) then
+                call make_1e_rdm_hermitian(matrix, Norm_1RDM) 
                 
                 if (tForceCauchySchwarz) then
-                    call Force_Cauchy_Schwarz(rdm)
+                    call Force_Cauchy_Schwarz(matrix)
                 end if
 
             end if
 
             ! Write out the final, normalised, hermitian OneRDM.
-            if (tWrite_normalised_RDMs) call Write_out_1RDM(rdm%matrix, irdm, Norm_1RDM, .true.)
+            if (tWrite_normalised_RDMs) call Write_out_1RDM(matrix, irdm, Norm_1RDM, .true., tDifferentName)
 
             write(6,'(1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
 
@@ -1149,7 +1159,7 @@ contains
 
     end subroutine Finalise_1e_RDM
 
-    subroutine calc_1e_norms(rdm, Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
+    subroutine calc_1e_norms(matrix, matrix_diag, Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
 
         ! We want to 'normalise' the reduced density matrices. These are not
         ! even close to being normalised at the moment, because of the way
@@ -1161,12 +1171,13 @@ contains
 
         use FciMCData, only: HFDet_True
         use LoggingData, only: tDiagRDM
-        use rdm_data, only: rdm_t, tOpenShell
+        use rdm_data, only: tOpenShell
         use RotateOrbsData, only: SymLabelListInv_rot, NoOrbs
         use SystemData, only: BRR
         use UMatCache, only: gtID
 
-        type(rdm_t), intent(inout) :: rdm
+        real(dp), intent(in) :: matrix(:,:)
+        real(dp), intent(inout) :: matrix_diag(:)
         real(dp), intent(out) :: Trace_1RDM, Norm_1RDM, SumN_Rho_ii
 
         integer :: i, HFDet_ID, BRR_ID
@@ -1175,7 +1186,7 @@ contains
         Norm_1RDM = 0.0_dp
 
         do i = 1, NoOrbs
-            Trace_1RDM = Trace_1RDM + rdm%matrix(i,i)
+            Trace_1RDM = Trace_1RDM + matrix(i,i)
         end do
 
         Norm_1RDM = ( real(NEl, dp) / Trace_1RDM )
@@ -1201,22 +1212,22 @@ contains
             
             if (tDiagRDM) then
                 if (tOpenShell) then
-                    rdm%Rho_ii(i) = rdm%matrix(SymLabelListInv_rot(BRR(i)),SymLabelListInv_rot(BRR(i))) * Norm_1RDM
+                    matrix_diag(i) = matrix(SymLabelListInv_rot(BRR(i)),SymLabelListInv_rot(BRR(i))) * Norm_1RDM
                 else
                     BRR_ID = gtID(BRR(2*i))
-                    rdm%Rho_ii(i) = rdm%matrix(SymLabelListInv_rot(BRR_ID),SymLabelListInv_rot(BRR_ID)) * Norm_1RDM
+                    matrix_diag(i) = matrix(SymLabelListInv_rot(BRR_ID),SymLabelListInv_rot(BRR_ID)) * Norm_1RDM
                 end if
             end if
     
             if (i.le.NEl) then
                 if (tOpenShell) then
                     SumN_Rho_ii = SumN_Rho_ii + &
-                            ( rdm%matrix(SymLabelListInv_rot(HFDet_True(i)),SymLabelListInv_rot(HFDet_True(i))) &
+                            ( matrix(SymLabelListInv_rot(HFDet_True(i)),SymLabelListInv_rot(HFDet_True(i))) &
                                 * Norm_1RDM )
                 else
                     HFDet_ID = gtID(HFDet_True(i))
                     SumN_Rho_ii = SumN_Rho_ii + &
-                            ( rdm%matrix(SymLabelListInv_rot(HFDet_ID),SymLabelListInv_rot(HFDet_ID)) &
+                            ( matrix(SymLabelListInv_rot(HFDet_ID),SymLabelListInv_rot(HFDet_ID)) &
                                 * Norm_1RDM ) / 2.0_dp
                 end if
             end if
@@ -1224,15 +1235,14 @@ contains
 
     end subroutine calc_1e_norms
 
-    subroutine make_1e_rdm_hermitian(rdm, Norm_1RDM)
+    subroutine make_1e_rdm_hermitian(matrix, Norm_1RDM)
 
         ! Simply average the 1-RDM(i,j) and 1-RDM(j,i) elements which should
         ! be equal in a perfect world.
 
-        use rdm_data, only: rdm_t
         use RotateOrbsData, only: SymLabelListInv_rot, NoOrbs
 
-        type(rdm_t), intent(inout) :: rdm
+        real(dp), intent(inout) :: matrix(:,:)
         real(dp), intent(in) :: Norm_1RDM
 
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity 
@@ -1243,20 +1253,20 @@ contains
         Sum_Error_Hermiticity = 0.0_dp
         do i = 1, NoOrbs
             do j = i, NoOrbs
-                if ((abs((rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
-                        (rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))).gt.Max_Error_Hermiticity) &
-                    Max_Error_Hermiticity = abs((rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
-                                                (rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))
+                if ((abs((matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
+                        (matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))).gt.Max_Error_Hermiticity) &
+                    Max_Error_Hermiticity = abs((matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
+                                                (matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))
 
                 Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                        abs((rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
-                                            (rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))
+                                        abs((matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
+                                            (matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))
 
-                Temp = (rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) + &
-                        rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)))/2.0_dp
+                Temp = (matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) + &
+                        matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)))/2.0_dp
 
-                rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = Temp
-                rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = Temp
+                matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = Temp
+                matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = Temp
             end do
         end do
 
@@ -1266,12 +1276,11 @@ contains
 
     end subroutine make_1e_rdm_hermitian
 
-    subroutine Force_Cauchy_Schwarz(rdm)
+    subroutine Force_Cauchy_Schwarz(matrix)
 
-        use rdm_data, only: rdm_t
         use RotateOrbsData, only: SymLabelListInv_rot
 
-        type(rdm_t), intent(inout) :: rdm
+        real(dp), intent(inout) :: matrix(:,:)
 
         integer :: i, j
         real(dp) :: UpperBound
@@ -1281,15 +1290,15 @@ contains
         do i = 1, nBasis
             do j = 1, nBasis
 
-                UpperBound = sqrt(rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(i))&
-                    *rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(j)))
+                UpperBound = sqrt(matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(i))&
+                    *matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(j)))
 
-                if (abs(rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))) .gt. UpperBound)then
+                if (abs(matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))) .gt. UpperBound)then
 
-                    if (rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) .lt. 0.0_dp)then
-                        rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = -UpperBound
-                    else if (rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) .gt. 0.0_dp)then
-                        rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = UpperBound
+                    if (matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) .lt. 0.0_dp)then
+                        matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = -UpperBound
+                    else if (matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) .gt. 0.0_dp)then
+                        matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = UpperBound
                     end if
 
                     write(6,'("Changing element:")') i, j
