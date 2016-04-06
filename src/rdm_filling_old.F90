@@ -1,6 +1,6 @@
 #include "macros.h"
 
-module rdm_filling
+module rdm_filling_old
 
     ! This module contains routines used to perform filling of the RDM arrays,
     ! as done on-the-fly during an FCIQMC simulation.
@@ -1582,4 +1582,4 @@ contains
 
     end subroutine fill_RDM_offdiag_deterministic 
 
-end module rdm_filling
+end module rdm_filling_old

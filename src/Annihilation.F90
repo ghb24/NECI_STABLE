@@ -552,7 +552,7 @@ module AnnihilationMod
         ! step.
 
         use rdm_data, only: rdms, two_rdm_spawn, one_rdms
-        use rdm_filling, only: check_fillRDM_DiDj
+        use rdm_filling_old, only: check_fillRDM_DiDj
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(inout) :: TotWalkersNew

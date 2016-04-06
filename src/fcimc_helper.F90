@@ -49,7 +49,7 @@ module fcimc_helper
     use hash, only: remove_hash_table_entry
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
     use load_balance, only: adjust_load_balance
-    use rdm_filling, only: det_removed_fill_diag_rdm
+    use rdm_filling_old, only: det_removed_fill_diag_rdm
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
     use Parallel_neci
     use FciMCLoggingMod, only: HistInitPopulations, WriteInitPops
