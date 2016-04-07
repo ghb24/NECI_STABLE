@@ -320,7 +320,7 @@
 
     There are also flags to control how things are linked, what options are passed to the compiler
     to enable compiler warnings, and flags that depend on 32 or 64 bit builds. These should be
-    self explanatory from reading the files in \cmake{cmake/compiler_flags}.
+    self explanatory from reading the files in \code{cmake/compiler_flags}.
 
     If these defaults are insufficient, the compilation flags may also be overridden. Any arguments
     passed to cmake of the form
@@ -331,7 +331,7 @@
     \code{NECI_*} flag may be overridden on the command line with a \code{FORCE_*} flag (although
     it is possible that some of these have been accidentally ommitted from the implmentation).
 
-\subsubsection{Toolchain files (for example Archer)}
+\subsubsection{Toolchain files}
 
     Overriding all of the CMake variables on the command line is cumbersome and error prone.
     Various sets of overrides can be combined into a toolchain file, which can be passed
@@ -355,8 +355,9 @@
         CMAKE_FORCE_Fortran_COMPILER ( mpif90 GNU )
     \end{lstlisting}
     This will force the use of the commands \code{gcc}, \code{g++}, and \code{mpif90}, and will
-    set the \code{CMAKE_<lang>_COMPILER_ID} variable to \code{GNU} such that the compiler flags
-    set in the \code{cmake/compiler_flags/GNU_*.cmake} files are used. Because this turns off
+    set the \code[breaklines=true]{CMAKE_<lang>_COMPILER_ID} variable to \code{GNU} such that
+    the compiler flags set in the \code[breaklines=true]{cmake/compiler_flags/GNU_*.cmake}
+    files are used. Because this turns off
     any autodetection, CMake will not autodetect that the c++ standard library needs to be
     linked in to combine c++ and Fortran files. This will need to be corrected manually, using:
     \begin{lstlisting}[gobble=4]
@@ -364,7 +365,7 @@
     \end{lstlisting}
     A comprehensive documented example is found in \code{toolchains/gfortran-openmpi.cmake}.
 
-\subsubsubsection{Archer}
+    \textbf{Archer}
 
     As an example, we can consider the Archer supercomputer, located at EPCC in Edinburgh. This
     machine uses compiler wrapper scripts (written by Cray) to provide much of the functionality
@@ -388,18 +389,18 @@
     command line, or in a toolchain file as appropriate:
 
     \begin{description}
-        \codeitem{NECI_FIND_<package>}
+        \codeitem{NECI\_FIND\_<package>}
             If this is set to OFF, the package searcher will not be executed, and the associated
             option will be enabled without disabling the option.
-        \codeitem{<package>_FOUND}
+        \codeitem{<package>\_FOUND}
             For many of the package searchers, this disables the searching from inside the package
             rather than outside. In general, the first option is preferred.
-        \codeitem{<package>_LIBRARIES}
+        \codeitem{<package>\_LIBRARIES}
             The libraries to be linked in for use of the specifide package. If package searching is
             disabled, then to use the package this needs to be filled in explicitly.
-        \codeitem{<package>_DEFINITIONS}
+        \codeitem{<package>\_DEFINITIONS}
             Any additional compiler flags that are required to use the package.
-        \codeitem{<package>_INCLUDE_PATH}
+        \codeitem{<package>\_INCLUDE\_PATH}
             The location of any C or C++ header files, or fortran module files to be used during
             compilation
     \end{description}
