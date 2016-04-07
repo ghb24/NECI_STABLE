@@ -22,9 +22,6 @@ CMAKE_FORCE_Fortran_COMPILER ( mpif90 GNU )
 # set( ${PACKAGE_NAME}_LIBRARIES ... )
 
 set( NECI_FIND_MPI_NECI OFF )
-set( NECI_FIND_LibRT OFF )
-
-set( LIBRT_LIBRARIES rt )
 
 # Compile flags
 # =============
