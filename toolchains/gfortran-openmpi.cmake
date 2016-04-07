@@ -30,13 +30,12 @@ set( LIBRT_LIBRARIES rt )
 # =============
 
 # n.b. FORCE_ in the toolchain overrides the cmake/compiler_flags settings.
-#      NECI_ does not overrider compiler_flags settings, but works with CMAKE_FORCE_*_COMPILER
 
 # Arbitrary compile flags can be overriden here.
 # e.g.
 #
-# set( NECI_CXX_FLAGS_RELEASE -O3 )   # Release mode specific CXX flags (also: DEBUG, CLUSTER)
-# set( NECI_Fortran_FLAGS -O3 )       # All build-type fortran flags
+# set( FORCE_CXX_FLAGS_RELEASE -O3 )   # Release mode specific CXX flags (also: DEBUG, CLUSTER)
+# set( FORCE_Fortran_FLAGS -O3 )       # All build-type fortran flags
 
 # Link flags
 # ==========
@@ -44,7 +43,7 @@ set( LIBRT_LIBRARIES rt )
 # Arbitrary compile flags can be overriden here.
 # e.g.
 #
-# set( NECI_CXX_LINK_FLAGS -O3 )
+# set(  FORCE_CXX_LINK_FLAGS -O3 )
 
 # Linker libraries
 
