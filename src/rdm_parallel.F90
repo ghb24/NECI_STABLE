@@ -708,6 +708,8 @@ contains
 
     subroutine make_hermitian_rdm(rdm, spawn)
 
+        use SystemData, only: nbasis
+
         type(rdm_list_t), intent(in) :: rdm
         type(rdm_spawn_t), intent(inout) :: spawn
 
@@ -722,122 +724,179 @@ contains
             call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
             call extract_sign_rdm(rdm%elements(:,i), rdm_sign)
 
+            ! Factor of a half to account for prevent double-counting, and
+            ! instead average elements from above and below the diagonal.
+            if (pq /= rs) rdm_sign = 0.5_dp*rdm_sign
+
             ! If in the lower half of the RDM, reflect to the upper half.
             if (pq > rs) then
-                p_temp = p; q_temp = q;
-                p = r; q = s;
-                r = p_temp; s = q_temp;
+                call add_to_rdm_spawn_t(spawn, r, s, p, q, rdm_sign, .false.)
+            else
+                call add_to_rdm_spawn_t(spawn, p, q, r, s, rdm_sign, .false.)
             end if
-
-            call add_to_rdm_spawn_t(spawn, p, q, r, s, rdm_sign, .false.)
-        end do
-
-    end subroutine make_hermitian_rdm
-
-    subroutine apply_spin_sym_to_rdm(rdm, spawn)
-
-        ! Loop through all elements of the RDM, and whenever we have a bbbb
-        ! term, move it to the equivalent aaaa element, and similarly for baba
-        ! to abab and baab and abba (here a means alpha spin, b means beta spin).
-        ! Also, only include terms above the diagonal - so average off-diagonal
-        ! terms of the RDM. The ordering conforms with that of the printed
-        ! RDMs from NECI prior to distribution of RDMs.
-
-        use SystemData, only: nbasis
-        use UMatCache, only: spatial
-
-        type(rdm_list_t), intent(in) :: rdm
-        type(rdm_spawn_t), intent(inout) :: spawn
-
-        integer(int_rdm) :: pqrs
-        integer :: i, pq, rs, p, q, r, s
-        integer :: pq_legacy, rs_legacy
-        integer :: p_temp, q_temp, r_temp
-        integer :: p_spat, q_spat, r_spat, s_spat
-        real(dp) :: rdm_sign(rdm%sign_length)
-
-        do i = 1, rdm%nelements
-            pqrs = rdm%elements(0,i)
-            ! Obtain spin orbital labels and the RDM element.
-            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
-            call extract_sign_rdm(rdm%elements(:,i), rdm_sign)
-
-            ! Get the spatial orbital labels from the spin orbital ones.
-            p_spat = spatial(p); q_spat = spatial(q);
-            r_spat = spatial(r); s_spat = spatial(s);
-
-            ! When we calculate the combined labels, pq and rs, we would
-            ! usually have p and q swapped below, and similarly with r and s.
-            ! However, to be consistent with the old RDM code's printing
-            ! system, we use the following. These will be used in deciding
-            ! which of the equivalent elements we print when applying the
-            ! symmetry of the RDM about the diagonal.
-            ! Note we use spatial labels here, too.
-            pq_legacy = (q_spat-1)*nbasis + p_spat
-            rs_legacy = (s_spat-1)*nbasis + r_spat
-
-            ! Apply symmetry (for *real* RDMs), to only print elements from
-            ! one half of the RDM, using the legacy ordering.
-            if (pq_legacy > rs_legacy) then
-                p_temp = p; q_temp = q;
-                p = r; q = s;
-                r = p_temp; s = q_temp;
-            end if
-
-            ! If the first label has beta spin then we definitely want to move
-            ! this RDM element to the equivalent alpha term, so go ahead and
-            ! flip all the spins. Otherwise, move straight on.
-            if (is_beta(p)) then
-                ! The ab_pair macro swaps alpha and beta spins of a label while
-                ! keeping the spatial orbital unchanged.
-                p = ab_pair(p)
-                q = ab_pair(q)
-                r = ab_pair(r)
-                s = ab_pair(s)
-            end if
-
-            ! If either p and q or r and s have the same spatial labels
-            ! then we enforce the ordering abab by swapping orbitals and
-            ! introducing minus signs as necessary.
-            if (p_spat == q_spat .or. r_spat == s_spat) then
-                ! If the above condition is met then we must have either abab
-                ! or abba at this point. In the latter case, just swap the
-                ! spins, and introduce a minus sign.
-                ! * This logic is only valid if we are working in a fixed Ms
-                ! spin sector *
-                if (is_beta(r)) then
-                    r = ab_pair(r)
-                    s = ab_pair(s)
-                    rdm_sign = -rdm_sign
-                end if
-            end if
-
-            ! If the spatial parts of p and q are the same, and the spatial
-            ! parts of r and s are *also* the same, then the RDM element won't
-            ! have been added into both equivalent spin-flipped arrays, so we
-            ! don't count twice. But otherwise, include a factor a half to
-            ! account for double counting.
-            if (.not. (is_in_pair(p,q) .and. is_in_pair(r,s))) rdm_sign = rdm_sign*0.5_dp
-
-            ! If we're on a spatial off-diagonal element then the element is
-            ! included twice from both above and below the diagonal. So divide
-            ! by two to take the average.
-            ! (Note that the element can also be above or below the diagonal
-            ! by having the same spatial part and different spins, but this is
-            ! taken care of when summing over spin-flipped configurations - no
-            ! extra double counting occurs, so it is correct to consider
-            ! spatial orbitals here, not spin orbitals).
-            if (pq_legacy /= rs_legacy) rdm_sign = rdm_sign*0.5_dp
-
-            call add_to_rdm_spawn_t(spawn, p, q, r, s, rdm_sign, .false.)
         end do
 
         call communicate_rdm_spawn_t(spawn)
         call annihilate_rdm_list(spawn%rdm_recv)
 
-    end subroutine apply_spin_sym_to_rdm
+    end subroutine make_hermitian_rdm
 
-    subroutine print_rdms_spin_sym_wrapper(rdm, spawn, rdm_trace)
+    subroutine apply_symmetries_for_output(rdm, spawn, open_shell)
+
+        ! This routine will take in rdm, and output a new rdm to spawn%rdm_recv,
+        ! which will have all appropriate symmetries applied so that the latter
+        ! RDM can be passed to the routine to write RDMs.
+
+        ! The input RDM should already have hermiticy symmetry applied to it.
+
+        ! WARNING: To clarify potential confusion, we point out that this
+        ! routine also applies hermiticy again, but *only* for the spatial
+        ! labels, not the full spin labels. It does so specifically using a
+        ! particular legacy ordering. This is not a mistake - for open shell
+        ! systems we do need to apply full hermiticy, but also need to apply spatial
+        ! hermiticy because spatial labels are written within each output file.
+
+        type(rdm_list_t), intent(in) :: rdm
+        type(rdm_spawn_t), intent(inout) :: spawn
+        logical, intent(in) :: open_shell
+
+        integer(int_rdm) :: ijkl
+        integer :: ielem, ij, kl, i, j, k, l
+        integer :: p, q, r, s
+        integer :: pq_legacy, rs_legacy
+        real(dp) :: rdm_sign(rdm%sign_length)
+
+        do ielem = 1, rdm%nelements
+            ijkl = rdm%elements(0,ielem)
+            ! Obtain spin orbital labels and the RDM element.
+            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+            call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+
+            ! When there are two elements which are guaranteed to be exactly the
+            ! same, we usually only want to print one of them (and to average
+            ! over the equal terms). This function returns the labels we want.
+            call apply_legacy_output_ordering(i, j, k, l, rdm_sign, pq_legacy, rs_legacy)
+
+            ! For closed shell systems, want bbbb -> aaaa, baba -> abab,
+            ! baab -> abba, by flipping all spins, which is a symmetry for such
+            ! systems. If the first label has beta spin then we definitely want
+            ! to move this RDM element to the equivalent flipped term so go ahead
+            ! and flip all the spins.
+            if (.not. open_shell) then
+                if (is_beta(i)) then
+                    ! The ab_pair macro swaps alpha and beta spins of a label
+                    ! while keeping the spatial orbital unchanged.
+                    i = ab_pair(i)
+                    j = ab_pair(j)
+                    k = ab_pair(k)
+                    l = ab_pair(l)
+                end if
+                ! If the spatial parts of i and j are the same, and the spatial
+                ! parts of k and l are *also* the same, then the RDM element won't
+                ! have been added into both equivalent spin-flipped arrays
+                ! because i<j and k<l is enforced), so we don't count twice.
+                if (.not. (is_in_pair(i,j) .and. is_in_pair(k,l))) then
+                    ! Also, if (i,j) and (k,l) have the same spatial parts, but
+                    ! different spin parts ((alpha,beta) and (beta,alpha), or
+                    ! vice versa) then they only occur once, again because we
+                    ! enforce i<j and k<l is all stored RDM elements.
+                    if (.not. (pq_legacy == rs_legacy .and. (.not. ij == kl))) then
+                        rdm_sign = rdm_sign*0.5_dp
+                    end if
+                end if
+            end if
+
+            call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false.)
+
+            if (open_shell) then
+                ! For open shell systems, if i and j have the same spatial parts,
+                ! and k and l do too, then we only have baba spin signature,
+                ! (because we enforce i<j, k<l) but we'd like to print out abab too.
+                if (is_in_pair(i,j) .and. is_in_pair(k,l)) then
+                    call add_to_rdm_spawn_t(spawn, j, i, l, k, rdm_sign, .false.)
+                end if
+
+                ! Because we enforce hermiticy symmetry in the output, we would
+                ! only print the following terms with baab. We want to print it
+                ! with abba too here, so do that.
+                if (pq_legacy == rs_legacy .and. (.not. ij == kl)) then
+                    call add_to_rdm_spawn_t(spawn, k, l, i, j, rdm_sign, .false.)
+                end if
+            end if
+        end do
+
+        call communicate_rdm_spawn_t(spawn)
+        call annihilate_rdm_list(spawn%rdm_recv)
+
+    end subroutine apply_symmetries_for_output
+
+    pure subroutine apply_legacy_output_ordering(i, j, k, l, rdm_sign, pq_legacy, rs_legacy)
+
+        ! Enforce the symmetries of RDMs to only keep certain combinations of
+        ! i, j, k, l spin labels, where a redundancy exists. Whenever we have
+        ! an unused combination, flip/swap labels (and the sign if necessary).
+
+        ! For example the 2-RDM is hermitian, so if ij /= kl, then we only need
+        ! to print either \Gamma_{ij,kl} or \Gamma{kl,ij}, but not both. Which
+        ! combinations we decide to print is decided below, which is purely a
+        ! legacy decision (as far as I know!). See comments below for defintions
+        ! of what we keep.
+
+        use SystemData, only: nbasis
+        use UMatCache, only: spatial
+
+        integer, intent(inout) :: i, j, k, l
+        real(dp), intent(inout) :: rdm_sign(:)
+        integer, intent(out) :: pq_legacy, rs_legacy
+
+        integer :: p, q, r, s
+        integer :: i_temp, j_temp
+
+        ! RDMs are output in files labelled by their spin signatures:
+        ! aaaa, abab, abba, bbbb, baba or baab.
+        ! Within each file, therefore, only spatial orbital labels are printed.
+        ! Thus, we need to use spatial orbitals to determine which RDM elements
+        ! are  to kept, and which transformed.
+        p = spatial(i); q = spatial(j);
+        r = spatial(k); s = spatial(l);
+
+        ! When we calculate the combined labels, pq and rs, we would
+        ! usually have p and q swapped below, and similarly with r and s.
+        ! However, the old RDM files prints only RDM elements with pq < rs,
+        ! where pq and rs are defined as follows.
+        pq_legacy = (q-1)*nbasis + p
+        rs_legacy = (s-1)*nbasis + r
+
+        ! Apply symmetry (for *real* RDMs), to only print elements from one
+        ! half of the RDM, using the legacy ordering.
+        if (pq_legacy > rs_legacy) then
+            i_temp = i; j_temp = j;
+            i = k; j = l;
+            k = i_temp; l = j_temp;
+        end if
+
+        ! If either i and j have the same spatial part, of k and l have the
+        ! same spatial part, and we have a spin signature with 2 alphas and
+        ! 2 betas, then the convention is to output is as either abab or
+        ! baba, but *not* as abba or baab. If we have abba or baab in this
+        ! case then we have to swap two indices and introduce a minus sign.
+        ! Because we enforce i<j and k<l in all RDM elements, there are only
+        ! two possibilities to consider:
+        if (is_in_pair(i,j) .and. is_beta(i) .and. is_alpha(j) .and. &
+                is_alpha(k) .and. is_beta(l)) then
+            i = ab_pair(i)
+            j = ab_pair(j)
+            rdm_sign = -rdm_sign
+        else if (is_in_pair(k,l) .and. is_alpha(i) .and. is_beta(j) .and. &
+                 is_beta(k) .and. is_alpha(l)) then
+            k = ab_pair(k)
+            l = ab_pair(l)
+            rdm_sign = -rdm_sign
+        end if
+
+    end subroutine apply_legacy_output_ordering
+
+    subroutine print_rdms_spin_sym_wrapper(rdm, spawn, rdm_trace, open_shell)
 
         ! Compress the full spinned-RDMs by summing over spin-equivalent terms
         ! (i.e. aaaa and bbbb rdms), and also applying symmetry of (*real*)
@@ -849,11 +908,19 @@ contains
         type(rdm_list_t), intent(inout) :: rdm
         type(rdm_spawn_t), intent(inout) :: spawn
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
+        logical, intent(in) :: open_shell
 
         spawn%free_slots = spawn%init_free_slots
         call clear_hash_table(spawn%rdm_send%hash_table)
 
-        call apply_spin_sym_to_rdm(rdm, spawn)
+        call make_hermitian_rdm(rdm, spawn)
+
+        ! Clear rdm, and copy spawn%rdm_recv to it.
+        rdm%nelements = 0
+        call clear_hash_table(rdm%hash_table)
+        call add_rdm_1_to_rdm_2(spawn%rdm_recv, rdm)
+
+        call apply_symmetries_for_output(rdm, spawn, open_shell)
         call print_rdms_with_spin(spawn%rdm_recv, rdm_trace)
 
     end subroutine print_rdms_spin_sym_wrapper

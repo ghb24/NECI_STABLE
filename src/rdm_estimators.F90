@@ -24,6 +24,7 @@ contains
         use rdm_data, only: rdm_main, two_rdm_spawn
         use rdm_parallel, only: calc_rdm_trace, calc_rdm_spin, calc_rdm_energy, print_rdms_with_spin
         use rdm_parallel, only: print_rdms_spin_sym_wrapper, print_spinfree_2rdm_wrapper
+        use rdm_parallel, only: make_hermitian_rdm
         use SystemData, only: ecore
 
         type(rdm_t), intent(inout) :: rdm
@@ -91,8 +92,14 @@ contains
         est%new_spin = all_rdm_spin(rdm_label)
 
         if (tWriteSpinFreeRDM .and. tFinalRDMEnergy) call print_spinfree_2rdm_wrapper(rdm_main, two_rdm_spawn, all_rdm_trace)
-        if (tFinalRDMEnergy .and. tWrite_Normalised_RDMs) call print_rdms_spin_sym_wrapper(rdm_main, two_rdm_spawn, all_rdm_trace)
+        if (tFinalRDMEnergy .and. tWrite_Normalised_RDMs) then
+            call print_rdms_spin_sym_wrapper(rdm_main, two_rdm_spawn, all_rdm_trace, tOpenShell)
+        end if
         !if (tFinalRDMEnergy .and. tWrite_Normalised_RDMs) call print_rdms_with_spin(rdm_main, all_rdm_trace)
+        !if (tFinalRDMEnergy .and. tWrite_Normalised_RDMs) then
+        !    call make_hermitian_rdm(rdm_main, two_rdm_spawn)
+        !    call print_rdms_with_spin(two_rdm_spawn%rdm_recv, all_rdm_trace)
+        !end if
 
     end subroutine rdm_output_wrapper
 
