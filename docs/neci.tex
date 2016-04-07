@@ -363,6 +363,8 @@
     \begin{lstlisting}[gobble=4]
         set( NECI_Fortran_STATIC_LINK_LIBRARIES stdc++ )
     \end{lstlisting}
+    Further internally required libraries may be required. In a normal build, these are
+    output in the build summary under "Implicit C++ linker flags".
     A comprehensive documented example is found in \code{toolchains/gfortran-openmpi.cmake}.
 
     \textbf{Archer}
