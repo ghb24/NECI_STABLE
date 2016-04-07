@@ -877,7 +877,7 @@ contains
 
         ! If either i and j have the same spatial part, of k and l have the
         ! same spatial part, and we have a spin signature with 2 alphas and
-        ! 2 betas, then the convention is to output is as either abab or
+        ! 2 betas, then the convention is to output it as either abab or
         ! baba, but *not* as abba or baab. If we have abba or baab in this
         ! case then we have to swap two indices and introduce a minus sign.
         ! Because we enforce i<j and k<l in all RDM elements, there are only
@@ -991,7 +991,7 @@ contains
             if (pq_spat /= rs_spat) rdm_sign = rdm_sign*0.5_dp
 
             ! Due to the fact that RDM elements are only stored with p < q and
-            ! r < s, the following terms are only store with baba spin, never
+            ! r < s, the following terms are only stored with baba spin, never
             ! with abab. Double this term to make up for it.
             if (p_spat == q_spat .and. r_spat == s_spat) rdm_sign = 2.0_dp*rdm_sign
 
@@ -1002,6 +1002,7 @@ contains
             ! be equal to the equivalent RDM element with the last two labels
             ! swapped. So, add this contribution into that RDM element. We
             ! don't have to do this, but doing so applies some extra averaging.
+            ! Want to apply all the averaging possible over equivalent elements.
             if (same_spin(p, q)) then
                 ! Re-extract sign in case it has been modified.
                 call extract_sign_rdm(rdm%elements(:,i), rdm_sign)
@@ -1034,7 +1035,7 @@ contains
             ! \Gamma^{spinfree}_{sr,qp} = \sum_{x,y} < a^+_{s,x} a^+_{r,y} a_{p,y} a_{q,x} >
             !
             ! where x and y are spin labels which are summed over in the final
-            ! esult.
+            ! result.
             !
             ! For a *REAL* spinfree 2-RDM, all of these elements are rigorously
             ! equal, so it is appropriate that we add all contributions in
