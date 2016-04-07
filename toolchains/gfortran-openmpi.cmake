@@ -12,18 +12,23 @@ CMAKE_FORCE_C_COMPILER       ( gcc GNU )
 CMAKE_FORCE_CXX_COMPILER     ( g++ GNU )
 CMAKE_FORCE_Fortran_COMPILER ( mpif90 GNU )
 
-# Override MPI searching. Override arbitrary package searching...
 
+# Package overrides
+# =================
 
 # n.b. We can also define:
 #
 # set( ${PACKAGE_NAME}_FOUND ON )
 # set( ${PACKAGE_NAME}_LIBRARIES ... )
 
-set( NECI_FIND_MPI OFF )
+set( NECI_FIND_MPI_NECI OFF )
 set( NECI_FIND_LibRT OFF )
 
+set( LIBRT_LIBRARIES rt )
+
 # Compile flags
+# =============
+
 # n.b. FORCE_ in the toolchain overrides the cmake/compiler_flags settings.
 #      NECI_ does not overrider compiler_flags settings, but works with CMAKE_FORCE_*_COMPILER
 
@@ -34,6 +39,7 @@ set( NECI_FIND_LibRT OFF )
 # set( NECI_Fortran_FLAGS -O3 )       # All build-type fortran flags
 
 # Link flags
+# ==========
 
 # Arbitrary compile flags can be overriden here.
 # e.g.
@@ -53,4 +59,4 @@ set( NECI_FIND_LibRT OFF )
 
 # By using CMakeForceCompiler, we break the autodetction of the c++ library requirement
 # (STATIC --> adds these only to libneci, libkneci, ... not directly to the executables)
-set( NECI_Fortran_STATIC_LINK_LIBRARIES stdc++ rt )
+set( NECI_Fortran_STATIC_LINK_LIBRARIES stdc++ )

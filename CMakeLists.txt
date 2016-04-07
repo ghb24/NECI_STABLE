@@ -8,11 +8,9 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 include(neci_system)
 
 # TODO:
-# ENSURE that Fortran_FLAGS is not OVERRIDDEN, but EXTENDED, by _DEBUG, _RELEASE, ...
-#    i) Correct 32-bit support
-#   ii) We shouldn't have to rebuild everything for just changing version info --> restrict to header
+#    i) We shouldn't have to rebuild everything for just changing version info --> restrict to header
 #          Use -- set_property( SOURCE <> PROPERTY COMPILE_DEFINITIONS ... )
-#  iii) Which targets should be included in ALL (see EXCLUDE_FROM_ALL)
+#   ii) Which targets should be included in ALL (see EXCLUDE_FROM_ALL)
 
 # TEST WITH:
 # toolchain on archer
@@ -20,8 +18,6 @@ include(neci_system)
 
 # Declare options that this project uses
 # <Package>_NECI has a custom finder that does a bit more work than normal...
-
-find_package( MPI_NECI )
 
 neci_add_option(
     FEATURE MPI
