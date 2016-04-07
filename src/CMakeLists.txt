@@ -196,12 +196,12 @@ if (HAVE_MPI)
     list(APPEND _conditional_libraries ${MPI_NECI_Fortran_LIBRARIES} )
 endif()
 if (HAVE_FFTW)
-    list(APPEND _conditional_librarise ${FFTW_LIBRARIES} )
+    list(APPEND _conditional_libraries ${FFTW_LIBRARIES} )
 endif()
 if (HAVE_HDF5)
-    message("H HDF: " ${HDF5_NECI_LIBRARIES})
     list(APPEND _conditional_libraries ${HDF5_NECI_LIBRARIES} )
 endif()
+
 
 # ---------------------------------------------------------------------------------
 # Build the main parts as static libraries
