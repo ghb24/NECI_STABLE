@@ -4,7 +4,7 @@ set( ${PROJECT_NAME}_CXX_FLAGS_CLUSTER "-ipo" )
 
 # Warning flags ...
 
-set( ${PROJECT_NAME}_CXX_WARNING_FLAGS "-warn all" )
+set( ${PROJECT_NAME}_CXX_WARNING_FLAGS "-w3 -diag-disable:remark" )
 
 # Treat 32bit/64bit compilation differently
 
