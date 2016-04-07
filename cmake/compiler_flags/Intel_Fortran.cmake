@@ -7,7 +7,7 @@ set( ${PROJECT_NAME}_Fortran_FLAGS_CLUSTER "-ipo" )
 
 # It would be nice to be able to check intrfaces, but there are too many instances where they are wrong
 # in NECI, and not adding this causes compilation failures
-set( ${PROJECT_NAME}_Fortran_WARNING_FLAGS "-warn all -warn nointerfacs" )
+set( ${PROJECT_NAME}_Fortran_WARNING_FLAGS "-warn all -warn nointerfaces" )
 
 # Linker flags
 
