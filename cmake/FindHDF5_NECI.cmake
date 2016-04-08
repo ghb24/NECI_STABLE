@@ -12,23 +12,50 @@
 # HDF5_NECI_LIBRARIES
 # HDF5_NECI_DEFINITIONS
 
-if ( NOT HDF5_NECI_FOUND )
+neci_add_option(
+    FEATURE BUILD_HDF5
+    DEFAULT off
+    DESCRIPTION "Build HDF5 in the source tree, for compatibility with the build configuration" )
 
-    # -------------------------------------------------------------------------------------------------------
+if ( HAVE_BUILD_HDF5 )
 
     # If we are searching for HDF5, we want to create the pseudo-target to build hdf5.
 
 	# Note that detection of intel MPI fails, as the names of the wrappers fail
 	# --> Need to wrap this for HDF compilation
-	if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-		set(_configure_override CC=mpiicc FC=mpiifort F9X=mpiifort CXX=mpiicpc)
-	elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "PGI")
-		set(_configure_override CC=mpicc FC=mpif90 F9X=mpif90 CXX=mpic++ CPP=cpp CXXPP=cpp)
-	elseif (ARCHER_OVERRIDES)
-		set(_configure_override CC=cc FC=ftn F9X=ftn CXX=CC CPP=cpp)
-	else()
-		set(_configure_override "")
-	endif()
+
+    # TODO: Use MPI_Fortran_COMPILER and MPI_C_COMPILER
+
+    set( _c_override "CC=${CMAKE_C_COMPILER}" )
+    set( _cxx_override "CXX=${CMAKE_CXX_COMPILER}" )
+    set( _fort_override "FC=${CMAKE_Fortran_COMPILER} F9X=${CMAKE_Fortran_COMPILER}" )
+
+    #elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "PGI")
+    #	set(_configure_override CC=mpicc FC=mpif90 F9X=mpif90 CXX=mpic++ CPP=cpp CXXPP=cpp)
+    #elseif (ARCHER_OVERRIDES)
+    #	set(_configure_override CC=cc FC=ftn F9X=ftn CXX=CC CPP=cpp)
+    #endif()
+
+    # If we have explicit MPI overrides
+
+    if( MPI_Fortran_COMPILER )
+        set( _fort_override "FC=${MPI_Fortran_COMPILER} F9X=${MPI_Fortran_COMPILER}" )
+    endif()
+    if( MPI_C_COMPILER )
+        set( _fort_override "CC=${MPI_C_COMPILER}" )
+    endif()
+    if( MPI_CXX_COMPILER )
+        set( _fort_override "CXX=${MPI_CXX_COMPILER}" )
+    endif()
+    set( _configure_override "${_c_override} ${_cxx_override} ${_fort_override}")
+
+    message( STATUS "HDF5 compilation overrides: ${_configure_override}" )
+
+    # Dependencies
+
+    find_package( ZLIB REQUIRED )
+
+    # Create the external build projcet
 
 	set(HDF_DIR ${CMAKE_CURRENT_BINARY_DIR}/hdf5)
 	include(ExternalProject)
@@ -36,7 +63,7 @@ if ( NOT HDF5_NECI_FOUND )
 		hdf5
 		# -- Download step ---
 		PREFIX ${HDF_DIR}-prefix
-		URL https://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.15-patch1/src/hdf5-1.8.15-patch1.tar.gz
+		URL http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.15-patch1/src/hdf5-1.8.15-patch1.tar.gz
 		URL_MD5 4467c25ed9c0b126b194a4d9d66c29ac
 		# -- Configure step --
 		SOURCE_DIR ${HDF_DIR}
@@ -48,22 +75,28 @@ if ( NOT HDF5_NECI_FOUND )
 		INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/hdf5
 		# INSTALL_COMMAND "make install"
 	)
-	set_target_properties(hdf5 PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
-	# Because we may be changing the location of the HDF5 libraries after building
-	# them, we need to clear existing settings for it
-	unset(HDF5_hdf5_LIBRARY_RELEASE)
-	unset(HDF5_hdf5_LIBRARY_RELEASE CACHE)
-	unset(HDF5_hdf5_fortran_LIBRARY_RELEASE)
-	unset(HDF5_hdf5_fortran_LIBRARY_RELEASE CACHE)
+    # Add this target to the dependencies of evrything else, so it is automagically built first
+
+    message( STATUS "Adding global dependency to hdf5 target" )
+    set( ${PROJECT_NAME}_GLOBAL_DEPENDENCIES ${${PROJECT_NAME}_GLOBAL_DEPENDENCIES} hdf5 )
+
+    # Add the appropriate variable components
+    
+    set( HDF5_FOUND on )
+    set( HDF5_LIBRARIES ${HDF_DIR}/lib/libhdf5.a dl ${ZLIB_LIBRARIES} )
+    set( HDF5_Fortran_LIBRARIES  ${HDF_DIR}/lib/libhdf5_fortran.a )
+    set( HDF5_INCLUDE_DIRS  ${HDF_DIR}/include )
+    set( HDF5_Fortran_INCLUDE_DIRS )
+
+else() # Not building hdf5 ...
 
 	#
 	# Find an appropriate HDF5 package
 	# n.b. the default HDF5 searcher does not check that the fortran module
 	#      was produced with a compatible compiler. As such, we test this
 	#      manually, and explicitly, by building a test file contained in tools/
-	set(SYS_HDF5_ROOT $ENV{HDF5_ROOT})
-	set(ENV{HDF5_ROOT} ${HDF_DIR}:$ENV{HDF5_ROOT})
+
 	find_package(HDF5 COMPONENTS Fortran)
 	if (${HDF5_FOUND})
 		execute_process(
@@ -81,11 +114,11 @@ if ( NOT HDF5_NECI_FOUND )
 			set (HDF5_FOUND false)
 		endif()
 	endif()
-	set(ENV{HDF5_ROOT} ${SYS_HDF5_ROOT})
+
+endif()
 
 
-# TODO: Add special message if HDF5 has not been found
-# list(APPEND ${PROJECT_NAME}_SPECIAL_MESSAGES 
+if ( NOT HDF5_NECI_FOUND )
 
     set( HDF5_NECI_FOUND ${HDF5_FOUND} )
     if ( HDF5_FOUND )

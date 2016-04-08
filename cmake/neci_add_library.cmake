@@ -160,6 +160,12 @@ macro( neci_add_library )
     set_property( TARGET ${_p_TARGET} PROPERTY LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib )
     set_property( TARGET ${_p_TARGET} PROPERTY ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib )
 
+    # Global dependencies
+
+    if ( DEFINED ${PROJECT_NAME}_GLOBAL_DEPENDENCIES AND NOT ${PROJECT_NAME}_GLOBAL_DEPENDENCIES STREQUAL "" )
+        add_dependencies( ${_p_TARGET} ${${PROJECT_NAME}_GLOBAL_DEPENDENCIES} )
+    endif()
+
     # Specify the linker language manually
 
     if( NOT DEFINED _p_LINKER_LANGUAGE OR NOT _p_LINKER_LANGUAGE MATCHES "(C|CXX|Fortran)" )

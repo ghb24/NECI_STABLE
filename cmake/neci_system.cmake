@@ -75,6 +75,10 @@ set ( ${PROJECT_NAME}_ALL_EXES "" CACHE INTERNAL "")
 set ( ${PROJECT_NAME}_ALL_TESTS "" CACHE INTERNAL "")
 set ( ${PROJECT_NAME}_ALL_META_TARGETS "" CACHE INTERNAL "")
 
+# We want to be able to list pre-dependencies for everything else
+
+set( ${PROJECT_NAME}_GLOBAL_DEPENDENCIES "" CACHE INTERNAL "" )
+
 # This should be a git project, but it is possible that people will copy it, so check for that
 
 if( EXISTS ${PROJECT_SOURCE_DIR}/.git )
