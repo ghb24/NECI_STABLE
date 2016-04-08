@@ -250,11 +250,8 @@
 	of it. Otherwise support for HDF5 POPSFILES will be disabled by default.
 
 	The CMake configuration for NECI contains the functionality to download,
-	compile and use HDF5. To do this just run
-	\begin{lstlisting}[gobble=4]
-		make [-j] hdf5
-	\end{lstlisting}
-	in the \code{build} directory and then re-run \code{cmake}.
+	compile and use HDF5. To do this run CMake with the
+    \code{-DENABLE_BUILD_HDF5=ON}.
 	\end{mdframed}
 
 	The code is then built using the command
@@ -280,6 +277,8 @@
     The following options are available. Where an option is default "on", if the required libraries
     are not available, the option will be disabled and this will be noted in the build summary.
     \begin{description}
+        \codeitem{BUILD\_HDF5}
+            Build the hdf5 library from source, and use that instead of one provided by the system.
         \codeitem{HDF5}
             Make use of hdf5 for popsfiles (default=on).
         \codeitem{FFTW}
