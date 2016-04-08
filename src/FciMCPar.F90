@@ -643,6 +643,7 @@ module FciMCParMod
 
     subroutine PerformFCIMCycPar(iter_data)
 
+        use global_det_data, only: get_iter_occ, get_av_sgn
         use rdm_data, only: two_rdm_spawn, rdm_main, one_rdms
         use rdm_parallel, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2
         
@@ -659,7 +660,8 @@ module FciMCParMod
         logical :: tParity, tSuccess, tCoreDet
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
         real(dp) :: RDMBiasFacCurr
-        real(dp), dimension(lenof_sign) :: AvSignCurr, IterRDMStartCurr
+        real(dp), dimension(lenof_sign) :: AvSignCurr(lenof_sign), IterRDMStartCurr(lenof_sign)
+        real(dp) :: av_sign(lenof_sign), iter_occ(lenof_sign)
         HElement_t(dp) :: HDiagTemp,HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
         HElement_t(dp), dimension(inum_runs) :: delta
@@ -791,9 +793,11 @@ module FciMCParMod
                     do irdm = 1, nrdms
                         call fill_rdm_diag_currdet_old(rdms(irdm), irdm, CurrentDets(:,j), DetCurr, j, &
                                                     walkExcitLevel_toHF, tCoreDet)
-                        call fill_rdm_diag_currdet(two_rdm_spawn, one_rdms(irdm), irdm, CurrentDets(:,j), DetCurr, j, &
-                                                    walkExcitLevel_toHF, tCoreDet)
                     end do
+                    av_sign = get_av_sgn(j)
+                    iter_occ = get_iter_occ(j)
+                    call fill_rdm_diag_currdet(two_rdm_spawn, one_rdms, CurrentDets(:,j), DetCurr, &
+                                                walkExcitLevel_toHF, av_sign, iter_occ, tCoreDet)
                 endif
             endif
 
