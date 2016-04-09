@@ -1,5 +1,6 @@
 # Special defines for Intel C compiler
 
+set( ${PROJECT_NAME}_C_FLAGS_RELEASE "-O3 -xHost" )
 set( ${PROJECT_NAME}_C_FLAGS_CLUSTER "-ipo" )
 
 # Warning flags ...
