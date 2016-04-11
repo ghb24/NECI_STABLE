@@ -58,7 +58,7 @@ contains
 
                         ! In this case we want to include this diagonal element,
                         ! so transfer the sign.
-                        adapted_sign(ind1:ind2) = curr_sign(ind1:ind2)
+                        adapted_sign(ind1:ind2) = av_sign(ind1:ind2)
                     end if
                 end do
 
@@ -645,7 +645,7 @@ contains
 
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer, intent(in) :: nI(:)
-        real(dp), intent(in) :: contrib_sign(nreplicas)
+        real(dp), intent(in) :: contrib_sign(:)
         logical, optional, intent(in) :: tCoreSpaceDetIn
         integer, optional, intent(in) :: RDMItersIn(:)
 

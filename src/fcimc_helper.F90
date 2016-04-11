@@ -1742,9 +1742,11 @@ contains
         else
             ! All walkers died.
             if(tFillingStochRDMonFly) then
+                do irdm = 1, nrdms
+                    call det_removed_fill_diag_rdm_old(rdms(irdm), irdm, CurrentDets(:,DetPosition), DetPosition)
+                end do
                 av_sign = get_av_sgn(DetPosition)
                 iter_occ = get_iter_occ(DetPosition)
-                call det_removed_fill_diag_rdm_old(rdms(irdm), irdm, CurrentDets(:,DetPosition), DetPosition)
                 call det_removed_fill_diag_rdm(two_rdm_spawn, one_rdms, CurrentDets(:,DetPosition), av_sign, iter_occ)
                 ! Set the average sign and occupation iteration to zero, so
                 ! that the same contribution will not be added in in
