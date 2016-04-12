@@ -21,19 +21,9 @@ contains
         use rdm_temp, only: Finalise_2e_RDM, calc_2e_norms, Write_out_2RDM
         use rdm_temp, only: Write_spinfree_RDM
 
-        use rdm_data, only: rdm_main, two_rdm_spawn
-        use rdm_parallel, only: calc_rdm_trace, calc_rdm_spin, calc_rdm_energy, print_rdms_with_spin
-        use rdm_parallel, only: print_rdms_spin_sym_wrapper, print_spinfree_2rdm_wrapper
-        use rdm_parallel, only: make_hermitian_rdm
-        use SystemData, only: ecore
-
         type(rdm_t), intent(inout) :: rdm
         integer, intent(in) :: rdm_label
         type(rdm_estimates_t), intent(inout) :: est
-
-        real(dp) :: rdm_energy(rdm_main%sign_length), rdm_trace(rdm_main%sign_length)
-        real(dp) :: rdm_spin(rdm_main%sign_length), all_rdm_energy(rdm_main%sign_length)
-        real(dp) :: all_rdm_trace(rdm_main%sign_length), all_rdm_spin(rdm_main%sign_length)
 
         ! Normalise, make Hermitian, etc.
         call Finalise_2e_RDM(rdm)
@@ -80,6 +70,28 @@ contains
             end if
         end if
 
+    end subroutine rdm_output_wrapper
+
+    subroutine temp_rdm_output_wrapper(est)
+
+        use FciMCData, only: tFinalRDMEnergy
+        use LoggingData, only: tWrite_normalised_RDMs, tWriteSpinFreeRDM
+        use Parallel_neci, only: MPISumAll
+        use rdm_data, only: rdm_estimates_t, tOpenShell
+
+        use rdm_data, only: rdm_main, two_rdm_spawn
+        use rdm_parallel, only: calc_rdm_trace, calc_rdm_spin, calc_rdm_energy, print_rdms_with_spin
+        use rdm_parallel, only: print_rdms_spin_sym_wrapper, print_spinfree_2rdm_wrapper
+        use rdm_parallel, only: make_hermitian_rdm
+        use SystemData, only: ecore
+
+        type(rdm_estimates_t), intent(inout) :: est(:)
+
+        integer :: irdm
+        real(dp) :: rdm_energy(rdm_main%sign_length), rdm_trace(rdm_main%sign_length)
+        real(dp) :: rdm_spin(rdm_main%sign_length), all_rdm_energy(rdm_main%sign_length)
+        real(dp) :: all_rdm_trace(rdm_main%sign_length), all_rdm_spin(rdm_main%sign_length)
+
         call calc_rdm_energy(rdm_main, rdm_energy)
         call MPISumAll(rdm_energy, all_rdm_energy)
         call calc_rdm_trace(rdm_main, rdm_trace)
@@ -87,21 +99,19 @@ contains
         call calc_rdm_spin(rdm_main, rdm_trace, rdm_spin)
         call MPISumAll(rdm_spin, all_rdm_spin)
 
-        est%new_trace = all_rdm_trace(rdm_label)
-        est%new_energy = all_rdm_energy(rdm_label) + ecore*all_rdm_trace(rdm_label)
-        est%new_spin = all_rdm_spin(rdm_label)
+        do irdm = 1, size(est)
+            est(irdm)%new_trace = all_rdm_trace(irdm)
+            est(irdm)%new_energy = all_rdm_energy(irdm) + ecore*all_rdm_trace(irdm)
+            est(irdm)%new_spin = all_rdm_spin(irdm)
+        end do
 
         if (tWriteSpinFreeRDM .and. tFinalRDMEnergy) call print_spinfree_2rdm_wrapper(rdm_main, two_rdm_spawn, all_rdm_trace)
         if (tFinalRDMEnergy .and. tWrite_Normalised_RDMs) then
             call print_rdms_spin_sym_wrapper(rdm_main, two_rdm_spawn, all_rdm_trace, tOpenShell)
         end if
         !if (tFinalRDMEnergy .and. tWrite_Normalised_RDMs) call print_rdms_with_spin(rdm_main, all_rdm_trace)
-        !if (tFinalRDMEnergy .and. tWrite_Normalised_RDMs) then
-        !    call make_hermitian_rdm(rdm_main, two_rdm_spawn)
-        !    call print_rdms_with_spin(two_rdm_spawn%rdm_recv, all_rdm_trace)
-        !end if
 
-    end subroutine rdm_output_wrapper
+    end subroutine temp_rdm_output_wrapper
 
     subroutine write_rdm_estimates(est)
 

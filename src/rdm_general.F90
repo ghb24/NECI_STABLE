@@ -977,6 +977,7 @@ contains
         use rdm_data, only: rdm_main, one_rdms, two_rdm_spawn, tOpenShell
         use rdm_estimators, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
         use rdm_estimators, only: rdm_output_wrapper, CalcDipoles, write_rdm_estimates
+        use rdm_estimators, only: temp_rdm_output_wrapper
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
         use rdm_parallel, only: calc_rdm_trace, calc_1rdms_from_2rdms
         use rdm_parallel, only: create_spinfree_2rdm, calc_1rdms_from_spinfree_2rdms
@@ -1081,6 +1082,8 @@ contains
                 end if
             end if
         end if
+
+        if (RDMExcitLevel /= 1) call temp_rdm_output_wrapper(rdm_estimates)
 
         if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates)
 #ifdef _MOLCAS_

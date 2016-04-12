@@ -392,7 +392,6 @@ contains
     subroutine calc_rdm_trace(rdm, rdm_trace)
 
         use rdm_data, only: rdm_spawn_t
-        use rdm_integral_fns, only: one_elec_int, two_elec_int
         use SystemData, only: nel
 
         type(rdm_list_t), intent(inout) :: rdm
