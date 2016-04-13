@@ -493,31 +493,38 @@ contains
         character(*), parameter :: this_routine = "count_beta_orbs_ij"
 
         integer(n_int) :: mask(0:nifd), beta(0:nifd), alpha(0:nifd)
+        integer :: k
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
         ASSERT(j > 0 .and. j <= nSpatOrbs)
 
         nOpen = 0
 
-        if (i < j) then
-            mask = getExcitationRangeMask(i, j)
-            mask = iand(ilut, mask)
-            beta = iand(mask, MaskBeta)
-            alpha = iand(mask, MaskAlpha)
-
-            alpha = ishft(alpha,-1_n_int)
-
-            beta = iand(ieor(alpha,beta),beta)
-
-            nOpen = CountBits(beta, nifd)
-        else if (i == j) then
-            if (isOne(ilut,i)) then
-                nOpen = 1
+        ! quick and dirty fix to deal with the excitation range mask probs:
+        do k = i, j
+            if (isOne(ilut,k)) then 
+                nOpen = nOpen + 1
             end if
-        end if
+        end do
+! 
+!         if (i < j) then
+!             mask = getExcitationRangeMask(i, j)
+!             mask = iand(ilut, mask)
+!             beta = iand(mask, MaskBeta)
+!             alpha = iand(mask, MaskAlpha)
+! 
+!             alpha = ishft(alpha,-1_n_int)
+! 
+!             beta = iand(ieor(alpha,beta),beta)
+! 
+!             nOpen = CountBits(beta, nifd)
+!         else if (i == j) then
+!             if (isOne(ilut,i)) then
+!                 nOpen = 1
+!             end if
+!         end if
 
     end function count_beta_orbs_ij
-
 
     function count_alpha_orbs_ij(ilut, i, j) result(nOpen)
         ! function to count the number of 2s in a CSF det between spatial 
@@ -528,29 +535,47 @@ contains
         character(*), parameter :: this_routine = "count_alpha_orbs_ij"
 
         integer(n_int) :: mask(0:nifd), alpha(0:nifd), beta(0:nifd)
+        integer :: k
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
         ASSERT(j > 0 .and. j <= nSpatOrbs)
 
         nOpen = 0
 
-
-        if (i < j) then
-            mask = getExcitationRangeMask(i, j)
-            mask = iand(ilut, mask)
-            alpha = iand(mask, MaskAlpha)
-            beta = iand(mask, MaskBeta)
-
-            beta = ishft(beta,+1_n_int)
-
-            alpha = iand(ieor(beta,alpha),alpha)
-
-            nOpen = CountBits(alpha, nifd)
-        else if (i == j) then
-            if (isTwo(ilut,i)) then
-                nOpen = 1
-            end if
-        end if
+        ! quick fix for now to see if thats the problem: loop and check! 
+        do k = i, j
+            if (isTwo(ilut,k)) then
+                nOpen = nOpen + 1
+            end if 
+        end do
+! 
+!         if (i < j) then
+!             mask = getExcitationRangeMask(i, j)
+!             if ( i == 2 .and. j == 16) then
+!                 print *, "mask bef: ", mask
+!             end if
+!             mask = iand(ilut, mask)
+!             alpha = iand(mask, MaskAlpha)
+!             beta = iand(mask, MaskBeta)
+! 
+!             beta = ishft(beta,+1_n_int)
+! 
+!             alpha = iand(ieor(beta,alpha),alpha)
+! 
+!             nOpen = CountBits(alpha, nifd)
+!         else if (i == j) then
+!             if (isTwo(ilut,i)) then
+!                 nOpen = 1
+!             end if
+!         end if
+! ! 
+!         if (i == 2 .and. j == 16) then 
+!             print *, "nOpen: ", nOpen
+!             print *, "ilut: ", ilut
+!             print *, "mask:" , mask
+!             print *, "alpha: ", alpha
+!             print *, "beta: ", beta
+!         end if
 
     end function count_alpha_orbs_ij
 
@@ -564,6 +589,7 @@ contains
         
         logical :: flag
         integer(n_int) :: mask
+        integer :: k
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
         ASSERT(j > 0 .and. j <= nSpatOrbs)
@@ -573,22 +599,30 @@ contains
 
         nOpen = 0
 
-        if (i < j) then
-
-            ! first have to create a integer mask were every bit between 
-            ! correspongin spin orbitals for i and j is set. and then i can give
-            ! it to the already provided open orbital counting function
-            mask = getExcitationRangeMask(i, j)
-
-            ! use it to indicate only these orbitals
-            nOpen = count_open_orbs(iand(L, mask))
-        else if (i == j) then
-            ! have to do this to avoid too long lines...
-            flag = isOne(L,i)
-            if (flag .or. isTwo(L,i)) then
-                nOpen = 1
+        ! also here a quick fix do deal with excitrangemask probs:
+        do k = i, j
+            flag = isOne(L,k)
+            if (flag .or. isTwo(L,k)) then 
+                nOpen = nOpen + 1
             end if
-        end if
+        end do
+
+!         if (i < j) then
+! 
+!             ! first have to create a integer mask were every bit between 
+!             ! correspongin spin orbitals for i and j is set. and then i can give
+!             ! it to the already provided open orbital counting function
+!             mask = getExcitationRangeMask(i, j)
+! 
+!             ! use it to indicate only these orbitals
+!             nOpen = count_open_orbs(iand(L, mask))
+!         else if (i == j) then
+!             ! have to do this to avoid too long lines...
+!             flag = isOne(L,i)
+!             if (flag .or. isTwo(L,i)) then
+!                 nOpen = 1
+!             end if
+!         end if
 
     end function count_open_orbs_ij
 
