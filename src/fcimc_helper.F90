@@ -1809,9 +1809,6 @@ contains
             ! Therefore just adjust the weight.
             call encode_sign (CurrentDets(:, DetPosition), CopySign)
 
-            if (IsUnoccDet(CopySign)) then
-                print *, "after death: ", CopySign
-            end if
         else
             ! All walkers died.
             if(tFillingStochRDMonFly) then

@@ -2504,7 +2504,7 @@ contains
 !C.. we need to calculate a value for RHOEPS, so we approximate that
 !C.. RHO_II~=exp(-BETA*H_II/p).  RHOEPS is a %ge of this 
 !C.. If we haven't already calced RHOEPS, do it now
-          Call DoExactVertexCalc()
+!           Call DoExactVertexCalc()
           iSeed = 7
 
           IF (tMP2Standalone) then

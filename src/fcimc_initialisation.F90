@@ -2520,6 +2520,7 @@ contains
 #ifndef __CMPLX
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:,:)
+        integer :: i
 #endif
 
 #ifdef __CMPLX
@@ -3434,6 +3435,7 @@ contains
         integer :: n_excits, ierr
         real(dp), allocatable :: diag_energies(:)
         logical, allocatable :: found_mask(:)
+        character(*), parameter :: this_routine = "assign_reference_dets"
 #endif
 
 

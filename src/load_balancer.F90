@@ -519,7 +519,6 @@ contains
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
 
                 if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
-                    print *, CurrentSign
                     AnnihilatedDet = AnnihilatedDet + 1 
                 else
 
