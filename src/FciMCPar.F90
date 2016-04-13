@@ -1057,7 +1057,7 @@ module FciMCParMod
             end if
         end if
 
-        if (tFillingStochRDMonFly) then
+        if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) then
             call communicate_rdm_spawn_t(two_rdm_spawn, two_rdm_recv)
             call add_rdm_1_to_rdm_2(two_rdm_recv, rdm_main)
         end if
