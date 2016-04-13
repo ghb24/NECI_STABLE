@@ -6,7 +6,7 @@ module hist
     use MemoryManager
     use SystemData, only: tHistSpinDist, ilut_spindist, nbasis, nel, LMS, &
                           hist_spin_dist_iter, nI_spindist, LMS, tHPHF, &
-                          tOddS_HPHF, G1
+                          tOddS_HPHF, G1, tGUGA
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
                          DetBitEq, count_open_orbs, TestClosedShellDet, &
                          CalcOpenOrbs, IsAllowedHPHF, FindBitExcitLevel
@@ -1104,6 +1104,7 @@ contains
         real(dp) :: abschild
         integer :: exlevelI, exlevelJ
 
+        character(*), parameter :: this_routine = "add_hist_excit_tofrom"
         ! We want a total count of the particle weight formed.
         abschild = sum(abs(child))
 
