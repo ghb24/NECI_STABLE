@@ -38,7 +38,7 @@ contains
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data, only: rdm_estimates_unit, nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
-        use rdm_data, only: rdm_estimates, one_rdms, two_rdm_spawn, rdm_main
+        use rdm_data, only: rdm_estimates, one_rdms, two_rdm_spawn, rdm_main, two_rdm_recv
         use rdm_parallel, only: init_rdm_spawn_t, init_rdm_list_t
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
@@ -70,10 +70,14 @@ contains
         rdm_nrows = nbasis*(nbasis-1)/2
         max_nelems = 2.0*(rdm_nrows**2)/(8*nProcessors)
         nhashes_rdm = 0.8*max_nelems
+
         call init_rdm_list_t(rdm_main, nrdms, max_nelems, nhashes_rdm)
 
+        ! Don't need the hash table for the received list, so pass 0 for nhashes.
+        call init_rdm_list_t(two_rdm_recv, nrdms, max_nelems, 0)
+
         ! Initialise the main RDM array data structure.
-        call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems, max_nelems, nhashes_rdm)
+        call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems, nhashes_rdm)
 
         if (.not. allocated(rdms)) allocate(rdms(nrdms))
         if (.not. allocated(one_rdms)) allocate(one_rdms(nrdms))
@@ -1071,7 +1075,7 @@ contains
                 !two_rdm_spawn%free_slots = two_rdm_spawn%init_free_slots
                 !call clear_hash_table(two_rdm_spawn%rdm_send%hash_table)
                 !call create_spinfree_2rdm(rdm_main, two_rdm_spawn)
-                !call calc_1rdms_from_spinfree_2rdms(one_rdms, two_rdm_spawn%rdm_recv, all_rdm_trace)
+                !call calc_1rdms_from_spinfree_2rdms(one_rdms, rdm_recv, all_rdm_trace)
 
                 call calc_1rdms_from_2rdms(one_rdms, rdm_main, all_rdm_trace, tOpenShell)
 

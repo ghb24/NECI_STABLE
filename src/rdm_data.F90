@@ -164,9 +164,6 @@ module rdm_data
         ! or relevant, since the list won't be contiguous.
         type(rdm_list_t) :: rdm_send
 
-        ! This objects holds the received RDM elements after communication.
-        type(rdm_list_t) :: rdm_recv
-
         ! free_slots(i) holds the next available spawning slot in
         ! rdm_send%elements for processor i.
         integer, allocatable :: free_slots(:)
@@ -178,5 +175,6 @@ module rdm_data
     type(one_rdm_t), allocatable :: one_rdms(:)
     type(rdm_spawn_t) :: two_rdm_spawn
     type(rdm_list_t) :: rdm_main
+    type(rdm_list_t) :: two_rdm_recv
 
 end module rdm_data

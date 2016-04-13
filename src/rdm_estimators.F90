@@ -79,7 +79,7 @@ contains
         use Parallel_neci, only: MPISumAll
         use rdm_data, only: rdm_estimates_t, tOpenShell
 
-        use rdm_data, only: rdm_main, two_rdm_spawn
+        use rdm_data, only: rdm_main, two_rdm_spawn, two_rdm_recv
         use rdm_parallel, only: calc_rdm_trace, calc_rdm_spin, calc_rdm_energy, print_rdms_with_spin
         use rdm_parallel, only: print_rdms_spin_sym_wrapper, print_spinfree_2rdm_wrapper
         use rdm_parallel, only: make_hermitian_rdm
@@ -105,9 +105,10 @@ contains
             est(irdm)%new_spin = all_rdm_spin(irdm)
         end do
 
-        if (tWriteSpinFreeRDM .and. tFinalRDMEnergy) call print_spinfree_2rdm_wrapper(rdm_main, two_rdm_spawn, all_rdm_trace)
+        if (tWriteSpinFreeRDM .and. tFinalRDMEnergy) call print_spinfree_2rdm_wrapper(rdm_main, two_rdm_recv, &
+                                                                                      two_rdm_spawn, all_rdm_trace)
         if (tFinalRDMEnergy .and. tWrite_Normalised_RDMs) then
-            call print_rdms_spin_sym_wrapper(rdm_main, two_rdm_spawn, all_rdm_trace, tOpenShell)
+            call print_rdms_spin_sym_wrapper(rdm_main, two_rdm_recv, two_rdm_spawn, all_rdm_trace, tOpenShell)
         end if
         !if (tFinalRDMEnergy .and. tWrite_Normalised_RDMs) call print_rdms_with_spin(rdm_main, all_rdm_trace)
 

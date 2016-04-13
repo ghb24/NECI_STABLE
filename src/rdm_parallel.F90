@@ -43,33 +43,25 @@ contains
 
     end subroutine init_rdm_list_t
 
-    subroutine init_rdm_spawn_t(spawn, nrows, sign_length, max_nelements_send, max_nelements_recv, nhashes)
+    subroutine init_rdm_spawn_t(spawn, nrows, sign_length, max_nelements_send, nhashes)
 
         ! Initialise an rdm_spawn_t object.
-
-        ! * IMPORTANT * - This routine will not allocate the hash table for the
-        ! received RDM, spawn%rdm_recv%hash_table, since it usually won't be
-        ! used. If it is needed for a particular application then it must be
-        ! allocated and initialised separately.
 
         ! Out: spawn - rdm_spawn_t object to be initialised.
         ! In:  nrows - the number of rows in the RDM.
         ! In:  sign_length - the number of signs which can be stored for each element.
         ! In:  max_nelements_send - the length of the spawn%rdm_send%elements array.
-        ! In:  max_nelements_recv - the length of the spawn%rdm_recv%elements array.
         ! In:  nhashes - the number of unique hashes for indexing spawn%rdm_send%hash_table.
 
         type(rdm_spawn_t), intent(out) :: spawn
         integer, intent(in) :: nrows, sign_length, nhashes
-        integer, intent(in) :: max_nelements_send, max_nelements_recv
+        integer, intent(in) :: max_nelements_send
         integer :: i, ierr
         real(dp) :: slots_per_proc
 
         spawn%nrows = nrows
 
         call init_rdm_list_t(spawn%rdm_send, sign_length, max_nelements_send, nhashes)
-        ! Don't need the hash table for the received list, so pass 0 for nhashes.
-        call init_rdm_list_t(spawn%rdm_recv, sign_length, max_nelements_recv, 0)
 
         allocate(spawn%free_slots(0:nProcessors-1), stat=ierr)
         allocate(spawn%init_free_slots(0:nProcessors-1), stat=ierr)
@@ -249,12 +241,13 @@ contains
 
     end subroutine add_to_rdm_spawn_t
 
-    subroutine communicate_rdm_spawn_t(spawn)
+    subroutine communicate_rdm_spawn_t(spawn, rdm_recv)
 
         use hash, only: clear_hash_table
         use Parallel_neci, only: MPIAlltoAll, MPIAlltoAllv
 
         type(rdm_spawn_t), intent(inout) :: spawn
+        type(rdm_list_t), intent(inout) :: rdm_recv
 
         integer :: i, ierr
         integer(MPIArg) :: send_sizes(0:nProcessors-1), recv_sizes(0:nProcessors-1)
@@ -278,9 +271,9 @@ contains
         end do
 
         ! The total number of RDM elements sent to this processor.
-        spawn%rdm_recv%nelements = int(sum(recv_sizes), sizeof_int)
+        rdm_recv%nelements = int(sum(recv_sizes), sizeof_int)
 
-        if (spawn%rdm_recv%nelements > spawn%rdm_recv%max_nelements) then
+        if (rdm_recv%nelements > rdm_recv%max_nelements) then
             write(6,'("Attempting to receive RDM elements on processor:",&
                        &1X,'//int_fmt(iProcIndex,0)//')') iProcIndex
             write(6,'("Insufficient space in the receiving RDM array.")')
@@ -294,7 +287,7 @@ contains
 
         ! Perform the communication.
         call MPIAlltoAllv(spawn%rdm_send%elements, send_sizes, send_displs, &
-                          spawn%rdm_recv%elements, recv_sizes, recv_displs, ierr)
+                          rdm_recv%elements, recv_sizes, recv_displs, ierr)
 
         ! Now we can reset the free_slots array and reset the hash table.
         spawn%free_slots = spawn%init_free_slots
@@ -705,12 +698,19 @@ contains
 
     end subroutine calc_1rdms_from_2rdms
 
-    subroutine make_hermitian_rdm(rdm, spawn)
+    subroutine make_hermitian_rdm(rdm, spawn, rdm_recv)
 
-        use SystemData, only: nbasis
+        ! Take the RDM in the rdm object, and output a new RDM which is the
+        ! same but with Hermiticy applied to it, i.e., the elements above and
+        ! below the diagonal are averaged appropriately.
 
-        type(rdm_list_t), intent(in) :: rdm
+        ! If rdm_recv is input then the new RDM will be output to this object.
+        ! If not, then the RDM in the rdm object will be overwritten. However,
+        ! the hash table in these objects will *not* be updated.
+
+        type(rdm_list_t), intent(inout) :: rdm
         type(rdm_spawn_t), intent(inout) :: spawn
+        type(rdm_list_t), optional, intent(inout) :: rdm_recv
 
         integer(int_rdm) :: pqrs
         integer :: i, pq, rs, p, q, r, s
@@ -735,16 +735,25 @@ contains
             end if
         end do
 
-        call communicate_rdm_spawn_t(spawn)
-        call annihilate_rdm_list(spawn%rdm_recv)
+        if (present(rdm_recv)) then
+            call communicate_rdm_spawn_t(spawn, rdm_recv)
+            call annihilate_rdm_list(rdm_recv)
+        else
+            call communicate_rdm_spawn_t(spawn, rdm)
+            call annihilate_rdm_list(rdm)
+        end if
 
     end subroutine make_hermitian_rdm
 
-    subroutine apply_symmetries_for_output(rdm, spawn, open_shell)
+    subroutine apply_symmetries_for_output(rdm, spawn, open_shell, rdm_recv)
 
-        ! This routine will take in rdm, and output a new rdm to spawn%rdm_recv,
-        ! which will have all appropriate symmetries applied so that the latter
-        ! RDM can be passed to the routine to write RDMs.
+        ! This routine will take in rdm, and output a new rdm which will have
+        ! all appropriate symmetries applied so that the latter RDM can be
+        ! passed to the routine to write RDMs.
+
+        ! If rdm_recv is input then the new RDM will be output to this object.
+        ! If not, then the RDM in the rdm object will be overwritten. However,
+        ! the hash table in these objects will *not* be updated.
 
         ! The input RDM should already have hermiticy symmetry applied to it.
 
@@ -755,9 +764,10 @@ contains
         ! systems we do need to apply full hermiticy, but also need to apply spatial
         ! hermiticy because spatial labels are written within each output file.
 
-        type(rdm_list_t), intent(in) :: rdm
+        type(rdm_list_t), intent(inout) :: rdm
         type(rdm_spawn_t), intent(inout) :: spawn
         logical, intent(in) :: open_shell
+        type(rdm_list_t), optional, intent(inout) :: rdm_recv
 
         integer(int_rdm) :: ijkl
         integer :: ielem, ij, kl, i, j, k, l
@@ -824,8 +834,13 @@ contains
             end if
         end do
 
-        call communicate_rdm_spawn_t(spawn)
-        call annihilate_rdm_list(spawn%rdm_recv)
+        if (present(rdm_recv)) then
+            call communicate_rdm_spawn_t(spawn, rdm_recv)
+            call annihilate_rdm_list(rdm_recv)
+        else
+            call communicate_rdm_spawn_t(spawn, rdm)
+            call annihilate_rdm_list(rdm)
+        end if
 
     end subroutine apply_symmetries_for_output
 
@@ -895,16 +910,22 @@ contains
 
     end subroutine apply_legacy_output_ordering
 
-    subroutine print_rdms_spin_sym_wrapper(rdm, spawn, rdm_trace, open_shell)
+    subroutine print_rdms_spin_sym_wrapper(rdm, rdm_recv, spawn, rdm_trace, open_shell)
 
         ! Compress the full spinned-RDMs by summing over spin-equivalent terms
         ! (i.e. aaaa and bbbb rdms), and also applying symmetry of (*real*)
-        ! RDMs. The result will be stored in spawn%rdm_recv. Then, print with
-        ! out to a file.
+        ! RDMs. The result will be stored in rdm_recv. Then, print it out to a
+        ! file.
+
+        ! IMPORTANT: Although the rdm object has inout status, it will *not*
+        ! be modified. The inout status is to allow for the optional possibility
+        ! of updating the first argument of make_hermitian_rdm, which is not
+        ! used here.
 
         use hash, only: clear_hash_table
 
         type(rdm_list_t), intent(inout) :: rdm
+        type(rdm_list_t), intent(inout) :: rdm_recv
         type(rdm_spawn_t), intent(inout) :: spawn
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
         logical, intent(in) :: open_shell
@@ -912,19 +933,14 @@ contains
         spawn%free_slots = spawn%init_free_slots
         call clear_hash_table(spawn%rdm_send%hash_table)
 
-        call make_hermitian_rdm(rdm, spawn)
+        call make_hermitian_rdm(rdm, spawn, rdm_recv)
 
-        ! Clear rdm, and copy spawn%rdm_recv to it.
-        rdm%nelements = 0
-        call clear_hash_table(rdm%hash_table)
-        call add_rdm_1_to_rdm_2(spawn%rdm_recv, rdm)
-
-        call apply_symmetries_for_output(rdm, spawn, open_shell)
-        call print_rdms_with_spin(spawn%rdm_recv, rdm_trace)
+        call apply_symmetries_for_output(rdm_recv, spawn, open_shell)
+        call print_rdms_with_spin(rdm_recv, rdm_trace)
 
     end subroutine print_rdms_spin_sym_wrapper
 
-    subroutine create_spinfree_2rdm(rdm, spawn)
+    subroutine create_spinfree_2rdm(rdm, spawn, rdm_recv)
 
         ! Take an standard (spinned) 2-RDM, stored in rdm, and output the
         ! spinfree version of it to the spawn%rdm_recv object.
@@ -949,8 +965,9 @@ contains
         use SystemData, only: nbasis
         use UMatCache, only: spatial
 
-        type(rdm_list_t), intent(in) :: rdm
+        type(rdm_list_t), intent(inout) :: rdm
         type(rdm_spawn_t), intent(inout) :: spawn
+        type(rdm_list_t), optional, intent(inout) :: rdm_recv
 
         integer(int_rdm) :: pqrs
         integer :: i, pq, rs, p, q, r, s
@@ -1018,8 +1035,13 @@ contains
 
         end do
 
-        call communicate_rdm_spawn_t(spawn)
-        call annihilate_rdm_list(spawn%rdm_recv)
+        if (present(rdm_recv)) then
+            call communicate_rdm_spawn_t(spawn, rdm_recv)
+            call annihilate_rdm_list(rdm_recv)
+        else
+            call communicate_rdm_spawn_t(spawn, rdm)
+            call annihilate_rdm_list(rdm)
+        end if
 
     contains
 
@@ -1069,19 +1091,25 @@ contains
 
     end subroutine create_spinfree_2rdm
 
-    subroutine print_spinfree_2rdm_wrapper(rdm, spawn, rdm_trace)
+    subroutine print_spinfree_2rdm_wrapper(rdm, rdm_recv, spawn, rdm_trace)
+
+        ! IMPORTANT: Although the rdm object has inout status, it will *not*
+        ! be modified. The inout status is to allow for the optional possibility
+        ! of updating the first argument of create_spinfree_2rdm, which is not
+        ! used here.
 
         use hash, only: clear_hash_table
 
         type(rdm_list_t), intent(inout) :: rdm
+        type(rdm_list_t), intent(inout) :: rdm_recv
         type(rdm_spawn_t), intent(inout) :: spawn
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
 
         spawn%free_slots = spawn%init_free_slots
         call clear_hash_table(spawn%rdm_send%hash_table)
 
-        call create_spinfree_2rdm(rdm, spawn)
-        call print_spinfree_2rdm(spawn%rdm_recv, rdm_trace)
+        call create_spinfree_2rdm(rdm, spawn, rdm_recv)
+        call print_spinfree_2rdm(rdm_recv, rdm_trace)
 
     end subroutine print_spinfree_2rdm_wrapper
 
