@@ -505,7 +505,7 @@ contains
             beta = iand(mask, MaskBeta)
             alpha = iand(mask, MaskAlpha)
 
-            alpha = ishft(alpha,-1)
+            alpha = ishft(alpha,-1_n_int)
 
             beta = iand(ieor(alpha,beta),beta)
 
@@ -534,13 +534,14 @@ contains
 
         nOpen = 0
 
+
         if (i < j) then
             mask = getExcitationRangeMask(i, j)
             mask = iand(ilut, mask)
             alpha = iand(mask, MaskAlpha)
             beta = iand(mask, MaskBeta)
 
-            beta = ishft(beta,+1)
+            beta = ishft(beta,+1_n_int)
 
             alpha = iand(ieor(beta,alpha),alpha)
 
@@ -600,17 +601,21 @@ contains
         integer(n_int) :: mask
         character(*), parameter :: this_routine = "getExcitationRangeMask"
 
-        integer :: k
+        integer(n_int) :: k
+        integer(n_int) :: tmp_i, tmp_j
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
         ASSERT(j > 0 .and. j <= nSpatOrbs)
         ASSERT(j > i)
 
+        tmp_i = int(i,n_int)
+        tmp_j = int(j,n_int)
+
         ! not quite sure about LMSB or RMSB... todo
         mask = 0_n_int
 
-        do k = 2*i - 1, 2*j ! convert to spin orbitals
-            mask = mask + 2_n_int**(k-1)
+        do k = 2_n_int*tmp_i - 1_n_int, 2_n_int*tmp_j ! convert to spin orbitals
+            mask = mask + 2_n_int**(k-1_n_int)
         end do
 
     end function getExcitationRangeMask

@@ -7450,7 +7450,7 @@ contains
         ! only deltaB = 0 branch, so only number of open orbitals important 
         ! for matrix element in overlap region
 
-        nOpen = (-1.0_dp)**real(count_open_orbs_ij(ilut, excitInfo%secondStart+1, &
+        nOpen = (-1.0_dp)**real(count_open_orbs_ij(ilut(0:nifd), excitInfo%secondStart+1, &
             excitInfo%fullEnd-1),dp)
 
         iOrb = excitInfo%fullEnd
@@ -7585,7 +7585,7 @@ contains
         ! only deltaB = 0 branch, so only number of open orbitals important 
         ! for matrix element in overlap region
 
-        nOpen = (-1.0_dp) ** real(count_open_orbs_ij(ilut, excitInfo%secondStart+1, &
+        nOpen = (-1.0_dp) ** real(count_open_orbs_ij(ilut(0:nifd), excitInfo%secondStart+1, &
             excitInfo%fullEnd-1),dp)
 
         iOrb = excitInfo%fullEnd
@@ -7666,7 +7666,7 @@ contains
 
         ! double overlap region influence only determined by number of open 
         ! orbitals 
-        nOpen = real(count_open_orbs_ij(ilut,start,semi-1),dp)
+        nOpen = real(count_open_orbs_ij(ilut(0:nifd),start,semi-1),dp)
 
         deltaB = getDeltaB(t)
 
@@ -7833,7 +7833,7 @@ contains
 
         ! double overlap region influence only determined by number of open 
         ! orbitals 
-        nOpen = real(count_open_orbs_ij(ilut,start,semi-1),dp)
+        nOpen = real(count_open_orbs_ij(ilut(0:nifd),start,semi-1),dp)
 
         deltaB = getDeltaB(t)
         weights = init_singleWeight(ilut, ende)
@@ -11751,7 +11751,7 @@ contains
         ! some additional room if 0/3 at start
         ! use already provided open orbital counting function. 
         ! nMax = 2**(ende - start)
-        nMax = 4 + 4 * 2**count_open_orbs_ij(ilut, st, excitInfo%fullEnd)
+        nMax = 4 + 4 * 2**count_open_orbs_ij(ilut(0:nifd), st, excitInfo%fullEnd)
         allocate(tempExcits(0:nifguga, nMax), stat = ierr)
 
         ! create start depending on stepvalue of ilut at start, b value, 
@@ -13205,7 +13205,7 @@ contains
 
         ! matrix element deüends only on the number of open orbitals in the 
         ! excitaiton region
-        nOpen = real(count_open_orbs_ij(t, excitInfo%fullStart, excitInfo%fullEnd),dp)
+        nOpen = real(count_open_orbs_ij(t(0:nifd), excitInfo%fullStart, excitInfo%fullEnd),dp)
 
         ! update! the sum over two-particle integrals involves a 1/2, which
         ! does not get compensated here by 
@@ -14400,7 +14400,7 @@ contains
         bVal = currentB_ilut(st)
 
         ! determine worst case amount of excitations:
-        nMax = 2 + 2**count_open_orbs_ij(ilut,st,excitInfo%fullEnd)
+        nMax = 2 + 2**count_open_orbs_ij(ilut(0:nifd),st,excitInfo%fullEnd)
         allocate(tempExcits(0:nifguga, nMax), stat = ierr)
 
         ! assert that at least one of the weights is non-zero
@@ -14599,7 +14599,7 @@ contains
         ! some additional room if 0/3 at start
         ! use already provided open orbital counting function. 
         ! nMax = 2**(ende - start)
-        nMax = 2 + 2**count_open_orbs_ij(ilut, start, ende)
+        nMax = 2 + 2**count_open_orbs_ij(ilut(0:nifd), start, ende)
         allocate(tempExcits(0:nifguga, nMax), stat = ierr)
 
 
@@ -14609,7 +14609,7 @@ contains
         ! additionally also already calculate the sign coming from the 
         ! pseudo double excitation which only depends on the number of open 
         ! orbitals in the overlap region
-        nOpen = real(count_open_orbs_ij(ilut,start,semi-1),dp)
+        nOpen = real(count_open_orbs_ij(ilut(0:nifd),start,semi-1),dp)
 
         ! set 0->3
         set_orb(t, 2*start)
@@ -14779,7 +14779,7 @@ contains
         ! some additional room if 0/3 at start
         ! use already provided open orbital counting function. 
         ! nMax = 2**(ende - start)
-        nMax = 2 + 2**count_open_orbs_ij(ilut, start, ende)
+        nMax = 2 + 2**count_open_orbs_ij(ilut(0:nifd), start, ende)
         allocate(tempExcits(0:nifguga, nMax), stat = ierr)
 
         t = ilut
@@ -14789,7 +14789,7 @@ contains
         ! pseudo double excitation which only depends on the number of open 
         ! orbitals in the overlap region
         ! just also count the semi here to take that additional -sign into account
-        nOpen = real(count_open_orbs_ij(ilut,start,semi),dp)
+        nOpen = real(count_open_orbs_ij(ilut(0:nifd),start,semi),dp)
 
         ! set 3->0
         clr_orb(t, 2*start)
@@ -16713,7 +16713,7 @@ contains
         ! continue on with double excitation region, only the 0 branch
         ! valid here, where there is no change in stepvector and matrix 
         ! element only a sign dependent on the number of open orbitals
-        sig =(-1.0_dp)** real(count_open_orbs_ij(ilut, excitInfo%secondStart+1, &
+        sig =(-1.0_dp)** real(count_open_orbs_ij(ilut(0:nifd), excitInfo%secondStart+1, &
             excitInfo%fullEnd-1),dp)
 
         ! do the ending
@@ -16873,7 +16873,7 @@ contains
         ! continue on with double excitation region, only the 0 branch
         ! valid here, where there is no change in stepvector and matrix 
         ! element only a sign dependent on the number of open orbitals
-        sig = (-1.0_dp)** real(count_open_orbs_ij(ilut, excitInfo%secondStart+1, &
+        sig = (-1.0_dp)** real(count_open_orbs_ij(ilut(0:nifd), excitInfo%secondStart+1, &
             excitInfo%fullEnd-1),dp)
 
         ! do the ending
@@ -17399,8 +17399,8 @@ contains
 
         nExcits = 0
         ! have to allocate excitation list to worst casce
-        nOpen1 = count_open_orbs_ij(ilut,excitInfo%fullStart,excitInfo%firstEnd)
-        nOpen2 = count_open_orbs_ij(ilut,excitInfo%secondStart,excitInfo%fullEnd)
+        nOpen1 = count_open_orbs_ij(ilut(0:nifd),excitInfo%fullStart,excitInfo%firstEnd)
+        nOpen2 = count_open_orbs_ij(ilut(0:nifd),excitInfo%secondStart,excitInfo%fullEnd)
 
         nMax = 4 + 2**(nOpen1 + nOpen2 + 2)
         allocate(excitations(0:nifguga, nMax), stat = ierr)
@@ -18824,10 +18824,10 @@ contains
         ! a = i/j should be allowed 
         if (current_stepvector(n_id(1)) == current_stepvector(n_id(2))) then
             if (current_stepvector(n_id(1)) == 1) then
-                if (count_alpha_orbs_ij(ilut,n_id(1),n_id(2)) == 0) tSwitch = .false.
+                if (count_alpha_orbs_ij(ilut(0:nifd),n_id(1),n_id(2)) == 0) tSwitch = .false.
 
             else
-                if (count_beta_orbs_ij(ilut,n_id(1),n_id(2)) == 0) tSwitch = .false.
+                if (count_beta_orbs_ij(ilut(0:nifd),n_id(1),n_id(2)) == 0) tSwitch = .false.
             end if
         end if
 
@@ -20085,14 +20085,14 @@ contains
                     if (a == j) then
                         if (current_stepvector(i) == 1 .and. &
                             current_stepvector(j) == 1) then
-                            if (count_alpha_orbs_ij(ilut, i, j) == 0) then
+                            if (count_alpha_orbs_ij(ilut(0:nifd), i, j) == 0) then
                                 ! no valid excitation
                                 excitInfo%valid = .false.
                                 return
                             end if
                         else if (current_stepvector(i) == 2 .and. &
                             current_stepvector(j) == 2) then
-                            if (count_beta_orbs_ij(ilut, i, j) == 0) then
+                            if (count_beta_orbs_ij(ilut(0:nifd), i, j) == 0) then
                                 excitInfo%valid = .false.
                                 return
                             end if
@@ -20143,14 +20143,14 @@ contains
                         ! have the same stepvalue
                         if (current_stepvector(i) == 1 .and. &
                             current_stepvector(j) == 1) then
-                            if (count_alpha_orbs_ij(ilut, i, j) == 0) then
+                            if (count_alpha_orbs_ij(ilut(0:nifd), i, j) == 0) then
                                 ! no valid excitation
                                 excitInfo%valid = .false.
                                 return
                             end if
                         else if (current_stepvector(i) == 2 .and. &
                             current_stepvector(j) == 2) then
-                            if (count_beta_orbs_ij(ilut, i, j) == 0) then
+                            if (count_beta_orbs_ij(ilut(0:nifd), i, j) == 0) then
                                 excitInfo%valid = .false.
                                 return
                             end if
@@ -20213,14 +20213,14 @@ contains
                                 ! have the same stepvalue
                                 if (current_stepvector(i) == 1 .and. &
                                     current_stepvector(j) == 1) then
-                                    if (count_alpha_orbs_ij(ilut, i, j) == 0) then
+                                    if (count_alpha_orbs_ij(ilut(0:nifd), i, j) == 0) then
                                         ! no valid excitation
                                         excitInfo%valid = .false.
                                         return
                                     end if
                                 else if (current_stepvector(i) == 2 .and. &
                                     current_stepvector(j) == 2) then
-                                    if (count_beta_orbs_ij(ilut, i, j) == 0) then
+                                    if (count_beta_orbs_ij(ilut(0:nifd), i, j) == 0) then
                                         excitInfo%valid = .false.
                                         return
                                     end if
@@ -20300,14 +20300,14 @@ contains
                                 ! have the same stepvalue
                                 if (current_stepvector(i) == 1 .and. &
                                     current_stepvector(j) == 1) then
-                                    if (count_alpha_orbs_ij(ilut, i, j) == 0) then
+                                    if (count_alpha_orbs_ij(ilut(0:nifd), i, j) == 0) then
                                         ! no valid excitation
                                         excitInfo%valid = .false.
                                         return
                                     end if
                                 else if (current_stepvector(i) == 2 .and. &
                                     current_stepvector(j) == 2) then
-                                    if (count_beta_orbs_ij(ilut, i, j) == 0) then
+                                    if (count_beta_orbs_ij(ilut(0:nifd), i, j) == 0) then
                                         excitInfo%valid = .false.
                                         return
                                     end if
@@ -21060,7 +21060,7 @@ contains
             if (current_stepvector(n_id(1)) == current_stepvector(n_id(2))) then
                 if (current_stepvector(n_id(1)) == 1) then
                     ! have to check if there is a possible switch 
-                    if (count_alpha_orbs_ij(ilut, n_id(1), n_id(2)) == 0) then
+                    if (count_alpha_orbs_ij(ilut(0:nifd), n_id(1), n_id(2)) == 0) then
                         ! if no switch exclude, i and j for a 
                         if (n_id(1) == 1) then
                             cum_arr(1) = 0.0_dp
@@ -21097,7 +21097,7 @@ contains
                     end if
                 else if (current_stepvector(n_id(1)) == 2) then
                     ! have to check if there is a possible switch 
-                    if (count_beta_orbs_ij(ilut, n_id(1), n_id(2)) == 0) then
+                    if (count_beta_orbs_ij(ilut(0:nifd), n_id(1), n_id(2)) == 0) then
                         ! if no switch exclude, i and j for a 
                         if (n_id(1) == 1) then
                             cum_arr(1) = 0.0_dp
@@ -24151,7 +24151,7 @@ contains
                 ! how to implement that, maybe:
                 ! checkCompatibility() 
 
-                nSwitches = count_alpha_orbs_ij(ilut,min(i,j)+1,max(i,j)-1)
+                nSwitches = count_alpha_orbs_ij(ilut(0:nifd),min(i,j)+1,max(i,j)-1)
                 if (nSwitches == 0) then
                     excitInfo%valid = .false.
                     return
@@ -24214,7 +24214,7 @@ contains
                 ! there is no excitation possible... -> not quite sure yet 
                 ! how to implement that, maybe:
                 ! checkCompatibility() 
-                nSwitches = count_beta_orbs_ij(ilut,min(i,j)+1,max(i,j)-1)
+                nSwitches = count_beta_orbs_ij(ilut(0:nifd),min(i,j)+1,max(i,j)-1)
 
                 if (nSwitches == 0) then
                     excitInfo%valid = .false.
