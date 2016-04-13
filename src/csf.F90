@@ -76,14 +76,15 @@ contains
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: nottParity
         HElement_t(dp) :: hel_ret
-        HElement_t(dp) , intent(in) :: notHElGen
+        HElement_t(dp), intent(in) :: notHElGen
 
         integer :: nopen(2), nclosed(2), nup(2), ndets(2), IC, i
         integer :: S(2), Ms(2), iUnused
         logical :: bCSF(2), bBothCSF, tUnused
+        HElement_t(dp) :: hUnused
 
         ! Avoid compiler warnings
-        iUnused=notic; iUnused=notex(1,1); tUnused=nottParity
+        iUnused=notic; iUnused=notex(1,1); tUnused=nottParity; hUnused=notHelgen
 
         ! Are these both CSFs?
         bCSF(1) = iscsf(nI)
@@ -278,10 +279,10 @@ contains
         ! determinants.
         hel_ret = (0)
         do i=1,ndets(1)
-            if (coeffs1(i) /= 0) then
+            if (abs(coeffs1(i)) > 1.0e-12_dp) then
                 sum1 = (0)
                 do j=1,ndets(2)
-                    if (coeffs2(j) /= 0) then
+                    if (abs(coeffs2(j)) > 1.0e-12_dp) then
                         Hel = sltcnd (dets1(:,i), ilut1(:,i), ilut2(:,j))
                         sum1 = sum1 + Hel * (coeffs2(j))
                     endif
@@ -347,7 +348,7 @@ contains
         ! Sum in all of the H-matrix terms
         hel_ret = (0)
         do i=1,ndets(1)
-            if (coeffs(i) /= 0) then
+            if (abs(coeffs(i)) > 1.0e-12_dp) then
                 hel = sltcnd (dets(:,i), ilut(:,i), ilutJ)
                 hel_ret = hel_ret + hel*(coeffs(i))
             endif
@@ -387,7 +388,7 @@ contains
         diag_coeff = sum(coeffs1*coeffs2)
 
         hel_ret = (0)
-        if (diag_coeff /= 0) then
+        if (abs(diag_coeff) > 1.0e-12_dp) then
             ! Sum in the one electron integrals
             hel_ret = (diag_coeff) * &
                           sum(gettmatel(nK, nK))
@@ -431,7 +432,7 @@ contains
                 hel2 = get_umat_el(idN, idX, idX, idN)
                 
                 do det=1,ndets
-                    if (coeffs1(det) /= 0 .and. coeffs2(det) /= 0) then
+                    if (abs(coeffs1(det)) > 1.0e-12_dp .and. abs(coeffs2(det)) > 1.0e-12_dp) then
                         ! Only include terms with matching Ms values.
                         ids = ieor(dets1(i,det), dets1(j,det))
                         if (ids == 0) then
@@ -441,7 +442,7 @@ contains
                     endif
                 enddo
 
-                if (diag_coeff /= 0) then
+                if (abs(diag_coeff) > 1.0e-12_dp) then
                     hel = hel + (diag_coeff) * &
                                 get_umat_el(idN, idX, idN, idX)
                 endif
@@ -468,8 +469,8 @@ contains
                 indj = det_perm_pos (dets1(nclosed+1:nel,det), elecs, &
                                      det_sum, nopen, ndets, det)
 
-                if ( (coeffs1(det) /= 0 .and. coeffs2(indj) /= 0) .or. &
-                     (coeffs1(indj) /= 0 .and. coeffs2(det) /= 0) ) then
+                if ( (abs(coeffs1(det)) > 1.0e-12_dp .and. abs(coeffs2(indj)) > 1.0e-12_dp) .or. &
+                     (abs(coeffs1(indj)) > 1.0e-12_dp .and. abs(coeffs2(det)) > 1.0e-12_dp) ) then
 
                     ! Generate the excitation matrix.
                     do j=1,2
@@ -653,11 +654,11 @@ contains
             
             ! For each valid determinant in CSF1, loop through all of the
             ! connected determinants on the other determinant.
-            if (coeffs1(i) /= 0) then
+            if (abs(coeffs1(i)) > 1.0e-12_dp) then
                 sum1 = (0)
                 k = j
                 do while (k <= ndets(2))
-                    if (coeffs2(k) /= 0) then
+                    if (abs(coeffs2(k)) > 1.0e-12_dp) then
 
                         ! Obtain the Ms matrix for the excitation (i.e. the Ms
                         ! values of the orbitals excited from/to)
@@ -1615,7 +1616,7 @@ contains
 
             clb = clbgrdn(S, M, scur, mcur)
             csf_coeff = csf_coeff * clb
-            if (clb == 0) exit            
+            if (abs(clb) < 1.0e-12_dp) exit
         enddo
     end function
 

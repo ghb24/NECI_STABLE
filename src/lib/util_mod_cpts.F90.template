@@ -30,9 +30,6 @@ type = type(Symmetry)
 [sympairprod]
 type = type(SymPairProd)
 
-[starwalker]
-type = type(star_walker)
-
 =========================
 
 module util_mod_cpts
@@ -40,7 +37,6 @@ module util_mod_cpts
     use helem
     use SystemData, only: Symmetry, assignment(=)
     use symdata, only: SymPairProd, assignment(=)
-    use StarDiagData
     use iso_c_hack
     implicit none
 

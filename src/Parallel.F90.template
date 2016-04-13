@@ -977,7 +977,7 @@ contains
         %(type1)s, intent(in), target :: v()
         %(type1)s, intent(inout), target :: Ret(:)
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: comm, rt, err
+        integer(MPIArg) :: comm, err
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
@@ -1013,7 +1013,7 @@ contains
         %(type1)s, intent(inout), target :: ret(:)
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: Comm, rt, err
+        integer(MPIArg) :: Comm, err
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
@@ -1025,7 +1025,7 @@ contains
         rptr = loc_neci(ret)
 #endif
 
-        call GetComm (Comm, Node, rt)
+        call GetComm (Comm, Node)
 
         call MPI_Allgather (val_in, &
                 int(%(mpilen)s, MPIArg), &
@@ -1050,7 +1050,7 @@ contains
         %(type1)s, intent(inout), target :: ret()
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: Comm, rt, err
+        integer(MPIArg) :: Comm, err
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
@@ -1062,7 +1062,7 @@ contains
         rptr = loc_neci(ret)
 #endif
 
-        call GetComm (Comm, Node, rt)
+        call GetComm (Comm, Node)
 
         call MPI_Allgather (val_in, &
                 int(%(mpilen)s, MPIArg), &
@@ -1533,11 +1533,15 @@ contains
 
         logical, intent(in) :: tExternal
         integer(MPIArg) :: iProcInd, nProcess, ierr
-        integer :: a, g,MolpComm
+        integer :: a, g
         character(len=20) NodeFile
-        character(len=8) MCPUs
         logical, save :: initialised=.false.
         character(*), parameter :: t_r = 'MPIInit'
+
+#ifdef MOLPRO
+        integer :: MolpComm
+        character(8) :: MCPUs
+#endif
 
 #ifdef PARALLEL
         if (.not.initialised) then
@@ -1767,7 +1771,7 @@ contains
     subroutine MPINodes (tUseProcsAsNodes)
 
         logical, intent(in) :: tUseProcsAsNodes !Set if we use Procs as Nodes.
-        character(*), parameter :: t_r = 'MPINodes'
+!        character(*), parameter :: t_r = 'MPINodes'
 
         integer :: Group, i, j, n, GroupProc(nProcessors), ierr
         integer(MPIArg) :: GroupDum, GroupRootsDum, CommRootDum

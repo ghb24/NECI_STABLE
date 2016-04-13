@@ -100,7 +100,6 @@ module hash
         integer(n_int), intent(in) :: walker_list(0:,:)
         logical, intent(in) :: ignore_unocc
 
-        type(ll_node), pointer :: temp_node
         integer :: i, hash_val, nI(nel)
         real(dp) :: real_sign(lenof_sign)
         logical :: tCoreDet
@@ -139,7 +138,9 @@ module hash
         integer :: hash_val
         type(ll_node), pointer :: prev, curr
         logical :: found
+#ifdef __DEBUG
         character(len=*), parameter :: this_routine = "remove_hash_table_entry"
+#endif
 
         found = .false.
 
@@ -249,7 +250,9 @@ module hash
         real(dp) :: real_sign(lenof_sign)
         logical :: found, tCoreDet
         type(ll_node), pointer :: temp_node, prev
+#ifdef __DEBUG
         character(len=*), parameter :: this_routine = "rm_unocc_dets_from_hash_table"
+#endif
 
         do i = 1, list_length
             call extract_sign(walker_list(:,i), real_sign)

@@ -5,9 +5,8 @@ module read_fci
 contains
 
     SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
-         use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF,tHub,tUEG
-         use SystemData , only : tStoreSpinOrbs,tKPntSym,tRotatedOrbsReal,tFixLz,tUHF
-         use SystemData , only : tMolpro,tReadFreeFormat
+         use SystemData, only: tNoSymGenRandExcits, lNoSymmetry, tROHF, tHub, tUEG, tStoreSpinOrbs, &
+                               tKPntSym, tRotatedOrbsReal, tFixLz, tUHF, tMolpro
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel_neci
          use util_mod, only: get_free_unit
@@ -20,8 +19,12 @@ contains
          INTEGER NORB,NELEC,MS2,ISYM,i,SYML(1000), iunit,iuhf
          LOGICAL exists
          logical :: uhf
-         logical tExists     !test for existence of input file.
-         integer isfreeunit  !function returning integer for free unit
+
+#ifdef _MOLCAS_
+         logical :: tExists     !test for existence of input file.
+         integer :: isfreeunit  !function returning integer for free unit
+#endif
+
          CHARACTER(len=3) :: fmat
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
@@ -181,9 +184,8 @@ contains
 
 
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
-         use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn,tMolpro,tUHF
-         use SystemData, only: tCacheFCIDUMPInts,tROHF,tFixLz,iMaxLz,tRotatedOrbsReal
-         use SystemData, only: tReadFreeFormat,SYMMAX
+         use SystemData, only: BasisFN, Symmetry, NullBasisFn, tMolpro, tCacheFCIDUMPInts, &
+                               tROHF, tFixLz, iMaxLz, tRotatedOrbsReal, tReadFreeFormat, SYMMAX
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
          use UMatCache, only: GetCacheIndexStates,GTID
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
@@ -199,8 +201,8 @@ contains
          HElement_t(dp) Z
          COMPLEX(dp) :: CompInt
          integer(int64) IND,MASK
-         INTEGER I,J,K,L,I1, iunit
-         INTEGER ISYMNUM,ISNMAX,SYMLZ(1000)
+         INTEGER I,J,K,L,I1
+         INTEGER ISYMNUM,ISNMAX,SYMLZ(1000), iunit
          INTEGER NORB,NELEC,MS2,ISYM,ISPINS,ISPN,SYML(1000)
          integer(int64) ORBSYM(1000)
          INTEGER nPairs,iErr,MaxnSlot,MaxIndex,IUHF
@@ -208,9 +210,14 @@ contains
          character(len=*), parameter :: t_r='GETFCIBASIS'
          LOGICAL TBIN
          logical :: uhf
-         logical tExists     !test for existence of input file.
-         integer isfreeunit  !function returning integer for free unit
+
+#ifdef _MOLCAS_
+         logical :: tExists     !test for existence of input file.
+         integer :: isfreeunit  !function returning integer for free unit
+#endif
+
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
+         iunit = 0
          UHF=.FALSE.
          IUHF=0
          SYMLZ(:) = 0
@@ -569,16 +576,13 @@ contains
 !The UMAT2D integrals will also be read in in this case.
 !If tReadFreezeInts is false, then if we are cacheing the FCIDUMP file, then we will read and cache all the integrals.
       SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,tReadFreezeInts)
-         use constants, only: dp
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,NEl
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,tMolpro
-         use SystemData, only: UMatEps,tCacheFCIDUMPInts,tUHF
-         use SystemData, only: tRIIntegrals,nBasisMax,tROHF,tRotatedOrbsReal
-         use SystemData, only: tReadFreeFormat, G1, tFixLz
+         use constants, only: dp,sizeof_int
+         use SystemData, only: Symmetry, NEl, BasisFN, tMolpro, UMatEps, tCacheFCIDUMPInts, tUHF, &
+                               tRIIntegrals,tROHF,tRotatedOrbsReal, tReadFreeFormat, tFixLz
          USE UMatCache, only: UMatInd,UMatConj,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
          USE UMatCache, only: FillUpCache,GTID,nStates,nSlots,nTypes
          USE UMatCache, only: UMatCacheData,UMatLabels,GetUMatSize
-         use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
+         use OneEInts, only: TMatind,TMat2D,TMATSYM
          use OneEInts, only: CalcTMatSize
          use Parallel_neci
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
@@ -591,21 +595,26 @@ contains
          HElement_t(dp) Z
          COMPLEX(dp) :: CompInt
          INTEGER ZeroedInt,NonZeroInt, LzDisallowed
-         INTEGER I,J,K,L,X,Y,iunit,iSpinType
+         INTEGER I,J,K,L,X,Y,iSpinType, iunit
          INTEGER NORB,NELEC,MS2,ISYM,SYML(1000)
          integer(int64) ORBSYM(1000)
          LOGICAL LWRITE
          logical :: uhf
          INTEGER ISPINS,ISPN,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
-         INTEGER UMatSize,TMatSize,IUHF
+         INTEGER TMatSize,IUHF
+         integer(int64) :: UMatSize
          INTEGER , ALLOCATABLE :: CacheInd(:)
          character(len=*), parameter :: t_r='READFCIINT'
          real(dp) :: diff
-         logical tExists     !test for existence of input file.
-         integer isfreeunit  !function returning integer for free unit
          logical :: tbad
-         integer :: start_ind, end_ind
-         integer, parameter :: chunk_size = 1000000
+         integer(int64) :: start_ind, end_ind
+         integer(int64), parameter :: chunk_size = 1000000
+
+#ifdef _MOLCAS_
+         logical :: tExists     !test for existence of input file.
+         integer :: isfreeunit  !function returning integer for free unit
+#endif
+
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          LWRITE=.FALSE.
          UHF=.FALSE.
@@ -613,6 +622,7 @@ contains
          ZeroedInt=0
          LzDisallowed=0
          NonZeroInt=0
+         iunit = 0
          
          IF(iProcIndex.eq.0) THEN
 #ifdef _MOLCAS_
@@ -685,9 +695,7 @@ contains
              else
                  iSpinType=0
              endif
-             IF(.not.TSTARSTORE) THEN
-                 TMAT2D(:,:)=(0.0_dp)
-             ENDIF
+             TMAT2D(:,:)=(0.0_dp)
              ! Can't use * as need to be backward compatible with existing 
              ! FCIDUMP files, some of which have more than 100 basis
              ! functions and so the integer labels run into each other.
@@ -818,29 +826,24 @@ contains
 !                LWRITE=.TRUE.
              ELSEIF(K.EQ.0) THEN
 !.. 1-e integrals
-                IF(TSTARSTORE) THEN
-! If TSTARSTORE, the one-el integrals are stored in symmetry classes, as spatial orbitals
-                    TMATSYM(TMatInd(2*J,2*I))=Z
-                ELSE
 !.. These are stored as spinorbitals (with elements between different spins being 0
-                    DO ISPN=1,ISPINS
+                DO ISPN=1,ISPINS
 
-                        ! Have read in T_ij.  Check it's consistent with T_ji
-                        ! (if T_ji has been read in).
-                       diff = abs(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)-Z)
-                       IF(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1) /= 0.0_dp .and. diff > 1.0e-7_dp) then
-                            WRITE(6,*) i,j,Z,TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)
-                            CALL Stop_All("ReadFCIInt","Error filling TMAT - different values for same orbitals")
-                       ENDIF
+                    ! Have read in T_ij.  Check it's consistent with T_ji
+                    ! (if T_ji has been read in).
+                   diff = abs(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)-Z)
+                   IF(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1) /= 0.0_dp .and. diff > 1.0e-7_dp) then
+                        WRITE(6,*) i,j,Z,TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)
+                        CALL Stop_All("ReadFCIInt","Error filling TMAT - different values for same orbitals")
+                   ENDIF
 
-                       TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)=Z
+                   TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)=Z
 #ifdef __CMPLX
-                       TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=conjg(Z)
+                   TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=conjg(Z)
 #else
-                       TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=Z
+                   TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=Z
 #endif
-                    enddo
-                ENDIF
+                enddo
              ELSE
 !.. 2-e integrals
 !.. UMAT is stored as just spatial orbitals (not spinorbitals)
@@ -848,7 +851,6 @@ contains
 #ifdef __CMPLX
                 Z = UMatConj(I,K,J,L,Z)
 #endif
-!.. AJWT removed the restriction to TSTARSTORE
                 IF(TUMAT2D) THEN
                     IF(I.eq.J.and.I.eq.K.and.I.eq.L) THEN
                         !<ii|ii>
@@ -884,14 +886,12 @@ contains
                     ELSE
                         NonZeroInt=NonZeroInt+1
 !Read in all integrals as normal.
-                        UMAT(UMatInd(I,K,J,L,0,0))=Z
+                        UMAT(UMatInd(I,K,J,L))=Z
                     ENDIF
-                ELSEIF(TSTARSTORE.and.(.not.TUMAT2D)) THEN
-                    call stop_all(t_r, 'Need UMAT2D with TSTARSTORE')
                 ELSEIF(tCacheFCIDUMPInts.or.tRIIntegrals) THEN
                     CALL Stop_All("ReadFCIInts","TUMAT2D should be set")
                 ELSE
-                    UMAT(UMatInd(I,K,J,L,0,0))=Z
+                    UMAT(UMatInd(I,K,J,L))=Z
                     NonZeroInt=NonZeroInt+1
                 ENDIF
              ENDIF
@@ -911,11 +911,7 @@ contains
          CALL MPIBCast(ECore,1)
 !Need to find out size of TMAT before we can BCast
          CALL CalcTMATSize(nBasis,TMATSize)
-         IF(tStarStore) THEN
-             CALL MPIBCast(TMATSYM,TMATSize)
-         ELSE
-             CALL MPIBCast(TMAT2D,TMATSize)
-         ENDIF
+         CALL MPIBCast(TMAT2D,TMATSize)
          IF(TUMAT2D) THEN
 !Broadcast TUMAT2D...
              CALL MPIBCast(UMAT2D,nStates**2)
@@ -929,7 +925,7 @@ contains
              start_ind = 1
              end_ind = min(UMatSize, chunk_size)
              do while(start_ind <= UMatSize)
-                 call MPIBcast(UMat(start_ind:end_ind), end_ind-start_ind+1)
+                 call MPIBcast(UMat(start_ind:end_ind), int(end_ind-start_ind+1,sizeof_int))
                  start_ind = end_ind + 1
                  end_ind = min(UMatSize, end_ind + chunk_size)
              end do
@@ -971,10 +967,9 @@ contains
       !This is a copy of the routine above, but now for reading in binary files of integrals
       SUBROUTINE READFCIINTBIN(UMAT,ECORE)
          use constants, only: dp,int64,sizeof_int
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry, BasisFN
          USE UMatCache , only : UMatInd,UMAT2D,TUMAT2D
-         use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
+         use OneEInts, only: TMatind,TMat2D,TMATSYM
          use util_mod, only: get_free_unit
          IMPLICIT NONE
          real(dp), intent(out) :: ECORE
@@ -1022,47 +1017,16 @@ contains
 !            LWRITE=.TRUE.
          ELSEIF(K.EQ.0) THEN
 !.. 1-e integrals
-            IF(TSTARSTORE) THEN
-! If TSTARSTORE, the one-el integrals are stored in symmetry classes, as spatial orbitals
-                TMATSYM(TMatInd(2*J,2*I))=Z
-            ELSE
 !.. These are stored as spinorbitals (with elements between different spins being 0
-                TMAT2D(2*I-1,2*J-1)=Z
-                TMAT2D(2*I,2*J)=Z
-                TMAT2D(2*J-1,2*I-1)=Z
-                TMAT2D(2*J,2*I)=Z
-            ENDIF
+            TMAT2D(2*I-1,2*J-1)=Z
+            TMAT2D(2*I,2*J)=Z
+            TMAT2D(2*J-1,2*I-1)=Z
+            TMAT2D(2*J,2*I)=Z
          ELSE
 !.. 2-e integrals
 !.. UMAT is stored as just spatial orbitals (not spinorbitals)
 !..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
-            IF(TSTARSTORE.and.TUMAT2D) THEN
-                IF(I.eq.J.and.I.eq.K.and.I.eq.L) THEN
-                    !<ii|ii>
-                    UMAT2D(I,I)=Z
-                ELSEIF((I.eq.J.and.K.eq.L)) THEN
-                    !<ij|ij> - coulomb - 1st arg > 2nd arg
-                    X=MAX(I,K)
-                    Y=MIN(I,K)
-                    UMAT2D(Y,X)=Z
-                ELSEIF(I.eq.L.and.J.eq.K) THEN
-                    !<ij|ji> - exchange - 1st arg < 2nd arg
-                    X=MIN(I,J)
-                    Y=MAX(I,J)
-                    UMAT2D(Y,X)=Z
-                ELSEIF(I.eq.K.and.J.eq.L) THEN
-                    !<ii|jj> - equivalent exchange for real orbs
-                    X=MIN(I,J)
-                    Y=MAX(I,J)
-                    UMAT2D(Y,X)=Z
-                ELSE
-                    UMAT(UMatInd(I,K,J,L,0,0))=Z
-                ENDIF
-            ELSEIF(TSTARSTORE.and.(.not.TUMAT2D)) THEN
-                call stop_all(this_routine, 'Need UMAT2D with TSTARSTORE')
-            ELSE
-                UMAT(UMatInd(I,K,J,L,0,0))=Z
-            ENDIF
+            UMAT(UMatInd(I,K,J,L))=Z
          ENDIF
 !         WRITE(14,'(1X,F20.12,4I3)') Z,I,J,K,L
          IF(I.NE.0) GOTO 101

@@ -46,8 +46,6 @@ contains
         type(ras_parameters), intent(inout) :: ras
         type(ras_class_data), intent(inout), allocatable, dimension(:) :: classes
         integer :: i, j, k, counter
-        type(basisfn) :: hfbasisfn
-        integer :: string(tot_nelec)
         integer :: lower_ras3, upper_ras3
 
         tot_nelec = nel/2

@@ -981,7 +981,7 @@ contains
                     k = SymLabelList2_rot(b)
                     do d = 1, b
                         l = SymLabelList2_rot(d)
-                        t = real(UMAT(UMatInd(i, k, j, l, 0, 0)), dp)
+                        t = real(UMAT(UMatInd(i, k, j, l)), dp)
                         UMATTemp01(a,g,b,d) = t    ! a, g, d, b chosen to make 'transform2elint' steps more efficient.
                         UMATTemp01(g,a,b,d) = t
                         UMATTemp01(a,g,d,b) = t
@@ -1623,7 +1623,7 @@ contains
 ! **************
 ! Calculating the two-transformed, four index integrals.
 
-! The untransformed <alpha beta | gamma delta> integrals are found from UMAT(UMatInd(i, j, k, l, 0, 0)
+! The untransformed <alpha beta | gamma delta> integrals are found from UMAT(UMatInd(i, j, k, l)
 
         do b = 1, NoOrbs
             do d = 1, b
@@ -1811,7 +1811,7 @@ contains
 ! **************
 ! Calculating the two-transformed, four index integrals.
 
-! The untransformed <alpha beta | gamma delta> integrals are found from UMAT(UMatInd(i, j, k, l, 0, 0)
+! The untransformed <alpha beta | gamma delta> integrals are found from UMAT(UMatInd(i, j, k, l)
 
         do b = 1, NoOrbs
             if (tTurnStoreSpinOff) then
@@ -1837,10 +1837,10 @@ contains
                         else
                             g2 = SymLabelList2_rot(g)
                         end if
-                        FourIndInts(a,g,b,d) = real(UMAT(UMatInd(a2, b2, g2, d2, 0, 0)), dp)
-                        FourIndInts(g,a,b,d) = real(UMAT(UMatInd(a2, b2, g2, d2, 0, 0)), dp)
-                        FourIndInts(a,g,d,b) = real(UMAT(UMatInd(a2, b2, g2, d2, 0, 0)), dp)
-                        FourIndInts(g,a,d,b) = real(UMAT(UMatInd(a2, b2, g2, d2, 0, 0)), dp)
+                        FourIndInts(a,g,b,d) = real(UMAT(UMatInd(a2, b2, g2, d2)), dp)
+                        FourIndInts(g,a,b,d) = real(UMAT(UMatInd(a2, b2, g2, d2)), dp)
+                        FourIndInts(a,g,d,b) = real(UMAT(UMatInd(a2, b2, g2, d2)), dp)
+                        FourIndInts(g,a,d,b) = real(UMAT(UMatInd(a2, b2, g2, d2)), dp)
                     end do
                 end do
                 Temp4indints(:,:) = 0.0_dp
@@ -1914,7 +1914,7 @@ contains
 ! **************
 ! Calculating the two-transformed, four index integrals.
 
-! The untransformed <alpha beta | gamma delta> integrals are found from UMAT(UMatInd(i, j, k, l, 0, 0)
+! The untransformed <alpha beta | gamma delta> integrals are found from UMAT(UMatInd(i, j, k, l)
 
         do d = 1, NoOrbs
             do b = 1, d
@@ -4465,9 +4465,9 @@ contains
                             end if
 
                             if (tUseMP2VarDenMat.or.tFindCINatOrbs.or.tReadInCoeff) then
-                                UMAT(UMatInd(a, b, g, d, 0, 0)) = (FourIndInts(i,k,j,l))
+                                UMAT(UMatInd(a, b, g, d)) = (FourIndInts(i,k,j,l))
                             else
-                                UMAT(UMatInd(a, b, g, d, 0, 0)) = (FourIndInts(i,j,k,l))
+                                UMAT(UMatInd(a, b, g, d)) = (FourIndInts(i,j,k,l))
                             end if
                         end do
                     end do
@@ -4601,8 +4601,8 @@ contains
                     ! it is kind of unnecessary - although it may be used to
                     ! speed things up.
                     do l = 1, j
-                        if ((ABS(real(UMat(UMatInd(i, j, k, l, 0, 0)), dp))) /= 0.0_dp) &
-                                        &write(iunit,'(F21.12, 4I3)') real(UMat(UMatInd(i, j, k, l, 0, 0)), dp), i, k, j, l 
+                        if ((ABS(real(UMat(UMatInd(i, j, k, l)), dp))) /= 0.0_dp) &
+                                        &write(iunit,'(F21.12, 4I3)') real(UMat(UMatInd(i, j, k, l)), dp), i, k, j, l 
                     end do
                 end do
            end do

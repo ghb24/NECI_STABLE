@@ -97,7 +97,7 @@ contains
         call GetComm (Comm, Node, rt)
 
         ! Broadcast the length
-        length = len_trim(v)
+        length = int(len_trim(v), MPIArg)
         call MPIBCast(length, node)
 
         call MPI_BCast(val_in, length, MPI_CHARACTER, rt, comm, ierr)
@@ -114,10 +114,9 @@ contains
 
         logical, intent(in) :: param_in
         logical, intent(out) :: param_out
-        character(*), parameter :: t_r = 'MPIAllLORLogical'
 
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: ierr, comm
+        integer(MPIArg) :: comm
         integer :: v, ret
 
 #ifdef PARALLEL
@@ -233,7 +232,7 @@ contains
 
         v = param_inout
 
-        length = size(v)
+        length = int(size(v), MPIArg)
         ! Use MPI_INTEGER instead of MPI_LOGICAL. Makes no difference for bcast
         call MPI_Bcast(val_in, length, MPI_INTEGER4, rt, comm, ierr)
 
@@ -270,7 +269,7 @@ contains
         call MPIAllReducert(rt, nrt, comm, ierr)
 
         if (ierr == MPI_SUCCESS) then
-            length = size(v)
+            length = int(size(v), MPIArg)
             ! Use MPI_INTEGER instead of MPI_LOGICAL. Makes no difference for
             ! bcast
             call MPI_Bcast(val_in, length, MPI_INTEGER4, nrt, comm, ierr)
@@ -289,8 +288,6 @@ contains
         logical, intent(inout), target :: param_out(:)
         integer, intent(out) :: ierr
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: Comm, rt, length
-        character(*), parameter :: t_r = 'MPIAllGatherLogical'
 
         integer :: v, ret(lbound(param_out, 1):ubound(param_out, 1)), j
 

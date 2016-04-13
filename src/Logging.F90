@@ -823,8 +823,6 @@ MODULE Logging
 ! WavevectorPrint MC steps. However, this is slower.
             TCalcWavevector=.true.
             call readi(WavevectorPrint)
-        case("MCPATHS")
-            ILOGGING = IOR(ILOGGING,2**1)
         case("BLOCKING")
             ILOGGING = IOR(ILOGGING,2**13)
         case("PREVAR")

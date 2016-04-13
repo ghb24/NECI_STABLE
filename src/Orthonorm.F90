@@ -1,74 +1,8 @@
-SUBROUTINE OrthoNormx(n,m,a)
-  use constants, only: dp,sp
-   implicit none
-   INTEGER :: i, j, k,n,m,lda,lwork
-   real(dp) :: work(n),tau(n),a(m,n)
-   INTEGER(sp) info
-   real(dp) , ALLOCATABLE :: aTa(:,:)
-   character(*), parameter :: this_routine = 'OrthoNormx'
-
-!Input the number of vectors, n, the dimensionality of the space, m, and the matrix of vectors, a(m,n). 
-!a is returned as n orthonormal vectors.
-
-!    DGEQRF implicitly computes the QR factorization of an M by N 
-!    matrix A:
-
-!      A(MxN) = Q(MxK) * R(KxN)
-
-!    where K = min ( M, N ).  For our purposes, it should always
-!    be the case that N < M, so that K = N.
-
-!    DORGQR explicitly forms the Q matrix.
-!First, compute the QR factorization.
-   k = n
-   lda = m
-   lwork = n
-
-   call dgeqrf ( m, n, a, lda, tau, work, lwork, info )
-   if ( info /= 0 ) then
-        write (6, '(a)' ) ' '
-        write (6, '(a)' ) 'Q_FACTOR - Warning:'
-        write (6, '(a,i8)' ) '  DGEQRF returned nonzero INFO = ', info
-        call stop_all(this_routine, "QGEQRF error")
-    end if
-
-!  Construct Q explicitly.
-    
-    call dorgqr ( m, n, k, a, lda, tau, work, lwork, info )
-
-    if ( info /= 0 ) then
-        write (6, '(a)' ) ' '
-        write (6, '(a)' ) 'Q_FACTOR - Warning:'
-        write (6, '(a,i8)' ) '  DORGQR returned nonzero INFO = ', info
-        call stop_all(this_routine, "DORGQR error")
-    end if
-
-
-!  Perform orthonormality test.
-
-    allocate ( aTa(n,n) )
-
-    aTa = matmul ( transpose ( a ), a )
-
-!   aTa should be the identity...
-
-    do i=1,n
-        do j=1,n
-            WRITE(6,"(F15.7)",advance='no') aTa(j,i)
-        enddo
-        WRITE(6,*) ""
-    enddo
-
-
-    deallocate ( aTa )
-
-END SUBROUTINE OrthoNormx
-
-!Lowdin Orthoganalize
-!for any non-singular R, let S=R RT
-!P = S^(-1/2) R is orthogonal.
-!MAT is NxN and is returned as an orthogal matrix
-!R1 and R2 are NxN workspaces
+! Lowdin Orthoganalize
+! for any non-singular R, let S=R RT
+! P = S^(-1/2) R is orthogonal.
+! MAT is NxN and is returned as an orthogal matrix
+! R1 and R2 are NxN workspaces
       SUBROUTINE LOWDIN_ORTH(MAT,N,R1,R2,WORK)
          use constants, only: dp,sp
          use HElem

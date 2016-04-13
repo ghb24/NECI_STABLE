@@ -173,30 +173,6 @@ C               IC=IC+1
          RETURN
       END
  
-      SUBROUTINE  CALCRHOIIMAX2(BETA,I_P,NEL,
-     &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
-     &           ISTEPS,ECORE,RHOMAX)
-         use constants, only : dp
-         INTEGER NI(NEL)
-         real(dp) RHOMAX
-         INTEGER BRR(NBASIS)
-         character(*), parameter :: t_r="CALCRHOIIMAX2"
-         RHOMAX=0.0_dp
-         DO I=1,NEL
-            NI(I)=BRR(I)
-         ENDDO
-         DO I=1,ISTEPS
-             call stop_all(t_r,"Call to GenNewDet2 removed due to       &
-     &          incorrect number of arguments")
-!            CALL GENNEWDET2(NI,NI,NEL,NBASIS,NBASISMAX,G1,ISEED)
-!            CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,
-!     &            G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,RH,NTAY,0,ECORE)
-!            IF(RH.GT.RHOMAX) RHOMAX=RH
-         ENDDO
-         RETURN
-      END
-
-
 C.. GETHELEMENT
 C.. Get matrix element of the hamiltonian
       FUNCTION GETHELEMENT(II,IJ,HAMIL,LAB,NROW,NDET)

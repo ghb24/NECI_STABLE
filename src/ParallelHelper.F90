@@ -310,7 +310,7 @@ contains
         integer, intent(in) :: rnks(:)
         integer, intent(out) :: ierr
         integer(MPIArg), intent(out) :: ogrp
-        integer(MPIArg) :: err, out_grp
+        integer(MPIArg) :: err
 
 #ifdef PARALLEL
         call MPI_Group_incl (int(grp, MPIArg), int(n, MPIArg), &

@@ -44,9 +44,6 @@ type1 = type(Symmetry)
 [sympairprod]
 type1 = type(SymPairProd)
 
-[starwalker]
-type1 = type(star_walker)
-
 [cmplx]
 type1 = complex(dp)
 
@@ -438,7 +435,6 @@ module sort_mod
                           operator(.gt.), operator(.lt.), assignment(=)
     use symdata, only: SymPairProd, operator(.eq.), operator(.ne.), &
                        operator(.gt.), operator(.lt.), assignment(=)
-    use StarDiagData
     implicit none
     
     private

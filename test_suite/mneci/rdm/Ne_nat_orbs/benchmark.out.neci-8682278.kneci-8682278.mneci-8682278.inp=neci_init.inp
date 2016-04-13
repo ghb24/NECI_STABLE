@@ -1,0 +1,644 @@
+ Number of processors:                      2
+ Processor                      1 /                     2  as head node.
+ Sum:                      3
+ Memory Manager initialised with   2048.0 MB
+
+ ================================================================
+ Compiled on Apr  1 2016 at 11:47:35
+ Compiled using configuration:
+     PC-ifort64-MPI.(optimised)
+ VCS BASE repository version:
+     8682278b0c0afec66c234d8a73cfd58580d8a6b5
+ Working directory contains local changes.
+ Working directory: 
+     /home/nsb37/projects/NECI/test_suite/mneci/rdm/Ne_nat_orbs
+ Running on: dredd
+ Started running on 01/04/2016 at 11:59:50
+ ================================================================
+
+ Reading from file: neci_init.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read
+electrons 10
+nonuniformrandexcits 4ind-weighted
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+nmcyc 3700
+totalwalkers 5000
+tau 0.001 search
+startsinglepart
+truncinitiator
+addtoinitiator 3
+shiftdamp 0.03
+stepsshift 25
+load-balance-blocks off
+maxwalkerbloom 3.0
+seed 12823
+endcalc
+
+integral
+freeze 2,0
+endint
+
+logging
+popsfile -1
+calcrdmonfly 3 200 200
+printonerdm
+diagflyonerdm
+printrodump
+endlog
+end
+
+****************************************************************
+
+ RDM on fly
+ unspecified
+ Filling RDMs without explicitly specifying the number of replica simplations
+ Defaulting to using 2 replicas
+ Allocating each processor as a separate node.
+ I am the node root for node                      0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :    10
+  No restriction on the spin state of the system, TSPN :  F
+  GLOBAL MS :                      0
+  *** GENERIC SYSTEM ***  
+  NUMBER OF SPIN ORBITALS IN BASIS :    46
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   8
+  Generating abelian symmetry table with  3 generators
+  Number of symmetry classes: 8
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0      -32.794950868      -32.794950868
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0      -32.794950868      -32.794950868
+      3      3      0      0      0     -1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879
+      4      4      0      0      0      1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879
+      5     17      0      0      0     -1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138
+      6     18      0      0      0      1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138
+      7     23      0      0      0     -1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138
+      8     24      0      0      0      1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138
+      9     33      0      0      0     -1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138
+     10     34      0      0      0      1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138
+     11      5      0      0      0     -1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     12      6      0      0      0      1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     13     19      0      0      0     -1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     14     20      0      0      0      1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     15     25      0      0      0     -1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     16     26      0      0      0      1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     17     35      0      0      0     -1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     18     36      0      0      0      1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     19      7      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     20      8      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     21      9      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     22     10      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     23     29      0      0      0     -1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     24     30      0      0      0      1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     25     39      0      0      0     -1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     26     40      0      0      0      1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     27     43      0      0      0     -1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     28     44      0      0      0      1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     29     21      0      0      0     -1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     30     22      0      0      0      1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     31     27      0      0      0     -1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     32     28      0      0      0      1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     33     37      0      0      0     -1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     34     38      0      0      0      1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     35     11      0      0      0     -1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     36     12      0      0      0      1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     37     13      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     38     14      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     39     15      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     40     16      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     41     31      0      0      0     -1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     42     32      0      0      0      1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     43     41      0      0      0     -1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     44     42      0      0      0      1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     45     45      0      0      0     -1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+     46     46      0      0      0      1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+Memory required for integral storage:     0.2916412353     Mb/Shared Memory
+Allocated     305808 bytes of shared memory named: umat
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+Ignoring integral (chem. notation) (   0   0|   0   0):   0.000000000000000E+000
+ Number of removed two-index integrals:                      1
+ Number of non-zero integrals:                   4806
+ ECORE=  0.000000000000000E+000
+ Setting normal GetUMatEl routine
+ N_alpha: 5 ; N_beta: 5 ; LMS: 0 ; NEl:10
+ Fermi det (D0):(    1,    2,    3,    4,   17,   18,   23,   24,   33,   34)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:  -74.5889843242640     
+======== FREEZING ORBITALS ==========
+Allocated     257048 bytes of shared memory named: umat2
+ Freezing                      2  core orbitals.
+ Freezing                      0  virtual orbitals.
+ Post-Freeze Fermi det (D0):(    1,    2,   15,   16,   21,   22,   31,   32)
+ Symmetry:  ( 0, 0, 0) 0
+ ECORE now  -93.8489015454800     
+ Number of orbitals remaining:                     44
+ Number of active electrons:                     8
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879 #
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879 #
+      3     15      0      0      0     -1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138 #
+      4     16      0      0      0      1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138 #
+      5     21      0      0      0     -1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138 #
+      6     22      0      0      0      1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138 #
+      7     31      0      0      0     -1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138 #
+      8     32      0      0      0      1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138 #
+      9      3      0      0      0     -1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     10      4      0      0      0      1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     11     17      0      0      0     -1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     12     18      0      0      0      1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     13     23      0      0      0     -1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     14     24      0      0      0      1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     15     33      0      0      0     -1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     16     34      0      0      0      1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     17      5      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     18      6      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     19      7      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     20      8      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     21     27      0      0      0     -1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     22     28      0      0      0      1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     23     37      0      0      0     -1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     24     38      0      0      0      1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     25     41      0      0      0     -1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     26     42      0      0      0      1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     27     19      0      0      0     -1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     28     20      0      0      0      1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     29     25      0      0      0     -1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     30     26      0      0      0      1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     31     35      0      0      0     -1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     32     36      0      0      0      1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     33      9      0      0      0     -1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     34     10      0      0      0      1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     35     11      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     36     12      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     37     13      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     38     14      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     39     29      0      0      0     -1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     40     30      0      0      0      1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     41     39      0      0      0     -1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     42     40      0      0      0      1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     43     43      0      0      0     -1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+     44     44      0      0      0      1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+ Setting normal GetUMatEl routine
+ Calculation supports multiple parallel runs
+ Setting replica count in bit representation:                      2
+Setting integer length of determinants as bit-strings to:      4
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+                    28  Symmetry PAIRS
+                     8  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ <D0|H|D0>=  -128.496349730325     
+ <D0|T|D0>=  -60.2958137810042     
+ FDet has     4 alpha electrons, and     4 beta electrons.
+                          6  alpha-alpha occupied electron pairs
+                          6  beta-beta occupied electron pairs
+                         16  alpha-beta occupied electron pairs
+                        153 alpha-alpha (vacant) hole pairs
+                        153 beta-beta (vacant) hole pairs
+                        324 alpha-beta (vacant) hole pairs
+ 
+ Performing Parallel FCIQMC....
+ 
+ Generated reference determinants:
+(    1,    2,   15,   16,   21,   22,   31,   32) E =   -128.496349730
+(    1,    2,   15,   16,   21,   22,   31,   32) E =   -128.496349730
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:        12823
+Reference Energy set to:      -128.4963497303
+Highest energy determinant is (approximately):     -75.3862942834926    
+Corresponding to a correlation energy of:      53.1100554468320    
+Brillouin theorem in use for calculation of projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+    960 double excitations, and      24 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.975610
+ pSingles set to:       0.024390
+ Using initial time-step:   1.000000000000000E-003
+Will dynamically update timestep to limit spawning probability to   3.00000
+Initial Diagonal Shift:         0.0000000000
+ Connectivity of HF determinant is:                    984
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         524288
+ The average current signs before death will be stored for use in the RDMs.
+ Determinant related persistent storage requires:      20.000000 Mb / processor
+Spawning vectors allowing for a total of        15000 particles to be spawned in any one iteration per core.
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:            1750
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        0
+Initial reference is: (    1,    2,   15,   16,   21,   22,   31,   32)
+Initial number of particles set to          1 and shift will be held at     0.000 until particle number gets to            5000
+ Initial memory (without excitgens + temp arrays) consists of :      16.915527 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ Stochastically calculating the reduced density matrices from the FCIQMC wavefunction
+ incl. explicit connections to the following HF determinant:(    1,    2,   15,   16,   21,   22,   31,   32)
+ Calculating the energy from the reduced density matrix. This requires the 2 electron RDM from which the 1-RDM can also be constructed.
+ Main RDM memory arrays consists of :       3.295486 Mb/Processor on the root, and       3.291794 Mb/Processor on other processors.
+ RDM memory allocation successful...
+ Allocating temporary array for walkers spawned from a particular Di.
+ This requires       0.007629 Mb/Processor
+# 1. Iter.        2. Tot. parts        3. Tot. ref          4. Proj. E (cyc)     5. Shift. (cyc)      9. Tot. Proj. E      10. Dets occ.   11. Dets spawne 12. Iter. time      
+#               0      2.00000000           2.00000000           0.00000000           0.00000000          -128.496350                    1               0      0.00000000     
+               25      3.00000000           2.00000000         -0.151770675E-001      0.00000000          -128.511527                    2               0     0.160000025E-003
+               50      7.00000000           2.00000000         -0.554274984E-001      0.00000000          -128.551777                    6               2      0.00000000     
+               75      7.00000000           2.00000000         -0.117405626           0.00000000          -128.613755                    6               0      0.00000000     
+              100      9.00000000           2.00000000         -0.126426191           0.00000000          -128.622776                    8               0      0.00000000     
+              125     10.00000000           2.00000000         -0.158442792           0.00000000          -128.654793                    9               0      0.00000000     
+              150     10.00000000           2.00000000         -0.161238017           0.00000000          -128.657588                    9               0     0.160039664E-003
+              175      11.0000000           2.00000000         -0.175114554           0.00000000          -128.671464                   10               1      0.00000000     
+              200      12.0000000           2.00000000         -0.186265050           0.00000000          -128.682615                   11               0      0.00000000     
+              225      12.0000000           2.00000000         -0.228258385           0.00000000          -128.724608                   10               2      0.00000000     
+              250      14.0000000           2.00000000         -0.229754493           0.00000000          -128.726104                   12               0      0.00000000     
+              275      14.0000000           2.00000000         -0.307701614           0.00000000          -128.804051                   12               0     0.160000331E-003
+              300      13.0000000           2.00000000         -0.290806438           0.00000000          -128.787156                   11               0      0.00000000     
+              325      17.0000000           2.00000000         -0.348134508           0.00000000          -128.844484                   16               1      0.00000000     
+              350      16.0000000           2.00000000         -0.471397682           0.00000000          -128.967747                   15               2      0.00000000     
+ Updating parallel-spin bias; new pParallel =   0.149382489132067     
+ Updating time-step. New time-step =   2.079261095222571E-002
+ Updating singles/doubles bias. pSingles =   3.749440166826598E-002 , pDoubles =
+    0.962505598331734     
+              375      13.0000000           2.00000000         -0.430921148           0.00000000          -128.927271                   12               0     0.159999734E-003
+              400      11.0000000           3.00000000         -0.306928223           0.00000000          -128.803278                    9               5      0.00000000     
+              425      11.0000000           3.00000000         -0.200461382           0.00000000          -128.696811                    9               3      0.00000000     
+ Updating time-step. New time-step =   2.066664103586995E-002
+ Updating singles/doubles bias. pSingles =   4.332564383368619E-002 , pDoubles =
+    0.956674356166314     
+              450      18.0000000           3.00000000         -0.143068382           0.00000000          -128.639418                   16               7      0.00000000     
+ Updating time-step. New time-step =   2.064066958411387E-002
+ Updating singles/doubles bias. pSingles =   4.452788186764341E-002 , pDoubles =
+    0.955472118132357     
+              475      18.0000000           3.00000000         -0.331931900           0.00000000          -128.828282                   15               4     0.160000331E-003
+              500      12.0000000           3.00000000         -0.196759221           0.00000000          -128.693109                    9               7      0.00000000     
+              525      15.0000000           3.00000000         -0.165914091           0.00000000          -128.662264                   12               7      0.00000000     
+              550      15.0000000           3.00000000         -0.247053385           0.00000000          -128.743403                    9               7     0.160039664E-003
+              575      14.0000000           3.00000000         -0.166897325           0.00000000          -128.663247                   12               6      0.00000000     
+              600      17.0000000           3.00000000         -0.181256764           0.00000000          -128.677606                   12               6      0.00000000     
+              625      20.0000000           4.00000000         -0.177155567           0.00000000          -128.673505                   15               7      0.00000000     
+              650      32.0000000           4.00000000         -0.248628009           0.00000000          -128.744978                   22              15     0.160000331E-003
+              675      34.0000000           8.00000000         -0.222242632           0.00000000          -128.718592                   24              14      0.00000000     
+              700      72.0000000           11.0000000         -0.181985012           0.00000000          -128.678335                   52              29     0.159999734E-003
+ Updating parallel-spin bias; new pParallel =   0.151306606748820     
+ Updating time-step. New time-step =   2.059605438425773E-002
+ Updating singles/doubles bias. pSingles =   4.443163400414269E-002 , pDoubles =
+    0.955568365995857     
+              725      91.0000000           14.0000000         -0.263853568           0.00000000          -128.760203                   64              40      0.00000000     
+              750      83.0000000           14.0000000         -0.234325718           0.00000000          -128.730675                   58              36     0.160000331E-003
+              775      84.0000000           18.0000000         -0.237524667           0.00000000          -128.733874                   55              45     0.160039664E-003
+              800      95.0000000           20.0000000         -0.210890186           0.00000000          -128.707240                   68              34     0.160000331E-003
+              825      129.000000           24.0000000         -0.247202726           0.00000000          -128.743552                   88              50     0.159999734E-003
+              850      154.000000           29.0000000         -0.247034230           0.00000000          -128.743384                  103              58     0.160000331E-003
+              875      156.000000           31.0000000         -0.224036035           0.00000000          -128.720386                   97              70     0.160039664E-003
+              900      181.000000           32.0000000         -0.217856533           0.00000000          -128.714206                  114              89     0.160000331E-003
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =   2.049739591465917E-002
+ Updating singles/doubles bias. pSingles =   4.900896278892249E-002 , pDoubles =
+    0.950991037211077     
+              925      175.000000           35.0000000         -0.232346959           0.00000000          -128.728697                  102              65     0.320000050E-003
+              950      171.000000           37.0000000         -0.187670672           0.00000000          -128.684020                  107              69     0.160039664E-003
+ Updating parallel-spin bias; new pParallel =   0.161902202642602     
+ Updating time-step. New time-step =   2.025388665173358E-002
+ Updating singles/doubles bias. pSingles =   4.842673583408562E-002 , pDoubles =
+    0.951573264165914     
+              975      196.000000           40.0000000         -0.192948878           0.00000000          -128.689299                  120              84     0.320000050E-003
+             1000      224.000000           43.0000000         -0.198104336           0.00000000          -128.694454                  143             106     0.160000331E-003
+ Updating parallel-spin bias; new pParallel =   0.149042850852192     
+ Updating time-step. New time-step =   1.871718128997589E-002
+ Updating singles/doubles bias. pSingles =   4.475249661826118E-002 , pDoubles =
+    0.955247503381739     
+             1025      259.000000           49.0000000         -0.225606654           0.00000000          -128.721956                  152             115     0.320039981E-003
+ Updating time-step. New time-step =   1.859837665330602E-002
+ Updating singles/doubles bias. pSingles =   5.081579380018516E-002 , pDoubles =
+    0.949184206199815     
+             1050      311.000000           53.0000000         -0.227576149           0.00000000          -128.723926                  205             139     0.319999468E-003
+ Updating time-step. New time-step =   1.853309967797357E-002
+ Updating singles/doubles bias. pSingles =   5.414726058188631E-002 , pDoubles =
+    0.945852739418114     
+             1075      323.000000           59.0000000         -0.221240291           0.00000000          -128.717590                  195             128     0.320040592E-003
+             1100      379.000000           69.0000000         -0.220924957           0.00000000          -128.717275                  232             146     0.480039715E-003
+             1125      428.000000           78.0000000         -0.212011187           0.00000000          -128.708361                  263             186     0.320000050E-003
+             1150      447.000000           82.0000000         -0.217419391           0.00000000          -128.713769                  259             193     0.480039715E-003
+ Updating parallel-spin bias; new pParallel =   0.146102443182034     
+ Updating time-step. New time-step =   1.818689560850108E-002
+ Updating singles/doubles bias. pSingles =   5.313577290362620E-002 , pDoubles =
+    0.946864227096374     
+             1175      489.000000           89.0000000         -0.224647744           0.00000000          -128.720997                  273             196     0.480040326E-003
+             1200      582.000000           98.0000000         -0.232507031           0.00000000          -128.728857                  325             236     0.479999784E-003
+             1225      557.000000           109.000000         -0.216960165           0.00000000          -128.713310                  300             215     0.640040613E-003
+             1250      676.000000           126.000000         -0.198977141           0.00000000          -128.695327                  369             276     0.640039449E-003
+             1275      853.000000           144.000000         -0.228754249           0.00000000          -128.725104                  452             346     0.800080306E-003
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =   1.810024276023552E-002
+ Updating singles/doubles bias. pSingles =   5.764717957603924E-002 , pDoubles =
+    0.942352820423961     
+             1300      1052.00000           166.000000         -0.227695065           0.00000000          -128.724045                  539             424     0.960040081E-003
+             1325      1145.00000           183.000000         -0.218895724           0.00000000          -128.715245                  604             433     0.960079429E-003
+ Updating time-step. New time-step =   1.807278736335136E-002
+ Updating singles/doubles bias. pSingles =   5.907658972442095E-002 , pDoubles =
+    0.940923410275579     
+             1350      1527.00000           211.000000         -0.222362213           0.00000000          -128.718712                  796             640     0.128008006E-002
+             1375      1485.00000           236.000000         -0.215281193           0.00000000          -128.711631                  743             578     0.144008035E-002
+ Updating time-step. New time-step =   1.805421881700420E-002
+ Updating singles/doubles bias. pSingles =   6.004332383142728E-002 , pDoubles =
+    0.939956676168573     
+             1400      1786.00000           265.000000         -0.203409288           0.00000000          -128.699759                  906             729     0.144007918E-002
+ Updating time-step. New time-step =   1.803333428559018E-002
+ Updating singles/doubles bias. pSingles =   6.113063505381979E-002 , pDoubles =
+    0.938869364946180     
+             1425      2017.00000           283.000000         -0.211557814           0.00000000          -128.707908                 1011             777     0.160012126E-002
+ Updating singles/doubles bias. pSingles =   6.120065868122285E-002 , pDoubles =
+    0.938799341318777     
+             1450      2371.00000           317.000000         -0.212328196           0.00000000          -128.708678                 1168             962     0.192011835E-002
+             1475      2672.00000           349.000000         -0.211489084           0.00000000          -128.707839                 1349            1081     0.224012136E-002
+ Updating parallel-spin bias; new pParallel =   0.101123817017573     
+ Updating time-step. New time-step =   1.272038456946781E-002
+ Updating singles/doubles bias. pSingles =   4.317304658343129E-002 , pDoubles =
+    0.956826953416569     
+             1500      3092.00000           387.000000         -0.212977039           0.00000000          -128.709327                 1548            1228     0.256016012E-002
+ Updating parallel-spin bias; new pParallel =   0.102746190282429     
+ Updating time-step. New time-step =   1.268309444727492E-002
+ Updating singles/doubles bias. pSingles =   4.425298958618844E-002 , pDoubles =
+    0.955747010413812     
+             1525      3152.00000           414.000000         -0.202774884           0.00000000          -128.699125                 1564             923     0.256016012E-002
+             1550      3509.00000           442.000000         -0.209733587           0.00000000          -128.706083                 1748             984     0.272015808E-002
+ Updating time-step. New time-step =   1.266951697536796E-002
+ Updating singles/doubles bias. pSingles =   4.527613328648965E-002 , pDoubles =
+    0.954723866713510     
+             1575      3962.00000           476.000000         -0.210966831           0.00000000          -128.707317                 2012            1164     0.320020202E-002
+             1600      4409.00000           510.000000         -0.209841974           0.00000000          -128.706192                 2216            1197     0.320019969E-002
+             1625      4797.00000           546.000000         -0.212958631           0.00000000          -128.709308                 2451            1365     0.368024106E-002
+             1650      5390.00000           587.000000         -0.210147376           0.00000000          -128.706497                 2735            1584     0.384023669E-002
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        1 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.100178043672843     
+ Updating time-step. New time-step =   1.236683700490532E-002
+ Updating singles/doubles bias. pSingles =   4.419446784395849E-002 , pDoubles =
+    0.955805532156041     
+             1675      5911.00000           633.000000         -0.209653095           0.00000000          -128.706003                 2947            1671     0.448028091E-002
+ Updating singles/doubles bias. pSingles =   4.472058865777625E-002 , pDoubles =
+    0.955279411342224     
+             1700      6435.00000           680.000000         -0.217408770           0.00000000          -128.713759                 3253            1798     0.480031967E-002
+             1725      6505.00000           705.000000         -0.212225402           0.00000000          -128.708575                 3246            1832     0.512032025E-002
+ Updating singles/doubles bias. pSingles =   4.537059917038984E-002 , pDoubles =
+    0.954629400829610     
+             1750      6952.00000           759.000000         -0.212067889           0.00000000          -128.708418                 3468            1903     0.528031820E-002
+             1775      7804.00000           818.000000         -0.210755124           0.00000000          -128.707105                 3863            2123     0.576035958E-002
+Exiting the single particle growth phase on iteration:          1800 - Shift can now change for population1
+             1800      8711.00000           885.000000         -0.212071862         -0.106585597          -128.708422                 4327            2394     0.640039938E-002
+             1825      9580.00000           916.000000         -0.216058714         -0.111041774          -128.712408                 4792            2671     0.704043871E-002
+             1850      9993.00000           953.000000         -0.214205735         -0.112793499          -128.710555                 5041            2816     0.736048678E-002
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        1 blooms occurred.
+             1875      10038.0000           981.000000         -0.215078276         -0.112416326          -128.711428                 5014            2725     0.768047338E-002
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        1 blooms occurred.
+             1900      10407.0000           1021.00000         -0.213902699         -0.110888656          -128.710252                 5134            2874     0.784048066E-002
+Exiting the single particle growth phase on iteration:          1925 - Shift can now change for population2
+             1925      10915.0000           1068.00000         -0.215986318         -0.222694390          -128.712336                 5416            3131     0.816052407E-002
+             1950      11149.0000           1073.00000         -0.213735367         -0.225690293          -128.710085                 5501            3058     0.848051999E-002
+             1975      11289.0000           1058.00000         -0.211092308         -0.226247490          -128.707442                 5590            3125     0.848051999E-002
+             2000      11256.0000           1063.00000         -0.214600029         -0.228051146          -128.710950                 5678            3168     0.848051999E-002
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        1 blooms occurred.
+             2025      11197.0000           1055.00000         -0.213673450         -0.226086971          -128.710023                 5622            3030     0.832051318E-002
+             2050      10845.0000           1054.00000         -0.210518584         -0.224945160          -128.706868                 5434            2943     0.848056749E-002
+             2075      10901.0000           1047.00000         -0.210163875         -0.223692897          -128.706514                 5344            3063     0.832052249E-002
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        1 blooms occurred.
+             2100      10714.0000           1046.00000         -0.209758180         -0.223758020          -128.706108                 5317            2909     0.832052249E-002
+             2125      10594.0000           1055.00000         -0.210291847         -0.222122847          -128.706642                 5242            2928     0.832050294E-002
+ Memory requirement for spawned arrays increased from     0.9155 to     1.3733 Mb/Processor
+Calculating the 2 electron density matrix on the fly.
+Beginning to fill the RDMs during iteration      2126
+             2150      10903.0000           1066.00000         -0.208665657         -0.221789753          -128.705015                 5401            3047     0.104006389E-001
+             2175      11225.0000           1067.00000         -0.209642348         -0.225940865          -128.705992                 5581            3068     0.104006575E-001
+             2200      10814.0000           1073.00000         -0.208359687         -0.224755490          -128.704709                 5371            3018     0.102406312E-001
+             2225      11289.0000           1074.00000         -0.213300458         -0.225942843          -128.709650                 5664            3122     0.102406312E-001
+             2250      11140.0000           1065.00000         -0.216250401         -0.226793413          -128.712600                 5552            3079     0.102406498E-001
+             2275      11264.0000           1065.00000         -0.214732344         -0.226255062          -128.711082                 5622            3147     0.102406312E-001
+             2300      11447.0000           1064.00000         -0.217411208         -0.228573070          -128.713761                 5733            3140     0.104006389E-001
+             2325      11013.0000           1060.00000         -0.210872718         -0.226377654          -128.707222                 5437            3025     0.102406498E-001
+             2350      11094.0000           1048.00000         -0.211409390         -0.225484763          -128.707759                 5573            3121     0.102406312E-001
+             2375      10864.0000           1040.00000         -0.209667417         -0.223059201          -128.706017                 5402            2974     0.992059708E-002
+             2400      10996.0000           1030.00000         -0.212116716         -0.223055276          -128.708466                 5477            2990     0.100806430E-001
+             2425      11128.0000           1028.00000         -0.216937838         -0.224501858          -128.713288                 5522            3126     0.100806430E-001
+             2450      10597.0000           1006.00000         -0.214624079         -0.224342401          -128.710974                 5359            2855     0.100806234E-001
+             2475      10528.0000           989.000000         -0.217130178         -0.220743425          -128.713480                 5298            2911     0.976062752E-002
+             2500      10393.0000           991.000000         -0.214708715         -0.218737115          -128.711058                 5237            2928     0.976058934E-002
+             2525      10655.0000           987.000000         -0.219084260         -0.220270259          -128.715434                 5326            2919     0.976058934E-002
+             2550      9944.00000           976.000000         -0.217434406         -0.219984681          -128.713784                 4953            2727     0.976058934E-002
+             2575      10049.0000           974.000000         -0.214161677         -0.215195837          -128.710511                 5015            2827     0.944061298E-002
+             2600      9959.00000           965.000000         -0.216007100         -0.214746138          -128.712357                 4952            2799     0.928054843E-002
+             2625      10088.0000           960.000000         -0.217808715         -0.215713680          -128.714158                 5046            2847     0.944061298E-002
+             2650      9644.00000           951.000000         -0.211285769         -0.213555989          -128.707635                 4820            2713     0.928058662E-002
+             2675      9426.00000           948.000000         -0.209604708         -0.210353183          -128.705954                 4762            2563     0.896057114E-002
+             2700      9658.00000           930.000000         -0.207454153         -0.211644348          -128.703804                 4897            2696     0.912055932E-002
+             2725      9396.00000           936.000000         -0.209331910         -0.211675631          -128.705682                 4738            2513     0.896053296E-002
+             2750      8990.00000           936.000000         -0.207817959         -0.209072347          -128.704168                 4440            2467     0.880054478E-002
+             2775      9139.00000           933.000000         -0.205350988         -0.206161766          -128.701701                 4547            2537     0.880058296E-002
+Beginning to average shift value on iteration:           2800
+             2800      9358.00000           923.000000         -0.209386227         -0.209563670          -128.705736                 4710            2482     0.896057114E-002
+             2825      9118.00000           917.000000         -0.209423375         -0.207216121          -128.705773                 4522            2502     0.864051841E-002
+             2850      9411.00000           927.000000         -0.208975575         -0.208308048          -128.705325                 4716            2669     0.880050659E-002
+             2875      9650.00000           929.000000         -0.216672987         -0.211176563          -128.713023                 4842            2607     0.896057114E-002
+             2900      9844.00000           935.000000         -0.213731357         -0.212566282          -128.710081                 4985            2707     0.928058662E-002
+Beginning to average shift value on iteration:           2925
+             2925      9843.00000           936.000000         -0.212069164         -0.213503253          -128.708419                 4921            2746     0.928058662E-002
+             2950      9554.00000           932.000000         -0.208434415         -0.213229267          -128.704784                 4795            2698     0.912055932E-002
+             2975      9467.00000           927.000000         -0.208757944         -0.211046371          -128.705108                 4764            2639     0.912055932E-002
+             3000      9507.00000           928.000000         -0.207413552         -0.209702872          -128.703763                 4761            2645     0.896057114E-002
+             3025      9484.00000           934.000000         -0.211860028         -0.210078923          -128.708210                 4671            2656     0.896053296E-002
+             3050      9626.00000           931.000000         -0.216211067         -0.211704204          -128.712561                 4783            2632     0.912055932E-002
+             3075      9434.00000           921.000000         -0.216100197         -0.210110672          -128.712450                 4734            2560     0.896057114E-002
+             3100      8895.00000           927.000000         -0.204368224         -0.206458347          -128.700718                 4426            2466     0.880058296E-002
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        1 blooms occurred.
+             3125      9166.00000           939.000000         -0.210471822         -0.206324124          -128.706822                 4496            2496     0.864055660E-002
+             3150      9547.00000           941.000000         -0.211751062         -0.207938182          -128.708101                 4747            2601     0.864051841E-002
+             3175      9811.00000           948.000000         -0.213715156         -0.211971094          -128.710065                 4890            2758     0.912059750E-002
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        1 blooms occurred.
+             3200      9655.00000           940.000000         -0.214210051         -0.213320210          -128.710560                 4889            2649     0.912055932E-002
+             3225      9531.00000           938.000000         -0.212782654         -0.211662005          -128.709132                 4754            2652     0.912055932E-002
+             3250      9505.00000           938.000000         -0.210879374         -0.211389120          -128.707229                 4746            2665     0.912055932E-002
+             3275      9340.00000           939.000000         -0.213166793         -0.209633737          -128.709517                 4657            2599     0.896057114E-002
+             3300      9227.00000           919.000000         -0.212408747         -0.208614447          -128.708758                 4629            2573     0.896053296E-002
+             3325      9404.00000           922.000000         -0.214847707         -0.209339220          -128.711197                 4725            2629     0.896057114E-002
+             3350      9504.00000           918.000000         -0.210831041         -0.208571600          -128.707181                 4816            2561     0.896057114E-002
+             3375      9406.00000           913.000000         -0.213019673         -0.210279528          -128.709369                 4715            2565     0.896049477E-002
+             3400      9385.00000           915.000000         -0.212758327         -0.208894318          -128.709108                 4655            2613     0.880058296E-002
+             3425      8944.00000           908.000000         -0.215535870         -0.207570618          -128.711886                 4439            2495     0.864051841E-002
+             3450      9180.00000           918.000000         -0.215580715         -0.207792221          -128.711930                 4625            2509     0.880058296E-002
+             3475      8827.00000           907.000000         -0.206479489         -0.204451584          -128.702829                 4373            2462     0.848053023E-002
+             3500      9185.00000           916.000000         -0.207856811         -0.207067199          -128.704207                 4538            2637     0.880058296E-002
+             3525      9744.00000           913.000000         -0.216803691         -0.209778565          -128.713153                 4860            2696     0.896049477E-002
+             3550      9070.00000           912.000000         -0.212551780         -0.210257602          -128.708902                 4533            2438     0.912055932E-002
+             3575      9200.00000           905.000000         -0.212790765         -0.207215504          -128.709140                 4615            2560     0.880050659E-002
+             3600      9080.00000           906.000000         -0.213070178         -0.207793092          -128.709420                 4591            2504     0.864059478E-002
+             3625      8892.00000           916.000000         -0.208052427         -0.206072158          -128.704402                 4404            2430     0.864051841E-002
+             3650      9249.00000           912.000000         -0.209844722         -0.206349096          -128.706194                 4580            2597     0.864051841E-002
+             3675      9448.00000           917.000000         -0.212003202         -0.207792045          -128.708353                 4695            2595     0.880058296E-002
+             3700      9559.00000           928.000000         -0.214243997         -0.211380859          -128.710594                 4814            2638     0.912055932E-002
+Total iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:    19.1291957274079     
+ - - - - - - - - - - - - - - - - - - - - - - - -
+
+**** RDMs CALCULATED STOCHASTICALLY ****
+
+ Writing out the *normalised* 2 electron density matrix to a file...
+ Stochastic error measures for RDM 1:
+            3700        0.00330563057618743278     (Iteration, MAX ABS ERROR IN HERMITICITY)
+            3700        0.66216533787880871298     (Iteration, SUM ABS ERROR IN HERMITICITY)
+            3700                      Infinity     (Iteration, AVERAGE ABS PERCENTAGE HERMITICITY ERROR)
+
+ Writing out the *normalised* 1 electron density matrix to file
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      7.9296636692375
+ 
+ Calculating eigenvectors and eigenvalues of NatOrbMat
+ Matrix diagonalised
+  SUM OF THE N LARGEST NO OCCUPATION NUMBERS:         7.93034107651381336979
+  CORRELATION ENTROPY        0.45559711997852525567
+  CORRELATION ENTROPY PER ELECTRON        0.05694963999731565696
+ 
+ Transforming the four index integrals
+ Re-calculating the fock matrix
+ Refilling the UMAT and TMAT2D
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -1.940384422        3.523999596 #
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -1.940384422        3.523999596 #
+      3     15      0      0      0     -1 ( 0, 0, 1) 1   0       -0.852881550        1.127658832 #
+      4     16      0      0      0      1 ( 0, 0, 1) 1   0       -0.852881550        1.127658832 #
+      5     21      0      0      0     -1 ( 0, 0, 2) 2   0       -0.852947161        4.695044237 #
+      6     22      0      0      0      1 ( 0, 0, 2) 2   0       -0.852947161        4.695044237 #
+      7     31      0      0      0     -1 ( 0, 0, 4) 4   0       -0.852913441        4.710331217 #
+      8     32      0      0      0      1 ( 0, 0, 4) 4   0       -0.852913441        4.710331217 #
+      9      3      0      0      0     -1 ( 0, 0, 0) 0   0        1.931278814        3.435120712
+     10      4      0      0      0      1 ( 0, 0, 0) 0   0        1.931278814        3.435120712
+     11     17      0      0      0     -1 ( 0, 0, 1) 1   0        1.504029028        4.659951915
+     12     18      0      0      0      1 ( 0, 0, 1) 1   0        1.504029028        4.659951915
+     13     23      0      0      0     -1 ( 0, 0, 2) 2   0        1.525062379       -1.940384422
+     14     24      0      0      0      1 ( 0, 0, 2) 2   0        1.525062379       -1.940384422
+     15     33      0      0      0     -1 ( 0, 0, 4) 4   0        1.506851420        4.643601867
+     16     34      0      0      0      1 ( 0, 0, 4) 4   0        1.506851420        4.643601867
+     17      5      0      0      0     -1 ( 0, 0, 0) 0   0        3.420806951        0.750174378
+     18      6      0      0      0      1 ( 0, 0, 0) 0   0        3.420806951        0.750174378
+     19      7      0      0      0     -1 ( 0, 0, 0) 0   0        3.455936643        0.729206637
+     20      8      0      0      0      1 ( 0, 0, 0) 0   0        3.455936643        0.729206637
+     21     27      0      0      0     -1 ( 0, 0, 3) 3   0        3.470213034        3.420806951
+     22     28      0      0      0      1 ( 0, 0, 3) 3   0        3.470213034        3.420806951
+ FINAL ESTIMATES FOR RDM 1:
+ Trace of 2-el-RDM before normalisation:  1.0535994369E+10
+ Trace of 2-el-RDM after normalisation:  2.8000000000E+01
+ Energy contribution from the 1-RDM: -5.9934418296E+01
+ Energy contribution from the 2-RDM:  2.5073341889E+01
+ *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -1.2870997795241E+02
+
+ 
+Current reference: 
+(    1,    2,   15,   16,   21,   22,   31,   32)
+11000000000000110000110000000011000000000000
+ 
+Input DEFINEDET line (includes frozen orbs):
+definedet   1   2   3   4  17  18  23  24  33  34 
+ 
+Most occupied         15 determinants as excitations from reference: 
+ 
+ Excitation   ExcitLevel Seniority   Walkers(Re)   Walkers(Im)  Weight   Init?(Re)   Init?(Im)   Proc
+11000000000000110000110000000011000000000000    0    0    450.0000        477.0000      0.47393  Y  Y      0
+11000000000000110000110000000000001100000000    2    0   -16.00000       -20.00000      0.01685  Y  Y      1
+11000000000000110000000011000011000000000000    2    0   -14.00000       -17.00000      0.01474  Y  Y      0
+11000001000000100000100000010011000000000000    2    4    8.000000        15.00000      0.00843  Y  Y      0
+11000000000000110000100001000010000100000000    2    4   -14.00000       -9.000000      0.01474  Y  Y      0
+11000000000000010010110000000001001000000000    2    4  -10.000000       -12.00000      0.01053  Y  Y      0
+11000000000000110000010000100001000010000000    2    4   -11.00000       -11.00000      0.01158  Y  Y      0
+11000000000000110000000110000011000000000000    2    2    11.00000        11.00000      0.01158  Y  Y      0
+11000000000000010010010010000011000000000000    2    4   -11.00000       -8.000000      0.01158  Y  Y      0
+11000000000000011000011000000011000000000000    2    4   -12.00000       -4.000000      0.01264  Y  Y      0
+11000000000000000011110000000011000000000000    2    0   -7.000000       -18.00000      0.00737  Y  Y      1
+11000000000000110000100001000001001000000000    2    4    9.000000        17.00000      0.00948  Y  Y      1
+11000000000000110000010010000010000100000000    2    4    13.00000        12.00000      0.01369  Y  Y      1
+11000000000000100001110000000001001000000000    2    4    9.000000        15.00000      0.00948  Y  Y      1
+11000000000000001100110000000011000000000000    2    0   -6.000000       -11.00000      0.00632  Y  Y      0
+ 
+
+ Load balancing information based on the last iteration:
+ Mean number of determinants/process    2923.5000000000
+ Min number of determinants/process               2855
+ Max number of determinants/process               2992
+
+
+Calculating approximate errorbar for energy estimates...
+
+Attempting automatic reblocking analysis on data from iteration:         1800
+ No FCIMCStats file found for error analysis
+ Current reference energy                            -128.496349730325
+ Projected correlation energy                          -0.212779763370
+ No automatic errorbar obtained for projected energy
+ No reliable averaged shift correlation energy could be obtained automatically
+
+ Total projected energy        -128.70912949
+
+
+ Final energy estimate for state 1:     -128.70912949370    
+ Final energy estimate for state 2:     -128.70842003300    
+ Warning: attempting to log deallocation but never logged allocation.
+ 
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :    2048.0
+ Maximum memory used is    (MB) :      42.5
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ global_determinantinit_global_det_datclean_global_det_da  20.0MB
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar   16.0MB
+ FourIndInts       find_nat_orb_occ_nuDeallocateRDMs        1.8MB
+ SpawnVec2         DeAlloc_Alloc_SpawnDeallocFciMCMemPar  703.1KB
+ SpawnVec          DeAlloc_Alloc_SpawnDeallocFciMCMemPar  703.1KB
+ rdms(i)%abab_full InitRDMs           DeallocateRDMs      500.1KB
+ rdms(i)%abab_inst InitRDMs           DeallocateRDMs      500.1KB
+ SpawnVec          InitFCIMCPar       DeAlloc_Alloc_Spawn 468.8KB
+ SpawnVec2         InitFCIMCPar       DeAlloc_Alloc_Spawn 468.8KB
+ rdms(i)%aaaa_full InitRDMs           DeallocateRDMs      416.9KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+
+ Procedure                    Calls       CPU    system     total
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                    3700     15.46      0.00     15.46
+ AnnMainTime                   3700      1.60      0.00      1.60
+ NECICUBE                         1      0.74      0.00      0.74
+ Compress Sort interface       3700      0.64      0.00      0.64
+ SortTime                      3700      0.39      0.00      0.39
+ Compression interface         3700      0.33      0.00      0.33
+ FinaliseRDMsTime                 1      0.10      0.00      0.10
+ CommsTime                     3700      0.03      0.00      0.03
+ RDMEnergyTime                    8      0.02      0.00      0.02
+ SyncTime                      3706      0.01      0.00      0.01
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                  19.34      0.00     19.34
+
+ Global CPU time         19.45
+ Global system time       0.00
+ Global total time       19.45
+ ================================================================
+ Calculation ended 01/04/2016 at 12:00:09
+ ================================================================
