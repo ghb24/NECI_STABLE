@@ -293,9 +293,6 @@ contains
 
           pParallel = 0.5_dp
 
-          InitiatorCutoffEnergy = 99.99e99_dp
-          InitiatorCutoffWalkNo = 99.0_dp
-
           MaxTau = 1.0_dp
           tMultiReplicaInitiators = .false.
           pop_change_min = 50
@@ -1561,8 +1558,7 @@ contains
                 !
                 ! Specify both a threshold an an addtoinitiator value for
                 ! varying the thresholds
-                call getf(InitiatorCutoffEnergy)
-                call getf(InitiatorCutoffWalkNo)
+                call stop_all(t_r,'Deprecated Option')
 
             case("SPAWNONLYINIT", "SPAWNONLYINITGROWTH")
                 call stop_all(t_r, 'Option (SPAWNONLYINIT) deprecated')

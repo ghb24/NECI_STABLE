@@ -203,7 +203,7 @@ MODULE ReadInput_neci
                             TNoSameExcit, TInitStar, tMP2Standalone, &
                             MemoryFacPart, tTruncInitiator, tSemiStochastic, &
                             tSpatialOnlyHash, InitWalkers, tUniqueHFNode, &
-                            InitiatorCutoffEnergy, tCheckHighestPop, &
+                            tCheckHighestPop, &
                             tKP_FCIQMC, &
                             tAddToInitiator, &
                             tMultiReplicaInitiators, tRealCoeffByExcitLevel, &

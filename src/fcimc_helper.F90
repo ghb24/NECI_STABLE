@@ -35,7 +35,6 @@ module fcimc_helper
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
-                        InitiatorCutoffEnergy, InitiatorCutoffWalkNo, &
                         MaxWalkerBloom, &
                         tMultiReplicaInitiators, NMCyc, iSampleRDMIters, &
                         tOrthogonaliseReplicas, tPairedReplicas
@@ -751,16 +750,12 @@ contains
 #endif
 
         logical :: initiator, tDetInCAS
-        real(dp) :: init_thresh, low_init_thresh, init_tm, expected_lifetime
         real(dp) :: hdiag
-        integer :: spwn_cnt, run
+        integer :: run
 
         ! By default the particles status will stay the same
         initiator = is_init
 
-        ! Nice numbers
-        init_thresh = InitiatorWalkNo
-        low_init_thresh = InitiatorCutoffWalkNo
         run = part_type_to_run(part_type)
 
         if (.not. is_init) then
@@ -768,9 +763,7 @@ contains
             ! Determinant wasn't previously initiator 
             ! - want to test if it has now got a large enough 
             !   population to become an initiator.
-            if ((diagH > InitiatorCutoffEnergy &
-                 .and. abs(sgn) > low_init_thresh) &
-                .or. abs(sgn) > init_thresh) then
+            if (abs(sgn) > InitiatorWalkNo) then
                 initiator = .true.
                 NoAddedInitiators = NoAddedInitiators + 1
             endif
@@ -791,8 +784,7 @@ contains
             if (.not. tDetInCas .and. &
                 .not. (DetBitEQ(ilut, iLutRef(:,run), NIfDBO)) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
-                .and. ((diagH <= InitiatorCutoffEnergy .and. abs(sgn) <= init_thresh) .or. &
-                       (diagH > InitiatorCutoffEnergy .and. abs(sgn) <= low_init_thresh))) then
+                .and. (abs(sgn) <= InitiatorWalkNo )) then
                 ! Population has fallen too low. Initiator status 
                 ! removed.
                 initiator = .false.

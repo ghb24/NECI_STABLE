@@ -246,10 +246,6 @@ logical :: tWritePopsNorm
 real(dp) :: pops_norm
 integer :: pops_norm_unit
 
-! What is the maximum energy, above which all particles are treated as
-! initiators
-real(dp) :: InitiatorCutoffEnergy, InitiatorCutoffWalkNo
-
 ! Should we aggregate particle counts across all of the simulations in
 ! determining which sites are initiators (in system-replica mode).
 logical :: tMultiReplicaInitiators = .false.
