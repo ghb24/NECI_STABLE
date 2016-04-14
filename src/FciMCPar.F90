@@ -73,6 +73,7 @@ module FciMCParMod
     SUBROUTINE FciMCPar(energy_final_output)
 
         use rdm_data, only: rdm_main
+        use rdm_estimators, only: temp_rdm_output_wrapper
 
         real(dp), intent(out), allocatable :: energy_final_output(:)
 
@@ -419,6 +420,7 @@ module FciMCParMod
                     .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .eq. 0) ) then
                         do irdm = 1, nrdms
                             call rdm_output_wrapper(rdms(irdm), irdm, rdm_estimates(irdm))
+                            call temp_rdm_output_wrapper(rdm_estimates)
                         end do
 
                         !TODO: Move this to a more sensible place when everything is working.

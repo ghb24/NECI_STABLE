@@ -145,7 +145,7 @@ contains
             do i = 1, size(est)
                 write(rdm_estimates_unit, '(6(3x,es20.13))', advance='no') &
                     est(i)%RDMEnergy_Inst, est(i)%spin_est, 1.0_dp/est(i)%Norm_2RDM_Inst, &
-                    est(i)%new_energy, est(i)%new_spin, est(i)%new_trace
+                    est(i)%new_energy, est(i)%new_spin, est(i)%new_norm
             end do
             write(rdm_estimates_unit,'()')
 
