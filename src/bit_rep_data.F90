@@ -44,6 +44,7 @@ module bit_rep_data
     integer :: nOffParentCoeff, nIfParentCoeff
 
     ! Flags which we can store
+    logical :: tUseFlags
     integer, parameter :: flag_deterministic = 0, &
                           flag_determ_parent = 1, &
                           flag_trial = 2, &
@@ -98,7 +99,15 @@ contains
 
 !        bSet = btest(ilut(ind), off)
 
-        bSet = btest(ilut(NOffFlag), flg + flag_bit_offset)
+        bSet = .false.
+
+#if defined(__INT64) && !defined(__PROG_NUMRUNS)
+        if ((.not. tUseRealCoeffs) .or. tUseFlags) then
+#else
+        if (tUseFlags) then
+#endif
+            bSet = btest(ilut(NOffFlag), flg + flag_bit_offset)
+        end if
 
     end function test_flag
 
