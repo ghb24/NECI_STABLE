@@ -2181,7 +2181,7 @@ contains
                 tMultiRefShift = .true.
 
             case("MP2-FIXED-NODE")
-                tMP2FixedNode = .true.
+                call stop_all(t_r,'Deprecated option')
 
             case("INTERPOLATE-INITIATOR")
                 ! Implement interpolation between aborting particles

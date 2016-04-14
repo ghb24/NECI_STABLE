@@ -486,7 +486,6 @@ contains
 
     subroutine CalcHashTableStats(TotWalkersNew, iter_data)
 
-        use CalcData, only: tMP2FixedNode
         use DetBitOps, only: FindBitExcitLevel
         use hphf_integrals, only: hphf_off_diag_helement
         use FciMCData, only: ProjEDet
@@ -521,31 +520,6 @@ contains
                 if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
                     AnnihilatedDet = AnnihilatedDet + 1 
                 else
-
-                    if (tMP2FixedNode) then
-#if !(defined(__PROG_NUMRUNS) || defined(__CMPLX))
-                        ic = FindBitExcitLevel(ilutRef(:,1), CurrentDets(:,i))
-                        call decode_bit_det(nI, CurrentDets(:,i))
-                        if (ic == 2) then
-                            if (tHPHF) then
-                                hij = hphf_off_diag_helement(nI, ProjEDet(:, 1), CurrentDets(:,i), ilutRef(:,1))
-                            else
-                                hij = get_helement(nI, ProjEDet(:, 1), 2, CurrentDets(:,i), ilutRef(:,1))
-                            end if
-                            do j = 1, lenof_sign
-                                run = part_type_to_run(j)
-                                if (abs(hij) > 1.0e-6 .and. (CurrentSign(j) * hij * AllNoatHF(j)) > 0) then
-                                    NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
-                                    iter_data%nremoved(j) = iter_data%nremoved(j) + abs(CurrentSign(j))
-                                    CurrentSign(j) = 0
-                                    call nullify_ilut_part(CurrentDets(:, i), j)
-                                end if
-                            end do
-                        end if
-#else
-                        call stop_all(t_r, 'not yet implemented')
-#endif
-                    end if
 
                     do j=1, lenof_sign
                         run = part_type_to_run(j)

@@ -326,6 +326,4 @@ integer :: calc_seq_no
 logical :: tWeakInitiators
 real(dp) :: weakthresh
 
-logical :: tMP2FixedNode = .false.
-
 end module CalcData
