@@ -246,10 +246,6 @@ logical :: tWritePopsNorm
 real(dp) :: pops_norm
 integer :: pops_norm_unit
 
-! Should we aggregate particle counts across all of the simulations in
-! determining which sites are initiators (in system-replica mode).
-logical :: tMultiReplicaInitiators = .false.
-
 ! Are we orthogonalising replicas?
 logical :: tOrthogonaliseReplicas, tReplicaSingleDetStart
 logical :: tOrthogonaliseSymmetric

@@ -36,7 +36,7 @@ module fcimc_helper
                         tRealCoeffByExcitLevel, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
                         MaxWalkerBloom, &
-                        tMultiReplicaInitiators, NMCyc, iSampleRDMIters, &
+                        NMCyc, iSampleRDMIters, &
                         tOrthogonaliseReplicas, tPairedReplicas
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
@@ -661,34 +661,17 @@ contains
         ! tAddToInitiator is set, then the state of the parent may change.
         if (tAddToInitiator) then
 
-            ! If we are considering initiators on a whole-site basis, then
-            ! do that here.
-            !
-            ! n.b. these tests are not replicated in SortMerge.F90, as for
-            !      there to be initiators on multiple particle types, there
-            !      must be some merging happening.
-            if (tMultiReplicaInitiators) then
-                parent_init = test_flag (CurrentDets(:,j), flag_initiator(1))
-                ! We sum the sign. Given that the reference site always has
-                ! positive walkers on it, this is a sensible test.
-                parent_init = TestInitiator(CurrentDets(:,j), parent_init, &
-                                            sum(CurrentSign), diagH, &
-                                            j, part_type)
-            end if
-
             ! Now loop over the particle types, and update the flags
             do part_type = 1, lenof_sign
 
-                if (.not. tMultiReplicaInitiators) then
-                    ! By default, the parent_flags are the flags of the parent.
-                    parent_init = test_flag (CurrentDets(:,j), flag_initiator(part_type))
+                ! By default, the parent_flags are the flags of the parent.
+                parent_init = test_flag (CurrentDets(:,j), flag_initiator(part_type))
 
-                    ! Should this particle be considered to be an initiator
-                    ! for spawning purposes.
-                    parent_init = TestInitiator(CurrentDets(:,j), parent_init, &
-                                                CurrentSign(part_type), diagH, &
-                                                j, part_type)
-                end if
+                ! Should this particle be considered to be an initiator
+                ! for spawning purposes.
+                parent_init = TestInitiator(CurrentDets(:,j), parent_init, &
+                                            CurrentSign(part_type), diagH, &
+                                            j, part_type)
 
                 ! Update counters as required.
                 if (parent_init) then
@@ -749,7 +732,7 @@ contains
         character(*), parameter :: this_routine = 'TestInitiator'
 #endif
 
-        logical :: initiator, tDetInCAS
+        logical :: initiator
         real(dp) :: hdiag
         integer :: run
 
@@ -770,19 +753,13 @@ contains
 
         else
 
-            ! The source determinant is already an initiator.            
-            ! If tRetestAddToInit is on, the determinants become 
+            ! The determinants become 
             ! non-initiators again if their population falls below 
             ! n_add (this is on by default).
 
-            tDetInCas = .false.
-            if (tTruncCAS) &
-                tDetInCas = TestIfDetInCASBit (ilut)
-           
-            ! If det. in fixed initiator space, or is the HF det, or it
+            ! If det. is the HF det, or it
             ! is in the deterministic space, then it must remain an initiator.
-            if (.not. tDetInCas .and. &
-                .not. (DetBitEQ(ilut, iLutRef(:,run), NIfDBO)) &
+            if ( .not. (DetBitEQ(ilut, iLutRef(:,run), NIfDBO)) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
                 .and. (abs(sgn) <= InitiatorWalkNo )) then
                 ! Population has fallen too low. Initiator status 

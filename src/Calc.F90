@@ -294,7 +294,6 @@ contains
           pParallel = 0.5_dp
 
           MaxTau = 1.0_dp
-          tMultiReplicaInitiators = .false.
           pop_change_min = 50
           tOrthogonaliseReplicas = .false.
           tOrthogonaliseSymmetric = .false.
@@ -2068,7 +2067,7 @@ contains
                 ! initiators.
                 ! Obviously, this only does anything with system-replicas
                 ! set...
-                tMultiReplicaInitiators = .true.
+                call stop_all(t_r,'Option Deprecated')
 
             case("ORTHOGONALISE-REPLICAS")
                 ! Apply Gram Schmidt ortgogonalisation to replicas, starting

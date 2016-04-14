@@ -481,12 +481,7 @@ contains
 
 !If using a CAS space truncation, write out this CAS space
         IF(tTruncCAS) THEN
-            IF(tTruncInitiator) THEN
-                WRITE(iout,'(A)') " *********** INITIATOR METHOD IN USE ***********"
-                WRITE(iout,'(A)') " Fixed initiator space defined using the CAS method."
-            ELSE
-                WRITE(iout,*) "Truncated CAS space detected. Writing out CAS space..."
-            ENDIF
+            WRITE(iout,*) "Truncated CAS space detected. Writing out CAS space..."
             WRITE(iout,'(A,I2,A,I2,A)') " In CAS notation, (spatial orbitals, electrons), this has been chosen as: (", &
                 (OccCASOrbs+VirtCASOrbs)/2,",",OccCASOrbs,")"
             do I=NEl-OccCASorbs+1,NEl
@@ -1456,7 +1451,7 @@ contains
         endif
 
         ! How many children should we spawn given an excitation?
-        if ((tTruncCas .and. (.not. tTruncInitiator)) .or. tTruncSpace .or. &
+        if (tTruncCas .or. tTruncSpace .or. &
             tPartFreezeCore .or. tPartFreezeVirt .or. tFixLz .or. &
             (tUEG .and. .not. tLatticeGens) .or. tTruncNOpen) then
             if (tHPHF .or. tCSF .or. tSemiStochastic) then

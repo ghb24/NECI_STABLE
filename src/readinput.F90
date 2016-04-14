@@ -206,7 +206,7 @@ MODULE ReadInput_neci
                             tCheckHighestPop, &
                             tKP_FCIQMC, &
                             tAddToInitiator, &
-                            tMultiReplicaInitiators, tRealCoeffByExcitLevel, &
+                            tRealCoeffByExcitLevel, &
                             tAllRealCoeff, tUseRealCoeffs, tChangeProjEDet, &
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
@@ -453,20 +453,6 @@ MODULE ReadInput_neci
 
         if (tHPHF .and. tUHF) then
             call stop_all(t_r, 'HPHF functions cannot work with UHF')
-        end if
-
-        if (tMultiReplicaInitiators) then
-#ifndef __PROG_NUMRUNS
-            call stop_all(t_r, 'Aggregated initiator thresholds require &
-                               &multiple simulations')
-#endif
-#ifdef __CMPLX
-            call stop_all(t_r, 'Aggregated initator thresholds are not (yet) &
-                               &implemented for complex particles')
-#endif
-            if (lenof_sign == 1) &
-                call stop_all(t_r, 'Aggregated initator thresholds make no &
-                                   &sense with only one system replica')
         end if
 
 #if __PROG_NUMRUNS
