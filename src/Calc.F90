@@ -236,8 +236,6 @@ contains
           tReadPopsRestart = .false.
           iLogicalNodeSize = 0 !Meaning use the physical node size
           tAllRealCoeff=.false.
-          tWeakInitiators=.false.
-          weakthresh= 1.0_dp
           tUseRealCoeffs = .false.
           tRealCoeffByExcitLevel=.false.
           RealCoeffExcitThresh=2
@@ -1815,8 +1813,7 @@ contains
                 !This adaptation is applied stochastically with probability weakthresh
                 !Hence weakthresh = 1 --> Always on where applicable.
                 !weakthresh = 0 --> The original initiator scheme is maintained.
-                tWeakInitiators=.true.
-                call Getf(weakthresh)
+                call stop_all(t_r,'Deprecated option')
 
             case("ALLREALCOEFF")
                 tAllRealCoeff=.true.

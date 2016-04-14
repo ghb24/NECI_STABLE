@@ -322,8 +322,4 @@ logical :: tMultiRefShift = .false.
 ! Keep track of where in the calculation sequence we are.
 integer :: calc_seq_no
 
-!Weak initiator extension
-logical :: tWeakInitiators
-real(dp) :: weakthresh
-
 end module CalcData

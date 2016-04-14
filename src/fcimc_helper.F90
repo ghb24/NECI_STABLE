@@ -40,8 +40,7 @@ module fcimc_helper
                         init_survival_mult, MaxWalkerBloom, &
                         tMultiReplicaInitiators, NMCyc, iSampleRDMIters, &
                         tSpawnCountInitiatorThreshold, init_spawn_thresh, &
-                        tOrthogonaliseReplicas, tPairedReplicas, &
-                        tWeakInitiators, weakthresh
+                        tOrthogonaliseReplicas, tPairedReplicas
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
@@ -143,19 +142,6 @@ contains
         if (tTruncInitiator) then
             if (test_flag(ilutI, flag_initiator(part_type)).or.test_flag(ilutI, flag_weak_initiator(part_type))) &
                 call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_initiator(part_type))
-            if (tWeakInitiators) then
-              if(test_flag(ilutI, flag_initiator(part_type))) then
-                r = genrand_real2_dSFMT()
-                        if(weakthresh > r) then
-                             call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_weak_initiator(part_type))
-                        else
-                             call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_weak_initiator(part_type),.false.)
-                        endif
-              else
-                call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_weak_initiator(part_type),.false.)
-              endif
-            endif
-
         end if
 
         if (tFillingStochRDMonFly) then
