@@ -68,7 +68,7 @@ contains
         ! factors such as imperfect load balancing (which affects the spawned
         ! array).
         rdm_nrows = nbasis*(nbasis-1)/2
-        max_nelems = 2.0*(rdm_nrows**2)/(8*nProcessors)
+        max_nelems = 3.0*(rdm_nrows**2)/(8*nProcessors)
         nhashes_rdm = 0.8*max_nelems
 
         call init_rdm_list_t(rdm_main, nrdms, max_nelems, nhashes_rdm)

@@ -42,8 +42,9 @@ contains
             ! The iteration on which each replica became occupied.
             iter_occ = get_iter_occ(idet)
 
+            adapted_sign = 0.0_dp
+
             if (tPairedReplicas) then
-                adapted_sign = 0.0_dp
                 do irdm = 1, size(one_rdms)
 
                     ! The indicies of the first and second replicas in this
@@ -68,7 +69,17 @@ contains
                     call det_removed_fill_diag_rdm(spawn, one_rdms, ilut_list(:,idet), adapted_sign, iter_occ)
                 end if
             else
-                call det_removed_fill_diag_rdm(spawn, one_rdms, ilut_list(:,idet), curr_sign, iter_occ)
+                do irdm = 1, size(one_rdms)
+                    if (abs(curr_sign(irdm)) < 1.0e-10_dp) then
+                        ! If this RDM sign has gone to zero, then we want to add
+                        ! the contribution for this RDM.
+                        adapted_sign(irdm) = av_sign(irdm)
+                    end if
+                end do
+
+                if (any(abs(adapted_sign) > 1.e-12_dp)) then
+                    call det_removed_fill_diag_rdm(spawn, one_rdms, ilut_list(:,idet), adapted_sign, iter_occ)
+                end if
             end if
 
         end do
