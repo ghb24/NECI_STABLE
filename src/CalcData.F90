@@ -182,8 +182,7 @@ LOGICAL tUseProcsAsNodes  !Set if we treat each processor as its own node.
 INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of at most this size.
                           ! 0 means use physical nodes.
 
-    logical :: tJumpShift, tPopsJumpShift
-    logical :: tShiftProjectGrowth = .false.
+logical :: tJumpShift, tPopsJumpShift
 
 ! Perform a Davidson calculation if true.
 logical :: tDavidson

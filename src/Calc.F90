@@ -2186,7 +2186,7 @@ contains
                 ! _next_ update cycle for calculating the shift. i.e. use
                 !
                 ! log((N_t + (N_t - N_(t-1))) / N_t)
-                tShiftProjectGrowth = .true.
+                call stop_all(t_r,'Option deprecated')
 
             case default
                 call report("Keyword "                                &

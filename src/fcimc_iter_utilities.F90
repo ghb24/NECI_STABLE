@@ -593,7 +593,7 @@ contains
 
     subroutine update_shift (iter_data)
 
-        use CalcData, only: tInstGrowthRate, tShiftProjectGrowth
+        use CalcData, only: tInstGrowthRate
      
         type(fcimc_iter_data), intent(in) :: iter_data
         integer(int64) :: tot_walkers
@@ -627,25 +627,6 @@ contains
                                    + iter_data%tot_parts_old(run)) &
                                   / real(iter_data%tot_parts_old(run), dp)
                     enddo
-                endif
-
-            else if (tShiftProjectGrowth) then
-
-                ! Extrapolate the expected number of walkers at the end of the
-                ! _next_ update cycle for calculating the shift. i.e. use
-                !
-                ! log((N_t + (N_t - N_(t-1))) / N_t)
-                if (lenof_sign == 2 .and. inum_runs == 1) then
-                    !COMPLEX
-                        AllGrowRate(run) = &
-                            (2 * sum(AllSumWalkersCyc) - sum(OldAllAvWalkersCyc)) &
-                            / sum(AllSumWalkersCyc)
-                else
-                    do run = 1, inum_runs
-                        AllGrowRate(run) = &
-                            (2 * AllSumWalkersCyc(run) - OldAllAvWalkersCyc(run)) &
-                            / AllSumWalkersCyc(run)
-                    end do
                 endif
 
             else
