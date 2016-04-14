@@ -1096,7 +1096,6 @@ contains
 
     function CheckAllowedTruncSpawn (WalkExcitLevel, nJ, ilutnJ, IC) &
                                     result(bAllowed)
-
         ! Under any currently applied truncation schemes, is an excitation to
         ! this determinant allowed?
         !
