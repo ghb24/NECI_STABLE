@@ -119,8 +119,8 @@ module rdm_data
         real(dp) :: RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst
         real(dp) :: Norm_2RDM, Norm_2RDM_Inst, Trace_2RDM, Trace_2RDM_normalised
         real(dp) :: spin_est
-        real(dp) :: new_trace
-        real(dp) :: new_energy
+        real(dp) :: new_trace, new_norm
+        real(dp) :: new_energy_1, new_energy_2, new_energy
         real(dp) :: new_spin
     end type rdm_estimates_t
 

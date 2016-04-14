@@ -78,6 +78,7 @@ contains
         use LoggingData, only: tWrite_normalised_RDMs, tWriteSpinFreeRDM
         use Parallel_neci, only: MPISumAll
         use rdm_data, only: rdm_estimates_t, tOpenShell
+        use SystemData, only: nel
 
         use rdm_data, only: rdm_main, two_rdm_spawn, two_rdm_recv
         use rdm_parallel, only: calc_rdm_trace, calc_rdm_spin, calc_rdm_energy, print_rdms_with_spin
@@ -88,32 +89,43 @@ contains
         type(rdm_estimates_t), intent(inout) :: est(:)
 
         integer :: irdm
-        real(dp) :: rdm_energy(rdm_main%sign_length), rdm_trace(rdm_main%sign_length)
+        real(dp) :: rdm_trace(rdm_main%sign_length)
+        real(dp) :: rdm_norm(rdm_main%sign_length), all_rdm_norm(rdm_main%sign_length)
+        real(dp) :: rdm_energy_1(rdm_main%sign_length), rdm_energy_2(rdm_main%sign_length)
+        real(dp) :: all_rdm_energy_1(rdm_main%sign_length), all_rdm_energy_2(rdm_main%sign_length)
         real(dp) :: rdm_spin(rdm_main%sign_length), all_rdm_energy(rdm_main%sign_length)
         real(dp) :: all_rdm_trace(rdm_main%sign_length), all_rdm_spin(rdm_main%sign_length)
         real(dp) :: max_error_herm(rdm_main%sign_length), sum_error_herm(rdm_main%sign_length)
 
-        call calc_rdm_energy(rdm_main, rdm_energy)
-        call MPISumAll(rdm_energy, all_rdm_energy)
+        call calc_rdm_energy(rdm_main, rdm_energy_1, rdm_energy_2)
+        call MPISumAll(rdm_energy_1, all_rdm_energy_1)
+        call MPISumAll(rdm_energy_2, all_rdm_energy_2)
+        all_rdm_energy = all_rdm_energy_1 + all_rdm_energy_2
+
         call calc_rdm_trace(rdm_main, rdm_trace)
         call MPISumAll(rdm_trace, all_rdm_trace)
-        call calc_rdm_spin(rdm_main, rdm_trace, rdm_spin)
+        rdm_norm = rdm_trace*2.0_dp/(nel*(nel-1))
+        all_rdm_norm = all_rdm_trace*2.0_dp/(nel*(nel-1))
+        call calc_rdm_spin(rdm_main, rdm_norm, rdm_spin)
         call MPISumAll(rdm_spin, all_rdm_spin)
 
         do irdm = 1, size(est)
+            est(irdm)%new_norm = all_rdm_norm(irdm)
             est(irdm)%new_trace = all_rdm_trace(irdm)
-            est(irdm)%new_energy = all_rdm_energy(irdm) + ecore*all_rdm_trace(irdm)
+            est(irdm)%new_energy_1 = all_rdm_energy_1(irdm)
+            est(irdm)%new_energy_2 = all_rdm_energy_2(irdm)
+            est(irdm)%new_energy = all_rdm_energy(irdm) + ecore*all_rdm_norm(irdm)
             est(irdm)%new_spin = all_rdm_spin(irdm)
         end do
 
-        call calc_hermitian_errors(rdm_main, two_rdm_recv, two_rdm_spawn, all_rdm_trace, max_error_herm, sum_error_herm)
+        call calc_hermitian_errors(rdm_main, two_rdm_recv, two_rdm_spawn, all_rdm_norm, max_error_herm, sum_error_herm)
 
         if (tWriteSpinFreeRDM .and. tFinalRDMEnergy) call print_spinfree_2rdm_wrapper(rdm_main, two_rdm_recv, &
-                                                                                      two_rdm_spawn, all_rdm_trace)
+                                                                                      two_rdm_spawn, all_rdm_norm)
         if (tFinalRDMEnergy .and. tWrite_Normalised_RDMs) then
-            call print_rdms_spin_sym_wrapper(rdm_main, two_rdm_recv, two_rdm_spawn, all_rdm_trace, tOpenShell)
+            call print_rdms_spin_sym_wrapper(rdm_main, two_rdm_recv, two_rdm_spawn, all_rdm_norm, tOpenShell)
         end if
-        !if (tFinalRDMEnergy .and. tWrite_Normalised_RDMs) call print_rdms_with_spin(rdm_main, all_rdm_trace)
+        !if (tFinalRDMEnergy .and. tWrite_Normalised_RDMs) call print_rdms_with_spin(rdm_main, all_rdm_norm)
 
     end subroutine temp_rdm_output_wrapper
 
@@ -152,11 +164,12 @@ contains
         if (tFinalRDMEnergy) then
             do i = 1, size(est)
                 write(6,'(1x,"FINAL ESTIMATES FOR RDM",1X,'//int_fmt(i)//',":",)') i
-                write(6,'(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est(i)%Trace_2RDM
-                write(6,'(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est(i)%Trace_2RDM_normalised
-                write(6,'(1x,"Energy contribution from the 1-RDM:",1x,es17.10)') est(i)%RDMEnergy1
-                write(6,'(1x,"Energy contribution from the 2-RDM:",1x,es17.10)') est(i)%RDMEnergy2
-                write(6,'(1x,"*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:",1x,es20.13,/)') est(i)%RDMEnergy
+                write(6,'(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est(i)%new_trace
+                write(6,'(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est(i)%new_trace/est(i)%new_norm
+                write(6,'(1x,"Energy contribution from the 1-RDM:",1x,es17.10)') est(i)%new_energy_1/est(i)%new_norm
+                write(6,'(1x,"Energy contribution from the 2-RDM:",1x,es17.10)') est(i)%new_energy_2/est(i)%new_norm
+                write(6,'(1x,"*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:",1x,es20.13,/)') &
+                    est(i)%new_energy/est(i)%new_norm
             end do
             close(rdm_estimates_unit)
         end if

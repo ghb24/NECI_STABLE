@@ -349,20 +349,22 @@ contains
 
     end subroutine add_rdm_1_to_rdm_2
 
-    subroutine calc_rdm_energy(rdm, rdm_energy)
+    subroutine calc_rdm_energy(rdm, rdm_energy_1, rdm_energy_2)
 
         use rdm_data, only: rdm_list_t
         use rdm_integral_fns, only: one_elec_int, two_elec_int
         use SystemData, only: nel
 
         type(rdm_list_t), intent(inout) :: rdm
-        real(dp), intent(out) :: rdm_energy(rdm%sign_length)
+        real(dp), intent(out) :: rdm_energy_1(rdm%sign_length)
+        real(dp), intent(out) :: rdm_energy_2(rdm%sign_length)
 
         integer(int_rdm) :: pqrs
         integer :: i, pq, rs, p, q, r, s
         real(dp) :: rdm_sign(rdm%sign_length)
 
-        rdm_energy = 0.0_dp
+        rdm_energy_1 = 0.0_dp
+        rdm_energy_2 = 0.0_dp
 
         do i = 1, rdm%nelements
             pqrs = rdm%elements(0,i)
@@ -372,12 +374,12 @@ contains
             call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
 
             ! The 2-RDM contribution to the energy:
-            rdm_energy = rdm_energy + rdm_sign*two_elec_int(p,q,r,s)
+            rdm_energy_2 = rdm_energy_2 + rdm_sign*two_elec_int(p,q,r,s)
             ! The 1-RDM contribution to the energy:
-            if (p == r) rdm_energy = rdm_energy + rdm_sign*one_elec_int(q,s)/(nel-1)
-            if (q == s) rdm_energy = rdm_energy + rdm_sign*one_elec_int(p,r)/(nel-1)
-            if (p == s) rdm_energy = rdm_energy - rdm_sign*one_elec_int(q,r)/(nel-1)
-            if (q == r) rdm_energy = rdm_energy - rdm_sign*one_elec_int(p,s)/(nel-1)
+            if (p == r) rdm_energy_1 = rdm_energy_1 + rdm_sign*one_elec_int(q,s)/(nel-1)
+            if (q == s) rdm_energy_1 = rdm_energy_1 + rdm_sign*one_elec_int(p,r)/(nel-1)
+            if (p == s) rdm_energy_1 = rdm_energy_1 - rdm_sign*one_elec_int(q,r)/(nel-1)
+            if (q == r) rdm_energy_1 = rdm_energy_1 - rdm_sign*one_elec_int(p,s)/(nel-1)
         end do
 
     end subroutine calc_rdm_energy
@@ -385,7 +387,6 @@ contains
     subroutine calc_rdm_trace(rdm, rdm_trace)
 
         use rdm_data, only: rdm_spawn_t
-        use SystemData, only: nel
 
         type(rdm_list_t), intent(inout) :: rdm
         real(dp), intent(out) :: rdm_trace(rdm%sign_length)
@@ -407,10 +408,6 @@ contains
                 rdm_trace = rdm_trace + rdm_sign
             end if
         end do
-
-        ! When dividing the RDM by the output trace, we want the new
-        ! normalisation to be (nel*(nel-1))/2.
-        rdm_trace = rdm_trace * 2.0_dp/(nel*(nel-1))
 
     end subroutine calc_rdm_trace
 
