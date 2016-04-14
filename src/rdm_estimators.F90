@@ -82,7 +82,7 @@ contains
         use rdm_data, only: rdm_main, two_rdm_spawn, two_rdm_recv
         use rdm_parallel, only: calc_rdm_trace, calc_rdm_spin, calc_rdm_energy, print_rdms_with_spin
         use rdm_parallel, only: print_rdms_spin_sym_wrapper, print_spinfree_2rdm_wrapper
-        use rdm_parallel, only: make_hermitian_rdm
+        use rdm_parallel, only: calc_hermitian_errors
         use SystemData, only: ecore
 
         type(rdm_estimates_t), intent(inout) :: est(:)
@@ -91,6 +91,7 @@ contains
         real(dp) :: rdm_energy(rdm_main%sign_length), rdm_trace(rdm_main%sign_length)
         real(dp) :: rdm_spin(rdm_main%sign_length), all_rdm_energy(rdm_main%sign_length)
         real(dp) :: all_rdm_trace(rdm_main%sign_length), all_rdm_spin(rdm_main%sign_length)
+        real(dp) :: max_error_herm(rdm_main%sign_length), sum_error_herm(rdm_main%sign_length)
 
         call calc_rdm_energy(rdm_main, rdm_energy)
         call MPISumAll(rdm_energy, all_rdm_energy)
@@ -104,6 +105,8 @@ contains
             est(irdm)%new_energy = all_rdm_energy(irdm) + ecore*all_rdm_trace(irdm)
             est(irdm)%new_spin = all_rdm_spin(irdm)
         end do
+
+        call calc_hermitian_errors(rdm_main, two_rdm_recv, two_rdm_spawn, all_rdm_trace, max_error_herm, sum_error_herm)
 
         if (tWriteSpinFreeRDM .and. tFinalRDMEnergy) call print_spinfree_2rdm_wrapper(rdm_main, two_rdm_recv, &
                                                                                       two_rdm_spawn, all_rdm_trace)
