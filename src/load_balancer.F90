@@ -2,9 +2,9 @@
 module load_balance
 
     use CalcData, only: tUniqueHFNode, tSemiStochastic, tTruncInitiator, &
-                        tCheckHighestPop, tEnhanceRemainder, OccupiedThresh, &
-                        InitiatorOccupiedThresh, tContTimeFCIMC, &
-                        tContTimeFull, tTrialWavefunction, tInitOccThresh, &
+                        tCheckHighestPop, OccupiedThresh, &
+                        tContTimeFCIMC, &
+                        tContTimeFull, tTrialWavefunction, &
                         tPairedReplicas
     use global_det_data, only: global_determinant_data, get_iter_occ, &
                                set_det_diagH, set_part_init_time, &
@@ -550,58 +550,29 @@ contains
                     do j=1, lenof_sign
                         run = part_type_to_run(j)
                         if (.not. tIsStateDeterm) then
-                            if (tInitOccThresh.and.test_flag(CurrentDets(:,i), flag_has_been_initiator(1)))then
-                                if ((abs(CurrentSign(j)) > 1.e-12_dp) .and. (abs(CurrentSign(j)) < InitiatorOccupiedThresh)) then
-                                    ! We remove this walker with probability 1-RealSignTemp.
-                                    pRemove = (InitiatorOccupiedThresh-abs(CurrentSign(j)))/InitiatorOccupiedThresh
-                                    r = genrand_real2_dSFMT ()
-                                    if (pRemove > r) then
-                                        ! Remove this walker.
-                                        NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
-                                        iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                                              + abs(CurrentSign(j))
-                                        CurrentSign(j) = 0.0_dp
-                                        call nullify_ilut_part(CurrentDets(:,i), j)
-                                        call decode_bit_det(nI, CurrentDets(:,i))
-                                        call clear_has_been_initiator(CurrentDets(:,i),flag_has_been_initiator(1))
-                                        if (IsUnoccDet(CurrentSign)) then
-                                            call remove_hash_table_entry(HashIndex, nI, i)
-                                            iEndFreeSlot=iEndFreeSlot+1
-                                            FreeSlot(iEndFreeSlot)=i
-                                        end if
-                                    else if (tEnhanceRemainder) then
-                                        NoBorn(run) = NoBorn(run) + InitiatorOccupiedThresh - abs(CurrentSign(j))
-                                        iter_data%nborn(j) = iter_data%nborn(j) &
-                                             + InitiatorOccupiedThresh - abs(CurrentSign(j))
-                                        CurrentSign(j) = sign(InitiatorOccupiedThresh, CurrentSign(j))
-                                        call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
+                            if ((abs(CurrentSign(j)) > 1.e-12_dp) .and. (abs(CurrentSign(j)) < OccupiedThresh)) then
+                                !We remove this walker with probability 1-RealSignTemp
+                                pRemove=(OccupiedThresh-abs(CurrentSign(j)))/OccupiedThresh
+                                r = genrand_real2_dSFMT ()
+                                if (pRemove  >  r) then
+                                    !Remove this walker
+                                    NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
+                                    iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                                          + abs(CurrentSign(j))
+                                    CurrentSign(j) = 0.0_dp
+                                    call nullify_ilut_part(CurrentDets(:,i), j)
+                                    call decode_bit_det(nI, CurrentDets(:,i))
+                                    if (IsUnoccDet(CurrentSign)) then
+                                        call remove_hash_table_entry(HashIndex, nI, i)
+                                        iEndFreeSlot=iEndFreeSlot+1
+                                        FreeSlot(iEndFreeSlot)=i
                                     end if
-                                end if
-                            else
-                                if ((abs(CurrentSign(j)) > 1.e-12_dp) .and. (abs(CurrentSign(j)) < OccupiedThresh)) then
-                                    !We remove this walker with probability 1-RealSignTemp
-                                    pRemove=(OccupiedThresh-abs(CurrentSign(j)))/OccupiedThresh
-                                    r = genrand_real2_dSFMT ()
-                                    if (pRemove  >  r) then
-                                        !Remove this walker
-                                        NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
-                                        iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                                              + abs(CurrentSign(j))
-                                        CurrentSign(j) = 0.0_dp
-                                        call nullify_ilut_part(CurrentDets(:,i), j)
-                                        call decode_bit_det(nI, CurrentDets(:,i))
-                                        if (IsUnoccDet(CurrentSign)) then
-                                            call remove_hash_table_entry(HashIndex, nI, i)
-                                            iEndFreeSlot=iEndFreeSlot+1
-                                            FreeSlot(iEndFreeSlot)=i
-                                        end if
-                                    else if (tEnhanceRemainder) then
-                                        NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(CurrentSign(j))
-                                        iter_data%nborn(j) = iter_data%nborn(j) &
-                                             + OccupiedThresh - abs(CurrentSign(j))
-                                        CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
-                                        call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
-                                    end if
+                                else
+                                    NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(CurrentSign(j))
+                                    iter_data%nborn(j) = iter_data%nborn(j) &
+                                         + OccupiedThresh - abs(CurrentSign(j))
+                                    CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
+                                    call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                                 end if
                             end if
                         end if

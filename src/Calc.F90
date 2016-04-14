@@ -238,15 +238,12 @@ contains
           tAllRealCoeff=.false.
           tWeakInitiators=.false.
           weakthresh= 1.0_dp
-          tEnhanceRemainder=.true.
           tUseRealCoeffs = .false.
           tRealCoeffByExcitLevel=.false.
           RealCoeffExcitThresh=2
           tRealSpawnCutoff=.false.
           RealSpawnCutoff=1.0e-5_dp
           OccupiedThresh=1.0_dp
-          tInitOccThresh=.false.
-          InitiatorOccupiedThresh=0.1_dp
           tJumpShift = .true.
 !Feb 08 default set.
           IF(Feb08) THEN
@@ -1831,19 +1828,14 @@ contains
                 tUseRealCoeffs = .true.
                 call readi(RealCoeffExcitThresh)
             case("KEEPWALKSMALL")
-                tEnhanceRemainder=.false.
-                !When we do the removal step with AllRealCoeff, on the occasions where these pops are *not* removed,
-                !Keep their population the same, rather than resetting as a value of 1 (which is technically correct)
-                !This "bug" produced initiator-like (no plateau) behaviour, so may be of interest
+                call stop_all(t_r,'Deprecated Option')
             case("REALSPAWNCUTOFF")
                 tRealSpawnCutoff=.true.
                 call Getf(RealSpawnCutoff)
             case("SETOCCUPIEDTHRESH")
                 call Getf(OccupiedThresh)
             case("SETINITOCCUPIEDTHRESH")
-                tInitOccThresh=.true.
-                tAllRealCoeff=.true.
-                call Getf(InitiatorOccupiedThresh)
+                call stop_all(t_r,'Deprecated option')
 
             case("JUMP-SHIFT")
                 ! When variable shift is enabled, jump the shift to the value
@@ -2206,17 +2198,7 @@ contains
                 ! i)   alpha_min (0.0)
                 ! ii)  alpha_max (1.0)
                 ! iii) gamma     (1.0)
-
-                tBroadcastParentCoeff = .true.
-                tInterpolateInitThresh = .true.
-
-                init_interp_min = 0.0_dp
-                init_interp_max = 1.0_dp
-                init_interp_exponent = 1.0_dp
-                if (item < nitems) call readf(init_interp_min)
-                if (item < nitems) call readf(init_interp_max)
-                if (item < nitems) call readf(init_interp_exponent)
-
+                call stop_all(t_r,'Deprecated option')
             case("SHIFT-PROJECT-GROWTH")
                 ! Extrapolate the expected number of walkers at the end of the
                 ! _next_ update cycle for calculating the shift. i.e. use

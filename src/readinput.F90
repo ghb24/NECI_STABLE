@@ -211,8 +211,8 @@ MODULE ReadInput_neci
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
                             tContTimeFull, tSurvivalInitiatorThreshold, &
-                            tSurvivalInitMultThresh, tBroadcastParentCoeff, &
-                            tSpawnCountInitiatorThreshold, tInterpolateInitThresh
+                            tSurvivalInitMultThresh, &
+                            tSpawnCountInitiatorThreshold
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -593,15 +593,6 @@ MODULE ReadInput_neci
 #ifndef __USE_HDF
         if (tHDF5PopsRead .or. tHDF5PopsWrite) then
             call stop_all(t_r, 'Support for HDF5 files disabled at compile time')
-        end if
-#endif
-
-#ifdef __CMPLX
-        if (tBroadcastParentCoeff .or. tInterpolateInitThresh) then
-            write(6,*) 'Variable initiator thresholds require communication &
-                       &of parent coefficients during annihilation.'
-            write(6,*) 'This is not yet implemented during complex calculations'
-            call stop_all(t_r, 'Not implemented for complex walkers')
         end if
 #endif
 

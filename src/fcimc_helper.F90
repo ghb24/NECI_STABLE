@@ -14,7 +14,7 @@ module fcimc_helper
                         flag_trial, flag_connected, flag_deterministic, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
                         set_has_been_initiator, flag_has_been_initiator, &
-                        set_parent_coeff, flag_weak_initiator
+                        flag_weak_initiator
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
@@ -41,7 +41,7 @@ module fcimc_helper
                         tMultiReplicaInitiators, NMCyc, iSampleRDMIters, &
                         tSpawnCountInitiatorThreshold, init_spawn_thresh, &
                         tOrthogonaliseReplicas, tPairedReplicas, &
-                        tBroadcastParentCoeff, tWeakInitiators, weakthresh
+                        tWeakInitiators, weakthresh
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
@@ -168,17 +168,6 @@ contains
             call store_parent_with_spawned (RDMBiasFacCurr, WalkerNo, &
                                             ilutI, WalkersToSpawn, ilutJ, &
                                             proc)
-        end if
-
-        ! If we are storing the parent coefficient with the particle, then
-        ! do that it this point
-        if (tBroadcastParentCoeff) then
-#ifdef __CMPLX
-            ! n.b. SignCurr(part_type) --> this breaks with CPLX
-            call stop_all(this_routine, 'Not implemented (yet)')
-#endif
-            call set_parent_coeff(SpawnedParts(:, ValidSpawnedList(proc)), &
-                                  SignCurr(part_type))
         end if
 
 #ifdef __CMPLX

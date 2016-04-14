@@ -113,9 +113,7 @@ logical :: tAllRealCoeff, tUseRealCoeffs
 logical :: tRealSpawnCutoff
 logical :: tRealCoeffByExcitLevel
 integer :: RealCoeffExcitThresh
-real(dp) :: RealSpawnCutoff, OccupiedThresh, InitiatorOccupiedThresh
-logical :: tEnhanceRemainder
-logical :: tInitOccThresh
+real(dp) :: RealSpawnCutoff, OccupiedThresh
 logical :: tRPA_QBA     !RPA calculation with QB approximation
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
 logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
@@ -327,13 +325,6 @@ integer :: calc_seq_no
 !Weak initiator extension
 logical :: tWeakInitiators
 real(dp) :: weakthresh
-
-! During annihilation, do we need the coefficient on the parent site? If so
-! then attach it here
-logical :: tBroadcastParentCoeff = .false.
-
-logical :: tInterpolateInitThresh = .false.
-real(dp) :: init_interp_min, init_interp_max, init_interp_exponent
 
 logical :: tMP2FixedNode = .false.
 

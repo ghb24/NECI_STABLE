@@ -138,8 +138,6 @@ contains
 
     subroutine init_bit_rep ()
 
-        use CalcData, only: tBroadcastParentCoeff
-
         ! Set the values of nifd etc.
 
         character(*), parameter :: this_routine = 'init_bit_rep'
@@ -251,13 +249,10 @@ contains
         ! information to be used.
         ! TODO: We may not always need the flags array. Test that...
 
-        ! Create space for broadcasting the parent particle coefficient
+        ! Create space for broadcasting the parent particle coefficient?
+        ! ghb removed this ability on 14/4/16
         nOffParentCoeff = NIfTot + 1
-        if (tBroadcastParentCoeff) then
-            nIfParentCoeff = 1
-        else
-            nIfParentCoeff = 0
-        end if
+        nIfParentCoeff = 0
 
         NIfBCast = NIfTot + nIfParentCoeff
          
@@ -662,34 +657,32 @@ contains
 
     subroutine set_parent_coeff(ilut, coeff)
 
-        use CalcData, only: tBroadcastParentCoeff
-
         ! Store the coefficient of the parent walker of a spawn for more
-        ! complex initiator logic
+        ! complex initiator logic. This option was removed by ghb on 14/4/16.
+        ! so this routine should never be called
 
         integer(n_int), intent(inout) :: ilut(0:nIfBCast)
         real(dp), intent(in) :: coeff
         character(*), parameter :: this_routine = 'set_parent_coeff'
 
-        ASSERT(tBroadcastParentCoeff)
-        ASSERT(nIfParentCoeff == 1)
+        call stop_all(this_routine,'Routine deprecated')
 
+        ASSERT(nIfParentCoeff == 1)
         ilut(nOffParentCoeff) = transfer(coeff, ilut(nOffParentCoeff))
 
     end subroutine
 
     function extract_parent_coeff(ilut) result(coeff)
 
-        use CalcData, only: tBroadcastParentCoeff
-
         ! Obtain the coefficient of the parent walker of a spawn for more
-        ! complex initiator logic
+        ! complex initiator logic. This option was deprecated by ghb on 14/4/16.
 
         integer(n_int), intent(in) :: ilut(0:nIfBCast)
         real(dp) :: coeff
         character(*), parameter :: this_routine = 'extract_parent_coeff'
 
-        ASSERT(tBroadcastParentCoeff)
+        call stop_all(this_routine,'Routine deprecated by ghb on 14/4/16')
+
         ASSERT(nIfParentCoeff == 1)
 
         coeff = transfer(ilut(nOffParentCoeff), coeff)
