@@ -5386,14 +5386,14 @@ contains
         call EncodeBitDet_guga(det, ilut)
 
         print *, "testing: count_open_orbs_ij(ilut, i, j)"
-        print *, "open orbs in ([1,2,3,4],1,4): ", count_open_orbs_ij(ilut(0:0),1,4)
-        ASSERT(count_open_orbs_ij(ilut,1,4) == 0)
+        print *, "open orbs in ([1,2,3,4],1,4): ", count_open_orbs_ij(1,4, ilut(0:0))
+        ASSERT(count_open_orbs_ij(1,4, ilut) == 0)
 
         det = [1, 3, 5, 6]
 
         call EncodeBitDet_guga(det, ilut)
-        print *, "open orbs in ([1, 3, 5, 6], 1, 4): ", count_open_orbs_ij(ilut, 1, 4)
-        ASSERT(count_open_orbs_ij(ilut,1,4) == 2)
+        print *, "open orbs in ([1, 3, 5, 6], 1, 4): ", count_open_orbs_ij(1, 4, ilut)
+        ASSERT(count_open_orbs_ij(1,4, ilut) == 2)
 
         print *, "count_open_orbs_ij tests passed!"
 

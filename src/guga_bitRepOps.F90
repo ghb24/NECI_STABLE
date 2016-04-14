@@ -250,10 +250,15 @@ contains
         ! for now just do a loop over double overlap region and compare
         ! stepvalues
 
+        ! i could also use the current_stepvector quantity here.. or? 
+        ! if it is always called for the current looked at ilut..
+        ! i guess it does..
+
         orb = 0
         do i = start, semi - 1
 !             if (getStepvalue(iI,i) /= getStepvalue(iJ,i)) then
-            a = getStepvalue(iI,i)
+!             a = getStepvalue(iI,i)
+            a = current_stepvector(i)
             b = getStepvalue(iJ,i)
             if (a /= b) then
                 orb = i
@@ -277,7 +282,8 @@ contains
         orb = nSpatOrbs + 1
 
         do iOrb = ende, semi + 1, -1
-            a = getStepvalue(ilutI,iOrb)
+!             a = getStepvalue(ilutI,iOrb)
+            a = current_stepvector(iOrb)
             b = getStepvalue(ilutJ,iOrb)
             if (a /= b) then
 !             if (getStepvalue(ilutI,iOrb) /= getStepvalue(ilutJ,iOrb)) then
@@ -501,8 +507,11 @@ contains
         nOpen = 0
 
         ! quick and dirty fix to deal with the excitation range mask probs:
+        ! do i always call that for the current det the excitation is 
+        ! calculated for?  i think so..
         do k = i, j
-            if (isOne(ilut,k)) then 
+!             if (isOne(ilut,k)) then 
+            if (current_stepvector(k) == 1) then
                 nOpen = nOpen + 1
             end if
         end do
@@ -544,7 +553,8 @@ contains
 
         ! quick fix for now to see if thats the problem: loop and check! 
         do k = i, j
-            if (isTwo(ilut,k)) then
+!             if (isTwo(ilut,k)) then
+            if (current_stepvector(k) == 2) then
                 nOpen = nOpen + 1
             end if 
         end do
@@ -579,11 +589,11 @@ contains
 
     end function count_alpha_orbs_ij
 
-    function count_open_orbs_ij(L, i, j) result(nOpen)
+    function count_open_orbs_ij(i, j, L) result(nOpen)
         ! function to calculate the number of open orbitals between spatial
         ! orbitals i and j in ilut. i and j have to be given ordered i<j
-        integer(n_int), intent(in) :: L(0:nifd)
         integer, intent(in) :: i, j
+        integer(n_int), intent(in), optional :: L(0:nifd)
         integer :: nOpen
         character(*), parameter :: this_routine = "count_open_orbs_ij"
         
@@ -600,12 +610,23 @@ contains
         nOpen = 0
 
         ! also here a quick fix do deal with excitrangemask probs:
-        do k = i, j
-            flag = isOne(L,k)
-            if (flag .or. isTwo(L,k)) then 
-                nOpen = nOpen + 1
-            end if
-        end do
+
+        ! if the ilut input is present use it otherwise just look at the 
+        ! current_stepvector 
+        if (present(L)) then
+            do k = i, j
+                flag = isOne(L,k)
+                if (flag .or. isTwo(L,k)) then 
+                    nOpen = nOpen + 1
+                end if
+            end do
+        else
+            do k = i, j 
+                if (current_stepvector(k) == 1 .or. current_stepvector(k) == 2) then
+                    nOpen = nOpen + 1
+                end if
+            end do
+        end if
 
 !         if (i < j) then
 ! 

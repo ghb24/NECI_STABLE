@@ -557,6 +557,32 @@ contains
 
     end subroutine init_guga_data_procPtrs
 
+    subroutine nullify_guga_data_procPtrs()
+
+        integer :: i
+
+        do i = 1, 15
+            nullify(singleMatElesGUGA(i)%ptr)
+        end do
+
+        do i = 1,45
+            nullify(doubleMatEleX1GUGA(i)%ptr)
+        end do
+
+        do i = 1, 17
+            nullify(doubleMatEleX0GUGA(i)%ptr)
+        end do
+
+        do i = 1, 5
+            nullify(mixedGenFullStopMatEle(i)%ptr)
+        end do
+
+        do i = 1, 7
+            nullify(doubleContribution(i)%ptr)
+        end do
+
+    end subroutine nullify_guga_data_procPtrs
+
     ! wrapper functions to access matrix element terms
 
     ! for consistency reasons also write an get.. function for the specific
