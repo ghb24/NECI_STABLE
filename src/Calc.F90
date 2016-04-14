@@ -296,12 +296,6 @@ contains
           InitiatorCutoffEnergy = 99.99e99_dp
           InitiatorCutoffWalkNo = 99.0_dp
 
-          tSurvivalInitiatorThreshold = .false.
-          tSurvivalInitMultThresh = .false.
-          tSpawnCountInitiatorThreshold = .false.
-          init_spawn_thresh = 5
-          im_time_init_thresh = 0.1_dp
-          init_survival_mult = 3.0_dp
           MaxTau = 1.0_dp
           tMultiReplicaInitiators = .false.
           pop_change_min = 50
@@ -2057,29 +2051,20 @@ contains
                 ! iterations, it should be treated as an initiator.
                 ! --> Soft expand the range of the initiators in the Hilbert
                 !     space
-                tSurvivalInitiatorThreshold = .true.
-                if (item < nitems) then
-                    call readf(im_time_init_thresh)
-                end if
+                call stop_all(t_r,'Deprecated option')
 
             case("INITIATOR-SURVIVAL-MULTIPLIER")
                 ! If a site survives for a certain multiple of how long it
                 ! would _expect_ to have survived, then it should be treated
                 ! as an initiator
                 ! --> A more flexible version of INITIATOR-SURVIVAL-CRITERION
-                tSurvivalInitMultThresh = .true.
-                if (item < nitems) then
-                    call readf(init_survival_mult)
-                end if
+                call stop_all(t_r,'Deprecated option')
 
             case("INITIATOR-SPAWN-CRITERION")
                 ! A site becomes an initiator once a certain number of
                 ! spawns have occurred to it (these must be independent
                 ! spawns, rather than a certain magnitude of spawning)
-                tSpawnCountInitiatorThreshold = .true.
-                if (item < nitems) then
-                    call readi(init_spawn_thresh)
-                end if
+                call stop_all(t_r,'Deprecated option')
 
             case("MULTI-REPLICA-INITIATORS")
                 ! Aggregate particle counts across all of the simulation

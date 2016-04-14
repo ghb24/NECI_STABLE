@@ -26,7 +26,7 @@ module AnnihilationMod
     use LoggingData, only: tNoNewRDMContrib
     use load_balance, only: DetermineDetNode, AddNewHashDet, &
                             CalcHashTableStats
-    use global_det_data, only: get_iter_occ, inc_spawn_count
+    use global_det_data, only: get_iter_occ
     use searching
     use hash
 
@@ -601,10 +601,6 @@ module AnnihilationMod
                     ! Transfer new sign across.
                     call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
                     call encode_sign(SpawnedParts(:,i), null_part)
-
-                    ! If we are spawning onto a site and growing it, then
-                    ! count that spawn for initiator purposes.
-                    if (any(signprod > 0)) call inc_spawn_count(PartInd)
 
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)

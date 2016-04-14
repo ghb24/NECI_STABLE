@@ -255,15 +255,6 @@ real(dp) :: InitiatorCutoffEnergy, InitiatorCutoffWalkNo
 ! determining which sites are initiators (in system-replica mode).
 logical :: tMultiReplicaInitiators = .false.
 
-! Do we make sites into initiators if they have survived more than a certain
-! period of time?
-logical :: tSurvivalInitiatorThreshold, tSurvivalInitMultThresh
-real(dp) :: im_time_init_thresh, init_survival_mult
-
-! Do we make sites into initiators depending on the number of spawns to them?
-logical :: tSpawnCountInitiatorThreshold
-integer :: init_spawn_thresh
-
 ! Are we orthogonalising replicas?
 logical :: tOrthogonaliseReplicas, tReplicaSingleDetStart
 logical :: tOrthogonaliseSymmetric

@@ -7,8 +7,8 @@ module load_balance
                         tContTimeFull, tTrialWavefunction, &
                         tPairedReplicas
     use global_det_data, only: global_determinant_data, get_iter_occ, &
-                               set_det_diagH, set_part_init_time, &
-                               inc_spawn_count, set_spawn_rate
+                               set_det_diagH, &
+                               set_spawn_rate
     use bit_rep_data, only: flag_initiator, NIfDBO, flag_has_been_initiator, &
                             flag_connected, flag_trial
     use bit_reps, only: set_flag, nullify_ilut_part, clear_has_been_initiator,&
@@ -435,13 +435,6 @@ contains
         ! except the first one, holding the diagonal Hamiltonian element.
         global_determinant_data(:,DetPosition) = 0.0_dp
         call set_det_diagH(DetPosition, real(HDiag,dp) - Hii)
-
-        ! Store the iteration, as this is the iteration on which the particle
-        ! is created
-        call set_part_init_time(DetPosition, TotImagTime)
-
-        ! There is at least one spawning count here
-        call inc_spawn_count(DetPosition)
 
         ! If using a trial wavefunction, search to see if this state is in
         ! either the trial or connected space. If so, *_search_trial returns

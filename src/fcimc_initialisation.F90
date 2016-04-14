@@ -103,7 +103,7 @@ module fcimc_initialisation
                                     set_trial_populations, set_trial_states
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
-                               set_part_init_time, set_spawn_rate
+                               set_spawn_rate
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
@@ -1730,9 +1730,6 @@ contains
             call set_det_diagH(1, 0.0_dp)
             HFInd = 1
 
-            ! Set the initial iteration number
-            call set_part_init_time(1, TotImagTime)
-
             if (tContTimeFCIMC .and. tContTimeFull) &
                 call set_spawn_rate(1, spawn_rate_full(HFDet, ilutHF))
 
@@ -1875,9 +1872,6 @@ contains
                     hdiag = get_helement(ProjEDet(:, run), ProjEDet(:, run), 0)
                 endif
                 call set_det_diagH(site, real(hdiag, dp) - Hii)
-
-                ! Set the initial occupation time
-                call set_part_init_time(site, TotImagTime)
 
                 ! Obtain the initial sign
                 if (.not. tStartSinglePart) &
@@ -2392,9 +2386,6 @@ contains
                     endif
                     call set_det_diagH(DetIndex, real(HDiagTemp, dp) - Hii)
 
-                    ! Set the initial iteration number
-                    call set_part_init_time(DetIndex, TotImagTime)
-
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
                         call CalcParentFlag(DetIndex, iInit, &
@@ -2591,9 +2582,6 @@ contains
                     endif
                     call set_det_diagH(DetIndex, real(HDiagtemp, dp) - Hii)
 
-                    ! Set the initial iteration number
-                    call set_part_init_time(DetIndex, TotImagTime)
-
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
                         call CalcParentFlag(DetIndex, iInit, &
@@ -2650,9 +2638,6 @@ contains
                     call set_flag(CurrentDets(:,DetIndex),flag_initiator(2))
                 endif
                 call set_det_diagH(DetIndex, 0.0_dp)
-
-                ! Set the initial iteration number
-                call set_part_init_time(DetIndex, TotImagTime)
 
                 ! Now add the Hartree-Fock determinant (not with index 1).
                 DetHash = FindWalkerHash(HFDet, nWalkerHashes)

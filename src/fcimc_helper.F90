@@ -33,13 +33,11 @@ module fcimc_helper
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
                         tAddToInitiator, InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
-                        tRealCoeffByExcitLevel, tSurvivalInitiatorThreshold, &
+                        tRealCoeffByExcitLevel, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
                         InitiatorCutoffEnergy, InitiatorCutoffWalkNo, &
-                        im_time_init_thresh, tSurvivalInitMultThresh, &
-                        init_survival_mult, MaxWalkerBloom, &
+                        MaxWalkerBloom, &
                         tMultiReplicaInitiators, NMCyc, iSampleRDMIters, &
-                        tSpawnCountInitiatorThreshold, init_spawn_thresh, &
                         tOrthogonaliseReplicas, tPairedReplicas
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
@@ -57,7 +55,7 @@ module fcimc_helper
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: get_av_sgn, set_av_sgn, set_det_diagH, &
                                global_determinant_data, set_iter_occ, &
-                               get_part_init_time, det_diagH, get_spawn_count
+                               det_diagH
     use searching, only: BinSearchParts2
     use rdm_data, only: nrdms
     implicit none
@@ -801,44 +799,6 @@ contains
                 NoAddedInitiators = NoAddedInitiators - 1
             endif
 
-        end if
-
-        ! If this site has survived for a long time, but otherwise
-        ! would not be an initiator, then it is possible we ought
-        ! to be considering it as well.
-        if (.not. initiator .and. tSurvivalInitiatorThreshold) then
-            init_tm = get_part_init_time(site_idx)
-            if ((TotImagTime - init_tm) > im_time_init_thresh) &
-                initiator = .true.
-        end if
-
-#ifdef __DEBUG
-        if (tSurvivalInitiatorThreshold) then
-            init_tm = get_part_init_time(site_idx)
-            ASSERT(init_tm >= 0.0_dp)
-        end if
-#endif
-
-        if (.not. initiator .and. tSurvivalInitMultThresh) then
-            init_tm = get_part_init_time(site_idx)
-            hdiag = det_diagH(site_idx) - DiagSft(part_type)
-            if (hdiag > 0) then
-                expected_lifetime = &
-                    log(2.0_dp * max(MaxWalkerBloom, 1.0_dp)) / hdiag
-                if ((TotImagTime - init_tm) > & !0.5_dp) then !&
-                        init_survival_mult * expected_lifetime) then
-                    initiator = .true.
-                !    write(6,*) 'allowing', j, totimagtime-init_tm, &
-                !        expected_lifetime, init_survival_mult*expected_lifetime, &
-                !        init_survival_mult
-                end if
-            end if
-        end if
-
-        if (.not. initiator .and. tSpawnCountInitiatorThreshold) then
-            spwn_cnt = get_spawn_count(site_idx)
-            if (spwn_cnt >= init_spawn_thresh) &
-                initiator = .true.
         end if
 
     end function TestInitiator
