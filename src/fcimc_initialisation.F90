@@ -87,7 +87,8 @@ module fcimc_initialisation
                                        gen_excit_4ind_reverse
     use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
-    use SymExcit3, only: CountExcitations3, GenExcitations3, CountExcitations_Ex_Mag
+    use SymExcit3, only: CountExcitations3, GenExcitations3
+    use SymExcit4, only: CountExcitations4, GenExcitations4
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD, only : InitHistInitPops
     use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
@@ -2811,7 +2812,9 @@ contains
         real(dp) :: denom
         INTEGER :: iTotal
         integer :: nSingles, nDoubles, ncsf, nSing_spindiff1, nDoub_spindiff1, nDoub_spindiff2, ierr 
+        integer :: nTot
         integer :: hfdet_loc(nel)
+        character(*), parameter :: this_routine = "CalcApproxpDoubles"
 
         ! A quick hack. Count excitations as though we were a determinant.
         ! We could fix this later...
@@ -2839,9 +2842,16 @@ contains
         exflag=3
         if (tReltvy) then
             write(iout,*) "Counting magnetic excitations"
-            call CountExcitations_Ex_Mag(HFDet_loc,exflag,nSingles,nSing_spindiff1,&
-                nDoubles, nDoub_spindiff1, nDoub_spindiff2)
+            ! subroutine CountExcitations4(nI, minRank, maxRank, minSpinDiff, maxSpinDiff, tot)
+            call CountExcitations4(HFDet_loc, 1, 1, 0, 0, nSingles)
+            call CountExcitations4(HFDet_loc, 1, 1, 1, 1, nSing_spindiff1)
+            call CountExcitations4(HFDet_loc, 2, 2, 0, 0, nDoubles)
+            call CountExcitations4(HFDet_loc, 2, 2, 1, 1, nDoub_spindiff1)
+            call CountExcitations4(HFDet_loc, 2, 2, 2, 2, nDoub_spindiff2)
+            call CountExcitations4(HFDet_loc, 1, 2, 0, 2, nTot)
+
             iTotal=nSingles + nDoubles + nSing_spindiff1 + nDoub_spindiff1 + nDoub_spindiff2 + ncsf
+
         else
             iTotal=nSingles + nDoubles + ncsf
             if (tKPntSym) THEN

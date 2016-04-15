@@ -12,6 +12,7 @@ module SymExcit4
     interface GenExcitations4
         module procedure GenExcitations4_non_initd
         module procedure GenExcitations4_initd
+        module procedure GenExcitations4_compat
     end interface
 
     type ExcitGenSessionType
@@ -33,10 +34,9 @@ module SymExcit4
         integer, allocatable :: elecSpinOrbs(:)
         ! selected unoccupied spin orbitals
         integer, allocatable :: holeSpinOrbs(:)
-        ! the number of beta spin orbitals being vacated by the excitation
-        integer :: elecBetaOrbCount
-        ! the number of beta spin orbitals being filled by the excitation
-        integer :: holeBetaOrbCount
+        ! the difference of the numbers of beta spin orbitals being vacated 
+        ! and filled by the excitation
+        integer :: spinDiff
         ! the overall ml of the selected occ orbs
         integer :: elecTotMl
         ! the overall ml of the selected unocc orbs
@@ -51,6 +51,7 @@ module SymExcit4
         logical :: tInitialised = .false.
     end type
 
+    type(ExcitGenSessionType) :: storedSession
 
     contains
 
@@ -222,13 +223,13 @@ module SymExcit4
     subroutine SetSpinOrbs(session)
         implicit none
         type(ExcitGenSessionType), intent(inout) :: session
-        integer :: i
+        integer :: i, elecBetaOrbCount, holeBetaOrbCount
         ! initialise totals
-        session%elecBetaOrbCount = 0
+        elecBetaOrbCount = 0
         session%elecTotMl = 0
         session%elecSymLabel = 1
 
-        session%holeBetaOrbCount = 0
+        holeBetaOrbCount = 0
         session%holeTotMl = 0
         session%holeSymLabel = 1
 
@@ -239,12 +240,13 @@ module SymExcit4
             ! set total spin value
             if (is_beta(session%elecSpinOrbs(i))) then
                 ! odd => beta
-                session%elecBetaOrbCount = session%elecBetaOrbCount + 1
+                elecBetaOrbCount = elecBetaOrbCount + 1
             endif
             if (is_beta(session%holeSpinOrbs(i))) then
                 ! odd => beta
-                session%holeBetaOrbCount = session%holeBetaOrbCount + 1
+                holeBetaOrbCount = holeBetaOrbCount + 1
             endif
+            session%spinDiff = abs(elecBetaOrbCount - holeBetaOrbCount)
             ! set total ml value
             session%elecTotMl = session%elecTotMl + G1(session%elecSpinOrbs(i))%Ml
             session%holeTotMl = session%holeTotMl + G1(session%holeSpinOrbs(i))%Ml
@@ -278,7 +280,6 @@ module SymExcit4
 
             elecOrb = session%elecSpinOrbs(i)
             holeOrb = session%holeSpinOrbs(i)
-            !debug_line(44), elecOrb, holeOrb
 
             minOrbBound = min(elecOrb, holeOrb)
             maxOrbBound = max(elecOrb, holeOrb)
@@ -471,10 +472,8 @@ module SymExcit4
             ! 3. mL must be conserved
             ! 4. k-point symmetry must be conserved
 
-
-            spinDiff = abs(session%elecBetaOrbCount - session%holeBetaOrbCount)
             ! 1. spin difference
-            if (spinDiff > session%maxSpinDiff .or. spinDiff < session%minSpinDiff) then
+            if (session%spinDiff > session%maxSpinDiff .or. session%spinDiff < session%minSpinDiff) then
                 cycle
             endif
 
@@ -517,6 +516,25 @@ module SymExcit4
         call GenExcitations4_non_initd(session, session%nI, nJ, tParity, tAllExcitFound, ti_lt_a_only)
     end subroutine GenExcitations4_initd
 
+    subroutine GenExcitations4_compat(session, nJ, exFlag, excitMat, tParity, tAllExcitFound, ti_lt_a_only)
+        ! this routine is only included to provide an interface consistent with that of
+        ! the existing GenExcitations3. Here we have to assume a max rank of 2
+        implicit none
+        type(ExcitGenSessionType), intent(inout) :: session
+        integer, intent(out) :: nJ(nEl), exFlag, excitMat(2,2)
+        logical, intent(out) :: tParity, tAllExcitFound
+        logical, intent(in) :: ti_lt_a_only
+        integer :: i
+        call GenExcitations4_non_initd(session, session%nI, nJ, tParity, tAllExcitFound, ti_lt_a_only)
+    exFlag = session%rank
+    ! fill the excitation matrix
+    excitMat(:,:) = 0
+    do i = 1, exFlag
+        excitMat(:,i) = (/ session%elecSpinOrbs(i), session%holeSpinOrbs(i) /)
+    enddo
+    end subroutine
+
+
     subroutine CountExcitations4(nI, minRank, maxRank, minSpinDiff, maxSpinDiff, tot)
         implicit none
         integer, intent(in) :: nI(nEl), minRank, maxRank, minSpinDiff, maxSpinDiff
@@ -530,7 +548,6 @@ module SymExcit4
         tot = 0
         tAllExcitFound = .false.
         do while(.true.)
-            debug_line(44), tot
             call GenExcitations4(session, nJ, tParity, tAllExcitFound, .false.)
             if (tAllExcitFound) then
                 exit

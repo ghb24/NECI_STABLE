@@ -329,7 +329,8 @@ contains
 
         use determinants, only: get_helement
         use SymExcit3, only: GenExcitations3
-        use SystemData, only: nel, tKPntSym
+        use SymExcit4, only: GenExcitations4, ExcitGenSessionType, InitExcitGenSession
+        use SystemData, only: nel, tKPntSym, tReltvy
 
         integer(n_int), intent(inout) :: ilut_list(0:,:)
         integer, intent(inout) :: space_size
@@ -342,11 +343,15 @@ contains
         logical :: tAllExcitFound, tParity
         HElement_t(dp) :: HEl
 
+        type(ExcitGenSessionType) :: session
+
         ! Always generate both the single and double excitations.
         ex_flag = 3
 
         ! Start by adding the HF state.
         call add_state_to_space(ilutHF, ilut_list, space_size)
+
+        if (tReltvy) session = InitExcitGenSession(HFDet, 1, 2, 0, 2)
 
         if (tKPntSym) then
             call enumerate_sing_doub_kpnt(ex_flag, only_keep_conn, nsing, ndoub, .true., ilut_list, space_size)
@@ -357,7 +362,11 @@ contains
 
             do while(.true.)
                 ! Generate the next determinant.
-                call GenExcitations3(HFDet, ilutHF, nI, ex_flag, excit, tParity, tAllExcitFound, .false.)
+                if (tReltvy) then
+                    call GenExcitations4(session, nI, ex_flag, excit, tParity, tAllExcitFound, .false.)
+                else
+                    call GenExcitations3(HFDet, ilutHF, nI, ex_flag, excit, tParity, tAllExcitFound, .false.)
+                endif
                 if (tAllExcitFound) exit
 
                 call EncodeBitDet(nI, ilut)

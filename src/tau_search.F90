@@ -394,6 +394,7 @@ contains
         ! excitation generators, which is exciting!
 
         use neci_intfce
+        use SymExcit4, only : GenExcitations4, InitExcitGenSession, ExcitGenSessionType
         type(excit_gen_store_type) :: store, store2
         logical :: tAllExcitFound,tParity,tSameFunc,tSwapped,tSign
         character(len=*), parameter :: t_r="FindMaxTauDoubs"
@@ -403,6 +404,8 @@ contains
         HElement_t(dp) :: hel
         integer :: ic,nJ(nel),nJ2(nel),ierr,iExcit,ex_saved(2,2)
         integer(kind=n_int) :: iLutnJ(0:niftot),iLutnJ2(0:niftot)
+
+        type(ExcitGenSessionType) :: session
 
         if(tCSF) call stop_all(t_r,"TauSearching needs fixing to work with CSFs or MI funcs")
 
@@ -444,6 +447,7 @@ contains
         !    CALL GetSymExcitCount(EXCITGEN,DetConn)
         endif
 
+        session = InitExcitGenSession(ProjEDet(:,1), 1, 2, 0, 2)
         do while (.not.tAllExcitFound)
             if(tKPntSym) then
                 call GenSymExcitIt2(ProjEDet(:,1),nel,G1,nBasis,.false.,EXCITGEN,nJ,iExcit,nStore,exFlag)
@@ -455,7 +459,12 @@ contains
                 ex(1,1) = ic
                 call GetExcitation(ProjEDet(:,1),nJ,Nel,ex,tParity)
             else
-                CALL GenExcitations3(ProjEDet(:,1),iLutRef(:,1),nJ,exflag,Ex_saved,tParity,tAllExcitFound,.false.)
+                if (tReltvy) then
+                    call GenExcitations4(session, nJ, exflag, ex_saved, tParity, tAllExcitFound, .false.)
+                else
+                    CALL GenExcitations3(ProjEDet(:,1),iLutRef(:,1),nJ,exflag,Ex_saved,tParity,tAllExcitFound,.false.)
+                endif
+
                 IF(tAllExcitFound) EXIT
                 Ex(:,:) = Ex_saved(:,:)
                 if(Ex(2,2).eq.0) then
