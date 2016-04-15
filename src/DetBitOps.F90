@@ -692,24 +692,26 @@ module DetBitOps
         iLut(:)=0
         nopen = 0
         open_shell = .false.
-        if (tCSF .and. iscsf (nI)) then
-            do i=1,nel
-                ! THe first non-paired orbital has yama symbol = 1
-                if ((.not. open_shell) .and. &
-                    btest(nI(i), csf_yama_bit)) open_shell = .true.
+        if (tCSF) then
+            if(iscsf (nI)) then
+                do i=1,nel
+                    ! THe first non-paired orbital has yama symbol = 1
+                    if ((.not. open_shell) .and. &
+                        btest(nI(i), csf_yama_bit)) open_shell = .true.
 
-                ! Set the bit in the bit representation
-                det = iand(nI(i), csf_orbital_mask)
-                iLut((det-1)/bits_n_int) = ibset(iLut((det-1)/bits_n_int),mod(det-1,bits_n_int))
+                    ! Set the bit in the bit representation
+                    det = iand(nI(i), csf_orbital_mask)
+                    iLut((det-1)/bits_n_int) = ibset(iLut((det-1)/bits_n_int),mod(det-1,bits_n_int))
 
-                if (open_shell) then
-                    if (btest(nI(i), csf_yama_bit)) then
-                        pos = NIfD + 1 + (nopen/bits_n_int)
-                        iLut(pos) = ibset(iLut(pos), mod(nopen,bits_n_int))
+                    if (open_shell) then
+                        if (btest(nI(i), csf_yama_bit)) then
+                            pos = NIfD + 1 + (nopen/bits_n_int)
+                            iLut(pos) = ibset(iLut(pos), mod(nopen,bits_n_int))
+                        endif
+                        nopen = nopen + 1
                     endif
-                    nopen = nopen + 1
-                endif
-            enddo
+                enddo
+            endif
         else
             do i=1,nel
                 pos = (nI(i) - 1) / bits_n_int
