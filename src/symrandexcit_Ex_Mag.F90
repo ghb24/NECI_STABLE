@@ -496,7 +496,7 @@ ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
     use constants, only: n_int
     use bit_reps, only: NIfTot,decode_bit_det_spinsep
     use sym_mod, only: mompbcsym, GetLz
-    use SymExcit3, only: CountExcitations_Ex_Mag
+    use SymExcit4, only: CountExcitations4
     use neci_intfce
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
@@ -531,7 +531,11 @@ ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
     WRITE(6,*) "nSymLabels: ",nSymLabels
     CALL neci_flush(6)
 
-    call CountExcitations_Ex_Mag(nI,3,nSing,nSing_1,nDoub,nDoub_1,nDoub_2)
+    call CountExcitations4(nI, 1, 1, 0, 0, nSing)
+    call CountExcitations4(nI, 1, 1, 1, 1, nSing_1)
+    call CountExcitations4(nI, 1, 1, 0, 0, nDoub)
+    call CountExcitations4(nI, 1, 1, 1, 1, nDoub_1)
+    call CountExcitations4(nI, 1, 1, 2, 2, nDoub_2)
 
     write(6,*) "nSing: ",nSing
     write(6,*) "nSing_1: ",nSing_1
