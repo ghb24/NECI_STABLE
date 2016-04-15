@@ -25,7 +25,6 @@ module FciMCParMod
     use rdm_general, only: FinaliseRDMs
     use rdm_filling_old, only: fill_rdm_offdiag_deterministic_old, fill_rdm_diag_wrapper_old
     use rdm_filling, only: fill_rdm_offdiag_deterministic, fill_rdm_diag_wrapper
-    use rdm_estimators, only: rdm_output_wrapper, write_rdm_estimates
     use rdm_explicit, only: fill_explicitrdm_this_iter, fill_hist_explicitrdm_this_iter
     use procedure_pointers, only: attempt_die_t, generate_excitation_t, &
                                   get_spawn_helement_t
@@ -73,7 +72,8 @@ module FciMCParMod
     SUBROUTINE FciMCPar(energy_final_output)
 
         use rdm_data, only: rdm_estimates, rdm_main, two_rdm_recv, two_rdm_spawn
-        use rdm_estimators, only: rdm_output_wrapper, rdm_output_wrapper_old
+        use rdm_estimators, only: rdm_output_wrapper, write_rdm_estimates
+        use rdm_estimators_old, only: rdm_output_wrapper_old
 
         real(dp), intent(out), allocatable :: energy_final_output(:)
 

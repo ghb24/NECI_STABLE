@@ -595,7 +595,7 @@ contains
         use rdm_data, only: rdm_t, rdm_estimates_t, tOpenShell, tCalc_RDMEnergy
         use rdm_data, only: rdm_estimates_old_t, rdm_estimates_old
         use rdm_estimators, only: rdm_output_wrapper, write_rdm_estimates
-        use rdm_estimators, only: rdm_output_wrapper_old
+        use rdm_estimators_old, only: rdm_output_wrapper_old
         use RotateOrbsData, only: SymLabelListInv_rot
         use util_mod, only: get_free_unit
 
@@ -988,9 +988,9 @@ contains
         use rdm_data, only: rdm_t, rdm_estimates_t, tRotatedNos, FinaliseRDMs_Time
         use rdm_data, only: rdm_main, one_rdms, two_rdm_spawn, two_rdm_recv, tOpenShell
         use rdm_data, only: rdm_estimates_old_t
-        use rdm_estimators, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
-        use rdm_estimators, only: rdm_output_wrapper, CalcDipoles, write_rdm_estimates
-        use rdm_estimators, only: rdm_output_wrapper_old
+        use rdm_estimators_old, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
+        use rdm_estimators_old, only: rdm_output_wrapper_old, CalcDipoles
+        use rdm_estimators, only: rdm_output_wrapper, write_rdm_estimates
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
         use rdm_parallel, only: calc_rdm_trace, calc_1rdms_from_2rdms
         use rdm_parallel, only: create_spinfree_2rdm, calc_1rdms_from_spinfree_2rdms
