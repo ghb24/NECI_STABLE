@@ -545,7 +545,7 @@ module FciMCParMod
         isymh=int(RefSym%Sym%S,sizeof_int)+1
         write (iout,'('' Current reference energy'',T52,F19.12)') Hii 
         if(tNoProjEValue) then
-            write (iout,'('' Projected correlation energy'',T52,F19.12)') ProjectionE(1)
+            write (iout,'('' Projected correlation energy'',T52,F19.12)') real(ProjectionE(1),dp)
             write (iout,"(A)") " No automatic errorbar obtained for projected energy"
         else
             write (iout,'('' Projected correlation energy'',T52,F19.12)') mean_ProjE_re

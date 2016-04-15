@@ -92,6 +92,9 @@ contains
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer, intent(in) :: flg
         logical :: bSet
+#ifdef __DEBUG
+        character(len=*), parameter :: this_routine='test_flag'
+#endif
 
         !Commented out code is for when we need multiple integers for storing flags (unlikely!)
 !        ind = NOffFlag + flg / bits_n_int
@@ -99,15 +102,10 @@ contains
 
 !        bSet = btest(ilut(ind), off)
 
-        bSet = .false.
+        bSet = btest(ilut(NOffFlag), flg)
 
-#if defined(__INT64) && !defined(__PROG_NUMRUNS)
-        if ((.not. tUseRealCoeffs) .or. tUseFlags) then
-#else
-        if (tUseFlags) then
-#endif
-            bSet = btest(ilut(NOffFlag), flg + flag_bit_offset)
-        end if
+        !We only want to be testing for flags if we actually want them...
+        ASSERT(tUseFlags)
 
     end function test_flag
 

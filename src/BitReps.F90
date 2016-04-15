@@ -274,27 +274,11 @@ contains
             call decode_bit_det (nI, ilut)
         endif
 
-#if defined(__INT64) && !defined(__PROG_NUMRUNS)
-        if (tUseRealCoeffs) then
-            ! Get the signs, and splat them onto the reals.
-            sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
-            real_sgn = transfer(sgn, real_sgn)
-        else
-            ! We are actually only representing integers with our reals
-            ! --> If we store them as integers, we can still combine things.
-            sgn(1) = iand(ilut(NOffSgn), sign_mask)
-            if (test_flag(ilut, flag_negative_sign)) sgn(1) = -sgn(1)
-            if (lenof_sign /= 1) then
-                sgn(2:lenof_sign) = ilut(NOffSgn+1:NOffSgn+lenof_sign-1)
-            end if
-            real_sgn = real(sgn, dp)
-        end if
-#else
         sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
         real_sgn = transfer(sgn, real_sgn)
-#endif
+
         if (tUseFlags) &
-            flags = int(ishft(iLut(NOffFlag), -flag_bit_offset), sizeof_int)
+            flags = int(iLut(NOffFlag), sizeof_int)
 
     end subroutine extract_bit_rep
 
