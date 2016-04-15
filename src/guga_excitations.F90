@@ -60,6 +60,11 @@ module guga_excitations
     ! the matrix element calculation. 
     real(dp), allocatable :: currentOcc_ilut(:)
 
+    ! also probably helpful to have this as an integer for if-statements
+    integer, allocatable :: currentOcc_int(:)
+
+    integer, allocatable :: currentB_int(:)
+
     ! use a global excitationInformation type variable to store information
     ! about the last generated excitation to analyze matrix elements and 
     ! pgens
@@ -982,6 +987,8 @@ contains
             if (allocated(currentB_ilut)) deallocate(currentB_ilut)
             if (allocated(currentOcc_ilut)) deallocate(currentOcc_ilut)
             if (allocated(current_stepvector)) deallocate(current_stepvector)
+            if (allocated(currentOcc_int)) deallocate(currentOcc_int)
+            if (allocated(currentB_int)) deallocate(currentB_int)
 
             allocate(currentB_ilut(nSpatOrbs), stat = ierr)
             currentB_ilut = calcB_vector_ilut(ilut(0:nifd))
@@ -991,6 +998,12 @@ contains
 
             allocate(current_stepvector(nSpatOrbs), stat = ierr)
             current_stepvector = calcStepvector(ilut(0:nifd))
+
+            allocate(currentOcc_int(nSpatOrbs), stat = ierr)
+            currentOcc_int = int(currentOcc_ilut)
+
+            allocate(currentB_int(nSpatOrbs), stat = ierr)
+            currentB_int = int(currentB_ilut)
 
             ! then set tNewDet to false and only set it after the walker loop
             ! in FciMCPar
@@ -1430,12 +1443,11 @@ contains
             end if
         end do
 
-
         call mixedFullStopStochastic(ilut, excitInfo, t)
 
         ! check if there was a change in the stepvector in the double 
         ! overlap region
-        if (extract_matrix_element(t,1) /= 0.0_dp) then
+        if (abs(extract_matrix_element(t,1)) > EPS) then
             t = 0
             return
         end if
@@ -1619,7 +1631,7 @@ contains
         ! calculate the always involved intermediadet matrix element from 
         ! first switch to last switch
         do i = first + 1, last - 1
-            if (currentOcc_ilut(i) /= 1.0_dp) cycle
+            if (currentOcc_int(i) /= 1) cycle
 
             step1 = current_stepvector(i)
             step2 = getStepvalue(t,i)
@@ -1652,12 +1664,12 @@ contains
         ! have to be recalced..
 
         do j = last, nSpatOrbs 
-            if (currentOcc_ilut(j) /= 1.0_dp) cycle
+            if (currentOcc_int(j) /= 1) cycle
             ! calculate the remaining switches once for each (j) but do it 
             ! for the worst case until i = 1
 
             ! check if this is the last end needed to consider 
-            if (current_stepvector(j) == 2 .and. currentB_ilut(j) == 0.0_dp) &
+            if (current_stepvector(j) == 2 .and. currentB_int(j) == 0) &
                 above_flag = .true.
 
             excitInfo%fullStart = 1
@@ -1671,7 +1683,7 @@ contains
             weights = init_doubleWeight(ilut, j)
 
             do i = first, 1, -1
-                if (currentOcc_ilut(i) /= 1.0_dp) cycle
+                if (currentOcc_int(i) /= 1) cycle
          
                 ! this is the only difference for molecular/hubbard/ueg 
                 ! calculations 
@@ -1686,8 +1698,9 @@ contains
                 ! additional contribution from below, since the x1 matrix 
                 ! element is 0 
                 ! same if d = 2 and b = 0 for fullstop stepvector 
-                if (isOne(ilut,i)) then
-                    if (currentB_ilut(i) == 1.0_dp) below_flag = .true.
+!                 if (isOne(ilut,i)) then
+                if (current_stepvector(i) == 1) then
+                    if (currentB_int(i) == 1) below_flag = .true.
                 end if
                 if (below_cpt < EPS) cycle
                 ! calculate the branch probability
@@ -1696,7 +1709,8 @@ contains
                     posSwitches(i), currentB_ilut(i), weights%dat)
 
                 ! deal with the start seperately:
-                if (isOne(ilut,i)) then
+!                 if (isOne(ilut,i)) then
+                if (current_stepvector(i) == 1) then
                     plusWeight = weights%proc%plus(posSwitches(i), &
                         currentB_ilut(i), weights%dat)
                     if (isOne(t,i)) then
@@ -1715,7 +1729,8 @@ contains
                 end if
                 
                 ! get the starting matrix element
-                step1 = getStepvalue(ilut,i)
+!                 step1 = getStepvalue(ilut,i)
+                step1 = current_stepvector(i)
                 step2 = getStepvalue(t,i)
                 call getDoubleMatrixElement(step2,step1,-1,-1,+1,&
                     currentB_ilut(i),1.0_dp,x1_element = tempWeight)
@@ -1725,7 +1740,7 @@ contains
                 ! if i do it until switch - 1 -> i know that dB = 0 and 
                 ! the 2 stepvalues are always the same..
                 do k = i + 1, first - 1
-                    if (currentOcc_ilut(i) /= 1.0_dp) cycle
+                    if (currentOcc_int(i) /= 1) cycle
 
                     step1 = current_stepvector(k)
                     ! only 0 branch here
@@ -1793,11 +1808,18 @@ contains
                    ! in this region i know, that the matrix element is 
                    ! definetly not 0, since otherwise the excitation would 
                    ! have been aborted before
-                    if (deltaB(k-1) == 0.0_dp) then
+!                     if (deltaB(k-1) == 0) then
+                    ! combine stepvalue and deltaB info in select statement
+                    select case (deltaB(k-1) + current_stepvector(k))
+!                     case (0)
+
+!                         if (isOne(ilut,k)) then
+!                         if (current_stepvector(k) == 1) then
+                    case (1)
+                        ! d=1 + b=0 : 1
                         zeroWeight = weights%proc%zero(negSwitches(k), &
                             posSwitches(k), currentB_ilut(k), weights%dat)
 
-                        if (isOne(ilut,k)) then
                             plusWeight = weights%proc%plus(posSwitches(k), &
                                 currentB_ilut(k), weights%dat)
                             if (isOne(t,k)) then
@@ -1807,7 +1829,12 @@ contains
                                 branch_weight = branch_weight*(1.0_dp-calcStayingProb(&
                                     zeroWeight,plusWeight,currentB_ilut(k)))
                             end if
-                        else
+!                         else
+                    case (2)
+                        ! d=2 + b=0 : 2
+                        zeroWeight = weights%proc%zero(negSwitches(k), &
+                            posSwitches(k), currentB_ilut(k), weights%dat)
+
                             minusWeight = weights%proc%minus(negSwitches(k), &
                                 currentB_ilut(k), weights%dat)
                             if (isTwo(t,k)) then
@@ -1817,9 +1844,12 @@ contains
                                 branch_weight = branch_weight*(1.0_dp-calcStayingProb(&
                                     zeroWeight,minusWeight,currentB_ilut(k)))
                             end if
-                        end if
-                    else if (deltaB(k-1) == -2.0_dp ) then
-                        if (isOne(ilut,k)) then
+!                         end if
+!                     else if (deltaB(k-1) == -2 ) then
+                    case (-1)
+                        ! d=1 + b=-2 : -1
+!                         if (isOne(ilut,k)) then
+!                         if (current_stepvector(k) == 1) then
                             zeroWeight = weights%proc%zero(negSwitches(k), &
                                 posSwitches(k), currentB_ilut(k), weights%dat)
 
@@ -1833,9 +1863,12 @@ contains
                                 branch_weight = branch_weight*(1.0_dp-calcStayingProb(&
                                     minusWeight, zeroWeight, currentB_ilut(k)))
                             end if
-                        end if
-                    else if (deltaB(k-1) == 2.0_dp ) then
-                        if( isTwo(ilut,k)) then
+!                         end if
+!                     else if (deltaB(k-1) == 2 ) then
+                    case (4)
+                        ! d=2 + b=2 : 4
+!                         if( isTwo(ilut,k)) then
+!                         if( current_stepvector(k) == 2) then
                             zeroWeight = weights%proc%zero(negSwitches(k), &
                                 posSwitches(k), currentB_ilut(k), weights%dat)
 
@@ -1849,8 +1882,12 @@ contains
                                 branch_weight = branch_weight*(1.0_dp-calcStayingProb(&
                                     plusWeight,zeroWeight,currentB_ilut(k)))
                             end if
-                        end if
-                    end if
+!                         end if
+!                     case default
+!                         call stop_all(this_routine, "wrong delta b value!")
+
+                    end select
+!                     end if
                 end do
 
                 ! more efficient to do "last" step seperately, since i have to 
@@ -1895,7 +1932,7 @@ contains
                 ! then do remaining top range, where i know stepvalues are 
                 ! the same again and dB = 0 always!
                 do k = last + 1, j - 1
-                    if (currentOcc_ilut(i) /= 1.0_dp) cycle
+                    if (currentOcc_int(i) /= 1) cycle
 
                     step1 = current_stepvector(k)
                     ! only 0 branch here
@@ -1924,7 +1961,8 @@ contains
 
                 ! and handle fullend 
                 ! and then do the the end value at j
-                step1 = getStepvalue(ilut,j)
+!                 step1 = getStepvalue(ilut,j)
+                step1 = current_stepvector(j)
                 step2 = getStepvalue(t,j)
                 call getMixedFullStop(step2,step1,deltaB(j-1),currentB_ilut(j),&
                     x1_element = tempWeight_1)
@@ -1932,7 +1970,6 @@ contains
                 ! and multiply and add up all contribution elements
                 integral = integral + tempWeight * tempWeight_1 * inter * &
                     (get_umat_el(i,j,j,i) + get_umat_el(j,i,i,j))/2.0_dp
-
 
                 ! add up pgen contributions.. 
 
@@ -1959,8 +1996,8 @@ contains
         character(*), parameter :: this_routine = "calcMixedPgenContribution"
 
         logical :: flag
-        integer :: first, last, i, j, k
-        real(dp) :: deltaB(nSpatOrbs), posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
+        integer :: first, last, i, j, k, deltaB(nSpatOrbs)
+        real(dp) ::  posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
                     zeroWeight, minusWeight, plusWeight, probWeight, tempWeight
         type(weight_obj) :: weights
 
@@ -1969,15 +2006,16 @@ contains
         first = findFirstSwitch(ilut, t, excitInfo%fullStart, excitInfo%fullEnd)
         last = findLastSwitch(ilut, t, first, excitInfo%fullEnd)
 
-        deltaB = currentB_ilut - calcB_vector_ilut(t(0:nifd))
+        deltaB = int(currentB_ilut - calcB_vector_ilut(t(0:nifd)))
 
         pgen = 0.0_dp
 
         do i = 1, first
             do j = last, nSpatOrbs
                 ! can cycle over 0 or 3 stepvalues
-                flag = notSingle(ilut,i)
-                if (notSingle(ilut,j) .or. flag) then
+!                 flag = notSingle(ilut,i)
+!                 if (notSingle(ilut,j) .or. flag) then
+                if (currentOcc_int(i) /= 1 .or. currentOcc_int(j) /= 1) then
                     cycle
                 end if
 !                 if (isThree(ilut,i) .or. isZero(ilut,i) .or. &
@@ -1997,7 +2035,8 @@ contains
                     posSwitches(i), currentB_ilut(i), weights%dat)
 
                 ! deal with the start seperately:
-                if (isOne(ilut,i)) then
+!                 if (isOne(ilut,i)) then
+                if (current_stepvector(i) == 1) then
                     plusWeight = weights%proc%plus(posSwitches(i), &
                         currentB_ilut(i), weights%dat)
                     if (isOne(t,i)) then
@@ -2018,15 +2057,25 @@ contains
                 ! loop over excitation range
                 do k = i + 1, j - 1
 !                     if (isThree(ilut,k) .or. isZero(ilut,k)) cycle
-                    if (notSingle(ilut,k)) then
+!                     if (notSingle(ilut,k)) then
+                    if (currentOcc_int(k) /= 1) then
                         cycle
                     end if
 
-                    if (deltaB(k-1) == 0.0_dp) then
+!                     if (deltaB(k-1) == 0) then
+                    ! combine both deltaB and stepvalue info in the select 
+                    ! case statement
+                    select case(deltaB(k-1) + current_stepvector(k))
+!                     case(0)
+
+!                         if (isOne(ilut,k)) then
+!                         if (current_stepvector(k) == 1) then
+                    case (1)
+                        ! d=1 + b=0 : 1
+
                         zeroWeight = weights%proc%zero(negSwitches(k), &
                             posSwitches(k), currentB_ilut(k), weights%dat)
 
-                        if (isOne(ilut,k)) then
                             plusWeight = weights%proc%plus(posSwitches(k), &
                                 currentB_ilut(k), weights%dat)
                             if (isOne(t,k)) then
@@ -2040,8 +2089,14 @@ contains
                                 call getDoubleMatrixElement(2,1,0,-1,1, &
                                     currentB_ilut(k),1.0_dp,x1_element = tempWeight)
                             end if
-                        else
-                            minusWeight = weights%proc%minus(negSwitches(k), &
+!                         else
+                    case (2)
+                        ! d=2 + b=0 : 2
+
+                        zeroWeight = weights%proc%zero(negSwitches(k), &
+                            posSwitches(k), currentB_ilut(k), weights%dat)
+                            
+                        minusWeight = weights%proc%minus(negSwitches(k), &
                                 currentB_ilut(k), weights%dat)
                             if (isTwo(t,k)) then
                                 probWeight = probWeight*calcStayingProb(&
@@ -2054,50 +2109,61 @@ contains
                                 call getDoubleMatrixElement(1,2,0,-1,1, &
                                     currentB_ilut(k),1.0_dp,x1_element = tempWeight)
                             end if
-                        end if
-                    else if (deltaB(k-1) == -2.0_dp ) then
-                        if (isOne(ilut,k)) then
+!                         end if
+!                     else if (deltaB(k-1) == -2) then
+!                     case(-2)
+!                         if (isOne(ilut,k)) then
+!                         if (current_stepvector(k) == 1) then
+                    case (-1)
+                        ! d=1 + b=-2 : -1
 
-                        zeroWeight = weights%proc%zero(negSwitches(k), &
-                            posSwitches(k), currentB_ilut(k), weights%dat)
+                            zeroWeight = weights%proc%zero(negSwitches(k), &
+                                posSwitches(k), currentB_ilut(k), weights%dat)
 
-                        minusWeight = weights%proc%minus(negSwitches(k), &
-                            currentB_ilut(k), weights%dat)
+                            minusWeight = weights%proc%minus(negSwitches(k), &
+                                currentB_ilut(k), weights%dat)
 
-                        if (isOne(t,k)) then
-                            probWeight = probWeight * calcStayingProb(minusWeight, &
-                                zeroWeight, currentB_ilut(k))
-                            call getDoubleMatrixElement(1,1,-2,-1,1, &
-                                currentB_ilut(k),1.0_dp,x1_element = tempWeight)
-                        else
-                            probWeight = probWeight*(1.0_dp-calcStayingProb(&
-                                minusWeight, zeroWeight, currentB_ilut(k)))
-                            call getDoubleMatrixElement(2,1,-2,-1,1, &
-                                currentB_ilut(k),1.0_dp,x1_element = tempWeight)
-                        end if
-                        end if
-                    else if (deltaB(k-1) == 2.0_dp ) then
-                        if( isTwo(ilut,k)) then
+                            if (isOne(t,k)) then
+                                probWeight = probWeight * calcStayingProb(minusWeight, &
+                                    zeroWeight, currentB_ilut(k))
+                                call getDoubleMatrixElement(1,1,-2,-1,1, &
+                                    currentB_ilut(k),1.0_dp,x1_element = tempWeight)
+                            else
+                                probWeight = probWeight*(1.0_dp-calcStayingProb(&
+                                    minusWeight, zeroWeight, currentB_ilut(k)))
+                                call getDoubleMatrixElement(2,1,-2,-1,1, &
+                                    currentB_ilut(k),1.0_dp,x1_element = tempWeight)
+                            end if
+!                         end if
+!                     else if (deltaB(k-1) == 2.0_dp ) then
+                    case(4)
+                        ! d=2 + b=2 : 4
+!                         if( isTwo(ilut,k)) then
+!                         if (current_stepvector(k) == 2) then
+
                         
-                        zeroWeight = weights%proc%zero(negSwitches(k), &
-                            posSwitches(k), currentB_ilut(k), weights%dat)
+                            zeroWeight = weights%proc%zero(negSwitches(k), &
+                                posSwitches(k), currentB_ilut(k), weights%dat)
 
-                        plusWeight = weights%proc%plus(posSwitches(k), &
-                            currentB_ilut(k), weights%dat)
+                            plusWeight = weights%proc%plus(posSwitches(k), &
+                                currentB_ilut(k), weights%dat)
 
-                        if (isTwo(t,k)) then
-                            probWeight = probWeight * calcStayingProb(plusWeight, &
-                                zeroWeight, currentB_ilut(k))
-                            call getDoubleMatrixElement(2,2,2,-1,1, &
-                                currentB_ilut(k),1.0_dp,x1_element = tempWeight)
-                        else
-                            probWeight = probWeight*(1.0_dp-calcStayingProb(&
-                                plusWeight,zeroWeight,currentB_ilut(k)))
-                            call getDoubleMatrixElement(1,2,2,-1,1, &
-                                currentB_ilut(k),1.0_dp,x1_element = tempWeight)
-                        end if
-                        end if
-                    end if
+                            if (isTwo(t,k)) then
+                                probWeight = probWeight * calcStayingProb(plusWeight, &
+                                    zeroWeight, currentB_ilut(k))
+                                call getDoubleMatrixElement(2,2,2,-1,1, &
+                                    currentB_ilut(k),1.0_dp,x1_element = tempWeight)
+                            else
+                                probWeight = probWeight*(1.0_dp-calcStayingProb(&
+                                    plusWeight,zeroWeight,currentB_ilut(k)))
+                                call getDoubleMatrixElement(1,2,2,-1,1, &
+                                    currentB_ilut(k),1.0_dp,x1_element = tempWeight)
+                            end if
+!                         end if
+!                     end if
+!                     case default
+!                         call stop_all(this_routine, "wrong delta b value!")
+                    end select
 
                     if (abs(tempWeight) < EPS) then
                         probWeight = 0.0_dp
@@ -2149,10 +2215,11 @@ contains
 
         do i = first + 1, last - 1
 !             if (isThree(ilut,i) .or. isZero(ilut,i)) cycle
-            if (currentOcc_ilut(i) /= 1.0_dp) then
+            if (currentOcc_int(i) /= 1) then
                 cycle
             end if
-            step1 = getStepvalue(ilut,i)
+!             step1 = getStepvalue(ilut,i)
+            step1 = current_stepvector(i)
             step2 = getStepvalue(t,i)
             call getDoubleMatrixElement(step2,step1,bVector(i-1),-1,1,&
                 currentB_ilut(i),1.0_dp,x1_element = tempWeight)
@@ -2164,16 +2231,18 @@ contains
 
         do i = 1, first 
 !             if (isThree(ilut,i) .or. isZero(ilut,i)) cycle
-            if (currentOcc_ilut(i) /= 1.0_dp) then
+            if (currentOcc_int(i) /= 1) then
                 cycle
             end if
             do j = last, nSpatOrbs
 !                 if (isThree(ilut,j) .or. isZero(ilut,j)) cycle
-                if (notSingle(ilut,j)) then
+!                 if (notSingle(ilut,j)) then
+                if (currentOcc_int(j) /= 1) then
                     cycle
                 end if
                 ! get the starting matrix element
-                step1 = getStepvalue(ilut,i)
+!                 step1 = getStepvalue(ilut,i)
+                step1 = current_stepvector(i)
                 step2 = getStepvalue(t,i)
                 call getDoubleMatrixElement(step2,step1,-1,-1,+1,&
                     currentB_ilut(i),1.0_dp,x1_element = tempWeight)
@@ -2181,10 +2250,12 @@ contains
                 ! then calc. the product:
                 do k = i + 1, first
 !                     if (isThree(ilut,k) .or. isZero(ilut,k)) cycle
-                    if (notSingle(ilut,k)) then
+!                     if (notSingle(ilut,k)) then
+                    if (currentOcc_int(k) /= 1) then
                         cycle
                     end if
-                    step1 = getStepvalue(ilut,k)
+!                     step1 = getStepvalue(ilut,k)
+                    step1 = current_stepvector(k)
                     step2 = getStepvalue(t,k)
                     ! only 0 branch here
                     call getDoubleMatrixElement(step2,step1,0,-1,+1,&
@@ -2196,10 +2267,12 @@ contains
 
                 do k = last, j - 1
 !                     if (isThree(ilut,k) .or. isZero(ilut,k)) cycle
-                    if (notSingle(ilut,k)) then
+!                     if (notSingle(ilut,k)) then
+                    if (currentOcc_int(k) /= 1) then
                         cycle
                     end if
-                    step1 = getStepvalue(ilut,k)
+!                     step1 = getStepvalue(ilut,k)
+                    step1 = current_stepvector(k)
                     step2 = getStepvalue(t,k)
                     call getDoubleMatrixElement(step2,step1, bVector(k-1),-1,+1,&
                         currentB_ilut(k),1.0_dp,x1_element = tempWeight_1)
@@ -2208,7 +2281,8 @@ contains
                 end do
 
                 ! and then do the the end value at j
-                step1 = getStepvalue(ilut,j)
+!                 step1 = getStepvalue(ilut,j)
+                step1 = current_stepvector(j)
                 step2 = getStepvalue(t,j)
                 call getMixedFullStop(step2,step1,bVector(j-1),currentB_ilut(j),&
                     x1_element = tempWeight_1)
@@ -3148,8 +3222,8 @@ contains
         real(dp), intent(out) :: pgen, integral
         character(*), parameter :: this_routine = "calc_mixed_end_l2r_contr_nosym"
 
-        integer :: st, se, e, step, sw, i, j, step2
-        real(dp) :: topCont, tempWeight, tempWeight_1, deltaB(nSpatOrbs), &
+        integer :: st, se, e, step, sw, i, j, step2, deltaB(nSpatOrbs)
+        real(dp) :: topCont, tempWeight, tempWeight_1,  &
                     posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), minusWeight, &
                     plusWeight, probWeight, zeroWeight
         type(weight_obj) :: weights
@@ -3162,14 +3236,17 @@ contains
         ! for pgen contributions first initialize the orbitals pgen funcitons
         ! we know its a L2R fullstop so some stepvalues at st and se
         ! are impossible
-        if (isThree(ilut,st)) then
-            if (isZero(ilut,se)) then
+!         if (isThree(ilut,st)) then
+        if (current_stepvector(st) == 3) then
+!             if (isZero(ilut,se)) then
+            if (current_stepvector(se) == 0) then
                 calc_pgen_yix => calc_pgen_yix_end_02
             else
                 calc_pgen_yix => calc_pgen_yix_end_21
             end if
         else
-            if (isZero(ilut,se)) then
+!             if (isZero(ilut,se)) then
+            if (current_stepvector(se) == 0) then
                 calc_pgen_yix => calc_pgen_yix_end_01
             else
                 calc_pgen_yix => calc_pgen_yix_end_11
@@ -3193,7 +3270,8 @@ contains
         if (e < nSpatOrbs) then
 
             ! top contribution:
-            if (isOne(ilut,e)) then
+!             if (isOne(ilut,e)) then
+            if (current_stepvector(e) == 1) then
                 if (isOne(t,e)) then
                     topCont = -Root2*sqrt((currentB_ilut(e) + 2.0_dp)/&
                         currentB_ilut(e))
@@ -3203,7 +3281,8 @@ contains
                     topCont = -Root2/sqrt(currentB_ilut(e)*(currentB_ilut(e)+2.0_dp))
 
                 end if
-            else if (isTwo(ilut,e)) then
+!             else if (isTwo(ilut,e)) then
+            else if (current_stepvector(e) == 2) then
                 if (isOne(t,e)) then
 !                     topCont = -Root2/currentB_ilut(e)
                     topCont = -Root2/sqrt(currentB_ilut(e)*(currentB_ilut(e)+2.0_dp))
@@ -3223,14 +3302,16 @@ contains
 
             do i = e + 1, nSpatOrbs
 !                 if (isZero(ilut,i) .or. isThree(ilut,i)) cycle
-                if (notSingle(ilut,i)) then
+!                 if (notSingle(ilut,i)) then
+                if (currentOcc_int(i) /= 1) then
                     cycle
                 end if
 
                 tempWeight = 1.0_dp
                 ! calc product
                 do j = e + 1, i - 1
-                    step = getStepvalue(ilut,j)
+!                     step = getStepvalue(ilut,j)
+                    step = current_stepvector(j)
                     call getDoubleMatrixElement(step,step,0,-1,1,currentB_ilut(j),&
                         1.0_dp,x1_element = tempWeight_1)
 
@@ -3238,7 +3319,8 @@ contains
 
                 end do
 
-                step = getStepvalue(ilut,i)
+!                 step = getStepvalue(ilut,i)
+                step = current_stepvector(i)
 
                 ! get the end contribution
                 call getMixedFullStop(step,step,0,currentB_ilut(i),x1_element = tempWeight_1)
@@ -3269,13 +3351,14 @@ contains
         ! already set above
 !         pgen = 0.0_dp
 
-        deltaB = currentB_ilut - calcB_vector_ilut(t(0:nifd))
+        deltaB = int(currentB_ilut - calcB_vector_ilut(t(0:nifd)))
         ! fuck that to a new loop for the pgen contributions 
         do i = sw, nSpatOrbs
 
             ! can cycle if non-open orbitals
 !             if (isThree(ilut,i) .or. isZero(ilut,i)) cycle
-            if (notSingle(ilut,i)) then
+!             if (notSingle(ilut,i)) then
+            if (currentOcc_int(i) /= 1) then
                 cycle
             end if
             ! reinit remaining switches and weights
@@ -3294,7 +3377,8 @@ contains
             ! calc st prob cont.:o
             ! we know its a L2R excitation so, lowering st -> only a 
             ! decision if its a 3 at st
-            if (isThree(ilut,st)) then
+!             if (isThree(ilut,st)) then
+            if (current_stepvector(st) == 3) then
                 minusWeight = weights%proc%minus(negSwitches(st), &
                     currentB_ilut(st), weights%dat)
                 plusWeight = weights%proc%plus(posSwitches(st), &
@@ -3309,47 +3393,55 @@ contains
 
             do j = st + 1, se - 1
 !                 if (isThree(ilut,j) .or. isZero(ilut,j)) cycle
-                if (notSingle(ilut,j)) then
+!                 if (notSingle(ilut,j)) then
+                if (currentOcc_int(j) /= 1) then
                     cycle
                 end if
 
                 ! do i need delta B value too? i think so... fuck!!
-                if (isOne(ilut,j) ) then
-                    if (deltaB(j-1) == -1.0_dp) then
+!                 if (isOne(ilut,j) ) then
+                ! also combine both delta b and stepvalue info here
+                select case (current_stepvector(j) + deltaB(j-1))
+                case (0)
+                    ! d=1 + b=-1 : 0
+!                     if (deltaB(j-1) == -1) then
 
-                    ! is its a 1 or 2 check stepvalues to get probability
-                    minusWeight = weights%proc%minus(negSwitches(j), &
-                        currentB_ilut(j), weights%dat)
-                    plusWeight = weights%proc%plus(posSwitches(j), &
-                        currentB_ilut(j), weights%dat)
+                        ! is its a 1 or 2 check stepvalues to get probability
+                        minusWeight = weights%proc%minus(negSwitches(j), &
+                            currentB_ilut(j), weights%dat)
+                        plusWeight = weights%proc%plus(posSwitches(j), &
+                            currentB_ilut(j), weights%dat)
 
-                    if (isOne(t, j)) then
-                        probWeight = probWeight * calcStayingProb(minusWeight, &
-                            plusWeight, currentB_ilut(j))
-                        
-                    else
-                        probWeight = probWeight*(1.0_dp - calcStayingProb( &
-                            minusWeight, plusWeight, currentB_ilut(j)))
-                    end if
-                    end if
-                else if (isTwo(ilut,j)) then
-                    if ( deltaB(j-1) == +1.0_dp) then
+                        if (isOne(t, j)) then
+                            probWeight = probWeight * calcStayingProb(minusWeight, &
+                                plusWeight, currentB_ilut(j))
+                            
+                        else
+                            probWeight = probWeight*(1.0_dp - calcStayingProb( &
+                                minusWeight, plusWeight, currentB_ilut(j)))
+                        end if
+!                     end if
+!                 else if (isTwo(ilut,j)) then
+                case (3)
+                    ! d=2 + b=1 : 3
+!                     if ( deltaB(j-1) == +1) then
 
-                    ! is its a 1 or 2 check stepvalues to get probability
-                    minusWeight = weights%proc%minus(negSwitches(j), &
-                        currentB_ilut(j), weights%dat)
-                    plusWeight = weights%proc%plus(posSwitches(j), &
-                        currentB_ilut(j), weights%dat)
+                        ! is its a 1 or 2 check stepvalues to get probability
+                        minusWeight = weights%proc%minus(negSwitches(j), &
+                            currentB_ilut(j), weights%dat)
+                        plusWeight = weights%proc%plus(posSwitches(j), &
+                            currentB_ilut(j), weights%dat)
 
-                    if (isTwo(t, j)) then
-                        probWeight = probWeight * calcStayingProb(plusWeight, &
-                            minusWeight, currentB_ilut(j))
-                    else
-                        probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                            plusWeight, minusWeight, currentB_ilut(j)))
-                    end if
-                    end if
-                end if
+                        if (isTwo(t, j)) then
+                            probWeight = probWeight * calcStayingProb(plusWeight, &
+                                minusWeight, currentB_ilut(j))
+                        else
+                            probWeight = probWeight * (1.0_dp - calcStayingProb( &
+                                plusWeight, minusWeight, currentB_ilut(j)))
+                        end if
+!                     end if
+                end select
+!                 end if
             end do
             ! do se-st seperately
             ! its a L2R excitations -> so we know its a raising st here
@@ -3358,12 +3450,13 @@ contains
             ! reinit double weights
             weights = init_doubleWeight(ilut, i)
 
-            if (isZero(ilut,se)) then
+!             if (isZero(ilut,se)) then
+            if (current_stepvector(se) == 0) then
                 zeroWeight = weights%proc%zero(negSwitches(se), &
                     posSwitches(se), currentB_ilut(se), weights%dat)
 
                 if (isOne(t, se)) then
-                    if (deltaB(se-1) == -1.0_dp) then
+                    if (deltaB(se-1) == -1) then
                         minusWeight = weights%proc%minus(negSwitches(se), &
                             currentB_ilut(se), weights%dat)
                         
@@ -3375,7 +3468,7 @@ contains
                     end if
 
                 else
-                    if (deltaB(se-1) == -1.0_dp) then
+                    if (deltaB(se-1) == -1) then
                         minusWeight = weights%proc%minus(negSwitches(se), &
                             currentB_ilut(se), weights%dat)
                         probWeight = probWeight * zeroWeight/(zeroWeight+minusWeight)
@@ -3390,7 +3483,8 @@ contains
             ! loop over double region
             do j = se + 1, i - 1
 !                 if (isThree(ilut,j) .or. isZero(ilut, j)) cycle
-                if (notSingle(ilut,j)) then
+!                 if (notSingle(ilut,j)) then
+                if (currentOcc_int(j) /= 1) then
                     cycle
                 end if
 
@@ -3399,8 +3493,15 @@ contains
                 zeroWeight = weights%proc%zero(negSwitches(j), posSwitches(j), &
                     currentB_ilut(j), weights%dat)
 
-                if (deltaB(j-1) == 0.0_dp) then
-                    if (isOne(ilut,j)) then
+!                 if (deltaB(j-1) == 0.0_dp) then
+                ! combine deltab and stepvalue information in a single select 
+                ! case statement
+                select case (deltaB(j-1) + current_stepvector(j))
+!                 case (0)
+!                     if (isOne(ilut,j)) then
+!                     if (current_stepvector(j) == 1) then
+                case (1)
+                    ! d=1 + b=0 :1 
                         plusWeight = weights%proc%plus(posSwitches(j), &
                             currentB_ilut(j), weights%dat)
                         if (isOne(t, j)) then
@@ -3414,7 +3515,9 @@ contains
                             call getDoubleMatrixElement(2, 1, 0, -1, 1, &
                                 currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                         end if
-                    else
+!                     else
+                case (2)
+                    ! d=2 + b=0 : 2
                         minusWeight = weights%proc%minus(negSwitches(j), &
                             currentB_ilut(j), weights%dat)
                         if (isTwo(t,j)) then
@@ -3428,40 +3531,52 @@ contains
                             call getDoubleMatrixElement(1, 2, 0, -1, 1, &
                                 currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                         end if
-                    end if
-                else if (deltaB(j-1) == -2.0_dp) then
-                    if (isOne(ilut, j)) then
-                    minusWeight = weights%proc%minus(negSwitches(j), &
-                        currentB_ilut(j), weights%dat)
-                    if (isOne(t, j)) then
-                        probWeight = probWeight*calcStayingProb(minusWeight, &
-                            zeroWeight, currentB_ilut(j))
-                        call getDoubleMatrixElement(1, 1, -2, -1, 1, &
-                            currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
-                    else
-                        probWeight = probWeight*(1.0_dp - calcStayingProb(&
-                            minusWeight, zeroWeight, currentB_ilut(j)))
-                        call getDoubleMatrixElement(2, 1, -2, -1, 1, &
-                            currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
-                    end if
-                    end if
-                else if (deltaB(j-1) == 2.0_dp ) then
-                    if (isTwo(ilut, j)) then
-                    plusWeight = weights%proc%plus(posSwitches(j), &
-                        currentB_ilut(j), weights%dat)
-                    if (isTwo(t, j)) then
-                        probWeight = probWeight * calcStayingProb(plusWeight, &
-                            zeroWeight, currentB_ilut(j))
-                        call getDoubleMatrixElement(2, 2, 2, -1, 1, &
-                            currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
-                    else
-                        probWeight = probWeight * (1.0_dp -calcStayingProb( &
-                            plusWeight, zeroWeight, currentB_ilut(j)))
-                        call getDoubleMatrixElement(1, 2, 2, -1, 1, &
-                            currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
-                    end if 
-                    end if
-                end if
+!                     end if
+!                 else if (deltaB(j-1) == -2.0_dp) then
+!                 case (-2)
+!                     if (isOne(ilut, j)) then
+!                     if (current_stepvector(j) == 1) then
+                case (-1)
+                    ! d=1 + b=-2 : -1
+                        minusWeight = weights%proc%minus(negSwitches(j), &
+                            currentB_ilut(j), weights%dat)
+                        if (isOne(t, j)) then
+                            probWeight = probWeight*calcStayingProb(minusWeight, &
+                                zeroWeight, currentB_ilut(j))
+                            call getDoubleMatrixElement(1, 1, -2, -1, 1, &
+                                currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
+                        else
+                            probWeight = probWeight*(1.0_dp - calcStayingProb(&
+                                minusWeight, zeroWeight, currentB_ilut(j)))
+                            call getDoubleMatrixElement(2, 1, -2, -1, 1, &
+                                currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
+                        end if
+!                     end if
+!                 else if (deltaB(j-1) == 2.0_dp ) then
+!                 case (2)
+!                     if (isTwo(ilut, j)) then
+!                     if (current_stepvector(j) == 2) then
+                case (4)
+                    ! d=2 + b=2 : 4
+                        plusWeight = weights%proc%plus(posSwitches(j), &
+                            currentB_ilut(j), weights%dat)
+                        if (isTwo(t, j)) then
+                            probWeight = probWeight * calcStayingProb(plusWeight, &
+                                zeroWeight, currentB_ilut(j))
+                            call getDoubleMatrixElement(2, 2, 2, -1, 1, &
+                                currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
+                        else
+                            probWeight = probWeight * (1.0_dp -calcStayingProb( &
+                                plusWeight, zeroWeight, currentB_ilut(j)))
+                            call getDoubleMatrixElement(1, 2, 2, -1, 1, &
+                                currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
+                        end if 
+!                     end if
+!                 case default 
+!                     call stop_all(this_routine, "wrong delta b value!")
+
+                end select
+!                 end if
 
                 if (abs(tempWeight_1) < EPS) then
                     probWeight = 0.0_dp
@@ -3469,7 +3584,8 @@ contains
                 ! that should be it...
             end do
 
-            step = getStepvalue(ilut,i)
+!             step = getStepvalue(ilut,i)
+            step = current_stepvector(i)
             step2 = getStepvalue(t, i)
 
             call getMixedFullStop(step2,step,int(deltaB(i-1)),currentB_ilut(i), &
@@ -3488,7 +3604,8 @@ contains
         if (sw < e) then
             ! get inverse of fullstop 
             
-            step = getStepvalue(ilut,e)
+!             step = getStepvalue(ilut,e)
+            step = current_stepvector(e)
 
             call getMixedFullStop(step,step,0,currentB_ilut(e),x1_element = tempWeight)
 
@@ -3497,13 +3614,15 @@ contains
             do i = e-1, sw+1, -1
                 ! should i cycle here too if 0 or 3 stepvector? i guess...
 !                 if (isZero(ilut,i) .or. isThree(ilut,i)) cycle
-                if (notSingle(ilut,i)) then
+!                 if (notSingle(ilut,i)) then
+                if (current_stepvector(i) /= 1) then
                     cycle
                 end if
 
                 ! i cant go up until the switch in this case since at the 
                 ! switch the deltaB value can be different...
-                step = getStepvalue(ilut,i)
+!                 step = getStepvalue(ilut,i)
+                step = current_stepvector(i)
 !                 step2 = getStepvalue(t, i)
 
                 ! update inverse product
@@ -3523,7 +3642,9 @@ contains
 
             ! do switch specifically! determine deltaB!
             ! how?
-            if (isOne(ilut,sw)) then
+!             if (isOne(ilut,sw)) then
+            select case (current_stepvector(sw))
+            case (1)
                 ! then a -2 branch arrived!
                 call getDoubleMatrixElement(2,1,-2,-1,1,currentB_ilut(sw), &
                     1.0_dp, x1_element = tempWeight_1)
@@ -3532,7 +3653,8 @@ contains
 
                 call getMixedFullStop(2,1,-2,currentB_ilut(sw),x1_element = tempWeight_1)
 
-            else if (isTwo(ilut,sw)) then
+!             else if (isTwo(ilut,sw)) then
+            case (2)
                 ! +2 branch arrived!
 
                 call getDoubleMatrixElement(1,2,2,-1,1,currentB_ilut(sw), &
@@ -3542,7 +3664,8 @@ contains
 
                 call getMixedFullStop(1,2,2,currentB_ilut(sw), x1_element = tempWeight_1)
 
-            end if
+            end select
+!             end if
 
             tempWeight_1 = tempWeight * tempWeight_1
 
@@ -3554,7 +3677,6 @@ contains
         pgen = pgen * orb_pgen_contrib_type_3()
 
     end subroutine calc_mixed_end_l2r_contr_nosym
-
 
     subroutine calcFullStopR2L_stochastic(ilut,excitInfo, t, pgen)
         integer(n_int), intent(in) :: ilut(0:nifguga)
@@ -3670,11 +3792,11 @@ contains
         end if
 
         do i = st + 1, se - 1
-            if (currentOcc_ilut(i) /= 1.0_dp) cycle
+            if (currentOcc_int(i) /= 1) cycle
 
             step = current_stepvector(i) 
 
-            if (step == 1 .and. delta_b(i - 1) == -1) then 
+            if (step == 1 .and. delta_b(i-1) == -1) then 
                 if (isOne(t,i)) then
                     weight_funcs(i)%ptr => minus_staying_single
                 else
@@ -3707,39 +3829,48 @@ contains
         end if
 
         do i = se + 1, sw - 1
-            if (currentOcc_ilut(i) /= 1.0_dp) cycle
+            if (currentOcc_int(i) /= 1) cycle
 
             step = current_stepvector(i)
 
-            if (delta_b(i-1) == 0) then
-                if (step == 1) then
+            ! also combine step and deltab value in a select case statement
+            select case (delta_b(i-1) + step)
+            case (1)
+                ! d=1 + b=0 : 1
+!             if (delta_b(i-1) == 0) then
+!                 if (step == 1) then
                     if (isOne(t,i)) then
                         weight_funcs(i)%ptr => zero_plus_staying_double
                     else
                         weight_funcs(i)%ptr => zero_plus_switching_double
                     end if 
-                else
+!                 else
+            case (2)
+                ! d=2 + b=0 :2
                     if (isTwo(t,i)) then
                         weight_funcs(i)%ptr => zero_minus_staying_double
                     else
                         weight_funcs(i)%ptr => zero_minus_switching_double
                     end if
-                end if
+!                 end if
 
-            else if (delta_b(i-1) == -2 .and. step == 1) then
+!             else if (delta_b(i-1) == -2 .and. step == 1) then
+            case (-1)
                 if (isOne(t,i)) then
                     weight_funcs(i)%ptr => minus_staying_double
                 else
                     weight_funcs(i)%ptr => minus_switching_double
                 end if
 
-            else if (delta_b(i-1) == 2 .and. step == 2) then
+!             else if (delta_b(i-1) == 2 .and. step == 2) then
+            case (4)
                 if (isTwo(t,i)) then 
                     weight_funcs(i)%ptr => plus_staying_double
                 else
                     weight_funcs(i)%ptr => plus_switching_double
                 end if
-            end if
+            end select
+!             end if
         end do
         
         ! the last switch is the only remaining special case: 
@@ -3753,7 +3884,7 @@ contains
 
         ! all the remaining singly occupied orbitals stay on the dB = 0 branch
         do i = sw + 1, nSpatOrbs - 1
-            if (currentOcc_ilut(i) /= 1.0_dp) cycle
+            if (currentOcc_int(i) /= 1) cycle
 
             if (current_stepvector(i) == 1) then 
                 weight_funcs(i)%ptr => zero_plus_staying_double
@@ -3844,10 +3975,10 @@ contains
                 end if
 
                 do i = en + 1, nSpatOrbs
-                    if (currentOcc_ilut(i) /= 1.0_dp) cycle
+                    if (currentOcc_int(i) /= 1) cycle
 
                     ! then check if thats the last step
-                    if (current_stepvector(i) == 1 .and. currentB_ilut(i) == 0.0_dp) then
+                    if (current_stepvector(i) == 1 .and. currentB_int(i) == 0) then
                         above_flag = .true.
                     end if
 
@@ -3941,7 +4072,7 @@ contains
             
             do i = en - 1, sw + 1, -1
 
-                if (currentOcc_ilut(i) /= 1.0_dp) cycle
+                if (currentOcc_int(i) /= 1) cycle
 
                 ! get orbital pgen 
                 call calc_orbital_pgen_contrib_end(ilut, [2*elecInd, 2*i], &
@@ -4077,8 +4208,8 @@ contains
         real(dp), intent(out) :: pgen, integral
         character(*), parameter :: this_routine = "calc_mixed_end_r2l_contr_nosym"
 
-        integer :: st, se, en, step, sw, i, j, step2
-        real(dp) :: topCont, tempWeight, tempWeight_1, deltaB(nSpatOrbs), &
+        integer :: st, se, en, step, sw, i, j, step2, deltaB(nSpatOrbs)
+        real(dp) :: topCont, tempWeight, tempWeight_1, &
                     posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), minusWeight, &
                     plusWeight, probWeight, zeroWeight
         type(weight_obj) :: weights
@@ -4090,14 +4221,17 @@ contains
 
         ! for pgen contributions first initialize the orbitals pgen funcitons
         ! its a R2L fullstop -> some stepvalues at start and semi impossible
-        if (isZero(ilut,st)) then
-            if (isThree(ilut,se)) then
+!         if (isZero(ilut,st)) then
+        if (current_stepvector(st) == 0) then
+!             if (isThree(ilut,se)) then
+            if (current_stepvector(se) == 3) then
                 calc_pgen_yix => calc_pgen_yix_end_02
             else
                 calc_pgen_yix => calc_pgen_yix_end_01
             end if
         else
-            if (isThree(ilut,se)) then
+            if (current_stepvector(se) == 3) then
+!             if (isThree(ilut,se)) then
                 calc_pgen_yix => calc_pgen_yix_end_21
             else
                 calc_pgen_yix => calc_pgen_yix_end_11
@@ -4108,7 +4242,8 @@ contains
         if (en < nSpatOrbs) then
 
             ! top contribution:
-            if (isOne(ilut,en)) then
+            if (current_stepvector(en) == 1) then
+!             if (isOne(ilut,en)) then
                 if (isOne(t,en)) then
                     topCont = -Root2*sqrt((currentB_ilut(en) + 2.0_dp)/&
                         currentB_ilut(en))
@@ -4118,7 +4253,8 @@ contains
                     topCont = -Root2/sqrt(currentB_ilut(en)*(currentB_ilut(en)+2.0_dp))
 
                 end if
-            else if (isTwo(ilut,en)) then
+            else if (current_stepvector(en) == 2) then
+!             else if (isTwo(ilut,en)) then
                 if (isOne(t,en)) then
 !                     topCont = -Root2/currentB_ilut(en)
                     topCont = -Root2/sqrt(currentB_ilut(en)*(currentB_ilut(en)+2.0_dp))
@@ -4136,17 +4272,19 @@ contains
 !                 return
 !             end if
 
-            do i = en+1,nSpatOrbs
+            do i = en + 1, nSpatOrbs
 
                 tempWeight = 1.0_dp
 !                 if (isZero(ilut,i) .or. isThree(ilut,i)) cycle
-                if (notSingle(ilut,i)) then
+                if (currentOcc_int(i) /= 1) then
+!                 if (notSingle(ilut,i)) then
                     cycle
                 end if
 
                 ! calc product
                 do j = en + 1, i - 1
-                    step = getStepvalue(ilut,j)
+!                     step = getStepvalue(ilut,j)
+                    step = current_stepvector(j)
                     call getDoubleMatrixElement(step,step,0,-1,1,currentB_ilut(j),&
                         1.0_dp,x1_element = tempWeight_1)
 
@@ -4154,7 +4292,8 @@ contains
 
                 end do
 
-                step = getStepvalue(ilut,i)
+!                 step = getStepvalue(ilut,i)
+                step = current_stepvector(i)
 
                 ! get the end contribution
                 call getMixedFullStop(step,step,0,currentB_ilut(i),x1_element = tempWeight_1)
@@ -4184,13 +4323,14 @@ contains
         ! already set above 
 !         pgen = 0.0_dp
 
-        deltaB = currentB_ilut - calcB_vector_ilut(t(0:nifd))
+        deltaB = int(currentB_ilut - calcB_vector_ilut(t(0:nifd)))
 
         ! fuck that to a new loop for the pgen contributions 
         do i = sw, nSpatOrbs
             ! can cycle if non-open orbitals
 !             if (isThree(ilut,i) .or. isZero(ilut,i)) cycle
-            if (notSingle(ilut,i)) then
+!             if (notSingle(ilut,i)) then
+            if (currentOcc_int(i) /= 1) then
                 cycle
             end if
             ! reinit remaining switches and weights
@@ -4209,7 +4349,8 @@ contains
             ! calc start prob cont.:o
             ! we know its a R2L excitation so, raising start -> only a 
             ! decision if its a 0 at start
-            if (isZero(ilut,st)) then
+            if (current_stepvector(st) == 0) then
+!             if (isZero(ilut,st)) then
                 minusWeight = weights%proc%minus(negSwitches(st), &
                     currentB_ilut(st), weights%dat)
                 plusWeight = weights%proc%plus(posSwitches(st), &
@@ -4224,46 +4365,48 @@ contains
 
             do j = st + 1, se - 1
 !                 if (isThree(ilut,j) .or. isZero(ilut,j)) cycle
-                if (notSingle(ilut,j)) then
+!                 if (notSingle(ilut,j)) then
+                if (currentOcc_int(j) /= 1) then
                     cycle
                 end if
 
                 ! do i need delta B value too? i think so... fuck!!
-                if (isOne(ilut,j)) then
-                    if (deltaB(j-1) == -1.0_dp) then
+!                 if (isOne(ilut,j)) then
+!                     if (deltaB(j-1) == -1.0_dp) then
+                if (current_stepvector(j) == 1 .and. deltaB(j-1) == -1) then
+                        ! is its a 1 or 2 check stepvalues to get probability
+                        minusWeight = weights%proc%minus(negSwitches(j), &
+                            currentB_ilut(j), weights%dat)
+                        plusWeight = weights%proc%plus(posSwitches(j), &
+                            currentB_ilut(j), weights%dat)
 
-                    ! is its a 1 or 2 check stepvalues to get probability
-                    minusWeight = weights%proc%minus(negSwitches(j), &
-                        currentB_ilut(j), weights%dat)
-                    plusWeight = weights%proc%plus(posSwitches(j), &
-                        currentB_ilut(j), weights%dat)
+                        if (isOne(t, j)) then
+                            probWeight = probWeight * calcStayingProb(minusWeight, &
+                                plusWeight, currentB_ilut(j))
+                            
+                        else
+                            probWeight = probWeight*(1.0_dp - calcStayingProb( &
+                                minusWeight, plusWeight, currentB_ilut(j)))
+                        end if
+!                     end if
+                else if (current_stepvector(j) == 2 .and. deltaB(j-1) == 1) then
+!                 else if (isTwo(ilut,j)) then
+!                     if (deltaB(j-1) == +1.0_dp) then
 
-                    if (isOne(t, j)) then
-                        probWeight = probWeight * calcStayingProb(minusWeight, &
-                            plusWeight, currentB_ilut(j))
-                        
-                    else
-                        probWeight = probWeight*(1.0_dp - calcStayingProb( &
-                            minusWeight, plusWeight, currentB_ilut(j)))
-                    end if
-                    end if
-                else if (isTwo(ilut,j)) then
-                    if (deltaB(j-1) == +1.0_dp) then
+                        ! is its a 1 or 2 check stepvalues to get probability
+                        minusWeight = weights%proc%minus(negSwitches(j), &
+                            currentB_ilut(j), weights%dat)
+                        plusWeight = weights%proc%plus(posSwitches(j), &
+                            currentB_ilut(j), weights%dat)
 
-                    ! is its a 1 or 2 check stepvalues to get probability
-                    minusWeight = weights%proc%minus(negSwitches(j), &
-                        currentB_ilut(j), weights%dat)
-                    plusWeight = weights%proc%plus(posSwitches(j), &
-                        currentB_ilut(j), weights%dat)
-
-                    if (isTwo(t, j)) then
-                        probWeight = probWeight * calcStayingProb(plusWeight, &
-                            minusWeight, currentB_ilut(j))
-                    else
-                        probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                            plusWeight, minusWeight, currentB_ilut(j)))
-                    end if
-                    end if 
+                        if (isTwo(t, j)) then
+                            probWeight = probWeight * calcStayingProb(plusWeight, &
+                                minusWeight, currentB_ilut(j))
+                        else
+                            probWeight = probWeight * (1.0_dp - calcStayingProb( &
+                                plusWeight, minusWeight, currentB_ilut(j)))
+                        end if
+!                     end if 
                 end if
             end do
             ! do semi-start seperately
@@ -4273,12 +4416,13 @@ contains
             ! reinit double weights
             weights = init_doubleWeight(ilut, i)
 
-            if (isThree(ilut,se)) then
+            if (current_stepvector(se) == 3) then
+!             if (isThree(ilut,se)) then
                 zeroWeight = weights%proc%zero(negSwitches(se), &
                     posSwitches(se), currentB_ilut(se), weights%dat)
 
                 if (isOne(t, se)) then
-                    if (deltaB(se-1) == -1.0_dp) then
+                    if (deltaB(se-1) == -1) then
                         minusWeight = weights%proc%minus(negSwitches(se), &
                             currentB_ilut(se), weights%dat)
                         
@@ -4290,7 +4434,7 @@ contains
                     end if
 
                 else
-                    if (deltaB(se-1) == -1.0_dp) then
+                    if (deltaB(se-1) == -1) then
                         minusWeight = weights%proc%minus(negSwitches(se), &
                             currentB_ilut(se), weights%dat)
                         probWeight = probWeight * zeroWeight/(zeroWeight+minusWeight)
@@ -4305,7 +4449,8 @@ contains
             ! loop over double region
             do j = se + 1, i - 1
 !                 if (isThree(ilut,j) .or. isZero(ilut, j)) cycle
-                if (notSingle(ilut,j)) then
+!                 if (notSingle(ilut,j)) then
+                if (currentOcc_int(j) /= 1) then
                     cycle
                 end if
 
@@ -4314,8 +4459,15 @@ contains
                 zeroWeight = weights%proc%zero(negSwitches(j), posSwitches(j), &
                     currentB_ilut(j), weights%dat)
 
-                if (deltaB(j-1) == 0.0_dp) then
-                    if (isOne(ilut,j)) then
+!                 if (deltaB(j-1) == 0.0_dp) then
+                ! also combine deltaB and the stepvalue in the select case
+                ! here
+                select case (deltaB(j-1) + current_stepvector(j))
+!                 case (0)
+!                     if (current_stepvector(j) == 1) then
+                    case (1)
+                        ! d=1 + b=0 : 1
+!                     if (isOne(ilut,j)) then
                         plusWeight = weights%proc%plus(posSwitches(j), &
                             currentB_ilut(j), weights%dat)
                         if (isOne(t, j)) then
@@ -4331,7 +4483,9 @@ contains
                             call getDoubleMatrixElement(2, 1, 0, -1, 1, &
                                 currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                         end if
-                    else
+!                     else
+                    case (2)
+                        ! d=2 + b=0 : 2
                         minusWeight = weights%proc%minus(negSwitches(j), &
                             currentB_ilut(j), weights%dat)
                         if (isTwo(t,j)) then
@@ -4347,40 +4501,55 @@ contains
                             call getDoubleMatrixElement(1, 2, 0, -1, 1, &
                                 currentB_ilut(j),1.0_dp,  x1_element = tempWeight_1)
                         end if
-                    end if
-                else if (deltaB(j-1) == -2.0_dp ) then
-                    if (isOne(ilut, j)) then
-                    minusWeight = weights%proc%minus(negSwitches(j), &
-                        currentB_ilut(j), weights%dat)
-                    if (isOne(t, j)) then
-                        probWeight = probWeight*calcStayingProb(minusWeight, &
-                            zeroWeight, currentB_ilut(j))
-                        call getDoubleMatrixElement(1, 1, -2, -1, 1, &
-                            currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
-                    else
-                        probWeight = probWeight*(1.0_dp - calcStayingProb(&
-                            minusWeight, zeroWeight, currentB_ilut(j)))
-                        call getDoubleMatrixElement(2, 1, -2, -1, 1, &
-                            currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
-                    end if
-                    end if
-                else if (deltaB(j-1) == 2.0_dp) then
-                    if (isTwo(ilut, j)) then
-                    plusWeight = weights%proc%plus(posSwitches(j), &
-                        currentB_ilut(j), weights%dat)
-                    if (isTwo(t, j)) then
-                        probWeight = probWeight * calcStayingProb(plusWeight, &
-                            zeroWeight, currentB_ilut(j))
-                        call getDoubleMatrixElement(2, 2, 2, -1, 1, &
-                            currentB_ilut(j),1.0_dp,  x1_element = tempWeight_1)
-                    else
-                        probWeight = probWeight * (1.0_dp -calcStayingProb( &
-                            plusWeight, zeroWeight, currentB_ilut(j)))
-                        call getDoubleMatrixElement(1, 2, 2, -1, 1, &
-                            currentB_ilut(j),1.0_dp,  x1_element = tempWeight_1)
-                    end if 
-                    end if 
-                end if
+!                     end if
+!                 case (-2)
+!                 else if (deltaB(j-1) == -2.0_dp ) then
+!                     if (isOne(ilut, j)) then
+!                     if (current_stepvector(j) == 1) then
+                    case (-1)
+                        ! d=1 + b=-2 : -1
+                        minusWeight = weights%proc%minus(negSwitches(j), &
+                            currentB_ilut(j), weights%dat)
+                        if (isOne(t, j)) then
+                            probWeight = probWeight*calcStayingProb(minusWeight, &
+                                zeroWeight, currentB_ilut(j))
+                            call getDoubleMatrixElement(1, 1, -2, -1, 1, &
+                                currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
+                        else
+                            probWeight = probWeight*(1.0_dp - calcStayingProb(&
+                                minusWeight, zeroWeight, currentB_ilut(j)))
+                            call getDoubleMatrixElement(2, 1, -2, -1, 1, &
+                                currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
+                        end if
+!                     end if
+!                 case (2)
+!                 else if (deltaB(j-1) == 2.0_dp) then
+!                     if (isTwo(ilut, j)) then
+!                     if (current_stepvector(j) == 2) then
+                    case(4)
+                        ! d=2 + b=2 : 4
+
+                        plusWeight = weights%proc%plus(posSwitches(j), &
+                            currentB_ilut(j), weights%dat)
+                        if (isTwo(t, j)) then
+                            probWeight = probWeight * calcStayingProb(plusWeight, &
+                                zeroWeight, currentB_ilut(j))
+                            call getDoubleMatrixElement(2, 2, 2, -1, 1, &
+                                currentB_ilut(j),1.0_dp,  x1_element = tempWeight_1)
+                        else
+                            probWeight = probWeight * (1.0_dp -calcStayingProb( &
+                                plusWeight, zeroWeight, currentB_ilut(j)))
+                            call getDoubleMatrixElement(1, 2, 2, -1, 1, &
+                                currentB_ilut(j),1.0_dp,  x1_element = tempWeight_1)
+                        end if 
+!                     end if 
+
+
+!                 case default 
+!                     call stop_all(this_routine, "wrong delta B value!")
+
+                end select
+!                 end if
 
                 if (abs(tempWeight_1) < EPS) then
                     probWeight = 0.0_dp
@@ -4389,10 +4558,11 @@ contains
             end do
             ! get orbitals prob. also
             
-            step = getStepvalue(ilut,i)
+!             step = getStepvalue(ilut,i)
+            step = current_stepvector(i)
             step2 = getStepvalue(t,i)
 
-            call getMixedFullStop(step2,step,int(deltaB(i-1)),currentB_ilut(i),x1_element=tempWeight_1)
+            call getMixedFullStop(step2,step,deltaB(i-1),currentB_ilut(i),x1_element=tempWeight_1)
 
             if (abs(tempWeight_1) < EPS) then
                 probWeight = 0.0_dp
@@ -4406,7 +4576,8 @@ contains
 
         if (sw < en) then
             ! get inverse of fullstop 
-            step = getStepvalue(ilut,en)
+!             step = getStepvalue(ilut,en)
+            step = current_stepvector(en)
 
             call getMixedFullStop(step,step,0,currentB_ilut(en),x1_element = tempWeight)
 
@@ -4414,12 +4585,14 @@ contains
 
             do i = en-1, sw+1, -1
 !                 if (isZero(ilut,i) .or. isThree(ilut,i)) cycle
-                if (notSingle(ilut,i)) then
+!                 if (notSingle(ilut,i)) then
+                if (currentOcc_int(i) /= 1) then
                     cycle
                 end if
                 ! i cant go up until the switch in this case since at the 
                 ! switch the deltaB value can be different...
-                step = getStepvalue(ilut,i)
+!                 step = getStepvalue(ilut,i)
+                step = current_stepvector(i)
 !                 step2 = getStepvalue(t, i)
 
                 ! update inverse product
@@ -4439,7 +4612,8 @@ contains
 
             ! do switch specifically! determine deltaB!
             ! how?
-            if (isOne(ilut,sw)) then
+!             if (isOne(ilut,sw)) then
+            if (current_stepvector(sw) == 1) then
                 ! then a -2 branch arrived!
                 call getDoubleMatrixElement(2,1,-2,-1,1,currentB_ilut(sw), &
                     1.0_dp, x1_element = tempWeight_1)
@@ -4448,7 +4622,8 @@ contains
 
                 call getMixedFullStop(2,1,-2,currentB_ilut(sw),x1_element = tempWeight_1)
 
-            else if (isTwo(ilut,sw)) then
+            else if (current_stepvector(sw) == 2) then
+!             else if (isTwo(ilut,sw)) then
                 ! +2 branch arrived!
 
                 call getDoubleMatrixElement(1,2,2,-1,1,currentB_ilut(sw), &
@@ -4492,7 +4667,8 @@ contains
         ASSERT(s > 0 .and. s <= nSpatOrbs)
 
 !         if (isZero(ilut,s) .or. isThree(ilut,s)) then
-        if (notSingle(ilut,s)) then
+!         if (notSingle(ilut,s)) then
+        if (current_stepvector(s) /= 1) then
             ! no change in stepvector or matrix element in this case 
             return
         end if
@@ -4508,16 +4684,27 @@ contains
 
         deltaB = getDeltaB(t)
 
-        if (isOne(ilut,s)) then
+!         if (isOne(ilut,s)) then
+        ! new idea: make the combination stepvalue + deltaB !
+        ! this give me 6 distinct integer quantities which i can choose 
+        ! from in a select case statement!
+
+        select case (current_stepvector(s) + deltaB)
+!         case (1)
             ! depending on the deltaB value different possibs
-            if (deltaB == 2) then
+!             if (deltaB == 2) then
+!             select case (deltaB)
+            case (3)
+            ! d=1 + b=2 = 3
                 ! only staying 
                 call getDoubleMatrixElement(1, 1, deltaB, gen1, gen2, bVal, &
                     order, x1_element = tempWeight_1)
 
                 tempWeight_0 = 0.0_dp
 
-            else if (deltaB == -2) then
+!             else if (deltaB == -2) then
+            case (-1)
+                ! d=1 + b=-2 = -1
                 ! both 0 and -2 branches are possible
                 minusWeight = weights%proc%minus(negSwitches(s), &
                     bVal, weights%dat)
@@ -4559,9 +4746,11 @@ contains
 
                 end if
 
-            else
+!             else
+            case (1)
+                ! d=1 + b=0 = 1
                 ! 0 branch arrives -> have to check b value
-                if (bVal == 0.0_dp) then
+                if (currentB_int(s) == 0) then
                     ! only staying branch
                     call getDoubleMatrixElement(1, 1, deltaB, gen1, gen2, bVal , &
                         order, tempWeight_0, tempWeight_1)
@@ -4603,16 +4792,20 @@ contains
                         probWeight = probWeight * (1.0_dp - zeroWeight)
                     end if
                 end if
-            end if
-        else if (isTwo(ilut,s)) then
-            if (deltaB == -2) then
+!             end if
+!         else if (isTwo(ilut,s)) then
+!             if (deltaB == -2) then
+            case(0)
+                ! d=2 + b=-2 : 0
                 ! only staying
                 call getDoubleMatrixElement(2, 2, deltaB, gen1, gen2, bVal, &
                     order, x1_element = tempWeight_1)
 
                 tempWeight_0 = 0.0_dp
 
-            else if (deltaB == 0) then
+!             else if (deltaB == 0) then
+            case (2)
+                ! d=2 + b=0 : 2
                 ! always -2 and 0 branching possible
                 minusWeight = weights%proc%minus(negSwitches(s), &
                     bVal, weights%dat)
@@ -4659,7 +4852,10 @@ contains
                     
                 end if
 
-            else if (deltaB == 2) then
+!             else if (deltaB == 2) then
+            case (4)
+                ! d=2 + b=2 : 4
+
                 ! have to check b value if branching is possible
                 if (bVal < 2.0_dp) then
                     ! only switch possible
@@ -4705,17 +4901,18 @@ contains
                          clr_orb(t, 2*s)
 
                          call setDeltaB(0, t)
-                        call getDoubleMatrixElement(1, 2, deltaB, gen1, gen2, &
-                            bVal , order, x1_element = tempWeight_1)
+                         call getDoubleMatrixElement(1, 2, deltaB, gen1, gen2, &
+                             bVal , order, x1_element = tempWeight_1)
 
-                        tempWeight_0 = 0.0_dp
+                         tempWeight_0 = 0.0_dp
 
-                        probWeight = probWeight * (1.0_dp - plusWeight)
+                         probWeight = probWeight * (1.0_dp - plusWeight)
 
                     end if
                 end if
-            end if
-        end if
+!             end if
+!         end if
+        end select
 
         call update_matrix_element(t, tempWeight_0, 1)
         call update_matrix_element(t, tempWeight_1, 2)
@@ -4757,15 +4954,22 @@ contains
         ! some point of the double overlap region or else it is single-excitation
         ! like... so only consider x1 matrix element here..
 
-        if (isOne(ilut,ende)) then
+        ! combine deltaB and stepvalue info here to reduce if statements
+        select case (deltaB + current_stepvector(ende))
+        case (1)
+            ! d=1 + b=0 : 1
+!         if (isOne(ilut,ende)) then
             ! ! +2 branch not allowed here 
             ASSERT(deltaB /= 2)
 
-            if (deltaB == 0) then
+!             if (deltaB == 0) then
                 ! not sure if i can access only the x1 element down there..
                 call getMixedFullStop(1, 1, 0, bVal, tempWeight_0, tempWeight_1)
 
-            else 
+        case (-1)
+            ! d=1 + b=-2 : -1
+            ASSERT(deltaB /= 2)
+!             else 
                 ! deltaB = -2
                 ! switch 1 -> 2
                 set_orb(t, 2*ende)
@@ -4776,15 +4980,21 @@ contains
                 tempWeight_0 = 0.0_dp
 
 
-            end if
+!             end if
 
-        else if (isTwo(ilut,ende)) then
+        case (2)
+            ! d=2 + b=0 : 2
+!         else if (isTwo(ilut,ende)) then
             ASSERT(deltaB /= -2)
 
-            if (deltaB == 0) then
+!             if (deltaB == 0) then
                 call getMixedFullStop(2, 2, 0, bVal, tempWeight_0, tempWeight_1)
 
-            else 
+
+        case (4)
+            ! d=2 + b=2 : 4
+            ASSERT(deltaB /= -2)
+!             else 
                 ! deltab = 2
                 ! switch 2 -> 1
                 set_orb(t, 2*ende - 1)
@@ -4792,8 +5002,9 @@ contains
 
                 tempWeight_1 = 1.0_dp
                 tempWeight_0 = 0.0_dp
-            end if 
-        end if
+!             end if 
+!         end if
+        end select
 
         ! thats kind of stupid what i did here...
         ! check if x0-matrix element is non-zero which is an indicator that 
@@ -4839,7 +5050,9 @@ contains
         deltaB = getDeltaB(t)
 
         ! do non-choosing possibs first
-        if (isOne(ilut,se)) then
+        select case (current_stepvector(se))
+        case (1)
+!         if (isOne(ilut,se)) then
             ! 1 -> 3
             set_orb(t, 2*se)
 
@@ -4849,7 +5062,8 @@ contains
                 excitInfo%gen2, bVal, excitInfo%order, &
                 tempWeight_0, tempWeight_1)
 
-        else if (isTwo(ilut, se)) then
+        case (2)
+!         else if (isTwo(ilut, se)) then
             ! 2 -> 3
             set_orb(t, 2*se - 1)
 
@@ -4859,7 +5073,9 @@ contains
                 excitInfo%gen2, bVal, excitInfo%order, &
                 tempWeight_0, tempWeight_1)
 
-        else
+        case (0)
+!         case default
+!         else
             ! 0: 
             ! for arriving -1 branch branching is always possible
             if (deltaB == -1) then
@@ -4968,7 +5184,8 @@ contains
                     end if
                 end if
             end if
-        end if
+!         end if
+        end select
 ! 
 !         
 !         tempWeight_0 = tempWeight_0 * extract_part_sign(t, 1)
@@ -5015,7 +5232,9 @@ contains
         deltaB = getDeltaB(t)
 
         ! do non-choosing possibs first
-        if (isOne(ilut,se)) then
+        select case (current_stepvector(se))
+        case (1)
+!         if (isOne(ilut,se)) then
             ! 1 -> 0
             clr_orb(t, 2*se - 1)
 
@@ -5025,7 +5244,8 @@ contains
                 excitInfo%gen2, bVal, excitInfo%order, &
                 tempWeight_0, tempWeight_1)
 
-        else if (isTwo(ilut, se)) then
+        case (2)
+!         else if (isTwo(ilut, se)) then
             ! 2 -> 0
             clr_orb(t, 2*se)
 
@@ -5035,7 +5255,9 @@ contains
                 excitInfo%gen2, bVal, excitInfo%order, &
                 tempWeight_0, tempWeight_1)
 
-        else
+        case (3)
+!         case default
+!         else
             ! 3: 
             ! for arriving -1 branch branching is always possible
             if (deltaB == -1) then
@@ -5142,7 +5364,8 @@ contains
                     end if
                 end if
             end if
-        end if
+!         end if
+        end select
 
         call encode_matrix_element(t, extract_matrix_element(t,1)*tempWeight_1, 2)
         call update_matrix_element(t, tempWeight_0, 1)
@@ -5188,7 +5411,9 @@ contains
         ! first deal with the forced ones
         deltaB = getDeltaB(t)
 
-        if (isOne(ilut,semi)) then
+        select case (current_stepvector(semi))
+        case (1)
+!         if (isOne(ilut,semi)) then
             ASSERT(getDeltaB(t) /= 2)
             
             ! do the 1 -> 0 switch
@@ -5200,7 +5425,8 @@ contains
                 excitInfo%gen2, bVal, excitInfo%order1, &
                 tempWeight_0, tempWeight_1)
 
-        else if (isTwo(ilut,semi)) then
+        case (2)
+!         else if (isTwo(ilut,semi)) then
             ASSERT(getDeltaB(t) /= -2)
 
             ! do 2 -> 0 
@@ -5212,9 +5438,13 @@ contains
                 excitInfo%gen2, bVal, excitInfo%order1, &
                 tempWeight_0, tempWeight_1)
 
-        else
+        case (3)
+!         case default
+!         else
             ! its a 3 -> have to check b if a 0 branch arrives
-            if (deltaB == -2) then
+            select case (deltaB)
+            case (-2)
+!             if (deltaB == -2) then
                 ! do 3 -> 2
                 clr_orb(t, 2*semi - 1)
 
@@ -5226,7 +5456,8 @@ contains
 
                 call setDeltaB(-1, t)
 
-            else if (deltaB == 2) then
+            case (2)
+!             else if (deltaB == 2) then
                 ! do 3 -> 1
                 clr_orb(t, 2*semi)
 
@@ -5238,9 +5469,10 @@ contains
 
                 tempWeight_0 = 0.0_dp
 
-            else 
+            case (0)
+!             else 
                 ! deltaB = 0 branch arrives -> check b
-                if (currentB_ilut(semi) == 0.0_dp) then
+                if (currentB_int(semi) == 0) then
                     ! only 3 -> 1 possble
                     clr_orb(t, 2*semi)
 
@@ -5294,8 +5526,10 @@ contains
                         probWeight = probWeight * (1 - minusWeight)
                     end if
                 end if
-            end if
-        end if
+            end select
+!             end if
+!         end if
+        end select
 
         ! if its a mixed full-start raising into lowering -> check i a 
         ! switch happened in the double overlap region
@@ -5357,7 +5591,9 @@ contains
         ! first deal with the forced ones
         deltaB = getDeltaB(t)
 
-        if (isOne(ilut,semi)) then
+        select case (current_stepvector(semi))
+        case (1)
+!         if (isOne(ilut,semi)) then
             ASSERT(getDeltaB(t) /= 2)
             
             ! do the 1 -> 3 switch
@@ -5369,7 +5605,8 @@ contains
                 excitInfo%gen2, bVal, excitInfo%order1, &
                 tempWeight_0, tempWeight_1)
 
-        else if (isTwo(ilut,semi)) then
+        case (2)
+!         else if (isTwo(ilut,semi)) then
             ASSERT(getDeltaB(t) /= -2)
 
             ! do 2 -> 3 
@@ -5381,9 +5618,13 @@ contains
                 excitInfo%gen2, bVal, excitInfo%order1, &
                 tempWeight_0, tempWeight_1)
 
-        else
+        case (0)
+!         case default
+!         else
             ! its a 0 -> have to check b if a 0 branch arrives
-            if (deltaB == -2) then
+            select case (deltaB)
+            case (-2)
+!             if (deltaB == -2) then
                 ! do 0 -> 2
                 set_orb(t, 2*semi)
 
@@ -5395,7 +5636,8 @@ contains
 
                 call setDeltaB(-1, t)
 
-            else if (deltaB == 2) then
+            case (2)
+!             else if (deltaB == 2) then
                 ! do 0 -> 1
                 set_orb(t, 2*semi - 1)
 
@@ -5407,9 +5649,10 @@ contains
 
                 tempWeight_0 = 0.0_dp
 
-            else 
+            case (0)
+!             else 
                 ! deltaB=0 branch arrives -> check b
-                if (currentB_ilut(semi) == 0.0_dp) then
+                if (currentB_int(semi) == 0) then
                     ! only 0 -> 1 possble
                     set_orb(t, 2*semi - 1)
 
@@ -5464,8 +5707,10 @@ contains
                         probWeight = probWeight * (1.0_dp - minusWeight)
                     end if
                 end if
-            end if
-        end if
+            end select
+!             end if
+        end select
+!         end if
 
         ! for mixed fullstart check if no switch happened in the double 
         ! overlap region, indicated by a non-zero-x0 matrix element 
@@ -5606,19 +5851,6 @@ contains
         call calc_mixed_start_r2l_contr(ilut, t, excitInfo, branch_pgen, pgen,&
             integral)
 
-        if (isOne(ilut,1) .and. isTwo(ilut,2) .and. isThree(ilut,3)) then
-            if ((st == 1 .or. st == 2) .and. se == 3 .and. en == 4) then
-!                 print *, "================================="
-!                 print *, "end of excit:"
-!                 call print_excitInfo(excitInfo)
-!                 call write_det_guga(6, t)
-!                 print *, branch_pgen
-!                 print *, pgen
-!                 print *, "================================="
-
-            end if
-        end if
-
         ! and finally update the matrix element with all contributions
         call update_matrix_element(t, (get_umat_el(st,en,se,st) + &
             get_umat_el(en,st,st,se))/2.0_dp + integral, 1)
@@ -5652,14 +5884,17 @@ contains
         en = excitInfo%fullEnd
 
         ! we know its a R2L full-st so some stepvalues are impossble:
-        if (isThree(ilut,se)) then
-            if (isZero(ilut,en)) then
+!         if (isThree(ilut,se)) then
+        if (current_stepvector(se) == 3) then
+!             if (isZero(ilut,en)) then
+            if (current_stepvector(en) == 0) then
                 calc_pgen_yix_start => calc_pgen_yix_start_02
             else
                 calc_pgen_yix_start => calc_pgen_yix_start_21
             end if
         else
-            if (isZero(ilut,en)) then
+!             if (isZero(ilut,en)) then
+            if (current_stepvector(en) == 0) then
                 calc_pgen_yix_start => calc_pgen_yix_start_01
             else
                 calc_pgen_yix_start => calc_pgen_yix_start_11
@@ -5689,7 +5924,8 @@ contains
             origWeight = weights%proc%zero(negSwitches(st), &
                 posSwitches(st), currentB_ilut(st), weights%dat)
 
-            if (isOne(ilut,st)) then
+!             if (isOne(ilut,st)) then
+            if (current_stepvector(st) == 1) then
 
                 switchWeight = weights%proc%plus(posSwitches(st), &
                     currentB_ilut(st), weights%dat)
@@ -5713,7 +5949,8 @@ contains
                     origWeight = switchWeight / (origWeight + switchWeight)
 
                 end if
-            else if (isTwo(ilut,st)) then
+!             else if (isTwo(ilut,st)) then
+            else if (current_stepvector(st) == 2) then
 
                 switchWeight = weights%proc%minus(negSwitches(st), &
                     currentB_ilut(st), weights%dat)
@@ -5759,12 +5996,14 @@ contains
             do i = 1, st - 1
                 ! no contributions if 0 or 3
 !                 if (isZero(ilut,i) .or. isThree(ilut,i)) cycle
-                if (notSingle(ilut,i)) then
+!                 if (notSingle(ilut,i)) then
+                if (currentOcc_int(i) /= 1) then
                     cycle
                 end if
 
                 ! first get the fullstart elements 
-                step = getStepvalue(ilut,i)
+!                 step = getStepvalue(ilut,i)
+                step = current_stepvector(i)
 
                 call getDoubleMatrixElement(step,step,-1,1,-1,currentB_ilut(i),&
                     1.0_dp, x1_element = tempWeight)
@@ -5777,7 +6016,8 @@ contains
                 zeroWeight = weights%proc%zero(negSwitches(i), &
                     posSwitches(i), currentB_ilut(i), weights%dat)
 
-                if (isOne(ilut,i)) then
+!                 if (isOne(ilut,i)) then
+                if (step == 1) then
                     switchWeight = weights%proc%plus(posSwitches(i), &
                         currentB_ilut(i), weights%dat)
                 else
@@ -5789,7 +6029,8 @@ contains
 
                 ! then calc. the product
                 do j = i + 1, st-1
-                    step = getStepvalue(ilut,j)
+!                     step = getStepvalue(ilut,j)
+                    step = current_stepvector(j)
                     ! its always the 0 branch!
                     call getDoubleMatrixElement(step, step,0,1,-1,currentB_ilut(j),&
                         1.0_dp,x1_element = tempWeight_1)
@@ -5798,14 +6039,16 @@ contains
  
                     ! no change in pgen if 3 or 0 stepvalue
 !                     if (isThree(ilut,j) .or. isZero(ilut,j)) cycle
-                    if (notSingle(ilut,j)) then
+!                     if (notSingle(ilut,j)) then
+                    if (currentOcc_int(j) /= 1) then
                         cycle
                     end if
 
                     zeroWeight = weights%proc%zero(negSwitches(j), &
                         posSwitches(j), currentB_ilut(j), weights%dat)
 
-                    if (isOne(ilut,j)) then
+!                     if (isOne(ilut,j)) then
+                    if (step == 1) then
                         switchWeight = weights%proc%plus(posSwitches(j), &
                             currentB_ilut(j), weights%dat)
                     else 
@@ -5859,7 +6102,8 @@ contains
             ! the starting element
 !             integral = 0.0_dp
 
-            step = getStepvalue(ilut,st)
+!             step = getStepvalue(ilut,st)
+            step = current_stepvector(st)
 
             call getDoubleMatrixElement(step,step,-1,-1,1,currentB_ilut(st),&
                 1.0_dp, x1_element = tempWeight)
@@ -5870,11 +6114,13 @@ contains
 
             do i = st +1, sw - 1
 !                 if (isZero(ilut,i) .or. isThree(ilut,i)) cycle
-                if (notSingle(ilut,i)) then
+!                 if (notSingle(ilut,i)) then
+                if (currentOcc_int(i) /= 1) then
                     cycle
                 end if
                 ! until switch only 0 branch
-                step = getStepvalue(ilut,i)
+!                 step = getStepvalue(ilut,i)
+                step = current_stepvector(i)
 !                 step2 = getStepvalue(t,i)
 
                 ! update inverse product
@@ -5899,7 +6145,8 @@ contains
                 zeroWeight = weights%proc%zero(negSwitches(i), &
                     posSwitches(i), currentB_ilut(i), weights%dat)
 
-                if (isOne(ilut,i)) then
+!                 if (isOne(ilut,i)) then
+                if (step == 1) then
                     switchWeight = weights%proc%plus(posSwitches(i), &
                         currentB_ilut(i), weights%dat)
                 else
@@ -5923,7 +6170,8 @@ contains
 
             end do
             ! do switch seperately again to also handle the pgens easier
-            step = getStepvalue(ilut,sw)
+!             step = getStepvalue(ilut,sw)
+            step = current_stepvector(sw)
             step2 = getStepvalue(t,sw)
 
             ! update inverse product
@@ -5947,7 +6195,8 @@ contains
                 currentB_ilut(sw), weights%dat)
 
             ! on the switch the original probability is: 
-            if (isOne(ilut,sw)) then
+!             if (isOne(ilut,sw)) then
+            if (step == 1) then
                 switchWeight = weights%proc%plus(posSwitches(sw), &
                     currentB_ilut(sw), weights%dat) 
             else
@@ -6309,10 +6558,10 @@ contains
             below_flag = .false.
 
             do i = st - 1, 1, -1 
-                if (currentOcc_ilut(i) /= 1.0_dp) cycle
+                if (currentOcc_int(i) /= 1) cycle
 
                 ! then check if thats the last stepvalue to consider
-                if (current_stepvector(i) == 1 .and. currentB_ilut(i) == 1.0_dp) then
+                if (current_stepvector(i) == 1 .and. currentB_int(i) == 1) then
                     below_flag = .true.
                 end if
 
@@ -6434,7 +6683,7 @@ contains
             ! since i can recalc. the matrix elements and pgens on-the fly
             ! here the matrix elements should not be 0 or otherwise the 
             ! excitation wouldnt have happended anyways 
-            if (currentOcc_ilut(i) /= 1.0_dp) cycle
+            if (currentOcc_int(i) /= 1) cycle
 
             ! calculate orbitals pgen first and cycle if 0
             call calc_orbital_pgen_contrib_start(ilut, [2*i, 2*elecInd], holeInd,&
@@ -6732,14 +6981,17 @@ contains
         ! dependeing on the stepvalues at j and k
         ! we know its a L2R fullstart -> so some stepvalues at semi and end 
         ! are impossible
-        if (isZero(ilut, se)) then
-            if isThree(ilut, en) then
+        if (current_stepvector(se) == 0) then
+!         if (isZero(ilut, se)) then
+            if (current_stepvector(en) == 3) then
+!             if isThree(ilut, en) then
                 calc_pgen_yix_start => calc_pgen_yix_start_02
             else
                 calc_pgen_yix_start => calc_pgen_yix_start_01
             end if
         else
-            if (isThree(ilut,en)) then
+!             if (isThree(ilut,en)) then
+            if (current_stepvector(en) == 3) then
                 calc_pgen_yix_start => calc_pgen_yix_start_21
             else
                 calc_pgen_yix_start => calc_pgen_yix_start_11
@@ -6773,7 +7025,8 @@ contains
             origWeight = weights%proc%zero(negSwitches(st), &
                 posSwitches(st), currentB_ilut(st), weights%dat)
 
-            if (isOne(ilut,st)) then
+!             if (isOne(ilut,st)) then
+            if (current_stepvector(st) == 1) then
 
                 switchWeight = weights%proc%plus(posSwitches(st), &
                     currentB_ilut(st), weights%dat)
@@ -6797,7 +7050,8 @@ contains
                     origWeight = switchWeight/(origWeight + switchWeight)
 
                 end if
-            else if (isTwo(ilut,st)) then
+            else if (current_stepvector(st) == 2) then
+!             else if (isTwo(ilut,st)) then
 
                 switchWeight = weights%proc%minus(negSwitches(st), &
                     currentB_ilut(st), weights%dat)
@@ -6847,12 +7101,14 @@ contains
                 ! i can cycle here if there is no open orbitals or? 
                 ! since those excitations cant even lead to a desired one..
 !                 if (isThree(ilut,i) .or. isZero(ilut,i)) cycle
-                if (notSingle(ilut,i)) then
+                if (currentOcc_int(i) /= 1) then
+!                 if (notSingle(ilut,i)) then
                     cycle
                 end if
 
                 ! first get the fullstart elements 
-                step = getStepvalue(ilut,i)
+!                 step = getStepvalue(ilut,i)
+                step = current_stepvector(i)
 
                 call getDoubleMatrixElement(step,step,-1,1,-1,currentB_ilut(i),&
                     1.0_dp, x1_element = tempWeight)
@@ -6868,7 +7124,8 @@ contains
                 zeroWeight = weights%proc%zero(negSwitches(i), &
                     posSwitches(i), currentB_ilut(i), weights%dat)
 
-                if (isOne(ilut,i)) then
+!                 if (isOne(ilut,i)) then
+                if (step == 1) then
                     switchWeight = weights%proc%plus(posSwitches(i), &
                         currentB_ilut(i), weights%dat)
                 else
@@ -6880,7 +7137,8 @@ contains
 
                 ! then calc. the product
                 do j = i + 1, st-1
-                    step = getStepvalue(ilut,j)
+!                     step = getStepvalue(ilut,j)
+                    step = current_stepvector(j)
                     ! its always the 0 branch!
                     call getDoubleMatrixElement(step, step,0,1,-1,currentB_ilut(j),&
                         1.0_dp,x1_element = tempWeight_1)
@@ -6889,14 +7147,16 @@ contains
                     
                     ! no change in pgen if 3 or 0 stepvalue
 !                     if (isThree(ilut,j) .or. isZero(ilut,j)) cycle
-                    if (notSingle(ilut,j)) then
+!                     if (notSingle(ilut,j)) then
+                    if (currentOcc_int(j) /= 1) then
                         cycle
                     end if
 
                     zeroWeight = weights%proc%zero(negSwitches(j), &
                         posSwitches(j), currentB_ilut(j), weights%dat)
 
-                    if (isOne(ilut,j)) then
+!                     if (isOne(ilut,j)) then
+                    if (step == 1) then
                         switchWeight = weights%proc%plus(posSwitches(j), &
                             currentB_ilut(j), weights%dat)
                     else 
@@ -6949,7 +7209,8 @@ contains
             ! the starting element
 !             integral = 0.0_dp
 
-            step = getStepvalue(ilut,st)
+!             step = getStepvalue(ilut,st)
+            step = current_stepvector(st)
 
             call getDoubleMatrixElement(step,step,-1,-1,1,currentB_ilut(st),&
                 1.0_dp, x1_element = tempWeight)
@@ -6965,11 +7226,13 @@ contains
             ! change to loop until switch - 1 again so pgen get easier to calc
             do i = st + 1, sw - 1
 !                 if (isZero(ilut,i) .or. isThree(ilut,i)) cycle
-                if (notSingle(ilut,i)) then
+!                 if (notSingle(ilut,i)) then
+                if (currentOcc_int(i) /= 1) then
                     cycle
                 end if
                 ! until switch only 0 branch
-                step = getStepvalue(ilut,i)
+!                 step = getStepvalue(ilut,i)
+                step = current_stepvector(i)
 !                 step2 = getStepvalue(t,i)
 
                 ! update inverse product
@@ -6994,7 +7257,8 @@ contains
                 zeroWeight = weights%proc%zero(negSwitches(i), &
                     posSwitches(i), currentB_ilut(i), weights%dat)
 
-                if (isOne(ilut,i)) then
+!                 if (isOne(ilut,i)) then
+                if (step == 1) then
                     switchWeight = weights%proc%plus(posSwitches(i), &
                         currentB_ilut(i), weights%dat)
                 else
@@ -7024,7 +7288,8 @@ contains
 
             end do
             ! do switch seperately again to also handle the pgens easier
-            step = getStepvalue(ilut,sw)
+!             step = getStepvalue(ilut,sw)
+            step = current_stepvector(sw)
             step2 = getStepvalue(t,sw)
 
             ! update inverse product
@@ -7048,7 +7313,8 @@ contains
                 currentB_ilut(sw), weights%dat)
 
             ! on the switch the original probability is: 
-            if (isOne(ilut,sw)) then
+!             if (isOne(ilut,sw)) then
+            if (step == 1) then
                 switchWeight = weights%proc%plus(posSwitches(sw), &
                     currentB_ilut(sw), weights%dat) 
             else
@@ -7125,7 +7391,9 @@ contains
 
         ! no do not do that, as i have to check probweights inbetween if 
         ! excitation yields non-zero matrix element
-        if (isOne(ilut,st)) then
+        select case (current_stepvector(st))
+        case (1)
+!         if (isOne(ilut,st)) then
             if (currentB_ilut(st) < 2.0_dp) then
                 ! only 0-branch start possible, which always has weight > 0
                 ! no change in stepvector, so just calc matrix element
@@ -7170,7 +7438,8 @@ contains
 
             end if
 
-        else if (isTwo(ilut,st)) then
+        case (2)
+!         else if (isTwo(ilut,st)) then
             ! here always both branches are possible
             minusWeight = weights%proc%minus(negSwitches(st), &
                 bVal, weights%dat)
@@ -7202,7 +7471,8 @@ contains
                 probWeight = 1.0_dp - probWeight
 
             end if
-        end if
+!         end if
+        end select 
 
         call encode_matrix_element(t, tempWeight_1, 2)
         call encode_matrix_element(t, tempWeight, 1)
@@ -7401,7 +7671,9 @@ contains
         ! hope that the weighs correctly assert that only fitting deltaB 
         ! values arrive here, to ensure a deltaB=0 branch in the DE overlap
         deltaB = getDeltaB(t)
-        if (isOne(ilut,iOrb)) then
+        select case (current_stepvector(iOrb))
+        case (1)
+!         if (isOne(ilut,iOrb)) then
             ASSERT(deltaB == -1)
 
             ! change 1 -> 3
@@ -7412,7 +7684,8 @@ contains
 
             call setDeltaB(0, t)
 
-        else if (isTwo(ilut,iOrb)) then
+        case (2)
+!         else if (isTwo(ilut,iOrb)) then
             ASSERT(deltaB == 1)
 
             ! change 2 -> 3
@@ -7424,7 +7697,9 @@ contains
             call setDeltaB(0,t)
 
 
-        else 
+        case (0)
+!         case default
+!         else 
             ASSERT(isZero(ilut,iOrb))
 
             if (deltaB == -1) then
@@ -7446,7 +7721,8 @@ contains
 
             call setDeltaB(0, t)
 
-        end if
+        end select 
+!         end if
 
 
         ! only deltaB = 0 branch, so only number of open orbitals important 
@@ -7536,7 +7812,10 @@ contains
         ! hope that the weighs correctly assert that only fitting deltaB 
         ! values arrive here, to ensure a deltaB=0 branch in the DE overlap
         deltaB = getDeltaB(t)
-        if (isOne(ilut,iOrb)) then
+
+        select case (current_stepvector(iOrb))
+        case (1)
+!         if (isOne(ilut,iOrb)) then
             ASSERT(getDeltaB(t) == -1)
 
             ! change 1 -> 0
@@ -7547,7 +7826,8 @@ contains
 
             call setDeltaB(0, t)
 
-        else if (isTwo(ilut,iOrb)) then
+        case (2)
+!         else if (isTwo(ilut,iOrb)) then
             ASSERT(getDeltaB(t) == 1)
 
             ! change 2 -> 0
@@ -7559,7 +7839,9 @@ contains
             call setDeltaB(0,t)
 
 
-        else 
+        case (3)
+!         case default
+!         else 
             ASSERT(isThree(ilut,iOrb))
 
             if (deltaB == -1) then
@@ -7581,10 +7863,10 @@ contains
 
             call setDeltaB(0, t)
 
-        end if
+        end select
+!         end if
 
-
-        ! only deltaB = 0 branch, so only number of open orbitals important 
+        ! only deltaB = 1 branch, so only number of open orbitals important 
         ! for matrix element in overlap region
 
         nOpen = (-1.0_dp) ** real(count_open_orbs_ij(excitInfo%secondStart+1, &
@@ -7675,8 +7957,10 @@ contains
         weights = init_singleWeight(ilut, ende)
         ! could encode matrix element here, but do it later for more efficiency
  
-        if (isZero(ilut,semi)) then
-            if (currentB_ilut(semi) > 0.0_dp) then
+        select case (current_stepvector(semi))
+        case (0)
+!         if (isZero(ilut,semi)) then
+            if (currentB_int(semi) > 0) then
                 
                 minusWeight = weights%proc%minus(negSwitches(semi), bVal,weights%dat)
                 plusWeight = weights%proc%plus(posSwitches(semi), bVal,weights%dat)
@@ -7726,8 +8010,9 @@ contains
 
                 branch_pgen = 1.0_dp
             end if
-        else
-           if (isOne(ilut,semi)) then
+!         else
+        case (1)
+!            if (isOne(ilut,semi)) then
                 ! only one excitation possible, which also has to have 
                 ! non-zero weight or otherwise i wouldnt even be here
                 ! and reuse already provided t
@@ -7740,7 +8025,10 @@ contains
                 call getDoubleMatrixElement(3, 1, 0, -1, -1, bVal, &
                     1.0_dp, tempWeight)
 
-            else if isTwo(ilut,semi) then
+                branch_pgen = 1.0_dp
+
+        case (2)
+!             else if isTwo(ilut,semi) then
                 ! here we have 
                 ! 2 -> 3
                 set_orb(t, 2*semi-1)
@@ -7750,13 +8038,17 @@ contains
                 call getDoubleMatrixElement(3, 2, 0, -1, -1, bVal, &
                     1.0_dp, tempWeight)
 
-            end if
+!             end if
 
             branch_pgen = 1.0_dp
 
             ! encode fullstart contribution and pseudo overlap region here 
 
-        end if 
+!         case default 
+            ! not sure here.. if i should consider a 3.. not possible or?
+!             branch_pgen = 1.0_dp
+!         end if 
+        end select
 
         call encode_matrix_element(t, Root2 * tempWeight * umat * (-1.0_dp)**nOpen, 1)
         call encode_matrix_element(t, 0.0_dp, 2)
@@ -7842,8 +8134,10 @@ contains
                        
         ! could encode matrix element here, but do it later for more efficiency
 
-        if (isThree(ilut,semi)) then
-            if (currentB_ilut(semi) > 0.0_dp) then
+        select case (current_stepvector(semi))
+        case (3)
+!         if (isThree(ilut,semi)) then
+            if (currentB_int(semi) > 0) then
 !                 ASSERT(minusWeight + plusWeight > 0.0_dp)
                 minusWeight = weights%proc%minus(negSwitches(semi), bVal,weights%dat)
                 plusWeight = weights%proc%plus(posSwitches(semi), bVal,weights%dat)
@@ -7893,8 +8187,9 @@ contains
 
                 branch_pgen = 1.0_dp
             end if
-        else
-           if (isOne(ilut,semi)) then
+!         else
+!            if (isOne(ilut,semi)) then
+        case (1)
                 ! only one excitation possible, which also has to have 
                 ! non-zero weight or otherwise i wouldnt even be here
                 ! and reuse already provided t
@@ -7906,7 +8201,11 @@ contains
 
                 call setDeltaB(1, t)
 
-            else if isTwo(ilut,semi) then
+                branch_pgen = 1.0_dp
+
+        case (2)
+
+!             else if isTwo(ilut,semi) then
                 ! here we have 
                 ! 2 -> 0
                 clr_orb(t, 2*semi)
@@ -7916,7 +8215,7 @@ contains
 
                 call setDeltaB(-1,t)
 
-            end if
+!             end if
 
             branch_pgen = 1.0_dp
             
@@ -7924,7 +8223,8 @@ contains
             ! encode fullstart contribution and pseudo overlap region here 
             ! too in one go. one additional -1 due to semistop
 
-        end if 
+        end select
+!         end if 
 
         call encode_matrix_element(t, Root2 * tempWeight * umat * (-1.0_dp)**nOpen, 1)
         call encode_matrix_element(t, 0.0_dp, 2)
@@ -7947,7 +8247,6 @@ contains
 
     end subroutine calcFullStartRaisingStochastic
 
-           
     subroutine createStochasticExcitation_single(ilut, exc, pgen)
         ! calculate one possible single excitation and the corresponding 
         ! probabilistic weight and hamilton matrix element for a given CSF
@@ -8100,7 +8399,9 @@ contains
         integer :: iO, jO, step
 
         ! calculate the bottom contribution depending on the excited stepvalue
-        if (current_stepvector(st) == 0) then
+        select case (current_stepvector(st))
+        case (0)
+!         if (current_stepvector(st) == 0) then
             ! this implicates a raising st:
             if (isOne(exc,st)) then
                 call getDoubleMatrixElement(1,0,0,-1,1, currentB_ilut(st),&
@@ -8111,7 +8412,8 @@ contains
                     1.0_dp, x1_element = botCont)
             end if
 
-        else if (current_stepvector(st) == 3) then
+        case (3)
+!         else if (current_stepvector(st) == 3) then
             ! implies lowering st
             if (isOne(exc,st)) then
                 ! need tA(0,2)
@@ -8122,39 +8424,48 @@ contains
                 botCont = minFunA_2_0_overR2(currentB_ilut(st))
             end if
 
-        else if (current_stepvector(st) == 1) then
+        case (1)
+!         else if (current_stepvector(st) == 1) then
             botCont = funA_m1_1_overR2(currentB_ilut(st))
             ! check which generator
             if (isZero(exc,st)) botCont = -botCont
 
-        else
+        case (2)
+!         else
             botCont = funA_3_1_overR2(currentB_ilut(st))
             if (isThree(exc,st)) botCont = -botCont
-        end if
+!         end if
+        end select
 
         ! do top contribution also already
 
-        if (current_stepvector(en) == 0) then
+        select case (current_stepvector(en))
+        case (0)
+!         if (current_stepvector(en) == 0) then
             if (isOne(exc,en)) then
                 topCont = funA_2_0_overR2(currentB_ilut(en))
             else
                 topCont = minFunA_0_2_overR2(currentB_ilut(en))
             end if
-        else if (current_stepvector(en) == 3) then
+        case (3)
+!         else if (current_stepvector(en) == 3) then
             if (isOne(exc,en)) then
                 topCont = minFunA_2_0_overR2(currentB_ilut(en))
             else 
                 topCont = funA_0_2overR2(currentB_ilut(en))
             end if
-        else if (current_stepvector(en) == 1) then
+        case (1)
+!         else if (current_stepvector(en) == 1) then
             topCont = funA_2_0_overR2(currentB_ilut(en))
             if (isThree(exc,en)) topCont = -topCont
 
-        else 
+        case (2)
+!         else 
             topCont = funA_0_2overR2(currentB_ilut(en))
             if (isZero(exc,en)) topCont = -topCont
 
-        end if
+        end select
+!         end if
 
         ! depending on i and j calulate the corresponding single and double 
         ! integral weights and check if they are non-zero...
@@ -8182,7 +8493,7 @@ contains
             ! do i have to do anything for a d = 3 ? since x1-element is 0 
             ! in this case anyway.. there should not be an influence. 
             ! also if its a d = 2 with b = 0 the matrix element is also 0
-            if (current_stepvector(iO) == 3 .or. currentB_ilut(iO) == 0.0_dp) cycle
+            if (current_stepvector(iO) == 3 .or. currentB_int(iO) == 0) cycle
 
             step = current_stepvector(iO)
             call getDoubleMatrixElement(step,step,-1,-1,+1,currentB_ilut(iO), &
@@ -8260,7 +8571,7 @@ contains
             ! not necessary to do it for d = 3 or b = 1, d=1 end value! since 
             ! top matrix element 0 in this case 
 
-            if (current_stepvector(iO) == 3 .or. (currentB_ilut(iO) == 1.0 &
+            if (current_stepvector(iO) == 3 .or. (currentB_int(iO) == 1 &
                 .and. current_stepvector(iO) == 1)) cycle
 
             ! have to reset prod every loop
@@ -8326,7 +8637,9 @@ contains
         gen = excitInfo%currentGen
         ! should be really similar to full excitation routine, except all the 
         ! clean up stuff
-        if (isZero(ilut,ende)) then 
+        select case (current_stepvector(ende))
+        case (0)
+!         if (isZero(ilut,ende)) then 
             ! if it is zero it implies i have a lowering generator, otherwise
             ! i wouldnt even be here.
             if (deltaB == -1) then
@@ -8343,7 +8656,8 @@ contains
 
             end if
 
-        else if (isThree(ilut,ende)) then
+        case (3)
+!         else if (isThree(ilut,ende)) then
             ! if d = 3, it implies a raising generator or otherwise we 
             ! would not be here ..
             if (deltaB == -1) then
@@ -8360,7 +8674,8 @@ contains
 
             end if
 
-        else if (isOne(ilut,ende)) then
+        case (1)
+!         else if (isOne(ilut,ende)) then
 
             ASSERT(deltaB == -1)
             if (gen == 1) then 
@@ -8377,7 +8692,8 @@ contains
 
             end if
 
-        else ! d = 2 at end -> needs deltab=+1 -> delete deltaB -1 branches
+        case (2)
+!         else ! d = 2 at end -> needs deltab=+1 -> delete deltaB -1 branches
 !             if (deltaB == 1) then
 !                 t = 0
 !                 return
@@ -8396,7 +8712,8 @@ contains
 
                 tempWeight = getSingleMatrixElement(3, 2, deltaB, gen, bVal)
             end if
-        end if
+!         end if
+        end select
 
         call update_matrix_element(t, tempWeight, 1)
         call update_matrix_element(t, tempWeight, 2)
@@ -8436,17 +8753,21 @@ contains
         ! set standard probWeight
         probWeight = 1.0_dp
 
-        if (isZero(ilut, s)) then
+        select case (current_stepvector(s))
+        case (0)
+!         if (isZero(ilut, s)) then
             ! do nothin actually.. not even change matrix elements
             return
 
-        else if (isThree(ilut, s)) then
+        case (3)
+!         else if (isThree(ilut, s)) then
             ! only change matrix element to negative one
             call update_matrix_element(t, -1.0_dp, 1)
             call update_matrix_element(t, -1.0_dp, 2)
             return
 
-        end if
+        end select
+!         end if
         
         ! to generally use this function i need to define a current generator...
         gen = excitInfo%currentGen
@@ -8457,7 +8778,10 @@ contains
 
         ! is it possible to only check for possible switches and else handle 
         ! it in one go? try!
-        if (isOne(ilut,s) .and. deltaB == -1 ) then
+        select case (current_stepvector(s) + deltaB)
+        case (0)
+            ! d=1 + b=-1 : 0
+!         if (isOne(ilut,s) .and. deltaB == -1 ) then
             ! no bValue restrictions here, so that should be handlebar
             plusWeight = weights%proc%plus(posSwitches(s), bVal, weights%dat)
             minusWeight = weights%proc%minus(negSwitches(s), bVal, weights%dat)
@@ -8490,7 +8814,9 @@ contains
                 probWeight = 1.0_dp - probWeight
             end if
 
-        else if (isTwo(ilut,s).and.deltaB==+1) then
+        case (3)
+            ! d=2 + b=1 : 3
+!         else if (isTwo(ilut,s).and.deltaB==+1) then
             ! do i need bValue check here? 
             ! probably... to distinguish forced switches
            if (bVal > 0.0_dp) then
@@ -8513,14 +8839,14 @@ contains
                     tempWeight =  getSingleMatrixElement(2, 2, deltaB, gen, bVal)
 
                 else 
-                    if (.not. minusWeight > 0.0_dp) then
-                        print *, "+", plusWeight
-                        print *, "-", minusWeight
-
-                        call write_det_guga(6, ilut)
-                        call write_det_guga(6, t)
-                        call print_excitInfo(excitInfo)
-                    end if
+!                     if (.not. minusWeight > 0.0_dp) then
+!                         print *, "+", plusWeight
+!                         print *, "-", minusWeight
+! 
+!                         call write_det_guga(6, ilut)
+!                         call write_det_guga(6, t)
+!                         call print_excitInfo(excitInfo)
+!                     end if
                     ASSERT(minusWeight > 0.0_dp)
                     ! do the 2 -> 1 switch
                     clr_orb(t, 2*s)
@@ -8535,7 +8861,6 @@ contains
                     probWeight = 1.0_dp - probWeight
 
                 end if
-
 
             else 
                 ! forced switch
@@ -8564,7 +8889,9 @@ contains
                 ! and calc matrix elements 
                 tempWeight = getSingleMatrixElement(1,2,deltaB,gen,bVal)
             end if
-        else
+        case (1,2)
+!         case default
+!         else
             ! just staying possibility... 
 #ifdef __DEBUG
             ! for sanity check for weights here too just to be sure to not get 
@@ -8582,18 +8909,19 @@ contains
             ! can i efficiently code that up? 
             ! deltaB stays the same.., stepvector stays the same.. essentiall 
             ! only matrix element changes.. -> need deltaB, generators and stepvalue
-            step = getStepvalue(ilut,s)
+!             step = getStepvalue(ilut,s)
+            step = current_stepvector(s)
 
             ! to get correct bValue use it for next spatial orbital..
             tempWeight = getSingleMatrixElement(step,step,deltaB, gen, bVal)
             
-        end if
+        end select
+!         end if
         
         call update_matrix_element(t, tempWeight, 1)
         call update_matrix_element(t, tempWeight, 2)
 
     end subroutine singleStochasticUpdate
-
 
     subroutine createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
             negSwitches, t, probWeight)
@@ -8637,7 +8965,9 @@ contains
 
         t = ilut
 
-        if (isOne(ilut, st)) then
+        select case (current_stepvector(st))
+        case (1)
+!         if (isOne(ilut, st)) then
             ! set corresponding orbital to 0 or 3 depending on generator type
             if (gen == 1) then ! raising gen case
                 ! set the alpha orbital also to 1 to make d=1 -> d'=3
@@ -8664,7 +8994,8 @@ contains
             ! have to set probabilistic weight to 1, since only 1 possibility
             probWeight = 1.0_dp
             
-        else if (isTwo(ilut, st)) then
+        case (2)
+!         else if (isTwo(ilut, st)) then
             if (gen == 1) then
                 set_orb(t, 2*st - 1)
 
@@ -8681,7 +9012,9 @@ contains
             call setDeltaB(-1, t)
             probWeight = 1.0_dp
 
-        else ! 0/3 case -> have to check probWeights an bValue
+        case (0,3)
+!         case default
+!         else ! 0/3 case -> have to check probWeights an bValue
             ! if the deltaB = -1 weights is > 0 this one always works
             ! write weight calculation function! is a overkill here, 
             ! but makes it easier to use afterwards with stochastic excitaions
@@ -8760,7 +9093,8 @@ contains
                 ! update the probabilistic weight with the actual use one
                 probWeight = 1.0_dp - probWeight
             end if
-        end if
+        end select
+!         end if
 
         call encode_matrix_element(t, tempWeight, 1)
 
@@ -8826,7 +9160,7 @@ contains
         ASSERT(nSwitches >= 0.0_dp)
 !         ASSERT(bVal > 0.0_dp)
         ! change that, to make it independend if b is zero
-        if (bVal == 0.0_dp) then
+        if (bVal < EPS) then
             ! make it only depend on f and nSwitches
             ! will be normalized to 1 anyway in the calcStayingProb function
             minusWeight = single%F + nSwitches * single%G
@@ -8849,7 +9183,7 @@ contains
         ASSERT(nSwitches >= 0.0_dp)
 !         ASSERT(bVal > 0.0_dp)
         
-        if (bVal == 0.0_dp) then
+        if (bVal < EPS) then
             plusWeight = 0.0_dp
         else
             plusWeight = single%G + nSwitches * single%F/bVal
@@ -8886,7 +9220,7 @@ contains
         character(*), parameter :: this_routine = "getMinus_double"
         ASSERT(nSwitches >= 0.0_dp)
 !         ASSERT(bVal > 0.0_dp)
-        if (bVal == 0.0_dp) then
+        if (bVal < EPS) then
             minusWeight = double%F + nSwitches
         else 
             minusWeight = double%F + nSwitches/bVal
@@ -8931,7 +9265,7 @@ contains
         ! branch comes to a 2 in a double excitation, where one has to 
         ! compare against the -2 branch, which can also be non-zero 
         ! so to have the correct weights, just ignore b
-        if (bVal  == 0.0_dp) then
+        if (bVal  < EPS) then
             zeroWeight = 1.0_dp + negSwitches * double%G + posSwitches * double%F
         else
             zeroWeight = 1.0_dp + 1.0_dp/bVal * &
@@ -8988,7 +9322,7 @@ contains
         ! no of course it can still be 0 at a 0/3 start... but also 
         ! set it to the technical value only
 
-        if (bVal == 0.0_dp) then
+        if (bVal < EPS) then
             minusWeight = fullStart%F * fullStart%minus + nSwitches * &
                 (fullStart%G * fullStart%minus + fullStart%F * fullStart%plus)
         else
@@ -9031,7 +9365,7 @@ contains
         ASSERT(posSwitches >= 0.0_dp)
 !         ASSERT(bVal > 0.0_dp)
 
-        if (bVal == 0.0_dp) then
+        if (bVal < EPS) then
              zeroWeight = fullStart%F*fullStart%plus + fullStart%G*fullStart%minus + &
                 negSwitches * fullStart%G * fullStart%plus + &
                 posSwitches * fullStart%F * fullStart%minus
@@ -9089,7 +9423,7 @@ contains
 !         ASSERT(bVal > 0.0_dp)
         ! change b value treatment, by just checking if excitaitons is 
         ! technically possible if b == 0
-        if (bVal == 0.0_dp) then
+        if (bVal < EPS) then
             minusWeight = semiStart%F*semiStart%zero + semiStart%G*semiStart%minus + &
                 nSwitches*(semiStart%F*semiStart%plus + semiStart%G*semiStart%zero)
         else 
@@ -9112,7 +9446,7 @@ contains
         ASSERT(nSwitches >= 0.0_dp) 
 !         ASSERT(bVal > 0.0_dp)
         ! just set +1 branch probability to 0 if b == 0
-        if (bVal == 0.0_dp) then
+        if (bVal < EPS) then
             plusWeight = 0.0_dp
         else 
 
@@ -9208,7 +9542,7 @@ contains
         ASSERT(nSwitches >= 0.0_dp)
 !         ASSERT(bVal > 0.0_dp)
 
-        if (bVal == 0.0_dp) then
+        if (bVal < EPS) then
             !minusWeight = dat%F*(dat%minus + (1.0_dp - dat%G)*dat%plus) + &
             !    nSwitches*dat%G*(dat%zero*dat%plus + (1.0_dp - dat%F)*dat%minus)
             minusWeight = dat%F*(dat%minus + (1.0_dp - dat%G)*dat%plus) + &
@@ -9234,7 +9568,7 @@ contains
         ASSERT(nSwitches >= 0.0_dp)
 !         ASSERT(bVal > 0.0_dp)
 
-        if (bVal == 0.0_dp) then
+        if (bVal < EPS) then
             plusWeight = 0.0_dp
         else
             !plusWeight = dat%G*(dat%zero*dat%plus + (1.0_dp - dat%F)*dat%minus) + &
@@ -9295,7 +9629,7 @@ contains
         ! set the +1 branch to 0 probability 
         ! if non-zero, wird die -1 wahrscheinlichkeit dann eh zu eins 
         ! normalisiert.
-        if (bVal == 0.0_dp) then
+        if (bVal < EPS) then
             minusWeight = dat%G * dat%minus + dat%F*(1.0_dp-dat%G)*dat%plus + &
                 nSwitches*(dat%F*dat%plus + dat%G*(1.0_dp-dat%F)*dat%minus)
 
@@ -9319,7 +9653,7 @@ contains
 !         ASSERT(bVal > 0.0_dp)
         
         ! if b == 0, set the plus weight to zero, to handle that case 
-        if (bVal == 0.0_dp) then
+        if (bVal < EPS) then
             plusWeight = 0.0_dp
         else
 
@@ -9330,7 +9664,6 @@ contains
         ASSERT(plusWeight >= 0.0_dp)
 
     end function getPlus_overlapLowering
-
 
     subroutine actHamiltonian(ilut, excitations, nTot)
         ! subroutine to calculate the action of the full Hamiltonian on a 
@@ -9345,7 +9678,7 @@ contains
 
         integer :: i, j, k, l, nExcits, nMax, ierr
         integer(n_int), pointer :: tempExcits(:,:)
-        real(dp) :: diagEle
+!         real(dp) :: diagEle
 #ifdef __DEBUG
         integer :: n
 #endif
@@ -9381,7 +9714,7 @@ contains
         ! maybe have to set to zero here then, or initialize somehow different
 
         ! diagonal element:
-        diagEle = calcDiagMatEleGUGA_ilut(ilut)
+!         diagEle = calcDiagMatEleGUGA_ilut(ilut)
         
         ! fill in the first one
 !         excitations(:,1) = ilut
@@ -9394,10 +9727,14 @@ contains
         allocate(currentB_ilut(nSpatOrbs), stat = ierr)
         allocate(currentOcc_ilut(nSpatOrbs), stat = ierr)
         allocate(current_stepvector(nSpatOrbs), stat = ierr)
+        allocate(currentOcc_int(nSpatOrbs), stat = ierr)
+        allocate(currentB_int(nSpatOrbs), stat = ierr)
 
         currentB_ilut = calcB_vector_ilut(ilut(0:nifd))
         currentOcc_ilut = calcOcc_vector_ilut(ilut(0:nifd))
         current_stepvector = calcStepvector(ilut(0:nifd))
+        currentOcc_int = int(currentOcc_ilut)
+        currentB_int = int(currentB_ilut)
 
         ! single excitations:
 !         if (pSingles > 0.0_dp) then
@@ -9547,6 +9884,8 @@ contains
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
         deallocate(current_stepvector)
+        deallocate(currentOcc_int)
+        deallocate(currentB_int)
 
     end subroutine actHamiltonian
 
@@ -9572,6 +9911,12 @@ contains
         ! if tmatFlag is false do not check or include the tmat element
         ! for double excitations which essentially only involve sinlge excits
 
+        ! i think this is always called with the flag as false... hm, 
+        ! maybe redundant and remove.
+        ! when is this called actually? because this influences if i can use 
+        ! the current_stepvector info and stuff..
+        ! i am pretty sure that in all the calls to this routine 
+        ! the necessary quantities are known!
         if (tmatFlag) then
             tmat = getTmatEl(2*excitInfo%i, 2*excitInfo%j)
             if (abs(tmat)<EPS) then
@@ -9614,7 +9959,6 @@ contains
 
     end subroutine calcAllExcitations_excitInfo_double
 
-
     subroutine calcAllExcitations_single(ilut, i, j, excitations, nExcits)
         ! function to calculate all possible single excitation for a CSF 
         ! given in (ilut) format and indices (i,j). used to calculated 
@@ -9654,17 +9998,23 @@ contains
         ! determine the main restrictions of stepvalues depending on generator
         ! type -> no raising start at d = 3, no lowering start at d = 0 etc
         if (excitInfo%gen1 /= 0 ) then
-            if (isThree(ilut, i)) then
-                ! in this case no single excitation possible
-                ! should i allocate to zero then? and leave? for now yes
-                allocate(excitations(0,0), stat = ierr)
-                return
-            end if
-            if (isZero(ilut, j)) then
+            if (current_stepvector(i) == 3 .or. current_stepvector(j) == 0) then
                 allocate(excitations(0,0), stat = ierr)
                 return
             end if
         end if
+! 
+!             if (isThree(ilut, i)) then
+!                 ! in this case no single excitation possible
+!                 ! should i allocate to zero then? and leave? for now yes
+!                 allocate(excitations(0,0), stat = ierr)
+!                 return
+!             end if
+!             if (isZero(ilut, j)) then
+!                 allocate(excitations(0,0), stat = ierr)
+!                 return
+!             end if
+!         end if
 !         else
             ! also check necessary ending restrictions and probability weights
             ! to check if no excitation is possible
@@ -9723,23 +10073,30 @@ contains
                 
                 st = excitInfo%fullStart
                 ! check compatibility of chosen indices
-                if ((minusWeight + plusWeight < EPS)) then
+!                 if ((minusWeight + plusWeight < EPS)) then
+!                     allocate(excitations(0,0), stat = ierr)
+!                     return
+!                 end if
+
+                if ((current_stepvector(st) == 1 .and. plusWeight < EPS) .or.&
+                    (current_stepvector(st) == 2 .and. minusWeight < EPS).or.&
+                    (minusWeight + plusWeight < EPS)) then
                     allocate(excitations(0,0), stat = ierr)
                     return
                 end if
 
-                if (isOne(ilut,st)) then
-                    if (plusWeight<EPS) then
-                        allocate(excitations(0,0), stat = ierr)
-                        return
-                    end if
-                end if
-                if (isTwo(ilut,st)) then
-                    if (minusWeight < EPS) then
-                        allocate(excitations(0,0), stat = ierr)
-                        return
-                    end if
-                end if
+!                 if (isOne(ilut,st)) then
+!                     if (plusWeight<EPS) then
+!                         allocate(excitations(0,0), stat = ierr)
+!                         return
+!                     end if
+!                 end if
+!                 if (isTwo(ilut,st)) then
+!                     if (minusWeight < EPS) then
+!                         allocate(excitations(0,0), stat = ierr)
+!                         return
+!                     end if
+!                 end if
 
                 ! have to give probabilistic weight object as input, to deal 
                 call createSingleStart(ilut, excitInfo, posSwitches, &
@@ -9767,8 +10124,6 @@ contains
                 do iEx = 1, nExcits
                     call setDeltaB(1, excitations(:,iEx))
                 end do
-
-
 
             end if
 !         end if
@@ -10091,7 +10446,8 @@ contains
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sO > 0 .and. sO <= nSpatOrbs)
 
-        if (notSingle(ilut,sO)) then
+!         if (notSingle(ilut,sO)) then
+        if (currentOcc_int(sO) /= 1) then
 !         if (isZero(ilut,sO) .or. isThree(ilut,sO)) then
             ! in this case no change in stepvector or matrix element
             return 
@@ -10114,7 +10470,8 @@ contains
 
         ! try new implementation with checking all 3 weights...
         ! ===================================================================
-        if (isOne(ilut,sO)) then
+        if (current_stepvector(sO) == 1) then
+!         if (isOne(ilut,sO)) then
             if ( minusWeight > 0.0_dp .and. plusWeight > 0.0_dp .and. zeroWeight > 0.0_dp) then
                 ! all excitations are possible in this case.
                 ! first do the on track 
@@ -10356,7 +10713,8 @@ contains
             end if
 
             ! also do the possibilities at a step=2 
-        else if (isTwo(ilut, sO)) then
+        else if (current_stepvector(sO) == 2) then
+!         else if (isTwo(ilut, sO)) then
             if (minusWeight > 0.0_dp .and. plusWeight > 0.0_dp .and. zeroWeight > 0.0_dp) then
                 ! everything possible!
                 do iEx = 1, nExcits
@@ -10975,7 +11333,6 @@ contains
 !         end if
 
     end subroutine doubleUpdate
-            
 
     subroutine singleUpdate(ilut, sOrb, excitInfo, posSwitches, negSwitches, &
             weightObj, tempExcits, nExcits)
@@ -11000,11 +11357,13 @@ contains
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb < nSpatOrbs)
 
-        if (isZero(ilut, sOrb)) then
+        if (current_stepvector(sOrb) == 1) then
+!         if (isZero(ilut, sOrb)) then
             ! do nothin actually.. not even change matrix elements
             return
 
-        else if (isThree(ilut, sOrb)) then
+        else if (current_stepvector(sOrb) == 3) then
+!         else if (isThree(ilut, sOrb)) then
             ! only change matrix element to negative one
             do iEx = 1, nExcits
                 call update_matrix_element(tempExcits(:,iEx), -1.0_dp, 1)
@@ -11032,12 +11391,14 @@ contains
         minusWeight = weightObj%proc%minus(negSwitches(sOrb), bVal, weightObj%dat)
         
         ! have to do some sort of abort_excitations funciton here too
-        ASSERT(plusWeight + minusWeight > 0.0_dp)
-        if (plusWeight + minusWeight <EPS) then
+        ASSERT(plusWeight + minusWeight > EPS)
+
+!         if (plusWeight + minusWeight < EPS) then
 !             call abort_excitation()
-        end if
+!         end if
                 
-        if (isOne(ilut, sOrb)) then
+        if (current_stepvector(sOrb) == 1) then
+!         if (isOne(ilut, sOrb)) then
             ! if its a deltaB = -1 this is a switch possib, indepentent 
             ! of the b-vector.. 
             ! have to loop over already created excitations
@@ -11523,7 +11884,9 @@ contains
 
         ! although I do not think I have to check if deltaB values fit, 
         ! still do it for now and check if its really always correct...
-        if (isZero(ilut,ende)) then 
+        select case (current_stepvector(ende))
+        case (0)
+!         if (isZero(ilut,ende)) then 
             ! if it is zero it implies i have a lowering generator, otherwise
             ! i wouldnt even be here.
             do iEx = 1, nExcits
@@ -11552,7 +11915,8 @@ contains
 
             end do
 
-        else if (isThree(ilut,ende)) then
+        case (3)
+!         else if (isThree(ilut,ende)) then
             ! if d = 3, it implies a raising generator or otherwise we 
             ! would not be here ..
             do iEx = 1, nExcits
@@ -11579,7 +11943,8 @@ contains
 
             end do
 
-        else if (isOne(ilut,ende)) then
+        case (1)
+!         else if (isOne(ilut,ende)) then
             ! d=1 needs a deltaB -1 branch, so delete +1 excitations if they
             ! happen to get here. alhough that shouldnt happen with the correct
             ! use of probabilistic weight functions.
@@ -11637,7 +12002,8 @@ contains
                 end do
             end if
 
-        else ! d = 2 at end -> needs deltab=+1 -> delete deltaB -1 branches
+        case (2)
+!         else ! d = 2 at end -> needs deltab=+1 -> delete deltaB -1 branches
             cnt = 1
 
             if (gen == 1) then
@@ -11708,7 +12074,6 @@ contains
         deallocate(tempExcits)
 
     end subroutine singleEnd
-        
 
     subroutine createSingleStart(ilut, excitInfo, posSwitches, negSwitches, &
             weightObj, tempExcits, nExcits)
@@ -11775,7 +12140,9 @@ contains
         ! maybe need temporary ilut storage
         t = ilut
         nExcits = 0
-        if (isOne(ilut, st)) then
+        select case (current_stepvector(st))
+        case (1)
+!         if (isOne(ilut, st)) then
             ! set corresponding orbital to 0 or 3 depending on generator type
             if (gen == 1) then ! raising gen case
                 ! set the alpha orbital also to 1 to make d=1 -> d'=3
@@ -11805,7 +12172,8 @@ contains
             ! and store it in list:
             tempExcits(:, nExcits) = t
             
-        else if (isTwo(ilut, st)) then
+        case (2)
+!         else if (isTwo(ilut, st)) then
             if (gen == 1) then
                 set_orb(t, 2*st - 1)
 
@@ -11824,7 +12192,8 @@ contains
             call setDeltaB(-1, t)
             tempExcits(:, nExcits) = t
 
-        else ! 0/3 case -> have to check probWeights an bValue
+        case (0,3)
+!         else ! 0/3 case -> have to check probWeights an bValue
             ! if the deltaB = -1 weights is > 0 this one always works
             ! write weight calculation function! is a overkill here, 
             ! but makes it easier to use afterwards with stochastic excitaions
@@ -11838,10 +12207,10 @@ contains
             
             ! still have to do some abort excitation routine if both weights 
             ! are 0
-            ASSERT(minusWeight + plusWeight > 0.0_dp)
-            if (minusWeight + plusWeight <EPS) then
+            ASSERT(minusWeight + plusWeight > EPS)
+!             if (minusWeight + plusWeight <EPS) then
 !                 call abort_excitation()
-            end if
+!             end if
 
             if (minusWeight > 0.0_dp) then
                 if (gen == 1) then
@@ -11896,7 +12265,8 @@ contains
                 tempExcits(:, nExcits) = t
 
             end if
-        end if
+        end select
+!         end if
 
     end subroutine createSingleStart
 
