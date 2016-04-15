@@ -19,8 +19,7 @@ module AnnihilationMod
                         encode_sign, test_flag, set_flag, &
                         flag_initiator, encode_part_sign, &
                         extract_part_sign, extract_bit_rep, &
-                        nullify_ilut_part, clear_has_been_initiator, &
-                        set_has_been_initiator, flag_has_been_initiator, &
+                        nullify_ilut_part, &
                         encode_flags, bit_parent_zero
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib

@@ -413,27 +413,6 @@ contains
 
     end subroutine set_flag_single
 
-     subroutine set_has_been_initiator(ilut, flg)
-        use bit_rep_data, only: flag_has_been_initiator
-        integer(n_int), intent(inout) :: ilut(0:nIfTot)
-        integer :: flg
-        integer :: i
-
-        call set_flag_single(ilut,flag_has_been_initiator(1))
-
-    end subroutine
-
-    subroutine clear_has_been_initiator(ilut,flg)
-        use bit_rep_data, only: flag_has_been_initiator
-        integer(n_int), intent(inout) :: ilut(0:nIfTot)
-        integer ::flg
-        integer :: i
-
-        call clr_flag(ilut,flag_has_been_initiator(1))
-
-    end subroutine
-
-
     subroutine copy_flag (ilut_src, ilut_dest, flg)
 
         ! Copy the selected flag between iluts

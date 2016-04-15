@@ -9,9 +9,9 @@ module load_balance
     use global_det_data, only: global_determinant_data, get_iter_occ, &
                                set_det_diagH, &
                                set_spawn_rate
-    use bit_rep_data, only: flag_initiator, NIfDBO, flag_has_been_initiator, &
+    use bit_rep_data, only: flag_initiator, NIfDBO, &
                             flag_connected, flag_trial
-    use bit_reps, only: set_flag, nullify_ilut_part, clear_has_been_initiator,&
+    use bit_reps, only: set_flag, nullify_ilut_part, &
                         encode_part_sign, nullify_ilut
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
                          tFillingStochRDMOnFly, full_determ_vecs

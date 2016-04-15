@@ -12,8 +12,7 @@ module fcimc_helper
                         encode_bit_rep, NIfD, set_flag_general, NIfDBO, &
                         extract_sign, set_flag, encode_sign, &
                         flag_trial, flag_connected, flag_deterministic, &
-                        extract_part_sign, encode_part_sign, decode_bit_det, &
-                        set_has_been_initiator, flag_has_been_initiator
+                        extract_part_sign, encode_part_sign, decode_bit_det
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
@@ -685,9 +684,6 @@ contains
                 ! Update the parent flag as required.
                 call set_flag (CurrentDets(:,j), flag_initiator(part_type), parent_init)
 
-                if (parent_init) &
-                    call set_has_been_initiator(CurrentDets(:,j), &
-                                                flag_has_been_initiator(1))
             enddo
 
         endif

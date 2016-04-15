@@ -50,22 +50,20 @@ module bit_rep_data
                           flag_determ_parent = 1, &
                           flag_trial = 2, &
                           flag_connected = 3, &
-                          flag_has_been_initiator(1) = 4, &
-                          flag_unused1 = 5, &
-                          flag_unused2 = 6, &
-                          flag_unused3 = 7, &
-                          flag_ic0_spawn = 8, &
-                          flag_death_done = 9
-!                          flag_negative_sign = 10
+                          flag_unused1 = 4, &
+                          flag_unused2 = 5, &
+                          flag_unused3 = 6, &
+                          flag_ic0_spawn = 7, &
+                          flag_death_done = 8
 
 #ifdef __PROG_NUMRUNS
     integer, parameter :: flag_initiator(lenof_sign_max) &
-                            = (/10, 11, 12, 13, 14, 15, 16, 17, 18, 19, &
-                                20, 21, 22, 23, 24, 25, 26, 27, 28, 29/), &
-                          num_flags = 30
+                            = (/9, 10, 11, 12, 13, 14, 15, 16, 17, 18, &
+                                19, 20, 21, 22, 23, 24, 25, 26, 27, 28/), &
+                          num_flags = 29
 #else
-    integer, parameter :: flag_initiator(2) = (/10,11/), &
-                          num_flags = 12
+    integer, parameter :: flag_initiator(2) = (/ 9,10/), &
+                          num_flags = 11
 #endif
 
 contains
@@ -89,7 +87,11 @@ contains
 
 !        bSet = btest(ilut(ind), off)
 
-        bSet = btest(ilut(NOffFlag), flg)
+        if(tUseFlags) then
+            bSet = btest(ilut(NOffFlag), flg)
+        else
+            bSet = .false.
+        endif
 
     end function test_flag
 
