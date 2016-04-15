@@ -90,15 +90,16 @@ endif
 #ifdef __PROG_NUMRUNS
 #define min_part_type(run) 2*run-1
 #define max_part_type(run) 2*run
-#define is_run_unnocc(signs, run) (signs(min_part_type(run))**2 + signs(max_part_type(run))**2)**2e-1_dp <1.0e-12_dp 
+#define is_run_unnocc(signs, run) (signs(min_part_type(run))**2 + signs(max_part_type(run))**2)**5e-1_dp <1.0e-12_dp 
 #else
 #ifdef __DOUBLERUN
 #define min_part_type(run) 2*run-1
 #define max_part_type(run) 2*run
-#define is_run_unnocc(signs, run) (signs(min_part_type(run))**2 + signs(max_part_type(run))**2)**2e-1_dp <1.0e-12_dp 
+#define is_run_unnocc(signs, run) (signs(min_part_type(run))**2 + signs(max_part_type(run))**2)**5e-1_dp <1.0e-12_dp 
 #else
 #define min_part_type(run) 1
 #define max_part_type(run) 2
+#define is_run_unnocc(signs, run) (signs(1)**2 + signs(1)**2)**5e-1_dp <1.0e-12_dp 
 #endif
 #endif
 #else
@@ -152,3 +153,6 @@ endif
 #define MPI_IN_PLACE (C_NULL_PTR)
 #endif
 #endif
+
+#define debug_line(unit, msg) write(unit,*) __LINE__, __FILE__, char(9), msg
+#define debug_out(unit, msg) write(unit,*), char(9), msg
