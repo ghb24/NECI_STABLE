@@ -1,4 +1,3 @@
-#include "macros.h"
 MODULE SymExcit3
 ! This module contains excitation generators able to enumerate all possible excitations given a starting determinant.
 ! Unlike symexcit.F90 however, these excitation generators are able to deal with cases where the alpha and beta orbitals 
@@ -16,129 +15,6 @@ MODULE SymExcit3
 
     CONTAINS
 
-    subroutine CountExcitations_Ex_Mag(nI, exFlag, nSing, nSing_spindiff1, nDoub, nDoub_spindiff1, nDoub_spindiff2)
-        ! based on CountExcitations3
-        use SymData, only: nSymLabels
-        use SystemData , only: ElecPairs,tFixLz,iMaxLz
-        use GenRandSymExcitNUMod , only: PickElecPair,construct_class_counts,ClassCountInd,ScratchSize 
-        integer, intent(out) :: nSing,nSing_spindiff1
-        integer, intent(out) :: nDoub,nDoub_spindiff1,nDoub_spindiff2
-        integer, intent(in) :: exFlag,nI(NEl)
-        integer :: Symi, i, Spini
-        integer :: iSpn,Elec1Ind,Elec2Ind,SymProduct
-        integer :: Syma,Symb,Spina,Spinb,StartSpin,EndSpin
-        integer :: CCount2(ScratchSize)
-        integer :: CCUnocc2(ScratchSize), sumMl
-        call construct_class_counts(nI,CCount2,CCUnocc2)
-
-        nSing = 0
-        nSing_spindiff1 = 0
-        nDoub = 0
-        nDoub_spindiff1 = 0
-        nDoub_spindiff2 = 0
-
-        if (exFlag .ne. 2) then 
-            ! count the singles
-            do i=1,NEl
-                Symi=SpinOrbSymLabel(nI(i))
-                if((G1(nI(i))%Ms).eq.-1) Spini=2        ! G1(i)%Ms is -1 for beta, and 1 for alpha.
-                if((G1(nI(i))%Ms).eq.1) Spini=1         ! Translate this into 1 for alpha and 2 for beta
-                                                        ! for the ClassCount arrays.
-                ! This electron in orbital of SymI and SpinI can only be excited to orbitals with the same
-                ! spin and symmetry. Then add in the number of unoccupied orbitals with the same spin and 
-                ! symmetry to which each electron may be excited.
-            
-                nSing=nSing+CCUnocc2(ClassCountInd(Spini,Symi,-1))
-                nSing_spindiff1=nSing_spindiff1+CCUnocc2(ClassCountInd(3-Spini,Symi,-1))
-            enddo
-        endif
-
-        if(exFlag .ne. 1) then
-            ! count the doubles
-            write(*,*) "elecpairs", elecpairs
-            do i=1,ElecPairs
-
-! iSpn=2 for alpha beta pair, ispn=3 for alpha alpha pair and ispn=1 for beta beta pair.
-                call PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,sumMl,i)
-
-                ! alpha = 1, beta = 2
-                if (iSpn==1) then
-                    ! beta beta pair
-                    do syma = 0,nSymLabels-1
-                        symb = ieor(syma, symProduct)
-                        if (syma==symb) then
-                            ! spin and sym are equal, so one config has two e- in the same spin orb.
-                            nDoub=nDoub+(CCUnocc2(ClassCountInd(2,Syma,-1)) &
-                                       *(CCUnocc2(ClassCountInd(2,Syma,-1))-1))
-                        else
-                            nDoub=nDoub+(CCUnocc2(ClassCountInd(2,Syma,-1)) &
-                                       *(CCUnocc2(ClassCountInd(2,Symb,-1))))
-                        endif
-
-                        nDoub_spindiff1=nDoub_spindiff1+(CCUnocc2(ClassCountInd(1,Syma,-1)) &
-                                       *(CCUnocc2(ClassCountInd(2,Symb,-1))))+(CCUnocc2(ClassCountInd(2,Syma,-1)) &
-                                       *(CCUnocc2(ClassCountInd(1,Symb,-1)))) 
-
-
-                        nDoub_spindiff2=nDoub_spindiff2+(CCUnocc2(ClassCountInd(2,Syma,-1)) &
-                                       *(CCUnocc2(ClassCountInd(2,Symb,-1))-1))+(CCUnocc2(ClassCountInd(2,Symb,-1)) &
-                                       *(CCUnocc2(ClassCountInd(2,Syma,-1))-1))
-
-                    enddo
-
-                elseif (iSpn==3) then
-                    ! alpha alpha pair
-                    do syma = 0,nSymLabels-1
-                        symb = ieor(syma, symProduct)
-                        if (syma==symb) then
-                            ! spin and sym are equal, so one config has two e- in the same spin orb.
-                            nDoub=nDoub+(CCUnocc2(ClassCountInd(1,Syma,-1)) &
-                                       *(CCUnocc2(ClassCountInd(1,Syma,-1))-1))
-                        else
-                            nDoub=nDoub+(CCUnocc2(ClassCountInd(1,Syma,-1)) &
-                                       *(CCUnocc2(ClassCountInd(1,Symb,-1))))
-                        endif
-
-                        nDoub_spindiff1=nDoub_spindiff1+(CCUnocc2(ClassCountInd(2,Syma,-1)) &
-                                       *(CCUnocc2(ClassCountInd(1,Symb,-1))))+(CCUnocc2(ClassCountInd(1,Syma,-1)) &
-                                       *(CCUnocc2(ClassCountInd(2,Symb,-1))))
-
-                        nDoub_spindiff2=nDoub_spindiff2+(CCUnocc2(ClassCountInd(1,Syma,-1)) &
-                                       *(CCUnocc2(ClassCountInd(1,Symb,-1))-1))+(CCUnocc2(ClassCountInd(1,Symb,-1)) &
-                                       *(CCUnocc2(ClassCountInd(1,Syma,-1))-1))
-                    enddo
-
-                elseif (iSpn==2) then
-                    ! alpha beta pair
-                    do syma = 0,nSymLabels-1
-                        symb = ieor(syma, symProduct)
-                        
-                        nDoub=nDoub+(CCUnocc2(ClassCountInd(1,Syma,-1)) &
-                                   *(CCUnocc2(ClassCountInd(2,Symb,-1))))+(CCUnocc2(ClassCountInd(2,Syma,-1)) &
-                                   *(CCUnocc2(ClassCountInd(1,Symb,-1))))
-                        if (syma==symb) then
-                            nDoub_spindiff1=nDoub_spindiff1+(CCUnocc2(ClassCountInd(1,Syma,-1)) &
-                                       *(CCUnocc2(ClassCountInd(1,Symb,-1))-1)) +(CCUnocc2(ClassCountInd(2,Syma,-1)) &
-                                       *(CCUnocc2(ClassCountInd(2,Symb,-1))-1))
-                        else
-                            nDoub_spindiff1=nDoub_spindiff1+(CCUnocc2(ClassCountInd(1,Syma,-1)) &
-                                       *(CCUnocc2(ClassCountInd(1,Symb,-1)))) +(CCUnocc2(ClassCountInd(2,Syma,-1)) &
-                                       *(CCUnocc2(ClassCountInd(2,Symb,-1))))
-                        endif
-                    enddo
-                endif
-            enddo
-        endif
-
-        ! electrons are indistinguishable:
-        ! i.e. the excitations which involve one pair of like-spin orbitals have been counted twice
-        ! and those which involve two like-spin orbital pairs have been counted four times
-        ! we adjust for this here:
-        nDoub = nDoub/2
-        nDoub_spindiff1 = nDoub_spindiff1/2
-        nDoub_spindiff2 = nDoub_spindiff2/4
-
-    end subroutine CountExcitations_Ex_Mag
 
     SUBROUTINE CountExcitations3(nI,exflag,nSingleExcits,nDoubleExcits)
 ! This routine simply counts the excitations in terms of single and doubles from the nI determinant.    
@@ -153,6 +29,7 @@ MODULE SymExcit3
         INTEGER :: ClassCount2(ScratchSize),SumMl
         INTEGER :: ClassCountUnocc2(ScratchSize)
         INTEGER :: StartMl, EndMl, Mla, Mlb
+
         CALL construct_class_counts(nI,ClassCount2,ClassCountUnocc2)
 ! This sets up arrays containing the number of occupied and unoccupied in each symmetry.
 ! ClassCounts2(1,:)=No alpha occupied, ClassCounts2(2,:)=No Beta occupied.
@@ -309,60 +186,8 @@ MODULE SymExcit3
     ENDSUBROUTINE GenExcitations3
 
 
-    subroutine GenSingleExcit(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only)
 
-        ! this subroutine has been made into a wrapper around the original logic, which has been moved to
-        ! GenSingleExcitMag and modified to generate either spin conserving or spin sym violating exciations
-        ! given the value of a new logical flag
-
-        use SystemData, only : tReltvy
-        integer, intent(in) :: nI(nel), exFlag
-        integer, intent(inout) :: ExcitMat3(2,2)
-        integer, intent(out) :: nJ(nel)
-        integer(kind=n_int), intent(in) :: iLut(0:NifTot)
-        logical, intent(in) :: tParity, ti_lt_a_only
-        logical, intent(out) :: tAllExcitFound
-
-        logical :: tBreakingSpnSym
-        integer :: orba, orbi
-
-        orbi = excitmat3(1,1)
-        orba = excitmat3(2,1)
-
-        if (tReltvy) then
-            if (orbi*orba/=0 .and. btest(orbi+orba, 0)) then
-                ! last excitation broke spin sym
-                tBreakingSpnSym = .true.
-            else
-                tBreakingSpnSym = .false.
-            endif
-        else
-            tBreakingSpnSym = .false.
-        endif
-        
-
-        
-        call GenSingleExcitMag(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only, tBreakingSpnSym)
-        
-        orbi = excitmat3(1,1)
-        orba = excitmat3(2,1)
-
-        if (tReltvy) then
-            if (tAllExcitFound .and. .not. tBreakingSpnSym) then
-                ! we have exhausted all spin conserving singles, now move on to the spin breaking ones
-                tBreakingSpnSym = .true.
-                tAllExcitFound = .false.
-                excitmat3(:,:) = 0
-                call GenSingleExcitMag(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only, tBreakingSpnSym)
-            endif
-        endif
-
-
-    endsubroutine GenSingleExcit
-
-
-
-    SUBROUTINE GenSingleExcitMag(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only, tBreakingSpnSym)
+    SUBROUTINE GenSingleExcit(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only)
 ! Despite being fed four indices, this routine finds single excitations.  Orbi -> Orba. (Orbj and Orbb remain 0).
 ! Feeding in 0 indices indicates it is the first excitation that needs to be found.
 ! The single excitation goes from orbital i to a, from determinant nI to nJ.
@@ -375,7 +200,6 @@ MODULE SymExcit3
         INTEGER :: NoOcc,ExcitMat3(2,2),exflag,SymInd,Spina, Mla
         LOGICAL :: tInitOrbsFound,tParity,tAllExcitFound,tEndaOrbs,ti_lt_a_only
         INTEGER , SAVE :: OrbiIndex,OrbaIndex,Spini,NewSym,Mli
-        logical, intent(in) :: tBreakingSpnSym
 
 !        WRITE(6,*) 'Original Determinant',nI
 !        WRITE(6,*) "SymLabelList2(:)",SymLabelList2(:)
@@ -399,24 +223,14 @@ MODULE SymExcit3
                 Mli = 0
             ENDIF
 !            write(6,*) "***",Spini,Symi,Mli
-            if (tBreakingSpnSym) then 
-                ! Start considering a at the first allowed symmetry.
-                OrbaIndex=SymLabelCounts2(1,ClassCountInd(3-Spini,Symi,Mli))
-            else
-                OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,Mli))
-            endif
+            OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,Mli))  ! Start considering a at the first allowed symmetry.
 
         ELSE
             Orbi=nI(OrbiIndex)                              ! Begin by using the same i as last time - check if there are any 
                                                             ! more possible excitations from this.
 
 ! At this stage, OrbaIndex is the a from the previous excitation.
-            if (tBreakingSpnSym) then 
-                SymInd=ClassCountInd(3-Spini,SpinOrbSymLabel(Orbi),Mli)
-            else
-                SymInd=ClassCountInd(Spini,SpinOrbSymLabel(Orbi),Mli)
-            endif
-
+            SymInd=ClassCountInd(Spini,SpinOrbSymLabel(Orbi),Mli)
 !            write(6,*) "symind = ", symind
 
             IF(OrbaIndex.eq.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
@@ -437,12 +251,7 @@ MODULE SymExcit3
                         Mli = 0
                     ENDIF
 !                    write(6,*) "*****", ClassCountInd(Spini,Symi,Mli),Spini,Symi,Mli
-                    if (tBreakingSpnSym) then
-                        OrbaIndex=SymLabelCounts2(1,ClassCountInd(3-Spini,Symi,Mli))
-                    else
-                        OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,Mli))
-                    endif
-
+                    OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,Mli))
                 ELSE
                     IF(exflag.ne.1) THEN
                         ExcitMat3(:,:)=0
@@ -488,11 +297,7 @@ MODULE SymExcit3
                 Orba=SymLabelList2(OrbaIndex)
             ENDIF
 
-            if (tBreakingSpnSym) then
-                SymInd=ClassCountInd(3-Spini,SpinOrbSymLabel(Orbi),Mli)
-            else
-                SymInd=ClassCountInd(Spini,SpinOrbSymLabel(Orbi),Mli)
-            endif
+            SymInd=ClassCountInd(Spini,SpinOrbSymLabel(Orbi),Mli)
 
 ! Need to also make sure orbital a is unoccupied, so make sure the orbital is not in nI.
             NoOcc=0
@@ -524,12 +329,10 @@ MODULE SymExcit3
                 ENDIF
             ENDIF
 
-            IF(NewSym.eq.Symi.and.(Mli.eq.Mla).and.(.not.tEndaOrbs)) THEN
-                if ((Spina.eq.Spini).and.(.not. tBreakingSpnSym) .or. (.not.(spina.eq.spini)) .and. tBreakingSpnSym) then
+            IF(NewSym.eq.Symi.and.(Spina.eq.Spini).and.(Mli.eq.Mla).and.(.not.tEndaOrbs)) THEN
 ! If not, then these are the new Orbi and Orba.                
-                    tInitOrbsFound=.true.
-                    OrbaIndex=OrbaIndex+NoOcc
-                endif
+                tInitOrbsFound=.true.
+                OrbaIndex=OrbaIndex+NoOcc
             ELSE
 
 ! If we have, move onto the next occupied orbital i, no symmetry allowed single excitations exist from the first.                
@@ -545,11 +348,7 @@ MODULE SymExcit3
                         Mli = 0
                     ENDIF
 !                    write(6,*) "Symind3 = ",ClassCountInd(Spini,Symi,Mli)
-                    if (tBreakingSpnSym) then
-                        OrbaIndex=SymLabelCounts2(1,ClassCountInd(3-Spini,Symi,Mli))
-                    else
-                        OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,Mli))
-                    endif
+                    OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,Mli))
                 ENDIF
             ENDIF
 
@@ -557,7 +356,7 @@ MODULE SymExcit3
 
         IF((ExcitMat3(1,2).eq.0).and.(.not.tAllExcitFound)) CALL FindNewSingDet(nI,nJ,OrbiIndex,OrbA,ExcitMat3,tParity)
             
-    ENDSUBROUTINE GenSingleExcitMag
+    ENDSUBROUTINE GenSingleExcit
 
 
 
@@ -566,12 +365,12 @@ MODULE SymExcit3
 ! This involves a way of ordering the electron pairs i,j and a,b so that given an i,j and a,b we can find the next.
 ! The overall symmetry must also be maintained - i.e. if i and j are alpha and beta, a and b must be alpha and beta
 ! or vice versa.
-        USE SystemData , only: ElecPairs, tFixLz, iMaxLz, tReltvy
+        USE SystemData , only: ElecPairs, tFixLz, iMaxLz
         USE GenRandSymExcitNUMod , only: PickElecPair
         use constants, only: bits_n_int
         INTEGER :: nI(NEl),Orbj,Orbi,Orba,Orbb,Syma,Symb
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-        INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,Spinb,nJ(NEl),ExcitMat3(2,2),SumMl, iSpnPicked
+        INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,Spinb,nJ(NEl),ExcitMat3(2,2),SumMl
         INTEGER , SAVE :: ijInd,OrbaChosen,OrbbIndex,Spina,SymInd
         LOGICAL :: tDoubleExcitFound,tFirsta,tFirstb,tNewij,tNewa,tAllExcitFound,tParity,tij_lt_ab_only
         INTEGER :: Mla, Mlb, Indij
@@ -587,32 +386,15 @@ MODULE SymExcit3
         Orbj=ExcitMat3(1,2)
         Orba=ExcitMat3(2,1)
         Orbb=ExcitMat3(2,2)
+!        WRITE(6,*) 'Orbi,Orbj,Orba,Orbb',Orbi,Orbj,Orba,Orbb
 
-        
-        if (orbi==0) then
-            iSpn = 1
-        else 
-! recover the iSpn value from the last pass
-            if(is_beta(orba) .and. is_beta(orbb)) then
-                iSpn = 1
-            elseif(is_alpha(orba) .and. is_alpha(orbb)) then
-                iSpn = 3
-            else
-                iSpn = 2
-            endif
-        endif
-
-        spnCaseLp : do
-        
         IF(Orbi.eq.0) THEN
             ijInd=1
-! If Orbi=0, then we are choosing the first double.             
+! If Orbi, then we are choosing the first double.             
 ! It is therefore also the first set of a and b for this electron pair i,j.
             tFirsta=.true.
             tFirstb=.true.
-            tNewij=.true.
-            tAllExcitFound = .false.
-        endif
+        ENDIF
 
         lp: do while (.not.tDoubleExcitFound)
 
@@ -621,11 +403,7 @@ MODULE SymExcit3
 ! The i and j orbitals are then given by nI(Elec1Ind) and nI(Elec2Ind), and the symmetry product of the two is 
 ! SymProduct and the spin iSpn.
 ! iSpn=2 for alpha beta pair, ispn=3 for alpha alpha pair and ispn=1 for beta beta pair.
-            CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpnPicked,SumMl,ijInd)
-
-            if (.not. tReltvy) then
-                iSpn = iSpnPicked
-            endif
+            CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,ijInd)
 
             Indij = (( ( (nI(Elec2Ind)-2) * (nI(Elec2Ind)-1) ) / 2 ) + nI(Elec1Ind))
 
@@ -846,22 +624,10 @@ MODULE SymExcit3
         if(tDoubleExcitFound.and.(.not.tAllExcitFound)) then
             call make_double (nI, nJ, elec1ind, elec2ind, orbA, orbB, &
                               ExcitMat3, tParity)
-            exit spnCaseLp
-
-        elseif(tReltvy) then
-            ! can we advance to the next iSpn?
-            if (iSpn .lt. 3) then
-                iSpn = iSpn+1
-                orbi = 0
-                orbj = 0
-                orba = 0
-                orbb = 0
-            else
-                ! all excitations found
-                exit spnCaseLp
-            endif
+!        else
+!            write(6,*) "Exiting loop with all excitations found: ",tAllExcitFound
         endif
-        enddo spnCaseLp
+
         
 !        WRITE(6,*) 'From',ExcitMat3(1,:),'To',ExcitMat3(2,:)
 !
@@ -871,6 +637,7 @@ MODULE SymExcit3
 !        WRITE(6,*) 'These have symmetries : ',G1(ExcitMat3(1,1))%Ml,G1(ExcitMat3(1,2))%Ml,' to ',G1(Orba)%Ml,G1(Orbb)%Ml
 !        WRITE(6,*) 'The new determinant is : ',nJ(:)
 !        CALL neci_flush(6)
+
 
     ENDSUBROUTINE GenDoubleExcit
 
