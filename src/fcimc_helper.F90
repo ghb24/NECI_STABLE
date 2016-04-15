@@ -13,8 +13,7 @@ module fcimc_helper
                         extract_sign, set_flag, encode_sign, &
                         flag_trial, flag_connected, flag_deterministic, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
-                        set_has_been_initiator, flag_has_been_initiator, &
-                        flag_weak_initiator
+                        set_has_been_initiator, flag_has_been_initiator
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
@@ -137,8 +136,9 @@ contains
         ! If the parent was an initiator then set the initiator flag for the
         ! child, to allow it to survive.
         if (tTruncInitiator) then
-            if (test_flag(ilutI, flag_initiator(part_type)).or.test_flag(ilutI, flag_weak_initiator(part_type))) &
+            if (test_flag(ilutI, flag_initiator(part_type))) then
                 call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_initiator(part_type))
+            endif
         end if
 
         if (tFillingStochRDMonFly) then
