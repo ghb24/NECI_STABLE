@@ -39,6 +39,8 @@ contains
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data, only: rdm_estimates_unit, nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
         use rdm_data, only: rdm_estimates, one_rdms, two_rdm_spawn, rdm_main, two_rdm_recv
+        use rdm_data, only: rdm_estimates_old
+        use rdm_estimators, only: init_rdm_estimates_t
         use rdm_parallel, only: init_rdm_spawn_t, init_rdm_list_t
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
@@ -71,6 +73,7 @@ contains
         max_nelems = 3.0*(rdm_nrows**2)/(8*nProcessors)
         nhashes_rdm = 0.8*max_nelems
 
+        write(6,*) "nrdms before:", nrdms; flush(6)
         call init_rdm_list_t(rdm_main, nrdms, max_nelems, nhashes_rdm)
 
         ! Don't need the hash table for the received list, so pass 0 for nhashes.
@@ -81,7 +84,10 @@ contains
 
         if (.not. allocated(rdms)) allocate(rdms(nrdms))
         if (.not. allocated(one_rdms)) allocate(one_rdms(nrdms))
-        if (.not. allocated(rdm_estimates)) allocate(rdm_estimates(nrdms))
+
+        if (.not. allocated(rdm_estimates_old)) allocate(rdm_estimates_old(nrdms))
+        
+        call init_rdm_estimates_t(rdm_estimates, nrdms)
 
         ! Only spatial orbitals for the 2-RDMs (and F12).
         if (tStoreSpinOrbs .and. (RDMExcitLevel .ne. 1)) &
@@ -560,7 +566,7 @@ contains
                 write(6,'(A)') 'Ignoring the request to read in the RDMs and starting again.'
                 tReadRDMs = .false.
             else
-                call Read_In_RDMs(rdms(1), rdm_estimates(1))
+                call Read_In_RDMs(rdms(1), rdm_estimates, rdm_estimates_old(1))
             end if
         end if
 
@@ -576,7 +582,7 @@ contains
 
     end subroutine InitRDMs
 
-    subroutine Read_In_RDMs(rdm, est)
+    subroutine Read_In_RDMs(rdm, est, est_old)
 
         ! Reads in the arrays to restart the RDM calculation (and continue
         ! accumulating). These arrays are not normalised, so the trace is
@@ -587,13 +593,15 @@ contains
         use LoggingData, only: RDMExcitLevel
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: rdm_t, rdm_estimates_t, tOpenShell, tCalc_RDMEnergy
-        use rdm_data, only: rdm_estimates
+        use rdm_data, only: rdm_estimates_old_t, rdm_estimates_old
         use rdm_estimators, only: rdm_output_wrapper, write_rdm_estimates
+        use rdm_estimators, only: rdm_output_wrapper_old
         use RotateOrbsData, only: SymLabelListInv_rot
         use util_mod, only: get_free_unit
 
         type(rdm_t), intent(inout) :: rdm
         type(rdm_estimates_t), intent(inout) :: est
+        type(rdm_estimates_old_t), intent(inout) :: est_old
 
         logical :: exists_one
         logical :: exists_aaaa, exists_abab, exists_abba
@@ -750,8 +758,8 @@ contains
         ! Calculate the energy for the matrices read in (if we're calculating more
         ! than the 1-RDM).
         if (tCalc_RDMEnergy) then
-            call rdm_output_wrapper(rdm, 1, est)
-            if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates)
+            call rdm_output_wrapper_old(rdm, 1, est_old)
+            if (iProcIndex == 0) call write_rdm_estimates(est, rdm_estimates_old)
         end if
 
         ! Continue calculating the RDMs from the first iteration when the popsfiles
@@ -964,7 +972,7 @@ contains
 
     ! Routines called at the end of a simulation.
 
-    subroutine FinaliseRDMs(rdms, rdm_estimates)
+    subroutine FinaliseRDMs(rdms, rdm_estimates, rdm_estimates_old)
 
         ! This routine performs some finalisation, including summing each of
         ! the individual matrices from each processor, and calling the
@@ -978,10 +986,11 @@ contains
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo, tDipoles
         use Parallel_neci, only: iProcIndex, MPIBarrier, MPIBCast, MPISumAll
         use rdm_data, only: rdm_t, rdm_estimates_t, tRotatedNos, FinaliseRDMs_Time
-        use rdm_data, only: rdm_main, one_rdms, two_rdm_spawn, tOpenShell
+        use rdm_data, only: rdm_main, one_rdms, two_rdm_spawn, two_rdm_recv, tOpenShell
+        use rdm_data, only: rdm_estimates_old_t
         use rdm_estimators, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
         use rdm_estimators, only: rdm_output_wrapper, CalcDipoles, write_rdm_estimates
-        use rdm_estimators, only: temp_rdm_output_wrapper
+        use rdm_estimators, only: rdm_output_wrapper_old
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
         use rdm_parallel, only: calc_rdm_trace, calc_1rdms_from_2rdms
         use rdm_parallel, only: create_spinfree_2rdm, calc_1rdms_from_spinfree_2rdms
@@ -992,7 +1001,8 @@ contains
         use SystemData, only: nel
 
         type(rdm_t), intent(inout) :: rdms(:)
-        type(rdm_estimates_t), intent(inout) :: rdm_estimates(:)
+        type(rdm_estimates_t), intent(inout) :: rdm_estimates
+        type(rdm_estimates_old_t), intent(inout) :: rdm_estimates_old(:)
 
         integer :: i, error
         real(dp) :: Norm_1RDM, Trace_1RDM, SumN_Rho_ii
@@ -1022,7 +1032,7 @@ contains
                 tFinalRDMEnergy = .true.
 
                 ! 1-RDM is constructed here (in calc_1RDM_and_1RDM_energy).
-                call rdm_output_wrapper(rdms(i), i, rdm_estimates(i))
+                call rdm_output_wrapper_old(rdms(i), i, rdm_estimates_old(i))
 
                 if (tPrint1RDM) then
                     call Finalise_1e_RDM(rdms(i)%matrix, rdms(i)%Rho_ii, i, Norm_1RDM)
@@ -1033,8 +1043,8 @@ contains
 
                 if (tDumpForcesInfo) then
                     if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(i)%matrix, rdms(i)%Rho_ii, i, Norm_1RDM)
-                    call Calc_Lagrangian_from_RDM(rdms(i), Norm_1RDM, rdm_estimates(i)%Norm_2RDM)
-                    call convert_mats_Molpforces(rdms(i), Norm_1RDM, rdm_estimates(i)%Norm_2RDM)
+                    call Calc_Lagrangian_from_RDM(rdms(i), Norm_1RDM, rdm_estimates_old(i)%Norm_2RDM)
+                    call convert_mats_Molpforces(rdms(i), Norm_1RDM, rdm_estimates_old(i)%Norm_2RDM)
                 end if
 
             end if
@@ -1086,11 +1096,11 @@ contains
             end if
         end if
 
-        if (RDMExcitLevel /= 1) call temp_rdm_output_wrapper(rdm_estimates)
+        if (RDMExcitLevel /= 1) call rdm_output_wrapper(rdm_estimates, rdm_main, two_rdm_recv, two_rdm_spawn)
 
-        if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates)
+        if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates, rdm_estimates_old)
 #ifdef _MOLCAS_
-            NECI_E = rdm_estimates(1)%RDMEnergy
+            NECI_E = rdm_estimates_old(1)%RDMEnergy
             call MPIBarrier(error)
             call MPIBCast(NECI_E)
             write(6,*) 'NECI_E at rdm_general.f90 ', NECI_E

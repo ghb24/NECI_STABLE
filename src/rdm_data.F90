@@ -96,7 +96,6 @@ module rdm_data
     end type rdm_t
 
     type one_rdm_t
-
         ! The 1-RDM.
         real(dp), allocatable :: matrix(:,:)
 
@@ -114,19 +113,31 @@ module rdm_data
 
     end type one_rdm_t
 
-    type rdm_estimates_t
-        ! Quantities calculated from the RDM estimates.
+    type rdm_estimates_old_t
         real(dp) :: RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst
         real(dp) :: Norm_2RDM, Norm_2RDM_Inst, Trace_2RDM, Trace_2RDM_normalised
         real(dp) :: spin_est
-        real(dp) :: new_trace, new_norm
-        real(dp) :: new_energy_1, new_energy_2, new_energy
-        real(dp) :: new_spin
+    end type rdm_estimates_old_t
+
+    type rdm_estimates_t
+        integer :: nrdms
+
+        real(dp), allocatable :: trace(:)
+        real(dp), allocatable :: norm(:)
+
+        real(dp), allocatable :: energy_1_num(:)
+        real(dp), allocatable :: energy_2_num(:)
+        real(dp), allocatable :: energy_tot_num(:)
+
+        real(dp), allocatable :: spin_num(:)
+
+        real(dp), allocatable :: max_error_herm(:)
+        real(dp), allocatable :: sum_error_herm(:)
     end type rdm_estimates_t
 
     ! Array of type rdm_t, for holding multiple different RDM instances.
     type(rdm_t), allocatable :: rdms(:)
-    type(rdm_estimates_t), allocatable :: rdm_estimates(:)
+    type(rdm_estimates_old_t), allocatable :: rdm_estimates_old(:)
 
     ! Data for parallel RDM implementation.
 
@@ -176,5 +187,6 @@ module rdm_data
     type(rdm_spawn_t) :: two_rdm_spawn
     type(rdm_list_t) :: rdm_main
     type(rdm_list_t) :: two_rdm_recv
+    type(rdm_estimates_t) :: rdm_estimates
 
 end module rdm_data

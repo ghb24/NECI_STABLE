@@ -21,7 +21,7 @@ module FciMCParMod
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
                             attempt_die_spin_proj
-    use rdm_data, only: tCalc_RDMEnergy, rdms, rdm_estimates
+    use rdm_data, only: tCalc_RDMEnergy, rdms, rdm_estimates_old
     use rdm_general, only: FinaliseRDMs
     use rdm_filling_old, only: fill_rdm_offdiag_deterministic_old, fill_rdm_diag_wrapper_old
     use rdm_filling, only: fill_rdm_offdiag_deterministic, fill_rdm_diag_wrapper
@@ -72,8 +72,8 @@ module FciMCParMod
 
     SUBROUTINE FciMCPar(energy_final_output)
 
-        use rdm_data, only: rdm_main
-        use rdm_estimators, only: temp_rdm_output_wrapper
+        use rdm_data, only: rdm_estimates, rdm_main, two_rdm_recv, two_rdm_spawn
+        use rdm_estimators, only: rdm_output_wrapper, rdm_output_wrapper_old
 
         real(dp), intent(out), allocatable :: energy_final_output(:)
 
@@ -419,15 +419,15 @@ module FciMCParMod
                 if(tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)) .gt. IterRDMonFly) &
                     .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .eq. 0) ) then
                         do irdm = 1, nrdms
-                            call rdm_output_wrapper(rdms(irdm), irdm, rdm_estimates(irdm))
-                            call temp_rdm_output_wrapper(rdm_estimates)
+                            call rdm_output_wrapper_old(rdms(irdm), irdm, rdm_estimates_old(irdm))
+                            call rdm_output_wrapper(rdm_estimates, rdm_main, two_rdm_recv, two_rdm_spawn)
                         end do
 
                         !TODO: Move this to a more sensible place when everything is working.
                         !call clear_hash_table(rdm_main%hash_table)
                         !rdm_main%nelements = 0
 
-                        if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates)
+                        if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates, rdm_estimates_old)
                 end if
             end if
 
@@ -495,7 +495,7 @@ module FciMCParMod
             CALL PrintOrbOccs(OrbOccs)
         ENDIF
 
-        if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) call FinaliseRDMs(rdms, rdm_estimates)
+        if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) call FinaliseRDMs(rdms, rdm_estimates, rdm_estimates_old)
 
         call PrintHighPops()
 
