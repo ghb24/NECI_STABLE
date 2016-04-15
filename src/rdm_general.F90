@@ -989,7 +989,7 @@ contains
 
         ! TODO: remove.
         use hash, only: clear_hash_table
-        use RotateOrbsData, only: NoOrbs
+        use SystemData, only: nel
 
         type(rdm_t), intent(inout) :: rdms(:)
         type(rdm_estimates_t), intent(inout) :: rdm_estimates(:)
@@ -997,9 +997,7 @@ contains
         integer :: i, error
         real(dp) :: Norm_1RDM, Trace_1RDM, SumN_Rho_ii
         real(dp) :: rdm_trace(rdm_main%sign_length), all_rdm_trace(rdm_main%sign_length)
-
-        ! TODO remove.
-        integer :: j
+        real(dp) :: all_rdm_norm(rdm_main%sign_length)
 
         call set_timer(FinaliseRDMs_Time)
 
@@ -1071,13 +1069,14 @@ contains
             else
                 call calc_rdm_trace(rdm_main, rdm_trace)
                 call MPISumAll(rdm_trace, all_rdm_trace)
+                all_rdm_norm = all_rdm_trace*2.0_dp/(nel*(nel-1))
 
                 !two_rdm_spawn%free_slots = two_rdm_spawn%init_free_slots
                 !call clear_hash_table(two_rdm_spawn%rdm_send%hash_table)
                 !call create_spinfree_2rdm(rdm_main, two_rdm_spawn)
                 !call calc_1rdms_from_spinfree_2rdms(one_rdms, rdm_recv, all_rdm_trace)
 
-                call calc_1rdms_from_2rdms(one_rdms, rdm_main, all_rdm_trace, tOpenShell)
+                call calc_1rdms_from_2rdms(one_rdms, rdm_main, all_rdm_norm, tOpenShell)
 
                 if (iProcIndex == 0) then
                     do i = 1, size(one_rdms)
