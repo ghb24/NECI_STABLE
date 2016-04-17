@@ -524,7 +524,7 @@ contains
         use rdm_estimators_old, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
         use rdm_estimators_old, only: rdm_output_wrapper_old, CalcDipoles
         use rdm_estimators, only: rdm_output_wrapper, write_rdm_estimates
-        use rdm_init, only: Finalise_1e_RDM, calc_1e_norms
+        use rdm_general, only: Finalise_1e_RDM, calc_1e_norms
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
         use rdm_parallel, only: calc_rdm_trace, calc_1rdms_from_2rdms
         use rdm_parallel, only: create_spinfree_2rdm, calc_1rdms_from_spinfree_2rdms

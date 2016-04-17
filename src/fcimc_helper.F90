@@ -51,7 +51,7 @@ module fcimc_helper
     use load_balance, only: adjust_load_balance
     use rdm_filling_old, only: det_removed_fill_diag_rdm_old
     use rdm_filling, only: det_removed_fill_diag_rdm
-    use rdm_init, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
+    use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
     use Parallel_neci
     use FciMCLoggingMod, only: HistInitPopulations, WriteInitPops
     use csf_data, only: csf_orbital_mask
@@ -1788,7 +1788,7 @@ contains
         ! This routine checks if we should start filling the RDMs - 
         ! and does so if we should. 
 
-        use rdm_init, only: DeAlloc_Alloc_SpawnedParts
+        use rdm_general, only: DeAlloc_Alloc_SpawnedParts
         use LoggingData, only: tReadRDMs
         implicit none
         logical :: tFullVaryshift
