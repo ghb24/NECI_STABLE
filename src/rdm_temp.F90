@@ -18,8 +18,8 @@ contains
         use LoggingData, only: IterRDMonFly
         use LoggingData, only: tRDMInstEnergy, RDMEnergyIter
         use Parallel_neci, only: iProcIndex, MPISumAll
-        use rdm_data, only: AllNodes_RDM_small, AllNodes_RDM_large
-        use rdm_data, only: rdm_t, tCalc_RDMEnergy, tOpenShell
+        use rdm_data_old, only: AllNodes_RDM_small, AllNodes_RDM_large, rdm_t
+        use rdm_data, only: tCalc_RDMEnergy, tOpenShell
         use RotateOrbsData, only: SpatOrbs
 
         type(rdm_t), intent(inout) :: rdm
@@ -119,7 +119,8 @@ contains
         ! system = 1/2 N ( N - 1), so we can do the same for the 2RDM.
 
         use LoggingData, only: tRDMInstEnergy
-        use rdm_data, only: rdm_t, tOpenShell
+        use rdm_data, only: tOpenShell
+        use rdm_data_old, only: rdm_t
         use RotateOrbsData, only: SpatOrbs
         use SystemData, only: nel
 
@@ -177,7 +178,8 @@ contains
 
         use FciMCData, only: tFinalRDMEnergy, Iter, PreviousCycles
         use LoggingData, only: tWriteMultRDMs
-        use rdm_data, only: rdm_t, tOpenShell
+        use rdm_data_old, only: rdm_t
+        use rdm_data, only: tOpenShell
         use RotateOrbsData, only: SpatOrbs
         use util_mod, only: get_unique_filename, get_free_unit, int_fmt
 
@@ -706,7 +708,7 @@ contains
         ! where s and t are spin indices which are summed over.
         !
 
-        use rdm_data, only: rdm_t
+        use rdm_data_old, only: rdm_t
         use RotateOrbsData, only: SpatOrbs
         use util_mod, only: get_free_unit, int_fmt
 
@@ -767,7 +769,8 @@ contains
         !            order of the indices, considering the swapped spin and introducing appropriate signs
         !          - ie if p>r and s>q, D_pr,qs(abab) is found by looking up -D_rp,qs(abba)
 
-        use rdm_data, only: rdm_t, tOpenShell
+        use rdm_data, only: tOpenShell
+        use rdm_data_old, only: rdm_t
          
         type(rdm_t), intent(in) :: rdm
         integer, intent(in) :: p, q, r, s

@@ -602,7 +602,6 @@ contains
         use LoggingData, only: twrite_RDMs_to_read, twrite_normalised_RDMs, tForceCauchySchwarz
         use LoggingData, only: RDMExcitLevel
         use Parallel_neci, only: iProcIndex, MPISumAll
-        use rdm_data, only: rdm_t
         use RotateOrbsData, only: NoOrbs
 
         real(dp), intent(inout) :: matrix(:,:)
@@ -816,7 +815,7 @@ contains
         ! ignored and we print both 1-RDM(i,j) and 1-RDM(j,i) (in binary) 
         ! for the OneRDM_POPS file to be read in in a restart calculation.
 
-        use rdm_data, only: rdm_t, tOpenShell
+        use rdm_data, only: tOpenShell
         use RotateOrbsData, only: SymLabelListInv_rot
         use UMatCache, only: gtID
         use util_mod, only: get_free_unit, int_fmt
@@ -912,10 +911,11 @@ contains
         use FciMCData, only: Spawned_Parents, Spawned_Parents_Index
         use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
         use LoggingData, only: RDMExcitLevel, tExplicitAllRDM
-        use rdm_data, only: rdms, Sing_ExcDjs, Doub_ExcDjs
+        use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
+        use rdm_data_old, only: rdms
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag
         use RotateOrbsData, only: SymLabelListInv_rotTag

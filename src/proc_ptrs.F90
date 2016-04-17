@@ -159,7 +159,7 @@ module procedure_pointers
 
             use bit_rep_data, only: NIfTot
             use constants
-            use rdm_data, only: rdm_t
+            use rdm_data_old, only: rdm_t
             use SystemData, only: nel
             implicit none
 

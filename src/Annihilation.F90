@@ -552,7 +552,8 @@ module AnnihilationMod
         ! step.
 
         use LoggingData, only: tOldRDMs
-        use rdm_data, only: rdms, two_rdm_spawn, one_rdms
+        use rdm_data_old, only: rdms
+        use rdm_data, only: two_rdm_spawn, one_rdms
         use rdm_filling_old, only: check_fillRDM_DiDj_old
         use rdm_filling, only: check_fillRDM_DiDj
 

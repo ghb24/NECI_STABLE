@@ -29,8 +29,8 @@ contains
         use LoggingData, only: tRDMInstEnergy, RDMExcitLevel, tPrint1RDM
         use LoggingData, only: tDiagRDM, tReadRDMs, tPopsfile, tDumpForcesInfo, tDipoles
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: rdms, tOpenShell, tCalc_RDMEnergy, rdm_estimates_old
-        use rdm_data, only: rdm_write_unit_old
+        use rdm_data, only: tOpenShell, tCalc_RDMEnergy
+        use rdm_data_old, only: rdms, rdm_write_unit_old, rdm_estimates_old
         use RotateOrbsData, only: NoOrbs, SpatOrbs
         use util_mod, only: get_free_unit, LogMemAlloc
 
@@ -329,8 +329,8 @@ contains
         use LoggingData, only: IterRDMonFly
         use LoggingData, only: RDMExcitLevel
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: rdm_t, tOpenShell, tCalc_RDMEnergy
-        use rdm_data, only: rdm_estimates_old_t, rdm_estimates_old
+        use rdm_data, only: tOpenShell, tCalc_RDMEnergy
+        use rdm_data_old, only: rdm_t, rdm_estimates_old_t, rdm_estimates_old
         use rdm_estimators_old, only: rdm_output_wrapper_old, write_rdm_estimates_old
         use RotateOrbsData, only: SymLabelListInv_rot
         use util_mod, only: get_free_unit
@@ -518,9 +518,9 @@ contains
         use LoggingData, only: tBrokenSymNOs, occ_numb_diff, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo, tDipoles
         use Parallel_neci, only: iProcIndex, MPIBarrier, MPIBCast, MPISumAll
-        use rdm_data, only: rdm_t, rdm_estimates_t, tRotatedNos
+        use rdm_data, only: rdm_estimates_t, tRotatedNos
         use rdm_data, only: rdm_main, one_rdms, two_rdm_spawn, two_rdm_recv, tOpenShell
-        use rdm_data, only: rdm_estimates_old_t
+        use rdm_data_old, only: rdm_t, rdm_estimates_old_t
         use rdm_estimators_old, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
         use rdm_estimators_old, only: rdm_output_wrapper_old, CalcDipoles
         use rdm_estimators, only: rdm_output_wrapper, write_rdm_estimates
@@ -600,10 +600,11 @@ contains
         use FciMCData, only: Spawned_Parents, Spawned_Parents_Index
         use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
         use LoggingData, only: RDMExcitLevel, tExplicitAllRDM
-        use rdm_data, only: rdms, Sing_ExcDjs, Doub_ExcDjs
+        use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
+        use rdm_data_old, only: rdms
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag
         use RotateOrbsData, only: SymLabelListInv_rotTag

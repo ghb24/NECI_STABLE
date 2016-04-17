@@ -22,7 +22,7 @@ contains
         use bit_rep_data, only: extract_sign
         use CalcData, only: tPairedReplicas
         use global_det_data, only: get_iter_occ
-        use rdm_data, only: rdm_t
+        use rdm_data_old, only: rdm_t
 
         type(rdm_t), intent(inout) :: rdms(:)
         integer(n_int), intent(in) :: ilut_list(:,:)
@@ -89,7 +89,7 @@ contains
         use hphf_integrals, only: hphf_sign
         use HPHFRandExcitMod, only: FindExcitBitDetSym
         use LoggingData, only: RDMEnergyIter, RDMExcitLevel
-        use rdm_data, only: rdm_t
+        use rdm_data_old, only: rdm_t
         use SystemData, only: nel, tHPHF
 
         type(rdm_t), intent(inout) :: rdm
@@ -196,7 +196,7 @@ contains
         use CalcData, only: NMCyc
         use FciMCData, only: iLutHF_True, Iter, IterRDMStart, PreviousCycles
         use LoggingData, only: RDMEnergyIter
-        use rdm_data, only: rdm_t
+        use rdm_data_old, only: rdm_t
         use SystemData, only: nel
 
         type(rdm_t), intent(inout) :: rdm
@@ -228,7 +228,7 @@ contains
         ! In this case the diagonal elements wll already be taken care of.
 
         use FciMCData, only: HFDet_True
-        use rdm_data, only: rdm_t
+        use rdm_data_old, only: rdm_t
         use SystemData, only: nel
 
         type(rdm_t), intent(inout) :: rdm
@@ -284,7 +284,7 @@ contains
         ! have been taken care of by the extract routine.
 
         use FciMCData, only: HFDet_True, iLutHF_True
-        use rdm_data, only: rdm_t
+        use rdm_data_old, only: rdm_t
         use SystemData, only: nel
 
         type(rdm_t), intent(inout) :: rdm
@@ -329,7 +329,7 @@ contains
 
         use DetBitOps, only: DetBitEq
         use FciMCData, only: iLutHF_True
-        use rdm_data, only: rdm_t
+        use rdm_data_old, only: rdm_t
 
         type(rdm_t), intent(inout) :: rdms(:)
         integer, intent(in) :: Spawned_No
@@ -352,7 +352,7 @@ contains
         use bit_reps, only: decode_bit_det
         use DetBitOps, only: DetBitEq
         use FciMCData, only: Spawned_Parents, Spawned_Parents_Index, iLutHF_True
-        use rdm_data, only: rdm_t
+        use rdm_data_old, only: rdm_t
         use SystemData, only: nel, tHPHF
 
         type(rdm_t), intent(inout) :: rdms(:)
@@ -438,7 +438,7 @@ contains
         use DetBitOps, only: TestClosedShellDet, FindBitExcitLevel
         use hphf_integrals, only: hphf_sign
         use HPHFRandExcitMod, only: FindExcitBitDetSym, FindDetSpinSym
-        use rdm_data, only: rdm_t
+        use rdm_data_old, only: rdm_t
         use SystemData, only: nel
 
         type(rdm_t), intent(inout) :: rdm
@@ -512,7 +512,7 @@ contains
         ! figures out which type of elements need to be added in to the RDM.
 
         use LoggingData, only: RDMExcitLevel
-        use rdm_data, only: rdm_t
+        use rdm_data_old, only: rdm_t
         use SystemData, only: nel
 
         type(rdm_t), intent(inout) :: rdm
@@ -574,7 +574,8 @@ contains
         ! Fill diagonal elements of 1- and 2-RDM.
         ! These are < Di | a_i+ a_i | Di > and < Di | a_i+ a_j+ a_j a_i | Di >.
 
-        use rdm_data, only: rdm_t, tOpenShell
+        use rdm_data, only: tOpenShell
+        use rdm_data_old, only: rdm_t
         use LoggingData, only: RDMExcitLevel, ThreshOccRDM, tThreshOccRDMDiag
         use RotateOrbsData, only: SymLabelListInv_rot
         use SystemData, only: nel
@@ -687,7 +688,8 @@ contains
         ! This routine adds in the contribution to the 1- and 2-RDM from
         ! determinants connected by a single excitation.
 
-        use rdm_data, only: rdm_t, tOpenShell
+        use rdm_data, only: tOpenShell
+        use rdm_data_old, only: rdm_t
         use LoggingData, only: RDMExcitLevel
         use RotateOrbsData, only: SymLabelListInv_rot
         use SystemData, only: nel
@@ -1034,7 +1036,8 @@ contains
         ! This routine adds in the contribution to the 2-RDM from determinants
         ! connected by a double excitation.
 
-        use rdm_data, only: rdm_t, tOpenShell
+        use rdm_data, only: tOpenShell
+        use rdm_data_old, only: rdm_t
         use UMatCache, only: gtID
 
         type(rdm_t), intent(inout) :: rdm
@@ -1229,7 +1232,7 @@ contains
         use FciMCData, only: core_space, determ_sizes, determ_displs, full_determ_vecs_av
         use LoggingData, only: RDMExcitLevel, RDMEnergyIter
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: rdm_t
+        use rdm_data_old, only: rdm_t
         use sparse_arrays, only: sparse_core_ham, core_connections
         use SystemData, only: nel, tHPHF
 

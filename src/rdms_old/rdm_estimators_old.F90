@@ -17,7 +17,8 @@ contains
         use LoggingData, only: tWrite_RDMs_to_read, tWrite_normalised_RDMs
         use LoggingData, only: tWriteSpinFreeRDM
         use Parallel_neci, only: iProcIndex, MPISumAll
-        use rdm_data, only: rdm_t, rdm_estimates_old_t, tOpenShell
+        use rdm_data_old, only: rdm_t, rdm_estimates_old_t
+        use rdm_data, only: tOpenShell
         use rdm_temp, only: Finalise_2e_RDM, calc_2e_norms, Write_out_2RDM
         use rdm_temp, only: Write_spinfree_RDM
 
@@ -76,7 +77,7 @@ contains
 
         use FciMCData, only: tFinalRDMEnergy, Iter, PreviousCycles
         use LoggingData, only: tRDMInstEnergy
-        use rdm_data, only: rdm_estimates_old_t, rdm_write_unit_old
+        use rdm_data_old, only: rdm_estimates_old_t, rdm_write_unit_old
         use util_mod, only: int_fmt
 
         type(rdm_estimates_old_t), intent(in) :: est(:)
@@ -134,7 +135,7 @@ contains
         use IntegralsData, only: umat
         use LoggingData, only: tRDMInstEnergy
         use rdm_data, only: RDMEnergy_Time, tOpenShell
-        use rdm_data, only: rdm_t
+        use rdm_data_old, only: rdm_t
         use RotateOrbsData, only: SpatOrbs
         use SystemData, only: tStoreSpinOrbs, ecore
         use UMatCache, only: UMatInd
@@ -430,7 +431,8 @@ contains
         ! Return the (unnormalised) estimate of <S^2> from the instantaneous
         ! 2RDM estimates.
 
-        use rdm_data, only: rdm_t, tOpenShell
+        use rdm_data_old, only: rdm_t
+        use rdm_data, only: tOpenShell
         use RotateOrbsData, only: SpatOrbs
         use SystemData, only: nel
  
@@ -493,7 +495,8 @@ contains
         use IntegralsData, only: UMAT
         use OneEInts, only: TMAT2D
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: rdm_t, tOpenShell
+        use rdm_data, only: tOpenShell
+        use rdm_data_old, only: rdm_t
         use rdm_temp, only: Find_Spatial_2RDM_Chem
         use RotateOrbsMod, only: SymLabelListInv_rot, SpatOrbs
         use UMatCache, only: UMatInd
@@ -609,7 +612,8 @@ contains
         use FciMCData, only: tFinalRDMEnergy
         use OneEInts, only: TMAT2D
         use LoggingData, only: tDiagRDM, tDumpForcesInfo, tDipoles, tRDMInstEnergy, tPrint1RDM
-        use rdm_data, only: rdm_t, tOpenShell
+        use rdm_data, only: tOpenShell
+        use rdm_data_old, only: rdm_t
         use RotateOrbsMod, only: SymLabelListInv_rot
         use SystemData, only: nel
 
@@ -995,7 +999,8 @@ contains
 
         use GenRandSymExcitNUMod, only: ClassCountInd, RandExcitSymLabelProd
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: rdm_t, tOpenShell
+        use rdm_data, only: tOpenShell
+        use rdm_data_old, only: rdm_t
         use rdm_temp, only: Find_Spatial_2RDM_Chem
         use RotateOrbsData, only: SpatOrbs, SymLabelListInv_rot
         use sym_mod
@@ -1386,7 +1391,7 @@ contains
 
     subroutine CalcDipoles(rdm, Norm_1RDM)
 
-        use rdm_data, only: rdm_t
+        use rdm_data_old, only: rdm_t
 #ifdef MOLPRO
         use GenRandSymExcitNUMod, only: RandExcitSymLabelProd, ClassCountInd
         use outputResult

@@ -21,7 +21,8 @@ module FciMCParMod
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
                             attempt_die_spin_proj
-    use rdm_data, only: tCalc_RDMEnergy, rdms, rdm_estimates_old
+    use rdm_data, only: tCalc_RDMEnergy
+    use rdm_data_old, only: rdms, rdm_estimates_old
     use rdm_general, only: init_rdms, finalise_rdms
     use rdm_general_old, only: InitRDMs_old, FinaliseRDMs_old
     use rdm_filling_old, only: fill_rdm_offdiag_deterministic_old, fill_rdm_diag_wrapper_old

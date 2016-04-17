@@ -1681,7 +1681,8 @@ contains
 
         use global_det_data, only: get_iter_occ, get_av_sgn
         use LoggingData, only: tOldRDMs
-        use rdm_data, only: one_rdms, two_rdm_spawn, rdms
+        use rdm_data, only: one_rdms, two_rdm_spawn
+        use rdm_data_old, only: rdms
 
         integer, intent(in) :: DetCurr(nel) 
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
