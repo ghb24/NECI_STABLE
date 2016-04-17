@@ -1228,7 +1228,7 @@ contains
         ! This routine will print out *all* the spin cobminations separately,
         ! including both aaaa and bbbb arrays, and all other combinations.
 
-        ! The files are called 'rdm_aaaa', 'rdm_abab', 'rdm_abba', etc...
+        ! The files are called 'TwoRDM_aaaa', 'TwoRDM_abab', 'TwoRDM_abba', etc...
 
         use Parallel_neci, only: MPIBarrier
         use sort_mod, only: sort
@@ -1262,30 +1262,30 @@ contains
                     ! Let the first processor clear all the files to start with.
                     if (iproc == 0) then
                         iunit_aaaa = get_free_unit()
-                        open(iunit_aaaa, file='rdm_aaaa.'//trim(suffix), status='replace')
+                        open(iunit_aaaa, file='TwoRDM_aaaa.'//trim(suffix), status='replace')
                         iunit_abab = get_free_unit()
-                        open(iunit_abab, file='rdm_abab.'//trim(suffix), status='replace')
+                        open(iunit_abab, file='TwoRDM_abab.'//trim(suffix), status='replace')
                         iunit_abba = get_free_unit()
-                        open(iunit_abba, file='rdm_abba.'//trim(suffix), status='replace')
+                        open(iunit_abba, file='TwoRDM_abba.'//trim(suffix), status='replace')
                         iunit_bbbb = get_free_unit()
-                        open(iunit_bbbb, file='rdm_bbbb.'//trim(suffix), status='replace')
+                        open(iunit_bbbb, file='TwoRDM_bbbb.'//trim(suffix), status='replace')
                         iunit_baba = get_free_unit()
-                        open(iunit_baba, file='rdm_baba.'//trim(suffix), status='replace')
+                        open(iunit_baba, file='TwoRDM_baba.'//trim(suffix), status='replace')
                         iunit_baab = get_free_unit()
-                        open(iunit_baab, file='rdm_baab.'//trim(suffix), status='replace')
+                        open(iunit_baab, file='TwoRDM_baab.'//trim(suffix), status='replace')
                     else
                         iunit_aaaa = get_free_unit()
-                        open(iunit_aaaa, file='rdm_aaaa.'//trim(suffix), status='old', position='append')
+                        open(iunit_aaaa, file='TwoRDM_aaaa.'//trim(suffix), status='old', position='append')
                         iunit_abab = get_free_unit()
-                        open(iunit_abab, file='rdm_abab.'//trim(suffix), status='old', position='append')
+                        open(iunit_abab, file='TwoRDM_abab.'//trim(suffix), status='old', position='append')
                         iunit_abba = get_free_unit()
-                        open(iunit_abba, file='rdm_abba.'//trim(suffix), status='old', position='append')
+                        open(iunit_abba, file='TwoRDM_abba.'//trim(suffix), status='old', position='append')
                         iunit_bbbb = get_free_unit()
-                        open(iunit_bbbb, file='rdm_bbbb.'//trim(suffix), status='old', position='append')
+                        open(iunit_bbbb, file='TwoRDM_bbbb.'//trim(suffix), status='old', position='append')
                         iunit_baba = get_free_unit()
-                        open(iunit_baba, file='rdm_baba.'//trim(suffix), status='old', position='append')
+                        open(iunit_baba, file='TwoRDM_baba.'//trim(suffix), status='old', position='append')
                         iunit_baab = get_free_unit()
-                        open(iunit_baab, file='rdm_baab.'//trim(suffix), status='old', position='append')
+                        open(iunit_baab, file='TwoRDM_baab.'//trim(suffix), status='old', position='append')
                     end if
 
                     do i = 1, rdm%nelements
@@ -1366,7 +1366,7 @@ contains
 
                 ! Loop over all RDMs beings sampled.
                 do irdm = 1, rdm%sign_length
-                    write(rdm_filename, '("new_spinfree_TwoRDM.",'//int_fmt(irdm,0)//')') irdm
+                    write(rdm_filename, '("spinfree_TwoRDM.",'//int_fmt(irdm,0)//')') irdm
                     ! Open the file to be written to.
                     iunit = get_free_unit()
                     ! Let the first process clear the file, if it already exist.

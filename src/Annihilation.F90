@@ -551,6 +551,7 @@ module AnnihilationMod
         ! to zero.  These will be deleted at the end of the total annihilation
         ! step.
 
+        use LoggingData, only: tOldRDMs
         use rdm_data, only: rdms, two_rdm_spawn, one_rdms
         use rdm_filling_old, only: check_fillRDM_DiDj_old
         use rdm_filling, only: check_fillRDM_DiDj
@@ -699,7 +700,7 @@ module AnnihilationMod
                         ! we're effectively taking the instantaneous value from the
                         ! next iter. This is fine as it's from the other population,
                         ! and the Di and Dj signs are already strictly uncorrelated.
-                        call check_fillRDM_DiDj_old(rdms, i, CurrentDets(:,PartInd), TempCurrentSign)
+                        if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, i, CurrentDets(:,PartInd), TempCurrentSign)
                         call check_fillRDM_DiDj(two_rdm_spawn, one_rdms, i, CurrentDets(:,PartInd), TempCurrentSign)
                     end if 
 
@@ -845,7 +846,7 @@ module AnnihilationMod
 
                 if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
                     ! We must use the instantaneous value for the off-diagonal contribution.
-                    call check_fillRDM_DiDj_old(rdms, i, SpawnedParts(0:NifTot,i), SignTemp)
+                    if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, i, SpawnedParts(0:NifTot,i), SignTemp)
                     call check_fillRDM_DiDj(two_rdm_spawn, one_rdms, i, SpawnedParts(0:NifTot,i), SignTemp)
                 end if 
             end if

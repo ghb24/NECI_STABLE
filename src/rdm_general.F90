@@ -18,147 +18,41 @@ contains
 
     ! Initialisation routines.
 
-    subroutine InitRDMs(nrdms)
+    subroutine InitRDMs_old(nrdms)
 
         ! This routine initialises any of the arrays needed to calculate the
         ! reduced density matrix. It is used for both the explicit and
         ! stochastic RDMs.
 
-        use DeterminantData, only: write_det
-        use CalcData, only: MemoryFacPart
-        use FciMCData, only: MaxSpawned, Spawned_Parents, Spawned_Parents_Index
-        use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
-        use FciMCData, only: tSinglePartPhase, HFDet_True, tFinalRDMEnergy
-        use LoggingData, only: tDo_Not_Calc_RDMEnergy, tNo_RDMs_To_Read, tWrite_RDMs_to_read
-        use LoggingData, only: tRDMInstEnergy, RDMExcitLevel, tExplicitAllRDM, tPrint1RDM
+        use FciMCData, only: tSinglePartPhase
+        use LoggingData, only: tNo_RDMs_To_Read, tWrite_RDMs_to_read
+        use LoggingData, only: tRDMInstEnergy, RDMExcitLevel, tPrint1RDM
         use LoggingData, only: tDiagRDM, tReadRDMs, tPopsfile, tDumpForcesInfo, tDipoles
-        use Parallel_neci, only: iProcIndex, nProcessors
-        use rdm_data, only: rdms, tOpenShell, tCalc_RDMEnergy, Sing_ExcDjs, Doub_ExcDjs
-        use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
-        use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
-        use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
-        use rdm_data, only: rdm_estimates_unit, nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
-        use rdm_data, only: rdm_estimates, one_rdms, two_rdm_spawn, rdm_main, two_rdm_recv
-        use rdm_data, only: rdm_estimates_old
-        use rdm_estimators, only: init_rdm_estimates_t
-        use rdm_parallel, only: init_rdm_spawn_t, init_rdm_list_t
-        use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
-        use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
-        use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
-        use SystemData, only: tStoreSpinOrbs, tHPHF, tFixLz, iMaxLz, tROHF
+        use Parallel_neci, only: iProcIndex
+        use rdm_data, only: rdms, tOpenShell, tCalc_RDMEnergy, rdm_estimates_old
+        use rdm_data, only: rdm_write_unit_old
+        use RotateOrbsData, only: NoOrbs, SpatOrbs
         use util_mod, only: get_free_unit, LogMemAlloc
 
         integer, intent(in) :: nrdms
 
         integer :: ierr, i, iproc, rdm_size_1, rdm_size_2
         integer :: MemoryAlloc, MemoryAlloc_Root
-        character(len=*), parameter :: t_r = 'InitRDMs'
-
-        integer :: rdm_nrows, max_nelems, nhashes_rdm
-
-        ! First thing is to check we're not trying to fill the RDMs in a way
-        ! that is not compatible with the code (not every case has been
-        ! accounted for yet).
-
-#ifdef __CMPLX
-        call stop_all(t_r, 'Filling of reduced density matrices not working with complex walkers yet.')
-#endif
-
-        ! For now, create RDM arrays big enough so that *all* RDM elements on
-        ! a particular processor can be stored, using the usual approximations
-        ! to take symmetry into account. Include a factor of 1.3 to account for
-        ! factors such as imperfect load balancing (which affects the spawned
-        ! array).
-        rdm_nrows = nbasis*(nbasis-1)/2
-        max_nelems = 3.0*(rdm_nrows**2)/(8*nProcessors)
-        nhashes_rdm = 0.8*max_nelems
-
-        write(6,*) "nrdms before:", nrdms; flush(6)
-        call init_rdm_list_t(rdm_main, nrdms, max_nelems, nhashes_rdm)
-
-        ! Don't need the hash table for the received list, so pass 0 for nhashes.
-        call init_rdm_list_t(two_rdm_recv, nrdms, max_nelems, 0)
-
-        ! Initialise the main RDM array data structure.
-        call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems, nhashes_rdm)
+        character(len=*), parameter :: t_r = 'InitRDMs_old'
 
         if (.not. allocated(rdms)) allocate(rdms(nrdms))
-        if (.not. allocated(one_rdms)) allocate(one_rdms(nrdms))
-
         if (.not. allocated(rdm_estimates_old)) allocate(rdm_estimates_old(nrdms))
-        
-        call init_rdm_estimates_t(rdm_estimates, nrdms)
-
-        ! Only spatial orbitals for the 2-RDMs (and F12).
-        if (tStoreSpinOrbs .and. (RDMExcitLevel .ne. 1)) &
-            call stop_all(t_r, '2-RDM calculations not set up for systems stored as spin orbitals.')
-
-        if (tROHF .or. tStoreSpinOrbs) then
-            tOpenShell = .true.
-        else
-            tOpenShell = .false.
-        end if
-
-        if (tExplicitAllRDM) then
-            write(6,'(1X,"Explicitly calculating the reduced density matrices from the FCIQMC wavefunction.")')
-        else
-            write(6,'(1X,"Stochastically calculating the reduced density matrices from the FCIQMC wavefunction")')
-            write(6,'(1X,"incl. explicit connections to the following HF determinant:")', advance='no')
-            call write_det (6, HFDet_True, .true.)
-        end if
-
-        if (RDMExcitLevel .eq. 1) then
-            tCalc_RDMEnergy = .false.
-        else
-            ! If the RDMExcitLevel is 2 or 3 - and we're calculating the 2-RDM, 
-            ! then we automatically calculate the energy unless we specifically
-            ! say not to.
-            if (tDo_Not_Calc_RDMEnergy) then
-                tCalc_RDMEnergy = .false.            
-            else
-                tCalc_RDMEnergy = .true.
-                write(6,'(1X,"Calculating the energy from the reduced density matrix. &
-                              &This requires the 2 electron RDM from which the 1-RDM can also be constructed.")')
-            end if
-        end if
-
-        ! Have not got HPHF working with the explicit or truncated methods yet.
-        ! Neither of these would be too difficult to implement.
-        if (tHPHF .and. tExplicitAllRDM) call stop_all(t_r, 'HPHF not set up with the explicit calculation of the RDM.')
-
-        SpatOrbs = nBasis/2
-        if (tOpenShell) then
-            NoOrbs = nBasis
-        else
-            NoOrbs = SpatOrbs
-        end if
 
         ! There are two different size arrays to allocate, as given by these
         ! array sizes (the RDMs are there sizes squared).
         rdm_size_1 = (SpatOrbs*(SpatOrbs-1))/2
         rdm_size_2 = (SpatOrbs*(SpatOrbs+1))/2
 
-        ! Here we're allocating arrays for the actual calculation of the RDM.
         MemoryAlloc = 0
-        MemoryAlloc_Root = 0 ! Memory allocated in bytes.
+        ! Memory allocated in bytes.
+        MemoryAlloc_Root = 0
 
-        ! TODO: allocate one_rdm_t objects properly!
-        ! Quickly hack in allocation of new 1-RDMS.
-        if (RDMExcitLevel == 1 .or. RDMExcitLevel == 3) then
-            do i = 1, nrdms
-                allocate(one_rdms(i)%matrix(NoOrbs, NoOrbs), stat=ierr)
-                if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating 1-RDM array.')
-                call LogMemAlloc('one_rdms(i)%matrix', NoOrbs**2, 8, t_r, one_rdms(i)%matrix_tag, ierr)
-                one_rdms(i)%matrix(:,:) = 0.0_dp
-
-                allocate(one_rdms(i)%Rho_ii(NoOrbs), stat=ierr)
-                if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating 1-RDM diagonal array (Rho_ii).')
-                call LogMemAlloc('one_rdms(i)%Rho_ii', NoOrbs, 8, t_r, one_rdms(i)%Rho_iiTag, ierr)
-                one_rdms(i)%Rho_ii(:) = 0.0_dp
-            end do
-        end if
-
-        ! First for the storage of the actual 1- or 2-RMD.
+        ! First for the storage of the actual 1- or 2-RDM.
         if (RDMExcitLevel .eq. 1) then
 
             do i = 1, nrdms
@@ -367,155 +261,9 @@ contains
                 end if
             end do ! Looping over all RDMs.
 
-        end if            
-
-        ! We then need to allocate the arrays for excitations etc when doing
-        ! the explicit all calculation.
-        if (tExplicitAllRDM) then
-
-            ! We always calculate the single stuff - and if RDMExcitLevel is 1,
-            ! this is all, otherwise calculate the double stuff too.
-
-            ! This array actually contains the excitations in blocks of the
-            ! processor they will be sent to. Only needed if the 1-RDM is the
-            ! only thing being calculated.
-            allocate(Sing_ExcDjs(0:NIfTot, nint((NEl*nBasis)*MemoryFacPart)), stat=ierr)
-            if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Sing_ExcDjs array.')
-            call LogMemAlloc('Sing_ExcDjs', nint(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
-                                            size_n_int, t_r, Sing_ExcDjsTag, ierr)
-
-            allocate(Sing_ExcDjs2(0:NIfTot, nint((NEl*nBasis)*MemoryFacPart)), stat=ierr)
-            if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Sing_ExcDjs2 array.')
-            call LogMemAlloc('Sing_ExcDjs2', nint(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
-                                            size_n_int, t_r, Sing_ExcDjs2Tag, ierr)
-
-            Sing_ExcDjs(:,:) = 0
-            Sing_ExcDjs2(:,:) = 0
-
-            MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * nint((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 )
-            MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * nint((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 )
-
-            ! We need room to potentially generate N*M single excitations but
-            ! these will be spread across each processor.
-
-            OneEl_Gap = (real(NEl,dp)*real(nBasis,dp)*MemoryFacPart)/real(nProcessors,dp)
-
-            ! This array contains the initial positions of the excitations
-            ! for each processor.
-            allocate(Sing_InitExcSlots(0:(nProcessors-1)), stat=ierr)
-            if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Sing_InitExcSlots array,')
-            do iproc = 0, nProcessors - 1
-                Sing_InitExcSlots(iproc) = nint(OneEl_Gap*iproc) + 1
-            end do
-
-            ! This array contains the current position of the excitations as
-            ! they're added.
-            allocate(Sing_ExcList(0:(nProcessors-1)), stat=ierr)
-            if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Sing_ExcList array,')
-            Sing_ExcList(:) = Sing_InitExcSlots(:)
-
-            if (RDMExcitLevel .ne. 1) then
-                ! This array actually contains the excitations in blocks of
-                ! the processor they will be sent to.
-                allocate(Doub_ExcDjs(0:NIfTot,nint(((NEl*nBasis)**2)*MemoryFacPart)), stat=ierr)
-                if (ierr .ne. 0) call stop_all(t_r,'Problem allocating Doub_ExcDjs array.')
-                call LogMemAlloc('Doub_ExcDjs', nint(((NEl*nBasis)**2)*MemoryFacPart)&
-                                *(NIfTot+1), size_n_int, t_r, Doub_ExcDjsTag, ierr)
-
-                allocate(Doub_ExcDjs2(0:NIfTot, nint(((NEl*nBasis)**2)*MemoryFacPart)), stat=ierr)
-                if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Doub_ExcDjs2 array.')
-                call LogMemAlloc('Doub_ExcDjs2',nint(((NEl*nBasis)**2)*MemoryFacPart)&
-                                *(NIfTot+1), size_n_int, t_r, Doub_ExcDjs2Tag, ierr)
-
-                MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * nint(((NEl*nBasis)**2)*MemoryFacPart) * size_n_int * 2 )
-                MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * nint(((NEl*nBasis)**2)*MemoryFacPart) * size_n_int * 2 )
-
-                ! We need room to potentially generate (N*M)^2 double excitations
-                ! but these will be spread across each processor.        
-                TwoEl_Gap = (((real(NEl,dp)*real(nBasis,dp))**2)*MemoryFacPart)/real(nProcessors,dp)
-
-                Doub_ExcDjs(:,:) = 0
-                Doub_ExcDjs2(:,:) = 0
-
-                ! This array contains the initial positions of the excitations
-                ! for each processor.
-                allocate(Doub_InitExcSlots(0:(nProcessors-1)), stat=ierr)
-                if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Doub_InitExcSlots array,')
-                do iproc = 0, nProcessors-1
-                    Doub_InitExcSlots(iproc) = nint(TwoEl_Gap*iproc) + 1
-                end do
-
-                ! This array contains the current position of the excitations
-                ! as they're added.
-                allocate(Doub_ExcList(0:(nProcessors-1)), stat=ierr)
-                if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Doub_ExcList array,')
-                Doub_ExcList(:) = Doub_InitExcSlots(:)
-            end if
-
-        else
-
-            ! Finally, we need to hold onto the parents of the spawned particles.
-            ! This is not necessary if we're doing completely explicit calculations.
-            allocate(Spawned_Parents(0:(NIfDBO+2), MaxSpawned), stat=ierr)
-            if (ierr .ne. 0) call stop_all(t_r,'Problem allocating Spawned_Parents array,')
-            call LogMemAlloc('Spawned_Parents', MaxSpawned*(NIfDBO+3), size_n_int,&
-                                                t_r,Spawned_ParentsTag, ierr)
-            allocate(Spawned_Parents_Index(2,MaxSpawned),stat=ierr)
-            if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Spawned_Parents_Index array,')
-            call LogMemAlloc('Spawned_Parents_Index', MaxSpawned*2,4, t_r,&
-                                                        Spawned_Parents_IndexTag, ierr)
-
-            MemoryAlloc = MemoryAlloc + ( (NIfTot + 2) * MaxSpawned * size_n_int ) 
-            MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 2) * MaxSpawned * size_n_int ) 
-
-            MemoryAlloc = MemoryAlloc + ( 2 * MaxSpawned * 4 ) 
-            MemoryAlloc_Root = MemoryAlloc_Root + ( 2 * MaxSpawned * 4 ) 
-
-        end if
-
-        if (iProcIndex .eq. 0) then
-            write(6,"(A,F14.6,A,F14.6,A)") " Main RDM memory arrays consists of : ", &
-                    & real(MemoryAlloc_Root,dp)/1048576.0_dp," Mb/Processor on the root, and ", &
-                    & real(MemoryAlloc,dp)/1048576.0_dp," Mb/Processor on other processors."
-        end if
-
-        ! These parameters are set for the set up of the symmetry arrays, which
-        ! are later used for the diagonalisation / rotation of the 1-RDMs.
-
-        if (tOpenShell) then
-            if (tFixLz) then
-                NoSymLabelCounts = 16 * ( (2 * iMaxLz) + 1 )
-            else
-                NoSymLabelCounts = 16 
-            end if
-        else
-            if (tFixLz) then
-                NoSymLabelCounts = 8 * ( (2 * iMaxLz) + 1 )
-            else
-                NoSymLabelCounts = 8
-            end if
         end if
 
         if ((RDMExcitLevel .eq. 1) .or. tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
-            ! These arrays contain indexing systems to order the 1-RDM orbitals
-            ! in terms of symmetry. This allows the diagonalisation of the RDMs
-            ! to be done in symmetry blocks (a lot quicker/easier).
-            ! The 2-RDM does not need to be reordered as it's never diagonalised. 
-
-            if(.not.allocated(SymLabelCounts2_rot)) allocate(SymLabelCounts2_rot(2, NoSymLabelCounts), stat=ierr)
-            if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating SymLabelCounts2_rot array,')
-            call LogMemAlloc('SymLabelCounts2_rot', 2*NoSymLabelCounts, 4, t_r, SymLabelCounts2_rotTag, ierr)
-            SymLabelCounts2_rot(:,:) = 0
-
-            allocate(SymLabelList2_rot(NoOrbs), stat=ierr)
-            if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating SymLabelList2_rot array,')
-            call LogMemAlloc('SymLabelList2_rot', NoOrbs, 4, t_r, SymLabelList2_rotTag, ierr)
-            SymLabelList2_rot(:) = 0
-     
-            allocate(SymLabelListInv_rot(NoOrbs), stat=ierr)
-            if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating SymLabelListInv_rot array,')
-            call LogMemAlloc('SymLabelListInv_rot', NoOrbs, 4, t_r, SymLabelListInv_rotTag, ierr)
-            SymLabelListInv_rot(:) = 0   
 
             if ((iProcIndex .eq. 0) .and. tDiagRDM) then
                 do i = 1, nrdms
@@ -531,30 +279,23 @@ contains
                 end do
             end if
 
-            ! This routine actually sets up the symmetry labels for the 1-RDM.
-            ! TODO: Merge this routine (and rotations later) with the NatOrbs file.
-            call SetUpSymLabels_RDM() 
-
-        end if            
-
-        if (iProcIndex .eq. 0) write(6,'(1X,"RDM memory allocation successful...")')
+        end if
 
         ! Open file to keep track of RDM estimates. 
         if ((iProcIndex .eq. 0) .and. tCalc_RDMEnergy) then
-            rdm_estimates_unit = get_free_unit()
-            open(rdm_estimates_unit, file='RDMEstimates', status='unknown', position='append')
+            rdm_write_unit_old = get_free_unit()
+            open(rdm_write_unit_old, file='RDMEstimates_old', status='unknown', position='append')
 
-            write(rdm_estimates_unit, '("#", 4X, "Iteration")', advance='no')
+            write(rdm_write_unit_old, '("#", 4X, "Iteration")', advance='no')
 
             do i = 1, nrdms
-                write(rdm_estimates_unit, '(4x,"Energy numerator",1x,i2)', advance='no') i
-                write(rdm_estimates_unit, '(4x,"Spin^2 numerator",1x,i2)', advance='no') i
-                write(rdm_estimates_unit, '(7x,"Normalisation",1x,i2)', advance='no') i
+                write(rdm_write_unit_old, '(4x,"Energy numerator",1x,i2)', advance='no') i
+                write(rdm_write_unit_old, '(4x,"Spin^2 numerator",1x,i2)', advance='no') i
+                write(rdm_write_unit_old, '(7x,"Normalisation",1x,i2)', advance='no') i
             end do
 
-            write(rdm_estimates_unit,'()')
+            write(rdm_write_unit_old,'()')
         end if
-        tFinalRDMEnergy = .false.
 
         ! Reads in the RDMs from a previous calculation, sets the accumulating
         ! normalisations, writes out the starting energy.
@@ -566,7 +307,7 @@ contains
                 write(6,'(A)') 'Ignoring the request to read in the RDMs and starting again.'
                 tReadRDMs = .false.
             else
-                call Read_In_RDMs(rdms(1), rdm_estimates, rdm_estimates_old(1))
+                call Read_In_RDMs(rdms(1), rdm_estimates_old(1))
             end if
         end if
 
@@ -576,13 +317,9 @@ contains
         ! is on, these wont be printed.  
         if (tPopsfile .and. (.not. tno_RDMs_to_read)) twrite_RDMs_to_read = .true.
 
-        nElRDM_Time%timer_name = 'nElRDMTime'
-        FinaliseRDMs_Time%timer_name = 'FinaliseRDMsTime'
-        RDMEnergy_Time%timer_name = 'RDMEnergyTime'
+    end subroutine InitRDMs_old
 
-    end subroutine InitRDMs
-
-    subroutine Read_In_RDMs(rdm, est, est_old)
+    subroutine Read_In_RDMs(rdm, est_old)
 
         ! Reads in the arrays to restart the RDM calculation (and continue
         ! accumulating). These arrays are not normalised, so the trace is
@@ -592,15 +329,13 @@ contains
         use LoggingData, only: IterRDMonFly
         use LoggingData, only: RDMExcitLevel
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: rdm_t, rdm_estimates_t, tOpenShell, tCalc_RDMEnergy
+        use rdm_data, only: rdm_t, tOpenShell, tCalc_RDMEnergy
         use rdm_data, only: rdm_estimates_old_t, rdm_estimates_old
-        use rdm_estimators, only: rdm_output_wrapper, write_rdm_estimates
-        use rdm_estimators_old, only: rdm_output_wrapper_old
+        use rdm_estimators_old, only: rdm_output_wrapper_old, write_rdm_estimates_old
         use RotateOrbsData, only: SymLabelListInv_rot
         use util_mod, only: get_free_unit
 
         type(rdm_t), intent(inout) :: rdm
-        type(rdm_estimates_t), intent(inout) :: est
         type(rdm_estimates_old_t), intent(inout) :: est_old
 
         logical :: exists_one
@@ -759,7 +494,7 @@ contains
         ! than the 1-RDM).
         if (tCalc_RDMEnergy) then
             call rdm_output_wrapper_old(rdm, 1, est_old)
-            if (iProcIndex == 0) call write_rdm_estimates(est, rdm_estimates_old)
+            if (iProcIndex == 0) call write_rdm_estimates_old(rdm_estimates_old)
         end if
 
         ! Continue calculating the RDMs from the first iteration when the popsfiles
@@ -767,152 +502,6 @@ contains
         IterRDMonFly = 0
 
     end subroutine Read_In_RDMs
-
-    subroutine SetUpSymLabels_RDM()
-
-        ! This routine just sets up the symmetry labels so that the orbitals
-        ! are ordered according to symmetry (all beta then all alpha if spin orbs).
-
-        use rdm_data, only: tOpenShell
-        use RotateOrbsData, only: SymLabelList2_rot, SymLabelCounts2_rot, SymLabelListInv_rot
-        use RotateOrbsData, only: NoOrbs, SpatOrbs, NoSymLabelCounts
-        use sort_mod, only: sort
-        use SystemData, only: G1, BRR, lNoSymmetry, tFixLz, iMaxLz
-        use UMatCache, only: gtID
-        use util_mod, only: LogMemAlloc, LogMemDealloc
-
-        integer, allocatable :: SymOrbs_rot(:)
-        integer :: SymOrbs_rotTag, ierr, i, j, SpatSym, LzSym 
-        integer :: lo, hi, Symi, SymCurr, Symi2, SymCurr2
-        character(len=*), parameter :: t_r = 'SetUpSymLabels_RDM'
-
-        ! This is only allocated temporarily to be used to order the orbitals by.
-        allocate(SymOrbs_rot(NoOrbs), stat=ierr)
-        call LogMemAlloc('SymOrbs_rot', NoOrbs, 4, t_r, SymOrbs_rotTag, ierr)
-        if (ierr .ne. 0) call stop_all(t_r, "Mem allocation for SymOrbs_rot failed.")
-
-        ! Now we want to put the spatial orbital index, followed by the symmetry.
-        SymLabelList2_rot(:) = 0
-        SymOrbs_rot(:) = 0
-
-        ! *** STEP 1 *** Fill SymLabelList2_rot.
-        ! Find the orbitals and order them in terms of symmetry.
-        do i=1, SpatOrbs
-            if (tOpenShell) then
-                ! For open shell systems, all alpha are followed by all beta.
-                SymLabelList2_rot(i) = BRR(2*i)
-                SymLabelList2_rot(i+SpatOrbs) = BRR((2*i)-1)
-
-                if (tFixLz) then
-                    SpatSym = int(G1(BRR(2*i))%sym%S)
-                    LzSym = int(G1(BRR(2*i))%Ml)
-                    SymOrbs_rot(i) = ( SpatSym * ((2 * iMaxLz) + 1) ) + ( LzSym + iMaxLz )
-
-                    SpatSym = int(G1(BRR((2*i)-1))%sym%S)
-                    LzSym = int(G1(BRR((2*i)-1))%Ml)
-                    SymOrbs_rot(i+SpatOrbs) = ( SpatSym * ((2 * iMaxLz) + 1) ) + ( LzSym + iMaxLz )
-                else
-                    SymOrbs_rot(i) = int(G1(BRR(2*i))%sym%S) 
-                    SymOrbs_rot(i+SpatOrbs) = int(G1(BRR((2*i)-1))%sym%S) 
-                end if
-            else
-                SymLabelList2_rot(i) = gtID(BRR(2*i))
-                if (tFixLz) then
-                    SpatSym = int(G1(BRR(2*i))%sym%S)
-                    LzSym = int(G1(BRR(2*i))%Ml)
-                    SymOrbs_rot(i) = ( SpatSym * ((2 * iMaxLz) + 1) ) + ( LzSym + iMaxLz )
-                else
-                    SymOrbs_rot(i) = int(G1(BRR(2*i))%sym%S)
-                end if
-                ! Orbital BRR(2*i) for i = 1 will be the beta orbital with the 
-                ! second lowest energy - want the spatial orbital index to go with this.
-                ! G1 also in spin orbitals - get symmetry of this beta orbital, will 
-                ! be the same as the spatial orbital.
-            end if
-        end do
-
-        call sort (SymOrbs_rot(1:SpatOrbs), SymLabelList2_rot(1:SpatOrbs))
-        ! Sorts SymLabelList2_rot according to the order of SymOrbs_rot
-        ! (i.e. in terms of symmetry).
-        if (tOpenShell) &
-            call sort (SymOrbs_rot(SpatOrbs+1:nBasis), SymLabelList2_rot(SpatOrbs+1:nBasis))
-            ! Also do this for the beta set if spin orbitals.
-
-        ! *** STEP 2 *** Fill SymLabelCounts2_rot_rot. This is like
-        ! SymLabelCounts2_rot, but has a different ordering - BEWARE.
-        ! SymLabelCounts(1,:) contains the position in SymLabelList2_rot
-        ! where the symmetry index starts, SymLabelCounts(2,:) contains the
-        ! number of orbitals in that symmetry index. Again if spin orbs, all
-        ! alpha are followed by all beta - i.e. first 8 refer to alpha, second
-        ! 8 to beta.
-
-        if (lNoSymmetry) then
-            ! If we are ignoring symmetry, all orbitals essentially have
-            ! symmetry 0.
-            SymLabelCounts2_rot(1,1) = 1
-            SymLabelCounts2_rot(2,1) = SpatOrbs
-            if (tOpenShell) then
-                SymLabelCounts2_rot(1,9) = SpatOrbs+1
-                SymLabelCounts2_rot(2,9) = SpatOrbs
-            end if
-        else 
-            ! Otherwise we run through the occupied orbitals, counting the
-            ! number with each symmetry (spatial and Lz) and noting where in
-            ! SymLabelList2_rot each symmetry block starts.
-            SymCurr = 0
-            SymLabelCounts2_rot(1,1) = 1
-            if (tOpenShell) then
-                SymCurr2 = 0
-                SymLabelCounts2_rot(1,9) = SpatOrbs + 1
-            end if
-            do i = 1,SpatOrbs
-                if (tOpenShell) then
-                    Symi = SymOrbs_rot(i)
-                    Symi2 = SymOrbs_rot(i + SpatOrbs)
-                else
-                    Symi = SymOrbs_rot(i)
-                end if
-                SymLabelCounts2_rot(2,(Symi+1)) = SymLabelCounts2_rot(2,(Symi+1)) + 1
-                if (Symi .ne. SymCurr) then
-                    do j = SymCurr + 1, Symi
-                        SymLabelCounts2_rot(1,(j+1)) = i
-                    end do
-                    SymCurr = Symi
-                end if
-                if (tOpenShell) then
-                    SymLabelCounts2_rot(2,(Symi2+9)) = SymLabelCounts2_rot(2,(Symi2+9))+1
-                    if (Symi2 .ne. SymCurr2) then
-                        do j = SymCurr2 + 1, Symi2
-                            SymLabelCounts2_rot(1,(j+9)) = i + SpatOrbs
-                        end do
-                        SymCurr2 = Symi2
-                    end if
-                end if
-            end do
-        end if
-
-        ! Go through each symmetry group, making sure the orbitals are 
-        ! ordered lowest to highest within each symmetry.
-        do i = 1, NoSymLabelCounts
-            if (SymLabelCounts2_rot(2,i) .ne. 0) then
-                lo = SymLabelCounts2_rot(1, i)
-                hi = lo + SymLabelCounts2_rot(2, i) - 1
-                call sort (SymLabelList2_rot (lo:hi))
-            end if
-        end do
-
-        ! Construct the inverse matrix. While SymLabelList2_rot takes a
-        ! position and tells us what orbital is in it, we also might need to
-        ! take an orbital and find out what position to put its contribution in.
-        do i = 1, NoOrbs
-            SymLabelListInv_rot(SymLabelList2_rot(i)) = i
-        end do
-
-        ! Deallocate the arrays just used in this routine.
-        deallocate(SymOrbs_rot)
-        call LogMemDealloc(t_r,SymOrbs_rotTag)
-
-    end subroutine SetUpSymLabels_RDM
 
     subroutine DeAlloc_Alloc_SpawnedParts()
 
@@ -972,7 +561,7 @@ contains
 
     ! Routines called at the end of a simulation.
 
-    subroutine FinaliseRDMs(rdms, rdm_estimates, rdm_estimates_old)
+    subroutine FinaliseRDMs_old(rdms, rdm_estimates_old)
 
         ! This routine performs some finalisation, including summing each of
         ! the individual matrices from each processor, and calling the
@@ -985,44 +574,29 @@ contains
         use LoggingData, only: tBrokenSymNOs, occ_numb_diff, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo, tDipoles
         use Parallel_neci, only: iProcIndex, MPIBarrier, MPIBCast, MPISumAll
-        use rdm_data, only: rdm_t, rdm_estimates_t, tRotatedNos, FinaliseRDMs_Time
+        use rdm_data, only: rdm_t, rdm_estimates_t, tRotatedNos
         use rdm_data, only: rdm_main, one_rdms, two_rdm_spawn, two_rdm_recv, tOpenShell
         use rdm_data, only: rdm_estimates_old_t
         use rdm_estimators_old, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
         use rdm_estimators_old, only: rdm_output_wrapper_old, CalcDipoles
         use rdm_estimators, only: rdm_output_wrapper, write_rdm_estimates
+        use rdm_init, only: Finalise_1e_RDM, calc_1e_norms
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
         use rdm_parallel, only: calc_rdm_trace, calc_1rdms_from_2rdms
         use rdm_parallel, only: create_spinfree_2rdm, calc_1rdms_from_spinfree_2rdms
-        use util_mod, only: set_timer, halt_timer
-
-        ! TODO: remove.
-        use hash, only: clear_hash_table
-        use SystemData, only: nel
 
         type(rdm_t), intent(inout) :: rdms(:)
-        type(rdm_estimates_t), intent(inout) :: rdm_estimates
         type(rdm_estimates_old_t), intent(inout) :: rdm_estimates_old(:)
 
-        integer :: i, error
+        integer :: i, ierr
         real(dp) :: Norm_1RDM, Trace_1RDM, SumN_Rho_ii
-        real(dp) :: rdm_trace(rdm_main%sign_length), all_rdm_trace(rdm_main%sign_length)
-        real(dp) :: all_rdm_norm(rdm_main%sign_length)
-
-        call set_timer(FinaliseRDMs_Time)
-
-        if (tExplicitAllRDM) then
-            write(6,'(/,"**** RDMs CALCULATED EXPLICITLY ****",1X,/)')
-        else
-            write(6,'(/,"**** RDMs CALCULATED STOCHASTICALLY ****",1X,/)')
-        end if
 
         ! Combine the 1- or 2-RDM from all processors, etc.
 
         do i = 1, size(rdms)
 
             if (RDMExcitLevel .eq. 1) then
-                call Finalise_1e_RDM(rdms(i)%matrix, rdms(i)%Rho_ii, i, Norm_1RDM)
+                call Finalise_1e_RDM(rdms(i)%matrix, rdms(i)%Rho_ii, i, Norm_1RDM, .true.)
             else
                 ! We always want to calculate one final RDM energy, whether or not we're 
                 ! calculating the energy throughout the calculation.
@@ -1035,21 +609,21 @@ contains
                 call rdm_output_wrapper_old(rdms(i), i, rdm_estimates_old(i))
 
                 if (tPrint1RDM) then
-                    call Finalise_1e_RDM(rdms(i)%matrix, rdms(i)%Rho_ii, i, Norm_1RDM)
+                    call Finalise_1e_RDM(rdms(i)%matrix, rdms(i)%Rho_ii, i, Norm_1RDM, .true.)
                 else if (tDiagRDM .and. (iProcIndex .eq. 0)) then
                     call calc_1e_norms(rdms(i)%matrix, rdms(i)%Rho_ii, Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
                     write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
                 end if
 
                 if (tDumpForcesInfo) then
-                    if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(i)%matrix, rdms(i)%Rho_ii, i, Norm_1RDM)
+                    if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(i)%matrix, rdms(i)%Rho_ii, i, Norm_1RDM, .true.)
                     call Calc_Lagrangian_from_RDM(rdms(i), Norm_1RDM, rdm_estimates_old(i)%Norm_2RDM)
                     call convert_mats_Molpforces(rdms(i), Norm_1RDM, rdm_estimates_old(i)%Norm_2RDM)
                 end if
 
             end if
 
-            call MPIBarrier(error)
+            call MPIBarrier(ierr)
 
             ! Call the routines from NatOrbs that diagonalise the one electron
             ! reduced density matrix.
@@ -1059,7 +633,7 @@ contains
             ! This is where we would likely call any further calculations of
             ! forces, etc.
             if (tDipoles) then
-                if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(i)%matrix, rdms(i)%Rho_ii, i, Norm_1RDM)
+                if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(i)%matrix, rdms(i)%Rho_ii, i, Norm_1RDM, .true.)
                 call CalcDipoles(rdms(i), Norm_1RDM)
             end if
 
@@ -1071,351 +645,9 @@ contains
 
         end do
 
-        if (tPrint1RDM) then
-            if (RDMExcitLevel == 1) then
-                do i = 1, size(one_rdms)
-                    call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%Rho_ii, i, Norm_1RDM, .true.)
-                end do
-            else
-                call calc_rdm_trace(rdm_main, rdm_trace)
-                call MPISumAll(rdm_trace, all_rdm_trace)
-                all_rdm_norm = all_rdm_trace*2.0_dp/(nel*(nel-1))
+    end subroutine FinaliseRDMs_old
 
-                !two_rdm_spawn%free_slots = two_rdm_spawn%init_free_slots
-                !call clear_hash_table(two_rdm_spawn%rdm_send%hash_table)
-                !call create_spinfree_2rdm(rdm_main, two_rdm_spawn)
-                !call calc_1rdms_from_spinfree_2rdms(one_rdms, rdm_recv, all_rdm_trace)
-
-                call calc_1rdms_from_2rdms(one_rdms, rdm_main, all_rdm_norm, tOpenShell)
-
-                if (iProcIndex == 0) then
-                    do i = 1, size(one_rdms)
-                        call Write_out_1RDM(one_rdms(i)%matrix, i, 1.0_dp, .true., .true.)
-                    end do
-                end if
-            end if
-        end if
-
-        if (RDMExcitLevel /= 1) call rdm_output_wrapper(rdm_estimates, rdm_main, two_rdm_recv, two_rdm_spawn)
-
-        if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates, rdm_estimates_old)
-#ifdef _MOLCAS_
-            NECI_E = rdm_estimates_old(1)%RDMEnergy
-            call MPIBarrier(error)
-            call MPIBCast(NECI_E)
-            write(6,*) 'NECI_E at rdm_general.f90 ', NECI_E
-#endif
-
-        call halt_timer(FinaliseRDMs_Time)
-    
-    end subroutine FinaliseRDMs
-
-    subroutine Finalise_1e_RDM(matrix, matrix_diag, irdm, Norm_1RDM, tDifferentName) 
-
-        ! This routine takes the 1-RDM (matrix), normalises it, makes it 
-        ! hermitian if required, and prints out the versions we're interested
-        ! in. This is only ever called at the very end of a calculation.
-
-        use LoggingData, only: twrite_RDMs_to_read, twrite_normalised_RDMs, tForceCauchySchwarz
-        use LoggingData, only: RDMExcitLevel
-        use Parallel_neci, only: iProcIndex, MPISumAll
-        use rdm_data, only: rdm_t
-        use RotateOrbsData, only: NoOrbs
-
-        real(dp), intent(inout) :: matrix(:,:)
-        real(dp), intent(inout) :: matrix_diag(:)
-        integer, intent(in) :: irdm
-        real(dp), intent(out) :: Norm_1RDM
-        logical, optional, intent(in) :: tDifferentName
-                             
-        integer :: ierr
-        real(dp) :: Trace_1RDM, SumN_Rho_ii
-        real(dp), allocatable :: AllNode_one_rdm(:,:)
-
-        Norm_1RDM = 0.0_dp
-
-        if (RDMExcitLevel == 1) then
-
-            allocate(AllNode_one_rdm(NoOrbs, NoOrbs), stat=ierr)
-            
-            call MPISumAll(matrix, AllNode_one_rdm)
-            matrix = AllNode_one_rdm
-            
-            deallocate(AllNode_one_rdm)
-
-        end if
-
-        if (iProcIndex == 0) then
-
-            ! Find the normalisation.
-            call calc_1e_norms(matrix, matrix_diag, Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
-
-            ! Write out the unnormalised, non-hermitian OneRDM_POPS.
-            if (twrite_RDMs_to_read) call Write_out_1RDM(matrix, irdm, Norm_1RDM, .false.)
-
-            ! Enforce the hermiticity condition.  If the RDMExcitLevel is not 1, the 
-            ! 1-RDM has been constructed from the hermitian 2-RDM, so this will not 
-            ! be necessary.
-            ! The HF_Ref and HF_S_D_Ref cases are not hermitian by definition.
-            if (RDMExcitLevel == 1) then
-                call make_1e_rdm_hermitian(matrix, Norm_1RDM) 
-                
-                if (tForceCauchySchwarz) then
-                    call Force_Cauchy_Schwarz(matrix)
-                end if
-
-            end if
-
-            ! Write out the final, normalised, hermitian OneRDM.
-            if (tWrite_normalised_RDMs) call Write_out_1RDM(matrix, irdm, Norm_1RDM, .true., tDifferentName)
-
-            write(6,'(1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
-
-        end if
-
-    end subroutine Finalise_1e_RDM
-
-    subroutine calc_1e_norms(matrix, matrix_diag, Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
-
-        ! We want to 'normalise' the reduced density matrices. These are not
-        ! even close to being normalised at the moment, because of the way
-        ! they are calculated on the fly. They should be calculated from a
-        ! normalised wavefunction. But we know that the trace of the one
-        ! electron reduced density matrix must be equal to the number of the
-        ! electrons. We can use this to find the factor we must divide the
-        ! 1-RDM through by.
-
-        use FciMCData, only: HFDet_True
-        use LoggingData, only: tDiagRDM
-        use rdm_data, only: tOpenShell
-        use RotateOrbsData, only: SymLabelListInv_rot, NoOrbs
-        use SystemData, only: BRR
-        use UMatCache, only: gtID
-
-        real(dp), intent(in) :: matrix(:,:)
-        real(dp), intent(inout) :: matrix_diag(:)
-        real(dp), intent(out) :: Trace_1RDM, Norm_1RDM, SumN_Rho_ii
-
-        integer :: i, HFDet_ID, BRR_ID
-
-        Trace_1RDM = 0.0_dp
-        Norm_1RDM = 0.0_dp
-
-        do i = 1, NoOrbs
-            Trace_1RDM = Trace_1RDM + matrix(i,i)
-        end do
-
-        Norm_1RDM = ( real(NEl, dp) / Trace_1RDM )
-        
-        ! Need to multiply each element of the 1 electron reduced density matrices 
-        ! by NEl / Trace_1RDM,
-        ! and then add it's contribution to the energy.
-        
-        ! Want to sum the diagonal elements of the 1-RDM for the HF orbitals.
-        ! Given the HF orbitals, SymLabelListInv_rot tells us their position
-        ! in the 1-RDM.
-        SumN_Rho_ii = 0.0_dp
-
-        do i = 1, NoOrbs
-
-            ! Rho_ii is the diagonal elements of the 1-RDM. We want this
-            ! ordered according to the energy of the orbitals. Brr has the
-            ! orbital numbers in order of energy... i.e Brr(2) = the orbital
-            ! index with the second lowest energy. Brr is always in spin
-            ! orbitals. i gives the energy level, BRR gives the orbital,
-            ! SymLabelListInv_rot gives the position of  this orbital in
-            ! one_rdm.
-            
-            if (tDiagRDM) then
-                if (tOpenShell) then
-                    matrix_diag(i) = matrix(SymLabelListInv_rot(BRR(i)),SymLabelListInv_rot(BRR(i))) * Norm_1RDM
-                else
-                    BRR_ID = gtID(BRR(2*i))
-                    matrix_diag(i) = matrix(SymLabelListInv_rot(BRR_ID),SymLabelListInv_rot(BRR_ID)) * Norm_1RDM
-                end if
-            end if
-    
-            if (i.le.NEl) then
-                if (tOpenShell) then
-                    SumN_Rho_ii = SumN_Rho_ii + &
-                            ( matrix(SymLabelListInv_rot(HFDet_True(i)),SymLabelListInv_rot(HFDet_True(i))) &
-                                * Norm_1RDM )
-                else
-                    HFDet_ID = gtID(HFDet_True(i))
-                    SumN_Rho_ii = SumN_Rho_ii + &
-                            ( matrix(SymLabelListInv_rot(HFDet_ID),SymLabelListInv_rot(HFDet_ID)) &
-                                * Norm_1RDM ) / 2.0_dp
-                end if
-            end if
-        end do
-
-    end subroutine calc_1e_norms
-
-    subroutine make_1e_rdm_hermitian(matrix, Norm_1RDM)
-
-        ! Simply average the 1-RDM(i,j) and 1-RDM(j,i) elements which should
-        ! be equal in a perfect world.
-
-        use RotateOrbsData, only: SymLabelListInv_rot, NoOrbs
-
-        real(dp), intent(inout) :: matrix(:,:)
-        real(dp), intent(in) :: Norm_1RDM
-
-        real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity 
-        integer :: i, j
-        real(dp) :: Temp
-
-        Max_Error_Hermiticity = 0.0_dp
-        Sum_Error_Hermiticity = 0.0_dp
-        do i = 1, NoOrbs
-            do j = i, NoOrbs
-                if ((abs((matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
-                        (matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))).gt.Max_Error_Hermiticity) &
-                    Max_Error_Hermiticity = abs((matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
-                                                (matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))
-
-                Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                        abs((matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
-                                            (matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))
-
-                Temp = (matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) + &
-                        matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)))/2.0_dp
-
-                matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = Temp
-                matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = Temp
-            end do
-        end do
-
-        ! Output the hermiticity errors.
-        write(6,'(1X,"MAX ABS ERROR IN 1RDM HERMITICITY",F20.13)') Max_Error_Hermiticity
-        write(6,'(1X,"MAX ABS ERROR IN 1RDM HERMITICITY",F20.13)') Sum_Error_Hermiticity
-
-    end subroutine make_1e_rdm_hermitian
-
-    subroutine Force_Cauchy_Schwarz(matrix)
-
-        use RotateOrbsData, only: SymLabelListInv_rot
-
-        real(dp), intent(inout) :: matrix(:,:)
-
-        integer :: i, j
-        real(dp) :: UpperBound
-
-        write(6,'("Ensuring that Cauchy--Schwarz inequality holds.")')
-
-        do i = 1, nBasis
-            do j = 1, nBasis
-
-                UpperBound = sqrt(matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(i))&
-                    *matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(j)))
-
-                if (abs(matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))) .gt. UpperBound)then
-
-                    if (matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) .lt. 0.0_dp)then
-                        matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = -UpperBound
-                    else if (matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) .gt. 0.0_dp)then
-                        matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = UpperBound
-                    end if
-
-                    write(6,'("Changing element:")') i, j
-                else
-                    cycle
-                end if
-            end do
-        end do
-
-    end subroutine Force_Cauchy_Schwarz
-
-    subroutine Write_out_1RDM(one_rdm, irdm, Norm_1RDM, tNormalise, tDifferentName)
-
-        ! This routine writes out the OneRDM. If tNormalise is true, we are
-        ! printing the normalised, hermitian matrix. Otherwise, Norm_1RDM is
-        ! ignored and we print both 1-RDM(i,j) and 1-RDM(j,i) (in binary) 
-        ! for the OneRDM_POPS file to be read in in a restart calculation.
-
-        use rdm_data, only: rdm_t, tOpenShell
-        use RotateOrbsData, only: SymLabelListInv_rot
-        use UMatCache, only: gtID
-        use util_mod, only: get_free_unit, int_fmt
-
-        real(dp), intent(in) :: one_rdm(:,:)
-        integer, intent(in) :: irdm
-        real(dp), intent(in) :: Norm_1RDM
-        logical, intent(in) :: tNormalise
-        ! TODO: REMOVE. Just for testing...
-        logical, optional, intent(in) :: tDifferentName
-
-        integer :: i, j, iSpat, jSpat
-        integer :: OneRDM_unit
-        character(20) :: filename
-
-        if (tNormalise) then
-            ! Haven't got the capabilities to produce multiple 1-RDMs yet.
-            write(6,'(1X,"Writing out the *normalised* 1 electron density matrix to file")')
-            call neci_flush(6)
-            OneRDM_unit = get_free_unit()
-#ifdef _MOLCAS_
-            call molcas_open(OneRDM_unit, "ONERDM")
-#else
-            if (present(tDifferentName)) then
-                write(filename, '("new_OneRDM.",'//int_fmt(irdm,0)//')') irdm
-                open(OneRDM_unit, file=trim(filename), status='unknown')
-            else
-                write(filename, '("OneRDM.",'//int_fmt(irdm,0)//')') irdm
-                open(OneRDM_unit, file=trim(filename), status='unknown')
-            end if
-#endif
-        else
-            ! Only every write out 1 of these at the moment.
-            write(6,'(1X,"Writing out the *unnormalised* 1 electron density matrix to file for reading in")')
-            call neci_flush(6)
-            OneRDM_unit = get_free_unit()
-            open(OneRDM_unit, file='OneRDM_POPS', status='unknown', form='unformatted')
-        end if
-
-        ! Currently always printing 1-RDM in spin orbitals.
-        do i = 1, nBasis
-            do j = 1, nBasis
-                if (tOpenShell) then
-                    if (abs(one_rdm(SymLabelListInv_rot(i), SymLabelListInv_rot(j))) > 1.0e-12_dp) then 
-                        if (tNormalise .and. (i .le. j)) then
-                            write(OneRDM_unit,"(2I6,G25.17)") i, j, &
-                                one_rdm(SymLabelListInv_rot(i), SymLabelListInv_rot(j)) * Norm_1RDM
-                        else if (.not. tNormalise) then
-                            ! For the pops, we haven't made the 1-RDM hermitian yet, 
-                            ! so print both the 1-RDM(i,j) and 1-RDM(j,i) elements.
-                            ! This is written in binary.
-                            write(OneRDM_unit) i, j, one_rdm(SymLabelListInv_rot(i), SymLabelListInv_rot(j))
-                        end if
-                    end if
-                else
-                    iSpat = gtID(i)
-                    jSpat = gtID(j)
-                    if (abs(one_rdm(SymLabelListInv_rot(iSpat), SymLabelListInv_rot(jSpat))) > 1.0e-12_dp) then
-                        if (tNormalise .and. (i .le. j)) then
-                            if (((mod(i,2).eq.0) .and. (mod(j,2) .eq. 0)) .or. &
-                                ((mod(i,2).ne.0) .and. (mod(j,2) .ne. 0))) then
-                                write(OneRDM_unit,"(2I6,G25.17)") i, j, & 
-                                    ( one_rdm(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat)) &
-                                                                    * Norm_1RDM ) / 2.0_dp
-                            end if
-                        else if (.not. tNormalise) then
-                            ! The popsfile can be printed in spatial orbitals.
-                            if ((mod(i,2) .eq. 0) .and. (mod(j,2) .eq. 0)) then
-                                write(OneRDM_unit) iSpat, jSpat, & 
-                                    one_rdm(SymLabelListInv_rot(iSpat), SymLabelListInv_rot(jSpat)) 
-                            end if
-                        end if
-                    end if
-                end if
-            end do
-        end do
-
-        close(OneRDM_unit)
-
-    end subroutine Write_out_1RDM
-
-    subroutine DeallocateRDMs()
+    subroutine DeallocateRDMs_old()
 
         ! This routine just deallocates the arrays allocated in InitRDMs.
         ! If the NECI calculation softexits before the RDMs start to fill,
@@ -1435,78 +667,7 @@ contains
         use util_mod, only: LogMemDealloc
 
         integer :: i
-        character(len=*), parameter :: t_r = 'DeallocateRDMs'
-
-        if (tExplicitAllRDM) then
-
-            ! This array contains the initial positions of the single
-            ! excitations for each processor.
-            deallocate(Sing_InitExcSlots)
- 
-            ! This array contains the current position of the single
-            ! excitations as they're added.
-            deallocate(Sing_ExcList)
-
-            ! This array actually contains the single excitations in blocks of
-            ! the processor they will be sent to.        
-            deallocate(Sing_ExcDjs)
-            call LogMemDeAlloc(t_r,Sing_ExcDjsTag)
-
-            deallocate(Sing_ExcDjs2)
-            call LogMemDeAlloc(t_r,Sing_ExcDjs2Tag)
-
-
-            if (RDMExcitLevel .ne. 1) then
-                ! This array contains the initial positions of the
-                ! single excitations for each processor.
-                deallocate(Doub_InitExcSlots)
- 
-                ! This array contains the current position of the single
-                ! excitations as they're added.
-                deallocate(Doub_ExcList)
-
-                ! This array actually contains the single excitations in
-                ! blocks of the  processor they will be sent to.        
-                deallocate(Doub_ExcDjs)
-                call LogMemDeAlloc(t_r,Doub_ExcDjsTag)
-     
-                deallocate(Doub_ExcDjs2)
-                call LogMemDeAlloc(t_r,Doub_ExcDjs2Tag)
-            end if
-
-        else
-
-            if (allocated(Spawned_Parents)) then
-                deallocate(Spawned_Parents)
-                call LogMemDeAlloc(t_r,Spawned_ParentsTag)
-            end if
-
-            if (allocated(Spawned_Parents_Index)) then
-                deallocate(Spawned_Parents_Index)
-                call LogMemDeAlloc(t_r,Spawned_Parents_IndexTag)
-            end if
-
-        end if
-
-        if (allocated(FourIndInts)) then
-            deallocate(FourIndInts)
-            call LogMemDeAlloc(t_r,FourIndIntsTag)
-        end if
-
-        if (allocated(SymLabelCounts2_rot)) then
-            deallocate(SymLabelCounts2_rot)
-            call LogMemDeAlloc(t_r,SymLabelCounts2_rotTag)
-        end if
-
-        if (allocated(SymLabelList2_rot)) then
-            deallocate(SymLabelList2_rot)
-            call LogMemDeAlloc(t_r,SymLabelList2_rotTag)
-        end if
-
-        if (allocated(SymLabelListInv_rot)) then
-            deallocate(SymLabelListInv_rot)
-            call LogMemDeAlloc(t_r,SymLabelListInv_rotTag)
-        end if
+        character(len=*), parameter :: t_r = 'DeallocateRDMs_old'
 
         do i = 1, size(rdms)
             if (allocated(rdms(i)%matrix)) then
@@ -1621,11 +782,9 @@ contains
 
         deallocate(rdms)
 
-    end subroutine DeallocateRDMs
-
+    end subroutine DeallocateRDMs_old
 
     ! Some general routines used during the main simulation.
-
 
     subroutine extract_bit_rep_avsign_no_rdm(iLutnI, j, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
 

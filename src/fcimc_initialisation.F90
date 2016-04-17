@@ -48,7 +48,7 @@ module fcimc_initialisation
                            tDiagWalkerSubspace, tPrintOrbOcc, OrbOccs, &
                            tHistInitPops, OrbOccsTag, tHistEnergies, &
                            HistInitPops, AllHistInitPops, OffDiagMax, &
-                           OffDiagBinRange, iDiagSubspaceIter, &
+                           OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
@@ -87,7 +87,9 @@ module fcimc_initialisation
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD, only : InitHistInitPops
     use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
-    use rdm_general, only: DeallocateRDMs, InitRDMs, extract_bit_rep_avsign_no_rdm
+    use rdm_init, only: init_rdms, deallocate_rdms
+    use rdm_general, only: DeallocateRDMs_old, InitRDMs_old, &
+                           extract_bit_rep_avsign_no_rdm
     use rdm_filling_old, only: fill_rdm_diag_currdet_norm_old
     use rdm_filling, only: fill_rdm_diag_currdet_norm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
@@ -1371,7 +1373,10 @@ contains
             call init_yama_store ()
         endif
     
-        if (tRDMonFly) call InitRDMs(nrdms)
+        if (tRDMonFly) then
+            call init_rdms(nrdms)
+            if (tOldRDMs) call InitRDMs_old(nrdms)
+        end if
         ! This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
         ! Initialises RDM stuff for both explicit and stochastic calculations of RDM.
 
@@ -1646,7 +1651,11 @@ contains
             ENDIF
         ENDIF
 
-        IF(tRDMonFly) CALL DeallocateRDMs()
+        if (tRDMonFly) then
+            call deallocate_rdms()
+            if (tOldRDMs) call DeallocateRDMs_old()
+        end if
+
         if (allocated(refdetflip)) deallocate(refdetflip)
         if (allocated(ilutrefflip)) deallocate(ilutrefflip)
         if (allocated(ValidSpawnedList)) deallocate(ValidSpawnedList)

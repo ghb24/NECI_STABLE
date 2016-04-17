@@ -104,4 +104,6 @@ module LoggingData
     logical :: tOutputLoadDistribution
 
     logical :: tHDF5PopsRead, tHDF5PopsWrite
+
+    logical :: tOldRDMs = .false.
 end module LoggingData

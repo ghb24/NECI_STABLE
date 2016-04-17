@@ -22,10 +22,6 @@ module rdm_data
 
     logical :: tRotatedNOs = .false.
 
-    ! Unit of the separate file to which RDM estimates (such as energy and
-    ! spin^2) are output.
-    integer :: rdm_estimates_unit
-
     ! Arrays used as storage when summing RDMs over all processors.
     real(dp), allocatable :: AllNodes_RDM_small(:,:), AllNodes_RDM_large(:,:)
 
@@ -47,6 +43,10 @@ module rdm_data
 
     ! Timers.
     type(timer), save :: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
+
+    ! Unit of the separate file to which RDM estimates (such as energy and
+    ! spin^2) are output - for *old* RDM accumulation only.
+    integer :: rdm_write_unit_old
 
     ! Derived type to hold data for each RDM - other global data will be
     ! removed after purification work.
@@ -122,6 +122,10 @@ module rdm_data
     type rdm_estimates_t
         integer :: nrdms
 
+        ! Unit of the separate file to which RDM estimates (such as energy and
+        ! spin^2) are output.
+        integer :: write_unit
+
         real(dp), allocatable :: trace(:)
         real(dp), allocatable :: norm(:)
 
@@ -133,6 +137,10 @@ module rdm_data
 
         real(dp), allocatable :: max_error_herm(:)
         real(dp), allocatable :: sum_error_herm(:)
+
+        real(dp), allocatable :: energy_tot_num_accum(:)
+        real(dp), allocatable :: spin_num_accum(:)
+        real(dp), allocatable :: norm_accum(:)
     end type rdm_estimates_t
 
     ! Array of type rdm_t, for holding multiple different RDM instances.

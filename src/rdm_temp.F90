@@ -217,33 +217,33 @@ contains
             abba_RDM_unit = get_free_unit()
             call molcas_open(abba_RDM_unit,'TWORDM3')
 #else
-            write(stem, '("TwoRDM_aaaa.",'//int_fmt(rdm_label,0)//')') rdm_label
+            write(stem, '("TwoRDM_aaaa_old.",'//int_fmt(rdm_label,0)//')') rdm_label
             call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_aaaa_name)
             aaaa_RDM_unit = get_free_unit()
             open(aaaa_RDM_unit, file=TwoRDM_aaaa_name, status='unknown')
 
-            write(stem, '("TwoRDM_abab.",'//int_fmt(rdm_label,0)//')') rdm_label
+            write(stem, '("TwoRDM_abab_old.",'//int_fmt(rdm_label,0)//')') rdm_label
             call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_abab_name)
             abab_RDM_unit = get_free_unit()
             open(abab_RDM_unit, file=TwoRDM_abab_name, status='unknown')
 
-            write(stem, '("TwoRDM_abba.",'//int_fmt(rdm_label,0)//')') rdm_label
+            write(stem, '("TwoRDM_abba_old.",'//int_fmt(rdm_label,0)//')') rdm_label
             call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_abba_name)
             abba_RDM_unit = get_free_unit()
             open(abba_RDM_unit, file=TwoRDM_abba_name, status='unknown')
 #endif
             if (tOpenShell) then
-                write(stem, '("TwoRDM_bbbb.",'//int_fmt(rdm_label,0)//')') rdm_label
+                write(stem, '("TwoRDM_bbbb_old.",'//int_fmt(rdm_label,0)//')') rdm_label
                 call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_bbbb_name)
                 bbbb_RDM_unit = get_free_unit()
                 open(bbbb_RDM_unit,file=TwoRDM_bbbb_name, status='unknown')
 
-                write(stem, '("TwoRDM_baba.",'//int_fmt(rdm_label,0)//')') rdm_label
+                write(stem, '("TwoRDM_baba_old.",'//int_fmt(rdm_label,0)//')') rdm_label
                 call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_baba_name)
                 baba_RDM_unit = get_free_unit()
                 open(baba_RDM_unit, file=TwoRDM_baba_name, status='unknown')
 
-                write(stem, '("TwoRDM_baab.",'//int_fmt(rdm_label,0)//')') rdm_label
+                write(stem, '("TwoRDM_baab_old.",'//int_fmt(rdm_label,0)//')') rdm_label
                 call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_baab_name)
                 baab_RDM_unit = get_free_unit()
                 open(baab_RDM_unit, file=TwoRDM_baab_name, status='unknown')
@@ -254,28 +254,28 @@ contains
             call neci_flush(6)
 
             aaaa_RDM_unit = get_free_unit()
-            write(stem, '("TwoRDM_POPS_aaaa.",'//int_fmt(rdm_label,0)//')') rdm_label
+            write(stem, '("TwoRDM_POPS_aaaa_old.",'//int_fmt(rdm_label,0)//')') rdm_label
             open(aaaa_RDM_unit, file=trim(stem), status='unknown', form='unformatted')
 
             abab_RDM_unit = get_free_unit()
-            write(stem, '("TwoRDM_POPS_abab.",'//int_fmt(rdm_label,0)//')') rdm_label
+            write(stem, '("TwoRDM_POPS_abab_old.",'//int_fmt(rdm_label,0)//')') rdm_label
             open(abab_RDM_unit, file=trim(stem), status='unknown', form='unformatted')
 
             abba_RDM_unit = get_free_unit()
-            write(stem, '("TwoRDM_POPS_abba.",'//int_fmt(rdm_label,0)//')') rdm_label
+            write(stem, '("TwoRDM_POPS_abba_old.",'//int_fmt(rdm_label,0)//')') rdm_label
             open(abba_RDM_unit, file=trim(stem), status='unknown', form='unformatted')
 
             if (tOpenShell) then
                 bbbb_RDM_unit = get_free_unit()
-                write(stem, '("TwoRDM_POPS_bbbb.",'//int_fmt(rdm_label,0)//')') rdm_label
+                write(stem, '("TwoRDM_POPS_bbbb_old.",'//int_fmt(rdm_label,0)//')') rdm_label
                 open(bbbb_RDM_unit, file=trim(stem), status='unknown', form='unformatted')
 
                 baba_RDM_unit = get_free_unit()
-                write(stem, '("TwoRDM_POPS_baba.",'//int_fmt(rdm_label,0)//')') rdm_label
+                write(stem, '("TwoRDM_POPS_baba_old.",'//int_fmt(rdm_label,0)//')') rdm_label
                 open(baba_RDM_unit, file=trim(stem), status='unknown', form='unformatted')
 
                 baab_RDM_unit = get_free_unit()
-                write(stem, '("TwoRDM_POPS_baab.",'//int_fmt(rdm_label,0)//')') rdm_label
+                write(stem, '("TwoRDM_POPS_baab_old.",'//int_fmt(rdm_label,0)//')') rdm_label
                 open(baab_RDM_unit, file=trim(stem), status='unknown', form='unformatted')
             end if
         end if
@@ -721,7 +721,7 @@ contains
         write(6, '(1X,"Writing out the spinfree RDM for state",'//int_fmt(rdm_label,1)//')') rdm_label
 
         spinfree_RDM_unit = get_free_unit()
-        write(RDM_filename, '("spinfree_TwoRDM.",'//int_fmt(rdm_label,0)//')') rdm_label
+        write(RDM_filename, '("spinfree_TwoRDM_old.",'//int_fmt(rdm_label,0)//')') rdm_label
         open(spinfree_RDM_unit, file=trim(RDM_filename), status="replace")
         
         do j = 1, SpatOrbs

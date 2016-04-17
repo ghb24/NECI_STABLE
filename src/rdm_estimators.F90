@@ -7,12 +7,15 @@ module rdm_estimators
 
 contains
 
-    subroutine init_rdm_estimates_t(est, nrdms)
+    subroutine init_rdm_estimates_t(est, nrdms, open_output_file)
 
+        use Parallel_neci, only: iProcIndex
         use rdm_data, only: rdm_estimates_t
+        use util_mod, only: get_free_unit
 
         type(rdm_estimates_t), intent(out) :: est
         integer, intent(in) :: nrdms
+        logical, intent(in) :: open_output_file
 
         integer :: ierr
 
@@ -30,6 +33,10 @@ contains
         allocate(est%max_error_herm(nrdms), stat=ierr)
         allocate(est%sum_error_herm(nrdms), stat=ierr)
 
+        allocate(est%energy_tot_num_accum(nrdms), stat=ierr)
+        allocate(est%spin_num_accum(nrdms), stat=ierr)
+        allocate(est%norm_accum(nrdms), stat=ierr)
+
         est%trace = 0.0_dp
         est%norm = 0.0_dp
 
@@ -42,7 +49,36 @@ contains
         est%max_error_herm = 0.0_dp
         est%sum_error_herm = 0.0_dp
 
+        est%energy_tot_num_accum = 0.0_dp
+        est%spin_num_accum = 0.0_dp
+        est%norm_accum = 0.0_dp
+
+        if (iProcIndex == 0 .and. open_output_file) then
+            est%write_unit = get_free_unit()
+            call write_rdm_est_file_header(est%write_unit, nrdms)
+        end if
+
     end subroutine init_rdm_estimates_t
+
+    subroutine write_rdm_est_file_header(write_unit, nrdms)
+
+        integer, intent(in) :: write_unit, nrdms
+
+        integer :: irdm
+
+        open(write_unit, file='RDMEstimates', status='unknown', position='append')
+
+        write(write_unit, '("#", 4X, "Iteration")', advance='no')
+
+        do irdm = 1, nrdms
+            write(write_unit, '(4x,"Energy numerator",1x,i2)', advance='no') irdm
+            write(write_unit, '(4x,"Spin^2 numerator",1x,i2)', advance='no') irdm
+            write(write_unit, '(7x,"Normalisation",1x,i2)', advance='no') irdm
+        end do
+
+        write(write_unit,'()')
+
+    end subroutine write_rdm_est_file_header
 
     subroutine rdm_output_wrapper(est, rdm, rdm_recv, spawn)
 
@@ -89,51 +125,46 @@ contains
 
     end subroutine rdm_output_wrapper
 
-    subroutine write_rdm_estimates(est, est_old)
+    subroutine write_rdm_estimates(est)
 
         use FciMCData, only: tFinalRDMEnergy, Iter, PreviousCycles
         use LoggingData, only: tRDMInstEnergy
-        use rdm_data, only: rdm_estimates_t, rdm_estimates_unit
-        use rdm_data, only: rdm_estimates_old_t
+        use rdm_data, only: rdm_estimates_t
         use util_mod, only: int_fmt
 
         type(rdm_estimates_t), intent(in) :: est
-        type(rdm_estimates_old_t), intent(in) :: est_old(:)
 
-        integer :: i
+        integer :: irdm
 
         if (tRDMInstEnergy) then
-            write(rdm_estimates_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
-            do i = 1, est%nrdms
-                write(rdm_estimates_unit, '(6(3x,es20.13))', advance='no') &
-                    est_old(i)%RDMEnergy_Inst, est_old(i)%spin_est, 1.0_dp/est_old(i)%Norm_2RDM_Inst, &
-                    est%energy_tot_num(i), est%spin_num(i), est%norm(i)
+            write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
+            do irdm = 1, est%nrdms
+                write(est%write_unit, '(3(3x,es20.13))', advance='no') &
+                    est%energy_tot_num(irdm), est%spin_num(irdm), est%norm(irdm)
             end do
-            write(rdm_estimates_unit,'()')
-
+            write(est%write_unit,'()')
         else
-
-            write(rdm_estimates_unit, '(1x,i13)') Iter+PreviousCycles
-            do i = 1, est%nrdms
-                write(rdm_estimates_unit, '(3(3x,es20.13))', advance='no') &
-                    est_old(i)%RDMEnergy, est_old(i)%spin_est, 1.0_dp/est_old(i)%Norm_2RDM_Inst
+            write(est%write_unit, '(1x,i13)') Iter+PreviousCycles
+            do irdm = 1, est%nrdms
+                write(est%write_unit, '(3(3x,es20.13))', advance='no') &
+                    est%energy_tot_num_accum(irdm), est%spin_num_accum(irdm), est%norm_accum(irdm)
             end do
-            write(rdm_estimates_unit, '()')
+            write(est%write_unit, '()')
         end if
 
-        call neci_flush(rdm_estimates_unit)
+        call neci_flush(est%write_unit)
 
         if (tFinalRDMEnergy) then
-            do i = 1, est%nrdms
-                write(6,'(1x,"FINAL ESTIMATES FOR RDM",1X,'//int_fmt(i)//',":",)') i
-                write(6,'(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%trace(i)
-                write(6,'(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est%trace(i)/est%norm(i)
-                write(6,'(1x,"Energy contribution from the 1-RDM:",1x,es17.10)') est%energy_1_num(i)/est%norm(i)
-                write(6,'(1x,"Energy contribution from the 2-RDM:",1x,es17.10)') est%energy_2_num(i)/est%norm(i)
+            do irdm = 1, est%nrdms
+                write(6,'(1x,"FINAL ESTIMATES FOR RDM",1X,'//int_fmt(irdm)//',":",)') irdm
+                write(6,'(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%trace(irdm)
+                write(6,'(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est%trace(irdm)/est%norm(irdm)
+                write(6,'(1x,"Energy contribution from the 1-RDM:",1x,es17.10)') est%energy_1_num(irdm)/est%norm(irdm)
+                write(6,'(1x,"Energy contribution from the 2-RDM:",1x,es17.10)') est%energy_2_num(irdm)/est%norm(irdm)
                 write(6,'(1x,"*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:",1x,es20.13,/)') &
-                    est%energy_tot_num(i)/est%norm(i)
+                    est%energy_tot_num(irdm)/est%norm(irdm)
             end do
-            close(rdm_estimates_unit)
+            close(est%write_unit)
         end if
 
     end subroutine write_rdm_estimates

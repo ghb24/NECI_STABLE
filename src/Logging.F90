@@ -516,6 +516,10 @@ MODULE Logging
             if (IterRDMOnFly < trial_shift_iter) call stop_all(t_r,"Trial wavefunctions needs to be turned on before &
                                                                         &RDMs are turned on.")
 
+        case("OLDRDMS")
+! Accumulate RDMs using the old RDM code.
+            tOldRDMs = .true.
+
         case("DIAGFLYONERDM")
 !This sets the calculation to diagonalise the *1* electron reduced density matrix.   
 !The eigenvalues give the occupation numbers of the natural orbitals (eigenfunctions).
