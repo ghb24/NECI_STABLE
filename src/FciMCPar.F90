@@ -23,7 +23,7 @@ module FciMCParMod
                             attempt_die_spin_proj
     use rdm_data, only: tCalc_RDMEnergy, rdms, rdm_estimates_old
     use rdm_init, only: init_rdms, finalise_rdms
-    use rdm_general, only: InitRDMs_old, FinaliseRDMs_old
+    use rdm_general_old, only: InitRDMs_old, FinaliseRDMs_old
     use rdm_filling_old, only: fill_rdm_offdiag_deterministic_old, fill_rdm_diag_wrapper_old
     use rdm_filling, only: fill_rdm_offdiag_deterministic, fill_rdm_diag_wrapper
     use rdm_explicit, only: fill_explicitrdm_this_iter, fill_hist_explicitrdm_this_iter

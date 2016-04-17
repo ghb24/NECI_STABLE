@@ -3,8 +3,8 @@
 module rdm_init
 
     use bit_rep_data, only: NIfTot, NIfDBO
-    use SystemData, only: nel, nbasis
     use constants
+    use SystemData, only: nel, nbasis
 
     implicit none
 
@@ -440,6 +440,63 @@ contains
         call LogMemDealloc(t_r,SymOrbs_rotTag)
 
     end subroutine SetUpSymLabels_RDM
+
+    subroutine DeAlloc_Alloc_SpawnedParts()
+
+        ! Routine called when RDM accumulation is turned on, usually midway
+        ! through an FCIQMC simulation.
+
+        ! When calculating the RDMs, we need to store the parent from which a
+        ! child is spawned along with the children in the spawned array. This
+        ! means a slightly larger array is communicated between processors,
+        ! which there is no point in doing for the first part of the calculation.
+        ! When we start calculating the RDMs this routine is called and the
+        ! SpawnedParts array is made larger to accommodate the parents.
+
+        use bit_rep_data, only: nifbcast, NOffParent, bit_rdm_init
+        use FciMCData, only: MaxSpawned, SpawnVec, SpawnVec2, SpawnVecTag, SpawnVec2Tag
+        use FciMCData, only: SpawnedParts, SpawnedParts2
+        use util_mod, only: LogMemAlloc, LogMemDealloc
+        use util_mod_byte_size
+
+        integer :: ierr, nifbcast_old
+        character(len=*), parameter :: t_r = 'DeAlloc_Alloc_SpawnedParts'
+
+        if (bit_rdm_init) &
+            call stop_all(t_r, 'RDM broadcast representation already initialised')
+        
+        deallocate(SpawnVec)
+        call LogMemDealloc(t_r,SpawnVecTag)
+        deallocate(SpawnVec2)
+        call LogMemDealloc(t_r,SpawnVec2Tag)
+
+        ! Resize the RDM arrays
+        NIfBCast_old = NIfBCast
+        NOffParent = NIfBCast + 1
+
+        NIfBCast = NIfBCast + NIfDBO + 2
+
+        allocate(SpawnVec(0:NIfBCast, MaxSpawned), SpawnVec2(0:NIfBCast, MaxSpawned), stat=ierr)
+        log_alloc(SpawnVec, SpawnVecTag, ierr)
+        log_alloc(SpawnVec2, SpawnVec2Tag, ierr)
+
+        ! Point at correct spawning arrays
+        SpawnedParts => SpawnVec
+        SpawnedParts2 => SpawnVec2
+
+        write(6,'(A54,F10.4,A4,F10.4,A13)') &
+            'Memory requirement for spawned arrays increased from ',&
+            real(((NIfBCast_old+1)*MaxSpawned*2*size_n_int),dp)/1048576.0_dp, &
+            ' to ', &
+            real(((NIfBCast+1)*MaxSpawned*2*size_n_int),dp)/1048576.0_dp, &
+            ' Mb/Processor'
+
+        ! And we are done
+        bit_rdm_init = .true.
+
+    end subroutine DeAlloc_Alloc_SpawnedParts
+
+    ! Routines called at the end of a simulation.
 
     subroutine finalise_rdms(one_rdms, two_rdms, rdm_recv, spawn, rdm_estimates)
 
@@ -939,5 +996,297 @@ contains
         end if
 
     end subroutine deallocate_rdms
+
+    ! Some general routines used during the main simulation.
+
+    subroutine extract_bit_rep_avsign_no_rdm(iLutnI, j, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
+
+        ! This is just the standard extract_bit_rep routine for when we're not
+        ! calculating the RDMs.    
+
+        use bit_reps, only: extract_bit_rep
+        use FciMCData, only: excit_gen_store_type
+
+        integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+        integer, intent(in) :: j
+        integer, intent(out) :: nI(nel), FlagsI
+        real(dp), dimension(lenof_sign), intent(out) :: SignI
+        real(dp), dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
+        type(excit_gen_store_type), intent(inout), optional :: Store
+
+        integer :: iunused
+        
+        ! This extracts everything.
+        call extract_bit_rep (iLutnI, nI, SignI, FlagsI, store)
+
+        IterRDMStartI(:) = 0.0_dp
+        AvSignI(:) = 0.0_dp
+
+        ! Eliminate warnings
+        iunused = j
+
+    end subroutine extract_bit_rep_avsign_no_rdm
+
+    subroutine extract_bit_rep_avsign_norm(iLutnI, j, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
+
+        ! The following extract_bit_rep_avsign routine extracts the bit
+        ! representation of the current determinant, and calculates the average
+        ! sign since this determinant became occupied. 
+
+        ! In double run, we have to be particularly careful -- we need to start
+        ! a new average when the determinant becomes newly occupied or
+        ! unoccupied in either population (see CMO thesis). Additionally, we're
+        ! also setting it up so that averages get restarted whenever we
+        ! calculate the energy which saves a lot of faffing about, and storage
+        ! of an extra set of RDMs, and is still unbiased. This is called for
+        ! each determinant in the occupied list at the beginning of its FCIQMC
+        ! cycle. It is used if we're calculating the RDMs with or without HPHF. 
+
+        ! Input:    iLutnI (bit rep of current determinant).
+        !           j - Which element in the CurrentDets array are we considering?
+        ! Output:   nI, SignI, FlagsI after extract.                                              
+        !           IterRDMStartI - new iteration the determinant became occupied (as a real).
+        !           AvSignI - the new average walker population during this time (also real).
+
+        use bit_reps, only: extract_bit_rep
+        use CalcData, only: tPairedReplicas
+        use FciMCData, only: PreviousCycles, Iter, IterRDMStart, excit_gen_store_type
+        use global_det_data, only: get_iter_occ, get_av_sgn
+        use LoggingData, only: RDMEnergyIter
+
+        integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+        integer, intent(out) :: nI(nel), FlagsI
+        integer, intent(in) :: j
+        real(dp), dimension(lenof_sign), intent(out) :: SignI
+        real(dp), dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
+        type(excit_gen_store_type), intent(inout), optional :: Store
+
+        integer :: part_ind, iunused
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS) || defined(__CMPLX)
+        integer :: irdm, ind1, ind2
+#endif
+
+        ! This is the iteration from which this determinant has been occupied.
+        IterRDMStartI(1:lenof_sign) = get_iter_occ(j)
+        
+        ! This extracts everything.
+        call extract_bit_rep (iLutnI, nI, SignI, FlagsI)
+            
+        if (((Iter+PreviousCycles-IterRDMStart) .gt. 0) .and. &
+            & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1), RDMEnergyIter) .eq. 0)) then 
+
+            ! The previous iteration was one where we added in diagonal elements
+            ! To keep things unbiased, we need to set up a new averaging block now.
+            ! NB: if doing single run cutoff, note that doing things this way is now
+            ! NOT the same as the technique described in CMO (and DMC's) thesis.
+            ! Would expect diagonal elements to be slightly worse quality, improving
+            ! as one calculates the RDM energy less frequently.  As this method is
+            ! biased anyway, I'm not going to lose sleep over it.
+            do part_ind = 1, lenof_sign
+                AvSignI(part_ind) = SignI(part_ind)
+                IterRDMStartI(part_ind) = real(Iter + PreviousCycles,dp)
+            end do
+        else
+            ! Now let's consider other instances in which we need to start a new block:
+            if (tPairedReplicas) then
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS) || defined(__CMPLX)
+                do irdm = 1, lenof_sign/2
+
+                    ! The indicies of the first and second replicas in this
+                    ! particular pair, in the sign arrays.
+                    ind1 = irdm*2-1
+                    ind2 = irdm*2
+
+                    if ((SignI(ind1) .eq. 0) .and. (IterRDMStartI(ind1) .ne. 0)) then
+                        ! The population has just gone to zero on population 1.
+                        ! Therefore, we need to start a new averaging block.
+                        AvSignI(ind1) = 0
+                        IterRDMStartI(ind1) = 0
+                        AvSignI(ind2) = SignI(ind2)
+                        IterRDMStartI(ind2) = real(Iter + PreviousCycles,dp)
+
+                    else if ((SignI(ind2) .eq. 0) .and. (IterRDMStartI(ind2) .ne. 0)) then
+                        ! The population has just gone to zero on population 2.
+                        ! Therefore, we need to start a new averaging block.
+                        AvSignI(ind2) = 0
+                        IterRDMStartI(ind2) = 0
+                        AvSignI(ind1) = SignI(ind1)
+                        IterRDMStartI(ind1) = real(Iter + PreviousCycles,dp)
+
+                    else if ((SignI(ind1) .ne. 0) .and. (IterRDMStartI(ind1) .eq. 0)) then
+                        ! Population 1 has just become occupied.
+                        IterRDMStartI(ind1) = real(Iter + PreviousCycles,dp)
+                        IterRDMStartI(ind2) = real(Iter + PreviousCycles,dp)
+                        AvSignI(ind1) = SignI(ind1)
+                        AvSignI(ind2) = SignI(ind2)
+                        if (SignI(ind2) .eq. 0) IterRDMStartI(ind2) = 0
+
+                    else if ((SignI(ind2) .ne. 0) .and. (IterRDMStartI(ind2) .eq. 0)) then
+                        ! Population 2 has just become occupied.
+                        IterRDMStartI(ind1) = real(Iter + PreviousCycles,dp)
+                        IterRDMStartI(ind2) = real(Iter + PreviousCycles,dp)
+                        AvSignI(ind1) = SignI(ind1)
+                        AvSignI(ind2) = SignI(ind2)
+                        if (SignI(ind1) .eq. 0) IterRDMStartI(ind1) = 0
+
+                    else
+                        ! Nothing unusual has happened so update both populations
+                        ! as normal.
+                        do part_ind = 2*irdm-1, 2*irdm
+                            ! Update the average population.
+                            AvSignI(part_ind) = &
+                                ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * get_av_sgn(j, part_ind)) &
+                                  + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
+                        end do
+                    end if
+                end do
+#endif
+            else
+                do part_ind = 1, lenof_sign
+                    ! If there is nothing stored there yet, the first iteration
+                    ! the determinant became occupied is this one.
+                    if (abs(IterRDMStartI(part_ind)) < 1.0e-12_dp) IterRDMStartI(part_ind) = real(Iter+PreviousCycles, dp)
+
+                    ! Update the average population. This just comes out as the
+                    ! current population (SignI) if this is the first  time the
+                    ! determinant has become occupied.
+                    AvSignI(part_ind) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * get_av_sgn(j,part_ind)) &
+                                    + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
+                end do
+            end if
+        end if
+
+        ! Eliminate warnings
+        iunused = store%nopen
+
+    end subroutine extract_bit_rep_avsign_norm
+
+    subroutine calc_rdmbiasfac(p_spawn_rdmfac, p_gen, SignCurr, RDMBiasFacCurr)
+
+        real(dp), intent(in) :: p_gen
+        real(dp), intent(in) :: SignCurr
+        real(dp), intent(out) :: RDMBiasFacCurr
+        real(dp), intent(in) :: p_spawn_rdmfac
+        real(dp) :: p_notlist_rdmfac, p_spawn, p_not_spawn, p_max_walktospawn
+        character(len=*), parameter :: t_r = 'attempt_create_normal'
+
+        ! We eventually turn this real bias factor into an integer to be passed
+        ! around with the spawned children and their parents - this only works
+        ! with 64 bit at the moment.
+        if (n_int .eq. 4) call stop_all(t_r, 'The bias factor currently does not work with 32 bit integers.')
+
+        ! Otherwise calculate the 'sign' of Di we are eventually going to add
+        ! in as Di.Dj. Because we only add in Di.Dj when we successfully spawn
+        ! from Di.Dj, we need to unbias (scale up) Di by the probability of this
+        ! happening. We need the probability that the determinant i, with
+        ! population n_i, will spawn on j. We only consider one instance of a
+        ! pair Di,Dj, so just want the probability of any of the n_i walkers
+        ! spawning at least once on Dj.
+
+        ! P_successful_spawn(j | i)[n_i] =  1 - P_not_spawn(j | i)[n_i]
+        ! P_not_spawn(j | i )[n_i] is the probability of none of the n_i walkers spawning on j from i.
+        ! This requires either not generating j, or generating j and not succesfully spawning, n_i times.
+        ! P_not_spawn(j | i )[n_i] = [(1 - P_gen(j | i)) + ( P_gen( j | i ) * (1 - P_spawn(j | i))]^n_i
+
+        p_notlist_rdmfac = ( 1.0_dp - p_gen ) + ( p_gen * (1.0_dp - p_spawn_rdmfac) )
+
+        ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i].
+
+        if (abs(real(int(SignCurr), dp) - SignCurr) > 1.0e-12_dp) then
+            ! There's a non-integer population on this determinant. We need to
+            ! consider both possibilities - whether we attempted to spawn 
+            ! int(SignCurr) times or int(SignCurr)+1 times.
+            p_max_walktospawn = abs(SignCurr-real(int(SignCurr),dp))
+            p_not_spawn = (1.0_dp - p_max_walktospawn)*(p_notlist_rdmfac**abs(int(SignCurr))) + &
+                        p_max_walktospawn*(p_notlist_rdmfac**(abs(int(SignCurr))+1))
+
+        else
+            p_not_spawn = p_notlist_rdmfac**(abs(SignCurr))
+        end if
+
+        p_spawn = abs(1.0_dp - p_not_spawn)
+        
+        ! Always use instantaneous signs for stochastically sampled off-diag
+        ! elements (see CMO thesis).
+        RDMBiasFacCurr = SignCurr / p_spawn
+
+    end subroutine calc_rdmbiasfac
+
+    subroutine store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, DetSpawningAttempts, iLutJ, procJ)
+
+        ! We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
+        ! This routine stores the parent (D_i) with the spawned child (D_j) so
+        ! that we can add in Ci.Cj to the RDM later on. The parent is NIfDBO
+        ! integers long, and stored in the second part of the SpawnedParts array 
+        ! from NIfTot+1 -> NIfTot+1 + NIfDBO.
+
+        use DetBitOps, only: DetBitEQ
+        use FciMCData, only: SpawnedParts, ValidSpawnedList, TempSpawnedParts, TempSpawnedPartsInd
+        use bit_reps, only: zero_parent, encode_parent
+
+        real(dp), intent(in) :: RDMBiasFacCurr
+        integer, intent(in) :: WalkerNumber, procJ
+        integer, intent(in) :: DetSpawningAttempts
+        integer(n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
+        logical :: tRDMStoreParent
+        integer :: j
+
+        if (abs(RDMBiasFacCurr) < 1.0e-12_dp) then
+            ! If RDMBiasFacCurr is exactly zero, any contribution from Ci.Cj will be zero 
+            ! so it is not worth carrying on. 
+            call zero_parent(SpawnedParts(:, ValidSpawnedList(procJ)))
+        else
+
+            ! First we want to check if this Di.Dj pair has already been accounted for.
+            ! This means searching the Dj's that have already been spawned from this Di, to make sure 
+            ! the new Dj being spawned on here is not the same.
+            ! The Dj children spawned by the current Di are being stored in the array TempSpawnedParts, 
+            ! so that the reaccurance of a Di.Dj pair may be monitored.
+
+            ! Store the Di parent with the spawned child, unless we find this Dj has already been spawned on.
+            tRDMStoreParent = .true.
+
+            ! Run through the Dj walkers that have already been spawned from this particular Di.
+            ! If this is the first to be spawned from Di, TempSpawnedPartsInd will be zero, so we 
+            ! just wont run over anything.
+
+            do j = 1, TempSpawnedPartsInd
+                if (DetBitEQ(iLutJ(0:NIfDBO), TempSpawnedParts(0:NIfDBO,j), NIfDBO)) then
+                    ! If this Dj is found, we do not want to store the parent with this spawned walker.
+                    tRDMStoreParent = .false.
+                    exit
+                end if
+            end do
+
+            if (tRDMStoreParent) then
+                ! This is a new Dj that has been spawned from this Di.
+                ! We want to store it in the temporary list of spawned parts which have come from this Di.
+                if (WalkerNumber .ne. DetSpawningAttempts) then
+                    ! Don't bother storing these if we're on the last walker, or if we only have one 
+                    ! walker on Di.
+                    TempSpawnedPartsInd = TempSpawnedPartsInd + 1
+                    TempSpawnedParts(0:NIfDBO,TempSpawnedPartsInd) = iLutJ(0:NIfDBO)
+                end if
+
+                ! We also want to make sure the parent Di is stored with this Dj.
+
+                ! We need to carry with the child (and the parent), the sign of the parent.
+                ! In actual fact this is the sign of the parent divided by the probability of generating
+                ! that pair Di and Dj, to account for the 
+                ! fact that Di and Dj are not always added to the RDM, but only when Di spawns on Dj.
+                ! This RDMBiasFacCurr factor is turned into an integer to pass around to the relevant processors.
+                call encode_parent(SpawnedParts(:, ValidSpawnedList(procJ)), &
+                                   ilutI, RDMBiasFacCurr)
+
+            else
+                ! This Di has already spawned on this Dj - don't store the Di parent with this child, 
+                ! so that the pair is not double counted.  
+                ! We are using the probability that Di spawns onto Dj *at least once*, so we don't want to 
+                ! double count this pair.
+                call zero_parent(SpawnedParts(:, ValidSpawnedList(procJ)))
+            end if
+        end if
+
+    end subroutine store_parent_with_spawned
 
 end module rdm_init
