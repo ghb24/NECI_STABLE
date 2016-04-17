@@ -151,7 +151,7 @@ CONFIG = %(config)s
 OPT = %(opt_level)s
 
 # Directories containing source files (space separated list).
-SRC = src src/lib
+SRC = src src/lib src/rdms_old
 
 # Directories in which compiled objects are placed.
 DEST = dest/$(CONFIG)/$(OPT)
