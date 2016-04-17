@@ -1,4 +1,4 @@
-module rdm_temp
+module rdm_write_old
 
     ! This is a temporary module to prevent circular dependencies. These should
     ! be sorted later when altering the call structure of the routines.
@@ -840,4 +840,4 @@ contains
         
     end function Find_Spatial_2RDM_Chem
 
-end module rdm_temp
+end module rdm_write_old

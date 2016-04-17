@@ -19,8 +19,8 @@ contains
         use Parallel_neci, only: iProcIndex, MPISumAll
         use rdm_data_old, only: rdm_t, rdm_estimates_old_t
         use rdm_data, only: tOpenShell
-        use rdm_temp, only: Finalise_2e_RDM, calc_2e_norms, Write_out_2RDM
-        use rdm_temp, only: Write_spinfree_RDM
+        use rdm_write_old, only: Finalise_2e_RDM, calc_2e_norms, Write_out_2RDM
+        use rdm_write_old, only: Write_spinfree_RDM
 
         type(rdm_t), intent(inout) :: rdm
         integer, intent(in) :: rdm_label
@@ -497,7 +497,7 @@ contains
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: tOpenShell
         use rdm_data_old, only: rdm_t
-        use rdm_temp, only: Find_Spatial_2RDM_Chem
+        use rdm_write_old, only: Find_Spatial_2RDM_Chem
         use RotateOrbsMod, only: SymLabelListInv_rot, SpatOrbs
         use UMatCache, only: UMatInd
 
@@ -1001,7 +1001,7 @@ contains
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: tOpenShell
         use rdm_data_old, only: rdm_t
-        use rdm_temp, only: Find_Spatial_2RDM_Chem
+        use rdm_write_old, only: Find_Spatial_2RDM_Chem
         use RotateOrbsData, only: SpatOrbs, SymLabelListInv_rot
         use sym_mod
         use SymData, only: Sym_Psi, nSymLabels
