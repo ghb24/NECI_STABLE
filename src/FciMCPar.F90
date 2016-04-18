@@ -421,10 +421,10 @@ module FciMCParMod
                 ! and this is an iteration where the energy should be calculated, do so.
                 if(tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)) .gt. IterRDMonFly) &
                     .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .eq. 0) ) then
-                        call rdm_output_wrapper(rdm_estimates, rdm_main, two_rdm_recv, two_rdm_spawn)
+                        call rdm_output_wrapper(rdm_estimates, rdm_main, two_rdm_recv, two_rdm_spawn, .false.)
                         if (tOldRDMs) then
                             do irdm = 1, nrdms
-                                call rdm_output_wrapper_old(rdms(irdm), one_rdms_old(irdm), irdm, rdm_estimates_old(irdm))
+                                call rdm_output_wrapper_old(rdms(irdm), one_rdms_old(irdm), irdm, rdm_estimates_old(irdm), .false.)
                             end do
                         end if
 
@@ -433,8 +433,8 @@ module FciMCParMod
                         !rdm_main%nelements = 0
 
                         if (iProcIndex == 0) then
-                            call write_rdm_estimates(rdm_estimates)
-                            if (tOldRDMs) call write_rdm_estimates_old(rdm_estimates_old)
+                            call write_rdm_estimates(rdm_estimates, .false.)
+                            if (tOldRDMs) call write_rdm_estimates_old(rdm_estimates_old, .false.)
                         end if
                 end if
             end if

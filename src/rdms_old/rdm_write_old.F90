@@ -9,12 +9,12 @@ module rdm_write_old
 
 contains
 
-    subroutine Finalise_2e_RDM(rdm)
+    subroutine Finalise_2e_RDM(rdm, final_output)
 
         ! This routine sums, normalises, hermitian-ises, and prints the 2-RDMs.
         ! This may be called multiple times if we want to print multiple 2-RDMs.
 
-        use FciMCData, only: Iter, PreviousCycles, IterRDMStart, tFinalRDMEnergy, VaryShiftIter
+        use FciMCData, only: Iter, PreviousCycles, IterRDMStart, VaryShiftIter
         use LoggingData, only: IterRDMonFly
         use LoggingData, only: tRDMInstEnergy, RDMEnergyIter
         use Parallel_neci, only: iProcIndex, MPISumAll
@@ -23,6 +23,7 @@ contains
         use RotateOrbsData, only: SpatOrbs
 
         type(rdm_t), intent(inout) :: rdm
+        logical, intent(in) :: final_output
 
         integer :: i, ierr
 
@@ -30,7 +31,7 @@ contains
         ! just want to calculate the old energy.
         ! Don't need to do all this stuff here, because a***_RDM will be empty.
 
-        if (((Iter+PreviousCycles) .ne. 0) .and. ((.not. tFinalRDMEnergy) .or. &
+        if (((Iter+PreviousCycles) .ne. 0) .and. ((.not. final_output) .or. &
             ((.not. tCalc_RDMEnergy) .or. ((Iter - VaryShiftIter(1)) .le. IterRDMonFly) &
                       & .or. ((Iter-VaryShiftIter(inum_runs)) .le. IterRDMonFly) &
                       & .or. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .ne. 0)))) then
@@ -165,7 +166,7 @@ contains
 
     end subroutine calc_2e_norms
 
-    subroutine Write_out_2RDM(rdm, rdm_label, Norm_2RDM, tNormalise, tMake_Herm)
+    subroutine Write_out_2RDM(rdm, rdm_label, Norm_2RDM, tNormalise, tMake_Herm, final_output)
 
         ! Writes out the 2-RDMs. If tNormalise is true, we print the normalised
         ! (hermitian) matrix. Otherwise we print the unnormalised 2-RDMs, and
@@ -176,7 +177,7 @@ contains
         ! of the aaaa elements and the bbbb elements.  We only want to print
         ! the aaaa elements.
 
-        use FciMCData, only: tFinalRDMEnergy, Iter, PreviousCycles
+        use FciMCData, only: Iter, PreviousCycles
         use LoggingData, only: tWriteMultRDMs
         use rdm_data_old, only: rdm_t
         use rdm_data, only: tOpenShell
@@ -187,6 +188,7 @@ contains
         integer, intent(in) :: rdm_label
         real(dp), intent(in) :: Norm_2RDM
         logical, intent(in) :: tNormalise, tMake_Herm
+        logical, intent(in) :: final_output
 
         real(dp) :: Divide_Factor
         integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab
@@ -344,7 +346,7 @@ contains
                                         rdm%aaaa_full(Ind2_aa,Ind1_aa) = Temp
                                     end if
 
-                                    if (tFinalRDMEnergy) then
+                                    if (final_output) then
                                         ! For the final calculation, the 2-RDMs will have been made hermitian.
                                         write(aaaa_RDM_unit,"(4I6,G25.17)") i, j, a, b, &
                                                 ( rdm%aaaa_full(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
@@ -397,7 +399,7 @@ contains
                                             rdm%bbbb_full(Ind2_aa,Ind1_aa) = Temp
                                 end if
 
-                                        if (tFinalRDMEnergy) then
+                                        if (final_output) then
                                             ! For the final calculation, the 2-RDMs will have been made hermitian.
                                             write(bbbb_RDM_unit,"(4I6,G25.17)") i, j, a, b, &
                                                     ( rdm%bbbb_full(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
@@ -447,7 +449,7 @@ contains
                                             rdm%baab_full(Ind2_aa,Ind1_aa) = Temp
                                         end if
 
-                                        if (tFinalRDMEnergy) then
+                                        if (final_output) then
                                             write(abba_RDM_unit,"(4I6,G25.17)") i, j, a, b, &
                                                 ( rdm%abba_full(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
                                         else
@@ -487,14 +489,14 @@ contains
                                             rdm%abba_full(Ind2_aa,Ind1_aa) = Temp  
                                         end if ! tMake_Herm = .true.
 
-                                        if (tFinalRDMEnergy) then
+                                        if (final_output) then
                                             write(baab_RDM_unit,"(4I6,G25.17)") i, j, a, b, &
                                                 ( rdm%baab_full(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
                                         else
                                             write(baab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
                                                 ( ((rdm%baab_full(Ind1_aa,Ind2_aa) + rdm%baab_full(Ind2_aa,Ind1_aa))/2.0_dp) &
                                                                         * Norm_2RDM ) / Divide_Factor
-                                        end if  ! tFinalRDMEnergy = .true./.false.
+                                        end if  ! final_output = .true./.false.
 
                                     else if (.not.tNormalise) then
                                         write(baab_RDM_unit) i, j, a, b, rdm%baab_full(Ind1_aa,Ind2_aa) 
@@ -529,7 +531,7 @@ contains
                                             rdm%abba_full(Ind2_aa,Ind1_aa) = Temp
                                         end if
 
-                                        if (tFinalRDMEnergy) then
+                                        if (final_output) then
                                             write(abba_RDM_unit,"(4I6,G25.17)") i, j, a, b, &
                                                 ( rdm%abba_full(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
                                         else
@@ -571,7 +573,7 @@ contains
                             end if
 
                             if (tNormalise .and. (Ind1_ab .le. Ind2_ab)) then
-                                if (tFinalRDMEnergy) then
+                                if (final_output) then
                                     write(abab_RDM_unit,"(4I6,G25.17)") i, j, a, b, &
                                         ( rdm%abab_full(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
                                 else
@@ -612,7 +614,7 @@ contains
                                 end if
 
                                 if (tNormalise .and. (Ind1_ab .le. Ind2_ab)) then
-                                    if (tFinalRDMEnergy) then
+                                    if (final_output) then
                                         write(baba_RDM_unit,"(4I6,G25.17)") i, j, a, b, &
                                             ( rdm%baba_full(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
                                     else
@@ -653,7 +655,7 @@ contains
                                 end if
 
                                 if (tNormalise .and. (Ind1_ab .le. Ind2_ab)) then
-                                    if (tFinalRDMEnergy) then
+                                    if (final_output) then
                                         write(baba_RDM_unit,"(4I6,G25.17)") i, j, a, b, &
                                             ( rdm%abab_full(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
                                     else

@@ -10,9 +10,9 @@ module rdm_estimators_old
 
 contains
 
-    subroutine rdm_output_wrapper_old(rdm, one_rdm, rdm_label, est)
+    subroutine rdm_output_wrapper_old(rdm, one_rdm, rdm_label, est, final_output)
 
-        use FciMCData, only: tFinalRDMEnergy, Iter, IterRDMStart, PreviousCycles
+        use FciMCData, only: Iter, IterRDMStart, PreviousCycles
         use LoggingData, only: tRDMInstEnergy, tWriteMultRDMs, IterWriteRDMs
         use LoggingData, only: tWrite_RDMs_to_read, tWrite_normalised_RDMs
         use LoggingData, only: tWriteSpinFreeRDM
@@ -26,9 +26,10 @@ contains
         type(one_rdm_t), intent(inout) :: one_rdm
         integer, intent(in) :: rdm_label
         type(rdm_estimates_old_t), intent(inout) :: est
+        logical, intent(in) :: final_output
 
         ! Normalise, make Hermitian, etc.
-        call Finalise_2e_RDM(rdm)
+        call Finalise_2e_RDM(rdm, final_output)
 
         if (iProcIndex == 0) then
             ! Calculate the normalisations.
@@ -39,23 +40,23 @@ contains
             ! it comes out in the wash.
             
             ! Print out the relevant 2-RDMs.
-            if (tFinalRDMEnergy .or. (tWriteMultRDMs .and. (mod((Iter+PreviousCycles-IterRDMStart)+1,IterWriteRDMs) .eq. 0))) then
+            if (final_output .or. (tWriteMultRDMs .and. (mod((Iter+PreviousCycles-IterRDMStart)+1,IterWriteRDMs) .eq. 0))) then
 
                 ! Only ever want to print the 2-RDMs (for reading in) at the end.
-                if (tFinalRDMEnergy .and. tWrite_RDMs_to_read) then
-                    call Write_out_2RDM(rdm, rdm_label, est%Norm_2RDM, .false., .false.)
+                if (final_output .and. tWrite_RDMs_to_read) then
+                    call Write_out_2RDM(rdm, rdm_label, est%Norm_2RDM, .false., .false., final_output)
                 end if
 
                 ! This writes out the normalised, hermitian 2-RDMs.
                 ! IMPORTANT NOTE: We assume that we want tMake_Herm=.true. here.
-                if (tWrite_normalised_RDMs) call Write_out_2RDM(rdm, rdm_label, est%Norm_2RDM, .true., .true.)
+                if (tWrite_normalised_RDMs) call Write_out_2RDM(rdm, rdm_label, est%Norm_2RDM, .true., .true., final_output)
 
                 if (tWriteSpinFreeRDM) call Write_spinfree_RDM(rdm, rdm_label, est%Norm_2RDM)
 
              end if
 
             call Calc_Energy_from_RDM(rdm, one_rdm, est%Norm_2RDM, est%Norm_2RDM_Inst, est%Trace_2RDM_normalised, &
-                                      est%RDMEnergy, est%RDMEnergy1, est%RDMEnergy2, est%RDMEnergy_Inst)
+                                      est%RDMEnergy, est%RDMEnergy1, est%RDMEnergy2, est%RDMEnergy_Inst, final_output)
 
             ! Calculate the instantaneous estimate of <S^2> using the 2RDM.
             est%spin_est = calc_2rdm_spin_estimate(rdm, est%Norm_2RDM_Inst)
@@ -76,14 +77,15 @@ contains
 
     end subroutine rdm_output_wrapper_old
 
-    subroutine write_rdm_estimates_old(est)
+    subroutine write_rdm_estimates_old(est, final_output)
 
-        use FciMCData, only: tFinalRDMEnergy, Iter, PreviousCycles
+        use FciMCData, only: Iter, PreviousCycles
         use LoggingData, only: tRDMInstEnergy
         use rdm_data_old, only: rdm_estimates_old_t, rdm_write_unit_old
         use util_mod, only: int_fmt
 
         type(rdm_estimates_old_t), intent(in) :: est(:)
+        logical, intent(in) :: final_output
 
         integer :: irdm
 
@@ -105,7 +107,7 @@ contains
 
         call neci_flush(rdm_write_unit_old)
 
-        if (tFinalRDMEnergy) then
+        if (final_output) then
             do irdm = 1, size(est)
                 write(6,'(1x,"FINAL ESTIMATES FOR RDM",1X,'//int_fmt(irdm)//',":",)') irdm
                 write(6,'(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est(irdm)%Trace_2RDM
@@ -120,7 +122,7 @@ contains
     end subroutine write_rdm_estimates_old
 
     subroutine Calc_Energy_from_RDM(rdm, one_rdm, Norm_2RDM, Norm_2RDM_Inst, Trace_2RDM_normalised, RDMEnergy, &
-                                    RDMEnergy1, RDMEnergy2, RDMEnergy_Inst)
+                                    RDMEnergy1, RDMEnergy2, RDMEnergy_Inst, final_output)
 
         ! This routine takes the 1 electron and 2 electron reduced density
         ! matrices and calculated the energy they give.
@@ -133,7 +135,6 @@ contains
         !
         !   Tr(h1 1RDM) = Sum_i,j [ h1(i,j) 1RDM(j,i) ]
         !   Tr(h2 2RDM) = Sum_i,j;k,l [ h2(i,j;k,l) 2RDM(k,l;i,j) ]
-        use FciMCData, only: tFinalRDMEnergy
         use global_utilities, only: set_timer, halt_timer
         use IntegralsData, only: umat
         use LoggingData, only: tRDMInstEnergy
@@ -147,6 +148,7 @@ contains
         type(one_rdm_t), intent(inout) :: one_rdm
         real(dp), intent(in) :: Norm_2RDM, Norm_2RDM_Inst
         real(dp), intent(out) :: Trace_2RDM_normalised, RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst
+        logical, intent(in) :: final_output
 
         integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab
         integer :: iSpin, jSpin
@@ -176,7 +178,7 @@ contains
                     ! Adding in contributions effectively from the 1-RDM (although these are calculated 
                     ! from the 2-RDM).
                     call calc_1RDM_and_1RDM_energy(rdm, one_rdm, i, j, a, iSpin,jSpin, Norm_2RDM, &
-                                                   RDMEnergy_Inst, RDMEnergy1)
+                                                   RDMEnergy_Inst, RDMEnergy1, final_output)
                     
                     do b = a, SpatOrbs
 
@@ -604,7 +606,7 @@ contains
     end subroutine Calc_Lagrangian_from_RDM
 
     subroutine calc_1RDM_and_1RDM_energy(rdm, one_rdm, i, j, a, iSpin, jSpin, Norm_2RDM, &
-                                         RDMEnergy_Inst, RDMEnergy1)
+                                         RDMEnergy_Inst, RDMEnergy1, final_output)
 
         ! This routine calculates the 1-RDM part of the RDM energy, and
         ! also constructs the 1-RDM if required, both from the 2-RDM.
@@ -614,7 +616,6 @@ contains
         ! h_ij => TMAT2D(iSpin,jSpin)
         ! iSpin = 2*i, jSpin = 2*j -> alpha orbs
 
-        use FciMCData, only: tFinalRDMEnergy
         use OneEInts, only: TMAT2D
         use LoggingData, only: tDiagRDM, tDumpForcesInfo, tDipoles, tRDMInstEnergy, tPrint1RDM
         use rdm_data, only: tOpenShell, one_rdm_t
@@ -628,6 +629,7 @@ contains
         real(dp), intent(in) :: Norm_2RDM
         real(dp), intent(inout) :: RDMEnergy_Inst, RDMEnergy1
         real(dp) :: Parity_Factor, fac_doublecount
+        logical, intent(in) :: final_output
 
         integer :: Ind1_1e_ab, Ind2_1e_ab
         integer :: Ind1_1e_aa, Ind2_1e_aa
@@ -738,7 +740,7 @@ contains
             end if
 
 
-            if ((tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) .and. tFinalRDMEnergy) then
+            if ((tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) .and. final_output) then
                
                 if (.not. tOpenShell) then
                  ! Spatial orbitals
@@ -873,7 +875,7 @@ contains
                                                   * (1.0_dp / real(NEl - 1,dp)) )
                end if
                                                   
-               if ((tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) .and. tFinalRDMEnergy) then
+               if ((tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) .and. final_output) then
                    if (.not. tOpenShell) then
                    ! Spatial orbitals
                        one_rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
@@ -961,7 +963,7 @@ contains
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
            end if
 
-           if ((tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) .and. tFinalRDMEnergy) then
+           if ((tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) .and. final_output) then
                if ( .not. tOpenShell) then
                    one_rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
                             one_rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &

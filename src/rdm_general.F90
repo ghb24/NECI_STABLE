@@ -16,7 +16,7 @@ contains
         use CalcData, only: MemoryFacPart
         use FciMCData, only: MaxSpawned, Spawned_Parents, Spawned_Parents_Index
         use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
-        use FciMCData, only: HFDet_True, tFinalRDMEnergy
+        use FciMCData, only: HFDet_True
         use LoggingData, only: tDo_Not_Calc_RDMEnergy, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tDiagRDM, tDumpForcesInfo, tDipoles, tPrint1RDM
         use Parallel_neci, only: iProcIndex, nProcessors
@@ -136,8 +136,6 @@ contains
                 one_rdms(irdm)%Rho_ii(:) = 0.0_dp
             end do
         end if
-
-        tFinalRDMEnergy = .false.
 
         ! We then need to allocate the arrays for excitations etc when doing
         ! the explicit all calculation.
@@ -512,7 +510,6 @@ contains
 #ifdef _MOLCAS_
         USE EN2MOLCAS, only: NECI_E
 #endif
-        use FciMCData, only: tFinalRDMEnergy
         use LoggingData, only: tBrokenSymNOs, occ_numb_diff, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo, tDipoles
         use Parallel_neci, only: iProcIndex, MPIBarrier, MPIBCast
@@ -547,11 +544,8 @@ contains
             ! calculating the energy throughout the calculation.
             ! Unless of course, only the 1-RDM is being calculated.
 
-            ! Calculate the energy one last time - and write out everything we need.
-            tFinalRDMEnergy = .true.
-
             ! 1-RDM is constructed here (in calc_1RDM_and_1RDM_energy).
-            call rdm_output_wrapper(rdm_estimates, two_rdms, rdm_recv, spawn)
+            call rdm_output_wrapper(rdm_estimates, two_rdms, rdm_recv, spawn, .true.)
 
             ! Calculate the 1-RDMs from the 2-RDMS, if required.
             if (tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
@@ -586,7 +580,7 @@ contains
             end if
         end do
 
-        if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates)
+        if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates, .true.)
 #ifdef _MOLCAS_
             NECI_E = rdm_estimates%rdm_energy_tot_accum(1)
             call MPIBarrier(ierr)

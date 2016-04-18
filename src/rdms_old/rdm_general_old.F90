@@ -495,8 +495,8 @@ contains
         ! Calculate the energy for the matrices read in (if we're calculating more
         ! than the 1-RDM).
         if (tCalc_RDMEnergy) then
-            call rdm_output_wrapper_old(two_rdm, one_rdm, 1, est_old)
-            if (iProcIndex == 0) call write_rdm_estimates_old(rdm_estimates_old)
+            call rdm_output_wrapper_old(two_rdm, one_rdm, 1, est_old, .false.)
+            if (iProcIndex == 0) call write_rdm_estimates_old(rdm_estimates_old, .false.)
         end if
 
         ! Continue calculating the RDMs from the first iteration when the popsfiles
@@ -516,7 +516,6 @@ contains
 #ifdef _MOLCAS_
         USE EN2MOLCAS, only : NECI_E
 #endif
-        use FciMCData, only: tFinalRDMEnergy
         use LoggingData, only: tBrokenSymNOs, occ_numb_diff, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo, tDipoles
         use Parallel_neci, only: iProcIndex, MPIBarrier, MPIBCast, MPISumAll
@@ -525,7 +524,6 @@ contains
         use rdm_data_old, only: rdm_t, rdm_estimates_old_t
         use rdm_estimators_old, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
         use rdm_estimators_old, only: rdm_output_wrapper_old, CalcDipoles
-        use rdm_estimators, only: rdm_output_wrapper, write_rdm_estimates
         use rdm_general, only: Finalise_1e_RDM, calc_1e_norms
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
         use rdm_parallel, only: calc_rdm_trace, calc_1rdms_from_2rdms
@@ -549,11 +547,8 @@ contains
                 ! calculating the energy throughout the calculation.
                 ! Unless of course, only the 1-RDM is being calculated.
 
-                ! Calculate the energy one last time - and write out everything we need.
-                tFinalRDMEnergy = .true.
-
                 ! 1-RDM is constructed here (in calc_1RDM_and_1RDM_energy).
-                call rdm_output_wrapper_old(two_rdms(i), one_rdms(i), i, rdm_estimates_old(i))
+                call rdm_output_wrapper_old(two_rdms(i), one_rdms(i), i, rdm_estimates_old(i), .true.)
 
                 if (tPrint1RDM) then
                     call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%Rho_ii, i, Norm_1RDM, .true.)

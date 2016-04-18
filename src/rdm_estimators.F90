@@ -80,9 +80,8 @@ contains
 
     end subroutine write_rdm_est_file_header
 
-    subroutine rdm_output_wrapper(est, rdm, rdm_recv, spawn)
+    subroutine rdm_output_wrapper(est, rdm, rdm_recv, spawn, final_output)
 
-        use FciMCData, only: tFinalRDMEnergy
         use LoggingData, only: tWrite_normalised_RDMs, tWriteSpinFreeRDM
         use Parallel_neci, only: MPISumAll
         use rdm_data, only: rdm_estimates_t, rdm_list_t, rdm_spawn_t, tOpenShell
@@ -97,6 +96,7 @@ contains
         type(rdm_list_t), intent(inout) :: rdm
         type(rdm_list_t), intent(inout) :: rdm_recv
         type(rdm_spawn_t), intent(inout) :: spawn
+        logical, intent(in) :: final_output
 
         real(dp) :: rdm_trace(est%nrdms), rdm_norm(est%nrdms)
         real(dp) :: rdm_energy_1(est%nrdms), rdm_energy_2(est%nrdms)
@@ -118,21 +118,22 @@ contains
 
         call calc_hermitian_errors(rdm, rdm_recv, spawn, est%norm, est%max_error_herm, est%sum_error_herm)
 
-        if (tWriteSpinFreeRDM .and. tFinalRDMEnergy) call print_spinfree_2rdm_wrapper(rdm, rdm_recv, spawn, est%norm)
-        if (tFinalRDMEnergy .and. tWrite_Normalised_RDMs) then
+        if (tWriteSpinFreeRDM .and. final_output) call print_spinfree_2rdm_wrapper(rdm, rdm_recv, spawn, est%norm)
+        if (final_output .and. tWrite_Normalised_RDMs) then
             call print_rdms_spin_sym_wrapper(rdm, rdm_recv, spawn, est%norm, tOpenShell)
         end if
 
     end subroutine rdm_output_wrapper
 
-    subroutine write_rdm_estimates(est)
+    subroutine write_rdm_estimates(est, final_output)
 
-        use FciMCData, only: tFinalRDMEnergy, Iter, PreviousCycles
+        use FciMCData, only: Iter, PreviousCycles
         use LoggingData, only: tRDMInstEnergy
         use rdm_data, only: rdm_estimates_t
         use util_mod, only: int_fmt
 
         type(rdm_estimates_t), intent(in) :: est
+        logical, intent(in) :: final_output
 
         integer :: irdm
 
@@ -154,7 +155,7 @@ contains
 
         call neci_flush(est%write_unit)
 
-        if (tFinalRDMEnergy) then
+        if (final_output) then
             do irdm = 1, est%nrdms
                 write(6,'(1x,"FINAL ESTIMATES FOR RDM",1X,'//int_fmt(irdm)//',":",)') irdm
                 write(6,'(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%trace(irdm)
