@@ -60,17 +60,12 @@ contains
         character(*), parameter :: this_routine = "getExcitation_guga"
 
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot) 
-        real(dp) :: occI(nSpatOrbs), occJ(nSpatOrbs)
         integer :: first, last, cnt_e, cnt_h, occ_diff(nSpatOrbs), i
 
         call EncodeBitDet_guga(nI, ilutI)
         call EncodeBitDet_guga(nJ, ilutJ) 
 
-        occI = calcOcc_vector_ilut(ilutI(0:nifd))
-        occJ = calcOcc_vector_ilut(ilutJ(0:nifd))
-
-
-        occ_diff = int(occI - occJ)
+        occ_diff = calcOcc_vector_int(ilutI(0:nifd)) - calcOcc_vector_int(ilutJ(0:nifd))
 
         select case(sum(abs(occ_diff)))
 
@@ -103,8 +98,8 @@ contains
                 ex(2,2) = 0
 
                 do i = 1, nSpatOrbs
-                    if (occ_diff(i) == 1.0_dp) ex(1,1) = 2 * i
-                    if (occ_diff(i) == -1.0_dp) ex(2,1) = 2 * i
+                    if (occ_diff(i) == 1) ex(1,1) = 2 * i
+                    if (occ_diff(i) == -1) ex(2,1) = 2 * i
                 end do
 
             case (4)
@@ -982,6 +977,25 @@ contains
 
     end function calcOcc_vector_ilut
 
+    function calcOcc_vector_int(ilut) result(occVector)
+        ! function which gives the occupation vector in integer form
+        integer(n_int), intent(in) :: ilut(0:nifd)
+        integer :: occVector(nSpatOrbs)
+
+        integer :: i
+
+        do i = 1, nSpatOrbs
+            if (isZero(ilut,i)) then
+                occVector(i) = 0
+            else if (isThree(ilut,i)) then
+                occVector(i) = 2
+            else
+                occVector(i) = 1
+            end if
+        end do
+
+    end function calcOcc_vector_int
+
     function calcB_vector_ilut(ilut) result(bVector)
         ! function to calculate bVector of length (nBasis) for a given
         ! CSF bitRep ilut of length (2*nBasis), save this b-vector 
@@ -1023,6 +1037,33 @@ contains
         end do
 
     end function calcB_vector_ilut
+
+    function calcB_vector_int(ilut) result(bVector)
+        ! function to calculate the bvector in integer form
+        integer(n_int), intent(in) :: ilut(0:nifd) 
+        integer :: bVector(nSpatOrbs)
+
+        integer :: i, bValue
+
+        bVector = 0
+        bValue = 0
+        
+        do i = 1, nSpatOrbs
+            
+            if (isOne(ilut, i)) then
+                bValue = bValue + 1
+                
+            else if (isTwo(ilut, i)) then
+                bValue = bValue - 1
+
+            end if
+
+            bVector(i) = bValue
+
+        end do
+
+    end function calcB_vector_int
+
 
     function getStepvalueExp(ilut, sOrb) result(stepValue)
         ! function to get stepvector value of a given spatial orbital

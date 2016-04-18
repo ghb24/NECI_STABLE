@@ -24,7 +24,8 @@ module guga_excitations
                         extract_matrix_element, write_det_guga, convert_ilut_toGUGA, &
                         write_guga_list, add_guga_lists, count_alpha_orbs_ij, &
                         count_beta_orbs_ij, findFirstSwitch, findLastSwitch, &
-                        calcStepvector, find_switches, convert_ilut_toNECI
+                        calcStepvector, find_switches, convert_ilut_toNECI, &
+                        calcB_vector_int, calcOcc_vector_int
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut
     use OneEInts, only: GetTMatEl
     use Integrals_neci, only: get_umat_el
@@ -1269,7 +1270,7 @@ contains
             ! exact version
     
             ! check matrix element before calculating anything
-            if (get_umat_el(excitInfo%i,excitInfo%i,excitInfo%j,excitInfo%j)==0.0_dp) then
+            if (abs(get_umat_el(excitInfo%i,excitInfo%i,excitInfo%j,excitInfo%j)) < EPS) then
                 excitation = 0
                 pgen = 0.0_dp
                 return
@@ -3177,7 +3178,7 @@ contains
         call mixedFullStopStochastic(ilut, excitInfo, t)
 
         ! check if matrix element is non-zero and if a switch happened
-        if (extract_matrix_element(t,1) /= 0.0_dp) then
+        if (abs(extract_matrix_element(t,1)) > EPS) then
             t = 0 
             return
         end if
@@ -3293,7 +3294,7 @@ contains
                 end if
             end if
 
-            if (topCont /= 0.0_dp) then
+            if (abs(topCont) > EPS) then
 !                 umat = (get_umat_el(e,st,se,e) + &
 !                     get_umat_el(se,e,e,st))/2.0_dp
 !                 call update_matrix_element(t, umat, 1)
@@ -3678,7 +3679,8 @@ contains
 
     end subroutine calc_mixed_end_l2r_contr_nosym
 
-    subroutine calcFullStopR2L_stochastic(ilut,excitInfo, t, pgen)
+
+    subroutine calcFullStopR2L_stochastic(ilut, excitInfo, t, pgen)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
@@ -4265,7 +4267,7 @@ contains
                 end if
             end if
 
-            if (topCont /= 0.0_dp) then
+            if (abs(topCont) > EPS) then
 !                 umat = (get_umat_el(en,se,st,en) + &
 !                     get_umat_el(st,en,en,se))/2.0_dp
 !                 call update_matrix_element(t, umat, 1)
@@ -4857,7 +4859,7 @@ contains
                 ! d=2 + b=2 : 4
 
                 ! have to check b value if branching is possible
-                if (bVal < 2.0_dp) then
+                if (currentB_int(s) < 2) then
                     ! only switch possible
                     ! 2 -> 1
                     set_orb(t, 2*s - 1)
@@ -5125,7 +5127,7 @@ contains
                 ! +1 branch arriving -> have to check b values
                 ! UPDATE: include b value check into probWeight calculation
                 ! todo
-                if (currentB_ilut(se) < 2.0_dp) then
+                if (currentB_int(se) < 2) then
                     ! only 0 branch possible 
                     ! todo: in this forced cases due to the b value, have to 
                     ! think about, how that influences the probWeight...
@@ -5305,7 +5307,7 @@ contains
                 end if
             else
                 ! +1 branch arriving -> have to check b values
-                if (currentB_ilut(se) < 2.0_dp) then
+                if (currentB_int(se) < 2) then
                     ! only 0 branch possible 
                     ! todo: in this forced cases due to the b value, have to 
                     ! think about, how that influences the probWeight...
@@ -5535,7 +5537,7 @@ contains
         ! switch happened in the double overlap region
         if (excitInfo%typ == 21) then
             ! this is indicated by a non-zero x0-matrix element 
-            if (extract_matrix_element(t,1)*tempWeight_0 /= 0.0_dp) then
+            if (abs(extract_matrix_element(t,1)*tempWeight_0) > EPS) then
                 probWeight = 0.0_dp
 !                 call write_det_guga(6, t)
 !                 print *, tempWeight_0
@@ -5715,7 +5717,7 @@ contains
         ! for mixed fullstart check if no switch happened in the double 
         ! overlap region, indicated by a non-zero-x0 matrix element 
         if (excitInfo%typ == 20) then
-            if (extract_matrix_element(t,1)*tempWeight_0 /= 0.0_dp) then
+            if (abs(extract_matrix_element(t,1)*tempWeight_0) > EPS) then
                 probWeight = 0.0_dp
                 t = 0
                 return
@@ -5990,7 +5992,7 @@ contains
 
             ! the rest all gets modified by botCont.. so if it is zero do not 
             ! continue ( do not forget to encode the umat!
-            if (botCont /= 0.0_dp) then
+            if (abs(botCont) > EPS) then
 
             ! then loop from 1 to start-1
             do i = 1, st - 1
@@ -7093,7 +7095,7 @@ contains
 
             ! the rest all gets modified by botCont.. so if it is zero do not 
             ! continue ( do not forget to encode the umat!
-            if (botCont /= 0.0_dp) then
+            if (abs(botCont) > EPS) then
 
             ! then loop from 1 to start-1
             do i = 1, st - 1
@@ -7394,7 +7396,7 @@ contains
         select case (current_stepvector(st))
         case (1)
 !         if (isOne(ilut,st)) then
-            if (currentB_ilut(st) < 2.0_dp) then
+            if (currentB_int(st) < 2) then
                 ! only 0-branch start possible, which always has weight > 0
                 ! no change in stepvector, so just calc matrix element
                 call getDoubleMatrixElement(1, 1, -1, -1, +1, &
@@ -8819,7 +8821,7 @@ contains
 !         else if (isTwo(ilut,s).and.deltaB==+1) then
             ! do i need bValue check here? 
             ! probably... to distinguish forced switches
-           if (bVal > 0.0_dp) then
+           if (currentB_int(s) > 0) then
                 ! both excitations possible
                 plusWeight = weights%proc%plus(posSwitches(s), bVal, weights%dat)
                 minusWeight = weights%proc%minus(negSwitches(s), bVal, weights%dat)
@@ -9734,7 +9736,7 @@ contains
         currentOcc_ilut = calcOcc_vector_ilut(ilut(0:nifd))
         current_stepvector = calcStepvector(ilut(0:nifd))
         currentOcc_int = int(currentOcc_ilut)
-        currentB_int = int(currentB_ilut)
+        currentB_int = calcB_vector_int(ilut(0:nifd))
 
         ! single excitations:
 !         if (pSingles > 0.0_dp) then
@@ -12824,7 +12826,7 @@ contains
 
 !         if (isTwo(ilut, ind) ) then
         if (current_stepvector(ind) == 2) then
-            if (currentB_ilut(ind) > 1.0_dp) ret = 1.0_dp
+            if (currentB_int(ind) > 1) ret = 1.0_dp
         end if
 
     end function endLx
@@ -13829,7 +13831,7 @@ contains
         ! but for a double raising fullstart eg. there cant be a 3 at the 
         ! fullstart... -> how stupid
 !         if (isThree(ilut,st).and.st==ss) then
-        if (current_stepvector(st).and.st==ss) then
+        if (current_stepvector(st) == 3 .and. st == ss) then
             ! only 0 branches in this case
             ! first do the non-branching possibs
 !             if (isOne(ilut,se)) then
@@ -13992,7 +13994,7 @@ contains
 
                     end do
 
-                else if (minusWeight <EPS .and. currentB_ilut(se) == 0.0_dp) then
+                else if (minusWeight <EPS .and. currentB_int(se) == 0) then
                     ! in this case no excitaiton is possible due to b value todo
                     call stop_all(this_routine, "implement cancelled excitaitons")
 
