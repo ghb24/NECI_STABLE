@@ -21,7 +21,7 @@ contains
         use LoggingData, only: tDiagRDM, tDumpForcesInfo, tDipoles, tPrint1RDM
         use LoggingData, only: tRDMInstEnergy
         use Parallel_neci, only: iProcIndex, nProcessors
-        use rdm_data, only: rdm_estimates, one_rdms, two_rdm_spawn, rdm_main, two_rdm_recv
+        use rdm_data, only: rdm_estimates, one_rdms, two_rdm_spawn, two_rdm_main, two_rdm_recv
         use rdm_data, only: tOpenShell, tCalc_RDMEnergy, Sing_ExcDjs, Doub_ExcDjs
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
@@ -105,7 +105,7 @@ contains
         max_nelems = 3.0*(rdm_nrows**2)/(8*nProcessors)
         nhashes_rdm = 0.8*max_nelems
 
-        call init_rdm_list_t(rdm_main, nrdms, max_nelems, nhashes_rdm)
+        call init_rdm_list_t(two_rdm_main, nrdms, max_nelems, nhashes_rdm)
 
         ! Don't need the hash table for the received list, so pass 0 for nhashes.
         call init_rdm_list_t(two_rdm_recv, nrdms, max_nelems, 0)

@@ -73,7 +73,7 @@ module FciMCParMod
 
     subroutine FciMCPar(energy_final_output)
 
-        use rdm_data, only: rdm_estimates, rdm_main, two_rdm_recv, two_rdm_spawn
+        use rdm_data, only: rdm_estimates, two_rdm_main, two_rdm_recv, two_rdm_spawn
         use rdm_data, only: one_rdms
         use rdm_estimators, only: calc_rdm_estimates_wrapper, write_rdm_estimates
         use rdm_estimators_old, only: rdm_output_wrapper_old, write_rdm_estimates_old
@@ -421,7 +421,7 @@ module FciMCParMod
                 ! and this is an iteration where the energy should be calculated, do so.
                 if (tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)) > IterRDMonFly) &
                     .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) == 0) ) then
-                    call calc_rdm_estimates_wrapper(rdm_estimates, rdm_main, two_rdm_recv, two_rdm_spawn)
+                    call calc_rdm_estimates_wrapper(rdm_estimates, two_rdm_main, two_rdm_recv, two_rdm_spawn)
                     if (tOldRDMs) then
                         do irdm = 1, nrdms
                             call rdm_output_wrapper_old(rdms(irdm), one_rdms_old(irdm), irdm, rdm_estimates_old(irdm), .false.)
@@ -501,7 +501,7 @@ module FciMCParMod
         ENDIF
 
         if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) then
-            call finalise_rdms(one_rdms, rdm_main, two_rdm_recv, two_rdm_spawn, rdm_estimates)
+            call finalise_rdms(one_rdms, two_rdm_main, two_rdm_recv, two_rdm_spawn, rdm_estimates)
             if (tOldRDMs) call FinaliseRDMs_old(rdms, one_rdms_old, rdm_estimates_old)
         end if
 
@@ -654,7 +654,7 @@ module FciMCParMod
     subroutine PerformFCIMCycPar(iter_data)
 
         use global_det_data, only: get_iter_occ, get_av_sgn
-        use rdm_data, only: two_rdm_spawn, two_rdm_recv, rdm_main, one_rdms
+        use rdm_data, only: two_rdm_spawn, two_rdm_recv, two_rdm_main, one_rdms
         use rdm_parallel, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2
         
         ! Iteration specific data
@@ -1074,7 +1074,7 @@ module FciMCParMod
 
         if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) then
             call communicate_rdm_spawn_t(two_rdm_spawn, two_rdm_recv)
-            call add_rdm_1_to_rdm_2(two_rdm_recv, rdm_main)
+            call add_rdm_1_to_rdm_2(two_rdm_recv, two_rdm_main)
         end if
 
     end subroutine PerformFCIMCycPar

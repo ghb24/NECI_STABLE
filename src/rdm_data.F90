@@ -127,9 +127,10 @@ module rdm_data
         integer, allocatable :: init_free_slots(:)
     end type rdm_spawn_t
 
+    ! Global arrays.
     type(one_rdm_t), allocatable :: one_rdms(:)
     type(rdm_spawn_t) :: two_rdm_spawn
-    type(rdm_list_t) :: rdm_main
+    type(rdm_list_t) :: two_rdm_main
     type(rdm_list_t) :: two_rdm_recv
     type(rdm_estimates_t) :: rdm_estimates
 
