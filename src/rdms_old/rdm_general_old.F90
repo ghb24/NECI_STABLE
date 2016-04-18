@@ -523,7 +523,7 @@ contains
         use rdm_data, only: rdm_main, two_rdm_spawn, two_rdm_recv, tOpenShell
         use rdm_data_old, only: rdm_t, rdm_estimates_old_t
         use rdm_estimators_old, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
-        use rdm_estimators_old, only: rdm_output_wrapper_old, CalcDipoles
+        use rdm_estimators_old, only: rdm_output_wrapper_old, CalcDipoles, write_rdm_estimates_old
         use rdm_general, only: Finalise_1e_RDM, calc_1e_norms
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
         use rdm_parallel, only: calc_rdm_trace, calc_1rdms_from_2rdms
@@ -586,6 +586,8 @@ contains
             end if
 
         end do
+
+        if (iProcIndex == 0) call write_rdm_estimates_old(rdm_estimates_old, .true.)
 
     end subroutine FinaliseRDMs_old
 

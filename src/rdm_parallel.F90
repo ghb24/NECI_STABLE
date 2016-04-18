@@ -355,7 +355,7 @@ contains
         use rdm_integral_fns, only: one_elec_int, two_elec_int
         use SystemData, only: nel
 
-        type(rdm_list_t), intent(inout) :: rdm
+        type(rdm_list_t), intent(in) :: rdm
         real(dp), intent(out) :: rdm_energy_1(rdm%sign_length)
         real(dp), intent(out) :: rdm_energy_2(rdm%sign_length)
 
@@ -388,7 +388,7 @@ contains
 
         use rdm_data, only: rdm_spawn_t
 
-        type(rdm_list_t), intent(inout) :: rdm
+        type(rdm_list_t), intent(in) :: rdm
         real(dp), intent(out) :: rdm_trace(rdm%sign_length)
 
         integer(int_rdm) :: pqrs

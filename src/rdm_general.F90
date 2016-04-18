@@ -19,6 +19,7 @@ contains
         use FciMCData, only: HFDet_True
         use LoggingData, only: tDo_Not_Calc_RDMEnergy, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tDiagRDM, tDumpForcesInfo, tDipoles, tPrint1RDM
+        use LoggingData, only: tRDMInstEnergy
         use Parallel_neci, only: iProcIndex, nProcessors
         use rdm_data, only: rdm_estimates, one_rdms, two_rdm_spawn, rdm_main, two_rdm_recv
         use rdm_data, only: tOpenShell, tCalc_RDMEnergy, Sing_ExcDjs, Doub_ExcDjs
@@ -515,7 +516,7 @@ contains
         use Parallel_neci, only: iProcIndex, MPIBarrier, MPIBCast
         use rdm_data, only: tRotatedNos, FinaliseRDMs_Time, tOpenShell
         use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t, rdm_estimates_t
-        use rdm_estimators, only: rdm_output_wrapper, write_rdm_estimates
+        use rdm_estimators, only: calc_rdm_estimates_wrapper, rdm_output_wrapper, write_rdm_estimates
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
         use rdm_parallel, only: calc_1rdms_from_2rdms
         use util_mod, only: set_timer, halt_timer
@@ -544,8 +545,12 @@ contains
             ! calculating the energy throughout the calculation.
             ! Unless of course, only the 1-RDM is being calculated.
 
-            ! 1-RDM is constructed here (in calc_1RDM_and_1RDM_energy).
-            call rdm_output_wrapper(rdm_estimates, two_rdms, rdm_recv, spawn, .true.)
+            ! Calculate the RDM estmimates from the final few iterations,
+            ! since it was last calculated.
+            call calc_rdm_estimates_wrapper(rdm_estimates, two_rdms, rdm_recv, spawn)
+
+            ! Output the final 2-RDMs themselves, in all forms desired.
+            call rdm_output_wrapper(rdm_estimates, two_rdms, rdm_recv, spawn)
 
             ! Calculate the 1-RDMs from the 2-RDMS, if required.
             if (tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
@@ -580,6 +585,8 @@ contains
             end if
         end do
 
+        ! Write the final instantaneous RDM estimates, and also the final
+        ! report of the total RDM estimates.
         if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates, .true.)
 #ifdef _MOLCAS_
             NECI_E = rdm_estimates%rdm_energy_tot_accum(1)

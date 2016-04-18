@@ -67,19 +67,20 @@ module rdm_data
 
         real(dp), allocatable :: trace(:)
         real(dp), allocatable :: norm(:)
-
         real(dp), allocatable :: energy_1_num(:)
         real(dp), allocatable :: energy_2_num(:)
-        real(dp), allocatable :: energy_tot_num(:)
-
+        real(dp), allocatable :: energy_num(:)
         real(dp), allocatable :: spin_num(:)
+
+        real(dp), allocatable :: trace_inst(:)
+        real(dp), allocatable :: norm_inst(:)
+        real(dp), allocatable :: energy_1_num_inst(:)
+        real(dp), allocatable :: energy_2_num_inst(:)
+        real(dp), allocatable :: energy_num_inst(:)
+        real(dp), allocatable :: spin_num_inst(:)
 
         real(dp), allocatable :: max_error_herm(:)
         real(dp), allocatable :: sum_error_herm(:)
-
-        real(dp), allocatable :: energy_tot_num_accum(:)
-        real(dp), allocatable :: spin_num_accum(:)
-        real(dp), allocatable :: norm_accum(:)
     end type rdm_estimates_t
 
     ! Data for parallel RDM implementation.

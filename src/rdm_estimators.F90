@@ -23,35 +23,37 @@ contains
 
         allocate(est%trace(nrdms), stat=ierr)
         allocate(est%norm(nrdms), stat=ierr)
-
         allocate(est%energy_1_num(nrdms), stat=ierr)
         allocate(est%energy_2_num(nrdms), stat=ierr)
-        allocate(est%energy_tot_num(nrdms), stat=ierr)
-
+        allocate(est%energy_num(nrdms), stat=ierr)
         allocate(est%spin_num(nrdms), stat=ierr)
+
+        allocate(est%trace_inst(nrdms), stat=ierr)
+        allocate(est%norm_inst(nrdms), stat=ierr)
+        allocate(est%energy_1_num_inst(nrdms), stat=ierr)
+        allocate(est%energy_2_num_inst(nrdms), stat=ierr)
+        allocate(est%energy_num_inst(nrdms), stat=ierr)
+        allocate(est%spin_num_inst(nrdms), stat=ierr)
 
         allocate(est%max_error_herm(nrdms), stat=ierr)
         allocate(est%sum_error_herm(nrdms), stat=ierr)
 
-        allocate(est%energy_tot_num_accum(nrdms), stat=ierr)
-        allocate(est%spin_num_accum(nrdms), stat=ierr)
-        allocate(est%norm_accum(nrdms), stat=ierr)
-
         est%trace = 0.0_dp
         est%norm = 0.0_dp
-
         est%energy_1_num = 0.0_dp
         est%energy_2_num = 0.0_dp
-        est%energy_tot_num = 0.0_dp
-
+        est%energy_num = 0.0_dp
         est%spin_num = 0.0_dp
+
+        est%trace_inst = 0.0_dp
+        est%norm_inst = 0.0_dp
+        est%energy_1_num_inst = 0.0_dp
+        est%energy_2_num_inst = 0.0_dp
+        est%energy_num_inst = 0.0_dp
+        est%spin_num_inst = 0.0_dp
 
         est%max_error_herm = 0.0_dp
         est%sum_error_herm = 0.0_dp
-
-        est%energy_tot_num_accum = 0.0_dp
-        est%spin_num_accum = 0.0_dp
-        est%norm_accum = 0.0_dp
 
         if (iProcIndex == 0 .and. open_output_file) then
             est%write_unit = get_free_unit()
@@ -80,27 +82,32 @@ contains
 
     end subroutine write_rdm_est_file_header
 
-    subroutine rdm_output_wrapper(est, rdm, rdm_recv, spawn, final_output)
+    subroutine calc_rdm_estimates_wrapper(est, rdm, rdm_recv, spawn)
 
-        use LoggingData, only: tWrite_normalised_RDMs, tWriteSpinFreeRDM
         use Parallel_neci, only: MPISumAll
         use rdm_data, only: rdm_estimates_t, rdm_list_t, rdm_spawn_t, tOpenShell
         use rdm_parallel, only: calc_rdm_trace, calc_rdm_spin, calc_rdm_energy, print_rdms_with_spin
-        use rdm_parallel, only: print_rdms_spin_sym_wrapper, print_spinfree_2rdm_wrapper
-        use rdm_parallel, only: calc_hermitian_errors
         use SystemData, only: nel, ecore
 
         type(rdm_estimates_t), intent(inout) :: est
-        ! IMPORTANT: rdm is not actually modified by this routine, despite
-        ! needing inout status.
-        type(rdm_list_t), intent(inout) :: rdm
+        type(rdm_list_t), intent(in) :: rdm
         type(rdm_list_t), intent(inout) :: rdm_recv
         type(rdm_spawn_t), intent(inout) :: spawn
-        logical, intent(in) :: final_output
 
         real(dp) :: rdm_trace(est%nrdms), rdm_norm(est%nrdms)
         real(dp) :: rdm_energy_1(est%nrdms), rdm_energy_2(est%nrdms)
         real(dp) :: rdm_spin(est%nrdms)
+
+        ! Use the _inst variables as temporary variables to store the current
+        ! total values. These are updated at the end of this routine.
+        est%trace_inst = est%trace
+        est%norm_inst = est%norm
+        est%energy_1_num_inst = est%energy_1_num
+        est%energy_2_num_inst = est%energy_2_num
+        est%energy_num_inst = est%energy_num
+        est%spin_num_inst = est%spin_num
+
+        ! Calculate the new total values.
 
         call calc_rdm_trace(rdm, rdm_trace)
         call MPISumAll(rdm_trace, est%trace)
@@ -111,17 +118,40 @@ contains
         call calc_rdm_energy(rdm, rdm_energy_1, rdm_energy_2)
         call MPISumAll(rdm_energy_1, est%energy_1_num)
         call MPISumAll(rdm_energy_2, est%energy_2_num)
-        est%energy_tot_num = est%energy_1_num + est%energy_2_num + ecore*est%norm
+        est%energy_num = est%energy_1_num + est%energy_2_num + ecore*est%norm
 
         call calc_rdm_spin(rdm, rdm_norm, rdm_spin)
         call MPISumAll(rdm_spin, est%spin_num)
 
-        call calc_hermitian_errors(rdm, rdm_recv, spawn, est%norm, est%max_error_herm, est%sum_error_herm)
+        ! Calculate the instantaneous values by taking the old total values
+        ! from the new total ones.
 
-        if (tWriteSpinFreeRDM .and. final_output) call print_spinfree_2rdm_wrapper(rdm, rdm_recv, spawn, est%norm)
-        if (final_output .and. tWrite_Normalised_RDMs) then
-            call print_rdms_spin_sym_wrapper(rdm, rdm_recv, spawn, est%norm, tOpenShell)
-        end if
+        est%trace_inst = est%trace - est%trace_inst
+        est%norm_inst = est%norm - est%norm_inst
+        est%energy_1_num_inst = est%energy_1_num - est%energy_1_num_inst
+        est%energy_2_num_inst = est%energy_2_num - est%energy_2_num_inst
+        est%energy_num_inst = est%energy_num - est%energy_num_inst
+        est%spin_num_inst = est%spin_num - est%spin_num_inst
+
+    end subroutine calc_rdm_estimates_wrapper
+
+    subroutine rdm_output_wrapper(est, rdm, rdm_recv, spawn)
+
+        use LoggingData, only: tWrite_normalised_RDMs, tWriteSpinFreeRDM
+        use rdm_data, only: rdm_estimates_t, rdm_list_t, rdm_spawn_t, tOpenShell
+        use rdm_parallel, only: print_rdms_spin_sym_wrapper, print_spinfree_2rdm_wrapper
+        use rdm_parallel, only: calc_hermitian_errors
+
+        type(rdm_estimates_t), intent(inout) :: est
+        ! IMPORTANT: rdm is not actually modified by this routine, despite
+        ! needing inout status.
+        type(rdm_list_t), intent(inout) :: rdm
+        type(rdm_list_t), intent(inout) :: rdm_recv
+        type(rdm_spawn_t), intent(inout) :: spawn
+
+        call calc_hermitian_errors(rdm, rdm_recv, spawn, est%norm, est%max_error_herm, est%sum_error_herm)
+        if (tWriteSpinFreeRDM) call print_spinfree_2rdm_wrapper(rdm, rdm_recv, spawn, est%norm)
+        if (tWrite_Normalised_RDMs) call print_rdms_spin_sym_wrapper(rdm, rdm_recv, spawn, est%norm, tOpenShell)
 
     end subroutine rdm_output_wrapper
 
@@ -141,14 +171,14 @@ contains
             write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
             do irdm = 1, est%nrdms
                 write(est%write_unit, '(3(3x,es20.13))', advance='no') &
-                    est%energy_tot_num(irdm), est%spin_num(irdm), est%norm(irdm)
+                    est%energy_num_inst(irdm), est%spin_num_inst(irdm), est%norm_inst(irdm)
             end do
             write(est%write_unit,'()')
         else
-            write(est%write_unit, '(1x,i13)') Iter+PreviousCycles
+            write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
             do irdm = 1, est%nrdms
                 write(est%write_unit, '(3(3x,es20.13))', advance='no') &
-                    est%energy_tot_num_accum(irdm), est%spin_num_accum(irdm), est%norm_accum(irdm)
+                    est%energy_num(irdm), est%spin_num(irdm), est%norm(irdm)
             end do
             write(est%write_unit, '()')
         end if
@@ -163,7 +193,7 @@ contains
                 write(6,'(1x,"Energy contribution from the 1-RDM:",1x,es17.10)') est%energy_1_num(irdm)/est%norm(irdm)
                 write(6,'(1x,"Energy contribution from the 2-RDM:",1x,es17.10)') est%energy_2_num(irdm)/est%norm(irdm)
                 write(6,'(1x,"*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:",1x,es20.13,/)') &
-                    est%energy_tot_num(irdm)/est%norm(irdm)
+                    est%energy_num(irdm)/est%norm(irdm)
             end do
             close(est%write_unit)
         end if

@@ -71,11 +71,11 @@ module FciMCParMod
 
     contains
 
-    SUBROUTINE FciMCPar(energy_final_output)
+    subroutine FciMCPar(energy_final_output)
 
         use rdm_data, only: rdm_estimates, rdm_main, two_rdm_recv, two_rdm_spawn
         use rdm_data, only: one_rdms
-        use rdm_estimators, only: rdm_output_wrapper, write_rdm_estimates
+        use rdm_estimators, only: calc_rdm_estimates_wrapper, write_rdm_estimates
         use rdm_estimators_old, only: rdm_output_wrapper_old, write_rdm_estimates_old
 
         real(dp), intent(out), allocatable :: energy_final_output(:)
@@ -419,23 +419,19 @@ module FciMCParMod
             if (tRDMonFly .and. all(.not. tSinglePartPhase)) then
                 ! If we wish to calculate the energy, have started accumulating the RDMs, 
                 ! and this is an iteration where the energy should be calculated, do so.
-                if(tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)) .gt. IterRDMonFly) &
-                    .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .eq. 0) ) then
-                        call rdm_output_wrapper(rdm_estimates, rdm_main, two_rdm_recv, two_rdm_spawn, .false.)
-                        if (tOldRDMs) then
-                            do irdm = 1, nrdms
-                                call rdm_output_wrapper_old(rdms(irdm), one_rdms_old(irdm), irdm, rdm_estimates_old(irdm), .false.)
-                            end do
-                        end if
+                if (tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)) > IterRDMonFly) &
+                    .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) == 0) ) then
+                    call calc_rdm_estimates_wrapper(rdm_estimates, rdm_main, two_rdm_recv, two_rdm_spawn)
+                    if (tOldRDMs) then
+                        do irdm = 1, nrdms
+                            call rdm_output_wrapper_old(rdms(irdm), one_rdms_old(irdm), irdm, rdm_estimates_old(irdm), .false.)
+                        end do
+                    end if
 
-                        !TODO: Move this to a more sensible place when everything is working.
-                        !call clear_hash_table(rdm_main%hash_table)
-                        !rdm_main%nelements = 0
-
-                        if (iProcIndex == 0) then
-                            call write_rdm_estimates(rdm_estimates, .false.)
-                            if (tOldRDMs) call write_rdm_estimates_old(rdm_estimates_old, .false.)
-                        end if
+                    if (iProcIndex == 0) then
+                        call write_rdm_estimates(rdm_estimates, .false.)
+                        if (tOldRDMs) call write_rdm_estimates_old(rdm_estimates_old, .false.)
+                    end if
                 end if
             end if
 
@@ -505,8 +501,8 @@ module FciMCParMod
         ENDIF
 
         if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) then
-            if (tOldRDMs) call FinaliseRDMs_old(rdms, one_rdms_old, rdm_estimates_old)
             call finalise_rdms(one_rdms, rdm_main, two_rdm_recv, two_rdm_spawn, rdm_estimates)
+            if (tOldRDMs) call FinaliseRDMs_old(rdms, one_rdms_old, rdm_estimates_old)
         end if
 
         call PrintHighPops()

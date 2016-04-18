@@ -97,7 +97,7 @@ contains
             end do
             write(rdm_write_unit_old,'()')
         else
-            write(rdm_write_unit_old, '(1x,i13)') Iter+PreviousCycles
+            write(rdm_write_unit_old, '(1x,i13)', advance='no') Iter+PreviousCycles
             do irdm = 1, size(est)
                 write(rdm_write_unit_old, '(3(3x,es20.13))', advance='no') &
                     est(irdm)%RDMEnergy, est(irdm)%spin_est, 1.0_dp/est(irdm)%Norm_2RDM_Inst
