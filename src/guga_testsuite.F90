@@ -4030,58 +4030,62 @@ contains
 
         allocate(currentOcc_ilut(4))
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        allocate(currentOcc_int(4))
+        currentOcc_int = int(currentOcc_ilut)
+
         pgen = 1.0_dp
 
         print *, "testing pickRandomOrb(orbRes, pgen, orb, occRes):"
-        call pickRandomOrb(1, pgen, orb)
+        call pickRandomOrb_scalar(1, pgen, orb)
         ASSERT(pgen == 1.0_dp/3.0_dp)
         ASSERT( orb > 1 .and. orb <= 4)
         pgen = 1.0_dp
-        call pickRandomOrb(2.0_dp, pgen, orb)
+        call pickRandomOrb_forced(2, pgen, orb)
         ASSERT(orb == 1)
         ASSERT(pgen == 1.0_dp)
         pgen = 1.0_dp
-        call pickRandomOrb([1,2], pgen, orb)
+        call pickRandomOrb_vector([1,2], pgen, orb)
         ASSERT(orb == 3 .or. orb == 4)
         ASSERT(pgen == 1.0_dp/2.0_dp)
         pgen = 1.0_dp
-        call pickRandomOrb([2,3], pgen, orb, 2.0_dp)
+        call pickRandomOrb_vector([2,3], pgen, orb, 2)
         ASSERT(orb == 4)
         ASSERT(pgen == 1.0_dp)
 
         pgen = 1.0_dp
-        call pickRandomOrb(0, pgen, orb, 0.0_dp)
+        call pickRandomOrb_scalar(0, pgen, orb, 0)
         ASSERT(pgen == 1.0_dp/3.0_dp)
         ASSERT(orb /= 3)
 
         pgen = 1.0_dp
-        call pickRandomOrb(2, pgen, orb, 2.0_dp)
+        call pickRandomOrb_scalar(2, pgen, orb, 2)
         ASSERT(pgen == 1.0_dp/2.0_dp)
         ASSERT(orb == 3 .or. orb == 4)
 
         pgen = 1.0_dp
-        call pickRandomOrb(1,2,pgen,orb)
+        call pickRandomOrb_restricted(1,2,pgen,orb)
         ASSERT(pgen == 0.0_dp)
         ASSERT(orb == 0)
 
         pgen = 1.0_dp
-        call pickRandomOrb(1,4,pgen,orb)
+        call pickRandomOrb_restricted(1,4,pgen,orb)
         print *, pgen, orb
         ASSERT(pgen == 1.0_dp/2.0_dp)
         ASSERT(orb == 2 .or. orb == 3)
 
         pgen = 1.0_dp
-        call pickRandomOrb(1,4,pgen,orb,0.0_dp)
+        call pickRandomOrb_restricted(1,4,pgen,orb,0)
         ASSERT(pgen == 1.0_dp)
         ASSERT(orb == 2)
 
         pgen = 1.0_dp
-        call pickRandomOrb(1,4,pgen,orb,1.0_dp)
+        call pickRandomOrb_restricted(1,4,pgen,orb,1)
         ASSERT(pgen == 1.0_dp)
         ASSERT(orb == 3)
         print *, "pickRandomOrb tests passed!"
 
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
 
     end subroutine test_pickRandomOrb
 

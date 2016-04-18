@@ -234,13 +234,13 @@ module guga_excitations
 !         module procedure pickOrbitals_double
 !     end interface pickOrbitals
 
-    interface pickRandomOrb
-        module procedure pickRandomOrb_scalar
-        module procedure pickRandomOrb_vector
-        module procedure pickRandomOrb_forced
-        module procedure pickRandomOrb_restricted
-        module procedure pickRandomOrb_restricted_index
-    end interface pickRandomOrb
+!     interface pickRandomOrb
+!         module procedure pickRandomOrb_scalar
+!         module procedure pickRandomOrb_vector
+!         module procedure pickRandomOrb_forced
+!         module procedure pickRandomOrb_restricted
+!         module procedure pickRandomOrb_restricted_index
+!     end interface pickRandomOrb
 
     interface calcRemainingSwitches
         module procedure calcRemainingSwitches_single
@@ -985,7 +985,7 @@ contains
         ! new determinant -> is set in FciMCPar!
         if (tNewDet) then
             if (allocated(currentB_ilut)) deallocate(currentB_ilut)
-            if (allocated(currentOcc_ilut)) deallocate(currentOcc_ilut)
+!p             if (allocated(currentOcc_ilut)) deallocate(currentOcc_ilut)
             if (allocated(current_stepvector)) deallocate(current_stepvector)
             if (allocated(currentOcc_int)) deallocate(currentOcc_int)
             if (allocated(currentB_int)) deallocate(currentB_int)
@@ -6269,7 +6269,7 @@ contains
 
         ! p(x|i) is still 1 / (nOrbs-1) in this case! always
         orb_pgen = (1.0_dp - pExcit4) * (1.0_dp - pExcit2) * (1.0_dp - pExcit3_same) / &
-            real(count(currentOcc_ilut == 1.0_dp)*(nSpatOrbs-1), dp)
+            real(count(currentOcc_int == 1)*(nSpatOrbs-1), dp)
 
     end function orb_pgen_contrib_type_3_diff
 
@@ -6280,7 +6280,7 @@ contains
         character(*), parameter :: this_routine = "orb_pgen_contrib_type_2_uniform"
 
         orb_pgen = 2.0_dp * (1.0_dp - pExcit4) * pExcit2 / &
-            real(nSpatOrbs * (count(currentOcc_ilut == 1.0_dp) - 1), dp)
+            real(nSpatOrbs * (count(currentOcc_int == 1) - 1), dp)
 
     end function orb_pgen_contrib_type_2_uniform
 
@@ -6292,7 +6292,7 @@ contains
         ! here p(i) is again the number of singly occupied inverse 
 
         orb_pgen = 2.0_dp * (1.0_dp - pExcit4) * pExcit2 * (1.0_dp - pExcit2_same) / &
-            real(count(currentOcc_ilut == 1.0_dp)*(count(currentOcc_ilut == 1.0_dp) - 1 ), dp)
+            real(count(currentOcc_int == 1)*(count(currentOcc_int == 1) - 1 ), dp)
 
     end function orb_pgen_contrib_type_2_diff
 
@@ -12050,7 +12050,8 @@ contains
                     cnt = cnt + 1
                 end do
             end if
-        end if
+!         end if
+        end select
         ! now have to cut tempExcits to only necessary 
         ! and used entries and output it!
         allocate(excitations(0:nifguga, nExcits), stat = ierr)
@@ -12821,7 +12822,8 @@ contains
 
         ret = 0.0_dp
 
-        if (isTwo(ilut, ind) ) then
+!         if (isTwo(ilut, ind) ) then
+        if (current_stepvector(ind) == 2) then
             if (currentB_ilut(ind) > 1.0_dp) ret = 1.0_dp
         end if
 
@@ -12963,7 +12965,6 @@ contains
 
         ! otherwise get excitation information
         excitInfo = excitationIdentifier(i, j, k, l)
-!
         
         ! screw it. for now write a function which checks if indices and ilut
         ! are compatible, and not initiate the excitation right away
@@ -13724,7 +13725,6 @@ contains
 
     end subroutine calcFullStartR2L
 
-
     subroutine calcFullStartL2R(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
@@ -13757,7 +13757,6 @@ contains
         plusWeight = weights%proc%plus(posSwitches(start), currentB_ilut(start),weights%dat)
         zeroWeight = weights%proc%zero(negSwitches(start), posSwitches(start), &
             currentB_ilut(start), weights%dat)
-
 
         ! check if first value is 3, so only 0 branch is compatible
         call mixedFullStart(ilut, excitInfo, plusWeight, minusWeight,zeroWeight, tempExcits,&
@@ -13829,10 +13828,13 @@ contains
         ! at the fullstart is!!!
         ! but for a double raising fullstart eg. there cant be a 3 at the 
         ! fullstart... -> how stupid
-        if (isThree(ilut,st).and.st==ss) then
+!         if (isThree(ilut,st).and.st==ss) then
+        if (current_stepvector(st).and.st==ss) then
             ! only 0 branches in this case
             ! first do the non-branching possibs
-            if (isOne(ilut,se)) then
+!             if (isOne(ilut,se)) then
+            select case (current_stepvector(se))
+            case (1)
                 ! 1 -> 0 switch
                 do iEx = 1, nExcits
 
@@ -13857,7 +13859,8 @@ contains
 
                 end do
 
-            else if (isTwo(ilut, se)) then
+!             else if (isTwo(ilut, se)) then
+            case (2)
                 ! 2 -> 0 switch
 
                 if (minusWeight < EPS) then 
@@ -13886,9 +13889,10 @@ contains
 
                 end do
 
-            else 
+!             else 
+            case (3)
                 ! three case -> branching possibilities according to b an weights
-                if (currentB_ilut(se) > 0.0_dp .and. plusWeight > 0.0_dp &
+                if (currentB_int(se) > 0 .and. plusWeight > 0.0_dp &
                     .and. minusWeight > 0.0_dp) then
                     ! both excitaitons are possible then
                     do iEx = 1, nExcits
@@ -13930,7 +13934,7 @@ contains
 
                     end do
 
-                else if (currentB_ilut(se) == 0.0_dp .or. plusWeight <EPS) then
+                else if (currentB_int(se) == 0 .or. plusWeight <EPS) then
                     ! only -1 branch possibloe
                     if (minusWeight < EPS) then
                         nExcits = 0
@@ -13959,7 +13963,7 @@ contains
 
                     end do
 
-                else if (minusWeight <EPS .and. currentB_ilut(se) > 0.0_dp) then
+                else if (minusWeight <EPS .and. currentB_int(se) > 0) then
                     ! only +1 branches possible
                     if (plusWeight < EPS) then
                         nExcits = 0
@@ -13996,12 +14000,15 @@ contains
                     ! shouldnt be here... 
                     call stop_all(this_routine, "somethin went wrong! shouldnt be here!")
                 end if
-            end if
+!             end if
+            end select
 
         else 
             ! also +2, and -2 branches arriving possible! 
             ! again the non-branching values first
-            if (isOne(ilut,se)) then
+!             if (isOne(ilut,se)) then
+            select case (current_stepvector(se))
+            case (1)
                 ! 1 -> 0 for 0 and -2 branch
                 ! have to check different weight combinations
                 ! although excitations should only get there if the weight
@@ -14043,7 +14050,8 @@ contains
 
                 end do
 
-            else if (isTwo(ilut,se)) then
+!             else if (isTwo(ilut,se)) then
+            case (2)
                 ! 2 -> 0 for 0 and +2 branches
                 do iEx = 1, nExcits
                     t = tempExcits(:,iEx)
@@ -14078,7 +14086,8 @@ contains
 
                 end do
 
-            else
+!             else
+            case (3)
                 ! 3 case -> have to check weights more thourougly
                 ! when a certain +-2 excitation comes to a 0 semi-stop
                 ! the ongoing weights should allow an excitation or 
@@ -14086,7 +14095,7 @@ contains
                 ! for the 0 branch arriving i have to check if a branching
                 ! is possible.. and have to do that outside of the do-loops
                 ! to be more efficient
-                if (currentB_ilut(se) > 0.0_dp .and. plusWeight > 0.0_dp &
+                if (currentB_int(se) > 0 .and. plusWeight > 0.0_dp &
                     .and. minusWeight > 0.0_dp) then
                     ! all excitations for 0 branch possible
                     do iEx = 1, nExcits
@@ -14173,7 +14182,7 @@ contains
                         end if 
                     end do
 
-                else if (currentB_ilut(se) == 0.0_dp .or. plusWeight <EPS) then
+                else if (currentB_int(se) == 0 .or. plusWeight <EPS) then
                     ! only -1 branch when 0 branch arrives... the switch from
                     ! +2 -> +1 branch shouldnt be affected, since i wouldn not 
                     ! arrive at semi.stop if 0 weight, and if b value would 
@@ -14217,7 +14226,7 @@ contains
 
                     end do
 
-                else if (currentB_ilut(se) > 0.0_dp .and. minusWeight <EPS) then
+                else if (currentB_int(se) > 0 .and. minusWeight <EPS) then
                     ! only +1 branch possible afterwards
                     do iEx = 1, nExcits
                         t = tempExcits(:,iEx)
@@ -14258,7 +14267,7 @@ contains
 
                     end do
 
-                else if (currentB_ilut(se) == 0.0_dp .and. plusWeight <EPS) then
+                else if (currentB_int(se) == 0 .and. plusWeight <EPS) then
                     ! broken excitation due to b value restriction
                     ! todo how to deal with that ...
                     call stop_all(this_routine, "broken excitation due to b value. todo!")
@@ -14268,12 +14277,12 @@ contains
                     call stop_all(this_routine, "something went wrong. shouldnt be here!")
                 end if
 
-            end if
+!             end if
+            end select
         end if
 
         
     end subroutine calcRaisingSemiStop
-
 
     subroutine calcLoweringSemiStop(ilut, excitInfo, tempExcits, nExcits, plusWeight, &
             minusWeight)
@@ -14306,7 +14315,9 @@ contains
         if (isThree(ilut,st).and.ss==st) then
             ! only 0 branches in this case
             ! first do the non-branching possibs
-            if (isOne(ilut,se)) then
+!             if (isOne(ilut,se)) then
+            select case (current_stepvector(se))
+            case (1)
                 ! 1 -> 3 switch
                 if (plusWeight < EPS) then
                     tempExcits = 0
@@ -14341,7 +14352,8 @@ contains
 
                 end do
 
-            else if (isTwo(ilut, se)) then
+!             else if (isTwo(ilut, se)) then
+            case (2)
                 ! 2 -> 3 switch
                 if (minusWeight < EPS) then
                     tempExcits = 0
@@ -14370,9 +14382,10 @@ contains
 
                 end do
 
-            else 
+!             else 
+            case (0)
                 ! zero case -> branching possibilities according to b an weights
-                if (currentB_ilut(se) > 0.0_dp .and. plusWeight > 0.0_dp &
+                if (currentB_int(se) > 0 .and. plusWeight > 0.0_dp &
                     .and. minusWeight > 0.0_dp) then
                     ! both excitaitons are possible then
                     do iEx = 1, nExcits
@@ -14414,7 +14427,7 @@ contains
 
                     end do
 
-                else if (currentB_ilut(se) == 0.0_dp .or. plusWeight <EPS) then
+                else if (currentB_int(se) == 0 .or. plusWeight <EPS) then
                     ! only -1 branch possible
                     do iEx = 1, nExcits 
                         t = tempExcits(:,iEx)
@@ -14437,7 +14450,7 @@ contains
 
                     end do
 
-                else if (minusWeight <EPS .and. currentB_ilut(se) > 0.0_dp) then
+                else if (minusWeight <EPS .and. currentB_int(se) > 0) then
                     ! only +1 branches possible
                     do iEx = 1, nExcits 
                         t = tempExcits(:,iEx)
@@ -14460,7 +14473,7 @@ contains
 
                     end do
 
-                else if (minusWeight <EPS .and. currentB_ilut(se) == 0.0_dp) then
+                else if (minusWeight <EPS .and. currentB_int(se) == 0) then
                     ! in this case no excitaiton is possible due to b value todo
                     call stop_all(this_routine, "implement cancelled excitaitons")
 
@@ -14468,12 +14481,15 @@ contains
                     ! shouldnt be here... 
                     call stop_all(this_routine, "somethin went wrong! shouldnt be here!")
                 end if
-            end if
+!             end if
+            end select
 
         else 
             ! also +2, and -2 branches arriving possible! 
             ! again the non-branching values first
-            if (isOne(ilut,se)) then
+!             if (isOne(ilut,se)) then
+            select case (current_stepvector(se))
+            case (1)
                 ! 1 -> 3 for 0 and -2 branch
                 ! have to check different weight combinations
                 ! although excitations should only get there if the weight
@@ -14518,7 +14534,8 @@ contains
 
                 end do
 
-            else if (isTwo(ilut,se)) then
+!             else if (isTwo(ilut,se)) then
+            case (2)
                 ! 2 -> 3 for 0 and +2 branches
                 do iEx = 1, nExcits
                     t = tempExcits(:,iEx)
@@ -14553,7 +14570,8 @@ contains
 
                 end do
 
-            else
+!             else
+            case (0)
                 ! 0 case -> have to check weights more thourougly
                 ! when a certain +-2 excitation comes to a 0 semi-stop
                 ! the ongoing weights should allow an excitation or 
@@ -14561,7 +14579,7 @@ contains
                 ! for the 0 branch arriving i have to check if a branching
                 ! is possible.. and have to do that outside of the do-loops
                 ! to be more efficient
-                if (currentB_ilut(se) > 0.0_dp .and. plusWeight > 0.0_dp &
+                if (currentB_int(se) > 0 .and. plusWeight > 0.0_dp &
                     .and. minusWeight > 0.0_dp) then
                     ! all excitations for 0 branch possible
                     do iEx = 1, nExcits
@@ -14648,7 +14666,7 @@ contains
                         end if 
                     end do
 
-                else if (currentB_ilut(se) == 0.0_dp .or. plusWeight <EPS) then
+                else if (currentB_int(se) == 0 .or. plusWeight <EPS) then
                     ! only -1 branch when 0 branch arrives... the switch from
                     ! +2 -> +1 branch shouldnt be affected, since i wouldn not 
                     ! arrive at semi.stop if 0 weight, and if b value would 
@@ -14692,7 +14710,7 @@ contains
 
                     end do
 
-                else if (currentB_ilut(se) > 0.0_dp .and. minusWeight <EPS) then
+                else if (currentB_int(se) > 0 .and. minusWeight <EPS) then
                     ! only +1 branch possible afterwards
                     do iEx = 1, nExcits
                         t = tempExcits(:,iEx)
@@ -14733,7 +14751,7 @@ contains
 
                     end do
 
-                else if (currentB_ilut(se) == 0.0_dp .and. plusWeight <EPS) then
+                else if (currentB_int(se) == 0 .and. plusWeight <EPS) then
                     ! broken excitation due to b value restriction
                     ! todo how to deal with that ...
                     call stop_all(this_routine, "broken excitation due to b value. todo!")
@@ -14743,12 +14761,11 @@ contains
                     call stop_all(this_routine, "something went wrong. shouldnt be here!")
                 end if
 
-            end if
+            end select
+!             end if
         end if
-
         
     end subroutine calcLoweringSemiStop
-
 
 
     subroutine mixedFullStart(ilut, excitInfo, plusWeight, minusWeight, zeroWeight, tempExcits,&
@@ -14784,7 +14801,9 @@ contains
 
         t = ilut
 
-        if (isThree(ilut,st)) then
+        select case (current_stepvector(st))
+        case (3)
+!         if (isThree(ilut,st)) then
             ! only deltaB 0 branch possible, and even no change in stepvector
             call encode_matrix_element(t, -Root2, 1)
             call encode_matrix_element(t, 0.0_dp, 2)
@@ -14794,7 +14813,8 @@ contains
             nExcits = 1
 
         ! do the mixed fullstart new with all weights contributed for
-        else if (isOne(ilut, st)) then
+!         else if (isOne(ilut, st)) then
+        case (1)
             ASSERT( zeroWeight + plusWeight > 0.0_dp)
             if (zeroWeight > 0.0_dp .and. plusWeight > 0.0_dp) then
         
@@ -14868,7 +14888,8 @@ contains
                 call stop_all(this_routine, "something went wrong. should not be here!")
             end if
 
-        else if (isTwo(ilut,st)) then
+!         else if (isTwo(ilut,st)) then
+        case (2)
             ! here b value is never a problem so i just have to check for 
             ! minusWeight
             ASSERT(minusWeight + zeroWeight > 0.0_dp) 
@@ -14939,7 +14960,8 @@ contains
                 call stop_all(this_routine, "both starting branch weights are 0")
 
             end if
-        end if
+!         end if
+        end select
 
     end subroutine mixedFullStart
 
@@ -14978,7 +15000,6 @@ contains
         nMax = 2 + 2**count_open_orbs_ij( start, ende, ilut(0:nifd))
         allocate(tempExcits(0:nifguga, nMax), stat = ierr)
 
-
         t = ilut
 
         ! have to make the switch and store the first matrix element in it too
@@ -15013,7 +15034,9 @@ contains
 
         call encode_matrix_element(t, 0.0_dp, 2)
 
-        if (isThree(ilut,semi)) then
+!         if (isThree(ilut,semi)) then
+        select case (current_stepvector(semi))
+        case (3)
             ! have to check a few things with 3 semi stop
 
             ! did something wrong with matrix elements before here.. the 3 
@@ -15073,8 +15096,9 @@ contains
 
             end if
 
-        else
-            if (isOne(ilut,semi)) then
+!         else
+!             if (isOne(ilut,semi)) then
+        case (1)
                 ! only one excitation possible, which also has to have 
                 ! non-zero weight or otherwise i wouldnt even be here
                 ! and reuse already provided t
@@ -15084,17 +15108,6 @@ contains
                 call getDoubleMatrixElement(0,1,0,1,1,bVal,1.0_dp,tempWeight)
 
                 call setDeltaB(1, t)
-
-            else if isTwo(ilut,semi) then
-                ! here we have 
-                ! 2 -> 0
-                clr_orb(t, 2*semi)
-
-                call getDoubleMatrixElement(0,2,0,1,1,bVal,1.0_dp,tempWeight)
-
-                call setDeltaB(-1,t)
-
-            end if
 
             ! encode fullstart contribution and pseudo overlap region here 
             ! too in one go. one additional -1 due to semistop
@@ -15106,7 +15119,30 @@ contains
 
             nExcits = 1
 
-        end if
+!             else if isTwo(ilut,semi) then
+        case (2)
+                ! here we have 
+                ! 2 -> 0
+                clr_orb(t, 2*semi)
+
+                call getDoubleMatrixElement(0,2,0,1,1,bVal,1.0_dp,tempWeight)
+
+                call setDeltaB(-1,t)
+
+!             end if
+
+            ! encode fullstart contribution and pseudo overlap region here 
+            ! too in one go. one additional -1 due to semistop
+
+            ! no Root2 here, since it cancels with t from matEle, 
+            call encode_matrix_element(t, Root2*tempWeight*((-1.0_dp)**(nOpen)),1)
+
+            tempExcits(:,1) = t
+
+            nExcits = 1
+
+!         end if
+        end select 
 
         ! and then we have to do just a regular single excitation
         excitInfo%currentGen = excitInfo%lastGen
@@ -15187,7 +15223,9 @@ contains
 
         call encode_matrix_element(t, 0.0_dp, 2)
 
-        if (isZero(ilut,semi)) then
+!         if (isZero(ilut,semi)) then
+        select case (current_stepvector(semi))
+        case (0)
             ! have to check a few things with 0 start
             if (minusWeight > 0.0_dp .and. plusWeight > 0.0_dp) then
                 ! both +1 and -1 excitations possible
@@ -15253,8 +15291,9 @@ contains
 
             end if
 
-        else
-            if (isOne(ilut,semi)) then
+!         else
+!             if (isOne(ilut,semi)) then
+        case (1)
                 ! only one excitation possible, which also has to have 
                 ! non-zero weight or otherwise i wouldnt even be here
                 ! and reuse already provided t
@@ -15262,15 +15301,6 @@ contains
                 set_orb(t, 2*semi)
 
                 call setDeltaB(1, t)
-
-            else if isTwo(ilut,semi) then
-                ! here we have 
-                ! 2 -> 3
-                set_orb(t, 2*semi - 1)
-
-                call setDeltaB(-1,t)
-
-            end if
 
             ! encode fullstart contribution and pseudo overlap region here 
             ! too in one go. one additional -1 due to semistop
@@ -15280,7 +15310,26 @@ contains
 
             nExcits = 1
 
-        end if
+!             else if isTwo(ilut,semi) then
+        case (2)
+                ! here we have 
+                ! 2 -> 3
+                set_orb(t, 2*semi - 1)
+
+                call setDeltaB(-1,t)
+
+!             end if
+
+            ! encode fullstart contribution and pseudo overlap region here 
+            ! too in one go. one additional -1 due to semistop
+            call encode_matrix_element(t, ((-1.0_dp)**nOpen), 1)
+
+            tempExcits(:,1) = t
+
+            nExcits = 1
+
+!         end if
+        end select
 
         ! and then we have to do just a regular single excitation
         excitInfo%currentGen = excitInfo%lastGen
@@ -15295,10 +15344,8 @@ contains
         
         ! that should be it...
 
-        
     end subroutine calcFullStartLowering
 
-       
     subroutine calcFullStopR2L(ilut, excitInfo, excitations, nExcits, &
             posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
@@ -15342,7 +15389,8 @@ contains
         weights = init_doubleWeight(ilut, en)
         ! depending if there is a 3 at the fullend there can be no switching 
         ! possible
-        if (isThree(ilut, en)) then
+!         if (isThree(ilut, en)) then
+        if (current_stepvector(en) == 3) then
             zeroWeight = weights%proc%zero(0.0_dp, 0.0_dp, currentB_ilut(se), weights%dat)
             ! is plus and minus weight zero then? i think so
             minusWeight = 0.0_dp
@@ -15358,7 +15406,8 @@ contains
         call calcLoweringSemiStart(ilut,excitInfo, tempExcits, nExcits, &
             plusWeight, minusWeight, zeroWeight)
 
-        if (isThree(ilut,en)) then
+!         if (isThree(ilut,en)) then
+        if (current_stepvector(en) == 3) then
             ! in mixed generator case there is no sign coming from the 
             ! overlap region, so only finish up the excitation, by just 
             ! giving it the correct matrix element
@@ -15424,7 +15473,6 @@ contains
         weights = init_semiStartWeight(ilut, se, en, negSwitches(se), &
             posSwitches(se), currentB_ilut(se))
 
-
         excitInfo%currentGen = excitInfo%firstGen
         ! create start
         call createSingleStart(ilut, excitInfo, posSwitches, negSwitches, &
@@ -15436,14 +15484,14 @@ contains
                 weights, tempExcits, nExcits)
         end do
 
-
         ! can i write a general raisingSemiStart function, to reuse in 
         ! other types of excitations?
         ! have to init specific prob. weights todo
         ! do i have to give them posSwitches and negSwitches or could I 
         ! just put in actual weight values?
         weights = init_doubleWeight(ilut, en)
-        if (isThree(ilut, en)) then
+!         if (isThree(ilut, en)) then
+        if (current_stepvector(en) == 3) then
             minusWeight = 0.0_dp
             plusWeight = 0.0_dp
             zeroWeight = weights%proc%zero(0.0_dp, 0.0_dp, currentB_ilut(se), weights%dat)
@@ -15458,7 +15506,8 @@ contains
             plusWeight, minusWeight, zeroWeight)
 
 
-        if (isThree(ilut,en)) then
+!         if (isThree(ilut,en)) then
+        if (current_stepvector(en) == 3) then
             ! in mixed generator case there is no sign coming from the 
             ! overlap region, so only finish up the excitation, by just 
             ! giving it the correct matrix element
@@ -15500,7 +15549,6 @@ contains
 
     end subroutine calcFullStopL2R
 
-
     subroutine mixedFullStop(ilut, excitInfo, tempExcits, nExcits, excitations)
         ! full stop routine for mixed generators
         integer(n_int), intent(in) :: ilut(0:nifguga)
@@ -15518,11 +15566,12 @@ contains
         ! not sure if i should check if ilut is not 3... since i could handle
         ! that differently
 
-
         ende = excitInfo%fullEnd
         bVal = currentB_ilut(ende)
 
-        if (isOne(ilut,ende)) then
+        select case (current_stepvector(ende))
+        case (1)
+!         if (isOne(ilut,ende)) then
             ! ending for -2 and 0 branches
             do iEx = 1, nExcits
                 t = tempExcits(:,iEx) 
@@ -15557,7 +15606,8 @@ contains
 
             end do
 
-        else if (isTwo(ilut,ende)) then
+!         else if (isTwo(ilut,ende)) then
+        case (2)
             ! ending for 0 and +2 branches
             do iEx = 1, nExcits
                 t = tempExcits(:,iEx)
@@ -15586,7 +15636,8 @@ contains
 
             end do
 
-        else if (isThree(ilut,ende)) then
+!         else if (isThree(ilut,ende)) then
+        case (3)
             ! not sure if i ever access this function with 3 at end but 
             ! nevertheless implement it for now...
             ! here only the 0 branches arrive, and whatever happend to switch 
@@ -15602,7 +15653,8 @@ contains
 
                 tempExcits(:,iEx) = t
             end do
-        end if
+!         end if
+        end select
 
         ! do finishing up stuff..
         allocate(excitations(0:nifguga,nExcits), stat = ierr)
@@ -15651,9 +15703,12 @@ contains
         ! exitations to pseudo doubles -> make distinction
         ! the second if is to only apply this to fullstop cases but also be 
         ! able to use it fore general double excitations
-        if (isThree(ilut,en).and.fe==en) then 
+!         if (isThree(ilut,en).and.fe==en) then 
+        if (current_stepvector(en) == 3 .and.fe==en) then 
             ! here only swiches to 0 branch are possible
-            if (isOne(ilut,s)) then 
+!             if (isOne(ilut,s)) then 
+            select case (current_stepvector(s))
+            case (1)
                 ! only -1 branches can lead to 0 branch
                 ! not yet asssured by weights that only -1 branch is 
                 ! arriving -> exclude wrong excitations
@@ -15679,7 +15734,9 @@ contains
                     end if
                 end do
                 nExcits = cnt
-            else if (isTwo(ilut,s)) then
+
+            case (2)
+!             else if (isTwo(ilut,s)) then
                 ! only +1 can lead to 0 branch
                 ! not yet correctly accounted in weights, so an arriving +1 
                 ! branch is ensured... todo
@@ -15709,7 +15766,8 @@ contains
                 end do
                 nExcits = cnt
 
-            else 
+!             else 
+            case (3)
                 ! has to be 3 in this generator combination. 
                 ASSERT(isThree(ilut,s))
                 
@@ -15746,12 +15804,14 @@ contains
                     tempExcits(:,iEx) = t
 
                 end do
-            end if
-
+!             end if
+            end select 
 
         else
 
-            if (isOne(ilut,s)) then 
+            select case (current_stepvector(s))
+            case (1)
+!             if (isOne(ilut,s)) then 
                 ! always works if weights are fitting, check possibs.
 
                 ! think i can do it generally for both... since its the same 
@@ -15782,7 +15842,8 @@ contains
                     tempExcits(:,iEx) = t
                 end do
 
-            else if (isTwo(ilut,s)) then
+!             else if (isTwo(ilut,s)) then
+            case (2)
                 ! should also work generally, since if a weight is zero the 
                 ! non compatible branch shouldnt even arrive here
 !                 ASSERT(minusWeight > 0.0_dp)
@@ -15809,7 +15870,8 @@ contains
                     tempExcits(:,iEx) = t
                 end do
 
-            else
+!             else
+            case (3)
                 ! has to be 3 in lowering case
                 ASSERT(isThree(ilut,s))
 
@@ -16285,12 +16347,12 @@ contains
 !                     ! something went wrong then
 !                     call stop_all(this_routine,"something went wrong. shouldnt be here!")
 !                 end if
-            end if
+!             end if
+            end select
         end if
 
 
     end subroutine calcLoweringSemiStart
-
 
     subroutine calcRaisingSemiStart(ilut, excitInfo, tempExcits, nExcits, &
             plusWeight, minusWeight, zeroWeight)
@@ -16322,9 +16384,12 @@ contains
         ! i am dealing with a full stop. otherwise stepvalue doesnt matter
         ! at end
         ! could avoid that is Three(end) now since included in weights...
-        if (isThree(ilut,en).and.en==fe) then 
+!         if (isThree(ilut,en).and.en==fe) then 
+        if (current_stepvector(en) == 3 .and. en == fe) then
             ! here only swiches to 0 branch are possible
-            if (isOne(ilut,s)) then 
+            select case (current_stepvector(s))
+            case (1)
+!             if (isOne(ilut,s)) then 
                 ! only -1 branches can lead to 0 branch
                 ! not yet assured correctly by weights that only -1 branches 
                 ! arrive...
@@ -16350,7 +16415,9 @@ contains
                     end if 
                 end do
                 nExcits = cnt
-            else if (isTwo(ilut,s)) then
+
+            case (2)
+!             else if (isTwo(ilut,s)) then
                 ! only +1 can lead to 0 branch
                 cnt = 0
                 do iEx = 1, nExcits
@@ -16376,7 +16443,8 @@ contains
                 end do
                 nExcits = cnt
 
-            else 
+!             else 
+            case (0)
                 ! has to be 0 in this generator combination. 
                 ASSERT(isZero(ilut,s))
                 
@@ -16413,12 +16481,15 @@ contains
                     tempExcits(:,iEx) = t
 
                 end do
-            end if
+!             end if
+            end select
 
 
         else
 
-            if (isOne(ilut,s)) then 
+            select case (current_stepvector(s))
+            case (1)
+!             if (isOne(ilut,s)) then 
                 ! always works if weights are fitting, check possibs.
 
                 ! think i can do it generally for both... since its the same 
@@ -16450,7 +16521,8 @@ contains
                     tempExcits(:,iEx) = t
                 end do
 
-            else if (isTwo(ilut,s)) then
+            case (2)
+!             else if (isTwo(ilut,s)) then
                 ! should also work generally, since if a weight is zero the 
                 ! non compatible branch shouldnt even arrive here
 !                 ASSERT(minusWeight > 0.0_dp)
@@ -16477,7 +16549,8 @@ contains
                     tempExcits(:,iEx) = t
                 end do
 
-            else
+!             else
+            case (0)
                 ! has to be 0 in raising case
                 ASSERT(isZero(ilut,s))
 
@@ -16958,7 +17031,8 @@ contains
 !                     ! something went wrong then
 !                     call stop_all(this_routine,"something went wrong. shouldnt be here!")
 !                 end if
-            end if
+!             end if
+            end select 
         end if
 
     end subroutine calcRaisingSemiStart
@@ -17000,7 +17074,9 @@ contains
         iOrb = excitInfo%secondStart
         bVal = currentB_ilut(iOrb)
 
-        if (isOne(ilut,iOrb)) then
+        select case (current_stepvector(iOrb))
+        case (1)
+!         if (isOne(ilut,iOrb)) then
             ! only delta -1 branches can lead to deltaB=0 in overlap here 
             do iEx = 1, nExcits
                 ! correct use of weight gens should exclude this, but check:
@@ -17023,7 +17099,8 @@ contains
                 tempExcits(:,iEx) = t
             end do
 
-        else if (isTwo(ilut,iOrb)) then
+!         else if (isTwo(ilut,iOrb)) then
+        case (2)
             ! only deltaB=+1 branches lead to a 0 branch
             do iEx = 1, nExcits 
                 ASSERT(getDeltaB(tempExcits(:,iEx))==+1)
@@ -17044,7 +17121,8 @@ contains
                 tempExcits(:,iEx) = t
             end do
 
-        else 
+!         else 
+        case (3)
             ! has to be a 3 in the lowering case. 
             ASSERT(isThree(ilut,iOrb))
             ! -1 branches always go to 0 branch 
@@ -17084,7 +17162,8 @@ contains
                 tempExcits(:,iEx) = t
 
             end do
-        end if
+!         end if
+        end select
 
         ! continue on with double excitation region, only the 0 branch
         ! valid here, where there is no change in stepvector and matrix 
@@ -17125,7 +17204,6 @@ contains
 
     end subroutine calcFullstopLowering
 
-
     subroutine calcFullstopRaising(ilut, excitInfo, excitations, nExcits, &
             posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
@@ -17162,7 +17240,9 @@ contains
         iOrb = excitInfo%secondStart
         bVal = currentB_ilut(iOrb)
 
-        if (isOne(ilut,iOrb)) then
+        select case (current_stepvector(iOrb))
+        case (1)
+!         if (isOne(ilut,iOrb)) then
             ! only delta -1 branches can lead to deltaB=0 in overlap here 
             do iEx = 1, nExcits
                 ! correct use of weight gens should exclude this, but check:
@@ -17184,7 +17264,8 @@ contains
                 tempExcits(:,iEx) = t
             end do
 
-        else if (isTwo(ilut,iOrb)) then
+!         else if (isTwo(ilut,iOrb)) then
+        case (2)
             ! only deltaB=+1 branches lead to a 0 branch
             do iEx = 1, nExcits 
                 ASSERT(getDeltaB(tempExcits(:,iEx))==+1)
@@ -17205,7 +17286,8 @@ contains
                 tempExcits(:,iEx) = t
             end do
 
-        else 
+!         else 
+        case (0)
             ! has to be a 0 in the raising case. 
             ASSERT(isZero(ilut,iOrb))
             ! -1 branches always go to 0 branch 
@@ -17244,7 +17326,8 @@ contains
                 tempExcits(:,iEx) = t
 
             end do
-        end if
+!         end if
+        end select
 
         ! continue on with double excitation region, only the 0 branch
         ! valid here, where there is no change in stepvector and matrix 
@@ -17278,7 +17361,6 @@ contains
         allocate(excitations(0:nifguga,cnt), stat = ierr)
         excitations = tempExcits(:,1:cnt)
         deallocate(tempExcits)
-
 
     end subroutine calcFullstopRaising
 
@@ -17321,7 +17403,8 @@ contains
         ! two lowerings
 
         ! has only forced switches at switch possibilities
-        if (isOne(ilut,ss)) then
+!         if (isOne(ilut,ss)) then
+        if (current_stepvector(ss) == 1) then
             ! switch deltaB = -1 branches
             do iEx = 1, nExcits
                 deltaB = getDeltaB(tempExcits(:,iEx))
@@ -17339,7 +17422,8 @@ contains
                 end if
             end do
 
-        else if (isTwo(ilut,ss)) then
+!         else if (isTwo(ilut,ss)) then
+        else if (current_stepvector(ss) == 2) then
             ! switch deltaB = +1
             do iEx = 1, nExcits
                 deltaB = getDeltaB(tempExcits(:,iEx))
@@ -17371,9 +17455,7 @@ contains
         ! normal end step
         call singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
 
-
     end subroutine calcSingleOverlapLowering
-
 
 !     subroutine calcSingleOverlap(ilut, excitInfo, excitations, nExcits, &
 !             posSwitches, negSwitches)
@@ -17523,12 +17605,10 @@ contains
 
 
         ASSERT(plusWeight + minusWeight > 0.0_dp)
-        if (plusWeight + minusWeight <EPS) then
-!             call abort_excitations()
-        end if
 
         ! do special stuff at single overlap raising site
-        if (isOne(ilut,se)) then
+!         if (isOne(ilut,se)) then
+        if (current_stepvector(se) == 1) then
             ! in this case there should come a deltaB=+1 branch, nevertheless
             ! check for now.. 
             ! have to include probabilistic weights too... which are the normal 
@@ -17577,10 +17657,9 @@ contains
                 end if
             end do
 
-        else if (isTwo(ilut,se)) then
+!         else if (isTwo(ilut,se)) then
+        else if (current_stepvector(se) == 2) then
             ! in this case always a switch, and i b allows also a stay
-
-
             ! how are the probs here...
 
             if (plusWeight < EPS) then
@@ -17802,8 +17881,10 @@ contains
             call add_guga_lists(nExcits, tmpNum, excitations, tempExcits2)
         end do
 
+        deallocate(tempExcits)
+        deallocate(tempExcits2)
+
     end subroutine calcNonOverlapDouble
-    
 
     subroutine calcDoubleExcitation_withWeight(ilut, excitInfo, excitations, &
             nExcits, posSwitches, negSwitches)
@@ -17887,7 +17968,8 @@ contains
             ! weight + raising generator:
             case(1) 
                 if (current_stepvector(we) == 0 .or. current_stepvector(st) ==&
-                    3 .or. current_stepvector(en) == 0) then 
+                    3 .or. current_stepvector(en) == 0 .or. &
+                    (we == en .and. current_stepvector(en) /= 3)) then 
                     flag = .false.
                     return
                 end if
@@ -17897,11 +17979,11 @@ contains
 !                     flag = .false.
 !                     return
 !                 end if
-!                 if ((we==en).and.(.not.isThree(L,en))) then
-                if ((we==en).and.current_stepvector(en) /= 3) then
-                    flag = .false.
-                    return
-                end if
+! !                 if ((we==en).and.(.not.isThree(L,en))) then
+!                 if ((we==en).and.current_stepvector(en) /= 3) then
+!                     flag = .false.
+!                     return
+!                 end if
 
                 weights = init_singleWeight(L, en)
                 mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
@@ -21137,7 +21219,7 @@ contains
         ! otherwise choose beta
         ! UPDATE: change to only pick spatial orbitals -> only check if orbital
         ! was singly occupied 
-        if (currentOcc_ilut(orb_a) == 1.0_dp) then
+        if (currentOcc_int(orb_a) == 1) then
             ! then i have to exclude orb_a in the recalculation of p(a|b) prob
             tSingle = .true.
         else
@@ -21276,7 +21358,7 @@ contains
 
         ! have to predetermine is already picked orbital is singly occupied 
         ! already: if yes, its not allowd to be picked again in here
-        if (currentOcc_ilut(orb_a) == 1.0_dp) then
+        if (currentOcc_int(orb_a) == 1) then
             tSingle = .true.
         else 
             tSingle = .false.
@@ -21940,7 +22022,7 @@ contains
                 if (genrand_real2_dSFMT() < pExcit2_same) then
                     ! here i choose same-typed generator -> occupation of (i)
                     ! has to be 0/2. do that by excluding nOcc = 1
-                    call pickRandomOrb_forced_negate(1.0_dp, pgen, i)
+                    call pickRandomOrb_forced_negate(1, pgen, i)
                     
                     excit_typ = 1
 
@@ -21948,7 +22030,7 @@ contains
 
                 else
                     ! otherwise the occupation has to be 1
-                    call pickRandomOrb_forced(1.0_dp, pgen, i)
+                    call pickRandomOrb_forced(1, pgen, i)
 
                     pgen = pgen * (1.0_dp - pExcit4) *pExcit2 * (1.0_dp - pExcit2_same)
 
@@ -21960,14 +22042,14 @@ contains
 
                 if (genrand_real2_dSFMT() < pExcit3_same) then
                     ! same as above for type 2
-                    call pickRandomOrb_forced_negate(1.0_dp, pgen, i) 
+                    call pickRandomOrb_forced_negate(1, pgen, i) 
 
                     excit_typ = 1
 
                     pgen = pgen * (1.0_dp - pExcit4) * (1.0_dp - pExcit2) * pExcit3_same
 
                 else
-                    call pickRandomOrb_forced(1.0_dp, pgen, i) 
+                    call pickRandomOrb_forced(1, pgen, i) 
 
                     pgen = pgen * (1.0_dp - pExcit4) * (1.0_dp - pExcit2) * &
                         (1.0_dp - pExcit3_same)
@@ -22055,7 +22137,9 @@ contains
         temp_pgen3 = 1.0_dp
 
         select case (excit_lvl)
-        case (1)
+        ! since this case is always like a single excitation this is never 
+        ! reached here so remove! 
+!         case (1)
             ! (iii,j) excitation type: single excitation + weight at start/end
             ! choose 2 indices with single excitation picker,... not quite
             ! because there are additional restrictions in the start and end 
@@ -22073,67 +22157,67 @@ contains
             ! UPDATE: new insight... cant choose single excitation-like 
             ! excitation in the double excitation 
             ! so never access this function with this type of excitation
-            if (nDouble == 0 .or. nSingle == 0) return !todo
-!             i = pickRandomOrb(!=0)
-            
-            ! the good thing, due to one of d(i) or d(j) being doubly occupied
-            ! is that one always has an all-generating start or all accepting
-            ! end -> todo: maybe think about restricted starts due to b value
-            if (isThree(ilut,i)) then 
-                ! switch to other kind of generator.
-!                 j = pickRandomOrb(!=0 & != 3, !=i)
-                ! open question is if it should be iii,j or jjj,i -> lead to 
-                ! same excitation so i have to add it up anyway in the 
-                ! excitation creation. 
-                ! todo: think about index distribution a bit more
-                if (i > j) then 
-                    excitInfo%gen1 = 1
-                    excitInfo%gen2 = 0
-                    excitInfo%currentGen = 1
-                    excitInfo%i = i
-                    excitInfo%j = j
-                    excitInfo%fullStart = i
-                    excitInfo%fullEnd = j
-                    excitInfo%typ = 1
-                    excitInfo%weight = i
-                else
-                    excitInfo%gen1 = -1
-                    excitInfo%gen2 = 0
-                    excitInfo%currentGen = -1
-                    excitInfo%i = i
-                    excitInfo%j = j
-                    excitInfo%fullStart = j
-                    excitInfo%fullEnd = i
-                    excitInfo%typ = 2
-                    excitInfo%weight = i
-                end if
-
-            else 
-                ! pick i = {1,2} was picked -> so pick a double occupation now
-!                 j = pickRandomOrb(==3)
-                ! stick to original generator combination
-                if (j > i) then 
-                    excitInfo%gen1 = 1
-                    excitInfo%gen2 = 0
-                    excitInfo%currentGen = 1
-                    excitInfo%i = i
-                    excitInfo%j = j
-                    excitInfo%fullStart = i
-                    excitInfo%fullEnd = j
-                    excitInfo%typ = 1
-                    excitInfo%weight = i
-                else
-                    excitInfo%gen1 = -1
-                    excitInfo%gen2 = 0
-                    excitInfo%currentGen = -1
-                    excitInfo%i = i
-                    excitInfo%j = j
-                    excitInfo%fullStart = j
-                    excitInfo%fullEnd = i
-                    excitInfo%typ = 2
-                    excitInfo%weight = i
-                end if
-            end if
+!             if (nDouble == 0 .or. nSingle == 0) return !todo
+! !             i = pickRandomOrb(!=0)
+!             
+!             ! the good thing, due to one of d(i) or d(j) being doubly occupied
+!             ! is that one always has an all-generating start or all accepting
+!             ! end -> todo: maybe think about restricted starts due to b value
+!             if (isThree(ilut,i)) then 
+!                 ! switch to other kind of generator.
+! !                 j = pickRandomOrb(!=0 & != 3, !=i)
+!                 ! open question is if it should be iii,j or jjj,i -> lead to 
+!                 ! same excitation so i have to add it up anyway in the 
+!                 ! excitation creation. 
+!                 ! todo: think about index distribution a bit more
+!                 if (i > j) then 
+!                     excitInfo%gen1 = 1
+!                     excitInfo%gen2 = 0
+!                     excitInfo%currentGen = 1
+!                     excitInfo%i = i
+!                     excitInfo%j = j
+!                     excitInfo%fullStart = i
+!                     excitInfo%fullEnd = j
+!                     excitInfo%typ = 1
+!                     excitInfo%weight = i
+!                 else
+!                     excitInfo%gen1 = -1
+!                     excitInfo%gen2 = 0
+!                     excitInfo%currentGen = -1
+!                     excitInfo%i = i
+!                     excitInfo%j = j
+!                     excitInfo%fullStart = j
+!                     excitInfo%fullEnd = i
+!                     excitInfo%typ = 2
+!                     excitInfo%weight = i
+!                 end if
+! 
+!             else 
+!                 ! pick i = {1,2} was picked -> so pick a double occupation now
+! !                 j = pickRandomOrb(==3)
+!                 ! stick to original generator combination
+!                 if (j > i) then 
+!                     excitInfo%gen1 = 1
+!                     excitInfo%gen2 = 0
+!                     excitInfo%currentGen = 1
+!                     excitInfo%i = i
+!                     excitInfo%j = j
+!                     excitInfo%fullStart = i
+!                     excitInfo%fullEnd = j
+!                     excitInfo%typ = 1
+!                     excitInfo%weight = i
+!                 else
+!                     excitInfo%gen1 = -1
+!                     excitInfo%gen2 = 0
+!                     excitInfo%currentGen = -1
+!                     excitInfo%i = i
+!                     excitInfo%j = j
+!                     excitInfo%fullStart = j
+!                     excitInfo%fullEnd = i
+!                     excitInfo%typ = 2
+!                     excitInfo%weight = i
+!                 end if
+!             end if
 
         case (2)
             ! (ii,jj) leaves full start into full stop with alike and mixed 
@@ -22156,7 +22240,9 @@ contains
             ! pairs got chosen 
 !             pgen = pgen / real((nBasis/2)**2 - (nBasis/2), dp)
 
-            if (isZero(ilut,i)) then
+!             if (isZero(ilut,i)) then
+            select case (current_stepvector(i))
+            case (0)
                 ! so there is a fullstart RR(i) or a fullStop(i)
                 ! -> have to pick a second doubly occupied orbital
                 ! which leaves a global restriction that there have to be 
@@ -22165,11 +22251,11 @@ contains
                 ! but if there is no doubly -> have to cancel here
 !                 if (nDouble == 0) return ! todo
 
-                call pickRandomOrb(2.0_dp, temp_pgen, j)
+                call pickRandomOrb_forced(2, temp_pgen, j)
 
                 ! if ni = 0 temp_pgen = 1/n2 = p(j|i)
                 ! so p(i|j) = 1/n0
-                temp_pgen2 = 1.0_dp/real(count(currentOcc_ilut == 0.0_dp),dp)
+                temp_pgen2 = 1.0_dp/real(count(currentOcc_int == 0),dp)
 ! 
 
                 ! i cannot do that here so generally, when using tau-search
@@ -22198,13 +22284,14 @@ contains
 
                 end if
 
-            else if (isThree(ilut,i)) then
+!             else if (isThree(ilut,i)) then
+            case (3)
                 ! switch generators
 !                 if (nEmpty == 0) return
 
-                call pickRandomOrb(0.0_dp, temp_pgen, j)
+                call pickRandomOrb_forced(0, temp_pgen, j)
                 
-                temp_pgen2 = 1.0_dp/real(count(currentOcc_ilut == 2.0_dp),dp)
+                temp_pgen2 = 1.0_dp/real(count(currentOcc_int == 2),dp)
 
                 pgen = pgen * (temp_pgen + temp_pgen2)
 
@@ -22225,17 +22312,18 @@ contains
 
                 end if
 
-            else 
+!             else 
+            case (1,2)
                 ! d(i) = {1,2} 
                 ! d(j) also has to be singly occupied, due to x1=0 if d(j) = 3
                 ! which would only lead to a diagonal element
                 ! here there is also a necessary switch condition...
                 ! todo deal with that later
-                call pickRandomOrb(1.0_dp, temp_pgen, j, i)
+                call pickRandomOrb_forced(1, temp_pgen, j, i)
 !                 j = pickRandomOrb(!=0 & != 3)
 
                 
-                temp_pgen2 = 1.0_dp/real(count(currentOcc_ilut == 1.0_dp)-1,dp)
+                temp_pgen2 = 1.0_dp/real(count(currentOcc_int == 1)-1,dp)
 
                 pgen = pgen * (temp_pgen + temp_pgen2) / 2.0_dp 
 
@@ -22262,7 +22350,8 @@ contains
                         i,j,j,i,j,j,i,i,0,2,1.0_dp,2.0_dp)
 
                 end if
-            end if
+            end select
+!             end if
 
 
         case (3)
@@ -22282,7 +22371,9 @@ contains
             ! indices got picked
 !             pgen = pgen/real(nBasis/2, dp)
 
-            if (isZero(ilut,i)) then
+            select case (currentOcc_int(i))
+            case (0)
+!             if (isZero(ilut,i)) then
                 ! only the generator e_(ij,ik) yields non-zero matrix element
                 ! and the only condition is that d(k) and d(j) are not empty.
                 ! the nececaryy switch condition i again ignore for now..
@@ -22292,8 +22383,8 @@ contains
                 ! single excitations..
 !                 if (nSingle + nDouble < 2) return
 
-                call pickRandomOrb(0, temp_pgen, j, 0.0_dp)
-                call pickRandomOrb(j, temp_pgen2, k, 0.0_dp)
+                call pickRandomOrb_scalar(0, temp_pgen, j, 0)
+                call pickRandomOrb_scalar(j, temp_pgen2, k, 0)
 
                 pgen = pgen * temp_pgen * temp_pgen2 * 2.0_dp 
 
@@ -22357,7 +22448,8 @@ contains
 
                 end if
 
-            else if (isThree(ilut,i)) then 
+!             else if (isThree(ilut,i)) then 
+            case (2)
                 ! previously i thought i have to include here also generators
                 ! which essentially lead to single excitations, but in fact I 
                 ! have to ignore those excitations as they are already accounted 
@@ -22370,8 +22462,8 @@ contains
                 ! LR(3) or full stop or a single overlap with alike generators
                 ! in the middle lead only to single excitations (due to deltaB=0) 
 
-                call pickRandomOrb(0, temp_pgen, j, 2.0_dp)
-                call pickRandomOrb(j, temp_pgen2, k, 2.0_dp)
+                call pickRandomOrb_scalar(0, temp_pgen, j, 2)
+                call pickRandomOrb_scalar(j, temp_pgen2, k, 2)
 
                 pgen = pgen * temp_pgen * temp_pgen2 * 2.0_dp 
 
@@ -22413,11 +22505,12 @@ contains
 
                 end if 
 
-            else 
+!             else 
+            case (1)
                 ! d(i) = {1,2}
                 ! still all stepvector values are possible for this case
 !                 j = pickRandomOrb(!=i)
-                call pickRandomOrb(i, temp_pgen, j)
+                call pickRandomOrb_scalar(i, temp_pgen, j)
 
                 ! for these mixed excitations i have to adjust the pgens 
                 ! similar to the matrix elements as there are a lot 
@@ -22441,7 +22534,9 @@ contains
                 ! orbital combinations in this case...
                 ! maybe pick it first, and then check if it worked out 
                 ! and repick otherwise...
-                if (isZero(ilut,j)) then
+                select case (currentOcc_int(j))
+                case (0)
+!                 if (isZero(ilut,j)) then
                     ! have to choose between e_ii,kj and e_ji,ik and pick 
                     ! new insight.. dont choose between them, always pick 
                     ! mixed gen case. since it can reach same excitations
@@ -22457,11 +22552,11 @@ contains
                     ! so i always get mixed fullstart or fullstop
                     ! so i 
                     if (i < j) then
-                        call pickRandomOrb(i,nSpatOrbs+1,temp_pgen2, k, 0.0_dp)
-                        temp_pgen3 = 1.0_dp/real(count(currentOcc_ilut(i+1:) /= 0.0_dp),dp)
+                        call pickRandomOrb_restricted(i,nSpatOrbs+1,temp_pgen2, k, 0)
+                        temp_pgen3 = 1.0_dp/real(count(currentOcc_int(i+1:) /= 0),dp)
                     else 
-                        call pickRandomOrb(0,i, temp_pgen2, k, 0.0_dp)
-                        temp_pgen3 = 1.0_dp/real(count(currentOcc_ilut(:i-1) /= 0.0_dp),dp)
+                        call pickRandomOrb_restricted(0,i, temp_pgen2, k, 0)
+                        temp_pgen3 = 1.0_dp/real(count(currentOcc_int(:i-1) /= 0),dp)
                     end if
 
                     pgen = pgen * temp_pgen * (temp_pgen2 + temp_pgen3) 
@@ -22529,18 +22624,19 @@ contains
                     end if
 !                     end if
 
-                else if (isThree(ilut,j)) then
+!                 else if (isThree(ilut,j)) then
+                case (2)
                     ! why did i comment that out? mistake? probably...
                     ! have o pick a orbital from the list min(i,j)-max(i,j)
                     ! with occupation restriction
 !                     call pickRandomOrb(min(i,j), max(i,j), pgen, k, 2.0_dp)
 
                     if (i < j) then
-                        call pickRandomOrb(i,nSpatOrbs+1,temp_pgen2, k, 2.0_dp)
-                        temp_pgen3 = 1.0_dp/real(count(currentOcc_ilut(i+1:) /= 2.0_dp),dp)
+                        call pickRandomOrb_restricted(i,nSpatOrbs+1,temp_pgen2, k, 2)
+                        temp_pgen3 = 1.0_dp/real(count(currentOcc_int(i+1:) /= 2),dp)
                     else 
-                        call pickRandomOrb(0,i, temp_pgen2, k, 2.0_dp)
-                        temp_pgen3 = 1.0_dp/real(count(currentOcc_ilut(:i-1) /= 2.0_dp),dp)
+                        call pickRandomOrb_restricted(0,i, temp_pgen2, k, 2)
+                        temp_pgen3 = 1.0_dp/real(count(currentOcc_int(:i-1) /= 2),dp)
                     end if
 
                     pgen = pgen * temp_pgen * (temp_pgen2 + temp_pgen3) 
@@ -22608,16 +22704,17 @@ contains
                     end if
 !                     end if
 
-                else 
+!                 else 
+                case (1)
                     ! d(j) = {1,2} what are restrictions in d(k) and which 
                     ! generator combination are there? 
                     ! i think i can pick all except orbs i and j 
 
                     ! i have to exclude j here too...
                     if (i < j) then
-                        call pickRandomOrb(i,nSpatOrbs+1,temp_pgen2,k, j)
+                        call pickRandomOrb_restricted_index(i,nSpatOrbs+1,temp_pgen2,k, j)
                     else
-                        call pickRandomOrb(0,i,temp_pgen2,k, j)
+                        call pickRandomOrb_restricted_index(0,i,temp_pgen2,k, j)
                     end if
 
 !                     call pickRandomOrb(min(i,j),max(i,j), pgen, k)
@@ -22625,35 +22722,37 @@ contains
                     ! also here 
 !                     k = pickRandomOrb(!=i & !=j)
                     ! depending on last occupation choose generator comb.
-                    if (isZero(ilut,k)) then
+                    select case (currentOcc_int(k))
+                    case (0)
+!                     if (isZero(ilut,k)) then
                         ! e_{ij,ki}
                         if (i < j .and. j < k) then
                             ! _RL_(i) > ^RL(j) > ^L(k)
                             excitInfo = assign_excitInfo_values(21,1,-1,-1,-1,-1,&
                                 i,j,k,i,i,i,j,k,0,2,1.0_dp,1.0_dp,2)
 
-                            temp_pgen3 = 1.0_dp/real(count(currentOcc_ilut(i+1:) /= 0.0_dp),dp)
+                            temp_pgen3 = 1.0_dp/real(count(currentOcc_int(i+1:) /= 0),dp)
 
                         else if (i < j .and. k < j) then
                             ! _RL_(i) > ^LR(k) > ^R(j)
                             excitInfo = assign_excitInfo_values(20,1,-1,1,1,1,&
                                 i,j,k,i,i,i,k,j,0,2,1.0_dp,1.0_dp,2)
 
-                            temp_pgen3 = 1.0_dp/real(count(currentOcc_ilut(i+1:) /= 0.0_dp),dp)
+                            temp_pgen3 = 1.0_dp/real(count(currentOcc_int(i+1:) /= 0),dp)
 
                         else if (j < k .and. k < i) then
                             ! _L(j) > _RL(k) > ^RL^(i)
                             excitInfo = assign_excitInfo_values(16,-1,1,-1,-1,-1,&
                                 i,j,k,i,j,k,i,i,0,2,1.0_dp,1.0_dp,2)
 
-                            temp_pgen3 = 1.0_dp/real(count(currentOcc_ilut(:i-1) /= 0.0_dp),dp)
+                            temp_pgen3 = 1.0_dp/real(count(currentOcc_int(:i-1) /= 0),dp)
 
                         else if (k < j .and. j < i) then
                             ! _R(k) > _LR(j) > ^RL^(i)
                             excitInfo = assign_excitInfo_values(17,-1,1,1,1,1,&
                                 i,j,k,i,k,j,i,i,0,2,1.0_dp,1.0_dp,2)
 
-                            temp_pgen3 = 1.0_dp/real(count(currentOcc_ilut(:i-1) /= 0.0_dp),dp)
+                            temp_pgen3 = 1.0_dp/real(count(currentOcc_int(:i-1) /= 0),dp)
 
                         else if (j < i .and. i < k) then
                             ! _L(j) > ^LL_(i) > ^L(k) 
@@ -22676,35 +22775,36 @@ contains
                             call stop_all(this_routine, "should not be here!")
                         end if
 
-                    else if (isThree(ilut,k)) then
+!                     else if (isThree(ilut,k)) then
+                    case (2)
                         ! e_{ji,ik}
                         if (i < j .and. j < k) then
                             ! _RL(i) > ^LR(j) < ^R(k)
                             excitInfo = assign_excitInfo_values(20,-1,1,1,1,1,&
                                 j,i,i,k,i,i,j,k,0,2,1.0_dp,1.0_dp,2)
 
-                            temp_pgen3 = 1.0_dp/real(count(currentOcc_ilut(i+1:) /= 2.0_dp),dp)
+                            temp_pgen3 = 1.0_dp/real(count(currentOcc_int(i+1:) /= 2),dp)
 
                         else if (i < k .and. k < j) then
                             ! _RL_(i) > ^RL(k) > ^L(j)
                             excitInfo = assign_excitInfo_values(21,-1,1,-1,-1,-1,&
                                 j,i,i,k,i,i,k,j,0,2,1.0_dp,1.0_dp,2)
 
-                            temp_pgen3 = 1.0_dp/real(count(currentOcc_ilut(i+1:) /= 2.0_dp),dp)
+                            temp_pgen3 = 1.0_dp/real(count(currentOcc_int(i+1:) /= 2),dp)
 
                         else if (j < k .and. k < i) then
                             ! _R(j) > _LR(k) > ^RL^(i)
                             excitInfo = assign_excitInfo_values(17,1,-1,1,1,1,&
                                 j,i,i,k,j,k,i,i,0,2,1.0_dp,1.0_dp,2)
 
-                            temp_pgen3 = 1.0_dp/real(count(currentOcc_ilut(:i-1) /= 2.0_dp),dp)
+                            temp_pgen3 = 1.0_dp/real(count(currentOcc_int(:i-1) /= 2),dp)
 
                         else if (k < j .and. j < i) then
                             ! _L(k) > _RL(j) > ^RL^(i)
                             excitInfo = assign_excitInfo_values(16,1,-1,-1,-1,-1,&
                                 j,i,i,k,k,j,i,i,0,2,1.0_dp,1.0_dp,2)
 
-                            temp_pgen3 = 1.0_dp/real(count(currentOcc_ilut(:i-1) /= 2.0_dp),dp)
+                            temp_pgen3 = 1.0_dp/real(count(currentOcc_int(:i-1) /= 2),dp)
 
                         else if (j < i .and. i < k ) then
                             ! _R(j) > ^RR_(i) > ^R(k)
@@ -22728,7 +22828,8 @@ contains
 !                         pgen = pgen**2*(1.0_dp - 1.0_dp/real(nSpatOrbs - 1,dp)) * &
 !                             temp_pgen*(temp_pgen2 + temp_pgen3)
 
-                    else 
+!                     else 
+                    case (1)
                         ! e_{ij,ki} or e_{ji,ik}
                         
                         ! those 2 can lead to different excvitations! 
@@ -22849,9 +22950,12 @@ contains
                         ! do the actual pgen calculation! dummy!!
                         pgen = pgen * temp_pgen * (temp_pgen2 + temp_pgen3) / 2.0_dp
 
-                    end if
-                end if
-            end if
+                    end select
+                end select
+            end select
+!                     end if
+!                 end if
+!             end if
 ! #ifdef __DEBUG
 !             print *, "orb j: ", j, ", d(j) = ", getStepvalue(ilut,j)
 !             print *, "orb k: ", k, ", d(k) = ", getStepvalue(ilut,k)
@@ -22902,9 +23006,9 @@ contains
 
         case (4) 
             ! helpful quantities: 
-            nEmpty = real(count(currentOcc_ilut == 0.0_dp),dp)
-            nSingle = real(count(currentOcc_ilut == 1.0_dp),dp)
-            nDouble = real(count(currentOcc_ilut == 2.0_dp),dp)
+!             nEmpty = real(count(currentOcc_ilut == 0.0_dp),dp)
+!             nSingle = real(count(currentOcc_ilut == 1.0_dp),dp)
+!             nDouble = real(count(currentOcc_ilut == 2.0_dp),dp)
             ! (ij,kl) leaves all 12 generator combination possible
             ! since it is only necessary to reach all possible excitations from a 
             ! given CSF, pick generators in such a way that all these can be 
@@ -22923,20 +23027,26 @@ contains
             ! do it differently to check after every pick... will get bad but 
             ! was solls
             ! j can also always be picked randomly except i!
-            call pickRandomOrb(i, temp_pgen, j)
+            call pickRandomOrb_scalar(i, temp_pgen, j)
 
-            if (isZero(ilut,i)) then
+            select case (currentOcc_int(i))
+            case (0)
+!             if (isZero(ilut,i)) then
 !                 j = pickRandomOrb(!=i)
-                if (isZero(ilut,j)) then
+                select case (currentOcc_int(j))
+                case (0)
+!                 if (isZero(ilut,j)) then
                     ! then k and l have to be non-zero
-                    call pickRandomOrb(0, temp_pgen2, k, 0.0_dp)
-                    call pickRandomOrb(k, temp_pgen3, l, 0.0_dp)
+                    call pickRandomOrb_scalar(0, temp_pgen2, k, 0)
+                    call pickRandomOrb_scalar(k, temp_pgen3, l, 0)
 
                     ! actually need all occupation number infos for the 
                     ! calculation of the pgen contribution of different 
                     ! index choosing
-                    if (isThree(ilut,k)) then
-                        if (isThree(ilut,l)) then
+!                     if (isThree(ilut,k)) then
+                    if (current_stepvector(k) == 3) then
+!                         if (isThree(ilut,l)) then
+                        if (current_stepvector(l) == 3) then
 
                         ! 0022
 !                         pgen = 4.0_dp*pgen**2*(1.0_dp/(nSingle + nDouble) + 1.0_dp/nEmpty + &
@@ -22976,18 +23086,22 @@ contains
                     ! adjust the pgen too?!
 !                     pgen = pgen/2.0_dp
 
-                else if (isThree(ilut,j)) then
+!                 else if (isThree(ilut,j)) then
+                case (2)
                     ! still free to pick k
-                    call pickRandomOrb([i,j], temp_pgen2, k)
+                    call pickRandomOrb_vector([i,j], temp_pgen2, k)
 
-                    if (isZero(ilut,k)) then 
+                    select case (currentOcc_int(k))
+                    case (0)
+!                     if (isZero(ilut,k)) then 
                         ! pick somethin != 0 for l
-                        call pickRandomOrb(j, temp_pgen3, l, 0.0_dp)
+                        call pickRandomOrb_scalar(j, temp_pgen3, l, 0)
 !                         l = pickRandomOrb(!=i,!=j,!=k,!=0)
 
                         ! e_{il,kj}
 
-                        if (isThree(ilut,l)) then
+!                         if (isThree(ilut,l)) then
+                        if (current_stepvector(l) == 3) then
                             ! 0202
 
                             pgen = calc_pgen_0022()
@@ -23016,13 +23130,15 @@ contains
 
                         excitInfo = create_excitInfo_il_kj(i,j,k,l)
 
-                    else if (isThree(ilut,k)) then
-                        call pickRandomOrb(i, temp_pgen3, l, 2.0_dp)
+!                     else if (isThree(ilut,k)) then
+                    case (2)
+                        call pickRandomOrb_scalar(i, temp_pgen3, l, 2)
 !                         l = pickRandomOrb(!=i,!=j,!=k,!=3)
                         ! e_{ik,lj}
                         excitInfo = create_excitInfo_ik_lj(i,j,k,l)
 
-                        if (isZero(ilut,l)) then
+!                         if (isZero(ilut,l)) then
+                        if (current_stepvector(l) == 0) then
                             ! 0220
                             pgen = calc_pgen_0022()
 
@@ -23048,11 +23164,14 @@ contains
                         end if
 
 
-                    else 
+!                     else 
+                    case (1)
                         ! free to pick l
-                        call pickRandomOrb([i,j,k], temp_pgen3, l)
+                        call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
 !                         l = pickRandomOrb(!=i,!=j,!=k)
-                        if (isZero(ilut,l)) then
+                        select case (currentOcc_int(l))
+                        case (0)
+!                         if (isZero(ilut,l)) then
                             ! e_{ik,lj}
                             excitInfo = create_excitInfo_ik_lj(i,j,k,l)
 !                             pgen = pgen/2.0_dp
@@ -23073,7 +23192,8 @@ contains
 !                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
 
 
-                        else if (isThree(ilut,l)) then
+!                         else if (isThree(ilut,l)) then
+                        case (2)
                             ! e_{il,kj}
                             excitInfo = create_excitInfo_il_kj(i,j,k,l)
 
@@ -23092,7 +23212,8 @@ contains
 !                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
 !                                                     1.0_dp/(nOrbs-3.0_dp)))
 
-                        else 
+!                         else 
+                        case (1)
                             ! e_{il,kj} or e_{ik,lj}
                             ! choose randomly between the 2 possibilities
                             
@@ -23108,15 +23229,20 @@ contains
                                 excitInfo = create_excitInfo_il_kj(i,j,k,l)
                             end if
 
-                        end if
-                    end if
-                else
+                        end select
+!                         end if
+                    end select
+!                     end if
+!                 else
+                case (1)
                     ! n(j) = 1 -> free to pick k
-                    call pickRandomOrb([i,j], temp_pgen2, k)
+                    call pickRandomOrb_vector([i,j], temp_pgen2, k)
 !                     k = pickRandomOrb(!=i,!=j)
-                    if (isZero(ilut,k)) then
+                    select case (currentOcc_int(k))
+                    case (0)
+!                     if (isZero(ilut,k)) then
                         ! pick nonzero l
-                        call pickRandomOrb(j, temp_pgen3, l, 0.0_dp)
+                        call pickRandomOrb_scalar(j, temp_pgen3, l, 0)
 !                         l = pickRandomOrb(!=i,!=j,!=k,!=0)
                         ! e_{il,kj}
                         excitInfo = create_excitInfo_il_kj(i,j,k,l)
@@ -23156,11 +23282,14 @@ contains
 ! 
 !                         end if
 
-                    else if (isThree(ilut,k)) then
+!                     else if (isThree(ilut,k)) then
+                    case (2)
                         ! free to pick l
-                        call pickRandomOrb([i,j,k], temp_pgen3, l)
+                        call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
 !                         l = pickRandomOrb(!=i,!=j,!=k)
-                        if (isZero(ilut,l)) then
+                        select case (currentOcc_int(l))
+                        case (0)
+!                         if (isZero(ilut,l)) then
                             ! e_{ik,lj}
                             excitInfo = create_excitInfo_ik_lj(i,j,k,l)
                             ! 0120
@@ -23179,7 +23308,8 @@ contains
 !                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
 ! 
 
-                        else if (isThree(ilut,l)) then
+!                         else if (isThree(ilut,l)) then
+                        case (2)
                             ! e_{ik,jl}
                             excitInfo = create_excitInfo_ik_jl(i,j,k,l)
                             ! 0122
@@ -23198,7 +23328,8 @@ contains
 !                                                     1.0_dp/(nOrbs-3.0_dp)))
 
 
-                        else 
+!                         else 
+                        case (1)
                             ! e_{ik,jl} or e_{ik,lj}
 
                             ! 0121
@@ -23212,13 +23343,17 @@ contains
                             else
                                 excitInfo = create_excitInfo_ik_lj(i,j,k,l)
                             end if
-                        end if
-                    else
+                        end select 
+!                         end if
+!                     else
+                    case (1)
                         ! n(k) = 1
                         ! free to pick 
-                        call pickRandomOrb([i,j,k], temp_pgen3, l)
+                        call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
 !                         l = pickRandomOrb(!=i,!=j,!=k)
-                        if (isZero(ilut,l)) then
+                        select case (currentOcc_int(l))
+                        case (0)
+!                         if (isZero(ilut,l)) then
                             ! e_{ik,lj}
                             excitInfo = create_excitInfo_ik_lj(i,j,k,l)
                             ! 0110
@@ -23237,7 +23372,8 @@ contains
 !                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
 ! 
 
-                        else if (isThree(ilut,l)) then
+!                         else if (isThree(ilut,l)) then
+                        case (2)
                             ! e_{il,jk} or e_{il,kj}
                             ! 0112
                             pgen = calc_pgen_1102()
@@ -23252,7 +23388,8 @@ contains
                                 ! e_{il,kj}
                                 excitInfo = create_excitInfo_il_kj(i,j,k,l)
                             end if
-                        else 
+!                         else 
+                        case (1)
                             ! choose between: 3 different possibilities:
                             ! e_{il,kj} or e_{ik,jl} or e_{ik,lj}
                             ! 0111
@@ -23273,22 +23410,30 @@ contains
                                 excitInfo = create_excitInfo_ik_lj(i,j,k,l)
                             end if
 
-                        end if
-                    end if
-                end if
-            else if (isThree(ilut,i)) then
+                        end select
+!                         end if
+                    end select
+!                     end if
+                end select
+!                 end if
+!             else if (isThree(ilut,i)) then
+            case (2)
                 ! j can be randomly picked 
 !                 j = pickRandomOrb(!=i)
-                if (isThree(ilut,j)) then
+                select case (currentOcc_int(j))
+                case (2)
+!                 if (isThree(ilut,j)) then
                     ! pick non-doubly k,l
-                    call pickRandomOrb(0, temp_pgen2, k, 2.0_dp)
-                    call pickRandomOrb(k, temp_pgen3, l, 2.0_dp)
+                    call pickRandomOrb_scalar(0, temp_pgen2, k, 2)
+                    call pickRandomOrb_scalar(k, temp_pgen3, l, 2)
 !                     k = pickRandomOrb(!=i,!=j,!=3)
 !                     l = pickRandomOrb(!=i,!=j,!=k,!=3)
 
                     ! have to check k and l values
-                    if (isZero(ilut,k)) then
-                        if (isZero(ilut,l)) then
+                    if (current_stepvector(k) == 0) then
+!                     if (isZero(ilut,k)) then
+                        if (current_stepvector(l) == 0) then
+!                         if (isZero(ilut,l)) then
                             ! 3300
                             pgen = calc_pgen_0022()
 
@@ -23322,23 +23467,27 @@ contains
                     ! e_{ki,lj}
                     excitInfo = create_excitInfo_ki_lj(i,j,k,l) 
 
-                else if (isZero(ilut,j)) then
+!                 else if (isZero(ilut,j)) then
+                case (0)
                     ! free k
-                    call pickRandomOrb([i,j], temp_pgen2, k)
+                    call pickRandomOrb_vector([i,j], temp_pgen2, k)
 
 !                     pgen = 4.0_dp*pgen**2*(1.0_dp/(nSingle + nDouble) + 1.0_dp/nEmpty + &
 !                         2.0_dp/real(nBasis/2-2,dp)*(1.0_dp/(nEmpty-1.0_dp) + &
 !                         1.0_dp/(nSingle + nDouble - 1.0_dp)))
 
 !                     k = pickRandomOrb(!=i,!=j)
-                    if (isZero(ilut,k)) then
+                    select case (currentOcc_int(k))
+                    case (0)
+!                     if (isZero(ilut,k)) then
                         ! pick non-zero l
-                        call pickRandomOrb(i, temp_pgen3, l, 0.0_dp)
+                        call pickRandomOrb_scalar(i, temp_pgen3, l, 0)
 !                         l = pickRandomOrb(!=i,!=j,!=k,!=0)
                         ! e_{ki,jl}
                         excitInfo = create_excitInfo_ki_jl(i,j,k,l)
 
-                        if (isThree(ilut,l)) then
+!                         if (isThree(ilut,l)) then
+                        if (current_stepvector(l) == 3) then
                             ! 2002
                             pgen = calc_pgen_0022()
 
@@ -23364,14 +23513,16 @@ contains
 ! 
                         end if
 
-                    else if (isThree(ilut,k)) then
+!                     else if (isThree(ilut,k)) then
+                    case (2)
                         ! pick non double l
-                        call pickRandomOrb(j, temp_pgen3, l, 2.0_dp)
+                        call pickRandomOrb_scalar(j, temp_pgen3, l, 2)
 !                         l = pickRandomOrb(!=i,!=j,!=k,!=3)
                         ! e_{li,jk}
                         excitInfo = create_excitInfo_li_jk(i,j,k,l)
 
-                        if (isZero(ilut,l)) then
+!                         if (isZero(ilut,l)) then
+                        if (current_stepvector(l) == 0) then
                             ! 2020
                             pgen = calc_pgen_0022()
 
@@ -23397,11 +23548,14 @@ contains
 
                         end if
 
-                    else 
+!                     else 
+                    case (1)
                         ! n(k) = 1, free l
-                        call pickRandomOrb([i,j,k], temp_pgen3, l)
+                        call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
 !                         l = pickRandomOrb(!=i,!=j,!=k)
-                        if (isZero(ilut,l)) then
+                        select case (currentOcc_int(l))
+                        case (0)
+!                         if (isZero(ilut,l)) then
                             ! e_{li,jk}
                             excitInfo = create_excitInfo_li_jk(i,j,k,l)
                             ! 2010
@@ -23419,7 +23573,8 @@ contains
 !                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + & 
 !                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
 ! 
-                        else if (isThree(ilut,l)) then
+!                         else if (isThree(ilut,l)) then
+                        case (2)
                             ! e_{ki,jl}
                             excitInfo = create_excitInfo_ki_jl(i,j,k,l)
                             ! 2012
@@ -23438,7 +23593,8 @@ contains
 !                                                     1.0_dp/(nOrbs-3.0_dp)))
 ! 
 
-                        else 
+!                         else 
+                        case (1)
                             ! choose randomly between:
                             ! e_{li,jk} or e_{ki,jl}
                             ! 2011
@@ -23455,15 +23611,20 @@ contains
                                 excitInfo = create_excitInfo_ki_jl(i,j,k,l)
                             end if
 
-                        end if
-                    end if
-                else 
+                        end select
+!                         end if
+                    end select
+!                     end if
+!                 else 
+                case (1)
                     ! n(j) = 1, free k
-                    call pickRandomOrb([i,j], temp_pgen2, k)
+                    call pickRandomOrb_vector([i,j], temp_pgen2, k)
 !                     k = pickRandomOrb(!=i,!=j)
-                    if (isThree(ilut,k)) then
+                    select case (currentOcc_int(k))
+                    case (2)
+!                     if (isThree(ilut,k)) then
                         ! pick non-doubly l
-                        call pickRandomOrb(j, temp_pgen3, l, 2.0_dp)
+                        call pickRandomOrb_scalar(j, temp_pgen3, l, 2)
 !                         l = pickRandomOrb(!=i,!=j,!=k,!=3)
                         ! e_{li,jk}
                         excitInfo = create_excitInfo_li_jk(i,j,k,l)
@@ -23503,11 +23664,14 @@ contains
 ! 
 !                         end if
 ! 
-                    else if (isZero(ilut,k)) then
+!                     else if (isZero(ilut,k)) then
+                    case (0)
                         ! free l
-                        call pickRandomOrb([i,j,k], temp_pgen3, l)
+                        call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
 !                         l = pickRandomOrb(!=i,!=j,!=k)
-                        if (isZero(ilut,l)) then
+                        select case (currentOcc_int(l))
+                        case (0)
+!                         if (isZero(ilut,l)) then
                             ! e_{li,kj}
                             excitInfo = create_excitInfo_li_kj(i,j,k,l)
                             ! 2100
@@ -23526,7 +23690,8 @@ contains
 !                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
 
 
-                        else if (isThree(ilut,l)) then
+!                         else if (isThree(ilut,l)) then
+                        case (2)
                             ! e_{ki,jl}
                             excitInfo = create_excitInfo_ki_jl(i,j,k,l)
                             ! 2102
@@ -23545,7 +23710,8 @@ contains
 !                                                     1.0_dp/(nOrbs-3.0_dp)))
 
 
-                        else 
+!                         else 
+                        case (1)
                             ! e_{ki,jl} or e_{ki,lj}
 
                             ! 2101
@@ -23562,12 +23728,16 @@ contains
                                 excitInfo = create_excitInfo_ki_lj(i,j,k,l)
                             end if
 
-                        end if
-                    else
+                        end select
+!                         end if
+!                     else
+                    case (1)
                         ! n(k) = 1, free l
-                        call pickRandomOrb([i,j,k], temp_pgen3, l)
+                        call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
 !                         l = pickRandomOrb(!=i,!=j,!=k)
-                        if (isZero(ilut,l)) then
+                        select case (currentOcc_int(l))
+                        case (0)
+!                         if (isZero(ilut,l)) then
                             ! 2110
                             pgen = calc_pgen_1102()
 ! 
@@ -23583,7 +23753,8 @@ contains
                                 excitInfo = create_excitInfo_li_kj(i,j,k,l)
                             end if
 
-                        else if (isThree(ilut,l)) then
+!                         else if (isThree(ilut,l)) then
+                        case (2)
                             ! e_{ki,jl}
                             excitInfo = create_excitInfo_ki_jl(i,j,k,l)
                             ! 2112
@@ -23602,7 +23773,8 @@ contains
 !                                                     1.0_dp/(nOrbs-3.0_dp)))
 
 
-                        else 
+!                         else 
+                        case (1)
                             ! e_{ki,jl} or e_{ki,lj} or e_{li,jk}
                             ! 2111
                             pgen = calc_pgen_1102()*2.0_dp/3.0_dp
@@ -23623,18 +23795,26 @@ contains
                                 excitInfo = create_excitInfo_li_jk(i,j,k,l)
                             end if
 
-                        end if
-                    end if
-                end if
-            else 
+                        end select
+                    end select
+                end select
+!                         end if
+!                     end if
+!                 end if
+!             else 
+            case (1)
                 ! n(i) = 1, free j and k 
-                call pickRandomOrb([i,j], temp_pgen2, k)
+                call pickRandomOrb_vector([i,j], temp_pgen2, k)
 !                 j = pickRandomOrb(!=i)
 !                 k = pickRandomOrb(!=i,!=j)
-                if (isZero(ilut,j)) then
-                    if (isZero(ilut,k)) then
+                select case (currentOcc_int(j))
+                case (0)
+!                 if (isZero(ilut,j)) then
+                    select case (currentOcc_int(k))
+                    case (0)
+!                     if (isZero(ilut,k)) then
                         ! l restricted to non-empty
-                        call pickRandomOrb(i, temp_pgen3, l, 0.0_dp)
+                        call pickRandomOrb_scalar(i, temp_pgen3, l, 0)
 !                         l = pickRandomOrb(!=i,!=j,!=k,!=0)
                         ! e_{ki,jl}
                         excitInfo = create_excitInfo_ki_jl(i,j,k,l)
@@ -23654,11 +23834,14 @@ contains
 !                                                     1.0_dp/(nSingle+nDouble-1.0_dp)))
 
 
-                    else if (isThree(ilut,k)) then
+!                     else if (isThree(ilut,k)) then
+                    case (2)
                         ! free l
-                        call pickRandomOrb([i,j,k], temp_pgen3, l)
+                        call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
 !                         l = pickRandomOrb(!=i,!=j,!=k)
-                        if (isZero(ilut,l)) then
+                        select case (currentOcc_int(l))
+                        case (0)
+!                         if (isZero(ilut,l)) then
                             ! e_{li,jk}
                             excitInfo = create_excitInfo_li_jk(i,j,k,l)
                             ! 1020
@@ -23677,7 +23860,8 @@ contains
 !                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
 ! 
 
-                        else if (isThree(ilut,l)) then
+!                         else if (isThree(ilut,l)) then
+                        case (2)
                             ! e_{il,jk}
                             excitInfo = create_excitInfo_il_jk(i,j,k,l)
                             ! 1022
@@ -23696,7 +23880,8 @@ contains
 !                                                     1.0_dp/(nOrbs-3.0_dp)))
 
 
-                        else 
+!                         else 
+                        case (1)
                             ! e_{il,jk} or e_{li,jk}
                             ! 1021
                             pgen = calc_pgen_1102()
@@ -23712,12 +23897,16 @@ contains
                                 excitInfo = create_excitInfo_li_jk(i,j,k,l)
                             end if
 
-                        end if
-                    else 
+                        end select
+!                         end if
+!                     else 
+                    case (1)
                         ! free l
-                        call pickRandomOrb([i,j,k], temp_pgen3, l)
+                        call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
 !                         l = pickRandomOrb(!=i,!=j,!=k)
-                        if (isZero(ilut,l)) then
+                        select case (currentOcc_int(l))
+                        case (0)
+!                         if (isZero(ilut,l)) then
                             ! e_{li,jk}
                             excitInfo = create_excitInfo_li_jk(i,j,k,l)
                             ! 1010
@@ -23735,7 +23924,8 @@ contains
 !                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + & 
 !                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
 
-                        else if (isThree(ilut,l)) then
+!                         else if (isThree(ilut,l)) then
+                        case (2)
                             ! e_{ik,jl} or e_{ki,jl}
                             ! 1012
                             pgen = calc_pgen_1102()
@@ -23751,7 +23941,8 @@ contains
                                 excitInfo = create_excitInfo_ki_jl(i,j,k,l)
                             end if
 
-                        else 
+!                         else 
+                        case (1)
                             ! e_{li,jk} or e_{ik,jl} or e_{ki,jl}
                             ! 1011
                             pgen = calc_pgen_1102()*2.0_dp/3.0_dp
@@ -23771,14 +23962,21 @@ contains
                                 excitInfo = create_excitInfo_ki_jl(i,j,k,l)
                             end if 
 
-                        end if
-                    end if
-                else if (isThree(ilut,j)) then
-                    if (isZero(ilut,k)) then
+                        end select
+                    end select
+!                         end if
+!                     end if
+!                 else if (isThree(ilut,j)) then
+                case (2)
+                    select case (currentOcc_int(k))
+                    case (0)
+!                     if (isZero(ilut,k)) then
                         ! free l
-                        call pickRandomOrb([i,j,k], temp_pgen3, l)
+                        call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
 !                         l = pickRandomOrb(!=i,!=j,!=k)
-                        if (isZero(ilut,l)) then
+                        select case (currentOcc_int(l))
+                        case (0)
+!                         if (isZero(ilut,l)) then
                             ! e_{ki,lj}
                             excitInfo = create_excitInfo_ki_lj(i,j,k,l)
                             ! 1200
@@ -23796,7 +23994,8 @@ contains
 !                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + & 
 !                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
 
-                        else if (isThree(ilut,l)) then
+                        case (2)
+!                         else if (isThree(ilut,l)) then
                             ! e_{il,kj}
                             excitInfo = create_excitInfo_il_kj(i,j,k,l)
                             ! 1202
@@ -23815,7 +24014,8 @@ contains
 !                                                     1.0_dp/(nOrbs-3.0_dp)))
 
 
-                        else 
+!                         else 
+                        case (1)
                             ! e_{il,kj} or e_{li,kj}
                             ! 1201
                             pgen = calc_pgen_1102()
@@ -23831,10 +24031,12 @@ contains
                                 excitInfo = create_excitInfo_li_kj(i,j,k,l)
                             end if
 
-                        end if
-                    else if (isThree(ilut,k)) then
+                        end select
+!                         end if
+!                     else if (isThree(ilut,k)) then
+                    case (2)
                         ! non-doubly l
-                        call pickRandomOrb(i, temp_pgen3, l, 2.0_dp)
+                        call pickRandomOrb_scalar(i, temp_pgen3, l, 2)
 !                         l = pickRandomOrb(!=i,!=j,!=k,!=3)
                         ! e_{ik,lj}
                         excitInfo = create_excitInfo_ik_lj(i,j,k,l)
@@ -23854,11 +24056,14 @@ contains
 !                                                 1.0_dp/(nOrbs-3.0_dp)))
 
 
-                    else 
+!                     else
+                    case (1)
                         ! free l
-                        call pickRandomOrb([i,j,k], temp_pgen3, l)
+                        call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
 !                         l = pickRandomOrb(!=i,!=j,!=k)
-                        if (isZero(ilut,l)) then
+                        select case (currentOcc_int(l))
+                        case (0)
+!                         if (isZero(ilut,l)) then
                             ! e_{ik,lj} or e_{ki,lj}
                             ! 1210
                             pgen = calc_pgen_1102()
@@ -23874,7 +24079,8 @@ contains
                                 excitInfo = create_excitInfo_ki_lj(i,j,k,l)
                             end if
 
-                        else if (isThree(ilut,l)) then
+!                         else if (isThree(ilut,l)) then
+                        case (2)
                             ! e_{il,kj}
                             excitInfo = create_excitInfo_il_kj(i,j,k,l)
                             ! 1212
@@ -23892,7 +24098,8 @@ contains
 !                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
 !                                                     1.0_dp/(nOrbs-3.0_dp)))
 
-                        else 
+!                         else 
+                        case (1)
                             ! e_{il,kj} or e_{li,kj} or e_{ik,lj}
                             ! 1211
                             pgen = calc_pgen_1102()*2.0_dp/3.0_dp
@@ -23912,15 +24119,22 @@ contains
                                 excitInfo = create_excitInfo_ik_lj(i,j,k,l)
                             end if
 
-                        end if
-                    end if
-                else 
+                        end select
+                    end select
+!                         end if
+!                     end if
+!                 else 
+                case (1)
                     ! n(j) = 1
                     ! free l
-                    call pickRandomOrb([i,j,k], temp_pgen3, l)
+                    call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
 !                     l = pickRandomOrb(!=i,!=j,!=k)
-                    if (isZero(ilut,k)) then
-                        if (isZero(ilut,l)) then
+                    select case (currentOcc_int(k))
+                    case (0)
+!                     if (isZero(ilut,k)) then
+                        select case (currentOcc_int(l))
+                        case (0)
+!                         if (isZero(ilut,l)) then
                             ! e_{ki,lj}
                             excitInfo = create_excitInfo_ki_lj(i,j,k,l)
                             ! 1100
@@ -23938,7 +24152,8 @@ contains
 !                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + & 
 !                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
 
-                        else if (isThree(ilut,l)) then
+!                         else if (isThree(ilut,l)) then
+                        case (2)
                             ! e_{il,kj} or e_{ki,jl}
                             ! 1102
                             pgen = calc_pgen_1102()
@@ -23954,7 +24169,8 @@ contains
                                 excitInfo = create_excitInfo_ki_jl(i,j,k,l)
                             end if
 
-                        else 
+!                         else 
+                        case (1)
                             ! e_{il,kj} or e_{li,kj} or e_{ki,jl}
                             ! 1101
                             pgen = calc_pgen_1102()*2.0_dp/3.0_dp
@@ -23973,9 +24189,13 @@ contains
                                 ! e_{ki,jl}
                                 excitInfo = create_excitInfo_ki_jl(i,j,k,l)
                             end if
-                        end if 
-                    else if (isThree(ilut,k)) then
-                        if (isZero(ilut,l)) then
+                        end select
+!                         end if 
+!                     else if (isThree(ilut,k)) then
+                    case (2)
+                        select case (currentOcc_int(l))
+                        case (0)
+!                         if (isZero(ilut,l)) then
                             ! e_{ik,lj} or e_{li,jk}
                             ! 1120
                             pgen = calc_pgen_1102()
@@ -23991,7 +24211,8 @@ contains
                                 excitInfo = create_excitInfo_li_jk(i,j,k,l)
                             end if
 
-                        else if (isThree(ilut,l)) then
+!                         else if (isThree(ilut,l)) then
+                        case (2)
                             ! e_{ik,jl}
                             excitInfo = create_excitInfo_ik_jl(i,j,k,l)
                             ! 1122
@@ -24010,7 +24231,8 @@ contains
 !                                                     1.0_dp/(nOrbs-3.0_dp)))
 
 
-                        else 
+!                         else 
+                        case (1)
                             ! e_{li,jk} or e_{ik,jl}  or e_{ik,lj}
                             ! 1121
                             pgen = calc_pgen_1102()*2.0_dp/3.0_dp
@@ -24033,9 +24255,13 @@ contains
 
                             end if
                             
-                        end if
-                    else 
-                        if (isZero(ilut,l)) then
+                        end select
+!                         end if
+!                     else 
+                    case (1)
+                        select case (currentOcc_int(l))
+                        case (0)
+!                         if (isZero(ilut,l)) then
                             ! e_{li,jk} or e_{li,kj} or e_{ik,lj}
                             ! 1110
                             pgen = calc_pgen_1102()*2.0_dp/3.0_dp
@@ -24058,7 +24284,8 @@ contains
 
                             end if
 
-                        else if (isThree(ilut,l)) then 
+!                         else if (isThree(ilut,l)) then 
+                        case (2)
                             ! e_{il,kj} or e_{ik,jl} or e_{ki,jl}
                             ! 1112
                             pgen = calc_pgen_1102()*2.0_dp/3.0_dp
@@ -24081,7 +24308,8 @@ contains
 
                             end if
 
-                        else 
+!                         else 
+                        case (1)
                             ! e_{il,jk} or e_{li,jk} or e_{il,kj} or 
                             ! e_{li,kj} or e_{ki,jl} or e_{ik,lj}
                             ! 1111
@@ -24116,10 +24344,14 @@ contains
                                 excitInfo = create_excitInfo_ik_lj(i,j,k,l)
                             end if
 
-                        end if 
-                    end if
-                end if
-            end if
+                        end select
+                    end select
+                end select
+            end select
+!                         end if 
+!                     end if
+!                 end if
+!             end if
 
 ! #ifdef __DEBUG
 !             print *, "orb j: ", j, "d(j): ", getStepvalue(ilut,j)
@@ -24134,7 +24366,9 @@ contains
 
         ! for now do the excitation cancelation here at the end although its
         ! really inefficient
-        if (excit_lvl == 4) then
+        select case (excit_lvl)
+        case (4)
+!         if (excit_lvl == 4) then
 
             if (any([i,j,k,l] == 0)) then
                 ! one of the indices is invalid
@@ -24151,7 +24385,8 @@ contains
 
             end if
 
-        else if (excit_lvl == 3) then
+!         else if (excit_lvl == 3) then
+        case (3)
 
             
             if (any([i,j,k] == 0)) then
@@ -24169,7 +24404,8 @@ contains
 
             end if
 
-        else if (excit_lvl == 2) then
+!         else if (excit_lvl == 2) then
+        case (2)
 
             if (any([i,j] == 0)) then
 !                 print *, excit_lvl, excit_typ
@@ -24187,7 +24423,8 @@ contains
                 end if
 
             end if
-        end if
+        end select
+!         end if
 
     end subroutine pickOrbitals_nosym_double
 
@@ -24199,9 +24436,9 @@ contains
         
         real(dp) :: nEmpty, nSingle, nDouble, nOrbs
 
-        nEmpty = real(count(currentOcc_ilut == 0.0_dp),dp)
-        nSingle = real(count(currentOcc_ilut == 1.0_dp),dp)
-        nDouble = real(count(currentOcc_ilut == 2.0_dp),dp)
+        nEmpty = real(count(currentOcc_int == 0),dp)
+        nSingle = real(count(currentOcc_int == 1),dp)
+        nDouble = real(count(currentOcc_int == 2),dp)
         nOrbs = real(nSpatOrbs,dp)
 
         
@@ -24246,11 +24483,11 @@ contains
         real(dp) :: pgen
         character(*), parameter :: this_routine = "calc_pgen_00xx"
         
-        real(dp) :: nEmpty, nSingle, nDouble, nOrbs
+        real(dp) :: nSingle, nDouble, nOrbs
 
-        nEmpty = real(count(currentOcc_ilut == 0.0_dp),dp)
-        nSingle = real(count(currentOcc_ilut == 1.0_dp),dp)
-        nDouble = real(count(currentOcc_ilut == 2.0_dp),dp)
+!         nEmpty = real(count(currentOcc_int == 0),dp)
+        nSingle = real(count(currentOcc_int == 1),dp)
+        nDouble = real(count(currentOcc_int == 2),dp)
         nOrbs = real(nSpatOrbs,dp)
 ! 
 !         pgen = 2.0_dp/(nOrbs**2) * (&
@@ -24279,11 +24516,11 @@ contains
         real(dp) :: pgen
         character(*), parameter :: this_routine = "calc_pgen_22xx"
         
-        real(dp) :: nEmpty, nSingle, nDouble, nOrbs
+        real(dp) :: nEmpty, nSingle, nOrbs
 
-        nEmpty = real(count(currentOcc_ilut == 0.0_dp),dp)
-        nSingle = real(count(currentOcc_ilut == 1.0_dp),dp)
-        nDouble = real(count(currentOcc_ilut == 2.0_dp),dp)
+        nEmpty = real(count(currentOcc_int == 0),dp)
+        nSingle = real(count(currentOcc_int == 1),dp)
+!         nDouble = real(count(currentOcc_int == 2),dp)
         nOrbs = real(nSpatOrbs,dp)
 
 !         pgen = 2.0_dp*pgen**2*(&
@@ -24313,9 +24550,9 @@ contains
         
         real(dp) :: nEmpty, nSingle, nDouble, nOrbs
 
-        nEmpty = real(count(currentOcc_ilut == 0.0_dp),dp)
-        nSingle = real(count(currentOcc_ilut == 1.0_dp),dp)
-        nDouble = real(count(currentOcc_ilut == 2.0_dp),dp)
+!         nEmpty = real(count(currentOcc_int == 0),dp)
+!         nSingle = real(count(currentOcc_int == 1),dp)
+!         nDouble = real(count(currentOcc_int == 2),dp)
         nOrbs = real(nSpatOrbs,dp)
 
 !         pgen = 1.0_dp*pgen**2*( 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))
@@ -24344,9 +24581,7 @@ contains
             .and. orbitalIndex /= indRes))
 
         nOrbs = count(mask)
-#ifdef __DEBUG
-!         if (nOrbs == 0) print *, this_routine, " no orbital fits!"
-#endif
+
         if (nOrbs > 0) then
             allocate(resOrbs(nOrbs), stat = ierr)
 
@@ -24367,14 +24602,13 @@ contains
 
     end subroutine pickRandomOrb_restricted_index
 
-
     subroutine pickRandomOrb_restricted(start, ende, pgen, orb, occRes)
         ! picks a random orbital from a restricted range start + 1, ende - 1
         ! with optional additional occupation restrictions
         integer, intent(in) :: start, ende
         real(dp), intent(inout) :: pgen
         integer, intent(out) :: orb
-        real(dp), intent(in), optional :: occRes
+        integer, intent(in), optional :: occRes
         character(*), parameter :: this_routine = "pickRandomOrb_restricted"
 
         integer :: r, nOrbs, ierr
@@ -24385,18 +24619,16 @@ contains
 
         mask = .true.
         if (present(occRes)) then
-            ASSERT(occRes >= 0.0_dp .and. occRes <= 2.0_dp)
+            ASSERT(occRes >= 0 .and. occRes <= 2)
 
-            mask = (currentOcc_ilut /= occRes)
+            mask = (currentOcc_int /= occRes)
 
         end if
 
         mask = ( mask .and. (orbitalIndex > start .and. orbitalIndex < ende))
 
         nOrbs = count(mask)
-#ifdef __DEBUG
-!         if (nOrbs == 0) print *, this_routine, " no orbital fits!"
-#endif
+
         if (nOrbs > 0) then
             allocate(resOrbs(nOrbs), stat = ierr)
 
@@ -24423,7 +24655,7 @@ contains
         integer, intent(in) :: orbRes(:)
         real(dp), intent(inout) :: pgen
         integer, intent(out) :: orb
-        real(dp), intent(in), optional :: occRes
+        integer, intent(in), optional :: occRes
         character(*), parameter :: this_routine = "pickRandomOrb_vector"
 
         integer :: r, nOrbs, ierr, num, i
@@ -24439,8 +24671,8 @@ contains
         mask = .true. 
 
         if (present(occRes)) then
-            ASSERT(occRes >= 0.0_dp .and. occRes <= 2.0_dp)
-            mask = (currentOcc_ilut /= occRes)
+            ASSERT(occRes >= 0 .and. occRes <= 2)
+            mask = (currentOcc_int /= occRes)
         end if
 
         do i = 1, num
@@ -24448,11 +24680,6 @@ contains
         end do
 
         nOrbs = count(mask)
-#ifdef __DEBUG
-        if (nOrbs == 0) then
-!             print *, this_routine, " no orbital fits!"
-        end if
-#endif
 
         if (nOrbs > 0) then
             allocate(resOrbs(nOrbs), stat = ierr)
@@ -24474,7 +24701,7 @@ contains
 
     subroutine pickRandomOrb_forced_negate(occRes, pgen, orb)
         ! the version where an orbitals MUST NOT have a certain occupation.
-        real(dp), intent(in) :: occRes
+        integer, intent(in) :: occRes
         real(dp), intent(inout) :: pgen
         integer, intent(out) :: orb
 !         integer, intent(in), optional :: orbRes1
@@ -24484,9 +24711,9 @@ contains
         logical :: mask(nSpatOrbs)
         integer, allocatable :: resOrbs(:)
 
-        ASSERT(occRes >= 0.0_dp .and. occRes <= 2.0_dp)
+        ASSERT(occRes >= 0 .and. occRes <= 2)
 
-        mask = (currentOcc_ilut /= occRes) 
+        mask = (currentOcc_int /= occRes) 
 
         nOrbs = count(mask)
 
@@ -24525,7 +24752,7 @@ contains
         ! this never occurs in combination with orbital restrictions!
         ! yes it does!! for fullstart-> fullstop mixed, where i need 
         ! n = 1 for both orbitals
-        real(dp), intent(in) :: occRes
+        integer, intent(in) :: occRes
         real(dp), intent(inout) :: pgen
         integer, intent(out) :: orb
         integer, intent(in), optional :: orbRes1
@@ -24535,9 +24762,9 @@ contains
         logical :: mask(nSpatOrbs)
         integer, allocatable :: resOrbs(:)
 
-        ASSERT(occRes >= 0.0_dp .and. occRes <= 2.0_dp)
+        ASSERT(occRes >= 0 .and. occRes <= 2)
 
-        mask = (currentOcc_ilut == occRes) 
+        mask = (currentOcc_int == occRes) 
 
         if (present(orbRes1)) then
             ASSERT(orbRes1 > 0 .and. orbRes1 <= nSpatOrbs)
@@ -24545,11 +24772,6 @@ contains
             mask = (mask .and. orbitalIndex /= orbRes1)
         end if
         nOrbs = count(mask)
-#ifdef __DEBUG
-        if (nOrbs == 0) then
-!             print *, this_routine, " no orbital fits!"
-        end if
-#endif
         
         if (nOrbs > 0) then
             allocate(resOrbs(nOrbs), stat = ierr)
@@ -24579,7 +24801,7 @@ contains
         integer, intent(in) :: orbRes
         real(dp), intent(inout) :: pgen
         integer, intent(out) :: orb
-        real(dp), intent(in), optional :: occRes
+        integer, intent(in), optional :: occRes
         logical :: flag 
         character(*), parameter :: this_routine = "pickRandomOrb_scalar"
 
@@ -24598,15 +24820,15 @@ contains
             ! just create a random number between 1, nBasis/2 without this 
             ! function
             ASSERT(present(occRes))
-            ASSERT(occRes >= 0.0_dp .and. occRes <= 2.0_dp)
+            ASSERT(occRes >= 0 .and. occRes <= 2)
 
-            mask = (currentOcc_ilut /= occRes)
+            mask = (currentOcc_int /= occRes)
 
         else 
             ! check i occRes is present
             if (present(occRes)) then
-                ASSERT(occRes >= 0.0_dp .and. occRes <= 2.0_dp)
-                mask = ((currentOcc_ilut /= occRes) .and. (orbitalIndex /= orbRes))
+                ASSERT(occRes >= 0 .and. occRes <= 2)
+                mask = ((currentOcc_int /= occRes) .and. (orbitalIndex /= orbRes))
 
             else 
                 ! only orbital restriction
@@ -24619,9 +24841,6 @@ contains
         ! here i could use nOrbs to indicate that no excitation is possible
         ! no -> just check outside if resorbs is size 0
         ! but i get a error further down if i access resOrbs(1)
-#ifdef __DEBUG
-!         if (nOrbs == 0) print *, this_routine, " no fitting orbitals!"
-#endif
         
         if (nOrbs > 0) then
             allocate(resOrbs(nOrbs), stat = ierr)
@@ -24691,7 +24910,9 @@ contains
         ! factor if multiple generators are possible
         factor = 1.0_dp
 
-        if (isZero(ilut,i)) then
+        select case (current_stepvector(i))
+        case (0)
+!         if (isZero(ilut,i)) then
             ! if d(i) = 0: 
             ! if the influence of forced switches are ignored(as they are to 
             ! complicated to account for) all d(j) != 0 are allowed then
@@ -24716,14 +24937,15 @@ contains
             ! have to calculate everything through and see when two-particle
             ! integrals contribute to the single-excitation 
 
-            call pickRandomOrb(0, pgen, j, 0.0_dp)
+            call pickRandomOrb_scalar(0, pgen, j, 0)
 
             ! something like that ...
             
             ! additionally modify the pgens..
-            if (isThree(ilut,j)) then
+!             if (isThree(ilut,j)) then
+            if (current_stepvector(j) == 3) then
                 
-                nOrbs = count(currentOcc_ilut /= 2.0_dp)
+                nOrbs = count(currentOcc_int /= 2)
             else
                 ! else its singly occupied
                 nOrbs = nSpatOrbs - 1
@@ -24739,14 +24961,16 @@ contains
 
             end if
         
-        else if (isThree(ilut,i)) then
+!         else if (isThree(ilut,i)) then
+        case (3)
             ! switch to E_ji: so here every non-double != i orbital is allowed
             ! excitInfo%j = pickRandomOrb(nonDoubly(1,!=i,nBasis)
             ! have to pick non-double orbital
-            call pickRandomOrb(0, pgen, j, 2.0_dp)
+            call pickRandomOrb_scalar(0, pgen, j, 2)
             
-            if (isZero(ilut,j)) then
-                nOrbs = count(currentOcc_ilut /= 0.0_dp)
+!             if (isZero(ilut,j)) then
+            if (current_stepvector(j) == 0) then
+                nOrbs = count(currentOcc_int /= 0)
 
             else 
                 nOrbs = nSpatOrbs - 1
@@ -24763,7 +24987,8 @@ contains
 
             end if
 
-        else if (isOne(ilut,i)) then
+!         else if (isOne(ilut,i)) then
+        case (1)
             ! in this case we have a forced +1 start or a -1 demanding end. 
             ! so there have to be switch possibilities before a valid 
             ! excitation can be obtained..
@@ -24776,9 +25001,11 @@ contains
             ! if its 0 i have to switch the generator type
 
             ! for now ignore the forced switch restrictions
-            call pickRandomOrb(i, pgen, j)
+            call pickRandomOrb_scalar(i, pgen, j)
 
-            if (isZero(ilut,j)) then
+            select case (current_stepvector(j))
+            case (0)
+!             if (isZero(ilut,j)) then
                 if (j > i) then
                     ! lowering generator 
                     excitInfo = assign_excitInfo_values(-1,j,i,i,j,2)
@@ -24790,9 +25017,10 @@ contains
                 end if
 
                 ! also modify pgens correctly
-                nOrbs = count(currentOcc_ilut /= 0.0_dp)
+                nOrbs = count(currentOcc_int /= 0)
 
-            else if (isOne(ilut,j)) then
+!             else if (isOne(ilut,j)) then
+            case (1)
                 ! if its a 1 without checking beforehand i have to check if 
                 ! there are possible switches between the two, or otherwise
                 ! there is no excitation possible... -> not quite sure yet 
@@ -24817,7 +25045,8 @@ contains
 
                 nOrbs = nSpatOrbs - 1
                 
-            else 
+!             else 
+            case (2,3)
                 ! if its a 2 or 3 everything is fine
                 if (j > i) then
                     ! R
@@ -24828,21 +25057,26 @@ contains
                     excitInfo = assign_excitInfo_values(-1,i,j,j,i,2)
 
                 end if
-                if (isThree(ilut,j)) then
-                    nOrbs = count(currentOcc_ilut /= 2.0_dp)
+!                 if (isThree(ilut,j)) then
+                if (current_stepvector(j) == 3) then
+                    nOrbs = count(currentOcc_int /= 2)
                 else
                     nOrbs = nSpatOrbs - 1
                     factor = 2.0_dp
 
                 end if
-            end if
+            end select
+!             end if
 
-        else if (isTwo(ilut,i)) then
+!         else if (isTwo(ilut,i)) then
+        case (2)
             ! similar behavior to d(i) = 1, except switched roles beteen 1,2
             ! for now ignore the forced switch restrictions
-            call pickRandomOrb(i, pgen, j)
+            call pickRandomOrb_scalar(i, pgen, j)
 
-            if (isZero(ilut,j)) then
+            select case (current_stepvector(j))
+            case (0)
+!             if (isZero(ilut,j)) then
                 if (j > i) then
                     ! lowering generator 
                     excitInfo = assign_excitInfo_values(-1,j,i,i,j,2)
@@ -24853,9 +25087,10 @@ contains
 
                 end if
 
-                nOrbs = count(currentOcc_ilut /= 0.0_dp)
+                nOrbs = count(currentOcc_int /= 0)
 
-            else if (isTwo(ilut,j)) then
+!             else if (isTwo(ilut,j)) then
+            case (2)
                 ! if its a 2 without checking beforehand i have to check if 
                 ! there are possible switches between the two, or otherwise
                 
@@ -24878,7 +25113,8 @@ contains
                 nOrbs = nSpatOrbs - 1
                 factor = 2.0_dp
 
-            else 
+!             else 
+            case (1,3)
                 ! if its a 1 or 3 everything is fine
                 if (j > i) then
                     ! R
@@ -24890,14 +25126,17 @@ contains
 
                 end if
 
-                if (isThree(ilut,j)) then
-                    nOrbs = count(currentOcc_ilut /= 2.0_dp)
+!                 if (isThree(ilut,j)) then
+                if (current_stepvector(j) == 3) then
+                    nOrbs = count(currentOcc_int /= 2)
                 else
                     nOrbs = nSpatOrbs - 1
                     factor = 2.0_dp
                 end if
-            end if
-        end if
+            end select
+        end select
+!             end if
+!         end if
 
         pgen = (pgen + 1.0_dp/real(nSpatOrbs * nOrbs, dp))/factor
 
@@ -24909,7 +25148,6 @@ contains
         end if
 
     end subroutine pickOrbitals_nosym_single
-
 
     function excitationIdentifier_double(i, j, k, l) result(excitInfo)
         ! function to identify all necessary information of an excitation 
@@ -25350,7 +25588,8 @@ contains
         ! always one except d=2 at end
         fx = 1.0_dp
 
-        if (isTwo(ilut,sOrb)) fx = 0.0_dp
+!         if (isTwo(ilut,sOrb)) fx = 0.0_dp
+        if (current_stepvector(sOrb) == 2) fx = 0.0_dp
 
     end function endFx
 
@@ -25364,7 +25603,8 @@ contains
         ! always one except d=1 at end
         gx = 1.0_dp
 
-        if (isOne(ilut, sOrb)) gx = 0.0_dp
+!         if (isOne(ilut, sOrb)) gx = 0.0_dp
+        if (current_stepvector(sOrb) == 1) gx = 0.0_dp
 
     end function endGx
 
@@ -25396,16 +25636,19 @@ contains
             posSwitches(iOrb) = twoCount
             negSwitches(iOrb) = oneCount
 
-            if (isOne(ilut,iOrb)) then
+            select case (current_stepvector(iOrb))
+            case (1)
+!             if (isOne(ilut,iOrb)) then
                 oneCount = oneCount + 1.0_dp
-            else if (isTwo(ilut,iOrb)) then
+!             else if (isTwo(ilut,iOrb)) then
+            case (2)
                 twoCount = twoCount + 1.0_dp
-            end if
+            end select
+!             end if
 
         end do
 
     end subroutine calcRemainingSwitches_excitInfo_single
-
 
     subroutine calcRemainingSwitches_single(ilut, sOrb, pOrb, &
             posSwitches, negSwitches)
@@ -25434,15 +25677,18 @@ contains
             posSwitches(iOrb) = twoCount
             negSwitches(iOrb) = oneCount
 
-            if (isOne(ilut,iOrb)) then
+            select case (current_stepvector(iOrb))
+            case (1)
+!             if (isOne(ilut,iOrb)) then
                 oneCount = oneCount + 1.0_dp
-            else if (isTwo(ilut,iOrb)) then
+!             else if (isTwo(ilut,iOrb)) then
+            case (2)
                 twoCount = twoCount + 1.0_dp
-            end if
+            end select
+!             end if
         end do
 
     end subroutine calcRemainingSwitches_single
-
 
     subroutine calcRemainingSwitches_double(ilut, i, j, k, l, posSwitches, &
             negSwitches)
@@ -25506,17 +25752,23 @@ contains
                 posSwitches, negSwitches)
         else
 
-        if (excitInfo%overlap == 0) then                
+        select case (excitInfo%overlap)
+        case (0)
+!         if (excitInfo%overlap == 0) then                
             do iOrb = excitInfo%fullEnd - 1, excitInfo%secondStart, -1
                 posSwitches(iOrb) = twoCount
                 negSwitches(iOrb) = oneCount
 
-                if (isOne(ilut,iOrb)) then
+                select case (current_stepvector(iOrb))
+                case (1)
+!                 if (isOne(ilut,iOrb)) then
                     oneCount = oneCount + 1.0_dp
-                end if 
-                if (isTwo(ilut,iOrb)) then
+!                 end if 
+!                 if (isTwo(ilut,iOrb)) then
+                case (2)
                     twoCount = twoCount + 1.0_dp
-                end if
+                end select
+!                 end if
             end do
 
             ! reset count past second excitations:
@@ -25527,15 +25779,20 @@ contains
                 posSwitches(iOrb) = twoCount
                 negSwitches(iOrb) = oneCount
 
-                if (isOne(ilut,iOrb)) then
+                select case (current_stepvector(iOrb))
+                case (1)
+!                 if (isOne(ilut,iOrb)) then
                     oneCount = oneCount + 1.0_dp
-                end if
-                if (isTwo(ilut,iOrb)) then
+!                 end if
+!                 if (isTwo(ilut,iOrb)) then
+                case (2)
                     twoCount = twoCount + 1.0_dp
-                end if
+                end select
+!                 end if
             end do
 
-        else if (excitInfo%overlap == 1) then
+!         else if (excitInfo%overlap == 1) then
+        case (1)
             ! not quite sure anymore why, but have to treat single overlap 
             ! excitations with alike generators different then mixed
             if (excitInfo%gen1 /= excitInfo%gen2) then
@@ -25548,12 +25805,16 @@ contains
                 posSwitches(iOrb) = twoCount
                 negSwitches(iOrb) = oneCount
 
-                if (isOne(ilut,iOrb)) then
+                select case (current_stepvector(iOrb))
+                case (1)
+!                 if (isOne(ilut,iOrb)) then
                     oneCount = oneCount + 1.0_dp
-                end if
-                if (isTwo(ilut,iOrb)) then
+!                 end if
+!                 if (isTwo(ilut,iOrb)) then
+                case (2)
                     twoCount = twoCount + 1.0_dp
-                end if
+                end select
+!                 end if
             end do
 
             ! reset the switch number if alike generators are present.
@@ -25566,15 +25827,20 @@ contains
                 posSwitches(iOrb) = twoCount
                 negSwitches(iOrb) = oneCount
 
-                if (isOne(ilut,iOrb)) then
+                select case (current_stepvector(iOrb))
+                case (1)
+!                 if (isOne(ilut,iOrb)) then
                     oneCount = oneCount + 1.0_dp
-                end if
-                if (isTwo(ilut,iOrb)) then
+!                 end if
+!                 if (isTwo(ilut,iOrb)) then
+                case (2)
                     twoCount = twoCount + 1.0_dp
-                end if
+                end select
+!                 end if
             end do
 
-        else
+!         else
+        case default
             ! proper overlap ranges: 
             
             ! do all those excitations in the same way, although this means 
@@ -25588,12 +25854,16 @@ contains
                 posSwitches(iOrb) = twoCount
                 negSwitches(iOrb) = oneCount
 
-                if (isOne(ilut,iOrb)) then
+                select case (current_stepvector(iOrb))
+                case (1)
+!                 if (isOne(ilut,iOrb)) then
                     oneCount = oneCount + 1.0_dp
-                end if
-                if (isTwo(ilut,iOrb)) then
+!                 end if
+!                 if (isTwo(ilut,iOrb)) then
+                case (2)
                     twoCount = twoCount + 1.0_dp
-                end if
+                end select
+!                 end if
             end do
 
             oneCount = 0.0_dp
@@ -25603,12 +25873,16 @@ contains
                 posSwitches(iOrb) = twoCount
                 negSwitches(iOrb) = oneCount
 
-                if (isOne(ilut,iOrb)) then
+                select case (current_stepvector(iOrb))
+                case (1)
+!                 if (isOne(ilut,iOrb)) then
                     oneCount = oneCount + 1.0_dp
-                end if
-                if (isTwo(ilut,iOrb)) then
+!                 end if
+!                 if (isTwo(ilut,iOrb)) then
+                case (2)
                     twoCount = twoCount + 1.0_dp
-                end if
+                end select
+!                 end if
             end do
 
             oneCount = 0.0_dp
@@ -25618,18 +25892,23 @@ contains
                 posSwitches(iOrb) = twoCount
                 negSwitches(iOrb) = oneCount
 
-                if (isOne(ilut,iOrb)) then
+                select case (current_stepvector(iOrb))
+                case (1)
+!                 if (isOne(ilut,iOrb)) then
                     oneCount = oneCount + 1.0_dp
-                end if
-                if (isTwo(ilut,iOrb)) then
+!                 end if
+!                 if (isTwo(ilut,iOrb)) then
+                case (2)
                     twoCount = twoCount + 1.0_dp
-                end if
+                end select
+!                 end if
             end do
 
             oneCount = 0.0_dp
             twoCount = 0.0_dp  
 
-        end if
+        end select
+!         end if
 
         end if
                 
@@ -25717,7 +25996,6 @@ contains
 
         integer :: ierr, start1, end1, start2, end2, fullStart, fullEnd, &
             firstEnd, secondStart, numOrbitals, iOrb, ind
-
         
         ! check input:
         ASSERT(i > 0 .and. i <= nSpatOrbs)
@@ -27334,8 +27612,8 @@ contains
         integer, intent(in) :: i
         real(dp) :: pgen
 
-        pgen = 1.0_dp/real(count(currentOcc_ilut(i+1:) /= 0.0_dp),dp) + &
-               1.0_dp/real(count(currentOcc_ilut(i+1:) /= 2.0_dp),dp)
+        pgen = 1.0_dp/real(count(currentOcc_int(i+1:) /= 0),dp) + &
+               1.0_dp/real(count(currentOcc_int(i+1:) /= 2),dp)
 
     end function calc_pgen_yix_start_02
 
@@ -27343,7 +27621,7 @@ contains
         integer, intent(in) :: i
         real(dp) :: pgen
 
-        pgen = 1.0_dp/real(count(currentOcc_ilut(i+1:) /= 0.0_dp),dp) + &
+        pgen = 1.0_dp/real(count(currentOcc_int(i+1:) /= 0),dp) + &
                1.0_dp/real(nSpatOrbs - i - 1, dp)
 
     end function calc_pgen_yix_start_01
@@ -27352,7 +27630,7 @@ contains
         integer, intent(in) :: i
         real(dp) :: pgen 
 
-        pgen = 1.0_dp/real(count(currentOcc_ilut(i+1:) /= 2.0_dp),dp) + &
+        pgen = 1.0_dp/real(count(currentOcc_int(i+1:) /= 2),dp) + &
                1.0_dp/real(nSpatOrbs - i - 1, dp)
 
     end function calc_pgen_yix_start_21
@@ -27369,8 +27647,8 @@ contains
         integer, intent(in) :: i
         real(dp) :: pgen
 
-        pgen = 1.0_dp/real(count(currentOcc_ilut(:i-1) /= 0.0_dp),dp) + &
-               1.0_dp/real(count(currentOcc_ilut(:i-1) /= 2.0_dp),dp)
+        pgen = 1.0_dp/real(count(currentOcc_int(:i-1) /= 0),dp) + &
+               1.0_dp/real(count(currentOcc_int(:i-1) /= 2),dp)
 
     end function calc_pgen_yix_end_02
 
@@ -27378,7 +27656,7 @@ contains
         integer, intent(in) :: i
         real(dp) :: pgen
         
-        pgen = 1.0_dp/real(count(currentOcc_ilut(:i-1) /= 0.0_dp),dp) + &
+        pgen = 1.0_dp/real(count(currentOcc_int(:i-1) /= 0),dp) + &
                1.0_dp/real( i - 2, dp)
 
     end function calc_pgen_yix_end_01
@@ -27387,7 +27665,7 @@ contains
         integer, intent(in) :: i
         real(dp) :: pgen
 
-        pgen = 1.0_dp/real(count(currentOcc_ilut(:i-1) /= 2.0_dp),dp) + &
+        pgen = 1.0_dp/real(count(currentOcc_int(:i-1) /= 2),dp) + &
                1.0_dp/real(i - 2, dp)
 
     end function calc_pgen_yix_end_21
