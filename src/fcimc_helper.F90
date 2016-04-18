@@ -1682,7 +1682,7 @@ contains
         use global_det_data, only: get_iter_occ, get_av_sgn
         use LoggingData, only: tOldRDMs
         use rdm_data, only: one_rdms, two_rdm_spawn
-        use rdm_data_old, only: rdms
+        use rdm_data_old, only: rdms, one_rdms_old
 
         integer, intent(in) :: DetCurr(nel) 
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
@@ -1746,7 +1746,8 @@ contains
             if (tFillingStochRDMonFly) then
                 if (tOldRDMs) then
                     do irdm = 1, nrdms
-                        call det_removed_fill_diag_rdm_old(rdms(irdm), irdm, CurrentDets(:,DetPosition), DetPosition)
+                        call det_removed_fill_diag_rdm_old(rdms(irdm), one_rdms_old(irdm), irdm, &
+                                                           CurrentDets(:,DetPosition), DetPosition)
                     end do
                 end if
 

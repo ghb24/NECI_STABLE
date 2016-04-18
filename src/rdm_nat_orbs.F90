@@ -18,7 +18,7 @@ contains
         use LoggingData, only: tPrintRODump
         use MemoryManager, only: LogMemAlloc
         use Parallel_neci, only: iProcIndex
-        use rdm_data_old, only: rdm_t
+        use rdm_data, only: one_rdm_t
         use RotateOrbsMod, only: FourIndInts, FourIndIntsTag
         use SystemData, only: tROHF, nel, G1, ARR, BRR
 
@@ -27,7 +27,7 @@ contains
         ! transforming the MO's into the NOs). This also gets the NO
         ! occupation numbers (evaluse) and correlation entropy.
 
-        type(rdm_t), intent(inout) :: rdm
+        type(one_rdm_t), intent(inout) :: rdm
         integer, intent(in) :: irdm
 
         integer :: ierr
@@ -36,7 +36,7 @@ contains
 
         if (iProcIndex .eq. 0) then
             
-            ! Diagonalises the 1-RDM.  rdm%matrix goes in as the 1-RDM, comes out
+            ! Diagonalises the 1-RDM. rdm%matrix goes in as the 1-RDM, comes out
             ! as the eigenvector of the 1-RDM (the matrix transforming the MO's
             ! into the NOs).
             call DiagRDM(rdm, SumDiag)
@@ -77,13 +77,12 @@ contains
     subroutine write_evales_and_transform_mat(rdm, irdm, SumDiag)
 
         use LoggingData, only: tNoNOTransform
-        use rdm_data, only: tOpenShell
-        use rdm_data_old, only: rdm_t
+        use rdm_data, only: tOpenShell, one_rdm_t
         use SystemData, only: nbasis, nel, BRR
         use UMatCache, only: gtID
         use util_mod, only: get_free_unit, int_fmt
 
-        type(rdm_t), intent(in) :: rdm
+        type(one_rdm_t), intent(in) :: rdm
         integer, intent(in) :: irdm
         real(dp), intent(in) :: SumDiag
 
@@ -238,12 +237,11 @@ contains
         ! flexibility w.r.t rotating only the occupied or only virtual and 
         ! looking at high spin states.
 
-        use rdm_data, only: tOpenShell
-        use rdm_data_old, only: rdm_t
+        use rdm_data, only: tOpenShell, one_rdm_t
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
         use SystemData, only: G1, tUseMP2VarDenMat, tFixLz, iMaxLz
 
-        type(rdm_t), intent(inout) :: rdm
+        type(one_rdm_t), intent(inout) :: rdm
         real(dp), intent(out) :: SumTrace
 
         real(dp) :: SumDiagTrace
@@ -461,12 +459,11 @@ contains
         ! specific to this RDM).
 
         use MemoryManager, only: LogMemAlloc
-        use rdm_data, only: tOpenShell
-        use rdm_data_old, only: rdm_t
+        use rdm_data, only: tOpenShell, one_rdm_t
         use sort_mod, only: sort
         use SystemData, only: nbasis
 
-        type(rdm_t), intent(inout) :: rdm
+        type(one_rdm_t), intent(inout) :: rdm
 
         integer :: spin,i,j,ierr,StartSort,EndSort
         character(len=*), parameter :: t_r = 'order_one_rdm'
@@ -653,10 +650,10 @@ contains
         ! Calculate the fock matrix in the natural orbital basis.
 
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
-        use rdm_data_old, only: rdm_t
+        use rdm_data, only: one_rdm_t
         use SystemData, only: nbasis, ARR, BRR, tStoreSpinOrbs
 
-        type(rdm_t), intent(in) :: rdm
+        type(one_rdm_t), intent(in) :: rdm
 
         integer :: i, j, k, l, a, b, ierr, ArrDiagNewTag
         real(dp) :: FOCKDiagSumHF, FOCKDiagSumNew

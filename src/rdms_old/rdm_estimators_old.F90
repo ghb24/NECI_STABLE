@@ -10,7 +10,7 @@ module rdm_estimators_old
 
 contains
 
-    subroutine rdm_output_wrapper_old(rdm, rdm_label, est)
+    subroutine rdm_output_wrapper_old(rdm, one_rdm, rdm_label, est)
 
         use FciMCData, only: tFinalRDMEnergy, Iter, IterRDMStart, PreviousCycles
         use LoggingData, only: tRDMInstEnergy, tWriteMultRDMs, IterWriteRDMs
@@ -18,11 +18,12 @@ contains
         use LoggingData, only: tWriteSpinFreeRDM
         use Parallel_neci, only: iProcIndex, MPISumAll
         use rdm_data_old, only: rdm_t, rdm_estimates_old_t
-        use rdm_data, only: tOpenShell
+        use rdm_data, only: tOpenShell, one_rdm_t
         use rdm_write_old, only: Finalise_2e_RDM, calc_2e_norms, Write_out_2RDM
         use rdm_write_old, only: Write_spinfree_RDM
 
         type(rdm_t), intent(inout) :: rdm
+        type(one_rdm_t), intent(inout) :: one_rdm
         integer, intent(in) :: rdm_label
         type(rdm_estimates_old_t), intent(inout) :: est
 
@@ -41,7 +42,9 @@ contains
             if (tFinalRDMEnergy .or. (tWriteMultRDMs .and. (mod((Iter+PreviousCycles-IterRDMStart)+1,IterWriteRDMs) .eq. 0))) then
 
                 ! Only ever want to print the 2-RDMs (for reading in) at the end.
-                if (tFinalRDMEnergy .and. tWrite_RDMs_to_read) call Write_out_2RDM(rdm, rdm_label, est%Norm_2RDM, .false., .false.)
+                if (tFinalRDMEnergy .and. tWrite_RDMs_to_read) then
+                    call Write_out_2RDM(rdm, rdm_label, est%Norm_2RDM, .false., .false.)
+                end if
 
                 ! This writes out the normalised, hermitian 2-RDMs.
                 ! IMPORTANT NOTE: We assume that we want tMake_Herm=.true. here.
@@ -51,8 +54,8 @@ contains
 
              end if
 
-            call Calc_Energy_from_RDM(rdm, est%Norm_2RDM, est%Norm_2RDM_Inst, est%Trace_2RDM_normalised, est%RDMEnergy, &
-                                      est%RDMEnergy1, est%RDMEnergy2, est%RDMEnergy_Inst)
+            call Calc_Energy_from_RDM(rdm, one_rdm, est%Norm_2RDM, est%Norm_2RDM_Inst, est%Trace_2RDM_normalised, &
+                                      est%RDMEnergy, est%RDMEnergy1, est%RDMEnergy2, est%RDMEnergy_Inst)
 
             ! Calculate the instantaneous estimate of <S^2> using the 2RDM.
             est%spin_est = calc_2rdm_spin_estimate(rdm, est%Norm_2RDM_Inst)
@@ -116,7 +119,7 @@ contains
 
     end subroutine write_rdm_estimates_old
 
-    subroutine Calc_Energy_from_RDM(rdm, Norm_2RDM, Norm_2RDM_Inst, Trace_2RDM_normalised, RDMEnergy, &
+    subroutine Calc_Energy_from_RDM(rdm, one_rdm, Norm_2RDM, Norm_2RDM_Inst, Trace_2RDM_normalised, RDMEnergy, &
                                     RDMEnergy1, RDMEnergy2, RDMEnergy_Inst)
 
         ! This routine takes the 1 electron and 2 electron reduced density
@@ -134,13 +137,14 @@ contains
         use global_utilities, only: set_timer, halt_timer
         use IntegralsData, only: umat
         use LoggingData, only: tRDMInstEnergy
-        use rdm_data, only: RDMEnergy_Time, tOpenShell
+        use rdm_data, only: RDMEnergy_Time, tOpenShell, one_rdm_t
         use rdm_data_old, only: rdm_t
         use RotateOrbsData, only: SpatOrbs
         use SystemData, only: tStoreSpinOrbs, ecore
         use UMatCache, only: UMatInd
 
         type(rdm_t), intent(inout) :: rdm
+        type(one_rdm_t), intent(inout) :: one_rdm
         real(dp), intent(in) :: Norm_2RDM, Norm_2RDM_Inst
         real(dp), intent(out) :: Trace_2RDM_normalised, RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst
 
@@ -171,7 +175,7 @@ contains
 
                     ! Adding in contributions effectively from the 1-RDM (although these are calculated 
                     ! from the 2-RDM).
-                    call calc_1RDM_and_1RDM_energy(rdm, i, j, a, iSpin,jSpin, Norm_2RDM, &
+                    call calc_1RDM_and_1RDM_energy(rdm, one_rdm, i, j, a, iSpin,jSpin, Norm_2RDM, &
                                                    RDMEnergy_Inst, RDMEnergy1)
                     
                     do b = a, SpatOrbs
@@ -478,7 +482,7 @@ contains
 
     end function calc_2rdm_spin_estimate
 
-    subroutine Calc_Lagrangian_from_RDM(rdm, Norm_1RDM, Norm_2RDM)
+    subroutine Calc_Lagrangian_from_RDM(rdm, one_rdm, Norm_1RDM, Norm_2RDM)
 
         ! This routine takes the 1 electron and 2 electron reduced density
         ! matrices and calculated the Lagrangian term, X, required for the
@@ -495,13 +499,14 @@ contains
         use IntegralsData, only: UMAT
         use OneEInts, only: TMAT2D
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: tOpenShell
+        use rdm_data, only: tOpenShell, one_rdm_t
         use rdm_data_old, only: rdm_t
         use rdm_write_old, only: Find_Spatial_2RDM_Chem
         use RotateOrbsMod, only: SymLabelListInv_rot, SpatOrbs
         use UMatCache, only: UMatInd
 
         type(rdm_t), intent(inout) :: rdm
+        type(one_rdm_t), intent(inout) :: one_rdm
         real(dp), intent(in) :: Norm_2RDM
         real(dp), intent(in) :: Norm_1RDM
 
@@ -511,8 +516,8 @@ contains
         real(dp) :: qrst, rqst
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity, Temp
 
-        allocate(rdm%Lagrangian(SpatOrbs,SpatOrbs), stat=ierr)
-        rdm%Lagrangian(:,:) = 0.0_dp
+        allocate(one_rdm%Lagrangian(SpatOrbs,SpatOrbs), stat=ierr)
+        one_rdm%Lagrangian(:,:) = 0.0_dp
         
         ! We will begin by calculating the Lagrangian in chemical notation - we will explicitely calculate
         ! both halves (X_pq and X_qp) in order to check if it is symmetric or not.
@@ -534,16 +539,16 @@ contains
                         ! We made sure earlier that the 1RDM is contructed, so we can call directly from this.
                         if (tOpenShell) then
                             ! Include both aa and bb contributions 
-                            rdm%Lagrangian(p,q) = rdm%Lagrangian(p,q) + &
-                                                      (rdm%matrix(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r)))*&
+                            one_rdm%Lagrangian(p,q) = one_rdm%Lagrangian(p,q) + &
+                                                      (one_rdm%matrix(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r)))*&
                                                       real(TMAT2D(pSpin,rSpin),8)*Norm_1RDM
-                            rdm%Lagrangian(p,q) = rdm%Lagrangian(p,q) + &
-                                                      (rdm%matrix(SymLabelListInv_rot(2*q-1),SymLabelListInv_rot(2*r-1)))*&
+                            one_rdm%Lagrangian(p,q) = one_rdm%Lagrangian(p,q) + &
+                                                      (one_rdm%matrix(SymLabelListInv_rot(2*q-1),SymLabelListInv_rot(2*r-1)))*&
                                                       real(TMAT2D(pSpin-1,rSpin-1),8)*Norm_1RDM
                         else
                             ! We will be here most often (?)
-                            rdm%Lagrangian(p,q) = rdm%Lagrangian(p,q) + rdm%matrix(SymLabelListInv_rot(q),SymLabelListInv_rot(r))* &
-                                                                                  real(TMAT2D(pSpin,rSpin),8)*Norm_1RDM
+                            one_rdm%Lagrangian(p,q) = one_rdm%Lagrangian(p,q) + &
+                                one_rdm%matrix(SymLabelListInv_rot(q),SymLabelListInv_rot(r))* real(TMAT2D(pSpin,rSpin),8)*Norm_1RDM
                         end if
 
                         do s = 1, SpatOrbs
@@ -566,7 +571,7 @@ contains
                                 qrst = Find_Spatial_2RDM_Chem(rdm, q, r, s, t, Norm_2RDM)
                                 rqst = Find_Spatial_2RDM_Chem(rdm, r, q, s, t, Norm_2RDM)
                                 
-                                rdm%Lagrangian(p,q) = rdm%Lagrangian(p,q) + 0.5_dp*Coul*(qrst+rqst)
+                                one_rdm%Lagrangian(p,q) = one_rdm%Lagrangian(p,q) + 0.5_dp*Coul*(qrst+rqst)
                             end do
                         end do
                     end do
@@ -579,14 +584,14 @@ contains
             Sum_Error_Hermiticity = 0.0_dp
             do p = 1, SpatOrbs
                 do q = p, SpatOrbs
-                    if (abs(rdm%Lagrangian(p,q) - rdm%Lagrangian(q,p)) .gt. Max_Error_Hermiticity) &
-                        Max_Error_Hermiticity = abs(rdm%Lagrangian(p,q) - rdm%Lagrangian(q,p))
+                    if (abs(one_rdm%Lagrangian(p,q) - one_rdm%Lagrangian(q,p)) .gt. Max_Error_Hermiticity) &
+                        Max_Error_Hermiticity = abs(one_rdm%Lagrangian(p,q) - one_rdm%Lagrangian(q,p))
 
-                    Sum_Error_Hermiticity = Sum_Error_Hermiticity+abs(rdm%Lagrangian(p,q) - rdm%Lagrangian(q,p))
+                    Sum_Error_Hermiticity = Sum_Error_Hermiticity+abs(one_rdm%Lagrangian(p,q) - one_rdm%Lagrangian(q,p))
 
-                    Temp = (rdm%Lagrangian(p,q) + rdm%Lagrangian(q,p))/2.0_dp
-                    rdm%Lagrangian(p,q) = Temp
-                    rdm%Lagrangian(q,p) = Temp
+                    Temp = (one_rdm%Lagrangian(p,q) + one_rdm%Lagrangian(q,p))/2.0_dp
+                    one_rdm%Lagrangian(p,q) = Temp
+                    one_rdm%Lagrangian(q,p) = Temp
                 end do
             end do
 
@@ -598,7 +603,7 @@ contains
 
     end subroutine Calc_Lagrangian_from_RDM
 
-    subroutine calc_1RDM_and_1RDM_energy(rdm, i, j, a, iSpin, jSpin, Norm_2RDM, &
+    subroutine calc_1RDM_and_1RDM_energy(rdm, one_rdm, i, j, a, iSpin, jSpin, Norm_2RDM, &
                                          RDMEnergy_Inst, RDMEnergy1)
 
         ! This routine calculates the 1-RDM part of the RDM energy, and
@@ -612,12 +617,13 @@ contains
         use FciMCData, only: tFinalRDMEnergy
         use OneEInts, only: TMAT2D
         use LoggingData, only: tDiagRDM, tDumpForcesInfo, tDipoles, tRDMInstEnergy, tPrint1RDM
-        use rdm_data, only: tOpenShell
+        use rdm_data, only: tOpenShell, one_rdm_t
         use rdm_data_old, only: rdm_t
         use RotateOrbsMod, only: SymLabelListInv_rot
         use SystemData, only: nel
 
         type(rdm_t), intent(inout) :: rdm
+        type(one_rdm_t), intent(inout) :: one_rdm
         integer, intent(in) :: i, j, a, iSpin, jSpin
         real(dp), intent(in) :: Norm_2RDM
         real(dp), intent(inout) :: RDMEnergy_Inst, RDMEnergy1
@@ -736,40 +742,40 @@ contains
                
                 if (.not. tOpenShell) then
                  ! Spatial orbitals
-                    rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
-                             rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
+                    one_rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
+                             one_rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
                                          + fac_doublecount*( rdm%abab_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
                                                  * (1.0_dp / real(NEl - 1,dp)) )
 
-                    if (t_opposite_contri) rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
-                             rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
+                    if (t_opposite_contri) one_rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
+                             one_rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                          + ( rdm%abab_full(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
                                                  * (1.0_dp / real(NEl - 1,dp)) )
 
                 else                      
-                   rdm%matrix(SymLabelListInv_rot(iSpin_abab),SymLabelListInv_rot(jSpin_abab)) = &
-                           rdm%matrix(SymLabelListInv_rot(iSpin_abab),SymLabelListInv_rot(jSpin_abab)) &
+                   one_rdm%matrix(SymLabelListInv_rot(iSpin_abab),SymLabelListInv_rot(jSpin_abab)) = &
+                           one_rdm%matrix(SymLabelListInv_rot(iSpin_abab),SymLabelListInv_rot(jSpin_abab)) &
                                        + ( rdm%abab_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
                                        * (1.0_dp / real(NEl - 1,dp)) )
 
-                   if (t_opposite_contri)  rdm%matrix(SymLabelListInv_rot(jSpin_abab),SymLabelListInv_rot(iSpin_abab)) = &
-                           rdm%matrix(SymLabelListInv_rot(jSpin_abab),SymLabelListInv_rot(iSpin_abab)) &
+                   if (t_opposite_contri)  one_rdm%matrix(SymLabelListInv_rot(jSpin_abab),SymLabelListInv_rot(iSpin_abab)) = &
+                           one_rdm%matrix(SymLabelListInv_rot(jSpin_abab),SymLabelListInv_rot(iSpin_abab)) &
                                        + ( rdm%abab_full(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
                                        * (1.0_dp / real(NEl - 1,dp)) ) 
 
                    if (.not. t_abab_only) then
-                       rdm%matrix(SymLabelListInv_rot(iSpin_baba),SymLabelListInv_rot(jSpin_baba)) = &
-                            rdm%matrix(SymLabelListInv_rot(iSpin_baba),SymLabelListInv_rot(jSpin_baba)) &
+                       one_rdm%matrix(SymLabelListInv_rot(iSpin_baba),SymLabelListInv_rot(jSpin_baba)) = &
+                            one_rdm%matrix(SymLabelListInv_rot(iSpin_baba),SymLabelListInv_rot(jSpin_baba)) &
                                       + ( rdm%baba_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
                                       * (1.0_dp / real(NEl - 1,dp)) )
 
-                       if (t_opposite_contri) rdm%matrix(SymLabelListInv_rot(jSpin_baba),SymLabelListInv_rot(iSpin_baba)) = &
-                            rdm%matrix(SymLabelListInv_rot(jSpin_baba),SymLabelListInv_rot(iSpin_baba)) &
+                       if (t_opposite_contri) one_rdm%matrix(SymLabelListInv_rot(jSpin_baba),SymLabelListInv_rot(iSpin_baba)) = &
+                            one_rdm%matrix(SymLabelListInv_rot(jSpin_baba),SymLabelListInv_rot(iSpin_baba)) &
                                       + ( rdm%baba_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
                                       * (1.0_dp / real(NEl - 1,dp)) )
                    else ! i = j = a -> baba saved in abab & t_opposite_contri = false
-                       rdm%matrix(SymLabelListInv_rot(iSpin_baba),SymLabelListInv_rot(jSpin_baba)) = &
-                          rdm%matrix(SymLabelListInv_rot(iSpin_baba),SymLabelListInv_rot(jSpin_baba)) &
+                       one_rdm%matrix(SymLabelListInv_rot(iSpin_baba),SymLabelListInv_rot(jSpin_baba)) = &
+                          one_rdm%matrix(SymLabelListInv_rot(iSpin_baba),SymLabelListInv_rot(jSpin_baba)) &
                                       + ( rdm%abab_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
                                       * (1.0_dp / real(NEl - 1,dp)) )
                    end if
@@ -870,33 +876,33 @@ contains
                if ((tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) .and. tFinalRDMEnergy) then
                    if (.not. tOpenShell) then
                    ! Spatial orbitals
-                       rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
-                           rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
+                       one_rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
+                           one_rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
                                       - ( rdm%abba_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
                                               * (1.0_dp / real(NEl - 1,dp)) )
 
-                       if (t_opposite_contri) rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
-                          rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
+                       if (t_opposite_contri) one_rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
+                          one_rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                       - ( rdm%abba_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
                                               * (1.0_dp / real(NEl - 1,dp)) )
                    else
-                       rdm%matrix(SymLabelListInv_rot(iSpin_abba),SymLabelListInv_rot(jSpin_abba)) = &
-                              rdm%matrix(SymLabelListInv_rot(iSpin_abba),SymLabelListInv_rot(jSpin_abba)) &
+                       one_rdm%matrix(SymLabelListInv_rot(iSpin_abba),SymLabelListInv_rot(jSpin_abba)) = &
+                              one_rdm%matrix(SymLabelListInv_rot(iSpin_abba),SymLabelListInv_rot(jSpin_abba)) &
                                           - ( rdm%abba_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
                                                   * (1.0_dp / real(NEl - 1,dp)) ) 
 
-                       if (t_opposite_contri) rdm%matrix(SymLabelListInv_rot(jSpin_abba),SymLabelListInv_rot(iSpin_abba)) = &
-                              rdm%matrix(SymLabelListInv_rot(jSpin_abba),SymLabelListInv_rot(iSpin_abba)) &
+                       if (t_opposite_contri) one_rdm%matrix(SymLabelListInv_rot(jSpin_abba),SymLabelListInv_rot(iSpin_abba)) = &
+                              one_rdm%matrix(SymLabelListInv_rot(jSpin_abba),SymLabelListInv_rot(iSpin_abba)) &
                                           - ( rdm%baab_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
                                                   * (1.0_dp / real(NEl - 1,dp)) ) 
 
-                       rdm%matrix(SymLabelListInv_rot(iSpin_baab),SymLabelListInv_rot(jSpin_baab)) = &
-                              rdm%matrix(SymLabelListInv_rot(iSpin_baab),SymLabelListInv_rot(jSpin_baab)) &
+                       one_rdm%matrix(SymLabelListInv_rot(iSpin_baab),SymLabelListInv_rot(jSpin_baab)) = &
+                              one_rdm%matrix(SymLabelListInv_rot(iSpin_baab),SymLabelListInv_rot(jSpin_baab)) &
                                           - ( rdm%baab_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
                                                   * (1.0_dp / real(NEl - 1,dp)) )
 
-                       if (t_opposite_contri) rdm%matrix(SymLabelListInv_rot(jSpin_baab),SymLabelListInv_rot(iSpin_baab)) = &
-                              rdm%matrix(SymLabelListInv_rot(jSpin_baab),SymLabelListInv_rot(iSpin_baab)) &
+                       if (t_opposite_contri) one_rdm%matrix(SymLabelListInv_rot(jSpin_baab),SymLabelListInv_rot(iSpin_baab)) = &
+                              one_rdm%matrix(SymLabelListInv_rot(jSpin_baab),SymLabelListInv_rot(iSpin_baab)) &
                                           - ( rdm%abba_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
                                                   * (1.0_dp / real(NEl - 1,dp)) )
                    end if
@@ -957,35 +963,35 @@ contains
 
            if ((tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) .and. tFinalRDMEnergy) then
                if ( .not. tOpenShell) then
-                   rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
-                            rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
+                   one_rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
+                            one_rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
                                         + ( rdm%aaaa_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) 
 
-                   if (t_opposite_contri) rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
-                            rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
+                   if (t_opposite_contri) one_rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
+                            one_rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                         + ( rdm%aaaa_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) 
 
                else
 
-                   rdm%matrix(SymLabelListInv_rot(iSpin),SymLabelListInv_rot(jSpin)) = &
-                            rdm%matrix(SymLabelListInv_rot(iSpin),SymLabelListInv_rot(jSpin)) &
+                   one_rdm%matrix(SymLabelListInv_rot(iSpin),SymLabelListInv_rot(jSpin)) = &
+                            one_rdm%matrix(SymLabelListInv_rot(iSpin),SymLabelListInv_rot(jSpin)) &
                                         + ( rdm%aaaa_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) 
 
-                   if (t_opposite_contri) rdm%matrix(SymLabelListInv_rot(jSpin),SymLabelListInv_rot(iSpin)) = &
-                            rdm%matrix(SymLabelListInv_rot(jSpin),SymLabelListInv_rot(iSpin)) &
+                   if (t_opposite_contri) one_rdm%matrix(SymLabelListInv_rot(jSpin),SymLabelListInv_rot(iSpin)) = &
+                            one_rdm%matrix(SymLabelListInv_rot(jSpin),SymLabelListInv_rot(iSpin)) &
                                         + ( rdm%aaaa_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) 
 
-                   rdm%matrix(SymLabelListInv_rot(iSpin-1),SymLabelListInv_rot(jSpin-1)) = & 
-                            rdm%matrix(SymLabelListInv_rot(iSpin-1),SymLabelListInv_rot(jSpin-1)) &
+                   one_rdm%matrix(SymLabelListInv_rot(iSpin-1),SymLabelListInv_rot(jSpin-1)) = & 
+                            one_rdm%matrix(SymLabelListInv_rot(iSpin-1),SymLabelListInv_rot(jSpin-1)) &
                                         + ( rdm%bbbb_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) 
 
-                   if (t_opposite_contri) rdm%matrix(SymLabelListInv_rot(jSpin-1),SymLabelListInv_rot(iSpin-1)) = & 
-                            rdm%matrix(SymLabelListInv_rot(jSpin-1),SymLabelListInv_rot(iSpin-1)) &
+                   if (t_opposite_contri) one_rdm%matrix(SymLabelListInv_rot(jSpin-1),SymLabelListInv_rot(iSpin-1)) = & 
+                            one_rdm%matrix(SymLabelListInv_rot(jSpin-1),SymLabelListInv_rot(iSpin-1)) &
                                         + ( rdm%bbbb_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) 
                end if
@@ -995,11 +1001,11 @@ contains
 
     end subroutine calc_1RDM_and_1RDM_energy
 
-    subroutine convert_mats_Molpforces(rdm, Norm_1RDM, Norm_2RDM)
+    subroutine convert_mats_Molpforces(rdm, one_rdm, Norm_1RDM, Norm_2RDM)
 
         use GenRandSymExcitNUMod, only: ClassCountInd, RandExcitSymLabelProd
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: tOpenShell
+        use rdm_data, only: tOpenShell, one_rdm_t
         use rdm_data_old, only: rdm_t
         use rdm_write_old, only: Find_Spatial_2RDM_Chem
         use RotateOrbsData, only: SpatOrbs, SymLabelListInv_rot
@@ -1009,6 +1015,7 @@ contains
         use SystemData, only: nEl, LMS
 
         type(rdm_t), intent(in) :: rdm
+        type(one_rdm_t), intent(in) :: one_rdm
 
         integer :: iblkq, iseccr, istat1, isyref, ms2
         integer :: posn1, posn2
@@ -1129,15 +1136,15 @@ contains
                         if (tOpenShell) then
                             ! Include both aa and bb contributions.
                             SymmetryPacked1RDM(posn1)=&
-                                  (rdm%matrix(SymLabelListInv_rot(2*i),SymLabelListInv_rot(2*j))&
-                                 + rdm%matrix(SymLabelListInv_rot(2*i-1),SymLabelListInv_rot(2*j-1)))*Norm_1RDM
+                                  (one_rdm%matrix(SymLabelListInv_rot(2*i),SymLabelListInv_rot(2*j))&
+                                 + one_rdm%matrix(SymLabelListInv_rot(2*i-1),SymLabelListInv_rot(2*j-1)))*Norm_1RDM
                         else
-                            SymmetryPacked1RDM(posn1) = rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM
+                            SymmetryPacked1RDM(posn1) = one_rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM
                         end if
 
                         ! Add in the symmetrised Lagrangian contribution to the
                         ! sym-packed Lagrangian
-                        SymmetryPackedLagrangian(posn1) = rdm%Lagrangian(i,j)
+                        SymmetryPackedLagrangian(posn1) = one_rdm%Lagrangian(i,j)
                         elements_assigned1(Sym_i+1) = elements_assigned1(Sym_i+1) + 1
                     end if
 
@@ -1389,9 +1396,9 @@ contains
     !   orbital,2103.2 }         
          !Note no 'core' directive included, since the core orbitals are 'closed' in the casscf and so will be ignored.
 
-    subroutine CalcDipoles(rdm, Norm_1RDM)
+    subroutine CalcDipoles(one_rdm, Norm_1RDM)
 
-        use rdm_data_old, only: rdm_t
+        use rdm_data, only: one_rdm_t
 #ifdef MOLPRO
         use GenRandSymExcitNUMod, only: RandExcitSymLabelProd, ClassCountInd
         use outputResult
@@ -1407,7 +1414,7 @@ contains
         integer :: nt_frz(8), ntd_frz(8)
 #endif
         ! The only thing needed is the 1RDM (normalized)
-        type(rdm_t), intent(in) :: rdm
+        type(one_rdm_t), intent(in) :: one_rdm
         real(dp), intent(in) :: Norm_1RDM
 
         character(len=*), parameter :: t_r='CalcDipoles'
@@ -1461,7 +1468,7 @@ contains
                             call stop_all(t_r,'Error filling rdm')
                         end if
 
-                        SymmetryPacked1RDM(posn1) = rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM
+                        SymmetryPacked1RDM(posn1) = one_rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM
                         if (i .ne. j) then
                             ! Double the off-diagonal elements of the 1RDM, so
                             ! that when we contract over the symmetry packed

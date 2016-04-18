@@ -12,7 +12,7 @@ module rdm_filling_old
 
 contains
 
-    subroutine fill_rdm_diag_wrapper_old(rdms, ilut_list, ndets)
+    subroutine fill_rdm_diag_wrapper_old(rdms, one_rdms, ilut_list, ndets)
 
         ! Loop over all states in ilut_list and see if any signs have just
         ! become unoccupied or become reoccupied. In which case, we have
@@ -22,9 +22,11 @@ contains
         use bit_rep_data, only: extract_sign
         use CalcData, only: tPairedReplicas
         use global_det_data, only: get_iter_occ
+        use rdm_data, only: one_rdm_t
         use rdm_data_old, only: rdm_t
 
         type(rdm_t), intent(inout) :: rdms(:)
+        type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer(n_int), intent(in) :: ilut_list(:,:)
         integer, intent(in) :: ndets
 
@@ -51,13 +53,13 @@ contains
                         ! At least one of the signs has just gone to zero or just become reoccupied
                         ! so we need to consider adding in diagonal elements and connections to HF
                         ! The block that's just ended was occupied in at least one population.
-                        call det_removed_fill_diag_rdm_old(rdms(irdm), irdm, ilut_list(:,idet), idet)
+                        call det_removed_fill_diag_rdm_old(rdms(irdm), one_rdms(irdm), irdm, ilut_list(:,idet), idet)
                     end if
                 end do
             else
                 do irdm = 1, size(rdms)
                     if (abs(curr_sign(irdm)) < 1.0e-10_dp) then
-                        call det_removed_fill_diag_rdm_old(rdms(irdm), irdm, ilut_list(:,idet), idet)
+                        call det_removed_fill_diag_rdm_old(rdms(irdm), one_rdms(irdm), irdm, ilut_list(:,idet), idet)
                     end if
                 end do
             end if
@@ -66,7 +68,7 @@ contains
 
     end subroutine fill_rdm_diag_wrapper_old
 
-    subroutine fill_rdm_diag_currdet_norm_old(rdm, irdm, iLutnI, nI, j, ExcitLevelI, tCoreSpaceDet)
+    subroutine fill_rdm_diag_currdet_norm_old(rdm, one_rdm, irdm, iLutnI, nI, j, ExcitLevelI, tCoreSpaceDet)
 
         ! This routine calculates the diagonal RDM contribution, and explicit
         ! connections to the HF, from the current determinant.
@@ -89,10 +91,12 @@ contains
         use hphf_integrals, only: hphf_sign
         use HPHFRandExcitMod, only: FindExcitBitDetSym
         use LoggingData, only: RDMEnergyIter, RDMExcitLevel
+        use rdm_data, only: one_rdm_t
         use rdm_data_old, only: rdm_t
         use SystemData, only: nel, tHPHF
 
         type(rdm_t), intent(inout) :: rdm
+        type(one_rdm_t), intent(inout) :: one_rdm
         integer, intent(in) :: irdm
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         integer, intent(in) :: nI(nel), ExcitLevelI, j
@@ -138,7 +142,7 @@ contains
 
         if (tHPHF) then
             if (.not. TestClosedShellDet(iLutnI)) then
-                call Fill_Diag_RDM(rdm, nI, AvSignCurr_sing/sqrt(2.0_dp), tCoreSpaceDet, IterRDM)
+                call Fill_Diag_RDM(rdm, one_rdm, nI, AvSignCurr_sing/sqrt(2.0_dp), tCoreSpaceDet, IterRDM)
 
                 ! C_X D_X = C_X / sqrt(2) [ D_I +/- D_I'] - for open shell dets,
                 ! divide stored C_X by sqrt(2). 
@@ -148,7 +152,7 @@ contains
                 ! Find out if it's + or - in the above expression
                 SignFac = hphf_sign(iLutnI)
 
-                call Fill_Diag_RDM(rdm, nSpinCoup, real(SignFac,dp)*AvSignCurr_sing/sqrt(2.0_dp), &
+                call Fill_Diag_RDM(rdm, one_rdm, nSpinCoup, real(SignFac,dp)*AvSignCurr_sing/sqrt(2.0_dp), &
                                    tCoreSpaceDet, IterRDM)
 
                 ! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
@@ -157,32 +161,32 @@ contains
                 ! excitation. Find excitation level between D_I and D_I' and add in the contribution if connected.
                 HPHFExcitLevel = FindBitExcitLevel(iLutnI, SpinCoupDet, 2)
                 if (HPHFExcitLevel .le. 2) then 
-                    call Add_RDM_From_IJ_Pair_old(rdm, irdm, nI, nSpinCoup, IterRDM*AvSignCurr_sing(1)/sqrt(2.0_dp), &
+                    call Add_RDM_From_IJ_Pair_old(rdm, one_rdm, irdm, nI, nSpinCoup, IterRDM*AvSignCurr_sing(1)/sqrt(2.0_dp), &
                                               (real(SignFac,dp)*AvSignCurr_sing(nreplicas))/sqrt(2.0_dp), .true.)
                 end if
             else
 
                 ! HPHFs on, but determinant closed shell.
-                call Fill_Diag_RDM(rdm, nI, AvSignCurr_sing, tCoreSpaceDet, IterRDM)
+                call Fill_Diag_RDM(rdm, one_rdm, nI, AvSignCurr_sing, tCoreSpaceDet, IterRDM)
 
             end if
 
-            call Add_RDM_HFConnections_HPHF_old(rdm, irdm, iLutnI, nI, AvSignCurr_sing, &
+            call Add_RDM_HFConnections_HPHF_old(rdm, one_rdm, irdm, iLutnI, nI, AvSignCurr_sing, &
                                             AvSignHF_sing, ExcitLevelI, IterRDM)
 
         else
             ! Not using HPHFs.
             if (abs(AvSignCurr_sing(1) * AvSignCurr_sing(nreplicas)) > 1.0e-10_dp) then
-                call Fill_Diag_RDM(rdm, nI, AvSignCurr_sing, tCoreSpaceDet, IterRDM)
+                call Fill_Diag_RDM(rdm, one_rdm, nI, AvSignCurr_sing, tCoreSpaceDet, IterRDM)
             end if
 
-            call Add_RDM_HFConnections_Norm_old(rdm, irdm, iLutnI, nI, AvSignCurr_sing, AvSignHF_sing, ExcitLevelI, IterRDM)
-
+            call Add_RDM_HFConnections_Norm_old(rdm, one_rdm, irdm, iLutnI, nI, AvSignCurr_sing, &
+                                                AvSignHF_sing, ExcitLevelI, IterRDM)
         end if
 
     end subroutine fill_rdm_diag_currdet_norm_old
 
-    subroutine det_removed_fill_diag_rdm_old(rdm, irdm, iLutnI, j)
+    subroutine det_removed_fill_diag_rdm_old(rdm, one_rdm, irdm, iLutnI, j)
 
         ! This routine is called if a determinant is removed from the list of
         ! currently occupied. At this point we need to add in its diagonal
@@ -196,10 +200,12 @@ contains
         use CalcData, only: NMCyc
         use FciMCData, only: iLutHF_True, Iter, IterRDMStart, PreviousCycles
         use LoggingData, only: RDMEnergyIter
+        use rdm_data, only: one_rdm_t
         use rdm_data_old, only: rdm_t
         use SystemData, only: nel
 
         type(rdm_t), intent(inout) :: rdm
+        type(one_rdm_t), intent(inout) :: one_rdm
         integer, intent(in) :: irdm
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         integer, intent(in) :: j
@@ -214,12 +220,12 @@ contains
 
             ExcitLevel = FindBitExcitLevel(iLutHF_True, iLutnI, 2)
 
-            call fill_rdm_diag_currdet_norm_old(rdm, irdm, iLutnI, nI, j, ExcitLevel, .false.)
+            call fill_rdm_diag_currdet_norm_old(rdm, one_rdm, irdm, iLutnI, nI, j, ExcitLevel, .false.)
         end if
 
     end subroutine det_removed_fill_diag_rdm_old
 
-    subroutine Add_RDM_HFConnections_Norm_old(rdm, irdm, iLutJ, nJ, AvSignJ, AvSignHF, walkExcitLevel, IterRDM)
+    subroutine Add_RDM_HFConnections_Norm_old(rdm, one_rdm, irdm, iLutJ, nJ, AvSignJ, AvSignHF, walkExcitLevel, IterRDM)
 
         ! This is called when we run over all TotWalkers in CurrentDets.    
         ! It is called for each CurrentDet which is a single or double of the HF.
@@ -228,10 +234,12 @@ contains
         ! In this case the diagonal elements wll already be taken care of.
 
         use FciMCData, only: HFDet_True
+        use rdm_data, only: one_rdm_t
         use rdm_data_old, only: rdm_t
         use SystemData, only: nel
 
         type(rdm_t), intent(inout) :: rdm
+        type(one_rdm_t), intent(inout) :: one_rdm
         integer, intent(in) :: irdm
         integer(n_int), intent(in) :: iLutJ(0:NIfTot)
         integer, intent(in) :: nJ(nel)
@@ -264,10 +272,10 @@ contains
         ! If we have a single or double, add in the connection to the HF,
         ! symmetrically.
         if ((walkExcitLevel .eq. 1) .or. (walkExcitLevel .eq. 2)) then
-            call Add_RDM_From_IJ_Pair_old(rdm, irdm, HFDet_True, nJ, AvSignHF(1), &
+            call Add_RDM_From_IJ_Pair_old(rdm, one_rdm, irdm, HFDet_True, nJ, AvSignHF(1), &
                                       (1.0_dp/real(nreplicas,dp))*IterRDM*AvSignJ(nreplicas), .true.)
 
-            call Add_RDM_From_IJ_Pair_old(rdm, irdm, HFDet_True, nJ, AvSignHF(nreplicas), &
+            call Add_RDM_From_IJ_Pair_old(rdm, one_rdm, irdm, HFDet_True, nJ, AvSignHF(nreplicas), &
                                       (1.0_dp/real(nreplicas,dp))*IterRDM*AvSignJ(1), .true.)
         end if
 
@@ -276,7 +284,7 @@ contains
 
     end subroutine Add_RDM_HFConnections_Norm_old
 
-    subroutine Add_RDM_HFConnections_HPHF_old(rdm, irdm, iLutJ, nJ, AvSignJ, AvSignHF, walkExcitLevel, IterRDM)
+    subroutine Add_RDM_HFConnections_HPHF_old(rdm, one_rdm, irdm, iLutJ, nJ, AvSignJ, AvSignHF, walkExcitLevel, IterRDM)
 
         ! This is called when we run over all TotWalkers in CurrentDets.
         ! It is called for each CurrentDet which is a single or double of the HF.
@@ -284,10 +292,12 @@ contains
         ! have been taken care of by the extract routine.
 
         use FciMCData, only: HFDet_True, iLutHF_True
+        use rdm_data, only: one_rdm_t
         use rdm_data_old, only: rdm_t
         use SystemData, only: nel
 
         type(rdm_t), intent(inout) :: rdm
+        type(one_rdm_t), intent(inout) :: one_rdm
         integer, intent(in) :: irdm
         integer(n_int), intent(in) :: iLutJ(0:NIfTot)
         integer, intent(in) :: nJ(nel)
@@ -314,12 +324,12 @@ contains
         ! add in the diagonal elements of this connection as well -
         ! symmetrically because no probabilities are involved.
         if ((walkExcitLevel .eq. 1) .or. (walkExcitLevel .eq. 2)) &
-            call Fill_Spin_Coupled_RDM_old(rdm, irdm, iLutHF_True, iLutJ, HFDet_True, nJ, AvSignHF(1), &
+            call Fill_Spin_Coupled_RDM_old(rdm, one_rdm, irdm, iLutHF_True, iLutJ, HFDet_True, nJ, AvSignHF(1), &
                                           IterRDM*AvSignJ(nreplicas), .true.)
 
     end subroutine Add_RDM_HFConnections_HPHF_old
 
-    subroutine check_fillRDM_DiDj_old(rdms, Spawned_No, iLutJ, realSignJ)
+    subroutine check_fillRDM_DiDj_old(rdms, one_rdms, Spawned_No, iLutJ, realSignJ)
 
         ! The spawned parts contain the Dj's spawned by the Di's in CurrentDets.
         ! If the SpawnedPart is found in the CurrentDets list, it means that
@@ -329,20 +339,22 @@ contains
 
         use DetBitOps, only: DetBitEq
         use FciMCData, only: iLutHF_True
+        use rdm_data, only: one_rdm_t
         use rdm_data_old, only: rdm_t
 
         type(rdm_t), intent(inout) :: rdms(:)
+        type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer, intent(in) :: Spawned_No
         integer(n_int), intent(in) :: iLutJ(0:NIfTot)
         real(dp), intent(in) :: realSignJ(lenof_sign)
 
         if (.not. DetBitEQ(iLutHF_True, iLutJ, NIfDBO)) then
-                call DiDj_Found_FillRDM_old(rdms, Spawned_No, iLutJ, realSignJ)
+                call DiDj_Found_FillRDM_old(rdms, one_rdms, Spawned_No, iLutJ, realSignJ)
         end if
 
     end subroutine check_fillRDM_DiDj_old
  
-    subroutine DiDj_Found_FillRDM_old(rdms, Spawned_No, iLutJ, realSignJ)
+    subroutine DiDj_Found_FillRDM_old(rdms, one_rdms, Spawned_No, iLutJ, realSignJ)
 
         ! This routine is called when we have found a Di (or multiple Di's)
         ! spawning onto a Dj with sign /= 0 (i.e. occupied). We then want to
@@ -352,10 +364,12 @@ contains
         use bit_reps, only: decode_bit_det
         use DetBitOps, only: DetBitEq
         use FciMCData, only: Spawned_Parents, Spawned_Parents_Index, iLutHF_True
+        use rdm_data, only: one_rdm_t
         use rdm_data_old, only: rdm_t
         use SystemData, only: nel, tHPHF
 
         type(rdm_t), intent(inout) :: rdms(:)
+        type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer, intent(in) :: Spawned_No
         integer(n_int), intent(in) :: iLutJ(0:NIfTot)
         real(dp), intent(in) :: realSignJ(lenof_sign)
@@ -412,10 +426,10 @@ contains
             ! summing in pairs that originated from spawning events in both
             ! pop 1 and pop 2 -- i.e., double counted wrt diagonal elements.
             if (tHPHF) then
-                call Fill_Spin_Coupled_RDM_old(rdms(rdm_ind), rdm_ind, Spawned_Parents(0:NIfDBO,i), iLutJ, &
+                call Fill_Spin_Coupled_RDM_old(rdms(rdm_ind), one_rdms(rdm_ind), rdm_ind, Spawned_Parents(0:NIfDBO,i), iLutJ, &
                                            nI, nJ, (1.0_dp/real(nreplicas,dp))*part_realSignI, realSignJ(dest_part_type), .false.)
             else
-                call Add_RDM_From_IJ_Pair_old(rdms(rdm_ind), rdm_ind, nI, nJ, &
+                call Add_RDM_From_IJ_Pair_old(rdms(rdm_ind), one_rdms(rdm_ind), rdm_ind, nI, nJ, &
                                           (1.0_dp/real(nreplicas,dp))*part_realSignI, realSignJ(dest_part_type), .false.)
             end if
 
@@ -423,7 +437,7 @@ contains
 
     end subroutine DiDj_Found_FillRDM_old
 
-    subroutine Fill_Spin_Coupled_RDM_old(rdm, irdm, iLutnI, iLutnJ, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
+    subroutine Fill_Spin_Coupled_RDM_old(rdm, one_rdm, irdm, iLutnI, iLutnJ, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
 
         ! It takes to HPHF functions, and calculates what needs to be summed
         ! into the RDMs.
@@ -438,10 +452,12 @@ contains
         use DetBitOps, only: TestClosedShellDet, FindBitExcitLevel
         use hphf_integrals, only: hphf_sign
         use HPHFRandExcitMod, only: FindExcitBitDetSym, FindDetSpinSym
+        use rdm_data, only: one_rdm_t
         use rdm_data_old, only: rdm_t
         use SystemData, only: nel
 
         type(rdm_t), intent(inout) :: rdm
+        type(one_rdm_t), intent(inout) :: one_rdm
         integer, intent(in) :: irdm
         integer(n_int), intent(in) :: iLutnI(0:NIfTot), iLutnJ(0:NIfTot)
         real(dp), intent(in) :: realSignI, realSignJ
@@ -457,25 +473,25 @@ contains
 
             if (TestClosedShellDet(iLutnJ)) then
                 ! Closed shell -> Closed shell - just as in determinant case
-                call Add_RDM_From_IJ_Pair_old(rdm, irdm, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair_old(rdm, one_rdm, irdm, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
             else
                 ! Closed shell -> open shell.
                 call FindDetSpinSym(nJ, nJ2, nel)
                 NewSignJ = realSignJ/Root2
-                call Add_RDM_From_IJ_Pair_old(rdm, irdm, nI, nJ, realSignI, NewSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair_old(rdm, one_rdm, irdm, nI, nJ, realSignI, NewSignJ, tFill_CiCj_Symm)
                 ! What is the permutation between Di and Dj'
                 NewSignJ = NewSignJ * hphf_sign(iLutnJ)
-                call Add_RDM_From_IJ_Pair_old(rdm, irdm, nI, nJ2, realSignI, NewSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair_old(rdm, one_rdm, irdm, nI, nJ2, realSignI, NewSignJ, tFill_CiCj_Symm)
             end if
 
         else if (TestClosedShellDet(iLutnJ)) then
             ! Open shell -> closed shell
             call FindDetSpinSym(nI,nI2,nel)
             NewSignI = realSignI/Root2
-            call Add_RDM_From_IJ_Pair_old(rdm, irdm, nI, nJ, NewSignI, realSignJ, tFill_CiCj_Symm)
+            call Add_RDM_From_IJ_Pair_old(rdm, one_rdm, irdm, nI, nJ, NewSignI, realSignJ, tFill_CiCj_Symm)
             ! What is the permutation between Di' and Dj?
             NewSignI = NewSignI * hphf_sign(iLutnI)
-            call Add_RDM_From_IJ_Pair_old(rdm, irdm, nI2, nJ, NewSignI, realSignJ, tFill_CiCj_Symm)
+            call Add_RDM_From_IJ_Pair_old(rdm, one_rdm, irdm, nI2, nJ, NewSignI, realSignJ, tFill_CiCj_Symm)
 
         else
             ! Open shell -> open shell
@@ -490,32 +506,34 @@ contains
             ICoup_J_ExcLevel = FindBitExcitLevel(iLutnI2, iLutnJ, 2)
 
             if (I_J_ExcLevel .le. 2) then
-                call Add_RDM_From_IJ_Pair_old(rdm, irdm, nI, nJ, NewSignI, NewSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair_old(rdm, one_rdm, irdm, nI, nJ, NewSignI, NewSignJ, tFill_CiCj_Symm)
                 ! Di -> Dj
-                call Add_RDM_From_IJ_Pair_old(rdm, irdm, nI2, nJ2, PermSignI, PermSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair_old(rdm, one_rdm, irdm, nI2, nJ2, PermSignI, PermSignJ, tFill_CiCj_Symm)
                 ! Di' -> Dj'  (both permuted sign)
             end if
 
             if (ICoup_J_ExcLevel .le. 2) then
-                call Add_RDM_From_IJ_Pair_old(rdm, irdm, nI2, nJ, PermSignI, NewSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair_old(rdm, one_rdm, irdm, nI2, nJ, PermSignI, NewSignJ, tFill_CiCj_Symm)
                 ! Di' -> Dj  (i permuted sign)
-                call Add_RDM_From_IJ_Pair_old(rdm, irdm, nI, nJ2, NewSignI, PermSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair_old(rdm, one_rdm, irdm, nI, nJ2, NewSignI, PermSignJ, tFill_CiCj_Symm)
                 ! Di  -> Dj'  (j permuted sign)
             end if
         end if
 
     end subroutine Fill_Spin_Coupled_RDM_old
 
-    subroutine Add_RDM_From_IJ_Pair_old(rdm, irdm, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
+    subroutine Add_RDM_From_IJ_Pair_old(rdm, one_rdm, irdm, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
 
         ! This routine takes a pair of different determinants Di and Dj, and
         ! figures out which type of elements need to be added in to the RDM.
 
         use LoggingData, only: RDMExcitLevel
+        use rdm_data, only: one_rdm_t
         use rdm_data_old, only: rdm_t
         use SystemData, only: nel
 
         type(rdm_t), intent(inout) :: rdm
+        type(one_rdm_t), intent(inout) :: one_rdm
         integer, intent(in) :: irdm
         integer, intent(in) :: nI(nel), nJ(nel)
         real(dp), intent(in) :: realSignI, realSignJ
@@ -552,7 +570,7 @@ contains
             ! Di and Dj are separated by a single excitation.
             ! Add in the contribution from this pair into the 1-RDM.
             
-            call Fill_Sings_RDM(rdm, nI, Ex, tParity, realSignI, realSignJ, tFill_CiCj_Symm)
+            call Fill_Sings_RDM(rdm, one_rdm, nI, Ex, tParity, realSignI, realSignJ, tFill_CiCj_Symm)
 
         else if (RDMExcitLevel /= 1) then
 
@@ -569,12 +587,12 @@ contains
 ! THESE NEXT ROUTINES ARE GENERAL TO BOTH STOCHASTIC AND EXPLICIT    
 ! =======================================================================================    
 
-    subroutine Fill_Diag_RDM(rdm, nI, realSignDi, tCoreSpaceDetIn, RDMItersIn)
+    subroutine Fill_Diag_RDM(rdm, one_rdm, nI, realSignDi, tCoreSpaceDetIn, RDMItersIn)
 
         ! Fill diagonal elements of 1- and 2-RDM.
         ! These are < Di | a_i+ a_i | Di > and < Di | a_i+ a_j+ a_j a_i | Di >.
 
-        use rdm_data, only: tOpenShell
+        use rdm_data, only: tOpenShell, one_rdm_t
         use rdm_data_old, only: rdm_t
         use LoggingData, only: RDMExcitLevel, ThreshOccRDM, tThreshOccRDMDiag
         use RotateOrbsData, only: SymLabelListInv_rot
@@ -582,6 +600,7 @@ contains
         use UMatCache, only: gtID
 
         type(rdm_t), intent(inout) :: rdm
+        type(one_rdm_t), intent(inout) :: one_rdm
         integer, intent(in) :: nI(nel)
         real(dp), intent(in) :: realSignDi(nreplicas)
         logical, intent(in), optional :: tCoreSpaceDetIn
@@ -615,7 +634,7 @@ contains
                     ! SymLabelListInv_rot will be in spat orbitals too.
                     iInd = SymLabelListInv_rot(gtID(nI(i)))
                 end if
-                rdm%matrix(iInd,iInd) = rdm%matrix(iInd,iInd) &
+                one_rdm%matrix(iInd,iInd) = one_rdm%matrix(iInd,iInd) &
                                           + ( realSignDi(1) * realSignDi(nreplicas) * RDMIters )*ScaleContribFac 
             end do
         else
@@ -683,12 +702,12 @@ contains
 
     end subroutine Fill_Diag_RDM
 
-    subroutine Fill_Sings_RDM(rdm, nI, Ex, tParity, realSignDi, realSignDj, tFill_CiCj_Symm)
+    subroutine Fill_Sings_RDM(rdm, one_rdm, nI, Ex, tParity, realSignDi, realSignDj, tFill_CiCj_Symm)
 
         ! This routine adds in the contribution to the 1- and 2-RDM from
         ! determinants connected by a single excitation.
 
-        use rdm_data, only: tOpenShell
+        use rdm_data, only: tOpenShell, one_rdm_t
         use rdm_data_old, only: rdm_t
         use LoggingData, only: RDMExcitLevel
         use RotateOrbsData, only: SymLabelListInv_rot
@@ -696,6 +715,7 @@ contains
         use UMatCache, only: gtID
 
         type(rdm_t), intent(inout) :: rdm
+        type(one_rdm_t), intent(inout) :: one_rdm
         integer, intent(in) :: nI(nel), Ex(2,2)
         logical, intent(in) :: tParity
         real(dp), intent(in) :: realSignDi, realSignDj
@@ -722,10 +742,10 @@ contains
             Indak = SymLabelListInv_rot(aInd)    ! Position of a.
             
             ! Adding to 1-RDM(i,a), ci.cj effectively.
-            rdm%matrix( Indik, Indak ) = rdm%matrix( Indik, Indak ) + (ParityFactor * realSignDi * realSignDj)
+            one_rdm%matrix( Indik, Indak ) = one_rdm%matrix( Indik, Indak ) + (ParityFactor * realSignDi * realSignDj)
 
             if (tFill_CiCj_Symm) then                                
-                rdm%matrix( Indak, Indik ) = rdm%matrix( Indak, Indik ) + (ParityFactor * realSignDi * realSignDj)
+                one_rdm%matrix( Indak, Indik ) = one_rdm%matrix( Indak, Indik ) + (ParityFactor * realSignDi * realSignDj)
             end if
         else
             ! Looking at elements of the type Gamma(i,k,a,k).
@@ -1223,7 +1243,7 @@ contains
 
     end subroutine Fill_Doubs_RDM
 
-    subroutine fill_RDM_offdiag_deterministic_old(rdms)
+    subroutine fill_RDM_offdiag_deterministic_old(rdms, one_rdms)
 
         use bit_rep_data, only: NIfD
         use bit_reps, only: decode_bit_det
@@ -1232,11 +1252,13 @@ contains
         use FciMCData, only: core_space, determ_sizes, determ_displs, full_determ_vecs_av
         use LoggingData, only: RDMExcitLevel, RDMEnergyIter
         use Parallel_neci, only: iProcIndex
+        use rdm_data, only: one_rdm_t
         use rdm_data_old, only: rdm_t
         use sparse_arrays, only: sparse_core_ham, core_connections
         use SystemData, only: nel, tHPHF
 
         type(rdm_t), intent(inout) :: rdms(:)
+        type(one_rdm_t), intent(inout) :: one_rdms(:)
 
         integer :: i, j, irdm, ind1, ind2
         integer :: SingEx(2,1), Ex(2,2)
@@ -1305,7 +1327,7 @@ contains
                     do irdm = 1, size(rdms)
                         ind1 = nreplicas*irdm-nreplicas+1
                         ind2 = nreplicas*irdm
-                        call Fill_Spin_Coupled_RDM_old(rdms(irdm), irdm, iLutI, iLutJ, nI, nJ, &
+                        call Fill_Spin_Coupled_RDM_old(rdms(irdm), one_rdms(irdm), irdm, iLutI, iLutJ, nI, nJ, &
                                                    AvSignI(ind1)*IterRDM, AvSignJ(ind2), .false.)
                     end do
                 else
@@ -1324,7 +1346,8 @@ contains
                         do irdm = 1, size(rdms)
                             ind1 = nreplicas*irdm-nreplicas+1
                             ind2 = nreplicas*irdm
-                            call Fill_Sings_RDM(rdms(irdm), nI, Ex, tParity, AvSignI(ind1)*IterRDM, AvSignJ(ind2), .false.)
+                            call Fill_Sings_RDM(rdms(irdm), one_rdms(irdm), nI, Ex, tParity, AvSignI(ind1)*IterRDM, &
+                                                AvSignJ(ind2), .false.)
                         end do
 
                     else if ((IC == 2) .and. (RDMExcitLevel /= 1)) then

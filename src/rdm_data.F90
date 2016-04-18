@@ -56,7 +56,6 @@ module rdm_data
         ! TODO: Comment.
         integer, allocatable :: sym_list_no(:)
         integer, allocatable :: sym_list_inv_no(:)
-
     end type one_rdm_t
 
     type rdm_estimates_t

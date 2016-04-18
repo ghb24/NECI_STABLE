@@ -3,6 +3,7 @@ module rdm_data_old
     ! Module containing global data and derived types used for RDM calculation.
 
     use constants, only: dp
+    use rdm_data, only: one_rdm_t
 
     implicit none
 
@@ -41,22 +42,6 @@ module rdm_data_old
         real(dp), pointer :: bbbb(:,:) => null()
         real(dp), pointer :: baba(:,:) => null()
         real(dp), pointer :: baab(:,:) => null()
-
-        ! The 1-RDM.
-        real(dp), allocatable :: matrix(:,:)
-
-        ! Eigenvalues of the 1-RDM.
-        real(dp), allocatable :: Evalues(:)
-        ! Arrays to hold the diagonal of the 1-RDM, and the Lagrangian.
-        real(dp), allocatable :: Rho_ii(:)
-        real(dp), allocatable :: Lagrangian(:,:)
-
-        integer :: Rho_iiTag, matrix_tag, EvaluesTag
-
-        ! TODO: Comment.
-        integer, allocatable :: sym_list_no(:)
-        integer, allocatable :: sym_list_inv_no(:)
-
     end type rdm_t
 
     type rdm_estimates_old_t
@@ -66,6 +51,7 @@ module rdm_data_old
     end type rdm_estimates_old_t
 
     ! Array of type rdm_t, for holding multiple different RDM instances.
+    type(one_rdm_t), allocatable :: one_rdms_old(:)
     type(rdm_t), allocatable :: rdms(:)
     type(rdm_estimates_old_t), allocatable :: rdm_estimates_old(:)
 

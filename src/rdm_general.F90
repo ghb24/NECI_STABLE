@@ -125,6 +125,11 @@ contains
                 call LogMemAlloc('one_rdms(irdm)%matrix', NoOrbs**2, 8, t_r, one_rdms(irdm)%matrix_tag, ierr)
                 one_rdms(irdm)%matrix(:,:) = 0.0_dp
 
+                allocate(one_rdms(irdm)%Evalues(NoOrbs), stat=ierr)
+                if (ierr /= 0) call stop_all(t_r, 'Problem allocating Evalues array,')
+                call LogMemAlloc('one_rdms(irdm)%Evalues', NoOrbs, 8, t_r, one_rdms(irdm)%EvaluesTag, ierr)
+                one_rdms(irdm)%Evalues(:) = 0.0_dp
+
                 allocate(one_rdms(irdm)%Rho_ii(NoOrbs), stat=ierr)
                 if (ierr /= 0) call stop_all(t_r, 'Problem allocating 1-RDM diagonal array (Rho_ii).')
                 call LogMemAlloc('one_rdms(irdm)%Rho_ii', NoOrbs, 8, t_r, one_rdms(irdm)%Rho_iiTag, ierr)
@@ -505,7 +510,7 @@ contains
         ! diagonalisation routines if we want to get the occupation numbers.
 
 #ifdef _MOLCAS_
-        USE EN2MOLCAS, only : NECI_E
+        USE EN2MOLCAS, only: NECI_E
 #endif
         use FciMCData, only: tFinalRDMEnergy
         use LoggingData, only: tBrokenSymNOs, occ_numb_diff, RDMExcitLevel, tExplicitAllRDM
@@ -561,7 +566,7 @@ contains
             else
                 if (tPrint1RDM) then
                     call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%Rho_ii, i, Norm_1RDM, .false.)
-                else if (tDiagRDM .and. (iProcIndex .eq. 0)) then
+                else if (tDiagRDM .and. iProcIndex == 0) then
                     call calc_1e_norms(one_rdms(i)%matrix, one_rdms(i)%Rho_ii, Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
                     write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
                 end if
@@ -572,7 +577,7 @@ contains
             ! Call the routines from NatOrbs that diagonalise the one electron
             ! reduced density matrix.
             tRotatedNOs = .false. ! Needed for BrokenSymNo routine
-            !if (tDiagRDM) call find_nat_orb_occ_numbers(one_rdms(i), i)
+            if (tDiagRDM) call find_nat_orb_occ_numbers(one_rdms(i), i)
 
             ! After all the NO calculations are finished we'd like to do another
             ! rotation to obtain symmetry-broken natural orbitals

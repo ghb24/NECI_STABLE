@@ -22,7 +22,7 @@ module FciMCParMod
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
                             attempt_die_spin_proj
     use rdm_data, only: tCalc_RDMEnergy
-    use rdm_data_old, only: rdms, rdm_estimates_old
+    use rdm_data_old, only: rdms, one_rdms_old, rdm_estimates_old
     use rdm_general, only: init_rdms, finalise_rdms
     use rdm_general_old, only: InitRDMs_old, FinaliseRDMs_old
     use rdm_filling_old, only: fill_rdm_offdiag_deterministic_old, fill_rdm_diag_wrapper_old
@@ -424,7 +424,7 @@ module FciMCParMod
                         call rdm_output_wrapper(rdm_estimates, rdm_main, two_rdm_recv, two_rdm_spawn)
                         if (tOldRDMs) then
                             do irdm = 1, nrdms
-                                call rdm_output_wrapper_old(rdms(irdm), irdm, rdm_estimates_old(irdm))
+                                call rdm_output_wrapper_old(rdms(irdm), one_rdms_old(irdm), irdm, rdm_estimates_old(irdm))
                             end do
                         end if
 
@@ -505,8 +505,8 @@ module FciMCParMod
         ENDIF
 
         if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) then
+            if (tOldRDMs) call FinaliseRDMs_old(rdms, one_rdms_old, rdm_estimates_old)
             call finalise_rdms(one_rdms, rdm_main, two_rdm_recv, two_rdm_spawn, rdm_estimates)
-            if (tOldRDMs) call FinaliseRDMs_old(rdms, rdm_estimates_old)
         end if
 
         call PrintHighPops()
@@ -806,8 +806,8 @@ module FciMCParMod
                 if (tFill_RDM .and. (.not. tNoNewRDMContrib)) then
                     if (tOldRDMs) then
                         do irdm = 1, nrdms
-                            call fill_rdm_diag_currdet_old(rdms(irdm), irdm, CurrentDets(:,j), DetCurr, j, &
-                                                        walkExcitLevel_toHF, tCoreDet)
+                            call fill_rdm_diag_currdet_old(rdms(irdm), one_rdms_old(irdm), irdm, CurrentDets(:,j), &
+                                                        DetCurr, j, walkExcitLevel_toHF, tCoreDet)
                         end do
                     end if
 
@@ -1017,7 +1017,7 @@ module FciMCParMod
                 ! all determinants, regardless of whether they are core or not,
                 ! so are not added in here).
                 if (tFill_RDM) then
-                    if (tOldRDMs) call fill_RDM_offdiag_deterministic_old(rdms)
+                    if (tOldRDMs) call fill_RDM_offdiag_deterministic_old(rdms, one_rdms_old)
                     call fill_RDM_offdiag_deterministic(two_rdm_spawn, one_rdms)
                 end if
             end if
@@ -1059,7 +1059,7 @@ module FciMCParMod
         end if
 
         if (tFillingStochRDMonFly) then
-            if (tOldRDMs) call fill_rdm_diag_wrapper_old(rdms, CurrentDets, int(TotWalkers, sizeof_int))
+            if (tOldRDMs) call fill_rdm_diag_wrapper_old(rdms, one_rdms_old, CurrentDets, int(TotWalkers, sizeof_int))
             call fill_rdm_diag_wrapper(two_rdm_spawn, one_rdms, CurrentDets, int(TotWalkers, sizeof_int))
         end if
 
