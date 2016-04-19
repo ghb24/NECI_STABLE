@@ -276,6 +276,96 @@ module guga_excitations
 contains
 ! ! 
 
+    subroutine init_csf_information(ilut)
+        ! routine which sets up all the additional csf information, like 
+        ! stepvector, b vector, occupation etc. in various formats in one 
+        ! place 
+        ! and combine all the necessary calcs. into one loop instead of 
+        ! the seperate ones..
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        character(*), parameter :: this_routine = "init_csf_information"
+
+        integer :: i, ierr, step, b_int
+        real(dp) :: b_real
+
+        ASSERT(isProperCSF_ilut(ilut))
+
+        if (allocated(current_stepvector)) deallocate(current_stepvector)
+        if (allocated(currentB_ilut))      deallocate(currentB_ilut)
+        if (allocated(currentOcc_ilut))    deallocate(currentOcc_ilut)
+        if (allocated(currentB_int))       deallocate(currentB_int)
+        if (allocated(currentOcc_int))     deallocate(currentOcc_int)
+
+        allocate(current_stepvector(nSpatOrbs), stat = ierr)
+        allocate(currentB_ilut(nSpatOrbs), stat = ierr)
+        allocate(currentOcc_ilut(nSpatOrbs), stat = ierr)
+        allocate(currentB_int(nSpatOrbs), stat = ierr)
+        allocate(currentOcc_int(nSpatOrbs), stat = ierr)
+
+        current_stepvector = 0
+        currentB_ilut = 0.0_dp
+        currentOcc_ilut = 0.0_dp
+        currentB_int = 0
+        currentOcc_int = 0
+
+        b_real = 0.0_dp
+        b_int = 0
+
+        do i = 1, nSpatOrbs 
+            
+            step = getStepvalue(ilut,i)
+
+            current_stepvector(i) = step
+
+            select case (step)
+
+            case (0)
+
+                currentOcc_ilut(i) = 0.0_dp
+                currentOcc_int(i) = 0
+
+            case (1)
+
+                currentOcc_ilut(i) = 1.0_dp
+                currentOcc_int = 1
+
+                b_real = b_real + 1.0_dp
+                b_int = b_int + 1
+
+            case (2) 
+
+                currentOcc_ilut(i) = 1.0_dp
+                currentOcc_int(i) = 1 
+
+                b_real = b_real - 1.0_dp
+                b_int = b_int - 1
+
+            case (3) 
+
+                currentOcc_ilut(i) = 2.0_dp
+                currentOcc_int(i) = 2
+
+            end select
+
+            currentB_ilut(i) = b_real
+            currentB_int(i) = b_int
+
+        end do
+
+    end subroutine init_csf_information
+
+    subroutine deinit_csf_information
+        ! deallocate the currently stored csf information
+
+        if (allocated(current_stepvector)) deallocate(current_stepvector)
+        if (allocated(currentB_ilut))      deallocate(currentB_ilut)
+        if (allocated(currentOcc_ilut))    deallocate(currentOcc_ilut)
+        if (allocated(currentB_int))       deallocate(currentB_int)
+        if (allocated(currentOcc_int))     deallocate(currentOcc_int)
+
+    end subroutine deinit_csf_information
+
+
     function plus_start_single(weights, bVal, negSwitches, posSwitches) result (prob)
         type(weight_obj), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
@@ -986,7 +1076,7 @@ contains
         ! new determinant -> is set in FciMCPar!
         if (tNewDet) then
             if (allocated(currentB_ilut)) deallocate(currentB_ilut)
-!p             if (allocated(currentOcc_ilut)) deallocate(currentOcc_ilut)
+            if (allocated(currentOcc_ilut)) deallocate(currentOcc_ilut)
             if (allocated(current_stepvector)) deallocate(current_stepvector)
             if (allocated(currentOcc_int)) deallocate(currentOcc_int)
             if (allocated(currentB_int)) deallocate(currentB_int)

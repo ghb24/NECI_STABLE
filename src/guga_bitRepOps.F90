@@ -50,7 +50,6 @@ module guga_bitRepOps
 !     end interface isProperCSF
 
 contains
-
     subroutine getExcitation_guga(nI, nJ, ex) 
         ! routine to determine excitation in guga basis
         ! for now to it very naively and unellegant by converting to ilut 
@@ -985,13 +984,16 @@ contains
         integer :: i
 
         do i = 1, nSpatOrbs
-            if (isZero(ilut,i)) then
-                occVector(i) = 0
-            else if (isThree(ilut,i)) then
-                occVector(i) = 2
-            else
-                occVector(i) = 1
-            end if
+
+            occVector(i) = getStepvalue(ilut,i)
+! 
+!             if (isZero(ilut,i)) then
+!                 occVector(i) = 0
+!             else if (isThree(ilut,i)) then
+!                 occVector(i) = 2
+!             else
+!                 occVector(i) = 1
+!             end if
         end do
 
     end function calcOcc_vector_int

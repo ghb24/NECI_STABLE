@@ -519,11 +519,24 @@ contains
         type(weight_obj) :: weights
 
         call EncodeBitDet_guga([1,4,5,8],ilut)
+
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
+
         excitInfo = excitationIdentifier(4,1,1,4)
 
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
         weights = init_doubleWeight(ilut, 4)
-        allocate(currentB_ilut(4))
 
         print *, "testing calcFullStartFullStopMixed(ilut, exInfo, ex, num, posSwitch, negSwitch):"
 
@@ -532,7 +545,10 @@ contains
         print *, "calcFullStartFullStopMixed tests passed!"
 
         deallocate(currentB_ilut)
-
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
     end subroutine test_calcFullStartFullStopMixed
 
     subroutine test_guga_excitations_stochastic
@@ -2379,20 +2395,37 @@ contains
         call EncodeBitDet_guga([1,4,5,8],ilut)
 
         allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
         currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
 
         call EncodeBitDet_guga([1,3,6,8], t)
 
         print *, "testing calcMixedContribution(ilut,t,start,ende):"
         ASSERT(calcMixedContribution(ilut,t,1,4) == 0.0_dp)
-
-        currentB_ilut = calcB_vector_ilut(t)
+   
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
 
         ASSERT(calcMixedContribution(t,ilut,1,4) == 0.0_dp)
 
         print *, "calcMixedContribution tests passed!"
 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_calcMixedContribution
 
@@ -3207,8 +3240,15 @@ contains
         ! calc b and occ vector
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,3,4,2)
@@ -3220,8 +3260,12 @@ contains
         call calcDoubleR2L_stochastic(ilut,excitInfo,ex,pgen)
 
         print *, "calcDoubleR2L_stochastic tests passed!"
+
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_calcDoubleR2L_stochastic
 
@@ -3237,8 +3281,15 @@ contains
         ! calc b and occ vector
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(3,1,2,4)
@@ -3252,6 +3303,9 @@ contains
         print *, "calcDoubleL2R_stochastic tests passed!"
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_calcDoubleL2R_stochastic
 
@@ -3267,8 +3321,15 @@ contains
         ! calc b and occ vector
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,4,3,2 )
@@ -3282,6 +3343,10 @@ contains
         print *, "calcDoubleR2L2R_stochastic tests passed!"
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
+
 
     end subroutine test_calcDoubleR2L2R_stochastic
 
@@ -3297,9 +3362,15 @@ contains
         ! calc b and occ vector
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
-
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,2,3)
 
@@ -3312,6 +3383,9 @@ contains
         print *, "calcDoubleL2R2L_stochastic tests passed!"
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_calcDoubleL2R2L_stochastic
 
@@ -3327,9 +3401,15 @@ contains
         ! calc b and occ vector
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
-
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,4,2,3)
 
@@ -3342,6 +3422,9 @@ contains
         print *, "calcDoubleRaisingStochastic tests passed!"
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_calcDoubleRaisingStochastic
 
@@ -3357,8 +3440,15 @@ contains
         ! calc b and occ vector
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier( 4,1,3,2 )
@@ -3372,6 +3462,9 @@ contains
         print *, "calcDoubleLoweringStochastic tests passed!"
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_calcDoubleLoweringStochastic
 
@@ -3387,8 +3480,15 @@ contains
         ! calc b and occ vector
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier( 1,4,4,2  )
@@ -3402,6 +3502,9 @@ contains
         print *, "calcFullStopR2L_stochastic tests passed!"
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_calcFullStopR2L_stochastic
 
@@ -3417,9 +3520,15 @@ contains
         ! calc b and occ vector
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
-
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,2,4 )
 
@@ -3432,6 +3541,9 @@ contains
         print *, "calcFullStopL2R_stochastic tests passed!"
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_calcFullStopL2R_stochastic
 
@@ -3447,8 +3559,15 @@ contains
         ! calc b and occ vector
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,2,4,1)
@@ -3462,6 +3581,9 @@ contains
         print *, "calcFullStartR2L_stochastic tests passed!"
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_calcFullStartR2L_stochastic
 
@@ -3477,8 +3599,15 @@ contains
         ! calc b and occ vector
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier( 1,4,2,1 )
@@ -3492,6 +3621,9 @@ contains
         
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
 
     end subroutine test_calcFullStartL2R_stochastic
@@ -3509,8 +3641,15 @@ contains
         ! calc b and occ vector
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,2,4,1 )
@@ -3534,7 +3673,9 @@ contains
         print *, "calcRaisingSemiStopStochastic tests passed!"
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
-
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
     end subroutine test_calcRaisingSemiStopStochastic
 
     subroutine test_calcLoweringSemiStopStochastic
@@ -3550,8 +3691,15 @@ contains
         ! calc b and occ vector
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(2,1,1,4 )
@@ -3575,7 +3723,9 @@ contains
         print *, "calcLoweringSemiStopStochastic tests passed!"
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
-
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
     end subroutine test_calcLoweringSemiStopStochastic
 
 
@@ -3592,9 +3742,15 @@ contains
         ! calc b and occ vector
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
-
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,2,4 )
 
@@ -3617,7 +3773,9 @@ contains
         print *, "calcRaisingSemiStartStochastic tests passed!"
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
-
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
     end subroutine test_calcRaisingSemiStartStochastic
 
 
@@ -3634,9 +3792,15 @@ contains
         ! calc b and occ vector
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
-
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,4,4,2 )
 
@@ -3661,7 +3825,9 @@ contains
         ! clean up
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
-
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_calcLoweringSemiStartStochastic
 
@@ -3674,8 +3840,16 @@ contains
         call EncodeBitDet_guga([3,4,5,6],ilut)
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
         excitInfo = excitationIdentifier(1,3,4,3)
         
         ASSERT(excitInfo%typ == 7)
@@ -3684,8 +3858,13 @@ contains
         call calcSingleOverlapMixedStochastic(ilut, excitInfo, ex, pgen)
 
         call EncodeBitDet_guga([1,2,7,8],ilut)
+  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
         excitInfo = excitationIdentifier(3,1,3,4)
 
         ASSERT(excitInfo%typ == 6)
@@ -3694,8 +3873,11 @@ contains
 
         print *, "calcSingleOverlapMixedStochastic tests passed!"
 
-        deallocate(currentB_ilut)
+         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_calcSingleOverlapMixedStochastic
 
@@ -3709,8 +3891,15 @@ contains
         call EncodeBitDet_guga([1,2,5,6],ilut)
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
         excitInfo = excitationIdentifier(4,1,4,3)
         
         ASSERT(excitInfo%typ == 14)
@@ -3722,6 +3911,9 @@ contains
 
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_calcFullStopLoweringStochastic
 
@@ -3734,8 +3926,15 @@ contains
         call EncodeBitDet_guga([3,4,7,8],ilut)
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
         excitInfo = excitationIdentifier(1,4,3,4)
         
         ASSERT(excitInfo%typ == 15)
@@ -3747,7 +3946,9 @@ contains
         
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
-
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_calcFullStopRaisingStochastic
 
@@ -3761,8 +3962,15 @@ contains
         call EncodeBitDet_guga([1,2,5,6],ilut)
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
         excitInfo = excitationIdentifier(3,1,4,1)
         
         ASSERT(excitInfo%typ == 18)
@@ -3774,6 +3982,9 @@ contains
 
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
 
     end subroutine test_calcFullStartLoweringStochastic
@@ -3788,8 +3999,15 @@ contains
         call EncodeBitDet_guga([5,6,7,8],ilut)
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
         excitInfo = excitationIdentifier(1,3,1,4)
         
         ASSERT(excitInfo%typ == 19)
@@ -3801,6 +4019,9 @@ contains
 
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_calcFullStartRaisingStochastic
 
@@ -3812,15 +4033,23 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4), pgen
 
         call EncodeBitDet_guga([1,4,5,8],ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+        
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
         excitInfo = excitationIdentifier(4,1,1,4)
         weights = init_doubleWeight(ilut, 4)
         call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
 
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
-        allocate(currentOcc_ilut(4))
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-
+ 
         call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
 
@@ -3832,8 +4061,12 @@ contains
 
         print *, "mixedFullStopStochastic tests passed!"
 
-        deallocate(currentB_ilut)
+       deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
+
 
     end subroutine test_mixedFullStopStochastic
 
@@ -3846,14 +4079,23 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4), pgen
 
         call EncodeBitDet_guga([1,4,5,8],ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
+
         excitInfo = excitationIdentifier(4,1,1,4)
         weights = init_doubleWeight(ilut, 4)
         call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
 
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
-        allocate(currentOcc_ilut(4))
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
 
         call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
@@ -3864,8 +4106,11 @@ contains
 
         print *, "doubleUpdateStochastic tests passed!"
 
-        deallocate(currentB_ilut)
+       deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_doubleUpdateStochastic
 
@@ -3877,12 +4122,17 @@ contains
 
         ! set up determinant and excitaiton information
         call EncodeBitDet_guga([1,4,5,8],ilut)
-
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
-
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
         excitInfo = excitationIdentifier(1,4,4,1)
 
         ASSERT(excitInfo%typ==23)
@@ -3894,8 +4144,12 @@ contains
 
         print *, "calcFullStartFullStopMixedStochastic tests passed!"
 
-        deallocate(currentB_ilut)
+          deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
+
 
     end subroutine test_calcFullStartFullStopMixedStochastic
 
@@ -3907,10 +4161,17 @@ contains
         real(dp) :: pgen
 
         call EncodeBitDet_guga([1,2,3,4],ilut)
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
+       allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
 
         ! still have to think about, if i preemptively choose the different
         ! types of double excitation (iiij, ii,jk, etc.) or let i happen 
@@ -3922,8 +4183,13 @@ contains
 
 
         print *, "pickOrbitals_double tests passed!"
-        deallocate(currentB_ilut)
+
+          deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
+
 
     end subroutine test_pickOrbitals_double
 
@@ -3936,16 +4202,26 @@ contains
         call EncodeBitDet_guga([1,5,6,8], ilut)
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
-
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
         print *, "testing createStochasticExcitation_double(ilut, ex, pgen):"
         call createStochasticExcitation_double(ilut,ex,pgen,dummy)
 
         print *, "createStochasticExcitation_double tests passed!"
 
-        deallocate(currentB_ilut)
+          deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
+
 
     end subroutine test_createStochasticExcitation_double
 
@@ -3957,10 +4233,17 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4), pgen
 
         call EncodeBitDet_guga([1,2,3,4], ilut)
-        
         allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
         currentB_ilut = calcB_vector_ilut(ilut)
-
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
         ! do not make it random here but choose specific excitation!
 !         excitInfo = pickOrbitals_single(ilut)
         excitInfo = excitationIdentifier(4,1)
@@ -3978,8 +4261,12 @@ contains
         call singleStochasticEnd(ilut, excitInfo, ex)
 
         print *, "singleStochasticEnd tests passed!"
-
-        deallocate(currentB_ilut)
+ 
+          deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_singleStochasticEnd
 
@@ -3994,7 +4281,16 @@ contains
         call EncodeBitDet_guga([1,2,3,4], ilut)
         
         allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
         currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
 
         ! do not make it random here but choose specific excitation!
 !         excitInfo = pickOrbitals_single(ilut)
@@ -4014,8 +4310,12 @@ contains
 
         print *, "singleStochasticUpdate tests passed!"
 
+ 
         deallocate(currentB_ilut)
-
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
     end subroutine test_singleStochasticUpdate
             
 
@@ -4027,11 +4327,18 @@ contains
         integer(n_int) :: ilut(0:nifguga)
 
         call EncodeBitDet_guga([1,2,3,8], ilut)
-
+       
+        allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
         allocate(currentOcc_int(4))
-        currentOcc_int = int(currentOcc_ilut)
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
 
         pgen = 1.0_dp
 
@@ -4083,10 +4390,12 @@ contains
         ASSERT(pgen == 1.0_dp)
         ASSERT(orb == 3)
         print *, "pickRandomOrb tests passed!"
-
+ 
+        deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
         deallocate(currentOcc_int)
-
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
     end subroutine test_pickRandomOrb
 
     subroutine test_mixedFullStartStochastic
@@ -4097,13 +4406,23 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4), prob
 
         call EncodeBitDet_guga([1,4,5,6],ilut)
+
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+        currentB_ilut = calcB_vector_ilut(ilut)
+
         excitInfo = excitationIdentifier(4,1,1,3)
         weights = init_doubleWeight(ilut, 4)
         call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
-
-        allocate(currentB_ilut(4))
-        
-        currentB_ilut = calcB_vector_ilut(ilut)
 
         print *, "testing mixedFullStartStochastic:"
 
@@ -4111,8 +4430,12 @@ contains
             negSwitch, ex, prob)
 
         print *, "mixedFullStartStochastic tests passed!"
-
+ 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_mixedFullStartStochastic
 
@@ -4127,7 +4450,18 @@ contains
         call EncodeBitDet_guga([1,2,3,4], ilut)
 
         allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
         currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+        currentB_ilut = calcB_vector_ilut(ilut)
+
 
         excitInfo = excitationIdentifier(4,1)
         call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
@@ -4137,9 +4471,12 @@ contains
         call createStochasticStart_single(ilut, excitInfo, weights, posSwitch, negSwitch, ex, probWeight)
 
         print *, "createStochasticStart_single tests passed!"
-
+ 
         deallocate(currentB_ilut)
-
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
     end subroutine test_createStochasticStart_single
 
     subroutine test_pickOrbitals_single
@@ -4149,8 +4486,19 @@ contains
         real(dp) :: pgen
 
         call EncodeBitDet_guga([1,2,3,4],ilut)
+
+        allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+        currentB_ilut = calcB_vector_ilut(ilut)
 
 
         ! todo the pick random orbital picker.. 
@@ -4161,15 +4509,25 @@ contains
         call pickOrbitals_single(ilut, excitInfo, pgen)
 
         call EncodeBitDet_guga([1,4,5,8], ilut)
+       
+        currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+        currentB_ilut = calcB_vector_ilut(ilut)
 
         call pickOrbitals_single(ilut, excitInfo, pgen)
         call pickOrbitals_single(ilut, excitInfo, pgen)
 
 
         print *, "pickOrbitals_single tests passed!"
-
+ 
+        deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_pickOrbitals_single
 
@@ -4179,18 +4537,30 @@ contains
         real(dp) :: pgen
         
         call EncodeBitDet_guga([1,2,3,4], ilut)
+
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+        currentB_ilut = calcB_vector_ilut(ilut)
 
         print *, "testing: createStochasticExcitation_single(ilut,ex,weight):"
         call createStochasticExcitation_single(ilut, ex, pgen)
 
         print *, "createStochasticExcitation_single tests passed!"
-
+ 
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_createStochasticExcitation_single
 
@@ -4359,19 +4729,30 @@ contains
         integer :: nExcits
 
         call EncodeBitDet_guga([1,4,5,8],ilut)
+ 
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
-
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+        currentB_ilut = calcB_vector_ilut(ilut)
 
         print *, "testing calcAllExcitations_double(ilut,i,j,k,l,ex,nExits):"
         call calcAllExcitations_double(ilut,1,2,3,4, ex, nExcits)
 
         print *, "calcAllExcitations_double tests passed!"
+ 
         deallocate(currentB_ilut)
         deallocate(currentOcc_ilut)
-
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
     end subroutine test_calcAllExcitations_double
 
 
@@ -4384,10 +4765,22 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([3,4,7,8], ilut)
+
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+        currentB_ilut = calcB_vector_ilut(ilut)
+
         excitInfo = excitationIdentifier(1,4,1,4)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
         print *, excitInfo%typ
 
         print *, "testing: calcFullStartFullStopAlike(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -4398,12 +4791,17 @@ contains
         print *, ex
         print *, "calcFullStartFullStopAlike tests passed!"
 
-        deallocate(currentB_ilut)
+        call EncodeBitDet_guga([1,2,3,4], ilut) 
 
-        call EncodeBitDet_guga([1,2,3,4], ilut)
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+        currentB_ilut = calcB_vector_ilut(ilut)
+
         excitInfo = excitationIdentifier(4,1,4,1)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        allocate(currentB_ilut(4))
         currentB_ilut = calcB_vector_ilut(ilut)
         print *, excitInfo%typ
 
@@ -4414,9 +4812,12 @@ contains
         print *, " numExcits: ", num
         print *, ex
         print *, "calcFullStartFullStopAlike tests passed!"
-
+ 
         deallocate(currentB_ilut)
-
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
 
     end subroutine test_calcFullStartFullStopAlike
@@ -4432,21 +4833,36 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,4,5,8], ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+        currentB_ilut = calcB_vector_ilut(ilut)
+
+
         excitInfo = excitationIdentifier(1,4,3,1)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
         print *, excitInfo%typ
 
         print *, "testing: calcFullStartL2R(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcFullStartL2R(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
-
         print *, " numExcits: ", num
         print *, ex
         print *, "calcFullStartL2R tests passed!"
-
+ 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
 
     end subroutine test_calcFullStartL2R
@@ -4461,10 +4877,21 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,4,5,8], ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+        currentB_ilut = calcB_vector_ilut(ilut)
+
         excitInfo = excitationIdentifier(1,3,4,1)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
         print *, excitInfo%typ
 
         print *, "testing: calcFullStartR2L(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -4474,8 +4901,12 @@ contains
         print *, " numExcits: ", num
         print *, ex
         print *, "calcFullStartR2L tests passed!"
-
+ 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
 
     end subroutine test_calcFullStartR2L
@@ -4490,10 +4921,21 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([3,4,5,8], ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+        currentB_ilut = calcB_vector_ilut(ilut)
+
         excitInfo = excitationIdentifier(1,4,1,3)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
         print *, excitInfo%typ
 
         print *, "testing: calcFullStartRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -4503,8 +4945,12 @@ contains
         print *, " numExcits: ", num
         print *, ex
         print *, "calcFullStartRaising tests passed!"
-
+ 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
 
     end subroutine test_calcFullStartRaising
@@ -4520,21 +4966,36 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,2,5,8], ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+        currentB_ilut = calcB_vector_ilut(ilut)
+
+
         excitInfo = excitationIdentifier(4,1,3,1)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
         print *, excitInfo%typ
 
         print *, "testing: calcFullStartLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcFullStartLowering(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
-
         print *, " numExcits: ", num
         print *, ex
         print *, "calcFullStartLowering tests passed!"
-
+ 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
 
     end subroutine test_calcFullStartLowering
@@ -4549,10 +5010,22 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,4,5,8], ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+        currentB_ilut = calcB_vector_ilut(ilut)
+
+
         excitInfo = excitationIdentifier(4,1,3,4)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
         print *, excitInfo%typ
 
         print *, "testing: calcFullStopR2L(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -4562,8 +5035,12 @@ contains
         print *, " numExcits: ", num
         print *, ex
         print *, "calcFullStopR2L tests passed!"
-
+ 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
 
     end subroutine test_calcFullStopR2L
@@ -4579,10 +5056,21 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,4,5,8], ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
+
         excitInfo = excitationIdentifier(4,1,3,4)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
         print *, excitInfo%typ
 
         print *, "testing: calcFullStopL2R(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -4592,8 +5080,12 @@ contains
         print *, " numExcits: ", num
         print *, ex
         print *, "calcFullStopL2R tests passed!"
-
+ 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
 
     end subroutine test_calcFullStopL2R
@@ -4608,10 +5100,20 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([5,6,7,8], ilut)
+       allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
         excitInfo = excitationIdentifier(1,4,2,4)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
         print *, excitInfo%typ
 
         print *, "testing: calcFullStopRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -4623,6 +5125,10 @@ contains
         print *, "calcFullStopRaising tests passed!"
 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
 
     end subroutine test_calcFullStopRaising
@@ -4636,10 +5142,20 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,2,3,4], ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
         excitInfo = excitationIdentifier(4,1,4,2)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
         print *, excitInfo%typ
 
         print *, "testing: calcFullStopLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -4651,6 +5167,11 @@ contains
         print *, "calcFullStopLowering tests passed!"
 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
+
 
     end subroutine test_calcFullStopLowering
 
@@ -4663,10 +5184,20 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,4,5,8], ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
         excitInfo = excitationIdentifier(1,3,4,2)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
         print *, excitInfo%typ
 
         print *, "testing: calcDoubleR2L(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -4678,6 +5209,10 @@ contains
         print *, "calcDoubleR2L tests passed!"
 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
 
     end subroutine test_calcDoubleR2L
@@ -4691,10 +5226,21 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,4,5,8], ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
+
         excitInfo = excitationIdentifier(3,1,2,4)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
         print *, excitInfo%typ
 
         print *, "testing: calcDoubleL2R(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -4706,6 +5252,10 @@ contains
         print *, "calcDoubleL2R tests passed!"
 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
 
     end subroutine test_calcDoubleL2R
@@ -4720,10 +5270,20 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([5,6,7,8], ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
         excitInfo = excitationIdentifier(1,3,2,4)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
         print *, excitInfo%typ
 
         print *, "testing: calcDoubleRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -4735,6 +5295,10 @@ contains
         print *, "calcDoubleRaising tests passed!"
 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
 
     end subroutine test_calcDoubleRaising
@@ -4750,10 +5314,20 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,2,3,4], ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
         excitInfo = excitationIdentifier(3,1,4,2)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
         print *, excitInfo%typ
 
         print *, "testing: calcDoubleLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -4765,6 +5339,10 @@ contains
         print *, "calcDoubleLowering tests passed!"
 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
 
     end subroutine test_calcDoubleLowering
@@ -4778,10 +5356,20 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([5,6,7,8], ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
         excitInfo = excitationIdentifier(1,3,3,4)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
         print *, excitInfo%typ
 
         print *, "testing: calcSingleOverlapRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -4793,6 +5381,10 @@ contains
         print *, "calcSingleOverlapRaising tests passed!"
 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_calcSingleOverlapRaising
 
@@ -4805,10 +5397,21 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,2,7,8], ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
+
         excitInfo = excitationIdentifier(3,1,3,4)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
         print *, excitInfo%typ
 
         print *, "testing: calcSingleOverlapMixed(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -4820,7 +5423,10 @@ contains
         print *, "calcSingleOverlapMixed tests passed!"
 
         deallocate(currentB_ilut)
-
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
     end subroutine test_calcSingleOverlapMixed
 
 
@@ -4833,10 +5439,21 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,2,3,4], ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
+
         excitInfo = excitationIdentifier(2,1,4,2)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
         print *, excitInfo%typ
 
         print *, "testing: calcSingleOverlapLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -4848,6 +5465,10 @@ contains
         print *, "calcSingleOverlapLowering tests passed!"
 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_calcSingleOverlapLowering
 
@@ -4861,10 +5482,20 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([3,4,7,8], ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
         excitInfo = excitationIdentifier(1,2,3,4)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
         print *, excitInfo%typ
 
         print *, "testing: calcNonOverlapDouble(ilut, exInfo, exs, num, posSwitch, negSwitch"
@@ -4876,6 +5507,10 @@ contains
         print *, "calcNonOverlapDouble tests passed!"
 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_calcNonOverlapDouble
 
@@ -4910,12 +5545,21 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([3,4,7,8],ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
         excitInfo = excitationIdentifier(2,2,1,4)
         call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
         print *, excitInfo%typ
-        allocate(currentB_ilut(4))
-        currentB_ilut = calcB_vector_ilut(ilut)
-
 
         print *, "testing: calcDoubleExcitation_withWeight(ilut, exInfo, exc, num)"
         call calcDoubleExcitation_withWeight(ilut, excitInfo, ex, num, posSwitch, &
@@ -4926,6 +5570,10 @@ contains
         print *, "calcDoubleExcitation_withWeight tests passed!"
 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
     end subroutine test_calcDoubleExcitation_withWeight
 
@@ -4939,13 +5587,28 @@ contains
         print *, "testing: checkCompatibility:"
         call EncodeBitDet_guga([1,2,3,4], ilut)
         allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
         currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
+
         excitInfo = excitationIdentifier_double(1,2,3,4)
         print *, excitInfo%typ
         call calcRemainingSwitches_excitInfo_double(ilut, excitInfo, 1, posSwitch, negSwitch)
         call checkCompatibility(ilut, excitInfo, flag, posSwitch, negSwitch)
 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
         print *, "checkCompatibility tests passed!"
 
@@ -4959,12 +5622,31 @@ contains
         integer(n_int) :: ilut(0:nifguga)
 
         call EncodeBitDet_guga([1,2,3,4], ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
         print *, "testing: calcRemainingSwitches_double"
         call calcRemainingSwitches_double(ilut,1,2,3,4,posSwitch,negSwitch)
         call calcRemainingSwitches_double(ilut,3,2,3,1,posSwitch,negSwitch)
         call calcRemainingSwitches_double(ilut,1,4,3,4,posSwitch,negSwitch)
 
         print *, "calcRemainingSwitches_double tests passed!"
+
+        deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
+
 
     end subroutine test_calcRemainingSwitches_double
             
@@ -5000,7 +5682,16 @@ contains
 
         call EncodeBitDet_guga([1,2,3,4], ilut)
         allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
         currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
 
         print *, "testing: calcAllExcitations_single"
         call calcAllExcitations_single(ilut, 4, 1, ex, nEx)
@@ -5011,14 +5702,23 @@ contains
         deallocate(ex)
 
         call EncodeBitDet_guga([3,6,7,8], ilut)
-
+ 
         currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
 
         call calcAllExcitations_single(ilut, 2, 4, ex, nEx)
 
 
         print *, "calcAllExcitations_single tests passed!"
+
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
 
     end subroutine test_calcAllExcitations_single
@@ -5036,10 +5736,20 @@ contains
         print *, "testing: singleEnd(ilut, exInfo, tmpEx, nEx, excits)"
         ! test a [1,2,0,3] E_1,4 raising start:
         call EncodeBitDet_guga([1,4,7,8], ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
         excitInfo = excitationIdentifier(1, 4)
         call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
-        allocate(currentB_ilut(nBasis/2))
-        currentB_ilut = calcB_vector_ilut(ilut)
         weights = init_singleWeight(ilut, 4)
 
         call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights, &
@@ -5073,6 +5783,11 @@ contains
         print *, "singleEnd tests passed!"
 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
+
 
     end subroutine test_singleEnd
 
@@ -5089,10 +5804,20 @@ contains
         print *, "testing: singleUpdate(ilut,orb,exInfo,posSwitch,negSwitch,excits,num)"
         ! test a [1,2,0,3] E_1,4 raising start:
         call EncodeBitDet_guga([1,4,7,8], ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
         excitInfo = excitationIdentifier(1, 4)
         call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
-        allocate(currentB_ilut(nBasis/2))
-        currentB_ilut = calcB_vector_ilut(ilut)
         weights = init_singleWeight(ilut, 4)
 
         call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights, &
@@ -5114,6 +5839,11 @@ contains
         print *, "singleUpdate tests passed!"
 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
+
         deallocate(excits)
 
     end subroutine test_singleUpdate
@@ -5132,10 +5862,20 @@ contains
 
         ! test a [1,2,0,3] E_1,4 raising start:
         call EncodeBitDet_guga([1,4,7,8], ilut)
+        allocate(currentB_ilut(4))
+        allocate(currentOcc_ilut(4))
+        allocate(currentOcc_int(4))
+        allocate(current_stepvector(4))
+        allocate(currentB_int(4))
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
         excitInfo = excitationIdentifier(1, 4)
         call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
-        allocate(currentB_ilut(nBasis/2))
-        currentB_ilut = calcB_vector_ilut(ilut)
         weights = init_singleWeight(ilut,4)
         call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights,&
             excits, num)
@@ -5147,16 +5887,24 @@ contains
         call write_det_guga(6, ilut) 
         
         deallocate(excits)
-        deallocate(currentB_ilut)
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
 
         call EncodeBitDet_guga([1,4,7,8], ilut)
 
         excitInfo = excitationIdentifier(2,4)
 
         call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
-
-        allocate(currentB_ilut(nBasis/2))
+ 
         currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
 
         call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights, &
             excits, num)
@@ -5167,16 +5915,18 @@ contains
         ASSERT(getDeltaB(excits(:,1)) == -1)
 
         deallocate(excits)
-        deallocate(currentB_ilut)
 
         call EncodeBitDet_guga([1,2,3,4], ilut)
 
         excitInfo = excitationIdentifier(4, 1)
 
         call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
-
-        allocate(currentB_ilut(nBasis/2))
+ 
         currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
 
         call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights, &
             excits, num)
@@ -5186,14 +5936,17 @@ contains
         ASSERT(extract_matrix_element(excits(:,1),1)== Root2)
 
         ! and do one double start
-        deallocate(currentB_ilut)
         deallocate(excits)
 
         call EncodeBitDet_guga([1,3,4,8], ilut)
         excitInfo = excitationIdentifier(4,2)
         call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
-        allocate(currentB_ilut(nBasis/2))
+  
         currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
 
         call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights, &
             excits, num)
@@ -5202,6 +5955,11 @@ contains
         print *, "createSingleStart tests passed!"
 
         deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
+
         deallocate(excits)
 
     end subroutine test_createSingleStart
@@ -5238,8 +5996,6 @@ contains
 
     end subroutine test_getDoubleMatrixElement
         
-
-
     subroutine test_getMixedFullStop
         character(*), parameter :: this_routine = "test_getMixedFullStop"
         real(dp) :: x0, x1
@@ -5373,7 +6129,6 @@ contains
         ASSERT(getDeltaB(ilut) == 1)
         call setDeltaB(2, ilut)
         ASSERT(getDeltaB(ilut) == 2)
-
 
         print *, "setDeltaB tests passed!"
 
@@ -5647,6 +6402,10 @@ contains
         call EncodeBitDet_guga(det,ilut)
         ! now need excitInfo for 
 
+        allocate(current_stepvector(4))
+
+        current_stepvector = calcStepVector(ilut)
+
         print *, "***"
         print *, "testing calcRemainingSwitches:"
         call calcRemainingSwitches(ilut,1,4,pos,neg)
@@ -5656,6 +6415,9 @@ contains
         ASSERT(all(neg == [1.0_dp,0.0_dp,0.0_dp,0.0_dp]))
         
         call EncodeBitDet_guga([1,4,5,8],ilut) ! 1 2 1 2
+
+        current_stepvector = calcStepVector(ilut)
+
         call calcRemainingSwitches(ilut, 2,4,pos,neg)
         print *, "positive switches: ", pos
         ASSERT(all(pos == [0.0_dp,0.0_dp,0.0_dp,0.0_dp]))
@@ -5663,6 +6425,7 @@ contains
         ASSERT(all(neg == [0.0_dp,1.0_dp,0.0_dp,0.0_dp]))
         print *, "calcRemainingSwitches tests successfull"
 
+        deallocate(current_stepvector)
 
     end subroutine test_calcRemainingSwitches
 
