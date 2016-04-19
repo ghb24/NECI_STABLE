@@ -1,7 +1,11 @@
+#include "macros.h"
+
 module rdm_estimators
 
     use bit_rep_data, only: NIfTot
     use constants
+    use rdm_data, only: rdm_list_t, rdm_spawn_t
+    use rdm_parallel, only: calc_separate_rdm_labels, extract_sign_rdm
 
     implicit none
 
@@ -107,7 +111,6 @@ contains
 
         use Parallel_neci, only: MPISumAll
         use rdm_data, only: rdm_estimates_t, rdm_list_t
-        use rdm_parallel, only: calc_rdm_trace, calc_rdm_spin, calc_rdm_energy
         use SystemData, only: nel, ecore
 
         type(rdm_estimates_t), intent(inout) :: est
@@ -170,7 +173,6 @@ contains
         use LoggingData, only: tWrite_normalised_RDMs, tWriteSpinFreeRDM
         use rdm_data, only: rdm_estimates_t, rdm_list_t, rdm_spawn_t, tOpenShell
         use rdm_parallel, only: print_rdms_spin_sym_wrapper, print_spinfree_2rdm_wrapper
-        use rdm_parallel, only: calc_hermitian_errors
 
         type(rdm_estimates_t), intent(inout) :: est
         ! IMPORTANT: rdm is not actually modified by this routine, despite
@@ -238,5 +240,238 @@ contains
         end if
 
     end subroutine write_rdm_estimates
+
+    subroutine calc_rdm_trace(rdm, rdm_trace)
+
+        ! Calculate trace of the 2-RDM in the rdm object, and output it to
+        ! rdm_trace.
+
+        ! This trace is defined as
+        !
+        ! rdm_trace = \sum_{ij} \Gamma_{ij,ij},
+        !
+        ! where \Gamma_{ij,kl} is the 2-RDM stored in rdm, and i and j are
+        ! spin orbital labels.
+
+        use rdm_data, only: rdm_spawn_t
+
+        type(rdm_list_t), intent(in) :: rdm
+        real(dp), intent(out) :: rdm_trace(rdm%sign_length)
+
+        integer(int_rdm) :: pqrs
+        integer :: ielem, pq, rs, p, q, r, s
+        real(dp) :: rdm_sign(rdm%sign_length)
+
+        rdm_trace = 0.0_dp
+
+        ! Loop over all RDM elements.
+        do ielem = 1, rdm%nelements
+            pqrs = rdm%elements(0,ielem)
+            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+
+            ! If this is a diagonal element, add the element to the trace.
+            if (pq == rs) then
+                call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+                rdm_trace = rdm_trace + rdm_sign
+            end if
+        end do
+
+    end subroutine calc_rdm_trace
+
+    subroutine calc_rdm_energy(rdm, rdm_energy_1, rdm_energy_2)
+
+        ! Calculate both the 1- and 2-electron contributions of the
+        ! (unnormalised) energy from the 2-RDM object in rdm, and output them
+        ! to rdm_energy_1 and rdm_energy_2.
+
+        use rdm_data, only: rdm_list_t
+        use rdm_integral_fns, only: one_elec_int, two_elec_int
+        use SystemData, only: nel
+
+        type(rdm_list_t), intent(in) :: rdm
+        real(dp), intent(out) :: rdm_energy_1(rdm%sign_length)
+        real(dp), intent(out) :: rdm_energy_2(rdm%sign_length)
+
+        integer(int_rdm) :: pqrs
+        integer :: ielem, pq, rs, p, q, r, s
+        real(dp) :: rdm_sign(rdm%sign_length)
+
+        rdm_energy_1 = 0.0_dp
+        rdm_energy_2 = 0.0_dp
+
+        ! Loop over all elements in the 2-RDM.
+        do ielem = 1, rdm%nelements
+            pqrs = rdm%elements(0,ielem)
+            call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+
+            ! Decode pqrs label into p, q, r and s labels.
+            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+
+            ! The 2-RDM contribution to the energy:
+            rdm_energy_2 = rdm_energy_2 + rdm_sign*two_elec_int(p,q,r,s)
+            ! The 1-RDM contribution to the energy:
+            if (p == r) rdm_energy_1 = rdm_energy_1 + rdm_sign*one_elec_int(q,s)/(nel-1)
+            if (q == s) rdm_energy_1 = rdm_energy_1 + rdm_sign*one_elec_int(p,r)/(nel-1)
+            if (p == s) rdm_energy_1 = rdm_energy_1 - rdm_sign*one_elec_int(q,r)/(nel-1)
+            if (q == r) rdm_energy_1 = rdm_energy_1 - rdm_sign*one_elec_int(p,s)/(nel-1)
+        end do
+
+    end subroutine calc_rdm_energy
+
+    subroutine calc_rdm_spin(rdm, rdm_norm, rdm_spin)
+
+        ! Return the (unnormalised) estimate of <S^2> from the instantaneous
+        ! 2-RDM estimates.
+
+        use rdm_data, only: rdm_spawn_t
+        use SystemData, only: nel
+        use UMatCache, only: spatial
+
+        type(rdm_list_t), intent(in) :: rdm
+        real(dp), intent(in) :: rdm_norm(rdm%sign_length)
+        real(dp), intent(out) :: rdm_spin(rdm%sign_length)
+
+        integer(int_rdm) :: pqrs
+        integer :: ielem, pq, rs, p, q, r, s
+        integer :: p_spat, q_spat, r_spat, s_spat
+        real(dp) :: rdm_sign(rdm%sign_length)
+
+        rdm_spin = 0.0_dp
+
+        ! Loop over all RDM elements.
+        do ielem = 1, rdm%nelements
+            pqrs = rdm%elements(0,ielem)
+            ! Obtain spin orbital labels.
+            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+            ! Obtain spatial orbital labels.
+            p_spat = spatial(p); q_spat = spatial(q);
+            r_spat = spatial(r); s_spat = spatial(s);
+
+            ! Note to the reader for the following code: if mod(p,2) == 1 then
+            ! p is a beta (b) orbital, if mod(p,2) == 0 then it is an alpha (a)
+            ! obrital.
+
+            ! The following if-statement allows IJIJ spatial combinations.
+            if (p_spat == r_spat .and. q_spat == s_spat) then
+                ! If we get to this point then we definitely have a contribution
+                ! to add in, so extract the sign.
+                call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+
+                ! If all labels have the same spatial part (IIII):
+                if (p_spat == q_spat) then
+                    if (is_beta(p) .and. is_alpha(q) .and. is_beta(r) .and. is_alpha(s)) then
+                        rdm_spin = rdm_spin - 6.0_dp*rdm_sign
+                    end if
+
+                else
+                    ! We only get here if the spatial parts obey IJIJ, for I /= J:
+
+                    ! The following if-statement allows the following spin combinations:
+                    ! aaaa, bbbb, abab and baba.
+                    if (mod(p,2) == mod(r,2) .and. mod(q,2) == mod(s,2)) then
+
+                        if (mod(p,2) == mod(q,2)) then
+                            ! aaaa and bbbb.
+                            rdm_spin = rdm_spin + 2.0_dp*rdm_sign
+                        else
+                            ! abab and baba.
+                            rdm_spin = rdm_spin - 2.0_dp*rdm_sign
+                        end if
+                    else
+                        ! We only get here if the spin parts are abba or baab.
+                        rdm_spin = rdm_spin + 4.0_dp*rdm_sign
+                    end if
+
+                end if
+            end if
+        end do
+
+        rdm_spin = rdm_spin + 3.0_dp*real(nel,dp)*rdm_norm
+        rdm_spin = rdm_spin/4.0_dp
+
+    end subroutine calc_rdm_spin
+
+    subroutine calc_hermitian_errors(rdm, rdm_recv, spawn, rdm_norm, max_error_herm_all, sum_error_herm_all)
+
+        ! Calculate the hermiticity errors, i.e.
+        ! 
+        ! \Gamma_{ij,kl} - \Gamma_{kl,ij}^*,
+        ! 
+        ! which should be equal to zero for an exact 2-RDM.
+
+        ! Specifically we return the largest such error, and the sum of all
+        ! such errors, to max_error_herm_all and sum_error_herm_all.
+
+        ! Use the rdm_recv and spawn objects as space for performing a
+        ! communication of a 2-RDM. The hermiticity error 2-RDM which is
+        ! communicated is defined as
+        !
+        ! \Gamma^{error}_{ij,kl} = \Gamma_{ij,kl} - \Gamma_{kl,ij}^*,
+        !
+        ! for ij < kl.
+
+        use hash, only: clear_hash_table
+        use Parallel_neci, only: MPIAllReduce
+        use ParallelHelper, only: MPI_SUM, MPI_MAX
+        use rdm_parallel, only: add_to_rdm_spawn_t, communicate_rdm_spawn_t, annihilate_rdm_list
+
+        type(rdm_list_t), intent(in) :: rdm
+        type(rdm_list_t), intent(inout) :: rdm_recv
+        type(rdm_spawn_t), intent(inout) :: spawn
+        real(dp), intent(in) :: rdm_norm(rdm%sign_length)
+        real(dp), intent(out) :: max_error_herm_all(rdm%sign_length)
+        real(dp), intent(out) :: sum_error_herm_all(rdm%sign_length)
+
+        integer(int_rdm) :: ijkl
+        integer :: ielem, ij, kl, i, j, k, l
+        real(dp) :: rdm_sign(rdm%sign_length)
+        real(dp) :: max_error_herm(rdm%sign_length), sum_error_herm(rdm%sign_length)
+
+        ! Clear the spawn object before we use it.
+        spawn%free_slots = spawn%init_free_slots
+        call clear_hash_table(spawn%rdm_send%hash_table)
+
+        ! Loop over all RDM elements.
+        do ielem = 1, rdm%nelements
+            ijkl = rdm%elements(0,ielem)
+            ! Obtain spin orbital labels and the RDM element sign.
+            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+            call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+
+            ! If in the lower half of the RDM, reflect to the upper half and
+            ! include with a minus sign.
+            if (ij > kl) then
+                call add_to_rdm_spawn_t(spawn, k, l, i, j, -rdm_sign, .false.)
+            else if (ij < kl) then
+                call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false.)
+            end if
+        end do
+
+        ! Perform the communication, so that each processor recieves its own
+        ! RDM elements, for the hermiticity error RDM.
+        call communicate_rdm_spawn_t(spawn, rdm_recv)
+        call annihilate_rdm_list(rdm_recv)
+
+        max_error_herm = 0.0_dp
+        sum_error_herm = 0.0_dp
+
+        ! Find the largest error and sum of errrors on this processor.
+        do ielem = 1, rdm_recv%nelements
+            call extract_sign_rdm(rdm_recv%elements(:,ielem), rdm_sign)
+            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+            rdm_sign = abs(rdm_sign)
+            max_error_herm = max(max_error_herm, rdm_sign)
+            sum_error_herm = sum_error_herm + rdm_sign
+        end do
+
+        ! The input 2-RDM wasn't normalised, so need to normalise these.
+        max_error_herm = max_error_herm/rdm_norm 
+        sum_error_herm = sum_error_herm/rdm_norm
+
+       ! Find the largest error and sum of errors across all processors.
+       call MPIAllReduce(max_error_herm, MPI_MAX, max_error_herm_all)
+       call MPIAllReduce(sum_error_herm, MPI_SUM, sum_error_herm_all)
+
+    end subroutine calc_hermitian_errors
 
 end module rdm_estimators
