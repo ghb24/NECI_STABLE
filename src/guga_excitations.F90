@@ -1790,8 +1790,8 @@ contains
                 ! element is 0 
                 ! same if d = 2 and b = 0 for fullstop stepvector 
 !                 if (isOne(ilut,i)) then
-                if (current_stepvector(i) == 1) then
-                    if (currentB_int(i) == 1) below_flag = .true.
+                if (current_stepvector(i) == 1 .and. currentB_int(i) == 1) then
+                    below_flag = .true.
                 end if
                 if (below_cpt < EPS) cycle
                 ! calculate the branch probability
@@ -1831,7 +1831,7 @@ contains
                 ! if i do it until switch - 1 -> i know that dB = 0 and 
                 ! the 2 stepvalues are always the same..
                 do k = i + 1, first - 1
-                    if (currentOcc_int(i) /= 1) cycle
+                    if (currentOcc_int(k) /= 1) cycle
 
                     step1 = current_stepvector(k)
                     ! only 0 branch here
@@ -2023,7 +2023,7 @@ contains
                 ! then do remaining top range, where i know stepvalues are 
                 ! the same again and dB = 0 always!
                 do k = last + 1, j - 1
-                    if (currentOcc_int(i) /= 1) cycle
+                    if (currentOcc_int(k) /= 1) cycle
 
                     step1 = current_stepvector(k)
                     ! only 0 branch here
@@ -2167,19 +2167,19 @@ contains
                         zeroWeight = weights%proc%zero(negSwitches(k), &
                             posSwitches(k), currentB_ilut(k), weights%dat)
 
-                            plusWeight = weights%proc%plus(posSwitches(k), &
-                                currentB_ilut(k), weights%dat)
-                            if (isOne(t,k)) then
-                                probWeight = probWeight * calcStayingProb(&
-                                    zeroWeight,plusWeight,currentB_ilut(k))
-                                call getDoubleMatrixElement(1,1,0,-1,1, &
-                                    currentB_ilut(k),1.0_dp,x1_element = tempWeight)
-                            else
-                                probWeight = probWeight*(1.0_dp-calcStayingProb(&
-                                    zeroWeight,plusWeight,currentB_ilut(k)))
-                                call getDoubleMatrixElement(2,1,0,-1,1, &
-                                    currentB_ilut(k),1.0_dp,x1_element = tempWeight)
-                            end if
+                        plusWeight = weights%proc%plus(posSwitches(k), &
+                            currentB_ilut(k), weights%dat)
+                        if (isOne(t,k)) then
+                            probWeight = probWeight * calcStayingProb(&
+                                zeroWeight,plusWeight,currentB_ilut(k))
+                            call getDoubleMatrixElement(1,1,0,-1,1, &
+                                currentB_ilut(k),1.0_dp,x1_element = tempWeight)
+                        else
+                            probWeight = probWeight*(1.0_dp-calcStayingProb(&
+                                zeroWeight,plusWeight,currentB_ilut(k)))
+                            call getDoubleMatrixElement(2,1,0,-1,1, &
+                                currentB_ilut(k),1.0_dp,x1_element = tempWeight)
+                        end if
 !                         else
                     case (2)
                         ! d=2 + b=0 : 2
@@ -2189,17 +2189,17 @@ contains
                             
                         minusWeight = weights%proc%minus(negSwitches(k), &
                                 currentB_ilut(k), weights%dat)
-                            if (isTwo(t,k)) then
-                                probWeight = probWeight*calcStayingProb(&
-                                    zeroWeight,minusWeight,currentB_ilut(k))
-                                call getDoubleMatrixElement(2,2,0,-1,1, &
-                                    currentB_ilut(k),1.0_dp,x1_element = tempWeight)
-                            else
-                                probWeight = probWeight*(1.0_dp-calcStayingProb(&
-                                    zeroWeight,minusWeight,currentB_ilut(k)))
-                                call getDoubleMatrixElement(1,2,0,-1,1, &
-                                    currentB_ilut(k),1.0_dp,x1_element = tempWeight)
-                            end if
+                        if (isTwo(t,k)) then
+                            probWeight = probWeight*calcStayingProb(&
+                                zeroWeight,minusWeight,currentB_ilut(k))
+                            call getDoubleMatrixElement(2,2,0,-1,1, &
+                                currentB_ilut(k),1.0_dp,x1_element = tempWeight)
+                        else
+                            probWeight = probWeight*(1.0_dp-calcStayingProb(&
+                                zeroWeight,minusWeight,currentB_ilut(k)))
+                            call getDoubleMatrixElement(1,2,0,-1,1, &
+                                currentB_ilut(k),1.0_dp,x1_element = tempWeight)
+                        end if
 !                         end if
 !                     else if (deltaB(k-1) == -2) then
 !                     case(-2)
@@ -2208,23 +2208,23 @@ contains
                     case (-1)
                         ! d=1 + b=-2 : -1
 
-                            zeroWeight = weights%proc%zero(negSwitches(k), &
-                                posSwitches(k), currentB_ilut(k), weights%dat)
+                        zeroWeight = weights%proc%zero(negSwitches(k), &
+                            posSwitches(k), currentB_ilut(k), weights%dat)
 
-                            minusWeight = weights%proc%minus(negSwitches(k), &
-                                currentB_ilut(k), weights%dat)
+                        minusWeight = weights%proc%minus(negSwitches(k), &
+                            currentB_ilut(k), weights%dat)
 
-                            if (isOne(t,k)) then
-                                probWeight = probWeight * calcStayingProb(minusWeight, &
-                                    zeroWeight, currentB_ilut(k))
-                                call getDoubleMatrixElement(1,1,-2,-1,1, &
-                                    currentB_ilut(k),1.0_dp,x1_element = tempWeight)
-                            else
-                                probWeight = probWeight*(1.0_dp-calcStayingProb(&
-                                    minusWeight, zeroWeight, currentB_ilut(k)))
-                                call getDoubleMatrixElement(2,1,-2,-1,1, &
-                                    currentB_ilut(k),1.0_dp,x1_element = tempWeight)
-                            end if
+                        if (isOne(t,k)) then
+                            probWeight = probWeight * calcStayingProb(minusWeight, &
+                                zeroWeight, currentB_ilut(k))
+                            call getDoubleMatrixElement(1,1,-2,-1,1, &
+                                currentB_ilut(k),1.0_dp,x1_element = tempWeight)
+                        else
+                            probWeight = probWeight*(1.0_dp-calcStayingProb(&
+                                minusWeight, zeroWeight, currentB_ilut(k)))
+                            call getDoubleMatrixElement(2,1,-2,-1,1, &
+                                currentB_ilut(k),1.0_dp,x1_element = tempWeight)
+                        end if
 !                         end if
 !                     else if (deltaB(k-1) == 2.0_dp ) then
                     case(4)
@@ -2232,24 +2232,23 @@ contains
 !                         if( isTwo(ilut,k)) then
 !                         if (current_stepvector(k) == 2) then
 
-                        
-                            zeroWeight = weights%proc%zero(negSwitches(k), &
-                                posSwitches(k), currentB_ilut(k), weights%dat)
+                        zeroWeight = weights%proc%zero(negSwitches(k), &
+                            posSwitches(k), currentB_ilut(k), weights%dat)
 
-                            plusWeight = weights%proc%plus(posSwitches(k), &
-                                currentB_ilut(k), weights%dat)
+                        plusWeight = weights%proc%plus(posSwitches(k), &
+                            currentB_ilut(k), weights%dat)
 
-                            if (isTwo(t,k)) then
-                                probWeight = probWeight * calcStayingProb(plusWeight, &
-                                    zeroWeight, currentB_ilut(k))
-                                call getDoubleMatrixElement(2,2,2,-1,1, &
-                                    currentB_ilut(k),1.0_dp,x1_element = tempWeight)
-                            else
-                                probWeight = probWeight*(1.0_dp-calcStayingProb(&
-                                    plusWeight,zeroWeight,currentB_ilut(k)))
-                                call getDoubleMatrixElement(1,2,2,-1,1, &
-                                    currentB_ilut(k),1.0_dp,x1_element = tempWeight)
-                            end if
+                        if (isTwo(t,k)) then
+                            probWeight = probWeight * calcStayingProb(plusWeight, &
+                                zeroWeight, currentB_ilut(k))
+                            call getDoubleMatrixElement(2,2,2,-1,1, &
+                                currentB_ilut(k),1.0_dp,x1_element = tempWeight)
+                        else
+                            probWeight = probWeight*(1.0_dp-calcStayingProb(&
+                                plusWeight,zeroWeight,currentB_ilut(k)))
+                            call getDoubleMatrixElement(1,2,2,-1,1, &
+                                currentB_ilut(k),1.0_dp,x1_element = tempWeight)
+                        end if
 !                         end if
 !                     end if
 !                     case default
@@ -3594,35 +3593,35 @@ contains
 !                     if (current_stepvector(j) == 1) then
                 case (1)
                     ! d=1 + b=0 :1 
-                        plusWeight = weights%proc%plus(posSwitches(j), &
-                            currentB_ilut(j), weights%dat)
-                        if (isOne(t, j)) then
-                            probWeight = probWeight*calcStayingProb(zeroWeight, &
-                                plusWeight, currentB_ilut(j))
-                            call getDoubleMatrixElement(1, 1, 0, -1, 1, &
-                                currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
-                        else
-                            probWeight = probWeight*(1.0_dp - calcStayingProb(&
-                                zeroWeight, plusWeight, currentB_ilut(j)))
-                            call getDoubleMatrixElement(2, 1, 0, -1, 1, &
-                                currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
-                        end if
+                    plusWeight = weights%proc%plus(posSwitches(j), &
+                        currentB_ilut(j), weights%dat)
+                    if (isOne(t, j)) then
+                        probWeight = probWeight*calcStayingProb(zeroWeight, &
+                            plusWeight, currentB_ilut(j))
+                        call getDoubleMatrixElement(1, 1, 0, -1, 1, &
+                            currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
+                    else
+                        probWeight = probWeight*(1.0_dp - calcStayingProb(&
+                            zeroWeight, plusWeight, currentB_ilut(j)))
+                        call getDoubleMatrixElement(2, 1, 0, -1, 1, &
+                            currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
+                    end if
 !                     else
                 case (2)
                     ! d=2 + b=0 : 2
-                        minusWeight = weights%proc%minus(negSwitches(j), &
-                            currentB_ilut(j), weights%dat)
-                        if (isTwo(t,j)) then
-                            probWeight = probWeight*calcStayingProb(zeroWeight, &
-                                minusWeight, currentB_ilut(j))
-                            call getDoubleMatrixElement(2, 2, 0, -1, 1, &
-                                currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
-                        else
-                            probWeight = probWeight*(1.0_dp - calcStayingProb(&
-                                zeroWeight,minusWeight, currentB_ilut(j)))
-                            call getDoubleMatrixElement(1, 2, 0, -1, 1, &
-                                currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
-                        end if
+                    minusWeight = weights%proc%minus(negSwitches(j), &
+                        currentB_ilut(j), weights%dat)
+                    if (isTwo(t,j)) then
+                        probWeight = probWeight*calcStayingProb(zeroWeight, &
+                            minusWeight, currentB_ilut(j))
+                        call getDoubleMatrixElement(2, 2, 0, -1, 1, &
+                            currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
+                    else
+                        probWeight = probWeight*(1.0_dp - calcStayingProb(&
+                            zeroWeight,minusWeight, currentB_ilut(j)))
+                        call getDoubleMatrixElement(1, 2, 0, -1, 1, &
+                            currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
+                    end if
 !                     end if
 !                 else if (deltaB(j-1) == -2.0_dp) then
 !                 case (-2)
@@ -3630,19 +3629,19 @@ contains
 !                     if (current_stepvector(j) == 1) then
                 case (-1)
                     ! d=1 + b=-2 : -1
-                        minusWeight = weights%proc%minus(negSwitches(j), &
-                            currentB_ilut(j), weights%dat)
-                        if (isOne(t, j)) then
-                            probWeight = probWeight*calcStayingProb(minusWeight, &
-                                zeroWeight, currentB_ilut(j))
-                            call getDoubleMatrixElement(1, 1, -2, -1, 1, &
-                                currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
-                        else
-                            probWeight = probWeight*(1.0_dp - calcStayingProb(&
-                                minusWeight, zeroWeight, currentB_ilut(j)))
-                            call getDoubleMatrixElement(2, 1, -2, -1, 1, &
-                                currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
-                        end if
+                    minusWeight = weights%proc%minus(negSwitches(j), &
+                        currentB_ilut(j), weights%dat)
+                    if (isOne(t, j)) then
+                        probWeight = probWeight*calcStayingProb(minusWeight, &
+                            zeroWeight, currentB_ilut(j))
+                        call getDoubleMatrixElement(1, 1, -2, -1, 1, &
+                            currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
+                    else
+                        probWeight = probWeight*(1.0_dp - calcStayingProb(&
+                            minusWeight, zeroWeight, currentB_ilut(j)))
+                        call getDoubleMatrixElement(2, 1, -2, -1, 1, &
+                            currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
+                    end if
 !                     end if
 !                 else if (deltaB(j-1) == 2.0_dp ) then
 !                 case (2)
@@ -3650,19 +3649,19 @@ contains
 !                     if (current_stepvector(j) == 2) then
                 case (4)
                     ! d=2 + b=2 : 4
-                        plusWeight = weights%proc%plus(posSwitches(j), &
-                            currentB_ilut(j), weights%dat)
-                        if (isTwo(t, j)) then
-                            probWeight = probWeight * calcStayingProb(plusWeight, &
-                                zeroWeight, currentB_ilut(j))
-                            call getDoubleMatrixElement(2, 2, 2, -1, 1, &
-                                currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
-                        else
-                            probWeight = probWeight * (1.0_dp -calcStayingProb( &
-                                plusWeight, zeroWeight, currentB_ilut(j)))
-                            call getDoubleMatrixElement(1, 2, 2, -1, 1, &
-                                currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
-                        end if 
+                    plusWeight = weights%proc%plus(posSwitches(j), &
+                        currentB_ilut(j), weights%dat)
+                    if (isTwo(t, j)) then
+                        probWeight = probWeight * calcStayingProb(plusWeight, &
+                            zeroWeight, currentB_ilut(j))
+                        call getDoubleMatrixElement(2, 2, 2, -1, 1, &
+                            currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
+                    else
+                        probWeight = probWeight * (1.0_dp -calcStayingProb( &
+                            plusWeight, zeroWeight, currentB_ilut(j)))
+                        call getDoubleMatrixElement(1, 2, 2, -1, 1, &
+                            currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
+                    end if 
 !                     end if
 !                 case default 
 !                     call stop_all(this_routine, "wrong delta b value!")
@@ -3707,7 +3706,7 @@ contains
                 ! should i cycle here too if 0 or 3 stepvector? i guess...
 !                 if (isZero(ilut,i) .or. isThree(ilut,i)) cycle
 !                 if (notSingle(ilut,i)) then
-                if (current_stepvector(i) /= 1) then
+                if (currentOcc_int(i) /= 1) then
                     cycle
                 end if
 
@@ -4034,7 +4033,9 @@ contains
         call setup_weight_funcs(ilut, t, st, se, sw, weight_funcs)
 
         if (en < nSpatOrbs) then
-            if (step == 1 ) then 
+            select case (step)
+!             if (step == 1 ) then 
+            case (1)
                 if (isOne(t, en)) then
                     top_cont = -Root2*sqrt((currentB_ilut(en) + 2.0_dp)/&
                         currentB_ilut(en))
@@ -4043,7 +4044,8 @@ contains
                     top_cont = -Root2/sqrt(currentB_ilut(en)*(currentB_ilut(en)+2.0_dp))
 
                 end if
-            else 
+!             else 
+            case (2)
                 if (isOne(t,en)) then
                     top_cont = -Root2/sqrt(currentB_ilut(en)*(currentB_ilut(en)+2.0_dp))
 
@@ -4051,7 +4053,12 @@ contains
                     top_cont = Root2*sqrt(currentB_ilut(en)/&
                         (currentB_ilut(en) + 2.0_dp))
                 end if
-            end if
+
+            case default 
+                call stop_all(this_routine, "wrong stepvalues!")
+
+            end select
+!             end if
 
             if (abs(top_cont) > EPS) then
 
@@ -4355,6 +4362,9 @@ contains
                     topCont = Root2*sqrt(currentB_ilut(en)/&
                         (currentB_ilut(en) + 2.0_dp))
                 end if
+
+            else 
+                call stop_all(this_routine, "wront stepvalues!")
             end if
 
             if (abs(topCont) > EPS) then
@@ -4620,7 +4630,6 @@ contains
 !                     if (current_stepvector(j) == 2) then
                     case(4)
                         ! d=2 + b=2 : 4
-
                         plusWeight = weights%proc%plus(posSwitches(j), &
                             currentB_ilut(j), weights%dat)
                         if (isTwo(t, j)) then
@@ -4635,11 +4644,8 @@ contains
                                 currentB_ilut(j),1.0_dp,  x1_element = tempWeight_1)
                         end if 
 !                     end if 
-
-
 !                 case default 
 !                     call stop_all(this_routine, "wrong delta B value!")
-
                 end select
 !                 end if
 
@@ -4705,7 +4711,9 @@ contains
             ! do switch specifically! determine deltaB!
             ! how?
 !             if (isOne(ilut,sw)) then
-            if (current_stepvector(sw) == 1) then
+            select case (current_stepvector(sw))
+            case (1)
+!             if (current_stepvector(sw) == 1) then
                 ! then a -2 branch arrived!
                 call getDoubleMatrixElement(2,1,-2,-1,1,currentB_ilut(sw), &
                     1.0_dp, x1_element = tempWeight_1)
@@ -4714,7 +4722,8 @@ contains
 
                 call getMixedFullStop(2,1,-2,currentB_ilut(sw),x1_element = tempWeight_1)
 
-            else if (current_stepvector(sw) == 2) then
+!             else if (current_stepvector(sw) == 2) then
+            case (2)
 !             else if (isTwo(ilut,sw)) then
                 ! +2 branch arrived!
 
@@ -4725,7 +4734,12 @@ contains
 
                 call getMixedFullStop(1,2,2,currentB_ilut(sw), x1_element = tempWeight_1)
 
-            end if
+#ifdef __DEBUG
+            case default
+                call stop_all(this_routine, "wrong stepvalues!")
+#endif
+            end select
+!             end if
 
             tempWeight_1 = tempWeight * tempWeight_1
 
@@ -4760,7 +4774,7 @@ contains
 
 !         if (isZero(ilut,s) .or. isThree(ilut,s)) then
 !         if (notSingle(ilut,s)) then
-        if (current_stepvector(s) /= 1) then
+        if (currentOcc_int(s) /= 1) then
             ! no change in stepvector or matrix element in this case 
             return
         end if
@@ -4842,7 +4856,11 @@ contains
             case (1)
                 ! d=1 + b=0 = 1
                 ! 0 branch arrives -> have to check b value
-                if (currentB_int(s) == 0) then
+                ! hm... is this a bug?? if d = 1, b cant be 0, its atleast 
+                ! 1.. and then a switch to +2 cant happen.. 
+                ! but that should have been dealt with the weights below
+                ! probably.. so thats why it didnt matter probably..
+                if (currentB_int(s) == 1) then
                     ! only staying branch
                     call getDoubleMatrixElement(1, 1, deltaB, gen1, gen2, bVal , &
                         order, tempWeight_0, tempWeight_1)
@@ -5047,12 +5065,18 @@ contains
         ! like... so only consider x1 matrix element here..
 
         ! combine deltaB and stepvalue info here to reduce if statements
+        ! asserts dont work anymore with new select case statements 
+        ! do it out here:
+#ifdef __DEBUG 
+        if (current_stepvector(ende) == 1) ASSERT(deltaB /= 2)
+        if (current_stepvector(ende) == 2) ASSERT(deltaB /= -2)
+#endif
+
         select case (deltaB + current_stepvector(ende))
         case (1)
             ! d=1 + b=0 : 1
 !         if (isOne(ilut,ende)) then
             ! ! +2 branch not allowed here 
-            ASSERT(deltaB /= 2)
 
 !             if (deltaB == 0) then
                 ! not sure if i can access only the x1 element down there..
@@ -5060,7 +5084,6 @@ contains
 
         case (-1)
             ! d=1 + b=-2 : -1
-            ASSERT(deltaB /= 2)
 !             else 
                 ! deltaB = -2
                 ! switch 1 -> 2
@@ -5071,21 +5094,17 @@ contains
                 tempWeight_1 = 1.0_dp
                 tempWeight_0 = 0.0_dp
 
-
 !             end if
 
         case (2)
             ! d=2 + b=0 : 2
 !         else if (isTwo(ilut,ende)) then
-            ASSERT(deltaB /= -2)
 
 !             if (deltaB == 0) then
                 call getMixedFullStop(2, 2, 0, bVal, tempWeight_0, tempWeight_1)
 
-
         case (4)
             ! d=2 + b=2 : 4
-            ASSERT(deltaB /= -2)
 !             else 
                 ! deltab = 2
                 ! switch 2 -> 1
@@ -5141,8 +5160,16 @@ contains
         deltaB = getDeltaB(t)
 
         ! do non-choosing possibs first
+        ! why does this cause a segfault on compilation with gfortran??
+        ! do some debugging: 
+#ifdef __DEBUG
+        print *, "alloc?", allocated(current_stepvector)
+        print *, "secondstart?", se
+        print *, "stepvector?", current_stepvector
+        print *, "upper and lower limit?", size(current_stepvector)
+#endif
+
         select case (current_stepvector(se))
-!         select case (deltaB)
         case (1)
 !         if (isOne(ilut,se)) then
             ! 1 -> 3
@@ -5323,8 +5350,17 @@ contains
         deltaB = getDeltaB(t)
 
         ! do non-choosing possibs first
+        ! why does this cause a segfault on compilation with gfortran??
+        ! do some debugging: 
+#ifdef __DEBUG
+        print *, "alloc?", allocated(current_stepvector)
+        print *, "secondstart?", se
+        print *, "stepvector?", current_stepvector
+        print *, "upper and lower limit?", size(current_stepvector)
+        call print_excitInfo(excitInfo)
+#endif
+
         select case (current_stepvector(se))
-!         select case (deltaB)
         case (1)
 !         if (isOne(ilut,se)) then
             ! 1 -> 0
@@ -6065,6 +6101,10 @@ contains
 
                     origWeight = origWeight / (origWeight + switchWeight)
                 end if
+#ifdef __DEBUG
+            else 
+                call stop_all(this_routine, "wrong stepvalues!")
+#endif
             end if
 
 !             origWeight = origWeight/(origWeight + switchWeight)
@@ -7170,6 +7210,10 @@ contains
                     origWeight = origWeight/(origWeight + switchWeight)
 
                 end if
+#ifdef __DEBUG
+            else 
+                call stop_all(this_routine, "wrong stepvalues!")
+#endif
             end if
 
 
@@ -7567,6 +7611,10 @@ contains
 
             end if
 !         end if
+#endif __DEBUG
+        case default 
+            call stop_all(this_routine, "wrong stepvalue!")
+#endif
         end select 
 
         call encode_matrix_element(t, tempWeight_1, 2)
@@ -7816,6 +7864,10 @@ contains
 
             call setDeltaB(0, t)
 
+#ifdef __DEBUG
+        case (3)
+            call stop_all(this_routine, "wrong stepvalue!")
+#endif
         end select 
 !         end if
 
@@ -7958,6 +8010,10 @@ contains
 
             call setDeltaB(0, t)
 
+#ifdef __DEBUG
+        case (0)
+            call stop_all(this_routine, "wrong stepvalue!")
+#endif
         end select
 !         end if
 
@@ -8470,7 +8526,7 @@ contains
 
         call update_matrix_element(exc, integral, 1)
 
-        if (abs(extract_matrix_element(exc, 1))<EPS) then
+        if (abs(extract_matrix_element(exc, 1)) < EPS) then
             pgen = 0.0_dp
             exc = 0
         end if
@@ -8985,6 +9041,8 @@ contains
                 tempWeight = getSingleMatrixElement(1,2,deltaB,gen,bVal)
             end if
         case (1,2)
+            ! d=1 + b=1:  2
+            ! d=2 + b=-1: 1
 !         case default
 !         else
             ! just staying possibility... 
@@ -9819,6 +9877,12 @@ contains
         nTot = 0
 
         ! allocate and calc. b and occupation out here
+        if (allocated(currentB_ilut)) deallocate(currentB_ilut)
+        if (allocated(currentOcc_ilut)) deallocate(currentOcc_ilut)
+        if (allocated(current_stepvector)) deallocate(current_stepvector)
+        if (allocated(currentOcc_int)) deallocate(currentOcc_int)
+        if (allocated(currentB_int)) deallocate(currentB_int)
+
         allocate(currentB_ilut(nSpatOrbs), stat = ierr)
         allocate(currentOcc_ilut(nSpatOrbs), stat = ierr)
         allocate(current_stepvector(nSpatOrbs), stat = ierr)
@@ -9828,7 +9892,7 @@ contains
         currentB_ilut = calcB_vector_ilut(ilut(0:nifd))
         currentOcc_ilut = calcOcc_vector_ilut(ilut(0:nifd))
         current_stepvector = calcStepvector(ilut(0:nifd))
-        currentOcc_int = int(currentOcc_ilut)
+        currentOcc_int = calcOcc_vector_int(ilut(0:nifd))
         currentB_int = calcB_vector_int(ilut(0:nifd))
 
         ! single excitations:
@@ -10129,12 +10193,12 @@ contains
             ! if that is zero no excitation possible.. 
             ! do not need exact weight, but only knowledge if it is zero...
             ! so I do not yet need the bVector 
-            if (minusWeight + plusWeight <EPS) then                
-                ! hopefully this works
-                allocate(excitations(0,0), stat = ierr)
-                return
-
-            else 
+!             if (minusWeight + plusWeight < EPS) then                
+!                 ! hopefully this works
+!                 allocate(excitations(0,0), stat = ierr)
+!                 return
+! 
+!             else 
                 ! now we have to really calculate the excitations
                 ! but also use the stochastic weight functions to not 
                 ! calculate unnecessary excitations...
@@ -10220,7 +10284,7 @@ contains
                     call setDeltaB(1, excitations(:,iEx))
                 end do
 
-            end if
+!             end if
 !         end if
 
 
@@ -11452,20 +11516,26 @@ contains
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb < nSpatOrbs)
 
-        if (current_stepvector(sOrb) == 1) then
+        select case (current_stepvector(sOrb))
+!         if (current_stepvector(sOrb) == 0) then
 !         if (isZero(ilut, sOrb)) then
             ! do nothin actually.. not even change matrix elements
+        case (0)
+
             return
 
-        else if (current_stepvector(sOrb) == 3) then
+!         else if (current_stepvector(sOrb) == 3) then
 !         else if (isThree(ilut, sOrb)) then
             ! only change matrix element to negative one
+        case(3)
+
             do iEx = 1, nExcits
                 call update_matrix_element(tempExcits(:,iEx), -1.0_dp, 1)
             end do 
             return
 
-        end if
+        end select
+!         end if
         
         ! to generally use this function i need to define a current generator...
         gen = excitInfo%currentGen
@@ -11938,8 +12008,7 @@ contains
 !         end if
 !     end subroutine singleOverlapLoweringUpdate
 
-    subroutine singleEnd(ilut, excitInfo, tempExcits, nExcits, & 
-        excitations)
+    subroutine singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
         ! end function to calculate all single excitaitons of a given CSF
         ! ilut
         integer(n_int), intent(in) :: ilut(0:nifguga)

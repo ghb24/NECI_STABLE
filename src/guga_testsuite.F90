@@ -6366,7 +6366,6 @@ contains
         ! make a valid ilut:
         call EncodeBitDet_guga(det,ilut)
 
-
         print *, "***"
         print *, " Testing ",testFun
         ASSERT(.not.isZero(ilut,1))
@@ -6395,7 +6394,6 @@ contains
         integer(n_int) :: ilut(0:nifguga)
         integer :: b
         character(*), parameter :: this_routine = "test_calcRemainingSwitches"
-
 
         det = [1,2,3,6] ! 3 1 2 0
 
