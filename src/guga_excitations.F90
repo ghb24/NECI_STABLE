@@ -3143,14 +3143,14 @@ contains
         pgen = 0.0_dp
 
         ! check validity
-        if (branch_pgen <EPS) return
+        if (branch_pgen < EPS) return
 
         do i = st + 1, se - 1
             call singleStochasticUpdate(ilut, i, excitInfo, weights, posSwitches, &
                 negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
             ! check validity
-            if (branch_pgen <EPS) return
+            if (branch_pgen < EPS) return
         end do
 
         ! do the specific se-st
@@ -3160,7 +3160,7 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen <EPS) return
+        if (branch_pgen < EPS) return
 
         ! do the specific double update to ensure a switch
         ! although switch can also happen at end only...
@@ -3170,7 +3170,7 @@ contains
             call doubleUpdateStochastic(ilut, i, excitInfo, &
                 weights, negSwitches, posSwitches, t, branch_pgen)
             if (abs(extract_matrix_element(t,2))<EPS .or. branch_pgen<EPS) then
-                t = 0
+                t = 0_n_int
                 return
             end if
         end do
@@ -3178,8 +3178,9 @@ contains
         call mixedFullStopStochastic(ilut, excitInfo, t)
 
         ! check if matrix element is non-zero and if a switch happened
+!         if (extract_matrix_element(t,1) /= 0.0_dp) then
         if (abs(extract_matrix_element(t,1)) > EPS) then
-            t = 0 
+            t = 0_n_int
             return
         end if
 
@@ -3195,8 +3196,8 @@ contains
 
         ! todo other contributing integrals:
 
-        if (abs(extract_matrix_element(t,1)) <EPS) then
-            t = 0
+        if (abs(extract_matrix_element(t,1)) < EPS) then
+            t = 0_n_int
             return
         end if
 
@@ -3678,8 +3679,7 @@ contains
         pgen = pgen * orb_pgen_contrib_type_3()
 
     end subroutine calc_mixed_end_l2r_contr_nosym
-
-
+    
     subroutine calcFullStopR2L_stochastic(ilut, excitInfo, t, pgen)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
@@ -3699,7 +3699,7 @@ contains
         se = excitInfo%secondStart
         en = excitInfo%fullEnd
 
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+        call calcRemainingSwitches_excitInfo_double(ilut, excitInfo, 1, posSwitches, negSwitches)
         ! init weights
         weights = init_semiStartWeight(ilut, se, en, negSwitches(se), &
             posSwitches(se), currentB_ilut(se))
@@ -3774,7 +3774,7 @@ contains
             get_umat_el(st,en,en,se))/2.0_dp + integral, 1)
 
     end subroutine calcFullStopR2L_stochastic
-
+! 
     subroutine setup_weight_funcs(ilut, t, st, se, sw, weight_funcs)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         integer, intent(in) :: st, se, sw
@@ -5027,7 +5027,6 @@ contains
 
     end subroutine mixedFullStopStochastic
 
-
     subroutine calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, probWeight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
@@ -5053,6 +5052,7 @@ contains
 
         ! do non-choosing possibs first
         select case (current_stepvector(se))
+!         select case (deltaB)
         case (1)
 !         if (isOne(ilut,se)) then
             ! 1 -> 3
@@ -5208,7 +5208,6 @@ contains
 
     end subroutine calcRaisingSemiStartStochastic
 
-
     subroutine calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, probWeight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
@@ -5235,6 +5234,7 @@ contains
 
         ! do non-choosing possibs first
         select case (current_stepvector(se))
+!         select case (deltaB)
         case (1)
 !         if (isOne(ilut,se)) then
             ! 1 -> 0
@@ -6436,6 +6436,9 @@ contains
         real(dp), intent(inout) :: branch_pgen
         real(dp), intent(out) :: integral, pgen
         character(*), parameter :: this_routine = "calc_mixed_x2x_ueg"
+
+        pgen = 0.0_dp
+        integral = 0.0_dp
 
         call stop_all(this_routine,&
             "in Hubbard/UEG calculations with full k-point symmetry, this excitation shouldnt be reached!")
@@ -9948,18 +9951,18 @@ contains
 
     end subroutine calcAllExcitations_excitInfo_single
 
-    subroutine calcAllExcitations_excitInfo_double(ilut, excitInfo, doubleFlag, &
-            excitations, nExcits)
-        ! excitation calculation if excitInfo is already calculated
-        integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
-        integer, intent(in) :: doubleFlag
-        integer(n_int), intent(out), pointer :: excitations(:,:)
-        integer, intent(out) :: nExcits
-
-        ! to do combine (i.j,k.l) version and this one
-
-    end subroutine calcAllExcitations_excitInfo_double
+!     subroutine calcAllExcitations_excitInfo_double(ilut, excitInfo, doubleFlag, &
+!             excitations, nExcits)
+!         ! excitation calculation if excitInfo is already calculated
+!         integer(n_int), intent(in) :: ilut(0:nifguga)
+!         type(excitationInformation), intent(in) :: excitInfo
+!         integer, intent(in) :: doubleFlag
+!         integer(n_int), intent(out), pointer :: excitations(:,:)
+!         integer, intent(out) :: nExcits
+! 
+!         ! to do combine (i.j,k.l) version and this one
+! 
+!     end subroutine calcAllExcitations_excitInfo_double
 
     subroutine calcAllExcitations_single(ilut, i, j, excitations, nExcits)
         ! function to calculate all possible single excitation for a CSF 
@@ -18052,8 +18055,8 @@ contains
                 k = excitInfo%k
                 lO = excitInfo%l
                 
-                fl0 = isZero(L,j)
-                fl2 = isThree(L,i)
+!                 fl0 = isZero(L,j)
+!                 fl2 = isThree(L,i)
 
             ! i can do the usual i,j check up here
 !             if (fl2.or.fl0.or.isThree(L,k)) then
@@ -18531,11 +18534,17 @@ contains
 
             ! full stop two raising
             case(15)
-                fl2 = isThree(L,st)
-                fl0 = .not.isThree(L,en)
-            if (fl2.or.isThree(L,ss).or.fl0) then
-                flag = .false.
-            end if
+!                 fl2 = isThree(L,st)
+!                 fl0 = .not.isThree(L,en)
+!             if (fl2.or.isThree(L,ss).or.fl0) then
+!                 flag = .false.
+!             end if
+
+                if (current_stepvector(st) == 3 .or. current_stepvector(en) /= 3 .or. &
+                    current_stepvector(ss) == 3) then 
+                    flag = .false.
+                    return
+                end if
 
 !             weights = init_semiStartWeight(L, ss, &
 !                 en, negSwitches(ss), &
@@ -18783,8 +18792,8 @@ contains
 
             ! full start into full stop alike 
             case(22)
-!                 i = excitInfo%i
-!                 j = excitInfo%j
+                i = excitInfo%i
+                j = excitInfo%j
 !                 fl0 = .not.isThree(L,j)
 !                 fl2 = .not.isZero(L,i)
 !             if (fl0 .or. fl2) then
@@ -19484,6 +19493,7 @@ contains
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbs_sym_uniform_ueg_single"
 
+        pgen = 0.0_dp
         ! single excitations shouldnt be called in hubbard/ueg simulations 
         ! due to k-point symmetry
         call stop_all(this_routine, &
@@ -26127,7 +26137,7 @@ contains
         integer, intent(in), optional :: overlap
         real(dp), intent(in) :: order, order1
         type(excitationInformation) :: excitInfo
-        character(*), parameter :: this_routine = "assign_excitInfo_values_double"
+!         character(*), parameter :: this_routine = "assign_excitInfo_values_double"
 
         ! todo: asserts!
         excitInfo%typ = typ

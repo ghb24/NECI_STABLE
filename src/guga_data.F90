@@ -7,7 +7,6 @@ module guga_data
     use SystemData, only: nBasis, tCSF, tSPN, tHPHF, lNoSymmetry, STOT, nEl, &
                           tNoBrillouin, tExactSizeSpace, tUHF, tGUGA
     use CalcData, only: tUseRealCoeffs
-    use spin_project, only: tSpinProject
     use bit_rep_data, only: tUseFlags
     use constants, only: dp, Root2, OverR2, n_int
     
@@ -242,10 +241,8 @@ module guga_data
         2, -1, -1, -1, -1, 36, -1, -1,  2, 32,  2, -1, -1,  8, -1,  2  &! db = +2 & RR
         /), (/4, 4, 15/))
 
-
     ! x0 elemets:
     type(procedurePtrArray) :: doubleMatEleX0GUGA(17)
-
 
     ! build index matrix
     ! could make  some matrix elements indpendent of deltaB value, by filling 
@@ -322,7 +319,6 @@ module guga_data
        1,  -1, -1, -1,  -1,  1, -1, -1, -1,  4,  3, -1, -1, -1, -1,  3 &! db = +1 & R
        ], [4,4,4])
 
-    
     ! =========================== VARIABLES =================================
     ! b vector of the reference determinant should be kept as a saved variable
     ! as it is always needed in the H|D> calculation to calc. the refence energy

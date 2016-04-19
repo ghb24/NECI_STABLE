@@ -252,8 +252,8 @@ contains
         orb = 0
         do i = start, semi - 1
 !             if (getStepvalue(iI,i) /= getStepvalue(iJ,i)) then
-!             a = getStepvalue(iI,i)
-            a = current_stepvector(i)
+            a = getStepvalue(iI,i)
+!             a = current_stepvector(i)
             b = getStepvalue(iJ,i)
             if (a /= b) then
                 orb = i
@@ -277,8 +277,8 @@ contains
         orb = nSpatOrbs + 1
 
         do iOrb = ende, semi + 1, -1
-!             a = getStepvalue(ilutI,iOrb)
-            a = current_stepvector(iOrb)
+            a = getStepvalue(ilutI,iOrb)
+!             a = current_stepvector(iOrb)
             b = getStepvalue(ilutJ,iOrb)
             if (a /= b) then
 !             if (getStepvalue(ilutI,iOrb) /= getStepvalue(ilutJ,iOrb)) then
@@ -825,7 +825,7 @@ contains
         flag = .true.
 
         ! check if b value drops below zero
-        if (any(calcB_vector_ilut(ilut(0:nifd)) < 0.0_dp)) flag = .false.
+        if (any(calcB_vector_int(ilut(0:nifd)) < 0)) flag = .false.
 
     end function isProperCSF_b
 
@@ -841,7 +841,7 @@ contains
         flag = .true.
 
         ! check if b value drops below zero
-        if (any(calcB_vector_ilut(ilut(0:nifd)) < 0.0_dp)) flag = .false.
+        if (any(calcB_vector_int(ilut(0:nifd)) < 0)) flag = .false.
 
         ! check if total spin is same as input, cant avoid loop here i think..
         !calcS = 0
