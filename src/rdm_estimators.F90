@@ -9,6 +9,12 @@ contains
 
     subroutine init_rdm_estimates_t(est, nrdms, open_output_file)
 
+        ! Initialise an rdm_estimates_t object. Allocate arrays to be large
+        ! enough to hold estimates for nrdms RDMs.
+
+        ! Also, if open_output_file is true, and if this is the processor with
+        ! label 0, then open an RDMEstimates file, and write the file's header.
+
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: rdm_estimates_t
         use util_mod, only: get_free_unit
@@ -19,8 +25,10 @@ contains
 
         integer :: ierr
 
+        ! Store the number of RDMs.
         est%nrdms = nrdms
 
+        ! Estimates over the entire RDM sampling period.
         allocate(est%trace(nrdms), stat=ierr)
         allocate(est%norm(nrdms), stat=ierr)
         allocate(est%energy_1_num(nrdms), stat=ierr)
@@ -28,6 +36,7 @@ contains
         allocate(est%energy_num(nrdms), stat=ierr)
         allocate(est%spin_num(nrdms), stat=ierr)
 
+        ! "Instantaneous" estimates over the previous sampling block.
         allocate(est%trace_inst(nrdms), stat=ierr)
         allocate(est%norm_inst(nrdms), stat=ierr)
         allocate(est%energy_1_num_inst(nrdms), stat=ierr)
@@ -35,6 +44,7 @@ contains
         allocate(est%energy_num_inst(nrdms), stat=ierr)
         allocate(est%spin_num_inst(nrdms), stat=ierr)
 
+        ! Hermiticity errors, for the final RDMs.
         allocate(est%max_error_herm(nrdms), stat=ierr)
         allocate(est%sum_error_herm(nrdms), stat=ierr)
 
@@ -55,6 +65,7 @@ contains
         est%max_error_herm = 0.0_dp
         est%sum_error_herm = 0.0_dp
 
+        ! If appropriate, create a new RDMEstimates file.
         if (iProcIndex == 0 .and. open_output_file) then
             est%write_unit = get_free_unit()
             call write_rdm_est_file_header(est%write_unit, nrdms)
@@ -63,6 +74,9 @@ contains
     end subroutine init_rdm_estimates_t
 
     subroutine write_rdm_est_file_header(write_unit, nrdms)
+
+        ! Open a new RDMEstimates file (overwriting any existing file), and
+        ! write a header to it, appropriate for when we are sampling nrdms RDMs.
 
         integer, intent(in) :: write_unit, nrdms
 
@@ -82,17 +96,22 @@ contains
 
     end subroutine write_rdm_est_file_header
 
-    subroutine calc_rdm_estimates_wrapper(est, rdm, rdm_recv, spawn)
+    subroutine calc_rdm_estimates_wrapper(est, rdm)
+
+        ! Calculate the estimates for the RDM stored in rdm. The full estimates
+        ! are stored using this object, and also instantaneous estimates. The
+        ! instantaneous estimates are calculated by subtracting the previous
+        ! stored values from the newly calculated ones. This works so long as
+        ! the estimates are linear functions of the RDMs, which they will be
+        ! for any observable.
 
         use Parallel_neci, only: MPISumAll
-        use rdm_data, only: rdm_estimates_t, rdm_list_t, rdm_spawn_t, tOpenShell
-        use rdm_parallel, only: calc_rdm_trace, calc_rdm_spin, calc_rdm_energy, print_rdms_with_spin
+        use rdm_data, only: rdm_estimates_t, rdm_list_t
+        use rdm_parallel, only: calc_rdm_trace, calc_rdm_spin, calc_rdm_energy
         use SystemData, only: nel, ecore
 
         type(rdm_estimates_t), intent(inout) :: est
         type(rdm_list_t), intent(in) :: rdm
-        type(rdm_list_t), intent(inout) :: rdm_recv
-        type(rdm_spawn_t), intent(inout) :: spawn
 
         real(dp) :: rdm_trace(est%nrdms), rdm_norm(est%nrdms)
         real(dp) :: rdm_energy_1(est%nrdms), rdm_energy_2(est%nrdms)
@@ -112,20 +131,24 @@ contains
         call calc_rdm_trace(rdm, rdm_trace)
         call MPISumAll(rdm_trace, est%trace)
 
+        ! RDMs are normalised so that their trace is nel*(nel-1)/2.
         rdm_norm = rdm_trace*2.0_dp/(nel*(nel-1))
         est%norm = est%trace*2.0_dp/(nel*(nel-1))
 
+        ! The 1- and 2- electron operator contributions to the RDM energy.
         call calc_rdm_energy(rdm, rdm_energy_1, rdm_energy_2)
         call MPISumAll(rdm_energy_1, est%energy_1_num)
         call MPISumAll(rdm_energy_2, est%energy_2_num)
+        ! The *total* energy, including the core contribution.
         est%energy_num = est%energy_1_num + est%energy_2_num + ecore*est%norm
 
+        ! Estimate of the expectation value of the spin squared operator
+        ! (equal to S(S+1) for spin quantum number S).
         call calc_rdm_spin(rdm, rdm_norm, rdm_spin)
         call MPISumAll(rdm_spin, est%spin_num)
 
-        ! Calculate the instantaneous values by taking the old total values
-        ! from the new total ones.
-
+        ! Calculate the instantaneous values by subtracting the old total
+        ! values from the new total ones.
         est%trace_inst = est%trace - est%trace_inst
         est%norm_inst = est%norm - est%norm_inst
         est%energy_1_num_inst = est%energy_1_num - est%energy_1_num_inst
@@ -136,6 +159,13 @@ contains
     end subroutine calc_rdm_estimates_wrapper
 
     subroutine rdm_output_wrapper(est, rdm, rdm_recv, spawn)
+
+        ! Call routines to output RDMs in all requested forms.
+
+        ! We also calculate the Hermitian errors here, since this is something
+        ! we typically want to do at the same point (the very end of a
+        ! simulation usually), and this requires large parallel
+        ! communications, as does the printing.
 
         use LoggingData, only: tWrite_normalised_RDMs, tWriteSpinFreeRDM
         use rdm_data, only: rdm_estimates_t, rdm_list_t, rdm_spawn_t, tOpenShell
@@ -150,12 +180,20 @@ contains
         type(rdm_spawn_t), intent(inout) :: spawn
 
         call calc_hermitian_errors(rdm, rdm_recv, spawn, est%norm, est%max_error_herm, est%sum_error_herm)
+
         if (tWriteSpinFreeRDM) call print_spinfree_2rdm_wrapper(rdm, rdm_recv, spawn, est%norm)
         if (tWrite_Normalised_RDMs) call print_rdms_spin_sym_wrapper(rdm, rdm_recv, spawn, est%norm, tOpenShell)
 
     end subroutine rdm_output_wrapper
 
     subroutine write_rdm_estimates(est, final_output)
+
+        ! Write RDM estimates to the RDMEstimates file. Specifically, the
+        ! numerator of the energy and spin^2 estimators are output, as is the
+        ! trace (the denominator of these estimator).
+
+        ! Also, if final_output is true, then output the final total estimates
+        ! to standard output, and close the RDMEstimates unit.
 
         use FciMCData, only: Iter, PreviousCycles
         use LoggingData, only: tRDMInstEnergy
@@ -195,6 +233,7 @@ contains
                 write(6,'(1x,"*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:",1x,es20.13,/)') &
                     est%energy_num(irdm)/est%norm(irdm)
             end do
+
             close(est%write_unit)
         end if
 

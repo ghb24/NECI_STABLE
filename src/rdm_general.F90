@@ -547,7 +547,7 @@ contains
 
             ! Calculate the RDM estmimates from the final few iterations,
             ! since it was last calculated.
-            call calc_rdm_estimates_wrapper(rdm_estimates, two_rdms, rdm_recv, spawn)
+            call calc_rdm_estimates_wrapper(rdm_estimates, two_rdms)
 
             ! Output the final 2-RDMs themselves, in all forms desired.
             call rdm_output_wrapper(rdm_estimates, two_rdms, rdm_recv, spawn)
