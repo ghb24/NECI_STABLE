@@ -1790,7 +1790,7 @@ contains
         ! This routine checks if we should start filling the RDMs - 
         ! and does so if we should. 
 
-        use rdm_general, only: DeAlloc_Alloc_SpawnedParts
+        use rdm_general, only: realloc_SpawnedParts
         use LoggingData, only: tReadRDMs
         implicit none
         logical :: tFullVaryshift
@@ -1829,7 +1829,7 @@ contains
                 ! By default - we will do a stochastic calculation of the RDM.
                 tFillingStochRDMonFly = .true.
 
-                call DeAlloc_Alloc_SpawnedParts()
+                call realloc_SpawnedParts()
                 ! The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
                 ! parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
                 ! Don't need any of this if we're just doing HF_Ref_Explicit calculation.

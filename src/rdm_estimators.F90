@@ -5,7 +5,7 @@ module rdm_estimators
     use bit_rep_data, only: NIfTot
     use constants
     use rdm_data, only: rdm_list_t, rdm_spawn_t
-    use rdm_parallel, only: calc_separate_rdm_labels, extract_sign_rdm
+    use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm
 
     implicit none
 
@@ -386,7 +386,7 @@ contains
         use hash, only: clear_hash_table
         use Parallel_neci, only: MPIAllReduce
         use ParallelHelper, only: MPI_SUM, MPI_MAX
-        use rdm_parallel, only: add_to_rdm_spawn_t, communicate_rdm_spawn_t, annihilate_rdm_list
+        use rdm_data_utils, only: add_to_rdm_spawn_t, communicate_rdm_spawn_t, annihilate_rdm_list
 
         type(rdm_list_t), intent(in) :: rdm
         type(rdm_list_t), intent(inout) :: rdm_recv

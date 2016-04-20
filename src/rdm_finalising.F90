@@ -9,8 +9,8 @@ module rdm_finalising
     use constants
     use Parallel_neci, only: iProcIndex, nProcessors
     use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t
-    use rdm_parallel, only: calc_separate_rdm_labels, extract_sign_rdm, add_to_rdm_spawn_t
-    use rdm_parallel, only: communicate_rdm_spawn_t
+    use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm, add_to_rdm_spawn_t
+    use rdm_data_utils, only: communicate_rdm_spawn_t
     use util_mod
 
     implicit none
@@ -360,7 +360,7 @@ contains
         ! If not, then the RDM in the rdm object will be overwritten. However,
         ! the hash table in these objects will *not* be updated.
 
-        use rdm_parallel, only: annihilate_rdm_list
+        use rdm_data_utils, only: annihilate_rdm_list
 
         type(rdm_list_t), intent(inout) :: rdm
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -418,7 +418,7 @@ contains
         ! systems we do need to apply full hermiticy, but also need to apply spatial
         ! hermiticy because spatial labels are written within each output file.
 
-        use rdm_parallel, only: annihilate_rdm_list
+        use rdm_data_utils, only: annihilate_rdm_list
 
         type(rdm_list_t), intent(inout) :: rdm
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -618,7 +618,7 @@ contains
         ! final two spin orbital labels swapped (introducing a minus sign), so
         ! that they give a contribution to the resulting spinfree RDM element.
 
-        use rdm_parallel, only: annihilate_rdm_list
+        use rdm_data_utils, only: annihilate_rdm_list
         use SystemData, only: nbasis
         use UMatCache, only: spatial
 

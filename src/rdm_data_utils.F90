@@ -1,9 +1,15 @@
 #include "macros.h"
 
-module rdm_parallel
+module rdm_data_utils
 
-    ! This module contains all routines used for the calculations of reduced
-    ! density matrices, when distributed across all MPI processes.
+    ! This module contains routines for performing common and general
+    ! operations with the RDM data structures defined in rdm_data. These
+    ! data structures are one_rdm_t, rdm_list_t and rdm_spawn_t.
+
+    ! For example, initialisation routines for these objects are held here,
+    ! as are routines to add RDMs together, perform annihilation within an
+    ! rdm_list_t object, and adding to and communicating with rdm_spawn_t
+    ! objects.
 
     use bit_rep_data, only: NIfTot, NIfDBO
     use constants
@@ -402,4 +408,4 @@ contains
 
     end subroutine annihilate_rdm_list
 
-end module rdm_parallel
+end module rdm_data_utils

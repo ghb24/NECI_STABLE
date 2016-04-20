@@ -656,7 +656,7 @@ module FciMCParMod
 
         use global_det_data, only: get_iter_occ, get_av_sgn
         use rdm_data, only: two_rdm_spawn, two_rdm_recv, two_rdm_main, one_rdms
-        use rdm_parallel, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2
+        use rdm_data_utils, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2
         
         ! Iteration specific data
         type(fcimc_iter_data), intent(inout) :: iter_data

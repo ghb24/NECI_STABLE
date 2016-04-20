@@ -797,7 +797,7 @@ contains
         use FciMCData, only: CurrentDets, TotWalkers
         use Parallel_neci, only: nProcessors, MPIArg
         use rdm_data, only: Doub_ExcDjs, Doub_ExcDjs2, two_rdm_spawn
-        use rdm_parallel, only: add_to_rdm_spawn_t
+        use rdm_data_utils, only: add_to_rdm_spawn_t
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
 
@@ -981,7 +981,7 @@ contains
         use hist_data, only: AllHistogram
         use Parallel_neci, only: nProcessors, MPIArg
         use rdm_data, only: Doub_ExcDjs, Doub_ExcDjs2, ExcNorm, two_rdm_spawn
-        use rdm_parallel, only: add_to_rdm_spawn_t
+        use rdm_data_utils, only: add_to_rdm_spawn_t
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
 

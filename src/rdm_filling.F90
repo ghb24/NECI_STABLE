@@ -527,7 +527,7 @@ contains
 
         use LoggingData, only: RDMExcitLevel
         use rdm_data, only: one_rdm_t
-        use rdm_parallel, only: add_to_rdm_spawn_t
+        use rdm_data_utils, only: add_to_rdm_spawn_t
         use SystemData, only: nel
 
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -584,7 +584,7 @@ contains
 
     subroutine fill_spawn_rdm_diag(spawn, nI, full_sign)
 
-        use rdm_parallel, only: add_to_rdm_spawn_t
+        use rdm_data_utils, only: add_to_rdm_spawn_t
         use SystemData, only: nel
 
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -606,7 +606,7 @@ contains
 
     subroutine fill_spawn_rdm_singles(spawn, nI, Ex, full_sign)
 
-        use rdm_parallel, only: add_to_rdm_spawn_t
+        use rdm_data_utils, only: add_to_rdm_spawn_t
         use SystemData, only: nel
 
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -755,7 +755,7 @@ contains
         use LoggingData, only: RDMExcitLevel, RDMEnergyIter
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: one_rdm_t
-        use rdm_parallel, only: add_to_rdm_spawn_t
+        use rdm_data_utils, only: add_to_rdm_spawn_t
         use sparse_arrays, only: sparse_core_ham, core_connections
         use SystemData, only: nel, tHPHF
 

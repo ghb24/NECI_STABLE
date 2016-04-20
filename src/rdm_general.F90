@@ -27,8 +27,8 @@ contains
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data, only: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
+        use rdm_data_utils, only: init_rdm_spawn_t, init_rdm_list_t
         use rdm_estimators, only: init_rdm_estimates_t
-        use rdm_parallel, only: init_rdm_spawn_t, init_rdm_list_t
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
         use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
@@ -445,7 +445,7 @@ contains
 
     end subroutine SetUpSymLabels_RDM
 
-    subroutine DeAlloc_Alloc_SpawnedParts()
+    subroutine realloc_SpawnedParts()
 
         ! Routine called when RDM accumulation is turned on, usually midway
         ! through an FCIQMC simulation.
@@ -464,7 +464,7 @@ contains
         use util_mod_byte_size
 
         integer :: ierr, nifbcast_old
-        character(len=*), parameter :: t_r = 'DeAlloc_Alloc_SpawnedParts'
+        character(len=*), parameter :: t_r = 'realloc_SpawnedParts'
 
         if (bit_rdm_init) &
             call stop_all(t_r, 'RDM broadcast representation already initialised')
@@ -498,7 +498,7 @@ contains
         ! And we are done
         bit_rdm_init = .true.
 
-    end subroutine DeAlloc_Alloc_SpawnedParts
+    end subroutine realloc_SpawnedParts
 
     subroutine dealloc_global_rdm_data()
 
@@ -523,7 +523,6 @@ contains
         character(len=*), parameter :: t_r = 'dealloc_global_rdm_data'
 
         if (tExplicitAllRDM) then
-
             ! This array contains the initial positions of the single
             ! excitations for each processor.
             deallocate(Sing_InitExcSlots)
@@ -539,7 +538,6 @@ contains
 
             deallocate(Sing_ExcDjs2)
             call LogMemDeAlloc(t_r,Sing_ExcDjs2Tag)
-
 
             if (RDMExcitLevel /= 1) then
                 ! This array contains the initial positions of the
@@ -558,9 +556,7 @@ contains
                 deallocate(Doub_ExcDjs2)
                 call LogMemDeAlloc(t_r,Doub_ExcDjs2Tag)
             end if
-
         else
-
             if (allocated(Spawned_Parents)) then
                 deallocate(Spawned_Parents)
                 call LogMemDeAlloc(t_r,Spawned_ParentsTag)
@@ -570,7 +566,6 @@ contains
                 deallocate(Spawned_Parents_Index)
                 call LogMemDeAlloc(t_r,Spawned_Parents_IndexTag)
             end if
-
         end if
 
         if (allocated(FourIndInts)) then
