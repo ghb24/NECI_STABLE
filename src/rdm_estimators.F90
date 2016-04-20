@@ -161,33 +161,6 @@ contains
 
     end subroutine calc_rdm_estimates_wrapper
 
-    subroutine rdm_output_wrapper(est, rdm, rdm_recv, spawn)
-
-        ! Call routines to output RDMs in all requested forms.
-
-        ! We also calculate the Hermitian errors here, since this is something
-        ! we typically want to do at the same point (the very end of a
-        ! simulation usually), and this requires large parallel
-        ! communications, as does the printing.
-
-        use LoggingData, only: tWrite_normalised_RDMs, tWriteSpinFreeRDM
-        use rdm_data, only: rdm_estimates_t, rdm_list_t, rdm_spawn_t, tOpenShell
-        use rdm_finalising, only: print_rdms_spin_sym_wrapper, print_spinfree_2rdm_wrapper
-
-        type(rdm_estimates_t), intent(inout) :: est
-        ! IMPORTANT: rdm is not actually modified by this routine, despite
-        ! needing inout status.
-        type(rdm_list_t), intent(inout) :: rdm
-        type(rdm_list_t), intent(inout) :: rdm_recv
-        type(rdm_spawn_t), intent(inout) :: spawn
-
-        call calc_hermitian_errors(rdm, rdm_recv, spawn, est%norm, est%max_error_herm, est%sum_error_herm)
-
-        if (tWriteSpinFreeRDM) call print_spinfree_2rdm_wrapper(rdm, rdm_recv, spawn, est%norm)
-        if (tWrite_Normalised_RDMs) call print_rdms_spin_sym_wrapper(rdm, rdm_recv, spawn, est%norm, tOpenShell)
-
-    end subroutine rdm_output_wrapper
-
     subroutine write_rdm_estimates(est, final_output)
 
         ! Write RDM estimates to the RDMEstimates file. Specifically, the

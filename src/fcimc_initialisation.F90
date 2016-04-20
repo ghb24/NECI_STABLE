@@ -87,7 +87,8 @@ module fcimc_initialisation
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD, only : InitHistInitPops
     use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
-    use rdm_general, only: init_rdms, deallocate_rdms, extract_bit_rep_avsign_no_rdm
+    use rdm_general, only: init_rdms, dealloc_global_rdm_data, &
+                           extract_bit_rep_avsign_no_rdm
     use rdm_general_old, only: InitRDMs_old, DeallocateRDMs_old
     use rdm_filling_old, only: fill_rdm_diag_currdet_norm_old
     use rdm_filling, only: fill_rdm_diag_currdet_norm
@@ -136,7 +137,6 @@ module fcimc_initialisation
     implicit none
 
 contains
-
 
     SUBROUTINE SetupParameters()
 
@@ -1651,7 +1651,7 @@ contains
         ENDIF
 
         if (tRDMonFly) then
-            call deallocate_rdms()
+            call dealloc_global_rdm_data()
             if (tOldRDMs) call DeallocateRDMs_old()
         end if
 

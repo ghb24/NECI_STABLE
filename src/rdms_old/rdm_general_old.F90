@@ -523,7 +523,7 @@ contains
         use rdm_data_old, only: rdm_t, rdm_estimates_old_t
         use rdm_estimators_old, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
         use rdm_estimators_old, only: rdm_output_wrapper_old, CalcDipoles, write_rdm_estimates_old
-        use rdm_general, only: Finalise_1e_RDM, calc_1e_norms
+        use rdm_finalising, only: Finalise_1e_RDM, calc_1e_norms
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
 
         type(rdm_t), intent(inout) :: two_rdms(:)
