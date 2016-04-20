@@ -40,7 +40,7 @@ contains
         type(rdm_estimates_t), intent(inout) :: rdm_estimates
 
         integer :: i, ierr
-        real(dp) :: Norm_1RDM, Trace_1RDM, SumN_Rho_ii
+        real(dp) :: norm_1rdm, trace_1rdm, SumN_Rho_ii
 
         call set_timer(FinaliseRDMs_Time)
 
@@ -74,12 +74,12 @@ contains
         ! Stuff using the 1-RDMs:
         do i = 1, size(one_rdms)
             if (RDMExcitLevel == 1) then
-                call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%Rho_ii, i, Norm_1RDM, .false.)
+                call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%rho_ii, i, norm_1rdm, .false.)
             else
                 if (tPrint1RDM) then
-                    call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%Rho_ii, i, Norm_1RDM, .false.)
+                    call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%rho_ii, i, norm_1rdm, .false.)
                 else if (tDiagRDM .and. iProcIndex == 0) then
-                    call calc_1e_norms(one_rdms(i)%matrix, one_rdms(i)%Rho_ii, Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
+                    call calc_1e_norms(one_rdms(i)%matrix, one_rdms(i)%rho_ii, trace_1rdm, norm_1rdm, SumN_Rho_ii)
                     write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
                 end if
             end if
@@ -957,7 +957,7 @@ contains
 
     ! ------- Routines for finalising 1-RDMs ---------------------------------
 
-    subroutine Finalise_1e_RDM(matrix, matrix_diag, irdm, Norm_1RDM, tOldRDMs)
+    subroutine Finalise_1e_RDM(matrix, matrix_diag, irdm, norm_1rdm, tOldRDMs)
 
         ! This routine takes the 1-RDM (matrix), normalises it, makes it
         ! hermitian if required, and prints out the versions we're interested
@@ -971,14 +971,14 @@ contains
         real(dp), intent(inout) :: matrix(:,:)
         real(dp), intent(inout) :: matrix_diag(:)
         integer, intent(in) :: irdm
-        real(dp), intent(out) :: Norm_1RDM
+        real(dp), intent(out) :: norm_1rdm
         logical, intent(in) :: tOldRDMs
 
         integer :: ierr
-        real(dp) :: Trace_1RDM, SumN_Rho_ii
+        real(dp) :: trace_1rdm, SumN_Rho_ii
         real(dp), allocatable :: AllNode_one_rdm(:,:)
 
-        Norm_1RDM = 0.0_dp
+        norm_1rdm = 0.0_dp
 
         if (RDMExcitLevel == 1) then
 
@@ -994,17 +994,17 @@ contains
         if (iProcIndex == 0) then
 
             ! Find the normalisation.
-            call calc_1e_norms(matrix, matrix_diag, Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
+            call calc_1e_norms(matrix, matrix_diag, trace_1rdm, norm_1rdm, SumN_Rho_ii)
 
             ! Write out the unnormalised, non-hermitian OneRDM_POPS.
-            if (twrite_RDMs_to_read) call write_1rdm(matrix, irdm, Norm_1RDM, .false., tOldRDMs)
+            if (twrite_RDMs_to_read) call write_1rdm(matrix, irdm, norm_1rdm, .false., tOldRDMs)
 
             ! Enforce the hermiticity condition.  If the RDMExcitLevel is not 1, the
             ! 1-RDM has been constructed from the hermitian 2-RDM, so this will not
             ! be necessary.
             ! The HF_Ref and HF_S_D_Ref cases are not hermitian by definition.
             if (RDMExcitLevel == 1) then
-                call make_1e_rdm_hermitian(matrix, Norm_1RDM)
+                call make_1e_rdm_hermitian(matrix, norm_1rdm)
 
                 if (tForceCauchySchwarz) then
                     call Force_Cauchy_Schwarz(matrix)
@@ -1013,7 +1013,7 @@ contains
             end if
 
             ! Write out the final, normalised, hermitian OneRDM.
-            if (tWrite_normalised_RDMs) call write_1rdm(matrix, irdm, Norm_1RDM, .true., tOldRDMs)
+            if (tWrite_normalised_RDMs) call write_1rdm(matrix, irdm, norm_1rdm, .true., tOldRDMs)
 
             write(6,'(1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
 
@@ -1033,29 +1033,30 @@ contains
 
         write(6,'("Ensuring that Cauchy--Schwarz inequality holds.")')
 
-        do i = 1, nbasis
-            do j = 1, nbasis
-                UpperBound = sqrt(matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(i)) &
-                    *matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(j)))
+        associate(ind => SymLabelListInv_rot)
+            do i = 1, nbasis
+                do j = 1, nbasis
+                    UpperBound = sqrt(matrix(ind(i),ind(i)) * matrix(ind(j),ind(j)))
 
-                if (abs(matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))) .gt. UpperBound)then
+                    if (abs(matrix(ind(i), ind(j))) > UpperBound) then
 
-                    if (matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) .lt. 0.0_dp)then
-                        matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = -UpperBound
-                    else if (matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) .gt. 0.0_dp)then
-                        matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = UpperBound
+                        if (matrix(ind(i), ind(j)) < 0.0_dp) then
+                            matrix(ind(i), ind(j)) = -UpperBound
+                        else if (matrix(ind(i), ind(j)) > 0.0_dp) then
+                            matrix(ind(i), ind(j)) = UpperBound
+                        end if
+
+                        write(6,'("Changing element:")') i, j
+                    else
+                        cycle
                     end if
-
-                    write(6,'("Changing element:")') i, j
-                else
-                    cycle
-                end if
+                end do
             end do
-        end do
+        end associate
 
     end subroutine Force_Cauchy_Schwarz
 
-    subroutine calc_1e_norms(matrix, matrix_diag, Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
+    subroutine calc_1e_norms(matrix, matrix_diag, trace_1rdm, norm_1rdm, SumN_Rho_ii)
 
         ! We want to 'normalise' the reduced density matrices. These are not
         ! even close to being normalised at the moment, because of the way
@@ -1074,21 +1075,21 @@ contains
 
         real(dp), intent(in) :: matrix(:,:)
         real(dp), intent(inout) :: matrix_diag(:)
-        real(dp), intent(out) :: Trace_1RDM, Norm_1RDM, SumN_Rho_ii
+        real(dp), intent(out) :: trace_1rdm, norm_1rdm, SumN_Rho_ii
 
         integer :: i, HFDet_ID, BRR_ID
 
-        Trace_1RDM = 0.0_dp
-        Norm_1RDM = 0.0_dp
+        trace_1rdm = 0.0_dp
+        norm_1rdm = 0.0_dp
 
         do i = 1, NoOrbs
-            Trace_1RDM = Trace_1RDM + matrix(i,i)
+            trace_1rdm = trace_1rdm + matrix(i,i)
         end do
 
-        Norm_1RDM = ( real(nel, dp) / Trace_1RDM )
+        norm_1rdm = real(nel, dp) / trace_1rdm
 
         ! Need to multiply each element of the 1 electron reduced density matrices
-        ! by nel / Trace_1RDM,
+        ! by nel / trace_1rdm,
         ! and then add it's contribution to the energy.
 
         ! Want to sum the diagonal elements of the 1-RDM for the HF orbitals.
@@ -1097,7 +1098,6 @@ contains
         SumN_Rho_ii = 0.0_dp
 
         do i = 1, NoOrbs
-
             ! Rho_ii is the diagonal elements of the 1-RDM. We want this
             ! ordered according to the energy of the orbitals. Brr has the
             ! orbital numbers in order of energy... i.e Brr(2) = the orbital
@@ -1106,32 +1106,30 @@ contains
             ! SymLabelListInv_rot gives the position of  this orbital in
             ! one_rdm.
 
-            if (tDiagRDM) then
-                if (tOpenShell) then
-                    matrix_diag(i) = matrix(SymLabelListInv_rot(BRR(i)),SymLabelListInv_rot(BRR(i))) * Norm_1RDM
-                else
-                    BRR_ID = gtID(BRR(2*i))
-                    matrix_diag(i) = matrix(SymLabelListInv_rot(BRR_ID),SymLabelListInv_rot(BRR_ID)) * Norm_1RDM
+            associate(ind => SymLabelListInv_rot)
+                if (tDiagRDM) then
+                    if (tOpenShell) then
+                        matrix_diag(i) = matrix(ind(BRR(i)), ind(BRR(i))) * norm_1rdm
+                    else
+                        BRR_ID = gtID(BRR(2*i))
+                        matrix_diag(i) = matrix(ind(BRR_ID), ind(BRR_ID)) * norm_1rdm
+                    end if
                 end if
-            end if
 
-            if (i < nel) then
-                if (tOpenShell) then
-                    SumN_Rho_ii = SumN_Rho_ii + &
-                            ( matrix(SymLabelListInv_rot(HFDet_True(i)),SymLabelListInv_rot(HFDet_True(i))) &
-                                * Norm_1RDM )
-                else
-                    HFDet_ID = gtID(HFDet_True(i))
-                    SumN_Rho_ii = SumN_Rho_ii + &
-                            ( matrix(SymLabelListInv_rot(HFDet_ID),SymLabelListInv_rot(HFDet_ID)) &
-                                * Norm_1RDM ) / 2.0_dp
+                if (i < nel) then
+                    if (tOpenShell) then
+                        SumN_Rho_ii = SumN_Rho_ii + ( matrix(ind(HFDet_True(i)), ind(HFDet_True(i))) * norm_1rdm )
+                    else
+                        HFDet_ID = gtID(HFDet_True(i))
+                        SumN_Rho_ii = SumN_Rho_ii + ( matrix(ind(HFDet_ID), ind(HFDet_ID)) * norm_1rdm ) / 2.0_dp
+                    end if
                 end if
-            end if
+            end associate
         end do
 
     end subroutine calc_1e_norms
 
-    subroutine make_1e_rdm_hermitian(matrix, Norm_1RDM)
+    subroutine make_1e_rdm_hermitian(matrix, norm_1rdm)
 
         ! Simply average the 1-RDM(i,j) and 1-RDM(j,i) elements which should
         ! be equal in a perfect world.
@@ -1139,43 +1137,41 @@ contains
         use RotateOrbsData, only: SymLabelListInv_rot, NoOrbs
 
         real(dp), intent(inout) :: matrix(:,:)
-        real(dp), intent(in) :: Norm_1RDM
+        real(dp), intent(in) :: norm_1rdm
 
-        real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity
+        real(dp) :: max_error_herm, sum_error_herm
         integer :: i, j
-        real(dp) :: Temp
+        real(dp) :: temp
 
-        Max_Error_Hermiticity = 0.0_dp
-        Sum_Error_Hermiticity = 0.0_dp
-        do i = 1, NoOrbs
-            do j = i, NoOrbs
-                if ((abs((matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
-                        (matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))).gt.Max_Error_Hermiticity) &
-                    Max_Error_Hermiticity = abs((matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
-                                                (matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))
+        max_error_herm = 0.0_dp
+        sum_error_herm = 0.0_dp
 
-                Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                        abs((matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM) - &
-                                            (matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i))*Norm_1RDM))
+        associate(ind => SymLabelListInv_rot)
+            do i = 1, NoOrbs
+                do j = i, NoOrbs
+                    if ((abs((matrix(ind(i),ind(j))*norm_1rdm) - (matrix(ind(j),ind(i))*norm_1rdm))) > max_error_herm) then
+                        max_error_herm = abs(matrix(ind(i),ind(j))*norm_1rdm - matrix(ind(j), ind(i))*norm_1rdm)
+                    end if
 
-                Temp = (matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) + &
-                        matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)))/2.0_dp
+                    sum_error_herm = sum_error_herm + abs(matrix(ind(i),ind(j))*norm_1rdm - matrix(ind(j),ind(i))*norm_1rdm)
 
-                matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = Temp
-                matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = Temp
+                    temp = (matrix(ind(i),ind(j)) + matrix(ind(j),ind(i)))/2.0_dp
+                    matrix(ind(i), ind(j)) = temp
+                    matrix(ind(j), ind(i)) = temp
+                end do
             end do
-        end do
+        end associate
 
         ! Output the hermiticity errors.
-        write(6,'(1X,"MAX ABS ERROR IN 1RDM HERMITICITY",F20.13)') Max_Error_Hermiticity
-        write(6,'(1X,"MAX ABS ERROR IN 1RDM HERMITICITY",F20.13)') Sum_Error_Hermiticity
+        write(6,'(1X,"MAX ABS ERROR IN 1RDM HERMITICITY",F20.13)') max_error_herm
+        write(6,'(1X,"MAX ABS ERROR IN 1RDM HERMITICITY",F20.13)') sum_error_herm
 
     end subroutine make_1e_rdm_hermitian
 
-    subroutine write_1rdm(one_rdm, irdm, Norm_1RDM, tNormalise, tOldRDMs)
+    subroutine write_1rdm(one_rdm, irdm, norm_1rdm, tNormalise, tOldRDMs)
 
         ! This routine writes out the OneRDM. If tNormalise is true, we are
-        ! printing the normalised, hermitian matrix. Otherwise, Norm_1RDM is
+        ! printing the normalised, hermitian matrix. Otherwise, norm_1rdm is
         ! ignored and we print both 1-RDM(i,j) and 1-RDM(j,i) (in binary)
         ! for the OneRDM_POPS file to be read in in a restart calculation.
 
@@ -1187,83 +1183,82 @@ contains
 
         real(dp), intent(in) :: one_rdm(:,:)
         integer, intent(in) :: irdm
-        real(dp), intent(in) :: Norm_1RDM
+        real(dp), intent(in) :: norm_1rdm
         logical, intent(in) :: tNormalise
         logical, intent(in) :: tOldRDMs
 
         integer :: i, j, iSpat, jSpat
-        integer :: OneRDM_unit
+        integer :: one_rdm_unit
         character(20) :: filename
 
         if (tNormalise) then
             ! Haven't got the capabilities to produce multiple 1-RDMs yet.
             write(6,'(1X,"Writing out the *normalised* 1 electron density matrix to file")')
             call neci_flush(6)
-            OneRDM_unit = get_free_unit()
+            one_rdm_unit = get_free_unit()
 #ifdef _MOLCAS_
-            call molcas_open(OneRDM_unit, "ONERDM")
+            call molcas_open(one_rdm_unit, "ONERDM")
 #else
             if (tOldRDMs) then
                 write(filename, '("OneRDM_old.",'//int_fmt(irdm,0)//')') irdm
-                open(OneRDM_unit, file=trim(filename), status='unknown')
+                open(one_rdm_unit, file=trim(filename), status='unknown')
             else
                 write(filename, '("OneRDM.",'//int_fmt(irdm,0)//')') irdm
-                open(OneRDM_unit, file=trim(filename), status='unknown')
+                open(one_rdm_unit, file=trim(filename), status='unknown')
             end if
 #endif
         else
             ! Only every write out 1 of these at the moment.
             write(6,'(1X,"Writing out the *unnormalised* 1 electron density matrix to file for reading in")')
             call neci_flush(6)
-            OneRDM_unit = get_free_unit()
+            one_rdm_unit = get_free_unit()
             if (tOldRDMs) then
                 write(filename, '("OneRDM_POPS_old.",'//int_fmt(irdm,0)//')') irdm
-                open(OneRDM_unit, file=trim(filename), status='unknown', form='unformatted')
+                open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
             else
                 write(filename, '("OneRDM_POPS.",'//int_fmt(irdm,0)//')') irdm
-                open(OneRDM_unit, file=trim(filename), status='unknown', form='unformatted')
+                open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
             end if
         end if
 
         ! Currently always printing 1-RDM in spin orbitals.
-        do i = 1, nbasis
-            do j = 1, nbasis
-                if (tOpenShell) then
-                    if (abs(one_rdm(SymLabelListInv_rot(i), SymLabelListInv_rot(j))) > 1.0e-12_dp) then
-                        if (tNormalise .and. (i .le. j)) then
-                            write(OneRDM_unit,"(2I6,G25.17)") i, j, &
-                                one_rdm(SymLabelListInv_rot(i), SymLabelListInv_rot(j)) * Norm_1RDM
-                        else if (.not. tNormalise) then
-                            ! For the pops, we haven't made the 1-RDM hermitian yet,
-                            ! so print both the 1-RDM(i,j) and 1-RDM(j,i) elements.
-                            ! This is written in binary.
-                            write(OneRDM_unit) i, j, one_rdm(SymLabelListInv_rot(i), SymLabelListInv_rot(j))
-                        end if
-                    end if
-                else
-                    iSpat = gtID(i)
-                    jSpat = gtID(j)
-                    if (abs(one_rdm(SymLabelListInv_rot(iSpat), SymLabelListInv_rot(jSpat))) > 1.0e-12_dp) then
-                        if (tNormalise .and. (i .le. j)) then
-                            if (((mod(i,2).eq.0) .and. (mod(j,2) .eq. 0)) .or. &
-                                ((mod(i,2).ne.0) .and. (mod(j,2) .ne. 0))) then
-                                write(OneRDM_unit,"(2I6,G25.17)") i, j, &
-                                    ( one_rdm(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat)) &
-                                                                    * Norm_1RDM ) / 2.0_dp
-                            end if
-                        else if (.not. tNormalise) then
-                            ! The popsfile can be printed in spatial orbitals.
-                            if ((mod(i,2) .eq. 0) .and. (mod(j,2) .eq. 0)) then
-                                write(OneRDM_unit) iSpat, jSpat, &
-                                    one_rdm(SymLabelListInv_rot(iSpat), SymLabelListInv_rot(jSpat))
+        associate(ind => SymLabelListInv_rot)
+            do i = 1, nbasis
+                do j = 1, nbasis
+                    if (tOpenShell) then
+                        if (abs(one_rdm(ind(i), ind(j))) > 1.0e-12_dp) then
+                            if (tNormalise .and. (i <= j)) then
+                                write(one_rdm_unit,"(2I6,G25.17)") i, j, one_rdm(ind(i), ind(j)) * norm_1rdm
+                            else if (.not. tNormalise) then
+                                ! For the pops, we haven't made the 1-RDM hermitian yet,
+                                ! so print both the 1-RDM(i,j) and 1-RDM(j,i) elements.
+                                ! This is written in binary.
+                                write(one_rdm_unit) i, j, one_rdm(ind(i), ind(j))
                             end if
                         end if
+                    else
+                        iSpat = gtID(i)
+                        jSpat = gtID(j)
+                        if (abs(one_rdm(ind(iSpat), ind(jSpat))) > 1.0e-12_dp) then
+                            if (tNormalise .and. (i <= j)) then
+                                if (((mod(i,2) == 0) .and. (mod(j,2) == 0)) .or. &
+                                    ((mod(i,2) /= 0) .and. (mod(j,2) .ne. 0))) then
+                                    write(one_rdm_unit,"(2I6,G25.17)") i, j, &
+                                        ( one_rdm(ind(iSpat),ind(jSpat)) * norm_1rdm ) / 2.0_dp
+                                end if
+                            else if (.not. tNormalise) then
+                                ! The popsfile can be printed in spatial orbitals.
+                                if ((mod(i,2) == 0) .and. (mod(j,2) == 0)) then
+                                    write(one_rdm_unit) iSpat, jSpat, one_rdm(ind(iSpat), ind(jSpat))
+                                end if
+                            end if
+                        end if
                     end if
-                end if
+                end do
             end do
-        end do
+        end associate
 
-        close(OneRDM_unit)
+        close(one_rdm_unit)
 
     end subroutine write_1rdm
 

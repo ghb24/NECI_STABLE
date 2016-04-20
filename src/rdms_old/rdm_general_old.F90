@@ -31,13 +31,14 @@ contains
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: tOpenShell, tCalc_RDMEnergy
         use rdm_data_old, only: rdms, one_rdms_old, rdm_write_unit_old, rdm_estimates_old
+        use rdm_data_utils, only: init_one_rdm_t
         use RotateOrbsData, only: NoOrbs, SpatOrbs
         use util_mod, only: get_free_unit, LogMemAlloc
 
         integer, intent(in) :: nrdms
 
         integer :: ierr, i, iproc, rdm_size_1, rdm_size_2
-        integer :: MemoryAlloc, MemoryAlloc_Root
+        integer :: memory_alloc, memory_alloc_root
         character(len=*), parameter :: t_r = 'InitRDMs_old'
 
         if (.not. allocated(rdms)) allocate(rdms(nrdms))
@@ -49,21 +50,18 @@ contains
         rdm_size_1 = (SpatOrbs*(SpatOrbs-1))/2
         rdm_size_2 = (SpatOrbs*(SpatOrbs+1))/2
 
-        MemoryAlloc = 0
+        memory_alloc = 0
         ! Memory allocated in bytes.
-        MemoryAlloc_Root = 0
+        memory_alloc_root = 0
 
         ! First for the storage of the actual 1- or 2-RDM.
         if (RDMExcitLevel .eq. 1) then
 
             do i = 1, nrdms
-                allocate(one_rdms_old(i)%matrix(NoOrbs, NoOrbs), stat=ierr)
-                if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating 1-RDM array,')
-                call LogMemAlloc('one_rdms_old(i)%matrix', NoOrbs**2, 8, t_r, one_rdms_old(i)%matrix_tag, ierr)
-                one_rdms_old(i)%matrix(:,:) = 0.0_dp
+                call init_one_rdm_t(one_rdms_old(i), NoOrbs)
 
-                MemoryAlloc = MemoryAlloc + ( NoOrbs * NoOrbs * 8 )
-                MemoryAlloc_Root = MemoryAlloc_Root + ( NoOrbs * NoOrbs * 8 )
+                memory_alloc = memory_alloc + ( NoOrbs * NoOrbs * 8 )
+                memory_alloc_root = memory_alloc_root + ( NoOrbs * NoOrbs * 8 )
             end do
         else
             ! If we're calculating the 2-RDM, the 1-RDM does not need to be
@@ -95,8 +93,8 @@ contains
                     call LogMemAlloc('rdms(i)%abba_inst', (rdm_size_1**2), 8, t_r, rdms(i)%abba_instTag, ierr)
                     rdms(i)%abba_inst(:,:) = 0.0_dp
 
-                    MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
-                    MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
+                    memory_alloc = memory_alloc + (rdm_size_1**2)*2*8
+                    memory_alloc_root = memory_alloc_root + (rdm_size_1**2)*2*8
 
                     ! The 2-RDM of the type alpha beta alpha beta ( = beta alpha beta alpha).
                     ! These *do* include 2-RDM(i,j,a,b) terms where i=j or a=b, if they're
@@ -107,8 +105,8 @@ contains
                     call LogMemAlloc('rdms(i)%abab_inst', (rdm_size_2**2), 8, t_r, rdms(i)%abab_instTag, ierr)
                     rdms(i)%abab_inst(:,:) = 0.0_dp
 
-                    MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
-                    MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8 
+                    memory_alloc = memory_alloc + (rdm_size_2**2)*8
+                    memory_alloc_root = memory_alloc_root + (rdm_size_2**2)*8 
 
                     ! Extra arrays for open shell systems.
                     if (tOpenShell) then
@@ -121,15 +119,15 @@ contains
                         if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating baab_inst RDM array,')
                         call LogMemAlloc('rdms(i)%baab_inst', (rdm_size_1**2), 8, t_r, rdms(i)%baab_instTag, ierr)
                         rdms(i)%baab_inst(:,:) = 0.0_dp
-                        MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
-                        MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
+                        memory_alloc = memory_alloc + (rdm_size_1**2)*2*8
+                        memory_alloc_root = memory_alloc_root + (rdm_size_1**2)*2*8
 
                         allocate(rdms(i)%baba_inst(rdm_size_2, rdm_size_2), stat=ierr)
                         if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating baba_inst RDM array,')
                         call LogMemAlloc('rdms(i)%baba_inst', (rdm_size_2**2), 8, t_r, rdms(i)%baba_instTag, ierr)
                         rdms(i)%baba_inst(:,:) = 0.0_dp
-                        MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
-                        MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
+                        memory_alloc = memory_alloc + (rdm_size_2**2)*8
+                        memory_alloc_root = memory_alloc_root + (rdm_size_2**2)*8
                     end if
 
                     if (iProcIndex .eq. 0) then
@@ -148,10 +146,10 @@ contains
                         call LogMemAlloc('rdms(i)%abba_full', (rdm_size_1**2), 8, t_r, rdms(i)%abba_fullTag, ierr)
                         rdms(i)%abba_full(:,:) = 0.0_dp
 
-                        MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
-                        MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
-                        MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
-                        MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
+                        memory_alloc_root = memory_alloc_root + (rdm_size_1**2)*2*8
+                        memory_alloc_root = memory_alloc_root + (rdm_size_2**2)*8
+                        memory_alloc = memory_alloc + (rdm_size_1**2)*2*8
+                        memory_alloc = memory_alloc + (rdm_size_2**2)*8
 
                         if (tOpenShell) then
                             allocate(rdms(i)%bbbb_full(rdm_size_1, rdm_size_1), stat=ierr)
@@ -169,10 +167,10 @@ contains
                             call LogMemAlloc('rdms(i)%baab_full', (rdm_size_1**2), 8,t_r, rdms(i)%baab_fullTag, ierr)
                             rdms(i)%baab_full(:,:) = 0.0_dp
 
-                            MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
-                            MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
-                            MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
-                            MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
+                            memory_alloc_root = memory_alloc_root + (rdm_size_1**2)*2*8
+                            memory_alloc_root = memory_alloc_root + (rdm_size_2**2)*8
+                            memory_alloc = memory_alloc + (rdm_size_1**2)*2*8
+                            memory_alloc = memory_alloc + (rdm_size_2**2)*8
 
                         end if
 
@@ -205,8 +203,8 @@ contains
                     call LogMemAlloc('rdms(i)%abba_full', (rdm_size_1**2), 8, t_r, rdms(i)%abba_fullTag, ierr)
                     rdms(i)%abba_full(:,:) = 0.0_dp
 
-                    MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
-                    MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
+                    memory_alloc = memory_alloc + (rdm_size_1**2)*2*8
+                    memory_alloc_root = memory_alloc_root + (rdm_size_1**2)*2*8
 
                     ! The 2-RDM of the type alpha beta alpha beta ( = beta alpha beta alpha).
                     ! These *do* include 2-RDM(i,j,a,b) terms where i=j or a=b, if they're
@@ -217,8 +215,8 @@ contains
                     call LogMemAlloc('rdms(i)%abab_full', (rdm_size_2**2), 8, t_r, rdms(i)%abab_fullTag, ierr)
                     rdms(i)%abab_full(:,:) = 0.0_dp
 
-                    MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
-                    MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
+                    memory_alloc = memory_alloc + (rdm_size_2**2)*8
+                    memory_alloc_root = memory_alloc_root + (rdm_size_2**2)*8
                     
                     rdms(i)%aaaa => rdms(i)%aaaa_full
                     rdms(i)%abba => rdms(i)%abba_full
@@ -234,15 +232,15 @@ contains
                         if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating baab_full array,')
                         call LogMemAlloc('rdms(i)%baab_full', (rdm_size_1**2), 8, t_r, rdms(i)%baab_fullTag, ierr)
                         rdms(i)%baab_full(:,:) = 0.0_dp
-                        MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
-                        MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
+                        memory_alloc = memory_alloc + (rdm_size_1**2)*2*8
+                        memory_alloc_root = memory_alloc_root + (rdm_size_1**2)*2*8
 
                         allocate(rdms(i)%baba_full(rdm_size_2, rdm_size_2), stat=ierr)
                         if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating baba_full RDM array,')
                         call LogMemAlloc('rdms(i)%baba_full', (rdm_size_2**2), 8, t_r, rdms(i)%baba_fullTag, ierr)
                         rdms(i)%baba_full(:,:) = 0.0_dp
-                        MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
-                        MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
+                        memory_alloc = memory_alloc + (rdm_size_2**2)*8
+                        memory_alloc_root = memory_alloc_root + (rdm_size_2**2)*8
           
                         rdms(i)%bbbb => rdms(i)%bbbb_full
                         rdms(i)%baab => rdms(i)%baab_full
@@ -257,7 +255,7 @@ contains
                         if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating 1-RDM array,')
                         call LogMemAlloc('one_rdms_old(i)%matrix', NoOrbs**2,8, t_r, one_rdms_old(i)%matrix_tag, ierr)
                         one_rdms_old(i)%matrix(:,:) = 0.0_dp
-                        MemoryAlloc_Root = MemoryAlloc_Root + ( NoOrbs * NoOrbs * 8 )
+                        memory_alloc_root = memory_alloc_root + ( NoOrbs * NoOrbs * 8 )
                     end if
                 end if
             end do ! Looping over all RDMs.
@@ -270,13 +268,13 @@ contains
                 do i = 1, nrdms
                     allocate(one_rdms_old(i)%Evalues(NoOrbs), stat=ierr)
                     if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Evalues array,')
-                    call LogMemAlloc('one_rdms_old(i)%Evalues', NoOrbs, 8, t_r, one_rdms_old(i)%EvaluesTag, ierr)
+                    call LogMemAlloc('one_rdms_old(i)%Evalues', NoOrbs, 8, t_r, one_rdms_old(i)%evalues_tag, ierr)
                     one_rdms_old(i)%Evalues(:) = 0.0_dp
 
-                    allocate(one_rdms_old(i)%Rho_ii(NoOrbs), stat=ierr)
-                    if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Rho_ii array,')
-                    call LogMemAlloc('one_Rho_ii', NoOrbs, 8, t_r, one_rdms_old(i)%Rho_iiTag, ierr)
-                    one_rdms_old(i)%Rho_ii(:) = 0.0_dp
+                    allocate(one_rdms_old(i)%rho_ii(NoOrbs), stat=ierr)
+                    if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating rho_ii array,')
+                    call LogMemAlloc('one_rdms_old(i)%rho_ii', NoOrbs, 8, t_r, one_rdms_old(i)%rho_ii_tag, ierr)
+                    one_rdms_old(i)%rho_ii(:) = 0.0_dp
                 end do
             end if
 
@@ -538,7 +536,7 @@ contains
         do i = 1, size(one_rdms)
 
             if (RDMExcitLevel .eq. 1) then
-                call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%Rho_ii, i, Norm_1RDM, .true.)
+                call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%rho_ii, i, Norm_1RDM, .true.)
             else
                 ! We always want to calculate one final RDM energy, whether or not we're 
                 ! calculating the energy throughout the calculation.
@@ -548,14 +546,14 @@ contains
                 call rdm_output_wrapper_old(two_rdms(i), one_rdms(i), i, rdm_estimates_old(i), .true.)
 
                 if (tPrint1RDM) then
-                    call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%Rho_ii, i, Norm_1RDM, .true.)
+                    call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%rho_ii, i, Norm_1RDM, .true.)
                 else if (tDiagRDM .and. (iProcIndex .eq. 0)) then
-                    call calc_1e_norms(one_rdms(i)%matrix, one_rdms(i)%Rho_ii, Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
+                    call calc_1e_norms(one_rdms(i)%matrix, one_rdms(i)%rho_ii, Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
                     write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
                 end if
 
                 if (tDumpForcesInfo) then
-                    if (.not. tPrint1RDM) call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%Rho_ii, i, Norm_1RDM, .true.)
+                    if (.not. tPrint1RDM) call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%rho_ii, i, Norm_1RDM, .true.)
                     call Calc_Lagrangian_from_RDM(two_rdms(i), one_rdms(i), Norm_1RDM, rdm_estimates_old(i)%Norm_2RDM)
                     call convert_mats_Molpforces(two_rdms(i), one_rdms(i), Norm_1RDM, rdm_estimates_old(i)%Norm_2RDM)
                 end if
@@ -572,7 +570,7 @@ contains
             ! This is where we would likely call any further calculations of
             ! forces, etc.
             if (tDipoles) then
-                if (.not. tPrint1RDM) call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%Rho_ii, i, Norm_1RDM, .true.)
+                if (.not. tPrint1RDM) call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%rho_ii, i, Norm_1RDM, .true.)
                 call CalcDipoles(one_rdms(i), Norm_1RDM)
             end if
 
@@ -619,12 +617,12 @@ contains
 
             if (allocated(one_rdms_old(i)%Evalues)) then
                 deallocate(one_rdms_old(i)%Evalues)
-                call LogMemDeAlloc(t_r,one_rdms_old(i)%EvaluesTag)
+                call LogMemDeAlloc(t_r,one_rdms_old(i)%evalues_tag)
             end if
 
-            if (allocated(one_rdms_old(i)%Rho_ii)) then
-                deallocate(one_rdms_old(i)%Rho_ii)
-                call LogMemDeAlloc(t_r,one_rdms_old(i)%Rho_iiTag)
+            if (allocated(one_rdms_old(i)%rho_ii)) then
+                deallocate(one_rdms_old(i)%rho_ii)
+                call LogMemDeAlloc(t_r,one_rdms_old(i)%rho_ii_tag)
             end if
 
             if (associated(rdms(i)%aaaa_inst)) then

@@ -15,12 +15,12 @@ module rdm_data
         real(dp), allocatable :: matrix(:,:)
 
         ! Eigenvalues of the 1-RDM.
-        real(dp), allocatable :: Evalues(:)
+        real(dp), allocatable :: evalues(:)
         ! Arrays to hold the diagonal of the 1-RDM, and the Lagrangian.
-        real(dp), allocatable :: Rho_ii(:)
-        real(dp), allocatable :: Lagrangian(:,:)
+        real(dp), allocatable :: rho_ii(:)
+        real(dp), allocatable :: lagrangian(:,:)
 
-        integer :: Rho_iiTag, matrix_tag, EvaluesTag
+        integer :: rho_ii_tag, matrix_tag, evalues_tag
 
         ! In the 1-RDM matrix array, elements are not stored in the same order
         ! as the orbitals in the rest of the code. Instead, orbitals are

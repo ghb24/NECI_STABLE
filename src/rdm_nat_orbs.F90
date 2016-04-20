@@ -116,27 +116,27 @@ contains
 
         do i = 1, NoOrbs
             if (tOpenShell) then
-                write(Evalues_unit,'(I6,G35.17,I15,G35.17)') i, rdm%Evalues(i)/Norm_Evalues, &
+                write(Evalues_unit,'(I6,G35.17,I15,G35.17)') i, rdm%evalues(i)/Norm_Evalues, &
                                                                 BRR(i), rdm%Rho_ii(i)
-                if (rdm%Evalues(i) .gt. 0.0_dp) then
-                    Corr_Entropy = Corr_Entropy - ( abs(rdm%Evalues(i)/ Norm_Evalues) &
-                                                    * LOG(abs(rdm%Evalues(i)/ Norm_Evalues)) )
+                if (rdm%evalues(i) .gt. 0.0_dp) then
+                    Corr_Entropy = Corr_Entropy - ( abs(rdm%evalues(i)/ Norm_Evalues) &
+                                                    * LOG(abs(rdm%evalues(i)/ Norm_Evalues)) )
                 else
                     tNegEvalue = .true.
                 end if
-                if (i .le. NEl) SumN_NO_Occ = SumN_NO_Occ + (rdm%Evalues(i)/Norm_Evalues)
+                if (i .le. NEl) SumN_NO_Occ = SumN_NO_Occ + (rdm%evalues(i)/Norm_Evalues)
             else
-                write(Evalues_unit,'(I6,G35.17,I15,G35.17)') (2*i)-1,rdm%Evalues(i)/Norm_Evalues, &
+                write(Evalues_unit,'(I6,G35.17,I15,G35.17)') (2*i)-1,rdm%evalues(i)/Norm_Evalues, &
                                                             BRR((2*i)-1), rdm%Rho_ii(i)/2.0_dp
-                if (rdm%Evalues(i).gt.0.0_dp) then
-                    Corr_Entropy = Corr_Entropy - (2.0_dp * ( abs(rdm%Evalues(i)/Norm_Evalues) &
-                                                    * LOG(abs(rdm%Evalues(i)/Norm_Evalues)) ) )
+                if (rdm%evalues(i).gt.0.0_dp) then
+                    Corr_Entropy = Corr_Entropy - (2.0_dp * ( abs(rdm%evalues(i)/Norm_Evalues) &
+                                                    * LOG(abs(rdm%evalues(i)/Norm_Evalues)) ) )
                 else
                     tNegEvalue = .true.
                 end if
-                write(Evalues_unit,'(I6,G35.17,I15,G35.17)') 2*i,rdm%Evalues(i)/Norm_Evalues, &
+                write(Evalues_unit,'(I6,G35.17,I15,G35.17)') 2*i,rdm%evalues(i)/Norm_Evalues, &
                                                             BRR(2*i), rdm%Rho_ii(i)/2.0_dp
-                if (i .le. (NEl/2)) SumN_NO_Occ = SumN_NO_Occ + (2.0_dp * (rdm%Evalues(i)/Norm_Evalues))
+                if (i .le. (NEl/2)) SumN_NO_Occ = SumN_NO_Occ + (2.0_dp * (rdm%evalues(i)/Norm_Evalues))
             end if
         end do
         close(Evalues_unit)
@@ -149,8 +149,8 @@ contains
 
         ! Write out the evectors to file.
         ! This is the matrix that transforms the molecular orbitals into the
-        ! natural orbitals. rdm%Evalues(i) corresponds to Evector NatOrbsMat(1:nBasis,i)
-        ! We just want the rdm%Evalues in the same order as above, but the
+        ! natural orbitals. rdm%evalues(i) corresponds to Evector NatOrbsMat(1:nBasis,i)
+        ! We just want the rdm%evalues in the same order as above, but the
         ! 1:nBasis part (corresponding to the molecular orbitals), needs to
         ! refer to the actual orbital labels. Want these orbitals to preferably
         ! be in order, run through the orbital, need the position to find the
@@ -188,7 +188,7 @@ contains
                         else
                             if (rdm%matrix(arr_ind(jInd),i_no) .ne. 0.0_dp) then
                                 write(NatOrbs_unit,'(2I6,2G35.17)') j, NO_Number, rdm%matrix(arr_ind(jInd),i_no), &
-                                                                    rdm%Evalues(i_no)/Norm_Evalues
+                                                                    rdm%evalues(i_no)/Norm_Evalues
                                 tWrittenEvalue = .true.
                             end if
                         end if
@@ -209,7 +209,7 @@ contains
                             else
                                 if (rdm%matrix(arr_ind(jSpat),i_no) .ne. 0.0_dp) then
                                     write(NatOrbs_unit,'(2I6,2G35.17)') j, NO_Number, rdm%matrix(arr_ind(jSpat),i_no), &
-                                                                        rdm%Evalues(i_no)/Norm_Evalues
+                                                                        rdm%evalues(i_no)/Norm_Evalues
                                     tWrittenEvalue = .true.
                                 end if
                             end if
@@ -379,7 +379,7 @@ contains
                 ! EvaluesSym comes out as the eigenvalues in ascending order.
 
                 do i = 1, NoSymBlock
-                    rdm%Evalues(SymStartInd+i) = EvaluesSym(NoSymBlock-i+1)
+                    rdm%evalues(SymStartInd+i) = EvaluesSym(NoSymBlock-i+1)
                 end do
 
                 ! CAREFUL if eigenvalues are put in ascending order, this may not be 
@@ -408,7 +408,7 @@ contains
             else if (NoSymBlock .eq. 1) then
                 ! The eigenvalue is the lone value, while the eigenvector is 1.
 
-                rdm%Evalues(SymStartInd+1) = rdm%matrix(SymStartInd+1, SymStartInd+1)
+                rdm%evalues(SymStartInd+1) = rdm%matrix(SymStartInd+1, SymStartInd+1)
                 rdm%matrix(SymStartInd+1, SymStartInd+1) = 1.0_dp
             end if
 
@@ -420,7 +420,7 @@ contains
 
         SumDiagTrace = 0.0_dp
         do i = 1, NoOrbs
-            SumDiagTrace = SumDiagTrace + rdm%Evalues(i)
+            SumDiagTrace = SumDiagTrace + rdm%evalues(i)
         end do
 
         if ((abs(SumDiagTrace-SumTrace)).gt.1.0_dp) then
@@ -537,10 +537,10 @@ contains
         end do
 
         SymLabelList_temp = rdm%sym_list_no
-        EvaluesTemp = rdm%Evalues
+        EvaluesTemp = rdm%evalues
         do i = 1, NoOrbs
             rdm%sym_list_no(i) = SymLabelList_temp(NoOrbs-i+1)
-            rdm%Evalues(i) = EvaluesTemp(NoOrbs-i+1)
+            rdm%evalues(i) = EvaluesTemp(NoOrbs-i+1)
         end do
 
         deallocate(one_rdm_Temp)
@@ -961,7 +961,7 @@ contains
 
     end subroutine PrintROFCIDUMP_RDM
 
-    subroutine BrokenSymNO(Evalues, occ_numb_diff)
+    subroutine BrokenSymNO(evalues, occ_numb_diff)
 
         ! This rouine finds natural orbitals (NOs) whose occupation
         ! numbers differ by a small relative threshold (occ_numb_diff) and
@@ -980,7 +980,7 @@ contains
         use SystemData, only: nel, tStoreSpinOrbs
         use UMatCache, only: UMatInd
 
-        real(dp), intent(in) :: Evalues(:)
+        real(dp), intent(in) :: evalues(:)
         real(dp), intent(in) :: occ_numb_diff
 
         real(dp) :: diffnorm, SumDiag, sum_old, sum_new, selfint_old
@@ -1007,7 +1007,7 @@ contains
             end do
 
             ! Normalisation.
-            SumDiag = sum(Evalues)
+            SumDiag = sum(evalues)
 
             if (tStoreSpinOrbs) then
                 diffnorm = SumDiag/dble(NEl)
@@ -1088,7 +1088,7 @@ contains
                         n = 1
                         do l2 = (l1+1), NoOrbs
 
-                            if ((abs((Evalues(l1)/diffnorm)-(Evalues(l2)/diffnorm))/abs((Evalues(l2)/diffnorm)))&
+                            if ((abs((evalues(l1)/diffnorm)-(evalues(l2)/diffnorm))/abs((evalues(l2)/diffnorm)))&
                                 & .lt. occ_numb_diff) then
                             if (.not. partnerfound) then
                                 m = m + 1
@@ -1401,16 +1401,16 @@ contains
         ! This is a better measure than the second derivatives.
         selfinteractions(:) = 0.0_dp 
 
-        do l1=1,17
+        do l1 = 1, 17
             trans_2orbs_coeffs(1,1) = cos(alpha2(l1))
             trans_2orbs_coeffs(2,1) = sin(alpha2(l1))
             trans_2orbs_coeffs(1,2) = -sin(alpha2(l1))
             trans_2orbs_coeffs(2,2) = cos(alpha2(l1))
 
-            do l2=1,2
-                do l3=1,2
-                    do l4=1,2
-                        do l5=1,2
+            do l2 = 1, 2
+                do l3 = 1, 2
+                    do l4 = 1, 2
+                        do l5 = 1, 2
                             selfinteractions(l1) = selfinteractions(l1) + trans_2orbs_coeffs(l2,1)&
                                 &*trans_2orbs_coeffs(l3,1)*&
                                 &trans_2orbs_coeffs(l4,1)*trans_2orbs_coeffs(l5,1)*&
@@ -1419,10 +1419,10 @@ contains
                     end do
                 end do
             end do
-            do l2=1,2
-                do l3=1,2
-                    do l4=1,2
-                        do l5=1,2
+            do l2 = 1, 2
+                do l3 = 1, 2
+                    do l4 = 1, 2
+                        do l5 = 1, 2
                             selfinteractions(l1) = selfinteractions(l1) + trans_2orbs_coeffs(l2,2)&
                                 &*trans_2orbs_coeffs(l3,2)*&
                                 &trans_2orbs_coeffs(l4,2)*trans_2orbs_coeffs(l5,2)*&
@@ -1455,10 +1455,10 @@ contains
         selfintorb1 = 0.0_dp
         selfintorb2 = 0.0_dp
 
-        do l2=1,2
-            do l3=1,2
-                do l4=1,2
-                    do l5=1,2
+        do l2 = 1, 2
+            do l3 = 1, 2
+                do l4 = 1, 2
+                    do l5 = 1, 2
                         selfintorb1 = selfintorb1 + trans_2orbs_coeffs(l2,1)&
                             &*trans_2orbs_coeffs(l3,1)*&
                             &trans_2orbs_coeffs(l4,1)*trans_2orbs_coeffs(l5,1)*&

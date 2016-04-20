@@ -27,7 +27,7 @@ contains
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data, only: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
-        use rdm_data_utils, only: init_rdm_spawn_t, init_rdm_list_t
+        use rdm_data_utils, only: init_rdm_spawn_t, init_rdm_list_t, init_one_rdm_t
         use rdm_estimators, only: init_rdm_estimates_t
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
@@ -38,7 +38,7 @@ contains
         integer, intent(in) :: nrdms
 
         integer :: rdm_nrows, max_nelems, nhashes_rdm
-        integer :: MemoryAlloc, MemoryAlloc_Root
+        integer :: memory_alloc, memory_alloc_root
         integer :: irdm, iproc, ierr
         character(len=*), parameter :: t_r = 'init_rdms'
 
@@ -92,9 +92,9 @@ contains
         end if
 
         ! Here we're allocating arrays for the actual calculation of the RDM.
-        MemoryAlloc = 0
+        memory_alloc = 0
         ! Memory allocated in bytes.
-        MemoryAlloc_Root = 0
+        memory_alloc_root = 0
 
         ! For now, create RDM arrays big enough so that *all* RDM elements on
         ! a particular processor can be stored, using the usual approximations
@@ -117,31 +117,19 @@ contains
 
         call init_rdm_estimates_t(rdm_estimates, nrdms, tCalc_RDMEnergy)
 
-        ! TODO: allocate one_rdm_t objects properly!
-        ! Quickly hack in allocation of new 1-RDMS.
+        ! Initialise 1-RDM objects.
         if (RDMExcitLevel == 1 .or. RDMExcitLevel == 3) then
             do irdm = 1, nrdms
-                allocate(one_rdms(irdm)%matrix(NoOrbs, NoOrbs), stat=ierr)
-                if (ierr /= 0) call stop_all(t_r, 'Problem allocating 1-RDM array.')
-                call LogMemAlloc('one_rdms(irdm)%matrix', NoOrbs**2, 8, t_r, one_rdms(irdm)%matrix_tag, ierr)
-                one_rdms(irdm)%matrix(:,:) = 0.0_dp
+                call init_one_rdm_t(one_rdms(irdm), NoOrbs)
 
-                allocate(one_rdms(irdm)%Evalues(NoOrbs), stat=ierr)
-                if (ierr /= 0) call stop_all(t_r, 'Problem allocating Evalues array,')
-                call LogMemAlloc('one_rdms(irdm)%Evalues', NoOrbs, 8, t_r, one_rdms(irdm)%EvaluesTag, ierr)
-                one_rdms(irdm)%Evalues(:) = 0.0_dp
-
-                allocate(one_rdms(irdm)%Rho_ii(NoOrbs), stat=ierr)
-                if (ierr /= 0) call stop_all(t_r, 'Problem allocating 1-RDM diagonal array (Rho_ii).')
-                call LogMemAlloc('one_rdms(irdm)%Rho_ii', NoOrbs, 8, t_r, one_rdms(irdm)%Rho_iiTag, ierr)
-                one_rdms(irdm)%Rho_ii(:) = 0.0_dp
+                memory_alloc = memory_alloc + ( NoOrbs * NoOrbs * 8 )
+                memory_alloc_root = memory_alloc_root + ( NoOrbs * NoOrbs * 8 )
             end do
         end if
 
         ! We then need to allocate the arrays for excitations etc when doing
         ! the explicit all calculation.
         if (tExplicitAllRDM) then
-
             ! We always calculate the single stuff - and if RDMExcitLevel is 1,
             ! this is all, otherwise calculate the double stuff too.
 
@@ -161,8 +149,8 @@ contains
             Sing_ExcDjs(:,:) = 0
             Sing_ExcDjs2(:,:) = 0
 
-            MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * nint((nel*nbasis)*MemoryFacPart) * size_n_int * 2 )
-            MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * nint((nel*nbasis)*MemoryFacPart) * size_n_int * 2 )
+            memory_alloc = memory_alloc + ( (NIfTot + 1) * nint((nel*nbasis)*MemoryFacPart) * size_n_int * 2 )
+            memory_alloc_root = memory_alloc_root + ( (NIfTot + 1) * nint((nel*nbasis)*MemoryFacPart) * size_n_int * 2 )
 
             ! We need room to potentially generate N*M single excitations but
             ! these will be spread across each processor.
@@ -196,8 +184,8 @@ contains
                 call LogMemAlloc('Doub_ExcDjs2',nint(((nel*nbasis)**2)*MemoryFacPart)&
                                 *(NIfTot+1), size_n_int, t_r, Doub_ExcDjs2Tag, ierr)
 
-                MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * nint(((nel*nbasis)**2)*MemoryFacPart) * size_n_int * 2 )
-                MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * nint(((nel*nbasis)**2)*MemoryFacPart) * size_n_int * 2 )
+                memory_alloc = memory_alloc + ( (NIfTot + 1) * nint(((nel*nbasis)**2)*MemoryFacPart) * size_n_int * 2 )
+                memory_alloc_root = memory_alloc_root + ( (NIfTot + 1) * nint(((nel*nbasis)**2)*MemoryFacPart) * size_n_int * 2 )
 
                 ! We need room to potentially generate (N*M)^2 double excitations
                 ! but these will be spread across each processor.        
@@ -234,18 +222,18 @@ contains
             call LogMemAlloc('Spawned_Parents_Index', MaxSpawned*2,4, t_r,&
                                                         Spawned_Parents_IndexTag, ierr)
 
-            MemoryAlloc = MemoryAlloc + ( (NIfTot + 2) * MaxSpawned * size_n_int ) 
-            MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 2) * MaxSpawned * size_n_int ) 
+            memory_alloc = memory_alloc + ( (NIfTot + 2) * MaxSpawned * size_n_int ) 
+            memory_alloc_root = memory_alloc_root + ( (NIfTot + 2) * MaxSpawned * size_n_int ) 
 
-            MemoryAlloc = MemoryAlloc + ( 2 * MaxSpawned * 4 ) 
-            MemoryAlloc_Root = MemoryAlloc_Root + ( 2 * MaxSpawned * 4 ) 
+            memory_alloc = memory_alloc + ( 2 * MaxSpawned * 4 ) 
+            memory_alloc_root = memory_alloc_root + ( 2 * MaxSpawned * 4 ) 
 
         end if
 
         if (iProcIndex == 0) then
             write(6, "(A,F14.6,A,F14.6,A)") " Main RDM memory arrays consists of : ", &
-                    & real(MemoryAlloc_Root,dp)/1048576.0_dp," Mb/Processor on the root, and ", &
-                    & real(MemoryAlloc,dp)/1048576.0_dp," Mb/Processor on other processors."
+                    & real(memory_alloc_root,dp)/1048576.0_dp," Mb/Processor on the root, and ", &
+                    & real(memory_alloc,dp)/1048576.0_dp," Mb/Processor on other processors."
         end if
 
         ! These parameters are set for the set up of the symmetry arrays, which
@@ -253,13 +241,13 @@ contains
 
         if (tOpenShell) then
             if (tFixLz) then
-                NoSymLabelCounts = 16 * ( (2 * iMaxLz) + 1 )
+                NoSymLabelCounts = 16*((2 * iMaxLz) + 1)
             else
                 NoSymLabelCounts = 16 
             end if
         else
             if (tFixLz) then
-                NoSymLabelCounts = 8 * ( (2 * iMaxLz) + 1 )
+                NoSymLabelCounts = 8*((2 * iMaxLz) + 1)
             else
                 NoSymLabelCounts = 8
             end if
@@ -288,7 +276,6 @@ contains
 
             ! This routine actually sets up the symmetry labels for the 1-RDM.
             call SetUpSymLabels_RDM()
-
         end if
 
         if (iProcIndex == 0) write(6,'(1X,"RDM memory allocation successful...")')
@@ -404,7 +391,7 @@ contains
                     Symi = SymOrbs_rot(i)
                 end if
                 SymLabelCounts2_rot(2,(Symi+1)) = SymLabelCounts2_rot(2,(Symi+1)) + 1
-                if (Symi .ne. SymCurr) then
+                if (Symi /= SymCurr) then
                     do j = SymCurr + 1, Symi
                         SymLabelCounts2_rot(1,(j+1)) = i
                     end do
@@ -412,7 +399,7 @@ contains
                 end if
                 if (tOpenShell) then
                     SymLabelCounts2_rot(2,(Symi2+9)) = SymLabelCounts2_rot(2,(Symi2+9))+1
-                    if (Symi2 .ne. SymCurr2) then
+                    if (Symi2 /= SymCurr2) then
                         do j = SymCurr2 + 1, Symi2
                             SymLabelCounts2_rot(1,(j+9)) = i + SpatOrbs
                         end do
@@ -612,8 +599,8 @@ contains
         ! This extracts everything.
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI, store)
 
-        IterRDMStartI(:) = 0.0_dp
-        AvSignI(:) = 0.0_dp
+        IterRDMStartI = 0.0_dp
+        AvSignI = 0.0_dp
 
         ! Eliminate warnings
         iunused = j
@@ -665,8 +652,8 @@ contains
         ! This extracts everything.
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI)
             
-        if (((Iter+PreviousCycles-IterRDMStart) .gt. 0) .and. &
-            & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1), RDMEnergyIter) .eq. 0)) then 
+        if (((Iter+PreviousCycles-IterRDMStart) > 0) .and. &
+            & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1), RDMEnergyIter) == 0)) then 
 
             ! The previous iteration was one where we added in diagonal elements
             ! To keep things unbiased, we need to set up a new averaging block now.
@@ -690,7 +677,7 @@ contains
                     ind1 = irdm*2-1
                     ind2 = irdm*2
 
-                    if ((SignI(ind1) .eq. 0) .and. (IterRDMStartI(ind1) .ne. 0)) then
+                    if ((SignI(ind1) == 0) .and. (IterRDMStartI(ind1) /= 0)) then
                         ! The population has just gone to zero on population 1.
                         ! Therefore, we need to start a new averaging block.
                         AvSignI(ind1) = 0
@@ -698,7 +685,7 @@ contains
                         AvSignI(ind2) = SignI(ind2)
                         IterRDMStartI(ind2) = real(Iter + PreviousCycles,dp)
 
-                    else if ((SignI(ind2) .eq. 0) .and. (IterRDMStartI(ind2) .ne. 0)) then
+                    else if ((SignI(ind2) == 0) .and. (IterRDMStartI(ind2) /= 0)) then
                         ! The population has just gone to zero on population 2.
                         ! Therefore, we need to start a new averaging block.
                         AvSignI(ind2) = 0
@@ -706,21 +693,21 @@ contains
                         AvSignI(ind1) = SignI(ind1)
                         IterRDMStartI(ind1) = real(Iter + PreviousCycles,dp)
 
-                    else if ((SignI(ind1) .ne. 0) .and. (IterRDMStartI(ind1) .eq. 0)) then
+                    else if ((SignI(ind1) /= 0) .and. (IterRDMStartI(ind1) == 0)) then
                         ! Population 1 has just become occupied.
                         IterRDMStartI(ind1) = real(Iter + PreviousCycles,dp)
                         IterRDMStartI(ind2) = real(Iter + PreviousCycles,dp)
                         AvSignI(ind1) = SignI(ind1)
                         AvSignI(ind2) = SignI(ind2)
-                        if (SignI(ind2) .eq. 0) IterRDMStartI(ind2) = 0
+                        if (SignI(ind2) == 0) IterRDMStartI(ind2) = 0
 
-                    else if ((SignI(ind2) .ne. 0) .and. (IterRDMStartI(ind2) .eq. 0)) then
+                    else if ((SignI(ind2) /= 0) .and. (IterRDMStartI(ind2) == 0)) then
                         ! Population 2 has just become occupied.
                         IterRDMStartI(ind1) = real(Iter + PreviousCycles,dp)
                         IterRDMStartI(ind2) = real(Iter + PreviousCycles,dp)
                         AvSignI(ind1) = SignI(ind1)
                         AvSignI(ind2) = SignI(ind2)
-                        if (SignI(ind1) .eq. 0) IterRDMStartI(ind1) = 0
+                        if (SignI(ind1) == 0) IterRDMStartI(ind1) = 0
 
                     else
                         ! Nothing unusual has happened so update both populations
@@ -766,7 +753,7 @@ contains
         ! We eventually turn this real bias factor into an integer to be passed
         ! around with the spawned children and their parents - this only works
         ! with 64 bit at the moment.
-        if (n_int .eq. 4) call stop_all(t_r, 'The bias factor currently does not work with 32 bit integers.')
+        if (n_int == 4) call stop_all(t_r, 'The bias factor currently does not work with 32 bit integers.')
 
         ! Otherwise calculate the 'sign' of Di we are eventually going to add
         ! in as Di.Dj. Because we only add in Di.Dj when we successfully spawn
@@ -854,7 +841,7 @@ contains
             if (tRDMStoreParent) then
                 ! This is a new Dj that has been spawned from this Di.
                 ! We want to store it in the temporary list of spawned parts which have come from this Di.
-                if (WalkerNumber .ne. DetSpawningAttempts) then
+                if (WalkerNumber /= DetSpawningAttempts) then
                     ! Don't bother storing these if we're on the last walker, or if we only have one 
                     ! walker on Di.
                     TempSpawnedPartsInd = TempSpawnedPartsInd + 1

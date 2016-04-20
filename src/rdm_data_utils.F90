@@ -83,6 +83,33 @@ contains
 
     end subroutine init_rdm_spawn_t
 
+    subroutine init_one_rdm_t(one_rdm, norbs)
+
+        use rdm_data, only: one_rdm_t
+
+        type(one_rdm_t), intent(inout) :: one_rdm
+        integer, intent(in) :: norbs
+
+        integer :: ierr
+        character(*), parameter :: t_r = 'init_one_rdm_t'
+
+        allocate(one_rdm%matrix(norbs, norbs), stat=ierr)
+        if (ierr /= 0) call stop_all(t_r, 'Problem allocating 1-RDM array.')
+        call LogMemAlloc('one_rdm%matrix', norbs**2, 8, t_r, one_rdm%matrix_tag, ierr)
+        one_rdm%matrix = 0.0_dp
+
+        allocate(one_rdm%evalues(norbs), stat=ierr)
+        if (ierr /= 0) call stop_all(t_r, 'Problem allocating evalues array,')
+        call LogMemAlloc('one_rdm%evalues', norbs, 8, t_r, one_rdm%evalues_tag, ierr)
+        one_rdm%evalues = 0.0_dp
+
+        allocate(one_rdm%rho_ii(norbs), stat=ierr)
+        if (ierr /= 0) call stop_all(t_r, 'Problem allocating 1-RDM diagonal array (rho_ii).')
+        call LogMemAlloc('one_rdm%rho_ii', norbs, 8, t_r, one_rdm%rho_ii_tag, ierr)
+        one_rdm%rho_ii = 0.0_dp
+
+    end subroutine init_one_rdm_t
+
     pure subroutine calc_combined_rdm_label(p, q, r, s, pqrs)
 
         ! Combine the four 2-RDM spin orbital labels into unique integers.
@@ -172,7 +199,7 @@ contains
         integer(int_rdm) :: pqrs
         real(dp) :: real_sign_old(spawn%rdm_send%sign_length), real_sign_new(spawn%rdm_send%sign_length)
         logical :: tSuccess, list_full
-        character(*), parameter :: this_routine = 'add_to_rdm_spawn_t'
+        character(*), parameter :: t_r = 'add_to_rdm_spawn_t'
 
         associate(rdm => spawn%rdm_send)
 
@@ -226,7 +253,7 @@ contains
                     write(6,'("Attempting to add an RDM contribution to the spawned list on processor:",&
                                &1X,'//int_fmt(proc,0)//')') proc
                     write(6,'("No memory slots available for this spawn.")')
-                    call stop_all(this_routine, "Out of memory for spawned RDM contributions.")
+                    call stop_all(t_r, "Out of memory for spawned RDM contributions.")
                 end if
 
                 rdm%elements(0, spawn%free_slots(proc)) = pqrs
@@ -240,7 +267,7 @@ contains
             !if (p > q .or. r > s) then
             !    write(6,'("p, q, r, s:", 1X,'//int_fmt(p,0)//', 1X,'//int_fmt(q,0)//', &
             !               &1X,'//int_fmt(r,0)//', 1X,'//int_fmt(s,0)//')') p, q, r, s
-            !    call stop_all(this_routine,"Incorrect ordering of RDM orbitals passed to RDM spawning routine.")
+            !    call stop_all(t_r,"Incorrect ordering of RDM orbitals passed to RDM spawning routine.")
             !end if
 
         end associate
@@ -258,7 +285,7 @@ contains
         integer :: i, ierr
         integer(MPIArg) :: send_sizes(0:nProcessors-1), recv_sizes(0:nProcessors-1)
         integer(MPIArg) :: send_displs(0:nProcessors-1), recv_displs(0:nProcessors-1)
-        character(*), parameter :: this_routine = 'communicate_rdm_spawn_t'
+        character(*), parameter :: t_r = 'communicate_rdm_spawn_t'
 
         ! How many rows of data to send to each processor.
         do i = 0, nProcessors-1
@@ -283,7 +310,7 @@ contains
             write(6,'("Attempting to receive RDM elements on processor:",&
                        &1X,'//int_fmt(iProcIndex,0)//')') iProcIndex
             write(6,'("Insufficient space in the receiving RDM array.")')
-            call stop_all(this_routine, "Not enough memory to communicate RDM elements.")
+            call stop_all(t_r, "Not enough memory to communicate RDM elements.")
         end if
 
         send_sizes = send_sizes*size(spawn%rdm_send%elements,1)
@@ -314,7 +341,7 @@ contains
         real(dp) :: real_sign_old(rdm_2%sign_length), real_sign_new(rdm_2%sign_length)
         real(dp) :: spawn_sign(rdm_2%sign_length)
         logical :: tSuccess
-        character(*), parameter :: this_routine = 'add_rdm_1_to_rdm_2'
+        character(*), parameter :: t_r = 'add_rdm_1_to_rdm_2'
 
         do i = 1, rdm_1%nelements
             ! Decode the compressed RDM labels.
@@ -341,7 +368,7 @@ contains
                 ! Check that there is enough memory for the new RDM element.
                 if (rdm_2%nelements+1 > rdm_2%max_nelements) then
                     write(6,'("Ran out of memory while adding new elements to the RDM array.")')
-                    call stop_all(this_routine, "Out of memory for RDM elements.")
+                    call stop_all(t_r, "Out of memory for RDM elements.")
                 end if
 
                 ! Update the rdm array, and its hash table, and the number of
