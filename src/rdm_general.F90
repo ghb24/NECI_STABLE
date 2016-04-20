@@ -517,8 +517,8 @@ contains
         use rdm_data, only: tRotatedNos, FinaliseRDMs_Time, tOpenShell
         use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t, rdm_estimates_t
         use rdm_estimators, only: calc_rdm_estimates_wrapper, rdm_output_wrapper, write_rdm_estimates
+        use rdm_finalising, only: calc_1rdms_from_2rdms
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
-        use rdm_parallel, only: calc_1rdms_from_2rdms
         use util_mod, only: set_timer, halt_timer
 
         type(one_rdm_t), intent(inout) :: one_rdms(:)

@@ -172,7 +172,7 @@ contains
 
         use LoggingData, only: tWrite_normalised_RDMs, tWriteSpinFreeRDM
         use rdm_data, only: rdm_estimates_t, rdm_list_t, rdm_spawn_t, tOpenShell
-        use rdm_parallel, only: print_rdms_spin_sym_wrapper, print_spinfree_2rdm_wrapper
+        use rdm_finalising, only: print_rdms_spin_sym_wrapper, print_spinfree_2rdm_wrapper
 
         type(rdm_estimates_t), intent(inout) :: est
         ! IMPORTANT: rdm is not actually modified by this routine, despite
