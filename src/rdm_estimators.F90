@@ -73,9 +73,52 @@ contains
         if (iProcIndex == 0 .and. open_output_file) then
             est%write_unit = get_free_unit()
             call write_rdm_est_file_header(est%write_unit, nrdms)
+        else
+            ! If we don't have a file open with this unit, set it to something
+            ! unique, so we can easily check, and which will cause an obvious
+            ! error if we don't.
+            est%write_unit = huge(est%write_unit)
         end if
 
     end subroutine init_rdm_estimates_t
+
+    subroutine dealloc_rdm_estimates_t(est)
+
+        ! Initialise an rdm_estimates_t object. Allocate arrays to be large
+        ! enough to hold estimates for nrdms RDMs.
+
+        ! Also, if open_output_file is true, and if this is the processor with
+        ! label 0, then open an RDMEstimates file, and write the file's header.
+
+        use Parallel_neci, only: iProcIndex
+        use rdm_data, only: rdm_estimates_t
+        use util_mod, only: get_free_unit
+
+        type(rdm_estimates_t), intent(inout) :: est
+
+        integer :: ierr
+
+        if (allocated(est%trace)) deallocate(est%trace, stat=ierr)
+        if (allocated(est%norm)) deallocate(est%norm, stat=ierr)
+        if (allocated(est%energy_1_num)) deallocate(est%energy_1_num, stat=ierr)
+        if (allocated(est%energy_2_num)) deallocate(est%energy_2_num, stat=ierr)
+        if (allocated(est%energy_num)) deallocate(est%energy_num, stat=ierr)
+        if (allocated(est%spin_num)) deallocate(est%spin_num, stat=ierr)
+        if (allocated(est%trace_inst)) deallocate(est%trace_inst, stat=ierr)
+        if (allocated(est%norm_inst)) deallocate(est%norm_inst, stat=ierr)
+        if (allocated(est%energy_1_num_inst)) deallocate(est%energy_1_num_inst, stat=ierr)
+        if (allocated(est%energy_2_num_inst)) deallocate(est%energy_2_num_inst, stat=ierr)
+        if (allocated(est%energy_num_inst)) deallocate(est%energy_num_inst, stat=ierr)
+        if (allocated(est%spin_num_inst)) deallocate(est%spin_num_inst, stat=ierr)
+        if (allocated(est%max_error_herm)) deallocate(est%max_error_herm, stat=ierr)
+        if (allocated(est%sum_error_herm)) deallocate(est%sum_error_herm, stat=ierr)
+
+        ! Close the RDMEstimates unit, if it was opened on this processor.
+        ! The following was what it was set to if it was not opened in
+        ! init_rdm_estimates_t, so don't attempt a close in that case.
+        if (est%write_unit /= huge(est%write_unit)) close(est%write_unit)
+
+    end subroutine dealloc_rdm_estimates_t
 
     subroutine write_rdm_est_file_header(write_unit, nrdms)
 
@@ -209,7 +252,6 @@ contains
                     est%energy_num(irdm)/est%norm(irdm)
             end do
 
-            close(est%write_unit)
         end if
 
     end subroutine write_rdm_estimates

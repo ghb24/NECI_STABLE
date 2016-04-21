@@ -62,6 +62,7 @@ contains
         type(rdm_spawn_t), intent(out) :: spawn
         integer, intent(in) :: nrows, sign_length, nhashes
         integer, intent(in) :: max_nelements_send
+
         integer :: i, ierr
         real(dp) :: slots_per_proc
 
@@ -85,9 +86,14 @@ contains
 
     subroutine init_one_rdm_t(one_rdm, norbs)
 
+        ! Initialise a one_rdm_t object.
+
+        ! Out: one_rdm - one_rdm_t object to be initialised.
+        ! In:  norbs - the number of orbitals to be indexed in the 1-RDM.
+
         use rdm_data, only: one_rdm_t
 
-        type(one_rdm_t), intent(inout) :: one_rdm
+        type(one_rdm_t), intent(out) :: one_rdm
         integer, intent(in) :: norbs
 
         integer :: ierr
@@ -108,7 +114,90 @@ contains
         call LogMemAlloc('one_rdm%rho_ii', norbs, 8, t_r, one_rdm%rho_ii_tag, ierr)
         one_rdm%rho_ii = 0.0_dp
 
+        allocate(one_rdm%sym_list_no(norbs), stat=ierr)
+        if (ierr /= 0) call stop_all(t_r, 'Problem allocating sym_list_no array.')
+        allocate(one_rdm%sym_list_inv_no(norbs), stat=ierr)
+        if (ierr /= 0) call stop_all(t_r, 'Problem allocating sym_list_inv_no array.')
+
     end subroutine init_one_rdm_t
+
+    subroutine dealloc_rdm_list_t(rdm)
+
+        ! Deallocate an rdm_list_t object.
+
+        ! In/Out: rdm - rdm_list_t object to be deallocated.
+
+        use hash, only: clear_hash_table
+
+        type(rdm_list_t), intent(inout) :: rdm
+
+        integer :: ierr
+
+        if (allocated(rdm%elements)) deallocate(rdm%elements, stat=ierr)
+
+        call clear_hash_table(rdm%hash_table)
+        deallocate(rdm%hash_table, stat=ierr)
+        nullify(rdm%hash_table)
+
+    end subroutine dealloc_rdm_list_t
+
+    subroutine dealloc_rdm_spawn_t(spawn)
+
+        ! Deallocate an rdm_spawn_t object.
+
+        ! In/Out: spawn - rdm_spawn_t object to be deallocated.
+
+        use hash, only: clear_hash_table
+
+        type(rdm_spawn_t), intent(inout) :: spawn
+
+        integer :: ierr
+
+        call dealloc_rdm_list_t(spawn%rdm_send)
+
+        if (allocated(spawn%free_slots)) deallocate(spawn%free_slots, stat=ierr)
+        if (allocated(spawn%init_free_slots)) deallocate(spawn%init_free_slots, stat=ierr)
+
+    end subroutine dealloc_rdm_spawn_t
+
+    subroutine dealloc_one_rdm_t(one_rdm)
+
+        ! Deallocate a one_rdm_t object.
+
+        ! In/Out: one_rdm - one_rdm_t object to be deallocated.
+
+        use rdm_data, only: one_rdm_t
+
+        type(one_rdm_t), intent(inout) :: one_rdm
+
+        integer :: ierr
+        character(*), parameter :: t_r = 'dealloc_one_rdm_t'
+
+        if (allocated(one_rdm%matrix)) then
+            deallocate(one_rdm%matrix, stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, 'Problem deallocating 1-RDM array.')
+            call LogMemDeAlloc(t_r, one_rdm%matrix_tag)
+        end if
+        if (allocated(one_rdm%evalues)) then
+            deallocate(one_rdm%evalues, stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, 'Problem deallocating evalues array,')
+            call LogMemDeAlloc(t_r, one_rdm%evalues_tag)
+        end if
+        if (allocated(one_rdm%rho_ii)) then
+            deallocate(one_rdm%rho_ii, stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, 'Problem deallocating 1-RDM diagonal array (rho_ii).')
+            call LogMemDeAlloc(t_r, one_rdm%rho_ii_tag)
+        end if
+        if (allocated(one_rdm%sym_list_no)) then
+            deallocate(one_rdm%sym_list_no, stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, 'Problem deallocating sym_list_no array.')
+        end if
+        if (allocated(one_rdm%sym_list_inv_no)) then
+            deallocate(one_rdm%sym_list_inv_no, stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, 'Problem deallocating sym_list_inv_no array.')
+        end if
+
+    end subroutine dealloc_one_rdm_t
 
     pure subroutine calc_combined_rdm_label(p, q, r, s, pqrs)
 

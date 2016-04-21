@@ -541,8 +541,9 @@ contains
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
 
         Ex(:,:) = 0
-        Ex(1,1) = 2         ! Maximum excitation level - we know they are connected by
-                            ! a double or single.
+        ! Maximum excitation level - we know they are connected by a double
+        ! or a single excitation.
+        Ex(1,1) = 2
         tParity = .false.
 
         ! Ex(1,:) comes out as the orbital(s) excited from, i.e. i,j.

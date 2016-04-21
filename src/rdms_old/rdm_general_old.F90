@@ -720,6 +720,8 @@ contains
             if (associated(rdms(i)%baab)) nullify(rdms(i)%baab)
         end do
 
+        if (allocated(one_rdms_old)) deallocate(one_rdms_old)
+
         deallocate(rdms)
 
     end subroutine DeallocateRDMs_old

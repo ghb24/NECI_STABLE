@@ -465,15 +465,11 @@ contains
 
         type(one_rdm_t), intent(inout) :: rdm
 
-        integer :: spin,i,j,ierr,StartSort,EndSort
+        integer :: spin, i, j, ierr, StartSort, EndSort
         character(len=*), parameter :: t_r = 'order_one_rdm'
         integer, allocatable :: SymLabelList_temp(:)
         real(dp), allocatable :: one_rdm_Temp(:,:), EvaluesTemp(:)
         integer :: Orb, New_Pos
-
-        ! The arrays to store the new ordering for this RDM.
-        allocate(rdm%sym_list_no(NoOrbs), stat=ierr)
-        allocate(rdm%sym_list_inv_no(NoOrbs), stat=ierr)
 
         ! Temporary arrays.
         allocate(one_rdm_Temp(NoOrbs,NoOrbs), stat=ierr)

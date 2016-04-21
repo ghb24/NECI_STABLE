@@ -113,12 +113,15 @@ contains
         ! Initialise the main RDM array data structure.
         call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems, nhashes_rdm)
 
-        if (.not. allocated(one_rdms)) allocate(one_rdms(nrdms))
-
         call init_rdm_estimates_t(rdm_estimates, nrdms, tCalc_RDMEnergy)
 
         ! Initialise 1-RDM objects.
-        if (RDMExcitLevel == 1 .or. RDMExcitLevel == 3) then
+        if (RDMExcitLevel == 1 .or. RDMExcitLevel == 3 .or. &
+              tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
+
+            allocate(one_rdms(nrdms), stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, 'Problem allocating one_rdms array.')
+
             do irdm = 1, nrdms
                 call init_one_rdm_t(one_rdms(irdm), NoOrbs)
 
@@ -154,7 +157,6 @@ contains
 
             ! We need room to potentially generate N*M single excitations but
             ! these will be spread across each processor.
-
             OneEl_Gap = (real(nel,dp)*real(nbasis,dp)*MemoryFacPart)/real(nProcessors,dp)
 
             ! This array contains the initial positions of the excitations
@@ -257,7 +259,6 @@ contains
             ! These arrays contain indexing systems to order the 1-RDM orbitals
             ! in terms of symmetry. This allows the diagonalisation of the RDMs
             ! to be done in symmetry blocks (a lot quicker/easier).
-            ! The 2-RDM does not need to be reordered as it's never diagonalised. 
 
             if (.not. allocated(SymLabelCounts2_rot)) allocate(SymLabelCounts2_rot(2, NoSymLabelCounts), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, 'Problem allocating SymLabelCounts2_rot array,')
@@ -496,11 +497,14 @@ contains
         use FciMCData, only: Spawned_Parents, Spawned_Parents_Index
         use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
         use LoggingData, only: RDMExcitLevel, tExplicitAllRDM
+        use rdm_data, only: two_rdm_main, two_rdm_recv, two_rdm_spawn, rdm_estimates, one_rdms
         use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data_old, only: rdms
+        use rdm_data_utils, only: dealloc_rdm_list_t, dealloc_rdm_spawn_t, dealloc_one_rdm_t
+        use rdm_estimators, only: dealloc_rdm_estimates_t
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag
         use RotateOrbsData, only: SymLabelListInv_rotTag
@@ -508,6 +512,24 @@ contains
         use util_mod, only: LogMemDealloc
 
         character(len=*), parameter :: t_r = 'dealloc_global_rdm_data'
+
+        integer :: irdm
+
+        ! Deallocate global 2-RDM arrays, including the spawning object.
+        call dealloc_rdm_list_t(two_rdm_main)
+        call dealloc_rdm_list_t(two_rdm_recv)
+        call dealloc_rdm_spawn_t(two_rdm_spawn)
+
+        ! Deallocate the RDM estimates object.
+        call dealloc_rdm_estimates_t(rdm_estimates)
+
+        ! Deallocate all 1-RDM objects.
+        if (allocated(one_rdms)) then
+            do irdm = 1, size(one_rdms)
+                call dealloc_one_rdm_t(one_rdms(irdm))
+            end do
+            deallocate(one_rdms)
+        end if
 
         if (tExplicitAllRDM) then
             ! This array contains the initial positions of the single
