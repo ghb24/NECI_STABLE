@@ -3245,6 +3245,8 @@ contains
         ! do the specific se-st
         weights = init_doubleWeight(ilut, e)
 
+        if (excitInfo%typ == 0) print *, ""
+
         call calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
 
@@ -3812,6 +3814,8 @@ contains
 
         ! do the specific semi-start
         weights = init_doubleWeight(ilut, en)
+
+        if (excitInfo%typ == 0) print *, ""
 
         call calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -5068,8 +5072,12 @@ contains
         ! asserts dont work anymore with new select case statements 
         ! do it out here:
 #ifdef __DEBUG 
-        if (current_stepvector(ende) == 1) ASSERT(deltaB /= 2)
-        if (current_stepvector(ende) == 2) ASSERT(deltaB /= -2)
+        if (current_stepvector(ende) == 1) then
+            ASSERT(deltaB /= 2)
+        end if
+        if (current_stepvector(ende) == 2) then
+            ASSERT(deltaB /= -2)
+        end if
 #endif
 
         select case (deltaB + current_stepvector(ende))
@@ -5146,7 +5154,7 @@ contains
         real(dp), intent(inout) :: probWeight
         character(*), parameter :: this_routine = "calcRaisingSemiStartStochastic"
 
-        integer :: se, deltaB
+        integer :: se, deltaB, step
         real(dp) :: tempWeight, tempWeight_0, tempWeight_1, minusWeight, &
                     plusWeight, zeroWeight, bVal
 
@@ -5163,16 +5171,17 @@ contains
         ! why does this cause a segfault on compilation with gfortran??
         ! do some debugging: 
 #ifdef __DEBUG
-        print *, "alloc?", allocated(current_stepvector)
-        print *, "secondstart?", se
-        print *, "stepvector?", current_stepvector
-        print *, "upper and lower limit?", size(current_stepvector)
+        if (excitInfo%typ == 16) then
+            print *, "alloc?", allocated(current_stepvector)
+            print *, "secondstart?", se
+            print *, "stepvector?", current_stepvector
+            print *, "upper and lower limit?", size(current_stepvector)
+        end if
 #endif
 
         ! fix for gfortran compilation for some reasono
         ! i can probably fix it when i finally get to this point in 
         ! test running
-        print *, ""
 
         select case (current_stepvector(se))
         case (1)
@@ -5358,15 +5367,16 @@ contains
         ! why does this cause a segfault on compilation with gfortran??
         ! do some debugging: 
 #ifdef __DEBUG
-        print *, "alloc?", allocated(current_stepvector)
-        print *, "secondstart?", se
-        print *, "stepvector?", current_stepvector
-        print *, "upper and lower limit?", size(current_stepvector)
-        call print_excitInfo(excitInfo)
+        if (excitInfo%typ == 17) then
+            print *, "alloc?", allocated(current_stepvector)
+            print *, "secondstart?", se
+            print *, "stepvector?", current_stepvector
+            print *, "upper and lower limit?", size(current_stepvector)
+            call print_excitInfo(excitInfo)
+        end if
 #endif
 
         ! same gfortran compilex issue fix as above
-        print *, ""
 
         select case (current_stepvector(se))
         case (1)
@@ -10154,14 +10164,10 @@ contains
         ! have index it with spin orbitals: assume non-UHF basis 
         tmat = GetTMatEl(2*i, 2*j)
 
-        if ((i == 2 .and. j == 3) .or. (i == 3 .and. j == 2)) then
-        print *, "toto1: tmat: ", tmat
-        end if
         if (abs(tmat)<EPS) then
             allocate(excitations(0,0), stat = ierr)
             return
         end if
-        
 
         ! first determine excitation info:
         excitInfo = excitationIdentifier(i, j)
@@ -13134,7 +13140,6 @@ contains
         ! first check two-particle integral
         umat = get_umat_el(i, k,j,  l)
 
-        print *, "toto2: umat: ", umat
         if (abs(umat) < EPS) then
             allocate(excitations(0,0), stat = ierr)
             return
