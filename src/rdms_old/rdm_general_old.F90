@@ -538,11 +538,6 @@ contains
 
             call MPIBarrier(ierr)
 
-            ! Call the routines from NatOrbs that diagonalise the one electron
-            ! reduced density matrix.
-            tRotatedNOs = .false. ! Needed for BrokenSymNo routine
-            if (tDiagRDM) call find_nat_orb_occ_numbers(one_rdms(i), i)
-
             ! This is where we would likely call any further calculations of
             ! forces, etc.
             if (tDipoles) then
@@ -550,11 +545,25 @@ contains
                 call CalcDipoles(one_rdms(i), Norm_1RDM)
             end if
 
+            ! The following has been commented out for the old RDM code.
+            ! If the old RDM option is turned on then uncommenting this would
+            ! lead to errors, since both the new and the old code will rotate
+            ! the orbitals, when we only want one rotation. Bceause the
+            ! integrals are stored in global data, it's not easy to avoid this.
+            ! If you really want to try this function in the old code, for
+            ! testing, then uncomment the following, and comment out the
+            ! equivalent code in the finalise_rdms routine.
+
+            ! Call the routines from NatOrbs that diagonalise the one electron
+            ! reduced density matrix.
+            !tRotatedNOs = .false. ! Needed for BrokenSymNo routine
+            !if (tDiagRDM) call find_nat_orb_occ_numbers(one_rdms(i), i)
+
             ! After all the NO calculations are finished we'd like to do another
             ! rotation to obtain symmetry-broken natural orbitals
-            if (tBrokenSymNOs) then
-                call BrokenSymNO(one_rdms(i)%Evalues, occ_numb_diff)
-            end if
+            !if (tBrokenSymNOs) then
+            !    call BrokenSymNO(one_rdms(i)%Evalues, occ_numb_diff)
+            !end if
 
         end do
 
