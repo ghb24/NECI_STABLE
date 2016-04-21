@@ -7,6 +7,13 @@ module rdm_data_old
 
     implicit none
 
+    ! This is an old option which isn't great, because it determines whether
+    ! or not the RDM energy is calculated, but is also used to determine
+    ! whether or not an RDMEstimates file is opened at all - if not then other
+    ! estimates won't be output to it either, and the code may crash if this is
+    ! attempted.
+    !logical :: tCalc_RDMEnergy
+
     ! Arrays used as storage when summing RDMs over all processors.
     real(dp), allocatable :: AllNodes_RDM_small(:,:), AllNodes_RDM_large(:,:)
 

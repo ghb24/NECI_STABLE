@@ -15,11 +15,10 @@ contains
         ! This may be called multiple times if we want to print multiple 2-RDMs.
 
         use FciMCData, only: Iter, PreviousCycles, IterRDMStart, VaryShiftIter
-        use LoggingData, only: IterRDMonFly
-        use LoggingData, only: tRDMInstEnergy, RDMEnergyIter
+        use LoggingData, only: IterRDMonFly, RDMExcitLevel, tRDMInstEnergy, RDMEnergyIter
         use Parallel_neci, only: iProcIndex, MPISumAll
         use rdm_data_old, only: AllNodes_RDM_small, AllNodes_RDM_large, rdm_t
-        use rdm_data, only: tCalc_RDMEnergy, tOpenShell
+        use rdm_data, only: tOpenShell, print_2rdm_est
         use RotateOrbsData, only: SpatOrbs
 
         type(rdm_t), intent(inout) :: rdm
@@ -32,7 +31,7 @@ contains
         ! Don't need to do all this stuff here, because a***_RDM will be empty.
 
         if (((Iter+PreviousCycles) .ne. 0) .and. ((.not. final_output) .or. &
-            ((.not. tCalc_RDMEnergy) .or. ((Iter - VaryShiftIter(1)) .le. IterRDMonFly) &
+            ((.not. print_2rdm_est .and. RDMExcitLevel /= 1) .or. ((Iter - VaryShiftIter(1)) .le. IterRDMonFly) &
                       & .or. ((Iter-VaryShiftIter(inum_runs)) .le. IterRDMonFly) &
                       & .or. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .ne. 0)))) then
 
@@ -70,7 +69,6 @@ contains
             ! (summed over the energy update cycle). Whereas TwoElRDM_full is
             ! accumulated over the entire run.
             if (tRDMInstEnergy .and. (iProcIndex .eq. 0)) then
-
                 ! We have to add the RDMs column by column. Adding the whole
                 ! arrays in one go causes ifort to crash for large arrays,
                 ! presumably because of large arrays being created on the
@@ -89,7 +87,6 @@ contains
                 end do
 
                 if (tOpenShell) then
-
                     do i = 1, size(rdm%bbbb, 2)
                         rdm%bbbb_full(:,i) = rdm%bbbb_full(:,i) + rdm%bbbb(:,i)
                     end do
@@ -101,7 +98,6 @@ contains
                     do i = 1, size(rdm%baba, 2)
                         rdm%baba_full(:,i) = rdm%baba_full(:,i) + rdm%baba(:,i)
                     end do
-
                 end if
             end if
         end if

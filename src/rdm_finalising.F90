@@ -28,9 +28,9 @@ contains
         use LoggingData, only: tBrokenSymNOs, occ_numb_diff, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo, tDipoles
         use Parallel_neci, only: iProcIndex, MPIBarrier, MPIBCast
-        use rdm_data, only: tRotatedNos, FinaliseRDMs_Time, tOpenShell
+        use rdm_data, only: tRotatedNos, FinaliseRDMs_Time, tOpenShell, print_2rdm_est
         use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t, rdm_estimates_t
-        use rdm_estimators, only: calc_rdm_estimates_wrapper, write_rdm_estimates
+        use rdm_estimators, only: calc_2rdm_estimates_wrapper, write_rdm_estimates
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
         use util_mod, only: set_timer, halt_timer
 
@@ -59,8 +59,11 @@ contains
             ! Unless of course, only the 1-RDM is being calculated.
 
             ! Calculate the RDM estmimates from the final few iterations,
-            ! since it was last calculated.
-            call calc_rdm_estimates_wrapper(rdm_estimates, two_rdms)
+            ! since it was last calculated. But only do this if they're
+            ! actually to be printed.
+            if (print_2rdm_est) then
+                call calc_2rdm_estimates_wrapper(rdm_estimates, two_rdms)
+            end if
 
             ! Output the final 2-RDMs themselves, in all forms desired.
             call output_2rdm_wrapper(rdm_estimates, two_rdms, rdm_recv, spawn)
@@ -94,18 +97,20 @@ contains
             ! After all the NO calculations are finished we'd like to do another
             ! rotation to obtain symmetry-broken natural orbitals
             if (tBrokenSymNOs) then
-                call BrokenSymNO(one_rdms(i)%Evalues, occ_numb_diff)
+                call BrokenSymNO(one_rdms(i)%evalues, occ_numb_diff)
             end if
         end do
 
         ! Write the final instantaneous RDM estimates, and also the final
         ! report of the total RDM estimates.
-        if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates, .true.)
+        if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates, .true., print_2rdm_est)
 #ifdef _MOLCAS_
+        if (print_2rdm_est) then
             NECI_E = rdm_estimates%rdm_energy_tot_accum(1)
             call MPIBarrier(ierr)
             call MPIBCast(NECI_E)
             write(6,*) 'NECI_E at rdm_general.f90 ', NECI_E
+        end if
 #endif
 
         call halt_timer(FinaliseRDMs_Time)
@@ -981,18 +986,15 @@ contains
         norm_1rdm = 0.0_dp
 
         if (RDMExcitLevel == 1) then
-
             allocate(AllNode_one_rdm(NoOrbs, NoOrbs), stat=ierr)
 
             call MPISumAll(matrix, AllNode_one_rdm)
             matrix = AllNode_one_rdm
 
             deallocate(AllNode_one_rdm)
-
         end if
 
         if (iProcIndex == 0) then
-
             ! Find the normalisation.
             call calc_1e_norms(matrix, matrix_diag, trace_1rdm, norm_1rdm, SumN_Rho_ii)
 
@@ -1009,14 +1011,12 @@ contains
                 if (tForceCauchySchwarz) then
                     call Force_Cauchy_Schwarz(matrix)
                 end if
-
             end if
 
             ! Write out the final, normalised, hermitian OneRDM.
             if (tWrite_normalised_RDMs) call write_1rdm(matrix, irdm, norm_1rdm, .true., tOldRDMs)
 
             write(6,'(1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
-
         end if
 
     end subroutine Finalise_1e_RDM
@@ -1241,14 +1241,14 @@ contains
                         jSpat = gtID(j)
                         if (abs(one_rdm(ind(iSpat), ind(jSpat))) > 1.0e-12_dp) then
                             if (tNormalise .and. (i <= j)) then
-                                if (((mod(i,2) == 0) .and. (mod(j,2) == 0)) .or. &
-                                    ((mod(i,2) /= 0) .and. (mod(j,2) .ne. 0))) then
+                                if ((mod(i,2) == 0 .and. mod(j,2) == 0) .or. &
+                                    (mod(i,2) /= 0 .and. mod(j,2) .ne. 0)) then
                                     write(one_rdm_unit,"(2I6,G25.17)") i, j, &
                                         ( one_rdm(ind(iSpat),ind(jSpat)) * norm_1rdm ) / 2.0_dp
                                 end if
                             else if (.not. tNormalise) then
                                 ! The popsfile can be printed in spatial orbitals.
-                                if ((mod(i,2) == 0) .and. (mod(j,2) == 0)) then
+                                if (mod(i,2) == 0 .and. mod(j,2) == 0) then
                                     write(one_rdm_unit) iSpat, jSpat, one_rdm(ind(iSpat), ind(jSpat))
                                 end if
                             end if

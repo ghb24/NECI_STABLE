@@ -17,12 +17,12 @@ contains
         use FciMCData, only: MaxSpawned, Spawned_Parents, Spawned_Parents_Index
         use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
         use FciMCData, only: HFDet_True
-        use LoggingData, only: tDo_Not_Calc_RDMEnergy, RDMExcitLevel, tExplicitAllRDM
+        use LoggingData, only: tDo_Not_Calc_2RDM_est, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tDiagRDM, tDumpForcesInfo, tDipoles, tPrint1RDM
         use LoggingData, only: tRDMInstEnergy
         use Parallel_neci, only: iProcIndex, nProcessors
         use rdm_data, only: rdm_estimates, one_rdms, two_rdm_spawn, two_rdm_main, two_rdm_recv
-        use rdm_data, only: tOpenShell, tCalc_RDMEnergy, Sing_ExcDjs, Doub_ExcDjs
+        use rdm_data, only: tOpenShell, print_2rdm_est, Sing_ExcDjs, Doub_ExcDjs
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
@@ -66,15 +66,15 @@ contains
         end if
 
         if (RDMExcitLevel == 1) then
-            tCalc_RDMEnergy = .false.
+            print_2rdm_est = .false.
         else
             ! If the RDMExcitLevel is 2 or 3 - and we're calculating the 2-RDM, 
-            ! then we automatically calculate the energy unless we specifically
-            ! say not to.
-            if (tDo_Not_Calc_RDMEnergy) then
-                tCalc_RDMEnergy = .false.
+            ! then we automatically calculate the energy (and other estimates!)
+            ! unless we're specifically told not to.
+            if (tDo_Not_Calc_2RDM_est) then
+                print_2rdm_est = .false.
             else
-                tCalc_RDMEnergy = .true.
+                print_2rdm_est = .true.
                 write(6,'(1X,"Calculating the energy from the reduced density matrix. &
                               &This requires the 2 electron RDM from which the 1-RDM can also be constructed.")')
             end if
@@ -113,7 +113,7 @@ contains
         ! Initialise the main RDM array data structure.
         call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems, nhashes_rdm)
 
-        call init_rdm_estimates_t(rdm_estimates, nrdms, tCalc_RDMEnergy)
+        call init_rdm_estimates_t(rdm_estimates, nrdms, print_2rdm_est)
 
         ! Initialise 1-RDM objects.
         if (RDMExcitLevel == 1 .or. RDMExcitLevel == 3 .or. &

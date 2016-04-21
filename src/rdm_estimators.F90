@@ -143,9 +143,9 @@ contains
 
     end subroutine write_rdm_est_file_header
 
-    subroutine calc_rdm_estimates_wrapper(est, rdm)
+    subroutine calc_2rdm_estimates_wrapper(est, rdm)
 
-        ! Calculate the estimates for the RDM stored in rdm. The full estimates
+        ! Calculate the estimates for the 2-RDM stored in rdm. The full estimates
         ! are stored using this object, and also instantaneous estimates. The
         ! instantaneous estimates are calculated by subtracting the previous
         ! stored values from the newly calculated ones. This works so long as
@@ -202,9 +202,9 @@ contains
         est%energy_num_inst = est%energy_num - est%energy_num_inst
         est%spin_num_inst = est%spin_num - est%spin_num_inst
 
-    end subroutine calc_rdm_estimates_wrapper
+    end subroutine calc_2rdm_estimates_wrapper
 
-    subroutine write_rdm_estimates(est, final_output)
+    subroutine write_rdm_estimates(est, final_output, write_to_separate_file)
 
         ! Write RDM estimates to the RDMEstimates file. Specifically, the
         ! numerator of the energy and spin^2 estimators are output, as is the
@@ -219,27 +219,29 @@ contains
         use util_mod, only: int_fmt
 
         type(rdm_estimates_t), intent(in) :: est
-        logical, intent(in) :: final_output
+        logical, intent(in) :: final_output, write_to_separate_file
 
         integer :: irdm
 
-        if (tRDMInstEnergy) then
-            write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
-            do irdm = 1, est%nrdms
-                write(est%write_unit, '(3(3x,es20.13))', advance='no') &
-                    est%energy_num_inst(irdm), est%spin_num_inst(irdm), est%norm_inst(irdm)
-            end do
-            write(est%write_unit,'()')
-        else
-            write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
-            do irdm = 1, est%nrdms
-                write(est%write_unit, '(3(3x,es20.13))', advance='no') &
-                    est%energy_num(irdm), est%spin_num(irdm), est%norm(irdm)
-            end do
-            write(est%write_unit, '()')
-        end if
+        if (write_to_separate_file) then
+            if (tRDMInstEnergy) then
+                write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
+                do irdm = 1, est%nrdms
+                    write(est%write_unit, '(3(3x,es20.13))', advance='no') &
+                        est%energy_num_inst(irdm), est%spin_num_inst(irdm), est%norm_inst(irdm)
+                end do
+                write(est%write_unit,'()')
+            else
+                write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
+                do irdm = 1, est%nrdms
+                    write(est%write_unit, '(3(3x,es20.13))', advance='no') &
+                        est%energy_num(irdm), est%spin_num(irdm), est%norm(irdm)
+                end do
+                write(est%write_unit, '()')
+            end if
 
-        call neci_flush(est%write_unit)
+            call neci_flush(est%write_unit)
+        end if
 
         if (final_output) then
             do irdm = 1, est%nrdms

@@ -29,7 +29,7 @@ contains
         use LoggingData, only: tRDMInstEnergy, RDMExcitLevel, tPrint1RDM
         use LoggingData, only: tDiagRDM, tReadRDMs, tPopsfile, tDumpForcesInfo, tDipoles
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: tOpenShell, tCalc_RDMEnergy
+        use rdm_data, only: tOpenShell, print_2rdm_est
         use rdm_data_old, only: rdms, one_rdms_old, rdm_write_unit_old, rdm_estimates_old
         use rdm_data_utils, only: init_one_rdm_t
         use RotateOrbsData, only: NoOrbs, SpatOrbs
@@ -55,7 +55,8 @@ contains
         memory_alloc_root = 0
 
         ! First for the storage of the actual 1- or 2-RDM.
-        if (RDMExcitLevel .eq. 1) then
+        if (RDMExcitLevel == 1 .or. RDMExcitLevel == 3 .or. &
+              tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
 
             do i = 1, nrdms
                 call init_one_rdm_t(one_rdms_old(i), NoOrbs)
@@ -63,7 +64,9 @@ contains
                 memory_alloc = memory_alloc + ( NoOrbs * NoOrbs * 8 )
                 memory_alloc_root = memory_alloc_root + ( NoOrbs * NoOrbs * 8 )
             end do
-        else
+        end if
+
+        if (RDMExcitLevel /= 1) then
             ! If we're calculating the 2-RDM, the 1-RDM does not need to be
             ! calculated as well because all its info is in the 2-RDM anyway.
 
@@ -246,42 +249,14 @@ contains
                         rdms(i)%baab => rdms(i)%baab_full
                         rdms(i)%baba => rdms(i)%baba_full
                     end if
-                end if ! Not instantaneous
 
-                if (iProcindex .eq. 0) then
-                    if (tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
-                        ! Still need to allocate 1-RDM to get nat orb occupation numbers.
-                        allocate(one_rdms_old(i)%matrix(NoOrbs, NoOrbs), stat=ierr)
-                        if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating 1-RDM array,')
-                        call LogMemAlloc('one_rdms_old(i)%matrix', NoOrbs**2,8, t_r, one_rdms_old(i)%matrix_tag, ierr)
-                        one_rdms_old(i)%matrix(:,:) = 0.0_dp
-                        memory_alloc_root = memory_alloc_root + ( NoOrbs * NoOrbs * 8 )
-                    end if
-                end if
+                end if ! Not instantaneous
             end do ! Looping over all RDMs.
 
         end if
 
-        if ((RDMExcitLevel .eq. 1) .or. tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
-
-            if ((iProcIndex .eq. 0) .and. tDiagRDM) then
-                do i = 1, nrdms
-                    allocate(one_rdms_old(i)%Evalues(NoOrbs), stat=ierr)
-                    if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Evalues array,')
-                    call LogMemAlloc('one_rdms_old(i)%Evalues', NoOrbs, 8, t_r, one_rdms_old(i)%evalues_tag, ierr)
-                    one_rdms_old(i)%Evalues(:) = 0.0_dp
-
-                    allocate(one_rdms_old(i)%rho_ii(NoOrbs), stat=ierr)
-                    if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating rho_ii array,')
-                    call LogMemAlloc('one_rdms_old(i)%rho_ii', NoOrbs, 8, t_r, one_rdms_old(i)%rho_ii_tag, ierr)
-                    one_rdms_old(i)%rho_ii(:) = 0.0_dp
-                end do
-            end if
-
-        end if
-
         ! Open file to keep track of RDM estimates. 
-        if ((iProcIndex .eq. 0) .and. tCalc_RDMEnergy) then
+        if ((iProcIndex .eq. 0) .and. print_2rdm_est) then
             rdm_write_unit_old = get_free_unit()
             open(rdm_write_unit_old, file='RDMEstimates_old', status='unknown', position='append')
 
@@ -328,8 +303,9 @@ contains
         use LoggingData, only: IterRDMonFly
         use LoggingData, only: RDMExcitLevel
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: tOpenShell, tCalc_RDMEnergy, one_rdm_t
-        use rdm_data_old, only: rdm_t, rdm_estimates_old_t, rdm_estimates_old
+        use rdm_data, only: tOpenShell, print_2rdm_est, one_rdm_t
+        use rdm_data_old, only: rdm_t, rdm_estimates_old_t
+        use rdm_data_old, only: rdm_estimates_old
         use rdm_estimators_old, only: rdm_output_wrapper_old, write_rdm_estimates_old
         use RotateOrbsData, only: SymLabelListInv_rot
         use util_mod, only: get_free_unit
@@ -492,7 +468,7 @@ contains
 
         ! Calculate the energy for the matrices read in (if we're calculating more
         ! than the 1-RDM).
-        if (tCalc_RDMEnergy) then
+        if (print_2rdm_est) then
             call rdm_output_wrapper_old(two_rdm, one_rdm, 1, est_old, .false.)
             if (iProcIndex == 0) call write_rdm_estimates_old(rdm_estimates_old, .false.)
         end if

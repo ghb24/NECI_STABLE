@@ -130,8 +130,8 @@ module rdm_data
     ! The number of rdms being calculated in this simulation.
     integer :: nrdms = 0
 
-    ! If true, then RDM estimates will be output.
-    logical :: tCalc_RDMEnergy
+    ! If true, then 2-RDM quantities will be output to a RDMEstimates file.
+    logical :: print_2rdm_est
 
     ! Variable used in RDM calculations to specify that an open shell system
     ! is being studied.

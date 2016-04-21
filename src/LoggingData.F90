@@ -21,7 +21,7 @@ module LoggingData
     LOGICAL tPrintPopsDefault
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tROHistSingExc
     LOGICAL tRoHistOneElInts
-    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tDo_Not_Calc_RDMEnergy
+    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tDo_Not_Calc_2RDM_est
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
     LOGICAL tTruncDumpbyVal, tPrintRODump, tno_RDMs_to_read, tReadRDMs, tNoNewRDMContrib 
     LOGICAL tWriteTransMat,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit, tWriteMultRDMs

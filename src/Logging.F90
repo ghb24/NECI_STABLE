@@ -114,7 +114,7 @@ MODULE Logging
       tPrintRODump=.false.
       IterRDMonFly=0
       RDMExcitLevel=1
-      tDo_Not_Calc_RDMEnergy = .false.
+      tDo_Not_Calc_2RDM_est = .false.
       tExplicitAllRDM = .false.
       twrite_normalised_RDMs = .true. 
       tWriteSpinFreeRDM = .false.
@@ -600,6 +600,11 @@ MODULE Logging
             tDipoles = .true.
 
         case("CALCRDMENERGY")
+            call stop_all(t_r, "The CALCRDMENERGY option has been replaced by CALC-2RDM-ESTIMATES. &
+                               &The 2-RDM energy is calculated by default when 2-RDMs are being &
+                               &sampled, so this option is only needed if one wants to turn this off.")
+
+        case("CALC-2RDM-ESTIMATES")
 !This takes the 1 and 2 electron RDM and calculates the energy using the RDM expression.            
 !For this to be calculated, RDMExcitLevel must be = 3, so there is a check to make sure this 
 !is so if the CALCRDMENERGY keyword is present.
@@ -607,10 +612,10 @@ MODULE Logging
                 call readu(w)
                 select case(w)
                     case("OFF")
-                        tDo_Not_Calc_RDMEnergy=.true.
+                        tDo_Not_Calc_2RDM_est = .true.
                 end select
             ELSE
-                tDo_Not_Calc_RDMEnergy=.false.
+                tDo_Not_Calc_2RDM_est = .false.
             ENDIF
         
         case("NORDMINSTENERGY")
