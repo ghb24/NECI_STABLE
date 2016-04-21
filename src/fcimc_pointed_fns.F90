@@ -261,7 +261,7 @@ module fcimc_pointed_fns
             ! And create the parcticles
 !            write(88,*) "part_type, run, id", part_type, part_type_to_run(part_type), (part_type_to_run(part_type)-1)*2+tgt_cpt
             write(77, *) tgt_cpt, part_Type,  (part_type_to_run(part_type)-1)*2+tgt_cpt
-            write(66,*) part_type, nspawn
+            write(66,*) part_type, nspawn, prob, tau
             write(66,*)
 #ifdef __CMPLX
             child((part_type_to_run(part_type)-1)*2+tgt_cpt) = nSpawn

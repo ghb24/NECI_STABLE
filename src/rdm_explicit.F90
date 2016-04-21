@@ -246,7 +246,7 @@ contains
         use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs, rdms
         use rdm_filling, only: Fill_Diag_RDM
         use SymExcit3, only: GenExcitations3
-        use SymExcit4, only: GenExcitations4, ExcitGenSessionType, InitExcitGenSession
+        use SymExcit4, only: GenExcitations4, ExcitGenSessionType
         use SystemData, only: nel, tReltvy
 
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
@@ -269,7 +269,6 @@ contains
         ! This becomes true when all the excitations have been found.
         tAllExcitFound = .false.
 
-        if (tReltvy) session = InitExcitGenSession(nI, 1, 2, 0, 2)
         do while (.not. tAllExcitFound)
             exflag = 1
 
@@ -282,7 +281,7 @@ contains
             ! tested. RDMExcitLevel is passed through, if this is 1, only
             ! singles are generated, if it is 2 only doubles are found.
             if (tReltvy) then
-                call GenExcitations4(session, nJ, exFlag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+                call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
             else
                 call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
             endif
@@ -326,7 +325,7 @@ contains
                 ! it will be tested. RDMExcitLevel is passed through, if this
                 ! is 1, only singles are generated, if it is 2 only doubles are
                 if (tReltvy) then
-                    call GenExcitations4(session, nJ, exFlag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+                    call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
                 else
                     ! found.
                     call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
@@ -374,7 +373,7 @@ contains
         use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs, rdms
         use rdm_filling, only: Fill_Diag_RDM
         use SymExcit3, only: GenExcitations3
-        use SymExcit4, only: GenExcitations4, ExcitGenSessionType, InitExcitGenSession
+        use SymExcit4, only: GenExcitations4, ExcitGenSessionType
         use SystemData, only: nel
 
         integer(n_int), intent(in) :: iLutnI(0:NIfTot)
@@ -404,7 +403,6 @@ contains
         ! This becomes true when all the excitations have been found.        
         tAllExcitFound = .false.
 
-        if (tReltvy) session = InitExcitGenSession(nI, 1, 2, 0, 2)
         do while (.not. tAllExcitFound)
             exflag = 1
 
@@ -417,7 +415,7 @@ contains
             ! RDMExcitLevel is passed through, if this is 1, only singles are
             ! generated, if it is 2 only doubles are found.
             if (tReltvy) then
-                call GenExcitations4(session, nJ, exFlag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+                call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
             else
                 call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
             endif
@@ -460,7 +458,7 @@ contains
                 ! tested. RDMExcitLevel is passed through, if this is 1, only
                 ! singles are generated, if it is 2 only doubles are found.
                  if (tReltvy) then
-                    call GenExcitations4(session, nJ, exFlag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+                    call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
                 else
                     call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
                 endif

@@ -340,7 +340,6 @@ contains
     subroutine generate_connected_space_normal(original_space_size, original_space, &
             connected_space_size, connected_space, tSinglesOnlyOpt)
 
-        use SymExcit4, only : InitExcitGenSession
         ! This routine either counts or generates all the determinants connected to those in
         ! original_space. If connected_space is not present then they will only be counted,
         ! else they will be stored in connected_space. If tSinglesOnlyOpt is present and
@@ -383,10 +382,6 @@ contains
             call init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
             if (tSinglesOnly) ex_flag = 1
             
-            if (tReltvy) then
-                session = InitExcitGenSession(nI, 1, 2, 0, 2)
-            endif
-
             do while(.true.)
 
                 call generate_connection_normal(nI, original_space(:,i), nJ, ilutJ, ex_flag, excit, &
@@ -423,7 +418,7 @@ contains
 
         ! Generate the next determinant.
         if (tReltvy) then
-            call GenExcitations4(session, nJ, ex_flag, excit, tParity, tAllExcitFound, .false.)
+            call GenExcitations4(session, nI, nJ, ex_flag, excit, tParity, tAllExcitFound, .false.)
         else
             call GenExcitations3(nI, ilutI, nJ, ex_flag, excit, tParity, &
                               tAllExcitFound, .false.)

@@ -7,7 +7,7 @@ module RPA_Mod
     use constants, only: dp, int64, n_int
     use Determinants, only: get_helement, fDet
     use SymExcit3, only: GenExcitations3
-    use SymExcit4, only: GenExcitations4, ExcitGenSessionType, InitExcitGenSession
+    use SymExcit4, only: GenExcitations4, ExcitGenSessionType
     use Determinants, only: GetH0Element3
     use bit_reps, only: NIfTot
     use DetBitops, only: EncodeBitDet
@@ -76,11 +76,9 @@ module RPA_Mod
         HDiagTemp=GetH0Element3(FDet)
         Fii=real(HDiagTemp,dp)
 
-        if (tReltvy) session = InitExcitGenSession(Fdet, 1, 2, 0, 2)
-
         do while(.true.)
             if (tReltvy) then 
-                call GenExcitations4(session, nJ, exFlag, Ex, tParity, tAllExcitsFound, .false.)
+                call GenExcitations4(session, FDet, nJ, exFlag, Ex, tParity, tAllExcitsFound, .false.)
             else
                 call GenExcitations3(FDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound,.false.)
             endif

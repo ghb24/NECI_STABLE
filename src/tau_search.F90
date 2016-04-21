@@ -394,7 +394,7 @@ contains
         ! excitation generators, which is exciting!
 
         use neci_intfce
-        use SymExcit4, only : GenExcitations4, InitExcitGenSession, ExcitGenSessionType
+        use SymExcit4, only : GenExcitations4, ExcitGenSessionType
         type(excit_gen_store_type) :: store, store2
         logical :: tAllExcitFound,tParity,tSameFunc,tSwapped,tSign
         character(len=*), parameter :: t_r="FindMaxTauDoubs"
@@ -447,7 +447,6 @@ contains
         !    CALL GetSymExcitCount(EXCITGEN,DetConn)
         endif
 
-        session = InitExcitGenSession(ProjEDet(:,1), 1, 2, 0, 2)
         do while (.not.tAllExcitFound)
             if(tKPntSym) then
                 call GenSymExcitIt2(ProjEDet(:,1),nel,G1,nBasis,.false.,EXCITGEN,nJ,iExcit,nStore,exFlag)
@@ -460,7 +459,7 @@ contains
                 call GetExcitation(ProjEDet(:,1),nJ,Nel,ex,tParity)
             else
                 if (tReltvy) then
-                    call GenExcitations4(session, nJ, exflag, ex_saved, tParity, tAllExcitFound, .false.)
+                    call GenExcitations4(session, ProjEDet(:,1), nJ, exflag, ex_saved, tParity, tAllExcitFound, .false.)
                 else
                     CALL GenExcitations3(ProjEDet(:,1),iLutRef(:,1),nJ,exflag,Ex_saved,tParity,tAllExcitFound,.false.)
                 endif
