@@ -76,7 +76,7 @@ contains
 
         else 
             print *, " only run the excitation generator tests!"
-            call run_test_excit_gen_guga_S0
+!             call run_test_excit_gen_guga_S0
             call run_test_excit_gen_guga()
 
         end if

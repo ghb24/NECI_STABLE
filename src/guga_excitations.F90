@@ -5169,6 +5169,11 @@ contains
         print *, "upper and lower limit?", size(current_stepvector)
 #endif
 
+        ! fix for gfortran compilation for some reasono
+        ! i can probably fix it when i finally get to this point in 
+        ! test running
+        print *, ""
+
         select case (current_stepvector(se))
         case (1)
 !         if (isOne(ilut,se)) then
@@ -5359,6 +5364,9 @@ contains
         print *, "upper and lower limit?", size(current_stepvector)
         call print_excitInfo(excitInfo)
 #endif
+
+        ! same gfortran compilex issue fix as above
+        print *, ""
 
         select case (current_stepvector(se))
         case (1)
@@ -10145,6 +10153,10 @@ contains
         ! first check the single particle matrix element, it it is zero leave
         ! have index it with spin orbitals: assume non-UHF basis 
         tmat = GetTMatEl(2*i, 2*j)
+
+        if ((i == 2 .and. j == 3) .or. (i == 3 .and. j == 2)) then
+        print *, "toto1: tmat: ", tmat
+        end if
         if (abs(tmat)<EPS) then
             allocate(excitations(0,0), stat = ierr)
             return
@@ -13122,7 +13134,8 @@ contains
         ! first check two-particle integral
         umat = get_umat_el(i, k,j,  l)
 
-        if (abs(umat)<EPS) then
+        print *, "toto2: umat: ", umat
+        if (abs(umat) < EPS) then
             allocate(excitations(0,0), stat = ierr)
             return
         end if
