@@ -937,6 +937,7 @@ module FciMCParMod
                         call neci_flush(iout) 
                     endif
 
+
                     ! Children have been chosen to be spawned.
                     if (any(child /= 0)) then
 

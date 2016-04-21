@@ -12,7 +12,7 @@ module SymExcit4
     interface GenExcitations4
         module procedure GenExcitations4_non_initd
         module procedure GenExcitations4_initd
-        module procedure GenExcitations4_compat
+        module procedure GenExcitations4_compat_non_initd
     end interface
 
     type ExcitGenSessionType
@@ -516,24 +516,26 @@ module SymExcit4
         call GenExcitations4_non_initd(session, session%nI, nJ, tParity, tAllExcitFound, ti_lt_a_only)
     end subroutine GenExcitations4_initd
 
-    subroutine GenExcitations4_compat(session, nJ, exFlag, excitMat, tParity, tAllExcitFound, ti_lt_a_only)
+
+    subroutine GenExcitations4_compat_non_initd(session, nI, nJ, exFlag, excitMat, tParity, tAllExcitFound, ti_lt_a_only)
         ! this routine is only included to provide an interface consistent with that of
         ! the existing GenExcitations3. Here we have to assume a max rank of 2
         implicit none
         type(ExcitGenSessionType), intent(inout) :: session
+        integer, intent(in) :: nI(nEl)
         integer, intent(out) :: nJ(nEl), exFlag, excitMat(2,2)
         logical, intent(out) :: tParity, tAllExcitFound
         logical, intent(in) :: ti_lt_a_only
-        integer :: i
-        call GenExcitations4_non_initd(session, session%nI, nJ, tParity, tAllExcitFound, ti_lt_a_only)
-    exFlag = session%rank
-    ! fill the excitation matrix
-    excitMat(:,:) = 0
-    do i = 1, exFlag
-        excitMat(:,i) = (/ session%elecSpinOrbs(i), session%holeSpinOrbs(i) /)
-    enddo
+        call GenExcitations4_non_initd(session, nI, nJ, tParity, tAllExcitFound, ti_lt_a_only)
+        if (tAllExcitFound) return
+        exFlag = session%rank
+        ! fill the excitation matrix
+        excitMat(:,:) = 0
+        do i = 1, exFlag
+            excitMat(:,i) = (/ session%elecSpinOrbs(i), session%holeSpinOrbs(i) /)
+        enddo
+        
     end subroutine
-
 
     subroutine CountExcitations4(nI, minRank, maxRank, minSpinDiff, maxSpinDiff, tot)
         implicit none
