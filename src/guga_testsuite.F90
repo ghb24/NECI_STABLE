@@ -76,7 +76,7 @@ contains
 
         else 
             print *, " only run the excitation generator tests!"
-
+            call run_test_excit_gen_guga_S0
             call run_test_excit_gen_guga()
 
         end if
@@ -312,7 +312,7 @@ contains
 
         call actHamiltonian(ilut, ex, nEx)
 
-        nTest = min(nEx,10)
+        nTest = min(nEx,20)
 
         print *, "running tests on nExcits: ", nTest
         call write_guga_list(6, ex(:,1:nEx))
@@ -324,7 +324,6 @@ contains
             call test_excit_gen_guga(ex(:,i), n_guga_excit_gen)
         end do
     
-        
     end subroutine run_test_excit_gen_guga_general
 
     subroutine run_test_excit_gen_guga_single(nI)
@@ -2276,6 +2275,25 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(4)
 
+
+        pSingles = 0.1_dp
+        pDoubles = 1.0_dp - pSingles
+
+!         pExcit4 = (1.0_dp - 1.0_dp / real(nSpatOrbs,dp))
+        pExcit4 = 0.5_dp
+!         pExcit2 = 1.0_dp / real(nSpatOrbs - 1, dp)
+        pExcit2 = 0.5_dp
+
+        if (t_consider_diff_bias) then
+            pExcit2_same = 0.5_dp
+            pExcit3_same = 0.5_dp
+        else
+            pExcit2_same = 1.0_dp
+            pExcit3_same = 1.0_dp
+        end if
+
+        pExcit2_same = 0.9_dp
+        pExcit3_same = 0.9_dp
 
         print *, "running: test_excit_gen_guga(ilut,n_guga_excit_gen)"
         print *, "pSingles set to: ", pSingles

@@ -327,7 +327,7 @@ contains
             case (1)
 
                 currentOcc_ilut(i) = 1.0_dp
-                currentOcc_int = 1
+                currentOcc_int(i) = 1
 
                 b_real = b_real + 1.0_dp
                 b_int = b_int + 1
@@ -7611,7 +7611,7 @@ contains
 
             end if
 !         end if
-#endif __DEBUG
+#ifdef __DEBUG
         case default 
             call stop_all(this_routine, "wrong stepvalue!")
 #endif
@@ -11572,7 +11572,7 @@ contains
             ! the same and then do an according update..
             ! is positive weight is 0, negative weight has to be >0
             ! or else we wouldn be here -> no switches just update -1 branches
-            if (plusWeight <EPS) then 
+            if (plusWeight < EPS) then 
                 ! no switches lead to  a nonzero excitation, just update 
                 ! matrix element and stay on track
                 do iEx = 1, nExcits 
@@ -11589,7 +11589,7 @@ contains
                 end do
             ! when negative weight is 0, positiv weight has to be > 0
             ! so update positive branches and switch negative ones
-            else if (minusWeight <EPS) then
+            else if (minusWeight < EPS) then
                 do iEx = 1, nExcits
                     t = tempExcits(:,iEx)
                     deltaB = getDeltaB(t)
@@ -11669,7 +11669,7 @@ contains
             ! inclusion in the weight functions..
             
 
-            if (plusWeight <EPS) then
+            if (plusWeight < EPS) then
                 ! update on spot and switch
                 ! in this case all +1 branches HAVE to switch, but leave them 
                 ! in same position
@@ -11699,7 +11699,7 @@ contains
                     tempExcits(:,iEx) = t
                 end do
 
-            else if (minusWeight <EPS) then
+            else if (minusWeight < EPS) then
                 ! update on spot stay
                 ! in this case staying on branch is possible for +1 and a 
                 ! -1 branch would have a zero weight, so just update matrix 
@@ -13139,7 +13139,6 @@ contains
         call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
 !         print *,"compatible: ", compFlag
 
-
         if (.not.compFlag) then
             allocate(excitations(0,0), stat = ierr)
             return
@@ -13856,7 +13855,9 @@ contains
         ! then do pseudo double until semi stop
         ! should check for LR(3) start here, have to do nothing if a 3 at 
         ! the full start since all matrix elements are one..
-        if (.not.isThree(ilut,start)) then
+!         if (.not.isThree(ilut,start)) then
+
+        if (current_stepvector(start) /= 3) then
             do iOrb = start + 1, semi - 1 
                 call doubleUpdate(ilut, iOrb, excitInfo, weights, tempExcits, nExcits, &
                 negSwitches, posSwitches)
@@ -13929,7 +13930,8 @@ contains
         ! then do pseudo double until semi stop
         ! should check for LR(3) start here, have to do nothing if a 3 at 
         ! the full start since all matrix elements are one..
-        if (.not.isThree(ilut,start)) then
+!         if (.not.isThree(ilut,start)) then
+        if (current_stepvector(start) /= 3) then
             do iOrb = start + 1, semi - 1 
                 call doubleUpdate(ilut, iOrb, excitInfo, weights, tempExcits, nExcits, &
                     negSwitches, posSwitches)
@@ -14098,7 +14100,7 @@ contains
 
                     end do
 
-                else if (currentB_int(se) == 0 .or. plusWeight <EPS) then
+                else if (currentB_int(se) == 0 .or. plusWeight < EPS) then
                     ! only -1 branch possibloe
                     if (minusWeight < EPS) then
                         nExcits = 0
@@ -14127,7 +14129,7 @@ contains
 
                     end do
 
-                else if (minusWeight <EPS .and. currentB_int(se) > 0) then
+                else if (minusWeight < EPS .and. currentB_int(se) > 0) then
                     ! only +1 branches possible
                     if (plusWeight < EPS) then
                         nExcits = 0
@@ -14346,7 +14348,7 @@ contains
                         end if 
                     end do
 
-                else if (currentB_int(se) == 0 .or. plusWeight <EPS) then
+                else if (currentB_int(se) == 0 .or. plusWeight < EPS) then
                     ! only -1 branch when 0 branch arrives... the switch from
                     ! +2 -> +1 branch shouldnt be affected, since i wouldn not 
                     ! arrive at semi.stop if 0 weight, and if b value would 
@@ -14390,7 +14392,7 @@ contains
 
                     end do
 
-                else if (currentB_int(se) > 0 .and. minusWeight <EPS) then
+                else if (currentB_int(se) > 0 .and. minusWeight < EPS) then
                     ! only +1 branch possible afterwards
                     do iEx = 1, nExcits
                         t = tempExcits(:,iEx)
@@ -14431,7 +14433,7 @@ contains
 
                     end do
 
-                else if (currentB_int(se) == 0 .and. plusWeight <EPS) then
+                else if (currentB_int(se) == 0 .and. plusWeight < EPS) then
                     ! broken excitation due to b value restriction
                     ! todo how to deal with that ...
                     call stop_all(this_routine, "broken excitation due to b value. todo!")
@@ -14476,7 +14478,8 @@ contains
         ! a full start, because i also want to use it for normal double 
         ! excitations, and there it doesnt matter what the stepvector value 
         ! at the fullstart is!!!
-        if (isThree(ilut,st).and.ss==st) then
+!         if (isThree(ilut,st).and.ss==st) then
+        if (current_stepvector(st) == 3 .and. ss == st) then
             ! only 0 branches in this case
             ! first do the non-branching possibs
 !             if (isOne(ilut,se)) then
@@ -14591,7 +14594,7 @@ contains
 
                     end do
 
-                else if (currentB_int(se) == 0 .or. plusWeight <EPS) then
+                else if (currentB_int(se) == 0 .or. plusWeight < EPS) then
                     ! only -1 branch possible
                     do iEx = 1, nExcits 
                         t = tempExcits(:,iEx)
@@ -14614,7 +14617,7 @@ contains
 
                     end do
 
-                else if (minusWeight <EPS .and. currentB_int(se) > 0) then
+                else if (minusWeight < EPS .and. currentB_int(se) > 0) then
                     ! only +1 branches possible
                     do iEx = 1, nExcits 
                         t = tempExcits(:,iEx)
@@ -14830,7 +14833,7 @@ contains
                         end if 
                     end do
 
-                else if (currentB_int(se) == 0 .or. plusWeight <EPS) then
+                else if (currentB_int(se) == 0 .or. plusWeight < EPS) then
                     ! only -1 branch when 0 branch arrives... the switch from
                     ! +2 -> +1 branch shouldnt be affected, since i wouldn not 
                     ! arrive at semi.stop if 0 weight, and if b value would 
@@ -14931,9 +14934,8 @@ contains
         
     end subroutine calcLoweringSemiStop
 
-
-    subroutine mixedFullStart(ilut, excitInfo, plusWeight, minusWeight, zeroWeight, tempExcits,&
-            nExcits)
+    subroutine mixedFullStart(ilut, excitInfo, plusWeight, minusWeight, &
+            zeroWeight, tempExcits, nExcits)
         ! remember full-start matrix element are stored in the same row
         ! as deltaB = -1 mixed ones... so access matrix element below with 
         ! deltaB = -1 !!
@@ -14979,7 +14981,7 @@ contains
         ! do the mixed fullstart new with all weights contributed for
 !         else if (isOne(ilut, st)) then
         case (1)
-            ASSERT( zeroWeight + plusWeight > 0.0_dp)
+            ASSERT(zeroWeight + plusWeight > 0.0_dp)
             if (zeroWeight > 0.0_dp .and. plusWeight > 0.0_dp) then
         
             ! depending on weights, and b value maybe 2 excitations possible
@@ -15046,7 +15048,6 @@ contains
                 nExcits = 1
 
             else
-
                 ! something went wrong probably... 0 branch always 
                 ! possible remember, so only 0 branch not possible..
                 call stop_all(this_routine, "something went wrong. should not be here!")
@@ -18930,7 +18931,7 @@ contains
                     mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
                 end if        
                 
-                if ((mw < EPS .and. pw < EPS .and. zw < EPS) .or. &
+                if ((pw + mw + zw < EPS) .or. &
                     (current_stepvector(st) == 1 .and. zw + pw < EPS) .or. &
                     (current_stepvector(st) == 2 .and. zw + mw < EPS) .or. &
                     (current_stepvector(st) == 3 .and. zw < EPS)) then
@@ -25141,8 +25142,7 @@ contains
             
 !             if (isZero(ilut,j)) then
             if (current_stepvector(j) == 0) then
-                nOrbs = count(currentOcc_int /= 0)
-
+                nOrbs = count(currentOcc_int /= 0) 
             else 
                 nOrbs = nSpatOrbs - 1
             end if

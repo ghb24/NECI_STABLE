@@ -985,7 +985,7 @@ contains
 
         do i = 1, nSpatOrbs
 
-            occVector(i) = getStepvalue(ilut,i)
+            occVector(i) = getSpatialOccupation(ilut,i)
 ! 
 !             if (isZero(ilut,i)) then
 !                 occVector(i) = 0
