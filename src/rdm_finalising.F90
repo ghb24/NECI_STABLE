@@ -1116,7 +1116,7 @@ contains
                     end if
                 end if
 
-                if (i < nel) then
+                if (i <= nel) then
                     if (tOpenShell) then
                         SumN_Rho_ii = SumN_Rho_ii + ( matrix(ind(HFDet_True(i)), ind(HFDet_True(i))) * norm_1rdm )
                     else
