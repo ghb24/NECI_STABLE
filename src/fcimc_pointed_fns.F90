@@ -449,9 +449,14 @@ module fcimc_pointed_fns
         integer, intent(in) :: WalkExcitLevel
         character(*), parameter :: t_r = 'attempt_die_normal'
 
-        real(dp) :: r, rat, probsign
+        real(dp) :: probsign, r
         real(dp), dimension(inum_runs) :: fac
         integer :: i, run, iUnused
+#ifdef __CMPLX
+            real(dp) :: rat(2)
+#else
+            real(dp) :: rat
+#endif        
 
         do i=1, inum_runs
             fac(i)=tau*(Kii-DiagSft(i))
@@ -459,6 +464,7 @@ module fcimc_pointed_fns
             ! And for tau searching purposes
             call log_death_magnitude (Kii - DiagSft(i))
         enddo
+        write(6,*) "fac: ",fac
 
         if(any(fac > 1.0_dp)) then
             if (any(fac > 2.0_dp)) then
@@ -487,28 +493,29 @@ module fcimc_pointed_fns
 
         if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
             .or. tAllRealCoeff ) then
+            do run=1, inum_runs
+                ndie(min_part_type(run))=fac(run)*abs(realwSign(min_part_type(run)))
 #ifdef __CMPLX
-        do run=1, inum_runs
-            ndie(run)=fac(run)*abs_sign(realwSign(min_part_type(run):max_part_type(run)))
-        enddo
-#else
-            ndie=fac*abs(realwSign)
+                ndie(max_part_type(run))=fac(run)*abs(realwSign(max_part_type(run)))
 #endif
-
+            enddo
         else
             do run=1,inum_runs
                 
                 ! Subtract the current value of the shift, and multiply by tau.
                 ! If there are multiple particles, scale the probability.
                 
-                rat = fac(run) * abs_sign(realwSign(min_part_type(run):max_part_type(run)))
+                rat = fac(run) * abs(realwSign(min_part_type(run):max_part_type(run)))
 
-                ndie(i) = real(int(rat), dp)
-                rat = rat - ndie(i)
+                ndie(min_part_type(run):max_part_type(run)) = real(int(rat), dp)
+                rat = rat - ndie(min_part_type(run):max_part_type(run))
 
                 ! Choose to die or not stochastically
-                r = genrand_real2_dSFMT() 
-                if (abs(rat) > r) ndie(i) = ndie(i) + real(nint(sign(1.0_dp, rat)), dp)
+                do i = 1, lenof_sign/inum_runs
+                    r = genrand_real2_dSFMT() 
+                    if (abs(rat(i)) > r) ndie(min_part_type(run)-1+i) = &
+                        ndie(min_part_type(run)-1+i) + real(nint(sign(1.0_dp, rat(i))), dp)
+                enddo
             enddo
         endif
 
