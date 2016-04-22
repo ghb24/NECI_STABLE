@@ -77,7 +77,6 @@ contains
 
     end function TestMCExit
 
-
     subroutine create_particle (nJ, iLutJ, child, part_type, ilutI, SignCurr, &
                                 WalkerNo, RDMBiasFacCurr, WalkersToSpawn)
 
@@ -134,6 +133,7 @@ contains
             call stop_all(this_routine, "Out of memory for spawned particles")
         end if
 
+        !We initially encode no flags
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
 
@@ -582,7 +582,6 @@ contains
 #else
             sgn_run = sgn(run)
 #endif
-            write(6,*) "run, exlevel, sgn_run: ",run,exlevel,sgn_run
 
             hoffdiag = 0
             if (exlevel == 0) then
@@ -628,7 +627,6 @@ contains
             ENumCyc(run) = ENumCyc(run) + (hoffdiag * sgn_run) / dProbFin
             ENumCycAbs(run) = ENumCycAbs(run) + abs(hoffdiag * sgn_run) / dProbFin
 
-            write(6,*) "run, SumENum: ",run,SumENum(run),hoffdiag,sgn_run,dProbFin
 
         end do
 
@@ -731,10 +729,6 @@ contains
         ! the following value is either a single sgn or an aggregate
         real(dp) :: tot_sgn
         logical :: initiator
-
-#ifdef __DEBUG
-        character(*), parameter :: this_routine = 'TestInitiator'
-#endif
 
         ! By default the particles status will stay the same
         initiator = is_init

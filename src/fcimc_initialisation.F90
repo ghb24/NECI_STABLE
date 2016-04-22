@@ -1838,11 +1838,6 @@ contains
         character(*), parameter :: this_routine = 'InitFCIMC_HF_orthog'
 
         ! Add some implementation guards
-#ifdef __CMPLX
-        !call stop_all(this_routine, "Complex not yet supported")
-#endif
-        !if (inum_runs /= lenof_sign) &
-        !    call stop_all(this_routine, "Not yet supported")
 
         ! Default values, unless overridder for individual procs
         NoatHF = 0.0_dp

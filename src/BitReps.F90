@@ -324,23 +324,17 @@ contains
     pure function get_initiator_flag(sgn_index) result (flag)
         integer, intent(in) :: sgn_index
         integer :: flag
-#ifdef __CMPLX
-        ! map 1->1, 2->1, 3->2, 4->2 with integer division
-        flag = flag_initiator((sgn_index-1)/2+1) 
-#else
-        flag = flag_initiator(sgn_index) 
-#endif
+        ! map 1->1, 2->1, 3->3, 4->3, 5->5, 6->5 for complex,
+        ! as the initiator flag is stored in the "real" bit
+        ! of each run
+        flag = flag_initiator(min_part_type(part_type_to_run(sgn_index)))
     end function get_initiator_flag
 
     pure function get_initiator_flag_by_run(run) result (flag)
         integer, intent(in) :: run
         integer :: flag
-#ifdef __CMPLX
-        ! map 1->1, 2->3, 3->5, 4->7
-        flag = flag_initiator((run-1)*2+1) 
-#else
-        flag = flag_initiator(run) 
-#endif
+        ! map 1->1, 2->3, 3->5, 4->7 for complex
+        flag = flag_initiator(min_part_type(run))
     end function get_initiator_flag_by_run
 
     pure function any_run_is_initiator(ilut) result (t)

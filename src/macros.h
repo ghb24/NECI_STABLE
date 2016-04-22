@@ -86,18 +86,18 @@ endif
 
 #ifdef __CMPLX
 ! 1->1 ,2->1, 3->2 ...
-#define part_type_to_run(pt) 1+(pt-1)/2
+#define part_type_to_run(pt) (1+((pt)-1)/2)
 #ifdef __PROG_NUMRUNS
-#define min_part_type(run) 2*run-1
-#define max_part_type(run) 2*run
-#define mag_of_run(signs, run) (signs(min_part_type(run))**2 + signs(max_part_type(run))**2)**5e-1_dp
-#define is_run_unnocc(signs, run) (signs(min_part_type(run))**2 + signs(max_part_type(run))**2)**5e-1_dp <1.0e-12_dp 
+#define min_part_type(run) (2*(run)-1)
+#define max_part_type(run) (2*(run))
+#define mag_of_run(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp
+#define is_run_unnocc(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp <1.0e-12_dp 
 #else
 #ifdef __DOUBLERUN
-#define min_part_type(run) 2*run-1
-#define max_part_type(run) 2*run
-#define mag_of_run(signs, run) (signs(min_part_type(run))**2 + signs(max_part_type(run))**2)**5e-1_dp
-#define is_run_unnocc(signs, run) (signs(min_part_type(run))**2 + signs(max_part_type(run))**2)**5e-1_dp <1.0e-12_dp 
+#define min_part_type(run) (2*(run)-1)
+#define max_part_type(run) (2*(run))
+#define mag_of_run(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp
+#define is_run_unnocc(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp <1.0e-12_dp 
 #else
 #define min_part_type(run) 1
 #define max_part_type(run) 2
