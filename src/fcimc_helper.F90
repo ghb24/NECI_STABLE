@@ -520,7 +520,7 @@ contains
         integer, intent(in), optional :: ind
 
         integer :: run, exlevel
-        real(dp) :: sgn_run
+        HElement_t(dp) :: sgn_run
         HElement_t(dp) :: hoffdiag
         character(*), parameter :: this_routine = 'SumEContrib_different_refs'
 
@@ -607,23 +607,39 @@ contains
                     exlevel = 2
                 end if
             end if
+#ifdef __CMPLX
+            sgn_run = cmplx(sgn(min_part_type(run)),sgn(max_part_type(run)),dp)
+#else
             sgn_run = sgn(run)
+#endif
+            write(6,*) "run, exlevel, sgn_run: ",run,exlevel,sgn_run
 
             hoffdiag = 0
             if (exlevel == 0) then
 
-                if (iter > nEquilSteps) &
+                if (iter > nEquilSteps) then
+#ifdef __CMPLX
+                    SumNoatHF(min_part_type(run)) = SumNoatHF(min_part_type(run)) + real(sgn_run)
+                    SumNoatHF(max_part_type(run)) = SumNoatHF(max_part_type(run)) + aimag(sgn_run)
+                    NoatHF(min_part_type(run)) = NoatHF(min_part_type(run)) + real(sgn_run)
+                    NoatHF(max_part_type(run)) = NoatHF(max_part_type(run)) + aimag(sgn_run)
+                    HFCyc(min_part_type(run)) = HFCyc(min_part_type(run)) + real(sgn_run)
+                    HFCyc(max_part_type(run)) = HFCyc(max_part_type(run)) + aimag(sgn_run)
+#else
                     SumNoatHF(run) = SumNoatHF(run) + sgn_run
-                NoatHF(run) = NoatHF(run) + sgn_run
-                HFCyc(run) = HFCyc(run) + sgn_run
+                    NoatHF(run) = NoatHF(run) + sgn_run
+                    HFCyc(run) = HFCyc(run) + sgn_run
+#endif
+                endif
 
             else if (exlevel == 2 .or. (exlevel == 1 .and. tNoBrillouin)) then
 
                 ! n.b. Brillouins theorem cannot hold for real-space Hubbard
                 ! model or for rotated orbitals.
 
-                if (exlevel == 2) &
-                    NoatDoubs(run) = NoatDoubs(run) + sgn_run
+                if (exlevel == 2) then
+                    NoatDoubs(run) = NoatDoubs(run) + mag_of_run(sgn, run)
+                endif
 
                 ! Obtain the off-diagonal elements
                 if (tHPHF) then
@@ -641,6 +657,8 @@ contains
                 SumENum(run) = SumENum(run) + (hoffdiag * sgn_run) / dProbFin
             ENumCyc(run) = ENumCyc(run) + (hoffdiag * sgn_run) / dProbFin
             ENumCycAbs(run) = ENumCycAbs(run) + abs(hoffdiag * sgn_run) / dProbFin
+
+            write(6,*) "run, SumENum: ",run,SumENum(run),hoffdiag,sgn_run,dProbFin
 
         end do
 

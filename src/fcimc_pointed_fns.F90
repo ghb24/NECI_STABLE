@@ -378,16 +378,15 @@ module fcimc_pointed_fns
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer(n_int) :: iUnused
         integer :: run
+        integer :: i
 
         ! Write out some debugging information if asked
         IFDEBUG(FCIMCDebug,3) then
-            if(lenof_sign.eq.2) then
-                write(iout,"(A,2f10.5,A)", advance='no') &
-                               "Creating ", child(1:lenof_sign), " particles: "
-            else
-                write(iout,"(A,f10.5,A)",advance='no') &
-                                         "Creating ", child(1), " particles: "
-            endif
+            write(iout,"(A)",advance='no') "Creating "
+            do i = 1,lenof_sign
+                write(iout,"(f10.5)",advance='no') child(i)
+            enddo
+            write(iout,"(A)",advance='no') " particles: "
             write(iout,"(A,2I4,A)",advance='no') &
                                       "Parent flag: ", parent_flags, part_type
             call writebitdet (iout, ilutJ, .true.)
@@ -464,7 +463,8 @@ module fcimc_pointed_fns
             ! And for tau searching purposes
             call log_death_magnitude (Kii - DiagSft(i))
         enddo
-        write(6,*) "fac: ",fac
+        write(6,*) "fac: ",fac,Kii
+        write(6,*) "DiagSft: ",DiagSft(:)
 
         if(any(fac > 1.0_dp)) then
             if (any(fac > 2.0_dp)) then

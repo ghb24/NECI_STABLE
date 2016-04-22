@@ -718,6 +718,7 @@ contains
                                           + proje_ref_energy_offsets(run)
                          proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
                                          + proje_ref_energy_offsets(run)
+                        write(6,*) "run,proje_iter",run,proje_iter(run),AllENumCyc(run),all_cyc_proje_denominator(run),proje_ref_energy_offsets(run)
                         AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
                                       + proje_ref_energy_offsets(run)
                 endif

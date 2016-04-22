@@ -90,15 +90,18 @@ endif
 #ifdef __PROG_NUMRUNS
 #define min_part_type(run) 2*run-1
 #define max_part_type(run) 2*run
+#define mag_of_run(signs, run) (signs(min_part_type(run))**2 + signs(max_part_type(run))**2)**5e-1_dp
 #define is_run_unnocc(signs, run) (signs(min_part_type(run))**2 + signs(max_part_type(run))**2)**5e-1_dp <1.0e-12_dp 
 #else
 #ifdef __DOUBLERUN
 #define min_part_type(run) 2*run-1
 #define max_part_type(run) 2*run
+#define mag_of_run(signs, run) (signs(min_part_type(run))**2 + signs(max_part_type(run))**2)**5e-1_dp
 #define is_run_unnocc(signs, run) (signs(min_part_type(run))**2 + signs(max_part_type(run))**2)**5e-1_dp <1.0e-12_dp 
 #else
 #define min_part_type(run) 1
 #define max_part_type(run) 2
+#define mag_of_run(signs, run) (signs(1)**2 + signs(1)**2)**5e-1_dp
 #define is_run_unnocc(signs, run) (signs(1)**2 + signs(1)**2)**5e-1_dp <1.0e-12_dp 
 #endif
 #endif
@@ -117,6 +120,7 @@ endif
 #define max_part_type(run) 1
 #endif
 #endif
+#define mag_of_run(signs, run) abs(signs(run)) 
 #define is_run_unnocc(signs, run) abs(signs(run))<1.0e-12_dp 
 #endif
 

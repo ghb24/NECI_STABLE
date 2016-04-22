@@ -702,6 +702,7 @@ module FciMCParMod
 
         IFDEBUGTHEN(FCIMCDebug,iout)
             write(iout,"(A)") "Hash Table: "
+            write(iout,"(A)") "Position in hash table, Position in CurrentDets"
             do j=1,nWalkerHashes
                 TempNode => HashIndex(j)
                 if (TempNode%Ind /= 0) then
