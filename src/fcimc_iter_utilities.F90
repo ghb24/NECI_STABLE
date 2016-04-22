@@ -324,107 +324,232 @@ contains
 
     end subroutine population_check
 
-    subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all, replica_pairs)
+    subroutine communicate_estimates(iter_data, tot_parts_new, tot_parts_new_all)
+
+        ! This routine sums all estimators and stats over all processes.
+
+        ! We want this to be done in as few MPI calls as possible. Therefore, all
+        ! quantities are first placed into one of two arrays. There is one array
+        ! for HElement_t(dp) estimates, and another array (real(dp)) for all other
+        ! kinds and types. A single MPISumAll is then performed for both of these
+        ! combined arrays. After communication, the summed results are copied to
+        ! the appropriate final arrays, with the type and kind corrected when
+        ! necessary.
+
+        ! There are also a few separate MPI calls which reduce using MPI_MAX and
+        ! MPI_MIN at the end.
+
+        ! -- *IMPORTANT FOR DEVELOPERS* ---------------------------------------
+        ! To add a new quantity to be communicated, you must give it a new entry
+        ! in send_arr or send_arr_helem array. It is hopefully clear how to do
+        ! this by analogy. You should also update the indices in the appropriate
+        ! stop_all, so that it can be checked if enough memory has been assigned.
 
         type(fcimc_iter_data) :: iter_data
-        real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
-        real(dp), dimension(lenof_sign), intent(out) :: tot_parts_new_all
-        logical, intent(in) :: replica_pairs
+        real(dp), intent(in) :: tot_parts_new(lenof_sign)
+        real(dp), intent(out) :: tot_parts_new_all(lenof_sign)
 
-        integer :: int_tmp(5+2*lenof_sign), proc, pos, i
-        real(dp) :: sgn(lenof_sign)
-        HElement_t(dp) :: helem_tmp(3*inum_runs)
-        HElement_t(dp) :: real_tmp(2*inum_runs) !*lenof_sign
-        integer(int64) :: int64_tmp(8),TotWalkersTemp
-        character(len=*), parameter :: this_routine='collate_iter_data'
-        real(dp), dimension(max(lenof_sign,inum_runs)) :: RealAllHFCyc
-        real(dp), dimension(inum_runs) :: all_norm_psi_squared, all_norm_semistoch_squared
+        ! Allow room to send up to 1000 elements.
+        real(dp) :: send_arr(1000)
+        ! Allow room to receive up to 1000 elements.
+        real(dp) :: recv_arr(1000)
+        ! Equivalent arrays for HElement_t variables.
+        HElement_t(dp) :: send_arr_helem(100)
+        HElement_t(dp) :: recv_arr_helem(100)
+        ! Allow room for 100 different arrays to be communicated.
+        integer :: sizes(100)
+        integer :: low, upp, run
+
+        integer(int64) :: TotWalkersTemp
         real(dp) :: bloom_sz_tmp(0:2)
-        logical :: ltmp
-        integer :: run
-    
-        ! Communicate the integers needing summation
+        real(dp) :: RealAllHFCyc(max(lenof_sign,inum_runs))
+        real(dp) :: all_norm_psi_squared(inum_runs), all_norm_semistoch_squared(inum_runs)
+        character(len=*), parameter :: t_r = 'communicate_estimates'
 
-        call MPIReduce(SpawnFromSing, MPI_SUM, AllSpawnFromSing)
-        call MPIReduce(iter_data%update_growth, MPI_SUM, iter_data%update_growth_tot)
-        call MPIReduce(NoBorn, MPI_SUM, AllNoBorn)
-        call MPIReduce(NoDied, MPI_SUM, AllNoDied)
-        call MPIReduce(HFCyc, MPI_SUM, RealAllHFCyc)
-        call MPIReduce(NoAtDoubs, MPI_SUM, AllNoAtDoubs)
-        call MPIReduce(Annihilated, MPI_SUM, AllAnnihilated)
-        
-        do run=1,inum_runs
-            AllHFCyc(run)=ARR_RE_OR_CPLX(RealAllHFCyc,run)
-        enddo
-        
-        ! Integer summations required for the initiator method
+        ! Remove the holes in the main list when wanting the number of uniquely
+        ! occupied determinants.
+        TotWalkersTemp = TotWalkers - HolesInList
+
+        sizes = 0
+
+        ! low will represent the lower bound of an array slice.
+        low = 0
+        ! upp will represent the upper bound of an array slice.
+        upp = 0
+
+        sizes(1 ) = size(SpawnFromSing)
+        sizes(2 ) = size(iter_data%update_growth)
+        sizes(3 ) = size(NoBorn)
+        sizes(4 ) = size(NoDied)
+        sizes(5 ) = size(HFCyc)
+        sizes(6 ) = size(NoAtDoubs)
+        sizes(7 ) = size(Annihilated)
         if (tTruncInitiator) then
-            call MPISum ((/NoAddedInitiators(1), NoInitDets(1), &
-                           NoNonInitDets(1), NoExtraInitdoubs(1), InitRemoved(1)/),&
-                          int64_tmp(1:5))
-            AllNoAddedInitiators(1) = int64_tmp(1)
-            AllNoInitDets(1) = int64_tmp(2)
-            AllNoNonInitDets(1) = int64_tmp(3)
-            AllNoExtraInitDoubs(1) = int64_tmp(4)
-            AllInitRemoved(1) = int64_tmp(5)
+            sizes(8 ) = size(NoAddedInitiators)
+            sizes(9 ) = size(NoInitDets)
+            sizes(10) = size(NoNonInitDets)
+            sizes(11) = size(NoExtraInitDoubs)
+            sizes(12) = size(InitRemoved)
+            sizes(13) = size(NoAborted)
+            sizes(14) = size(NoRemoved)
+            sizes(15) = size(NoNonInitWalk)
+            sizes(16) = size(NoInitWalk)
+        end if
+        sizes(17) = 1 ! TotWalkersTemp (single int, not an array)
+        sizes(18) = size(norm_psi_squared)
+        sizes(19) = size(norm_semistoch_squared)
+        sizes(20) = size(TotParts)
+        sizes(21) = size(tot_parts_new)
+        sizes(22) = size(SumNoAtHF)
+        sizes(23) = size(bloom_count)
+        sizes(24) = size(NoAtHF)
+        sizes(25) = size(SumWalkersCyc)
+        sizes(26) = 1 ! nspawned (single int, not an array)
 
-            call MPIReduce(NoAborted, MPI_SUM, AllNoAborted)
-            call MPIReduce(NoRemoved, MPI_SUM, AllNoRemoved)
-            call MPIReduce(NoNonInitWalk, MPI_SUM, AllNoNonInitWalk)
-            call MPIReduce(NoInitWalk, MPI_SUM, AllNoInitWalk)
-        endif
+        if (sum(sizes(1:26)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
+                                                        & the size of the send_arr and recv_arr arrays in the source code.")
 
-        ! 64bit integers
-        !Remove the holes in the main list when wanting the number of uniquely occupied determinants
-        TotWalkersTemp=TotWalkers-HolesInList
-        call MPIReduce(TotwalkersTemp, MPI_SUM, AllTotWalkers)
-        call MPIReduce(norm_psi_squared,MPI_SUM,all_norm_psi_squared)
-        call MPIReduce(norm_semistoch_squared,MPI_SUM,all_norm_semistoch_squared)
-        call MPIReduce(Totparts,MPI_SUM,AllTotParts)
-        call MPIReduce(tot_parts_new,MPI_SUM,tot_parts_new_all)
+        low = upp + 1; upp = low + sizes(1 ) - 1; send_arr(low:upp) = SpawnFromSing;
+        low = upp + 1; upp = low + sizes(2 ) - 1; send_arr(low:upp) = iter_data%update_growth;
+        low = upp + 1; upp = low + sizes(3 ) - 1; send_arr(low:upp) = NoBorn;
+        low = upp + 1; upp = low + sizes(4 ) - 1; send_arr(low:upp) = NoDied;
+        low = upp + 1; upp = low + sizes(5 ) - 1; send_arr(low:upp) = HFCyc;
+        low = upp + 1; upp = low + sizes(6 ) - 1; send_arr(low:upp) = NoAtDoubs;
+        low = upp + 1; upp = low + sizes(7 ) - 1; send_arr(low:upp) = Annihilated;
+        if (tTruncInitiator) then
+            low = upp + 1; upp = low + sizes(8 ) - 1; send_arr(low:upp) = NoAddedInitiators;
+            low = upp + 1; upp = low + sizes(9 ) - 1; send_arr(low:upp) = NoInitDets;
+            low = upp + 1; upp = low + sizes(10) - 1; send_arr(low:upp) = NoNonInitDets;
+            low = upp + 1; upp = low + sizes(11) - 1; send_arr(low:upp) = NoExtraInitDoubs;
+            low = upp + 1; upp = low + sizes(12) - 1; send_arr(low:upp) = InitRemoved;
+            low = upp + 1; upp = low + sizes(13) - 1; send_arr(low:upp) = NoAborted;
+            low = upp + 1; upp = low + sizes(14) - 1; send_arr(low:upp) = NoRemoved;
+            low = upp + 1; upp = low + sizes(15) - 1; send_arr(low:upp) = NoNonInitWalk;
+            low = upp + 1; upp = low + sizes(16) - 1; send_arr(low:upp) = NoInitWalk;
+        end if
+        low = upp + 1; upp = low + sizes(17) - 1; send_arr(low:upp) = TotWalkersTemp;
+        low = upp + 1; upp = low + sizes(18) - 1; send_arr(low:upp) = norm_psi_squared;
+        low = upp + 1; upp = low + sizes(19) - 1; send_arr(low:upp) = norm_semistoch_squared;
+        low = upp + 1; upp = low + sizes(20) - 1; send_arr(low:upp) = TotParts;
+        low = upp + 1; upp = low + sizes(21) - 1; send_arr(low:upp) = tot_parts_new;
+
+        low = upp + 1; upp = low + sizes(22) - 1; send_arr(low:upp) = SumNoAtHf;
+        low = upp + 1; upp = low + sizes(23) - 1; send_arr(low:upp) = bloom_count;
+        low = upp + 1; upp = low + sizes(24) - 1; send_arr(low:upp) = NoAtHF;
+        low = upp + 1; upp = low + sizes(25) - 1; send_arr(low:upp) = SumWalkersCyc;
+        low = upp + 1; upp = low + sizes(26) - 1; send_arr(low:upp) = nspawned;
+
+        ! Perform the communication.
+        call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
+
+        ! Now we just need each result to be extracted to the correct array, with
+        ! the correct type.
+
+        low = 0; upp = 0
+
+        low = upp + 1; upp = low + sizes(1 ) - 1; AllSpawnFromSing = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(2 ) - 1; iter_data%update_growth_tot = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(3 ) - 1; AllNoBorn = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(4 ) - 1; AllNoDied = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(5 ) - 1; RealAllHFCyc = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(6 ) - 1; AllNoAtDoubs = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(7 ) - 1; AllAnnihilated = recv_arr(low:upp);
+        if (tTruncInitiator) then
+            low = upp + 1; upp = low + sizes(8 ) - 1; AllNoAddedInitiators = nint(recv_arr(low:upp), int64);
+            low = upp + 1; upp = low + sizes(9 ) - 1; AllNoInitDets = nint(recv_arr(low:upp), int64);
+            low = upp + 1; upp = low + sizes(10) - 1; AllNoNonInitDets = nint(recv_arr(low:upp), int64);
+            low = upp + 1; upp = low + sizes(11) - 1; AllNoExtraInitDoubs = nint(recv_arr(low:upp), int64);
+            low = upp + 1; upp = low + sizes(12) - 1; AllInitRemoved = nint(recv_arr(low:upp), int64);
+            low = upp + 1; upp = low + sizes(13) - 1; AllNoAborted = recv_arr(low:upp);
+            low = upp + 1; upp = low + sizes(14) - 1; AllNoRemoved = recv_arr(low:upp);
+            low = upp + 1; upp = low + sizes(15) - 1; AllNoNonInitWalk = recv_arr(low:upp);
+            low = upp + 1; upp = low + sizes(16) - 1; AllNoInitWalk = recv_arr(low:upp);
+        end if
+        low = upp + 1; upp = low + sizes(17) - 1; AllTotWalkers = nint(recv_arr(low), int64);
+        low = upp + 1; upp = low + sizes(18) - 1; all_norm_psi_squared = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(19) - 1; all_norm_semistoch_squared = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(20) - 1; AllTotParts = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(21) - 1; tot_parts_new_all = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(22) - 1; AllSumNoAtHF = recv_arr(low:upp);
+
+        low = upp + 1; upp = low + sizes(23) - 1; all_bloom_count = nint(recv_arr(low:upp));
+        low = upp + 1; upp = low + sizes(24) - 1; AllNoAtHf = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(25) - 1; AllSumWalkersCyc = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low));
+
+        ! Communicate HElement_t variables:
+
+        low = 0; upp = 0;
+
+        sizes(1) = size(ENumCyc)
+        sizes(2) = size(SumENum)
+        sizes(3) = size(ENumCycAbs)
+        sizes(4) = size(cyc_proje_denominator)
+        sizes(5) = size(sum_proje_denominator)
+
+        if (sum(sizes(1:5)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
+                                                        & increase the size of the send_arr_helem and recv_arr_helem &
+                                                        & arrays in the source code.")
+
+        low = upp + 1; upp = low + sizes(1) - 1; send_arr_helem(low:upp) = ENumCyc;
+        low = upp + 1; upp = low + sizes(2) - 1; send_arr_helem(low:upp) = SumENum;
+        low = upp + 1; upp = low + sizes(3) - 1; send_arr_helem(low:upp) = ENumCycAbs;
+        low = upp + 1; upp = low + sizes(4) - 1; send_arr_helem(low:upp) = cyc_proje_denominator;
+        low = upp + 1; upp = low + sizes(5) - 1; send_arr_helem(low:upp) = sum_proje_denominator;
+        if (tTrialWavefunction) then
+            low = upp + 1; upp = low + sizes(6) - 1; send_arr_helem(low:upp) = trial_numerator;
+            low = upp + 1; upp = low + sizes(7) - 1; send_arr_helem(low:upp) = trial_denom;
+        end if
+
+        call MPISumAll (send_arr_helem(1:upp), recv_arr_helem(1:upp))
+
+        low = 0; upp = 0;
+
+        low = upp + 1; upp = low + sizes(1) - 1; AllENumCyc = recv_arr_helem(low:upp);
+        low = upp + 1; upp = low + sizes(2) - 1; AllSumENum = recv_arr_helem(low:upp);
+        low = upp + 1; upp = low + sizes(3) - 1; AllENumCycAbs = recv_arr_helem(low:upp);
+        low = upp + 1; upp = low + sizes(4) - 1; all_cyc_proje_denominator = recv_arr_helem(low:upp);
+        low = upp + 1; upp = low + sizes(5) - 1; all_sum_proje_denominator = recv_arr_helem(low:upp);
+        if (tTrialWavefunction) then
+            low = upp + 1; upp = low + sizes(6) - 1; tot_trial_numerator = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(7) - 1; tot_trial_denom = recv_arr_helem(low:upp);
+        end if
+
+        ! Do some processing of the received data.
+
+        ! Convert real array into HElement_t one.
+        do run = 1, inum_runs
+            AllHFCyc(run) = ARR_RE_OR_CPLX(RealAllHFCyc, run)
+        end do
+
+#ifdef __CMPLX
+        norm_psi = sqrt(sum(all_norm_psi_squared))
+        norm_semistoch = sqrt(sum(all_norm_semistoch_squared))
+#else
         norm_psi = sqrt(all_norm_psi_squared)
         norm_semistoch = sqrt(all_norm_semistoch_squared)
-        
-        call MPIReduce(SumNoatHF, MPI_SUM, AllSumNoAtHF)
-        ! HElement_t(dp) values (Calculates the energy by summing all on HF and 
-        ! doubles)
+#endif
 
-        call MPISum ((/ENumCyc, SumENum, ENumCycAbs/), helem_tmp)
-        AllENumCyc(:) = helem_tmp(1:inum_runs)
-        AllSumENum(:) = helem_tmp(1+inum_runs:2*inum_runs)
-        AllENumCycAbs(:) = helem_tmp(1+2*inum_runs:3*inum_runs)
-        
-        ! Deal with particle blooms
-!        if (tSpinProjDets) then
-!            call MPISum(bloom_count(0:2), all_bloom_count(0:2))
-!            call MPIReduce_inplace(bloom_sizes(0:2), MPI_MAX)
-!        else
-            call MPISum(bloom_count(1:2), all_bloom_count(1:2))
-            call MPIReduce(bloom_sizes(1:2), MPI_MAX, bloom_sz_tmp(1:2))
-            bloom_sizes(1:2) = bloom_sz_tmp(1:2)
-!        end if
+        ! These require a different type of reduce operation, so are communicated
+        ! separately to the above communication.
+        call MPIReduce(bloom_sizes(1:2), MPI_MAX, bloom_sz_tmp(1:2))
+        bloom_sizes(1:2) = bloom_sz_tmp(1:2)
 
-        ! real(dp) values
-        call MPISum((/cyc_proje_denominator, sum_proje_denominator/),real_tmp)
-        all_cyc_proje_denominator = real_tmp(1:inum_runs)!(1:lenof_sign)
-        all_sum_proje_denominator = real_tmp(1+inum_runs:2*inum_runs)!(lenof_sign+1:2*lenof_sign)
+        ! Arrays for checking load balancing.
+        call MPIReduce(TotWalkersTemp, MPI_MAX, MaxWalkersProc)
+        call MPIReduce(TotWalkersTemp, MPI_MIN, MinWalkersProc)
+        call MPIReduce(max_cyc_spawn, MPI_MAX, all_max_cyc_spawn)
 
-        ! Max/Min values (check load balancing)
-        call MPIReduce (TotWalkersTemp, MPI_MAX, MaxWalkersProc)
-        call MPIReduce (TotWalkersTemp, MPI_MIN, MinWalkersProc)
-        call MPIReduce (max_cyc_spawn, MPI_MAX, all_max_cyc_spawn)
-        !call MPIReduce (sum(TotParts), MPI_MAX, MaxPartsProc)
-        !call MPIReduce (sum(TotParts), MPI_MIN, MinPartsProc)
+    end subroutine communicate_estimates
 
-        ! We need the total number on the HF and SumWalkersCyc to be valid on
-        ! ALL processors (Both double precision reals)
-        call MPISumAll (NoatHF, AllNoatHF)
-        call MPISumAll (SumWalkersCyc, AllSumWalkersCyc)
+    subroutine collate_iter_data(iter_data, replica_pairs)
 
-        ! The total number of spawned determinants.
-        call MPISum (nspawned, nspawned_tot)
+        type(fcimc_iter_data) :: iter_data
+        logical, intent(in) :: replica_pairs
 
-        !        WRITE(iout,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
+        integer :: run
+        logical :: ltmp
+        character(len=*), parameter :: this_routine = 'collate_iter_data'
 
         ! We should update tau searching if it is enabled, or if it has been
         ! enabled, and now tau is outside the range acceptable for tau
@@ -433,15 +558,12 @@ contains
             call MPIAllLORLogical(tSearchTauDeath, ltmp)
            tSearchTauDeath = ltmp
         end if
-        if ((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. &
-                            .not. tFillingStochRDMOnFly) then   
+
+        if ((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. .not. tFillingStochRDMOnFly) then   
             call update_tau()
         end if
 
         if (tTrialWavefunction) then
-            call MPIAllReduce(trial_numerator, MPI_SUM, tot_trial_numerator)
-            call MPIAllReduce(trial_denom, MPI_SUM, tot_trial_denom)
-
             if (.not. qmc_trial_wf) then
                 ! Becuase tot_trial_numerator/tot_trial_denom is the energy
                 ! relative to the the trial energy, add on this contribution to
@@ -477,7 +599,7 @@ contains
 
     subroutine update_shift (iter_data)
 
-        use CalcData, only: tInstGrowthRate, tShiftProjectGrowth
+        use CalcData, only: tInstGrowthRate
      
         type(fcimc_iter_data), intent(in) :: iter_data
         integer(int64) :: tot_walkers
@@ -506,20 +628,6 @@ contains
                     AllGrowRate(run) = (sum(iter_data%update_growth_tot(lb:ub) &
                                + iter_data%tot_parts_old(lb:ub))) &
                               / real(sum(iter_data%tot_parts_old(lb:ub)), dp)
-                enddo
-
-            else if (tShiftProjectGrowth) then
-
-                ! Extrapolate the expected number of walkers at the end of the
-                ! _next_ update cycle for calculating the shift. i.e. use
-                !
-                ! log((N_t + (N_t - N_(t-1))) / N_t)
-                do run = 1, inum_runs
-                    lb = min_part_type(run)
-                    ub = max_part_type(run)
-                    AllGrowRate(run) = &
-                        (2 * sum(AllSumWalkersCyc(lb:ub)) - sum(OldAllAvWalkersCyc(lb:ub))) &
-                            / sum(AllSumWalkersCyc(lb:ub))
                 enddo
 
             else
@@ -811,7 +919,8 @@ contains
         real(dp), dimension(lenof_sign) :: tot_parts_new_all
         logical, intent(in) :: replica_pairs
 
-        call collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all, replica_pairs)
+        call communicate_estimates(iter_data, tot_parts_new, tot_parts_new_all)
+        call collate_iter_data (iter_data, replica_pairs)
         call iter_diagnostics ()
         if(tRestart) return
         call population_check ()

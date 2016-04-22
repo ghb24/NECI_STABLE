@@ -108,7 +108,7 @@ module fcimc_initialisation
                                     set_trial_populations, set_trial_states
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
-                               set_part_init_time, set_spawn_rate
+                               set_spawn_rate
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
@@ -486,12 +486,7 @@ contains
 
 !If using a CAS space truncation, write out this CAS space
         IF(tTruncCAS) THEN
-            IF(tTruncInitiator) THEN
-                WRITE(iout,'(A)') " *********** INITIATOR METHOD IN USE ***********"
-                WRITE(iout,'(A)') " Fixed initiator space defined using the CAS method."
-            ELSE
-                WRITE(iout,*) "Truncated CAS space detected. Writing out CAS space..."
-            ENDIF
+            WRITE(iout,*) "Truncated CAS space detected. Writing out CAS space..."
             WRITE(iout,'(A,I2,A,I2,A)') " In CAS notation, (spatial orbitals, electrons), this has been chosen as: (", &
                 (OccCASOrbs+VirtCASOrbs)/2,",",OccCASOrbs,")"
             do I=NEl-OccCASorbs+1,NEl
@@ -1487,7 +1482,7 @@ contains
         endif
 
         ! How many children should we spawn given an excitation?
-        if ((tTruncCas .and. (.not. tTruncInitiator)) .or. tTruncSpace .or. &
+        if (tTruncCas .or. tTruncSpace .or. &
             tPartFreezeCore .or. tPartFreezeVirt .or. tFixLz .or. &
             (tUEG .and. .not. tLatticeGens) .or. tTruncNOpen) then
             if (tHPHF .or. tCSF .or. tSemiStochastic) then
@@ -1762,9 +1757,6 @@ contains
             call set_det_diagH(1, 0.0_dp)
             HFInd = 1
 
-            ! Set the initial iteration number
-            call set_part_init_time(1, TotImagTime)
-
             if (tContTimeFCIMC .and. tContTimeFull) &
                 call set_spawn_rate(1, spawn_rate_full(HFDet, ilutHF))
 
@@ -1904,9 +1896,6 @@ contains
                     hdiag = get_helement(ProjEDet(:, run), ProjEDet(:, run), 0)
                 endif
                 call set_det_diagH(site, real(hdiag, dp) - Hii)
-
-                ! Set the initial occupation time
-                call set_part_init_time(site, TotImagTime)
 
                 ! Obtain the initial sign
                 if (.not. tStartSinglePart) &
@@ -2421,9 +2410,6 @@ contains
                     endif
                     call set_det_diagH(DetIndex, real(HDiagTemp, dp) - Hii)
 
-                    ! Set the initial iteration number
-                    call set_part_init_time(DetIndex, TotImagTime)
-
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
                         call CalcParentFlag(DetIndex, iInit, &
@@ -2620,9 +2606,6 @@ contains
                     endif
                     call set_det_diagH(DetIndex, real(HDiagtemp, dp) - Hii)
 
-                    ! Set the initial iteration number
-                    call set_part_init_time(DetIndex, TotImagTime)
-
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
                         call CalcParentFlag(DetIndex, iInit, &
@@ -2680,9 +2663,6 @@ contains
                     enddo
                 endif
                 call set_det_diagH(DetIndex, 0.0_dp)
-
-                ! Set the initial iteration number
-                call set_part_init_time(DetIndex, TotImagTime)
 
                 ! Now add the Hartree-Fock determinant (not with index 1).
                 DetHash = FindWalkerHash(HFDet, nWalkerHashes)

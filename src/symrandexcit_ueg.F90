@@ -97,7 +97,11 @@ contains
                     if (iSpn == 1) then
                         spnb = 1
                     elseif (iSpn == 2) then
-                        spnb = (G1(orba)%Ms)/2 + 1
+                        ! w.d: bug found by peter jeszenski and confirmed by 
+                        ! simon! 
+                        ! messed up alpa and beta spin here.. 
+                        spnb = (-G1(orba)%Ms + 1)/2 + 1
+!                         spnb = (G1(orba)%Ms)/2 + 1
                     elseif(iSpn == 3) then
                         spnb = 2
                     end if
@@ -141,7 +145,11 @@ contains
         if (iSpn == 1) then
             spnb = 1
         elseif (iSpn == 2) then
-            spnb = (G1(orba)%Ms)/2 + 1
+        ! w.d: bug found by peter jeszenski and confirmed by 
+        ! simon! 
+        ! messed up alpa and beta spin here.. 
+        spnb = (-G1(orba)%Ms + 1)/2 + 1
+!       spnb = (G1(orba)%Ms)/2 + 1
         elseif(iSpn == 3) then
             spnb = 2
         end if

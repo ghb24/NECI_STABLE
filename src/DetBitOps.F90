@@ -690,10 +690,10 @@ module DetBitOps
         logical :: open_shell
 
         iLut(:)=0
-        nopen = 0
-        open_shell = .false.
         if (tCSF) then
             if(iscsf (nI)) then
+                nopen = 0
+                open_shell = .false.
                 do i=1,nel
                     ! THe first non-paired orbital has yama symbol = 1
                     if ((.not. open_shell) .and. &
@@ -899,7 +899,6 @@ module DetBitOps
     ! Routine to count number of open *SPATIAL* orbitals in a bit-string 
     ! representation of a determinant.
     ! ************************
-    ! BROKEN
     ! NOTE: This function name is misleading
     !       It counts the number of unpaired Beta electrons (ignores Alpha)
     !       --> Returns nopen/2 <==> Ms=0
@@ -913,16 +912,12 @@ module DetBitOps
         iLutAlpha(:)=0
         iLutBeta(:)=0
 
-        do i=0,NIfD     
-                    
-            iLutAlpha(i)=IAND(iLut(i),MaskAlpha)    !Seperate the alpha and beta bit strings
-            iLutBeta(i)=IAND(iLut(i),MaskBeta)
-            iLutAlpha(i)=ISHFT(iLutAlpha(i),-1)     !Shift all alpha bits to the left by one.
+        iLutAlpha(:)=IAND(iLut(:),MaskAlpha)    !Seperate the alpha and beta bit strings
+        iLutBeta(:)=IAND(iLut(:),MaskBeta)
+        iLutAlpha(:)=ISHFT(iLutAlpha(:),-1)     !Shift all alpha bits to the left by one.
 
-            iLutAlpha(i)=NOT(iLutAlpha(i))              ! This NOT means that set bits are now represented by 0s, not 1s
-            iLutAlpha(i)=IAND(iLutAlpha(i),iLutBeta(i)) ! Now, only the 1s in the beta string will be counted.
-
-        enddo
+        iLutAlpha(:)=NOT(iLutAlpha(:))              ! This NOT means that set bits are now represented by 0s, not 1s
+        iLutAlpha(:)=IAND(iLutAlpha(:),iLutBeta(:)) ! Now, only the 1s in the beta string will be counted.
 
         OpenOrbs = CountBits(iLutAlpha,NIfD,NEl)
     END SUBROUTINE CalcOpenOrbs

@@ -113,9 +113,7 @@ logical :: tAllRealCoeff, tUseRealCoeffs
 logical :: tRealSpawnCutoff
 logical :: tRealCoeffByExcitLevel
 integer :: RealCoeffExcitThresh
-real(dp) :: RealSpawnCutoff, OccupiedThresh, InitiatorOccupiedThresh
-logical :: tEnhanceRemainder
-logical :: tInitOccThresh
+real(dp) :: RealSpawnCutoff, OccupiedThresh
 logical :: tRPA_QBA     !RPA calculation with QB approximation
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
 logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
@@ -184,8 +182,7 @@ LOGICAL tUseProcsAsNodes  !Set if we treat each processor as its own node.
 INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of at most this size.
                           ! 0 means use physical nodes.
 
-    logical :: tJumpShift, tPopsJumpShift
-    logical :: tShiftProjectGrowth = .false.
+logical :: tJumpShift, tPopsJumpShift
 
 ! Perform a Davidson calculation if true.
 logical :: tDavidson
@@ -249,23 +246,6 @@ logical :: tWritePopsNorm
 real(dp) :: pops_norm
 integer :: pops_norm_unit
 
-! What is the maximum energy, above which all particles are treated as
-! initiators
-real(dp) :: InitiatorCutoffEnergy, InitiatorCutoffWalkNo
-
-! Should we aggregate particle counts across all of the simulations in
-! determining which sites are initiators (in system-replica mode).
-logical :: tMultiReplicaInitiators = .false.
-
-! Do we make sites into initiators if they have survived more than a certain
-! period of time?
-logical :: tSurvivalInitiatorThreshold, tSurvivalInitMultThresh
-real(dp) :: im_time_init_thresh, init_survival_mult
-
-! Do we make sites into initiators depending on the number of spawns to them?
-logical :: tSpawnCountInitiatorThreshold
-integer :: init_spawn_thresh
-
 ! Are we orthogonalising replicas?
 logical :: tOrthogonaliseReplicas, tReplicaSingleDetStart
 logical :: tOrthogonaliseSymmetric
@@ -323,18 +303,5 @@ logical :: tMultiRefShift = .false.
 
 ! Keep track of where in the calculation sequence we are.
 integer :: calc_seq_no
-
-!Weak initiator extension
-logical :: tWeakInitiators
-real(dp) :: weakthresh
-
-! During annihilation, do we need the coefficient on the parent site? If so
-! then attach it here
-logical :: tBroadcastParentCoeff = .false.
-
-logical :: tInterpolateInitThresh = .false.
-real(dp) :: init_interp_min, init_interp_max, init_interp_exponent
-
-logical :: tMP2FixedNode = .false.
 
 end module CalcData

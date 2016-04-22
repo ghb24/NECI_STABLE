@@ -9,6 +9,7 @@ MODULE System
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use constants
     use iso_c_hack
+    use read_fci, only: FCIDUMP_name
     use util_mod, only: error_function, error_function_c
 
     IMPLICIT NONE
@@ -951,6 +952,10 @@ system: do
             !Mimic the run-time behaviour of molpros NECI implementation
             tMolpro=.true.
             tMolproMimic=.true.
+        case("READ_ROFCIDUMP")
+            ! Overwrite current FCIDUMP name, and instead look for a file
+            ! called "ROFCIDUMP".
+            FCIDUMP_name = 'ROFCIDUMP'
         case("COMPLEXORBS_REALINTS")
             !We have complex orbitals, but real integrals. This means that we only have 4x permutational symmetry,
             !so we need to check the (momentum) symmetry before we look up any integrals

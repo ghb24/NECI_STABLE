@@ -140,8 +140,6 @@ contains
 
     subroutine init_bit_rep ()
 
-        use CalcData, only: tBroadcastParentCoeff
-
         ! Set the values of nifd etc.
 
         character(*), parameter :: this_routine = 'init_bit_rep'
@@ -215,26 +213,6 @@ contains
 ! If we are using programattic lenofsign, then we also need to use separate
 ! integers for the flags, as the number of initiator/parent flags increases
 ! dramatically!
-#if defined(__INT64) && !defined(__PROG_NUMRUNS)
-        ! If we are using 64-bit integers, we can put the flags into the same
-        ! integers as the signs, as there is plenty of redundancy. This avoids
-        ! using 1/3 of our communication to just say if we are spawning from
-        ! an initiator.
-        !
-        ! If we are storing real coefficient, then we can't combine signs and
-        ! flags at all :-S.
-        if (tUseRealCoeffs) then
-            if (tUseFlags) then
-                NIfFlag = 1
-            else
-                NIfFlag = 0
-            end if
-            NOffFlag = NOffSgn + NIfSgn
-        else
-            NIfFlag = 0
-            NOffFlag = NOffSgn
-        end if
-#else
         if (tUseFlags) then
             ! If there are other options which require flags, then this 
             ! criteria must be extended. However, do not increase this value 
@@ -245,7 +223,6 @@ contains
             NIfFlag = 0
         endif
         NOffFlag = NOffSgn + NIfSgn
-#endif
 
         ! N.B. Flags MUST be last!!!!!
         !      If we change this bit, then we need to adjust ilut_lt and 
@@ -265,13 +242,10 @@ contains
         ! information to be used.
         ! TODO: We may not always need the flags array. Test that...
 
-        ! Create space for broadcasting the parent particle coefficient
+        ! Create space for broadcasting the parent particle coefficient?
+        ! ghb removed this ability on 14/4/16
         nOffParentCoeff = NIfTot + 1
-        if (tBroadcastParentCoeff) then
-            nIfParentCoeff = 1
-        else
-            nIfParentCoeff = 0
-        end if
+        nIfParentCoeff = 0
 
         NIfBCast = NIfTot + nIfParentCoeff
          
@@ -297,27 +271,10 @@ contains
             call decode_bit_det (nI, ilut)
         endif
 
-#if defined(__INT64) && !defined(__PROG_NUMRUNS)
-        if (tUseRealCoeffs) then
-            ! Get the signs, and splat them onto the reals.
-            sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
-            real_sgn = transfer(sgn, real_sgn)
-        else
-            ! We are actually only representing integers with our reals
-            ! --> If we store them as integers, we can still combine things.
-            sgn(1) = iand(ilut(NOffSgn), sign_mask)
-            if (test_flag(ilut, flag_negative_sign)) sgn(1) = -sgn(1)
-            if (lenof_sign /= 1) then
-                sgn(2:lenof_sign) = ilut(NOffSgn+1:NOffSgn+lenof_sign-1)
-            end if
-            real_sgn = real(sgn, dp)
-        end if
-#else
         sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
         real_sgn = transfer(sgn, real_sgn)
-#endif
-        if (tUseFlags) &
-            flags = int(ishft(iLut(NOffFlag), -flag_bit_offset), sizeof_int)
+
+        if (tUseFlags) flags = int(iLut(NOffFlag), sizeof_int)
 
     end subroutine extract_bit_rep
 
@@ -327,7 +284,7 @@ contains
         integer :: flags
 
         if (tUseFlags) then
-            flags = int(ishft(ilut(NOffFlag), -flag_bit_offset), sizeof_int)
+            flags = int(ilut(NOffFlag), sizeof_int)
         else
             flags = 0
         end if
@@ -335,84 +292,31 @@ contains
     end function extract_flags
 
     !Extract the sign (as a real_dp) for a particular element in the lenof_sign "array"
-    function extract_part_sign (ilut, part_type) result(real_sgn)
+    pure function extract_part_sign (ilut, part_type) result(real_sgn)
 
         integer(n_int), intent(in) :: ilut(0:niftot)
         integer, intent(in) :: part_type
-        integer(n_int) :: sgn
         real(dp) :: real_sgn
 
-#if defined(__INT64) && !defined(__PROG_NUMRUNS)
-        if (tUseRealCoeffs) then
-            sgn = ilut(nOffSgn + part_type - 1)
-            real_sgn = transfer(sgn, real_sgn)
-        else
-            if (part_type == 1) then
-                sgn = iand(ilut(NOffSgn), sign_mask)
-                if (test_flag(ilut, flag_negative_sign)) sgn = -sgn
-            else
-                sgn = ilut(NOffSgn+1)
-            end if
-            real_sgn = real(sgn, dp)
-        end if
-#else
-        sgn = ilut(nOffSgn + part_type - 1)
-        real_sgn = transfer(sgn, real_sgn)
-#endif
+        real_sgn = transfer( ilut(nOffSgn + part_type - 1), real_sgn)
 
     end function
 
     !From the determinants, array of signs, and flag integer, create the
     !"packaged walker" representation
-    subroutine encode_bit_rep (ilut, Det, real_sgn, flag)
+    pure subroutine encode_bit_rep (ilut, Det, real_sgn, flag)
         integer(n_int), intent(out) :: ilut(0:nIfTot)
         real(dp), intent(in) :: real_sgn(lenof_sign)
         integer(n_int), intent(in) :: Det(0:NIfDBO)
         integer, intent(in) :: flag
         integer(n_int) :: sgn(lenof_sign)
-        integer :: flag_local
         
         iLut(0:NIfDBO) = Det
-        flag_local = flag
 
-#if defined(__INT64) && !defined(__PROG_NUMRUNS)
-        if (tUseRealCoeffs) then
-            sgn = transfer(real_sgn, sgn)
-            ilut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
-        else
-            ! In this encode step we don't have to worry about trampling on
-            ! existing flags, as we are about to set them below.
-            if (lenof_sign /= 1) &
-                sgn(2:lenof_sign) = int(real_sgn(2:lenof_sign), dp)
-            sgn(1) = int(real_sgn(1), n_int)
-
-            ilut(NOffSgn) = abs(sgn(1))
-            if (sgn(1) < 0) then
-                flag_local = ibset(flag_local, flag_negative_sign)
-            else
-                flag_local = ibclr(flag_local, flag_negative_sign)
-            endif
-            if (lenof_sign /= 1) &
-                ilut(NOffSgn+1:NOffSgn+lenof_sign-1) = sgn(2:lenof_sign)
-        end if
-#else
         sgn = transfer(real_sgn, sgn)
         iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
-#endif
 
-        ! We must make sure that we don't trample on sign data if we are
-        ! including both in the same integer.
-        !
-        ! We have ensured that the flags are correct INCLUDING the sign bit,
-        ! so we don't have to deal with that specially.
-#if defined(__INT64) && !defined(__PROG_NUMRUNS)
-        if ((.not. tUseRealCoeffs) .or. tUseFlags) then
-#else
-        if (tUseFlags) then
-#endif
-            ilut(NOffFlag) = ior(iand(ilut(NOffFlag), sign_mask), &
-                                ishft(int(flag_local, n_int), flag_bit_offset))
-        end if
+        if (tUseFlags) ilut(NOffFlag) = int(flag,n_int)
 
     end subroutine encode_bit_rep
 
@@ -423,14 +327,7 @@ contains
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
         integer, intent(in) :: flag
 
-        ! We must make sure that we don't trample on sign data if we are
-        ! including both in the same integer.
-        !
-        ! This includes not trampling on the sign bit stored with the flags.
-
-        iLut(NOffFlag) = ior( iand(ilut(NOffFlag), sign_neg_mask), &
-                             ishft(int(ibclr(flag,flag_negative_sign), n_int),&
-                                   flag_bit_offset))
+        iLut(NOffFlag) = int(flag, n_int)
 
     end subroutine encode_flags
 
@@ -500,9 +397,7 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:niftot)
 
-        ! Ensure this doesn't clear the 'sign' flag.
-        if (tUseFlags) &
-            ilut(NOffFlag) = iand(ilut(NOffFlag), sign_neg_mask)
+        if (tUseFlags) ilut(NOffFlag) = 0_n_int
 
     end subroutine clear_all_flags
 
@@ -516,27 +411,8 @@ contains
         real(dp), intent(in) :: real_sgn(lenof_sign)
         integer(n_int) :: sgn(lenof_sign)
 
-#if defined(__INT64) && !defined(__PROG_NUMRUNS)
-        if (tUseRealCoeffs) then
-            sgn = transfer(real_sgn, sgn)
-            ilut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
-        else
-
-            if (lenof_sign /= 1) &
-                sgn(2:lenof_sign) = int(real_sgn(2:lenof_sign), n_int)
-            sgn(1) = int(real_sgn(1), n_int)
-
-            ! Ensure that we don't trample on flags (which have already been 
-            ! set).
-            ilut(NOffSgn) = ior(iand(flags_mask, ilut(NOffSgn)), abs(sgn(1)))
-            call set_flag(ilut, flag_negative_sign, sgn(1) < 0)
-            if (lenof_sign /= 1) &
-                ilut(NOffSgn+1:NOffSgn+lenof_sign-1) = sgn(2:lenof_sign)
-        end if
-#else
         sgn = transfer(real_sgn, sgn)
         iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
-#endif
 
     end subroutine encode_sign
     
@@ -578,31 +454,16 @@ contains
         real(dp), intent(in) :: real_sgn
         integer(n_int) :: sgn
 
-#if defined(__INT64) && !defined(__PROG_NUMRUNS)
-        if (tUseRealCoeffs) then
-            sgn = transfer(real_sgn, sgn)
-            ilut(NOffSgn+part_type-1) = sgn
-        else
-            sgn = int(real_sgn, n_int)
-            if (part_type == 1) then
-                ilut(NOffSgn) = ior(iand(flags_mask, ilut(NOffSgn)), abs(sgn))
-                call set_flag(ilut, flag_negative_sign, sgn < 0)
-            else
-                iLut(NOffSgn+1) = sgn
-            end if
-        end if
-#else
         sgn = transfer(real_sgn, sgn)
         iLut(NOffSgn+part_type-1) = sgn
-#endif
 
     end subroutine encode_part_sign
-
 
     subroutine nullify_ilut (ilut)
         
         ! Sets the sign of a determinant to equal zero.
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
+
         iLut(NOffSgn:NOffSgn+NIfSgn-1) = transfer(0.0_dp, 0_n_int)
 
     end subroutine
@@ -613,6 +474,7 @@ contains
         ! a determinant to equal zero.
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         integer, intent(in) :: part_type
+
         iLut(NOffSgn+part_type-1) = transfer(0.0_dp, 0_n_int)
 
     end subroutine
@@ -655,30 +517,9 @@ contains
         
         ! This now assumes that we do not have more flags than bits in an 
         ! integer.
-        ilut(NOffFlag) = ibset(ilut(NOffFlag), flg + flag_bit_offset)
+        ilut(NOffFlag) = ibset(ilut(NOffFlag), flg)
 
     end subroutine set_flag_single
-
-     subroutine set_has_been_initiator(ilut, flg)
-        use bit_rep_data, only: flag_has_been_initiator
-        integer(n_int), intent(inout) :: ilut(0:nIfTot)
-        integer :: flg
-        integer :: i
-
-        call set_flag_single(ilut,flag_has_been_initiator(1))
-
-    end subroutine
-
-    subroutine clear_has_been_initiator(ilut,flg)
-        use bit_rep_data, only: flag_has_been_initiator
-        integer(n_int), intent(inout) :: ilut(0:nIfTot)
-        integer ::flg
-        integer :: i
-
-        call clr_flag(ilut,flag_has_been_initiator(1))
-
-    end subroutine
-
 
     subroutine copy_flag (ilut_src, ilut_dest, flg)
 
@@ -711,7 +552,7 @@ contains
 !        ilut(ind) = ibclr(ilut(ind), off)
 
 !This now assumes that we do not have more flags than bits in an integer.
-        ilut(NOffFlag) = ibclr(ilut(NOffFlag), flg + flag_bit_offset)
+        ilut(NOffFlag) = ibclr(ilut(NOffFlag), flg)
 
     end subroutine clr_flag
 
@@ -722,7 +563,9 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:nIfBCast)
         logical :: zero
+#ifdef __DEBUG
         character(*), parameter :: this_routine = 'bit_parent_zero'
+#endif
 
         ASSERT(bit_rdm_init)
 
@@ -734,7 +577,9 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:nIfBCast)
         integer(n_int), intent(out) :: parent_ilut(0:NIfDBO)
+#ifdef __DEBUG
         character(*), parameter :: this_routine = 'extract_parent'
+#endif
 
         ASSERT(bit_rdm_init)
 
@@ -747,7 +592,9 @@ contains
         integer(n_int), intent(inout) :: ilut(0:NIfBCast)
         integer(n_int), intent(in) :: ilut_parent(0:NIfDBO)
         real(dp), intent(in) :: RDMBiasFacCurr
+#ifdef __DEBUG
         character(*), parameter :: this_routine = 'encode_parent'
+#endif
 
         ASSERT(bit_rdm_init)
 
@@ -761,7 +608,9 @@ contains
     subroutine zero_parent(ilut)
 
         integer(n_int), intent(inout) :: ilut(0:nIfBCast)
+#ifdef __DEBUG
         character(*), parameter :: this_routine = 'zero_parent'
+#endif
 
         ASSERT(bit_rdm_init)
 
@@ -771,34 +620,32 @@ contains
 
     subroutine set_parent_coeff(ilut, coeff)
 
-        use CalcData, only: tBroadcastParentCoeff
-
         ! Store the coefficient of the parent walker of a spawn for more
-        ! complex initiator logic
+        ! complex initiator logic. This option was removed by ghb on 14/4/16.
+        ! so this routine should never be called
 
         integer(n_int), intent(inout) :: ilut(0:nIfBCast)
         real(dp), intent(in) :: coeff
         character(*), parameter :: this_routine = 'set_parent_coeff'
 
-        ASSERT(tBroadcastParentCoeff)
-        ASSERT(nIfParentCoeff == 1)
+        call stop_all(this_routine,'Routine deprecated')
 
+        ASSERT(nIfParentCoeff == 1)
         ilut(nOffParentCoeff) = transfer(coeff, ilut(nOffParentCoeff))
 
     end subroutine
 
     function extract_parent_coeff(ilut) result(coeff)
 
-        use CalcData, only: tBroadcastParentCoeff
-
         ! Obtain the coefficient of the parent walker of a spawn for more
-        ! complex initiator logic
+        ! complex initiator logic. This option was deprecated by ghb on 14/4/16.
 
         integer(n_int), intent(in) :: ilut(0:nIfBCast)
         real(dp) :: coeff
         character(*), parameter :: this_routine = 'extract_parent_coeff'
 
-        ASSERT(tBroadcastParentCoeff)
+        call stop_all(this_routine,'Routine deprecated by ghb on 14/4/16')
+
         ASSERT(nIfParentCoeff == 1)
 
         coeff = transfer(ilut(nOffParentCoeff), coeff)
@@ -887,10 +734,6 @@ contains
 
     end subroutine
 
-
- 
-
-
     pure function getExcitationType(ExMat, IC) result(exTypeFlag)
         integer, intent(in) :: ExMat(2,2), IC
         integer :: exTypeFlag
@@ -949,8 +792,6 @@ contains
         endif
 
     end function
-
-
 
     subroutine decode_bit_det_spinsep (nI, iLut, store)
 
@@ -1033,11 +874,7 @@ contains
 
     end subroutine
 
-
-
-
-
-    subroutine decode_bit_det_chunks (nI, iLut)
+    pure subroutine decode_bit_det_chunks (nI, iLut)
 
         ! This is a routine to take a determinant in bit form and construct
         ! the natural ordered integer form of the det.
@@ -1127,18 +964,11 @@ contains
                 enddo
             enddo
 
-            if((elec .ne. nel_loc).and.(.not. blank_det)) then
-                WRITE(6,*) "elec, nel_loc", elec, nel_loc
-                WRITE(6,*) "positions assigned", elec
-                WRITE(6,*) "iLut", iLut(:)
-                WRITE(6,*) "nI", nI(:)
-                call stop_all("decode_bit_dets", "Not the right number of electrons")
-            endif
         endif
 
     end subroutine
 
-    subroutine decode_bit_det_bitwise (nI, iLut)
+    pure subroutine decode_bit_det_bitwise (nI, iLut)
 
         ! This is a routine to take a determinant in bit form and construct 
         ! the natural ordered integer forim of the det.

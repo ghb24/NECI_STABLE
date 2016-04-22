@@ -43,16 +43,17 @@ integer, parameter :: sizeof_sp = 4
 #if defined(__PROG_NUMRUNS)
 #if defined(__CMPLX)
 !Complex integrals, (arbitrary, run-time) multiple replicas
-    integer :: nreplicas = 1    !1 or 2   
-    integer :: lenof_sign       !2 x inum_runs
+    integer :: nreplicas = 1    !1 or 2   (for replica sampling, not multiple states)
+    integer :: lenof_sign       !2 x inum_runs (2 for complex x number of seperate wavefuncs sampled)
     integer :: inum_runs        !nreplicas x nstates
     integer :: lenof_sign_kp
     integer, parameter :: lenof_sign_max = 20
     integer, parameter :: inum_runs_max = 20
     integer, parameter :: sizeof_helement = 16
-    real(dp), parameter :: HEl_zero = cmplx(0.0_dp, 0.0_dp, dp)
+    HElement_t(dp), parameter :: HEl_zero = cmplx(0.0_dp, 0.0_dp, dp)
 #else
 !Real integrals, (arbitrary, run-time) multiple replicas
+!Also, define MULTI_RUN below, to mean real (not complex) double or multiple run code
 #define MULTI_RUN
     integer :: nreplicas = 1
     integer :: lenof_sign
@@ -74,7 +75,7 @@ integer, parameter :: sizeof_sp = 4
     integer, parameter :: lenof_sign_max = lenof_sign
     integer, parameter :: inum_runs_max = inum_runs
     integer, parameter :: sizeof_helement = 16
-    real(dp), parameter :: HEl_zero = cmplx(0.0_dp, 0.0_dp, dp)
+    HElement_t(dp), parameter :: HEl_zero = cmplx(0.0_dp, 0.0_dp, dp)
 #else
 !Real integrals, double replica
 #define MULTI_RUN
