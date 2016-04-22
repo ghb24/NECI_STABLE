@@ -113,8 +113,8 @@ endif
 #define max_part_type(run) run
 #else
 #ifdef __DOUBLERUN
-#define min_part_type(run) 1
-#define max_part_type(run) 2
+#define min_part_type(run) run
+#define max_part_type(run) run
 #else
 #define min_part_type(run) 1
 #define max_part_type(run) 1

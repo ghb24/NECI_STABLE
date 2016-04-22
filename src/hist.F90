@@ -21,7 +21,7 @@ module hist
     use bit_rep_data, only: NIfTot, NIfD, extract_sign
     use bit_reps, only: encode_sign, extract_bit_rep, NOffSgn, &
                         decode_bit_det, flag_initiator, test_flag, &
-                        get_initiator_flag, get_weak_initiator_flag, &
+                        get_initiator_flag, &
                         any_run_is_initiator
     use parallel_neci
     use csf, only: get_num_csfs, csf_coeff, csf_get_yamas, write_yama, &

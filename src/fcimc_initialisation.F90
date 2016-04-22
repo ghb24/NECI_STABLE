@@ -60,7 +60,7 @@ module fcimc_initialisation
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det, nullify_ilut, encode_part_sign, &
                         extract_part_sign, tBuildSpinSepLists , &
-                        get_initiator_flag, get_weak_initiator_flag, &
+                        get_initiator_flag, &
                         get_initiator_flag_by_run
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
                          BeforeNormHist, InstHist, iNoBins, AllInstHist, &

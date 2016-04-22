@@ -191,16 +191,6 @@ contains
             tUseFlags = .true.
         else
             tUseFlags = .false.
-            if(flag_bit_offset<19) then
-                write(6,"(A)") "The determinant weight is being packaged up with"   &
-                    //"the sign information for faster communication"
-                write(6,"(A)") "However, the number of bits remaining for the"  &
-                    //"weight corresponds to less than 250,000 walkers on a single determinant"
-                write(6,"(A)") "Recompile with 64-bit, remove flags, or use" &
-                    //"seperate flag integer highly recommended"
-                call warning_neci(this_routine,"The determinant weight and flag" &
-                        //"information is dangerously oversubscribed!")
-            endif
         end if
 #ifdef __PROG_NUMRUNS
         if (lenof_sign_max /= 20) then
@@ -352,30 +342,6 @@ contains
         flag = flag_initiator(run) 
 #endif
     end function get_initiator_flag_by_run
-
-
-    pure function get_weak_initiator_flag_by_run(run) result (flag)
-        integer, intent(in) :: run
-        integer :: flag
-#ifdef __CMPLX
-        ! map 1->1, 2->3, 3->5, 4->7
-        flag = flag_initiator((run-1)*2+1) 
-#else
-        flag = flag_initiator(run) 
-#endif
-    end function get_weak_initiator_flag_by_run
-
-
-    pure function get_weak_initiator_flag(sgn_index) result (flag)
-        integer, intent(in) :: sgn_index
-        integer :: flag
-#ifdef __CMPLX
-        ! map 1->1, 2->1, 3->2, 4->2 with integer division
-        flag = flag_weak_initiator((sgn_index-1)/2+1) 
-#else
-        flag = flag_weak_initiator(sgn_index) 
-#endif
-    end function get_weak_initiator_flag
 
     pure function any_run_is_initiator(ilut) result (t)
         integer(n_int), intent(in) :: ilut(0:niftot)

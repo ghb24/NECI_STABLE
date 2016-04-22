@@ -677,10 +677,10 @@ contains
                 ! Update counters as required.
                 if (parent_init) then
                     NoInitDets = NoInitDets + 1
-                    NoInitWalk = NoInitWalk + getRunMagnitude(CurrentSign, run)
+                    NoInitWalk = NoInitWalk + mag_of_run(CurrentSign, run)
                 else
                     NoNonInitDets = NoNonInitDets + 1
-                    NoNonInitWalk = NoNonInitWalk + getRunMagnitude(CurrentSign, run)
+                    NoNonInitWalk = NoNonInitWalk + mag_of_run(CurrentSign, run)
                 endif
 
                 ! Update the parent flag as required.

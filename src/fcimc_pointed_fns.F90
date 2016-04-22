@@ -452,9 +452,9 @@ module fcimc_pointed_fns
         real(dp), dimension(inum_runs) :: fac
         integer :: i, run, iUnused
 #ifdef __CMPLX
-            real(dp) :: rat(2)
+        real(dp) :: rat(2)
 #else
-            real(dp) :: rat
+        real(dp) :: rat(1)
 #endif        
 
         do i=1, inum_runs
@@ -463,8 +463,6 @@ module fcimc_pointed_fns
             ! And for tau searching purposes
             call log_death_magnitude (Kii - DiagSft(i))
         enddo
-        write(6,*) "fac: ",fac,Kii
-        write(6,*) "DiagSft: ",DiagSft(:)
 
         if(any(fac > 1.0_dp)) then
             if (any(fac > 2.0_dp)) then
@@ -505,17 +503,20 @@ module fcimc_pointed_fns
                 ! Subtract the current value of the shift, and multiply by tau.
                 ! If there are multiple particles, scale the probability.
                 
-                rat = fac(run) * abs(realwSign(min_part_type(run):max_part_type(run)))
+                rat(:) = fac(run) * abs(realwSign(min_part_type(run):max_part_type(run)))
 
                 ndie(min_part_type(run):max_part_type(run)) = real(int(rat), dp)
-                rat = rat - ndie(min_part_type(run):max_part_type(run))
+                rat(:) = rat(:) - ndie(min_part_type(run):max_part_type(run))
 
                 ! Choose to die or not stochastically
-                do i = 1, lenof_sign/inum_runs
-                    r = genrand_real2_dSFMT() 
-                    if (abs(rat(i)) > r) ndie(min_part_type(run)-1+i) = &
-                        ndie(min_part_type(run)-1+i) + real(nint(sign(1.0_dp, rat(i))), dp)
-                enddo
+                r = genrand_real2_dSFMT() 
+                if (abs(rat(1)) > r) ndie(min_part_type(run)) = &
+                    ndie(min_part_type(run)) + real(nint(sign(1.0_dp, rat(1))), dp)
+#ifdef __CMPLX
+                r = genrand_real2_dSFMT() 
+                if (abs(rat(2)) > r) ndie(max_part_type(run)) = &
+                    ndie(max_part_type(run)) + real(nint(sign(1.0_dp, rat(2))), dp)
+#endif               
             enddo
         endif
 
