@@ -8,7 +8,7 @@
 #ifndef __CMPLX
 module guga_bitRepOps
 
-    use SystemData, only: nEl, Stot, nSpatOrbs
+    use SystemData, only: nEl, Stot, nSpatOrbs, current_stepvector
     use guga_data ! get explicit here too!
     use bit_reps, only: niftot, set_flag, nIfGUGA, nIfD, nifdbo
     use constants, only: dp, n_int, bits_n_int, bni_, bn2_
@@ -756,8 +756,11 @@ contains
     subroutine convert_ilut_toNECI(ilutG, ilutN, HElement)
         integer(n_int), intent(in) :: ilutG(0:nifguga)
         integer(n_int), intent(inout) :: ilutN(0:niftot)
-        HElement_t(dp), intent(out), optional :: HElement
+!         HElement_t(dp), intent(out), optional :: HElement
+        real(dp), intent(out), optional :: HElement
         character(*), parameter :: this_routine = "convert_ilut_toNECI"
+
+        real(dp) :: tmp_matele
 
         ASSERT(isProperCSF_ilut(ilutG))
 
@@ -769,11 +772,7 @@ contains
         ! dependent on which type of compilation, 
         ! extract_matrix_element always gives a real(dp)!
         if (present(HElement)) then
-#ifdef __CMPLX
-            HElement = complex(extract_matrix_element(ilutG,1), 0.0_dp)
-#else
             HElement = extract_matrix_element(ilutG, 1)
-#endif
         end if
 
     end subroutine convert_ilut_toNECI

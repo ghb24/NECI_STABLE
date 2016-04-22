@@ -249,6 +249,12 @@ logical :: t_consider_diff_bias
 ! also store the number of spatial orbitals here, to use it generally
 integer :: nSpatOrbs
 
+! try to store current_stepvector here.. if that improves stuff
+integer, allocatable :: current_stepvector(:)
+! maybe also define currentOcc and currentB here.. if that helps..
+integer, allocatable :: currentOcc_int(:), currentB_int(:)
+real(dp), allocatable :: currentOcc_ilut(:), currentB_ilut(:), currentB_nI(:)
+
 ! Operators for type(symmetry)
 interface assignment (=)
     module procedure SymAssign

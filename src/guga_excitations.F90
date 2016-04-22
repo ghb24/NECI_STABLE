@@ -5,7 +5,9 @@
 module guga_excitations
     ! modules
     use SystemData, only: nEl, nBasis, t_guga_unit_tests, ElecPairs, G1, nmaxx, &
-                          nmaxy, nmaxz, OrbECutoff, tOrbECutoff, nSpatOrbs
+                          nmaxy, nmaxz, OrbECutoff, tOrbECutoff, nSpatOrbs, &
+                          current_stepvector, currentOcc_ilut, currentOcc_int, &
+                          currentB_ilut, currentB_int
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_
     use bit_reps, only: niftot, decode_bit_det, encode_det, encode_part_sign, &
@@ -17,7 +19,7 @@ module guga_excitations
                     weight_data, orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, &
                     funA_m1_1_overR2, funA_3_1_overR2, minFunA_0_2_overR2, &
                     funA_2_0_overR2, getDoubleContribution, projE_replica, &
-                    current_stepvector, tNewDet
+                    tNewDet
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, getDeltaB, &
                         setDeltaB, count_open_orbs_ij, calcOcc_vector_ilut, &
                         encode_matrix_element, update_matrix_element, &
@@ -56,15 +58,15 @@ module guga_excitations
     ! use a "global" bVector variable here so that a b vector only has to be 
     ! initialized once, for a given CSF when calculating all or only one 
     ! excitations from it
-    real(dp), allocatable :: currentB_nI(:), currentB_ilut(:)
+!     real(dp), allocatable :: currentB_nI(:), currentB_ilut(:)
     ! also use a "global" occupation number vector, as it is needed in 
     ! the matrix element calculation. 
-    real(dp), allocatable :: currentOcc_ilut(:)
+!     real(dp), allocatable :: currentOcc_ilut(:)
 
     ! also probably helpful to have this as an integer for if-statements
-    integer, allocatable :: currentOcc_int(:)
+!     integer, allocatable :: currentOcc_int(:)
 
-    integer, allocatable :: currentB_int(:)
+!     integer, allocatable :: currentB_int(:)
 
     ! use a global excitationInformation type variable to store information
     ! about the last generated excitation to analyze matrix elements and 
@@ -1034,7 +1036,8 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
-        HElement_t(dp), intent(out) :: HElGen
+!         HElement_t(dp), intent(out) :: HElGen
+        real(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         character(*), parameter :: this_routine = "generate_excitation_guga"
 
@@ -1124,7 +1127,8 @@ contains
         if (pgen < EPS) then
             ! indicate NullDet to skip spawn step
             nJ(1) = 0
-            HElGen = HEl_zero
+!             HElGen = HEl_zero
+            HElGen = 0.0_dp
 
         else
 
@@ -1468,6 +1472,9 @@ contains
                     ! (ij,kl) excitation
                     excit_typ(1) = 4
                     excit_typ(2) = 0
+
+                case default
+                    call stop_all(this_routine, "wrong excit level info!")
 
             end select
         end if
@@ -3187,7 +3194,6 @@ contains
 !             get_umat_el(ende1,ende2,start2,start1)) + extract_matrix_element(t,2)*( &
 !             -get_umat_el(ende1,ende2,start1,start2) - get_umat_el(ende2,ende1,start2,start1) + &
 !             get_umat_el(ende2,ende1,start1,start2) + get_umat_el(ende1,ende2,start2,start1)))/2.0_dp
-
 
         if (abs(integral)<EPS) then
             branch_pgen = 0.0_dp
@@ -5896,7 +5902,7 @@ contains
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
                     integral, botCont, tempWeight, tempWeight_1, umat, &
                     zeroWeight, orbitalProb, origWeight, startProb, &
-                    startWeight, switchWeight, branch_pgen, temp_pgen
+                    startWeight, switchWeight, branch_pgen, temp_pgen, temp
         logical :: switchFlag
         procedure(calc_pgen_general), pointer :: calc_pgen_yix_start
 
@@ -5990,14 +5996,25 @@ contains
 
         ! update: since i can formulate everything in terms of the already 
         ! calculated matrix element i can abort here if it is zero
-        if (abs(extract_matrix_element(t,1))<EPS) then
+        if (abs(extract_matrix_element(t,1)) < EPS) then
             t = 0
             return
         end if
 
+        ! same fix as in fullstop
+        ! doesnt work.. hm
+!         if (all(current_stepvector == [1,2,3,0])) then
+!             print *, "toto r2l"
+! !             print *, "mat x0", extract_matrix_element(t,1)
+! !             if (excitInfo%typ == 0) print *, "mat x1", extract_matrix_element(t,2)
+! !             temp = extract_matrix_element(t,2)
+!         end if
+! 
+        if (excitInfo%typ == 0) print *, extract_matrix_element(t, 2)
+
         call calc_mixed_start_r2l_contr(ilut, t, excitInfo, branch_pgen, pgen,&
             integral)
-
+!
         ! and finally update the matrix element with all contributions
         call update_matrix_element(t, (get_umat_el(st,en,se,st) + &
             get_umat_el(en,st,st,se))/2.0_dp + integral, 1)
@@ -6566,12 +6583,15 @@ contains
 
         ! update: since i can formulate everything in terms of the already 
         ! calculated matrix element i can abort here if it is zero
-        if (abs(extract_matrix_element(t,1))<EPS) then
+        if (abs(extract_matrix_element(t,1)) < EPS) then
             t = 0
             return
         end if
 
         call calc_mixed_start_l2r_contr(ilut, t, excitInfo, branch_pgen, pgen, integral)
+
+        ! same fix as in full-stops
+        if (excitInfo%typ == 0) print *, extract_matrix_element(t,2)
 
         ! and finally update the matrix element with all contributions
         call update_matrix_element(t, (get_umat_el(st,se,en,st) + &
@@ -7047,7 +7067,6 @@ contains
             ! calc. the p(a) 
             if (current_stepvector(orb) /= 3) then
                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
-
             end if
 
         end do
@@ -7100,7 +7119,6 @@ contains
             ! and add them up to the final orbital pgen
             orb_pgen = cpt_a + cpt_b
         end if
-
 
     end subroutine calc_orbital_pgen_contrib_start
 
@@ -19096,7 +19114,6 @@ contains
         ! write an email to simon and ask ali if that makes any sense then
         ! eg. to use the one particle elements as an approximation..
         select case (current_stepvector(gtID(orb_i)))
-
                 ! der stepvalue sagt mir auch, ob es ein alpha oder beta 
                 ! elektron war..
             case (1)
@@ -28026,17 +28043,25 @@ contains
     function calc_pgen_yix_start_02(i) result(pgen)
         integer, intent(in) :: i
         real(dp) :: pgen
+        character(*), parameter :: this_routine = "calc_pgen_yix_start_02"
 
-        pgen = 1.0_dp/real(count(currentOcc_int(i+1:) /= 0),dp) + &
-               1.0_dp/real(count(currentOcc_int(i+1:) /= 2),dp)
+        ASSERT(count(currentOcc_int(i+1:nSpatOrbs) /= 0) /= 0)
+        ASSERT(count(currentOcc_int(i+1:nSpatOrbs) /= 2) /= 0)
+
+        pgen = 1.0_dp/real(count(currentOcc_int(i+1:nSpatOrbs) /= 0),dp) + &
+               1.0_dp/real(count(currentOcc_int(i+1:nSpatOrbs) /= 2),dp)
 
     end function calc_pgen_yix_start_02
 
     function calc_pgen_yix_start_01(i) result(pgen)
         integer, intent(in) :: i
         real(dp) :: pgen
+        character(*), parameter :: this_routine = "calc_pgen_yix_start_01"
 
-        pgen = 1.0_dp/real(count(currentOcc_int(i+1:) /= 0),dp) + &
+        ASSERT(count(currentOcc_int(i+1:nSpatOrbs) /= 0) /= 0)
+        ASSERT(nSpatOrbs - i - 1 /= 0)
+
+        pgen = 1.0_dp/real(count(currentOcc_int(i+1:nSpatOrbs) /= 0),dp) + &
                1.0_dp/real(nSpatOrbs - i - 1, dp)
 
     end function calc_pgen_yix_start_01
@@ -28044,8 +28069,12 @@ contains
     function calc_pgen_yix_start_21(i) result(pgen)
         integer, intent(in) :: i
         real(dp) :: pgen 
+        character(*), parameter :: this_routine = "calc_pgen_yix_start_21"
 
-        pgen = 1.0_dp/real(count(currentOcc_int(i+1:) /= 2),dp) + &
+        ASSERT(count(currentOcc_int(i+1:nSpatOrbs) /= 2) /= 0)
+        ASSERT(nSpatOrbs - i - 1 /= 0)
+
+        pgen = 1.0_dp/real(count(currentOcc_int(i+1:nSpatOrbs) /= 2),dp) + &
                1.0_dp/real(nSpatOrbs - i - 1, dp)
 
     end function calc_pgen_yix_start_21
@@ -28053,6 +28082,9 @@ contains
     function calc_pgen_yix_start_11(i) result(pgen)
         integer, intent(in) :: i
         real(dp) :: pgen
+        character(*), parameter :: this_routine = "calc_pgen_yix_start_11"
+
+        ASSERT(nSpatOrbs - i - 1 /= 0)
 
         pgen = 1.0_dp/real(nSpatOrbs - i - 1, dp)
 
@@ -28061,17 +28093,25 @@ contains
     function calc_pgen_yix_end_02(i) result(pgen) 
         integer, intent(in) :: i
         real(dp) :: pgen
+        character(*), parameter :: this_routine = "calc_pgen_yix_end_02"
 
-        pgen = 1.0_dp/real(count(currentOcc_int(:i-1) /= 0),dp) + &
-               1.0_dp/real(count(currentOcc_int(:i-1) /= 2),dp)
+        ASSERT(count(currentOcc_int(1:i-1) /= 0) /= 0)
+        ASSERT(count(currentOcc_int(1:i-1) /= 2) /= 0)
+
+        pgen = 1.0_dp/real(count(currentOcc_int(1:i-1) /= 0),dp) + &
+               1.0_dp/real(count(currentOcc_int(1:i-1) /= 2),dp)
 
     end function calc_pgen_yix_end_02
 
     function calc_pgen_yix_end_01(i) result(pgen)
         integer, intent(in) :: i
         real(dp) :: pgen
+        character(*), parameter :: this_routine = "calc_pgen_yix_end_01"
+
+        ASSERT(count(currentOcc_int(1:i-1) /= 0) /= 0)
+        ASSERT(i - 2 /= 0)
         
-        pgen = 1.0_dp/real(count(currentOcc_int(:i-1) /= 0),dp) + &
+        pgen = 1.0_dp/real(count(currentOcc_int(1:i-1) /= 0),dp) + &
                1.0_dp/real( i - 2, dp)
 
     end function calc_pgen_yix_end_01
@@ -28079,8 +28119,12 @@ contains
     function calc_pgen_yix_end_21(i) result(pgen)
         integer, intent(in) :: i
         real(dp) :: pgen
+        character(*), parameter :: this_routine = "calc_pgen_yix_end_21"
 
-        pgen = 1.0_dp/real(count(currentOcc_int(:i-1) /= 2),dp) + &
+        ASSERT(count(currentOcc_int(1:i-1) /= 2) /= 0)
+        ASSERT(i - 2 /= 0)
+
+        pgen = 1.0_dp/real(count(currentOcc_int(1:i-1) /= 2),dp) + &
                1.0_dp/real(i - 2, dp)
 
     end function calc_pgen_yix_end_21
@@ -28088,6 +28132,9 @@ contains
     function calc_pgen_yix_end_11(i) result(pgen) 
         integer, intent(in) :: i
         real(dp) :: pgen 
+        character(*), parameter :: this_routine = "calc_pgen_yix_end_11"
+
+        ASSERT(i - 2 /= 0)
 
         pgen = 1.0_dp/real(i - 2, dp)
 

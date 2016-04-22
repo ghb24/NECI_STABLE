@@ -354,7 +354,7 @@ module guga_data
     ! in the end to make logic in excitation generation more efficient 
     ! do create an allocatable integer array which stores the current 
     ! stepvector for a CSF and do a select case() abfrage
-    integer, allocatable :: current_stepvector(:)
+!     integer, allocatable :: current_stepvector(:)
 
     ! use a global flag to indicate a switch to a new determinant in the 
     ! main routine to avoid recalculating b vector occupation and 
