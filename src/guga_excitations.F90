@@ -3815,6 +3815,7 @@ contains
         ! do the specific semi-start
         weights = init_doubleWeight(ilut, en)
 
+        ! dirty fix of the gfortran compiler issues:
         if (excitInfo%typ == 0) print *, ""
 
         call calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
@@ -5170,14 +5171,14 @@ contains
         ! do non-choosing possibs first
         ! why does this cause a segfault on compilation with gfortran??
         ! do some debugging: 
-#ifdef __DEBUG
-        if (excitInfo%typ == 16) then
-            print *, "alloc?", allocated(current_stepvector)
-            print *, "secondstart?", se
-            print *, "stepvector?", current_stepvector
-            print *, "upper and lower limit?", size(current_stepvector)
-        end if
-#endif
+! #ifdef __DEBUG
+!         if (excitInfo%typ == 16) then
+!             print *, "alloc?", allocated(current_stepvector)
+!             print *, "secondstart?", se
+!             print *, "stepvector?", current_stepvector
+!             print *, "upper and lower limit?", size(current_stepvector)
+!         end if
+! #endif
 
         ! fix for gfortran compilation for some reasono
         ! i can probably fix it when i finally get to this point in 
@@ -5366,15 +5367,15 @@ contains
         ! do non-choosing possibs first
         ! why does this cause a segfault on compilation with gfortran??
         ! do some debugging: 
-#ifdef __DEBUG
-        if (excitInfo%typ == 17) then
-            print *, "alloc?", allocated(current_stepvector)
-            print *, "secondstart?", se
-            print *, "stepvector?", current_stepvector
-            print *, "upper and lower limit?", size(current_stepvector)
-            call print_excitInfo(excitInfo)
-        end if
-#endif
+! #ifdef __DEBUG
+!         if (excitInfo%typ == 17) then
+!             print *, "alloc?", allocated(current_stepvector)
+!             print *, "secondstart?", se
+!             print *, "stepvector?", current_stepvector
+!             print *, "upper and lower limit?", size(current_stepvector)
+!             call print_excitInfo(excitInfo)
+!         end if
+! #endif
 
         ! same gfortran compilex issue fix as above
 
@@ -13353,7 +13354,9 @@ contains
             ! and also use the deltaB value for finished excitations to 
             ! indicate the level of excitation IC for the remaining NECI code
             !
-            call setDeltaB(exlevel, excitations(:,n))
+!             call setDeltaB(exlevel, excitations(:,n))
+            excitations(nifguga,n) = exlevel 
+
         end do
 
     end subroutine calcAllExcitations_double
@@ -22431,7 +22434,7 @@ contains
 !             pgen = pgen / real((nBasis/2)**2 - (nBasis/2), dp)
 
 !             if (isZero(ilut,i)) then
-            select case (current_stepvector(i))
+            select case (currentOcc_int(i))
             case (0)
                 ! so there is a fullstart RR(i) or a fullStop(i)
                 ! -> have to pick a second doubly occupied orbital
@@ -22442,6 +22445,11 @@ contains
 !                 if (nDouble == 0) return ! todo
 
                 call pickRandomOrb_forced(2, temp_pgen, j)
+
+                if (j == 0) then
+                    excitInfo%valid = .false.
+                    return
+                end if
 
                 ! if ni = 0 temp_pgen = 1/n2 = p(j|i)
                 ! so p(i|j) = 1/n0
@@ -22475,12 +22483,17 @@ contains
                 end if
 
 !             else if (isThree(ilut,i)) then
-            case (3)
+            case (2)
                 ! switch generators
 !                 if (nEmpty == 0) return
 
                 call pickRandomOrb_forced(0, temp_pgen, j)
                 
+                if (j == 0) then
+                    excitInfo%valid = .false.
+                    return
+                end if
+
                 temp_pgen2 = 1.0_dp/real(count(currentOcc_int == 2),dp)
 
                 pgen = pgen * (temp_pgen + temp_pgen2)
@@ -22503,7 +22516,7 @@ contains
                 end if
 
 !             else 
-            case (1,2)
+            case (1)
                 ! d(i) = {1,2} 
                 ! d(j) also has to be singly occupied, due to x1=0 if d(j) = 3
                 ! which would only lead to a diagonal element
@@ -22512,7 +22525,11 @@ contains
                 call pickRandomOrb_forced(1, temp_pgen, j, i)
 !                 j = pickRandomOrb(!=0 & != 3)
 
-                
+                if (j == 0) then
+                    excitInfo%valid = .false.
+                    return
+                end if
+
                 temp_pgen2 = 1.0_dp/real(count(currentOcc_int == 1)-1,dp)
 
                 pgen = pgen * (temp_pgen + temp_pgen2) / 2.0_dp 
@@ -22575,6 +22592,11 @@ contains
 
                 call pickRandomOrb_scalar(0, temp_pgen, j, 0)
                 call pickRandomOrb_scalar(j, temp_pgen2, k, 0)
+
+                if (j == 0 .or. k == 0) then
+                    excitInfo%valid = .false.
+                    return
+                end if
 
                 pgen = pgen * temp_pgen * temp_pgen2 * 2.0_dp 
 
@@ -22655,6 +22677,11 @@ contains
                 call pickRandomOrb_scalar(0, temp_pgen, j, 2)
                 call pickRandomOrb_scalar(j, temp_pgen2, k, 2)
 
+                if (j == 0 .or. k == 0) then
+                    excitInfo%valid = .false.
+                    return
+                end if
+
                 pgen = pgen * temp_pgen * temp_pgen2 * 2.0_dp 
 
 !                 pgen = pgen * (1.0_dp - pExcit4) * (1.0_dp - pExcit2) * &
@@ -22702,6 +22729,11 @@ contains
 !                 j = pickRandomOrb(!=i)
                 call pickRandomOrb_scalar(i, temp_pgen, j)
 
+                if (j == 0) then
+                    excitInfo%valid = .false.
+                    return
+                end if
+
                 ! for these mixed excitations i have to adjust the pgens 
                 ! similar to the matrix elements as there are a lot 
                 ! of different index combinations which could lead to the 
@@ -22747,6 +22779,11 @@ contains
                     else 
                         call pickRandomOrb_restricted(0,i, temp_pgen2, k, 0)
                         temp_pgen3 = 1.0_dp/real(count(currentOcc_int(:i-1) /= 0),dp)
+                    end if
+
+                    if (k == 0) then
+                        excitInfo%valid = .false.
+                        return
                     end if
 
                     pgen = pgen * temp_pgen * (temp_pgen2 + temp_pgen3) 
@@ -22829,6 +22866,11 @@ contains
                         temp_pgen3 = 1.0_dp/real(count(currentOcc_int(:i-1) /= 2),dp)
                     end if
 
+                    if (k == 0) then
+                        excitInfo%valid = .false.
+                        return
+                    end if
+
                     pgen = pgen * temp_pgen * (temp_pgen2 + temp_pgen3) 
 
 !                     pgen = pgen**2*(1.0_dp - 1.0_dp/real(nSpatOrbs - 1,dp)) * &
@@ -22905,6 +22947,11 @@ contains
                         call pickRandomOrb_restricted_index(i,nSpatOrbs+1,temp_pgen2,k, j)
                     else
                         call pickRandomOrb_restricted_index(0,i,temp_pgen2,k, j)
+                    end if
+
+                    if (k == 0) then
+                        excitInfo%valid = .false.
+                        return
                     end if
 
 !                     call pickRandomOrb(min(i,j),max(i,j), pgen, k)
@@ -23219,6 +23266,11 @@ contains
             ! j can also always be picked randomly except i!
             call pickRandomOrb_scalar(i, temp_pgen, j)
 
+            if (j == 0) then
+                excitInfo%valid = .false.
+                return
+            end if
+
             select case (currentOcc_int(i))
             case (0)
 !             if (isZero(ilut,i)) then
@@ -23229,6 +23281,11 @@ contains
                     ! then k and l have to be non-zero
                     call pickRandomOrb_scalar(0, temp_pgen2, k, 0)
                     call pickRandomOrb_scalar(k, temp_pgen3, l, 0)
+
+                    if (k == 0 .or. l == 0) then
+                        excitInfo%valid = .false.
+                        return
+                    end if
 
                     ! actually need all occupation number infos for the 
                     ! calculation of the pgen contribution of different 
@@ -23281,12 +23338,22 @@ contains
                     ! still free to pick k
                     call pickRandomOrb_vector([i,j], temp_pgen2, k)
 
+                    if (k == 0) then
+                        excitInfo%valid = .false.
+                        return
+                    end if
+
                     select case (currentOcc_int(k))
                     case (0)
 !                     if (isZero(ilut,k)) then 
                         ! pick somethin != 0 for l
                         call pickRandomOrb_scalar(j, temp_pgen3, l, 0)
 !                         l = pickRandomOrb(!=i,!=j,!=k,!=0)
+
+                        if (l == 0) then
+                            excitInfo%valid = .false.
+                            return
+                        end if
 
                         ! e_{il,kj}
 
@@ -23323,6 +23390,12 @@ contains
 !                     else if (isThree(ilut,k)) then
                     case (2)
                         call pickRandomOrb_scalar(i, temp_pgen3, l, 2)
+
+                        if (l == 0) then
+                            excitInfo%valid = .false.
+                            return
+                        end if
+
 !                         l = pickRandomOrb(!=i,!=j,!=k,!=3)
                         ! e_{ik,lj}
                         excitInfo = create_excitInfo_ik_lj(i,j,k,l)
@@ -23358,6 +23431,12 @@ contains
                     case (1)
                         ! free to pick l
                         call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
+
+                        if (l == 0) then
+                            excitInfo%valid = .false.
+                            return
+                        end if
+
 !                         l = pickRandomOrb(!=i,!=j,!=k)
                         select case (currentOcc_int(l))
                         case (0)
@@ -23427,12 +23506,24 @@ contains
                 case (1)
                     ! n(j) = 1 -> free to pick k
                     call pickRandomOrb_vector([i,j], temp_pgen2, k)
+
+                    if (k == 0) then
+                        excitInfo%valid = .false.
+                        return
+                    end if
+
 !                     k = pickRandomOrb(!=i,!=j)
                     select case (currentOcc_int(k))
                     case (0)
 !                     if (isZero(ilut,k)) then
                         ! pick nonzero l
                         call pickRandomOrb_scalar(j, temp_pgen3, l, 0)
+
+                        if (l == 0) then
+                            excitInfo%valid = .false.
+                            return
+                        end if
+
 !                         l = pickRandomOrb(!=i,!=j,!=k,!=0)
                         ! e_{il,kj}
                         excitInfo = create_excitInfo_il_kj(i,j,k,l)
@@ -23476,6 +23567,12 @@ contains
                     case (2)
                         ! free to pick l
                         call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
+
+                        if (l == 0) then
+                            excitInfo%valid = .false.
+                            return
+                        end if
+
 !                         l = pickRandomOrb(!=i,!=j,!=k)
                         select case (currentOcc_int(l))
                         case (0)
@@ -23540,6 +23637,12 @@ contains
                         ! n(k) = 1
                         ! free to pick 
                         call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
+
+                        if (l == 0) then
+                            excitInfo%valid = .false.
+                            return
+                        end if
+
 !                         l = pickRandomOrb(!=i,!=j,!=k)
                         select case (currentOcc_int(l))
                         case (0)
@@ -23619,6 +23722,11 @@ contains
 !                     k = pickRandomOrb(!=i,!=j,!=3)
 !                     l = pickRandomOrb(!=i,!=j,!=k,!=3)
 
+                    if (k == 0 .or. l == 0) then
+                        excitInfo%valid = .false.
+                        return
+                    end if
+
                     ! have to check k and l values
                     if (current_stepvector(k) == 0) then
 !                     if (isZero(ilut,k)) then
@@ -23662,6 +23770,11 @@ contains
                     ! free k
                     call pickRandomOrb_vector([i,j], temp_pgen2, k)
 
+                    if (k == 0) then
+                        excitInfo%valid = .false.
+                        return
+                    end if
+
 !                     pgen = 4.0_dp*pgen**2*(1.0_dp/(nSingle + nDouble) + 1.0_dp/nEmpty + &
 !                         2.0_dp/real(nBasis/2-2,dp)*(1.0_dp/(nEmpty-1.0_dp) + &
 !                         1.0_dp/(nSingle + nDouble - 1.0_dp)))
@@ -23672,6 +23785,12 @@ contains
 !                     if (isZero(ilut,k)) then
                         ! pick non-zero l
                         call pickRandomOrb_scalar(i, temp_pgen3, l, 0)
+
+                        if (l == 0) then
+                            excitInfo%valid = .false.
+                            return
+                        end if
+
 !                         l = pickRandomOrb(!=i,!=j,!=k,!=0)
                         ! e_{ki,jl}
                         excitInfo = create_excitInfo_ki_jl(i,j,k,l)
@@ -23707,6 +23826,12 @@ contains
                     case (2)
                         ! pick non double l
                         call pickRandomOrb_scalar(j, temp_pgen3, l, 2)
+
+                        if (l == 0) then
+                            excitInfo%valid = .false.
+                            return
+                        end if
+
 !                         l = pickRandomOrb(!=i,!=j,!=k,!=3)
                         ! e_{li,jk}
                         excitInfo = create_excitInfo_li_jk(i,j,k,l)
@@ -23742,6 +23867,12 @@ contains
                     case (1)
                         ! n(k) = 1, free l
                         call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
+
+                        if (l == 0) then
+                            excitInfo%valid = .false.
+                            return
+                        end if
+
 !                         l = pickRandomOrb(!=i,!=j,!=k)
                         select case (currentOcc_int(l))
                         case (0)
@@ -23809,12 +23940,24 @@ contains
                 case (1)
                     ! n(j) = 1, free k
                     call pickRandomOrb_vector([i,j], temp_pgen2, k)
+
+                    if (k == 0) then
+                        excitInfo%valid = .false.
+                        return
+                    end if
+
 !                     k = pickRandomOrb(!=i,!=j)
                     select case (currentOcc_int(k))
                     case (2)
 !                     if (isThree(ilut,k)) then
                         ! pick non-doubly l
                         call pickRandomOrb_scalar(j, temp_pgen3, l, 2)
+
+                        if (l == 0) then
+                            excitInfo%valid = .false.
+                            return
+                        end if
+
 !                         l = pickRandomOrb(!=i,!=j,!=k,!=3)
                         ! e_{li,jk}
                         excitInfo = create_excitInfo_li_jk(i,j,k,l)
@@ -23858,6 +24001,12 @@ contains
                     case (0)
                         ! free l
                         call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
+
+                        if (l == 0) then
+                            excitInfo%valid = .false.
+                            return
+                        end if
+
 !                         l = pickRandomOrb(!=i,!=j,!=k)
                         select case (currentOcc_int(l))
                         case (0)
@@ -23924,6 +24073,12 @@ contains
                     case (1)
                         ! n(k) = 1, free l
                         call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
+
+                        if (l == 0) then
+                            excitInfo%valid = .false.
+                            return
+                        end if
+
 !                         l = pickRandomOrb(!=i,!=j,!=k)
                         select case (currentOcc_int(l))
                         case (0)
@@ -23995,6 +24150,12 @@ contains
             case (1)
                 ! n(i) = 1, free j and k 
                 call pickRandomOrb_vector([i,j], temp_pgen2, k)
+
+                if (k == 0) then
+                    excitInfo%valid = .false.
+                    return
+                end if
+
 !                 j = pickRandomOrb(!=i)
 !                 k = pickRandomOrb(!=i,!=j)
                 select case (currentOcc_int(j))
@@ -24005,6 +24166,12 @@ contains
 !                     if (isZero(ilut,k)) then
                         ! l restricted to non-empty
                         call pickRandomOrb_scalar(i, temp_pgen3, l, 0)
+
+                        if (l == 0) then
+                            excitInfo%valid = .false.
+                            return
+                        end if
+
 !                         l = pickRandomOrb(!=i,!=j,!=k,!=0)
                         ! e_{ki,jl}
                         excitInfo = create_excitInfo_ki_jl(i,j,k,l)
@@ -24028,6 +24195,12 @@ contains
                     case (2)
                         ! free l
                         call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
+
+                        if (l == 0) then
+                            excitInfo%valid = .false.
+                            return
+                        end if
+
 !                         l = pickRandomOrb(!=i,!=j,!=k)
                         select case (currentOcc_int(l))
                         case (0)
@@ -24093,6 +24266,12 @@ contains
                     case (1)
                         ! free l
                         call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
+
+                        if (l == 0) then
+                            excitInfo%valid = .false.
+                            return
+                        end if
+
 !                         l = pickRandomOrb(!=i,!=j,!=k)
                         select case (currentOcc_int(l))
                         case (0)
@@ -24163,6 +24342,12 @@ contains
 !                     if (isZero(ilut,k)) then
                         ! free l
                         call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
+
+                        if (l == 0) then
+                            excitInfo%valid = .false.
+                            return
+                        end if
+
 !                         l = pickRandomOrb(!=i,!=j,!=k)
                         select case (currentOcc_int(l))
                         case (0)
@@ -24227,6 +24412,12 @@ contains
                     case (2)
                         ! non-doubly l
                         call pickRandomOrb_scalar(i, temp_pgen3, l, 2)
+
+                        if (l == 0) then
+                            excitInfo%valid = .false.
+                            return
+                        end if
+
 !                         l = pickRandomOrb(!=i,!=j,!=k,!=3)
                         ! e_{ik,lj}
                         excitInfo = create_excitInfo_ik_lj(i,j,k,l)
@@ -24250,6 +24441,12 @@ contains
                     case (1)
                         ! free l
                         call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
+
+                        if (l == 0) then
+                            excitInfo%valid = .false.
+                            return
+                        end if
+
 !                         l = pickRandomOrb(!=i,!=j,!=k)
                         select case (currentOcc_int(l))
                         case (0)
@@ -24318,6 +24515,12 @@ contains
                     ! n(j) = 1
                     ! free l
                     call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
+
+                    if (l == 0) then
+                        excitInfo%valid = .false.
+                        return
+                    end if
+
 !                     l = pickRandomOrb(!=i,!=j,!=k)
                     select case (currentOcc_int(k))
                     case (0)
@@ -24562,6 +24765,7 @@ contains
 
             if (any([i,j,k,l] == 0)) then
                 ! one of the indices is invalid
+                print *, "toto1"
                 excitInfo%valid = .false.
             else
                 excitInfo%valid = .true.
@@ -24581,6 +24785,7 @@ contains
             
             if (any([i,j,k] == 0)) then
 
+                print *, "toto2"
                 excitInfo%valid = .false.
 
             else 
@@ -24599,6 +24804,7 @@ contains
 
             if (any([i,j] == 0)) then
 !                 print *, excit_lvl, excit_typ
+                print *, "toto3"
 
                 excitInfo%valid = .false.
 
@@ -25129,6 +25335,11 @@ contains
 
             call pickRandomOrb_scalar(0, pgen, j, 0)
 
+            if (j == 0) then
+                excitInfo%valid = .false.
+                return
+            end if
+
             ! something like that ...
             
             ! additionally modify the pgens..
@@ -25158,6 +25369,11 @@ contains
             ! have to pick non-double orbital
             call pickRandomOrb_scalar(0, pgen, j, 2)
             
+            if (j == 0) then
+                excitInfo%valid = .false.
+                return
+            end if
+
 !             if (isZero(ilut,j)) then
             if (current_stepvector(j) == 0) then
                 nOrbs = count(currentOcc_int /= 0) 
@@ -25191,6 +25407,11 @@ contains
 
             ! for now ignore the forced switch restrictions
             call pickRandomOrb_scalar(i, pgen, j)
+
+            if (j == 0) then
+                excitInfo%valid = .false.
+                return
+            end if
 
             select case (current_stepvector(j))
             case (0)
@@ -25262,6 +25483,11 @@ contains
             ! similar behavior to d(i) = 1, except switched roles beteen 1,2
             ! for now ignore the forced switch restrictions
             call pickRandomOrb_scalar(i, pgen, j)
+
+            if (j == 0) then
+                excitInfo%valid = .false.
+                return
+            end if
 
             select case (current_stepvector(j))
             case (0)
