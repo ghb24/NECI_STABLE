@@ -826,11 +826,17 @@ contains
                 projE_replica(run)%projE_ilut_list(:,i), &
                 projE_replica(run)%projE_hel_list(i))
 
-            ASSERT(getDeltaB(excitations(:,i)) == 1 .or. getDeltaB(excitations(:,i)) == 2)
+
+#ifdef __DEBUG 
             if (.not.(getDeltaB(excitations(:,i)) == 1 .or. &
                 getDeltaB(excitations(:,i)) == 2)) then
+
+                call write_det_guga(6, excitations(:,i))
+                print *, "delta B: ", getDeltaB(excitations(:,i))
+
                 call stop_all(this_routine, "wrong excit level information!")
             end if
+#endif
 
             projE_replica(run)%exlevel(i) = getDeltaB(excitations(:,i))
         end do
@@ -13333,6 +13339,7 @@ contains
             call calcFullStartFullStopAlike(ilut, excitInfo, excitations)
             nExcits = 1
 
+            exlevel = 2
 
         case (23) ! full start into full stop mixed
             call calcFullStartFullStopMixed(ilut, excitInfo, excitations, nExcits, &
