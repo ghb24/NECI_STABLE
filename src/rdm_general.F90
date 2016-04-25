@@ -85,6 +85,11 @@ contains
         ! Neither of these would be too difficult to implement.
         if (tHPHF .and. tExplicitAllRDM) call stop_all(t_r, 'HPHF not set up with the explicit calculation of the RDM.')
 
+        if (tDipoles) then
+            write(6,'("WARNING - The calculation of dipole moments is currently not supported for the new RDM code. &
+                      &Use the OLDRDMS option to use feature.")')
+        end if
+
         SpatOrbs = nbasis/2
         if (tOpenShell) then
             NoOrbs = nbasis
