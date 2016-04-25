@@ -25,9 +25,8 @@ contains
         ! stochastic RDMs.
 
         use FciMCData, only: tSinglePartPhase
-        use LoggingData, only: tNo_RDMs_To_Read, tWrite_RDMs_to_read
         use LoggingData, only: tRDMInstEnergy, RDMExcitLevel, tPrint1RDM
-        use LoggingData, only: tDiagRDM, tReadRDMs, tPopsfile, tDumpForcesInfo, tDipoles
+        use LoggingData, only: tDiagRDM, tReadRDMs, tDumpForcesInfo, tDipoles
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: tOpenShell, print_2rdm_est
         use rdm_data_old, only: rdms, one_rdms_old, rdm_write_unit_old, rdm_estimates_old
@@ -284,12 +283,6 @@ contains
                 call Read_In_RDMs_old(one_rdms_old(1), rdms(1), rdm_estimates_old(1))
             end if
         end if
-
-        ! By default, if we're writing out a popsfile (and doing an RDM
-        ! calculation), we also write out the unnormalised RDMs that can be
-        ! read in when restarting a calculation. If the NORDMSTOREAD option
-        ! is on, these wont be printed.  
-        if (tPopsfile .and. (.not. tno_RDMs_to_read)) twrite_RDMs_to_read = .true.
 
     end subroutine InitRDMs_old
 

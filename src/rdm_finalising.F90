@@ -1280,7 +1280,7 @@ contains
                         if (abs(one_rdm(ind(iSpat), ind(jSpat))) > 1.0e-12_dp) then
                             if (tNormalise .and. (i <= j)) then
                                 if ((mod(i,2) == 0 .and. mod(j,2) == 0) .or. &
-                                    (mod(i,2) /= 0 .and. mod(j,2) .ne. 0)) then
+                                    (mod(i,2) /= 0 .and. mod(j,2) /= 0)) then
                                     write(one_rdm_unit,"(2I6,G25.17)") i, j, &
                                         ( one_rdm(ind(iSpat),ind(jSpat)) * norm_1rdm ) / 2.0_dp
                                 end if

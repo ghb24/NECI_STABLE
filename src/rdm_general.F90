@@ -19,7 +19,8 @@ contains
         use FciMCData, only: HFDet_True, tSinglePartPhase
         use LoggingData, only: tDo_Not_Calc_2RDM_est, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tDiagRDM, tDumpForcesInfo, tDipoles, tPrint1RDM
-        use LoggingData, only: tRDMInstEnergy, tReadRDMs
+        use LoggingData, only: tRDMInstEnergy, tReadRDMs, tPopsfile, tno_RDMs_to_read
+        use LoggingData, only: twrite_RDMs_to_read
         use Parallel_neci, only: iProcIndex, nProcessors
         use rdm_data, only: rdm_estimates, one_rdms, two_rdm_spawn, two_rdm_main, two_rdm_recv
         use rdm_data, only: tOpenShell, print_2rdm_est, Sing_ExcDjs, Doub_ExcDjs
@@ -263,17 +264,17 @@ contains
             if (.not. allocated(SymLabelCounts2_rot)) allocate(SymLabelCounts2_rot(2, NoSymLabelCounts), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, 'Problem allocating SymLabelCounts2_rot array,')
             call LogMemAlloc('SymLabelCounts2_rot', 2*NoSymLabelCounts, 4, t_r, SymLabelCounts2_rotTag, ierr)
-            SymLabelCounts2_rot(:,:) = 0
+            SymLabelCounts2_rot = 0
 
             allocate(SymLabelList2_rot(NoOrbs), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, 'Problem allocating SymLabelList2_rot array,')
             call LogMemAlloc('SymLabelList2_rot', NoOrbs, 4, t_r, SymLabelList2_rotTag, ierr)
-            SymLabelList2_rot(:) = 0
+            SymLabelList2_rot = 0
      
             allocate(SymLabelListInv_rot(NoOrbs), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, 'Problem allocating SymLabelListInv_rot array,')
             call LogMemAlloc('SymLabelListInv_rot', NoOrbs, 4, t_r, SymLabelListInv_rotTag, ierr)
-            SymLabelListInv_rot(:) = 0   
+            SymLabelListInv_rot = 0
 
             ! This routine actually sets up the symmetry labels for the 1-RDM.
             call SetUpSymLabels_RDM()
@@ -285,10 +286,22 @@ contains
                           &the calculation. Ignoring the request to read in the RDMs and starting again instead.")')
                 tReadRDMs = .false.
             else
-                call read_rdm_popsfile(two_rdm_main, two_rdm_spawn)
-                if (RDMExcitLevel /= 1 .and. print_2rdm_est) call calc_2rdm_estimates_wrapper(rdm_estimates, two_rdm_main)
+                if (RDMExcitLevel == 1) then
+                    do irdm = 1, size(one_rdms)
+                        call read_1rdm(one_rdms(irdm), irdm)
+                    end do
+                else
+                    call read_2rdm_popsfile(two_rdm_main, two_rdm_spawn)
+                    if (print_2rdm_est) call calc_2rdm_estimates_wrapper(rdm_estimates, two_rdm_main)
+                end if
             end if
         end if
+
+        ! By default, if we're writing out a popsfile (and doing an RDM
+        ! calculation), we also write out the unnormalised RDMs that can be
+        ! read in when restarting a calculation. If the NORDMSTOREAD option
+        ! is on, these wont be printed.
+        if (tPopsfile .and. (.not. tno_RDMs_to_read)) twrite_RDMs_to_read = .true.
 
         if (iProcIndex == 0) write(6,'(1X,"RDM memory allocation successful...")')
 
@@ -444,7 +457,48 @@ contains
 
     end subroutine SetUpSymLabels_RDM
 
-    subroutine read_rdm_popsfile(rdm, spawn)
+    subroutine read_1rdm(one_rdm, irdm)
+
+        use rdm_data, only: one_rdm_t
+        use RotateOrbsData, only: SymLabelListInv_rot
+        use util_mod, only: get_free_unit, int_fmt
+
+        type(one_rdm_t), intent(inout) :: one_rdm
+        integer, intent(in) :: irdm
+
+        integer :: one_rdm_unit, file_end, i, j
+        real(dp) :: rdm_sign
+        logical :: file_exists
+        character(20) :: filename
+        character(len=*), parameter :: t_r = 'read_1rdm'
+
+        write(6,'(1X,"Reading in the 1-RDM")')
+
+        write(filename, '("OneRDM_POPS.",'//int_fmt(irdm,0)//')') irdm
+
+        inquire(file=trim(filename), exist=file_exists)
+
+        if (.not. file_exists) then
+            call stop_all(t_r, "Attempting to read in the 1-RDM from "//trim(filename)//", but this file does not exist.")
+        end if
+
+        one_rdm_unit = get_free_unit()
+        open(one_rdm_unit, file=trim(filename), status='old', form='unformatted')
+
+        do
+            read(one_rdm_unit, iostat=file_end) i, j, rdm_sign
+            if (file_end > 0) call stop_all(t_r, "Error reading "//trim(filename)//".")
+            ! file_end < 0 => end of file reached.
+            if (file_end < 0) exit
+
+            one_rdm%matrix(SymLabelListInv_rot(i), SymLabelListInv_rot(j)) = rdm_sign
+        end do
+
+        close(one_rdm_unit)
+
+    end subroutine read_1rdm
+
+    subroutine read_2rdm_popsfile(rdm, spawn)
 
         use hash, only: clear_hash_table, fill_in_hash_table
         use hash, only: FindWalkerHash, add_hash_table_entry
@@ -460,7 +514,16 @@ contains
         integer(int_rdm) :: ijkl, rdm_entry(0:rdm%sign_length)
         integer :: ij, kl, i, j, k, l, ij_proc_row, sign_length_old
         integer :: iproc, elem_proc, pops_unit, file_end, hash_val, ierr
-        character(len=*), parameter :: t_r = 'read_rdm_popsfile'
+        logical :: file_exists
+        character(len=*), parameter :: t_r = 'read_2rdm_popsfile'
+
+        write(6,'(1X,"Reading in the 2-RDM")')
+
+        inquire(file='RDM_POPSFILE', exist=file_exists)
+
+        if (.not. file_exists) then
+            call stop_all(t_r, "Attempting to read in the 2-RDM from RDM_POPSFILE, but this file does not exist.")
+        end if
 
         ! Make sure that the RDM is empty first.
         rdm%nelements = 0
@@ -480,7 +543,7 @@ contains
                     call stop_all(t_r, "Error reading RDM_POPSFILE - the number of RDMs printed in the &
                                        &popsfile is different to the number to be sampled.")
                 else if (file_end > 0) then
-                    call stop_all(t_r, "Error reading first line of RDM_POPSFILE.")
+                    call stop_all(t_r, "Error reading the first line of RDM_POPSFILE.")
                 end if
 
                 do
@@ -515,7 +578,7 @@ contains
             call MPIBarrier(ierr)
         end do
 
-    end subroutine read_rdm_popsfile
+    end subroutine read_2rdm_popsfile
 
     subroutine realloc_SpawnedParts()
 
@@ -589,7 +652,7 @@ contains
         use rdm_data_old, only: rdms
         use rdm_data_utils, only: dealloc_rdm_list_t, dealloc_rdm_spawn_t, dealloc_one_rdm_t
         use rdm_estimators, only: dealloc_rdm_estimates_t
-        use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
+        use RotateOrbsData, only: SymLabelCounts2_rot, SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag
         use RotateOrbsData, only: SymLabelListInv_rotTag
         use RotateOrbsMod, only: FourIndInts, FourIndIntsTag
