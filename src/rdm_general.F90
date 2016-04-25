@@ -36,6 +36,9 @@ contains
         use SystemData, only: tStoreSpinOrbs, tHPHF, tFixLz, iMaxLz, tROHF
         use util_mod, only: LogMemAlloc
 
+        ! TODO: remove this.
+        use rdm_finalising, only: print_rdms_spin_sym_wrapper
+
         integer, intent(in) :: nrdms
 
         integer :: rdm_nrows, max_nelems, nhashes_rdm
@@ -298,6 +301,8 @@ contains
                 else
                     call read_2rdm_popsfile(two_rdm_main, two_rdm_spawn)
                     if (print_2rdm_est) call calc_2rdm_estimates_wrapper(rdm_estimates, two_rdm_main)
+                    ! TODO: remove this.
+                    !call print_rdms_spin_sym_wrapper(two_rdm_main, two_rdm_recv, two_rdm_spawn, rdm_estimates%norm, tOpenShell)
                 end if
             end if
         end if
@@ -477,7 +482,7 @@ contains
         character(20) :: filename
         character(len=*), parameter :: t_r = 'read_1rdm'
 
-        write(6,'(1X,"Reading in the 1-RDM")')
+        write(6,'(1X,"Reading in the 1-RDM...")')
 
         write(filename, '("OneRDM_POPS.",'//int_fmt(irdm,0)//')') irdm
 
@@ -522,7 +527,7 @@ contains
         logical :: file_exists
         character(len=*), parameter :: t_r = 'read_2rdm_popsfile'
 
-        write(6,'(1X,"Reading in the 2-RDM")')
+        write(6,'(1X,"Reading in the 2-RDM...")')
 
         inquire(file='RDM_POPSFILE', exist=file_exists)
 
@@ -569,10 +574,6 @@ contains
                         ! Add in the entry to the hash table.
                         hash_val = FindWalkerHash((/i,j,k,l/), size(rdm%hash_table))
                         call add_hash_table_entry(rdm%hash_table, rdm%nelements, hash_val)
-                    else if (elem_proc > iProcIndex) then
-                        ! If we've reached the end of the section of the
-                        ! popsfile for this processor, then finish reading.
-                        exit
                     end if
                 end do
 
