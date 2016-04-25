@@ -274,7 +274,7 @@ contains
         ! Reads in the RDMs from a previous calculation, sets the accumulating
         ! normalisations, writes out the starting energy.
         if (tReadRDMs) then
-            if (nrdms > 1) call stop_all(t_r, "Reading in multiple RDMs is not yet supported.")
+            if (nrdms > 1) call stop_all(t_r, "Reading in multiple RDMs is not supported for the old RDM code.")
             if (tSinglePartPhase(1) .or. tSinglePartPhase(inum_runs)) then
                 write(6,'(A)') 'WARNING - Asking to read in the RDMs, but not varying shift from &
                                 & the beginning of the calculation.'
@@ -332,21 +332,21 @@ contains
                 ! having been made hermitian, without being normalised, and in
                 ! spatial orbitals if tStoreSpinOrbs is false.
 
-                inquire(file='OneRDM_POPS', exist=exists_one)
+                inquire(file='OneRDM_POPS_old.1', exist=exists_one)
                 if (exists_one) then
                     RDM_unit = get_free_unit()
-                    open(RDM_unit, file='OneRDM_POPS', status='old', form='unformatted')
+                    open(RDM_unit, file='OneRDM_POPS_old.1', status='old', form='unformatted')
                     do while (.true.)
                         read(RDM_unit,iostat=FileEnd) i, j, Temp_RDM_Element
-                        if (FileEnd .gt. 0) call stop_all(t_r, "Error reading OneRDM_POPS")
+                        if (FileEnd .gt. 0) call stop_all(t_r, "Error reading OneRDM_POPS_old.1")
                         if (FileEnd .lt. 0) exit
 
                         one_rdm%matrix(SymLabelListInv_rot(i), SymLabelListInv_rot(j)) = Temp_RDM_Element
                     end do
                     close(RDM_unit)
                 else
-                    call stop_all(t_r, "Attempting to read in the OneRDM, but the OneRDM_POPS file does not exist.")
-                end if                                    
+                    call stop_all(t_r, "Attempting to read in the OneRDM, but the OneRDM_POPS_old.1 file does not exist.")
+                end if
 
             else
 
@@ -357,23 +357,23 @@ contains
                 ! normalised, and in spatial orbitals. 
 
                 ! Only read in the 2-RDMs (the 1-RDM becomes redundant).
-                inquire(file='TwoRDM_POPS_aaaa', exist=exists_aaaa)
-                inquire(file='TwoRDM_POPS_abab', exist=exists_abab)
-                inquire(file='TwoRDM_POPS_abba', exist=exists_abba)
+                inquire(file='TwoRDM_POPS_aaaa_old.1', exist=exists_aaaa)
+                inquire(file='TwoRDM_POPS_abab_old.1', exist=exists_abab)
+                inquire(file='TwoRDM_POPS_abba_old.1', exist=exists_abba)
 
                 if (tOpenShell)then
-                    inquire(file='TwoRDM_POPS_bbbb', exist=exists_bbbb)
-                    inquire(file='TwoRDM_POPS_baba', exist=exists_baba)
-                    inquire(file='TwoRDM_POPS_baab', exist=exists_baab)
+                    inquire(file='TwoRDM_POPS_bbbb_old.1', exist=exists_bbbb)
+                    inquire(file='TwoRDM_POPS_baba_old.1', exist=exists_baba)
+                    inquire(file='TwoRDM_POPS_baab_old.1', exist=exists_baab)
                 end if
 
                 if (exists_aaaa .and. exists_abab .and. exists_abba) then
                     ! All TOREAD RDM files are present - read in.
                     RDM_unit = get_free_unit()
-                    open(RDM_unit, file='TwoRDM_POPS_aaaa', status='old', form='unformatted')
+                    open(RDM_unit, file='TwoRDM_POPS_aaaa_old.1', status='old', form='unformatted')
                     do while (.true.)
                         read(RDM_unit,iostat=FileEnd) i, j, a, b, Temp_RDM_Element 
-                        if (FileEnd .gt. 0) call stop_all(t_r, "Error reading TwoRDM_POPS_aaaa")
+                        if (FileEnd .gt. 0) call stop_all(t_r, "Error reading TwoRDM_POPS_aaaa_old.1")
                         if (FileEnd .lt. 0) exit
 
                         Ind1 = ( ( (j-2) * (j-1) ) / 2 ) + i
@@ -382,10 +382,10 @@ contains
                     end do
                     close(RDM_unit)
 
-                    open(RDM_unit, file='TwoRDM_POPS_abab', status='old', form='unformatted')
+                    open(RDM_unit, file='TwoRDM_POPS_abab_old.1', status='old', form='unformatted')
                     do while (.true.)
                         read(RDM_unit, iostat=FileEnd) i, j, a, b, Temp_RDM_Element 
-                        if (FileEnd .gt. 0) call stop_all(t_r, "Error reading TwoRDM_POPS_abab")
+                        if (FileEnd .gt. 0) call stop_all(t_r, "Error reading TwoRDM_POPS_abab_old.1")
                         if (FileEnd .lt. 0) exit
 
                         Ind1 = ( ( (j-1) * j ) / 2 ) + i
@@ -394,10 +394,10 @@ contains
                     end do
                     close(RDM_unit)
 
-                    open(RDM_unit, file='TwoRDM_POPS_abba', status='old', form='unformatted')
+                    open(RDM_unit, file='TwoRDM_POPS_abba_old.1', status='old', form='unformatted')
                     do while (.true.)
                         read(RDM_unit,iostat=FileEnd) i, j, a, b, Temp_RDM_Element 
-                        if (FileEnd .gt. 0) call stop_all(t_r, "Error reading TwoRDM_POPS_abba")
+                        if (FileEnd .gt. 0) call stop_all(t_r, "Error reading TwoRDM_POPS_abba_old.1")
                         if (FileEnd .lt. 0) exit
 
                         Ind1 = ( ( (j-2) * (j-1) ) / 2 ) + i
@@ -418,10 +418,10 @@ contains
                 if (tOpenShell .and. exists_bbbb .and. exists_baba .and. exists_baab) then
                     ! All TOREAD RDM files for open shell RDMs are present - read in.
                     RDM_unit = get_free_unit()
-                    open(RDM_unit, file='TwoRDM_POPS_bbbb', status='old', form='unformatted')
+                    open(RDM_unit, file='TwoRDM_POPS_bbbb_old.1', status='old', form='unformatted')
                     do while (.true.)
                         read(RDM_unit, iostat=FileEnd) i, j, a, b, Temp_RDM_Element 
-                        if (FileEnd .gt. 0) call stop_all(t_r, "Error reading TwoRDM_POPS_bbbb")
+                        if (FileEnd .gt. 0) call stop_all(t_r, "Error reading TwoRDM_POPS_bbbb_old.1")
                         if (FileEnd .lt. 0) exit
 
                         Ind1 = ( ( (j-2) * (j-1) ) / 2 ) + i
@@ -430,10 +430,10 @@ contains
                     end do
                     close(RDM_unit)
 
-                    open(RDM_unit, file='TwoRDM_POPS_baba', status='old', form='unformatted')
+                    open(RDM_unit, file='TwoRDM_POPS_baba_old.1', status='old', form='unformatted')
                     do while (.true.)
                         read(RDM_unit, iostat = FileEnd) i, j, a, b, Temp_RDM_Element 
-                        if (FileEnd.gt.0) call stop_all(t_r, "Error reading TwoRDM_POPS_baba")
+                        if (FileEnd.gt.0) call stop_all(t_r, "Error reading TwoRDM_POPS_baba_old.1")
                         if (FileEnd.lt.0) exit
 
                         Ind1 = ( ( (j-1) * j ) / 2 ) + i
@@ -442,10 +442,10 @@ contains
                     end do
                     close(RDM_unit)
 
-                    open(RDM_unit,file='TwoRDM_POPS_baab',status='old',form='unformatted')
+                    open(RDM_unit,file='TwoRDM_POPS_baab_old.1',status='old',form='unformatted')
                     do while (.true.)
                         read(RDM_unit, iostat = FileEnd) i, j, a, b, Temp_RDM_Element 
-                        if (FileEnd .gt. 0) call stop_all(t_r, "Error reading TwoRDM_POPS_baab")
+                        if (FileEnd .gt. 0) call stop_all(t_r, "Error reading TwoRDM_POPS_baab_old.1")
                         if (FileEnd .lt. 0) exit
 
                         Ind1 = ( ( (j-2) * (j-1) ) / 2 ) + i
