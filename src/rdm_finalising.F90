@@ -126,7 +126,7 @@ contains
         ! simulation usually), and this requires large parallel
         ! communications, as does the printing.
 
-        use LoggingData, only: tWrite_normalised_RDMs, tWriteSpinFreeRDM
+        use LoggingData, only: tWrite_normalised_RDMs, tWriteSpinFreeRDM, tWrite_RDMs_to_read
         use rdm_data, only: rdm_estimates_t, rdm_list_t, rdm_spawn_t, tOpenShell
         use rdm_estimators, only: calc_hermitian_errors
 
@@ -141,6 +141,9 @@ contains
 
         if (tWriteSpinFreeRDM) call print_spinfree_2rdm_wrapper(rdm, rdm_recv, spawn, est%norm)
         if (tWrite_Normalised_RDMs) call print_rdms_spin_sym_wrapper(rdm, rdm_recv, spawn, est%norm, tOpenShell)
+        if (tWrite_RDMs_to_read) call print_rdm_popsfile(rdm)
+
+        !call read_rdm_popsfile(rdm, spawn)
 
     end subroutine output_2rdm_wrapper
 
@@ -774,6 +777,114 @@ contains
         call print_spinfree_2rdm(rdm_recv, rdm_trace)
 
     end subroutine print_spinfree_2rdm_wrapper
+
+    subroutine print_rdm_popsfile(rdm)
+
+        use Parallel_neci, only: MPIBarrier
+        use util_mod, only: get_free_unit
+
+        type(rdm_list_t), intent(inout) :: rdm
+
+        integer :: ielem, iproc, ierr, pops_unit
+
+        do iproc = 0, nProcessors-1
+
+            if (iproc == iProcIndex) then
+                ! Let the first processor clear the file to start with.
+                if (iproc == 0) then
+                    pops_unit = get_free_unit()
+                    open(pops_unit, file='RDM_POPSFILE', status='replace', form='unformatted')
+                    ! Let the first processor start by printing the number of
+                    ! RDMs being sampled.
+                    write(pops_unit) rdm%sign_length
+                else
+                    pops_unit = get_free_unit()
+                    open(pops_unit, file='RDM_POPSFILE', status='old', position='append', form='unformatted')
+                end if
+
+                do ielem = 1, rdm%nelements
+                    write(pops_unit) rdm%elements(:,ielem)
+                end do
+
+                close(pops_unit)
+            end if
+
+            ! Wait for the current processor to finish printing its RDM elements.
+            call MPIBarrier(ierr)
+        end do
+
+    end subroutine print_rdm_popsfile
+
+    subroutine read_rdm_popsfile(rdm, spawn)
+
+        use hash, only: clear_hash_table, fill_in_hash_table
+        use hash, only: FindWalkerHash, add_hash_table_entry
+        use Parallel_neci, only: MPIBarrier
+        use SystemData, only: nbasis
+        use util_mod, only: get_free_unit
+
+        type(rdm_list_t), intent(inout) :: rdm
+        type(rdm_spawn_t), intent(in) :: spawn
+
+        integer(int_rdm) :: ijkl, rdm_entry(0:rdm%sign_length)
+        integer :: ij, kl, i, j, k, l, ij_proc_row, sign_length_old
+        integer :: iproc, elem_proc, pops_unit, file_end, hash_val, ierr
+        character(len=*), parameter :: t_r = 'read_rdm_popsfile'
+
+        ! Make sure that the RDM is empty first.
+        rdm%nelements = 0
+        rdm%elements = 0_int_rdm
+        call clear_hash_table(rdm%hash_table)
+
+        do iproc = 0, nProcessors-1
+
+            if (iproc == iProcIndex) then
+                pops_unit = get_free_unit()
+                open(pops_unit, file='RDM_POPSFILE', status='old', form='unformatted')
+
+                ! Read in the first line, which holds sign_length for the
+                ! printed RDM - check it is consistent.
+                read(pops_unit, iostat=file_end) sign_length_old
+                if (sign_length_old /= rdm%sign_length) then
+                    call stop_all(t_r, "Error reading RDM_POPSFILE - the number of RDMs printed in the &
+                                       &popsfile is different to the number to be sampled.")
+                else if (file_end > 0) then
+                    call stop_all(t_r, "Error reading first line of RDM_POPSFILE.")
+                end if
+
+                do
+                    read(pops_unit, iostat=file_end) rdm_entry
+                    if (file_end > 0) call stop_all(t_r, "Error reading RDM_POPSFILE.")
+                    ! file_end < 0 => end of file reached.
+                    if (file_end < 0) exit
+
+                    call calc_separate_rdm_labels(rdm_entry(0), ij, kl, i, j, k, l)
+                    ij_proc_row = nbasis*(i-1) - i*(i-1)/2 + j - i
+                    ! Calculate the process for the element.
+                    elem_proc = (ij_proc_row-1)*nProcessors/spawn%nrows
+
+                    if (elem_proc == iProcIndex) then
+                        ! Add the element to the RDM list.
+                        rdm%nelements = rdm%nelements + 1
+                        rdm%elements(:, rdm%nelements) = rdm_entry
+                        ! Add in the entry to the hash table.
+                        hash_val = FindWalkerHash((/i,j,k,l/), size(rdm%hash_table))
+                        call add_hash_table_entry(rdm%hash_table, rdm%nelements, hash_val)
+                    else if (elem_proc > iProcIndex) then
+                        ! If we've reached the end of the section of the
+                        ! popsfile for this processor, then finish reading.
+                        exit
+                    end if
+                end do
+
+                close(pops_unit)
+            end if
+
+            ! Wait for the current processor to finish reading its RDM elements.
+            call MPIBarrier(ierr)
+        end do
+
+    end subroutine read_rdm_popsfile
 
     subroutine print_rdms_with_spin(rdm, rdm_trace)
 

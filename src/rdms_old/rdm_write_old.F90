@@ -191,7 +191,7 @@ contains
         integer :: No_Herm_Elements
         integer :: aaaa_RDM_unit, abab_RDM_unit, abba_RDM_unit
         integer :: bbbb_RDM_unit, baba_RDM_unit, baab_RDM_unit
-        character(20) :: stem
+        character(25) :: stem
         character(255) :: TwoRDM_aaaa_name, TwoRDM_abab_name, TwoRDM_abba_name
         character(255) :: TwoRDM_bbbb_name, TwoRDM_baba_name, TwoRDM_baab_name
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity, Sum_Herm_Percent 
