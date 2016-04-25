@@ -133,16 +133,6 @@ contains
         ! energy was calculated.
         IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter)
 
-        ! The indices of the signs for the RDM that we are considering.
-        !sign_ind_1 = nreplicas*irdm-nreplicas+1
-        !sign_ind_2 = nreplicas*irdm
-
-        ! This is the number of iterations this determinant has been occupied,
-        ! over the replicas relevant for the requested RDM.
-        !IterDetOcc_sing(1:nreplicas) = IterDetOcc_all(sign_ind_1:sign_ind_2)
-
-        !AvSignIters = int(min(IterDetOcc_sing(1), IterDetOcc_sing(nreplicas)))
-
         AvSignIters_new = int(min(IterDetOcc_all(1::nreplicas), IterDetOcc_all(nreplicas::nreplicas)))
 
         ! The number of iterations we want to weight this RDM contribution by is:
@@ -154,10 +144,6 @@ contains
             IterRDM_new = AvSignIters_new
         end if
 
-        ! The signs corresponding to this RDM.
-        !AvSignCurr_sing = AvSignCurr_all(sign_ind_1:sign_ind_2)
-        !AvSignHF_sing = AvNoAtHF(sign_ind_1:sign_ind_2)
-
         full_sign = 0.0_dp
 
         if (tHPHF) then
@@ -165,7 +151,6 @@ contains
                 if (RDMExcitLevel == 1) then
                     call fill_diag_1rdm(one_rdms, nI, av_sign/sqrt(2.0_dp), tCoreSpaceDet, IterRDM_new)
                 else
-                    !full_sign(irdm) = IterRDM*AvSignCurr_sing(1)*AvSignCurr_sing(nreplicas)/2.0_dp
                     full_sign = IterRDM_new*av_sign(1::nreplicas)*av_sign(nreplicas::nreplicas)/2.0_dp
                     call fill_spawn_rdm_diag(spawn, nI, full_sign)
                 end if
