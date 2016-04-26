@@ -244,16 +244,29 @@ contains
         end if
 
         if (final_output) then
+            ! Banner for the start of the 2-RDM section in output.
+            write(6,'(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS",1x,57("="),/)')
+
             do irdm = 1, est%nrdms
-                write(6,'(1x,"FINAL ESTIMATES FOR RDM",1X,'//int_fmt(irdm)//',":",)') irdm
+                write(6,'(1x,"2-RDM ESTIMATES FOR STATE",1x,'//int_fmt(irdm)//',":",)') irdm
+
                 write(6,'(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%trace(irdm)
                 write(6,'(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est%trace(irdm)/est%norm(irdm)
                 write(6,'(1x,"Energy contribution from the 1-RDM:",1x,es17.10)') est%energy_1_num(irdm)/est%norm(irdm)
                 write(6,'(1x,"Energy contribution from the 2-RDM:",1x,es17.10)') est%energy_2_num(irdm)/est%norm(irdm)
                 write(6,'(1x,"*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:",1x,es20.13,/)') &
                     est%energy_num(irdm)/est%norm(irdm)
-            end do
 
+                ! Hermiticity error measures.
+                write(6,'(1x,"Hermiticty error estimates:")')
+                write(6,'(1x,i15,f30.20,5x,a41)') Iter+PreviousCycles, est%max_error_herm(irdm), &
+                                                '(Iteration, MAX ABS ERROR IN HERMITICITY)'
+                write(6,'(1x,i15,f30.20,5x,a41,/)') Iter+PreviousCycles, est%sum_error_herm(irdm), &
+                                                '(Iteration, SUM ABS ERROR IN HERMITICITY)'
+
+            end do
+            ! Banner for the end of the 2-RDM section in output.
+            write(6,'(1x,89("="))')
         end if
 
     end subroutine write_rdm_estimates

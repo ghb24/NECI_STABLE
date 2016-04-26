@@ -75,35 +75,45 @@ contains
         end if
 
         ! Stuff using the 1-RDMs:
-        do i = 1, size(one_rdms)
-            if (RDMExcitLevel == 1) then
-                call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%rho_ii, i, norm_1rdm, .false.)
-            else
-                if (tPrint1RDM) then
+        if (RDMExcitLevel == 1 .or. RDMExcitLevel == 3) then
+            ! Output banner for start of 1-RDM section in the output.
+            write(6,'(1x,2("="),1x,"INFORMATION FOR FINAL 1-RDMS",1x,57("="))')
+
+            do i = 1, size(one_rdms)
+                write(6,'(/,1x,"PERFORMING ANALYSIS OF 1-RDM FOR STATE",1x,'//int_fmt(i)//',"...")') i
+                if (RDMExcitLevel == 1) then
                     call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%rho_ii, i, norm_1rdm, .false.)
-                else if (tDiagRDM .and. iProcIndex == 0) then
-                    call calc_1e_norms(one_rdms(i)%matrix, one_rdms(i)%rho_ii, trace_1rdm, norm_1rdm, SumN_Rho_ii)
-                    write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
+                else
+                    if (tPrint1RDM) then
+                        call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%rho_ii, i, norm_1rdm, .false.)
+                    else if (tDiagRDM .and. iProcIndex == 0) then
+                        call calc_1e_norms(one_rdms(i)%matrix, one_rdms(i)%rho_ii, trace_1rdm, norm_1rdm, SumN_Rho_ii)
+                        write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
+                    end if
                 end if
-            end if
 
-            call MPIBarrier(ierr)
+                call MPIBarrier(ierr)
 
-            ! Call the routines from NatOrbs that diagonalise the one electron
-            ! reduced density matrix.
-            tRotatedNOs = .false. ! Needed for BrokenSymNo routine
-            if (tDiagRDM) call find_nat_orb_occ_numbers(one_rdms(i), i)
+                ! Call the routines from NatOrbs that diagonalise the one electron
+                ! reduced density matrix.
+                tRotatedNOs = .false. ! Needed for BrokenSymNo routine
+                if (tDiagRDM) call find_nat_orb_occ_numbers(one_rdms(i), i)
 
-            ! After all the NO calculations are finished we'd like to do another
-            ! rotation to obtain symmetry-broken natural orbitals
-            if (tBrokenSymNOs) then
-                call BrokenSymNO(one_rdms(i)%evalues, occ_numb_diff)
-            end if
-        end do
+                ! After all the NO calculations are finished we'd like to do another
+                ! rotation to obtain symmetry-broken natural orbitals.
+                if (tBrokenSymNOs) then
+                    call BrokenSymNO(one_rdms(i)%evalues, occ_numb_diff)
+                end if
+            end do
+            ! Output banner for the end of the 1-RDM section.
+            write(6,'(/,1x,89("="),/)')
+        end if
 
-        ! Write the final instantaneous RDM estimates, and also the final
-        ! report of the total RDM estimates.
-        if (iProcIndex == 0) call write_rdm_estimates(rdm_estimates, .true., print_2rdm_est)
+        ! Write the final instantaneous 2-RDM estimates, and also the final
+        ! report of the total 2-RDM estimates.
+        if (RDMExcitLevel /= 1 .and. iProcIndex == 0) then
+            call write_rdm_estimates(rdm_estimates, .true., print_2rdm_est)
+        end if
 #ifdef _MOLCAS_
         if (print_2rdm_est) then
             NECI_E = rdm_estimates%rdm_energy_tot_accum(1)
@@ -1054,7 +1064,7 @@ contains
             ! Write out the final, normalised, hermitian OneRDM.
             if (tWrite_normalised_RDMs) call write_1rdm(matrix, irdm, norm_1rdm, .true., tOldRDMs)
 
-            write(6,'(1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
+            write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
         end if
 
     end subroutine Finalise_1e_RDM
