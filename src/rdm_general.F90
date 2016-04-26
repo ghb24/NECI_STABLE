@@ -510,20 +510,21 @@ contains
 
     subroutine read_2rdm_popsfile(rdm, spawn)
 
-        use hash, only: clear_hash_table, fill_in_hash_table
-        use hash, only: FindWalkerHash, add_hash_table_entry
-        use Parallel_neci, only: MPIBarrier, iProcIndex, nProcessors
+        use hash, only: clear_hash_table, FindWalkerHash, add_hash_table_entry
+        use Parallel_neci, only: iProcIndex, nProcessors
         use rdm_data, only: rdm_list_t, rdm_spawn_t
-        use rdm_data_utils, only: calc_separate_rdm_labels
+        use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm, add_to_rdm_spawn_t
+        use rdm_data_utils, only: communicate_rdm_spawn_t, annihilate_rdm_list
         use SystemData, only: nbasis
         use util_mod, only: get_free_unit
 
         type(rdm_list_t), intent(inout) :: rdm
-        type(rdm_spawn_t), intent(in) :: spawn
+        type(rdm_spawn_t), intent(inout) :: spawn
 
         integer(int_rdm) :: ijkl, rdm_entry(0:rdm%sign_length)
         integer :: ij, kl, i, j, k, l, ij_proc_row, sign_length_old
-        integer :: iproc, elem_proc, pops_unit, file_end, hash_val, ierr
+        integer :: ielem, pops_unit, file_end, hash_val, ierr
+        real(dp) :: rdm_sign(rdm%sign_length)
         logical :: file_exists
         character(len=*), parameter :: t_r = 'read_2rdm_popsfile'
 
@@ -535,53 +536,45 @@ contains
             call stop_all(t_r, "Attempting to read in the 2-RDM from RDM_POPSFILE, but this file does not exist.")
         end if
 
-        ! Make sure that the RDM is empty first.
-        rdm%nelements = 0
-        rdm%elements = 0_int_rdm
-        call clear_hash_table(rdm%hash_table)
+        ! Only let the root processor do the reading in.
+        if (iProcIndex == 0) then
+            pops_unit = get_free_unit()
+            open(pops_unit, file='RDM_POPSFILE', status='old', form='unformatted')
 
-        do iproc = 0, nProcessors-1
-
-            if (iproc == iProcIndex) then
-                pops_unit = get_free_unit()
-                open(pops_unit, file='RDM_POPSFILE', status='old', form='unformatted')
-
-                ! Read in the first line, which holds sign_length for the
-                ! printed RDM - check it is consistent.
-                read(pops_unit, iostat=file_end) sign_length_old
-                if (sign_length_old /= rdm%sign_length) then
-                    call stop_all(t_r, "Error reading RDM_POPSFILE - the number of RDMs printed in the &
-                                       &popsfile is different to the number to be sampled.")
-                else if (file_end > 0) then
-                    call stop_all(t_r, "Error reading the first line of RDM_POPSFILE.")
-                end if
-
-                do
-                    read(pops_unit, iostat=file_end) rdm_entry
-                    if (file_end > 0) call stop_all(t_r, "Error reading RDM_POPSFILE.")
-                    ! file_end < 0 => end of file reached.
-                    if (file_end < 0) exit
-
-                    call calc_separate_rdm_labels(rdm_entry(0), ij, kl, i, j, k, l)
-                    ij_proc_row = nbasis*(i-1) - i*(i-1)/2 + j - i
-                    ! Calculate the process for the element.
-                    elem_proc = (ij_proc_row-1)*nProcessors/spawn%nrows
-
-                    if (elem_proc == iProcIndex) then
-                        ! Add the element to the RDM list.
-                        rdm%nelements = rdm%nelements + 1
-                        rdm%elements(:, rdm%nelements) = rdm_entry
-                        ! Add in the entry to the hash table.
-                        hash_val = FindWalkerHash((/i,j,k,l/), size(rdm%hash_table))
-                        call add_hash_table_entry(rdm%hash_table, rdm%nelements, hash_val)
-                    end if
-                end do
-
-                close(pops_unit)
+            ! Read in the first line, which holds sign_length for the
+            ! printed RDM - check it is consistent.
+            read(pops_unit, iostat=file_end) sign_length_old
+            if (sign_length_old /= rdm%sign_length) then
+                call stop_all(t_r, "Error reading RDM_POPSFILE - the number of RDMs printed in the &
+                                   &popsfile is different to the number to be sampled.")
+            else if (file_end > 0) then
+                call stop_all(t_r, "Error reading the first line of RDM_POPSFILE.")
             end if
 
-            ! Wait for the current processor to finish reading its RDM elements.
-            call MPIBarrier(ierr)
+            do
+                read(pops_unit, iostat=file_end) rdm_entry
+                if (file_end > 0) call stop_all(t_r, "Error reading RDM_POPSFILE.")
+                ! file_end < 0 => end of file reached.
+                if (file_end < 0) exit
+
+                call calc_separate_rdm_labels(rdm_entry(0), ij, kl, i, j, k, l)
+                call extract_sign_rdm(rdm_entry, rdm_sign)
+
+                call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false.)
+            end do
+
+            close(pops_unit)
+        end if
+
+        call communicate_rdm_spawn_t(spawn, rdm)
+        call annihilate_rdm_list(rdm)
+
+        ! Fill in the hash table to the RDM. Clear it first, just in case.
+        call clear_hash_table(rdm%hash_table)
+        do ielem = 1, rdm%nelements
+            call calc_separate_rdm_labels(rdm%elements(0,ielem), ij, kl, i, j, k, l)
+            hash_val = FindWalkerHash((/i,j,k,l/), size(rdm%hash_table))
+            call add_hash_table_entry(rdm%hash_table, ielem, hash_val)
         end do
 
     end subroutine read_2rdm_popsfile
