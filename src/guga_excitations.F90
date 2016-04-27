@@ -1507,7 +1507,6 @@ contains
                     branch_pgen
         integer :: iOrb
         
-        
         ASSERT(.not.isZero(ilut,excitInfo%fullStart))
         ASSERT(.not.isThree(ilut,excitInfo%fullStart))
         ASSERT(.not.isZero(ilut,excitInfo%fullEnd))
@@ -1556,6 +1555,7 @@ contains
             return
         end if
 
+!         print *, "orig bra pgen", excitInfo%fullStart, excitInfo%fullEnd, branch_pgen
         call calc_mixed_contr(ilut, t, excitInfo, pgen, integral)
   
         if (abs(integral) < EPS) then
@@ -1577,6 +1577,7 @@ contains
         integral = calcMixedContribution(ilut,t,excitInfo%fullStart,excitInfo%fullEnd)
 
         pgen = calcMixedPgenContribution(ilut, t, excitInfo)
+
 
     end subroutine calc_mixed_contr_nosym
 
@@ -1623,42 +1624,49 @@ contains
         do orb = 1, i - 1
             ! calc. the p(a) 
             if (current_stepvector(orb) /= 3) then
-                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
 
             end if
 
         end do
 
         ! deal with orb (i) in specific way: 
-        cpt_a = get_guga_integral_contrib(occ_orbs, i, i)
+!         cpt_a = get_guga_integral_contrib(occ_orbs, i, i)
+        cpt_a = get_guga_integral_contrib(occ_orbs, i, -1)
         
         cum_sum = cum_sum + cpt_a
 
         ! also get p(b|a)
+        ! did i get that the wrong way around?? 
         call pgen_select_orb_guga_mol(ilut, occ_orbs, i, j, cpt_ba, ba_sum, i, .true.)
+!         call pgen_select_orb_guga_mol(ilut, occ_orbs, i, j, cpt_ab, ab_sum, i, .true.)
 
         do orb = i + 1, j - 1
             if (current_stepvector(orb) /= 3) then
-                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
             end if
         end do
 
         ! deal with j also speciallly
-        cpt_b = get_guga_integral_contrib(occ_orbs, j, j) 
+!         cpt_b = get_guga_integral_contrib(occ_orbs, j, j) 
+        cpt_b = get_guga_integral_contrib(occ_orbs, j, -1)
 
         cum_sum = cum_sum + cpt_b
 
         ! and get p(a|b)
         call pgen_select_orb_guga_mol(ilut, occ_orbs, j, i, cpt_ab, ab_sum, -j, .true.)
+!         call pgen_select_orb_guga_mol(ilut, occ_orbs, j, i, cpt_ba, ba_sum, -j, .true.)
 
         ! and deal with rest: 
 
         do orb = j + 1, nSpatOrbs 
             if (current_stepvector(orb) /= 3) then 
-                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
             end if
         end do
-
 
         if (cum_sum < EPS .or. ab_sum < EPS .or. ba_sum < EPS) then
             cpt_a = 0.0_dp
@@ -1725,6 +1733,8 @@ contains
         first = findFirstSwitch(ilut, t, excitInfo%fullStart, excitInfo%fullEnd)
         last = findLastSwitch(ilut, t, first, excitInfo%fullEnd)
 
+        below_flag = .false.
+        above_flag = .false.
         pgen = 0.0_dp
 
         deltaB = int(currentB_ilut - calcB_vector_ilut(t(0:nifd)))
@@ -1773,8 +1783,9 @@ contains
             ! for the worst case until i = 1
 
             ! check if this is the last end needed to consider 
-            if (current_stepvector(j) == 2 .and. currentB_int(j) == 0) &
+            if (current_stepvector(j) == 2 .and. currentB_int(j) == 0) then
                 above_flag = .true.
+            end if
 
             excitInfo%fullStart = 1
             excitInfo%secondStart = 1
@@ -1786,6 +1797,9 @@ contains
 
             weights = init_doubleWeight(ilut, j)
 
+            ! i have to reset the below flag each iteration of j..
+            below_flag = .false.
+
             do i = first, 1, -1
                 if (currentOcc_int(i) /= 1) cycle
          
@@ -1794,6 +1808,7 @@ contains
                 call calc_orbital_pgen_contr(ilut, [2*i, 2*j], above_cpt, &
                     below_cpt) 
 
+!                 print *, "calc orb pgen", i,j, (above_cpt + below_cpt) / real(ElecPairs,dp)
                 ! yes they can, and then this orbital does not contribute to the 
                 ! obtained excitaiton -> cycle..
                 if (above_cpt < EPS) cycle
@@ -1903,7 +1918,6 @@ contains
                             zeroWeight, minusWeight, currentB_ilut(first)))
 
                     end if
-
                     tempWeight = tempWeight * tempWeight_1
                 end if
 
@@ -2056,7 +2070,7 @@ contains
                         branch_weight = branch_weight * calcStayingProb(&
                             zeroWeight,plusWeight,currentB_ilut(k))
                     else
-                      minusWeight = weights%proc%minus(negSwitches(k), &
+                        minusWeight = weights%proc%minus(negSwitches(k), &
                             currentB_ilut(k), weights%dat)
                         branch_weight = branch_weight*calcStayingProb(&
                             zeroWeight,minusWeight,currentB_ilut(k))
@@ -2079,13 +2093,15 @@ contains
 
                 pgen = pgen + (below_cpt + above_cpt) * branch_weight
 
+!                 print *, "calc bra pgen", i, j, branch_weight
+
                 ! check if i deal with that correctly...
                 if (below_flag) exit
-
             end do
-
-            if (above_flag) exit
-
+            ! todo: i cant use tthat like that.. or else some combinations 
+            ! of i and j get left out! i have to reinit it somehow..
+            ! not yet sure how..
+!             if (above_flag) exit
         end do
 
         ! multiply by always same probability to pick the 2 electrons
@@ -3231,6 +3247,7 @@ contains
         se = excitInfo%secondStart
         e = excitInfo%fullEnd
 
+
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
         ! init weights
         weights = init_semiStartWeight(ilut, se, e, negSwitches(se), &
@@ -3303,6 +3320,8 @@ contains
             t = 0_n_int
             return
         end if
+
+        print *, "orig bra pgen", excitInfo%fullStart, excitInfo%fullEnd, branch_pgen
 
         call calc_mixed_end_l2r_contr(ilut, t, excitInfo, branch_pgen, pgen, &
             integral)
@@ -3869,7 +3888,7 @@ contains
 !             return
 !         end if
 
-        if (abs(extract_matrix_element(t,1))<EPS) then
+        if (abs(extract_matrix_element(t,1)) < EPS) then
             t = 0
             return
         end if
@@ -3894,9 +3913,12 @@ contains
         ! i know that a start was possible -> only check what the excitation 
         ! stepvalue is 
         if (isOne(t,st)) then
-            weight_funcs(st)%ptr => plus_start_single
-        else if (isTwo(t,st)) then
             weight_funcs(st)%ptr => minus_start_single
+        else if (isTwo(t,st)) then
+            weight_funcs(st)%ptr => plus_staying_single
+!         else
+            ! i also need to consider an non-choosing start or deal with 
+            ! that in the routines above..
         end if
 
         do i = st + 1, se - 1
@@ -4035,6 +4057,13 @@ contains
         end if
 
         integral = 0.0_dp
+        ! also here i didn't consider the actual end contribution or? ...
+        call calc_orbital_pgen_contrib_end(ilut, [2*elecInd, 2*en], &
+            holeInd, orb_pgen)
+
+        pgen = orb_pgen * branch_pgen
+
+        print *, "calc orb pgen", elecInd, en, orb_pgen / real(ElecPairs, dp) * 2.0_dp
 
         step = current_stepvector(en)
 
@@ -4079,6 +4108,8 @@ contains
 
             if (abs(top_cont) > EPS) then
 
+                print *, "toto top"
+
                 above_flag = .false.
                 mat_ele = 1.0_dp
 
@@ -4094,7 +4125,7 @@ contains
                     if (currentOcc_int(i) /= 1) cycle
 
                     ! then check if thats the last step
-                    if (current_stepvector(i) == 1 .and. currentB_int(i) == 0) then
+                    if (current_stepvector(i) == 2 .and. currentB_int(i) == 0) then
                         above_flag = .true.
                     end if
 
@@ -4102,13 +4133,15 @@ contains
                     call calc_orbital_pgen_contrib_end(ilut, [2*elecInd, 2*i], &
                         holeInd, orb_pgen)
 
+                    print *, "calc orb pgen", elecInd, i, orb_pgen / real(ElecPairs, dp) * 2.0_dp
+
                     if (orb_pgen < EPS) then 
                         ! still have to update the switches before cycling
                         ! update the switches 
                         if (current_stepvector(i) == 1) then 
-                            tmp_neg = tmp_neg + 1.0_dp
+                            tmp_neg(1:i-1) = tmp_neg(1:i-1)+ 1.0_dp
                         else
-                            tmp_pos = tmp_pos + 1.0_dp
+                            tmp_pos(1:i-1)= tmp_pos(1:i-1)+ 1.0_dp
                         end if
 
                         cycle
@@ -4141,7 +4174,24 @@ contains
 
                         new_pgen = 1.0_dp
 
-                        do j = st, se - 1
+                        ! deal with the start and semi-start seperately 
+                        if (currentOcc_int(st) /= 1) then
+                            new_pgen = new_pgen * weight_funcs(st)%ptr(weights, &
+                                currentB_ilut(st), tmp_neg(st), tmp_pos(st))
+                        end if
+
+                        print *, "+: ", tmp_pos
+                        print *, "-: ", tmp_neg
+
+                        call write_det_guga(6,t)
+
+                        print *, "st: ", new_pgen
+
+                        do j = st + 1, se - 1
+                            ! can and do i have to cycle here if its not 
+                            ! singly occupied??
+                            if (currentOcc_int(j) /= 1) cycle
+
                             new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
                                 currentB_ilut(j), tmp_neg(j), tmp_pos(j)) 
                         end do
@@ -4149,10 +4199,24 @@ contains
                         ! then need to reinit double weight 
                         weights = init_doubleWeight(ilut,i)
 
-                        do j = se, i - 1
+                        ! and also with the semi-start
+                        if (currentOcc_int(se) /= 1) then
+                            new_pgen = new_pgen * weight_funcs(se)%ptr(weights, &
+                                currentB_ilut(se), tmp_neg(se), tmp_pos(se))
+                        end if
+
+                        print *, "se: ", new_pgen
+
+                        do j = se + 1, i - 1
+                            if (currentOcc_int(j) /= 1) cycle
+
                             new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
                                 currentB_ilut(j), tmp_neg(j), tmp_pos(j))
                         end do
+
+
+                        print *, "toto bra"
+                        print *, "calc bra pgen", st, i, new_pgen
 
                         pgen = pgen + new_pgen * orb_pgen
 
@@ -4165,9 +4229,9 @@ contains
 
                     ! update the switches 
                     if (current_stepvector(i) == 1) then 
-                        tmp_neg = tmp_neg + 1.0_dp
+                        tmp_neg(1:i-1) = tmp_neg(1:i-1) + 1.0_dp
                     else
-                        tmp_pos = tmp_pos + 1.0_dp
+                        tmp_pos(1:i-1) = tmp_pos(1:i-1) + 1.0_dp
                     end if
 
                 end do
@@ -4194,13 +4258,17 @@ contains
                 call calc_orbital_pgen_contrib_end(ilut, [2*elecInd, 2*i], &
                     holeInd, orb_pgen) 
 
+                print *, "calc orb pgen", elecInd, i, orb_pgen / real(ElecPairs, dp) * 2.0_dp
+
                 if (current_stepvector(i) == 1) then
                     ! by looping in this direction i have to reduce 
                     ! the number of switches at the beginning
-                    negSwitches = negSwitches - 1.0_dp
+                    ! but only to the left or?? 
+                    ! i think i have to rethink that.. thats not so easy..
+                    negSwitches(1:i-1) = negSwitches(1:i-1) - 1.0_dp
 
                 else
-                    posSwitches = posSwitches - 1.0_dp
+                    posSwitches(1:i-1) = posSwitches(1:i-1) - 1.0_dp
 
                 end if
 
@@ -4234,7 +4302,15 @@ contains
 
                     new_pgen = 1.0_dp
 
-                    do j = st, se - 1
+                    ! deal with the start and semi-start seperately 
+                    if (currentOcc_int(st) /= 1) then
+                        new_pgen = new_pgen * weight_funcs(st)%ptr(weights, &
+                            currentB_ilut(st), tmp_neg(st), tmp_pos(st))
+                    end if
+
+                    do j = st + 1, se - 1
+                        if (currentOcc_int(j) /= 1) cycle
+
                         new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
                             currentB_ilut(j), negSwitches(j), posSwitches(j)) 
                     end do
@@ -4242,10 +4318,20 @@ contains
                     ! then need to reinit double weight 
                     weights = init_doubleWeight(ilut,i)
 
-                    do j = se, i - 1
+                    ! and also with the semi-start
+                    if (currentOcc_int(se) /= 1) then
+                        new_pgen = new_pgen * weight_funcs(se)%ptr(weights, &
+                            currentB_ilut(se), tmp_neg(se), tmp_pos(se))
+                    end if
+
+                    do j = se + 1, i - 1
+                        if (currentOcc_int(j) /= 1) cycle
+
                         new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
                             currentB_ilut(j), negSwitches(j), posSwitches(j))
                     end do
+
+                    print *, "calc bra pgen", st, i, new_pgen
 
                     pgen = pgen + new_pgen * orb_pgen
 
@@ -4260,6 +4346,8 @@ contains
             call calc_orbital_pgen_contrib_end(ilut, [2*elecInd, 2*sw], holeInd, &
                 orb_pgen)
 
+            print *, "calc orb pgen", st, sw, orb_pgen / real(ElecPairs, dp) * 2.0_dp
+
             if (orb_pgen > EPS) then
 
                 step = current_stepvector(sw) 
@@ -4272,7 +4360,8 @@ contains
                     call getMixedFullStop(2,1,-2,currentB_ilut(sw),x1_element = end_mat)
 
                     ! also reduce negative switches then
-                    negSwitches = negSwitches - 1.0_dp
+                    ! only everything to the left or? 
+                    negSwitches(1:sw-1) = negSwitches(1:sw-1) - 1.0_dp
 
                 else 
                     ! +2 branch arrived!
@@ -4283,7 +4372,7 @@ contains
                     call getMixedFullStop(1,2,2,currentB_ilut(sw), x1_element = end_mat)
 
                     ! reduce positive switchtes otherwise 
-                    posSwitches = posSwitches - 1.0_dp
+                    posSwitches(1:sw-1) = posSwitches(1:sw-1) - 1.0_dp
 
                 end if
 
@@ -4298,21 +4387,43 @@ contains
                 weights = init_semiStartWeight(ilut, se, sw, negSwitches(sw), &
                     posSwitches(sw), currentB_ilut(sw))
 
-                do j = st, se - 1 
+                ! deal with the start and semi-start seperately 
+                if (currentOcc_int(st) /= 1) then
+                    new_pgen = new_pgen * weight_funcs(st)%ptr(weights, &
+                        currentB_ilut(st), tmp_neg(st), tmp_pos(st))
+                end if
+
+                do j = st + 1, se - 1 
+                    if (currentOcc_int(j) /= 1) cycle
+
                     new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
                         currentB_ilut(j), negSwitches(j), posSwitches(j))
                 end do
                 
                 weights = init_doubleWeight(ilut, sw)
 
-                do j = se, sw - 1
+                ! and also with the semi-start
+                if (currentOcc_int(se) /= 1) then
+                    new_pgen = new_pgen * weight_funcs(se)%ptr(weights, &
+                        currentB_ilut(se), tmp_neg(se), tmp_pos(se))
+                end if
+
+                do j = se + 1, sw - 1
+                    if (currentOcc_int(j) /= 1) cycle
+
                     new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
                         currentB_ilut(j), negSwitches(j), posSwitches(j))
                 end do
 
+                print *, "calc bra pgen", st, i, new_pgen
+
                 pgen = pgen + new_pgen * orb_pgen
             end if
         end if
+
+        pgen = pgen / real(ElecPairs, dp)
+
+        if (current_stepvector(elecInd) == 3) pgen = pgen * 2.0_dp
         
     end subroutine calc_mixed_end_contr_sym
 
@@ -4379,9 +4490,10 @@ contains
                     topCont = Root2*sqrt(currentB_ilut(en)/&
                         (currentB_ilut(en) + 2.0_dp))
                 end if
-
+#ifdef __DEBUG
             else 
-                call stop_all(this_routine, "wront stepvalues!")
+                call stop_all(this_routine, "wrong stepvalues!")
+#endif
             end if
 
             if (abs(topCont) > EPS) then
@@ -5952,10 +6064,7 @@ contains
                 weights, negSwitches, posSwitches, t, branch_pgen)
 
             ! check validity 
-            if (abs(extract_matrix_element(t,2))<EPS .or. branch_pgen<EPS)then
-!                 print *, "double update failed:"
-!                 call print_excitInfo(excitInfo)
-!                 call write_det_guga(6, t)
+            if (abs(extract_matrix_element(t,2)) < EPS .or. branch_pgen < EPS) then
                 t = 0
                 return
             end if
@@ -5967,14 +6076,8 @@ contains
         call calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
 
-!         if (branch_pgen < EPS) then
-!             print *, "branch pgen = 0 after semi-stop:"
-!             call print_excitInfo(excitInfo)
-!             call write_det_guga(6, t)
-!         end if
-
         ! check validity
-        if (branch_pgen <EPS) return
+        if (branch_pgen < EPS) return
 
         do i = se + 1, en - 1
             call singleStochasticUpdate(ilut, i, excitInfo, weights, posSwitches, &
@@ -5982,7 +6085,7 @@ contains
             branch_pgen = branch_pgen * temp_pgen
             
             ! check validity
-            if (branch_pgen <EPS) return
+            if (branch_pgen < EPS) return
         end do
 
         call singleStochasticEnd(ilut, excitInfo, t)
@@ -6662,6 +6765,15 @@ contains
         ! what can i precalculate beforehand?
         step = current_stepvector(st)
 
+        integral = 0.0_dp
+
+        ! do i actually deal with the actual start orbital influence?? 
+        ! fuck i don't think so.. wtf.. 
+        call calc_orbital_pgen_contrib_start(ilut, [2*st, 2*elecInd], &
+            holeInd, orb_pgen)
+
+        pgen = orb_pgen * branch_pgen
+
         ! since weights only depend on the number of switches at the 
         ! semistop and semistop and full-end index i can calculate 
         ! it beforehand for all? 
@@ -6974,6 +7086,13 @@ contains
             end if
         end if
 
+        ! i also need to consider the electron pair picking probability.. 
+        pgen = pgen / real(ElecPairs, dp) 
+
+        ! and if the second electron is in a double occupied orbital I have 
+        ! to modify it with 2 
+        if (current_stepvector(elecInd) == 3) pgen = pgen * 2.0_dp
+
     end subroutine calc_mixed_start_contr_sym
 
     subroutine calc_orbital_pgen_contrib_end(ilut, occ_orbs, orb_a, orb_pgen)
@@ -6995,14 +7114,16 @@ contains
         do orb = 1, orb_a - 1
             ! calc. the p(a) 
             if (current_stepvector(orb) /= 3) then
-                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
 
             end if
 
         end do
 
         ! deal with orb (a) in specific way: 
-        cpt_a = get_guga_integral_contrib(occ_orbs, orb_a, orb_a)
+!         cpt_a = get_guga_integral_contrib(occ_orbs, orb_a, orb_a)
+        cpt_a = get_guga_integral_contrib(occ_orbs, orb_a, -1)
         
         cum_sum = cum_sum + cpt_a
 
@@ -7010,33 +7131,39 @@ contains
         ! depending if its a r2l or l2r full-stop: 
         if (i < orb_a) then
             ! its a L2R -> so no restrictions 
-            call pgen_select_orb_guga_mol(ilut, occ_orbs, i, j, cpt_ba, ba_sum)
+!             call pgen_select_orb_guga_mol(ilut, occ_orbs, j, orb_a, cpt_ba, ba_sum)
+            call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_a, j, cpt_ba, ba_sum)
         else
             ! its a R2L so orbital i is off-limits 
-            call pgen_select_orb_guga_mol(ilut, occ_orbs, i, j, cpt_ba, ba_sum, i)
+!             call pgen_select_orb_guga_mol(ilut, occ_orbs, j, orb_a, cpt_ba, ba_sum, i)
+            call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_a, j, cpt_ba, ba_sum, i)
         end if
 
         ! change to the fullstart into fullstop: loop until orbital j for the 
         ! fullstop implementattion
         do orb = orb_a + 1, j - 1
             if (current_stepvector(orb) /= 3) then
-                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
             end if
         end do
 
         ! deal with j also speciallly
-        cpt_b = get_guga_integral_contrib(occ_orbs, orb_a, orb_a) 
+!         cpt_b = get_guga_integral_contrib(occ_orbs, orb_a, orb_a) 
+        cpt_b = get_guga_integral_contrib(occ_orbs, j, -1)
 
         cum_sum = cum_sum + cpt_b
 
         ! and get p(a|b)
         ! only orbitals below j are allowed! 
-        call pgen_select_orb_guga_mol(ilut, occ_orbs, j, i, cpt_ab, ab_sum, -j, .true.)
+!         call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_a, i, cpt_ab, ab_sum, -j, .true.)
+        call pgen_select_orb_guga_mol(ilut, occ_orbs, j, orb_a, cpt_ab, ab_sum, -j, .true.)
 
         ! and deal with rest: 
         do orb = j + 1, nSpatOrbs 
             if (current_stepvector(orb) /= 3) then 
-                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
             end if
         end do
 
@@ -7068,6 +7195,7 @@ contains
         i = gtID(occ_orbs(1))
         j = gtID(occ_orbs(2))
 
+        ! damn... i need the probability of the elec-pair picking too or?
         cum_sum = 0.0_dp
         do orb = 1, i - 1
             ! calc. the p(a) 
@@ -7083,7 +7211,14 @@ contains
         cum_sum = cum_sum + cpt_a
 
         ! also get p(b|a)
-        call pgen_select_orb_guga_mol(ilut, occ_orbs, i, j, cpt_ba, ba_sum, i, .true.)
+        ! did i mix up i and j here below.. what do i assume picked already 
+        ! here? if its really p(b|a) i should switch up i and j..
+        ! hm.. the inputted j is the holeInd i which is fixed.. i gets looped 
+        ! over on the outside and is assumed picked first or 2nd here??
+        ! taking i and j here is wrong! i is the open orbital, but j 
+        ! is the already picked electron! it has to be orb_a here or?
+        call pgen_select_orb_guga_mol(ilut, occ_orbs, i, orb_a, cpt_ba, ba_sum, i, .true.)
+!         call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_a, i, cpt_ba, ba_sum, i, .true.)
 
         ! change to the fullstart into fullstop: loop until orbital a 
         do orb = i + 1, orb_a - 1
@@ -7102,10 +7237,12 @@ contains
         ! play! 
         if (orb_a > j) then
             ! then orb_j is off-limits 
-            call pgen_select_orb_guga_mol(ilut, occ_orbs, j, i, cpt_ab, ab_sum, j)
+!             call pgen_select_orb_guga_mol(ilut, occ_orbs, i, orb_a, cpt_ab, ab_sum, j)
+            call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_a, i, cpt_ab, ab_sum, j)
         else
             ! in this case there is no restriction guga-wise..
-            call pgen_select_orb_guga_mol(ilut, occ_orbs, j, i, cpt_ab, ab_sum)
+!             call pgen_select_orb_guga_mol(ilut, occ_orbs, i, orb_a, cpt_ab, ab_sum)
+            call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_a, i, cpt_ab, ab_sum)
         end if
 
         ! and deal with rest: 
@@ -8104,7 +8241,6 @@ contains
         integer :: start, ende, semi, gen, iOrb, deltaB
         type(weight_obj) :: weights
 
-
         ASSERT(isThree(ilut,excitInfo%fullStart))
         ASSERT(isProperCSF_ilut(ilut))
 
@@ -8127,7 +8263,7 @@ contains
 
         ! todo! correct combination of umat sum terms.. and correct indexing
 !         ASSERT(umat /= 0.0_dp)
-        if (abs(umat) <EPS) then
+        if (abs(umat) < EPS) then
             branch_pgen = 0.0_dp
             t = 0
             return
@@ -8159,7 +8295,7 @@ contains
                 minusWeight = weights%proc%minus(negSwitches(semi), bVal,weights%dat)
                 plusWeight = weights%proc%plus(posSwitches(semi), bVal,weights%dat)
 
-                if (minusWeight + plusWeight <EPS) then
+                if (minusWeight + plusWeight < EPS) then
                     branch_pgen = 0.0_dp
                     t = 0
                     return
@@ -21070,6 +21206,8 @@ contains
                                 call pgen_select_orb_guga_mol(ilut,occ_orbs,b,&
                                     a,int_switch(2),cum_switch(2), i)
 
+                                ! why am i never here?? 
+
                                 ! _R(b) > _LR(i) > ^RL^(ja)
                                 excitInfo = assign_excitInfo_values(17,-1,1,1,1,1,&
                                     b,j,j,i,b,i,j,j,0,2,1.0_dp,1.0_dp)
@@ -21260,12 +21398,16 @@ contains
                                     end if
                                 end if                               
                                 
-                                ! I would have been off limits
+                                ! wrong: I would have been off limits
+                                ! the above comment is not right i would have
+                                ! had to picked something below j, but why 
+                                ! is it 0? but thats atleast consistent with
+                                ! above.. is the umat read in wrong? 
                                 call pgen_select_orb_guga_mol(ilut,occ_orbs,b,&
                                     a,int_switch(2),cum_switch(2),-j,.true.)
 
                                 ! _R(a) > _LR(i) > ^RL^(jb)
-                                excitInfo = assign_excitInfo_values(21,-1,1,-1,-1,-1,&
+                                excitInfo = assign_excitInfo_values(17,-1,1,1,1,1,&
                                     a,j,j,i,a,i,j,j,0,2,1.0_dp,1.0_dp)
 
                             else
@@ -21409,6 +21551,11 @@ contains
      pgen = pgen * (product(int_contrib) / product(cum_sum) + &
                     product(int_switch) / product(cum_switch))
 
+
+    if (excitInfo%typ == 16) then
+        print *, "========================="
+        print *, "orig orb pgen", i, j, pgen
+    end if
         ! that should be all...
 
     end subroutine pickOrbs_sym_uniform_mol_double
@@ -21436,7 +21583,7 @@ contains
         ! otherwise choose beta
         ! UPDATE: change to only pick spatial orbitals -> only check if orbital
         ! was singly occupied 
-        if (currentOcc_int(orb_a) == 1) then
+        if (currentOcc_int(orb_b) == 1) then
             ! then i have to exclude orb_a in the recalculation of p(a|b) prob
             tSingle = .true.
         else
@@ -21458,13 +21605,15 @@ contains
             ! need to take tSingle into account
             ASSERT(present(orb_res))
             ASSERT(orb_res /= 0)
+
             if (orb_res < 0) then
                 ! only orbitals below restriction
-
                 do i = 1, nOrbs
+                    
                     orb = sym_label_list_spat(label_index + i - 1)
 
-                    if (current_stepvector(orb) /= 3 .and. orb < orb_res) then
+                    if (current_stepvector(orb) /= 3 .and. orb < -orb_res) then
+
                         tmp = get_guga_integral_contrib(occ_orbs, orb_b, orb)
 
                         cum_sum = cum_sum + tmp
@@ -21474,7 +21623,6 @@ contains
 
             else
                 ! only orbitals above restriction
-
                 do i = 1, nOrbs
                     orb = sym_label_list_spat(label_index + i - 1)
                     if (current_stepvector(orb) /= 3 .and. orb > orb_res) then
@@ -21488,6 +21636,7 @@ contains
         else
             if (present(orb_res)) then
                 ASSERT(orb_res /= 0)
+                ASSERT(orb_res > 0)
                 ! the orbital associated with orb_res is off-limits
 
                 ! also consider if orb b is singly occupied
@@ -21587,47 +21736,50 @@ contains
         ! did that in sym_label_list_spat
 
         ! depending on input do the specific loops
-        if (present(range_flag) .and. range_flag) then
-            ASSERT(present(orb_res))
-            ASSERT(orb_res /= 0)
+        if (present(range_flag)) then
+            if (range_flag) then
+                ASSERT(present(orb_res))
+                ASSERT(orb_res /= 0)
 
-            ! the case that a whole range is forbidden due to GUGA restrictions
-            ! is only in the case, when orbital (a) is on of the original I,J 
-            ! orbitals, so in this case a will not be chosen due to the 
-            ! GUGA restrictions already
+                ! the case that a whole range is forbidden due to GUGA restrictions
+                ! is only in the case, when orbital (a) is on of the original I,J 
+                ! orbitals, so in this case a will not be chosen due to the 
+                ! GUGA restrictions already
 
-            ! the direction of the range is indicated through the sign of the 
-            ! index restriciton 
-            if (orb_res < 0) then
-                ! only orbitals below orb_res allowed
-                do i = 1, nOrbs
-                    orb = sym_label_list_spat(label_index + i - 1)
+                ! the direction of the range is indicated through the sign of the 
+                ! index restriciton 
+                if (orb_res < 0) then
+                    ! only orbitals below orb_res allowed
+                    do i = 1, nOrbs
+                        orb = sym_label_list_spat(label_index + i - 1)
 
-                    if (current_stepvector(orb) /= 3 .and. orb < orb_res) then
-                        cum_sum = cum_sum + &
-                            get_guga_integral_contrib(occ_orbs, orb_a, orb)
-                    end if
-                    
-                    cum_arr(i) = cum_sum
-                end do
-            else
-                ! only orbitals above orb_res are allowed!
-                do i = 1, nOrbs
-                    orb = sym_label_list_spat(label_index + i - 1)
+                        if (current_stepvector(orb) /= 3 .and. orb < -orb_res) then
+                            cum_sum = cum_sum + &
+                                get_guga_integral_contrib(occ_orbs, orb_a, orb)
+                        end if
+                        
+                        cum_arr(i) = cum_sum
+                    end do
+                else
+                    ! only orbitals above orb_res are allowed!
+                    do i = 1, nOrbs
+                        orb = sym_label_list_spat(label_index + i - 1)
 
-                    if (current_stepvector(orb) /= 3 .and. orb > orb_res) then
-                        cum_sum = cum_sum + &
-                            get_guga_integral_contrib(occ_orbs, orb_a, orb)
-                    end if
+                        if (current_stepvector(orb) /= 3 .and. orb > orb_res) then
+                            cum_sum = cum_sum + &
+                                get_guga_integral_contrib(occ_orbs, orb_a, orb)
+                        end if
 
-                    cum_arr(i) = cum_sum
-                end do
+                        cum_arr(i) = cum_sum
+                    end do
+                end if
             end if
         else
             if (present(orb_res)) then
                 ! should i assert here, that orb_res should not be 0? 
                 ! otherwise it would be stupid to input..
                 ASSERT(orb_res /= 0) 
+                ASSERT(orb_res > 0)
                 ! but now i have to include that orb (a) might be off-limits! 
                 if (tSingle) then
                     ! then orb_a is also off-limits!
@@ -22116,6 +22268,9 @@ contains
         ! purposes just add a uniformly factor to all of the orbitals.
         if (orb_b < 0) then
             cpt = 1.0_dp
+            ! but now since it works, which one should i actually take..??
+            ! test around a bit.. what the resulting time-step then is.
+            ! but first get everything else working! 
         else
 !             cpt = abs(get_umat_el(ind(1),ind(2),orb_a,orb_b) + &
 !                 get_umat_el(ind(1),ind(2),orb_b,orb_a))
@@ -22139,7 +22294,7 @@ contains
         character(*), parameter :: this_routine = "pick_elec_pair_uniform_guga"
 
         integer :: i, ind(2), nI(nEl)
-        real(dp) :: temp_pgen
+        real(dp), intent(out) :: temp_pgen
 
         i = 1 + int(ElecPairs * genrand_real2_dSFMT())
 
@@ -22495,12 +22650,12 @@ contains
 !                 pgen = pgen**2/real(nSpatOrbs - 1,dp) * (temp_pgen + temp_pgen2)
 
                 if (j > i) then 
-                    ! RR(i) -> RR(j)
+                    ! _RR_(i) -> ^RR^(j)
                     excitInfo = assign_excitInfo_values(22,1,1,1,1,1,i,j,i,j,&
                         i,i,j,j,0,2,1.0_dp,1.0_dp)
 
                 else
-                    ! LL(j) -> LL(i)
+                    ! _LL_(j) -> ^LL^(i)
                     excitInfo = assign_excitInfo_values(22,-1,-1,-1,-1,-1,&
                         i,j,i,j,j,j,i,i,0,2,1.0_dp,1.0_dp)
 
@@ -22528,12 +22683,12 @@ contains
 !                 pgen = pgen**2/real(nSpatOrbs - 1,dp) * (temp_pgen + temp_pgen2)
 
                 if (i > j) then 
-                    ! RR(j) > RR(i)
+                    ! _RR_(j) > ^RR^(i)
                     excitInfo = assign_excitInfo_values(22,1,1,1,1,1,&
                         j,i,j,i,j,j,i,i,0,2,1.0_dp,1.0_dp)
 
                 else
-                    ! LL(i) > LL(j)
+                    ! _LL_(i) > ^LL^(j)
                     excitInfo = assign_excitInfo_values(22,-1,-1,-1,-1,-1,&
                         j,i,j,i,i,i,j,j,0,2,1.0_dp,1.0_dp)
 
@@ -22571,12 +22726,12 @@ contains
                 ! created alongside the matrix element calculation
 
                 if (j > i) then
-                    ! LR(i) > LR(j)
+                    ! _LR_(i) > ^LR^(j)
                     excitInfo = assign_excitInfo_values(23,-1,1,1,1,1,&
                         i,j,j,i,i,i,j,j,0,2,1.0_dp,2.0_dp)
 
                 else
-                    ! LR(j) -> LR(i)
+                    ! _LR_(j) -> ^LR^(i)
                     excitInfo = assign_excitInfo_values(23,-1,1,1,1,1,&
                         i,j,j,i,j,j,i,i,0,2,1.0_dp,2.0_dp)
 
@@ -24789,7 +24944,6 @@ contains
 
             if (any([i,j,k,l] == 0)) then
                 ! one of the indices is invalid
-                print *, "toto1"
                 excitInfo%valid = .false.
             else
                 excitInfo%valid = .true.
@@ -24809,7 +24963,6 @@ contains
             
             if (any([i,j,k] == 0)) then
 
-                print *, "toto2"
                 excitInfo%valid = .false.
 
             else 
@@ -24828,7 +24981,6 @@ contains
 
             if (any([i,j] == 0)) then
 !                 print *, excit_lvl, excit_typ
-                print *, "toto3"
 
                 excitInfo%valid = .false.
 
@@ -28162,7 +28314,7 @@ contains
         print *, "i,j,k,l:", excitInfo%i, excitInfo%j,excitInfo%k,excitInfo%l
         print *, "fullStart,secondStart,firstEnd,fullEnd:", excitInfo%fullStart, &
             excitInfo%secondStart, excitInfo%firstEnd, excitInfo%fullEnd
-        print *, "gen1,gen2: ", excitInfo%gen1, excitInfo%gen2
+        print *, "gen1,gen2,currentGen ", excitInfo%gen1, excitInfo%gen2, excitInfo%currentGen
         print *, "firstGen,lastGen: ", excitInfo%firstGen, excitInfo%lastGen
         print *, "valid? ", excitInfo%valid
 
