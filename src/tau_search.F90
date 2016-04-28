@@ -341,31 +341,62 @@ contains
             gamma_sum = gamma_sing + gamma_doub
         endif
 
+        if (consider_par_bias) then
+            call MPIAllReduce (gamma_sing, MPI_MAX, mpi_tmp)
+            gamma_sing = mpi_tmp
+            call MPIAllReduce (gamma_opp, MPI_MAX, mpi_tmp)
+            gamma_opp = mpi_tmp
+            call MPIAllReduce (gamma_par, MPI_MAX, mpi_tmp)
+            gamma_par = mpi_tmp
+            call MPIAllLORLogical(enough_opp, mpi_ltmp)
+            enough_opp = mpi_ltmp
+            call MPIAllLORLogical(enough_par, mpi_ltmp)
+            enough_par = mpi_ltmp
 
-        ! Get the values of pSingles and tau that correspond to the stored
-        ! values
-        if ((tUEG .or. enough_sing) .and. enough_doub) then
-            psingles_new = gamma_sing / gamma_sum
-            if (tReltvy) then
-                pSing_spindiff1_new = gamma_sing_spindiff1 / gamma_sum
-                pDoub_spindiff1_new = gamma_doub_spindiff1 / gamma_sum
-                pDoub_spindiff2_new = gamma_doub_spindiff2 / gamma_sum
-            endif
-            tau_new = max_permitted_spawn / (gamma_sum)
-        else
-            psingles_new = pSingles
-            if (tReltvy) then
-                pSing_spindiff1_new = pSing_spindiff1
-                pDoub_spindiff1_new = pDoub_spindiff1
-                pDoub_spindiff2_new = pDoub_spindiff2
-                tau_new = max_permitted_spawn * &
-                    min(pSingles / gamma_sing, pDoubles / gamma_doub, pSing_spindiff1 / gamma_sing_spindiff1, &
-                        pDoub_spindiff1 / gamma_doub_spindiff1, pDoub_spindiff2 / gamma_doub_spindiff2 &
-                     )
+            if (enough_sing .and. enough_doub) then
+                pparallel_new = gamma_par / (gamma_opp + gamma_par)
+                psingles_new = gamma_sing * pparallel_new &
+                             / (gamma_par + gamma_sing * pparallel_new)
+                tau_new = psingles_new * max_permitted_spawn &
+                              / gamma_sing
             else
+                pparallel_new = pParallel
+                psingles_new = pSingles
                 tau_new = max_permitted_spawn * &
-                    min(pSingles / gamma_sing, pDoubles / gamma_doub)
-            endif
+                        min(pSingles / gamma_sing, &
+                        min(pDoubles * pParallel / gamma_par, &
+                            pDoubles * pParallel / gamma_opp))
+            end if
+
+            ! We only want to update the opposite spins bias here, as we only
+            ! consider it here!
+            if (enough_opp .and. enough_par) then
+                if (abs(pParallel_new-pParallel) / pParallel > 0.0001_dp) then
+                    root_print "Updating parallel-spin bias; new pParallel = ", &
+                        pParallel_new
+                end if
+                pParallel = pParallel_new
+            end if
+
+        else
+
+            ! Only considering a direct singles/doubles bias
+            call MPIAllReduce (gamma_sing, MPI_MAX, mpi_tmp)
+            gamma_sing = mpi_tmp
+            call MPIAllReduce (gamma_doub, MPI_MAX, mpi_tmp)
+            gamma_doub = mpi_tmp
+
+            ! Get the values of pSingles and tau that correspond to the stored
+            ! values
+            if ((tUEG .or. enough_sing) .and. enough_doub) then
+                psingles_new = gamma_sing / (gamma_doub + gamma_sing)
+                tau_new = max_permitted_spawn / (gamma_doub + gamma_sing)
+            else
+                psingles_new = pSingles
+                tau_new = max_permitted_spawn * &
+                            min(pSingles / gamma_sing, pDoubles / gamma_doub)
+            end if
+
         end if
 
         ! The range of tau is restricted by particle death. It MUST be <=
