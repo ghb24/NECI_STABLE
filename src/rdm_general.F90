@@ -36,9 +36,6 @@ contains
         use SystemData, only: tStoreSpinOrbs, tHPHF, tFixLz, iMaxLz, tROHF
         use util_mod, only: LogMemAlloc
 
-        ! TODO: remove this.
-        use rdm_finalising, only: print_rdms_spin_sym_wrapper
-
         integer, intent(in) :: nrdms
 
         integer :: rdm_nrows, max_nelems, nhashes_rdm
@@ -301,8 +298,6 @@ contains
                 else
                     call read_2rdm_popsfile(two_rdm_main, two_rdm_spawn)
                     if (print_2rdm_est) call calc_2rdm_estimates_wrapper(rdm_estimates, two_rdm_main)
-                    ! TODO: remove this.
-                    !call print_rdms_spin_sym_wrapper(two_rdm_main, two_rdm_recv, two_rdm_spawn, rdm_estimates%norm, tOpenShell)
                 end if
             end if
         end if
