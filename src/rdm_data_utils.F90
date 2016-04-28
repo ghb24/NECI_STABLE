@@ -71,16 +71,21 @@ contains
         call init_rdm_list_t(spawn%rdm_send, sign_length, max_nelements_send, nhashes)
 
         allocate(spawn%free_slots(0:nProcessors-1), stat=ierr)
-        allocate(spawn%init_free_slots(0:nProcessors-1), stat=ierr)
+        ! init_free_slots has one extra element compared to free_slots. This
+        ! is set equal to the total number of elements, which allows us to
+        ! avoid an extra if-statement for an edge case in add_to_rdm_spawn_t.
+        allocate(spawn%init_free_slots(0:nProcessors), stat=ierr)
 
         ! Equally divide RDM rows across all processors.
         slots_per_proc = real(max_nelements_send, dp)/real(nProcessors, dp)
         do i = 0, nProcessors-1
             spawn%init_free_slots(i) = nint(slots_per_proc*i)+1
         end do
+        ! For edge cases - see comment above.
+        spawn%init_free_slots(nProcessors) = max_nelements_send
 
         ! Set the free slots array to its initial value.
-        spawn%free_slots = spawn%init_free_slots
+        spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
 
     end subroutine init_rdm_spawn_t
 
@@ -333,11 +338,7 @@ contains
 
                 ! Check that there is enough memory for the new spawned RDM entry.
                 list_full = .false.
-                if (proc == nProcessors - 1) then
-                    if (spawn%free_slots(proc) > rdm%max_nelements) list_full = .true.
-                else
-                    if (spawn%free_slots(proc) > spawn%init_free_slots(proc+1)) list_full = .true.
-                end if
+                if (spawn%free_slots(proc) > spawn%init_free_slots(proc+1)) list_full = .true.
                 if (list_full) then
                     write(6,'("Attempting to add an RDM contribution to the spawned list on processor:",&
                                &1X,'//int_fmt(proc,0)//')') proc
@@ -383,7 +384,7 @@ contains
 
         ! The displacement of the beginning of each processor's section of the
         ! free_slots array, relative to the first element of this array.
-        send_displs = int(spawn%init_free_slots-1, MPIArg)
+        send_displs = int(spawn%init_free_slots(0:nProcessors-1) - 1, MPIArg)
 
         call MPIAlltoAll(send_sizes, 1, recv_sizes, 1, ierr)
 
@@ -412,7 +413,7 @@ contains
                           rdm_recv%elements, recv_sizes, recv_displs, ierr)
 
         ! Now we can reset the free_slots array and reset the hash table.
-        spawn%free_slots = spawn%init_free_slots
+        spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
         call clear_hash_table(spawn%rdm_send%hash_table)
 
     end subroutine communicate_rdm_spawn_t

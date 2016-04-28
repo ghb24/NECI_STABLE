@@ -441,7 +441,7 @@ contains
         ! for ij < kl.
 
         use hash, only: clear_hash_table
-        use Parallel_neci, only: MPIAllReduce
+        use Parallel_neci, only: MPIAllReduce, nProcessors
         use ParallelHelper, only: MPI_SUM, MPI_MAX
         use rdm_data_utils, only: add_to_rdm_spawn_t, communicate_rdm_spawn_t, annihilate_rdm_list
 
@@ -458,7 +458,7 @@ contains
         real(dp) :: max_error_herm(rdm%sign_length), sum_error_herm(rdm%sign_length)
 
         ! Clear the spawn object before we use it.
-        spawn%free_slots = spawn%init_free_slots
+        spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
         call clear_hash_table(spawn%rdm_send%hash_table)
 
         ! Loop over all RDM elements.

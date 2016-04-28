@@ -602,7 +602,7 @@ contains
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
         logical, intent(in) :: open_shell
 
-        spawn%free_slots = spawn%init_free_slots
+        spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
         call clear_hash_table(spawn%rdm_send%hash_table)
 
         call make_hermitian_rdm(rdm, spawn, rdm_recv)
@@ -778,7 +778,7 @@ contains
         type(rdm_spawn_t), intent(inout) :: spawn
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
 
-        spawn%free_slots = spawn%init_free_slots
+        spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
         call clear_hash_table(spawn%rdm_send%hash_table)
 
         call create_spinfree_2rdm(rdm, spawn, rdm_recv)
