@@ -924,10 +924,14 @@ contains
             call EncodeBitDet (det, tgt_ilut)
             pos = binary_search(det_list, tgt_ilut, NIfD+1)
             if (pos < 0) then
-                write(6,*) det
-                write(6,'(b64)') tgt_ilut(0)
                 write(6,*) 'FAILED DET', tgt_ilut
-                call writebitdet(6, tgt_ilut, .true.)
+                print *, "from CSF:"
+                call write_det_guga(6, ilutG)
+                call write_det_guga(6, tgt_ilut(0:nifd))
+                call print_excitInfo(global_excitInfo)
+!                 write(6,*) det
+!                 write(6,'(b64)') tgt_ilut(0)
+!                 call writebitdet(6, tgt_ilut, .true.)
                 print *, "<i|H|j> = ", helgen
                 call stop_all(this_routine, 'Unexpected determinant generated')
             else
@@ -3321,7 +3325,7 @@ contains
             return
         end if
 
-        print *, "orig bra pgen", excitInfo%fullStart, excitInfo%fullEnd, branch_pgen
+!         print *, "orig bra pgen", excitInfo%fullStart, excitInfo%fullEnd, branch_pgen
 
         call calc_mixed_end_l2r_contr(ilut, t, excitInfo, branch_pgen, pgen, &
             integral)
@@ -3910,8 +3914,10 @@ contains
 
         delta_b = int(currentB_ilut - calcB_vector_ilut(t(0:nifd)))
 
+!         print *, "dB: ", delta_b
         ! i know that a start was possible -> only check what the excitation 
         ! stepvalue is 
+        ! damn.. where are my notes? im not sure about that..
         if (isOne(t,st)) then
             weight_funcs(st)%ptr => minus_start_single
         else if (isTwo(t,st)) then
@@ -3938,6 +3944,9 @@ contains
                 else
                     weight_funcs(i)%ptr => plus_switching_single
                 end if
+                ! here i need a one-prob. if no switch was possible.. damn..
+            else
+                weight_funcs(i)%ptr => probability_one
             end if
 
         end do
@@ -3958,7 +3967,7 @@ contains
             end if
         end if
 
-        do i = se + 1, sw - 1
+        do i = se + 1, nSpatOrbs
             if (currentOcc_int(i) /= 1) cycle
 
             step = current_stepvector(i)
@@ -3999,29 +4008,34 @@ contains
                 else
                     weight_funcs(i)%ptr => plus_switching_double
                 end if
+
+            ! i also need a case default to prob 1. for a no-choice..
+            case default 
+                weight_funcs(i)%ptr => probability_one
+
             end select
 !             end if
         end do
-        
-        ! the last switch is the only remaining special case: 
-        if (current_stepvector(sw) == 1) then 
-            ! a dB = -2 arrived and switched to the dB = 0 branch 
-            weight_funcs(sw)%ptr => minus_switching_double
-        else
-            ! a dB = 2 arrived and switched to the dB = 0 branch
-            weight_funcs(sw)%ptr => plus_switching_double
-        end if
-
-        ! all the remaining singly occupied orbitals stay on the dB = 0 branch
-        do i = sw + 1, nSpatOrbs - 1
-            if (currentOcc_int(i) /= 1) cycle
-
-            if (current_stepvector(i) == 1) then 
-                weight_funcs(i)%ptr => zero_plus_staying_double
-            else 
-                weight_funcs(i)%ptr => zero_minus_staying_double
-            end if
-        end do
+!         
+!         ! the last switch is the only remaining special case: 
+!         if (current_stepvector(sw) == 1) then 
+!             ! a dB = -2 arrived and switched to the dB = 0 branch 
+!             weight_funcs(sw)%ptr => minus_switching_double
+!         else
+!             ! a dB = 2 arrived and switched to the dB = 0 branch
+!             weight_funcs(sw)%ptr => plus_switching_double
+!         end if
+! 
+!         ! all the remaining singly occupied orbitals stay on the dB = 0 branch
+!         do i = sw + 1, nSpatOrbs - 1
+!             if (currentOcc_int(i) /= 1) cycle
+! 
+!             if (current_stepvector(i) == 1) then 
+!                 weight_funcs(i)%ptr => zero_plus_staying_double
+!             else 
+!                 weight_funcs(i)%ptr => zero_minus_staying_double
+!             end if
+!         end do
 
     end subroutine setup_weight_funcs
 
@@ -4063,7 +4077,7 @@ contains
 
         pgen = orb_pgen * branch_pgen
 
-        print *, "calc orb pgen", elecInd, en, orb_pgen / real(ElecPairs, dp) * 2.0_dp
+!         print *, "calc orb pgen", elecInd, en, orb_pgen / real(ElecPairs, dp) * 2.0_dp
 
         step = current_stepvector(en)
 
@@ -4071,12 +4085,24 @@ contains
 
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
 
+!         call write_det_guga(6, ilut)
+!         call write_det_guga(6,t)
+
+!         print *, "st, se, en, sw:", st, se, en, sw
+!         print *, "orig switches: "
+!         print *, "+:", posSwitches
+!         print *, "-:", negSwitches
+
         ! need temporary switch arrays for more efficiently recalcing 
         ! weights 
         tmp_pos = posSwitches
         tmp_neg = negSwitches
         ! after last switch only dB = 0 branches! consider that 
         call setup_weight_funcs(ilut, t, st, se, sw, weight_funcs)
+
+!         do i = 1, nSpatOrbs
+!             print *, associated(weight_funcs(i)%ptr)
+!         end do
 
         if (en < nSpatOrbs) then
             select case (step)
@@ -4108,17 +4134,15 @@ contains
 
             if (abs(top_cont) > EPS) then
 
-                print *, "toto top"
-
                 above_flag = .false.
                 mat_ele = 1.0_dp
 
                 ! to avoid to recalc. remaining switches all the time 
                 ! just increment them correctly
                 if (step == 1) then
-                    tmp_neg = tmp_neg + 1.0_dp
+                    tmp_neg(se:en-1) = tmp_neg(se:en-1) + 1.0_dp
                 else
-                    tmp_pos = tmp_pos + 1.0_dp
+                    tmp_pos(se:en-1) = tmp_pos(se:en-1) + 1.0_dp
                 end if
 
                 do i = en + 1, nSpatOrbs
@@ -4133,19 +4157,7 @@ contains
                     call calc_orbital_pgen_contrib_end(ilut, [2*elecInd, 2*i], &
                         holeInd, orb_pgen)
 
-                    print *, "calc orb pgen", elecInd, i, orb_pgen / real(ElecPairs, dp) * 2.0_dp
-
-                    if (orb_pgen < EPS) then 
-                        ! still have to update the switches before cycling
-                        ! update the switches 
-                        if (current_stepvector(i) == 1) then 
-                            tmp_neg(1:i-1) = tmp_neg(1:i-1)+ 1.0_dp
-                        else
-                            tmp_pos(1:i-1)= tmp_pos(1:i-1)+ 1.0_dp
-                        end if
-
-                        cycle
-                    end if
+!                     print *, "calc orb pgen", elecInd, i, orb_pgen / real(ElecPairs, dp) * 2.0_dp
 
                     ! should be able to do that without second loop too! 
                     ! figure out! 
@@ -4156,6 +4168,22 @@ contains
 
                     call getMixedFullStop(step,step,0,currentB_ilut(i), & 
                         x1_element = end_mat)
+
+                    if (orb_pgen < EPS) then 
+                        ! still have to update the switches before cycling
+                        ! update the switches 
+                        if (current_stepvector(i) == 1) then 
+                            tmp_neg(se:i-1) = tmp_neg(se:i-1)+ 1.0_dp
+                        else
+                            tmp_pos(se:i-1)= tmp_pos(se:i-1)+ 1.0_dp
+                        end if
+
+                        ! also have to update the matrix element, even if
+                        ! the orb pgen is 0
+                        mat_ele = mat_ele * stay_mat
+
+                        cycle
+                    end if
 
                     ! this check should never be true, but just to be sure
                     if (abs(stay_mat) < EPS) above_flag = .true.
@@ -4180,18 +4208,21 @@ contains
                                 currentB_ilut(st), tmp_neg(st), tmp_pos(st))
                         end if
 
-                        print *, "+: ", tmp_pos
-                        print *, "-: ", tmp_neg
+!                         print *, "new switches:"
+!                         print *, "+: ", tmp_pos
+!                         print *, "-: ", tmp_neg
 
-                        call write_det_guga(6,t)
+!                         print *, "i: ", i
+!                         call write_det_guga(6,t)
 
-                        print *, "st: ", new_pgen
+!                         print *, "st: ", new_pgen
 
                         do j = st + 1, se - 1
                             ! can and do i have to cycle here if its not 
                             ! singly occupied??
                             if (currentOcc_int(j) /= 1) cycle
 
+!                             print *, "j: ", j
                             new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
                                 currentB_ilut(j), tmp_neg(j), tmp_pos(j)) 
                         end do
@@ -4205,7 +4236,7 @@ contains
                                 currentB_ilut(se), tmp_neg(se), tmp_pos(se))
                         end if
 
-                        print *, "se: ", new_pgen
+!                         print *, "se: ", new_pgen
 
                         do j = se + 1, i - 1
                             if (currentOcc_int(j) /= 1) cycle
@@ -4215,8 +4246,7 @@ contains
                         end do
 
 
-                        print *, "toto bra"
-                        print *, "calc bra pgen", st, i, new_pgen
+!                         print *, "calc bra pgen", st, i, new_pgen
 
                         pgen = pgen + new_pgen * orb_pgen
 
@@ -4229,9 +4259,9 @@ contains
 
                     ! update the switches 
                     if (current_stepvector(i) == 1) then 
-                        tmp_neg(1:i-1) = tmp_neg(1:i-1) + 1.0_dp
+                        tmp_neg(se:i-1) = tmp_neg(se:i-1) + 1.0_dp
                     else
-                        tmp_pos(1:i-1) = tmp_pos(1:i-1) + 1.0_dp
+                        tmp_pos(se:i-1) = tmp_pos(se:i-1) + 1.0_dp
                     end if
 
                 end do
@@ -4240,8 +4270,11 @@ contains
             end if
         end if
 
+!         print *, "toto"
         if (sw < en) then
             
+            step = current_stepvector(en)
+
             ! inverse fullstop matrix element 
             call getMixedFullStop(step,step,0,currentB_ilut(en),x1_element = mat_ele)
 
@@ -4250,6 +4283,7 @@ contains
             ! have to change the switches before the first cycle: 
             ! but for cycling backwards, thats not so easy.. need todo
             
+!             print *, "toto"
             do i = en - 1, sw + 1, -1
 
                 if (currentOcc_int(i) /= 1) cycle
@@ -4258,34 +4292,33 @@ contains
                 call calc_orbital_pgen_contrib_end(ilut, [2*elecInd, 2*i], &
                     holeInd, orb_pgen) 
 
-                print *, "calc orb pgen", elecInd, i, orb_pgen / real(ElecPairs, dp) * 2.0_dp
+!                 print *, "calc orb pgen", elecInd, i, orb_pgen / real(ElecPairs, dp) * 2.0_dp
 
                 if (current_stepvector(i) == 1) then
                     ! by looping in this direction i have to reduce 
                     ! the number of switches at the beginning
                     ! but only to the left or?? 
                     ! i think i have to rethink that.. thats not so easy..
-                    negSwitches(1:i-1) = negSwitches(1:i-1) - 1.0_dp
+                    negSwitches(se:i-1) = negSwitches(se:i-1) - 1.0_dp
 
                 else
-                    posSwitches(1:i-1) = posSwitches(1:i-1) - 1.0_dp
+                    posSwitches(se:i-1) = posSwitches(se:i-1) - 1.0_dp
 
                 end if
 
-
-                if (orb_pgen < EPS)  cycle
-
                 step = current_stepvector(i) 
-
                 ! update inverse product
                 call getDoubleMatrixElement(step,step,0,-1,1,currentB_ilut(i),&
                     1.0_dp, x1_element = stay_mat)
-
 
                 call getMixedFullStop(step,step,0,currentB_ilut(i), x1_element = end_mat)
 
                 ! update matrix element
                 mat_ele = mat_ele / stay_mat 
+
+                ! dont i still have to atleast update the matrix element 
+                ! even if the orbital pgen is 0??
+                if (orb_pgen < EPS) cycle
 
                 if (abs(end_mat) > EPS) then
 
@@ -4305,7 +4338,7 @@ contains
                     ! deal with the start and semi-start seperately 
                     if (currentOcc_int(st) /= 1) then
                         new_pgen = new_pgen * weight_funcs(st)%ptr(weights, &
-                            currentB_ilut(st), tmp_neg(st), tmp_pos(st))
+                            currentB_ilut(st), negSwitches(st), posSwitches(st))
                     end if
 
                     do j = st + 1, se - 1
@@ -4321,7 +4354,7 @@ contains
                     ! and also with the semi-start
                     if (currentOcc_int(se) /= 1) then
                         new_pgen = new_pgen * weight_funcs(se)%ptr(weights, &
-                            currentB_ilut(se), tmp_neg(se), tmp_pos(se))
+                            currentB_ilut(se), negSwitches(se), posSwitches(se))
                     end if
 
                     do j = se + 1, i - 1
@@ -4331,7 +4364,10 @@ contains
                             currentB_ilut(j), negSwitches(j), posSwitches(j))
                     end do
 
-                    print *, "calc bra pgen", st, i, new_pgen
+!                     print *, "new switches: "
+!                     print *, "+:", posSwitches
+!                     print *, "-:", negSwitches
+!                     print *, "calc bra pgen", st, i, new_pgen
 
                     pgen = pgen + new_pgen * orb_pgen
 
@@ -4346,8 +4382,9 @@ contains
             call calc_orbital_pgen_contrib_end(ilut, [2*elecInd, 2*sw], holeInd, &
                 orb_pgen)
 
-            print *, "calc orb pgen", st, sw, orb_pgen / real(ElecPairs, dp) * 2.0_dp
+!             print *, "calc orb pgen", st, sw, orb_pgen / real(ElecPairs, dp) * 2.0_dp
 
+!             print *, "toto"
             if (orb_pgen > EPS) then
 
                 step = current_stepvector(sw) 
@@ -4361,7 +4398,7 @@ contains
 
                     ! also reduce negative switches then
                     ! only everything to the left or? 
-                    negSwitches(1:sw-1) = negSwitches(1:sw-1) - 1.0_dp
+                    negSwitches(se:sw-1) = negSwitches(se:sw-1) - 1.0_dp
 
                 else 
                     ! +2 branch arrived!
@@ -4372,7 +4409,7 @@ contains
                     call getMixedFullStop(1,2,2,currentB_ilut(sw), x1_element = end_mat)
 
                     ! reduce positive switchtes otherwise 
-                    posSwitches(1:sw-1) = posSwitches(1:sw-1) - 1.0_dp
+                    posSwitches(se:sw-1) = posSwitches(se:sw-1) - 1.0_dp
 
                 end if
 
@@ -4390,7 +4427,7 @@ contains
                 ! deal with the start and semi-start seperately 
                 if (currentOcc_int(st) /= 1) then
                     new_pgen = new_pgen * weight_funcs(st)%ptr(weights, &
-                        currentB_ilut(st), tmp_neg(st), tmp_pos(st))
+                        currentB_ilut(st), negSwitches(st), posSwitches(st))
                 end if
 
                 do j = st + 1, se - 1 
@@ -4405,7 +4442,7 @@ contains
                 ! and also with the semi-start
                 if (currentOcc_int(se) /= 1) then
                     new_pgen = new_pgen * weight_funcs(se)%ptr(weights, &
-                        currentB_ilut(se), tmp_neg(se), tmp_pos(se))
+                        currentB_ilut(se), negSwitches(se), posSwitches(se))
                 end if
 
                 do j = se + 1, sw - 1
@@ -4414,8 +4451,11 @@ contains
                     new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
                         currentB_ilut(j), negSwitches(j), posSwitches(j))
                 end do
-
-                print *, "calc bra pgen", st, i, new_pgen
+  
+!                 print *, "new switches: "
+!                 print *, "+:", posSwitches
+!                 print *, "-:", negSwitches
+!                 print *, "calc bra pgen", st, i, new_pgen
 
                 pgen = pgen + new_pgen * orb_pgen
             end if
@@ -21553,8 +21593,8 @@ contains
 
 
     if (excitInfo%typ == 16) then
-        print *, "========================="
-        print *, "orig orb pgen", i, j, pgen
+!         print *, "========================="
+!         print *, "orig orb pgen", i, j, pgen
     end if
         ! that should be all...
 
