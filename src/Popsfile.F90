@@ -1270,10 +1270,12 @@ r_loop: do while(.not.tStoreDet)
         call MPIBCast(PopTau)
         call MPIBCast(PopiBlockingIter)
         call MPIBCast(PopPSingles)
-        call MPIBCast(PopPDoubles)
-        call MPIBCast(PopPSing_spindiff1)
-        call MPIBCast(PopPDoub_spindiff1)
-        call MPIBCast(PopPDoub_spindiff2)
+        if (tReltvy) then
+            call MPIBCast(PopPDoubles)
+            call MPIBCast(PopPSing_spindiff1)
+            call MPIBCast(PopPDoub_spindiff1)
+            call MPIBCast(PopPDoub_spindiff2)
+        endif
         call MPIBCast(PopPParallel)
         call MPIBCast(PopParBias)
         call MPIBCast(PopNNodes)
@@ -1294,9 +1296,11 @@ r_loop: do while(.not.tStoreDet)
         end if
         call MPIBcast(PopGammaSing)
         call MPIBcast(PopGammaDoub)
-        call MPIBcast(PopGammaSing_spindiff1)
-        call MPIBcast(PopGammaDoub_spindiff1)
-        call MPIBcast(PopGammaDoub_spindiff2)
+        if (tReltvy) then
+            call MPIBcast(PopGammaSing_spindiff1)
+            call MPIBcast(PopGammaDoub_spindiff1)
+            call MPIBcast(PopGammaDoub_spindiff2)
+        endif
         call MPIBcast(PopGammaOpp)
         call MPIBCast(PopGammaPar)
         call MPIBcast(PopMaxDeathCpt)
@@ -1346,12 +1350,6 @@ r_loop: do while(.not.tStoreDet)
         call MPIBCast(PopSumNoatHF_out)
 
         ! Fill the tau-searching accumulators, to avoid blips in tau etc.
-        pSingles = PopPSingles
-        pSing_spindiff1 = PopPSing_spindiff1
-        pDoubles = PopPDoubles
-        pDoub_spindiff1 = PopPDoub_spindiff1
-        pDoub_spindiff2 = PopPDoub_spindiff2
-
         gamma_sing = PopGammaSing
         gamma_doub = PopGammaDoub
         if (tReltvy) then
@@ -1829,7 +1827,6 @@ r_loop: do while(.not.tStoreDet)
                                       ',PopGammaOpp=', gamma_opp, &
                                       ',PopGammaPar=', gamma_par, &
                                       ',PopMaxDeathCpt=', max_death_cpt
-        if (tReltvy) &
         write(iunit, '(5(a,g18.12))') ',PopGammaSing_spindiff1=', gamma_sing_spindiff1, &
                                       ',PopGammaDoub_spindiff1=', gamma_doub_spindiff1, &
                                       ',PopGammaDoub_spindiff2=', gamma_doub_spindiff2
