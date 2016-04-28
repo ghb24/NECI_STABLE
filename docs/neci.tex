@@ -219,7 +219,7 @@
 	With the \code{build} directory as the current working directory,
 	execute
 	\begin{lstlisting}[gobble=4]
-	cmake [-DCMAKE_BUILD_TYPE=<type>] [path_to_neci]
+	cmake [-DCMAKE_BUILD_TYPE=<type>] <path_to_neci>
 	\end{lstlisting}
 	pointing CMake at the root directory of the cloned NECI repository.
 
@@ -250,11 +250,8 @@
 	of it. Otherwise support for HDF5 POPSFILES will be disabled by default.
 
 	The CMake configuration for NECI contains the functionality to download,
-	compile and use HDF5. To do this just run
-	\begin{lstlisting}[gobble=4]
-		make [-j] hdf5
-	\end{lstlisting}
-	in the \code{build} directory and then re-run \code{cmake}.
+	compile and use HDF5. To do this run CMake with the
+    \code{-DENABLE_BUILD_HDF5=ON}.
 	\end{mdframed}
 
 	The code is then built using the command
@@ -270,15 +267,117 @@
 	code (\code{dneci}) or the multi run code (\code{mneci}) are
 	built. If not specified, all targets are built.
 
-\subsubsection{Special case: Archer}
-	Archer uses a number of custom compiler wrappers. These wrappers
-	defeat the auto-configuration built into the CMake system. As such
-	manual specification of the compilers will be needed:
-	\begin{lstlisting}[gobble=4]
-		cmake -DCMAKE_Fortran_COMPILER=ftn -DCMAKE_CXX_COMPILER=g++ [path_to_neci]
-	\end{lstlisting}
-	The CMake system will detect that compilation is taking place on
-	Archer and prompt the user to use these settings. If they are not
+\subsubsection{Options}
+    Whilst every effort has been made to provide NECI with sensible default options, the user
+    may wish to play around further. To (dis)able an option, the following should be passed as
+    an argument to cmake:
+    \begin{lstlisting}[gobble=4]
+        -DENABLE_<option>=<(ON|OFF)>
+    \end{lstlisting}
+    The following options are available. Where an option is default "on", if the required libraries
+    are not available, the option will be disabled and this will be noted in the build summary.
+    \begin{description}
+        \codeitem{BUILD\_HDF5}
+            Build the hdf5 library from source, and use that instead of one provided by the system.
+        \codeitem{HDF5}
+            Make use of hdf5 for popsfiles (default=on).
+        \codeitem{FFTW}
+            Functionality requiring FFTW (default=on).
+        \codeitem{MOLCAS}
+            Build with the \_MOLCAS\_ flag (default=off).
+        \codeitem{MPI}
+            Build with parallel functionality (default=off).
+        \codeitem{SHARED\_MEMORY}
+            Use shared memory for storing integrals (default=on).
+        \codeitem{WARNINGS}
+            Compile with verbose compiler warnings (default=on).
+    \end{description}
+
+\subsection{Overriding configuration options}
+
+    One of the aims of the CMake tool is to make build configuration as black-box as possible.
+    The build system should normally detect the compilers in use automatically. The detected compilers
+    may not, however, be the ones desired, or the build system may fail to find functionality that
+    exists. The complier to use can be overridden by arguments passed to CMake:
+    \begin{lstlisting}[gobble=4]
+        cmake -DCMAKE_<lang>_COMPILER=XXX <neci_dir>
+    \end{lstlisting}
+    where \code{<lang>} may be \code{Fortran}, \code{CXX} or \code{C} as appropriate. This should
+    specify the command to use which may be a compiler available in the environmental \code{PATH},
+    or and absolute path to the compiler to use.
+
+    Once CMake has determined the compiler to use, it determines the compilation and linker flags
+    automatically. A number of overrides have been definied for NECI. These may be found in the
+    \code{cmake/compiler_flags} director, and are segregated by files named according to both the
+    compiler vendor and the language.
+
+    Compiler flags are added in a specific order. The flags defined in the \code{NECI_<lang>_FLAGS}
+    variable are applied to all builds, whereas those in \code{NECI_<lang>_FLAGS_<type>} are only
+    applied to builds with the appropriate build type (with the exception of when type is equal to
+    \code{CLUSTER} when the flags are appended to those used in \code{RELEASE} mode to enable
+    extra inter-file optimisations).
+
+    There are also flags to control how things are linked, what options are passed to the compiler
+    to enable compiler warnings, and flags that depend on 32 or 64 bit builds. These should be
+    self explanatory from reading the files in \code{cmake/compiler_flags}.
+
+    If these defaults are insufficient, the compilation flags may also be overridden. Any arguments
+    passed to cmake of the form
+    \begin{lstlisting}[gobble=4]
+        cmake -DFORCE_<lang>_FLAGS[_<type>]
+    \end{lstlisting}
+    override the corresponding \code{NECI_<lang>_FLAGS[_<type>]} flags. Essentially any
+    \code{NECI_*} flag may be overridden on the command line with a \code{FORCE_*} flag (although
+    it is possible that some of these have been accidentally ommitted from the implmentation).
+
+\subsubsection{Toolchain files}
+
+    Overriding all of the CMake variables on the command line is cumbersome and error prone.
+    Various sets of overrides can be combined into a toolchain file, which can be passed
+    to CMake:
+    \begin{lstlisting}[gobble=4]
+        cmake -DCMAKE_TOOLCHAIN_FILE=<toolchain_file> <neci_dir>
+    \end{lstlisting}
+    These toolchain files can specify the entire chain of compilers, flags and libraries if
+    desired. For examples see the toolchains/ directory in the NECI repository.
+
+    Additionally to the flags described above, the \code{CMakeForceCompiler} functionality may
+    be used (over and above just setting the \code{CMAKE_<lang>_COMPILER} variable).
+    These macros entirely disable the autodetection of compiler properties within
+    CMake (per language), and will require all flags that are not in the
+    \code{cmake/compiler_flags} directories to be specified manually. As an example:
+    \begin{lstlisting}[gobble=4]
+        include(CMakeForceCompiler)
+
+        CMAKE_FORCE_C_COMPILER       ( gcc GNU )
+        CMAKE_FORCE_CXX_COMPILER     ( g++ GNU )
+        CMAKE_FORCE_Fortran_COMPILER ( mpif90 GNU )
+    \end{lstlisting}
+    This will force the use of the commands \code{gcc}, \code{g++}, and \code{mpif90}, and will
+    set the \code[breaklines=true]{CMAKE_<lang>_COMPILER_ID} variable to \code{GNU} such that
+    the compiler flags set in the \code[breaklines=true]{cmake/compiler_flags/GNU_*.cmake}
+    files are used. Because this turns off
+    any autodetection, CMake will not autodetect that the c++ standard library needs to be
+    linked in to combine c++ and Fortran files. This will need to be corrected manually, using:
+    \begin{lstlisting}[gobble=4]
+        set( NECI_Fortran_STATIC_LINK_LIBRARIES stdc++ )
+    \end{lstlisting}
+    Further internally required libraries may be required. In a normal build, these are
+    output in the build summary under "Implicit C++ linker flags".
+    A comprehensive documented example is found in \code{toolchains/gfortran-openmpi.cmake}.
+
+    \textbf{Archer}
+
+    As an example, we can consider the Archer supercomputer, located at EPCC in Edinburgh. This
+    machine uses compiler wrapper scripts (written by Cray) to provide much of the functionality
+    automatically, but this defeats the CMake auto-configuration system. To build on archer the
+    cmake command
+    \begin{lstlisting}[gobble=4]
+        cmake -DCMAKE_TOOLCHAIN_FILE=<neci_dir>/toolchains/archer.cmake <neci_dir>
+    \end{lstlisting}
+
+    (As we already know about Archer, we autodetect that you are running on it, and CMake will
+    fail with a message containing these instructions).
 	used, then the build will fail.
 
 \subsubsection{Compilation on ADA}
@@ -297,6 +396,41 @@
 		module load mpi/openmpi/1.8.2/intel15.0-threads
 	\end{lstlisting}
 	then run Cmake as normal.
+
+\subsubsection{Overriding packages required for options}
+
+    There are a number of packages that are required to build NECI (such as something providing
+    a LAPACK-like interface), or which are required to enable certain options (librt is required
+    to enable shared memory).
+
+    If the package searching fails, there are a number of variables that can be set on the CMake
+    command line, or in a toolchain file as appropriate:
+
+    \begin{description}
+        \codeitem{NECI\_FIND\_<package>}
+            If this is set to OFF, the package searcher will not be executed, and the associated
+            option will be enabled without disabling the option.
+        \codeitem{<package>\_FOUND}
+            For many of the package searchers, this disables the searching from inside the package
+            rather than outside. In general, the first option is preferred.
+        \codeitem{<package>\_LIBRARIES}
+            The libraries to be linked in for use of the specifide package. If package searching is
+            disabled, then to use the package this needs to be filled in explicitly.
+        \codeitem{<package>\_DEFINITIONS}
+            Any additional compiler flags that are required to use the package.
+        \codeitem{<package>\_INCLUDE\_PATH}
+            The location of any C or C++ header files, or fortran module files to be used during
+            compilation
+    \end{description}
+
+    NECI has a some special package finders, called \code{MPI_NECI}, \code{LAPACK_NECI} and
+    \code{HDF5_NECI}. To a large
+    extent they are just wrappers around the underlying finders provided with CMake, but they
+    implement some additional logic, such as automatically substituting MKL for LAPACK, checking
+    the MPI compiler being used, and providing the capacity to build hdf5 in the source tree.
+
+    As a result, when overriding these packages, \code{MPI_NECI}, \code{LAPACK_NECI} and
+    \code{HDF5_NECI} should be substituted for \code{<package>} above.
 
 \subsection{Configuring builds (Makefile system)}
 	A specific configuration for building NECI is initialised by using the
@@ -1520,7 +1654,7 @@ and a range of other guidelines.
 
 	There is one, major, exception to this rule. Code that only exists for
 	testing purposes (such as the contents of \code{ASSERT} statements,
-	or unit tests if they are ever added) may be as explicitly duplicated as
+	or unit tests) may be as explicitly duplicated as
 	desired. Their \emph{purpose} is to explicitly flag up when anything
 	elsewhere changes - so the risk of them getting out of sync with the code
 	base is their purpose.
@@ -2171,6 +2305,60 @@ confirming the that the test was added correctly:
 \begin{lstlisting}[language=bash]
     $ ~/testcode2/bin/testcode.py -c neci/parallel/new_test
 \end{lstlisting}
+
+\subsection{Unit tests}
+    Unit tests should test discrete, small, elements of functionality. Ideally these should be
+    the smallest elements such that functionality is then composed from ``units'' that have all
+    been tested. By considering each of the elements explicitly, it is possible to writ tests
+    for edge-case behaviour, where it is difficult to ensure that this behaviour will be tested
+    in a full integration test case.
+
+    Unit tests are found in the \code{unit_tests} directory. They are arranged in subdirectories,
+    each of which corresponds to one of the \emph{files} of NECI source code. There are a number
+    of technical steps to integrating new unit tests. 
+    \begin{enumerate}
+        \item
+            A passing test is an executable that returns 0, and any other return value indicates
+            failure. The developer has an entirely free choice to determine how they wish to
+            write test executables.
+        \item
+            The library FRUIT is provided to assist in writing unit tests. Within a given test
+            (i.e. testing a given function, or unit), there should be a \emph{suite} of tests
+            to cover all possbile cases. FRUIT provides helper functionality to keep track of
+            which element of a suite is currently running (using the \code{TEST()} macros),
+            check values (using \code{call assert_equals}, \code{call assert_true} and so forth),
+            keep track of where errors occurred and report them in an easily readible form. The
+            module can be imported with \code{use fruit}. See existing tests for examples.
+        \item
+            If the current directory of tests does not contain a \code{CMakeLists.txt} file, create it.
+            Ensure that it contains a \code{foreach()} loop over the available
+            \code|\${PROJECT_NAME}_CONFIGURATIONS| so that all the build configurations of
+            neci get tested. The directory should be added to the main \code{CMakeLists.txt} in
+            the \code{unit_tests} directory using the \code{add_subdirectory()} command.
+        \item
+            Add the test to the \code{CMakeLists.txt} file in the directory in which it resides
+            using the \code{neci_add_test} command. This will require you to specify a name for
+            the test, and the appropriate .F90 file.
+        \item
+            To test the appropriate configuration of neci, add \code|lib{k,m,d,}neci| to the
+            LIBS line. To use the FRUIT helpers, add \code{fruit} to this line.
+    \end{enumerate}
+    The easiest way to get these details correct is to copy existing examples.
+
+    Unit tests can be run using the command
+    \begin{lstlisting}[gobble=4]
+        ctest [-R <regex>]
+    \end{lstlisting}
+    which is a built in part of the CMake toolkit. By default this will execute all avaialable
+    tests and print a report on successes and failures. The optional \code{-R} flag specifies
+    a regular expression, and only tests matching this will be executed. There are a number
+    of further options available.
+
+    A test can also be run directly by running its executable manually. This can be more
+    straightforward for capturing the output of a failing test whilst debugging. The
+    executables are found in the same position in the build directory as the source files
+    are in the main repository (i.e.\ \code[breaklines=true]{unit_tests/det_bit_ops/test_countbits.F90}
+    gives \code[breaklines=true]{<build_dir>/unit_tests/det_bit_ops/test_countbits}).
 
 \section{Interfacing C (and C++) code}
 Developers have always mixed Fortran code with external routines implemented
