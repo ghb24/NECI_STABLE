@@ -10,14 +10,14 @@ module rdm_finalising
     use Parallel_neci, only: iProcIndex, nProcessors
     use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t
     use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm, add_to_rdm_spawn_t
-    use rdm_data_utils, only: communicate_rdm_spawn_t
+    use rdm_data_utils, only: communicate_rdm_spawn_t_wrapper
     use util_mod
 
     implicit none
 
 contains
 
-    subroutine finalise_rdms(one_rdms, two_rdms, rdm_recv, spawn, rdm_estimates)
+    subroutine finalise_rdms(one_rdms, two_rdms, rdm_recv, rdm_recv_2, spawn, rdm_estimates)
 
         ! Wrapper routine, called at the end of a simulation, which in turn
         ! calls all required finalisation routines.
@@ -35,7 +35,8 @@ contains
         use util_mod, only: set_timer, halt_timer
 
         type(one_rdm_t), intent(inout) :: one_rdms(:)
-        type(rdm_list_t), intent(inout) :: two_rdms, rdm_recv
+        type(rdm_list_t), intent(in) :: two_rdms
+        type(rdm_list_t), intent(inout) :: rdm_recv, rdm_recv_2
         type(rdm_spawn_t), intent(inout) :: spawn
         type(rdm_estimates_t), intent(inout) :: rdm_estimates
 
@@ -66,7 +67,7 @@ contains
             end if
 
             ! Output the final 2-RDMs themselves, in all forms desired.
-            call output_2rdm_wrapper(rdm_estimates, two_rdms, rdm_recv, spawn)
+            call output_2rdm_wrapper(rdm_estimates, two_rdms, rdm_recv, rdm_recv_2, spawn)
 
             ! Calculate the 1-RDMs from the 2-RDMS, if required.
             if (tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
@@ -127,7 +128,7 @@ contains
 
     end subroutine finalise_rdms
 
-    subroutine output_2rdm_wrapper(est, rdm, rdm_recv, spawn)
+    subroutine output_2rdm_wrapper(est, rdm, rdm_recv, rdm_recv_2, spawn)
 
         ! Call routines to output RDMs in all requested forms.
 
@@ -141,16 +142,14 @@ contains
         use rdm_estimators, only: calc_hermitian_errors
 
         type(rdm_estimates_t), intent(inout) :: est
-        ! IMPORTANT: rdm is not actually modified by this routine, despite
-        ! needing inout status.
-        type(rdm_list_t), intent(inout) :: rdm
-        type(rdm_list_t), intent(inout) :: rdm_recv
+        type(rdm_list_t), intent(in) :: rdm
+        type(rdm_list_t), intent(inout) :: rdm_recv, rdm_recv_2
         type(rdm_spawn_t), intent(inout) :: spawn
 
         call calc_hermitian_errors(rdm, rdm_recv, spawn, est%norm, est%max_error_herm, est%sum_error_herm)
 
         if (tWriteSpinFreeRDM) call print_spinfree_2rdm_wrapper(rdm, rdm_recv, spawn, est%norm)
-        if (tWrite_Normalised_RDMs) call print_rdms_spin_sym_wrapper(rdm, rdm_recv, spawn, est%norm, tOpenShell)
+        if (tWrite_Normalised_RDMs) call print_rdms_spin_sym_wrapper(rdm, rdm_recv, rdm_recv_2, spawn, est%norm, tOpenShell)
         if (tWrite_RDMs_to_read) call print_rdm_popsfile(rdm)
 
     end subroutine output_2rdm_wrapper
@@ -369,29 +368,38 @@ contains
     subroutine make_hermitian_rdm(rdm, spawn, rdm_recv)
 
         ! Take the RDM in the rdm object, and output a new RDM which is the
-        ! same but with Hermiticy applied to it, i.e., the elements above and
+        ! same but with hermiticy applied to it, i.e., the elements above and
         ! below the diagonal are averaged appropriately.
-
-        ! If rdm_recv is input then the new RDM will be output to this object.
-        ! If not, then the RDM in the rdm object will be overwritten. However,
-        ! the hash table in these objects will *not* be updated.
 
         use rdm_data_utils, only: annihilate_rdm_list
 
-        type(rdm_list_t), intent(inout) :: rdm
+        type(rdm_list_t), intent(in) :: rdm
         type(rdm_spawn_t), intent(inout) :: spawn
-        type(rdm_list_t), optional, intent(inout) :: rdm_recv
+        type(rdm_list_t), intent(inout) :: rdm_recv
 
         integer(int_rdm) :: pqrs
-        integer :: i, pq, rs, p, q, r, s
+        integer :: ielem, pq, rs, p, q, r, s
         integer :: p_temp, q_temp
         real(dp) :: rdm_sign(rdm%sign_length)
+        logical :: nearly_full, finished, all_finished
 
-        do i = 1, rdm%nelements
-            pqrs = rdm%elements(0,i)
+        ! If we're about to fill up the spawn list, perform a communication.
+        nearly_full = .false.
+        ! Have we finished adding RDM elements to the spawned list?
+        finished = .false.
+        rdm_recv%nelements = 0
+
+        do ielem = 1, rdm%nelements
+            ! If the spawned list is nearly full, perform a communication.
+            if (nearly_full) then
+                call communicate_rdm_spawn_t_wrapper(spawn, rdm_recv, finished, all_finished)
+                nearly_full = .false.
+            end if
+
+            pqrs = rdm%elements(0,ielem)
             ! Obtain spin orbital labels and the RDM element.
             call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
-            call extract_sign_rdm(rdm%elements(:,i), rdm_sign)
+            call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
 
             ! Factor of a half to account for prevent double-counting, and
             ! instead average elements from above and below the diagonal.
@@ -399,33 +407,30 @@ contains
 
             ! If in the lower half of the RDM, reflect to the upper half.
             if (pq > rs) then
-                call add_to_rdm_spawn_t(spawn, r, s, p, q, rdm_sign, .false.)
+                call add_to_rdm_spawn_t(spawn, r, s, p, q, rdm_sign, .false., nearly_full)
             else
-                call add_to_rdm_spawn_t(spawn, p, q, r, s, rdm_sign, .false.)
+                call add_to_rdm_spawn_t(spawn, p, q, r, s, rdm_sign, .false., nearly_full)
             end if
         end do
 
-        if (present(rdm_recv)) then
-            call communicate_rdm_spawn_t(spawn, rdm_recv)
-            call annihilate_rdm_list(rdm_recv)
-        else
-            call communicate_rdm_spawn_t(spawn, rdm)
-            call annihilate_rdm_list(rdm)
-        end if
+        finished = .true.
+        ! Keep performing communications until all RDM spawnings on every
+        ! processor have been communicated.
+        do
+            call communicate_rdm_spawn_t_wrapper(spawn, rdm_recv, finished, all_finished)
+            if (all_finished) exit
+        end do
+        call annihilate_rdm_list(rdm_recv)
 
     end subroutine make_hermitian_rdm
 
-    subroutine apply_symmetries_for_output(rdm, spawn, open_shell, rdm_recv)
+    subroutine apply_symmetries_for_output(rdm, rdm_recv, spawn, open_shell)
 
         ! This routine will take in rdm, and output a new rdm which will have
         ! all appropriate symmetries applied so that the latter RDM can be
         ! passed to the routine to write RDMs.
 
-        ! If rdm_recv is input then the new RDM will be output to this object.
-        ! If not, then the RDM in the rdm object will be overwritten. However,
-        ! the hash table in these objects will *not* be updated.
-
-        ! The input RDM should already have hermiticy symmetry applied to it.
+        ! The input RDM must already have hermiticy symmetry applied to it.
 
         ! WARNING: To clarify potential confusion, we point out that this
         ! routine also applies hermiticy again, but *only* for the spatial
@@ -436,18 +441,31 @@ contains
 
         use rdm_data_utils, only: annihilate_rdm_list
 
-        type(rdm_list_t), intent(inout) :: rdm
+        type(rdm_list_t), intent(in) :: rdm
+        type(rdm_list_t), intent(inout) :: rdm_recv
         type(rdm_spawn_t), intent(inout) :: spawn
         logical, intent(in) :: open_shell
-        type(rdm_list_t), optional, intent(inout) :: rdm_recv
 
         integer(int_rdm) :: ijkl
         integer :: ielem, ij, kl, i, j, k, l
         integer :: p, q, r, s
         integer :: pq_legacy, rs_legacy
         real(dp) :: rdm_sign(rdm%sign_length)
+        logical :: nearly_full, finished, all_finished
+
+        ! If we're about to fill up the spawn list, perform a communication.
+        nearly_full = .false.
+        ! Have we finished adding RDM elements to the spawned list?
+        finished = .false.
+        rdm_recv%nelements = 0
 
         do ielem = 1, rdm%nelements
+            ! If the spawned list is nearly full, perform a communication.
+            if (nearly_full) then
+                call communicate_rdm_spawn_t_wrapper(spawn, rdm_recv, finished, all_finished)
+                nearly_full = .false.
+            end if
+
             ijkl = rdm%elements(0,ielem)
             ! Obtain spin orbital labels and the RDM element.
             call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
@@ -487,32 +505,33 @@ contains
                 end if
             end if
 
-            call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false.)
+            call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false., nearly_full)
 
             if (open_shell) then
                 ! For open shell systems, if i and j have the same spatial parts,
                 ! and k and l do too, then we only have baba spin signature,
                 ! (because we enforce i<j, k<l) but we'd like to print out abab too.
                 if (is_in_pair(i,j) .and. is_in_pair(k,l)) then
-                    call add_to_rdm_spawn_t(spawn, j, i, l, k, rdm_sign, .false.)
+                    call add_to_rdm_spawn_t(spawn, j, i, l, k, rdm_sign, .false., nearly_full)
                 end if
 
                 ! Because we enforce hermiticy symmetry in the output, we would
                 ! only print the following terms with baab. We want to print it
                 ! with abba too here, so do that.
                 if (pq_legacy == rs_legacy .and. (.not. ij == kl)) then
-                    call add_to_rdm_spawn_t(spawn, k, l, i, j, rdm_sign, .false.)
+                    call add_to_rdm_spawn_t(spawn, k, l, i, j, rdm_sign, .false., nearly_full)
                 end if
             end if
         end do
 
-        if (present(rdm_recv)) then
-            call communicate_rdm_spawn_t(spawn, rdm_recv)
-            call annihilate_rdm_list(rdm_recv)
-        else
-            call communicate_rdm_spawn_t(spawn, rdm)
-            call annihilate_rdm_list(rdm)
-        end if
+        finished = .true.
+        ! Keep performing communications until all RDM spawnings on every
+        ! processor have been communicated.
+        do
+            call communicate_rdm_spawn_t_wrapper(spawn, rdm_recv, finished, all_finished)
+            if (all_finished) exit
+        end do
+        call annihilate_rdm_list(rdm_recv)
 
     end subroutine apply_symmetries_for_output
 
@@ -582,11 +601,11 @@ contains
 
     end subroutine apply_legacy_output_ordering
 
-    subroutine print_rdms_spin_sym_wrapper(rdm, rdm_recv, spawn, rdm_trace, open_shell)
+    subroutine print_rdms_spin_sym_wrapper(rdm, rdm_recv, rdm_recv_2, spawn, rdm_trace, open_shell)
 
         ! Compress the full spinned-RDMs by summing over spin-equivalent terms
         ! (i.e. aaaa and bbbb rdms), and also applying symmetry of (*real*)
-        ! RDMs. The result will be stored in rdm_recv. Then, print it out to a
+        ! RDMs. The result will be stored in rdm_recv_2. Then, print it out to a
         ! file.
 
         ! IMPORTANT: Although the rdm object has inout status, it will *not*
@@ -596,8 +615,8 @@ contains
 
         use hash, only: clear_hash_table
 
-        type(rdm_list_t), intent(inout) :: rdm
-        type(rdm_list_t), intent(inout) :: rdm_recv
+        type(rdm_list_t), intent(in) :: rdm
+        type(rdm_list_t), intent(inout) :: rdm_recv, rdm_recv_2
         type(rdm_spawn_t), intent(inout) :: spawn
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
         logical, intent(in) :: open_shell
@@ -607,8 +626,8 @@ contains
 
         call make_hermitian_rdm(rdm, spawn, rdm_recv)
 
-        call apply_symmetries_for_output(rdm_recv, spawn, open_shell)
-        call print_rdms_with_spin(rdm_recv, rdm_trace)
+        call apply_symmetries_for_output(rdm_recv, rdm_recv_2, spawn, open_shell)
+        call print_rdms_with_spin(rdm_recv_2, rdm_trace)
 
     end subroutine print_rdms_spin_sym_wrapper
 
@@ -638,22 +657,35 @@ contains
         use SystemData, only: nbasis
         use UMatCache, only: spatial
 
-        type(rdm_list_t), intent(inout) :: rdm
+        type(rdm_list_t), intent(in) :: rdm
         type(rdm_spawn_t), intent(inout) :: spawn
-        type(rdm_list_t), optional, intent(inout) :: rdm_recv
+        type(rdm_list_t), intent(inout) :: rdm_recv
 
         integer(int_rdm) :: pqrs
-        integer :: i, pq, rs, p, q, r, s
+        integer :: ielem, pq, rs, p, q, r, s
         integer :: pq_spat, rs_spat
         integer :: p_spat, q_spat, r_spat, s_spat
         integer :: r_orig, s_orig
         real(dp) :: rdm_sign(rdm%sign_length)
+        logical :: nearly_full, finished, all_finished
 
-        do i = 1, rdm%nelements
-            pqrs = rdm%elements(0,i)
+        ! If we're about to fill up the spawn list, perform a communication.
+        nearly_full = .false.
+        ! Have we finished adding RDM elements to the spawned list?
+        finished = .false.
+        rdm_recv%nelements = 0
+
+        do ielem = 1, rdm%nelements
+            ! If the spawned list is nearly full, perform a communication.
+            if (nearly_full) then
+                call communicate_rdm_spawn_t_wrapper(spawn, rdm_recv, finished, all_finished)
+                nearly_full = .false.
+            end if
+
+            pqrs = rdm%elements(0,ielem)
             ! Obtain spin orbital labels and the RDM element.
             call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
-            call extract_sign_rdm(rdm%elements(:,i), rdm_sign)
+            call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
 
             ! Store the original labels, before we possibly swap them.
             r_orig = r; s_orig = s;
@@ -685,7 +717,7 @@ contains
             if (p_spat == q_spat .and. r_spat == s_spat) rdm_sign = 2.0_dp*rdm_sign
 
             ! Add all spinfree 2-RDM elements corresponding to these labels.
-            call add_rdm_elements(p_spat, q_spat, r_spat, s_spat, rdm_sign, spawn)
+            call add_rdm_elements(p_spat, q_spat, r_spat, s_spat, rdm_sign, spawn, nearly_full)
 
             ! If this is an aaaa or bbbb term then *minus* this RDM element will
             ! be equal to the equivalent RDM element with the last two labels
@@ -694,7 +726,7 @@ contains
             ! Want to apply all the averaging possible over equivalent elements.
             if (same_spin(p, q)) then
                 ! Re-extract sign in case it has been modified.
-                call extract_sign_rdm(rdm%elements(:,i), rdm_sign)
+                call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
 
                 ! Swap the spatial labels.
                 r_spat = spatial(s_orig); s_spat = spatial(r_orig);
@@ -703,22 +735,23 @@ contains
                 if (pq_spat /= rs_spat) rdm_sign = rdm_sign*0.5_dp
                 rdm_sign = -rdm_sign
 
-                call add_rdm_elements(p_spat, q_spat, r_spat, s_spat, rdm_sign, spawn)
+                call add_rdm_elements(p_spat, q_spat, r_spat, s_spat, rdm_sign, spawn, nearly_full)
             end if
 
         end do
 
-        if (present(rdm_recv)) then
-            call communicate_rdm_spawn_t(spawn, rdm_recv)
-            call annihilate_rdm_list(rdm_recv)
-        else
-            call communicate_rdm_spawn_t(spawn, rdm)
-            call annihilate_rdm_list(rdm)
-        end if
+        finished = .true.
+        ! Keep performing communications until all RDM spawnings on every
+        ! processor have been communicated.
+        do
+            call communicate_rdm_spawn_t_wrapper(spawn, rdm_recv, finished, all_finished)
+            if (all_finished) exit
+        end do
+        call annihilate_rdm_list(rdm_recv)
 
     contains
 
-        subroutine add_rdm_elements(p_spat, q_spat, r_spat, s_spat, rdm_sign, spawn)
+        subroutine add_rdm_elements(p_spat, q_spat, r_spat, s_spat, rdm_sign, spawn, nearly_full)
 
             ! Add in the single contribution rdm_sign to the following elements
             ! of the spinfree 2-RDM:
@@ -741,22 +774,23 @@ contains
             integer, intent(in) :: p_spat, q_spat, r_spat, s_spat
             real(dp), intent(in) :: rdm_sign(:)
             type(rdm_spawn_t), intent(inout) :: spawn
+            logical, intent(inout) :: nearly_full
 
             ! RDM element \Gamma_{pq,rs}.
-            call add_to_rdm_spawn_t(spawn, p_spat, q_spat, r_spat, s_spat, rdm_sign, .true.)
+            call add_to_rdm_spawn_t(spawn, p_spat, q_spat, r_spat, s_spat, rdm_sign, .true., nearly_full)
 
             ! RDM element \Gamma_{qp,sr}.
             if (.not. (p_spat == q_spat .and. r_spat == s_spat)) then
-                call add_to_rdm_spawn_t(spawn, q_spat, p_spat, s_spat, r_spat, rdm_sign, .true.)
+                call add_to_rdm_spawn_t(spawn, q_spat, p_spat, s_spat, r_spat, rdm_sign, .true., nearly_full)
             end if
 
             if (pq_spat /= rs_spat) then
                 ! RDM element \Gamma_{rs,pq}.
-                call add_to_rdm_spawn_t(spawn, r_spat, s_spat, p_spat, q_spat, rdm_sign, .true.)
+                call add_to_rdm_spawn_t(spawn, r_spat, s_spat, p_spat, q_spat, rdm_sign, .true., nearly_full)
 
                 ! RDM element \Gamma_{sr,qp}.
                 if (.not. (p_spat == q_spat .and. r_spat == s_spat)) then
-                    call add_to_rdm_spawn_t(spawn, s_spat, r_spat, q_spat, p_spat, rdm_sign, .true.)
+                    call add_to_rdm_spawn_t(spawn, s_spat, r_spat, q_spat, p_spat, rdm_sign, .true., nearly_full)
                 end if
             end if
 
@@ -766,14 +800,9 @@ contains
 
     subroutine print_spinfree_2rdm_wrapper(rdm, rdm_recv, spawn, rdm_trace)
 
-        ! IMPORTANT: Although the rdm object has inout status, it will *not*
-        ! be modified. The inout status is to allow for the optional possibility
-        ! of updating the first argument of create_spinfree_2rdm, which is not
-        ! used here.
-
         use hash, only: clear_hash_table
 
-        type(rdm_list_t), intent(inout) :: rdm
+        type(rdm_list_t), intent(in) :: rdm
         type(rdm_list_t), intent(inout) :: rdm_recv
         type(rdm_spawn_t), intent(inout) :: spawn
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
@@ -791,7 +820,7 @@ contains
         use Parallel_neci, only: MPIBarrier
         use util_mod, only: get_free_unit
 
-        type(rdm_list_t), intent(inout) :: rdm
+        type(rdm_list_t), intent(in) :: rdm
 
         integer :: ielem, iproc, ierr, pops_unit
 

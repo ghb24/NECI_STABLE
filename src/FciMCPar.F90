@@ -74,8 +74,8 @@ module FciMCParMod
 
     subroutine FciMCPar(energy_final_output)
 
-        use rdm_data, only: rdm_estimates, two_rdm_main, two_rdm_recv, two_rdm_spawn
-        use rdm_data, only: one_rdms
+        use rdm_data, only: rdm_estimates, two_rdm_main, two_rdm_recv, two_rdm_recv_2
+        use rdm_data, only: two_rdm_spawn, one_rdms
         use rdm_estimators, only: calc_2rdm_estimates_wrapper, write_rdm_estimates
         use rdm_estimators_old, only: rdm_output_wrapper_old, write_rdm_estimates_old
 
@@ -503,7 +503,7 @@ module FciMCParMod
         ENDIF
 
         if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) then
-            call finalise_rdms(one_rdms, two_rdm_main, two_rdm_recv, two_rdm_spawn, rdm_estimates)
+            call finalise_rdms(one_rdms, two_rdm_main, two_rdm_recv, two_rdm_recv_2, two_rdm_spawn, rdm_estimates)
             if (tOldRDMs) call FinaliseRDMs_old(rdms, one_rdms_old, rdm_estimates_old)
         end if
 
@@ -1075,6 +1075,8 @@ module FciMCParMod
         end if
 
         if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) then
+            ! Fill the receiving RDM list from the beginning.
+            two_rdm_recv%nelements = 0
             call communicate_rdm_spawn_t(two_rdm_spawn, two_rdm_recv)
             call add_rdm_1_to_rdm_2(two_rdm_recv, two_rdm_main)
         end if

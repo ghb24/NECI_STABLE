@@ -443,7 +443,7 @@ contains
         use hash, only: clear_hash_table
         use Parallel_neci, only: MPIAllReduce, nProcessors
         use ParallelHelper, only: MPI_SUM, MPI_MAX
-        use rdm_data_utils, only: add_to_rdm_spawn_t, communicate_rdm_spawn_t, annihilate_rdm_list
+        use rdm_data_utils, only: add_to_rdm_spawn_t, communicate_rdm_spawn_t_wrapper, annihilate_rdm_list
 
         type(rdm_list_t), intent(in) :: rdm
         type(rdm_list_t), intent(inout) :: rdm_recv
@@ -456,6 +456,13 @@ contains
         integer :: ielem, ij, kl, i, j, k, l
         real(dp) :: rdm_sign(rdm%sign_length)
         real(dp) :: max_error_herm(rdm%sign_length), sum_error_herm(rdm%sign_length)
+        logical :: nearly_full, finished, all_finished
+
+        ! If we're about to fill up the spawn list, perform a communication.
+        nearly_full = .false.
+        ! Have we finished adding RDM elements to the spawned list?
+        finished = .false.
+        rdm_recv%nelements = 0
 
         ! Clear the spawn object before we use it.
         spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
@@ -463,6 +470,12 @@ contains
 
         ! Loop over all RDM elements.
         do ielem = 1, rdm%nelements
+            ! If the spawned list is nearly full, perform a communication.
+            if (nearly_full) then
+                call communicate_rdm_spawn_t_wrapper(spawn, rdm_recv, finished, all_finished)
+                nearly_full = .false.
+            end if
+
             ijkl = rdm%elements(0,ielem)
             ! Obtain spin orbital labels and the RDM element sign.
             call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
@@ -471,15 +484,20 @@ contains
             ! If in the lower half of the RDM, reflect to the upper half and
             ! include with a minus sign.
             if (ij > kl) then
-                call add_to_rdm_spawn_t(spawn, k, l, i, j, -rdm_sign, .false.)
+                call add_to_rdm_spawn_t(spawn, k, l, i, j, -rdm_sign, .false., nearly_full)
             else if (ij < kl) then
-                call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false.)
+                call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false., nearly_full)
             end if
         end do
 
-        ! Perform the communication, so that each processor recieves its own
-        ! RDM elements, for the hermiticity error RDM.
-        call communicate_rdm_spawn_t(spawn, rdm_recv)
+        finished = .true.
+        ! Keep performing communications until all RDM spawnings on every
+        ! processor have been communicated.
+        do
+            call communicate_rdm_spawn_t_wrapper(spawn, rdm_recv, finished, all_finished)
+            if (all_finished) exit
+        end do
+
         call annihilate_rdm_list(rdm_recv)
 
         max_error_herm = 0.0_dp

@@ -121,9 +121,10 @@ module rdm_data
     ! Object to hold the main RDM itself, over the *entire* period of RDM
     ! sampling (note that this is not reset each sampling block).
     type(rdm_list_t) :: two_rdm_main
-    ! Object to hold the received RDM object, after communication of the
+    ! Objects to hold the received RDM object, after communication of the
     ! spawned RDM list. This is then added into two_rdm_main.
     type(rdm_list_t) :: two_rdm_recv
+    type(rdm_list_t) :: two_rdm_recv_2
     ! Object to hold RDM estimates.
     type(rdm_estimates_t) :: rdm_estimates
 

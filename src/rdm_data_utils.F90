@@ -275,11 +275,14 @@ contains
 
     end subroutine encode_sign_rdm
 
-    subroutine add_to_rdm_spawn_t(spawn, p, q, r, s, contrib_sign, spinfree)
+    subroutine add_to_rdm_spawn_t(spawn, p, q, r, s, contrib_sign, spinfree, nearly_full)
 
         ! In/Out: rdm_spawn - the rdm_spawn_t object to which contributions will be added.
         ! In: p, q, r, s - spin orbitals of the RDM contribution, with p<q, r<s.
         ! In: contrib_sign - the sign (amplitude) of the contribution to be added.
+        ! In: spinfree - is the RDM being created to be output directly in spinfree form?
+        ! In/Out: nearly_full - make this logical true if we come close to filling a
+        !     processes section of the spawning list.
 
         use hash, only: hash_table_lookup, add_hash_table_entry
         use SystemData, only: nbasis
@@ -288,11 +291,12 @@ contains
         integer, intent(in) :: p, q, r, s
         real(dp), intent(in) :: contrib_sign(spawn%rdm_send%sign_length)
         logical, intent(in) :: spinfree
+        logical, intent(inout), optional :: nearly_full
 
-        integer :: pq_compressed, proc, ind, hash_val
+        integer :: pq_compressed, proc, ind, hash_val, slots_left
         integer(int_rdm) :: pqrs
         real(dp) :: real_sign_old(spawn%rdm_send%sign_length), real_sign_new(spawn%rdm_send%sign_length)
-        logical :: tSuccess, list_full
+        logical :: tSuccess
         character(*), parameter :: t_r = 'add_to_rdm_spawn_t'
 
         associate(rdm => spawn%rdm_send)
@@ -337,13 +341,20 @@ contains
                 end if
 
                 ! Check that there is enough memory for the new spawned RDM entry.
-                list_full = .false.
-                if (spawn%free_slots(proc) > spawn%init_free_slots(proc+1)) list_full = .true.
-                if (list_full) then
+                slots_left = spawn%init_free_slots(proc+1) - spawn%free_slots(proc)
+
+                if (slots_left < 0) then
                     write(6,'("Attempting to add an RDM contribution to the spawned list on processor:",&
                                &1X,'//int_fmt(proc,0)//')') proc
                     write(6,'("No memory slots available for this spawn.")')
                     call stop_all(t_r, "Out of memory for spawned RDM contributions.")
+                end if
+
+                if (present(nearly_full)) then
+                    ! 10 chosen somewhat arbitrarily, although there are times
+                    ! when we call this routine 8 times in a row, so best not
+                    ! to make any smaller.
+                    if (slots_left <= 10) nearly_full = .true.
                 end if
 
                 rdm%elements(0, spawn%free_slots(proc)) = pqrs
@@ -372,10 +383,15 @@ contains
         type(rdm_spawn_t), intent(inout) :: spawn
         type(rdm_list_t), intent(inout) :: rdm_recv
 
-        integer :: i, ierr
+        integer :: i, nelements_old, ierr
         integer(MPIArg) :: send_sizes(0:nProcessors-1), recv_sizes(0:nProcessors-1)
         integer(MPIArg) :: send_displs(0:nProcessors-1), recv_displs(0:nProcessors-1)
         character(*), parameter :: t_r = 'communicate_rdm_spawn_t'
+
+        nelements_old = rdm_recv%nelements
+
+        ! TODO: remove this.
+        !rdm_recv%nelements = 0
 
         ! How many rows of data to send to each processor.
         do i = 0, nProcessors-1
@@ -393,8 +409,8 @@ contains
             recv_displs(i) = recv_displs(i-1) + recv_sizes(i-1)
         end do
 
-        ! The total number of RDM elements sent to this processor.
-        rdm_recv%nelements = int(sum(recv_sizes), sizeof_int)
+        ! The total number of RDM elements in the list after the receive.
+        rdm_recv%nelements = rdm_recv%nelements + int(sum(recv_sizes), sizeof_int)
 
         if (rdm_recv%nelements > rdm_recv%max_nelements) then
             write(6,'("Attempting to receive RDM elements on processor:",&
@@ -410,13 +426,33 @@ contains
 
         ! Perform the communication.
         call MPIAlltoAllv(spawn%rdm_send%elements, send_sizes, send_displs, &
-                          rdm_recv%elements, recv_sizes, recv_displs, ierr)
+                          rdm_recv%elements(:,nelements_old+1:), recv_sizes, recv_displs, ierr)
 
         ! Now we can reset the free_slots array and reset the hash table.
         spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
         call clear_hash_table(spawn%rdm_send%hash_table)
 
     end subroutine communicate_rdm_spawn_t
+
+    subroutine communicate_rdm_spawn_t_wrapper(spawn, rdm_recv, finished, all_finished)
+
+        use Parallel_neci, only: MPIAllGather
+
+        type(rdm_spawn_t), intent(inout) :: spawn
+        type(rdm_list_t), optional, intent(inout) :: rdm_recv
+        logical, intent(in) :: finished
+        logical, intent(inout) :: all_finished
+
+        logical :: finished_array(nProcessors)
+        integer :: ierr
+
+        call communicate_rdm_spawn_t(spawn, rdm_recv)
+
+        ! Find if all processes have finished their communication.
+        call MPIAllGather(finished, finished_array, ierr)
+        all_finished = all(finished_array)
+
+    end subroutine communicate_rdm_spawn_t_wrapper
 
     subroutine add_rdm_1_to_rdm_2(rdm_1, rdm_2)
 

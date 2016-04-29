@@ -23,7 +23,7 @@ contains
         use LoggingData, only: twrite_RDMs_to_read
         use Parallel_neci, only: iProcIndex, nProcessors
         use rdm_data, only: rdm_estimates, one_rdms, two_rdm_spawn, two_rdm_main, two_rdm_recv
-        use rdm_data, only: tOpenShell, print_2rdm_est, Sing_ExcDjs, Doub_ExcDjs
+        use rdm_data, only: two_rdm_recv_2, tOpenShell, print_2rdm_est, Sing_ExcDjs, Doub_ExcDjs
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
@@ -104,17 +104,18 @@ contains
 
         ! For now, create RDM arrays big enough so that *all* RDM elements on
         ! a particular processor can be stored, using the usual approximations
-        ! to take symmetry into account. Include a factor of 1.3 to account for
+        ! to take symmetry into account. Include a factor of 1.5 to account for
         ! factors such as imperfect load balancing (which affects the spawned
         ! array).
         rdm_nrows = nbasis*(nbasis-1)/2
-        max_nelems = 3.0*(rdm_nrows**2)/(8*nProcessors)
-        nhashes_rdm = 0.8*max_nelems
+        max_nelems = 1.5*(rdm_nrows**2)/(8*nProcessors)
+        nhashes_rdm = 1.5*max_nelems
 
         call init_rdm_list_t(two_rdm_main, nrdms, max_nelems, nhashes_rdm)
 
         ! Don't need the hash table for the received list, so pass 0 for nhashes.
         call init_rdm_list_t(two_rdm_recv, nrdms, max_nelems, 0)
+        call init_rdm_list_t(two_rdm_recv_2, nrdms, max_nelems, 0)
 
         ! Initialise the main RDM array data structure.
         call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems, nhashes_rdm)
@@ -638,8 +639,8 @@ contains
         use FciMCData, only: Spawned_Parents, Spawned_Parents_Index
         use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
         use LoggingData, only: RDMExcitLevel, tExplicitAllRDM
-        use rdm_data, only: two_rdm_main, two_rdm_recv, two_rdm_spawn, rdm_estimates, one_rdms
-        use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs
+        use rdm_data, only: two_rdm_main, two_rdm_recv, two_rdm_recv_2, two_rdm_spawn
+        use rdm_data, only: rdm_estimates, one_rdms, Sing_ExcDjs, Doub_ExcDjs
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
@@ -659,6 +660,7 @@ contains
         ! Deallocate global 2-RDM arrays, including the spawning object.
         call dealloc_rdm_list_t(two_rdm_main)
         call dealloc_rdm_list_t(two_rdm_recv)
+        call dealloc_rdm_list_t(two_rdm_recv_2)
         call dealloc_rdm_spawn_t(two_rdm_spawn)
 
         ! Deallocate the RDM estimates object.
