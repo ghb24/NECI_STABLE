@@ -38,9 +38,9 @@ contains
 
         integer, intent(in) :: nrdms
 
-        integer :: rdm_nrows, max_nelems, nhashes_rdm
-        integer :: memory_alloc, memory_alloc_root
-        integer :: irdm, iproc, ierr
+        integer :: rdm_nrows, nhashes_rdm_main, nhashes_rdm_spawn
+        integer :: max_nelems_main, max_nelems_spawn, max_nelems_recv, max_nelems_recv_2
+        integer :: memory_alloc, irdm, iproc, ierr
         character(len=*), parameter :: t_r = 'init_rdms'
 
 #ifdef __CMPLX
@@ -97,10 +97,8 @@ contains
             NoOrbs = SpatOrbs
         end if
 
-        ! Here we're allocating arrays for the actual calculation of the RDM.
+        ! The memory of (large) alloctaed arrays, per MPI process.
         memory_alloc = 0
-        ! Memory allocated in bytes.
-        memory_alloc_root = 0
 
         ! For now, create RDM arrays big enough so that *all* RDM elements on
         ! a particular processor can be stored, using the usual approximations
@@ -108,17 +106,29 @@ contains
         ! factors such as imperfect load balancing (which affects the spawned
         ! array).
         rdm_nrows = nbasis*(nbasis-1)/2
-        max_nelems = 1.5*(rdm_nrows**2)/(8*nProcessors)
-        nhashes_rdm = 1.5*max_nelems
+        max_nelems_main = 1.5*(rdm_nrows**2)/(8*nProcessors)
+        max_nelems_spawn = 1.5*(rdm_nrows**2)/(8*nProcessors)
+        max_nelems_recv = 1.5*(rdm_nrows**2)/(8*nProcessors)
+        max_nelems_recv_2 = 1.5*(rdm_nrows**2)/(8*nProcessors)
+        nhashes_rdm_main = 0.75*max_nelems_main
+        nhashes_rdm_spawn = 0.75*max_nelems_spawn
 
-        call init_rdm_list_t(two_rdm_main, nrdms, max_nelems, nhashes_rdm)
+        call init_rdm_list_t(two_rdm_main, nrdms, max_nelems_main, nhashes_rdm_main)
 
         ! Don't need the hash table for the received list, so pass 0 for nhashes.
-        call init_rdm_list_t(two_rdm_recv, nrdms, max_nelems, 0)
-        call init_rdm_list_t(two_rdm_recv_2, nrdms, max_nelems, 0)
+        call init_rdm_list_t(two_rdm_recv, nrdms, max_nelems_recv, 0)
+        call init_rdm_list_t(two_rdm_recv_2, nrdms, max_nelems_recv_2, 0)
 
         ! Initialise the main RDM array data structure.
-        call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems, nhashes_rdm)
+        call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems_spawn, nhashes_rdm_spawn)
+
+        ! Count the memory the various RDM lists (but this does *not* count
+        ! the memory of the hash tables - this will increase dynamically
+        ! throughout the simulation).
+        memory_alloc = memory_alloc + max_nelems_main*(nrdms+1)*size_int_rdm
+        memory_alloc = memory_alloc + max_nelems_spawn*(nrdms+1)*size_int_rdm
+        memory_alloc = memory_alloc + max_nelems_recv*(nrdms+1)*size_int_rdm
+        memory_alloc = memory_alloc + max_nelems_recv_2*(nrdms+1)*size_int_rdm
 
         call init_rdm_estimates_t(rdm_estimates, nrdms, print_2rdm_est)
 
@@ -133,7 +143,6 @@ contains
                 call init_one_rdm_t(one_rdms(irdm), NoOrbs)
 
                 memory_alloc = memory_alloc + ( NoOrbs * NoOrbs * 8 )
-                memory_alloc_root = memory_alloc_root + ( NoOrbs * NoOrbs * 8 )
             end do
         end if
 
@@ -160,7 +169,6 @@ contains
             Sing_ExcDjs2(:,:) = 0
 
             memory_alloc = memory_alloc + ( (NIfTot + 1) * nint((nel*nbasis)*MemoryFacPart) * size_n_int * 2 )
-            memory_alloc_root = memory_alloc_root + ( (NIfTot + 1) * nint((nel*nbasis)*MemoryFacPart) * size_n_int * 2 )
 
             ! We need room to potentially generate N*M single excitations but
             ! these will be spread across each processor.
@@ -194,7 +202,6 @@ contains
                                 *(NIfTot+1), size_n_int, t_r, Doub_ExcDjs2Tag, ierr)
 
                 memory_alloc = memory_alloc + ( (NIfTot + 1) * nint(((nel*nbasis)**2)*MemoryFacPart) * size_n_int * 2 )
-                memory_alloc_root = memory_alloc_root + ( (NIfTot + 1) * nint(((nel*nbasis)**2)*MemoryFacPart) * size_n_int * 2 )
 
                 ! We need room to potentially generate (N*M)^2 double excitations
                 ! but these will be spread across each processor.        
@@ -232,17 +239,14 @@ contains
                                                         Spawned_Parents_IndexTag, ierr)
 
             memory_alloc = memory_alloc + ( (NIfTot + 2) * MaxSpawned * size_n_int ) 
-            memory_alloc_root = memory_alloc_root + ( (NIfTot + 2) * MaxSpawned * size_n_int ) 
 
             memory_alloc = memory_alloc + ( 2 * MaxSpawned * 4 ) 
-            memory_alloc_root = memory_alloc_root + ( 2 * MaxSpawned * 4 ) 
 
         end if
 
         if (iProcIndex == 0) then
-            write(6, "(A,F14.6,A,F14.6,A)") " Main RDM memory arrays consists of : ", &
-                    & real(memory_alloc_root,dp)/1048576.0_dp," Mb/Processor on the root, and ", &
-                    & real(memory_alloc,dp)/1048576.0_dp," Mb/Processor on other processors."
+            write(6, "(A,F14.6,A,F14.6,A)") " Main RDM memory arrays consists of: ", &
+                      real(memory_alloc,dp)/1048576.0_dp," MB for each MPI process."
         end if
 
         ! These parameters are set for the set up of the symmetry arrays, which

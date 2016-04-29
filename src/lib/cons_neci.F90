@@ -111,6 +111,14 @@ integer, parameter :: size_n_int = bits_n_int/8
 ! Index of last bit in an n_int integer (bits are indexed 0,1,...,bits_n_int-1).
 integer, parameter :: end_n_int = bits_n_int - 1
 
+! Number of bits in an int_rdm integer.
+integer(int_rdm) :: temp4=0
+integer, parameter :: bits_int_rdm = bit_size(temp4)
+! Number of bytes in an n_int integer.
+integer, parameter :: size_int_rdm = bits_int_rdm/8
+! Index of last bit in an n_int integer (bits are indexed 0,1,...,bits_n_int-1).
+integer, parameter :: end_int_rdm = bits_int_rdm - 1
+
 #ifdef MOLPRO
     include "common/tapes"
 #else
