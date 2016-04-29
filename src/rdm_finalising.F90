@@ -800,6 +800,13 @@ contains
 
     subroutine print_spinfree_2rdm_wrapper(rdm, rdm_recv, spawn, rdm_trace)
 
+        ! A wrapper function to take in an RDM object, in a form as accumulated
+        ! during an FCIQMC simulation, and print it in a form consistent for
+        ! MPQC to read in. To do this, it must call the additional routine,
+        ! create_spinfree_2rdm, to make the spinfree 2-RDM itself (see that
+        ! routine for a definition). The spinfree 2-RDM is stored in rdm_recv,
+        ! which is then printed to a file.
+
         use hash, only: clear_hash_table
 
         type(rdm_list_t), intent(in) :: rdm
@@ -816,6 +823,12 @@ contains
     end subroutine print_spinfree_2rdm_wrapper
 
     subroutine print_rdm_popsfile(rdm)
+
+        ! Print the RDM object stored in rdm to a file called RDM_POPSFILE.
+        ! This is done in a binary form, which can be quickly read in a
+        ! subsequent NECI simulation (see read_2rdm_popsfile). The RDM is
+        ! printed directly in its int_rdm form, rather than decoding signs
+        ! to their real(dp) form.
 
         use Parallel_neci, only: MPIBarrier
         use util_mod, only: get_free_unit

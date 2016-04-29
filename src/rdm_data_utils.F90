@@ -237,6 +237,9 @@ contains
 
     pure subroutine calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
 
+        ! Decode the four spin orbital labels stored in the input ijkl,
+        ! i.e. do the opposite of calc_combined_rdm_label.
+
         use SystemData, only: nbasis
 
         integer(int_rdm), intent(in) :: pqrs
@@ -255,6 +258,11 @@ contains
 
     pure subroutine extract_sign_rdm(rdm_entry, real_sign)
 
+        ! Extract and decode the RDM sign stored in rdm_entry. This input
+        ! entry has kind int_rdm, and contains the encoded spin orbital labels
+        ! in the 0'th element. We want just the other elements, and in their
+        ! real(dp) form.
+
         integer(int_rdm), intent(in) :: rdm_entry(0:)
         real(dp), intent(out) :: real_sign(size(rdm_entry)-1)
         integer(int_rdm) :: int_sign(size(rdm_entry)-1)
@@ -265,6 +273,11 @@ contains
     end subroutine extract_sign_rdm
 
     pure subroutine encode_sign_rdm(rdm_entry, real_sign)
+
+        ! Take the real RDM elements stored in real_sign, and encode them
+        ! as integers with kind int_rdm, and then place these encoded signs in
+        ! the positive elements of the rdm_entry array (the 0'th element
+        ! contains the encoded spin orbital labels).
 
         integer(int_rdm), intent(inout) :: rdm_entry(0:)
         real(dp), intent(in) :: real_sign(1:size(rdm_entry)-1)
@@ -390,9 +403,6 @@ contains
 
         nelements_old = rdm_recv%nelements
 
-        ! TODO: remove this.
-        !rdm_recv%nelements = 0
-
         ! How many rows of data to send to each processor.
         do i = 0, nProcessors-1
             send_sizes(i) = int(spawn%free_slots(i) - spawn%init_free_slots(i), MPIArg)
@@ -436,6 +446,15 @@ contains
 
     subroutine communicate_rdm_spawn_t_wrapper(spawn, rdm_recv, finished, all_finished)
 
+        ! This is a wrapper function around communicate_rdm_spawn_t, which is
+        ! useful for certain routines in rdm_finalising and rdm_estimators.
+        ! Upon calling this routine, each process will input the logical
+        ! finished as either .true. or .false., with the former indicating
+        ! that this will be the final call to communicate_rdm_spawn_t by the
+        ! routine. This routine then checks if ever routine is on its final
+        ! required call, and if so, the calling functions can know to not
+        ! perform any further communications.
+
         use Parallel_neci, only: MPIAllGather
 
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -455,6 +474,10 @@ contains
     end subroutine communicate_rdm_spawn_t_wrapper
 
     subroutine add_rdm_1_to_rdm_2(rdm_1, rdm_2)
+
+        ! Take the RDM elements in the rdm_1 object, and add them to the rdm_2
+        ! object. The has table for rdm_2 will also be updated. This literally
+        ! performs the numerical addition of the two RDM objects.
 
         use hash, only: hash_table_lookup, add_hash_table_entry
 
