@@ -711,13 +711,16 @@ module DetBitOps
                         nopen = nopen + 1
                     endif
                 enddo
+                return
             endif
-        else
-            do i=1,nel
-                pos = (nI(i) - 1) / bits_n_int
-                iLut(pos)=ibset(iLut(pos),mod(nI(i)-1,bits_n_int))
-            enddo
         endif
+
+        !Decode determinant
+        do i=1,nel
+            pos = (nI(i) - 1) / bits_n_int
+            iLut(pos)=ibset(iLut(pos),mod(nI(i)-1,bits_n_int))
+        enddo
+
     end subroutine EncodeBitDet
 
 

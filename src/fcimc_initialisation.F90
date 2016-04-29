@@ -2824,6 +2824,7 @@ contains
             call CountExcitations4(HFDet_loc, 2, 2, 1, 1, nDoub_spindiff1)
             call CountExcitations4(HFDet_loc, 2, 2, 2, 2, nDoub_spindiff2)
             call CountExcitations4(HFDet_loc, 1, 2, 0, 2, nTot)
+            ASSERT(nTot==(nSingles+nSing_spindiff1+nDoubles+nDoub_spindiff1+nDoub_spindiff2))
 
             iTotal=nSingles + nDoubles + nSing_spindiff1 + nDoub_spindiff1 + nDoub_spindiff2 + ncsf
 
@@ -2903,7 +2904,10 @@ contains
         if (tCSF) then
             denom=real(nSingles,dp)*SinglesBias+real(nDoubles,dp)+real(ncsf,dp)
             pSingles = real(nSingles,dp) / denom
-            pDoubles = 1.0_dp - pSingles
+            pDoubles = real(nDoubles,dp) / denom
+            !Note that this does not sum to one, since it also allows for
+            !changing on yamanouchi symbol
+            ASSERT(.not.tReltvy)
         else
             if (tReltvy) then
                 denom=real(nSingles+nSing_spindiff1,dp)*SinglesBias+real(nDoubles+nDoub_spindiff1+nDoub_spindiff2,dp)
