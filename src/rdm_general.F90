@@ -108,8 +108,8 @@ contains
         rdm_nrows = nbasis*(nbasis-1)/2
         max_nelems_main = 1.5*(rdm_nrows**2)/(8*nProcessors)
         max_nelems_spawn = 1.5*(rdm_nrows**2)/(8*nProcessors)
-        max_nelems_recv = 1.5*(rdm_nrows**2)/(8*nProcessors)
-        max_nelems_recv_2 = 1.5*(rdm_nrows**2)/(8*nProcessors)
+        max_nelems_recv = 2.0*(rdm_nrows**2)/(8*nProcessors)
+        max_nelems_recv_2 = 2.0*(rdm_nrows**2)/(8*nProcessors)
         nhashes_rdm_main = 0.75*max_nelems_main
         nhashes_rdm_spawn = 0.75*max_nelems_spawn
 
