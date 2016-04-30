@@ -146,11 +146,16 @@ contains
         type(rdm_list_t), intent(inout) :: rdm_recv, rdm_recv_2
         type(rdm_spawn_t), intent(inout) :: spawn
 
+        ! Print the RDM popsfile, which requires no communication, first. This
+        ! is in case we run out of memory during one of the other routines
+        ! called here, which could crash if there isn't enough memory for
+        ! communication! Then at least we can read the RDM back in...
+        if (tWrite_RDMs_to_read) call print_rdm_popsfile(rdm)
+
         call calc_hermitian_errors(rdm, rdm_recv, spawn, est%norm, est%max_error_herm, est%sum_error_herm)
 
         if (tWriteSpinFreeRDM) call print_spinfree_2rdm_wrapper(rdm, rdm_recv, spawn, est%norm)
         if (tWrite_Normalised_RDMs) call print_rdms_spin_sym_wrapper(rdm, rdm_recv, rdm_recv_2, spawn, est%norm, tOpenShell)
-        if (tWrite_RDMs_to_read) call print_rdm_popsfile(rdm)
 
     end subroutine output_2rdm_wrapper
 
