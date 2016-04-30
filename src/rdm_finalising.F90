@@ -627,7 +627,7 @@ contains
         call make_hermitian_rdm(rdm, spawn, rdm_recv)
 
         call apply_symmetries_for_output(rdm_recv, rdm_recv_2, spawn, open_shell)
-        call print_rdms_with_spin(rdm_recv_2, rdm_trace)
+        call print_rdms_with_spin(rdm_recv_2, rdm_trace, open_shell)
 
     end subroutine print_rdms_spin_sym_wrapper
 
@@ -865,7 +865,7 @@ contains
 
     end subroutine print_rdm_popsfile
 
-    subroutine print_rdms_with_spin(rdm, rdm_trace)
+    subroutine print_rdms_with_spin(rdm, rdm_trace, open_shell)
 
         ! Print the RDM stored in rdm to files, normalised by rdm_trace.
 
@@ -881,6 +881,7 @@ contains
 
         type(rdm_list_t), intent(inout) :: rdm
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
+        logical, intent(in) :: open_shell
 
         integer(int_rdm) :: pqrs
         integer :: i, irdm, ierr, iproc, write_unit
@@ -890,6 +891,7 @@ contains
         integer :: p_spat, q_spat, r_spat, s_spat
         real(dp) :: rdm_sign(rdm%sign_length)
         character(3) :: sgn_len, suffix
+        character(len=*), parameter :: t_r = 'print_rdms_with_spin'
 
         ! Store rdm%sign_length as a string, for the formatting string.
         write(sgn_len,'(i3)') rdm%sign_length
@@ -911,12 +913,14 @@ contains
                         open(iunit_abab, file='TwoRDM_abab.'//trim(suffix), status='replace')
                         iunit_abba = get_free_unit()
                         open(iunit_abba, file='TwoRDM_abba.'//trim(suffix), status='replace')
-                        iunit_bbbb = get_free_unit()
-                        open(iunit_bbbb, file='TwoRDM_bbbb.'//trim(suffix), status='replace')
-                        iunit_baba = get_free_unit()
-                        open(iunit_baba, file='TwoRDM_baba.'//trim(suffix), status='replace')
-                        iunit_baab = get_free_unit()
-                        open(iunit_baab, file='TwoRDM_baab.'//trim(suffix), status='replace')
+                        if (open_shell) then
+                            iunit_bbbb = get_free_unit()
+                            open(iunit_bbbb, file='TwoRDM_bbbb.'//trim(suffix), status='replace')
+                            iunit_baba = get_free_unit()
+                            open(iunit_baba, file='TwoRDM_baba.'//trim(suffix), status='replace')
+                            iunit_baab = get_free_unit()
+                            open(iunit_baab, file='TwoRDM_baab.'//trim(suffix), status='replace')
+                        end if
                     else
                         iunit_aaaa = get_free_unit()
                         open(iunit_aaaa, file='TwoRDM_aaaa.'//trim(suffix), status='old', position='append')
@@ -924,12 +928,14 @@ contains
                         open(iunit_abab, file='TwoRDM_abab.'//trim(suffix), status='old', position='append')
                         iunit_abba = get_free_unit()
                         open(iunit_abba, file='TwoRDM_abba.'//trim(suffix), status='old', position='append')
-                        iunit_bbbb = get_free_unit()
-                        open(iunit_bbbb, file='TwoRDM_bbbb.'//trim(suffix), status='old', position='append')
-                        iunit_baba = get_free_unit()
-                        open(iunit_baba, file='TwoRDM_baba.'//trim(suffix), status='old', position='append')
-                        iunit_baab = get_free_unit()
-                        open(iunit_baab, file='TwoRDM_baab.'//trim(suffix), status='old', position='append')
+                        if (open_shell) then
+                            iunit_bbbb = get_free_unit()
+                            open(iunit_bbbb, file='TwoRDM_bbbb.'//trim(suffix), status='old', position='append')
+                            iunit_baba = get_free_unit()
+                            open(iunit_baba, file='TwoRDM_baba.'//trim(suffix), status='old', position='append')
+                            iunit_baab = get_free_unit()
+                            open(iunit_baab, file='TwoRDM_baab.'//trim(suffix), status='old', position='append')
+                        end if
                     end if
 
                     do i = 1, rdm%nelements
@@ -943,6 +949,11 @@ contains
 
                         p_spat = spatial(p); q_spat = spatial(q);
                         r_spat = spatial(r); s_spat = spatial(s);
+
+                        if ((.not. open_shell) .and. is_beta(p)) then
+                            call stop_all(t_r, "This is a closed shell system but we have an open shell type RDM element.&
+                                               & An error must have occured.")
+                        end if
 
                         ! Find out what the spin labels are, and print the RDM
                         ! element to the appropriate file.
@@ -966,7 +977,7 @@ contains
                     end do
 
                     close(iunit_aaaa); close(iunit_abab); close(iunit_abba); close(iunit_abab);
-                    close(iunit_bbbb); close(iunit_baba); close(iunit_baab); close(iunit_abba);
+                    if (open_shell) close(iunit_bbbb); close(iunit_baba); close(iunit_baab); close(iunit_abba);
                 end if
             end do
 
