@@ -82,7 +82,7 @@ list(APPEND NECI_GLOBAL_DEFINES
     $<$<BOOL:${${PROJECT_NAME}_64BIT_BUILD}>:POINTER8>
 
     # Is this a debug build
-    $<$<STREQUAL:${CMAKE_BUILD_TYPE},"DEBUG">:__DEBUG>
+    $<$<STREQUAL:${CMAKE_BUILD_TYPE},DEBUG>:__DEBUG>
 
     # Global defines that depend on options
     $<$<BOOL:${HAVE_MPI}>:PARALLEL>
@@ -92,9 +92,9 @@ list(APPEND NECI_GLOBAL_DEFINES
     $<$<BOOL:${HAVE_MOLCAS}>:_MOLCAS_>
 
     # Identify the compiler to the code
-    $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},"Intel">:__IFORT>
-    $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},"GNU">:__GFORTRAN__>
-    $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},"PGI">:__PGI>
+    $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},Intel>:__IFORT>
+    $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},GNU>:__GFORTRAN__>
+    $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},PGI>:__PGI>
 )
 
 # Add the source directory as an include path for everything
