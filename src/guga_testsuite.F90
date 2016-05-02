@@ -132,8 +132,8 @@ contains
 !             call run_test_excit_gen_guga_single([1,3,5,7,10,12])
 
         else if (nEl == 6 .and. nBasis/2 == 6 .and. STOT == 2) then
-!             call run_test_excit_gen_guga_nOrb_6_nEl_6_S_2
-            call run_test_excit_gen_guga_single([1,3,6,8,9,11])
+            call run_test_excit_gen_guga_nOrb_6_nEl_6_S_2
+!             call run_test_excit_gen_guga_single([1,3,4,5,10,11])
 
         else if (nEl == 6 .and. nBasis/2 == 6 .and. STOT == 4) then
             call run_test_excit_gen_guga_nOrb_6_nEl_6_S_4
@@ -201,8 +201,8 @@ contains
             ! matrix element consistency! 
 !             call run_test_excit_gen_guga_multiple(&
 !                 [1,2,3,4,5,6,7,8,15,16])
-            call run_test_excit_gen_guga_general
-!             call run_test_excit_gen_guga_single([1,4,5,6])
+!             call run_test_excit_gen_guga_general
+            call run_test_excit_gen_guga_single([1,3,4,5,7,10,11,12])
 !             call run_test_excit_gen_guga_multiple(&
 !                 [1,4,5,8,9,12,13,16,17,20])
 !             call run_test_excit_gen_guga_single(&
