@@ -396,10 +396,9 @@ contains
         type(rdm_spawn_t), intent(inout) :: spawn
         type(rdm_list_t), intent(inout) :: rdm_recv
 
-        integer :: i, nelements_old, ierr
+        integer :: i, nelements_old, new_nelements, ierr
         integer(MPIArg) :: send_sizes(0:nProcessors-1), recv_sizes(0:nProcessors-1)
         integer(MPIArg) :: send_displs(0:nProcessors-1), recv_displs(0:nProcessors-1)
-        character(*), parameter :: t_r = 'communicate_rdm_spawn_t'
 
         nelements_old = rdm_recv%nelements
 
@@ -420,14 +419,16 @@ contains
         end do
 
         ! The total number of RDM elements in the list after the receive.
-        rdm_recv%nelements = rdm_recv%nelements + int(sum(recv_sizes), sizeof_int)
+        new_nelements = rdm_recv%nelements + int(sum(recv_sizes), sizeof_int)
 
-        if (rdm_recv%nelements > rdm_recv%max_nelements) then
-            write(6,'("Attempting to receive RDM elements on processor:",&
-                       &1X,'//int_fmt(iProcIndex,0)//')') iProcIndex
-            write(6,'("Insufficient space in the receiving RDM array.")')
-            call stop_all(t_r, "Not enough memory to communicate RDM elements.")
+        ! If we don't have enough memory in the receiving list, try
+        ! reallocating it to be big enough.
+        if (new_nelements > rdm_recv%max_nelements) then
+            call try_rdm_list_realloc(rdm_recv, rdm_recv%nelements, new_nelements)
         end if
+
+        ! Update the number of valid RDM elements in the received list.
+        rdm_recv%nelements = new_nelements
 
         send_sizes = send_sizes*size(spawn%rdm_send%elements,1)
         recv_sizes = recv_sizes*size(spawn%rdm_send%elements,1)
@@ -472,6 +473,52 @@ contains
         all_finished = all(finished_array)
 
     end subroutine communicate_rdm_spawn_t_wrapper
+
+    subroutine try_rdm_list_realloc(rdm_recv, old_nelements, new_nelements)
+
+        ! For cases where the receiving RDM array is not big enough for a
+        ! communication, try and reallocate it to be big enough. This also
+        ! requires a temporary array to be allocated, to store the current
+        ! state of the receive list.
+
+        type(rdm_list_t), intent(inout) :: rdm_recv
+        integer, intent(in) :: old_nelements, new_nelements
+
+        integer :: ierr
+        integer(int_rdm), allocatable :: temp_elements(:,:)
+        character(*), parameter :: t_r = 'try_rdm_list_realloc'
+
+        write(6,'("WARNING: There is not enough space in the current RDM array to receive all of the &
+                  &communicated RDM elements. We will now try and reallocate this array to be large &
+                  &enough. If there is not memory then the program may crash.")'); call neci_flush(6)
+
+        if (old_nelements > 0) then
+            ! Allocate a temporary array to copy the old RDM list to, while we
+            ! reallocate that array.
+            allocate(temp_elements(0:rdm_recv%sign_length, old_nelements), stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error while allocating temporary array to hold existing &
+                                              &RDM receive array.")
+            temp_elements = rdm_recv%elements(:,1:old_nelements)
+        end if
+
+        deallocate(rdm_recv%elements, stat=ierr)
+        if (ierr /= 0) call stop_all(t_r, "Error while deallocating existing RDM receive array.")
+
+        allocate(rdm_recv%elements(0:rdm_recv%sign_length, new_nelements), stat=ierr)
+        if (ierr /= 0) call stop_all(t_r, "Error while allocating RDM receive array to the new larger size.")
+
+        ! Update the maximum number elements for the rdm_recv object.
+        rdm_recv%max_nelements = new_nelements
+
+        if (old_nelements > 0) then
+            ! Copy the existing elements back, and deallocate the temorary array.
+            rdm_recv%elements(:,1:old_nelements) = temp_elements
+
+            deallocate(temp_elements, stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error while deallocating temporary RDM array.")
+        end if
+
+    end subroutine try_rdm_list_realloc
 
     subroutine add_rdm_1_to_rdm_2(rdm_1, rdm_2)
 
