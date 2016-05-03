@@ -424,7 +424,7 @@ contains
         ! If we don't have enough memory in the receiving list, try
         ! reallocating it to be big enough.
         if (new_nelements > rdm_recv%max_nelements) then
-            call try_rdm_list_realloc(rdm_recv, rdm_recv%nelements, new_nelements)
+            call try_rdm_list_realloc(rdm_recv, new_nelements)
         end if
 
         ! Update the number of valid RDM elements in the received list.
@@ -474,7 +474,7 @@ contains
 
     end subroutine communicate_rdm_spawn_t_wrapper
 
-    subroutine try_rdm_list_realloc(rdm_recv, old_nelements, new_nelements)
+    subroutine try_rdm_list_realloc(rdm_recv, new_nelements)
 
         ! For cases where the receiving RDM array is not big enough for a
         ! communication, try and reallocate it to be big enough. This also
@@ -482,11 +482,14 @@ contains
         ! state of the receive list.
 
         type(rdm_list_t), intent(inout) :: rdm_recv
-        integer, intent(in) :: old_nelements, new_nelements
+        integer, intent(in) :: new_nelements
 
-        integer :: ierr, memory_old, memory_new
+        integer :: old_nelements, memory_old, memory_new, ierr
         integer(int_rdm), allocatable :: temp_elements(:,:)
         character(*), parameter :: t_r = 'try_rdm_list_realloc'
+
+        ! The number of elements currently filled in the RDM array.
+        old_nelements = rdm_recv%nelements
 
         write(6,'("WARNING: There is not enough space in the current RDM array to receive all of the &
                   &communicated RDM elements. We will now try and reallocate this array to be large &
@@ -514,7 +517,7 @@ contains
         allocate(rdm_recv%elements(0:rdm_recv%sign_length, new_nelements), stat=ierr)
         if (ierr /= 0) call stop_all(t_r, "Error while allocating RDM receive array to the new larger size.")
 
-        ! Update the maximum number elements for the rdm_recv object.
+        ! Update the maximum number of elements for the rdm_recv object.
         rdm_recv%max_nelements = new_nelements
 
         if (old_nelements > 0) then
