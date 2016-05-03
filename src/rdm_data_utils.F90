@@ -63,7 +63,7 @@ contains
         integer, intent(in) :: nrows, sign_length, nhashes
         integer, intent(in) :: max_nelements_send
 
-        integer :: i, ierr
+        integer :: iproc, ierr
         real(dp) :: slots_per_proc
 
         spawn%nrows = nrows
@@ -78,8 +78,8 @@ contains
 
         ! Equally divide RDM rows across all processors.
         slots_per_proc = real(max_nelements_send, dp)/real(nProcessors, dp)
-        do i = 0, nProcessors-1
-            spawn%init_free_slots(i) = nint(slots_per_proc*i)+1
+        do iproc = 0, nProcessors-1
+            spawn%init_free_slots(iproc) = nint(slots_per_proc*iproc)+1
         end do
         ! For edge cases - see comment above.
         spawn%init_free_slots(nProcessors) = max_nelements_send
@@ -396,15 +396,15 @@ contains
         type(rdm_spawn_t), intent(inout) :: spawn
         type(rdm_list_t), intent(inout) :: rdm_recv
 
-        integer :: i, nelements_old, new_nelements, ierr
+        integer :: iproc, nelements_old, new_nelements, ierr
         integer(MPIArg) :: send_sizes(0:nProcessors-1), recv_sizes(0:nProcessors-1)
         integer(MPIArg) :: send_displs(0:nProcessors-1), recv_displs(0:nProcessors-1)
 
         nelements_old = rdm_recv%nelements
 
         ! How many rows of data to send to each processor.
-        do i = 0, nProcessors-1
-            send_sizes(i) = int(spawn%free_slots(i) - spawn%init_free_slots(i), MPIArg)
+        do iproc = 0, nProcessors-1
+            send_sizes(iproc) = int(spawn%free_slots(iproc) - spawn%init_free_slots(iproc), MPIArg)
         end do
 
         ! The displacement of the beginning of each processor's section of the
@@ -414,8 +414,8 @@ contains
         call MPIAlltoAll(send_sizes, 1, recv_sizes, 1, ierr)
 
         recv_displs(0) = 0
-        do i = 1, nProcessors-1
-            recv_displs(i) = recv_displs(i-1) + recv_sizes(i-1)
+        do iproc = 1, nProcessors-1
+            recv_displs(iproc) = recv_displs(iproc-1) + recv_sizes(iproc-1)
         end do
 
         ! The total number of RDM elements in the list after the receive.
@@ -538,7 +538,7 @@ contains
         type(rdm_list_t), intent(in) :: rdm_1
         type(rdm_list_t), intent(inout) :: rdm_2
 
-        integer :: i, pq, rs, p, q, r, s
+        integer :: ielem, pq, rs, p, q, r, s
         integer(int_rdm) :: pqrs
         integer :: ind, hash_val
         real(dp) :: real_sign_old(rdm_2%sign_length), real_sign_new(rdm_2%sign_length)
@@ -546,13 +546,13 @@ contains
         logical :: tSuccess
         character(*), parameter :: t_r = 'add_rdm_1_to_rdm_2'
 
-        do i = 1, rdm_1%nelements
+        do ielem = 1, rdm_1%nelements
             ! Decode the compressed RDM labels.
-            pqrs = rdm_1%elements(0,i)
+            pqrs = rdm_1%elements(0,ielem)
             call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
 
             ! Extract the spawned sign.
-            call extract_sign_rdm(rdm_1%elements(:,i), spawn_sign)
+            call extract_sign_rdm(rdm_1%elements(:,ielem), spawn_sign)
 
             ! Search to see if this RDM element is already in the RDM 2.
             ! If it, tSuccess will be true and ind will hold the position of the
@@ -596,7 +596,7 @@ contains
 
         type(rdm_list_t), intent(inout) :: rdm
 
-        integer :: i, counter
+        integer :: ielem, counter
         integer(int_rdm) :: pqrs
         real(dp) :: rdm_sign(rdm%sign_length), summed_rdm_sign(rdm%sign_length)
 
@@ -606,18 +606,18 @@ contains
             summed_rdm_sign = 0.0_dp
             counter = 0
 
-            do i = 1, rdm%nelements-1
-                call extract_sign_rdm(rdm%elements(:,i), rdm_sign)
+            do ielem = 1, rdm%nelements-1
+                call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
                 summed_rdm_sign = summed_rdm_sign + rdm_sign
 
                 ! Is the next RDM element the same as this one? If so then
                 ! don't keep this element yet, but wait until all signs on
                 ! this RDM element have been summed (annihilated).
-                if (.not. (rdm%elements(0,i) == rdm%elements(0, i+1))) then
+                if (.not. (rdm%elements(0,ielem) == rdm%elements(0, ielem+1))) then
                     ! If this element is zero for all RDMs, then don't keep it.
                     if (any(abs(summed_rdm_sign) > 1.0e-12_dp)) then
                         counter = counter + 1
-                        rdm%elements(0, counter) = rdm%elements(0,i)
+                        rdm%elements(0, counter) = rdm%elements(0,ielem)
                         call encode_sign_rdm(rdm%elements(:, counter), summed_rdm_sign)
                     end if
                     summed_rdm_sign = 0.0_dp

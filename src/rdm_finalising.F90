@@ -40,7 +40,7 @@ contains
         type(rdm_spawn_t), intent(inout) :: spawn
         type(rdm_estimates_t), intent(inout) :: rdm_estimates
 
-        integer :: i, ierr
+        integer :: irdm, ierr
         real(dp) :: norm_1rdm, trace_1rdm, SumN_Rho_ii
 
         call set_timer(FinaliseRDMs_Time)
@@ -80,15 +80,15 @@ contains
             ! Output banner for start of 1-RDM section in the output.
             write(6,'(1x,2("="),1x,"INFORMATION FOR FINAL 1-RDMS",1x,57("="))')
 
-            do i = 1, size(one_rdms)
-                write(6,'(/,1x,"PERFORMING ANALYSIS OF 1-RDM FOR STATE",1x,'//int_fmt(i)//',"...")') i
+            do irdm = 1, size(one_rdms)
+                write(6,'(/,1x,"PERFORMING ANALYSIS OF 1-RDM FOR STATE",1x,'//int_fmt(irdm)//',"...")') irdm
                 if (RDMExcitLevel == 1) then
-                    call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%rho_ii, i, norm_1rdm, .false.)
+                    call Finalise_1e_RDM(one_rdms(irdm)%matrix, one_rdms(irdm)%rho_ii, irdm, norm_1rdm, .false.)
                 else
                     if (tPrint1RDM) then
-                        call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%rho_ii, i, norm_1rdm, .false.)
+                        call Finalise_1e_RDM(one_rdms(irdm)%matrix, one_rdms(irdm)%rho_ii, irdm, norm_1rdm, .false.)
                     else if (tDiagRDM .and. iProcIndex == 0) then
-                        call calc_1e_norms(one_rdms(i)%matrix, one_rdms(i)%rho_ii, trace_1rdm, norm_1rdm, SumN_Rho_ii)
+                        call calc_1e_norms(one_rdms(irdm)%matrix, one_rdms(irdm)%rho_ii, trace_1rdm, norm_1rdm, SumN_Rho_ii)
                         write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
                     end if
                 end if
@@ -98,12 +98,12 @@ contains
                 ! Call the routines from NatOrbs that diagonalise the one electron
                 ! reduced density matrix.
                 tRotatedNOs = .false. ! Needed for BrokenSymNo routine
-                if (tDiagRDM) call find_nat_orb_occ_numbers(one_rdms(i), i)
+                if (tDiagRDM) call find_nat_orb_occ_numbers(one_rdms(irdm), irdm)
 
                 ! After all the NO calculations are finished we'd like to do another
                 ! rotation to obtain symmetry-broken natural orbitals.
                 if (tBrokenSymNOs) then
-                    call BrokenSymNO(one_rdms(i)%evalues, occ_numb_diff)
+                    call BrokenSymNO(one_rdms(irdm)%evalues, occ_numb_diff)
                 end if
             end do
             ! Output banner for the end of the 1-RDM section.
