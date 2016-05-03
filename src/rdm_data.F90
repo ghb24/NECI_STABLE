@@ -2,6 +2,71 @@ module rdm_data
 
     ! Module containing global data and derived types used for RDM calculation.
 
+    ! The following is a description of some of the details of how RDMs are
+    ! stored, including both technical aspects, and details on which elements
+    ! are not stored due to symmetry. These things are important for
+    ! understanding various routines that perform operations on RDMs,
+    ! particularly in rdm_finalising.
+
+    ! Technical aspects of data structures
+    ! ====================================
+
+    ! 2-RDMs are stored in rdm_list_t objects. When new contributions to 2-RDMs
+    ! are generated (through stochastic FCIQMC spawnings), they are added to
+    ! a rdm_spawn_t object. two_rdm_spawn is the main global rdm_spawn_t object
+    ! used for this purpose. At certain points (currently every iteration),
+    ! these 2-RDM element 'spawnings' will be communicated to their correct
+    ! processes. Another rdm_list_t object is used for this purpose (mainly
+    ! two_rdm_recv). The resulting received RDM is then added into the existing
+    ! main 2-RDM object through add_rdm_1_to_rdm_2, which simply performs
+    ! numerical addition of these objects. In this way, the RDM (two_rdm_main)
+    ! is accumulated over the entire period of RDM calculation, and the RDM
+    ! is distributed.
+
+    ! Currently, RDM elements are distributed across processes using the row
+    ! label of the element. If there are n_proc processes and n_row rows, then
+    ! each process holds n_row/n_proc rows, with the first process holding all
+    ! the first n_row/n_proc rows, the second process holding the second such
+    ! set, and so.
+
+    ! Each rdm_list_t object holds not only the array of RDM elements, but also
+    ! a hash table which refers to this list. This hash table is made up of
+    ! linked lists, one for each hash value available (see hash.F90 for more
+    ! details). With this, when adding a 2-RDM element, it can be checked
+    ! relatively quickly if the element is already in the list, and the
+    ! new element can be added directly into that existing position. This avoids
+    ! having to perform an explicit sorting step, and also avoids extra memory
+    ! being needed for repeated elements. Not only does the main RDM array have
+    ! a hash_table for this purpose, but also the rdm_spawn_t objects (since
+    ! they themselves hold an rdm_list_t object).
+
+    ! Important points regarding which RDM elements are stored
+    ! ========================================================
+
+    ! For a 2-RDM element \Gamma_{ij,kl}, it is only stored if i<j and k<l.
+    ! An element with i>j or k>l (or both) can be made into the above form by
+    ! swapping i & j or k & l (or both), which introduces a minus sign. This
+    ! is true even for RDMs formed from non-real wave functions.
+
+    ! The above has a consequence which complicates some RDM processing
+    ! routines: if i and j have the same spatial parts, and k and l *also*
+    ! have the same spatial part, then we won't get both standard and
+    ! spin-flipped versions of the element present in the RDM array - only one
+    ! of them. Suppose 1 labels the first spatial orbital with beta spin, and
+    ! 2 labels the first spatial orbital with alpha spin. Now consider the RDM
+    ! element \Gamma_{12,12}. This can be generated and stored because i<j and
+    ! k<l. But the spin-flipped version is \Gamma_{21,21}, which will never
+    ! get generated or stored. This is not a problem because the latter is
+    ! always equal to the former. However, this also leads to some edge cases
+    ! which must be carefully considered when summing over spin. This is
+    ! because all other types of elements in the spin-free 2-RDM end up getting
+    ! counted twice when summing over all stored elements, because their
+    ! spin-flipped partners *are* also present. See create_spinfree_2rdm for
+    ! an example... Be careful!
+
+    ! On the other hand, the symmetry \Gamma_{ij,kl} = \Gamma_{kl,ij}^* is
+    ! *not* in use - 2-RDM elements are accumulated and stored both ways around.
+
     use constants, only: dp, n_int, int_rdm
     use FciMCData, only: ll_node
     use global_utilities, only: timer
