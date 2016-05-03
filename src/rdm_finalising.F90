@@ -982,7 +982,9 @@ contains
                     end do
 
                     close(iunit_aaaa); close(iunit_abab); close(iunit_abba); close(iunit_abab);
-                    if (open_shell) close(iunit_bbbb); close(iunit_baba); close(iunit_baab); close(iunit_abba);
+                    if (open_shell) then
+                        close(iunit_bbbb); close(iunit_baba); close(iunit_baab); close(iunit_abba);
+                    end if
                 end if
             end do
 
