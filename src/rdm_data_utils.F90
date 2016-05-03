@@ -484,13 +484,20 @@ contains
         type(rdm_list_t), intent(inout) :: rdm_recv
         integer, intent(in) :: old_nelements, new_nelements
 
-        integer :: ierr
+        integer :: ierr, memory_old, memory_new
         integer(int_rdm), allocatable :: temp_elements(:,:)
         character(*), parameter :: t_r = 'try_rdm_list_realloc'
 
         write(6,'("WARNING: There is not enough space in the current RDM array to receive all of the &
                   &communicated RDM elements. We will now try and reallocate this array to be large &
-                  &enough. If there is not memory then the program may crash.")'); call neci_flush(6)
+                  &enough. If there is not sufficient memory then the program may crash.")'); call neci_flush(6)
+
+        ! Memory of the old and new arrays, in bytes.
+        memory_old = rdm_recv%max_nelements*(rdm_recv%sign_length+1)*size_int_rdm
+        memory_new = new_nelements*(rdm_recv%sign_length+1)*size_int_rdm
+
+        write(6,'("Old RDM array had the following size (MB):", f14.6)') real(memory_old,dp)/1048576.0_dp
+        write(6,'("Required new RDM array must have the following size (MB):", f14.6)') real(memory_new,dp)/1048576.0_dp
 
         if (old_nelements > 0) then
             ! Allocate a temporary array to copy the old RDM list to, while we
