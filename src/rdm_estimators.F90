@@ -288,19 +288,19 @@ contains
         type(rdm_list_t), intent(in) :: rdm
         real(dp), intent(out) :: rdm_trace(rdm%sign_length)
 
-        integer(int_rdm) :: pqrs
-        integer :: ielem, pq, rs, p, q, r, s
+        integer(int_rdm) :: ijkl
+        integer :: ielem, ij, kl, i, j, k, l
         real(dp) :: rdm_sign(rdm%sign_length)
 
         rdm_trace = 0.0_dp
 
         ! Loop over all RDM elements.
         do ielem = 1, rdm%nelements
-            pqrs = rdm%elements(0,ielem)
-            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+            ijkl = rdm%elements(0,ielem)
+            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
 
             ! If this is a diagonal element, add the element to the trace.
-            if (pq == rs) then
+            if (ij == kl) then
                 call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
                 rdm_trace = rdm_trace + rdm_sign
             end if
@@ -322,8 +322,8 @@ contains
         real(dp), intent(out) :: rdm_energy_1(rdm%sign_length)
         real(dp), intent(out) :: rdm_energy_2(rdm%sign_length)
 
-        integer(int_rdm) :: pqrs
-        integer :: ielem, pq, rs, p, q, r, s
+        integer(int_rdm) :: ijkl
+        integer :: ielem, ij, kl, i, j, k, l
         real(dp) :: rdm_sign(rdm%sign_length)
 
         rdm_energy_1 = 0.0_dp
@@ -331,19 +331,19 @@ contains
 
         ! Loop over all elements in the 2-RDM.
         do ielem = 1, rdm%nelements
-            pqrs = rdm%elements(0,ielem)
+            ijkl = rdm%elements(0,ielem)
             call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
 
             ! Decode pqrs label into p, q, r and s labels.
-            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
 
             ! The 2-RDM contribution to the energy:
-            rdm_energy_2 = rdm_energy_2 + rdm_sign*two_elec_int(p,q,r,s)
+            rdm_energy_2 = rdm_energy_2 + rdm_sign*two_elec_int(i,j,k,l)
             ! The 1-RDM contribution to the energy:
-            if (p == r) rdm_energy_1 = rdm_energy_1 + rdm_sign*one_elec_int(q,s)/(nel-1)
-            if (q == s) rdm_energy_1 = rdm_energy_1 + rdm_sign*one_elec_int(p,r)/(nel-1)
-            if (p == s) rdm_energy_1 = rdm_energy_1 - rdm_sign*one_elec_int(q,r)/(nel-1)
-            if (q == r) rdm_energy_1 = rdm_energy_1 - rdm_sign*one_elec_int(p,s)/(nel-1)
+            if (i == k) rdm_energy_1 = rdm_energy_1 + rdm_sign*one_elec_int(j,l)/(nel-1)
+            if (j == l) rdm_energy_1 = rdm_energy_1 + rdm_sign*one_elec_int(i,k)/(nel-1)
+            if (i == l) rdm_energy_1 = rdm_energy_1 - rdm_sign*one_elec_int(j,k)/(nel-1)
+            if (j == k) rdm_energy_1 = rdm_energy_1 - rdm_sign*one_elec_int(i,l)/(nel-1)
         end do
 
     end subroutine calc_rdm_energy
@@ -361,35 +361,35 @@ contains
         real(dp), intent(in) :: rdm_norm(rdm%sign_length)
         real(dp), intent(out) :: rdm_spin(rdm%sign_length)
 
-        integer(int_rdm) :: pqrs
-        integer :: ielem, pq, rs, p, q, r, s
-        integer :: p_spat, q_spat, r_spat, s_spat
+        integer(int_rdm) :: ijkl
+        integer :: ielem, ij, kl, i, j, k, l
+        integer :: p, q, r, s
         real(dp) :: rdm_sign(rdm%sign_length)
 
         rdm_spin = 0.0_dp
 
         ! Loop over all RDM elements.
         do ielem = 1, rdm%nelements
-            pqrs = rdm%elements(0,ielem)
+            ijkl = rdm%elements(0,ielem)
             ! Obtain spin orbital labels.
-            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
             ! Obtain spatial orbital labels.
-            p_spat = spatial(p); q_spat = spatial(q);
-            r_spat = spatial(r); s_spat = spatial(s);
+            p = spatial(i); q = spatial(j);
+            r = spatial(k); s = spatial(l);
 
-            ! Note to the reader for the following code: if mod(p,2) == 1 then
-            ! p is a beta (b) orbital, if mod(p,2) == 0 then it is an alpha (a)
+            ! Note to the reader for the following code: if mod(i,2) == 1 then
+            ! i is a beta (b) orbital, if mod(i,2) == 0 then it is an alpha (a)
             ! obrital.
 
             ! The following if-statement allows IJIJ spatial combinations.
-            if (p_spat == r_spat .and. q_spat == s_spat) then
+            if (p == r .and. q == s) then
                 ! If we get to this point then we definitely have a contribution
                 ! to add in, so extract the sign.
                 call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
 
                 ! If all labels have the same spatial part (IIII):
-                if (p_spat == q_spat) then
-                    if (is_beta(p) .and. is_alpha(q) .and. is_beta(r) .and. is_alpha(s)) then
+                if (p == q) then
+                    if (is_beta(i) .and. is_alpha(j) .and. is_beta(k) .and. is_alpha(l)) then
                         rdm_spin = rdm_spin - 6.0_dp*rdm_sign
                     end if
 
@@ -398,9 +398,9 @@ contains
 
                     ! The following if-statement allows the following spin combinations:
                     ! aaaa, bbbb, abab and baba.
-                    if (mod(p,2) == mod(r,2) .and. mod(q,2) == mod(s,2)) then
+                    if (mod(i,2) == mod(k,2) .and. mod(j,2) == mod(l,2)) then
 
-                        if (mod(p,2) == mod(q,2)) then
+                        if (mod(i,2) == mod(j,2)) then
                             ! aaaa and bbbb.
                             rdm_spin = rdm_spin + 2.0_dp*rdm_sign
                         else
