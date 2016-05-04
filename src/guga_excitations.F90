@@ -23523,7 +23523,6 @@ contains
 
 
                     ! e_{ik,jl}
-
                     excitInfo = create_excitInfo_ik_jl(i,j,k,l)
 
                     ! since there are two valid ways too choose generators 
@@ -25361,6 +25360,7 @@ contains
 
             mask = (mask .and. orbitalIndex /= orbRes1)
         end if
+
         nOrbs = count(mask)
         
         if (nOrbs > 0) then
