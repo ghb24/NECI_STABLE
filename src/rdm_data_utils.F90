@@ -384,6 +384,14 @@ contains
 
     subroutine communicate_rdm_spawn_t(spawn, rdm_recv)
 
+        ! Perform communication of RDM elements in the spawn object, to the
+        ! rdm_recv object. The hash table and free_slots array for the spawn
+        ! object are then reset at the end of this routine. The newly
+        ! received spawnings will be added to rdm_recv *without* overwriting
+        ! elements currently in the list (which is useful for situations where
+        ! multiple communications are required, due to limited space in the
+        ! spawning array).
+
         use hash, only: clear_hash_table
         use Parallel_neci, only: MPIAlltoAll, MPIAlltoAllv
 
