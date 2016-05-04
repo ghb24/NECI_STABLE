@@ -204,7 +204,7 @@ contains
 
     end subroutine dealloc_one_rdm_t
 
-    pure subroutine calc_combined_rdm_label(p, q, r, s, pqrs)
+    pure subroutine calc_combined_rdm_label(i, j, k, l, ijkl)
 
         ! Combine the four 2-RDM spin orbital labels into unique integers.
         ! p and q are combined into one number, pq. r and s are combined into
@@ -220,39 +220,39 @@ contains
         ! seeks a unique combined label for each combination of individual
         ! spin orbital labels.
 
-        ! In: p, q, r, s - spin orbitals of the RDM contribution.
-        ! Out: pqrs - Label combining p, q, r and s.
+        ! In: i, j, k, l - spin orbitals of the RDM contribution.
+        ! Out: ijkl - Label combining i, j, k, l.
 
         use SystemData, only: nbasis
 
-        integer, intent(in) :: p, q, r, s
-        integer(int_rdm), intent(out) :: pqrs
-        integer :: pq, rs
+        integer, intent(in) :: i, j, k, l
+        integer(int_rdm), intent(out) :: ijkl
+        integer :: ij, kl
 
-        pq = (p-1)*nbasis + q
-        rs = (r-1)*nbasis + s
-        pqrs = (pq-1)*(nbasis**2) + rs
+        ij = (i-1)*nbasis + j
+        kl = (k-1)*nbasis + l
+        ijkl = (ij-1)*(nbasis**2) + kl
 
     end subroutine calc_combined_rdm_label
 
-    pure subroutine calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+    pure subroutine calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
 
         ! Decode the four spin orbital labels stored in the input ijkl,
         ! i.e. do the opposite of calc_combined_rdm_label.
 
         use SystemData, only: nbasis
 
-        integer(int_rdm), intent(in) :: pqrs
-        integer, intent(out) :: pq, rs, p, q, r, s
+        integer(int_rdm), intent(in) :: ijkl
+        integer, intent(out) :: ij, kl, i, j, k, l
 
-        rs = mod(pqrs-1, nbasis**2) + 1
-        pq = (pqrs - rs)/(nbasis**2) + 1
+        kl = mod(ijkl-1, nbasis**2) + 1
+        ij = (ijkl - kl)/(nbasis**2) + 1
 
-        q = mod(pq-1, nbasis) + 1
-        p = (pq - q)/nbasis + 1
+        j = mod(ij-1, nbasis) + 1
+        i = (ij - j)/nbasis + 1
 
-        s = mod(rs-1, nbasis) + 1
-        r = (rs - s)/nbasis + 1
+        l = mod(kl-1, nbasis) + 1
+        k = (kl - l)/nbasis + 1
 
     end subroutine calc_separate_rdm_labels
 
@@ -288,10 +288,10 @@ contains
 
     end subroutine encode_sign_rdm
 
-    subroutine add_to_rdm_spawn_t(spawn, p, q, r, s, contrib_sign, spinfree, nearly_full)
+    subroutine add_to_rdm_spawn_t(spawn, i, j, k, l, contrib_sign, spinfree, nearly_full)
 
         ! In/Out: rdm_spawn - the rdm_spawn_t object to which contributions will be added.
-        ! In: p, q, r, s - spin orbitals of the RDM contribution, with p<q, r<s.
+        ! In: i, j, k, l - spin orbitals of the RDM contribution, with i<j, k<l.
         ! In: contrib_sign - the sign (amplitude) of the contribution to be added.
         ! In: spinfree - is the RDM being created to be output directly in spinfree form?
         ! In/Out: nearly_full - make this logical true if we come close to filling a
@@ -301,13 +301,13 @@ contains
         use SystemData, only: nbasis
 
         type(rdm_spawn_t), intent(inout) :: spawn
-        integer, intent(in) :: p, q, r, s
+        integer, intent(in) :: i, j, k, l
         real(dp), intent(in) :: contrib_sign(spawn%rdm_send%sign_length)
         logical, intent(in) :: spinfree
         logical, intent(inout), optional :: nearly_full
 
-        integer :: pq_compressed, proc, ind, hash_val, slots_left
-        integer(int_rdm) :: pqrs
+        integer :: ij_compressed, proc, ind, hash_val, slots_left
+        integer(int_rdm) :: ijkl
         real(dp) :: real_sign_old(spawn%rdm_send%sign_length), real_sign_new(spawn%rdm_send%sign_length)
         logical :: tSuccess
         character(*), parameter :: t_r = 'add_to_rdm_spawn_t'
@@ -318,15 +318,15 @@ contains
             ! outputting RDMs with and without spin. The following definitions
             ! will aid ordering via a sort operation later.
             if (.not. spinfree) then
-                call calc_combined_rdm_label(p, q, r, s, pqrs)
+                call calc_combined_rdm_label(i, j, k, l, ijkl)
             else
-                call calc_combined_rdm_label(r, s, q, p, pqrs)
+                call calc_combined_rdm_label(k, l, j, i, ijkl)
             end if
 
             ! Search to see if this RDM element is already in the RDM array.
             ! If it, tSuccess will be true and ind will hold the position of the
             ! entry in rdm%elements.
-            call hash_table_lookup((/p,q,r,s/), (/pqrs/), 0, rdm%hash_table, rdm%elements, ind, hash_val, tSuccess)
+            call hash_table_lookup((/i,j,k,l/), (/ijkl/), 0, rdm%hash_table, rdm%elements, ind, hash_val, tSuccess)
 
             if (tSuccess) then
                 ! Extract the existing sign.
@@ -342,15 +342,15 @@ contains
                     ! with no gaps. It is benefical to have no gaps here, for
                     ! good load balancing. The final integers are ordered so
                     ! that p is dominant over q.
-                    pq_compressed = nbasis*(p-1) - p*(p-1)/2 + q - p
+                    ij_compressed = nbasis*(i-1) - i*(i-1)/2 + j - i
                     ! Calculate the process for the element.
-                    proc = (pq_compressed-1)*nProcessors/spawn%nrows
+                    proc = (ij_compressed-1)*nProcessors/spawn%nrows
                 else
                     ! For spin-free case, we halve the number of labels. Also,
                     ! the last two labels are dominant in the ordering, so use
                     ! these instead, to allow writing out in the correct order.
-                    pq_compressed = (nbasis/2)*(r-1) + s
-                    proc = (pq_compressed-1)*nProcessors/(nbasis**2/4)
+                    ij_compressed = (nbasis/2)*(k-1) + l
+                    proc = (ij_compressed-1)*nProcessors/(nbasis**2/4)
                 end if
 
                 ! Check that there is enough memory for the new spawned RDM entry.
@@ -370,19 +370,13 @@ contains
                     if (slots_left <= 10) nearly_full = .true.
                 end if
 
-                rdm%elements(0, spawn%free_slots(proc)) = pqrs
+                rdm%elements(0, spawn%free_slots(proc)) = ijkl
                 call encode_sign_rdm(rdm%elements(:, spawn%free_slots(proc)), contrib_sign)
 
                 call add_hash_table_entry(rdm%hash_table, spawn%free_slots(proc), hash_val)
 
                 spawn%free_slots(proc) = spawn%free_slots(proc) + 1
             end if
-
-            !if (p > q .or. r > s) then
-            !    write(6,'("p, q, r, s:", 1X,'//int_fmt(p,0)//', 1X,'//int_fmt(q,0)//', &
-            !               &1X,'//int_fmt(r,0)//', 1X,'//int_fmt(s,0)//')') p, q, r, s
-            !    call stop_all(t_r,"Incorrect ordering of RDM orbitals passed to RDM spawning routine.")
-            !end if
 
         end associate
 
@@ -541,8 +535,8 @@ contains
         type(rdm_list_t), intent(in) :: rdm_1
         type(rdm_list_t), intent(inout) :: rdm_2
 
-        integer :: ielem, pq, rs, p, q, r, s
-        integer(int_rdm) :: pqrs
+        integer :: ielem, ij, kl, i, j, k, l
+        integer(int_rdm) :: ijkl
         integer :: ind, hash_val
         real(dp) :: real_sign_old(rdm_2%sign_length), real_sign_new(rdm_2%sign_length)
         real(dp) :: spawn_sign(rdm_2%sign_length)
@@ -551,8 +545,8 @@ contains
 
         do ielem = 1, rdm_1%nelements
             ! Decode the compressed RDM labels.
-            pqrs = rdm_1%elements(0,ielem)
-            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+            ijkl = rdm_1%elements(0,ielem)
+            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
 
             ! Extract the spawned sign.
             call extract_sign_rdm(rdm_1%elements(:,ielem), spawn_sign)
@@ -560,7 +554,7 @@ contains
             ! Search to see if this RDM element is already in the RDM 2.
             ! If it, tSuccess will be true and ind will hold the position of the
             ! element in rdm.
-            call hash_table_lookup((/p,q,r,s/), (/pqrs/), 0, rdm_2%hash_table, rdm_2%elements, ind, hash_val, tSuccess)
+            call hash_table_lookup((/i,j,k,l/), (/ijkl/), 0, rdm_2%hash_table, rdm_2%elements, ind, hash_val, tSuccess)
 
             if (tSuccess) then
                 ! Extract the existing sign.
@@ -580,7 +574,7 @@ contains
                 ! Update the rdm array, and its hash table, and the number of
                 ! RDM elements.
                 rdm_2%nelements = rdm_2%nelements + 1
-                rdm_2%elements(0, rdm_2%nelements) = pqrs
+                rdm_2%elements(0, rdm_2%nelements) = ijkl
                 call encode_sign_rdm(rdm_2%elements(:, rdm_2%nelements), spawn_sign)
                 call add_hash_table_entry(rdm_2%hash_table, rdm_2%nelements, hash_val)
             end if
