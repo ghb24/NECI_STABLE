@@ -289,7 +289,8 @@ contains
         real(dp), intent(out) :: rdm_trace(rdm%sign_length)
 
         integer(int_rdm) :: ijkl
-        integer :: ielem, ij, kl, i, j, k, l
+        integer :: ielem
+        integer :: ij, kl, i, j, k, l ! spin orbitals
         real(dp) :: rdm_sign(rdm%sign_length)
 
         rdm_trace = 0.0_dp
@@ -362,8 +363,9 @@ contains
         real(dp), intent(out) :: rdm_spin(rdm%sign_length)
 
         integer(int_rdm) :: ijkl
-        integer :: ielem, ij, kl, i, j, k, l
-        integer :: p, q, r, s
+        integer :: ielem
+        integer :: ij, kl, i, j, k, l ! spin orbitals
+        integer :: p, q, r, s ! spatial orbitals
         real(dp) :: rdm_sign(rdm%sign_length)
 
         rdm_spin = 0.0_dp
@@ -453,7 +455,8 @@ contains
         real(dp), intent(out) :: sum_error_herm_all(rdm%sign_length)
 
         integer(int_rdm) :: ijkl
-        integer :: ielem, ij, kl, i, j, k, l
+        integer :: ielem
+        integer :: ij, kl, i, j, k, l ! spin orbitals
         real(dp) :: rdm_sign(rdm%sign_length)
         real(dp) :: max_error_herm(rdm%sign_length), sum_error_herm(rdm%sign_length)
         logical :: nearly_full, finished, all_finished

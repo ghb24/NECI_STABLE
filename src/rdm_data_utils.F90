@@ -206,26 +206,26 @@ contains
 
     pure subroutine calc_combined_rdm_label(i, j, k, l, ijkl)
 
-        ! Combine the four 2-RDM spin orbital labels into unique integers.
-        ! p and q are combined into one number, pq. r and s are combined into
-        ! one number, rs. Both of these are then combined into one single
-        ! number, pqrs. The largest value for pqrs is M^4, where M is the
-        ! number of spin orbitals.
+        ! Combine the four 2-RDM orbital labels into unique integers. i and j
+        ! are combined into one number, ij. k and l are combined into one
+        ! number, kl. Both of these are then combined into one single
+        ! number, ijkl. Assuming (i,j,k,l) are *spin* orbitals labels (which
+        ! they usually will be but not necessarily), the largest value for ijkl
+        ! is M^4, where M is the number of spin orbitals.
         
         ! The compression defined in this routine will not give a fully
-        ! compressed RDM index labelling, because it allows a separate pq
-        ! integer if p and q are equal, which will always give a zero
-        ! RDM element, and the same for r and s. It also doesn't take
-        ! spatial symmetry into account. But this is fine if one just
-        ! seeks a unique combined label for each combination of individual
-        ! spin orbital labels.
+        ! compressed RDM index labelling, because it allows a separate ij
+        ! integer if i and j are equal, even though this RDM element is never
+        ! accessed, and the same for k and l. It also doesn't take spatial
+        ! symmetry into account. But this is fine if one just seeks a unique
+        ! combined label for each combination of individual orbital labels.
 
-        ! In: i, j, k, l - spin orbitals of the RDM contribution.
+        ! In: i, j, k, l - orbital labels for the RDM contribution.
         ! Out: ijkl - Label combining i, j, k, l.
 
         use SystemData, only: nbasis
 
-        integer, intent(in) :: i, j, k, l
+        integer, intent(in) :: i, j, k, l ! spin or spatial orbitals
         integer(int_rdm), intent(out) :: ijkl
         integer :: ij, kl
 
@@ -237,13 +237,13 @@ contains
 
     pure subroutine calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
 
-        ! Decode the four spin orbital labels stored in the input ijkl,
-        ! i.e. do the opposite of calc_combined_rdm_label.
+        ! Decode the four orbital labels stored in the input ijkl, i.e. do the
+        ! opposite of calc_combined_rdm_label.
 
         use SystemData, only: nbasis
 
         integer(int_rdm), intent(in) :: ijkl
-        integer, intent(out) :: ij, kl, i, j, k, l
+        integer, intent(out) :: ij, kl, i, j, k, l ! spin or spatial orbitals
 
         kl = mod(ijkl-1, nbasis**2) + 1
         ij = (ijkl - kl)/(nbasis**2) + 1
@@ -291,7 +291,7 @@ contains
     subroutine add_to_rdm_spawn_t(spawn, i, j, k, l, contrib_sign, spinfree, nearly_full)
 
         ! In/Out: rdm_spawn - the rdm_spawn_t object to which contributions will be added.
-        ! In: i, j, k, l - spin orbitals of the RDM contribution, with i<j, k<l.
+        ! In: i, j, k, l - orbitals labels for the RDM contribution, with i<j, k<l.
         ! In: contrib_sign - the sign (amplitude) of the contribution to be added.
         ! In: spinfree - is the RDM being created to be output directly in spinfree form?
         ! In/Out: nearly_full - make this logical true if we come close to filling a
@@ -301,13 +301,13 @@ contains
         use SystemData, only: nbasis
 
         type(rdm_spawn_t), intent(inout) :: spawn
-        integer, intent(in) :: i, j, k, l
+        integer, intent(in) :: i, j, k, l ! spin or spatial orbital
         real(dp), intent(in) :: contrib_sign(spawn%rdm_send%sign_length)
         logical, intent(in) :: spinfree
         logical, intent(inout), optional :: nearly_full
 
-        integer :: ij_compressed, proc, ind, hash_val, slots_left
         integer(int_rdm) :: ijkl
+        integer :: ij_compressed, proc, ind, hash_val, slots_left
         real(dp) :: real_sign_old(spawn%rdm_send%sign_length), real_sign_new(spawn%rdm_send%sign_length)
         logical :: tSuccess
         character(*), parameter :: t_r = 'add_to_rdm_spawn_t'
@@ -535,8 +535,9 @@ contains
         type(rdm_list_t), intent(in) :: rdm_1
         type(rdm_list_t), intent(inout) :: rdm_2
 
-        integer :: ielem, ij, kl, i, j, k, l
+        integer :: ielem
         integer(int_rdm) :: ijkl
+        integer :: ij, kl, i, j, k, l ! spin or spatial orbitals
         integer :: ind, hash_val
         real(dp) :: real_sign_old(rdm_2%sign_length), real_sign_new(rdm_2%sign_length)
         real(dp) :: spawn_sign(rdm_2%sign_length)
@@ -594,7 +595,6 @@ contains
         type(rdm_list_t), intent(inout) :: rdm
 
         integer :: ielem, counter
-        integer(int_rdm) :: pqrs
         real(dp) :: rdm_sign(rdm%sign_length), summed_rdm_sign(rdm%sign_length)
 
         if (rdm%nelements > 0) then

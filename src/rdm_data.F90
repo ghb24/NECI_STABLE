@@ -4,7 +4,8 @@ module rdm_data
 
     ! The following is a description of some of the details of how RDMs are
     ! stored, including both technical aspects, and details on which elements
-    ! are not stored due to symmetry. These things are important for
+    ! are not stored due to symmetry. There is also a note on how variables
+    ! are named, particularly orbital labels. These things are important for
     ! understanding various routines that perform operations on RDMs,
     ! particularly in rdm_finalising.
 
@@ -39,6 +40,25 @@ module rdm_data
     ! being needed for repeated elements. Not only does the main RDM array have
     ! a hash_table for this purpose, but also the rdm_spawn_t objects (since
     ! they themselves hold an rdm_list_t object).
+
+    ! Note on variable names
+    ! ======================
+
+    ! Throughout the RDM routines, we always try to use the variables i, j, k
+    ! and l to refer to spin orbital labels, and p, q, r and s to refer to
+    ! spatial orbitals labels. Please try and keep this, to avoid confusion!
+    ! In some instances, particularly in rdm_data_utils routines, a routine
+    ! can act on both spinned and spin-free 2-RDMs (for example, the routine
+    ! add_rdm_1_to_rdm_2 will work on either types of RDM, each of which can
+    ! be stored as a rdm_list_t object), in which case we usually use
+    ! (i,j,k,l), but these could refer to either spin or spatial labels
+    ! depending on the RDM.
+
+    ! Similarly, when looping over all elements in an RDM array, we try to
+    ! use ielem as the looping variable name. When looping over the various
+    ! RDMs being sampled, we use irdm as the loop variable. Please try and
+    ! avoid using i as a loop variable when there might be confusion with
+    ! orbital labels, within RDM modules.
 
     ! Important points regarding which RDM elements are stored
     ! ========================================================

@@ -269,8 +269,8 @@ contains
 
         integer(int_rdm) :: ijkl
         integer :: ielem, irdm, ierr
-        integer :: ij, kl, i, j, k, l
-        integer :: p, q, r, s
+        integer :: ij, kl, i, j, k, l ! spin orbitals
+        integer :: p, q, r, s ! spatial orbitals
         real(dp) :: rdm_sign(two_rdms%sign_length)
         real(dp), allocatable :: temp_rdm(:,:)
 
@@ -384,7 +384,6 @@ contains
 
         integer(int_rdm) :: ijkl
         integer :: ielem, ij, kl, i, j, k, l
-        integer :: p_temp, q_temp
         real(dp) :: rdm_sign(rdm%sign_length)
         logical :: nearly_full, finished, all_finished
 
@@ -452,9 +451,10 @@ contains
         logical, intent(in) :: open_shell
 
         integer(int_rdm) :: ijkl
-        integer :: ielem, ij, kl, i, j, k, l
-        integer :: p, q, r, s
-        integer :: pq_legacy, rs_legacy
+        integer :: ielem
+        integer :: ij, kl, i, j, k, l ! spin orbitals
+        integer :: p, q, r, s ! spatial orbitals
+        integer :: pq_legacy, rs_legacy ! spatial orbitals
         real(dp) :: rdm_sign(rdm%sign_length)
         logical :: nearly_full, finished, all_finished
 
@@ -555,12 +555,12 @@ contains
         use SystemData, only: nbasis
         use UMatCache, only: spatial
 
-        integer, intent(inout) :: i, j, k, l
+        integer, intent(inout) :: i, j, k, l ! spin orbitals
         real(dp), intent(inout) :: rdm_sign(:)
-        integer, intent(out) :: pq_legacy, rs_legacy
+        integer, intent(out) :: pq_legacy, rs_legacy ! spatial orbitals
 
-        integer :: p, q, r, s
-        integer :: i_temp, j_temp
+        integer :: i_temp, j_temp ! spin orbitals
+        integer :: p, q, r, s ! spatial_orbitals
 
         ! RDMs are output in files labelled by their spin signatures:
         ! aaaa, abab, abba, bbbb, baba or baab.
@@ -667,10 +667,9 @@ contains
         type(rdm_list_t), intent(inout) :: rdm_recv
 
         integer(int_rdm) :: ijkl
-        integer :: ielem, ij, kl, i, j, k, l
-        integer :: pq, rs
-        integer :: p, q, r, s
-        integer :: k_orig, l_orig
+        integer :: ielem
+        integer :: ij, kl, i, j, k, l, k_orig, l_orig ! spin orbitals
+        integer :: pq, rs, p, q, r, s ! spatial orbitals
         real(dp) :: rdm_sign(rdm%sign_length)
         logical :: nearly_full, finished, all_finished
 
@@ -776,7 +775,7 @@ contains
             ! The if-statements in here prevent adding to the same RDM element
             ! twice.
 
-            integer, intent(in) :: p, q, r, s
+            integer, intent(in) :: p, q, r, s ! spatial orbitals
             real(dp), intent(in) :: rdm_sign(:)
             type(rdm_spawn_t), intent(inout) :: spawn
             logical, intent(inout) :: nearly_full
@@ -889,11 +888,11 @@ contains
         logical, intent(in) :: open_shell
 
         integer(int_rdm) :: ijkl
-        integer :: ij, kl, i, j, k, l
+        integer :: ij, kl, i, j, k, l ! spin orbitals
+        integer :: p, q, r, s ! spatial orbitals
         integer :: ielem, irdm, ierr, iproc, write_unit
         integer :: iunit_aaaa, iunit_abab, iunit_abba
         integer :: iunit_bbbb, iunit_baba, iunit_baab
-        integer :: p, q, r, s
         real(dp) :: rdm_sign(rdm%sign_length)
         character(3) :: sgn_len, suffix
         character(len=*), parameter :: t_r = 'print_rdms_with_spin'
@@ -1016,7 +1015,7 @@ contains
 
         integer(int_rdm) :: pqrs
         integer :: ielem, irdm, iunit, iproc, ierr
-        integer :: pq, rs, p, q, r, s
+        integer :: pq, rs, p, q, r, s ! spatial orbitals
         real(dp) :: rdm_sign(rdm%sign_length)
         character(30) :: rdm_filename
 
