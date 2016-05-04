@@ -191,9 +191,9 @@ contains
         type(rdm_list_t), intent(in) :: two_rdms
         real(dp), intent(in) :: rdm_trace(:)
 
-        integer(int_rdm) :: pqrs
+        integer(int_rdm) :: ijkl
+        integer :: ij, kl, i, j, k, l
         integer :: ielem, irdm, ierr
-        integer :: pq, rs, p, q, r, s
         real(dp) :: rdm_sign(two_rdms%sign_length)
         real(dp), allocatable :: temp_rdm(:,:)
 
@@ -201,21 +201,21 @@ contains
             one_rdms(irdm)%matrix = 0.0_dp
         end do
 
-        ! Loop over all elements of the 2-RDM, \Gamma_{pq,rs}, where p, q, r
-        ! and s are spatial labels. If at least two spatial indices are the
+        ! Loop over all elements of the 2-RDM, \Gamma_{ij,kl}, where i, j, k
+        ! and l are spatial labels. If at least two spatial indices are the
         ! same then we have a contribution to the 1-RDM.
         do ielem = 1, two_rdms%nelements
-            pqrs = two_rdms%elements(0,ielem)
+            ijkl = two_rdms%elements(0,ielem)
             ! Obtain spin orbital labels and the RDM element.
-            call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
+            call calc_separate_rdm_labels(ijkl, ij, kl, k, l, j, i)
 
             call extract_sign_rdm(two_rdms%elements(:,ielem), rdm_sign)
 
             associate(ind => SymLabelListInv_rot)
                 ! An element of the form \Gamma_{pa,ra}.
-                if (q == s) then
+                if (j == l) then
                     do irdm = 1, size(one_rdms)
-                        one_rdms(irdm)%matrix(ind(p), ind(r)) = one_rdms(irdm)%matrix(ind(p), ind(r)) + rdm_sign(irdm)
+                        one_rdms(irdm)%matrix(ind(i), ind(j)) = one_rdms(irdm)%matrix(ind(i), ind(j)) + rdm_sign(irdm)
                     end do
                 end if
             end associate
@@ -382,8 +382,8 @@ contains
         type(rdm_spawn_t), intent(inout) :: spawn
         type(rdm_list_t), intent(inout) :: rdm_recv
 
-        integer(int_rdm) :: pqrs
-        integer :: ielem, pq, rs, p, q, r, s
+        integer(int_rdm) :: ijkl
+        integer :: ielem, ij, kl, i, j, k, l
         integer :: p_temp, q_temp
         real(dp) :: rdm_sign(rdm%sign_length)
         logical :: nearly_full, finished, all_finished
@@ -401,20 +401,20 @@ contains
                 nearly_full = .false.
             end if
 
-            pqrs = rdm%elements(0,ielem)
+            ijkl = rdm%elements(0,ielem)
             ! Obtain spin orbital labels and the RDM element.
-            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
             call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
 
             ! Factor of a half to account for prevent double-counting, and
             ! instead average elements from above and below the diagonal.
-            if (pq /= rs) rdm_sign = 0.5_dp*rdm_sign
+            if (ij /= kl) rdm_sign = 0.5_dp*rdm_sign
 
             ! If in the lower half of the RDM, reflect to the upper half.
-            if (pq > rs) then
-                call add_to_rdm_spawn_t(spawn, r, s, p, q, rdm_sign, .false., nearly_full)
+            if (ij > kl) then
+                call add_to_rdm_spawn_t(spawn, k, l, i, j, rdm_sign, .false., nearly_full)
             else
-                call add_to_rdm_spawn_t(spawn, p, q, r, s, rdm_sign, .false., nearly_full)
+                call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false., nearly_full)
             end if
         end do
 
@@ -666,11 +666,11 @@ contains
         type(rdm_spawn_t), intent(inout) :: spawn
         type(rdm_list_t), intent(inout) :: rdm_recv
 
-        integer(int_rdm) :: pqrs
-        integer :: ielem, pq, rs, p, q, r, s
-        integer :: pq_spat, rs_spat
-        integer :: p_spat, q_spat, r_spat, s_spat
-        integer :: r_orig, s_orig
+        integer(int_rdm) :: ijkl
+        integer :: ielem, ij, kl, i, j, k, l
+        integer :: pq, rs
+        integer :: p, q, r, s
+        integer :: k_orig, l_orig
         real(dp) :: rdm_sign(rdm%sign_length)
         logical :: nearly_full, finished, all_finished
 
@@ -687,60 +687,60 @@ contains
                 nearly_full = .false.
             end if
 
-            pqrs = rdm%elements(0,ielem)
+            ijkl = rdm%elements(0,ielem)
             ! Obtain spin orbital labels and the RDM element.
-            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
             call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
 
             ! Store the original labels, before we possibly swap them.
-            r_orig = r; s_orig = s;
+            k_orig = k; l_orig = l;
 
             ! If this term is abba or baab then we can make it abab or baba by
             ! swapping the last two indices, which introduces a minus sign.
             ! It will then contribute to a spinfree 2-RDM element.
-            if (.not. same_spin(p,r)) then
-                s = r_orig
-                r = s_orig
+            if (.not. same_spin(i,k)) then
+                l = k_orig
+                k = l_orig
                 rdm_sign = -rdm_sign
             end if
 
             ! Get the spatial orbital labels from the spin orbital ones.
-            p_spat = spatial(p); q_spat = spatial(q);
-            r_spat = spatial(r); s_spat = spatial(s);
+            p = spatial(i); q = spatial(j);
+            r = spatial(k); s = spatial(l);
             ! The 'combined' labels.
-            pq_spat = (p_spat-1)*nbasis + q_spat
-            rs_spat = (r_spat-1)*nbasis + s_spat
+            pq = (p-1)*nbasis + q
+            rs = (r-1)*nbasis + s
 
             ! If the RDM is not symmetrised then the same term will be added
             ! from both above below the diagonal, so in this case we want a
             ! factor of a half to average and not double count.
-            if (pq_spat /= rs_spat) rdm_sign = rdm_sign*0.5_dp
+            if (pq /= rs) rdm_sign = rdm_sign*0.5_dp
 
             ! Due to the fact that RDM elements are only stored with p < q and
             ! r < s, the following terms are only stored with baba spin, never
             ! with abab. Double this term to make up for it.
-            if (p_spat == q_spat .and. r_spat == s_spat) rdm_sign = 2.0_dp*rdm_sign
+            if (p == q .and. r == s) rdm_sign = 2.0_dp*rdm_sign
 
             ! Add all spinfree 2-RDM elements corresponding to these labels.
-            call add_rdm_elements(p_spat, q_spat, r_spat, s_spat, rdm_sign, spawn, nearly_full)
+            call add_rdm_elements(p, q, r, s, rdm_sign, spawn, nearly_full)
 
             ! If this is an aaaa or bbbb term then *minus* this RDM element will
             ! be equal to the equivalent RDM element with the last two labels
             ! swapped. So, add this contribution into that RDM element. We
             ! don't have to do this, but doing so applies some extra averaging.
             ! Want to apply all the averaging possible over equivalent elements.
-            if (same_spin(p, q)) then
+            if (same_spin(i, j)) then
                 ! Re-extract sign in case it has been modified.
                 call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
 
                 ! Swap the spatial labels.
-                r_spat = spatial(s_orig); s_spat = spatial(r_orig);
-                rs_spat = (r_spat-1)*nbasis + s_spat
+                r = spatial(l_orig); s = spatial(k_orig);
+                rs = (r-1)*nbasis + s
 
-                if (pq_spat /= rs_spat) rdm_sign = rdm_sign*0.5_dp
+                if (pq /= rs) rdm_sign = rdm_sign*0.5_dp
                 rdm_sign = -rdm_sign
 
-                call add_rdm_elements(p_spat, q_spat, r_spat, s_spat, rdm_sign, spawn, nearly_full)
+                call add_rdm_elements(p, q, r, s, rdm_sign, spawn, nearly_full)
             end if
 
         end do
@@ -756,7 +756,7 @@ contains
 
     contains
 
-        subroutine add_rdm_elements(p_spat, q_spat, r_spat, s_spat, rdm_sign, spawn, nearly_full)
+        subroutine add_rdm_elements(p, q, r, s, rdm_sign, spawn, nearly_full)
 
             ! Add in the single contribution rdm_sign to the following elements
             ! of the spinfree 2-RDM:
@@ -776,26 +776,26 @@ contains
             ! The if-statements in here prevent adding to the same RDM element
             ! twice.
 
-            integer, intent(in) :: p_spat, q_spat, r_spat, s_spat
+            integer, intent(in) :: p, q, r, s
             real(dp), intent(in) :: rdm_sign(:)
             type(rdm_spawn_t), intent(inout) :: spawn
             logical, intent(inout) :: nearly_full
 
             ! RDM element \Gamma_{pq,rs}.
-            call add_to_rdm_spawn_t(spawn, p_spat, q_spat, r_spat, s_spat, rdm_sign, .true., nearly_full)
+            call add_to_rdm_spawn_t(spawn, p, q, r, s, rdm_sign, .true., nearly_full)
 
             ! RDM element \Gamma_{qp,sr}.
-            if (.not. (p_spat == q_spat .and. r_spat == s_spat)) then
-                call add_to_rdm_spawn_t(spawn, q_spat, p_spat, s_spat, r_spat, rdm_sign, .true., nearly_full)
+            if (.not. (p == q .and. r == s)) then
+                call add_to_rdm_spawn_t(spawn, q, p, s, r, rdm_sign, .true., nearly_full)
             end if
 
-            if (pq_spat /= rs_spat) then
+            if (pq /= rs) then
                 ! RDM element \Gamma_{rs,pq}.
-                call add_to_rdm_spawn_t(spawn, r_spat, s_spat, p_spat, q_spat, rdm_sign, .true., nearly_full)
+                call add_to_rdm_spawn_t(spawn, r, s, p, q, rdm_sign, .true., nearly_full)
 
                 ! RDM element \Gamma_{sr,qp}.
-                if (.not. (p_spat == q_spat .and. r_spat == s_spat)) then
-                    call add_to_rdm_spawn_t(spawn, s_spat, r_spat, q_spat, p_spat, rdm_sign, .true., nearly_full)
+                if (.not. (p == q .and. r == s)) then
+                    call add_to_rdm_spawn_t(spawn, s, r, q, p, rdm_sign, .true., nearly_full)
                 end if
             end if
 
@@ -888,12 +888,12 @@ contains
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
         logical, intent(in) :: open_shell
 
-        integer(int_rdm) :: pqrs
-        integer :: i, irdm, ierr, iproc, write_unit
+        integer(int_rdm) :: ijkl
+        integer :: ij, kl, i, j, k, l
+        integer :: ielem, irdm, ierr, iproc, write_unit
         integer :: iunit_aaaa, iunit_abab, iunit_abba
         integer :: iunit_bbbb, iunit_baba, iunit_baab
-        integer :: pq, rs, p, q, r, s
-        integer :: p_spat, q_spat, r_spat, s_spat
+        integer :: p, q, r, s
         real(dp) :: rdm_sign(rdm%sign_length)
         character(3) :: sgn_len, suffix
         character(len=*), parameter :: t_r = 'print_rdms_with_spin'
@@ -943,41 +943,41 @@ contains
                         end if
                     end if
 
-                    do i = 1, rdm%nelements
-                        pqrs = rdm%elements(0,i)
+                    do ielem = 1, rdm%nelements
+                        ijkl = rdm%elements(0,ielem)
                         ! Obtain spin orbital labels.
-                        call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
-                        call extract_sign_rdm(rdm%elements(:,i), rdm_sign)
+                        call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+                        call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
 
                         ! Normalise.
                         rdm_sign = rdm_sign/rdm_trace
 
-                        p_spat = spatial(p); q_spat = spatial(q);
-                        r_spat = spatial(r); s_spat = spatial(s);
+                        p = spatial(i); q = spatial(j);
+                        r = spatial(k); s = spatial(l);
 
-                        if ((.not. open_shell) .and. is_beta(p)) then
+                        if ((.not. open_shell) .and. is_beta(i)) then
                             call stop_all(t_r, "This is a closed shell system but we have an open shell type RDM element.&
                                                & An error must have occured.")
                         end if
 
                         ! Find out what the spin labels are, and print the RDM
                         ! element to the appropriate file.
-                        if (is_alpha(p) .and. is_alpha(q) .and. is_alpha(r) .and. is_alpha(s)) then
+                        if (is_alpha(i) .and. is_alpha(j) .and. is_alpha(k) .and. is_alpha(l)) then
                             write_unit = iunit_aaaa
-                        else if (is_alpha(p) .and. is_beta(q) .and. is_alpha(r) .and. is_beta(s)) then
+                        else if (is_alpha(i) .and. is_beta(j) .and. is_alpha(k) .and. is_beta(l)) then
                             write_unit = iunit_abab
-                        else if (is_alpha(p) .and. is_beta(q) .and. is_beta(r) .and. is_alpha(s)) then
+                        else if (is_alpha(i) .and. is_beta(j) .and. is_beta(k) .and. is_alpha(l)) then
                             write_unit = iunit_abba
-                        else if (is_beta(p) .and. is_beta(q) .and. is_beta(r) .and. is_beta(s)) then
+                        else if (is_beta(i) .and. is_beta(j) .and. is_beta(k) .and. is_beta(l)) then
                             write_unit = iunit_bbbb
-                        else if (is_beta(p) .and. is_alpha(q) .and. is_beta(r) .and. is_alpha(s)) then
+                        else if (is_beta(i) .and. is_alpha(j) .and. is_beta(k) .and. is_alpha(l)) then
                             write_unit = iunit_baba
-                        else if (is_beta(p) .and. is_alpha(q) .and. is_alpha(r) .and. is_beta(s)) then
+                        else if (is_beta(i) .and. is_alpha(j) .and. is_alpha(k) .and. is_beta(l)) then
                             write_unit = iunit_baab
                         end if
 
                         if (abs(rdm_sign(irdm)) > 1.e-12_dp) then
-                            write(write_unit,'(4i6,'//trim(sgn_len)//'g25.17)') p_spat, q_spat, r_spat, s_spat, rdm_sign(irdm)
+                            write(write_unit,'(4i6,'//trim(sgn_len)//'g25.17)') p, q, r, s, rdm_sign(irdm)
                         end if
                     end do
 
@@ -1015,9 +1015,8 @@ contains
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
 
         integer(int_rdm) :: pqrs
-        integer :: i, irdm, iunit, iproc, ierr
-        integer :: pq_spat, rs_spat
-        integer :: p_spat, q_spat, r_spat, s_spat
+        integer :: ielem, irdm, iunit, iproc, ierr
+        integer :: pq, rs, p, q, r, s
         real(dp) :: rdm_sign(rdm%sign_length)
         character(30) :: rdm_filename
 
@@ -1038,16 +1037,16 @@ contains
                         open(iunit, file=rdm_filename, status='old', position='append')
                     end if
 
-                    do i = 1, rdm%nelements
-                        pqrs = rdm%elements(0,i)
+                    do ielem = 1, rdm%nelements
+                        pqrs = rdm%elements(0,ielem)
                         ! Obtain spin orbital labels.
-                        call calc_separate_rdm_labels(pqrs, pq_spat, rs_spat, r_spat, s_spat, q_spat, p_spat)
-                        call extract_sign_rdm(rdm%elements(:,i), rdm_sign)
+                        call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
+                        call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
                         ! Normalise.
                         rdm_sign = rdm_sign/rdm_trace
 
                         if (abs(rdm_sign(irdm)) > 1.e-12_dp) then
-                            write(iunit,"(4I15, F30.20)") p_spat, q_spat, r_spat, s_spat, rdm_sign(irdm)
+                            write(iunit,"(4I15, F30.20)") p, q, r, s, rdm_sign(irdm)
                         end if
                     end do
 
