@@ -191,8 +191,8 @@ contains
         type(rdm_list_t), intent(in) :: two_rdms
         real(dp), intent(in) :: rdm_trace(:)
 
-        integer(int_rdm) :: ijkl
-        integer :: ij, kl, i, j, k, l
+        integer(int_rdm) :: pqrs
+        integer :: pq, rs, p, q, r, s ! spatial orbitals
         integer :: ielem, irdm, ierr
         real(dp) :: rdm_sign(two_rdms%sign_length)
         real(dp), allocatable :: temp_rdm(:,:)
@@ -201,21 +201,21 @@ contains
             one_rdms(irdm)%matrix = 0.0_dp
         end do
 
-        ! Loop over all elements of the 2-RDM, \Gamma_{ij,kl}, where i, j, k
-        ! and l are spatial labels. If at least two spatial indices are the
-        ! same then we have a contribution to the 1-RDM.
+        ! Loop over all elements of the 2-RDM, \Gamma^{spinfree}_{pq,rs}, where
+        ! p, q, r and s are spatial labels. If at least two spatial indices are
+        ! the same then we have a contribution to the 1-RDM.
         do ielem = 1, two_rdms%nelements
-            ijkl = two_rdms%elements(0,ielem)
+            pqrs = two_rdms%elements(0,ielem)
             ! Obtain spin orbital labels and the RDM element.
-            call calc_separate_rdm_labels(ijkl, ij, kl, k, l, j, i)
+            call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
 
             call extract_sign_rdm(two_rdms%elements(:,ielem), rdm_sign)
 
             associate(ind => SymLabelListInv_rot)
                 ! An element of the form \Gamma_{pa,ra}.
-                if (j == l) then
+                if (q == s) then
                     do irdm = 1, size(one_rdms)
-                        one_rdms(irdm)%matrix(ind(i), ind(j)) = one_rdms(irdm)%matrix(ind(i), ind(j)) + rdm_sign(irdm)
+                        one_rdms(irdm)%matrix(ind(p), ind(r)) = one_rdms(irdm)%matrix(ind(p), ind(r)) + rdm_sign(irdm)
                     end do
                 end if
             end associate
