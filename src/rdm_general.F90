@@ -39,6 +39,7 @@ contains
         integer, intent(in) :: nrdms
 
         integer :: rdm_nrows, nhashes_rdm_main, nhashes_rdm_spawn
+        integer :: standard_spawn_size, min_spawn_size
         integer :: max_nelems_main, max_nelems_spawn, max_nelems_recv, max_nelems_recv_2
         integer :: memory_alloc, irdm, iproc, ierr
         character(len=*), parameter :: t_r = 'init_rdms'
@@ -100,27 +101,32 @@ contains
         ! The memory of (large) alloctaed arrays, per MPI process.
         memory_alloc = 0
 
-        ! For now, create RDM arrays big enough so that *all* RDM elements on
+        ! For now, create RDM array big enough so that *all* RDM elements on
         ! a particular processor can be stored, using the usual approximations
         ! to take symmetry into account. Include a factor of 1.5 to account for
         ! factors such as imperfect load balancing (which affects the spawned
         ! array).
         rdm_nrows = nbasis*(nbasis-1)/2
         max_nelems_main = 1.5*(rdm_nrows**2)/(8*nProcessors)
-        max_nelems_spawn = 1.5*(rdm_nrows**2)/(8*nProcessors)
-        max_nelems_recv = 2.0*(rdm_nrows**2)/(8*nProcessors)
-        max_nelems_recv_2 = 2.0*(rdm_nrows**2)/(8*nProcessors)
         nhashes_rdm_main = 0.75*max_nelems_main
-        nhashes_rdm_spawn = 0.75*max_nelems_spawn
-
         call init_rdm_list_t(two_rdm_main, nrdms, max_nelems_main, nhashes_rdm_main)
 
+        standard_spawn_size = 1.5*(rdm_nrows**2)/(8*nProcessors)
+        ! For cases where we have a small number of orbitals but large number
+        ! of processors (i.e., large CASSCF calculations), we may find the
+        ! above standard_spawn_size is less than nProcessors. Thus, there
+        ! would not be at least one spawning slot per processor. In such cases
+        ! make sure that we have at least 50 per processor, for some safety.
+        min_spawn_size = 50*nProcessors
+        max_nelems_spawn = max(standard_spawn_size, min_spawn_size)
+        nhashes_rdm_spawn = 0.75*max_nelems_spawn
+        call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems_spawn, nhashes_rdm_spawn)
+
+        max_nelems_recv = 2.0*(rdm_nrows**2)/(8*nProcessors)
+        max_nelems_recv_2 = 2.0*(rdm_nrows**2)/(8*nProcessors)
         ! Don't need the hash table for the received list, so pass 0 for nhashes.
         call init_rdm_list_t(two_rdm_recv, nrdms, max_nelems_recv, 0)
         call init_rdm_list_t(two_rdm_recv_2, nrdms, max_nelems_recv_2, 0)
-
-        ! Initialise the main RDM array data structure.
-        call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems_spawn, nhashes_rdm_spawn)
 
         ! Count the memory the various RDM lists (but this does *not* count
         ! the memory of the hash tables - this will increase dynamically
