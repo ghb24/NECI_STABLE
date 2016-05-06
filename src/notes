@@ -6,6 +6,8 @@ case 2:
 
 here i can also decide between mixed and alike.. by forcing 
 single occupanies or empty/double for (i,j) 
+here a list of singly occupied orbitals would also be nice for picking 2 singly occupied orbitals 
+for the mixed case
 
 how does that change the symmetry approach? 
 for the alike its easy.. 
@@ -113,6 +115,7 @@ else:
 
 mixed case: 
 i /= j must be enforced and atleast on of n(i),n(j) must be 1 
+can i make a list of these possible combinations? and pick the 2 electrons in one go as normal? hm..
 how to? 
 pick i first: 
 if (n(i) == 2): 
@@ -131,7 +134,47 @@ if (n(i) == 2):
 	I get excitations: 16,17
 
 if (n(i) == 1): 
-	can i force (a == i)? what would it help??
+	can i force (a == i)? what would it help?? and would i miss some excitations? especially combined with i < j ?? 
+	
+	if i would pick n(j) = 2 (a) cannot be j, and has to be (i) 
+	if n(j) = 1, (a) can be both (i) or (j) ... which one to choose? 
+	so.. 
+	if (n(j) == 2): 
+		(a == i) forced or? how can i recalculate that? 
+		and pick b > i with cum-sum (b > i | ija) and have to recalc that for all sinlges below i then 
+
+		i get excitations: 20,21
+
+		what about the recalc? have to consider all the single orbs below initial (i) ...
+		hm... 
+		i could atleast store the list for orbital (i) ... but which is random.. or is it? 
+		random out of the number of electrons.. and then restricted depending on the occupation number of (i) 
+
+	else: 
+		(a) can be both (i) and (j) if, (i == a) b > i; if (a == j): b < j: 
+		how to do, and recalc that? and what about picking it the other way around? first b and then a == (i,j) 
+		hm... 
+		thats a more forced way to deal with this kind of stuff, like in the old non-symmetric implementation
+		hm...
+		but thats still doable.. what can i save for the later recalculation of pgens? 
+		here it would be good to have a list of the singly occupied orbitals and pick from this.. 
+
+		anyway this way i would get excitations 16,17,20,21 
+
+
+do i miss: 2 1, works 1 2 works, 1 1: here a has to be able be both i and j 
+
+so this way i would split up the different type of excitations and i would have controlling parameters on the 
+"hard" excitations 
+
+p2 * p2_par for fullstartfullstopmixed
+and 
+p3 * p3_par for the mixed fullstart and fullstops
+
+so i could reduce their influence on the time-step or atleast analyze it.. 
+
+but that would be a pretty big rework again.. and i definetly want to have the diff-flag or otherwise it will be 
+even harder to differentiate between the excitations and ensure not picking a wrong one 
 
 
 
@@ -145,4 +188,9 @@ these cases.. as always..
 
 how can i deal with those?? 
 without the diff flag? 
+
+think about that too... maybe i atleast want to be able to integrate it like that.. 
+since the functionality is already there.. and maybe its even easier..
+
+ah no scrap that I want to control the "hard" mixed cases too
 

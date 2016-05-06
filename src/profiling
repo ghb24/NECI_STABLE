@@ -1,0 +1,4 @@
+do a profiling analysis of my guga code: 
+
+calcb_vector_int seems to use a lot of cpu power...
+but is this because of debug? 

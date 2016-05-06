@@ -1088,27 +1088,31 @@ contains
         ! do it only if tNewDet is set, so i only recalc this if i switch to a 
         ! new determinant -> is set in FciMCPar!
         if (tNewDet) then
-            if (allocated(currentB_ilut)) deallocate(currentB_ilut)
-            if (allocated(currentOcc_ilut)) deallocate(currentOcc_ilut)
-            if (allocated(current_stepvector)) deallocate(current_stepvector)
-            if (allocated(currentOcc_int)) deallocate(currentOcc_int)
-            if (allocated(currentB_int)) deallocate(currentB_int)
-
-            allocate(currentB_ilut(nSpatOrbs), stat = ierr)
-            currentB_ilut = calcB_vector_ilut(ilut(0:nifd))
-
-            allocate(currentOcc_ilut(nSpatOrbs), stat = ierr)
-            currentOcc_ilut = calcOcc_vector_ilut(ilut(0:nifd))
-
-            allocate(current_stepvector(nSpatOrbs), stat = ierr)
-            current_stepvector = calcStepvector(ilut(0:nifd))
-
-            allocate(currentOcc_int(nSpatOrbs), stat = ierr)
-            currentOcc_int = int(currentOcc_ilut)
-
-            allocate(currentB_int(nSpatOrbs), stat = ierr)
-            currentB_int = int(currentB_ilut)
-
+            ! use new setup function for additional CSF informtation
+            ! instead of calculating it all seperately..
+            call init_csf_information(ilut(0:nifd))
+! 
+!             if (allocated(currentB_ilut)) deallocate(currentB_ilut)
+!             if (allocated(currentOcc_ilut)) deallocate(currentOcc_ilut)
+!             if (allocated(current_stepvector)) deallocate(current_stepvector)
+!             if (allocated(currentOcc_int)) deallocate(currentOcc_int)
+!             if (allocated(currentB_int)) deallocate(currentB_int)
+! 
+!             allocate(currentB_ilut(nSpatOrbs), stat = ierr)
+!             currentB_ilut = calcB_vector_ilut(ilut(0:nifd))
+! 
+!             allocate(currentOcc_ilut(nSpatOrbs), stat = ierr)
+!             currentOcc_ilut = calcOcc_vector_ilut(ilut(0:nifd))
+! 
+!             allocate(current_stepvector(nSpatOrbs), stat = ierr)
+!             current_stepvector = calcStepvector(ilut(0:nifd))
+! 
+!             allocate(currentOcc_int(nSpatOrbs), stat = ierr)
+!             currentOcc_int = int(currentOcc_ilut)
+! 
+!             allocate(currentB_int(nSpatOrbs), stat = ierr)
+!             currentB_int = int(currentB_ilut)
+! 
             ! then set tNewDet to false and only set it after the walker loop
             ! in FciMCPar
             tNewDet = .false.
@@ -1147,11 +1151,15 @@ contains
             ! the excitMat variable 
             excitMat(1,:) = excit_typ
 
-            if (.not. isProperCSF_ilut(excitation,.true.)) then
-                call write_det_guga(6, ilut)
-                call write_det_guga(6, excitation)
-                call print_excitInfo(global_excitInfo)
-            end if
+            ! profile tells me this costs alot of time.. so remove it
+            ! and only do it in debug mode.. 
+            ! i just have to be sure that no wrong csfs are created..
+
+!             if (.not. isProperCSF_ilut(excitation,.true.)) then
+!                 call write_det_guga(6, ilut)
+!                 call write_det_guga(6, excitation)
+!                 call print_excitInfo(global_excitInfo)
+!             end if
 
             ASSERT(isProperCSF_ilut(excitation, .true.))
             ! otherwise extract H element and convert to 0
@@ -1251,7 +1259,13 @@ contains
             return
         end if
 
-! #ifdef __DEBUG
+#ifdef __DEBUG
+        ! do i need the checkcomp flag here?? how often does it happen that 
+        ! i create a wrong excitation information? can i avoid to create 
+        ! a wrong excitation information and thus not use checkComp here? 
+        ! profiler tells me this takes a lot of time..
+        ! and if i have to do it, i could get rid of all the other uncessary 
+        ! call of calcRemainingSwitches ..
         call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
 ! 
 !         if ( excitInfo%typ == 8 ) then
@@ -1261,11 +1275,12 @@ contains
 !         end if
 
         if (.not.compFlag) then
+            print *, "non-compatible created!"
             excitation = 0
             pgen = 0.0_dp
             return
         end if
-! #endif
+#endif
 !         if (excitInfo%excitLvl == 1) print *, "yes!"
 
         ! depending on the excitation chosen -> call specific stochastic
