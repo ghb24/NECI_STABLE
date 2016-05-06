@@ -1259,7 +1259,7 @@ contains
             return
         end if
 
-#ifdef __DEBUG
+! #ifdef __DEBUG
         ! do i need the checkcomp flag here?? how often does it happen that 
         ! i create a wrong excitation information? can i avoid to create 
         ! a wrong excitation information and thus not use checkComp here? 
@@ -1275,12 +1275,11 @@ contains
 !         end if
 
         if (.not.compFlag) then
-            print *, "non-compatible created!"
             excitation = 0
             pgen = 0.0_dp
             return
         end if
-#endif
+! #endif
 !         if (excitInfo%excitLvl == 1) print *, "yes!"
 
         ! depending on the excitation chosen -> call specific stochastic
@@ -1293,7 +1292,7 @@ contains
             ! similar to a single excitation except the (predetermined) 
             ! single overlap site.
             call calcSingleOverlapMixedStochastic(ilut, excitInfo, excitation, &
-                branch_pgen)
+                branch_pgen, posSwitches, negSwitches)
 
             pgen = orb_pgen * branch_pgen
 
@@ -1301,17 +1300,19 @@ contains
             ! similar to a single excitation except the (predetermined) 
             ! single overlap site.
             call calcSingleOverlapMixedStochastic(ilut, excitInfo, excitation,&
-                branch_pgen)
+                branch_pgen, posSwitches, negSwitches)
 
             pgen = orb_pgen * branch_pgen
   
         case (8) ! normal double two lowering
-            call calcDoubleLoweringStochastic(ilut, excitInfo, excitation, branch_pgen)
+            call calcDoubleLoweringStochastic(ilut, excitInfo, excitation, branch_pgen, &
+                posSwitches, negSwitches)
 
             pgen = orb_pgen * branch_pgen
 
         case (9) ! normal double two raising
-            call calcDoubleRaisingStochastic(ilut, excitInfo, excitation, branch_pgen)
+            call calcDoubleRaisingStochastic(ilut, excitInfo, excitation, branch_pgen, &
+                posSwitches, negSwitches)
 
             pgen = orb_pgen * branch_pgen
 
@@ -1319,23 +1320,27 @@ contains
             ! should be able to use the same general function as above to 
             ! calculate the excitation, but the matrix element calculation 
             ! should be a little bit different... maybe additional input needed
-            call calcDoubleL2R2L_stochastic(ilut, excitInfo, excitation, branch_pgen)
+            call calcDoubleL2R2L_stochastic(ilut, excitInfo, excitation, branch_pgen, &
+                posSwitches, negSwitches)
 
             pgen = orb_pgen * branch_pgen
 
         case (11) ! raising into lowering into raising
             ! dito about matrix elements as above...
-            call calcDoubleR2L2R_stochastic(ilut, excitInfo, excitation, branch_pgen)
+            call calcDoubleR2L2R_stochastic(ilut, excitInfo, excitation, branch_pgen, &
+                posSwitches, negSwitches)
 
             pgen = orb_pgen * branch_pgen
 
         case (12) ! lowering into raising double
-            call calcDoubleL2R_stochastic(ilut, excitInfo, excitation, branch_pgen)
+            call calcDoubleL2R_stochastic(ilut, excitInfo, excitation, branch_pgen, &
+                posSwitches, negSwitches)
 
             pgen = orb_pgen * branch_pgen
 
         case (13) ! raising into lowering double
-            call calcDoubleR2L_stochastic(ilut, excitInfo, excitation, branch_pgen)
+            call calcDoubleR2L_stochastic(ilut, excitInfo, excitation, branch_pgen, &
+                posSwitches, negSwitches)
 
             pgen = orb_pgen * branch_pgen
 
@@ -1343,28 +1348,30 @@ contains
             ! again the double overlap part is easy to deal with, since its 
             ! only the deltaB=0 branch
             call calcFullstopLoweringStochastic(ilut, excitInfo, excitation, &
-                branch_pgen)
+                branch_pgen, posSwitches, negSwitches)
 
             pgen = orb_pgen * branch_pgen
 
         case (15) ! full-stop 2 raising
             ! again only deltaB = 0 branch in DE overlap region
             call calcFullstopRaisingStochastic(ilut, excitInfo, excitation, &
-                branch_pgen)
+                branch_pgen, posSwitches, negSwitches)
 
             pgen = orb_pgen * branch_pgen
 
         case (16) ! full-stop lowering into raising
-            call calcFullStopL2R_stochastic(ilut, excitInfo, excitation, pgen)
+            call calcFullStopL2R_stochastic(ilut, excitInfo, excitation, pgen, &
+                posSwitches, negSwitches)
 
         case (17) ! full-stop raising into lowering
-            call calcFullStopR2L_stochastic(ilut, excitInfo, excitation, pgen)
+            call calcFullStopR2L_stochastic(ilut, excitInfo, excitation, pgen, &
+                posSwitches, negSwitches)
 
 
         case (18) ! full-start 2 lowering
             ! again only deltaB = 0 branch in DE overlap region
             call calcFullStartLoweringStochastic(ilut, excitInfo, excitation, &
-                branch_pgen)
+                branch_pgen, posSwitches, negSwitches)
 
             pgen = orb_pgen * branch_pgen
 
@@ -1373,15 +1380,18 @@ contains
             ! the deltaB=0 branch is non-zero -> and the second part can be 
             ! treated as a single excitation
             call calcFullStartRaisingStochastic(ilut, excitInfo, excitation, &
-                branch_pgen)
+                branch_pgen, posSwitches, negSwitches)
 
             pgen = orb_pgen * branch_pgen
 
         case (20) ! full-start lowering into raising
-            call calcFullStartL2R_stochastic(ilut, excitInfo, excitation, pgen)
+            call calcFullStartL2R_stochastic(ilut, excitInfo, excitation, pgen, &
+                posSwitches, negSwitches)
 
         case (21) ! full-start raising into lowering
-            call calcFullStartR2L_stochastic(ilut, excitInfo, excitation, pgen)
+            call calcFullStartR2L_stochastic(ilut, excitInfo, excitation, pgen, &
+                posSwitches, negSwitches)
+
          ! start, case by case how they appear in the documentary
         case (22) ! full-start into full-stop alike
             ! since there is only the deltaB = 0 branch with non-zero weight
@@ -1434,7 +1444,7 @@ contains
             ! since if its 0 it means a switch happended at some point, but 
             ! thats seems a bit inefficient. 
             call calcFullStartFullStopMixedStochastic(ilut, excitInfo, &
-                excitation, pgen)
+                excitation, pgen, posSwitches, negSwitches)
 
             ! random notes:
 
@@ -1514,16 +1524,17 @@ contains
 
     ! write up all the specific stochastic excitation routines
 
-    subroutine calcFullStartFullStopMixedStochastic(ilut, excitInfo, t, pgen)
+    subroutine calcFullStartFullStopMixedStochastic(ilut, excitInfo, t, pgen, &
+            posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullStartFullStopMixedStochastic"
 
         type(weight_obj) :: weights
-        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), integral, &
-                    branch_pgen
+        real(dp) ::  integral, branch_pgen
         integer :: iOrb
         
         ASSERT(.not.isZero(ilut,excitInfo%fullStart))
@@ -1531,7 +1542,9 @@ contains
         ASSERT(.not.isZero(ilut,excitInfo%fullEnd))
         ASSERT(.not.isThree(ilut,excitInfo%fullEnd))
 
-        call calcRemainingSwitches(ilut, excitInfo, posSwitches, negSwitches)
+!         if (.not. present(posSwitches)) then
+!             call calcRemainingSwitches(ilut, excitInfo, posSwitches, negSwitches)
+!         end if
 
         weights = init_doubleWeight(ilut, excitInfo%fullEnd)
 
@@ -2440,17 +2453,18 @@ contains
       
     end function calcMixedContribution
 
-    subroutine calcDoubleR2L_stochastic(ilut, excitInfo, t, branch_pgen)
+    subroutine calcDoubleR2L_stochastic(ilut, excitInfo, t, branch_pgen, &
+            posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcDoubleR2L_stochastic"
 
         integer :: iOrb, start2, ende1, ende2, start1, switch
         type(weight_obj) :: weights
-        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), integral, &
-                    temp_pgen
+        real(dp) :: integral, temp_pgen
         
         ASSERT(.not.isThree(ilut,excitInfo%fullStart))
         ASSERT(.not.isZero(ilut,excitInfo%secondStart))
@@ -2461,8 +2475,10 @@ contains
         start2 = excitInfo%secondStart
         ende1 = excitInfo%firstEnd
         ende2 = excitInfo%fullEnd
-
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+! 
+!         if (.not. present(posSwitches)) then
+!             call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+!         end if
 
         ! : create correct weights:
         weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
@@ -2593,17 +2609,18 @@ contains
         end if
     end subroutine calcDoubleR2L_stochastic
 
-    subroutine calcDoubleL2R_stochastic(ilut, excitInfo, t, branch_pgen)
+    subroutine calcDoubleL2R_stochastic(ilut, excitInfo, t, branch_pgen, &
+            posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcDoubleL2R_stochastic"
 
         integer :: iOrb, start2, ende1, ende2, start1, switch
         type(weight_obj) :: weights
-        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), integral, &
-            temp_pgen
+        real(dp) :: integral, temp_pgen
         
         ASSERT(.not.isZero(ilut,excitInfo%fullStart))
         ASSERT(.not.isThree(ilut,excitInfo%secondStart))
@@ -2615,7 +2632,9 @@ contains
         ende1 = excitInfo%firstEnd
         ende2 = excitInfo%fullEnd
 
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+!         if (.not. present(posSwitches)) then
+!             call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+!         end if
 
         ! : create correct weights:
         weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
@@ -2720,17 +2739,18 @@ contains
         end if
     end subroutine calcDoubleL2R_stochastic
 
-    subroutine calcDoubleL2R2L_stochastic(ilut, excitInfo, t, branch_pgen)
+    subroutine calcDoubleL2R2L_stochastic(ilut, excitInfo, t, branch_pgen, &
+            posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcDoubleL2R2L_stochastic"
 
         integer :: iOrb, start2, ende1, ende2, start1, switch
         type(weight_obj) :: weights
-        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), integral, &
-                    temp_pgen
+        real(dp) :: integral, temp_pgen
         
         ! have to create this additional routine to more efficiently 
         ! incorporate the integral contributions, since it is vastly different
@@ -2745,7 +2765,9 @@ contains
         ende1 = excitInfo%firstEnd
         ende2 = excitInfo%fullEnd
 
-        call calcRemainingSwitches(ilut, excitInfo,1,  posSwitches, negSwitches)
+!         if (.not. present(posSwitches)) then
+!             call calcRemainingSwitches(ilut, excitInfo,1,  posSwitches, negSwitches)
+!         end if
 
         ! : create correct weights:
         weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
@@ -2873,17 +2895,18 @@ contains
 
     end subroutine calcDoubleL2R2L_stochastic
 
-    subroutine calcDoubleRaisingStochastic(ilut, excitInfo, t, branch_pgen)
+    subroutine calcDoubleRaisingStochastic(ilut, excitInfo, t, branch_pgen, &
+            posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcDoubleRaisingStochastic"
 
         integer :: iOrb, start2, ende1, ende2, start1
         type(weight_obj) :: weights
-        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), integral, &
-                    temp_pgen
+        real(dp) :: integral, temp_pgen
         
         ASSERT(.not.isThree(ilut,excitInfo%fullStart))
         ASSERT(.not.isThree(ilut,excitInfo%secondStart))
@@ -2894,8 +2917,10 @@ contains
         start2 = excitInfo%secondStart
         ende1 = excitInfo%firstEnd
         ende2 = excitInfo%fullEnd
-
-        call calcRemainingSwitches(ilut, excitInfo,1,  posSwitches, negSwitches)
+! 
+!         if (.not. present(posSwitches)) then
+!             call calcRemainingSwitches(ilut, excitInfo,1,  posSwitches, negSwitches)
+!         end if
 
         ! : create correct weights:
         weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
@@ -2986,17 +3011,18 @@ contains
 
     end subroutine calcDoubleRaisingStochastic
 
-    subroutine calcDoubleR2L2R_stochastic(ilut, excitInfo, t, branch_pgen)
+    subroutine calcDoubleR2L2R_stochastic(ilut, excitInfo, t, branch_pgen, &
+            posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcDoubleR2L2R_stochastic"
 
         integer :: iOrb, start2, ende1, ende2, start1, switch
         type(weight_obj) :: weights
-        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), integral, &
-            temp_pgen
+        real(dp) :: integral, temp_pgen
         
 ! #ifdef __DEBUG
 !         call write_det_guga(6,ilut)
@@ -3012,7 +3038,9 @@ contains
         ende1 = excitInfo%firstEnd
         ende2 = excitInfo%fullEnd
 
-        call calcRemainingSwitches(ilut, excitInfo,1,  posSwitches, negSwitches)
+!         if (.not. present(posSwitches)) then 
+!             call calcRemainingSwitches(ilut, excitInfo,1,  posSwitches, negSwitches)
+!         end if
 
         ! : create correct weights:
         weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
@@ -3120,17 +3148,18 @@ contains
     end subroutine calcDoubleR2L2R_stochastic
 
 
-    subroutine calcDoubleLoweringStochastic(ilut, excitInfo, t, branch_pgen)
+    subroutine calcDoubleLoweringStochastic(ilut, excitInfo, t, branch_pgen, &
+            posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcDoubleLoweringStochastic"
 
         integer :: iOrb, start2, ende1, ende2, start1
         type(weight_obj) :: weights
-        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), integral, &
-                    temp_pgen
+        real(dp) :: integral, temp_pgen
        
 ! #ifdef __DEBUG
 !         call write_det_guga(6,ilut)
@@ -3149,8 +3178,10 @@ contains
         start2 = excitInfo%secondStart
         ende1 = excitInfo%firstEnd
         ende2 = excitInfo%fullEnd
-
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+! 
+!         if (.not. present(posSwitches)) then
+!             call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+!         end if
 
         ! : create correct weights:
         weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
@@ -3253,16 +3284,18 @@ contains
 
     end subroutine calcDoubleLoweringStochastic
 
-    subroutine calcFullStopL2R_stochastic(ilut,excitInfo, t, pgen)
+    subroutine calcFullStopL2R_stochastic(ilut,excitInfo, t, pgen, &
+            posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullStopL2R_stochastic"
 
         type(weight_obj) :: weights
         integer :: st, se, e, i, j, step, sw, step2
-        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), umat, topCont, &
+        real(dp) ::  umat, topCont, &
             tempWeight, tempWeight_1, integral, deltaB(nSpatOrbs), minusWeight, &
             plusWeight, zeroWeight, switchWeight, branch_pgen, temp_pgen, &
             probWeight
@@ -3272,8 +3305,10 @@ contains
         se = excitInfo%secondStart
         e = excitInfo%fullEnd
 
+!         if (.not. present(posSwitches)) then
+!             call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+!         end if
 
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
         ! init weights
         weights = init_semiStartWeight(ilut, se, e, negSwitches(se), &
             posSwitches(se), currentB_ilut(se))
@@ -3825,16 +3860,18 @@ contains
 
     end subroutine calc_mixed_end_l2r_contr_nosym
     
-    subroutine calcFullStopR2L_stochastic(ilut, excitInfo, t, pgen)
+    subroutine calcFullStopR2L_stochastic(ilut, excitInfo, t, pgen, &
+            posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullStopR2L_stochastic"
 
         type(weight_obj) :: weights
         integer :: st, se, en, i, j, step, sw, step2
-        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), umat, topCont, &
+        real(dp) ::  umat, topCont, &
             tempWeight, tempWeight_1, integral, deltaB(nSpatOrbs), minusWeight, &
             plusWeight, zeroWeight, switchWeight, probWeight, branch_pgen, &
             temp_pgen
@@ -3844,7 +3881,10 @@ contains
         se = excitInfo%secondStart
         en = excitInfo%fullEnd
 
-        call calcRemainingSwitches_excitInfo_double(ilut, excitInfo, 1, posSwitches, negSwitches)
+!         if (.not. present(posSwitches)) then
+!             call calcRemainingSwitches_excitInfo_double(ilut, excitInfo, 1, posSwitches, negSwitches)
+!         end if
+
         ! init weights
         weights = init_semiStartWeight(ilut, se, en, negSwitches(se), &
             posSwitches(se), currentB_ilut(se))
@@ -6033,17 +6073,18 @@ contains
 
     end subroutine calcLoweringSemiStopStochastic
 
-    subroutine calcFullStartR2L_stochastic(ilut, excitInfo, t, pgen)
+    subroutine calcFullStartR2L_stochastic(ilut, excitInfo, t, pgen, &
+            posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullStartR2L_stochastic"
 
         integer :: i, st, en, se, gen, j, step, sw, step2
         type(weight_obj) :: weights
-        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
-                    integral, botCont, tempWeight, tempWeight_1, umat, &
+        real(dp) :: integral, botCont, tempWeight, tempWeight_1, umat, &
                     zeroWeight, orbitalProb, origWeight, startProb, &
                     startWeight, switchWeight, branch_pgen, temp_pgen, temp
         logical :: switchFlag
@@ -6065,7 +6106,10 @@ contains
 !             end if
 !         end if
 ! ! 
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+
+!         if (.not. present(posSwitches)) then
+!             call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+!         end if
 
         ! create correct weights:
         weights = init_fullStartWeight(ilut, se, en, negSwitches(se), &
@@ -6600,17 +6644,18 @@ contains
     end function orb_pgen_contrib_type_2_diff
 
 
-    subroutine calcFullStartL2R_stochastic(ilut, excitInfo, t, pgen)
+    subroutine calcFullStartL2R_stochastic(ilut, excitInfo, t, pgen, &
+            posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullStartL2R_stochastic"
 
         integer :: i, st, en, se, gen, j, step, sw, step2
         type(weight_obj) :: weights
-        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
-                    integral, botCont, tempWeight, tempWeight_1, umat, &
+        real(dp) :: integral, botCont, tempWeight, tempWeight_1, umat, &
                     zeroWeight, orbitalProb, origWeight, startProb, startWeight, &
                     switchWeight, branch_pgen, temp_pgen
         logical :: switchFlag
@@ -6641,7 +6686,9 @@ contains
         se = excitInfo%firstEnd
         gen = excitInfo%lastGen
         
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+!         if (.not. present(posSwitches)) then
+!             call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+!         end if
 
         ! create correct weights:
         weights = init_fullStartWeight(ilut, se, en, negSwitches(se), &
@@ -7852,16 +7899,17 @@ contains
 ! 
     end subroutine mixedFullStartStochastic
 
-    subroutine calcSingleOverlapMixedStochastic(ilut, excitInfo, t, branch_pgen)
+    subroutine calcSingleOverlapMixedStochastic(ilut, excitInfo, t, branch_pgen, &
+            posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcSingleOverlapMixedStochastic"
 
         type(weight_obj) :: weights
-        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), tempWeight, &
-                    bVal, umat, temp_pgen
+        real(dp) :: tempWeight, bVal, umat, temp_pgen
         integer :: iOrb, deltaB, iEx
 
 
@@ -7877,7 +7925,7 @@ contains
                 excitInfo%fullStart, excitInfo%fullEnd) + &
                 get_umat_el(excitInfo%secondStart,excitInfo%firstEnd, &
                 excitInfo%fullEnd,excitInfo%fullStart))/2.0_dp
-        else if (excitInfo%typ == 7) then
+        else if (excitInfo%typ == 7) then 
             umat = (get_umat_el(excitInfo%fullStart, excitInfo%fullEnd, &
                 excitInfo%firstEnd, excitInfo%secondStart) + &
                 get_umat_el(excitInfo%fullEnd,excitInfo%fullStart,&
@@ -7896,8 +7944,10 @@ contains
             return
 !             call abort_excitation()
         end if
-
-        call calcRemainingSwitches(ilut, excitInfo,1, posSwitches, negSwitches)
+! 
+!         if (.not. present(posSwitches)) then
+!             call calcRemainingSwitches(ilut, excitInfo,1, posSwitches, negSwitches)
+!         end if
 
         ! in the mixed single overlap case its just like a regular single 
         ! excitation except the special change in stepvector at the 
@@ -7967,15 +8017,16 @@ contains
 
     end subroutine calcSingleOverlapMixedStochastic
 
-    subroutine calcFullstopRaisingStochastic(ilut, excitInfo, t, branch_pgen)
+    subroutine calcFullstopRaisingStochastic(ilut, excitInfo, t, branch_pgen, &
+            posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullstopRaisingStochastic"
 
-        real(dp) :: umat, posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), nOpen, &
-                    tempWeight, bVal, temp_pgen
+        real(dp) :: umat, nOpen, tempWeight, bVal, temp_pgen
         type(weight_obj) :: weights
         integer :: iOrb, deltaB
 
@@ -7998,8 +8049,10 @@ contains
             return
         end if
 
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
-
+!         if (.not. present(posSwitches)) then
+!             call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+!         end if
+! 
          ! create weight object here
         ! i think i only need single excitations weights here, since 
         ! the semi stop in this case is like an end step...
@@ -8112,15 +8165,16 @@ contains
 
     end subroutine calcFullstopRaisingStochastic
 
-    subroutine calcFullstopLoweringStochastic(ilut, excitInfo, t, branch_pgen)
+    subroutine calcFullstopLoweringStochastic(ilut, excitInfo, t, branch_pgen, &
+            posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullstopLoweringStochastic"
 
-        real(dp) :: umat, posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), nOpen, &
-                    tempWeight, bVal, temp_pgen
+        real(dp) :: umat,  nOpen, tempWeight, bVal, temp_pgen
         type(weight_obj) :: weights
         integer :: iOrb, deltaB
 
@@ -8143,7 +8197,9 @@ contains
             return
         end if
 
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+!         if (.not. present(posSwitches)) then
+!             call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+!         end if
 
          ! create weight object here
         ! i think i only need single excitations weights here, since 
@@ -8260,7 +8316,8 @@ contains
 
     end subroutine calcFullstopLoweringStochastic
 
-    subroutine calcFullStartLoweringStochastic(ilut, excitInfo, t, branch_pgen)
+    subroutine calcFullStartLoweringStochastic(ilut, excitInfo, t, branch_pgen, &
+            posSwitches, negSwitches)
         ! in this case there is no ambiguity in the matrix elements, as they
         ! are uniquely determined and thus can be efficiently calculated on
         ! the fly
@@ -8268,10 +8325,10 @@ contains
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullStartLoweringStochastic"
 
-        real(dp) :: tempWeight, minusWeight, plusWeight, posSwitches(nSpatOrbs),&
-                    negSwitches(nSpatOrbs), umat, nOpen, bVal, temp_pgen
+        real(dp) :: tempWeight, minusWeight, plusWeight, umat, nOpen, bVal, temp_pgen
         integer :: start, ende, semi, gen, iOrb, deltaB
         type(weight_obj) :: weights
 
@@ -8303,7 +8360,9 @@ contains
             return
         end if
         
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+!         if (.not. present(posSwitches)) then
+!             call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+!         end if
 
         ! set t
         t = ilut
@@ -8431,7 +8490,7 @@ contains
     end subroutine calcFullStartLoweringStochastic
 
    subroutine calcFullStartRaisingStochastic(ilut, excitInfo, t, &
-            branch_pgen)
+            branch_pgen, posSwitches, negSwitches)
         ! in this case there is no ambiguity in the matrix elements, as they
         ! are uniquely determined and thus can be efficiently calculated on
         ! the fly
@@ -8439,10 +8498,10 @@ contains
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
+        real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullStartRaisingStochastic"
 
-        real(dp) :: tempWeight, minusWeight, plusWeight, posSwitches(nSpatOrbs),&
-                    negSwitches(nSpatOrbs), umat, nOpen, bVal, temp_pgen
+        real(dp) :: tempWeight, minusWeight, plusWeight, umat, nOpen, bVal, temp_pgen
         integer :: start, ende, semi, gen, iOrb, deltaB
         type(weight_obj) :: weights
 
@@ -8481,8 +8540,11 @@ contains
             return
         end if
 
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
-               ! set t
+!         if (.not. present(posSwitches)) then
+!             call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+!         end if
+
+        ! set t
         t = ilut
 
         ! set 0->3

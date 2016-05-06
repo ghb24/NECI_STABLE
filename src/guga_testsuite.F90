@@ -3279,7 +3279,7 @@ contains
 
 
         print *, "testing calcDoubleR2L_stochastic(ilut,exinfo,ex,pgen):"
-        call calcDoubleR2L_stochastic(ilut,excitInfo,ex,pgen)
+!         call calcDoubleR2L_stochastic(ilut,excitInfo,ex,pgen)
 
         print *, "calcDoubleR2L_stochastic tests passed!"
 
@@ -3320,7 +3320,7 @@ contains
 
 
         print *, "testing calcDoubleL2R_stochastic(ilut,exinfo,ex,pgen):"
-        call calcDoubleL2R_stochastic(ilut,excitInfo,ex,pgen)
+!         call calcDoubleL2R_stochastic(ilut,excitInfo,ex,pgen)
 
         print *, "calcDoubleL2R_stochastic tests passed!"
         deallocate(currentB_ilut)
@@ -3360,7 +3360,7 @@ contains
 
 
         print *, "testing calcDoubleR2L2R_stochastic(ilut,exinfo,ex,pgen):"
-        call calcDoubleR2L2R_stochastic(ilut,excitInfo,ex,pgen)
+!         call calcDoubleR2L2R_stochastic(ilut,excitInfo,ex,pgen)
 
         print *, "calcDoubleR2L2R_stochastic tests passed!"
         deallocate(currentB_ilut)
@@ -3400,7 +3400,7 @@ contains
 
 
         print *, "testing calcDoubleL2R2L_stochastic(ilut,exinfo,ex,pgen):"
-        call calcDoubleL2R2L_stochastic(ilut,excitInfo,ex,pgen)
+!         call calcDoubleL2R2L_stochastic(ilut,excitInfo,ex,pgen)
 
         print *, "calcDoubleL2R2L_stochastic tests passed!"
         deallocate(currentB_ilut)
@@ -3439,7 +3439,7 @@ contains
 
 
         print *, "testing calcDoubleRaisingStochastic(ilut,exinfo,ex,pgen):"
-        call calcDoubleRaisingStochastic(ilut,excitInfo,ex,pgen)
+!         call calcDoubleRaisingStochastic(ilut,excitInfo,ex,pgen)
 
         print *, "calcDoubleRaisingStochastic tests passed!"
         deallocate(currentB_ilut)
@@ -3479,7 +3479,7 @@ contains
 
 
         print *, "testing calcDoubleLoweringStochastic(ilut,exinfo,ex,pgen):"
-        call calcDoubleLoweringStochastic(ilut,excitInfo,ex,pgen)
+!         call calcDoubleLoweringStochastic(ilut,excitInfo,ex,pgen)
 
         print *, "calcDoubleLoweringStochastic tests passed!"
         deallocate(currentB_ilut)
@@ -3519,7 +3519,7 @@ contains
 
 
         print *, "testing calcFullStopR2L_stochastic(ilut,exinfo,ex,pgen):"
-        call calcFullStopR2L_stochastic(ilut,excitInfo,ex,pgen)
+!         call calcFullStopR2L_stochastic(ilut,excitInfo,ex,pgen)
 
         print *, "calcFullStopR2L_stochastic tests passed!"
         deallocate(currentB_ilut)
@@ -3558,7 +3558,7 @@ contains
 
 
         print *, "testing calcFullStopL2R_stochastic(ilut,exInfo,ex,pgen)"
-        call calcFullStopL2R_stochastic(ilut,excitInfo,ex,pgen)
+!         call calcFullStopL2R_stochastic(ilut,excitInfo,ex,pgen)
 
         print *, "calcFullStopL2R_stochastic tests passed!"
         deallocate(currentB_ilut)
@@ -3598,7 +3598,7 @@ contains
 
 
         print *, "testing calcFullStartR2L_stochastic(ilut,exInfo,ex,pgen):"
-        call calcFullStartR2L_stochastic(ilut,excitInfo,ex,pgen)
+!         call calcFullStartR2L_stochastic(ilut,excitInfo,ex,pgen)
 
         print *, "calcFullStartR2L_stochastic tests passed!"
         deallocate(currentB_ilut)
@@ -3637,7 +3637,7 @@ contains
         ASSERT(excitInfo%typ == 20)
 
         print *, "testing calcFullStartL2R_stochastic(ilut, exInfo, ex, pgen)"
-        call calcFullStartL2R_stochastic(ilut,excitInfo,ex,pgen)
+!         call calcFullStartL2R_stochastic(ilut,excitInfo,ex,pgen)
 
         print *, "calcFullStartL2R_stochastic tests passed!"
         
@@ -3877,7 +3877,7 @@ contains
         ASSERT(excitInfo%typ == 7)
 
         print *, "testing calcSingleOverlapMixedStochastic(ilut, exInfo, ex, pgen):"
-        call calcSingleOverlapMixedStochastic(ilut, excitInfo, ex, pgen)
+!         call calcSingleOverlapMixedStochastic(ilut, excitInfo, ex, pgen)
 
         call EncodeBitDet_guga([1,2,7,8],ilut)
   
@@ -3891,7 +3891,7 @@ contains
 
         ASSERT(excitInfo%typ == 6)
 
-        call calcSingleOverlapMixedStochastic(ilut,excitInfo, ex, pgen)
+!         call calcSingleOverlapMixedStochastic(ilut,excitInfo, ex, pgen)
 
         print *, "calcSingleOverlapMixedStochastic tests passed!"
 
@@ -3927,7 +3927,7 @@ contains
         ASSERT(excitInfo%typ == 14)
 
         print *, "testing calcFullStopLoweringStochastic(ilut, exInfo, ex, pgen):"
-        call calcFullStopLoweringStochastic(ilut, excitInfo, ex, pgen)
+!         call calcFullStopLoweringStochastic(ilut, excitInfo, ex, pgen)
 
         print *, "calcFullStopLoweringStochastic tests passed!"
 
@@ -3962,7 +3962,7 @@ contains
         ASSERT(excitInfo%typ == 15)
 
         print *, "testing calcFullStopRaisingStochastic(ilut, exInfo, ex, pgen):"
-        call calcFullStopRaisingStochastic(ilut, excitInfo, ex, pgen)
+!         call calcFullStopRaisingStochastic(ilut, excitInfo, ex, pgen)
 
         print *, "calcFullStopRaisingStochastic tests passed!"
         
@@ -3998,7 +3998,7 @@ contains
         ASSERT(excitInfo%typ == 18)
 
         print *, "testing calcFullStartLoweringStochastic(ilut, exInfo, ex, pgen):"
-        call calcFullStartLoweringStochastic(ilut, excitInfo, ex, pgen)
+!         call calcFullStartLoweringStochastic(ilut, excitInfo, ex, pgen)
 
         print *, "calcFullStartLoweringStochastic tests passed!"
 
@@ -4035,7 +4035,7 @@ contains
         ASSERT(excitInfo%typ == 19)
 
         print *, "testing calcFullStartRaisingStochastic(ilut, exInfo, ex, pgen):"
-        call calcFullStartRaisingStochastic(ilut, excitInfo, ex, pgen)
+!         call calcFullStartRaisingStochastic(ilut, excitInfo, ex, pgen)
 
         print *, "calcFullStartRaisingStochastic tests passed!"
 
@@ -4160,7 +4160,7 @@ contains
         ASSERT(excitInfo%typ==23)
 
         print *, "testing calcFullStartFullStopMixedStochastic(ilut,exInfo,ex,pgen)"
-        call calcFullStartFullStopMixedStochastic(ilut, excitInfo, ex, pgen)
+!         call calcFullStartFullStopMixedStochastic(ilut, excitInfo, ex, pgen)
 
         
 
