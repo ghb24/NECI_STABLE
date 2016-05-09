@@ -7,7 +7,7 @@ module guga_excitations
     use SystemData, only: nEl, nBasis, t_guga_unit_tests, ElecPairs, G1, nmaxx, &
                           nmaxy, nmaxz, OrbECutoff, tOrbECutoff, nSpatOrbs, &
                           current_stepvector, currentOcc_ilut, currentOcc_int, &
-                          currentB_ilut, currentB_int
+                          currentB_ilut, currentB_int, current_cum_list
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_
     use bit_reps, only: niftot, decode_bit_det, encode_det, encode_part_sign, &
@@ -288,21 +288,19 @@ contains
         character(*), parameter :: this_routine = "init_csf_information"
 
         integer :: i, ierr, step, b_int
-        real(dp) :: b_real
+        real(dp) :: b_real, cum_sum
 
         ASSERT(isProperCSF_ilut(ilut))
+        ASSERT(allocated(current_stepvector))
+        ASSERT(allocated(currentB_ilut))
+        ASSERT(allocated(currentOcc_ilut))
+        ASSERT(allocated(currentB_int))
+        ASSERT(allocated(currentOcc_int))
 
-        if (allocated(current_stepvector)) deallocate(current_stepvector)
-        if (allocated(currentB_ilut))      deallocate(currentB_ilut)
-        if (allocated(currentOcc_ilut))    deallocate(currentOcc_ilut)
-        if (allocated(currentB_int))       deallocate(currentB_int)
-        if (allocated(currentOcc_int))     deallocate(currentOcc_int)
-
-        allocate(current_stepvector(nSpatOrbs), stat = ierr)
-        allocate(currentB_ilut(nSpatOrbs), stat = ierr)
-        allocate(currentOcc_ilut(nSpatOrbs), stat = ierr)
-        allocate(currentB_int(nSpatOrbs), stat = ierr)
-        allocate(currentOcc_int(nSpatOrbs), stat = ierr)
+        ! remove allocs and deallocs, since the size of these quantities 
+        ! never change.. do the allocation in guga_init
+        ! and maybe think about other improvements of this code...
+        ! what would be a neat way to calc all those quantities faster??
 
         current_stepvector = 0
         currentB_ilut = 0.0_dp
@@ -312,6 +310,10 @@ contains
 
         b_real = 0.0_dp
         b_int = 0
+
+        ! also create a fake cum-list of the non-doubly occupied orbitals
+        current_cum_list = 0.0_dp
+        cum_sum = 0.0_dp
 
         do i = 1, nSpatOrbs 
             
@@ -326,6 +328,8 @@ contains
                 currentOcc_ilut(i) = 0.0_dp
                 currentOcc_int(i) = 0
 
+                cum_sum = cum_sum + 1.0_dp
+
             case (1)
 
                 currentOcc_ilut(i) = 1.0_dp
@@ -334,6 +338,8 @@ contains
                 b_real = b_real + 1.0_dp
                 b_int = b_int + 1
 
+                cum_sum = cum_sum + 1.0_dp
+
             case (2) 
 
                 currentOcc_ilut(i) = 1.0_dp
@@ -341,6 +347,8 @@ contains
 
                 b_real = b_real - 1.0_dp
                 b_int = b_int - 1
+
+                cum_sum = cum_sum + 1.0_dp
 
             case (3) 
 
@@ -351,6 +359,8 @@ contains
 
             currentB_ilut(i) = b_real
             currentB_int(i) = b_int
+
+            current_cum_list(i) = cum_sum
 
         end do
 
@@ -1123,13 +1133,13 @@ contains
         if (genrand_real2_dSFMT() < pSingles) then
 
             IC = 1
-            call createStochasticExcitation_single(ilut, excitation, pgen)
+            call createStochasticExcitation_single(ilut, nI, excitation, pgen)
             pgen = pgen * pSingles
 
         else 
 
             IC = 2
-            call createStochasticExcitation_double(ilut, excitation, pgen, excit_typ)
+            call createStochasticExcitation_double(ilut, nI, excitation, pgen, excit_typ)
             pgen = pgen * pDoubles
         
         end if
@@ -1195,10 +1205,11 @@ contains
 
     end subroutine generate_excitation_guga
 
-    subroutine createStochasticExcitation_double(ilut, excitation, pgen, excit_typ)
+    subroutine createStochasticExcitation_double(ilut, nI, excitation, pgen, excit_typ)
         ! calculate one possible double excitation and the corresponding 
         ! probabilistic weight. and hamilton matrix element for a given CSF
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: nI(nel)
         integer(n_int), intent(out) :: excitation(0:nifguga)
         real(dp), intent(out) :: pgen
         integer, intent(out) :: excit_typ(2)
@@ -1240,7 +1251,7 @@ contains
 !             excitLvl = 4
 !         end if
 
-        call pickOrbitals_double(ilut, excitInfo, orb_pgen)
+        call pickOrbitals_double(ilut, nI, excitInfo, orb_pgen)
 
 !         if (excitInfo%excitLvl == 1) print *, "is it compatible?"
 ! #ifdef __DEBUG
@@ -1643,49 +1654,55 @@ contains
         ! UPDATE: calculate it more directly! also for UEG models! 
         ! just output the nececcary p(a)*p(b|a) and vv. and not a whole 
         ! list! 
+
+        ! chanve that routine now, to use the general pre-generated cum-list
+        ! for the current CSF
         i = gtID(occ_orbs(1))
         j = gtID(occ_orbs(2))
 
         ! given i and j determine the symmetry info: 
-        sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(occ_orbs(1)), &
-                                         SpinOrbSymLabel(occ_orbs(2)))
-
-        sum_ml = sum(G1(occ_orbs)%ml)
-
-        cum_sum = 0.0_dp
-        do orb = 1, i - 1
-            ! calc. the p(a) 
-            if (current_stepvector(orb) /= 3) then
-!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
-                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
-
-            end if
-
-        end do
+!         sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(occ_orbs(1)), &
+!                                          SpinOrbSymLabel(occ_orbs(2)))
+! 
+!         sum_ml = sum(G1(occ_orbs)%ml)
+! 
+!         cum_sum = 0.0_dp
+! 
+!         do orb = 1, i - 1
+!             ! calc. the p(a) 
+!             if (current_stepvector(orb) /= 3) then
+! !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
+! 
+!             end if
+! 
+!         end do
 
         ! deal with orb (i) in specific way: 
 !         cpt_a = get_guga_integral_contrib(occ_orbs, i, i)
-        cpt_a = get_guga_integral_contrib(occ_orbs, i, -1)
+!         cpt_a = get_guga_integral_contrib(occ_orbs, i, -1)
+        cpt_a = 1.0_dp
         
-        cum_sum = cum_sum + cpt_a
+!         cum_sum = cum_sum + cpt_a
 
         ! also get p(b|a)
         ! did i get that the wrong way around?? 
         call pgen_select_orb_guga_mol(ilut, occ_orbs, i, j, cpt_ba, ba_sum, i, .true.)
 !         call pgen_select_orb_guga_mol(ilut, occ_orbs, i, j, cpt_ab, ab_sum, i, .true.)
 
-        do orb = i + 1, j - 1
-            if (current_stepvector(orb) /= 3) then
-!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
-                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
-            end if
-        end do
+!         do orb = i + 1, j - 1
+!             if (current_stepvector(orb) /= 3) then
+! !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
+!             end if
+!         end do
 
         ! deal with j also speciallly
 !         cpt_b = get_guga_integral_contrib(occ_orbs, j, j) 
-        cpt_b = get_guga_integral_contrib(occ_orbs, j, -1)
+!         cpt_b = get_guga_integral_contrib(occ_orbs, j, -1)
+        cpt_b = 1.0_dp
 
-        cum_sum = cum_sum + cpt_b
+!         cum_sum = cum_sum + cpt_b
 
         ! and get p(a|b)
         call pgen_select_orb_guga_mol(ilut, occ_orbs, j, i, cpt_ab, ab_sum, -j, .true.)
@@ -1693,12 +1710,14 @@ contains
 
         ! and deal with rest: 
 
-        do orb = j + 1, nSpatOrbs 
-            if (current_stepvector(orb) /= 3) then 
-!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
-                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
-            end if
-        end do
+!         do orb = j + 1, nSpatOrbs 
+!             if (current_stepvector(orb) /= 3) then 
+! !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
+!             end if
+!         end do
+
+        cum_sum = current_cum_list(nSpatOrbs)
 
         if (cum_sum < EPS .or. ab_sum < EPS .or. ba_sum < EPS) then
             cpt_a = 0.0_dp
@@ -7191,22 +7210,23 @@ contains
         i = gtID(occ_orbs(1))
         j = gtID(occ_orbs(2))
 
-        cum_sum = 0.0_dp
-        do orb = 1, orb_a - 1
-            ! calc. the p(a) 
-            if (current_stepvector(orb) /= 3) then
-!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
-                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
-
-            end if
-
-        end do
+!         cum_sum = 0.0_dp
+!         do orb = 1, orb_a - 1
+!             ! calc. the p(a) 
+!             if (current_stepvector(orb) /= 3) then
+! !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
+! 
+!             end if
+! 
+!         end do
 
         ! deal with orb (a) in specific way: 
 !         cpt_a = get_guga_integral_contrib(occ_orbs, orb_a, orb_a)
-        cpt_a = get_guga_integral_contrib(occ_orbs, orb_a, -1)
+!         cpt_a = get_guga_integral_contrib(occ_orbs, orb_a, -1)
+        cpt_a = 1.0_dp
         
-        cum_sum = cum_sum + cpt_a
+!         cum_sum = cum_sum + cpt_a
 
         ! also get p(b|a)
         ! depending if its a r2l or l2r full-stop: 
@@ -7222,31 +7242,34 @@ contains
 
         ! change to the fullstart into fullstop: loop until orbital j for the 
         ! fullstop implementattion
-        do orb = orb_a + 1, j - 1
-            if (current_stepvector(orb) /= 3) then
-!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
-                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
-            end if
-        end do
-
+!         do orb = orb_a + 1, j - 1
+!             if (current_stepvector(orb) /= 3) then
+! !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
+!             end if
+!         end do
+! 
         ! deal with j also speciallly
 !         cpt_b = get_guga_integral_contrib(occ_orbs, orb_a, orb_a) 
-        cpt_b = get_guga_integral_contrib(occ_orbs, j, -1)
+!         cpt_b = get_guga_integral_contrib(occ_orbs, j, -1)
+        cpt_b = 1.0_dp
 
-        cum_sum = cum_sum + cpt_b
+!         cum_sum = cum_sum + cpt_b
 
         ! and get p(a|b)
         ! only orbitals below j are allowed! 
 !         call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_a, i, cpt_ab, ab_sum, -j, .true.)
         call pgen_select_orb_guga_mol(ilut, occ_orbs, j, orb_a, cpt_ab, ab_sum, -j, .true.)
 
-        ! and deal with rest: 
-        do orb = j + 1, nSpatOrbs 
-            if (current_stepvector(orb) /= 3) then 
-!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
-                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
-            end if
-        end do
+!         ! and deal with rest: 
+!         do orb = j + 1, nSpatOrbs 
+!             if (current_stepvector(orb) /= 3) then 
+! !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
+!             end if
+!         end do
+
+        cum_sum = current_cum_list(nSpatOrbs)
 
         if (cum_sum < EPS .or. ab_sum < EPS .or. ba_sum < EPS) then
             orb_pgen = 0.0_dp
@@ -7276,20 +7299,21 @@ contains
         i = gtID(occ_orbs(1))
         j = gtID(occ_orbs(2))
 
-        ! damn... i need the probability of the elec-pair picking too or?
-        cum_sum = 0.0_dp
-        do orb = 1, i - 1
-            ! calc. the p(a) 
-            if (current_stepvector(orb) /= 3) then
-                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
-            end if
-
-        end do
-
+!         ! damn... i need the probability of the elec-pair picking too or?
+!         cum_sum = 0.0_dp
+!         do orb = 1, i - 1
+!             ! calc. the p(a) 
+!             if (current_stepvector(orb) /= 3) then
+!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
+!             end if
+! 
+!         end do
+! 
         ! deal with orb (i) in specific way: 
-        cpt_a = get_guga_integral_contrib(occ_orbs, i, -1)
+!         cpt_a = get_guga_integral_contrib(occ_orbs, i, -1)
+        cpt_a = 1.0_dp
         
-        cum_sum = cum_sum + cpt_a
+!         cum_sum = cum_sum + cpt_a
 
         ! also get p(b|a)
         ! did i mix up i and j here below.. what do i assume picked already 
@@ -7302,16 +7326,17 @@ contains
 !         call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_a, i, cpt_ba, ba_sum, i, .true.)
 
         ! change to the fullstart into fullstop: loop until orbital a 
-        do orb = i + 1, orb_a - 1
-            if (current_stepvector(orb) /= 3) then
-                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
-            end if
-        end do
-
+!         do orb = i + 1, orb_a - 1
+!             if (current_stepvector(orb) /= 3) then
+!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
+!             end if
+!         end do
+! 
         ! deal with a also speciallly
-        cpt_b = get_guga_integral_contrib(occ_orbs, orb_a, -1) 
+!         cpt_b = get_guga_integral_contrib(occ_orbs, orb_a, -1) 
+        cpt_b = 1.0_dp
 
-        cum_sum = cum_sum + cpt_b
+!         cum_sum = cum_sum + cpt_b
 
         ! and get p(a|b)
         ! here the only difference between r2l and l2r fullstarts come into
@@ -7325,13 +7350,15 @@ contains
 !             call pgen_select_orb_guga_mol(ilut, occ_orbs, i, orb_a, cpt_ab, ab_sum)
             call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_a, i, cpt_ab, ab_sum)
         end if
+! 
+!         ! and deal with rest: 
+!         do orb = orb_a + 1, nSpatOrbs 
+!             if (current_stepvector(orb) /= 3) then 
+!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
+!             end if
+!         end do
 
-        ! and deal with rest: 
-        do orb = orb_a + 1, nSpatOrbs 
-            if (current_stepvector(orb) /= 3) then 
-                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
-            end if
-        end do
+        cum_sum = current_cum_list(nSpatOrbs)
 
         if (cum_sum < EPS .or. ab_sum < EPS .or. ba_sum < EPS) then
             orb_pgen = 0.0_dp
@@ -8673,11 +8700,12 @@ contains
 
     end subroutine calcFullStartRaisingStochastic
 
-    subroutine createStochasticExcitation_single(ilut, exc, pgen)
+    subroutine createStochasticExcitation_single(ilut, nI, exc, pgen)
         ! calculate one possible single excitation and the corresponding 
         ! probabilistic weight and hamilton matrix element for a given CSF
         ! store matrix element in ilut for now... maybe change that later
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: nI(nel)
         integer(n_int), intent(out) :: exc(0:nifguga)
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "createStochasticExcitation_single"
@@ -8709,7 +8737,7 @@ contains
         ! and non-symmetric excitation generator
         ! so in the initialize function point a general orbital picker to 
         ! the specific one, depending on the input..
-        call pickOrbitals_single(ilut, excitInfo, orb_pgen)
+        call pickOrbitals_single(ilut, nI, excitInfo, orb_pgen)
 
         if ( .not. excitInfo%valid ) then
             ! if no valid indices were picked, return 0 excitation and return
@@ -10151,24 +10179,26 @@ contains
 !         call encode_matrix_element(excitations(:,1), diagEle, 1)
         nTot = 0
 
-        ! allocate and calc. b and occupation out here
-        if (allocated(currentB_ilut)) deallocate(currentB_ilut)
-        if (allocated(currentOcc_ilut)) deallocate(currentOcc_ilut)
-        if (allocated(current_stepvector)) deallocate(current_stepvector)
-        if (allocated(currentOcc_int)) deallocate(currentOcc_int)
-        if (allocated(currentB_int)) deallocate(currentB_int)
+!         ! allocate and calc. b and occupation out here
+!         if (allocated(currentB_ilut)) deallocate(currentB_ilut)
+!         if (allocated(currentOcc_ilut)) deallocate(currentOcc_ilut)
+!         if (allocated(current_stepvector)) deallocate(current_stepvector)
+!         if (allocated(currentOcc_int)) deallocate(currentOcc_int)
+!         if (allocated(currentB_int)) deallocate(currentB_int)
+! 
+!         allocate(currentB_ilut(nSpatOrbs), stat = ierr)
+!         allocate(currentOcc_ilut(nSpatOrbs), stat = ierr)
+!         allocate(current_stepvector(nSpatOrbs), stat = ierr)
+!         allocate(currentOcc_int(nSpatOrbs), stat = ierr)
+!         allocate(currentB_int(nSpatOrbs), stat = ierr)
 
-        allocate(currentB_ilut(nSpatOrbs), stat = ierr)
-        allocate(currentOcc_ilut(nSpatOrbs), stat = ierr)
-        allocate(current_stepvector(nSpatOrbs), stat = ierr)
-        allocate(currentOcc_int(nSpatOrbs), stat = ierr)
-        allocate(currentB_int(nSpatOrbs), stat = ierr)
+        call init_csf_information(ilut(0:nifd))
 
-        currentB_ilut = calcB_vector_ilut(ilut(0:nifd))
-        currentOcc_ilut = calcOcc_vector_ilut(ilut(0:nifd))
-        current_stepvector = calcStepvector(ilut(0:nifd))
-        currentOcc_int = calcOcc_vector_int(ilut(0:nifd))
-        currentB_int = calcB_vector_int(ilut(0:nifd))
+!         currentB_ilut = calcB_vector_ilut(ilut(0:nifd))
+!         currentOcc_ilut = calcOcc_vector_ilut(ilut(0:nifd))
+!         current_stepvector = calcStepvector(ilut(0:nifd))
+!         currentOcc_int = calcOcc_vector_int(ilut(0:nifd))
+!         currentB_int = calcB_vector_int(ilut(0:nifd))
 
         ! single excitations:
 !         if (pSingles > 0.0_dp) then
@@ -10315,12 +10345,12 @@ contains
         nTot = j - 1
 
 !         deallocate(tempExcits)
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(current_stepvector)
-        deallocate(currentOcc_int)
-        deallocate(currentB_int)
-
+!         deallocate(currentB_ilut)
+!         deallocate(currentOcc_ilut)
+!         deallocate(current_stepvector)
+!         deallocate(currentOcc_int)
+!         deallocate(currentB_int)
+! 
     end subroutine actHamiltonian
 
     subroutine calcAllExcitations_excitInfo_single(ilut, excitInfo, posSwitches, &
@@ -19310,18 +19340,19 @@ contains
 !     
 !     end subroutine startDoubleExcitation
 !     
-    subroutine pickOrbs_sym_uniform_mol_single(ilut, excitInfo, pgen)
+    subroutine pickOrbs_sym_uniform_mol_single(ilut, nI, excitInfo, pgen)
         ! new implementation to pick single orbitals, more similar to the 
         ! other neci implementations
         ! with this new looping over other orbitals it will probably also 
         ! be easier to include the neccesarry switch conditions!
         ! this also applies for double excitations!! -> think about that ! 
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: nI(nel)
         type(excitationInformation), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbs_sym_uniform_mol_single"
 
-        integer :: elec, nI(nEl), cc_i, ierr, nOrb, orb_ind, orb_i, orb_a
+        integer :: elec, cc_i, ierr, nOrb, orb_ind, orb_i, orb_a
         real(dp), allocatable :: cum_arr(:)
         real(dp) :: cum_sum, r, elec_factor
 
@@ -19331,7 +19362,7 @@ contains
         ! -> since twice the chance to pick that orbital then! 
 
         ! pick associated "spin orbital"
-        call decode_bit_det(nI,ilut)
+!         call decode_bit_det(nI,ilut)
         orb_i = nI(elec)
 
         ! get the symmetry index:
@@ -19357,18 +19388,18 @@ contains
                 ! elektron war..
             case (1)
                 elec_factor = 1.0_dp
-                call gen_cum_list_guga_single_1(ilut, orb_i, cc_i, cum_arr)
+                call gen_cum_list_guga_single_1(nI, orb_i, cc_i, cum_arr)
 
             case (2)
                 ! to do
                 elec_factor = 1.0_dp
-                call gen_cum_list_guga_single_2(ilut, orb_i, cc_i, cum_arr)
+                call gen_cum_list_guga_single_2(nI, orb_i, cc_i, cum_arr)
 
             case (3)
                 ! adjust pgen, the chance to pick a doubly occupied with 
                 ! spinorbitals is twice as high..
                 elec_factor = 2.0_dp
-                call gen_cum_list_guga_single_3(ilut, orb_i, cc_i, cum_arr)
+                call gen_cum_list_guga_single_3(nI, orb_i, cc_i, cum_arr)
 
             case default
                 call stop_all(this_routine, "should not have picked empty orbital")
@@ -19416,14 +19447,14 @@ contains
 
     end subroutine pickOrbs_sym_uniform_mol_single
 
-    subroutine gen_cum_list_guga_single_1(ilut, orb_i, cc_i, cum_arr)
+    subroutine gen_cum_list_guga_single_1(nI, orb_i, cc_i, cum_arr)
         ! specific single orbital picker if stepvector of electron (i) is 1
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: nI(nel)
         integer, intent(in) :: orb_i, cc_i
         real(dp), intent(out) :: cum_arr(OrbClassCount(cc_i))
         character(*), parameter :: this_routine = "gen_cum_list_guga_single_1"
 
-        integer :: nOrb, i, label_index, j, nI(nEl), n_id(nEl), id_i, id, &
+        integer :: nOrb, i, label_index, j, n_id(nEl), id_i, id, &
                    lower, upper, s_orb, st, en, gen
         real(dp) :: cum_sum, hel
         
@@ -19432,7 +19463,7 @@ contains
         ! still not quite sure how to effectively include that...
         nOrb = OrbClassCount(cc_i)
         label_index = SymLabelCounts2(1, cc_i)
-        call decode_bit_det(nI,ilut)
+!         call decode_bit_det(nI,ilut)
         n_id = gtID(nI)
         id_i = gtID(orb_i)
 
@@ -19569,14 +19600,14 @@ contains
 
     end subroutine gen_cum_list_guga_single_1
 
-    subroutine gen_cum_list_guga_single_2(ilut, orb_i, cc_i, cum_arr)
+    subroutine gen_cum_list_guga_single_2(nI, orb_i, cc_i, cum_arr)
         ! specific single orbital picker if stepvector of electron (i) is 2
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: nI(nel)
         integer, intent(in) :: orb_i, cc_i
         real(dp), intent(out) :: cum_arr(OrbClassCount(cc_i))
         character(*), parameter :: this_routine = "gen_cum_list_guga_single_2"
 
-        integer :: nOrb, i, label_index, j, nI(nEl), n_id(nEl), id_i, id, &
+        integer :: nOrb, i, label_index, j, n_id(nEl), id_i, id, &
                    lower, upper, s_orb
         real(dp) :: cum_sum, hel
         
@@ -19585,7 +19616,7 @@ contains
         ! still not quite sure how to effectively include that...
         nOrb = OrbClassCount(cc_i)
         label_index = SymLabelCounts2(1, cc_i)
-        call decode_bit_det(nI,ilut)
+!         call decode_bit_det(nI,ilut)
         n_id = gtID(nI)
         id_i = gtID(orb_i)
 
@@ -19689,21 +19720,21 @@ contains
 
     end subroutine gen_cum_list_guga_single_2
 
-    subroutine gen_cum_list_guga_single_3(ilut, orb_i, cc_i, cum_arr)
+    subroutine gen_cum_list_guga_single_3(nI, orb_i, cc_i, cum_arr)
         ! specific single orbital picker if stepvector of electron (i) is 3
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: nI(nel)
         integer, intent(in) :: orb_i, cc_i
         real(dp), intent(out) :: cum_arr(OrbClassCount(cc_i))
         character(*), parameter :: this_routine = "gen_cum_list_guga_single_3"
 
-        integer :: nOrb, i, label_index, j, nI(nEl), n_id(nEl), id_i, id, s_orb
+        integer :: nOrb, i, label_index, j, n_id(nEl), id_i, id, s_orb
         real(dp) :: cum_sum, hel
         ! in the case of a 3 there are actually no additional, restrictions
 
         nOrb = OrbClassCount(cc_i)
         label_index = SymLabelCounts2(1, cc_i)
 
-        call decode_bit_det(nI, ilut)
+!         call decode_bit_det(nI, ilut)
         n_id = gtID(nI)
         id_i = gtID(orb_i)
 
@@ -19854,15 +19885,16 @@ contains
 
     end subroutine gen_cum_list_guga_single_3
 
-    subroutine pickOrbs_sym_uniform_ueg_double(ilut, excitInfo, pgen)
+    subroutine pickOrbs_sym_uniform_ueg_double(ilut, nI, excitInfo, pgen)
         ! specific orbital picker for hubbard and UEG type models with 
         ! full k-point symmetry 
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: nI(nel)
         type(excitationInformation), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbs_sym_uniform_ueg_double"
 
-        integer :: occ_orbs(2), ind, eleci, elecj, nI(nEl), orb, orb_2, orb_arr(nSpatOrbs)
+        integer :: occ_orbs(2), ind, eleci, elecj, orb, orb_2, orb_arr(nSpatOrbs)
         real(dp) :: cum_sum, cum_arr(nSpatOrbs), pelec, r, cpt1, cpt2
         type(excitationInformation) :: excit_arr(nBasis)
 
@@ -19880,7 +19912,7 @@ contains
         ! i pick spatial orbitals out of occupied spin-orbitals -> 
         ! so the chance to pick a doubly occupied spatial orbital is twice 
         ! as high -> adjust the corresponding probabilities
-        call decode_bit_det(nI, ilut)
+!         call decode_bit_det(nI, ilut)
 
         ! Obtain the orbitals and their momentum vectors for the given elecs.
         occ_orbs(1) = nI(eleci)
@@ -19922,10 +19954,11 @@ contains
 
     end subroutine pickOrbs_sym_uniform_ueg_double
 
-    subroutine pickOrbs_sym_uniform_ueg_single(ilut, excitInfo, pgen)
+    subroutine pickOrbs_sym_uniform_ueg_single(ilut, nI, excitInfo, pgen)
         ! dummy function to abort calculation if single excitation in 
         ! hubbard/ueg models gets called incorrectly
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: nI(nel)
         type(excitationInformation), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbs_sym_uniform_ueg_single"
@@ -20637,10 +20670,11 @@ contains
 
     end subroutine gen_ab_cum_list_3
 
-    subroutine pickOrbs_sym_uniform_mol_double(ilut, excitInfo, pgen)
+    subroutine pickOrbs_sym_uniform_mol_double(ilut, nI, excitInfo, pgen)
         ! new orbital picking routine, which is closer to simons already 
         ! implemented one for the determinant version
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: nI(nel)
         type(excitationInformation), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbs_sym_uniform_mol_double"
@@ -20652,7 +20686,7 @@ contains
         logical :: range_flag
 
          ! pick 2 ocupied orbitals randomly:
-         call pick_elec_pair_uniform_guga(ilut, occ_orbs, sym_prod, sum_ml, &
+         call pick_elec_pair_uniform_guga(nI, occ_orbs, sym_prod, sum_ml, &
              pgen)
          ! the 2 picked electrons are ALWAYS ordered too! so i already know
          ! that I < J 
@@ -22166,7 +22200,9 @@ contains
         ! symrandexcit5!
 
         ! generate the cummulative pgen list: 
-        call gen_a_orb_cum_list_guga_mol(ilut, occ_orbs, cum_arr)
+!         call gen_a_orb_cum_list_guga_mol(ilut, occ_orbs, cum_arr)
+
+        cum_arr = current_cum_list
 
         cum_sum = cum_arr(nSpatOrbs)
         ! check if no excitation is possible
@@ -22361,12 +22397,12 @@ contains
 
         ! for now, since i dont know how to correctly do it, and for testing
         ! purposes just add a uniformly factor to all of the orbitals.
-        if (orb_b < 0) then
-            cpt = 1.0_dp
-            ! but now since it works, which one should i actually take..??
-            ! test around a bit.. what the resulting time-step then is.
-            ! but first get everything else working! 
-        else
+!         if (orb_b < 0) then
+!             cpt = 1.0_dp
+!             ! but now since it works, which one should i actually take..??
+!             ! test around a bit.. what the resulting time-step then is.
+!             ! but first get everything else working! 
+!         else
 !             cpt = abs(get_umat_el(ind(1),ind(2),orb_a,orb_b) + &
 !                 get_umat_el(ind(1),ind(2),orb_b,orb_a))
             cpt = abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) +&
@@ -22375,20 +22411,20 @@ contains
             ! could also do it uniformly
 !             cpt = sqrt(abs_l1(UMat2D(max(ind(1), orb_a), min(ind(1), orb_a)))) & 
 !                 + sqrt(abs_l1(UMat2D(max(ind(2), orb_a), min(ind(2), orb_a))))
-       end if
+!        end if
 
         ! TODO proper one
 
     end function get_guga_integral_contrib
 
-    subroutine pick_elec_pair_uniform_guga(ilut, spin_orbs, sym_prod, sum_ml, &
+    subroutine pick_elec_pair_uniform_guga(nI, spin_orbs, sym_prod, sum_ml, &
             temp_pgen)
         ! pick two occupied "spin orbitals" uniform-randomly
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: nI(nel)
         integer, intent(out) :: spin_orbs(2), sym_prod, sum_ml
         character(*), parameter :: this_routine = "pick_elec_pair_uniform_guga"
 
-        integer :: i, ind(2), nI(nEl)
+        integer :: i, ind(2)
         real(dp), intent(out) :: temp_pgen
 
         i = 1 + int(ElecPairs * genrand_real2_dSFMT())
@@ -22396,7 +22432,7 @@ contains
         ind(2) = ceiling((1 + sqrt(1 + 8 * real(i,dp))) / 2)
         ind(1) = i - ((ind(2) - 1) * (ind(2) - 2)) / 2
 
-        call decode_bit_det(nI, ilut)
+!         call decode_bit_det(nI, ilut)
 
         spin_orbs = nI(ind)
 
@@ -22537,7 +22573,7 @@ contains
 
     end subroutine pick_first_orbital_nosym_guga_diff
 
-    subroutine pickOrbitals_nosym_double(ilut, excitInfo, pgen)
+    subroutine pickOrbitals_nosym_double(ilut, nI, excitInfo, pgen)
         ! function to pick 4 calid excitation orbitals given a CSF for a 
         ! double excitation and also determine the type of that excitation
         ! also a second specification of the general type of double excitation
@@ -22558,6 +22594,7 @@ contains
         ! also not yet implement alis cauchy-schwartz criteria, but choose 
         ! the orbitals uniformly!
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: nI(nel)
         type(excitationInformation), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbitals_nosym_double"
@@ -25534,10 +25571,11 @@ contains
 
     end subroutine pickRandomOrb_scalar
 
-    subroutine pickOrbitals_nosym_single(ilut, excitInfo, pgen)
+    subroutine pickOrbitals_nosym_single(ilut, nI, excitInfo, pgen)
         ! funnction to pick 2 valid excitation orbitals provided a ilut for a 
         ! single excitation. todo how to combine that with integral files...
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: nI(nel)
         type(excitationInformation), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbitals_nosym_single"

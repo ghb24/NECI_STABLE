@@ -2,3 +2,14 @@ do a profiling analysis of my guga code:
 
 calcb_vector_int seems to use a lot of cpu power...
 but is this because of debug? 
+
+yes it is. cont. on profiling with new results: 
+
+removed allocs in init_csf_information
+
+also decode_bit det is called more often than necessary, if i would just reuse nI info more often..
+
+in the cum_list creation, i should remove the calls to get_umat_el, if i dont use integral influence at all
+should just create a cum_list once, (of the non-double orbitals) and store that and reuse it.. 
+
+or I have to think how to use the integral influence to improve the pgens..

@@ -4181,7 +4181,10 @@ contains
         type(excitationInformation) :: excitInfo
         integer(n_int) :: ilut(0:nifguga)
         real(dp) :: pgen
+        integer :: nI(nel)
 
+        nI = [1,2,3,4]
+        
         call EncodeBitDet_guga([1,2,3,4],ilut)
        allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
@@ -4200,8 +4203,8 @@ contains
         ! randomly and adjust the pgens accordingly...
         
         print *, "testing pickOrbitals_double(ilut, excitLvl):"
-        call pickOrbitals_double(ilut, excitInfo, pgen)
-        call pickOrbitals_double(ilut, excitInfo, pgen)
+        call pickOrbitals_double(ilut, nI, excitInfo, pgen)
+        call pickOrbitals_double(ilut, nI, excitInfo, pgen)
 
 
         print *, "pickOrbitals_double tests passed!"
@@ -4219,7 +4222,9 @@ contains
         character(*), parameter :: this_routine = "test_createStochasticExcitation_double"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         real(dp) :: pgen
-        integer :: dummy(2)
+        integer :: dummy(2), nI(nel)
+
+        nI = [1,5,6,8]
 
         call EncodeBitDet_guga([1,5,6,8], ilut)
         allocate(currentB_ilut(4))
@@ -4234,7 +4239,7 @@ contains
         current_stepvector = calcStepVector(ilut)
         currentB_int = calcB_vector_int(ilut)
         print *, "testing createStochasticExcitation_double(ilut, ex, pgen):"
-        call createStochasticExcitation_double(ilut,ex,pgen,dummy)
+        call createStochasticExcitation_double(ilut,nI,ex,pgen,dummy)
 
         print *, "createStochasticExcitation_double tests passed!"
 
@@ -4506,6 +4511,9 @@ contains
         integer(n_int) :: ilut(0:nifguga)
         type(excitationInformation) :: excitInfo
         real(dp) :: pgen
+        integer :: nI(nel)
+
+        nI = [1,2,3,4]
 
         call EncodeBitDet_guga([1,2,3,4],ilut)
 
@@ -4526,12 +4534,13 @@ contains
         ! todo the pick random orbital picker.. 
         ! ask ali and simon
         print *, "testing: pickOrbitals_single(ilut)"
-        call pickOrbitals_single(ilut, excitInfo, pgen)
-        call pickOrbitals_single(ilut, excitInfo, pgen)
-        call pickOrbitals_single(ilut, excitInfo, pgen)
+        call pickOrbitals_single(ilut, nI, excitInfo, pgen)
+        call pickOrbitals_single(ilut, nI, excitInfo, pgen)
+        call pickOrbitals_single(ilut, nI, excitInfo, pgen)
 
         call EncodeBitDet_guga([1,4,5,8], ilut)
        
+        nI = [1,4,5,8]
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -4539,8 +4548,8 @@ contains
         currentB_int = calcB_vector_int(ilut)
         currentB_ilut = calcB_vector_ilut(ilut)
 
-        call pickOrbitals_single(ilut, excitInfo, pgen)
-        call pickOrbitals_single(ilut, excitInfo, pgen)
+        call pickOrbitals_single(ilut, nI, excitInfo, pgen)
+        call pickOrbitals_single(ilut, nI, excitInfo, pgen)
 
 
         print *, "pickOrbitals_single tests passed!"
@@ -4557,6 +4566,9 @@ contains
         character(*), parameter :: this_routine = "test_createStochasticExcitation_single"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         real(dp) :: pgen
+        integer :: nI(nel) 
+
+        nI = [1,2,3,4]
         
         call EncodeBitDet_guga([1,2,3,4], ilut)
 
@@ -4574,7 +4586,7 @@ contains
         currentB_ilut = calcB_vector_ilut(ilut)
 
         print *, "testing: createStochasticExcitation_single(ilut,ex,weight):"
-        call createStochasticExcitation_single(ilut, ex, pgen)
+        call createStochasticExcitation_single(ilut, nI, ex, pgen)
 
         print *, "createStochasticExcitation_single tests passed!"
  
