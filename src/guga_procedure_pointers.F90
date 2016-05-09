@@ -3,12 +3,14 @@ module guga_procedure_pointers
     implicit none
 
     abstract interface
-        subroutine pickOrbitals_t(ilut, excitInfo, pgen)
+        subroutine pickOrbitals_t(ilut, nI, excitInfo, pgen)
             use constants, only: dp, n_int
             use bit_reps, only: nifguga
             use guga_data, only: excitationInformation
+            use SystemData, only: nel
             implicit none
             integer(n_int), intent(in) :: ilut(0:nifguga)
+            integer, intent(in) :: nI(nel)
             type(excitationInformation), intent(out) :: excitInfo
             real(dp), intent(out) :: pgen
         end subroutine pickOrbitals_t

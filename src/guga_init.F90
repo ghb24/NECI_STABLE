@@ -8,7 +8,9 @@ module guga_init
         nBasis, tGUGA, tNoBrillouin, tExactSizeSpace, tUHF, tUEGNewGenerator, &
                           tPickVirtUniform, tGenHelWeighted, tGen_4ind_2, tGen_4ind_weighted, &
                           tGen_4ind_reverse, tGen_sym_guga_ueg, tGen_sym_guga_mol, &
-                          tGen_nosym_guga, nSpatOrbs, t_consider_diff_bias
+                          tGen_nosym_guga, nSpatOrbs, t_consider_diff_bias, &
+                          current_stepvector, currentOcc_ilut, currentOcc_int, &
+                          currentB_ilut, currentB_int
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh
     use hist_data, only: tHistSpawn
     use LoggingData, only: tCalcFCIMCPsi, tPrintOrbOcc
@@ -157,6 +159,19 @@ contains
         orbitalIndex = [ (i, i = 1, nSpatOrbs)]
 
         ! maybe more to come...
+        ! also allocate the currrent_ quantities
+        if (allocated(current_stepvector)) deallocate(current_stepvector)
+        if (allocated(currentB_ilut))      deallocate(currentB_ilut)
+        if (allocated(currentOcc_ilut))    deallocate(currentOcc_ilut)
+        if (allocated(currentB_int))       deallocate(currentB_int)
+        if (allocated(currentOcc_int))     deallocate(currentOcc_int)
+
+        allocate(current_stepvector(nSpatOrbs), stat = ierr)
+        allocate(currentB_ilut(nSpatOrbs), stat = ierr)
+        allocate(currentOcc_ilut(nSpatOrbs), stat = ierr)
+        allocate(currentB_int(nSpatOrbs), stat = ierr)
+        allocate(currentOcc_int(nSpatOrbs), stat = ierr)
+
 
     end subroutine init_guga
   

@@ -2,3 +2,10 @@ do a profiling analysis of my guga code:
 
 calcb_vector_int seems to use a lot of cpu power...
 but is this because of debug? 
+
+yes it is. cont. on profiling with new results: 
+
+removed allocs in init_csf_information
+
+also decode_bit det is called more often than necessary, if i would just reuse nI info more often..
+
