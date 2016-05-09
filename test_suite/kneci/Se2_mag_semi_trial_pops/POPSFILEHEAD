@@ -1,20 +1,20 @@
 # POPSFILE VERSION 4
 &POPSHEAD Pop64Bit=T
 PopHPHF=F,PopLz=F,PopLensign= 2,PopNEl=  8,
-PopTotwalk=          83790
+PopTotwalk=           1063
  PopSft=   0.0000000000000000     
- PopSumNoatHF=   6099433.5111964643     
- PopSumENum= ( -756409.03826813272     , -328.95544915615591     )
-PopCyc=            8500,PopNIfD= 0,PopNIfY= 0,PopNIfSgn= 2,
-PopNIfFlag= 1,PopNIfTot= 3,PopTau=    0.007501090111,
+ PopSumNoatHF=   71703.590694867860     
+ PopSumENum= ( -8220.8207769759429     ,  7.0541237664255999E-003)
+PopCyc=            3500,PopNIfD= 0,PopNIfY= 0,PopNIfSgn= 2,
+PopNIfFlag= 1,PopNIfTot= 3,PopTau=    0.007578170680,
 PopiBlockingIter=               0
-PopPSingles=    0.035250765163,PopPParallel=    0.500000000000
-,PopPDoubles=    0.964749234837,PopPSing_spindiff1=    0.000000000000
+PopPSingles=    0.025337083395,PopPParallel=    0.500000000000
+,PopPDoubles=    0.974662916605,PopPSing_spindiff1=    0.000000000000
 ,PopPDoub_spindiff1=    0.000000000000,PopPDoub_spindiff2=    0.000000000000
-PopTotImagTime=   64.506894449055
-PopGammaSing= 14.0981159273    ,PopGammaDoub= 385.839753848    ,PopGammaOpp= 0.00000000000    ,PopGammaPar= 0.00000000000    ,PopMaxDeathCpt= 6.00088613723    
-,PopGammaSing_spindiff1=0.174527435948E-02,PopGammaDoub_spindiff1=0.365872154099E-01,PopGammaDoub_spindiff2= 30.4965483998    
-PopNNodes=     2
-PopWalkersOnNodes=           41499,           42291,
+PopTotImagTime=   26.835581086182
+PopGammaSing= 10.0301897753    ,PopGammaDoub= 385.839753848    ,PopGammaOpp= 0.00000000000    ,PopGammaPar= 0.00000000000    ,PopMaxDeathCpt= 3.88841103069    
+,PopGammaSing_spindiff1=0.826731698218E-03,PopGammaDoub_spindiff1=0.295445987767E-01,PopGammaDoub_spindiff2= 30.4965483998    
+PopNNodes=     1
+PopWalkersOnNodes=            1063,
 PopRandomHash=         3122,       21374,       21297,       31600,       27274,       27710,       23719,        4260,       10685,        4731,        6638,        2536,        9904,        5880,       10970,        5738,        2011,       20324,       20691,       12164,       13512,        2134,        3977,       25117,       28121,       16592,       27936,        9443,       14794,       16085,        4254,       12940,
  &END
