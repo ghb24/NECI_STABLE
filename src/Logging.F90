@@ -520,8 +520,8 @@ MODULE Logging
 ! Accumulate RDMs using the old RDM code.
             tOldRDMs = .true.
 
-        case("TRANSITION-1RDMS")
-            tTransition1RDMs = .true.
+        case("TRANSITION-RDMS")
+            tTransitionRDMs = .true.
 
         case("DIAGFLYONERDM")
 !This sets the calculation to diagonalise the *1* electron reduced density matrix.   

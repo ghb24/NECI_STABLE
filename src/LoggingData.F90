@@ -106,5 +106,5 @@ module LoggingData
     logical :: tHDF5PopsRead, tHDF5PopsWrite
 
     logical :: tOldRDMs = .false.
-    logical :: tTransition1RDMs = .false.
+    logical :: tTransitionRDMs = .false.
 end module LoggingData

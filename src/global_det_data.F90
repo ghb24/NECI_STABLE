@@ -27,6 +27,7 @@ module global_det_data
     private :: pos_av_sgn, len_av_sgn, pos_iter_occ, len_iter_occ
     integer :: pos_av_sgn, len_av_sgn
     integer :: pos_iter_occ, len_iter_occ
+
     integer :: pos_tm_occ, len_tm_occ
     integer :: pos_spawn_cnt, len_spawn_cnt
     integer :: pos_spawn_rate, len_spawn_rate
@@ -80,6 +81,13 @@ contains
         if (tRDMonFly .and. .not. tExplicitAllRDM) then
             len_av_sgn = lenof_sign
             len_iter_occ = lenof_sign
+            ! If we are calculating transition RDMs, then we also need to
+            ! include sign averages over different sets of blocks,
+            ! corresponding to the ground state with all other excited states.
+            if (tTransitionRDMs) then
+                len_av_sgn = len_av_sgn + lenof_sign - nreplicas
+                len_iter_occ = len_iter_occ + lenof_sign - nreplicas
+            end if
             write(6, '(" The average current signs before death will be stored&
                        & for use in the RDMs.")')
         else

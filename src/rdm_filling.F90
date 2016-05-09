@@ -105,7 +105,6 @@ contains
         use bit_reps, only: decode_bit_det
         use DetBitOps, only: TestClosedShellDet, FindBitExcitLevel
         use FciMCData, only: Iter, IterRDMStart, PreviousCycles, AvNoAtHF
-        use global_det_data, only: get_iter_occ, get_av_sgn
         use hphf_integrals, only: hphf_sign
         use HPHFRandExcitMod, only: FindExcitBitDetSym
         use LoggingData, only: RDMEnergyIter, RDMExcitLevel
