@@ -32,7 +32,7 @@ MODULE PopsfileMod
     use util_mod, only: get_free_unit,get_unique_filename
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
         max_death_cpt
-    use global_det_data, only: global_determinant_data, set_iter_occ, &
+    use global_det_data, only: global_determinant_data, &
                                init_global_det_data, set_det_diagH
     use fcimc_helper, only: update_run_reference, calc_inst_proje
     use replica_data, only: set_initial_global_data

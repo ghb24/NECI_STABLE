@@ -806,7 +806,7 @@ contains
         use bit_reps, only: extract_bit_rep
         use CalcData, only: tPairedReplicas
         use FciMCData, only: PreviousCycles, Iter, IterRDMStart, excit_gen_store_type
-        use global_det_data, only: get_iter_occ, get_av_sgn
+        use global_det_data, only: get_iter_occ_standard, get_av_sgn_standard
         use LoggingData, only: RDMEnergyIter
 
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
@@ -822,7 +822,7 @@ contains
 #endif
 
         ! This is the iteration from which this determinant has been occupied.
-        IterRDMStartI(1:lenof_sign) = get_iter_occ(j)
+        IterRDMStartI(1:lenof_sign) = get_iter_occ_standard(j)
         
         ! This extracts everything.
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI)
@@ -890,7 +890,7 @@ contains
                         do part_ind = 2*irdm-1, 2*irdm
                             ! Update the average population.
                             AvSignI(part_ind) = &
-                                ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * get_av_sgn(j, part_ind)) &
+                                ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * get_av_sgn_standard(j, part_ind)) &
                                   + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
                         end do
                     end if
@@ -905,7 +905,8 @@ contains
                     ! Update the average population. This just comes out as the
                     ! current population (SignI) if this is the first  time the
                     ! determinant has become occupied.
-                    AvSignI(part_ind) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * get_av_sgn(j,part_ind)) &
+                    AvSignI(part_ind) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * &
+                                           get_av_sgn_standard(j,part_ind)) &
                                     + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
                 end do
             end if

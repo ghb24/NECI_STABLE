@@ -57,8 +57,8 @@ module fcimc_helper
     use csf_data, only: csf_orbital_mask
     use csf, only: iscsf
     use hphf_integrals, only: hphf_diag_helement
-    use global_det_data, only: get_av_sgn, set_av_sgn, set_det_diagH, &
-                               global_determinant_data, set_iter_occ, &
+    use global_det_data, only: get_av_sgn_tot, set_av_sgn_tot, set_det_diagH, &
+                               global_determinant_data, &
                                get_part_init_time, det_diagH, get_spawn_count
     use searching, only: BinSearchParts2
     use rdm_data, only: nrdms
@@ -1561,7 +1561,7 @@ contains
             if (tFillingStochRDMOnFly) then
                 if (lenof_sign /= 1) &
                     call stop_all(t_r, 'Not yet implemented')
-                call set_av_sgn(i, -get_av_sgn(i))
+                call set_av_sgn_tot(i, -get_av_sgn_tot(i))
             end if
 
         enddo
@@ -1679,7 +1679,7 @@ contains
     subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, RealwSign, &
                              DetPosition, walkExcitLevel)
 
-        use global_det_data, only: get_iter_occ, get_av_sgn
+        use global_det_data, only: get_iter_occ_standard, get_av_sgn_standard
         use LoggingData, only: tOldRDMs
         use rdm_data, only: one_rdms, two_rdm_spawn
         use rdm_data_old, only: rdms, one_rdms_old
@@ -1751,8 +1751,8 @@ contains
                     end do
                 end if
 
-                av_sign = get_av_sgn(DetPosition)
-                iter_occ = get_iter_occ(DetPosition)
+                av_sign = get_av_sgn_standard(DetPosition)
+                iter_occ = get_iter_occ_standard(DetPosition)
                 call det_removed_fill_diag_rdm(two_rdm_spawn, one_rdms, CurrentDets(:,DetPosition), av_sign, iter_occ)
                 ! Set the average sign and occupation iteration to zero, so
                 ! that the same contribution will not be added in in

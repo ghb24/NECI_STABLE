@@ -655,7 +655,8 @@ module FciMCParMod
 
     subroutine PerformFCIMCycPar(iter_data)
 
-        use global_det_data, only: get_iter_occ, get_av_sgn
+        use global_det_data, only: get_iter_occ_standard, get_av_sgn_standard
+        use global_det_data, only: set_av_sgn_tot, set_iter_occ_tot
         use rdm_data, only: two_rdm_spawn, two_rdm_recv, two_rdm_main, one_rdms
         use rdm_data_utils, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2
         
@@ -796,8 +797,8 @@ module FciMCParMod
             if (tFillingStochRDMonFly) then
                 ! Set the average sign and occupation iteration which were
                 ! found in extract_bit_rep_avsign.
-                call set_av_sgn(j, AvSignCurr)
-                call set_iter_occ(j, IterRDMStartCurr)
+                call set_av_sgn_tot(j, AvSignCurr)
+                call set_iter_occ_tot(j, IterRDMStartCurr)
                 ! If this is an iteration where we print out the RDM energy,
                 ! add in the diagonal contribution to the RDM for this
                 ! determinant, for each rdm.
@@ -809,8 +810,8 @@ module FciMCParMod
                         end do
                     end if
 
-                    av_sign = get_av_sgn(j)
-                    iter_occ = get_iter_occ(j)
+                    av_sign = get_av_sgn_standard(j)
+                    iter_occ = get_iter_occ_standard(j)
                     call fill_rdm_diag_currdet(two_rdm_spawn, one_rdms, CurrentDets(:,j), DetCurr, &
                                                 walkExcitLevel_toHF, av_sign, iter_occ, tCoreDet)
                 endif

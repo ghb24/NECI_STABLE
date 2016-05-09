@@ -29,7 +29,7 @@ module AnnihilationMod
     use LoggingData, only: tNoNewRDMContrib
     use load_balance, only: DetermineDetNode, AddNewHashDet, &
                             CalcHashTableStats
-    use global_det_data, only: get_iter_occ, inc_spawn_count
+    use global_det_data, only: inc_spawn_count
     use searching
     use hash
 

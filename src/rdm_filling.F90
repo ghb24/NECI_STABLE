@@ -22,7 +22,7 @@ contains
 
         use bit_rep_data, only: extract_sign
         use CalcData, only: tPairedReplicas
-        use global_det_data, only: get_iter_occ, get_av_sgn
+        use global_det_data, only: get_iter_occ_standard, get_av_sgn_standard
         use rdm_data, only: one_rdm_t
 
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -38,9 +38,9 @@ contains
 
             call extract_sign(ilut_list(:,idet), curr_sign)
             ! All average sign from all RDMs.
-            av_sign = get_av_sgn(idet)
+            av_sign = get_av_sgn_standard(idet)
             ! The iteration on which each replica became occupied.
-            iter_occ = get_iter_occ(idet)
+            iter_occ = get_iter_occ_standard(idet)
 
             adapted_sign = 0.0_dp
 
