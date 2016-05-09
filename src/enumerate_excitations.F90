@@ -340,6 +340,7 @@ contains
     subroutine generate_connected_space_normal(original_space_size, original_space, &
             connected_space_size, connected_space, tSinglesOnlyOpt)
 
+        use Symexcit4, only : NewParentDet
         ! This routine either counts or generates all the determinants connected to those in
         ! original_space. If connected_space is not present then they will only be counted,
         ! else they will be stored in connected_space. If tSinglesOnlyOpt is present and
@@ -376,6 +377,8 @@ contains
 
         ! Over all the states in the original list:
         do i = 1, original_space_size
+
+            call NewParentDet(session)
 
             call decode_bit_det(nI, original_space(:,i))
 

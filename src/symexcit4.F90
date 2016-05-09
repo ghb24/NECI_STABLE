@@ -96,6 +96,12 @@ module SymExcit4
         enddo
     end subroutine ResetIndices
 
+    subroutine NewParentDet(session)
+        implicit none
+        type(ExcitGenSessionType), intent(inout) :: session
+        session%tInitialised = .false.
+    end subroutine
+
     subroutine InitExcitVecs(session)
         implicit none
         type(ExcitGenSessionType), intent(inout) :: session
@@ -495,7 +501,7 @@ module SymExcit4
                     cycle
                 endif
             endif
-            
+
             ! if we made it this far, the selected electron hole pairs have
             ! passed all the selection criteria
             return
