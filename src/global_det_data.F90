@@ -5,7 +5,7 @@ module global_det_data
     use CalcData, only: tSurvivalInitiatorThreshold, tSurvivalInitMultThresh, &
                         tSpawnCountInitiatorThreshold, tContTimeFCIMC, &
                         tContTimeFull
-    use LoggingData, only: tRDMonFly, tExplicitAllRDM
+    use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs
     use FciMCData, only: MaxWalkersPart
     use constants
     use util_mod
