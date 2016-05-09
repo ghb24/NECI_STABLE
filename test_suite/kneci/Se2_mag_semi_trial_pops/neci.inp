@@ -48,6 +48,8 @@ endint
 
 
 logging
+(popsfile
+(binarypops
 endlog
 
 
