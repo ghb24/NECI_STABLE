@@ -19,7 +19,7 @@ time 20
 memoryfacpart 20.0
 memoryfacspawn 20.0
 totalwalkers 200000
-nmcyc 1000
+nmcyc 500
 seed 14
 startsinglepart 
 diagshift 0.0
@@ -48,7 +48,7 @@ endint
 
 
 logging
-(popsfile
+popsfile -1
 (binarypops
 endlog
 
