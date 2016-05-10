@@ -287,8 +287,6 @@ module fcimc_pointed_fns
         ! Avoid compiler warnings
         iUnused = walkExcitLevel
 
-!        write(88,*) "--- child", child
-
     end function
 
     ! 

@@ -839,11 +839,11 @@ contains
         iter_data_fciqmc%update_growth = 0.0_dp
         iter_data_fciqmc%update_iters = 0
 
-            if (tReltvy) then
-                ! write out the column headings for the MSWALKERCOUNTS
-                open(mswalkercounts_unit, file='MSWALKERCOUNTS', status='UNKNOWN')
-                write(mswalkercounts_unit, "(A)") "# ms real    imag    magnitude"
-            endif
+!            if (tReltvy) then
+!                ! write out the column headings for the MSWALKERCOUNTS
+!                open(mswalkercounts_unit, file='MSWALKERCOUNTS', status='UNKNOWN')
+!                write(mswalkercounts_unit, "(A)") "# ms real    imag    magnitude"
+!            endif
 
  
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)) THEN
@@ -1341,7 +1341,6 @@ contains
                     endif
                    
                     call InitFCIMC_HF()
-                    write(88,*) "totparts after hf", totparts
 
                 endif   !tStartmp1
             endif  
