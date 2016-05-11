@@ -868,13 +868,15 @@ contains
             ! as one calculates the RDM energy less frequently.  As this method is
             ! biased anyway, I'm not going to lose sleep over it.
             do irdm = 1, nrdms
-                sign_ind_1 = irdm*2-1
-                sign_ind_2 = irdm*2
-
+                sign_ind_1 = irdm*nreplicas - nreplicas + 1
                 AvSignI(sign_ind_1) = SignI(ind(1,irdm))
                 IterRDMStartI(sign_ind_1) = real(Iter + PreviousCycles,dp)
-                AvSignI(sign_ind_2) = SignI(ind(2,irdm))
-                IterRDMStartI(sign_ind_2) = real(Iter + PreviousCycles,dp)
+
+                if (tPairedReplicas) then
+                    sign_ind_2 = irdm*2
+                    AvSignI(sign_ind_2) = SignI(ind(2,irdm))
+                    IterRDMStartI(sign_ind_2) = real(Iter + PreviousCycles,dp)
+                end if
             end do
         else
             ! Now let's consider other instances in which we need to start a new block:
