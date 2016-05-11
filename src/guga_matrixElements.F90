@@ -14,6 +14,7 @@ module guga_matrixElements
     use util_mod, only: binary_search
     use guga_data, only: projE_replica
     use bit_rep_data, only: nifdbo
+    use ParallelHelper, only: iprocindex
 
     ! variable declarations:
     implicit none
@@ -48,7 +49,7 @@ contains
         HElement_t(dp) :: hel
         character(*), parameter :: this_routine = "calc_off_diag_guga_ref"
 
-        integer :: pos, ind
+        integer :: pos, ind, nExcit
         ! have the list of conncected dets to ilutRef stored persistently 
         ! so only need to search if ilut is in this list and return 
         ! the corresponing matrix element 
@@ -63,7 +64,10 @@ contains
 
         ASSERT(allocated(projE_replica(ind)%projE_ilut_list))
 
-        pos = binary_search(projE_replica(ind)%projE_ilut_list, ilut, NIfD + 1)
+        nExcit = projE_replica(ind)%num_entries
+
+        pos = binary_search(projE_replica(ind)%projE_ilut_list(0:nifd,1:nExcit), &
+            ilut(0:nifd))
 
         if (pos > 0) then
             ! if found output the matrix element 

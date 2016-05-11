@@ -309,7 +309,8 @@ contains
 
         do i = 1, nDets2
            
-            pos = binary_search(list1(:,min_ind:ndets1), list2(:,i), nifd + 1)
+            pos = binary_search(list1(0:nifd,min_ind:ndets1), list2(0:nifd,i))
+!             pos = binary_search(list1(:,min_ind:ndets1), list2(:,i), nifd + 1)
 
             if (pos > 0) then
                 ! try new implementation of that without the need of an extra
