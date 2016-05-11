@@ -660,7 +660,6 @@ module FciMCParMod
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use rdm_data, only: two_rdm_spawn, two_rdm_recv, two_rdm_main, one_rdms
         use rdm_data_utils, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2
-        use rdm_general, only: set_transition_rdm_averages
         
         ! Iteration specific data
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -780,12 +779,7 @@ module FciMCParMod
             tCoreDet = check_determ_flag(CurrentDets(:,j))
 
             call extract_bit_rep_avsign(CurrentDets(:,j), j, DetCurr, SignCurr, FlagsCurr, &
-                                       IterRDMStartCurr(1:lenof_sign), AvSignCurr(1:lenof_sign), &
-                                       fcimc_excit_gen_store)
-            if (tTransitionRDMsStarted) then
-                call set_transition_rdm_averages(CurrentDets(:,j), j, IterRDMStartCurr(lenof_sign+1:), &
-                                                 AvSignCurr(lenof_sign+1:))
-            end if
+                                       IterRDMStartCurr, AvSignCurr, fcimc_excit_gen_store)
 
             ! We only need to find out if determinant is connected to the
             ! reference (so no ex. level above 2 required, 
