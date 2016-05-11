@@ -657,8 +657,11 @@ module FciMCParMod
 
         use global_det_data, only: get_iter_occ_standard, get_av_sgn_standard
         use global_det_data, only: set_av_sgn_tot, set_iter_occ_tot
+        use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
+        use LoggingData, only: tTransitionRDMs
         use rdm_data, only: two_rdm_spawn, two_rdm_recv, two_rdm_main, one_rdms
         use rdm_data_utils, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2
+        use rdm_general, only: set_transition_rdm_averages
         
         ! Iteration specific data
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -673,7 +676,7 @@ module FciMCParMod
         logical :: tParity, tSuccess, tCoreDet
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
         real(dp) :: RDMBiasFacCurr
-        real(dp), dimension(lenof_sign) :: AvSignCurr(lenof_sign), IterRDMStartCurr(lenof_sign)
+        real(dp) :: AvSignCurr(len_av_sgn_tot), IterRDMStartCurr(len_iter_occ_tot)
         real(dp) :: av_sign(lenof_sign), iter_occ(lenof_sign)
         HElement_t(dp) :: HDiagTemp,HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
@@ -777,9 +780,13 @@ module FciMCParMod
             ! Is this state is in the deterministic space?
             tCoreDet = check_determ_flag(CurrentDets(:,j))
 
-            call extract_bit_rep_avsign (CurrentDets(:,j), j, &
-                                        DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
-                                        AvSignCurr, fcimc_excit_gen_store)
+            call extract_bit_rep_avsign(CurrentDets(:,j), j, DetCurr, SignCurr, FlagsCurr, &
+                                       IterRDMStartCurr(1:lenof_sign), AvSignCurr(1:lenof_sign), &
+                                       fcimc_excit_gen_store)
+            if (tTransitionRDMs) then
+                call set_transition_rdm_averages(CurrentDets(:,j), j, IterRDMStartCurr(lenof_sign+1:), &
+                                                 AvSignCurr(lenof_sign+1:))
+            end if
 
             ! We only need to find out if determinant is connected to the
             ! reference (so no ex. level above 2 required, 

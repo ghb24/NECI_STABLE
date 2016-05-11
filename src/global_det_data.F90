@@ -36,7 +36,6 @@ module global_det_data
 
     ! The total length of average sign and first occupation iteration, for
     ! both the standard and transition RDMs.
-    private :: len_av_sgn_tot, len_iter_occ_tot
     integer :: len_av_sgn_tot, len_iter_occ_tot
 
     integer :: pos_tm_occ, len_tm_occ
@@ -125,8 +124,8 @@ contains
             ! corresponding to the ground state combined with all other
             ! excited states.
             if (tTransitionRDMs) then
-                len_av_sgn_transition = lenof_sign - nreplicas
-                len_iter_occ_transition = lenof_sign - nreplicas
+                len_av_sgn_transition = lenof_sign
+                len_iter_occ_transition = lenof_sign
                 len_av_sgn_tot = len_av_sgn + len_av_sgn_transition
                 len_iter_occ_tot = len_iter_occ + len_iter_occ_transition
             end if

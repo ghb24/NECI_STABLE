@@ -754,7 +754,7 @@ contains
 
     ! Some general routines used during the main simulation.
 
-    subroutine extract_bit_rep_avsign_no_rdm(iLutnI, j, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
+    subroutine extract_bit_rep_avsign_no_rdm(iLutnI, j, nI, SignI, FlagsI, IterRDMStartI, AvSignI, store)
 
         ! This is just the standard extract_bit_rep routine for when we're not
         ! calculating the RDMs.    
@@ -767,7 +767,7 @@ contains
         integer, intent(out) :: nI(nel), FlagsI
         real(dp), dimension(lenof_sign), intent(out) :: SignI
         real(dp), dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
-        type(excit_gen_store_type), intent(inout), optional :: Store
+        type(excit_gen_store_type), intent(inout), optional :: store
 
         integer :: iunused
         
@@ -782,7 +782,7 @@ contains
 
     end subroutine extract_bit_rep_avsign_no_rdm
 
-    subroutine extract_bit_rep_avsign_norm(iLutnI, j, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
+    subroutine extract_bit_rep_avsign_norm(iLutnI, j, nI, SignI, FlagsI, IterRDMStartI, AvSignI, store)
 
         ! The following extract_bit_rep_avsign routine extracts the bit
         ! representation of the current determinant, and calculates the average
@@ -812,9 +812,9 @@ contains
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         integer, intent(out) :: nI(nel), FlagsI
         integer, intent(in) :: j
-        real(dp), dimension(lenof_sign), intent(out) :: SignI
-        real(dp), dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
-        type(excit_gen_store_type), intent(inout), optional :: Store
+        real(dp), intent(out) :: SignI(lenof_sign)
+        real(dp), intent(out) :: IterRDMStartI(lenof_sign), AvSignI(lenof_sign)
+        type(excit_gen_store_type), intent(inout), optional :: store
 
         integer :: part_ind, iunused
 #if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS) || defined(__CMPLX)
@@ -823,10 +823,10 @@ contains
 
         ! This is the iteration from which this determinant has been occupied.
         IterRDMStartI(1:lenof_sign) = get_iter_occ_standard(j)
-        
+
         ! This extracts everything.
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI)
-            
+
         if (((Iter+PreviousCycles-IterRDMStart) > 0) .and. &
             & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1), RDMEnergyIter) == 0)) then 
 
@@ -916,6 +916,99 @@ contains
         iunused = store%nopen
 
     end subroutine extract_bit_rep_avsign_norm
+
+    subroutine set_transition_rdm_averages(iLutnI, j, IterRDMStartI, AvSignI)
+
+        use bit_reps, only: extract_sign
+        use FciMCData, only: PreviousCycles, Iter, IterRDMStart
+        use global_det_data, only: get_iter_occ_transition, get_av_sgn_transition
+        use LoggingData, only: RDMEnergyIter
+
+        integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+        integer, intent(in) :: j
+        real(dp), intent(out) :: IterRDMStartI(lenof_sign), AvSignI(lenof_sign)
+
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS) || defined(__CMPLX)
+
+        integer :: part_ind, irdm, ind1, ind2
+        integer :: nI(nel)
+        real(dp) :: SignI(lenof_sign)
+
+        call extract_sign(iLutnI, SignI)
+
+        ! This is the iteration from which this determinant has been occupied.
+        IterRDMStartI(1:lenof_sign) = get_iter_occ_transition(j)
+
+        if (((Iter+PreviousCycles-IterRDMStart) > 0) .and. &
+            & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1), RDMEnergyIter) == 0)) then 
+
+            ! The previous iteration was one where we added in diagonal elements
+            ! To keep things unbiased, we need to set up a new averaging block now.
+            do irdm = 2, lenof_sign/2
+                ! We are calculating transition RDMs relative to the ground state,
+                ! so the first sign should always be the first index of SignI.
+                ind1 = irdm*2-1
+                AvSignI(ind1) = SignI(1)
+                IterRDMStartI(ind1) = real(Iter + PreviousCycles,dp)
+
+                ind2 = irdm*2
+                AvSignI(ind2) = SignI(ind2)
+                IterRDMStartI(ind2) = real(Iter + PreviousCycles,dp)
+            end do
+        else
+            ! Now let's consider other instances in which we need to start a new block:
+            do irdm = 1, lenof_sign/2
+
+                ! The indicies of the first and second replicas in this
+                ! particular pair, in the sign arrays.
+                ind1 = irdm*2-1
+                ind2 = irdm*2
+
+                if ((SignI(1) == 0) .and. (IterRDMStartI(ind1) /= 0)) then
+                    ! The population has just gone to zero on population 1.
+                    ! Therefore, we need to start a new averaging block.
+                    AvSignI(ind1) = 0
+                    IterRDMStartI(ind1) = 0
+                    AvSignI(ind2) = SignI(ind2)
+                    IterRDMStartI(ind2) = real(Iter + PreviousCycles,dp)
+
+                else if ((SignI(ind2) == 0) .and. (IterRDMStartI(ind2) /= 0)) then
+                    ! The population has just gone to zero on population 2.
+                    ! Therefore, we need to start a new averaging block.
+                    AvSignI(ind2) = 0
+                    IterRDMStartI(ind2) = 0
+                    AvSignI(ind1) = SignI(1)
+                    IterRDMStartI(ind1) = real(Iter + PreviousCycles,dp)
+
+                else if ((SignI(1) /= 0) .and. (IterRDMStartI(ind1) == 0)) then
+                    ! Population 1 has just become occupied.
+                    IterRDMStartI(ind1) = real(Iter + PreviousCycles,dp)
+                    IterRDMStartI(ind2) = real(Iter + PreviousCycles,dp)
+                    AvSignI(ind1) = SignI(1)
+                    AvSignI(ind2) = SignI(ind2)
+                    if (SignI(ind2) == 0) IterRDMStartI(ind2) = 0
+
+                else if ((SignI(ind2) /= 0) .and. (IterRDMStartI(ind2) == 0)) then
+                    ! Population 2 has just become occupied.
+                    IterRDMStartI(ind1) = real(Iter + PreviousCycles,dp)
+                    IterRDMStartI(ind2) = real(Iter + PreviousCycles,dp)
+                    AvSignI(ind1) = SignI(1)
+                    AvSignI(ind2) = SignI(ind2)
+                    if (SignI(1) == 0) IterRDMStartI(ind1) = 0
+
+                else
+                    ! Nothing unusual has happened so update both average
+                    ! populations as normal.
+                    AvSignI(ind1) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(ind1)) * get_av_sgn_transition(j, ind1)) &
+                                     + SignI(1) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(ind1) + 1.0_dp )
+                    AvSignI(ind2) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(ind2)) * get_av_sgn_transition(j, ind2)) &
+                                     + SignI(ind2) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(ind2) + 1.0_dp )
+                end if
+            end do
+        end if
+#endif
+
+    end subroutine set_transition_rdm_averages
 
     subroutine calc_rdmbiasfac(p_spawn_rdmfac, p_gen, SignCurr, RDMBiasFacCurr)
 
