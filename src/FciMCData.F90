@@ -67,6 +67,7 @@ MODULE FciMCData
       REAL(dp) :: SumSigns, SumSpawns
       real(dp), allocatable :: AvNoatHF(:)
       LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly
+      logical :: tTransitionRDMsStarted = .false.
       logical :: tFill_RDM
       integer :: IterLastRDMFill
       integer :: Spawned_Parts_Zero, HFInd

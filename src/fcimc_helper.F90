@@ -1791,7 +1791,7 @@ contains
         ! and does so if we should. 
 
         use rdm_general, only: realloc_SpawnedParts
-        use LoggingData, only: tReadRDMs
+        use LoggingData, only: tReadRDMs, tTransitionRDMs
         implicit none
         logical :: tFullVaryshift
 
@@ -1828,6 +1828,7 @@ contains
                 extract_bit_rep_avsign => extract_bit_rep_avsign_norm
                 ! By default - we will do a stochastic calculation of the RDM.
                 tFillingStochRDMonFly = .true.
+                if (tTransitionRDMs) tTransitionRDMsStarted = .true.
 
                 call realloc_SpawnedParts()
                 ! The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
