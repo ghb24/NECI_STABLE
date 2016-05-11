@@ -662,10 +662,10 @@ contains
         ! then binary search ilutI in the excitattions
 
         ! convert ilutI to a guga representation
-        call convert_ilut_toGUGA(ilutI, ilutG)
+!         call convert_ilut_toGUGA(ilutI, ilutG)
 
         ! and the search in excitations
-        pos = binary_search(excitations, ilutG, nifd + 1)
+        pos = binary_search(excitations(0:nifd,1:nExcit), ilutI(0:nifd))
 
         if ( pos > 0 ) then
             hel = extract_matrix_element(excitations(:,pos),1)
@@ -830,6 +830,8 @@ contains
         allocate(projE_replica(run)%projE_hel_list(nExcit), stat = ierr)
         allocate(projE_replica(run)%exlevel(nExcit), stat = ierr)
 
+        projE_replica(run)%num_entries = nExcit
+
         ! and convert them back to neci format and store the matrix elements 
         do i = 1, nExcit
             call convert_ilut_toNECI(excitations(:,i), &
@@ -932,7 +934,7 @@ contains
             if (det(1) == 0) cycle
 
             call EncodeBitDet (det, tgt_ilut)
-            pos = binary_search(det_list, tgt_ilut, NIfD+1)
+            pos = binary_search(det_list(0:nifd,1:nexcit), tgt_ilut(0:nifd))
             if (pos < 0) then
                 write(6,*) 'FAILED DET', tgt_ilut
                 print *, "from CSF:"

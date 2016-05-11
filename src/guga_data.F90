@@ -338,6 +338,8 @@ module guga_data
         ! also store the excitation level in the projected list, since otherwise
         ! it is really hard to determine it in the GUGA formalism
         integer, allocatable :: exlevel(:)
+        ! also store the number of entries to correctly binary search
+        integer :: num_entries
     end type projE_type
 
     type(projE_type), allocatable :: projE_replica(:)
