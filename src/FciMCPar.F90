@@ -439,7 +439,7 @@ module FciMCParMod
 
             if (tChangeVarsRDM) then
                 ! Decided during the CHANGEVARS that the RDMs should be calculated.
-                call init_rdms(nrdms)
+                call init_rdms(nrdms_standard, nrdms_transition)
                 if (tOldRDMs) call InitRDMs_old(nrdms)
                 tRDMonFly = .true.
                 tChangeVarsRDM = .false.

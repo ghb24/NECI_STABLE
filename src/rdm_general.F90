@@ -10,7 +10,7 @@ module rdm_general
 
 contains
 
-    subroutine init_rdms(nrdms)
+    subroutine init_rdms(nrdms_standard, nrdms_transition)
 
         use DeterminantData, only: write_det
         use CalcData, only: MemoryFacPart
@@ -27,7 +27,7 @@ contains
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
-        use rdm_data, only: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
+        use rdm_data, only: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time, nrdms, signs_for_rdm
         use rdm_data_utils, only: init_rdm_spawn_t, init_rdm_list_t, init_one_rdm_t
         use rdm_estimators, only: init_rdm_estimates_t, calc_2rdm_estimates_wrapper
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
@@ -36,7 +36,7 @@ contains
         use SystemData, only: tStoreSpinOrbs, tHPHF, tFixLz, iMaxLz, tROHF
         use util_mod, only: LogMemAlloc
 
-        integer, intent(in) :: nrdms
+        integer, intent(in) :: nrdms_standard, nrdms_transition
 
         integer :: rdm_nrows, nhashes_rdm_main, nhashes_rdm_spawn
         integer :: standard_spawn_size, min_spawn_size
@@ -47,6 +47,8 @@ contains
 #ifdef __CMPLX
         call stop_all(t_r, 'Filling of reduced density matrices not working with complex walkers yet.')
 #endif
+
+        nrdms = nrdms_standard + nrdms_transition
 
         ! Only spatial orbitals for the 2-RDMs (and F12).
         if (tStoreSpinOrbs .and. RDMExcitLevel /= 1) then
@@ -81,6 +83,32 @@ contains
                               &This requires the 2 electron RDM from which the 1-RDM can also be constructed.")')
             end if
         end if
+
+        ! signs_for_rdm(:,j) will store the labels of the FCIQMC wave functions
+        ! (i.e. the 'replica' labels) which will be used to sample the j'th RDM
+        ! being calculated.
+        allocate(signs_for_rdm(2, nrdms))
+        ! The 'standard' (non-transition) RDMs.
+        do irdm = 1, nrdms_standard
+            if (nreplicas == 1) then
+                signs_for_rdm(1,irdm) = irdm
+                signs_for_rdm(2,irdm) = irdm
+            else if (nreplicas == 2) then
+                signs_for_rdm(1,irdm) = irdm*nreplicas-1
+                signs_for_rdm(2,irdm) = irdm*nreplicas
+            end if
+        end do
+        ! The transition RDMs.
+        do irdm = nrdms_standard+1, nrdms_standard+nrdms_transition
+            ! The first contributing replica is always the first one (currently!).
+            signs_for_rdm(1,irdm) = 1
+
+            if (nreplicas == 1) then
+                signs_for_rdm(2,irdm) = irdm
+            else if (nreplicas == 2) then
+                signs_for_rdm(2,irdm) = irdm*nreplicas
+            end if
+        end do
 
         ! Have not got HPHF working with the explicit or truncated methods yet.
         ! Neither of these would be too difficult to implement.

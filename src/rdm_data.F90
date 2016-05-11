@@ -213,8 +213,19 @@ module rdm_data
     ! Object to hold RDM estimates.
     type(rdm_estimates_t) :: rdm_estimates
 
+    ! signs_for_rdm(:,j) will store the labels of the FCIQMC wave functions
+    ! (i.e. the 'replica' labels) which will be used to sample the j'th RDM
+    ! being calculated.
+    integer, allocatable :: signs_for_rdm(:,:) ! (2, nrdms)
+
     ! The number of rdms being calculated in this simulation.
+    ! Equal to nrdms_standard + nrdms_transition.
     integer :: nrdms = 0
+    ! The number of 'standard' RDMs (i.e. non-transition RDMs) being
+    ! calculated in this simulation.
+    integer :: nrdms_standard = 0
+    ! The number of transition RDMs being calculated in this simulation.
+    integer :: nrdms_transition = 0
 
     ! If true, then 2-RDM quantities will be output to a RDMEstimates file.
     logical :: print_2rdm_est

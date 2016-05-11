@@ -49,7 +49,8 @@ module fcimc_initialisation
                            tHistInitPops, OrbOccsTag, tHistEnergies, &
                            HistInitPops, AllHistInitPops, OffDiagMax, &
                            OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
-                           AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead
+                           AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
+                           tTransitionRDMs
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
@@ -125,7 +126,7 @@ module fcimc_initialisation
     use soft_exit, only: tSoftExitFound
     use get_excit, only: make_double
     use sltcnd_mod, only: sltcnd_0
-    use rdm_data, only: nrdms
+    use rdm_data, only: nrdms_standard, nrdms_transition
     use Parallel_neci
     use FciMCData
     use util_mod
@@ -1100,9 +1101,16 @@ contains
 
          if (tRDMOnFly) then
              if (tPairedReplicas) then
-                 nrdms = lenof_sign/2
+                 nrdms_standard = lenof_sign/2
              else
-                 nrdms = lenof_sign
+                 nrdms_standard = lenof_sign
+             end if
+         end if
+         if (tTransitionRDMs) then
+             if (tPairedReplicas) then
+                 nrdms_transition = lenof_sign/2
+             else
+                 nrdms_transition = lenof_sign
              end if
          end if
 
@@ -1373,8 +1381,8 @@ contains
         endif
     
         if (tRDMonFly) then
-            call init_rdms(nrdms)
-            if (tOldRDMs) call InitRDMs_old(nrdms)
+            call init_rdms(nrdms_standard, nrdms_transition)
+            if (tOldRDMs) call InitRDMs_old(nrdms_standard)
         end if
         ! This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
         ! Initialises RDM stuff for both explicit and stochastic calculations of RDM.
