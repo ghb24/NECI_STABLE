@@ -22,7 +22,8 @@ contains
 
         use bit_rep_data, only: extract_sign
         use CalcData, only: tPairedReplicas
-        use global_det_data, only: get_iter_occ_standard, get_av_sgn_standard
+        use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
+        use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use rdm_data, only: one_rdm_t
 
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -31,16 +32,16 @@ contains
         integer, intent(in) :: ndets
 
         integer :: idet, irdm, ind1, ind2
-        real(dp) :: curr_sign(lenof_sign), adapted_sign(lenof_sign)
-        real(dp) :: av_sign(lenof_sign), iter_occ(lenof_sign)
+        real(dp) :: curr_sign(lenof_sign), adapted_sign(len_av_sgn_tot)
+        real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
 
         do idet = 1, ndets
 
             call extract_sign(ilut_list(:,idet), curr_sign)
             ! All average sign from all RDMs.
-            av_sign = get_av_sgn_standard(idet)
+            av_sign = get_av_sgn_tot(idet)
             ! The iteration on which each replica became occupied.
-            iter_occ = get_iter_occ_standard(idet)
+            iter_occ = get_iter_occ_tot(idet)
 
             adapted_sign = 0.0_dp
 
@@ -63,12 +64,8 @@ contains
                     end if
                 end do
 
-                ! At least one of the signs has just gone to zero or just become
-                ! reoccupied, so we need to add in diagonal elements and connections to HF
-                if (any(abs(adapted_sign) > 1.e-12_dp)) then
-                    call det_removed_fill_diag_rdm(spawn, one_rdms, ilut_list(:,idet), adapted_sign, iter_occ)
-                end if
             else
+
                 do irdm = 1, size(one_rdms)
                     if (abs(curr_sign(irdm)) < 1.0e-10_dp) then
                         ! If this RDM sign has gone to zero, then we want to add
@@ -77,9 +74,12 @@ contains
                     end if
                 end do
 
-                if (any(abs(adapted_sign) > 1.e-12_dp)) then
-                    call det_removed_fill_diag_rdm(spawn, one_rdms, ilut_list(:,idet), adapted_sign, iter_occ)
-                end if
+            end if
+
+            ! At least one of the signs has just gone to zero or just become
+            ! reoccupied, so we need to add in diagonal elements and connections to HF
+            if (any(abs(adapted_sign) > 1.e-12_dp)) then
+                call det_removed_fill_diag_rdm(spawn, one_rdms, ilut_list(:,idet), adapted_sign, iter_occ)
             end if
 
         end do

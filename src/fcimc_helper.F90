@@ -1679,7 +1679,8 @@ contains
     subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, RealwSign, &
                              DetPosition, walkExcitLevel)
 
-        use global_det_data, only: get_iter_occ_standard, get_av_sgn_standard
+        use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
+        use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use LoggingData, only: tOldRDMs
         use rdm_data, only: one_rdms, two_rdm_spawn
         use rdm_data_old, only: rdms, one_rdms_old
@@ -1692,7 +1693,7 @@ contains
         type(fcimc_iter_data), intent(inout) :: iter_data
 
         real(dp) :: iDie(lenof_sign), CopySign(lenof_sign)
-        real(dp) :: av_sign(lenof_sign), iter_occ(lenof_sign)
+        real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
         integer, intent(in) :: walkExcitLevel
         integer :: i, irdm
 
@@ -1751,8 +1752,8 @@ contains
                     end do
                 end if
 
-                av_sign = get_av_sgn_standard(DetPosition)
-                iter_occ = get_iter_occ_standard(DetPosition)
+                av_sign = get_av_sgn_tot(DetPosition)
+                iter_occ = get_iter_occ_tot(DetPosition)
                 call det_removed_fill_diag_rdm(two_rdm_spawn, one_rdms, CurrentDets(:,DetPosition), av_sign, iter_occ)
                 ! Set the average sign and occupation iteration to zero, so
                 ! that the same contribution will not be added in in
