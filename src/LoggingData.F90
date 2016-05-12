@@ -106,4 +106,8 @@ module LoggingData
     logical :: tHDF5PopsRead, tHDF5PopsWrite
 
     logical :: tOldRDMs = .false.
+    ! If true, then read in 2-RDM popsfiles and then output 1-RDMs calculated
+    ! directly from these.
+    logical :: tPrint1RDMsFrom2RDMPops = .false.
+
 end module LoggingData

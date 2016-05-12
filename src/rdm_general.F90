@@ -17,10 +17,11 @@ contains
         use FciMCData, only: MaxSpawned, Spawned_Parents, Spawned_Parents_Index
         use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
         use FciMCData, only: HFDet_True, tSinglePartPhase
+        use hash, only: clear_hash_table
         use LoggingData, only: tDo_Not_Calc_2RDM_est, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tDiagRDM, tDumpForcesInfo, tDipoles, tPrint1RDM
         use LoggingData, only: tRDMInstEnergy, tReadRDMs, tPopsfile, tno_RDMs_to_read
-        use LoggingData, only: twrite_RDMs_to_read
+        use LoggingData, only: twrite_RDMs_to_read, tPrint1RDMsFrom2RDMPops
         use Parallel_neci, only: iProcIndex, nProcessors
         use rdm_data, only: rdm_estimates, one_rdms, two_rdm_spawn, two_rdm_main, two_rdm_recv
         use rdm_data, only: two_rdm_recv_2, tOpenShell, print_2rdm_est, Sing_ExcDjs, Doub_ExcDjs
@@ -272,7 +273,7 @@ contains
             end if
         end if
 
-        if (RDMExcitLevel == 1 .or. tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
+        if (RDMExcitLevel == 1 .or. RDMExcitLevel == 3 .or. tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
             ! These arrays contain indexing systems to order the 1-RDM orbitals
             ! in terms of symmetry. This allows the diagonalisation of the RDMs
             ! to be done in symmetry blocks (a lot quicker/easier).
@@ -297,19 +298,30 @@ contains
         end if
 
         if (tReadRDMs) then
+            if (RDMExcitLevel == 1) then
+                do irdm = 1, size(one_rdms)
+                    call read_1rdm(one_rdms(irdm), irdm)
+                end do
+            else
+                call read_2rdm_popsfile(two_rdm_main, two_rdm_spawn)
+                if (print_2rdm_est) call calc_2rdm_estimates_wrapper(rdm_estimates, two_rdm_main)
+
+                if (tPrint1RDMsFrom2RDMPops) then
+                    call print_1rdms_from_2rdms_wrapper(one_rdms, two_rdm_main, tOpenShell)
+                end if
+            end if
+
             if (any(tSinglePartPhase)) then
                 write(6,'("WARNING - Asking to read in the RDMs, but not varying shift from the beginning of &
-                          &the calculation. Ignoring the request to read in the RDMs and starting again instead.")')
-                tReadRDMs = .false.
-            else
-                if (RDMExcitLevel == 1) then
-                    do irdm = 1, size(one_rdms)
-                        call read_1rdm(one_rdms(irdm), irdm)
-                    end do
-                else
-                    call read_2rdm_popsfile(two_rdm_main, two_rdm_spawn)
-                    if (print_2rdm_est) call calc_2rdm_estimates_wrapper(rdm_estimates, two_rdm_main)
-                end if
+                          &the calculation. All RDMs just read in will be zeroed, to prevent invalid averaging.")')
+                ! Clear the 1-RDMs.
+                do irdm = 1, size(one_rdms)
+                    one_rdms(irdm)%matrix = 0.0_dp
+                end do
+                ! Clear the 2-RDMs.
+                two_rdm_main%nelements = 0
+                two_rdm_main%elements = 0.0_dp
+                call clear_hash_table(two_rdm_main%hash_table)
             end if
         end if
 
@@ -326,6 +338,41 @@ contains
         RDMEnergy_Time%timer_name = 'RDMEnergyTime'
 
     end subroutine init_rdms
+
+    subroutine print_1rdms_from_2rdms_wrapper(one_rdms, two_rdms, open_shell)
+
+        use Parallel_neci, only: MPISumAll
+        use rdm_data, only: one_rdm_t, rdm_list_t
+        use rdm_estimators, only: calc_rdm_trace
+        use rdm_finalising, only: Finalise_1e_RDM, calc_1rdms_from_2rdms
+
+        type(one_rdm_t), intent(inout) :: one_rdms(:)
+        type(rdm_list_t), intent(in) :: two_rdms
+        logical, intent(in) :: open_shell
+
+        integer :: irdm
+        real(dp) :: rdm_trace(two_rdms%sign_length), rdm_trace_all(two_rdms%sign_length)
+        real(dp) :: rdm_norm_all(two_rdms%sign_length), norm_1rdm
+        character(len=*), parameter :: t_r = 'print_1rdms_from_2rdms_wrapper'
+
+        if (size(one_rdms) == 0) then
+            call stop_all(t_r, "You have asked to print 1-RDMs but they are not allocated. Make sure &
+                                &that you have asked for both 1-RDMs and 2-RDMs to be calculated by &
+                                &seting the RDMExcitLevel to 3, i.e. 'CALCRDMONFLY 3 ...' in input options.")
+        end if
+
+        call calc_rdm_trace(two_rdms, rdm_trace)
+        call MPISumAll(rdm_trace, rdm_trace_all)
+        ! RDMs are normalised so that their trace is nel*(nel-1)/2.
+        rdm_norm_all = rdm_trace_all*2.0_dp/(nel*(nel-1))
+
+        call calc_1rdms_from_2rdms(one_rdms, two_rdms, rdm_norm_all, open_shell)
+
+        do irdm = 1, size(one_rdms)
+            call Finalise_1e_RDM(one_rdms(irdm)%matrix, one_rdms(irdm)%rho_ii, irdm, norm_1rdm, .false.)
+        end do
+
+    end subroutine print_1rdms_from_2rdms_wrapper
 
     subroutine SetUpSymLabels_RDM()
 
@@ -520,7 +567,7 @@ contains
         use Parallel_neci, only: iProcIndex, nProcessors
         use rdm_data, only: rdm_list_t, rdm_spawn_t
         use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm, add_to_rdm_spawn_t
-        use rdm_data_utils, only: communicate_rdm_spawn_t, annihilate_rdm_list
+        use rdm_data_utils, only: communicate_rdm_spawn_t_wrapper, annihilate_rdm_list
         use SystemData, only: nbasis
         use util_mod, only: get_free_unit
 
@@ -531,10 +578,15 @@ contains
         integer :: ij, kl, i, j, k, l, ij_proc_row, sign_length_old
         integer :: ielem, pops_unit, file_end, hash_val, ierr
         real(dp) :: rdm_sign(rdm%sign_length)
-        logical :: file_exists
+        logical :: file_exists, nearly_full, finished, all_finished
         character(len=*), parameter :: t_r = 'read_2rdm_popsfile'
 
         write(6,'(1X,"Reading in the 2-RDM...")')
+
+        ! If we're about to fill up the spawn list, perform a communication.
+        nearly_full = .false.
+        ! Have we finished adding RDM elements to the spawned list?
+        finished = .false.
 
         inquire(file='RDM_POPSFILE', exist=file_exists)
 
@@ -563,16 +615,29 @@ contains
                 ! file_end < 0 => end of file reached.
                 if (file_end < 0) exit
 
+                ! If the spawned list is nearly full, perform a communication.
+                if (nearly_full) then
+                    call communicate_rdm_spawn_t_wrapper(spawn, rdm, finished, all_finished)
+                    nearly_full = .false.
+                end if
+
                 call calc_separate_rdm_labels(rdm_entry(0), ij, kl, i, j, k, l)
                 call extract_sign_rdm(rdm_entry, rdm_sign)
 
-                call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false.)
+                call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false., nearly_full)
             end do
 
             close(pops_unit)
         end if
 
-        call communicate_rdm_spawn_t(spawn, rdm)
+        finished = .true.
+        ! Keep performing communications until all RDM spawnings on every
+        ! processor have been communicated.
+        do
+            call communicate_rdm_spawn_t_wrapper(spawn, rdm, finished, all_finished)
+            if (all_finished) exit
+        end do
+
         call annihilate_rdm_list(rdm)
 
         ! Fill in the hash table to the RDM. Clear it first, just in case.

@@ -520,6 +520,10 @@ MODULE Logging
 ! Accumulate RDMs using the old RDM code.
             tOldRDMs = .true.
 
+        case("PRINT-1RDMS-FROM-2RDM-POPS")
+            tPrint1RDMsFrom2RDMPops = .true.
+            tReadRDMs = .true.
+
         case("DIAGFLYONERDM")
 !This sets the calculation to diagonalise the *1* electron reduced density matrix.   
 !The eigenvalues give the occupation numbers of the natural orbitals (eigenfunctions).
