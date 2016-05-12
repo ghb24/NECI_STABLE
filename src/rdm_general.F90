@@ -317,11 +317,15 @@ contains
                 ! Clear the 1-RDMs.
                 do irdm = 1, size(one_rdms)
                     one_rdms(irdm)%matrix = 0.0_dp
+                    one_rdms(irdm)%rho_ii = 0.0_dp
                 end do
                 ! Clear the 2-RDMs.
                 two_rdm_main%nelements = 0
-                two_rdm_main%elements = 0.0_dp
+                two_rdm_main%elements = 0_int_rdm
                 call clear_hash_table(two_rdm_main%hash_table)
+                ! Turn off tReadRDMs, since the read in RDMs aren't being
+                ! used. Leaving it on affects some other stuff later.
+                tReadRDMs = .false.
             end if
         end if
 
@@ -647,6 +651,10 @@ contains
             hash_val = FindWalkerHash((/i,j,k,l/), size(rdm%hash_table))
             call add_hash_table_entry(rdm%hash_table, ielem, hash_val)
         end do
+
+        ! Clear the spawn object.
+        spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
+        call clear_hash_table(spawn%rdm_send%hash_table)
 
     end subroutine read_2rdm_popsfile
 
