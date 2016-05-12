@@ -7,7 +7,8 @@ module guga_excitations
     use SystemData, only: nEl, nBasis, t_guga_unit_tests, ElecPairs, G1, nmaxx, &
                           nmaxy, nmaxz, OrbECutoff, tOrbECutoff, nSpatOrbs, &
                           current_stepvector, currentOcc_ilut, currentOcc_int, &
-                          currentB_ilut, currentB_int, current_cum_list
+                          currentB_ilut, currentB_int, current_cum_list, &
+                          tGen_guga_weighted
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_
     use bit_reps, only: niftot, decode_bit_det, encode_det, encode_part_sign, &
@@ -50,6 +51,7 @@ module guga_excitations
                 calc_orbital_pgen_contr, calc_mixed_contr, calc_mixed_start_r2l_contr, &
                 calc_mixed_start_l2r_contr, calc_mixed_end_l2r_contr, calc_mixed_end_r2l_contr, &
                 pick_first_orbital, orb_pgen_contrib_type_3, orb_pgen_contrib_type_2
+    use Umatcache, only: UMat2D
 
     use guga_types, only: weight_obj
 
@@ -1670,20 +1672,22 @@ contains
 ! 
 !         cum_sum = 0.0_dp
 ! 
-!         do orb = 1, i - 1
-!             ! calc. the p(a) 
-!             if (current_stepvector(orb) /= 3) then
-! !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
-!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
-! 
-!             end if
-! 
-!         end do
+        if (tGen_guga_weighted) then
+            do orb = 1, i - 1
+                ! calc. the p(a) 
+                if (current_stepvector(orb) /= 3) then
+    !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+                    cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
+
+                end if
+
+            end do
+        end if
 
         ! deal with orb (i) in specific way: 
 !         cpt_a = get_guga_integral_contrib(occ_orbs, i, i)
-!         cpt_a = get_guga_integral_contrib(occ_orbs, i, -1)
-        cpt_a = 1.0_dp
+        cpt_a = get_guga_integral_contrib(occ_orbs, i, -1)
+!         cpt_a = 1.0_dp
         
 !         cum_sum = cum_sum + cpt_a
 
@@ -22407,8 +22411,8 @@ contains
 !         else
 !             cpt = abs(get_umat_el(ind(1),ind(2),orb_a,orb_b) + &
 !                 get_umat_el(ind(1),ind(2),orb_b,orb_a))
-            cpt = abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) +&
-                  abs(get_umat_el(ind(1),ind(2),orb_b,orb_a))
+!             cpt = abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) +&
+!                   abs(get_umat_el(ind(1),ind(2),orb_b,orb_a))
             ! not quite sure yet about the contribution here...
             ! could also do it uniformly
 !             cpt = sqrt(abs_l1(UMat2D(max(ind(1), orb_a), min(ind(1), orb_a)))) & 
@@ -22416,6 +22420,42 @@ contains
 !        end if
 
         ! TODO proper one
+
+        ! do a input dependent switch to compare influence on the pgens..
+        if (tGen_guga_weighted) then
+
+            if (orb_b < 0) then
+
+    !             cpt = 1.0_dp
+
+                cpt = max(sqrt(abs_l1(UMat2D(max(ind(1),orb_a), min(ind(1),orb_a)))) &
+                    + sqrt(abs_l1(UMat2D(max(ind(2),orb_a), min(ind(2),orb_a)))), &
+                    0.00001_dp)
+
+            else
+
+                cpt = max(sqrt(abs(get_umat_el(ind(1),ind(2),orb_a,orb_b) & 
+                                 - get_umat_el(ind(1),ind(2),orb_b,orb_a))), &
+                                 0.00001_dp)
+
+    !             cpt = max(sqrt(abs(get_umat_el(ind(1),ind(2),orb_a,orb_b) & 
+    !                              - get_umat_el(ind(1),ind(2),orb_b,orb_a))), &
+    !                              0.00001_dp)
+            end if
+
+        else 
+
+            if (orb_b < 0) then
+
+                cpt = 1.0_dp
+
+            else
+
+                cpt = abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) +&
+                      abs(get_umat_el(ind(1),ind(2),orb_b,orb_a))
+
+            end if
+        end if
 
     end function get_guga_integral_contrib
 

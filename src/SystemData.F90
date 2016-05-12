@@ -242,7 +242,8 @@ integer :: n_guga_excit_gen
 
 
 ! use new flags for the new guga excitation generator implementations
-logical :: tGen_nosym_guga, tGen_sym_guga_ueg, tGen_sym_guga_mol
+logical :: tGen_nosym_guga, tGen_sym_guga_ueg, tGen_sym_guga_mol, &
+           tgen_guga_weighted
 
 logical :: t_consider_diff_bias
 

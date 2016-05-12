@@ -902,7 +902,7 @@ contains
         else if (tGen_4ind_lin_exact) then
             if (orbb > 0) then
                 ! Include a contribution of:
-                ! abs(<ij|ab> - <ij|ba>)
+                ! abs(<ij|a b> - <ij|ba>)
                 ida = gtID(orba)
                 idb = gtID(orbb)
                 contrib = abs(get_umat_el(indi, indj, ida, idb) &
