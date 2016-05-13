@@ -349,6 +349,9 @@ real(dp) :: gamma_two_same, gamma_two_mixed, gamma_three_same, gamma_three_mixed
 logical :: enough_two, enough_two_same, enough_two_mixed, enough_three, &
            enough_three_same, enough_three_mixed, enough_four
 
+logical :: t_min_tau = .false.
+real(dp) :: min_tau_global = 1e-07_dp
+
 ! also need multiple new specific excitation type probabilites, but they are 
 ! defined in FciMCdata module! 
 end module CalcData

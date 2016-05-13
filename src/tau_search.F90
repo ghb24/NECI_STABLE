@@ -13,7 +13,8 @@ module tau_search
                     enough_sing, enough_doub, enough_opp, enough_par, consider_par_bias, &
                     gamma_two_same, gamma_two_mixed, gamma_three_same, gamma_three_mixed, &
                     gamma_four, enough_two_same, enough_two_mixed, enough_three_same, &
-                    enough_three_mixed, enough_four, enough_two, enough_three
+                    enough_three_mixed, enough_four, enough_two, enough_three, &
+                    t_min_tau, min_tau_global
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          ProjEDet, ilutRef, MaxTau, tSearchTau, &
                          tSearchTauOption, tSearchTauDeath, pExcit2, pExcit4, &
@@ -397,6 +398,10 @@ contains
         max_death_cpt = mpi_tmp
         tau_death = 1.0_dp / max_death_cpt
         if (tau_death < tau_new) then
+            if (t_min_tau) then
+                root_print "tau reduced, due to death events! reset min_tau to:", tau_new
+                min_tau_global = tau_death
+            end if
             tau_new = tau_death
         end if
 
@@ -414,7 +419,19 @@ contains
             tau_new = tau_new * 0.99999_dp
 
             if (abs(tau - tau_new) / tau > 0.001_dp) then
-                root_print "Updating time-step. New time-step = ", tau_new
+                if (t_min_tau) then
+                    if (tau_new < min_tau_global) then
+                        root_print "new tau less then min_tau! set to min_tau!", min_tau_global
+
+                        tau_new = min_tau_global
+
+                    else 
+                        root_print "Updating time-step. New time-step = ", tau_new
+                    end if
+                else
+                    root_print "Updating time-step. New time-step = ", tau_new
+
+                end if
             end if
             tau = tau_new
 

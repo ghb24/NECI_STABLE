@@ -196,7 +196,8 @@ MODULE ReadInput_neci
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
                               tGen_4ind_lin_exact, tGen_4ind_2, &
-                              tComplexOrbs_RealInts, tLatticeGens, tGUGA
+                              tComplexOrbs_RealInts, tLatticeGens, tGUGA, &
+                              tgen_guga_weighted
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -453,7 +454,8 @@ MODULE ReadInput_neci
             write(6,*)
         end if
 
-        if (tGen_4ind_weighted .or. tGen_4ind_reverse .or. tGen_4ind_2) then
+        if (tGen_4ind_weighted .or. tGen_4ind_reverse .or. tGen_4ind_2 &
+            .or. tgen_guga_weighted) then
 
             ! We want to use UMAT2D...
             tDeferred_Umat2d = .true.

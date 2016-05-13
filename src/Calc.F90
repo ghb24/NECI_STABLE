@@ -997,6 +997,21 @@ contains
                     tSearchTauOption = .false.
                 end if
 
+            case("MIN-TAU")
+                ! use a minimum tau value or the automated tau-search 
+                ! to avoid that a single, worst case excitation kills your 
+                ! time-step 
+                t_min_tau = .true.
+
+                if (item < nitems) then 
+                    call getf(min_tau_global)
+                end if
+
+                ! assume thats only for the tau-search so enable all the 
+                ! other quantities
+                tSearchTau = .true.
+                tSearchTauOption = .true.
+
             case("MAX-TAU")
                 ! For tau searching, set a maximum value of tau. This places
                 ! a limit to prevent craziness at the start of a calculation

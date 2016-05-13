@@ -1670,7 +1670,7 @@ contains
 ! 
 !         sum_ml = sum(G1(occ_orbs)%ml)
 ! 
-!         cum_sum = 0.0_dp
+        cum_sum = 0.0_dp
 ! 
         if (tGen_guga_weighted) then
             do orb = 1, i - 1
@@ -1689,26 +1689,28 @@ contains
         cpt_a = get_guga_integral_contrib(occ_orbs, i, -1)
 !         cpt_a = 1.0_dp
         
-!         cum_sum = cum_sum + cpt_a
+        cum_sum = cum_sum + cpt_a
 
         ! also get p(b|a)
         ! did i get that the wrong way around?? 
         call pgen_select_orb_guga_mol(ilut, occ_orbs, i, j, cpt_ba, ba_sum, i, .true.)
 !         call pgen_select_orb_guga_mol(ilut, occ_orbs, i, j, cpt_ab, ab_sum, i, .true.)
 
-!         do orb = i + 1, j - 1
-!             if (current_stepvector(orb) /= 3) then
-! !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
-!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
-!             end if
-!         end do
+        if (tGen_guga_weighted) then
+            do orb = i + 1, j - 1
+                if (current_stepvector(orb) /= 3) then
+    !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+                    cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
+                end if
+            end do
+        end if
 
         ! deal with j also speciallly
 !         cpt_b = get_guga_integral_contrib(occ_orbs, j, j) 
-!         cpt_b = get_guga_integral_contrib(occ_orbs, j, -1)
-        cpt_b = 1.0_dp
+        cpt_b = get_guga_integral_contrib(occ_orbs, j, -1)
+!         cpt_b = 1.0_dp
 
-!         cum_sum = cum_sum + cpt_b
+        cum_sum = cum_sum + cpt_b
 
         ! and get p(a|b)
         call pgen_select_orb_guga_mol(ilut, occ_orbs, j, i, cpt_ab, ab_sum, -j, .true.)
@@ -1716,14 +1718,18 @@ contains
 
         ! and deal with rest: 
 
-!         do orb = j + 1, nSpatOrbs 
-!             if (current_stepvector(orb) /= 3) then 
-! !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
-!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
-!             end if
-!         end do
+        if (tGen_guga_weighted) then
+            do orb = j + 1, nSpatOrbs 
+                if (current_stepvector(orb) /= 3) then 
+    !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+                    cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
+                end if
+            end do
+        end if
 
-        cum_sum = current_cum_list(nSpatOrbs)
+        if (.not. tGen_guga_weighted) then
+            cum_sum = current_cum_list(nSpatOrbs)
+        end if
 
         if (cum_sum < EPS .or. ab_sum < EPS .or. ba_sum < EPS) then
             cpt_a = 0.0_dp
@@ -7216,23 +7222,25 @@ contains
         i = gtID(occ_orbs(1))
         j = gtID(occ_orbs(2))
 
-!         cum_sum = 0.0_dp
-!         do orb = 1, orb_a - 1
-!             ! calc. the p(a) 
-!             if (current_stepvector(orb) /= 3) then
-! !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
-!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
-! 
-!             end if
-! 
-!         end do
+        cum_sum = 0.0_dp
+        if (tGen_guga_weighted) then
+            do orb = 1, orb_a - 1
+                ! calc. the p(a) 
+                if (current_stepvector(orb) /= 3) then
+    !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+                    cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
+
+                end if
+
+            end do
+        end if
 
         ! deal with orb (a) in specific way: 
 !         cpt_a = get_guga_integral_contrib(occ_orbs, orb_a, orb_a)
-!         cpt_a = get_guga_integral_contrib(occ_orbs, orb_a, -1)
-        cpt_a = 1.0_dp
+        cpt_a = get_guga_integral_contrib(occ_orbs, orb_a, -1)
+!         cpt_a = 1.0_dp
         
-!         cum_sum = cum_sum + cpt_a
+        cum_sum = cum_sum + cpt_a
 
         ! also get p(b|a)
         ! depending if its a r2l or l2r full-stop: 
@@ -7248,19 +7256,21 @@ contains
 
         ! change to the fullstart into fullstop: loop until orbital j for the 
         ! fullstop implementattion
-!         do orb = orb_a + 1, j - 1
-!             if (current_stepvector(orb) /= 3) then
-! !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
-!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
-!             end if
-!         end do
-! 
+        if (tGen_guga_weighted) then
+            do orb = orb_a + 1, j - 1
+                if (current_stepvector(orb) /= 3) then
+    !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+                    cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
+                end if
+            end do
+        end if
+    ! 
         ! deal with j also speciallly
 !         cpt_b = get_guga_integral_contrib(occ_orbs, orb_a, orb_a) 
-!         cpt_b = get_guga_integral_contrib(occ_orbs, j, -1)
-        cpt_b = 1.0_dp
+        cpt_b = get_guga_integral_contrib(occ_orbs, j, -1)
+!         cpt_b = 1.0_dp
 
-!         cum_sum = cum_sum + cpt_b
+        cum_sum = cum_sum + cpt_b
 
         ! and get p(a|b)
         ! only orbitals below j are allowed! 
@@ -7268,14 +7278,18 @@ contains
         call pgen_select_orb_guga_mol(ilut, occ_orbs, j, orb_a, cpt_ab, ab_sum, -j, .true.)
 
 !         ! and deal with rest: 
-!         do orb = j + 1, nSpatOrbs 
-!             if (current_stepvector(orb) /= 3) then 
-! !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
-!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
-!             end if
-!         end do
+        if (tGen_guga_weighted) then
+            do orb = j + 1, nSpatOrbs 
+                if (current_stepvector(orb) /= 3) then 
+    !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
+                    cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
+                end if
+            end do
+        end if
 
-        cum_sum = current_cum_list(nSpatOrbs)
+        if (.not. tGen_guga_weighted) then
+            cum_sum = current_cum_list(nSpatOrbs)
+        end if
 
         if (cum_sum < EPS .or. ab_sum < EPS .or. ba_sum < EPS) then
             orb_pgen = 0.0_dp
@@ -7306,20 +7320,23 @@ contains
         j = gtID(occ_orbs(2))
 
 !         ! damn... i need the probability of the elec-pair picking too or?
-!         cum_sum = 0.0_dp
-!         do orb = 1, i - 1
-!             ! calc. the p(a) 
-!             if (current_stepvector(orb) /= 3) then
-!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
-!             end if
-! 
-!         end do
+        
+        cum_sum = 0.0_dp
+        if (tGen_guga_weighted) then
+            do orb = 1, i - 1
+                ! calc. the p(a) 
+                if (current_stepvector(orb) /= 3) then
+                    cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
+                end if
+
+            end do
+        end if
 ! 
         ! deal with orb (i) in specific way: 
-!         cpt_a = get_guga_integral_contrib(occ_orbs, i, -1)
-        cpt_a = 1.0_dp
+        cpt_a = get_guga_integral_contrib(occ_orbs, i, -1)
+!         cpt_a = 1.0_dp
         
-!         cum_sum = cum_sum + cpt_a
+        cum_sum = cum_sum + cpt_a
 
         ! also get p(b|a)
         ! did i mix up i and j here below.. what do i assume picked already 
@@ -7332,17 +7349,19 @@ contains
 !         call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_a, i, cpt_ba, ba_sum, i, .true.)
 
         ! change to the fullstart into fullstop: loop until orbital a 
-!         do orb = i + 1, orb_a - 1
-!             if (current_stepvector(orb) /= 3) then
-!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
-!             end if
-!         end do
+        if (tGen_guga_weighted) then
+            do orb = i + 1, orb_a - 1
+                if (current_stepvector(orb) /= 3) then
+                    cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
+                end if
+            end do
+        end if
 ! 
         ! deal with a also speciallly
-!         cpt_b = get_guga_integral_contrib(occ_orbs, orb_a, -1) 
-        cpt_b = 1.0_dp
+        cpt_b = get_guga_integral_contrib(occ_orbs, orb_a, -1) 
+!         cpt_b = 1.0_dp
 
-!         cum_sum = cum_sum + cpt_b
+        cum_sum = cum_sum + cpt_b
 
         ! and get p(a|b)
         ! here the only difference between r2l and l2r fullstarts come into
@@ -7358,13 +7377,17 @@ contains
         end if
 ! 
 !         ! and deal with rest: 
-!         do orb = orb_a + 1, nSpatOrbs 
-!             if (current_stepvector(orb) /= 3) then 
-!                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
-!             end if
-!         end do
+        if (tGen_guga_weighted) then
+            do orb = orb_a + 1, nSpatOrbs 
+                if (current_stepvector(orb) /= 3) then 
+                    cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
+                end if
+            end do
+        end if
 
-        cum_sum = current_cum_list(nSpatOrbs)
+        if (.not. tGen_guga_weighted) then
+            cum_sum = current_cum_list(nSpatOrbs)
+        end if
 
         if (cum_sum < EPS .or. ab_sum < EPS .or. ba_sum < EPS) then
             orb_pgen = 0.0_dp
@@ -22206,9 +22229,11 @@ contains
         ! symrandexcit5!
 
         ! generate the cummulative pgen list: 
-!         call gen_a_orb_cum_list_guga_mol(ilut, occ_orbs, cum_arr)
-
-        cum_arr = current_cum_list
+        if (tGen_guga_weighted) then
+            call gen_a_orb_cum_list_guga_mol(ilut, occ_orbs, cum_arr)
+        else
+            cum_arr = current_cum_list
+        end if
 
         cum_sum = cum_arr(nSpatOrbs)
         ! check if no excitation is possible
@@ -22430,13 +22455,13 @@ contains
 
                 cpt = max(sqrt(abs_l1(UMat2D(max(ind(1),orb_a), min(ind(1),orb_a)))) &
                     + sqrt(abs_l1(UMat2D(max(ind(2),orb_a), min(ind(2),orb_a)))), &
-                    0.00001_dp)
+                    0.0001_dp)
 
             else
 
                 cpt = max(sqrt(abs(get_umat_el(ind(1),ind(2),orb_a,orb_b) & 
                                  - get_umat_el(ind(1),ind(2),orb_b,orb_a))), &
-                                 0.00001_dp)
+                                 0.0001_dp)
 
     !             cpt = max(sqrt(abs(get_umat_el(ind(1),ind(2),orb_a,orb_b) & 
     !                              - get_umat_el(ind(1),ind(2),orb_b,orb_a))), &
