@@ -25,5 +25,5 @@ extract_program = ./tools/extract.py
 [user]
 diff = vimdiff
 default_program = neci
-benchmark = kmneci-a7e13e3.neci-a7e13e3.kneci-a7e13e3.mneci-a7e13e3 neci-a1afa34.kneci-a1afa34.mneci-a1afa34 neci-9884ce3.kneci-9884ce3.mneci-9884ce3 neci-8682278.kneci-8682278.mneci-8682278 neci-0ead325.kneci-0ead325.mneci-0ead325 neci-275c67b.kneci-275c67b.mneci-275c67b neci-f617824.kneci-f617824.mneci-f617824 neci-c64530b.kneci-c64530b.mneci-c64530b neci-31cfa9b.kneci-31cfa9b.mneci-31cfa9b neci-7559a3c.kneci-7559a3c.mneci-7559a3c neci-1f04704.kneci-1f04704.mneci-1f04704
+benchmark = kmneci-5a758b9.neci-5a758b9.kneci-5a758b9.mneci-5a758b9 kmneci-a7e13e3.neci-a7e13e3.kneci-a7e13e3.mneci-a7e13e3 neci-a1afa34.kneci-a1afa34.mneci-a1afa34 neci-9884ce3.kneci-9884ce3.mneci-9884ce3 neci-8682278.kneci-8682278.mneci-8682278 neci-0ead325.kneci-0ead325.mneci-0ead325 neci-275c67b.kneci-275c67b.mneci-275c67b neci-f617824.kneci-f617824.mneci-f617824 neci-c64530b.kneci-c64530b.mneci-c64530b neci-31cfa9b.kneci-31cfa9b.mneci-31cfa9b neci-7559a3c.kneci-7559a3c.mneci-7559a3c neci-1f04704.kneci-1f04704.mneci-1f04704
 
