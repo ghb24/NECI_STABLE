@@ -109,5 +109,8 @@ module LoggingData
     ! If true, then read in 2-RDM popsfiles and then output 1-RDMs calculated
     ! directly from these.
     logical :: tPrint1RDMsFrom2RDMPops = .false.
+    ! If true, then read in spinfree 2-RDM files and then output 1-RDMs
+    ! calculated directly from these.
+    logical :: tPrint1RDMsFromSpinfree = .false.
 
 end module LoggingData

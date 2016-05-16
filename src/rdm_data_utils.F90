@@ -204,6 +204,37 @@ contains
 
     end subroutine dealloc_one_rdm_t
 
+    pure subroutine clear_rdm_list_t(rdm)
+
+        use hash, only: clear_hash_table
+
+        type(rdm_list_t), intent(inout) :: rdm
+
+        rdm%nelements = 0
+        rdm%elements = 0_int_rdm
+        call clear_hash_table(rdm%hash_table)
+
+    end subroutine clear_rdm_list_t
+
+    pure subroutine clear_one_rdms(one_rdms)
+
+        ! Clear all the arrays for the one_rdm_t objects passed in (except for
+        ! sym_list arrays, which we'd expect to be constant throughout a
+        ! simulation, except for special cases like basis rotations).
+
+        type(one_rdm_t), intent(inout) :: one_rdms(:)
+
+        integer :: irdm
+
+        do irdm = 1, size(one_rdms)
+            if (allocated(one_rdms(irdm)%matrix)) one_rdms(irdm)%matrix = 0.0_dp
+            if (allocated(one_rdms(irdm)%evalues)) one_rdms(irdm)%evalues = 0.0_dp
+            if (allocated(one_rdms(irdm)%rho_ii)) one_rdms(irdm)%rho_ii = 0.0_dp
+            if (allocated(one_rdms(irdm)%lagrangian)) one_rdms(irdm)%lagrangian = 0.0_dp
+        end do
+
+    end subroutine clear_one_rdms
+
     pure subroutine calc_combined_rdm_label(i, j, k, l, ijkl)
 
         ! Combine the four 2-RDM orbital labels into unique integers. i and j

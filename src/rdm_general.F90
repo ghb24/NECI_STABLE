@@ -17,11 +17,11 @@ contains
         use FciMCData, only: MaxSpawned, Spawned_Parents, Spawned_Parents_Index
         use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
         use FciMCData, only: HFDet_True, tSinglePartPhase
-        use hash, only: clear_hash_table
         use LoggingData, only: tDo_Not_Calc_2RDM_est, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tDiagRDM, tDumpForcesInfo, tDipoles, tPrint1RDM
         use LoggingData, only: tRDMInstEnergy, tReadRDMs, tPopsfile, tno_RDMs_to_read
         use LoggingData, only: twrite_RDMs_to_read, tPrint1RDMsFrom2RDMPops
+        use LoggingData, only: tPrint1RDMsFromSpinfree
         use Parallel_neci, only: iProcIndex, nProcessors
         use rdm_data, only: rdm_estimates, one_rdms, two_rdm_spawn, two_rdm_main, two_rdm_recv
         use rdm_data, only: two_rdm_recv_2, tOpenShell, print_2rdm_est, Sing_ExcDjs, Doub_ExcDjs
@@ -30,6 +30,7 @@ contains
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data, only: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
         use rdm_data_utils, only: init_rdm_spawn_t, init_rdm_list_t, init_one_rdm_t
+        use rdm_data_utils, only: clear_one_rdms, clear_rdm_list_t
         use rdm_estimators, only: init_rdm_estimates_t, calc_2rdm_estimates_wrapper
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
@@ -297,6 +298,14 @@ contains
             call SetUpSymLabels_RDM()
         end if
 
+        if (tPrint1RDMsFromSpinfree) then
+            call read_spinfree_2rdm_files(two_rdm_main, two_rdm_spawn)
+            call print_1rdms_from_sf2rdms_wrapper(one_rdms, two_rdm_main)
+            ! now clear these objects before the main simulation.
+            call clear_one_rdms(one_rdms)
+            call clear_rdm_list_t(two_rdm_main)
+        end if
+
         if (tReadRDMs) then
             if (RDMExcitLevel == 1) then
                 do irdm = 1, size(one_rdms)
@@ -314,15 +323,10 @@ contains
             if (any(tSinglePartPhase)) then
                 write(6,'("WARNING - Asking to read in the RDMs, but not varying shift from the beginning of &
                           &the calculation. All RDMs just read in will be zeroed, to prevent invalid averaging.")')
-                ! Clear the 1-RDMs.
-                do irdm = 1, size(one_rdms)
-                    one_rdms(irdm)%matrix = 0.0_dp
-                    one_rdms(irdm)%rho_ii = 0.0_dp
-                end do
-                ! Clear the 2-RDMs.
-                two_rdm_main%nelements = 0
-                two_rdm_main%elements = 0_int_rdm
-                call clear_hash_table(two_rdm_main%hash_table)
+                ! Clear these objects, before the main simulation, since we
+                ! haven't started averaging RDMs yet.
+                call clear_one_rdms(one_rdms)
+                call clear_rdm_list_t(two_rdm_main)
                 ! Turn off tReadRDMs, since the read in RDMs aren't being
                 ! used. Leaving it on affects some other stuff later.
                 tReadRDMs = .false.
@@ -377,6 +381,40 @@ contains
         end do
 
     end subroutine print_1rdms_from_2rdms_wrapper
+
+    subroutine print_1rdms_from_sf2rdms_wrapper(one_rdms, two_rdms)
+
+        use Parallel_neci, only: MPISumAll
+        use rdm_data, only: one_rdm_t, rdm_list_t
+        use rdm_estimators, only: calc_rdm_trace
+        use rdm_finalising, only: Finalise_1e_RDM, calc_1rdms_from_spinfree_2rdms
+
+        type(one_rdm_t), intent(inout) :: one_rdms(:)
+        type(rdm_list_t), intent(in) :: two_rdms
+
+        integer :: irdm
+        real(dp) :: rdm_norm_all(two_rdms%sign_length), norm_1rdm
+        character(len=*), parameter :: t_r = 'print_1rdms_from_sf2rdms_wrapper'
+
+        if (size(one_rdms) == 0) then
+            call stop_all(t_r, "You have asked to print 1-RDMs but they are not allocated. Make sure &
+                                &that you have asked for both 1-RDMs and 2-RDMs to be calculated by &
+                                &seting the RDMExcitLevel to 3, i.e. 'CALCRDMONFLY 3 ...' in input options.")
+        end if
+
+        !call calc_rdm_trace(two_rdms, rdm_trace)
+        !call MPISumAll(rdm_trace, rdm_trace_all)
+        !! RDMs are normalised so that their trace is nel*(nel-1)/2.
+        !rdm_norm_all = rdm_trace_all*2.0_dp/(nel*(nel-1))
+        rdm_norm_all = 1.0_dp
+
+        call calc_1rdms_from_spinfree_2rdms(one_rdms, two_rdms, rdm_norm_all)
+
+        do irdm = 1, size(one_rdms)
+            call Finalise_1e_RDM(one_rdms(irdm)%matrix, one_rdms(irdm)%rho_ii, irdm, norm_1rdm, .false.)
+        end do
+
+    end subroutine print_1rdms_from_sf2rdms_wrapper
 
     subroutine SetUpSymLabels_RDM()
 
@@ -539,7 +577,7 @@ contains
         character(20) :: filename
         character(len=*), parameter :: t_r = 'read_1rdm'
 
-        write(6,'(1X,"Reading in the 1-RDM...")')
+        write(6,'(1X,"Reading in the 1-RDMs...")')
 
         write(filename, '("OneRDM_POPS.",'//int_fmt(irdm,0)//')') irdm
 
@@ -580,12 +618,12 @@ contains
 
         integer(int_rdm) :: ijkl, rdm_entry(0:rdm%sign_length)
         integer :: ij, kl, i, j, k, l, ij_proc_row, sign_length_old
-        integer :: ielem, pops_unit, file_end, hash_val, ierr
+        integer :: ielem, pops_unit, file_end, hash_val
         real(dp) :: rdm_sign(rdm%sign_length)
         logical :: file_exists, nearly_full, finished, all_finished
         character(len=*), parameter :: t_r = 'read_2rdm_popsfile'
 
-        write(6,'(1X,"Reading in the 2-RDM...")')
+        write(6,'(1X,"Reading in the 2-RDMs...")')
 
         ! If we're about to fill up the spawn list, perform a communication.
         nearly_full = .false.
@@ -657,6 +695,107 @@ contains
         call clear_hash_table(spawn%rdm_send%hash_table)
 
     end subroutine read_2rdm_popsfile
+
+    subroutine read_spinfree_2rdm_files(rdm, spawn)
+
+        use hash, only: clear_hash_table, FindWalkerHash, add_hash_table_entry
+        use Parallel_neci, only: iProcIndex, nProcessors
+        use rdm_data, only: rdm_list_t, rdm_spawn_t
+        use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm, add_to_rdm_spawn_t
+        use rdm_data_utils, only: communicate_rdm_spawn_t_wrapper, annihilate_rdm_list
+        use SystemData, only: nbasis
+        use util_mod, only: get_free_unit, int_fmt
+
+        type(rdm_list_t), intent(inout) :: rdm
+        type(rdm_spawn_t), intent(inout) :: spawn
+
+        integer(int_rdm) :: ijkl, rdm_entry(0:rdm%sign_length)
+        integer :: ij, kl, i, j, k, l, ij_proc_row, sign_length_old
+        integer :: irdm, ielem, iunit(rdm%sign_length), ierr, hash_val
+        real(dp) :: rdm_sign(rdm%sign_length)
+        logical :: file_exists, nearly_full, finished, all_finished
+        logical :: file_end(rdm%sign_length)
+        character(30) :: rdm_filename(rdm%sign_length)
+        character(len=*), parameter :: t_r = 'read_2rdm_popsfile'
+
+        write(6,'(1X,"Reading in the spinfree 2-RDMs...")')
+
+        ! If we're about to fill up the spawn list, perform a communication.
+        nearly_full = .false.
+        ! Have we finished adding RDM elements to the spawned list?
+        finished = .false.
+        ! Have we reached the end of the various files?
+        file_end = .false.
+
+        do irdm = 1, rdm%sign_length
+            write(rdm_filename(irdm), '("spinfree_TwoRDM.",'//int_fmt(irdm,0)//')') irdm
+            inquire(file=trim(rdm_filename(irdm)), exist=file_exists)
+
+            if (.not. file_exists) then
+                call stop_all(t_r, "Attempting to read in a spinfree 2-RDM from "//trim(rdm_filename(irdm))//", &
+                                   &but this file does not exist.")
+            end if
+        end do
+
+        ! Only let the root processor do the reading in.
+        if (iProcIndex == 0) then
+            do irdm = 1, rdm%sign_length
+                iunit(irdm) = get_free_unit()
+                open(iunit(irdm), file=trim(rdm_filename(irdm)), status='old')
+            end do
+
+            do
+                do irdm = 1, rdm%sign_length
+                    if (.not. file_end(irdm)) then
+                        rdm_sign = 0.0_dp
+                        read(iunit(irdm), "(4I15, F30.20)", iostat=ierr) i, j, k, l, rdm_sign(irdm)
+                        if (ierr > 0) call stop_all(t_r, "Error reading "//trim(rdm_filename(irdm))//".")
+                        ! The final line is printed as follows, by convention.
+                        if (i == -1 .and. j == -1 .and. k == -1 .and. l == -1) then
+                            file_end(irdm) = .true.
+                            exit
+                        end if
+
+                        ! If the spawned list is nearly full, perform a communication.
+                        if (nearly_full) then
+                            call communicate_rdm_spawn_t_wrapper(spawn, rdm, finished, all_finished)
+                            nearly_full = .false.
+                        end if
+
+                        call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .true., nearly_full)
+                    end if
+                end do
+                if (all(file_end)) exit
+            end do
+
+            do irdm = 1, rdm%sign_length
+                close(iunit(irdm))
+            end do
+        end if
+
+        finished = .true.
+        ! Keep performing communications until all RDM spawnings on every
+        ! processor have been communicated.
+        do
+            call communicate_rdm_spawn_t_wrapper(spawn, rdm, finished, all_finished)
+            if (all_finished) exit
+        end do
+
+        call annihilate_rdm_list(rdm)
+
+        ! Fill in the hash table to the RDM. Clear it first, just in case.
+        call clear_hash_table(rdm%hash_table)
+        do ielem = 1, rdm%nelements
+            call calc_separate_rdm_labels(rdm%elements(0,ielem), ij, kl, i, j, k, l)
+            hash_val = FindWalkerHash((/i,j,k,l/), size(rdm%hash_table))
+            call add_hash_table_entry(rdm%hash_table, ielem, hash_val)
+        end do
+
+        ! Clear the spawn object.
+        spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
+        call clear_hash_table(spawn%rdm_send%hash_table)
+
+    end subroutine read_spinfree_2rdm_files
 
     subroutine realloc_SpawnedParts()
 
