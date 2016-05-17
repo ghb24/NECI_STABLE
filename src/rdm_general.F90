@@ -100,14 +100,14 @@ contains
             end if
         end do
         ! The transition RDMs.
-        do irdm = nrdms_standard+1, nrdms_standard+nrdms_transition
+        do irdm = nrdms_standard+1, nrdms
             ! The first contributing replica is always the first one (currently!).
             signs_for_rdm(1,irdm) = 1
 
             if (nreplicas == 1) then
-                signs_for_rdm(2,irdm) = irdm
+                signs_for_rdm(2,irdm) = irdm-nrdms_standard
             else if (nreplicas == 2) then
-                signs_for_rdm(2,irdm) = irdm*nreplicas
+                signs_for_rdm(2,irdm) = (irdm-nrdms_standard)*nreplicas
             end if
         end do
 
