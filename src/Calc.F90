@@ -7,7 +7,8 @@ MODULE Calc
                           BB_elec_pairs, par_elec_pairs, AB_elec_pairs, &
                           AA_hole_pairs, BB_hole_pairs, AB_hole_pairs, &
                           par_hole_pairs, hole_pairs, nholes_a, nholes_b, &
-                          nholes, tGUGA, t_guga_unit_tests
+                          nholes, tGUGA, t_guga_unit_tests, tGen_4ind_2, &
+                          tGen_4ind_weighted, t_test_excit_gen
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, tSpinProject, &
                             spin_proj_gamma, spin_proj_shift, &
@@ -38,7 +39,7 @@ MODULE Calc
 
 #ifndef __CMPLX
     use guga_data, only: tGUGACore
-    use guga_testsuite, only: runTestsGUGA
+    use guga_testsuite, only: runTestsGUGA, run_test_excit_gen_det
 #endif
 
     implicit none
@@ -2515,6 +2516,7 @@ contains
                   
           end if
 #endif
+
 
 !C.. we need to calculate a value for RHOEPS, so we approximate that
 !C.. RHO_II~=exp(-BETA*H_II/p).  RHOEPS is a %ge of this 

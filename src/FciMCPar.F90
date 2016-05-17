@@ -3,7 +3,8 @@ module FciMCParMod
 
     ! This module contains the main loop for FCIMC calculations, and the
     ! main per-iteration processing loop.
-    use SystemData, only: nel, tUEG2, hist_spin_dist_iter
+    use SystemData, only: nel, tUEG2, hist_spin_dist_iter, tGen_4ind_2, &
+                          tGen_4ind_weighted, t_test_excit_gen
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
@@ -61,6 +62,10 @@ module FciMCParMod
     use FciMCData
     use constants
     use guga_data, only: tNewDet
+
+#ifndef __CMPLX
+    use guga_testsuite, only: run_test_excit_gen_det
+#endif
 
 #ifdef MOLPRO
     use outputResult
@@ -137,6 +142,10 @@ module FciMCParMod
         ! In the normal case this is run between iterations, but it is
         ! helpful to do it here.
         call population_check()
+
+         if ((tGen_4ind_2 .or. tGen_4ind_weighted) .and. t_test_excit_gen) then
+             call run_test_excit_gen_det()
+         end if
 
         if(n_int.eq.4) CALL Stop_All('Setup Parameters', &
                 'Use of RealCoefficients does not work with 32 bit integers due to the use &

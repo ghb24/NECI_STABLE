@@ -260,6 +260,9 @@ real(dp), allocatable :: currentOcc_ilut(:), currentB_ilut(:), currentB_nI(:)
 ! preformance in the picking of orbitals (a)
 real(dp), allocatable :: current_cum_list(:)
 
+! use a flag for only running the excitation generator test in the dets case
+logical :: t_test_excit_gen = .false.
+
 ! Operators for type(symmetry)
 interface assignment (=)
     module procedure SymAssign

@@ -333,6 +333,15 @@ system: do
             end if
             t_guga_unit_tests = .true.
 
+        case ("TEST-EXCIT-GEN")
+            t_test_excit_gen = .true.
+
+            if (item < nitems) then 
+                call geti(n_guga_excit_gen)
+            else 
+                n_guga_excit_gen = 1000000
+            end if
+
         case("FULL-GUGA-TESTS")
             if (item < nitems) then
                 call geti(n_guga_excit_gen)

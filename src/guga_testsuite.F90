@@ -90,6 +90,83 @@ contains
 
     end subroutine runTestsGUGA
      
+    subroutine run_test_excit_gen_det 
+        character(*), parameter :: this_routine = "run_test_excit_gen_det"
+        
+!         call dsfmt_init(0)
+
+        call run_test_excit_gen_4ind_multiple
+
+        call stop_all(this_routine, "stop after tests!")
+
+    end subroutine run_test_excit_gen_det
+        
+    ! also write a test runner for the 4ind-weighted excit gen to compare 
+    ! the frequency of the mat_ele/pgen ratios 
+    subroutine run_test_excit_gen_4ind_multiple(nI)
+        ! keep in mind that there are 2 cases of 4ind excitation 
+        ! generator! use the correct one depending on the input!
+        use DetBitOps, only: EncodeBitDet
+        use Determinants, only: write_det
+        use excit_gen_5, only: test_excit_gen_take2
+        use excit_gens_int_weighted, only: test_excit_gen_4ind, calc_all_excitations
+        
+        integer, intent(in), optional :: nI(nel)
+        integer(n_int) :: ilut(0:niftot)
+        integer(n_int), pointer :: excitations(:,:)
+        integer :: nExcits, nTest, i, test_det(nel)
+        character(*), parameter :: this_routine = "run_test_excit_gen_4ind_multiple"
+
+        pSingles = 0.1_dp
+        pDoubles = 1.0_dp - pSingles
+
+        ! here i also have to set the parallel and ant
+        pParallel = 0.5_dp
+
+        if (present(nI)) then
+            test_det = nI
+        else
+            test_det = fdet
+        end if
+
+        ! this is the implementation to calculate up to n_test excitations
+        ! from the hf det
+
+        call EncodeBitDet(test_det, ilut)
+
+        call calc_all_excitations(ilut, excitations, nExcits) 
+
+!         nTest = min(nExcits, 20) 
+        nTest = nExcits
+
+        print *, "running tests on nExcits of ", nTest
+        call write_det(6, test_det, .true.)
+
+        if (tGen_4ind_weighted) then
+            
+            call test_excit_gen_4ind(ilut, n_guga_excit_gen)
+        
+        else if (tGen_4ind_2) then 
+            
+            call test_excit_gen_take2(ilut, n_guga_excit_gen)
+
+        else
+            call stop_all(this_routine, "use 4ind_weighted or 4ind_weighted_2!")
+
+        end if
+
+        do i = 1, nTest
+            if (tGen_4ind_weighted) then 
+                call test_excit_gen_4ind(excitations(:,i), n_guga_excit_gen)
+            else if (tGen_4ind_2) then
+                call test_excit_gen_take2(excitations(:,i), n_guga_excit_gen)
+            else
+                call stop_all(this_routine, "use 4ind_weighted or 4ind_weighted_2!")
+            end if
+        end do
+
+    end subroutine run_test_excit_gen_4ind_multiple
+
     subroutine run_test_excit_gen_guga
 
         pSingles = 0.1_dp
@@ -316,7 +393,8 @@ contains
 
         call actHamiltonian(ilut, ex, nEx)
 
-        nTest = min(nEx,20)
+!         nTest = min(nEx,20)
+        nTest = nEx
 
         print *, "running tests on nExcits: ", nTest
         call write_guga_list(6, ex(:,1:nEx))

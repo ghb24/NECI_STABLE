@@ -918,6 +918,7 @@ contains
         generated_list = .false.
         contrib_list = 0
         pgen_list = 0.0_dp
+        matEle_list = 0.0_dp
 
         ! set the not needed inputs for guga
         ex = 0
@@ -22453,15 +22454,22 @@ contains
 
     !             cpt = 1.0_dp
 
-                cpt = max(sqrt(abs_l1(UMat2D(max(ind(1),orb_a), min(ind(1),orb_a)))) &
-                    + sqrt(abs_l1(UMat2D(max(ind(2),orb_a), min(ind(2),orb_a)))), &
-                    0.0001_dp)
+!                 cpt = max(sqrt(abs_l1(UMat2D(max(ind(1),orb_a), min(ind(1),orb_a)))) &
+!                     + sqrt(abs_l1(UMat2D(max(ind(2),orb_a), min(ind(2),orb_a)))), &
+!                     0.0001_dp)
 
+                cpt = sqrt(abs_l1(UMat2D(max(ind(1),orb_a), min(ind(1),orb_a)))) &
+                    + sqrt(abs_l1(UMat2D(max(ind(2),orb_a), min(ind(2),orb_a))))
             else
 
-                cpt = max(sqrt(abs(get_umat_el(ind(1),ind(2),orb_a,orb_b) & 
-                                 - get_umat_el(ind(1),ind(2),orb_b,orb_a))), &
-                                 0.0001_dp)
+!                 cpt = max(sqrt(abs(get_umat_el(ind(1),ind(2),orb_a,orb_b) & 
+!                                  + get_umat_el(ind(1),ind(2),orb_b,orb_a))), &
+!                                  0.0001_dp)
+
+                cpt = sqrt(abs(get_umat_el(ind(1),ind(2),orb_a,orb_b) & 
+                                 + get_umat_el(ind(1),ind(2),orb_b,orb_a)))
+                                 
+
 
     !             cpt = max(sqrt(abs(get_umat_el(ind(1),ind(2),orb_a,orb_b) & 
     !                              - get_umat_el(ind(1),ind(2),orb_b,orb_a))), &
@@ -22476,8 +22484,21 @@ contains
 
             else
 
-                cpt = abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) +&
-                      abs(get_umat_el(ind(1),ind(2),orb_b,orb_a))
+!                 cpt = abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) +&
+!                       abs(get_umat_el(ind(1),ind(2),orb_b,orb_a))
+
+!                 cpt = sqrt(abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) +&
+!                       abs(get_umat_el(ind(1),ind(2),orb_b,orb_a)))
+
+!                 cpt = max(sqrt(abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) +&
+!                       abs(get_umat_el(ind(1),ind(2),orb_b,orb_a))), 0.00001_dp)
+! 
+!                 cpt = sqrt(abs(get_umat_el(ind(1),ind(2),orb_a,orb_b) +&
+!                       get_umat_el(ind(1),ind(2),orb_b,orb_a)))
+
+                cpt = max(sqrt(abs(get_umat_el(ind(1),ind(2),orb_a,orb_b) +&
+                      get_umat_el(ind(1),ind(2),orb_b,orb_a))), 0.00001_dp)
+
 
             end if
         end if
