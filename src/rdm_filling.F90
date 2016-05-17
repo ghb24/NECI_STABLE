@@ -24,7 +24,7 @@ contains
         use CalcData, only: tPairedReplicas
         use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
-        use rdm_data, only: one_rdm_t
+        use rdm_data, only: one_rdm_t, nrdms
 
         type(rdm_spawn_t), intent(inout) :: spawn
         type(one_rdm_t), intent(inout) :: one_rdms(:)
@@ -46,10 +46,10 @@ contains
             adapted_sign = 0.0_dp
 
             if (tPairedReplicas) then
-                do irdm = 1, size(one_rdms)
+                do irdm = 1, nrdms
 
                     ! The indicies of the first and second replicas in this
-                    ! particular pair, in the sign arrays.
+                    ! particular pair, in the *average* sign arrays.
                     ind1 = irdm*2-1
                     ind2 = irdm*2
 
@@ -66,7 +66,7 @@ contains
 
             else
 
-                do irdm = 1, size(one_rdms)
+                do irdm = 1, nrdms
                     if (abs(curr_sign(irdm)) < 1.0e-10_dp) then
                         ! If this RDM sign has gone to zero, then we want to add
                         ! the contribution for this RDM.
@@ -105,6 +105,7 @@ contains
         use bit_reps, only: decode_bit_det
         use DetBitOps, only: TestClosedShellDet, FindBitExcitLevel
         use FciMCData, only: Iter, IterRDMStart, PreviousCycles, AvNoAtHF
+        use global_det_data, only: len_iter_occ_tot
         use hphf_integrals, only: hphf_sign
         use HPHFRandExcitMod, only: FindExcitBitDetSym
         use LoggingData, only: RDMEnergyIter, RDMExcitLevel
@@ -118,7 +119,7 @@ contains
         real(dp), intent(in) :: av_sign(:), iter_occ(:)
         logical, intent(in), optional :: tCoreSpaceDet
 
-        real(dp) :: full_sign(spawn%rdm_send%sign_length), IterDetOcc_all(lenof_sign)
+        real(dp) :: full_sign(spawn%rdm_send%sign_length), IterDetOcc_all(len_iter_occ_tot)
         integer(n_int) :: SpinCoupDet(0:nIfTot)
         integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
         integer :: IterLastRDMFill, AvSignIters, IterRDM
@@ -135,11 +136,9 @@ contains
         AvSignIters_new = int(min(IterDetOcc_all(1::nreplicas), IterDetOcc_all(nreplicas::nreplicas)))
 
         ! The number of iterations we want to weight this RDM contribution by is:
-        if (IterLastRDMFill .gt. 0) then
-            !IterRDM = min(AvSignIters, IterLastRDMFill)
+        if (IterLastRDMFill > 0) then
             IterRDM_new = min(AvSignIters_new, IterLastRDMFill)
         else
-            !IterRDM = AvSignIters
             IterRDM_new = AvSignIters_new
         end if
 
@@ -234,7 +233,7 @@ contains
         ! If the determinant is removed on an iteration that the diagonal
         ! RDM elements are  already being calculated, it will already have
         ! been counted. So check this isn't the case first.
-        if (.not. ((Iter .eq. NMCyc) .or. (mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter) .eq. 0))) then
+        if (.not. ((Iter == NMCyc) .or. (mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter) == 0))) then
             call decode_bit_det (nI, iLutnI)
             ExcitLevel = FindBitExcitLevel(iLutHF_True, iLutnI, 2)
 
@@ -343,7 +342,7 @@ contains
         use bit_reps, only: decode_bit_det
         use DetBitOps, only: DetBitEq
         use FciMCData, only: Spawned_Parents, Spawned_Parents_Index, iLutHF_True
-        use rdm_data, only: one_rdm_t
+        use rdm_data, only: one_rdm_t, nrdms
         use rdm_data, only: nrdms_each_simulation, rdm_replica_pairs, rdm_labels_for_sims
         use SystemData, only: nel, tHPHF
 
@@ -355,7 +354,7 @@ contains
 
         integer :: i, irdm, rdm_ind, nI(nel), nJ(nel)
         real(dp) :: realSignI
-        real(dp) :: input_sign_i(size(one_rdms)), input_sign_j(size(one_rdms))
+        real(dp) :: input_sign_i(nrdms), input_sign_j(nrdms)
         integer :: dest_part_type, source_part_type
 
         ! Spawning from multiple parents, to iLutJ, which has SignJ.        
@@ -440,13 +439,13 @@ contains
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer(n_int), intent(in) :: iLutnI(0:NIfTot), iLutnJ(0:NIfTot)
         real(dp), intent(in) :: realSignI(:), realSignJ(:)
-        integer, intent(in) :: nI(nel),nJ(nel)
+        integer, intent(in) :: nI(nel), nJ(nel)
         logical, intent(in) :: tFill_CiCj_Symm
 
         integer(n_int) :: iLutnI2(0:NIfTot)
         integer :: nI2(nel), nJ2(nel)
-        real(dp) :: NewSignJ(size(one_rdms)), NewSignI(size(one_rdms))
-        real(dp) :: PermSignJ(size(one_rdms)), PermSignI(size(one_rdms))
+        real(dp) :: NewSignJ(size(realSignJ)), NewSignI(size(realSignI))
+        real(dp) :: PermSignJ(size(realSignJ)), PermSignI(size(realSignI))
         integer :: I_J_ExcLevel, ICoup_J_ExcLevel
 
         if (TestClosedShellDet(iLutnI)) then
