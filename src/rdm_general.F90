@@ -28,6 +28,7 @@ contains
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data, only: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time, nrdms, signs_for_rdm
+        use rdm_data, only: nrdms_each_simulation, rdm_replica_pairs, rdm_labels_for_sims
         use rdm_data_utils, only: init_rdm_spawn_t, init_rdm_list_t, init_one_rdm_t
         use rdm_estimators, only: init_rdm_estimates_t, calc_2rdm_estimates_wrapper
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
@@ -41,7 +42,7 @@ contains
         integer :: rdm_nrows, nhashes_rdm_main, nhashes_rdm_spawn
         integer :: standard_spawn_size, min_spawn_size
         integer :: max_nelems_main, max_nelems_spawn, max_nelems_recv, max_nelems_recv_2
-        integer :: memory_alloc, irdm, iproc, ierr
+        integer :: memory_alloc, irdm, iproc, counter, ierr
         character(len=*), parameter :: t_r = 'init_rdms'
 
 #ifdef __CMPLX
@@ -107,6 +108,34 @@ contains
                 signs_for_rdm(2,irdm) = irdm
             else if (nreplicas == 2) then
                 signs_for_rdm(2,irdm) = irdm*nreplicas
+            end if
+        end do
+
+        allocate(nrdms_each_simulation(lenof_sign))
+        allocate(rdm_replica_pairs(nrdms, lenof_sign))
+        allocate(rdm_labels_for_sims(nrdms, lenof_sign))
+        nrdms_each_simulation = 0
+        rdm_replica_pairs = 0
+        rdm_labels_for_sims = 0
+        do irdm = 1, nrdms
+            ! Count the number of times each replica label is contributing to
+            ! an RDM.
+            nrdms_each_simulation(signs_for_rdm(1,irdm))  = nrdms_each_simulation(signs_for_rdm(1,irdm)) + 1
+            ! The number of RDMs which we have currently counted, for this replica.
+            counter = nrdms_each_simulation(signs_for_rdm(1,irdm))
+            ! Store which replica is paired with this, for this particular RD
+            ! sampling.
+            rdm_replica_pairs(counter, signs_for_rdm(1,irdm)) = signs_for_rdm(2,irdm)
+            ! Store which RDM this pair of signs contributes to.
+            rdm_labels_for_sims(counter, signs_for_rdm(1,irdm)) = irdm
+
+            ! Do the same as above, but now for cases when spawning from the
+            ! 'second' replica in the pair, *but only if it is different*.
+            if (signs_for_rdm(1,irdm) /= signs_for_rdm(2,irdm)) then
+                nrdms_each_simulation(signs_for_rdm(2,irdm))  = nrdms_each_simulation(signs_for_rdm(2,irdm)) + 1
+                counter = nrdms_each_simulation(signs_for_rdm(2,irdm))
+                rdm_replica_pairs(counter, signs_for_rdm(2,irdm)) = signs_for_rdm(1,irdm)
+                rdm_labels_for_sims(counter, signs_for_rdm(2,irdm)) = irdm
             end if
         end do
 

@@ -344,6 +344,7 @@ contains
         use DetBitOps, only: DetBitEq
         use FciMCData, only: Spawned_Parents, Spawned_Parents_Index, iLutHF_True
         use rdm_data, only: one_rdm_t
+        use rdm_data, only: nrdms_each_simulation, rdm_replica_pairs, rdm_labels_for_sims
         use SystemData, only: nel, tHPHF
 
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -352,7 +353,7 @@ contains
         integer(n_int), intent(in) :: iLutJ(0:NIfTot)
         real(dp), intent(in) :: real_sign_j_all(lenof_sign)
 
-        integer :: i, rdm_ind, nI(nel), nJ(nel)
+        integer :: i, irdm, rdm_ind, nI(nel), nJ(nel)
         real(dp) :: realSignI
         real(dp) :: input_sign_i(size(one_rdms)), input_sign_j(size(one_rdms))
         integer :: dest_part_type, source_part_type
@@ -385,36 +386,33 @@ contains
             ! population.
             source_part_type = Spawned_Parents(NIfDBO+2,i)
 
-            ! Get the index of the sign of the replica that is paired with
-            ! this replica. Also get the label of the RDM to which this
-            ! spawning event is contributing.
-            if (nreplicas == 1) then
-                ! This is the biased case - just use the same sign.
-                dest_part_type = source_part_type
-            else if (nreplicas == 2) then
-                ! The unbiased case - get the sign from the replica simulation.
-                dest_part_type = paired_replica(source_part_type)
-            end if
+            ! Loop over all RDMs to which the simulation with label
+            ! source_part_type contributes to.
+            do irdm = 1, nrdms_each_simulation(source_part_type)
+                ! Get the label of the simulation that is paired with this, 
+                ! replica, for this particular RDM.
+                dest_part_type = rdm_replica_pairs(irdm,source_part_type)
+                ! The label of the RDM that this be contributing to.
+                rdm_ind = rdm_labels_for_sims(irdm, source_part_type)
 
-            ! The label of the RDM that this be contributing to.
-            rdm_ind = (source_part_type+nreplicas-1)/nreplicas
-            input_sign_i = 0.0_dp
-            input_sign_j = 0.0_dp
-            input_sign_i(rdm_ind) = realSignI
-            input_sign_j(rdm_ind) = real_sign_j_all(dest_part_type)
+                input_sign_i = 0.0_dp
+                input_sign_j = 0.0_dp
+                input_sign_i(rdm_ind) = realSignI
+                input_sign_j(rdm_ind) = real_sign_j_all(dest_part_type)
 
-            ! Given the Di,Dj and Ci,Cj - find the orbitals involved in the
-            ! excitation, and therefore the RDM elements we want to add the
-            ! Ci.Cj to. We have to halve the contributions for DR as we're
-            ! summing in pairs that originated from spawning events in both
-            ! pop 1 and pop 2 -- i.e., double counted wrt diagonal elements.
-            if (tHPHF) then
-                call Fill_Spin_Coupled_RDM(spawn, one_rdms, Spawned_Parents(0:NIfDBO,i), iLutJ, &
-                                           nI, nJ, (1.0_dp/real(nreplicas,dp))*input_sign_i, input_sign_j, .false.)
-            else
-                call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, &
-                                          (1.0_dp/real(nreplicas,dp))*input_sign_i, input_sign_j, .false.)
-            end if
+                ! Given the Di,Dj and Ci,Cj - find the orbitals involved in the
+                ! excitation, and therefore the RDM elements we want to add the
+                ! Ci.Cj to. We have to halve the contributions for DR as we're
+                ! summing in pairs that originated from spawning events in both
+                ! pop 1 and pop 2 -- i.e., double counted wrt diagonal elements.
+                if (tHPHF) then
+                    call Fill_Spin_Coupled_RDM(spawn, one_rdms, Spawned_Parents(0:NIfDBO,i), iLutJ, &
+                                               nI, nJ, (1.0_dp/real(nreplicas,dp))*input_sign_i, input_sign_j, .false.)
+                else
+                    call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, &
+                                              (1.0_dp/real(nreplicas,dp))*input_sign_i, input_sign_j, .false.)
+                end if
+            end do
 
         end do
 

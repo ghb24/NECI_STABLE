@@ -217,6 +217,15 @@ module rdm_data
     ! (i.e. the 'replica' labels) which will be used to sample the j'th RDM
     ! being calculated.
     integer, allocatable :: signs_for_rdm(:,:) ! (2, nrdms)
+    ! nrdms_each_simulation(j) holds the number of different RDMS to which
+    ! the FCIQMC simulation with label j contributes to.
+    integer, allocatable :: nrdms_each_simulation(:) ! (lenof_sign)
+    ! rdm_replica_pairs(:,j) holds the list of the FCIQMC simulations labels
+    ! which are paired with simulation j, in contributing to RDMs.
+    integer, allocatable :: rdm_replica_pairs(:,:) ! (nrdms, lenof_sign)
+    ! rdm_labels_for_sims(:,j) holds the list of RDM labels which simulation j
+    ! contributes to.
+    integer, allocatable :: rdm_labels_for_sims(:,:) ! (nrdms, lenof_sign)
 
     ! The number of rdms being calculated in this simulation.
     ! Equal to nrdms_standard + nrdms_transition.
