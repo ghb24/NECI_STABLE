@@ -169,6 +169,7 @@ contains
         real(dp) :: pgen2
 
         HElGen = HEl_zero
+
         ! We now use the class counts to do the construction. This is an
         ! O[N] opearation, and gives the number of occupied/unoccupied
         ! spin-orbitals with each given spin/symmetry.
@@ -187,6 +188,9 @@ contains
                                      tParity, pGen)
             pgen = pgen * pSingles
 
+!             call write_det(6, nJ, .true.)
+!             print *, "pgen singles: ", pgen
+
         else
 
             ! OK, we want to do a double excitation
@@ -194,6 +198,9 @@ contains
             call gen_double_4ind_ex (nI, ilutI, nJ, ilutJ, ExcitMat, tParity, &
                                      pGen, store)
             pgen = pgen * pDoubles
+
+!             call write_det(6, nJ, .true.)
+!             print *, "pgen doubles: ", pgen
 
         end if
 
@@ -462,6 +469,8 @@ contains
         ! And the generation probability
         pgen = pgen / real(nel, dp)
 
+!         print *, "pgen single: ", pgen
+
     end subroutine
 
 
@@ -644,7 +653,7 @@ contains
             nJ(1) = 0
             return
         end if
-    
+
         ! Pick a specific pairing of spin-symmetries
         r = genrand_real2_dSFMT() * cc_tot
         cc_i = binary_search_first_ge (cc_cum, r)
@@ -1580,69 +1589,84 @@ contains
         integer :: flag, ngen, pos, iunit, i, ic
         type(excit_gen_store_type) :: store
         integer(n_int) :: tgt_ilut(0:NifTot)
-        integer(n_int), allocatable :: det_list(:,:)
-        real(dp), allocatable :: contrib_list(:)
+        integer(n_int), pointer :: det_list(:,:)
+        real(dp), allocatable :: contrib_list(:), pgen_list(:), matEle_list(:)
         logical, allocatable :: generated_list(:)
         logical :: found_all, par
-        real(dp) :: contrib, pgen
+        real(dp) :: contrib, pgen, sum_pgens, sum_helement
         HElement_t(dp) :: helgen, hel
+        character(255) :: filename
 
         ! Decode the determiant
         call decode_bit_det (src_det, ilut)
 
+        ! could just use my new calc_all_excitations
+        call calc_all_excitations(ilut, det_list, nexcit)
+
         ! Initialise
         call init_excit_gen_store (store)
+        store%tFilled = .false.
 
-        ! How many connected determinants are we expecting?
-        call CountExcitations3 (src_det, 3, nsing, ndoub)
-        nexcit = nsing + ndoub
-        allocate(det_list(0:NIfTot, nexcit))
-
-        ! Loop through all of the possible excitations
-        ndet = 0
-        found_all = .false.
-        ex = 0
-        flag = 3
+!         ! How many connected determinants are we expecting?
+!         call CountExcitations3 (src_det, 3, nsing, ndoub)
+!         nexcit = nsing + ndoub
+!         allocate(det_list(0:NIfTot, nexcit))
+! 
+!         ! Loop through all of the possible excitations
+!         ndet = 0
+!         found_all = .false.
+!         ex = 0
+!         flag = 3
         write(6,'("*****************************************")')
         write(6,'("Enumerating excitations")')
         write(6,'("Starting from: ")', advance='no')
         call write_det (6, src_det, .true.)
         write(6,*) 'Expecting ', nexcit, "excitations"
-        call GenExcitations3 (src_det, ilut, det, flag, ex, par, found_all, &
-                              .false.)
-        do while (.not. found_all)
-            ndet = ndet + 1
-            call EncodeBitDet (det, det_list(:,ndet))
-
-            call GenExcitations3 (src_det, ilut, det, flag, ex, par, &
-                                  found_all, .false.)
-        end do
-        if (ndet /= nexcit) &
-            call stop_all(this_routine,"Incorrect number of excitations found")
-
-        ! Sort the dets, so they are easy to find by binary searching
-        call sort(det_list, ilut_lt, ilut_gt)
+!         call GenExcitations3 (src_det, ilut, det, flag, ex, par, found_all, &
+!                               .false.)
+!         do while (.not. found_all)
+!             ndet = ndet + 1
+!             call EncodeBitDet (det, det_list(:,ndet))
+! 
+!             call GenExcitations3 (src_det, ilut, det, flag, ex, par, &
+!                                   found_all, .false.)
+!         end do
+!         if (ndet /= nexcit) &
+!             call stop_all(this_routine,"Incorrect number of excitations found")
+! 
+!         ! Sort the dets, so they are easy to find by binary searching
+!         call sort(det_list, ilut_lt, ilut_gt)
 
         ! Lists to keep track of things
         allocate(generated_list(nexcit))
         allocate(contrib_list(nexcit))
+        allocate(pgen_list(nexcit))
+        allocate(matEle_list(nexcit))
         generated_list = .false.
-        contrib_list = 0
+        contrib_list = 0.0_dp
+        pgen_list = 0.0_dp
+        matEle_list = 0.0_dp
 
         ! Repeated generation, and summing-in loop
         ngen = 0
-        contrib = 0
+        contrib = 0.0_dp
         do i = 1, iterations
             if (mod(i, 10000) == 0) &
-                write(6,*) i, '/', iterations, ' - ', contrib / real(ndet*i,dp), ndet, pgen
+                write(6,*) i, '/', iterations, ' - ', contrib / (real(nexcit,dp)*i)
 
             !pSingles = 0.0
             !pDoubles = 1.0
+
             call gen_excit_4ind_weighted (src_det, ilut, det, tgt_ilut, 3, &
                                           ic, ex, par, pgen, helgen, store)
             if (det(1) == 0) cycle
 
             call EncodeBitDet (det, tgt_ilut)
+
+            helgen = get_helement(src_det, det, ic, ex, par) 
+
+            if (abs(helgen) < 1.0e-6_dp) cycle
+
             pos = binary_search(det_list, tgt_ilut, NIfD+1)
             if (pos < 0) then
                 write(6,*) det
@@ -1657,6 +1681,8 @@ contains
                 ngen = ngen + 1
                 contrib = contrib + 1.0_dp / pgen
                 contrib_list(pos) = contrib_list(pos) + 1.0_dp / pgen
+                matEle_list(pos) = helgen
+                pgen_list(pos) = pgen
             end if
         end do
 
@@ -1666,12 +1692,12 @@ contains
                    '% abortion rate'
         ! Contribution averages
         write(6, '("Averaged contribution: ", f15.10)') &
-                contrib / real(ndet * iterations,dp)
+                contrib / (real(nexcit,dp) * iterations)
 
         ! Output the determinant specific contributions
         iunit = get_free_unit()
         open(iunit, file="contribs_4ind", status='unknown')
-        do i = 1, ndet
+        do i = 1, nexcit
             call writebitdet(iunit, det_list(:,i), .false.)
             write(iunit, *) contrib_list(i) / real(iterations, dp)
         end do
@@ -1682,7 +1708,7 @@ contains
             write(6,*) count(.not.generated_list), '/', size(generated_list), &
                        'not generated'
             found_all = .true.
-            do i = 1, ndet
+            do i = 1, nexcit
                 if (.not. generated_list(i)) then
                     call decode_bit_det(det, det_list(:,i))
                     hel = get_helement(src_det, det, ilut, det_list(:,i))
@@ -1697,17 +1723,34 @@ contains
                 call stop_all(this_routine, "Determinant not generated")
         end if
         if (any(abs(contrib_list / iterations - 1.0_dp) > 0.01_dp)) then
-            do i = 1, ndet
+            do i = 1, nexcit
                 call writebitdet(6, det_list(:,i), .false.)
                 write(6,*) contrib_list(i) / (iterations - 1.0_dp)
             end do
-            call stop_all(this_routine, "Insufficiently uniform generation")
+!             call stop_all(this_routine, "Insufficiently uniform generation")
         end if
+
+        sum_pgens = sum(pgen_list)
+        sum_helement = sum(abs(matEle_list))
+
+        iunit = get_free_unit()
+        call get_unique_filename("pgen_vs_matrixElements",.true.,.true.,1,filename)
+        open(iunit, file=filename,status='unknown')
+        write(iunit,*) "pgens and matrix elements for CSF:"
+        call write_det(6, src_det, .true.)
+        do i = 1, nExcit
+            write(iunit, "(f16.7)", advance = 'no') pgen_list(i)/sum_pgens
+            write(iunit, "(f16.7)", advance = 'no') matEle_list(i)/sum_helement
+            write(iunit, "(f16.7)") contrib_list(i) / real(iterations,dp)
+        end do
+        close(iunit)
 
         ! Clean up
         deallocate(det_list)
         deallocate(contrib_list)
         deallocate(generated_list)
+        deallocate(pgen_list)
+        deallocate(matEle_list)
 
     end subroutine
 
@@ -1933,5 +1976,110 @@ contains
              + ((cpt1(2) / cum_sum1) * (cpt2(2) / cum_sum2(2)))
 
     end function
+
+    subroutine calc_all_excitations(ilut, non_zero_list, n_non_zero)
+        ! routine which calculates all the excitations for a given 
+        ! determinant.. have to move that to a different file later on.. 
+        ! does not fit in here!
+        use bit_reps, only: decode_bit_det
+        use GenRandSymExcitNUMod, only: init_excit_gen_store
+        use SymExcit3, only: CountExcitations3, GenExcitations3
+        use Determinants, only: write_det
+        use DetBitOps, only: EncodeBitDet
+        use sort_mod, only: sort
+        
+        integer(n_int), intent(in) :: ilut(0:niftot)
+        integer(n_int), intent(out), pointer :: non_zero_list(:,:)
+        integer, intent(out) :: n_non_zero
+        character(*), parameter :: this_routine = "calc_all_excitations"
+
+        integer :: src_det(nel), nsing, ndoub, ndet, ex(2,2), flag, det(nel), &
+                   nexcit, i, cnt
+        type(excit_gen_store_type) :: store
+        logical :: found_all, par
+        real(dp), allocatable :: hel_list(:)
+        integer(n_int), pointer :: det_list(:,:)
+        logical, allocatable :: t_non_zero(:)
+
+        ! Decode the determiant
+        call decode_bit_det (src_det, ilut)
+
+        ! Initialise
+        call init_excit_gen_store (store)
+
+        ! How many connected determinants are we expecting?
+        call CountExcitations3 (src_det, 3, nsing, ndoub)
+        nexcit = nsing + ndoub
+        allocate(det_list(0:NIfTot, nexcit))
+        allocate(hel_list(nexcit))
+        hel_list = 0.0_dp
+
+        ! Loop through all of the possible excitations
+        ndet = 0
+        found_all = .false.
+        ex = 0
+        flag = 3
+!         write(6,'("*****************************************")')
+!         write(6,'("Enumerating excitations")')
+!         write(6,'("Starting from: ")', advance='no')
+!         call write_det (6, src_det, .true.)
+!         write(6,*) 'Expecting ', nexcit, "excitations"
+        call GenExcitations3 (src_det, ilut, det, flag, ex, par, found_all, &
+                              .false.)
+
+        do while (.not. found_all)
+            ndet = ndet + 1
+            call EncodeBitDet (det, det_list(:,ndet))
+
+            hel_list(ndet) = get_helement(src_det, det, ilut, det_list(:,ndet))
+
+            call GenExcitations3 (src_det, ilut, det, flag, ex, par, &
+                                  found_all, .false.)
+
+        end do
+
+        if (ndet /= nexcit) &
+            call stop_all(this_routine,"Incorrect number of excitations found")
+
+        ! now i should loop over the hel_list and check the actual number 
+        ! of non-zero excitations 
+        allocate(t_non_zero(nexcit))
+        t_non_zero = .false.
+
+        n_non_zero = 0
+
+        do i = 1, ndet 
+            if (abs(hel_list(i)) > 1.0e-6) then
+                n_non_zero = n_non_zero + 1 
+                t_non_zero(i) = .true. 
+            end if 
+        end do
+
+        allocate(non_zero_list(0:niftot,n_non_zero))
+
+        cnt = 0
+
+        do i = 1, ndet 
+            if (t_non_zero(i)) then
+                cnt = cnt + 1
+                non_zero_list(:,cnt) = det_list(:,i)
+            end if
+        end do
+
+        deallocate(det_list)
+        deallocate(t_non_zero)
+        deallocate(hel_list)
+
+        ! now i have a list of all non-zero excitations.. 
+
+        ! for now this creates all excitation, independent if the matrix 
+        ! element is actually zero.. 
+        ! so also check matrix element! 
+
+        ! Sort the dets, so they are easy to find by binary searching
+        call sort(non_zero_list, ilut_lt, ilut_gt)
+
+    end subroutine calc_all_excitations
+
 
 end module

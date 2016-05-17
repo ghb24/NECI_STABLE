@@ -119,12 +119,18 @@ for file_name in sys.argv[1:]:
         line = line.split()
         pgen.append(float(line[0]))
         matele.append(float(line[1]))
-        typ.append(int(line[3]))
+        if (control >= 4): 
+            typ.append(int(line[3]))
 
     tmp_file.close()
 
 # no check the H_ij/pgen ratio and fill up bins 
 # use numpy to do that 
+# have to exclude all 0 from pgens.. 
+matele = [matele[x] for x in range(len(matele)) if pgen[x] > 0.0000001]
+pgen = [x for x in pgen if x > 0.0000001]
+
+# pgen = [x for x in pgen if abs(x) > 0.0000001]
 tmp_pgen = numpy.asarray(pgen)
 tmp_mat = numpy.asarray(matele)
 
