@@ -979,6 +979,21 @@ contains
                 ! a limit to prevent craziness at the start of a calculation
                 call getf(MaxTau)
 
+            case("MIN-TAU")
+                ! introduce a minimum value of tau for the automated 
+                ! tau-search to limit the lower bound of the automated 
+                ! tau-search 
+                t_min_tau = .true. 
+
+                if (item < nitems) then
+                    call getf(min_tau_global)
+                end if
+
+                ! also only use that if the automated tau-search is used 
+                ! so enable the automated tau search here 
+                tSearchTau = .true. 
+                tSearchTauOption = .true.
+
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
                 call getf(MaxWalkerBloom)
