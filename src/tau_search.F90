@@ -14,7 +14,7 @@ module tau_search
                     gamma_two_same, gamma_two_mixed, gamma_three_same, gamma_three_mixed, &
                     gamma_four, enough_two_same, enough_two_mixed, enough_three_same, &
                     enough_three_mixed, enough_four, enough_two, enough_three, &
-                    t_min_tau, min_tau_global
+                    t_min_tau, min_tau_global, frequency_bounds, frequency_bins
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          ProjEDet, ilutRef, MaxTau, tSearchTau, &
                          tSearchTauOption, tSearchTauDeath, pExcit2, pExcit4, &
@@ -33,6 +33,7 @@ module tau_search
     use sym_general_mod, only: SymAllowedExcit
     use Parallel_neci
     use constants
+    use util_mod, only: binary_search_first_ge
     implicit none
 
 !     real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt
@@ -619,5 +620,92 @@ contains
 
     end subroutine FindMaxTauDoubs
 
+    subroutine fill_frequency_histogram(mat_ele, pgen)
+        ! routine to accumulate the H_ij/pgen ration into the frequency bins
+        ! keep parallelism in mind, especially if we have to adjust the 
+        ! bin list and boundary list on the fly.. this has to happen on 
+        ! all the processors then or? or can i just do it in the end of a loop
+        real(dp), intent(in) :: mat_ele, pgen 
+        character(*), parameter :: this_routine = "fill_frequency_histogram"
+
+        real(dp) :: ratio, step_size
+        integer :: ind, new_n_bins, i, old_n_bins
+        integer, allocatable :: save_bins(:)
+        ! first have to take correct matrix element, dependent if we use 
+        ! complex code or not, or no: for now just input the absolute value 
+        ! of H_ij, so its always a real then..
+        ! nah.. it puts in 0 mat_eles too.. so just return if 0 mat_ele
+        ASSERT(pgen > EPS)
+
+        if (mat_ele < EPS) return
+
+        ! if the matrix element is 0, no excitation will or would be done 
+        ! and if the pgen is 0 i also shouldnt be here i guess.. so assert that
+
+        ! then i have to first check if i have to make the histogram bigger...
+        ratio = mat_ele / pgen
+        
+        old_n_bins = size(frequency_bins)
+
+!         print *, "bins: ", frequency_bins
+!         print *, "bounds: ", frequency_bounds
+!         print *, "ratio: ", ratio
+
+        if (ratio > frequency_bounds(old_n_bins)) then 
+            ! then the element is bigger than the upper bound and the list 
+            ! has to be enlarged. but i have to be careful about the 
+            ! parallelism. do i need to do that on all cores, so i can 
+            ! merge the lists more easily after the loop over the walkers? 
+            ! todo 
+            ! have to keep the bound steps the same and just have to increase
+            ! the amount of bins 
+            ! i know the stepsize is max_frequency_bound / n_frequency_bins 
+            ! so the new number of bins is ratio / step_size 
+            ! or just use the step in frq_bnds
+            step_size = frequency_bounds(2) - frequency_bounds(1)
+            new_n_bins = int(ratio / step_size)
+
+            ! maybe also put in a stop if too many bins are to be created
+!             if (new_n_bins > 1000) call stop_all(this_routine, "over 1000 bins!")
+
+            ! also have to save the already saved number in the bins 
+            allocate(save_bins(old_n_bins)) 
+            save_bins = frequency_bins
+
+            deallocate(frequency_bins) 
+            deallocate(frequency_bounds)
+
+            allocate(frequency_bins(new_n_bins))
+            allocate(frequency_bounds(new_n_bins))
+                
+            frequency_bins = 0
+
+            frequency_bins(1:old_n_bins) = save_bins
+
+            ! and the new element is definetly in the last bin which is 1 then
+            frequency_bins(new_n_bins) = 1
+
+            ! and intialize the new bounds 
+            frequency_bounds = [( step_size * i, i = 1, new_n_bins)]
+
+            ! so this should work now for a single core..
+!             print *, "bins new: ", frequency_bins
+!             print *, "bounds new: ", frequency_bounds
+        else 
+            ! the ratio fits in to the bins now i just have to find the 
+            ! correct one
+            ind = binary_search_first_ge(frequency_bounds, ratio) 
+            
+!             print *, "ind: ", ind
+            ! increase counter 
+            frequency_bins(ind) = frequency_bins(ind) + 1
+
+        end if
+
+
+!         call stop_all(this_routine, "")
+
+
+    end subroutine fill_frequency_histogram
 
 end module

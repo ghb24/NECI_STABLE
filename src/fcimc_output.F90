@@ -13,7 +13,8 @@ module fcimc_output
                          AllHistogramEnergy
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
-                        StepsSft, tPrintReplicaOverlaps, tStartTrialLater
+                        StepsSft, tPrintReplicaOverlaps, tStartTrialLater, &
+                        frequency_bins, frequency_bounds
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
@@ -1383,4 +1384,26 @@ contains
 
     end subroutine end_iteration_print_warn 
 
+    subroutine print_frequency_histogram 
+        ! routine to write a file with the H_ij/pgen ratio frequencies 
+        integer :: iunit, i
+        character(255) :: filename
+
+        iunit = get_free_unit()
+        call get_unique_filename("frequency_histogram",.true.,.true.,1,filename)
+        open(iunit, file = filename, status = "unknown") 
+
+        do i = 1, size(frequency_bins) 
+            write(iunit, "(i12)", advance = "no") frequency_bins(i)
+            write(iunit, "(f16.7)") frequency_bounds(i)
+        end do
+
+        close(iunit)
+
+        deallocate(frequency_bins)
+        deallocate(frequency_bounds)
+
+    end subroutine print_frequency_histogram
+
 end module
+

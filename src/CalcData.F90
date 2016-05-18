@@ -352,6 +352,16 @@ logical :: enough_two, enough_two_same, enough_two_mixed, enough_three, &
 logical :: t_min_tau = .false.
 real(dp) :: min_tau_global = 1e-07_dp
 
+! introducing an new way to adapt the time-step through H_ij/pgen frequency 
+! analysis: for this we need to store a histogram of the H_ij/pgens 
+! across all processors which are accumulated during a FCIQMC run 
+! the bins and boundaries need to be able to be adjusted during run-time 
+integer, allocatable :: frequency_bins(:) ! to store the number of elements 
+real(dp), allocatable :: frequency_bounds(:) ! to store the boundaries of bins
+logical :: t_frequency_analysis = .false. ! flag to initiate the new analysis
+integer :: n_frequency_bins = 100 ! optional input to adjust the number of bins
+real(dp) :: max_frequency_bound = 10.0_dp
+
 ! also need multiple new specific excitation type probabilites, but they are 
 ! defined in FciMCdata module! 
 end module CalcData

@@ -1018,6 +1018,39 @@ contains
                 ! a limit to prevent craziness at the start of a calculation
                 call getf(MaxTau)
 
+            case ("FREQUENCY-ANALYSIS")
+                ! new option to analyze the frequency of the H_ij/pgen ratios 
+                ! and to use that information to adjust the time-step 
+                ! accordingly
+                ! todo: the time-step adaption will be done later on, for now 
+                ! only accumulate the frequency data during an actual 
+                ! FCIQMC run
+                ! optional intput is an integer to determine the number 
+                ! of bins 
+                ! and if given also the first upper limit up to which the 
+                ! initial bins get created
+                t_frequency_analysis = .true. 
+
+                if (item < nitems) then
+                    call geti(n_frequency_bins)
+                end if
+
+                if (item < nitems) then
+                    call getf(max_frequency_bound)
+                end if
+
+                ! do the allocation already here? 
+                allocate(frequency_bins(n_frequency_bins))
+
+                frequency_bins = 0
+
+                ! how do I set up the bounds correctly? use implicit do
+                allocate(frequency_bounds(n_frequency_bins))
+
+                frequency_bounds = [(max_frequency_bound/n_frequency_bins * i, &
+                    i = 1, n_frequency_bins)]
+
+
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
                 call getf(MaxWalkerBloom)

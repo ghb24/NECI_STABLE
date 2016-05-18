@@ -6,13 +6,13 @@ module fcimc_pointed_fns
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
-                        tRealCoeffByExcitLevel, InitiatorWalkNo
+                        tRealCoeffByExcitLevel, InitiatorWalkNo, t_frequency_analysis
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, log_spawn_magnitude
     use fcimc_helper, only: CheckAllowedTruncSpawn
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use bit_rep_data, only: NIfTot
-    use tau_search, only: log_death_magnitude!, log_spawn_magnitude
+    use tau_search, only: log_death_magnitude, fill_frequency_histogram!, log_spawn_magnitude
     use rdm_general, only: calc_rdmbiasfac
     use hist, only: add_hist_excit_tofrom
     use searching, only: BinSearchParts2
@@ -130,6 +130,15 @@ module fcimc_pointed_fns
                                  tParity, HElGen)
 
         !write(6,*) 'p,rh', prob, rh
+
+        ! essentially here i have all the information for my frequency 
+        ! analysis of the H_ij/pgen ratio so call the routine here
+        ! but i have to remember to keep it parallel! so dont forget to 
+        ! sum up all the contributions from different cores! 
+        ! and divide prob by AvMCExcits again to get correct pgen! 
+        if (t_frequency_analysis) then
+            call fill_frequency_histogram(abs(rh), prob / AvMCExcits)
+        end if
 
         ! The following is useful for debugging the contributions of single
         ! excitations, and double excitations of spin-paired/opposite

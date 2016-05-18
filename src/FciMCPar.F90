@@ -13,7 +13,8 @@ module FciMCParMod
                         tDetermHFSpawning, use_spawn_hash_table, &
                         ss_space_in, s_global_start, tContTimeFCIMC, &
                         trial_shift_iter, tStartTrialLater, &
-                        tTrialWavefunction, tSemiStochastic, ntrial_ex_calc
+                        tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
+                        t_frequency_analysis
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, &
@@ -481,6 +482,9 @@ module FciMCParMod
                 CALL MPIBarrier(error)
             ENDIF
         ENDIF
+
+        ! if i want to do the histogramming output the info now
+        if (t_frequency_analysis) call print_frequency_histogram()
 
         ! If requested, write the most populated states in CurrentDets to a
         ! CORESPACE file, for use in future semi-stochastic calculations.
