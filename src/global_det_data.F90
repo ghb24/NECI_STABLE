@@ -158,14 +158,14 @@ contains
 
         ! Get the starting positions
         pos_av_sgn = pos_hel + len_hel
-        pos_iter_occ = pos_av_sgn + len_av_sgn
-        pos_av_sgn_transition = pos_iter_occ + len_iter_occ
-        pos_iter_occ_transition = pos_av_sgn_transition + len_av_sgn_transition
+        pos_av_sgn_transition = pos_av_sgn + len_av_sgn
+        pos_iter_occ = pos_av_sgn_transition + len_av_sgn_transition
+        pos_iter_occ_transition = pos_iter_occ + len_iter_occ
         pos_tm_occ = pos_iter_occ_transition + len_iter_occ_transition
         pos_spawn_cnt = pos_tm_occ + len_tm_occ
         pos_spawn_rate = pos_spawn_cnt + len_spawn_cnt
 
-        tot_len = len_hel + len_av_sgn_tot + len_iter_occ + len_tm_occ &
+        tot_len = len_hel + len_av_sgn_tot + len_iter_occ_tot + len_tm_occ &
                 + len_spawn_cnt + len_spawn_rate
 
         ! Allocate and log the required memory (globally)
@@ -388,7 +388,7 @@ contains
     function get_iter_occ_tot_all (j) result(iter_occ)
 
         integer, intent(in) :: j
-        real(dp) :: iter_occ(len_iter_occ)
+        real(dp) :: iter_occ(len_iter_occ_tot)
 
         iter_occ = global_determinant_data(pos_iter_occ: &
                                    pos_iter_occ + len_iter_occ_tot - 1, j)

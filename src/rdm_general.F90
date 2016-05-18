@@ -871,7 +871,7 @@ contains
         use bit_reps, only: extract_bit_rep
         use CalcData, only: tPairedReplicas
         use FciMCData, only: PreviousCycles, Iter, IterRDMStart, excit_gen_store_type
-        use global_det_data, only: get_iter_occ_standard, get_av_sgn_standard
+        use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use rdm_data, only: signs_for_rdm, nrdms
         use LoggingData, only: RDMEnergyIter
@@ -887,7 +887,7 @@ contains
         integer :: av_ind_1, av_ind_2
 
         ! This is the iteration from which this determinant has been occupied.
-        IterRDMStartI(1:lenof_sign) = get_iter_occ_standard(j)
+        IterRDMStartI = get_iter_occ_tot(j)
 
         ! This extracts everything.
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI)
@@ -961,11 +961,11 @@ contains
                         ! Nothing unusual has happened so update both average
                         ! populations as normal.
                         AvSignI(av_ind_1) = &
-                            ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(av_ind_1)) * get_av_sgn_standard(j, av_ind_1)) &
+                            ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(av_ind_1)) * get_av_sgn_tot(j, av_ind_1)) &
                               + SignI(ind(1,irdm)) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(av_ind_1) + 1.0_dp )
 
                         AvSignI(av_ind_2) = &
-                            ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(av_ind_2)) * get_av_sgn_standard(j, av_ind_2)) &
+                            ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(av_ind_2)) * get_av_sgn_tot(j, av_ind_2)) &
                               + SignI(ind(2,irdm)) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(av_ind_2) + 1.0_dp )
                     end if
                 end do
@@ -980,7 +980,7 @@ contains
                     ! current population (SignI) if this is the first  time the
                     ! determinant has become occupied.
                     AvSignI(irdm) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(irdm)) * &
-                                           get_av_sgn_standard(j,irdm)) &
+                                           get_av_sgn_tot(j,irdm)) &
                                     + SignI(irdm) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(irdm) + 1.0_dp )
                 end do
             end if
