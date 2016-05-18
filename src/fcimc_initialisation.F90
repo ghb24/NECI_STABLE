@@ -757,7 +757,6 @@ contains
         SumNoatHF(:)=0.0_dp
         NoatHF(:)=0.0_dp
         InstNoatHF(:)=0.0_dp
-        AvNoatHF(:) = 0.0_dp
         Annihilated(:)=0.0_dp
         Acceptances(:)=0.0_dp
         PreviousCycles=0
@@ -1301,7 +1300,6 @@ contains
             TotPartsOld(:)=0.0
             NoatHF(:)=0.0_dp
             InstNoatHF(:)=0.0_dp
-            AvNoatHF(:) = 0.0_dp
 
             ! If we have a popsfile, read the walkers in now.
             if(tReadPops .and. .not.tPopsAlreadyRead) then
