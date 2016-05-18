@@ -95,7 +95,11 @@ contains
         
 !         call dsfmt_init(0)
 
+        call run_test_excit_gen_4ind_multiple([1,2,3,4,5,6,7,8])
         call run_test_excit_gen_4ind_multiple([9,10,11,12,13,14,15,16])
+        call run_test_excit_gen_4ind_multiple([1,3,5,7,10,12,14,16])
+        call run_test_excit_gen_4ind_multiple([1,4,5,8,9,12,13,16])
+        call run_test_excit_gen_4ind_multiple([1,3,6,7,10,11,14,16])
 
         call stop_all(this_routine, "stop after tests!")
 
@@ -277,7 +281,15 @@ contains
             ! exactly created determinants from that to check for pgen and 
             ! matrix element consistency! 
             call run_test_excit_gen_guga_multiple(&
+                [1,2,3,4,5,6,7,8])
+            call run_test_excit_gen_guga_multiple(&
                 [9,10,11,12,13,14,15,16])
+            call run_test_excit_gen_guga_multiple(&
+                [1,3,5,7,10,12,14,16])
+            call run_test_excit_gen_guga_multiple(&
+                [1,3,6,7,10,11,14,16])
+            call run_test_excit_gen_guga_multiple(&
+                [1,4,5,8,9,12,13,16])
 !             call run_test_excit_gen_guga_general
 !             call run_test_excit_gen_guga_single([1,3,4,5,7,10,11,12])
 !             call run_test_excit_gen_guga_multiple(&

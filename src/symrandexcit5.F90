@@ -585,8 +585,8 @@ contains
         write(iunit,*) "pgens and matrix elements for CSF:"
         call write_det(6, src_det, .true.)
         do i = 1, nExcit
-            write(iunit, "(f16.7)", advance = 'no') pgen_list(i)/sum_pgens
-            write(iunit, "(f16.7)", advance = 'no') matEle_list(i)/sum_helement
+            write(iunit, "(f16.7)", advance = 'no') pgen_list(i) ! /sum_pgens
+            write(iunit, "(f16.7)", advance = 'no') matEle_list(i) ! /sum_helement
             write(iunit, "(f16.7)") contrib_list(i) / real(iterations,dp)
         end do
         close(iunit)
