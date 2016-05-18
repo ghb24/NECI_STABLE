@@ -24,65 +24,70 @@ contains
         use CalcData, only: tPairedReplicas
         use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
-        use rdm_data, only: one_rdm_t, nrdms
+        use rdm_data, only: one_rdm_t, nrdms, signs_for_rdm
 
         type(rdm_spawn_t), intent(inout) :: spawn
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer(n_int), intent(in) :: ilut_list(:,:)
         integer, intent(in) :: ndets
 
-        integer :: idet, irdm, ind1, ind2
+        integer :: idet, irdm, av_ind_1, av_ind_2
         real(dp) :: curr_sign(lenof_sign), adapted_sign(len_av_sgn_tot)
         real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
 
-        do idet = 1, ndets
+        associate(ind => signs_for_rdm)
 
-            call extract_sign(ilut_list(:,idet), curr_sign)
-            ! All average sign from all RDMs.
-            av_sign = get_av_sgn_tot(idet)
-            ! The iteration on which each replica became occupied.
-            iter_occ = get_iter_occ_tot(idet)
+            do idet = 1, ndets
 
-            adapted_sign = 0.0_dp
+                call extract_sign(ilut_list(:,idet), curr_sign)
+                ! All average sign from all RDMs.
+                av_sign = get_av_sgn_tot(idet)
+                ! The iteration on which each replica became occupied.
+                iter_occ = get_iter_occ_tot(idet)
 
-            if (tPairedReplicas) then
-                do irdm = 1, nrdms
+                adapted_sign = 0.0_dp
 
-                    ! The indicies of the first and second replicas in this
-                    ! particular pair, in the *average* sign arrays.
-                    ind1 = irdm*2-1
-                    ind2 = irdm*2
+                if (tPairedReplicas) then
+                    do irdm = 1, nrdms
 
-                    if ((abs(curr_sign(ind1)) < 1.0e-10_dp .and. abs(iter_occ(ind1)) > 1.0e-10_dp) .or. &
-                        (abs(curr_sign(ind2)) < 1.0e-10_dp .and. abs(iter_occ(ind2)) > 1.0e-10_dp) .or. &
-                        (abs(curr_sign(ind1)) > 1.0e-10_dp .and. abs(iter_occ(ind1)) < 1.0e-10_dp) .or. &
-                        (abs(curr_sign(ind2)) > 1.0e-10_dp .and. abs(iter_occ(ind2)) < 1.0e-10_dp)) then 
+                        ! The indicies of the first and second replicas in this
+                        ! particular pair, in the *average* sign arrays (and
+                        ! therefore also for the iter_occ array).
+                        av_ind_1 = irdm*2-1
+                        av_ind_2 = irdm*2
 
-                        ! In this case we want to include this diagonal element,
-                        ! so transfer the sign.
-                        adapted_sign(ind1:ind2) = av_sign(ind1:ind2)
-                    end if
-                end do
+                        if ((abs(curr_sign(ind(1,irdm))) < 1.0e-10_dp .and. abs(iter_occ(av_ind_1)) > 1.0e-10_dp) .or. &
+                            (abs(curr_sign(ind(2,irdm))) < 1.0e-10_dp .and. abs(iter_occ(av_ind_2)) > 1.0e-10_dp) .or. &
+                            (abs(curr_sign(ind(1,irdm))) > 1.0e-10_dp .and. abs(iter_occ(av_ind_1)) < 1.0e-10_dp) .or. &
+                            (abs(curr_sign(ind(2,irdm))) > 1.0e-10_dp .and. abs(iter_occ(av_ind_2)) < 1.0e-10_dp)) then 
 
-            else
+                            ! In this case we want to include this diagonal element,
+                            ! so transfer the sign.
+                            adapted_sign(av_ind_1:av_ind_2) = av_sign(av_ind_1:av_ind_2)
+                        end if
+                    end do
 
-                do irdm = 1, nrdms
-                    if (abs(curr_sign(irdm)) < 1.0e-10_dp) then
-                        ! If this RDM sign has gone to zero, then we want to add
-                        ! the contribution for this RDM.
-                        adapted_sign(irdm) = av_sign(irdm)
-                    end if
-                end do
+                else
 
-            end if
+                    do irdm = 1, nrdms
+                        if (abs(curr_sign(ind(1,irdm))) < 1.0e-10_dp) then
+                            ! If this RDM sign has gone to zero, then we want to add
+                            ! the contribution for this RDM.
+                            adapted_sign(irdm) = av_sign(irdm)
+                        end if
+                    end do
 
-            ! At least one of the signs has just gone to zero or just become
-            ! reoccupied, so we need to add in diagonal elements and connections to HF
-            if (any(abs(adapted_sign) > 1.e-12_dp)) then
-                call det_removed_fill_diag_rdm(spawn, one_rdms, ilut_list(:,idet), adapted_sign, iter_occ)
-            end if
+                end if
 
-        end do
+                ! At least one of the signs has just gone to zero or just become
+                ! reoccupied, so we need to add in diagonal elements and connections to HF
+                if (any(abs(adapted_sign) > 1.e-12_dp)) then
+                    call det_removed_fill_diag_rdm(spawn, one_rdms, ilut_list(:,idet), adapted_sign, iter_occ)
+                end if
+
+            end do
+
+        end associate
 
     end subroutine fill_rdm_diag_wrapper
 
