@@ -125,7 +125,7 @@ contains
         nhashes_rdm_spawn = 0.75*max_nelems_spawn
         call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems_spawn, nhashes_rdm_spawn)
 
-        max_nelems_recv = 2.0*(rdm_nrows**2)/(8*nProcessors)
+        max_nelems_recv = 4.0*(rdm_nrows**2)/(8*nProcessors)
         max_nelems_recv_2 = 2.0*(rdm_nrows**2)/(8*nProcessors)
         ! Don't need the hash table for the received list, so pass 0 for nhashes.
         call init_rdm_list_t(two_rdm_recv, nrdms, max_nelems_recv, 0)
