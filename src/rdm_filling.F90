@@ -741,7 +741,7 @@ contains
         use FciMCData, only: core_space, determ_sizes, determ_displs, full_determ_vecs_av
         use LoggingData, only: RDMExcitLevel, RDMEnergyIter
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: one_rdm_t
+        use rdm_data, only: one_rdm_t, nrdms, signs_for_rdm
         use rdm_data_utils, only: add_to_rdm_spawn_t
         use sparse_arrays, only: sparse_core_ham, core_connections
         use SystemData, only: nel, tHPHF
@@ -749,9 +749,9 @@ contains
         type(rdm_spawn_t), intent(inout) :: spawn
         type(one_rdm_t), intent(inout) :: one_rdms(:)
 
-        integer :: i, j
+        integer :: i, j, irdm
         integer :: SingEx(2,1), Ex(2,2)
-        real(dp) :: AvSignI(lenof_sign), AvSignJ(lenof_sign)
+        real(dp) :: AvSignI(spawn%rdm_send%sign_length), AvSignJ(spawn%rdm_send%sign_length)
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
         logical :: tParity
         integer(n_int) :: iLutI(0:niftot), iLutJ(0:niftot)
@@ -779,7 +779,9 @@ contains
             ! Connections to the HF are added in elsewhere, so skip them here.
             if (DetBitEq(iLutI, iLutHF_True, NifDBO)) cycle
            
-            AvSignI = full_determ_vecs_av(:,determ_displs(iProcIndex)+i)
+            do irdm = 1, nrdms
+                AvSignI(irdm) = full_determ_vecs_av(signs_for_rdm(1,irdm), determ_displs(iProcIndex)+i)
+            end do
 
             call decode_bit_det(nI,iLutI)
  
@@ -798,27 +800,28 @@ contains
                 ! Connections to the HF are added in elsewhere, so skip them here.
                 if (DetBitEq(iLutJ, iLutHF_True, NifDBO)) cycle
                 
-                AvSignJ = full_determ_vecs_av(:,core_connections(i)%positions(j))
+                do irdm = 1, nrdms
+                    AvSignJ(irdm) = full_determ_vecs_av(signs_for_rdm(nreplicas, irdm), core_connections(i)%positions(j))
+                end do
 
                 connect_elem = core_connections(i)%elements(j)
 
                 IC = abs(connect_elem)
 
-                if (sign(1, connect_elem) .gt. 0) then
+                if (sign(1, connect_elem) > 0) then
                     tParity = .false.
                     ! For nreplicas=2, this will multiply the odd indices of AvSignI_Par
                     ! (representing replica 1) by the even indices of AvSignJ (representing
                     ! replica 2).
-                    full_sign = AvSignI(1::nreplicas) * AvSignJ(nreplicas::nreplicas) * IterRDM
+                    full_sign = AvSignI*AvSignJ * IterRDM
                 else
                     tParity = .true.
-                    full_sign = -AvSignI(1::nreplicas) * AvSignJ(nreplicas::nreplicas) * IterRDM
+                    full_sign = -AvSignI*AvSignJ * IterRDM
                 end if
 
                 if (tHPHF) then
                     call decode_bit_det(nJ, iLutJ)
-                    call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutI, iLutJ, nI, nJ, &
-                                               AvSignI(1::nreplicas)*IterRDM, AvSignJ(nreplicas::nreplicas), .false.)
+                    call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutI, iLutJ, nI, nJ, AvSignI*IterRDM, AvSignJ, .false.)
                 else
                     if (IC == 1) then
                         ! Single excitation - contributes to 1- and 2-RDM
@@ -835,8 +838,7 @@ contains
                         if (RDMExcitLevel /= 1) call fill_spawn_rdm_singles(spawn, nI, Ex, full_sign)
 
                         if (RDMExcitLevel == 1) then
-                            call fill_sings_1rdm(one_rdms, Ex, tParity, AvSignI(1::nreplicas)*IterRDM, &
-                                                  AvSignJ(nreplicas::nreplicas), .false.)
+                            call fill_sings_1rdm(one_rdms, Ex, tParity, AvSignI*IterRDM, AvSignJ, .false.)
                         end if
 
                     else if ((IC == 2) .and. (RDMExcitLevel /= 1)) then
