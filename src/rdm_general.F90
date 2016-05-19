@@ -114,7 +114,7 @@ contains
         nhashes_rdm_main = 0.75*max_nelems_main
         call init_rdm_list_t(two_rdm_main, nrdms, max_nelems_main, nhashes_rdm_main)
 
-        standard_spawn_size = 1.5*(rdm_nrows**2)/(8*nProcessors)
+        standard_spawn_size = 3.0*(rdm_nrows**2)/(8*nProcessors)
         ! For cases where we have a small number of orbitals but large number
         ! of processors (i.e., large CASSCF calculations), we may find the
         ! above standard_spawn_size is less than nProcessors. Thus, there
