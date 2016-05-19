@@ -994,6 +994,17 @@ contains
                 tSearchTau = .true. 
                 tSearchTauOption = .true.
 
+            case("KEEPTAUFIXED")
+                ! option for a restarted run to keep the tau, read in from the 
+                ! POPSFILE and other parameters, as pSingles, pParallel 
+                ! fixed for the remainder of the run, even if we keep 
+                ! growing the walkers 
+                t_keep_tau_fixed = .true.
+
+                ! here i need to turn off the tau-search option
+                tSearchTau = .false.
+                tSearchTauOption = .false.
+
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
                 call getf(MaxWalkerBloom)

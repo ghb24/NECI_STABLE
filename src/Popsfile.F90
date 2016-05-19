@@ -10,7 +10,7 @@ MODULE PopsfileMod
                         iWeightPopRead, iPopsFileNoRead, Tau, &
                         InitiatorWalkNo, MemoryFacPart, tLetInitialPopDie, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
-                        pops_norm, tWritePopsNorm
+                        pops_norm, tWritePopsNorm, t_keep_tau_fixed
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
@@ -1107,7 +1107,7 @@ r_loop: do while(.not.tStoreDet)
             iBlockingIter = PreviousCycles
         else
             !Using popsfile v.4, where tau is written out and read in
-            if(tSearchTau) then
+            if (tSearchTau) then
                 if((.not.tSinglePartPhase(1)).or.(.not.tSinglePartPhase(inum_runs))) then
                     tSearchTau=.false.
                 endif
@@ -1124,6 +1124,20 @@ r_loop: do while(.not.tStoreDet)
                     pSingles = read_psingles
                     if (.not. tReltvy) &
                     pDoubles = 1.0_dp - pSingles
+                end if
+
+                if (abs(read_pparallel) > 1.0e-12_dp) then
+                    pParallel = read_pparallel
+                end if
+            else if (t_keep_tau_fixed) then 
+                write(6,"(A)") "Using timestep specified in POPSFILE, without continuing to dynammically adjust it!"
+                tau = read_tau 
+
+                if (abs(read_psingles) > 1.0e-12_dp) then
+                    pSingles = read_psingles
+                    if (.not. tReltvy) then
+                        pDoubles = 1.0_dp - pSingles
+                    end if
                 end if
 
                 if (abs(read_pparallel) > 1.0e-12_dp) then
