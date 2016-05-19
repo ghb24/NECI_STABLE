@@ -143,10 +143,11 @@ module FciMCParMod
         ! In the normal case this is run between iterations, but it is
         ! helpful to do it here.
         call population_check()
-
+#ifndef __CMPLX
          if ((tGen_4ind_2 .or. tGen_4ind_weighted) .and. t_test_excit_gen) then
              call run_test_excit_gen_det()
          end if
+#endif
 
         if(n_int.eq.4) CALL Stop_All('Setup Parameters', &
                 'Use of RealCoefficients does not work with 32 bit integers due to the use &
@@ -460,6 +461,12 @@ module FciMCParMod
         write(iout,*) 'Total loop-time: ', stop_time - start_time
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
 
+        ! if i want to do the histogramming output the info now
+        if (t_frequency_analysis) then
+            call print_frequency_histogram()
+            call MPIBarrier(error)
+        end if
+
         ! Remove the signal handlers now that there is no way for the
         ! soft-exit part to work
         call clear_signals()
@@ -483,8 +490,6 @@ module FciMCParMod
             ENDIF
         ENDIF
 
-        ! if i want to do the histogramming output the info now
-        if (t_frequency_analysis) call print_frequency_histogram()
 
         ! If requested, write the most populated states in CurrentDets to a
         ! CORESPACE file, for use in future semi-stochastic calculations.

@@ -1386,22 +1386,72 @@ contains
 
     subroutine print_frequency_histogram 
         ! routine to write a file with the H_ij/pgen ratio frequencies 
-        integer :: iunit, i
+        integer :: iunit, i, max_size, old_size
         character(255) :: filename
+        integer, allocatable :: save_bins(:), all_frequency_bins(:)
+        real(dp) :: step_size
+        real(dp), allocatable :: all_frequency_bounds(:)
+        ! i can test how to deal with the MPI stuff here to get the same 
+        ! results as in the single runs
+        ! first i need the maximum length of all processors
 
-        iunit = get_free_unit()
-        call get_unique_filename("frequency_histogram",.true.,.true.,1,filename)
-        open(iunit, file = filename, status = "unknown") 
+        old_size = size(frequency_bins)
+        call MPIReduce(old_size, MPI_MAX, max_size)
 
-        do i = 1, size(frequency_bins) 
-            write(iunit, "(i12)", advance = "no") frequency_bins(i)
-            write(iunit, "(f16.7)") frequency_bounds(i)
-        end do
+        print *, "old_size: ", old_size
+        print *, "max_size", max_size
+        call neci_flush(6)
+        ! then i need to resize all the bin lists to this maximum size 
+        ! but first save data 
+        allocate(save_bins(old_size))
 
-        close(iunit)
+        save_bins = frequency_bins
 
         deallocate(frequency_bins)
-        deallocate(frequency_bounds)
+
+        allocate(frequency_bins(max_size))
+
+        frequency_bins = 0 
+
+        frequency_bins(1:old_size) = save_bins
+
+        ! and then i can add up all the entries i guess..
+
+        print *, "toto1"
+        if (iProcIndex == 0) then
+            allocate(all_frequency_bins(max_size))
+            all_frequency_bins = 0
+
+            allocate(all_frequency_bounds(max_size))
+            step_size = frequency_bounds(2) - frequency_bounds(1)
+            all_frequency_bounds = [(step_size * i, i = 1, max_size)]
+        end if
+
+        call MPISumAll(frequency_bins, all_frequency_bins)
+!         call MPIReduce(frequency_bins, MPI_SUM, all_frequency_bins)
+
+        print *, "toto2"
+        ! and create the final bounds array
+
+!         do i = 1, size(frequency_bins) 
+!             write(iunit, "(i12)", advance = "no") frequency_bins(i)
+!             write(iunit, "(f16.7)") frequency_bounds(i)
+!         end do
+
+        if (iProcIndex == 0) then
+            iunit = get_free_unit()
+            call get_unique_filename("frequency_histogram",.true.,.true.,1,filename)
+            open(iunit, file = filename, status = "unknown") 
+
+
+            do i = 1, max_size
+                write(iunit, "(i12)", advance = "no") all_frequency_bins(i)
+                write(iunit, "(f16.7)") all_frequency_bounds(i)
+            end do
+            close(iunit)
+            deallocate(all_frequency_bins)
+            deallocate(all_frequency_bounds)
+        end if
 
     end subroutine print_frequency_histogram
 
