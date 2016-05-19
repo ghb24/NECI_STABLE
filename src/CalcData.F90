@@ -356,11 +356,18 @@ real(dp) :: min_tau_global = 1e-07_dp
 ! analysis: for this we need to store a histogram of the H_ij/pgens 
 ! across all processors which are accumulated during a FCIQMC run 
 ! the bins and boundaries need to be able to be adjusted during run-time 
-integer, allocatable :: frequency_bins(:) ! to store the number of elements 
-real(dp), allocatable :: frequency_bounds(:) ! to store the boundaries of bins
+! to store the number of elements 
+integer, allocatable :: frequency_bins(:)!, all_frequency_bins(:)
+! to store the boundaries of bins
+real(dp), allocatable :: frequency_bounds(:)!, all_frequency_bounds(:)
 logical :: t_frequency_analysis = .false. ! flag to initiate the new analysis
 integer :: n_frequency_bins = 100 ! optional input to adjust the number of bins
 real(dp) :: max_frequency_bound = 10.0_dp
+! and also store data for the MPI communication
+real(dp) :: all_max_bound = 0.0_dp
+integer :: all_n_bins = 0
+! use a global step-size, so no numericall error creeps in .. 
+real(dp) :: frq_step_size = 0.1_dp
 
 ! also need multiple new specific excitation type probabilites, but they are 
 ! defined in FciMCdata module! 

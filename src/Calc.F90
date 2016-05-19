@@ -1039,17 +1039,19 @@ contains
                     call getf(max_frequency_bound)
                 end if
 
-                ! do the allocation already here? 
-                allocate(frequency_bins(n_frequency_bins))
-
-                frequency_bins = 0
-
-                ! how do I set up the bounds correctly? use implicit do
-                allocate(frequency_bounds(n_frequency_bins))
-
-                frequency_bounds = [(max_frequency_bound/n_frequency_bins * i, &
-                    i = 1, n_frequency_bins)]
-
+                ! to init the init_tau search i have to set tausearch to true
+                tSearchTau = .true.
+!                 ! do the allocation already here? 
+!                 allocate(frequency_bins(n_frequency_bins))
+! 
+!                 frequency_bins = 0
+! 
+!                 ! how do I set up the bounds correctly? use implicit do
+!                 allocate(frequency_bounds(n_frequency_bins))
+! 
+!                 frequency_bounds = [(max_frequency_bound/n_frequency_bins * i, &
+!                     i = 1, n_frequency_bins)]
+! 
 
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.

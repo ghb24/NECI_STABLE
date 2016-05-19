@@ -14,7 +14,12 @@ module tau_search
                     gamma_two_same, gamma_two_mixed, gamma_three_same, gamma_three_mixed, &
                     gamma_four, enough_two_same, enough_two_mixed, enough_three_same, &
                     enough_three_mixed, enough_four, enough_two, enough_three, &
-                    t_min_tau, min_tau_global, frequency_bounds, frequency_bins
+                    t_min_tau, min_tau_global, frequency_bounds, frequency_bins, & 
+                    max_frequency_bound, n_frequency_bins, t_frequency_analysis, &
+                    frq_step_size
+                    !, &
+                    !all_frequency_bounds, all_frequency_bins, all_max_bound, &
+                    !all_n_bins
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          ProjEDet, ilutRef, MaxTau, tSearchTau, &
                          tSearchTauOption, tSearchTauDeath, pExcit2, pExcit4, &
@@ -48,6 +53,7 @@ contains
 
     subroutine init_tau_search ()
 
+        integer :: i
         ! N.B. This must be called BEFORE a popsfile is read in, otherwise
         !      we screw up the gamma values that have been carefully read in.
 
@@ -196,6 +202,21 @@ contains
             enough_par = .true.
         end if
 
+        ! do the initialization of the frequency analysis here.. 
+        ! i think otherwise it is not done on all the nodes.. 
+        if (t_frequency_analysis) then 
+            allocate(frequency_bins(n_frequency_bins))
+            frequency_bins = 0
+
+            allocate(frequency_bounds(n_frequency_bins))
+
+            ! determine the global and fixed step-size quantitiy! 
+            frq_step_size = max_frequency_bound / real(n_frequency_bins, dp)
+            frequency_bounds = [(frq_step_size * i, i = 1, n_frequency_bins)]
+
+        end if
+
+
     end subroutine
 
     subroutine log_spawn_magnitude_default(ic, ex, matel, prob)
@@ -293,6 +314,7 @@ contains
         character(*), parameter :: this_routine = "update_tau"
 
         integer :: itmp, itmp2
+        real(dp) :: temp
 
         ! This is an override. In case we need to adjust tau due to particle
         ! death rates, when it otherwise wouldn't be adjusted
@@ -449,6 +471,11 @@ contains
             end if
             pSingles = psingles_new
             pDoubles = 1.0_dp - pSingles
+        end if
+
+        if (t_frequency_analysis) then 
+            call integrate_frequency_histogram(temp)
+            print *, "ratio: ", temp
         end if
 
     end subroutine
@@ -628,7 +655,7 @@ contains
         real(dp), intent(in) :: mat_ele, pgen 
         character(*), parameter :: this_routine = "fill_frequency_histogram"
 
-        real(dp) :: ratio, step_size
+        real(dp) :: ratio
         integer :: ind, new_n_bins, i, old_n_bins
         integer, allocatable :: save_bins(:)
         ! first have to take correct matrix element, dependent if we use 
@@ -637,19 +664,14 @@ contains
         ! nah.. it puts in 0 mat_eles too.. so just return if 0 mat_ele
         ASSERT(pgen > EPS)
 
-        if (mat_ele < EPS) return
-
         ! if the matrix element is 0, no excitation will or would be done 
         ! and if the pgen is 0 i also shouldnt be here i guess.. so assert that
+        if (mat_ele < EPS) return
 
         ! then i have to first check if i have to make the histogram bigger...
         ratio = mat_ele / pgen
         
         old_n_bins = size(frequency_bins)
-
-!         print *, "bins: ", frequency_bins
-!         print *, "bounds: ", frequency_bounds
-!         print *, "ratio: ", ratio
 
         if (ratio > frequency_bounds(old_n_bins)) then 
             ! then the element is bigger than the upper bound and the list 
@@ -662,11 +684,8 @@ contains
             ! i know the stepsize is max_frequency_bound / n_frequency_bins 
             ! so the new number of bins is ratio / step_size 
             ! or just use the step in frq_bnds
-            step_size = frequency_bounds(2) - frequency_bounds(1)
-            new_n_bins = int(ratio / step_size)
-
-            ! maybe also put in a stop if too many bins are to be created
-!             if (new_n_bins > 1000) call stop_all(this_routine, "over 1000 bins!")
+            ! use predefined step-size
+            new_n_bins = int(ratio / frq_step_size)
 
             ! also have to save the already saved number in the bins 
             allocate(save_bins(old_n_bins)) 
@@ -686,26 +705,99 @@ contains
             frequency_bins(new_n_bins) = 1
 
             ! and intialize the new bounds 
-            frequency_bounds = [( step_size * i, i = 1, new_n_bins)]
+            frequency_bounds = [( frq_step_size * i, i = 1, new_n_bins)]
 
-            ! so this should work now for a single core..
-!             print *, "bins new: ", frequency_bins
-!             print *, "bounds new: ", frequency_bounds
         else 
             ! the ratio fits in to the bins now i just have to find the 
             ! correct one
             ind = binary_search_first_ge(frequency_bounds, ratio) 
             
-!             print *, "ind: ", ind
             ! increase counter 
             frequency_bins(ind) = frequency_bins(ind) + 1
 
         end if
 
-
-!         call stop_all(this_routine, "")
-
-
     end subroutine fill_frequency_histogram
+
+    subroutine comm_frequency_histogram(all_frequency_bins)
+        ! routine to communicate the frequency histogram data across all 
+        ! processors
+        integer, allocatable, intent(out) :: all_frequency_bins(:)
+        character(*), parameter :: this_routine = "comm_frequency_histogram"
+
+        integer :: core_size, max_size
+        integer, allocatable :: temp_bins(:)
+
+        ! first try to "just" add it without getting them to the same 
+        ! length.. 
+        ! although still have to make the all list the longest.. 
+        core_size = size(frequency_bins) 
+
+        call MPIAllReduce(core_size, MPI_MAX, max_size) 
+
+        ! allocate the temp list to the max_size
+        allocate(all_frequency_bins(max_size)) 
+
+        ! and then try first without changing the other lists to sum it up
+
+        ! i have to adjust the sizes of the frequency_bins.. 
+        if (core_size < max_size) then 
+
+            ! first save: 
+            allocate(temp_bins(max_size))
+
+            temp_bins = 0
+
+            temp_bins(1:core_size) = frequency_bins
+
+        else
+            ASSERT(core_size == max_size)
+
+            allocate(temp_bins(max_size))
+
+            temp_bins = frequency_bins
+
+        end if
+
+        call MPIAllReduce(temp_bins, MPI_SUM, all_frequency_bins)
+
+    end subroutine comm_frequency_histogram
+
+    subroutine integrate_frequency_histogram(ratio)
+        ! routine to integrate the entries of the frequency histogram to 
+        ! determine the time-step through this. 
+        ! use a predefined or inputted threshold, which determines how much 
+        ! of the histogram has to be covered to determine the new time-step
+        real(dp), intent(out) :: ratio 
+        character(*), parameter :: this_routine = "integrate_frequency_histogram"
+
+        integer, allocatable :: all_frequency_bins(:)
+        real(dp), allocatable :: all_frequency_bounds(:) 
+        integer :: i, threshold, n_bins, n_elements, cnt
+
+        ! have to communicate all the histograms across all cores 
+
+        call comm_frequency_histogram(all_frequency_bins) 
+
+        ! then loop over the histogram and check when the threshold is reached
+        n_bins = size(all_frequency_bins) 
+        n_elements = sum(all_frequency_bins) 
+
+        threshold = int(0.9_dp * real(n_elements, dp))
+
+        cnt = 0
+        i = 0
+        do while (cnt < threshold)
+            i = i + 1
+            cnt = cnt + all_frequency_bins(i)
+            
+        end do
+
+        ! (i) determines the boundary which is the ratio then 
+        ! use a fixed step-size from the start, so no numericall error 
+        ! creeps in.. 
+        ratio = i * frq_step_size
+
+    end subroutine integrate_frequency_histogram
 
 end module
