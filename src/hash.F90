@@ -94,6 +94,43 @@ module hash
 
     end subroutine clear_hash_table
 
+    pure subroutine update_hash_table_section(hash_table, min_ind, ind_add)
+
+        ! Loop through all hash table elements. Whenever we have a node with
+        ! an index greater than or equal to min_ind, add ind_add to it.
+
+        ! This was desgined for use in try_rdm_spawn_realloc, where the RDM
+        ! spawning list is reallocated, and part of the list is all shuffled
+        ! up to make more space. Thus, all indices after a certain point
+        ! (min_ind) have to be updated.
+
+        type(ll_node), pointer, intent(inout) :: hash_table(:)
+        integer, intent(in) :: min_ind, ind_add
+
+        type(ll_node), pointer :: curr, prev
+        integer :: i
+
+        ! Loop over all entries corresponding to different hash values.
+        do i = 1, size(hash_table)
+            ! Point to the second entry in this linked list.
+            curr => hash_table(i)%next
+            ! Point to the first entry in this linked list.
+            prev => hash_table(i)
+            ! Update the first index, if necessary.
+            if (prev%ind >= min_ind) prev%ind = prev%ind + ind_add
+            ! Loop over the rest of the linked list.
+            do while (associated(curr))
+                prev => curr
+                curr => curr%next
+                if (prev%ind >= min_ind) prev%ind = prev%ind + ind_add
+            end do
+        end do
+
+        nullify(curr)
+        nullify(prev)
+
+    end subroutine update_hash_table_section
+
     subroutine remove_hash_table_entry(hash_table, nI, ind)
 
         ! Find and remove the entry in hash_table corresponding to nI, which
