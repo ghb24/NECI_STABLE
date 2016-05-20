@@ -593,10 +593,10 @@ contains
 
         ! Allocate a temporary array to copy the old RDM list to, while we
         ! reallocate that array.
-        allocate(temp_elements(0:spawn%rdm_send%sign_length, old_max_length), stat=ierr)
+        allocate(temp_elements(0:spawn%rdm_send%sign_length, new_max_length), stat=ierr)
         if (ierr /= 0) call stop_all(t_r, "Error while allocating temporary array to hold existing &
                                           &RDM spawning array.")
-        temp_elements = spawn%rdm_send%elements
+        temp_elements(:, 1:old_max_length) = spawn%rdm_send%elements
 
         deallocate(spawn%rdm_send%elements, stat=ierr)
         if (ierr /= 0) call stop_all(t_r, "Error while deallocating existing RDM spawning array.")
@@ -607,8 +607,9 @@ contains
         spawn%rdm_send%max_nelements = new_max_length
 
         ! Copy back all the elements from the processes up to and including
-        ! the one being updated:
-        spawn%rdm_send%elements(:, 1:spawn%free_slots(proc)) = temp_elements(:, 1:spawn%free_slots(proc))
+        ! the one being updated. Note that spawn%free_slots(proc) is the slot
+        ! that is *about* to be filled, so we only want 1 less than this.
+        spawn%rdm_send%elements(:, 1:spawn%free_slots(proc)-1) = temp_elements(:, 1:spawn%free_slots(proc)-1)
 
         ! Copy back the elements from the processes *after* the one where the
         ! length has been increased, shuffling them up as necessary.
