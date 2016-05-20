@@ -176,7 +176,7 @@ contains
         nhashes_rdm_main = 0.75*max_nelems_main
         call init_rdm_list_t(two_rdm_main, nrdms, max_nelems_main, nhashes_rdm_main)
 
-        standard_spawn_size = 1.5*(rdm_nrows**2)/(8*nProcessors)
+        standard_spawn_size = 3.0*(rdm_nrows**2)/(8*nProcessors)
         ! For cases where we have a small number of orbitals but large number
         ! of processors (i.e., large CASSCF calculations), we may find the
         ! above standard_spawn_size is less than nProcessors. Thus, there
@@ -201,7 +201,7 @@ contains
         memory_alloc = memory_alloc + max_nelems_recv*(nrdms+1)*size_int_rdm
         memory_alloc = memory_alloc + max_nelems_recv_2*(nrdms+1)*size_int_rdm
 
-        call init_rdm_estimates_t(rdm_estimates, nrdms, print_2rdm_est)
+        call init_rdm_estimates_t(rdm_estimates, nrdms_standard, nrdms_transition, print_2rdm_est)
 
         ! Initialise 1-RDM objects.
         if (RDMExcitLevel == 1 .or. RDMExcitLevel == 3 .or. &

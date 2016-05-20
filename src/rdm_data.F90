@@ -163,6 +163,8 @@ module rdm_data
     type rdm_estimates_t
         ! How many RDMs are being sampled.
         integer :: nrdms
+        integer :: nrdms_standard
+        integer :: nrdms_transition
 
         ! Unit of the separate file to which RDM estimates (such as energy and
         ! spin^2) are output.

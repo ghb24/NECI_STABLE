@@ -11,10 +11,10 @@ module rdm_estimators
 
 contains
 
-    subroutine init_rdm_estimates_t(est, nrdms, open_output_file)
+    subroutine init_rdm_estimates_t(est, nrdms_standard, nrdms_transition, open_output_file)
 
         ! Initialise an rdm_estimates_t object. Allocate arrays to be large
-        ! enough to hold estimates for nrdms RDMs.
+        ! enough to hold estimates for nrdms_srandard+nrdms_transition RDMs.
 
         ! Also, if open_output_file is true, and if this is the processor with
         ! label 0, then open an RDMEstimates file, and write the file's header.
@@ -24,13 +24,17 @@ contains
         use util_mod, only: get_free_unit
 
         type(rdm_estimates_t), intent(out) :: est
-        integer, intent(in) :: nrdms
+        integer, intent(in) :: nrdms_standard, nrdms_transition
         logical, intent(in) :: open_output_file
 
-        integer :: ierr
+        integer :: nrdms, ierr
+
+        nrdms = nrdms_standard + nrdms_transition
 
         ! Store the number of RDMs.
         est%nrdms = nrdms
+        est%nrdms_standard = nrdms_standard
+        est%nrdms_transition = nrdms_transition
 
         ! Estimates over the entire RDM sampling period.
         allocate(est%trace(nrdms), stat=ierr)
@@ -72,7 +76,7 @@ contains
         ! If appropriate, create a new RDMEstimates file.
         if (iProcIndex == 0 .and. open_output_file) then
             est%write_unit = get_free_unit()
-            call write_rdm_est_file_header(est%write_unit, nrdms)
+            call write_rdm_est_file_header(est%write_unit, nrdms_standard)
         else
             ! If we don't have a file open with this unit, set it to something
             ! unique, so we can easily check, and which will cause an obvious
@@ -120,12 +124,12 @@ contains
 
     end subroutine dealloc_rdm_estimates_t
 
-    subroutine write_rdm_est_file_header(write_unit, nrdms)
+    subroutine write_rdm_est_file_header(write_unit, nrdms_standard)
 
         ! Open a new RDMEstimates file (overwriting any existing file), and
         ! write a header to it, appropriate for when we are sampling nrdms RDMs.
 
-        integer, intent(in) :: write_unit, nrdms
+        integer, intent(in) :: write_unit, nrdms_standard
 
         integer :: irdm
 
@@ -133,7 +137,7 @@ contains
 
         write(write_unit, '("#", 4X, "Iteration")', advance='no')
 
-        do irdm = 1, nrdms
+        do irdm = 1, nrdms_standard
             write(write_unit, '(4x,"Energy numerator",1x,i2)', advance='no') irdm
             write(write_unit, '(4x,"Spin^2 numerator",1x,i2)', advance='no') irdm
             write(write_unit, '(7x,"Normalisation",1x,i2)', advance='no') irdm
@@ -153,12 +157,13 @@ contains
         ! for any observable.
 
         use Parallel_neci, only: MPISumAll
-        use rdm_data, only: rdm_estimates_t, rdm_list_t
+        use rdm_data, only: rdm_estimates_t, rdm_list_t, signs_for_rdm
         use SystemData, only: nel, ecore
 
         type(rdm_estimates_t), intent(inout) :: est
         type(rdm_list_t), intent(in) :: rdm
 
+        integer :: irdm
         real(dp) :: rdm_trace(est%nrdms), rdm_norm(est%nrdms)
         real(dp) :: rdm_energy_1(est%nrdms), rdm_energy_2(est%nrdms)
         real(dp) :: rdm_spin(est%nrdms)
@@ -180,6 +185,13 @@ contains
         ! RDMs are normalised so that their trace is nel*(nel-1)/2.
         rdm_norm = rdm_trace*2.0_dp/(nel*(nel-1))
         est%norm = est%trace*2.0_dp/(nel*(nel-1))
+
+        ! For the transition RDMs, we want to calculate the norms using the
+        ! non-transition RDMs.
+        do irdm = est%nrdms_standard+1, est%nrdms
+            est%norm(irdm) = sqrt(est%norm((signs_for_rdm(1,irdm)+1)/nreplicas)) * &
+                             sqrt(est%norm((signs_for_rdm(2,irdm)+1)/nreplicas))
+        end do
 
         ! The 1- and 2- electron operator contributions to the RDM energy.
         call calc_rdm_energy(rdm, rdm_energy_1, rdm_energy_2)
@@ -226,14 +238,14 @@ contains
         if (write_to_separate_file) then
             if (tRDMInstEnergy) then
                 write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
-                do irdm = 1, est%nrdms
+                do irdm = 1, est%nrdms_standard
                     write(est%write_unit, '(3(3x,es20.13))', advance='no') &
                         est%energy_num_inst(irdm), est%spin_num_inst(irdm), est%norm_inst(irdm)
                 end do
                 write(est%write_unit,'()')
             else
                 write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
-                do irdm = 1, est%nrdms
+                do irdm = 1, est%nrdms_standard
                     write(est%write_unit, '(3(3x,es20.13))', advance='no') &
                         est%energy_num(irdm), est%spin_num(irdm), est%norm(irdm)
                 end do
@@ -252,10 +264,14 @@ contains
 
                 write(6,'(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%trace(irdm)
                 write(6,'(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est%trace(irdm)/est%norm(irdm)
-                write(6,'(1x,"Energy contribution from the 1-RDM:",1x,es17.10)') est%energy_1_num(irdm)/est%norm(irdm)
-                write(6,'(1x,"Energy contribution from the 2-RDM:",1x,es17.10)') est%energy_2_num(irdm)/est%norm(irdm)
-                write(6,'(1x,"*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:",1x,es20.13,/)') &
-                    est%energy_num(irdm)/est%norm(irdm)
+
+                ! Only print estimators for the 'standard', non-transition RDMs.
+                if (irdm <= est%nrdms_standard) then
+                    write(6,'(1x,"Energy contribution from the 1-RDM:",1x,es17.10)') est%energy_1_num(irdm)/est%norm(irdm)
+                    write(6,'(1x,"Energy contribution from the 2-RDM:",1x,es17.10)') est%energy_2_num(irdm)/est%norm(irdm)
+                    write(6,'(1x,"*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:",1x,es20.13,/)') &
+                        est%energy_num(irdm)/est%norm(irdm)
+                end if
 
                 ! Hermiticity error measures.
                 write(6,'(1x,"Hermiticty error estimates:")')
