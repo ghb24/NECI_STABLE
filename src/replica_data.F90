@@ -137,9 +137,7 @@ contains
 
         ! The reverse of the above routine...
 
-        deallocate(AvNoatHF, &
-                   InstNoatHF, &
-                   IterRDM_HF, &
+        deallocate(InstNoatHF, &
                    SumNoatHF, AllSumNoatHF, &
                    NoatHF, AllNoatHF, OldAllNoatHF, &
                    iRefProc, proje_ref_energy_offsets, &

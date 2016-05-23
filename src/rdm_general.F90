@@ -21,7 +21,8 @@ contains
         use LoggingData, only: tDo_Not_Calc_2RDM_est, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tDiagRDM, tDumpForcesInfo, tDipoles, tPrint1RDM
         use LoggingData, only: tRDMInstEnergy, tReadRDMs, tPopsfile, tno_RDMs_to_read
-        use LoggingData, only: twrite_RDMs_to_read
+        use LoggingData, only: twrite_RDMs_to_read, tPrint1RDMsFrom2RDMPops
+        use LoggingData, only: tPrint1RDMsFromSpinfree
         use Parallel_neci, only: iProcIndex, nProcessors
         use rdm_data, only: rdm_estimates, one_rdms, two_rdm_spawn, two_rdm_main, two_rdm_recv
         use rdm_data, only: two_rdm_recv_2, tOpenShell, print_2rdm_est, Sing_ExcDjs, Doub_ExcDjs
@@ -31,7 +32,9 @@ contains
         use rdm_data, only: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time, nrdms, signs_for_rdm
         use rdm_data, only: nrdms_each_simulation, rdm_replica_pairs, rdm_labels_for_sims
         use rdm_data_utils, only: init_rdm_spawn_t, init_rdm_list_t, init_one_rdm_t
+        use rdm_data_utils, only: clear_one_rdms, clear_rdm_list_t
         use rdm_estimators, only: init_rdm_estimates_t, calc_2rdm_estimates_wrapper
+        use rdm_reading
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
         use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
@@ -187,7 +190,7 @@ contains
         nhashes_rdm_spawn = 0.75*max_nelems_spawn
         call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems_spawn, nhashes_rdm_spawn)
 
-        max_nelems_recv = 2.0*(rdm_nrows**2)/(8*nProcessors)
+        max_nelems_recv = 4.0*(rdm_nrows**2)/(8*nProcessors)
         max_nelems_recv_2 = 2.0*(rdm_nrows**2)/(8*nProcessors)
         ! Don't need the hash table for the received list, so pass 0 for nhashes.
         call init_rdm_list_t(two_rdm_recv, nrdms, max_nelems_recv, 0)
@@ -337,7 +340,7 @@ contains
             end if
         end if
 
-        if (RDMExcitLevel == 1 .or. tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
+        if (RDMExcitLevel == 1 .or. RDMExcitLevel == 3 .or. tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
             ! These arrays contain indexing systems to order the 1-RDM orbitals
             ! in terms of symmetry. This allows the diagonalisation of the RDMs
             ! to be done in symmetry blocks (a lot quicker/easier).
@@ -361,20 +364,38 @@ contains
             call SetUpSymLabels_RDM()
         end if
 
+        if (tPrint1RDMsFromSpinfree) then
+            call read_spinfree_2rdm_files(two_rdm_main, two_rdm_spawn)
+            call print_1rdms_from_sf2rdms_wrapper(one_rdms, two_rdm_main)
+            ! now clear these objects before the main simulation.
+            call clear_one_rdms(one_rdms)
+            call clear_rdm_list_t(two_rdm_main)
+        end if
+
         if (tReadRDMs) then
+            if (RDMExcitLevel == 1) then
+                do irdm = 1, size(one_rdms)
+                    call read_1rdm(one_rdms(irdm), irdm)
+                end do
+            else
+                call read_2rdm_popsfile(two_rdm_main, two_rdm_spawn)
+                if (print_2rdm_est) call calc_2rdm_estimates_wrapper(rdm_estimates, two_rdm_main)
+
+                if (tPrint1RDMsFrom2RDMPops) then
+                    call print_1rdms_from_2rdms_wrapper(one_rdms, two_rdm_main, tOpenShell)
+                end if
+            end if
+
             if (any(tSinglePartPhase)) then
                 write(6,'("WARNING - Asking to read in the RDMs, but not varying shift from the beginning of &
-                          &the calculation. Ignoring the request to read in the RDMs and starting again instead.")')
+                          &the calculation. All RDMs just read in will be zeroed, to prevent invalid averaging.")')
+                ! Clear these objects, before the main simulation, since we
+                ! haven't started averaging RDMs yet.
+                call clear_one_rdms(one_rdms)
+                call clear_rdm_list_t(two_rdm_main)
+                ! Turn off tReadRDMs, since the read in RDMs aren't being
+                ! used. Leaving it on affects some other stuff later.
                 tReadRDMs = .false.
-            else
-                if (RDMExcitLevel == 1) then
-                    do irdm = 1, size(one_rdms)
-                        call read_1rdm(one_rdms(irdm), irdm)
-                    end do
-                else
-                    call read_2rdm_popsfile(two_rdm_main, two_rdm_spawn)
-                    if (print_2rdm_est) call calc_2rdm_estimates_wrapper(rdm_estimates, two_rdm_main)
-                end if
             end if
         end if
 
@@ -538,118 +559,6 @@ contains
 
     end subroutine SetUpSymLabels_RDM
 
-    subroutine read_1rdm(one_rdm, irdm)
-
-        use rdm_data, only: one_rdm_t
-        use RotateOrbsData, only: SymLabelListInv_rot
-        use util_mod, only: get_free_unit, int_fmt
-
-        type(one_rdm_t), intent(inout) :: one_rdm
-        integer, intent(in) :: irdm
-
-        integer :: one_rdm_unit, file_end, i, j
-        real(dp) :: rdm_sign
-        logical :: file_exists
-        character(20) :: filename
-        character(len=*), parameter :: t_r = 'read_1rdm'
-
-        write(6,'(1X,"Reading in the 1-RDM...")')
-
-        write(filename, '("OneRDM_POPS.",'//int_fmt(irdm,0)//')') irdm
-
-        inquire(file=trim(filename), exist=file_exists)
-
-        if (.not. file_exists) then
-            call stop_all(t_r, "Attempting to read in the 1-RDM from "//trim(filename)//", but this file does not exist.")
-        end if
-
-        one_rdm_unit = get_free_unit()
-        open(one_rdm_unit, file=trim(filename), status='old', form='unformatted')
-
-        do
-            read(one_rdm_unit, iostat=file_end) i, j, rdm_sign
-            if (file_end > 0) call stop_all(t_r, "Error reading "//trim(filename)//".")
-            ! file_end < 0 => end of file reached.
-            if (file_end < 0) exit
-
-            one_rdm%matrix(SymLabelListInv_rot(i), SymLabelListInv_rot(j)) = rdm_sign
-        end do
-
-        close(one_rdm_unit)
-
-    end subroutine read_1rdm
-
-    subroutine read_2rdm_popsfile(rdm, spawn)
-
-        use hash, only: clear_hash_table, FindWalkerHash, add_hash_table_entry
-        use Parallel_neci, only: iProcIndex, nProcessors
-        use rdm_data, only: rdm_list_t, rdm_spawn_t
-        use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm, add_to_rdm_spawn_t
-        use rdm_data_utils, only: communicate_rdm_spawn_t, annihilate_rdm_list
-        use SystemData, only: nbasis
-        use util_mod, only: get_free_unit
-
-        type(rdm_list_t), intent(inout) :: rdm
-        type(rdm_spawn_t), intent(inout) :: spawn
-
-        integer(int_rdm) :: ijkl, rdm_entry(0:rdm%sign_length)
-        integer :: ij, kl, i, j, k, l, ij_proc_row, sign_length_old
-        integer :: ielem, pops_unit, file_end, hash_val, ierr
-        real(dp) :: rdm_sign(rdm%sign_length)
-        logical :: file_exists
-        character(len=*), parameter :: t_r = 'read_2rdm_popsfile'
-
-        write(6,'(1X,"Reading in the 2-RDM...")')
-
-        inquire(file='RDM_POPSFILE', exist=file_exists)
-
-        if (.not. file_exists) then
-            call stop_all(t_r, "Attempting to read in the 2-RDM from RDM_POPSFILE, but this file does not exist.")
-        end if
-
-        ! Only let the root processor do the reading in.
-        if (iProcIndex == 0) then
-            pops_unit = get_free_unit()
-            open(pops_unit, file='RDM_POPSFILE', status='old', form='unformatted')
-
-            ! Read in the first line, which holds sign_length for the
-            ! printed RDM - check it is consistent.
-            read(pops_unit, iostat=file_end) sign_length_old
-            if (sign_length_old /= rdm%sign_length) then
-                call stop_all(t_r, "Error reading RDM_POPSFILE - the number of RDMs printed in the &
-                                   &popsfile is different to the number to be sampled.")
-            else if (file_end > 0) then
-                call stop_all(t_r, "Error reading the first line of RDM_POPSFILE.")
-            end if
-
-            do
-                read(pops_unit, iostat=file_end) rdm_entry
-                if (file_end > 0) call stop_all(t_r, "Error reading RDM_POPSFILE.")
-                ! file_end < 0 => end of file reached.
-                if (file_end < 0) exit
-
-                call calc_separate_rdm_labels(rdm_entry(0), ij, kl, i, j, k, l)
-                call extract_sign_rdm(rdm_entry, rdm_sign)
-
-                call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false.)
-            end do
-
-            close(pops_unit)
-        end if
-
-        call communicate_rdm_spawn_t(spawn, rdm)
-        call annihilate_rdm_list(rdm)
-
-        ! Fill in the hash table to the RDM. Clear it first, just in case.
-        call clear_hash_table(rdm%hash_table)
-        do ielem = 1, rdm%nelements
-            call calc_separate_rdm_labels(rdm%elements(0,ielem), ij, kl, i, j, k, l)
-            hash_val = FindWalkerHash((/i,j,k,l/), size(rdm%hash_table))
-            call add_hash_table_entry(rdm%hash_table, ielem, hash_val)
-        end do
-
-    end subroutine read_2rdm_popsfile
-
     subroutine realloc_SpawnedParts()
 
         ! Routine called when RDM accumulation is turned on, usually midway
@@ -713,6 +622,7 @@ contains
 
         use FciMCData, only: Spawned_Parents, Spawned_Parents_Index
         use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
+        use FciMCData, only: AvNoatHF, IterRDM_HF
         use LoggingData, only: RDMExcitLevel, tExplicitAllRDM
         use rdm_data, only: two_rdm_main, two_rdm_recv, two_rdm_recv_2, two_rdm_spawn
         use rdm_data, only: rdm_estimates, one_rdms, Sing_ExcDjs, Doub_ExcDjs
@@ -814,6 +724,9 @@ contains
             deallocate(SymLabelListInv_rot)
             call LogMemDeAlloc(t_r,SymLabelListInv_rotTag)
         end if
+
+        if (allocated(AvNoatHF)) deallocate(AvNoatHF)
+        if (allocated(IterRDM_HF)) deallocate(IterRDM_HF)
 
     end subroutine dealloc_global_rdm_data
 
