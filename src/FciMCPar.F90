@@ -4,7 +4,7 @@ module FciMCParMod
     ! This module contains the main loop for FCIMC calculations, and the
     ! main per-iteration processing loop.
     use SystemData, only: nel, tUEG2, hist_spin_dist_iter, tGen_4ind_2, &
-                          tGen_4ind_weighted, t_test_excit_gen
+                          tGen_4ind_weighted, t_test_excit_gen, tGUGA
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
@@ -463,7 +463,11 @@ module FciMCParMod
 
         ! if i want to do the histogramming output the info now
         if (t_frequency_analysis) then
-            call print_frequency_histogram()
+            if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGUGA) then
+                call print_frequency_histogram_spec()
+            else
+                call print_frequency_histogram()
+            end if
             call MPIBarrier(error)
         end if
 

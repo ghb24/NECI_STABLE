@@ -41,7 +41,7 @@ MODULE System
       tGen_sym_guga_ueg = .false.
       tGen_sym_guga_mol = .false.
       tgen_guga_weighted = .false.
-      t_consider_diff_bias = .false.
+      t_consider_diff_bias = .true.
       tComplexOrbs_RealInts = .false.
       tReadFreeFormat=.true.
       tMolproMimic=.false.

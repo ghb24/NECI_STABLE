@@ -22579,7 +22579,9 @@ contains
 
         ! in excit_typ information, if we differentiate between same / mixed
         ! generator type excitation, is stored
-        excit_typ = -1
+        ! have to set that in here to indicate, not dealing with difference 
+        ! between alike and mixed excitation generators...
+        excit_typ = 1
 
     end subroutine pick_first_orbital_nosym_guga_uniform
 

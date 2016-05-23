@@ -369,6 +369,25 @@ integer :: all_n_bins = 0
 ! use a global step-size, so no numericall error creeps in .. 
 real(dp) :: frq_step_size = 0.1_dp
 
+! for automated tau-search i need more histograms to distinguish between 
+! the different types of excitations.. 
+integer, allocatable :: frequency_bins_singles(:), frequency_bins_para(:), &
+                        frequency_bins_anti(:), frequency_bins_doubles(:)
+real(dp), allocatable :: frequency_bounds_singles(:), frequency_bounds_para(:), &
+                         frequency_bounds_anti(:), frequency_bounds_doubles(:)
+
+! for the nosym guga implementation also use different bins for the mixed 
+! and alike types of excitations
+integer, allocatable :: frequency_bins_type2(:), frequency_bins_type2_diff(:), &
+                        frequency_bins_type3(:), frequency_bins_type3_diff(:), &
+                        frequency_bins_type4(:)
+real(dp), allocatable :: frequency_bounds_type2(:), frequency_bounds_type2_diff(:), &
+                         frequency_bounds_type3(:), frequency_bounds_type3_diff(:), &
+                         frequency_bounds_type4(:)
+
+! use also an input dependent ratio cutoff for the time-step adaptation
+real(dp) :: frq_ratio_cutoff = 0.9_dp
+
 ! also need multiple new specific excitation type probabilites, but they are 
 ! defined in FciMCdata module! 
 end module CalcData

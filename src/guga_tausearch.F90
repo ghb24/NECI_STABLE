@@ -7,16 +7,23 @@ module guga_tausearch
                         enough_two_mixed, enough_three_same, enough_three_mixed, &
                         enough_four, tReadPops, tau, MaxWalkerBloom, tTruncInitiator, &
                         InitiatorWalkNo, tWalkContGrow, max_permitted_spawn, &
-                        enough_three, enough_two
+                        enough_three, enough_two, &
+                    frequency_bins_type2, frequency_bounds_type2, frequency_bins_type3, &
+                    frequency_bounds_type3, frequency_bins_type4, frequency_bounds_type4, &
+                    frequency_bins_type2_diff, frequency_bins_type3_diff, & 
+                    frequency_bounds_type2_diff, frequency_bounds_type3_diff, &
+                    frequency_bins_singles, frequency_bounds_singles, &
+                    t_frequency_analysis, frq_step_size, max_frequency_bound, &
+                    n_frequency_bins
 
-    use SystemData, only: tUEG
+    use SystemData, only: tUEG, t_consider_diff_bias
     use FciMCData, only: tRestart, pSingles, pDoubles, pExcit2, pExcit4, &
                          pExcit2_same, pExcit3_same, MaxTau, tSearchTau, &
                          tSearchTauOption, tSearchTauDeath
 
     use constants, only: dp, EPS
 
-    use tau_search, only: FindMaxTauDoubs
+    use tau_search, only: FindMaxTauDoubs, integrate_frequency_histogram_spec
 
     use Parallel_neci
 
@@ -29,6 +36,7 @@ contains
     ! in some general data module 
 
     subroutine init_tau_search_guga_nosym
+        integer :: i
 
         ! guga version of the tau search routine for the old "nosym" and 
         ! non-weighted excitation generator
@@ -98,6 +106,54 @@ contains
 
         ! not yet 100% sure about implementation: 
         ! do i really want to distinguish between case(3) e
+        if (t_frequency_analysis) then
+            ! determine the global and fixed step-size quantitiy! 
+            frq_step_size = max_frequency_bound / real(n_frequency_bins, dp)
+            ! here i can differentiate between the different types of 
+            ! excitations.. 
+            allocate(frequency_bins_singles(n_frequency_bins))
+            frequency_bins_singles = 0
+
+            allocate(frequency_bounds_singles(n_frequency_bins))
+
+            frequency_bounds_singles = [(frq_step_size * i, i = 1, n_frequency_bins)]
+
+            ! use the "normal" type2 etc. bins always and just allocate 
+            ! additional ones if t_consider_diff_bias 
+            allocate(frequency_bins_type2(n_frequency_bins))
+            frequency_bins_type2 = 0
+
+            allocate(frequency_bins_type3(n_frequency_bins)) 
+            frequency_bins_type3 = 0 
+
+            allocate(frequency_bins_type4(n_frequency_bins))
+            frequency_bins_type4 = 0
+
+            allocate(frequency_bounds_type2(n_frequency_bins))
+            frequency_bounds_type2 = frequency_bounds_singles
+
+            allocate(frequency_bounds_type3(n_frequency_bins))
+            frequency_bounds_type3 = frequency_bounds_singles
+
+            allocate(frequency_bounds_type4(n_frequency_bins))
+            frequency_bounds_type4 = frequency_bounds_singles
+
+            if (t_consider_diff_bias) then 
+                ! allocate the additional bins and bounds 
+                allocate(frequency_bins_type2_diff(n_frequency_bins))
+                frequency_bins_type2_diff = 0
+
+                allocate(frequency_bins_type3_diff(n_frequency_bins))
+                frequency_bins_type3_diff = 0
+
+                allocate(frequency_bounds_type2_diff(n_frequency_bins))
+                frequency_bounds_type2_diff = frequency_bounds_singles
+
+                allocate(frequency_bounds_type3_diff(n_frequency_bins))
+                frequency_bounds_type3_diff = frequency_bounds_singles
+
+            end if
+        end if
 
     end subroutine init_tau_search_guga_nosym
 
@@ -259,12 +315,16 @@ contains
     subroutine update_tau_guga_nosym () 
         ! specialised tau update routine for the guga non-weighted 
         ! excitation generator, which uses no symmetry 
+        ! but i have to update that depending if consider diff bias is used 
+        ! or not...
         real(dp) :: pSingles_new, tau_new, mpi_tmp, tau_death, pParallel_new
         logical :: mpi_ltmp
         character(*), parameter :: this_routine = "update_tau_guga_nosym"
 
         real(dp) :: pExcit4_new, pExcit3_same_new, &
                     pExcit2_new, pExcit2_same_new, pBranch2, pBranch3
+        real(dp) :: ratio_singles, ratio_type2, ratio_type2_diff, &
+                    ratio_type3, ratio_type3_diff, ratio_type4
         ! from the "old" routine 
         ! This is an override. In case we need to adjust tau due to particle
         ! death rates, when it otherwise wouldn't be adjusted
@@ -461,6 +521,111 @@ contains
 
         end if
 
+        if (t_frequency_analysis) then 
+            call integrate_frequency_histogram_spec(size(frequency_bins_singles), &
+                frequency_bins_singles, ratio_singles)
+
+            ratio_singles = ratio_singles * pSingles
+
+            print *, "ratio singles: ", ratio_singles
+            print *, "gamma singles: ", gamma_sing
+            print *, "improv single: ", gamma_sing / ratio_singles
+
+            if (t_consider_diff_bias) then 
+                ! i have to do that above too.. only check mixed excitaitons 
+                ! if i actually use consider_diff_bias 
+                call integrate_frequency_histogram_spec(size(frequency_bins_type2), &
+                    frequency_bins_type2, ratio_type2) 
+
+                call integrate_frequency_histogram_spec(size(frequency_bins_type2_diff), &
+                    frequency_bins_type2_diff, ratio_type2_diff) 
+
+                call integrate_frequency_histogram_spec(size(frequency_bins_type3), &
+                    frequency_bins_type3, ratio_type3) 
+
+                call integrate_frequency_histogram_spec(size(frequency_bins_type3_diff), &
+                    frequency_bins_type3_diff, ratio_type3_diff)
+
+                call integrate_frequency_histogram_spec(size(frequency_bins_type4), &
+                    frequency_bins_type4, ratio_type4)
+
+                ratio_type2 = ratio_type2 * pDoubles * (1.0_dp - pExcit4) * pExcit2 * &
+                    pExcit2_same
+
+                ratio_type2_diff = ratio_type2_diff * pDoubles * (1.0_dp - pExcit4) * pExcit2 * &
+                    (1.0_dp - pExcit2_same)
+
+                ratio_type3 = ratio_type3 * pDoubles * (1.0_dp - pExcit4) * &
+                    (1.0_dp - pExcit2) * pExcit3_same
+
+                ratio_type3_diff = ratio_type3_diff * pDoubles * (1.0_dp - pExcit4) * &
+                    (1.0_dp - pExcit2) * (1.0_dp - pExcit3_same)
+
+                ratio_type4 = ratio_type4 * pDoubles * pExcit4
+
+                print *, "ratio type2: ", ratio_type2
+                print *, "gamma type2: ", gamma_two_same
+                print *, "improv type2: ", gamma_two_same / ratio_type2
+
+                print *, "ratio type2 diff: ", ratio_type2_diff
+                print *, "gamma type2 diff: ", gamma_two_mixed
+                print *, "improv type2 diff: ", gamma_two_mixed / ratio_type2_diff
+
+                print *, "ratio type3: ", ratio_type3
+                print *, "gamma type3: ", gamma_three_same
+                print *, "improv type3: ", gamma_three_same / ratio_type3
+
+                print *, "ratio type3 diff: ", ratio_type3_diff
+                print *, "gamma type3 diff: ", gamma_three_mixed
+                print *, "improv type3 diff: ", gamma_three_mixed / ratio_type3_diff
+
+                print *, "ratio type4: ", ratio_type4
+                print *, "gamma type4: ", gamma_four
+                print *, "improv type4: ", gamma_four / ratio_type4
+
+            else 
+                ! no differentiating between mixed and alike type 2 and 3 
+                ! excitations 
+                call integrate_frequency_histogram_spec(size(frequency_bins_type2), &
+                    frequency_bins_type2, ratio_type2) 
+
+                call integrate_frequency_histogram_spec(size(frequency_bins_type3), &
+                    frequency_bins_type3, ratio_type3) 
+
+                call integrate_frequency_histogram_spec(size(frequency_bins_type4), &
+                    frequency_bins_type4, ratio_type4)
+
+                ratio_type2 = ratio_type2 * pDoubles * (1.0_dp - pExcit4) * pExcit2 
+
+                ratio_type3 = ratio_type3 * pDoubles * (1.0_dp - pExcit4) * &
+                    (1.0_dp - pExcit2)
+
+                ratio_type4 = ratio_type4 * pDoubles * pExcit4
+
+                ! hm.. i have to change the pgen calc. again in the GUGA 
+                ! approach.. i should not include pSingles, pDoubles etc. 
+                ! within the excitation generation routines, but only apply 
+                ! it afterwards, in the outer loops, so i can change 
+                ! pDoubles etc. outside without changing the ratio 
+                ! mat_ele / pgen ... so i dont have to change anything 
+                ! in the histograms.. todo! now! 
+                ! na des passt schon.. ich dividiers halt hier wieder raus 
+                ! um die "richtige" wahrscheinlichkeit zu kriegen.. 
+
+                print *, "ratio type2: ", ratio_type2
+                print *, "gamma type2: ", gamma_two_same
+                print *, "improv type2: ", gamma_two_same / ratio_type2
+
+                print *, "ratio type3: ", ratio_type3
+                print *, "gamma type3: ", gamma_three_same
+                print *, "improv type3: ", gamma_three_same / ratio_type3
+
+                print *, "ratio type4: ", ratio_type4
+                print *, "gamma type4: ", gamma_four
+                print *, "improv type4: ", gamma_four / ratio_type4
+
+            end if
+        end if
         ! and have to carefully check if i have enough excitations of all sorts
         ! before i individually update the probabilities
 

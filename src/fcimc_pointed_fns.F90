@@ -2,7 +2,8 @@
 
 module fcimc_pointed_fns
 
-    use SystemData, only: nel, tGUGA
+    use SystemData, only: nel, tGUGA, tGen_4ind_weighted, tGen_4ind_2, tGen_nosym_guga, &
+                          tGen_sym_guga_mol, t_consider_diff_bias
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
@@ -12,13 +13,16 @@ module fcimc_pointed_fns
     use fcimc_helper, only: CheckAllowedTruncSpawn
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use bit_rep_data, only: NIfTot
-    use tau_search, only: log_death_magnitude, fill_frequency_histogram!, log_spawn_magnitude
+    use tau_search, only: log_death_magnitude, fill_frequency_histogram_4ind, &
+                          fill_frequency_histogram_sd, fill_frequency_histogram, &
+                          fill_frequency_histogram_nosym_diff, fill_frequency_histogram_nosym_nodiff
     use rdm_general, only: calc_rdmbiasfac
     use hist, only: add_hist_excit_tofrom
     use searching, only: BinSearchParts2
     use util_mod
     use FciMCData
     use constants
+    use excit_gens_int_weighted, only: get_ispn
 
     implicit none
 
@@ -113,6 +117,8 @@ module fcimc_pointed_fns
         integer :: TargetExcitLevel
         logical :: tRealSpawning
         HElement_t(dp) :: rh, rh_used
+        integer :: ispn
+        logical :: t_par
 
         ! Just in case
         child = 0.0_dp
@@ -137,7 +143,40 @@ module fcimc_pointed_fns
         ! sum up all the contributions from different cores! 
         ! and divide prob by AvMCExcits again to get correct pgen! 
         if (t_frequency_analysis) then
-            call fill_frequency_histogram(abs(rh), prob / AvMCExcits)
+            ! use specific ones for different types of excitation gens
+            if (tGen_4ind_weighted .or. tGen_4ind_2) then
+                ! determine if excitation was parallel or anti-parallel
+                ! ex(1,1) and ex(1,2) are the electrons 
+                ispn = get_ispn(ex(1,1), ex(1,2))
+                if (ispn == 2) then
+                    ! then it is an anti-parallel excitation
+                    t_par = .false.
+                else
+                    t_par = .true.
+                end if
+
+                call fill_frequency_histogram_4ind(abs(rh), prob / AvMCExcits, &
+                    ic, t_par)
+
+            else if (tGen_nosym_guga) then 
+                ! have to also check if diff bias is considered 
+                if (t_consider_diff_bias) then 
+                    call fill_frequency_histogram_nosym_diff(abs(rh), prob / AvMCExcits, & 
+                        ic, ex(1,1), ex(1,2))
+                else 
+                    call fill_frequency_histogram_nosym_nodiff(abs(rh), &
+                        prob / AvMCExcits, ic, ex(1,1))
+                end if
+
+            else if (tGen_sym_guga_mol) then
+                call fill_frequency_histogram_sd(abs(rh), prob / AvMCExcits, ic)
+
+            else 
+                ! for any other excitation generator just use one histogram 
+                ! for all the excitations.. 
+                call fill_frequency_histogram(abs(rh), prob / AvMCExcits)
+
+            end if
         end if
 
         ! The following is useful for debugging the contributions of single

@@ -6,7 +6,8 @@ module tau_search
                           tHPHF, tCSF, tKpntSym, nel, G1, nbasis, &
                           AB_hole_pairs, par_hole_pairs, tGen_4ind_reverse, &
                           nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, &
-                          tGen_nosym_guga, nSpatOrbs, t_consider_diff_bias
+                          tGen_nosym_guga, nSpatOrbs, t_consider_diff_bias, &
+                          tGUGA, tGen_sym_guga_mol
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, max_permitted_spawn, &
                     gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt,&
@@ -16,10 +17,14 @@ module tau_search
                     enough_three_mixed, enough_four, enough_two, enough_three, &
                     t_min_tau, min_tau_global, frequency_bounds, frequency_bins, & 
                     max_frequency_bound, n_frequency_bins, t_frequency_analysis, &
-                    frq_step_size
-                    !, &
-                    !all_frequency_bounds, all_frequency_bins, all_max_bound, &
-                    !all_n_bins
+                    frq_step_size, frequency_bins_singles, frequency_bounds_singles, &
+                    frequency_bins_para, frequency_bounds_para, frequency_bins_anti,  &
+                    frequency_bounds_anti, frequency_bins_doubles, frequency_bounds_doubles, &
+                    frequency_bins_type2, frequency_bounds_type2, frequency_bins_type3, &
+                    frequency_bounds_type3, frequency_bins_type4, frequency_bounds_type4, &
+                    frequency_bins_type2_diff, frequency_bins_type3_diff, & 
+                    frequency_bounds_type2_diff, frequency_bounds_type3_diff, &
+                    frq_ratio_cutoff
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          ProjEDet, ilutRef, MaxTau, tSearchTau, &
                          tSearchTauOption, tSearchTauDeath, pExcit2, pExcit4, &
@@ -53,6 +58,7 @@ contains
 
     subroutine init_tau_search ()
 
+        character(*), parameter :: this_routine = "init_tau_search"
         integer :: i
         ! N.B. This must be called BEFORE a popsfile is read in, otherwise
         !      we screw up the gamma values that have been carefully read in.
@@ -205,14 +211,115 @@ contains
         ! do the initialization of the frequency analysis here.. 
         ! i think otherwise it is not done on all the nodes.. 
         if (t_frequency_analysis) then 
-            allocate(frequency_bins(n_frequency_bins))
-            frequency_bins = 0
-
-            allocate(frequency_bounds(n_frequency_bins))
-
             ! determine the global and fixed step-size quantitiy! 
             frq_step_size = max_frequency_bound / real(n_frequency_bins, dp)
-            frequency_bounds = [(frq_step_size * i, i = 1, n_frequency_bins)]
+            ! dependent if we use pParallel or not init specific hists
+            if ((tGen_4ind_weighted .or. tGen_4ind_2) .and. consider_par_bias) then
+                ASSERT(consider_par_bias)
+                ! i think then we always use pParallel but check! todo
+
+                ! i always use the singles histogram dont I? i think so.. 
+                allocate(frequency_bins_singles(n_frequency_bins))
+                frequency_bins_singles = 0
+
+!                 allocate(frequency_bounds_singles(n_frequency_bins))
+
+!                 frequency_bounds_singles = [(frq_step_size * i, i = 1, n_frequency_bins)]
+
+
+                allocate(frequency_bins_para(n_frequency_bins))
+                frequency_bins_para = 0
+
+                allocate(frequency_bins_anti(n_frequency_bins))
+                frequency_bins_anti = 0
+
+!                 allocate(frequency_bounds_para(n_frequency_bins)) 
+!                 allocate(frequency_bounds_anti(n_frequency_bins))
+
+!                 frequency_bounds_para = frequency_bounds_singles
+!                 frequency_bounds_anti = frequency_bounds_singles
+
+            else if (tGen_sym_guga_mol) then
+                ! i always use the singles histogram dont I? i think so.. 
+                allocate(frequency_bins_singles(n_frequency_bins))
+                frequency_bins_singles = 0
+
+!                 allocate(frequency_bounds_singles(n_frequency_bins))
+
+!                 frequency_bounds_singles = [(frq_step_size * i, i = 1, n_frequency_bins)]
+
+                ! for now use only pSingles and pDoubles for GUGA implo
+                allocate(frequency_bins_doubles(n_frequency_bins))
+                frequency_bins_doubles = 0
+
+!                 allocate(frequency_bounds_doubles(n_frequency_bins))
+!                 frequency_bounds_doubles = frequency_bounds_singles
+
+
+                ! actually the noysm tau search is in a different module..
+            else if (tGen_nosym_guga) then
+                ! here i can differentiate between the different types of 
+                ! excitations.. 
+                allocate(frequency_bins_singles(n_frequency_bins))
+                frequency_bins_singles = 0
+
+!                 allocate(frequency_bounds_singles(n_frequency_bins))
+
+!                 frequency_bounds_singles = [(frq_step_size * i, i = 1, n_frequency_bins)]
+
+                ! use the "normal" type2 etc. bins always and just allocate 
+                ! additional ones if t_consider_diff_bias 
+                allocate(frequency_bins_type2(n_frequency_bins))
+                frequency_bins_type2 = 0
+
+                allocate(frequency_bins_type3(n_frequency_bins)) 
+                frequency_bins_type3 = 0 
+
+                allocate(frequency_bins_type4(n_frequency_bins))
+                frequency_bins_type4 = 0
+
+!                 allocate(frequency_bounds_type2(n_frequency_bins))
+!                 frequency_bounds_type2 = frequency_bounds_singles
+
+!                 allocate(frequency_bounds_type3(n_frequency_bins))
+!                 frequency_bounds_type3 = frequency_bounds_singles
+
+!                 allocate(frequency_bounds_type4(n_frequency_bins))
+!                 frequency_bounds_type4 = frequency_bounds_singles
+
+                if (t_consider_diff_bias) then 
+                    ! allocate the additional bins and bounds 
+                    allocate(frequency_bins_type2_diff(n_frequency_bins))
+                    frequency_bins_type2_diff = 0
+
+                    allocate(frequency_bins_type3_diff(n_frequency_bins))
+                    frequency_bins_type3_diff = 0
+
+!                     allocate(frequency_bounds_type2_diff(n_frequency_bins))
+!                     frequency_bounds_type2_diff = frequency_bounds_singles
+
+!                     allocate(frequency_bounds_type3_diff(n_frequency_bins))
+!                     frequency_bounds_type3_diff = frequency_bounds_singles
+                end if
+
+            else 
+                ! for any other excitation generator just use one histogram 
+                ! for all the excitations
+                allocate(frequency_bins(n_frequency_bins))
+                frequency_bins = 0
+
+!                 allocate(frequency_bounds(n_frequency_bins))
+
+!                 frequency_bounds = [(frq_step_size * i, i = 1, n_frequency_bins)]
+
+            end if
+
+!             allocate(frequency_bins(n_frequency_bins))
+!             frequency_bins = 0
+! 
+!             allocate(frequency_bounds(n_frequency_bins))
+! 
+!             frequency_bounds = [(frq_step_size * i, i = 1, n_frequency_bins)]
 
         end if
 
@@ -314,7 +421,7 @@ contains
         character(*), parameter :: this_routine = "update_tau"
 
         integer :: itmp, itmp2
-        real(dp) :: temp
+        real(dp) :: ratio_singles, ratio_anti, ratio_para, ratio_doubles, ratio
 
         ! This is an override. In case we need to adjust tau due to particle
         ! death rates, when it otherwise wouldn't be adjusted
@@ -422,7 +529,7 @@ contains
         tau_death = 1.0_dp / max_death_cpt
         if (tau_death < tau_new) then
             if (t_min_tau) then
-                root_print "tau reduced, due to death events! reset min_tau to:", tau_new
+                root_print "time-step reduced, due to death events! reset min_tau to:", tau_new
                 min_tau_global = tau_death
             end if
             tau_new = tau_death
@@ -444,7 +551,7 @@ contains
             if (abs(tau - tau_new) / tau > 0.001_dp) then
                 if (t_min_tau) then
                     if (tau_new < min_tau_global) then
-                        root_print "new tau less then min_tau! set to min_tau!", min_tau_global
+                        root_print "new time-step less then min_tau! set to min_tau!", min_tau_global
 
                         tau_new = min_tau_global
 
@@ -474,8 +581,49 @@ contains
         end if
 
         if (t_frequency_analysis) then 
-            call integrate_frequency_histogram(temp)
-            print *, "ratio: ", temp
+            ! singles is always used.. 
+            call integrate_frequency_histogram_spec(size(frequency_bins_singles), &
+                frequency_bins_singles, ratio_singles) 
+
+            ratio_singles = ratio_singles * pSingles
+            print *, "ratio singles: ", ratio_singles 
+            print *, "gamma singles: ", gamma_sing
+            print *, "improv single: ", gamma_sing / ratio_singles
+
+            if (tGen_4ind_weighted .or. tGen_4ind_2) then 
+                ! sum up all 3 ratios: single, parallel and anti-parallel
+                call integrate_frequency_histogram_spec(size(frequency_bins_para), &
+                    frequency_bins_para, ratio_para)
+
+                call integrate_frequency_histogram_spec(size(frequency_bins_anti), &
+                    frequency_bins_anti, ratio_anti)
+
+                ! to compare the influences on the time-step:
+                ratio_para = ratio_para * pDoubles * pParallel
+                ratio_anti = ratio_anti * pDoubles * (1.0_dp - pParallel)
+                print *, "ratio para: ", ratio_para 
+                print *, "gamma para: ", gamma_par  
+                print *, "improve para: ", gamma_par / ratio_para
+                print *, "ratio anti: ", ratio_anti 
+                print *, "gamma anti: ", gamma_opp
+                print *, "improv anti: ", gamma_opp / ratio_anti
+
+            else if (tGen_sym_guga_mol) then
+                ! here i only use doubles for now
+                call integrate_frequency_histogram_spec(size(frequency_bins_doubles), &
+                    frequency_bins_doubles, ratio_doubles)
+
+                ! to compare the influences on the time-step:
+                ratio_doubles = ratio_doubles * pDoubles
+                print *, "ratio doubles: ", ratio_doubles 
+                print *, "gamma doubles: ", gamma_doub
+                print *, "improv doubles: ", gamma_doub / ratio_doubles
+
+            else
+                ! for any other excitation generator just use one histogram
+                call integrate_frequency_histogram(ratio)
+                print *, "ratio: ", ratio
+            end if
         end if
 
     end subroutine
@@ -647,11 +795,624 @@ contains
 
     end subroutine FindMaxTauDoubs
 
+    subroutine fill_frequency_histogram_4ind(mat_ele, pgen, ic, t_parallel)
+        ! this is the specific routine to fill up the frequency histograms 
+        ! for the 4ind-weighted excitation generators, which use pParallel too
+        ! (do they always by default?? check that! todo! 
+        ! i just realised, due to the linear and ordered bins, i actually dont
+        ! need to binary search in them but can determine the index just 
+        ! through the ratio and frequency step size
+        real(dp), intent(in) :: mat_ele, pgen 
+        integer, intent(in) :: ic 
+        logical, intent(in) :: t_parallel
+        character(*), parameter :: this_routine = "fill_frequency_histogram_4ind"
+
+        real(dp) :: ratio
+        integer :: new_n_bins, old_n_bins, i, ind 
+        integer, allocatable :: save_bins(:)
+
+
+        ASSERT(pgen > EPS) 
+        ASSERT(ic == 1 .or. ic == 2)
+
+        if (mat_ele < EPS) return 
+
+        ratio = mat_ele / pgen
+
+        ! then i have to decide which histogram to fill 
+
+        if (ic == 1) then 
+            ! fill in the singles histogram
+            old_n_bins = size(frequency_bins_singles) 
+
+!             if (ratio > frequency_bounds_singles(old_n_bins)) then 
+            if (ratio > frq_step_size * old_n_bins) then 
+                ! have to make list longer 
+                ! but still use same predefined step-size for all histograms 
+                new_n_bins = int(ratio / frq_step_size)
+
+                allocate(save_bins(old_n_bins))
+                save_bins = frequency_bins_singles
+
+                deallocate(frequency_bins_singles)
+!                 deallocate(frequency_bounds_singles)
+
+                allocate(frequency_bins_singles(new_n_bins))
+!                 allocate(frequency_bounds_singles(new_n_bins))
+
+                frequency_bins_singles = 0
+
+                frequency_bins_singles(1:old_n_bins) = save_bins 
+
+                frequency_bins_singles(new_n_bins) = 1
+
+!                 frequency_bounds_singles = [(frq_step_size * i, i = 1, new_n_bins)]
+
+            else
+                ! find where to put the ratio
+!                 ind = binary_search_first_ge(frequency_bounds_singles, ratio)
+                ! since ordered and linear bin bounds i can just divide.. 
+                ! i just hope there are no numerical errors creeping in ..
+                ind = int(ratio / frq_step_size) + 1
+
+                frequency_bins_singles(ind) = frequency_bins_singles(ind) + 1
+
+            end if
+
+        else
+            ! check if parallel or anti-parallel 
+            if (t_parallel) then 
+                ! parallel excitation 
+                old_n_bins = size(frequency_bins_para) 
+
+                if (ratio > frq_step_size * old_n_bins) then 
+
+                    new_n_bins = int(ratio / frq_step_size) 
+
+                    allocate(save_bins(old_n_bins))
+                    save_bins = frequency_bins_para
+
+                    deallocate(frequency_bins_para)
+!                     deallocate(frequency_bounds_para) 
+
+                    allocate(frequency_bins_para(new_n_bins))
+!                     allocate(frequency_bounds_para(new_n_bins))
+
+                    frequency_bins_para = 0
+
+                    frequency_bins_para(1:old_n_bins) = save_bins
+
+                    frequency_bins_para(new_n_bins) = 1 
+
+!                     frequency_bounds_para = [(frq_step_size * i, i = 1, new_n_bins)] 
+
+                else
+!                     ind = binary_search_first_ge(frequency_bounds_para, ratio) 
+                    ind = int(ratio / frq_step_size) + 1
+
+                    frequency_bins_para(ind) = frequency_bins_para(ind) + 1
+
+                end if
+            else 
+                ! anti-parallel excitation
+                old_n_bins = size(frequency_bins_anti)
+
+                if (ratio > frq_step_size * old_n_bins) then 
+
+                    new_n_bins = int(ratio / frq_step_size) 
+
+                    allocate(save_bins(old_n_bins)) 
+                    save_bins = frequency_bins_anti
+
+                    deallocate(frequency_bins_anti)
+!                     deallocate(frequency_bounds_anti)
+
+                    allocate(frequency_bins_anti(new_n_bins)) 
+!                     allocate(frequency_bounds_anti(new_n_bins)) 
+
+                    frequency_bins_anti = 0
+
+                    frequency_bins_anti(1:old_n_bins) = save_bins
+
+                    frequency_bins_anti(new_n_bins) = 1
+
+!                     frequency_bounds_anti = [(frq_step_size * i, i = 1, new_n_bins)]
+
+                else
+!                     ind = binary_search_first_ge(frequency_bounds_anti, ratio)
+                    ind = int(ratio / frq_step_size) + 1
+
+                    frequency_bins_anti(ind) = frequency_bins_anti(ind) + 1
+
+                end if
+            end if
+        end if
+
+    end subroutine fill_frequency_histogram_4ind
+
+    subroutine fill_frequency_histogram_sd(mat_ele, pgen, ic)
+        ! this is the routine, which for now i can use in the symmetry 
+        ! adapted GUGA code, where i only distinguish between single and 
+        ! double excitation for now.. 
+        ! if i adapt that to the already used method in nosym_guga to 
+        ! distinguish between more excitaiton i have to write an additional 
+        ! subroutine which deals with that 
+        ! and this can also be used in the case where we dont differentiate 
+        ! between parallel or antiparallel double excitations in the old 
+        ! excitation generators
+        real(dp), intent(in) :: mat_ele, pgen 
+        integer, intent(in) :: ic 
+        character(*), parameter :: this_routine = "fill_frequency_histogram_sd"
+
+        real(dp) :: ratio
+        integer :: ind, new_n_bins, i, old_n_bins
+        integer, allocatable :: save_bins(:)
+
+        ASSERT(pgen > EPS) 
+        ASSERT( ic == 1 .or. ic == 2)
+
+        if (mat_ele < EPS) return
+
+        ratio = mat_ele / pgen 
+
+        if (ic == 1) then 
+            old_n_bins = size(frequency_bins_singles)
+
+            if (ratio > frq_step_size * old_n_bins) then
+                new_n_bins = int(ratio / frq_step_size) 
+
+                allocate(save_bins(old_n_bins))
+                save_bins = frequency_bins_singles
+
+                deallocate(frequency_bins_singles)
+!                 deallocate(frequency_bounds_singles)
+
+                allocate(frequency_bins_singles(new_n_bins))
+!                 allocate(frequency_bounds_singles(new_n_bins))
+
+                frequency_bins_singles = 0
+
+                frequency_bins_singles(1:old_n_bins) = save_bins
+
+                frequency_bins_singles(new_n_bins) = 1 
+
+!                 frequency_bounds_singles = [(frq_step_size * i, i = 1, new_n_bins)]
+
+            else
+!                 ind = binary_search_first_ge(frequency_bounds_singles, ratio)
+                ind = int(ratio / frq_step_size) + 1 
+
+                frequency_bins_singles(ind) = frequency_bins_singles(ind) + 1
+
+            end if
+        else 
+            old_n_bins = size(frequency_bins_doubles)
+
+            if (ratio > frq_step_size * old_n_bins) then 
+                
+                new_n_bins = int(ratio / frq_step_size)
+
+                allocate(save_bins(old_n_bins))
+                save_bins = frequency_bins_doubles
+
+                deallocate(frequency_bins_doubles)
+!                 deallocate(frequency_bounds_doubles)
+
+                allocate(frequency_bins_doubles(new_n_bins))
+!                 allocate(frequency_bounds_doubles(new_n_bins))
+
+                frequency_bins_doubles = 0
+
+                frequency_bins_doubles(1:old_n_bins) = save_bins
+
+                frequency_bins_doubles(new_n_bins) = 1 
+
+!                 frequency_bounds_doubles = [(frq_step_size * i, i = 1, new_n_bins)]
+
+            else 
+!                 ind = binary_search_first_ge(frequency_bounds_doubles, ratio)
+                ind = int(ratio / frq_step_size) + 1
+
+                frequency_bins_doubles(ind) = frequency_bins_doubles(ind) + 1
+
+            end if
+        end if
+
+    end subroutine fill_frequency_histogram_sd
+
+    subroutine fill_frequency_histogram_nosym_diff(mat_ele, pgen, ic, typ, diff)
+        ! specific frequency fill routine for the nosym guga implementation 
+        ! where no differentiating between mixed or same generators is done 
+        ! type of excitation is stored in the excitation matrix in the 
+        ! GUGA implementation!
+        ! this ist the implememtation considering diff bias
+        real(dp), intent(in) :: mat_ele, pgen 
+        integer, intent(in) :: ic, typ, diff
+        character(*), parameter :: this_routine = "fill_frequency_histogram_nosym_diff"
+
+        real(dp) :: ratio 
+        integer :: ind, new_n_bins, i, old_n_bins 
+        integer, allocatable :: save_bins(:) 
+
+        ASSERT(pgen > EPS)
+        ASSERT(ic == 1 .or. ic == 2) 
+        ASSERT(typ == 2 .or. typ == 3 .or. typ == 4) 
+        ASSERT(diff == 0 .or. diff == 1)
+
+        if (mat_ele < EPS) return
+
+        ratio = mat_ele / pgen 
+
+        if (ic == 1) then
+            ! single excitation 
+            old_n_bins = size(frequency_bins_singles)
+
+            if (ratio > frq_step_size * old_n_bins) then
+                new_n_bins = int(ratio / frq_step_size) 
+
+                allocate(save_bins(old_n_bins))
+                save_bins = frequency_bins_singles
+
+                deallocate(frequency_bins_singles)
+!                 deallocate(frequency_bounds_singles)
+
+                allocate(frequency_bins_singles(new_n_bins))
+!                 allocate(frequency_bounds_singles(new_n_bins))
+
+                frequency_bins_singles = 0
+
+                frequency_bins_singles(1:old_n_bins) = save_bins
+
+                frequency_bins_singles(new_n_bins) = 1 
+
+!                 frequency_bounds_singles = [(frq_step_size * i, i = 1, new_n_bins)]
+
+            else
+!                 ind = binary_search_first_ge(frequency_bounds_singles, ratio)
+                ind = int(ratio / frq_step_size) + 1
+
+                frequency_bins_singles(ind) = frequency_bins_singles(ind) + 1
+
+            end if
+
+        else
+            ! double excitation -> check type 
+            if (typ == 2) then
+                if (diff == 1) then
+                    ! diff = 1 means alike generators! 
+                    old_n_bins = size(frequency_bins_type2) 
+
+                    if (ratio > frq_step_size * old_n_bins) then 
+                        new_n_bins = int(ratio / frq_step_size) 
+
+                        allocate(save_bins(old_n_bins)) 
+                        save_bins = frequency_bins_type2
+
+                        deallocate(frequency_bins_type2)
+!                         deallocate(frequency_bounds_type2) 
+
+                        allocate(frequency_bins_type2(new_n_bins))
+!                         allocate(frequency_bounds_type2(new_n_bins))
+
+                        frequency_bins_type2 = 0 
+
+                        frequency_bins_type2(1:old_n_bins) = save_bins
+
+                        frequency_bins_type2(new_n_bins) = 1 
+
+!                         frequency_bounds_type2 = [(frq_step_size * i, i = 1, new_n_bins)]
+
+                    else
+!                         ind = binary_search_first_ge(frequency_bounds_type2, ratio)
+                        ind = int(ratio / frq_step_size) + 1
+
+                        frequency_bins_type2(ind) = frequency_bins_type2(ind) + 1
+
+                    end if
+                else if (diff == 0) then 
+                    old_n_bins = size(frequency_bins_type2_diff)
+
+                    if (ratio > frq_step_size * old_n_bins) then
+                        new_n_bins = int(ratio / frq_step_size)
+
+                        allocate(save_bins(old_n_bins)) 
+                        save_bins = frequency_bins_type2_diff
+
+                        deallocate(frequency_bins_type2_diff)
+!                         deallocate(frequency_bounds_type2_diff) 
+
+                        allocate(frequency_bins_type2_diff(new_n_bins))
+!                         allocate(frequency_bounds_type2_diff(new_n_bins))
+
+                        frequency_bins_type2_diff = 0
+                        frequency_bins_type2_diff(1:old_n_bins) = save_bins
+
+                        frequency_bins_type2_diff(new_n_bins) = 1 
+
+!                         frequency_bounds_type2_diff = [(frq_step_size * i, &
+!                             i = 1, new_n_bins)]
+
+                    else
+!                         ind = binary_search_first_ge(frequency_bounds_type2_diff, ratio)
+                        ind = int(ratio / frq_step_size) + 1
+
+                        frequency_bins_type2_diff(ind) = frequency_bins_type2_diff(ind) + 1
+
+                    end if
+                end if
+
+            else if (typ == 3) then 
+
+                if (diff == 1) then
+                    old_n_bins = size(frequency_bins_type3) 
+
+                    if (ratio > frq_step_size * old_n_bins) then 
+                        new_n_bins = int(ratio / frq_step_size) 
+
+                        allocate(save_bins(old_n_bins)) 
+                        save_bins = frequency_bins_type3
+
+                        deallocate(frequency_bins_type3)
+!                         deallocate(frequency_bounds_type3) 
+
+                        allocate(frequency_bins_type3(new_n_bins))
+!                         allocate(frequency_bounds_type3(new_n_bins))
+
+                        frequency_bins_type3 = 0 
+
+                        frequency_bins_type3(1:old_n_bins) = save_bins
+
+                        frequency_bins_type3(new_n_bins) = 1 
+
+!                         frequency_bounds_type3 = [(frq_step_size * i, i = 1, new_n_bins)]
+
+                    else
+!                         ind = binary_search_first_ge(frequency_bounds_type3, ratio)
+                        ind = int(ratio / frq_step_size) + 1
+
+                        frequency_bins_type3(ind) = frequency_bins_type3(ind) + 1
+
+                    end if
+                else if (diff == 0) then
+                    old_n_bins = size(frequency_bins_type3_diff)
+
+                    if (ratio > frq_step_size * old_n_bins) then
+                        new_n_bins = int(ratio / frq_step_size)
+
+                        allocate(save_bins(old_n_bins)) 
+                        save_bins = frequency_bins_type3_diff
+
+                        deallocate(frequency_bins_type3_diff)
+!                         deallocate(frequency_bounds_type3_diff) 
+
+                        allocate(frequency_bins_type3_diff(new_n_bins))
+!                         allocate(frequency_bounds_type3_diff(new_n_bins))
+
+                        frequency_bins_type3_diff = 0
+                        frequency_bins_type3_diff(1:old_n_bins) = save_bins
+
+                        frequency_bins_type3_diff(new_n_bins) = 1 
+
+!                         frequency_bounds_type3_diff = [(frq_step_size * i, &
+!                             i = 1, new_n_bins)]
+
+                    else
+!                         ind = binary_search_first_ge(frequency_bounds_type3_diff, ratio)
+                        ind = int(ratio / frq_step_size) + 1
+
+                        frequency_bins_type3_diff(ind) = frequency_bins_type3_diff(ind) + 1
+
+                    end if
+                end if
+
+            else if (typ == 4) then
+                old_n_bins = size(frequency_bins_type4) 
+
+                if (ratio > frq_step_size * old_n_bins) then 
+                    new_n_bins = int(ratio / frq_step_size) 
+
+                    allocate(save_bins(old_n_bins)) 
+                    save_bins = frequency_bins_type4
+
+                    deallocate(frequency_bins_type4)
+!                     deallocate(frequency_bounds_type4) 
+
+                    allocate(frequency_bins_type4(new_n_bins))
+!                     allocate(frequency_bounds_type4(new_n_bins))
+
+                    frequency_bins_type4 = 0 
+
+                    frequency_bins_type4(1:old_n_bins) = save_bins
+
+                    frequency_bins_type4(new_n_bins) = 1 
+
+!                     frequency_bounds_type4 = [(frq_step_size * i, i = 1, new_n_bins)]
+
+                else
+!                     ind = binary_search_first_ge(frequency_bounds_type4, ratio)
+                    ind = int(ratio / frq_step_size) + 1
+
+                    frequency_bins_type4(ind) = frequency_bins_type4(ind) + 1
+
+                end if
+            end if
+        end if
+
+    end subroutine fill_frequency_histogram_nosym_diff
+
+
+    subroutine fill_frequency_histogram_nosym_nodiff(mat_ele, pgen, ic, typ)
+        ! specific frequency fill routine for the nosym guga implementation 
+        ! where no differentiating between mixed or same generators is done 
+        ! type of excitation is stored in the excitation matrix in the 
+        ! GUGA implementation!
+        real(dp), intent(in) :: mat_ele, pgen 
+        integer, intent(in) :: ic, typ 
+        character(*), parameter :: this_routine = "fill_frequency_histogram_nosym_nodiff"
+
+        real(dp) :: ratio 
+        integer :: ind, new_n_bins, i, old_n_bins 
+        integer, allocatable :: save_bins(:) 
+
+        ASSERT(pgen > EPS)
+        ASSERT(ic == 1 .or. ic == 2) 
+#ifdef __DEBUG 
+        if (ic == 2) then
+            ASSERT(typ == 2 .or. typ == 3 .or. typ == 4) 
+        end if
+#endif
+
+        if (mat_ele < EPS) return
+
+        ratio = mat_ele / pgen 
+
+        if (ic == 1) then
+            ! single excitation 
+            old_n_bins = size(frequency_bins_singles)
+
+            if (ratio > frq_step_size * old_n_bins) then
+                new_n_bins = int(ratio / frq_step_size) 
+
+                allocate(save_bins(old_n_bins))
+                save_bins = frequency_bins_singles
+
+                deallocate(frequency_bins_singles)
+!                 deallocate(frequency_bounds_singles)
+
+                allocate(frequency_bins_singles(new_n_bins))
+!                 allocate(frequency_bounds_singles(new_n_bins))
+
+                frequency_bins_singles = 0
+
+                frequency_bins_singles(1:old_n_bins) = save_bins
+
+                frequency_bins_singles(new_n_bins) = 1 
+
+!                 frequency_bounds_singles = [(frq_step_size * i, i = 1, new_n_bins)]
+
+            else
+!                 ind = binary_search_first_ge(frequency_bounds_singles, ratio)
+                ind = int(ratio / frq_step_size) + 1
+
+                frequency_bins_singles(ind) = frequency_bins_singles(ind) + 1
+
+            end if
+
+        else
+            ! double excitation -> check type 
+            if (typ == 2) then
+                old_n_bins = size(frequency_bins_type2) 
+
+                if (ratio > frq_step_size * old_n_bins) then 
+                    new_n_bins = int(ratio / frq_step_size) 
+
+                    allocate(save_bins(old_n_bins)) 
+                    save_bins = frequency_bins_type2
+
+                    deallocate(frequency_bins_type2)
+!                     deallocate(frequency_bounds_type2) 
+
+                    allocate(frequency_bins_type2(new_n_bins))
+!                     allocate(frequency_bounds_type2(new_n_bins))
+
+                    frequency_bins_type2 = 0 
+
+                    frequency_bins_type2(1:old_n_bins) = save_bins
+
+                    frequency_bins_type2(new_n_bins) = 1 
+
+!                     frequency_bounds_type2 = [(frq_step_size * i, i = 1, new_n_bins)]
+
+                else
+!                     ind = binary_search_first_ge(frequency_bounds_type2, ratio)
+                    ind = int(ratio / frq_step_size) + 1
+
+                    frequency_bins_type2(ind) = frequency_bins_type2(ind) + 1
+
+                end if
+
+            else if (typ == 3) then 
+                old_n_bins = size(frequency_bins_type3) 
+
+                if (ratio > frq_step_size * old_n_bins) then 
+                    new_n_bins = int(ratio / frq_step_size) 
+
+                    allocate(save_bins(old_n_bins)) 
+                    save_bins = frequency_bins_type3
+
+                    deallocate(frequency_bins_type3)
+!                     deallocate(frequency_bounds_type3) 
+
+                    allocate(frequency_bins_type3(new_n_bins))
+!                     allocate(frequency_bounds_type3(new_n_bins))
+
+                    frequency_bins_type3 = 0 
+
+                    frequency_bins_type3(1:old_n_bins) = save_bins
+
+                    frequency_bins_type3(new_n_bins) = 1 
+
+!                     frequency_bounds_type3 = [(frq_step_size * i, i = 1, new_n_bins)]
+
+                else
+!                     ind = binary_search_first_ge(frequency_bounds_type3, ratio)
+                    ind = int(ratio / frq_step_size) + 1
+
+                    frequency_bins_type3(ind) = frequency_bins_type3(ind) + 1
+
+                end if
+
+            else if (typ == 4) then
+                old_n_bins = size(frequency_bins_type4) 
+
+                if (ratio > frq_step_size * old_n_bins) then 
+                    new_n_bins = int(ratio / frq_step_size) 
+
+                    allocate(save_bins(old_n_bins)) 
+                    save_bins = frequency_bins_type4
+
+                    deallocate(frequency_bins_type4)
+!                     deallocate(frequency_bounds_type4) 
+
+                    allocate(frequency_bins_type4(new_n_bins))
+!                     allocate(frequency_bounds_type4(new_n_bins))
+
+                    frequency_bins_type4 = 0 
+
+                    frequency_bins_type4(1:old_n_bins) = save_bins
+
+                    frequency_bins_type4(new_n_bins) = 1 
+
+!                     frequency_bounds_type4 = [(frq_step_size * i, i = 1, new_n_bins)]
+
+                else
+!                     ind = binary_search_first_ge(frequency_bounds_type4, ratio)
+                    ind = int(ratio / frq_step_size) + 1
+
+                    frequency_bins_type4(ind) = frequency_bins_type4(ind) + 1
+
+                end if
+            end if
+        end if
+
+    end subroutine fill_frequency_histogram_nosym_nodiff
+
     subroutine fill_frequency_histogram(mat_ele, pgen)
         ! routine to accumulate the H_ij/pgen ration into the frequency bins
         ! keep parallelism in mind, especially if we have to adjust the 
         ! bin list and boundary list on the fly.. this has to happen on 
         ! all the processors then or? or can i just do it in the end of a loop
+        ! adapt this function now, to discriminate between single and double 
+        ! excitations, and it pParallel is used, which can be determined 
+        ! through the excitation matrix and the 2 involved determinants
+        ! (or even the starting determinant) and fill up to 3 frequency 
+        ! histograms .. this also means that we have to reset them maybe 
+        ! after pSingles or pParallel have been changed since the pgens 
+        ! and so the H_ij/pgen ratios change (or? can i modify that somehow 
+        ! on the fly?) think about that later and with ali.. 
+        ! and for the guga stuff, if i finally implement similar pgens like 
+        ! pParallel, as it is already done in the nosym_guga case, i have 
+        ! to use even more histograms, but that should be fine.
         real(dp), intent(in) :: mat_ele, pgen 
         character(*), parameter :: this_routine = "fill_frequency_histogram"
 
@@ -673,7 +1434,7 @@ contains
         
         old_n_bins = size(frequency_bins)
 
-        if (ratio > frequency_bounds(old_n_bins)) then 
+        if (ratio > frq_step_size * old_n_bins) then 
             ! then the element is bigger than the upper bound and the list 
             ! has to be enlarged. but i have to be careful about the 
             ! parallelism. do i need to do that on all cores, so i can 
@@ -692,10 +1453,10 @@ contains
             save_bins = frequency_bins
 
             deallocate(frequency_bins) 
-            deallocate(frequency_bounds)
+!             deallocate(frequency_bounds)
 
             allocate(frequency_bins(new_n_bins))
-            allocate(frequency_bounds(new_n_bins))
+!             allocate(frequency_bounds(new_n_bins))
                 
             frequency_bins = 0
 
@@ -705,12 +1466,13 @@ contains
             frequency_bins(new_n_bins) = 1
 
             ! and intialize the new bounds 
-            frequency_bounds = [( frq_step_size * i, i = 1, new_n_bins)]
+!             frequency_bounds = [( frq_step_size * i, i = 1, new_n_bins)]
 
         else 
             ! the ratio fits in to the bins now i just have to find the 
             ! correct one
-            ind = binary_search_first_ge(frequency_bounds, ratio) 
+!             ind = binary_search_first_ge(frequency_bounds, ratio) 
+            ind = int(ratio / frq_step_size) + 1
             
             ! increase counter 
             frequency_bins(ind) = frequency_bins(ind) + 1
@@ -718,6 +1480,58 @@ contains
         end if
 
     end subroutine fill_frequency_histogram
+
+    ! write a general histogram communication routine, which takes 
+    ! specific histogram as input 
+    subroutine comm_frequency_histogram_spec(spec_size, spec_frequency_bins, &
+                     all_spec_frq_bins)
+        integer, intent(in) :: spec_size
+        integer, intent(in) :: spec_frequency_bins(spec_size)
+        integer, allocatable, intent(out) :: all_spec_frq_bins(:)
+        character(*), parameter :: this_routine = "comm_frequency_histogram_spec"
+
+        integer :: max_size
+        integer, allocatable :: temp_bins(:) 
+
+        call MPIAllReduce(spec_size, MPI_MAX, max_size) 
+
+        allocate(all_spec_frq_bins(max_size))
+
+        if (spec_size < max_size) then 
+
+            allocate(temp_bins(max_size))
+
+            temp_bins = 0 
+
+            temp_bins(1:spec_size) = spec_frequency_bins
+
+        else
+            ASSERT(spec_size == max_size) 
+
+            allocate(temp_bins(max_size))
+
+            temp_bins = spec_frequency_bins
+
+        end if
+
+        call MPIAllReduce(temp_bins, MPI_SUM, all_spec_frq_bins)
+
+    end subroutine comm_frequency_histogram_spec
+
+    ! write tailored communication routines too
+!     subroutine comm_frequency_histogram_4ind(all_frequency_bins_single, &
+!             all_frequency_bins_para, all_frequency_bins_anti) 
+!         integer, allocatable, intent(out) :: all_frequency_bins_single(:), &
+!                 all_frequency_bins_para(:), all_frequency_bins_anti(:)
+!         character(*), parameter :: this_routine = "comm_frequency_histogram_4ind"
+! 
+!         integer :: core_size, max_size
+!         integer, allocatable :: temp_bins(:) 
+! 
+!         ! first singles: 
+!         core_size = size(frequency_bins_singles)
+! 
+!     end subroutine comm_frequency_histogram_4ind
 
     subroutine comm_frequency_histogram(all_frequency_bins)
         ! routine to communicate the frequency histogram data across all 
@@ -763,6 +1577,43 @@ contains
 
     end subroutine comm_frequency_histogram
 
+    subroutine integrate_frequency_histogram_spec(spec_size, spec_frequency_bins, &
+            ratio)
+        ! specific histogram integration routine which sums up the inputted 
+        ! frequency_bins
+        integer, intent(in) :: spec_size
+        integer, intent(in) :: spec_frequency_bins(spec_size) 
+        real(dp), intent(out) :: ratio
+        character(*), parameter :: this_routine = "integrate_frequency_histogram_spec"
+
+        integer, allocatable :: all_frequency_bins(:)
+        integer :: i, threshold, n_bins, n_elements, cnt
+
+        call comm_frequency_histogram_spec(spec_size, spec_frequency_bins, &
+            all_frequency_bins)
+
+        n_bins = size(all_frequency_bins)
+        n_elements = sum(all_frequency_bins)
+
+        ! have to check if no elements are yet stored into the histogram! 
+        if (n_elements == 0) then
+            ratio = 0.0_dp
+            return
+        end if
+
+        threshold = int(frq_ratio_cutoff * real(n_elements, dp))
+
+        cnt = 0
+        i = 0
+        do while (cnt < threshold) 
+            i = i + 1
+            cnt = cnt + all_frequency_bins(i)
+        end do
+
+        ratio = i * frq_step_size
+
+    end subroutine integrate_frequency_histogram_spec
+
     subroutine integrate_frequency_histogram(ratio)
         ! routine to integrate the entries of the frequency histogram to 
         ! determine the time-step through this. 
@@ -772,7 +1623,6 @@ contains
         character(*), parameter :: this_routine = "integrate_frequency_histogram"
 
         integer, allocatable :: all_frequency_bins(:)
-        real(dp), allocatable :: all_frequency_bounds(:) 
         integer :: i, threshold, n_bins, n_elements, cnt
 
         ! have to communicate all the histograms across all cores 
@@ -783,6 +1633,10 @@ contains
         n_bins = size(all_frequency_bins) 
         n_elements = sum(all_frequency_bins) 
 
+        if (n_elements == 0) then
+            ratio = 0.0_dp
+            return
+        end if
         threshold = int(0.9_dp * real(n_elements, dp))
 
         cnt = 0
