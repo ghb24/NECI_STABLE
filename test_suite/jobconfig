@@ -6,6 +6,12 @@ nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 
+[kmneci/*/]
+program = kmneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
 [mneci/*/*/]
 program = mneci
 nprocs = 2
@@ -62,4 +68,4 @@ tolerance = (5.01e-8, None, 'overlap_sum'), (3.01e-7, None, 'hamil_sum')
 
 [categories]
 
-_default_ = neci kneci mneci
+_default_ = neci kneci mneci kmneci

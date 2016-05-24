@@ -40,7 +40,7 @@ contains
         character(*), parameter :: this_routine = 'iter_diagnostics'
         character(*), parameter :: t_r = this_routine
         real(dp) :: mean_walkers
-        integer :: part_type
+        integer :: part_type, run
 
         ! Update the total imaginary time passed
         TotImagTime = TotImagTime + StepsSft * Tau
@@ -84,12 +84,14 @@ contains
         if (iProcIndex == Root) then
             ! Have all of the particles died?
 #ifdef __CMPLX
-            if (AllTotwalkers == 0)  then
-                write(iout,"(A)") "All particles have died. Restarting."
-                tRestart=.true.
-            else
-                tRestart=.false.
-            endif
+            tRestart = .false.
+            do run = 1, inum_runs
+                if (sum(AllTotParts(min_part_type(run):max_part_type(run))) ==0 )  then
+                    write(iout,"(A)") "All particles have died. Restarting."
+                    tRestart=.true.
+                    exit
+                endif
+            enddo
 #else
             if ((AllTotParts(1).eq.0).or.(AllTotParts(inum_runs).eq.0))  then
                 write(iout,"(A)") "All particles have died. Restarting."
@@ -228,15 +230,19 @@ contains
                 exit
             
             ! What are the change conditions?
-            if((lenof_sign == 2) .and. (inum_runs == 1)) then 
-                pop_change = FracLargerDet * abs_sign(AllNoAtHF)
-            else if (lenof_sign /= inum_runs) then
-                call stop_all(this_routine, "Complex not yet supported in multi-run mode")
-            else if (tReplicaReferencesDiffer) then
+#ifdef __CMPLX
+            if (tReplicaReferencesDiffer) then
+                pop_change = FracLargerDet * abs_sign(AllNoAtHF(min_part_type(run):max_part_type(run)))
+            else
+                pop_change = FracLargerDet * abs_sign(AllNoAtHF(1:lenof_sign))
+            endif
+#else
+            if (tReplicaReferencesDiffer) then
                 pop_change = FracLargerDet * abs(AllNoAtHF(run))
             else
-                pop_change = FracLargerDet * abs(AllNoATHF(1))
+                pop_change = FracLargerDet * abs(AllNoAtHF(1))
             endif
+#endif
 !            write(iout,*) "***",AllNoAtHF,FracLargerDet,pop_change, pop_highest,proc_highest
             ! Do we need to do a change?
             if (pop_change < pop_highest(run) .and. pop_highest(run) > pop_change_min) then
@@ -282,7 +288,7 @@ contains
                 ! det switched?
 #ifdef __CMPLX
                 elseif (tRestartHighPop .and. &
-                        iRestartWalkNum < sum(AllTotParts)) then
+                        iRestartWalkNum < sum(AllTotParts(1:2))) then
 #else
                 elseif (tRestartHighPop .and. &
                         iRestartWalkNum < AllTotParts(1)) then
@@ -593,15 +599,15 @@ contains
 
     subroutine update_shift (iter_data)
 
-        use CalcData, only: tInstGrowthRate, tShiftProjectGrowth
+        use CalcData, only: tInstGrowthRate
      
         type(fcimc_iter_data), intent(in) :: iter_data
         integer(int64) :: tot_walkers
         logical, dimension(inum_runs) :: tReZeroShift
-        real(dp) :: AllGrowRateRe, AllGrowRateIm
+        real(dp), dimension(inum_runs) :: AllGrowRateRe, AllGrowRateIm
         real(dp), dimension(inum_runs)  :: AllHFGrowRate
         real(dp), dimension(lenof_sign) :: denominator, all_denominator
-        integer :: error, i, proc, pos, run
+        integer :: error, i, proc, pos, run, lb, ub
         logical, dimension(inum_runs) :: defer_update
         logical :: start_varying_shift
 
@@ -616,87 +622,63 @@ contains
 
                 ! Calculate the growth rate simply using the two points at
                 ! the beginning and the end of the update cycle. 
-                if (lenof_sign == 2 .and. inum_runs == 1) then
-                    !COMPLEX
-                    AllGrowRate = (sum(iter_data%update_growth_tot &
-                               + iter_data%tot_parts_old)) &
-                              / real(sum(iter_data%tot_parts_old), dp)
-                else
-                    do run=1,inum_runs
-                        AllGrowRate(run) = (iter_data%update_growth_tot(run) &
-                                   + iter_data%tot_parts_old(run)) &
-                                  / real(iter_data%tot_parts_old(run), dp)
-                    enddo
-                endif
-
-            else if (tShiftProjectGrowth) then
-
-                ! Extrapolate the expected number of walkers at the end of the
-                ! _next_ update cycle for calculating the shift. i.e. use
-                !
-                ! log((N_t + (N_t - N_(t-1))) / N_t)
-                if (lenof_sign == 2 .and. inum_runs == 1) then
-                    !COMPLEX
-                        AllGrowRate(run) = &
-                            (2 * sum(AllSumWalkersCyc) - sum(OldAllAvWalkersCyc)) &
-                            / sum(AllSumWalkersCyc)
-                else
-                    do run = 1, inum_runs
-                        AllGrowRate(run) = &
-                            (2 * AllSumWalkersCyc(run) - OldAllAvWalkersCyc(run)) &
-                            / AllSumWalkersCyc(run)
-                    end do
-                endif
+                do run = 1, inum_runs
+                    lb = min_part_type(run)
+                    ub = max_part_type(run)
+                    AllGrowRate(run) = (sum(iter_data%update_growth_tot(lb:ub) &
+                               + iter_data%tot_parts_old(lb:ub))) &
+                              / real(sum(iter_data%tot_parts_old(lb:ub)), dp)
+                enddo
 
             else
 
                 ! Instead attempt to calculate the average growth over every
                 ! iteration over the update cycle
-                if (lenof_sign == 2 .and. inum_runs == 1) then
-                    !COMPLEX
-                    AllGrowRate = (sum(AllSumWalkersCyc)/real(StepsSft,dp)) &
-                                    /sum(OldAllAvWalkersCyc)
-                else
-                    do run=1,inum_runs
-                        AllGrowRate(run) = (AllSumWalkersCyc(run)/real(StepsSft,dp)) &
-                                        /OldAllAvWalkersCyc(run)
-                    enddo
-                endif
+                do run = 1, inum_runs
+                    AllGrowRate(run) = AllSumWalkersCyc(run)/real(StepsSft,dp) &
+                                    /OldAllAvWalkersCyc(run)
+                enddo
 
             end if
 
             ! For complex case, obtain both Re and Im parts
-            if (lenof_sign == 2 .and. inum_runs == 1) then
-                if (iter_data%tot_parts_old(1) > 0) then
-                    AllGrowRateRe = (iter_data%update_growth_tot(1) + &
-                                     iter_data%tot_parts_old(1)) / &
-                                     iter_data%tot_parts_old(1)
+#ifdef __CMPLX
+            do run = 1, inum_runs
+                lb = min_part_type(run)
+                ub = max_part_type(run)
+                if (iter_data%tot_parts_old(lb) > 0) then
+                    AllGrowRateRe(run) = (iter_data%update_growth_tot(lb) + &
+                                     iter_data%tot_parts_old(lb)) / &
+                                     iter_data%tot_parts_old(lb)
                 end if
-                if (iter_data%tot_parts_old(lenof_sign) > 0) then
-                    AllGrowRateIm = (iter_data%update_growth_tot(lenof_sign) + &
-                                         iter_data%tot_parts_old(lenof_sign)) / &
-                                         iter_data%tot_parts_old(lenof_sign)
+                if (iter_data%tot_parts_old(ub) > 0) then
+                    AllGrowRateIm(run) = (iter_data%update_growth_tot(ub) + &
+                                         iter_data%tot_parts_old(ub)) / &
+                                         iter_data%tot_parts_old(ub)
                 end if
-            endif
+            enddo
+#endif
 
             ! Exit the single particle phase if the number of walkers exceeds
             ! the value in the input file. If particle no has fallen, re-enter
             ! it.
             tReZeroShift = .false.
             do run=1,inum_runs
+                lb = min_part_type(run)
+                ub = max_part_type(run)
                 if (TSinglePartPhase(run)) then
                     tot_walkers = InitWalkers * int(nNodes,int64)
 
 #ifdef __CMPLX
-                    if ((sum(AllTotParts) > tot_walkers) .or. &
-                         (abs_sign(AllNoatHF) > MaxNoatHF)) then
+                    if ((sum(AllTotParts(lb:ub)) > tot_walkers) .or. &
+                         (abs_sign(AllNoatHF(lb:ub)) > MaxNoatHF)) then
     !                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
                         write (iout, '(a,i13,a)') 'Exiting the single particle growth phase on iteration: ',iter + PreviousCycles, &
                                      ' - Shift can now change'
-                        VaryShiftIter = Iter
-                        iBlockingIter = Iter + PreviousCycles
-                        tSinglePartPhase = .false.
-                        if(TargetGrowRate(1).ne.0.0_dp) then
+                        VaryShiftIter(run) = Iter
+                        iBlockingIter(run) = Iter + PreviousCycles
+                        tSinglePartPhase(run) = .false.
+                        if(TargetGrowRate(run).ne.0.0_dp) then
                             write(iout,"(A)") "Setting target growth rate to 1."
                             TargetGrowRate=0.0_dp
                         endif
@@ -704,15 +686,15 @@ contains
                         ! If enabled, jump the shift to the value preducted by the
                         ! projected energy!
                         if (tJumpShift) then
-                            DiagSft = real(proje_iter,dp)
-                            defer_update = .true.
+                            DiagSft(run) = real(proje_iter(run),dp)
+                            defer_update(run) = .true.
                         end if
-                    elseif (abs_sign(AllNoatHF) < (MaxNoatHF - HFPopThresh)) then
+                    elseif (abs_sign(AllNoatHF(lb:ub)) < (MaxNoatHF - HFPopThresh)) then
                         write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
                                      &single particle growth phase on iteration',iter + PreviousCycles,' - particle number &
                                      &may grow again.'
-                        tSinglePartPhase = .true.
-                        tReZeroShift = .true.
+                        tSinglePartPhase(run) = .true.
+                        tReZeroShift(run) = .true.
                     endif
 #else
                     start_varying_shift = .false.
@@ -758,19 +740,14 @@ contains
                     !In case we want to continue growing, TargetGrowRate > 0.0_dp
                     ! New shift value
                     if(TargetGrowRate(run).ne.0.0_dp) then
-                        if((lenof_sign.eq.2).and.(inum_runs.eq.1))then
-                        
-                            if(sum(AllTotParts).gt.TargetGrowRateWalk(1)) then
-                                !Only allow targetgrowrate to kick in once we have > TargetGrowRateWalk walkers.
-                                DiagSft = DiagSft - (log(AllGrowRate-TargetGrowRate) * SftDamp) / &
-                                                    (Tau * StepsSft)
-                            endif
-                        else
-                            if(AllTotParts(run).gt.TargetGrowRateWalk(run)) then
-                                !Only allow targetgrowrate to kick in once we have > TargetGrowRateWalk walkers.
-                                DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)-TargetGrowRate(run)) * SftDamp) / &
-                                                    (Tau * StepsSft)
-                            endif
+#ifdef __CMPLX
+                        if(sum(AllTotParts(lb:ub)).gt.TargetGrowRateWalk(run)) then
+#else
+                        if(AllTotParts(run).gt.TargetGrowRateWalk(run)) then
+#endif
+                            !Only allow targetgrowrate to kick in once we have > TargetGrowRateWalk walkers.
+                            DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)-TargetGrowRate(run)) * SftDamp) / &
+                                                (Tau * StepsSft)
                         endif
                     else
                         if(tShiftonHFPop) then
@@ -787,13 +764,12 @@ contains
                         endif
                     endif
 
-                    if ((lenof_sign.eq.2).and.(inum_runs.eq.1)) then
-                        !COMPLEX
-                        DiagSftRe = DiagSftRe - (log(AllGrowRateRe-TargetGrowRate(1)) * SftDamp) / &
+#ifdef __CMPLX
+                    DiagSftRe(run) = DiagSftRe(run) - (log(AllGrowRateRe(run)-TargetGrowRate(run)) * SftDamp) / &
                                                 (Tau * StepsSft)
-                        DiagSftIm = DiagSftIm - (log(AllGrowRateIm-TargetGrowRate(1)) * SftDamp) / &
+                    DiagSftIm(run) = DiagSftIm(run) - (log(AllGrowRateIm(run)-TargetGrowRate(run)) * SftDamp) / &
                                                 (Tau * StepsSft)
-                    endif
+#endif
 
                     ! Update the shift averages
                     if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
@@ -817,23 +793,23 @@ contains
     !                    endif
     !                endif
                 endif
-                if((lenof_sign.eq.2).and.(inum_runs.eq.1)) then
-                    ! Calculate the instantaneous 'shift' from the HF population
-                    HFShift(run) = -1.0_dp / abs_sign(AllNoatHF) * &
-                                        (abs_sign(AllNoatHF) - abs_sign(OldAllNoatHF) / &
-                                      (Tau * real(StepsSft, dp)))
-                    InstShift(run) = -1.0_dp / sum(AllTotParts) * &
-                                ((sum(AllTotParts) - sum(AllTotPartsOld)) / &
-                                 (Tau * real(StepsSft, dp)))
-                 else
-                    ! Calculate the instantaneous 'shift' from the HF population
-                    HFShift(run) = -1.0_dp / abs(AllNoatHF(run)) * &
-                                        (abs(AllNoatHF(run)) - abs(OldAllNoatHF(run)) / &
-                                      (Tau * real(StepsSft, dp)))
-                    InstShift(run) = -1.0_dp / AllTotParts(run) * &
-                                ((AllTotParts(run) - AllTotPartsOld(run)) / &
-                                 (Tau * real(StepsSft, dp)))
-                 endif
+#ifdef __CMPLX
+                ! Calculate the instantaneous 'shift' from the HF population
+                HFShift(run) = -1.0_dp / abs_sign(AllNoatHF(lb:ub)) * &
+                                    (abs_sign(AllNoatHF(lb:ub)) - abs_sign(OldAllNoatHF(lb:ub)) / &
+                                  (Tau * real(StepsSft, dp)))
+                InstShift(run) = -1.0_dp / sum(AllTotParts(lb:ub)) * &
+                            ((sum(AllTotParts(lb:ub)) - sum(AllTotPartsOld(lb:ub))) / &
+                             (Tau * real(StepsSft, dp)))
+#else
+                ! Calculate the instantaneous 'shift' from the HF population
+                HFShift(run) = -1.0_dp / abs(AllNoatHF(run)) * &
+                                    (abs(AllNoatHF(run)) - abs(OldAllNoatHF(run)) / &
+                                  (Tau * real(StepsSft, dp)))
+                InstShift(run) = -1.0_dp / AllTotParts(run) * &
+                            ((AllTotParts(run) - AllTotPartsOld(run)) / &
+                             (Tau * real(StepsSft, dp)))
+#endif
 
                  ! When using a linear combination, the denominator is summed
                  ! directly.
@@ -841,24 +817,17 @@ contains
                  all_cyc_proje_denominator(run) = AllHFCyc(run)
 
                  ! Calculate the projected energy.
-                 if((lenof_sign.eq.2).and.(inum_runs.eq.1)) then
-                     if (any(AllSumNoatHF /= 0.0)) then
-                         ProjectionE = (AllSumENum) / (all_sum_proje_denominator) &
-                                     + proje_ref_energy_offsets
-                         proje_iter = (AllENumCyc) / (all_cyc_proje_denominator) &
-                                    + proje_ref_energy_offsets
-                        AbsProjE = (AllENumCycAbs) / (all_cyc_proje_denominator) &
-                                 + proje_ref_energy_offsets
-                    endif
-                 else
-                     if ((AllSumNoatHF(run) /= 0.0)) then
+#ifdef __CMPLX
+                 if (any(AllSumNoatHF(lb:ub) /= 0.0)) then
+#else
+                 if ((AllSumNoatHF(run) /= 0.0)) then
+#endif
                          ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
                                           + proje_ref_energy_offsets(run)
                          proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
                                          + proje_ref_energy_offsets(run)
                         AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
                                       + proje_ref_energy_offsets(run)
-                    endif
                 endif
                 ! If we are re-zeroing the shift
                 if (tReZeroShift(run)) then
@@ -870,15 +839,10 @@ contains
             enddo
 
             ! Get some totalled values
-#ifdef __CMPLX
-            projectionE_tot = ProjectionE(1)
-            proje_iter_tot = proje_iter(1)
-#else
             projectionE_tot = sum(AllSumENum(1:inum_runs)) &
                             / sum(all_sum_proje_denominator(1:inum_runs))
             proje_iter_tot = sum(AllENumCyc(1:inum_runs)) &
                            / sum(all_cyc_proje_denominator(1:inum_runs))
-#endif
 
         endif ! iProcIndex == root
 

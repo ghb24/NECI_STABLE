@@ -19,7 +19,7 @@ module fcimc_output
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
                              nel_pre_freezing
     use DetCalcData, only: det, fcidets, ReIndex, NDet, NRow, HAMIL, LAB
-    use bit_reps, only: decode_bit_det, test_flag, extract_sign
+    use bit_reps, only: decode_bit_det, test_flag, extract_sign, get_initiator_flag
     use semi_stoch_procs, only: return_most_populated_states
     use bit_rep_data, only: niftot, nifd, flag_initiator
     use hist, only: calc_s_squared_star, calc_s_squared
@@ -569,6 +569,39 @@ contains
                                 'Ref (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., DiagSft(p) + Hii, &
                                 'Shift (' // trim(adjustl(tmpc)) // ")")
+#ifdef __CMPLX
+                call stats_out (state, .false., real(proje_iter(p) + Hii), &
+                                'Tot ProjE real (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., aimag(proje_iter(p) + Hii), &
+                                'Tot ProjE imag (' // trim(adjustl(tmpc)) // ")")
+
+                call stats_out (state, .false., real(AllHFCyc(p) / StepsSft), &
+                                'ProjE Denom real (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., aimag(AllHFCyc(p) / StepsSft), &
+                                'ProjE Denom imag (' // trim(adjustl(tmpc)) // ")")
+
+                call stats_out (state, .false., &
+                                real((AllENumCyc(p) + Hii*AllHFCyc(p))) / StepsSft,&
+                                'ProjE Num real (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., &
+                                aimag((AllENumCyc(p) + Hii*AllHFCyc(p))) / StepsSft,&
+                                'ProjE Num imag (' // trim(adjustl(tmpc)) // ")")
+                if (tTrialWavefunction .or. tStartTrialLater) then
+                    call stats_out (state, .false., &
+                                    real(tot_trial_numerator(p) / StepsSft), &
+                                    'TrialE Num real (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out (state, .false., &
+                                    aimag(tot_trial_numerator(p) / StepsSft), &
+                                    'TrialE Num imag (' // trim(adjustl(tmpc)) // ")")
+
+                    call stats_out (state, .false., &
+                                    real(tot_trial_denom(p) / StepsSft), &
+                                    'TrialE Denom real (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out (state, .false., &
+                                    aimag(tot_trial_denom(p) / StepsSft), &
+                                    'TrialE Denom imag (' // trim(adjustl(tmpc)) // ")")
+                end if
+#else
                 call stats_out (state, .false., proje_iter(p) + Hii, &
                                 'Tot ProjE (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., AllHFCyc(p) / StepsSft, &
@@ -576,7 +609,6 @@ contains
                 call stats_out (state, .false., &
                                 (AllENumCyc(p) + Hii*AllHFCyc(p)) / StepsSft,&
                                 'ProjE Num (' // trim(adjustl(tmpc)) // ")")
-
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     call stats_out (state, .false., &
                                     tot_trial_numerator(p) / StepsSft, &
@@ -585,6 +617,8 @@ contains
                                     tot_trial_denom(p) / StepsSft, &
                                     'TrialE Denom (' // trim(adjustl(tmpc)) // ")")
                 end if
+#endif
+
 
                 call stats_out (state, .false., &
                                 AllNoBorn(p), &
@@ -606,10 +640,22 @@ contains
                 if (tPrintReplicaOverlaps) then
                     do q = p+1, inum_runs
                         write(tmpc2, '(i5)') q
-                        call stats_out(state, .false., replica_overlaps(p, q),&
+#ifdef __CMPLX
+                        call stats_out(state, .false.,  replica_overlaps_real(p, q),&
+                                       '<psi_' // trim(adjustl(tmpc)) // '|' &
+                                       // 'psi_' // trim(adjustl(tmpc2)) &
+                                       // '> (real)')
+                        call stats_out(state, .false.,  replica_overlaps_imag(p, q),&
+                                       '<psi_' // trim(adjustl(tmpc)) // '|' &
+                                       // 'psi_' // trim(adjustl(tmpc2)) &
+                                       // '> (imag)')
+            
+#else
+                        call stats_out(state, .false.,  replica_overlaps_real(p, q),&
                                        '<psi_' // trim(adjustl(tmpc)) // '|' &
                                        // 'psi_' // trim(adjustl(tmpc2)) &
                                        // '>')
+#endif
 
                     end do
                 end if
@@ -625,6 +671,36 @@ contains
         end if
 
     end subroutine write_fcimcstats2
+
+    subroutine writeMsWalkerCountsAndCloseUnit()
+        integer :: i, ms, tempni(1:nel)
+        real(dp) :: totWalkPopByMsReal(nel+1), totWalkPopByMsImag(nel+1), tempSign(2)
+        
+        do i=1,TotWalkers
+            call extract_sign(WalkVecDets(:,i),TempSign)
+            call decode_bit_det(TempnI, WalkVecDets(:,i))
+            ms = sum(get_spin_pn(Tempni(1:nel)))
+            walkPopByMsReal(1+nel/2+ms/2) = walkPopByMsReal(1+nel/2+ms/2)+abs(TempSign(1))
+            walkPopByMsImag(1+nel/2+ms/2) = walkPopByMsImag(1+nel/2+ms/2)+abs(TempSign(2))
+            write(mswalkercounts_unit,*) ms, TempSign
+        enddo
+
+        totWalkPopByMsReal = walkPopByMsReal
+        totWalkPopByMsImag = walkPopByMsImag
+
+        ! sum the populations from all processors
+        call MPISumAll(walkPopByMsReal, totWalkPopByMsReal)
+        call MPISumAll(walkPopByMsImag, totWalkPopByMsImag)
+        ms = -1*nel
+        do i =1,nel+1
+            write(mswalkercounts_unit,*) ms, totWalkPopByMsReal(i),&
+                totWalkPopByMsImag(i), (totWalkPopByMsReal(i)**2+totWalkPopByMsImag(i)**2)**(0.5)
+            ms = ms+2
+        enddo
+        close(mswalkercounts_unit)
+
+    endsubroutine writeMsWalkerCountsAndCloseUnit
+
 
 
 
@@ -1297,7 +1373,7 @@ contains
                     if(.not.tTruncInitiator) then
                         write(iout,"(A3)",advance='no') 'Y'
                     else
-                        if(test_flag(GlobalLargestWalkers(:,i),flag_initiator(j))) then
+                        if(test_flag(GlobalLargestWalkers(:,i),get_initiator_flag(j))) then
                             write(iout,"(A3)",advance='no') 'Y'
                         else
                             write(iout,"(A3)",advance='no') 'N'

@@ -194,7 +194,7 @@ contains
 
         type(subspace_in) :: core_in
 
-        integer :: space_size, i, j, ierr
+        integer :: space_size, i, ierr, run
         real(dp) :: zero_sign(lenof_sign)
         character (len=*), parameter :: t_r = "generate_space"
 
@@ -253,8 +253,8 @@ contains
 
             call set_flag(SpawnedParts(:,i), flag_deterministic)
             if (tTruncInitiator) then
-                do j = 1, lenof_sign
-                    call set_flag(SpawnedParts(:,i), flag_initiator(j))
+                do run = 1, inum_runs
+                    call set_flag(SpawnedParts(:,i), get_initiator_flag_by_run(run))
                 end do
             end if
         end do
@@ -329,7 +329,8 @@ contains
 
         use determinants, only: get_helement
         use SymExcit3, only: GenExcitations3
-        use SystemData, only: nel, tKPntSym
+        use SymExcit4, only: GenExcitations4, ExcitGenSessionType
+        use SystemData, only: nel, tKPntSym, tReltvy
 
         integer(n_int), intent(inout) :: ilut_list(0:,:)
         integer, intent(inout) :: space_size
@@ -341,6 +342,8 @@ contains
         integer :: nsing, ndoub, ex_flag
         logical :: tAllExcitFound, tParity
         HElement_t(dp) :: HEl
+
+        type(ExcitGenSessionType) :: session
 
         ! Always generate both the single and double excitations.
         ex_flag = 3
@@ -357,7 +360,11 @@ contains
 
             do while(.true.)
                 ! Generate the next determinant.
-                call GenExcitations3(HFDet, ilutHF, nI, ex_flag, excit, tParity, tAllExcitFound, .false.)
+                if (tReltvy) then
+                    call GenExcitations4(session, HFDet, nI, ex_flag, excit, tParity, tAllExcitFound, .false.)
+                else
+                    call GenExcitations3(HFDet, ilutHF, nI, ex_flag, excit, tParity, tAllExcitFound, .false.)
+                endif
                 if (tAllExcitFound) exit
 
                 call EncodeBitDet(nI, ilut)

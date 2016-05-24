@@ -11,7 +11,8 @@ module fcimc_initialisation
                           tRotatedOrbs, MolproID, nBasis, arr, brr, nel, tCSF,&
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
-                          tUEGNewGenerator, tGen_4ind_2
+                          tUEGNewGenerator, tGen_4ind_2, tReltvy
+    use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
                         tCheckHighestPop, tSpatialOnlyHash, tStartCAS, tau, &
@@ -58,7 +59,9 @@ module fcimc_initialisation
                             flag_deterministic
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det, nullify_ilut, encode_part_sign, &
-                        extract_part_sign
+                        extract_part_sign, tBuildSpinSepLists , &
+                        get_initiator_flag, &
+                        get_initiator_flag_by_run
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
                          BeforeNormHist, InstHist, iNoBins, AllInstHist, &
                          HistogramEnergy, AllHistogramEnergy, AllHistogram, &
@@ -78,12 +81,14 @@ module fcimc_initialisation
                                   fill_rdm_diag_currdet_old, fill_rdm_diag_currdet, &
                                   new_child_stats, get_conn_helement
     use symrandexcit3, only: gen_rand_excit3
+    use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
                                        gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse
     use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
     use SymExcit3, only: CountExcitations3, GenExcitations3
+    use SymExcit4, only: CountExcitations4, GenExcitations4
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD, only : InitHistInitPops
     use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
@@ -106,7 +111,7 @@ module fcimc_initialisation
                                     set_trial_populations, set_trial_states
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
-                               set_part_init_time, set_spawn_rate
+                               set_spawn_rate
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
@@ -483,12 +488,7 @@ contains
 
 !If using a CAS space truncation, write out this CAS space
         IF(tTruncCAS) THEN
-            IF(tTruncInitiator) THEN
-                WRITE(iout,'(A)') " *********** INITIATOR METHOD IN USE ***********"
-                WRITE(iout,'(A)') " Fixed initiator space defined using the CAS method."
-            ELSE
-                WRITE(iout,*) "Truncated CAS space detected. Writing out CAS space..."
-            ENDIF
+            WRITE(iout,*) "Truncated CAS space detected. Writing out CAS space..."
             WRITE(iout,'(A,I2,A,I2,A)') " In CAS notation, (spatial orbitals, electrons), this has been chosen as: (", &
                 (OccCASOrbs+VirtCASOrbs)/2,",",OccCASOrbs,")"
             do I=NEl-OccCASorbs+1,NEl
@@ -647,6 +647,19 @@ contains
                 enddo
             enddo
         ENDIF
+
+        ! Initiate mswalkercounts
+!        if (tReltvy) then
+!            allocate(walkPopByMsReal(nel+1))
+!            allocate(walkPopByMsImag(nel+1))
+!            do i=1, nel+1
+!                walkPopByMsReal(i) = 0.0_dp
+!                walkPopByMsImag(i) = 0.0_dp
+!            enddo
+!        endif
+
+
+
         !Now broadcast to all processors
         CALL MPIBCast(RandomOrbIndex,nBasis)
         call MPIBCast(RandomHash2,nBasis)
@@ -827,6 +840,13 @@ contains
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp
         iter_data_fciqmc%update_iters = 0
+
+!            if (tReltvy) then
+!                ! write out the column headings for the MSWALKERCOUNTS
+!                open(mswalkercounts_unit, file='MSWALKERCOUNTS', status='UNKNOWN')
+!                write(mswalkercounts_unit, "(A)") "# ms real    imag    magnitude"
+!            endif
+
  
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)) THEN
             ALLOCATE(HistMinInd(NEl))
@@ -866,7 +886,6 @@ contains
                 ENDIF
                 InstAnnihil(:,:)=0.0_dp
             ENDIF
-
             IF(iProcIndex.eq.0) THEN
                 IF(tHistSpawn) THEN
                     Tot_Unique_Dets_Unit = get_free_unit()
@@ -1423,12 +1442,14 @@ contains
             tot_trial_denom = 0.0_dp
         end if
 
-        replica_overlaps(:, :) = 0.0_dp
+         replica_overlaps_real(:, :) = 0.0_dp
+#ifdef __CMPLX
+         replica_overlaps_imag(:, :) = 0.0_dp
+#endif
 
     end subroutine InitFCIMCCalcPar
 
     subroutine init_fcimc_fn_pointers()
-
         ! Select the excitation generator.
         if (tHPHF) then
             generate_excitation => gen_hphf_excit
@@ -1437,7 +1458,12 @@ contains
         elseif (tCSF) then
             generate_excitation => gen_csf_excit
         elseif (tPickVirtUniform) then
-            generate_excitation => gen_rand_excit3
+            ! pick-uniform-random-mag is on
+            if (tReltvy) then
+                generate_excitation => gen_rand_excit_Ex_Mag
+            else
+                generate_excitation => gen_rand_excit3
+            endif
         elseif (tGenHelWeighted) then
             generate_excitation => gen_excit_hel_weighted
         elseif (tGen_4ind_2) then
@@ -1449,7 +1475,6 @@ contains
         else
             generate_excitation => gen_rand_excit
         endif
-
         ! In the main loop, we only need to find out if a determinant is
         ! connected to the reference det or not (so no ex. level above 2 is
         ! required). Except in some cases where we need to know the maximum
@@ -1461,7 +1486,7 @@ contains
         endif
 
         ! How many children should we spawn given an excitation?
-        if ((tTruncCas .and. (.not. tTruncInitiator)) .or. tTruncSpace .or. &
+        if (tTruncCas .or. tTruncSpace .or. &
             tPartFreezeCore .or. tPartFreezeVirt .or. tFixLz .or. &
             (tUEG .and. .not. tLatticeGens) .or. tTruncNOpen) then
             if (tHPHF .or. tCSF .or. tSemiStochastic) then
@@ -1728,8 +1753,9 @@ contains
             ! Set reference determinant as an initiator if
             ! tTruncInitiator is set, for both imaginary and real flags
             if (tTruncInitiator) then
-                call set_flag (CurrentDets(:,1), flag_initiator(1))
-                call set_flag (CurrentDets(:,1), flag_initiator(2))
+                do run = 1, inum_runs
+                    call set_flag (CurrentDets(:,1), get_initiator_flag_by_run(run))
+                enddo
             endif
 
             ! If running a semi-stochastic simulation, set flag to specify the Hartree-Fock is in the
@@ -1739,9 +1765,6 @@ contains
             ! HF energy is equal to 0 (by definition)
             call set_det_diagH(1, 0.0_dp)
             HFInd = 1
-
-            ! Set the initial iteration number
-            call set_part_init_time(1, TotImagTime)
 
             if (tContTimeFCIMC .and. tContTimeFull) &
                 call set_spawn_rate(1, spawn_rate_full(HFDet, ilutHF))
@@ -1824,11 +1847,6 @@ contains
         character(*), parameter :: this_routine = 'InitFCIMC_HF_orthog'
 
         ! Add some implementation guards
-#ifdef __CMPLX
-        call stop_all(this_routine, "Complex not yet supported")
-#endif
-        if (inum_runs /= lenof_sign) &
-            call stop_all(this_routine, "Not yet supported")
 
         ! Default values, unless overridder for individual procs
         NoatHF = 0.0_dp
@@ -1870,10 +1888,7 @@ contains
 
                 ! Set reference determinant as an initiator if tTruncInitiator
                 if (tTruncInitiator) then
-                    call set_flag(CurrentDets(:, site), flag_initiator(run))
-#ifdef __CMPLX
-                    call stop_all(this_routine, "Needs adjusting")
-#endif
+                    call set_flag(CurrentDets(:, site), get_initiator_flag_by_run(run))
                 end if
 
                 ! The global reference is the HF and is primary for printed
@@ -1886,20 +1901,17 @@ contains
                 endif
                 call set_det_diagH(site, real(hdiag, dp) - Hii)
 
-                ! Set the initial occupation time
-                call set_part_init_time(site, TotImagTime)
-
                 ! Obtain the initial sign
                 if (.not. tStartSinglePart) &
                     call stop_all(this_routine, "Only startsinglepart supported")
-                call encode_part_sign(CurrentDets(:,site), InitialPart, run)
+                call encode_part_sign(CurrentDets(:,site), InitialPart, min_part_type(run))
                 
                 ! Initial control values
                 TotWalkers = site
                 TotWalkersOld = site
-                NoatHF(run) = InitialPart
-                TotParts(run) = real(InitialPart, dp)
-                TotPartsOld(run) = real(InitialPart, dp)
+                NoatHF(min_part_type(run)) = InitialPart
+                TotParts(min_part_type(run)) = real(InitialPart, dp)
+                TotPartsOld(min_part_type(run)) = real(InitialPart, dp)
             end if
         end do
 
@@ -2402,9 +2414,6 @@ contains
                     endif
                     call set_det_diagH(DetIndex, real(HDiagTemp, dp) - Hii)
 
-                    ! Set the initial iteration number
-                    call set_part_init_time(DetIndex, TotImagTime)
-
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
                         call CalcParentFlag(DetIndex, iInit, &
@@ -2462,7 +2471,7 @@ contains
         real(dp) :: TotMP1Weight,amp,MP2Energy,PartFac,rat,r,energy_contrib
         HElement_t(dp) :: HDiagtemp
         integer :: iExcits, exflag, Ex(2,2), nJ(NEl), DetIndex, iNode
-        integer :: iInit, DetHash, ExcitLevel, run
+        integer :: iInit, DetHash, ExcitLevel, run, part_type
         integer(n_int) :: iLutnJ(0:NIfTot)
         real(dp) :: NoWalkers, temp_sign(lenof_sign)
         logical :: tAllExcitsFound, tParity
@@ -2601,9 +2610,6 @@ contains
                     endif
                     call set_det_diagH(DetIndex, real(HDiagtemp, dp) - Hii)
 
-                    ! Set the initial iteration number
-                    call set_part_init_time(DetIndex, TotImagTime)
-
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
                         call CalcParentFlag(DetIndex, iInit, &
@@ -2626,8 +2632,8 @@ contains
                     nullify(TempNode)
 
                     DetIndex=DetIndex+1
-                    do run=1,inum_runs
-                        TotParts(run)=TotParts(run)+abs(NoWalkers)
+                    do part_type=1,lenof_sign
+                        TotParts(part_type)=TotParts(part_type)+abs(NoWalkers)
                     enddo
                 endif
             endif   !End if desired node
@@ -2656,13 +2662,11 @@ contains
                 call encode_sign(CurrentDets(:,DetIndex),temp_sign)
                 if(tTruncInitiator) then
                     !Set initiator flag (always for HF)
-                    call set_flag(CurrentDets(:,DetIndex),flag_initiator(1))
-                    call set_flag(CurrentDets(:,DetIndex),flag_initiator(2))
+                    do run = 1, inum_runs
+                        call set_flag(CurrentDets(:,DetIndex),get_initiator_flag(run))
+                    enddo
                 endif
                 call set_det_diagH(DetIndex, 0.0_dp)
-
-                ! Set the initial iteration number
-                call set_part_init_time(DetIndex, TotImagTime)
 
                 ! Now add the Hartree-Fock determinant (not with index 1).
                 DetHash = FindWalkerHash(HFDet, nWalkerHashes)
@@ -2716,9 +2720,10 @@ contains
     SUBROUTINE CheckforBrillouins()
         INTEGER :: i,j
         LOGICAL :: tSpinPair
-        
+       
+
 !Standard cases.
-        IF((tHub.and.tReal).or.(tRotatedOrbs).or.((LMS.ne.0).and.(.not.tUHF))) THEN
+        IF((tHub.and.tReal).or.(tRotatedOrbs).or.((LMS.ne.0).and.(.not.tUHF)).or.tReltvy) THEN
 !Open shell, restricted.            
             tNoBrillouin=.true.
         ELSE
@@ -2785,10 +2790,15 @@ contains
 
     ENDSUBROUTINE CheckforBrillouins
 
+
     SUBROUTINE CalcApproxpDoubles()
+        implicit none
+        real(dp) :: denom
         INTEGER :: iTotal
-        integer :: nSing, nDoub, ncsf
+        integer :: nSingles, nDoubles, ncsf, nSing_spindiff1, nDoub_spindiff1, nDoub_spindiff2, ierr 
+        integer :: nTot
         integer :: hfdet_loc(nel)
+        character(*), parameter :: this_routine = "CalcApproxpDoubles"
 
         ! A quick hack. Count excitations as though we were a determinant.
         ! We could fix this later...
@@ -2800,25 +2810,13 @@ contains
         else
             ncsf = 0
         endif
-        nSing=0
-        nDoub=0
-
-        IF(tHub.or.tUEG) THEN
-            IF(tReal) THEN
-                WRITE(iout,*) "Since we are using a real-space hubbard model, only single excitations are connected &
-                &   and will be generated."
-                pDoubles=0.0_dp
-                return
-            ELSE
-                WRITE(iout,*) "Since we are using a momentum-space hubbard model/UEG, only double excitaitons &
-     &                          are connected and will be generated."
-                pDoubles=1.0_dp
-                return
-            ENDIF
-        elseif(tNoSingExcits) then
-            write(iout,*) "Only double excitations will be generated"
-            return
-        ENDIF
+        nSingles=0
+        nDoubles=0
+        if (tReltvy) then
+            nSing_spindiff1 = 0
+            nDoub_spindiff1 = 0
+            nDoub_spindiff2 = 0
+        endif
 
 !NSing=Number singles from HF, nDoub=No Doubles from HF
 
@@ -2826,14 +2824,72 @@ contains
                        &excitation generator by looking a excitations from &
                        &reference."
         exflag=3
-        IF(tKPntSym) THEN
-            call enumerate_sing_doub_kpnt(exFlag, .false., nSing, nDoub, .false.) 
-        ELSE
-            CALL CountExcitations3(HFDet_loc,exflag,nSing,nDoub)
-        ENDIF
-        iTotal=nSing + nDoub + ncsf
+        if (tReltvy) then
+            write(iout,*) "Counting magnetic excitations"
+            ! subroutine CountExcitations4(nI, minRank, maxRank, minSpinDiff, maxSpinDiff, tot)
+            call CountExcitations4(HFDet_loc, 1, 1, 0, 0, nSingles)
+            call CountExcitations4(HFDet_loc, 1, 1, 1, 1, nSing_spindiff1)
+            call CountExcitations4(HFDet_loc, 2, 2, 0, 0, nDoubles)
+            call CountExcitations4(HFDet_loc, 2, 2, 1, 1, nDoub_spindiff1)
+            call CountExcitations4(HFDet_loc, 2, 2, 2, 2, nDoub_spindiff2)
+            call CountExcitations4(HFDet_loc, 1, 2, 0, 2, nTot)
+            ASSERT(nTot==(nSingles+nSing_spindiff1+nDoubles+nDoub_spindiff1+nDoub_spindiff2))
 
-        WRITE(iout,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing, &
+            iTotal=nSingles + nDoubles + nSing_spindiff1 + nDoub_spindiff1 + nDoub_spindiff2 + ncsf
+
+        else
+            iTotal=nSingles + nDoubles + ncsf
+            if (tKPntSym) THEN
+                call enumerate_sing_doub_kpnt(exFlag, .false., nSingles, nDoubles, .false.) 
+            else
+                call CountExcitations3(HFDet_loc,exflag,nSingles,nDoubles)
+            endif
+        endif
+
+        IF(tHub.or.tUEG) THEN
+            IF(tReal) THEN
+                WRITE(iout,*) "Since we are using a real-space hubbard model, only single excitations are connected &
+                &   and will be generated."
+                pDoubles=0.0_dp
+                if (tReltvy) then
+                    pDoub_spindiff1 = 0.0_dp
+                    pDoub_spindiff2 = 0.0_dp
+                    pSingles = real(nSingles,dp)/real(nSingles+nSing_spindiff1,dp)
+                    pSing_spindiff1 = 1.0_dp - pSingles
+                else
+                    pSingles = 1.0_dp
+                endif
+                return
+            ELSE
+                WRITE(iout,*) "Since we are using a momentum-space hubbard model/UEG, only double excitaitons &
+     &                          are connected and will be generated."
+                pSingles=0.0_dp
+                if (tReltvy) then
+                    pSing_spindiff1 = 0.0_dp
+                    pDoubles = real(nDoubles,dp)/real(nDoubles+nDoub_spindiff1+nDoub_spindiff2,dp)
+                    pDoub_spindiff1 = real(nDoub_spindiff1,dp)/real(nDoubles+nDoub_spindiff1+nDoub_spindiff2,dp)
+                    pDoub_spindiff2 = 1.0_dp - pDoubles - pDoub_spindiff1
+                else
+                    pDoubles = 1.0_dp
+                endif
+                return
+            ENDIF
+
+        elseif(tNoSingExcits) then
+            pSingles=0.0_dp
+            if (tReltvy) then
+                pSing_spindiff1 = 0.0_dp
+                pDoubles = real(nDoubles,dp)/real(nDoubles+nDoub_spindiff1+nDoub_spindiff2,dp)
+                pDoub_spindiff1 = real(nDoub_spindiff1,dp)/real(nDoubles+nDoub_spindiff1+nDoub_spindiff2,dp)
+                pDoub_spindiff2 = 1.0_dp - pDoubles - pDoub_spindiff1
+            else
+                pDoubles = 1.0_dp
+            endif
+            write(iout,*) "Only double excitations will be generated"
+            return
+        ENDIF
+
+        WRITE(iout,"(I7,A,I7,A)") nDoubles, " double excitations, and ",nSingles, &
             " single excitations found from reference. This will be used to calculate pDoubles."
 
         IF (abs(SinglesBias - 1.0_dp) > 1.0e-12_dp) THEN
@@ -2841,16 +2897,12 @@ contains
                 SinglesBias," to determine pDoubles."
         ENDIF
 
-        IF((NSing+nDoub+ncsf).ne.iTotal) THEN
-            CALL Stop_All("CalcApproxpDoubles","Sum of number of singles and number of doubles does " &
-            & //"not equal total number of excitations")
-        ENDIF
-        IF((NSing.eq.0).or.(NDoub.eq.0)) THEN
+        IF((nSingles.eq.0).or.(nDoubles.eq.0)) THEN
             WRITE(iout,*) "Number of singles or doubles found equals zero. pDoubles will be set to 0.95. Is this correct?"
             pDoubles = 0.95_dp
             pSingles = 0.05_dp
             return
-        elseif ((NSing < 0) .or. (NDoub < 0) .or. (ncsf < 0)) then
+        elseif ((nSingles < 0) .or. (nDoubles < 0) .or. (ncsf < 0)) then
             call stop_all("CalcApproxpDoubles", &
                           "Number of singles, doubles or Yamanouchi symbols &
                           &found to be a negative number. Error here.")
@@ -2859,34 +2911,49 @@ contains
         ! Set pDoubles to be the fraction of double excitations.
         ! If using CSFs, also consider only changing Yamanouchi Symbol
         if (tCSF) then
-            pDoubles = real(nDoub,dp) / &
-                   ((real(nSing,dp)*SinglesBias)+real(nDoub,dp)+real(ncsf,dp))
-            pSingles = real(nSing,dp) / &
-                   ((real(nSing,dp)*SinglesBias)+real(nDoub,dp)+real(ncsf,dp))
-
+            denom=real(nSingles,dp)*SinglesBias+real(nDoubles,dp)+real(ncsf,dp)
+            pSingles = real(nSingles,dp) / denom
+            pDoubles = real(nDoubles,dp) / denom
+            !Note that this does not sum to one, since it also allows for
+            !changing on yamanouchi symbol
+            ASSERT(.not.tReltvy)
         else
-            pDoubles = real(nDoub,dp) / &
-                   ((real(NSing,dp)*SinglesBias) + real(NDoub,dp))
-            pSingles = real(nSing,dp) * SinglesBias/ &
-                   ((real(nSing,dp)*SinglesBias) + real(nDoub,dp))
+            if (tReltvy) then
+                denom=real(nSingles+nSing_spindiff1,dp)*SinglesBias+real(nDoubles+nDoub_spindiff1+nDoub_spindiff2,dp)
+                pSingles = real(nSingles,dp)*SinglesBias / denom
+                pSing_spindiff1 = real(nSing_spindiff1,dp)*SinglesBias / denom
+                pDoubles = real(nDoubles,dp) / denom
+                pDoub_spindiff1 = real(nDoub_spindiff1,dp) / denom
+                pDoub_spindiff2 = 1.0_dp - pSingles - pSing_spindiff1 - pDoubles - pDoub_spindiff1 - pDoub_spindiff2
+            else
+                denom=real(nSingles,dp)*SinglesBias+real(nDoubles,dp)
+                pSingles = real(nSingles,dp)*SinglesBias / denom
+                pDoubles = 1.0_dp - pSingles
+           endif
         endif
 
         IF (abs(SinglesBias - 1.0_dp) > 1.0e-12_dp) THEN
             write (iout, '("pDoubles set to ", f14.6, &
                        &" rather than (without bias): ", f14.6)') &
-                       pDoubles, real(nDoub,dp) / real(iTotal,dp)
+                       pDoubles, real(nDoubles,dp) / real(iTotal,dp)
             write (iout, '("pSingles set to ", f14.6, &
                        &" rather than (without bias): ", f14.6)') &
-                       pSingles, real(nSing,dp) / real(iTotal,dp)
+                       pSingles, real(nSingles,dp) / real(iTotal,dp)
 
 !            WRITE(iout,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ", &
 !                & real(nDoub,dp)/real(iTotal,dp)
         ELSE
             write (iout,'(A,F14.6)') " pDoubles set to: ", pDoubles
             write (iout,'(A,F14.6)') " pSingles set to: ", pSingles
+            write (iout,'(A,F14.6)') " pSing_spindiff1 set to: ", pSing_spindiff1
+            write (iout,'(A,F14.6)') " pDoub_spindiff1 set to: ", pDoub_spindiff1
+            write (iout,'(A,F14.6)') " pDoub_spindiff2 set to: ", pDoub_spindiff2
         ENDIF
 
     END SUBROUTINE CalcApproxpDoubles
+
+
+
 
     SUBROUTINE CreateSpinInvBRR()
 

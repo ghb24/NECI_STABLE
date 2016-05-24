@@ -29,6 +29,7 @@ MODULE FciMCData
       integer :: fcimcstats_unit2 ! FCIMCStats
       integer :: initiatorstats_unit ! INITIATORStats
       integer :: ComplexStats_unit ! COMPLEXStats
+      integer :: mswalkercounts_unit
       integer :: Tot_Unique_Dets_Unit 
 
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
@@ -108,7 +109,7 @@ MODULE FciMCData
 !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying, and
                                      !the instantaneous shift, including the number of aborted as though they had lived.
 
-      real(dp) :: DiagSftRe,DiagSftIm     !For complex walkers - this is just for info - not used for population control.
+      real(dp), allocatable :: DiagSftRe(:), DiagSftIm(:)     !For complex walkers - this is just for info - not used for population control.
     
       INTEGER , ALLOCATABLE :: HFDet(:), HFDet_True(:)       !This will store the HF determinant
       INTEGER(TagIntType) :: HFDetTag=0
@@ -264,6 +265,7 @@ MODULE FciMCData
       ! The approximate fraction of singles and doubles. This is calculated
       ! using the HF determinant, if using non-uniform random excitations.
       real(dp) :: pDoubles, pSingles, pParallel
+      real(dp) :: pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
       integer :: nSingles, nDoubles
       ! The number of determinants connected to the Hartree-Fock determinant.
       integer :: HFConn
@@ -556,6 +558,14 @@ MODULE FciMCData
 
       type(perturbation), allocatable :: pops_pert(:)
 
-      real(dp), allocatable :: replica_overlaps(:,:)
+      real(dp), allocatable :: replica_overlaps_real(:,:)
+#ifdef __CMPLX
+      real(dp), allocatable :: replica_overlaps_imag(:,:)
+#endif
 
-END MODULE FciMCData
+
+      ! counting the total walker population all determinants of each ms value
+      real(dp), allocatable :: walkPopByMsReal(:), walkPopByMsImag(:)
+
+
+end module FciMCData
