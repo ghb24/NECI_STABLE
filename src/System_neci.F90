@@ -883,6 +883,10 @@ system: do
                     case ("NOSYM_GUGA")
                         tGen_nosym_guga = .true.
 
+                    case ("NOSYM_GUGA_DIFF")
+                        tGen_nosym_guga = .true.
+                        t_consider_diff_bias = .true.
+
                     case ("UEG_GUGA")
                         tGen_sym_guga_ueg = .true.
 
