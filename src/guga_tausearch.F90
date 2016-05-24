@@ -679,10 +679,6 @@ contains
                     pSingles_new = ratio_singles / (ratio_singles + ratio_doubles) 
                     
                     tau_new = max_permitted_spawn / (ratio_singles + ratio_doubles) 
-
-                    root_print "new time-step test: ", tau_new 
-                    root_print "time-step improv: ", tau_new / tau
-
                     if (pSingles_new > 1e-5_dp .and. &
                         pSingles_new < (1.0_dp - 1e-5_dp)) then 
 
@@ -722,6 +718,11 @@ contains
                         pBranch3 * (1.0_dp - pExcit3_same) / ratio_type3_diff)
 
                 end if
+
+                root_print "new time-step test: ", tau_new 
+                root_print "time-step improv: ", tau_new / tau
+                root_print "tau death: ", tau_death
+
 
             else 
                 ! no differentiating between mixed and alike type 2 and 3 
@@ -773,9 +774,6 @@ contains
                     
                     tau_new = max_permitted_spawn / (ratio_singles + ratio_doubles) 
 
-                    root_print "new time-step test: ", tau_new 
-                    root_print "time-step improv: ", tau_new / tau
-
                     if (pSingles_new > 1e-5_dp .and. &
                         pSingles_new < (1.0_dp - 1e-5_dp)) then 
                         root_print "new psingles test: ", pSingles_new
@@ -801,6 +799,11 @@ contains
                         pBranch2 / ratio_type2)
 
                 end if
+
+                root_print "new time-step test: ", tau_new 
+                root_print "time-step improv: ", tau_new / tau
+                root_print "tau death: ", tau_death
+
             end if
         end if
         ! and have to carefully check if i have enough excitations of all sorts

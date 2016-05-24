@@ -675,7 +675,7 @@ contains
                         end if
 
                         pSingles = psingles_new
-                        pDoubles = 1.0_dp - pDoubles
+                        pDoubles = 1.0_dp - pSingles
                     end if
 
                 else 
