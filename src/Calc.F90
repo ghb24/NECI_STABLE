@@ -86,6 +86,8 @@ contains
           tSearchTauOption = .true.
           tSearchTauDeath = .false.
 
+          t_new_tau_search = .true.
+
           tTimeExit=.false.
           MaxTimeExit=0.0_dp
           tMaxBloom=.false.

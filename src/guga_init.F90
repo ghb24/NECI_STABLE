@@ -33,6 +33,9 @@ module guga_init
                         pick_first_orbital_nosym_guga_uniform, orb_pgen_contrib_type_2_diff, &
                         orb_pgen_contrib_type_3_diff, orb_pgen_contrib_type_2_uniform, &
                         orb_pgen_contrib_type_3_uniform
+    use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same
+    use constants, only: dp
+    use ParallelHelper, only: iProcIndex
 
     ! variable declaration
     implicit none
@@ -178,6 +181,27 @@ contains
             allocate(current_cum_list(nSpatOrbs), stat = ierr)
 
 !         end if
+
+        ! also initiate the pExcit values here.. or otherwise they dont 
+        ! get initialized without tau-search option on 
+        if (tGen_nosym_guga) then 
+            pExcit4 = (1.0_dp - 1.0_dp / real(nSpatOrbs, dp)) 
+            pExcit2 = 1.0_dp / real(nSpatOrbs - 1, dp) 
+
+            root_print "initial pExcit4 set to: ", pExcit4
+            root_print "initial pExcit2 set to: ", pExcit2
+
+            if (t_consider_diff_bias) then 
+                pExcit2_same = 0.9_dp 
+                pExcit3_same = 0.9_dp 
+            else 
+                pExcit2_same = 1.0_dp 
+                pExcit3_same = 1.0_dp 
+            end if
+
+            root_print "initial pExcit2_same set to: ", pExcit2_same
+            root_print "initial pExcit3_same set to: ", pExcit3_same
+        end if
 
     end subroutine init_guga
   

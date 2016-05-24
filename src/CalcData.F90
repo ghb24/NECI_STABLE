@@ -388,6 +388,9 @@ real(dp), allocatable :: frequency_bounds_type2(:), frequency_bounds_type2_diff(
 ! use also an input dependent ratio cutoff for the time-step adaptation
 real(dp) :: frq_ratio_cutoff = 0.9_dp
 
+! use a flag to initiate the new tau-search option 
+logical :: t_new_tau_search = .false.
+
 ! also need multiple new specific excitation type probabilites, but they are 
 ! defined in FciMCdata module! 
 end module CalcData

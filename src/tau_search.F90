@@ -24,7 +24,7 @@ module tau_search
                     frequency_bounds_type3, frequency_bins_type4, frequency_bounds_type4, &
                     frequency_bins_type2_diff, frequency_bins_type3_diff, & 
                     frequency_bounds_type2_diff, frequency_bounds_type3_diff, &
-                    frq_ratio_cutoff
+                    frq_ratio_cutoff, t_new_tau_search
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          ProjEDet, ilutRef, MaxTau, tSearchTau, &
                          tSearchTauOption, tSearchTauDeath, pExcit2, pExcit4, &
@@ -421,7 +421,8 @@ contains
         character(*), parameter :: this_routine = "update_tau"
 
         integer :: itmp, itmp2
-        real(dp) :: ratio_singles, ratio_anti, ratio_para, ratio_doubles, ratio
+        real(dp) :: ratio_singles, ratio_anti, ratio_para, ratio_doubles, ratio, &
+                    tau_test, pparallel_test, psingles_test
 
         ! This is an override. In case we need to adjust tau due to particle
         ! death rates, when it otherwise wouldn't be adjusted
@@ -529,7 +530,7 @@ contains
         tau_death = 1.0_dp / max_death_cpt
         if (tau_death < tau_new) then
             if (t_min_tau) then
-                root_print "time-step reduced, due to death events! reset min_tau to:", tau_new
+                root_print "time-step reduced, due to death events! reset min_tau to:", tau_death
                 min_tau_global = tau_death
             end if
             tau_new = tau_death
@@ -564,7 +565,6 @@ contains
                 end if
             end if
             tau = tau_new
-
         end if
 
         ! Make sure that we have at least some of both singles and doubles
@@ -608,6 +608,49 @@ contains
                 print *, "gamma anti: ", gamma_opp
                 print *, "improv anti: ", gamma_opp / ratio_anti
 
+                ! also calculate new time-step through this method and 
+                ! check the difference to the old method 
+                if (enough_sing .and. enough_doub) then 
+                    pparallel_new = ratio_para / (ratio_anti + ratio_para)
+                    psingles_new = ratio_singles * pparallel_new / &
+                        (ratio_para + ratio_singles * pparallel_new) 
+
+                    tau_new = psingles_new * max_permitted_spawn / ratio_singles
+
+                    if (psingles_new > 1e-5_dp .and. &
+                        psingles_new < (1.0_dp - 1e-5_dp)) then
+
+                        root_print "Updating singles/doubles bias. pSingles = ", &
+                            psingles_new, ", pDoubles = ", 1.0_dp - psingles_new
+
+                        pSingles = psingles_new
+                        pDoubles = 1.0_dp - pSingles
+                    end if
+
+                else
+                    pparallel_new = pParallel
+                    psingles_new = pSingles
+                    ! im not sure if this possible division by 0 is cool...
+                    tau_new = max_permitted_spawn * min(&
+                        pSingles / ratio_singles, &
+                        pDoubles * pParallel / ratio_para, &
+                        pDoubles * (1.0_dp - pParallel) / ratio_anti)
+                end if
+
+                root_print "new time-step test: ", tau_new
+                root_print "time-step improv: ", tau_new / tau
+                root_print "tau death: ", tau_death
+
+                ! enough_doub implies that both enough_opp and enough_par are 
+                ! true.. so this if statement makes no sense 
+                if (enough_opp .and. enough_par) then 
+                    if (abs(pparallel_new-pParallel) / pParallel > 0.0001_dp) then
+                        root_print "Updating parallel-spin bias; new pParallel = ", &
+                            pParallel_new
+                    end if
+                    pParallel = pParallel_new
+                end if
+
             else if (tGen_sym_guga_mol) then
                 ! here i only use doubles for now
                 call integrate_frequency_histogram_spec(size(frequency_bins_doubles), &
@@ -619,10 +662,80 @@ contains
                 print *, "gamma doubles: ", gamma_doub
                 print *, "improv doubles: ", gamma_doub / ratio_doubles
 
+                if (enough_sing .and. enough_doub) then 
+                    psingles_new = ratio_singles / (ratio_doubles + ratio_singles)
+                    tau_new = max_permitted_spawn / (ratio_doubles + ratio_singles)
+
+                    if (psingles_new > 1e-5_dp .and. &
+                        psingles_new < (1.0_dp - 1e-5_dp)) then
+
+                        if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
+                            root_print "Updating singles/doubles bias. pSingles = ", &
+                                psingles_new, ", pDoubles = ", 1.0_dp - psingles_new
+                        end if
+
+                        pSingles = psingles_new
+                        pDoubles = 1.0_dp - pDoubles
+                    end if
+
+                else 
+                    psingles_new = pSingles
+                    tau_new = max_permitted_spawn * & 
+                        min(pSingles / ratio_singles, pDoubles / ratio_doubles)
+
+                end if
+
+                root_print "new time-step test: ", tau_new
+                root_print "time-step improv: ", tau_new / tau
+                root_print "tau death: ", tau_death
+
             else
                 ! for any other excitation generator just use one histogram
                 call integrate_frequency_histogram(ratio)
                 print *, "ratio: ", ratio
+            end if
+        end if
+
+        ! to deatch check again and finally update time-step
+
+        if (t_new_tau_search) then
+            if (tau_death < tau_new) then
+                if (t_min_tau) then
+                    root_print "time-step reduced, due to death events! reset min_tau to:", tau_death
+                    min_tau_global = tau_death
+                end if
+                tau_new = tau_death
+            end if
+
+            ! And a last sanity check/hard limit
+            tau_new = min(tau_new, MaxTau)
+
+            ! If the calculated tau is less than the current tau, we should ALWAYS
+            ! update it. Once we have a reasonable sample of excitations, then we
+            ! can permit tau to increase if we have started too low.
+            if (tau_new < tau .or. ((tUEG .or. enough_sing) .and. enough_doub))then
+
+                ! Make the final tau smaller than tau_new by a small amount
+                ! so that we don't get spawns exactly equal to the
+                ! initiator threshold, but slightly below it instead.
+                tau_new = tau_new * 0.99999_dp
+
+                if (abs(tau - tau_new) / tau > 0.001_dp) then
+                    if (t_min_tau) then
+                        if (tau_new < min_tau_global) then
+                            root_print "new time-step less then min_tau! set to min_tau!", min_tau_global
+
+                            tau_new = min_tau_global
+
+                        else 
+                            root_print "Updating time-step. New time-step = ", tau_new
+                        end if
+                    else
+                        root_print "Updating time-step. New time-step = ", tau_new
+
+                    end if
+                end if
+                tau = tau_new
             end if
         end if
 

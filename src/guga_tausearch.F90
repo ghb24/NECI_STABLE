@@ -14,7 +14,7 @@ module guga_tausearch
                     frequency_bounds_type2_diff, frequency_bounds_type3_diff, &
                     frequency_bins_singles, frequency_bounds_singles, &
                     t_frequency_analysis, frq_step_size, max_frequency_bound, &
-                    n_frequency_bins
+                    n_frequency_bins, t_min_tau, min_tau_global, t_new_tau_search
 
     use SystemData, only: tUEG, t_consider_diff_bias
     use FciMCData, only: tRestart, pSingles, pDoubles, pExcit2, pExcit4, &
@@ -200,45 +200,61 @@ contains
                 ! excit_level 2 excitation (ii,jj)
                 tmp_prob = tmp_prob / ((1.0_dp - pExcit4) * pExcit2 )
 
-                if (same_ind == 1) then
-                    ! this means its an excitation without _RL_ or ^RL^
-                    tmp_prob = tmp_prob / pExcit2_same 
+                if (t_consider_diff_bias) then
+                    if (same_ind == 1) then
+                        ! this means its an excitation without _RL_ or ^RL^
+                        tmp_prob = tmp_prob / pExcit2_same 
 
+                        tmp_gamma = abs(matel) / tmp_prob
+
+                        if (tmp_gamma > gamma_two_same) gamma_two_same = tmp_gamma
+
+                        if (.not. enough_two_same) then
+                            cnt_two_same = cnt_two_same + 1
+                            if (cnt_two_same > cnt_threshold) enough_two_same = .true.
+
+                            ! differentiate here too between the specifics? 
+                            ! yes! for now
+                            if (enough_two_same .and. enough_two_mixed) enough_two = .true.
+
+                            if (enough_two .and. enough_three .and. enough_four) enough_doub = .true.
+
+    !                         if (all([enough_two_same,enough_two_mixed,enough_three_same,&
+    !                             enough_three_mixed,enough_four])) enough_doub = .true.
+                        end if
+        
+                    else
+                        ! this means its a _RL_ -> ^RL^ excitation
+                        tmp_prob = tmp_prob / (1.0_dp - pExcit2_same) 
+
+                        tmp_gamma = abs(matel) / tmp_prob 
+
+                        if (tmp_gamma > gamma_two_mixed) gamma_two_mixed = tmp_gamma
+
+                        if (.not. enough_two_mixed) then
+                            cnt_two_mixed = cnt_two_mixed + 1
+                            
+                            if (cnt_two_mixed > cnt_threshold) enough_two_mixed = .true.
+
+                            if (enough_two_same .and. enough_two_mixed) enough_two = .true.
+
+                            if (enough_two .and. enough_three .and. enough_four) enough_doub = .true.
+
+                        end if
+                    end if
+
+                else
+                    ! use the _same variable to store it in this case 
                     tmp_gamma = abs(matel) / tmp_prob
 
                     if (tmp_gamma > gamma_two_same) gamma_two_same = tmp_gamma
 
-                    if (.not. enough_two_same) then
-                        cnt_two_same = cnt_two_same + 1
-                        if (cnt_two_same > cnt_threshold) enough_two_same = .true.
+                    if (.not. enough_two) then 
+                        cnt_two_same = cnt_two_same + 1 
 
-                        ! differentiate here too between the specifics? 
-                        ! yes! for now
-                        if (enough_two_same .and. enough_two_mixed) enough_two = .true.
+                        if (cnt_two_same > cnt_threshold) enough_two = .true. 
 
-                        if (enough_two .and. enough_three .and. enough_four) enough_doub = .true.
-
-!                         if (all([enough_two_same,enough_two_mixed,enough_three_same,&
-!                             enough_three_mixed,enough_four])) enough_doub = .true.
-                    end if
-    
-                else
-                    ! this means its a _RL_ -> ^RL^ excitation
-                    tmp_prob = tmp_prob / (1.0_dp - pExcit2_same) 
-
-                    tmp_gamma = abs(matel) / tmp_prob 
-
-                    if (tmp_gamma > gamma_two_mixed) gamma_two_mixed = tmp_gamma
-
-                    if (.not. enough_two_mixed) then
-                        cnt_two_mixed = cnt_two_mixed + 1
-                        
-                        if (cnt_two_mixed > cnt_threshold) enough_two_mixed = .true.
-
-                        if (enough_two_same .and. enough_two_mixed) enough_two = .true.
-
-                        if (enough_two .and. enough_three .and. enough_four) enough_doub = .true.
-
+                        if (enough_two .and. enough_three .and. enough_four) enough_doub = .true. 
                     end if
                 end if
 
@@ -246,38 +262,52 @@ contains
                 ! (ii,jk) type excitations 
                 tmp_prob = tmp_prob / ((1.0_dp - pExcit4) * (1.0_dp - pExcit2))
 
-                if (same_ind == 1) then
-                    ! excitation do NOT involve _RL_ or ^RL^ types
-                    tmp_prob = tmp_prob / pExcit3_same
+                if (t_consider_diff_bias) then
+                    if (same_ind == 1) then
+                        ! excitation do NOT involve _RL_ or ^RL^ types
+                        tmp_prob = tmp_prob / pExcit3_same
 
+                        tmp_gamma = abs(matel) / tmp_prob 
+
+                        if (tmp_gamma > gamma_three_same) gamma_three_same = tmp_gamma
+
+                        if (.not. enough_three_same) then
+                            cnt_three_same = cnt_three_same + 1
+
+                            if (cnt_three_same > cnt_threshold) enough_three_same = .true.
+
+                            if (enough_three_same .and. enough_three_mixed) enough_three = .true.
+
+                            if (enough_two .and. enough_three .and. enough_four) enough_doub = .true.
+
+                        end if
+                    else
+                        ! its a _RL_ or ^RL^ excitation! 
+                        tmp_prob = tmp_prob / (1.0_dp - pExcit3_same) 
+
+                        tmp_gamma = abs(matel) / tmp_prob 
+
+                        if (tmp_gamma > gamma_three_mixed) gamma_three_mixed = tmp_gamma 
+
+                        if (.not. enough_three_mixed) then 
+                            cnt_three_mixed = cnt_three_mixed + 1
+
+                            if (cnt_three_mixed > cnt_threshold) enough_three_mixed = .true.
+
+                            if (enough_three_same .and. enough_three_mixed) enough_three = .true. 
+
+                            if (enough_two .and. enough_three .and. enough_four) enough_doub = .true.
+                        end if
+                    end if
+                else 
                     tmp_gamma = abs(matel) / tmp_prob 
 
                     if (tmp_gamma > gamma_three_same) gamma_three_same = tmp_gamma
 
-                    if (.not. enough_three_same) then
+                    if (.not. enough_three) then 
                         cnt_three_same = cnt_three_same + 1
 
-                        if (cnt_three_same > cnt_threshold) enough_three_same = .true.
-
-                        if (enough_three_same .and. enough_three_mixed) enough_three = .true.
-
-                        if (enough_two .and. enough_three .and. enough_four) enough_doub = .true.
-
-                    end if
-                else
-                    ! its a _RL_ or ^RL^ excitation! 
-                    tmp_prob = tmp_prob / (1.0_dp - pExcit3_same) 
-
-                    tmp_gamma = abs(matel) / tmp_prob 
-
-                    if (tmp_gamma > gamma_three_mixed) gamma_three_mixed = tmp_gamma 
-
-                    if (.not. enough_three_mixed) then 
-                        cnt_three_mixed = cnt_three_mixed + 1
-
-                        if (cnt_three_mixed > cnt_threshold) enough_three_mixed = .true.
-
-                        if (enough_three_same .and. enough_three_mixed) enough_three = .true. 
+                        if (cnt_three_same > cnt_threshold) enough_three = .true.
 
                         if (enough_two .and. enough_three .and. enough_four) enough_doub = .true.
                     end if
@@ -325,6 +355,8 @@ contains
                     pExcit2_new, pExcit2_same_new, pBranch2, pBranch3
         real(dp) :: ratio_singles, ratio_type2, ratio_type2_diff, &
                     ratio_type3, ratio_type3_diff, ratio_type4
+        real(dp) :: tau_test, psingles_test, pExcit2_same_test, pexcit3_same_test, &
+                    pExcit2_test, pexcit4_test, ratio_doubles
         ! from the "old" routine 
         ! This is an override. In case we need to adjust tau due to particle
         ! death rates, when it otherwise wouldn't be adjusted
@@ -369,20 +401,16 @@ contains
         ! are also .true.
 
         ! Considering two types of double exctitaion...
+        ! change that implementation to depent on the input if 
+        ! t_consider_diff_bias is true
         call MPIAllReduce (gamma_sing, MPI_MAX, mpi_tmp)
         gamma_sing = mpi_tmp
 
         call MPIAllReduce (gamma_two_same, MPI_MAX, mpi_tmp)
         gamma_two_same = mpi_tmp
 
-        call MPIAllReduce (gamma_two_mixed, MPI_MAX, mpi_tmp)
-        gamma_two_mixed = mpi_tmp
-
         call MPIAllReduce (gamma_three_same, MPI_MAX, mpi_tmp)
         gamma_three_same = mpi_tmp
-
-        call MPIAllReduce (gamma_three_mixed, MPI_MAX, mpi_tmp)
-        gamma_three_mixed = mpi_tmp
 
         call MPIAllReduce (gamma_four, MPI_MAX, mpi_tmp)
         gamma_four = mpi_tmp
@@ -390,21 +418,30 @@ contains
         call MPIAllLORLogical(enough_two_same, mpi_ltmp)
         enough_two_same = mpi_ltmp
 
-        call MPIAllLORLogical(enough_two_mixed, mpi_ltmp)
-        enough_two_mixed = mpi_ltmp
-
         call MPIAllLORLogical(enough_three_same, mpi_ltmp)
         enough_three_same = mpi_ltmp
-
-        call MPIAllLORLogical(enough_three_mixed, mpi_ltmp)
-        enough_three_mixed = mpi_ltmp
 
         call MPIAllLORLogical(enough_four, mpi_ltmp)
         enough_four = mpi_ltmp
 
-        ! combine some quantities: 
-        gamma_doub = gamma_two_same + gamma_two_mixed + gamma_three_same &
+        gamma_doub = gamma_two_same + gamma_three_same + gamma_four
+
+        if (t_consider_diff_bias) then
+            call MPIAllReduce (gamma_two_mixed, MPI_MAX, mpi_tmp)
+            gamma_two_mixed = mpi_tmp
+
+            call MPIAllReduce (gamma_three_mixed, MPI_MAX, mpi_tmp)
+            gamma_three_mixed = mpi_tmp
+
+            call MPIAllLORLogical(enough_two_mixed, mpi_ltmp)
+            enough_two_mixed = mpi_ltmp
+
+            call MPIAllLORLogical(enough_three_mixed, mpi_ltmp)
+            enough_three_mixed = mpi_ltmp
+
+            gamma_doub = gamma_two_same + gamma_two_mixed + gamma_three_same &
                     + gamma_three_mixed + gamma_four
+        end if
 
         pBranch2 = pDoubles * (1.0_dp - pExcit4) * pExcit2
         pBranch3 = pDoubles * (1.0_dp - pExcit4) * (1.0_dp - pExcit2)
@@ -412,67 +449,101 @@ contains
         ! do i want to finetune the different sorts of double excitations
         ! even if there are not enough of the other types of excitations?...
 
-        if (enough_sing .and. enough_doub) then
-            ! this implies all sort of excitations have enough counts..
-            pExcit3_same_new = gamma_three_same / (gamma_three_same + gamma_three_mixed)
+        if (t_consider_diff_bias) then
+            if (enough_sing .and. enough_doub) then
+                ! this implies all sort of excitations have enough counts..
+                pExcit3_same_new = gamma_three_same / (gamma_three_same + gamma_three_mixed)
 
-            pExcit2_same_new = gamma_two_same / (gamma_two_same + gamma_two_mixed)
+                pExcit2_same_new = gamma_two_same / (gamma_two_same + gamma_two_mixed)
 
-            pExcit4_new = gamma_four / gamma_doub
+                pExcit4_new = gamma_four / gamma_doub
 
-            pExcit2_new = (gamma_two_same + gamma_two_mixed) / &
-                (gamma_two_same + gamma_two_mixed + gamma_three_same + gamma_three_mixed) 
+                pExcit2_new = (gamma_two_same + gamma_two_mixed) / &
+                    (gamma_two_same + gamma_two_mixed + gamma_three_same + gamma_three_mixed) 
 
-            pSingles_new = gamma_sing / (gamma_sing + gamma_doub) 
+                pSingles_new = gamma_sing / (gamma_sing + gamma_doub) 
 
-!             tau_new = pSingles_new * max_permitted_spawn / gamma_sing
+    !             tau_new = pSingles_new * max_permitted_spawn / gamma_sing
+                
+                ! this is the same, but gives more insight on what it is 
+                tau_new = max_permitted_spawn / ( gamma_sing + gamma_doub )
+
+            else
+                ! do the default worst case, according to simons implementation
+                pSingles_new = pSingles
+                pExcit2_new = pExcit2
+                pExcit2_same_new = pExcit2_same
+                pExcit3_same_new = pExcit3_same
+                pExcit4_new = pExcit4
+
+                tau_new = max_permitted_spawn * min( pSingles / gamma_sing, &
+                    pDoubles * pExcit4 / gamma_four, &
+                    pBranch2 * pExcit2_same / gamma_two_same, & 
+                    pBranch2 * (1.0_dp - pExcit2_same) / gamma_two_mixed, & 
+                    pBranch3 * pExcit3_same / gamma_three_same, & 
+                    pBranch3 * (1.0_dp - pExcit3_same) / gamma_three_mixed)
             
-            ! this is the same, but gives more insight on what it is 
-            tau_new = max_permitted_spawn / ( gamma_sing + gamma_doub )
-
+            end if
         else
-            ! do the default worst case, according to simons implementation
-            pSingles_new = pSingles
-            pExcit2_new = pExcit2
-            pExcit2_same_new = pExcit2_same
-            pExcit3_same_new = pExcit3_same
-            pExcit4_new = pExcit4
+            ! do also an implementation without the diff bias 
+            if (enough_sing .and. enough_doub) then 
+                pExcit4_new = gamma_four / gamma_doub 
 
-            tau_new = max_permitted_spawn * min( pSingles / gamma_sing, &
-                pDoubles * pExcit4 / gamma_four, &
-                pBranch2 * pExcit2_same / gamma_two_same, & 
-                pBranch2 * (1.0_dp - pExcit2_same) / gamma_two_mixed, & 
-                pBranch3 * pExcit3_same / gamma_three_same, & 
-                pBranch3 * (1.0_dp - pExcit3_same) / gamma_three_mixed)
-        
+                pExcit2_new = gamma_two_same / (gamma_two_same + gamma_three_same) 
+
+                pSingles_new = gamma_sing / (gamma_sing + gamma_doub) 
+                
+                tau_new = max_permitted_spawn / (gamma_sing + gamma_doub) 
+
+            else 
+                pSingles_new = pSingles
+                pExcit2_new = pExcit2
+                pExcit4_new = pExcit4
+
+                tau_new = max_permitted_spawn * min( & 
+                    pSingles / gamma_sing, & 
+                    pDoubles * pExcit4 / gamma_four, & 
+                    pBranch2 / gamma_two_same) 
+            end if
         end if
 
         ! i only change something if i have enough of all excitations.. 
         ! so i think i do not need to check if there are enough of them 
         ! here 
-        if (abs(pExcit3_same_new - pExcit3_same) / pExcit3_same > 0.0001_dp) then
-            root_print "Updating pExcit3_same! new pExcit3_same = ", pExcit3_same_new
-        end if
+        if (t_consider_diff_bias) then
+            if (abs(pExcit3_same_new - pExcit3_same) / pExcit3_same > 0.0001_dp) then
+                root_print "Updating pExcit3_same! new pExcit3_same = ", pExcit3_same_new
+            end if
 
-        if (abs(pExcit4_new - pExcit4) / pExcit4 > 0.0001_dp) then 
-            root_print "Updating pExcit4! new pExcit4 = ", pExcit4_new
-        end if
+            if (abs(pExcit4_new - pExcit4) / pExcit4 > 0.0001_dp) then 
+                root_print "Updating pExcit4! new pExcit4 = ", pExcit4_new
+            end if
 
-        if (abs(pExcit2_same_new - pExcit2_same) / pExcit2_same > 0.0001_dp) then
-            root_print "Updating pExcit2_same! new pExcit2_same = ", pExcit2_same_new
-        end if
+            if (abs(pExcit2_same_new - pExcit2_same) / pExcit2_same > 0.0001_dp) then
+                root_print "Updating pExcit2_same! new pExcit2_same = ", pExcit2_same_new
+            end if
 
-        if (abs(pExcit2_new - pExcit2) / pExcit2 > 0.0001_dp) then
-            root_print "Updating pExcit2! new pExcit2 = ", pExcit2_new 
+            if (abs(pExcit2_new - pExcit2) / pExcit2 > 0.0001_dp) then
+                root_print "Updating pExcit2! new pExcit2 = ", pExcit2_new 
+            end if
+        else 
+            if (abs(pExcit4_new - pExcit4) / pExcit4 > 0.0001_dp) then
+                root_print "Updating pExcit4! new pExcit4 = ", pExcit4_new
+            end if
+            if (abs(pExcit2_new - pExcit2) / pExcit2 > 0.0001_dp) then
+                root_print "Updating pExcit2! new pExcit2 = ", pExcit2_new 
+            end if
         end if
 
         ! only print out the information if its a major change... 
         ! but doesnt that mean that gradual changes get ignored in the 
         ! output atleast...
-        pExcit3_same = pExcit3_same_new
         pExcit4 = pExcit4_new
-        pExcit2_same = pExcit2_same_new
         pExcit2 = pExcit2_new
+        if (t_consider_diff_bias) then
+            pExcit3_same = pExcit3_same_new
+            pExcit2_same = pExcit2_same_new
+        end if
 
         ! simon implemented some hard-limits on single excitation probability
         ! maybe i should think about that too here! 
@@ -498,6 +569,10 @@ contains
         max_death_cpt = mpi_tmp
         tau_death = 1.0_dp / max_death_cpt
         if (tau_death < tau_new) then
+            if (t_min_tau) then
+                root_print "time-step reduced, due to death events! reset min_tau to:", tau_death
+                min_tau_global = tau_death
+            end if
             tau_new = tau_death
         end if
 
@@ -515,10 +590,19 @@ contains
             tau_new = tau_new * 0.99999_dp
 
             if (abs(tau - tau_new) / tau > 0.001_dp) then
-                root_print "Updating time-step. New time-step = ", tau_new
+                if (t_min_tau) then 
+                    if (tau_new < min_tau_global) then
+                        root_print "new time-step less then min_tau! set to min_tau", min_tau_global
+
+                        tau_new = min_tau_global
+                    else
+                        root_print "Updating time-step. New time-step = ", tau_new
+                    end if
+                else
+                    root_print "Updating time-step. New time-step = ", tau_new
+                end if
             end if
             tau = tau_new
-
         end if
 
         if (t_frequency_analysis) then 
@@ -583,6 +667,62 @@ contains
                 print *, "gamma type4: ", gamma_four
                 print *, "improv type4: ", gamma_four / ratio_type4
 
+                ratio_doubles = ratio_type2 + ratio_type2_diff + ratio_type3 + &
+                    ratio_type3_diff + ratio_type4
+
+                if (enough_sing .and. enough_doub) then 
+                    pExcit3_same_new = ratio_type3 / (ratio_type3 + ratio_type3_diff) 
+                    pExcit2_same_new = ratio_type2 / (ratio_type2 + ratio_type2_diff) 
+                    pExcit4_new = ratio_type4 / ratio_doubles 
+                    pExcit2_new = (ratio_type2 + ratio_type2_diff) / & 
+                        (ratio_type2 + ratio_type2_diff + ratio_type3 + ratio_type3_diff) 
+                    pSingles_new = ratio_singles / (ratio_singles + ratio_doubles) 
+                    
+                    tau_new = max_permitted_spawn / (ratio_singles + ratio_doubles) 
+
+                    root_print "new time-step test: ", tau_new 
+                    root_print "time-step improv: ", tau_new / tau
+
+                    if (pSingles_new > 1e-5_dp .and. &
+                        pSingles_new < (1.0_dp - 1e-5_dp)) then 
+
+                        root_print "Updating singles/doubles bias. pSingles = ", &
+                            psingles_new, ", pDoubles = ", 1.0_dp - psingles_new
+
+                        pSingles = pSingles_new
+                        pDoubles = 1.0_dp - pSingles
+
+                    end if
+
+                    if (abs(pExcit3_same_new - pExcit3_same) / pExcit3_same > 0.0001_dp) then
+                        root_print "new pExcit3_same_new: ", pExcit3_same_new
+                    end if
+                    if (abs(pExcit2_same_new - pExcit2_same) / pExcit2_same > 0.0001_dp) then
+                        root_print "new pExcit2_same_new: ", pExcit2_same_new
+                    end if
+                    if (abs(pExcit4_new - pExcit4) / pExcit4 > 0.0001_dp) then
+                        root_print "new pExcit4_new: ", pExcit4_new
+                    end if
+                    if (abs(pExcit2_new - pExcit2) / pExcit2 > 0.0001_dp) then
+                        root_print "new pExcit2_new: ", pExcit2_new
+                    end if
+                    ! essentially always update the probs.. 
+                    pExcit4 = pExcit4_new
+                    pExcit2 = pExcit2_new
+                    pExcit3_same = pExcit3_same_new
+                    pExcit2_same = pExcit2_same_new
+
+                else 
+                    tau_new = max_permitted_spawn * min(&
+                        pSingles / ratio_singles, &
+                        pDoubles * pExcit4 / ratio_type4, & 
+                        pBranch2 * pExcit2_same / ratio_type2, & 
+                        pBranch2 * (1.0_dp - pExcit2_same) / ratio_type2_diff, &
+                        pBranch3 * pExcit3_same / ratio_type3, &
+                        pBranch3 * (1.0_dp - pExcit3_same) / ratio_type3_diff)
+
+                end if
+
             else 
                 ! no differentiating between mixed and alike type 2 and 3 
                 ! excitations 
@@ -601,6 +741,8 @@ contains
                     (1.0_dp - pExcit2)
 
                 ratio_type4 = ratio_type4 * pDoubles * pExcit4
+
+                ratio_doubles = ratio_type2 + ratio_type3 + ratio_type4
 
                 ! hm.. i have to change the pgen calc. again in the GUGA 
                 ! approach.. i should not include pSingles, pDoubles etc. 
@@ -624,10 +766,85 @@ contains
                 print *, "gamma type4: ", gamma_four
                 print *, "improv type4: ", gamma_four / ratio_type4
 
+                if (enough_sing .and. enough_doub) then 
+                    pExcit4_new = ratio_type4 / ratio_doubles 
+                    pExcit2_new = ratio_type2 / (ratio_type2 + ratio_type3) 
+                    pSingles_new = ratio_singles / (ratio_singles + ratio_doubles) 
+                    
+                    tau_new = max_permitted_spawn / (ratio_singles + ratio_doubles) 
+
+                    root_print "new time-step test: ", tau_new 
+                    root_print "time-step improv: ", tau_new / tau
+
+                    if (pSingles_new > 1e-5_dp .and. &
+                        pSingles_new < (1.0_dp - 1e-5_dp)) then 
+                        root_print "new psingles test: ", pSingles_new
+
+                        pSingles = pSingles_new
+                        pDoubles = 1.0_dp - pSingles
+
+                    end if
+                    if (abs(pExcit4_new - pExcit4) / pExcit4 > 0.0001_dp) then
+                        root_print "new pExcit4_new: ", pExcit4_new
+                    end if
+                    if (abs(pExcit2_new - pExcit2) / pExcit2 > 0.0001_dp) then
+                        root_print "new pExcit2_new: ", pExcit2_new
+                    end if
+
+                    pExcit2 = pExcit2_new
+                    pExcit4 = pExcit4_new
+
+                else 
+                    tau_new = max_permitted_spawn * min(&
+                        pSingles / ratio_singles, &
+                        pDoubles * pExcit4 / ratio_type4, & 
+                        pBranch2 / ratio_type2)
+
+                end if
             end if
         end if
         ! and have to carefully check if i have enough excitations of all sorts
         ! before i individually update the probabilities
+        if (t_new_tau_search) then
+            if (tau_death < tau_new) then
+                if (t_min_tau) then
+                    root_print "time-step reduced, due to death events! reset min_tau to:", tau_death
+                    min_tau_global = tau_death
+                end if
+                tau_new = tau_death
+            end if
+
+            ! And a last sanity check/hard limit
+            tau_new = min(tau_new, MaxTau)
+
+            ! If the calculated tau is less than the current tau, we should ALWAYS
+            ! update it. Once we have a reasonable sample of excitations, then we
+            ! can permit tau to increase if we have started too low.
+            if (tau_new < tau .or. ((tUEG .or. enough_sing) .and. enough_doub))then
+
+                ! Make the final tau smaller than tau_new by a small amount
+                ! so that we don't get spawns exactly equal to the
+                ! initiator threshold, but slightly below it instead.
+                tau_new = tau_new * 0.99999_dp
+
+                if (abs(tau - tau_new) / tau > 0.001_dp) then
+                    if (t_min_tau) then
+                        if (tau_new < min_tau_global) then
+                            root_print "new time-step less then min_tau! set to min_tau!", min_tau_global
+
+                            tau_new = min_tau_global
+
+                        else 
+                            root_print "Updating time-step. New time-step = ", tau_new
+                        end if
+                    else
+                        root_print "Updating time-step. New time-step = ", tau_new
+
+                    end if
+                end if
+                tau = tau_new
+            end if
+        end if
 
     end subroutine update_tau_guga_nosym 
 
