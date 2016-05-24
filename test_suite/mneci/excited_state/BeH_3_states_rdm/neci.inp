@@ -1,0 +1,50 @@
+title
+
+system read
+nonuniformrandexcits 4ind-weighted
+rohf
+electrons 5
+spin-restrict 1
+molpromimic
+freeformat
+system-replicas 6
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+memoryfacspawn 4.0
+memoryfacpart 2.0
+truncinitiator
+keepdoubspawns
+addtoinitiator 3
+walkcontgrow
+diagshift 0.0 0.0 1.0 1.0 1.0 1.0
+stepsshift 10
+totalwalkers 1000
+tau 0.05 search
+startsinglepart
+shiftdamp 0.1
+nmcyc 10000
+semi-stochastic
+doubles-core
+stochastic-hf-spawning
+allrealcoeff
+realspawncutoff 0.5
+orthogonalise-replicas
+doubles-init
+load-balance-blocks off
+endcalc
+
+integral
+freeze 2,0
+endint
+
+logging
+popsfile -1
+write-spin-free-rdm
+(printonerdm
+calcrdmonfly 3 100 2000
+endlog
+end
