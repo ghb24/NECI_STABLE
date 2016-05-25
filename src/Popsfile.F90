@@ -3,14 +3,14 @@
 MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, &
-                          AB_elec_pairs, par_elec_pairs, tMultiReplicas
-    use CalcData, only: tTruncInitiator, DiagSft, tWalkContGrow, nEquilSteps, &
+                          AB_elec_pairs, par_elec_pairs, tMultiReplicas, tReltvy
+    use CalcData, only: DiagSft, tWalkContGrow, nEquilSteps, &
                         ScaleWalkers, tReadPopsRestart, tPopsJumpShift, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
                         iWeightPopRead, iPopsFileNoRead, Tau, &
                         InitiatorWalkNo, MemoryFacPart, tLetInitialPopDie, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
-                        pops_norm, tWritePopsNorm
+                        pops_norm, tWritePopsNorm, t_keep_tau_fixed
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
@@ -31,9 +31,9 @@ MODULE PopsfileMod
     use sort_mod
     use util_mod, only: get_free_unit,get_unique_filename
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
-        max_death_cpt
-    use global_det_data, only: global_determinant_data, &
-                               init_global_det_data, set_det_diagH
+        gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, max_death_cpt
+    use FciMcData, only : pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
+    use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH
     use fcimc_helper, only: update_run_reference, calc_inst_proje
     use replica_data, only: set_initial_global_data
     use load_balance, only: pops_init_balance_blocks
@@ -780,10 +780,10 @@ r_loop: do while(.not.tStoreDet)
             if (tUseFlags) call encode_flags (WalkerTemp, flg)
 
             if((inum_runs.eq.2).and.(PopNifSgn.eq.1)) then
-                if (test_flag(WalkerTemp, flag_initiator(1))) then
-                    call set_flag(WalkerTemp, flag_initiator(2))
+                if (test_flag(WalkerTemp, get_initiator_flag(1))) then
+                    call set_flag(WalkerTemp, get_initiator_flag(2))
                 else
-                    call clr_flag(WalkerTemp, flag_initiator(2))
+                    call clr_flag(WalkerTemp, get_initiator_flag(2))
                 endif
             endif
             
@@ -959,13 +959,15 @@ r_loop: do while(.not.tStoreDet)
         if (tWalkContGrow) then
             tot_walkers = int(0.95 * InitWalkers * nNodes, int64)
             do run = 1, inum_runs
+
+
 #ifdef __CMPLX
-                if ((tLetInitialPopDie .and. sum(AllTotParts) < tot_walkers) .or. &
-                    ((.not. tLetInitialPopDie) .and. sum(AllTotParts) > tot_walkers)) then
+                if ((tLetInitialPopDie .and. sum(AllTotParts(min_part_type(run):max_part_type(run))) < tot_walkers) .or. &
+                    ((.not. tLetInitialPopDie) .and. sum(AllTotParts(min_part_type(run):max_part_type(run))) > tot_walkers)) then
                     write(6,'("WALKCONTGROW set in input, but simulation already exceeds target number of particles")')
                     write(6,'("Continuing with DIAGSHIFT from POPSFILE")')
-                    tSinglePartPhase = .false.
-                    DiagSft = PopDiagSft
+                    tSinglePartPhase(run) = .false.
+                    DiagSft(run) = PopDiagSft(run)
                 end if
 #else
                 if ((tLetInitialPopDie .and. AllTotParts(run) < tot_walkers) .or. &
@@ -1104,7 +1106,7 @@ r_loop: do while(.not.tStoreDet)
             iBlockingIter = PreviousCycles
         else
             !Using popsfile v.4, where tau is written out and read in
-            if(tSearchTau) then
+            if (tSearchTau) then
                 if((.not.tSinglePartPhase(1)).or.(.not.tSinglePartPhase(inum_runs))) then
                     tSearchTau=.false.
                 endif
@@ -1119,7 +1121,22 @@ r_loop: do while(.not.tStoreDet)
                                       &implemented for CSFs")
                     end if
                     pSingles = read_psingles
+                    if (.not. tReltvy) &
                     pDoubles = 1.0_dp - pSingles
+                end if
+
+                if (abs(read_pparallel) > 1.0e-12_dp) then
+                    pParallel = read_pparallel
+                end if
+            else if (t_keep_tau_fixed) then 
+                write(6,"(A)") "Using timestep specified in POPSFILE, without continuing to dynammically adjust it!"
+                tau = read_tau 
+
+                if (abs(read_psingles) > 1.0e-12_dp) then
+                    pSingles = read_psingles
+                    if (.not. tReltvy) then
+                        pDoubles = 1.0_dp - pSingles
+                    end if
                 end if
 
                 if (abs(read_pparallel) > 1.0e-12_dp) then
@@ -1219,16 +1236,20 @@ r_loop: do while(.not.tStoreDet)
         integer(int64) :: PopTotwalk, PopWalkersOnNodes(max_nodes)
         integer :: PopNNodes
         real(dp) :: PopSft, PopTau, PopPSingles, PopPParallel, PopGammaSing
+        real(dp) :: PopPDoubles, PopPSing_spindiff1, PopPDoub_spindiff1, PopPDoub_spindiff2
         real(dp) :: PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
-        real(dp) :: PopTotImagTime, PopSft2, PopParBias
+        real(dp) :: PopTotImagTime, PopSft2, PopParBias        
+        real(dp) :: PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2
         character(*), parameter :: t_r = 'ReadPopsHeadv4'
         HElement_t(dp) :: PopSumENum
         namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl, &
                     PopTotwalk,PopSft,PopSft2,PopSumNoatHF,PopSumENum, &
                     PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
-                    PopTau,PopiBlockingIter,PopRandomHash,PopPSingles, &
+                    PopTau,PopiBlockingIter,PopRandomHash,&
+                    PopPSingles, PopPSing_spindiff1, PopPDoubles, PopPDoub_spindiff1, PopPDoub_spindiff2, &
                     PopPParallel, PopNNodes, PopWalkersOnNodes, PopGammaSing, &
                     PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt, &
+                    PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2, &
                     PopTotImagTime, Popinum_runs, PopParBias, PopMultiSft, &
                     PopMultiSumNoatHF, PopMultiSumENum, PopBalanceBlocks
 
@@ -1262,6 +1283,12 @@ r_loop: do while(.not.tStoreDet)
         call MPIBCast(PopTau)
         call MPIBCast(PopiBlockingIter)
         call MPIBCast(PopPSingles)
+        if (tReltvy) then
+            call MPIBCast(PopPDoubles)
+            call MPIBCast(PopPSing_spindiff1)
+            call MPIBCast(PopPDoub_spindiff1)
+            call MPIBCast(PopPDoub_spindiff2)
+        endif
         call MPIBCast(PopPParallel)
         call MPIBCast(PopParBias)
         call MPIBCast(PopNNodes)
@@ -1282,6 +1309,11 @@ r_loop: do while(.not.tStoreDet)
         end if
         call MPIBcast(PopGammaSing)
         call MPIBcast(PopGammaDoub)
+        if (tReltvy) then
+            call MPIBcast(PopGammaSing_spindiff1)
+            call MPIBcast(PopGammaDoub_spindiff1)
+            call MPIBcast(PopGammaDoub_spindiff2)
+        endif
         call MPIBcast(PopGammaOpp)
         call MPIBCast(PopGammaPar)
         call MPIBcast(PopMaxDeathCpt)
@@ -1333,6 +1365,11 @@ r_loop: do while(.not.tStoreDet)
         ! Fill the tau-searching accumulators, to avoid blips in tau etc.
         gamma_sing = PopGammaSing
         gamma_doub = PopGammaDoub
+        if (tReltvy) then
+            gamma_sing_spindiff1 = PopGammaSing_spindiff1
+            gamma_doub_spindiff1 = PopGammaDoub_spindiff1
+            gamma_doub_spindiff2 = PopGammaDoub_spindiff2
+        endif
         gamma_opp = PopGammaOpp
         gamma_par = PopGammaPar
         max_death_cpt = PopMaxDeathCpt
@@ -1786,7 +1823,11 @@ r_loop: do while(.not.tStoreDet)
             ',PopTau=', Tau, ','
         write(iunit, '(a,i16)') 'PopiBlockingIter=', iBlockingIter(1)
         write(iunit, '(a,f18.12,a,f18.12)') 'PopPSingles=', pSingles, &
-            ',PopPParallel=', pParallel
+            ',PopPParallel=', pParallel, &
+            ',PopPDoubles=', pDoubles, &
+            ',PopPSing_spindiff1=', pSing_spindiff1, &
+            ',PopPDoub_spindiff1=', pDoub_spindiff1, &
+            ',PopPDoub_spindiff2=', pDoub_spindiff2
 
         ! What is the current total imaginary time? Should continue from where
         ! we left off, so that plots work correctly.
@@ -1799,6 +1840,9 @@ r_loop: do while(.not.tStoreDet)
                                       ',PopGammaOpp=', gamma_opp, &
                                       ',PopGammaPar=', gamma_par, &
                                       ',PopMaxDeathCpt=', max_death_cpt
+        write(iunit, '(5(a,g18.12))') ',PopGammaSing_spindiff1=', gamma_sing_spindiff1, &
+                                      ',PopGammaDoub_spindiff1=', gamma_doub_spindiff1, &
+                                      ',PopGammaDoub_spindiff2=', gamma_doub_spindiff2
 
         if (tLoadBalanceBlocks) &
             write(iunit, '(a,i7)') 'PopBalanceBlocks=', balance_blocks

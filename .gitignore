@@ -46,5 +46,6 @@ build*/
 .*f
 .*F90
 \\
+*.swo
 *.swp
 fort.7

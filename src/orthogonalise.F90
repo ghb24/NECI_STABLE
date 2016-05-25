@@ -2,7 +2,10 @@
 module orthogonalise
 
     use FciMCData, only: TotWalkers, CurrentDets, all_norm_psi_squared, &
-                         NoBorn, NoDied, fcimc_iter_data, replica_overlaps, &
+                         NoBorn, NoDied, fcimc_iter_data,  replica_overlaps_real, &
+#ifdef __CMPLX
+                         replica_overlaps_imag, &
+#endif
                          HolesInList
     use CalcData, only: OccupiedThresh, tOrthogonaliseSymmetric, tSemiStochastic, &
                         tPairedReplicas
@@ -26,16 +29,23 @@ contains
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer :: tgt_run, src_run, run, j, TotWalkersNew
-        real(dp) :: norms(inum_runs), overlaps(inum_runs, inum_runs)
-        real(dp) :: all_norms(inum_runs), all_overlaps(inum_runs, inum_runs)
-        real(dp) :: sgn(lenof_sign), sgn_orig, delta, r
+        integer :: tgt_sgn, src_sgn
+        integer :: low_loop_bound, high_loop_bound, loop_step
+        real(dp) :: norms(inum_runs), overlaps_real(inum_runs, inum_runs)
+        real(dp) :: all_norms(inum_runs), all_overlaps_real(inum_runs, inum_runs)
+        real(dp) :: sgn(lenof_sign), sgn_orig, delta_real, r
+#ifdef __CMPLX
+        ! the min_part_type and max_part_type macros return the index of the sgns
+        ! corresponding to the real and imag parts of a replica respectively
+        real(dp) :: overlaps_imag(inum_runs, inum_runs), all_overlaps_imag(inum_runs, inum_runs)
+        real(dp) :: delta_imag
+#endif
         logical :: tCoreDet
         character(*), parameter :: this_routine = 'orthogonalise_replicas'
 
-        ASSERT(inum_runs == lenof_sign)
 #ifndef __PROG_NUMRUNS
         call stop_all(this_routine, "orthogonalise replicas requires mneci.x")
-#else
+#endif
 
         ! If we are using the symmetric orthogonaliser, then bypass this
         ! routine...
@@ -45,7 +55,10 @@ contains
         end if
 
         norms = 0.0_dp
-        overlaps = 0.0_dp
+        overlaps_real = 0.0_dp
+#ifdef __CMPLX
+        overlaps_imag = 0.0_dp
+#endif
 
         do tgt_run = 1, inum_runs
 
@@ -63,23 +76,40 @@ contains
                 ! Loop over source runs, and subtract out components
                 sgn_orig = sgn(tgt_run)
 
+                ! set loop parameters
                 if (tPairedReplicas) then
-
-                    do src_run = 2-mod(tgt_run, 2), tgt_run - 2, 2
-                        delta = - sgn(src_run) * all_overlaps(src_run, tgt_run) &
-                                               / all_norms(src_run)
-                        sgn(tgt_run) = sgn(tgt_run) + delta
-                    end do
-
+                    low_loop_bound = 2-mod(tgt_run, 2)
+                    high_loop_bound = tgt_run-2
+                    loop_step = 2
                 else
+                    low_loop_bound = 1
+                    high_loop_bound = tgt_run-1
+                    loop_step = 1
+                endif
 
-                    do src_run = 1, tgt_run - 1
-                        delta = - sgn(src_run) * all_overlaps(src_run, tgt_run) &
-                                               / all_norms(src_run)
-                        sgn(tgt_run) = sgn(tgt_run) + delta
-                    end do
+                do src_run = low_loop_bound, high_loop_bound, loop_step
+#ifdef __CMPLX
+                    ! (a + ib)*(c + id) = ac - bd + i(ad +bc)
+                    delta_real = - ( sgn(min_part_type(src_run)) &
+                                    * all_overlaps_real(src_run, tgt_run) &
+                                 - sgn(max_part_type(src_run)) &
+                                    * all_overlaps_imag(src_run, tgt_run)) &
+                                           / all_norms(src_run)
+                    sgn(min_part_type(tgt_run)) = sgn(min_part_type(tgt_run)) + delta_real
 
-                end if
+                    delta_imag = - ( sgn(min_part_type(src_run)) &
+                                    * all_overlaps_imag(src_run, tgt_run) &
+                                 + sgn(max_part_type(src_run)) &
+                                    * all_overlaps_real(src_run, tgt_run)) &
+                                           / all_norms(src_run)
+                    sgn(max_part_type(tgt_run)) = sgn(max_part_type(tgt_run)) + delta_imag
+
+#else
+                    delta_real = - sgn(src_run) * all_overlaps_real(src_run, tgt_run) &
+                                           / all_norms(src_run)
+                    sgn(tgt_run) = sgn(tgt_run) + delta_real
+#endif                        
+                end do
 
                 call encode_sign(CurrentDets(:,j), sgn)
 
@@ -122,11 +152,56 @@ contains
                 !
                 ! n.b. These are the values _after_ orthogonalisation with
                 !      the previous runs
+#ifdef __CMPLX
+                ! (a+ib)*(a-ib) = a^2 + b^2
+                norms(tgt_run) = norms(tgt_run) &
+                    + sgn(min_part_type(tgt_run))**2 + sgn(max_part_type(tgt_run))**2
+#else                
                 norms(tgt_run) = norms(tgt_run) + sgn(tgt_run)**2
+#endif
                 do run = tgt_run + 1, inum_runs
-                    overlaps(tgt_run, run) = overlaps(tgt_run, run) &
-                                           + sgn(tgt_run) * sgn(run)
-                    overlaps(run, tgt_run) = 99999999.0_dp ! invalid
+#ifdef __CMPLX
+                    ! we want the inner product of the vectors:
+                    !        ___
+                    ! <n| =  \  ` [ a(n,r) - ib(n,r) ] <r|
+                    !        /__,
+                    !          r
+                    !        ___
+                    ! |m> =  \  ` [ a(n,r) + ib(n,r) ] |r>
+                    !        /__,
+                    !          r
+                    !          ___
+                    ! <n|m> =  \  ` a(n,r)*a(m,r) + b(n,r)*b(m,r)
+                    !          /__,   + i [ a(n,r)*b(m,r) - b(n,r)*a(m,r) ]
+                    !            r
+                    !
+                    ! Note that symmetry may no longer be assumed for the overlap matrix
+                    ! i.e. overlaps_real(n,m) =  overlaps_real(m,n), but
+                    !      overlaps_imag(n,m) = -overlaps_imag(m,n)
+                    ! only storing overlaps for run(m) > tgt_run(n):
+                    ! <n|m> =
+                    !  _             _
+                    ! |               |
+                    ! | x             |
+                    ! | x x           |
+                    ! | x x x         |
+                    ! | x x x x       |
+                    ! | x x x x x     |
+                    ! |_x x x x x x  _|
+
+                    overlaps_real(tgt_run, run) = overlaps_imag(tgt_run, run) &
+                                           + sgn(min_part_type(run))*sgn(min_part_type(tgt_run)) &
+                                           + sgn(max_part_type(run))*sgn(max_part_type(tgt_run))
+                    overlaps_imag(tgt_run, run) = overlaps_imag(tgt_run, run) &
+                                           + sgn(min_part_type(run))*sgn(max_part_type(tgt_run)) &
+                                           + sgn(max_part_type(run))*sgn(min_part_type(tgt_run))
+                    overlaps_real(run, tgt_run) = overlaps_real(tgt_run, run)
+                    overlaps_imag(run, tgt_run) = -overlaps_imag(tgt_run, run)
+#else
+                    overlaps_real(tgt_run, run) = overlaps_real(tgt_run, run) &
+                                           + sgn(run)*sgn(tgt_run)
+                    overlaps_real(run, tgt_run) = overlaps_real(tgt_run, run)
+#endif                    
                 end do
 
             end do
@@ -134,22 +209,27 @@ contains
             ! And ensure that the norm/overlap data is accumulated onto all
             ! of the processors.
             call MPISumAll(norms, all_norms)
-            call MPISumAll(overlaps, all_overlaps)
+            call MPISumAll(overlaps_real, all_overlaps_real)
+#ifdef __CMPLX
+            call MPISumAll(overlaps_imag, all_overlaps_imag)
+#endif
 
         end do
 
         ! Store a normalised overlap matrix for each of the replicas.
         do src_run = 1, inum_runs - 1
             do tgt_run = src_run + 1, inum_runs
-                replica_overlaps(src_run, tgt_run) = &
-                    all_overlaps(src_run, tgt_run) / &
+                replica_overlaps_real(src_run, tgt_run) = &
+                    all_overlaps_real(src_run, tgt_run) / &
                     sqrt(all_norms(src_run) * all_norms(tgt_run))
-                replica_overlaps(src_run, tgt_run) = &
-                    replica_overlaps(src_run, tgt_run)
+#ifdef __CMPLX
+                replica_overlaps_imag(src_run, tgt_run) = &
+                    all_overlaps_imag(src_run, tgt_run) / &
+                    sqrt(all_norms(src_run) * all_norms(tgt_run))
+#endif
             end do
         end do
 
-#endif
 
         ! We now need to aggregate statistics here, rather than at the end
         ! of annihilation, as they have been modified by this routine...
@@ -163,7 +243,10 @@ contains
 
     end subroutine orthogonalise_replicas
 
+
     subroutine orthogonalise_replica_pairs (iter_data)
+
+        ! complex walkers not supported here. This routine is never called: deprecated code?
 
         ! Apply a Gram Schmidt orthogonalisation to the different system
         ! replicas.
@@ -328,6 +411,8 @@ contains
     end subroutine orthogonalise_replica_pairs
 
     subroutine orthogonalise_replicas_2runs (iter_data)
+        
+        ! complex walkers not supported here. This routine is never called: deprecated code?
 
         ! Apply a Gram Schmidt orthogonalisation to the different system
         ! replicas.
@@ -627,11 +712,11 @@ contains
         ! Store a normalised overlap matrix for each of the replicas.
         do src_run = 1, inum_runs - 1
             do tgt_run = src_run + 1, inum_runs
-                replica_overlaps(src_run, tgt_run) = &
+                replica_overlaps_real(src_run, tgt_run) = &
                     all_overlaps(src_run, tgt_run) / &
                     sqrt(all_norms(src_run) * all_norms(tgt_run))
-                replica_overlaps(src_run, tgt_run) = &
-                    replica_overlaps(src_run, tgt_run)
+                replica_overlaps_real(src_run, tgt_run) = &
+                    replica_overlaps_real(src_run, tgt_run)
             end do
         end do
 

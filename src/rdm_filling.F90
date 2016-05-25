@@ -275,8 +275,12 @@ contains
             call Add_RDM_From_IJ_Pair(spawn, one_rdms, HFDet_True, nJ, AvSignHF(1::nreplicas), &
                                       (1.0_dp/real(nreplicas,dp))*IterRDM*AvSignJ(nreplicas::nreplicas), .true.)
 
-            call Add_RDM_From_IJ_Pair(spawn, one_rdms, HFDet_True, nJ, AvSignHF(nreplicas::nreplicas), &
-                                      (1.0_dp/real(nreplicas,dp))*IterRDM*AvSignJ(1::nreplicas), .true.)
+            ! When we have two replicas for each state being sampled, add in
+            ! the contribution using the opposite two replicas.
+            if (nreplicas == 2) then
+                call Add_RDM_From_IJ_Pair(spawn, one_rdms, HFDet_True, nJ, AvSignHF(nreplicas::nreplicas), &
+                                          (1.0_dp/real(nreplicas,dp))*IterRDM*AvSignJ(1::nreplicas), .true.)
+            end if
         end if
 
         ! Eliminate compiler warnings.

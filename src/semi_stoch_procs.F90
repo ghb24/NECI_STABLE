@@ -6,7 +6,7 @@
 module semi_stoch_procs
 
     use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag
-    use bit_reps, only: decode_bit_det
+    use bit_reps, only: decode_bit_det, get_initiator_flag_by_run
     use CalcData
     use constants
     use FciMCData, only: determ_sizes, determ_displs, determ_space_size, &
@@ -31,7 +31,7 @@ contains
         use FciMCData, only: SemiStoch_Multiply_Time
         use Parallel_neci, only: MPIBarrier, MPIAllGatherV
 
-        integer :: i, j, ierr
+        integer :: i, j, ierr, run, part_type
 
         call MPIBarrier(ierr)
 
@@ -57,12 +57,14 @@ contains
 #ifdef __CMPLX
             do i = 1, determ_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
-                    partial_determ_vecs(1,i) = partial_determ_vecs(1,i) - &
-                        Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(1,sparse_core_ham(i)%positions(j)) +&
-                        Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(2,sparse_core_ham(i)%positions(j))
-                    partial_determ_vecs(2,i) = partial_determ_vecs(2,i) - &
-                        Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(1,sparse_core_ham(i)%positions(j)) -&
-                        Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(2,sparse_core_ham(i)%positions(j))
+                    do run = 1, inum_runs
+                        partial_determ_vecs(min_part_type(run),i) = partial_determ_vecs(min_part_type(run),i) - &
+                            Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(min_part_type(run),sparse_core_ham(i)%positions(j)) +&
+                            Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(max_part_type(run),sparse_core_ham(i)%positions(j))
+                        partial_determ_vecs(max_part_type(run),i) = partial_determ_vecs(max_part_type(run),i) - &
+                            Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(min_part_type(run),sparse_core_ham(i)%positions(j)) -&
+                            Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(max_part_type(run),sparse_core_ham(i)%positions(j))
+                    end do
                 end do
             end do
 #else
@@ -78,8 +80,10 @@ contains
             ! sparse_core_ham.
 #ifdef __CMPLX
             do i = 1, determ_sizes(iProcIndex)
-                partial_determ_vecs(:,i) = partial_determ_vecs(:,i) + &
-                   DiagSft(1) * full_determ_vecs(:,i+determ_displs(iProcIndex))
+                do part_type  = 1, lenof_sign 
+                    partial_determ_vecs(part_type,i) = partial_determ_vecs(part_type,i) + &
+                       DiagSft(part_type_to_run(part_type)) * full_determ_vecs(part_type,i+determ_displs(iProcIndex))
+                enddo
             end do
 #else
             do i = 1, determ_sizes(iProcIndex)
@@ -638,7 +642,7 @@ contains
         use searching, only: BinSearchParts
         use sort_mod, only: sort
 
-        integer :: i, j, comp, MinInd, PartInd, nwalkers
+        integer :: i, run, comp, MinInd, PartInd, nwalkers
         logical :: tSuccess
 
         MinInd = 1
@@ -672,8 +676,8 @@ contains
             if (tSuccess) then
                 call set_flag(CurrentDets(:,PartInd), flag_deterministic)
                 if (tTruncInitiator) then
-                    do j = 1, lenof_sign
-                        call set_flag(CurrentDets(:,PartInd), flag_initiator(j))
+                    do run = 1, inum_runs
+                        call set_flag(CurrentDets(:,PartInd), get_initiator_flag_by_run(run))
                     end do
                 end if
                 MinInd = PartInd
@@ -839,7 +843,7 @@ contains
         integer, intent(in) :: n_keep
         integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
         real(dp), intent(out), optional :: norm
-        integer :: i, j, smallest_pos
+        integer :: i, j, smallest_pos, part_type
         real(dp) :: smallest_sign, sign_curr_real
         real(dp), dimension(lenof_sign) :: sign_curr, low_sign
 
@@ -853,7 +857,7 @@ contains
             call extract_sign(CurrentDets(:,i), sign_curr)
 
 #ifdef __CMPLX
-            sign_curr_real = sqrt(real(sign_curr(1),dp)**2 + real(sign_curr(lenof_sign),dp)**2)
+            sign_curr_real = sqrt(sum(real(sign_curr(1:lenof_sign)**2,dp)))
 #else
             sign_curr_real = sum(real(abs(sign_curr),dp))
 #endif
@@ -877,7 +881,7 @@ contains
                 do j = 2, n_keep
                     call extract_sign(largest_walkers(:,j), low_sign)
 #ifdef __CMPLX
-                    sign_curr_real = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
+                    sign_curr_real = sqrt(sum(real(low_sign**2,dp)))
 #else
                     sign_curr_real = sum(real(abs(low_sign),dp))
 #endif

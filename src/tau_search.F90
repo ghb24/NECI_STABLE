@@ -5,12 +5,13 @@ module tau_search
     use SystemData, only: AB_elec_pairs, par_elec_pairs, tGen_4ind_weighted, &
                           tHPHF, tCSF, tKpntSym, nel, G1, nbasis, &
                           AB_hole_pairs, par_hole_pairs, tGen_4ind_reverse, &
-                          nOccAlpha, nOccBeta, tUEG, tGen_4ind_2
+                          nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, tReltvy
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
-                        InitiatorWalkNo, tWalkContGrow
+                        InitiatorWalkNo, tWalkContGrow, t_min_tau, min_tau_global
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          ProjEDet, ilutRef, MaxTau, tSearchTau, &
-                         tSearchTauOption, tSearchTauDeath
+                         tSearchTauOption, tSearchTauDeath, &
+                         pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
     use GenRandSymExcitNUMod, only: construct_class_counts, &
                                     init_excit_gen_store, clean_excit_gen_store
     use SymExcit3, only: GenExcitations3
@@ -20,6 +21,7 @@ module tau_search
     use HPHF_integrals, only: hphf_off_diag_helement_norm
     use SymExcitDataMod, only: excit_gen_store_type
     use bit_rep_data, only: NIfTot
+    use bit_reps, only: getExcitationType
     use DetBitOps, only: FindBitExcitLevel, TestClosedShellDet, &
                          EncodeBitDet
     use sym_general_mod, only: SymAllowedExcit
@@ -28,10 +30,13 @@ module tau_search
     implicit none
 
     real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt
+    real(dp) :: gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2
+    real(dp) :: gamma_sum
     real(dp) :: max_permitted_spawn
     integer :: cnt_sing, cnt_doub, cnt_opp, cnt_par
     integer :: n_opp, n_par
     logical :: enough_sing, enough_doub, enough_opp, enough_par
+!    logical :: enough_sing_spindiff1, enough_doub_spindiff1, enough_doub_spindiff2
     logical :: consider_par_bias
 
 contains
@@ -46,6 +51,11 @@ contains
         gamma_doub = 0
         gamma_opp = 0
         gamma_par = 0
+        if (tReltvy) then
+            gamma_sing_spindiff1 = 0
+            gamma_doub_spindiff1 = 0
+            gamma_doub_spindiff2 = 0
+        endif
 
         ! And what is the maximum death-component found
         max_death_cpt = 0
@@ -54,12 +64,18 @@ contains
         ! early
         cnt_sing = 0
         cnt_doub = 0
+!        cnt_sing_spindiff1 = 0
+!        cnt_doub_spindiff1 = 0
+!        cnt_doub_spindiff2 = 0
         cnt_opp = 0
         cnt_par = 0
         enough_sing = .false.
         enough_doub = .false.
         enough_opp = .false.
         enough_par = .false.
+ !       enough_sing_spindiff1 = .false.
+ !       enough_doub_spindiff1 = .false.
+ !       enough_doub_spindiff2 = .false.
 
         ! Unless it is already specified, set an initial value for tau
         if (.not. tRestart .and. .not. tReadPops .and. tau == 0) &
@@ -124,9 +140,10 @@ contains
         real(dp), intent(in) :: prob, matel
         real(dp) :: tmp_gamma, tmp_prob
         integer, parameter :: cnt_threshold = 50
-
-        if (ic == 1) then
-
+      
+        select case(getExcitationType(ex, ic))
+        case(1)
+            ! no spin changing
             ! Log the details if necessary!
             tmp_prob = prob / pSingles
             tmp_gamma = abs(matel) / tmp_prob
@@ -137,58 +154,110 @@ contains
             if (.not. enough_sing) then
                 cnt_sing = cnt_sing + 1
                 if (cnt_sing > cnt_threshold) enough_sing = .true.
-            end if
+            endif
 
-        else
+        case(3)
+            ! single spin changing
+            ! Log the details if necessary!
+            tmp_prob = prob / pSing_spindiff1
+            tmp_gamma = abs(matel) / tmp_prob
+            if (tmp_gamma > gamma_sing_spindiff1) &
+                gamma_sing_spindiff1 = tmp_gamma
             
+            ! And keep count!
+            if (.not. enough_sing) then
+                cnt_sing = cnt_sing + 1
+                if (cnt_sing > cnt_threshold) enough_sing = .true.
+            endif
+           
+        case(2) 
             ! We need to unbias the probability for pDoubles
             tmp_prob = prob / pDoubles
 
-            ! We need to deal with the doubles
-            if (consider_par_bias) then
+            ! We are not playing around with the same/opposite spin bias
+            ! then we should just treat doubles like the singles
+            tmp_gamma = abs(matel) / tmp_prob
+            if (tmp_gamma > gamma_doub) &
+                gamma_doub = tmp_gamma
+            ! And keep count
+            if (.not. enough_doub) then
+                cnt_doub = cnt_doub + 1
+                if (cnt_doub > cnt_threshold) enough_doub = .true.
+            endif
 
-                ! In this case, distinguish between parallel and oppisite spins
-                if (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2))) then
-                    tmp_prob = tmp_prob / pParallel
-                    tmp_gamma = abs(matel) / tmp_prob
-                    if (tmp_gamma > gamma_par) &
-                        gamma_par = tmp_gamma
+        case(4) 
+            ! We need to unbias the probability for pDoubles
+            tmp_prob = prob / pDoub_spindiff1
+            ! We are not playing around with the same/opposite spin bias
+            ! then we should just treat doubles like the singles
+            tmp_gamma = abs(matel) / tmp_prob
+            if (tmp_gamma > gamma_doub_spindiff1) &
+                gamma_doub_spindiff1 = tmp_gamma
+            ! And keep count
+            if (.not. enough_doub) then
+                cnt_doub = cnt_doub + 1
+                if (cnt_doub > cnt_threshold) enough_doub = .true.
+            endif
 
-                    ! And keep count
-                    if (.not. enough_par) then
-                        cnt_par = cnt_par + 1
-                        if (cnt_par > cnt_threshold) enough_par = .true.
+        case(5) 
+            ! We need to unbias the probability for pDoubles
+            tmp_prob = prob / pDoub_spindiff2
+
+            ! We are not playing around with the same/opposite spin bias
+            ! then we should just treat doubles like the singles
+            tmp_gamma = abs(matel) / tmp_prob
+            if (tmp_gamma > gamma_doub_spindiff2) &
+                gamma_doub_spindiff2 = tmp_gamma
+            ! And keep count
+            if (.not. enough_doub) then
+                cnt_doub = cnt_doub + 1
+                if (cnt_doub > cnt_threshold) enough_doub = .true.
+            endif
+        end select
+
+
+        ! We need to deal with the doubles
+        if (getExcitationType(ex, ic)==2 .and. consider_par_bias) then
+            ! In this case, distinguish between parallel and oppisite spins
+            if (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2))) then
+                tmp_prob = tmp_prob / pParallel
+                tmp_gamma = abs(matel) / tmp_prob
+                if (tmp_gamma > gamma_par) &
+                    gamma_par = tmp_gamma
+        
+                ! And keep count
+                if (.not. enough_par) then
+                    cnt_par = cnt_par + 1
+                    if (cnt_par > cnt_threshold) enough_par = .true.
                         if (enough_opp .and. enough_par) enough_doub = .true.
                     end if
                 else
-                    tmp_prob = tmp_prob / (1.0_dp - pParallel)
-                    tmp_gamma = abs(matel) / tmp_prob
-                    if (tmp_gamma > gamma_opp) &
-                        gamma_opp = tmp_gamma
-
-                    ! And keep count
-                    if (.not. enough_opp) then
-                        cnt_opp = cnt_opp + 1
-                        if (cnt_opp > cnt_threshold) enough_opp = .true.
-                        if (enough_opp .and. enough_par) enough_doub = .true.
-                    end if
-                end if
-            else
-                ! We are not playing around with the same/opposite spin bias
-                ! then we should just treat doubles like the singles
+                tmp_prob = tmp_prob / (1.0_dp - pParallel)
                 tmp_gamma = abs(matel) / tmp_prob
-                if (tmp_gamma > gamma_doub) &
-                    gamma_doub = tmp_gamma
-
+                if (tmp_gamma > gamma_opp) &
+                    gamma_opp = tmp_gamma
+        
                 ! And keep count
-                if (.not. enough_doub) then
-                    cnt_doub = cnt_doub + 1
-                    if (cnt_doub > cnt_threshold) enough_doub = .true.
+                if (.not. enough_opp) then
+                    cnt_opp = cnt_opp + 1
+                    if (cnt_opp > cnt_threshold) enough_opp = .true.
+                    if (enough_opp .and. enough_par) enough_doub = .true.
                 end if
             end if
-
+        else
+        ! We are not playing around with the same/opposite spin bias
+        ! then we should just treat doubles like the singles
+        tmp_gamma = abs(matel) / tmp_prob
+        if (tmp_gamma > gamma_doub) &
+            gamma_doub = tmp_gamma
+        
+            ! And keep count
+            if (.not. enough_doub) then
+                cnt_doub = cnt_doub + 1
+                if (cnt_doub > cnt_threshold) enough_doub = .true.
+            end if
         end if
-
+           
     end subroutine
 
     subroutine log_death_magnitude (mult)
@@ -209,6 +278,7 @@ contains
         use FcimCData, only: iter
 
         real(dp) :: psingles_new, tau_new, mpi_tmp, tau_death, pParallel_new
+        real(dp) :: pSing_spindiff1_new, pDoub_spindiff1_new, pDoub_spindiff2_new
         logical :: mpi_ltmp
         character(*), parameter :: this_routine = "update_tau"
 
@@ -246,16 +316,32 @@ contains
 
         end if
 
-        ! What needs doing depends on the number of parametrs that are being
+        ! What needs doing depends on the number of parameters that are being
         ! updated.
+
         call MPIAllLORLogical(enough_sing, mpi_ltmp)
         enough_sing = mpi_ltmp
         call MPIAllLORLogical(enough_doub, mpi_ltmp)
         enough_doub = mpi_ltmp
 
-        if (consider_par_bias) then
+        ! Only considering a direct singles/doubles bias
+        call MPIAllReduce (gamma_sing, MPI_MAX, mpi_tmp)
+        gamma_sing = mpi_tmp
+        call MPIAllReduce (gamma_doub, MPI_MAX, mpi_tmp)
+        gamma_doub = mpi_tmp
+        if (tReltvy) then
+            call MPIAllReduce (gamma_sing_spindiff1, MPI_MAX, mpi_tmp)
+            gamma_sing_spindiff1 = mpi_tmp
+            call MPIAllReduce (gamma_doub_spindiff1, MPI_MAX, mpi_tmp)
+            gamma_doub_spindiff1 = mpi_tmp
+            call MPIAllReduce (gamma_doub_spindiff2, MPI_MAX, mpi_tmp)
+            gamma_doub_spindiff2 = mpi_tmp
+            gamma_sum = gamma_sing + gamma_sing_spindiff1 + gamma_doub + gamma_doub_spindiff1 + gamma_doub_spindiff2
+        else
+            gamma_sum = gamma_sing + gamma_doub
+        endif
 
-            ! Considering two types of double exctitaion...
+        if (consider_par_bias) then
             call MPIAllReduce (gamma_sing, MPI_MAX, mpi_tmp)
             gamma_sing = mpi_tmp
             call MPIAllReduce (gamma_opp, MPI_MAX, mpi_tmp)
@@ -319,6 +405,10 @@ contains
         max_death_cpt = mpi_tmp
         tau_death = 1.0_dp / max_death_cpt
         if (tau_death < tau_new) then
+            if (t_min_tau) then
+                root_print "time-step reduced, due to death events! reset min_tau to:", tau_death
+                min_tau_global = tau_death
+            end if
             tau_new = tau_death
         end if
 
@@ -336,7 +426,18 @@ contains
             tau_new = tau_new * 0.99999_dp
 
             if (abs(tau - tau_new) / tau > 0.001_dp) then
-                root_print "Updating time-step. New time-step = ", tau_new
+                if (t_min_tau) then
+                    if (tau_new < min_tau_global) then 
+                        root_print "new time-step less than min_tau! set to min_tau:", min_tau_global
+
+                        tau_new = min_tau_global
+                    else
+                        root_print "Updating time-step. New time-step = ", tau_new
+                    end if
+                else
+                    root_print "Updating time-step. New time-step = ", tau_new
+                end if
+
             end if
             tau = tau_new
 
@@ -352,8 +453,22 @@ contains
                     psingles_new, ", pDoubles = ", 1.0_dp - psingles_new
             end if
             pSingles = psingles_new
-            pDoubles = 1.0_dp - pSingles
+            if (tReltvy) then
+                pSing_spindiff1 = pSing_spindiff1_new
+                pDoub_spindiff1 = pDoub_spindiff1_new
+                pDoub_spindiff2 = pDoub_spindiff2_new
+                pDoubles = 1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2
+            else
+                pDoubles = 1.0_dp - pSingles
+            endif
         end if
+
+
+        !write(*,*) "pSingles", pSingles
+        !write(*,*) "pSing_spindiff1", pSing_spindiff1
+        !write(*,*) "pDoubles", pDoubles
+        !write(*,*) "pDoub_spindiff1", pDoub_spindiff1
+        !write(*,*) "pDoub_spindiff2", pDoub_spindiff2
 
     end subroutine
 
@@ -368,6 +483,7 @@ contains
         ! excitation generators, which is exciting!
 
         use neci_intfce
+        use SymExcit4, only : GenExcitations4, ExcitGenSessionType
         type(excit_gen_store_type) :: store, store2
         logical :: tAllExcitFound,tParity,tSameFunc,tSwapped,tSign
         character(len=*), parameter :: t_r="FindMaxTauDoubs"
@@ -377,6 +493,8 @@ contains
         HElement_t(dp) :: hel
         integer :: ic,nJ(nel),nJ2(nel),ierr,iExcit,ex_saved(2,2)
         integer(kind=n_int) :: iLutnJ(0:niftot),iLutnJ2(0:niftot)
+
+        type(ExcitGenSessionType) :: session
 
         if(tCSF) call stop_all(t_r,"TauSearching needs fixing to work with CSFs or MI funcs")
 
@@ -429,7 +547,12 @@ contains
                 ex(1,1) = ic
                 call GetExcitation(ProjEDet(:,1),nJ,Nel,ex,tParity)
             else
-                CALL GenExcitations3(ProjEDet(:,1),iLutRef(:,1),nJ,exflag,Ex_saved,tParity,tAllExcitFound,.false.)
+                if (tReltvy) then
+                    call GenExcitations4(session, ProjEDet(:,1), nJ, exflag, ex_saved, tParity, tAllExcitFound, .false.)
+                else
+                    CALL GenExcitations3(ProjEDet(:,1),iLutRef(:,1),nJ,exflag,Ex_saved,tParity,tAllExcitFound,.false.)
+                endif
+
                 IF(tAllExcitFound) EXIT
                 Ex(:,:) = Ex_saved(:,:)
                 if(Ex(2,2).eq.0) then

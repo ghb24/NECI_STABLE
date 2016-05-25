@@ -3,7 +3,7 @@
 module sym_general_mod
 
     use SystemData, only: tFixLz, tNoSymGenRandExcits, iMaxLz, G1, nel, &
-                          Symmetry, tKpntSym
+                          Symmetry, tKpntSym, tReltvy
     use SymExcitDataMod
     use Symdata, only: nSymLabels
     use sym_mod, only: SYMPROD, RandExcitSymLabelProd, symeq
@@ -290,7 +290,7 @@ contains
                 ms2 = G1(ex(2,1))%ms
             end if
             if (.not. SYMEQ(sym_prod1, sym_prod2)) bValid = .false.
-            if (ms1 /= ms2) bValid = .false.
+            if (ms1 /= ms2 .and.(.not.tReltvy)) bValid = .false.
         end if
 
         ! Check that Lz angular momentum projection is preserved if necessary
