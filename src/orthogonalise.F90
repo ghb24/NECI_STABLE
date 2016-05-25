@@ -43,7 +43,6 @@ contains
         logical :: tCoreDet
         character(*), parameter :: this_routine = 'orthogonalise_replicas'
 
-        ASSERT(.not.tPairedReplicas)
 #ifndef __PROG_NUMRUNS
         call stop_all(this_routine, "orthogonalise replicas requires mneci.x")
 #endif
