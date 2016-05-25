@@ -171,10 +171,13 @@ MODULE Logging
 
         ! Read the logging section from the input file
 
-        logical eof
+        logical :: eof
+        logical tUseOnlySingleReplicas
         integer :: i, ierr
         character(100) :: w
         character(*), parameter :: t_r = 'LogReadInput'
+
+      tUseOnlySingleReplicas = .false.
 
       ILogging=iLoggingDef
 
@@ -491,6 +494,15 @@ MODULE Logging
             tHistInitPops=.true.
             call readi(HistInitPopsIter)
 
+        case("UNPAIRED-REPLICAS")
+            tUseOnlySingleReplicas = .true.
+#if defined(__PROG_NUMRUNS)
+            tPairedReplicas = .false.
+            nreplicas = 1
+#elif defined(__DOUBLERUN)
+            call stop_all(t_r, "The unpaired-replicas option cannot be used with the dneci.x executable.")
+#endif
+
         case("CALCRDMONFLY")
 !This keyword sets the calculation to calculate the reduced density matrix on the fly.  
 !This starts at IterRDMonFly iterations after the shift changes.
@@ -504,8 +516,10 @@ MODULE Logging
 
 #if defined(__PROG_NUMRUNS)
             ! With this option, we want to use pairs of replicas.
-            tPairedReplicas = .true.
-            nreplicas = 2
+            if (.not. tUseOnlySingleReplicas) then
+                tPairedReplicas = .true.
+                nreplicas = 2
+            end if
 #elif defined(__DOUBLERUN)
             tPairedReplicas = .true.
 #endif
