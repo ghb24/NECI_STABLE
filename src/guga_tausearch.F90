@@ -611,9 +611,11 @@ contains
 
             ratio_singles = ratio_singles * pSingles
 
-            print *, "ratio singles: ", ratio_singles
-            print *, "gamma singles: ", gamma_sing
-            print *, "improv single: ", gamma_sing / ratio_singles
+#ifdef __DEBUG
+            root_print "ratio singles: ", ratio_singles
+            root_print "gamma singles: ", gamma_sing
+            root_print "improv single: ", gamma_sing / ratio_singles
+#endif
 
             if (t_consider_diff_bias) then 
                 ! i have to do that above too.. only check mixed excitaitons 
@@ -647,25 +649,27 @@ contains
 
                 ratio_type4 = ratio_type4 * pDoubles * pExcit4
 
-                print *, "ratio type2: ", ratio_type2
-                print *, "gamma type2: ", gamma_two_same
-                print *, "improv type2: ", gamma_two_same / ratio_type2
+#ifdef __DEBUG
+                root_print "ratio type2: ", ratio_type2
+                root_print "gamma type2: ", gamma_two_same
+                root_print "improv type2: ", gamma_two_same / ratio_type2
 
-                print *, "ratio type2 diff: ", ratio_type2_diff
-                print *, "gamma type2 diff: ", gamma_two_mixed
-                print *, "improv type2 diff: ", gamma_two_mixed / ratio_type2_diff
+                root_print "ratio type2 diff: ", ratio_type2_diff
+                root_print "gamma type2 diff: ", gamma_two_mixed
+                root_print "improv type2 diff: ", gamma_two_mixed / ratio_type2_diff
 
-                print *, "ratio type3: ", ratio_type3
-                print *, "gamma type3: ", gamma_three_same
-                print *, "improv type3: ", gamma_three_same / ratio_type3
+                root_print "ratio type3: ", ratio_type3
+                root_print "gamma type3: ", gamma_three_same
+                root_print "improv type3: ", gamma_three_same / ratio_type3
 
-                print *, "ratio type3 diff: ", ratio_type3_diff
-                print *, "gamma type3 diff: ", gamma_three_mixed
-                print *, "improv type3 diff: ", gamma_three_mixed / ratio_type3_diff
+                root_print "ratio type3 diff: ", ratio_type3_diff
+                root_print "gamma type3 diff: ", gamma_three_mixed
+                root_print "improv type3 diff: ", gamma_three_mixed / ratio_type3_diff
 
-                print *, "ratio type4: ", ratio_type4
-                print *, "gamma type4: ", gamma_four
-                print *, "improv type4: ", gamma_four / ratio_type4
+                root_print "ratio type4: ", ratio_type4
+                root_print "gamma type4: ", gamma_four
+                root_print "improv type4: ", gamma_four / ratio_type4
+#endif
 
                 ratio_doubles = ratio_type2 + ratio_type2_diff + ratio_type3 + &
                     ratio_type3_diff + ratio_type4
@@ -719,9 +723,11 @@ contains
 
                 end if
 
+#ifdef __DEBUG
                 root_print "new time-step test: ", tau_new 
                 root_print "time-step improv: ", tau_new / tau
                 root_print "tau death: ", tau_death
+#endif
 
 
             else 
@@ -755,17 +761,19 @@ contains
                 ! na des passt schon.. ich dividiers halt hier wieder raus 
                 ! um die "richtige" wahrscheinlichkeit zu kriegen.. 
 
-                print *, "ratio type2: ", ratio_type2
-                print *, "gamma type2: ", gamma_two_same
-                print *, "improv type2: ", gamma_two_same / ratio_type2
+#ifdef __DEBUG
+                root_print "ratio type2: ", ratio_type2
+                root_print "gamma type2: ", gamma_two_same
+                root_print "improv type2: ", gamma_two_same / ratio_type2
 
-                print *, "ratio type3: ", ratio_type3
-                print *, "gamma type3: ", gamma_three_same
-                print *, "improv type3: ", gamma_three_same / ratio_type3
+                root_print "ratio type3: ", ratio_type3
+                root_print "gamma type3: ", gamma_three_same
+                root_print "improv type3: ", gamma_three_same / ratio_type3
 
-                print *, "ratio type4: ", ratio_type4
-                print *, "gamma type4: ", gamma_four
-                print *, "improv type4: ", gamma_four / ratio_type4
+                root_print "ratio type4: ", ratio_type4
+                root_print "gamma type4: ", gamma_four
+                root_print "improv type4: ", gamma_four / ratio_type4
+#endif
 
                 if (enough_sing .and. enough_doub) then 
                     pExcit4_new = ratio_type4 / ratio_doubles 
@@ -800,9 +808,11 @@ contains
 
                 end if
 
+#ifdef __DEBUG
                 root_print "new time-step test: ", tau_new 
                 root_print "time-step improv: ", tau_new / tau
                 root_print "tau death: ", tau_death
+#endif
 
             end if
         end if

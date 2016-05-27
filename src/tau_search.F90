@@ -586,9 +586,11 @@ contains
                 frequency_bins_singles, ratio_singles) 
 
             ratio_singles = ratio_singles * pSingles
-            print *, "ratio singles: ", ratio_singles 
-            print *, "gamma singles: ", gamma_sing
-            print *, "improv single: ", gamma_sing / ratio_singles
+#ifdef __DEBUG
+            root_print "ratio singles: ", ratio_singles 
+            root_print "gamma singles: ", gamma_sing
+            root_print "improv single: ", gamma_sing / ratio_singles
+#endif
 
             if (tGen_4ind_weighted .or. tGen_4ind_2) then 
                 ! sum up all 3 ratios: single, parallel and anti-parallel
@@ -601,12 +603,15 @@ contains
                 ! to compare the influences on the time-step:
                 ratio_para = ratio_para * pDoubles * pParallel
                 ratio_anti = ratio_anti * pDoubles * (1.0_dp - pParallel)
-                print *, "ratio para: ", ratio_para 
-                print *, "gamma para: ", gamma_par  
-                print *, "improve para: ", gamma_par / ratio_para
-                print *, "ratio anti: ", ratio_anti 
-                print *, "gamma anti: ", gamma_opp
-                print *, "improv anti: ", gamma_opp / ratio_anti
+
+#ifdef __DEBUG
+                root_print "ratio para: ", ratio_para 
+                root_print "gamma para: ", gamma_par  
+                root_print "improve para: ", gamma_par / ratio_para
+                root_print "ratio anti: ", ratio_anti 
+                root_print "gamma anti: ", gamma_opp
+                root_print "improv anti: ", gamma_opp / ratio_anti
+#endif
 
                 ! also calculate new time-step through this method and 
                 ! check the difference to the old method 
@@ -637,9 +642,11 @@ contains
                         pDoubles * (1.0_dp - pParallel) / ratio_anti)
                 end if
 
+#ifdef __DEBUG
                 root_print "new time-step test: ", tau_new
                 root_print "time-step improv: ", tau_new / tau
                 root_print "tau death: ", tau_death
+#endif
 
                 ! enough_doub implies that both enough_opp and enough_par are 
                 ! true.. so this if statement makes no sense 
@@ -658,9 +665,11 @@ contains
 
                 ! to compare the influences on the time-step:
                 ratio_doubles = ratio_doubles * pDoubles
-                print *, "ratio doubles: ", ratio_doubles 
-                print *, "gamma doubles: ", gamma_doub
-                print *, "improv doubles: ", gamma_doub / ratio_doubles
+#ifdef __DEBUG
+                root_print "ratio doubles: ", ratio_doubles 
+                root_print "gamma doubles: ", gamma_doub
+                root_print "improv doubles: ", gamma_doub / ratio_doubles
+#endif
 
                 if (enough_sing .and. enough_doub) then 
                     psingles_new = ratio_singles / (ratio_doubles + ratio_singles)
@@ -685,9 +694,11 @@ contains
 
                 end if
 
+#ifdef __DEBUG
                 root_print "new time-step test: ", tau_new
                 root_print "time-step improv: ", tau_new / tau
                 root_print "tau death: ", tau_death
+#endif
 
             else
                 ! for any other excitation generator just use one histogram
