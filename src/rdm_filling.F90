@@ -47,37 +47,23 @@ contains
 
                 adapted_sign = 0.0_dp
 
-                if (tPairedReplicas) then
-                    do irdm = 1, nrdms
+                do irdm = 1, nrdms
+                    ! The indicies of the first and second replicas in this
+                    ! particular pair, in the *average* sign arrays (and
+                    ! therefore also for the iter_occ array).
+                    av_ind_1 = irdm*2-1
+                    av_ind_2 = irdm*2
 
-                        ! The indicies of the first and second replicas in this
-                        ! particular pair, in the *average* sign arrays (and
-                        ! therefore also for the iter_occ array).
-                        av_ind_1 = irdm*2-1
-                        av_ind_2 = irdm*2
+                    if ((abs(curr_sign(ind(1,irdm))) < 1.0e-10_dp .and. abs(iter_occ(av_ind_1)) > 1.0e-10_dp) .or. &
+                        (abs(curr_sign(ind(2,irdm))) < 1.0e-10_dp .and. abs(iter_occ(av_ind_2)) > 1.0e-10_dp) .or. &
+                        (abs(curr_sign(ind(1,irdm))) > 1.0e-10_dp .and. abs(iter_occ(av_ind_1)) < 1.0e-10_dp) .or. &
+                        (abs(curr_sign(ind(2,irdm))) > 1.0e-10_dp .and. abs(iter_occ(av_ind_2)) < 1.0e-10_dp)) then
 
-                        if ((abs(curr_sign(ind(1,irdm))) < 1.0e-10_dp .and. abs(iter_occ(av_ind_1)) > 1.0e-10_dp) .or. &
-                            (abs(curr_sign(ind(2,irdm))) < 1.0e-10_dp .and. abs(iter_occ(av_ind_2)) > 1.0e-10_dp) .or. &
-                            (abs(curr_sign(ind(1,irdm))) > 1.0e-10_dp .and. abs(iter_occ(av_ind_1)) < 1.0e-10_dp) .or. &
-                            (abs(curr_sign(ind(2,irdm))) > 1.0e-10_dp .and. abs(iter_occ(av_ind_2)) < 1.0e-10_dp)) then 
-
-                            ! In this case we want to include this diagonal element,
-                            ! so transfer the sign.
-                            adapted_sign(av_ind_1:av_ind_2) = av_sign(av_ind_1:av_ind_2)
-                        end if
-                    end do
-
-                else
-
-                    do irdm = 1, nrdms
-                        if (abs(curr_sign(ind(1,irdm))) < 1.0e-10_dp) then
-                            ! If this RDM sign has gone to zero, then we want to add
-                            ! the contribution for this RDM.
-                            adapted_sign(irdm) = av_sign(irdm)
-                        end if
-                    end do
-
-                end if
+                        ! In this case we want to include this diagonal element,
+                        ! so transfer the sign.
+                        adapted_sign(av_ind_1:av_ind_2) = av_sign(av_ind_1:av_ind_2)
+                    end if
+                end do
 
                 ! At least one of the signs has just gone to zero or just become
                 ! reoccupied, so we need to add in diagonal elements and connections to HF
@@ -138,7 +124,7 @@ contains
         ! energy was calculated.
         IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter)
 
-        AvSignIters_new = int(min(IterDetOcc_all(1::nreplicas), IterDetOcc_all(nreplicas::nreplicas)))
+        AvSignIters_new = int(min(IterDetOcc_all(1::2), IterDetOcc_all(2::2)))
 
         ! The number of iterations we want to weight this RDM contribution by is:
         if (IterLastRDMFill > 0) then
@@ -154,7 +140,7 @@ contains
                 if (RDMExcitLevel == 1) then
                     call fill_diag_1rdm(one_rdms, nI, av_sign/sqrt(2.0_dp), tCoreSpaceDet, IterRDM_new)
                 else
-                    full_sign = IterRDM_new*av_sign(1::nreplicas)*av_sign(nreplicas::nreplicas)/2.0_dp
+                    full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)/2.0_dp
                     call fill_spawn_rdm_diag(spawn, nI, full_sign)
                 end if
 
@@ -170,7 +156,7 @@ contains
                     call fill_diag_1rdm(one_rdms, nSpinCoup, real(SignFac,dp)*av_sign/sqrt(2.0_dp), &
                                        tCoreSpaceDet, IterRDM_new)
                 else
-                    full_sign = IterRDM_new*av_sign(1::nreplicas)*av_sign(nreplicas::nreplicas)/2.0_dp
+                    full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)/2.0_dp
                     call fill_spawn_rdm_diag(spawn, nI, full_sign)
                 end if
 
@@ -181,8 +167,8 @@ contains
                 HPHFExcitLevel = FindBitExcitLevel(iLutnI, SpinCoupDet, 2)
                 if (HPHFExcitLevel <= 2) then 
                     call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nSpinCoup, &
-                                              IterRDM_new*av_sign(1::nreplicas)/sqrt(2.0_dp), &
-                                              (real(SignFac,dp)*av_sign(nreplicas::nreplicas))/sqrt(2.0_dp), .true.)
+                                              IterRDM_new*av_sign(1::2)/sqrt(2.0_dp), &
+                                              (real(SignFac,dp)*av_sign(2::2))/sqrt(2.0_dp), .true.)
                 end if
             else
 
@@ -190,7 +176,7 @@ contains
                 if (RDMExcitLevel == 1) then
                     call fill_diag_1rdm(one_rdms, nI, av_sign, tCoreSpaceDet, IterRDM_new)
                 else
-                    full_sign = IterRDM_new*av_sign(1::nreplicas)*av_sign(nreplicas::nreplicas)
+                    full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)
                     call fill_spawn_rdm_diag(spawn, nI, full_sign)
                 end if
 
@@ -199,11 +185,11 @@ contains
 
         else
             ! Not using HPHFs.
-            if (any(abs(av_sign(1::nreplicas) * av_sign(nreplicas::nreplicas)) > 1.0e-10_dp)) then
+            if (any(abs(av_sign(1::2) * av_sign(2::2)) > 1.0e-10_dp)) then
                 if (RDMExcitLevel == 1) then
                     call fill_diag_1rdm(one_rdms, nI, av_sign, tCoreSpaceDet, IterRDM_new)
                 else
-                    full_sign = IterRDM_new*av_sign(1::nreplicas)*av_sign(nreplicas::nreplicas)
+                    full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)
                     call fill_spawn_rdm_diag(spawn, nI, full_sign)
                 end if
             end if
@@ -272,15 +258,13 @@ contains
         ! If we have a single or double, add in the connection to the HF,
         ! symmetrically.
         if ((walkExcitLevel == 1) .or. (walkExcitLevel == 2)) then
-            call Add_RDM_From_IJ_Pair(spawn, one_rdms, HFDet_True, nJ, AvSignHF(1::nreplicas), &
-                                      (1.0_dp/real(nreplicas,dp))*IterRDM*AvSignJ(nreplicas::nreplicas), .true.)
+            call Add_RDM_From_IJ_Pair(spawn, one_rdms, HFDet_True, nJ, AvSignHF(1::2), &
+                                      0.5_dp*IterRDM*AvSignJ(2::2), .true.)
 
             ! When we have two replicas for each state being sampled, add in
             ! the contribution using the opposite two replicas.
-            if (nreplicas == 2) then
-                call Add_RDM_From_IJ_Pair(spawn, one_rdms, HFDet_True, nJ, AvSignHF(nreplicas::nreplicas), &
-                                          (1.0_dp/real(nreplicas,dp))*IterRDM*AvSignJ(1::nreplicas), .true.)
-            end if
+            call Add_RDM_From_IJ_Pair(spawn, one_rdms, HFDet_True, nJ, AvSignHF(2::2), &
+                                      0.5_dp*IterRDM*AvSignJ(1::2), .true.)
         end if
 
         ! Eliminate compiler warnings.
@@ -311,8 +295,8 @@ contains
         ! add in the diagonal elements of this connection as well -
         ! symmetrically because no probabilities are involved.
         if ((walkExcitLevel == 1) .or. (walkExcitLevel == 2)) then
-            call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutHF_True, iLutJ, HFDet_True, nJ, AvSignHF(1::nreplicas), &
-                                          IterRDM*AvSignJ(nreplicas::nreplicas), .true.)
+            call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutHF_True, iLutJ, HFDet_True, nJ, AvSignHF(1::2), &
+                                          IterRDM*AvSignJ(2::2), .true.)
         end if
 
     end subroutine Add_RDM_HFConnections_HPHF
@@ -408,6 +392,11 @@ contains
                 input_sign_i(rdm_ind) = realSignI
                 input_sign_j(rdm_ind) = real_sign_j_all(dest_part_type)
 
+                ! If the two FCIQMC simulations involved are different then we
+                ! need a factor of a half, since spawning can occur from
+                ! from either of the two simulations.
+                if (dest_part_type /= source_part_type) input_sign_i = 0.5_dp*input_sign_i
+
                 ! Given the Di,Dj and Ci,Cj - find the orbitals involved in the
                 ! excitation, and therefore the RDM elements we want to add the
                 ! Ci.Cj to. We have to halve the contributions for DR as we're
@@ -415,10 +404,9 @@ contains
                 ! pop 1 and pop 2 -- i.e., double counted wrt diagonal elements.
                 if (tHPHF) then
                     call Fill_Spin_Coupled_RDM(spawn, one_rdms, Spawned_Parents(0:NIfDBO,i), iLutJ, &
-                                               nI, nJ, (1.0_dp/real(nreplicas,dp))*input_sign_i, input_sign_j, .false.)
+                                               nI, nJ, input_sign_i, input_sign_j, .false.)
                 else
-                    call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, &
-                                              (1.0_dp/real(nreplicas,dp))*input_sign_i, input_sign_j, .false.)
+                    call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, input_sign_i, input_sign_j, .false.)
                 end if
             end do
 
@@ -682,7 +670,7 @@ contains
                 ind = SymLabelListInv_rot(gtID(nI(i)))
             end if
 
-            final_contrib = contrib_sign(1::nreplicas) * contrib_sign(nreplicas::nreplicas) * RDMIters * ScaleContribFac
+            final_contrib = contrib_sign(1::2) * contrib_sign(2::2) * RDMIters * ScaleContribFac
 
             do irdm = 1, size(one_rdms)
                 one_rdms(irdm)%matrix(ind,ind) = one_rdms(irdm)%matrix(ind,ind) + final_contrib(irdm)
@@ -805,7 +793,7 @@ contains
                 if (DetBitEq(iLutJ, iLutHF_True, NifDBO)) cycle
                 
                 do irdm = 1, nrdms
-                    AvSignJ(irdm) = full_determ_vecs_av(signs_for_rdm(nreplicas, irdm), core_connections(i)%positions(j))
+                    AvSignJ(irdm) = full_determ_vecs_av(signs_for_rdm(2, irdm), core_connections(i)%positions(j))
                 end do
 
                 connect_elem = core_connections(i)%elements(j)
@@ -814,9 +802,6 @@ contains
 
                 if (sign(1, connect_elem) > 0) then
                     tParity = .false.
-                    ! For nreplicas=2, this will multiply the odd indices of AvSignI_Par
-                    ! (representing replica 1) by the even indices of AvSignJ (representing
-                    ! replica 2).
                     full_sign = AvSignI*AvSignJ * IterRDM
                 else
                     tParity = .true.

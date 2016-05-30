@@ -88,7 +88,7 @@ module global_det_data
 
 contains
 
-    subroutine init_global_det_data ()
+    subroutine init_global_det_data(nrdms_standard, nrdms_transition)
 
         ! Initialise the global storage of determinant specific persistent
         ! data
@@ -96,6 +96,8 @@ contains
         ! --> This is the data that should not be transmitted with each
         !     particle
         ! --> It is not stored in the bit representation
+
+        integer, intent(in) :: nrdms_standard, nrdms_transition
 
         integer :: tot_len
         integer :: ierr
@@ -110,18 +112,18 @@ contains
         ! If we are using calculating RDMs stochastically, need to include the
         ! average sign and the iteration on which it became occupied.
         if (tRDMonFly .and. .not. tExplicitAllRDM) then
-            len_av_sgn = lenof_sign
-            len_iter_occ = lenof_sign
+            len_av_sgn = 2*nrdms_standard
+            len_iter_occ = 2*nrdms_standard
             ! The total lengths, including both standard and transition RDMs.
-            len_av_sgn_tot = lenof_sign
-            len_iter_occ_tot = lenof_sign
+            len_av_sgn_tot = 2*nrdms_standard
+            len_iter_occ_tot = 2*nrdms_standard
             ! If we are calculating transition RDMs, then we also need to
             ! include sign averages over different sets of blocks,
             ! corresponding to the ground state combined with all other
             ! excited states.
             if (tTransitionRDMs) then
-                len_av_sgn_transition = lenof_sign
-                len_iter_occ_transition = lenof_sign
+                len_av_sgn_transition = 2*nrdms_transition
+                len_iter_occ_transition = 2*nrdms_transition
                 len_av_sgn_tot = len_av_sgn + len_av_sgn_transition
                 len_iter_occ_tot = len_iter_occ + len_iter_occ_transition
             end if

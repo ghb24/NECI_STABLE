@@ -818,88 +818,59 @@ contains
                     ! elements To keep things unbiased, we need to set up a new
                     ! averaging block now.
                     do irdm = 1, nrdms
-                        av_ind_1 = irdm*nreplicas - nreplicas + 1
-                        AvNoAtHF(av_ind_1) = InstNoAtHf(ind(1,irdm))
-                        IterRDM_HF(av_ind_1) = Iter + PreviousCycles
+                        av_ind_1 = irdm*2-1
+                        av_ind_2 = irdm*2
 
-                        if (tPairedReplicas) then
-                            av_ind_2 = irdm*2
-                            AvNoAtHF(av_ind_2) = InstNoAtHF(ind(2,irdm))
-                            IterRDM_HF(av_ind_2) = Iter + PreviousCycles
-                        end if
+                        AvNoAtHF(av_ind_1) = InstNoAtHF(ind(1,irdm))
+                        IterRDM_HF(av_ind_1) = Iter + PreviousCycles
+                        AvNoAtHF(av_ind_2) = InstNoAtHF(ind(2,irdm))
+                        IterRDM_HF(av_ind_2) = Iter + PreviousCycles
                     end do
                 else
-                    if (tPairedReplicas) then
-                        do irdm = 1, nrdms
-                            ! The indicies of the first and second replicas in this
-                            ! particular pair, in the *average* sign arrays.
-                            av_ind_1 = irdm*2-1
-                            av_ind_2 = irdm*2
+                    do irdm = 1, nrdms
+                        ! The indicies of the first and second replicas in this
+                        ! particular pair, in the *average* sign arrays.
+                        av_ind_1 = irdm*2-1
+                        av_ind_2 = irdm*2
 
-                            if ((abs(InstNoAtHF(ind(1,irdm))) < 1.0e-12_dp .and. abs(IterRDM_HF(av_ind_1)) > 1.0e-12_dp) .or.&
-                                (abs(InstNoAtHF(ind(2,irdm))) < 1.0e-12_dp .and. abs(IterRDM_HF(av_ind_2)) > 1.0e-12_dp)) then
-                                ! At least one of the populations has just become
-                                ! zero. Start a new averaging block.
-                                IterRDM_HF(av_ind_1) = Iter + PreviousCycles
-                                IterRDM_HF(av_ind_2) = Iter + PreviousCycles
-                                AvNoatHF(av_ind_1) = InstNoAtHF(ind(1,irdm))
-                                AvNoatHF(av_ind_2) = InstNoAtHF(ind(2,irdm))
-                                if (abs(InstNoAtHF(ind(1,irdm))) < 1.0e-12_dp) IterRDM_HF(av_ind_1) = 0
-                                if (abs(InstNoAtHF(ind(2,irdm))) < 1.0e-12_dp) IterRDM_HF(av_ind_2) = 0
+                        if ((abs(InstNoAtHF(ind(1,irdm))) < 1.0e-12_dp .and. abs(IterRDM_HF(av_ind_1)) > 1.0e-12_dp) .or.&
+                            (abs(InstNoAtHF(ind(2,irdm))) < 1.0e-12_dp .and. abs(IterRDM_HF(av_ind_2)) > 1.0e-12_dp)) then
+                            ! At least one of the populations has just become
+                            ! zero. Start a new averaging block.
+                            IterRDM_HF(av_ind_1) = Iter + PreviousCycles
+                            IterRDM_HF(av_ind_2) = Iter + PreviousCycles
+                            AvNoatHF(av_ind_1) = InstNoAtHF(ind(1,irdm))
+                            AvNoatHF(av_ind_2) = InstNoAtHF(ind(2,irdm))
+                            if (abs(InstNoAtHF(ind(1,irdm))) < 1.0e-12_dp) IterRDM_HF(av_ind_1) = 0
+                            if (abs(InstNoAtHF(ind(2,irdm))) < 1.0e-12_dp) IterRDM_HF(av_ind_2) = 0
 
-                            else if ((abs(InstNoAtHF(ind(1,irdm))) > 1.0e-12_dp .and. abs(IterRDM_HF(av_ind_1)) < 1.0e-12_dp) .or.&
-                                     (abs(InstNoAtHF(ind(2,irdm))) > 1.0e-12_dp .and. abs(IterRDM_HF(av_ind_2)) < 1.0e-12_dp)) then
-                                ! At least one of the populations has just
-                                ! become occupied. Start a new block here.
-                                IterRDM_HF(av_ind_1) = Iter + PreviousCycles
-                                IterRDM_HF(av_ind_2) = Iter + PreviousCycles
-                                AvNoAtHF(av_ind_1) = InstNoAtHF(ind(1,irdm))
-                                AvNoAtHF(av_ind_2) = InstNoAtHF(ind(2,irdm))
-                                if (abs(InstNoAtHF(ind(1,irdm))) < 1.0e-12_dp) IterRDM_HF(av_ind_1) = 0
-                                if (abs(InstNoAtHF(ind(2,irdm))) < 1.0e-12_dp) IterRDM_HF(av_ind_2) = 0
-                            else
-                                Prev_AvNoatHF = AvNoatHF
+                        else if ((abs(InstNoAtHF(ind(1,irdm))) > 1.0e-12_dp .and. abs(IterRDM_HF(av_ind_1)) < 1.0e-12_dp) .or.&
+                                 (abs(InstNoAtHF(ind(2,irdm))) > 1.0e-12_dp .and. abs(IterRDM_HF(av_ind_2)) < 1.0e-12_dp)) then
+                            ! At least one of the populations has just
+                            ! become occupied. Start a new block here.
+                            IterRDM_HF(av_ind_1) = Iter + PreviousCycles
+                            IterRDM_HF(av_ind_2) = Iter + PreviousCycles
+                            AvNoAtHF(av_ind_1) = InstNoAtHF(ind(1,irdm))
+                            AvNoAtHF(av_ind_2) = InstNoAtHF(ind(2,irdm))
+                            if (abs(InstNoAtHF(ind(1,irdm))) < 1.0e-12_dp) IterRDM_HF(av_ind_1) = 0
+                            if (abs(InstNoAtHF(ind(2,irdm))) < 1.0e-12_dp) IterRDM_HF(av_ind_2) = 0
+                        else
+                            Prev_AvNoatHF = AvNoatHF
 
-                                if (abs(IterRDM_HF(av_ind_1)) > 1.0e-12_dp) then
-                                     AvNoatHF(av_ind_1) = ((real((Iter+PreviousCycles - IterRDM_HF(av_ind_1)), dp) &
-                                                                * Prev_AvNoatHF(av_ind_1)) + InstNoatHF(ind(1,irdm)) ) &
-                                                                / real((Iter+PreviousCycles - IterRDM_HF(av_ind_1)) + 1, dp)
-                                end if
-                                if (abs(IterRDM_HF(av_ind_2)) > 1.0e-12_dp) then
-                                     AvNoatHF(av_ind_2) = ((real((Iter+PreviousCycles - IterRDM_HF(av_ind_2)), dp) &
-                                                                * Prev_AvNoatHF(av_ind_2)) + InstNoatHF(ind(2,irdm)) ) &
-                                                                / real((Iter+PreviousCycles - IterRDM_HF(av_ind_2)) + 1, dp)
-                                end if
-
+                            if (abs(IterRDM_HF(av_ind_1)) > 1.0e-12_dp) then
+                                 AvNoatHF(av_ind_1) = ((real((Iter+PreviousCycles - IterRDM_HF(av_ind_1)), dp) &
+                                                            * Prev_AvNoatHF(av_ind_1)) + InstNoatHF(ind(1,irdm)) ) &
+                                                            / real((Iter+PreviousCycles - IterRDM_HF(av_ind_1)) + 1, dp)
                             end if
-                        end do
-
-                    else
-                        do irdm = 1, nrdms
-
-                            if (abs(InstNoAtHF(irdm)) < 1.0e-12_dp .and. abs(IterRDM_HF(irdm)) > 1.0e-12_dp) then
-                                ! At least one of the populations has just become
-                                ! zero. Start a new averaging block.
-                                IterRDM_HF(irdm) = 0
-                                AvNoatHF(irdm) = 0.0_dp
-
-                            else if (abs(InstNoAtHF(irdm)) > 1.0e-12_dp .and. abs(IterRDM_HF(irdm)) < 1.0e-12_dp) then
-                                ! At least one of the populations has just
-                                ! become occupied. Start a new block here.
-                                IterRDM_HF(irdm) = Iter + PreviousCycles
-                                AvNoAtHF(irdm) = InstNoAtHF(irdm)
-                            else
-                                Prev_AvNoatHF = AvNoatHF
-
-                                if (IterRDM_HF(irdm) /= 0) then
-                                     AvNoatHF(irdm) = ((real((Iter+PreviousCycles - IterRDM_HF(irdm)), dp) &
-                                                                * Prev_AvNoatHF(irdm)) + InstNoatHF(irdm) ) &
-                                                                / real((Iter+PreviousCycles - IterRDM_HF(irdm)) + 1, dp)
-                                end if
+                            if (abs(IterRDM_HF(av_ind_2)) > 1.0e-12_dp) then
+                                 AvNoatHF(av_ind_2) = ((real((Iter+PreviousCycles - IterRDM_HF(av_ind_2)), dp) &
+                                                            * Prev_AvNoatHF(av_ind_2)) + InstNoatHF(ind(2,irdm)) ) &
+                                                            / real((Iter+PreviousCycles - IterRDM_HF(av_ind_2)) + 1, dp)
                             end if
-                        end do
 
-                    end if
+                        end if
+                    end do
+
                 end if
             end if
 

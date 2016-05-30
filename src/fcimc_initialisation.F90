@@ -1259,7 +1259,7 @@ contains
             ! Allocate storage for persistent data to be stored alongside
             ! the current determinant list (particularly diagonal matrix
             ! elements, i.e. CurrentH; now global_determinant_data).
-            call init_global_det_data()
+            call init_global_det_data(nrdms_standard, nrdms_transition)
 
             ! If we are doing cont time, then initialise it here
             call init_cont_time()

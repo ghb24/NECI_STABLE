@@ -188,10 +188,17 @@ contains
 
         ! For the transition RDMs, we want to calculate the norms using the
         ! non-transition RDMs.
-        do irdm = est%nrdms_standard+1, est%nrdms
-            est%norm(irdm) = sqrt(est%norm((signs_for_rdm(1,irdm)+1)/nreplicas)) * &
-                             sqrt(est%norm((signs_for_rdm(2,irdm)+1)/nreplicas))
-        end do
+        if (nreplicas == 1) then
+            do irdm = est%nrdms_standard+1, est%nrdms
+                est%norm(irdm) = sqrt(est%norm(signs_for_rdm(1,irdm))) * &
+                                 sqrt(est%norm(signs_for_rdm(2,irdm)))
+            end do
+        else
+            do irdm = est%nrdms_standard+1, est%nrdms
+                est%norm(irdm) = sqrt(est%norm((signs_for_rdm(1,irdm)+1)/2)) * &
+                                 sqrt(est%norm((signs_for_rdm(2,irdm)+1)/2))
+            end do
+        end if
 
         ! The 1- and 2- electron operator contributions to the RDM energy.
         call calc_rdm_energy(rdm, rdm_energy_1, rdm_energy_2)
