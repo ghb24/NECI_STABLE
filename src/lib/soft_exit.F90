@@ -126,7 +126,8 @@ module soft_exit
                         SinglesBias_value => SinglesBias, tau_value => tau, &
                         nmcyc_value => nmcyc, tTruncNOpen, trunc_nopen_max, &
                         target_grow_rate => TargetGrowRate, tShiftonHFPop, &
-                        tAllRealCoeff, tRealSpawnCutoff, tJumpShift
+                        tAllRealCoeff, tRealSpawnCutoff, tJumpShift, & 
+                        frq_ratio_cutoff, t_new_tau_search
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
@@ -190,7 +191,7 @@ contains
                               targetgrowrate = 38, refshift = 39, & 
                               calc_rdm = 40, calc_explic_rdm = 41, &
                               fill_rdm_iter = 42, diag_one_rdm = 43, &
-                              !! = 44, & -- Currently unused
+                              frequency_cutoff = 44, & !for the histogram integration
                               time = 45
         integer, parameter :: last_item = time
         integer, parameter :: max_item_len = 30
@@ -284,7 +285,7 @@ contains
                                    "calcexplicitrdm              ", &
                                    "fillrdmiter                  ", &
                                    "diagflyonerdm                ", &
-                                   "----  currently unused   ----", &
+                                   "frequency-cutoff             ", &
                                    "time                         "/)
 
         ! Logical(4) datatypes for compilation with builds of openmpi that don't
@@ -408,6 +409,8 @@ contains
                             call readi (RDMEnergyIter)
                         elseif (i == fill_rdm_iter) then
                             call readi (IterRDMonFly_new)
+                        elseif (i == frequency_cutoff) then 
+                            call readf(frq_ratio_cutoff)
                         elseif (i == time) then
                             call readf (MaxTimeExit)
                         endif
@@ -539,6 +542,15 @@ contains
                     write(6,*) "Ceasing the searching for tau."
                     tSearchTau = .false.
                 endif
+                ! also use that CHANGEVARS option to stop the new tau-search 
+                if (t_new_tau_search) then 
+                    write(6,*) "Ceasing new tau-search!"
+                    t_new_tau_search = .false.
+                    ! i could also use that option to stop the histogramming 
+                    ! of the H_ij/pgen ratios.. since i do not need it anymore 
+                    ! then .. but i probably should atleast print it out 
+                    ! then.. think about that, or if i should use a new option..
+                end if
             endif
 
             if(opts_selected(targetgrowrate)) then
