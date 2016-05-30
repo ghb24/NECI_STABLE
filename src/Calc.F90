@@ -86,7 +86,7 @@ contains
           tSearchTauOption = .true.
           tSearchTauDeath = .false.
 
-          t_new_tau_search = .true.
+          t_new_tau_search = .false.
 
           tTimeExit=.false.
           MaxTimeExit=0.0_dp
@@ -1054,6 +1054,22 @@ contains
 !                 frequency_bounds = [(max_frequency_bound/n_frequency_bins * i, &
 !                     i = 1, n_frequency_bins)]
 ! 
+
+            case("NEW-TAU-SEARCH")
+                ! keyword to initiate the new tau-search. since that requires
+                ! the frequency analysis too, enable that also. 
+                ! but here no additional input to decide on the number of 
+                ! bins and on the bin-size is possible
+                ! the only additional input here is the percentage until 
+                ! the histograms get integrated to determine the new time 
+                ! step, which will be defaulted to 0.95
+                t_new_tau_search = .true. 
+                t_frequency_analysis = .true. 
+                tSearchTau = .true. 
+
+                if (item < nitems) then 
+                    call getf(frq_ratio_cutoff)
+                end if
 
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.

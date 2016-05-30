@@ -11,7 +11,7 @@ module fcimc_iter_utils
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
-                        qmc_trial_wf
+                        qmc_trial_wf, t_new_tau_search
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables
     use semi_stoch_procs, only: recalc_core_hamil_diag
@@ -554,7 +554,11 @@ contains
            tSearchTauDeath = ltmp
         end if
 
-        if ((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. .not. tFillingStochRDMOnFly) then   
+!         if ((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. .not. tFillingStochRDMOnFly) then   
+        ! for now with the new tau-search also update tau in variable shift 
+        ! mode..
+        if (((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. &
+            .not. tFillingStochRDMOnFly).or. t_new_tau_search) then   
             call update_tau()
         end if
 

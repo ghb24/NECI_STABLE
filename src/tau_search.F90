@@ -452,7 +452,10 @@ contains
 
             ! Condition met --> no need to do this again next iteration
             tSearchTauDeath = .false.
-            return
+
+            if (.not. t_new_tau_search) then
+                return
+            end if
 
         end if
 
