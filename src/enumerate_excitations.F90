@@ -420,7 +420,6 @@ contains
 
             else
 #endif
-
                 call init_generate_connected_space(nI, ex_flag, tAllExcitFound,&
                     excit, excit_gen, nstore, tTempUseBrill)
 

@@ -11,8 +11,8 @@
 
 module sparse_arrays
 
-    use bit_rep_data, only: NIfTot, NIfDBO
-    use bit_reps, only: decode_bit_det
+    use bit_rep_data, only: NIfTot, NIfDBO, nifd
+    use bit_reps, only: decode_bit_det, nifguga
     use CalcData, only: tReadPops
     use constants
     use DetBitOps, only: DetBitEq
@@ -26,7 +26,9 @@ module sparse_arrays
     use global_det_data, only: set_det_diagH
 #ifndef __CMPLX
     use SystemData, only: tGUGA
-    use guga_excitations, only: calc_off_diag_guga_gen
+    use guga_excitations, only: calc_off_diag_guga_gen, actHamiltonian
+    use guga_bitRepOps, only: convert_ilut_toGUGA, extract_matrix_element
+    use util_mod, only: binary_search
 #endif
 
     implicit none
@@ -311,7 +313,12 @@ contains
         integer(TagIntType) :: HRTag, TempStoreTag
         HElement_t(dp), allocatable, dimension(:) :: hamiltonian_row
         character(len=*), parameter :: t_r = "calculate_det_hamiltonian_sparse"
-
+#ifndef __CMPLX 
+        integer :: pos, nExcit 
+        integer(n_int) :: ilutG(0:nifguga)
+        integer(n_int), pointer :: excitations(:,:)
+#endif
+        
         allocate(sparse_core_ham(determ_sizes(iProcIndex)), stat=ierr)
         allocate(SparseCoreHamilTags(2, determ_sizes(iProcIndex)))
         allocate(hamiltonian_row(determ_space_size), stat=ierr)
@@ -334,6 +341,47 @@ contains
             row_size = 0
             hamiltonian_row = 0.0_dp
 
+            ! here i should do something different for the guga case.. 
+            ! and just apply the hamiltonian once, and then check if the 
+            ! other deterministic states are connected to nI 
+#ifndef __CMPLX 
+            if (tGUGA) then 
+                call convert_ilut_toGUGA(SpawnedParts(:,i), ilutG) 
+
+                call actHamiltonian(ilutG, excitations, nExcit)
+
+                ! then loop over j 
+                do j = 1, determ_space_size
+
+                    if (all(SpawnedParts(0:nifdbo,i) == temp_store(0:nifdbo,j))) then
+
+                        ! thats the diagonal case 
+                        hamiltonian_row(j) = get_helement(nI, nI, 0)
+
+                        core_ham_diag(i) = hamiltonian_row(j)
+
+                        if (.not. tReadPops) then 
+                            call set_det_diagH(i, real(hamiltonian_row(j), dp))
+                        end if
+
+                        row_size = row_size + 1
+
+                    else 
+                        ! here i need the off-diagonal element 
+
+                        pos = binary_search(excitations(0:nifd,1:nExcit), temp_store(0:nifd,j))
+
+                        if (pos > 0) then 
+                            hamiltonian_row(j) = extract_matrix_element(excitations(:,pos),1)
+                            row_size = row_size + 1
+                        end if
+                    end if
+                end do
+
+                deallocate(excitations)
+                            
+            else 
+#endif
             ! Loop over all deterministic states.
             do j = 1, determ_space_size
 
@@ -358,13 +406,16 @@ contains
                 else
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, SpawnedParts(:,i), temp_store(:,j))
-#ifndef __CMPLX
-                    else if (tGUGA) then
-                        ! for the off-diagonal elements i have to call the GUGA
-                        ! specific function
-                        hamiltonian_row(j) = calc_off_diag_guga_gen( & 
-                            SpawnedParts(:,i), temp_store(:,j))
-#endif
+! #ifndef __CMPLX
+!                     else if (tGUGA) then
+!                         ! for the off-diagonal elements i have to call the GUGA
+!                         ! specific function
+!                         ! but this is a waste.. i do not have to do that for 
+!                         ! every nJ i could just check the list generated 
+!                         ! by H|nI>.. 
+!                         hamiltonian_row(j) = calc_off_diag_guga_gen( & 
+!                             SpawnedParts(:,i), temp_store(:,j))
+! #endif
                     else
                         hamiltonian_row(j) = get_helement(nI, nJ, SpawnedParts(:, i), temp_store(:, j))
                     end if
@@ -372,7 +423,9 @@ contains
                 end if
 
             end do
-
+#ifndef __CMPLX
+            end if
+#endif
             ! Now we know the number of non-zero elements in this row of the Hamiltonian, so allocate it.
             call allocate_sparse_ham_row(sparse_core_ham, i, row_size, "sparse_core_ham", SparseCoreHamilTags(:,i))
 

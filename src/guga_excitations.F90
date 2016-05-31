@@ -28,8 +28,8 @@ module guga_excitations
                         write_guga_list, add_guga_lists, count_alpha_orbs_ij, &
                         count_beta_orbs_ij, findFirstSwitch, findLastSwitch, &
                         calcStepvector, find_switches, convert_ilut_toNECI, &
-                        calcB_vector_int, calcOcc_vector_int
-    use guga_matrixElements, only: calcDiagMatEleGUGA_ilut
+                        calcB_vector_int, calcOcc_vector_int, EncodeBitDet_guga
+    use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGuga_nI
     use OneEInts, only: GetTMatEl
     use Integrals_neci, only: get_umat_el
     use guga_data, only: branchWeight
@@ -279,6 +279,117 @@ module guga_excitations
 
 contains
 ! ! 
+
+
+    subroutine Detham_guga(ndets, det_list, hamil, ind, n_row, n_elements) 
+        ! create a routine which mimicks the functioniality of Detham for 
+        ! GUGA csfs. to increase the performance in the Lanczos diagonalisation
+        ! procedure
+        use global_utilities, only: timer, set_timer, halt_timer
+        integer, intent(in) :: ndets
+        integer, intent(in) :: det_list(nel,ndets) 
+        real(dp), intent(out), allocatable :: hamil(:) 
+        integer, intent(out), allocatable :: ind(:)
+        integer, intent(out) :: n_row(ndets)
+        integer, intent(out) :: n_elements
+        character(*), parameter :: this_routine = "Detham_guga"
+
+        type(timer), save :: proc_timer
+        integer :: i, j, nExcits, cum_rows, pos
+        integer, allocatable :: temp_ind(:)
+        real(dp), allocatable :: temp_hamil(:)
+        real(dp) :: hel
+        integer(n_int), pointer :: excitations(:,:)
+        integer(n_int) :: ilutG(0:nifguga), ilutJ(0:niftot)
+        ! have to figure out how exactly the Detham routine works.. 
+        ! probably also use timer.. 
+        proc_timer%timer_name = "Detham_guga"
+        call set_timer(proc_timer)
+
+        ! essentially it calculates all the matrix elements between the 
+        ! states in the list det_list and stores in in a linear form of 
+        ! the matrix 
+
+        n_elements = 0
+        n_row = 0 
+        cum_rows = 0
+        ! hm i cant allocate hamil, and ind, which is the index list 
+        ! before knowing the amount of non-zero elements..
+        ! maybe i also have to count the number of non-zero excitations 
+        ! first 
+
+        ! if i only calculate the upper triangular part of the hermitian 
+        ! H matrix i know the maximum number of elements.. 
+        ! so allocated for that a temporary array and then do the real ones.
+        allocate(temp_ind(ndets**2 / 2))
+        allocate(temp_hamil(ndets**2 / 2))
+
+        temp_hamil = 0.0_dp
+        temp_ind = 0
+
+        do i = 1, ndets
+            
+            call EncodeBitDet_guga(det_list(:,i), ilutG)
+
+            call actHamiltonian(ilutG, excitations, nExcits) 
+
+            ! in detham they loop inly from i on until the end.., to not 
+            ! double calculate.. i have to somehow integrate that in the 
+            ! binary_search criteria or? 
+
+            do j = i, ndets
+
+                if (i == j) then 
+                    hel = calcDiagMatEleGuga_nI(det_list(:,i)) 
+
+                    n_elements = n_elements + 1
+
+                    n_row(i) = n_row(i) + 1
+                    
+                    ! and fill the temporary array
+                    temp_ind(cum_rows + n_row(i)) = j
+                    temp_hamil(cum_rows + n_row(i)) = hel
+
+                else 
+                    ! here i have to binary_search in the exciations 
+
+                    call EncodeBitDet(det_list(:,j), ilutJ)
+
+                    pos = binary_search(excitations(0:nifd,1:nExcits),ilutJ)
+
+                    if (pos > 0) then 
+                        hel = extract_matrix_element(excitations(:,pos),1)
+
+                        n_elements = n_elements + 1
+
+                        n_row(i) = n_row(i) + 1
+
+                        temp_ind(cum_rows + n_row(i)) = j
+                        temp_hamil(cum_rows + n_row(i)) = hel
+
+                    end if
+                end if
+            end do
+
+            cum_rows = cum_rows + n_row(i)
+
+            deallocate(excitations)
+        end do
+
+        ! and then make the actual output variables 
+        allocate(ind(n_elements))
+        allocate(hamil(n_elements))
+
+        ind = temp_ind(1:n_elements) 
+        hamil = temp_hamil(1:n_elements)
+
+        deallocate(temp_ind)
+        deallocate(temp_hamil)
+
+        ! and halt the timer 
+        call halt_timer(proc_timer)
+
+    end subroutine Detham_guga
 
     subroutine init_csf_information(ilut)
         ! routine which sets up all the additional csf information, like 

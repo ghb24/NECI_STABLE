@@ -79,14 +79,14 @@ C..   Now we need to match up any two determinants
      &                            NMRKS(:,KJ), ilutI, ilutJ)
               end if
 
-#ifndef __CMPLX
-            else if (tGUGA) then
-              if (KI == KJ) then
-                  totsum = calcDiagMatEleGuga_nI(NMRKS(:,KI))
-              else
-                  totsum = calc_off_diag_guga_gen(ilutI, ilutJ)
-              end if
-#endif
+! #ifndef __CMPLX
+!             else if (tGUGA) then
+!               if (KI == KJ) then
+!                   totsum = calcDiagMatEleGuga_nI(NMRKS(:,KI))
+!               else
+!                   totsum = calc_off_diag_guga_gen(ilutI, ilutJ)
+!               end if
+! #endif
 
             else
               if (KI == KJ) then

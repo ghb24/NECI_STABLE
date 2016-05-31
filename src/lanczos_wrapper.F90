@@ -29,7 +29,10 @@ contains
 
         use DetCalcData, only: nkry, nblk, b2l, ncycle
         use sort_mod, only: sort
-        use SystemData, only: nel, tHPHF
+        use SystemData, only: nel, tHPHF, tGUGA
+#ifndef __CMPLX 
+        use guga_excitations, only: Detham_guga
+#endif
 
         integer, intent(in) :: det_list(:,:)
         integer, intent(in) :: ndets
@@ -49,17 +52,31 @@ contains
         ICMax = 1
         tMC = .false.
 
-        call Detham(ndets, nel, det_list, Hamil, Lab, nRow, .true., ICMax, LenHamil, tMC)
+        ! for the guga implementation i need to that more efficiently..
+        ! as i already have a routinr which acts the hamiltonian on a state 
+        ! and creates all the exciations from it..
+        ! this means i need a routine for the guga case which sets up the 
+        ! hamiltonian in the same way as DetHam for determinants..
+#ifndef __CMPLX
+        if (tGUGA) then 
+            call Detham_guga(ndets, det_list, Hamil, Lab, nRow, LenHamil) 
+        else
+#endif
+            call Detham(ndets, nel, det_list, Hamil, Lab, nRow, .true., ICMax, LenHamil, tMC)
 
-        allocate(Hamil(LenHamil), stat=ierr)
-        if (ierr /= 0) call stop_all(t_r, "Error allocating Hamil.")
-        allocate(Lab(LenHamil), stat=ierr)
-        if (ierr /= 0) call stop_all(t_r, "Error allocating Lab.")
+            allocate(Hamil(LenHamil), stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error allocating Hamil.")
+            allocate(Lab(LenHamil), stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error allocating Lab.")
 
-        Hamil = 0.0_dp
-        Lab = 0
+            Hamil = 0.0_dp
+            Lab = 0
 
-        call Detham(ndets, NEl, det_list, Hamil, Lab, nRow, .false., ICMax, LenHamil, tMC)
+            call Detham(ndets, NEl, det_list, Hamil, Lab, nRow, .false., ICMax, LenHamil, tMC)
+
+#ifndef __CMPLX
+        end if
+#endif
 
         nkry1 = nkry+1
         nblock = min(nexcit, nblk)
