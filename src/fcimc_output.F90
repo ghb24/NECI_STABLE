@@ -1402,7 +1402,7 @@ contains
                                 all_frequency_bins(:), all_frequency_bins_2(:), &
                                 all_frequency_bins_2_d(:), all_frequency_bins_3(:), &
                                 all_frequency_bins_3_d(:), all_frequency_bins_4(:)
-        real(dp) :: step_size
+        real(dp) :: step_size, norm
         real(dp), allocatable :: all_frequency_bounds(:) 
         character(*), parameter :: this_routine = "print_frequency_histogram_spec"
 
@@ -1423,8 +1423,8 @@ contains
             open(iunit, file = filename, status = "unknown")
 
             do i = 1, max_size
-                write(iunit, "(i12)", advance = "no") all_frequency_bins_s(i)
-                write(iunit, "(f16.7)") frq_step_size * i
+                write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                write(iunit, "(i12)") all_frequency_bins_s(i)
             end do
 
             close(iunit)
@@ -1453,8 +1453,8 @@ contains
                 open(iunit, file = filename, status = "unknown")
 
                 do i = 1, max_size
-                    write(iunit, "(i12)", advance = "no") all_frequency_bins_p(i)
-                    write(iunit, "(f16.7)") frq_step_size * i
+                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                    write(iunit, "(i12)") all_frequency_bins_p(i)
                 end do
                 close(iunit)
 
@@ -1479,8 +1479,8 @@ contains
                 open(iunit, file = filename, status = "unknown") 
 
                 do i = 1, max_size
-                    write(iunit, "(i12)", advance = "no") all_frequency_bins_a(i) 
-                    write(iunit, "(f16.7)") frq_step_size * i
+                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                    write(iunit, "(i12)") all_frequency_bins_a(i) 
                 end do
                 close(iunit) 
 
@@ -1515,10 +1515,26 @@ contains
                 open(iunit, file = filename, status = "unknown") 
 
                 do i = 1, max_size
-                    write(iunit, "(i12)", advance = "no") all_frequency_bins(i) 
-                    write(iunit, "(f16.7)") frq_step_size * i
+                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                    write(iunit, "(i12)") all_frequency_bins(i) 
                 end do
                 close(iunit) 
+
+                ! also print out a normed frequency histogram to better 
+                ! compare runs with different length
+                norm = real(sum(all_frequency_bins),dp)
+
+                iunit = get_free_unit() 
+                call get_unique_filename("frequency_histogram_normed", .true., &
+                    .true., 1, filename) 
+                open(iunit, file = filename, status = "unknown")
+
+                ! and change x and y axis finally
+                do i = 1, max_size
+                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
+                    write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
+                end do
+                close(iunit)
 
                 deallocate(all_frequency_bins)
 !                 deallocate(all_frequency_bounds)
@@ -1542,8 +1558,8 @@ contains
                 open(iunit, file = filename, status = "unknown") 
 
                 do i = 1, max_size
-                    write(iunit, "(i12)", advance = "no") all_frequency_bins_d(i) 
-                    write(iunit, "(f16.7)") frq_step_size * i
+                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                    write(iunit, "(i12)") all_frequency_bins_d(i) 
                 end do 
                 close(iunit)
 
@@ -1570,8 +1586,24 @@ contains
                 open(iunit, file = filename, status = "unknown")
 
                 do i = 1, max_size
-                    write(iunit, "(i12)", advance = "no") all_frequency_bins(i) 
-                    write(iunit, "(f16.7)") frq_step_size * i
+                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                    write(iunit, "(i12)") all_frequency_bins(i) 
+                end do
+                close(iunit)
+
+                ! also print out a normed frequency histogram to better 
+                ! compare runs with different length
+                norm = real(sum(all_frequency_bins),dp)
+
+                iunit = get_free_unit() 
+                call get_unique_filename("frequency_histogram_normed", .true., &
+                    .true., 1, filename) 
+                open(iunit, file = filename, status = "unknown")
+
+                ! and change x and y axis finally
+                do i = 1, max_size
+                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
+                    write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
                 end do
                 close(iunit)
 
@@ -1599,8 +1631,8 @@ contains
                 open(iunit, file = filename, status = "unknown")
 
                 do i = 1, max_size 
-                    write(iunit, "(i12)", advance = "no") all_frequency_bins_2(i)
-                    write(iunit, "(f16.7)") frq_step_size * i 
+                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
+                    write(iunit, "(i12)") all_frequency_bins_2(i)
                 end do
                 close(iunit) 
 
@@ -1619,8 +1651,8 @@ contains
                 open(iunit, file = filename, status = "unknown") 
 
                 do i = 1, max_size
-                    write(iunit, "(i12)", advance = "no") all_frequency_bins_3(i)
-                    write(iunit, "(f16.7)") frq_step_size * i 
+                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
+                    write(iunit, "(i12)") all_frequency_bins_3(i)
                 end do
                 close(iunit) 
             end if
@@ -1637,8 +1669,8 @@ contains
                 open(iunit, file = filename, status = "unknown")
 
                 do i = 1, max_size
-                    write(iunit, "(i12)", advance = "no") all_frequency_bins_4(i) 
-                    write(iunit, "(f16.7)") frq_step_size * i
+                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                    write(iunit, "(i12)") all_frequency_bins_4(i) 
                 end do
                 close(iunit) 
                 
@@ -1661,8 +1693,8 @@ contains
                     open(iunit, file = filename, status = "unknown") 
 
                     do i = 1, max_size
-                        write(iunit, "(i12)", advance = "no") all_frequency_bins_2_d(i)
-                        write(iunit, "(f16.7)") frq_step_size * i 
+                        write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
+                        write(iunit, "(i12)") all_frequency_bins_2_d(i)
                     end do
                     close(iunit) 
 
@@ -1680,8 +1712,8 @@ contains
                     open(iunit, file = filename, status = "unknown") 
 
                     do i = 1, max_size
-                        write(iunit, "(i12)", advance = "no") all_frequency_bins_3_d(i)
-                        write(iunit, "(f16.7)") frq_step_size * i 
+                        write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
+                        write(iunit, "(i12)") all_frequency_bins_3_d(i)
                     end do
                     close(iunit) 
                 end if
@@ -1730,6 +1762,22 @@ contains
                 do i = 1, max_size 
                     write(iunit, "(i12)", advance = "no") all_frequency_bins(i) 
                     write(iunit, "(f16.7)") frq_step_size * i
+                end do
+                close(iunit)
+
+                ! also print out a normed frequency histogram to better 
+                ! compare runs with different length
+                norm = real(sum(all_frequency_bins),dp)
+
+                iunit = get_free_unit() 
+                call get_unique_filename("frequency_histogram_normed", .true., &
+                    .true., 1, filename) 
+                open(iunit, file = filename, status = "unknown")
+
+                ! and change x and y axis finally
+                do i = 1, max_size
+                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
+                    write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
                 end do
                 close(iunit)
 
