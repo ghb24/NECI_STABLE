@@ -1732,6 +1732,7 @@ contains
         threshold = int(frq_ratio_cutoff * real(n_elements, dp))
 
         print *, "int overflow?: ", n_elements, threshold
+        call neci_flush(6)
 
         cnt = 0
         i = 0

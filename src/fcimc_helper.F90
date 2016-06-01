@@ -1938,6 +1938,9 @@ contains
         end if
 #endif
 
+        print *, "toto"
+        call neci_flush(6)
+
         if(tHPHF) then
             if(.not.Allocated(RefDetFlip)) then
                 allocate(RefDetFlip(NEl, inum_runs), &

@@ -923,8 +923,14 @@ contains
             call convert_ilut_toGUGA(ilutRef(0:niftot,run), ilutG)
         end if
 
+        print *, "acthamil toto?"
+        call neci_flush(6)
+
         ! calc. all excitations from it 
         call actHamiltonian(ilutG, excitations, nExcit)
+
+        print *, "no!"
+        call neci_flush(6)
 
         ! they should be ordered due to the ordering in the add_ilut_list 
 
