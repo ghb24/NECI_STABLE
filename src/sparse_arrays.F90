@@ -90,6 +90,12 @@ contains
         integer(TagIntType) :: HRTag, SRTag, SDTag, ITag
         character(len=*), parameter :: t_r = "calculate_sparse_hamiltonian"
 
+#ifndef __CMPLX 
+        integer :: pos, nexcits
+        integer(n_int) :: ilutG(0:nifguga)
+        integer(n_int), pointer :: excitations(:,:)
+#endif
+
         allocate(sparse_ham(num_states))
         allocate(SparseHamilTags(2, num_states))
         allocate(hamiltonian_row(num_states), stat=ierr)
@@ -106,6 +112,8 @@ contains
         ! Set each element to one to count the diagonal elements straight away.
         sparse_row_sizes = 1
 
+        ! also need to change this routine here for the guga implementation
+
         do i = 1, num_states
 
             hamiltonian_row = 0.0_dp
@@ -118,6 +126,40 @@ contains
             ! the diagonal have been counted (as the Hamiltonian is symmetric).
             sparse_diag_positions(i) = sparse_row_sizes(i)
 
+#ifndef __CMPLX
+            if (tGUGA) then 
+
+                call convert_ilut_toGUGA(ilut_list(:,i), ilutG)
+
+                call actHamiltonian(ilutG, excitations, nexcits) 
+
+                do j = 1, num_states
+
+                    if (i == j) then 
+                        ! diag case
+                        hamiltonian_row(j) = get_helement(nI, nI, 0) 
+
+                        hamil_diag(j) = hamiltonian_row(j) 
+
+                    else
+                        ! off-diagonal case 
+
+                        pos = binary_search(excitations(0:nifd,1:nexcits), ilut_list(0:nifd,j))
+
+                        if (pos > 0) then 
+
+                            hamiltonian_row(j) = extract_matrix_element(excitations(:,pos),1)
+
+                            sparse_row_sizes(i) = sparse_row_sizes(i) + 1 
+                            sparse_row_sizes(j) = sparse_row_sizes(j) + 1
+                            
+                        end if
+                    end if
+                end do
+                deallocate(excitations)
+
+            else 
+#endif
             do j = i, num_states
 
                 call decode_bit_det(nJ, ilut_list(:, j))
@@ -147,6 +189,9 @@ contains
 
             end do
 
+#ifndef __CMPLX
+            end if
+#endif
             ! Now we know the number of non-zero elements in this row of the Hamiltonian, so allocate it.
             call allocate_sparse_ham_row(sparse_ham, i, sparse_row_sizes(i), "sparse_ham", SparseHamilTags(:,i)) 
 
@@ -208,6 +253,11 @@ contains
         integer(TagIntType) :: TempStoreTag, HRTag, SDTag
         HElement_t(dp), allocatable, dimension(:) :: hamiltonian_row
         character(len=*), parameter :: t_r = "calculate_sparse_ham_par"
+#ifndef __CMPLX
+        integer :: pos, nexcits
+        integer(n_int) :: ilutG(0:nifguga) 
+        integer(n_int), pointer :: excitations(:,:)
+#endif
 
         num_states_tot = int(sum(num_states), sizeof_int)
         disps(0) = 0
@@ -235,6 +285,38 @@ contains
             row_size = 0
             hamiltonian_row = 0.0_dp
 
+#ifndef __CMPLX 
+            if (tGUGA) then 
+                call convert_ilut_toGUGA(ilut_list(:,i), ilutG) 
+
+                call actHamiltonian(ilutG, excitations, nexcits) 
+
+                do j = 1, num_states_tot
+
+                    if (DetBitEq(ilut_list(:,i), temp_store(:,j), nifdbo)) then
+
+                        hamiltonian_row(j) = get_helement(nI, nI, 0) 
+
+                        hamil_diag(i) = hamiltonian_row(j) 
+
+                        row_size = row_size + 1
+
+                    else 
+
+                        pos = binary_search(excitations(0:nifd,1:nexcits), temp_store(0:nifd,j))
+
+                        if (pos > 0) then 
+
+                            hamiltonian_row(j) = extract_matrix_element(excitations(:,pos), 1)
+
+                            row_size = row_size + 1
+
+                        end if 
+                    end if
+                end do
+                deallocate(excitations)
+            else
+#endif
             ! Loop over all determinants on all processors.
             do j = 1, num_states_tot
 
@@ -294,6 +376,9 @@ contains
                 if (counter == row_size + 1) exit
             end do
 
+#ifndef __CMPLX
+        end if
+#endif
         end do
 
         call MPIBarrier(ierr)
@@ -356,7 +441,7 @@ contains
                     if (all(SpawnedParts(0:nifdbo,i) == temp_store(0:nifdbo,j))) then
 
                         ! thats the diagonal case 
-                        hamiltonian_row(j) = get_helement(nI, nI, 0)
+                        hamiltonian_row(j) = get_helement(nI, nI, 0) - Hii
 
                         core_ham_diag(i) = hamiltonian_row(j)
 
