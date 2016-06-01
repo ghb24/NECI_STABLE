@@ -1722,6 +1722,7 @@ contains
         n_bins = size(all_frequency_bins)
         n_elements = sum(all_frequency_bins)
 
+
         ! have to check if no elements are yet stored into the histogram! 
         if (n_elements == 0) then
             ratio = 0.0_dp
@@ -1729,6 +1730,8 @@ contains
         end if
 
         threshold = int(frq_ratio_cutoff * real(n_elements, dp))
+
+        print *, "int overflow?: ", n_elements, threshold
 
         cnt = 0
         i = 0
