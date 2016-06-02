@@ -681,13 +681,17 @@ contains
             root_print "tau death: ", tau_death
 #endif
 
-            ! enough_doub implies that both enough_opp and enough_par are 
-            ! true.. so this if statement makes no sense 
-            if (abs(pparallel_new-pParallel) / pParallel > 0.0001_dp) then
-                root_print "Updating parallel-spin bias; new pParallel = ", &
-                    pParallel_new, "in: ", this_routine
+            if (pParallel_new  > 1e-1_dp .and. pParallel_new < (1.0_dp - 1e-1_dp)) then
+                ! enough_doub implies that both enough_opp and enough_par are 
+                ! true.. so this if statement makes no sense 
+                if (abs(pparallel_new-pParallel) / pParallel > 0.0001_dp) then
+                    root_print "Updating parallel-spin bias; new pParallel = ", &
+                        pParallel_new, "in: ", this_routine
+                end if
+                ! in this new implementation the weighting make pParallel 
+                ! smaller and smaller.. so also limit it to some lower bound
+                    pParallel = pParallel_new
             end if
-            pParallel = pParallel_new
 
         else if (tGen_sym_guga_mol) then
             ! here i only use doubles for now
@@ -1046,7 +1050,7 @@ contains
 
                 if (.not. enough_par_hist) then 
                     cnt_par_hist = cnt_par_hist + 1
-                    if (cnt_par_hist > cnt_threshold) enough_par_hist = .true.
+                    if (cnt_par_hist > 2*cnt_threshold) enough_par_hist = .true.
                 end if
 
                 ! parallel excitation 

@@ -148,13 +148,7 @@ module fcimc_pointed_fns
             if (tGen_4ind_weighted .or. tGen_4ind_2) then
                 ! determine if excitation was parallel or anti-parallel
                 ! ex(1,1) and ex(1,2) are the electrons 
-                ispn = get_ispn(ex(1,1), ex(1,2))
-                if (ispn == 2) then
-                    ! then it is an anti-parallel excitation
-                    t_par = .false.
-                else
-                    t_par = .true.
-                end if
+                t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
 
                 call fill_frequency_histogram_4ind(abs(rh), prob / AvMCExcits, &
                     ic, t_par)
@@ -187,7 +181,7 @@ module fcimc_pointed_fns
 !            if (G1(ex(1,1))%Ms /= G1(ex(1,2))%Ms) then
 !                write(6,*) 'OPP', rh, prob
 !            else
-!                write(6,*) 'SAM', rh, prob
+! !                write(6,*) 'SAM', rh, prob
 !            end if
 !        else
 !            write(6,*) 'IC1', rh, prob
