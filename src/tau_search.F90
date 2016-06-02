@@ -24,7 +24,10 @@ module tau_search
                     frequency_bounds_type3, frequency_bins_type4, frequency_bounds_type4, &
                     frequency_bins_type2_diff, frequency_bins_type3_diff, & 
                     frequency_bounds_type2_diff, frequency_bounds_type3_diff, &
-                    frq_ratio_cutoff, t_new_tau_search
+                    frq_ratio_cutoff, t_hist_tau_search, cnt_sing_hist, &
+                    cnt_doub_hist, cnt_par_hist, cnt_opp_hist, enough_sing_hist, &
+                    enough_doub_hist, enough_par_hist, enough_opp_hist, & 
+                    t_fill_frequency_hists
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          ProjEDet, ilutRef, MaxTau, tSearchTau, &
                          tSearchTauOption, tSearchTauDeath, pExcit2, pExcit4, &
@@ -67,82 +70,14 @@ contains
         gamma_sing = 0
         gamma_doub = 0
 
-        if (tGen_nosym_guga) then
-            ! implement a specific tau-update for the non-weighed guga
-            ! excitation generatort without symmetry: 
+        gamma_opp = 0
+        gamma_par = 0
 
-            ! then i have to consider the different general types of 
-            ! excitations
-            ! for (ii,jj) excitations i could differentiate between the easy
-            ! _RR_ -> ^RR^
-            ! _LL_ -> ^LL^
-            ! and the notorious:
-            ! _LR_ -> ^LR^ 
-            ! excitation
-            gamma_two_same = 0.0_dp
-            gamma_two_mixed = 0.0_dp
-            ! for the (ii,jk):
-            ! here i can differentiate between full-stop and full-start mixed
-            ! x -> ^RL^
-            ! _RL_ -> x 
-            ! which are problematic 
-            ! and the "other"
-            gamma_three_same = 0.0_dp
-            gamma_three_mixed = 0.0_dp
-            ! for (ijkl) there is not really reason to differentiate
-            gamma_four = 0.0_dp
-            
-            cnt_two_same = 0
-            cnt_two_mixed = 0
-            cnt_three_same = 0
-            cnt_three_mixed = 0
-            cnt_four = 0
+        cnt_opp = 0
+        cnt_par = 0
 
-            enough_two_same = .false.
-            enough_two_mixed = .false.
-            enough_three_same = .false.
-            enough_three_mixed = .false.
-            enough_four = .false.
-
-            ! initialize the specific probabilites first: 
-            pExcit4 = (1.0_dp - 1.0_dp / real(nSpatOrbs, dp))
-!             pExcit2 = (1.0_dp - pExcit4) / real(nSpatOrbs - 1, dp)
-            pExcit2 = 1.0_dp / real(nSpatOrbs - 1, dp) 
-
-            root_print "initial pExcit4 set to: ", pExcit4
-            root_print "initial pExcit2 set to: ", pExcit2
-
-            ! to what values should i initialize pExcit2_same and 
-            ! pExcit3_same ? 
-            ! do 50/50 for now
-            ! the same-type excitation are much more likely to yield 
-            ! non-zero excitation at the start of the calculation, since 
-            ! i usually start from a HF-like determinant 
-            ! -> so weight more towards RR/LL type excitations
-            if (t_consider_diff_bias) then
-                pExcit2_same = 0.9_dp
-                pExcit3_same = 0.9_dp
-            else
-                pExcit2_same = 1.0_dp
-                pExcit3_same = 1.0_dp
-            end if
-
-            root_print "initial pExcit2_same set to: ", pExcit2_same
-            root_print "initial pExcit3_same set to: ", pExcit3_same
-
-        else
-            ! for the "normal" implementation
-
-            gamma_opp = 0
-            gamma_par = 0
-
-            cnt_opp = 0
-            cnt_par = 0
-
-            enough_opp = .false.
-            enough_par = .false.
-
-        end if
+        enough_opp = .false.
+        enough_par = .false.
 
         ! And what is the maximum death-component found
         max_death_cpt = 0
@@ -208,123 +143,159 @@ contains
             enough_par = .true.
         end if
 
+        ! since only this routine is called if both tau-search options 
+        ! are turned on call it from here too
+        if (t_hist_tau_search) call init_hist_tau_search()
+
+    end subroutine init_tau_search
+
+    subroutine init_hist_tau_search 
+        ! split the new and old tau-search routines up, to no mix up 
+        ! too much stuff 
+        character(*), parameter :: this_routine = "init_hist_tau_search"
+
+        ! Are we considering parallel-spin bias in the doubles?
+        ! Do this logic here, so that if we add opposite spin bias to more
+        ! excitation generators, then there is only one place that this logic
+        ! needs to be updated!
+        if (tGen_4ind_weighted .or. tGen_4ind_2 ) then
+            consider_par_bias = .true.
+        else if (tGen_4ind_reverse) then
+            consider_par_bias = .true.
+            n_opp = AB_hole_pairs
+            n_par = par_hole_pairs
+        else
+            consider_par_bias = .false.
+        end if
+
+        ! If there are only a few electrons in the system, then this has
+        ! impacts for the choices that can be made.
+        if (nOccAlpha == 0 .or. nOccBeta == 0) then
+            consider_par_bias = .false.
+            pParallel = 1.0_dp
+            enough_opp = .true.
+        end if
+        if (nOccAlpha == 1 .and. nOccBeta == 1) then
+            consider_par_bias = .false.
+            pParallel = 0.0_dp
+            enough_par = .true.
+        end if
+
         ! do the initialization of the frequency analysis here.. 
         ! i think otherwise it is not done on all the nodes.. 
-        if (t_frequency_analysis) then 
-            ! determine the global and fixed step-size quantitiy! 
-            frq_step_size = max_frequency_bound / real(n_frequency_bins, dp)
-            ! dependent if we use pParallel or not init specific hists
-            if ((tGen_4ind_weighted .or. tGen_4ind_2) .and. consider_par_bias) then
-                ASSERT(consider_par_bias)
-                ! i think then we always use pParallel but check! todo
+        ! don't need to check if t_frequency_analysis here anymore
+        ! determine the global and fixed step-size quantitiy! 
+        frq_step_size = max_frequency_bound / real(n_frequency_bins, dp)
 
-                ! i always use the singles histogram dont I? i think so.. 
-                allocate(frequency_bins_singles(n_frequency_bins))
-                frequency_bins_singles = 0
+        cnt_sing_hist = 0
+        enough_sing_hist = .false.
 
-!                 allocate(frequency_bounds_singles(n_frequency_bins))
+        cnt_doub_hist = 0 
+        enough_doub_hist = .false.
 
-!                 frequency_bounds_singles = [(frq_step_size * i, i = 1, n_frequency_bins)]
+        ! dependent if we use pParallel or not init specific hists
+        if ((tGen_4ind_weighted .or. tGen_4ind_2) .and. consider_par_bias) then
+            
+            if (.not. consider_par_bias) call stop_all(this_routine, &
+                "new tau-search for det. based excitation generators only setup for consider_par_bias!")
 
+            cnt_par_hist = 0 
+            cnt_opp_hist = 0
 
-                allocate(frequency_bins_para(n_frequency_bins))
-                frequency_bins_para = 0
+            enough_par_hist = .false. 
+            enough_opp_hist = .false. 
 
-                allocate(frequency_bins_anti(n_frequency_bins))
-                frequency_bins_anti = 0
+            ! i always use the singles histogram dont I? i think so.. 
+            allocate(frequency_bins_singles(n_frequency_bins))
+            frequency_bins_singles = 0
 
-!                 allocate(frequency_bounds_para(n_frequency_bins)) 
-!                 allocate(frequency_bounds_anti(n_frequency_bins))
+            allocate(frequency_bins_para(n_frequency_bins))
+            frequency_bins_para = 0
 
-!                 frequency_bounds_para = frequency_bounds_singles
-!                 frequency_bounds_anti = frequency_bounds_singles
+            allocate(frequency_bins_anti(n_frequency_bins))
+            frequency_bins_anti = 0
 
-            else if (tGen_sym_guga_mol) then
-                ! i always use the singles histogram dont I? i think so.. 
-                allocate(frequency_bins_singles(n_frequency_bins))
-                frequency_bins_singles = 0
+        else if (tGen_sym_guga_mol) then
 
-!                 allocate(frequency_bounds_singles(n_frequency_bins))
-
-!                 frequency_bounds_singles = [(frq_step_size * i, i = 1, n_frequency_bins)]
-
-                ! for now use only pSingles and pDoubles for GUGA implo
-                allocate(frequency_bins_doubles(n_frequency_bins))
-                frequency_bins_doubles = 0
-
-!                 allocate(frequency_bounds_doubles(n_frequency_bins))
-!                 frequency_bounds_doubles = frequency_bounds_singles
+            ! i always use the singles histogram dont I? i think so.. 
+            allocate(frequency_bins_singles(n_frequency_bins))
+            frequency_bins_singles = 0
 
 
-                ! actually the noysm tau search is in a different module..
-            else if (tGen_nosym_guga) then
-                ! here i can differentiate between the different types of 
-                ! excitations.. 
-                allocate(frequency_bins_singles(n_frequency_bins))
-                frequency_bins_singles = 0
+            ! for now use only pSingles and pDoubles for GUGA implo
+            allocate(frequency_bins_doubles(n_frequency_bins))
+            frequency_bins_doubles = 0
 
-!                 allocate(frequency_bounds_singles(n_frequency_bins))
 
-!                 frequency_bounds_singles = [(frq_step_size * i, i = 1, n_frequency_bins)]
+            ! actually the noysm tau search is in a different module..
+        else if (tGen_nosym_guga) then
+            call stop_all(this_routine, &
+                "should not end up here when nosym_guga, but in guga_tausearch!")
 
-                ! use the "normal" type2 etc. bins always and just allocate 
-                ! additional ones if t_consider_diff_bias 
-                allocate(frequency_bins_type2(n_frequency_bins))
-                frequency_bins_type2 = 0
+        else 
+            ! for any other excitation generator just use one histogram 
+            ! for all the excitations
+            allocate(frequency_bins(n_frequency_bins))
+            frequency_bins = 0
 
-                allocate(frequency_bins_type3(n_frequency_bins)) 
-                frequency_bins_type3 = 0 
+        end if
 
-                allocate(frequency_bins_type4(n_frequency_bins))
-                frequency_bins_type4 = 0
+        ! also need to setup all the other quantities necessary for the 
+        ! "normal" tau-search if they have not yet been setup if we only 
+        ! use the new tau-search 
+        if (.not. tSearchTauOption) then 
 
-!                 allocate(frequency_bounds_type2(n_frequency_bins))
-!                 frequency_bounds_type2 = frequency_bounds_singles
+            ! And what is the maximum death-component found
+            max_death_cpt = 0
 
-!                 allocate(frequency_bounds_type3(n_frequency_bins))
-!                 frequency_bounds_type3 = frequency_bounds_singles
+            ! And the counts are used to make sure we don't update anything too
+            ! early
+            ! should we use the same variables in both tau-searches?? 
+            cnt_sing = 0
+            cnt_doub = 0
+            enough_sing = .false.
+            enough_doub = .false.
 
-!                 allocate(frequency_bounds_type4(n_frequency_bins))
-!                 frequency_bounds_type4 = frequency_bounds_singles
+            gamma_opp = 0
+            gamma_par = 0
 
-                if (t_consider_diff_bias) then 
-                    ! allocate the additional bins and bounds 
-                    allocate(frequency_bins_type2_diff(n_frequency_bins))
-                    frequency_bins_type2_diff = 0
+            cnt_opp = 0
+            cnt_par = 0
 
-                    allocate(frequency_bins_type3_diff(n_frequency_bins))
-                    frequency_bins_type3_diff = 0
+            enough_opp = .false.
+            enough_par = .false.
 
-!                     allocate(frequency_bounds_type2_diff(n_frequency_bins))
-!                     frequency_bounds_type2_diff = frequency_bounds_singles
-
-!                     allocate(frequency_bounds_type3_diff(n_frequency_bins))
-!                     frequency_bounds_type3_diff = frequency_bounds_singles
+            ! Unless it is already specified, set an initial value for tau
+            if (.not. tRestart .and. .not. tReadPops .and. tau == 0) &
+                call FindMaxTauDoubs()
+            write(6,*) 'Using initial time-step: ', tau
+     
+            ! Set the maximum spawn size
+            if (MaxWalkerBloom == -1) then
+                ! No maximum manually specified, so we set the limit of spawn
+                ! size to either the initiator criterion, or to 5 otherwise
+                if (tTruncInitiator) then
+                    max_permitted_spawn = InitiatorWalkNo
+                else
+                    ! change here to the "old" algorithm, since the time-step
+                    ! will be orders of magnitude larger we should limit 
+                    ! the max_permitted_spawn to 1. (or 2 maybe.. lets see!)
+                    max_permitted_spawn = 1.0_dp
                 end if
-
-            else 
-                ! for any other excitation generator just use one histogram 
-                ! for all the excitations
-                allocate(frequency_bins(n_frequency_bins))
-                frequency_bins = 0
-
-!                 allocate(frequency_bounds(n_frequency_bins))
-
-!                 frequency_bounds = [(frq_step_size * i, i = 1, n_frequency_bins)]
-
+            else
+                ! This is specified manually
+                max_permitted_spawn = real(MaxWalkerBloom, dp)
             end if
 
-!             allocate(frequency_bins(n_frequency_bins))
-!             frequency_bins = 0
-! 
-!             allocate(frequency_bounds(n_frequency_bins))
-! 
-!             frequency_bounds = [(frq_step_size * i, i = 1, n_frequency_bins)]
+            if (.not. (tReadPops .and. .not. tWalkContGrow)) then
+                write(iout, "(a,f10.5)") "Will dynamically update timestep to &
+                             &limit spawning probability to", max_permitted_spawn
+            end if
 
         end if
 
 
-    end subroutine
+    end subroutine init_hist_tau_search
 
     subroutine log_spawn_magnitude_default(ic, ex, matel, prob)
 
@@ -421,8 +392,6 @@ contains
         character(*), parameter :: this_routine = "update_tau"
 
         integer :: itmp, itmp2
-        real(dp) :: ratio_singles, ratio_anti, ratio_para, ratio_doubles, ratio, &
-                    tau_test, pparallel_test, psingles_test
 
         ! This is an override. In case we need to adjust tau due to particle
         ! death rates, when it otherwise wouldn't be adjusted
@@ -453,7 +422,7 @@ contains
             ! Condition met --> no need to do this again next iteration
             tSearchTauDeath = .false.
 
-            if (.not. t_new_tau_search) then
+            if (.not. t_hist_tau_search) then
                 return
             end if
 
@@ -583,174 +552,247 @@ contains
             pDoubles = 1.0_dp - pSingles
         end if
 
-        if (t_frequency_analysis) then 
-            ! singles is always used.. 
-            call integrate_frequency_histogram_spec(size(frequency_bins_singles), &
-                frequency_bins_singles, ratio_singles) 
+        ! since this is only called if both tau search options are true 
+        ! call it here if new tau is also on 
+        if (t_hist_tau_search) call update_tau_hist()
 
-            ratio_singles = ratio_singles * pSingles
-#ifdef __DEBUG
-            root_print "ratio singles: ", ratio_singles 
-            root_print "gamma singles: ", gamma_sing
-            root_print "improv single: ", gamma_sing / ratio_singles
-#endif
+    end subroutine update_tau_default
 
-            if (tGen_4ind_weighted .or. tGen_4ind_2) then 
-                ! sum up all 3 ratios: single, parallel and anti-parallel
-                call integrate_frequency_histogram_spec(size(frequency_bins_para), &
-                    frequency_bins_para, ratio_para)
+    subroutine update_tau_hist() 
+        ! split up the new tau-update routine from the old one! 
+        character(*), parameter :: this_routine = "update_tau_hist"
 
-                call integrate_frequency_histogram_spec(size(frequency_bins_anti), &
-                    frequency_bins_anti, ratio_anti)
+        real(dp) :: psingles_new, tau_new, mpi_tmp, tau_death, pParallel_new
+        real(dp) :: ratio_singles, ratio_anti, ratio_para, ratio_doubles, ratio
+        logical :: mpi_ltmp
+        
+        if (.not. t_hist_tau_search) then 
+            ! this means the option was turned but got turned off due to 
+            ! entering var. shift mode, or because the histogramms are full
+            ! but the death events should still be considered 
+ 
+            ! Check that the override has actually occurred.
+            ASSERT(tSearchTauOption)
+            ASSERT(tSearchTauDeath)
 
-                ! to compare the influences on the time-step:
-                ratio_para = ratio_para * pDoubles * pParallel
-                ratio_anti = ratio_anti * pDoubles * (1.0_dp - pParallel)
+            ! The range of tau is restricted by particle death. It MUST be <=
+            ! the value obtained to restrict the maximum death-factor to 1.0.
+            call MPIAllReduce (max_death_cpt, MPI_MAX, mpi_tmp)
+            max_death_cpt = mpi_tmp
+            tau_death = 1.0_dp / max_death_cpt
 
-#ifdef __DEBUG
-                root_print "ratio para: ", ratio_para 
-                root_print "gamma para: ", gamma_par  
-                root_print "improve para: ", gamma_par / ratio_para
-                root_print "ratio anti: ", ratio_anti 
-                root_print "gamma anti: ", gamma_opp
-                root_print "improv anti: ", gamma_opp / ratio_anti
-#endif
+            ! If this actually constrains tau, then adjust it!
+            if (tau_death < tau) then
+                tau = tau_death
 
-                ! also calculate new time-step through this method and 
-                ! check the difference to the old method 
-                if (enough_sing .and. enough_doub) then 
-                    pparallel_new = ratio_para / (ratio_anti + ratio_para)
-                    psingles_new = ratio_singles * pparallel_new / &
-                        (ratio_para + ratio_singles * pparallel_new) 
+                root_print "******"
+                root_print "WARNING: Updating time step due to particle death &
+                           &magnitude"
+                root_print "This occurs despite variable shift mode"
+                root_print "Updating time-step. New time-step = ", tau
+                root_print "******"
+            end if
 
-                    tau_new = psingles_new * max_permitted_spawn / ratio_singles
+            ! Condition met --> no need to do this again next iteration
+            tSearchTauDeath = .false.
 
-                    if (psingles_new > 1e-5_dp .and. &
-                        psingles_new < (1.0_dp - 1e-5_dp)) then
+            return
+        end if
 
-                        root_print "Updating singles/doubles bias. pSingles = ", &
-                            psingles_new, ", pDoubles = ", 1.0_dp - psingles_new
+        ! What needs doing depends on the number of parametrs that are being
+        ! updated.
+        call MPIAllLORLogical(enough_sing_hist, mpi_ltmp)
+        enough_sing_hist = mpi_ltmp
+        call MPIAllLORLogical(enough_doub_hist, mpi_ltmp)
+        enough_doub_hist = mpi_ltmp
 
-                        pSingles = psingles_new
-                        pDoubles = 1.0_dp - pSingles
-                    end if
+        ! singles is always used.. 
+        call integrate_frequency_histogram_spec(size(frequency_bins_singles), &
+            frequency_bins_singles, ratio_singles) 
 
-                else
-                    pparallel_new = pParallel
-                    psingles_new = pSingles
-                    ! im not sure if this possible division by 0 is cool...
-                    tau_new = max_permitted_spawn * min(&
-                        pSingles / ratio_singles, &
-                        pDoubles * pParallel / ratio_para, &
-                        pDoubles * (1.0_dp - pParallel) / ratio_anti)
+        ! if i have a integer overflow i should probably deal here with it..
+        if (ratio_singles < 0.0_dp) then 
+            ! this means i had an int overflow and should stop the tau-searching
+            root_print "The single excitation histogram is full!"
+            root_print "stop the hist_tau_search with last time-step: ", tau
+            root_print "and pSingles and pDoubles:", pSingles, pDoubles
+            t_hist_tau_search = .false. 
+
+            return 
+        end if
+
+        ratio_singles = ratio_singles * pSingles
+
+        if (tGen_4ind_weighted .or. tGen_4ind_2) then 
+
+            ASSERT(consider_par_bias)
+
+            ! sum up all 3 ratios: single, parallel and anti-parallel
+            call integrate_frequency_histogram_spec(size(frequency_bins_para), &
+                frequency_bins_para, ratio_para)
+
+            if (ratio_para < 0.0_dp) then 
+                root_print "The parallel excitation histogram is full!" 
+                root_print "stop the hist_tau_search with last time-step: ", tau
+                root_print "and pSingles and pParallel: ", pSingles, pParallel
+
+                t_hist_tau_search = .false. 
+
+                return
+            end if
+
+            call integrate_frequency_histogram_spec(size(frequency_bins_anti), &
+                frequency_bins_anti, ratio_anti)
+
+            if (ratio_anti < 0.0_dp) then 
+                root_print "The anti-parallel excitation histogram is full!" 
+                root_print "stop the hist_tau_search with last time-step: ", tau
+                root_print "and pSingles and pParallel: ", pSingles, pParallel
+
+                t_hist_tau_search = .false. 
+
+                return
+            end if
+
+            ! to compare the influences on the time-step:
+            ratio_para = ratio_para * pDoubles * pParallel
+            ratio_anti = ratio_anti * pDoubles * (1.0_dp - pParallel)
+
+            ! also calculate new time-step through this method and 
+            ! check the difference to the old method 
+            if (enough_sing .and. enough_doub) then 
+                pparallel_new = ratio_para / (ratio_anti + ratio_para)
+                psingles_new = ratio_singles * pparallel_new / &
+                    (ratio_para + ratio_singles * pparallel_new) 
+
+                tau_new = psingles_new * max_permitted_spawn / ratio_singles
+
+                if (psingles_new > 1e-5_dp .and. &
+                    psingles_new < (1.0_dp - 1e-5_dp)) then
+
+                    root_print "Updating singles/doubles bias. pSingles = ", &
+                        psingles_new, ", pDoubles = ", 1.0_dp - psingles_new
+
+                    pSingles = psingles_new
+                    pDoubles = 1.0_dp - pSingles
                 end if
-
-#ifdef __DEBUG
-                root_print "new time-step test: ", tau_new
-                root_print "time-step improv: ", tau_new / tau
-                root_print "tau death: ", tau_death
-#endif
-
-                ! enough_doub implies that both enough_opp and enough_par are 
-                ! true.. so this if statement makes no sense 
-                if (enough_opp .and. enough_par) then 
-                    if (abs(pparallel_new-pParallel) / pParallel > 0.0001_dp) then
-                        root_print "Updating parallel-spin bias; new pParallel = ", &
-                            pParallel_new
-                    end if
-                    pParallel = pParallel_new
-                end if
-
-            else if (tGen_sym_guga_mol) then
-                ! here i only use doubles for now
-                call integrate_frequency_histogram_spec(size(frequency_bins_doubles), &
-                    frequency_bins_doubles, ratio_doubles)
-
-                ! to compare the influences on the time-step:
-                ratio_doubles = ratio_doubles * pDoubles
-#ifdef __DEBUG
-                root_print "ratio doubles: ", ratio_doubles 
-                root_print "gamma doubles: ", gamma_doub
-                root_print "improv doubles: ", gamma_doub / ratio_doubles
-#endif
-
-                if (enough_sing .and. enough_doub) then 
-                    psingles_new = ratio_singles / (ratio_doubles + ratio_singles)
-                    tau_new = max_permitted_spawn / (ratio_doubles + ratio_singles)
-
-                    if (psingles_new > 1e-5_dp .and. &
-                        psingles_new < (1.0_dp - 1e-5_dp)) then
-
-                        if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
-                            root_print "Updating singles/doubles bias. pSingles = ", &
-                                psingles_new, ", pDoubles = ", 1.0_dp - psingles_new
-                        end if
-
-                        pSingles = psingles_new
-                        pDoubles = 1.0_dp - pSingles
-                    end if
-
-                else 
-                    psingles_new = pSingles
-                    tau_new = max_permitted_spawn * & 
-                        min(pSingles / ratio_singles, pDoubles / ratio_doubles)
-
-                end if
-
-#ifdef __DEBUG
-                root_print "new time-step test: ", tau_new
-                root_print "time-step improv: ", tau_new / tau
-                root_print "tau death: ", tau_death
-#endif
 
             else
-                ! for any other excitation generator just use one histogram
-                call integrate_frequency_histogram(ratio)
-                print *, "ratio: ", ratio
+                pparallel_new = pParallel
+                psingles_new = pSingles
+                ! im not sure if this possible division by 0 is cool...
+                tau_new = max_permitted_spawn * min(&
+                    pSingles / ratio_singles, &
+                    pDoubles * pParallel / ratio_para, &
+                    pDoubles * (1.0_dp - pParallel) / ratio_anti)
             end if
+
+#ifdef __DEBUG
+            root_print "new time-step test: ", tau_new
+            root_print "time-step improv: ", tau_new / tau
+            root_print "tau death: ", tau_death
+#endif
+
+            ! enough_doub implies that both enough_opp and enough_par are 
+            ! true.. so this if statement makes no sense 
+            if (abs(pparallel_new-pParallel) / pParallel > 0.0001_dp) then
+                root_print "Updating parallel-spin bias; new pParallel = ", &
+                    pParallel_new
+            end if
+            pParallel = pParallel_new
+
+        else if (tGen_sym_guga_mol) then
+            ! here i only use doubles for now
+            call integrate_frequency_histogram_spec(size(frequency_bins_doubles), &
+                frequency_bins_doubles, ratio_doubles)
+
+            if (ratio_doubles < 0.0_dp) then 
+                root_print "The double excitation histogram is full!" 
+                root_print "stop the hist_tau_search with last time-step: ", tau
+                root_print "and pSingles and pDoubles: ", pSingles, pDoubles
+
+                t_hist_tau_search = .false. 
+
+                return
+            end if
+
+            ! to compare the influences on the time-step:
+            ratio_doubles = ratio_doubles * pDoubles
+
+            if (enough_sing .and. enough_doub) then 
+                psingles_new = ratio_singles / (ratio_doubles + ratio_singles)
+                tau_new = max_permitted_spawn / (ratio_doubles + ratio_singles)
+
+                if (psingles_new > 1e-5_dp .and. &
+                    psingles_new < (1.0_dp - 1e-5_dp)) then
+
+                    if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
+                        root_print "Updating singles/doubles bias. pSingles = ", &
+                            psingles_new, ", pDoubles = ", 1.0_dp - psingles_new
+                    end if
+
+                    pSingles = psingles_new
+                    pDoubles = 1.0_dp - pSingles
+                end if
+
+            else 
+                psingles_new = pSingles
+                tau_new = max_permitted_spawn * & 
+                    min(pSingles / ratio_singles, pDoubles / ratio_doubles)
+
+            end if
+
+#ifdef __DEBUG
+            root_print "new time-step test: ", tau_new
+            root_print "time-step improv: ", tau_new / tau
+            root_print "tau death: ", tau_death
+#endif
+
+        else
+            ! for any other excitation generator just use one histogram
+            call integrate_frequency_histogram(ratio)
+
         end if
 
         ! to deatch check again and finally update time-step
 
-        if (t_new_tau_search) then
-            if (tau_death < tau_new) then
+        if (tau_death < tau_new) then
+            if (t_min_tau) then
+                root_print "time-step reduced, due to death events! reset min_tau to:", tau_death
+                min_tau_global = tau_death
+            end if
+            tau_new = tau_death
+        end if
+
+        ! And a last sanity check/hard limit
+        tau_new = min(tau_new, MaxTau)
+
+        ! If the calculated tau is less than the current tau, we should ALWAYS
+        ! update it. Once we have a reasonable sample of excitations, then we
+        ! can permit tau to increase if we have started too low.
+        if (tau_new < tau .or. ((tUEG .or. enough_sing) .and. enough_doub))then
+
+            ! Make the final tau smaller than tau_new by a small amount
+            ! so that we don't get spawns exactly equal to the
+            ! initiator threshold, but slightly below it instead.
+            tau_new = tau_new * 0.99999_dp
+
+            if (abs(tau - tau_new) / tau > 0.001_dp) then
                 if (t_min_tau) then
-                    root_print "time-step reduced, due to death events! reset min_tau to:", tau_death
-                    min_tau_global = tau_death
-                end if
-                tau_new = tau_death
-            end if
+                    if (tau_new < min_tau_global) then
+                        root_print "new time-step less then min_tau! set to min_tau!", min_tau_global
 
-            ! And a last sanity check/hard limit
-            tau_new = min(tau_new, MaxTau)
+                        tau_new = min_tau_global
 
-            ! If the calculated tau is less than the current tau, we should ALWAYS
-            ! update it. Once we have a reasonable sample of excitations, then we
-            ! can permit tau to increase if we have started too low.
-            if (tau_new < tau .or. ((tUEG .or. enough_sing) .and. enough_doub))then
-
-                ! Make the final tau smaller than tau_new by a small amount
-                ! so that we don't get spawns exactly equal to the
-                ! initiator threshold, but slightly below it instead.
-                tau_new = tau_new * 0.99999_dp
-
-                if (abs(tau - tau_new) / tau > 0.001_dp) then
-                    if (t_min_tau) then
-                        if (tau_new < min_tau_global) then
-                            root_print "new time-step less then min_tau! set to min_tau!", min_tau_global
-
-                            tau_new = min_tau_global
-
-                        else 
-                            root_print "Updating time-step. New time-step = ", tau_new
-                        end if
-                    else
+                    else 
                         root_print "Updating time-step. New time-step = ", tau_new
-
                     end if
+                else
+                    root_print "Updating time-step. New time-step = ", tau_new
+
                 end if
-                tau = tau_new
             end if
+            tau = tau_new
         end if
 
     end subroutine
@@ -929,10 +971,22 @@ contains
         ! i just realised, due to the linear and ordered bins, i actually dont
         ! need to binary search in them but can determine the index just 
         ! through the ratio and frequency step size
+        ! i want to stop filling the histograms after a certain number of
+        ! excitations is stored. 1.: since i dont want integer overflows and 
+        ! i think it is unnecessary to store it as an 64bit integer array 
+        ! and 2.: the distribution shouldn't change too much after a 
+        ! certain point.. 
+        ! but this would also mean, that the tau-update would not give 
+        ! any new values after i dont change the histograms anymore 
+        ! so i could stop the tau-adaptation after that point too.. 
+        ! so maybe first experiment a bit with 64bit array to see if 
+        ! the time does change more after the 32 bit limit is reached 
+        ! and then change it back to 32 bits..
         real(dp), intent(in) :: mat_ele, pgen 
         integer, intent(in) :: ic 
         logical, intent(in) :: t_parallel
         character(*), parameter :: this_routine = "fill_frequency_histogram_4ind"
+        integer, parameter :: cnt_threshold = 50
 
         real(dp) :: ratio
         integer :: new_n_bins, old_n_bins, i, ind 
@@ -949,6 +1003,13 @@ contains
         ! then i have to decide which histogram to fill 
 
         if (ic == 1) then 
+
+            ! also keep track of the number of done excitations
+            if (.not. enough_sing_hist) then 
+                cnt_sing_hist = cnt_sing_hist + 1
+                if (cnt_sing_hist > cnt_threshold) enough_sing_hist = .true.
+            end if
+
             ! fill in the singles histogram
             old_n_bins = size(frequency_bins_singles) 
 
@@ -989,6 +1050,12 @@ contains
         else
             ! check if parallel or anti-parallel 
             if (t_parallel) then 
+
+                if (.not. enough_par_hist) then 
+                    cnt_par_hist = cnt_par_hist + 1
+                    if (cnt_par_hist > cnt_threshold) enough_par_hist = .true.
+                end if
+
                 ! parallel excitation 
                 old_n_bins = size(frequency_bins_para) 
 
@@ -1021,6 +1088,12 @@ contains
 
                 end if
             else 
+
+                if (.not. enough_opp_hist) then 
+                    cnt_opp_hist = cnt_opp_hist + 1
+                    if (cnt_opp_hist > cnt_threshold) enough_opp_hist = .true. 
+                end if
+
                 ! anti-parallel excitation
                 old_n_bins = size(frequency_bins_anti)
 
@@ -1053,6 +1126,10 @@ contains
 
                 end if
             end if
+            
+            ! combine par and opp into enough_doub
+            if (enough_par_hist .and. enough_opp_hist) enough_doub_hist = .true.
+
         end if
 
     end subroutine fill_frequency_histogram_4ind
@@ -1070,6 +1147,7 @@ contains
         real(dp), intent(in) :: mat_ele, pgen 
         integer, intent(in) :: ic 
         character(*), parameter :: this_routine = "fill_frequency_histogram_sd"
+        integer, parameter :: cnt_threshold = 50
 
         real(dp) :: ratio
         integer :: ind, new_n_bins, i, old_n_bins
@@ -1083,6 +1161,12 @@ contains
         ratio = mat_ele / pgen 
 
         if (ic == 1) then 
+
+            if (.not. enough_sing_hist) then 
+                cnt_sing_hist = cnt_sing_hist + 1
+                if (cnt_sing_hist > cnt_threshold) enough_sing_hist = .true.
+            end if
+
             old_n_bins = size(frequency_bins_singles)
 
             if (ratio > frq_step_size * old_n_bins) then
@@ -1113,6 +1197,12 @@ contains
 
             end if
         else 
+
+            if (.not. enough_doub_hist) then 
+                cnt_doub_hist = cnt_doub_hist + 1
+                if (cnt_doub_hist > cnt_threshold) enough_doub_hist = .true.
+            end if
+
             old_n_bins = size(frequency_bins_doubles)
 
             if (ratio > frq_step_size * old_n_bins) then 
@@ -1714,7 +1804,8 @@ contains
         character(*), parameter :: this_routine = "integrate_frequency_histogram_spec"
 
         integer, allocatable :: all_frequency_bins(:)
-        integer :: i, threshold, n_bins, n_elements, cnt
+        integer :: i, threshold, n_bins
+        integer :: n_elements, cnt
 
         call comm_frequency_histogram_spec(spec_size, spec_frequency_bins, &
             all_frequency_bins)
@@ -1722,17 +1813,23 @@ contains
         n_bins = size(all_frequency_bins)
         n_elements = sum(all_frequency_bins)
 
-
         ! have to check if no elements are yet stored into the histogram! 
         if (n_elements == 0) then
             ratio = 0.0_dp
             return
+
+        else if (n_elements < 0) then 
+            ! i reached an integer overflow.. and should stop histogramming
+            ! this also means i should make an additional flag for only 
+            ! the histogramming option without the tau-search to it
+            ! so i can also stop just the histogramming after an int 
+            ! overflow in the histograms
+            ratio = -1.0_dp
+            t_fill_frequency_hists = .false.
+            return
         end if
 
         threshold = int(frq_ratio_cutoff * real(n_elements, dp))
-
-        print *, "int overflow?: ", n_elements, threshold
-        call neci_flush(6)
 
         cnt = 0
         i = 0

@@ -127,7 +127,7 @@ module soft_exit
                         nmcyc_value => nmcyc, tTruncNOpen, trunc_nopen_max, &
                         target_grow_rate => TargetGrowRate, tShiftonHFPop, &
                         tAllRealCoeff, tRealSpawnCutoff, tJumpShift, & 
-                        frq_ratio_cutoff, t_new_tau_search
+                        frq_ratio_cutoff, t_hist_tau_search
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
@@ -543,9 +543,9 @@ contains
                     tSearchTau = .false.
                 endif
                 ! also use that CHANGEVARS option to stop the new tau-search 
-                if (t_new_tau_search) then 
+                if (t_hist_tau_search) then 
                     write(6,*) "Ceasing new tau-search!"
-                    t_new_tau_search = .false.
+                    t_hist_tau_search = .false.
                     ! i could also use that option to stop the histogramming 
                     ! of the H_ij/pgen ratios.. since i do not need it anymore 
                     ! then .. but i probably should atleast print it out 

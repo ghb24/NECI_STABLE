@@ -11,7 +11,7 @@ module fcimc_iter_utils
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
-                        qmc_trial_wf, t_new_tau_search
+                        qmc_trial_wf, t_hist_tau_search, t_hist_tau_search_option
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables
     use semi_stoch_procs, only: recalc_core_hamil_diag
@@ -21,7 +21,7 @@ module fcimc_iter_utils
     use global_det_data, only: set_det_diagH
     use Determinants, only: get_helement
     use LoggingData, only: tFCIMCStats2
-!     use tau_search, only: update_tau
+    use tau_search, only: update_tau_hist
     use Parallel_neci
     use fcimc_initialisation
     use fcimc_output
@@ -558,8 +558,13 @@ contains
         ! for now with the new tau-search also update tau in variable shift 
         ! mode..
         if (((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. &
-            .not. tFillingStochRDMOnFly).or. t_new_tau_search) then   
+            .not. tFillingStochRDMOnFly)) then   
             call update_tau()
+
+        else if (((t_hist_tau_search .or. (t_hist_tau_search_option .and. tSearchTauDeath)) .and. &
+            .not. tFillingStochRDMonFly)) then
+            call update_tau_hist()
+
         end if
 
         if (tTrialWavefunction) then

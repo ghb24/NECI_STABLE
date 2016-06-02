@@ -389,8 +389,20 @@ real(dp), allocatable :: frequency_bounds_type2(:), frequency_bounds_type2_diff(
 real(dp) :: frq_ratio_cutoff = 0.95_dp
 
 ! use a flag to initiate the new tau-search option 
-logical :: t_new_tau_search = .false.
+logical :: t_hist_tau_search = .false.
+! also use an additional flag to turn the new tau-search off but keep some 
+! of its functionality anyway..
+logical :: t_hist_tau_search_option = .false.
 
+! also keep count seperately of the old tau-search to not mix them 
+integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_par_hist
+
+! and also logicals if i have enough of the excitations
+logical :: enough_sing_hist, enough_doub_hist, enough_par_hist, enough_opp_hist
+
+! also use a logical to stop filling he histograms if an int overflow 
+! happened 
+logical :: t_fill_frequency_hists = .false.
 ! also need multiple new specific excitation type probabilites, but they are 
 ! defined in FciMCdata module! 
 end module CalcData

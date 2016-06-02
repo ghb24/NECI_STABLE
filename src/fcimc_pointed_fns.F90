@@ -7,7 +7,8 @@ module fcimc_pointed_fns
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
-                        tRealCoeffByExcitLevel, InitiatorWalkNo, t_frequency_analysis
+                        tRealCoeffByExcitLevel, InitiatorWalkNo, t_frequency_analysis, &
+                        t_fill_frequency_hists
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, log_spawn_magnitude
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -142,7 +143,7 @@ module fcimc_pointed_fns
         ! but i have to remember to keep it parallel! so dont forget to 
         ! sum up all the contributions from different cores! 
         ! and divide prob by AvMCExcits again to get correct pgen! 
-        if (t_frequency_analysis) then
+        if (t_frequency_analysis .and. t_fill_frequency_hists) then
             ! use specific ones for different types of excitation gens
             if (tGen_4ind_weighted .or. tGen_4ind_2) then
                 ! determine if excitation was parallel or anti-parallel

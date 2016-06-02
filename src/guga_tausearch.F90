@@ -14,7 +14,7 @@ module guga_tausearch
                     frequency_bounds_type2_diff, frequency_bounds_type3_diff, &
                     frequency_bins_singles, frequency_bounds_singles, &
                     t_frequency_analysis, frq_step_size, max_frequency_bound, &
-                    n_frequency_bins, t_min_tau, min_tau_global, t_new_tau_search
+                    n_frequency_bins, t_min_tau, min_tau_global, t_hist_tau_search
 
     use SystemData, only: tUEG, t_consider_diff_bias
     use FciMCData, only: tRestart, pSingles, pDoubles, pExcit2, pExcit4, &
@@ -29,7 +29,7 @@ module guga_tausearch
 
     implicit none
     integer :: cnt_sing, cnt_four, cnt_two_same, cnt_two_mixed, cnt_three_same, &
-               cnt_three_mixed
+        cnt_three_mixed
 
 contains
     ! put the previous specifically defined variables in tau_search 
@@ -818,7 +818,7 @@ contains
         end if
         ! and have to carefully check if i have enough excitations of all sorts
         ! before i individually update the probabilities
-        if (t_new_tau_search) then
+        if (t_hist_tau_search) then
             if (tau_death < tau_new) then
                 if (t_min_tau) then
                     root_print "time-step reduced, due to death events! reset min_tau to:", tau_death

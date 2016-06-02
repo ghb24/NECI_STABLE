@@ -86,7 +86,8 @@ contains
           tSearchTauOption = .true.
           tSearchTauDeath = .false.
 
-          t_new_tau_search = .false.
+          t_hist_tau_search = .false.
+          t_hist_tau_search_option = .false.
 
           tTimeExit=.false.
           MaxTimeExit=0.0_dp
@@ -1032,6 +1033,7 @@ contains
                 ! and if given also the first upper limit up to which the 
                 ! initial bins get created
                 t_frequency_analysis = .true. 
+                t_fill_frequency_hists = .true.
 
                 if (item < nitems) then
                     call geti(n_frequency_bins)
@@ -1043,19 +1045,12 @@ contains
 
                 ! to init the init_tau search i have to set tausearch to true
                 tSearchTau = .true.
-!                 ! do the allocation already here? 
-!                 allocate(frequency_bins(n_frequency_bins))
-! 
-!                 frequency_bins = 0
-! 
-!                 ! how do I set up the bounds correctly? use implicit do
-!                 allocate(frequency_bounds(n_frequency_bins))
-! 
-!                 frequency_bounds = [(max_frequency_bound/n_frequency_bins * i, &
-!                     i = 1, n_frequency_bins)]
-! 
+                tSearchTauOption = .true.
 
-            case("NEW-TAU-SEARCH")
+                t_hist_tau_search_option = .true.
+                t_hist_tau_search = .true.
+
+            case("NEW-TAU-SEARCH","HIST-TAU-SEARCH")
                 ! keyword to initiate the new tau-search. since that requires
                 ! the frequency analysis too, enable that also. 
                 ! but here no additional input to decide on the number of 
@@ -1063,9 +1058,15 @@ contains
                 ! the only additional input here is the percentage until 
                 ! the histograms get integrated to determine the new time 
                 ! step, which will be defaulted to 0.95
-                t_new_tau_search = .true. 
+                t_hist_tau_search = .true. 
+                t_hist_tau_search_option = .true.
                 t_frequency_analysis = .true. 
+                t_fill_frequency_hists = .true.
+
+                ! for now always use both tau-searches but change that in 
+                ! the future
                 tSearchTau = .true. 
+                tSearchTauOption = .true.
 
                 if (item < nitems) then 
                     call getf(frq_ratio_cutoff)

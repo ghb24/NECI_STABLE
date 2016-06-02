@@ -1938,8 +1938,8 @@ contains
         end if
 #endif
 
-        print *, "toto"
-        call neci_flush(6)
+        write(iout, "(A)") "toto proje?"
+        call neci_flush(iout)
 
         if(tHPHF) then
             if(.not.Allocated(RefDetFlip)) then

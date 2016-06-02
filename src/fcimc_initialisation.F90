@@ -33,7 +33,7 @@ module fcimc_initialisation
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, &
-                        tMultipleInitialStates, initial_states
+                        tMultipleInitialStates, initial_states, t_hist_tau_search
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -116,7 +116,8 @@ module fcimc_initialisation
     use gndts_mod, only: gndts
     use excit_gen_5, only: gen_excit_4ind_weighted2
     use csf, only: get_csf_helement
-    use tau_search, only: init_tau_search, update_tau_default, log_spawn_magnitude_default
+    use tau_search, only: init_tau_search, update_tau_default, log_spawn_magnitude_default, &
+                          init_hist_tau_search
     use fcimc_helper, only: CalcParentFlag, update_run_reference
     use cont_time_rates, only: spawn_rate_full, oversample_factors, &
                                secondary_gen_store, ostag
@@ -1002,6 +1003,10 @@ contains
 !                       ^ Removed by GLM as believed not necessary
         if (tSearchTau) then
             call init_tau_search()
+            ! call init_hist_tau_search in init_tau_search if both flags are 
+            ! set!
+        else if (t_hist_tau_search) then 
+            call init_hist_tau_search() 
         else
             ! Add a couple of checks for sanity
             if (nOccAlpha == 0 .or. nOccBeta == 0) then

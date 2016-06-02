@@ -1406,6 +1406,8 @@ contains
         real(dp), allocatable :: all_frequency_bounds(:) 
         character(*), parameter :: this_routine = "print_frequency_histogram_spec"
 
+        integer(int64) :: sum_all
+
         ! this is only called in the 4ind weighted or GUGA case so singles 
         ! are always there so do them first 
         call comm_frequency_histogram_spec(size(frequency_bins_singles), &
@@ -1522,7 +1524,13 @@ contains
 
                 ! also print out a normed frequency histogram to better 
                 ! compare runs with different length
-                norm = real(sum(all_frequency_bins),dp)
+                sum_all = sum(all_frequency_bins)
+                if (sum_all < 0) then 
+                    ! we have a int overflow.. 
+                    ! how to deal with that?? hm.. 
+                    call stop_all(this_routine, "integer overflow!")
+                end if
+                norm = real(sum_all,dp)
 
                 iunit = get_free_unit() 
                 call get_unique_filename("frequency_histogram_normed", .true., &
@@ -1593,7 +1601,12 @@ contains
 
                 ! also print out a normed frequency histogram to better 
                 ! compare runs with different length
-                norm = real(sum(all_frequency_bins),dp)
+                sum_all = sum(all_frequency_bins)
+                if (sum_all < 0) then 
+                    call stop_all(this_routine, "integer overflow!")
+                end if
+
+                norm = real(sum_all,dp)
 
                 iunit = get_free_unit() 
                 call get_unique_filename("frequency_histogram_normed", .true., &
@@ -1767,7 +1780,10 @@ contains
 
                 ! also print out a normed frequency histogram to better 
                 ! compare runs with different length
-                norm = real(sum(all_frequency_bins),dp)
+                sum_all = sum(all_frequency_bins)
+                if (sum_all < 0) call stop_all(this_routine, "integer overflow!")
+
+                norm = real(sum_all,dp)
 
                 iunit = get_free_unit() 
                 call get_unique_filename("frequency_histogram_normed", .true., &
