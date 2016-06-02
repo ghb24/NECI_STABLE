@@ -24,10 +24,9 @@ module tau_search
                     frequency_bounds_type3, frequency_bins_type4, frequency_bounds_type4, &
                     frequency_bins_type2_diff, frequency_bins_type3_diff, & 
                     frequency_bounds_type2_diff, frequency_bounds_type3_diff, &
-                    frq_ratio_cutoff, t_hist_tau_search, cnt_sing_hist, &
-                    cnt_doub_hist, cnt_par_hist, cnt_opp_hist, enough_sing_hist, &
+                    frq_ratio_cutoff, t_hist_tau_search,  enough_sing_hist, &
                     enough_doub_hist, enough_par_hist, enough_opp_hist, & 
-                    t_fill_frequency_hists
+                    t_fill_frequency_hists, t_hist_tau_search_option
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          ProjEDet, ilutRef, MaxTau, tSearchTau, &
                          tSearchTauOption, tSearchTauDeath, pExcit2, pExcit4, &
@@ -55,6 +54,7 @@ module tau_search
     ! guga-specific:
     integer :: cnt_four, cnt_three_same, cnt_three_mixed, cnt_two_same, cnt_two_mixed
     integer :: n_opp, n_par
+    integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_par_hist
 !     logical :: enough_sing, enough_doub, enough_opp, enough_par, consider_par_bias
 
 contains
@@ -251,19 +251,6 @@ contains
             ! And the counts are used to make sure we don't update anything too
             ! early
             ! should we use the same variables in both tau-searches?? 
-            cnt_sing = 0
-            cnt_doub = 0
-            enough_sing = .false.
-            enough_doub = .false.
-
-            gamma_opp = 0
-            gamma_par = 0
-
-            cnt_opp = 0
-            cnt_par = 0
-
-            enough_opp = .false.
-            enough_par = .false.
 
             ! Unless it is already specified, set an initial value for tau
             if (.not. tRestart .and. .not. tReadPops .and. tau == 0) &
@@ -389,7 +376,7 @@ contains
 
         real(dp) :: psingles_new, tau_new, mpi_tmp, tau_death, pParallel_new
         logical :: mpi_ltmp
-        character(*), parameter :: this_routine = "update_tau"
+        character(*), parameter :: this_routine = "update_tau_default"
 
         integer :: itmp, itmp2
 
@@ -469,7 +456,7 @@ contains
             if (enough_opp .and. enough_par) then
                 if (abs(pParallel_new-pParallel) / pParallel > 0.0001_dp) then
                     root_print "Updating parallel-spin bias; new pParallel = ", &
-                        pParallel_new
+                        pParallel_new, "in: ", this_routine
                 end if
                 pParallel = pParallel_new
             end if
@@ -529,10 +516,10 @@ contains
                         tau_new = min_tau_global
 
                     else 
-                        root_print "Updating time-step. New time-step = ", tau_new
+                        root_print "Updating time-step. New time-step = ", tau_new, "in: ", this_routine
                     end if
                 else
-                    root_print "Updating time-step. New time-step = ", tau_new
+                    root_print "Updating time-step. New time-step = ", tau_new, "in: ", this_routine
 
                 end if
             end if
@@ -546,7 +533,7 @@ contains
 
             if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
                 root_print "Updating singles/doubles bias. pSingles = ", &
-                    psingles_new, ", pDoubles = ", 1.0_dp - psingles_new
+                    psingles_new, ", pDoubles = ", 1.0_dp - psingles_new, "in: ", this_routine
             end if
             pSingles = psingles_new
             pDoubles = 1.0_dp - pSingles
@@ -572,7 +559,7 @@ contains
             ! but the death events should still be considered 
  
             ! Check that the override has actually occurred.
-            ASSERT(tSearchTauOption)
+            ASSERT(t_hist_tau_search_option)
             ASSERT(tSearchTauDeath)
 
             ! The range of tau is restricted by particle death. It MUST be <=
@@ -660,7 +647,7 @@ contains
 
             ! also calculate new time-step through this method and 
             ! check the difference to the old method 
-            if (enough_sing .and. enough_doub) then 
+            if (enough_sing_hist .and. enough_doub_hist) then 
                 pparallel_new = ratio_para / (ratio_anti + ratio_para)
                 psingles_new = ratio_singles * pparallel_new / &
                     (ratio_para + ratio_singles * pparallel_new) 
@@ -671,7 +658,7 @@ contains
                     psingles_new < (1.0_dp - 1e-5_dp)) then
 
                     root_print "Updating singles/doubles bias. pSingles = ", &
-                        psingles_new, ", pDoubles = ", 1.0_dp - psingles_new
+                        psingles_new, ", pDoubles = ", 1.0_dp - psingles_new, "in: ", this_routine
 
                     pSingles = psingles_new
                     pDoubles = 1.0_dp - pSingles
@@ -685,6 +672,7 @@ contains
                     pSingles / ratio_singles, &
                     pDoubles * pParallel / ratio_para, &
                     pDoubles * (1.0_dp - pParallel) / ratio_anti)
+
             end if
 
 #ifdef __DEBUG
@@ -697,7 +685,7 @@ contains
             ! true.. so this if statement makes no sense 
             if (abs(pparallel_new-pParallel) / pParallel > 0.0001_dp) then
                 root_print "Updating parallel-spin bias; new pParallel = ", &
-                    pParallel_new
+                    pParallel_new, "in: ", this_routine
             end if
             pParallel = pParallel_new
 
@@ -719,7 +707,7 @@ contains
             ! to compare the influences on the time-step:
             ratio_doubles = ratio_doubles * pDoubles
 
-            if (enough_sing .and. enough_doub) then 
+            if (enough_sing_hist .and. enough_doub_hist) then 
                 psingles_new = ratio_singles / (ratio_doubles + ratio_singles)
                 tau_new = max_permitted_spawn / (ratio_doubles + ratio_singles)
 
@@ -728,7 +716,7 @@ contains
 
                     if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
                         root_print "Updating singles/doubles bias. pSingles = ", &
-                            psingles_new, ", pDoubles = ", 1.0_dp - psingles_new
+                            psingles_new, ", pDoubles = ", 1.0_dp - psingles_new, "in: ", this_routine
                     end if
 
                     pSingles = psingles_new
@@ -755,6 +743,11 @@ contains
         end if
 
         ! to deatch check again and finally update time-step
+        ! The range of tau is restricted by particle death. It MUST be <=
+        ! the value obtained to restrict the maximum death-factor to 1.0.
+        call MPIAllReduce (max_death_cpt, MPI_MAX, mpi_tmp)
+        max_death_cpt = mpi_tmp
+        tau_death = 1.0_dp / max_death_cpt
 
         if (tau_death < tau_new) then
             if (t_min_tau) then
@@ -770,7 +763,7 @@ contains
         ! If the calculated tau is less than the current tau, we should ALWAYS
         ! update it. Once we have a reasonable sample of excitations, then we
         ! can permit tau to increase if we have started too low.
-        if (tau_new < tau .or. ((tUEG .or. enough_sing) .and. enough_doub))then
+        if (tau_new < tau .or. ((tUEG .or. enough_sing_hist) .and. enough_doub_hist))then
 
             ! Make the final tau smaller than tau_new by a small amount
             ! so that we don't get spawns exactly equal to the
@@ -785,10 +778,10 @@ contains
                         tau_new = min_tau_global
 
                     else 
-                        root_print "Updating time-step. New time-step = ", tau_new
+                        root_print "Updating time-step. New time-step = ", tau_new, "in: ", this_routine
                     end if
                 else
-                    root_print "Updating time-step. New time-step = ", tau_new
+                    root_print "Updating time-step. New time-step = ", tau_new, "in: ", this_routine
 
                 end if
             end if

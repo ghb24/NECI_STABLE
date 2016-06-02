@@ -1065,8 +1065,8 @@ contains
 
                 ! for now always use both tau-searches but change that in 
                 ! the future
-                tSearchTau = .true. 
-                tSearchTauOption = .true.
+                tSearchTau = .false.
+                tSearchTauOption = .false.
 
                 if (item < nitems) then 
                     call getf(frq_ratio_cutoff)
