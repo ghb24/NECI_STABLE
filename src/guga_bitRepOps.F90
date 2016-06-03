@@ -298,7 +298,8 @@ contains
         integer(n_int), intent(inout) :: list1(0:,1:), list2(0:,1:)
         character(*), parameter :: this_routine = "add_guga_lists"
 
-        integer :: i, min_ind, pos, abs_pos
+        integer :: i, min_ind, pos, abs_pos, j
+        integer :: tmp_deb 
 
         ! first sort lists to use binary search 
         call sort(list1(:,1:nDets1), ilut_lt, ilut_gt)
@@ -307,10 +308,22 @@ contains
         abs_pos = 0
         min_ind = 1
 
+!         tmp_deb = 0
+
+!         if (nDets1 == 442465 .and. nDets2 == 393) then 
+!             print *, "add start?"
+!             tmp_deb = nDets1
+!             print *, "nifguga: ", nifguga
+!         end if
+        
         do i = 1, nDets2
            
             pos = binary_search(list1(0:nifd,min_ind:ndets1), list2(0:nifd,i))
 !             pos = binary_search(list1(:,min_ind:ndets1), list2(:,i), nifd + 1)
+
+!             if (tmp_deb == 442465 .and. nDets2 == 393) then 
+!                 print *, "i, pos: ", i, pos
+!             end if
 
             if (pos > 0) then
                 ! try new implementation of that without the need of an extra
@@ -320,6 +333,13 @@ contains
                 ! sublists
                 abs_pos = abs_pos + pos
 
+!                 if (tmp_deb == 442465 .and. nDets2 == 393) then 
+!                     print *, "abs_pos, min_ind: ", abs_pos, min_ind
+!                     print *, "size list1:", size(list1,1), size(list1,2)
+!                     print *, "size+1:", nDets1 + 1, size(list1,2) + 1
+!                 end if
+! 
+! 
                 ! when element found just update the matrix element and update
                 ! the indices 
                 call encode_matrix_element(list1(:,abs_pos), &
@@ -350,10 +370,30 @@ contains
                 ! new entry at the indicated absolute position
                 abs_pos = abs_pos - pos
 
-                list1(:,abs_pos + 1:nDets1+1) = list1(:,abs_pos:nDets1)
+!                 if (tmp_deb == 442465 .and. nDets2 == 393) then 
+!                     print *, "abs_pos, min_ind: ", abs_pos, min_ind
+!                     print *, "size list1:", size(list1,1), size(list1,2)
+!                     print *, "size+1:", nDets1 + 1, size(list1,2) + 1
+!                     print *, "ndets1: ", nDets1
+!                 end if
+
+                ! is this too big to copy in one go?? 
+                do j = nDets1, abs_pos,-1
+!                     if (tmp_deb == 442465 .and. nDets2 == 393) then 
+!                         print *, "j: ", j
+!                     end if
+                    list1(:,j+1) = list1(:,j)
+                end do
+!                 list1(0:nifguga,(abs_pos+1):(nDets1+1)) = list1(0:nifguga,abs_pos:nDets1)
+!                 if (tmp_deb == 442465 .and. nDets2 == 393) then 
+!                     print *, "does the move work??"
+!                 end if
                 ! and add the new entry
                 list1(:,abs_pos) = list2(:,i)
 
+!                 if (tmp_deb == 442465 .and. nDets2 == 393) then 
+!                     print *, "or the input?"
+!                 end if
                 ! the minimum index to search from now on should not include 
                 ! the inserted element, since there should be no repetitions 
                 ! in both lists

@@ -10,7 +10,7 @@ module guga_excitations
                           currentB_ilut, currentB_int, current_cum_list, &
                           tGen_guga_weighted
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
-                         EPS, bni_, bn2_, iout
+                         EPS, bni_, bn2_, iout, int64
     use bit_reps, only: niftot, decode_bit_det, encode_det, encode_part_sign, &
                         extract_part_sign, add_ilut_lists, nifguga, nifd
     use bit_rep_data, only: nifdbo
@@ -10316,7 +10316,7 @@ contains
         ! also for excitations where the indices are known! 
         ! and fot those pescy non-overlap excitations!
         
-        write(iout,*) "nmax: ", nMax
+!         write(iout,*) "nmax: ", nMax
 
         allocate(excitations(0:nifguga,nMax), stat = ierr)
 
@@ -10347,7 +10347,7 @@ contains
 
         call init_csf_information(ilut(0:nifd))
 
-        write(iout, "(A)") "toto csf info?"
+!         write(iout, "(A)") "toto csf info?"
 !         currentB_ilut = calcB_vector_ilut(ilut(0:nifd))
 !         currentOcc_ilut = calcOcc_vector_ilut(ilut(0:nifd))
 !         current_stepvector = calcStepvector(ilut(0:nifd))
@@ -10400,7 +10400,7 @@ contains
         end do
 !         end if
 
-        write(iout,"(A)") "singles done!"
+!         write(iout,"(A)") "singles done!"
         ! print out all single excitations:
 ! #ifdef __DEBUG
 !         print *, " all single excitations for ilut. nTot: ", nTot
@@ -10431,14 +10431,24 @@ contains
                         ! calculation 
 ! ! 
 !                         write(iout,*) "double excitations: ", i,j,k,l
-                        call neci_flush(iout)
+!                         call neci_flush(iout)
 !                         print *, "for ilut: "
 !                         call write_det_guga(6,ilut)
+
+!                         if (i == 2 .and. j == 26 .and. k == 5 .and. l == 3) then 
+!                             print *, "ntot, nmax: ", nTot, nMax 
+!                             call neci_flush(iout)
+!                         end if
 
                         ! integral contributions 
                         call calcAllExcitations(ilut, i, j, k, l, tempExcits, &
                             nExcits)
 ! 
+!                         if (i == 2 .and. j == 26 .and. k == 5 .and. l == 3) then 
+!                             print *, "DE done? nexcit: ", nExcits
+!                             call neci_flush(iout)
+!                         end if
+
 !                         call write_guga_list(6, tempExcits(:,1:nExcits))
 #ifdef __DEBUG
                         do n = 1, nExcits
@@ -10465,17 +10475,29 @@ contains
                             ! update the list if another excitation is 
                             ! encountered
                             if (nExcits > 1) then
+                                
                                 call add_guga_lists(nTot, nExcits - 1, excitations, &
                                     tempExcits(:,2:))
 
                             end if
                         else 
                            ! just add the lists normally
-
+! 
+!                             if (i == 2 .and. j == 26 .and. k == 5 .and. l == 3) then
+!                                 print *, "add lists?"
+! 
+!                                 call write_guga_list(6, tempExcits(:,1:nExcits))
+! 
+!                                 print *, "size tempexcits:", size(tempExcits,1), size(tempExcits,2)
+!                             end if
                             if (nExcits > 0) then
                                 call add_guga_lists(nTot, nExcits, excitations, &
                                     tempExcits)
                             end if
+
+!                             if (i == 2 .and. j == 26 .and. k == 5 .and. l == 3) then
+!                                 print *, "success"
+!                             end if
                         end if
 ! 
 !                         print *, "list AFTER update: nTot = ", nTot
@@ -10487,8 +10509,8 @@ contains
         end do
 !         end if
 
-        write(iout, "(A)") "doubles done!"
-        call neci_flush(iout)
+!         write(iout, "(A)") "doubles done!"
+!         call neci_flush(iout)
         ! do an additional check if matrix element is 0
         j = 1
         do i = 1, nTot
@@ -14380,8 +14402,8 @@ contains
         semi = excitInfo%firstEnd
         gen = excitInfo%firstGen    
         
-        write(iout,*) "init weights?"
-        call neci_flush(iout)
+!         write(iout,*) "init weights?"
+!         call neci_flush(iout)
 
         ! create correct weights:
         weights = init_fullStartWeight(ilut, semi, ende, negSwitches(semi), &
@@ -14392,8 +14414,8 @@ contains
         zeroWeight = weights%proc%zero(negSwitches(start), posSwitches(start), &
             currentB_ilut(start), weights%dat)
 
-        write(iout,*) "start?"
-        call neci_flush(iout)
+!         write(iout,*) "start?"
+!         call neci_flush(iout)
         ! check if first value is 3, so only 0 branch is compatible
         call mixedFullStart(ilut, excitInfo, plusWeight, minusWeight,zeroWeight, tempExcits,&
             nExcits)
@@ -14402,8 +14424,8 @@ contains
         ! should check for LR(3) start here, have to do nothing if a 3 at 
         ! the full start since all matrix elements are one..
 !         if (.not.isThree(ilut,start)) then
-        write(iout,*) "double updates?"
-        call neci_flush(iout)
+!         write(iout,*) "double updates?"
+!         call neci_flush(iout)
         if (current_stepvector(start) /= 3) then
             do iOrb = start + 1, semi - 1 
                 call doubleUpdate(ilut, iOrb, excitInfo, weights, tempExcits, nExcits, &
@@ -14411,8 +14433,8 @@ contains
             end do
         end if
 
-        write(iout,*) "new weight?"
-        call neci_flush(iout)
+!         write(iout,*) "new weight?"
+!         call neci_flush(iout)
 
         ! then deal with the specific semi-stop here
         ! but todo update weights here..
@@ -14422,8 +14444,8 @@ contains
         minusWeight = weights%proc%minus(negSwitches(semi), currentB_ilut(semi), &
             weights%dat)
 
-        write(iout,*) "semistop?"
-        call neci_flush(iout)
+!         write(iout,*) "semistop?"
+!         call neci_flush(iout)
 
         call calcLoweringSemiStop(ilut, excitInfo, tempExcits, nExcits, plusWeight, &
             minusWeight)
@@ -14437,8 +14459,8 @@ contains
                 weights, tempExcits, nExcits)
         end do
 
-        write(iout,*) "end?"
-        call neci_flush(iout)
+!         write(iout,*) "end?"
+!         call neci_flush(iout)
         ! and normal single end
         call singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
 
