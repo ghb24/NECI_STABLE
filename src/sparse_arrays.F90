@@ -29,6 +29,7 @@ module sparse_arrays
     use guga_excitations, only: calc_off_diag_guga_gen, actHamiltonian
     use guga_bitRepOps, only: convert_ilut_toGUGA, extract_matrix_element
     use util_mod, only: binary_search
+    use guga_data, only: tag_excitations
 #endif
 
     implicit none
@@ -157,6 +158,8 @@ contains
                     end if
                 end do
                 deallocate(excitations)
+                ! am i sure if i want to do that all the time???
+                call LogMemDealloc(t_r, tag_excitations)
 
             else 
 #endif
@@ -315,6 +318,7 @@ contains
                     end if
                 end do
                 deallocate(excitations)
+                call LogMemDealloc(t_r, tag_excitations)
             else
 #endif
             ! Loop over all determinants on all processors.
@@ -464,6 +468,7 @@ contains
                 end do
 
                 deallocate(excitations)
+                call LogMemDealloc(t_r, tag_excitations)
                             
             else 
 #endif

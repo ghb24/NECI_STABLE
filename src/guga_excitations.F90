@@ -20,7 +20,7 @@ module guga_excitations
                     weight_data, orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, &
                     funA_m1_1_overR2, funA_3_1_overR2, minFunA_0_2_overR2, &
                     funA_2_0_overR2, getDoubleContribution, projE_replica, &
-                    tNewDet
+                    tNewDet, tag_excitations, tag_tmp_excits, tag_proje_list
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, getDeltaB, &
                         setDeltaB, count_open_orbs_ij, calcOcc_vector_ilut, &
                         encode_matrix_element, update_matrix_element, &
@@ -52,8 +52,9 @@ module guga_excitations
                 calc_mixed_start_l2r_contr, calc_mixed_end_l2r_contr, calc_mixed_end_r2l_contr, &
                 pick_first_orbital, orb_pgen_contrib_type_3, orb_pgen_contrib_type_2
     use Umatcache, only: UMat2D
-
+    use timing_neci, only: timer, set_timer, halt_timer, get_total_time
     use guga_types, only: weight_obj
+    use MemoryManager, only: LogMemAlloc, LogMemDealloc
 
     ! variables
     implicit none
@@ -303,7 +304,7 @@ contains
         integer(n_int) :: ilutG(0:nifguga), ilutJ(0:niftot)
         ! have to figure out how exactly the Detham routine works.. 
         ! probably also use timer.. 
-        proc_timer%timer_name = "Detham_guga"
+        proc_timer%timer_name = this_routine
         call set_timer(proc_timer)
 
         ! essentially it calculates all the matrix elements between the 
@@ -374,6 +375,7 @@ contains
             cum_rows = cum_rows + n_row(i)
 
             deallocate(excitations)
+            call LogMemDealloc(this_routine, tag_excitations)
         end do
 
         ! and then make the actual output variables 
@@ -764,6 +766,10 @@ contains
         integer :: pos, nExcit
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:,:)
+        type(timer), save :: proc_timer
+
+        proc_timer%timer_name = this_routine 
+        call set_timer(proc_timer)
 
 
         ! act the hamiltonian on ilutJ:
@@ -787,6 +793,9 @@ contains
         end if
 
         deallocate(excitations)
+        call LogMemDealloc(this_routine, tag_excitations)
+
+        call halt_timer(proc_timer)
 
     end function calc_off_diag_guga_gen
 
@@ -914,10 +923,11 @@ contains
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:,:)
         integer :: nExcit, ierr, i
-        
-        write(iout, "(A)") "convert? toto"
-        call neci_flush(iout)
+        type(timer), save :: proc_timer
 
+        proc_timer%timer_name = this_routine
+        call set_timer(proc_timer)
+        
         ! convert ilut to guga format 
         if (present(ilutN)) then
             call convert_ilut_toGUGA(ilutN, ilutG)
@@ -926,15 +936,8 @@ contains
             call convert_ilut_toGUGA(ilutRef(0:niftot,run), ilutG)
         end if
 
-        write(iout, "(A)") "acthamil?"
-        call neci_flush(iout)
-
-        call write_det_guga(iout, ilutG)
         ! calc. all excitations from it 
         call actHamiltonian(ilutG, excitations, nExcit)
-
-        write(iout, "(A)") "no!"
-        call neci_flush(iout)
 
         ! they should be ordered due to the ordering in the add_ilut_list 
 
@@ -952,6 +955,9 @@ contains
         allocate(projE_replica(run)%projE_ilut_list(0:niftot,nExcit), stat = ierr)
         allocate(projE_replica(run)%projE_hel_list(nExcit), stat = ierr)
         allocate(projE_replica(run)%exlevel(nExcit), stat = ierr)
+
+        call LogMemAlloc('projE_replica(1)', (niftot + 3)*nExcit, 8, this_routine, & 
+            tag_proje_list)
 
         projE_replica(run)%num_entries = nExcit
 
@@ -977,7 +983,11 @@ contains
         end do
 
         deallocate(excitations)
-        ! that should be it... 
+        call LogMemDealloc(this_routine, tag_excitations)
+
+        call halt_timer(proc_timer)
+        write(iout,*) "Projected Energy list setup finished!" 
+        write(iout,*) "Elapsed time: ", get_total_time(proc_timer)
 
     end subroutine create_projE_list
 
@@ -1167,9 +1177,10 @@ contains
         deallocate(det_list)
         deallocate(contrib_list)
         deallocate(generated_list)
-        deallocate(excitations)
         deallocate(pgen_list)
         deallocate(matEle_list)
+        deallocate(excitations)
+        call LogMemDealloc(this_routine, tag_excitations)
 
     end subroutine test_excit_gen_guga
 
@@ -10282,7 +10293,9 @@ contains
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nTot
         character(*), parameter :: this_routine = "actHamiltonian"
+        type(timer), save :: proc_timer
 
+        integer(n_int), pointer :: tmp_all_excits(:,:)
         integer :: i, j, k, l, nExcits, nMax, ierr
         integer(n_int), pointer :: tempExcits(:,:)
 !         real(dp) :: diagEle
@@ -10291,6 +10304,10 @@ contains
 #endif
 
         ASSERT(isProperCSF_ilut(ilut))
+
+        ! finally add some timing routines to this as it gets quite heavy
+        proc_timer%timer_name = this_routine
+        call set_timer(proc_timer)
 
         ! essentially have to calculate the diagonal matrix element of ilut
         ! and additionally loop over all possible single excitaiton (i,j)
@@ -10318,7 +10335,9 @@ contains
         
 !         write(iout,*) "nmax: ", nMax
 
-        allocate(excitations(0:nifguga,nMax), stat = ierr)
+        allocate(tmp_all_excits(0:nifguga,nMax), stat = ierr)
+        call LogMemAlloc('tmp_all_excits',(nifguga+1)*nMax,8,this_routine,tag_tmp_excits)
+
 
         ! maybe have to set to zero here then, or initialize somehow different
 
@@ -10389,7 +10408,7 @@ contains
 
                 ! merge created lists.. think how that will be implemented
                 if (nExcits > 0) then
-                    call add_guga_lists(nTot, nExcits, excitations, tempExcits) 
+                    call add_guga_lists(nTot, nExcits, tmp_all_excits, tempExcits) 
                     ! nTot gets automatically updated too
                 end if
 
@@ -10476,7 +10495,7 @@ contains
                             ! encountered
                             if (nExcits > 1) then
                                 
-                                call add_guga_lists(nTot, nExcits - 1, excitations, &
+                                call add_guga_lists(nTot, nExcits - 1, tmp_all_excits, &
                                     tempExcits(:,2:))
 
                             end if
@@ -10491,7 +10510,7 @@ contains
 !                                 print *, "size tempexcits:", size(tempExcits,1), size(tempExcits,2)
 !                             end if
                             if (nExcits > 0) then
-                                call add_guga_lists(nTot, nExcits, excitations, &
+                                call add_guga_lists(nTot, nExcits, tmp_all_excits, &
                                     tempExcits)
                             end if
 
@@ -10512,11 +10531,12 @@ contains
 !         write(iout, "(A)") "doubles done!"
 !         call neci_flush(iout)
         ! do an additional check if matrix element is 0
+
         j = 1
         do i = 1, nTot
-            if (abs(extract_matrix_element(excitations(:,i),1)) < EPS) cycle
+            if (abs(extract_matrix_element(tmp_all_excits(:,i),1)) < EPS) cycle
 
-            excitations(:,j) = excitations(:,i)
+            tmp_all_excits(:,j) = tmp_all_excits(:,i)
 
             j = j + 1
 
@@ -10524,13 +10544,27 @@ contains
 
         nTot = j - 1
 
-!         deallocate(tempExcits)
-!         deallocate(currentB_ilut)
-!         deallocate(currentOcc_ilut)
-!         deallocate(current_stepvector)
-!         deallocate(currentOcc_int)
-!         deallocate(currentB_int)
-! 
+        allocate(excitations(0:nifguga,nTot), stat = ierr) 
+        ! hm to log that does not make so much sense.. since it gets called 
+        ! more than once and is only a temporary array..
+        call LogMemAlloc('excitations',nTot,8,this_routine,tag_excitations)
+
+        excitations = tmp_all_excits(:,1:nTot)
+
+        deallocate(tmp_all_excits) 
+        call LogMemDealloc(this_routine, tag_tmp_excits)
+
+        ! allocate the outputted excitations here since otherwise i store 
+        ! a way too big array than necessary 
+
+        ! i probably should resize the excitaions array.. since usually nMax 
+        ! is way bigger then nTot..
+
+        call halt_timer(proc_timer)
+        ! should i also print out the elapsed time?
+        write(iout,*) " Exact Hamiltonian application done! "
+        write(iout,*) " Elapsed time: ", get_total_time(proc_timer)
+        
     end subroutine actHamiltonian
 
     subroutine calcAllExcitations_excitInfo_single(ilut, excitInfo, posSwitches, &

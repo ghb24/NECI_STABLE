@@ -16,6 +16,8 @@ module enumerate_excitations
     use sym_general_mod
     use SystemData, only: nel, nBasis, G1, tFixLz, Arr, Brr, tHPHF, tHub, &
                           tUEG, tKPntSym, tReal, tUseBrillouin, tGUGA
+    use guga_data, only: tag_excitations
+    use MemoryManager, only: LogMemDealloc
 
     implicit none
 
@@ -417,6 +419,9 @@ contains
 
                 ! update connected_space_size afterwards
                 connected_space_size = connected_space_size + nexcit
+
+                deallocate(excitations)
+                call LogMemDealloc(this_routine, tag_excitations)
 
             else
 #endif

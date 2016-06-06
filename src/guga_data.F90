@@ -9,6 +9,7 @@ module guga_data
     use CalcData, only: tUseRealCoeffs
     use bit_rep_data, only: tUseFlags
     use constants, only: dp, Root2, OverR2, n_int
+    use MemoryManager, only: TagIntType
     
     implicit none
 
@@ -150,6 +151,13 @@ module guga_data
     ! logical to indicate that GUGA and core space, like doubles and singles 
     ! are used as the semi-stochastic core space
     logical :: tGUGACore = .false.
+
+    ! also use a memory-tag for the exact excitations array to keep track 
+    ! how big those arrays get..  and also of the bigger temp_excits
+    integer(TagIntType) :: tag_excitations = 0, tag_tmp_excits = 0
+    ! also store the projected energy lists.. but only for 1 run not for 
+    ! all of them i guess. 
+    integer(TagIntType) :: tag_proje_list = 0
 
     ! ======================== end TYPE defs ================================
   

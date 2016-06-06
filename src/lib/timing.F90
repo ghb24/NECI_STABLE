@@ -275,8 +275,6 @@ contains
 
    end function get_total_time
 
-
-
    subroutine print_timing_report(ntimer_objects,iunit)
       != Output a timing report.
       != If the global timer has been turned off (ie end_timing has been

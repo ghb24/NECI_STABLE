@@ -420,10 +420,11 @@ contains
         ! although i realise by now, that i probably could do it way more 
         ! efficient if i rewrite everything from scratch for the guga case..
 
-        use MemoryManager, only: LogMemAlloc
+        use MemoryManager, only: LogMemAlloc, LogMemDealloc
         use guga_bitrepops, only: convert_ilut_toGUGA, extract_matrix_element
         use guga_excitations, only: actHamiltonian
         use guga_matrixelements, only: calcDiagMatEleGuga_nI
+        use guga_data, only: tag_excitations
         use util_mod, only: binary_search
         use bit_reps, only: nifguga
 
@@ -437,6 +438,7 @@ contains
         integer(n_int) :: ilutG(0:nifguga) 
         HElement_t(dp) :: H_ij 
         integer(n_int), pointer :: excitations(:,:)
+        character(*), parameter :: this_routine = "generate_connected_space_vector_guga"
             
         con_vecs = 0.0_dp 
 
@@ -470,6 +472,7 @@ contains
                 con_vecs(:,i) = con_vecs(:,i) + H_ij * trial_vecs(:,j)
             end do
             deallocate(excitations)
+            call LogMemDealloc(this_routine, tag_excitations)
         end do
 
     end subroutine generate_connected_space_vector_guga
