@@ -10,7 +10,7 @@ module guga_excitations
                           currentB_ilut, currentB_int, current_cum_list, &
                           tGen_guga_weighted
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
-                         EPS, bni_, bn2_, iout, int64
+                         EPS, bni_, bn2_, iout, int64, inum_runs
     use bit_reps, only: niftot, decode_bit_det, encode_det, encode_part_sign, &
                         extract_part_sign, add_ilut_lists, nifguga, nifd
     use bit_rep_data, only: nifdbo
@@ -925,8 +925,10 @@ contains
         integer :: nExcit, ierr, i
         type(timer), save :: proc_timer
 
-        proc_timer%timer_name = this_routine
-        call set_timer(proc_timer)
+        ! since i have a timer in my exact Hamiltonian routine, 
+        ! timing here does not make much sense..
+!         proc_timer%timer_name = this_routine
+!         call set_timer(proc_timer)
         
         ! convert ilut to guga format 
         if (present(ilutN)) then
@@ -945,12 +947,15 @@ contains
         ! already allocated 
         ! use temporary pointers..
 
+        ! i should also log the deallocation
         if (allocated(projE_replica(run)%projE_ilut_list)) &
             deallocate(projE_replica(run)%projE_ilut_list)
         if (allocated(projE_replica(run)%projE_hel_list)) &
             deallocate(projE_replica(run)%projE_hel_list)
         if (allocated(projE_replica(run)%exlevel)) &
             deallocate(projE_replica(run)%exlevel)
+            call LogMemDealloc(this_routine, tag_proje_list)
+
 
         allocate(projE_replica(run)%projE_ilut_list(0:niftot,nExcit), stat = ierr)
         allocate(projE_replica(run)%projE_hel_list(nExcit), stat = ierr)
@@ -959,7 +964,9 @@ contains
         call LogMemAlloc('projE_replica(1)', (niftot + 3)*nExcit, 8, this_routine, & 
             tag_proje_list)
 
-        projE_replica(run)%num_entries = nExcit
+        ! i also have to deallocate that somewhere...
+
+!         projE_replica(run)%num_entries = nExcit
 
         ! and convert them back to neci format and store the matrix elements 
         do i = 1, nExcit
@@ -985,11 +992,35 @@ contains
         deallocate(excitations)
         call LogMemDealloc(this_routine, tag_excitations)
 
-        call halt_timer(proc_timer)
-        write(iout,*) "Projected Energy list setup finished!" 
-        write(iout,*) "Elapsed time: ", get_total_time(proc_timer)
+!         call halt_timer(proc_timer)
+!         write(iout,*) "Projected Energy list setup finished!" 
+!         write(iout,*) "Elapsed time: ", get_total_time(proc_timer)
 
     end subroutine create_projE_list
+
+    subroutine deallocate_projE_list()
+        ! at the end of the calculation i have to deallocate and log the 
+        ! projected energy list 
+        integer :: i
+        character(*), parameter :: this_routine = "deallocate_projE_list"
+
+        do i = 1, inum_runs
+            if (allocated(projE_replica(i)%projE_ilut_list)) &
+                deallocate(projE_replica(i)%projE_ilut_list)
+            if (allocated(projE_replica(i)%projE_hel_list)) & 
+                deallocate(projE_replica(i)%projE_hel_list) 
+            if (allocated(projE_replica(i)%exlevel)) then
+                deallocate(projE_replica(i)%exlevel)
+                if (i == 1) then 
+                    ! only log it for one replica run
+                    call LogMemDealloc(this_routine, tag_proje_list)
+                end if
+            end if
+        end do
+
+        if (allocated(projE_replica)) deallocate(projE_replica)
+
+    end subroutine deallocate_projE_list
 
     subroutine test_excit_gen_guga (ilut, iterations)
         integer(n_int), intent(in) :: ilut(0:NIfTot)

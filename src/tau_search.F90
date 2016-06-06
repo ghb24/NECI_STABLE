@@ -772,9 +772,13 @@ contains
             ! Make the final tau smaller than tau_new by a small amount
             ! so that we don't get spawns exactly equal to the
             ! initiator threshold, but slightly below it instead.
-            tau_new = tau_new * 0.99999_dp
+            ! does this make sense in the new implmentation? this way 
+            ! i will always decrease the time-step even if its not necessary.. 
+!             tau_new = tau_new * 0.99999_dp
 
-            if (abs(tau - tau_new) / tau > 0.001_dp) then
+            ! also does the restriction on the output make sense? since i am 
+            ! always changing it anyway... atleast make it smaller..
+            if (abs(tau - tau_new) / tau > 0.0001_dp) then
                 if (t_min_tau) then
                     if (tau_new < min_tau_global) then
                         root_print "new time-step less then min_tau! set to min_tau!", min_tau_global
@@ -792,7 +796,7 @@ contains
             tau = tau_new
         end if
 
-    end subroutine
+    end subroutine update_tau_hist
 
     subroutine FindMaxTauDoubs()
 

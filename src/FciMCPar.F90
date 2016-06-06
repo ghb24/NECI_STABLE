@@ -66,6 +66,7 @@ module FciMCParMod
 
 #ifndef __CMPLX
     use guga_testsuite, only: run_test_excit_gen_det
+    use guga_excitations, only: deallocate_projE_list
 #endif
 
 #ifdef MOLPRO
@@ -470,6 +471,12 @@ module FciMCParMod
             end if
             call MPIBarrier(error)
         end if
+
+#ifndef __CMPLX
+        if (tGUGA) then 
+            call deallocate_projE_list()
+        end if
+#endif
 
         ! Remove the signal handlers now that there is no way for the
         ! soft-exit part to work
