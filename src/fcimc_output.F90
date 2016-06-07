@@ -1511,41 +1511,48 @@ contains
 !                 allocate(all_frequency_bounds(max_size)) 
 !                 all_frequency_bounds = [(frq_step_size * i, i = 1, max_size)]
 
-                iunit = get_free_unit() 
-                call get_unique_filename("frequency_histogram", .true., .true., &
-                    1, filename) 
-                open(iunit, file = filename, status = "unknown") 
+                if (.not. any(all_frequency_bins < 0)) then
+                    iunit = get_free_unit() 
+                    call get_unique_filename("frequency_histogram", .true., .true., &
+                        1, filename) 
+                    open(iunit, file = filename, status = "unknown") 
 
-                do i = 1, max_size
-                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i
-                    write(iunit, "(i12)") all_frequency_bins(i) 
-                end do
-                close(iunit) 
+                    do i = 1, max_size
+                        write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                        write(iunit, "(i12)") all_frequency_bins(i) 
+                    end do
+                    close(iunit) 
+                else 
+                    write(iout,*) "Integer overflow in all_frequency_bins!"
+                    write(iout,*) "Do no print it!"
+                end if
 
                 ! also print out a normed frequency histogram to better 
                 ! compare runs with different length
                 sum_all = sum(all_frequency_bins)
-                if (sum_all < 0) then 
+                if (.not. sum_all < 0) then 
                     ! we have a int overflow.. 
                     ! how to deal with that?? hm.. 
-                    call stop_all(this_routine, "integer overflow!")
+                    norm = real(sum_all,dp)
+
+                    iunit = get_free_unit() 
+                    call get_unique_filename("frequency_histogram_normed", .true., &
+                        .true., 1, filename) 
+                    open(iunit, file = filename, status = "unknown")
+
+                    ! and change x and y axis finally
+                    do i = 1, max_size
+                        write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
+                        write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
+                    end do
+                    close(iunit)
+
+                else
+                    write(iout,*) "Integer overflow in normed frequency histogram!"
+                    write(iout,*) "Do no print it!"
+
                 end if
-                norm = real(sum_all,dp)
-
-                iunit = get_free_unit() 
-                call get_unique_filename("frequency_histogram_normed", .true., &
-                    .true., 1, filename) 
-                open(iunit, file = filename, status = "unknown")
-
-                ! and change x and y axis finally
-                do i = 1, max_size
-                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
-                    write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
-                end do
-                close(iunit)
-
                 deallocate(all_frequency_bins)
-!                 deallocate(all_frequency_bounds)
             end if
 
         else if (tGen_sym_guga_mol) then
@@ -1585,43 +1592,48 @@ contains
                     all_frequency_bins(1:size(all_frequency_bins_d)) + & 
                     all_frequency_bins_d
 
-!                 allocate(all_frequency_bounds(max_size))
-!                 all_frequency_bounds = [(frq_step_size * i, i = 1, max_size)]
+                if (.not. any(all_frequency_bins < 0)) then
 
-                iunit = get_free_unit() 
-                call get_unique_filename("frequency_histogram", .true., .true., &
-                    1, filename)
-                open(iunit, file = filename, status = "unknown")
+                    iunit = get_free_unit() 
+                    call get_unique_filename("frequency_histogram", .true., .true., &
+                        1, filename)
+                    open(iunit, file = filename, status = "unknown")
 
-                do i = 1, max_size
-                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i
-                    write(iunit, "(i12)") all_frequency_bins(i) 
-                end do
-                close(iunit)
+                    do i = 1, max_size
+                        write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                        write(iunit, "(i12)") all_frequency_bins(i) 
+                    end do
+                    close(iunit)
+                else
+                    write(iout,*) "Integer overflow in all_frequency_bins!"
+                    write(iout,*) "Do no print it!"
+                end if
 
                 ! also print out a normed frequency histogram to better 
                 ! compare runs with different length
                 sum_all = sum(all_frequency_bins)
-                if (sum_all < 0) then 
-                    call stop_all(this_routine, "integer overflow!")
+                if (.not. sum_all < 0) then 
+
+                    norm = real(sum_all,dp)
+
+                    iunit = get_free_unit() 
+                    call get_unique_filename("frequency_histogram_normed", .true., &
+                        .true., 1, filename) 
+                    open(iunit, file = filename, status = "unknown")
+
+                    ! and change x and y axis finally
+                    do i = 1, max_size
+                        write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
+                        write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
+                    end do
+                    close(iunit)
+
+                else 
+                    write(iout,*) "Integer overflow in normed frequency histogram!"
+                    write(iout,*) "Do no print it!"
                 end if
 
-                norm = real(sum_all,dp)
-
-                iunit = get_free_unit() 
-                call get_unique_filename("frequency_histogram_normed", .true., &
-                    .true., 1, filename) 
-                open(iunit, file = filename, status = "unknown")
-
-                ! and change x and y axis finally
-                do i = 1, max_size
-                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
-                    write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
-                end do
-                close(iunit)
-
                 deallocate(all_frequency_bins)
-!                 deallocate(all_frequency_bounds)
 
             end if
 
@@ -1767,35 +1779,44 @@ contains
 
                 end if
 
-                iunit = get_free_unit() 
-                call get_unique_filename("frequency_histogram", .true., .true., &
-                    1, filename) 
-                open(iunit, file = filename, status = "unknown") 
+                if (.not. any(all_frequency_bins < 0)) then
+                    iunit = get_free_unit() 
+                    call get_unique_filename("frequency_histogram", .true., .true., &
+                        1, filename) 
+                    open(iunit, file = filename, status = "unknown") 
 
-                do i = 1, max_size 
-                    write(iunit, "(i12)", advance = "no") all_frequency_bins(i) 
-                    write(iunit, "(f16.7)") frq_step_size * i
-                end do
-                close(iunit)
+                    do i = 1, max_size 
+                        write(iunit, "(i12)", advance = "no") all_frequency_bins(i) 
+                        write(iunit, "(f16.7)") frq_step_size * i
+                    end do
+                    close(iunit)
+                else
+                    write(iout,*) "Integer overflow in all_frequency_bins"
+                    write(iout,*) "Do not print it!"
+                end if
 
                 ! also print out a normed frequency histogram to better 
                 ! compare runs with different length
                 sum_all = sum(all_frequency_bins)
-                if (sum_all < 0) call stop_all(this_routine, "integer overflow!")
 
-                norm = real(sum_all,dp)
+                if (.not. sum_all < 0) then
+                    norm = real(sum_all,dp)
 
-                iunit = get_free_unit() 
-                call get_unique_filename("frequency_histogram_normed", .true., &
-                    .true., 1, filename) 
-                open(iunit, file = filename, status = "unknown")
+                    iunit = get_free_unit() 
+                    call get_unique_filename("frequency_histogram_normed", .true., &
+                        .true., 1, filename) 
+                    open(iunit, file = filename, status = "unknown")
 
-                ! and change x and y axis finally
-                do i = 1, max_size
-                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
-                    write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
-                end do
-                close(iunit)
+                    ! and change x and y axis finally
+                    do i = 1, max_size
+                        write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
+                        write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
+                    end do
+                    close(iunit)
+                else
+                    write(iout,*) "Integer overflow in normed frequency histogram!"
+                    write(iout,*) "Do not print it!"
+                end if
 
                 deallocate(all_frequency_bins)
             end if

@@ -923,7 +923,7 @@ contains
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:,:)
         integer :: nExcit, ierr, i
-        type(timer), save :: proc_timer
+!         type(timer), save :: proc_timer
 
         ! since i have a timer in my exact Hamiltonian routine, 
         ! timing here does not make much sense..
@@ -952,9 +952,10 @@ contains
             deallocate(projE_replica(run)%projE_ilut_list)
         if (allocated(projE_replica(run)%projE_hel_list)) &
             deallocate(projE_replica(run)%projE_hel_list)
-        if (allocated(projE_replica(run)%exlevel)) &
+        if (allocated(projE_replica(run)%exlevel)) then
             deallocate(projE_replica(run)%exlevel)
             call LogMemDealloc(this_routine, tag_proje_list)
+        end if
 
 
         allocate(projE_replica(run)%projE_ilut_list(0:niftot,nExcit), stat = ierr)
@@ -966,7 +967,7 @@ contains
 
         ! i also have to deallocate that somewhere...
 
-!         projE_replica(run)%num_entries = nExcit
+        projE_replica(run)%num_entries = nExcit
 
         ! and convert them back to neci format and store the matrix elements 
         do i = 1, nExcit
