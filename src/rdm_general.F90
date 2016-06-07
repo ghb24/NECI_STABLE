@@ -104,16 +104,21 @@ contains
             end if
         end do
         ! The transition RDMs.
-        do irdm = nrdms_standard+1, nrdms
-            ! The first contributing replica is always the first one (currently!).
-            signs_for_rdm(1,irdm) = 1
+        do irdm = 1, nrdms_transition, nreplicas
+            signs_for_rdm(1,irdm+nrdms_standard) = 1
 
             if (nreplicas == 1) then
-                signs_for_rdm(2,irdm) = irdm-nrdms_standard
+                signs_for_rdm(2,irdm+nrdms_standard) = irdm + 1
             else if (nreplicas == 2) then
-                signs_for_rdm(2,irdm) = (irdm-nrdms_standard)*nreplicas
+                signs_for_rdm(2,irdm+nrdms_standard) = irdm + 3
             end if
         end do
+        if (nreplicas == 2) then
+            do irdm = 2, nrdms_transition, 2
+                signs_for_rdm(1,irdm+nrdms_standard) = 2
+                signs_for_rdm(2,irdm+nrdms_standard) = irdm + 1
+            end do
+        end if
 
         ! Allocate arrays for holding averaged signs and block lengths for the
         ! HF determinant.

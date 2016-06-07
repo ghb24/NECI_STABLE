@@ -1126,9 +1126,9 @@ contains
          end if
          if (tTransitionRDMs) then
              if (tPairedReplicas) then
-                 nrdms_transition = lenof_sign/2
+                 nrdms_transition = lenof_sign - 2
              else
-                 nrdms_transition = lenof_sign
+                 nrdms_transition = lenof_sign - 1
              end if
          end if
 
