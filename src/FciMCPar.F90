@@ -912,6 +912,21 @@ module FciMCParMod
                                         ilutnJ, exFlag, IC, ex, tParity, prob, &
                                         HElGen, fcimc_excit_gen_store)
                     
+                    ! if we do alis idea of doing multiple spawns if the 
+                    ! H_ij/pgen ratio is really bad and not well captured 
+                    ! with the new tau-search algorithm, i probably should 
+                    ! interger already here, but then i would need the 
+                    ! matrix element already here..
+                    ! but how do i want to deal with that? what happens if 
+                    ! in the additional spawing events a even bigger 
+                    ! H_ij/pgen ratio gets encountered? which would lead 
+                    ! to even more blooms? 
+                    ! but i have to adapt the pgens with the multiplicative 
+                    ! factor.. should this ensure that there won't be 
+                    ! any higher ratios? i think i cant be sure about that 
+                    ! hm maybe first really just truncate and see what
+                    ! happens..
+
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
 

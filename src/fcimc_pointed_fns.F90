@@ -8,7 +8,8 @@ module fcimc_pointed_fns
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo, t_frequency_analysis, &
-                        t_fill_frequency_hists
+                        t_fill_frequency_hists, t_hist_tau_search, t_truncate_spawns, & 
+                        n_truncate_spawns
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, log_spawn_magnitude
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -248,6 +249,19 @@ module fcimc_pointed_fns
 #endif
             
             nSpawn = - tau * MatEl * walkerweight / prob
+
+            ! so.. does a |nSpawn| > 1 in my new tau-search implitly mean 
+            ! that the tau is to small for this kind of exciation? 
+            ! i guess so yeah.. so do it really brute force to start with 
+            if (t_hist_tau_search .and. t_truncate_spawns .and. &
+                abs(nSpawn) > n_truncate_spawns) then 
+
+                nSpawn = sign(n_truncate_spawns, nSpawn)
+
+!                 write(iout,*) "nSpawn > n_truncate_spawns!"
+!                 write(iout,*) "limit the number of spawned walkers to: ", nSpawn
+
+            end if
             
             ! n.b. if we ever end up with |walkerweight| /= 1, then this
             !      will need to ffed further through.

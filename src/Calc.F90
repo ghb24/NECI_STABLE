@@ -1072,6 +1072,19 @@ contains
                     call getf(frq_ratio_cutoff)
                 end if
 
+            case("TRUNCATE-SPAWNS") 
+                ! do deal with the non-faithfully represented excitations 
+                ! with the new time-step search, decide to truncate those 
+                ! blooms to a fixed value, which is defaulted to 1 but 
+                ! could be inputted too.. 
+                ! here i change the hilbert-space/simulation-dynamics so i 
+                ! have to check the influence on the obtained energy 
+                t_truncate_spawns = .true.
+
+                if (item < nitems) then 
+                    call getf(n_truncate_spawns) 
+                end if
+
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
                 call getf(MaxWalkerBloom)

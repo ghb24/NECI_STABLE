@@ -403,6 +403,16 @@ logical :: enough_sing_hist, enough_doub_hist, enough_par_hist, enough_opp_hist
 ! also use a logical to stop filling he histograms if an int overflow 
 ! happened 
 logical :: t_fill_frequency_hists = .false.
+
+! keep also track of the H_ij/pgen value at the integration threshold to 
+! determine what we should do with the spawning events above that .. 
+real(dp) :: int_ratio_singles, int_ratio_para, int_ratio_anti, int_ratio_doubles
+
+! also need an logical and real to try out the truncation of the badly 
+! behaving excitations 
+logical :: t_truncate_spawns = .false. 
+real(dp) :: n_truncate_spawns = 1.0_dp
+
 ! also need multiple new specific excitation type probabilites, but they are 
 ! defined in FciMCdata module! 
 end module CalcData
