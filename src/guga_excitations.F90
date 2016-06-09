@@ -19786,7 +19786,9 @@ contains
                         ! those which are the same for all
                         ! exclude initial orbital, since this case gets 
                         ! contributed already outside of loop over electrons!
-                        if (nI(j) == orb_i) cycle
+                        ! but only spin-orbital or spatial??
+!                         if (nI(j) == orb_i) cycle
+                        if (n_id(j) == id_i) cycle
                         hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
 
                         ! now depending on generator and relation of j to
@@ -19836,7 +19838,6 @@ contains
                     hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
 
                     do j = 1, nEl
-                        
                         ! todo: finish all contributions later for now only do 
                         ! those which are the same for all
                         if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
@@ -19916,7 +19917,6 @@ contains
 
 !                         hel = hel - get_umat_el(id_i, n_id(j), n_id(j), s_orb)/2.0_dp
                         hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
-
                     end do
 
                 case (1)

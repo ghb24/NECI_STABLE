@@ -57,6 +57,7 @@ contains
             calc_mixed_end_l2r_contr => calc_mixed_x2x_ueg
             
         else if (tGen_sym_guga_mol) then
+!             pickOrbitals_single => pickOrbitals_nosym_single
             pickOrbitals_single => pickOrbs_sym_uniform_mol_single
             pickOrbitals_double => pickOrbs_sym_uniform_mol_double
             calc_mixed_contr => calc_mixed_contr_sym

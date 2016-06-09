@@ -3,7 +3,7 @@
 module fcimc_pointed_fns
 
     use SystemData, only: nel, tGUGA, tGen_4ind_weighted, tGen_4ind_2, tGen_nosym_guga, &
-                          tGen_sym_guga_mol, t_consider_diff_bias
+                          tGen_sym_guga_mol, t_consider_diff_bias, nSpatOrbs
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
@@ -274,6 +274,7 @@ module fcimc_pointed_fns
                 ! etc. are used 
 #ifndef __CMPLX
 #ifdef __DEBUG 
+            if (abs(nSpawn) > 10.0_dp) then
             if (tGUGA) then
                 write(iout,*) "=================================================="
                 call convert_ilut_toGUGA(iLutCurr, ilutTmpI)
@@ -285,12 +286,15 @@ module fcimc_pointed_fns
                 write(iout,*) "to: " 
                 call write_det_guga(iout, ilutTmpJ)
                 nOpen = count_open_orbs(iLutCurr)
-                write(iout,*) "# of openshell orbitals: ", count_open_orbs(iLutCurr) 
+                write(iout,*) "# of openshell orbitals: ", nOpen, count_open_orbs(ilutnj)
+                write(iout,*) "open/spatial: ", nOpen/real(nSpatOrbs,dp)
                 write(iout,*) "(t |H_ij|/pgen) / #open ratio: ", abs(nSpawn) / real(nOpen,dp)
+                write(iout,*) " H_ij, pgen: ", MatEl, prob
                 write(iout,*) "=================================================="
                 ! excitation type would be cool too.. but how do i get it 
                 ! to here?? do i still have global_excitInfo??
                 call print_excitInfo(global_excitInfo)
+            end if
             end if
 #endif
 #endif
