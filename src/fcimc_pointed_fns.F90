@@ -13,7 +13,7 @@ module fcimc_pointed_fns
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, log_spawn_magnitude
     use fcimc_helper, only: CheckAllowedTruncSpawn
-    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
+    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, count_open_orbs
     use bit_rep_data, only: NIfTot
     use tau_search, only: log_death_magnitude, fill_frequency_histogram_4ind, &
                           fill_frequency_histogram_sd, fill_frequency_histogram, &
@@ -25,6 +25,14 @@ module fcimc_pointed_fns
     use FciMCData
     use constants
     use excit_gens_int_weighted, only: get_ispn
+    use bit_reps, only: nifguga
+
+#ifndef __CMPLX
+#ifdef __DEBUG
+    use guga_bitRepOps, only: convert_ilut_toGUGA, write_det_guga
+    use guga_excitations, only: print_excitInfo, global_excitInfo
+#endif
+#endif
 
     implicit none
 
@@ -121,6 +129,10 @@ module fcimc_pointed_fns
         HElement_t(dp) :: rh, rh_used
         integer :: ispn
         logical :: t_par
+#ifdef __DEBUG
+        integer :: nOpen
+        integer(n_int) :: ilutTmpI(0:nifguga), ilutTmpJ(0:nifguga)
+#endif
 
         ! Just in case
         child = 0.0_dp
@@ -256,10 +268,34 @@ module fcimc_pointed_fns
             if (t_hist_tau_search_option .and. t_truncate_spawns .and. &
                 abs(nSpawn) > n_truncate_spawns) then 
 
-                nSpawn = sign(n_truncate_spawns, nSpawn)
 
-!                 write(iout,*) "nSpawn > n_truncate_spawns!"
-!                 write(iout,*) "limit the number of spawned walkers to: ", nSpawn
+                ! in debug mode i should output some additional information 
+                ! to analyze the type of excitations and how many open-orbitals
+                ! etc. are used 
+#ifndef __CMPLX
+#ifdef __DEBUG 
+            if (tGUGA) then
+                write(iout,*) "=================================================="
+                call convert_ilut_toGUGA(iLutCurr, ilutTmpI)
+                call convert_ilut_toGUGA(ilutnj, ilutTmpJ)
+                write(iout,*) "nSpawn > n_truncate_spawns!", nSpawn
+                write(iout,*) "limit the number of spawned walkers to: ", n_truncate_spawns
+                write(iout,*) "for spawn from determinant: "
+                call write_det_guga(6,ilutTmpI) 
+                write(iout,*) "to: " 
+                call write_det_guga(iout, ilutTmpJ)
+                nOpen = count_open_orbs(iLutCurr)
+                write(iout,*) "# of openshell orbitals: ", count_open_orbs(iLutCurr) 
+                write(iout,*) "(t |H_ij|/pgen) / #open ratio: ", abs(nSpawn) / real(nOpen,dp)
+                write(iout,*) "=================================================="
+                ! excitation type would be cool too.. but how do i get it 
+                ! to here?? do i still have global_excitInfo??
+                call print_excitInfo(global_excitInfo)
+            end if
+#endif
+#endif
+
+                nSpawn = sign(n_truncate_spawns, nSpawn)
 
             end if
             
