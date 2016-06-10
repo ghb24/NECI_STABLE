@@ -158,5 +158,5 @@ endif
 #endif
 #endif
 
-#define debug_line(unit, msg) write(unit,*) __LINE__, __FILE__, char(9), msg
+#define debug_line(unit, msg) write(unit,*) __LINE__, __FILE__, char(9), msg ; flush(unit)
 #define debug_out(unit, msg) write(unit,*), char(9), msg

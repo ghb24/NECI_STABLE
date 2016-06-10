@@ -396,17 +396,6 @@ module SymExcit4
         enddo
     end subroutine FindNewDet
 
-    pure function InverseTriMap(i) result (xy)
-        implicit none
-        ! computes the matrix indices of a triangular map
-        ! primary index x is ceiling of triangular root
-        integer, intent(in) :: i
-        integer :: x, y, xy(2)
-        x = ceiling(((8*i+1)**5d-1-1)*5d-1)
-        y = i - (x*(x-1))/2
-        xy = (/ x, y /)
-    end function InverseTriMap
-   
     subroutine GenExcitations4_non_initd(session, nI, nJ, tParity, tAllExcitFound, ti_lt_a_only)
         ! this is the variant for use in the case that session has not been initialised
         implicit none

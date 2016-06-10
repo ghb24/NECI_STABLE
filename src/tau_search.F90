@@ -39,6 +39,10 @@ module tau_search
 !    logical :: enough_sing_spindiff1, enough_doub_spindiff1, enough_doub_spindiff2
     logical :: consider_par_bias
 
+    ! this is to keep probabilities of generating excitations of allowed classes above zero
+    real(dp) :: prob_min_thresh
+
+
 contains
 
     subroutine init_tau_search ()
@@ -64,18 +68,13 @@ contains
         ! early
         cnt_sing = 0
         cnt_doub = 0
-!        cnt_sing_spindiff1 = 0
-!        cnt_doub_spindiff1 = 0
-!        cnt_doub_spindiff2 = 0
+        
         cnt_opp = 0
         cnt_par = 0
         enough_sing = .false.
         enough_doub = .false.
         enough_opp = .false.
         enough_par = .false.
- !       enough_sing_spindiff1 = .false.
- !       enough_doub_spindiff1 = .false.
- !       enough_doub_spindiff2 = .false.
 
         ! Unless it is already specified, set an initial value for tau
         if (.not. tRestart .and. .not. tReadPops .and. tau == 0) &
@@ -131,6 +130,7 @@ contains
             pParallel = 0.0_dp
             enough_par = .true.
         end if
+        prob_min_thresh = 1e-8_dp
 
     end subroutine
 
@@ -342,57 +342,64 @@ contains
         endif
 
         if (consider_par_bias) then
-            call MPIAllReduce (gamma_sing, MPI_MAX, mpi_tmp)
-            gamma_sing = mpi_tmp
-            call MPIAllReduce (gamma_opp, MPI_MAX, mpi_tmp)
-            gamma_opp = mpi_tmp
-            call MPIAllReduce (gamma_par, MPI_MAX, mpi_tmp)
-            gamma_par = mpi_tmp
-            call MPIAllLORLogical(enough_opp, mpi_ltmp)
-            enough_opp = mpi_ltmp
-            call MPIAllLORLogical(enough_par, mpi_ltmp)
-            enough_par = mpi_ltmp
+            if (.not. tReltvy) then
+                call MPIAllReduce (gamma_sing, MPI_MAX, mpi_tmp)
+                gamma_sing = mpi_tmp
+                call MPIAllReduce (gamma_opp, MPI_MAX, mpi_tmp)
+                gamma_opp = mpi_tmp
+                call MPIAllReduce (gamma_par, MPI_MAX, mpi_tmp)
+                gamma_par = mpi_tmp
+                call MPIAllLORLogical(enough_opp, mpi_ltmp)
+                enough_opp = mpi_ltmp
+                call MPIAllLORLogical(enough_par, mpi_ltmp)
+                enough_par = mpi_ltmp
 
-            if (enough_sing .and. enough_doub) then
-                pparallel_new = gamma_par / (gamma_opp + gamma_par)
-                psingles_new = gamma_sing * pparallel_new &
-                             / (gamma_par + gamma_sing * pparallel_new)
-                tau_new = psingles_new * max_permitted_spawn &
-                              / gamma_sing
-            else
-                pparallel_new = pParallel
-                psingles_new = pSingles
-                tau_new = max_permitted_spawn * &
-                        min(pSingles / gamma_sing, &
-                        min(pDoubles * pParallel / gamma_par, &
-                            pDoubles * pParallel / gamma_opp))
-            end if
-
-            ! We only want to update the opposite spins bias here, as we only
-            ! consider it here!
-            if (enough_opp .and. enough_par) then
-                if (abs(pParallel_new-pParallel) / pParallel > 0.0001_dp) then
-                    root_print "Updating parallel-spin bias; new pParallel = ", &
-                        pParallel_new
+                if (enough_sing .and. enough_doub) then
+                    pparallel_new = gamma_par / (gamma_opp + gamma_par)
+                    psingles_new = gamma_sing * pparallel_new &
+                                 / (gamma_par + gamma_sing * pparallel_new)
+                    tau_new = psingles_new * max_permitted_spawn &
+                                  / gamma_sing
+                else
+                    pparallel_new = pParallel
+                    psingles_new = pSingles
+                    tau_new = max_permitted_spawn * &
+                            min(pSingles / gamma_sing, &
+                            min(pDoubles * pParallel / gamma_par, &
+                                pDoubles * pParallel / gamma_opp))
                 end if
-                pParallel = pParallel_new
-            end if
 
+                ! We only want to update the opposite spins bias here, as we only
+                ! consider it here!
+                if (enough_opp .and. enough_par) then
+                    if (abs(pParallel_new-pParallel) / pParallel > 0.0001_dp) then
+                        root_print "Updating parallel-spin bias; new pParallel = ", &
+                            pParallel_new
+                    end if
+                    pParallel = pParallel_new
+                end if
+            else
+                call stop_all(this_routine, "Parallel bias is incompatible with magnetic excitation classes")
+            endif
         else
 
-            ! Only considering a direct singles/doubles bias
-            call MPIAllReduce (gamma_sing, MPI_MAX, mpi_tmp)
-            gamma_sing = mpi_tmp
-            call MPIAllReduce (gamma_doub, MPI_MAX, mpi_tmp)
-            gamma_doub = mpi_tmp
-
-            ! Get the values of pSingles and tau that correspond to the stored
+            ! Get the probabilities and tau that correspond to the stored
             ! values
             if ((tUEG .or. enough_sing) .and. enough_doub) then
-                psingles_new = gamma_sing / (gamma_doub + gamma_sing)
-                tau_new = max_permitted_spawn / (gamma_doub + gamma_sing)
+                psingles_new = gamma_sing / gamma_sum
+                if (tReltvy) then
+                    pSing_spindiff1_new = gamma_sing_spindiff1/gamma_sum
+                    pDoub_spindiff1_new = gamma_doub_spindiff1/gamma_sum
+                    pDoub_spindiff2_new = gamma_doub_spindiff2/gamma_sum
+                endif
+                tau_new = max_permitted_spawn / gamma_sum
             else
                 psingles_new = pSingles
+                if (tReltvy) then
+                    pSing_spindiff1_new = pSing_spindiff1
+                    pDoub_spindiff1_new = pDoub_spindiff1
+                    pDoub_spindiff2_new = pDoub_spindiff2
+                endif
                 tau_new = max_permitted_spawn * &
                             min(pSingles / gamma_sing, pDoubles / gamma_doub)
             end if
@@ -434,26 +441,36 @@ contains
             .and. psingles_new < (1.0_dp - 1e-5_dp)) then
 
             if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
-                root_print "Updating singles/doubles bias. pSingles = ", &
-                    psingles_new, ", pDoubles = ", 1.0_dp - psingles_new
+                if (tReltvy) then 
+                    root_print "Updating spin-excitation class biases. pSingles(s->s) = ", &
+                        psingles_new, ", pSingles(s->s') = ", psing_spindiff1_new, &
+                        ", pDoubles(st->st) = ", 1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2, &
+                        ", pDoubles(st->s't) = ", pDoub_spindiff1_new, &
+                        ", pDoubles(st->s't') = ", pDoub_spindiff2_new
+                else
+                    root_print "Updating singles/doubles bias. pSingles = ", &
+                        psingles_new, ", pDoubles = ", 1.0_dp - psingles_new
+                endif
             end if
-            pSingles = psingles_new
+            pSingles = max(psingles_new, prob_min_thresh)
             if (tReltvy) then
-                pSing_spindiff1 = pSing_spindiff1_new
-                pDoub_spindiff1 = pDoub_spindiff1_new
-                pDoub_spindiff2 = pDoub_spindiff2_new
-                pDoubles = 1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2
+                pSing_spindiff1 = max(pSing_spindiff1_new, prob_min_thresh)
+                pDoub_spindiff1 = max(pDoub_spindiff1_new, prob_min_thresh)
+                pDoub_spindiff2 = max(pDoub_spindiff2_new, prob_min_thresh)
+                pDoubles = max(1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2_new, prob_min_thresh)
+                ASSERT(pDoubles-gamma_doub/gamma_sum>1e-12_dp)
             else
                 pDoubles = 1.0_dp - pSingles
             endif
         end if
 
 
-        !write(*,*) "pSingles", pSingles
-        !write(*,*) "pSing_spindiff1", pSing_spindiff1
-        !write(*,*) "pDoubles", pDoubles
-        !write(*,*) "pDoub_spindiff1", pDoub_spindiff1
-        !write(*,*) "pDoub_spindiff2", pDoub_spindiff2
+!        write(*,*) "pSingles", pSingles
+!        write(*,*) "pSing_spindiff1", pSing_spindiff1
+!        write(*,*) "pDoubles", pDoubles
+!        write(*,*) "pDoub_spindiff1", pDoub_spindiff1
+!        write(*,*) "pDoub_spindiff2", pDoub_spindiff2
+!        write(*,*) "sum of probs:", pSingles+pSing_spindiff1+pDoub_spindiff1+pDoubles+pDoub_spindiff2
 
     end subroutine
 
