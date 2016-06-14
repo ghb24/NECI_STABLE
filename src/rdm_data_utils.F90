@@ -452,7 +452,7 @@ contains
         ! If we don't have enough memory in the receiving list, try
         ! reallocating it to be big enough.
         if (new_nelements > rdm_recv%max_nelements) then
-            call try_rdm_list_realloc(rdm_recv, new_nelements)
+            call try_rdm_list_realloc(rdm_recv, new_nelements, .true.)
         end if
 
         ! Update the number of valid RDM elements in the received list.
@@ -502,15 +502,21 @@ contains
 
     end subroutine communicate_rdm_spawn_t_wrapper
 
-    subroutine try_rdm_list_realloc(rdm_recv, new_nelements)
+    subroutine try_rdm_list_realloc(rdm_recv, new_nelements, recv_list)
 
         ! For cases where the receiving RDM array is not big enough for a
         ! communication, try and reallocate it to be big enough. This also
         ! requires a temporary array to be allocated, to store the current
         ! state of the receive list.
 
+        ! recv_list should be input as true if reallocating an receiving RDM
+        ! object. It should be false if reallocating the main array in the
+        ! subroutine add_rdm_1_to_rdm_2. The only difference this makes is
+        ! in the message output.
+
         type(rdm_list_t), intent(inout) :: rdm_recv
         integer, intent(in) :: new_nelements
+        logical, intent(in) :: recv_list
 
         integer :: old_nelements, memory_old, memory_new, ierr
         integer(int_rdm), allocatable :: temp_elements(:,:)
@@ -519,9 +525,15 @@ contains
         ! The number of elements currently filled in the RDM array.
         old_nelements = rdm_recv%nelements
 
-        write(6,'("WARNING: There is not enough space in the current RDM array to receive all of the &
-                  &communicated RDM elements. We will now try and reallocate this array to be large &
-                  &enough. If there is not sufficient memory then the program may crash.")'); call neci_flush(6)
+        if (recv_list) then
+            write(6,'("WARNING: There is not enough space in the current RDM array to receive all of the &
+                      &communicated RDM elements. We will now try and reallocate this array to be large &
+                      &enough. If there is not sufficient memory then the program may crash.")'); call neci_flush(6)
+        else
+            write(6,'("WARNING: There is not enough space in the current RDM array to add the received &
+                      &RDM elements to the main RDM array. We will now try and reallocate this array to be 1.5 &
+                      &times larger. If there is not sufficient memory then the program may crash.")'); call neci_flush(6)
+        end if
 
         ! Memory of the old and new arrays, in bytes.
         memory_old = rdm_recv%max_nelements*(rdm_recv%sign_length+1)*size_int_rdm
@@ -701,10 +713,10 @@ contains
                 ! Encode the new sign.
                 call encode_sign_rdm(rdm_2%elements(:,ind), real_sign_new)
             else
-                ! Check that there is enough memory for the new RDM element.
+                ! If we don't have enough memory in rdm_2, try increasing its
+                ! size to be 1.5 times bigger.
                 if (rdm_2%nelements+1 > rdm_2%max_nelements) then
-                    write(6,'("Ran out of memory while adding new elements to the RDM array.")')
-                    call stop_all(t_r, "Out of memory for RDM elements.")
+                    call try_rdm_list_realloc(rdm_2, int(1.5*rdm_2%max_nelements), .false.)
                 end if
 
                 ! Update the rdm array, and its hash table, and the number of
