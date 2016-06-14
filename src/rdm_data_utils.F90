@@ -387,7 +387,7 @@ contains
                 ! Check that there is enough memory for the new spawned RDM entry.
                 slots_left = spawn%init_free_slots(proc+1) - spawn%free_slots(proc)
 
-                if (slots_left <= 0) call try_rdm_spawn_realloc(spawn, proc)
+                if (slots_left <= 0) call try_rdm_spawn_realloc(spawn, proc, spinfree)
 
                 if (present(nearly_full)) then
                     ! 10 chosen somewhat arbitrarily, although there are times
@@ -558,76 +558,104 @@ contains
 
     end subroutine try_rdm_list_realloc
 
-    subroutine try_rdm_spawn_realloc(spawn, proc)
+    subroutine try_rdm_spawn_realloc(spawn, proc, spinfree)
 
-        use hash, only: update_hash_table_section
+        use hash, only: update_hash_table_ind
 
         type(rdm_spawn_t), intent(inout) :: spawn
         integer, intent(in) :: proc
+        logical, intent(in) :: spinfree
 
-        integer :: old_max_length, new_max_length, nextra_slots
-        integer :: old_len_of_section, new_len_of_section
-        integer :: memory_old, memory_new, ierr
-        integer(int_rdm), allocatable :: temp_elements(:,:)
+        real(dp) :: slots_per_proc_new
+        integer :: old_max_length, new_max_length, nstored
+        integer :: memory_old, memory_new, pos_diff, iproc, ierr
+        integer :: new_init_slots(0:nProcessors)
+        integer :: i, j, k, l, ij, kl, idet, hash_val
+        integer(int_rdm), allocatable :: temp_elements(:,:), ijkl
         character(*), parameter :: t_r = 'try_rdm_spawn_realloc'
 
-        old_len_of_section = spawn%init_free_slots(proc+1) - spawn%init_free_slots(proc)
-        new_len_of_section = old_len_of_section*1.5_dp
-        nextra_slots = new_len_of_section - old_len_of_section
+        associate(rdm => spawn%rdm_send)
 
-        old_max_length = spawn%rdm_send%max_nelements
-        new_max_length = spawn%rdm_send%max_nelements + nextra_slots
+        old_max_length = rdm%max_nelements
+        new_max_length = 2*rdm%max_nelements
+
+        slots_per_proc_new = real(new_max_length, dp)/real(nProcessors, dp)
+
+        ! Create new init_free_slots array.
+        do iproc = 0, nProcessors-1
+            new_init_slots(iproc) = nint(slots_per_proc_new*iproc)+1
+        end do
+        new_init_slots(nProcessors) = new_max_length + 1
 
         write(6,'("WARNING: There is not enough space in the current RDM spawning array to store the &
                   &RDM elements to be sent to process",'//int_fmt(proc,1)//',". We will now try and &
-                  &reallocate this section of the spawning array to be 1.5 times larger. If there is &
+                  &reallocate the entire RDM spawning array to be twice its current size. If there is &
                   &not sufficient memory then the program may crash. This also requires recreating the &
                   &hash table to some of this object, which may take some time.")') proc; call neci_flush(6)
 
         ! Memory of the old and new arrays, in bytes.
-        memory_old = old_max_length*(spawn%rdm_send%sign_length+1)*size_int_rdm
-        memory_new = new_max_length*(spawn%rdm_send%sign_length+1)*size_int_rdm
+        memory_old = old_max_length*(rdm%sign_length+1)*size_int_rdm
+        memory_new = new_max_length*(rdm%sign_length+1)*size_int_rdm
 
         write(6,'("Old RDM spawning array had the following size (MB):", f14.6)') real(memory_old,dp)/1048576.0_dp
         write(6,'("Required new array must have the following size (MB):", f14.6)') real(memory_new,dp)/1048576.0_dp
 
         ! Allocate a temporary array to copy the old RDM list to, while we
         ! reallocate that array.
-        allocate(temp_elements(0:spawn%rdm_send%sign_length, new_max_length), stat=ierr)
+        allocate(temp_elements(0:rdm%sign_length, old_max_length), stat=ierr)
+
         if (ierr /= 0) call stop_all(t_r, "Error while allocating temporary array to hold existing &
                                           &RDM spawning array.")
-        temp_elements(:, 1:old_max_length) = spawn%rdm_send%elements
+        temp_elements(:, 1:old_max_length) = rdm%elements
 
-        deallocate(spawn%rdm_send%elements, stat=ierr)
+        deallocate(rdm%elements, stat=ierr)
         if (ierr /= 0) call stop_all(t_r, "Error while deallocating existing RDM spawning array.")
 
-        allocate(spawn%rdm_send%elements(0:spawn%rdm_send%sign_length, new_max_length), stat=ierr)
+        allocate(rdm%elements(0:rdm%sign_length, new_max_length), stat=ierr)
         if (ierr /= 0) call stop_all(t_r, "Error while allocating RDM spawning array to the new larger size.")
         ! Update the maximum number of elements for the spawning array.
-        spawn%rdm_send%max_nelements = new_max_length
+        rdm%max_nelements = new_max_length
 
-        ! Copy back all the elements from the processes up to and including
-        ! the one being updated. Note that spawn%free_slots(proc) is the slot
-        ! that is *about* to be filled, so we only want 1 less than this.
-        spawn%rdm_send%elements(:, 1:spawn%free_slots(proc)-1) = temp_elements(:, 1:spawn%free_slots(proc)-1)
+        ! Loop over all processes, copy RDM spawns into the new list in the
+        ! correct new positons, and update the hash table as necessary.
+        do iproc = 0, nProcessors-1
+            ! The number of RDM elements actually filled in in this processor's
+            ! section of the spawning array.
+            nstored = spawn%free_slots(iproc) - spawn%init_free_slots(iproc)
 
-        ! Copy back the elements from the processes *after* the one where the
-        ! length has been increased, shuffling them up as necessary.
-        spawn%rdm_send%elements(:, spawn%init_free_slots(proc+1)+nextra_slots:new_max_length) = &
-            temp_elements(:, spawn%init_free_slots(proc+1):old_max_length)
+            ! Copy RDM elements back across from the temporary array.
+            rdm%elements(:, new_init_slots(iproc):new_init_slots(iproc)+nstored-1) = &
+                temp_elements(:, spawn%init_free_slots(iproc):spawn%init_free_slots(iproc)+nstored-1)
 
-        ! Correct the hash table for all elements that have been shuffled up
-        ! (if there are any):
-        if (proc /= nProcessors-1) then
-            call update_hash_table_section(spawn%rdm_send%hash_table, spawn%init_free_slots(proc+1), nextra_slots)
-        end if
+            ! Update the free_slots array as necessary.
+            spawn%free_slots(iproc) = new_init_slots(iproc) + nstored
 
-        ! Update free_slots arrays, after increasing the length of one section:
-        spawn%free_slots(proc+1:) = spawn%free_slots(proc+1:) + nextra_slots
-        spawn%init_free_slots(proc+1:) = spawn%init_free_slots(proc+1:) + nextra_slots
+            ! How much the beginning of the sections for this processor have changed,
+            pos_diff = new_init_slots(iproc) - spawn%init_free_slots(iproc)
+
+            ! Update hash table. Don't need to update proc 1 section, since this
+            ! does not get moved.
+            if (iproc > 0) then
+                if (spinfree) then
+                    do idet = new_init_slots(iproc), new_init_slots(iproc)+nstored-1
+                        call calc_separate_rdm_labels(rdm%elements(0,idet), ij, kl, k, l, j, i)
+                        call update_hash_table_ind(rdm%hash_table, (/i,j,k,l/), idet-pos_diff, idet)
+                    end do
+                else
+                    do idet = new_init_slots(iproc), new_init_slots(iproc)+nstored-1
+                        call calc_separate_rdm_labels(rdm%elements(0,idet), ij, kl, i, j, k, l)
+                        call update_hash_table_ind(rdm%hash_table, (/i,j,k,l/), idet-pos_diff, idet)
+                    end do
+                end if
+            end if
+        end do
+
+        spawn%init_free_slots = new_init_slots
 
         deallocate(temp_elements, stat=ierr)
         if (ierr /= 0) call stop_all(t_r, "Error while deallocating temporary array.")
+
+        end associate
 
     end subroutine try_rdm_spawn_realloc
 
