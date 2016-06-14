@@ -92,6 +92,7 @@ contains
             ! positive spin coupled orbitals and S >= 0 
 #ifndef __CMPLX
             if (tGUGA) then
+                ms = abs(ms)
                 if (ms < 0 .or. ms /= STOT) then
                     write(6,*) "S: ", STOT
                     write(6,*) "calculated S of inputted CSF: ", ms
@@ -152,6 +153,10 @@ contains
 
       ! Store the value of Ms for use in other areas
       calculated_ms = sum(get_spin_pn(fdet(1:nel)))
+      if (tGUGA) then
+          calculated_ms = abs(calculated_ms)
+      end if
+
     End Subroutine DetPreFreezeInit
 
     
