@@ -10596,6 +10596,7 @@ contains
         ! should i also print out the elapsed time?
         write(iout,*) " Exact Hamiltonian application done! "
         write(iout,*) " Elapsed time: ", get_total_time(proc_timer)
+        call neci_flush(iout)
         
     end subroutine actHamiltonian
 
