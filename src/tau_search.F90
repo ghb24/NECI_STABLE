@@ -458,7 +458,7 @@ contains
                 pDoub_spindiff1 = max(pDoub_spindiff1_new, prob_min_thresh)
                 pDoub_spindiff2 = max(pDoub_spindiff2_new, prob_min_thresh)
                 pDoubles = max(1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2_new, prob_min_thresh)
-                ASSERT(pDoubles-gamma_doub/gamma_sum>1e-12_dp)
+                ASSERT(pDoubles-gamma_doub/gamma_sum < prob_min_thresh)
             else
                 pDoubles = 1.0_dp - pSingles
             endif
