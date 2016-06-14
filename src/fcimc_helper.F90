@@ -1938,9 +1938,6 @@ contains
         end if
 #endif
 
-        write(iout, "(A)") "toto proje?"
-        call neci_flush(iout)
-
         if(tHPHF) then
             if(.not.Allocated(RefDetFlip)) then
                 allocate(RefDetFlip(NEl, inum_runs), &
