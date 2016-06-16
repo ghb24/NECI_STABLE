@@ -28,7 +28,7 @@ if ( HAVE_BUILD_HDF5 )
 
     set( _c_override "CC=${CMAKE_C_COMPILER}" )
     set( _cxx_override "CXX=${CMAKE_CXX_COMPILER}" )
-    set( _fort_override "FC=${CMAKE_Fortran_COMPILER} F9X=${CMAKE_Fortran_COMPILER}" )
+    set( _fort_override "FC=${CMAKE_Fortran_COMPILER}" "F9X=${CMAKE_Fortran_COMPILER}" )
 
     #elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "PGI")
     #	set(_configure_override CC=mpicc FC=mpif90 F9X=mpif90 CXX=mpic++ CPP=cpp CXXPP=cpp)
@@ -39,15 +39,15 @@ if ( HAVE_BUILD_HDF5 )
     # If we have explicit MPI overrides
 
     if( MPI_Fortran_COMPILER )
-        set( _fort_override "FC=${MPI_Fortran_COMPILER} F9X=${MPI_Fortran_COMPILER}" )
+        set( _fort_override "FC=${MPI_Fortran_COMPILER}" "F9X=${MPI_Fortran_COMPILER}" )
     endif()
     if( MPI_C_COMPILER )
-        set( _fort_override "CC=${MPI_C_COMPILER}" )
+        set( _c_override "CC=${MPI_C_COMPILER}" )
     endif()
     if( MPI_CXX_COMPILER )
-        set( _fort_override "CXX=${MPI_CXX_COMPILER}" )
+        set( _cxx_override "CXX=${MPI_CXX_COMPILER}" )
     endif()
-    set( _configure_override "${_c_override} ${_cxx_override} ${_fort_override}")
+    set( _configure_override ${_c_override} ${_cxx_override} ${_fort_override})
 
     message( STATUS "HDF5 compilation overrides: ${_configure_override}" )
 
@@ -67,7 +67,7 @@ if ( HAVE_BUILD_HDF5 )
 		URL_MD5 4467c25ed9c0b126b194a4d9d66c29ac
 		# -- Configure step --
 		SOURCE_DIR ${HDF_DIR}
-		CONFIGURE_COMMAND env ${CONFIGURE_OVERRIDE} ${HDF_DIR}/configure --enable-parallel --enable-fortran --enable-fortran2003 --prefix=${HDF_DIR}
+		CONFIGURE_COMMAND env ${_configure_override} ${HDF_DIR}/configure --enable-parallel --enable-fortran --enable-fortran2003 --prefix=${HDF_DIR}
 		# -- Build step ------
 		BUILD_COMMAND "" #make && make install
 		BUILD_IN_SOURCE 1

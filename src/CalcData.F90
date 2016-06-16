@@ -304,4 +304,13 @@ logical :: tMultiRefShift = .false.
 ! Keep track of where in the calculation sequence we are.
 integer :: calc_seq_no
 
+! introduce a min_tau value to set a minimum of tau for the automated tau
+! search 
+logical :: t_min_tau = .false. 
+real(dp) :: min_tau_global = 1.0e-7_dp
+
+! alis suggestion: have an option after restarting to keep the time-step 
+! fixed to the values obtained from the POPSFILE 
+logical :: t_keep_tau_fixed = .false.
+
 end module CalcData
