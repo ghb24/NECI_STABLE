@@ -21,14 +21,14 @@ truncinitiator
 addtoinitiator 3
 
 readpops
-(walkcontgrow
-(semi-stochastic
-(pops-core 200
-(trial-wavefunction
-(pops-trial 100
+walkcontgrow
+semi-stochastic
+pops-core 200
+trial-wavefunction
+pops-trial 100
 allrealcoeff
 realspawncutoff 0.02
-(jump-shift
+jump-shift
 tau 0.005 search
 max-tau 0.02
 maxwalkerbloom 1
