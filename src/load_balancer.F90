@@ -439,7 +439,7 @@ contains
         ! If using a trial wavefunction, search to see if this state is in
         ! either the trial or connected space. If so, *_search_trial returns
         ! the corresponding amplitude, which is stored.
-        if (tTrialWavefunction) then
+        if (tTrialWavefunction.and.allocated(current_trial_amps)) then
             ! Search to see if this is a trial or connected state, and
             ! retreive the corresponding amplitude (zero if neither a trial or
             ! connected state).
