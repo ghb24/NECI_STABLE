@@ -726,13 +726,14 @@ contains
         real(dp), dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
         type(excit_gen_store_type), intent(inout), optional :: Store
 
-        integer :: part_ind, iunused
+        integer :: irdm, part_ind, iunused
 #if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS) || defined(__CMPLX)
-        integer :: irdm, ind1, ind2
+        integer :: ind1, ind2
 #endif
 
         ! This is the iteration from which this determinant has been occupied.
-        IterRDMStartI(1:lenof_sign) = get_iter_occ(j)
+        IterRDMStartI = get_iter_occ(j)
+        AvSignI = get_av_sgn(j)
         
         ! This extracts everything.
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI)
@@ -807,16 +808,26 @@ contains
                 end do
 #endif
             else
-                do part_ind = 1, lenof_sign
-                    ! If there is nothing stored there yet, the first iteration
-                    ! the determinant became occupied is this one.
-                    if (abs(IterRDMStartI(part_ind)) < 1.0e-12_dp) IterRDMStartI(part_ind) = real(Iter+PreviousCycles, dp)
+                do irdm = 1, lenof_sign
 
-                    ! Update the average population. This just comes out as the
-                    ! current population (SignI) if this is the first  time the
-                    ! determinant has become occupied.
-                    AvSignI(part_ind) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * get_av_sgn(j,part_ind)) &
-                                    + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
+                    if (abs(SignI(irdm)) < 1.0e-12_dp .and. abs(IterRDMStartI(irdm)) > 1.0e-12_dp) then
+                        ! At least one of the populations has just become
+                        ! zero. Start a new averaging block.
+                        IterRDMStartI(irdm) = 0
+                        AvSignI(irdm) = 0.0_dp
+
+                    else if (abs(SignI(irdm)) > 1.0e-12_dp .and. abs(IterRDMStartI(irdm)) < 1.0e-12_dp) then
+                        ! At least one of the populations has just
+                        ! become occupied. Start a new block here.
+                        IterRDMStartI(irdm) = real(Iter + PreviousCycles,dp)
+                        AvSignI(irdm) = SignI(irdm)
+                    else
+                        if (IterRDMStartI(irdm) /= 0) then
+                            AvSignI(irdm) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(irdm)) * get_av_sgn(j,irdm)) &
+                                            + SignI(irdm) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(irdm) + 1.0_dp )
+                        end if
+                    end if
+
                 end do
             end if
         end if

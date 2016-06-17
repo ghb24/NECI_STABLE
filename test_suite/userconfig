@@ -1,5 +1,5 @@
 [neci]
-exe = ../build/bin/neci
+exe = ../bin/neci.x
 inputs_args = ('*.inp', '')
 vcs = git
 extract_program = ./tools/extract.py
