@@ -281,6 +281,169 @@ module guga_excitations
 contains
 ! ! 
 
+    ! finally with the, after all, usable trialz, popcnt, and leadz routines 
+    ! (except for the PGI and NAG compilers) i can write an efficient 
+    ! excitation identifier between two given CSFs 
+    ! for the big systems i realised that this is necessary, since 
+    ! applying the hamiltonian exactly to the reference derterminant is 
+    ! VERY time consuming! 
+    ! still this involves a lof of coding, since i do not have routines 
+    ! yet, which calculates the matrix element, if both CSFs are provided 
+    ! and probably also the whole excitation information can be provided 
+
+    function identify_excitation(ilutI, ilutJ) result(excitInfo) 
+        integer(n_int), intent(in) :: ilutI(0:nifd), ilutJ(0:nifd) 
+        type(excitationInformation) :: excitInfo
+        character(*), parameter :: this_routine = "identify_excitation"
+
+        ! i figure, that when i convert all the stepvectors like: 
+        ! 0 -> 0
+        ! 1 -> 1 
+        ! 2 -> 1 
+        ! 3 -> 0 
+        ! which can be done by parts of the count open orbs routine 
+        ! i can identify the level of excitation(except for mixed full-starts 
+        ! full-stops..
+        ! wait a minute ... what about 0 -> 3 type of excitations.. ?? 
+        ! look at all the type of excitations: 
+
+        ! singles: 
+        ! di: 0123 -> 0110
+        ! dj: 1212 -> 1111 -> 1001 -> correctly identifiable
+
+        ! non-overlap: 
+        ! di: 0123 -> 0110
+        ! dj: 1032 -> 1001 -> 1111 -> correct 
+
+        ! single overlap alike generators
+        ! like singles and have to consider for identified singles also the 
+        ! matrix element influence of these.. but for the identification
+        ! it is not a problem 
+
+        ! single overlap mixed generators: 
+        ! di: 1203 -> 1100
+        ! dj: 0132 -> 0101 -> 1001 -> wrong!!
+        ! have to identify the 0 -> 3 or 3 -> 0 switches indepentendly..
+        ! also for the full-stop full-start type excitations with alike 
+        ! generators
+
+        ! normal double: 
+        ! di: 0123 -> 0110
+        ! dj: 1302 -> 1001 -> 1111 -> correct 
+
+        ! full-stop, or full-stop alike 
+        ! di: 0123 -> 0110
+        ! dj: 1320 -> 1010 -> 1100 -> incorrect see above! 
+
+        ! full-stop or full-start mixed 
+        ! di: 1122 -> 1111
+        ! dj: 1230 -> 1100 -> 0011 -> incorrect 
+        ! this is also a special case: it looks like a single, but i have 
+        ! to check if there is a change in the spin-coupling, below or 
+        ! above the identified single excitations 
+
+        ! full-start into full-stop alike: 
+        ! di: 0123 -> 0110
+        ! dj: 3120 -> 0110 -> 0000 -> incorrect
+        ! so i also have to check if it appears to be no excitation at all..
+        ! puh ... thats gonna be tough.. 
+
+        ! full-start into full-stop mixed: 
+        ! di: 1212 -> 1111
+        ! dj: 1122 -> 1111 -> 0000 -> also looks like no excitation 
+        ! have to check for spin-coupling changes .. 
+
+        ! so: 
+        ! i have to look for occupation differences of +- 1
+        ! i have to look for spin -> coupling changes 
+        ! i have to look for occupation differences of +- 2 
+        ! and i have to check the relation between the involved indices 
+        ! if it is a possible combination which leads to valid single 
+        ! or double exitations.. 
+
+        ! the +-1 difference i figured out.
+
+        ! what about spin-coupling changes? 
+        ! 123012
+        ! 112120 i want: 
+        ! 010010 how? 
+        ! so i want the changes only in the singly occupied orbitals 
+        ! i could make a mask with the beginning stuff from above.. and then 
+        ! pick the xor only in these bits 
+
+        ! and i could also use the inversion of that mask to find the 
+        ! double occupation changes.. which i have to count twice anyway
+        
+        ! yeah this sounds not so bad.. but the painful part will be 
+        ! to find the relations of the hole and electron indices.. 
+        ! but i have done that already kind of.. 
+
+        ! AND i also have to write the matrix element calculation routine 
+        ! specifically for 2 given CSFs .. but atleast that is easier to do 
+        ! since i have all the necessary information at hand and dont need 
+        ! to do any branching and stuff. 
+        ! this could also make it easier to check if the excitation is 
+        ! compatible after all.. 
+        
+        ! and i have to set it up in such a way, that it can deal with 
+        ! multiple integers, for bigger number of orbitals, because thats 
+        ! exactly where it is necessary to use. 
+        ! i can use the stuff used in the paper by emmanuel to do that stuff 
+        ! i guess 
+
+        ! and since i need the created masks in all 3 of the checks i should 
+        ! not split up the calculation in multiple subroutine to be able 
+        ! to reuse them and be more efficient 
+
+        ! so the first part is to create a mask of the singly occupied 
+        ! orbitals and the inversion
+        alpha = iand(ilutI, MaskAlpha) 
+        beta = iand(ilutI, MaskBeta) 
+        alpha = ishft(alpha, -1) 
+        ! this now gives me the +-1 occ. changes 
+        ! meh.. this not really gives me the change in +-1 one but just the 
+        ! number of singly occupied orbitals.. 
+        ! i have to do that for both CSFs or.. hm.. 
+        ! think a little bit more about that before moving on.. 
+
+        change_1 = ieor(alpha, beta) 
+        ! and if i shift this to the right and xor with the original i get 
+        ! the singles mask 
+        mask_singles = ieor(change_1, ishft(change_1, +1))
+        ! and the doubles is the not of that 
+        mask_doubles = not(mask_single) 
+
+        ! so.. i already have the +-1 changes, so depending on that move on.. 
+        n_singles = popcnt(change_1) 
+
+        ! hm i just realised in all the single changes <= 4 there is still 
+        ! a lot of other stuff that can happen.. 
+        ! and i could also exit the routine if any of the other stuff 
+        ! does crazy shit, exept for the spin-coupling changes, which can 
+        ! happen a lot and still represent a valid excitation
+        ! so atleast check the double changes too.. 
+
+        select case (n_singles) 
+        case (0) 
+            ! no +-1 changes still a lot of stuff can happen 
+
+            ! btw: there is no case 1 or? 
+        case (2) 
+            ! this could be a "normal" single excitation, but also still 
+            ! a lot of other stuff 
+
+        case (4) 
+            ! this could be a non-overlap double, a 
+            ! 
+
+        ! this alpha 
+
+
+
+
+
+
+    end function identify_excitation
 
     subroutine Detham_guga(ndets, det_list, hamil, ind, n_row, n_elements) 
         ! create a routine which mimicks the functioniality of Detham for 
