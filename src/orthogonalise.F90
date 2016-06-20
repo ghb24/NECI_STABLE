@@ -44,7 +44,7 @@ contains
         character(*), parameter :: this_routine = 'orthogonalise_replicas'
 
 #ifndef __PROG_NUMRUNS
-        call stop_all(this_routine, "orthogonalise replicas requires mneci.x")
+        call stop_all(this_routine, "orthogonalise replicas requires mneci or kmneci")
 #endif
 
         ! If we are using the symmetric orthogonaliser, then bypass this

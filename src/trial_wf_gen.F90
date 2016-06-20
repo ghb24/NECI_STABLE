@@ -248,7 +248,7 @@ contains
         if (.not. qmc_trial_wf) then
             write(6,'("Energy eigenvalue(s) of the trial space:")', advance='no')
             do i = 1, nexcit_keep
-                write(6,'(2X,g16.9e3)', advance='no') trial_energies(i)
+                write(6,'(2X,g19.12e3)', advance='no') trial_energies(i)
             end do
         end if
         write(6,'(/,"Trial wavefunction initialisation complete.")')

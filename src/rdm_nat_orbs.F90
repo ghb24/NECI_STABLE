@@ -68,7 +68,6 @@ contains
                 call neci_flush(6)
 
                 call writebasis(6, G1, nbasis, ARR, BRR)
-
             end if
         end if
 

@@ -936,8 +936,6 @@ r_loop: do while(.not.tStoreDet)
         call clear_hash_table(HashIndex)
         call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int), .true.)
 
-        call set_initial_global_data(TotWalkers, CurrentDets)
-
         ! If we are doing load balancing, do an initial balance now that we
         ! have read the particles in
         ! n.b. This must be done after the hash tables have been initialised
@@ -949,6 +947,9 @@ r_loop: do while(.not.tStoreDet)
             iEndFreeSlot=0
             call pops_init_balance_blocks(PopBalanceBlocks)
         end if
+
+        !Set initial global data after potentially load balancing
+        call set_initial_global_data(TotWalkers, CurrentDets)
 
         ! If tWalkContGrow has been set, and therefore the shift reset, in
         ! when the POPSFILE header was read, check that we aren't already
