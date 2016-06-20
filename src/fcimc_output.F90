@@ -674,7 +674,8 @@ contains
 
     subroutine writeMsWalkerCountsAndCloseUnit()
         integer :: i, ms, tempni(1:nel)
-        real(dp) :: totWalkPopByMsReal(nel+1), totWalkPopByMsImag(nel+1), tempSign(2)
+        real(dp) :: totWalkPopByMsReal(nel+1), totWalkPopByMsImag(nel+1), &
+                    tempSign(lenof_sign)
         
         do i=1,TotWalkers
             call extract_sign(WalkVecDets(:,i),TempSign)

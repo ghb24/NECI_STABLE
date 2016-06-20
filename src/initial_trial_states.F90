@@ -217,7 +217,7 @@ contains
         HElement_t(dp), allocatable :: evecs(:,:), evecs_transpose(:,:)
         HElement_t(dp), allocatable :: work(:)
         real(dp), allocatable :: evals_all(:), rwork(:)
-        character(len=*), parameter :: t_r = "calc_trial_states_lanczos"
+        character(len=*), parameter :: t_r = "calc_trial_states_direct"
 
         ndets_this_proc = 0
         trial_iluts = 0_n_int

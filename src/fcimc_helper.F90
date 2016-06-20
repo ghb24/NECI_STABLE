@@ -512,13 +512,27 @@ contains
                     if (tPairedReplicas) then
 #if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
                         do run = 2, inum_runs, 2
+#ifdef __CMPLX
+                            trial_denom(run-1) = trial_denom(run-1) + current_trial_amps(run/2,ind)* &
+                                cmplx(sgn(min_part_type(run-1)),sgn(max_part_type(run-1)),dp)
+                            trial_denom(run) = trial_denom(run) + current_trial_amps(run/2,ind)* &
+                                cmplx(sgn(min_part_type(run)),sgn(max_part_type(run)),dp)
+#else
                             trial_denom(run-1:run) = trial_denom(run-1:run) + current_trial_amps(run/2,ind)*sgn(run-1:run)
+#endif
                         end do
 #else
                         call stop_all(this_routine, "INVALID")
 #endif
                     else
-                        trial_denom = trial_denom + current_trial_amps(:,ind)*sgn
+#ifdef __CMPLX
+                        do run=1,inum_runs
+                            trial_denom(run) = trial_denom(run) + current_trial_amps(run,ind)* &
+                                cmplx(sgn(min_part_type(run)),sgn(max_part_type(run)),dp)
+                        enddo
+#else
+                        trial_denom = trial_denom + current_trial_amps(:,ind)*sgn(:)
+#endif
                     end if
                 end if
 
@@ -551,13 +565,27 @@ contains
                     if (tPairedReplicas) then
 #if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
                         do run = 2, inum_runs, 2
+#ifdef __CMPLX
+                            trial_numerator(run-1) = trial_numerator(run-1) + current_trial_amps(run/2,ind)* &
+                                cmplx(sgn(min_part_type(run-1)),sgn(max_part_type(run-1)),dp)
+                            trial_numerator(run) = trial_numerator(run) + current_trial_amps(run/2,ind)* &
+                                cmplx(sgn(min_part_type(run)),sgn(max_part_type(run)),dp)
+#else
                             trial_numerator(run-1:run) = trial_numerator(run-1:run) + current_trial_amps(run/2,ind)*sgn(run-1:run)
+#endif
                         end do
 #else
                         call stop_all(this_routine, "INVALID")
 #endif
                     else
+#ifdef __CMPLX
+                        do run=1,inum_runs
+                            trial_numerator(run) = trial_numerator(run) + current_trial_amps(run,ind)* &
+                                cmplx(sgn(min_part_type(run)),sgn(max_part_type(run)),dp)
+                        enddo
+#else
                         trial_numerator = trial_numerator + current_trial_amps(:,ind)*sgn
+#endif
                     end if
                 end if
             end if

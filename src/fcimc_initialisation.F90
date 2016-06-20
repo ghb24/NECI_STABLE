@@ -2949,11 +2949,17 @@ contains
 !            WRITE(iout,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ", &
 !                & real(nDoub,dp)/real(iTotal,dp)
         ELSE
-            write (iout,'(A,F14.6)') " pDoubles set to: ", pDoubles
-            write (iout,'(A,F14.6)') " pSingles set to: ", pSingles
-            write (iout,'(A,F14.6)') " pSing_spindiff1 set to: ", pSing_spindiff1
-            write (iout,'(A,F14.6)') " pDoub_spindiff1 set to: ", pDoub_spindiff1
-            write (iout,'(A,F14.6)') " pDoub_spindiff2 set to: ", pDoub_spindiff2
+            if (tReltvy) then 
+                write (iout,'(A)') " Where s and t are alpha or beta spin function labels: "
+                write (iout,'(A30,F14.6)') " pSingles(s->s) set to: ", pSingles
+                write (iout,'(A30,F14.6)') " pSingles(s->s') set to: ", pSing_spindiff1
+                write (iout,'(A30,F14.6)') " pDoubles(st->st) set to: ", pDoubles
+                write (iout,'(A30,F14.6)') " pDoubles(st->s't) set to: ", pDoub_spindiff1
+                write (iout,'(A30,F14.6)') " pDoubles(st->s't') set to: ", pDoub_spindiff2
+            else
+                write (iout,'(A,F14.6)') " pDoubles set to: ", pDoubles
+                write (iout,'(A,F14.6)') " pSingles set to: ", pSingles
+            endif
         ENDIF
 
     END SUBROUTINE CalcApproxpDoubles

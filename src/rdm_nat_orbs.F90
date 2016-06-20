@@ -20,7 +20,7 @@ contains
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: one_rdm_t
         use RotateOrbsMod, only: FourIndInts, FourIndIntsTag
-        use SystemData, only: tROHF, nel, G1, ARR, BRR
+        use SystemData, only: tROHF, nbasis, G1, ARR, BRR
 
         ! Diagonalises the 1-RDM (rdm%matrix) so that, after this routine,
         ! rdm%matrix holds the eigenfunctions of the 1-RDM (the matrix
@@ -67,8 +67,7 @@ contains
 
                 call neci_flush(6)
 
-                call writebasis(6, G1, NoOrbs, ARR, BRR)
-
+                call writebasis(6, G1, nbasis, ARR, BRR)
             end if
         end if
 
