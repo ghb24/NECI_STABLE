@@ -284,7 +284,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(in) :: CCUnocc(ScratchSize)
         integer, intent(in) :: virt_list(:,:)
-        integer :: orbs(2)
+        integer, intent(out) :: orbs(2)
         character(*), parameter :: this_routine = 'select_orb_pair'
 
         integer :: i

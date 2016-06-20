@@ -1,3 +1,4 @@
+#include "macros.h"
 module bit_rep_data
 
     use CalcData, only: tUseRealCoeffs
@@ -44,39 +45,23 @@ module bit_rep_data
     integer :: nOffParentCoeff, nIfParentCoeff
 
     ! Flags which we can store
-    logical :: tUseflags
+    logical :: tUseFlags
     integer, parameter :: flag_deterministic = 0, &
                           flag_determ_parent = 1, &
                           flag_trial = 2, &
                           flag_connected = 3, &
-                          flag_has_been_initiator(1) = 4, &
-                          flag_unused1 = 5, &
-                          flag_unused2 = 6, &
-                          flag_unused3 = 7, &
-                          flag_ic0_spawn = 8, &
-                          flag_death_done = 9, &
-                          flag_negative_sign = 10
+                          flag_ic0_spawn = 4, &
+                          flag_death_done = 5
 
 #ifdef __PROG_NUMRUNS
     integer, parameter :: flag_initiator(lenof_sign_max) &
-                            = (/11, 12, 13, 14, 15, 16, 17, 18, 19, 20, &
-                                21, 22, 23, 24, 25, 26, 27, 28, 29, 30/), &
-                          flag_weak_initiator(lenof_sign_max) &
-                            = (/31, 32, 33, 34, 35, 36, 37, 38, 39, 40, &
-                                41, 42, 43, 44, 45, 46, 47, 48, 49, 50/), &
-                          num_flags = 51
+                            = (/6,  7,  8,  9, 10, 11, 12, 13, 14, 15, &
+                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25/), &
+                          num_flags = 26
 #else
-    integer, parameter :: flag_initiator(2) = (/11,12/), &
-                          flag_weak_initiator(2) = (/13,14/), &
-                          num_flags = 15
+    integer, parameter :: flag_initiator(2) = (/ 6, 7/), &
+                          num_flags = 8 
 #endif
-
-    ! IMPORTANT
-    integer, parameter :: flag_bit_offset = bits_n_int - num_flags
-    integer(n_int), parameter :: sign_mask = ishft(not(0_n_int), -num_flags), &
-                                 flags_mask = not(sign_mask), &
-                                 sign_neg_mask = ibset(sign_mask, &
-                                          flag_bit_offset + flag_negative_sign)
 
 contains
 
@@ -99,15 +84,11 @@ contains
 
 !        bSet = btest(ilut(ind), off)
 
-        bSet = .false.
-
-#if defined(__INT64) && !defined(__PROG_NUMRUNS)
-        if ((.not. tUseRealCoeffs) .or. tUseFlags) then
-#else
-        if (tUseFlags) then
-#endif
-            bSet = btest(ilut(NOffFlag), flg + flag_bit_offset)
-        end if
+        if(tUseFlags) then
+            bSet = btest(ilut(NOffFlag), flg)
+        else
+            bSet = .false.
+        endif
 
     end function test_flag
 
@@ -116,23 +97,9 @@ contains
         real(dp), intent(out) :: real_sgn(lenof_sign)
         integer(n_int) :: sgn(lenof_sign)
 
-#if defined(__INT64) && !defined(__PROG_NUMRUNS)
-        if (tUseRealCoeffs) then
-            sgn = ilut(NOffSgn:NOffSgn+lenof_sign-1)
-            real_sgn = transfer(sgn, real_sgn)
-        else
-            ! TODO: Should we inline the flag test
-            sgn(1) = int(iand(ilut(NOffSgn), sign_mask), sizeof_int)
-            if (test_flag(ilut, flag_negative_sign)) sgn(1) = -sgn(1)
-            if (lenof_sign == 2) then
-                sgn(lenof_sign) = int(ilut(NOffSgn+1), sizeof_int)
-            end if
-            real_sgn = real(sgn, dp)
-        end if
-#else
         sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
         real_sgn = transfer(sgn, real_sgn)
-#endif
+
     end subroutine extract_sign
 
 end module
