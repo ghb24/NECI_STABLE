@@ -5,6 +5,7 @@
 
 module enumerate_excitations
 
+    use SystemData, only : tReltvy
     use bit_rep_data, only: NIfD, NIfTot
     use bit_reps, only: decode_bit_det
     use constants
@@ -15,10 +16,11 @@ module enumerate_excitations
     use sort_mod, only: sort
     use SymData, only: nSymLabels, SymTable, SymLabels, SymClasses
     use SymExcit3, only: GenExcitations3
+    use SymExcit4, only: GenExcitations4, ExcitGenSessionType
     use SymExcitDataMod
     use sym_general_mod
     use SystemData, only: nel, nBasis, G1, tFixLz, Arr, Brr, tHPHF, tHub, &
-                          tUEG, tKPntSym, tReal, tUseBrillouin
+                          tUEG, tKPntSym, tReal, tUseBrillouin, tReltvy
 
     implicit none
 
@@ -41,6 +43,8 @@ module enumerate_excitations
     type simple_excit_store
         integer :: i, j
     end type
+
+    type(ExcitGenSessionType) :: session
 
 contains
 
@@ -339,6 +343,7 @@ contains
     subroutine generate_connected_space_normal(original_space_size, original_space, &
             connected_space_size, connected_space, tSinglesOnlyOpt)
 
+        use Symexcit4, only : NewParentDet
         ! This routine either counts or generates all the determinants connected to those in
         ! original_space. If connected_space is not present then they will only be counted,
         ! else they will be stored in connected_space. If tSinglesOnlyOpt is present and
@@ -359,6 +364,7 @@ contains
         integer :: nStore(6)
         logical :: tAllExcitFound, tStoreConnSpace, tSinglesOnly, tTempUseBrill
 
+
         if (present(connected_space)) then
             tStoreConnSpace = .true.
         else
@@ -375,11 +381,13 @@ contains
         ! Over all the states in the original list:
         do i = 1, original_space_size
 
+            call NewParentDet(session)
+
             call decode_bit_det(nI, original_space(:,i))
 
             call init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
             if (tSinglesOnly) ex_flag = 1
-
+            
             do while(.true.)
 
                 call generate_connection_normal(nI, original_space(:,i), nJ, ilutJ, ex_flag, excit, &
@@ -397,6 +405,7 @@ contains
     subroutine generate_connection_normal(nI, ilutI, nJ, ilutJ, ex_flag, excit, tAllExcitFound, hel, ncon)
 
         use procedure_pointers, only: get_conn_helement
+        use SymExcit4, only : GenExcitations4
 
         integer :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
@@ -414,8 +423,12 @@ contains
         HElement_t(dp) :: hel_unused
 
         ! Generate the next determinant.
-        call GenExcitations3(nI, ilutI, nJ, ex_flag, excit, tParity, &
+        if (tReltvy) then
+            call GenExcitations4(session, nI, nJ, ex_flag, excit, tParity, tAllExcitFound, .false.)
+        else
+            call GenExcitations3(nI, ilutI, nJ, ex_flag, excit, tParity, &
                               tAllExcitFound, .false.)
+        endif
         if (tAllExcitFound) return
 
         ! Encode nJ in ilutJ.

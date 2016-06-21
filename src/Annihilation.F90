@@ -6,12 +6,9 @@
 module AnnihilationMod
 
     use SystemData, only: NEl, tHPHF
-    use CalcData, only: tEnhanceRemainder, &
-                          tTruncInitiator, OccupiedThresh, tSemiStochastic, &
+    use CalcData, only:   tTruncInitiator, OccupiedThresh, tSemiStochastic, &
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
-                          InitiatorOccupiedThresh, tInitOccThresh, &
-                          tContTimeFull, InitiatorWalkNo, tInterpolateInitThresh, &
-                          tWeakInitiators
+                          tContTimeFull, InitiatorWalkNo
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -25,14 +22,13 @@ module AnnihilationMod
                         encode_sign, test_flag, set_flag, &
                         flag_initiator, encode_part_sign, &
                         extract_part_sign, extract_bit_rep, &
-                        nullify_ilut_part, clear_has_been_initiator, &
-                        set_has_been_initiator, flag_has_been_initiator, &
-                        encode_flags, bit_parent_zero, extract_parent_coeff
+                        nullify_ilut_part, &
+                        encode_flags, bit_parent_zero, get_initiator_flag
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
     use load_balance, only: DetermineDetNode, AddNewHashDet, &
                             CalcHashTableStats
-    use global_det_data, only: get_iter_occ, inc_spawn_count
+    use global_det_data, only: get_iter_occ
     use searching
     use hash
 
@@ -482,10 +478,8 @@ module AnnihilationMod
         ! set.
         if (tTruncInitiator) then
             if ((abs(cum_sgn) > 1.e-12_dp .and. abs(new_sgn) > 1.e-12_dp) .or. &
-                 test_flag(new_det, flag_initiator(part_type))) &
-                call set_flag(cum_det, flag_initiator(part_type))
-            if(tWeakInitiators.and.test_flag(new_det, flag_weak_initiator(part_type))) &
-                call set_flag(cum_det, flag_weak_initiator(part_type))
+                 test_flag(new_det, get_initiator_flag(part_type))) &
+                call set_flag(cum_det, get_initiator_flag(part_type))
         end if
 
         sgn_prod = cum_sgn * new_sgn
@@ -565,15 +559,8 @@ module AnnihilationMod
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
         real(dp) :: pRemove, r
         integer :: ExcitLevel, DetHash, nJ(nel)
-        logical :: tSuccess, tSuc, tPrevOcc, tDetermState
+        logical :: tSuccess, tSuc, tDetermState
         integer :: run
-
-#ifdef __CMPLX
-        character(len=*), parameter :: t_r = "AnnihilateSpawnedParts"
-
-        if (tInterpolateInitThresh) &
-            call stop_all(t_r, 'Not implemented (yet)')
-#endif
 
         ! Only node roots to do this.
         if (.not. bNodeRoot) return
@@ -617,19 +604,15 @@ module AnnihilationMod
                     call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
                     call encode_sign(SpawnedParts(:,i), null_part)
 
-                    ! If we are spawning onto a site and growing it, then
-                    ! count that spawn for initiator purposes.
-                    if (any(signprod > 0)) call inc_spawn_count(PartInd)
-
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
-#ifndef __CMPLX
-                        if (abs(CurrentSign(j)) < 1.e-12_dp) then
+
+                        if (is_run_unnocc(CurrentSign,run)) then
                             ! This determinant is actually *unoccupied* for the
-                            ! walker type/set we're considering. We need to
+                            ! run we're considering. We need to
                             ! decide whether to abort it or not.
                             if (tTruncInitiator) then
-                                if (.not. test_flag (SpawnedParts(:,i), flag_initiator(j)) .and. &
+                                if (.not. test_flag (SpawnedParts(:,i), get_initiator_flag(j)) .and. &
                                      .not. tDetermState) then
                                     ! Walkers came from outside initiator space.
                                     NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
@@ -637,10 +620,10 @@ module AnnihilationMod
                                     call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
                                 end if
                             end if
-                        else if (SignProd(j) < 0) then
-#else
+                        end if
+                            
+
                         if (SignProd(j) < 0) then
-#endif
                             ! This indicates that the particle has found the
                             ! same particle of opposite sign to annihilate with.
                             ! In this case we just need to update some statistics:
@@ -708,7 +691,7 @@ module AnnihilationMod
 
             end if
                 
-            if ( (.not.tSuccess) .or. (tSuccess .and. sum(abs(CurrentSign)) < 1.e-12_dp .and. (.not. tDetermState)) ) then
+            if ( (.not.tSuccess) .or. (tSuccess .and. IsUnoccDet(CurrentSign) .and. (.not. tDetermState)) ) then
 
                 ! Determinant in newly spawned list is not found in CurrentDets.
                 ! Usually this would mean the walkers just stay in this list and
@@ -720,9 +703,6 @@ module AnnihilationMod
 
                     call extract_sign (SpawnedParts(:,i), SignTemp)
 
-                    tPrevOcc = .false.
-                    if (.not. IsUnoccDet(SignTemp)) tPrevOcc=.true.   
-                        
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
 
@@ -745,50 +725,28 @@ module AnnihilationMod
 
                         end if
                         
-                        if (tInitOccThresh .and. test_flag(CurrentDets(:,j), flag_has_been_initiator(1)))then
-                            if ((abs(SignTemp(j)) > 0.0_dp).and.(abs(SignTemp(j)) < InitiatorOccupiedThresh)) then
-                                pRemove=(InitiatorOccupiedThresh-abs(SignTemp(j)))/InitiatorOccupiedThresh
-                                r = genrand_real2_dSFMT ()
-                                if (pRemove > r) then
-                                    ! Remove the determinant.
-                                    NoRemoved(run) = NoRemoved(run)+abs(SignTemp(j))
-                                    iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                    + abs(SignTemp(j))
-                                    SignTemp(j) = 0.0_dp
-                                    call nullify_ilut_part(SpawnedParts(:,i),j)
-                                    ! Also cancel the has_been_initiator_flag.
-                                    call clear_has_been_initiator(CurrentDets(:,j),flag_has_been_initiator(1))
-                                else if (tEnhanceRemainder) then
-                                    NoBorn(run) = NoBorn(run) + InitiatorOccupiedThresh - abs(SignTemp(j))
-                                    iter_data%nborn(j) = iter_data%nborn(j) &
-                                    + InitiatorOccupiedThresh - abs(SignTemp(j))
-                                    SignTemp(j) = sign(InitiatorOccupiedThresh, SignTemp(j))
-                                    call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
-                                end if
-                            end if
-                        else
-                            ! Either the determinant has never been an initiator,
-                            ! or we want to treat them all the same, as before.
-                            if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
-                                ! We remove this walker with probability 1-RealSignTemp
-                                pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
-                                r = genrand_real2_dSFMT ()
-                                if (pRemove > r) then
-                                    ! Remove this walker.
-                                    NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
-                                    !Annihilated = Annihilated + abs(SignTemp(j))
-                                    !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                                    iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                                          + abs(SignTemp(j))
-                                    SignTemp(j) = 0.0_dp
-                                    call nullify_ilut_part (SpawnedParts(:,i), j)
-                                else if (tEnhanceRemainder) then
-                                    NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
-                                    iter_data%nborn(j) = iter_data%nborn(j) &
-                                              + OccupiedThresh - abs(SignTemp(j))
-                                    SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
-                                    call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
-                                end if
+                        ! Either the determinant has never been an initiator,
+                        ! or we want to treat them all the same, as before.
+                        if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
+                            ! We remove this walker with probability 1-RealSignTemp
+                            pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
+                            r = genrand_real2_dSFMT ()
+                            if (pRemove > r) then
+                                ! Remove this walker.
+                                NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
+                                !Annihilated = Annihilated + abs(SignTemp(j))
+                                !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+                                iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                                      + abs(SignTemp(j))
+                                SignTemp(j) = 0.0_dp
+                                call nullify_ilut_part (SpawnedParts(:,i), j)
+                            else
+                                !Round up
+                                NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
+                                iter_data%nborn(j) = iter_data%nborn(j) &
+                                          + OccupiedThresh - abs(SignTemp(j))
+                                SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
+                                call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                             end if
                         end if
                     end do
@@ -807,9 +765,6 @@ module AnnihilationMod
                     ! CurrentDets. If coeff <1, apply removal criterion.
                     call extract_sign (SpawnedParts(:,i), SignTemp)
                     
-                    tPrevOcc = .false.
-                    if (.not. IsUnoccDet(SignTemp)) tPrevOcc = .true. 
-                    
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
                         if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
@@ -825,7 +780,7 @@ module AnnihilationMod
                                                       + abs(SignTemp(j))
                                 SignTemp(j) = 0
                                 call nullify_ilut_part (SpawnedParts(:,i), j)
-                            else if (tEnhanceRemainder) then
+                            else
                                 NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
                                 iter_data%nborn(j) = iter_data%nborn(j) &
                                             + OccupiedThresh - abs(SignTemp(j))
@@ -866,10 +821,7 @@ module AnnihilationMod
 
     end subroutine AnnihilateSpawnedParts
     
-    function test_abort_spawn(ilut_spwn, part_type) result(abort)
-
-        use CalcData, only: tInterpolateInitThresh, init_interp_min, &
-                            init_interp_max, init_interp_exponent
+    pure function test_abort_spawn(ilut_spwn, part_type) result(abort)
 
         ! Should this spawn be aborted (according to the initiator
         ! criterion).
@@ -877,13 +829,6 @@ module AnnihilationMod
         ! This function accepts an initiator spawn with probability
         ! (1.0 - alpha(ilut_spwn, part_type)), which can be artibrarily
         ! complicated.
-        !
-        ! With tInterpolateInitThresh:
-        !
-        ! alpha = alpha_min +
-        !       ( ( ((abs(n_parent) - OccupiedThresh) /
-        !            (InitiatorWalkNo - OccupiedThresh)) ** gamma) 
-        !        * (alpha_max - alpha_min))
 
         integer(n_int), intent(in) :: ilut_spwn(0:nIfBCast)
         integer, intent(in) :: part_type
@@ -891,35 +836,10 @@ module AnnihilationMod
 
         real(dp) :: pkeep, parent_coeff
 
-        ! By default, particles are aborted if they come from non-initiators
-        abort = .true.
-
         ! If a particle comes from a site marked as an initiator, then it can
         ! live
-        if (test_flag(ilut_spwn, flag_initiator(part_type))) then
-            abort = .false.
-            return
-        end if
 
-        ! Linearly interpolate the likelyhood of aborting a particle where
-        ! the parent coefficient is compared to the initiator threshold
-        if (tInterpolateInitThresh) then
-
-            parent_coeff = extract_parent_coeff(ilut_spwn)
-            if (abs(parent_coeff) > InitiatorWalkNo) then
-                abort = .false.
-            else
-
-                pkeep = (abs(parent_coeff) - OccupiedThresh) &
-                      / (InitiatorWalkNo - OccupiedThresh)
-                pkeep = (pkeep ** init_interp_exponent) &
-                      * (init_interp_max - init_interp_min)
-                pkeep = pkeep + init_interp_min
-
-                abort = (genrand_real2_dSFMT() > pkeep)
-            end if
-
-        end if
+        abort = .not. test_flag(ilut_spwn, get_initiator_flag(part_type))
 
     end function
 

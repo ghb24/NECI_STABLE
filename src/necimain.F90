@@ -2,10 +2,9 @@
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
  
 module EN2Molcas
-   use constants
    implicit NONE
    save
-   real(dp) :: NECI_E
+   real(8) :: NECI_E
 end module EN2Molcas
 
 #if defined(_MOLCAS_)

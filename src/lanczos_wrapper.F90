@@ -47,6 +47,10 @@ contains
         logical :: tMC
         character(len=*), parameter :: t_r = 'frsblk_wrapper'
 
+#ifdef __CMPLX
+        call stop_all(t_r,'frsblk cannot work with complex wavefunctions currently')
+#endif
+
         allocate(nRow(ndets), stat=ierr)
         nRow = 0
         ICMax = 1

@@ -6,7 +6,7 @@ module FciMCParMod
 
     ! This module contains the main loop for FCIMC calculations, and the
     ! main per-iteration processing loop.
-    use SystemData, only: nel, tUEG2, hist_spin_dist_iter
+    use SystemData, only: nel, tUEG2, hist_spin_dist_iter, tReltvy
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
@@ -475,6 +475,11 @@ module FciMCParMod
             ENDIF
         ENDIF
 
+        ! mswalkercounts
+!        if (tReltvy) then
+!            call writeMsWalkerCountsAndCloseUnit()
+!        endif
+
         ! If requested, write the most populated states in CurrentDets to a
         ! CORESPACE file, for use in future semi-stochastic calculations.
         if (tWriteCoreEnd) call write_most_pop_core_at_end(write_end_core_size)
@@ -548,7 +553,7 @@ module FciMCParMod
         isymh=int(RefSym%Sym%S,sizeof_int)+1
         write (iout,'('' Current reference energy'',T52,F19.12)') Hii 
         if(tNoProjEValue) then
-            write (iout,'('' Projected correlation energy'',T52,F19.12)') ProjectionE(1)
+            write (iout,'('' Projected correlation energy'',T52,F19.12)') real(ProjectionE(1),dp)
             write (iout,"(A)") " No automatic errorbar obtained for projected energy"
         else
             write (iout,'('' Projected correlation energy'',T52,F19.12)') mean_ProjE_re
@@ -637,6 +642,7 @@ module FciMCParMod
     end subroutine FciMCPar
 
     subroutine PerformFCIMCycPar(iter_data)
+        use symrandexcit_Ex_Mag, only: test_sym_excit_ExMag 
         
         ! Iteration specific data
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -659,6 +665,9 @@ module FciMCParMod
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
         integer :: DetHash, FinalVal, clash, PartInd, k, y
         type(ll_node), pointer :: TempNode
+
+        integer :: ms
+
 
         call set_timer(Walker_Time,30)
 
@@ -696,6 +705,7 @@ module FciMCParMod
 
         IFDEBUGTHEN(FCIMCDebug,iout)
             write(iout,"(A)") "Hash Table: "
+            write(iout,"(A)") "Position in hash table, Position in CurrentDets"
             do j=1,nWalkerHashes
                 TempNode => HashIndex(j)
                 if (TempNode%Ind /= 0) then
@@ -757,6 +767,10 @@ module FciMCParMod
             call extract_bit_rep_avsign (CurrentDets(:,j), j, &
                                         DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
                                         AvSignCurr, fcimc_excit_gen_store)
+       
+
+            !call test_sym_excit_ExMag(DetCurr,100000000)
+            !call stop_all(this_routine, "Test complete")
 
             ! We only need to find out if determinant is connected to the
             ! reference (so no ex. level above 2 required, 
@@ -911,7 +925,7 @@ module FciMCParMod
                                             ! Note these last two, AvSignCurr and 
                                             ! RDMBiasFacCurr are not used unless we're 
                                             ! doing an RDM calculation.
-
+                                            
                     else
                         child = 0.0_dp
                     endif
@@ -926,6 +940,7 @@ module FciMCParMod
                         call write_det(6, nJ, .true.)
                         call neci_flush(iout) 
                     endif
+
 
                     ! Children have been chosen to be spawned.
                     if (any(child /= 0)) then

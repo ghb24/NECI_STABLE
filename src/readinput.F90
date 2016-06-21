@@ -204,18 +204,16 @@ MODULE ReadInput_neci
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
                             TNoSameExcit, TInitStar, tMP2Standalone, &
-                            MemoryFacPart, tTruncInitiator, tSemiStochastic, &
+                            MemoryFacPart, tSemiStochastic, &
                             tSpatialOnlyHash, InitWalkers, tUniqueHFNode, &
-                            InitiatorCutoffEnergy, tCheckHighestPop, &
-                            tSurvivalInitiatorThreshold, tKP_FCIQMC, &
-                            tSurvivalInitMultThresh, tAddToInitiator, &
-                            tMultiReplicaInitiators, tRealCoeffByExcitLevel, &
+                            tCheckHighestPop, &
+                            tKP_FCIQMC, &
+                            tAddToInitiator, &
+                            tRealCoeffByExcitLevel, &
                             tAllRealCoeff, tUseRealCoeffs, tChangeProjEDet, &
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
-                            tContTimeFull, tSurvivalInitiatorThreshold, &
-                            tSurvivalInitMultThresh, tBroadcastParentCoeff, &
-                            tSpawnCountInitiatorThreshold, tInterpolateInitThresh
+                            tContTimeFull
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -460,40 +458,6 @@ MODULE ReadInput_neci
             call stop_all(t_r, 'HPHF functions cannot work with UHF')
         end if
 
-        if (tPopsFile .and. (tSurvivalInitiatorThreshold .or. &
-                             tSurvivalInitMultThresh)) then
-            write(6,*) 'The initiator initial iteration details have not yet &
-                       &been added to the POPSFILE reading/writing routines.'
-            write(6,*) '--> Simulations will not display consistent behaviour &
-                       &over restarts until this is implemented'
-            call stop_all(t_r, 'POPSFILES cannot be used with initiator &
-                               &survival criterion')
-        end if
-
-        if ((tSurvivalInitiatorThreshold .or. tSurvivalInitMultThresh) .and. &
-            .not. tAddToInitiator) then
-
-            write(6,*) 'Without the ADDTOINITIATOR option, the survival based &
-                       &initiator thresholds do nothing'
-            write(6,*) 'If ONLY survival based thresholds are desired, set &
-                       &initiator walker number absurdly high'
-            call stop_all(t_r, 'Inconsistent options')
-        end if
-
-        if (tMultiReplicaInitiators) then
-#ifndef __PROG_NUMRUNS
-            call stop_all(t_r, 'Aggregated initiator thresholds require &
-                               &multiple simulations')
-#endif
-#ifdef __CMPLX
-            call stop_all(t_r, 'Aggregated initator thresholds are not (yet) &
-                               &implemented for complex particles')
-#endif
-            if (lenof_sign == 1) &
-                call stop_all(t_r, 'Aggregated initator thresholds make no &
-                                   &sense with only one system replica')
-        end if
-
 #if __PROG_NUMRUNS
         if (tKP_FCIQMC .and. .not. tMultiReplicas) then
 
@@ -501,7 +465,11 @@ MODULE ReadInput_neci
                        &number of replica simulations'
             write(6,*) 'Defaulting to using 2 replicas'
             tMultiReplicas = .true.
+#ifdef __CMPLX
+            lenof_sign = 4
+#else            
             lenof_sign = 2
+#endif            
             inum_runs = 2
 
             ! Correct the size of InputDiagSft:
@@ -559,11 +527,6 @@ MODULE ReadInput_neci
                                    &of simulations')
             end if
 
-            if (inum_runs /= lenof_sign) then
-                call stop_all(t_r, "Replica orthogonalisation is only &
-                                   &(currently) implemented for real systems")
-            end if
-
             if (tStartMP1 .or. tStartCAS) then
                 call stop_all(t_r, "MP1 or CAS starting not implemented for &
                                    &orthogonalised calculations")
@@ -584,9 +547,7 @@ MODULE ReadInput_neci
                 tLoadBalanceBlocks = .false.
             end if
 
-            if (tSurvivalInitiatorThreshold .or. tSurvivalInitMultThresh .or. &
-                tSpawnCountInitiatorThreshold .or. &
-                (tContTimeFCIMC .and. tContTimeFull)) then
+            if (tContTimeFCIMC .and. tContTimeFull) then
                 call stop_all(t_r, 'Load balancing not yet usable for &
                              &calculations requiring accumulated determinant &
                              &specific global data')
@@ -596,15 +557,6 @@ MODULE ReadInput_neci
 #ifndef __USE_HDF
         if (tHDF5PopsRead .or. tHDF5PopsWrite) then
             call stop_all(t_r, 'Support for HDF5 files disabled at compile time')
-        end if
-#endif
-
-#ifdef __CMPLX
-        if (tBroadcastParentCoeff .or. tInterpolateInitThresh) then
-            write(6,*) 'Variable initiator thresholds require communication &
-                       &of parent coefficients during annihilation.'
-            write(6,*) 'This is not yet implemented during complex calculations'
-            call stop_all(t_r, 'Not implemented for complex walkers')
         end if
 #endif
 

@@ -70,7 +70,7 @@ contains
 
                 call neci_flush(6)
 
-                call writebasis(6, G1, NoOrbs, ARR, BRR)
+                call writebasis(6, G1, NoOrbs*2, ARR, BRR)
 
             end if
         end if

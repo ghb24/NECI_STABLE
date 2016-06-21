@@ -5,9 +5,7 @@
 
 module global_det_data
 
-    use CalcData, only: tSurvivalInitiatorThreshold, tSurvivalInitMultThresh, &
-                        tSpawnCountInitiatorThreshold, tContTimeFCIMC, &
-                        tContTimeFull
+    use CalcData, only: tContTimeFCIMC, tContTimeFull
     use LoggingData, only: tRDMonFly, tExplicitAllRDM
     use FciMCData, only: MaxWalkersPart
     use constants
@@ -30,8 +28,6 @@ module global_det_data
     private :: pos_av_sgn, len_av_sgn, pos_iter_occ, len_iter_occ
     integer :: pos_av_sgn, len_av_sgn
     integer :: pos_iter_occ, len_iter_occ
-    integer :: pos_tm_occ, len_tm_occ
-    integer :: pos_spawn_cnt, len_spawn_cnt
     integer :: pos_spawn_rate, len_spawn_rate
 
     ! And somewhere to store the actual data
@@ -90,20 +86,6 @@ contains
             len_iter_occ = 0
         end if
 
-        ! If we are recording when particles were first created, then
-        ! we need somewhere to put them!
-        len_tm_occ = 0
-        if (tSurvivalInitiatorThreshold .or. tSurvivalInitMultThresh) then
-            len_tm_occ = 1
-        end if
-
-        ! If we are determining which sites are initiators by how many spawns
-        ! have reached them since they were created, then this is the place
-        len_spawn_cnt = 0
-        if (tSpawnCountInitiatorThreshold) then
-            len_spawn_cnt = 1
-        end if
-
         ! If we are using continuous time, and storing the spawning rates
         len_spawn_rate = 0
         if (tContTimeFCIMC .and. tContTimeFull) then
@@ -113,12 +95,9 @@ contains
         ! Get the starting positions
         pos_av_sgn = pos_hel + len_hel
         pos_iter_occ = pos_av_sgn + len_av_sgn
-        pos_tm_occ = pos_iter_occ + len_iter_occ
-        pos_spawn_cnt = pos_tm_occ + len_tm_occ
-        pos_spawn_rate = pos_spawn_cnt + len_spawn_cnt
+        pos_spawn_rate = pos_iter_occ + len_iter_occ
 
-        tot_len = len_hel + len_av_sgn + len_iter_occ + len_tm_occ &
-                + len_spawn_cnt + len_spawn_rate
+        tot_len = len_hel + len_av_sgn + len_iter_occ + len_spawn_rate
 
         ! Allocate and log the required memory (globally)
         allocate(global_determinant_data(tot_len, MaxWalkersPart), stat=ierr)
@@ -262,54 +241,6 @@ contains
 
         iter_occ = global_determinant_data(pos_iter_occ: &
                                    pos_iter_occ + len_iter_occ - 1, j)
-
-    end function
-
-    subroutine set_part_init_time (j, tm)
-
-        integer, intent(in) :: j
-        real(dp), intent(in) :: tm
-
-        if (tSurvivalInitiatorThreshold .or. tSurvivalInitMultThresh) then
-            global_determinant_data(pos_tm_occ, j) = tm
-        end if
-
-    end subroutine
-
-    function get_part_init_time (j) result(tm)
-
-        integer, intent(in) :: j
-        real(dp) :: tm
-
-        if (tSurvivalInitiatorThreshold .or. tSurvivalInitMultThresh) then
-            tm = global_determinant_data(pos_tm_occ, j)
-        else
-            tm = 0.0_dp
-        end if
-
-    end function
-
-    subroutine inc_spawn_count(j)
-
-        integer, intent(in) :: j
-
-        if (tSpawnCountInitiatorThreshold) then
-            global_determinant_data(pos_spawn_cnt, j) = &
-                global_determinant_data(pos_spawn_cnt, j) + 1
-        end if
-
-    end subroutine
-
-    function get_spawn_count(j) result(cnt)
-
-        integer, intent(in) :: j
-        integer :: cnt
-
-        if (tSpawnCountInitiatorThreshold) then
-            cnt = int(global_determinant_data(pos_spawn_cnt, j))
-        else
-            cnt = 0
-        end if
 
     end function
 

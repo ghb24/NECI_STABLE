@@ -881,6 +881,7 @@ contains
 
         integer(hid_t) :: plist_id
 
+#ifdef __INT64
         call read_2d_multi_chunk( &
                 ds_ilut, SpawnedParts2, H5T_NATIVE_INTEGER_8, &
                 [int(bit_rep_width, hsize_t), block_size], &
@@ -892,6 +893,9 @@ contains
                 [int(lenof_sign, hsize_t), block_size], &
                 [0_hsize_t, block_start], &
                 [int(bit_rep_width, hsize_t), 0_hsize_t])
+#else
+        call stop_all("read_walker_block", "32-64bit conversion not yet implemented")
+#endif
 
         ! TODO: Flags here!!!
 

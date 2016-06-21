@@ -239,17 +239,12 @@ contains
           tReadPopsRestart = .false.
           iLogicalNodeSize = 0 !Meaning use the physical node size
           tAllRealCoeff=.false.
-          tWeakInitiators=.false.
-          weakthresh= 1.0_dp
-          tEnhanceRemainder=.true.
           tUseRealCoeffs = .false.
           tRealCoeffByExcitLevel=.false.
           RealCoeffExcitThresh=2
           tRealSpawnCutoff=.false.
           RealSpawnCutoff=1.0e-5_dp
           OccupiedThresh=1.0_dp
-          tInitOccThresh=.false.
-          InitiatorOccupiedThresh=0.1_dp
           tJumpShift = .true.
 !Feb 08 default set.
           IF(Feb08) THEN
@@ -301,17 +296,7 @@ contains
 
           pParallel = 0.5_dp
 
-          InitiatorCutoffEnergy = 99.99e99_dp
-          InitiatorCutoffWalkNo = 99.0_dp
-
-          tSurvivalInitiatorThreshold = .false.
-          tSurvivalInitMultThresh = .false.
-          tSpawnCountInitiatorThreshold = .false.
-          init_spawn_thresh = 5
-          im_time_init_thresh = 0.1_dp
-          init_survival_mult = 3.0_dp
           MaxTau = 1.0_dp
-          tMultiReplicaInitiators = .false.
           pop_change_min = 50
           tOrthogonaliseReplicas = .false.
           tOrthogonaliseSymmetric = .false.
@@ -997,6 +982,32 @@ contains
                 ! a limit to prevent craziness at the start of a calculation
                 call getf(MaxTau)
 
+            case("MIN-TAU")
+                ! introduce a minimum value of tau for the automated 
+                ! tau-search to limit the lower bound of the automated 
+                ! tau-search 
+                t_min_tau = .true. 
+
+                if (item < nitems) then
+                    call getf(min_tau_global)
+                end if
+
+                ! also only use that if the automated tau-search is used 
+                ! so enable the automated tau search here 
+                tSearchTau = .true. 
+                tSearchTauOption = .true.
+
+            case("KEEPTAUFIXED")
+                ! option for a restarted run to keep the tau, read in from the 
+                ! POPSFILE and other parameters, as pSingles, pParallel 
+                ! fixed for the remainder of the run, even if we keep 
+                ! growing the walkers 
+                t_keep_tau_fixed = .true.
+
+                ! here i need to turn off the tau-search option
+                tSearchTau = .false.
+                tSearchTauOption = .false.
+
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
                 call getf(MaxWalkerBloom)
@@ -1575,8 +1586,7 @@ contains
                 !
                 ! Specify both a threshold an an addtoinitiator value for
                 ! varying the thresholds
-                call getf(InitiatorCutoffEnergy)
-                call getf(InitiatorCutoffWalkNo)
+                call stop_all(t_r,'Deprecated Option')
 
             case("SPAWNONLYINIT", "SPAWNONLYINITGROWTH")
                 call stop_all(t_r, 'Option (SPAWNONLYINIT) deprecated')
@@ -1821,8 +1831,7 @@ contains
                 !This adaptation is applied stochastically with probability weakthresh
                 !Hence weakthresh = 1 --> Always on where applicable.
                 !weakthresh = 0 --> The original initiator scheme is maintained.
-                tWeakInitiators=.true.
-                call Getf(weakthresh)
+                call stop_all(t_r,'Deprecated option')
 
             case("ALLREALCOEFF")
                 tAllRealCoeff=.true.
@@ -1834,19 +1843,14 @@ contains
                 tUseRealCoeffs = .true.
                 call readi(RealCoeffExcitThresh)
             case("KEEPWALKSMALL")
-                tEnhanceRemainder=.false.
-                !When we do the removal step with AllRealCoeff, on the occasions where these pops are *not* removed,
-                !Keep their population the same, rather than resetting as a value of 1 (which is technically correct)
-                !This "bug" produced initiator-like (no plateau) behaviour, so may be of interest
+                call stop_all(t_r,'Deprecated Option')
             case("REALSPAWNCUTOFF")
                 tRealSpawnCutoff=.true.
                 call Getf(RealSpawnCutoff)
             case("SETOCCUPIEDTHRESH")
                 call Getf(OccupiedThresh)
             case("SETINITOCCUPIEDTHRESH")
-                tInitOccThresh=.true.
-                tAllRealCoeff=.true.
-                call Getf(InitiatorOccupiedThresh)
+                call stop_all(t_r,'Deprecated option')
 
             case("JUMP-SHIFT")
                 ! When variable shift is enabled, jump the shift to the value
@@ -2071,29 +2075,20 @@ contains
                 ! iterations, it should be treated as an initiator.
                 ! --> Soft expand the range of the initiators in the Hilbert
                 !     space
-                tSurvivalInitiatorThreshold = .true.
-                if (item < nitems) then
-                    call readf(im_time_init_thresh)
-                end if
+                call stop_all(t_r,'Deprecated option')
 
             case("INITIATOR-SURVIVAL-MULTIPLIER")
                 ! If a site survives for a certain multiple of how long it
                 ! would _expect_ to have survived, then it should be treated
                 ! as an initiator
                 ! --> A more flexible version of INITIATOR-SURVIVAL-CRITERION
-                tSurvivalInitMultThresh = .true.
-                if (item < nitems) then
-                    call readf(init_survival_mult)
-                end if
+                call stop_all(t_r,'Deprecated option')
 
             case("INITIATOR-SPAWN-CRITERION")
                 ! A site becomes an initiator once a certain number of
                 ! spawns have occurred to it (these must be independent
                 ! spawns, rather than a certain magnitude of spawning)
-                tSpawnCountInitiatorThreshold = .true.
-                if (item < nitems) then
-                    call readi(init_spawn_thresh)
-                end if
+                call stop_all(t_r,'Deprecated option')
 
             case("MULTI-REPLICA-INITIATORS")
                 ! Aggregate particle counts across all of the simulation
@@ -2101,7 +2096,7 @@ contains
                 ! initiators.
                 ! Obviously, this only does anything with system-replicas
                 ! set...
-                tMultiReplicaInitiators = .true.
+                call stop_all(t_r,'Option Deprecated')
 
             case("ORTHOGONALISE-REPLICAS")
                 ! Apply Gram Schmidt ortgogonalisation to replicas, starting
@@ -2192,7 +2187,7 @@ contains
                 tMultiRefShift = .true.
 
             case("MP2-FIXED-NODE")
-                tMP2FixedNode = .true.
+                call stop_all(t_r,'Deprecated option')
 
             case("INTERPOLATE-INITIATOR")
                 ! Implement interpolation between aborting particles
@@ -2209,23 +2204,13 @@ contains
                 ! i)   alpha_min (0.0)
                 ! ii)  alpha_max (1.0)
                 ! iii) gamma     (1.0)
-
-                tBroadcastParentCoeff = .true.
-                tInterpolateInitThresh = .true.
-
-                init_interp_min = 0.0_dp
-                init_interp_max = 1.0_dp
-                init_interp_exponent = 1.0_dp
-                if (item < nitems) call readf(init_interp_min)
-                if (item < nitems) call readf(init_interp_max)
-                if (item < nitems) call readf(init_interp_exponent)
-
+                call stop_all(t_r,'Deprecated option')
             case("SHIFT-PROJECT-GROWTH")
                 ! Extrapolate the expected number of walkers at the end of the
                 ! _next_ update cycle for calculating the shift. i.e. use
                 !
                 ! log((N_t + (N_t - N_(t-1))) / N_t)
-                tShiftProjectGrowth = .true.
+                call stop_all(t_r,'Option deprecated')
 
             case default
                 call report("Keyword "                                &

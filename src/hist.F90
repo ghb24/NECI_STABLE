@@ -23,7 +23,9 @@ module hist
     use constants, only: n_int, bits_n_int, size_n_int, lenof_sign
     use bit_rep_data, only: NIfTot, NIfD, extract_sign
     use bit_reps, only: encode_sign, extract_bit_rep, NOffSgn, &
-                        decode_bit_det, flag_initiator, test_flag
+                        decode_bit_det, flag_initiator, test_flag, &
+                        get_initiator_flag, &
+                        any_run_is_initiator
     use parallel_neci
     use csf, only: get_num_csfs, csf_coeff, csf_get_yamas, write_yama, &
                    extract_dorder
@@ -649,8 +651,8 @@ contains
 
         ssq = 0
         do i = 1, int(TotWalkers,sizeof_int)
-            if ((test_flag(CurrentDets(:,i), flag_initiator(1)) .or. &
-                 test_flag(CurrentDets(:,i), flag_initiator(lenof_sign)))&
+            if ((test_flag(CurrentDets(:,i), get_initiator_flag(1)) .or. &
+                 test_flag(CurrentDets(:,i), get_initiator_flag(lenof_sign)))&
                  .and. .not. TestClosedShellDet(CurrentDets(:,i))) then
                 ssq = ssq + ssquared_contrib (CurrentDets(:,i), only_init)
             end if
@@ -875,10 +877,7 @@ contains
                             ! Break up the list into correctly sized chunks
                             if (nsend == max_per_proc) exit
 
-                            if (test_flag(CurrentDets(:,i), &
-                                          flag_initiator(1)) .or. &
-                                test_flag(CurrentDets(:,i), &
-                                          flag_initiator(lenof_sign))) then
+                            if (any_run_is_initiator(CurrentDets(:,i))) then
                                 nsend = nsend + 1
                                 recv_dets(:,nsend) = CurrentDets(:,i)
 
@@ -1034,15 +1033,7 @@ contains
                             ! are projecting onto an initiator...
                             inc = .true.
                             if (tTruncInitiator .and. only_init) then
-                                if (test_flag(CurrentDets(:,pos), &
-                                              flag_initiator(1)) .or. &
-                                    test_flag(CurrentDets(:,pos), &
-                                              flag_initiator(lenof_sign)))&
-                                                                    then
-                                    inc = .true.
-                                else
-                                    inc = .false.
-                                end if
+                                inc = (any_run_is_initiator(CurrentDets(:,pos)))
                             end if
 
                             call extract_sign (CurrentDets(:,pos), sgn2)

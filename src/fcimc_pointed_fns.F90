@@ -98,7 +98,7 @@ module fcimc_pointed_fns
                                     walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel)
-        integer, intent(in) :: part_type    ! 1 = Real parent particle, 2 = Imag parent particle
+        integer, intent(in) :: part_type    ! odd = Real parent particle, even = Imag parent particle
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
         integer, intent(in) :: ic, ex(2,2), walkExcitLevel
@@ -170,7 +170,10 @@ module fcimc_pointed_fns
         ! imaginary parent particles has slightly different rules:
         !       - Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P
         !       - Attempt to spawn IMAG walkers with prob -REAL(Hij)/P
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+
+
+
+#if !defined(__CMPLX) && (defined(__PROG_NUMRUNS) || defined(__DOUBLERUN))
         child = 0.0_dp
         tgt_cpt = part_type
         walkerweight = sign(1.0_dp, RealwSign(part_type))
@@ -179,32 +182,46 @@ module fcimc_pointed_fns
         do tgt_cpt = 1, (lenof_sign/inum_runs)
 
             ! Real, single run:    inum_runs=1, lenof_sign=1 --> 1 loop
+            ! Real, double run:    inum_runs=2, lenof_sign=1 --> 1 loop
             ! Complex, single run: inum_runs=1, lenof_sign=2 --> 2 loops
-            ! Real, double run:    inum_runs=2, lenof_sign=2 --> 1 loop
+            ! Complex, double run: inum_runs=2, lenof_sign=4 --> 2 loops
+            ! Complex, multiple run: inum_runs=m, lenof_sign=2*m --> 2 loops
 
             ! For spawning from imaginary particles, we cross-match the 
             ! real/imaginary matrix-elements/target-particles.
-            component = tgt_cpt
 
+
+#if defined(__CMPLX) && (defined(__PROG_NUMRUNS) || defined(__DOUBLERUN))
+            component = part_type+tgt_cpt-1
+            if (.not. btest(part_type,0)) then
+                ! even part_type => imag replica =>  map 4->3,4 ; 6->5,6 etc.
+                component = part_type - tgt_cpt + 1
+            endif
+#else
+            component = tgt_cpt
             if ((part_type.eq.2).and.(inum_runs.eq.1)) component = 3 - tgt_cpt
+#endif
 
             ! Get the correct part of the matrix element
             walkerweight = sign(1.0_dp, RealwSign(part_type))
-            if (component == 1) then
+            if (btest(component,0)) then
+                ! real component
                 MatEl = real(rh_used, dp)
             else
 #ifdef __CMPLX
                 MatEl = real(aimag(rh_used), dp)
                 ! n.b. In this case, spawning is of opposite sign.
-                if (part_type == 2) walkerweight = -walkerweight
-#else
-                call stop_all('attempt_create_normal', &
-                        & "ERROR: We shouldn't reach this part of the code unless complex calc")
+                if (.not. btest(part_type,0)) then
+                    ! imaginary parent -> imaginary child
+                    walkerweight = -walkerweight
+                endif
 #endif
             end if
 #endif
-            
             nSpawn = - tau * MatEl * walkerweight / prob
+!            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
+!            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
+
             
             ! n.b. if we ever end up with |walkerweight| /= 1, then this
             !      will need to ffed further through.
@@ -245,9 +262,13 @@ module fcimc_pointed_fns
                 
             endif
             ! And create the parcticles
+#ifdef __CMPLX
+            child((part_type_to_run(part_type)-1)*2+tgt_cpt) = nSpawn
+#else
             child(tgt_cpt) = nSpawn
+#endif
 
-#if !(defined(__PROG_NUMRUNS) || defined(__DOUBLERUN))
+#if defined(__CMPLX) || !defined(__PROG_NUMRUNS) && !defined(__DOUBLERUN)
         enddo
 #endif
 
@@ -353,16 +374,16 @@ module fcimc_pointed_fns
         real(dp), dimension(lenof_sign), intent(in) :: child
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer(n_int) :: iUnused
+        integer :: run
+        integer :: i
 
         ! Write out some debugging information if asked
         IFDEBUG(FCIMCDebug,3) then
-            if(lenof_sign.eq.2) then
-                write(iout,"(A,2f10.5,A)", advance='no') &
-                               "Creating ", child(1:lenof_sign), " particles: "
-            else
-                write(iout,"(A,f10.5,A)",advance='no') &
-                                         "Creating ", child(1), " particles: "
-            endif
+            write(iout,"(A)",advance='no') "Creating "
+            do i = 1,lenof_sign
+                write(iout,"(f10.5)",advance='no') child(i)
+            enddo
+            write(iout,"(A)",advance='no') " particles: "
             write(iout,"(A,2I4,A)",advance='no') &
                                       "Parent flag: ", parent_flags, part_type
             call writebitdet (iout, ilutJ, .true.)
@@ -371,14 +392,17 @@ module fcimc_pointed_fns
 
         ! Count the number of children born
 #ifdef __CMPLX
-        NoBorn(1) = NoBorn(1) + sum(abs(child))
-        if (ic == 1) SpawnFromSing(1) = SpawnFromSing(1) + sum(abs(child))
+        do run = 1, inum_runs
+            NoBorn(run) = NoBorn(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
+            if (ic == 1) SpawnFromSing(run) = SpawnFromSing(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
+
         
-        ! Count particle blooms, and their sources
-        if (sum(abs(child)) > InitiatorWalkNo) then
-            bloom_count(ic) = bloom_count(ic) + 1
-            bloom_sizes(ic) = max(real(sum(abs(child)), dp), bloom_sizes(ic))
-        end if
+           ! Count particle blooms, and their sources
+            if (sum(abs(child(min_part_type(run):max_part_type(run)))) > InitiatorWalkNo) then
+                bloom_count(ic) = bloom_count(ic) + 1
+                bloom_sizes(ic) = max(real( sum(abs(child(min_part_type(run):max_part_type(run)))),dp), bloom_sizes(ic))
+            end if
+        enddo
 #else
         NoBorn = NoBorn + abs(child)
         if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child)
@@ -421,9 +445,14 @@ module fcimc_pointed_fns
         integer, intent(in) :: WalkExcitLevel
         character(*), parameter :: t_r = 'attempt_die_normal'
 
-        real(dp) :: r, rat, probsign
+        real(dp) :: probsign, r
         real(dp), dimension(inum_runs) :: fac
-        integer :: i, iUnused
+        integer :: i, run, iUnused
+#ifdef __CMPLX
+        real(dp) :: rat(2)
+#else
+        real(dp) :: rat(1)
+#endif        
 
         do i=1, inum_runs
             fac(i)=tau*(Kii-DiagSft(i))
@@ -459,29 +488,32 @@ module fcimc_pointed_fns
 
         if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
             .or. tAllRealCoeff ) then
+            do run=1, inum_runs
+                ndie(min_part_type(run))=fac(run)*abs(realwSign(min_part_type(run)))
 #ifdef __CMPLX
-            ndie=fac(1)*abs(realwSign)
-#else
-            ndie=fac*abs(realwSign)
+                ndie(max_part_type(run))=fac(run)*abs(realwSign(max_part_type(run)))
 #endif
-
+            enddo
         else
-            do i=1,lenof_sign
+            do run=1,inum_runs
                 
                 ! Subtract the current value of the shift, and multiply by tau.
                 ! If there are multiple particles, scale the probability.
-#ifdef __CMPLX
-                    rat = fac(1) * abs(realwSign(i))
-#else
-                    rat = fac(i) * abs(realwSign(i))
-#endif
+                
+                rat(:) = fac(run) * abs(realwSign(min_part_type(run):max_part_type(run)))
 
-                ndie(i) = real(int(rat), dp)
-                rat = rat - ndie(i)
+                ndie(min_part_type(run):max_part_type(run)) = real(int(rat), dp)
+                rat(:) = rat(:) - ndie(min_part_type(run):max_part_type(run))
 
                 ! Choose to die or not stochastically
                 r = genrand_real2_dSFMT() 
-                if (abs(rat) > r) ndie(i) = ndie(i) + real(nint(sign(1.0_dp, rat)), dp)
+                if (abs(rat(1)) > r) ndie(min_part_type(run)) = &
+                    ndie(min_part_type(run)) + real(nint(sign(1.0_dp, rat(1))), dp)
+#ifdef __CMPLX
+                r = genrand_real2_dSFMT() 
+                if (abs(rat(2)) > r) ndie(max_part_type(run)) = &
+                    ndie(max_part_type(run)) + real(nint(sign(1.0_dp, rat(2))), dp)
+#endif               
             enddo
         endif
 

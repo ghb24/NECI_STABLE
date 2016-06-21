@@ -12,6 +12,7 @@ module rdm_explicit
 
     use bit_rep_data, only: NIfTot
     use constants
+    use SystemData, only : tReltvy
 
     implicit none
 
@@ -248,7 +249,8 @@ contains
         use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs, rdms
         use rdm_filling, only: Fill_Diag_RDM
         use SymExcit3, only: GenExcitations3
-        use SystemData, only: nel
+        use SymExcit4, only: GenExcitations4, ExcitGenSessionType
+        use SystemData, only: nel, tReltvy
 
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
         integer(kind=n_int) :: iLutnJ(0:NIfTot)
@@ -256,6 +258,8 @@ contains
         integer :: ExcitMat3(2,2), nI(NEl), nJ(NEl), Proc, FlagsDi
         integer :: a, b, exflag
         logical :: tAllExcitFound, tParity
+
+        type(ExcitGenSessionType) :: session
 
         ! Unfortunately uses the decoded determinant - might want to look at this.
         call extract_bit_rep(iLutnI, nI, SignDi, FlagsDi)
@@ -279,7 +283,11 @@ contains
             ! speed of sending this information vs recalculating it will be
             ! tested. RDMExcitLevel is passed through, if this is 1, only
             ! singles are generated, if it is 2 only doubles are found.
-            call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+            if (tReltvy) then
+                call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+            else
+                call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+            endif
 
             if (tAllExcitFound) exit
 
@@ -319,8 +327,12 @@ contains
                 ! - but the speed of sending this information vs recalculating
                 ! it will be tested. RDMExcitLevel is passed through, if this
                 ! is 1, only singles are generated, if it is 2 only doubles are
-                ! found.
-                call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+                if (tReltvy) then
+                    call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+                else
+                    ! found.
+                    call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+                endif
 
                 if (tAllExcitFound) exit
 
@@ -364,6 +376,7 @@ contains
         use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs, rdms
         use rdm_filling, only: Fill_Diag_RDM
         use SymExcit3, only: GenExcitations3
+        use SymExcit4, only: GenExcitations4, ExcitGenSessionType
         use SystemData, only: nel
 
         integer(n_int), intent(in) :: iLutnI(0:NIfTot)
@@ -374,6 +387,8 @@ contains
         integer :: a, b, exflag
         logical :: tAllExcitFound, tParity
         real(dp), dimension(lenof_sign) :: realSignDi
+
+        type(ExcitGenSessionType) :: session
 
         ! Unfortunately uses the decoded determinant - might want to look at this.
         call extract_bit_rep (iLutnI, nI, RealHistPos, FlagsDi)
@@ -402,7 +417,11 @@ contains
             ! of sending this information vs recalculating it will be tested.
             ! RDMExcitLevel is passed through, if this is 1, only singles are
             ! generated, if it is 2 only doubles are found.
-            call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+            if (tReltvy) then
+                call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+            else
+                call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+            endif
 
             if (tAllExcitFound) exit
 
@@ -441,7 +460,11 @@ contains
                 ! speed of sending this information vs recalculating it will be
                 ! tested. RDMExcitLevel is passed through, if this is 1, only
                 ! singles are generated, if it is 2 only doubles are found.
-                call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)            
+                 if (tReltvy) then
+                    call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+                else
+                    call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+                endif
 
                 if (tAllExcitFound) exit
 

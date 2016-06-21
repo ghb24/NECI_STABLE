@@ -4,17 +4,17 @@
 #include "macros.h"
 module load_balance
 
-    use CalcData, only: tUniqueHFNode, tSemiStochastic, tTruncInitiator, &
-                        tCheckHighestPop, tEnhanceRemainder, OccupiedThresh, &
-                        InitiatorOccupiedThresh, tContTimeFCIMC, &
-                        tContTimeFull, tTrialWavefunction, tInitOccThresh, &
+    use CalcData, only: tUniqueHFNode, tSemiStochastic, &
+                        tCheckHighestPop, OccupiedThresh, &
+                        tContTimeFCIMC, &
+                        tContTimeFull, tTrialWavefunction, &
                         tPairedReplicas
     use global_det_data, only: global_determinant_data, get_iter_occ, &
-                               set_det_diagH, set_part_init_time, &
-                               inc_spawn_count, set_spawn_rate
-    use bit_rep_data, only: flag_initiator, NIfDBO, flag_has_been_initiator, &
+                               set_det_diagH, &
+                               set_spawn_rate
+    use bit_rep_data, only: flag_initiator, NIfDBO, &
                             flag_connected, flag_trial
-    use bit_reps, only: set_flag, nullify_ilut_part, clear_has_been_initiator,&
+    use bit_reps, only: set_flag, nullify_ilut_part, &
                         encode_part_sign, nullify_ilut
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
                          tFillingStochRDMOnFly, full_determ_vecs
@@ -439,17 +439,14 @@ contains
         global_determinant_data(:,DetPosition) = 0.0_dp
         call set_det_diagH(DetPosition, real(HDiag,dp) - Hii)
 
-        ! Store the iteration, as this is the iteration on which the particle
-        ! is created
-        call set_part_init_time(DetPosition, TotImagTime)
-
-        ! There is at least one spawning count here
-        call inc_spawn_count(DetPosition)
-
         ! If using a trial wavefunction, search to see if this state is in
         ! either the trial or connected space. If so, *_search_trial returns
         ! the corresponding amplitude, which is stored.
-        if (tTrialWavefunction) then
+        !
+        ! n.b. if this routine is called from load balancing whilst loading a popsfile, the
+        !      trial wavefunction code will not be enabled yet (despite being enabled).
+        !      Therefore, skip this functionality
+        if (tTrialWavefunction .and. allocated(current_trial_amps)) then
             ! Search to see if this is a trial or connected state, and
             ! retreive the corresponding amplitude (zero if neither a trial or
             ! connected state).
@@ -489,7 +486,6 @@ contains
 
     subroutine CalcHashTableStats(TotWalkersNew, iter_data)
 
-        use CalcData, only: tMP2FixedNode
         use DetBitOps, only: FindBitExcitLevel
         use hphf_integrals, only: hphf_off_diag_helement
         use FciMCData, only: ProjEDet
@@ -525,86 +521,32 @@ contains
                     AnnihilatedDet = AnnihilatedDet + 1 
                 else
 
-                    if (tMP2FixedNode) then
-#if !(defined(__PROG_NUMRUNS) || defined(__CMPLX))
-                        ic = FindBitExcitLevel(ilutRef(:,1), CurrentDets(:,i))
-                        call decode_bit_det(nI, CurrentDets(:,i))
-                        if (ic == 2) then
-                            if (tHPHF) then
-                                hij = hphf_off_diag_helement(nI, ProjEDet(:, 1), CurrentDets(:,i), ilutRef(:,1))
-                            else
-                                hij = get_helement(nI, ProjEDet(:, 1), 2, CurrentDets(:,i), ilutRef(:,1))
-                            end if
-                            do j = 1, lenof_sign
-                                run = part_type_to_run(j)
-                                if (abs(hij) > 1.0e-6 .and. (CurrentSign(j) * hij * AllNoatHF(j)) > 0) then
-                                    NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
-                                    iter_data%nremoved(j) = iter_data%nremoved(j) + abs(CurrentSign(j))
-                                    CurrentSign(j) = 0
-                                    call nullify_ilut_part(CurrentDets(:, i), j)
-                                end if
-                            end do
-                        end if
-#else
-                        call stop_all(t_r, 'not yet implemented')
-#endif
-                    end if
-
                     do j=1, lenof_sign
                         run = part_type_to_run(j)
                         if (.not. tIsStateDeterm) then
-                            if (tInitOccThresh.and.test_flag(CurrentDets(:,i), flag_has_been_initiator(1)))then
-                                if ((abs(CurrentSign(j)) > 1.e-12_dp) .and. (abs(CurrentSign(j)) < InitiatorOccupiedThresh)) then
-                                    ! We remove this walker with probability 1-RealSignTemp.
-                                    pRemove = (InitiatorOccupiedThresh-abs(CurrentSign(j)))/InitiatorOccupiedThresh
-                                    r = genrand_real2_dSFMT ()
-                                    if (pRemove > r) then
-                                        ! Remove this walker.
-                                        NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
-                                        iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                                              + abs(CurrentSign(j))
-                                        CurrentSign(j) = 0.0_dp
-                                        call nullify_ilut_part(CurrentDets(:,i), j)
-                                        call decode_bit_det(nI, CurrentDets(:,i))
-                                        call clear_has_been_initiator(CurrentDets(:,i),flag_has_been_initiator(1))
-                                        if (IsUnoccDet(CurrentSign)) then
-                                            call remove_hash_table_entry(HashIndex, nI, i)
-                                            iEndFreeSlot=iEndFreeSlot+1
-                                            FreeSlot(iEndFreeSlot)=i
-                                        end if
-                                    else if (tEnhanceRemainder) then
-                                        NoBorn(run) = NoBorn(run) + InitiatorOccupiedThresh - abs(CurrentSign(j))
-                                        iter_data%nborn(j) = iter_data%nborn(j) &
-                                             + InitiatorOccupiedThresh - abs(CurrentSign(j))
-                                        CurrentSign(j) = sign(InitiatorOccupiedThresh, CurrentSign(j))
-                                        call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
+                            if ((abs(CurrentSign(j)) > 1.e-12_dp) .and. (abs(CurrentSign(j)) < OccupiedThresh)) then
+                                !We remove this walker with probability 1-RealSignTemp
+                                pRemove=(OccupiedThresh-abs(CurrentSign(j)))/OccupiedThresh
+                                r = genrand_real2_dSFMT ()
+                                if (pRemove  >  r) then
+                                    !Remove this walker
+                                    NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
+                                    iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                                          + abs(CurrentSign(j))
+                                    CurrentSign(j) = 0.0_dp
+                                    call nullify_ilut_part(CurrentDets(:,i), j)
+                                    call decode_bit_det(nI, CurrentDets(:,i))
+                                    if (IsUnoccDet(CurrentSign)) then
+                                        call remove_hash_table_entry(HashIndex, nI, i)
+                                        iEndFreeSlot=iEndFreeSlot+1
+                                        FreeSlot(iEndFreeSlot)=i
                                     end if
-                                end if
-                            else
-                                if ((abs(CurrentSign(j)) > 1.e-12_dp) .and. (abs(CurrentSign(j)) < OccupiedThresh)) then
-                                    !We remove this walker with probability 1-RealSignTemp
-                                    pRemove=(OccupiedThresh-abs(CurrentSign(j)))/OccupiedThresh
-                                    r = genrand_real2_dSFMT ()
-                                    if (pRemove  >  r) then
-                                        !Remove this walker
-                                        NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
-                                        iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                                              + abs(CurrentSign(j))
-                                        CurrentSign(j) = 0.0_dp
-                                        call nullify_ilut_part(CurrentDets(:,i), j)
-                                        call decode_bit_det(nI, CurrentDets(:,i))
-                                        if (IsUnoccDet(CurrentSign)) then
-                                            call remove_hash_table_entry(HashIndex, nI, i)
-                                            iEndFreeSlot=iEndFreeSlot+1
-                                            FreeSlot(iEndFreeSlot)=i
-                                        end if
-                                    else if (tEnhanceRemainder) then
-                                        NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(CurrentSign(j))
-                                        iter_data%nborn(j) = iter_data%nborn(j) &
-                                             + OccupiedThresh - abs(CurrentSign(j))
-                                        CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
-                                        call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
-                                    end if
+                                else
+                                    NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(CurrentSign(j))
+                                    iter_data%nborn(j) = iter_data%nborn(j) &
+                                         + OccupiedThresh - abs(CurrentSign(j))
+                                    CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
+                                    call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                                 end if
                             end if
                         end if
@@ -612,8 +554,14 @@ contains
 
                     TotParts = TotParts + abs(CurrentSign)
 #if defined(__CMPLX)
-                    norm_psi_squared = norm_psi_squared + sum(CurrentSign**2)
-                    if (tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + sum(CurrentSign**2)
+                    do run = 1, inum_runs
+                        norm_psi_squared(run) = norm_psi_squared(run) + sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
+                        if (tIsStateDeterm) then
+                            norm_semistoch_squared(run) = norm_semistoch_squared(run) &
+                                + sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
+                        endif
+                    enddo
+
 #else
                     norm_psi_squared = norm_psi_squared + CurrentSign**2
                     if (tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + CurrentSign**2

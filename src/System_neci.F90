@@ -9,7 +9,7 @@ MODULE System
                         occCASorbs, virtCASorbs, tPairedReplicas
 
     use sort_mod
-    use SymExcitDataMod, only: tBuildOccVirtList
+    use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use constants
     use iso_c_hack
     use read_fci, only: FCIDUMP_name
@@ -34,6 +34,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tReltvy = .false.
       tComplexOrbs_RealInts = .false.
       tReadFreeFormat=.true.
       tMolproMimic=.false.
@@ -184,7 +185,11 @@ MODULE System
 
 #ifdef __PROG_NUMRUNS
       inum_runs = 1
+#ifdef __CMPLX
+      lenof_sign = 2
+#else
       lenof_sign = 1
+#endif
 #endif
 
 !Feb08 defaults:
@@ -841,6 +846,13 @@ system: do
                         ! (symrandexcit3.F90)
                         tPickVirtUniform = .true.
                         tBuildOccVirtList = .true.
+                    case("PICK-VIRT-UNIFORM-MAG")
+                        ! Pick virtual orbitals randomly and uniformly in the
+                        ! 3rd generation of random excitation generators
+                        ! (symrandexcit3.F90)
+                        tPickVirtUniform = .true.
+                        tBuildOccVirtList = .true.
+                        tBuildSpinSepLists = .true.
                     case("HEL-WEIGHTED-SLOW")
                         ! Pick excitations from any site with a generation
                         ! probability proportional to the connectiong HElement
@@ -959,7 +971,11 @@ system: do
 #ifdef __PROG_NUMRUNS
             call readi(inum_runs)
             tMultiReplicas = .true.
+#ifdef __CMPLX
+            lenof_sign = 2*inum_runs
+#else
             lenof_sign = inum_runs
+#endif
             if (inum_runs > inum_runs_max) then
                 write(6,*) 'Maximum SYSTEM-REPLICAS: ', inum_runs_max
                 call stop_all(t_r, 'SYSTEM-REPLICAS is greater than maximum &

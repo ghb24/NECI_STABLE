@@ -72,7 +72,7 @@ endif
 ! Make Re / Cplx builds easier
 #ifdef __CMPLX
 #ifdef __PROG_NUMRUNS
-#define ARR_RE_OR_CPLX(arr,index) cmplx(arr(2*(index-1)+1), arr(2*(index-1+)2), dp)
+#define ARR_RE_OR_CPLX(arr,index) cmplx(arr(2*index-1), arr(2*index), dp)
 #else
 #define ARR_RE_OR_CPLX(arr,index) cmplx(arr(1), arr(2), dp)
 #endif
@@ -85,30 +85,43 @@ endif
 #endif
 
 #ifdef __CMPLX
+! 1->1 ,2->1, 3->2 ...
+#define part_type_to_run(pt) (1+((pt)-1)/2)
 #ifdef __PROG_NUMRUNS
-#define part_type_to_run(pt) 99999
-#define min_part_type(run) 99999
-#define max_part_type(run) 99999
+#define min_part_type(run) (2*(run)-1)
+#define max_part_type(run) (2*(run))
+#define mag_of_run(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp
+#define is_run_unnocc(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp <1.0e-12_dp 
 #else
-#define part_type_to_run(pt) 1
+#ifdef __DOUBLERUN
+#define min_part_type(run) (2*(run)-1)
+#define max_part_type(run) (2*(run))
+#define mag_of_run(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp
+#define is_run_unnocc(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp <1.0e-12_dp 
+#else
 #define min_part_type(run) 1
 #define max_part_type(run) 2
+#define mag_of_run(signs, run) (signs(1)**2 + signs(1)**2)**5e-1_dp
+#define is_run_unnocc(signs, run) (signs(1)**2 + signs(1)**2)**5e-1_dp <1.0e-12_dp 
+#endif
 #endif
 #else
-#ifdef __PROG_NUMRUNS
+! 1->1 ,2->2, 3->3 ...
 #define part_type_to_run(pt) pt
+#ifdef __PROG_NUMRUNS
 #define min_part_type(run) run
 #define max_part_type(run) run
 #else
-#define part_type_to_run(pt) 1
 #ifdef __DOUBLERUN
-#define min_part_type(run) 1
-#define max_part_type(run) 2
+#define min_part_type(run) run
+#define max_part_type(run) run
 #else
 #define min_part_type(run) 1
 #define max_part_type(run) 1
 #endif
 #endif
+#define mag_of_run(signs, run) abs(signs(run)) 
+#define is_run_unnocc(signs, run) abs(signs(run))<1.0e-12_dp 
 #endif
 
 
@@ -144,3 +157,7 @@ endif
 #define MPI_IN_PLACE (C_NULL_PTR)
 #endif
 #endif
+
+#define debug_line(unit, msg) write(unit,*) __LINE__, __FILE__, char(9), msg ; flush(unit)
+#define debug_out(unit, msg) write(unit,*), char(9), msg
+
