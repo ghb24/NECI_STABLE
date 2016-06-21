@@ -161,6 +161,7 @@ GDEST = $(DEST)/real
 KDEST = $(DEST)/cmplx
 # Multi particle projects
 MDEST = $(DEST)/multi
+MKDEST = $(DEST)/multi_cmplx
 # Double run projects
 DDEST = $(DEST)/double
 # .F90 files produced from .F90.template files.
@@ -193,14 +194,14 @@ space := $(empty) $(empty)
 VPATH = $(subst $(space),:,$(SRC) $(DEST))
 
 # Create output directories if they don't exist.
-DIRS = $(GDEST) $(KDEST) $(MDEST) $(DDEST) $(TDEST) $(GDEP_DEST) $(KDEP_DEST) $(MDEP_DEST) $(DDEP_DEST) $(EXE) $(LIB)
+DIRS = $(GDEST) $(KDEST) $(MDEST) $(MKDEST) $(DDEST) $(TDEST) $(GDEP_DEST) $(KDEP_DEST) $(MDEP_DEST) $(MKDEP_DEST) $(DDEP_DEST) $(EXE) $(LIB)
 make_dirs := $(foreach outdir, $(DIRS), $(shell test -e $(outdir) || mkdir -p $(outdir)))
 
 #-----
 # Executables and libraries.
 
 # Main programs
-PROGS = $(addprefix $(EXE)/,neci.x kneci.x mneci.x dneci.x)
+PROGS = $(addprefix $(EXE)/,neci.x kneci.x mneci.x mkneci.x dneci.x)
 
 # Library versions of neci.
 CPMDLIBS = $(addprefix $(LIB)/,gneci-cpmd.a kneci-cpmd.a)
@@ -275,6 +276,13 @@ MF90TMPOBJ := $(addprefix $(MDEST)/, $(F90TMPOBJ_bare))
 McppOBJ := $(addprefix $(MDEST)/, $(cppOBJ_bare))
 McOBJ := $(addprefix $(MDEST)/, $(cOBJ_bare))
 
+# And for the multi-simulation complex version
+MKFOBJ := $(addprefix $(MKDEST)/, $(FOBJ_bare))
+MKF90OBJ := $(addprefix $(MKDEST)/, $(F90OBJ_bare))
+MKF90TMPOBJ := $(addprefix $(MKDEST)/, $(F90TMPOBJ_bare))
+MKcppOBJ := $(addprefix $(MKDEST)/, $(cppOBJ_bare))
+MKcOBJ := $(addprefix $(MKDEST)/, $(cOBJ_bare))
+
 # And for doublerun
 DFOBJ := $(addprefix $(DDEST)/, $(FOBJ_bare))
 DF90OBJ := $(addprefix $(DDEST)/, $(F90OBJ_bare))
@@ -288,6 +296,7 @@ OBJECTS_NECI := $(filter-out %%libstub.o,$(OBJECTS))
 OBJECTS_KNECI := $(addprefix $(KDEST)/,$(notdir $(OBJECTS_NECI)))
 OBJECTS_DNECI := $(addprefix $(DDEST)/,$(notdir $(OBJECTS_NECI)))
 OBJECTS_MNECI := $(addprefix $(MDEST)/,$(notdir $(OBJECTS_NECI)))
+OBJECTS_MKNECI := $(addprefix $(MKDEST)/,$(notdir $(OBJECTS_NECI)))
 
 # Objects for CPMD library.
 # We don't need necimain.o, cpmdstub.o, init_coul.o, init_coul2D.o.  We keep libstub though.
@@ -359,6 +368,7 @@ CDEPEND = $(cppDEPEND_FILES) $(cDEPEND_FILES) $(KcppDEPEND_FILES) $(KcDEPEND_FIL
 GBLD_ENV = rm $(GDEST)/environment_report.* && $(my_make) $(GDEST)/environment_report.o
 KBLD_ENV = rm $(KDEST)/environment_report.* && $(my_make) $(KDEST)/environment_report.o
 MBLD_ENV = rm $(MDEST)/environment_report.* && $(my_make) $(MDEST)/environment_report.o
+MKBLD_ENV = rm $(MKDEST)/environment_report.* && $(my_make) $(MKDEST)/environment_report.o
 DBLD_ENV = rm $(DDEST)/environment_report.* && $(my_make) $(DDEST)/environment_report.o
 
 # Creating an archive from *.o files.
@@ -388,6 +398,10 @@ $(EXE)/mneci.$(CONFIG).$(OPT).x: $(OBJECTS_MNECI)
 \t$(MBLD_ENV)
 \t$(LD) $(LDFLAGS) -o $@ $(OBJECTS_MNECI) $(LIBS)
 
+$(EXE)/mkneci.$(CONFIG).$(OPT).x: $(OBJECTS_MKNECI)
+\t$(MBLD_ENV)
+\t$(LD) $(LDFLAGS) -o $@ $(OBJECTS_MKNECI) $(LIBS)
+
 $(EXE)/dneci.$(CONFIG).$(OPT).x: $(OBJECTS_DNECI)
 \t$(DBLD_ENV)
 \t$(LD) $(LDFLAGS) -o $@ $(OBJECTS_DNECI) $(LIBS)
@@ -410,7 +424,7 @@ $(LIB)/kneci-vasp.$(CONFIG).$(OPT).a: $(OBJECTS_KVASP)
 \t$(ARCHIVE)
 
 clean: 
-\trm -f {$(GDEST),$(KDEST),$(TDEST),$(MDEST),$(DDEST)}/* $(EXE)/*.$(CONFIG).$(OPT).x $(LIB)/*.$(CONFIG).$(OPT).a
+\trm -f {$(GDEST),$(KDEST),$(TDEST),$(MDEST),$(MKDEST),$(DDEST)}/* $(EXE)/*.$(CONFIG).$(OPT).x $(LIB)/*.$(CONFIG).$(OPT).a
 
 cleanall:
 \trm -rf dest lib bin
@@ -428,6 +442,8 @@ $(FCDEPEND):
 \t$(MKDEPEND) --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $@
 $(FMDEPEND):
 \t$(MKDEPEND) --objdir \$$\(MDEST\) --moddir \$$\(MDEST\) | $(RMTEMPLATE) > $@
+$(FMKDEPEND):
+\t$(MKDEPEND) --objdir \$$\(MKDEST\) --moddir \$$\(MKDEST\) | $(RMTEMPLATE) > $@
 $(FDDEPEND):
 \t$(MKDEPEND) --objdir \$$\(DDEST\) --moddir \$$\(DDEST\) | $(RMTEMPLATE) > $@
 $(FRDEPENDUP):
@@ -436,6 +452,8 @@ $(FCDEPENDUP):
 \t$(MKDEPEND) --case=upper --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $@
 $(FMDEPENDUP):
 \t$(MKDEPEND) --case=upper --objdir \$$\(MDEST\) --moddir \$$\(MDEST\) | $(RMTEMPLATE) > $@
+$(FMKDEPENDUP):
+\t$(MKDEPEND) --case=upper --objdir \$$\(MKDEST\) --moddir \$$\(MKDEST\) | $(RMTEMPLATE) > $@
 $(FDDEPENDUP):
 \t$(MKDEPEND) --case=upper --objdir \$$\(DDEST\) --moddir \$$\(DDEST\) | $(RMTEMPLATE) > $@
 
@@ -521,6 +539,7 @@ MAKE_C_GDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(GDEST\)/$(addsuffix .o,$(basename $
 MAKE_C_KDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(KDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
 MAKE_C_DDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(DDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
 MAKE_C_MDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(MDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
+MAKE_C_MKDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(MKDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
 
 # Include paths
 INCLUDE_PATH = $(addprefix -I ,$(SRC))
@@ -563,6 +582,8 @@ $(KDEST)/%%.f90: $(TDEST)/%%.F90
 
 $(MDEST)/%%.f90: $(TDEST)/%%.F90
 \t$(CPP) -D__PROG_NUMRUNS $(CPP_BODY) $(MCPPFLAG) $(INCLUDE_PATH)
+$(MKDEST)/%%.f90: $(TDEST)/%%.F90
+\t$(CPP) -D__PROG_NUMRUNS -D__CMPLX $(CPP_BODY) $(MKCPPFLAG) $(INCLUDE_PATH)
 $(DDEST)/%%.f90: $(TDEST)/%%.F90
 \t$(CPP) -D__DOUBLERUN $(CPP_BODY) $(DCPPFLAG) $(INCLUDE_PATH)
 
@@ -575,6 +596,8 @@ $(MDEST)/%%.f90: %%.F90
 
 $(MDEST)/%%.f: %%.F
 \t$(CPP) -D__PROG_NUMRUNS $(CPP_BODY) $(MCPPFLAG) $(INCLUDE_PATH)
+$(MKDEST)/%%.f: %%.F
+\t$(CPP) -D__PROG_NUMRUNS -D__CMPLX $(CPP_BODY) $(MKCPPFLAG) $(INCLUDE_PATH)
 $(DDEST)/%%.f90: %%.F90
 \t$(CPP) -D__DOUBLERUN $(CPP_BODY) $(DCPPFLAG) $(INCLUDE_PATH)
 
@@ -624,6 +647,13 @@ $(McppOBJ): $(MDEST)/%%.o: %%.cpp
 
 $(McOBJ): $(MDEST)/%%.o: %%.c
 \t$(CC) -D__PROG_NUMRUNS $(C_BODY)
+
+# complex multi
+$(MKcppOBJ): $(MKDEST)/%%.o: %%.cpp
+\t$(CC) -D__PROG_NUMRUNS -D__CMPLX $(C_BODY)
+
+$(MKcOBJ): $(MKDEST)/%%.o: %%.c
+\t$(CC) -D__PROG_NUMRUNS -D__CMPLX $(C_BODY)
 
 # d) doublerun
 $(DcppOBJ): $(DDEST)/%%.o: %%.cpp
