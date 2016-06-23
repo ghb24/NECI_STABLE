@@ -77,6 +77,7 @@ contains
         else 
             print *, " only run the excitation generator tests!"
 !             call run_test_excit_gen_guga_S0
+
             call run_test_excit_gen_guga()
 
         end if
@@ -193,7 +194,8 @@ contains
         pExcit3_same = 0.9_dp
 
         if (nEl == 4 .and. nBasis/2 == 4 .and. STOT == 2) then
-            call run_test_excit_gen_guga_S2
+!             call run_test_excit_gen_guga_S2
+            call run_test_excit_gen_guga_general
 
         else if (nEL == 3 .and. nBasis/2 == 4 .and. STOT == 1) then
             call run_test_excit_gen_guga_nEl_3_S_1
@@ -280,6 +282,8 @@ contains
             ! guessed HF determinant as a start and uses some of the 
             ! exactly created determinants from that to check for pgen and 
             ! matrix element consistency! 
+
+            call test_identify_excitation()
 !             call run_test_excit_gen_guga_multiple(&
 !                 [1,2,3,4,5,6,7,8])
 !             call run_test_excit_gen_guga_multiple(&
@@ -290,20 +294,120 @@ contains
 !                 [1,3,6,7,10,11,14,16])
 !             call run_test_excit_gen_guga_multiple(&
 !                 [1,4,5,8,9,12,13,16])
-!             call run_test_excit_gen_guga_general
+            call run_test_excit_gen_guga_general
 !             call run_test_excit_gen_guga_single([1,3,4,5,7,10,11,12])
 !             call run_test_excit_gen_guga_multiple(&
 !                 [1,4,5,8,9,12,13,16,17,20])
 !             call run_test_excit_gen_guga_single(&
 !                 [1,4,5,6])
         
-            call run_test_excit_gen_guga_single(&
-                [1,2,3,5,7,10,12,13,14,15,17,18,20,21,25,27,30,32,34,35,36,&
-                37,39,41,44,46,48,49,50,51,54,58])
+!             call run_test_excit_gen_guga_single(&
+!                 [1,2,3,5,7,10,12,13,14,15,17,18,20,21,25,27,30,32,34,35,36,&
+!                 37,39,41,44,46,48,49,50,51,54,58])
 
         end if 
 
     end subroutine run_test_excit_gen_guga
+
+    subroutine test_identify_excitation
+        character(*), parameter :: this_routine = "test_identify_excitation" 
+        integer :: nI(nel), nJ(nel) 
+        integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot) 
+        type(excitationInformation) :: excitInfo
+        integer(n_int), pointer :: ex(:,:) 
+        integer :: nEx, i
+        logical :: valid
+        real(dp) :: pos(nSpatOrbs), neg(nSpatOrbs)
+
+        nI = [1,2,3,4]
+        nJ = [1,2,3,6]
+
+        call EncodeBitDet(nI, ilutI)
+        call EncodeBitDet(nJ, ilutJ)
+        print *, "Testing: identify_excitation" 
+        
+        excitInfo = identify_excitation(ilutI,ilutJ)
+
+        call print_excitInfo(excitInfo)
+
+        nJ = [1,2,5,6]
+        call EncodeBitDet(nJ, ilutJ)
+
+        excitInfo = identify_excitation(ilutI,ilutJ)
+        call print_excitInfo(excitInfo)
+
+        nI = [3,4,7,8]
+        nJ = [1,4,5,8]
+
+        call EncodeBitDet(nI, ilutI) 
+        call EncodeBitDet(nJ, ilutJ)
+
+        excitInfo = identify_excitation(ilutI, ilutJ)
+        call print_excitInfo(excitInfo)
+
+        nI = [3,6,7,8]
+        nJ = [1,4,5,8]
+
+        call EncodeBitDet(nI, ilutI)
+        call EncodeBitDet(nJ, ilutJ)
+
+        excitInfo = identify_excitation(ilutI,ilutJ)
+        call print_excitInfo(excitInfo)
+
+        nI = [1,3,6,8]
+        nJ = [1,4,5,8]
+
+        call EncodeBitDet(nI,ilutI)
+        call EncodeBitDet(nJ,ilutJ)
+
+        excitInfo = identify_excitation(ilutI,ilutJ)
+        call print_excitInfo(excitInfo) 
+
+        nI = [1,2,3,4]
+        nJ = [5,6,7,8]
+
+        call EncodeBitDet(nI,ilutI)
+        call EncodeBitDet(nJ,ilutJ)
+
+        excitInfo = identify_excitation(ilutI,ilutJ)
+        call print_excitInfo(excitInfo) 
+
+        nI = [1,2,5,8]
+        nJ = [1,3,6,8]
+
+        call EncodeBitDet(nI,ilutI)
+        call EncodeBitDet(nJ,ilutJ)
+
+        excitInfo = identify_excitation(ilutI,ilutJ)
+        call print_excitInfo(excitInfo) 
+
+        call EncodeBitDet(fdet, ilutI)
+        call actHamiltonian(ilutI, ex, nEx) 
+
+        call init_csf_information(ilutI) 
+
+        do i = 1, nEx
+
+            excitInfo = identify_excitation(ilutI, ex(:,i)) 
+
+            print *, "valid? ", excitInfo%valid
+            ASSERT(excitInfo%valid)
+
+            if (excitInfo%typ /= 0) then
+                call checkCompatibility(ilutI, excitInfo, valid, pos, neg)
+
+                print *, "valid?", valid
+                ASSERT(valid)
+            end if
+            
+        end do
+
+        call deinit_csf_information()
+
+        call stop_all(this_routine, "!")
+
+
+    end subroutine test_identify_excitation
 
     subroutine test_guga_data
 
@@ -399,10 +503,12 @@ contains
         integer(n_int), pointer :: ex(:,:)
         integer :: nEx, i
         integer :: nTest
+        type(excitationInformation) :: excitInfo
 
         ! use fdet as first determinant and test on all excitations from this..!
         ! maybe a bit too much for bigger system?
         print *, "running general test_excit_gen_guga()"
+
 
         ! first act the hamiltonian on the fdet
         call EncodeBitDet(fdet, ilut)

@@ -28,7 +28,8 @@ module guga_excitations
                         write_guga_list, add_guga_lists, count_alpha_orbs_ij, &
                         count_beta_orbs_ij, findFirstSwitch, findLastSwitch, &
                         calcStepvector, find_switches, convert_ilut_toNECI, &
-                        calcB_vector_int, calcOcc_vector_int, EncodeBitDet_guga
+                        calcB_vector_int, calcOcc_vector_int, EncodeBitDet_guga, &
+                        identify_excitation
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGuga_nI
     use OneEInts, only: GetTMatEl
     use Integrals_neci, only: get_umat_el
@@ -279,171 +280,362 @@ module guga_excitations
 !     end interface createSingleStart
 
 contains
-! ! 
 
-    ! finally with the, after all, usable trialz, popcnt, and leadz routines 
-    ! (except for the PGI and NAG compilers) i can write an efficient 
-    ! excitation identifier between two given CSFs 
-    ! for the big systems i realised that this is necessary, since 
-    ! applying the hamiltonian exactly to the reference derterminant is 
-    ! VERY time consuming! 
-    ! still this involves a lof of coding, since i do not have routines 
-    ! yet, which calculates the matrix element, if both CSFs are provided 
-    ! and probably also the whole excitation information can be provided 
+    subroutine calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, t_hamil, &
+            calc_type, rdm_ind, rdm_mat)
+        ! function which, given the 2 CSFs ilutI/J and the excitation 
+        ! information, connecting those 2, calculates the Hamiltionian 
+        ! matrix element between those 2 
+        ! use a flag to distinguish between only guga-mat_ele calculation 
+        ! and full hamiltonian matrix element calculation
+        ! calc_type is an integer indicating for which purpose this function 
+        ! is called:
+        ! 0 ... reference energy calculation -> both current_ilut and ref. info 
+        !           is already calculated 
+        ! 1 ... semi-stochastic/trial-wavefunction hamiltonian initialization 
+        !           only the information of nI is already initialized, have to 
+        !           calculate stepvector and all the other stuff for nJ 
+        ! 2 ... rdm matrix element calculation, neither nI nor nJ has any 
+        !           information initialized already -> init both
+        !           (does this mean i could get rid of the t_hamil flag?)
 
-    function identify_excitation(ilutI, ilutJ) result(excitInfo) 
-        integer(n_int), intent(in) :: ilutI(0:nifd), ilutJ(0:nifd) 
+        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot) 
+        type(excitationInformation), intent(in) :: excitInfo
+        real(dp), intent(out) :: mat_ele 
+        logical, intent(in) :: t_hamil
+        integer, intent(in) :: calc_type
+        integer, intent(out), allocatable, optional :: rdm_ind(:,:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
+        character(*), parameter :: this_routine = "calc_guga_matrix_element"
+
         type(excitationInformation) :: excitInfo
-        character(*), parameter :: this_routine = "identify_excitation"
+        logical :: t_calc_full
 
-        ! i figure, that when i convert all the stepvectors like: 
-        ! 0 -> 0
-        ! 1 -> 1 
-        ! 2 -> 1 
-        ! 3 -> 0 
-        ! which can be done by parts of the count open orbs routine 
-        ! i can identify the level of excitation(except for mixed full-starts 
-        ! full-stops..
-        ! wait a minute ... what about 0 -> 3 type of excitations.. ?? 
-        ! look at all the type of excitations: 
+        ! i have to decide which type of excitation it is and how to 
+        ! calculate the corresponding matrix element then.. 
+        ! this probably involves a lot on intensive coding again.. 
+        ! but i probably can mimick a lot of stuff from the stochastic 
+        ! implementation, with the benefit that i know the 2 CSFs already 
+        ! and do not have to calculate branching stuff .. 
+        ! having stepvector and b-vector information and stuff is probably 
+        ! useful to have 
+        ! i could also use the checkCompatibility routine to be 100% that 
+        ! the determined excitation is actually possible 
 
-        ! singles: 
-        ! di: 0123 -> 0110
-        ! dj: 1212 -> 1111 -> 1001 -> correctly identifiable
+        ! where do i need this function? 
+        ! a) in the reference calculation! -> so i could initialize 
+        !   stepvector and other information for this specific CSF once 
+        !   and reuse it here, so i do not have to recompute this every 
+        !   time.. 
+        ! b) in the semi-stochastic and trailwavefunction routines.. 
+        !    there i actually also have to do it only once in the loop 
+        !    over 1 list of dets, i could also just calculate it once 
+        !    for nI, and reuse it for the loop over nJ 
+        ! c) in the rdm-calculation.. here i am not quite sure yet, since I 
+        !    also only need the GUGA matrix element and not the 1 and 2 body 
+        !    integral terms.. maybe write the function in such a way that 
+        !    it can output both or additionally maybe only the GUGA element
+        !    (but for certain types of excitations multiple orbital index 
+        !       combinations are possible to lead to the same CSF connection
+        !       there i would have to output all the different contributions.)
 
-        ! non-overlap: 
-        ! di: 0123 -> 0110
-        ! dj: 1032 -> 1001 -> 1111 -> correct 
+        ! if the optional t_hamil is not there we assume we want to calc. 
+        ! the full hamiltonian matrix element and not only the guga-csf overlap
+        ! matrix element, needed for the rdm calculation
+        ! change to not make this flag optional, but mandatory! 
+        ! so i can use another flag to distinguish between the type of 
+        ! calculation used .. 
 
-        ! single overlap alike generators
-        ! like singles and have to consider for identified singles also the 
-        ! matrix element influence of these.. but for the identification
-        ! it is not a problem 
+        ! hm the nice thing is, in the loop over determinants, i also 
+        ! initialize the csf information for the current determinant at 
+        ! the beginning, so in the case of the reference calculation 
+        ! i have both the current_ilut info and if i store it, also the 
+        ! reference determinant info, like stepvector, bvalue etc.. 
+        ! so i do not have to recalculate that here.. 
+        ! only in the hamiltonian matrix element calculation for 
+        ! semi-stochastic and trial wavefunction calculation i need to 
+        ! recalc. that, but there also only once for nI, and then always 
+        ! for the nJ loop! 
 
-        ! single overlap mixed generators: 
-        ! di: 1203 -> 1100
-        ! dj: 0132 -> 0101 -> 1001 -> wrong!!
-        ! have to identify the 0 -> 3 or 3 -> 0 switches indepentendly..
-        ! also for the full-stop full-start type excitations with alike 
-        ! generators
 
-        ! normal double: 
-        ! di: 0123 -> 0110
-        ! dj: 1302 -> 1001 -> 1111 -> correct 
+        ! if i only want to calculate the guga-csf overlap matrix element 
+        ! i have to store the specific indices for different kind of 
+        ! excitations connecting the same 2 CSFs in the rdm calculation
+        ! but do that later!
 
-        ! full-stop, or full-stop alike 
-        ! di: 0123 -> 0110
-        ! dj: 1320 -> 1010 -> 1100 -> incorrect see above! 
 
-        ! full-stop or full-start mixed 
-        ! di: 1122 -> 1111
-        ! dj: 1230 -> 1100 -> 0011 -> incorrect 
-        ! this is also a special case: it looks like a single, but i have 
-        ! to check if there is a change in the spin-coupling, below or 
-        ! above the identified single excitations 
+        excitInfo = identify_excitation(ilutI, ilutJ)
 
-        ! full-start into full-stop alike: 
-        ! di: 0123 -> 0110
-        ! dj: 3120 -> 0110 -> 0000 -> incorrect
-        ! so i also have to check if it appears to be no excitation at all..
-        ! puh ... thats gonna be tough.. 
+        if (.not. excitInfo%valid) then 
+            ! more than a double excitation! leave with 0 matrix element 
+            mat_ele = 0.0_dp 
 
-        ! full-start into full-stop mixed: 
-        ! di: 1212 -> 1111
-        ! dj: 1122 -> 1111 -> 0000 -> also looks like no excitation 
-        ! have to check for spin-coupling changes .. 
+            return
+        end if
 
-        ! so: 
-        ! i have to look for occupation differences of +- 1
-        ! i have to look for spin -> coupling changes 
-        ! i have to look for occupation differences of +- 2 
-        ! and i have to check the relation between the involved indices 
-        ! if it is a possible combination which leads to valid single 
-        ! or double exitations.. 
-
-        ! the +-1 difference i figured out.
-
-        ! what about spin-coupling changes? 
-        ! 123012
-        ! 112120 i want: 
-        ! 010010 how? 
-        ! so i want the changes only in the singly occupied orbitals 
-        ! i could make a mask with the beginning stuff from above.. and then 
-        ! pick the xor only in these bits 
-
-        ! and i could also use the inversion of that mask to find the 
-        ! double occupation changes.. which i have to count twice anyway
+        ! depending on the type of usage i have to init some csf information 
         
-        ! yeah this sounds not so bad.. but the painful part will be 
-        ! to find the relations of the hole and electron indices.. 
-        ! but i have done that already kind of.. 
-
-        ! AND i also have to write the matrix element calculation routine 
-        ! specifically for 2 given CSFs .. but atleast that is easier to do 
-        ! since i have all the necessary information at hand and dont need 
-        ! to do any branching and stuff. 
-        ! this could also make it easier to check if the excitation is 
-        ! compatible after all.. 
-        
-        ! and i have to set it up in such a way, that it can deal with 
-        ! multiple integers, for bigger number of orbitals, because thats 
-        ! exactly where it is necessary to use. 
-        ! i can use the stuff used in the paper by emmanuel to do that stuff 
-        ! i guess 
-
-        ! and since i need the created masks in all 3 of the checks i should 
-        ! not split up the calculation in multiple subroutine to be able 
-        ! to reuse them and be more efficient 
-
-        ! so the first part is to create a mask of the singly occupied 
-        ! orbitals and the inversion
-        alpha = iand(ilutI, MaskAlpha) 
-        beta = iand(ilutI, MaskBeta) 
-        alpha = ishft(alpha, -1) 
-        ! this now gives me the +-1 occ. changes 
-        ! meh.. this not really gives me the change in +-1 one but just the 
-        ! number of singly occupied orbitals.. 
-        ! i have to do that for both CSFs or.. hm.. 
-        ! think a little bit more about that before moving on.. 
-
-        change_1 = ieor(alpha, beta) 
-        ! and if i shift this to the right and xor with the original i get 
-        ! the singles mask 
-        mask_singles = ieor(change_1, ishft(change_1, +1))
-        ! and the doubles is the not of that 
-        mask_doubles = not(mask_single) 
-
-        ! so.. i already have the +-1 changes, so depending on that move on.. 
-        n_singles = popcnt(change_1) 
-
-        ! hm i just realised in all the single changes <= 4 there is still 
-        ! a lot of other stuff that can happen.. 
-        ! and i could also exit the routine if any of the other stuff 
-        ! does crazy shit, exept for the spin-coupling changes, which can 
-        ! happen a lot and still represent a valid excitation
-        ! so atleast check the double changes too.. 
-
-        select case (n_singles) 
+        select case (calc_type) 
         case (0) 
-            ! no +-1 changes still a lot of stuff can happen 
+            ! reference energy calculation -> both nI and nJ info should 
+            ! already be initialized .. -> but i have to assigne it to 
+            ! intermediate variables here to be able to write the below 
+            ! function generally 
+            temp_step_i = ref_stepvector
+            temp_b_real_i = ref_b_vector_real
+            temp_occ_i = ref_occ_vector 
 
-            ! btw: there is no case 1 or? 
+            temp_step_j = current_stepvector
+
+            temp_delta_b = ref_b_vector_int - currentB_int
+
+        case (1) 
+            ! this used in the initialization of semi-stochastic and 
+            ! trail-wavefunction calculation 
+            ! in this case "misuse" the current_ variables in the loop over nI
+            temp_step_i = current_stepvector
+            temp_b_real_i = currentB_ilut
+            temp_occ_i = currentOcc_ilut
+
+            ! and i need a function which calculates the stepvector and the 
+            ! b-vector for a given ilutJ 
+            call calc_csf_info(ilutJ, temp_step_j, temp_b) 
+
+            temp_delta_b = currentB_ilut - temp_b
+
         case (2) 
-            ! this could be a "normal" single excitation, but also still 
-            ! a lot of other stuff 
+            ! thats the case of an rdm-matrix calculation here i do not 
+            ! have any information on both CSFs. so i have to recalculate 
+            ! everything 
+            ! write the function above with a optional occupation number 
+            ! output, since it is not much effort to also calc that 
+            call calc_csf_info(ilutI, temp_step_i, temp_b, temp_occ_i)
 
-        case (4) 
-            ! this could be a non-overlap double, a 
-            ! 
+            temp_b_real_i = real(temp_b,dp)
 
-        ! this alpha 
+            call calc_csf_info(ilutJ, temp_step_j, temp_b) 
+
+            temp_delta_b = int(temp_b_real_i) - temp_b
+
+        end select case
+
+        ! then i need a select case to specifically calculate all the 
+        ! different types of excitations
+        ! essentially i can just mimick the stochastic excitation creation 
+        ! routines but with a fixed chosen excitation
+        select case (excitInfo%typ) 
+
+        case (0)
+            ! pure single excitation
+
+            ! but here i have to calculate all the double excitation 
+            ! influences which can lead to the same excitation(weights etc.)
+
+            call calc_single_excitation_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+                t_hamil, rdm_ind, rdm_mat)
+
+        case (6) 
+            ! single overlap lowering into raising 
+
+            ! maybe i have to check special conditions on the overlap site.
+
+        case (7) 
+            ! single overlap raising into lowering 
+
+            ! maybe i have to check special conditions on the overlap site. 
+
+        case (8) 
+            ! normal double lowering 
+
+            ! deal with order parameter for switched indices 
+
+        case (9) 
+            ! normal double raising 
+
+            ! here i have to deal with the order parameter for switched 
+            ! indices .. 
+
+        case (10) 
+            ! lowering into raising into lowering 
+
+            ! deal with non-overlap if no spin-coupling changes! 
+
+        case (11)
+            ! raising into lowering into raising
+            
+            ! here i have to consider the non-overlap contribution if no 
+            ! spin-coupling changes in the overlap range 
+
+        case (12) 
+            ! lowering into raising double 
+
+            ! consider non-overlap if no spin-coupling changes! 
+
+        case (13) 
+            ! raising into lowering double 
+
+            ! here i also have to consider the non-overlap contribution if no
+            ! spin-coupling changes in the overlap range 
+
+        case (14) 
+            ! full-stop 2 lowering 
+
+            ! here only x0 matrix element in overlap range! 
+
+        case (15) 
+            ! full-stop 2 raising 
+
+            ! here only x0 matrix elment in overlap range! 
+
+        case (16) 
+            ! full-stop lowering into raising 
+
+            ! here i have to consider all the singly occupied orbital 
+            ! influences ABOVE the last spin-coupling change
+
+        case (17) 
+            ! full-stop raising into lowering 
+
+            ! here i have to consider all the singly occupied orbital 
+            ! influences ABOVE the last spin-coupling change
+
+        case (18) 
+            ! full-start 2 lowering 
+            
+            ! here only x0 matrix element in overlap range! 
+
+        case (19) 
+            ! full-start 2 raising 
+
+            ! here only the x0-matrix in the overlap range (this implies no 
+            ! spin-coupling changes, but i already dealt with that! (hopefully!))
 
 
+        case (20) 
+            ! full-start lowering into raising 
+             
+            ! here i have to consider all the other singly occupied orbital 
+            ! influences BELOW the first spin-coupling change 
+
+        case (21) 
+            ! full-start raising into lowering 
+            
+            ! here i have to consider all the other singly occupied orbital 
+            ! influences BELOW the first spin-coupling change 
+
+        case (22) 
+            ! full-start into full-stop alike 
+
+            ! here no spin-coupling changes are allowed! 
+
+        case (23) 
+            ! full-start into full-stop mixed 
+
+            ! here i have to consider all the singly occupied orbitals 
+            ! below the first spin-change and above the last spin change
+
+        end select
 
 
+    end function calc_guga_matrix_element
 
+    subroutine calc_single_excitation_ex(ilutI, ilutJ, excitInfo, mat_ele, & 
+            t_calc_full, rdm_ind, rmd_mat) 
+        ! routine to exactly calculate the matrix element between so singly 
+        ! connected CSFs, with the option to output also all the indices and 
+        ! overlap matrix elements necessary for the rdm calculation 
+        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot) 
+        type(excitationInformation), intent(in) :: excitInfo 
+        real(dp), intent(out) :: mat_ele
+        logical, intent(in) :: t_calc_full 
+        integer, intent(out), allocatable, optional :: rdm_ind(:,:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
+        character(*), parameter :: this_routine = "calc_single_excitation_ex"
 
-    end function identify_excitation
+        integer :: st, en, i, j, iOrb, gen
+        real(dp) :: integral
+        ! just mimick the stochastic single excitation! 
+
+        st = excitInfo%fullstart
+        en = excitInfo%fullEnd
+
+        i = excitInfo%i
+        j = excitInfo%j 
+
+        gen = excitInfo%currentGen
+
+        integral = getTmatEl(2*i, 2*j)
+
+        mat_ele = 1.0_dp
+
+        ! what do i need from the 2 CSFs to calculate all the matrix elements? 
+        ! the 2 stepvalues: d, d' -> write a routine which only calculates those
+        ! the generator type: gen 
+        ! the currentB value of I, b -> also calc. that in the routine to get d
+        ! and the deltaB value: db 
+        
+        ! since i mostly use this function to calculate the overlap with 
+        ! the reference determinant it is probably a good idea to 
+        ! calculate the necessary information for the reference determinant 
+        ! once and store it.. and maybe use a flag here to check what 
+        ! kind of usage of this function is.. or outside in the calling 
+        ! function.. 
+
+        ! then i can just loop over the whole excitation range without 
+        ! distinction between start.. (mabye end i have to deal with specifically!)
+
+        ! here i have to calculate the starting element 
+        ! 
+        step1 = temp_step_i(st)
+        step2 = temp_step_j(st) 
+        bVal = temp_b_real_i(st) 
+        ! i think i have to take the deltaB for the next orb or? 
+        ! because i need the outgoing deltaB value..
+        ! nah.. i need the incoming! 
+        db = temp_delta_b(st) 
+
+        mat_ele = mat_ele * getSingleMatrixElement(step2,step1,gen,bVal)
+
+        ! i think it can still always happen that the matrix element is 0..
+        ! but maybe for the rdm case i have to do something more involved.. 
+        ! to set all the corresponding indices to 0..
+        if (abs(mat_ele) < EPS) return
+
+        do iOrb = st + 1, en - 1 
+
+            step1 = temp_step_i(iOrb)
+            step2 = temp_step_j(iOrb) 
+            bVal = temp_b_real_i(iOrb)
+            db = temp_delta_b(iOrb)
+
+            mat_ele = mat_ele * getSingleMatrixElement(step2,step1,gen,bVal)
+
+            if (abs(mat_ele) < EPS) return 
+
+            integral = integral + get_umat_el(i,iOrb,j,iOrb) * temp_occ_i(iOrb) 
+
+            integral = integral + get_umat_el(i,iOrb,iOrb,j) * &
+                getDoubleContribution(step2,step1,db,gen,bVal)
+
+        end do
+
+        step1 = temp_step_i(en)
+        step2 = temp_step_j(en)
+        bVal = temp_b_real_i(en)
+        db = temp_delta_b(en)
+
+        mat_ele = mat_ele * getSingleMatrixElement(step2,step1,db,bVal) 
+
+        if (abs(mat_ele)) < EPS) return
+
+        call calc_integral_contribution_single(ilutI, ilutJ, i, j, st, en, integral)
+
+        mat_ele = mat_ele * integral
+
+        ! that should be it for the singles... check that when its fully 
+        ! implemented
+
+    end subroutine calc_single_excitation_ex
 
     subroutine Detham_guga(ndets, det_list, hamil, ind, n_row, n_elements) 
         ! create a routine which mimicks the functioniality of Detham for 

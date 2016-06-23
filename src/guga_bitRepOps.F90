@@ -14,7 +14,7 @@ module guga_bitRepOps
     use constants, only: dp, n_int, bits_n_int, bni_, bn2_
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                     count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
-                    CountBits
+                    CountBits, DetBitEQ
     use bit_rep_data, only: test_flag, flag_deltaB_single, &
         flag_deltaB_double, flag_deltaB_sign
     use util_mod, only: binary_search
@@ -50,6 +50,1285 @@ module guga_bitRepOps
 !     end interface isProperCSF
 
 contains
+
+    ! finally with the, after all, usable trialz, popcnt, and leadz routines 
+    ! (except for the PGI and NAG compilers) i can write an efficient 
+    ! excitation identifier between two given CSFs 
+    ! for the big systems i realised that this is necessary, since 
+    ! applying the hamiltonian exactly to the reference derterminant is 
+    ! VERY time consuming! 
+    ! still this involves a lof of coding, since i do not have routines 
+    ! yet, which calculates the matrix element, if both CSFs are provided 
+    ! and probably also the whole excitation information can be provided 
+
+    function identify_excitation(ilutI, ilutJ) result(excitInfo) 
+        use Determinants
+        integer(n_int), intent(in) :: ilutI(0:nifd), ilutJ(0:nifd) 
+        type(excitationInformation) :: excitInfo
+        character(*), parameter :: this_routine = "identify_excitation"
+
+        integer(n_int) :: alpha_i(0:nifd), alpha_j(0:nifd), beta_i(0:nifd), & 
+                          beta_j(0:nifd), singles_i(0:nifd), singles_j(0:nifd), & 
+                          change_1(0:nifd), change_2(0:nifd), mask_singles(0:nifd), & 
+                          mask_doubles(0:nifd), spin_change(0:nifd), overlap(0:nifd), &
+                          mask_2(0:nifd), mask_3(0:nifd), mask_change_1(0:nifd), &
+                          mask_change_2(0:nifd), mask_change_0(0:nifd)
+
+        integer :: n_change_1, n_change_2, first_spin, last_spin, first_occ, &
+                   last_occ, second_occ, third_occ, i, j, k, l, occ_double, &
+                   ind(4), pos, ind_2(2), ind_3(2), res_orbs
+
+        logical :: spin_change_flag
+
+        ! i figure, that when i convert all the stepvectors like: 
+        ! 0 -> 0
+        ! 1 -> 1 
+        ! 2 -> 1 
+        ! 3 -> 0 
+        ! which can be done by parts of the count open orbs routine 
+        ! i can identify the level of excitation(except for mixed full-starts 
+        ! full-stops..
+        ! wait a minute ... what about 0 -> 3 type of excitations.. ?? 
+        ! look at all the type of excitations: 
+
+        ! singles: 
+        ! di: 0123 -> 0110
+        ! dj: 1212 -> 1111 -> 1001 -> correctly identifiable
+
+        ! non-overlap: 
+        ! di: 0123 -> 0110
+        ! dj: 1032 -> 1001 -> 1111 -> correct 
+
+        ! single overlap alike generators
+        ! like singles and have to consider for identified singles also the 
+        ! matrix element influence of these.. but for the identification
+        ! it is not a problem 
+
+        ! single overlap mixed generators: 
+        ! di: 1203 -> 1100
+        ! dj: 0132 -> 0101 -> 1001 -> wrong!!
+        ! have to identify the 0 -> 3 or 3 -> 0 switches indepentendly..
+        ! also for the full-stop full-start type excitations with alike 
+        ! generators
+
+        ! normal double: 
+        ! di: 0123 -> 0110
+        ! dj: 1302 -> 1001 -> 1111 -> correct 
+
+        ! full-stop, or full-stop alike 
+        ! di: 0123 -> 0110
+        ! dj: 1320 -> 1010 -> 1100 -> incorrect see above! 
+
+        ! full-stop or full-start mixed 
+        ! di: 1122 -> 1111
+        ! dj: 1230 -> 1100 -> 0011 -> incorrect 
+        ! this is also a special case: it looks like a single, but i have 
+        ! to check if there is a change in the spin-coupling, below or 
+        ! above the identified single excitations 
+
+        ! full-start into full-stop alike: 
+        ! di: 0123 -> 0110
+        ! dj: 3120 -> 0110 -> 0000 -> incorrect
+        ! so i also have to check if it appears to be no excitation at all..
+        ! puh ... thats gonna be tough.. 
+
+        ! full-start into full-stop mixed: 
+        ! di: 1212 -> 1111
+        ! dj: 1122 -> 1111 -> 0000 -> also looks like no excitation 
+        ! have to check for spin-coupling changes .. 
+
+        ! so: 
+        ! i have to look for occupation differences of +- 1
+        ! i have to look for spin -> coupling changes 
+        ! i have to look for occupation differences of +- 2 
+        ! and i have to check the relation between the involved indices 
+        ! if it is a possible combination which leads to valid single 
+        ! or double exitations.. 
+
+        ! the +-1 difference i figured out.
+
+        ! what about spin-coupling changes? 
+        ! 123012
+        ! 112120 i want: 
+        ! 010010 how? 
+        ! so i want the changes only in the singly occupied orbitals 
+        ! i could make a mask with the beginning stuff from above.. and then 
+        ! pick the xor only in these bits 
+
+        ! and i could also use the inversion of that mask to find the 
+        ! double occupation changes.. which i have to count twice anyway
+        
+        ! yeah this sounds not so bad.. but the painful part will be 
+        ! to find the relations of the hole and electron indices.. 
+        ! but i have done that already kind of.. 
+
+        ! AND i also have to write the matrix element calculation routine 
+        ! specifically for 2 given CSFs .. but atleast that is easier to do 
+        ! since i have all the necessary information at hand and dont need 
+        ! to do any branching and stuff. 
+        ! this could also make it easier to check if the excitation is 
+        ! compatible after all.. 
+        
+        ! and i have to set it up in such a way, that it can deal with 
+        ! multiple integers, for bigger number of orbitals, because thats 
+        ! exactly where it is necessary to use. 
+        ! i can use the stuff used in the paper by emmanuel to do that stuff 
+        ! i guess 
+
+        ! and since i need the created masks in all 3 of the checks i should 
+        ! not split up the calculation in multiple subroutine to be able 
+        ! to reuse them and be more efficient 
+
+        ! so the first part is to create a mask of the singly occupied 
+        ! orbitals and the inversion
+
+        ! first check if it is not the same ilut! 
+        if (DetBitEQ(ilutI, ilutJ)) then 
+            ! do diagonal element or return if i do not need the diagonals.. 
+        else
+
+        print *, "======"
+        call write_det_guga(6, ilutI, .true.)
+        call write_det_guga(6, ilutJ, .true.)
+        ! i have to create the singles and non-singles mask and 
+        ! convert the 2 iluts to 1 -> 1, 2 -> 1, 0 -> 0, 3 -> 0 
+        alpha_i = iand(ilutI, MaskAlpha) 
+        beta_i = iand(ilutI, MaskBeta) 
+        alpha_i = ishft(alpha_i, -1) 
+        ! this is the ilut with 1 -> 1, 2 -> 1, 0 -> 0, 3 -> 0 
+        singles_i = ieor(alpha_i, beta_i) 
+
+        ! and do the same for J 
+        alpha_j = iand(ilutJ, MaskAlpha) 
+        beta_j = iand(ilutJ, MaskBeta) 
+        alpha_j = ishft(alpha_j, -1) 
+
+        singles_j = ieor(alpha_j, beta_j) 
+
+        print *, "======"
+        ! with those 2 integers i can determine the +-1 occupation changes 
+        change_1 = ieor(singles_i, singles_j) 
+        ! can i tell something about the holes or electrons here
+
+        ! i need the number and the indices maybe .. but i need the indices 
+        ! only if it is a valid single or double excitation, so do that 
+        ! later 
+        n_change_1 = sum(popcnt(change_1))
+        ! remember a 2 would mean a valid single exitation here.. if no 
+        ! other stuff changed.. 
+
+        ! and if i shift this to the right and xor with the original i get 
+        ! the singles mask 
+        ! the "correct" mask_singles: 
+        mask_singles = iand(singles_i, singles_j) 
+        mask_singles = ieor(mask_singles, ishft(mask_singles,+1))
+
+        mask_change_1 = ieor(change_1, ishft(change_1, +1))
+        ! and the doubles is the not of that 
+
+
+        ! actually for the double-change check i just need the change 
+        ! in the doubly occupied orbitals.. so where both alpha and beta 
+        ! orbitals are occupied
+!         mask_doubles = ieor(iand(ilutI,alpha_i),iand(ilutI,ishft(beta_i,+1)))
+
+        ! the correct mask_doubles, atleast dn=+-2 or dn=0 & n=0,2
+        mask_change_2 = iand(not(mask_change_1),not(mask_singles))
+        mask_change_0 = iand(not(mask_change_1),mask_singles)
+
+!         mask_doubles = not(mask_singles)
+        
+!         mask_doubles = iand(not(mask_singles), iand(singles_i, ishft(singles_i,+1)))
+
+!         print *, "======================"
+        print *, "change_1:, n_change_1: ", n_change_1
+        call writedetbit(6, change_1, .true.)
+        print *, "mask_singles:"
+        call writedetbit(6, mask_singles, .true.)
+        print *, "mask_change_2:"
+        call writedetbit(6, mask_change_2, .true.)
+
+        ! also determine the +-2 changes 
+        ! should be enough to mask the positions of the 3 and 0 and then 
+        ! check if there are changes .. 
+        change_2 = ieor(iand(ilutI,mask_change_2),iand(ilutJ,mask_change_2)) 
+
+        n_change_2 = sum(popcnt(change_2))
+        ! can i say something about the holes and electrons here? 
+        ! i could check with the index of the change, if it is a 0 or a 3..
+        
+        print *, "change_2, n_change_2: ", n_change_2
+        call writedetbit(6, change_2, .true.)
+        print *, "======"
+        ! so... what can i say about the validness of the excitation here .. 
+        ! i still have to determine spin coupling changes outside the 
+        ! index range of the excitation.. but it is probably better to do 
+        ! that later on and discard non-valid excitations at that point 
+        ! already.. 
+        ! what is the maximum allowed number of changes? 
+        ! 4 i guess.. 
+        ! i can have 4 singles changes -> non-overlap or proper double 
+        ! i can have 4 double changes -> full-start into fullstop alike 
+        ! i can have 2 singles and 2 doubles -> fullstart or fullstop alike 
+        ! and everything below ... 
+        ! and i can already include some decision making on what the 
+        ! type of excitations are which are possible.. 
+        ! eg: n_change_2 = 4 & n_change_1 = 0 -> fullstart - fullstop alike 
+        ! if no other spin-coupling changes (inside and outside since x1 = 0) 
+        
+        ! n_change_1 = 4 & n_change_2 = 0 -> non-overlap + normal double 
+        ! also if no other spin-change outside! the excitation range 
+        ! and matrix element depends on the spin-change inbetween 
+        ! which can exclude the non-overlap double! 
+
+        ! n_change_2 = 2 & n_change_1 = 0.. can that be? is this even a 
+        ! possibilit to detect? i dont think so.. this would mean a difference 
+        ! in electron number.. 
+
+        ! n_change_1 = 2 & n_change_2 = 2 -> fullstart/fullstop 
+        ! + again checks outside the excitation range of spin-coupling changes
+
+        ! n_change_1 = 2 & n_change_2 = 0 -> normal single or fullstart/fullstop
+        ! mixed excitation. if only change above xor below excitation range
+        ! not both! and i also have to consider all the possible singly 
+        ! occupied orbs which could lead to this excitation...
+
+        ! n_change_1 = 0 & n_change 2 = 0 -> full-start into fullstop mixed 
+        ! this is the hard part.. here i have to consider all the possible 
+        ! index combination which could lead to this type of excitation 
+
+        ! but if n_change_1 + n_change_1 > 4 -> no possible excitation! 
+
+        ! hm i just realised in all the single changes <= 4 there is still 
+        ! a lot of other stuff that can happen.. 
+        ! and i could also exit the routine if any of the other stuff 
+        ! does crazy shit, exept for the spin-coupling changes, which can 
+        ! happen a lot and still represent a valid excitation
+        ! so atleast check the double changes too.. 
+
+        print *, "n_change_1, n_change_2", n_change_1, n_change_2
+
+        if (n_change_1 + n_change_2 > 4) then 
+            ! no possible excitation
+            return 
+
+        else
+            ! could check spin-coupling here, since i need it in all cases 
+            ! below.. 
+            spin_change = ieor(iand(ilutI, mask_singles), iand(ilutJ, mask_singles))
+
+            print *, "spin_change, n_spin_change:", sum(popcnt(spin_change))
+            call writedetbit(6, spin_change, .true.)
+
+            ! need the first and last index to check the indices 
+            ! maybe i need to loop over the number of used integers to determine 
+            ! where the first and last spin change is in actual spatial 
+            ! orbitals.. 
+            ! and i also need to consider that not all of the bits are used 
+            ! for the orbitals.. if not so many orbitals are involved.. 
+            ! hm.. 
+            ! in NECI the spin-orbitals get stored beginning from the left 
+            ! in the bit-representation.. so for leadz i have nothing to 
+            ! worry about the size of the basis 
+            ! what default value should i use to indicate no spin-coupling 
+            ! change? 
+            ! i only check if first spin is lower than anything.. so if i 
+            ! set it to nSpatOrbs + 1 it can never be true if no spin-coupling
+            ! change is found
+            first_spin = nSpatOrbs + 1
+            ! i have to use bits_n_int not n_int!! to give me the number of 
+            ! orbitals in the integer! 
+            ! ok.. so now i know the convention in neci, it is actually 
+            ! stored in the "usual" way beginning from the right, but is 
+            ! just printed out differently in the end, which makes it a bit 
+            ! confusing.. 
+
+            do i = 0, nifd 
+                ! or should i exit 
+                if (spin_change(i) == 0) cycle 
+                ! so i have definetly something.. 
+                ! 1100 -> orbital 1 -> 1 + leadz=0 / 2
+                ! 0011 -> orbital 2 -> 1 + leadz=3 / 2
+                ! do i want it to be stored in spatial orbs already?
+                first_spin = 1 + ishft(bits_n_int * i + trailz(spin_change(i)),-1)
+
+                ! due to the if -> cycle statement i know that i have found 
+                ! the FIRST spin change this way or none at all in the loop
+                ! so exit here
+                exit
+            end do
+
+            ! for the last_spin change i should default it to 0 so it is 
+            ! never true if no spin_change is ever found 
+            last_spin = 0 
+            ! maybe deal with the last integer of the bit representation 
+            ! specifically to identify the non-used part of the bits
+            ! nah, with the modulo i do not need to do i specifically! 
+            ! yes do it specifically again! since so i can avoid doing the 
+            ! modulo all the time 
+            if (.not. spin_change(nifd) == 0) then 
+                ! so i know it is in the last one, which i have to truncate 
+                ! to the used bits
+                
+                ! wtf... something wrong i think i need intermediate variable 
+                ! due to some integer conversion stuff..
+                i = nBasis
+                j = leadz(spin_change(nifd)) - (bits_n_int - mod(nBasis,bits_n_int))
+
+                last_spin = ishft(i - j, -1)
+
+            else 
+                ! have to subtract the non-occupied orbs over the loop 
+                ! and i already know the nidf-th had no change..
+                res_orbs = mod(nBasis, bits_n_int)
+
+                do i = nifd - 1, 0, -1 
+                    if (spin_change(i) == 0) then 
+                        ! have to increase res_orbs, but since here the hole 
+                        ! integer is used it is bits_n_int/2
+                        res_orbs = res_orbs + bits_n_int
+                        cycle
+                    end if
+
+                    ! just to be save from some integer conversion issues
+                    j = nBasis 
+                    k = leadz(spin_change(i))
+
+                    last_spin = ishft(j - res_orbs - k, -1)
+!                     last_spin = ishft(nBasis - res_orbs - leadz(spin_change(i)),-1)
+
+                    ! then i can exit 
+                    exit 
+                end do
+            end if
+                   
+            ! now i have the spin-changes in spatial orbitals already!! 
+            ! do that for the occupation indices also! 
+
+            ! so how do i deal with the case of multiple integers used for 
+            ! the spin-orbital storage?? 
+            ! and also if not all bits are used in the integer representation! 
+            ! need to convert the obtained indices from each integer to 
+            ! the "actual" spin orbital(or maybe already to the spatial 
+            ! orbital)
+            ! what if only 1 integer is used? 
+            ! and what is the convention in which order the orbitals are 
+            ! stored?? -> this decides when and where to use trailz or leadz
+
+
+            ! hm.. i have to check for multiple integer use for more orbitals
+
+            ! and determine the occupation indices also here .. nah, do not 
+            ! always need the same...
+
+            ! do a select case, since more optimized 
+            select case (n_change_1) 
+            ! what are the possible values? 0, 2, 4 i guess 
+            case (4) 
+                ! this means n_change_2 = 0 
+                ! and it is a non-overlap or "normal" double 
+                ! still check spin-coupling outside excitation range 
+
+                ! here i have to check if there is a spin-coupling change 
+                ! outside the excitation range.. 
+                ! i know some changes happened!
+                ! i know here are 4 changes in change_1 
+                j = 1
+                do i = 0, nifd 
+                    do while (change_1(i) /= 0) 
+                        pos = trailz(change_1(i)) 
+
+                        ind(j) = 1 + ishft(bits_n_int * i + pos, -1) 
+
+                        ! i have to find out the convention in NECI how to 
+                        ! access the bits and how they are stored.. 
+                        ! if they are really stored beginning from the left..
+                        change_1(i) = ibclr(change_1(i), pos) 
+
+                        j = j + 1
+                    end do 
+                end do
+
+                first_occ = ind(1)
+                second_occ = ind(2)
+                third_occ = ind(3)
+                last_occ = ind(4) 
+
+                ! i also have to deal with the edge-cases and if there are 
+                ! no spin changes at all, what the compiler specific output 
+                ! of leadz() and trailz() is for cases of no spin-changes
+                if (first_spin < first_occ .or. last_spin > last_occ) then 
+                    ! no excitation possible -> return 
+
+                    return
+                else
+                    ! here the hard part of identifying the excitation 
+                    ! specifically comes in 
+                    ! how was it done in emmanuels paper to identify the 
+                    ! hole and electron? 
+                    ! i could use the isOne etc. macros with the indices 
+                    ! identified 
+                    ! determine the other indices.. 
+!                     second_occ = leadz(ibclr(change_1,first_occ))
+!                     third_occ = trailz(ibclr(change_1,last_occ)) 
+
+                    ! i could also check if there is a spin-change in the 
+                    ! double overlap range, since if it is, there is no 
+                    ! possible non-overlap excitation 
+                    ! have to make a mask of ones in the overlap range 
+                    ! and then check with AND if there is any spin-change 
+                    ! in this range .. there are also some new fortran 2008 
+                    ! routines to create this masks
+                    
+                    ! also the overlap has to be adapted to multiple 
+                    ! integer storage!
+                    ! nah first i have to figure out the convention in neci 
+                    ! how the integer bits are accessed and outputted and 
+                    ! how the occupied orbitals are stored! 
+                    ! this messes up everything! 
+                        ! if the first index is in the 1. integer orbital 
+                        ! range 
+                    ! i need 2 indices to set both masks.. to which integer 
+                    ! the orbital index belongs to 
+                    ! mod(orb,bits_n_int) gives me the index in the integer 
+                    ! orb / bits_n_int, gives me the integer! 
+                    ind_2 = [2 * second_occ / bits_n_int, mod(second_occ, bits_n_int)]
+                    ind_3 = [2 * third_occ / bits_n_int, mod(third_occ, bits_n_int)]
+                    ! for the third index i have to put to 1 everyhing right 
+                    ! for the second, everything to the left 
+                    mask_2(ind_2(1)+1:nifd) = huge(0_n_int) 
+                    mask_2(0:ind_2(1)-1) = 0_n_int
+
+                    mask_3(0:ind_3(1)-1) = huge(0_n_int)
+                    mask_3(ind(3)+1:nifd) = 0_n_int
+
+                    ! so now in the mixed integer we have all 0
+                    mask_2(ind_2(1)) = maskl(bits_n_int - ind_2(2), n_int)
+                    mask_3(ind_3(1)) = maskr(ind_3(2), n_int)
+
+                    overlap = iand(spin_change, iand(mask_2, mask_3))
+
+                    if (sum(popcnt(overlap)) > 0) then
+                        ! non-overlap NOT possible 
+                        spin_change_flag = .true.
+                    else 
+                        spin_change_flag = .false.
+                    end if
+
+
+                    i = first_occ 
+                    j = second_occ 
+                    k = third_occ 
+                    l = last_occ
+
+                    ! puh.. this below MUST be optimized!! 
+                    ! but how? 
+                    ! how must i put in the order parameter.. to get the 
+                    ! correct sign in the 2-body integral contributions..
+                    ! TODO i have discrepancies in the assignment of this 
+                    ! order signs.. in the nosym_ implementation i take care 
+                    ! of them and depending on the ordering of the generators 
+                    ! i assign +1 or -1, but in the sym_ implementation i 
+                    ! seem to totally neglect it.. 
+                    ! did i update it in such a way that the sign-assignment
+                    ! is not necessary anymore.. then i have to get rid of 
+                    ! it in the nosym_ approach too i guess, since i calculate 
+                    ! with only +1 signs afterwards, or did i jsut fuck it up 
+                    ! in the sym_ approach by totally neglecting them..
+                    ! either way i think on of them is wrong..
+                    ! welp, i definetly use it to get the matrix elements 
+                    ! at semi-starts and semi-stops, and also in the 
+                    ! 2-body contribution.. or did i find a way to 
+                    ! store the i,j,k,l indices in the sym_ approach in such 
+                    ! a way that this sign is alway +1?
+                    ! but why are there no errors in the test-cases???
+                    ! something is messed up with that... damn.. 
+                    ! figure that out! that could lead to totally wrong matrix 
+                    ! elements.. atleast it should.. but why again does it 
+                    ! not show up in the tests??
+                    ! for now stick to the Shavitt paper convention.. 
+                    if (isZero(ilutI,i)) then 
+                        if (isZero(ilutI,j)) then 
+                            ! _R(i) -> _RR(j) -> ^RR(k) -> ^R(l) 
+                            excitInfo = assign_excitInfo_values_exact(9,1,1,&
+                                1,1,1,j,l,i,k,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                            
+                        else if (isThree(ilutI,j)) then 
+                            ! have to check where the electron goes 
+                            if (isZero(ilutI,k)) then 
+                                ! _R(i) -> _LR(j) -> ^LR(k) -> ^R(l) 
+                                excitInfo = assign_excitInfo_values_exact(11, 1, -1, & 
+                                    1,1,1,i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                            else if (isThree(ilutI,k)) then 
+                                ! _R(i) -> _LR(j) -> ^RL(k) -> ^L(l) 
+                                excitInfo = assign_excitInfo_values_exact(13, 1, -1, & 
+                                    1,1,-1,i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                            else 
+                                ! n(k) = 1 
+                                if (isZero(ilutJ,k)) then 
+                                    ! _R(i) -> _LR(j) -> ^RL(k) -> ^L(l) 
+                                    excitInfo = assign_excitInfo_values_exact(13,1,-1,&
+                                        1,1,-1,i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                else 
+                                    ! _R(i) -> _LR(j) -> ^LR(k) -> ^R(l) 
+                                    excitInfo = assign_excitInfo_values_exact(11,1,-1,&
+                                        1,1,1,i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                end if
+                            end if 
+                        else 
+                            ! n(j) = 1 
+                            if (isZero(ilutJ,j)) then 
+                                ! _R(i) -> _LR(j) ...
+                                if (isZero(ilutI,k)) then 
+                                    ! _R(i) -> _LR(j) -> ^LR(k) -> ^R(l) 
+                                    excitInfo = assign_excitInfo_values_exact(11,1,-1,&
+                                        1,1,1,i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                else if (isThree(ilutI,k)) then 
+                                    ! _R(i) -> _LR(j) -> ^RL(k) -> ^L(l) 
+                                    excitInfo = assign_excitInfo_values_exact(13,1,-1,&
+                                        1,1,-1,i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                else 
+                                    ! n(k) = 1 
+                                    if (isZero(ilutJ,k)) then 
+                                        ! _R(i) -> _LR(j) -> ^RL(k) -> ^L(l) 
+                                        excitInfo = assign_excitInfo_values_exact(13,1,-1,&
+                                            1,1,-1,i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                    else 
+                                        ! _R(i) -> _LR(j) -> ^LR(k) -> ^R(l) 
+                                        excitInfo = assign_excitInfo_values_exact(11,1,-1,&
+                                            1,1,1,i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                    end if
+                                end if
+                            else 
+                                ! _R(i) -> _RR(j) -> ^RR(k) -> ^R(l) 
+                                excitInfo = assign_excitInfo_values_exact(9,1,1,&
+                                    1,1,1,j,l,i,k,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                            end if
+                        end if
+                    else if (isThree(ilutI,i)) then 
+                        ! _L(i) -> .. 
+                        if (isZero(ilutI,j)) then 
+                            ! _L(i) -> _RL(j) -> ... 
+                            if (isZero(ilutI,k)) then 
+                                ! _L(i) -> _RL(j) -> ^LR(k) -> ^R(l) 
+                                excitInfo = assign_excitInfo_values_exact(12,1,-1,&
+                                    -1,-1,1,j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                
+                            else if (isThree(ilutI,k)) then 
+                                ! _L(i) -> _RL(j) -> ^RL(k) -> ^L(l) 
+                                excitInfo = assign_excitInfo_values_exact(10,1,-1,&
+                                    -1,-1,-1,j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                            else 
+                                ! n(k) = 1 
+                                if (isZero(ilutJ,k)) then 
+                                    ! _L(i) -> _RL(j) -> ^RL(k) -> ^L(l) 
+                                    excitInfo = assign_excitInfo_values_exact(10,1,-1,&
+                                        -1,-1,-1,j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                else 
+                                    ! _L(i) -> _RL(j) -> ^LR(k) -> ^R(l) 
+                                    excitInfo = assign_excitInfo_values_exact(12,1,-1,&
+                                        -1,-1,1,j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    
+                                end if
+                            end if
+                        else if (isThree(ilutI,j)) then 
+                            ! _L(i) -> _LL(j) -> ^LL(k) -> ^L(l) 
+                            excitInfo = assign_excitInfo_values_exact(8,-1,-1,&
+                                -1,-1,-1,k,i,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                        else 
+                            ! n(j) = 1 
+                            if (isZero(ilutJ,j)) then 
+                                ! _L(i) -> _LL(j) -> ^LL(k) -> ^L(l) 
+                                excitInfo = assign_excitInfo_values_exact(8,-1,-1,&
+                                    -1,-1,-1,k,i,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                            else 
+                                ! _L(i) -> _RL(j) -> ... 
+                                if (isZero(ilutI,k)) then 
+                                    ! _L(i) -> _RL(j) -> ^LR(k) -> ^R(l) 
+                                    excitInfo = assign_excitInfo_values_exact(12,1,-1,&
+                                        -1,-1,1,j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    
+                                else if (isThree(ilutI,k)) then 
+                                    ! _L(i) -> _RL(j) -> ^RL(k) -> ^L(l) 
+                                    excitInfo = assign_excitInfo_values_exact(10,1,-1,&
+                                        -1,-1,-1,j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                else 
+                                    ! n(k) = 1 
+                                    if (isZero(ilutJ,k)) then 
+                                        ! _L(i) -> _RL(j) -> ^RL(k) -> ^L(l) 
+                                        excitInfo = assign_excitInfo_values_exact(10,1,-1,&
+                                            -1,-1,-1,j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                    else 
+                                        ! _L(i) -> _RL(j) -> ^LR(k) -> ^R(l) 
+                                        excitInfo = assign_excitInfo_values_exact(12,1,-1,&
+                                            -1,-1,1,j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        
+                                    end if
+                                end if
+                            end if
+                        end if
+                    else 
+                        ! n(i) = 1 
+                        if (isZero(ilutI,i)) then 
+                            ! _L(i) -> ...
+                            if (isZero(ilutI,j)) then 
+                                ! _L(i) -> _RL(j) -> ... 
+                                if (isZero(ilutI,k)) then 
+                                    ! _L(i) -> _RL(j) -> ^LR(k) -> ^R(l) 
+                                    excitInfo = assign_excitInfo_values_exact(12,1,-1,&
+                                        -1,-1,1,j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    
+                                else if (isThree(ilutI,k)) then 
+                                    ! _L(i) -> _RL(j) -> ^RL(k) -> ^L(l) 
+                                    excitInfo = assign_excitInfo_values_exact(10,1,-1,&
+                                        -1,-1,-1,j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                else 
+                                    ! n(k) = 1 
+                                    if (isZero(ilutJ,k)) then 
+                                        ! _L(i) -> _RL(j) -> ^RL(k) -> ^L(l) 
+                                        excitInfo = assign_excitInfo_values_exact(10,1,-1,&
+                                            -1,-1,-1,j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                    else 
+                                        ! _L(i) -> _RL(j) -> ^LR(k) -> ^R(l) 
+                                        excitInfo = assign_excitInfo_values_exact(12,1,-1,&
+                                            -1,-1,1,j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        
+                                    end if
+                                end if
+                            else if (isThree(ilutI,j)) then 
+                                ! _L(i) -> _LL(j) -> ^LL(k) -> ^L(l) 
+                                excitInfo = assign_excitInfo_values_exact(8,-1,-1,&
+                                    -1,-1,-1,k,i,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                            else 
+                                ! n(j) = 1 
+                                if (isZero(ilutJ,j)) then 
+                                    ! _L(i) -> _LL(j) -> ^LL(k) -> ^L(l) 
+                                    excitInfo = assign_excitInfo_values_exact(8,-1,-1,&
+                                        -1,-1,-1,k,i,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                else 
+                                    ! _L(i) -> _RL(j) -> ... 
+                                    if (isZero(ilutI,k)) then 
+                                        ! _L(i) -> _RL(j) -> ^LR(k) -> ^R(l) 
+                                        excitInfo = assign_excitInfo_values_exact(12,1,-1,&
+                                            -1,-1,1,j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        
+                                    else if (isThree(ilutI,k)) then 
+                                        ! _L(i) -> _RL(j) -> ^RL(k) -> ^L(l) 
+                                        excitInfo = assign_excitInfo_values_exact(10,1,-1,&
+                                            -1,-1,-1,j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                    else 
+                                        ! n(k) = 1 
+                                        if (isZero(ilutJ,k)) then 
+                                            ! _L(i) -> _RL(j) -> ^RL(k) -> ^L(l) 
+                                            excitInfo = assign_excitInfo_values_exact(10,1,-1,&
+                                                -1,-1,-1,j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                        else 
+                                            ! _L(i) -> _RL(j) -> ^LR(k) -> ^R(l)
+                                            excitInfo = assign_excitInfo_values_exact(12,1,-1,&
+                                                -1,-1,1,j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            
+                                        end if
+                                    end if
+                                end if
+                            end if
+                        else 
+                            ! _R(i) -> ... 
+                            if (isZero(ilutI,j)) then 
+                                ! _R(i) -> _RR(j) -> ^RR(k) -> ^R(l) 
+                                excitInfo = assign_excitInfo_values_exact(9,1,1,&
+                                    1,1,1,j,l,i,k,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                
+                            else if (isThree(ilutI,j)) then 
+                                ! have to check where the electron goes 
+                                if (isZero(ilutI,k)) then 
+                                    ! _R(i) -> _LR(j) -> ^LR(k) -> ^R(l) 
+                                    excitInfo = assign_excitInfo_values_exact(11,1,-1,&
+                                        1,1,1,i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                else if (isThree(ilutI,k)) then 
+                                    ! _R(i) -> _LR(j) -> ^RL(k) -> ^L(l) 
+                                    excitInfo = assign_excitInfo_values_exact(13,1,-1,&
+                                        1,1,-1,i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                else 
+                                    ! n(k) = 1 
+                                    if (isZero(ilutJ,k)) then 
+                                        ! _R(i) -> _LR(j) -> ^RL(k) -> ^L(l) 
+                                        excitInfo = assign_excitInfo_values_exact(13,1,-1,&
+                                            1,1,-1,i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                    else 
+                                        ! _R(i) -> _LR(j) -> ^LR(k) -> ^R(l) 
+                                        excitInfo = assign_excitInfo_values_exact(11,1,-1,&
+                                            1,1,1,i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                    end if
+                                end if 
+                            else 
+                                ! n(j) = 1 
+                                if (isZero(ilutJ,j)) then 
+                                    ! _R(i) -> _LR(j) ...
+                                    if (isZero(ilutI,k)) then 
+                                        ! _R(i) -> _LR(j) -> ^LR(k) -> ^R(l) 
+                                        excitInfo = assign_excitInfo_values_exact(11,1,-1,&
+                                            1,1,1,i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                    else if (isThree(ilutI,k)) then 
+                                        ! _R(i) -> _LR(j) -> ^RL(k) -> ^L(l) 
+                                        excitInfo = assign_excitInfo_values_exact(13,1,-1,&
+                                            1,1,-1,i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                    else 
+                                        ! n(k) = 1 
+                                        if (isZero(ilutJ,k)) then 
+                                            ! _R(i) -> _LR(j) -> ^RL(k) -> ^L(l) 
+                                            excitInfo = assign_excitInfo_values_exact(13,1,-1,&
+                                                1,1,-1,i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                        else 
+                                            ! _R(i) -> _LR(j) -> ^LR(k) -> ^R(l) 
+                                            excitInfo = assign_excitInfo_values_exact(11,1,-1,&
+                                                1,1,1,i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                        end if
+                                    end if
+                                else 
+                                    ! _R(i) -> _RR(j) -> ^RR(k) -> ^R(l) 
+                                    excitInfo = assign_excitInfo_values_exact(9,1,1,&
+                                        1,1,1,j,l,i,k,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                end if
+                            end if
+                        end if
+                    end if
+                end if
+
+
+            case (2) 
+                ! n_change_2 could still be 0 or 2 
+
+                select case (n_change_2) 
+
+                case (2) 
+                    ! this means a a fullstart/fullstop still need to 
+                    ! check spin-coupling 
+                    ! can also be a single overlap with mixed generators!
+                    
+                    j = 1 
+                    do i = 0, nifd 
+                        do while (change_1(i) /= 0) 
+                            pos = trailz(change_1(i)) 
+
+                            ind(j) = 1 + ishft(bits_n_int * i + pos, -1) 
+
+                            change_1(i) = ibclr(change_1(i), pos) 
+
+                            j = j + 1
+                        end do
+                    end do
+                    first_occ = ind(1)
+                    last_occ = ind(2)
+
+                    ! there is only one +-2 change! 
+                    do i = 0, nifd 
+                        if (change_2(i) == 0) cycle 
+
+                        occ_double = 1 + ishft(bits_n_int * i + trailz(change_2(i)), -1)
+
+                        exit 
+                    end do
+
+                    if (first_spin < min(first_occ, occ_double) .or. &
+                        last_spin > max(last_occ, occ_double)) then
+                        ! no excitation possible 
+
+                        return 
+
+                    else 
+                        ! identify the excitation specifically 
+                        ! there is no spin-coupling change allowed in the 
+                        ! double excitation region, since x1 matrix element 
+                        ! is 0 in this case anyway, remember that!!
+                        
+                        ! have to check if its a single overlap, to check 
+                        ! for spin coupling changes within DE range 
+                        if (occ_double < first_occ) then 
+                            ! it is a fullstart alike -> check spin-coupling 
+                            ! i already know the first spin change is not 
+                            ! totally out of the excitation range! 
+                            if (first_spin < first_occ) then 
+                                ! thats all i need to check, since first_spin 
+                                ! is definetly lower than last_spin and i just 
+                                ! need to check if there is any spin-coupling 
+                                ! change in the DE region 
+
+                                ! no excitation possible! 
+
+                                return 
+
+                            else 
+                                ! it is a full-start alike! 
+                                ! have to still check if there is some 
+                                ! spin-coupling change in the overlap region
+                                ! if there is -> no valid excitation! 
+                                ind_2 = [2 * occ_double / bits_n_int, mod(occ_double, bits_n_int)]
+                                ind_3 = [2 * first_occ / bits_n_int, mod(first_occ, bits_n_int)]
+                                ! for the third index i have to put to 1 everyhing right 
+                                ! for the second, everything to the left 
+                                mask_2(ind_2(1)+1:nifd) = huge(0_n_int) 
+                                mask_2(0:ind_2(1)-1) = 0_n_int
+
+                                mask_3(0:ind_3(1)-1) = huge(0_n_int)
+                                mask_3(ind(3)+1:nifd) = 0_n_int
+
+                                ! so now in the mixed integer we have all 0
+                                mask_2(ind_2(1)) = maskl(bits_n_int - ind_2(2), n_int)
+                                mask_3(ind_3(1)) = maskr(ind_3(2), n_int)
+
+                                overlap = iand(spin_change, iand(mask_2, mask_3))
+
+                                if (sum(popcnt(overlap)) > 0) then 
+                                    ! no excitation possible! 
+
+                                    return
+
+                                else 
+                                    ! valid excitation
+                                    i = occ_double 
+                                    j = first_occ
+                                    k = last_occ 
+
+                                    if (isZero(ilutI,i)) then 
+                                        ! _RR_(i) -> ^RR(j) -> ^R(k) 
+                                        excitInfo = assign_excitInfo_values_exact(19,1,1,&
+                                            1,1,1,i,j,i,k,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                    else 
+                                        ! _LL_(i) -> ^LL(j) -> ^L(k) 
+                                        excitInfo = assign_excitInfo_values_exact(18,-1,-1,&
+                                            -1,-1,-1,k,i,j,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                    end if
+                                end if
+                            end if
+
+                        else if (occ_double > last_occ) then 
+                            ! fullstop alike -> check if last spin-coupling 
+                            ! change is in the DE range 
+                            if (last_spin > last_occ) then 
+                                ! no excitation possible 
+
+                                return 
+
+                            else 
+                                ! it is a valid fullstop alike excitation 
+                                ! still have to check spin-coupling change 
+!                                 overlap = iand(spin_change, iand(maskl(occ_double,n_int), &
+!                                     maskr(last_occ,n_int)))
+                                ind_2 = [2 * last_occ / bits_n_int, mod(last_occ, bits_n_int)]
+                                ind_3 = [2 * occ_double / bits_n_int, mod(occ_double, bits_n_int)]
+                                ! for the third index i have to put to 1 everyhing right 
+                                ! for the second, everything to the left 
+                                mask_2(ind_2(1)+1:nifd) = huge(0_n_int) 
+                                mask_2(0:ind_2(1)-1) = 0_n_int
+
+                                mask_3(0:ind_3(1)-1) = huge(0_n_int)
+                                mask_3(ind(3)+1:nifd) = 0_n_int
+
+                                ! so now in the mixed integer we have all 0
+                                mask_2(ind_2(1)) = maskl(bits_n_int - ind_2(2), n_int)
+                                mask_3(ind_3(1)) = maskr(ind_3(2), n_int)
+
+                                overlap = iand(spin_change, iand(mask_2, mask_3))
+
+                                if (sum(popcnt(overlap)) > 0) then 
+                                    ! no excitation possible 
+
+                                    return 
+
+                                else 
+                                    ! valid! 
+                                    i = first_occ 
+                                    j = last_occ 
+                                    k = occ_double
+
+                                    if (isZero(ilutI,k)) then 
+                                        ! _L(i) -> _LL(j) -> ^LL^(k) 
+                                        excitInfo = assign_excitInfo_values_exact(14,-1,-1,&
+                                            -1,-1,-1,k,i,k,j,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                    else 
+                                        ! _R(i) -> _RR(j) -> ^RR^(k) 
+                                        excitInfo = assign_excitInfo_values_exact(15,1,1,&
+                                            1,1,1,i,k,j,k,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                                    end if
+                                end if
+                            end if
+
+                        else 
+                            ! the double change is between the single 
+                            ! changes -> so it is a single overlap mixed 
+                            ! no need to check the spin-coupling 
+                            i = first_occ 
+                            j = occ_double 
+                            k = last_occ 
+
+                            if (isZero(ilutI,j)) then 
+                                ! _L(i) > ^LR_(j) -> ^R(k) 
+                                excitInfo = assign_excitInfo_values_exact(6,1,-1,&
+                                    -1,-1,1,j,k,j,i,i,j,j,k,0,4,1.0_dp,1.0_dp,1,spin_change_flag)
+
+                            else 
+                                ! _R(i) -> ^RL_(j) -> ^L(k) 
+                                excitInfo = assign_excitInfo_values_exact(7,1,-1,&
+                                    1,1,-1,i,j,k,j,i,j,j,k,0,4,1.0_dp,1.0_dp,1,spin_change_flag)
+                                
+                            end if
+                        end if
+                    end if
+
+                case (0) 
+                    ! "normal" single -> check spin-coupling 
+
+                    ! in this case a spin change either below or above is 
+                    ! possible, but no both.. 
+                    j = 1
+                    do i = 0, nifd 
+                        do while (change_1(i) /= 0) 
+                            pos = trailz(change_1(i)) 
+
+                            ind(j) = 1 + ishft(bits_n_int * i + pos, -1) 
+
+                            ! i have to find out the convention in NECI how to 
+                            ! access the bits and how they are stored.. 
+                            ! if they are really stored beginning from the left..
+                            change_1(i) = ibclr(change_1(i), pos) 
+
+                            j = j + 1
+                        end do 
+                    end do
+
+                    first_occ = ind(1)
+                    last_occ = ind(2)
+
+                    print *, "first_spin, last_spin:", first_spin, last_spin
+
+                    if (first_spin < first_occ .and. last_spin > last_occ) then 
+                        ! no excitation possible 
+
+                        return
+
+                    else if (first_spin < first_occ) then 
+                        ! full-start mixed 
+                        i = first_spin 
+                        j = first_occ 
+                        k = last_occ 
+
+                        if (isZero(ilutI,j)) then 
+                            ! _RL_(i) -> ^LR(j) -> ^R(k) 
+                            excitInfo = assign_excitInfo_values_exact(20,1,-1,&
+                                1,1,1,i,k,j,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                        else if (isThree(ilutI,i)) then 
+                            ! _RL_(i) -> ^RL(j) -> ^L(k) 
+                            excitInfo = assign_excitInfo_values_exact(21,1,-1,&
+                                1,1,-1,i,j,k,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                        else 
+                            if (isZero(ilutJ,i)) then 
+                                ! _RL_(i) -> ^RL(j) -> ^L(k) 
+                                excitInfo = assign_excitInfo_values_exact(21,1,-1,&
+                                    1,1,-1,i,j,k,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                            else 
+                                ! _RL_(i) -> ^LR(j) -> ^R(k) 
+                                excitInfo = assign_excitInfo_values_exact(20,1,-1,&
+                                    1,1,1,i,k,j,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                            end if
+                        end if
+
+                    else if (last_spin > last_occ) then 
+                        ! full-stop mixed 
+
+                        i = first_occ 
+                        j = last_occ 
+                        k = last_spin 
+
+                        if (isZero(ilutI,i)) then 
+                            ! _R(i) -> _LR(j) -> ^RL^(k) 
+                            excitInfo = assign_excitInfo_values_exact(17,1,-1,&
+                                1,1,1,i,k,k,j,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                        else if (isThree(ilutI,i)) then 
+                            ! _L(i) -> _RL(j) -> ^RL^(k) 
+                            excitInfo = assign_excitInfo_values_exact(16,1,-1,&
+                                -1,1,1,j,k,k,i,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                        else 
+                            if (isZero(ilutJ,i)) then 
+                                ! _L(i) -> _RL(j) -> ^RL^(k) 
+                                excitInfo = assign_excitInfo_values_exact(16,1,-1,&
+                                    -1,1,1,j,k,k,i,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                            else 
+                                ! _R(i) -> _LR(j) -> ^RL^(k) 
+                                excitInfo = assign_excitInfo_values_exact(17,1,-1,&
+                                    1,1,1,i,k,k,j,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                            end if
+                        end if
+
+                    else 
+                        ! regular single excitation 
+                        ! this is the "easiest" case.. start with this .. 
+                        ! 0123 -> 0110
+                        ! 1212 -> 1111 -> 1001 
+
+                        ! 0123 -> 0110
+                        ! 0312 -> 0011 -> 0101
+                        
+                        ! 0123 -> 0110
+                        ! 0303 -> 0000 -> 0110 
+                        ! -> the original stepvector number on the identified 
+                        ! indices is not enough to determine if it is a 
+                        ! hole or electron, if they are singly occupied ... 
+
+                        ! first i have to change the spin-orbital indices 
+                        ! to spatial orbitals: use beta orbs by definition
+                        i = first_occ 
+                        j = last_occ 
+
+                        ! but remember i need to calculate ALL the possible 
+                        ! double excitation influences which can lead 
+                        ! to this single excitation! 
+                        if (isZero(ilutI,i)) then 
+                            ! then i know first_occ is a hole and the second 
+                            ! a electron.. 
+                            ! -> so it is a raising generator 
+                            ! _R(i) -> ^R(j) 
+                            excitInfo = assign_excitInfo_values_single_ex(1,i,j,i,j,0)
+
+                        else if (isThree(ilutI,i)) then 
+                            ! i know (i) is a electron -> 
+                            ! _L(i) -> ^L(j) 
+                            excitInfo = assign_excitInfo_values_single_ex(-1,j,i,i,j,0)
+
+                        else 
+                            ! i know n(i) = 1 
+                            ! so i only need to check what happened in ilutJ
+                            if (isZero(ilutJ,i)) then 
+                                ! (i) was an electron 
+                                ! _L(i) -> ^L(j) 
+                                excitInfo = assign_excitInfo_values_single_ex(-1,j,i,i,j,0)
+                                
+                            else 
+                                ! (i) was a hole 
+                                ! _R(i) -> ^R(j) 
+                                excitInfo = assign_excitInfo_values_single_ex(1,i,j,i,j,0)
+
+                            end if
+                        end if 
+                    end if
+                end select
+
+            case (0) 
+                ! n_change_2 can be 0 or 4, since 2 is not possible to 
+                ! conserve electron number
+                select case (n_change_2) 
+
+                case (4) 
+                    ! fullstart -> fullstop alike, check spin-coupling 
+                    ! due to x1 element being zero in this case there is 
+                    ! no spin-coupling change at all allowed.. 
+                    if (sum(popcnt(spin_change)) > 0) then 
+                        ! no excitation possible 
+
+                        return
+                        
+                    else
+
+                        j = 1
+                        do i = 0, nifd 
+                            do while (change_2(i) /= 0) 
+                                pos = trailz(change_2(i)) 
+
+                                ind(j) = 1 + ishft(bits_n_int * i + pos, -1) 
+
+                                ! i have to find out the convention in NECI how to 
+                                ! access the bits and how they are stored.. 
+                                ! if they are really stored beginning from the left..
+                                change_2(i) = ibclr(change_2(i), pos) 
+                                ! i need to clear the 2 set bits in the change 2
+                                change_2(i) = ibclr(change_2(i), pos + 1)
+
+                                j = j + 1
+                            end do 
+                        end do
+
+                        first_occ = ind(1)
+                        last_occ = ind(2)
+                        ! here excitation identification should be not so 
+                        ! hard .. but eg. here there should be now spin-change 
+                        ! also within in the excitation range, since the 
+                        ! x1-matrix element branch is 0... 
+                        ! also above for the fullstart/fullstop alikes.. 
+                        ! so actually there is no spin-coupling change allowed 
+                        ! in this case..
+
+                        i = first_occ 
+                        j = last_occ 
+
+                        if (isZero(ilutI,i)) then 
+                            ! _RR_(i) -> ^RR^(j) 
+                            excitInfo = assign_excitInfo_values_exact(22,1,1,&
+                                1,1,1,i,j,i,j,i,i,j,j,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                        else 
+                            ! _LL_(i) -> ^LL^(j)
+                            excitInfo = assign_excitInfo_values_exact(22,-1,-1,&
+                                -1,-1,-1,j,i,j,i,i,i,j,j,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+
+                        end if
+                    end if
+
+                case (0) 
+                    ! full-start -> fullstop mixed or diagonal matrix element! 
+                    ! i could exclude diagonal from the beginning, if 
+                    ! no change at all between die iluts
+                    ! have excluded diagonals above so only check for the 
+                    ! first and last spin-coupling changes
+                    
+                    ! here there are a bunch of excitations possible.. 
+                    ! maybe check for the first and last spin change and 
+                    ! then output a flag to calculate all the possible 
+                    ! excitations 
+
+                    ! check atleast the first and last spin-coupling changes.. 
+                    i = first_spin 
+                    j = last_spin 
+                    ! _RL_(i) -> ^RL^(j)
+                    excitInfo = assign_excitInfo_values_exact(23,1,-1,1,1,1,&
+                        i,j,j,i,i,i,j,j,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                    
+
+                end select 
+            end select 
+        end if
+        end if
+
+    end function identify_excitation
+
+    function assign_excitInfo_values_exact(typ, gen1, gen2, currentGen, firstGen, &
+            lastGen, i, j, k, l, fullStart, secondStart, firstEnd, fullEnd, &
+            weight, excitLvl, order, order1, overlap, spin_change) result(excitInfo)
+        ! version of the excitation information filler for the exact 
+        ! matrix element calculation between 2 given CSFs 
+        integer, intent(in) :: typ, gen1, gen2, currentGen, firstGen, lastGen, &
+                               i, j, k, l, fullStart, secondStart, firstEnd, &
+                               fullEnd, weight, excitLvl
+        integer, intent(in), optional :: overlap
+        real(dp), intent(in) :: order, order1
+        logical, intent(in) :: spin_change
+        type(excitationInformation) :: excitInfo
+!         character(*), parameter :: this_routine = "assign_excitInfo_values_double"
+
+        ! todo: asserts!
+        excitInfo%typ = typ
+        excitInfo%gen1 = gen1
+        excitInfo%gen2 = gen2
+        excitInfo%currentGen = currentGen
+        excitInfo%firstGen = firstGen
+        excitInfo%lastGen = lastGen
+        excitInfo%i = i
+        excitInfo%j = j
+        excitInfo%k = k
+        excitInfo%l = l
+        excitInfo%fullStart = fullStart
+        excitInfo%secondStart = secondStart
+        excitInfo%firstEnd = firstEnd
+        excitInfo%fullEnd = fullEnd
+        excitInfo%weight = weight
+        excitInfo%excitLvl = excitLvl
+        excitInfo%order = order
+        excitInfo%order1 = order1
+        excitInfo%spin_change = spin_change
+        if (present(overlap)) then
+            excitInfo%overlap = overlap
+        else
+            excitInfo%overlap = 2
+        end if
+        
+        excitInfo%valid = .true.
+
+    end function assign_excitInfo_values_exact
+
+    function assign_excitInfo_values_single_ex(gen, i, j, fullStart, fullEnd, typ) &
+            result(excitInfo)
+        integer, intent(in) :: gen, i, j, fullStart, fullEnd
+        integer, intent(in), optional :: typ
+        type(excitationInformation) :: excitInfo
+
+        ! set default values for single excitations: which cause errors if 
+        ! called in incorrect places
+        if (present(typ)) then
+            excitInfo%typ = typ
+        else
+            excitInfo%typ = 0
+        end if
+
+        if (i == j) then
+            excitInfo%excitLvl = 0
+            excitInfo%weight = i
+        else 
+            excitInfo%excitLvl = 2
+            excitInfo%weight = 0
+        end if
+        excitInfo%k = 0
+        excitInfo%l = 0
+        excitInfo%secondStart = 0
+        excitInfo%firstEnd = 0
+        excitInfo%gen2 = -2
+        excitInfo%order = 0.0_dp
+        excitInfo%order1 = 0.0_dp
+        excitInfo%overlap = 0
+        
+        ! then set proper values
+        excitInfo%i = i
+        excitInfo%j = j
+        excitInfo%gen1 = gen
+        excitInfo%fullStart = fullStart
+        excitInfo%fullEnd = fullEnd
+        excitInfo%currentGen = gen
+        excitInfo%firstGen = gen
+        excitInfo%lastGen = gen
+
+        excitInfo%valid = .true.
+
+    end function assign_excitInfo_values_single_ex
+
+
+
     subroutine getExcitation_guga(nI, nJ, ex) 
         ! routine to determine excitation in guga basis
         ! for now to it very naively and unellegant by converting to ilut 
@@ -163,6 +1442,8 @@ contains
         lower = 1
         upper = nSpatOrbs
 
+        ! i think i could improve that with the new trailz, leadz routines..
+
         if (isOne(ilut,ind)) then
             do i = ind - 1, 2, -1
                 if (isTwo(ilut,i)) then
@@ -240,6 +1521,8 @@ contains
         character(*), parameter :: this_routine = "findFirstSwitch"
 
         integer :: i
+        integer(n_int) :: alpha_i(0:nifd), alpha_j(0:nifd), beta_i(0:nifd), &
+                          beta_j(0:nifd), mask_singles(0:nifd), spin_change(0:nifd)
         ! with the fortran 2008 intrinsic funcitons it would be easy...
         ! for now just do a loop over double overlap region and compare
         ! stepvalues
@@ -248,17 +1531,49 @@ contains
         ! if it is always called for the current looked at ilut..
         ! i guess it does..
 
+        ! implement this with the new f2008 routines.. 
+        ! i need to find the first spin-change between start and semi-1
+
+        ! make the spin_change bit-rep
+        alpha_i = iand(iI(0:nifd), MaskAlpha)
+        beta_i = iand (iI(0:nifd), MaskBeta) 
+        alpha_i = ishft(alpha_i, -1) 
+        alpha_i = ieor(alpha_i, beta_i) 
+
+        alpha_j = iand(iJ(0:nifd), MaskAlpha)
+        beta_j = iand(iJ(0:nifd), MaskBeta) 
+        alpha_j = ishft(alpha_j, -1) 
+        alpha_j = ieor(alpha_j, beta_j) 
+
+        mask_singles = iand(alpha_i, alpha_j)
+        mask_singles = ieor(mask_singles, ishft(mask_singles,+1))
+
+        spin_change = ieor(iand(iI(0:nifd), mask_singles), iand(iJ(0:nifd),mask_singles))
+
         orb = 0
-        do i = start, semi - 1
-!             if (getStepvalue(iI,i) /= getStepvalue(iJ,i)) then
-            a = getStepvalue(iI,i)
-!             a = current_stepvector(i)
-            b = getStepvalue(iJ,i)
-            if (a /= b) then
-                orb = i
-                return
-            end if
+
+        do i = 0, nifd
+            if (spin_change(i) == 0) cycle 
+
+            orb = 1 + ishft(bits_n_int * i + trailz(spin_change(i)), -1)
+            exit 
         end do
+
+        ! only consider spin_changes below semi
+        if (orb > semi - 1) orb = 0
+
+        ! todo check if this change worked!
+!         orb = 0
+!         do i = start, semi - 1
+! !             if (getStepvalue(iI,i) /= getStepvalue(iJ,i)) then
+!             a = getStepvalue(iI,i)
+! !             a = current_stepvector(i)
+!             b = getStepvalue(iJ,i)
+!             if (a /= b) then
+!                 orb = i
+!                 return
+!             end if
+!         end do
 
     end function findFirstSwitch
 
@@ -269,22 +1584,71 @@ contains
         integer :: orb, a, b
         character(*), parameter :: this_routine = "findLastSwitch"
 
-        integer :: iOrb
+        integer :: iOrb, i, j, k, res_orbs
+        integer(n_int) :: alpha_i(0:nifd), alpha_j(0:nifd), beta_i(0:nifd), &
+                          beta_j(0:nifd), mask_singles(0:nifd), spin_change(0:nifd)
 
         ! set it to impossible value, so contribution does not get 
         ! calculated if no switch happened, (which shouldnt be reached anyway)
+
+        ! also implement this with the new fortran 2008 routines! 
+        ! make the spin_change bit-rep
+        alpha_i = iand(ilutI(0:nifd), MaskAlpha)
+        beta_i = iand (ilutI(0:nifd), MaskBeta) 
+        alpha_i = ishft(alpha_i, -1) 
+        alpha_i = ieor(alpha_i, beta_i) 
+
+        alpha_j = iand(ilutJ(0:nifd), MaskAlpha)
+        beta_j = iand(ilutJ(0:nifd), MaskBeta) 
+        alpha_j = ishft(alpha_j, -1) 
+        alpha_j = ieor(alpha_j, beta_j) 
+
+        mask_singles = iand(alpha_i, alpha_j)
+        mask_singles = ieor(mask_singles, ishft(mask_singles,+1))
+
+        spin_change = ieor(iand(ilutI(0:nifd), mask_singles), iand(ilutJ(0:nifd),mask_singles))
+
         orb = nSpatOrbs + 1
 
-        do iOrb = ende, semi + 1, -1
-            a = getStepvalue(ilutI,iOrb)
-!             a = current_stepvector(iOrb)
-            b = getStepvalue(ilutJ,iOrb)
-            if (a /= b) then
-!             if (getStepvalue(ilutI,iOrb) /= getStepvalue(ilutJ,iOrb)) then
-                orb = iOrb
-                return
-            end if
-        end do
+        if (.not. spin_change(nifd) == 0) then 
+            i = nBasis 
+            j = leadz(spin_change(nifd)) - (bits_n_int - mod(nBasis, bits_n_int))
+
+            orb = ishft(i - j, -1) 
+
+        else 
+            res_orbs = mod(nBasis, bits_n_int)
+
+            do i = nifd - 1, 0, -1 
+                if (spin_change(i) == 0) then 
+                    res_orbs = res_orbs + bits_n_int
+                    cycle
+                end if
+
+                j = nBasis 
+                k = leadz(spin_change(i)) 
+
+                orb = ishft(j - res_orbs - k, -1)
+
+                exit 
+            end do
+        end if
+
+        ! only consider switches above semi! 
+        if (orb < semi + 1) orb = nSpatOrbs + 1
+
+        ! todo check if this works as intended!
+! 
+!         do iOrb = ende, semi + 1, -1
+!             a = getStepvalue(ilutI,iOrb)
+! !             a = current_stepvector(iOrb)
+!             b = getStepvalue(ilutJ,iOrb)
+!             if (a /= b) then
+! !             if (getStepvalue(ilutI,iOrb) /= getStepvalue(ilutJ,iOrb)) then
+!                 orb = iOrb
+!                 return
+!             end if
+!         end do
     
     end function findLastSwitch
 

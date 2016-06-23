@@ -146,6 +146,12 @@ module guga_data
         ! add a flag to indicate if the excitation is even possible or other
         ! wise cancel the excitation
         logical :: valid = .false.
+        ! for the exact calculation, to avoid calculating non-overlap 
+        ! contributions to matrix elements which are not possible, due to 
+        ! spin-coupling changes in the overlap range use a flag to 
+        ! indicate if a spin_change happened
+        logical :: spin_change = .false.
+
     end type excitationInformation
 
     ! logical to indicate that GUGA and core space, like doubles and singles 
