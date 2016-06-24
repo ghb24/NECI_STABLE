@@ -158,6 +158,14 @@ endif
 #endif
 #endif
 
+! To make sure conjugations of both real and complex realisations of helement_t behave on all compilers:
+#ifdef __CMPLX
+#define h_conjg(z) = conjg(z)
+#else
+#define h_conjg(z) = z
+#endif
+
+! Handy debugging snippets
 #define debug_line(unit, msg) write(unit,*) __LINE__, __FILE__, char(9), msg ; flush(unit)
 #define debug_out(unit, msg) write(unit,*), char(9), msg
 

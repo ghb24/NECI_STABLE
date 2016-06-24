@@ -55,6 +55,7 @@ set( SRC_FILES
     gndts.F90
     gndwork.F90
     hash.F90
+	hamiltonian_linalg.F90
     hdf5_popsfile.F90
     hdiag.F
     HElem.F90

@@ -1,4 +1,4 @@
-#include  "macros.h"
+#include "macros.h"
 
 ! This module contains a type and routines for defining and creating a sparse Hamiltonian.
 ! The type created to store this information is sparse_matrix_real. For an N-by-N matrix,
@@ -172,7 +172,7 @@ contains
                 sparse_ham(sparse_ham(i)%positions(j))%&
                     &positions(indices(sparse_ham(i)%positions(j))) = i
                 sparse_ham(sparse_ham(i)%positions(j))%&
-                    &elements(indices(sparse_ham(i)%positions(j))) = sparse_ham(i)%elements(j)
+                    &elements(indices(sparse_ham(i)%positions(j))) = h_conjg(sparse_ham(i)%elements(j))
 
                 indices(sparse_ham(i)%positions(j)) = indices(sparse_ham(i)%positions(j)) + 1
 
