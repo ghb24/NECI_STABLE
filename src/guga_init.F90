@@ -10,7 +10,9 @@ module guga_init
                           tGen_4ind_reverse, tGen_sym_guga_ueg, tGen_sym_guga_mol, &
                           tGen_nosym_guga, nSpatOrbs, t_consider_diff_bias, &
                           current_stepvector, currentOcc_ilut, currentOcc_int, &
-                          currentB_ilut, currentB_int, current_cum_list
+                          currentB_ilut, currentB_int, current_cum_list, &
+                          ref_stepvector, ref_b_vector_int, ref_occ_vector, &
+                          ref_b_vector_real
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh
     use hist_data, only: tHistSpawn
     use LoggingData, only: tCalcFCIMCPsi, tPrintOrbOcc
@@ -32,7 +34,9 @@ module guga_init
                         calc_mixed_end_contr_sym, pick_first_orbital_nosym_guga_diff, &
                         pick_first_orbital_nosym_guga_uniform, orb_pgen_contrib_type_2_diff, &
                         orb_pgen_contrib_type_3_diff, orb_pgen_contrib_type_2_uniform, &
-                        orb_pgen_contrib_type_3_uniform
+                        orb_pgen_contrib_type_3_uniform, temp_step_i, temp_step_j, &
+                        temp_delta_b, temp_occ_i, temp_b_real_i
+
     use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same
     use constants, only: dp
     use ParallelHelper, only: iProcIndex
@@ -182,6 +186,31 @@ contains
             allocate(current_cum_list(nSpatOrbs), stat = ierr)
 
 !         end if
+
+        ! also allocate the temporary variables used in the matrix element 
+        ! calculation and also the similar variables for the reference 
+        ! determinant! 
+        if (allocated(temp_step_i))   deallocate(temp_step_i) 
+        if (allocated(temp_step_j))   deallocate(temp_step_j) 
+        if (allocated(temp_delta_b))  deallocate(temp_delta_b) 
+        if (allocated(temp_occ_i))    deallocate(temp_occ_i)
+        if (allocated(temp_b_real_i)) deallocate(temp_b_real_i)
+
+        allocate(temp_step_i(nSpatOrbs))
+        allocate(temp_step_j(nSpatOrbs))
+        allocate(temp_delta_b(nSpatOrbs))
+        allocate(temp_occ_i(nSpatOrbs)) 
+        allocate(temp_b_real_i(nSpatOrbs)) 
+
+        if (allocated(ref_stepvector))    deallocate(ref_stepvector) 
+        if (allocated(ref_b_vector_int))  deallocate(ref_b_vector_int) 
+        if (allocated(ref_b_vector_real)) deallocate(ref_b_vector_real) 
+        if (allocated(ref_occ_vector))    deallocate(ref_occ_vector)
+
+        allocate(ref_stepvector(nSpatOrbs)) 
+        allocate(ref_b_vector_int(nSpatOrbs))
+        allocate(ref_b_vector_real(nSpatOrbs))
+        allocate(ref_occ_vector(nSpatOrbs))
 
         ! also initiate the pExcit values here.. or otherwise they dont 
         ! get initialized without tau-search option on 

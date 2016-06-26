@@ -256,6 +256,11 @@ integer, allocatable :: current_stepvector(:)
 integer, allocatable :: currentOcc_int(:), currentB_int(:)
 real(dp), allocatable :: currentOcc_ilut(:), currentB_ilut(:), currentB_nI(:)
 
+! also use this kind of information for the reference determinant 
+! which i should initialize in the reference determinant init
+integer, allocatable :: ref_stepvector(:), ref_b_vector_int(:) 
+real(dp), allocatable :: ref_b_vector_real(:), ref_occ_vector(:)
+
 ! also use a fake cum-list of the non-doubly occupied orbital to increase 
 ! preformance in the picking of orbitals (a)
 real(dp), allocatable :: current_cum_list(:)

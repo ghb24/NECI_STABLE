@@ -187,9 +187,9 @@ contains
             ! do diagonal element or return if i do not need the diagonals.. 
         else
 
-        print *, "======"
-        call write_det_guga(6, ilutI, .true.)
-        call write_det_guga(6, ilutJ, .true.)
+!         print *, "======"
+!         call write_det_guga(6, ilutI, .true.)
+!         call write_det_guga(6, ilutJ, .true.)
         ! i have to create the singles and non-singles mask and 
         ! convert the 2 iluts to 1 -> 1, 2 -> 1, 0 -> 0, 3 -> 0 
         alpha_i = iand(ilutI, MaskAlpha) 
@@ -205,7 +205,7 @@ contains
 
         singles_j = ieor(alpha_j, beta_j) 
 
-        print *, "======"
+!         print *, "======"
         ! with those 2 integers i can determine the +-1 occupation changes 
         change_1 = ieor(singles_i, singles_j) 
         ! can i tell something about the holes or electrons here
@@ -241,12 +241,12 @@ contains
 !         mask_doubles = iand(not(mask_singles), iand(singles_i, ishft(singles_i,+1)))
 
 !         print *, "======================"
-        print *, "change_1:, n_change_1: ", n_change_1
-        call writedetbit(6, change_1, .true.)
-        print *, "mask_singles:"
-        call writedetbit(6, mask_singles, .true.)
-        print *, "mask_change_2:"
-        call writedetbit(6, mask_change_2, .true.)
+!         print *, "change_1:, n_change_1: ", n_change_1
+!         call writedetbit(6, change_1, .true.)
+!         print *, "mask_singles:"
+!         call writedetbit(6, mask_singles, .true.)
+!         print *, "mask_change_2:"
+!         call writedetbit(6, mask_change_2, .true.)
 
         ! also determine the +-2 changes 
         ! should be enough to mask the positions of the 3 and 0 and then 
@@ -257,9 +257,9 @@ contains
         ! can i say something about the holes and electrons here? 
         ! i could check with the index of the change, if it is a 0 or a 3..
         
-        print *, "change_2, n_change_2: ", n_change_2
-        call writedetbit(6, change_2, .true.)
-        print *, "======"
+!         print *, "change_2, n_change_2: ", n_change_2
+!         call writedetbit(6, change_2, .true.)
+!         print *, "======"
         ! so... what can i say about the validness of the excitation here .. 
         ! i still have to determine spin coupling changes outside the 
         ! index range of the excitation.. but it is probably better to do 
@@ -306,7 +306,7 @@ contains
         ! happen a lot and still represent a valid excitation
         ! so atleast check the double changes too.. 
 
-        print *, "n_change_1, n_change_2", n_change_1, n_change_2
+!         print *, "n_change_1, n_change_2", n_change_1, n_change_2
 
         if (n_change_1 + n_change_2 > 4) then 
             ! no possible excitation
@@ -316,9 +316,9 @@ contains
             ! could check spin-coupling here, since i need it in all cases 
             ! below.. 
             spin_change = ieor(iand(ilutI, mask_singles), iand(ilutJ, mask_singles))
-
-            print *, "spin_change, n_spin_change:", sum(popcnt(spin_change))
-            call writedetbit(6, spin_change, .true.)
+! 
+!             print *, "spin_change, n_spin_change:", sum(popcnt(spin_change))
+!             call writedetbit(6, spin_change, .true.)
 
             ! need the first and last index to check the indices 
             ! maybe i need to loop over the number of used integers to determine 
@@ -683,7 +683,7 @@ contains
                         end if
                     else 
                         ! n(i) = 1 
-                        if (isZero(ilutI,i)) then 
+                        if (isZero(ilutJ,i)) then 
                             ! _L(i) -> ...
                             if (isZero(ilutI,j)) then 
                                 ! _L(i) -> _RL(j) -> ... 
@@ -1030,8 +1030,6 @@ contains
 
                     first_occ = ind(1)
                     last_occ = ind(2)
-
-                    print *, "first_spin, last_spin:", first_spin, last_spin
 
                     if (first_spin < first_occ .and. last_spin > last_occ) then 
                         ! no excitation possible 

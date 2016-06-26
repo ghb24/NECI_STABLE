@@ -12,7 +12,8 @@ module fcimc_initialisation
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
                           tUEGNewGenerator, tGUGA, tGen_4ind_2, tGen_nosym_guga, &
-                          tGen_sym_guga_ueg, tGen_sym_guga_mol
+                          tGen_sym_guga_ueg, tGen_sym_guga_mol, ref_stepvector, &
+                          ref_b_vector_int, ref_occ_vector, ref_b_vector_real
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
                         tCheckHighestPop, tSpatialOnlyHash, tStartCAS, tau, &
@@ -140,7 +141,7 @@ module fcimc_initialisation
     use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut, convert_ilut_toNECI, &
                               convert_ilut_toGUGA, getDeltaB
     use guga_excitations, only: generate_excitation_guga, create_projE_list, &
-                                actHamiltonian
+                                actHamiltonian, calc_csf_info
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGUGA_nI
 #endif
 
@@ -162,6 +163,7 @@ contains
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,tAlreadyOcc
         INTEGER :: HFLz,ChosenOrb,step,SymFinal, run
         integer(int64) :: SymHF
+        character(*), parameter :: this_routine = t_r
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(iout,*) 
@@ -349,6 +351,16 @@ contains
 
             bVectorRef_nI = calcB_vector_nI(HFDet_True)
             bVectorRef_ilut = calcB_vector_ilut(iLutHF_True(0:nifd))
+
+            ! store more information of the reference determinant, like 
+            ! stepvector and stuff 
+
+            ASSERT(allocated(ref_stepvector))
+
+            call calc_csf_info(ilutRef, ref_stepvector, ref_b_vector_int, &
+                ref_occ_vector) 
+
+            ref_b_vector_real = real(ref_b_vector_int, dp)
 
             ! for multiple runs i have to initialize all the necessary 
             ! projected energy lists

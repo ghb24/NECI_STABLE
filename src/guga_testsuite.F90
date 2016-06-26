@@ -192,98 +192,98 @@ contains
 
         pExcit2_same = 0.9_dp
         pExcit3_same = 0.9_dp
-
-        if (nEl == 4 .and. nBasis/2 == 4 .and. STOT == 2) then
-!             call run_test_excit_gen_guga_S2
-            call run_test_excit_gen_guga_general
-
-        else if (nEL == 3 .and. nBasis/2 == 4 .and. STOT == 1) then
-            call run_test_excit_gen_guga_nEl_3_S_1
-
-        else if (nEl == 2 .and. nBasis/2 == 4) then
-            call run_test_excit_gen_guga_nEl_2_S_0
-
-        else if (nEl == 5 .and. nBasis/2 == 4) then
-            call run_test_excit_gen_guga_nEl_5_S_1
-
-        else if (nEl == 6 .and. nBasis/2 == 4) then
-            call run_test_excit_gen_guga_nEl_6_S_0
-
-        else if (nEl == 6 .and. nBasis/2 == 6 .and. STOT == 0) then
-            call run_test_excit_gen_guga_nOrb_6_nEl_6_S_0
-
-!             call run_test_excit_gen_guga_single([1,3,5,7,10,12])
-
-        else if (nEl == 6 .and. nBasis/2 == 6 .and. STOT == 2) then
-            call run_test_excit_gen_guga_nOrb_6_nEl_6_S_2
-!             call run_test_excit_gen_guga_single([1,3,4,5,10,11])
-
-        else if (nEl == 6 .and. nBasis/2 == 6 .and. STOT == 4) then
-            call run_test_excit_gen_guga_nOrb_6_nEl_6_S_4
-
-        else if (nEl == 4 .and. nBasis/2 == 6 .and. STOT == 0) then
-            call run_test_excit_gen_guga_nOrb_6_nEl_4_S_0
-
-        else if (nEl == 4 .and. nBasis/2 == 6 .and. STOT == 2) then
-            call run_test_excit_gen_guga_nOrb_6_nEl_4_S_2
-
-        else if (nEl == 5 .and. nBasis/2 == 6 .and. STOT == 1) then
-            call run_test_excit_gen_guga_nOrb_6_nEl_5_S_1
-
-        else if (nEl == 5 .and. nBasis/2 == 6 .and. STOT == 3) then
-            call run_test_excit_gen_guga_nOrb_6_nEl_5_S_3
-
-        else if (nEl == 7 .and. nBasis/2 == 6 .and. STOT == 1) then
-            call run_test_excit_gen_guga_nOrb_6_nEl_7_S_1
-
-        else if (nEl == 7 .and. nBasis/2 == 6 .and. STOT == 3) then
-            call run_test_excit_gen_guga_nOrb_6_nEl_7_S_3
-
-        else if (nEl == 5 .and. nBasis/2 == 9 .and. STOT == 1) then
-            call run_test_excit_gen_guga_nOrb_9_nEl_5_S_1
-
-        else if (nEl == 5 .and. nBasis/2 == 9 .and. STOT == 3) then
-            call run_test_excit_gen_guga_nOrb_9_nEl_5_S_3
-
-        else if (nEl == 7 .and. nBasis/2 == 9 .and. STOT == 1) then
-            call run_test_excit_gen_guga_nOrb_9_nEl_7_S_1
-
-        else if (nEl == 7 .and. nBasis/2 == 9 .and. STOT == 3) then
-            call run_test_excit_gen_guga_nOrb_9_nEl_7_S_3
-
-        else if (nEl == 10 .and. nBasis/2 == 9 .and. STOT == 0) then
-            call run_test_excit_gen_guga_nOrb_9_nEl_10_S_0
-
-        else if (nEl == 10 .and. nBasis/2 == 9 .and. STOT == 6) then
-            call run_test_excit_gen_guga_nOrb_9_nEl_10_S_6
-
-!         else if (nEl == 10 .and. nBasis/2 == 9 .and. STOT == 4) then
-!             call run_test_excit_gen_guga_nOrb_9_nEl_10_S_4
 ! 
-!         else if (nEl == 10 .and. nBasis/2 == 9 .and. STOT == 2) then
-!             call run_test_excit_gen_guga_nOrb_9_nEl_10_S_2
-
-        else if (nEl == 9 .and. nBasis/2 == 9 .and. STOT == 3) then
-            call run_test_excit_gen_guga_nOrb_9_nEl_9_S_3
-
-        else if (nEl == 9 .and. nBasis/2 == 9 .and. STOT == 1) then
-            call run_test_excit_gen_guga_nOrb_9_nEl_9_S_1
-
-        else if (nEl == 18 .and. nBasis/2 == 18 .and. STOT == 0) then
-            call run_test_excit_gen_guga_nOrb_18_nel_18_S_0
-
-        else if (nEl == 18 .and. nBasis/2 == 18 .and. STOT == 2) then
-            call run_test_excit_gen_guga_nOrb_18_nel_18_S_2
-
-        else if (nEl == 18 .and. nBasis/2 == 18 .and. STOT == 6) then
-            call run_test_excit_gen_guga_nOrb_18_nel_18_S_6
-        else 
+!         if (nEl == 4 .and. nBasis/2 == 4 .and. STOT == 2) then
+! !             call run_test_excit_gen_guga_S2
+!             call run_test_excit_gen_guga_general
+! 
+!         else if (nEL == 3 .and. nBasis/2 == 4 .and. STOT == 1) then
+!             call run_test_excit_gen_guga_nEl_3_S_1
+! 
+!         else if (nEl == 2 .and. nBasis/2 == 4) then
+!             call run_test_excit_gen_guga_nEl_2_S_0
+! 
+!         else if (nEl == 5 .and. nBasis/2 == 4) then
+!             call run_test_excit_gen_guga_nEl_5_S_1
+! 
+!         else if (nEl == 6 .and. nBasis/2 == 4) then
+!             call run_test_excit_gen_guga_nEl_6_S_0
+! 
+!         else if (nEl == 6 .and. nBasis/2 == 6 .and. STOT == 0) then
+!             call run_test_excit_gen_guga_nOrb_6_nEl_6_S_0
+! 
+! !             call run_test_excit_gen_guga_single([1,3,5,7,10,12])
+! 
+!         else if (nEl == 6 .and. nBasis/2 == 6 .and. STOT == 2) then
+!             call run_test_excit_gen_guga_nOrb_6_nEl_6_S_2
+! !             call run_test_excit_gen_guga_single([1,3,4,5,10,11])
+! 
+!         else if (nEl == 6 .and. nBasis/2 == 6 .and. STOT == 4) then
+!             call run_test_excit_gen_guga_nOrb_6_nEl_6_S_4
+! 
+!         else if (nEl == 4 .and. nBasis/2 == 6 .and. STOT == 0) then
+!             call run_test_excit_gen_guga_nOrb_6_nEl_4_S_0
+! 
+!         else if (nEl == 4 .and. nBasis/2 == 6 .and. STOT == 2) then
+!             call run_test_excit_gen_guga_nOrb_6_nEl_4_S_2
+! 
+!         else if (nEl == 5 .and. nBasis/2 == 6 .and. STOT == 1) then
+!             call run_test_excit_gen_guga_nOrb_6_nEl_5_S_1
+! 
+!         else if (nEl == 5 .and. nBasis/2 == 6 .and. STOT == 3) then
+!             call run_test_excit_gen_guga_nOrb_6_nEl_5_S_3
+! 
+!         else if (nEl == 7 .and. nBasis/2 == 6 .and. STOT == 1) then
+!             call run_test_excit_gen_guga_nOrb_6_nEl_7_S_1
+! 
+!         else if (nEl == 7 .and. nBasis/2 == 6 .and. STOT == 3) then
+!             call run_test_excit_gen_guga_nOrb_6_nEl_7_S_3
+! 
+!         else if (nEl == 5 .and. nBasis/2 == 9 .and. STOT == 1) then
+!             call run_test_excit_gen_guga_nOrb_9_nEl_5_S_1
+! 
+!         else if (nEl == 5 .and. nBasis/2 == 9 .and. STOT == 3) then
+!             call run_test_excit_gen_guga_nOrb_9_nEl_5_S_3
+! 
+!         else if (nEl == 7 .and. nBasis/2 == 9 .and. STOT == 1) then
+!             call run_test_excit_gen_guga_nOrb_9_nEl_7_S_1
+! 
+!         else if (nEl == 7 .and. nBasis/2 == 9 .and. STOT == 3) then
+!             call run_test_excit_gen_guga_nOrb_9_nEl_7_S_3
+! 
+!         else if (nEl == 10 .and. nBasis/2 == 9 .and. STOT == 0) then
+!             call run_test_excit_gen_guga_nOrb_9_nEl_10_S_0
+! 
+!         else if (nEl == 10 .and. nBasis/2 == 9 .and. STOT == 6) then
+!             call run_test_excit_gen_guga_nOrb_9_nEl_10_S_6
+! 
+! !         else if (nEl == 10 .and. nBasis/2 == 9 .and. STOT == 4) then
+! !             call run_test_excit_gen_guga_nOrb_9_nEl_10_S_4
+! ! 
+! !         else if (nEl == 10 .and. nBasis/2 == 9 .and. STOT == 2) then
+! !             call run_test_excit_gen_guga_nOrb_9_nEl_10_S_2
+! 
+!         else if (nEl == 9 .and. nBasis/2 == 9 .and. STOT == 3) then
+!             call run_test_excit_gen_guga_nOrb_9_nEl_9_S_3
+! 
+!         else if (nEl == 9 .and. nBasis/2 == 9 .and. STOT == 1) then
+!             call run_test_excit_gen_guga_nOrb_9_nEl_9_S_1
+! 
+!         else if (nEl == 18 .and. nBasis/2 == 18 .and. STOT == 0) then
+!             call run_test_excit_gen_guga_nOrb_18_nel_18_S_0
+! 
+!         else if (nEl == 18 .and. nBasis/2 == 18 .and. STOT == 2) then
+!             call run_test_excit_gen_guga_nOrb_18_nel_18_S_2
+! 
+!         else if (nEl == 18 .and. nBasis/2 == 18 .and. STOT == 6) then
+!             call run_test_excit_gen_guga_nOrb_18_nel_18_S_6
+!         else 
             ! todo: create a general excit_gen tester which uses the 
             ! guessed HF determinant as a start and uses some of the 
             ! exactly created determinants from that to check for pgen and 
             ! matrix element consistency! 
 
-            call test_identify_excitation()
+            call test_identify_excitation_and_matrix_element()
 !             call run_test_excit_gen_guga_multiple(&
 !                 [1,2,3,4,5,6,7,8])
 !             call run_test_excit_gen_guga_multiple(&
@@ -305,109 +305,78 @@ contains
 !                 [1,2,3,5,7,10,12,13,14,15,17,18,20,21,25,27,30,32,34,35,36,&
 !                 37,39,41,44,46,48,49,50,51,54,58])
 
-        end if 
+!         end if 
 
     end subroutine run_test_excit_gen_guga
 
-    subroutine test_identify_excitation
-        character(*), parameter :: this_routine = "test_identify_excitation" 
-        integer :: nI(nel), nJ(nel) 
+    subroutine test_identify_excitation_and_matrix_element(nI)
+        integer(n_int), intent(in), optional :: nI(nel)
+        character(*), parameter :: this_routine = "test_identify_excitation_and_matrix_element" 
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot) 
         type(excitationInformation) :: excitInfo
-        integer(n_int), pointer :: ex(:,:) 
-        integer :: nEx, i
+        integer(n_int), pointer :: ex(:,:), two_ex
+        integer :: nEx, i, nex_2, test_det(nel)
         logical :: valid
-        real(dp) :: pos(nSpatOrbs), neg(nSpatOrbs)
+        real(dp) :: pos(nSpatOrbs), neg(nSpatOrbs), mat_ele, diff
 
-        nI = [1,2,3,4]
-        nJ = [1,2,3,6]
+        if (present(nI)) then 
+            test_det = nI 
+        else
+             test_det = fdet 
+         end if
 
-        call EncodeBitDet(nI, ilutI)
-        call EncodeBitDet(nJ, ilutJ)
-        print *, "Testing: identify_excitation" 
-        
-        excitInfo = identify_excitation(ilutI,ilutJ)
-
-        call print_excitInfo(excitInfo)
-
-        nJ = [1,2,5,6]
-        call EncodeBitDet(nJ, ilutJ)
-
-        excitInfo = identify_excitation(ilutI,ilutJ)
-        call print_excitInfo(excitInfo)
-
-        nI = [3,4,7,8]
-        nJ = [1,4,5,8]
-
-        call EncodeBitDet(nI, ilutI) 
-        call EncodeBitDet(nJ, ilutJ)
-
-        excitInfo = identify_excitation(ilutI, ilutJ)
-        call print_excitInfo(excitInfo)
-
-        nI = [3,6,7,8]
-        nJ = [1,4,5,8]
-
-        call EncodeBitDet(nI, ilutI)
-        call EncodeBitDet(nJ, ilutJ)
-
-        excitInfo = identify_excitation(ilutI,ilutJ)
-        call print_excitInfo(excitInfo)
-
-        nI = [1,3,6,8]
-        nJ = [1,4,5,8]
-
-        call EncodeBitDet(nI,ilutI)
-        call EncodeBitDet(nJ,ilutJ)
-
-        excitInfo = identify_excitation(ilutI,ilutJ)
-        call print_excitInfo(excitInfo) 
-
-        nI = [1,2,3,4]
-        nJ = [5,6,7,8]
-
-        call EncodeBitDet(nI,ilutI)
-        call EncodeBitDet(nJ,ilutJ)
-
-        excitInfo = identify_excitation(ilutI,ilutJ)
-        call print_excitInfo(excitInfo) 
-
-        nI = [1,2,5,8]
-        nJ = [1,3,6,8]
-
-        call EncodeBitDet(nI,ilutI)
-        call EncodeBitDet(nJ,ilutJ)
-
-        excitInfo = identify_excitation(ilutI,ilutJ)
-        call print_excitInfo(excitInfo) 
-
-        call EncodeBitDet(fdet, ilutI)
+        call EncodeBitDet(test_det, ilutI)
         call actHamiltonian(ilutI, ex, nEx) 
 
         call init_csf_information(ilutI) 
 
+        print *, "Testing matrix elements for nEx excitations of: ", nEx
+        call write_det_guga(6,ilutI,.true.)
+        call write_guga_list(6,ex(:,1:nex))
         do i = 1, nEx
 
             excitInfo = identify_excitation(ilutI, ex(:,i)) 
 
-            print *, "valid? ", excitInfo%valid
             ASSERT(excitInfo%valid)
 
             if (excitInfo%typ /= 0) then
                 call checkCompatibility(ilutI, excitInfo, valid, pos, neg)
 
-                print *, "valid?", valid
                 ASSERT(valid)
+
             end if
-            
+
+            call calc_guga_matrix_element(ilutI, ex(:,i), excitInfo, mat_ele, & 
+                .true., 1)
+
+            diff = abs(extract_matrix_element(ex(:,i), 1) - mat_ele)
+
+            if (diff < 1.0e-10) diff = 0.0_dp
+
+            print *, "mat eles: ", extract_matrix_element(ex(:,i),1), mat_ele, &
+                diff
+
+            if (diff > EPS) then 
+                call write_det_guga(6,ilutI,.true.) 
+                call write_det_guga(6,ex(:,i),.true.)
+                call print_excitInfo(excitInfo)
+            end if
+            ! how do i test non-possible excitations? 
+            ! do i apply the hamiltonian once more? and then check in the 
+            ! lists? 
+!             call actHamiltonian(ex(:,i), two_ex, nex_2) 
+
         end do
+
+        ! i should also test more than double excitaitons to see if i correctly 
+        ! identify impossible excitations
 
         call deinit_csf_information()
 
         call stop_all(this_routine, "!")
 
 
-    end subroutine test_identify_excitation
+    end subroutine test_identify_excitation_and_matrix_element
 
     subroutine test_guga_data
 

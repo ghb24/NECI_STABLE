@@ -6,7 +6,8 @@ module fcimc_helper
     use util_mod
     use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
                           tLatticeGens, nBasis, tHistSpinDist, tRef_Not_HF, &
-                          tGUGA
+                          tGUGA, ref_stepvector, ref_b_vector_int, ref_occ_vector, & 
+                          ref_b_vector_real
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use semi_stoch_procs, only: recalc_core_hamil_diag
     use bit_reps, only: NIfTot, flag_initiator, test_flag, extract_flags, &
@@ -64,7 +65,7 @@ module fcimc_helper
 
 #ifndef __CMPLX
     use guga_matrixElements, only: calc_off_diag_guga_ref
-    use guga_excitations, only: create_projE_list
+    use guga_excitations, only: create_projE_list, calc_csf_info
 #endif
 
     use rdm_data, only: nrdms
@@ -1934,7 +1935,17 @@ contains
         ! determinnant to the new reference det 
 #ifndef __CMPLX
         if (tGUGA) then
+
+            ! also recreate the stepvector, etc. info stuff for the new 
+            ! reference determinant
+            ASSERT(allocated(ref_stepvector))
+            call calc_csf_info(ilutRef, ref_stepvector, ref_b_vector_int, &
+                ref_occ_vector)
+
+            ref_b_vector_real = real(ref_b_vector_int,dp)
+
             call create_projE_list(run)
+
         end if
 #endif
 
