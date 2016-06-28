@@ -28,8 +28,7 @@ startsinglepart
 shiftdamp 0.1
 nmcyc 10000
 semi-stochastic
-doubles-core
-stochastic-hf-spawning
+pops-core 200
 allrealcoeff
 realspawncutoff 0.5
 orthogonalise-replicas
