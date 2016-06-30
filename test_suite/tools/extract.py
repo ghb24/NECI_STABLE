@@ -40,7 +40,9 @@ test_data = [
 simulation_labels = [
     ['Final energy estimate for state', 5],
     ['Stochastic error measures for RDM', -1],
-    ['FINAL ESTIMATES FOR RDM', -1]
+    ['FINAL ESTIMATES FOR RDM', -1],
+    ['PERFORMING ANALYSIS OF 1-RDM FOR STATE', -1],
+    ['2-RDM ESTIMATES FOR STATE', -1]
 ]
 
 def extract_data(filename):
@@ -57,7 +59,9 @@ def extract_data(filename):
         for sim_string in simulation_labels:
             if sim_string[0] in line:
                 words = line.split()
-                sim_label = words[sim_string[-1]].rstrip(":")
+                sim_label = words[sim_string[-1]]
+                sim_label = sim_label.rstrip(":")
+                sim_label = sim_label.rstrip("...")
                 sim_label_string = "_" + sim_label
         # Search for the data itself.
         for data in test_data:

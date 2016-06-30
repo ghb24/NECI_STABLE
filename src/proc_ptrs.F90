@@ -153,21 +153,41 @@ module procedure_pointers
 
         !
         ! Generic fill_rdm_diag_currdet routine
-        subroutine fill_rdm_diag_currdet_t (rdm, irdm, ilutI, nI, j, ExcitLevelI, &
-                                            tCoreSpaceDet)
+        subroutine fill_rdm_diag_currdet_old_t (rdm, one_rdm, irdm, ilutI, nI, j, ExcitLevelI, tCoreSpaceDet)
 
             ! j --> Which slot in CurrentDets are we examining.
 
             use bit_rep_data, only: NIfTot
             use constants
-            use rdm_data, only: rdm_t
+            use rdm_data, only: one_rdm_t
+            use rdm_data_old, only: rdm_t
             use SystemData, only: nel
             implicit none
 
             type(rdm_t), intent(inout) :: rdm
+            type(one_rdm_t), intent(inout) :: one_rdm
             integer, intent(in) :: irdm
             integer(n_int), intent(in) :: ilutI(0:NIfTot)
             integer, intent(in) :: nI(nel), ExcitLevelI, j
+            logical, intent(in), optional :: tCoreSpaceDet
+
+        end subroutine
+
+        !
+        ! Generic fill_rdm_diag_currdet routine
+        subroutine fill_rdm_diag_currdet_t (spawn, one_rdms, ilutI, nI, ExcitLevelI, av_sign, iter_occ, tCoreSpaceDet)
+
+            use bit_rep_data, only: NIfTot
+            use constants
+            use rdm_data, only: rdm_spawn_t, one_rdm_t
+            use SystemData, only: nel
+            implicit none
+
+            type(rdm_spawn_t), intent(inout) :: spawn
+            type(one_rdm_t), intent(inout) :: one_rdms(:)
+            integer(n_int), intent(in) :: ilutI(0:NIfTot)
+            integer, intent(in) :: nI(nel), ExcitLevelI
+            real(dp), intent(in) :: av_sign(:), iter_occ(:)
             logical, intent(in), optional :: tCoreSpaceDet
 
         end subroutine
@@ -199,6 +219,7 @@ module procedure_pointers
     procedure(new_child_stats_t), pointer :: new_child_stats
     procedure(attempt_die_t), pointer :: attempt_die
     procedure(extract_bit_rep_avsign_t), pointer :: extract_bit_rep_avsign
+    procedure(fill_rdm_diag_currdet_old_t), pointer :: fill_rdm_diag_currdet_old
     procedure(fill_rdm_diag_currdet_t), pointer :: fill_rdm_diag_currdet
 
 

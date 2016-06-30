@@ -26,11 +26,12 @@ overlap.*
 hamil.*
 lowdin.*
 gram_schmidt.*
-RDMEstimates
+RDMEstimates*
 TwoRDM*
-OneRDM
+OneRDM*
 spinfree_TwoRDM*
 NO_*
+ROFCIDUMP
 FTLM_EIGV
 EIGV_DATA
 DETFILE
@@ -48,3 +49,4 @@ build*/
 \\
 *.swo
 *.swp
+fort.7

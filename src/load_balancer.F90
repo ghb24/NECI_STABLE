@@ -18,7 +18,6 @@ module load_balance
     use searching, only: hash_search_trial, bin_search_trial
     use Determinants, only: get_helement, write_det
     use LoggingData, only: tOutputLoadDistribution
-    use rdm_filling, only: det_removed_fill_diag_rdm
     use hphf_integrals, only: hphf_diag_helement
     use cont_time_rates, only: spawn_rate_full
     use SystemData, only: nel, tHPHF
