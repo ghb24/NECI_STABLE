@@ -1,7 +1,4 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
-module rdm_temp
+module rdm_write_old
 
     ! This is a temporary module to prevent circular dependencies. These should
     ! be sorted later when altering the call structure of the routines.
@@ -12,20 +9,20 @@ module rdm_temp
 
 contains
 
-    subroutine Finalise_2e_RDM(rdm)
+    subroutine Finalise_2e_RDM(rdm, final_output)
 
         ! This routine sums, normalises, hermitian-ises, and prints the 2-RDMs.
         ! This may be called multiple times if we want to print multiple 2-RDMs.
 
-        use FciMCData, only: Iter, PreviousCycles, IterRDMStart, tFinalRDMEnergy, VaryShiftIter
-        use LoggingData, only: IterRDMonFly
-        use LoggingData, only: tRDMInstEnergy, RDMEnergyIter
+        use FciMCData, only: Iter, PreviousCycles, IterRDMStart, VaryShiftIter
+        use LoggingData, only: IterRDMonFly, RDMExcitLevel, tRDMInstEnergy, RDMEnergyIter
         use Parallel_neci, only: iProcIndex, MPISumAll
-        use rdm_data, only: AllNodes_RDM_small, AllNodes_RDM_large
-        use rdm_data, only: rdm_t, tCalc_RDMEnergy, tOpenShell
+        use rdm_data_old, only: AllNodes_RDM_small, AllNodes_RDM_large, rdm_t
+        use rdm_data, only: tOpenShell, print_2rdm_est
         use RotateOrbsData, only: SpatOrbs
 
         type(rdm_t), intent(inout) :: rdm
+        logical, intent(in) :: final_output
 
         integer :: i, ierr
 
@@ -33,8 +30,8 @@ contains
         ! just want to calculate the old energy.
         ! Don't need to do all this stuff here, because a***_RDM will be empty.
 
-        if (((Iter+PreviousCycles) .ne. 0) .and. ((.not. tFinalRDMEnergy) .or. &
-            ((.not. tCalc_RDMEnergy) .or. ((Iter - VaryShiftIter(1)) .le. IterRDMonFly) &
+        if (((Iter+PreviousCycles) .ne. 0) .and. ((.not. final_output) .or. &
+            ((.not. print_2rdm_est .and. RDMExcitLevel /= 1) .or. ((Iter - VaryShiftIter(1)) .le. IterRDMonFly) &
                       & .or. ((Iter-VaryShiftIter(inum_runs)) .le. IterRDMonFly) &
                       & .or. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .ne. 0)))) then
 
@@ -72,7 +69,6 @@ contains
             ! (summed over the energy update cycle). Whereas TwoElRDM_full is
             ! accumulated over the entire run.
             if (tRDMInstEnergy .and. (iProcIndex .eq. 0)) then
-
                 ! We have to add the RDMs column by column. Adding the whole
                 ! arrays in one go causes ifort to crash for large arrays,
                 ! presumably because of large arrays being created on the
@@ -91,7 +87,6 @@ contains
                 end do
 
                 if (tOpenShell) then
-
                     do i = 1, size(rdm%bbbb, 2)
                         rdm%bbbb_full(:,i) = rdm%bbbb_full(:,i) + rdm%bbbb(:,i)
                     end do
@@ -103,7 +98,6 @@ contains
                     do i = 1, size(rdm%baba, 2)
                         rdm%baba_full(:,i) = rdm%baba_full(:,i) + rdm%baba(:,i)
                     end do
-
                 end if
             end if
         end if
@@ -122,7 +116,8 @@ contains
         ! system = 1/2 N ( N - 1), so we can do the same for the 2RDM.
 
         use LoggingData, only: tRDMInstEnergy
-        use rdm_data, only: rdm_t, tOpenShell
+        use rdm_data, only: tOpenShell
+        use rdm_data_old, only: rdm_t
         use RotateOrbsData, only: SpatOrbs
         use SystemData, only: nel
 
@@ -167,7 +162,7 @@ contains
 
     end subroutine calc_2e_norms
 
-    subroutine Write_out_2RDM(rdm, rdm_label, Norm_2RDM, tNormalise, tMake_Herm)
+    subroutine Write_out_2RDM(rdm, rdm_label, Norm_2RDM, tNormalise, tMake_Herm, final_output)
 
         ! Writes out the 2-RDMs. If tNormalise is true, we print the normalised
         ! (hermitian) matrix. Otherwise we print the unnormalised 2-RDMs, and
@@ -178,9 +173,10 @@ contains
         ! of the aaaa elements and the bbbb elements.  We only want to print
         ! the aaaa elements.
 
-        use FciMCData, only: tFinalRDMEnergy, Iter, PreviousCycles
+        use FciMCData, only: Iter, PreviousCycles
         use LoggingData, only: tWriteMultRDMs
-        use rdm_data, only: rdm_t, tOpenShell
+        use rdm_data_old, only: rdm_t
+        use rdm_data, only: tOpenShell
         use RotateOrbsData, only: SpatOrbs
         use util_mod, only: get_unique_filename, get_free_unit, int_fmt
 
@@ -188,13 +184,14 @@ contains
         integer, intent(in) :: rdm_label
         real(dp), intent(in) :: Norm_2RDM
         logical, intent(in) :: tNormalise, tMake_Herm
+        logical, intent(in) :: final_output
 
         real(dp) :: Divide_Factor
         integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab
         integer :: No_Herm_Elements
         integer :: aaaa_RDM_unit, abab_RDM_unit, abba_RDM_unit
         integer :: bbbb_RDM_unit, baba_RDM_unit, baab_RDM_unit
-        character(20) :: stem
+        character(25) :: stem
         character(255) :: TwoRDM_aaaa_name, TwoRDM_abab_name, TwoRDM_abba_name
         character(255) :: TwoRDM_bbbb_name, TwoRDM_baba_name, TwoRDM_baab_name
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity, Sum_Herm_Percent 
@@ -220,33 +217,33 @@ contains
             abba_RDM_unit = get_free_unit()
             call molcas_open(abba_RDM_unit,'TWORDM3')
 #else
-            write(stem, '("TwoRDM_aaaa.",'//int_fmt(rdm_label,0)//')') rdm_label
+            write(stem, '("TwoRDM_aaaa_old.",'//int_fmt(rdm_label,0)//')') rdm_label
             call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_aaaa_name)
             aaaa_RDM_unit = get_free_unit()
             open(aaaa_RDM_unit, file=TwoRDM_aaaa_name, status='unknown')
 
-            write(stem, '("TwoRDM_abab.",'//int_fmt(rdm_label,0)//')') rdm_label
+            write(stem, '("TwoRDM_abab_old.",'//int_fmt(rdm_label,0)//')') rdm_label
             call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_abab_name)
             abab_RDM_unit = get_free_unit()
             open(abab_RDM_unit, file=TwoRDM_abab_name, status='unknown')
 
-            write(stem, '("TwoRDM_abba.",'//int_fmt(rdm_label,0)//')') rdm_label
+            write(stem, '("TwoRDM_abba_old.",'//int_fmt(rdm_label,0)//')') rdm_label
             call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_abba_name)
             abba_RDM_unit = get_free_unit()
             open(abba_RDM_unit, file=TwoRDM_abba_name, status='unknown')
 #endif
             if (tOpenShell) then
-                write(stem, '("TwoRDM_bbbb.",'//int_fmt(rdm_label,0)//')') rdm_label
+                write(stem, '("TwoRDM_bbbb_old.",'//int_fmt(rdm_label,0)//')') rdm_label
                 call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_bbbb_name)
                 bbbb_RDM_unit = get_free_unit()
                 open(bbbb_RDM_unit,file=TwoRDM_bbbb_name, status='unknown')
 
-                write(stem, '("TwoRDM_baba.",'//int_fmt(rdm_label,0)//')') rdm_label
+                write(stem, '("TwoRDM_baba_old.",'//int_fmt(rdm_label,0)//')') rdm_label
                 call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_baba_name)
                 baba_RDM_unit = get_free_unit()
                 open(baba_RDM_unit, file=TwoRDM_baba_name, status='unknown')
 
-                write(stem, '("TwoRDM_baab.",'//int_fmt(rdm_label,0)//')') rdm_label
+                write(stem, '("TwoRDM_baab_old.",'//int_fmt(rdm_label,0)//')') rdm_label
                 call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_baab_name)
                 baab_RDM_unit = get_free_unit()
                 open(baab_RDM_unit, file=TwoRDM_baab_name, status='unknown')
@@ -257,28 +254,28 @@ contains
             call neci_flush(6)
 
             aaaa_RDM_unit = get_free_unit()
-            write(stem, '("TwoRDM_POPS_aaaa.",'//int_fmt(rdm_label,0)//')') rdm_label
+            write(stem, '("TwoRDM_POPS_aaaa_old.",'//int_fmt(rdm_label,0)//')') rdm_label
             open(aaaa_RDM_unit, file=trim(stem), status='unknown', form='unformatted')
 
             abab_RDM_unit = get_free_unit()
-            write(stem, '("TwoRDM_POPS_abab.",'//int_fmt(rdm_label,0)//')') rdm_label
+            write(stem, '("TwoRDM_POPS_abab_old.",'//int_fmt(rdm_label,0)//')') rdm_label
             open(abab_RDM_unit, file=trim(stem), status='unknown', form='unformatted')
 
             abba_RDM_unit = get_free_unit()
-            write(stem, '("TwoRDM_POPS_abba.",'//int_fmt(rdm_label,0)//')') rdm_label
+            write(stem, '("TwoRDM_POPS_abba_old.",'//int_fmt(rdm_label,0)//')') rdm_label
             open(abba_RDM_unit, file=trim(stem), status='unknown', form='unformatted')
 
             if (tOpenShell) then
                 bbbb_RDM_unit = get_free_unit()
-                write(stem, '("TwoRDM_POPS_bbbb.",'//int_fmt(rdm_label,0)//')') rdm_label
+                write(stem, '("TwoRDM_POPS_bbbb_old.",'//int_fmt(rdm_label,0)//')') rdm_label
                 open(bbbb_RDM_unit, file=trim(stem), status='unknown', form='unformatted')
 
                 baba_RDM_unit = get_free_unit()
-                write(stem, '("TwoRDM_POPS_baba.",'//int_fmt(rdm_label,0)//')') rdm_label
+                write(stem, '("TwoRDM_POPS_baba_old.",'//int_fmt(rdm_label,0)//')') rdm_label
                 open(baba_RDM_unit, file=trim(stem), status='unknown', form='unformatted')
 
                 baab_RDM_unit = get_free_unit()
-                write(stem, '("TwoRDM_POPS_baab.",'//int_fmt(rdm_label,0)//')') rdm_label
+                write(stem, '("TwoRDM_POPS_baab_old.",'//int_fmt(rdm_label,0)//')') rdm_label
                 open(baab_RDM_unit, file=trim(stem), status='unknown', form='unformatted')
             end if
         end if
@@ -345,7 +342,7 @@ contains
                                         rdm%aaaa_full(Ind2_aa,Ind1_aa) = Temp
                                     end if
 
-                                    if (tFinalRDMEnergy) then
+                                    if (final_output) then
                                         ! For the final calculation, the 2-RDMs will have been made hermitian.
                                         write(aaaa_RDM_unit,"(4I6,G25.17)") i, j, a, b, &
                                                 ( rdm%aaaa_full(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
@@ -398,7 +395,7 @@ contains
                                             rdm%bbbb_full(Ind2_aa,Ind1_aa) = Temp
                                 end if
 
-                                        if (tFinalRDMEnergy) then
+                                        if (final_output) then
                                             ! For the final calculation, the 2-RDMs will have been made hermitian.
                                             write(bbbb_RDM_unit,"(4I6,G25.17)") i, j, a, b, &
                                                     ( rdm%bbbb_full(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
@@ -448,7 +445,7 @@ contains
                                             rdm%baab_full(Ind2_aa,Ind1_aa) = Temp
                                         end if
 
-                                        if (tFinalRDMEnergy) then
+                                        if (final_output) then
                                             write(abba_RDM_unit,"(4I6,G25.17)") i, j, a, b, &
                                                 ( rdm%abba_full(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
                                         else
@@ -488,14 +485,14 @@ contains
                                             rdm%abba_full(Ind2_aa,Ind1_aa) = Temp  
                                         end if ! tMake_Herm = .true.
 
-                                        if (tFinalRDMEnergy) then
+                                        if (final_output) then
                                             write(baab_RDM_unit,"(4I6,G25.17)") i, j, a, b, &
                                                 ( rdm%baab_full(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
                                         else
                                             write(baab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
                                                 ( ((rdm%baab_full(Ind1_aa,Ind2_aa) + rdm%baab_full(Ind2_aa,Ind1_aa))/2.0_dp) &
                                                                         * Norm_2RDM ) / Divide_Factor
-                                        end if  ! tFinalRDMEnergy = .true./.false.
+                                        end if  ! final_output = .true./.false.
 
                                     else if (.not.tNormalise) then
                                         write(baab_RDM_unit) i, j, a, b, rdm%baab_full(Ind1_aa,Ind2_aa) 
@@ -530,7 +527,7 @@ contains
                                             rdm%abba_full(Ind2_aa,Ind1_aa) = Temp
                                         end if
 
-                                        if (tFinalRDMEnergy) then
+                                        if (final_output) then
                                             write(abba_RDM_unit,"(4I6,G25.17)") i, j, a, b, &
                                                 ( rdm%abba_full(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
                                         else
@@ -572,7 +569,7 @@ contains
                             end if
 
                             if (tNormalise .and. (Ind1_ab .le. Ind2_ab)) then
-                                if (tFinalRDMEnergy) then
+                                if (final_output) then
                                     write(abab_RDM_unit,"(4I6,G25.17)") i, j, a, b, &
                                         ( rdm%abab_full(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
                                 else
@@ -613,7 +610,7 @@ contains
                                 end if
 
                                 if (tNormalise .and. (Ind1_ab .le. Ind2_ab)) then
-                                    if (tFinalRDMEnergy) then
+                                    if (final_output) then
                                         write(baba_RDM_unit,"(4I6,G25.17)") i, j, a, b, &
                                             ( rdm%baba_full(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
                                     else
@@ -654,7 +651,7 @@ contains
                                 end if
 
                                 if (tNormalise .and. (Ind1_ab .le. Ind2_ab)) then
-                                    if (tFinalRDMEnergy) then
+                                    if (final_output) then
                                         write(baba_RDM_unit,"(4I6,G25.17)") i, j, a, b, &
                                             ( rdm%abab_full(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
                                     else
@@ -709,7 +706,7 @@ contains
         ! where s and t are spin indices which are summed over.
         !
 
-        use rdm_data, only: rdm_t
+        use rdm_data_old, only: rdm_t
         use RotateOrbsData, only: SpatOrbs
         use util_mod, only: get_free_unit, int_fmt
 
@@ -724,7 +721,7 @@ contains
         write(6, '(1X,"Writing out the spinfree RDM for state",'//int_fmt(rdm_label,1)//')') rdm_label
 
         spinfree_RDM_unit = get_free_unit()
-        write(RDM_filename, '("spinfree_TwoRDM.",'//int_fmt(rdm_label,0)//')') rdm_label
+        write(RDM_filename, '("spinfree_TwoRDM_old.",'//int_fmt(rdm_label,0)//')') rdm_label
         open(spinfree_RDM_unit, file=trim(RDM_filename), status="replace")
         
         do j = 1, SpatOrbs
@@ -770,7 +767,8 @@ contains
         !            order of the indices, considering the swapped spin and introducing appropriate signs
         !          - ie if p>r and s>q, D_pr,qs(abab) is found by looking up -D_rp,qs(abba)
 
-        use rdm_data, only: rdm_t, tOpenShell
+        use rdm_data, only: tOpenShell
+        use rdm_data_old, only: rdm_t
          
         type(rdm_t), intent(in) :: rdm
         integer, intent(in) :: p, q, r, s
@@ -840,4 +838,4 @@ contains
         
     end function Find_Spatial_2RDM_Chem
 
-end module rdm_temp
+end module rdm_write_old

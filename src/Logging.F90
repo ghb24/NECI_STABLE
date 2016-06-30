@@ -117,7 +117,7 @@ MODULE Logging
       tPrintRODump=.false.
       IterRDMonFly=0
       RDMExcitLevel=1
-      tDo_Not_Calc_RDMEnergy = .false.
+      tDo_Not_Calc_2RDM_est = .false.
       tExplicitAllRDM = .false.
       twrite_normalised_RDMs = .true. 
       tWriteSpinFreeRDM = .false.
@@ -174,10 +174,13 @@ MODULE Logging
 
         ! Read the logging section from the input file
 
-        logical eof
+        logical :: eof
+        logical tUseOnlySingleReplicas
         integer :: i, ierr
         character(100) :: w
         character(*), parameter :: t_r = 'LogReadInput'
+
+      tUseOnlySingleReplicas = .false.
 
       ILogging=iLoggingDef
 
@@ -494,6 +497,15 @@ MODULE Logging
             tHistInitPops=.true.
             call readi(HistInitPopsIter)
 
+        case("UNPAIRED-REPLICAS")
+            tUseOnlySingleReplicas = .true.
+#if defined(__PROG_NUMRUNS)
+            tPairedReplicas = .false.
+            nreplicas = 1
+#elif defined(__DOUBLERUN)
+            call stop_all(t_r, "The unpaired-replicas option cannot be used with the dneci.x executable.")
+#endif
+
         case("CALCRDMONFLY")
 !This keyword sets the calculation to calculate the reduced density matrix on the fly.  
 !This starts at IterRDMonFly iterations after the shift changes.
@@ -507,8 +519,10 @@ MODULE Logging
 
 #if defined(__PROG_NUMRUNS)
             ! With this option, we want to use pairs of replicas.
-            tPairedReplicas = .true.
-            nreplicas = 2
+            if (.not. tUseOnlySingleReplicas) then
+                tPairedReplicas = .true.
+                nreplicas = 2
+            end if
 #elif defined(__DOUBLERUN)
             tPairedReplicas = .true.
 #endif
@@ -518,6 +532,17 @@ MODULE Logging
 
             if (IterRDMOnFly < trial_shift_iter) call stop_all(t_r,"Trial wavefunctions needs to be turned on before &
                                                                         &RDMs are turned on.")
+
+        case("OLDRDMS")
+! Accumulate RDMs using the old RDM code.
+            tOldRDMs = .true.
+
+        case("PRINT-1RDMS-FROM-2RDM-POPS")
+            tPrint1RDMsFrom2RDMPops = .true.
+            tReadRDMs = .true.
+
+        case("PRINT-1RDMS-FROM-SPINFREE")
+            tPrint1RDMsFromSpinfree = .true.
 
         case("DIAGFLYONERDM")
 !This sets the calculation to diagonalise the *1* electron reduced density matrix.   
@@ -599,6 +624,11 @@ MODULE Logging
             tDipoles = .true.
 
         case("CALCRDMENERGY")
+            call stop_all(t_r, "The CALCRDMENERGY option has been replaced by CALC-2RDM-ESTIMATES. &
+                               &The 2-RDM energy is calculated by default when 2-RDMs are being &
+                               &sampled, so this option is only needed if one wants to turn this off.")
+
+        case("CALC-2RDM-ESTIMATES")
 !This takes the 1 and 2 electron RDM and calculates the energy using the RDM expression.            
 !For this to be calculated, RDMExcitLevel must be = 3, so there is a check to make sure this 
 !is so if the CALCRDMENERGY keyword is present.
@@ -606,10 +636,10 @@ MODULE Logging
                 call readu(w)
                 select case(w)
                     case("OFF")
-                        tDo_Not_Calc_RDMEnergy=.true.
+                        tDo_Not_Calc_2RDM_est = .true.
                 end select
             ELSE
-                tDo_Not_Calc_RDMEnergy=.false.
+                tDo_Not_Calc_2RDM_est = .false.
             ENDIF
         
         case("NORDMINSTENERGY")

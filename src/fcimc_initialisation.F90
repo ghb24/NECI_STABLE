@@ -48,11 +48,11 @@ module fcimc_initialisation
     use LoggingData, only: tTruncRODump, tCalcVariationalEnergy, tReadRDMs, &
                            tDiagAllSpaceEver, tFCIMCStats2, tCalcFCIMCPsi, &
                            tLogComplexPops, tHistExcitToFrom, tPopsFile, &
-                           iWritePopsEvery, tExplicitAllRDM, tRDMOnFly, &
+                           iWritePopsEvery, tRDMOnFly, &
                            tDiagWalkerSubspace, tPrintOrbOcc, OrbOccs, &
                            tHistInitPops, OrbOccsTag, tHistEnergies, &
                            HistInitPops, AllHistInitPops, OffDiagMax, &
-                           OffDiagBinRange, iDiagSubspaceIter, &
+                           OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
@@ -81,8 +81,8 @@ module fcimc_initialisation
     use procedure_pointers, only: generate_excitation, attempt_create, &
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
-                                  fill_rdm_diag_currdet, new_child_stats, &
-                                  get_conn_helement
+                                  fill_rdm_diag_currdet_old, fill_rdm_diag_currdet, &
+                                  new_child_stats, get_conn_helement
     use symrandexcit3, only: gen_rand_excit3
     use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
@@ -95,7 +95,10 @@ module fcimc_initialisation
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD, only : InitHistInitPops
     use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
-    use rdm_general, only: DeallocateRDMs, InitRDMs, extract_bit_rep_avsign_no_rdm
+    use rdm_general, only: init_rdms, dealloc_global_rdm_data, &
+                           extract_bit_rep_avsign_no_rdm
+    use rdm_general_old, only: InitRDMs_old, DeallocateRDMs_old
+    use rdm_filling_old, only: fill_rdm_diag_currdet_norm_old
     use rdm_filling, only: fill_rdm_diag_currdet_norm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
                          FindExcitBitDet, IsAllowedHPHF, DetBitEq, &
@@ -142,7 +145,6 @@ module fcimc_initialisation
     implicit none
 
 contains
-
 
     SUBROUTINE SetupParameters()
 
@@ -1392,7 +1394,10 @@ contains
             call init_yama_store ()
         endif
     
-        if (tRDMonFly) call InitRDMs(nrdms)
+        if (tRDMonFly) then
+            call init_rdms(nrdms)
+            if (tOldRDMs) call InitRDMs_old(nrdms)
+        end if
         ! This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
         ! Initialises RDM stuff for both explicit and stochastic calculations of RDM.
 
@@ -1550,6 +1555,7 @@ contains
         extract_bit_rep_avsign => extract_bit_rep_avsign_no_rdm
 
         fill_rdm_diag_currdet => fill_rdm_diag_currdet_norm
+        fill_rdm_diag_currdet_old => fill_rdm_diag_currdet_norm_old
 
     end subroutine init_fcimc_fn_pointers
 
@@ -1672,7 +1678,11 @@ contains
             ENDIF
         ENDIF
 
-        IF(tRDMonFly) CALL DeallocateRDMs()
+        if (tRDMonFly) then
+            call dealloc_global_rdm_data()
+            if (tOldRDMs) call DeallocateRDMs_old()
+        end if
+
         if (allocated(refdetflip)) deallocate(refdetflip)
         if (allocated(ilutrefflip)) deallocate(ilutrefflip)
         if (allocated(ValidSpawnedList)) deallocate(ValidSpawnedList)

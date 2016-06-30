@@ -47,6 +47,7 @@ module fcimc_helper
     use hash, only: remove_hash_table_entry
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
     use load_balance, only: adjust_load_balance
+    use rdm_filling_old, only: det_removed_fill_diag_rdm_old
     use rdm_filling, only: det_removed_fill_diag_rdm
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
     use Parallel_neci
@@ -1612,7 +1613,10 @@ contains
     subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, RealwSign, &
                              DetPosition, walkExcitLevel)
 
-        use rdm_data, only: rdms
+        use global_det_data, only: get_iter_occ, get_av_sgn
+        use LoggingData, only: tOldRDMs
+        use rdm_data, only: one_rdms, two_rdm_spawn
+        use rdm_data_old, only: rdms, one_rdms_old
 
         integer, intent(in) :: DetCurr(nel) 
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
@@ -1620,8 +1624,9 @@ contains
         real(dp), intent(in) :: Kii
         integer, intent(in) :: DetPosition
         type(fcimc_iter_data), intent(inout) :: iter_data
-        real(dp), dimension(lenof_sign) :: iDie
-        real(dp), dimension(lenof_sign) :: CopySign
+
+        real(dp) :: iDie(lenof_sign), CopySign(lenof_sign)
+        real(dp) :: av_sign(lenof_sign), iter_occ(lenof_sign)
         integer, intent(in) :: walkExcitLevel
         integer :: i, irdm, run
         character(len=*), parameter :: t_r = "walker_death"
@@ -1680,16 +1685,23 @@ contains
             call encode_sign (CurrentDets(:, DetPosition), CopySign)
         else
             ! All walkers died.
-            if(tFillingStochRDMonFly) then
-                do irdm = 1, nrdms
-                    call det_removed_fill_diag_rdm(rdms(irdm), irdm, CurrentDets(:,DetPosition), DetPosition)
-                end do
+            if (tFillingStochRDMonFly) then
+                if (tOldRDMs) then
+                    do irdm = 1, nrdms
+                        call det_removed_fill_diag_rdm_old(rdms(irdm), one_rdms_old(irdm), irdm, &
+                                                           CurrentDets(:,DetPosition), DetPosition)
+                    end do
+                end if
+
+                av_sign = get_av_sgn(DetPosition)
+                iter_occ = get_iter_occ(DetPosition)
+                call det_removed_fill_diag_rdm(two_rdm_spawn, one_rdms, CurrentDets(:,DetPosition), av_sign, iter_occ)
                 ! Set the average sign and occupation iteration to zero, so
                 ! that the same contribution will not be added in in
                 ! CalcHashTableStats, if this determinant is not overwritten
                 ! before then
                 global_determinant_data(:, DetPosition) = 0.0_dp
-            endif
+            end if
 
             if (tTruncInitiator) then
                 ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
@@ -1720,7 +1732,7 @@ contains
         ! This routine checks if we should start filling the RDMs - 
         ! and does so if we should. 
 
-        use rdm_general, only: DeAlloc_Alloc_SpawnedParts
+        use rdm_general, only: realloc_SpawnedParts
         use LoggingData, only: tReadRDMs
         implicit none
         logical :: tFullVaryshift
@@ -1759,7 +1771,7 @@ contains
                 ! By default - we will do a stochastic calculation of the RDM.
                 tFillingStochRDMonFly = .true.
 
-                call DeAlloc_Alloc_SpawnedParts()
+                call realloc_SpawnedParts()
                 ! The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
                 ! parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
                 ! Don't need any of this if we're just doing HF_Ref_Explicit calculation.

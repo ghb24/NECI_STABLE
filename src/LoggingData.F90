@@ -24,7 +24,7 @@ module LoggingData
     LOGICAL tPrintPopsDefault
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tROHistSingExc
     LOGICAL tRoHistOneElInts
-    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tDo_Not_Calc_RDMEnergy
+    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tDo_Not_Calc_2RDM_est
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
     LOGICAL tTruncDumpbyVal, tPrintRODump, tno_RDMs_to_read, tReadRDMs, tNoNewRDMContrib 
     LOGICAL tWriteTransMat,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit, tWriteMultRDMs
@@ -107,4 +107,13 @@ module LoggingData
     logical :: tOutputLoadDistribution
 
     logical :: tHDF5PopsRead, tHDF5PopsWrite
+
+    logical :: tOldRDMs = .false.
+    ! If true, then read in 2-RDM popsfiles and then output 1-RDMs calculated
+    ! directly from these.
+    logical :: tPrint1RDMsFrom2RDMPops = .false.
+    ! If true, then read in spinfree 2-RDM files and then output 1-RDMs
+    ! calculated directly from these.
+    logical :: tPrint1RDMsFromSpinfree = .false.
+
 end module LoggingData
