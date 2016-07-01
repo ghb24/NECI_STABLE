@@ -154,6 +154,11 @@ macro( neci_add_library )
     # Where do we put the Fortran modules?
 
     set_property( TARGET ${_p_TARGET} PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules/${_p_TARGET} )
+    if( "${CMAKE_VERSION}" VERSION_LESS "2.8.11" ) # PRIVATE functionality doesn't exist before 2.8.11
+        target_include_directories( ${_p_TARGET} PUBLIC ${CMAKE_BINARY_DIR}/modules/${_p_TARGET} )
+    else()
+        target_include_directories( ${_p_TARGET} PRIVATE ${CMAKE_BINARY_DIR}/modules/${_p_TARGET} )
+    endif()
 
     # Where do the files get built to
 
