@@ -1147,6 +1147,19 @@ MODULE UMatCache
         if (tTransGTID) id = TransTable(id)
     end function
 
+    elemental function spatial(spin_orb) result(spat_orb)
+
+        ! Convert a spin orbital label into a spatial one. This is more
+        ! appropriate than the above function, gtid, when one always wants the
+        ! spatial label, regardless of the way integrals are being stored.
+
+        integer, intent(in) :: spin_orb
+        integer :: spat_orb
+
+        spat_orb = (spin_orb-1)/2 + 1
+
+    end function spatial
+
       LOGICAL FUNCTION GETCACHEDUMATEL(IDI,IDJ,IDK,IDL,UMATEL,ICACHE,ICACHEI,A,B,ITYPE)
          ! In:
          !    IDI,IDJ,IDK,IDL: orbitals indices of the integral(s). These are
