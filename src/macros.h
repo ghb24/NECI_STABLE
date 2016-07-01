@@ -128,7 +128,6 @@ endif
 #endif
 
 
-
 ! Define types for C pointers to work between various compilers with
 ! differing levels of brokenness.
 #if defined(__PATHSCALE__) || defined(__ISO_C_HACK) || defined(__OPEN64__) || defined(NAGF95)
