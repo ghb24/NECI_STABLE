@@ -30,7 +30,7 @@ module lanczos_complex
     integer, parameter :: max_lanczos_vecs_default = 100
     ! the maximum difference between successive eigenvalues for each state
     ! required to trigger a loop exit before max_lanczos_vecs has been reached.
-    real(dp), parameter :: convergence_error = 1.0e-5
+    real(dp), parameter :: convergence_error = 1.0e-7
     ! a stop_all is triggered if the iteration count reaches max_lanczos_vecs and 
     ! there is at least one eigenvalue which has not converged to a better error 
     ! than the value below
@@ -267,10 +267,10 @@ module lanczos_complex
         endif
     end subroutine project_hamiltonian_lanczos
 
-    subroutine diagonalise_tridiagonal(this, N, t_eigenvectors)
+    subroutine diagonalise_tridiagonal(this, N, t_calc_eigenvectors)
         type(LanczosCalcType), intent(inout) :: this
         integer, intent(in) :: N
-        logical, intent(in) :: t_eigenvectors
+        logical, intent(in) :: t_calc_eigenvectors
         integer :: lwork, info
         HElement_t(dp), allocatable :: cwork(:)
         real(dp), allocatable :: rwork(:)
@@ -278,7 +278,7 @@ module lanczos_complex
 
         lwork = max(1,3*N+1)
         safe_malloc(rwork, (lwork))
-        if (t_eigenvectors) then
+        if (t_calc_eigenvectors) then
             jobz = 'V'
         else
             jobz = 'N'
@@ -315,6 +315,11 @@ module lanczos_complex
          )
 #endif
         safe_free(rwork)
+        if (t_calc_eigenvectors) then
+            ! move the eigenvectors out of the working array
+            this%T_eigenvectors(:,1:this%n_states) = this%super%projected_hamil_work(:,1:this%n_states)
+        endif
+
     end subroutine
 
     function check_deltas(this) result (t)
@@ -386,7 +391,7 @@ module lanczos_complex
         integer, intent(in) :: n_states, hamil_type
         logical, intent(in) :: t_store_subspace_basis, print_info_in
         logical :: print_info
-        integer :: k, ierr
+        integer :: k, i, ierr
         real(sp) :: start_time, end_time
         HElement_t(dp) :: overlap
 
@@ -397,7 +402,8 @@ module lanczos_complex
             call InitLanczosCalc(this, print_info, hamil_type, n_states, max_lanczos_vecs_default, t_store_subspace_basis)
         endif
 
-        !if (print_info) write(6,'(1X,"Iteration",4X,"Residual norm",12X,"Energy",7X,"Time")'); call neci_flush(6)
+        if (print_info) write(6,'(1X,"Perfoming a Lanczos Diagonalisation of the trial space")')
+        if (print_info) write(6,'(/,1X,"Iteration",4x,"State",12X,"Energy",7X,"Time")'); call neci_flush(6)
         associate(&
             basis_vectors => this%super%basis_vectors, &
             v_k => this%v_k, &
@@ -436,23 +442,34 @@ module lanczos_complex
 
                 call diagonalise_tridiagonal(this, k, .false.)
                 if (check_deltas(this)) then
-                    if (print_info) write(6, '("All states are converged to within "5E16.7)') convergence_error
+                    if (print_info) write(6, '(i2" eigenvalues(s) were successfully converged to within "5E16.7)') this%n_states, convergence_error
                     exit
                 endif
             endif
 
             call cpu_time(end_time)
 
-!            if (print_info) write(6,'(8X,i2,3X,f14.9,2x,f16.10,2x,f9.3)') i-1, residual_norm, &
-!                davidson_eigenvalue, end_time-start_time; call neci_flush(6)
+            if (print_info) then
+                do i=1, this%n_states
+                    write(6,'(8X,i2,3X,i2,2x,f16.10,2x,f9.3)') k, i, this%T_eigenvalues(i), end_time-start_time
+                    call neci_flush(6)
+                enddo
+            endif
 
         end do
         
         if (iprocindex==root) then
-!            call diagonalise_tridiagonal(this, k, .true.)
-!            call compute_ritz_vectors(this, k)
+            call diagonalise_tridiagonal(this, k, .true.)
+            call compute_ritz_vectors(this, k)
         endif
-!        if (print_info) write(6,'(/,1x,"Final calculated energy:",1X,f16.10)') davidson_eigenvalue
+
+        if (print_info) then
+            write(6,'(/,1x,"Final calculated energies:")')
+            do i=1, this%n_states
+                write(6,'(1x,"State",1X,i2,4X,f16.10)') i, this%T_eigenvalues(i)
+                call neci_flush(6)
+            enddo
+        endif
 
         ! wait for final diagonalisation before freeing any memory
         call MPIBarrier(ierr)
