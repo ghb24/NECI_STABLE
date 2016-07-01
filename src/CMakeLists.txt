@@ -104,12 +104,15 @@ set( SRC_FILES
     ras_data.F90
     ras.F90
     rdm_data.F90
+    rdm_data_utils.F90
     rdm_estimators.F90
     rdm_explicit.F90
     rdm_filling.F90
+    rdm_finalising.F90
     rdm_general.F90
+    rdm_integral_fns.F90
     rdm_nat_orbs.F90
-    rdm_temp.F90
+    rdm_reading.F90
     readdf.F90
     readinput.F90
     readint.F90
@@ -176,6 +179,11 @@ set( SRC_FILES
     lib/timing.F90
     lib/util_mod.F90
     lib/util_mod_fmt.F90
+    rdms_old/rdm_data_old.F90
+    rdms_old/rdm_estimators_old.F90
+    rdms_old/rdm_filling_old.F90
+    rdms_old/rdm_general_old.F90
+    rdms_old/rdm_write_old.F90
 )
 
 set( TEMPLATED_SRC_FILES
