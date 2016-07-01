@@ -43,7 +43,7 @@ module lanczos_complex
     real(dp), parameter :: orthog_tolerance = 1.0e-6
 
     type LanczosCalcType
-        ! "super type"
+        ! "super type" for common hamiltonian data
         type(HamiltonianCalcType) :: super
         ! if we're not storing the subspace basis, we'll need:
         HElement_t(dp), allocatable :: v_1(:), v_k(:), v_k_minus_1(:)
@@ -74,7 +74,7 @@ module lanczos_complex
         val = this%super%projected_hamil(i,i)
     end function getAlpha
 
-    subroutine setAlpha(this, i, val)
+    pure subroutine setAlpha(this, i, val)
         type(LanczosCalcType), intent(inout) :: this
         integer, intent(in) :: i
         HElement_t(dp), intent(in) :: val
