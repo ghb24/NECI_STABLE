@@ -879,6 +879,7 @@ contains
         ! The files are called 'TwoRDM_aaaa', 'TwoRDM_abab', 'TwoRDM_abba', etc...
 
         use Parallel_neci, only: MPIBarrier
+        use rdm_data, only: nrdms, states_for_rdm, rdm_repeat_label
         use sort_mod, only: sort
         use UMatCache, only: spatial
         use util_mod, only: get_free_unit
@@ -894,7 +895,7 @@ contains
         integer :: iunit_aaaa, iunit_abab, iunit_abba
         integer :: iunit_bbbb, iunit_baba, iunit_baab
         real(dp) :: rdm_sign(rdm%sign_length)
-        character(3) :: sgn_len, suffix
+        character(12) :: sgn_len, suffix
         character(len=*), parameter :: t_r = 'print_rdms_with_spin'
 
         ! Store rdm%sign_length as a string, for the formatting string.
@@ -903,8 +904,14 @@ contains
         call sort(rdm%elements(:,1:rdm%nelements))
 
         do iproc = 0, nProcessors-1
-            do irdm = 1, rdm%sign_length
-                write(suffix, '('//int_fmt(irdm,0)//')') irdm
+            do irdm = 1, nrdms
+                if (states_for_rdm(1,irdm) == states_for_rdm(2,irdm)) then
+                    write(suffix, '('//int_fmt(states_for_rdm(1,irdm),0)//')') irdm
+                else
+                    write(suffix, '('//int_fmt(states_for_rdm(1,irdm),0)//',"->",'&
+                                     //int_fmt(states_for_rdm(2,irdm),0)//',".",i1)') &
+                                        states_for_rdm(1,irdm), states_for_rdm(2,irdm), rdm_repeat_label(irdm)
+                end if
 
                 if (iproc == iProcIndex) then
 
@@ -1007,6 +1014,7 @@ contains
 
         use Parallel_neci, only: MPIBarrier
         use ParallelHelper, only: root
+        use rdm_data, only: nrdms, states_for_rdm, rdm_repeat_label
         use sort_mod, only: sort
         use util_mod, only: get_free_unit
 
@@ -1017,7 +1025,7 @@ contains
         integer :: ielem, irdm, iunit, iproc, ierr
         integer :: pq, rs, p, q, r, s ! spatial orbitals
         real(dp) :: rdm_sign(rdm%sign_length)
-        character(30) :: rdm_filename
+        character(40) :: rdm_filename
 
         call sort(rdm%elements(:,1:rdm%nelements))
 
@@ -1025,8 +1033,15 @@ contains
             if (iproc == iProcIndex) then
 
                 ! Loop over all RDMs beings sampled.
-                do irdm = 1, rdm%sign_length
-                    write(rdm_filename, '("spinfree_TwoRDM.",'//int_fmt(irdm,0)//')') irdm
+                do irdm = 1, nrdms
+                    if (states_for_rdm(1,irdm) == states_for_rdm(2,irdm)) then
+                        write(rdm_filename, '("spinfree_TwoRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//')') irdm
+                    else
+                        write(rdm_filename, '("spinfree_TwoRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//',"->",'&
+                                                                  //int_fmt(states_for_rdm(2,irdm),0)//',".",i1)') &
+                                            states_for_rdm(1,irdm), states_for_rdm(2,irdm), rdm_repeat_label(irdm)
+                    end if
+
                     ! Open the file to be written to.
                     iunit = get_free_unit()
                     ! Let the first process clear the file, if it already exist.
@@ -1281,7 +1296,7 @@ contains
         ! ignored and we print both 1-RDM(i,j) and 1-RDM(j,i) (in binary)
         ! for the OneRDM_POPS file to be read in in a restart calculation.
 
-        use rdm_data, only: tOpenShell
+        use rdm_data, only: tOpenShell, nrdms, states_for_rdm, rdm_repeat_label
         use RotateOrbsData, only: SymLabelListInv_rot
         use SystemData, only: nbasis
         use UMatCache, only: gtID
@@ -1309,7 +1324,13 @@ contains
                 write(filename, '("OneRDM_old.",'//int_fmt(irdm,0)//')') irdm
                 open(one_rdm_unit, file=trim(filename), status='unknown')
             else
-                write(filename, '("OneRDM.",'//int_fmt(irdm,0)//')') irdm
+                if (states_for_rdm(1,irdm) == states_for_rdm(2,irdm)) then
+                    write(filename, '("OneRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//')') irdm
+                else
+                    write(filename, '("OneRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//',"->",'&
+                                                 //int_fmt(states_for_rdm(2,irdm),0)//',".",i1)') &
+                                        states_for_rdm(1,irdm), states_for_rdm(2,irdm), rdm_repeat_label(irdm)
+                end if
                 open(one_rdm_unit, file=trim(filename), status='unknown')
             end if
 #endif
@@ -1322,7 +1343,13 @@ contains
                 write(filename, '("OneRDM_POPS_old.",'//int_fmt(irdm,0)//')') irdm
                 open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
             else
-                write(filename, '("OneRDM_POPS.",'//int_fmt(irdm,0)//')') irdm
+                if (states_for_rdm(1,irdm) == states_for_rdm(2,irdm)) then
+                    write(filename, '("OneRDM_POPS.",'//int_fmt(states_for_rdm(1,irdm),0)//')') irdm
+                else
+                    write(filename, '("OneRDM_POPS.",'//int_fmt(states_for_rdm(1,irdm),0)//',"->",'&
+                                                      //int_fmt(states_for_rdm(2,irdm),0)//',".",i1)') &
+                                        states_for_rdm(1,irdm), states_for_rdm(2,irdm), rdm_repeat_label(irdm)
+                end if
                 open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
             end if
         end if

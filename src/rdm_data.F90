@@ -215,10 +215,17 @@ module rdm_data
     ! Object to hold RDM estimates.
     type(rdm_estimates_t) :: rdm_estimates
 
-    ! signs_for_rdm(:,j) will store the labels of the FCIQMC wave functions
+    ! states_for_rdm(:,j) will store the labels of the *actual* wave functions
+    ! (i.e., usually which excited state it is) contributing to the j'th RDM.
+    integer, allocatable :: states_for_rdm(:,:) ! (2, nrdms)
+    ! signs_for_rdm(:,j) will store the labels of the *FCIQMC* simulations
     ! (i.e. the 'replica' labels) which will be used to sample the j'th RDM
     ! being calculated.
     integer, allocatable :: signs_for_rdm(:,:) ! (2, nrdms)
+    ! For transition RDMs, with 2 replicas for each state, there will be 2
+    ! copies of each transition RDM. This array simply holds which of the
+    ! 2 each RDM is - the first or second repeat.
+    integer, allocatable :: rdm_repeat_label(:) ! (nrdms)
     ! nrdms_each_simulation(j) holds the number of different RDMS to which
     ! the FCIQMC simulation with label j contributes to.
     integer, allocatable :: nrdms_each_simulation(:) ! (lenof_sign)

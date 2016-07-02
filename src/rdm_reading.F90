@@ -16,7 +16,7 @@ contains
         ! Read a 1-RDM POPSFILE file (with filename stem 'OneRDM_POPS.'), with
         ! label irdm. Copy it into the one_Rdm object.
 
-        use rdm_data, only: one_rdm_t
+        use rdm_data, only: one_rdm_t, nrdms, states_for_rdm, rdm_repeat_label
         use RotateOrbsData, only: SymLabelListInv_rot
         use util_mod, only: get_free_unit, int_fmt
 
@@ -31,7 +31,13 @@ contains
 
         write(6,'(1X,"Reading in the 1-RDMs...")')
 
-        write(filename, '("OneRDM_POPS.",'//int_fmt(irdm,0)//')') irdm
+        if (states_for_rdm(1,irdm) == states_for_rdm(2,irdm)) then
+            write(filename, '("OneRDM_POPS.",'//int_fmt(states_for_rdm(1,irdm),0)//')') irdm
+        else
+            write(filename, '("OneRDM_POPS.",'//int_fmt(states_for_rdm(1,irdm),0)//',"->",'&
+                                              //int_fmt(states_for_rdm(2,irdm),0)//',".",i1)') &
+                                states_for_rdm(1,irdm), states_for_rdm(2,irdm), rdm_repeat_label(irdm)
+        end if
 
         inquire(file=trim(filename), exist=file_exists)
 
@@ -166,6 +172,7 @@ contains
         use hash, only: clear_hash_table, FindWalkerHash, add_hash_table_entry
         use Parallel_neci, only: iProcIndex, nProcessors
         use rdm_data, only: rdm_list_t, rdm_spawn_t
+        use rdm_data, only: nrdms, states_for_rdm, rdm_repeat_label
         use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm, add_to_rdm_spawn_t
         use rdm_data_utils, only: communicate_rdm_spawn_t_wrapper, annihilate_rdm_list
         use util_mod, only: get_free_unit, int_fmt
@@ -192,7 +199,13 @@ contains
         file_end = .false.
 
         do irdm = 1, rdm%sign_length
-            write(rdm_filename(irdm), '("spinfree_TwoRDM.",'//int_fmt(irdm,0)//')') irdm
+            if (states_for_rdm(1,irdm) == states_for_rdm(2,irdm)) then
+                write(rdm_filename(irdm), '("spinfree_TwoRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//')') irdm
+            else
+                write(rdm_filename(irdm), '("spinfree_TwoRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//',"->",'&
+                                                                //int_fmt(states_for_rdm(2,irdm),0)//',".",i1)') &
+                                    states_for_rdm(1,irdm), states_for_rdm(2,irdm), rdm_repeat_label(irdm)
+            end if
             inquire(file=trim(rdm_filename(irdm)), exist=file_exists)
 
             if (.not. file_exists) then
