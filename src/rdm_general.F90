@@ -29,9 +29,7 @@ contains
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
-        use rdm_data, only: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time, nrdms, signs_for_rdm
-        use rdm_data, only: nrdms_each_simulation, rdm_replica_pairs, rdm_labels_for_sims
-        use rdm_data, only: states_for_transition_rdm, states_for_rdm, rdm_repeat_label
+        use rdm_data, only: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time, nrdms
         use rdm_data_utils, only: init_rdm_spawn_t, init_rdm_list_t, init_one_rdm_t
         use rdm_data_utils, only: clear_one_rdms, clear_rdm_list_t
         use rdm_estimators, only: init_rdm_estimates_t, calc_2rdm_estimates_wrapper
@@ -47,7 +45,7 @@ contains
         integer :: rdm_nrows, nhashes_rdm_main, nhashes_rdm_spawn
         integer :: standard_spawn_size, min_spawn_size
         integer :: max_nelems_main, max_nelems_spawn, max_nelems_recv, max_nelems_recv_2
-        integer :: memory_alloc, irdm, iproc, counter, ierr
+        integer :: memory_alloc, irdm, iproc, ierr
         character(len=*), parameter :: t_r = 'init_rdms'
 
 #ifdef __CMPLX
@@ -90,80 +88,7 @@ contains
             end if
         end if
 
-        ! states_for_rdm(:,j) will store the labels of the *actual* wave
-        ! functions (i.e., usually which excited state it is) contributing to
-        ! the j'th RDM.
-        allocate(states_for_rdm(2, nrdms))
-        ! The 'standard' (non-transition) RDMs.
-        do irdm = 1, nrdms_standard
-            states_for_rdm(1,irdm) = irdm
-            states_for_rdm(2,irdm) = irdm
-        end do
-        ! The transition RDMs - these were read in from the user input.
-        if (nreplicas == 1) then
-            states_for_rdm(:,nrdms_standard+1:nrdms_standard+nrdms_transition) = states_for_transition_rdm
-        else if (nreplicas == 2) then
-            do irdm = 2, nrdms_transition, 2
-                ! In this case, there are two transition RDMs sampled for
-                ! each one the user requested, because there are two
-                ! combinations of replicas which can be used.
-                states_for_rdm(:,nrdms_standard+irdm-1) = states_for_transition_rdm(:,irdm/2)
-                states_for_rdm(:,nrdms_standard+irdm)   = states_for_transition_rdm(:,irdm/2)
-            end do
-        end if
-
-        ! For transition RDMs, with 2 replicas for each state, there will be 2
-        ! copies of each transition RDM. This array simply holds which of the
-        ! 2 each RDM is - the first or second repeat.
-        allocate(rdm_repeat_label(nrdms))
-        do irdm = 1, nrdms_standard
-            rdm_repeat_label(irdm) = 1
-        end do
-        do irdm = 1, nrdms_transition
-            rdm_repeat_label(irdm+nrdms_standard) = nreplicas - mod(irdm,nreplicas)
-        end do
-
-        ! signs_for_rdm(:,j) will store the labels of the *FCIQMC* wave functions
-        ! (i.e. the 'replica' labels) which will be used to sample the j'th RDM
-        ! being calculated.
-        allocate(signs_for_rdm(2, nrdms))
-        do irdm = 1, nrdms
-            if (nreplicas == 1) then
-                signs_for_rdm(1,irdm) = states_for_rdm(1,irdm)
-                signs_for_rdm(2,irdm) = states_for_rdm(2,irdm)
-            else if (nreplicas == 2) then
-                signs_for_rdm(1,irdm) = states_for_rdm(1,irdm)*nreplicas-mod(rdm_repeat_label(irdm),2)
-                signs_for_rdm(2,irdm) = states_for_rdm(2,irdm)*nreplicas-mod(rdm_repeat_label(irdm)+1,2)
-            end if
-        end do
-
-        allocate(nrdms_each_simulation(lenof_sign))
-        allocate(rdm_replica_pairs(nrdms, lenof_sign))
-        allocate(rdm_labels_for_sims(nrdms, lenof_sign))
-        nrdms_each_simulation = 0
-        rdm_replica_pairs = 0
-        rdm_labels_for_sims = 0
-        do irdm = 1, nrdms
-            ! Count the number of times each replica label is contributing to
-            ! an RDM.
-            nrdms_each_simulation(signs_for_rdm(1,irdm))  = nrdms_each_simulation(signs_for_rdm(1,irdm)) + 1
-            ! The number of RDMs which we have currently counted, for this replica.
-            counter = nrdms_each_simulation(signs_for_rdm(1,irdm))
-            ! Store which replica is paired with this, for this particular RDM
-            ! sampling.
-            rdm_replica_pairs(counter, signs_for_rdm(1,irdm)) = signs_for_rdm(2,irdm)
-            ! Store which RDM this pair of signs contributes to.
-            rdm_labels_for_sims(counter, signs_for_rdm(1,irdm)) = irdm
-
-            ! Do the same as above, but now for cases when spawning from the
-            ! 'second' replica in the pair, *but only if it is different*.
-            if (signs_for_rdm(1,irdm) /= signs_for_rdm(2,irdm)) then
-                nrdms_each_simulation(signs_for_rdm(2,irdm))  = nrdms_each_simulation(signs_for_rdm(2,irdm)) + 1
-                counter = nrdms_each_simulation(signs_for_rdm(2,irdm))
-                rdm_replica_pairs(counter, signs_for_rdm(2,irdm)) = signs_for_rdm(1,irdm)
-                rdm_labels_for_sims(counter, signs_for_rdm(2,irdm)) = irdm
-            end if
-        end do
+        call init_rdm_indexing_arrays(nrdms_standard, nrdms_transition)
 
         ! Allocate arrays for holding averaged signs and block lengths for the
         ! HF determinant.
@@ -435,6 +360,102 @@ contains
         RDMEnergy_Time%timer_name = 'RDMEnergyTime'
 
     end subroutine init_rdms
+
+    subroutine init_rdm_indexing_arrays(nrdms_standard, nrdms_transition)
+
+        ! Set up global arrays which are used to specify the lni between the
+        ! RDMs being sampled, and which states and FCIQMC simualtions are
+        ! involved in those RDMs.
+
+        ! For example, states_for_rdm specifies which states are used to
+        ! construct each RDM. signs_for_rdm specifies which FCIQMC simulations
+        ! are used to construct each RDM. See the rdm_data module for more
+        ! description on the various arrays set up here.
+
+        use rdm_data, only: nrdms, signs_for_rdm, nrdms_each_simulation, rdm_replica_pairs
+        use rdm_data, only: rdm_labels_for_sims, states_for_transition_rdm, states_for_rdm
+        use rdm_data, only: rdm_repeat_label
+
+        integer, intent(in) :: nrdms_standard, nrdms_transition
+
+        integer :: irdm, counter
+
+        ! states_for_rdm(:,j) will store the labels of the *actual* wave
+        ! functions (i.e., usually which excited state it is) contributing to
+        ! the j'th RDM.
+        allocate(states_for_rdm(2, nrdms))
+        ! The 'standard' (non-transition) RDMs.
+        do irdm = 1, nrdms_standard
+            states_for_rdm(1,irdm) = irdm
+            states_for_rdm(2,irdm) = irdm
+        end do
+        ! The transition RDMs - these were read in from the user input.
+        if (nreplicas == 1) then
+            states_for_rdm(:,nrdms_standard+1:nrdms_standard+nrdms_transition) = states_for_transition_rdm
+        else if (nreplicas == 2) then
+            do irdm = 2, nrdms_transition, 2
+                ! In this case, there are two transition RDMs sampled for
+                ! each one the user requested, because there are two
+                ! combinations of replicas which can be used.
+                states_for_rdm(:,nrdms_standard+irdm-1) = states_for_transition_rdm(:,irdm/2)
+                states_for_rdm(:,nrdms_standard+irdm)   = states_for_transition_rdm(:,irdm/2)
+            end do
+        end if
+
+        ! For transition RDMs, with 2 replicas for each state, there will be 2
+        ! copies of each transition RDM. This array simply holds which of the
+        ! 2 each RDM is - the first or second repeat.
+        allocate(rdm_repeat_label(nrdms))
+        do irdm = 1, nrdms_standard
+            rdm_repeat_label(irdm) = 1
+        end do
+        do irdm = 1, nrdms_transition
+            rdm_repeat_label(irdm+nrdms_standard) = nreplicas - mod(irdm,nreplicas)
+        end do
+
+        ! signs_for_rdm(:,j) will store the labels of the *FCIQMC* wave functions
+        ! (i.e. the 'replica' labels) which will be used to sample the j'th RDM
+        ! being calculated.
+        allocate(signs_for_rdm(2, nrdms))
+        do irdm = 1, nrdms
+            if (nreplicas == 1) then
+                signs_for_rdm(1,irdm) = states_for_rdm(1,irdm)
+                signs_for_rdm(2,irdm) = states_for_rdm(2,irdm)
+            else if (nreplicas == 2) then
+                signs_for_rdm(1,irdm) = states_for_rdm(1,irdm)*nreplicas-mod(rdm_repeat_label(irdm),2)
+                signs_for_rdm(2,irdm) = states_for_rdm(2,irdm)*nreplicas-mod(rdm_repeat_label(irdm)+1,2)
+            end if
+        end do
+
+        allocate(nrdms_each_simulation(lenof_sign))
+        allocate(rdm_replica_pairs(nrdms, lenof_sign))
+        allocate(rdm_labels_for_sims(nrdms, lenof_sign))
+        nrdms_each_simulation = 0
+        rdm_replica_pairs = 0
+        rdm_labels_for_sims = 0
+        do irdm = 1, nrdms
+            ! Count the number of times each replica label is contributing to
+            ! an RDM.
+            nrdms_each_simulation(signs_for_rdm(1,irdm))  = nrdms_each_simulation(signs_for_rdm(1,irdm)) + 1
+            ! The number of RDMs which we have currently counted, for this replica.
+            counter = nrdms_each_simulation(signs_for_rdm(1,irdm))
+            ! Store which replica is paired with this, for this particular RDM
+            ! sampling.
+            rdm_replica_pairs(counter, signs_for_rdm(1,irdm)) = signs_for_rdm(2,irdm)
+            ! Store which RDM this pair of signs contributes to.
+            rdm_labels_for_sims(counter, signs_for_rdm(1,irdm)) = irdm
+
+            ! Do the same as above, but now for cases when spawning from the
+            ! 'second' replica in the pair, *but only if it is different*.
+            if (signs_for_rdm(1,irdm) /= signs_for_rdm(2,irdm)) then
+                nrdms_each_simulation(signs_for_rdm(2,irdm))  = nrdms_each_simulation(signs_for_rdm(2,irdm)) + 1
+                counter = nrdms_each_simulation(signs_for_rdm(2,irdm))
+                rdm_replica_pairs(counter, signs_for_rdm(2,irdm)) = signs_for_rdm(1,irdm)
+                rdm_labels_for_sims(counter, signs_for_rdm(2,irdm)) = irdm
+            end if
+        end do
+
+    end subroutine init_rdm_indexing_arrays
 
     subroutine SetUpSymLabels_RDM()
 

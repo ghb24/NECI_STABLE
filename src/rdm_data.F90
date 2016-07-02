@@ -218,8 +218,9 @@ module rdm_data
     ! states_for_rdm(:,j) will store the labels of the *actual* wave functions
     ! (i.e., usually which excited state it is) contributing to the j'th RDM.
     integer, allocatable :: states_for_rdm(:,:) ! (2, nrdms)
-    ! This is the same as for states_for_rdm above, but only deals with
-    ! transition RDMs specifically.
+    ! This is the same as for states_for_rdm above, but *only* deals with
+    ! transition RDMs specifically. This array is used to hold the states
+    ! specified by the user at input.
     integer, allocatable :: states_for_transition_rdm(:,:) ! (2, nrdms_transition_rdm)
     ! signs_for_rdm(:,j) will store the labels of the *FCIQMC* simulations
     ! (i.e. the 'replica' labels) which will be used to sample the j'th RDM
