@@ -31,7 +31,7 @@ contains
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data, only: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time, nrdms, signs_for_rdm
         use rdm_data, only: nrdms_each_simulation, rdm_replica_pairs, rdm_labels_for_sims
-        use rdm_data, only: states_for_rdm, rdm_repeat_label
+        use rdm_data, only: states_for_transition_rdm, states_for_rdm, rdm_repeat_label
         use rdm_data_utils, only: init_rdm_spawn_t, init_rdm_list_t, init_one_rdm_t
         use rdm_data_utils, only: clear_one_rdms, clear_rdm_list_t
         use rdm_estimators, only: init_rdm_estimates_t, calc_2rdm_estimates_wrapper
@@ -99,11 +99,18 @@ contains
             states_for_rdm(1,irdm) = irdm
             states_for_rdm(2,irdm) = irdm
         end do
-        ! The transition RDMs.
-        do irdm = 1, nrdms_transition
-            states_for_rdm(1,irdm+nrdms_standard) = 1
-            states_for_rdm(2,irdm+nrdms_standard) = (irdm+1)/2 + 1
-        end do
+        ! The transition RDMs - these were read in from the user input.
+        if (nreplicas == 1) then
+            states_for_rdm(:,nrdms_standard+1:nrdms_standard+nrdms_transition) = states_for_transition_rdm
+        else if (nreplicas == 2) then
+            do irdm = 2, nrdms_transition, 2
+                ! In this case, there are two transition RDMs sampled for
+                ! each one the user requested, because there are two
+                ! combinations of replicas which can be used.
+                states_for_rdm(:,nrdms_standard+irdm-1) = states_for_transition_rdm(:,irdm/2)
+                states_for_rdm(:,nrdms_standard+irdm)   = states_for_transition_rdm(:,irdm/2)
+            end do
+        end if
 
         ! For transition RDMs, with 2 replicas for each state, there will be 2
         ! copies of each transition RDM. This array simply holds which of the
@@ -120,39 +127,15 @@ contains
         ! (i.e. the 'replica' labels) which will be used to sample the j'th RDM
         ! being calculated.
         allocate(signs_for_rdm(2, nrdms))
-        ! The 'standard' (non-transition) RDMs.
-        do irdm = 1, nrdms_standard
+        do irdm = 1, nrdms
             if (nreplicas == 1) then
-                signs_for_rdm(1,irdm) = irdm
-                signs_for_rdm(2,irdm) = irdm
+                signs_for_rdm(1,irdm) = states_for_rdm(1,irdm)
+                signs_for_rdm(2,irdm) = states_for_rdm(2,irdm)
             else if (nreplicas == 2) then
-                signs_for_rdm(1,irdm) = irdm*nreplicas-1
-                signs_for_rdm(2,irdm) = irdm*nreplicas
+                signs_for_rdm(1,irdm) = states_for_rdm(1,irdm)*nreplicas-mod(rdm_repeat_label(irdm),2)
+                signs_for_rdm(2,irdm) = states_for_rdm(2,irdm)*nreplicas-mod(rdm_repeat_label(irdm)+1,2)
             end if
         end do
-        ! The transition RDMs.
-        do irdm = 1, nrdms_transition, nreplicas
-            signs_for_rdm(1,irdm+nrdms_standard) = 1
-
-            if (nreplicas == 1) then
-                signs_for_rdm(2,irdm+nrdms_standard) = irdm + 1
-            else if (nreplicas == 2) then
-                signs_for_rdm(2,irdm+nrdms_standard) = irdm + 3
-            end if
-        end do
-        if (nreplicas == 2) then
-            do irdm = 2, nrdms_transition, 2
-                signs_for_rdm(1,irdm+nrdms_standard) = 2
-                signs_for_rdm(2,irdm+nrdms_standard) = irdm + 1
-            end do
-        end if
-
-        ! Allocate arrays for holding averaged signs and block lengths for the
-        ! HF determinant.
-        allocate(AvNoatHF(len_av_sgn_tot))
-        AvNoatHF = 0.0_dp
-        allocate(IterRDM_HF(len_iter_occ_tot))
-        IterRDM_HF = 0
 
         allocate(nrdms_each_simulation(lenof_sign))
         allocate(rdm_replica_pairs(nrdms, lenof_sign))
@@ -181,6 +164,13 @@ contains
                 rdm_labels_for_sims(counter, signs_for_rdm(2,irdm)) = irdm
             end if
         end do
+
+        ! Allocate arrays for holding averaged signs and block lengths for the
+        ! HF determinant.
+        allocate(AvNoatHF(len_av_sgn_tot))
+        AvNoatHF = 0.0_dp
+        allocate(IterRDM_HF(len_iter_occ_tot))
+        IterRDM_HF = 0
 
         ! Have not got HPHF working with the explicit or truncated methods yet.
         ! Neither of these would be too difficult to implement.

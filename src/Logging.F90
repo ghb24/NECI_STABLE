@@ -15,6 +15,7 @@ MODULE Logging
     use errors, only: Errordebug 
     use LoggingData
     use spectral_data, only: tPrint_sl_eigenvecs
+    use rdm_data, only: nrdms_transition, states_for_transition_rdm
 
     IMPLICIT NONE
 
@@ -173,7 +174,7 @@ MODULE Logging
 
         logical :: eof
         logical tUseOnlySingleReplicas
-        integer :: i, ierr
+        integer :: i, line, ierr
         character(100) :: w
         character(*), parameter :: t_r = 'LogReadInput'
 
@@ -536,6 +537,15 @@ MODULE Logging
 
         case("TRANSITION-RDMS")
             tTransitionRDMs = .true.
+            call readi(nrdms_transition)
+            allocate(states_for_transition_rdm(2, nrdms_transition), stat=ierr)
+
+            do line = 1, nrdms_transition
+                call read_line(eof)
+                do i = 1, 2
+                    call geti(states_for_transition_rdm(i, line))
+                end do
+            end do
 
         case("PRINT-1RDMS-FROM-2RDM-POPS")
             tPrint1RDMsFrom2RDMPops = .true.

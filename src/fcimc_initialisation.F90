@@ -1125,11 +1125,10 @@ contains
              end if
          end if
          if (tTransitionRDMs) then
-             if (tPairedReplicas) then
-                 nrdms_transition = lenof_sign - 2
-             else
-                 nrdms_transition = lenof_sign - 1
-             end if
+             ! nrdms_transition will have been read in from the user input.
+             ! But if we have two different replicas for each state sampled,
+             ! then there are two ways to form each transition RDMs.
+             nrdms_transition = nrdms_transition*nreplicas
          end if
 
     END SUBROUTINE SetupParameters
