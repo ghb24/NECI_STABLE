@@ -45,7 +45,8 @@ contains
         integer :: rdm_nrows, nhashes_rdm_main, nhashes_rdm_spawn
         integer :: standard_spawn_size, min_spawn_size
         integer :: max_nelems_main, max_nelems_spawn, max_nelems_recv, max_nelems_recv_2
-        integer :: memory_alloc, irdm, iproc, ierr
+        integer :: memory_alloc, main_mem, spawn_mem, recv_mem
+        integer :: irdm, iproc, ierr
         character(len=*), parameter :: t_r = 'init_rdms'
 
 #ifdef __CMPLX
@@ -124,7 +125,10 @@ contains
         rdm_nrows = nbasis*(nbasis-1)/2
         max_nelems_main = 1.5*(rdm_nrows**2)/(8*nProcessors)
         nhashes_rdm_main = 0.75*max_nelems_main
+        main_mem = max_nelems_main*(nrdms+1)*size_int_rdm
+        write(6,'(/,1X,"About to allocate main RDM array, size per MPI process (MB):", f14.6)') real(main_mem,dp)/1048576.0_dp
         call init_rdm_list_t(two_rdm_main, nrdms, max_nelems_main, nhashes_rdm_main)
+        write(6,'(1X,"Allocation of main RDM array complete.")')
 
         ! Factor of 10 over perfectly distributed size, for some safety.
         standard_spawn_size = 10.0*(rdm_nrows**2)/(8*nProcessors)
@@ -136,21 +140,24 @@ contains
         min_spawn_size = 50*nProcessors
         max_nelems_spawn = max(standard_spawn_size, min_spawn_size)
         nhashes_rdm_spawn = 0.75*max_nelems_spawn
+        spawn_mem = max_nelems_spawn*(nrdms+1)*size_int_rdm
+        write(6,'(1X,"About to allocate RDM spawning array, size per MPI process (MB):", f14.6)') real(spawn_mem,dp)/1048576.0_dp
         call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems_spawn, nhashes_rdm_spawn)
+        write(6,'(1X,"Allocation of RDM spawning array complete.")')
 
         max_nelems_recv = 4.0*(rdm_nrows**2)/(8*nProcessors)
         max_nelems_recv_2 = 2.0*(rdm_nrows**2)/(8*nProcessors)
         ! Don't need the hash table for the received list, so pass 0 for nhashes.
+        recv_mem = (max_nelems_recv + max_nelems_recv_2)*(nrdms+1)*size_int_rdm
+        write(6,'(1X,"About to allocate RDM receiving arrays, size per MPI process (MB):", f14.6)') real(recv_mem,dp)/1048576.0_dp
         call init_rdm_list_t(two_rdm_recv, nrdms, max_nelems_recv, 0)
         call init_rdm_list_t(two_rdm_recv_2, nrdms, max_nelems_recv_2, 0)
+        write(6,'(1X,"Allocation of RDM receiving arrays complete.",/)')
 
         ! Count the memory the various RDM lists (but this does *not* count
         ! the memory of the hash tables - this will increase dynamically
         ! throughout the simulation).
-        memory_alloc = memory_alloc + max_nelems_main*(nrdms+1)*size_int_rdm
-        memory_alloc = memory_alloc + max_nelems_spawn*(nrdms+1)*size_int_rdm
-        memory_alloc = memory_alloc + max_nelems_recv*(nrdms+1)*size_int_rdm
-        memory_alloc = memory_alloc + max_nelems_recv_2*(nrdms+1)*size_int_rdm
+        memory_alloc = memory_alloc + main_mem + spawn_mem + recv_mem
 
         call init_rdm_estimates_t(rdm_estimates, nrdms_standard, nrdms_transition, print_2rdm_est)
 
@@ -268,7 +275,7 @@ contains
 
         if (iProcIndex == 0) then
             write(6, "(A,F14.6,A,F14.6,A)") " Main RDM memory arrays consists of: ", &
-                      real(memory_alloc,dp)/1048576.0_dp," MB for each MPI process."
+                      real(memory_alloc,dp)/1048576.0_dp," MB per MPI process."
         end if
 
         ! These parameters are set for the set up of the symmetry arrays, which
@@ -353,7 +360,7 @@ contains
         ! is on, these wont be printed.
         if (tPopsfile .and. (.not. tno_RDMs_to_read)) twrite_RDMs_to_read = .true.
 
-        if (iProcIndex == 0) write(6,'(1X,"RDM memory allocation successful...")')
+        if (iProcIndex == 0) write(6,'(1X,"RDM memory allocation complete.",/)')
 
         nElRDM_Time%timer_name = 'nElRDMTime'
         FinaliseRDMs_Time%timer_name = 'FinaliseRDMsTime'
