@@ -291,13 +291,6 @@ contains
 
                 write(6,'(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%trace(irdm)
                 write(6,'(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est%trace(irdm)/est%norm(irdm)
-
-                ! Hermiticity error measures.
-                write(6,'(1x,"Hermiticty error estimates:")')
-                write(6,'(1x,i15,f30.20,5x,a41)') Iter+PreviousCycles, est%max_error_herm(irdm), &
-                                                '(Iteration, MAX ABS ERROR IN HERMITICITY)'
-                write(6,'(1x,i15,f30.20,5x,a41,/)') Iter+PreviousCycles, est%sum_error_herm(irdm), &
-                                                '(Iteration, SUM ABS ERROR IN HERMITICITY)'
             end do
 
             ! Banner for the end of the 2-RDM section in output.
