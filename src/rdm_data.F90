@@ -200,6 +200,13 @@ module rdm_data
 
     ! Global data.
 
+    ! Factors which can be set by the user at input to modify the size of RDM
+    ! arrays relative to their default sizes (as specified in the init_rdms
+    ! routine).
+    real(dp) :: rdm_main_size_fac = 1.0_dp
+    real(dp) :: rdm_spawn_size_fac = 1.0_dp
+    real(dp) :: rdm_recv_size_fac = 1.0_dp
+
     ! The primary global RDM objects.
     ! Arrays of objects, one for each 1-RDM being sampled.
     type(one_rdm_t), allocatable :: one_rdms(:) ! nrdms

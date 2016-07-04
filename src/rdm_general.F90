@@ -30,6 +30,7 @@ contains
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data, only: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time, nrdms
+        use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
         use rdm_data_utils, only: init_rdm_spawn_t, init_rdm_list_t, init_one_rdm_t
         use rdm_data_utils, only: clear_one_rdms, clear_rdm_list_t
         use rdm_estimators, only: init_rdm_estimates_t, calc_2rdm_estimates_wrapper
@@ -123,8 +124,9 @@ contains
         ! factors such as imperfect load balancing (which affects the spawned
         ! array).
         rdm_nrows = nbasis*(nbasis-1)/2
-        max_nelems_main = 1.5*(rdm_nrows**2)/(8*nProcessors)
-        nhashes_rdm_main = 0.75*max_nelems_main
+        max_nelems_main = 1.5*(rdm_nrows**2)/(8*nProcessors)*rdm_main_size_fac
+        nhashes_rdm_main = 0.75*max_nelems_main*rdm_main_size_fac
+
         main_mem = max_nelems_main*(nrdms+1)*size_int_rdm
         write(6,'(/,1X,"About to allocate main RDM array, size per MPI process (MB):", f14.6)') real(main_mem,dp)/1048576.0_dp
         call init_rdm_list_t(two_rdm_main, nrdms, max_nelems_main, nhashes_rdm_main)
@@ -138,18 +140,20 @@ contains
         ! would not be at least one spawning slot per processor. In such cases
         ! make sure that we have at least 50 per processor, for some safety.
         min_spawn_size = 50*nProcessors
-        max_nelems_spawn = max(standard_spawn_size, min_spawn_size)
-        nhashes_rdm_spawn = 0.75*max_nelems_spawn
+        max_nelems_spawn = max(standard_spawn_size, min_spawn_size)*rdm_spawn_size_fac
+        nhashes_rdm_spawn = 0.75*max_nelems_spawn*rdm_spawn_size_fac
+
         spawn_mem = max_nelems_spawn*(nrdms+1)*size_int_rdm
         write(6,'(1X,"About to allocate RDM spawning array, size per MPI process (MB):", f14.6)') real(spawn_mem,dp)/1048576.0_dp
         call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems_spawn, nhashes_rdm_spawn)
         write(6,'(1X,"Allocation of RDM spawning array complete.")')
 
-        max_nelems_recv = 4.0*(rdm_nrows**2)/(8*nProcessors)
-        max_nelems_recv_2 = 2.0*(rdm_nrows**2)/(8*nProcessors)
-        ! Don't need the hash table for the received list, so pass 0 for nhashes.
+        max_nelems_recv = 4.0*(rdm_nrows**2)/(8*nProcessors)*rdm_recv_size_fac
+        max_nelems_recv_2 = 2.0*(rdm_nrows**2)/(8*nProcessors)*rdm_recv_size_fac
+
         recv_mem = (max_nelems_recv + max_nelems_recv_2)*(nrdms+1)*size_int_rdm
         write(6,'(1X,"About to allocate RDM receiving arrays, size per MPI process (MB):", f14.6)') real(recv_mem,dp)/1048576.0_dp
+        ! Don't need the hash table for the received list, so pass 0 for nhashes.
         call init_rdm_list_t(two_rdm_recv, nrdms, max_nelems_recv, 0)
         call init_rdm_list_t(two_rdm_recv_2, nrdms, max_nelems_recv_2, 0)
         write(6,'(1X,"Allocation of RDM receiving arrays complete.",/)')
