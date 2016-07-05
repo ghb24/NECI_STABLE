@@ -1332,7 +1332,10 @@ contains
         logical, intent(in) :: tNormalise, tOldRDMs
 
         integer :: i, j, iSpat, jSpat, one_rdm_unit
+        logical :: is_transition_rdm
         character(20) :: filename
+
+        is_transition_rdm = states_for_rdm(1,irdm) /= states_for_rdm(2,irdm)
 
         if (tNormalise) then
             ! Haven't got the capabilities to produce multiple 1-RDMs yet.
@@ -1346,12 +1349,12 @@ contains
                 write(filename, '("OneRDM_old.",'//int_fmt(irdm,0)//')') irdm
                 open(one_rdm_unit, file=trim(filename), status='unknown')
             else
-                if (states_for_rdm(1,irdm) == states_for_rdm(2,irdm)) then
-                    write(filename, '("OneRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//')') irdm
-                else
+                if (is_transition_rdm) then
                     write(filename, '("OneRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//',"->",'&
                                                  //int_fmt(states_for_rdm(2,irdm),0)//',".",i1)') &
                                         states_for_rdm(1,irdm), states_for_rdm(2,irdm), rdm_repeat_label(irdm)
+                else
+                    write(filename, '("OneRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//')') irdm
                 end if
                 open(one_rdm_unit, file=trim(filename), status='unknown')
             end if
@@ -1365,12 +1368,12 @@ contains
                 write(filename, '("OneRDM_POPS_old.",'//int_fmt(irdm,0)//')') irdm
                 open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
             else
-                if (states_for_rdm(1,irdm) == states_for_rdm(2,irdm)) then
-                    write(filename, '("OneRDM_POPS.",'//int_fmt(states_for_rdm(1,irdm),0)//')') irdm
-                else
+                if (is_transition_rdm) then
                     write(filename, '("OneRDM_POPS.",'//int_fmt(states_for_rdm(1,irdm),0)//',"->",'&
                                                       //int_fmt(states_for_rdm(2,irdm),0)//',".",i1)') &
                                         states_for_rdm(1,irdm), states_for_rdm(2,irdm), rdm_repeat_label(irdm)
+                else
+                    write(filename, '("OneRDM_POPS.",'//int_fmt(states_for_rdm(1,irdm),0)//')') irdm
                 end if
                 open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
             end if
@@ -1382,7 +1385,7 @@ contains
                 do j = 1, nbasis
                     if (tOpenShell) then
                         if (abs(one_rdm(ind(i), ind(j))) > 1.0e-12_dp) then
-                            if (tNormalise .and. (i <= j)) then
+                            if (tNormalise .and. (i <= j .or. is_transition_rdm)) then
                                 write(one_rdm_unit,"(2I6,G25.17)") i, j, one_rdm(ind(i), ind(j)) * norm_1rdm
                             else if (.not. tNormalise) then
                                 ! For the pops, we haven't made the 1-RDM hermitian yet,
@@ -1395,7 +1398,7 @@ contains
                         iSpat = gtID(i)
                         jSpat = gtID(j)
                         if (abs(one_rdm(ind(iSpat), ind(jSpat))) > 1.0e-12_dp) then
-                            if (tNormalise .and. (i <= j)) then
+                            if (tNormalise .and. (i <= j .or. is_transition_rdm)) then
                                 if ((mod(i,2) == 0 .and. mod(j,2) == 0) .or. &
                                     (mod(i,2) /= 0 .and. mod(j,2) /= 0)) then
                                     write(one_rdm_unit,"(2I6,G25.17)") i, j, &
