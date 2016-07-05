@@ -265,9 +265,8 @@ module fcimc_pointed_fns
             ! so.. does a |nSpawn| > 1 in my new tau-search implitly mean 
             ! that the tau is to small for this kind of exciation? 
             ! i guess so yeah.. so do it really brute force to start with 
-            if (t_hist_tau_search_option .and. t_truncate_spawns .and. &
-                abs(nSpawn) > n_truncate_spawns) then 
-
+            if (t_truncate_spawns .and. abs(nSpawn) > n_truncate_spawns) then
+                
 
                 ! in debug mode i should output some additional information 
                 ! to analyze the type of excitations and how many open-orbitals
