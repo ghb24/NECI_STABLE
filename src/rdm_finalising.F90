@@ -1098,6 +1098,7 @@ contains
         use LoggingData, only: twrite_RDMs_to_read, tForceCauchySchwarz
         use LoggingData, only: RDMExcitLevel
         use Parallel_neci, only: iProcIndex, MPISumAll
+        use rdm_data, only: nrdms_standard
         use RotateOrbsData, only: NoOrbs
 
         type(one_rdm_t), intent(inout) :: one_rdms(:)
@@ -1120,22 +1121,21 @@ contains
         ! Find the normalisation.
         call calc_1e_norms(one_rdms, norm_1rdm)
 
-        do irdm = 1, size(one_rdms)
-            if (iProcIndex == 0) then
+        if (iProcIndex == 0) then
+            do irdm = 1, size(one_rdms)
                 ! Write out the unnormalised, non-hermitian OneRDM_POPS.
                 if (twrite_RDMs_to_read) call write_1rdm(one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .false., tOldRDMs)
+            end do
 
-                ! Enforce the hermiticity condition.  If the RDMExcitLevel is not 1, the
-                ! 1-RDM has been constructed from the hermitian 2-RDM, so this will not
-                ! be necessary.
-                ! The HF_Ref and HF_S_D_Ref cases are not hermitian by definition.
-                if (RDMExcitLevel == 1) then
+            if (RDMExcitLevel == 1) then
+                ! Only non-transition RDMs should be hermitian and obey the 
+                ! Cauchy-Schwarz inequalityo.
+                do irdm = 1, nrdms_standard
                     call make_1e_rdm_hermitian(one_rdms(irdm)%matrix, norm_1rdm(irdm))
                     if (tForceCauchySchwarz) call Force_Cauchy_Schwarz(one_rdms(irdm)%matrix)
-                end if
+                end do
             end if
-
-        end do
+        end if
 
     end subroutine finalise_1e_rdm
 
