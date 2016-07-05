@@ -284,7 +284,7 @@ contains
         use Parallel_neci, only: MPISumAll
         use rdm_data, only: one_rdm_t, rdm_list_t
         use rdm_estimators, only: calc_rdm_trace
-        use rdm_finalising, only: Finalise_1e_RDM, calc_1rdms_from_2rdms
+        use rdm_finalising, only: calc_1rdms_from_2rdms, write_1rdm
         use SystemData, only: nel
 
         type(one_rdm_t), intent(inout) :: one_rdms(:)
@@ -302,15 +302,18 @@ contains
                                 &seting the RDMExcitLevel to 3, i.e. 'CALCRDMONFLY 3 ...' in input options.")
         end if
 
-        call calc_rdm_trace(two_rdms, rdm_trace)
-        call MPISumAll(rdm_trace, rdm_trace_all)
+        !call calc_rdm_trace(two_rdms, rdm_trace)
+        !call MPISumAll(rdm_trace, rdm_trace_all)
         ! RDMs are normalised so that their trace is nel*(nel-1)/2.
-        rdm_norm_all = rdm_trace_all*2.0_dp/(nel*(nel-1))
+        !rdm_norm_all = rdm_trace_all*2.0_dp/(nel*(nel-1))
+
+        ! The read-in spinfree 2-RDMs should already be normalised.
+        rdm_norm_all = 1.0_dp
 
         call calc_1rdms_from_2rdms(one_rdms, two_rdms, rdm_norm_all, open_shell)
 
         do irdm = 1, size(one_rdms)
-            call Finalise_1e_RDM(one_rdms(irdm)%matrix, one_rdms(irdm)%rho_ii, irdm, norm_1rdm, .false.)
+            call write_1rdm(one_rdms(irdm)%matrix, irdm, 1.0_dp, .true., .false.)
         end do
 
     end subroutine print_1rdms_from_2rdms_wrapper
@@ -326,7 +329,7 @@ contains
         use Parallel_neci, only: MPISumAll
         use rdm_data, only: one_rdm_t, rdm_list_t
         use rdm_estimators, only: calc_rdm_trace
-        use rdm_finalising, only: Finalise_1e_RDM, calc_1rdms_from_spinfree_2rdms
+        use rdm_finalising, only: calc_1rdms_from_spinfree_2rdms, write_1rdm
 
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         type(rdm_list_t), intent(in) :: two_rdms
@@ -347,7 +350,7 @@ contains
         call calc_1rdms_from_spinfree_2rdms(one_rdms, two_rdms, rdm_norm_all)
 
         do irdm = 1, size(one_rdms)
-            call Finalise_1e_RDM(one_rdms(irdm)%matrix, one_rdms(irdm)%rho_ii, irdm, norm_1rdm, .false.)
+            call write_1rdm(one_rdms(irdm)%matrix, irdm, 1.0_dp, .true., .false.)
         end do
 
     end subroutine print_1rdms_from_sf2rdms_wrapper

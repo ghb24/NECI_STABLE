@@ -157,7 +157,7 @@ contains
         ! for any observable.
 
         use Parallel_neci, only: MPISumAll
-        use rdm_data, only: rdm_estimates_t, rdm_list_t, signs_for_rdm
+        use rdm_data, only: rdm_estimates_t, rdm_list_t, states_for_rdm
         use SystemData, only: nel, ecore
 
         type(rdm_estimates_t), intent(inout) :: est
@@ -188,17 +188,9 @@ contains
 
         ! For the transition RDMs, we want to calculate the norms using the
         ! non-transition RDMs.
-        if (nreplicas == 1) then
-            do irdm = est%nrdms_standard+1, est%nrdms
-                est%norm(irdm) = sqrt(est%norm(signs_for_rdm(1,irdm))) * &
-                                 sqrt(est%norm(signs_for_rdm(2,irdm)))
-            end do
-        else
-            do irdm = est%nrdms_standard+1, est%nrdms
-                est%norm(irdm) = sqrt(est%norm((signs_for_rdm(1,irdm)+1)/2)) * &
-                                 sqrt(est%norm((signs_for_rdm(2,irdm)+1)/2))
-            end do
-        end if
+        do irdm = est%nrdms_standard+1, est%nrdms
+            est%norm(irdm) = sqrt( est%norm(states_for_rdm(1,irdm)) * est%norm(states_for_rdm(2,irdm)) )
+        end do
 
         ! The 1- and 2- electron operator contributions to the RDM energy.
         call calc_rdm_energy(rdm, rdm_energy_1, rdm_energy_2)
@@ -290,7 +282,7 @@ contains
                           states_for_rdm(1,irdm), states_for_rdm(2,irdm), rdm_repeat_label(irdm)
 
                 write(6,'(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%trace(irdm)
-                write(6,'(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est%trace(irdm)/est%norm(irdm)
+                write(6,'(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10,/)') est%trace(irdm)/est%norm(irdm)
             end do
 
             ! Banner for the end of the 2-RDM section in output.

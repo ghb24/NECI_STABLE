@@ -26,7 +26,8 @@ contains
         use EN2MOLCAS, only: NECI_E
 #endif
         use LoggingData, only: tBrokenSymNOs, occ_numb_diff, RDMExcitLevel, tExplicitAllRDM
-        use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo, tDipoles
+        use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo
+        use LoggingData, only: tDipoles, tWrite_normalised_RDMs
         use Parallel_neci, only: iProcIndex, MPIBarrier, MPIBCast
         use rdm_data, only: tRotatedNos, FinaliseRDMs_Time, tOpenShell, print_2rdm_est
         use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t, rdm_estimates_t
@@ -41,7 +42,7 @@ contains
         type(rdm_estimates_t), intent(inout) :: rdm_estimates
 
         integer :: irdm, ierr
-        real(dp) :: norm_1rdm, trace_1rdm, SumN_Rho_ii
+        real(dp) :: norm_1rdm(size(one_rdms)), SumN_Rho_ii(size(one_rdms))
 
         call set_timer(FinaliseRDMs_Time)
 
@@ -62,16 +63,16 @@ contains
             ! Calculate the RDM estmimates from the final few iterations,
             ! since it was last calculated. But only do this if they're
             ! actually to be printed.
-            if (print_2rdm_est) then
-                call calc_2rdm_estimates_wrapper(rdm_estimates, two_rdms)
-            end if
+            call calc_2rdm_estimates_wrapper(rdm_estimates, two_rdms)
 
             ! Output the final 2-RDMs themselves, in all forms desired.
             call output_2rdm_wrapper(rdm_estimates, two_rdms, rdm_recv, rdm_recv_2, spawn)
 
             ! Calculate the 1-RDMs from the 2-RDMS, if required.
-            if (tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
+            if (RDMExcitLevel == 3 .or. tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
                 call calc_1rdms_from_2rdms(one_rdms, two_rdms, rdm_estimates%norm, tOpenShell)
+                ! The 1-RDM will have been constructed to be normalised already.
+                norm_1rdm = 1.0_dp
             end if
         end if
 
@@ -80,21 +81,26 @@ contains
             ! Output banner for start of 1-RDM section in the output.
             write(6,'(1x,2("="),1x,"INFORMATION FOR FINAL 1-RDMS",1x,57("="))')
 
-            do irdm = 1, size(one_rdms)
-                write(6,'(/,1x,"PERFORMING ANALYSIS OF 1-RDM FOR STATE",1x,'//int_fmt(irdm)//',"...")') irdm
-                if (RDMExcitLevel == 1) then
-                    call Finalise_1e_RDM(one_rdms(irdm)%matrix, one_rdms(irdm)%rho_ii, irdm, norm_1rdm, .false.)
-                else
-                    if (tPrint1RDM) then
-                        call Finalise_1e_RDM(one_rdms(irdm)%matrix, one_rdms(irdm)%rho_ii, irdm, norm_1rdm, .false.)
-                    else if (tDiagRDM .and. iProcIndex == 0) then
-                        call calc_1e_norms(one_rdms(irdm)%matrix, one_rdms(irdm)%rho_ii, trace_1rdm, norm_1rdm, SumN_Rho_ii)
-                        write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
+            if (RDMExcitLevel == 1) call finalise_1e_rdm(one_rdms, norm_1rdm, .false.)
+
+            if (iProcIndex == 0) then
+                call calc_rho_ii_and_sum_n(one_rdms, norm_1rdm, SumN_Rho_ii)
+
+                do irdm = 1, rdm_estimates%nrdms
+                    write(6,'(/,1x,"INFORMATION FOR 1-RDM",1x,'//int_fmt(irdm)//',":")') irdm
+                    write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii(irdm)
+
+                    if (RDMExcitLevel == 1 .or. tPrint1RDM) then
+                        ! Write out the final, normalised, hermitian OneRDM.
+                        if (tWrite_normalised_RDMs) call write_1rdm(one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), &
+                                                                     .true., .false.)
                     end if
-                end if
+                end do
+            end if
 
-                call MPIBarrier(ierr)
+            call MPIBarrier(ierr)
 
+            do irdm = 1, rdm_estimates%nrdms_standard
                 ! Call the routines from NatOrbs that diagonalise the one electron
                 ! reduced density matrix.
                 tRotatedNOs = .false. ! Needed for BrokenSymNo routine
@@ -1083,64 +1089,55 @@ contains
 
     ! ------- Routines for finalising 1-RDMs ---------------------------------
 
-    subroutine Finalise_1e_RDM(matrix, matrix_diag, irdm, norm_1rdm, tOldRDMs)
+    subroutine finalise_1e_rdm(one_rdms, norm_1rdm, tOldRDMs)
 
-        ! This routine takes the 1-RDM (matrix), normalises it, makes it
-        ! hermitian if required, and prints out the versions we're interested
-        ! in. This is only ever called at the very end of a calculation.
+        ! This routine takes the 1-RDM (matrix), sums it across processors,
+        ! normalises it, makes it hermitian, and prints out the 'popsfile'
+        ! 1-RDM, i.e. the 1-RDM before it is normalised or made Hermitian.
 
-        use LoggingData, only: twrite_RDMs_to_read, twrite_normalised_RDMs, tForceCauchySchwarz
+        use LoggingData, only: twrite_RDMs_to_read, tForceCauchySchwarz
         use LoggingData, only: RDMExcitLevel
         use Parallel_neci, only: iProcIndex, MPISumAll
         use RotateOrbsData, only: NoOrbs
 
-        real(dp), intent(inout) :: matrix(:,:)
-        real(dp), intent(inout) :: matrix_diag(:)
-        integer, intent(in) :: irdm
-        real(dp), intent(out) :: norm_1rdm
+        type(one_rdm_t), intent(inout) :: one_rdms(:)
+        real(dp), intent(out) :: norm_1rdm(size(one_rdms))
         logical, intent(in) :: tOldRDMs
 
-        integer :: ierr
-        real(dp) :: trace_1rdm, SumN_Rho_ii
+        integer :: irdm, ierr
+        real(dp) :: SumN_Rho_ii(size(one_rdms))
         real(dp), allocatable :: AllNode_one_rdm(:,:)
-
-        norm_1rdm = 0.0_dp
 
         if (RDMExcitLevel == 1) then
             allocate(AllNode_one_rdm(NoOrbs, NoOrbs), stat=ierr)
-
-            call MPISumAll(matrix, AllNode_one_rdm)
-            matrix = AllNode_one_rdm
-
+            do irdm = 1, size(one_rdms)
+                call MPISumAll(one_rdms(irdm)%matrix, AllNode_one_rdm)
+                one_rdms(irdm)%matrix = AllNode_one_rdm
+            end do
             deallocate(AllNode_one_rdm)
         end if
 
-        if (iProcIndex == 0) then
-            ! Find the normalisation.
-            call calc_1e_norms(matrix, matrix_diag, trace_1rdm, norm_1rdm, SumN_Rho_ii)
+        ! Find the normalisation.
+        call calc_1e_norms(one_rdms, norm_1rdm)
 
-            ! Write out the unnormalised, non-hermitian OneRDM_POPS.
-            if (twrite_RDMs_to_read) call write_1rdm(matrix, irdm, norm_1rdm, .false., tOldRDMs)
+        do irdm = 1, size(one_rdms)
+            if (iProcIndex == 0) then
+                ! Write out the unnormalised, non-hermitian OneRDM_POPS.
+                if (twrite_RDMs_to_read) call write_1rdm(one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .false., tOldRDMs)
 
-            ! Enforce the hermiticity condition.  If the RDMExcitLevel is not 1, the
-            ! 1-RDM has been constructed from the hermitian 2-RDM, so this will not
-            ! be necessary.
-            ! The HF_Ref and HF_S_D_Ref cases are not hermitian by definition.
-            if (RDMExcitLevel == 1) then
-                call make_1e_rdm_hermitian(matrix, norm_1rdm)
-
-                if (tForceCauchySchwarz) then
-                    call Force_Cauchy_Schwarz(matrix)
+                ! Enforce the hermiticity condition.  If the RDMExcitLevel is not 1, the
+                ! 1-RDM has been constructed from the hermitian 2-RDM, so this will not
+                ! be necessary.
+                ! The HF_Ref and HF_S_D_Ref cases are not hermitian by definition.
+                if (RDMExcitLevel == 1) then
+                    call make_1e_rdm_hermitian(one_rdms(irdm)%matrix, norm_1rdm(irdm))
+                    if (tForceCauchySchwarz) call Force_Cauchy_Schwarz(one_rdms(irdm)%matrix)
                 end if
             end if
 
-            ! Write out the final, normalised, hermitian OneRDM.
-            if (tWrite_normalised_RDMs) call write_1rdm(matrix, irdm, norm_1rdm, .true., tOldRDMs)
+        end do
 
-            write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
-        end if
-
-    end subroutine Finalise_1e_RDM
+    end subroutine finalise_1e_rdm
 
     subroutine Force_Cauchy_Schwarz(matrix)
 
@@ -1177,15 +1174,51 @@ contains
 
     end subroutine Force_Cauchy_Schwarz
 
-    subroutine calc_1e_norms(matrix, matrix_diag, trace_1rdm, norm_1rdm, SumN_Rho_ii)
+    subroutine calc_1e_norms(one_rdms, norm_1rdm)
 
-        ! We want to 'normalise' the reduced density matrices. These are not
-        ! even close to being normalised at the moment, because of the way
-        ! they are calculated on the fly. They should be calculated from a
-        ! normalised wavefunction. But we know that the trace of the one
-        ! electron reduced density matrix must be equal to the number of the
-        ! electrons. We can use this to find the factor we must divide the
-        ! 1-RDM through by.
+        ! Calculate and return the factor by which the input 1-RDMs need to be
+        ! divided by, in order to correctly normalise them. The transition
+        ! RDMs need to be normalised differently - see comments below.
+
+        use rdm_data, only: states_for_rdm, nrdms_standard
+        use RotateOrbsData, only: NoOrbs
+        use SystemData, only: nel
+
+        type(one_rdm_t), intent(in) :: one_rdms(:)
+        real(dp), intent(out) :: norm_1rdm(:)
+
+        integer :: irdm, i
+        real(dp) :: trace_1rdm(size(one_rdms))
+
+        trace_1rdm = 0.0_dp
+        norm_1rdm = 0.0_dp
+
+        do irdm = 1, size(one_rdms)
+            do i = 1, NoOrbs
+                trace_1rdm(irdm) = trace_1rdm(irdm) + one_rdms(irdm)%matrix(i,i)
+            end do
+        end do
+
+        ! The non-transition RDMs must be normalised to have a trace of nel.
+        do irdm = 1, nrdms_standard
+            norm_1rdm(irdm) = real(nel, dp) / trace_1rdm(irdm)
+        end do
+
+        ! The transition RDMs should be normalised using the normalisation of
+        ! the contributing wave functions, which can be calculated from the
+        ! traces of the corresponding RDMs.
+        do irdm = nrdms_standard+1, size(one_rdms)
+            norm_1rdm(irdm) = sqrt( norm_1rdm(states_for_rdm(1,irdm)) * norm_1rdm(states_for_rdm(2,irdm)) )
+        end do
+
+    end subroutine calc_1e_norms
+
+    subroutine calc_rho_ii_and_sum_n(one_rdms, norm_1rdm, SumN_Rho_ii)
+
+        ! Calculate the rho_ii arrays, which hold the diagonals of the 1-RDMs,
+        ! appropriately normalised and sorted in terms of the energy ordering
+        ! of the orbitals. Then, calculate SumN_Rho_ii, which holds the sum of
+        ! this diagonal for orbitals occupied in the HF determinant.
 
         use FciMCData, only: HFDet_True
         use LoggingData, only: tDiagRDM
@@ -1194,61 +1227,52 @@ contains
         use SystemData, only: BRR, nel
         use UMatCache, only: gtID
 
-        real(dp), intent(in) :: matrix(:,:)
-        real(dp), intent(inout) :: matrix_diag(:)
-        real(dp), intent(out) :: trace_1rdm, norm_1rdm, SumN_Rho_ii
+        type(one_rdm_t), intent(inout) :: one_rdms(:)
+        real(dp), intent(in) :: norm_1rdm(:)
+        real(dp), intent(out) :: SumN_Rho_ii(:)
 
-        integer :: i, HFDet_ID, BRR_ID
-
-        trace_1rdm = 0.0_dp
-        norm_1rdm = 0.0_dp
-
-        do i = 1, NoOrbs
-            trace_1rdm = trace_1rdm + matrix(i,i)
-        end do
-
-        norm_1rdm = real(nel, dp) / trace_1rdm
-
-        ! Need to multiply each element of the 1 electron reduced density matrices
-        ! by nel / trace_1rdm,
-        ! and then add it's contribution to the energy.
+        integer :: irdm, i, HFDet_ID, BRR_ID
 
         ! Want to sum the diagonal elements of the 1-RDM for the HF orbitals.
         ! Given the HF orbitals, SymLabelListInv_rot tells us their position
         ! in the 1-RDM.
         SumN_Rho_ii = 0.0_dp
 
-        do i = 1, NoOrbs
-            ! Rho_ii is the diagonal elements of the 1-RDM. We want this
-            ! ordered according to the energy of the orbitals. Brr has the
-            ! orbital numbers in order of energy... i.e Brr(2) = the orbital
-            ! index with the second lowest energy. Brr is always in spin
-            ! orbitals. i gives the energy level, BRR gives the orbital,
-            ! SymLabelListInv_rot gives the position of  this orbital in
-            ! one_rdm.
+        do irdm = 1, size(one_rdms)
+            do i = 1, NoOrbs
+                ! rho_ii is the diagonal elements of the 1-RDM. We want this
+                ! ordered according to the energy of the orbitals. Brr has the
+                ! orbital numbers in order of energy... i.e Brr(2) = the orbital
+                ! index with the second lowest energy. BRR is always in spin
+                ! orbitals. i gives the energy level, BRR gives the orbital,
+                ! SymLabelListInv_rot gives the position of  this orbital in
+                ! one_rdm.
 
-            associate(ind => SymLabelListInv_rot)
-                if (tDiagRDM) then
-                    if (tOpenShell) then
-                        matrix_diag(i) = matrix(ind(BRR(i)), ind(BRR(i))) * norm_1rdm
-                    else
-                        BRR_ID = gtID(BRR(2*i))
-                        matrix_diag(i) = matrix(ind(BRR_ID), ind(BRR_ID)) * norm_1rdm
+                associate(ind => SymLabelListInv_rot)
+                    if (tDiagRDM) then
+                        if (tOpenShell) then
+                            one_rdms(irdm)%rho_ii(i) = one_rdms(irdm)%matrix(ind(BRR(i)), ind(BRR(i))) * norm_1rdm(irdm)
+                        else
+                            BRR_ID = gtID(BRR(2*i))
+                            one_rdms(irdm)%rho_ii(i) = one_rdms(irdm)%matrix(ind(BRR_ID), ind(BRR_ID)) * norm_1rdm(irdm)
+                        end if
                     end if
-                end if
 
-                if (i <= nel) then
-                    if (tOpenShell) then
-                        SumN_Rho_ii = SumN_Rho_ii + ( matrix(ind(HFDet_True(i)), ind(HFDet_True(i))) * norm_1rdm )
-                    else
-                        HFDet_ID = gtID(HFDet_True(i))
-                        SumN_Rho_ii = SumN_Rho_ii + ( matrix(ind(HFDet_ID), ind(HFDet_ID)) * norm_1rdm ) / 2.0_dp
+                    if (i <= nel) then
+                        if (tOpenShell) then
+                            SumN_Rho_ii(irdm) = SumN_Rho_ii(irdm) + &
+                                ( one_rdms(irdm)%matrix(ind(HFDet_True(i)), ind(HFDet_True(i))) * norm_1rdm(irdm) )
+                        else
+                            HFDet_ID = gtID(HFDet_True(i))
+                            SumN_Rho_ii(irdm) = SumN_Rho_ii(irdm) + &
+                                ( one_rdms(irdm)%matrix(ind(HFDet_ID), ind(HFDet_ID)) * norm_1rdm(irdm) ) / 2.0_dp
+                        end if
                     end if
-                end if
-            end associate
+                end associate
+            end do
         end do
 
-    end subroutine calc_1e_norms
+    end subroutine calc_rho_ii_and_sum_n
 
     subroutine make_1e_rdm_hermitian(matrix, norm_1rdm)
 
@@ -1284,8 +1308,8 @@ contains
         end associate
 
         ! Output the hermiticity errors.
-        write(6,'(1X,"MAX ABS ERROR IN 1RDM HERMITICITY",F20.13)') max_error_herm
-        write(6,'(1X,"MAX ABS ERROR IN 1RDM HERMITICITY",F20.13)') sum_error_herm
+        write(6,'(1X,"MAX ABS ERROR IN 1-RDM HERMITICITY",F20.13)') max_error_herm
+        write(6,'(1X,"MAX ABS ERROR IN 1-RDM HERMITICITY",F20.13)') sum_error_herm
 
     end subroutine make_1e_rdm_hermitian
 
@@ -1305,11 +1329,9 @@ contains
         real(dp), intent(in) :: one_rdm(:,:)
         integer, intent(in) :: irdm
         real(dp), intent(in) :: norm_1rdm
-        logical, intent(in) :: tNormalise
-        logical, intent(in) :: tOldRDMs
+        logical, intent(in) :: tNormalise, tOldRDMs
 
-        integer :: i, j, iSpat, jSpat
-        integer :: one_rdm_unit
+        integer :: i, j, iSpat, jSpat, one_rdm_unit
         character(20) :: filename
 
         if (tNormalise) then
