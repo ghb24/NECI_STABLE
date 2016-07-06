@@ -492,17 +492,23 @@ contains
                     ! the orbital index belongs to 
                     ! mod(orb,bits_n_int) gives me the index in the integer 
                     ! orb / bits_n_int, gives me the integer! 
-                    ind_2 = [2 * second_occ / bits_n_int, mod(second_occ, bits_n_int)]
-                    ind_3 = [2 * third_occ / bits_n_int, mod(third_occ, bits_n_int)]
+                    ! this does not work correctly yet! 
+                    ind_2 = [2 * second_occ / bits_n_int, mod(2 * second_occ, bits_n_int)]
+                    ind_3 = [2 * third_occ / bits_n_int, mod(2 * third_occ, bits_n_int)]
                     ! for the third index i have to put to 1 everyhing right 
                     ! for the second, everything to the left 
-                    mask_2(ind_2(1)+1:nifd) = huge(0_n_int) 
+!                     mask_2(ind_2(1)+1:nifd) = huge(0_n_int) 
+                    ! actually -1 has all bits set
+                    mask_2(ind_2(1)+1:nifd) = -1_n_int
                     mask_2(0:ind_2(1)-1) = 0_n_int
 
-                    mask_3(0:ind_3(1)-1) = huge(0_n_int)
+!                     mask_3(0:ind_3(1)-1) = huge(0_n_int)
+                    mask_3(0:ind_3(1)-1) = -1_n_int
                     mask_3(ind(3)+1:nifd) = 0_n_int
 
                     ! so now in the mixed integer we have all 0
+                    ! the maskl and maskr do not quite work as i suspected
+                    ! and i have to work in spatial orbs! do not forget! 
                     mask_2(ind_2(1)) = maskl(bits_n_int - ind_2(2), n_int)
                     mask_3(ind_3(1)) = maskr(ind_3(2), n_int)
 
@@ -514,7 +520,6 @@ contains
                     else 
                         spin_change_flag = .false.
                     end if
-
 
                     i = first_occ 
                     j = second_occ 
@@ -890,8 +895,8 @@ contains
                                 ! have to still check if there is some 
                                 ! spin-coupling change in the overlap region
                                 ! if there is -> no valid excitation! 
-                                ind_2 = [2 * occ_double / bits_n_int, mod(occ_double, bits_n_int)]
-                                ind_3 = [2 * first_occ / bits_n_int, mod(first_occ, bits_n_int)]
+                                ind_2 = [2 * occ_double / bits_n_int, mod(2 * occ_double, bits_n_int)]
+                                ind_3 = [2 * first_occ / bits_n_int, mod(2 * first_occ, bits_n_int)]
                                 ! for the third index i have to put to 1 everyhing right 
                                 ! for the second, everything to the left 
                                 mask_2(ind_2(1)+1:nifd) = huge(0_n_int) 
@@ -944,8 +949,8 @@ contains
                                 ! still have to check spin-coupling change 
 !                                 overlap = iand(spin_change, iand(maskl(occ_double,n_int), &
 !                                     maskr(last_occ,n_int)))
-                                ind_2 = [2 * last_occ / bits_n_int, mod(last_occ, bits_n_int)]
-                                ind_3 = [2 * occ_double / bits_n_int, mod(occ_double, bits_n_int)]
+                                ind_2 = [2 * last_occ / bits_n_int, mod(2 * last_occ, bits_n_int)]
+                                ind_3 = [2 * occ_double / bits_n_int, mod(2 * occ_double, bits_n_int)]
                                 ! for the third index i have to put to 1 everyhing right 
                                 ! for the second, everything to the left 
                                 mask_2(ind_2(1)+1:nifd) = huge(0_n_int) 
@@ -1081,13 +1086,13 @@ contains
                         else if (isThree(ilutI,i)) then 
                             ! _L(i) -> _RL(j) -> ^RL^(k) 
                             excitInfo = assign_excitInfo_values_exact(16,1,-1,&
-                                -1,1,1,j,k,k,i,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                -1,-1,1,j,k,k,i,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                         else 
                             if (isZero(ilutJ,i)) then 
                                 ! _L(i) -> _RL(j) -> ^RL^(k) 
                                 excitInfo = assign_excitInfo_values_exact(16,1,-1,&
-                                    -1,1,1,j,k,k,i,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    -1,-1,1,j,k,k,i,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             else 
                                 ! _R(i) -> _LR(j) -> ^RL^(k) 

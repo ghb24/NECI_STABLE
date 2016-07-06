@@ -928,6 +928,7 @@ contains
         start2 = excitInfo%secondStart
         ende1 = excitInfo%firstEnd
         ende2 = excitInfo%fullEnd
+
         gen1 = excitInfo%gen1
         gen2 = excitInfo%gen2
         firstgen = excitInfo%firstgen
@@ -938,7 +939,6 @@ contains
         ! according to my stochastic implementation it is not so hard luckily.. 
 
         ! do first single part 
-
         mat_ele = 1.0_dp
 
         ! have to do the start specifically as i need the outgoing deltaB 

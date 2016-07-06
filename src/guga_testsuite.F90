@@ -360,6 +360,7 @@ contains
                 call write_det_guga(6,ilutI,.true.) 
                 call write_det_guga(6,ex(:,i),.true.)
                 call print_excitInfo(excitInfo)
+                print *, "spin change: ", excitInfo%spin_change
             end if
             ! how do i test non-possible excitations? 
             ! do i apply the hamiltonian once more? and then check in the 
