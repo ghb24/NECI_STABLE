@@ -337,7 +337,7 @@ contains
         use bit_reps, only: decode_bit_det
         use DetBitOps, only: DetBitEq
         use FciMCData, only: Spawned_Parents, Spawned_Parents_Index, iLutHF_True
-        use rdm_data, only: one_rdm_t, nrdms
+        use rdm_data, only: one_rdm_t, nrdms, signs_for_rdm
         use rdm_data, only: nrdms_each_simulation, rdm_replica_pairs, rdm_labels_for_sims
         use SystemData, only: nel, tHPHF
 
@@ -351,6 +351,7 @@ contains
         real(dp) :: realSignI
         real(dp) :: input_sign_i(nrdms), input_sign_j(nrdms)
         integer :: dest_part_type, source_part_type
+        logical :: spawning_from_ket_to_bra
 
         ! Spawning from multiple parents, to iLutJ, which has SignJ.        
 
@@ -399,16 +400,51 @@ contains
                 ! from either of the two simulations.
                 if (dest_part_type /= source_part_type) input_sign_i = 0.5_dp*input_sign_i
 
-                ! Given the Di,Dj and Ci,Cj - find the orbitals involved in the
-                ! excitation, and therefore the RDM elements we want to add the
-                ! Ci.Cj to. We have to halve the contributions for DR as we're
-                ! summing in pairs that originated from spawning events in both
-                ! pop 1 and pop 2 -- i.e., double counted wrt diagonal elements.
-                if (tHPHF) then
-                    call Fill_Spin_Coupled_RDM(spawn, one_rdms, Spawned_Parents(0:NIfDBO,i), iLutJ, &
-                                               nI, nJ, input_sign_i, input_sign_j)
+                ! signs_for_rdm(1,irdm) holds the state in the 'bra' of the RDM.
+                ! signs_for_rdm(2,irdm) holds the state in the 'ket' of the RDM.
+                ! If source_part_type is equal to the part type of the ket,
+                ! then we can say that we are spawning from the ket to the bra.
+                spawning_from_ket_to_bra = source_part_type == signs_for_rdm(2,irdm)
+
+                ! If we are spawning from the ket of the RDM, then the RDM
+                ! element to be added in is:
+                !
+                ! \psi_j^b* \psi_i^a < nJ | ... | nI > (1)
+                !
+                ! (where a and b are state labels), which is what we want.
+                !
+                ! If we are spawning from the bra to the ket then we cannot
+                ! just pass input_sign_i, input_sign_j, nI and nJ into the
+                ! following routines in the same order, because then we would
+                ! be adding in the same element as in Eq. (1), but we actually
+                ! want the Hermitian conjugate of that term - <nJ| and |nI>
+                ! will be in the wrong order, and so the RDM indices will
+                ! be calculated the wrong way around, and the element will
+                ! be added in on the 'wrong side' of the RDM's diagonal.
+                ! As such, we instead swap the order of things so that we are
+                ! adding in the term
+                !
+                ! \psi_i^a* \psi_j^b < nI | ... | nJ > (2)
+                !
+                ! which is clearly as it should be if the determinant we are
+                ! spawning from (nI) is the bra of the RDM.
+
+                if (spawning_from_ket_to_bra) then
+                    if (tHPHF) then
+                        call Fill_Spin_Coupled_RDM(spawn, one_rdms, Spawned_Parents(0:NIfDBO,i), iLutJ, &
+                                                   nI, nJ, input_sign_i, input_sign_j)
+                    else
+                        call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, input_sign_i, input_sign_j)
+                    end if
                 else
-                    call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, input_sign_i, input_sign_j)
+                    ! Spawning from the bra to the ket - swap the order of the
+                    ! signs and states in the routine interface.
+                    if (tHPHF) then
+                        call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutJ, Spawned_Parents(0:NIfDBO,i), &
+                                                   nJ, nI, input_sign_j, input_sign_i)
+                    else
+                        call Add_RDM_From_IJ_Pair(spawn, one_rdms, nJ, nI, input_sign_j, input_sign_i)
+                    end if
                 end if
             end do
 
