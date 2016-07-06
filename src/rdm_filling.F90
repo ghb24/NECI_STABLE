@@ -168,7 +168,10 @@ contains
                 if (HPHFExcitLevel <= 2) then 
                     call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nSpinCoup, &
                                               IterRDM_new*av_sign(1::2)/sqrt(2.0_dp), &
-                                              (real(SignFac,dp)*av_sign(2::2))/sqrt(2.0_dp), .true.)
+                                              (real(SignFac,dp)*av_sign(2::2))/sqrt(2.0_dp))
+                    call Add_RDM_From_IJ_Pair(spawn, one_rdms, nSpinCoup, nI, &
+                                              IterRDM_new*av_sign(2::2)/sqrt(2.0_dp), &
+                                              (real(SignFac,dp)*av_sign(1::2))/sqrt(2.0_dp))
                 end if
             else
 
@@ -258,13 +261,11 @@ contains
         ! If we have a single or double, add in the connection to the HF,
         ! symmetrically.
         if ((walkExcitLevel == 1) .or. (walkExcitLevel == 2)) then
-            call Add_RDM_From_IJ_Pair(spawn, one_rdms, HFDet_True, nJ, AvSignHF(1::2), &
-                                      0.5_dp*IterRDM*AvSignJ(2::2), .true.)
+            call Add_RDM_From_IJ_Pair(spawn, one_rdms, HFDet_True, nJ, AvSignHF(2::2), IterRDM*AvSignJ(1::2))
 
             ! When we have two replicas for each state being sampled, add in
             ! the contribution using the opposite two replicas.
-            call Add_RDM_From_IJ_Pair(spawn, one_rdms, HFDet_True, nJ, AvSignHF(2::2), &
-                                      0.5_dp*IterRDM*AvSignJ(1::2), .true.)
+            call Add_RDM_From_IJ_Pair(spawn, one_rdms, nJ, HFDet_True, AvSignHF(1::2), IterRDM*AvSignJ(2::2))
         end if
 
         ! Eliminate compiler warnings.
@@ -295,11 +296,9 @@ contains
         ! add in the diagonal elements of this connection as well -
         ! symmetrically because no probabilities are involved.
         if ((walkExcitLevel == 1) .or. (walkExcitLevel == 2)) then
-            call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutHF_True, iLutJ, HFDet_True, nJ, AvSignHF(1::2), &
-                                          0.5_dp*IterRDM*AvSignJ(2::2), .true.)
+            call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutHF_True, iLutJ, HFDet_True, nJ, AvSignHF(2::2), IterRDM*AvSignJ(1::2))
 
-            call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutHF_True, iLutJ, HFDet_True, nJ, AvSignHF(2::2), &
-                                          0.5_dp*IterRDM*AvSignJ(1::2), .true.)
+            call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutJ, iLutHF_True, nJ, HFDet_True, AvSignHF(1::2), IterRDM*AvSignJ(2::2))
         end if
 
     end subroutine Add_RDM_HFConnections_HPHF
@@ -407,9 +406,9 @@ contains
                 ! pop 1 and pop 2 -- i.e., double counted wrt diagonal elements.
                 if (tHPHF) then
                     call Fill_Spin_Coupled_RDM(spawn, one_rdms, Spawned_Parents(0:NIfDBO,i), iLutJ, &
-                                               nI, nJ, input_sign_i, input_sign_j, .false.)
+                                               nI, nJ, input_sign_i, input_sign_j)
                 else
-                    call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, input_sign_i, input_sign_j, .false.)
+                    call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, input_sign_i, input_sign_j)
                 end if
             end do
 
@@ -417,7 +416,7 @@ contains
 
     end subroutine DiDj_Found_FillRDM
 
-    subroutine Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutnI, iLutnJ, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
+    subroutine Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutnI, iLutnJ, nI, nJ, realSignI, realSignJ)
 
         ! It takes to HPHF functions, and calculates what needs to be summed
         ! into the RDMs.
@@ -440,7 +439,6 @@ contains
         integer(n_int), intent(in) :: iLutnI(0:NIfTot), iLutnJ(0:NIfTot)
         real(dp), intent(in) :: realSignI(:), realSignJ(:)
         integer, intent(in) :: nI(nel), nJ(nel)
-        logical, intent(in) :: tFill_CiCj_Symm
 
         integer(n_int) :: iLutnI2(0:NIfTot)
         integer :: nI2(nel), nJ2(nel)
@@ -452,25 +450,25 @@ contains
 
             if (TestClosedShellDet(iLutnJ)) then
                 ! Closed shell -> Closed shell - just as in determinant case
-                call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, realSignI, realSignJ)
             else
                 ! Closed shell -> open shell.
                 call FindDetSpinSym(nJ, nJ2, nel)
                 NewSignJ = realSignJ/Root2
-                call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, realSignI, NewSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, realSignI, NewSignJ)
                 ! What is the permutation between Di and Dj'
                 NewSignJ = NewSignJ * hphf_sign(iLutnJ)
-                call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ2, realSignI, NewSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ2, realSignI, NewSignJ)
             end if
 
         else if (TestClosedShellDet(iLutnJ)) then
             ! Open shell -> closed shell
             call FindDetSpinSym(nI,nI2,nel)
             NewSignI = realSignI/Root2
-            call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, NewSignI, realSignJ, tFill_CiCj_Symm)
+            call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, NewSignI, realSignJ)
             ! What is the permutation between Di' and Dj?
             NewSignI = NewSignI * hphf_sign(iLutnI)
-            call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI2, nJ, NewSignI, realSignJ, tFill_CiCj_Symm)
+            call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI2, nJ, NewSignI, realSignJ)
 
         else
             ! Open shell -> open shell
@@ -485,23 +483,23 @@ contains
             ICoup_J_ExcLevel = FindBitExcitLevel(iLutnI2, iLutnJ, 2)
 
             if (I_J_ExcLevel .le. 2) then
-                call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, NewSignI, NewSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, NewSignI, NewSignJ)
                 ! Di -> Dj
-                call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI2, nJ2, PermSignI, PermSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI2, nJ2, PermSignI, PermSignJ)
                 ! Di' -> Dj'  (both permuted sign)
             end if
 
             if (ICoup_J_ExcLevel .le. 2) then
-                call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI2, nJ, PermSignI, NewSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI2, nJ, PermSignI, NewSignJ)
                 ! Di' -> Dj  (i permuted sign)
-                call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ2, NewSignI, PermSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ2, NewSignI, PermSignJ)
                 ! Di  -> Dj'  (j permuted sign)
             end if
         end if
 
     end subroutine Fill_Spin_Coupled_RDM
 
-    subroutine Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
+    subroutine Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, realSignI, realSignJ)
 
         ! This routine takes a pair of different determinants Di and Dj, and
         ! figures out which type of elements need to be added in to the RDM.
@@ -515,7 +513,6 @@ contains
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer, intent(in) :: nI(nel), nJ(nel)
         real(dp), intent(in) :: realSignI(:), realSignJ(:)
-        logical, intent(in) :: tFill_CiCj_Symm
 
         integer :: Ex(2,2), Ex_symm(2,2)
         logical :: tParity
@@ -544,14 +541,9 @@ contains
             ! Add in the contribution from this pair into the 1-RDM.
             
             if (RDMExcitLevel == 1) then
-                call fill_sings_1rdm(one_rdms, Ex, tParity, realSignI, realSignJ, tFill_CiCj_Symm)
+                call fill_sings_1rdm(one_rdms, Ex, tParity, realSignI, realSignJ, .false.)
             else
                 call fill_spawn_rdm_singles(spawn, nI, Ex, full_sign)
-                if (tFill_CiCj_Symm) then
-                    Ex_symm(1,:) = Ex(2,:)
-                    Ex_symm(2,:) = Ex(1,:)
-                    call fill_spawn_rdm_singles(spawn, nI, Ex_symm, full_sign)
-                end if
             end if
     
         else if (RDMExcitLevel /= 1) then
@@ -559,7 +551,6 @@ contains
             ! Otherwise Di and Dj are connected by a double excitation.
             ! Add in this contribution to the 2-RDM, if being calculated.
             call add_to_rdm_spawn_t(spawn, Ex(2,1), Ex(2,2), Ex(1,1), Ex(1,2), full_sign, .false.)
-            if (tFill_CiCj_Symm) call add_to_rdm_spawn_t(spawn, Ex(1,1), Ex(1,2), Ex(2,1), Ex(2,2), full_sign, .false.)
         end if
 
     end subroutine Add_RDM_From_IJ_Pair
@@ -719,6 +710,7 @@ contains
         do irdm = 1, size(one_rdms)
             one_rdms(irdm)%matrix( ind_i, ind_a ) = one_rdms(irdm)%matrix( ind_i, ind_a ) + &
                                                     (ParityFactor * contrib_sign_i(irdm) * contrib_sign_j(irdm))
+
             if (fill_symmetric) then
                 one_rdms(irdm)%matrix( ind_a, ind_i ) = one_rdms(irdm)%matrix( ind_a, ind_i ) + &
                                                         (ParityFactor * contrib_sign_i(irdm) * contrib_sign_j(irdm))
@@ -775,7 +767,7 @@ contains
             if (DetBitEq(iLutI, iLutHF_True, NifDBO)) cycle
            
             do irdm = 1, nrdms
-                AvSignI(irdm) = full_determ_vecs_av(signs_for_rdm(1,irdm), determ_displs(iProcIndex)+i)
+                AvSignI(irdm) = full_determ_vecs_av(signs_for_rdm(2,irdm), determ_displs(iProcIndex)+i)
             end do
 
             call decode_bit_det(nI,iLutI)
@@ -796,7 +788,7 @@ contains
                 if (DetBitEq(iLutJ, iLutHF_True, NifDBO)) cycle
                 
                 do irdm = 1, nrdms
-                    AvSignJ(irdm) = full_determ_vecs_av(signs_for_rdm(2, irdm), core_connections(i)%positions(j))
+                    AvSignJ(irdm) = full_determ_vecs_av(signs_for_rdm(1, irdm), core_connections(i)%positions(j))
                 end do
 
                 connect_elem = core_connections(i)%elements(j)
@@ -813,7 +805,7 @@ contains
 
                 if (tHPHF) then
                     call decode_bit_det(nJ, iLutJ)
-                    call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutI, iLutJ, nI, nJ, AvSignI*IterRDM, AvSignJ, .false.)
+                    call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutI, iLutJ, nI, nJ, AvSignI*IterRDM, AvSignJ)
                 else
                     if (IC == 1) then
                         ! Single excitation - contributes to 1- and 2-RDM
