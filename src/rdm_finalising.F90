@@ -264,6 +264,7 @@ contains
         ! block stored together.
 
         use Parallel_neci, only: MPISumAll
+        use rdm_data, only: states_for_rdm
         use RotateOrbsData, only: SymLabelListInv_rot
         use SystemData, only: nel
         use UMatCache, only: spatial
@@ -279,6 +280,7 @@ contains
         integer :: p, q, r, s ! spatial orbitals
         real(dp) :: rdm_sign(two_rdms%sign_length)
         real(dp), allocatable :: temp_rdm(:,:)
+        logical :: is_transition_rdm
 
         do irdm = 1, size(one_rdms)
             one_rdms(irdm)%matrix = 0.0_dp
@@ -355,14 +357,15 @@ contains
         ! Allocate a temporary RDM array.
         allocate(temp_rdm(size(one_rdms(1)%matrix,1), size(one_rdms(1)%matrix,2)), stat=ierr)
 
-        ! Make every RDM symmetric. This could have been done when adding
-        ! contribution in above, but hopefully the code will be clearer if
-        ! done here.
+        ! Make non-transition RDMs symmetric.
         do irdm = 1, size(one_rdms)
-            ! Use temp_rdm as temporary space for the transpose, to (hopefully)
-            ! prevent a temporary array being created in the sum below.
-            temp_rdm = transpose(one_rdms(irdm)%matrix)
-            one_rdms(irdm)%matrix = (one_rdms(irdm)%matrix + temp_rdm)/2.0_dp
+            is_transition_rdm = states_for_rdm(1,irdm) /= states_for_rdm(2,irdm)
+            if (.not. is_transition_rdm) then
+                ! Use temp_rdm as temporary space for the transpose, to (hopefully)
+                ! prevent a temporary array being created in the sum below.
+                temp_rdm = transpose(one_rdms(irdm)%matrix)
+                one_rdms(irdm)%matrix = (one_rdms(irdm)%matrix + temp_rdm)/2.0_dp
+            end if
         end do
 
         ! Perform a sum over all processes, for each 1-RDM being sampled.
