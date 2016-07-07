@@ -86,6 +86,8 @@ module guga_excitations
         end function calc_pgen_general
     end interface
 
+    abstract interface
+        
     ! for my probabilistic weight functions i need abstract interfaces here
 !     abstract interface 
 

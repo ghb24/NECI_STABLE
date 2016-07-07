@@ -79,6 +79,15 @@ module guga_procedure_pointers
             real(dp) :: orb_pgen
         end function orb_pgen_contrib_type_t
 
+        function calc_off_diag_guga_t(ilut, run, exlevel) result(hel)
+            use constants, only :: n_int, dp
+            use bit_reps, only :: niftot
+            implicit none
+            integer(n_int), intent(in) :: ilut(0:niftot)
+            integer, intent(in), optional :: run 
+            integer, intent(out), optional :: exlevel 
+            HElement_t(dp) :: hel
+        end function calc_off_diag_guga_t
     end interface 
 
     procedure(pickOrbitals_t), pointer :: pickOrbitals_single
@@ -93,5 +102,8 @@ module guga_procedure_pointers
     procedure(pick_first_orbital_t), pointer :: pick_first_orbital
     procedure(orb_pgen_contrib_type_t), pointer :: orb_pgen_contrib_type_3
     procedure(orb_pgen_contrib_type_t), pointer :: orb_pgen_contrib_type_2
+
+    procedure(calc_off_diag_guga_t), pointer :: calc_off_diag_guga_ref
+
 
 end module

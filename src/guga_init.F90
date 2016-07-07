@@ -13,7 +13,8 @@ module guga_init
                           currentB_ilut, currentB_int, current_cum_list, &
                           ref_stepvector, ref_b_vector_int, ref_occ_vector, &
                           ref_b_vector_real
-    use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh
+    use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
+                t_guga_mat_eles
     use hist_data, only: tHistSpawn
     use LoggingData, only: tCalcFCIMCPsi, tPrintOrbOcc
     use spin_project, only: tSpinProject
@@ -22,7 +23,8 @@ module guga_init
     use guga_procedure_pointers, only: pickOrbitals_single, pickOrbitals_double, &
                         calc_orbital_pgen_contr, calc_mixed_contr, calc_mixed_start_l2r_contr, &
                         calc_mixed_start_r2l_contr, calc_mixed_end_r2l_contr, calc_mixed_end_l2r_contr, &
-                        pick_first_orbital, orb_pgen_contrib_type_2, orb_pgen_contrib_type_3
+                        pick_first_orbital, orb_pgen_contrib_type_2, orb_pgen_contrib_type_3, &
+                        calc_off_diag_guga_ref
 
     use guga_excitations, only: pickOrbs_sym_uniform_ueg_single, pickOrbs_sym_uniform_ueg_double, &
                         pickOrbs_sym_uniform_mol_single, pickOrbs_sym_uniform_mol_double, &
@@ -35,8 +37,8 @@ module guga_init
                         pick_first_orbital_nosym_guga_uniform, orb_pgen_contrib_type_2_diff, &
                         orb_pgen_contrib_type_3_diff, orb_pgen_contrib_type_2_uniform, &
                         orb_pgen_contrib_type_3_uniform, temp_step_i, temp_step_j, &
-                        temp_delta_b, temp_occ_i, temp_b_real_i
-
+                        temp_delta_b, temp_occ_i, temp_b_real_i, calc_off_diag_guga_ref_direct
+    use guga_matrixElements, only: calc_off_diag_guga_ref_list
     use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same
     use constants, only: dp
     use ParallelHelper, only: iProcIndex
@@ -231,6 +233,18 @@ contains
 
             root_print "initial pExcit2_same set to: ", pExcit2_same
             root_print "initial pExcit3_same set to: ", pExcit3_same
+        end if
+
+        ! for now (time/iteration comparison) reasons, decide which 
+        ! reference energy calculation method we use 
+        if (t_guga_mat_eles) then 
+            ! use the new "direct" calculation method 
+            calc_off_diag_guga_ref => calc_off_diag_guga_ref_direct
+
+        else 
+            ! use the "old" with the projected energy list 
+            calc_off_diag_guga_ref => calc_off_diag_guga_ref_list
+
         end if
 
     end subroutine init_guga

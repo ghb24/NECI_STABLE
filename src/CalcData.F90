@@ -413,6 +413,12 @@ real(dp) :: int_ratio_singles, int_ratio_para, int_ratio_anti, int_ratio_doubles
 logical :: t_truncate_spawns = .false. 
 real(dp) :: n_truncate_spawns = 1.0_dp
 
+! introduce a new logical to decide if we want to calculate matrix elements 
+! by applying the full hamiltonian(the old way) or use the new guga matrix 
+! element calculation routines. to compare the influence on the time per 
+! iteration 
+logical :: t_guga_mat_eles = .false. 
+
 ! also need multiple new specific excitation type probabilites, but they are 
 ! defined in FciMCdata module! 
 end module CalcData

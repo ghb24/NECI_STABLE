@@ -40,7 +40,7 @@ module guga_matrixElements
 
 contains
 
-    function calc_off_diag_guga_ref(ilut, run, exlevel) result(hel)
+    function calc_off_diag_guga_ref_list(ilut, run, exlevel) result(hel)
         ! calculated the off-diagonal element connected to the reference
         ! determinant only. 
         integer(n_int), intent(in) :: ilut(0:niftot)
@@ -85,7 +85,7 @@ contains
             end if
         end if
 
-    end function calc_off_diag_guga_ref
+    end function calc_off_diag_guga_ref_list
 
 
     function calcDiagMatEleGuga_nI(nI) result(hel_ret)

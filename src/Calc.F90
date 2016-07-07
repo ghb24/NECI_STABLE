@@ -1085,6 +1085,12 @@ contains
                     call getf(n_truncate_spawns) 
                 end if
 
+            case ("GUGA-MATELES")
+                ! turn on the new guga-matrix element calculation for stuff 
+                ! like the projected energy, semi-stochastic initialization 
+                ! and trail-wavefunction creation 
+                t_guga_mat_eles = .true. 
+
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
                 call getf(MaxWalkerBloom)
