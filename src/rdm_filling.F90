@@ -744,11 +744,11 @@ contains
         ind_a = SymLabelListInv_rot(a)
 
         do irdm = 1, size(one_rdms)
-            one_rdms(irdm)%matrix( ind_i, ind_a ) = one_rdms(irdm)%matrix( ind_i, ind_a ) + &
+            one_rdms(irdm)%matrix( ind_a, ind_i ) = one_rdms(irdm)%matrix( ind_a, ind_i ) + &
                                                     (ParityFactor * contrib_sign_i(irdm) * contrib_sign_j(irdm))
 
             if (fill_symmetric) then
-                one_rdms(irdm)%matrix( ind_a, ind_i ) = one_rdms(irdm)%matrix( ind_a, ind_i ) + &
+                one_rdms(irdm)%matrix( ind_i, ind_a ) = one_rdms(irdm)%matrix( ind_i, ind_a ) + &
                                                         (ParityFactor * contrib_sign_i(irdm) * contrib_sign_j(irdm))
             end if
         end do
