@@ -917,7 +917,7 @@ contains
                 if (states_for_rdm(1,irdm) == states_for_rdm(2,irdm)) then
                     write(suffix, '('//int_fmt(states_for_rdm(1,irdm),0)//')') irdm
                 else
-                    write(suffix, '('//int_fmt(states_for_rdm(1,irdm),0)//',"->",'&
+                    write(suffix, '('//int_fmt(states_for_rdm(1,irdm),0)//',"_",'&
                                      //int_fmt(states_for_rdm(2,irdm),0)//',".",i1)') &
                                         states_for_rdm(1,irdm), states_for_rdm(2,irdm), rdm_repeat_label(irdm)
                 end if
@@ -1046,7 +1046,7 @@ contains
                     if (states_for_rdm(1,irdm) == states_for_rdm(2,irdm)) then
                         write(rdm_filename, '("spinfree_TwoRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//')') irdm
                     else
-                        write(rdm_filename, '("spinfree_TwoRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//',"->",'&
+                        write(rdm_filename, '("spinfree_TwoRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//',"_",'&
                                                                   //int_fmt(states_for_rdm(2,irdm),0)//',".",i1)') &
                                             states_for_rdm(1,irdm), states_for_rdm(2,irdm), rdm_repeat_label(irdm)
                     end if
@@ -1353,7 +1353,7 @@ contains
                 open(one_rdm_unit, file=trim(filename), status='unknown')
             else
                 if (is_transition_rdm) then
-                    write(filename, '("OneRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//',"->",'&
+                    write(filename, '("OneRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//',"_",'&
                                                  //int_fmt(states_for_rdm(2,irdm),0)//',".",i1)') &
                                         states_for_rdm(1,irdm), states_for_rdm(2,irdm), rdm_repeat_label(irdm)
                 else
@@ -1372,7 +1372,7 @@ contains
                 open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
             else
                 if (is_transition_rdm) then
-                    write(filename, '("OneRDM_POPS.",'//int_fmt(states_for_rdm(1,irdm),0)//',"->",'&
+                    write(filename, '("OneRDM_POPS.",'//int_fmt(states_for_rdm(1,irdm),0)//',"_",'&
                                                       //int_fmt(states_for_rdm(2,irdm),0)//',".",i1)') &
                                         states_for_rdm(1,irdm), states_for_rdm(2,irdm), rdm_repeat_label(irdm)
                 else

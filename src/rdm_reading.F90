@@ -34,7 +34,7 @@ contains
         if (states_for_rdm(1,irdm) == states_for_rdm(2,irdm)) then
             write(filename, '("OneRDM_POPS.",'//int_fmt(states_for_rdm(1,irdm),0)//')') irdm
         else
-            write(filename, '("OneRDM_POPS.",'//int_fmt(states_for_rdm(1,irdm),0)//',"->",'&
+            write(filename, '("OneRDM_POPS.",'//int_fmt(states_for_rdm(1,irdm),0)//',"_",'&
                                               //int_fmt(states_for_rdm(2,irdm),0)//',".",i1)') &
                                 states_for_rdm(1,irdm), states_for_rdm(2,irdm), rdm_repeat_label(irdm)
         end if
@@ -202,7 +202,7 @@ contains
             if (states_for_rdm(1,irdm) == states_for_rdm(2,irdm)) then
                 write(rdm_filename(irdm), '("spinfree_TwoRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//')') irdm
             else
-                write(rdm_filename(irdm), '("spinfree_TwoRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//',"->",'&
+                write(rdm_filename(irdm), '("spinfree_TwoRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//',"_",'&
                                                                 //int_fmt(states_for_rdm(2,irdm),0)//',".",i1)') &
                                     states_for_rdm(1,irdm), states_for_rdm(2,irdm), rdm_repeat_label(irdm)
             end if

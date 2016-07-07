@@ -277,12 +277,22 @@ contains
                                                 '(Iteration, SUM ABS ERROR IN HERMITICITY)'
             end do
             do irdm = est%nrdms_standard+1, est%nrdms
-                write(6,'(1x,"2-RDM ESTIMATES FOR TRANSITION",1x,'//int_fmt(states_for_rdm(1,irdm))//',"->",&
-                          &'//int_fmt(states_for_rdm(2,irdm))//',1x,"(",i1,")",)') &
-                          states_for_rdm(1,irdm), states_for_rdm(2,irdm), rdm_repeat_label(irdm)
+                write(6,'(1x,"2-RDM ESTIMATES FOR TRANSITION",1x,'//int_fmt(states_for_rdm(2,irdm))//'," -> ",&
+                          &'//int_fmt(states_for_rdm(1,irdm))//',1x,"(",i1,")",)') &
+                          states_for_rdm(2,irdm), states_for_rdm(1,irdm), rdm_repeat_label(irdm)
 
                 write(6,'(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%trace(irdm)
                 write(6,'(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10,/)') est%trace(irdm)/est%norm(irdm)
+
+                ! Hermiticity difference measures - these shouldn't be zero for
+                ! transition RDMs, but it useful to give them to the test
+                ! suite, to make sure somebody doesn't change something to
+                ! start adding an RDM element on the wrong side of the diagonal.
+                write(6,'(1x,"Hermiticty difference estimates, for test suite:")')
+                write(6,'(1x,i15,f30.20,5x,a41)') Iter+PreviousCycles, est%max_error_herm(irdm), &
+                                                '(Iteration, MAX ABS DIFF IN HERMITICITY)'
+                write(6,'(1x,i15,f30.20,5x,a41,/)') Iter+PreviousCycles, est%sum_error_herm(irdm), &
+                                                '(Iteration, SUM ABS DIFF IN HERMITICITY)'
             end do
 
             ! Banner for the end of the 2-RDM section in output.
