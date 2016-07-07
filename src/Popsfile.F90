@@ -1945,7 +1945,7 @@ r_loop: do while(.not.tStoreDet)
 !This routine reads in particle configurations from a POPSFILE.
     SUBROUTINE ReadFromPopsfilePar()
 
-        use rdm_data, only: nrdms_standard, nrdms_transition
+        use rdm_data, only: rdm_definitions
 
         LOGICAL :: exists,tBinRead
         Real(dp) :: NodeSumNoatHF(nProcessors)
@@ -2188,7 +2188,7 @@ r_loop: do while(.not.tStoreDet)
         ! Allocate storage for persistent data to be stored alongside
         ! the current determinant list (particularly diagonal matrix
         ! elements, i.e. CurrentH; now global_determinant_data).
-        call init_global_det_data(nrdms_standard, nrdms_transition)
+        call init_global_det_data(rdm_definitions%nrdms_standard, rdm_definitions%nrdms_transition)
 
 ! The hashing will be different in the new calculation from the one where the
 !  POPSFILE was produced, this means we must recalculate the processor each 

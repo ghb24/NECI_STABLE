@@ -131,7 +131,7 @@ module fcimc_initialisation
     use soft_exit, only: tSoftExitFound
     use get_excit, only: make_double
     use sltcnd_mod, only: sltcnd_0
-    use rdm_data, only: nrdms_standard, nrdms_transition
+    use rdm_data, only: nrdms_transition_input
     use Parallel_neci
     use FciMCData
     use util_mod
@@ -1117,20 +1117,6 @@ contains
 !            WRITE(iout,"(A,I20)") "Approximate size of determinant space is: ",NINT(TotDets)
 !        endif
 
-         if (tRDMOnFly) then
-             if (tPairedReplicas) then
-                 nrdms_standard = lenof_sign/2
-             else
-                 nrdms_standard = lenof_sign
-             end if
-         end if
-         if (tTransitionRDMs) then
-             ! nrdms_transition will have been read in from the user input.
-             ! But if we have two different replicas for each state sampled,
-             ! then there are two ways to form each transition RDMs.
-             nrdms_transition = nrdms_transition*nreplicas
-         end if
-
     END SUBROUTINE SetupParameters
 
     ! This initialises the calculation, by allocating memory, setting up the
@@ -1154,6 +1140,7 @@ contains
         real(dp) , dimension(lenof_sign) :: PopSumNoatHF
         HElement_t(dp) :: PopAllSumENum(1:inum_runs)
         integer :: perturb_ncreate, perturb_nannihilate
+        integer :: nrdms_standard, nrdms_transition
         
         !default
         Popinum_runs=1
@@ -1254,6 +1241,23 @@ contains
             MemoryAlloc=(NIfTot+1)*MaxWalkersPart*size_n_int    !Memory Allocated in bytes
 
             if (alloc_popsfile_dets) allocate(popsfile_dets(0:NIfTot,MaxWalkersPart), stat=ierr)
+
+            nrdms_standard = 0
+            nrdms_transition = 0
+
+            if (tRDMOnFly) then
+                if (tPairedReplicas) then
+                    nrdms_standard = lenof_sign/2
+                else
+                    nrdms_standard = lenof_sign
+                end if
+                if (tTransitionRDMs) then
+                    ! nrdms_transition_input will have been read in from the user
+                    ! input. But if we have two different replicas for each state
+                    ! sampled, then there are two ways to form each transition RDMs.
+                    nrdms_transition = nrdms_transition_input*nreplicas
+                end if
+            end if
 
             ! Allocate storage for persistent data to be stored alongside
             ! the current determinant list (particularly diagonal matrix

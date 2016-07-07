@@ -198,6 +198,47 @@ module rdm_data
         real(dp), allocatable :: sum_error_herm(:)
     end type rdm_estimates_t
 
+    ! Data type used to define how many RDMs are being sampled and which states
+    ! and FCIQMC simulations contribute to each of these RDMs. It also holds
+    ! arrays which can be used to efficiently find all simulations that
+    ! contribute to an RDM with a given other simulation, and a few other
+    ! similar arrays.
+    type rdm_definitions_t
+        ! The total number of RDMs being calculated.
+        ! Equal to nrdms_standard + nrdms_transition.
+        integer :: nrdms = 0
+        ! The number of 'standard' RDMs (i.e. non-transition RDMs) being
+        ! calculated.
+        integer :: nrdms_standard = 0
+        ! The number of transition RDMs being calculated.
+        integer :: nrdms_transition = 0
+
+        ! state_labels(:,j) will store the labels of the *actual* wave functions
+        ! (i.e., usually which excited state it is) contributing to the j'th RDM.
+        integer, allocatable :: state_labels(:,:) ! (2, nrdms)
+        ! sim_labels(:,j) will store the labels of the *FCIQMC* simulations
+        ! (i.e. the 'replica' labels) which will be used to sample the j'th RDM
+        ! being calculated.
+        integer, allocatable :: sim_labels(:,:) ! (2, nrdms)
+
+        ! For transition RDMs, with 2 replicas for each state, there will be 2
+        ! copies of each transition RDM. This array simply specifies which of
+        ! the 2 each RDM is - the first or second 'repeat'.
+        integer, allocatable :: repeat_label(:) ! (nrdms)
+        ! nrdms_per_sim(j) holds the number of different RDMS to which
+        ! the FCIQMC simulation with label j contributes to.
+        integer, allocatable :: nrdms_per_sim(:) ! (lenof_sign)
+        ! sim_pairs(:,j) holds the list of the FCIQMC simulations labels
+        ! which are paired with simulation j in contributing to RDMs.
+        ! Elements which are not needed (due to a simulation not
+        ! contributing to all RDMs) are set to 0.
+        integer, allocatable :: sim_pairs(:,:) ! (nrdms, lenof_sign)
+        ! rdm_labels(:,j) holds the list of RDM labels which simulation j
+        ! contributes to. Elements which are not needed (due a simulation not
+        ! contributing to all RDMs) are set to 0.
+        integer, allocatable :: rdm_labels(:,:) ! (nrdms, lenof_sign)
+    end type rdm_definitions_t
+
     ! Global data.
 
     ! Factors which can be set by the user at input to modify the size of RDM
@@ -221,40 +262,18 @@ module rdm_data
     type(rdm_list_t) :: two_rdm_recv_2
     ! Object to hold RDM estimates.
     type(rdm_estimates_t) :: rdm_estimates
+    ! Object which defines the states and FCIQMC simulations contributing
+    ! to the various RDMs in the above arrays.
+    type(rdm_definitions_t) :: rdm_definitions
 
-    ! states_for_rdm(:,j) will store the labels of the *actual* wave functions
-    ! (i.e., usually which excited state it is) contributing to the j'th RDM.
-    integer, allocatable :: states_for_rdm(:,:) ! (2, nrdms)
-    ! This is the same as for states_for_rdm above, but *only* deals with
-    ! transition RDMs specifically. This array is used to hold the states
-    ! specified by the user at input.
-    integer, allocatable :: states_for_transition_rdm(:,:) ! (2, nrdms_transition_rdm)
-    ! signs_for_rdm(:,j) will store the labels of the *FCIQMC* simulations
-    ! (i.e. the 'replica' labels) which will be used to sample the j'th RDM
-    ! being calculated.
-    integer, allocatable :: signs_for_rdm(:,:) ! (2, nrdms)
-    ! For transition RDMs, with 2 replicas for each state, there will be 2
-    ! copies of each transition RDM. This array simply holds which of the
-    ! 2 each RDM is - the first or second repeat.
-    integer, allocatable :: rdm_repeat_label(:) ! (nrdms)
-    ! nrdms_each_simulation(j) holds the number of different RDMS to which
-    ! the FCIQMC simulation with label j contributes to.
-    integer, allocatable :: nrdms_each_simulation(:) ! (lenof_sign)
-    ! rdm_replica_pairs(:,j) holds the list of the FCIQMC simulations labels
-    ! which are paired with simulation j, in contributing to RDMs.
-    integer, allocatable :: rdm_replica_pairs(:,:) ! (nrdms, lenof_sign)
-    ! rdm_labels_for_sims(:,j) holds the list of RDM labels which simulation j
-    ! contributes to.
-    integer, allocatable :: rdm_labels_for_sims(:,:) ! (nrdms, lenof_sign)
-
-    ! The number of rdms being calculated in this simulation.
-    ! Equal to nrdms_standard + nrdms_transition.
-    integer :: nrdms = 0
-    ! The number of 'standard' RDMs (i.e. non-transition RDMs) being
-    ! calculated in this simulation.
-    integer :: nrdms_standard = 0
-    ! The number of transition RDMs being calculated in this simulation.
-    integer :: nrdms_transition = 0
+    ! The number of transition RDMs that the user asks for at input. This
+    ! might be equal to half the number of tRDMs actually calculated, since
+    ! when using the replica trick we calculate 2 of each tRDM.
+    integer :: nrdms_transition_input
+    ! This is the same as for state_labels in rdm_definition_t, but *only*
+    ! deals with transition RDMs specifically. This array is used to hold the
+    ! states specified by the user at input.
+    integer, allocatable :: states_for_transition_rdm(:,:) ! (2, nrdms_transition_input)
 
     ! If true, then 2-RDM quantities will be output to a RDMEstimates file.
     logical :: print_2rdm_est

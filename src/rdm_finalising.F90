@@ -17,7 +17,7 @@ module rdm_finalising
 
 contains
 
-    subroutine finalise_rdms(one_rdms, two_rdms, rdm_recv, rdm_recv_2, spawn, rdm_estimates)
+    subroutine finalise_rdms(rdm_defs, one_rdms, two_rdms, rdm_recv, rdm_recv_2, spawn, rdm_estimates)
 
         ! Wrapper routine, called at the end of a simulation, which in turn
         ! calls all required finalisation routines.
@@ -31,10 +31,12 @@ contains
         use Parallel_neci, only: iProcIndex, MPIBarrier, MPIBCast
         use rdm_data, only: tRotatedNos, FinaliseRDMs_Time, tOpenShell, print_2rdm_est
         use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t, rdm_estimates_t
+        use rdm_data, only: rdm_definitions_t
         use rdm_estimators, only: calc_2rdm_estimates_wrapper, write_rdm_estimates
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
         use util_mod, only: set_timer, halt_timer
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         type(rdm_list_t), intent(in) :: two_rdms
         type(rdm_list_t), intent(inout) :: rdm_recv, rdm_recv_2
@@ -63,14 +65,14 @@ contains
             ! Calculate the RDM estmimates from the final few iterations,
             ! since it was last calculated. But only do this if they're
             ! actually to be printed.
-            call calc_2rdm_estimates_wrapper(rdm_estimates, two_rdms)
+            call calc_2rdm_estimates_wrapper(rdm_defs, rdm_estimates, two_rdms)
 
             ! Output the final 2-RDMs themselves, in all forms desired.
-            call output_2rdm_wrapper(rdm_estimates, two_rdms, rdm_recv, rdm_recv_2, spawn)
+            call output_2rdm_wrapper(rdm_defs, rdm_estimates, two_rdms, rdm_recv, rdm_recv_2, spawn)
 
             ! Calculate the 1-RDMs from the 2-RDMS, if required.
             if (RDMExcitLevel == 3 .or. tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
-                call calc_1rdms_from_2rdms(one_rdms, two_rdms, rdm_estimates%norm, tOpenShell)
+                call calc_1rdms_from_2rdms(rdm_defs, one_rdms, two_rdms, rdm_estimates%norm, tOpenShell)
                 ! The 1-RDM will have been constructed to be normalised already.
                 norm_1rdm = 1.0_dp
             end if
@@ -81,26 +83,26 @@ contains
             ! Output banner for start of 1-RDM section in the output.
             write(6,'(1x,2("="),1x,"INFORMATION FOR FINAL 1-RDMS",1x,57("="))')
 
-            if (RDMExcitLevel == 1) call finalise_1e_rdm(one_rdms, norm_1rdm, .false.)
+            if (RDMExcitLevel == 1) call finalise_1e_rdm(rdm_defs, one_rdms, norm_1rdm, .false.)
 
             if (iProcIndex == 0) then
                 call calc_rho_ii_and_sum_n(one_rdms, norm_1rdm, SumN_Rho_ii)
 
-                do irdm = 1, rdm_estimates%nrdms
+                do irdm = 1, size(one_rdms)
                     write(6,'(/,1x,"INFORMATION FOR 1-RDM",1x,'//int_fmt(irdm)//',":")') irdm
                     write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii(irdm)
 
                     if (RDMExcitLevel == 1 .or. tPrint1RDM) then
                         ! Write out the final, normalised, hermitian OneRDM.
-                        if (tWrite_normalised_RDMs) call write_1rdm(one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), &
-                                                                     .true., .false.)
+                        if (tWrite_normalised_RDMs) call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, &
+                                                                     norm_1rdm(irdm), .true., .false.)
                     end if
                 end do
             end if
 
             call MPIBarrier(ierr)
 
-            do irdm = 1, rdm_estimates%nrdms_standard
+            do irdm = 1, rdm_defs%nrdms_standard
                 ! Call the routines from NatOrbs that diagonalise the one electron
                 ! reduced density matrix.
                 tRotatedNOs = .false. ! Needed for BrokenSymNo routine
@@ -119,7 +121,7 @@ contains
         ! Write the final instantaneous 2-RDM estimates, and also the final
         ! report of the total 2-RDM estimates.
         if (RDMExcitLevel /= 1 .and. iProcIndex == 0) then
-            call write_rdm_estimates(rdm_estimates, .true., print_2rdm_est)
+            call write_rdm_estimates(rdm_defs, rdm_estimates, .true., print_2rdm_est)
         end if
 #ifdef _MOLCAS_
         if (print_2rdm_est) then
@@ -134,7 +136,7 @@ contains
 
     end subroutine finalise_rdms
 
-    subroutine output_2rdm_wrapper(est, rdm, rdm_recv, rdm_recv_2, spawn)
+    subroutine output_2rdm_wrapper(rdm_defs, est, rdm, rdm_recv, rdm_recv_2, spawn)
 
         ! Call routines to output RDMs in all requested forms.
 
@@ -144,9 +146,10 @@ contains
         ! communications, as does the printing.
 
         use LoggingData, only: tWrite_normalised_RDMs, tWriteSpinFreeRDM, tWrite_RDMs_to_read
-        use rdm_data, only: rdm_estimates_t, rdm_list_t, rdm_spawn_t, tOpenShell
+        use rdm_data, only: rdm_definitions_t, rdm_estimates_t, rdm_list_t, rdm_spawn_t, tOpenShell
         use rdm_estimators, only: calc_hermitian_errors
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_estimates_t), intent(inout) :: est
         type(rdm_list_t), intent(in) :: rdm
         type(rdm_list_t), intent(inout) :: rdm_recv, rdm_recv_2
@@ -160,8 +163,9 @@ contains
 
         call calc_hermitian_errors(rdm, rdm_recv, spawn, est%norm, est%max_error_herm, est%sum_error_herm)
 
-        if (tWriteSpinFreeRDM) call print_spinfree_2rdm_wrapper(rdm, rdm_recv, spawn, est%norm)
-        if (tWrite_Normalised_RDMs) call print_rdms_spin_sym_wrapper(rdm, rdm_recv, rdm_recv_2, spawn, est%norm, tOpenShell)
+        if (tWriteSpinFreeRDM) call print_spinfree_2rdm_wrapper(rdm_defs, rdm, rdm_recv, spawn, est%norm)
+        if (tWrite_Normalised_RDMs) call print_rdms_spin_sym_wrapper(rdm_defs, rdm, rdm_recv, rdm_recv_2, &
+                                                                     spawn, est%norm, tOpenShell)
 
     end subroutine output_2rdm_wrapper
 
@@ -241,7 +245,7 @@ contains
 
     end subroutine calc_1rdms_from_spinfree_2rdms
 
-    subroutine calc_1rdms_from_2rdms(one_rdms, two_rdms, rdm_trace, open_shell)
+    subroutine calc_1rdms_from_2rdms(rdm_defs, one_rdms, two_rdms, rdm_trace, open_shell)
 
         ! For each 2-RDM in two_rdms, if open_shell is true then calculate the
         ! full spinned 1-RDM, otherwise calculate the spinfree 1-RDM. The
@@ -264,11 +268,12 @@ contains
         ! block stored together.
 
         use Parallel_neci, only: MPISumAll
-        use rdm_data, only: states_for_rdm
+        use rdm_data, only: rdm_definitions_t
         use RotateOrbsData, only: SymLabelListInv_rot
         use SystemData, only: nel
         use UMatCache, only: spatial
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         type(rdm_list_t), intent(in) :: two_rdms
         real(dp), intent(in) :: rdm_trace(:)
@@ -359,7 +364,7 @@ contains
 
         ! Make non-transition RDMs symmetric.
         do irdm = 1, size(one_rdms)
-            is_transition_rdm = states_for_rdm(1,irdm) /= states_for_rdm(2,irdm)
+            is_transition_rdm = rdm_defs%state_labels(1,irdm) /= rdm_defs%state_labels(2,irdm)
             if (.not. is_transition_rdm) then
                 ! Use temp_rdm as temporary space for the transpose, to (hopefully)
                 ! prevent a temporary array being created in the sum below.
@@ -558,7 +563,7 @@ contains
         ! For example the 2-RDM is hermitian, so if ij /= kl, then we only need
         ! to print either \Gamma_{ij,kl} or \Gamma{kl,ij}, but not both. Which
         ! combinations we decide to print is decided below, which is purely a
-        ! legacy decision (as far as I know!). See comments below for defintions
+        ! legacy decision (as far as I know!). See comments below for definitions
         ! of what we keep.
 
         use SystemData, only: nbasis
@@ -615,7 +620,7 @@ contains
 
     end subroutine apply_legacy_output_ordering
 
-    subroutine print_rdms_spin_sym_wrapper(rdm, rdm_recv, rdm_recv_2, spawn, rdm_trace, open_shell)
+    subroutine print_rdms_spin_sym_wrapper(rdm_defs, rdm, rdm_recv, rdm_recv_2, spawn, rdm_trace, open_shell)
 
         ! Compress the full spinned-RDMs by summing over spin-equivalent terms
         ! (i.e. aaaa and bbbb rdms), and also applying symmetry of (*real*)
@@ -628,7 +633,9 @@ contains
         ! used here.
 
         use hash, only: clear_hash_table
+        use rdm_Data, only: rdm_definitions_t
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_list_t), intent(in) :: rdm
         type(rdm_list_t), intent(inout) :: rdm_recv, rdm_recv_2
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -641,7 +648,7 @@ contains
         call make_hermitian_rdm(rdm, spawn, rdm_recv)
 
         call apply_symmetries_for_output(rdm_recv, rdm_recv_2, spawn, open_shell)
-        call print_rdms_with_spin(rdm_recv_2, rdm_trace, open_shell)
+        call print_rdms_with_spin(rdm_defs, rdm_recv_2, rdm_trace, open_shell)
 
     end subroutine print_rdms_spin_sym_wrapper
 
@@ -811,7 +818,7 @@ contains
 
     end subroutine create_spinfree_2rdm
 
-    subroutine print_spinfree_2rdm_wrapper(rdm, rdm_recv, spawn, rdm_trace)
+    subroutine print_spinfree_2rdm_wrapper(rdm_defs, rdm, rdm_recv, spawn, rdm_trace)
 
         ! A wrapper function to take in an RDM object, in a form as accumulated
         ! during an FCIQMC simulation, and print it in a form consistent for
@@ -821,7 +828,9 @@ contains
         ! which is then printed to a file.
 
         use hash, only: clear_hash_table
+        use rdm_data, only: rdm_definitions_t
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_list_t), intent(in) :: rdm
         type(rdm_list_t), intent(inout) :: rdm_recv
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -831,7 +840,7 @@ contains
         call clear_hash_table(spawn%rdm_send%hash_table)
 
         call create_spinfree_2rdm(rdm, spawn, rdm_recv)
-        call print_spinfree_2rdm(rdm_recv, rdm_trace)
+        call print_spinfree_2rdm(rdm_defs, rdm_recv, rdm_trace)
 
     end subroutine print_spinfree_2rdm_wrapper
 
@@ -878,7 +887,7 @@ contains
 
     end subroutine print_rdm_popsfile
 
-    subroutine print_rdms_with_spin(rdm, rdm_trace, open_shell)
+    subroutine print_rdms_with_spin(rdm_defs, rdm, rdm_trace, open_shell)
 
         ! Print the RDM stored in rdm to files, normalised by rdm_trace.
 
@@ -888,11 +897,12 @@ contains
         ! The files are called 'TwoRDM_aaaa', 'TwoRDM_abab', 'TwoRDM_abba', etc...
 
         use Parallel_neci, only: MPIBarrier
-        use rdm_data, only: nrdms, states_for_rdm, rdm_repeat_label
+        use rdm_data, only: rdm_definitions_t
         use sort_mod, only: sort
         use UMatCache, only: spatial
         use util_mod, only: get_free_unit
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_list_t), intent(inout) :: rdm
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
         logical, intent(in) :: open_shell
@@ -907,19 +917,21 @@ contains
         character(12) :: sgn_len, suffix
         character(len=*), parameter :: t_r = 'print_rdms_with_spin'
 
+        associate(state_labels => rdm_defs%state_labels, repeat_label => rdm_defs%repeat_label)
+
         ! Store rdm%sign_length as a string, for the formatting string.
         write(sgn_len,'(i3)') rdm%sign_length
 
         call sort(rdm%elements(:,1:rdm%nelements))
 
         do iproc = 0, nProcessors-1
-            do irdm = 1, nrdms
-                if (states_for_rdm(1,irdm) == states_for_rdm(2,irdm)) then
-                    write(suffix, '('//int_fmt(states_for_rdm(1,irdm),0)//')') irdm
+            do irdm = 1, rdm_defs%nrdms
+                if (state_labels(1,irdm) == state_labels(2,irdm)) then
+                    write(suffix, '('//int_fmt(state_labels(1,irdm),0)//')') irdm
                 else
-                    write(suffix, '('//int_fmt(states_for_rdm(1,irdm),0)//',"_",'&
-                                     //int_fmt(states_for_rdm(2,irdm),0)//',".",i1)') &
-                                        states_for_rdm(1,irdm), states_for_rdm(2,irdm), rdm_repeat_label(irdm)
+                    write(suffix, '('//int_fmt(state_labels(1,irdm),0)//',"_",'&
+                                     //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                                        state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
                 end if
 
                 if (iproc == iProcIndex) then
@@ -1007,9 +1019,11 @@ contains
             call MPIBarrier(ierr)
         end do
 
+        end associate
+
     end subroutine print_rdms_with_spin
 
-    subroutine print_spinfree_2rdm(rdm, rdm_trace)
+    subroutine print_spinfree_2rdm(rdm_defs, rdm, rdm_trace)
 
         ! Print all the RDM elements stored in rdm to a single file (for each
         ! state being sampled).
@@ -1023,10 +1037,11 @@ contains
 
         use Parallel_neci, only: MPIBarrier
         use ParallelHelper, only: root
-        use rdm_data, only: nrdms, states_for_rdm, rdm_repeat_label
+        use rdm_data, only: rdm_definitions_t
         use sort_mod, only: sort
         use util_mod, only: get_free_unit
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_list_t), intent(inout) :: rdm
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
 
@@ -1036,19 +1051,21 @@ contains
         real(dp) :: rdm_sign(rdm%sign_length)
         character(40) :: rdm_filename
 
+        associate(state_labels => rdm_defs%state_labels, repeat_label => rdm_defs%repeat_label)
+
         call sort(rdm%elements(:,1:rdm%nelements))
 
         do iproc = 0, nProcessors-1
             if (iproc == iProcIndex) then
 
                 ! Loop over all RDMs beings sampled.
-                do irdm = 1, nrdms
-                    if (states_for_rdm(1,irdm) == states_for_rdm(2,irdm)) then
-                        write(rdm_filename, '("spinfree_TwoRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//')') irdm
+                do irdm = 1, rdm_defs%nrdms
+                    if (state_labels(1,irdm) == state_labels(2,irdm)) then
+                        write(rdm_filename, '("spinfree_TwoRDM.",'//int_fmt(state_labels(1,irdm),0)//')') irdm
                     else
-                        write(rdm_filename, '("spinfree_TwoRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//',"_",'&
-                                                                  //int_fmt(states_for_rdm(2,irdm),0)//',".",i1)') &
-                                            states_for_rdm(1,irdm), states_for_rdm(2,irdm), rdm_repeat_label(irdm)
+                        write(rdm_filename, '("spinfree_TwoRDM.",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
+                                                                  //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                                            state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
                     end if
 
                     ! Open the file to be written to.
@@ -1087,12 +1104,14 @@ contains
             call MPIBarrier(ierr)
         end do
 
+        end associate
+
     end subroutine print_spinfree_2rdm
 
 
     ! ------- Routines for finalising 1-RDMs ---------------------------------
 
-    subroutine finalise_1e_rdm(one_rdms, norm_1rdm, tOldRDMs)
+    subroutine finalise_1e_rdm(rdm_defs, one_rdms, norm_1rdm, tOldRDMs)
 
         ! This routine takes the 1-RDM (matrix), sums it across processors,
         ! normalises it, makes it hermitian, and prints out the 'popsfile'
@@ -1101,9 +1120,10 @@ contains
         use LoggingData, only: twrite_RDMs_to_read, tForceCauchySchwarz
         use LoggingData, only: RDMExcitLevel
         use Parallel_neci, only: iProcIndex, MPISumAll
-        use rdm_data, only: nrdms_standard
+        use rdm_data, only: rdm_definitions_t
         use RotateOrbsData, only: NoOrbs
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         real(dp), intent(out) :: norm_1rdm(size(one_rdms))
         logical, intent(in) :: tOldRDMs
@@ -1122,18 +1142,18 @@ contains
         end if
 
         ! Find the normalisation.
-        call calc_1e_norms(one_rdms, norm_1rdm)
+        call calc_1e_norms(rdm_defs, one_rdms, norm_1rdm)
 
         if (iProcIndex == 0) then
             do irdm = 1, size(one_rdms)
                 ! Write out the unnormalised, non-hermitian OneRDM_POPS.
-                if (twrite_RDMs_to_read) call write_1rdm(one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .false., tOldRDMs)
+                if (twrite_RDMs_to_read) call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .false., tOldRDMs)
             end do
 
             if (RDMExcitLevel == 1) then
                 ! Only non-transition RDMs should be hermitian and obey the 
                 ! Cauchy-Schwarz inequalityo.
-                do irdm = 1, nrdms_standard
+                do irdm = 1, rdm_defs%nrdms_standard
                     call make_1e_rdm_hermitian(one_rdms(irdm)%matrix, norm_1rdm(irdm))
                     if (tForceCauchySchwarz) call Force_Cauchy_Schwarz(one_rdms(irdm)%matrix)
                 end do
@@ -1177,16 +1197,17 @@ contains
 
     end subroutine Force_Cauchy_Schwarz
 
-    subroutine calc_1e_norms(one_rdms, norm_1rdm)
+    subroutine calc_1e_norms(rdm_defs, one_rdms, norm_1rdm)
 
         ! Calculate and return the factor by which the input 1-RDMs need to be
         ! divided by, in order to correctly normalise them. The transition
         ! RDMs need to be normalised differently - see comments below.
 
-        use rdm_data, only: states_for_rdm, nrdms_standard
+        use rdm_data, only: rdm_definitions_t
         use RotateOrbsData, only: NoOrbs
         use SystemData, only: nel
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         type(one_rdm_t), intent(in) :: one_rdms(:)
         real(dp), intent(out) :: norm_1rdm(:)
 
@@ -1203,15 +1224,15 @@ contains
         end do
 
         ! The non-transition RDMs must be normalised to have a trace of nel.
-        do irdm = 1, nrdms_standard
+        do irdm = 1, rdm_defs%nrdms_standard
             norm_1rdm(irdm) = real(nel, dp) / trace_1rdm(irdm)
         end do
 
         ! The transition RDMs should be normalised using the normalisation of
         ! the contributing wave functions, which can be calculated from the
         ! traces of the corresponding RDMs.
-        do irdm = nrdms_standard+1, size(one_rdms)
-            norm_1rdm(irdm) = sqrt( norm_1rdm(states_for_rdm(1,irdm)) * norm_1rdm(states_for_rdm(2,irdm)) )
+        do irdm = rdm_defs%nrdms_standard+1, size(one_rdms)
+            norm_1rdm(irdm) = sqrt( norm_1rdm(rdm_defs%state_labels(1,irdm)) * norm_1rdm(rdm_defs%state_labels(2,irdm)) )
         end do
 
     end subroutine calc_1e_norms
@@ -1316,19 +1337,20 @@ contains
 
     end subroutine make_1e_rdm_hermitian
 
-    subroutine write_1rdm(one_rdm, irdm, norm_1rdm, tNormalise, tOldRDMs)
+    subroutine write_1rdm(rdm_defs, one_rdm, irdm, norm_1rdm, tNormalise, tOldRDMs)
 
         ! This routine writes out the OneRDM. If tNormalise is true, we are
         ! printing the normalised, hermitian matrix. Otherwise, norm_1rdm is
         ! ignored and we print both 1-RDM(i,j) and 1-RDM(j,i) (in binary)
         ! for the OneRDM_POPS file to be read in in a restart calculation.
 
-        use rdm_data, only: tOpenShell, nrdms, states_for_rdm, rdm_repeat_label
+        use rdm_data, only: tOpenShell, rdm_definitions_t
         use RotateOrbsData, only: SymLabelListInv_rot
         use SystemData, only: nbasis
         use UMatCache, only: gtID
         use util_mod, only: get_free_unit, int_fmt
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         real(dp), intent(in) :: one_rdm(:,:)
         integer, intent(in) :: irdm
         real(dp), intent(in) :: norm_1rdm
@@ -1338,7 +1360,11 @@ contains
         logical :: is_transition_rdm
         character(20) :: filename
 
-        is_transition_rdm = states_for_rdm(1,irdm) /= states_for_rdm(2,irdm)
+        associate(state_labels => rdm_defs%state_labels, &
+                  repeat_label => rdm_defs%repeat_label, &
+                  ind => SymLabelListInv_rot)
+
+        is_transition_rdm = state_labels(1,irdm) /= state_labels(2,irdm)
 
         if (tNormalise) then
             ! Haven't got the capabilities to produce multiple 1-RDMs yet.
@@ -1353,11 +1379,11 @@ contains
                 open(one_rdm_unit, file=trim(filename), status='unknown')
             else
                 if (is_transition_rdm) then
-                    write(filename, '("OneRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//',"_",'&
-                                                 //int_fmt(states_for_rdm(2,irdm),0)//',".",i1)') &
-                                        states_for_rdm(1,irdm), states_for_rdm(2,irdm), rdm_repeat_label(irdm)
+                    write(filename, '("OneRDM.",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
+                                                 //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                                        state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
                 else
-                    write(filename, '("OneRDM.",'//int_fmt(states_for_rdm(1,irdm),0)//')') irdm
+                    write(filename, '("OneRDM.",'//int_fmt(state_labels(1,irdm),0)//')') irdm
                 end if
                 open(one_rdm_unit, file=trim(filename), status='unknown')
             end if
@@ -1372,18 +1398,17 @@ contains
                 open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
             else
                 if (is_transition_rdm) then
-                    write(filename, '("OneRDM_POPS.",'//int_fmt(states_for_rdm(1,irdm),0)//',"_",'&
-                                                      //int_fmt(states_for_rdm(2,irdm),0)//',".",i1)') &
-                                        states_for_rdm(1,irdm), states_for_rdm(2,irdm), rdm_repeat_label(irdm)
+                    write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
+                                                      //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                                        state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
                 else
-                    write(filename, '("OneRDM_POPS.",'//int_fmt(states_for_rdm(1,irdm),0)//')') irdm
+                    write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//')') irdm
                 end if
                 open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
             end if
         end if
 
         ! Currently always printing 1-RDM in spin orbitals.
-        associate(ind => SymLabelListInv_rot)
             do i = 1, nbasis
                 do j = 1, nbasis
                     if (tOpenShell) then
@@ -1417,9 +1442,10 @@ contains
                     end if
                 end do
             end do
-        end associate
 
         close(one_rdm_unit)
+
+        end associate
 
     end subroutine write_1rdm
 

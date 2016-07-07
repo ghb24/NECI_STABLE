@@ -13,7 +13,7 @@ module rdm_filling
 
 contains
 
-    subroutine fill_rdm_diag_wrapper(spawn, one_rdms, ilut_list, ndets)
+    subroutine fill_rdm_diag_wrapper(rdm_defs, spawn, one_rdms, ilut_list, ndets)
 
         ! Loop over all states in ilut_list and see if any signs have just
         ! become unoccupied or become reoccupied. In which case, we have
@@ -24,8 +24,9 @@ contains
         use CalcData, only: tPairedReplicas
         use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
-        use rdm_data, only: one_rdm_t, nrdms, signs_for_rdm
+        use rdm_data, only: one_rdm_t, rdm_definitions_t
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_spawn_t), intent(inout) :: spawn
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer(n_int), intent(in) :: ilut_list(:,:)
@@ -35,7 +36,7 @@ contains
         real(dp) :: curr_sign(lenof_sign), adapted_sign(len_av_sgn_tot)
         real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
 
-        associate(ind => signs_for_rdm)
+        associate(ind => rdm_defs%sim_labels)
 
             do idet = 1, ndets
 
@@ -47,7 +48,7 @@ contains
 
                 adapted_sign = 0.0_dp
 
-                do irdm = 1, nrdms
+                do irdm = 1, rdm_defs%nrdms
                     ! The indicies of the first and second replicas in this
                     ! particular pair, in the *average* sign arrays (and
                     ! therefore also for the iter_occ array).
@@ -263,8 +264,6 @@ contains
         if ((walkExcitLevel == 1) .or. (walkExcitLevel == 2)) then
             call Add_RDM_From_IJ_Pair(spawn, one_rdms, HFDet_True, nJ, AvSignHF(2::2), IterRDM*AvSignJ(1::2))
 
-            ! When we have two replicas for each state being sampled, add in
-            ! the contribution using the opposite two replicas.
             call Add_RDM_From_IJ_Pair(spawn, one_rdms, nJ, HFDet_True, AvSignHF(1::2), IterRDM*AvSignJ(2::2))
         end if
 
@@ -303,7 +302,7 @@ contains
 
     end subroutine Add_RDM_HFConnections_HPHF
 
-    subroutine check_fillRDM_DiDj(spawn, one_rdms, Spawned_No, iLutJ, realSignJ)
+    subroutine check_fillRDM_DiDj(rdm_defs, spawn, one_rdms, Spawned_No, iLutJ, realSignJ)
 
         ! The spawned parts contain the Dj's spawned by the Di's in CurrentDets.
         ! If the SpawnedPart is found in the CurrentDets list, it means that
@@ -313,8 +312,9 @@ contains
 
         use DetBitOps, only: DetBitEq
         use FciMCData, only: iLutHF_True
-        use rdm_data, only: one_rdm_t
+        use rdm_data, only: one_rdm_t, rdm_definitions_t
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_spawn_t), intent(inout) :: spawn
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer, intent(in) :: Spawned_No
@@ -322,12 +322,12 @@ contains
         real(dp), intent(in) :: realSignJ(lenof_sign)
 
         if (.not. DetBitEQ(iLutHF_True, iLutJ, NIfDBO)) then
-                call DiDj_Found_FillRDM(spawn, one_rdms, Spawned_No, iLutJ, realSignJ)
+                call DiDj_Found_FillRDM(rdm_defs, spawn, one_rdms, Spawned_No, iLutJ, realSignJ)
         end if
 
     end subroutine check_fillRDM_DiDj
  
-    subroutine DiDj_Found_FillRDM(spawn, one_rdms, Spawned_No, iLutJ, real_sign_j_all)
+    subroutine DiDj_Found_FillRDM(rdm_defs, spawn, one_rdms, Spawned_No, iLutJ, real_sign_j_all)
 
         ! This routine is called when we have found a Di (or multiple Di's)
         ! spawning onto a Dj with sign /= 0 (i.e. occupied). We then want to
@@ -337,10 +337,10 @@ contains
         use bit_reps, only: decode_bit_det
         use DetBitOps, only: DetBitEq
         use FciMCData, only: Spawned_Parents, Spawned_Parents_Index, iLutHF_True
-        use rdm_data, only: one_rdm_t, nrdms, signs_for_rdm
-        use rdm_data, only: nrdms_each_simulation, rdm_replica_pairs, rdm_labels_for_sims
+        use rdm_data, only: one_rdm_t, rdm_definitions_t
         use SystemData, only: nel, tHPHF
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_spawn_t), intent(inout) :: spawn
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer, intent(in) :: Spawned_No
@@ -349,7 +349,7 @@ contains
 
         integer :: i, irdm, rdm_ind, nI(nel), nJ(nel)
         real(dp) :: realSignI
-        real(dp) :: input_sign_i(nrdms), input_sign_j(nrdms)
+        real(dp) :: input_sign_i(rdm_defs%nrdms), input_sign_j(rdm_defs%nrdms)
         integer :: dest_part_type, source_part_type
         logical :: spawning_from_ket_to_bra
 
@@ -383,12 +383,12 @@ contains
 
             ! Loop over all RDMs to which the simulation with label
             ! source_part_type contributes to.
-            do irdm = 1, nrdms_each_simulation(source_part_type)
+            do irdm = 1, rdm_defs%nrdms_per_sim(source_part_type)
                 ! Get the label of the simulation that is paired with this, 
                 ! replica, for this particular RDM.
-                dest_part_type = rdm_replica_pairs(irdm,source_part_type)
+                dest_part_type = rdm_defs%sim_pairs(irdm,source_part_type)
                 ! The label of the RDM that this be contributing to.
-                rdm_ind = rdm_labels_for_sims(irdm, source_part_type)
+                rdm_ind = rdm_defs%rdm_labels(irdm, source_part_type)
 
                 input_sign_i = 0.0_dp
                 input_sign_j = 0.0_dp
@@ -400,11 +400,11 @@ contains
                 ! from either of the two simulations.
                 if (dest_part_type /= source_part_type) input_sign_i = 0.5_dp*input_sign_i
 
-                ! signs_for_rdm(1,irdm) holds the state in the 'bra' of the RDM.
-                ! signs_for_rdm(2,irdm) holds the state in the 'ket' of the RDM.
+                ! sim_labels(1,irdm) holds the state in the 'bra' of the RDM.
+                ! sim_labels(2,irdm) holds the state in the 'ket' of the RDM.
                 ! If source_part_type is equal to the part type of the ket,
                 ! then we can say that we are spawning from the ket to the bra.
-                spawning_from_ket_to_bra = source_part_type == signs_for_rdm(2,irdm)
+                spawning_from_ket_to_bra = source_part_type == rdm_defs%sim_labels(2,irdm)
 
                 ! If we are spawning from the ket of the RDM, then the RDM
                 ! element to be added in is:
@@ -755,7 +755,7 @@ contains
 
     end subroutine fill_sings_1rdm
 
-    subroutine fill_RDM_offdiag_deterministic(spawn, one_rdms)
+    subroutine fill_RDM_offdiag_deterministic(rdm_defs, spawn, one_rdms)
 
         use bit_rep_data, only: NIfD
         use bit_reps, only: decode_bit_det
@@ -764,11 +764,12 @@ contains
         use FciMCData, only: core_space, determ_sizes, determ_displs, full_determ_vecs_av
         use LoggingData, only: RDMExcitLevel, RDMEnergyIter
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: one_rdm_t, nrdms, signs_for_rdm
+        use rdm_data, only: one_rdm_t, rdm_definitions_t
         use rdm_data_utils, only: add_to_rdm_spawn_t
         use sparse_arrays, only: sparse_core_ham, core_connections
         use SystemData, only: nel, tHPHF
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_spawn_t), intent(inout) :: spawn
         type(one_rdm_t), intent(inout) :: one_rdms(:)
 
@@ -802,8 +803,8 @@ contains
             ! Connections to the HF are added in elsewhere, so skip them here.
             if (DetBitEq(iLutI, iLutHF_True, NifDBO)) cycle
            
-            do irdm = 1, nrdms
-                AvSignI(irdm) = full_determ_vecs_av(signs_for_rdm(2,irdm), determ_displs(iProcIndex)+i)
+            do irdm = 1, rdm_defs%nrdms
+                AvSignI(irdm) = full_determ_vecs_av(rdm_defs%sim_labels(2,irdm), determ_displs(iProcIndex)+i)
             end do
 
             call decode_bit_det(nI,iLutI)
@@ -823,8 +824,8 @@ contains
                 ! Connections to the HF are added in elsewhere, so skip them here.
                 if (DetBitEq(iLutJ, iLutHF_True, NifDBO)) cycle
                 
-                do irdm = 1, nrdms
-                    AvSignJ(irdm) = full_determ_vecs_av(signs_for_rdm(1, irdm), core_connections(i)%positions(j))
+                do irdm = 1, rdm_defs%nrdms
+                    AvSignJ(irdm) = full_determ_vecs_av(rdm_defs%sim_labels(1, irdm), core_connections(i)%positions(j))
                 end do
 
                 connect_elem = core_connections(i)%elements(j)

@@ -572,6 +572,7 @@ contains
         use LoggingData, only: twrite_RDMs_to_read, twrite_normalised_RDMs, tForceCauchySchwarz
         use LoggingData, only: RDMExcitLevel
         use Parallel_neci, only: iProcIndex, MPISumAll
+        use rdm_data, only: rdm_definitions
         use rdm_finalising, only: write_1rdm, make_1e_rdm_hermitian, Force_Cauchy_Schwarz
         use RotateOrbsData, only: NoOrbs
 
@@ -601,7 +602,7 @@ contains
             call calc_1e_norms_old(matrix, matrix_diag, trace_1rdm, norm_1rdm, SumN_Rho_ii)
 
             ! Write out the unnormalised, non-hermitian OneRDM_POPS.
-            if (twrite_RDMs_to_read) call write_1rdm(matrix, irdm, norm_1rdm, .false., tOldRDMs)
+            if (twrite_RDMs_to_read) call write_1rdm(rdm_definitions, matrix, irdm, norm_1rdm, .false., tOldRDMs)
 
             ! Enforce the hermiticity condition.  If the RDMExcitLevel is not 1, the
             ! 1-RDM has been constructed from the hermitian 2-RDM, so this will not
@@ -616,7 +617,7 @@ contains
             end if
 
             ! Write out the final, normalised, hermitian OneRDM.
-            if (tWrite_normalised_RDMs) call write_1rdm(matrix, irdm, norm_1rdm, .true., tOldRDMs)
+            if (tWrite_normalised_RDMs) call write_1rdm(rdm_definitions, matrix, irdm, norm_1rdm, .true., tOldRDMs)
 
             write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
         end if

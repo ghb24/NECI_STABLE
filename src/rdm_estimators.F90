@@ -147,7 +147,7 @@ contains
 
     end subroutine write_rdm_est_file_header
 
-    subroutine calc_2rdm_estimates_wrapper(est, rdm)
+    subroutine calc_2rdm_estimates_wrapper(rdm_defs, est, rdm)
 
         ! Calculate the estimates for the 2-RDM stored in rdm. The full estimates
         ! are stored using this object, and also instantaneous estimates. The
@@ -157,9 +157,10 @@ contains
         ! for any observable.
 
         use Parallel_neci, only: MPISumAll
-        use rdm_data, only: rdm_estimates_t, rdm_list_t, states_for_rdm
+        use rdm_data, only: rdm_estimates_t, rdm_list_t, rdm_definitions_t
         use SystemData, only: nel, ecore
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_estimates_t), intent(inout) :: est
         type(rdm_list_t), intent(in) :: rdm
 
@@ -189,7 +190,7 @@ contains
         ! For the transition RDMs, we want to calculate the norms using the
         ! non-transition RDMs.
         do irdm = est%nrdms_standard+1, est%nrdms
-            est%norm(irdm) = sqrt( est%norm(states_for_rdm(1,irdm)) * est%norm(states_for_rdm(2,irdm)) )
+            est%norm(irdm) = sqrt( est%norm(rdm_defs%state_labels(1,irdm)) * est%norm(rdm_defs%state_labels(2,irdm)) )
         end do
 
         ! The 1- and 2- electron operator contributions to the RDM energy.
@@ -215,7 +216,7 @@ contains
 
     end subroutine calc_2rdm_estimates_wrapper
 
-    subroutine write_rdm_estimates(est, final_output, write_to_separate_file)
+    subroutine write_rdm_estimates(rdm_defs, est, final_output, write_to_separate_file)
 
         ! Write RDM estimates to the RDMEstimates file. Specifically, the
         ! numerator of the energy and spin^2 estimators are output, as is the
@@ -226,9 +227,10 @@ contains
 
         use FciMCData, only: Iter, PreviousCycles
         use LoggingData, only: tRDMInstEnergy
-        use rdm_data, only: rdm_estimates_t, states_for_rdm, rdm_repeat_label
+        use rdm_data, only: rdm_estimates_t, rdm_definitions_t
         use util_mod, only: int_fmt
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_estimates_t), intent(in) :: est
         logical, intent(in) :: final_output, write_to_separate_file
 
@@ -277,9 +279,11 @@ contains
                                                 '(Iteration, SUM ABS ERROR IN HERMITICITY)'
             end do
             do irdm = est%nrdms_standard+1, est%nrdms
-                write(6,'(1x,"2-RDM ESTIMATES FOR TRANSITION",1x,'//int_fmt(states_for_rdm(2,irdm))//'," -> ",&
-                          &'//int_fmt(states_for_rdm(1,irdm))//',1x,"(",i1,")",)') &
-                          states_for_rdm(2,irdm), states_for_rdm(1,irdm), rdm_repeat_label(irdm)
+                associate(state_labels => rdm_defs%state_labels, repeat_label => rdm_defs%repeat_label)
+                    write(6,'(1x,"2-RDM ESTIMATES FOR TRANSITION",1x,'//int_fmt(state_labels(2,irdm))//'," -> ",&
+                              &'//int_fmt(state_labels(1,irdm))//',1x,"(",i1,")",)') &
+                              state_labels(2,irdm), state_labels(1,irdm), repeat_label(irdm)
+                end associate
 
                 write(6,'(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%trace(irdm)
                 write(6,'(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10,/)') est%trace(irdm)/est%norm(irdm)

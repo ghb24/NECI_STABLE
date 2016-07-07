@@ -55,7 +55,6 @@ module fcimc_helper
     use global_det_data, only: get_av_sgn_tot, set_av_sgn_tot, set_det_diagH, &
                                global_determinant_data, det_diagH
     use searching, only: BinSearchParts2
-    use rdm_data, only: nrdms
     implicit none
     save
 
@@ -794,12 +793,13 @@ contains
 
     end function TestInitiator
 
-    subroutine rezero_iter_stats_each_iter(iter_data)
+    subroutine rezero_iter_stats_each_iter(iter_data, rdm_defs)
 
         use global_det_data, only: len_av_sgn_tot
-        use rdm_data, only: signs_for_rdm
+        use rdm_data, only: rdm_definitions_t
 
         type(fcimc_iter_data), intent(inout) :: iter_data
+        type(rdm_definitions_t), intent(in) :: rdm_defs
 
         real(dp) :: prev_AvNoatHF(len_av_sgn_tot), AllInstNoatHF(lenof_sign)
         integer :: irdm, av_ind_1, av_ind_2, part_type
@@ -824,7 +824,7 @@ contains
         call InitHistMin()
 
         if (tFillingStochRDMonFly) then
-            associate(ind => signs_for_rdm)
+            associate(ind => rdm_defs%sim_labels)
 
             call MPISumAll(InstNoatHF, AllInstNoAtHF)
             InstNoAtHF = AllInstNoAtHF
@@ -832,7 +832,7 @@ contains
             if (tFullHFAv) then
                 Prev_AvNoatHF = AvNoatHF
 
-                do irdm = 1, nrdms
+                do irdm = 1, rdm_defs%nrdms
                     if (abs(IterRDM_HF(irdm)) > 1.0e-12_dp) then
                         AvNoatHF(irdm) = ( (real((Iter+PreviousCycles - IterRDM_HF(irdm)),dp) * Prev_AvNoatHF(irdm)) &
                                                 + InstNoatHF(irdm) ) / real((Iter+PreviousCycles - IterRDM_HF(irdm)) + 1, dp)
@@ -845,7 +845,7 @@ contains
                     ! The previous iteration was one where we added in diagonal
                     ! elements To keep things unbiased, we need to set up a new
                     ! averaging block now.
-                    do irdm = 1, nrdms
+                    do irdm = 1, rdm_defs%nrdms
                         av_ind_1 = irdm*2-1
                         av_ind_2 = irdm*2
 
@@ -855,7 +855,7 @@ contains
                         IterRDM_HF(av_ind_2) = Iter + PreviousCycles
                     end do
                 else
-                    do irdm = 1, nrdms
+                    do irdm = 1, rdm_defs%nrdms
                         ! The indicies of the first and second replicas in this
                         ! particular pair, in the *average* sign arrays.
                         av_ind_1 = irdm*2-1
@@ -1604,7 +1604,7 @@ contains
         use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use LoggingData, only: tOldRDMs
-        use rdm_data, only: one_rdms, two_rdm_spawn
+        use rdm_data, only: one_rdms, two_rdm_spawn, rdm_definitions
         use rdm_data_old, only: rdms, one_rdms_old
 
         integer, intent(in) :: DetCurr(nel) 
@@ -1676,7 +1676,7 @@ contains
             ! All walkers died.
             if (tFillingStochRDMonFly) then
                 if (tOldRDMs) then
-                    do irdm = 1, nrdms
+                    do irdm = 1, rdm_definitions%nrdms
                         call det_removed_fill_diag_rdm_old(rdms(irdm), one_rdms_old(irdm), irdm, &
                                                            CurrentDets(:,DetPosition), DetPosition)
                     end do

@@ -29,10 +29,11 @@ contains
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
-        use rdm_data, only: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time, nrdms
+        use rdm_data, only: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time, states_for_transition_rdm
         use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
+        use rdm_data, only: rdm_definitions
         use rdm_data_utils, only: init_rdm_spawn_t, init_rdm_list_t, init_one_rdm_t
-        use rdm_data_utils, only: clear_one_rdms, clear_rdm_list_t
+        use rdm_data_utils, only: init_rdm_definitions_t, clear_one_rdms, clear_rdm_list_t
         use rdm_estimators, only: init_rdm_estimates_t, calc_2rdm_estimates_wrapper
         use rdm_reading
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
@@ -43,7 +44,7 @@ contains
 
         integer, intent(in) :: nrdms_standard, nrdms_transition
 
-        integer :: rdm_nrows, nhashes_rdm_main, nhashes_rdm_spawn
+        integer :: nrdms, rdm_nrows, nhashes_rdm_main, nhashes_rdm_spawn
         integer :: standard_spawn_size, min_spawn_size
         integer :: max_nelems_main, max_nelems_spawn, max_nelems_recv, max_nelems_recv_2
         integer :: memory_alloc, main_mem, spawn_mem, recv_mem
@@ -90,7 +91,7 @@ contains
             end if
         end if
 
-        call init_rdm_indexing_arrays(nrdms_standard, nrdms_transition)
+        call init_rdm_definitions_t(rdm_definitions, nrdms_standard, nrdms_transition, states_for_transition_rdm)
 
         ! Allocate arrays for holding averaged signs and block lengths for the
         ! HF determinant.
@@ -324,8 +325,8 @@ contains
         end if
 
         if (tPrint1RDMsFromSpinfree) then
-            call read_spinfree_2rdm_files(two_rdm_main, two_rdm_spawn)
-            call print_1rdms_from_sf2rdms_wrapper(one_rdms, two_rdm_main)
+            call read_spinfree_2rdm_files(rdm_definitions, two_rdm_main, two_rdm_spawn)
+            call print_1rdms_from_sf2rdms_wrapper(rdm_definitions, one_rdms, two_rdm_main)
             ! now clear these objects before the main simulation.
             call clear_one_rdms(one_rdms)
             call clear_rdm_list_t(two_rdm_main)
@@ -334,14 +335,14 @@ contains
         if (tReadRDMs) then
             if (RDMExcitLevel == 1) then
                 do irdm = 1, size(one_rdms)
-                    call read_1rdm(one_rdms(irdm), irdm)
+                    call read_1rdm(rdm_definitions, one_rdms(irdm), irdm)
                 end do
             else
                 call read_2rdm_popsfile(two_rdm_main, two_rdm_spawn)
-                if (print_2rdm_est) call calc_2rdm_estimates_wrapper(rdm_estimates, two_rdm_main)
+                if (print_2rdm_est) call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main)
 
                 if (tPrint1RDMsFrom2RDMPops) then
-                    call print_1rdms_from_2rdms_wrapper(one_rdms, two_rdm_main, tOpenShell)
+                    call print_1rdms_from_2rdms_wrapper(rdm_definitions, one_rdms, two_rdm_main, tOpenShell)
                 end if
             end if
 
@@ -371,104 +372,6 @@ contains
         RDMEnergy_Time%timer_name = 'RDMEnergyTime'
 
     end subroutine init_rdms
-
-    subroutine init_rdm_indexing_arrays(nrdms_standard, nrdms_transition)
-
-        ! Set up global arrays which are used to specify the lni between the
-        ! RDMs being sampled, and which states and FCIQMC simualtions are
-        ! involved in those RDMs.
-
-        ! For example, states_for_rdm specifies which states are used to
-        ! construct each RDM. signs_for_rdm specifies which FCIQMC simulations
-        ! are used to construct each RDM. See the rdm_data module for more
-        ! description on the various arrays set up here.
-
-        use rdm_data, only: nrdms, signs_for_rdm, nrdms_each_simulation, rdm_replica_pairs
-        use rdm_data, only: rdm_labels_for_sims, states_for_transition_rdm, states_for_rdm
-        use rdm_data, only: rdm_repeat_label
-
-        integer, intent(in) :: nrdms_standard, nrdms_transition
-
-        integer :: irdm, counter
-
-        ! states_for_rdm(:,j) will store the labels of the *actual* wave
-        ! functions (i.e., usually which excited state it is) contributing to
-        ! the j'th RDM.
-        allocate(states_for_rdm(2, nrdms))
-        ! The 'standard' (non-transition) RDMs.
-        do irdm = 1, nrdms_standard
-            states_for_rdm(1,irdm) = irdm
-            states_for_rdm(2,irdm) = irdm
-        end do
-        ! The transition RDMs - these were read in from the user input.
-        if (nrdms_transition > 0) then
-            if (nreplicas == 1) then
-                states_for_rdm(:,nrdms_standard+1:nrdms_standard+nrdms_transition) = states_for_transition_rdm
-            else if (nreplicas == 2) then
-                do irdm = 2, nrdms_transition, 2
-                    ! In this case, there are two transition RDMs sampled for
-                    ! each one the user requested, because there are two
-                    ! combinations of replicas which can be used.
-                    states_for_rdm(:,nrdms_standard+irdm-1) = states_for_transition_rdm(:,irdm/2)
-                    states_for_rdm(:,nrdms_standard+irdm)   = states_for_transition_rdm(:,irdm/2)
-                end do
-            end if
-        end if
-
-        ! For transition RDMs, with 2 replicas for each state, there will be 2
-        ! copies of each transition RDM. This array simply holds which of the
-        ! 2 each RDM is - the first or second repeat.
-        allocate(rdm_repeat_label(nrdms))
-        do irdm = 1, nrdms_standard
-            rdm_repeat_label(irdm) = 1
-        end do
-        do irdm = 1, nrdms_transition
-            rdm_repeat_label(irdm+nrdms_standard) = nreplicas - mod(irdm,nreplicas)
-        end do
-
-        ! signs_for_rdm(:,j) will store the labels of the *FCIQMC* wave functions
-        ! (i.e. the 'replica' labels) which will be used to sample the j'th RDM
-        ! being calculated.
-        allocate(signs_for_rdm(2, nrdms))
-        do irdm = 1, nrdms
-            if (nreplicas == 1) then
-                signs_for_rdm(1,irdm) = states_for_rdm(1,irdm)
-                signs_for_rdm(2,irdm) = states_for_rdm(2,irdm)
-            else if (nreplicas == 2) then
-                signs_for_rdm(1,irdm) = states_for_rdm(1,irdm)*nreplicas-mod(rdm_repeat_label(irdm),2)
-                signs_for_rdm(2,irdm) = states_for_rdm(2,irdm)*nreplicas-mod(rdm_repeat_label(irdm)+1,2)
-            end if
-        end do
-
-        allocate(nrdms_each_simulation(lenof_sign))
-        allocate(rdm_replica_pairs(nrdms, lenof_sign))
-        allocate(rdm_labels_for_sims(nrdms, lenof_sign))
-        nrdms_each_simulation = 0
-        rdm_replica_pairs = 0
-        rdm_labels_for_sims = 0
-        do irdm = 1, nrdms
-            ! Count the number of times each replica label is contributing to
-            ! an RDM.
-            nrdms_each_simulation(signs_for_rdm(1,irdm))  = nrdms_each_simulation(signs_for_rdm(1,irdm)) + 1
-            ! The number of RDMs which we have currently counted, for this replica.
-            counter = nrdms_each_simulation(signs_for_rdm(1,irdm))
-            ! Store which replica is paired with this, for this particular RDM
-            ! sampling.
-            rdm_replica_pairs(counter, signs_for_rdm(1,irdm)) = signs_for_rdm(2,irdm)
-            ! Store which RDM this pair of signs contributes to.
-            rdm_labels_for_sims(counter, signs_for_rdm(1,irdm)) = irdm
-
-            ! Do the same as above, but now for cases when spawning from the
-            ! 'second' replica in the pair, *but only if it is different*.
-            if (signs_for_rdm(1,irdm) /= signs_for_rdm(2,irdm)) then
-                nrdms_each_simulation(signs_for_rdm(2,irdm))  = nrdms_each_simulation(signs_for_rdm(2,irdm)) + 1
-                counter = nrdms_each_simulation(signs_for_rdm(2,irdm))
-                rdm_replica_pairs(counter, signs_for_rdm(2,irdm)) = signs_for_rdm(1,irdm)
-                rdm_labels_for_sims(counter, signs_for_rdm(2,irdm)) = irdm
-            end if
-        end do
-
-    end subroutine init_rdm_indexing_arrays
 
     subroutine SetUpSymLabels_RDM()
 
@@ -789,14 +692,16 @@ contains
 
     ! Some general routines used during the main simulation.
 
-    subroutine extract_bit_rep_avsign_no_rdm(iLutnI, j, nI, SignI, FlagsI, IterRDMStartI, AvSignI, store)
+    subroutine extract_bit_rep_avsign_no_rdm(rdm_defs, iLutnI, j, nI, SignI, FlagsI, IterRDMStartI, AvSignI, store)
 
         ! This is just the standard extract_bit_rep routine for when we're not
         ! calculating the RDMs.    
 
         use bit_reps, only: extract_bit_rep
         use FciMCData, only: excit_gen_store_type
+        use rdm_data, only: rdm_definitions_t
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         integer, intent(in) :: j
         integer, intent(out) :: nI(nel), FlagsI
@@ -817,7 +722,7 @@ contains
 
     end subroutine extract_bit_rep_avsign_no_rdm
 
-    subroutine extract_bit_rep_avsign_norm(iLutnI, j, nI, SignI, FlagsI, IterRDMStartI, AvSignI, store)
+    subroutine extract_bit_rep_avsign_norm(rdm_defs, iLutnI, j, nI, SignI, FlagsI, IterRDMStartI, AvSignI, store)
 
         ! The following extract_bit_rep_avsign routine extracts the bit
         ! representation of the current determinant, and calculates the average
@@ -843,9 +748,10 @@ contains
         use FciMCData, only: PreviousCycles, Iter, IterRDMStart, excit_gen_store_type
         use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
-        use rdm_data, only: signs_for_rdm, nrdms
+        use rdm_data, only: rdm_definitions_t
         use LoggingData, only: RDMEnergyIter
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         integer, intent(out) :: nI(nel), FlagsI
         integer, intent(in) :: j
@@ -862,7 +768,7 @@ contains
         ! This extracts everything.
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI)
 
-        associate(ind => signs_for_rdm)
+        associate(ind => rdm_defs%sim_labels)
 
         if (((Iter+PreviousCycles-IterRDMStart) > 0) .and. &
             & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1), RDMEnergyIter) == 0)) then 
@@ -874,7 +780,7 @@ contains
             ! Would expect diagonal elements to be slightly worse quality, improving
             ! as one calculates the RDM energy less frequently.  As this method is
             ! biased anyway, I'm not going to lose sleep over it.
-            do irdm = 1, nrdms
+            do irdm = 1, rdm_defs%nrdms
                 av_ind_1 = irdm*2-1
                 av_ind_2 = irdm*2
 
@@ -885,7 +791,7 @@ contains
             end do
         else
             ! Now let's consider other instances in which we need to start a new block:
-            do irdm = 1, nrdms
+            do irdm = 1, rdm_defs%nrdms
                 ! The indicies of the first and second replicas in this
                 ! particular pair, in the *average* sign arrays.
                 av_ind_1 = irdm*2-1
