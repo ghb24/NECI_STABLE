@@ -1,5 +1,5 @@
 #include "macros.h"
-module lanczos_complex
+module lanczos_general
     !   robert.anderson@kcl.ac.uk
     !   June 2016
     !
@@ -534,4 +534,4 @@ module lanczos_complex
         write(out_unit, *)
     end subroutine
 
-end module lanczos_complex
+end module lanczos_general
