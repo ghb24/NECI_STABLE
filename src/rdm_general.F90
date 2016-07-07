@@ -401,16 +401,18 @@ contains
             states_for_rdm(2,irdm) = irdm
         end do
         ! The transition RDMs - these were read in from the user input.
-        if (nreplicas == 1) then
-            states_for_rdm(:,nrdms_standard+1:nrdms_standard+nrdms_transition) = states_for_transition_rdm
-        else if (nreplicas == 2) then
-            do irdm = 2, nrdms_transition, 2
-                ! In this case, there are two transition RDMs sampled for
-                ! each one the user requested, because there are two
-                ! combinations of replicas which can be used.
-                states_for_rdm(:,nrdms_standard+irdm-1) = states_for_transition_rdm(:,irdm/2)
-                states_for_rdm(:,nrdms_standard+irdm)   = states_for_transition_rdm(:,irdm/2)
-            end do
+        if (nrdms_transition > 0) then
+            if (nreplicas == 1) then
+                states_for_rdm(:,nrdms_standard+1:nrdms_standard+nrdms_transition) = states_for_transition_rdm
+            else if (nreplicas == 2) then
+                do irdm = 2, nrdms_transition, 2
+                    ! In this case, there are two transition RDMs sampled for
+                    ! each one the user requested, because there are two
+                    ! combinations of replicas which can be used.
+                    states_for_rdm(:,nrdms_standard+irdm-1) = states_for_transition_rdm(:,irdm/2)
+                    states_for_rdm(:,nrdms_standard+irdm)   = states_for_transition_rdm(:,irdm/2)
+                end do
+            end if
         end if
 
         ! For transition RDMs, with 2 replicas for each state, there will be 2
