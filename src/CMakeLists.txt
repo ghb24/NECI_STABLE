@@ -79,7 +79,7 @@ set( SRC_FILES
     kp_fciqmc_init.F90
     kp_fciqmc_procs.F90
     kp_fciqmc_proj_est.F90
-    lanczos_complex.F90
+    lanczos_general.F90
     lanczos_wrapper.F90
     legacy_data.F90
     lineup.F

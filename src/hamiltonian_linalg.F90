@@ -32,21 +32,21 @@ module hamiltonian_linalg
         ! For parallel calculations, this vector is the size of the space on this processor. This
         ! vector is used to store the output of H |ket> on this processor.
         ! (formerly partial_davidson_vector)
-        real(dp), allocatable, dimension(:) :: partial_H_ket
+        HElement_t(dp), allocatable, dimension(:) :: partial_H_ket
         ! displacements necessary for communication of H |ket>
         ! (formerly davidson_disps)
         integer(MPIArg), allocatable, dimension(:) :: partial_H_ket_disps
         ! All algorithms for solving large eigenproblems involve a unitary rotation of the 
         ! Hamiltonian into a smaller basis. basis_vectors(:,i) is the ith such unit vector
-        real(dp), allocatable, dimension(:,:) :: basis_vectors
+        HElement_t(dp), allocatable, dimension(:,:) :: basis_vectors
         ! the location in the basis is the HF determinant
         integer :: hfindex
         ! the hamiltonian projected into basis_vectors
-        real(dp), allocatable, dimension(:,:) :: projected_hamil
+        HElement_t(dp), allocatable, dimension(:,:) :: projected_hamil
         ! we'll usually need some working space for diagonalisation of H in the small basis
-        real(dp), allocatable, dimension(:,:) :: projected_hamil_work
+        HElement_t(dp), allocatable, dimension(:,:) :: projected_hamil_work
         ! For parallel calculations, only the processor with label root performs the main
-        real(dp), allocatable, dimension(:) :: temp_in, temp_out
+        HElement_t(dp), allocatable, dimension(:) :: temp_in, temp_out
         logical :: skip_calc
         logical :: t_store_subspace_basis
         integer :: max_subspace_size
@@ -54,6 +54,31 @@ module hamiltonian_linalg
 
     ! leaving these as global data, since direct CI currently only works for Davidson
     type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
+
+    interface multiply_hamil_and_vector
+        module procedure multiply_hamil_and_vector_real
+        module procedure multiply_hamil_and_vector_complex
+    end interface
+
+    interface multiply_hamil_and_vector_full
+        module procedure multiply_hamil_and_vector_full_real
+        module procedure multiply_hamil_and_vector_full_complex
+    end interface
+
+    interface mult_hamil_vector_sparse
+        module procedure mult_hamil_vector_sparse_real
+        module procedure mult_hamil_vector_sparse_complex
+    end interface
+
+    interface mult_hamil_vector_par_sparse
+        module procedure mult_hamil_vector_par_sparse_real
+        module procedure mult_hamil_vector_par_sparse_complex
+    end interface
+
+    interface mult_hamil_vector_direct_ci
+        module procedure mult_hamil_vector_direct_ci_real
+        module procedure mult_hamil_vector_direct_ci_complex
+    end interface
 
     contains
 
@@ -74,10 +99,9 @@ module hamiltonian_linalg
        
         this%hamil_type = hamil_type
         this%t_store_subspace_basis = t_store_subspace_basis
-        this%max_subspace_size = max_subspace_size
 
         associate(&
-            space_size => this%space_size,&
+            space_size => this%space_size, &
             hfindex => this%hfindex&
         )
 
@@ -103,6 +127,8 @@ module hamiltonian_linalg
         end if
 
         space_size = size(hamil_diag)
+        ! may not exceed size of space)
+        this%max_subspace_size = min(max_subspace_size, space_size)
 
         if (hamil_type == parallel_sparse_hamil_type) then
 
@@ -122,7 +148,7 @@ module hamiltonian_linalg
             call MPIGatherV(hamil_diag, hamil_diag_temp, this%space_sizes, this%partial_H_ket_disps, ierr)
 
             if (iProcIndex == root) then
-                allocate(hamil_diag(space_size))
+                safe_realloc(hamil_diag, (space_size))
                 hamil_diag = hamil_diag_temp
             end if
             deallocate(hamil_diag_temp)
@@ -133,16 +159,16 @@ module hamiltonian_linalg
             write(6,'(1x,"number of determinants on this process:",'//int_fmt(space_size,1)//')') space_size; call neci_flush(6)
         end if
 
-        if (iprocindex == root) then
+!        if (iprocindex == root) then
             hfindex = maxloc((-hamil_diag),1)
 
             ! the memory required to allocate each of basis_vectors and
             ! multipied_basis_vectors, in mb.
-            mem_reqd = max_subspace_size*space_size*8/1000000
+            mem_reqd = max_subspace_size*this%space_size*8/1000000
 
             ! allocate the necessary arrays:
             if (t_store_subspace_basis) then
-                safe_calloc(this%basis_vectors, (space_size, max_subspace_size), 0.0_dp)
+                safe_calloc(this%basis_vectors, (this%space_size, max_subspace_size), 0.0_dp)
                 if (print_info) then
                     write(6,'(1x,"allocating array to hold subspace vectors (",'//int_fmt(mem_reqd,0)//',1x,"mb).")') mem_reqd
                     call neci_flush(6)
@@ -150,9 +176,9 @@ module hamiltonian_linalg
             endif
             safe_calloc(this%projected_hamil, (max_subspace_size,max_subspace_size), 0.0_dp)
             safe_calloc(this%projected_hamil_work, (max_subspace_size,max_subspace_size), 0.0_dp)
-        else
-            safe_malloc(this%temp_in, (space_size))
-            safe_malloc(this%temp_out, (space_size))
+        if (iprocindex /= root) then
+            safe_malloc(this%temp_in, (this%space_size))
+            safe_malloc(this%temp_out, (this%space_size))
         end if
 
         this%skip_calc = .false.
@@ -164,6 +190,21 @@ module hamiltonian_linalg
         end associate
 
     end subroutine InitHamiltonianCalc
+
+
+    subroutine orthogonalise_against_previous_basis_vectors(this, basis_index)
+        type(HamiltonianCalcType), intent(inout) :: this
+        integer, intent(in) :: basis_index
+        integer :: i
+        associate(v => this%basis_vectors(:,basis_index))
+        do i = 1, basis_index-1
+            v = v - this%basis_vectors(:,i)*dot_product(v,this%basis_vectors(:,i)) &
+                /dot_product(this%basis_vectors(:,i), this%basis_vectors(:,i))
+        enddo
+        v = v/sqrt(dot_product(v,v))
+        end associate        
+    end subroutine orthogonalise_against_previous_basis_vectors
+
 
     subroutine DestroyHamiltonianCalc(this)
         type(HamiltonianCalcType), intent(inout) :: this
@@ -177,11 +218,10 @@ module hamiltonian_linalg
         safe_free(this%temp_out)
     end subroutine DestroyHamiltonianCalc
 
-    subroutine multiply_hamil_and_vector(this, input_vector, output_vector)
-
+    subroutine multiply_hamil_and_vector_real(this, input_vector, output_vector)
         type(HamiltonianCalcType), intent(inout) :: this
-        HElement_t(dp), intent(in) :: input_vector(:)
-        HElement_t(dp), intent(out) :: output_vector(:)
+        real(dp), intent(in) :: input_vector(:)
+        real(dp), intent(out) :: output_vector(:)
 
         associate(hamil_type => this%hamil_type)
 
@@ -194,13 +234,29 @@ module hamiltonian_linalg
         else if (hamil_type == direct_ci_type) then
             call mult_hamil_vector_direct_ci(input_vector, output_vector)
         end if
-
         end associate
+    end subroutine multiply_hamil_and_vector_real
 
-    end subroutine multiply_hamil_and_vector
+    subroutine multiply_hamil_and_vector_complex(this, input_vector, output_vector)
+        type(HamiltonianCalcType), intent(inout) :: this
+        complex(dp), intent(in) :: input_vector(:)
+        complex(dp), intent(out) :: output_vector(:)
 
-    subroutine multiply_hamil_and_vector_full(this, input_vector, output_vector)
+        associate(hamil_type => this%hamil_type)
 
+        if (hamil_type == full_hamil_type) then
+            call multiply_hamil_and_vector_full(this, input_vector, output_vector)
+        else if (hamil_type == sparse_hamil_type) then
+            call mult_hamil_vector_sparse(this, input_vector, output_vector)
+        else if (hamil_type == parallel_sparse_hamil_type) then
+            call mult_hamil_vector_par_sparse(this, input_vector, output_vector)
+        else if (hamil_type == direct_ci_type) then
+            call mult_hamil_vector_direct_ci(input_vector, output_vector)
+        end if
+        end associate
+    end subroutine multiply_hamil_and_vector_complex
+
+    subroutine multiply_hamil_and_vector_full_real(this, input_vector, output_vector)
         type(HamiltonianCalcType), intent(inout) :: this
         real(dp), intent(in) :: input_vector(:)
         real(dp), intent(out) :: output_vector(:)
@@ -216,7 +272,7 @@ module hamiltonian_linalg
         ! 1 is the increment of the elements of x.
         ! beta = 0.0_dp.
         ! output y = output_vector.
-        ! 1 is the incremenet of the elements of y.
+        ! 1 is the increment of the elements of y.
 
         associate(space_size => this%space_size)
 
@@ -233,14 +289,52 @@ module hamiltonian_linalg
                    1)
 
        end associate
+    end subroutine multiply_hamil_and_vector_full_real
 
-    end subroutine multiply_hamil_and_vector_full
-
-    subroutine mult_hamil_vector_sparse(this, input_vector, output_vector)
-
+    subroutine multiply_hamil_and_vector_full_complex(this, input_vector, output_vector)
         type(HamiltonianCalcType), intent(inout) :: this
-        HElement_t(dp), intent(in) :: input_vector(:)
-        HElement_t(dp), intent(out) :: output_vector(:)
+        complex(dp), intent(in) :: input_vector(:)
+        complex(dp), intent(out) :: output_vector(:)
+
+        associate(space_size => this%space_size)
+
+        call zgemv('N', &
+                   space_size, &
+                   space_size, &
+                   1.0_dp, &
+                   hamiltonian, &
+                   space_size, &
+                   input_vector, &
+                   1, &
+                   0.0_dp, &
+                   output_vector, &
+                   1)
+
+       end associate
+    end subroutine multiply_hamil_and_vector_full_complex
+
+    subroutine mult_hamil_vector_sparse_real(this, input_vector, output_vector)
+        type(HamiltonianCalcType), intent(inout) :: this
+        real(dp), intent(in) :: input_vector(:)
+        real(dp), intent(out) :: output_vector(:)
+        integer :: i, j
+
+        associate(space_size => this%space_size)
+        output_vector = 0.0_dp
+
+        do i = 1, space_size
+            do j = 1, sparse_ham(i)%num_elements
+                output_vector(i) = output_vector(i) + dble(sparse_ham(i)%elements(j)*input_vector(sparse_ham(i)%positions(j)))
+            end do
+        end do
+
+        end associate
+    end subroutine mult_hamil_vector_sparse_real
+
+    subroutine mult_hamil_vector_sparse_complex(this, input_vector, output_vector)
+        type(HamiltonianCalcType), intent(inout) :: this
+        complex(dp), intent(in) :: input_vector(:)
+        complex(dp), intent(out) :: output_vector(:)
         integer :: i, j
 
         associate(space_size => this%space_size)
@@ -253,14 +347,37 @@ module hamiltonian_linalg
         end do
 
         end associate
+    end subroutine mult_hamil_vector_sparse_complex
 
-    end subroutine mult_hamil_vector_sparse
-
-    subroutine mult_hamil_vector_par_sparse(this, input_vector, output_vector)
-
+    subroutine mult_hamil_vector_par_sparse_real(this, input_vector, output_vector)
         type(HamiltonianCalcType), intent(inout) :: this
-        HElement_t(dp), intent(in) :: input_vector(:)
-        HElement_t(dp), intent(out) :: output_vector(:)
+        real(dp), intent(in) :: input_vector(:)
+        real(dp), intent(out) :: output_vector(:)
+        integer :: i, j, ierr
+
+        ! Use output_vector as temporary space.
+        output_vector = input_vector
+
+        call MPIBarrier(ierr, tTimeIn=.false.)
+
+        call MPIBCast(output_vector)
+
+        this%partial_H_ket = 0.0_dp
+
+        do i = 1, this%space_sizes(iProcIndex)
+            do j = 1, sparse_ham(i)%num_elements
+                this%partial_H_ket(i) = this%partial_H_ket(i) + &
+                    sparse_ham(i)%elements(j)*output_vector(sparse_ham(i)%positions(j))
+            end do
+        end do
+        ! this templated routine forbids mixing real and complex arrays
+        call MPIGatherV(dble(this%partial_H_ket), output_vector, this%space_sizes, this%partial_H_ket_disps, ierr)
+    end subroutine mult_hamil_vector_par_sparse_real
+
+    subroutine mult_hamil_vector_par_sparse_complex(this, input_vector, output_vector)
+        type(HamiltonianCalcType), intent(inout) :: this
+        complex(dp), intent(in) :: input_vector(:)
+        complex(dp), intent(out) :: output_vector(:)
         integer :: i, j, ierr
 
         ! Use output_vector as temporary space.
@@ -280,17 +397,15 @@ module hamiltonian_linalg
         end do
 
         call MPIGatherV(this%partial_H_ket, output_vector, this%space_sizes, this%partial_H_ket_disps, ierr)
+    end subroutine mult_hamil_vector_par_sparse_complex
 
-    end subroutine mult_hamil_vector_par_sparse
-
-    subroutine mult_hamil_vector_direct_ci(input_vector, output_vector)
-
+    subroutine mult_hamil_vector_direct_ci_real(input_vector, output_vector)
         use direct_ci, only: perform_multiplication, transfer_from_block_form, transfer_to_block_form
         use FciMCData, only: davidson_ras, davidson_classes, davidson_strings, davidson_iluts, davidson_excits
         use SystemData, only: ecore
 
-        HElement_t(dp), intent(in) :: input_vector(:)
-        HElement_t(dp), intent(out) :: output_vector(:)
+        real(dp), intent(in) :: input_vector(:)
+        real(dp), intent(out) :: output_vector(:)
 
         ! The davidson code uses a single vector to store amplitudes. However, the direct CI code
         ! works in terms of alpha and beta strings and so uses block matrices. This routine will
@@ -306,8 +421,20 @@ module hamiltonian_linalg
         ! The above multiplication does not include the nuclear-nuclear energy, so add this
         ! contribution now.
         output_vector = output_vector + ecore*input_vector
+    end subroutine mult_hamil_vector_direct_ci_real
 
-    end subroutine mult_hamil_vector_direct_ci
 
+    subroutine mult_hamil_vector_direct_ci_complex(input_vector, output_vector)
+        use direct_ci, only: perform_multiplication, transfer_from_block_form, transfer_to_block_form
+        use FciMCData, only: davidson_ras, davidson_classes, davidson_strings, davidson_iluts, davidson_excits
+        use SystemData, only: ecore
+
+        complex(dp), intent(in) :: input_vector(:)
+        complex(dp), intent(out) :: output_vector(:)
+        character(*), parameter :: t_r = "mult_hamil_vector_direct_ci_complex"
+
+        call stop_all(t_r, "not yet implemented for complex CI coefficients")
+
+    end subroutine mult_hamil_vector_direct_ci_complex
 
 end module hamiltonian_linalg
