@@ -43,7 +43,8 @@ module fcimc_helper
                         tMultiReplicaInitiators, NMCyc, iSampleRDMIters, &
                         tSpawnCountInitiatorThreshold, init_spawn_thresh, &
                         tOrthogonaliseReplicas, tPairedReplicas, &
-                        tBroadcastParentCoeff, tWeakInitiators, weakthresh
+                        tBroadcastParentCoeff, tWeakInitiators, weakthresh, &
+                        t_guga_mat_eles
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
@@ -64,7 +65,7 @@ module fcimc_helper
     use searching, only: BinSearchParts2
 
 #ifndef __CMPLX
-    use guga_matrixElements, only: calc_off_diag_guga_ref
+    use guga_procedure_pointers, only: calc_off_diag_guga_ref
     use guga_excitations, only: create_projE_list, calc_csf_info
 #endif
 
@@ -1944,7 +1945,7 @@ contains
 
             ref_b_vector_real = real(ref_b_vector_int,dp)
 
-            call create_projE_list(run)
+            if (.not. t_guga_mat_eles)  call create_projE_list(run)
 
         end if
 #endif

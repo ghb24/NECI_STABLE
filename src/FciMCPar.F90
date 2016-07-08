@@ -14,7 +14,7 @@ module FciMCParMod
                         ss_space_in, s_global_start, tContTimeFCIMC, &
                         trial_shift_iter, tStartTrialLater, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
-                        t_frequency_analysis
+                        t_frequency_analysis, t_guga_mat_eles
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, &
@@ -474,7 +474,7 @@ module FciMCParMod
 
 #ifndef __CMPLX
         if (tGUGA) then 
-            call deallocate_projE_list()
+            if (.not. t_guga_mat_eles) call deallocate_projE_list()
         end if
 #endif
 

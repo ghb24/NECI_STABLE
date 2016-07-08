@@ -80,8 +80,8 @@ module guga_procedure_pointers
         end function orb_pgen_contrib_type_t
 
         function calc_off_diag_guga_t(ilut, run, exlevel) result(hel)
-            use constants, only :: n_int, dp
-            use bit_reps, only :: niftot
+            use constants, only: n_int, dp
+            use bit_reps, only: niftot
             implicit none
             integer(n_int), intent(in) :: ilut(0:niftot)
             integer, intent(in), optional :: run 

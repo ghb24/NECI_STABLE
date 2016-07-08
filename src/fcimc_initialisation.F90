@@ -34,7 +34,8 @@ module fcimc_initialisation
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, &
-                        tMultipleInitialStates, initial_states, t_hist_tau_search
+                        tMultipleInitialStates, initial_states, t_hist_tau_search, &
+                        t_guga_mat_eles
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -367,10 +368,13 @@ contains
             ! have to first allocate the type proje_replica
             allocate(projE_replica(inum_runs), stat = ierr)
 
-            do run = 1, inum_runs
-                call create_projE_list(run)
-            end do
-            
+            ! only initialize that if we use the old way to calc the 
+            ! reference energy! 
+            if (.not. t_guga_mat_eles) then
+                do run = 1, inum_runs
+                    call create_projE_list(run)
+                end do
+            end if
         end if
 #endif
 

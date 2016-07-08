@@ -86,8 +86,6 @@ module guga_excitations
         end function calc_pgen_general
     end interface
 
-    abstract interface
-        
     ! for my probabilistic weight functions i need abstract interfaces here
 !     abstract interface 
 
@@ -288,6 +286,47 @@ module guga_excitations
     real(dp), allocatable :: temp_occ_i(:), temp_b_real_i(:) 
 
 contains
+
+    function calc_off_diag_guga_ref_direct(ilut, run, exlevel) result(hel)
+        integer(n_int), intent(in) :: ilut(0:niftot)
+        integer, intent(in), optional :: run 
+        integer, intent(out), optional :: exlevel 
+        HElement_t(dp) :: hel 
+        character(*), parameter :: this_routine = "calc_off_diag_guga_ref_direct"
+
+        integer(n_int) :: tmp_ilut(0:niftot) 
+        type(excitationInformation) :: excitInfo 
+
+        if (present(run)) then 
+            tmp_ilut = ilutRef(0:niftot,run) 
+        else
+            tmp_ilut = ilutRef(0:niftot,1)
+        end if
+
+        call calc_guga_matrix_element(ilut, tmp_ilut, excitInfo, hel, .true., 0)
+
+        if (present(exlevel)) then 
+
+            if (excitInfo%valid) then 
+
+                if (excitInfo%typ == 0) then
+                    ! singles: 
+                    exlevel = 1
+
+                else 
+                    ! doubles 
+                    exlevel = 2
+
+                end if
+
+            else 
+                ! non-valid > 3 excit
+                exlevel = -1 
+
+            end if
+        end if
+
+    end function calc_off_diag_guga_ref_direct
 
     subroutine calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, t_hamil, &
             calc_type, rdm_ind, rdm_mat)
