@@ -384,15 +384,18 @@ contains
 
     end subroutine calc_1rdms_from_2rdms
 
-    subroutine make_hermitian_rdm(rdm, spawn, rdm_recv)
+    subroutine make_hermitian_rdm(rdm, nrdms_standard, spawn, rdm_recv)
 
-        ! Take the RDM in the rdm object, and output a new RDM which is the
-        ! same but with hermiticy applied to it, i.e., the elements above and
-        ! below the diagonal are averaged appropriately.
+        ! Take the RDM in the rdm object, and output a new RDM object which is
+        ! the same but with hermiticy applied to the non-transition RDMs, i.e.,
+        ! the elements above and below the diagonal are averaged appropriately.
+        ! Transition RDM signs are set to zero, so transition RDMs are not
+        ! included in the output RDM.
 
         use rdm_data_utils, only: annihilate_rdm_list
 
         type(rdm_list_t), intent(in) :: rdm
+        integer, intent(in) :: nrdms_standard
         type(rdm_spawn_t), intent(inout) :: spawn
         type(rdm_list_t), intent(inout) :: rdm_recv
 
@@ -418,6 +421,8 @@ contains
             ! Obtain spin orbital labels and the RDM element.
             call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
             call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+            ! Set sign for transition RDMs to 0.
+            rdm_sign(nrdms_standard+1:) = 0.0_dp
 
             ! Factor of a half to account for prevent double-counting, and
             ! instead average elements from above and below the diagonal.
@@ -642,13 +647,17 @@ contains
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
         logical, intent(in) :: open_shell
 
+        integer :: nrdms_to_print
+
         spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
         call clear_hash_table(spawn%rdm_send%hash_table)
 
-        call make_hermitian_rdm(rdm, spawn, rdm_recv)
-
+        call make_hermitian_rdm(rdm, rdm_defs%nrdms_standard, spawn, rdm_recv)
         call apply_symmetries_for_output(rdm_recv, rdm_recv_2, spawn, open_shell)
-        call print_rdms_with_spin(rdm_defs, rdm_recv_2, rdm_trace, open_shell)
+
+        ! Only print non-transition RDMs, for now.
+        nrdms_to_print = rdm_defs%nrdms_standard
+        call print_rdms_with_spin(rdm_defs, nrdms_to_print, rdm_recv_2, rdm_trace, open_shell)
 
     end subroutine print_rdms_spin_sym_wrapper
 
@@ -887,7 +896,7 @@ contains
 
     end subroutine print_rdm_popsfile
 
-    subroutine print_rdms_with_spin(rdm_defs, rdm, rdm_trace, open_shell)
+    subroutine print_rdms_with_spin(rdm_defs, nrdms_to_print, rdm, rdm_trace, open_shell)
 
         ! Print the RDM stored in rdm to files, normalised by rdm_trace.
 
@@ -903,6 +912,7 @@ contains
         use util_mod, only: get_free_unit
 
         type(rdm_definitions_t), intent(in) :: rdm_defs
+        integer, intent(in) :: nrdms_to_print
         type(rdm_list_t), intent(inout) :: rdm
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
         logical, intent(in) :: open_shell
@@ -925,7 +935,7 @@ contains
         call sort(rdm%elements(:,1:rdm%nelements))
 
         do iproc = 0, nProcessors-1
-            do irdm = 1, rdm_defs%nrdms
+            do irdm = 1, nrdms_to_print
                 if (state_labels(1,irdm) == state_labels(2,irdm)) then
                     write(suffix, '('//int_fmt(state_labels(1,irdm),0)//')') irdm
                 else
