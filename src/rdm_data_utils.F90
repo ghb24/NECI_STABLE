@@ -210,23 +210,23 @@ contains
         do irdm = 1, nrdms
             ! Count the number of times each replica label is contributing to
             ! an RDM.
-            rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(1,irdm))  = rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(1,irdm)) + 1
+            rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(2,irdm))  = rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(2,irdm)) + 1
             ! The number of RDMs which we have currently counted, for this replica.
-            counter = rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(1,irdm))
+            counter = rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(2,irdm))
             ! Store which replica is paired with this, for this particular RDM
             ! sampling.
-            rdm_defs%sim_pairs(counter, rdm_defs%sim_labels(1,irdm)) = rdm_defs%sim_labels(2,irdm)
+            rdm_defs%sim_pairs(counter, rdm_defs%sim_labels(2,irdm)) = rdm_defs%sim_labels(1,irdm)
             ! Store which RDM this pair of signs contributes to.
-            rdm_defs%rdm_labels(counter, rdm_defs%sim_labels(1,irdm)) = irdm
+            rdm_defs%rdm_labels(counter, rdm_defs%sim_labels(2,irdm)) = irdm
 
             ! Do the same as above, but now for cases when spawning from the
             ! 'second' replica in the pair, *but only if it is different*.
             if (rdm_defs%sim_labels(1,irdm) /= rdm_defs%sim_labels(2,irdm)) then
-                rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(2,irdm))  = &
-                    rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(2,irdm)) + 1
-                counter = rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(2,irdm))
-                rdm_defs%sim_pairs(counter, rdm_defs%sim_labels(2,irdm)) = rdm_defs%sim_labels(1,irdm)
-                rdm_defs%rdm_labels(counter, rdm_defs%sim_labels(2,irdm)) = irdm
+                rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(1,irdm))  = &
+                    rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(1,irdm)) + 1
+                counter = rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(1,irdm))
+                rdm_defs%sim_pairs(counter, rdm_defs%sim_labels(1,irdm)) = rdm_defs%sim_labels(2,irdm)
+                rdm_defs%rdm_labels(counter, rdm_defs%sim_labels(1,irdm)) = irdm
             end if
         end do
 

@@ -386,8 +386,8 @@ contains
             do irdm = 1, rdm_defs%nrdms_per_sim(source_part_type)
                 ! Get the label of the simulation that is paired with this, 
                 ! replica, for this particular RDM.
-                dest_part_type = rdm_defs%sim_pairs(irdm,source_part_type)
-                ! The label of the RDM that this be contributing to.
+                dest_part_type = rdm_defs%sim_pairs(irdm, source_part_type)
+                ! The label of the RDM that this is contributing to.
                 rdm_ind = rdm_defs%rdm_labels(irdm, source_part_type)
 
                 input_sign_i = 0.0_dp
@@ -404,7 +404,7 @@ contains
                 ! sim_labels(2,irdm) holds the state in the 'ket' of the RDM.
                 ! If source_part_type is equal to the part type of the ket,
                 ! then we can say that we are spawning from the ket to the bra.
-                spawning_from_ket_to_bra = source_part_type == rdm_defs%sim_labels(2,irdm)
+                spawning_from_ket_to_bra = source_part_type == rdm_defs%sim_labels(2,rdm_ind)
 
                 ! If we are spawning from the ket of the RDM, then the RDM
                 ! element to be added in is:
