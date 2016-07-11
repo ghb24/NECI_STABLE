@@ -264,7 +264,7 @@ contains
         if ((walkExcitLevel == 1) .or. (walkExcitLevel == 2)) then
             call Add_RDM_From_IJ_Pair(spawn, one_rdms, HFDet_True, nJ, AvSignHF(2::2), IterRDM*AvSignJ(1::2))
 
-            call Add_RDM_From_IJ_Pair(spawn, one_rdms, nJ, HFDet_True, AvSignHF(1::2), IterRDM*AvSignJ(2::2))
+            call Add_RDM_From_IJ_Pair(spawn, one_rdms, nJ, HFDet_True, AvSignJ(2::2), IterRDM*AvSignHF(1::2))
         end if
 
         ! Eliminate compiler warnings.
@@ -297,7 +297,7 @@ contains
         if ((walkExcitLevel == 1) .or. (walkExcitLevel == 2)) then
             call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutHF_True, iLutJ, HFDet_True, nJ, AvSignHF(2::2), IterRDM*AvSignJ(1::2))
 
-            call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutJ, iLutHF_True, nJ, HFDet_True, AvSignHF(1::2), IterRDM*AvSignJ(2::2))
+            call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutJ, iLutHF_True, nJ, HFDet_True, AvSignJ(2::2), IterRDM*AvSignHF(1::2))
         end if
 
     end subroutine Add_RDM_HFConnections_HPHF
