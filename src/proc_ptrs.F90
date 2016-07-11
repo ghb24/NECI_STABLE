@@ -139,13 +139,14 @@ module procedure_pointers
             use SystemData, only: nel
             use bit_rep_data, only: NIfTot
             use FciMCData, only: excit_gen_store_type
+            use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
             use constants
             implicit none
 
             type(rdm_definitions_t), intent(in) :: rdm_defs
             integer(n_int), intent(in) :: ilutI(0:NIfTot)
             integer, intent(in) :: j
-            real(dp), dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
+            real(dp), intent(out) :: IterRDMStartI(len_iter_occ_tot), AvSignI(len_av_sgn_tot)
             integer, intent(out) :: nI(nel), FlagsI
             real(dp), intent(out) :: SignI(lenof_sign)
             type(excit_gen_store_type), intent(inout), optional :: store
