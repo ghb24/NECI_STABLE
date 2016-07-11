@@ -75,7 +75,7 @@ module FciMCParMod
     subroutine FciMCPar(energy_final_output)
 
         use rdm_data, only: rdm_estimates, two_rdm_main, two_rdm_recv, two_rdm_recv_2
-        use rdm_data, only: two_rdm_spawn, one_rdms
+        use rdm_data, only: two_rdm_spawn, one_rdms, rdm_definitions
         use rdm_estimators, only: calc_2rdm_estimates_wrapper, write_rdm_estimates
         use rdm_estimators_old, only: rdm_output_wrapper_old, write_rdm_estimates_old
 
@@ -423,15 +423,15 @@ module FciMCParMod
                 if (print_2rdm_est .and. ((Iter - maxval(VaryShiftIter)) > IterRDMonFly) &
                     .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) == 0) ) then
 
-                    call calc_2rdm_estimates_wrapper(rdm_estimates, two_rdm_main)
+                    call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main)
                     if (tOldRDMs) then
-                        do irdm = 1, nrdms
+                        do irdm = 1, rdm_definitions%nrdms
                             call rdm_output_wrapper_old(rdms(irdm), one_rdms_old(irdm), irdm, rdm_estimates_old(irdm), .false.)
                         end do
                     end if
 
                     if (iProcIndex == 0) then
-                        call write_rdm_estimates(rdm_estimates, .false., print_2rdm_est)
+                        call write_rdm_estimates(rdm_definitions, rdm_estimates, .false., print_2rdm_est)
                         if (tOldRDMs) call write_rdm_estimates_old(rdm_estimates_old, .false.)
                     end if
                 end if
@@ -439,8 +439,8 @@ module FciMCParMod
 
             if (tChangeVarsRDM) then
                 ! Decided during the CHANGEVARS that the RDMs should be calculated.
-                call init_rdms(nrdms)
-                if (tOldRDMs) call InitRDMs_old(nrdms)
+                call init_rdms(rdm_definitions%nrdms_standard, rdm_definitions%nrdms_transition)
+                if (tOldRDMs) call InitRDMs_old(rdm_definitions%nrdms)
                 tRDMonFly = .true.
                 tChangeVarsRDM = .false.
             endif
@@ -508,7 +508,7 @@ module FciMCParMod
         ENDIF
 
         if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) then
-            call finalise_rdms(one_rdms, two_rdm_main, two_rdm_recv, two_rdm_recv_2, two_rdm_spawn, rdm_estimates)
+            call finalise_rdms(rdm_definitions, one_rdms, two_rdm_main, two_rdm_recv, two_rdm_recv_2, two_rdm_spawn, rdm_estimates)
             if (tOldRDMs) call FinaliseRDMs_old(rdms, one_rdms_old, rdm_estimates_old)
         end if
 
@@ -660,8 +660,11 @@ module FciMCParMod
 
     subroutine PerformFCIMCycPar(iter_data)
 
-        use global_det_data, only: get_iter_occ, get_av_sgn
+        use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
+        use global_det_data, only: set_av_sgn_tot, set_iter_occ_tot
+        use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use rdm_data, only: two_rdm_spawn, two_rdm_recv, two_rdm_main, one_rdms
+        use rdm_data, only: rdm_definitions
         use rdm_data_utils, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2
         use symrandexcit_Ex_Mag, only: test_sym_excit_ExMag 
         
@@ -678,8 +681,8 @@ module FciMCParMod
         logical :: tParity, tSuccess, tCoreDet
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
         real(dp) :: RDMBiasFacCurr
-        real(dp), dimension(lenof_sign) :: AvSignCurr(lenof_sign), IterRDMStartCurr(lenof_sign)
-        real(dp) :: av_sign(lenof_sign), iter_occ(lenof_sign)
+        real(dp) :: AvSignCurr(len_av_sgn_tot), IterRDMStartCurr(len_iter_occ_tot)
+        real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
         HElement_t(dp) :: HDiagTemp,HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
         HElement_t(dp), dimension(inum_runs) :: delta
@@ -714,7 +717,7 @@ module FciMCParMod
         ! Index for counting deterministic states.
         determ_index = 1
         
-        call rezero_iter_stats_each_iter (iter_data)
+        call rezero_iter_stats_each_iter(iter_data, rdm_definitions)
 
         ! The processor with the HF determinant on it will have to check 
         ! through each determinant until it's found. Once found, tHFFound is
@@ -786,10 +789,8 @@ module FciMCParMod
             ! Is this state is in the deterministic space?
             tCoreDet = check_determ_flag(CurrentDets(:,j))
 
-            call extract_bit_rep_avsign (CurrentDets(:,j), j, &
-                                        DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
-                                        AvSignCurr, fcimc_excit_gen_store)
-       
+            call extract_bit_rep_avsign(rdm_definitions, CurrentDets(:,j), j, DetCurr, SignCurr, FlagsCurr, &
+                                        IterRDMStartCurr, AvSignCurr, fcimc_excit_gen_store)
 
             !call test_sym_excit_ExMag(DetCurr,100000000)
             !call stop_all(this_routine, "Test complete")
@@ -810,21 +811,21 @@ module FciMCParMod
             if (tFillingStochRDMonFly) then
                 ! Set the average sign and occupation iteration which were
                 ! found in extract_bit_rep_avsign.
-                call set_av_sgn(j, AvSignCurr)
-                call set_iter_occ(j, IterRDMStartCurr)
+                call set_av_sgn_tot(j, AvSignCurr)
+                call set_iter_occ_tot(j, IterRDMStartCurr)
                 ! If this is an iteration where we print out the RDM energy,
                 ! add in the diagonal contribution to the RDM for this
                 ! determinant, for each rdm.
                 if (tFill_RDM .and. (.not. tNoNewRDMContrib)) then
                     if (tOldRDMs) then
-                        do irdm = 1, nrdms
+                        do irdm = 1, rdm_definitions%nrdms
                             call fill_rdm_diag_currdet_old(rdms(irdm), one_rdms_old(irdm), irdm, CurrentDets(:,j), &
                                                         DetCurr, j, walkExcitLevel_toHF, tCoreDet)
                         end do
                     end if
 
-                    av_sign = get_av_sgn(j)
-                    iter_occ = get_iter_occ(j)
+                    av_sign = get_av_sgn_tot(j)
+                    iter_occ = get_iter_occ_tot(j)
                     call fill_rdm_diag_currdet(two_rdm_spawn, one_rdms, CurrentDets(:,j), DetCurr, &
                                                 walkExcitLevel_toHF, av_sign, iter_occ, tCoreDet)
                 endif
@@ -1031,7 +1032,7 @@ module FciMCParMod
                 ! so are not added in here).
                 if (tFill_RDM) then
                     if (tOldRDMs) call fill_RDM_offdiag_deterministic_old(rdms, one_rdms_old)
-                    call fill_RDM_offdiag_deterministic(two_rdm_spawn, one_rdms)
+                    call fill_RDM_offdiag_deterministic(rdm_definitions, two_rdm_spawn, one_rdms)
                 end if
             end if
         end if
@@ -1073,7 +1074,7 @@ module FciMCParMod
 
         if (tFillingStochRDMonFly) then
             if (tOldRDMs) call fill_rdm_diag_wrapper_old(rdms, one_rdms_old, CurrentDets, int(TotWalkers, sizeof_int))
-            call fill_rdm_diag_wrapper(two_rdm_spawn, one_rdms, CurrentDets, int(TotWalkers, sizeof_int))
+            call fill_rdm_diag_wrapper(rdm_definitions, two_rdm_spawn, one_rdms, CurrentDets, int(TotWalkers, sizeof_int))
         end if
 
         call update_iter_data(iter_data)

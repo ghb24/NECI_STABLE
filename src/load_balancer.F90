@@ -6,9 +6,8 @@ module load_balance
                         tContTimeFCIMC, &
                         tContTimeFull, tTrialWavefunction, &
                         tPairedReplicas
-    use global_det_data, only: global_determinant_data, get_iter_occ, &
-                               set_det_diagH, &
-                               set_spawn_rate
+    use global_det_data, only: global_determinant_data, &
+                               set_det_diagH, set_spawn_rate
     use bit_rep_data, only: flag_initiator, NIfDBO, &
                             flag_connected, flag_trial
     use bit_reps, only: set_flag, nullify_ilut_part, &
