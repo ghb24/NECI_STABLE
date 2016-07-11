@@ -661,7 +661,7 @@ contains
 
     end subroutine print_rdms_spin_sym_wrapper
 
-    subroutine create_spinfree_2rdm(rdm, spawn, rdm_recv)
+    subroutine create_spinfree_2rdm(rdm, nrdms_standard, spawn, rdm_recv)
 
         ! Take an standard (spinned) 2-RDM, stored in rdm, and output the
         ! spinfree version of it to the spawn%rdm_recv object.
@@ -688,6 +688,7 @@ contains
         use UMatCache, only: spatial
 
         type(rdm_list_t), intent(in) :: rdm
+        integer, intent(in) :: nrdms_standard
         type(rdm_spawn_t), intent(inout) :: spawn
         type(rdm_list_t), intent(inout) :: rdm_recv
 
@@ -737,8 +738,10 @@ contains
 
             ! If the RDM is not symmetrised then the same term will be added
             ! from both above below the diagonal, so in this case we want a
-            ! factor of a half to average and not double count.
-            if (pq /= rs) rdm_sign = rdm_sign*0.5_dp
+            ! factor of a half to average and not double count. However,
+            ! we do not apply hermiticty to transition RDMs, as they are not
+            ! hermitian. So only apply this to non-transition RDMs.
+            if (pq /= rs) rdm_sign(1:nrdms_standard) = rdm_sign(1:nrdms_standard)*0.5_dp
 
             ! Due to the fact that RDM elements are only stored with p < q and
             ! r < s, the following terms are only stored with baba spin, never
@@ -746,7 +749,7 @@ contains
             if (p == q .and. r == s) rdm_sign = 2.0_dp*rdm_sign
 
             ! Add all spinfree 2-RDM elements corresponding to these labels.
-            call add_rdm_elements(p, q, r, s, rdm_sign, spawn, nearly_full)
+            call add_rdm_elements(p, q, r, s, nrdms_standard, rdm_sign, spawn, nearly_full)
 
             ! If this is an aaaa or bbbb term then *minus* this RDM element will
             ! be equal to the equivalent RDM element with the last two labels
@@ -761,10 +764,13 @@ contains
                 r = spatial(l_orig); s = spatial(k_orig);
                 rs = (r-1)*nbasis + s
 
-                if (pq /= rs) rdm_sign = rdm_sign*0.5_dp
+                ! Half the sign of non-transition RDMs, where we apply
+                ! hermiticity to average above and below the diagonal, to
+                ! prevent double counting.
+                if (pq /= rs) rdm_sign(1:nrdms_standard) = rdm_sign(1:nrdms_standard)*0.5_dp
                 rdm_sign = -rdm_sign
 
-                call add_rdm_elements(p, q, r, s, rdm_sign, spawn, nearly_full)
+                call add_rdm_elements(p, q, r, s, nrdms_standard, rdm_sign, spawn, nearly_full)
             end if
 
         end do
@@ -780,13 +786,17 @@ contains
 
     contains
 
-        subroutine add_rdm_elements(p, q, r, s, rdm_sign, spawn, nearly_full)
+        subroutine add_rdm_elements(p, q, r, s, nrdms_standard, rdm_sign, spawn, nearly_full)
 
             ! Add in the single contribution rdm_sign to the following elements
             ! of the spinfree 2-RDM:
             !
             ! \Gamma^{spinfree}_{pq,rs} = \sum_{x,y} < a^+_{p,x} a^+_{q,y} a_{s,y} a_{r,x} >
             ! \Gamma^{spinfree}_{qp,sr} = \sum_{x,y} < a^+_{q,x} a^+_{p,y} a_{r,y} a_{s,x} >
+            !
+            ! And for non-transition RDMs, which are hermitian, also add in
+            ! the following elements:
+            !
             ! \Gamma^{spinfree}_{rs,pq} = \sum_{x,y} < a^+_{r,x} a^+_{s,y} a_{q,y} a_{p,x} >
             ! \Gamma^{spinfree}_{sr,qp} = \sum_{x,y} < a^+_{s,x} a^+_{r,y} a_{p,y} a_{q,x} >
             !
@@ -795,15 +805,21 @@ contains
             !
             ! For a *REAL* spinfree 2-RDM, all of these elements are rigorously
             ! equal, so it is appropriate that we add all contributions in
-            ! together like this.
+            ! together like this (the last two aren't equal to the first two for
+            ! transition RDMs, so don't add these for transition RDMs).
             !
             ! The if-statements in here prevent adding to the same RDM element
             ! twice.
 
             integer, intent(in) :: p, q, r, s ! spatial orbitals
+            integer, intent(in) :: nrdms_standard
             real(dp), intent(in) :: rdm_sign(:)
             type(rdm_spawn_t), intent(inout) :: spawn
             logical, intent(inout) :: nearly_full
+
+            real(dp) :: rdm_sign_temp(size(rdm_sign))
+
+            rdm_sign_temp = 0.0_dp
 
             ! RDM element \Gamma_{pq,rs}.
             call add_to_rdm_spawn_t(spawn, p, q, r, s, rdm_sign, .true., nearly_full)
@@ -814,12 +830,16 @@ contains
             end if
 
             if (pq /= rs) then
+                ! We only want to apply hermiticity symmetry to non-transition
+                ! RDMs, since transition RDMs are not hermitian.
+                rdm_sign_temp(1:nrdms_standard) = rdm_sign(1:nrdms_standard)
+
                 ! RDM element \Gamma_{rs,pq}.
-                call add_to_rdm_spawn_t(spawn, r, s, p, q, rdm_sign, .true., nearly_full)
+                call add_to_rdm_spawn_t(spawn, r, s, p, q, rdm_sign_temp, .true., nearly_full)
 
                 ! RDM element \Gamma_{sr,qp}.
                 if (.not. (p == q .and. r == s)) then
-                    call add_to_rdm_spawn_t(spawn, s, r, q, p, rdm_sign, .true., nearly_full)
+                    call add_to_rdm_spawn_t(spawn, s, r, q, p, rdm_sign_temp, .true., nearly_full)
                 end if
             end if
 
@@ -848,7 +868,7 @@ contains
         spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
         call clear_hash_table(spawn%rdm_send%hash_table)
 
-        call create_spinfree_2rdm(rdm, spawn, rdm_recv)
+        call create_spinfree_2rdm(rdm, rdm_defs%nrdms_standard, spawn, rdm_recv)
         call print_spinfree_2rdm(rdm_defs, rdm_recv, rdm_trace)
 
     end subroutine print_spinfree_2rdm_wrapper
