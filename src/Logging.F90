@@ -15,6 +15,8 @@ MODULE Logging
     use errors, only: Errordebug 
     use LoggingData
     use spectral_data, only: tPrint_sl_eigenvecs
+    use rdm_data, only: nrdms_transition_input, states_for_transition_rdm
+    use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
 
     IMPLICIT NONE
 
@@ -173,7 +175,7 @@ MODULE Logging
 
         logical :: eof
         logical tUseOnlySingleReplicas
-        integer :: i, ierr
+        integer :: i, line, ierr
         character(100) :: w
         character(*), parameter :: t_r = 'LogReadInput'
 
@@ -533,6 +535,25 @@ MODULE Logging
         case("OLDRDMS")
 ! Accumulate RDMs using the old RDM code.
             tOldRDMs = .true.
+
+        case("RDM-MAIN-SIZE-FAC")
+            call readf(rdm_main_size_fac)
+        case("RDM-SPAWN-SIZE-FAC")
+            call readf(rdm_spawn_size_fac)
+        case("RDM-RECV-SIZE-FAC")
+            call readf(rdm_recv_size_fac)
+
+        case("TRANSITION-RDMS")
+            tTransitionRDMs = .true.
+            call readi(nrdms_transition_input)
+            allocate(states_for_transition_rdm(2, nrdms_transition_input), stat=ierr)
+
+            do line = 1, nrdms_transition_input
+                call read_line(eof)
+                do i = 1, 2
+                    call geti(states_for_transition_rdm(i, line))
+                end do
+            end do
 
         case("PRINT-1RDMS-FROM-2RDM-POPS")
             tPrint1RDMsFrom2RDMPops = .true.
