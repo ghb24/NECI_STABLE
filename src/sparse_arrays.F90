@@ -13,7 +13,7 @@ module sparse_arrays
 
     use bit_rep_data, only: NIfTot, NIfDBO, nifd
     use bit_reps, only: decode_bit_det, nifguga
-    use CalcData, only: tReadPops
+    use CalcData, only: tReadPops, t_guga_mat_eles
     use constants
     use DetBitOps, only: DetBitEq
     use Determinants, only: get_helement
@@ -26,10 +26,12 @@ module sparse_arrays
     use global_det_data, only: set_det_diagH
 #ifndef __CMPLX
     use SystemData, only: tGUGA
-    use guga_excitations, only: calc_off_diag_guga_gen, actHamiltonian
+    use guga_excitations, only: calc_off_diag_guga_gen, actHamiltonian, &
+                                calc_guga_matrix_element, init_csf_information
     use guga_bitRepOps, only: convert_ilut_toGUGA, extract_matrix_element
     use util_mod, only: binary_search
-    use guga_data, only: tag_excitations
+    use guga_data, only: tag_excitations, excitationInformation
+    use guga_matrixElements, only: calcDiagMatEleGuga_nI
 #endif
 
     implicit none
@@ -95,6 +97,7 @@ contains
         integer :: pos, nexcits
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:,:)
+        type(excitationInformation) :: excitInfo
 #endif
 
         allocate(sparse_ham(num_states))
@@ -128,7 +131,9 @@ contains
             sparse_diag_positions(i) = sparse_row_sizes(i)
 
 #ifndef __CMPLX
-            if (tGUGA) then 
+            if (t_guga_mat_eles .and. tGUGA) call init_csf_information(ilut_list(0:nifd,i))
+
+            if (tGUGA .and. (.not. t_guga_mat_eles)) then 
 
                 call convert_ilut_toGUGA(ilut_list(:,i), ilutG)
 
@@ -171,6 +176,8 @@ contains
                 if (i == j) then
                     if (.not. tHPHF) then
                         hamiltonian_row(j) = get_helement(nI, nJ, 0)
+                    else if (tGUGA) then 
+                        hamiltonian_row(j) = calcDiagMatEleGuga_nI(nI)
                     else
                         hamiltonian_row(j) = hphf_diag_helement(nI, ilut_list(:, i))
                     end if
@@ -179,6 +186,9 @@ contains
                     if (.not. tHPHF) then
                         hamiltonian_row(j) = get_helement(nI, nJ, ilut_list(:, i), &
                                                                  ilut_list(:, j))
+                    else if (tGUGA) then 
+                        call calc_guga_matrix_element(ilut_list(:,i), ilut_list(:,j), &
+                                excitInfo, hamiltonian_row(j), .true., 1) 
                     else
                         hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, ilut_list(:, i), &
                                                                            ilut_list(:, j))
@@ -260,6 +270,7 @@ contains
         integer :: pos, nexcits
         integer(n_int) :: ilutG(0:nifguga) 
         integer(n_int), pointer :: excitations(:,:)
+        type(excitationInformation) :: excitInfo
 #endif
 
         num_states_tot = int(sum(num_states), sizeof_int)
@@ -289,7 +300,9 @@ contains
             hamiltonian_row = 0.0_dp
 
 #ifndef __CMPLX 
-            if (tGUGA) then 
+            if (tGUGA .and. t_guga_mat_eles) call init_csf_information(ilut_list(0:nifd,i))
+
+            if (tGUGA .and. (.not. t_guga_mat_eles)) then 
                 call convert_ilut_toGUGA(ilut_list(:,i), ilutG) 
 
                 call actHamiltonian(ilutG, excitations, nexcits) 
@@ -330,6 +343,8 @@ contains
                 if (DetBitEq(ilut_list(:,i), temp_store(:,j), NIfDBO)) then
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_diag_helement(nI, ilut_list(:,i))
+                    else if (tGUGA) then 
+                        hamiltonian_row(j) = calcDiagMatEleGuga_nI(nI)
                     else
                         hamiltonian_row(j) = get_helement(nI, nJ, 0)
                     end if
@@ -339,6 +354,9 @@ contains
                 else
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, ilut_list(:,i), temp_store(:,j))
+                    else if (tGUGA) then 
+                        call calc_guga_matrix_element(ilut_list(:,i), temp_store(:,j), &
+                            excitInfo, hamiltonian_row(j), .true., 1)
                     else
                         hamiltonian_row(j) = get_helement(nI, nJ, ilut_list(:,i), temp_store(:,j))
                     end if
@@ -406,6 +424,7 @@ contains
         integer :: pos, nExcit 
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:,:)
+        type(excitationInformation) :: excitInfo
 #endif
         
         allocate(sparse_core_ham(determ_sizes(iProcIndex)), stat=ierr)
@@ -433,8 +452,12 @@ contains
             ! here i should do something different for the guga case.. 
             ! and just apply the hamiltonian once, and then check if the 
             ! other deterministic states are connected to nI 
+            ! make this optional, dependent on how i want to calculate the 
+            ! off-diagoanal elements for the guga case 
 #ifndef __CMPLX 
-            if (tGUGA) then 
+            if (t_guga_mat_eles .and. tGUGA) call init_csf_information(SpawnedParts(0:nifd,i))
+
+            if (tGUGA .and. (.not. t_guga_mat_eles)) then 
                 call convert_ilut_toGUGA(SpawnedParts(:,i), ilutG) 
 
                 call actHamiltonian(ilutG, excitations, nExcit)
@@ -496,16 +519,18 @@ contains
                 else
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, SpawnedParts(:,i), temp_store(:,j))
-! #ifndef __CMPLX
-!                     else if (tGUGA) then
-!                         ! for the off-diagonal elements i have to call the GUGA
-!                         ! specific function
-!                         ! but this is a waste.. i do not have to do that for 
-!                         ! every nJ i could just check the list generated 
-!                         ! by H|nI>.. 
+#ifndef __CMPLX
+                    else if (tGUGA) then
+                        ! for the off-diagonal elements i have to call the GUGA
+                        ! specific function
+                        ! but this is a waste.. i do not have to do that for 
+                        ! every nJ i could just check the list generated 
+                        ! by H|nI>.. 
 !                         hamiltonian_row(j) = calc_off_diag_guga_gen( & 
 !                             SpawnedParts(:,i), temp_store(:,j))
-! #endif
+                        call calc_guga_matrix_element(SpawnedParts(:,i), temp_store(:,j), &
+                            excitInfo, hamiltonian_row(j), .true., 1) 
+#endif
                     else
                         hamiltonian_row(j) = get_helement(nI, nJ, SpawnedParts(:, i), temp_store(:, j))
                     end if

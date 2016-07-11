@@ -1076,10 +1076,12 @@ contains
         use FciMCData, only: ilutHF, HFDet, Fii
         use hphf_integrals, only: hphf_off_diag_helement
         use SystemData, only: tHPHF, tUEG
+        use CalcData, only: t_guga_mat_eles
 #ifndef __CMPLX
         use SystemData, only: tGUGA
         use guga_matrixElements, only: calcDiagMatEleGUGA_nI
-        use guga_excitations, only: calc_off_diag_guga_gen
+        use guga_excitations, only: calc_off_diag_guga_gen, calc_guga_matrix_element
+        use guga_data, only: excitationInformation
 #endif
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -1088,6 +1090,9 @@ contains
         real(dp), intent(out) :: amp, energy_contrib
         integer :: ic
         real(dp) :: hel, H0tmp, denom
+#ifndef __CMPLX
+        type(excitationInformation) :: excitInfo
+#endif
 
         amp = 0.0_dp
         energy_contrib = 0.0_dp
@@ -1105,7 +1110,14 @@ contains
             hel = hphf_off_diag_helement(HFDet, nI, iLutHF, ilut)
 #ifndef __CMPLX
         else if (tGUGA) then
-            hel = calc_off_diag_guga_gen(ilut, ilutHF)
+            if (t_guga_mat_eles) then
+                ! i am not sure if the ref_stepvector thingies are set up for 
+                ! the ilutHF in this case.. 
+                call calc_guga_matrix_element(ilut, ilutHF, excitInfo, hel, & 
+                    .true., 2)
+            else 
+                hel = calc_off_diag_guga_gen(ilut, ilutHF)
+            end if
 #endif
         else
             hel = get_helement(HFDet, nI, ic, ex, tParity)

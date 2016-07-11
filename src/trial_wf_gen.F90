@@ -8,6 +8,10 @@ module trial_wf_gen
     use sparse_arrays
     use SystemData, only: nel, tHPHF
     use util_mod, only: get_free_unit, binary_search_custom
+#ifndef __CMPLX 
+    use guga_data, only: excitationInformation
+    use guga_excitations, only: calc_guga_matrix_element
+#endif
 
     implicit none
 
@@ -228,7 +232,7 @@ contains
         allocate(con_space_vecs(nexcit_keep, con_space_size), stat=ierr)
         call LogMemAlloc('con_space_vecs', con_space_size, 8, t_r, ConVecTag, ierr)
 #ifndef __CMPLX
-        if (tGUGA) then
+        if (tGUGA .and. (.not. t_guga_mat_eles)) then
             call generate_connected_space_vector_guga(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
         else 
 #endif
@@ -498,11 +502,19 @@ contains
         integer :: nI(nel), nJ(nel)
         HElement_t(dp) :: H_ij
         character (len=*), parameter :: t_r = "generate_connected_space_vector"
-
+#ifndef __CMPLX
+        type(excitationInformation) :: excitInfo
+#endif
         con_vecs = 0.0_dp
 
         do i = 1, size(con_vecs,2)
             call decode_bit_det(nI, con_space(0:NIfTot, i))
+
+            ! i am only here in the guga case if i use the new way to calc 
+            ! the off-diagonal elements.. 
+#ifndef __CMPLX
+            if (tGUGA) call init_csf_information(con_space(0:nifd,i))
+#endif
             do j = 1, size(trial_vecs,2)
                 call decode_bit_det(nJ, trial_space(0:NIfTot, j))
 
@@ -519,8 +531,10 @@ contains
                         H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
 #ifndef __CMPLX
                     else if (tGUGA) then
-                        H_ij = calc_off_diag_guga_gen(con_space(:,i), &
-                            trial_space(:,j))
+!                         H_ij = calc_off_diag_guga_gen(con_space(:,i), &
+!                             trial_space(:,j))
+                        call calc_guga_matrix_element(con_space(:,i), trial_space(:,j), &
+                            excitInfo, H_ij, .true., 1)
 #endif
                     else
                         H_ij = get_helement(nI, nJ, con_space(:,i), trial_space(:,j))

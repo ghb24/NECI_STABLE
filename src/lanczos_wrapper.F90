@@ -30,6 +30,7 @@ contains
         use DetCalcData, only: nkry, nblk, b2l, ncycle
         use sort_mod, only: sort
         use SystemData, only: nel, tHPHF, tGUGA
+        use CalcData, only: t_guga_mat_eles
 #ifndef __CMPLX 
         use guga_excitations, only: Detham_guga
 #endif
@@ -58,7 +59,8 @@ contains
         ! this means i need a routine for the guga case which sets up the 
         ! hamiltonian in the same way as DetHam for determinants..
 #ifndef __CMPLX
-        if (tGUGA) then 
+        ! only use the "old" version when t_guga_mat_eles is not set! 
+        if (tGUGA .and. (.not. t_guga_mat_eles)) then 
             call Detham_guga(ndets, det_list, Hamil, Lab, nRow, LenHamil) 
         else
 #endif
