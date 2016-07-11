@@ -282,8 +282,8 @@ module guga_excitations
 
     ! use some temporary permanently stored variables for the CSF matrix 
     ! calculation 
-    integer, allocatable :: temp_step_i(:), temp_step_j(:), temp_delta_b(:)
-    real(dp), allocatable :: temp_occ_i(:), temp_b_real_i(:) 
+    integer, allocatable, save:: temp_step_i(:), temp_step_j(:), temp_delta_b(:)
+    real(dp), allocatable, save :: temp_occ_i(:), temp_b_real_i(:) 
 
 contains
 
@@ -303,7 +303,8 @@ contains
             tmp_ilut = ilutRef(0:niftot,1)
         end if
 
-        call calc_guga_matrix_element(ilut, tmp_ilut, excitInfo, hel, .true., 0)
+!         call calc_guga_matrix_element(ilut, tmp_ilut, excitInfo, hel, .true., 2)
+        call calc_guga_matrix_element(tmp_ilut, ilut, excitInfo, hel, .true., 0)
 
         if (present(exlevel)) then 
 
@@ -356,7 +357,7 @@ contains
         character(*), parameter :: this_routine = "calc_guga_matrix_element"
 
         logical :: t_calc_full
-        integer :: temp_b(nSpatOrbs)
+        integer :: temp_b(nSpatOrbs), i
         real(dp) :: temp_occ(nSpatOrbs)
         integer(n_int) :: tmp_i(0:nifguga)
 
@@ -477,6 +478,20 @@ contains
             temp_delta_b = int(temp_b_real_i) - temp_b
 
         end select 
+
+!         print *, "===================================="
+!         print *, "I: "
+!         call write_det_guga(6,ilutI,.true.)
+!         do i = 1, nSpatOrbs
+!             write(6,"(i3)",advance='no') temp_step_i(i)
+!         end do
+!         print *, ""
+!         print *, "J:"
+!         call write_det_guga(6, ilutJ,.true.)
+!         do i = 1,nSpatOrbs
+!             write(6,"(i3)",advance='no') temp_step_j(i)
+!         end do
+!         print *, ""
 
         ! then i need a select case to specifically calculate all the 
         ! different types of excitations
@@ -984,6 +999,11 @@ contains
         gen2 = excitInfo%gen2
         firstgen = excitInfo%firstgen
         lastgen = excitInfo%lastgen
+
+!         call write_det_guga(6,ilutI,.true.)
+!         call write_det_guga(6,ilutJ,.true.)
+!         print *, "I:", temp_step_i
+!         print *, "J:", temp_step_j
 
         ! depending on which type of excitation the non-overlap has a specific 
         ! tbd generator! i should deal with that in the starting if statement
@@ -2625,6 +2645,9 @@ contains
         ! could essentially calc. b vector and occupation vector here...
         ! do it only if tNewDet is set, so i only recalc this if i switch to a 
         ! new determinant -> is set in FciMCPar!
+        ! or just init_csf_info outside in FciMCPar to also use this info
+        ! for the matrix element calculation.. 
+
         if (tNewDet) then
             ! use new setup function for additional CSF informtation
             ! instead of calculating it all seperately..

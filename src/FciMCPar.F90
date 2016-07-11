@@ -66,7 +66,7 @@ module FciMCParMod
 
 #ifndef __CMPLX
     use guga_testsuite, only: run_test_excit_gen_det
-    use guga_excitations, only: deallocate_projE_list
+    use guga_excitations, only: deallocate_projE_list, init_csf_information
 #endif
 
 #ifdef MOLPRO
@@ -869,6 +869,14 @@ module FciMCParMod
                 endif
             ENDIFDEBUG
 
+            ! in the guga simulation it is probably better to initialize 
+            ! the csf_information out here, so it can be used in the 
+            ! new way to calculate the reference energy and then the flag 
+            ! does not have to be checked each time we loop over the walkers..
+#ifndef __CMPLX 
+            if (tGUGA) call init_csf_information(CurrentDets(0:nifd,j))
+#endif
+
             ! Sum in any energy contribution from the determinant, including 
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
@@ -900,7 +908,7 @@ module FciMCParMod
                 ! GUGA addition: only recalc b vector and stuff once for each
                 ! CSF -> set tNewDet once for each determinant 
                 ! which is set to false inside the guga excitaiton generator
-                tNewDet = .true.
+                tNewDet = .false.
 
                 do p = 1, WalkersToSpawn
                     ! Zero the bit representation, to ensure no extraneous
