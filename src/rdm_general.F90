@@ -40,7 +40,7 @@ contains
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
         use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
         use SystemData, only: tStoreSpinOrbs, tHPHF, tFixLz, iMaxLz, tROHF
-        use util_mod, only: LogMemAlloc
+        use MemoryManager, only: LogMemAlloc
 
         integer, intent(in) :: nrdms_standard, nrdms_transition
 
@@ -384,7 +384,7 @@ contains
         use sort_mod, only: sort
         use SystemData, only: G1, BRR, lNoSymmetry, tFixLz, iMaxLz
         use UMatCache, only: gtID
-        use util_mod, only: LogMemAlloc, LogMemDealloc
+        use MemoryManager, only: LogMemAlloc, LogMemDealloc
 
         integer, allocatable :: SymOrbs_rot(:)
         integer :: SymOrbs_rotTag, ierr, i, j, SpatSym, LzSym 
@@ -534,7 +534,7 @@ contains
         use bit_rep_data, only: nifbcast, NOffParent, bit_rdm_init
         use FciMCData, only: MaxSpawned, SpawnVec, SpawnVec2, SpawnVecTag, SpawnVec2Tag
         use FciMCData, only: SpawnedParts, SpawnedParts2
-        use util_mod, only: LogMemAlloc, LogMemDealloc
+        use MemoryManager, only: LogMemAlloc, LogMemDealloc
         use util_mod_byte_size
 
         integer :: ierr, nifbcast_old

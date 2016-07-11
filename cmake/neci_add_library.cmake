@@ -135,6 +135,17 @@ macro( neci_add_library )
       endforeach()
     endif()
 
+    # If we have special compilation flags for F77 files, then add them here
+
+    if( ${PROJECT_NAME}_F77_FLAGS )
+        foreach( _file ${_p_SOURCES} )
+            get_filename_component( _extension ${_file} EXT )
+            if( _extension STREQUAL ".F" )
+                set_source_files_properties( ${_file} PROPERTIES COMPILE_FLAGS ${${PROJECT_NAME}_F77_FLAGS} )
+            endif()
+        endforeach()
+    endif()
+
     # Add the link libraries
 
     if ( _p_LIBS )
