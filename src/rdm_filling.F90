@@ -540,6 +540,20 @@ contains
         ! This routine takes a pair of different determinants Di and Dj, and
         ! figures out which type of elements need to be added in to the RDM.
 
+        ! ------------------------ *IMPORTANT* --------------------------------
+        ! nI refers to the ket determinant and nJ refers to the bra,
+        ! determinant. Similarly, realSignI must be the sign corresponding to
+        ! the ket determinant, and realSignJ to the bra, i.e. the element
+        ! added in is equal to:
+        !   realSignJ^* realSignI < nJ | ... | nI >
+        ! Getting nI and nJ the wrong way around will result in RDM elements
+        ! being added to the wrong side of the diagonal, which is a problem for
+        ! transition RDMs which are *NOT* hermitian, so this is important.
+        ! Similarly, getting nI and nJ right but realSignI and realSignJ the
+        ! wrong way around will cause problems for complex RDMs, since the
+        ! complex conjugate will be taken of the wrong sign.
+        ! ---------------------------------------------------------------------
+
         use LoggingData, only: RDMExcitLevel
         use rdm_data, only: one_rdm_t
         use rdm_data_utils, only: add_to_rdm_spawn_t
