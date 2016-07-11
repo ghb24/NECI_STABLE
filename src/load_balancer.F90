@@ -580,16 +580,18 @@ contains
                     end if
                 end if
 
-                if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
-                    if (DetBitEQ(CurrentDets(:,i), iLutHF_True, NIfDBO)) then
-                        ! We have to do this such that AvNoAtHF matches up with AvSign.
-                        ! AvSign is extracted from CurrentH, and if the HFDet is unoccupied
-                        ! at this moment during annihilation, it's CurrentH entry is removed
-                        ! and the averaging information in it is lost.
-                        ! In some cases (a successful spawning event) a CurrentH entry will
-                        ! be recreated, but with AvSign 0, so we must match this here.
-                        AvNoAtHF = 0.0_dp 
-                        IterRDM_HF = Iter + 1 
+                if (tFillingStochRDMonFly) then
+                    if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
+                        if (DetBitEQ(CurrentDets(:,i), iLutHF_True, NIfDBO)) then
+                            ! We have to do this such that AvNoAtHF matches up with AvSign.
+                            ! AvSign is extracted from CurrentH, and if the HFDet is unoccupied
+                            ! at this moment during annihilation, it's CurrentH entry is removed
+                            ! and the averaging information in it is lost.
+                            ! In some cases (a successful spawning event) a CurrentH entry will
+                            ! be recreated, but with AvSign 0, so we must match this here.
+                            AvNoAtHF = 0.0_dp
+                            IterRDM_HF = Iter + 1
+                        end if
                     end if
                 end if
 
