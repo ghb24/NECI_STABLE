@@ -699,14 +699,15 @@ contains
 
         use bit_reps, only: extract_bit_rep
         use FciMCData, only: excit_gen_store_type
+        use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use rdm_data, only: rdm_definitions_t
 
         type(rdm_definitions_t), intent(in) :: rdm_defs
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         integer, intent(in) :: j
         integer, intent(out) :: nI(nel), FlagsI
-        real(dp), dimension(lenof_sign), intent(out) :: SignI
-        real(dp), dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
+        real(dp), intent(out) :: SignI(lenof_sign)
+        real(dp), intent(out) :: IterRDMStartI(len_iter_occ_tot), AvSignI(len_av_sgn_tot)
         type(excit_gen_store_type), intent(inout), optional :: store
 
         integer :: iunused
