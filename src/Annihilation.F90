@@ -28,7 +28,6 @@ module AnnihilationMod
     use LoggingData, only: tNoNewRDMContrib
     use load_balance, only: DetermineDetNode, AddNewHashDet, &
                             CalcHashTableStats
-    use global_det_data, only: get_iter_occ
     use searching
     use hash
 
@@ -550,7 +549,7 @@ module AnnihilationMod
 
         use LoggingData, only: tOldRDMs
         use rdm_data_old, only: rdms, one_rdms_old
-        use rdm_data, only: two_rdm_spawn, one_rdms
+        use rdm_data, only: rdm_definitions, two_rdm_spawn, one_rdms
         use rdm_filling_old, only: check_fillRDM_DiDj_old
         use rdm_filling, only: check_fillRDM_DiDj
 
@@ -688,7 +687,8 @@ module AnnihilationMod
                         ! next iter. This is fine as it's from the other population,
                         ! and the Di and Dj signs are already strictly uncorrelated.
                         if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, CurrentDets(:,PartInd), TempCurrentSign)
-                        call check_fillRDM_DiDj(two_rdm_spawn, one_rdms, i, CurrentDets(:,PartInd), TempCurrentSign)
+                        call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
+                                                CurrentDets(:,PartInd), TempCurrentSign)
                     end if 
 
                 end if
@@ -806,7 +806,7 @@ module AnnihilationMod
                 if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
                     ! We must use the instantaneous value for the off-diagonal contribution.
                     if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, SpawnedParts(0:NifTot,i), SignTemp)
-                    call check_fillRDM_DiDj(two_rdm_spawn, one_rdms, i, SpawnedParts(0:NifTot,i), SignTemp)
+                    call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, SpawnedParts(0:NifTot,i), SignTemp)
                 end if 
             end if
 

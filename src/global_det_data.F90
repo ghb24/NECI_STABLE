@@ -6,17 +6,17 @@
 module global_det_data
 
     use CalcData, only: tContTimeFCIMC, tContTimeFull
-    use LoggingData, only: tRDMonFly, tExplicitAllRDM
+    use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs
     use FciMCData, only: MaxWalkersPart
     use constants
     use util_mod
     implicit none
 
-    ! This is the tag for allocation/deallocation
+    ! This is the tag for allocation/deallocation.
     private :: glob_tag
     integer :: glob_tag = 0
 
-    ! This is the data used to find the elements inside the storage array
+    ! This is the data used to find the elements inside the storage array.
     private :: pos_hel, len_hel
 
     ! The diagonal matrix element is always stored. As it is a real value it
@@ -24,38 +24,74 @@ module global_det_data
     ! as parameters to assist optimisation.
     integer, parameter :: pos_hel = 1, len_hel = 1
     
-    ! Average sign and first occupation of iteration
+    ! Average sign and first occupation of iteration.
     private :: pos_av_sgn, len_av_sgn, pos_iter_occ, len_iter_occ
     integer :: pos_av_sgn, len_av_sgn
     integer :: pos_iter_occ, len_iter_occ
+
+    ! Average sign and first occupation of iteration, for transition RDMs.
+    private :: pos_av_sgn_transition, len_av_sgn_transition
+    private :: pos_iter_occ_transition, len_iter_occ_transition
+    integer :: pos_av_sgn_transition, len_av_sgn_transition
+    integer :: pos_iter_occ_transition, len_iter_occ_transition
+
+    ! The total length of average sign and first occupation iteration, for
+    ! both the standard and transition RDMs.
+    integer :: len_av_sgn_tot, len_iter_occ_tot
+
     integer :: pos_spawn_rate, len_spawn_rate
 
-    ! And somewhere to store the actual data
+    ! And somewhere to store the actual data.
     real(dp), pointer :: global_determinant_data(:,:) => null()
 
-    interface set_av_sgn
-        module procedure set_av_sgn_sgl
-        module procedure set_av_sgn_all
+    ! Routines for setting the properties of both standard and transition
+    ! RDMs in a combined manner.
+    interface set_av_sgn_tot
+        module procedure set_av_sgn_tot_sgl
+        module procedure set_av_sgn_tot_all
     end interface
 
-    interface get_av_sgn
-        module procedure get_av_sgn_sgl
-        module procedure get_av_sgn_all
+    interface set_iter_occ_tot
+        module procedure set_iter_occ_tot_sgl
+        module procedure set_iter_occ_tot_all
     end interface
 
-    interface set_iter_occ
-        module procedure set_iter_occ_sgl
-        module procedure set_iter_occ_all
+    ! Routines for extracting the properties for standard RDMs.
+    interface get_av_sgn_standard
+        module procedure get_av_sgn_standard_sgl
+        module procedure get_av_sgn_standard_all
     end interface
 
-    interface get_iter_occ
-        module procedure get_iter_occ_sgl
-        module procedure get_iter_occ_all
+    interface get_iter_occ_standard
+        module procedure get_iter_occ_standard_sgl
+        module procedure get_iter_occ_standard_all
+    end interface
+
+    ! Routines for extracting the properties for transition RDMs.
+    interface get_av_sgn_transition
+        module procedure get_av_sgn_transition_sgl
+        module procedure get_av_sgn_transition_all
+    end interface
+
+    interface get_iter_occ_transition
+        module procedure get_iter_occ_transition_sgl
+        module procedure get_iter_occ_transition_all
+    end interface
+
+    ! Routines for extracting the properties of both standard and transition RDMs.
+    interface get_av_sgn_tot
+        module procedure get_av_sgn_tot_sgl
+        module procedure get_av_sgn_tot_all
+    end interface
+
+    interface get_iter_occ_tot
+        module procedure get_iter_occ_tot_sgl
+        module procedure get_iter_occ_tot_all
     end interface
 
 contains
 
-    subroutine init_global_det_data ()
+    subroutine init_global_det_data(nrdms_standard, nrdms_transition)
 
         ! Initialise the global storage of determinant specific persistent
         ! data
@@ -63,6 +99,8 @@ contains
         ! --> This is the data that should not be transmitted with each
         !     particle
         ! --> It is not stored in the bit representation
+
+        integer, intent(in) :: nrdms_standard, nrdms_transition
 
         integer :: tot_len
         integer :: ierr
@@ -77,8 +115,21 @@ contains
         ! If we are using calculating RDMs stochastically, need to include the
         ! average sign and the iteration on which it became occupied.
         if (tRDMonFly .and. .not. tExplicitAllRDM) then
-            len_av_sgn = lenof_sign
-            len_iter_occ = lenof_sign
+            len_av_sgn = 2*nrdms_standard
+            len_iter_occ = 2*nrdms_standard
+            ! The total lengths, including both standard and transition RDMs.
+            len_av_sgn_tot = 2*nrdms_standard
+            len_iter_occ_tot = 2*nrdms_standard
+            ! If we are calculating transition RDMs, then we also need to
+            ! include sign averages over different sets of blocks,
+            ! corresponding to the ground state combined with all other
+            ! excited states.
+            if (tTransitionRDMs) then
+                len_av_sgn_transition = 2*nrdms_transition
+                len_iter_occ_transition = 2*nrdms_transition
+                len_av_sgn_tot = len_av_sgn + len_av_sgn_transition
+                len_iter_occ_tot = len_iter_occ + len_iter_occ_transition
+            end if
             write(6, '(" The average current signs before death will be stored&
                        & for use in the RDMs.")')
         else
@@ -94,10 +145,12 @@ contains
 
         ! Get the starting positions
         pos_av_sgn = pos_hel + len_hel
-        pos_iter_occ = pos_av_sgn + len_av_sgn
-        pos_spawn_rate = pos_iter_occ + len_iter_occ
+        pos_av_sgn_transition = pos_av_sgn + len_av_sgn
+        pos_iter_occ = pos_av_sgn_transition + len_av_sgn_transition
+        pos_iter_occ_transition = pos_iter_occ + len_iter_occ
+        pos_spawn_rate = pos_iter_occ_transition + len_iter_occ_transition
 
-        tot_len = len_hel + len_av_sgn + len_iter_occ + len_spawn_rate
+        tot_len = len_hel + len_av_sgn_tot + len_iter_occ_tot + len_spawn_rate
 
         ! Allocate and log the required memory (globally)
         allocate(global_determinant_data(tot_len, MaxWalkersPart), stat=ierr)
@@ -155,7 +208,7 @@ contains
     end function
 
 
-    subroutine set_av_sgn_sgl (j, part, av_sgn)
+    subroutine set_av_sgn_tot_sgl (j, part, av_sgn)
 
         integer, intent(in) :: j, part
         real(dp), intent(in) :: av_sgn
@@ -164,37 +217,17 @@ contains
 
     end subroutine
 
-    subroutine set_av_sgn_all (j, av_sgn)
+    subroutine set_av_sgn_tot_all (j, av_sgn)
 
         integer, intent(in) :: j
-        real(dp), intent(in) :: av_sgn(len_av_sgn)
+        real(dp), intent(in) :: av_sgn(len_av_sgn_tot)
 
-        global_determinant_data(pos_av_sgn:pos_av_sgn + len_av_sgn - 1, j) = &
+        global_determinant_data(pos_av_sgn:pos_av_sgn + len_av_sgn_tot - 1, j) = &
             av_sgn
 
     end subroutine
 
-    function get_av_sgn_sgl (j, part) result(av_sgn)
-
-        integer, intent(in) :: j, part
-        real(dp) :: av_sgn
-
-        av_sgn = global_determinant_data(pos_av_sgn + part - 1, j)
-
-    end function
-
-    function get_av_sgn_all (j) result(av_sgn)
-
-        integer, intent(in) :: j
-        real(dp) :: av_sgn(len_av_sgn)
-
-        av_sgn = global_determinant_data(pos_av_sgn:&
-                                       pos_av_sgn + len_av_sgn - 1, j)
-
-    end function
-
-
-    subroutine set_iter_occ_sgl (j, part, iter_occ)
+    subroutine set_iter_occ_tot_sgl (j, part, iter_occ)
 
         ! It is unusual, but all the RDM code uses real(dp) values for the
         ! current iteration. As floats store integers exactly up to a
@@ -209,7 +242,7 @@ contains
 
     end subroutine
 
-    subroutine set_iter_occ_all (j, iter_occ)
+    subroutine set_iter_occ_tot_all (j, iter_occ)
 
         ! It is unusual, but all the RDM code uses real(dp) values for the
         ! current iteration. As floats store integers exactly up to a
@@ -218,14 +251,35 @@ contains
         ! But it is weird.
 
         integer, intent(in) :: j
-        real(dp), intent(in) :: iter_occ(len_iter_occ)
+        real(dp), intent(in) :: iter_occ(len_iter_occ_tot)
 
         global_determinant_data(pos_iter_occ: &
-                                pos_iter_occ + len_iter_occ - 1, j) = iter_occ
+                                pos_iter_occ + len_iter_occ_tot - 1, j) = iter_occ
 
     end subroutine
 
-    function get_iter_occ_sgl (j, part) result(iter_occ)
+    ! -----Routines for extracting the properties of standard RDMs------------
+
+    function get_av_sgn_standard_sgl (j, part) result(av_sgn)
+
+        integer, intent(in) :: j, part
+        real(dp) :: av_sgn
+
+        av_sgn = global_determinant_data(pos_av_sgn + part - 1, j)
+
+    end function
+
+    function get_av_sgn_standard_all (j) result(av_sgn)
+
+        integer, intent(in) :: j
+        real(dp) :: av_sgn(len_av_sgn)
+
+        av_sgn = global_determinant_data(pos_av_sgn:&
+                                       pos_av_sgn + len_av_sgn - 1, j)
+
+    end function
+
+    function get_iter_occ_standard_sgl (j, part) result(iter_occ)
 
         integer, intent(in) :: j, part
         real(dp) :: iter_occ
@@ -234,13 +288,94 @@ contains
 
     end function
 
-    function get_iter_occ_all (j) result(iter_occ)
+    function get_iter_occ_standard_all (j) result(iter_occ)
 
         integer, intent(in) :: j
         real(dp) :: iter_occ(len_iter_occ)
 
         iter_occ = global_determinant_data(pos_iter_occ: &
                                    pos_iter_occ + len_iter_occ - 1, j)
+
+    end function
+
+    ! -----Routines for extracting the properties of transition RDMs-----------
+
+    function get_av_sgn_transition_sgl (j, part) result(av_sgn)
+
+        integer, intent(in) :: j, part
+        real(dp) :: av_sgn
+
+        av_sgn = global_determinant_data(pos_av_sgn_transition + part - 1, j)
+
+    end function
+
+    function get_av_sgn_transition_all (j) result(av_sgn)
+
+        integer, intent(in) :: j
+        real(dp) :: av_sgn(len_av_sgn_transition)
+
+        av_sgn = global_determinant_data(pos_av_sgn_transition:&
+                                       pos_av_sgn_transition + len_av_sgn_transition - 1, j)
+
+    end function
+
+    function get_iter_occ_transition_sgl (j, part) result(iter_occ)
+
+        integer, intent(in) :: j, part
+        real(dp) :: iter_occ
+
+        iter_occ = global_determinant_data(pos_iter_occ_transition + part - 1, j)
+
+    end function
+
+    function get_iter_occ_transition_all (j) result(iter_occ)
+
+        integer, intent(in) :: j
+        real(dp) :: iter_occ(len_iter_occ)
+
+        iter_occ = global_determinant_data(pos_iter_occ_transition: &
+                                   pos_iter_occ_transition + len_iter_occ_transition - 1, j)
+
+    end function
+
+    ! -----Routines for extracting the properties of both standard and--------
+    ! -----transition RDMs together-------------------------------------------
+
+    function get_av_sgn_tot_sgl (j, part) result(av_sgn)
+
+        integer, intent(in) :: j, part
+        real(dp) :: av_sgn
+
+        av_sgn = global_determinant_data(pos_av_sgn + part - 1, j)
+
+    end function
+
+    function get_av_sgn_tot_all (j) result(av_sgn)
+
+        integer, intent(in) :: j
+        real(dp) :: av_sgn(len_av_sgn_tot)
+
+        av_sgn = global_determinant_data(pos_av_sgn:&
+                                       pos_av_sgn + len_av_sgn_tot - 1, j)
+
+    end function
+
+    function get_iter_occ_tot_sgl (j, part) result(iter_occ)
+
+        integer, intent(in) :: j, part
+        real(dp) :: iter_occ
+
+        iter_occ = global_determinant_data(pos_iter_occ + part - 1, j)
+
+    end function
+
+    function get_iter_occ_tot_all (j) result(iter_occ)
+
+        integer, intent(in) :: j
+        real(dp) :: iter_occ(len_iter_occ_tot)
+
+        iter_occ = global_determinant_data(pos_iter_occ: &
+                                   pos_iter_occ + len_iter_occ_tot - 1, j)
 
     end function
 

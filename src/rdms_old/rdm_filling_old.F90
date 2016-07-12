@@ -21,7 +21,7 @@ contains
 
         use bit_rep_data, only: extract_sign
         use CalcData, only: tPairedReplicas
-        use global_det_data, only: get_iter_occ
+        use global_det_data, only: get_iter_occ_standard
         use rdm_data, only: one_rdm_t
         use rdm_data_old, only: rdm_t
 
@@ -45,10 +45,10 @@ contains
                     ind1 = irdm*2-1
                     ind2 = irdm*2
 
-                    if ((abs(curr_sign(ind1)) < 1.0e-10 .and. abs(get_iter_occ(idet, ind1)) > 1.0e-10_dp) .or. &
-                        (abs(curr_sign(ind2)) < 1.0e-10 .and. abs(get_iter_occ(idet, ind2)) > 1.0e-10_dp) .or. &
-                        (abs(curr_sign(ind1)) > 1.0e-10 .and. abs(get_iter_occ(idet, ind1)) < 1.0e-10_dp) .or. &
-                        (abs(curr_sign(ind2)) > 1.0e-10 .and. abs(get_iter_occ(idet, ind2)) < 1.0e-10_dp)) then
+                    if ((abs(curr_sign(ind1)) < 1.0e-10 .and. abs(get_iter_occ_standard(idet, ind1)) > 1.0e-10_dp) .or. &
+                        (abs(curr_sign(ind2)) < 1.0e-10 .and. abs(get_iter_occ_standard(idet, ind2)) > 1.0e-10_dp) .or. &
+                        (abs(curr_sign(ind1)) > 1.0e-10 .and. abs(get_iter_occ_standard(idet, ind1)) < 1.0e-10_dp) .or. &
+                        (abs(curr_sign(ind2)) > 1.0e-10 .and. abs(get_iter_occ_standard(idet, ind2)) < 1.0e-10_dp)) then
                            
                         ! At least one of the signs has just gone to zero or just become reoccupied
                         ! so we need to consider adding in diagonal elements and connections to HF
@@ -87,7 +87,7 @@ contains
         use bit_reps, only: decode_bit_det
         use DetBitOps, only: TestClosedShellDet, FindBitExcitLevel
         use FciMCData, only: Iter, IterRDMStart, PreviousCycles, AvNoAtHF
-        use global_det_data, only: get_iter_occ, get_av_sgn
+        use global_det_data, only: get_iter_occ_standard, get_av_sgn_standard
         use hphf_integrals, only: hphf_sign
         use HPHFRandExcitMod, only: FindExcitBitDetSym
         use LoggingData, only: RDMEnergyIter, RDMExcitLevel
@@ -110,10 +110,10 @@ contains
 
         ! This is the number of iterations this determinant has been occupied,
         ! over *all* replicas.
-        IterDetOcc_all(1:lenof_sign) = real(Iter+PreviousCycles,dp) - get_iter_occ(j) + 1.0_dp
+        IterDetOcc_all(1:lenof_sign) = real(Iter+PreviousCycles,dp) - get_iter_occ_standard(j) + 1.0_dp
 
         ! All signs from all RDMs.
-        AvSignCurr_all = get_av_sgn(j)
+        AvSignCurr_all = get_av_sgn_standard(j)
 
         ! IterLastRDMFill is the number of iterations from the last time the
         ! energy was calculated.

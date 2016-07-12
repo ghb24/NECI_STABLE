@@ -14,15 +14,16 @@ module rdm_reading
 
 contains
 
-    subroutine read_1rdm(one_rdm, irdm)
+    subroutine read_1rdm(rdm_defs, one_rdm, irdm)
 
         ! Read a 1-RDM POPSFILE file (with filename stem 'OneRDM_POPS.'), with
         ! label irdm. Copy it into the one_Rdm object.
 
-        use rdm_data, only: one_rdm_t
+        use rdm_data, only: one_rdm_t, rdm_definitions_t
         use RotateOrbsData, only: SymLabelListInv_rot
         use util_mod, only: get_free_unit, int_fmt
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         type(one_rdm_t), intent(inout) :: one_rdm
         integer, intent(in) :: irdm
 
@@ -34,7 +35,15 @@ contains
 
         write(6,'(1X,"Reading in the 1-RDMs...")')
 
-        write(filename, '("OneRDM_POPS.",'//int_fmt(irdm,0)//')') irdm
+        associate(state_labels => rdm_defs%state_labels, repeat_label => rdm_defs%repeat_label)
+            if (state_labels(1,irdm) == state_labels(2,irdm)) then
+                write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//')') irdm
+            else
+                write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
+                                                  //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                                    state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
+            end if
+        end associate
 
         inquire(file=trim(filename), exist=file_exists)
 
@@ -155,7 +164,7 @@ contains
 
     end subroutine read_2rdm_popsfile
 
-    subroutine read_spinfree_2rdm_files(rdm, spawn)
+    subroutine read_spinfree_2rdm_files(rdm_defs, rdm, spawn)
 
         ! Read spinfree 2-RDMs from standard NECI spinfree_TwoRDM files.
 
@@ -169,10 +178,12 @@ contains
         use hash, only: clear_hash_table, FindWalkerHash, add_hash_table_entry
         use Parallel_neci, only: iProcIndex, nProcessors
         use rdm_data, only: rdm_list_t, rdm_spawn_t
+        use rdm_data, only: rdm_definitions_t
         use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm, add_to_rdm_spawn_t
         use rdm_data_utils, only: communicate_rdm_spawn_t_wrapper, annihilate_rdm_list
         use util_mod, only: get_free_unit, int_fmt
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_list_t), intent(inout) :: rdm
         type(rdm_spawn_t), intent(inout) :: spawn
 
@@ -194,15 +205,23 @@ contains
         ! Have we reached the end of the various files?
         file_end = .false.
 
-        do irdm = 1, rdm%sign_length
-            write(rdm_filename(irdm), '("spinfree_TwoRDM.",'//int_fmt(irdm,0)//')') irdm
-            inquire(file=trim(rdm_filename(irdm)), exist=file_exists)
+        associate(state_labels => rdm_defs%state_labels, repeat_label => rdm_defs%repeat_label)
+            do irdm = 1, rdm%sign_length
+                if (state_labels(1,irdm) == state_labels(2,irdm)) then
+                    write(rdm_filename(irdm), '("spinfree_TwoRDM.",'//int_fmt(state_labels(1,irdm),0)//')') irdm
+                else
+                    write(rdm_filename(irdm), '("spinfree_TwoRDM.",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
+                                                                    //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                                        state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
+                end if
+                inquire(file=trim(rdm_filename(irdm)), exist=file_exists)
 
-            if (.not. file_exists) then
-                call stop_all(t_r, "Attempting to read in a spinfree 2-RDM from "//trim(rdm_filename(irdm))//", &
-                                   &but this file does not exist.")
-            end if
-        end do
+                if (.not. file_exists) then
+                    call stop_all(t_r, "Attempting to read in a spinfree 2-RDM from "//trim(rdm_filename(irdm))//", &
+                                       &but this file does not exist.")
+                end if
+            end do
+        end associate
 
         ! Only let the root processor do the reading in.
         if (iProcIndex == 0) then
@@ -266,17 +285,18 @@ contains
 
     ! Routines to calculate and print 1-RDMs directly after reading in 2-RDMs.
 
-    subroutine print_1rdms_from_2rdms_wrapper(one_rdms, two_rdms, open_shell)
+    subroutine print_1rdms_from_2rdms_wrapper(rdm_defs, one_rdms, two_rdms, open_shell)
     
         ! Wrapper function to calculate and print 1-RDMs from 2-RDMs, as might
         ! be useful if the user forgot to print 1-RDMs in a calculation.
 
         use Parallel_neci, only: MPISumAll
-        use rdm_data, only: one_rdm_t, rdm_list_t
+        use rdm_data, only: rdm_definitions_t, one_rdm_t, rdm_list_t
         use rdm_estimators, only: calc_rdm_trace
-        use rdm_finalising, only: Finalise_1e_RDM, calc_1rdms_from_2rdms
+        use rdm_finalising, only: calc_1rdms_from_2rdms, write_1rdm
         use SystemData, only: nel
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         type(rdm_list_t), intent(in) :: two_rdms
         logical, intent(in) :: open_shell
@@ -292,20 +312,23 @@ contains
                                 &seting the RDMExcitLevel to 3, i.e. 'CALCRDMONFLY 3 ...' in input options.")
         end if
 
-        call calc_rdm_trace(two_rdms, rdm_trace)
-        call MPISumAll(rdm_trace, rdm_trace_all)
+        !call calc_rdm_trace(two_rdms, rdm_trace)
+        !call MPISumAll(rdm_trace, rdm_trace_all)
         ! RDMs are normalised so that their trace is nel*(nel-1)/2.
-        rdm_norm_all = rdm_trace_all*2.0_dp/(nel*(nel-1))
+        !rdm_norm_all = rdm_trace_all*2.0_dp/(nel*(nel-1))
 
-        call calc_1rdms_from_2rdms(one_rdms, two_rdms, rdm_norm_all, open_shell)
+        ! The read-in spinfree 2-RDMs should already be normalised.
+        rdm_norm_all = 1.0_dp
+
+        call calc_1rdms_from_2rdms(rdm_defs, one_rdms, two_rdms, rdm_norm_all, open_shell)
 
         do irdm = 1, size(one_rdms)
-            call Finalise_1e_RDM(one_rdms(irdm)%matrix, one_rdms(irdm)%rho_ii, irdm, norm_1rdm, .false.)
+            call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, 1.0_dp, .true., .false.)
         end do
 
     end subroutine print_1rdms_from_2rdms_wrapper
 
-    subroutine print_1rdms_from_sf2rdms_wrapper(one_rdms, two_rdms)
+    subroutine print_1rdms_from_sf2rdms_wrapper(rdm_defs, one_rdms, two_rdms)
 
         ! Wrapper routine to calculate and print spinfree 1-RDMs from
         ! spinfree 2-RDMs, as read in directly from a spinfree_TwoRDM file
@@ -314,10 +337,11 @@ contains
         ! 1-RDMs in open shell systems, only spinfree 1-RDMs.
 
         use Parallel_neci, only: MPISumAll
-        use rdm_data, only: one_rdm_t, rdm_list_t
+        use rdm_data, only: rdm_definitions_t, one_rdm_t, rdm_list_t
         use rdm_estimators, only: calc_rdm_trace
-        use rdm_finalising, only: Finalise_1e_RDM, calc_1rdms_from_spinfree_2rdms
+        use rdm_finalising, only: calc_1rdms_from_spinfree_2rdms, write_1rdm
 
+        type(rdm_definitions_t), intent(in) :: rdm_defs
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         type(rdm_list_t), intent(in) :: two_rdms
 
@@ -337,7 +361,7 @@ contains
         call calc_1rdms_from_spinfree_2rdms(one_rdms, two_rdms, rdm_norm_all)
 
         do irdm = 1, size(one_rdms)
-            call Finalise_1e_RDM(one_rdms(irdm)%matrix, one_rdms(irdm)%rho_ii, irdm, norm_1rdm, .false.)
+            call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, 1.0_dp, .true., .false.)
         end do
 
     end subroutine print_1rdms_from_sf2rdms_wrapper

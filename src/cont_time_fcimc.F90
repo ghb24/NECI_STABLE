@@ -28,6 +28,7 @@ module cont_time
     use bit_reps, only: extract_bit_rep
     use LoggingData, only: FCIMCDebug
     use bit_rep_data, only: NIfTot
+    use rdm_data, only: rdm_definitions
     use FciMCData
     use constants
     use util_mod
@@ -61,7 +62,7 @@ contains
         iEndFreeSlot = 0
         if (use_spawn_hash_table) call clear_hash_table(spawn_ht)
 
-        call rezero_iter_stats_each_iter(iter_data)
+        call rezero_iter_stats_each_iter(iter_data, rdm_definitions)
         call set_timer(walker_time)
 
         !

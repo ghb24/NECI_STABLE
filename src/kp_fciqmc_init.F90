@@ -661,6 +661,7 @@ contains
         use FciMCData, only: ValidSpawnedList, spawn_ht
         use FciMCParMod, only: rezero_iter_stats_each_iter
         use hash, only: clear_hash_table
+        use rdm_data, only: rdm_definitions
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(out) :: determ_index
@@ -679,7 +680,7 @@ contains
         ! Clear the hash table for the spawning array.
         call clear_hash_table(spawn_ht)
 
-        call rezero_iter_stats_each_iter(iter_data)
+        call rezero_iter_stats_each_iter(iter_data, rdm_definitions)
 
     end subroutine init_kp_fciqmc_iter
 
