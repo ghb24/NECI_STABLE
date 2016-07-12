@@ -510,6 +510,29 @@ contains
 
         case (6) 
             ! single overlap lowering into raising 
+! 
+!         print *, "I:"
+!         call write_det_guga(6,ilutI,.true.)
+!         print *, ilutI, niftot
+! 
+!         do i = 1, nSpatOrbs
+!             write(6,"(i3)",advance='no') temp_step_i(i)
+!         end do
+! 
+!         print *, ""
+!         print *, "J :"
+!         call write_det_guga(6,ilutJ,.true.)
+!         print *, ilutJ, niftot
+!         do i = 1, nSpatOrbs
+!             write(6,"(i3)",advance='no') temp_step_j(i)
+!         end do
+!         print *, ""
+! 
+!         call print_excitInfo(excitInfo)
+! 
+!         print *, mat_ele, t_hamil
+! 
+!         call neci_flush(6)
 
             ! maybe i have to check special conditions on the overlap site.
             call calc_single_overlap_mixed_ex(ilutI, ilutJ, excitInfo, mat_ele, &
@@ -766,8 +789,8 @@ contains
         type(excitationInformation), intent(in) :: excitInfo 
         real(dp), intent(out) :: mat_ele 
         logical, intent(in) :: t_calc_full
-        integer, intent(out), optional :: rdm_ind(:,:) 
-        real(dp), intent(out), optional :: rdm_mat(:) 
+        integer, intent(out), allocatable, optional :: rdm_ind(:,:) 
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:) 
         character(*), parameter :: this_routine = "calc_single_overlap_mixed_ex" 
 
         real(dp) :: umat, bVal, temp_mat 
@@ -775,6 +798,23 @@ contains
         ! in the case of rdm calculation, i know that this type of exitation 
         ! only has one (or two, with switches 2-body integrals..??) 
         ! rdm-contribution.. 
+! 
+!         print *, "I:"
+!         call write_det_guga(6,ilutI,.true.)
+!         do i = 1, nSpatOrbs
+!             write(6,"(i3)",advance='no') temp_step_i(i)
+!         end do
+! 
+!         print *, ""
+!         print *, "J :"
+!         call write_det_guga(6,ilutJ,.true.)
+!         do i = 1, nSpatOrbs
+!             write(6,"(i3)",advance='no') temp_step_j(i)
+!         end do
+!         print *, ""
+! 
+!         call neci_flush(6)
+
         if (excitInfo%typ == 6) then
             umat = (get_umat_el(excitInfo%firstEnd, excitInfo%secondStart, &
                 excitInfo%fullStart, excitInfo%fullEnd) + &
