@@ -395,6 +395,8 @@ contains
 #ifndef __CMPLX
             ! do the GUGA changes here, I want to do all the excitations from 
             ! the currently looped over original_space(:,i) 
+            ! i think i still want to do this this way, since the dets 
+            ! implementation is really akward..
             if (tGUGA) then
                 ! in GUGA don't do the tSinglesOnly option
                 if (tSinglesOnly) then

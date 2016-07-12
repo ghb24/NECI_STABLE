@@ -479,19 +479,13 @@ contains
 
         end select 
 
-!         print *, "===================================="
-!         print *, "I: "
-!         call write_det_guga(6,ilutI,.true.)
-!         do i = 1, nSpatOrbs
-!             write(6,"(i3)",advance='no') temp_step_i(i)
-!         end do
-!         print *, ""
-!         print *, "J:"
-!         call write_det_guga(6, ilutJ,.true.)
-!         do i = 1,nSpatOrbs
-!             write(6,"(i3)",advance='no') temp_step_j(i)
-!         end do
-!         print *, ""
+        ! i think in the excitation identification i can not find out if the 
+        ! delta B value is abs>2 so i have to do that here.. or specific for 
+        ! the type of excitations below.. for singles its not allowed 
+        ! abs > 1 ..
+        ! but i think for the double excitations i cannot do that generally 
+        ! since i have to check for the overlap and non-overlap regions 
+        ! specifically 
 
         ! then i need a select case to specifically calculate all the 
         ! different types of excitations
@@ -672,6 +666,12 @@ contains
         real(dp) :: integral, bVal
         ! just mimick the stochastic single excitation! 
 
+        ! this deltaB info can slip through the excitation identifier..
+        if (any(abs(temp_delta_b) > 1)) then 
+            mat_ele = 0.0_dp 
+            return
+        end if
+
         st = excitInfo%fullstart
         en = excitInfo%fullEnd
 
@@ -775,6 +775,12 @@ contains
         ! in the case of rdm calculation, i know that this type of exitation 
         ! only has one (or two, with switches 2-body integrals..??) 
         ! rdm-contribution.. 
+
+        if (any(abs(temp_delta_b) > 1)) then 
+            mat_ele = 0.0_dp 
+            return
+        end if
+
         if (excitInfo%typ == 6) then
             umat = (get_umat_el(excitInfo%firstEnd, excitInfo%secondStart, &
                 excitInfo%fullStart, excitInfo%fullEnd) + &
@@ -995,6 +1001,16 @@ contains
         ende1 = excitInfo%firstEnd
         ende2 = excitInfo%fullEnd
 
+        ! i have to check if the deltaB value is in its correct bounds for 
+        ! the specific parts of the excitations
+        if (any(abs(temp_delta_b(start1:start2-1)) > 1) .or. &
+            any(abs(temp_delta_b(start2:ende1-1)) > 2) .or. &
+            any(abs(temp_delta_b(ende1:ende2)) > 1)) then
+            
+            mat_ele = 0.0_dp
+            return 
+        end if
+
         gen1 = excitInfo%gen1
         gen2 = excitInfo%gen2
         firstgen = excitInfo%firstgen
@@ -1181,6 +1197,13 @@ contains
         real(dp) :: umat, bVal, temp_mat, nOpen
         integer :: st, se, gen, i, step1, step2, db
 
+        ! can i exclude every deltaB > 1, since only db = 0 allowed in 
+        ! double overlap region? i think so.. 
+        if (any(abs(temp_delta_b) > 1)) then 
+            mat_ele = 0.0_dp 
+            return 
+        end if
+
         if (excitInfo%typ == 14) then 
             ! LL 
             umat = (get_umat_el(excitInfo%fullEnd, excitInfo%fullEnd, &
@@ -1268,6 +1291,13 @@ contains
         ende = excitInfo%fullEnd
         semi = excitInfo%firstEnd
         gen = excitInfo%firstGen
+
+        ! i think i can exclude every deltaB > 1 sinve only dB = 0 branch 
+        ! allowed for the alike.. 
+        if (any(abs(temp_delta_b) > 1)) then 
+            mat_ele = 0.0_dp 
+            return 
+        end if
 
         if (excitInfo%typ == 18) then 
             ! LL 
@@ -1365,6 +1395,12 @@ contains
         se = excitInfo%secondStart
         en = excitInfo%fullEnd
         firstGen = excitInfo%firstgen 
+
+        if (any(abs(temp_delta_b(st:se-1)) > 1) .or. &
+            any(abs(temp_delta_b(se:en)) > 2)) then 
+            mat_ele = 0.0_dp
+            return 
+        end if
 
         ! first do single overlap region 
         mat_ele = 1.0_dp
@@ -1499,6 +1535,12 @@ contains
         se = excitInfo%firstEnd
         gen = excitInfo%lastGen
         
+        if (any(abs(temp_delta_b(st:se-1)) > 2) .or. &
+            any(abs(temp_delta_b(se:en)) > 1)) then
+            mat_ele = 0.0_dp 
+            return
+        end if
+
         ! do the full-start, and i know here that it is singly occupied 
 
         step1 = temp_step_i(st)
@@ -1604,6 +1646,11 @@ contains
         ! stochastic stuff here, since i already needed it there..
 
         ! phew.. i think i can just use calcMixedContribution.. and thats it.. 
+
+        if (any(abs(temp_delta_b) > 2)) then
+            mat_ele = 0.0_dp 
+            return 
+        end if
 
         call convert_ilut_toGUGA(ilutI, tmp_I) 
         call convert_ilut_toGUGA(ilutJ, tmp_J)
@@ -11696,7 +11743,7 @@ contains
 
     end function getPlus_overlapLowering
 
-    subroutine actHamiltonian(ilut, excitations, nTot)
+    subroutine actHamiltonian(ilut, excitations, nTot, t_singles_only)
         ! subroutine to calculate the action of the full Hamiltonian on a 
         ! a single CSF given in ilut bit representation and outputs a list 
         ! of excitations also in ilut format, where the exact matrix element 
@@ -11705,16 +11752,24 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nTot
+        logical, intent(in), optional :: t_singles_only
         character(*), parameter :: this_routine = "actHamiltonian"
         type(timer), save :: proc_timer
 
         integer(n_int), pointer :: tmp_all_excits(:,:)
         integer :: i, j, k, l, nExcits, nMax, ierr
         integer(n_int), pointer :: tempExcits(:,:)
+        logical :: t_temp_singles
 !         real(dp) :: diagEle
 #ifdef __DEBUG
         integer :: n
 #endif
+
+        if (.not. present(t_singles_only)) then
+            t_temp_singles = .false.
+        else 
+            t_temp_singles = t_singles_only
+        end if
 
         ASSERT(isProperCSF_ilut(ilut))
 
@@ -11846,6 +11901,7 @@ contains
         ! double excitations 
         ! do it really primitive for now. -> make it more elaborate later
 !         if (pDoubles > 0.0_dp) then
+        if (.not. t_temp_singles) then
         do i = 1, nSpatOrbs
             do j = 1, nSpatOrbs
                 do k = 1, nSpatOrbs
@@ -11939,7 +11995,7 @@ contains
                 end do
             end do
         end do
-!         end if
+        end if
 
 !         write(iout, "(A)") "doubles done!"
 !         call neci_flush(iout)

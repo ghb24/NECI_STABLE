@@ -3504,7 +3504,7 @@ contains
                     ! and find inum_runs lowest energetically ones..
 
                     ! create all excitations from the HF 
-                    call actHamiltonian(ilutHF, excitations, n_excits) 
+                    call actHamiltonian(ilutHF, excitations, n_excits, .true.) 
 
                     ! if no excitations possible... there is something wrong
                     if (.not.(n_excits > 0) .or. n_excits < inum_runs-1) then 
