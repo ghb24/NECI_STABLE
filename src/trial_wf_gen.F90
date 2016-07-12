@@ -11,6 +11,7 @@ module trial_wf_gen
 #ifndef __CMPLX 
     use guga_data, only: excitationInformation
     use guga_excitations, only: calc_guga_matrix_element
+    use guga_bitrepops, only: write_det_guga
 #endif
 
     implicit none
@@ -521,6 +522,8 @@ contains
                 if (all(con_space(0:NIfDBO, i) == trial_space(0:NIfDBO, j))) then
                     if (.not. tHPHF) then
                         H_ij = get_helement(nI, nJ, 0)
+                    else if (tGUGA) then 
+                        H_ij = calcDiagMatEleGuga_nI(nI)
                     else
                         H_ij = hphf_diag_helement(nI, trial_space(:,j))
                     end if
