@@ -132,7 +132,7 @@ module davidson_neci
         real(dp), allocatable :: hamil_diag_temp(:)
         character (len=*), parameter :: t_r = "init_davidson"
 
-        call InitHamiltonianCalc(this%super, print_info, hamil_type, max_num_davidson_iters, .true.)
+        call InitHamiltonianCalc(this%super, print_info, hamil_type, max_num_davidson_iters, .true., .false.)
 
         associate( &
             davidson_eigenvalue => this%davidson_eigenvalue, &

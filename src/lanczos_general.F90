@@ -23,7 +23,10 @@ module lanczos_general
         initHamiltonianCalc, &
         multiply_hamil_and_vector, &
         direct_ci_inp, &
-        direct_ci_out
+        direct_ci_out, &
+        inner_product, &
+        euclidean_norm_square, &
+        euclidean_norm
 
 
     ! maximum size of subspace
@@ -33,10 +36,10 @@ module lanczos_general
     real(dp), parameter :: convergence_error = 1.0e-10
     ! the algorithm is terminated when the norm of the last Lanczos vector
     ! reaches zero
-    real(dp), parameter :: beta_epsilon = 1.0e-16
+    real(dp), parameter :: beta_threshold = 1.0e-7
     ! If the overlap between any two Ritz vectors exceeds this value, a stop_all
     ! will be thrown
-    real(dp), parameter :: orthog_tolerance = 5.0e-4
+    real(dp), parameter :: orthog_tolerance = 1.0e-8
 
     type LanczosCalcType
         ! "super type" for common hamiltonian data
@@ -50,9 +53,9 @@ module lanczos_general
         ! work array for calculating each lanczos vector in turn
         HElement_t(dp), allocatable :: lanczos_vector(:)
         ! last estimate of each eigenvalue
-        real(dp), allocatable :: T_eigenvalues_old(:)
+        real(dp), allocatable :: ritz_values_old(:)
         ! ritz values: exact eigenvalues of the tridiagonal matrix in super%projected_hamil
-        real(dp), allocatable :: T_eigenvalues(:)
+        real(dp), allocatable :: ritz_values(:)
         ! exact eigenvectors of the tridiagonal matrix in super%projected_hamil
         HElement_t(dp), allocatable :: T_eigenvectors(:,:)
         ! approximate eivenvectors of the hamiltonian
@@ -66,21 +69,21 @@ module lanczos_general
     pure function getAlpha(this, i) result (val)
         type(LanczosCalcType), intent(in) :: this
         integer, intent(in) :: i
-        HElement_t(dp) :: val
+        real(dp) :: val
         val = this%super%projected_hamil(i,i)
     end function getAlpha
 
     pure subroutine setAlpha(this, i, val)
         type(LanczosCalcType), intent(inout) :: this
         integer, intent(in) :: i
-        HElement_t(dp), intent(in) :: val
+        real(dp), intent(in) :: val
         this%super%projected_hamil(i,i) = val
     end subroutine setAlpha
 
     pure function getBeta(this, i) result (val)
         type(LanczosCalcType), intent(in) :: this
         integer, intent(in) :: i
-        HElement_t(dp) :: val
+        real(dp) :: val
         if (i>1) then
             val = this%super%projected_hamil(i,i-1)
             return
@@ -97,8 +100,8 @@ module lanczos_general
         ! subdiagonal and superdiagonal elements of T are norms => always real
         real(dp), intent(in) :: val
         if (i>1) then
-            this%super%projected_hamil(i-1,i) = cmplx(val)
-            this%super%projected_hamil(i,i-1) = cmplx(val)
+            this%super%projected_hamil(i-1,i) = val
+            this%super%projected_hamil(i,i-1) = val
             return
         elseif (i==0) then
             this%beta_0 = val
@@ -124,22 +127,16 @@ module lanczos_general
         type(LanczosCalcType), intent(inout) :: this
         integer, intent(in) :: k
         if (this%super%t_store_subspace_basis) then
-            !associate(v=>this%super%basis_vectors(:,k))
-            !v = v /sqrt(dble(dot_product(h_conjg(v), v)))
-            this%super%basis_vectors(:,k) = this%super%basis_vectors(:,k) / &
-                sqrt(dble(dot_product(h_conjg(this%super%basis_vectors(:,k)), this%super%basis_vectors(:,k))))
-!            end associate
+            this%super%basis_vectors(:,k) = this%super%basis_vectors(:,k) / euclidean_norm(this%super%basis_vectors(:,k))
         else
-            associate(v=>this%v_k)
-            v = v /sqrt(dble(dot_product(h_conjg(v), v)))
-            end associate
+            this%v_k = this%v_k / euclidean_norm(this%v_k)
         endif
     end subroutine normaliseVec
 
-    subroutine InitLanczosCalc(this, print_info, hamil_type, n_states, max_lanczos_vecs, t_store_subspace_basis)
+    subroutine InitLanczosCalc(this, print_info, hamil_type, n_states, max_lanczos_vecs, t_store_subspace_basis, t_orthogonalise)
         type(LanczosCalcType), intent(out) :: this
         integer, intent(in) :: hamil_type, n_states, max_lanczos_vecs
-        logical, intent(in) :: t_store_subspace_basis
+        logical, intent(in) :: t_store_subspace_basis, t_orthogonalise
         character (len=*), parameter :: t_r = "init_lanczos"
         logical, intent(in) :: print_info
 
@@ -149,7 +146,7 @@ module lanczos_general
         real(dp), allocatable :: lowest_energies(:)
         integer, allocatable :: lowest_energy_det_indices(:)
 
-        call InitHamiltonianCalc(this%super, print_info, hamil_type, max_lanczos_vecs, t_store_subspace_basis)
+        call InitHamiltonianCalc(this%super, print_info, hamil_type, max_lanczos_vecs, t_store_subspace_basis, t_orthogonalise)
         associate(&
             space_size => this%super%space_size, &
             max_subspace_size => this%super%max_subspace_size &
@@ -161,8 +158,8 @@ module lanczos_general
 
         this%n_states = n_states
         ! these will be larger than neccessary until the final iteration:
-        safe_malloc(this%T_eigenvalues, (max_subspace_size))
-        safe_malloc(this%T_eigenvalues_old, (n_states))
+        safe_malloc(this%ritz_values, (max_subspace_size))
+        safe_malloc(this%ritz_values_old, (n_states))
         safe_malloc(this%T_eigenvectors, (max_subspace_size, max_subspace_size))
 
         safe_calloc(this%lanczos_vector, (space_size), 0.0_dp)
@@ -172,58 +169,61 @@ module lanczos_general
             safe_malloc(this%v_k, (max_subspace_size))
             safe_malloc(this%v_k_minus_1, (max_subspace_size))
         endif
-
+        
         ! check for previous allocation of the eigenvector estimates
         if (allocated(this%ritz_vectors)) then
             deallocate(this%ritz_vectors, stat=ierr)
             call logmemdealloc(t_r, lanczosTag, ierr)
         end if
-        ! nstates columns, holding approx eigenvectors of length space_size
-        safe_calloc_e(this%ritz_vectors, (n_states, space_size), 0.0_dp, ierr)
-        call logmemalloc("ritz_vectors", space_size*n_states, 8, t_r, lanczosTag, ierr)
 
-        safe_malloc(hamil_diag_temp, (size(hamil_diag)))
-        hamil_diag_temp = -hamil_diag
-        safe_calloc(lowest_energies, (n_states), 0.0_dp)
-        safe_calloc(lowest_energy_det_indices, (n_states), 0)
-        lowest_energy_det_indices(1) = maxloc(hamil_diag_temp,1)
-        lowest_energies(1) = hamil_diag(lowest_energy_det_indices(1))
-        do i = 2, n_states
-            lowest_energy_det_indices(i) = maxloc(hamil_diag_temp,1,mask=(hamil_diag_temp)<-lowest_energies(i-1))
-            lowest_energies(i) = hamil_diag(lowest_energy_det_indices(i))
-        enddo
-        safe_free(hamil_diag_temp)
+        ! nstates columns, holding approx eigenvectors of length space_size
+        safe_calloc_e(this%ritz_vectors, (space_size, n_states), 0.0_dp, ierr)
+        call logmemalloc("ritz_vectors", space_size*n_states, 8, t_r, lanczosTag, ierr)
 
         ! If there is only one determinant per state in the space being diagonalised:
         if (space_size == n_states) then
             if (iProcIndex == root) then
-                this%T_eigenvalues(:) = lowest_energies(:)
+                this%ritz_values(:) = lowest_energies(:)
                 do i = 1, n_states
-                    this%T_eigenvectors(i,lowest_energy_det_indices(i)) = 1.0_dp
+                    this%ritz_vectors(lowest_energy_det_indices(i), i) = 1.0_dp
                 enddo
             endif
-            call MPIBCast(this%T_eigenvalues)
+            call MPIBCast(this%ritz_values)
             this%super%skip_calc = .true.
             return
         end if
 
-        ! with the memory management done, now we can start setting up the pre-iteration
-        ! numerics. Set the first basis vector to be an equal, normalised superposition
-        ! of the nstates lowest lying determinants
-        do i = 1, n_states
-            this%lanczos_vector(lowest_energy_det_indices(i)) = 1.0_dp/sqrt(dble(n_states))
-        enddo
+        if (iProcIndex==root) then
 
-        debug_line(8,this%lanczos_vector)
+            safe_malloc(hamil_diag_temp, (size(hamil_diag)))
+            hamil_diag_temp(:) = -hamil_diag(:)
+            safe_calloc(lowest_energies, (n_states), 0.0_dp)
+            safe_calloc(lowest_energy_det_indices, (n_states), 0)
+            lowest_energy_det_indices(1) = maxloc(hamil_diag_temp,dim=1)
+            lowest_energies(1) = hamil_diag(lowest_energy_det_indices(1))
+            do i = 2, n_states
+                lowest_energy_det_indices(i) = maxloc(hamil_diag_temp,dim=1,mask=hamil_diag_temp<-lowest_energies(i-1))
+                lowest_energies(i) = hamil_diag(lowest_energy_det_indices(i))
+            enddo
+            safe_free(hamil_diag_temp)
 
+            ! with the memory management done, now we can start setting up the pre-iteration
+            ! numerics. Set the first basis vector to be an equal, normalised superposition
+            ! of the nstates lowest lying determinants
+            do i = 1, n_states
+                this%lanczos_vector(lowest_energy_det_indices(i)) = 1.0_dp/sqrt(dble(n_states))
+            enddo
 
-        call addVec(this, 1, this%lanczos_vector)
-        call normaliseVec(this, 1)
+            call addVec(this, 1, this%lanczos_vector)
+            call normaliseVec(this, 1)
 
+            safe_free(lowest_energies)
+            safe_free(lowest_energy_det_indices)
+        endif
+        call MPIBCast(this%lanczos_vector)
+        call MPIBCast(this%super%basis_vectors)
+        ! set lanczos vector 1 to H*v_1
         call project_hamiltonian_lanczos(this, 1)   
-
-        safe_free(lowest_energies)
-        safe_free(lowest_energy_det_indices)
         end associate
 
     end subroutine InitlanczosCalc
@@ -236,7 +236,7 @@ module lanczos_general
         safe_free(this%v_1)
         safe_free(this%v_k)
         safe_free(this%v_k_minus_1)
-        safe_free(this%T_eigenvalues_old)
+        safe_free(this%ritz_values_old)
         safe_free(this%T_eigenvectors)
         call DestroyHamiltonianCalc(this%super)
         safe_free(this%lanczos_vector)
@@ -246,21 +246,21 @@ module lanczos_general
         type(LanczosCalcType), intent(inout) :: this
         call FreeLanczosCalc(this)
         ! deallocate results as well
-        safe_free(this%T_eigenvalues)
+        safe_free(this%ritz_values)
         safe_free(this%ritz_vectors)
     end subroutine DestroyLanczosCalc
 
     subroutine perform_orthogonality_test(this)
         type(LanczosCalcType), intent(inout) :: this
         integer :: i, j
-        HElement_t(dp) :: overlap, normi, normj
+        real(dp) :: overlap
         character(*), parameter :: t_r = "perform_orthogonality_test"
         if (this%n_states>1) then
             do i = 2, this%n_states
                 do j = 1, i-1
-                    overlap = dot_product(h_conjg(this%ritz_vectors(i,:)), this%ritz_vectors(j,:))
+                    overlap = inner_product(this%ritz_vectors(:,i), this%ritz_vectors(:,j))
                     if (abs(overlap) > orthog_tolerance) then
-                        call stop_all(t_r, "Ritz vector overlap exceeds tolerance. n_states possibly too large for space_size") 
+                       call stop_all(t_r, "Ritz vector overlap exceeds tolerance. n_states possibly too large for space_size") 
                     endif
                 enddo
             enddo
@@ -287,12 +287,12 @@ module lanczos_general
         endif
     end subroutine project_hamiltonian_lanczos
 
+
     subroutine diagonalise_tridiagonal(this, N, t_calc_eigenvectors)
         type(LanczosCalcType), intent(inout) :: this
         integer, intent(in) :: N
         logical, intent(in) :: t_calc_eigenvectors
         integer :: lwork, info
-        HElement_t(dp), allocatable :: cwork(:)
         real(dp), allocatable :: rwork(:)
         character :: jobz
 
@@ -304,62 +304,42 @@ module lanczos_general
             jobz = 'N'
         endif
 
-        this%T_eigenvalues_old(1:this%n_states) = this%T_eigenvalues(1:this%n_states)
+        this%ritz_values_old(1:this%n_states) = this%ritz_values(1:this%n_states)
         this%super%projected_hamil_work(1:N,1:N) = this%super%projected_hamil(1:N,1:N)
-#ifdef __CMPLX
-        call pretty_print(8, this%super%projected_hamil_work(1:N,1:N))
-        safe_malloc(cwork, (lwork))
-        call zheev(&
-             jobz, &
-            'U', &
-             N , &
-             this%super%projected_hamil_work(1:N,1:N), &
-             N, &
-             this%T_eigenvalues(1:N), &
-             cwork, &
-             lwork, &
-             rwork, &
-             info &
-         )
-        safe_free(cwork)
-#else
+
         call dsyev(&
              jobz, &
             'U', &
              N , &
              this%super%projected_hamil_work(1:N,1:N), &
              N, &
-             this%T_eigenvalues(1:N), &
+             this%ritz_values(1:N), &
              rwork, &
              lwork, &
              info &
-         )
-#endif
+        )
         safe_free(rwork)
+
         if (t_calc_eigenvectors) then
             ! move the eigenvectors out of the working array
-            this%T_eigenvectors(1:this%n_states,1:N) = &
-                this%super%projected_hamil_work(1:this%n_states,1:N)
+            this%T_eigenvectors(1:N,1:this%n_states) = &
+                cmplx(this%super%projected_hamil_work(1:N, 1:this%n_states))
         endif
-
     end subroutine diagonalise_tridiagonal
 
     function check_deltas(this) result (t)
         type(LanczosCalcType), intent(inout) :: this
         logical :: t
-        t = .not.any(abs(this%T_eigenvalues(1:this%n_states) - this%T_eigenvalues_old(1:this%n_states))>convergence_error)
+        t = .not.any(abs(this%ritz_values(1:this%n_states) - this%ritz_values_old(1:this%n_states))>convergence_error)
     end function check_deltas
 
     subroutine compute_ritz_vectors(this, k)
         ! now we project the eigenvalues of T into the full space to obtain
         ! estimates for the state vectors
-        !   rows, columns:
-        ! ritz_vectors(space_size, n_states) = basis_vectors(space_size, k) x T_eigenvectors(k, n_states)
+        !   rows, columns:                                       M                                N
+        ! ritz_vectors(n_states, space_size) = T_eigenvectors(n_states, k) x basis_vectors(k, space_size)
         !   we want to do (column-major):
-        ! ritz_vectors(n_states, space_size) = basis_vectors(k, space_size) x T_eigenvectors(n_states, k)
-        !   but we have:
-        ! basis_vectors(space_size, k), and T_eigenvectors(n_states, k)
-        !   so only transpose basis_vectors
+        ! ritz_vectors(space_size, n_states) = T_eigenvectors(k, n_states) x basis_vectors(space_size, k)
         
         type(LanczosCalcType), intent(inout) :: this
         integer, intent(in) :: k
@@ -367,124 +347,151 @@ module lanczos_general
         associate(space_size => this%super%space_size)
 
         if (this%super%t_store_subspace_basis) then
-#ifdef __CMPLX
+            ! for each state, find the ritz vector
+            ! TODO: do this with BLAS
+            do i = 1, this%n_states
+                do j = 1, space_size
+                    this%ritz_vectors(j,i) = inner_product(this%super%basis_vectors(j,1:k), this%T_eigenvectors(1:k,i))
+                enddo
+            enddo
+#if(0)
             call zgemm(&
-                'T', &
                 'N', &
-                space_size, &
+                'N', &
                 this%n_states, &
+                space_size, &
                 k, &
-                1.0_dp, &
-                this%super%basis_vectors(1:space_size,1:k), &
+                h_cast(1.0_dp), &
+                this%T_eigenvectors(1:k, this%n_states), &!this%super%basis_vectors(1:space_size,1:k), &
+                this%n_states, &!k, &
+                this%super%basis_vectors(1:space_size, 1:k), &!this%T_eigenvectors(1:k, 1:this%n_states), &
                 k, &
-                this%T_eigenvectors(1:this%n_states, 1:k), &
-                k, &
-                0.0_dp, &
-                this%ritz_vectors(1:this%n_states, 1:space_size), &
-                space_size &
-            )
-#else
-            call dgemm(&
-                'T', &
-                'N', &
-                space_size, &     ! rows in basis_vectors**T (columns in basis_vectors) => rows in ritz_vectors
-                this%n_states, &  ! columns in T_eigenvectors => columns in ritz_vectors
-                k, &              ! columns in basis_vectors, and rows in T_eigenvectors
-                1.0_dp, &
-                this%super%basis_vectors(1:space_size,1:k), &           
-                k, &
-                this%T_eigenvectors(1:this%n_states, 1:k), &
-                k, &
-                0.0_dp, &
-                this%ritz_vectors(1:this%n_states, 1:space_size), &
-                space_size &
+                h_cast(0.0_dp), &
+                this%ritz_vectors(1:space_size, 1:this%n_states), &
+                this%n_states &
             )
 #endif
         else
             ! TODO: must reconstitute the basis vectors one at a time
         endif
         end associate
-
     end subroutine compute_ritz_vectors
 
-    subroutine perform_lanczos(this, n_states, t_store_subspace_basis, hamil_type, print_info_in)
+    function get_rayleigh_quotient(this, i_state) result (exp_val)
+        type(LanczosCalcType), intent(inout) :: this
+        integer, intent(in) :: i_state
+        HElement_t(dp), allocatable :: H_ket(:)
+        real(dp) :: exp_val
+
+        safe_malloc(H_ket, (this%super%space_size))
+
+        call MPIBCast(this%ritz_values)
+        if (iprocindex==root) then
+            call multiply_hamil_and_vector(this%super, this%ritz_vectors(1:this%super%space_size, i_state), H_ket)
+        else
+            call multiply_hamil_and_vector(this%super, this%ritz_vectors(1:this%super%space_size, i_state), this%super%temp_out)
+        endif
+        !if (iprocindex==root) then
+            exp_val = real(inner_product(this%ritz_vectors(1:this%super%space_size, i_state), H_ket), dp)
+            exp_val = exp_val/euclidean_norm_square(this%ritz_vectors(1:this%super%space_size, i_state))
+        !else
+        !    exp_val=0.0_dp
+        !endif
+        safe_free(H_ket)
+    end function get_rayleigh_quotient
+
+    function compute_residual_norm(this, i_state) result (norm)
+        type(LanczosCalcType), intent(inout) :: this
+        integer, intent(in) :: i_state
+        HElement_t(dp), allocatable :: H_ket(:)
+        real(dp) :: norm
+
+        safe_malloc(H_ket, (this%super%space_size))
+
+        call MPIBCast(this%ritz_values)
+        if (iprocindex==root) then
+            call multiply_hamil_and_vector(this%super, this%ritz_vectors(1:this%super%space_size, i_state), H_ket)
+        else
+            call multiply_hamil_and_vector(this%super, this%ritz_vectors(1:this%super%space_size, i_state), this%super%temp_out)
+        endif
+        norm = euclidean_norm(H_ket-this%ritz_values(i_state)*this%ritz_vectors(1:this%super%space_size, i_state))
+        safe_free(H_ket)
+    end function
+
+    subroutine perform_lanczos(this, n_states, t_store_subspace_basis, hamil_type, print_info_in, t_orthogonalise)
         use hamiltonian_linalg, only : orthogonalise_against_previous_basis_vectors
         type(LanczosCalcType), intent(inout) :: this
         integer, intent(in) :: n_states, hamil_type
-        logical, intent(in) :: t_store_subspace_basis, print_info_in
-        logical :: print_info
-        integer :: k, i, ierr
+        logical, intent(in) :: t_store_subspace_basis, print_info_in, t_orthogonalise
+        logical :: print_info, t_deltas_pass
+        integer :: k, i, ierr, nplaces
         real(sp) :: start_time, end_time
-        HElement_t(dp) :: overlap
+        real(dp) :: exp_val, overlap
+        character(40) :: main_output_fmt, final_output_fmt
+        
+        ! format specifier formatting!
+        ! ensure that enough places are displayed to show convergence to the desired accuracy
+        nplaces = -int(log10(convergence_error))
+        write(main_output_fmt, '("(8X,i4,3X,i2,2x,f",i2,".",i2,",2x,f9.3)")') nplaces+7, nplaces
+        write(final_output_fmt, '("(1x,",A7,",i2,4X,f",i2,".",i2,")")') '"State"', nplaces+7, nplaces
 
         ! Only let the root processor print information.
         print_info = print_info_in .and. (iProcIndex == root)
 
         if (.not. allocated(this%lanczos_vector)) then
-            call InitLanczosCalc(this, print_info, hamil_type, n_states, max_lanczos_vecs_default, t_store_subspace_basis)
+            call InitLanczosCalc(this, print_info, hamil_type, n_states, &
+                max_lanczos_vecs_default, t_store_subspace_basis, t_orthogonalise)
         endif
 
-        if (print_info) write(6,'(1X,"Perfoming a Lanczos Diagonalisation of the trial space")')
-        if (print_info) write(6,'(/,1X,"Iteration",4x,"State",12X,"Energy",7X,"Time")'); call neci_flush(6)
+        if (print_info) then
+            write(6,'(1X,"Perfoming a Lanczos Diagonalisation of the trial space")')
+            if (this%super%t_orthogonalise) then
+                write(6,'(/,1X,"Orthogonalising Lanczos vectors")')
+            else
+                write(6,'(/,1X,"Not orthogonalising Lanczos vectors")')
+            endif
+            write(6,'(/,1X,"Iteration",4x,"State",12X,"Energy",7X,"Time")'); call neci_flush(6)
+        endif
         associate(&
             basis_vectors => this%super%basis_vectors, &
             v_k => this%v_k, &
             v_k_minus_1 => this%v_k_minus_1 &
         )
 
+        ! Lanczos main loop
         do k = 1, this%super%max_subspace_size-1
-
-
             if (this%super%skip_calc) exit
             call cpu_time(start_time)
 
             if (iprocindex==root) then
                 if (t_store_subspace_basis) then
-                    !debug_line(8, this%lanczos_vector)
-                    !debug_line(8, basis_vectors(:,k))
-                    overlap = dot_product(h_conjg(basis_vectors(:,k)), this%lanczos_vector)
-                    debug_line(8, overlap)
-                    call setAlpha(this, k, cmplx(real(overlap)))
-                    debug_line(8, getAlpha(this, k))
+                    overlap = real(dot_product(basis_vectors(:,k), this%lanczos_vector),dp)
+                    call setAlpha(this, k, overlap)
                     call addVec(this, k+1, this%lanczos_vector-getAlpha(this, k)*basis_vectors(:,k))
-                    debug_line(8, h_conjg(basis_vectors(:,k+1)))
-                    debug_line(8, basis_vectors(:,k+1))
-
-                    call setBeta(this, k+1, sqrt(dble(dot_product(h_conjg(basis_vectors(:,k+1)), basis_vectors(:,k+1)))))
-                    if (abs(getBeta(this, k+1))<beta_epsilon) then
+                    call setBeta(this, k+1, euclidean_norm(basis_vectors(:,k+1)))
+                    if (abs(getBeta(this, k+1))<beta_threshold) then
                         write(6, *) " Lanczos vector norm reached zero"
                         exit
                     endif
-                    debug_line(8, (dot_product(h_conjg(basis_vectors(:,k+1)), basis_vectors(:,k+1))))
                     basis_vectors(:,k+1) = basis_vectors(:,k+1) / getBeta(this, k+1)
-                    ! Although Lanczos vectors computed in exact arithmetic are orthogonal,
-                    ! those generated on a machine will stray increasingly from orthogonal with
-                    ! each iteration: so do GS procedure here
-                    write(8,*)
-                    debug_line(8, basis_vectors(:,k+1))
-                    call orthogonalise_against_previous_basis_vectors(this%super, k+1)
-                    debug_line(8, basis_vectors(:,k+1))
-                    write(8,*)
                 else
-                    overlap = dot_product(h_conjg(this%v_k), this%lanczos_vector)
+                    overlap = real(dot_product(this%v_k, this%lanczos_vector),dp)
                     call setAlpha(this, k, overlap)
                     call addVec(this, k+1, this%lanczos_vector-getAlpha(this, k)*v_k)
-                    call setBeta(this, k+1, sqrt(dble(dot_product(h_conjg(v_k), v_k))))
+                    call setBeta(this, k+1, sqrt(dble(dot_product(v_k, v_k))))
                     v_k = v_k / getBeta(this, k+1)
                 endif
             endif
             call MPIBarrier(ierr)
+            if (this%super%t_orthogonalise) then
+                ! Although Lanczos vectors computed in exact arithmetic are orthogonal,
+                ! those generated on a machine will stray increasingly from orthogonal with
+                ! each iteration: so do GS procedure here
+                call orthogonalise_against_previous_basis_vectors(this%super, k+1)
+            endif
             call project_hamiltonian_lanczos(this, k+1)
 
             call cpu_time(end_time)
-
-            if (print_info) then
-                do i=1, this%n_states
-                    write(6,'(8X,i4,3X,i2,2x,f16.10,2x,f9.3)') k, i, this%T_eigenvalues(i), end_time-start_time
-                    call neci_flush(6)
-                enddo
-                write(6,*)
-            endif
 
             if (iprocindex==root) then
                 if (t_store_subspace_basis) then
@@ -494,13 +501,25 @@ module lanczos_general
                 endif
 
                 call diagonalise_tridiagonal(this, k, .false.)
-                if (check_deltas(this)) then
-                    if (print_info) then
-                        write(6, '(i2" eigenvalues(s) were successfully converged to within "5ES16.7)') this%n_states, convergence_error
+                if (print_info) then
+                    do i=1, this%n_states
+                        write(6,trim(main_output_fmt)) k, i, this%ritz_values(i), end_time-start_time
                         call neci_flush(6)
-                    endif
-                    exit
+                    enddo
+                    write(6,*)
                 endif
+            endif
+
+            if (iprocindex==root) then
+                t_deltas_pass = check_deltas(this)
+            endif
+            call MPIBCast(t_deltas_pass)
+            if (t_deltas_pass) then
+                if (print_info) then
+                    write(6, '(i2" eigenvalues(s) were successfully converged to within "5ES16.7)') this%n_states, convergence_error
+                    call neci_flush(6)
+                endif
+                exit
             endif
         end do
         
@@ -513,25 +532,35 @@ module lanczos_general
         if (print_info) then
             write(6,'(/,1x,"Final calculated energies:")')
             do i=1, this%n_states
-                write(6,'(1x,"State",1X,i2,4X,f16.10)') i, this%T_eigenvalues(i)
+                write(6,final_output_fmt) i, this%ritz_values(i)
                 call neci_flush(6)
             enddo
         endif
+
+        ! how good are the ritz vectors?
+        write(6,'(/,1x,"Ritz vector expectation energies:")')
+        do i=1, this%n_states
+            exp_val = get_rayleigh_quotient(this, i)
+            if (print_info) then
+                write(6,final_output_fmt) i, exp_val
+                call neci_flush(6)
+            endif
+        enddo
+
+        write(6,'(/,1x,"Ritz vector residual norms:")')
+        do i=1, this%n_states
+            exp_val = compute_residual_norm(this, i)
+            if (print_info) then
+                write(6,final_output_fmt) i, exp_val
+                call neci_flush(6)
+            endif
+        enddo
+        write(6,'(/,1x,"End of Lanczos procedure.",/)')
 
         ! wait for final diagonalisation before freeing any memory
         call MPIBarrier(ierr)
         call FreeLanczosCalc(this)
         end associate
     end subroutine perform_lanczos
-
-    subroutine pretty_print(out_unit, mat)
-        integer :: out_unit, shp(2), i
-        HElement_t(dp) :: mat(:,:)
-        shp = shape(mat)
-        do i = 1, shp(2)
-            write(out_unit, *) real(mat(:,i))
-        enddo
-        write(out_unit, *)
-    end subroutine
 
 end module lanczos_general

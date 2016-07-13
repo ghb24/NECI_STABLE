@@ -569,7 +569,7 @@ contains
 
         integer :: ndets_this_proc, nexcit
         real(dp), allocatable :: evals(:)
-        real(dp), allocatable :: evecs_this_proc(:,:), init_vecs(:,:)
+        HElement_t(dp), allocatable :: evecs_this_proc(:,:), init_vecs(:,:)
         integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
         type(fcimc_iter_data), intent(in) :: iter_data
 
@@ -1091,10 +1091,10 @@ contains
     subroutine create_init_excited_state(ndets_this_proc, trial_vecs, ex_state_labels, ex_state_weights, init_vec)
 
         integer, intent(in) :: ndets_this_proc
-        real(dp), intent(in) :: trial_vecs(:,:)
+        HElement_t(dp), intent(in) :: trial_vecs(:,:)
         integer, intent(in) :: ex_state_labels(:)
         real(dp), intent(in) :: ex_state_weights(:)
-        real(dp), allocatable, intent(out) :: init_vec(:,:)
+        HElement_t(dp), allocatable, intent(out) :: init_vec(:,:)
 
         real(dp) :: real_sign(lenof_sign)
         integer :: i, j, ierr
@@ -1104,7 +1104,7 @@ contains
         if (ierr /= 0) call stop_all(t_r, "Error in MPIScatterV call.")
          
         do i = 1, ndets_this_proc
-            init_vec(1,i) = 0.0_dp
+            init_vec(1,i) = h_cast(0.0_dp)
             do j = 1, size(ex_state_labels)
                 init_vec(1,i) = init_vec(1,i) + ex_state_weights(j)*trial_vecs(ex_state_labels(j), i)
             end do

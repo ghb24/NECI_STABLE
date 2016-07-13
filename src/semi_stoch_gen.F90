@@ -668,8 +668,8 @@ contains
         ! In (optional): max_space_size - Only used if tLimitSpace is true. See
         !     tLimitSpace for an explanation of use.
 
-        use davidson_neci, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
-                            sparse_hamil_type
+        use davidson_neci, only: perform_davidson, DestroyDavidsonCalc, DavidsonCalcType
+        use hamiltonian_linalg, only: sparse_hamil_type
         use enumerate_excitations, only: generate_connected_space
         use searching, only: remove_repeated_states
         use sort_mod, only: sort
@@ -691,6 +691,12 @@ contains
                            sendcounts(0:nProcessors-1), recvcount, this_proc_size
         integer(TagIntType) :: IlutTag, TempTag, FinalTag
         character (len=*), parameter :: t_r = "generate_optimised_space"
+
+        type(DavidsonCalcType) :: davidsonCalc
+
+        associate( &
+            davidson_eigenvector => davidsonCalc%davidson_eigenvector &
+        )
 
         if (iProcIndex /= root) then
             ! Allocate some space so that the MPIScatterV call does not crash.
@@ -757,7 +763,7 @@ contains
                 call neci_flush(6)
 
                 ! Now that the Hamiltonian is generated, we can finally find the ground state of it:
-                call perform_davidson(sparse_hamil_type, .false.)
+                call perform_davidson(davidsonCalc, sparse_hamil_type, .false.)
 
                 ! davidson_eigenvector now stores the ground state eigenvector. We want to use the
                 ! vector whose components are the absolute values of this state:
@@ -796,6 +802,7 @@ contains
                 deallocate(hamil_diag, stat=ierr)
                 call LogMemDealloc(t_r, HDiagTag, ierr)
 
+
             end do
 
         end if ! If on root.
@@ -833,6 +840,7 @@ contains
             deallocate(temp_space, stat=ierr)
             call LogMemDealloc(t_r, TempTag, ierr)
         end if
+        end associate
 
     end subroutine generate_optimised_space
 
