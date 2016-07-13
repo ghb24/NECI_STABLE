@@ -94,8 +94,7 @@ contains
 
                     if (RDMExcitLevel == 1 .or. tPrint1RDM) then
                         ! Write out the final, normalised, hermitian OneRDM.
-                        if (tWrite_normalised_RDMs) call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, &
-                                                                     norm_1rdm(irdm), .true., .false.)
+                        call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .true., .false.)
                     end if
                 end do
             end if
