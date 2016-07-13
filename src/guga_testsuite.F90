@@ -384,11 +384,18 @@ contains
 
             call actHamiltonian(ex(:,i), two_ex, nex_2) 
 
+            ! in acthamiltonian the current_stepvector quantity is set 
+            ! for the ilut input.. 
 !             pos = binary_search(two_ex(0:nifd), ilutI)
+
+!             call init_csf_information(ilutI)
 
             do j = 1, nex_2
 
+                print *, "j: ", j
+                print *, "toto"
                 excitInfo = identify_excitation(ilutI, two_ex(:,j))
+                print *, "toto2"
 ! 
 !                 if (excitInfo%valid) then
 ! 
@@ -405,6 +412,16 @@ contains
 !                     end if
 !                 end if
 
+!                 call calc_guga_matrix_element(ex(:,i), two_ex(:,j), excitInfo, &
+!                     mat_ele, .true., 2)
+! 
+!                 diff = abs(extract_matrix_element(two_ex(:,j),1) - mat_ele)
+! 
+!                 if (diff < 1.0e-10) diff = 0.0_dp 
+! 
+!                 print *, "two ex check: ", extract_matrix_element(two_ex(:,j),1), &
+!                     mat_ele, diff
+
                 call calc_guga_matrix_element(ilutI, two_ex(:,j), excitInfo, &
                     mat_ele, .true., 2)
 
@@ -414,10 +431,41 @@ contains
                     ! or it is ilutI 
                     ind = binary_search(ex(0:nifd,1:nex), two_ex(0:nifd,j)) 
 
+                    ! is the matrix element here correct if i find somethin? 
                     if (ind < 0 .and. (.not. DetBitEQ(two_ex(0:nifd,j),ilutI(0:nifd)))) then 
 
                         print *, "something wrong!"
 
+                    else if (ind > 0) then
+
+                        ! is the sign correct now??
+                        diff = abs(extract_matrix_element(ex(:,ind),1) - mat_ele)
+
+                        if (diff < 1.0e-10) diff = 0.0_dp
+
+                        print *, "sign check:" 
+                        if (diff > EPS) then 
+                            print *, "I:"
+                            call write_det_guga(6,ilutI,.true.)
+                            print *, "step: ", temp_step_i
+                            print *, "b:", temp_b_real_i
+                            print *, "n:", temp_occ_i
+                            print *, "J:"
+                            call write_det_guga(6,two_ex(:,j),.true.)
+                            print *, "step: ", temp_step_j
+                            print *, "db: ", temp_delta_b 
+
+                        end if
+                        print *, extract_matrix_element(ex(:,ind),1), mat_ele, diff
+
+!                             extract_matrix_element(ex(:,i),1) * extract_matrix_element(two_ex(:,j),1)
+! 
+!                         if (diff > 1.0_dpe-10) then 
+!                             print *, "matrix element different: ", diff
+!                             call write_det_guga(6,ilutI,.true.)
+!                             call write_det_guga(6,two_ex(:,
+! 
+! 
                     end if
                 end if 
             end do 

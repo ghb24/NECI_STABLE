@@ -423,6 +423,9 @@ contains
             return
         end if
 
+!         call write_det_guga(6,ilutI,.true.)
+!         call write_det_guga(6,ilutJ,.true.)
+
         excitInfo = identify_excitation(ilutI, ilutJ)
 
         if (.not. excitInfo%valid) then 
@@ -687,6 +690,10 @@ contains
 
         integer :: st, en, i, j, iOrb, gen, db, step1, step2
         real(dp) :: integral, bVal
+        ! have to temporarily store the current* quantities as they are used 
+        ! in the integral contribution routine for the single excitations.. 
+        integer :: temp_curr_step(nSpatOrbs), temp_curr_b_int(nSpatOrbs) 
+        real(dp) :: temp_curr_b(nSpatOrbs), temp_curr_occ(nSpatOrbs)
         ! just mimick the stochastic single excitation! 
 
         ! this deltaB info can slip through the excitation identifier..
@@ -772,12 +779,31 @@ contains
 
         if (abs(mat_ele) < EPS) return
 
+        ! this has to be adapted .. because inside there i use the 
+        ! current_stepvector and similar quantities.. 
+        ! can i savely adjust the current_stepvector value here without 
+        ! breaking other stuff.. especially for the FciMCPar loop.. 
+        temp_curr_step = current_stepvector
+        temp_curr_b = currentB_ilut
+        temp_curr_occ = currentOcc_ilut
+        temp_curr_b_int = currentB_int
+
+        current_stepvector = temp_step_i
+        currentB_ilut = temp_b_real_i
+        currentOcc_ilut = temp_occ_i
+        currentB_int = int(currentB_ilut)
+
         call calc_integral_contribution_single(ilutI, ilutJ, i, j, st, en, integral)
 
         mat_ele = mat_ele * integral
 
         ! that should be it for the singles... check that when its fully 
         ! implemented
+        ! and assign back previous values 
+        current_stepvector = temp_curr_step
+        currentB_ilut = temp_curr_b
+        currentOcc_ilut = temp_curr_occ
+        currentB_int = temp_curr_b_int
 
     end subroutine calc_single_excitation_ex
 
@@ -1290,7 +1316,7 @@ contains
         if (abs(mat_ele) < EPS) return
 
         nOpen = (-1.0_dp) ** real(count_open_orbs_ij(excitInfo%secondStart+1, &
-            excitInfo%fullEnd-1),dp)
+            excitInfo%fullEnd-1, ilutJ),dp)
         
         ! is this the same for both type of gens? 
         mat_ele = mat_ele * nOpen * Root2 * umat
@@ -1338,7 +1364,7 @@ contains
             return 
         end if
 
-        nOpen = real(count_open_orbs_ij(start,semi-1),dp)
+        nOpen = real(count_open_orbs_ij(start,semi-1,ilutJ),dp)
         
         ! do semi-stop
         step1 = temp_step_i(semi) 
@@ -1413,6 +1439,10 @@ contains
         integer :: st, se, en, i, step1, step2, db, firstgen
         real(dp)  :: bVal, temp_mat0, temp_mat1, temp_x0, temp_x1, integral
         integer(n_int) :: tmp_I(0:nifguga), tmp_J(0:nifguga)
+
+        integer :: temp_curr_step(nSpatOrbs), temp_curr_occ_int(nSpatOrbs), &
+                   temp_curr_b_int(nSpatOrbs)
+        real(dp) :: temp_curr_b(nSpatOrbs)
 
         st = excitInfo%fullStart
         se = excitInfo%secondStart
@@ -1515,6 +1545,18 @@ contains
         ! use temp_mat1
         temp_mat1 = 1.0_dp
 
+        ! also temporarily have to store the current* quantities as they are 
+        ! used in the below adapted routines from the stochasitc implementation
+        temp_curr_step = current_stepvector
+        temp_curr_b = currentB_ilut
+        temp_curr_occ_int = currentOcc_int
+        temp_curr_b_int = currentB_int
+
+        current_stepvector = temp_step_i
+        currentB_ilut = temp_b_real_i
+        currentOcc_int = int(temp_occ_i)
+        currentB_int = int(temp_b_real_i)
+
         if (excitInfo%typ == 16) then
             ! L -> R 
             ! what do i have to put in as the branch pgen?? does it have 
@@ -1533,8 +1575,12 @@ contains
             mat_ele = temp_x1 * ((get_umat_el(en,st,se,en) + &
                 get_umat_el(st,en,en,se))/2.0_dp + integral)
 
-
         end if
+
+        current_stepvector = temp_curr_step
+        currentB_ilut = temp_curr_b
+        currentOcc_int = temp_curr_occ_int
+        currentB_int = temp_curr_b_int
 
     end subroutine calc_fullstop_mixed_ex
 
@@ -1551,6 +1597,10 @@ contains
         integer :: st, en, se, gen, step1, step2, db, i 
         real(dp) :: integral, bVal, temp_mat0, temp_mat1, temp_x0, temp_x1
         integer(n_int) :: tmp_I(0:nifguga), tmp_J(0:nifguga)
+
+        integer :: temp_curr_step(nSpatOrbs), temp_curr_occ_int(nSpatOrbs), &
+                   temp_curr_b_int(nSpatOrbs)
+        real(dp) :: temp_curr_b(nSpatOrbs)
 
         ! create the fullStart
         st = excitInfo%fullStart
@@ -1633,6 +1683,18 @@ contains
         ! need to input variable into start_contr routines, misuse temp_mat1
         temp_mat1 = 1.0_dp
 
+        ! also temporarily have to store the current* quantities as they are 
+        ! used in the below adapted routines from the stochasitc implementation
+        temp_curr_step = current_stepvector
+        temp_curr_b = currentB_ilut
+        temp_curr_occ_int = currentOcc_int
+        temp_curr_b_int = currentB_int
+
+        current_stepvector = temp_step_i
+        currentB_ilut = temp_b_real_i
+        currentOcc_int = int(temp_occ_i)
+        currentB_int = int(temp_b_real_i)
+
         if (excitInfo%typ == 20) then 
             ! L -> R
             call calc_mixed_start_l2r_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
@@ -1651,6 +1713,11 @@ contains
 
         end if
 
+        current_stepvector = temp_curr_step
+        currentB_ilut = temp_curr_b
+        currentOcc_int = temp_curr_occ_int
+        currentB_int = temp_curr_b_int
+
     end subroutine calc_fullstart_mixed_ex
 
 
@@ -1665,6 +1732,10 @@ contains
         character(*), parameter :: this_routine = "calc_fullstart_fullstop_mixed_ex" 
 
         integer(n_int) :: tmp_I(0:nifguga), tmp_J(0:nifguga)
+        ! also need temporary storage of current* quantities
+        integer :: temp_curr_step(nSpatOrbs), temp_curr_occ_int(nSpatOrbs)
+        real(dp) :: temp_curr_b(nSpatOrbs)
+
         ! the most involved one.. but i think i can reuse a lot of the 
         ! stochastic stuff here, since i already needed it there..
 
@@ -1678,7 +1749,19 @@ contains
         call convert_ilut_toGUGA(ilutI, tmp_I) 
         call convert_ilut_toGUGA(ilutJ, tmp_J)
 
+        temp_curr_occ_int = currentOcc_int
+        temp_curr_step = current_stepvector
+        temp_curr_b = currentB_ilut
+
+        current_stepvector = temp_step_i
+        currentOcc_int = int(temp_occ_i) 
+        currentB_ilut = temp_b_real_i
+
         mat_ele =  calcMixedContribution(tmp_I, tmp_J, excitInfo%fullstart, excitInfo%fullEnd)
+
+        current_stepvector = temp_curr_step
+        currentOcc_int = temp_curr_occ_int
+        currentB_ilut = temp_curr_b
 
     end subroutine calc_fullstart_fullstop_mixed_ex
 

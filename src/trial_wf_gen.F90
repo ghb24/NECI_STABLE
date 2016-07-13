@@ -517,6 +517,7 @@ contains
             if (tGUGA) call init_csf_information(con_space(0:nifd,i))
 #endif
             do j = 1, size(trial_vecs,2)
+
                 call decode_bit_det(nJ, trial_space(0:NIfTot, j))
 
                 if (all(con_space(0:NIfDBO, i) == trial_space(0:NIfDBO, j))) then
