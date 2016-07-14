@@ -79,7 +79,6 @@ contains
                    ind(4), pos, ind_2(2), ind_3(2), res_orbs
 
         logical :: spin_change_flag
-
         ! i figure, that when i convert all the stepvectors like: 
         ! 0 -> 0
         ! 1 -> 1 
@@ -182,9 +181,11 @@ contains
         ! so the first part is to create a mask of the singly occupied 
         ! orbitals and the inversion
 
+        ! some compilation problem again... 
         ! first check if it is not the same ilut! 
         if (DetBitEQ(ilutI, ilutJ)) then 
             ! do diagonal element or return if i do not need the diagonals.. 
+            print *, ""
             return
         else
 

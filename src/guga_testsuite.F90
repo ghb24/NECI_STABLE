@@ -379,7 +379,6 @@ contains
         ! this might take some time.. 
         do i = 1, nEx
 
-            print *, "i:", i
             call write_det_guga(6, ex(:,i),.true.)
 
             call actHamiltonian(ex(:,i), two_ex, nex_2) 
@@ -392,10 +391,7 @@ contains
 
             do j = 1, nex_2
 
-                print *, "j: ", j
-                print *, "toto"
                 excitInfo = identify_excitation(ilutI, two_ex(:,j))
-                print *, "toto2"
 ! 
 !                 if (excitInfo%valid) then
 ! 
