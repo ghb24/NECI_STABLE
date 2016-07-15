@@ -138,8 +138,8 @@ contains
         call perform_lanczos(lanczosCalc, nexcit, .true., parallel_sparse_hamil_type, .true., .false.)
 
         if (iProcIndex == root) then
-            evals = lanczosCalc%ritz_values(1:nexcit)
-            evecs = lanczosCalc%ritz_vectors(1:lanczosCalc%super%space_size, 1:nexcit)
+            evals = lanczosCalc%eigenvalues(1:nexcit)
+            evecs = lanczosCalc%eigenvectors(1:lanczosCalc%super%space_size, 1:nexcit)
             
             safe_malloc_e(evecs_transpose, (nexcit, ndets_all_procs), ierr)
             if (ierr /= 0) call stop_all(t_r, "Error allocating transposed eigenvectors array.")
