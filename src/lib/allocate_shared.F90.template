@@ -294,7 +294,7 @@ contains
         ptr => ptr_tmp
         nullify(ptr_tmp)
 
-        write (6, '("Allocated ", i10, &
+        write (6, '("Allocated ", i18, &
                   &" bytes of shared memory named: ", a)') sz, nm
 
 #else
