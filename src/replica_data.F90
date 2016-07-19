@@ -31,9 +31,7 @@ contains
         ! Global simulation properties, which apply per particle stream (i.e.
         ! depend on lenof_sign). There will be tow of these per simulation if
         ! complex walkers are used.
-        allocate(AvNoatHF(lenof_sign), &
-                 InstNoatHF(lenof_sign), &
-                 IterRDM_HF(lenof_sign), &
+        allocate(InstNoatHF(lenof_sign), &
                  SumNoatHF(lenof_sign), AllSumNoatHF(lenof_sign), &
                  NoatHF(lenof_sign), AllNoAtHF(lenof_sign), &
                                      OldAllNoatHF(lenof_sign), &
@@ -144,9 +142,7 @@ contains
 
         ! The reverse of the above routine...
 
-        deallocate(AvNoatHF, &
-                   InstNoatHF, &
-                   IterRDM_HF, &
+        deallocate(InstNoatHF, &
                    SumNoatHF, AllSumNoatHF, &
                    NoatHF, AllNoatHF, OldAllNoatHF, &
                    iRefProc, proje_ref_energy_offsets, &
