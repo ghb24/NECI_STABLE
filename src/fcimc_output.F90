@@ -682,7 +682,9 @@ contains
             call decode_bit_det(TempnI, WalkVecDets(:,i))
             ms = sum(get_spin_pn(Tempni(1:nel)))
             walkPopByMsReal(1+nel/2+ms/2) = walkPopByMsReal(1+nel/2+ms/2)+abs(TempSign(1))
+#ifdef __CMPLX
             walkPopByMsImag(1+nel/2+ms/2) = walkPopByMsImag(1+nel/2+ms/2)+abs(TempSign(2))
+#endif
             write(mswalkercounts_unit,*) ms, TempSign
         enddo
 
