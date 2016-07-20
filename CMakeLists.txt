@@ -74,11 +74,13 @@ set(${PROJECT_NAME}_kmneci_DEFINITIONS HElement_t=complex __CMPLX __PROG_NUMRUNS
 
 list(APPEND NECI_GLOBAL_DEFINES
     __Linux
-    HAVE_SSE2
     MAXMEM=99999
     DSFMT_MEXP=19937
     _CONFIG="cmake-${CMAKE_Fortran_COMPILER_ID}-$<$<BOOL:${HAVE_MPI}>:par>-${CMAKE_BUILD_TYPE}"
     _VCS_VER="${${PROJECT_NAME}_GIT_SHA1}"
+
+    # Only use SSE2 if not disabled
+    $<$<NOT:$<BOOL:${${PROJECT_NAME}_DISABLE_SSE2}>>:HAVE_SSE2>
 
     # Is this a 32/64bit build
     $<$<BOOL:${${PROJECT_NAME}_64BIT_BUILD}>:__INT64>
