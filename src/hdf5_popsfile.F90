@@ -242,6 +242,7 @@ contains
         call neci_flush(6)
         call MPIBarrier(tmp)
 #else
+        CurrWalkers = 0
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
 #endif
 
