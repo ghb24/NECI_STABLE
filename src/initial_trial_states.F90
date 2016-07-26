@@ -24,12 +24,21 @@ contains
         use semi_stoch_gen
         use sort_mod, only: sort
         use SystemData, only: nel, tAllSymSectors
+        use sparse_arrays, only: calculate_sparse_ham_par
+
+        use hamiltonian_linalg, only: sparse_hamil_type, parallel_sparse_hamil_type
+        use lanczos_general, only: LanczosCalcType, DestroyLanczosCalc
+        use lanczos_general, only: perform_lanczos
+
+        use davidson_neci, only: DavidsonCalcType, perform_davidson, DestroyDavidsonCalc
+        use lanczos_general, only: LanczosCalcType, perform_lanczos, DestroyLanczosCalc
+
 
         type(subspace_in) :: space_in
         integer, intent(in) :: nexcit
         integer, intent(out) :: ndets_this_proc
         integer(n_int), intent(out) :: trial_iluts(0:,:)
-        real(dp), allocatable, intent(out) :: evecs_this_proc(:,:)
+        HElement_t(dp), allocatable, intent(out) :: evecs_this_proc(:,:)
         real(dp), intent(out) :: evals(:)
         integer(MPIArg), intent(out) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
         integer, optional, intent(in) :: reorder(nexcit)
@@ -42,8 +51,11 @@ contains
         integer(MPIArg) :: sndcnts(0:nProcessors-1), displs(0:nProcessors-1)
         integer(MPIArg) :: rcvcnts
         integer, allocatable :: evec_abs(:)
-        real(dp), allocatable :: evecs(:,:), evecs_transpose(:,:)
+        HElement_t(dp), allocatable :: evecs(:,:), evecs_transpose(:,:)
         character(len=*), parameter :: t_r = "calc_trial_states_lanczos"
+
+        type(DavidsonCalcType) :: davidsonCalc
+        type(LanczosCalcType) :: lanczosCalc
 
         ndets_this_proc = 0
         trial_iluts = 0_n_int
@@ -100,7 +112,10 @@ contains
         call MPIGatherV(trial_iluts(:,1:space_sizes(iProcIndex)), ilut_list, &
                         space_sizes, space_displs, ierr)
 
-        ! Only perform the diagonalisation on the root process.
+        call calculate_sparse_ham_par(space_sizes, trial_iluts, .true.)
+
+        call MPIBarrier(ierr)
+
         if (iProcIndex == root) then
             allocate(det_list(nel, ndets_all_procs))
 
@@ -117,11 +132,19 @@ contains
             allocate(evec_abs(ndets_all_procs), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, "Error allocating evec_abs array.")
             evec_abs = 0.0_dp
+        endif
             
-            ! Perform the Lanczos procedure.
-            call frsblk_wrapper(det_list, int(ndets_all_procs, sizeof_int), nexcit, evals, evecs)
+        ! Perform the Lanczos procedure in parallel.
+        call perform_lanczos(lanczosCalc, nexcit, .true., parallel_sparse_hamil_type, .true., .false.)
 
-            ! For consistency between compilers, enforce a rule for the sign of
+        if (iProcIndex == root) then
+            evals = lanczosCalc%eigenvalues(1:nexcit)
+            evecs = lanczosCalc%eigenvectors(1:lanczosCalc%super%space_size, 1:nexcit)
+            
+            safe_malloc_e(evecs_transpose, (nexcit, ndets_all_procs), ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error allocating transposed eigenvectors array.")
+            evecs_transpose = transpose(evecs)
+
             ! the eigenvector. To do this, make sure that the largest component
             ! of each vector is positive. The largest component is found using
             ! maxloc. If there are multiple determinants with the same weight
@@ -134,7 +157,7 @@ contains
                 ! First find the maximum element.
                 evec_abs = nint(100000.0_dp*abs(evecs(:,i)))
                 max_elem_ind = maxloc(evec_abs)
-                if (evecs(max_elem_ind(1),i) < 0.0_dp) then
+                if (abs(evecs(max_elem_ind(1),i)) < 0.0_dp) then
                     evecs(:,i) = -evecs(:,i)
                 end if
             end do
@@ -150,14 +173,8 @@ contains
                 call sort(temp_reorder, evecs)
             end if
 
-            ! Unfortunately to perform the MPIScatterV call we need the transpose
-            ! of the eigenvector array.
-            allocate(evecs_transpose(nexcit, ndets_all_procs), stat=ierr)
-            if (ierr /= 0) call stop_all(t_r, "Error allocating transposed eigenvectors array.")
-            evecs_transpose = transpose(evecs)
-        else
-            deallocate(ilut_list)
-        end if
+            safe_free(ilut_list)
+        endif
 
         call MPIBCast(evals, size(evals), root)
 
@@ -176,7 +193,8 @@ contains
 
         ! Clean up.
         if (iProcIndex == root) deallocate(evecs)
-        deallocate(evecs_transpose)
+        safe_free(evecs_transpose)
+        call DestroyLanczosCalc(lanczosCalc)
 
     end subroutine calc_trial_states_lanczos
 
@@ -550,7 +568,7 @@ contains
         use Parallel_neci, only: MPISumAll
 
         integer, intent(in) :: nexcit, ndets_this_proc
-        real(dp), intent(inout) :: trial_vecs(:,:)
+        HElement_t(dp), intent(inout) :: trial_vecs(:,:)
 
         real(dp) :: eigenvec_pop, tot_eigenvec_pop
         integer :: i, j
@@ -586,7 +604,7 @@ contains
         use semi_stoch_procs, only: add_core_states_currentdet_hash, reinit_current_trial_amps
 
         integer, intent(in) :: ndets_this_proc
-        real(dp), intent(in) :: init_vecs(:,:)
+        HElement_t(dp), intent(in) :: init_vecs(:,:)
         integer(n_int), intent(in) :: trial_iluts(0:,:) 
         logical, intent(in) :: semistoch_started
         logical, intent(in), optional :: paired_replicas
@@ -614,8 +632,8 @@ contains
                     real_sign(j-1:j) = init_vecs(j/2,i)
                 end do
             else
-                do j = 1, lenof_sign
-                    real_sign(j) = init_vecs(j, i)
+                do j = 1, inum_runs
+                    real_sign(min_part_type(j):max_part_type(j)) = h_to_array(init_vecs(j, i))
                 end do
             end if
             call encode_sign(CurrentDets(:,i), real_sign)

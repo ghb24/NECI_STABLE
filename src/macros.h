@@ -160,13 +160,26 @@ endif
 #endif
 #endif
 
-! To make sure conjugations of both real and complex realisations of helement_t behave on all compilers:
+! To make sure conjugations of both real and complex realisations of HElement_t behave on all compilers:
 #ifdef __CMPLX
 #define h_conjg(z) conjg(z)
 #else
 #define h_conjg(z) z
 #endif
 
+! The following is useful for converting from HElement_t to an array of the appropriate length
+#ifdef __CMPLX
+#define h_to_array(z) (/real(z), aimag(z)/)
+#else
+#define h_to_array(z) (/ z /)
+#endif
+
+! Cast a real value to HElement_t
+#ifdef __CMPLX
+#define h_cast(val) cmplx(val,0.0_dp)
+#else
+#define h_cast(val) val
+#endif
 
 ! these macros check allocation status before performing heap management
 ! _e suffix indicates the use of an error stream

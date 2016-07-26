@@ -60,7 +60,7 @@ module fcimc_initialisation
                             flag_deterministic
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det, nullify_ilut, encode_part_sign, &
-                        extract_part_sign, tBuildSpinSepLists , &
+                        extract_run_sign, tBuildSpinSepLists , &
                         get_initiator_flag, &
                         get_initiator_flag_by_run
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
@@ -1955,7 +1955,7 @@ contains
         integer :: nexcit, ndets_this_proc, i, det(nel)
         type(basisfn) :: sym
         real(dp) :: evals(inum_runs/nreplicas)
-        real(dp), allocatable :: evecs_this_proc(:,:)
+        HElement_t(dp), allocatable :: evecs_this_proc(:,:)
         integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
         character(*), parameter :: this_routine = 'InitFCIMC_trial'
 
@@ -1993,7 +1993,7 @@ contains
         ! det with the largest coefficient, rather than the currently guessed
         ! one...
 
-        real(dp) :: largest_coeff, sgn
+        HElement_t(dp) :: largest_coeff, sgn
         integer(n_int) :: largest_det(0:NIfTot)
         integer :: run, j, proc_highest
         integer(n_int) :: ilut(0:NIfTot)
@@ -2002,7 +2002,6 @@ contains
         character(*), parameter :: this_routine = 'set_initial_run_references'
 #endif
 
-        ASSERT(inum_runs == lenof_sign)
         do run = 1, inum_runs
 
             if (tMultipleInitialRefs) then
@@ -2011,11 +2010,11 @@ contains
                 call update_run_reference(ilut, run)
             else
                 ! Find the largest det on this processor
-                largest_coeff = 0
+                largest_coeff = h_cast(0.0_dp)
                 do j = 1, TotWalkers
-                    sgn = extract_part_sign(CurrentDets(:,j), run)
-                    if (abs(sgn) > largest_coeff) then
-                        largest_coeff = abs(sgn)
+                    sgn = extract_run_sign(CurrentDets(:,j), run)
+                    if (abs(sgn) > abs(largest_coeff)) then
+                        largest_coeff = sgn
                         largest_det = CurrentDets(:,j)
                     end if
                 end do
@@ -2023,7 +2022,7 @@ contains
                 ! Find the largest det on any processor (n.b. discard the
                 ! non-integer part. This isn't all that important).
                 call MPIAllReduceDatatype(&
-                    (/int(largest_coeff, int32), int(iProcIndex, int32)/), 1, &
+                    (/int(abs(largest_coeff), int32), int(iProcIndex, int32)/), 1, &
                     MPI_MAXLOC, MPI_2INTEGER, int_tmp)
                 proc_highest = int_tmp(2)
                 call MPIBCast(largest_det, NIfTot+1, proc_highest)

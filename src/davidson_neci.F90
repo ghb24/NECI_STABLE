@@ -53,6 +53,8 @@ module davidson_neci
         ! Hence it is a measure of how converged the solution is.
         real(dp) :: residual_norm
         real(dp) :: davidson_eigenvalue
+        ! temp vectors for real matrix-vector calculations even when compiling in complex mode
+        real(dp), allocatable, dimension(:) :: temp_in, temp_out
     end type
 
 
@@ -125,12 +127,12 @@ module davidson_neci
         integer, intent(in) :: hamil_type
 
         logical :: skip_calc
-        integer :: i, mem_reqd, residual_mem_reqd, ierr, space_size
+        integer :: i, mem_reqd, residual_mem_reqd, ierr
         integer(mpiarg) :: mpi_temp
         real(dp), allocatable :: hamil_diag_temp(:)
         character (len=*), parameter :: t_r = "init_davidson"
 
-        call InitHamiltonianCalc(this%super, print_info, hamil_type, max_num_davidson_iters, .true.)
+        call InitHamiltonianCalc(this%super, print_info, hamil_type, max_num_davidson_iters, .true., .false.)
 
         associate( &
             davidson_eigenvalue => this%davidson_eigenvalue, &
@@ -185,6 +187,9 @@ module davidson_neci
             ! amount. this value cannot be exactly the hartree-fock energy, as this will
             ! result in dividing by zero in the subspace expansion step.
             davidson_eigenvalue = hamil_diag(hfindex) - 0.001_dp
+        else
+            safe_malloc(this%temp_in, (space_size))
+            safe_malloc(this%temp_out, (space_size))
         end if
 
         if (print_info) write(6,'(1x,"calculating the initial residual vector...")',advance='no'); call neci_flush(6)
@@ -198,7 +203,7 @@ module davidson_neci
         if (iprocindex == root) then
             call multiply_hamil_and_vector(this%super, this%davidson_eigenvector, this%multiplied_basis_vectors(:,1))
         else
-            call multiply_hamil_and_vector(this%super, this%davidson_eigenvector, this%super%temp_out)
+            call multiply_hamil_and_vector(this%super, this%davidson_eigenvector, this%temp_out)
         end if
         if (iprocindex == root) then
             if (all(abs(this%multiplied_basis_vectors(:,1)-hamil_diag(hfindex)*this%davidson_eigenvector) < 1.0e-12_dp)) then
@@ -331,7 +336,7 @@ module davidson_neci
         if (iProcIndex == root) then
             ! Multiply the new basis_vector by the hamiltonian and store the result in
             ! multiplied_basis_vectors.
-            call multiply_hamil_and_vector(this%super, this%super%basis_vectors(:,basis_index), &
+            call multiply_hamil_and_vector(this%super, real(this%super%basis_vectors(:,basis_index)), &
                 this%multiplied_basis_vectors(:,basis_index))
 
             ! Now multiply U^T by (H U) to find projected_hamil. The projected Hamiltonian will
@@ -349,7 +354,7 @@ module davidson_neci
             ! stores the updated projected Hamiltonian.
             this%super%projected_hamil_work = this%super%projected_hamil
         else
-            call multiply_hamil_and_vector(this%super, this%super%temp_in, this%super%temp_out)
+            call multiply_hamil_and_vector(this%super, this%temp_in, this%temp_out)
         end if
     end subroutine project_hamiltonian
 
@@ -380,8 +385,7 @@ module davidson_neci
         ! This subroutine calculates the Euclidean norm of the reisudal vector, r:
         ! residual_norm^2 = \sum_i r_i^2
         if (iProcIndex == root) then
-            this%residual_norm = dot_product(this%residual, this%residual)
-            this%residual_norm = sqrt(this%residual_norm)
+            this%residual_norm = sqrt(dot_product(this%residual, this%residual))
         end if
 
         if (this%super%hamil_type == parallel_sparse_hamil_type) call MPIBCast(this%residual_norm)
@@ -397,6 +401,8 @@ module davidson_neci
         safe_free(this%multiplied_basis_vectors)
         safe_free(this%residual)
         safe_free(this%eigenvector_proj)
+        safe_free(this%temp_in)
+        safe_free(this%temp_out)
         ! but keep the davidson eigenvector
     end subroutine FreeDavidsonCalc
 

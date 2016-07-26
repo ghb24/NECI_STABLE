@@ -2434,8 +2434,9 @@ contains
           use Parallel_Calc
           use util_mod, only: get_free_unit, NECI_ICOPY
           use sym_mod
+          use davidson_neci, only: DavidsonCalcType, DestroyDavidsonCalc
           use davidson_neci, only: davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
-          use davidson_neci, only: direct_ci_type
+          use hamiltonian_linalg, only: direct_ci_type
           use kp_fciqmc, only: perform_kp_fciqmc, perform_subspace_fciqmc
           use kp_fciqmc_data_mod, only: tExcitedStateKP
           use kp_fciqmc_procs, only: kp_fciqmc_data
@@ -2446,6 +2447,7 @@ contains
           integer :: iSeed, iunit, i
           type(kp_fciqmc_data), intent(inout) :: kp
           character(*), parameter :: this_routine = 'CalcDoCalc'
+          type(DavidsonCalcType) :: davidsonCalc
 
           iSeed = 7
 
@@ -2454,9 +2456,11 @@ contains
 ! Parallal 2v sum currently for testing only.
 !          call Par2vSum(FDet)
           ELSE IF(tDavidson) then
-              call davidson_direct_ci_init()
-              call perform_davidson(direct_ci_type, .true.)
-              call davidson_direct_ci_end()
+              davidsonCalc = davidson_direct_ci_init(.true.)
+              call perform_davidson(davidsonCalc, direct_ci_type, .true.)
+              call davidson_direct_ci_end(davidsonCalc)
+              call DestroyDavidsonCalc(davidsonCalc)
+
           ELSE IF(NPATHS.NE.0.OR.DETINV.GT.0) THEN
 !Old and obsiolecte
 !             IF(TRHOIJND) THEN

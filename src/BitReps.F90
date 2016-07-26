@@ -283,14 +283,23 @@ contains
 
     !Extract the sign (as a real_dp) for a particular element in the lenof_sign "array"
     pure function extract_part_sign (ilut, part_type) result(real_sgn)
-
         integer(n_int), intent(in) :: ilut(0:niftot)
         integer, intent(in) :: part_type
         real(dp) :: real_sgn
-
         real_sgn = transfer( ilut(nOffSgn + part_type - 1), real_sgn)
-
     end function
+
+    pure function extract_run_sign(ilut, run) result(sgn)
+        integer(n_int), intent(in) :: ilut(0:niftot)
+        integer, intent(in) :: run
+        HElement_t(dp) :: sgn
+#ifdef __CMPLX
+        sgn = cmplx(extract_part_sign(ilut, min_part_type(run)), extract_part_sign(ilut, max_part_type(run)))
+#else
+        sgn = extract_part_sign(ilut, min_part_type(run))
+#endif
+    end function
+
 
     !From the determinants, array of signs, and flag integer, create the
     !"packaged walker" representation
