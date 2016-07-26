@@ -135,6 +135,17 @@ macro( neci_add_library )
       endforeach()
     endif()
 
+    # If we have special compilation flags for F77 files, then add them here
+
+    if( ${PROJECT_NAME}_F77_FLAGS )
+        foreach( _file ${_p_SOURCES} )
+            get_filename_component( _extension ${_file} EXT )
+            if( _extension STREQUAL ".F" )
+                set_source_files_properties( ${_file} PROPERTIES COMPILE_FLAGS ${${PROJECT_NAME}_F77_FLAGS} )
+            endif()
+        endforeach()
+    endif()
+
     # Add the link libraries
 
     if ( _p_LIBS )
@@ -154,6 +165,11 @@ macro( neci_add_library )
     # Where do we put the Fortran modules?
 
     set_property( TARGET ${_p_TARGET} PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules/${_p_TARGET} )
+    if( "${CMAKE_VERSION}" VERSION_LESS "2.8.11" ) # PRIVATE functionality doesn't exist before 2.8.11
+        target_include_directories( ${_p_TARGET} PUBLIC ${CMAKE_BINARY_DIR}/modules/${_p_TARGET} )
+    else()
+        target_include_directories( ${_p_TARGET} PRIVATE ${CMAKE_BINARY_DIR}/modules/${_p_TARGET} )
+    endif()
 
     # Where do the files get built to
 
