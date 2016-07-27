@@ -361,13 +361,13 @@ integer, allocatable :: frequency_bins(:)!, all_frequency_bins(:)
 ! to store the boundaries of bins
 real(dp), allocatable :: frequency_bounds(:)!, all_frequency_bounds(:)
 logical :: t_frequency_analysis = .false. ! flag to initiate the new analysis
-integer :: n_frequency_bins = 100 ! optional input to adjust the number of bins
-real(dp) :: max_frequency_bound = 10.0_dp
+integer :: n_frequency_bins = 1000000 ! optional input to adjust the number of bins
+real(dp) :: max_frequency_bound = 1000000.0_dp
 ! and also store data for the MPI communication
 real(dp) :: all_max_bound = 0.0_dp
 integer :: all_n_bins = 0
 ! use a global step-size, so no numericall error creeps in .. 
-real(dp) :: frq_step_size = 0.1_dp
+real(dp) :: frq_step_size = 1.0_dp
 
 ! for automated tau-search i need more histograms to distinguish between 
 ! the different types of excitations.. 

@@ -594,6 +594,8 @@ contains
         enough_doub_hist = mpi_ltmp
 
         ! singles is always used.. 
+!         print *, "toto singles", size(frequency_bins_singles)
+        call neci_flush(6)
         call integrate_frequency_histogram_spec(size(frequency_bins_singles), &
             frequency_bins_singles, ratio_singles) 
 
@@ -695,6 +697,8 @@ contains
 
         else if (tGen_sym_guga_mol) then
             ! here i only use doubles for now
+!             print *, "toto doubles:", size(frequency_bins_doubles)
+            call neci_flush(6)
             call integrate_frequency_histogram_spec(size(frequency_bins_doubles), &
                 frequency_bins_doubles, ratio_doubles)
 
@@ -1019,6 +1023,17 @@ contains
                 ! have to make list longer 
                 ! but still use same predefined step-size for all histograms 
                 new_n_bins = int(ratio / frq_step_size)
+                ! or make a maximum size of the bins.. to avoid the MPI 
+                ! communication bug.. if this is the reason.. 
+                ! but i am not sure yet.. it seems to be specific to the 
+                ! single bins.. but not in all cases.. hm.. 
+                ! but lets stay we fix the number of bins to 1M with an 
+                ! initial step_size of 0.1 so the maximum stored ratio is 
+                ! 100k and if the ratio is higher than this, redefine the 
+                ! step_size to accomodate the new ratio.. 
+                ! so if it is bigger new_step_size = ratio/1M 
+                ! how does this affect the rest of the code and the 
+                ! already stored matrix elements? 
 
                 allocate(save_bins(old_n_bins))
                 save_bins = frequency_bins_singles
@@ -1030,7 +1045,7 @@ contains
 !                 allocate(frequency_bounds_singles(new_n_bins))
 
                 frequency_bins_singles = 0
-
+                                
                 frequency_bins_singles(1:old_n_bins) = save_bins 
 
                 frequency_bins_singles(new_n_bins) = 1
@@ -1042,8 +1057,10 @@ contains
 !                 ind = binary_search_first_ge(frequency_bounds_singles, ratio)
                 ! since ordered and linear bin bounds i can just divide.. 
                 ! i just hope there are no numerical errors creeping in ..
-                ind = int(ratio / frq_step_size) + 1
-
+                ! if the ratio happens to be exactly the upper bound, it 
+                ! still has to be put in the last bin or? yes i guess.. 
+                ! so take the minimum of the ind and the max bin index
+                ind = min(int(ratio / frq_step_size) + 1,old_n_bins)
                 frequency_bins_singles(ind) = frequency_bins_singles(ind) + 1
 
             end if
@@ -1083,7 +1100,7 @@ contains
 
                 else
 !                     ind = binary_search_first_ge(frequency_bounds_para, ratio) 
-                    ind = int(ratio / frq_step_size) + 1
+                    ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
 
                     frequency_bins_para(ind) = frequency_bins_para(ind) + 1
 
@@ -1121,7 +1138,7 @@ contains
 
                 else
 !                     ind = binary_search_first_ge(frequency_bounds_anti, ratio)
-                    ind = int(ratio / frq_step_size) + 1
+                    ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
 
                     frequency_bins_anti(ind) = frequency_bins_anti(ind) + 1
 
@@ -1192,7 +1209,7 @@ contains
 
             else
 !                 ind = binary_search_first_ge(frequency_bounds_singles, ratio)
-                ind = int(ratio / frq_step_size) + 1 
+                ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
 
                 frequency_bins_singles(ind) = frequency_bins_singles(ind) + 1
 
@@ -1229,7 +1246,7 @@ contains
 
             else 
 !                 ind = binary_search_first_ge(frequency_bounds_doubles, ratio)
-                ind = int(ratio / frq_step_size) + 1
+                ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
 
                 frequency_bins_doubles(ind) = frequency_bins_doubles(ind) + 1
 
@@ -1287,7 +1304,7 @@ contains
 
             else
 !                 ind = binary_search_first_ge(frequency_bounds_singles, ratio)
-                ind = int(ratio / frq_step_size) + 1
+                ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
 
                 frequency_bins_singles(ind) = frequency_bins_singles(ind) + 1
 
@@ -1322,7 +1339,7 @@ contains
 
                     else
 !                         ind = binary_search_first_ge(frequency_bounds_type2, ratio)
-                        ind = int(ratio / frq_step_size) + 1
+                        ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
 
                         frequency_bins_type2(ind) = frequency_bins_type2(ind) + 1
 
@@ -1352,7 +1369,7 @@ contains
 
                     else
 !                         ind = binary_search_first_ge(frequency_bounds_type2_diff, ratio)
-                        ind = int(ratio / frq_step_size) + 1
+                        ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
 
                         frequency_bins_type2_diff(ind) = frequency_bins_type2_diff(ind) + 1
 
@@ -1386,7 +1403,7 @@ contains
 
                     else
 !                         ind = binary_search_first_ge(frequency_bounds_type3, ratio)
-                        ind = int(ratio / frq_step_size) + 1
+                        ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
 
                         frequency_bins_type3(ind) = frequency_bins_type3(ind) + 1
 
@@ -1416,7 +1433,7 @@ contains
 
                     else
 !                         ind = binary_search_first_ge(frequency_bounds_type3_diff, ratio)
-                        ind = int(ratio / frq_step_size) + 1
+                        ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
 
                         frequency_bins_type3_diff(ind) = frequency_bins_type3_diff(ind) + 1
 
@@ -1448,7 +1465,7 @@ contains
 
                 else
 !                     ind = binary_search_first_ge(frequency_bounds_type4, ratio)
-                    ind = int(ratio / frq_step_size) + 1
+                    ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
 
                     frequency_bins_type4(ind) = frequency_bins_type4(ind) + 1
 
@@ -1510,7 +1527,7 @@ contains
 
             else
 !                 ind = binary_search_first_ge(frequency_bounds_singles, ratio)
-                ind = int(ratio / frq_step_size) + 1
+                ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
 
                 frequency_bins_singles(ind) = frequency_bins_singles(ind) + 1
 
@@ -1543,7 +1560,7 @@ contains
 
                 else
 !                     ind = binary_search_first_ge(frequency_bounds_type2, ratio)
-                    ind = int(ratio / frq_step_size) + 1
+                    ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
 
                     frequency_bins_type2(ind) = frequency_bins_type2(ind) + 1
 
@@ -1574,7 +1591,7 @@ contains
 
                 else
 !                     ind = binary_search_first_ge(frequency_bounds_type3, ratio)
-                    ind = int(ratio / frq_step_size) + 1
+                    ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
 
                     frequency_bins_type3(ind) = frequency_bins_type3(ind) + 1
 
@@ -1605,7 +1622,7 @@ contains
 
                 else
 !                     ind = binary_search_first_ge(frequency_bounds_type4, ratio)
-                    ind = int(ratio / frq_step_size) + 1
+                    ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
 
                     frequency_bins_type4(ind) = frequency_bins_type4(ind) + 1
 
@@ -1690,7 +1707,7 @@ contains
             ! the ratio fits in to the bins now i just have to find the 
             ! correct one
 !             ind = binary_search_first_ge(frequency_bounds, ratio) 
-            ind = int(ratio / frq_step_size) + 1
+            ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
             
             ! increase counter 
             frequency_bins(ind) = frequency_bins(ind) + 1
@@ -1713,6 +1730,8 @@ contains
 
         call MPIAllReduce(spec_size, MPI_MAX, max_size) 
 
+!         print *, "max_size: ", max_size
+
         allocate(all_spec_frq_bins(max_size))
 
         if (spec_size < max_size) then 
@@ -1732,8 +1751,33 @@ contains
 
         end if
 
-        call MPIAllReduce(temp_bins, MPI_SUM, all_spec_frq_bins)
+#ifdef __DEBUG
+        print *, "is it this?"
+        print *, "size_all:", size(all_spec_frq_bins)
+        print *, "size_temp:", size(temp_bins)
+        print *, "mpi_sum:", MPI_SUM
+        print *, "huge_int32", huge(0_int32)
+        print *, "20*size: ", 20*size(all_spec_frq_bins)
+#endif
+        ! i am pretty sure here the bug happens which causes the 
+        ! mpi comm to fail.. but i am not sure why.. 
+        ! with an reduced bin number it works out .. 
+        ! i have to find a way to determine beforehand if this is going 
+        ! to fail and be able to determine it.. 
+        ! also the single excitation are pretty shitty still 
+        ! i have to find a way to improve them.. but with the low
+        ! pSingles i cannot see a way how this should work.. 
+        ! i cant just magically increase all of them, this would only 
+        ! cause the pSingles to get reduced even further.. 
+        ! and if i limit it, the efficiency of the code reduces or? 
+        ! im not sure about that.. but the truth is they are sometimes 
+        ! REALLY low e-11 and such a shit.. this gives really bad ratios.. 
+        ! and thus a huge bin-number and an integer overflow here.. 
 
+        call MPIAllReduce(temp_bins, MPI_SUM, all_spec_frq_bins)
+#ifdef __DEBUG
+        print *, "no!"
+#endif
     end subroutine comm_frequency_histogram_spec
 
     ! write tailored communication routines too
