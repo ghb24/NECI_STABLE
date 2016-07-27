@@ -21,7 +21,7 @@ module fcimc_output
                         frequency_bins_anti, frequency_bins_doubles, & 
                         frequency_bins_type2, frequency_bins_type3, & 
                         frequency_bins_type4, frequency_bins_type2_diff, &
-                        frequency_bins_type3_diff
+                        frequency_bins_type3_diff, n_frequency_bins
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
@@ -1397,13 +1397,18 @@ contains
         ! double(para/anti) histograms and a combined one of all of them
         integer :: iunit, i, max_size, old_size
         character(255) :: filename 
-        integer, allocatable :: all_frequency_bins_s(:), all_frequency_bins_d(:), &
-                                all_frequency_bins_p(:), all_frequency_bins_a(:), &
-                                all_frequency_bins(:), all_frequency_bins_2(:), &
-                                all_frequency_bins_2_d(:), all_frequency_bins_3(:), &
-                                all_frequency_bins_3_d(:), all_frequency_bins_4(:)
+        integer :: all_frequency_bins_s(n_frequency_bins), &
+                   all_frequency_bins_d(n_frequency_bins), &
+                   all_frequency_bins_p(n_frequency_bins), &
+                   all_frequency_bins_a(n_frequency_bins), &
+                   all_frequency_bins(n_frequency_bins), &
+                   all_frequency_bins_2(n_frequency_bins), &
+                   all_frequency_bins_2_d(n_frequency_bins), &
+                   all_frequency_bins_3(n_frequency_bins), &
+                   all_frequency_bins_3_d(n_frequency_bins), &
+                   all_frequency_bins_4(n_frequency_bins)
         real(dp) :: step_size, norm
-        real(dp), allocatable :: all_frequency_bounds(:) 
+!         real(dp), allocatable :: all_frequency_bounds(:) 
         character(*), parameter :: this_routine = "print_frequency_histogram_spec"
 
         integer(int64) :: sum_all
@@ -1495,7 +1500,7 @@ contains
                 max_size = max(size(all_frequency_bins_s), size(all_frequency_bins_p), &
                     size(all_frequency_bins_a))
 
-                allocate(all_frequency_bins(max_size))
+!                 allocate(all_frequency_bins(max_size))
                 all_frequency_bins = 0
                 all_frequency_bins(1:size(all_frequency_bins_s)) = all_frequency_bins_s
 
@@ -1552,7 +1557,7 @@ contains
                     write(iout,*) "Do no print it!"
 
                 end if
-                deallocate(all_frequency_bins)
+!                 deallocate(all_frequency_bins)
             end if
 
         else if (tGen_sym_guga_mol) then
@@ -1583,7 +1588,7 @@ contains
                 ! and also do the add up from singles and doubles
                 max_size = max(size(all_frequency_bins_s), size(all_frequency_bins_d))
 
-                allocate(all_frequency_bins(max_size))
+!                 allocate(all_frequency_bins(max_size))
                 all_frequency_bins = 0
 
                 all_frequency_bins(1:size(all_frequency_bins_s)) = all_frequency_bins_s
@@ -1633,7 +1638,7 @@ contains
                     write(iout,*) "Do no print it!"
                 end if
 
-                deallocate(all_frequency_bins)
+!                 deallocate(all_frequency_bins)
 
             end if
 
@@ -1750,7 +1755,7 @@ contains
             end if 
 
             if (iProcIndex == 0) then
-                allocate(all_frequency_bins(max_size)) 
+!                 allocate(all_frequency_bins(max_size)) 
                 all_frequency_bins = 0
 
                 all_frequency_bins(1:size(all_frequency_bins_s)) = all_frequency_bins_s
@@ -1818,7 +1823,7 @@ contains
                     write(iout,*) "Do not print it!"
                 end if
 
-                deallocate(all_frequency_bins)
+!                 deallocate(all_frequency_bins)
             end if
         end if
 
@@ -1828,7 +1833,7 @@ contains
         ! routine to write a file with the H_ij/pgen ratio frequencies 
         integer :: iunit, i, max_size, old_size
         character(255) :: filename
-        integer, allocatable :: save_bins(:), all_frequency_bins(:)
+        integer, allocatable :: all_frequency_bins(:)
         real(dp) :: step_size
         real(dp), allocatable :: all_frequency_bounds(:)
         ! i can test how to deal with the MPI stuff here to get the same 

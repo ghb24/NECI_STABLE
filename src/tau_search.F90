@@ -1009,50 +1009,58 @@ contains
 
         if (ic == 1) then 
 
-            ! also keep track of the number of done excitations
-            if (.not. enough_sing_hist) then 
-                cnt_sing_hist = cnt_sing_hist + 1
-                if (cnt_sing_hist > cnt_threshold) enough_sing_hist = .true.
-            end if
+            ! if i ignore the ratios above the upper limit i also can 
+            ! only count these excitations if they do not get ignored..
 
             ! fill in the singles histogram
-            old_n_bins = size(frequency_bins_singles) 
+!             old_n_bins = size(frequency_bins_singles) 
 
 !             if (ratio > frequency_bounds_singles(old_n_bins)) then 
-            if (ratio > frq_step_size * old_n_bins) then 
+!             if (ratio > frq_step_size * old_n_bins) then 
                 ! have to make list longer 
+                ! NEW implementation: dont save this really odd-cases 
+                ! which are above the hard-set limit to avoid MPI 
+                ! communication errors in the frequency-analyis
+
                 ! but still use same predefined step-size for all histograms 
-                new_n_bins = int(ratio / frq_step_size)
-                ! or make a maximum size of the bins.. to avoid the MPI 
-                ! communication bug.. if this is the reason.. 
-                ! but i am not sure yet.. it seems to be specific to the 
-                ! single bins.. but not in all cases.. hm.. 
-                ! but lets stay we fix the number of bins to 1M with an 
-                ! initial step_size of 0.1 so the maximum stored ratio is 
-                ! 100k and if the ratio is higher than this, redefine the 
-                ! step_size to accomodate the new ratio.. 
-                ! so if it is bigger new_step_size = ratio/1M 
-                ! how does this affect the rest of the code and the 
-                ! already stored matrix elements? 
-
-                allocate(save_bins(old_n_bins))
-                save_bins = frequency_bins_singles
-
-                deallocate(frequency_bins_singles)
-!                 deallocate(frequency_bounds_singles)
-
-                allocate(frequency_bins_singles(new_n_bins))
-!                 allocate(frequency_bounds_singles(new_n_bins))
-
-                frequency_bins_singles = 0
-                                
-                frequency_bins_singles(1:old_n_bins) = save_bins 
-
-                frequency_bins_singles(new_n_bins) = 1
-
+!                 new_n_bins = int(ratio / frq_step_size)
+!                 ! or make a maximum size of the bins.. to avoid the MPI 
+!                 ! communication bug.. if this is the reason.. 
+!                 ! but i am not sure yet.. it seems to be specific to the 
+!                 ! single bins.. but not in all cases.. hm.. 
+!                 ! but lets stay we fix the number of bins to 1M with an 
+!                 ! initial step_size of 0.1 so the maximum stored ratio is 
+!                 ! 100k and if the ratio is higher than this, redefine the 
+!                 ! step_size to accomodate the new ratio.. 
+!                 ! so if it is bigger new_step_size = ratio/1M 
+!                 ! how does this affect the rest of the code and the 
+!                 ! already stored matrix elements? 
+! 
+!                 allocate(save_bins(old_n_bins))
+!                 save_bins = frequency_bins_singles
+! 
+!                 deallocate(frequency_bins_singles)
+! !                 deallocate(frequency_bounds_singles)
+! 
+!                 allocate(frequency_bins_singles(new_n_bins))
+! !                 allocate(frequency_bounds_singles(new_n_bins))
+! 
+!                 frequency_bins_singles = 0
+!                                 
+!                 frequency_bins_singles(1:old_n_bins) = save_bins 
+! 
+!                 frequency_bins_singles(new_n_bins) = 1
+! 
 !                 frequency_bounds_singles = [(frq_step_size * i, i = 1, new_n_bins)]
 
-            else
+            if (ratio < max_frequency_bound) then
+
+                ! also keep track of the number of done excitations
+                if (.not. enough_sing_hist) then 
+                    cnt_sing_hist = cnt_sing_hist + 1
+                    if (cnt_sing_hist > cnt_threshold) enough_sing_hist = .true.
+                end if
+
                 ! find where to put the ratio
 !                 ind = binary_search_first_ge(frequency_bounds_singles, ratio)
                 ! since ordered and linear bin bounds i can just divide.. 
@@ -1060,7 +1068,7 @@ contains
                 ! if the ratio happens to be exactly the upper bound, it 
                 ! still has to be put in the last bin or? yes i guess.. 
                 ! so take the minimum of the ind and the max bin index
-                ind = min(int(ratio / frq_step_size) + 1,old_n_bins)
+                ind = int(ratio / frq_step_size) + 1
                 frequency_bins_singles(ind) = frequency_bins_singles(ind) + 1
 
             end if
@@ -1069,76 +1077,78 @@ contains
             ! check if parallel or anti-parallel 
             if (t_parallel) then 
 
-                if (.not. enough_par_hist) then 
-                    cnt_par_hist = cnt_par_hist + 1
-                    if (cnt_par_hist > 2*cnt_threshold) enough_par_hist = .true.
-                end if
-
                 ! parallel excitation 
-                old_n_bins = size(frequency_bins_para) 
+!                 old_n_bins = size(frequency_bins_para) 
 
-                if (ratio > frq_step_size * old_n_bins) then 
+!                 if (ratio > frq_step_size * old_n_bins) then 
 
-                    new_n_bins = int(ratio / frq_step_size) 
+!                     new_n_bins = int(ratio / frq_step_size) 
+! 
+!                     allocate(save_bins(old_n_bins))
+!                     save_bins = frequency_bins_para
+! 
+!                     deallocate(frequency_bins_para)
+! !                     deallocate(frequency_bounds_para) 
+! 
+!                     allocate(frequency_bins_para(new_n_bins))
+! !                     allocate(frequency_bounds_para(new_n_bins))
+! 
+!                     frequency_bins_para = 0
+! 
+!                     frequency_bins_para(1:old_n_bins) = save_bins
+! 
+!                     frequency_bins_para(new_n_bins) = 1 
+! 
+! !                     frequency_bounds_para = [(frq_step_size * i, i = 1, new_n_bins)] 
 
-                    allocate(save_bins(old_n_bins))
-                    save_bins = frequency_bins_para
+                if (ratio < max_frequency_bound) then
 
-                    deallocate(frequency_bins_para)
-!                     deallocate(frequency_bounds_para) 
+                    if (.not. enough_par_hist) then 
+                        cnt_par_hist = cnt_par_hist + 1
+                        if (cnt_par_hist > 2*cnt_threshold) enough_par_hist = .true.
+                    end if
 
-                    allocate(frequency_bins_para(new_n_bins))
-!                     allocate(frequency_bounds_para(new_n_bins))
-
-                    frequency_bins_para = 0
-
-                    frequency_bins_para(1:old_n_bins) = save_bins
-
-                    frequency_bins_para(new_n_bins) = 1 
-
-!                     frequency_bounds_para = [(frq_step_size * i, i = 1, new_n_bins)] 
-
-                else
 !                     ind = binary_search_first_ge(frequency_bounds_para, ratio) 
-                    ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
+                    ind = int(ratio / frq_step_size) + 1
 
                     frequency_bins_para(ind) = frequency_bins_para(ind) + 1
 
                 end if
             else 
 
-                if (.not. enough_opp_hist) then 
-                    cnt_opp_hist = cnt_opp_hist + 1
-                    if (cnt_opp_hist > cnt_threshold) enough_opp_hist = .true. 
-                end if
-
                 ! anti-parallel excitation
-                old_n_bins = size(frequency_bins_anti)
-
-                if (ratio > frq_step_size * old_n_bins) then 
-
-                    new_n_bins = int(ratio / frq_step_size) 
-
-                    allocate(save_bins(old_n_bins)) 
-                    save_bins = frequency_bins_anti
-
-                    deallocate(frequency_bins_anti)
-!                     deallocate(frequency_bounds_anti)
-
-                    allocate(frequency_bins_anti(new_n_bins)) 
-!                     allocate(frequency_bounds_anti(new_n_bins)) 
-
-                    frequency_bins_anti = 0
-
-                    frequency_bins_anti(1:old_n_bins) = save_bins
-
-                    frequency_bins_anti(new_n_bins) = 1
-
+!                 old_n_bins = size(frequency_bins_anti)
+! 
+!                 if (ratio > frq_step_size * old_n_bins) then 
+! 
+!                     new_n_bins = int(ratio / frq_step_size) 
+! 
+!                     allocate(save_bins(old_n_bins)) 
+!                     save_bins = frequency_bins_anti
+! 
+!                     deallocate(frequency_bins_anti)
+! !                     deallocate(frequency_bounds_anti)
+! 
+!                     allocate(frequency_bins_anti(new_n_bins)) 
+! !                     allocate(frequency_bounds_anti(new_n_bins)) 
+! 
+!                     frequency_bins_anti = 0
+! 
+!                     frequency_bins_anti(1:old_n_bins) = save_bins
+! 
+!                     frequency_bins_anti(new_n_bins) = 1
+! 
 !                     frequency_bounds_anti = [(frq_step_size * i, i = 1, new_n_bins)]
 
-                else
+                if (ratio < max_frequency_bound) then
+
+                    if (.not. enough_opp_hist) then 
+                        cnt_opp_hist = cnt_opp_hist + 1
+                        if (cnt_opp_hist > cnt_threshold) enough_opp_hist = .true. 
+                    end if
+
 !                     ind = binary_search_first_ge(frequency_bounds_anti, ratio)
-                    ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
+                    ind = int(ratio / frq_step_size) + 1
 
                     frequency_bins_anti(ind) = frequency_bins_anti(ind) + 1
 
@@ -1180,73 +1190,75 @@ contains
 
         if (ic == 1) then 
 
-            if (.not. enough_sing_hist) then 
-                cnt_sing_hist = cnt_sing_hist + 1
-                if (cnt_sing_hist > cnt_threshold) enough_sing_hist = .true.
-            end if
-
-            old_n_bins = size(frequency_bins_singles)
-
-            if (ratio > frq_step_size * old_n_bins) then
-                new_n_bins = int(ratio / frq_step_size) 
-
-                allocate(save_bins(old_n_bins))
-                save_bins = frequency_bins_singles
-
-                deallocate(frequency_bins_singles)
-!                 deallocate(frequency_bounds_singles)
-
-                allocate(frequency_bins_singles(new_n_bins))
-!                 allocate(frequency_bounds_singles(new_n_bins))
-
-                frequency_bins_singles = 0
-
-                frequency_bins_singles(1:old_n_bins) = save_bins
-
-                frequency_bins_singles(new_n_bins) = 1 
+!             old_n_bins = size(frequency_bins_singles)
+! 
+!             if (ratio > frq_step_size * old_n_bins) then
+!                 new_n_bins = int(ratio / frq_step_size) 
+! 
+!                 allocate(save_bins(old_n_bins))
+!                 save_bins = frequency_bins_singles
+! 
+!                 deallocate(frequency_bins_singles)
+! !                 deallocate(frequency_bounds_singles)
+! 
+!                 allocate(frequency_bins_singles(new_n_bins))
+! !                 allocate(frequency_bounds_singles(new_n_bins))
+! 
+!                 frequency_bins_singles = 0
+! 
+!                 frequency_bins_singles(1:old_n_bins) = save_bins
+! 
+!                 frequency_bins_singles(new_n_bins) = 1 
 
 !                 frequency_bounds_singles = [(frq_step_size * i, i = 1, new_n_bins)]
 
-            else
+            if (ratio < max_frequency_bound) then
+
+                if (.not. enough_sing_hist) then 
+                    cnt_sing_hist = cnt_sing_hist + 1
+                    if (cnt_sing_hist > cnt_threshold) enough_sing_hist = .true.
+                end if
+
 !                 ind = binary_search_first_ge(frequency_bounds_singles, ratio)
-                ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
+                ind = int(ratio / frq_step_size) + 1
 
                 frequency_bins_singles(ind) = frequency_bins_singles(ind) + 1
 
             end if
         else 
 
-            if (.not. enough_doub_hist) then 
-                cnt_doub_hist = cnt_doub_hist + 1
-                if (cnt_doub_hist > cnt_threshold) enough_doub_hist = .true.
-            end if
-
-            old_n_bins = size(frequency_bins_doubles)
-
-            if (ratio > frq_step_size * old_n_bins) then 
-                
-                new_n_bins = int(ratio / frq_step_size)
-
-                allocate(save_bins(old_n_bins))
-                save_bins = frequency_bins_doubles
-
-                deallocate(frequency_bins_doubles)
-!                 deallocate(frequency_bounds_doubles)
-
-                allocate(frequency_bins_doubles(new_n_bins))
-!                 allocate(frequency_bounds_doubles(new_n_bins))
-
-                frequency_bins_doubles = 0
-
-                frequency_bins_doubles(1:old_n_bins) = save_bins
-
-                frequency_bins_doubles(new_n_bins) = 1 
+!             old_n_bins = size(frequency_bins_doubles)
+! 
+!             if (ratio > frq_step_size * old_n_bins) then 
+!                 
+!                 new_n_bins = int(ratio / frq_step_size)
+! 
+!                 allocate(save_bins(old_n_bins))
+!                 save_bins = frequency_bins_doubles
+! 
+!                 deallocate(frequency_bins_doubles)
+! !                 deallocate(frequency_bounds_doubles)
+! 
+!                 allocate(frequency_bins_doubles(new_n_bins))
+! !                 allocate(frequency_bounds_doubles(new_n_bins))
+! 
+!                 frequency_bins_doubles = 0
+! 
+!                 frequency_bins_doubles(1:old_n_bins) = save_bins
+! 
+!                 frequency_bins_doubles(new_n_bins) = 1 
 
 !                 frequency_bounds_doubles = [(frq_step_size * i, i = 1, new_n_bins)]
 
-            else 
+            if (ratio < max_frequency_bound) then
+
+                if (.not. enough_doub_hist) then 
+                    cnt_doub_hist = cnt_doub_hist + 1
+                    if (cnt_doub_hist > cnt_threshold) enough_doub_hist = .true.
+                end if
+
 !                 ind = binary_search_first_ge(frequency_bounds_doubles, ratio)
-                ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
+                ind = int(ratio / frq_step_size) + 1
 
                 frequency_bins_doubles(ind) = frequency_bins_doubles(ind) + 1
 
@@ -1280,31 +1292,32 @@ contains
 
         if (ic == 1) then
             ! single excitation 
-            old_n_bins = size(frequency_bins_singles)
-
-            if (ratio > frq_step_size * old_n_bins) then
-                new_n_bins = int(ratio / frq_step_size) 
-
-                allocate(save_bins(old_n_bins))
-                save_bins = frequency_bins_singles
-
-                deallocate(frequency_bins_singles)
-!                 deallocate(frequency_bounds_singles)
-
-                allocate(frequency_bins_singles(new_n_bins))
-!                 allocate(frequency_bounds_singles(new_n_bins))
-
-                frequency_bins_singles = 0
-
-                frequency_bins_singles(1:old_n_bins) = save_bins
-
-                frequency_bins_singles(new_n_bins) = 1 
-
+!             old_n_bins = size(frequency_bins_singles)
+! 
+!             if (ratio > frq_step_size * old_n_bins) then
+!                 new_n_bins = int(ratio / frq_step_size) 
+! 
+!                 allocate(save_bins(old_n_bins))
+!                 save_bins = frequency_bins_singles
+! 
+!                 deallocate(frequency_bins_singles)
+! !                 deallocate(frequency_bounds_singles)
+! 
+!                 allocate(frequency_bins_singles(new_n_bins))
+! !                 allocate(frequency_bounds_singles(new_n_bins))
+! 
+!                 frequency_bins_singles = 0
+! 
+!                 frequency_bins_singles(1:old_n_bins) = save_bins
+! 
+!                 frequency_bins_singles(new_n_bins) = 1 
+! 
 !                 frequency_bounds_singles = [(frq_step_size * i, i = 1, new_n_bins)]
 
-            else
+            if (ratio < max_frequency_bound) then
+
 !                 ind = binary_search_first_ge(frequency_bounds_singles, ratio)
-                ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
+                ind = int(ratio / frq_step_size) + 1
 
                 frequency_bins_singles(ind) = frequency_bins_singles(ind) + 1
 
@@ -1315,61 +1328,61 @@ contains
             if (typ == 2) then
                 if (diff == 1) then
                     ! diff = 1 means alike generators! 
-                    old_n_bins = size(frequency_bins_type2) 
-
-                    if (ratio > frq_step_size * old_n_bins) then 
-                        new_n_bins = int(ratio / frq_step_size) 
-
-                        allocate(save_bins(old_n_bins)) 
-                        save_bins = frequency_bins_type2
-
-                        deallocate(frequency_bins_type2)
-!                         deallocate(frequency_bounds_type2) 
-
-                        allocate(frequency_bins_type2(new_n_bins))
-!                         allocate(frequency_bounds_type2(new_n_bins))
-
-                        frequency_bins_type2 = 0 
-
-                        frequency_bins_type2(1:old_n_bins) = save_bins
-
-                        frequency_bins_type2(new_n_bins) = 1 
+!                     old_n_bins = size(frequency_bins_type2) 
+! 
+!                     if (ratio > frq_step_size * old_n_bins) then 
+!                         new_n_bins = int(ratio / frq_step_size) 
+! 
+!                         allocate(save_bins(old_n_bins)) 
+!                         save_bins = frequency_bins_type2
+! 
+!                         deallocate(frequency_bins_type2)
+! !                         deallocate(frequency_bounds_type2) 
+! 
+!                         allocate(frequency_bins_type2(new_n_bins))
+! !                         allocate(frequency_bounds_type2(new_n_bins))
+! 
+!                         frequency_bins_type2 = 0 
+! 
+!                         frequency_bins_type2(1:old_n_bins) = save_bins
+! 
+!                         frequency_bins_type2(new_n_bins) = 1 
 
 !                         frequency_bounds_type2 = [(frq_step_size * i, i = 1, new_n_bins)]
 
-                    else
+                    if (ratio < max_frequency_bound) then
 !                         ind = binary_search_first_ge(frequency_bounds_type2, ratio)
-                        ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
+                        ind = int(ratio / frq_step_size) + 1
 
                         frequency_bins_type2(ind) = frequency_bins_type2(ind) + 1
 
                     end if
                 else if (diff == 0) then 
-                    old_n_bins = size(frequency_bins_type2_diff)
-
-                    if (ratio > frq_step_size * old_n_bins) then
-                        new_n_bins = int(ratio / frq_step_size)
-
-                        allocate(save_bins(old_n_bins)) 
-                        save_bins = frequency_bins_type2_diff
-
-                        deallocate(frequency_bins_type2_diff)
-!                         deallocate(frequency_bounds_type2_diff) 
-
-                        allocate(frequency_bins_type2_diff(new_n_bins))
-!                         allocate(frequency_bounds_type2_diff(new_n_bins))
-
-                        frequency_bins_type2_diff = 0
-                        frequency_bins_type2_diff(1:old_n_bins) = save_bins
-
-                        frequency_bins_type2_diff(new_n_bins) = 1 
+!                     old_n_bins = size(frequency_bins_type2_diff)
+! 
+!                     if (ratio > frq_step_size * old_n_bins) then
+!                         new_n_bins = int(ratio / frq_step_size)
+! 
+!                         allocate(save_bins(old_n_bins)) 
+!                         save_bins = frequency_bins_type2_diff
+! 
+!                         deallocate(frequency_bins_type2_diff)
+! !                         deallocate(frequency_bounds_type2_diff) 
+! 
+!                         allocate(frequency_bins_type2_diff(new_n_bins))
+! !                         allocate(frequency_bounds_type2_diff(new_n_bins))
+! 
+!                         frequency_bins_type2_diff = 0
+!                         frequency_bins_type2_diff(1:old_n_bins) = save_bins
+! 
+!                         frequency_bins_type2_diff(new_n_bins) = 1 
 
 !                         frequency_bounds_type2_diff = [(frq_step_size * i, &
 !                             i = 1, new_n_bins)]
 
-                    else
+                    if (ratio < max_frequency_bound) then
 !                         ind = binary_search_first_ge(frequency_bounds_type2_diff, ratio)
-                        ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
+                        ind = int(ratio / frq_step_size) + 1
 
                         frequency_bins_type2_diff(ind) = frequency_bins_type2_diff(ind) + 1
 
@@ -1379,61 +1392,61 @@ contains
             else if (typ == 3) then 
 
                 if (diff == 1) then
-                    old_n_bins = size(frequency_bins_type3) 
-
-                    if (ratio > frq_step_size * old_n_bins) then 
-                        new_n_bins = int(ratio / frq_step_size) 
-
-                        allocate(save_bins(old_n_bins)) 
-                        save_bins = frequency_bins_type3
-
-                        deallocate(frequency_bins_type3)
-!                         deallocate(frequency_bounds_type3) 
-
-                        allocate(frequency_bins_type3(new_n_bins))
-!                         allocate(frequency_bounds_type3(new_n_bins))
-
-                        frequency_bins_type3 = 0 
-
-                        frequency_bins_type3(1:old_n_bins) = save_bins
-
-                        frequency_bins_type3(new_n_bins) = 1 
+!                     old_n_bins = size(frequency_bins_type3) 
+! 
+!                     if (ratio > frq_step_size * old_n_bins) then 
+!                         new_n_bins = int(ratio / frq_step_size) 
+! 
+!                         allocate(save_bins(old_n_bins)) 
+!                         save_bins = frequency_bins_type3
+! 
+!                         deallocate(frequency_bins_type3)
+! !                         deallocate(frequency_bounds_type3) 
+! 
+!                         allocate(frequency_bins_type3(new_n_bins))
+! !                         allocate(frequency_bounds_type3(new_n_bins))
+! 
+!                         frequency_bins_type3 = 0 
+! 
+!                         frequency_bins_type3(1:old_n_bins) = save_bins
+! 
+!                         frequency_bins_type3(new_n_bins) = 1 
 
 !                         frequency_bounds_type3 = [(frq_step_size * i, i = 1, new_n_bins)]
 
-                    else
+                    if (ratio < max_frequency_bound) then
 !                         ind = binary_search_first_ge(frequency_bounds_type3, ratio)
-                        ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
+                        ind = int(ratio / frq_step_size) + 1
 
                         frequency_bins_type3(ind) = frequency_bins_type3(ind) + 1
 
                     end if
                 else if (diff == 0) then
-                    old_n_bins = size(frequency_bins_type3_diff)
+!                     old_n_bins = size(frequency_bins_type3_diff)
+! 
+!                     if (ratio > frq_step_size * old_n_bins) then
+!                         new_n_bins = int(ratio / frq_step_size)
+! 
+!                         allocate(save_bins(old_n_bins)) 
+!                         save_bins = frequency_bins_type3_diff
+! 
+!                         deallocate(frequency_bins_type3_diff)
+! !                         deallocate(frequency_bounds_type3_diff) 
+! 
+!                         allocate(frequency_bins_type3_diff(new_n_bins))
+! !                         allocate(frequency_bounds_type3_diff(new_n_bins))
+! 
+!                         frequency_bins_type3_diff = 0
+!                         frequency_bins_type3_diff(1:old_n_bins) = save_bins
+! 
+!                         frequency_bins_type3_diff(new_n_bins) = 1 
+! 
+! !                         frequency_bounds_type3_diff = [(frq_step_size * i, &
+! !                             i = 1, new_n_bins)]
 
-                    if (ratio > frq_step_size * old_n_bins) then
-                        new_n_bins = int(ratio / frq_step_size)
-
-                        allocate(save_bins(old_n_bins)) 
-                        save_bins = frequency_bins_type3_diff
-
-                        deallocate(frequency_bins_type3_diff)
-!                         deallocate(frequency_bounds_type3_diff) 
-
-                        allocate(frequency_bins_type3_diff(new_n_bins))
-!                         allocate(frequency_bounds_type3_diff(new_n_bins))
-
-                        frequency_bins_type3_diff = 0
-                        frequency_bins_type3_diff(1:old_n_bins) = save_bins
-
-                        frequency_bins_type3_diff(new_n_bins) = 1 
-
-!                         frequency_bounds_type3_diff = [(frq_step_size * i, &
-!                             i = 1, new_n_bins)]
-
-                    else
+                    if (ratio < max_frequency_bound) then
 !                         ind = binary_search_first_ge(frequency_bounds_type3_diff, ratio)
-                        ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
+                        ind = int(ratio / frq_step_size) + 1
 
                         frequency_bins_type3_diff(ind) = frequency_bins_type3_diff(ind) + 1
 
@@ -1441,31 +1454,31 @@ contains
                 end if
 
             else if (typ == 4) then
-                old_n_bins = size(frequency_bins_type4) 
-
-                if (ratio > frq_step_size * old_n_bins) then 
-                    new_n_bins = int(ratio / frq_step_size) 
-
-                    allocate(save_bins(old_n_bins)) 
-                    save_bins = frequency_bins_type4
-
-                    deallocate(frequency_bins_type4)
-!                     deallocate(frequency_bounds_type4) 
-
-                    allocate(frequency_bins_type4(new_n_bins))
-!                     allocate(frequency_bounds_type4(new_n_bins))
-
-                    frequency_bins_type4 = 0 
-
-                    frequency_bins_type4(1:old_n_bins) = save_bins
-
-                    frequency_bins_type4(new_n_bins) = 1 
+!                 old_n_bins = size(frequency_bins_type4) 
+! 
+!                 if (ratio > frq_step_size * old_n_bins) then 
+!                     new_n_bins = int(ratio / frq_step_size) 
+! 
+!                     allocate(save_bins(old_n_bins)) 
+!                     save_bins = frequency_bins_type4
+! 
+!                     deallocate(frequency_bins_type4)
+! !                     deallocate(frequency_bounds_type4) 
+! 
+!                     allocate(frequency_bins_type4(new_n_bins))
+! !                     allocate(frequency_bounds_type4(new_n_bins))
+! 
+!                     frequency_bins_type4 = 0 
+! 
+!                     frequency_bins_type4(1:old_n_bins) = save_bins
+! 
+!                     frequency_bins_type4(new_n_bins) = 1 
 
 !                     frequency_bounds_type4 = [(frq_step_size * i, i = 1, new_n_bins)]
 
-                else
+                if (ratio < max_frequency_bound) then
 !                     ind = binary_search_first_ge(frequency_bounds_type4, ratio)
-                    ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
+                    ind = int(ratio / frq_step_size) + 1
 
                     frequency_bins_type4(ind) = frequency_bins_type4(ind) + 1
 
@@ -1503,31 +1516,31 @@ contains
 
         if (ic == 1) then
             ! single excitation 
-            old_n_bins = size(frequency_bins_singles)
-
-            if (ratio > frq_step_size * old_n_bins) then
-                new_n_bins = int(ratio / frq_step_size) 
-
-                allocate(save_bins(old_n_bins))
-                save_bins = frequency_bins_singles
-
-                deallocate(frequency_bins_singles)
-!                 deallocate(frequency_bounds_singles)
-
-                allocate(frequency_bins_singles(new_n_bins))
-!                 allocate(frequency_bounds_singles(new_n_bins))
-
-                frequency_bins_singles = 0
-
-                frequency_bins_singles(1:old_n_bins) = save_bins
-
-                frequency_bins_singles(new_n_bins) = 1 
+!             old_n_bins = size(frequency_bins_singles)
+! 
+!             if (ratio > frq_step_size * old_n_bins) then
+!                 new_n_bins = int(ratio / frq_step_size) 
+! 
+!                 allocate(save_bins(old_n_bins))
+!                 save_bins = frequency_bins_singles
+! 
+!                 deallocate(frequency_bins_singles)
+! !                 deallocate(frequency_bounds_singles)
+! 
+!                 allocate(frequency_bins_singles(new_n_bins))
+! !                 allocate(frequency_bounds_singles(new_n_bins))
+! 
+!                 frequency_bins_singles = 0
+! 
+!                 frequency_bins_singles(1:old_n_bins) = save_bins
+! 
+!                 frequency_bins_singles(new_n_bins) = 1 
 
 !                 frequency_bounds_singles = [(frq_step_size * i, i = 1, new_n_bins)]
 
-            else
+            if (ratio < max_frequency_bound) then
 !                 ind = binary_search_first_ge(frequency_bounds_singles, ratio)
-                ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
+                ind = int(ratio / frq_step_size) + 1
 
                 frequency_bins_singles(ind) = frequency_bins_singles(ind) + 1
 
@@ -1536,93 +1549,93 @@ contains
         else
             ! double excitation -> check type 
             if (typ == 2) then
-                old_n_bins = size(frequency_bins_type2) 
-
-                if (ratio > frq_step_size * old_n_bins) then 
-                    new_n_bins = int(ratio / frq_step_size) 
-
-                    allocate(save_bins(old_n_bins)) 
-                    save_bins = frequency_bins_type2
-
-                    deallocate(frequency_bins_type2)
-!                     deallocate(frequency_bounds_type2) 
-
-                    allocate(frequency_bins_type2(new_n_bins))
-!                     allocate(frequency_bounds_type2(new_n_bins))
-
-                    frequency_bins_type2 = 0 
-
-                    frequency_bins_type2(1:old_n_bins) = save_bins
-
-                    frequency_bins_type2(new_n_bins) = 1 
+!                 old_n_bins = size(frequency_bins_type2) 
+! 
+!                 if (ratio > frq_step_size * old_n_bins) then 
+!                     new_n_bins = int(ratio / frq_step_size) 
+! 
+!                     allocate(save_bins(old_n_bins)) 
+!                     save_bins = frequency_bins_type2
+! 
+!                     deallocate(frequency_bins_type2)
+! !                     deallocate(frequency_bounds_type2) 
+! 
+!                     allocate(frequency_bins_type2(new_n_bins))
+! !                     allocate(frequency_bounds_type2(new_n_bins))
+! 
+!                     frequency_bins_type2 = 0 
+! 
+!                     frequency_bins_type2(1:old_n_bins) = save_bins
+! 
+!                     frequency_bins_type2(new_n_bins) = 1 
 
 !                     frequency_bounds_type2 = [(frq_step_size * i, i = 1, new_n_bins)]
 
-                else
+                if (ratio < max_frequency_bound) then
 !                     ind = binary_search_first_ge(frequency_bounds_type2, ratio)
-                    ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
+                    ind = int(ratio / frq_step_size) + 1
 
                     frequency_bins_type2(ind) = frequency_bins_type2(ind) + 1
 
                 end if
 
             else if (typ == 3) then 
-                old_n_bins = size(frequency_bins_type3) 
-
-                if (ratio > frq_step_size * old_n_bins) then 
-                    new_n_bins = int(ratio / frq_step_size) 
-
-                    allocate(save_bins(old_n_bins)) 
-                    save_bins = frequency_bins_type3
-
-                    deallocate(frequency_bins_type3)
-!                     deallocate(frequency_bounds_type3) 
-
-                    allocate(frequency_bins_type3(new_n_bins))
-!                     allocate(frequency_bounds_type3(new_n_bins))
-
-                    frequency_bins_type3 = 0 
-
-                    frequency_bins_type3(1:old_n_bins) = save_bins
-
-                    frequency_bins_type3(new_n_bins) = 1 
-
+!                 old_n_bins = size(frequency_bins_type3) 
+! 
+!                 if (ratio > frq_step_size * old_n_bins) then 
+!                     new_n_bins = int(ratio / frq_step_size) 
+! 
+!                     allocate(save_bins(old_n_bins)) 
+!                     save_bins = frequency_bins_type3
+! 
+!                     deallocate(frequency_bins_type3)
+! !                     deallocate(frequency_bounds_type3) 
+! 
+!                     allocate(frequency_bins_type3(new_n_bins))
+! !                     allocate(frequency_bounds_type3(new_n_bins))
+! 
+!                     frequency_bins_type3 = 0 
+! 
+!                     frequency_bins_type3(1:old_n_bins) = save_bins
+! 
+!                     frequency_bins_type3(new_n_bins) = 1 
+! 
 !                     frequency_bounds_type3 = [(frq_step_size * i, i = 1, new_n_bins)]
 
-                else
+                if (ratio < max_frequency_bound) then
 !                     ind = binary_search_first_ge(frequency_bounds_type3, ratio)
-                    ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
+                    ind = int(ratio / frq_step_size) + 1
 
                     frequency_bins_type3(ind) = frequency_bins_type3(ind) + 1
 
                 end if
 
             else if (typ == 4) then
-                old_n_bins = size(frequency_bins_type4) 
-
-                if (ratio > frq_step_size * old_n_bins) then 
-                    new_n_bins = int(ratio / frq_step_size) 
-
-                    allocate(save_bins(old_n_bins)) 
-                    save_bins = frequency_bins_type4
-
-                    deallocate(frequency_bins_type4)
-!                     deallocate(frequency_bounds_type4) 
-
-                    allocate(frequency_bins_type4(new_n_bins))
-!                     allocate(frequency_bounds_type4(new_n_bins))
-
-                    frequency_bins_type4 = 0 
-
-                    frequency_bins_type4(1:old_n_bins) = save_bins
-
-                    frequency_bins_type4(new_n_bins) = 1 
+!                 old_n_bins = size(frequency_bins_type4) 
+! 
+!                 if (ratio > frq_step_size * old_n_bins) then 
+!                     new_n_bins = int(ratio / frq_step_size) 
+! 
+!                     allocate(save_bins(old_n_bins)) 
+!                     save_bins = frequency_bins_type4
+! 
+!                     deallocate(frequency_bins_type4)
+! !                     deallocate(frequency_bounds_type4) 
+! 
+!                     allocate(frequency_bins_type4(new_n_bins))
+! !                     allocate(frequency_bounds_type4(new_n_bins))
+! 
+!                     frequency_bins_type4 = 0 
+! 
+!                     frequency_bins_type4(1:old_n_bins) = save_bins
+! 
+!                     frequency_bins_type4(new_n_bins) = 1 
 
 !                     frequency_bounds_type4 = [(frq_step_size * i, i = 1, new_n_bins)]
 
-                else
+                if (ratio < max_frequency_bound) then
 !                     ind = binary_search_first_ge(frequency_bounds_type4, ratio)
-                    ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
+                    ind = int(ratio / frq_step_size) + 1
 
                     frequency_bins_type4(ind) = frequency_bins_type4(ind) + 1
 
@@ -1667,47 +1680,47 @@ contains
         ! then i have to first check if i have to make the histogram bigger...
         ratio = mat_ele / pgen
         
-        old_n_bins = size(frequency_bins)
+!         old_n_bins = size(frequency_bins)
 
-        if (ratio > frq_step_size * old_n_bins) then 
-            ! then the element is bigger than the upper bound and the list 
-            ! has to be enlarged. but i have to be careful about the 
-            ! parallelism. do i need to do that on all cores, so i can 
-            ! merge the lists more easily after the loop over the walkers? 
-            ! todo 
-            ! have to keep the bound steps the same and just have to increase
-            ! the amount of bins 
-            ! i know the stepsize is max_frequency_bound / n_frequency_bins 
-            ! so the new number of bins is ratio / step_size 
-            ! or just use the step in frq_bnds
-            ! use predefined step-size
-            new_n_bins = int(ratio / frq_step_size)
-
-            ! also have to save the already saved number in the bins 
-            allocate(save_bins(old_n_bins)) 
-            save_bins = frequency_bins
-
-            deallocate(frequency_bins) 
-!             deallocate(frequency_bounds)
-
-            allocate(frequency_bins(new_n_bins))
-!             allocate(frequency_bounds(new_n_bins))
-                
-            frequency_bins = 0
-
-            frequency_bins(1:old_n_bins) = save_bins
-
-            ! and the new element is definetly in the last bin which is 1 then
-            frequency_bins(new_n_bins) = 1
+!         if (ratio > frq_step_size * old_n_bins) then 
+!             ! then the element is bigger than the upper bound and the list 
+!             ! has to be enlarged. but i have to be careful about the 
+!             ! parallelism. do i need to do that on all cores, so i can 
+!             ! merge the lists more easily after the loop over the walkers? 
+!             ! todo 
+!             ! have to keep the bound steps the same and just have to increase
+!             ! the amount of bins 
+!             ! i know the stepsize is max_frequency_bound / n_frequency_bins 
+!             ! so the new number of bins is ratio / step_size 
+!             ! or just use the step in frq_bnds
+!             ! use predefined step-size
+!             new_n_bins = int(ratio / frq_step_size)
+! 
+!             ! also have to save the already saved number in the bins 
+!             allocate(save_bins(old_n_bins)) 
+!             save_bins = frequency_bins
+! 
+!             deallocate(frequency_bins) 
+! !             deallocate(frequency_bounds)
+! 
+!             allocate(frequency_bins(new_n_bins))
+! !             allocate(frequency_bounds(new_n_bins))
+!                 
+!             frequency_bins = 0
+! 
+!             frequency_bins(1:old_n_bins) = save_bins
+! 
+!             ! and the new element is definetly in the last bin which is 1 then
+!             frequency_bins(new_n_bins) = 1
 
             ! and intialize the new bounds 
 !             frequency_bounds = [( frq_step_size * i, i = 1, new_n_bins)]
 
-        else 
+        if (ratio < max_frequency_bound) then
             ! the ratio fits in to the bins now i just have to find the 
             ! correct one
 !             ind = binary_search_first_ge(frequency_bounds, ratio) 
-            ind = min(int(ratio / frq_step_size) + 1, old_n_bins)
+            ind = int(ratio / frq_step_size) + 1
             
             ! increase counter 
             frequency_bins(ind) = frequency_bins(ind) + 1
@@ -1722,62 +1735,71 @@ contains
                      all_spec_frq_bins)
         integer, intent(in) :: spec_size
         integer, intent(in) :: spec_frequency_bins(spec_size)
-        integer, allocatable, intent(out) :: all_spec_frq_bins(:)
+!         integer, allocatable, intent(out) :: all_spec_frq_bins(:)
+        integer, intent(out) :: all_spec_frq_bins(n_frequency_bins)
         character(*), parameter :: this_routine = "comm_frequency_histogram_spec"
 
         integer :: max_size
-        integer, allocatable :: temp_bins(:) 
+!         integer, allocatable :: temp_bins(:) 
 
-        call MPIAllReduce(spec_size, MPI_MAX, max_size) 
+        ! with the new scheme i do not need to adjust the lengths since they 
+        ! are all the same all the time
+!         call MPIAllReduce(spec_size, MPI_MAX, max_size) 
 
 !         print *, "max_size: ", max_size
 
-        allocate(all_spec_frq_bins(max_size))
+        print *, n_frequency_bins
+        all_spec_frq_bins = 0
 
-        if (spec_size < max_size) then 
+!         allocate(all_spec_frq_bins(max_size))
 
-            allocate(temp_bins(max_size))
-
-            temp_bins = 0 
-
-            temp_bins(1:spec_size) = spec_frequency_bins
-
-        else
-            ASSERT(spec_size == max_size) 
-
-            allocate(temp_bins(max_size))
-
-            temp_bins = spec_frequency_bins
-
-        end if
-
-#ifdef __DEBUG
-        print *, "is it this?"
-        print *, "size_all:", size(all_spec_frq_bins)
-        print *, "size_temp:", size(temp_bins)
-        print *, "mpi_sum:", MPI_SUM
-        print *, "huge_int32", huge(0_int32)
-        print *, "20*size: ", 20*size(all_spec_frq_bins)
-#endif
-        ! i am pretty sure here the bug happens which causes the 
-        ! mpi comm to fail.. but i am not sure why.. 
-        ! with an reduced bin number it works out .. 
-        ! i have to find a way to determine beforehand if this is going 
-        ! to fail and be able to determine it.. 
-        ! also the single excitation are pretty shitty still 
-        ! i have to find a way to improve them.. but with the low
-        ! pSingles i cannot see a way how this should work.. 
-        ! i cant just magically increase all of them, this would only 
-        ! cause the pSingles to get reduced even further.. 
-        ! and if i limit it, the efficiency of the code reduces or? 
-        ! im not sure about that.. but the truth is they are sometimes 
-        ! REALLY low e-11 and such a shit.. this gives really bad ratios.. 
-        ! and thus a huge bin-number and an integer overflow here.. 
-
-        call MPIAllReduce(temp_bins, MPI_SUM, all_spec_frq_bins)
-#ifdef __DEBUG
-        print *, "no!"
-#endif
+        call MPIAllReduce(spec_frequency_bins, MPI_SUM, all_spec_frq_bins)
+!         
+! 
+!         if (spec_size < max_size) then 
+! 
+!             allocate(temp_bins(max_size))
+! 
+!             temp_bins = 0 
+! 
+!             temp_bins(1:spec_size) = spec_frequency_bins
+! 
+!         else
+!             ASSERT(spec_size == max_size) 
+! 
+!             allocate(temp_bins(max_size))
+! 
+!             temp_bins = spec_frequency_bins
+! 
+!         end if
+! 
+! #ifdef __DEBUG
+!         print *, "is it this?"
+!         print *, "size_all:", size(all_spec_frq_bins)
+!         print *, "size_temp:", size(temp_bins)
+!         print *, "mpi_sum:", MPI_SUM
+!         print *, "huge_int32", huge(0_int32)
+!         print *, "20*size: ", 20*size(all_spec_frq_bins)
+! #endif
+!         ! i am pretty sure here the bug happens which causes the 
+!         ! mpi comm to fail.. but i am not sure why.. 
+!         ! with an reduced bin number it works out .. 
+!         ! i have to find a way to determine beforehand if this is going 
+!         ! to fail and be able to determine it.. 
+!         ! also the single excitation are pretty shitty still 
+!         ! i have to find a way to improve them.. but with the low
+!         ! pSingles i cannot see a way how this should work.. 
+!         ! i cant just magically increase all of them, this would only 
+!         ! cause the pSingles to get reduced even further.. 
+!         ! and if i limit it, the efficiency of the code reduces or? 
+!         ! im not sure about that.. but the truth is they are sometimes 
+!         ! REALLY low e-11 and such a shit.. this gives really bad ratios.. 
+!         ! and thus a huge bin-number and an integer overflow here.. 
+! 
+!         call MPIAllReduce(temp_bins, MPI_SUM, all_spec_frq_bins)
+! #ifdef __DEBUG
+!         print *, "no!"
+! #endif
     end subroutine comm_frequency_histogram_spec
 
     ! write tailored communication routines too
@@ -1848,7 +1870,8 @@ contains
         real(dp), intent(out) :: ratio
         character(*), parameter :: this_routine = "integrate_frequency_histogram_spec"
 
-        integer, allocatable :: all_frequency_bins(:)
+!         integer, allocatable :: all_frequency_bins(:)
+        integer :: all_frequency_bins(n_frequency_bins)
         integer :: i, threshold, n_bins
         integer :: n_elements, cnt
 
