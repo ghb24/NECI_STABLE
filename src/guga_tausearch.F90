@@ -660,217 +660,281 @@ contains
             tau = tau_new
         end if
 
-        if (t_frequency_analysis) then 
-            call integrate_frequency_histogram_spec(size(frequency_bins_singles), &
-                frequency_bins_singles, ratio_singles)
+    end subroutine update_tau_guga_nosym 
 
-            ratio_singles = ratio_singles * pSingles
+    subroutine update_hist_tau_guga_nosym
+ 
+        character(*), parameter :: this_routine = "update_hist_tau_guga_nosym"
 
-#ifdef __DEBUG
-            root_print "ratio singles: ", ratio_singles
-            root_print "gamma singles: ", gamma_sing
-            root_print "improv single: ", gamma_sing / ratio_singles
-#endif
+        real(dp) :: mpi_tmp, tau_death, ratio_singles, ratio_type2, &
+                    ratio_type2_diff, ratio_type3, ratio_type3_diff, ratio_type4, &
+                    pExcit3_same_new, pExcit2_same_new, pExcit4_new, pExcit2_new, &
+                    pSingles_new, tau_new
 
-            if (t_consider_diff_bias) then 
-                ! i have to do that above too.. only check mixed excitaitons 
-                ! if i actually use consider_diff_bias 
-                call integrate_frequency_histogram_spec(size(frequency_bins_type2), &
-                    frequency_bins_type2, ratio_type2) 
+        logical :: mpi_ltmp
 
-                call integrate_frequency_histogram_spec(size(frequency_bins_type2_diff), &
-                    frequency_bins_type2_diff, ratio_type2_diff) 
+        if (.not. t_hist_tau_search) then 
+            ! this means the option was turned on but got turned off due to 
+            ! entering var. shift mode, or because the histogramms are full
+            ! but the death events should still be considered 
+ 
+            ! Check that the override has actually occurred.
+            ASSERT(t_hist_tau_search_option)
+            ASSERT(tSearchTauDeath)
 
-                call integrate_frequency_histogram_spec(size(frequency_bins_type3), &
-                    frequency_bins_type3, ratio_type3) 
+            ! The range of tau is restricted by particle death. It MUST be <=
+            ! the value obtained to restrict the maximum death-factor to 1.0.
+            call MPIAllReduce (max_death_cpt, MPI_MAX, mpi_tmp)
+            max_death_cpt = mpi_tmp
+            tau_death = 1.0_dp / max_death_cpt
 
-                call integrate_frequency_histogram_spec(size(frequency_bins_type3_diff), &
-                    frequency_bins_type3_diff, ratio_type3_diff)
+            ! If this actually constrains tau, then adjust it!
+            if (tau_death < tau) then
+                tau = tau_death
 
-                call integrate_frequency_histogram_spec(size(frequency_bins_type4), &
-                    frequency_bins_type4, ratio_type4)
+                root_print "******"
+                root_print "WARNING: Updating time step due to particle death &
+                           &magnitude"
+                root_print "This occurs despite variable shift mode"
+                root_print "Updating time-step. New time-step = ", tau
+                root_print "******"
+            end if
 
-                ratio_type2 = ratio_type2 * pDoubles * (1.0_dp - pExcit4) * pExcit2 * &
-                    pExcit2_same
+            ! Condition met --> no need to do this again next iteration
+            tSearchTauDeath = .false.
 
-                ratio_type2_diff = ratio_type2_diff * pDoubles * (1.0_dp - pExcit4) * pExcit2 * &
-                    (1.0_dp - pExcit2_same)
+            return
+        end if
 
-                ratio_type3 = ratio_type3 * pDoubles * (1.0_dp - pExcit4) * &
-                    (1.0_dp - pExcit2) * pExcit3_same
+        ! What needs doing depends on the number of parametrs that are being
+        ! updated.
+        call MPIAllLORLogical(enough_sing_hist, mpi_ltmp)
+        enough_sing_hist = mpi_ltmp
+        call MPIAllLORLogical(enough_doub_hist, mpi_ltmp)
+        enough_doub_hist = mpi_ltmp
 
-                ratio_type3_diff = ratio_type3_diff * pDoubles * (1.0_dp - pExcit4) * &
-                    (1.0_dp - pExcit2) * (1.0_dp - pExcit3_same)
+        call integrate_frequency_histogram_spec(size(frequency_bins_singles), &
+            frequency_bins_singles, ratio_singles)
 
-                ratio_type4 = ratio_type4 * pDoubles * pExcit4
+        ! if i have a integer overflow i should probably deal here with it..
+        if (ratio_singles < 0.0_dp) then 
+            ! this means i had an int overflow and should stop the tau-searching
+            root_print "The single excitation histogram is full!"
+            root_print "stop the hist_tau_search with last time-step: ", tau
+            root_print "and pSingles and pDoubles:", pSingles, pDoubles
+            t_hist_tau_search = .false. 
 
-#ifdef __DEBUG
-                root_print "ratio type2: ", ratio_type2
-                root_print "gamma type2: ", gamma_two_same
-                root_print "improv type2: ", gamma_two_same / ratio_type2
+            return 
+        end if
 
-                root_print "ratio type2 diff: ", ratio_type2_diff
-                root_print "gamma type2 diff: ", gamma_two_mixed
-                root_print "improv type2 diff: ", gamma_two_mixed / ratio_type2_diff
+        ratio_singles = ratio_singles * pSingles
 
-                root_print "ratio type3: ", ratio_type3
-                root_print "gamma type3: ", gamma_three_same
-                root_print "improv type3: ", gamma_three_same / ratio_type3
+        if (t_consider_diff_bias) then 
+            ! i have to do that above too.. only check mixed excitaitons 
+            ! if i actually use consider_diff_bias 
+            call integrate_frequency_histogram_spec(size(frequency_bins_type2), &
+                frequency_bins_type2, ratio_type2) 
 
-                root_print "ratio type3 diff: ", ratio_type3_diff
-                root_print "gamma type3 diff: ", gamma_three_mixed
-                root_print "improv type3 diff: ", gamma_three_mixed / ratio_type3_diff
+            ! if i have a integer overflow i should probably deal here with it..
+            if (ratio_type2 < 0.0_dp) then 
+                ! this means i had an int overflow and should stop the tau-searching
+                root_print "The single excitation histogram is full!"
+                root_print "stop the hist_tau_search with last time-step: ", tau
+                root_print "and pSingles and pDoubles:", pSingles, pDoubles
+                t_hist_tau_search = .false. 
 
-                root_print "ratio type4: ", ratio_type4
-                root_print "gamma type4: ", gamma_four
-                root_print "improv type4: ", gamma_four / ratio_type4
-#endif
+                return 
+            end if
 
-                ratio_doubles = ratio_type2 + ratio_type2_diff + ratio_type3 + &
-                    ratio_type3_diff + ratio_type4
+            call integrate_frequency_histogram_spec(size(frequency_bins_type2_diff), &
+                frequency_bins_type2_diff, ratio_type2_diff) 
 
-                if (enough_sing .and. enough_doub) then 
-                    pExcit3_same_new = ratio_type3 / (ratio_type3 + ratio_type3_diff) 
-                    pExcit2_same_new = ratio_type2 / (ratio_type2 + ratio_type2_diff) 
-                    pExcit4_new = ratio_type4 / ratio_doubles 
-                    pExcit2_new = (ratio_type2 + ratio_type2_diff) / & 
-                        (ratio_type2 + ratio_type2_diff + ratio_type3 + ratio_type3_diff) 
-                    pSingles_new = ratio_singles / (ratio_singles + ratio_doubles) 
-                    
-                    tau_new = max_permitted_spawn / (ratio_singles + ratio_doubles) 
-                    if (pSingles_new > 1e-5_dp .and. &
-                        pSingles_new < (1.0_dp - 1e-5_dp)) then 
+            ! if i have a integer overflow i should probably deal here with it..
+            if (ratio_type2_diff < 0.0_dp) then 
+                ! this means i had an int overflow and should stop the tau-searching
+                root_print "The single excitation histogram is full!"
+                root_print "stop the hist_tau_search with last time-step: ", tau
+                root_print "and pSingles and pDoubles:", pSingles, pDoubles
+                t_hist_tau_search = .false. 
 
-                        root_print "Updating singles/doubles bias. pSingles = ", &
-                            psingles_new, ", pDoubles = ", 1.0_dp - psingles_new
+                return 
+            end if
 
-                        pSingles = pSingles_new
-                        pDoubles = 1.0_dp - pSingles
+            call integrate_frequency_histogram_spec(size(frequency_bins_type3), &
+                frequency_bins_type3, ratio_type3) 
 
-                    end if
+            ! if i have a integer overflow i should probably deal here with it..
+            if (ratio_type3 < 0.0_dp) then 
+                ! this means i had an int overflow and should stop the tau-searching
+                root_print "The single excitation histogram is full!"
+                root_print "stop the hist_tau_search with last time-step: ", tau
+                root_print "and pSingles and pDoubles:", pSingles, pDoubles
+                t_hist_tau_search = .false. 
 
-                    if (abs(pExcit3_same_new - pExcit3_same) / pExcit3_same > 0.0001_dp) then
-                        root_print "new pExcit3_same_new: ", pExcit3_same_new
-                    end if
-                    if (abs(pExcit2_same_new - pExcit2_same) / pExcit2_same > 0.0001_dp) then
-                        root_print "new pExcit2_same_new: ", pExcit2_same_new
-                    end if
-                    if (abs(pExcit4_new - pExcit4) / pExcit4 > 0.0001_dp) then
-                        root_print "new pExcit4_new: ", pExcit4_new
-                    end if
-                    if (abs(pExcit2_new - pExcit2) / pExcit2 > 0.0001_dp) then
-                        root_print "new pExcit2_new: ", pExcit2_new
-                    end if
-                    ! essentially always update the probs.. 
-                    pExcit4 = pExcit4_new
-                    pExcit2 = pExcit2_new
-                    pExcit3_same = pExcit3_same_new
-                    pExcit2_same = pExcit2_same_new
+                return 
+            end if
 
-                else 
-                    tau_new = max_permitted_spawn * min(&
-                        pSingles / ratio_singles, &
-                        pDoubles * pExcit4 / ratio_type4, & 
-                        pBranch2 * pExcit2_same / ratio_type2, & 
-                        pBranch2 * (1.0_dp - pExcit2_same) / ratio_type2_diff, &
-                        pBranch3 * pExcit3_same / ratio_type3, &
-                        pBranch3 * (1.0_dp - pExcit3_same) / ratio_type3_diff)
+            call integrate_frequency_histogram_spec(size(frequency_bins_type3_diff), &
+                frequency_bins_type3_diff, ratio_type3_diff)
+
+            ! if i have a integer overflow i should probably deal here with it..
+            if (ratio_type3_diff < 0.0_dp) then 
+                ! this means i had an int overflow and should stop the tau-searching
+                root_print "The single excitation histogram is full!"
+                root_print "stop the hist_tau_search with last time-step: ", tau
+                root_print "and pSingles and pDoubles:", pSingles, pDoubles
+                t_hist_tau_search = .false. 
+
+                return 
+            end if
+
+            call integrate_frequency_histogram_spec(size(frequency_bins_type4), &
+                frequency_bins_type4, ratio_type4)
+
+            ! if i have a integer overflow i should probably deal here with it..
+            if (ratio_type4 < 0.0_dp) then 
+                ! this means i had an int overflow and should stop the tau-searching
+                root_print "The single excitation histogram is full!"
+                root_print "stop the hist_tau_search with last time-step: ", tau
+                root_print "and pSingles and pDoubles:", pSingles, pDoubles
+                t_hist_tau_search = .false. 
+
+                return 
+            end if
+
+            ratio_type2 = ratio_type2 * pDoubles * (1.0_dp - pExcit4) * pExcit2 * &
+                pExcit2_same
+
+            ratio_type2_diff = ratio_type2_diff * pDoubles * (1.0_dp - pExcit4) * pExcit2 * &
+                (1.0_dp - pExcit2_same)
+
+            ratio_type3 = ratio_type3 * pDoubles * (1.0_dp - pExcit4) * &
+                (1.0_dp - pExcit2) * pExcit3_same
+
+            ratio_type3_diff = ratio_type3_diff * pDoubles * (1.0_dp - pExcit4) * &
+                (1.0_dp - pExcit2) * (1.0_dp - pExcit3_same)
+
+            ratio_type4 = ratio_type4 * pDoubles * pExcit4
+
+            ratio_doubles = ratio_type2 + ratio_type2_diff + ratio_type3 + &
+                ratio_type3_diff + ratio_type4
+
+            if (enough_sing .and. enough_doub) then 
+                pExcit3_same_new = ratio_type3 / (ratio_type3 + ratio_type3_diff) 
+                pExcit2_same_new = ratio_type2 / (ratio_type2 + ratio_type2_diff) 
+                pExcit4_new = ratio_type4 / ratio_doubles 
+                pExcit2_new = (ratio_type2 + ratio_type2_diff) / & 
+                    (ratio_type2 + ratio_type2_diff + ratio_type3 + ratio_type3_diff) 
+                pSingles_new = ratio_singles / (ratio_singles + ratio_doubles) 
+                
+                tau_new = max_permitted_spawn / (ratio_singles + ratio_doubles) 
+                if (pSingles_new > 1e-5_dp .and. &
+                    pSingles_new < (1.0_dp - 1e-5_dp)) then 
+
+                    root_print "Updating singles/doubles bias. pSingles = ", &
+                        psingles_new, ", pDoubles = ", 1.0_dp - psingles_new
+
+                    pSingles = pSingles_new
+                    pDoubles = 1.0_dp - pSingles
 
                 end if
 
-#ifdef __DEBUG
-                root_print "new time-step test: ", tau_new 
-                root_print "time-step improv: ", tau_new / tau
-                root_print "tau death: ", tau_death
-#endif
-
+                if (abs(pExcit3_same_new - pExcit3_same) / pExcit3_same > 0.0001_dp) then
+                    root_print "new pExcit3_same_new: ", pExcit3_same_new
+                end if
+                if (abs(pExcit2_same_new - pExcit2_same) / pExcit2_same > 0.0001_dp) then
+                    root_print "new pExcit2_same_new: ", pExcit2_same_new
+                end if
+                if (abs(pExcit4_new - pExcit4) / pExcit4 > 0.0001_dp) then
+                    root_print "new pExcit4_new: ", pExcit4_new
+                end if
+                if (abs(pExcit2_new - pExcit2) / pExcit2 > 0.0001_dp) then
+                    root_print "new pExcit2_new: ", pExcit2_new
+                end if
+                ! essentially always update the probs.. 
+                pExcit4 = pExcit4_new
+                pExcit2 = pExcit2_new
+                pExcit3_same = pExcit3_same_new
+                pExcit2_same = pExcit2_same_new
 
             else 
-                ! no differentiating between mixed and alike type 2 and 3 
-                ! excitations 
-                call integrate_frequency_histogram_spec(size(frequency_bins_type2), &
-                    frequency_bins_type2, ratio_type2) 
-
-                call integrate_frequency_histogram_spec(size(frequency_bins_type3), &
-                    frequency_bins_type3, ratio_type3) 
-
-                call integrate_frequency_histogram_spec(size(frequency_bins_type4), &
-                    frequency_bins_type4, ratio_type4)
-
-                ratio_type2 = ratio_type2 * pDoubles * (1.0_dp - pExcit4) * pExcit2 
-
-                ratio_type3 = ratio_type3 * pDoubles * (1.0_dp - pExcit4) * &
-                    (1.0_dp - pExcit2)
-
-                ratio_type4 = ratio_type4 * pDoubles * pExcit4
-
-                ratio_doubles = ratio_type2 + ratio_type3 + ratio_type4
-
-                ! hm.. i have to change the pgen calc. again in the GUGA 
-                ! approach.. i should not include pSingles, pDoubles etc. 
-                ! within the excitation generation routines, but only apply 
-                ! it afterwards, in the outer loops, so i can change 
-                ! pDoubles etc. outside without changing the ratio 
-                ! mat_ele / pgen ... so i dont have to change anything 
-                ! in the histograms.. todo! now! 
-                ! na des passt schon.. ich dividiers halt hier wieder raus 
-                ! um die "richtige" wahrscheinlichkeit zu kriegen.. 
-
-#ifdef __DEBUG
-                root_print "ratio type2: ", ratio_type2
-                root_print "gamma type2: ", gamma_two_same
-                root_print "improv type2: ", gamma_two_same / ratio_type2
-
-                root_print "ratio type3: ", ratio_type3
-                root_print "gamma type3: ", gamma_three_same
-                root_print "improv type3: ", gamma_three_same / ratio_type3
-
-                root_print "ratio type4: ", ratio_type4
-                root_print "gamma type4: ", gamma_four
-                root_print "improv type4: ", gamma_four / ratio_type4
-#endif
-
-                if (enough_sing .and. enough_doub) then 
-                    pExcit4_new = ratio_type4 / ratio_doubles 
-                    pExcit2_new = ratio_type2 / (ratio_type2 + ratio_type3) 
-                    pSingles_new = ratio_singles / (ratio_singles + ratio_doubles) 
-                    
-                    tau_new = max_permitted_spawn / (ratio_singles + ratio_doubles) 
-
-                    if (pSingles_new > 1e-5_dp .and. &
-                        pSingles_new < (1.0_dp - 1e-5_dp)) then 
-                        root_print "new psingles test: ", pSingles_new
-
-                        pSingles = pSingles_new
-                        pDoubles = 1.0_dp - pSingles
-
-                    end if
-                    if (abs(pExcit4_new - pExcit4) / pExcit4 > 0.0001_dp) then
-                        root_print "new pExcit4_new: ", pExcit4_new
-                    end if
-                    if (abs(pExcit2_new - pExcit2) / pExcit2 > 0.0001_dp) then
-                        root_print "new pExcit2_new: ", pExcit2_new
-                    end if
-
-                    pExcit2 = pExcit2_new
-                    pExcit4 = pExcit4_new
-
-                else 
-                    tau_new = max_permitted_spawn * min(&
-                        pSingles / ratio_singles, &
-                        pDoubles * pExcit4 / ratio_type4, & 
-                        pBranch2 / ratio_type2)
-
-                end if
-
-#ifdef __DEBUG
-                root_print "new time-step test: ", tau_new 
-                root_print "time-step improv: ", tau_new / tau
-                root_print "tau death: ", tau_death
-#endif
+                tau_new = max_permitted_spawn * min(&
+                    pSingles / ratio_singles, &
+                    pDoubles * pExcit4 / ratio_type4, & 
+                    pBranch2 * pExcit2_same / ratio_type2, & 
+                    pBranch2 * (1.0_dp - pExcit2_same) / ratio_type2_diff, &
+                    pBranch3 * pExcit3_same / ratio_type3, &
+                    pBranch3 * (1.0_dp - pExcit3_same) / ratio_type3_diff)
 
             end if
+
+
+        else 
+            ! no differentiating between mixed and alike type 2 and 3 
+            ! excitations 
+            call integrate_frequency_histogram_spec(size(frequency_bins_type2), &
+                frequency_bins_type2, ratio_type2) 
+
+            call integrate_frequency_histogram_spec(size(frequency_bins_type3), &
+                frequency_bins_type3, ratio_type3) 
+
+            call integrate_frequency_histogram_spec(size(frequency_bins_type4), &
+                frequency_bins_type4, ratio_type4)
+
+            ratio_type2 = ratio_type2 * pDoubles * (1.0_dp - pExcit4) * pExcit2 
+
+            ratio_type3 = ratio_type3 * pDoubles * (1.0_dp - pExcit4) * &
+                (1.0_dp - pExcit2)
+
+            ratio_type4 = ratio_type4 * pDoubles * pExcit4
+
+            ratio_doubles = ratio_type2 + ratio_type3 + ratio_type4
+
+            ! hm.. i have to change the pgen calc. again in the GUGA 
+            ! approach.. i should not include pSingles, pDoubles etc. 
+            ! within the excitation generation routines, but only apply 
+            ! it afterwards, in the outer loops, so i can change 
+            ! pDoubles etc. outside without changing the ratio 
+            ! mat_ele / pgen ... so i dont have to change anything 
+            ! in the histograms.. todo! now! 
+            ! na des passt schon.. ich dividiers halt hier wieder raus 
+            ! um die "richtige" wahrscheinlichkeit zu kriegen.. 
+
+            if (enough_sing .and. enough_doub) then 
+                pExcit4_new = ratio_type4 / ratio_doubles 
+                pExcit2_new = ratio_type2 / (ratio_type2 + ratio_type3) 
+                pSingles_new = ratio_singles / (ratio_singles + ratio_doubles) 
+                
+                tau_new = max_permitted_spawn / (ratio_singles + ratio_doubles) 
+
+                if (pSingles_new > 1e-5_dp .and. &
+                    pSingles_new < (1.0_dp - 1e-5_dp)) then 
+                    root_print "new psingles test: ", pSingles_new
+
+                    pSingles = pSingles_new
+                    pDoubles = 1.0_dp - pSingles
+
+                end if
+                if (abs(pExcit4_new - pExcit4) / pExcit4 > 0.0001_dp) then
+                    root_print "new pExcit4_new: ", pExcit4_new
+                end if
+                if (abs(pExcit2_new - pExcit2) / pExcit2 > 0.0001_dp) then
+                    root_print "new pExcit2_new: ", pExcit2_new
+                end if
+
+                pExcit2 = pExcit2_new
+                pExcit4 = pExcit4_new
+
+            else 
+                tau_new = max_permitted_spawn * min(&
+                    pSingles / ratio_singles, &
+                    pDoubles * pExcit4 / ratio_type4, & 
+                    pBranch2 / ratio_type2)
+
+            end if
+
         end if
+
         ! and have to carefully check if i have enough excitations of all sorts
         ! before i individually update the probabilities
         if (t_hist_tau_search) then
@@ -914,6 +978,6 @@ contains
             end if
         end if
 
-    end subroutine update_tau_guga_nosym 
+    end subroutine update_hist_tau_guga_nosym
 
 end module

@@ -1601,7 +1601,11 @@ contains
             ! for now, only the non-weighed guga excitation generator without
             ! symmetry uses specific tau-search routines
             log_spawn_magnitude => log_spawn_magnitude_guga_nosym 
-            update_tau => update_tau_guga_nosym
+            if (t_hist_tau_search) then
+                update_tau => update_hist_tau_guga_nosym
+            else
+                update_tau => update_tau_guga_nosym
+            end if
 
         else
             log_spawn_magnitude => log_spawn_magnitude_default

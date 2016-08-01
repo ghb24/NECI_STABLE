@@ -556,7 +556,7 @@ contains
         logical :: mpi_ltmp
         
         if (.not. t_hist_tau_search) then 
-            ! this means the option was turned but got turned off due to 
+            ! this means the option was turned on but got turned off due to 
             ! entering var. shift mode, or because the histogramms are full
             ! but the death events should still be considered 
  
@@ -597,7 +597,6 @@ contains
 
         ! singles is always used.. 
 !         print *, "toto singles", size(frequency_bins_singles)
-        call neci_flush(6)
         call integrate_frequency_histogram_spec(size(frequency_bins_singles), &
             frequency_bins_singles, ratio_singles) 
 
@@ -700,7 +699,6 @@ contains
         else if (tGen_sym_guga_mol) then
             ! here i only use doubles for now
 !             print *, "toto doubles:", size(frequency_bins_doubles)
-            call neci_flush(6)
             call integrate_frequency_histogram_spec(size(frequency_bins_doubles), &
                 frequency_bins_doubles, ratio_doubles)
 
