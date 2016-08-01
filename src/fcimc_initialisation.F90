@@ -135,7 +135,7 @@ module fcimc_initialisation
     use HElem
     use constants
     use guga_tausearch, only: init_tau_search_guga_nosym, log_spawn_magnitude_guga_nosym, &
-                              update_tau_guga_nosym
+                              update_tau_guga_nosym, init_hist_tau_search_guga_nosym
 
 #ifndef __CMPLX
     use guga_data, only: bVectorRef_ilut, bVectorRef_nI, projE_replica
@@ -1018,11 +1018,19 @@ contains
 !        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
 !                       ^ Removed by GLM as believed not necessary
         if (tSearchTau) then
-            call init_tau_search()
+            if (tGen_nosym_guga) then 
+                call init_tau_search_guga_nosym() 
+            else
+                call init_tau_search()
+            end if
             ! call init_hist_tau_search in init_tau_search if both flags are 
             ! set!
         else if (t_hist_tau_search) then 
-            call init_hist_tau_search() 
+            if (tGen_nosym_guga) then
+                call init_hist_tau_search_guga_nosym()
+            else
+                call init_hist_tau_search() 
+            end if
         else
             ! Add a couple of checks for sanity
             if (nOccAlpha == 0 .or. nOccBeta == 0) then
@@ -3504,6 +3512,10 @@ contains
                     ! and find inum_runs lowest energetically ones..
 
                     ! create all excitations from the HF 
+                    ! do i remain in the same symmetry sector with this 
+                    ! info?? 
+                    ! i think my exact hamil application routine does not 
+                    ! deal with symmetry at all... 
                     call actHamiltonian(ilutHF, excitations, n_excits, .true.) 
 
                     ! if no excitations possible... there is something wrong

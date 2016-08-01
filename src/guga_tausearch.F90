@@ -14,8 +14,10 @@ module guga_tausearch
                     frequency_bounds_type2_diff, frequency_bounds_type3_diff, &
                     frequency_bins_singles, frequency_bounds_singles, &
                     t_frequency_analysis, frq_step_size, max_frequency_bound, &
-                    n_frequency_bins, t_min_tau, min_tau_global, t_hist_tau_search
-
+                    n_frequency_bins, t_min_tau, min_tau_global, t_hist_tau_search, &
+                    cnt_type2_same, cnt_type2_diff, cnt_type3_same, cnt_type3_diff, &
+                    cnt_type4, cnt_sing_hist, cnt_doub_hist, enough_sing_hist, &
+                    enough_doub_hist
     use SystemData, only: tUEG, t_consider_diff_bias
     use FciMCData, only: tRestart, pSingles, pDoubles, pExcit2, pExcit4, &
                          pExcit2_same, pExcit3_same, MaxTau, tSearchTau, &
@@ -104,58 +106,111 @@ contains
                          &limit spawning probability to", max_permitted_spawn
         end if
 
-        ! not yet 100% sure about implementation: 
-        ! do i really want to distinguish between case(3) e
-        if (t_frequency_analysis) then
-            ! determine the global and fixed step-size quantitiy! 
-            frq_step_size = max_frequency_bound / real(n_frequency_bins, dp)
-            ! here i can differentiate between the different types of 
-            ! excitations.. 
-            allocate(frequency_bins_singles(n_frequency_bins))
-            frequency_bins_singles = 0
-
-            allocate(frequency_bounds_singles(n_frequency_bins))
-
-            frequency_bounds_singles = [(frq_step_size * i, i = 1, n_frequency_bins)]
-
-            ! use the "normal" type2 etc. bins always and just allocate 
-            ! additional ones if t_consider_diff_bias 
-            allocate(frequency_bins_type2(n_frequency_bins))
-            frequency_bins_type2 = 0
-
-            allocate(frequency_bins_type3(n_frequency_bins)) 
-            frequency_bins_type3 = 0 
-
-            allocate(frequency_bins_type4(n_frequency_bins))
-            frequency_bins_type4 = 0
-
-            allocate(frequency_bounds_type2(n_frequency_bins))
-            frequency_bounds_type2 = frequency_bounds_singles
-
-            allocate(frequency_bounds_type3(n_frequency_bins))
-            frequency_bounds_type3 = frequency_bounds_singles
-
-            allocate(frequency_bounds_type4(n_frequency_bins))
-            frequency_bounds_type4 = frequency_bounds_singles
-
-            if (t_consider_diff_bias) then 
-                ! allocate the additional bins and bounds 
-                allocate(frequency_bins_type2_diff(n_frequency_bins))
-                frequency_bins_type2_diff = 0
-
-                allocate(frequency_bins_type3_diff(n_frequency_bins))
-                frequency_bins_type3_diff = 0
-
-                allocate(frequency_bounds_type2_diff(n_frequency_bins))
-                frequency_bounds_type2_diff = frequency_bounds_singles
-
-                allocate(frequency_bounds_type3_diff(n_frequency_bins))
-                frequency_bounds_type3_diff = frequency_bounds_singles
-
-            end if
-        end if
+        if (t_hist_tau_search) call init_hist_tau_search_guga_nosym
 
     end subroutine init_tau_search_guga_nosym
+
+    subroutine init_hist_tau_search_guga_nosym()
+
+        ! not yet 100% sure about implementation: 
+        ! do i really want to distinguish between case(3) e
+        ! determine the global and fixed step-size quantitiy! 
+        frq_step_size = max_frequency_bound / real(n_frequency_bins, dp)
+        ! here i can differentiate between the different types of 
+        ! excitations.. 
+
+        cnt_sing_hist = 0
+        enough_sing_hist = .false. 
+
+        cnt_doub_hist = 0
+        enough_doub_hist = .false.
+
+        cnt_type2_same = 0
+
+        cnt_type3_same = 0 
+
+        cnt_type4 = 0 
+        enough_four = .false. 
+
+        enough_two = .false. 
+        enough_three = .false.
+
+        allocate(frequency_bins_singles(n_frequency_bins))
+        frequency_bins_singles = 0
+
+        ! use the "normal" type2 etc. bins always and just allocate 
+        ! additional ones if t_consider_diff_bias 
+        allocate(frequency_bins_type2(n_frequency_bins))
+        frequency_bins_type2 = 0
+
+        allocate(frequency_bins_type3(n_frequency_bins)) 
+        frequency_bins_type3 = 0 
+
+        allocate(frequency_bins_type4(n_frequency_bins))
+        frequency_bins_type4 = 0
+
+        if (t_consider_diff_bias) then 
+
+            enough_two_same = .false.
+            enough_three_same = .false. 
+
+            cnt_type2_diff = 0 
+            enough_two_mixed = .false. 
+
+            cnt_type3_diff = 0
+            enough_three_mixed = .false. 
+
+            ! allocate the additional bins and bounds 
+            allocate(frequency_bins_type2_diff(n_frequency_bins))
+            frequency_bins_type2_diff = 0
+
+            allocate(frequency_bins_type3_diff(n_frequency_bins))
+            frequency_bins_type3_diff = 0
+
+        end if
+
+        ! also need to setup all the other quantities necessary for the 
+        ! "normal" tau-search if they have not yet been setup if we only 
+        ! use the new tau-search 
+        if (.not. tSearchTauOption) then 
+
+            ! And what is the maximum death-component found
+            max_death_cpt = 0
+
+            ! And the counts are used to make sure we don't update anything too
+            ! early
+            ! should we use the same variables in both tau-searches?? 
+
+            ! Unless it is already specified, set an initial value for tau
+            if (.not. tRestart .and. .not. tReadPops .and. tau == 0) &
+                call FindMaxTauDoubs()
+            write(6,*) 'Using initial time-step: ', tau
+     
+            ! Set the maximum spawn size
+            if (MaxWalkerBloom == -1) then
+                ! No maximum manually specified, so we set the limit of spawn
+                ! size to either the initiator criterion, or to 5 otherwise
+                if (tTruncInitiator) then
+                    max_permitted_spawn = InitiatorWalkNo
+                else
+                    ! change here to the "old" algorithm, since the time-step
+                    ! will be orders of magnitude larger we should limit 
+                    ! the max_permitted_spawn to 1. (or 2 maybe.. lets see!)
+                    max_permitted_spawn = 1.0_dp
+                end if
+            else
+                ! This is specified manually
+                max_permitted_spawn = real(MaxWalkerBloom, dp)
+            end if
+
+            if (.not. (tReadPops .and. .not. tWalkContGrow)) then
+                write(iout, "(a,f10.5)") "Will dynamically update timestep to &
+                             &limit spawning probability to", max_permitted_spawn
+            end if
+
+        end if
+
+    end subroutine init_hist_tau_search_guga_nosym
 
     subroutine log_spawn_magnitude_guga_nosym(ic, ex, matel, pgen)
         ! to allow to use these sort of routines as function pointers, 

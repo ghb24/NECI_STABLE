@@ -299,12 +299,18 @@ contains
 
         if (present(run)) then 
             tmp_ilut = ilutRef(0:niftot,run) 
+            if (run == 1) then 
+                call calc_guga_matrix_element(tmp_ilut, ilut, excitInfo, hel, .true., 0)
+            else 
+                call calc_guga_matrix_element(tmp_ilut, ilut, excitInfo, hel, .true., 2)
+            end if
         else
             tmp_ilut = ilutRef(0:niftot,1)
+            call calc_guga_matrix_element(tmp_ilut, ilut, excitInfo, hel, .true., 0)
         end if
 
 !         call calc_guga_matrix_element(ilut, tmp_ilut, excitInfo, hel, .true., 2)
-        call calc_guga_matrix_element(tmp_ilut, ilut, excitInfo, hel, .true., 0)
+!         call calc_guga_matrix_element(tmp_ilut, ilut, excitInfo, hel, .true., 0)
 
         if (present(exlevel)) then 
 

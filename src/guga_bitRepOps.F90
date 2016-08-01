@@ -506,7 +506,7 @@ contains
 
 !                     mask_3(0:ind_3(1)-1) = huge(0_n_int)
                     mask_3(0:ind_3(1)-1) = -1_n_int
-                    mask_3(ind(3)+1:nifd) = 0_n_int
+                    mask_3(ind_3(1)+1:nifd) = 0_n_int
 
                     ! so now in the mixed integer we have all 0
                     ! the maskl and maskr do not quite work as i suspected
@@ -905,7 +905,7 @@ contains
                                 mask_2(0:ind_2(1)-1) = 0_n_int
 
                                 mask_3(0:ind_3(1)-1) = huge(0_n_int)
-                                mask_3(ind(3)+1:nifd) = 0_n_int
+                                mask_3(ind_3(1)+1:nifd) = 0_n_int
 
                                 ! so now in the mixed integer we have all 0
                                 mask_2(ind_2(1)) = maskl(bits_n_int - ind_2(2), n_int)
@@ -959,7 +959,7 @@ contains
                                 mask_2(0:ind_2(1)-1) = 0_n_int
 
                                 mask_3(0:ind_3(1)-1) = huge(0_n_int)
-                                mask_3(ind(3)+1:nifd) = 0_n_int
+                                mask_3(ind_3(1)+1:nifd) = 0_n_int
 
                                 ! so now in the mixed integer we have all 0
                                 mask_2(ind_2(1)) = maskl(bits_n_int - ind_2(2), n_int)
