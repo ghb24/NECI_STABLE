@@ -1748,7 +1748,6 @@ contains
 
 !         print *, "max_size: ", max_size
 
-        print *, n_frequency_bins
         all_spec_frq_bins = 0
 
 !         allocate(all_spec_frq_bins(max_size))
