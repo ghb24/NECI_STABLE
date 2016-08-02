@@ -14,9 +14,9 @@
  VCS BASE repository version:
      d4c15f8761abe4c56e7c35fb0f3002534fa5c1ab
  Working directory: 
-     /home/robert/Projects/NECI/test_suite/kmneci/Rn_lanczos_fci
+     /home/robert/Projects/NECI/test_suite/kmneci/Rn_lanczos_dci_init
  Running on: robert-desktop
- Started running on 02/08/2016 at 11:35:26
+ Started running on 02/08/2016 at 11:52:17
  ================================================================
 
  Reading from file: neci.inp
@@ -42,7 +42,7 @@ calc
 
 lanczos-store-vectors
 
-fci-init
+doubles-init
 orthogonalise-replicas
 
 methods
@@ -51,7 +51,7 @@ endmethods
 memoryfacpart 20.0
 memoryfacspawn 20.0
 totalwalkers 100000
-nmcyc 0
+nmcyc 500
 seed 14
 startsinglepart 100
 diagshift 0.0
@@ -95,7 +95,7 @@ end
   *** GENERIC SYSTEM ***  
  Only one irrep found. Turning off symmetry for rest of calculation.
  *** WARNING: LMS in FCIDUMP differs from input file ***
-  BASIS MS :       139865936381503
+  BASIS MS :       140396593190463
   Unrestricted calculation.  Cave Arthropodia.  
   NUMBER OF SPIN ORBITALS IN BASIS :    16
 *** CREATING BASIS FNs FROM FCIDUMP ***
@@ -315,194 +315,126 @@ Reference processor is:        1
 Initial reference is: (    1,    2,    3,    4,    5,    6,    7,    8)
   Initialising wavefunctions by the Lanczos algorithm
  About to allocate first row of Hamiltonian.
- The memory (bytes) required for this is:     9168
- The total number of determinants (and hence rows) on this processor is:    6526
- The total number of determinants across all processors is:   12870
- It is therefore expected that the total memory (MB) required will be roughly:     117
- Finished computing row:    1000
- Finished computing row:    2000
- Finished computing row:    3000
- Finished computing row:    4000
- Finished computing row:    5000
- Finished computing row:    6000
- number of determinants on this process: 12870
- allocating array to hold subspace vectors (10 mb).
+ The memory (bytes) required for this is:     4880
+ The total number of determinants (and hence rows) on this processor is:     418
+ The total number of determinants across all processors is:     849
+ It is therefore expected that the total memory (MB) required will be roughly:       4
+ number of determinants on this process: 849
+ allocating array to hold subspace vectors (0 mb).
  Hamiltonian calculation setup complete.
 
                     1                    2                    3                    4                    5                    6                    7                    8
                     1                    2                    3                    4                    6                    7                    8                    9
-   2.0000000000000004     
  Perfoming a Lanczos Diagonalisation of the trial space
 
  Not orthogonalising Lanczos vectors
 
  Iteration    State            Energy       Time
-           1    1  -29420.8017893220      0.150
-           1    2       0.0000000000      0.150
+           1    1  -29420.8017893220      0.001
+           1    2       0.0000000000      0.001
 
-           2    1  -29420.8423880602      0.150
-           2    2  -29420.4637683278      0.150
+           2    1  -29420.8489214347      0.002
+           2    2  -29420.5193341025      0.002
 
-           3    1  -29420.8782891121      0.082
-           3    2  -29420.6415209520      0.082
+           3    1  -29420.8806791042      0.002
+           3    2  -29420.6474315192      0.002
 
-           4    1  -29420.8973488680      0.082
-           4    2  -29420.6875741394      0.082
+           4    1  -29420.9002863656      0.002
+           4    2  -29420.6941008230      0.002
 
-           5    1  -29420.9024348141      0.082
-           5    2  -29420.6988706740      0.082
+           5    1  -29420.9047476367      0.002
+           5    2  -29420.7051773989      0.002
 
-           6    1  -29420.9044101747      0.082
-           6    2  -29420.7040228525      0.082
+           6    1  -29420.9051185559      0.002
+           6    2  -29420.7063722176      0.002
 
-           7    1  -29420.9050265265      0.082
-           7    2  -29420.7060101623      0.082
+           7    1  -29420.9052299792      0.002
+           7    2  -29420.7068735911      0.002
 
-           8    1  -29420.9051946345      0.082
-           8    2  -29420.7066681101      0.082
+           8    1  -29420.9052552137      0.002
+           8    2  -29420.7070604941      0.002
 
-           9    1  -29420.9052557171      0.082
-           9    2  -29420.7069560212      0.082
+           9    1  -29420.9052670402      0.002
+           9    2  -29420.7072537308      0.002
 
-          10    1  -29420.9052817828      0.082
-          10    2  -29420.7071056090      0.082
+          10    1  -29420.9052735169      0.002
+          10    2  -29420.7076191194      0.002
 
-          11    1  -29420.9052955364      0.082
-          11    2  -29420.7072051042      0.082
+          11    1  -29420.9052759159      0.002
+          11    2  -29420.7082642609      0.002
 
-          12    1  -29420.9053058417      0.082
-          12    2  -29420.7073095841      0.082
+          12    1  -29420.9052764412      0.002
+          12    2  -29420.7088498888      0.002
 
-          13    1  -29420.9053117509      0.082
-          13    2  -29420.7074018084      0.082
+          13    1  -29420.9052766155      0.002
+          13    2  -29420.7094546372      0.002
 
-          14    1  -29420.9053172149      0.082
-          14    2  -29420.7075659242      0.082
+          14    1  -29420.9052766830      0.002
+          14    2  -29420.7101370147      0.002
 
-          15    1  -29420.9053203198      0.082
-          15    2  -29420.7077945591      0.082
+          15    1  -29420.9052767024      0.002
+          15    2  -29420.7106631450      0.002
 
-          16    1  -29420.9053218491      0.082
-          16    2  -29420.7080779754      0.082
+          16    1  -29420.9052767056      0.002
+          16    2  -29420.7108475903      0.002
 
-          17    1  -29420.9053227328      0.082
-          17    2  -29420.7085073066      0.082
+          17    1  -29420.9052767064      0.002
+          17    2  -29420.7109258076      0.002
 
-          18    1  -29420.9053230679      0.082
-          18    2  -29420.7088948809      0.082
+          18    1  -29420.9052767066      0.002
+          18    2  -29420.7109576195      0.002
 
-          19    1  -29420.9053232179      0.082
-          19    2  -29420.7092315280      0.082
+          19    1  -29420.9052767066      0.002
+          19    2  -29420.7109692310      0.002
 
-          20    1  -29420.9053232998      0.082
-          20    2  -29420.7095682949      0.082
+          20    1  -29420.9052767066      0.002
+          20    2  -29420.7109751795      0.002
 
-          21    1  -29420.9053233505      0.082
-          21    2  -29420.7099646741      0.082
+          21    1  -29420.9052767066      0.002
+          21    2  -29420.7109776980      0.002
 
-          22    1  -29420.9053233759      0.082
-          22    2  -29420.7103433113      0.082
+          22    1  -29420.9052767066      0.002
+          22    2  -29420.7109790507      0.002
 
-          23    1  -29420.9053233877      0.082
-          23    2  -29420.7106552511      0.082
+          23    1  -29420.9052767066      0.002
+          23    2  -29420.7109795103      0.002
 
-          24    1  -29420.9053233924      0.082
-          24    2  -29420.7108586539      0.082
+          24    1  -29420.9052767066      0.002
+          24    2  -29420.7109796276      0.002
 
-          25    1  -29420.9053233945      0.082
-          25    2  -29420.7109935074      0.082
+          25    1  -29420.9052767066      0.002
+          25    2  -29420.7109796695      0.002
 
-          26    1  -29420.9053233953      0.082
-          26    2  -29420.7110739586      0.082
+          26    1  -29420.9052767066      0.002
+          26    2  -29420.7109796766      0.002
 
-          27    1  -29420.9053233957      0.082
-          27    2  -29420.7111190779      0.082
+          27    1  -29420.9052767066      0.002
+          27    2  -29420.7109796786      0.002
 
-          28    1  -29420.9053233958      0.082
-          28    2  -29420.7111463973      0.082
+          28    1  -29420.9052767066      0.002
+          28    2  -29420.7109796789      0.002
 
-          29    1  -29420.9053233959      0.082
-          29    2  -29420.7111586992      0.082
+          29    1  -29420.9052767066      0.002
+          29    2  -29420.7109796790      0.002
 
-          30    1  -29420.9053233959      0.082
-          30    2  -29420.7111674198      0.082
-
-          31    1  -29420.9053233959      0.082
-          31    2  -29420.7111735223      0.082
-
-          32    1  -29420.9053233959      0.082
-          32    2  -29420.7111766587      0.082
-
-          33    1  -29420.9053233959      0.082
-          33    2  -29420.7111789832      0.082
-
-          34    1  -29420.9053233959      0.082
-          34    2  -29420.7111803253      0.082
-
-          35    1  -29420.9053233959      0.082
-          35    2  -29420.7111813929      0.082
-
-          36    1  -29420.9053233959      0.082
-          36    2  -29420.7111820939      0.082
-
-          37    1  -29420.9053233959      0.082
-          37    2  -29420.7111824694      0.082
-
-          38    1  -29420.9053233959      0.082
-          38    2  -29420.7111826576      0.082
-
-          39    1  -29420.9053233959      0.082
-          39    2  -29420.7111827487      0.082
-
-          40    1  -29420.9053233959      0.082
-          40    2  -29420.7111827971      0.082
-
-          41    1  -29420.9053233959      0.082
-          41    2  -29420.7111828161      0.082
-
-          42    1  -29420.9053233959      0.082
-          42    2  -29420.7111828286      0.082
-
-          43    1  -29420.9053233959      0.082
-          43    2  -29420.7111828356      0.082
-
-          44    1  -29420.9053233959      0.082
-          44    2  -29420.7111828394      0.082
-
-          45    1  -29420.9053233959      0.082
-          45    2  -29420.7111828415      0.082
-
-          46    1  -29420.9053233959      0.082
-          46    2  -29420.7111828425      0.082
-
-          47    1  -29420.9053233959      0.082
-          47    2  -29420.7111828428      0.082
-
-          48    1  -29420.9053233959      0.082
-          48    2  -29420.7111828430      0.082
-
-          49    1  -29420.9053233959      0.082
-          49    2  -29420.7111828431      0.082
+          30    1  -29420.9052767066      0.002
+          30    2  -29420.7109796790      0.002
 
  2 eigenvalues(s) were successfully converged to within    1.0000000E-10
- Largest Ritz vector overlap:    9.5041350E-07
+ Largest Ritz vector overlap:    1.2741533E-07
  Ritz vectors are mutually orthogonal to a tolerance of    1.0000000E-05
 
  Final calculated energies:
- State 1    -29420.9053233959
- State 2    -29420.7111828431
+ State 1    -29420.9052767066
+ State 2    -29420.7109796790
 
  Ritz vector expectation energies:
- State 1    -29420.9030270979
- State 2    -29420.6924375467
+ State 1    -29420.9031342236
+ State 2    -29420.6922337000
 
  Ritz vector residual norms:
- State 1         0.0477923178
- State 2         0.0902500708
-
- Many-body secondary spin quantum number (m_s) of Ritz vectors:
- State 1         1.9999999975
- State 2         1.9464959474
+ State 1         0.0462203200
+ State 2         0.0860240425
 
  End of Lanczos procedure.
 
@@ -520,15 +452,100 @@ Changing projected energy reference determinant for run  2 on the next update cy
  Only one array of memory to store main particle list allocated...
  Initial memory allocation sucessful...
 # 1. Iter.             2. Dets occ.         3. Dets spawned      4. Iter. time       
-#               0           12870               0   0.00000000000     
+#               0             849               0   0.00000000000     
+Bloom of more than n_add on single excit: A max of       3.69 particles created.        3 blooms occurred.
+Bloom of more than n_add on double excit: A max of       3.23 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =    6.2493781454456485E-002
+ Updating spin-excitation class biases. pSingles(s->s) =    3.0384972682906006E-002 , pSingles(s->s') =    2.8411771908466832E-002 , pDoubles(st->st) =   0.75522222524516980      , pDoubles(st->s't) =    9.3724493412401022E-002 , pDoubles(st->s't') =    1.6640257690577517E-002
+               10             114              36  0.135369901545E-002
+               20             112              29  0.121000409126E-002
+Bloom of more than n_add on single excit: A max of       3.73 particles created.        2 blooms occurred.
+               30             101              19  0.120419857558E-002
+Bloom of more than n_add on double excit: A max of       3.54 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =    6.2353380327445716E-002
+ Updating spin-excitation class biases. pSingles(s->s) =    3.0316708540305184E-002 , pSingles(s->s') =    2.9805423381475172E-002 , pDoubles(st->st) =   0.82965541817526089      , pDoubles(st->s't) =    9.3513928069780428E-002 , pDoubles(st->s't') =    1.7392032020913297E-002
+               40              91              20  0.115689635277E-002
+Bloom of more than n_add on single excit: A max of       3.39 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =    5.5679709254423830E-002
+ Updating spin-excitation class biases. pSingles(s->s) =    3.5302139759917361E-002 , pSingles(s->s') =    2.6615354281844219E-002 , pDoubles(st->st) =   0.74337115905104878      , pDoubles(st->s't) =   0.18230474610588845      , pDoubles(st->s't') =    1.5530565964229434E-002
+               50              85              20  0.115010142326E-002
+Bloom of more than n_add on double excit: A max of       4.30 particles created.        1 blooms occurred.
+               60              73              11  0.117660162505E-002
+               70              65              16  0.112239713781E-002
+Bloom of more than n_add on single excit: A max of       3.97 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =    5.4567928311936645E-002
+ Updating spin-excitation class biases. pSingles(s->s) =    3.4597246599740221E-002 , pSingles(s->s') =    2.6083913940931375E-002 , pDoubles(st->st) =   0.72445135787980453      , pDoubles(st->s't) =   0.19863202245511735      , pDoubles(st->s't') =    1.5220460406993635E-002
+               80              71              11  0.107660295907E-002
+Bloom of more than n_add on single excit: A max of       5.19 particles created.        2 blooms occurred.
+ Updating spin-excitation class biases. pSingles(s->s) =    3.4593070916718337E-002 , pSingles(s->s') =    2.6201459851805237E-002 , pDoubles(st->st) =   0.72537278439654562      , pDoubles(st->s't) =   0.19860804874491539      , pDoubles(st->s't') =    1.5218623387451530E-002
+               90              70              13  0.110329990275E-002
+Bloom of more than n_add on single excit: A max of       3.22 particles created.        1 blooms occurred.
+              100              72              13  0.110700132791E-002
+              110              63              15  0.109649891965E-002
+              120              82              14  0.106640462764E-002
+              130              65              11  0.115140085109E-002
+Bloom of more than n_add on single excit: A max of       3.27 particles created.        1 blooms occurred.
+              140              58              16  0.106430053711E-002
+Bloom of more than n_add on single excit: A max of       3.15 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =    5.4374979544364682E-002
+ Updating spin-excitation class biases. pSingles(s->s) =    3.4474912908517001E-002 , pSingles(s->s') =    2.9527620058000487E-002 , pDoubles(st->st) =   0.72273101353975633      , pDoubles(st->s't) =   0.19792967209807333      , pDoubles(st->s't') =    1.5166641814859822E-002
+              150              56              11  0.107900495641E-002
+              160              59              12  0.103719835170E-002
+              170              51              13  0.106160040013E-002
+              180              48               9  0.103330018464E-002
+              190              45              11  0.100430252496E-002
+              200              59              13  0.106520054396E-002
+Bloom of more than n_add on single excit: A max of       3.76 particles created.        1 blooms occurred.
+              210              51              11  0.105969910510E-002
+              220              48              12  0.106819870416E-002
+Bloom of more than n_add on single excit: A max of       5.66 particles created.        2 blooms occurred.
+ Updating time-step. New time-step =    5.2070395979352459E-002
+ Updating spin-excitation class biases. pSingles(s->s) =    4.5784924318762889E-002 , pSingles(s->s') =    2.8276146154565328E-002 , pDoubles(st->st) =   0.73254151237470555      , pDoubles(st->s't) =   0.18954078674735228      , pDoubles(st->s't') =    4.4135826318022937E-002
+              230              56              12  0.105110404547E-002
+              240              47              12  0.102239847183E-002
+Bloom of more than n_add on single excit: A max of       3.23 particles created.        1 blooms occurred.
+              250              47              19  0.989299966022E-003
+Bloom of more than n_add on single excit: A max of       3.12 particles created.        1 blooms occurred.
+              260              47              22  0.104169850238E-002
+ Updating spin-excitation class biases. pSingles(s->s) =    4.5776587711570373E-002 , pSingles(s->s') =    2.8453079505218231E-002 , pDoubles(st->st) =   0.69211989506211202      , pDoubles(st->s't) =   0.18950627479588389      , pDoubles(st->s't') =    4.4127789981770228E-002
+              270              43              11  0.988805317320E-003
+              280              39               9  0.101180071943E-002
+              290              43              11  0.100790266879E-002
+              300              46              12  0.104129908141E-002
+Bloom of more than n_add on single excit: A max of       3.12 particles created.        1 blooms occurred.
+              310              41               7  0.100100040436E-002
+Bloom of more than n_add on single excit: A max of       3.41 particles created.        2 blooms occurred.
+              320              41              15  0.103469495662E-002
+              330              40              10  0.101910228841E-002
+              340              36              13  0.982296420261E-003
+              350              36              10  0.101920368616E-002
+              360              42              11  0.979000353254E-003
+ Updating time-step. New time-step =    5.1982465961895014E-002
+ Updating spin-excitation class biases. pSingles(s->s) =    4.5707608425174656E-002 , pSingles(s->s') =    2.9917072708423868E-002 , pDoubles(st->st) =   0.69095783579010572      , pDoubles(st->s't) =   0.18922071380812974      , pDoubles(st->s't') =    4.4061295216316292E-002
+              370              35               9  0.101019744761E-002
+              380              41               9  0.102490186691E-002
+              390              41              14  0.957596290391E-003
+ Updating time-step. New time-step =    5.0200652964149002E-002
+ Updating spin-excitation class biases. pSingles(s->s) =    4.4140879927770139E-002 , pSingles(s->s') =    2.8891599445086985E-002 , pDoubles(st->st) =   0.69860473795693878      , pDoubles(st->s't) =   0.18273475895648322      , pDoubles(st->s't') =    7.6828190316685169E-002
+              400              42               7  0.973099493422E-003
+              410              42               7  0.991499400698E-003
+              420              44              13  0.979495001957E-003
+              430              41              10  0.104409456253E-002
+              440              39               8  0.979805015959E-003
+              450              41               7  0.964105129242E-003
+              460              42              11  0.981605029665E-003
+              470              34              11  0.985395861790E-003
+              480              30               9  0.963902450167E-003
+              490              26               8  0.974202179350E-003
+              500              45               9  0.971698784269E-003
 Total iteration number limit reached. Finishing FCIQMC loop...
  - - - - - - - - - - - - - - - - - - - - - - - -
- Total loop-time:    3.8146972656250000E-006
+ Total loop-time:   0.52928996086120605     
  - - - - - - - - - - - - - - - - - - - - - - - -
 
 *********************************
 Writing a 64-bit POPSFILEBIN...
-Writing a total of 12870 determinants.
+Writing a total of 45 determinants.
 *********************************
 
  
@@ -545,27 +562,27 @@ definedet   1   2   3   4   6   7   8   9
 Most occupied         15 determinants as excitations from reference: 
 
  Excitation   ExcitLevel Seniority   Walkers(Re)   Walkers(Im)  Weight   Init?(Re)   Init?(Im)   Proc
-1111111100000000    0    0   -59.75726       0.1768410E-06  -0.2991032E-04   0.1348445E-05  0.90164  N  N  N  N      1
-1111011101000000    1    2  -0.2036058E-05   0.1760872E-05   -1.449435       -9.989402      0.15072  N  N  N  N      1
-1111111001000000    1    2   0.5317954E-05  -0.8912490E-05    2.615701        6.536662      0.09863  N  N  N  N      1
-1111101101000000    1    2  -0.2043224E-05  -0.1774188E-06    4.391690       -5.481881      0.08271  N  N  N  N      1
-1111101110000000    1    2  -0.2033887E-05  -0.1763445E-05   0.2397046       -3.578258      0.05399  N  N  N  N      1
-1111110101000000    1    2  -0.3060410E-05   0.4823617E-05    3.684978        2.695651      0.04067  N  N  N  N      1
-1111110110000000    1    2  -0.5323160E-05  -0.8912054E-05   -1.538570       -1.342952      0.02026  N  N  N  N      1
-1111001111000000    2    0    1.126347      -0.3332634E-08  -0.9727826E-04  -0.8871818E-06  0.01699  N  N  N  N      1
-1111110011000000    2    0    1.126344      -0.3333214E-08  -0.9815843E-04   0.7201486E-07  0.01699  N  N  N  N      0
-1111111010000000    1    2  -0.3066570E-05  -0.4824596E-05    4.698943        1.071942      0.01617  N  N  N  N      1
-1111001110001000    2    2  -0.2354062E-07  -0.3703969E-07  -0.1229846      -0.7714890      0.01164  N  N  N  N      1
-1111011010000001    2    4  -0.3637223E-07   0.9587524E-07   0.6725551      -0.7427833      0.01121  N  N  N  N      0
-1111001100001100    2    0   0.6386380      -0.1890673E-08   0.1133942E-04  -0.7468775E-07  0.00964  N  N  N  N      0
-1111110000000011    2    0   0.6386270      -0.1890069E-08   0.1146660E-04   0.6091026E-07  0.00964  N  N  N  N      0
-1111010110000010    2    4  -0.8171105E-07   0.1126435E-06  -0.4164241      -0.6381071      0.00963  N  N  N  N      0
+1111111100000000    0    0    68.57882        0.000000        0.000000        0.000000      0.99467  Y  Y  N  N      1
+1101111000010010    2    4    1.174517        0.000000        0.000000        0.000000      0.01704  N  N  N  N      0
+1110111000010100    2    4   -1.070502        0.000000        0.000000        0.000000      0.01553  N  N  N  N      1
+0111101110000100    2    4   -1.000000       -1.000000        0.000000        0.000000      0.01450  N  N  N  N      0
+1011111001000001    2    4   -1.000000        0.000000        0.000000        0.000000      0.01450  N  N  N  N      0
+1101111000001001    2    4    1.000000        0.000000        0.000000        0.000000      0.01450  N  N  N  N      0
+0111101110000001    2    4    1.000000        0.000000        0.000000        0.000000      0.01450  N  N  N  N      0
+1110110100100001    2    4    1.000000        0.000000        0.000000        0.000000      0.01450  N  N  N  N      0
+1111100100101000    2    4    1.000000        1.000000        0.000000        0.000000      0.01450  N  N  N  N      0
+1111001101000100    2    2    0.000000        0.000000        0.000000       -1.000000      0.01450  N  N  N  N      0
+1111110011000000    2    0   -1.000000        0.000000        0.000000        0.000000      0.01450  N  N  N  N      0
+1111010100000110    2    4    1.000000        1.000000        0.000000        0.000000      0.01450  Y  Y  N  N      1
+0011111100000011    2    0   -1.000000        0.000000        0.000000        0.000000      0.01450  N  N  N  N      1
+1111100100001001    2    4   -1.000000        1.000000        0.000000        0.000000      0.01450  N  N  N  N      1
+1111011000000110    2    4   -1.000000       -1.000000        0.000000        0.000000      0.01450  N  N  N  N      1
  
 
  Load balancing information based on the last iteration:
- Mean number of determinants/process    6435.0000000000
- Min number of determinants/process               6344
- Max number of determinants/process               6526
+ Mean number of determinants/process     425.0000000000
+ Min number of determinants/process                419
+ Max number of determinants/process                431
 
 
 Calculating approximate errorbar for energy estimates...
@@ -573,20 +590,20 @@ Calculating approximate errorbar for energy estimates...
 Calculation has not entered variable shift phase. Error analysis therefore not performed.
 Direct reblocking of instantaneous energy possible, but this would contain finite sampling bias.
  Current reference energy                          -29420.903447136643
- Projected correlation energy                           0.000000000000
+ Projected correlation energy                          -0.001831698624
  No automatic errorbar obtained for projected energy
  No reliable averaged shift correlation energy could be obtained automatically
 
- Total projected energy      -29420.90344714
+ Total projected energy      -29420.90527884
 
 
- Final energy estimate for state 1:     -29420.903447137    
- Final energy estimate for state 2:     -29420.903447137    
+ Final energy estimate for state 1:     -29420.905278835    
+ Final energy estimate for state 2:     -29420.705280064    
 
  ================================================================
  Memory usage
  Maximum memory defined is (MB) :   99999.0
- Maximum memory used is    (MB) :     298.4
+ Maximum memory used is    (MB) :     238.0
  
  Large memory allocations:
  
@@ -596,12 +613,12 @@ Direct reblocking of instantaneous energy possible, but this would contain finit
  SpawnVec2         InitFCIMCPar       DeallocFciMCMemPar   91.6MB
  WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar   45.8MB
  global_determinantinit_global_det_datclean_global_det_da   7.6MB
- temp_store        calculate_sparse_hacalculate_sparse_ha 603.3KB
- Parts             WriteToPopsfileParOnot deallocated     305.9KB
  UMat              IntInit            IntCleanup          291.1KB
- ritz_vectors      init_lanczos       not deallocated     201.1KB
- eigenvectors      init_lanczos       not deallocated     201.1KB
- hamiltonian_row   calculate_sparse_hacalculate_sparse_ha 100.5KB
+ temp_store        calculate_sparse_hacalculate_sparse_ha  39.8KB
+ Parts             WriteToPopsfileParOnot deallocated      20.2KB
+ ritz_vectors      init_lanczos       not deallocated      13.3KB
+ eigenvectors      init_lanczos       not deallocated      13.3KB
+ hamiltonian_row   calculate_sparse_hacalculate_sparse_ha   6.6KB
  ================================================================
 
  ================================================================
@@ -611,16 +628,22 @@ Direct reblocking of instantaneous energy possible, but this would contain finit
 
  Procedure                    Calls       CPU    system     total
  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
- NECICUBE                         1     50.81      0.00     50.81
- SysInit                          1      0.11      0.00      0.11
- POPS-write                       1      0.01      0.00      0.01
- SyncTime                         8      0.00      0.00      0.00
+ NECICUBE                         1      0.47      0.00      0.47
+ WalkerTime                     500      0.33      0.00      0.33
+ SysInit                          1      0.07      0.00      0.07
+ SyncTime                       508      0.03      0.00      0.03
+ SortTime                       500      0.03      0.00      0.03
+ StatsCommsTime                  50      0.00      0.00      0.00
+ AnnMainTime                    500      0.00      0.00      0.00
+ CommsTime                      500      0.00      0.00      0.00
+ Compression interface          500      0.00      0.00      0.00
+ AnnihilTime                    500      0.00      0.00      0.00
  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
- Total                                  50.93      0.00     50.93
+ Total                                   0.95      0.00      0.95
 
- Global CPU time         51.11
+ Global CPU time          1.12
  Global system time       0.00
- Global total time       51.11
+ Global total time        1.12
  ================================================================
- Calculation ended 02/08/2016 at 11:36:17
+ Calculation ended 02/08/2016 at 11:52:18
  ================================================================
