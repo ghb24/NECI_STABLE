@@ -60,6 +60,8 @@ contains
         ndets_this_proc = 0
         trial_iluts = 0_n_int
 
+        write(6,*) " Initialising wavefunctions by the Lanczos algorithm"
+
         ! Choose the correct generating routine.
         if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
         if (space_in%tPops) call generate_space_most_populated(space_in%npops, & 
@@ -135,16 +137,13 @@ contains
         endif
             
         ! Perform the Lanczos procedure in parallel.
-        call perform_lanczos(lanczosCalc, nexcit, .true., parallel_sparse_hamil_type, .true., .false.)
+        call perform_lanczos(lanczosCalc, det_list, nexcit, parallel_sparse_hamil_type, .true.)
 
         if (iProcIndex == root) then
             evals = lanczosCalc%eigenvalues(1:nexcit)
             evecs = lanczosCalc%eigenvectors(1:lanczosCalc%super%space_size, 1:nexcit)
             
-            safe_malloc_e(evecs_transpose, (nexcit, ndets_all_procs), ierr)
-            if (ierr /= 0) call stop_all(t_r, "Error allocating transposed eigenvectors array.")
-            evecs_transpose = transpose(evecs)
-
+            ! For consistency between compilers, enforce a rule for the sign of
             ! the eigenvector. To do this, make sure that the largest component
             ! of each vector is positive. The largest component is found using
             ! maxloc. If there are multiple determinants with the same weight
@@ -173,6 +172,12 @@ contains
                 call sort(temp_reorder, evecs)
             end if
 
+            ! Unfortunately to perform the MPIScatterV call we need the transpose
+            ! of the eigenvector array.
+            safe_malloc_e(evecs_transpose, (nexcit, ndets_all_procs), ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error allocating transposed eigenvectors array.")
+            evecs_transpose = transpose(evecs)
+        else
             safe_free(ilut_list)
         endif
 
@@ -575,6 +580,7 @@ contains
 
         ! We need to normalise all of the vectors to have the correct number of
         ! walkers.
+
         do j = 1, nexcit
             eigenvec_pop = 0.0_dp
             do i = 1, ndets_this_proc

@@ -169,7 +169,7 @@ endif
 
 ! The following is useful for converting from HElement_t to an array of the appropriate length
 #ifdef __CMPLX
-#define h_to_array(z) (/real(z), aimag(z)/)
+#define h_to_array(z) (/dble(z), dimag(z)/)
 #else
 #define h_to_array(z) (/ z /)
 #endif

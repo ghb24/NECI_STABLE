@@ -3,7 +3,7 @@ module hamiltonian_linalg
     !   robert.anderson@kcl.ac.uk
     !   June 2016
     !
-    !   Linear algebra routines for CI hamiltonians
+    !   (Parallel) linear algebra routines for hermitian matrices
     !
     use constants
     use ras_data
@@ -214,25 +214,26 @@ module hamiltonian_linalg
         type(HamiltonianCalcType), intent(inout) :: this
         integer, intent(in) :: basis_index
         integer :: i
-        if (iprocindex==root) then
-            associate(v => this%basis_vectors(:,basis_index))
-            do i = 1, basis_index-1
-                v = v - this%basis_vectors(:,i)*inner_product(v,this%basis_vectors(:,i)) &
-                    /inner_product(this%basis_vectors(:,i), this%basis_vectors(:,i))
-            enddo
-            v = v/euclidean_norm(v)
-            end associate        
-        endif
-        call MPIBCast(this%basis_vectors(:,basis_index))
+
+        associate(v => this%basis_vectors(:,basis_index))
+        do i = 1, basis_index-1
+            v = v - this%basis_vectors(:,i)*inner_product(v,this%basis_vectors(:,i)) &
+                /inner_product(this%basis_vectors(:,i), this%basis_vectors(:,i))
+        enddo
+        !v = v/euclidean_norm(v)
+        end associate        
+        
     end subroutine orthogonalise_against_previous_basis_vectors
 
     subroutine build_full_hamiltonian_from_sparse(this, full_ham)
         type(HamiltonianCalcType), intent(inout) :: this
+        HElement_t(dp), intent(out) :: full_ham(:,:)
         HElement_t(dp), allocatable :: vec(:)
-        HElement_t(dp) :: full_ham(:,:)
-        integer :: i
+        integer :: i, ierr
+        write(6,*) "converting sparse hamiltonian to full"
         safe_malloc(vec, (this%space_size))
         do i = 1, this%space_size
+            call MPIBarrier(ierr)
             vec = h_cast(0.0_dp)
             vec(i) = h_cast(1.0_dp)
             if (iprocindex==root) then
@@ -240,6 +241,8 @@ module hamiltonian_linalg
             else
                 call multiply_hamil_and_vector(this, vec, this%temp_out)
             endif
+            write(6,*) i,"hamiltonian columns converted"
+            call MPIBarrier(ierr)
         enddo
         safe_free(vec)
     end subroutine build_full_hamiltonian_from_sparse
@@ -262,8 +265,7 @@ module hamiltonian_linalg
         real(dp) :: inner_product, ddot
         character(*), parameter :: this_routine = "inner_product_real"
         ASSERT(size(u)==size(v))
-        !inner_product = ddot(size(u), u, 1, v, 1)
-        inner_product = dot_product(u,v)
+        inner_product = ddot(size(u), u, 1, v, 1)
     end function inner_product_real
 
     function inner_product_complex(u, v) result (inner_product)
@@ -271,7 +273,6 @@ module hamiltonian_linalg
         complex(dp) :: inner_product, zdotc
         character(*), parameter :: this_routine = "inner_product_complex"
         ASSERT(size(u)==size(v))
-        !inner_product = zdotc(size(u), u, 1, v, 1)
         inner_product = dot_product(u,v)
     end function inner_product_complex
 

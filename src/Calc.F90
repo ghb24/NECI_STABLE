@@ -80,6 +80,12 @@ contains
           tSearchTauOption = .true.
           tSearchTauDeath = .false.
 
+          t_lanczos_init = .false.
+          t_lanczos_store_vecs = .true.
+          t_lanczos_orthogonalise = .false.
+          lanczos_max_restarts = 10
+          lanczos_max_vecs = 100
+
           tTimeExit=.false.
           MaxTimeExit=0.0_dp
           tMaxBloom=.false.
@@ -369,6 +375,19 @@ contains
                 TENERGY = .true.
                 TCALCHMAT = .true.
                 tLogDets=.true.
+            case("LANCZOS-STORE-VECTORS")
+                ! default
+                t_lanczos_init = .true.
+            case("LANCZOS-STORE-VECTORS-ORTHOGONALISE")
+                t_lanczos_init = .true.
+                t_lanczos_orthogonalise = .true.
+            case("LANCZOS-NO-STORE-VECTORS")
+                t_lanczos_init = .true.
+                t_lanczos_store_vecs = .true.
+            case("LANCZOS-MAX-SUBSPACE-SIZE")
+                call readi(lanczos_max_vecs)
+            case("LANCZOS-MAX-RESTARTS")
+                call readi(lanczos_max_restarts)
             case("LANCZOS")
 !Sets the diagonaliser for the GraphMorph algorithm to be Lanczos
                 tLanczos=.true.

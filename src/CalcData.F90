@@ -169,6 +169,13 @@ real(dp), allocatable :: TargetGrowRate(:)
 integer(int64), allocatable :: TargetGrowRateWalk(:)
 integer(int64) :: iExitWalkers  !Exit criterion, based on total walker number
 
+! Lanczos initialisation of the wavefunctions
+logical :: t_lanczos_init
+logical :: t_lanczos_store_vecs
+logical :: t_lanczos_orthogonalise
+integer :: lanczos_max_restarts
+integer :: lanczos_max_vecs
+
 
 !// additional from NECI.F
 INTEGER, Allocatable :: MCDet(:)
