@@ -33,8 +33,7 @@ MODULE PopsfileMod
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
         gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, max_death_cpt
     use FciMcData, only : pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
-    use global_det_data, only: global_determinant_data, set_iter_occ, &
-                               init_global_det_data, set_det_diagH
+    use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH
     use fcimc_helper, only: update_run_reference, calc_inst_proje
     use replica_data, only: set_initial_global_data
     use load_balance, only: pops_init_balance_blocks
@@ -1945,6 +1944,9 @@ r_loop: do while(.not.tStoreDet)
 
 !This routine reads in particle configurations from a POPSFILE.
     SUBROUTINE ReadFromPopsfilePar()
+
+        use rdm_data, only: rdm_definitions
+
         LOGICAL :: exists,tBinRead
         Real(dp) :: NodeSumNoatHF(nProcessors)
         INTEGER :: WalkerstoReceive(nProcessors)
@@ -2186,7 +2188,7 @@ r_loop: do while(.not.tStoreDet)
         ! Allocate storage for persistent data to be stored alongside
         ! the current determinant list (particularly diagonal matrix
         ! elements, i.e. CurrentH; now global_determinant_data).
-        call init_global_det_data()
+        call init_global_det_data(rdm_definitions%nrdms_standard, rdm_definitions%nrdms_transition)
 
 ! The hashing will be different in the new calculation from the one where the
 !  POPSFILE was produced, this means we must recalculate the processor each 

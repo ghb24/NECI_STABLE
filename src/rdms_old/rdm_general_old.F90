@@ -490,7 +490,6 @@ contains
         use rdm_data_old, only: rdm_t, rdm_estimates_old_t
         use rdm_estimators_old, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
         use rdm_estimators_old, only: rdm_output_wrapper_old, CalcDipoles, write_rdm_estimates_old
-        use rdm_finalising, only: Finalise_1e_RDM, calc_1e_norms
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
 
         type(rdm_t), intent(inout) :: two_rdms(:)
@@ -505,7 +504,7 @@ contains
         do i = 1, size(one_rdms)
 
             if (RDMExcitLevel .eq. 1) then
-                call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%rho_ii, i, Norm_1RDM, .true.)
+                call Finalise_1e_RDM_old(one_rdms(i)%matrix, one_rdms(i)%rho_ii, i, Norm_1RDM, .true.)
             else
                 ! We always want to calculate one final RDM energy, whether or not we're 
                 ! calculating the energy throughout the calculation.
@@ -515,14 +514,14 @@ contains
                 call rdm_output_wrapper_old(two_rdms(i), one_rdms(i), i, rdm_estimates_old(i), .true.)
 
                 if (tPrint1RDM) then
-                    call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%rho_ii, i, Norm_1RDM, .true.)
+                    call Finalise_1e_RDM_old(one_rdms(i)%matrix, one_rdms(i)%rho_ii, i, Norm_1RDM, .true.)
                 else if (tDiagRDM .and. (iProcIndex .eq. 0)) then
-                    call calc_1e_norms(one_rdms(i)%matrix, one_rdms(i)%rho_ii, Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
+                    call calc_1e_norms_old(one_rdms(i)%matrix, one_rdms(i)%rho_ii, Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
                     write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
                 end if
 
                 if (tDumpForcesInfo) then
-                    if (.not. tPrint1RDM) call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%rho_ii, i, Norm_1RDM, .true.)
+                    if (.not. tPrint1RDM) call Finalise_1e_RDM_old(one_rdms(i)%matrix, one_rdms(i)%rho_ii, i, Norm_1RDM, .true.)
                     call Calc_Lagrangian_from_RDM(two_rdms(i), one_rdms(i), Norm_1RDM, rdm_estimates_old(i)%Norm_2RDM)
                     call convert_mats_Molpforces(two_rdms(i), one_rdms(i), Norm_1RDM, rdm_estimates_old(i)%Norm_2RDM)
                 end if
@@ -534,7 +533,7 @@ contains
             ! This is where we would likely call any further calculations of
             ! forces, etc.
             if (tDipoles) then
-                if (.not. tPrint1RDM) call Finalise_1e_RDM(one_rdms(i)%matrix, one_rdms(i)%rho_ii, i, Norm_1RDM, .true.)
+                if (.not. tPrint1RDM) call Finalise_1e_RDM_old(one_rdms(i)%matrix, one_rdms(i)%rho_ii, i, Norm_1RDM, .true.)
                 call CalcDipoles(one_rdms(i), Norm_1RDM)
             end if
 
@@ -563,6 +562,140 @@ contains
         if (iProcIndex == 0) call write_rdm_estimates_old(rdm_estimates_old, .true.)
 
     end subroutine FinaliseRDMs_old
+
+    subroutine Finalise_1e_RDM_old(matrix, matrix_diag, irdm, norm_1rdm, tOldRDMs)
+
+        ! This routine takes the 1-RDM (matrix), normalises it, makes it
+        ! hermitian if required, and prints out the versions we're interested
+        ! in. This is only ever called at the very end of a calculation.
+
+        use LoggingData, only: twrite_RDMs_to_read, twrite_normalised_RDMs, tForceCauchySchwarz
+        use LoggingData, only: RDMExcitLevel
+        use Parallel_neci, only: iProcIndex, MPISumAll
+        use rdm_data, only: rdm_definitions
+        use rdm_finalising, only: write_1rdm, make_1e_rdm_hermitian, Force_Cauchy_Schwarz
+        use RotateOrbsData, only: NoOrbs
+
+        real(dp), intent(inout) :: matrix(:,:)
+        real(dp), intent(inout) :: matrix_diag(:)
+        integer, intent(in) :: irdm
+        real(dp), intent(out) :: norm_1rdm
+        logical, intent(in) :: tOldRDMs
+
+        integer :: ierr
+        real(dp) :: trace_1rdm, SumN_Rho_ii
+        real(dp), allocatable :: AllNode_one_rdm(:,:)
+
+        norm_1rdm = 0.0_dp
+
+        if (RDMExcitLevel == 1) then
+            allocate(AllNode_one_rdm(NoOrbs, NoOrbs), stat=ierr)
+
+            call MPISumAll(matrix, AllNode_one_rdm)
+            matrix = AllNode_one_rdm
+
+            deallocate(AllNode_one_rdm)
+        end if
+
+        if (iProcIndex == 0) then
+            ! Find the normalisation.
+            call calc_1e_norms_old(matrix, matrix_diag, trace_1rdm, norm_1rdm, SumN_Rho_ii)
+
+            ! Write out the unnormalised, non-hermitian OneRDM_POPS.
+            if (twrite_RDMs_to_read) call write_1rdm(rdm_definitions, matrix, irdm, norm_1rdm, .false., tOldRDMs)
+
+            ! Enforce the hermiticity condition.  If the RDMExcitLevel is not 1, the
+            ! 1-RDM has been constructed from the hermitian 2-RDM, so this will not
+            ! be necessary.
+            ! The HF_Ref and HF_S_D_Ref cases are not hermitian by definition.
+            if (RDMExcitLevel == 1) then
+                call make_1e_rdm_hermitian(matrix, norm_1rdm)
+
+                if (tForceCauchySchwarz) then
+                    call Force_Cauchy_Schwarz(matrix)
+                end if
+            end if
+
+            ! Write out the final, normalised, hermitian OneRDM.
+            if (tWrite_normalised_RDMs) call write_1rdm(rdm_definitions, matrix, irdm, norm_1rdm, .true., tOldRDMs)
+
+            write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
+        end if
+
+    end subroutine Finalise_1e_RDM_old
+
+    subroutine calc_1e_norms_old(matrix, matrix_diag, trace_1rdm, norm_1rdm, SumN_Rho_ii)
+
+        ! We want to 'normalise' the reduced density matrices. These are not
+        ! even close to being normalised at the moment, because of the way
+        ! they are calculated on the fly. They should be calculated from a
+        ! normalised wavefunction. But we know that the trace of the one
+        ! electron reduced density matrix must be equal to the number of the
+        ! electrons. We can use this to find the factor we must divide the
+        ! 1-RDM through by.
+
+        use FciMCData, only: HFDet_True
+        use LoggingData, only: tDiagRDM
+        use rdm_data, only: tOpenShell
+        use RotateOrbsData, only: SymLabelListInv_rot, NoOrbs
+        use SystemData, only: BRR, nel
+        use UMatCache, only: gtID
+
+        real(dp), intent(in) :: matrix(:,:)
+        real(dp), intent(inout) :: matrix_diag(:)
+        real(dp), intent(out) :: trace_1rdm, norm_1rdm, SumN_Rho_ii
+
+        integer :: i, HFDet_ID, BRR_ID
+
+        trace_1rdm = 0.0_dp
+        norm_1rdm = 0.0_dp
+
+        do i = 1, NoOrbs
+            trace_1rdm = trace_1rdm + matrix(i,i)
+        end do
+
+        norm_1rdm = real(nel, dp) / trace_1rdm
+
+        ! Need to multiply each element of the 1 electron reduced density matrices
+        ! by nel / trace_1rdm,
+        ! and then add it's contribution to the energy.
+
+        ! Want to sum the diagonal elements of the 1-RDM for the HF orbitals.
+        ! Given the HF orbitals, SymLabelListInv_rot tells us their position
+        ! in the 1-RDM.
+        SumN_Rho_ii = 0.0_dp
+
+        do i = 1, NoOrbs
+            ! Rho_ii is the diagonal elements of the 1-RDM. We want this
+            ! ordered according to the energy of the orbitals. Brr has the
+            ! orbital numbers in order of energy... i.e Brr(2) = the orbital
+            ! index with the second lowest energy. Brr is always in spin
+            ! orbitals. i gives the energy level, BRR gives the orbital,
+            ! SymLabelListInv_rot gives the position of  this orbital in
+            ! one_rdm.
+
+            associate(ind => SymLabelListInv_rot)
+                if (tDiagRDM) then
+                    if (tOpenShell) then
+                        matrix_diag(i) = matrix(ind(BRR(i)), ind(BRR(i))) * norm_1rdm
+                    else
+                        BRR_ID = gtID(BRR(2*i))
+                        matrix_diag(i) = matrix(ind(BRR_ID), ind(BRR_ID)) * norm_1rdm
+                    end if
+                end if
+
+                if (i <= nel) then
+                    if (tOpenShell) then
+                        SumN_Rho_ii = SumN_Rho_ii + ( matrix(ind(HFDet_True(i)), ind(HFDet_True(i))) * norm_1rdm )
+                    else
+                        HFDet_ID = gtID(HFDet_True(i))
+                        SumN_Rho_ii = SumN_Rho_ii + ( matrix(ind(HFDet_ID), ind(HFDet_ID)) * norm_1rdm ) / 2.0_dp
+                    end if
+                end if
+            end associate
+        end do
+
+    end subroutine calc_1e_norms_old
 
     subroutine DeallocateRDMs_old()
 

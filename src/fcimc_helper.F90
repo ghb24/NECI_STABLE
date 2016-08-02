@@ -52,11 +52,9 @@ module fcimc_helper
     use csf_data, only: csf_orbital_mask
     use csf, only: iscsf
     use hphf_integrals, only: hphf_diag_helement
-    use global_det_data, only: get_av_sgn, set_av_sgn, set_det_diagH, &
-                               global_determinant_data, set_iter_occ, &
-                               det_diagH
+    use global_det_data, only: get_av_sgn_tot, set_av_sgn_tot, set_det_diagH, &
+                               global_determinant_data, det_diagH
     use searching, only: BinSearchParts2
-    use rdm_data, only: nrdms
     implicit none
     save
 
@@ -795,12 +793,16 @@ contains
 
     end function TestInitiator
 
-    subroutine rezero_iter_stats_each_iter(iter_data)
+    subroutine rezero_iter_stats_each_iter(iter_data, rdm_defs)
+
+        use global_det_data, only: len_av_sgn_tot
+        use rdm_data, only: rdm_definitions_t
 
         type(fcimc_iter_data), intent(inout) :: iter_data
+        type(rdm_definitions_t), intent(in) :: rdm_defs
 
-        real(dp) :: prev_AvNoatHF(lenof_sign), AllInstNoatHF(lenof_sign)
-        integer :: irdm, ind1, ind2, part_type, run
+        real(dp) :: prev_AvNoatHF(len_av_sgn_tot), AllInstNoatHF(lenof_sign)
+        integer :: irdm, av_ind_1, av_ind_2, part_type
 
         NoInitDets = 0
         NoNonInitDets = 0
@@ -822,98 +824,87 @@ contains
         call InitHistMin()
 
         if (tFillingStochRDMonFly) then
+            associate(ind => rdm_defs%sim_labels)
+
             call MPISumAll(InstNoatHF, AllInstNoAtHF)
             InstNoAtHF = AllInstNoAtHF
 
             if (tFullHFAv) then
                 Prev_AvNoatHF = AvNoatHF
 
-                do ind1 = 1, lenof_sign
-                    if (abs(IterRDM_HF(ind1)) > 1.0e-12_dp) then
-                        AvNoatHF(ind1) = ( (real((Iter+PreviousCycles - IterRDM_HF(ind1)),dp) * Prev_AvNoatHF(ind1)) &
-                                                + InstNoatHF(ind1) ) / real((Iter+PreviousCycles - IterRDM_HF(ind1)) + 1, dp)
+                do irdm = 1, rdm_defs%nrdms
+                    if (abs(IterRDM_HF(irdm)) > 1.0e-12_dp) then
+                        AvNoatHF(irdm) = ( (real((Iter+PreviousCycles - IterRDM_HF(irdm)),dp) * Prev_AvNoatHF(irdm)) &
+                                                + InstNoatHF(irdm) ) / real((Iter+PreviousCycles - IterRDM_HF(irdm)) + 1, dp)
                     end if
                 end do
+
             else
-                if (((Iter+PreviousCycles-IterRDMStart) .gt. 0) .and. &
-                    & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1), RDMEnergyIter) .eq. 0)) then 
+                if (((Iter+PreviousCycles-IterRDMStart) > 0) .and. &
+                    & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1), RDMEnergyIter) == 0)) then 
                     ! The previous iteration was one where we added in diagonal
                     ! elements To keep things unbiased, we need to set up a new
                     ! averaging block now.
-                    AvNoAtHF = InstNoAtHF
-                    IterRDM_HF = Iter + PreviousCycles
+                    do irdm = 1, rdm_defs%nrdms
+                        av_ind_1 = irdm*2-1
+                        av_ind_2 = irdm*2
+
+                        AvNoAtHF(av_ind_1) = InstNoAtHF(ind(1,irdm))
+                        IterRDM_HF(av_ind_1) = Iter + PreviousCycles
+                        AvNoAtHF(av_ind_2) = InstNoAtHF(ind(2,irdm))
+                        IterRDM_HF(av_ind_2) = Iter + PreviousCycles
+                    end do
                 else
-                    if (tPairedReplicas) then
-                        do irdm = 1, nrdms
+                    do irdm = 1, rdm_defs%nrdms
+                        ! The indicies of the first and second replicas in this
+                        ! particular pair, in the *average* sign arrays.
+                        av_ind_1 = irdm*2-1
+                        av_ind_2 = irdm*2
 
-                            ! The indicies of the first and second replicas in this
-                            ! particular pair, in the sign arrays.
-                            ind1 = irdm*2-1
-                            ind2 = irdm*2
+                        if ((abs(InstNoAtHF(ind(1,irdm))) < 1.0e-12_dp .and. abs(IterRDM_HF(av_ind_1)) > 1.0e-12_dp) .or.&
+                            (abs(InstNoAtHF(ind(2,irdm))) < 1.0e-12_dp .and. abs(IterRDM_HF(av_ind_2)) > 1.0e-12_dp)) then
+                            ! At least one of the populations has just become
+                            ! zero. Start a new averaging block.
+                            IterRDM_HF(av_ind_1) = Iter + PreviousCycles
+                            IterRDM_HF(av_ind_2) = Iter + PreviousCycles
+                            AvNoatHF(av_ind_1) = InstNoAtHF(ind(1,irdm))
+                            AvNoatHF(av_ind_2) = InstNoAtHF(ind(2,irdm))
+                            if (abs(InstNoAtHF(ind(1,irdm))) < 1.0e-12_dp) IterRDM_HF(av_ind_1) = 0
+                            if (abs(InstNoAtHF(ind(2,irdm))) < 1.0e-12_dp) IterRDM_HF(av_ind_2) = 0
 
-                            if ((abs(InstNoAtHF(ind1)) < 1.0e-12_dp .and. abs(IterRDM_HF(ind1)) > 1.0e-12_dp) .or.&
-                                (abs(InstNoAtHF(ind2)) < 1.0e-12_dp .and. abs(IterRDM_HF(ind2)) > 1.0e-12_dp)) then
-                                ! At least one of the populations has just become
-                                ! zero. Start a new averaging block.
-                                IterRDM_HF(ind1) = Iter + PreviousCycles
-                                IterRDM_HF(ind2) = Iter + PreviousCycles
-                                AvNoatHF(ind1) = InstNoAtHF(ind1)
-                                AvNoatHF(ind2) = InstNoAtHF(ind2)
-                                if (abs(InstNoAtHF(ind1)) < 1.0e-12_dp) IterRDM_HF(ind1) = 0
-                                if (abs(InstNoAtHF(ind2)) < 1.0e-12_dp) IterRDM_HF(ind2) = 0
+                        else if ((abs(InstNoAtHF(ind(1,irdm))) > 1.0e-12_dp .and. abs(IterRDM_HF(av_ind_1)) < 1.0e-12_dp) .or.&
+                                 (abs(InstNoAtHF(ind(2,irdm))) > 1.0e-12_dp .and. abs(IterRDM_HF(av_ind_2)) < 1.0e-12_dp)) then
+                            ! At least one of the populations has just
+                            ! become occupied. Start a new block here.
+                            IterRDM_HF(av_ind_1) = Iter + PreviousCycles
+                            IterRDM_HF(av_ind_2) = Iter + PreviousCycles
+                            AvNoAtHF(av_ind_1) = InstNoAtHF(ind(1,irdm))
+                            AvNoAtHF(av_ind_2) = InstNoAtHF(ind(2,irdm))
+                            if (abs(InstNoAtHF(ind(1,irdm))) < 1.0e-12_dp) IterRDM_HF(av_ind_1) = 0
+                            if (abs(InstNoAtHF(ind(2,irdm))) < 1.0e-12_dp) IterRDM_HF(av_ind_2) = 0
+                        else
+                            Prev_AvNoatHF = AvNoatHF
 
-                            else if ((abs(InstNoAtHF(ind1)) > 1.0e-12_dp .and. abs(IterRDM_HF(ind1)) < 1.0e-12_dp) .or. &
-                                     (abs(InstNoAtHF(ind2)) > 1.0e-12_dp .and. abs(IterRDM_HF(ind2)) < 1.0e-12_dp)) then
-                                ! At least one of the populations has just
-                                ! become occupied. Start a new block here.
-                                IterRDM_HF(ind1) = Iter + PreviousCycles
-                                IterRDM_HF(ind2) = Iter + PreviousCycles
-                                AvNoAtHF(ind1) = InstNoAtHF(ind1)
-                                AvNoAtHF(ind2) = InstNoAtHF(ind2)
-                                if (abs(InstNoAtHF(ind1)) < 1.0e-12_dp) IterRDM_HF(ind1) = 0
-                                if (abs(InstNoAtHF(ind2)) < 1.0e-12_dp) IterRDM_HF(ind2) = 0
-                            else
-                                Prev_AvNoatHF = AvNoatHF
-
-                                do part_type = 2*irdm-1, 2*irdm
-                                    if (abs(IterRDM_HF(part_type)) > 1.0e-12_dp) then
-                                         AvNoatHF(part_type) = ((real((Iter+PreviousCycles - IterRDM_HF(part_type)), dp) &
-                                                                    * Prev_AvNoatHF(part_type)) + InstNoatHF(part_type) ) &
-                                                                    / real((Iter+PreviousCycles - IterRDM_HF(part_type)) + 1, dp)
-                                    end if
-                                end do
+                            if (abs(IterRDM_HF(av_ind_1)) > 1.0e-12_dp) then
+                                 AvNoatHF(av_ind_1) = ((real((Iter+PreviousCycles - IterRDM_HF(av_ind_1)), dp) &
+                                                            * Prev_AvNoatHF(av_ind_1)) + InstNoatHF(ind(1,irdm)) ) &
+                                                            / real((Iter+PreviousCycles - IterRDM_HF(av_ind_1)) + 1, dp)
                             end if
-                        end do
-
-                    else
-                        do irdm = 1, nrdms
-
-                            if (abs(InstNoAtHF(irdm)) < 1.0e-12_dp .and. abs(IterRDM_HF(irdm)) > 1.0e-12_dp) then
-                                ! At least one of the populations has just become
-                                ! zero. Start a new averaging block.
-                                IterRDM_HF(irdm) = 0
-                                AvNoatHF(irdm) = 0.0_dp
-
-                            else if (abs(InstNoAtHF(irdm)) > 1.0e-12_dp .and. abs(IterRDM_HF(irdm)) < 1.0e-12_dp) then
-                                ! At least one of the populations has just
-                                ! become occupied. Start a new block here.
-                                IterRDM_HF(irdm) = Iter + PreviousCycles
-                                AvNoAtHF(irdm) = InstNoAtHF(irdm)
-                            else
-                                Prev_AvNoatHF = AvNoatHF
-
-                                if (IterRDM_HF(irdm) /= 0) then
-                                     AvNoatHF(irdm) = ((real((Iter+PreviousCycles - IterRDM_HF(irdm)), dp) &
-                                                                * Prev_AvNoatHF(irdm)) + InstNoatHF(irdm) ) &
-                                                                / real((Iter+PreviousCycles - IterRDM_HF(irdm)) + 1, dp)
-                                end if
+                            if (abs(IterRDM_HF(av_ind_2)) > 1.0e-12_dp) then
+                                 AvNoatHF(av_ind_2) = ((real((Iter+PreviousCycles - IterRDM_HF(av_ind_2)), dp) &
+                                                            * Prev_AvNoatHF(av_ind_2)) + InstNoatHF(ind(2,irdm)) ) &
+                                                            / real((Iter+PreviousCycles - IterRDM_HF(av_ind_2)) + 1, dp)
                             end if
-                        end do
 
-                    end if
+                        end if
+                    end do
+
                 end if
             end if
+
+            end associate
         end if
+
         HFInd = 0
 
         min_trial_ind = 1
@@ -1492,7 +1483,7 @@ contains
             if (tFillingStochRDMOnFly) then
                 if (lenof_sign /= 1) &
                     call stop_all(t_r, 'Not yet implemented')
-                call set_av_sgn(i, -get_av_sgn(i))
+                call set_av_sgn_tot(i, -get_av_sgn_tot(i))
             end if
 
         enddo
@@ -1610,9 +1601,10 @@ contains
     subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, RealwSign, &
                              DetPosition, walkExcitLevel)
 
-        use global_det_data, only: get_iter_occ, get_av_sgn
+        use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
+        use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use LoggingData, only: tOldRDMs
-        use rdm_data, only: one_rdms, two_rdm_spawn
+        use rdm_data, only: one_rdms, two_rdm_spawn, rdm_definitions
         use rdm_data_old, only: rdms, one_rdms_old
 
         integer, intent(in) :: DetCurr(nel) 
@@ -1623,7 +1615,7 @@ contains
         type(fcimc_iter_data), intent(inout) :: iter_data
 
         real(dp) :: iDie(lenof_sign), CopySign(lenof_sign)
-        real(dp) :: av_sign(lenof_sign), iter_occ(lenof_sign)
+        real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
         integer, intent(in) :: walkExcitLevel
         integer :: i, irdm, run
         character(len=*), parameter :: t_r = "walker_death"
@@ -1684,14 +1676,14 @@ contains
             ! All walkers died.
             if (tFillingStochRDMonFly) then
                 if (tOldRDMs) then
-                    do irdm = 1, nrdms
+                    do irdm = 1, rdm_definitions%nrdms
                         call det_removed_fill_diag_rdm_old(rdms(irdm), one_rdms_old(irdm), irdm, &
                                                            CurrentDets(:,DetPosition), DetPosition)
                     end do
                 end if
 
-                av_sign = get_av_sgn(DetPosition)
-                iter_occ = get_iter_occ(DetPosition)
+                av_sign = get_av_sgn_tot(DetPosition)
+                iter_occ = get_iter_occ_tot(DetPosition)
                 call det_removed_fill_diag_rdm(two_rdm_spawn, one_rdms, CurrentDets(:,DetPosition), av_sign, iter_occ)
                 ! Set the average sign and occupation iteration to zero, so
                 ! that the same contribution will not be added in in
@@ -1730,7 +1722,7 @@ contains
         ! and does so if we should. 
 
         use rdm_general, only: realloc_SpawnedParts
-        use LoggingData, only: tReadRDMs
+        use LoggingData, only: tReadRDMs, tTransitionRDMs
         implicit none
         logical :: tFullVaryshift
 
@@ -1767,6 +1759,7 @@ contains
                 extract_bit_rep_avsign => extract_bit_rep_avsign_norm
                 ! By default - we will do a stochastic calculation of the RDM.
                 tFillingStochRDMonFly = .true.
+                if (tTransitionRDMs) tTransitionRDMsStarted = .true.
 
                 call realloc_SpawnedParts()
                 ! The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
