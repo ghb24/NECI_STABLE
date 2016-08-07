@@ -38,9 +38,9 @@ set( FORCE_CXX_FLAGS_DEBUG "-O0 -g" )
 set( FORCE_Fortran_FLAGS_DEBUG "-O0 -g -qdpcl -qcheck -qextchk -qdbg" )
 set( FORCE_C_FLAGS_DEBUG "-O0 -g" )
 
-set( FORCE_CXX_FLAGS_RELEASE -O3 -qhot -qarch=qp -qtune=qp -lmass -lvmass -lmass_simd )
-set( FORCE_Fortran_FLAGS_RELEASE -O3 -qhot -qarch=qp -qtune=qp -qessl -lessl )
-set( FORCE_C_FLAGS_RELEASE -O3 -qhot -qarch=qp -qtune=qp -qessl -lessl )
+set( FORCE_CXX_FLAGS_RELEASE "-O3 -qhot -qarch=qp -qtune=qp -lmass -lvmass -lmass_simd" )
+set( FORCE_Fortran_FLAGS_RELEASE "-O3 -qhot -qarch=qp -qtune=qp -qessl" )
+set( FORCE_C_FLAGS_RELEASE "-O3 -qhot -qarch=qp -qtune=qp -qessl" )
 
 # Link flags
 
