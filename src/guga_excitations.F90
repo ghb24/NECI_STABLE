@@ -309,9 +309,6 @@ contains
             call calc_guga_matrix_element(tmp_ilut, ilut, excitInfo, hel, .true., 0)
         end if
 
-!         call calc_guga_matrix_element(ilut, tmp_ilut, excitInfo, hel, .true., 2)
-!         call calc_guga_matrix_element(tmp_ilut, ilut, excitInfo, hel, .true., 0)
-
         if (present(exlevel)) then 
 
             if (excitInfo%valid) then 
