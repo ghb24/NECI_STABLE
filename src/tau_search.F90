@@ -26,7 +26,9 @@ module tau_search
                     frequency_bounds_type2_diff, frequency_bounds_type3_diff, &
                     frq_ratio_cutoff, t_hist_tau_search,  enough_sing_hist, &
                     enough_doub_hist, enough_par_hist, enough_opp_hist, & 
-                    t_fill_frequency_hists, t_hist_tau_search_option
+                    t_fill_frequency_hists, t_hist_tau_search_option, &
+                    cnt_type2_same, cnt_type2_diff, cnt_type3_same, cnt_type3_diff, &
+                    cnt_type4
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          ProjEDet, ilutRef, MaxTau, tSearchTau, &
                          tSearchTauOption, tSearchTauDeath, pExcit2, pExcit4, &
@@ -554,7 +556,7 @@ contains
         logical :: mpi_ltmp
         
         if (.not. t_hist_tau_search) then 
-            ! this means the option was turned but got turned off due to 
+            ! this means the option was turned on but got turned off due to 
             ! entering var. shift mode, or because the histogramms are full
             ! but the death events should still be considered 
  
@@ -595,7 +597,6 @@ contains
 
         ! singles is always used.. 
 !         print *, "toto singles", size(frequency_bins_singles)
-        call neci_flush(6)
         call integrate_frequency_histogram_spec(size(frequency_bins_singles), &
             frequency_bins_singles, ratio_singles) 
 
@@ -698,7 +699,6 @@ contains
         else if (tGen_sym_guga_mol) then
             ! here i only use doubles for now
 !             print *, "toto doubles:", size(frequency_bins_doubles)
-            call neci_flush(6)
             call integrate_frequency_histogram_spec(size(frequency_bins_doubles), &
                 frequency_bins_doubles, ratio_doubles)
 
@@ -1280,6 +1280,7 @@ contains
         real(dp) :: ratio 
         integer :: ind, new_n_bins, i, old_n_bins 
         integer, allocatable :: save_bins(:) 
+        integer, parameter :: cnt_threshold = 50
 
         ASSERT(pgen > EPS)
         ASSERT(ic == 1 .or. ic == 2) 
@@ -1316,6 +1317,11 @@ contains
 
             if (ratio < max_frequency_bound) then
 
+                if (.not. enough_sing_hist) then 
+                    cnt_sing_hist = cnt_sing_hist + 1
+                    if (cnt_sing_hist > cnt_threshold) enough_sing_hist = .true.
+                end if
+
 !                 ind = binary_search_first_ge(frequency_bounds_singles, ratio)
                 ind = int(ratio / frq_step_size) + 1
 
@@ -1351,6 +1357,11 @@ contains
 !                         frequency_bounds_type2 = [(frq_step_size * i, i = 1, new_n_bins)]
 
                     if (ratio < max_frequency_bound) then
+                        if (.not. enough_two_same) then 
+                            cnt_type2_same = cnt_type2_same + 1
+                            if (cnt_type2_same > cnt_threshold) enough_two_same = .true. 
+                        end if
+
 !                         ind = binary_search_first_ge(frequency_bounds_type2, ratio)
                         ind = int(ratio / frq_step_size) + 1
 
@@ -1381,6 +1392,11 @@ contains
 !                             i = 1, new_n_bins)]
 
                     if (ratio < max_frequency_bound) then
+                        if (.not. enough_two_mixed) then 
+                            cnt_type2_same = cnt_type2_same + 1
+                            if (cnt_type2_same > cnt_threshold) enough_two_mixed = .true.
+                        end if
+
 !                         ind = binary_search_first_ge(frequency_bounds_type2_diff, ratio)
                         ind = int(ratio / frq_step_size) + 1
 
@@ -1388,6 +1404,8 @@ contains
 
                     end if
                 end if
+
+                if (enough_two_same .and. enough_two_mixed) enough_two = .true.
 
             else if (typ == 3) then 
 
@@ -1415,6 +1433,10 @@ contains
 !                         frequency_bounds_type3 = [(frq_step_size * i, i = 1, new_n_bins)]
 
                     if (ratio < max_frequency_bound) then
+                        if (.not. enough_three_same) then 
+                            cnt_type3_same = cnt_type3_same + 1
+                            if (cnt_type3_same > cnt_threshold) enough_three_same = .true.
+                        end if
 !                         ind = binary_search_first_ge(frequency_bounds_type3, ratio)
                         ind = int(ratio / frq_step_size) + 1
 
@@ -1445,6 +1467,10 @@ contains
 ! !                             i = 1, new_n_bins)]
 
                     if (ratio < max_frequency_bound) then
+                        if (.not. enough_three_mixed) then
+                            cnt_type3_diff = cnt_type3_diff + 1
+                            if (cnt_type3_diff > cnt_threshold) enough_three_mixed = .true.
+                        end if
 !                         ind = binary_search_first_ge(frequency_bounds_type3_diff, ratio)
                         ind = int(ratio / frq_step_size) + 1
 
@@ -1452,6 +1478,8 @@ contains
 
                     end if
                 end if
+
+                if (enough_three_same .and. enough_three_mixed) enough_three = .true.
 
             else if (typ == 4) then
 !                 old_n_bins = size(frequency_bins_type4) 
@@ -1477,6 +1505,11 @@ contains
 !                     frequency_bounds_type4 = [(frq_step_size * i, i = 1, new_n_bins)]
 
                 if (ratio < max_frequency_bound) then
+                    if (.not. enough_four) then
+                        cnt_type4 = cnt_type4 + 1
+                        if (cnt_type4 > cnt_threshold) enough_four = .true.
+                    end if
+
 !                     ind = binary_search_first_ge(frequency_bounds_type4, ratio)
                     ind = int(ratio / frq_step_size) + 1
 
@@ -1484,6 +1517,8 @@ contains
 
                 end if
             end if
+            if (enough_two .and. enough_three .and. enough_four) enough_doub_hist = .true.
+
         end if
 
     end subroutine fill_frequency_histogram_nosym_diff
@@ -1501,6 +1536,7 @@ contains
         real(dp) :: ratio 
         integer :: ind, new_n_bins, i, old_n_bins 
         integer, allocatable :: save_bins(:) 
+        integer, parameter :: cnt_threshold = 50
 
         ASSERT(pgen > EPS)
         ASSERT(ic == 1 .or. ic == 2) 
@@ -1539,6 +1575,10 @@ contains
 !                 frequency_bounds_singles = [(frq_step_size * i, i = 1, new_n_bins)]
 
             if (ratio < max_frequency_bound) then
+                if (.not.enough_sing_hist) then
+                    cnt_sing_hist = cnt_sing_hist + 1
+                    if (cnt_sing_hist > cnt_threshold) enough_sing_hist = .true.
+                end if
 !                 ind = binary_search_first_ge(frequency_bounds_singles, ratio)
                 ind = int(ratio / frq_step_size) + 1
 
@@ -1572,6 +1612,10 @@ contains
 !                     frequency_bounds_type2 = [(frq_step_size * i, i = 1, new_n_bins)]
 
                 if (ratio < max_frequency_bound) then
+                    if (.not. enough_two) then
+                        cnt_type2_same = cnt_type2_same + 1
+                        if (cnt_type2_same > cnt_threshold) enough_two = .true.
+                    end if
 !                     ind = binary_search_first_ge(frequency_bounds_type2, ratio)
                     ind = int(ratio / frq_step_size) + 1
 
@@ -1603,6 +1647,10 @@ contains
 !                     frequency_bounds_type3 = [(frq_step_size * i, i = 1, new_n_bins)]
 
                 if (ratio < max_frequency_bound) then
+                    if (.not. enough_three) then 
+                        cnt_type3_same = cnt_type3_same + 1
+                        if (cnt_type3_same > cnt_threshold) enough_three = .true.
+                    end if
 !                     ind = binary_search_first_ge(frequency_bounds_type3, ratio)
                     ind = int(ratio / frq_step_size) + 1
 
@@ -1634,6 +1682,10 @@ contains
 !                     frequency_bounds_type4 = [(frq_step_size * i, i = 1, new_n_bins)]
 
                 if (ratio < max_frequency_bound) then
+                    if (.not. enough_four) then
+                        cnt_type4 = cnt_type4 + 1 
+                        if (cnt_type4 > cnt_threshold) enough_four = .true. 
+                    end if
 !                     ind = binary_search_first_ge(frequency_bounds_type4, ratio)
                     ind = int(ratio / frq_step_size) + 1
 
@@ -1641,6 +1693,7 @@ contains
 
                 end if
             end if
+            if (enough_two .and. enough_three .and. enough_four) enough_doub_hist = .true.
         end if
 
     end subroutine fill_frequency_histogram_nosym_nodiff
@@ -1748,7 +1801,6 @@ contains
 
 !         print *, "max_size: ", max_size
 
-        print *, n_frequency_bins
         all_spec_frq_bins = 0
 
 !         allocate(all_spec_frq_bins(max_size))

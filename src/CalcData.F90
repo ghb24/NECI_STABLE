@@ -402,6 +402,10 @@ logical :: t_hist_tau_search_option = .false.
 ! also keep count seperately of the old tau-search to not mix them 
 integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_par_hist
 
+! do that for the nosym guga now too deliberately! because there seems to be 
+! some matrix element or dynamics problem.. 
+integer :: cnt_type2_same, cnt_type2_diff, cnt_type3_same, cnt_type3_diff, &
+           cnt_type4
 ! and also logicals if i have enough of the excitations
 logical :: enough_sing_hist, enough_doub_hist, enough_par_hist, enough_opp_hist
 
