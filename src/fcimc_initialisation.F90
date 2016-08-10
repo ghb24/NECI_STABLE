@@ -135,7 +135,8 @@ module fcimc_initialisation
     use HElem
     use constants
     use guga_tausearch, only: init_tau_search_guga_nosym, log_spawn_magnitude_guga_nosym, &
-                              update_tau_guga_nosym, init_hist_tau_search_guga_nosym
+                              update_tau_guga_nosym, init_hist_tau_search_guga_nosym, &
+                              update_hist_tau_guga_nosym
 
 #ifndef __CMPLX
     use guga_data, only: bVectorRef_ilut, bVectorRef_nI, projE_replica

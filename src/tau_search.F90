@@ -667,6 +667,21 @@ contains
                     pDoubles = 1.0_dp - pSingles
                 end if
 
+                ! although checking for enough doubles is probably more efficient 
+                ! than always checking the reals below..
+                if (pParallel_new  > 1e-1_dp .and. pParallel_new < (1.0_dp - 1e-1_dp)) then
+                    ! enough_doub implies that both enough_opp and enough_par are 
+                    ! true.. so this if statement makes no sense 
+                    ! and otherwise pParallel_new is the same as before
+                    if (abs(pparallel_new-pParallel) / pParallel > 0.0001_dp) then
+                        root_print "Updating parallel-spin bias; new pParallel = ", &
+                            pParallel_new, "in: ", this_routine
+                    end if
+                    ! in this new implementation the weighting make pParallel 
+                    ! smaller and smaller.. so also limit it to some lower bound
+                        pParallel = pParallel_new
+                end if
+
             else
                 pparallel_new = pParallel
                 psingles_new = pSingles
@@ -676,24 +691,6 @@ contains
                     pDoubles * pParallel / ratio_para, &
                     pDoubles * (1.0_dp - pParallel) / ratio_anti)
 
-            end if
-
-#ifdef __DEBUG
-            root_print "new time-step test: ", tau_new
-            root_print "time-step improv: ", tau_new / tau
-            root_print "tau death: ", tau_death
-#endif
-
-            if (pParallel_new  > 1e-1_dp .and. pParallel_new < (1.0_dp - 1e-1_dp)) then
-                ! enough_doub implies that both enough_opp and enough_par are 
-                ! true.. so this if statement makes no sense 
-                if (abs(pparallel_new-pParallel) / pParallel > 0.0001_dp) then
-                    root_print "Updating parallel-spin bias; new pParallel = ", &
-                        pParallel_new, "in: ", this_routine
-                end if
-                ! in this new implementation the weighting make pParallel 
-                ! smaller and smaller.. so also limit it to some lower bound
-                    pParallel = pParallel_new
             end if
 
         else if (tGen_sym_guga_mol) then
@@ -737,12 +734,6 @@ contains
                     min(pSingles / ratio_singles, pDoubles / ratio_doubles)
 
             end if
-
-#ifdef __DEBUG
-            root_print "new time-step test: ", tau_new
-            root_print "time-step improv: ", tau_new / tau
-            root_print "tau death: ", tau_death
-#endif
 
         else
             ! for any other excitation generator just use one histogram

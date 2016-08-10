@@ -4,7 +4,8 @@ module FciMCParMod
     ! This module contains the main loop for FCIMC calculations, and the
     ! main per-iteration processing loop.
     use SystemData, only: nel, tUEG2, hist_spin_dist_iter, tGen_4ind_2, &
-                          tGen_4ind_weighted, t_test_excit_gen, tGUGA
+                          tGen_4ind_weighted, t_test_excit_gen, tGUGA, &
+                          tGen_nosym_guga
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
@@ -14,7 +15,7 @@ module FciMCParMod
                         ss_space_in, s_global_start, tContTimeFCIMC, &
                         trial_shift_iter, tStartTrialLater, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
-                        t_frequency_analysis, t_guga_mat_eles
+                        t_frequency_analysis, t_guga_mat_eles, frequency_bins_singles
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, &
@@ -463,14 +464,16 @@ module FciMCParMod
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
 
         ! if i want to do the histogramming output the info now
-        if (t_frequency_analysis) then
-            if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGUGA) then
-                call print_frequency_histogram_spec()
-            else
-                call print_frequency_histogram()
-            end if
-            call MPIBarrier(error)
-        end if
+!         if (t_frequency_analysis) then
+!             if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGUGA) then
+!                 if (.not. tGen_nosym_guga) then
+!                     call print_frequency_histogram_spec()
+!                 end if
+!             else
+!                 call print_frequency_histogram()
+!             end if
+!             call MPIBarrier(error)
+!         end if
 
 #ifndef __CMPLX
         if (tGUGA) then 

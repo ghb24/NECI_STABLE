@@ -563,8 +563,12 @@ contains
 
         else if (((t_hist_tau_search .or. (t_hist_tau_search_option .and. tSearchTauDeath)) .and. &
             .not. tFillingStochRDMonFly)) then
-            call update_tau_hist()
 
+            if (tGen_nosym_guga) then
+                call update_hist_tau_guga_nosym() 
+            else
+                call update_tau_hist()
+            end if
         end if
 
         if (tTrialWavefunction) then
