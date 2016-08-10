@@ -276,6 +276,9 @@ subroutine NECICalcInit(iCacheFlag)
     call DetPreFreezeInit()
     if (.not.tPostFreezeHF) call HFDoCalc()
     call IntFreeze()
+    ! can i initialize the GUGA stuff here? after freezing? or otherwise 
+    ! it is incorrectly setup.. 
+
     if (tPostFreezeHF) call HFDoCalc()
 
     if(tDumpFCIDUMP) then

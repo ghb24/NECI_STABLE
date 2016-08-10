@@ -2001,7 +2001,8 @@ system: do
       
       ! init guga needs nSpatOrbs quantity! so init it here from the 
       ! already determined spinorbitals
-      nSpatOrbs = nBasis / 2
+      ! nah make it in init_guga.. i think that should work.. 
+!       nSpatOrbs = nBasis / 2
 
 #ifndef __CMPLX
       if (tGUGA) call init_guga()

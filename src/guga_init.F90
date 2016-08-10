@@ -162,8 +162,11 @@ contains
         ! define global variable of spatial orbitals 
         ! do that in a more general setup routine! where nBasis is defined 
         ! eg
-!         nSpatOrbs = nBasis / 2
+        ! i have to all this routine again from a point after freezing
+        ! where the new number of NBasis is determined already..
+        nSpatOrbs = nBasis / 2
 
+        if (allocated(orbitalIndex)) deallocate(orbitalIndex)
         ! but also have to set up the global orbitalIndex list 
         allocate(orbitalIndex(nSpatOrbs), stat = ierr)
         orbitalIndex = [ (i, i = 1, nSpatOrbs)]

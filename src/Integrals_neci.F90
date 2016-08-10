@@ -626,6 +626,9 @@ contains
       use SymData , only : TwoCycleSymGens
       use MemoryManager, only: TagIntType
       use global_utilities
+#ifndef __CMPLX
+      use guga_init, only: init_guga
+#endif
       character(25), parameter ::this_routine='IntFreeze'            
 !//Locals
       HElement_t(dp), pointer :: UMAT2(:)
@@ -686,6 +689,10 @@ contains
          IF(NFROZENIN.ne.0) WRITE(6,*) "Freezing ",NFROZENIN," of the highest energy occupied (inner) orbitals."
          IF(NTFROZENIN.ne.0) WRITE(6,*) "Freezing ",NTFROZENIN," of the lowest energy virtual (inner) orbitals."
 
+        ! think i should reinit the guga stuff here.. 
+#ifndef __CMPLX 
+        call init_guga()
+#endif
 !At the end of IntFREEZEBASIS, NHG is reset to nBasis - the final number of active orbitals.
          CALL IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE, G1,NBASISMAX,ISPINSKIP,BRR,NFROZEN,NTFROZEN,NFROZENIN,NTFROZENIN,NEL)
          CALL neci_flush(6)
