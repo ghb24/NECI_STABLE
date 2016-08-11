@@ -901,10 +901,10 @@ contains
                                 ind_3 = [2 * first_occ / bits_n_int, mod(2 * first_occ, bits_n_int)]
                                 ! for the third index i have to put to 1 everyhing right 
                                 ! for the second, everything to the left 
-                                mask_2(ind_2(1)+1:nifd) = huge(0_n_int) 
+                                mask_2(ind_2(1)+1:nifd) = -1_n_int
                                 mask_2(0:ind_2(1)-1) = 0_n_int
 
-                                mask_3(0:ind_3(1)-1) = huge(0_n_int)
+                                mask_3(0:ind_3(1)-1) = -1_n_int
                                 mask_3(ind_3(1)+1:nifd) = 0_n_int
 
                                 ! so now in the mixed integer we have all 0
@@ -955,10 +955,10 @@ contains
                                 ind_3 = [2 * occ_double / bits_n_int, mod(2 * occ_double, bits_n_int)]
                                 ! for the third index i have to put to 1 everyhing right 
                                 ! for the second, everything to the left 
-                                mask_2(ind_2(1)+1:nifd) = huge(0_n_int) 
+                                mask_2(ind_2(1)+1:nifd) = -1_n_int
                                 mask_2(0:ind_2(1)-1) = 0_n_int
 
-                                mask_3(0:ind_3(1)-1) = huge(0_n_int)
+                                mask_3(0:ind_3(1)-1) = -1_n_int
                                 mask_3(ind_3(1)+1:nifd) = 0_n_int
 
                                 ! so now in the mixed integer we have all 0
@@ -1593,7 +1593,7 @@ contains
 !             call writedetbit(6,mask_2,.true.)
 !             print *, "mask_3:"
 !             call writedetbit(6,mask_3,.true.)
-! 
+! ! 
 !         end if
         do i = 0, nifd
             if (spin_change(i) == 0) cycle 
@@ -1611,6 +1611,10 @@ contains
         if (orb < start) orb = 0
 
         ! todo check if this change worked!
+        ! ok... i have two different goals here.. 
+        ! before i wanted to check for any switches.. now i only want 
+        ! spin-changes.. to i ever need anything else then spin-changes?
+        ! ok i really only need spin-changes.. so change the testsuite
 !         orb = 0
 !         do i = start, semi - 1
 ! !             if (getStepvalue(iI,i) /= getStepvalue(iJ,i)) then
@@ -1664,10 +1668,13 @@ contains
 
         spin_change = ieor(iand(ilutI(0:nifd), mask_singles), iand(ilutJ(0:nifd),mask_singles))
 
+!         print *, "spin change before: "
+!         call writedetbit(6,spin_change,.true.)
+
         orb = nSpatOrbs + 1
 
         ! i also have to reduce the spin change to the specified region here!
-        ind_2 = [2 * (semi + 1) / bits_n_int, mod(2 * (semi + 1), bits_n_int)]
+        ind_2 = [2 * semi / bits_n_int, mod(2 * semi, bits_n_int)]
         ind_3 = [2 * ende / bits_n_int, mod(2 * ende, bits_n_int)] 
 
         mask_2(ind_2(1)+1:nifd) = -1_n_int
@@ -1680,6 +1687,13 @@ contains
         mask_3(ind_3(1)) = maskr(ind_3(2), n_int) 
 
         spin_change = iand(spin_change, iand(mask_2, mask_3))
+
+!         print *, "mask_2"
+!         call writedetbit(6,mask_2,.true.)
+!         print *, "mask_3:"
+!         call writedetbit(6,mask_3,.true.)
+!         print *, "spin change after:"
+!         call writedetbit(6,spin_change,.true.)
 
         if (.not. spin_change(nifd) == 0) then 
             i = nBasis 

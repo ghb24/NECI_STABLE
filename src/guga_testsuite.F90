@@ -586,8 +586,8 @@ contains
 
         call actHamiltonian(ilut, ex, nEx)
 
-!         nTest = min(nEx,20)
-        nTest = nEx
+        nTest = min(nEx,20)
+!         nTest = nEx
 
         print *, "running tests on nExcits: ", nTest
         call write_guga_list(6, ex(:,1:nEx))
@@ -656,24 +656,47 @@ contains
         integer(n_int) :: ilutI(0:nifguga), ilutJ(0:nifguga)
 
         print *, "testing findSwitches routines:"
+        ! 3300
         call EncodeBitDet_guga([1,2,3,4],ilutI)
         ilutJ = ilutI
 
         ASSERT(findFirstSwitch(ilutI,ilutJ,1,4) == 0)
         ASSERT(findLastSwitch(ilutI,ilutJ,1,4) == 5)
 
+        ! 1122
         call EncodeBitDet_guga([1,3,6,8],ilutJ)
 
-        ASSERT(findFirstSwitch(ilutI,ilutJ,1,4) == 1)
-        ASSERT(findLastSwitch(ilutI,ilutJ,1,4) == 4)
+        ASSERT(findFirstSwitch(ilutI,ilutJ,1,4) == 0)
+        ASSERT(findLastSwitch(ilutI,ilutJ,1,4) == 5)
 
-        ASSERT(findFirstSwitch(ilutI,ilutJ, 2,3) == 2)
-        ASSERT(findLastSwitch(ilutI,ilutJ,1,2) == 2)
+        ASSERT(findFirstSwitch(ilutI,ilutJ, 2,3) == 0)
+        ASSERT(findLastSwitch(ilutI,ilutJ,1,2) == 5)
 
+        ! 1230
         call EncodeBitDet_guga([1,4,5,6],ilutI)
+        ! 1122
         call EncodeBitDet_guga([1,3,6,8],ilutJ)
-
+! 
         ASSERT(findFirstSwitch(ilutI,ilutJ,1,3) == 2)
+        ASSERT(findFirstSwitch(ilutI,ilutJ,2,3) == 2)
+!         print *, findLastSwitch(ilutI,ilutJ,1,4)
+        ASSERT(findLastSwitch(ilutI,ilutJ,1,4) == 2)
+        ! for the find last switch we exclude the inputted first orbital!
+        ASSERT(findLastSwitch(ilutI,ilutJ,2,3) == 5)
+        ASSERT(findFirstSwitch(ilutI,ilutJ,3,4) == 0)
+        ASSERT(findLastSwitch(ilutI,ilutJ,3,4) == 5)
+
+        ! 1122
+        call EncodeBitDet_guga([1,3,6,8],ilutI)
+        ! 1212
+        call EncodeBitDet_guga([1,4,5,8],ilutJ)
+
+        ASSERT(findFirstSwitch(ilutI,ilutJ,2,3) == 2)
+        ASSERT(findLastSwitch(ilutI,ilutJ,1,3) == 3)
+        ASSERT(findFirstSwitch(ilutI,ilutJ,3,4) == 3)
+        ASSERT(findLastSwitch(ilutI,ilutJ,2,3) == 3)
+
+        call stop_all(this_routine, "for now!")
         print *, "findSwitches tests passed!"
 
     end subroutine test_findSwitches
