@@ -1560,6 +1560,11 @@ contains
 
         spin_change = ieor(iand(iI(0:nifd), mask_singles), iand(iJ(0:nifd),mask_singles))
 
+!         if (start == 5 .and. semi == 6 .and. isTwo(iI,5) .and. isOne(iJ,5)) then
+!             print *, "spin change before:"
+!             call writedetbit(6,spin_change,.true.)
+!         end if
+
         orb = 0
 
         ! stupid me... i have to only check in the overlap region.. or in 
@@ -1567,7 +1572,7 @@ contains
         ! i always want to include the starting index, but exclude the 
         ! actually inputted semi index and only consider the spatial orbital
         ! one before!
-        ind_2 = [2 * start / bits_n_int, mod(2 * (semi - 1), bits_n_int)]
+        ind_2 = [2 * (start -1) / bits_n_int, mod(2 * (start - 1), bits_n_int)]
         ind_3 = [2 * (semi - 1) / bits_n_int, mod(2 * (semi - 1), bits_n_int)] 
         
         mask_2(ind_2(1)+1:nifd) = -1_n_int
@@ -1581,6 +1586,15 @@ contains
 
         spin_change = iand(spin_change, iand(mask_2, mask_3))
 
+!         if (start == 5 .and. semi == 6 .and. isTwo(iI,5) .and. isOne(iJ,5)) then
+!             print *, "spin change:"
+!             call writedetbit(6,spin_change,.true.)
+!             print *, "mask_2:"
+!             call writedetbit(6,mask_2,.true.)
+!             print *, "mask_3:"
+!             call writedetbit(6,mask_3,.true.)
+! 
+!         end if
         do i = 0, nifd
             if (spin_change(i) == 0) cycle 
 

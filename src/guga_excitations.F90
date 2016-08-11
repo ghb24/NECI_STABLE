@@ -8538,10 +8538,12 @@ contains
         end if
 
         sw = findFirstSwitch(ilut,t, st, se)
-
-        if (st == 5 .and. se == 6) then 
-            print *, "switch:", sw
-        end if
+! 
+!         if (st == 5 .and. se == 6 .and. isTwo(ilut,5) .and. isOne(t,5)) then 
+!             call write_det_guga(6,ilut,.true.)
+!             call write_det_guga(6,t,.true.)
+!             print *, "switch:", sw
+!         end if
 
         ! what can i precalculate beforehand?
         step = current_stepvector(st)
