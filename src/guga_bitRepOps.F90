@@ -1525,9 +1525,10 @@ contains
         integer :: orb, a, b
         character(*), parameter :: this_routine = "findFirstSwitch"
 
-        integer :: i
+        integer :: i, ind_2(2), ind_3(2)
         integer(n_int) :: alpha_i(0:nifd), alpha_j(0:nifd), beta_i(0:nifd), &
-                          beta_j(0:nifd), mask_singles(0:nifd), spin_change(0:nifd)
+                          beta_j(0:nifd), mask_singles(0:nifd), spin_change(0:nifd), &
+                          mask_2(0:nifd), mask_3(0:nifd)
         ! with the fortran 2008 intrinsic funcitons it would be easy...
         ! for now just do a loop over double overlap region and compare
         ! stepvalues
@@ -1539,6 +1540,10 @@ contains
         ! implement this with the new f2008 routines.. 
         ! i need to find the first spin-change between start and semi-1
 
+        if (start >= semi) then
+            orb = 0
+            return
+        end if
         ! make the spin_change bit-rep
         alpha_i = iand(iI(0:nifd), MaskAlpha)
         beta_i = iand (iI(0:nifd), MaskBeta) 
@@ -1557,6 +1562,25 @@ contains
 
         orb = 0
 
+        ! stupid me... i have to only check in the overlap region.. or in 
+        ! the region specified by the input.. not on the whole excitation..
+        ! i always want to include the starting index, but exclude the 
+        ! actually inputted semi index and only consider the spatial orbital
+        ! one before!
+        ind_2 = [2 * start / bits_n_int, mod(2 * (semi - 1), bits_n_int)]
+        ind_3 = [2 * (semi - 1) / bits_n_int, mod(2 * (semi - 1), bits_n_int)] 
+        
+        mask_2(ind_2(1)+1:nifd) = -1_n_int
+        mask_2(0:ind_2(1)-1) = 0_n_int
+
+        mask_3(0:ind_3(1)-1) = -1_n_int
+        mask_3(ind_3(1)+1:nifd) = 0_n_int
+
+        mask_2(ind_2(1)) = maskl(bits_n_int - ind_2(2), n_int)
+        mask_3(ind_3(1)) = maskr(ind_3(2), n_int) 
+
+        spin_change = iand(spin_change, iand(mask_2, mask_3))
+
         do i = 0, nifd
             if (spin_change(i) == 0) cycle 
 
@@ -1566,6 +1590,11 @@ contains
 
         ! only consider spin_changes below semi
         if (orb > semi - 1) orb = 0
+
+        ! maybe i could do the check also with: 
+        ! nah! because i want to check specifically in the overlap 
+        ! region! or the region specified by start and semi! 
+        if (orb < start) orb = 0
 
         ! todo check if this change worked!
 !         orb = 0
@@ -1589,12 +1618,20 @@ contains
         integer :: orb, a, b
         character(*), parameter :: this_routine = "findLastSwitch"
 
-        integer :: iOrb, i, j, k, res_orbs
+        integer :: iOrb, i, j, k, res_orbs, ind_2(2), ind_3(2)
         integer(n_int) :: alpha_i(0:nifd), alpha_j(0:nifd), beta_i(0:nifd), &
-                          beta_j(0:nifd), mask_singles(0:nifd), spin_change(0:nifd)
+                          beta_j(0:nifd), mask_singles(0:nifd), spin_change(0:nifd), &
+                          mask_2(0:nifd), mask_3(0:nifd)
 
         ! set it to impossible value, so contribution does not get 
         ! calculated if no switch happened, (which shouldnt be reached anyway)
+
+        ! in this routine i always want to include the inputted end index 
+        ! but only the +1 spatial orbital above semi!
+        if (semi >= ende) then 
+            orb = nSpatOrbs + 1 
+            return
+        end if
 
         ! also implement this with the new fortran 2008 routines! 
         ! make the spin_change bit-rep
@@ -1614,6 +1651,21 @@ contains
         spin_change = ieor(iand(ilutI(0:nifd), mask_singles), iand(ilutJ(0:nifd),mask_singles))
 
         orb = nSpatOrbs + 1
+
+        ! i also have to reduce the spin change to the specified region here!
+        ind_2 = [2 * (semi + 1) / bits_n_int, mod(2 * (semi + 1), bits_n_int)]
+        ind_3 = [2 * ende / bits_n_int, mod(2 * ende, bits_n_int)] 
+
+        mask_2(ind_2(1)+1:nifd) = -1_n_int
+        mask_2(0:ind_2(1)-1) = 0_n_int
+
+        mask_3(0:ind_3(1)-1) = -1_n_int
+        mask_3(ind_3(1)+1:nifd) = 0_n_int
+
+        mask_2(ind_2(1)) = maskl(bits_n_int - ind_2(2), n_int)
+        mask_3(ind_3(1)) = maskr(ind_3(2), n_int) 
+
+        spin_change = iand(spin_change, iand(mask_2, mask_3))
 
         if (.not. spin_change(nifd) == 0) then 
             i = nBasis 
@@ -1641,6 +1693,8 @@ contains
 
         ! only consider switches above semi! 
         if (orb < semi + 1) orb = nSpatOrbs + 1
+
+        if (orb > ende) orb = nSpatOrbs + 1
 
         ! todo check if this works as intended!
 ! 

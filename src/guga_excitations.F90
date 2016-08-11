@@ -4210,9 +4210,6 @@ contains
         ende1 = excitInfo%firstEnd
         ende2 = excitInfo%fullEnd
 ! 
-!         if (.not. present(posSwitches)) then
-!             call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
-!         end if
 
         ! : create correct weights:
         weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
@@ -4291,7 +4288,7 @@ contains
         ! so i should change how i deal with the x1 elements and maybe 
         ! keep them out here in these functions.. 
 
-        ! determine is a switch happended: 
+        ! determine if a switch happended: 
         switch = findFirstSwitch(ilut,t,start2+1,ende1)
         ! i have to rethink the matrix element contribution by the 
         ! equivalent non-overlap excitations, since its possible that 
@@ -4302,6 +4299,7 @@ contains
         ! no!!! sinnce the excitations leading to such a csf wouldn be valid 
         ! single excitations-.. since the deltaB values at the end would not 
         ! match 
+!        
         if (switch > 0) then
             ! a switch happened and only mixed overlap contributes
             ! after determining how to deal with different x0 and x1 parts
@@ -7833,17 +7831,6 @@ contains
         en = excitInfo%fullEnd
         se = excitInfo%firstEnd
         gen = excitInfo%lastGen
-        
-!         if (isOne(ilut,1) .and. isTwo(ilut,2) .and. isThree(ilut,3)) then
-!             if ((st == 1 .or. st == 2) .and. se == 3 .and. en == 4) then
-!                 call print_excitInfo(excitInfo)
-!             end if
-!         end if
-! ! 
-
-!         if (.not. present(posSwitches)) then
-!             call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
-!         end if
 
         ! create correct weights:
         weights = init_fullStartWeight(ilut, se, en, negSwitches(se), &
@@ -7897,15 +7884,6 @@ contains
             extract_matrix_element(t,2), 1)
         call encode_matrix_element(t, 0.0_dp, 2)
 
-!         switchFlag = checkForSwitch(ilut,t,st,semi-1)
-! 
-!         if (.not. switchFlag) then
-!             probWeight = 0.0_dp
-!             t = 0
-!             return
-!         end if
-        ! todo other contributing integrals
-
         ! update: since i can formulate everything in terms of the already 
         ! calculated matrix element i can abort here if it is zero
         if (abs(extract_matrix_element(t,1)) < EPS) then
@@ -7914,14 +7892,6 @@ contains
         end if
 
         ! same fix as in fullstop
-        ! doesnt work.. hm
-!         if (all(current_stepvector == [1,2,3,0])) then
-!             print *, "toto r2l"
-! !             print *, "mat x0", extract_matrix_element(t,1)
-! !             if (excitInfo%typ == 0) print *, "mat x1", extract_matrix_element(t,2)
-! !             temp = extract_matrix_element(t,2)
-!         end if
-! 
         if (excitInfo%typ == 0) print *, extract_matrix_element(t, 2)
 
         call calc_mixed_start_r2l_contr(ilut, t, excitInfo, branch_pgen, pgen,&
@@ -8568,6 +8538,10 @@ contains
         end if
 
         sw = findFirstSwitch(ilut,t, st, se)
+
+        if (st == 5 .and. se == 6) then 
+            print *, "switch:", sw
+        end if
 
         ! what can i precalculate beforehand?
         step = current_stepvector(st)
