@@ -968,8 +968,6 @@ contains
         character(len=*), parameter :: t_r = "start_walkers_from_core_ground"
         type(DavidsonCalcType) :: davidsonCalc
 
-        call stop_all(t_r, "ssdssa")
-
         ! Create the arrays used by the Davidson routine.
         ! First, the whole Hamiltonian in sparse form.
         allocate(sparse_ham(determ_sizes(iProcIndex)))
