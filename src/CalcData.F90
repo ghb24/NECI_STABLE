@@ -175,6 +175,8 @@ logical :: t_lanczos_store_vecs
 logical :: t_lanczos_orthogonalise
 integer :: lanczos_max_restarts
 integer :: lanczos_max_vecs
+integer :: lanczos_energy_precision
+integer :: lanczos_ritz_overlap_precision
 
 
 !// additional from NECI.F

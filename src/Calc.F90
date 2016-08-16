@@ -84,7 +84,9 @@ contains
           t_lanczos_store_vecs = .true.
           t_lanczos_orthogonalise = .false.
           lanczos_max_restarts = 10
-          lanczos_max_vecs = 100
+          lanczos_max_vecs = 40
+          lanczos_energy_precision = 8
+          lanczos_ritz_overlap_precision = 4
 
           tTimeExit=.false.
           MaxTimeExit=0.0_dp
@@ -388,6 +390,12 @@ contains
                 call readi(lanczos_max_vecs)
             case("LANCZOS-MAX-RESTARTS")
                 call readi(lanczos_max_restarts)
+            case("LANCZOS-ENERGY-PRECISION")
+                call readi(lanczos_energy_precision)
+            case("LANCZOS-RITZ-OVERLAP-PRECISION")
+                call readi(lanczos_ritz_overlap_precision)
+
+
             case("LANCZOS")
 !Sets the diagonaliser for the GraphMorph algorithm to be Lanczos
                 tLanczos=.true.
