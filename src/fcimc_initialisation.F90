@@ -141,7 +141,7 @@ module fcimc_initialisation
 #ifndef __CMPLX
     use guga_data, only: bVectorRef_ilut, bVectorRef_nI, projE_replica
     use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut, convert_ilut_toNECI, &
-                              convert_ilut_toGUGA, getDeltaB
+                              convert_ilut_toGUGA, getDeltaB, write_det_guga
     use guga_excitations, only: generate_excitation_guga, create_projE_list, &
                                 actHamiltonian, calc_csf_info
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGUGA_nI
@@ -364,6 +364,15 @@ contains
 
             ref_b_vector_real = real(ref_b_vector_int, dp)
 
+            print *, "test initialization:"
+            call write_det_guga(6,ilutRef,.true.)
+            print *, "step:", ref_stepvector
+            print *, "b_int:", ref_b_vector_int
+            print *, "ref_occ:", ref_occ_vector
+            print *, "b_real:", ref_b_vector_real
+
+            print *, "old_b: ", bVectorRef_nI
+
             ! for multiple runs i have to initialize all the necessary 
             ! projected energy lists
             ! have to first allocate the type proje_replica
@@ -371,11 +380,12 @@ contains
 
             ! only initialize that if we use the old way to calc the 
             ! reference energy! 
-            if (.not. t_guga_mat_eles) then
+            ! for testing purposes initiaize both 
+!             if (.not. t_guga_mat_eles) then
                 do run = 1, inum_runs
                     call create_projE_list(run)
                 end do
-            end if
+!             end if
         end if
 #endif
 

@@ -185,7 +185,7 @@ contains
         ! first check if it is not the same ilut! 
         if (DetBitEQ(ilutI, ilutJ)) then 
             ! do diagonal element or return if i do not need the diagonals.. 
-            print *, ""
+            print *, "or ever here?"
             return
         else
 
@@ -495,8 +495,10 @@ contains
                     ! mod(orb,bits_n_int) gives me the index in the integer 
                     ! orb / bits_n_int, gives me the integer! 
                     ! this does not work correctly yet! 
+                    ! i am not quite sure if this works as intended.. 
+                    ! check! 
                     ind_2 = [2 * second_occ / bits_n_int, mod(2 * second_occ, bits_n_int)]
-                    ind_3 = [2 * third_occ / bits_n_int, mod(2 * third_occ, bits_n_int)]
+                    ind_3 = [2 * (third_occ-1) / bits_n_int, mod(2 * (third_occ-1), bits_n_int)]
                     ! for the third index i have to put to 1 everyhing right 
                     ! for the second, everything to the left 
 !                     mask_2(ind_2(1)+1:nifd) = huge(0_n_int) 
@@ -898,7 +900,7 @@ contains
                                 ! spin-coupling change in the overlap region
                                 ! if there is -> no valid excitation! 
                                 ind_2 = [2 * occ_double / bits_n_int, mod(2 * occ_double, bits_n_int)]
-                                ind_3 = [2 * first_occ / bits_n_int, mod(2 * first_occ, bits_n_int)]
+                                ind_3 = [2 * (first_occ-1) / bits_n_int, mod(2 * (first_occ-1), bits_n_int)]
                                 ! for the third index i have to put to 1 everyhing right 
                                 ! for the second, everything to the left 
                                 mask_2(ind_2(1)+1:nifd) = -1_n_int
@@ -952,7 +954,7 @@ contains
 !                                 overlap = iand(spin_change, iand(maskl(occ_double,n_int), &
 !                                     maskr(last_occ,n_int)))
                                 ind_2 = [2 * last_occ / bits_n_int, mod(2 * last_occ, bits_n_int)]
-                                ind_3 = [2 * occ_double / bits_n_int, mod(2 * occ_double, bits_n_int)]
+                                ind_3 = [2 * (occ_double-1) / bits_n_int, mod(2 * (occ_double-1), bits_n_int)]
                                 ! for the third index i have to put to 1 everyhing right 
                                 ! for the second, everything to the left 
                                 mask_2(ind_2(1)+1:nifd) = -1_n_int
@@ -1545,87 +1547,87 @@ contains
             return
         end if
         ! make the spin_change bit-rep
-        alpha_i = iand(iI(0:nifd), MaskAlpha)
-        beta_i = iand (iI(0:nifd), MaskBeta) 
-        alpha_i = ishft(alpha_i, -1) 
-        alpha_i = ieor(alpha_i, beta_i) 
-
-        alpha_j = iand(iJ(0:nifd), MaskAlpha)
-        beta_j = iand(iJ(0:nifd), MaskBeta) 
-        alpha_j = ishft(alpha_j, -1) 
-        alpha_j = ieor(alpha_j, beta_j) 
-
-        mask_singles = iand(alpha_i, alpha_j)
-        mask_singles = ieor(mask_singles, ishft(mask_singles,+1))
-
-        spin_change = ieor(iand(iI(0:nifd), mask_singles), iand(iJ(0:nifd),mask_singles))
-
-!         if (start == 5 .and. semi == 6 .and. isTwo(iI,5) .and. isOne(iJ,5)) then
-!             print *, "spin change before:"
-!             call writedetbit(6,spin_change,.true.)
-!         end if
-
-        orb = 0
-
-        ! stupid me... i have to only check in the overlap region.. or in 
-        ! the region specified by the input.. not on the whole excitation..
-        ! i always want to include the starting index, but exclude the 
-        ! actually inputted semi index and only consider the spatial orbital
-        ! one before!
-        ind_2 = [2 * (start -1) / bits_n_int, mod(2 * (start - 1), bits_n_int)]
-        ind_3 = [2 * (semi - 1) / bits_n_int, mod(2 * (semi - 1), bits_n_int)] 
-        
-        mask_2(ind_2(1)+1:nifd) = -1_n_int
-        mask_2(0:ind_2(1)-1) = 0_n_int
-
-        mask_3(0:ind_3(1)-1) = -1_n_int
-        mask_3(ind_3(1)+1:nifd) = 0_n_int
-
-        mask_2(ind_2(1)) = maskl(bits_n_int - ind_2(2), n_int)
-        mask_3(ind_3(1)) = maskr(ind_3(2), n_int) 
-
-        spin_change = iand(spin_change, iand(mask_2, mask_3))
-
-!         if (start == 5 .and. semi == 6 .and. isTwo(iI,5) .and. isOne(iJ,5)) then
-!             print *, "spin change:"
-!             call writedetbit(6,spin_change,.true.)
-!             print *, "mask_2:"
-!             call writedetbit(6,mask_2,.true.)
-!             print *, "mask_3:"
-!             call writedetbit(6,mask_3,.true.)
-! ! 
-!         end if
-        do i = 0, nifd
-            if (spin_change(i) == 0) cycle 
-
-            orb = 1 + ishft(bits_n_int * i + trailz(spin_change(i)), -1)
-            exit 
-        end do
-
-        ! only consider spin_changes below semi
-        if (orb > semi - 1) orb = 0
-
-        ! maybe i could do the check also with: 
-        ! nah! because i want to check specifically in the overlap 
-        ! region! or the region specified by start and semi! 
-        if (orb < start) orb = 0
+!         alpha_i = iand(iI(0:nifd), MaskAlpha)
+!         beta_i = iand (iI(0:nifd), MaskBeta) 
+!         alpha_i = ishft(alpha_i, -1) 
+!         alpha_i = ieor(alpha_i, beta_i) 
+! 
+!         alpha_j = iand(iJ(0:nifd), MaskAlpha)
+!         beta_j = iand(iJ(0:nifd), MaskBeta) 
+!         alpha_j = ishft(alpha_j, -1) 
+!         alpha_j = ieor(alpha_j, beta_j) 
+! 
+!         mask_singles = iand(alpha_i, alpha_j)
+!         mask_singles = ieor(mask_singles, ishft(mask_singles,+1))
+! 
+!         spin_change = ieor(iand(iI(0:nifd), mask_singles), iand(iJ(0:nifd),mask_singles))
+! 
+! !         if (start == 5 .and. semi == 6 .and. isTwo(iI,5) .and. isOne(iJ,5)) then
+! !             print *, "spin change before:"
+! !             call writedetbit(6,spin_change,.true.)
+! !         end if
+! 
+!         orb = 0
+! 
+!         ! stupid me... i have to only check in the overlap region.. or in 
+!         ! the region specified by the input.. not on the whole excitation..
+!         ! i always want to include the starting index, but exclude the 
+!         ! actually inputted semi index and only consider the spatial orbital
+!         ! one before!
+!         ind_2 = [2 * (start -1) / bits_n_int, mod(2 * (start - 1), bits_n_int)]
+!         ind_3 = [2 * (semi - 1) / bits_n_int, mod(2 * (semi - 1), bits_n_int)] 
+!         
+!         mask_2(ind_2(1)+1:nifd) = -1_n_int
+!         mask_2(0:ind_2(1)-1) = 0_n_int
+! 
+!         mask_3(0:ind_3(1)-1) = -1_n_int
+!         mask_3(ind_3(1)+1:nifd) = 0_n_int
+! 
+!         mask_2(ind_2(1)) = maskl(bits_n_int - ind_2(2), n_int)
+!         mask_3(ind_3(1)) = maskr(ind_3(2), n_int) 
+! 
+!         spin_change = iand(spin_change, iand(mask_2, mask_3))
+! 
+! !         if (start == 5 .and. semi == 6 .and. isTwo(iI,5) .and. isOne(iJ,5)) then
+! !             print *, "spin change:"
+! !             call writedetbit(6,spin_change,.true.)
+! !             print *, "mask_2:"
+! !             call writedetbit(6,mask_2,.true.)
+! !             print *, "mask_3:"
+! !             call writedetbit(6,mask_3,.true.)
+! ! ! 
+! !         end if
+!         do i = 0, nifd
+!             if (spin_change(i) == 0) cycle 
+! 
+!             orb = 1 + ishft(bits_n_int * i + trailz(spin_change(i)), -1)
+!             exit 
+!         end do
+! 
+!         ! only consider spin_changes below semi
+!         if (orb > semi - 1) orb = 0
+! 
+!         ! maybe i could do the check also with: 
+!         ! nah! because i want to check specifically in the overlap 
+!         ! region! or the region specified by start and semi! 
+!         if (orb < start) orb = 0
 
         ! todo check if this change worked!
         ! ok... i have two different goals here.. 
         ! before i wanted to check for any switches.. now i only want 
         ! spin-changes.. to i ever need anything else then spin-changes?
         ! ok i really only need spin-changes.. so change the testsuite
-!         orb = 0
-!         do i = start, semi - 1
-! !             if (getStepvalue(iI,i) /= getStepvalue(iJ,i)) then
-!             a = getStepvalue(iI,i)
-! !             a = current_stepvector(i)
-!             b = getStepvalue(iJ,i)
-!             if (a /= b) then
-!                 orb = i
-!                 return
-!             end if
-!         end do
+        orb = 0
+        do i = start, semi - 1
+!             if (getStepvalue(iI,i) /= getStepvalue(iJ,i)) then
+            a = getStepvalue(iI,i)
+!             a = current_stepvector(i)
+            b = getStepvalue(iJ,i)
+            if (a /= b) then
+                orb = i
+                return
+            end if
+        end do
 
     end function findFirstSwitch
 
@@ -1653,89 +1655,91 @@ contains
 
         ! also implement this with the new fortran 2008 routines! 
         ! make the spin_change bit-rep
-        alpha_i = iand(ilutI(0:nifd), MaskAlpha)
-        beta_i = iand (ilutI(0:nifd), MaskBeta) 
-        alpha_i = ishft(alpha_i, -1) 
-        alpha_i = ieor(alpha_i, beta_i) 
+!         alpha_i = iand(ilutI(0:nifd), MaskAlpha)
+!         beta_i = iand (ilutI(0:nifd), MaskBeta) 
+!         alpha_i = ishft(alpha_i, -1) 
+!         alpha_i = ieor(alpha_i, beta_i) 
+! 
+!         alpha_j = iand(ilutJ(0:nifd), MaskAlpha)
+!         beta_j = iand(ilutJ(0:nifd), MaskBeta) 
+!         alpha_j = ishft(alpha_j, -1) 
+!         alpha_j = ieor(alpha_j, beta_j) 
+! 
+!         mask_singles = iand(alpha_i, alpha_j)
+!         mask_singles = ieor(mask_singles, ishft(mask_singles,+1))
+! 
+!         spin_change = ieor(iand(ilutI(0:nifd), mask_singles), iand(ilutJ(0:nifd),mask_singles))
+! 
+! !         print *, "spin change before: "
+! !         call writedetbit(6,spin_change,.true.)
+! 
+!         orb = nSpatOrbs + 1
+! 
+!         ! i also have to reduce the spin change to the specified region here!
+!         ind_2 = [2 * semi / bits_n_int, mod(2 * semi, bits_n_int)]
+!         ind_3 = [2 * ende / bits_n_int, mod(2 * ende, bits_n_int)] 
+! 
+!         mask_2(ind_2(1)+1:nifd) = -1_n_int
+!         mask_2(0:ind_2(1)-1) = 0_n_int
+! 
+!         mask_3(0:ind_3(1)-1) = -1_n_int
+!         mask_3(ind_3(1)+1:nifd) = 0_n_int
+! 
+!         mask_2(ind_2(1)) = maskl(bits_n_int - ind_2(2), n_int)
+!         mask_3(ind_3(1)) = maskr(ind_3(2), n_int) 
+! 
+!         spin_change = iand(spin_change, iand(mask_2, mask_3))
+! 
+! !         print *, "mask_2"
+! !         call writedetbit(6,mask_2,.true.)
+! !         print *, "mask_3:"
+! !         call writedetbit(6,mask_3,.true.)
+! !         print *, "spin change after:"
+! !         call writedetbit(6,spin_change,.true.)
+! 
+!         if (.not. spin_change(nifd) == 0) then 
+!             i = nBasis 
+!             j = leadz(spin_change(nifd)) - (bits_n_int - mod(nBasis, bits_n_int))
+! 
+!             orb = ishft(i - j, -1) 
+! 
+!         else 
+!             res_orbs = mod(nBasis, bits_n_int)
+! 
+!             do i = nifd - 1, 0, -1 
+!                 if (spin_change(i) == 0) then 
+!                     res_orbs = res_orbs + bits_n_int
+!                     cycle
+!                 end if
+! 
+!                 j = nBasis 
+!                 k = leadz(spin_change(i)) 
+! 
+!                 orb = ishft(j - res_orbs - k, -1)
+! 
+!                 exit 
+!             end do
+!         end if
+! 
+!         ! only consider switches above semi! 
+!         if (orb < semi + 1) orb = nSpatOrbs + 1
+! 
+!         if (orb > ende) orb = nSpatOrbs + 1
 
-        alpha_j = iand(ilutJ(0:nifd), MaskAlpha)
-        beta_j = iand(ilutJ(0:nifd), MaskBeta) 
-        alpha_j = ishft(alpha_j, -1) 
-        alpha_j = ieor(alpha_j, beta_j) 
-
-        mask_singles = iand(alpha_i, alpha_j)
-        mask_singles = ieor(mask_singles, ishft(mask_singles,+1))
-
-        spin_change = ieor(iand(ilutI(0:nifd), mask_singles), iand(ilutJ(0:nifd),mask_singles))
-
-!         print *, "spin change before: "
-!         call writedetbit(6,spin_change,.true.)
+        ! todo check if this works as intended!
 
         orb = nSpatOrbs + 1
 
-        ! i also have to reduce the spin change to the specified region here!
-        ind_2 = [2 * semi / bits_n_int, mod(2 * semi, bits_n_int)]
-        ind_3 = [2 * ende / bits_n_int, mod(2 * ende, bits_n_int)] 
-
-        mask_2(ind_2(1)+1:nifd) = -1_n_int
-        mask_2(0:ind_2(1)-1) = 0_n_int
-
-        mask_3(0:ind_3(1)-1) = -1_n_int
-        mask_3(ind_3(1)+1:nifd) = 0_n_int
-
-        mask_2(ind_2(1)) = maskl(bits_n_int - ind_2(2), n_int)
-        mask_3(ind_3(1)) = maskr(ind_3(2), n_int) 
-
-        spin_change = iand(spin_change, iand(mask_2, mask_3))
-
-!         print *, "mask_2"
-!         call writedetbit(6,mask_2,.true.)
-!         print *, "mask_3:"
-!         call writedetbit(6,mask_3,.true.)
-!         print *, "spin change after:"
-!         call writedetbit(6,spin_change,.true.)
-
-        if (.not. spin_change(nifd) == 0) then 
-            i = nBasis 
-            j = leadz(spin_change(nifd)) - (bits_n_int - mod(nBasis, bits_n_int))
-
-            orb = ishft(i - j, -1) 
-
-        else 
-            res_orbs = mod(nBasis, bits_n_int)
-
-            do i = nifd - 1, 0, -1 
-                if (spin_change(i) == 0) then 
-                    res_orbs = res_orbs + bits_n_int
-                    cycle
-                end if
-
-                j = nBasis 
-                k = leadz(spin_change(i)) 
-
-                orb = ishft(j - res_orbs - k, -1)
-
-                exit 
-            end do
-        end if
-
-        ! only consider switches above semi! 
-        if (orb < semi + 1) orb = nSpatOrbs + 1
-
-        if (orb > ende) orb = nSpatOrbs + 1
-
-        ! todo check if this works as intended!
-! 
-!         do iOrb = ende, semi + 1, -1
-!             a = getStepvalue(ilutI,iOrb)
-! !             a = current_stepvector(iOrb)
-!             b = getStepvalue(ilutJ,iOrb)
-!             if (a /= b) then
-! !             if (getStepvalue(ilutI,iOrb) /= getStepvalue(ilutJ,iOrb)) then
-!                 orb = iOrb
-!                 return
-!             end if
-!         end do
+        do iOrb = ende, semi + 1, -1
+            a = getStepvalue(ilutI,iOrb)
+!             a = current_stepvector(iOrb)
+            b = getStepvalue(ilutJ,iOrb)
+            if (a /= b) then
+!             if (getStepvalue(ilutI,iOrb) /= getStepvalue(ilutJ,iOrb)) then
+                orb = iOrb
+                return
+            end if
+        end do
     
     end function findLastSwitch
 
@@ -2628,6 +2632,57 @@ contains
         end if
         
     end function getSpatialOccupation
+
+    function convert_guga_to_ni(csf,siz) result(nI) 
+        ! function to make it easier for me to input a csf in my used notation
+        ! to a nI NECI array..
+        integer, intent(in) :: siz
+        integer, intent(in) :: csf(siz)
+        integer :: nI(nel)
+        character(*), parameter :: this_routine = "convert_guga_to_ni"
+
+        integer :: i, cnt_orbs, cnt_ind
+
+        cnt_orbs = 0
+        cnt_ind = 0
+
+        do i = 1, siz
+
+            select case (csf(i))
+
+            case (0) 
+                ! nothing to do actually except update the 
+
+            case (1)
+                ! beta orbital
+                cnt_ind = cnt_ind + 1
+
+                nI(cnt_ind) = cnt_orbs + 1
+
+            case (2) 
+                ! alpha orbs
+
+                cnt_ind = cnt_ind + 1 
+
+                nI(cnt_ind) = cnt_orbs + 2
+
+            case (3)
+                ! doubly occupied
+                cnt_ind = cnt_ind + 1
+                nI(cnt_ind) = cnt_orbs + 1
+                cnt_ind = cnt_ind + 1
+                nI(cnt_ind) = cnt_orbs + 2
+
+            end select
+
+            ! update orbitals for every csf entry 
+            cnt_orbs = cnt_orbs + 2
+
+        end do
+
+    end function convert_guga_to_ni
+
+
 ! 
 ! 
 !     function calcMeanB(nI) result(meanB)

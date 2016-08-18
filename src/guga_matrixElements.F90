@@ -230,6 +230,7 @@ contains
 
             end if
         end if
+
     end function calcDiagExchangeGUGA_nI
 
 !     function calcDiagExchangeGUGA_ilut(ilut) result (exchange)
