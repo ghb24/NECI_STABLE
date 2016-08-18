@@ -31,7 +31,8 @@ module guga_excitations
                         calcStepvector, find_switches, convert_ilut_toNECI, &
                         calcB_vector_int, calcOcc_vector_int, EncodeBitDet_guga, &
                         identify_excitation
-    use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGuga_nI
+    use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGuga_nI, &
+                                   calc_off_diag_guga_ref_list
     use OneEInts, only: GetTMatEl
     use Integrals_neci, only: get_umat_el
     use guga_data, only: branchWeight
@@ -300,13 +301,13 @@ contains
         if (present(run)) then 
             tmp_ilut = ilutRef(0:niftot,run) 
             if (run == 1) then 
-                call calc_guga_matrix_element(tmp_ilut, ilut, excitInfo, hel, .true., 0)
+                call calc_guga_matrix_element(tmp_ilut, ilut, excitInfo, hel, .true., 2)
             else 
                 call calc_guga_matrix_element(tmp_ilut, ilut, excitInfo, hel, .true., 2)
             end if
         else
             tmp_ilut = ilutRef(0:niftot,1)
-            call calc_guga_matrix_element(tmp_ilut, ilut, excitInfo, hel, .true., 0)
+            call calc_guga_matrix_element(tmp_ilut, ilut, excitInfo, hel, .true., 2)
         end if
 
         if (present(exlevel)) then 
@@ -423,6 +424,7 @@ contains
             
             mat_ele = calcDiagMatEleGUGA_ilut(tmp_i)
 
+            print *, "am i ever here??"
             return
         end if
 
@@ -439,7 +441,6 @@ contains
         end if
 
         ! depending on the type of usage i have to init some csf information 
-        
         select case (calc_type) 
         case (0) 
             ! reference energy calculation -> both nI and nJ info should 
@@ -2767,6 +2768,10 @@ contains
 
         integer(n_int) :: ilut(0:nifguga), excitation(0:nifguga)
         integer :: ierr, excit_typ(2)
+
+        type(excitationInformation) :: excitInfo
+        real(dp) :: tmp_mat, diff, tmp_mat1
+        integer :: tmp_ex1, tmp_ex2
         ! think about default values and unneeded variables for GUGA, but 
         ! which have to be processed anyway to interface to NECI
         
@@ -2853,6 +2858,85 @@ contains
 
 !         call write_det_guga(6, excitation)
 
+
+        ! for now add a sanity check to compare the stochastic obtained 
+        ! matrix elements with the exact calculation.. 
+        ! since something is going obviously wrong.. 
+        call convert_ilut_toNECI(excitation, ilutJ, HElgen)
+
+        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, tmp_mat, &
+            .true., 2)
+
+        diff = abs(HElGen - tmp_mat)
+        if (diff > 1.0e-10_dp) then 
+            print *, "WARNING: differing stochastic and exact matrix elements!"
+            call write_det_guga(6, ilutI, .true.)
+            call write_det_guga(6, ilutJ, .true.)
+            print *, "mat eles and diff:", HElGen, tmp_mat, diff
+            print *, " pgen: ", pgen
+            call print_excitInfo(excitInfo)
+        end if
+
+        ! is the other order also fullfilled? 
+        call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, tmp_mat1, &
+            .true., 2)
+
+        diff = abs(tmp_mat1 - tmp_mat) 
+        if (diff > 1.0e-10_dp) then 
+            print *, "WARNING: differing sign in matrix elements!"
+            call write_det_guga(6, ilutI, .true.)
+            call write_det_guga(6, ilutJ, .true.)
+            print *, "mat eles and diff:", tmp_mat, tmp_mat1, diff
+            print *, "<I|H|J> excitInfo:"
+            call print_excitInfo(excitInfo)
+            excitInfo = identify_excitation(ilutI, ilutJ)
+            print *, "<J|H|I> excitInfo:"
+            call print_excitInfo(excitInfo)
+        end if
+
+
+
+        ! also add a sanity check for excitations from the reference 
+        ! determinant..
+!         if (DetBitEq(ilutI,ilutRef(0:niftot,1))) then
+!             tmp_mat = calc_off_diag_guga_ref_direct(ilutJ, exlevel = tmp_ex1)
+!             tmp_mat1 = calc_off_diag_guga_ref_list(ilutJ, exlevel = tmp_ex2)
+! 
+!             diff = abs(HElGen - tmp_mat) 
+! 
+!             if (diff > 1.0e-10_dp .or. tmp_ex1 > 2) then 
+!                 print *, "WARNING: error in new ref matrix elements!"
+!                 call write_det_guga(6, ilutI, .true.)
+!                 call write_det_guga(6, ilutJ, .true.)
+!                 print *, "mat eles and diff:", HElGen, tmp_mat, diff
+!                 print *, "excitlvl:", tmp_ex1
+!                 call print_excitInfo(excitInfo)
+!             end if
+! 
+!             diff = abs(HElGen - tmp_mat1)
+! 
+!             if (diff > 1.0e-10_dp .or. tmp_ex2 > 2) then 
+!                 print *, "WARNING: error in old ref matrix elements!"
+!                 call write_det_guga(6, ilutI, .true.)
+!                 call write_det_guga(6, ilutJ, .true.)
+!                 print *, "mat eles and diff:", HElGen, tmp_mat1, diff
+!                 print *, "excitlvl:", tmp_ex2
+!                 call print_excitInfo(excitInfo)
+!             end if
+! 
+!             ! and at last to a sanity check between old and new
+!             diff = abs(tmp_mat - tmp_mat1)
+! 
+!             if (diff > 1.0e-10_dp .or. (tmp_ex2 /= tmp_ex1)) then 
+!                 print *, "WARNING: error between old and new ref matrix elements!"
+!                 call write_det_guga(6, ilutI, .true.)
+!                 call write_det_guga(6, ilutJ, .true.)
+!                 print *, "mat eles and diff:", tmp_mat, tmp_mat1, diff
+!                 print *, "excitlvl:", tmp_ex2, tmp_ex1
+!                 call print_excitInfo(excitInfo)
+!             end if
+!         end if
+! 
 
         ! check if excitation generation was successful
         if (pgen < EPS) then
@@ -11846,9 +11930,7 @@ contains
         integer(n_int), pointer :: tempExcits(:,:)
         logical :: t_temp_singles
 !         real(dp) :: diagEle
-#ifdef __DEBUG
         integer :: n
-#endif
 
         if (.not. present(t_singles_only)) then
             t_temp_singles = .false.
@@ -12021,6 +12103,31 @@ contains
 !                             print *, "DE done? nexcit: ", nExcits
 !                             call neci_flush(iout)
 !                         end if
+
+                        if ((i == 8 .and. j == 6 .and. k == 9 .and. l == 7) .or. &
+                            (i == 9 .and. j == 7 .and. k == 8 .and. l == 6) .or. &
+                            (i == 9 .and. j == 6 .and. k == 8 .and. l == 7) .or. &
+                            (i == 8 .and. j == 7 .and. k == 9 .and. l == 6)) then
+
+                            print *, "any excitation for ijkl:", i,j,k,l
+                            print *, "nExcits: ", nExcits
+                            do n = 1, nExcits
+                                call write_guga_list(6,tempExcits(:,1:nExcits))
+                            end do
+                        end if
+
+                        if ((i == 6 .and. j == 8 .and. k == 7 .and. l == 9) .or. &
+                            (i == 7 .and. j == 9 .and. k == 6 .and. l == 8) .or. &
+                            (i == 6 .and. j == 9 .and. k == 7 .and. l == 8) .or. &
+                            (i == 7 .and. j == 8 .and. k == 6 .and. l == 9)) then
+
+                            print *, "any excitation for ijkl:", i,j,k,l
+                            print *, "nExcits: ", nExcits
+                            do n = 1, nExcits
+                                call write_guga_list(6,tempExcits(:,1:nExcits))
+                            end do
+                        end if
+
 
 !                         call write_guga_list(6, tempExcits(:,1:nExcits))
 #ifdef __DEBUG
@@ -15178,6 +15285,7 @@ contains
         type(excitationInformation) :: excitInfo
         logical :: compFlag
 
+        integer(n_int) :: tmp_ilut(0:niftot)
         ! if called with k = l = 0 -> call single version of function
         if (k == 0 .and. l == 0) then
             call calcAllExcitations(ilut, i, j, excitations, nExcits)
@@ -15194,7 +15302,25 @@ contains
         nExcits = 0
 
         ! first check two-particle integral
-        umat = get_umat_el(i, k,j,  l)
+        umat = get_umat_el(i,k,j,l)
+
+        if ((i == 8 .and. j == 6 .and. k == 9 .and. l == 7) .or. &
+            (i == 9 .and. j == 7 .and. k == 8 .and. l == 6) .or. &
+            (i == 9 .and. j == 6 .and. k == 8 .and. l == 7) .or. &
+            (i == 8 .and. j == 7 .and. k == 9 .and. l == 6)) then
+
+            print *, "U(ijkl):", i,j,k,l,umat
+        end if
+
+        if ((i == 6 .and. j == 8 .and. k == 7 .and. l == 9) .or. &
+            (i == 7 .and. j == 9 .and. k == 6 .and. l == 8) .or. &
+            (i == 6 .and. j == 9 .and. k == 7 .and. l == 8) .or. &
+            (i == 7 .and. j == 8 .and. k == 6 .and. l == 9)) then
+
+            print *, "U(ijkl):", i,j,k,l,umat
+        end if
+
+
 
         if (abs(umat) < EPS) then
             allocate(excitations(0,0), stat = ierr)
@@ -15212,6 +15338,24 @@ contains
         ! that out and reuse.. to not waste any effort.
         call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
 !         print *,"compatible: ", compFlag
+
+        if ((i == 6 .and. j == 8 .and. k == 7 .and. l == 9) .or. &
+            (i == 7 .and. j == 9 .and. k == 6 .and. l == 8) .or. &
+            (i == 6 .and. j == 9 .and. k == 7 .and. l == 8) .or. &
+            (i == 7 .and. j == 8 .and. k == 6 .and. l == 9)) then
+
+            print *, "comp?", compFlag
+            call print_excitInfo(excitInfo)
+        end if
+
+        if ((i == 8 .and. j == 6 .and. k == 9 .and. l == 7) .or. &
+            (i == 9 .and. j == 7 .and. k == 8 .and. l == 6) .or. &
+            (i == 9 .and. j == 6 .and. k == 8 .and. l == 7) .or. &
+            (i == 8 .and. j == 7 .and. k == 9 .and. l == 6)) then
+
+            print *, "comp?", compFlag
+            call print_excitInfo(excitInfo)
+        end if
 
         if (.not.compFlag) then
             allocate(excitations(0,0), stat = ierr)
@@ -15402,10 +15546,36 @@ contains
 !             print *, "ijkl:", excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l
 !         end if
 
+        if ((i == 6 .and. j == 8 .and. k == 7 .and. l == 9) .or. &
+            (i == 7 .and. j == 9 .and. k == 6 .and. l == 8) .or. &
+            (i == 6 .and. j == 9 .and. k == 7 .and. l == 8) .or. &
+            (i == 7 .and. j == 8 .and. k == 6 .and. l == 9)) then
 
+            print *, "guga matele:"
+            print *, extract_matrix_element(excitations(:,1),1)
+        end if
+
+        if ((i == 8 .and. j == 6 .and. k == 9 .and. l == 7) .or. &
+            (i == 9 .and. j == 7 .and. k == 8 .and. l == 6) .or. &
+            (i == 9 .and. j == 6 .and. k == 8 .and. l == 7) .or. &
+            (i == 8 .and. j == 7 .and. k == 9 .and. l == 6)) then
+
+            print *, "guga matele:"
+            print *, extract_matrix_element(excitations(:,1),1)
+        end if
+
+
+
+!         call EncodeBitDet([1,2,3,4,5,6,7,8,9,10,11,15,16,17],tmp_ilut)
         ! for checking purposes encode umat/2 here to compare with sandeeps 
         ! results for now..
         do n = 1, nExcits
+
+!             if (DetBitEQ(excitations(0:0,n),tmp_ilut(0:0))) then
+!                 print *, "guga matele:"
+!                 print *, extract_matrix_element(excitations(:,n),1)
+!             end if
+
             call update_matrix_element(excitations(:,n), umat/2.0_dp, 1)
             ! and also use the deltaB value for finished excitations to 
             ! indicate the level of excitation IC for the remaining NECI code
@@ -15625,7 +15795,6 @@ contains
         end if
 #endif
 
-
         start2 = excitInfo%secondStart
         ende1 = excitInfo%firstEnd
         ende2 = excitInfo%fullEnd
@@ -15739,6 +15908,13 @@ contains
         call createSingleStart(ilut, excitInfo, posSwitches, negSwitches, &
             weights, tempExcits, nExcits)
 
+        if (excitInfo%fullstart == 6 .and. start2 == 7 .and. ende1 == 8 .and. ende2 == 9) then
+            print *, "step:", current_stepvector(1:10)
+            print *, "b:", currentB_ilut(1:10)
+            print *, "singlestart", extract_matrix_element(tempExcits(:,1),1)
+            call write_det_guga(6,tempExcits(:,1),.true.)
+        end if
+
         ! and single update until semi start
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
             call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
@@ -15758,6 +15934,12 @@ contains
         call calcLoweringSemiStart(ilut, excitInfo, &
             tempExcits, nExcits, plusWeight, minusWeight, zeroWeight)
 
+        if (excitInfo%fullstart == 6 .and. start2 == 7 .and. ende1 == 8 .and. ende2 == 9) then
+            print *,"semistart:", extract_matrix_element(tempExcits(:,1),1), &
+                extract_matrix_element(tempExcits(:,1),2)
+            call write_det_guga(6,tempExcits(:,1),.true.)
+        end if
+
         ! then do double excitation over double excitation region
         do iOrb = excitInfo%secondStart + 1, excitInfo%firstEnd - 1
             call doubleUpdate(ilut, iOrb, excitInfo, weights, tempExcits, nExcits, &
@@ -15773,6 +15955,12 @@ contains
         call calcLoweringSemiStop(ilut, excitInfo, tempExcits, nExcits, plusWeight, &
             minusWeight)
 
+        if (excitInfo%fullstart == 6 .and. start2 == 7 .and. ende1 == 8 .and. ende2 == 9) then
+            print *,"semistop:", extract_matrix_element(tempExcits(:,1),1), &
+                extract_matrix_element(tempExcits(:,1),2)
+            call write_det_guga(6,tempExcits(:,1),.true.)
+        endif
+            
         ! have to set the used generators correctly to handle more versions
 
         ! and then do final single region again 
@@ -15784,6 +15972,9 @@ contains
         ! and finally end step
         call singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
         
+        if (excitInfo%fullstart == 6 .and. start2 == 7 .and. ende1 == 8 .and. ende2 == 9) then
+            print *, "end:", extract_matrix_element(excitations(:,1),1)
+        end if
         ! that should be it...
 
     end subroutine calcDoubleLowering
@@ -16780,6 +16971,11 @@ contains
                         excitInfo%gen2,bVal, &
                         excitInfo%order1, tempWeight_0, tempWeight_1)
 
+                    if (st == 6 .and. ss == 7 .and. se == 8 .and. excitInfo%fullEnd == 9) then
+                        print *, "db gens and order:", deltaB, excitInfo%gen1, &
+                            excitInfo%gen2, excitInfo%order1, bVal
+                        print *, "in semistop: ", tempWeight_0, tempWeight_1
+                    end if
                     ! after semi-stop i only need the sum of the matrix 
                     ! elements
 
@@ -30299,6 +30495,8 @@ contains
         print *, "gen1,gen2,currentGen ", excitInfo%gen1, excitInfo%gen2, excitInfo%currentGen
         print *, "firstGen,lastGen: ", excitInfo%firstGen, excitInfo%lastGen
         print *, "valid? ", excitInfo%valid
+        print *, "spin_change?", excitInfo%spin_change
+        print *, "orders:", excitInfo%order, excitInfo%order1
 
     end subroutine print_excitInfo
 
