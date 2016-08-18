@@ -696,7 +696,7 @@ contains
         ASSERT(findFirstSwitch(ilutI,ilutJ,3,4) == 3)
         ASSERT(findLastSwitch(ilutI,ilutJ,2,3) == 3)
 
-        call stop_all(this_routine, "for now!")
+!         call stop_all(this_routine, "for now!")
         print *, "findSwitches tests passed!"
 
     end subroutine test_findSwitches
@@ -2712,6 +2712,12 @@ contains
         integer(n_int) :: ilut(0:nifguga), t(0:nifguga)
 
         call EncodeBitDet_guga([1,4,5,8],ilut)
+
+        deallocate(currentB_ilut)
+        deallocate(currentOcc_ilut)
+        deallocate(currentOcc_int)
+        deallocate(current_stepvector)
+        deallocate(currentB_int)
 
         allocate(currentB_ilut(4))
         allocate(currentOcc_ilut(4))
