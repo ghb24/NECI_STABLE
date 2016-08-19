@@ -351,8 +351,8 @@ contains
             allocate(bVectorRef_nI(nEl), stat = ierr)
             allocate(bVectorRef_ilut(nBasis/2), stat = ierr)
 
-            bVectorRef_nI = calcB_vector_nI(HFDet_True)
-            bVectorRef_ilut = calcB_vector_ilut(iLutHF_True(0:nifd))
+!             bVectorRef_nI = calcB_vector_nI(HFDet_True)
+!             bVectorRef_ilut = calcB_vector_ilut(iLutHF_True(0:nifd))
 
             ! store more information of the reference determinant, like 
             ! stepvector and stuff 
@@ -363,15 +363,15 @@ contains
                 ref_occ_vector) 
 
             ref_b_vector_real = real(ref_b_vector_int, dp)
-
-            print *, "test initialization:"
-            call write_det_guga(6,ilutRef,.true.)
-            print *, "step:", ref_stepvector
-            print *, "b_int:", ref_b_vector_int
-            print *, "ref_occ:", ref_occ_vector
-            print *, "b_real:", ref_b_vector_real
-
-            print *, "old_b: ", bVectorRef_nI
+! 
+!             print *, "test initialization:"
+!             call write_det_guga(6,ilutRef,.true.)
+!             print *, "step:", ref_stepvector
+!             print *, "b_int:", ref_b_vector_int
+!             print *, "ref_occ:", ref_occ_vector
+!             print *, "b_real:", ref_b_vector_real
+! 
+!             print *, "old_b: ", bVectorRef_nI
 
             ! for multiple runs i have to initialize all the necessary 
             ! projected energy lists
@@ -381,11 +381,11 @@ contains
             ! only initialize that if we use the old way to calc the 
             ! reference energy! 
             ! for testing purposes initiaize both 
-!             if (.not. t_guga_mat_eles) then
+            if (.not. t_guga_mat_eles) then
                 do run = 1, inum_runs
                     call create_projE_list(run)
                 end do
-!             end if
+            end if
         end if
 #endif
 

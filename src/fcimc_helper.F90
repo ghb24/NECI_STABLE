@@ -450,22 +450,22 @@ contains
                 ! check if my guga-matrix element calculator works all the 
                 ! time.. but i guess it does.. since the energy is the same 
                 ! for two runs with and without the key-word on..
-                tmp_off_diag(1:inum_runs) = calc_off_diag_guga_ref_list(ilut, &
-                    exlevel = tmp_exlevel)
-
-                tmp_diff = abs(HOffDiag - tmp_off_diag) 
-
-                ! it would also be good to compare the stochastic matrix 
-                ! element with the 2 different obtained ones here.. 
-                ! but thats tough to do it here.. hm.. 
-                ! i think i have to do it at the end of the excitation 
-                ! generator..
-                if (any(tmp_diff > 1.0e-10_dp)) then
-                    print *, "differing matrix elements for exciatation: "
-                    call write_det_guga(6,ilutRef,.true.)
-                    call write_det_guga(6,ilut,.true.)
-                    print *, "mat eles and diff:", HOffDiag, tmp_off_diag, tmp_diff
-                end if
+!                 tmp_off_diag(1:inum_runs) = calc_off_diag_guga_ref_list(ilut, &
+!                     exlevel = tmp_exlevel)
+! 
+!                 tmp_diff = abs(HOffDiag - tmp_off_diag) 
+! 
+!                 ! it would also be good to compare the stochastic matrix 
+!                 ! element with the 2 different obtained ones here.. 
+!                 ! but thats tough to do it here.. hm.. 
+!                 ! i think i have to do it at the end of the excitation 
+!                 ! generator..
+!                 if (any(tmp_diff > 1.0e-10_dp)) then
+!                     print *, "differing matrix elements for exciatation: "
+!                     call write_det_guga(6,ilutRef,.true.)
+!                     call write_det_guga(6,ilut,.true.)
+!                     print *, "mat eles and diff:", HOffDiag, tmp_off_diag, tmp_diff
+!                 end if
 
                 if (ExcitLevel_local == 2) then
                     do run = 1, inum_runs

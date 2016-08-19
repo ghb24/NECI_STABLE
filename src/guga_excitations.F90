@@ -2580,6 +2580,8 @@ contains
         HElement_t(dp) :: helgen
         character(255) :: filename
 
+        print *, "here?"
+        call write_det_guga(6,ilut,.true.)
         ! Decode the determiant
         call decode_bit_det (src_det, ilut)
         
@@ -12104,29 +12106,29 @@ contains
 !                             call neci_flush(iout)
 !                         end if
 
-                        if ((i == 8 .and. j == 6 .and. k == 9 .and. l == 7) .or. &
-                            (i == 9 .and. j == 7 .and. k == 8 .and. l == 6) .or. &
-                            (i == 9 .and. j == 6 .and. k == 8 .and. l == 7) .or. &
-                            (i == 8 .and. j == 7 .and. k == 9 .and. l == 6)) then
-
-                            print *, "any excitation for ijkl:", i,j,k,l
-                            print *, "nExcits: ", nExcits
-                            do n = 1, nExcits
-                                call write_guga_list(6,tempExcits(:,1:nExcits))
-                            end do
-                        end if
-
-                        if ((i == 6 .and. j == 8 .and. k == 7 .and. l == 9) .or. &
-                            (i == 7 .and. j == 9 .and. k == 6 .and. l == 8) .or. &
-                            (i == 6 .and. j == 9 .and. k == 7 .and. l == 8) .or. &
-                            (i == 7 .and. j == 8 .and. k == 6 .and. l == 9)) then
-
-                            print *, "any excitation for ijkl:", i,j,k,l
-                            print *, "nExcits: ", nExcits
-                            do n = 1, nExcits
-                                call write_guga_list(6,tempExcits(:,1:nExcits))
-                            end do
-                        end if
+!                         if ((i == 8 .and. j == 6 .and. k == 9 .and. l == 7) .or. &
+!                             (i == 9 .and. j == 7 .and. k == 8 .and. l == 6) .or. &
+!                             (i == 9 .and. j == 6 .and. k == 8 .and. l == 7) .or. &
+!                             (i == 8 .and. j == 7 .and. k == 9 .and. l == 6)) then
+! 
+!                             print *, "any excitation for ijkl:", i,j,k,l
+!                             print *, "nExcits: ", nExcits
+!                             do n = 1, nExcits
+!                                 call write_guga_list(6,tempExcits(:,1:nExcits))
+!                             end do
+!                         end if
+! 
+!                         if ((i == 6 .and. j == 8 .and. k == 7 .and. l == 9) .or. &
+!                             (i == 7 .and. j == 9 .and. k == 6 .and. l == 8) .or. &
+!                             (i == 6 .and. j == 9 .and. k == 7 .and. l == 8) .or. &
+!                             (i == 7 .and. j == 8 .and. k == 6 .and. l == 9)) then
+! 
+!                             print *, "any excitation for ijkl:", i,j,k,l
+!                             print *, "nExcits: ", nExcits
+!                             do n = 1, nExcits
+!                                 call write_guga_list(6,tempExcits(:,1:nExcits))
+!                             end do
+!                         end if
 
 
 !                         call write_guga_list(6, tempExcits(:,1:nExcits))
@@ -15304,21 +15306,21 @@ contains
         ! first check two-particle integral
         umat = get_umat_el(i,k,j,l)
 
-        if ((i == 8 .and. j == 6 .and. k == 9 .and. l == 7) .or. &
-            (i == 9 .and. j == 7 .and. k == 8 .and. l == 6) .or. &
-            (i == 9 .and. j == 6 .and. k == 8 .and. l == 7) .or. &
-            (i == 8 .and. j == 7 .and. k == 9 .and. l == 6)) then
-
-            print *, "U(ijkl):", i,j,k,l,umat
-        end if
-
-        if ((i == 6 .and. j == 8 .and. k == 7 .and. l == 9) .or. &
-            (i == 7 .and. j == 9 .and. k == 6 .and. l == 8) .or. &
-            (i == 6 .and. j == 9 .and. k == 7 .and. l == 8) .or. &
-            (i == 7 .and. j == 8 .and. k == 6 .and. l == 9)) then
-
-            print *, "U(ijkl):", i,j,k,l,umat
-        end if
+!         if ((i == 8 .and. j == 6 .and. k == 9 .and. l == 7) .or. &
+!             (i == 9 .and. j == 7 .and. k == 8 .and. l == 6) .or. &
+!             (i == 9 .and. j == 6 .and. k == 8 .and. l == 7) .or. &
+!             (i == 8 .and. j == 7 .and. k == 9 .and. l == 6)) then
+! 
+!             print *, "U(ijkl):", i,j,k,l,umat
+!         end if
+! 
+!         if ((i == 6 .and. j == 8 .and. k == 7 .and. l == 9) .or. &
+!             (i == 7 .and. j == 9 .and. k == 6 .and. l == 8) .or. &
+!             (i == 6 .and. j == 9 .and. k == 7 .and. l == 8) .or. &
+!             (i == 7 .and. j == 8 .and. k == 6 .and. l == 9)) then
+! 
+!             print *, "U(ijkl):", i,j,k,l,umat
+!         end if
 
 
 
@@ -15339,23 +15341,23 @@ contains
         call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
 !         print *,"compatible: ", compFlag
 
-        if ((i == 6 .and. j == 8 .and. k == 7 .and. l == 9) .or. &
-            (i == 7 .and. j == 9 .and. k == 6 .and. l == 8) .or. &
-            (i == 6 .and. j == 9 .and. k == 7 .and. l == 8) .or. &
-            (i == 7 .and. j == 8 .and. k == 6 .and. l == 9)) then
-
-            print *, "comp?", compFlag
-            call print_excitInfo(excitInfo)
-        end if
-
-        if ((i == 8 .and. j == 6 .and. k == 9 .and. l == 7) .or. &
-            (i == 9 .and. j == 7 .and. k == 8 .and. l == 6) .or. &
-            (i == 9 .and. j == 6 .and. k == 8 .and. l == 7) .or. &
-            (i == 8 .and. j == 7 .and. k == 9 .and. l == 6)) then
-
-            print *, "comp?", compFlag
-            call print_excitInfo(excitInfo)
-        end if
+!         if ((i == 6 .and. j == 8 .and. k == 7 .and. l == 9) .or. &
+!             (i == 7 .and. j == 9 .and. k == 6 .and. l == 8) .or. &
+!             (i == 6 .and. j == 9 .and. k == 7 .and. l == 8) .or. &
+!             (i == 7 .and. j == 8 .and. k == 6 .and. l == 9)) then
+! 
+!             print *, "comp?", compFlag
+!             call print_excitInfo(excitInfo)
+!         end if
+! 
+!         if ((i == 8 .and. j == 6 .and. k == 9 .and. l == 7) .or. &
+!             (i == 9 .and. j == 7 .and. k == 8 .and. l == 6) .or. &
+!             (i == 9 .and. j == 6 .and. k == 8 .and. l == 7) .or. &
+!             (i == 8 .and. j == 7 .and. k == 9 .and. l == 6)) then
+! 
+!             print *, "comp?", compFlag
+!             call print_excitInfo(excitInfo)
+!         end if
 
         if (.not.compFlag) then
             allocate(excitations(0,0), stat = ierr)
@@ -15546,23 +15548,23 @@ contains
 !             print *, "ijkl:", excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l
 !         end if
 
-        if ((i == 6 .and. j == 8 .and. k == 7 .and. l == 9) .or. &
-            (i == 7 .and. j == 9 .and. k == 6 .and. l == 8) .or. &
-            (i == 6 .and. j == 9 .and. k == 7 .and. l == 8) .or. &
-            (i == 7 .and. j == 8 .and. k == 6 .and. l == 9)) then
-
-            print *, "guga matele:"
-            print *, extract_matrix_element(excitations(:,1),1)
-        end if
-
-        if ((i == 8 .and. j == 6 .and. k == 9 .and. l == 7) .or. &
-            (i == 9 .and. j == 7 .and. k == 8 .and. l == 6) .or. &
-            (i == 9 .and. j == 6 .and. k == 8 .and. l == 7) .or. &
-            (i == 8 .and. j == 7 .and. k == 9 .and. l == 6)) then
-
-            print *, "guga matele:"
-            print *, extract_matrix_element(excitations(:,1),1)
-        end if
+!         if ((i == 6 .and. j == 8 .and. k == 7 .and. l == 9) .or. &
+!             (i == 7 .and. j == 9 .and. k == 6 .and. l == 8) .or. &
+!             (i == 6 .and. j == 9 .and. k == 7 .and. l == 8) .or. &
+!             (i == 7 .and. j == 8 .and. k == 6 .and. l == 9)) then
+! 
+!             print *, "guga matele:"
+!             print *, extract_matrix_element(excitations(:,1),1)
+!         end if
+! 
+!         if ((i == 8 .and. j == 6 .and. k == 9 .and. l == 7) .or. &
+!             (i == 9 .and. j == 7 .and. k == 8 .and. l == 6) .or. &
+!             (i == 9 .and. j == 6 .and. k == 8 .and. l == 7) .or. &
+!             (i == 8 .and. j == 7 .and. k == 9 .and. l == 6)) then
+! 
+!             print *, "guga matele:"
+!             print *, extract_matrix_element(excitations(:,1),1)
+!         end if
 
 
 
@@ -15908,12 +15910,12 @@ contains
         call createSingleStart(ilut, excitInfo, posSwitches, negSwitches, &
             weights, tempExcits, nExcits)
 
-        if (excitInfo%fullstart == 6 .and. start2 == 7 .and. ende1 == 8 .and. ende2 == 9) then
-            print *, "step:", current_stepvector(1:10)
-            print *, "b:", currentB_ilut(1:10)
-            print *, "singlestart", extract_matrix_element(tempExcits(:,1),1)
-            call write_det_guga(6,tempExcits(:,1),.true.)
-        end if
+!         if (excitInfo%fullstart == 6 .and. start2 == 7 .and. ende1 == 8 .and. ende2 == 9) then
+!             print *, "step:", current_stepvector(1:10)
+!             print *, "b:", currentB_ilut(1:10)
+!             print *, "singlestart", extract_matrix_element(tempExcits(:,1),1)
+!             call write_det_guga(6,tempExcits(:,1),.true.)
+!         end if
 
         ! and single update until semi start
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
@@ -15934,11 +15936,11 @@ contains
         call calcLoweringSemiStart(ilut, excitInfo, &
             tempExcits, nExcits, plusWeight, minusWeight, zeroWeight)
 
-        if (excitInfo%fullstart == 6 .and. start2 == 7 .and. ende1 == 8 .and. ende2 == 9) then
-            print *,"semistart:", extract_matrix_element(tempExcits(:,1),1), &
-                extract_matrix_element(tempExcits(:,1),2)
-            call write_det_guga(6,tempExcits(:,1),.true.)
-        end if
+!         if (excitInfo%fullstart == 6 .and. start2 == 7 .and. ende1 == 8 .and. ende2 == 9) then
+!             print *,"semistart:", extract_matrix_element(tempExcits(:,1),1), &
+!                 extract_matrix_element(tempExcits(:,1),2)
+!             call write_det_guga(6,tempExcits(:,1),.true.)
+!         end if
 
         ! then do double excitation over double excitation region
         do iOrb = excitInfo%secondStart + 1, excitInfo%firstEnd - 1
@@ -15955,11 +15957,11 @@ contains
         call calcLoweringSemiStop(ilut, excitInfo, tempExcits, nExcits, plusWeight, &
             minusWeight)
 
-        if (excitInfo%fullstart == 6 .and. start2 == 7 .and. ende1 == 8 .and. ende2 == 9) then
-            print *,"semistop:", extract_matrix_element(tempExcits(:,1),1), &
-                extract_matrix_element(tempExcits(:,1),2)
-            call write_det_guga(6,tempExcits(:,1),.true.)
-        endif
+!         if (excitInfo%fullstart == 6 .and. start2 == 7 .and. ende1 == 8 .and. ende2 == 9) then
+!             print *,"semistop:", extract_matrix_element(tempExcits(:,1),1), &
+!                 extract_matrix_element(tempExcits(:,1),2)
+!             call write_det_guga(6,tempExcits(:,1),.true.)
+!         endif
             
         ! have to set the used generators correctly to handle more versions
 
@@ -15972,9 +15974,9 @@ contains
         ! and finally end step
         call singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
         
-        if (excitInfo%fullstart == 6 .and. start2 == 7 .and. ende1 == 8 .and. ende2 == 9) then
-            print *, "end:", extract_matrix_element(excitations(:,1),1)
-        end if
+!         if (excitInfo%fullstart == 6 .and. start2 == 7 .and. ende1 == 8 .and. ende2 == 9) then
+!             print *, "end:", extract_matrix_element(excitations(:,1),1)
+!         end if
         ! that should be it...
 
     end subroutine calcDoubleLowering
@@ -16971,11 +16973,11 @@ contains
                         excitInfo%gen2,bVal, &
                         excitInfo%order1, tempWeight_0, tempWeight_1)
 
-                    if (st == 6 .and. ss == 7 .and. se == 8 .and. excitInfo%fullEnd == 9) then
-                        print *, "db gens and order:", deltaB, excitInfo%gen1, &
-                            excitInfo%gen2, excitInfo%order1, bVal
-                        print *, "in semistop: ", tempWeight_0, tempWeight_1
-                    end if
+!                     if (st == 6 .and. ss == 7 .and. se == 8 .and. excitInfo%fullEnd == 9) then
+!                         print *, "db gens and order:", deltaB, excitInfo%gen1, &
+!                             excitInfo%gen2, excitInfo%order1, bVal
+!                         print *, "in semistop: ", tempWeight_0, tempWeight_1
+!                     end if
                     ! after semi-stop i only need the sum of the matrix 
                     ! elements
 

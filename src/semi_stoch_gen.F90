@@ -151,24 +151,15 @@ contains
         write(6,'("Generating the Hamiltonian in the deterministic space...")'); call neci_flush(6)
         call calc_determ_hamil_sparse()
 
-        print *, "toto determ_hamil?"
-        call neci_flush(6)
-
         if (tRDMonFly) call generate_core_connections()
 
         ! Move the states to CurrentDets.
         call add_core_states_currentdet_hash()
 
-        print *, "toto add_core?"
-        call neci_flush(6)
-
         ! If using a trial wavefunction, and that initialisation has already
         ! been performed, then the current_trial_amps array needs correcting
         ! after the core states were added and sorted into CurrentDets.
         call reinit_current_trial_amps()
-
-        print *, "toto reinit?"
-        call neci_flush(6)
 
         ! If starting from a popsfile then global_determinant_data will not
         ! have been initialised, or if in the middle of a calculation then new
