@@ -2864,38 +2864,39 @@ contains
         ! for now add a sanity check to compare the stochastic obtained 
         ! matrix elements with the exact calculation.. 
         ! since something is going obviously wrong.. 
-        call convert_ilut_toNECI(excitation, ilutJ, HElgen)
-
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, tmp_mat, &
-            .true., 2)
-
-        diff = abs(HElGen - tmp_mat)
-        if (diff > 1.0e-10_dp) then 
-            print *, "WARNING: differing stochastic and exact matrix elements!"
-            call write_det_guga(6, ilutI, .true.)
-            call write_det_guga(6, ilutJ, .true.)
-            print *, "mat eles and diff:", HElGen, tmp_mat, diff
-            print *, " pgen: ", pgen
-            call print_excitInfo(excitInfo)
-        end if
-
-        ! is the other order also fullfilled? 
-        call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, tmp_mat1, &
-            .true., 2)
-
-        diff = abs(tmp_mat1 - tmp_mat) 
-        if (diff > 1.0e-10_dp) then 
-            print *, "WARNING: differing sign in matrix elements!"
-            call write_det_guga(6, ilutI, .true.)
-            call write_det_guga(6, ilutJ, .true.)
-            print *, "mat eles and diff:", tmp_mat, tmp_mat1, diff
-            print *, "<I|H|J> excitInfo:"
-            call print_excitInfo(excitInfo)
-            excitInfo = identify_excitation(ilutI, ilutJ)
-            print *, "<J|H|I> excitInfo:"
-            call print_excitInfo(excitInfo)
-        end if
-
+! 
+!         call convert_ilut_toNECI(excitation, ilutJ, HElgen)
+! ! 
+!         call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, tmp_mat, &
+!             .true., 2)
+! 
+!         diff = abs(HElGen - tmp_mat)
+!         if (diff > 1.0e-10_dp) then 
+!             print *, "WARNING: differing stochastic and exact matrix elements!"
+!             call write_det_guga(6, ilutI, .true.)
+!             call write_det_guga(6, ilutJ, .true.)
+!             print *, "mat eles and diff:", HElGen, tmp_mat, diff
+!             print *, " pgen: ", pgen
+!             call print_excitInfo(excitInfo)
+!         end if
+! 
+!         ! is the other order also fullfilled? 
+!         call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, tmp_mat1, &
+!             .true., 2)
+! 
+!         diff = abs(tmp_mat1 - tmp_mat) 
+!         if (diff > 1.0e-10_dp) then 
+!             print *, "WARNING: differing sign in matrix elements!"
+!             call write_det_guga(6, ilutI, .true.)
+!             call write_det_guga(6, ilutJ, .true.)
+!             print *, "mat eles and diff:", tmp_mat, tmp_mat1, diff
+!             print *, "<I|H|J> excitInfo:"
+!             call print_excitInfo(excitInfo)
+!             excitInfo = identify_excitation(ilutI, ilutJ)
+!             print *, "<J|H|I> excitInfo:"
+!             call print_excitInfo(excitInfo)
+!         end if
+! 
 
 
         ! also add a sanity check for excitations from the reference 
