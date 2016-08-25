@@ -346,7 +346,7 @@ system: do
             if (item < nitems) then
                 call geti(n_guga_excit_gen)
             else
-                n_guga_excit_gen = 10000
+                n_guga_excit_gen = 1000000
             end if
             t_guga_unit_tests = .true.
             t_full_guga_tests = .true.

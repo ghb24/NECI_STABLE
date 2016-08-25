@@ -29,6 +29,7 @@ module guga_testsuite
     use dsfmt_interface, only: dsfmt_init
     implicit none
 
+    real(dp), parameter :: tol = 1.0e-10_dp
 contains
 
     subroutine runTestsGUGA()
@@ -53,6 +54,18 @@ contains
 
             ! todo: make a check FCIDUMP function to see if its the correct 
             ! test system! 
+
+            ! due to the extensive use of the current_* quantities 
+            ! allocate them once here, and never deallocate them until 
+            ! the very end of the testsuite! 
+            ! atleast for the "unit tests"
+
+            if (.not. allocated(currentB_ilut)) allocate(currentB_ilut(4))
+            if (.not. allocated(currentOcc_ilut)) allocate(currentOcc_ilut(4))
+            if (.not. allocated(currentOcc_int)) allocate(currentOcc_int(4))
+            if (.not. allocated(current_stepvector)) allocate(current_stepvector(4))
+            if (.not. allocated(currentB_int)) allocate(currentB_int(4))
+
             call test_guga_bitRepOps
 
             call test_guga_excitations_stochastic
@@ -72,7 +85,14 @@ contains
 
             call check_determinants
 
-            call run_test_excit_gen_guga_S2
+            ! why the S = 2???
+            call run_test_excit_gen_guga_S0
+
+            deallocate(currentB_ilut)
+            deallocate(currentOcc_ilut)
+            deallocate(currentOcc_int)
+            deallocate(current_stepvector)
+            deallocate(currentB_int)
 
         else 
             print *, " only run the excitation generator tests!"
@@ -710,35 +730,65 @@ contains
         ! 1122
         call EncodeBitDet_guga([1,3,6,8],ilutJ)
 
-        ASSERT(findFirstSwitch(ilutI,ilutJ,1,4) == 0)
-        ASSERT(findLastSwitch(ilutI,ilutJ,1,4) == 5)
+        ! i changed the definition of the find-switches routines againe..
+        ! so now it is the old way again, where every change in the 
+        ! stepvector is considered, not only spin-changes.. 
+        ! this relies on the correct index input then! to only provide 
+        ! the correct range, where a spin-change is suspected!
+        ! and dont forget the convention that for the findfirstswitch the 
+        ! end index (but end-1)is not considered and for the findlastswitch the 
+        ! first index is not considered (but start+1)
+        ! 3300
+        ! 1122
+        ASSERT(findFirstSwitch(ilutI,ilutJ,1,4) == 1)
+        ASSERT(findLastSwitch(ilutI,ilutJ,1,4) == 4)
 
-        ASSERT(findFirstSwitch(ilutI,ilutJ, 2,3) == 0)
-        ASSERT(findLastSwitch(ilutI,ilutJ,1,2) == 5)
+        ASSERT(findFirstSwitch(ilutI,ilutJ,2,3) == 2)
+        ASSERT(findLastSwitch(ilutI,ilutJ,1,2) == 2)
 
         ! 1230
         call EncodeBitDet_guga([1,4,5,6],ilutI)
         ! 1122
         call EncodeBitDet_guga([1,3,6,8],ilutJ)
 ! 
+        ! 1230
+        ! 1122
         ASSERT(findFirstSwitch(ilutI,ilutJ,1,3) == 2)
         ASSERT(findFirstSwitch(ilutI,ilutJ,2,3) == 2)
-!         print *, findLastSwitch(ilutI,ilutJ,1,4)
-        ASSERT(findLastSwitch(ilutI,ilutJ,1,4) == 2)
+        ASSERT(findLastSwitch(ilutI,ilutJ,1,4) == 4)
         ! for the find last switch we exclude the inputted first orbital!
-        ASSERT(findLastSwitch(ilutI,ilutJ,2,3) == 5)
-        ASSERT(findFirstSwitch(ilutI,ilutJ,3,4) == 0)
-        ASSERT(findLastSwitch(ilutI,ilutJ,3,4) == 5)
+        ASSERT(findLastSwitch(ilutI,ilutJ,2,3) == 3)
+        ASSERT(findFirstSwitch(ilutI,ilutJ,3,4) == 3)
+        ASSERT(findLastSwitch(ilutI,ilutJ,3,4) == 4)
 
         ! 1122
         call EncodeBitDet_guga([1,3,6,8],ilutI)
         ! 1212
         call EncodeBitDet_guga([1,4,5,8],ilutJ)
 
+        ! 1122
+        ! 1212
         ASSERT(findFirstSwitch(ilutI,ilutJ,2,3) == 2)
         ASSERT(findLastSwitch(ilutI,ilutJ,1,3) == 3)
         ASSERT(findFirstSwitch(ilutI,ilutJ,3,4) == 3)
         ASSERT(findLastSwitch(ilutI,ilutJ,2,3) == 3)
+
+        call EncodeBitDet_guga([1,2,5,6],ilutI)
+        call EncodeBitDet_guga([1,2,7,8],ilutJ)
+
+        ! 3030
+        ! 3003
+        ASSERT(findFirstSwitch(ilutI,ilutJ,1,4) == 3)
+        ASSERT(findFirstSwitch(ilutI,ilutJ,1,3) == 0)
+        ASSERT(findLastSwitch(ilutI,ilutJ,1,4) == 4)
+        ASSERT(findLastSwitch(ilutI,IlutJ,1,2) == 5)
+
+        call EncodeBitDet_guga([3,4,7,8],ilutI)
+
+        ! 0303
+        ! 3003
+        ASSERT(findLastSwitch(ilutI,ilutJ,2,4) == 5)
+
 
 !         call stop_all(this_routine, "for now!")
         print *, "findSwitches tests passed!"
@@ -749,7 +799,11 @@ contains
         character(*), parameter :: this_routine = "test_count_beta_orbs_ij"
         integer(n_int) :: ilut(0:nifguga)
 
+        ! these routine now need the current_stepvector quantitiy!
+
         call EncodeBitDet_guga([1,2,3,4],ilut)
+
+        current_stepvector = calcStepVector(ilut)
 
         print *, "testing count_beta_orbs_ij:"
 
@@ -758,10 +812,16 @@ contains
         ASSERT(count_beta_orbs_ij(ilut,2,4) == 0)
 
         call EncodeBitDet_guga([1,3,6,8],ilut)
+
+        current_stepvector = calcStepVector(ilut)
+
         ASSERT(count_beta_orbs_ij(ilut,1,4) == 2)
         ASSERT(count_beta_orbs_ij(ilut,2,4) == 1)
 
         call EncodeBitDet_guga([3,5,6,8],ilut)
+
+        current_stepvector = calcStepVector(ilut)
+
         ASSERT(count_beta_orbs_ij(ilut,1,4) == 1)
 
         print *, "count_beta_orbs_ij tests passed!"
@@ -773,18 +833,32 @@ contains
         character(*), parameter :: this_routine = "test_count_alpha_orbs_ij"
         integer(n_int) :: ilut(0:nifguga)
 
+        ! this routines now need the current_stepvector quantity!
         call EncodeBitDet_guga([1,2,3,4],ilut)
 
+        current_stepvector = calcStepVector(ilut)
+
         print *, "testing count_alpha_orbs_ij:"
+        ! 3300
         ASSERT(count_alpha_orbs_ij(ilut,1,4) == 0)
         ASSERT(count_alpha_orbs_ij(ilut,2,3) == 0)
 
         call EncodeBitDet_guga([1,4,5,6],ilut)
+
+        current_stepvector = calcStepVector(ilut)
+
+        ! 1230
         ASSERT(count_alpha_orbs_ij(ilut,1,4) == 1)
         call EncodeBitDet_guga([3,6,7,8],ilut)
+
+        current_stepvector = calcStepVector(ilut)
+
         ASSERT(count_alpha_orbs_ij(ilut,1,4) == 1)
 
         call EncodeBitDet_guga([1,4,5,8],ilut)
+
+        current_stepvector = calcStepVector(ilut)
+
         ASSERT(count_alpha_orbs_ij(ilut,1,4) == 2)
 
 
@@ -863,12 +937,6 @@ contains
         type(weight_obj) :: weights
 
         call EncodeBitDet_guga([1,4,5,8],ilut)
-
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
         
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -876,23 +944,120 @@ contains
         current_stepvector = calcStepVector(ilut)
         currentB_int = calcB_vector_int(ilut)
 
-
         excitInfo = excitationIdentifier(4,1,1,4)
 
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        weights = init_doubleWeight(ilut, 4)
 
         print *, "testing calcFullStartFullStopMixed(ilut, exInfo, ex, num, posSwitch, negSwitch):"
 
         call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
+        ! 1212
+        ! 1212
+        ! 1122 
+
+        ASSERT(num == 2)
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,2,1,2]))
+        ASSERT(all(calcStepVector(ex(:,2)) == [1,1,2,2]))
+        ASSERT(abs(extract_matrix_element(ex(:,1),1) + 1.0_dp/2.0_dp) < 1.0e-10_dp)
+        ASSERT(abs(extract_matrix_element(ex(:,2),1) - sqrt(3.0_dp)/2.0_dp) < 1.0e-10_dp)
+
+
+        excitInfo = excitationIdentifier(3,2,2,3)
+        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+
+        ASSERT(num == 2)
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,2,1,2]))
+        ASSERT(all(calcStepVector(ex(:,2)) == [1,1,2,2]))
+        ASSERT(abs(extract_matrix_element(ex(:,1),1) + 1.0_dp/2.0_dp) < 1.0e-10_dp)
+        ASSERT(abs(extract_matrix_element(ex(:,2),1) - sqrt(3.0_dp)/2.0_dp) < 1.0e-10_dp)
+
+        excitInfo = excitationIdentifier(3,1,1,3)
+        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+
+        ASSERT(num == 2)
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,2,1,2]))
+        ASSERT(all(calcStepVector(ex(:,2)) == [1,1,2,2]))
+        ASSERT(abs(extract_matrix_element(ex(:,1),1) + 1.0_dp/2.0_dp) < 1.0e-10_dp)
+        ASSERT(abs(extract_matrix_element(ex(:,2),1) + sqrt(3.0_dp)/2.0_dp) < 1.0e-10_dp)
+
+        excitInfo = excitationIdentifier(4,2,2,4)
+        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+
+        ASSERT(num == 2)
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,2,1,2]))
+        ASSERT(all(calcStepVector(ex(:,2)) == [1,1,2,2]))
+        ASSERT(abs(extract_matrix_element(ex(:,1),1) + 1.0_dp/2.0_dp) < 1.0e-10_dp)
+        ASSERT(abs(extract_matrix_element(ex(:,2),1) + sqrt(3.0_dp)/2.0_dp) < 1.0e-10_dp)
+
+
+        ! 1122
+        call EncodeBitDet_guga([1,3,6,8],ilut)
+
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
+        excitInfo = excitationIdentifier(4,1,1,4)
+
+        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+
+        call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+
+        ! 1122
+        ! 1122
+        ! 1212
+
+        ASSERT(num == 2)
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,1,2,2]))
+        ASSERT(all(calcStepVector(ex(:,2)) == [1,2,1,2]))
+        ! -1/2 + 1 -> +1/2
+        ASSERT(abs(extract_matrix_element(ex(:,1),1) - 1.0_dp/2.0_dp) < 1.0e-10_dp)
+        ASSERT(abs(extract_matrix_element(ex(:,2),1) - sqrt(3.0_dp)/2.0_dp) < 1.0e-10_dp)
+
+        excitInfo = excitationIdentifier(3,2,2,3)
+
+        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+
+        call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+
+        ASSERT(num == 2)
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,1,2,2]))
+        ASSERT(all(calcStepVector(ex(:,2)) == [1,2,1,2]))
+        ASSERT(abs(extract_matrix_element(ex(:,1),1) - 1.0_dp/2.0_dp) < 1.0e-10_dp)
+        ASSERT(abs(extract_matrix_element(ex(:,2),1) - sqrt(3.0_dp)/2.0_dp) < 1.0e-10_dp)
+
+        excitInfo = excitationIdentifier(3,1,1,3)
+
+        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+
+        call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+
+        ASSERT(num == 2)
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,1,2,2]))
+        ASSERT(all(calcStepVector(ex(:,2)) == [1,2,1,2]))
+        ASSERT(abs(extract_matrix_element(ex(:,1),1) - 1.0_dp/2.0_dp) < 1.0e-10_dp)
+        ASSERT(abs(extract_matrix_element(ex(:,2),1) + sqrt(3.0_dp)/2.0_dp) < 1.0e-10_dp)
+
+        excitInfo = excitationIdentifier(4,2,2,4)
+
+        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+
+        call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+
+        ASSERT(num == 2)
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,1,2,2]))
+        ASSERT(all(calcStepVector(ex(:,2)) == [1,2,1,2]))
+        ASSERT(abs(extract_matrix_element(ex(:,1),1) - 1.0_dp/2.0_dp) < 1.0e-10_dp)
+        ASSERT(abs(extract_matrix_element(ex(:,2),1) + sqrt(3.0_dp)/2.0_dp) < 1.0e-10_dp)
+
         print *, "calcFullStartFullStopMixed tests passed!"
 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
     end subroutine test_calcFullStartFullStopMixed
 
     subroutine test_guga_excitations_stochastic
@@ -923,7 +1088,6 @@ contains
         call test_calcFullStopLoweringStochastic
         call test_calcSingleOverlapMixedStochastic
 
-        ! todo: cont. from here!
         ! now i need to test the specific semi-start/stop routines
         call test_calcLoweringSemiStartStochastic
         call test_calcRaisingSemiStartStochastic
@@ -2757,18 +2921,6 @@ contains
 
         call EncodeBitDet_guga([1,4,5,8],ilut)
 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
-        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -2778,29 +2930,25 @@ contains
         call EncodeBitDet_guga([1,3,6,8], t)
 
         print *, "testing calcMixedContribution(ilut,t,start,ende):"
+        ! 1212
+        ! 1122
         ASSERT(calcMixedContribution(ilut,t,1,4) == 0.0_dp)
    
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        currentB_ilut = calcB_vector_ilut(t)
+        currentOcc_ilut = calcOcc_vector_ilut(t)
+        currentOcc_int = calcOcc_vector_int(t)
+        current_stepvector = calcStepVector(t)
+        currentB_int = calcB_vector_int(t)
 
         ASSERT(calcMixedContribution(t,ilut,1,4) == 0.0_dp)
 
         print *, "calcMixedContribution tests passed!"
 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
     end subroutine test_calcMixedContribution
 
     subroutine test_generate_excitation_guga_double
         character(*), parameter :: this_routine = "test_generate_excitation_guga_double"
-        integer :: nI(4), nJ(4), IC, excitMat(2,2), exFlag, nEx
+        integer :: nI(4), nJ(4), IC, excitMat(2,2), exFlag, nEx, pos
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         logical :: tParity
         real(dp) :: pgen
@@ -2818,6 +2966,8 @@ contains
         nI = [1,2,3,4]
         call EncodeBitDet(nI,ilutI)
 
+        call init_csf_information(ilutI)
+
         print *, "random double excitation for :"
         call write_det_guga(6, ilutI)
 
@@ -2826,10 +2976,15 @@ contains
                print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
         else 
             print *, "no valid excitation created!"
         end if
@@ -2838,6 +2993,8 @@ contains
         nI = [1,2,5,6]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random double excitation for :"
@@ -2846,10 +3003,15 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+
         else 
             print *, "no valid excitation created!"
         end if
@@ -2858,6 +3020,8 @@ contains
         nI = [1,2,7,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random double excitation for :"
@@ -2866,14 +3030,23 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
-        call actHamiltonian(ilutI, ex, nEx)
-        call write_guga_list(6, ex(:,1:nEx))
+        if (pgen > EPS) then
+            print *, "exact excitations for this ilut:"
+            call actHamiltonian(ilutI, ex, nEx)
+            call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+
+        end if
  
         ! 0330
         nI = [3,4,5,6]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random double excitation for :"
@@ -2882,14 +3055,23 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
-        call actHamiltonian(ilutI, ex, nEx)
-        call write_guga_list(6, ex(:,1:nEx))
+        if (pgen > EPS) then
+            print *, "exact excitations for this ilut:"
+            call actHamiltonian(ilutI, ex, nEx)
+            call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+
+        end if
  
         ! 0303
         nI = [3,4,7,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random double excitation for :"
@@ -2898,14 +3080,23 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
-        call actHamiltonian(ilutI, ex, nEx)
-        call write_guga_list(6, ex(:,1:nEx))
- 
+        if (pgen > EPS) then
+            print *, "exact excitations for this ilut:"
+            call actHamiltonian(ilutI, ex, nEx)
+            call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+
+        end if
+
         ! 0033
         nI = [5,6,7,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random double excitation for :"
@@ -2914,14 +3105,23 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
-        call actHamiltonian(ilutI, ex, nEx)
-        call write_guga_list(6, ex(:,1:nEx))
- 
+        if (pgen > EPS) then
+            print *, "exact excitations for this ilut:"
+            call actHamiltonian(ilutI, ex, nEx)
+            call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+
+        end if
+
         ! 1023
         nI = [1,6,7,8]
         call EncodeBitDet(nI,ilutI)
 
+        call init_csf_information(ilutI)
+
         print *, "random double excitation for :"
         call write_det_guga(6, ilutI)
 
@@ -2931,10 +3131,15 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+
         else 
             print *, "no valid excitation created!"
         end if
@@ -2943,6 +3148,8 @@ contains
         nI = [1,2,3,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random double excitation for :"
@@ -2951,10 +3158,15 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+
         else 
             print *, "no valid excitation created!"
         end if
@@ -2963,6 +3175,8 @@ contains
         nI = [1,2,3,6]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random double excitation for :"
@@ -2971,10 +3185,15 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+
         else 
             print *, "no valid excitation created!"
         end if
@@ -2982,6 +3201,8 @@ contains
         ! 3012
         nI = [1,2,5,8]
         call EncodeBitDet(nI,ilutI)
+
+        call init_csf_information(ilutI)
 
         print *, "random double excitation for :"
         call write_det_guga(6, ilutI)
@@ -2991,10 +3212,15 @@ contains
                print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+
         else 
             print *, "no valid excitation created!"
         end if
@@ -3003,6 +3229,8 @@ contains
         nI = [3,4,5,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random double excitation for :"
@@ -3011,10 +3239,15 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+
         else 
             print *, "no valid excitation created!"
         end if
@@ -3023,6 +3256,8 @@ contains
         nI = [1,4,5,6]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random double excitation for :"
@@ -3031,10 +3266,15 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+
         else 
             print *, "no valid excitation created!"
         end if
@@ -3043,6 +3283,8 @@ contains
         nI = [1,4,7,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random double excitation for :"
@@ -3051,10 +3293,15 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+
         else 
             print *, "no valid excitation created!"
         end if
@@ -3063,6 +3310,8 @@ contains
         nI = [1,3,4,6]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random double excitation for :"
@@ -3071,10 +3320,15 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+
         else 
             print *, "no valid excitation created!"
         end if
@@ -3083,6 +3337,8 @@ contains
         nI = [1,3,4,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random double excitation for :"
@@ -3091,10 +3347,15 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+
         else 
             print *, "no valid excitation created!"
         end if
@@ -3103,6 +3364,8 @@ contains
         nI = [1,5,6,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random double excitation for :"
@@ -3111,10 +3374,15 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+
         else 
             print *, "no valid excitation created!"
         end if
@@ -3123,6 +3391,8 @@ contains
         nI = [3,5,6,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random double excitation for :"
@@ -3131,10 +3401,15 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+
         else 
             print *, "no valid excitation created!"
         end if
@@ -3143,6 +3418,8 @@ contains
         nI = [3,6,7,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random double excitation for :"
@@ -3151,10 +3428,15 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+
         else 
             print *, "no valid excitation created!"
         end if
@@ -3162,7 +3444,9 @@ contains
         ! 1122
         nI = [1,3,6,8]
         call EncodeBitDet(nI,ilutI)
- 
+
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random double excitation for :"
@@ -3171,10 +3455,15 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+
         else 
             print *, "no valid excitation created!"
         end if
@@ -3182,7 +3471,9 @@ contains
         ! 1212
         nI = [1,4,5,8]
         call EncodeBitDet(nI,ilutI)
- 
+  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random double excitation for :"
@@ -3191,10 +3482,15 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+
         else 
             print *, "no valid excitation created!"
         end if
@@ -3206,7 +3502,7 @@ contains
 
     subroutine test_generate_excitation_guga_single
         character(*), parameter :: this_routine = "test_generate_excitation_guga_single"
-        integer :: nI(4), nJ(4), IC, excitMat(2,2), exFlag, nEx
+        integer :: nI(4), nJ(4), IC, excitMat(2,2), exFlag, nEx, pos
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         logical :: tParity
         real(dp) :: pgen
@@ -3219,23 +3515,30 @@ contains
         print *, "testing generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,exMat,tPar,pgen,hEl,store)"
         ! test singles only first
         pSingles = 1.0_dp
+        pDoubles = 0.0_dp
         
         ! 3300:
         nI = [1,2,3,4]
         call EncodeBitDet(nI,ilutI)
 
-        call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
-            tParity,pgen,HElGen,store)
+        call init_csf_information(ilutI)
+
         print *, "random single excitation for :"
         call write_det_guga(6, ilutI)
+
+        call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
+            tParity,pgen,HElGen,store)
 
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
         else 
             print *, "no valid excitation created!"
         end if
@@ -3244,6 +3547,8 @@ contains
         nI = [1,2,5,6]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random single excitation for :"
@@ -3252,10 +3557,13 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
         else 
             print *, "no valid excitation created!"
         end if
@@ -3264,6 +3572,8 @@ contains
         nI = [1,2,7,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random single excitation for :"
@@ -3272,14 +3582,23 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
-        call actHamiltonian(ilutI, ex, nEx)
-        call write_guga_list(6, ex(:,1:nEx))
- 
+        if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
+            call actHamiltonian(ilutI, ex, nEx)
+            call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+        else 
+            print *, "no valid excitation created!"
+        end if
+
         ! 0330
         nI = [3,4,5,6]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random single excitation for :"
@@ -3288,14 +3607,23 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
-        call actHamiltonian(ilutI, ex, nEx)
-        call write_guga_list(6, ex(:,1:nEx))
- 
+        if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
+            call actHamiltonian(ilutI, ex, nEx)
+            call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+        else 
+            print *, "no valid excitation created!"
+        end if
+
         ! 0303
         nI = [3,4,7,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random single excitation for :"
@@ -3304,14 +3632,23 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
-        call actHamiltonian(ilutI, ex, nEx)
-        call write_guga_list(6, ex(:,1:nEx))
- 
+        if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
+            call actHamiltonian(ilutI, ex, nEx)
+            call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+        else 
+            print *, "no valid excitation created!"
+        end if
+
         ! 0033
         nI = [5,6,7,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random single excitation for :"
@@ -3320,14 +3657,23 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
-        call actHamiltonian(ilutI, ex, nEx)
-        call write_guga_list(6, ex(:,1:nEx))
- 
+        if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
+            call actHamiltonian(ilutI, ex, nEx)
+            call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+        else 
+            print *, "no valid excitation created!"
+        end if
+
         ! 1023
         nI = [1,6,7,8]
         call EncodeBitDet(nI,ilutI)
 
+        call init_csf_information(ilutI)
+
         print *, "random single excitation for :"
         call write_det_guga(6, ilutI)
 
@@ -3337,17 +3683,23 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
         else 
             print *, "no valid excitation created!"
         end if
+
         ! 3102
         nI = [1,2,3,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random single excitation for :"
@@ -3356,17 +3708,23 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
         else 
             print *, "no valid excitation created!"
         end if
+
         ! 3120
         nI = [1,2,3,6]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random single excitation for :"
@@ -3375,10 +3733,13 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
         else 
             print *, "no valid excitation created!"
         end if
@@ -3387,6 +3748,8 @@ contains
         nI = [1,2,5,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random single excitation for :"
@@ -3395,17 +3758,23 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
         else 
             print *, "no valid excitation created!"
         end if
+
         ! 0312
         nI = [3,4,5,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random single excitation for :"
@@ -3414,17 +3783,23 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
         else 
             print *, "no valid excitation created!"
         end if
+
         ! 1230
         nI = [1,4,5,6]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random single excitation for :"
@@ -3433,17 +3808,23 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
         else 
             print *, "no valid excitation created!"
         end if
+
         ! 1203
         nI = [1,4,7,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random single excitation for :"
@@ -3452,17 +3833,23 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
         else 
             print *, "no valid excitation created!"
         end if
+
         ! 1320
         nI = [1,3,4,6]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random single excitation for :"
@@ -3471,17 +3858,23 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
         else 
             print *, "no valid excitation created!"
         end if
+
         ! 1302
         nI = [1,3,4,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random single excitation for :"
@@ -3490,17 +3883,23 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
         else 
             print *, "no valid excitation created!"
         end if
+
         ! 1032
         nI = [1,5,6,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random single excitation for :"
@@ -3509,10 +3908,13 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
         else 
             print *, "no valid excitation created!"
         end if
@@ -3521,6 +3923,8 @@ contains
         nI = [3,5,6,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random single excitation for :"
@@ -3529,17 +3933,23 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
         else 
             print *, "no valid excitation created!"
         end if
+
         ! 0123
         nI = [3,6,7,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random single excitation for :"
@@ -3548,17 +3958,23 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
         else 
             print *, "no valid excitation created!"
         end if
+
         ! 1122
         nI = [1,3,6,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random single excitation for :"
@@ -3567,17 +3983,23 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
         else 
             print *, "no valid excitation created!"
         end if
+
         ! 1212
         nI = [1,4,5,8]
         call EncodeBitDet(nI,ilutI)
  
+        call init_csf_information(ilutI)
+
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
         print *, "random single excitation for :"
@@ -3586,13 +4008,17 @@ contains
         print *, "pgen: ", pgen, "matEle: ", HElGen
         call write_det_guga(6, ilutJ)
 
-        print *, "exact excitations for this ilut:"
         if (pgen > 0.0_dp) then
+            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
             call write_guga_list(6, ex(:,1:nEx))
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
         else 
             print *, "no valid excitation created!"
         end if
+
         print *, "generate_excitation_guga tests passed!"
 
     end subroutine test_generate_excitation_guga_single
@@ -3602,16 +4028,11 @@ contains
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(excitationInformation) :: excitInfo
         real(dp) :: pgen
+        logical :: compFlag
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         ! encode det
         call EncodeBitDet_guga([1,4,5,8], ilut)
-
-        ! calc b and occ vector
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
         
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -3624,17 +4045,48 @@ contains
 
         ASSERT(excitInfo%typ == 13 )
 
-
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, "testing calcDoubleR2L_stochastic(ilut,exinfo,ex,pgen):"
-!         call calcDoubleR2L_stochastic(ilut,excitInfo,ex,pgen)
+        call calcDoubleR2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
+        ! 1212
+        ! 3003
+
+        ASSERT(pgen == 1.0_dp) 
+        ASSERT(all(calcStepVector(ex) == [3,0,0,3]))
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,1) - 1.0_dp) < EPS)
+
+        ! mixed: -1
+        ! nonover: +2 -> +2
+        
+        ! 0132
+        ! 1023
+        call EncodeBitDet_guga([3,5,6,8], ilut)
+        
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
+        ! set up correct excitation information
+        excitInfo = excitationIdentifier(1,3,4,2)
+
+        ASSERT(excitInfo%typ == 13 )
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
+        call calcDoubleR2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ASSERT(pgen == 1.0_dp) 
+        ASSERT(all(calcStepVector(ex) == [1,0,2,3]))
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,1) + 1.0_dp) < 1.0e-10_dp)
+
+        ! nonoverlap : -2
+        ! mixed: +1 -> -1
         print *, "calcDoubleR2L_stochastic tests passed!"
-
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
     end subroutine test_calcDoubleR2L_stochastic
 
@@ -3643,17 +4095,12 @@ contains
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(excitationInformation) :: excitInfo
         real(dp) :: pgen
+        logical :: compFlag
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         ! encode det
         call EncodeBitDet_guga([1,4,5,8], ilut)
 
-        ! calc b and occ vector
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
-        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -3665,16 +4112,51 @@ contains
 
         ASSERT(excitInfo%typ == 12)
 
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
         print *, "testing calcDoubleL2R_stochastic(ilut,exinfo,ex,pgen):"
-!         call calcDoubleL2R_stochastic(ilut,excitInfo,ex,pgen)
+        call calcDoubleL2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ! 1212
+        ! 0330
+
+        ASSERT(pgen == 1.0_dp) 
+        ASSERT(all(calcStepVector(ex) == [0,3,3,0]))
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,1) - 1.0_dp) < 1.0e-10_dp)
+
+        ! mixed matele: -1
+        ! nonover: 2 -> +1
+
+        ! 3102
+        ! 1320
+        call EncodeBitDet_guga([1,2,3,8], ilut)
+
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
+        ! set up correct excitation information
+        excitInfo = excitationIdentifier(3,1,2,4)
+
+        ASSERT(excitInfo%typ == 12)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
+        call calcDoubleL2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ASSERT(pgen == 1.0_dp) 
+        ASSERT(all(calcStepVector(ex) == [1,3,2,0]))
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS) 
+        ASSERT(abs(extract_matrix_element(ex,1) + 1.0_dp) < 1.0e-10_dp)
+
+        ! mixed: -2
+        ! nonover: +1 -> -1
+
 
         print *, "calcDoubleL2R_stochastic tests passed!"
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
     end subroutine test_calcDoubleL2R_stochastic
 
@@ -3683,17 +4165,13 @@ contains
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(excitationInformation) :: excitInfo
         real(dp) :: pgen
+        logical :: compFlag
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         ! encode det
         call EncodeBitDet_guga([1,4,5,8], ilut)
 
         ! calc b and occ vector
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
-        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -3705,16 +4183,50 @@ contains
 
         ASSERT(excitInfo%typ == 11)
 
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
         print *, "testing calcDoubleR2L2R_stochastic(ilut,exinfo,ex,pgen):"
-!         call calcDoubleR2L2R_stochastic(ilut,excitInfo,ex,pgen)
+        call calcDoubleR2L2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
+        ! 1212
+        ! 3030
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [3,0,3,0]))
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS) 
+        ASSERT(abs(extract_matrix_element(ex,1) - 1.0_dp) < EPS)
+
+        ! 0123
+        ! 1032
+        call EncodeBitDet_guga([3,6,7,8], ilut)
+
+        ! calc b and occ vector
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
+        ! set up correct excitation information
+        excitInfo = excitationIdentifier(1,4,3,2 )
+
+        ASSERT(excitInfo%typ == 11)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
+        call calcDoubleR2L2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [1,0,3,2]))
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,1) + 1.0_dp) < EPS)
+        ! mixed ele: -1/2 - 3/2 = -2
+        ! nonover: 1 -> -1
+
+
+
+        ! mixes matele: -1
+        ! nonoverlp: 2 -> +1
         print *, "calcDoubleR2L2R_stochastic tests passed!"
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
 
     end subroutine test_calcDoubleR2L2R_stochastic
@@ -3724,17 +4236,13 @@ contains
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(excitationInformation) :: excitInfo
         real(dp) :: pgen
+        logical :: compFlag
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         ! encode det
         call EncodeBitDet_guga([1,4,5,8], ilut)
 
         ! calc b and occ vector
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
-        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -3745,16 +4253,50 @@ contains
 
         ASSERT(excitInfo%typ == 10)
 
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
         print *, "testing calcDoubleL2R2L_stochastic(ilut,exinfo,ex,pgen):"
-!         call calcDoubleL2R2L_stochastic(ilut,excitInfo,ex,pgen)
+        call calcDoubleL2R2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ! 1212
+        ! 0303
+
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [0,3,0,3]))
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ! argh i have to consider the non-overlap one.. 
+        ! ok: the first is: -1 
+        ! the non-overlap: 2 -> so in total: +1
+        ASSERT(abs(extract_matrix_element(ex,1) - 1.0_dp) < 1.0e-10_dp)
+
+
+        ! 1032
+        ! 0123
+        call EncodeBitDet_guga([1,5,6,8], ilut)
+
+        ! calc b and occ vector
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+        ! set up correct excitation information
+        excitInfo = excitationIdentifier(4,1,2,3)
+
+        ASSERT(excitInfo%typ == 10)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
+        call calcDoubleL2R2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [0,1,2,3]))
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ! the mixed is -2
+        ! the non-overlap: + 1 -> so -1 in total! 
+        ASSERT(abs(extract_matrix_element(ex,1) + 1.0_dp) < 1.0e-10_dp)
 
         print *, "calcDoubleL2R2L_stochastic tests passed!"
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
     end subroutine test_calcDoubleL2R2L_stochastic
 
@@ -3763,17 +4305,13 @@ contains
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(excitationInformation) :: excitInfo
         real(dp) :: pgen
+        logical :: compFlag
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         ! encode det
         call EncodeBitDet_guga([1,4,5,8], ilut)
 
         ! calc b and occ vector
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
-        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -3784,16 +4322,72 @@ contains
 
         ASSERT(excitInfo%typ == 9)
 
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
         print *, "testing calcDoubleRaisingStochastic(ilut,exinfo,ex,pgen):"
-!         call calcDoubleRaisingStochastic(ilut,excitInfo,ex,pgen)
+        call calcDoubleRaisingStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ! 1212
+        ! 3300
+        ASSERT(pgen == 1.0_dp) 
+        ASSERT(all(calcStepVector(ex) == [3,3,0,0]))
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,1) + 2.0_dp) < EPS)
+
+        excitInfo = excitationIdentifier(1,3,2,4)
+
+        ASSERT(excitInfo%typ == 9)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+        call calcDoubleRaisingStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ! 1212
+        ! 3300
+        ASSERT(pgen == 1.0_dp) 
+        ASSERT(all(calcStepVector(ex) == [3,3,0,0]))
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,1) + 2.0_dp) < EPS)
+
+        ! 0132
+        ! 1320
+
+        ! encode det
+        call EncodeBitDet_guga([3,5,6,8], ilut)
+
+        ! calc b and occ vector
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+        ! set up correct excitation information
+        excitInfo = excitationIdentifier(1,4,2,3)
+
+        ASSERT(excitInfo%typ == 9)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
+        call calcDoubleRaisingStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [1,3,2,0]))
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,1) - 1.0_dp) < 1.0e-10_dp)
+
+        excitInfo = excitationIdentifier(1,3,2,4)
+
+        ASSERT(excitInfo%typ == 9)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
+        call calcDoubleRaisingStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [1,3,2,0]))
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,1) - 1.0_dp) < 1.0e-10_dp)
 
         print *, "calcDoubleRaisingStochastic tests passed!"
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
     end subroutine test_calcDoubleRaisingStochastic
 
@@ -3802,16 +4396,14 @@ contains
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(excitationInformation) :: excitInfo
         real(dp) :: pgen
+        logical :: compFlag
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         ! encode det
+        ! 1212
         call EncodeBitDet_guga([1,4,5,8], ilut)
 
         ! calc b and occ vector
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
         
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -3820,20 +4412,78 @@ contains
         currentB_int = calcB_vector_int(ilut)
 
         ! set up correct excitation information
-        excitInfo = excitationIdentifier( 4,1,3,2 )
+        excitInfo = excitationIdentifier(4,1,3,2)
 
         ASSERT(excitInfo%typ == 8)
 
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
         print *, "testing calcDoubleLoweringStochastic(ilut,exinfo,ex,pgen):"
-!         call calcDoubleLoweringStochastic(ilut,excitInfo,ex,pgen)
+        call calcDoubleLoweringStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ! 1212
+        ! 0033
+        ASSERT(pgen == 1.0_dp) 
+        ASSERT(all(calcStepVector(ex) == [0,0,3,3]))
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ! have to think about the other index comb too! 
+        ASSERT(abs(extract_matrix_element(ex,1) + 2.0_dp) < 1.0e-10_dp)
+
+        excitInfo = excitationIdentifier(3,2,4,1)
+
+        ASSERT(excitInfo%typ == 8)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+        call calcDoubleLoweringStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+        ! 1212
+        ! 0033
+        ASSERT(pgen == 1.0_dp) 
+        ASSERT(all(calcStepVector(ex) == [0,0,3,3]))
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ! have to think about the other index comb too! 
+        ASSERT(abs(extract_matrix_element(ex,1) + 2.0_dp) < 1.0e-10_dp)
+
+        ! 3120
+        ! 1032
+        call EncodeBitDet_guga([1,2,3,6], ilut)
+
+        ! calc b and occ vector
+        
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
+        ! set up correct excitation information
+        excitInfo = excitationIdentifier(4,1,3,2)
+
+        ASSERT(excitInfo%typ == 8)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
+        call calcDoubleLoweringStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [1,0,3,2]))
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,1) + 1.0_dp) < EPS)
+
+        excitInfo = excitationIdentifier(4,2,3,1)
+
+        ASSERT(excitInfo%typ == 8)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
+        call calcDoubleLoweringStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [1,0,3,2]))
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,1) + 1.0_dp) < EPS)
+
 
         print *, "calcDoubleLoweringStochastic tests passed!"
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
     end subroutine test_calcDoubleLoweringStochastic
 
@@ -3842,17 +4492,13 @@ contains
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(excitationInformation) :: excitInfo
         real(dp) :: pgen
+        logical :: compFlag
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         ! encode det
         call EncodeBitDet_guga([1,4,5,8], ilut)
 
         ! calc b and occ vector
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
-        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -3864,16 +4510,55 @@ contains
 
         ASSERT(excitInfo%typ == 17)
 
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
         print *, "testing calcFullStopR2L_stochastic(ilut,exinfo,ex,pgen):"
-!         call calcFullStopR2L_stochastic(ilut,excitInfo,ex,pgen)
+        call calcFullStopR2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ! 1212
+        ! 3012
+
+        ! since no switch in the overlap region happended this should be 0
+        ASSERT(all(ex == 0_n_int))
+        ASSERT(pgen < EPS)
+
+        ! is there a valid possible?
+        ! 1122
+        ! 3012
+        call EncodeBitDet_guga([1,3,6,8], ilut)
+
+        ! calc b and occ vector
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
+        ! set up correct excitation information
+        excitInfo = excitationIdentifier(1,4,4,2)
+
+        ASSERT(excitInfo%typ == 17)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
+        call calcFullStopR2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ASSERT(pgen > EPS) 
+        ASSERT(all(calcStepVector(ex) == [3,0,1,2]))
+        
+        ! set up correct excitation information
+        excitInfo = excitationIdentifier(1,3,3,2)
+
+        ASSERT(excitInfo%typ == 17)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
+        call calcFullStopR2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ASSERT(pgen > EPS) 
+        ASSERT(all(calcStepVector(ex) == [3,0,1,2]))
 
         print *, "calcFullStopR2L_stochastic tests passed!"
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
     end subroutine test_calcFullStopR2L_stochastic
 
@@ -3882,16 +4567,13 @@ contains
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(excitationInformation) :: excitInfo
         real(dp) :: pgen
+        logical :: compFlag
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         ! encode det
-        call EncodeBitDet_guga([1,4,5,8 ], ilut)
+        call EncodeBitDet_guga([1,4,5,8], ilut)
 
         ! calc b and occ vector
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
         
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -3903,16 +4585,56 @@ contains
 
         ASSERT(excitInfo%typ == 16 )
 
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
         print *, "testing calcFullStopL2R_stochastic(ilut,exInfo,ex,pgen)"
-!         call calcFullStopL2R_stochastic(ilut,excitInfo,ex,pgen)
+        call calcFullStopL2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ! 1212
+        ! 0312
+        ! no possible excitation
+        ASSERT(all(ex == 0_n_int))
+        ASSERT(pgen < EPS)
+
+        ! also do a possible one..
+
+        ! encode det
+        call EncodeBitDet_guga([1,3,6,8], ilut)
+
+        ! calc b and occ vector
+        
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+        ! set up correct excitation information
+        excitInfo = excitationIdentifier(4,1,2,4 )
+
+        ASSERT(excitInfo%typ == 16 )
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
+        call calcFullStopL2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ! 1122
+        ! 0312
+
+        ASSERT(pgen > EPS)
+        ASSERT(all(calcStepVector(ex) == [0,3,1,2]))
+
+        excitInfo = excitationIdentifier(4,1,2,4 )
+
+        ASSERT(excitInfo%typ == 16 )
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
+        call calcFullStopL2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ASSERT(pgen > EPS)
+        ASSERT(all(calcStepVector(ex) == [0,3,1,2]))
 
         print *, "calcFullStopL2R_stochastic tests passed!"
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
     end subroutine test_calcFullStopL2R_stochastic
 
@@ -3921,17 +4643,13 @@ contains
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(excitationInformation) :: excitInfo
         real(dp) :: pgen
+        logical :: compFlag
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         ! encode det
-        call EncodeBitDet_guga([1,4,5,8 ], ilut)
+        call EncodeBitDet_guga([1,4,5,8], ilut)
 
         ! calc b and occ vector
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
-        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -3943,16 +4661,53 @@ contains
 
         ASSERT(excitInfo%typ == 21 )
 
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
         print *, "testing calcFullStartR2L_stochastic(ilut,exInfo,ex,pgen):"
-!         call calcFullStartR2L_stochastic(ilut,excitInfo,ex,pgen)
+        call calcFullStartR2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ! also should not yield a valid excitation
+        ! 1212
+        ! 1023
+        ASSERT(pgen < EPS)
+        ASSERT(all(ex == 0_n_int))
+
+        ! 1122
+        ! 1203
+        call EncodeBitDet_guga([1,3,6,8], ilut)
+
+        ! calc b and occ vector
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
+        ! set up correct excitation information
+        excitInfo = excitationIdentifier(1,3,4,1)
+
+        ASSERT(excitInfo%typ == 21 )
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
+        call calcFullStartR2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ASSERT(pgen > EPS)
+        ASSERT(all(calcStepVector(ex) == [1,2,0,3]))
+
+        ! set up correct excitation information
+        excitInfo = excitationIdentifier(2,3,4,2)
+
+        ASSERT(excitInfo%typ == 21 )
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
+        call calcFullStartR2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ASSERT(pgen > EPS)
+        ASSERT(all(calcStepVector(ex) == [1,2,0,3]))
 
         print *, "calcFullStartR2L_stochastic tests passed!"
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
     end subroutine test_calcFullStartR2L_stochastic
 
@@ -3961,17 +4716,13 @@ contains
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(excitationInformation) :: excitInfo
         real(dp) :: pgen
+        logical :: compFlag
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         ! encode det
         call EncodeBitDet_guga([1,4,5,8 ], ilut)
 
         ! calc b and occ vector
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
-        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -3983,17 +4734,52 @@ contains
 
         ASSERT(excitInfo%typ == 20)
 
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
         print *, "testing calcFullStartL2R_stochastic(ilut, exInfo, ex, pgen)"
-!         call calcFullStartL2R_stochastic(ilut,excitInfo,ex,pgen)
+        call calcFullStartL2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ! 1212
+        ! 1320 -> normal single!
+        ASSERT(pgen < EPS)
+        ASSERT(all(ex == 0_n_int))
+
+        ! 1122
+        ! 1230 should work! 
+        call EncodeBitDet_guga([1,3,6,8], ilut)
+
+        ! calc b and occ vector
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
+        ! set up correct excitation information
+        excitInfo = excitationIdentifier( 1,4,3,1 )
+
+        ASSERT(excitInfo%typ == 20)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
+        call calcFullStartL2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ASSERT(all(calcStepVector(ex) == [1,2,3,0]))
+        ASSERT(pgen > EPS)
+
+        ! set up correct excitation information
+        excitInfo = excitationIdentifier( 2,4,3,2 )
+
+        ASSERT(excitInfo%typ == 20)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
+        call calcFullStartL2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        ASSERT(all(calcStepVector(ex) == [1,2,3,0]))
+        ASSERT(pgen > EPS)
 
         print *, "calcFullStartL2R_stochastic tests passed!"
-        
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
 
     end subroutine test_calcFullStartL2R_stochastic
 
@@ -4005,15 +4791,9 @@ contains
         real(dp) :: negSwitch(4),posSwitch(4),pgen
 
         ! encode det
-        call EncodeBitDet_guga([1,3,4,8 ], ilut)
+        call EncodeBitDet_guga([1,3,4,8], ilut)
 
         ! calc b and occ vector
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
-        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -4021,30 +4801,74 @@ contains
         currentB_int = calcB_vector_int(ilut)
 
         ! set up correct excitation information
-        excitInfo = excitationIdentifier(1,2,4,1 )
+        excitInfo = excitationIdentifier(1,2,4,1)
 
         ASSERT(excitInfo%typ == 21)
-
-        ! set up correct weights
-        weights = init_fullStartWeight(ilut,2,4,negSwitch(2),posSwitch(2),&
-            currentB_ilut(2))
 
         ! calc the possible switches
         call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
 
+        ! set up correct weights
+        ! but switches are not yet set up... wtf
+        weights = init_fullStartWeight(ilut,2,4,negSwitch(2),posSwitch(2),&
+            currentB_ilut(2))
+
         call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
+
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(abs(extract_matrix_element(ex,1) + OverR2) < 1.0e-10_dp)
+        ASSERT(abs(extract_matrix_element(ex,2) - sqrt(3.0_dp/2.0_dp)) < 1.0e-10_dp)
 
         print *, "testing calcRaisingSemiStopStochastic(ilut,exInfo,weight,negSwitch,posSwitch,ex,pgen):"
         call calcRaisingSemiStopStochastic(ilut,excitInfo,weights,negSwitch,&
             posSwitch,ex,pgen)
 
+        ! 1302: there should be 2 possible! why not?
+        ! 1203.. ah yes.. since no overlap changes..
+        ASSERT(pgen < EPS) 
+        ASSERT(all(ex == 0))
+        
+        ! 1122
+        ! 1203
+        call EncodeBitDet_guga([1,3,6,8],ilut)
+
+        ! calc b and occ vector
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
+        ! set up correct excitation information
+        excitInfo = excitationIdentifier(2,3,4,2)
+
+        ! calc the possible switches
+        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+
+        ! set up correct weights
+        ! but switches are not yet set up... wtf
+        weights = init_fullStartWeight(ilut,3,4,negSwitch(3),posSwitch(3),&
+            currentB_ilut(3))
+
+        call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
+            negSwitch, ex, pgen)
+
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [1,2,2,2]))
+        ASSERT(abs(extract_matrix_element(ex,1)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,2) - sqrt(3.0_dp)/2.0_dp) < 1.0e-10_dp)
+
+        call calcRaisingSemiStopStochastic(ilut,excitInfo,weights,negSwitch,&
+            posSwitch,ex,pgen)
+
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [1,2,0,2]))
+        ASSERT(abs(extract_matrix_element(ex,1)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,2) - sqrt(3.0_dp)/2.0_dp) < 1.0e-10_dp)
+
         print *, "calcRaisingSemiStopStochastic tests passed!"
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
+
     end subroutine test_calcRaisingSemiStopStochastic
 
     subroutine test_calcLoweringSemiStopStochastic
@@ -4055,15 +4879,9 @@ contains
         real(dp) :: negSwitch(4),posSwitch(4),pgen
 
         ! encode det
-        call EncodeBitDet_guga([1,5,6,8 ], ilut)
+        call EncodeBitDet_guga([1,5,6,8], ilut)
 
         ! calc b and occ vector
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
-        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -4071,7 +4889,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
 
         ! set up correct excitation information
-        excitInfo = excitationIdentifier(2,1,1,4 )
+        excitInfo = excitationIdentifier(2,1,1,4)
 
         ASSERT(excitInfo%typ == 20)
 
@@ -4089,12 +4907,53 @@ contains
         call calcLoweringSemiStopStochastic(ilut,excitInfo,weights,negSwitch,&
             posSwitch,ex,pgen)
 
+        ! 1032
+        ! 1230
+        ! but this is again only a single..
+        ASSERT(pgen < EPS) 
+        ASSERT(all(ex == 0_n_int))
+
+        ! do:
+        ! 1122
+        ! 1230
+        call EncodeBitDet_guga([1,3,6,8],ilut)
+
+        ! calc b and occ vector
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
+        ! set up correct excitation information
+        excitInfo = excitationIdentifier(2,4,3,2)
+
+        ! calc the possible switches
+        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+
+        ! set up correct weights
+        ! but switches are not yet set up... wtf
+        weights = init_fullStartWeight(ilut,3,4,negSwitch(3),posSwitch(3),&
+            currentB_ilut(3))
+
+        call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
+            negSwitch, ex, pgen)
+
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [1,2,2,2]))
+        ASSERT(abs(extract_matrix_element(ex,1)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,2) - sqrt(3.0_dp)/2.0_dp) < 1.0e-10_dp)
+
+        call calcLoweringSemiStopStochastic(ilut,excitInfo,weights,negSwitch,&
+            posSwitch,ex,pgen)
+
+        ASSERT(pgen == 1.0_dp) 
+        ASSERT(all(calcStepVector(ex) == [1,2,3,2]))
+        ASSERT(abs(extract_matrix_element(ex,1)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,2) + sqrt(3.0_dp/2.0_dp)) < 1.0e-10_dp)
+
         print *, "calcLoweringSemiStopStochastic tests passed!"
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
+
     end subroutine test_calcLoweringSemiStopStochastic
 
 
@@ -4109,12 +4968,6 @@ contains
         call EncodeBitDet_guga([1,5,6,8], ilut)
 
         ! calc b and occ vector
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
-        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -4122,6 +4975,9 @@ contains
         currentB_int = calcB_vector_int(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,2,4 )
+        ! 1032
+        ! 0132
+        ! is this even compatible??
 
         ASSERT(excitInfo%typ == 16)
 
@@ -4135,16 +4991,25 @@ contains
         call createStochasticStart_single(ilut, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
 
+        ! 1032
+        ! 0x
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [0,0,3,2]))
+        ASSERT(abs(extract_matrix_element(ex,1) - 1.0_dp) < 1.0e-10_dp)
+
         print *, "testing calcRaisingSemiStartStochastic(ilut,exInfo,weigh,negSwitch,posSwitch,ex,pgen):"
         call calcRaisingSemiStartStochastic(ilut,excitInfo,weights,negSwitch,&
             posSwitch,ex,pgen)
 
+        ! 1032
+        ! 01x
+        ASSERT(pgen == 1.0_dp) 
+        ASSERT(all(calcStepVector(ex) == [0,1,3,2]))
+        ASSERT(abs(extract_matrix_element(ex,1) + OverR2) < 1.0e-10_dp)
+        ASSERT(abs(extract_matrix_element(ex,2) - sqrt(3.0_dp/2.0_dp)) < 1.0e-10_dp)
+
         print *, "calcRaisingSemiStartStochastic tests passed!"
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
+
     end subroutine test_calcRaisingSemiStartStochastic
 
 
@@ -4156,15 +5021,9 @@ contains
         real(dp) :: negSwitch(4),posSwitch(4),pgen
 
         ! encode det
-        call EncodeBitDet_guga([1,3,4,8 ], ilut)
+        call EncodeBitDet_guga([1,3,4,8], ilut)
 
         ! calc b and occ vector
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
-        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -4185,18 +5044,20 @@ contains
         call createStochasticStart_single(ilut, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
 
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [3,3,0,2]))
+        ASSERT(abs(extract_matrix_element(ex,1) - Root2) < 1.0e-10_dp)
         print *, "testing calcLoweringSemiStartStochastic(ilut,exInfo,weight,negSwitch,posSwitch,ex,pgen):"
         call calcLoweringSemiStartStochastic(ilut,excitInfo,weights,negSwitch,&
             posSwitch,ex,pgen)
 
+        ! 1302
+        ! 31x
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [3,1,0,2]))
+        ASSERT(abs(extract_matrix_element(ex,1) + OverR2) < 1.0e-10_dp)
+        ASSERT(abs(extract_matrix_element(ex,2) + sqrt(3.0_dp/2.0_dp)) < 1.0e-10_dp)
         print *, "calcLoweringSemiStartStochastic tests passed!"
-
-        ! clean up
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
     end subroutine test_calcLoweringSemiStartStochastic
 
@@ -4205,13 +5066,11 @@ contains
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(excitationInformation) :: excitInfo
         real(dp) :: pgen
+        logical :: compFlag
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
+        ! 0330
         call EncodeBitDet_guga([3,4,5,6],ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
         
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -4223,9 +5082,19 @@ contains
         
         ASSERT(excitInfo%typ == 7)
 
-        print *, "testing calcSingleOverlapMixedStochastic(ilut, exInfo, ex, pgen):"
-!         call calcSingleOverlapMixedStochastic(ilut, excitInfo, ex, pgen)
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
+        print *, "testing calcSingleOverlapMixedStochastic(ilut, exInfo, ex, pgen):"
+        call calcSingleOverlapMixedStochastic(ilut, excitInfo, ex, pgen,posSwitches,negSwitches)
+
+        ! 0330
+        ! 1302
+        ASSERT(all(calcStepVector(ex) == [1,3,0,2]))
+        ASSERT(pgen == 1.0_dp) 
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
+
+        ! 3003
         call EncodeBitDet_guga([1,2,7,8],ilut)
   
         currentB_ilut = calcB_vector_ilut(ilut)
@@ -4238,32 +5107,33 @@ contains
 
         ASSERT(excitInfo%typ == 6)
 
-!         call calcSingleOverlapMixedStochastic(ilut,excitInfo, ex, pgen)
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
+        call calcSingleOverlapMixedStochastic(ilut,excitInfo, ex, pgen,posSwitches,negSwitches)
+
+        ! 3003
+        ! 1032
+        ASSERT(all(calcStepVector(ex) == [1,0,3,2]))
+        ASSERT(pgen == 1.0_dp) 
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,1) - Root2) < 1.0e-10_dp)
 
         print *, "calcSingleOverlapMixedStochastic tests passed!"
-
-         deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
     end subroutine test_calcSingleOverlapMixedStochastic
 
 
     subroutine test_calcFullStopLoweringStochastic
-        character(*), parameter :: this_routine = "test_calcFullStartLoweringStochastic"
+        character(*), parameter :: this_routine = "test_calcFullStopLoweringStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(excitationInformation) :: excitInfo
         real(dp) :: pgen
+        logical :: compFlag
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
+        ! 3030
         call EncodeBitDet_guga([1,2,5,6],ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
-        
+
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -4273,16 +5143,17 @@ contains
         
         ASSERT(excitInfo%typ == 14)
 
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, "testing calcFullStopLoweringStochastic(ilut, exInfo, ex, pgen):"
-!         call calcFullStopLoweringStochastic(ilut, excitInfo, ex, pgen)
+        call calcFullStopLoweringStochastic(ilut, excitInfo, ex, pgen,posSwitches,negSwitches)
+        ! 3030
+        ! 1023 
+        ASSERT(all(calcStepVector(ex) == [1,0,2,3]))
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
 
         print *, "calcFullStopLoweringStochastic tests passed!"
-
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
     end subroutine test_calcFullStopLoweringStochastic
 
@@ -4291,13 +5162,11 @@ contains
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(excitationInformation) :: excitInfo
         real(dp) :: pgen
+        logical :: compFlag
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
+        ! 0303
         call EncodeBitDet_guga([3,4,7,8],ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
         
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -4308,16 +5177,18 @@ contains
         
         ASSERT(excitInfo%typ == 15)
 
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, "testing calcFullStopRaisingStochastic(ilut, exInfo, ex, pgen):"
-!         call calcFullStopRaisingStochastic(ilut, excitInfo, ex, pgen)
+        call calcFullStopRaisingStochastic(ilut, excitInfo, ex, pgen,posSwitches,negSwitches)
+
+        ! 0303
+        ! 1320
+        ASSERT(all(calcStepVector(ex) == [1,3,2,0]))
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
 
         print *, "calcFullStopRaisingStochastic tests passed!"
-        
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
     end subroutine test_calcFullStopRaisingStochastic
 
@@ -4327,13 +5198,11 @@ contains
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(excitationInformation) :: excitInfo
         real(dp) :: pgen
+        logical :: compFlag
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
+        ! 3030
         call EncodeBitDet_guga([1,2,5,6],ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
         
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -4344,17 +5213,27 @@ contains
         
         ASSERT(excitInfo%typ == 18)
 
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+        ASSERT(.not.compFlag)
         print *, "testing calcFullStartLoweringStochastic(ilut, exInfo, ex, pgen):"
-!         call calcFullStartLoweringStochastic(ilut, excitInfo, ex, pgen)
+        call calcFullStartLoweringStochastic(ilut, excitInfo, ex, pgen,posSwitches,negSwitches)
+
+        excitInfo = excitationIdentifier(2,1,4,1)
+ 
+        ASSERT(excitInfo%typ == 18)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
+        ASSERT(compFlag)
+        call calcFullStartLoweringStochastic(ilut, excitInfo, ex, pgen,posSwitches,negSwitches)
+        ! 3030
+        ! 0132
+        ASSERT(all(calcStepVector(ex) == [0,1,3,2]))
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
 
         print *, "calcFullStartLoweringStochastic tests passed!"
-
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
 
     end subroutine test_calcFullStartLoweringStochastic
 
@@ -4364,33 +5243,50 @@ contains
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(excitationInformation) :: excitInfo
         real(dp) :: pgen
+        logical :: compFlag
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
+        ! 0033
         call EncodeBitDet_guga([5,6,7,8],ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
-        
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
         current_stepvector = calcStepVector(ilut)
         currentB_int = calcB_vector_int(ilut)
+
         excitInfo = excitationIdentifier(1,3,1,4)
         
         ASSERT(excitInfo%typ == 19)
 
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, "testing calcFullStartRaisingStochastic(ilut, exInfo, ex, pgen):"
-!         call calcFullStartRaisingStochastic(ilut, excitInfo, ex, pgen)
+        call calcFullStartRaisingStochastic(ilut, excitInfo, ex, pgen,posSwitches,negSwitches)
+
+        ! only result is: pgen should be 1..
+        ! 0033
+        ! 3012
+        ASSERT(all(calcStepVector(ex) == [3,0,1,2]))
+        ASSERT(pgen == 1.0_dp) 
+        ! umat is also stored in there.. so i hope i get it right 
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
+
+        excitInfo = excitationIdentifier(2,3,2,4)
+ 
+        ASSERT(excitInfo%typ == 19)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
+        call calcFullStartRaisingStochastic(ilut, excitInfo, ex, pgen,posSwitches,negSwitches)
+        ! 0033
+        ! 0312
+        ASSERT(all(calcStepVector(ex) == [0,3,1,2]))
+        ASSERT(pgen == 1.0_dp) 
+        ! umat is also stored in there.. so i hope i get it right 
+        ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        ASSERT(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
 
         print *, "calcFullStartRaisingStochastic tests passed!"
-
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
     end subroutine test_calcFullStartRaisingStochastic
 
@@ -4402,11 +5298,6 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4), pgen
 
         call EncodeBitDet_guga([1,4,5,8],ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
         
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -4417,7 +5308,6 @@ contains
         excitInfo = excitationIdentifier(4,1,1,4)
         weights = init_doubleWeight(ilut, 4)
         call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
-
  
         call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
@@ -4425,17 +5315,21 @@ contains
         call doubleUpdateStochastic(ilut,2,excitInfo,weights,negSwitch,posSwitch,ex,pgen)
         call doubleUpdateStochastic(ilut,3,excitInfo,weights,negSwitch,posSwitch,ex,pgen)
 
+        ! i should never get the other matrix element.. due to the 0 
+        ! matrix element or?? hopefully!
+        ! no! it is not 0! 
         print *, "testing mixedFullStopStochastic(ilut, excitInfo, ex)"
         call mixedFullStopStochastic(ilut, excitInfo, ex)
 
+        if (isOne(ex,3)) then
+            ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+            ASSERT(abs(extract_matrix_element(ex,1) + 1.0_dp/2.0_dp) < 1.0e-10_dp)
+        else if (isTwo(ex,3)) then 
+            ASSERT(abs(extract_matrix_element(ex,1)) < EPS)
+            ASSERT(abs(extract_matrix_element(ex,2) - sqrt(3.0_dp)/2.0_dp) < 1.0e-10_dp)
+        end if
+
         print *, "mixedFullStopStochastic tests passed!"
-
-       deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
 
     end subroutine test_mixedFullStopStochastic
 
@@ -4447,12 +5341,8 @@ contains
         type(weight_obj) :: weights
         real(dp) :: posSwitch(4), negSwitch(4), pgen
 
+        ! 1212
         call EncodeBitDet_guga([1,4,5,8],ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -4460,26 +5350,61 @@ contains
         current_stepvector = calcStepVector(ilut)
         currentB_int = calcB_vector_int(ilut)
 
-
         excitInfo = excitationIdentifier(4,1,1,4)
         weights = init_doubleWeight(ilut, 4)
         call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
 
-
         call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
 
+        ! 1212
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [1,2,1,2]))
+        ASSERT(abs(extract_matrix_element(ex,1) + OverR2) < 1.0e-10_dp)
+        ASSERT(abs(extract_matrix_element(ex,2) - sqrt(3.0_dp/2.0_dp)) < 1.0e-10_dp)
+
         print *, "testing doubleUpdateStochastic(ilut,orb,exInfo,weight,negSwitch,posSwitch,ex,pgen):"
         call doubleUpdateStochastic(ilut,2,excitInfo,weights,negSwitch,posSwitch,ex,pgen)
+
+        ! now there are 2 possibs. 
+        ! although.. do i exclude the "diagonal" excitation??
+        ! because if yes, then there is only one possib here..
+        ASSERT(pgen < 1.0_dp) 
+        if (isTwo(ex,2)) then 
+            ASSERT(all(calcStepVector(ex) == [1,2,1,2]))
+            ASSERT(abs(extract_matrix_element(ex,1) + OverR2) < 1.0e-10_dp)
+            ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+        else if (isOne(ex,2)) then 
+            ASSERT(all(calcStepVector(ex) == [1,1,1,2]))
+            ASSERT(abs(extract_matrix_element(ex,1)) < EPS)
+            ASSERT(abs(extract_matrix_element(ex,2) + sqrt(3.0_dp)/2.0_dp) < 1.0e-10_dp)
+
+        else 
+            call stop_all(this_routine, "wrong stepvalue")
+        end if
+
         call doubleUpdateStochastic(ilut,3,excitInfo,weights,negSwitch,posSwitch,ex,pgen)
 
-        print *, "doubleUpdateStochastic tests passed!"
+        ASSERT(pgen < 1.0_dp) 
 
-       deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
+        ! 121
+        if (isOne(ex,3)) then
+            ASSERT(all(calcStepVector(ex) == [1,2,1,2]))
+            ASSERT(abs(extract_matrix_element(ex,1) + OverR2) < 1.0e-10_dp)
+            ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+
+        else if (isTwo(ex,3)) then
+            ASSERT(all(calcStepVector(ex) == [1,1,2,2]))
+            ASSERT(abs(extract_matrix_element(ex,1)) < EPS)
+            ASSERT(abs(extract_matrix_element(ex,2) - OverR2) < 1.0e-10_dp)
+
+        else 
+            call stop_all(this_routine, "wrong stepvalue!")
+
+        end if
+
+
+        print *, "doubleUpdateStochastic tests passed!"
 
     end subroutine test_doubleUpdateStochastic
 
@@ -4488,14 +5413,11 @@ contains
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(excitationInformation) :: excitInfo
         real(dp) :: pgen
+        logical :: compFlag
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         ! set up determinant and excitaiton information
         call EncodeBitDet_guga([1,4,5,8],ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -4506,19 +5428,35 @@ contains
 
         ASSERT(excitInfo%typ==23)
 
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, "testing calcFullStartFullStopMixedStochastic(ilut,exInfo,ex,pgen)"
-!         call calcFullStartFullStopMixedStochastic(ilut, excitInfo, ex, pgen)
+        call calcFullStartFullStopMixedStochastic(ilut, excitInfo, ex, pgen,posSwitches,negSwitches)
 
-        
+        ! in this constellation no excitaiton should be possible, due to 0 
+        ! matrix elements.. 
+        ASSERT(all(ex == 0) .or. all(calcStepVector(ex) == [1,1,2,2]))
+
+        ! 1122
+        call EncodeBitDet_guga([1,3,6,8],ilut)
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+        excitInfo = excitationIdentifier(1,4,4,1)
+
+        ASSERT(excitInfo%typ==23)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+        print *, "testing calcFullStartFullStopMixedStochastic(ilut,exInfo,ex,pgen)"
+        call calcFullStartFullStopMixedStochastic(ilut, excitInfo, ex, pgen,posSwitches,negSwitches)
+
+        ! in this constellation no excitaiton should be possible, due to 0 
+        ! matrix elements.. 
+        ASSERT(all(ex == 0) .or. all(calcStepVector(ex) == [1,2,1,2]))
 
         print *, "calcFullStartFullStopMixedStochastic tests passed!"
-
-          deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
 
     end subroutine test_calcFullStartFullStopMixedStochastic
 
@@ -4533,11 +5471,6 @@ contains
         nI = [1,2,3,4]
         
         call EncodeBitDet_guga([1,2,3,4],ilut)
-       allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -4548,20 +5481,80 @@ contains
         ! still have to think about, if i preemptively choose the different
         ! types of double excitation (iiij, ii,jk, etc.) or let i happen 
         ! randomly and adjust the pgens accordingly...
+        ! and what should i test here??
         
         print *, "testing pickOrbitals_double(ilut, excitLvl):"
-        call pickOrbitals_double(ilut, nI, excitInfo, pgen)
+        ! 3300 
         call pickOrbitals_double(ilut, nI, excitInfo, pgen)
 
+        if (excitInfo%valid) then
+            ! what can i test here? 
+            ! only lowerings possible..
+            ASSERT(pgen > EPS)
+            ASSERT(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
+            ASSERT(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4) 
+            ASSERT(excitInfo%gen1 == -1 .and. excitInfo%gen2 == -1)
+        end if
 
+        call pickOrbitals_double(ilut, nI, excitInfo, pgen)
+
+        if (excitInfo%valid) then
+            ! what can i test here? 
+            ! only lowerings possible..
+            ASSERT(pgen > EPS)
+            ASSERT(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
+            ASSERT(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4) 
+            ASSERT(excitInfo%gen1 == -1 .and. excitInfo%gen2 == -1)
+        end if
+
+        nI = [5,6,7,8]
+        call EncodeBitDet_guga(nI,ilut)
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
+        ! 0033 
+        call pickOrbitals_double(ilut, nI, excitInfo, pgen)
+
+        if (excitInfo%valid) then
+            call print_excitInfo(excitInfo)
+            ! what can i test here? 
+            ! only lowerings possible..
+            ASSERT(pgen > EPS)
+            ASSERT(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
+            ASSERT(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4) 
+            ASSERT(excitInfo%gen1 == 1 .and. excitInfo%gen2 == 1)
+        end if
+
+        call pickOrbitals_double(ilut, nI, excitInfo, pgen)
+
+        if (excitInfo%valid) then
+            call print_excitInfo(excitInfo)
+            ! what can i test here? 
+            ! only lowerings possible..
+            ASSERT(pgen > EPS)
+            ASSERT(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
+            ASSERT(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4) 
+            ASSERT(excitInfo%gen1 == 1 .and. excitInfo%gen2 == 1)
+        end if
+
+        nI = [1,4,5,8]
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
+        call pickOrbitals_double(ilut, nI, excitInfo, pgen)
+
+        if (excitInfo%valid) then
+            ASSERT(pgen > EPS)
+        end if
         print *, "pickOrbitals_double tests passed!"
-
-          deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
 
     end subroutine test_pickOrbitals_double
 
@@ -4569,16 +5562,12 @@ contains
         character(*), parameter :: this_routine = "test_createStochasticExcitation_double"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         real(dp) :: pgen
-        integer :: dummy(2), nI(nel)
+        integer :: dummy(2), nI(nel), pos, nex
+        integer(n_int), pointer :: all_ex(:,:)
 
         nI = [1,5,6,8]
 
         call EncodeBitDet_guga([1,5,6,8], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -4588,14 +5577,18 @@ contains
         print *, "testing createStochasticExcitation_double(ilut, ex, pgen):"
         call createStochasticExcitation_double(ilut,nI,ex,pgen,dummy)
 
+        ! what should i test here? 
+        if (pgen > EPS) then 
+            call actHamiltonian(ilut,all_ex,nex)
+            
+            pos = binary_search(all_ex(0:nifd,1:nex),ex(0:nifd))
+
+            ASSERT(pos > 0) 
+            ASSERT(abs(extract_matrix_element(all_ex(:,pos),1) - extract_matrix_element(ex,1)) < 1.0e-10_dp)
+
+        end if
+
         print *, "createStochasticExcitation_double tests passed!"
-
-          deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
 
     end subroutine test_createStochasticExcitation_double
 
@@ -4606,12 +5599,8 @@ contains
         type(weight_obj) :: weights
         real(dp) :: posSwitch(4), negSwitch(4), pgen
 
+        ! 3300
         call EncodeBitDet_guga([1,2,3,4], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -4623,6 +5612,9 @@ contains
         excitInfo = excitationIdentifier(4,1)
         call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
         weights = init_singleWeight(ilut, excitInfo%fullEnd)
+
+        call createStochasticStart_single(ilut, excitInfo, weights, posSwitch, &
+            negSwitch, ex, pgen)
 
         call singleStochasticUpdate(ilut, 2, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
@@ -4634,13 +5626,12 @@ contains
 
         call singleStochasticEnd(ilut, excitInfo, ex)
 
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [1,3,0,2]))
+        ASSERT(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
+
+
         print *, "singleStochasticEnd tests passed!"
- 
-          deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
     end subroutine test_singleStochasticEnd
 
@@ -4652,14 +5643,9 @@ contains
         type(weight_obj) :: weights
         real(dp) :: posSwitch(4), negSwitch(4), pgen
 
+        ! 3300
         call EncodeBitDet_guga([1,2,3,4], ilut)
         
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
- 
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -4669,31 +5655,44 @@ contains
         ! do not make it random here but choose specific excitation!
 !         excitInfo = pickOrbitals_single(ilut)
         excitInfo = excitationIdentifier(4,1)
+
+        ASSERT(excitInfo%typ == 0)
+        ASSERT(excitInfo%fullStart == 1 .and. excitInfo%fullEnd == 4)
+        ASSERT(excitInfo%gen1 == -1)
+
         call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
         weights = init_singleWeight(ilut, excitInfo%fullEnd)
 
+        ASSERT( all(posSwitch < EPS))
+        ASSERT( all(negSwitch < EPS))
+
         call createStochasticStart_single(ilut, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
+
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [1,3,0,0]))
+        ASSERT(abs(extract_matrix_element(ex,1) - Root2) < 1.0e-10_dp)
 
         print *, "testing singleStochasticUpdate(ilut, exInfo, weight, posSwitch, negSwitch, ex, pgen):"
         call singleStochasticUpdate(ilut, 2, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
 
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [1,3,0,0]))
+        ASSERT(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
+
         call singleStochasticUpdate(ilut, 3, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
 
+        ASSERT(pgen == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [1,3,0,0]))
+        ASSERT(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
+
+
         print *, "singleStochasticUpdate tests passed!"
 
- 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
     end subroutine test_singleStochasticUpdate
             
-
-
     subroutine test_pickRandomOrb
         character(*), parameter :: this_routine = "test_pickRandomOrb"
         integer :: orb
@@ -4702,12 +5701,6 @@ contains
 
         call EncodeBitDet_guga([1,2,3,8], ilut)
        
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
- 
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -4716,7 +5709,6 @@ contains
 
         pgen = 1.0_dp
 
-        print *, "testing pickRandomOrb(orbRes, pgen, orb, occRes):"
         call pickRandomOrb_scalar(1, pgen, orb)
         ASSERT(pgen == 1.0_dp/3.0_dp)
         ASSERT( orb > 1 .and. orb <= 4)
@@ -4750,7 +5742,6 @@ contains
 
         pgen = 1.0_dp
         call pickRandomOrb_restricted(1,4,pgen,orb)
-        print *, pgen, orb
         ASSERT(pgen == 1.0_dp/2.0_dp)
         ASSERT(orb == 2 .or. orb == 3)
 
@@ -4764,12 +5755,7 @@ contains
         ASSERT(pgen == 1.0_dp)
         ASSERT(orb == 3)
         print *, "pickRandomOrb tests passed!"
- 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
+
     end subroutine test_pickRandomOrb
 
     subroutine test_mixedFullStartStochastic
@@ -4779,22 +5765,17 @@ contains
         type(weight_obj) :: weights
         real(dp) :: posSwitch(4), negSwitch(4), prob
 
+        ! 1230
         call EncodeBitDet_guga([1,4,5,6],ilut)
-
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
         current_stepvector = calcStepVector(ilut)
         currentB_int = calcB_vector_int(ilut)
-        currentB_ilut = calcB_vector_ilut(ilut)
 
         excitInfo = excitationIdentifier(4,1,1,3)
+
         weights = init_doubleWeight(ilut, 4)
         call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
 
@@ -4803,13 +5784,40 @@ contains
         call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
             negSwitch, ex, prob)
 
+        ASSERT(prob == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [1,2,3,0]))
+        ASSERT(abs(extract_matrix_element(ex,1) + OverR2) < 1.0e-10_dp)
+        ASSERT(abs(extract_matrix_element(ex,2) - sqrt(3.0_dp/2.0_dp)) < 1.0e-10_dp)
+
+        excitInfo = excitationIdentifier(4,2,2,3)
+
+        weights = init_doubleWeight(ilut, 4)
+        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+
+        call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
+            negSwitch, ex, prob)
+
+        ! i think i have two possibs here..
+        ! 1230
+        ! 1212
+        ! 1122
+        ASSERT(prob < 1.0_dp)
+
+        if (isTwo(ex,2)) then
+            ASSERT(all(calcStepVector(ex) == [1,2,3,0]))
+            ASSERT(abs(extract_matrix_element(ex,1) + OverR2) < 1.0e-10_dp)
+            ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
+
+        else if (isOne(ex,2)) then
+            ASSERT(all(calcStepVector(ex) == [1,1,3,0]))
+            ASSERT(abs(extract_matrix_element(ex,1)) < EPS)
+            ASSERT(abs(extract_matrix_element(ex,2) - sqrt(3.0_dp)/2.0_dp) < 1.0e-10_dp)
+
+        else 
+            call stop_all(this_routine, "wrong stepvalue at fullstart!")
+        endif
+
         print *, "mixedFullStartStochastic tests passed!"
- 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
     end subroutine test_mixedFullStartStochastic
 
@@ -4821,13 +5829,8 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4), probWeight
         integer(n_int) :: ex(0:nifguga)
 
+        ! 3300
         call EncodeBitDet_guga([1,2,3,4], ilut)
-
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -4836,21 +5839,29 @@ contains
         currentB_int = calcB_vector_int(ilut)
         currentB_ilut = calcB_vector_ilut(ilut)
 
-
         excitInfo = excitationIdentifier(4,1)
+
+        ASSERT(excitInfo%typ == 0)
+        ASSERT(excitInfo%fullStart == 1 .and. excitInfo%fullEnd == 4)
+        ASSERT(excitInfo%gen1 == -1)
+
         call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
         weights = init_singleWeight(ilut,4)
+
+        ASSERT( all(posSwitch < EPS))
+        ASSERT( all(negSwitch < EPS))
 
         print *, "testing createStochasticStart_single(ilut,exInfo, weighs, posSwitch, negSwitch, ex, probWeight):"
         call createStochasticStart_single(ilut, excitInfo, weights, posSwitch, negSwitch, ex, probWeight)
 
+        ! i should check the matrix element and the excitation to be sure 
+        ! about the effect!
+        ASSERT(probWeight == 1.0_dp)
+        ASSERT(all(calcStepVector(ex) == [1,3,0,0]))
+        ASSERT(abs(extract_matrix_element(ex,1) - Root2) < 1.0e-10_dp)
+
         print *, "createStochasticStart_single tests passed!"
- 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
+
     end subroutine test_createStochasticStart_single
 
     subroutine test_pickOrbitals_single
@@ -4863,12 +5874,6 @@ contains
         nI = [1,2,3,4]
 
         call EncodeBitDet_guga([1,2,3,4],ilut)
-
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -4877,13 +5882,77 @@ contains
         currentB_int = calcB_vector_int(ilut)
         currentB_ilut = calcB_vector_ilut(ilut)
 
-
-        ! todo the pick random orbital picker.. 
-        ! ask ali and simon
+        ! what should i test here?..
         print *, "testing: pickOrbitals_single(ilut)"
+
+        ! 3300
         call pickOrbitals_single(ilut, nI, excitInfo, pgen)
+
+        if (excitInfo%valid) then
+            ASSERT(pgen > 0.0_dp)
+            ASSERT(excitInfo%typ == 0) 
+            ASSERT(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
+            ASSERT(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
+            ASSERT(excitInfo%gen1 == -1)
+        end if
+
         call pickOrbitals_single(ilut, nI, excitInfo, pgen)
+        if (excitInfo%valid) then
+            ASSERT(pgen > 0.0_dp)
+            ASSERT(excitInfo%typ == 0) 
+            ASSERT(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
+            ASSERT(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
+            ASSERT(excitInfo%gen1 == -1)
+        end if
+
         call pickOrbitals_single(ilut, nI, excitInfo, pgen)
+        if (excitInfo%valid) then
+            ASSERT(pgen > 0.0_dp)
+            ASSERT(excitInfo%typ == 0) 
+            ASSERT(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
+            ASSERT(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
+            ASSERT(excitInfo%gen1 == -1)
+        end if
+
+        ! 0033
+        nI = [5,6,7,8]
+        call EncodeBitDet_guga([5,6,7,8],ilut)
+ 
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+        currentB_ilut = calcB_vector_ilut(ilut)
+
+        call pickOrbitals_single(ilut, nI, excitInfo, pgen)
+
+        if (excitInfo%valid) then
+            ASSERT(pgen > 0.0_dp)
+            ASSERT(excitInfo%typ == 0) 
+            ASSERT(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
+            ASSERT(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
+            ASSERT(excitInfo%gen1 == 1)
+        end if
+
+        call pickOrbitals_single(ilut, nI, excitInfo, pgen)
+        if (excitInfo%valid) then
+            ASSERT(pgen > 0.0_dp)
+            ASSERT(excitInfo%typ == 0) 
+            ASSERT(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
+            ASSERT(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
+            ASSERT(excitInfo%gen1 == 1)
+        end if
+
+        call pickOrbitals_single(ilut, nI, excitInfo, pgen)
+
+        if (excitInfo%valid) then
+            ASSERT(pgen > 0.0_dp)
+            ASSERT(excitInfo%typ == 0) 
+            ASSERT(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
+            ASSERT(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
+            ASSERT(excitInfo%gen1 == 1)
+        end if
 
         call EncodeBitDet_guga([1,4,5,8], ilut)
        
@@ -4895,35 +5964,34 @@ contains
         currentB_int = calcB_vector_int(ilut)
         currentB_ilut = calcB_vector_ilut(ilut)
 
+        ! 1212
         call pickOrbitals_single(ilut, nI, excitInfo, pgen)
-        call pickOrbitals_single(ilut, nI, excitInfo, pgen)
+        if (excitInfo%valid) then
+            ASSERT(pgen > 0.0_dp)
+            ASSERT(excitInfo%typ == 0) 
+        end if
 
+        call pickOrbitals_single(ilut, nI, excitInfo, pgen)
+        if (excitInfo%valid) then
+            ASSERT(pgen > 0.0_dp)
+            ASSERT(excitInfo%typ == 0) 
+        end if
 
         print *, "pickOrbitals_single tests passed!"
- 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
     end subroutine test_pickOrbitals_single
 
     subroutine test_createStochasticExcitation_single
         character(*), parameter :: this_routine = "test_createStochasticExcitation_single"
-        integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
+        integer(n_int) :: ilut(0:nifguga), t(0:nifguga)
         real(dp) :: pgen
-        integer :: nI(nel) 
+        integer :: nI(nel), pos, nex
+        HElement_t(dp) :: HElGen
+        integer(n_int), pointer :: ex(:,:)
 
         nI = [1,2,3,4]
         
         call EncodeBitDet_guga([1,2,3,4], ilut)
-
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -4932,16 +6000,25 @@ contains
         currentB_int = calcB_vector_int(ilut)
         currentB_ilut = calcB_vector_ilut(ilut)
 
-        print *, "testing: createStochasticExcitation_single(ilut,ex,weight):"
-        call createStochasticExcitation_single(ilut, nI, ex, pgen)
+        print *, "testing: createStochasticExcitation_single(ilut,t,weight):"
+        call createStochasticExcitation_single(ilut, nI, t, pgen)
+
+        if (pgen > 0.0_dp) then
+            print *, "stochastic excitation: "
+            call write_det_guga(6,t,.true.)
+            print *, "exact excitations for this ilut:"
+            call actHamiltonian(ilut, ex, nEx)
+            call write_guga_list(6, ex(:,1:nEx))
+
+            pos = binary_search(ex(0:nifd,1:nex),t(0:nifd))
+            ASSERT(pos > 0)
+            ASSERT(abs(extract_matrix_element(t,1) - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+        else 
+            print *, "no valid excitation created!"
+        end if
 
         print *, "createStochasticExcitation_single tests passed!"
- 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
     end subroutine test_createStochasticExcitation_single
 
@@ -5096,8 +6173,6 @@ contains
         call write_guga_list(6,ex(:,1:nEx))
         ASSERT(nEx == 18)
 
-
-
         print *, "actHamiltonian tests passed!"
             
     end subroutine test_actHamiltonian
@@ -5111,12 +6186,6 @@ contains
 
         call EncodeBitDet_guga([1,4,5,8],ilut)
  
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
- 
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -5127,13 +6196,13 @@ contains
         print *, "testing calcAllExcitations_double(ilut,i,j,k,l,ex,nExits):"
         call calcAllExcitations_double(ilut,1,2,3,4, ex, nExcits)
 
+        ! meh... was soll ich hier testen?
+        ! 1212
+        ! 3030
+        ASSERT(nExcits == 1)
+        ASSERT(all(calcStepVector(ex(:,1)) == [3,0,3,0]))
         print *, "calcAllExcitations_double tests passed!"
- 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
+
     end subroutine test_calcAllExcitations_double
 
 
@@ -5146,12 +6215,6 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([3,4,7,8], ilut)
-
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -5162,14 +6225,17 @@ contains
 
         excitInfo = excitationIdentifier(1,4,1,4)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        print *, excitInfo%typ
+        ASSERT(excitInfo%typ == 22)
 
         print *, "testing: calcFullStartFullStopAlike(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcFullStartFullStopAlike(ilut, excitInfo, ex)
 
+        ! 0303
+        ! 3300
+        ASSERT(num == 1)
+        ASSERT(all(calcStepVector(ex(:,1)) == [3,3,0,0]))
+        ASSERT(abs(extract_matrix_element(ex(:,1),1) - 2.0_dp) < 1.0e-10_dp)
 
-        print *, " numExcits: ", num
-        print *, ex
         print *, "calcFullStartFullStopAlike tests passed!"
 
         call EncodeBitDet_guga([1,2,3,4], ilut) 
@@ -5184,26 +6250,21 @@ contains
         excitInfo = excitationIdentifier(4,1,4,1)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
         currentB_ilut = calcB_vector_ilut(ilut)
-        print *, excitInfo%typ
+        ASSERT(excitInfo%typ == 22)
 
         print *, "testing: calcFullStartFullStopAlike(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcFullStartFullStopAlike(ilut, excitInfo, ex)
 
+        ! 3300
+        ! 0303
+        ASSERT(num == 1)
+        ASSERT(all(calcStepVector(ex(:,1)) == [0,3,0,3]))
+        ASSERT(abs(extract_matrix_element(ex(:,1),1) - 2.0_dp) < 1.0e-10_dp)
 
-        print *, " numExcits: ", num
-        print *, ex
         print *, "calcFullStartFullStopAlike tests passed!"
- 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
 
     end subroutine test_calcFullStartFullStopAlike
-
-
 
     subroutine test_calcFullStartL2R
         character(*), parameter :: this_routine = "test_calcFullStartL2R"
@@ -5214,11 +6275,6 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,4,5,8], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -5230,21 +6286,22 @@ contains
 
         excitInfo = excitationIdentifier(1,4,3,1)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        print *, excitInfo%typ
+        ASSERT(excitInfo%typ == 20)
 
         print *, "testing: calcFullStartL2R(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcFullStartL2R(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
-        print *, " numExcits: ", num
-        print *, ex
-        print *, "calcFullStartL2R tests passed!"
- 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
+        ! 1212
+        ! 1230
 
+        ASSERT(num == 1)
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,2,3,0]))
+
+        excitInfo = excitationIdentifier(2,4,3,2)
+        call calcFullStartL2R(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        ASSERT(num == 1)
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,2,3,0]))
+        print *, "calcFullStartL2R tests passed!"
 
     end subroutine test_calcFullStartL2R
 
@@ -5258,11 +6315,6 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,4,5,8], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -5273,22 +6325,22 @@ contains
 
         excitInfo = excitationIdentifier(1,3,4,1)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        print *, excitInfo%typ
+        ASSERT(excitInfo%typ == 21)
 
         print *, "testing: calcFullStartR2L(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcFullStartR2L(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
+        ! 1212
+        ! 1203
+        ASSERT(num == 1) 
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,2,0,3]))
 
-        print *, " numExcits: ", num
-        print *, ex
+        excitInfo = excitationIdentifier(2,3,4,2)
+        call calcFullStartR2L(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        ASSERT(num == 1) 
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,2,0,3]))
+
         print *, "calcFullStartR2L tests passed!"
- 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
 
     end subroutine test_calcFullStartR2L
 
@@ -5302,11 +6354,6 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([3,4,5,8], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -5317,26 +6364,20 @@ contains
 
         excitInfo = excitationIdentifier(1,4,1,3)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        print *, excitInfo%typ
+        ASSERT(excitInfo%typ == 19)
 
         print *, "testing: calcFullStartRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcFullStartRaising(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
+        ! 0312
+        ! 3300
 
-        print *, " numExcits: ", num
-        print *, ex
+        ASSERT(num == 1)
+        ASSERT(all(calcStepVector(ex(:,1)) == [3,3,0,0]))
+
         print *, "calcFullStartRaising tests passed!"
- 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
 
     end subroutine test_calcFullStartRaising
-
-
 
     subroutine test_calcFullStartLowering
         character(*), parameter :: this_routine = "test_calcFullStartLowering"
@@ -5347,12 +6388,7 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,2,5,8], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
- 
+  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -5360,24 +6396,19 @@ contains
         currentB_int = calcB_vector_int(ilut)
         currentB_ilut = calcB_vector_ilut(ilut)
 
-
         excitInfo = excitationIdentifier(4,1,3,1)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        print *, excitInfo%typ
+        ASSERT(excitInfo%typ == 18)
 
         print *, "testing: calcFullStartLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcFullStartLowering(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
-        print *, " numExcits: ", num
-        print *, ex
-        print *, "calcFullStartLowering tests passed!"
- 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
+        ! 3012
+        ! 0033
+        ASSERT(num == 1)
+        ASSERT(all(calcStepVector(ex(:,1)) == [0,0,3,3]))
 
+        print *, "calcFullStartLowering tests passed!"
 
     end subroutine test_calcFullStartLowering
 
@@ -5391,11 +6422,6 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,4,5,8], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -5405,30 +6431,30 @@ contains
         currentB_ilut = calcB_vector_ilut(ilut)
 
 
-        excitInfo = excitationIdentifier(4,1,3,4)
+        excitInfo = excitationIdentifier(1,4,4,3)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        print *, excitInfo%typ
+        ASSERT(excitInfo%typ == 17)
 
         print *, "testing: calcFullStopR2L(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcFullStopR2L(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
+        ! 1212
+        ! 3102
+        ASSERT(num == 1)
+        ASSERT(all(calcStepVector(ex(:,1)) == [3,1,0,2]))
 
-        print *, " numExcits: ", num
-        print *, ex
+        excitInfo = excitationIdentifier(1,3,3,2)
+        call calcFullStopR2L(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        ! 1212
+        ! 3012
+        ASSERT(num == 1)
+        ASSERT(all(calcStepVector(ex(:,1)) == [3,0,1,2]))
+
         print *, "calcFullStopR2L tests passed!"
- 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
 
     end subroutine test_calcFullStopR2L
 
-
-
-       subroutine test_calcFullStopL2R
+    subroutine test_calcFullStopL2R
         character(*), parameter :: this_routine = "test_calcFullStopL2R"
         integer(n_int) :: ilut(0:nifguga)
         type(excitationInformation) :: excitInfo
@@ -5437,11 +6463,6 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,4,5,8], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -5452,27 +6473,30 @@ contains
 
         excitInfo = excitationIdentifier(4,1,3,4)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        print *, excitInfo%typ
+        ASSERT(excitInfo%typ == 16)
 
         print *, "testing: calcFullStopL2R(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcFullStopL2R(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
+        ! 1212
+        ! 0132
+        ASSERT(num == 1)
+        ASSERT(all(calcStepVector(ex(:,1)) == [0,1,3,2]))
 
-        print *, " numExcits: ", num
-        print *, ex
+        excitInfo = excitationIdentifier(3,1,2,3)
+        call calcFullStopL2R(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+
+        ! 1212
+        ! 0312
+        ASSERT(num == 1)
+        ASSERT(all(calcStepVector(ex(:,1)) == [0,3,1,2]))
+
         print *, "calcFullStopL2R tests passed!"
- 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
 
     end subroutine test_calcFullStopL2R
 
 
-       subroutine test_calcFullStopRaising
+    subroutine test_calcFullStopRaising
         character(*), parameter :: this_routine = "test_calcFullStopRaising"
         integer(n_int) :: ilut(0:nifguga)
         type(excitationInformation) :: excitInfo
@@ -5481,12 +6505,7 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([5,6,7,8], ilut)
-       allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
- 
+    
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -5495,26 +6514,21 @@ contains
 
         excitInfo = excitationIdentifier(1,4,2,4)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        print *, excitInfo%typ
+        ASSERT(excitInfo%typ == 15)
 
         print *, "testing: calcFullStopRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcFullStopRaising(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
+        ! 0033
+        ! 1230
+        ASSERT(num == 1)
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,2,3,0]))
 
-        print *, " numExcits: ", num
-        print *, ex
         print *, "calcFullStopRaising tests passed!"
-
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
 
     end subroutine test_calcFullStopRaising
 
-     subroutine test_calcFullStopLowering
+    subroutine test_calcFullStopLowering
         character(*), parameter :: this_routine = "test_calcDoubleFullStopLowering"
         integer(n_int) :: ilut(0:nifguga)
         type(excitationInformation) :: excitInfo
@@ -5523,12 +6537,7 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,2,3,4], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
- 
+  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -5537,22 +6546,17 @@ contains
 
         excitInfo = excitationIdentifier(4,1,4,2)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        print *, excitInfo%typ
+        ASSERT(excitInfo%typ == 14)
 
         print *, "testing: calcFullStopLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcFullStopLowering(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
+        ! 3300
+        ! 1203
+        ASSERT(num == 1)
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,2,0,3]))
 
-        print *, " numExcits: ", num
-        print *, ex
         print *, "calcFullStopLowering tests passed!"
-
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
 
     end subroutine test_calcFullStopLowering
 
@@ -5565,12 +6569,7 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,4,5,8], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
- 
+  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -5579,26 +6578,23 @@ contains
 
         excitInfo = excitationIdentifier(1,3,4,2)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        print *, excitInfo%typ
+        ASSERT(excitInfo%typ == 13)
 
         print *, "testing: calcDoubleR2L(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcDoubleR2L(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
+        ! 1212
+        ! 3003
+        ASSERT(num == 1)
+        ASSERT(all(calcStepVector(ex(:,1)) == [3,0,0,3]))
 
         print *, " numExcits: ", num
         print *, ex
         print *, "calcDoubleR2L tests passed!"
 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
-
     end subroutine test_calcDoubleR2L
 
-   subroutine test_calcDoubleL2R
+    subroutine test_calcDoubleL2R
         character(*), parameter :: this_routine = "test_calcDoubleL2R"
         integer(n_int) :: ilut(0:nifguga)
         type(excitationInformation) :: excitInfo
@@ -5607,11 +6603,6 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,4,5,8], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -5619,30 +6610,24 @@ contains
         current_stepvector = calcStepVector(ilut)
         currentB_int = calcB_vector_int(ilut)
 
-
         excitInfo = excitationIdentifier(3,1,2,4)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        print *, excitInfo%typ
+        ASSERT(excitInfo%typ == 12)
 
         print *, "testing: calcDoubleL2R(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcDoubleL2R(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
+        ! 1212
+        ! 0330
+        ASSERT(num == 1)
+        ASSERT(all(calcStepVector(ex(:,1)) == [0,3,3,0]))
 
-        print *, " numExcits: ", num
-        print *, ex
         print *, "calcDoubleL2R tests passed!"
-
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
 
     end subroutine test_calcDoubleL2R
 
 
-   subroutine test_calcDoubleRaising
+    subroutine test_calcDoubleRaising
         character(*), parameter :: this_routine = "test_calcDoubleRaising"
         integer(n_int) :: ilut(0:nifguga)
         type(excitationInformation) :: excitInfo
@@ -5651,11 +6636,6 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([5,6,7,8], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -5665,26 +6645,22 @@ contains
 
         excitInfo = excitationIdentifier(1,3,2,4)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        print *, excitInfo%typ
+        ASSERT(excitInfo%typ == 9)
 
         print *, "testing: calcDoubleRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcDoubleRaising(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
+        ! 0033
+        ! 1122
+        ! 1212
 
-        print *, " numExcits: ", num
-        print *, ex
+        ASSERT(num == 2)
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,1,2,2]))
+        ASSERT(all(calcStepVector(ex(:,2)) == [1,2,1,2]))
+
         print *, "calcDoubleRaising tests passed!"
 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
-
     end subroutine test_calcDoubleRaising
-
-
 
     subroutine test_calcDoubleLowering
         character(*), parameter :: this_routine = "test_calcDoubleLowering"
@@ -5695,12 +6671,7 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,2,3,4], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
- 
+
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -5709,22 +6680,19 @@ contains
 
         excitInfo = excitationIdentifier(3,1,4,2)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        print *, excitInfo%typ
 
+        ASSERT(excitInfo%typ==8)
         print *, "testing: calcDoubleLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcDoubleLowering(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
+        ! 3300
+        ! 1122
+        ! 1212
+        ASSERT(num == 2)
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,1,2,2]))
+        ASSERT(all(calcStepVector(ex(:,2)) == [1,2,1,2]))
 
-        print *, " numExcits: ", num
-        print *, ex
         print *, "calcDoubleLowering tests passed!"
-
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
 
     end subroutine test_calcDoubleLowering
 
@@ -5737,11 +6705,6 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([5,6,7,8], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -5756,16 +6719,13 @@ contains
         print *, "testing: calcSingleOverlapRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcSingleOverlapRaising(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
+        ! 0033
+        ! 1032
+        ASSERT(num == 1)
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,0,3,2]))
+        ASSERT(abs(extract_matrix_element(ex(:,1),1) - Root2) < 1.0e-10_dp)
 
-        print *, " numExcits: ", num
-        print *, ex
         print *, "calcSingleOverlapRaising tests passed!"
-
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
     end subroutine test_calcSingleOverlapRaising
 
@@ -5778,11 +6738,6 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,2,7,8], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -5793,23 +6748,19 @@ contains
 
         excitInfo = excitationIdentifier(3,1,3,4)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        print *, excitInfo%typ
 
         print *, "testing: calcSingleOverlapMixed(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcSingleOverlapMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
-        print *, " numExcits: ", num
-        print *, ex
+        ! 3003
+        ! 1032
+        ASSERT(num == 1) 
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,0,3,2]))
+        ASSERT(abs(extract_matrix_element(ex(:,1),1) - Root2) < 1.0e-10_dp)
 
         print *, "calcSingleOverlapMixed tests passed!"
 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
     end subroutine test_calcSingleOverlapMixed
-
 
     subroutine test_calcSingleOverlapLowering
         character(*), parameter :: this_routine = "test_singleOverlapLowering"
@@ -5820,11 +6771,6 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([1,2,3,4], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -5840,19 +6786,15 @@ contains
         print *, "testing: calcSingleOverlapLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcSingleOverlapLowering(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
-        print *, " numExcits: ", num
-        print *, ex
+        ! 3300
+        ! 1302
+        ASSERT(num == 1)
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,3,0,2]))
+        ASSERT(abs(extract_matrix_element(ex(:,1),1) - Root2) < 1.0e-10_dp)
 
         print *, "calcSingleOverlapLowering tests passed!"
 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
     end subroutine test_calcSingleOverlapLowering
-
 
     subroutine test_calcNonOverlapDouble
         character(*), parameter :: this_routine = "test_calcNonOverlapDouble"
@@ -5863,12 +6805,7 @@ contains
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([3,4,7,8], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
- 
+  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -5877,21 +6814,22 @@ contains
 
         excitInfo = excitationIdentifier(1,2,3,4)
         call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
-        print *, excitInfo%typ
+        ASSERT(excitInfo%typ == 3)
 
         print *, "testing: calcNonOverlapDouble(ilut, exInfo, exs, num, posSwitch, negSwitch"
         call calcNonOverlapDouble(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+
+        ! 0303
+        ! 1212
+
+        ASSERT(num == 1)
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,2,1,2]))
+        ASSERT(abs(extract_matrix_element(ex(:,1),1) - 2.0_dp) < 1.0e-10_dp)
 
         ! todo: auch hier eine funktion noetig die nur die single excitations
         ! berechnt und nicht tmat einbezieht... und das auch effektiv macht
         
         print *, "calcNonOverlapDouble tests passed!"
-
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
     end subroutine test_calcNonOverlapDouble
 
@@ -5924,14 +6862,10 @@ contains
         integer(n_int), pointer :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
+        logical :: compFlag
 
         call EncodeBitDet_guga([3,4,7,8],ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
- 
+  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -5940,21 +6874,28 @@ contains
 
         excitInfo = excitationIdentifier(2,2,1,4)
         call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
-        print *, excitInfo%typ
+        ASSERT(excitInfo%typ == 1)
 
         print *, "testing: calcDoubleExcitation_withWeight(ilut, exInfo, exc, num)"
         call calcDoubleExcitation_withWeight(ilut, excitInfo, ex, num, posSwitch, &
             negSwitch)
+
+        ! 0303
+        ! 1302
+        ASSERT(num == 1)
+        ASSERT(all(calcStepVector(ex(:,1)) == [1,3,0,2]))
+        ASSERT(abs(extract_matrix_element(ex(:,1),1) + 2.0_dp*Root2) < 1.0e-10_dp)
+
+
+        excitInfo = excitationIdentifier(3,3,1,4)
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitch,negSwitch)
+        ASSERT(.not.compFlag)
+
+
         ! todo! have to write a only excitation calculating funciton
         ! not including tmat for this case! 
 
         print *, "calcDoubleExcitation_withWeight tests passed!"
-
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
     end subroutine test_calcDoubleExcitation_withWeight
 
@@ -5967,29 +6908,39 @@ contains
 
         print *, "testing: checkCompatibility:"
         call EncodeBitDet_guga([1,2,3,4], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
- 
+   
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
         current_stepvector = calcStepVector(ilut)
         currentB_int = calcB_vector_int(ilut)
-
-
         excitInfo = excitationIdentifier_double(1,2,3,4)
-        print *, excitInfo%typ
         call calcRemainingSwitches_excitInfo_double(ilut, excitInfo, 1, posSwitch, negSwitch)
         call checkCompatibility(ilut, excitInfo, flag, posSwitch, negSwitch)
 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
+        ASSERT(.not.flag)
+
+        ! 3300
+
+        excitInfo = excitationIdentifier_double(1,2,1,4)
+        call checkCompatibility(ilut, excitInfo, flag, posSwitch, negSwitch)
+        ASSERT(.not.flag)
+
+        excitInfo = excitationIdentifier_double(3,2,4,1)
+        call checkCompatibility(ilut, excitInfo, flag, posSwitch, negSwitch)
+        ASSERT(flag)
+
+        ! 0033
+        call EncodeBitDet_guga([5,6,7,8],ilut)
+        call init_csf_information(ilut)
+
+        excitInfo = excitationIdentifier_double(1,2,1,4)
+        call checkCompatibility(ilut, excitInfo, flag, posSwitch, negSwitch)
+        ASSERT(.not.flag)
+
+        excitInfo = excitationIdentifier_double(1,3,1,4)
+        call checkCompatibility(ilut, excitInfo, flag, posSwitch, negSwitch)
+        ASSERT(flag)
 
         print *, "checkCompatibility tests passed!"
 
@@ -6003,12 +6954,7 @@ contains
         integer(n_int) :: ilut(0:nifguga)
 
         call EncodeBitDet_guga([1,2,3,4], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
- 
+   
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -6016,18 +6962,28 @@ contains
         currentB_int = calcB_vector_int(ilut)
 
         print *, "testing: calcRemainingSwitches_double"
+        ! solche scheiß tests...
         call calcRemainingSwitches_double(ilut,1,2,3,4,posSwitch,negSwitch)
+        ASSERT(all(posSwitch == 0.0_dp))
+        ASSERT(all(negSwitch == 0.0_dp))
         call calcRemainingSwitches_double(ilut,3,2,3,1,posSwitch,negSwitch)
+        ASSERT(all(posSwitch == 0.0_dp))
+        ASSERT(all(negSwitch == 0.0_dp))
         call calcRemainingSwitches_double(ilut,1,4,3,4,posSwitch,negSwitch)
+        ASSERT(all(posSwitch == 0.0_dp))
+        ASSERT(all(negSwitch == 0.0_dp))
+
+        call EncodeBitDet_guga([1,4,5,6], ilut)
+   
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+
+        ! 1212 todo
 
         print *, "calcRemainingSwitches_double tests passed!"
-
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
 
     end subroutine test_calcRemainingSwitches_double
             
@@ -6040,20 +6996,37 @@ contains
         print *, "testing: excitationIdentifier_double"
 
         excitInfo = excitationIdentifier_double(1,2,3,4)
+        ASSERT(excitInfo%i==1)
+        ASSERT(excitInfo%j==2)
+        ASSERT(excitInfo%gen1==1)
+        ASSERT(excitInfo%gen2==1)
+        ASSERT(excitInfo%typ==3)
         excitInfo = excitationIdentifier_double(1,2,2,4)
-        excitInfo = excitationIdentifier_double(3,2,3,4)
-        excitInfo = excitationIdentifier_double(4,2,3,1)
-        excitInfo = excitationIdentifier_double(1,1,3,4)
-        excitInfo = excitationIdentifier_double(1,1,4,4)
-        excitInfo = excitationIdentifier_double(1,1,1,1)
-        excitInfo = excitationIdentifier_double(1,3,2,4)
-        excitInfo = excitationIdentifier_double(1,4,3,2)
+        ASSERT(excitInfo%fullStart==1)
+        ASSERT(excitInfo%secondStart==2)
+        ASSERT(excitInfo%firstEnd==2)
+        ASSERT(excitInfo%fullEnd==4)
+        ASSERT(excitInfo%currentGen==1)
+        ASSERT(excitInfo%typ==5)
 
+        excitInfo = excitationIdentifier_double(3,2,3,4)
+        ASSERT(excitInfo%typ==6)
+        excitInfo = excitationIdentifier_double(4,2,3,1)
+        ASSERT(excitInfo%typ==8)
+        excitInfo = excitationIdentifier_double(1,1,3,4)
+        ASSERT(excitInfo%typ==1)
+        excitInfo = excitationIdentifier_double(1,1,4,4)
+        ASSERT(excitInfo%typ==0)
+        excitInfo = excitationIdentifier_double(1,1,1,1)
+        ASSERT(excitInfo%typ==0)
+        excitInfo = excitationIdentifier_double(1,3,2,4)
+        ASSERT(excitInfo%typ==9)
+        excitInfo = excitationIdentifier_double(1,4,3,2)
+        ASSERT(excitInfo%typ==11)
 
         print *, "excitationIdentifier_double tests passed!"
 
     end subroutine test_excitationIdentifier_double
-
 
     subroutine test_calcAllExcitations_single
         character(*), parameter :: this_routine = "test_calcAllExcitations_single"
@@ -6061,13 +7034,9 @@ contains
         integer(n_int), pointer :: ex(:,:)
         integer :: nEx
 
+        ! 3300
         call EncodeBitDet_guga([1,2,3,4], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
- 
+   
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -6076,12 +7045,12 @@ contains
 
         print *, "testing: calcAllExcitations_single"
         call calcAllExcitations_single(ilut, 4, 1, ex, nEx)
-        call write_bit_rep(6, ex(:,1), .true.)
-        print *, extract_part_sign(ex(:,1), 1), "==", -Root2
+        ASSERT(abs(extract_matrix_element(ex(:,1),1) + Root2) < 1.0e-10_dp)
         ASSERT(nEx == 1)
 
         deallocate(ex)
 
+        ! 0123
         call EncodeBitDet_guga([3,6,7,8], ilut)
  
         currentB_ilut = calcB_vector_ilut(ilut)
@@ -6092,15 +7061,13 @@ contains
 
         call calcAllExcitations_single(ilut, 2, 4, ex, nEx)
 
+        ASSERT(nex == 1) 
+        ASSERT(abs(extract_matrix_element(ex(:,1),1) + 1.0_dp) < 1.0e-10_dp)
+
+        ! 0123
+        ! 0312
 
         print *, "calcAllExcitations_single tests passed!"
-
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
 
     end subroutine test_calcAllExcitations_single
 
@@ -6117,12 +7084,6 @@ contains
         print *, "testing: singleEnd(ilut, exInfo, tmpEx, nEx, excits)"
         ! test a [1,2,0,3] E_1,4 raising start:
         call EncodeBitDet_guga([1,4,7,8], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
- 
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -6136,42 +7097,29 @@ contains
         call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights, &
             tmpEx, num)
 
-        print *, tmpEx
         ASSERT(getDeltaB(tmpEx) == 1)
         call singleUpdate(ilut, 2, excitInfo, posSwitch, negSwitch, weights, &
             tmpEx, num)
 
-        print *, getDeltaB(tmpEx)
         ASSERT(getDeltaB(tmpEx) == -1)
-        call write_det_guga(6, tmpEx(:,1))
         ASSERT(num == 1)
-        print *, extract_matrix_element(tmpEx(:,1),1), "==", -OverR2
+        ASSERT(abs(extract_matrix_element(tmpEx(:,1),1) + OverR2) < 1.0e-10_dp)
 
         call singleUpdate(ilut, 3, excitInfo, posSwitch, negSwitch, weights, &
             tmpEx, num)
-        call write_det_guga(6, tmpEx(:,1))
         ASSERT(num == 1)
-        print *, extract_matrix_element(tmpEx(:,1),1), "==", -OverR2
+        ASSERT(getDeltaB(tmpEx) == -1)
+        ASSERT(abs(extract_matrix_element(tmpEx(:,1),1) + OverR2) < 1.0e-10_dp)
 
         call singleEnd(ilut, excitInfo, tmpEx, num, excits)
 
-        call write_bit_rep(6, excits(:,1), .true.)
-
         ASSERT(.not. associated(tmpEx))
         ASSERT( num == 1)
-        print*,  extract_matrix_element(excits(:,1),1)," ==", -1.0_dp
+        ASSERT(abs(extract_matrix_element(excits(:,1),1) + 1.0_dp) < 1.0e-10_dp)
 
         print *, "singleEnd tests passed!"
 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
-
     end subroutine test_singleEnd
-
 
     subroutine test_singleUpdate
         character(*), parameter :: this_routine = "test_singleUpdate"
@@ -6185,12 +7133,7 @@ contains
         print *, "testing: singleUpdate(ilut,orb,exInfo,posSwitch,negSwitch,excits,num)"
         ! test a [1,2,0,3] E_1,4 raising start:
         call EncodeBitDet_guga([1,4,7,8], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
- 
+  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
         currentOcc_int = calcOcc_vector_int(ilut)
@@ -6204,26 +7147,22 @@ contains
         call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights, &
             excits, num)
 
+        
         call singleUpdate(ilut, 2, excitInfo, posSwitch, negSwitch, weights, &
             excits, num)
 
-        call write_det_guga(6, excits(:,1))
         ASSERT(num == 1)
-        print *, extract_matrix_element(excits(:,1),1), "==", Root2
+        ASSERT(abs(extract_matrix_element(excits(:,1),1) + OverR2) < 1.0e-10_dp)
 
         call singleUpdate(ilut, 3, excitInfo, posSwitch, negSwitch, weights, &
             excits, num)
-        call write_det_guga(6, excits(:,1))
+
+        ! 1203
+        ! 310x
         ASSERT(num == 1)
-        print *, extract_matrix_element(excits(:,1),1), "==", Root2
+        ASSERT(abs(extract_matrix_element(excits(:,1),1) + OverR2) < 1.0e-10_dp)
 
         print *, "singleUpdate tests passed!"
-
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
 
         deallocate(excits)
 
@@ -6243,11 +7182,6 @@ contains
 
         ! test a [1,2,0,3] E_1,4 raising start:
         call EncodeBitDet_guga([1,4,7,8], ilut)
-        allocate(currentB_ilut(4))
-        allocate(currentOcc_ilut(4))
-        allocate(currentOcc_int(4))
-        allocate(current_stepvector(4))
-        allocate(currentB_int(4))
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -6260,20 +7194,11 @@ contains
         weights = init_singleWeight(ilut,4)
         call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights,&
             excits, num)
-        call write_det_guga(6, ilut) 
         ASSERT(num == 1)
         ASSERT(extract_matrix_element(excits(:,1),1) == Root2)
         ASSERT(getDeltaB(excits(:,1)) == 1)
 
-        call write_det_guga(6, ilut) 
-        
         deallocate(excits)
- 
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
 
         call EncodeBitDet_guga([1,4,7,8], ilut)
 
@@ -6287,12 +7212,12 @@ contains
         current_stepvector = calcStepVector(ilut)
         currentB_int = calcB_vector_int(ilut)
 
+        weights = init_singleWeight(ilut,4)
+
         call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights, &
             excits, num)
 
-        call write_det_guga(6, ilut) 
         ASSERT(num == 1)
-        print *, extract_matrix_element(excits(:,1),1), OverR2
         ASSERT(getDeltaB(excits(:,1)) == -1)
 
         deallocate(excits)
@@ -6301,7 +7226,6 @@ contains
 
         excitInfo = excitationIdentifier(4, 1)
 
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
  
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -6309,9 +7233,12 @@ contains
         current_stepvector = calcStepVector(ilut)
         currentB_int = calcB_vector_int(ilut)
 
+        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+
+        weights = init_singleWeight(ilut,4)
+
         call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights, &
             excits, num)
-!         call write_bit_rep(6, excits(:,1), .true.)
         ASSERT(num == 1)
         ASSERT(getDeltaB(excits(:,1)) == -1)
         ASSERT(extract_matrix_element(excits(:,1),1)== Root2)
@@ -6319,9 +7246,11 @@ contains
         ! and do one double start
         deallocate(excits)
 
-        call EncodeBitDet_guga([1,3,4,8], ilut)
+        ! 1320
+        ! 1122
+        ! 1212
+        call EncodeBitDet_guga([1,3,4,6], ilut)
         excitInfo = excitationIdentifier(4,2)
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
   
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -6329,23 +7258,25 @@ contains
         current_stepvector = calcStepVector(ilut)
         currentB_int = calcB_vector_int(ilut)
 
+        weights = init_singleWeight(ilut,4)
+
+        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+
         call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights, &
             excits, num)
+
+        ASSERT(num == 2)
+        ASSERT(all(calcStepVector(excits(:,1)) == [1,1,2,0]))
+        ASSERT(all(calcStepVector(excits(:,2)) == [1,2,2,0]))
+        ASSERT(abs(extract_matrix_element(excits(:,1),1) - sqrt(3.0_dp/2.0_dp)) < 1.0e-10_dp)
+        ASSERT(abs(extract_matrix_element(excits(:,2),1) - OverR2) < 1.0e-10_dp)
 
 
         print *, "createSingleStart tests passed!"
 
-        deallocate(currentB_ilut)
-        deallocate(currentOcc_ilut)
-        deallocate(currentOcc_int)
-        deallocate(current_stepvector)
-        deallocate(currentB_int)
-
         deallocate(excits)
 
     end subroutine test_createSingleStart
-
-
 
     subroutine test_excitationIdentifier_single
         character(*), parameter :: this_routine = "test_excitationIdentifier_single"
@@ -6361,6 +7292,37 @@ contains
         ASSERT(excitInfo%currentGen == 1)
         ASSERT(excitInfo%excitLvl == 2)
         ASSERT(excitInfo%typ == 0)
+
+        excitInfo = excitationIdentifier(1, 4)
+        ASSERT(excitInfo%i==1)
+        ASSERT(excitInfo%j==4)
+        ASSERT(excitInfo%gen1==1)
+        ASSERT(excitInfo%fullStart==1)
+        ASSERT(excitInfo%fullEnd==4)
+        ASSERT(excitInfo%currentGen == 1)
+        ASSERT(excitInfo%excitLvl == 2)
+        ASSERT(excitInfo%typ == 0)
+
+        excitInfo = excitationIdentifier(2, 4)
+        ASSERT(excitInfo%i==2)
+        ASSERT(excitInfo%j==4)
+        ASSERT(excitInfo%gen1==1)
+        ASSERT(excitInfo%fullStart==2)
+        ASSERT(excitInfo%fullEnd==4)
+        ASSERT(excitInfo%currentGen == 1)
+        ASSERT(excitInfo%excitLvl == 2)
+        ASSERT(excitInfo%typ == 0)
+
+        excitInfo = excitationIdentifier(3, 2)
+        ASSERT(excitInfo%i==3)
+        ASSERT(excitInfo%j==2)
+        ASSERT(excitInfo%gen1==-1)
+        ASSERT(excitInfo%fullStart==2)
+        ASSERT(excitInfo%fullEnd==3)
+        ASSERT(excitInfo%currentGen == -1)
+        ASSERT(excitInfo%excitLvl == 2)
+        ASSERT(excitInfo%typ == 0)
+
         print *, "excitationIdentifier_single tests passed!"
 
     end subroutine test_excitationIdentifier_single
@@ -6372,6 +7334,7 @@ contains
 
         print *, "testing: getDoubleMatrixElement:"
         call getDoubleMatrixElement(1,1,0,1,1,1.0_dp,1.0_dp,x0,x1)
+        ! todo more extensive tests here.. but not for now..
         print *, "x0 = ", x0, " x1 = ", x1
         print *, "getDoubleMatrixElement tests passed!"
 
@@ -6383,6 +7346,26 @@ contains
 
         print *, "testing: getMixedFullStop:"
         call getMixedFullStop(1,1,0,1.0_dp,x0,x1)
+        ASSERT(abs(x0 - OverR2) < 1.0e-10_dp)
+        ASSERT(abs(x1) < EPS)
+        call getMixedFullStop(0,0,0,1.0_dp,x0,x1)
+        ASSERT(abs(x0) < EPS)
+        ASSERT(abs(x1) < EPS)
+        call getMixedFullStop(3,3,0,2.0_dp,x0,x1)
+        ASSERT(abs(x0 - Root2) < 1.0e-10_dp)
+        ASSERT(abs(x1) < EPS)
+        call getMixedFullStop(2,2,0,3.0_dp,x0,x1)
+        ASSERT(abs(x0 - OverR2) < 1.0e-10_dp)
+        ASSERT(abs(x1 - sqrt(6.0_dp/8.0_dp)) < 1.0e-10_dp)
+        call getMixedFullStop(1,2,2,2.0_dp,x0,x1)
+        ASSERT(abs(x0) < EPS)
+        ASSERT(abs(x1 - 1.0_dp) < 1.0e-10_dp)
+        call getMixedFullStop(2,1,-2,1.0_dp,x0,x1)
+        ASSERT(abs(x0) < EPS)
+        ASSERT(abs(x1 - 1.0_dp) < 1.0e-10_dp)
+        call getMixedFullStop(1,1,0,2.0_dp,x0,x1)
+        ASSERT(abs(x1 + 1.0_dp / sqrt(6.0_dp)) < 1.0e-10_dp)
+
         print *, "x0 = ", x0, " x1 = ", x1
         print *, "getMixedFullStop tests passed!"
 
@@ -6393,7 +7376,46 @@ contains
         character(*), parameter :: this_routine = "test_getSingleMatrixElement"
 
         print *, "testing: getSingleMatrixElement(d1,d2,dB,gen,b):"
-        print *, "h = ", getSingleMatrixElement(1,1,1,1,1.0_dp)
+        ASSERT(abs(getSingleMatrixElement(0,0,-1,1,1.0_dp) - 1.0_dp) < tol)
+        ASSERT(abs(getSingleMatrixElement(0,0,1,1,1.0_dp) - 1.0_dp) < tol)
+        ASSERT(abs(getSingleMatrixElement(0,0,1,-1,1.0_dp) - 1.0_dp) < tol)
+        ASSERT(abs(getSingleMatrixElement(0,0,-1,-1,1.0_dp) - 1.0_dp) < tol)
+
+        ASSERT(abs(getSingleMatrixElement(3,3,-1,1,1.0_dp) + 1.0_dp) < tol)
+        ASSERT(abs(getSingleMatrixElement(3,3,1,1,1.0_dp) + 1.0_dp) < tol)
+        ASSERT(abs(getSingleMatrixElement(3,3,1,-1,1.0_dp) + 1.0_dp) < tol)
+        ASSERT(abs(getSingleMatrixElement(3,3,-1,-1,1.0_dp) + 1.0_dp) < tol)
+
+        ASSERT(abs(getSingleMatrixElement(0,1,-1,1,2.0_dp) - 1.0_dp) < tol)
+        ASSERT(abs(getSingleMatrixElement(0,1,1,-1,2.0_dp) - 1.0_dp) < tol)
+
+        ASSERT(abs(getSingleMatrixElement(0,2,1,1,2.0_dp) - 1.0_dp) < tol)
+        ASSERT(abs(getSingleMatrixElement(0,2,-1,-1,2.0_dp) - 1.0_dp) < tol)
+
+        ASSERT(abs(getSingleMatrixElement(1,0,-1,1,2.0_dp) - 1.0_dp) < tol)
+        ASSERT(abs(getSingleMatrixElement(1,0,-1,-1,2.0_dp) - 1.0_dp) < tol)
+
+        ASSERT(abs(getSingleMatrixElement(2,0,1,1,2.0_dp) - 1.0_dp) < tol)
+        ASSERT(abs(getSingleMatrixElement(2,0,+1,-1,2.0_dp) - 1.0_dp) < tol)
+
+        ASSERT(abs(getSingleMatrixElement(1,1,-1,1,3.0_dp) + 1.0_dp) < tol)
+        ASSERT(abs(getSingleMatrixElement(1,1,1,1,3.0_dp) - sqrt(8.0_dp)/3.0_dp) < tol)
+
+        ASSERT(abs(getSingleMatrixElement(1,1,1,-1,3.0_dp) + 1.0_dp) < tol)
+        ASSERT(abs(getSingleMatrixElement(1,1,-1,-1,2.0_dp) - sqrt(8.0_dp)/3.0_dp) < tol)
+
+        ASSERT(abs(getSingleMatrixElement(2,2,1,1,3.0_dp) + 1.0_dp) < tol)
+        ASSERT(abs(getSingleMatrixElement(2,2,-1,1,1.0_dp) - sqrt(8.0_dp)/3.0_dp) < tol)
+
+        ASSERT(abs(getSingleMatrixElement(2,2,-1,-1,3.0_dp) + 1.0_dp) < tol)
+        ASSERT(abs(getSingleMatrixElement(2,2,1,-1,2.0_dp) - sqrt(8.0_dp)/3.0_dp) < tol)
+
+        ASSERT(abs(getSingleMatrixElement(1,2,1,1,2.0_dp) + 1.0_dp/4.0_dp) < tol)
+        ASSERT(abs(getSingleMatrixElement(1,2,1,-1,2.0_dp) - 1.0_dp/3.0_dp) < tol)
+         
+        ASSERT(abs(getSingleMatrixElement(2,1,-1,1,2.0_dp) - 1.0_dp/2.0_dp) < tol)
+        ASSERT(abs(getSingleMatrixElement(2,1,-1,-1,2.0_dp) + 1.0_dp/3.0_dp) < tol)
+
         print *, "getSingleMatrixElement tests passed!"
 
     end subroutine test_getSingleMatrixElement
@@ -6662,6 +7684,10 @@ contains
         print *, "testing: calcDiagExchange_nI"
         print *, "H_ii = ", calcDiagMatEleGUGA_nI(det)
         print *, "X = ", calcDiagExchangeGUGA_nI(iOrb, jOrb, det)
+        ! asserts would be nice..
+
+        ! 3120
+
         print *, "calcDiagExchange tests passed!"
 
     end subroutine check_calcDiagExchange_nI
@@ -6781,8 +7807,6 @@ contains
         call EncodeBitDet_guga(det,ilut)
         ! now need excitInfo for 
 
-        allocate(current_stepvector(4))
-
         current_stepvector = calcStepVector(ilut)
 
         print *, "***"
@@ -6804,8 +7828,6 @@ contains
         ASSERT(all(neg == [0.0_dp,1.0_dp,0.0_dp,0.0_dp]))
         print *, "calcRemainingSwitches tests successfull"
 
-        deallocate(current_stepvector)
-
     end subroutine test_calcRemainingSwitches
 
     subroutine test_calcOverlapRange()
@@ -6816,6 +7838,7 @@ contains
         print *, "***"
         print *, " Testing ", testFun
 
+        ! anyway not used anymore..
         i = 1
         j = 4
         k = 1

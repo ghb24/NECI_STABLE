@@ -9,7 +9,7 @@ module guga_excitations
                           current_stepvector, currentOcc_ilut, currentOcc_int, &
                           currentB_ilut, currentB_int, current_cum_list, &
                           tGen_guga_weighted, ref_stepvector, ref_b_vector_real, & 
-                          ref_occ_vector, ref_b_vector_int
+                          ref_occ_vector, ref_b_vector_int, t_full_guga_tests
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_, iout, int64, inum_runs
     use bit_reps, only: niftot, decode_bit_det, encode_det, encode_part_sign, &
@@ -424,7 +424,6 @@ contains
             
             mat_ele = calcDiagMatEleGUGA_ilut(tmp_i)
 
-            print *, "am i ever here??"
             return
         end if
 
@@ -2580,8 +2579,6 @@ contains
         HElement_t(dp) :: helgen
         character(255) :: filename
 
-        print *, "here?"
-        call write_det_guga(6,ilut,.true.)
         ! Decode the determiant
         call decode_bit_det (src_det, ilut)
         
@@ -2675,6 +2672,12 @@ contains
         write(6, '("Averaged contribution: ", f15.10)') &
                 contrib / (real(nexcit,dp) * iterations)
 
+        if (t_full_guga_tests) then 
+            ! do asserts in case of full guga tests to be certain no basic 
+            ! bugs remain. but what should the threshold be??
+            ASSERT(abs((contrib / (real(nexcit,dp) * iterations)) -1.0_dp) < 0.01_dp)
+        end if
+
         print *, "for CSF: "
         call write_det_guga(6, ilutG)
 
@@ -2712,6 +2715,12 @@ contains
 
         ! Check that all of the determinants were generated!!!
         if (.not. all(generated_list)) then
+            ! abort in the full-tests case! 
+            if (t_full_guga_tests) then
+                call stop_all(this_routine, &
+                    "all excitations should be created in the full test setup!")
+            end if
+
             write(6,*) count(.not.generated_list), '/', size(generated_list), &
                        'not generated'
 
@@ -2728,10 +2737,18 @@ contains
                 end if
 
             end do
-!             call stop_all(this_routine, "Determinant not generated")
+            ! abort in the full-tests case! 
+            if (t_full_guga_tests) then
+                call stop_all(this_routine, &
+                    "all excitations should be created in the full test setup!")
+            end if
         end if
-!         if (any(abs(contrib_list / iterations - 1.0_dp) > 0.01_dp)) &
-!             call stop_all(this_routine, "Insufficiently uniform generation")
+        ! also do this again in the full-test case:
+        if (t_full_guga_tests) then
+            ! is 0.1 a small enough threshold?
+            if (any(abs(contrib_list / iterations - 1.0_dp) > 0.1_dp)) &
+            call stop_all(this_routine, "Insufficiently uniform generation")
+        end if
 
         ! also check matrix elements if psingles and pdouble are > 0
         do i = 1, nExcit
@@ -2739,7 +2756,9 @@ contains
                 print *, "incorrect matrix element! for excitation: "
                 call write_det_guga(6, excitations(:,i),.false.)
                 print *, "stoch. <H>: ", matEle_list(i)
-!                 call stop_all(this_routine,"incorrect matrix element!")
+                if (t_full_guga_tests) then
+                    call stop_all(this_routine,"incorrect matrix element!")
+                end if
             end if
         end do
 
@@ -3388,7 +3407,8 @@ contains
         ! check if there was a change in the stepvector in the double 
         ! overlap region
         if (abs(extract_matrix_element(t,1)) > EPS) then
-            t = 0
+            t = 0_n_int
+            pgen = 0.0_dp
             return
         end if
 
@@ -3397,6 +3417,7 @@ contains
   
         if (abs(integral) < EPS) then
             t = 0
+            pgen = 0.0_dp
             return
         end if
 
@@ -5180,6 +5201,7 @@ contains
 !         if (extract_matrix_element(t,1) /= 0.0_dp) then
         if (abs(extract_matrix_element(t,1)) > EPS) then
             t = 0_n_int
+            pgen = 0.0_dp
             return
         end if
 
@@ -5756,6 +5778,7 @@ contains
         ! check if matrix element is non-zero and if a switch happened
         if (abs(extract_matrix_element(t,1)) > EPS) then
             t = 0 
+            pgen = 0.0_dp
             return
         end if
 
@@ -7141,6 +7164,9 @@ contains
         ! check if tempWeight_0 is 0 -> is a sign if a switch happened..
 !         tempWeight_0 = tempWeight_0 * extract_matrix_element(t, 1)
 
+        ! just for completion reasons still update the x0 matrix element here 
+        ! although it should be 0 anyway.. 
+        call update_matrix_element(t, tempWeight_0, 1)
         call update_matrix_element(t, tempWeight_1, 2)
 !         tempWeight_1 = tempWeight_1 * extract_matrix_element(t, 2)
 
@@ -7709,9 +7735,7 @@ contains
         if (abs(extract_matrix_element(t,1)*tempWeight_0)<EPS .and. &
             abs(extract_matrix_element(t,2)*tempWeight_1)<EPS) then
             probWeight = 0.0_dp
-!             call write_det_guga(6, t)
-!             print *, tempWeight_0, tempWeight_1
-            t = 0
+            t = 0_n_int
             return
         end if
 !         ASSERT(tempWeight /= 0.0_dp)
@@ -7955,6 +7979,8 @@ contains
 
         ! check validity
         if (branch_pgen < EPS) return
+
+        excitInfo%currentGen = excitInfo%lastGen
 
         do i = se + 1, en - 1
             call singleStochasticUpdate(ilut, i, excitInfo, weights, posSwitches, &
