@@ -523,8 +523,10 @@ contains
                 if (all(con_space(0:NIfDBO, i) == trial_space(0:NIfDBO, j))) then
                     if (.not. tHPHF) then
                         H_ij = get_helement(nI, nJ, 0)
+#ifndef __CMPLX
                     else if (tGUGA) then 
                         H_ij = calcDiagMatEleGuga_nI(nI)
+#endif
                     else
                         H_ij = hphf_diag_helement(nI, trial_space(:,j))
                     end if

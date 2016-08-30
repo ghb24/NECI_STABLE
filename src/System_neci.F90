@@ -1094,9 +1094,9 @@ system: do
       use legacy_data, only: CSF_NBSTART
       use read_fci
       use sym_mod
-#ifndef __CMPLX
-      use guga_init, only: init_guga
-#endif
+! #ifndef __CMPLX
+!       use guga_init, only: init_guga
+! #endif
       implicit none
       character(*), parameter :: this_routine='SysInit'
       integer ierr
@@ -2004,9 +2004,9 @@ system: do
       ! nah make it in init_guga.. i think that should work.. 
 !       nSpatOrbs = nBasis / 2
 
-#ifndef __CMPLX
-      if (tGUGA) call init_guga()
-#endif
+! #ifndef __CMPLX
+!       if (tGUGA) call init_guga()
+! #endif
 
 
 

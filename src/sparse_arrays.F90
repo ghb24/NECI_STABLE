@@ -176,8 +176,10 @@ contains
                 if (i == j) then
                     if (.not. tHPHF) then
                         hamiltonian_row(j) = get_helement(nI, nJ, 0)
+#ifndef __CMPLX
                     else if (tGUGA) then 
                         hamiltonian_row(j) = calcDiagMatEleGuga_nI(nI)
+#endif
                     else
                         hamiltonian_row(j) = hphf_diag_helement(nI, ilut_list(:, i))
                     end if
@@ -186,9 +188,11 @@ contains
                     if (.not. tHPHF) then
                         hamiltonian_row(j) = get_helement(nI, nJ, ilut_list(:, i), &
                                                                  ilut_list(:, j))
+#ifndef __CMPLX
                     else if (tGUGA) then 
                         call calc_guga_matrix_element(ilut_list(:,i), ilut_list(:,j), &
                                 excitInfo, hamiltonian_row(j), .true., 1) 
+#endif
                     else
                         hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, ilut_list(:, i), &
                                                                            ilut_list(:, j))
@@ -343,8 +347,10 @@ contains
                 if (DetBitEq(ilut_list(:,i), temp_store(:,j), NIfDBO)) then
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_diag_helement(nI, ilut_list(:,i))
+#ifndef __CMPLX
                     else if (tGUGA) then 
                         hamiltonian_row(j) = calcDiagMatEleGuga_nI(nI)
+#endif
                     else
                         hamiltonian_row(j) = get_helement(nI, nJ, 0)
                     end if
@@ -354,9 +360,11 @@ contains
                 else
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, ilut_list(:,i), temp_store(:,j))
+#ifndef __CMPLX
                     else if (tGUGA) then 
                         call calc_guga_matrix_element(ilut_list(:,i), temp_store(:,j), &
                             excitInfo, hamiltonian_row(j), .true., 1)
+#endif
                     else
                         hamiltonian_row(j) = get_helement(nI, nJ, ilut_list(:,i), temp_store(:,j))
                     end if

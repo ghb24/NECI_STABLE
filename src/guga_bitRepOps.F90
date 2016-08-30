@@ -62,7 +62,7 @@ contains
     ! and probably also the whole excitation information can be provided 
 
     function identify_excitation(ilutI, ilutJ) result(excitInfo) 
-        use Determinants
+!         use Determinants
         integer(n_int), intent(in) :: ilutI(0:nifd), ilutJ(0:nifd) 
         type(excitationInformation) :: excitInfo
         character(*), parameter :: this_routine = "identify_excitation"

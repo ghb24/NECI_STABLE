@@ -251,6 +251,9 @@ subroutine NECICalcInit(iCacheFlag)
     use RotateOrbsMod, only : RotateOrbs
     use replica_data, only: init_replica_arrays
 
+#ifndef __CMPLX
+    use guga_init, only: init_guga
+#endif
     implicit none
     integer,intent(in) :: iCacheFlag
    
@@ -263,6 +266,10 @@ subroutine NECICalcInit(iCacheFlag)
 !   Initlialize the system.  Sets up ...
 !   Symmetry is a subset of the system
     call SysInit()
+
+#ifndef __CMPLX 
+    call init_guga
+#endif
 
 !   Initialize the integrals.  This will read in integrals, as well as calculating
 !   some relevant integrals if they are calculated
@@ -278,6 +285,10 @@ subroutine NECICalcInit(iCacheFlag)
     call IntFreeze()
     ! can i initialize the GUGA stuff here? after freezing? or otherwise 
     ! it is incorrectly setup.. 
+    ! try to init guga here.. 
+#ifndef __CMPLX 
+    call init_guga
+#endif
 
     if (tPostFreezeHF) call HFDoCalc()
 

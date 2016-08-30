@@ -36,7 +36,7 @@ module guga_excitations
     use OneEInts, only: GetTMatEl
     use Integrals_neci, only: get_umat_el
     use guga_data, only: branchWeight
-    use Determinants, only: write_bit_rep
+!     use Determinants, only: write_bit_rep
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, ilutRef, &
                          pExcit4, pExcit2, pExcit2_same, pExcit3_same
