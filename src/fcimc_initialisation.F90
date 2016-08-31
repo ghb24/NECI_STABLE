@@ -1133,7 +1133,7 @@ contains
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
-        integer :: PopRandomHash(2048), PopBalanceBlocks
+        integer :: PopRandomHash(2056), PopBalanceBlocks
         integer(int64) :: iPopAllTotWalkers
         integer :: i, run
         real(dp) :: PopDiagSft(1:inum_runs)
