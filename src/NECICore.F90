@@ -241,7 +241,7 @@ subroutine NECICalcInit(iCacheFlag)
     !=                                calculation.
 
     use System, only : SysInit
-    use SystemData, only : tRotateOrbs,tFindCINatOrbs
+    use SystemData, only : tRotateOrbs,tFindCINatOrbs, tGUGA
     use Integrals_neci, only : IntInit,IntFreeze,tPostFreezeHF,DumpFCIDUMP
     use IntegralsData, only : tDumpFCIDUMP
     use DetCalc, only : DetCalcInit,DoDetCalc
@@ -268,7 +268,7 @@ subroutine NECICalcInit(iCacheFlag)
     call SysInit()
 
 #ifndef __CMPLX 
-    call init_guga
+    if (tGUGA) call init_guga
 #endif
 
 !   Initialize the integrals.  This will read in integrals, as well as calculating
@@ -287,7 +287,7 @@ subroutine NECICalcInit(iCacheFlag)
     ! it is incorrectly setup.. 
     ! try to init guga here.. 
 #ifndef __CMPLX 
-    call init_guga
+    if (tGUGA) call init_guga
 #endif
 
     if (tPostFreezeHF) call HFDoCalc()
