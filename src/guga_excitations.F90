@@ -2915,7 +2915,7 @@ contains
 !             print *, "<J|H|I> excitInfo:"
 !             call print_excitInfo(excitInfo)
 !         end if
-! 
+! ! 
 
 
         ! also add a sanity check for excitations from the reference 
