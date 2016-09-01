@@ -694,10 +694,6 @@ contains
 
         type(DavidsonCalcType) :: davidsonCalc
 
-        associate( &
-            davidson_eigenvector => davidsonCalc%davidson_eigenvector &
-        )
-
         if (iProcIndex /= root) then
             ! Allocate some space so that the MPIScatterV call does not crash.
             allocate(ilut_store(0:1, 1), stat=ierr)
@@ -765,6 +761,10 @@ contains
                 ! Now that the Hamiltonian is generated, we can finally find the ground state of it:
                 call perform_davidson(davidsonCalc, sparse_hamil_type, .false.)
 
+                associate( &
+                    davidson_eigenvector => davidsonCalc%davidson_eigenvector &
+                )
+
                 ! davidson_eigenvector now stores the ground state eigenvector. We want to use the
                 ! vector whose components are the absolute values of this state:
                 davidson_eigenvector = abs(davidson_eigenvector)
@@ -802,7 +802,7 @@ contains
                 deallocate(hamil_diag, stat=ierr)
                 call LogMemDealloc(t_r, HDiagTag, ierr)
 
-
+                end associate
             end do
 
         end if ! If on root.
@@ -840,7 +840,6 @@ contains
             deallocate(temp_space, stat=ierr)
             call LogMemDealloc(t_r, TempTag, ierr)
         end if
-        end associate
 
     end subroutine generate_optimised_space
 

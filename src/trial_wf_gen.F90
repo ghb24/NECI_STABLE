@@ -84,12 +84,8 @@ contains
                                        trial_space_size, trial_space, trial_wfs, trial_counts, trial_displs)
 #endif
         else
-            call calc_trial_states_direct(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
-                                          temp_energies, trial_counts, trial_displs, trial_est_reorder)
-#if(0)
             call calc_trial_states_lanczos(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
                                            temp_energies, trial_counts, trial_displs, trial_est_reorder)
-#endif
         end if
 
         write(6,'("Size of trial space on this processor:",1X,i8)') trial_space_size; call neci_flush(6)

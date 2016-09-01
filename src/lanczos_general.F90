@@ -29,17 +29,6 @@ module lanczos_general
         euclidean_norm_square, &
         euclidean_norm
 
-
-    ! the maximum difference between successive eigenvalues for each state
-    ! required to trigger a loop exit before max_lanczos_vecs has been reached.
-    real(dp), parameter :: convergence_error = 1.0e-10
-    ! the algorithm is terminated when the norm of the last Lanczos vector
-    ! reaches zero
-    real(dp), parameter :: beta_threshold = 1.0e-7
-    ! If the overlap between any two Ritz vectors exceeds this value, a stop_all
-    ! will be thrown
-    real(dp), parameter :: orthog_tolerance = 1.0e-5
-
     type LanczosCalcType
         ! "super type" for common hamiltonian data
         type(HamiltonianCalcType) :: super
@@ -67,6 +56,12 @@ module lanczos_general
         logical, allocatable :: t_states_converged(:)
         ! number of restarts allowed before algorithm exits
         integer :: max_restarts
+        ! the maximum difference between successive eigenvalues for each state
+        ! required to trigger a loop exit before max_lanczos_vecs has been reached.
+        real(dp) :: convergence_error
+        ! If the overlap between any two Ritz vectors exceeds this value, a stop_all
+        ! will be thrown
+        real(dp) :: orthog_tolerance
     end type
 
     contains
@@ -134,10 +129,11 @@ module lanczos_general
 
     end subroutine
 
-    subroutine InitLanczosCalc(this, det_list, print_info, hamil_type, n_states, max_lanczos_vecs, t_store_subspace_basis, t_orthogonalise, max_restarts)
+    subroutine InitLanczosCalc(this, det_list, print_info, hamil_type, n_states, max_lanczos_vecs, &
+            t_store_subspace_basis, t_orthogonalise, max_restarts, energy_precision, ritz_overlap_precision)
         type(LanczosCalcType), intent(out) :: this
-!        integer, intent(in) :: ground_state_multiplicity
-        integer, intent(in) :: det_list(:,:), hamil_type, n_states, max_lanczos_vecs, max_restarts
+        integer, intent(in) :: det_list(:,:), hamil_type, n_states, max_lanczos_vecs, max_restarts, &
+                               energy_precision, ritz_overlap_precision
         logical, intent(in) :: t_store_subspace_basis, t_orthogonalise
         character (len=*), parameter :: t_r = "init_lanczos"
         logical, intent(in) :: print_info
@@ -175,6 +171,8 @@ module lanczos_general
 
         this%n_states = n_states
         this%max_restarts = max_restarts
+        this%convergence_error = 10**(-real(energy_precision, dp))
+        this%orthog_tolerance = 10**(-real(ritz_overlap_precision, dp))
         ! these will be larger than neccessary until the final iteration:
         safe_malloc(this%ritz_values, (max_subspace_size))
         safe_calloc(this%eigenvalues, (n_states), 0.0_dp)
@@ -287,14 +285,14 @@ module lanczos_general
                     if (abs(overlap) > largest_overlap) then
                         largest_overlap = abs(overlap)
                     endif
-                    if (abs(overlap) > orthog_tolerance) then
+                    if (abs(overlap) > this%orthog_tolerance) then
                         write(6, '(" Largest Ritz vector overlap: "5ES16.7)') largest_overlap
-                       ! call stop_all(t_r, "Ritz vector overlap exceeds tolerance. n_states possibly too large for space_size") 
+                        call stop_all(t_r, "Ritz vector overlap is unacceptably large") 
                     endif
                 enddo
             enddo
             write(6, '(" Largest Ritz vector overlap: "5ES16.7)') largest_overlap
-            write(6, '(" Ritz vectors are mutually orthogonal to a tolerance of "5ES16.7)') orthog_tolerance
+            write(6, '(" Ritz vectors are mutually orthogonal to a tolerance of "5ES16.7)') this%orthog_tolerance
         endif
     end subroutine perform_orthogonality_test
 
@@ -367,7 +365,7 @@ module lanczos_general
             t = .false.
             return
         endif
-        t=.not.any(abs(this%ritz_values(1:this%n_states)-this%ritz_values_old(1:this%n_states))>convergence_error)
+        t=.not.any(abs(this%ritz_values(1:this%n_states)-this%ritz_values_old(1:this%n_states))>this%convergence_error)
     end function check_deltas
 
     function check_delta(this, k, i_state) result (t)
@@ -378,7 +376,7 @@ module lanczos_general
             t = .false.
             return
         endif
-        t = (abs(this%ritz_values(i_state)-this%ritz_values_old(i_state))<convergence_error)
+        t = (abs(this%ritz_values(i_state)-this%ritz_values_old(i_state))<this%convergence_error)
     end function check_delta
 
     subroutine compute_ritz_vectors(this, k)
@@ -472,13 +470,14 @@ module lanczos_general
 
     subroutine perform_lanczos(this, det_list, n_states, hamil_type, print_info_in)
         use CalcData, only : t_lanczos_orthogonalise, t_lanczos_store_vecs, &
-                             lanczos_max_restarts, lanczos_max_vecs
+                             lanczos_max_restarts, lanczos_max_vecs, &
+                             lanczos_energy_precision, lanczos_ritz_overlap_precision
         use hamiltonian_linalg, only : orthogonalise_against_previous_basis_vectors
         type(LanczosCalcType), intent(inout) :: this
         integer, intent(in) :: det_list(:,:), n_states, hamil_type
         logical, intent(in) :: print_info_in
         logical :: print_info, t_deltas_pass
-        integer :: k, i, ierr, nplaces, delta_check_outcome, restart_counter
+        integer :: k, i, ierr, delta_check_outcome, restart_counter
         real(sp) :: start_time, end_time
         real(dp) :: exp_val, overlap
         character(40) :: main_output_fmt, final_output_fmt
@@ -490,16 +489,16 @@ module lanczos_general
         
         ! format specifier formatting!
         ! ensure that enough places are displayed to show convergence to the desired accuracy
-        nplaces = -int(log10(convergence_error))
-        write(main_output_fmt, '("(8X,i4,3X,i2,2x,f",i2,".",i2,",2x,f9.3)")') nplaces+7, nplaces
-        write(final_output_fmt, '("(1x,",A7,",i2,4X,f",i2,".",i2,")")') '"State"', nplaces+7, nplaces
+        write(main_output_fmt, '("(8X,i4,3X,i2,2x,f",i2,".",i2,",2x,f9.3)")') lanczos_energy_precision+7, lanczos_energy_precision
+        write(final_output_fmt, '("(1x,",A7,",i2,4X,f",i2,".",i2,")")') '"State"', lanczos_energy_precision+7, lanczos_energy_precision
 
         ! Only let the root processor print information.
         print_info = print_info_in .and. (iProcIndex == root)
 
         if (.not. allocated(this%lanczos_vector)) then
             call InitLanczosCalc(this, det_list, print_info, hamil_type, n_states, &
-                lanczos_max_vecs, t_lanczos_store_vecs, t_lanczos_orthogonalise, max_restarts)
+                lanczos_max_vecs, t_lanczos_store_vecs, t_lanczos_orthogonalise, &
+                lanczos_max_restarts, lanczos_energy_precision, lanczos_ritz_overlap_precision)
         endif
 
         if (print_info) then
@@ -558,10 +557,6 @@ module lanczos_general
                         current_v = current_v / getBeta(this, k+1)
                     endif
 
-                    if (abs(getBeta(this, k+1))<beta_threshold) then
-                        write(6, *) " Lanczos vector norm reached zero"
-                        exit
-                    endif
                 endif
 
                 if (t_lanczos_store_vecs) then
@@ -660,7 +655,7 @@ module lanczos_general
         if (check_deltas(this, k)) then
             if (print_info) then
                 write(6, '(i2" eigenvalues(s) were successfully converged to within "5ES16.7)') &
-                    this%n_states, convergence_error
+                    this%n_states, this%convergence_error
                 call neci_flush(6)
             endif
         endif

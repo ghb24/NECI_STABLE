@@ -72,9 +72,7 @@ module davidson_neci
         ! Only let the root processor print information.
         print_info = print_info_in .and. (iProcIndex == root)
         
-        if (.not. allocated(this%davidson_eigenvector)) then
-            call InitDavidsonCalc(this, print_info, hamil_type_in)
-        endif
+        call InitDavidsonCalc(this, print_info, hamil_type_in)
 
         if (print_info) write(6,'(1X,"Iteration",4X,"Residual norm",12X,"Energy",7X,"Time")'); call neci_flush(6)
 
@@ -84,6 +82,9 @@ module davidson_neci
 
             call cpu_time(start_time)
 
+            debug_line(55, i)
+            debug_line(55, this%residual)
+            debug_line(55, '')
             if (iProcIndex == root) call subspace_expansion(this, i)
 
             call project_hamiltonian(this, i)
@@ -236,6 +237,13 @@ module davidson_neci
         ! calculated, I is the identity matrix and r is the residual.
 
         do i = 1, this%super%space_size
+            debug_line(66, i)
+            debug_line(66, size(this%residual))
+            debug_line(66, this%residual)
+            debug_line(66, size(hamil_diag))
+            debug_line(66, hamil_diag(i))
+            debug_line(66, this%super%space_size)
+            debug_line(66, '')
             this%super%basis_vectors(i, basis_index) = this%residual(i)/(hamil_diag(i) - this%davidson_eigenvalue)
         end do
 
