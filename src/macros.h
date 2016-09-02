@@ -188,6 +188,7 @@ endif
 #define safe_malloc(arr,shape) if(.not.allocated(arr)) allocate(arr shape)
 #define safe_malloc_e(arr,shape,ierr) if(.not.allocated(arr)) allocate(arr shape, stat=ierr)
 #define safe_realloc(arr,shape) if(allocated(arr)) deallocate(arr); allocate(arr shape)
+#define safe_realloc_e(arr,shape,ierr) if(allocated(arr)) deallocate(arr); allocate(arr shape, stat=ierr)
 #define safe_calloc(arr,shape,zero) if(.not.allocated(arr)) allocate(arr shape); arr=zero
 #define safe_calloc_e(arr,shape,zero,ierr) if(.not.allocated(arr)) allocate(arr shape, stat=ierr); arr=zero
 ! this one doesn't have a C counterpart but it may be useful

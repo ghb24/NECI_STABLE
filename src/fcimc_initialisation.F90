@@ -2013,11 +2013,7 @@ contains
                 largest_coeff = h_cast(0.0_dp)
                 do j = 1, TotWalkers
                     sgn = extract_run_sign(CurrentDets(:,j), run)
-                    call writebitdet(44, CurrentDets(:,j), .true.)
-                    debug_line(44, abs(sgn))
-                    debug_line(44, '')
                     if (abs(sgn) > abs(largest_coeff)) then
-                        debug_line(44, 'new best')
                         largest_coeff = sgn
                         largest_det = CurrentDets(:,j)
                     end if

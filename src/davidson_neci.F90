@@ -82,9 +82,6 @@ module davidson_neci
 
             call cpu_time(start_time)
 
-            debug_line(55, i)
-            debug_line(55, this%residual)
-            debug_line(55, '')
             if (iProcIndex == root) call subspace_expansion(this, i)
 
             call project_hamiltonian(this, i)
@@ -237,13 +234,6 @@ module davidson_neci
         ! calculated, I is the identity matrix and r is the residual.
 
         do i = 1, this%super%space_size
-            debug_line(66, i)
-            debug_line(66, size(this%residual))
-            debug_line(66, this%residual)
-            debug_line(66, size(hamil_diag))
-            debug_line(66, hamil_diag(i))
-            debug_line(66, this%super%space_size)
-            debug_line(66, '')
             this%super%basis_vectors(i, basis_index) = this%residual(i)/(hamil_diag(i) - this%davidson_eigenvalue)
         end do
 

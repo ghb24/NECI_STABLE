@@ -24,7 +24,7 @@ contains
         use semi_stoch_gen
         use sort_mod, only: sort
         use SystemData, only: nel, tAllSymSectors
-        use sparse_arrays, only: calculate_sparse_ham_par
+        use sparse_arrays, only: calculate_sparse_ham_par, sparse_ham
 
         use hamiltonian_linalg, only: sparse_hamil_type, parallel_sparse_hamil_type
         use lanczos_general, only: LanczosCalcType, DestroyLanczosCalc
@@ -200,6 +200,7 @@ contains
         if (iProcIndex == root) deallocate(evecs)
         safe_free(evecs_transpose)
         call DestroyLanczosCalc(lanczosCalc)
+        safe_free(sparse_ham)
 
     end subroutine calc_trial_states_lanczos
 
