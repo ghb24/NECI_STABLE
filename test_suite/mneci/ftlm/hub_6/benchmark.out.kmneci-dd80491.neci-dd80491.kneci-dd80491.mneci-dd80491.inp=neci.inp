@@ -1,0 +1,1148 @@
+ Number of processors:                     2
+ Processor                     1 /                    2  as head node.
+ Sum:                     3
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Sep  2 2016 at 23:03:26
+ Compiled using configuration:
+     cmake-GNU-par-RELEASE
+ VCS BASE repository version:
+     dd80491087446aa5700680a817ecebb5644d4f9a
+ Working directory: 
+     /home/robert/Projects/neci/test_suite/mneci/ftlm/hub_6
+ Running on: robert-desktop
+ Started running on 02/09/2016 at 23:15:29
+ ================================================================
+
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system hubbard
+cell 6 1 1
+b -1
+u 1
+spin-restrict 0
+sym 0 0 0 0
+kpoints
+electrons 6
+endsys
+
+calc
+methods
+method vertex ftlm
+endmethods
+beta-ftlm 0.1
+num-init-vecs-ftlm 20
+num-lanc-vecs-ftlm 40
+num-beta-ftlm 60
+jump-shift off
+load-balance-blocks off
+endcalc
+
+end
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ I am the node root for node                     0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     6
+  Restricting the spin state of the system, TSPN :  T
+  GLOBAL MS :                     0
+  *** HUBBARD MODEL ***  
+  MOMENTUM :                     0                    0                    0
+  NMAXX :     6
+  NMAXY :     1
+  NMAXZ :     1
+  NMSH :    32
+   HUBBARD T :            -1.00000
+   HUBBARD U :             1.00000
+  X-LENGTH OF HUBBARD CHAIN:                    6
+  Y-LENGTH OF HUBBARD CHAIN:                    1
+  Z-LENGTH OF HUBBARD CHAIN:                    1
+  Periodic Boundary Conditions: T
+  Orbital Energy Cutoff:   1.0000000000000000E+020
+   VOLUME :             6.00000
+  TALPHA :  F
+   ALPHA :             0.00000
+   SCALED ALPHA :             0.00000
+  NUMBER OF SPIN ORBITALS IN BASIS :    12
+ Creating plane wave basis.
+  NUMBER OF BASIS FUNCTIONS :                    12
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      5      0      0      0     -1    1   0       -2.000000000       -2.000000000
+      2      6      0      0      0      1    1   0       -2.000000000       -2.000000000
+      3      3     -1      0      0     -1    1   0       -1.000000000       -1.000000000
+      4      4     -1      0      0      1    1   0       -1.000000000       -1.000000000
+      5      7      1      0      0     -1    1   0       -1.000000000       -1.000000000
+      6      8      1      0      0      1    1   0       -1.000000000       -1.000000000
+      7      1     -2      0      0     -1    1   0        1.000000000        1.000000000
+      8      2     -2      0      0      1    1   0        1.000000000        1.000000000
+      9      9      2      0      0     -1    1   0        1.000000000        1.000000000
+     10     10      2      0      0      1    1   0        1.000000000        1.000000000
+     11     11      3      0      0     -1    1   0        2.000000000        2.000000000
+     12     12      3      0      0      1    1   0        2.000000000        2.000000000
+Generating abelian symmetry table with  6 generators for Hubbard momentum
+ SIZES                    0                   12 F F F F
+ Symmetry, Symmetry Conjugate
+                    1                    1
+                    2                    5
+                    3                    4
+                    4                    3
+                    5                    2
+                    6                    6
+HF determinant not yet defined.
+      1      5      0      0      0     -1    1   0       -2.000000000       -2.000000000
+      2      6      0      0      0      1    1   0       -2.000000000       -2.000000000
+      3      3     -1      0      0     -1    4   0       -1.000000000       -1.000000000
+      4      4     -1      0      0      1    4   0       -1.000000000       -1.000000000
+      5      7      1      0      0     -1    8   0       -1.000000000       -1.000000000
+      6      8      1      0      0      1    8   0       -1.000000000       -1.000000000
+      7      1     -2      0      0     -1    2   0        1.000000000        1.000000000
+      8      2     -2      0      0      1    2   0        1.000000000        1.000000000
+      9      9      2      0      0     -1   10   0        1.000000000        1.000000000
+     10     10      2      0      0      1   10   0        1.000000000        1.000000000
+     11     11      3      0      0     -1   20   0        2.000000000        2.000000000
+     12     12      3      0      0      1   20   0        2.000000000        2.000000000
+ Not precomputing HUBBARD 2-e integrals
+Allocated                  8 bytes of shared memory named: umat
+ N_alpha:3 ; N_beta:3 ; LMS:0 ; NEl:6
+ Fermi det (D0):(    3,    4,    5,    6,    7,    8)
+ Symmetry:     1
+ Fock operator energy:  -8.0000000000000000     
+ Calculation supports multiple parallel runs
+ Number of simultaneous walker distributions:                     1
+ Number of sign components in bit representation of determinant:                     1
+Setting integer length of determinants as bit-strings to:      2
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+    1    2    4    8   10   20
+    2   10   20    4    1    8
+    4   20    2    1    8   10
+    8    4    1   10   20    2
+   10    1    8   20    2    4
+   20    8   10    2    4    1
+ Fast Abelian excitation generators specified,but abelian symmetry not in use.  Using slow generators.
+                   21  STATE PAIRS
+                    6  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Total momentum is                    0                    0                    0
+ Not storing the H matrix.
+ <D0|H|D0>=  -6.5000000000000000     
+ <D0|T|D0>=  -8.0000000000000000     
+ FDet has     3 alpha electrons, and     3 beta electrons.
+                         3  alpha-alpha occupied electron pairs
+                         3  beta-beta occupied electron pairs
+                         9  alpha-beta occupied electron pairs
+                         3 alpha-alpha (vacant) hole pairs
+                         3 beta-beta (vacant) hole pairs
+                         9 alpha-beta (vacant) hole pairs
+
+ Performing Parallel FCIQMC....
+
+ Generated reference determinants:
+(    3,    4,    5,    6,    7,    8) E =     -6.500000000
+Symmetry of reference determinant is:          1
+Value for seed is:            7
+Reference Energy set to:        -6.5000000000
+Highest energy determinant is (approximately):      9.50000000000000    
+Corresponding to a correlation energy of:      16.0000000000000    
+Brillouin theorem in use for calculation of projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+ Since we are using a momentum-space hubbard model/UEG, only double excitaitons                           are connected and will be generated.
+Small system. Setting initial timestep to be  0.07500 although this may be inappropriate. Care needed
+ Using initial time-step:    7.4999999999999997E-002
+Will dynamically update timestep to limit spawning probability to   2.00000
+Initial Diagonal Shift:         0.0000000000
+ Connectivity of HF determinant is:                    25
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         873813
+ Determinant related persistent storage requires:       6.666664 Mb / processor
+Spawning vectors allowing for a total of         9000 particles to be spawned in any one iteration per core.
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:            2100
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        0
+Initial reference is: (    3,    4,    5,    6,    7,    8)
+Initial number of particles set to          1 and shift will be held at     0.000 until particle number gets to            6000
+ Initial memory (without excitgens + temp arrays) consists of :      13.607986 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+
+ Beginning finite-temperature Lanczos calculation.
+
+ Expected number:                  924
+ Enumerating and storing all determinants in the space... Complete.
+ Allocating arrays to hold Lanczos vectors... Complete.
+ Allocating and calculating Hamiltonian matrix...
+ About to allocate first row of Hamiltonian.
+ The memory (bytes) required for this is:      320
+ The total number of determinants (and hence rows) on this processor is:     454
+ The total number of determinants across all processors is:     924
+ It is therefore expected that the total memory (MB) required will be roughly:       0
+ Hamiltonian allocation and calculation complete.
+
+ Starting from initial vector   1
+ Iteration complete:   1
+ Iteration complete:   2
+ Iteration complete:   3
+ Iteration complete:   4
+ Iteration complete:   5
+ Iteration complete:   6
+ Iteration complete:   7
+ Iteration complete:   8
+ Iteration complete:   9
+ Iteration complete:  10
+ Iteration complete:  11
+ Iteration complete:  12
+ Iteration complete:  13
+ Iteration complete:  14
+ Iteration complete:  15
+ Iteration complete:  16
+ Iteration complete:  17
+ Iteration complete:  18
+ Iteration complete:  19
+ Iteration complete:  20
+ Iteration complete:  21
+ Iteration complete:  22
+ Iteration complete:  23
+ Iteration complete:  24
+ Iteration complete:  25
+ Iteration complete:  26
+ Iteration complete:  27
+ Iteration complete:  28
+ Iteration complete:  29
+ Iteration complete:  30
+ Iteration complete:  31
+ Iteration complete:  32
+ Iteration complete:  33
+ Iteration complete:  34
+ Iteration complete:  35
+ Iteration complete:  36
+ Iteration complete:  37
+ Iteration complete:  38
+ Iteration complete:  39
+ Calculation complete for this initial vector.
+
+ Starting from initial vector   2
+ Iteration complete:   1
+ Iteration complete:   2
+ Iteration complete:   3
+ Iteration complete:   4
+ Iteration complete:   5
+ Iteration complete:   6
+ Iteration complete:   7
+ Iteration complete:   8
+ Iteration complete:   9
+ Iteration complete:  10
+ Iteration complete:  11
+ Iteration complete:  12
+ Iteration complete:  13
+ Iteration complete:  14
+ Iteration complete:  15
+ Iteration complete:  16
+ Iteration complete:  17
+ Iteration complete:  18
+ Iteration complete:  19
+ Iteration complete:  20
+ Iteration complete:  21
+ Iteration complete:  22
+ Iteration complete:  23
+ Iteration complete:  24
+ Iteration complete:  25
+ Iteration complete:  26
+ Iteration complete:  27
+ Iteration complete:  28
+ Iteration complete:  29
+ Iteration complete:  30
+ Iteration complete:  31
+ Iteration complete:  32
+ Iteration complete:  33
+ Iteration complete:  34
+ Iteration complete:  35
+ Iteration complete:  36
+ Iteration complete:  37
+ Iteration complete:  38
+ Iteration complete:  39
+ Calculation complete for this initial vector.
+
+ Starting from initial vector   3
+ Iteration complete:   1
+ Iteration complete:   2
+ Iteration complete:   3
+ Iteration complete:   4
+ Iteration complete:   5
+ Iteration complete:   6
+ Iteration complete:   7
+ Iteration complete:   8
+ Iteration complete:   9
+ Iteration complete:  10
+ Iteration complete:  11
+ Iteration complete:  12
+ Iteration complete:  13
+ Iteration complete:  14
+ Iteration complete:  15
+ Iteration complete:  16
+ Iteration complete:  17
+ Iteration complete:  18
+ Iteration complete:  19
+ Iteration complete:  20
+ Iteration complete:  21
+ Iteration complete:  22
+ Iteration complete:  23
+ Iteration complete:  24
+ Iteration complete:  25
+ Iteration complete:  26
+ Iteration complete:  27
+ Iteration complete:  28
+ Iteration complete:  29
+ Iteration complete:  30
+ Iteration complete:  31
+ Iteration complete:  32
+ Iteration complete:  33
+ Iteration complete:  34
+ Iteration complete:  35
+ Iteration complete:  36
+ Iteration complete:  37
+ Iteration complete:  38
+ Iteration complete:  39
+ Calculation complete for this initial vector.
+
+ Starting from initial vector   4
+ Iteration complete:   1
+ Iteration complete:   2
+ Iteration complete:   3
+ Iteration complete:   4
+ Iteration complete:   5
+ Iteration complete:   6
+ Iteration complete:   7
+ Iteration complete:   8
+ Iteration complete:   9
+ Iteration complete:  10
+ Iteration complete:  11
+ Iteration complete:  12
+ Iteration complete:  13
+ Iteration complete:  14
+ Iteration complete:  15
+ Iteration complete:  16
+ Iteration complete:  17
+ Iteration complete:  18
+ Iteration complete:  19
+ Iteration complete:  20
+ Iteration complete:  21
+ Iteration complete:  22
+ Iteration complete:  23
+ Iteration complete:  24
+ Iteration complete:  25
+ Iteration complete:  26
+ Iteration complete:  27
+ Iteration complete:  28
+ Iteration complete:  29
+ Iteration complete:  30
+ Iteration complete:  31
+ Iteration complete:  32
+ Iteration complete:  33
+ Iteration complete:  34
+ Iteration complete:  35
+ Iteration complete:  36
+ Iteration complete:  37
+ Iteration complete:  38
+ Iteration complete:  39
+ Calculation complete for this initial vector.
+
+ Starting from initial vector   5
+ Iteration complete:   1
+ Iteration complete:   2
+ Iteration complete:   3
+ Iteration complete:   4
+ Iteration complete:   5
+ Iteration complete:   6
+ Iteration complete:   7
+ Iteration complete:   8
+ Iteration complete:   9
+ Iteration complete:  10
+ Iteration complete:  11
+ Iteration complete:  12
+ Iteration complete:  13
+ Iteration complete:  14
+ Iteration complete:  15
+ Iteration complete:  16
+ Iteration complete:  17
+ Iteration complete:  18
+ Iteration complete:  19
+ Iteration complete:  20
+ Iteration complete:  21
+ Iteration complete:  22
+ Iteration complete:  23
+ Iteration complete:  24
+ Iteration complete:  25
+ Iteration complete:  26
+ Iteration complete:  27
+ Iteration complete:  28
+ Iteration complete:  29
+ Iteration complete:  30
+ Iteration complete:  31
+ Iteration complete:  32
+ Iteration complete:  33
+ Iteration complete:  34
+ Iteration complete:  35
+ Iteration complete:  36
+ Iteration complete:  37
+ Iteration complete:  38
+ Iteration complete:  39
+ Calculation complete for this initial vector.
+
+ Starting from initial vector   6
+ Iteration complete:   1
+ Iteration complete:   2
+ Iteration complete:   3
+ Iteration complete:   4
+ Iteration complete:   5
+ Iteration complete:   6
+ Iteration complete:   7
+ Iteration complete:   8
+ Iteration complete:   9
+ Iteration complete:  10
+ Iteration complete:  11
+ Iteration complete:  12
+ Iteration complete:  13
+ Iteration complete:  14
+ Iteration complete:  15
+ Iteration complete:  16
+ Iteration complete:  17
+ Iteration complete:  18
+ Iteration complete:  19
+ Iteration complete:  20
+ Iteration complete:  21
+ Iteration complete:  22
+ Iteration complete:  23
+ Iteration complete:  24
+ Iteration complete:  25
+ Iteration complete:  26
+ Iteration complete:  27
+ Iteration complete:  28
+ Iteration complete:  29
+ Iteration complete:  30
+ Iteration complete:  31
+ Iteration complete:  32
+ Iteration complete:  33
+ Iteration complete:  34
+ Iteration complete:  35
+ Iteration complete:  36
+ Iteration complete:  37
+ Iteration complete:  38
+ Iteration complete:  39
+ Calculation complete for this initial vector.
+
+ Starting from initial vector   7
+ Iteration complete:   1
+ Iteration complete:   2
+ Iteration complete:   3
+ Iteration complete:   4
+ Iteration complete:   5
+ Iteration complete:   6
+ Iteration complete:   7
+ Iteration complete:   8
+ Iteration complete:   9
+ Iteration complete:  10
+ Iteration complete:  11
+ Iteration complete:  12
+ Iteration complete:  13
+ Iteration complete:  14
+ Iteration complete:  15
+ Iteration complete:  16
+ Iteration complete:  17
+ Iteration complete:  18
+ Iteration complete:  19
+ Iteration complete:  20
+ Iteration complete:  21
+ Iteration complete:  22
+ Iteration complete:  23
+ Iteration complete:  24
+ Iteration complete:  25
+ Iteration complete:  26
+ Iteration complete:  27
+ Iteration complete:  28
+ Iteration complete:  29
+ Iteration complete:  30
+ Iteration complete:  31
+ Iteration complete:  32
+ Iteration complete:  33
+ Iteration complete:  34
+ Iteration complete:  35
+ Iteration complete:  36
+ Iteration complete:  37
+ Iteration complete:  38
+ Iteration complete:  39
+ Calculation complete for this initial vector.
+
+ Starting from initial vector   8
+ Iteration complete:   1
+ Iteration complete:   2
+ Iteration complete:   3
+ Iteration complete:   4
+ Iteration complete:   5
+ Iteration complete:   6
+ Iteration complete:   7
+ Iteration complete:   8
+ Iteration complete:   9
+ Iteration complete:  10
+ Iteration complete:  11
+ Iteration complete:  12
+ Iteration complete:  13
+ Iteration complete:  14
+ Iteration complete:  15
+ Iteration complete:  16
+ Iteration complete:  17
+ Iteration complete:  18
+ Iteration complete:  19
+ Iteration complete:  20
+ Iteration complete:  21
+ Iteration complete:  22
+ Iteration complete:  23
+ Iteration complete:  24
+ Iteration complete:  25
+ Iteration complete:  26
+ Iteration complete:  27
+ Iteration complete:  28
+ Iteration complete:  29
+ Iteration complete:  30
+ Iteration complete:  31
+ Iteration complete:  32
+ Iteration complete:  33
+ Iteration complete:  34
+ Iteration complete:  35
+ Iteration complete:  36
+ Iteration complete:  37
+ Iteration complete:  38
+ Iteration complete:  39
+ Calculation complete for this initial vector.
+
+ Starting from initial vector   9
+ Iteration complete:   1
+ Iteration complete:   2
+ Iteration complete:   3
+ Iteration complete:   4
+ Iteration complete:   5
+ Iteration complete:   6
+ Iteration complete:   7
+ Iteration complete:   8
+ Iteration complete:   9
+ Iteration complete:  10
+ Iteration complete:  11
+ Iteration complete:  12
+ Iteration complete:  13
+ Iteration complete:  14
+ Iteration complete:  15
+ Iteration complete:  16
+ Iteration complete:  17
+ Iteration complete:  18
+ Iteration complete:  19
+ Iteration complete:  20
+ Iteration complete:  21
+ Iteration complete:  22
+ Iteration complete:  23
+ Iteration complete:  24
+ Iteration complete:  25
+ Iteration complete:  26
+ Iteration complete:  27
+ Iteration complete:  28
+ Iteration complete:  29
+ Iteration complete:  30
+ Iteration complete:  31
+ Iteration complete:  32
+ Iteration complete:  33
+ Iteration complete:  34
+ Iteration complete:  35
+ Iteration complete:  36
+ Iteration complete:  37
+ Iteration complete:  38
+ Iteration complete:  39
+ Calculation complete for this initial vector.
+
+ Starting from initial vector  10
+ Iteration complete:   1
+ Iteration complete:   2
+ Iteration complete:   3
+ Iteration complete:   4
+ Iteration complete:   5
+ Iteration complete:   6
+ Iteration complete:   7
+ Iteration complete:   8
+ Iteration complete:   9
+ Iteration complete:  10
+ Iteration complete:  11
+ Iteration complete:  12
+ Iteration complete:  13
+ Iteration complete:  14
+ Iteration complete:  15
+ Iteration complete:  16
+ Iteration complete:  17
+ Iteration complete:  18
+ Iteration complete:  19
+ Iteration complete:  20
+ Iteration complete:  21
+ Iteration complete:  22
+ Iteration complete:  23
+ Iteration complete:  24
+ Iteration complete:  25
+ Iteration complete:  26
+ Iteration complete:  27
+ Iteration complete:  28
+ Iteration complete:  29
+ Iteration complete:  30
+ Iteration complete:  31
+ Iteration complete:  32
+ Iteration complete:  33
+ Iteration complete:  34
+ Iteration complete:  35
+ Iteration complete:  36
+ Iteration complete:  37
+ Iteration complete:  38
+ Iteration complete:  39
+ Calculation complete for this initial vector.
+
+ Starting from initial vector  11
+ Iteration complete:   1
+ Iteration complete:   2
+ Iteration complete:   3
+ Iteration complete:   4
+ Iteration complete:   5
+ Iteration complete:   6
+ Iteration complete:   7
+ Iteration complete:   8
+ Iteration complete:   9
+ Iteration complete:  10
+ Iteration complete:  11
+ Iteration complete:  12
+ Iteration complete:  13
+ Iteration complete:  14
+ Iteration complete:  15
+ Iteration complete:  16
+ Iteration complete:  17
+ Iteration complete:  18
+ Iteration complete:  19
+ Iteration complete:  20
+ Iteration complete:  21
+ Iteration complete:  22
+ Iteration complete:  23
+ Iteration complete:  24
+ Iteration complete:  25
+ Iteration complete:  26
+ Iteration complete:  27
+ Iteration complete:  28
+ Iteration complete:  29
+ Iteration complete:  30
+ Iteration complete:  31
+ Iteration complete:  32
+ Iteration complete:  33
+ Iteration complete:  34
+ Iteration complete:  35
+ Iteration complete:  36
+ Iteration complete:  37
+ Iteration complete:  38
+ Iteration complete:  39
+ Calculation complete for this initial vector.
+
+ Starting from initial vector  12
+ Iteration complete:   1
+ Iteration complete:   2
+ Iteration complete:   3
+ Iteration complete:   4
+ Iteration complete:   5
+ Iteration complete:   6
+ Iteration complete:   7
+ Iteration complete:   8
+ Iteration complete:   9
+ Iteration complete:  10
+ Iteration complete:  11
+ Iteration complete:  12
+ Iteration complete:  13
+ Iteration complete:  14
+ Iteration complete:  15
+ Iteration complete:  16
+ Iteration complete:  17
+ Iteration complete:  18
+ Iteration complete:  19
+ Iteration complete:  20
+ Iteration complete:  21
+ Iteration complete:  22
+ Iteration complete:  23
+ Iteration complete:  24
+ Iteration complete:  25
+ Iteration complete:  26
+ Iteration complete:  27
+ Iteration complete:  28
+ Iteration complete:  29
+ Iteration complete:  30
+ Iteration complete:  31
+ Iteration complete:  32
+ Iteration complete:  33
+ Iteration complete:  34
+ Iteration complete:  35
+ Iteration complete:  36
+ Iteration complete:  37
+ Iteration complete:  38
+ Iteration complete:  39
+ Calculation complete for this initial vector.
+
+ Starting from initial vector  13
+ Iteration complete:   1
+ Iteration complete:   2
+ Iteration complete:   3
+ Iteration complete:   4
+ Iteration complete:   5
+ Iteration complete:   6
+ Iteration complete:   7
+ Iteration complete:   8
+ Iteration complete:   9
+ Iteration complete:  10
+ Iteration complete:  11
+ Iteration complete:  12
+ Iteration complete:  13
+ Iteration complete:  14
+ Iteration complete:  15
+ Iteration complete:  16
+ Iteration complete:  17
+ Iteration complete:  18
+ Iteration complete:  19
+ Iteration complete:  20
+ Iteration complete:  21
+ Iteration complete:  22
+ Iteration complete:  23
+ Iteration complete:  24
+ Iteration complete:  25
+ Iteration complete:  26
+ Iteration complete:  27
+ Iteration complete:  28
+ Iteration complete:  29
+ Iteration complete:  30
+ Iteration complete:  31
+ Iteration complete:  32
+ Iteration complete:  33
+ Iteration complete:  34
+ Iteration complete:  35
+ Iteration complete:  36
+ Iteration complete:  37
+ Iteration complete:  38
+ Iteration complete:  39
+ Calculation complete for this initial vector.
+
+ Starting from initial vector  14
+ Iteration complete:   1
+ Iteration complete:   2
+ Iteration complete:   3
+ Iteration complete:   4
+ Iteration complete:   5
+ Iteration complete:   6
+ Iteration complete:   7
+ Iteration complete:   8
+ Iteration complete:   9
+ Iteration complete:  10
+ Iteration complete:  11
+ Iteration complete:  12
+ Iteration complete:  13
+ Iteration complete:  14
+ Iteration complete:  15
+ Iteration complete:  16
+ Iteration complete:  17
+ Iteration complete:  18
+ Iteration complete:  19
+ Iteration complete:  20
+ Iteration complete:  21
+ Iteration complete:  22
+ Iteration complete:  23
+ Iteration complete:  24
+ Iteration complete:  25
+ Iteration complete:  26
+ Iteration complete:  27
+ Iteration complete:  28
+ Iteration complete:  29
+ Iteration complete:  30
+ Iteration complete:  31
+ Iteration complete:  32
+ Iteration complete:  33
+ Iteration complete:  34
+ Iteration complete:  35
+ Iteration complete:  36
+ Iteration complete:  37
+ Iteration complete:  38
+ Iteration complete:  39
+ Calculation complete for this initial vector.
+
+ Starting from initial vector  15
+ Iteration complete:   1
+ Iteration complete:   2
+ Iteration complete:   3
+ Iteration complete:   4
+ Iteration complete:   5
+ Iteration complete:   6
+ Iteration complete:   7
+ Iteration complete:   8
+ Iteration complete:   9
+ Iteration complete:  10
+ Iteration complete:  11
+ Iteration complete:  12
+ Iteration complete:  13
+ Iteration complete:  14
+ Iteration complete:  15
+ Iteration complete:  16
+ Iteration complete:  17
+ Iteration complete:  18
+ Iteration complete:  19
+ Iteration complete:  20
+ Iteration complete:  21
+ Iteration complete:  22
+ Iteration complete:  23
+ Iteration complete:  24
+ Iteration complete:  25
+ Iteration complete:  26
+ Iteration complete:  27
+ Iteration complete:  28
+ Iteration complete:  29
+ Iteration complete:  30
+ Iteration complete:  31
+ Iteration complete:  32
+ Iteration complete:  33
+ Iteration complete:  34
+ Iteration complete:  35
+ Iteration complete:  36
+ Iteration complete:  37
+ Iteration complete:  38
+ Iteration complete:  39
+ Calculation complete for this initial vector.
+
+ Starting from initial vector  16
+ Iteration complete:   1
+ Iteration complete:   2
+ Iteration complete:   3
+ Iteration complete:   4
+ Iteration complete:   5
+ Iteration complete:   6
+ Iteration complete:   7
+ Iteration complete:   8
+ Iteration complete:   9
+ Iteration complete:  10
+ Iteration complete:  11
+ Iteration complete:  12
+ Iteration complete:  13
+ Iteration complete:  14
+ Iteration complete:  15
+ Iteration complete:  16
+ Iteration complete:  17
+ Iteration complete:  18
+ Iteration complete:  19
+ Iteration complete:  20
+ Iteration complete:  21
+ Iteration complete:  22
+ Iteration complete:  23
+ Iteration complete:  24
+ Iteration complete:  25
+ Iteration complete:  26
+ Iteration complete:  27
+ Iteration complete:  28
+ Iteration complete:  29
+ Iteration complete:  30
+ Iteration complete:  31
+ Iteration complete:  32
+ Iteration complete:  33
+ Iteration complete:  34
+ Iteration complete:  35
+ Iteration complete:  36
+ Iteration complete:  37
+ Iteration complete:  38
+ Iteration complete:  39
+ Calculation complete for this initial vector.
+
+ Starting from initial vector  17
+ Iteration complete:   1
+ Iteration complete:   2
+ Iteration complete:   3
+ Iteration complete:   4
+ Iteration complete:   5
+ Iteration complete:   6
+ Iteration complete:   7
+ Iteration complete:   8
+ Iteration complete:   9
+ Iteration complete:  10
+ Iteration complete:  11
+ Iteration complete:  12
+ Iteration complete:  13
+ Iteration complete:  14
+ Iteration complete:  15
+ Iteration complete:  16
+ Iteration complete:  17
+ Iteration complete:  18
+ Iteration complete:  19
+ Iteration complete:  20
+ Iteration complete:  21
+ Iteration complete:  22
+ Iteration complete:  23
+ Iteration complete:  24
+ Iteration complete:  25
+ Iteration complete:  26
+ Iteration complete:  27
+ Iteration complete:  28
+ Iteration complete:  29
+ Iteration complete:  30
+ Iteration complete:  31
+ Iteration complete:  32
+ Iteration complete:  33
+ Iteration complete:  34
+ Iteration complete:  35
+ Iteration complete:  36
+ Iteration complete:  37
+ Iteration complete:  38
+ Iteration complete:  39
+ Calculation complete for this initial vector.
+
+ Starting from initial vector  18
+ Iteration complete:   1
+ Iteration complete:   2
+ Iteration complete:   3
+ Iteration complete:   4
+ Iteration complete:   5
+ Iteration complete:   6
+ Iteration complete:   7
+ Iteration complete:   8
+ Iteration complete:   9
+ Iteration complete:  10
+ Iteration complete:  11
+ Iteration complete:  12
+ Iteration complete:  13
+ Iteration complete:  14
+ Iteration complete:  15
+ Iteration complete:  16
+ Iteration complete:  17
+ Iteration complete:  18
+ Iteration complete:  19
+ Iteration complete:  20
+ Iteration complete:  21
+ Iteration complete:  22
+ Iteration complete:  23
+ Iteration complete:  24
+ Iteration complete:  25
+ Iteration complete:  26
+ Iteration complete:  27
+ Iteration complete:  28
+ Iteration complete:  29
+ Iteration complete:  30
+ Iteration complete:  31
+ Iteration complete:  32
+ Iteration complete:  33
+ Iteration complete:  34
+ Iteration complete:  35
+ Iteration complete:  36
+ Iteration complete:  37
+ Iteration complete:  38
+ Iteration complete:  39
+ Calculation complete for this initial vector.
+
+ Starting from initial vector  19
+ Iteration complete:   1
+ Iteration complete:   2
+ Iteration complete:   3
+ Iteration complete:   4
+ Iteration complete:   5
+ Iteration complete:   6
+ Iteration complete:   7
+ Iteration complete:   8
+ Iteration complete:   9
+ Iteration complete:  10
+ Iteration complete:  11
+ Iteration complete:  12
+ Iteration complete:  13
+ Iteration complete:  14
+ Iteration complete:  15
+ Iteration complete:  16
+ Iteration complete:  17
+ Iteration complete:  18
+ Iteration complete:  19
+ Iteration complete:  20
+ Iteration complete:  21
+ Iteration complete:  22
+ Iteration complete:  23
+ Iteration complete:  24
+ Iteration complete:  25
+ Iteration complete:  26
+ Iteration complete:  27
+ Iteration complete:  28
+ Iteration complete:  29
+ Iteration complete:  30
+ Iteration complete:  31
+ Iteration complete:  32
+ Iteration complete:  33
+ Iteration complete:  34
+ Iteration complete:  35
+ Iteration complete:  36
+ Iteration complete:  37
+ Iteration complete:  38
+ Iteration complete:  39
+ Calculation complete for this initial vector.
+
+ Starting from initial vector  20
+ Iteration complete:   1
+ Iteration complete:   2
+ Iteration complete:   3
+ Iteration complete:   4
+ Iteration complete:   5
+ Iteration complete:   6
+ Iteration complete:   7
+ Iteration complete:   8
+ Iteration complete:   9
+ Iteration complete:  10
+ Iteration complete:  11
+ Iteration complete:  12
+ Iteration complete:  13
+ Iteration complete:  14
+ Iteration complete:  15
+ Iteration complete:  16
+ Iteration complete:  17
+ Iteration complete:  18
+ Iteration complete:  19
+ Iteration complete:  20
+ Iteration complete:  21
+ Iteration complete:  22
+ Iteration complete:  23
+ Iteration complete:  24
+ Iteration complete:  25
+ Iteration complete:  26
+ Iteration complete:  27
+ Iteration complete:  28
+ Iteration complete:  29
+ Iteration complete:  30
+ Iteration complete:  31
+ Iteration complete:  32
+ Iteration complete:  33
+ Iteration complete:  34
+ Iteration complete:  35
+ Iteration complete:  36
+ Iteration complete:  37
+ Iteration complete:  38
+ Iteration complete:  39
+ Calculation complete for this initial vector.
+
+ FTLM calculation complete. Outputting results...
+
+ Beta                  E_numerator           Denominator
+ 0.0000000000E+00      2.7309523810E+01      2.0000000000E+01
+ 1.0000000000E-01      1.2134299577E+01      1.8064926901E+01
+ 2.0000000000E-01     -6.3439342978E-02      1.7475052125E+01
+ 3.0000000000E-01     -1.1721573146E+01      1.8059959576E+01
+ 4.0000000000E-01     -2.4959517408E+01      1.9871719086E+01
+ 5.0000000000E-01     -4.2179293386E+01      2.3183592888E+01
+ 6.0000000000E-01     -6.6711369072E+01      2.8549347064E+01
+ 7.0000000000E-01     -1.0372796330E+02      3.6938452046E+01
+ 8.0000000000E-01     -1.6173334411E+02      4.9988244357E+01
+ 9.0000000000E-01     -2.5514874689E+02      7.0454226332E+01
+ 1.0000000000E+00     -4.0892035540E+02      1.0300976813E+02
+ 1.1000000000E+00     -6.6685939328E+02      1.5567423822E+02
+ 1.2000000000E+00     -1.1068973366E+03      2.4238543532E+02
+ 1.3000000000E+00     -1.8692261725E+03      3.8767511768E+02
+ 1.4000000000E+00     -3.2085785716E+03      6.3523961007E+02
+ 1.5000000000E+00     -5.5919550936E+03      1.0637719686E+03
+ 1.6000000000E+00     -9.8822770742E+03      1.8164088536E+03
+ 1.7000000000E+00     -1.7685092481E+04      3.1558287468E+03
+ 1.8000000000E+00     -3.2005658422E+04      5.5678826888E+03
+ 1.9000000000E+00     -5.8498401040E+04      9.9573780114E+03
+ 2.0000000000E+00     -1.0784950283E+05      1.8019373763E+04
+ 2.1000000000E+00     -2.0033107460E+05      3.2945610910E+04
+ 2.2000000000E+00     -3.7452365477E+05      6.0772262526E+04
+ 2.3000000000E+00     -7.0405037758E+05      1.1295716581E+05
+ 2.4000000000E+00     -1.3297269583E+06      2.1131771776E+05
+ 2.5000000000E+00     -2.5214019041E+06      3.9750717186E+05
+ 2.6000000000E+00     -4.7970232647E+06      7.5122542074E+05
+ 2.7000000000E+00     -9.1520783990E+06      1.4252550088E+06
+ 2.8000000000E+00     -1.7502025688E+07      2.7129318243E+06
+ 2.9000000000E+00     -3.3535932214E+07      5.1781804916E+06
+ 3.0000000000E+00     -6.4364291651E+07      9.9062964729E+06
+ 3.1000000000E+00     -1.2370115898E+08      1.8987864447E+07
+ 3.2000000000E+00     -2.3801128530E+08      3.6452976411E+07
+ 3.3000000000E+00     -4.5838823699E+08      7.0075460558E+07
+ 3.4000000000E+00     -8.8351182773E+08      1.3485845545E+08
+ 3.5000000000E+00     -1.7040276698E+09      2.5976996176E+08
+ 3.6000000000E+00     -3.2883521637E+09      5.0076157910E+08
+ 3.7000000000E+00     -6.3485932098E+09      9.6593630505E+08
+ 3.8000000000E+00     -1.2261426337E+10      1.8642104217E+09
+ 3.9000000000E+00     -2.3688699178E+10      3.5994133142E+09
+ 4.0000000000E+00     -4.5777832491E+10      6.9522724171E+09
+ 4.1000000000E+00     -8.8483841306E+10      1.3432395841E+10
+ 4.2000000000E+00     -1.7106123069E+11      2.5959103823E+10
+ 4.3000000000E+00     -3.3075385926E+11      5.0178427071E+10
+ 4.4000000000E+00     -6.3960668361E+11      9.7010837866E+10
+ 4.5000000000E+00     -1.2369914410E+12      1.8758004729E+11
+ 4.6000000000E+00     -2.3925357639E+12      3.6274852099E+11
+ 4.7000000000E+00     -4.6278780903E+12      7.0156596358E+11
+ 4.8000000000E+00     -8.9522427891E+12      1.3569627494E+12
+ 4.9000000000E+00     -1.7318245222E+13      2.6248096986E+12
+ 5.0000000000E+00     -3.3503822558E+13      5.0775375649E+12
+ 5.1000000000E+00     -6.4818687939E+13      9.8226729775E+12
+ 5.2000000000E+00     -1.2540619088E+14      1.9003077371E+13
+ 5.3000000000E+00     -2.4263221759E+14      3.6764865046E+13
+ 5.4000000000E+00     -4.6944740608E+14      7.1130255386E+13
+ 5.5000000000E+00     -9.0830756714E+14      1.3762143453E+14
+ 5.6000000000E+00     -1.7574590065E+15      2.6627256312E+14
+ 5.7000000000E+00     -3.4004996219E+15      5.1519776274E+14
+ 5.8000000000E+00     -6.5796782357E+15      9.9684480202E+14
+ 5.9000000000E+00     -1.2731227004E+16      1.9287954519E+15
+ 6.0000000000E+00     -2.4634227591E+16      3.7320634510E+15
+
+ ================================================================
+ FTLM testsuite data:
+ Sum of H elements from the last Lanczos space:   3.1651279264819E+02
+ FT energy at lowest beta value:                  1.3654761904762E+00
+ FT energy at highest beta value:                -6.6006990271482E+00
+ ================================================================
+
+ Exiting FTLM code.
+
+
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :      20.4
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkVecDets       InitFCIMCPar       not deallocated      13.3MB
+ global_determinantinit_global_det_datnot deallocated       6.7MB
+ SpawnVec          InitFCIMCPar       not deallocated     140.6KB
+ SpawnVec2         InitFCIMCPar       not deallocated     140.6KB
+ temp_store        calculate_sparse_hacalculate_sparse_ha  14.4KB
+ hamiltonian_row   calculate_sparse_hacalculate_sparse_ha   7.2KB
+ hamil_diag        calculate_sparse_hanot deallocated       3.5KB
+ SymPairProds      GenSymStatePairs   EndSym                1.7KB
+ TMAT2D            SetupTMAT          DestroyTMat           1.1KB
+ G1                SysInit            NECICore               672B
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+
+ Procedure                    Calls       CPU    system     total
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ NECICUBE                         1      0.15      0.00      0.15
+ SysInit                          1      0.01      0.00      0.01
+ SyncTime                         4      0.00      0.00      0.00
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                   0.16      0.00      0.16
+
+ Global CPU time          0.32
+ Global system time       0.00
+ Global total time        0.32
+ ================================================================
+ Calculation ended 02/09/2016 at 23:15:29
+ ================================================================
