@@ -116,4 +116,10 @@ module LoggingData
     ! calculated directly from these.
     logical :: tPrint1RDMsFromSpinfree = .false.
 
+    ! Whether we are calculating the estimates of properties
+    logical ::  tCalcPropEst
+    integer :: iNumPropToEst
+    ! The name of the integral file for each of the property to be estimated
+    character(100), allocatable :: EstimatePertFile(:)
+
 end module LoggingData
