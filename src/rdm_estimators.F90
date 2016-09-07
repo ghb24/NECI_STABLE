@@ -19,6 +19,7 @@ contains
         ! Also, if open_output_file is true, and if this is the processor with
         ! label 0, then open an RDMEstimates file, and write the file's header.
 
+        use LoggingData, only: tCalcPropEst, iNumPropToEst
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: rdm_estimates_t
         use util_mod, only: get_free_unit
@@ -43,6 +44,7 @@ contains
         allocate(est%energy_2_num(nrdms), stat=ierr)
         allocate(est%energy_num(nrdms), stat=ierr)
         allocate(est%spin_num(nrdms), stat=ierr)
+        if(tCalcPropEst) allocate(est%property(iNumPropToEst,nrdms), stat=ierr)
 
         ! "Instantaneous" estimates over the previous sampling block.
         allocate(est%trace_inst(nrdms), stat=ierr)
@@ -51,6 +53,7 @@ contains
         allocate(est%energy_2_num_inst(nrdms), stat=ierr)
         allocate(est%energy_num_inst(nrdms), stat=ierr)
         allocate(est%spin_num_inst(nrdms), stat=ierr)
+        if(tCalcPropEst) allocate(est%property_inst(iNumPropToEst,nrdms), stat=ierr)
 
         ! Hermiticity errors, for the final RDMs.
         allocate(est%max_error_herm(nrdms), stat=ierr)
@@ -62,6 +65,7 @@ contains
         est%energy_2_num = 0.0_dp
         est%energy_num = 0.0_dp
         est%spin_num = 0.0_dp
+        est%property = 0.0_dp
 
         est%trace_inst = 0.0_dp
         est%norm_inst = 0.0_dp
@@ -69,6 +73,7 @@ contains
         est%energy_2_num_inst = 0.0_dp
         est%energy_num_inst = 0.0_dp
         est%spin_num_inst = 0.0_dp
+        est%property_inst = 0.0_dp
 
         est%max_error_herm = 0.0_dp
         est%sum_error_herm = 0.0_dp
@@ -108,12 +113,14 @@ contains
         if (allocated(est%energy_2_num)) deallocate(est%energy_2_num, stat=ierr)
         if (allocated(est%energy_num)) deallocate(est%energy_num, stat=ierr)
         if (allocated(est%spin_num)) deallocate(est%spin_num, stat=ierr)
+        if (allocated(est%property)) deallocate(est%property, stat=ierr)
         if (allocated(est%trace_inst)) deallocate(est%trace_inst, stat=ierr)
         if (allocated(est%norm_inst)) deallocate(est%norm_inst, stat=ierr)
         if (allocated(est%energy_1_num_inst)) deallocate(est%energy_1_num_inst, stat=ierr)
         if (allocated(est%energy_2_num_inst)) deallocate(est%energy_2_num_inst, stat=ierr)
         if (allocated(est%energy_num_inst)) deallocate(est%energy_num_inst, stat=ierr)
         if (allocated(est%spin_num_inst)) deallocate(est%spin_num_inst, stat=ierr)
+        if (allocated(est%property_inst)) deallocate(est%property_inst, stat=ierr)
         if (allocated(est%max_error_herm)) deallocate(est%max_error_herm, stat=ierr)
         if (allocated(est%sum_error_herm)) deallocate(est%sum_error_herm, stat=ierr)
 
@@ -159,6 +166,7 @@ contains
         use Parallel_neci, only: MPISumAll
         use rdm_data, only: rdm_estimates_t, rdm_list_t, rdm_definitions_t
         use SystemData, only: nel, ecore
+        use LoggingData, only: iNumPropToEst
 
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_estimates_t), intent(inout) :: est
@@ -168,6 +176,7 @@ contains
         real(dp) :: rdm_trace(est%nrdms), rdm_norm(est%nrdms)
         real(dp) :: rdm_energy_1(est%nrdms), rdm_energy_2(est%nrdms)
         real(dp) :: rdm_spin(est%nrdms)
+        real(dp) :: rdm_prop(iNumProptoEst,est%nrdms)
 
         ! Use the _inst variables as temporary variables to store the current
         ! total values. These are updated at the end of this routine.
@@ -177,6 +186,7 @@ contains
         est%energy_2_num_inst = est%energy_2_num
         est%energy_num_inst = est%energy_num
         est%spin_num_inst = est%spin_num
+        est%property_inst = est%property
 
         ! Calculate the new total values.
 
@@ -205,6 +215,11 @@ contains
         call calc_rdm_spin(rdm, rdm_norm, rdm_spin)
         call MPISumAll(rdm_spin, est%spin_num)
 
+        ! Estimate of the properties using different property integrals
+        ! and all the standard and transition rdms. 
+        call calc_rdm_prop(rdm, rdm_prop)
+        call MPISumAll(rdm_prop, est%property)
+
         ! Calculate the instantaneous values by subtracting the old total
         ! values from the new total ones.
         est%trace_inst = est%trace - est%trace_inst
@@ -213,6 +228,7 @@ contains
         est%energy_2_num_inst = est%energy_2_num - est%energy_2_num_inst
         est%energy_num_inst = est%energy_num - est%energy_num_inst
         est%spin_num_inst = est%spin_num - est%spin_num_inst
+        est%property_inst = est%property - est%property_inst
 
     end subroutine calc_2rdm_estimates_wrapper
 
@@ -382,6 +398,40 @@ contains
         end do
 
     end subroutine calc_rdm_energy
+
+    subroutine calc_rdm_prop(rdm, rdm_prop)
+
+        use rdm_data, only: rdm_list_t
+        use rdm_integral_fns, only: prop_inprop_int
+        use SystemData, only: nel
+        use LoggingData, only: iNumPropToEst
+
+        type(rdm_list_t), intent(in) :: rdm
+        real(dp), intent(out) :: rdm_prop(iNumPropToEst,rdm%sign_length)
+
+        integer(int_rdm) :: ijkl
+        integer :: ielem, iprop, ij, kl, i, j, k, l
+        real(dp) :: rdm_sign(rdm%sign_length)
+
+        rdm_prop = 0.0_dp
+
+        ! Loop over all elements in the 2-RDM.
+        do ielem = 1, rdm%nelements
+            ijkl = rdm%elements(0,ielem)
+            call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+
+            ! Decode pqrs label into p, q, r and s labels.
+            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+
+            do iprop=iNumPropToEst
+            ! We get dot product of the 1-RDM and one-electron property integrals:
+                if (i == k) rdm_prop(iprop,:) = rdm_prop(iprop,:) + rdm_sign*prop_int(iprop,j,l)/(nel-1)
+                if (j == l) rdm_prop(iprop,:) = rdm_prop(iprop,:) + rdm_sign*prop_int(iprop,i,k)/(nel-1)
+                if (i == l) rdm_prop(iprop,:) = rdm_prop(iprop,:) - rdm_sign*prop_int(iprop,j,k)/(nel-1)
+                if (j == k) rdm_prop(iprop,:) = rdm_prop(iprop,:) - rdm_sign*prop_int(iprop,i,l)/(nel-1)
+            end do
+        end do
+    end subroutine calc_rdm_prop
 
     subroutine calc_rdm_spin(rdm, rdm_norm, rdm_spin)
 
