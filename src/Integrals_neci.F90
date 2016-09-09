@@ -349,7 +349,7 @@ contains
     Subroutine IntInit(iCacheFlag)
 !who knows what for
       Use global_utilities
-      Use OneEInts, only: SetupTMat
+      Use OneEInts, only: SetupTMat,SetupPropInts
       USE UMatCache, only : FreezeTransfer, CreateInvBRR, GetUMatSize, SetupUMat2D_df
       Use UMatCache, only: SetupUMatCache
       use SystemData, only : nBasisMax, Alpha,BHub, BRR,nmsh,nEl
@@ -358,6 +358,7 @@ contains
       use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP, tPickVirtUniform
       use SystemData, only: uhub, arr,alat,treal,tCacheFCIDUMPInts, tReltvy
       use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
+      use LoggingData, only:tCalcPropEst, iNumPropToEst
       use MemoryManager, only: TagIntType
       use sym_mod, only: GenSymStatePairs
       use read_fci
@@ -492,6 +493,12 @@ contains
             CALL READFCIINT(UMAT,NBASIS,ECORE,.false.)
          ENDIF
          WRITE(6,*) 'ECORE=',ECORE
+         IF(tCalcPropEst) THEN
+           call SetupPropInts(nBasis)
+           do i=1,iNumPropToEst
+             call ReadPropInts(i,nBasis)
+           end do
+         ENDIF
       ELSE
          ISPINSKIP=NBASISMAX(2,3)
          IF(NBASISMAX(1,3).GE.0) THEN

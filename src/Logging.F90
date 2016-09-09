@@ -1079,9 +1079,9 @@ MODULE Logging
       if(tCalcPropEst) then
           !Save the name of the integral files in the proper place
           if(iNumPropToEst.eq.0) call stop_all(t_r,'Error in the property estimations')
-          if(allocated(EstimatePertFile)) deallocate(EstimatePertFile)
-          allocate(EstimatePertFile(iNumPropToEst))
-          EstimatePertFile(:) = PertFile(1:iNumPropToEst)
+          if(allocated(EstPropFile)) deallocate(EstPropFile)
+          allocate(EstPropFile(iNumPropToEst))
+          EstPropFile(:) = PertFile(1:iNumPropToEst)
       endif
     END SUBROUTINE LogReadInput
 

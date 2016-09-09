@@ -65,7 +65,7 @@ contains
         est%energy_2_num = 0.0_dp
         est%energy_num = 0.0_dp
         est%spin_num = 0.0_dp
-        est%property = 0.0_dp
+        if(tCalcPropEst) est%property = 0.0_dp
 
         est%trace_inst = 0.0_dp
         est%norm_inst = 0.0_dp
@@ -73,7 +73,7 @@ contains
         est%energy_2_num_inst = 0.0_dp
         est%energy_num_inst = 0.0_dp
         est%spin_num_inst = 0.0_dp
-        est%property_inst = 0.0_dp
+        if(tCalcPropEst) est%property_inst = 0.0_dp
 
         est%max_error_herm = 0.0_dp
         est%sum_error_herm = 0.0_dp
@@ -166,7 +166,7 @@ contains
         use Parallel_neci, only: MPISumAll
         use rdm_data, only: rdm_estimates_t, rdm_list_t, rdm_definitions_t
         use SystemData, only: nel, ecore
-        use LoggingData, only: iNumPropToEst
+        use LoggingData, only: iNumPropToEst, tCalcPropEst
 
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_estimates_t), intent(inout) :: est
@@ -186,7 +186,7 @@ contains
         est%energy_2_num_inst = est%energy_2_num
         est%energy_num_inst = est%energy_num
         est%spin_num_inst = est%spin_num
-        est%property_inst = est%property
+        if(tCalcPropEst) est%property_inst = est%property
 
         ! Calculate the new total values.
 
@@ -215,10 +215,12 @@ contains
         call calc_rdm_spin(rdm, rdm_norm, rdm_spin)
         call MPISumAll(rdm_spin, est%spin_num)
 
-        ! Estimate of the properties using different property integrals
-        ! and all the standard and transition rdms. 
-        call calc_rdm_prop(rdm, rdm_prop)
-        call MPISumAll(rdm_prop, est%property)
+        if(tCalcPropEst) then 
+            ! Estimate of the properties using different property integrals
+            ! and all the standard and transition rdms. 
+            call calc_rdm_prop(rdm, rdm_prop)
+            call MPISumAll(rdm_prop, est%property)
+        endif
 
         ! Calculate the instantaneous values by subtracting the old total
         ! values from the new total ones.
@@ -228,7 +230,7 @@ contains
         est%energy_2_num_inst = est%energy_2_num - est%energy_2_num_inst
         est%energy_num_inst = est%energy_num - est%energy_num_inst
         est%spin_num_inst = est%spin_num - est%spin_num_inst
-        est%property_inst = est%property - est%property_inst
+        if(tCalcPropEst) est%property_inst = est%property - est%property_inst
 
     end subroutine calc_2rdm_estimates_wrapper
 
@@ -402,7 +404,7 @@ contains
     subroutine calc_rdm_prop(rdm, rdm_prop)
 
         use rdm_data, only: rdm_list_t
-        use rdm_integral_fns, only: prop_inprop_int
+        use rdm_integral_fns, only: GetPropInts
         use SystemData, only: nel
         use LoggingData, only: iNumPropToEst
 
@@ -423,12 +425,12 @@ contains
             ! Decode pqrs label into p, q, r and s labels.
             call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
 
-            do iprop=iNumPropToEst
+            do iprop=1, iNumPropToEst
             ! We get dot product of the 1-RDM and one-electron property integrals:
-                if (i == k) rdm_prop(iprop,:) = rdm_prop(iprop,:) + rdm_sign*prop_int(iprop,j,l)/(nel-1)
-                if (j == l) rdm_prop(iprop,:) = rdm_prop(iprop,:) + rdm_sign*prop_int(iprop,i,k)/(nel-1)
-                if (i == l) rdm_prop(iprop,:) = rdm_prop(iprop,:) - rdm_sign*prop_int(iprop,j,k)/(nel-1)
-                if (j == k) rdm_prop(iprop,:) = rdm_prop(iprop,:) - rdm_sign*prop_int(iprop,i,l)/(nel-1)
+                if (i == k) rdm_prop(iprop,:) = rdm_prop(iprop,:) + rdm_sign*GetPropInts(j,l,iprop)/(nel-1)
+                if (j == l) rdm_prop(iprop,:) = rdm_prop(iprop,:) + rdm_sign*GetPropInts(i,k,iprop)/(nel-1)
+                if (i == l) rdm_prop(iprop,:) = rdm_prop(iprop,:) - rdm_sign*GetPropInts(j,k,iprop)/(nel-1)
+                if (j == k) rdm_prop(iprop,:) = rdm_prop(iprop,:) - rdm_sign*GetPropInts(i,l,iprop)/(nel-1)
             end do
         end do
     end subroutine calc_rdm_prop

@@ -120,6 +120,6 @@ module LoggingData
     logical ::  tCalcPropEst
     integer :: iNumPropToEst
     ! The name of the integral file for each of the property to be estimated
-    character(100), allocatable :: EstimatePertFile(:)
+    character(100), allocatable :: EstPropFile(:)
 
 end module LoggingData
