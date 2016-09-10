@@ -81,7 +81,7 @@ contains
         ! If appropriate, create a new RDMEstimates file.
         if (iProcIndex == 0 .and. open_output_file) then
             est%write_unit = get_free_unit()
-            call write_rdm_est_file_header(est%write_unit, nrdms_standard)
+            call write_rdm_est_file_header(est%write_unit, nrdms_standard, nrdms_transition)
         else
             ! If we don't have a file open with this unit, set it to something
             ! unique, so we can easily check, and which will cause an obvious
@@ -131,14 +131,15 @@ contains
 
     end subroutine dealloc_rdm_estimates_t
 
-    subroutine write_rdm_est_file_header(write_unit, nrdms_standard)
+    subroutine write_rdm_est_file_header(write_unit, nrdms_standard, nrdms_transition)
 
         ! Open a new RDMEstimates file (overwriting any existing file), and
         ! write a header to it, appropriate for when we are sampling nrdms RDMs.
+        use LoggingData, only: tCalcPropEst, iNumPropToEst
 
-        integer, intent(in) :: write_unit, nrdms_standard
+        integer, intent(in) :: write_unit, nrdms_standard, nrdms_transition
 
-        integer :: irdm
+        integer :: irdm, iprop
 
         open(write_unit, file='RDMEstimates', status='unknown', position='append')
 
@@ -148,6 +149,19 @@ contains
             write(write_unit, '(4x,"Energy numerator",1x,i2)', advance='no') irdm
             write(write_unit, '(4x,"Spin^2 numerator",1x,i2)', advance='no') irdm
             write(write_unit, '(7x,"Normalisation",1x,i2)', advance='no') irdm
+            if (tCalcPropEst) then
+                do iprop = 1,iNumPropToEst
+                    write(write_unit, '(4x,"Property(",i2,")",1x,i2)',advance='no') iprop, irdm
+                enddo
+            endif
+        end do
+
+        do irdm = nrdms_standard+1, nrdms_standard+nrdms_transition
+            if (tCalcPropEst) then
+                do iprop = 1,iNumPropToEst
+                    write(write_unit, '(4x,"Property(",i2,")",1x,i2)',advance='no') iprop, irdm
+                enddo
+            endif
         end do
 
         write(write_unit,'()')
@@ -244,7 +258,7 @@ contains
         ! to standard output, and close the RDMEstimates unit.
 
         use FciMCData, only: Iter, PreviousCycles
-        use LoggingData, only: tRDMInstEnergy
+        use LoggingData, only: tRDMInstEnergy, tCalcPropEst, iNumPropToEst
         use rdm_data, only: rdm_estimates_t, rdm_definitions_t
         use util_mod, only: int_fmt
 
@@ -252,7 +266,7 @@ contains
         type(rdm_estimates_t), intent(in) :: est
         logical, intent(in) :: final_output, write_to_separate_file
 
-        integer :: irdm
+        integer :: irdm, iprop
 
         if (write_to_separate_file) then
             if (tRDMInstEnergy) then
@@ -260,6 +274,20 @@ contains
                 do irdm = 1, est%nrdms_standard
                     write(est%write_unit, '(3(3x,es20.13))', advance='no') &
                         est%energy_num_inst(irdm), est%spin_num_inst(irdm), est%norm_inst(irdm)
+                    if(tCalcPropEst) then
+                        do iprop=1,iNumPropToEst
+                            write(est%write_unit,'(3x,es20.13)',advance='no') &
+                                est%property_inst(iprop,irdm)
+                        enddo 
+                    endif
+                end do
+                do irdm = est%nrdms_standard+1, est%nrdms_standard+est%nrdms_transition
+                    if(tCalcPropEst) then
+                        do iprop=1,iNumPropToEst
+                            write(est%write_unit,'(3x,es20.13)',advance='no') &
+                                est%property_inst(iprop,irdm)
+                        enddo 
+                    endif
                 end do
                 write(est%write_unit,'()')
             else
@@ -267,6 +295,20 @@ contains
                 do irdm = 1, est%nrdms_standard
                     write(est%write_unit, '(3(3x,es20.13))', advance='no') &
                         est%energy_num(irdm), est%spin_num(irdm), est%norm(irdm)
+                    if(tCalcPropEst) then
+                        do iprop=1,iNumPropToEst
+                            write(est%write_unit,'(3x,es20.13)',advance='no') &
+                                est%property(iprop,irdm)
+                        enddo 
+                    endif
+                end do
+                do irdm = est%nrdms_standard+1, est%nrdms_standard+est%nrdms_transition
+                    if(tCalcPropEst) then
+                        do iprop=1,iNumPropToEst
+                            write(est%write_unit,'(3x,es20.13)',advance='no') &
+                                est%property(iprop,irdm)
+                        enddo 
+                    endif
                 end do
                 write(est%write_unit, '()')
             end if
