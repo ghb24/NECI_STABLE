@@ -432,7 +432,7 @@ contains
                     read(iunit,*,END=99) Z, I, J, K, L
                 else
                     read(iunit,*,END=99) real_time_Z, I, J, K, L
-                    Z = complex(real_time_Z, 0.0_dp)
+                    Z = dcmplx(real_time_Z, 0.0_dp)
                 end if
 #elif defined(__CMPLX) && !defined(__REALTIME)
 1               READ(iunit,*,END=99) real_time_Z,I,J,K,L
@@ -767,7 +767,7 @@ contains
                 READ(iunit,*,END=199) Z,I,J,K,L
             else 
                 read(iunit,*,END=199) real_time_Z,I,J,K,L
-                Z = complex(real_time_Z, 0.0_dp)
+                Z = dcmplx(real_time_Z, 0.0_dp)
             end if
 #elif defined(__CMPLX) && !defined(__REALTIME)
 101          READ(iunit,*,END=199) Z,I,J,K,L

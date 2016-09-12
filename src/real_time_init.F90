@@ -639,7 +639,7 @@ contains
 
         integer :: iunit, popsversion, iPopLenof_Sign, iPopNel, iPopIter, &
                    PopNIfD, PopNIfY, PopNIfSgn, PopNIfFlag, PopNIfTot, &
-                   PopBlockingIter, Popinum_runs, PopRandomHash(1024), &
+                   PopBlockingIter, Popinum_runs, PopRandomHash(2056), &
                    read_nnodes, PopBalanceBlocks
         logical :: formpops, binpops, tPop64Bit, tPopHPHF, tPopLz
         integer(int64) :: iPopAllTotWalkers, read_walkers_on_nodes(0:nProcessors-1)
@@ -674,7 +674,6 @@ contains
                 open(iunit, file = popsfile, status = 'old', form = 'unformatted')
             end if
         end if
-
 
     end subroutine read_popsfile_real_time
 

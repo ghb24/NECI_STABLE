@@ -18,9 +18,13 @@ module real_time_procs
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
                          sizeof_int, MPIArg
     use bit_reps, only: decode_bit_det, test_flag, flag_initiator, encode_sign, &
-                        set_flag, encode_bit_rep, extract_bit_rep, flag_diag_spawn, &
+                        set_flag, encode_bit_rep, extract_bit_rep, &
+#ifdef __REALTIME
+                        flag_diag_spawn, &
+#endif
                         flag_has_been_initiator, flag_deterministic, encode_part_sign, &
-                        nullify_ilut_part, clear_has_been_initiator
+                        nullify_ilut_part
+
                         
     use bit_rep_data, only: extract_sign, nifdbo, niftot
     use FciMCData, only: CurrentDets, HashIndex, popsfile_dets, MaxWalkersPart, &
@@ -35,17 +39,16 @@ module real_time_procs
     use util_mod, only: int_fmt
     use CalcData, only: AvMCExcits, tAllRealCoeff, tRealCoeffByExcitLevel, &
                         tRealSpawnCutoff, RealSpawnCutoff, tau, RealCoeffExcitThresh, &
-                        DiagSft, tTruncInitiator, tBroadcastParentCoeff, tWeakInitiators, &
-                        InitiatorOccupiedThresh, OccupiedThresh, tEnhanceRemainder, &
-                        tInitOccThresh
+                        DiagSft, tTruncInitiator, OccupiedThresh
     use DetBitOps, only: FindBitExcitLevel
     use procedure_pointers, only: get_spawn_helement
     use util_mod, only: stochastic_round
     use tau_search, only: log_spawn_magnitude
     use rdm_general, only: calc_rdmbiasfac
-    use global_det_data, only: global_determinant_data, inc_spawn_count
+    use global_det_data, only: global_determinant_data
     use rdm_filling, only: det_removed_fill_diag_rdm, check_fillRDM_DiDj
-    use rdm_data, only: nrdms, rdms
+! RT_M_Merge: Disabled rdms
+!    use rdm_data, only: nrdms, rdms
     use hash, only: remove_hash_table_entry
     use dSFMT_interface, only: genrand_real2_dSFMT
     use load_balance_calcnodes, only: DetermineDetNode
@@ -158,7 +161,7 @@ contains
                     ! If we are spawning onto a site and growing it, then
                     ! count that spawn for initiator purposes.
                     ! not sure if this function is even used ever
-                    if (any(signprod > 0)) call inc_spawn_count(PartInd)
+                    ! if (any(signprod > 0)) call inc_spawn_count(PartInd)
 
                     ! stick with the old convention on how to count deaths / 
                     ! births in the walker_death routine
@@ -277,9 +280,10 @@ contains
                             FreeSlot(iEndFreeSlot) = PartInd
                         end if
                     end if
-
-                    if (tFillingStochRDMonFly .and. (.not.tNoNewRDMContrib)) then
-                        call extract_sign(CurrentDets(:,PartInd), TempCurrentSign)
+                    
+                    ! RT_M_Merge: Disabled rdm functionality
+                    !if (tFillingStochRDMonFly .and. (.not.tNoNewRDMContrib)) then
+                    !call extract_sign(CurrentDets(:,PartInd), TempCurrentSign)
                         ! We must use the instantaneous value for the off-diagonal
                         ! contribution. However, we can't just use CurrentSign from
                         ! the previous iteration, as this has been subject to death
@@ -287,8 +291,8 @@ contains
                         ! we're effectively taking the instantaneous value from the
                         ! next iter. This is fine as it's from the other population,
                         ! and the Di and Dj signs are already strictly uncorrelated.
-                        call check_fillRDM_DiDj(rdms, i, CurrentDets(:,PartInd), TempCurrentSign)
-                    end if 
+                    !    call check_fillRDM_DiDj(rdms, i, CurrentDets(:,PartInd), TempCurrentSign)
+                    !end if 
 
                 end if
 
@@ -337,54 +341,31 @@ contains
 
                         end if
                         
-                        ! i think this initoccthresh is never true..
-                        if (tInitOccThresh .and. test_flag(CurrentDets(:,j), flag_has_been_initiator(1)))then
-                            if ((abs(SignTemp(j)) > 0.0_dp).and.(abs(SignTemp(j)) < InitiatorOccupiedThresh)) then
-                                pRemove=(InitiatorOccupiedThresh-abs(SignTemp(j)))/InitiatorOccupiedThresh
-                                r = genrand_real2_dSFMT ()
-                                if (pRemove > r) then
-                                    ! Remove the determinant.
-                                    NoRemoved(run) = NoRemoved(run)+abs(SignTemp(j))
-                                    iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                    + abs(SignTemp(j))
-                                    SignTemp(j) = 0.0_dp
-                                    call nullify_ilut_part(DiagParts(:,i),j)
-                                    ! Also cancel the has_been_initiator_flag.
-                                    call clear_has_been_initiator(CurrentDets(:,j),flag_has_been_initiator(1))
-                                else if (tEnhanceRemainder) then
-                                    NoBorn(run) = NoBorn(run) + InitiatorOccupiedThresh - abs(SignTemp(j))
-                                    iter_data%nborn(j) = iter_data%nborn(j) &
-                                    + InitiatorOccupiedThresh - abs(SignTemp(j))
-                                    SignTemp(j) = sign(InitiatorOccupiedThresh, SignTemp(j))
-                                    call encode_part_sign (DiagParts(:,i), SignTemp(j), j)
-                                end if
-                            end if
-                        else
-                            ! Either the determinant has never been an initiator,
-                            ! or we want to treat them all the same, as before.
-                            ! this is for the real-coefficient.. if its 
-                            ! below 1.0_dp eg.. also not of concern yet 
-                            if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
-                                ! We remove this walker with probability 1-RealSignTemp
-                                pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
-                                r = genrand_real2_dSFMT ()
-                                if (pRemove > r) then
-                                    ! Remove this walker.
-                                    NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
-                                    !Annihilated = Annihilated + abs(SignTemp(j))
-                                    !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                                    iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                                          + abs(SignTemp(j))
-                                    SignTemp(j) = 0.0_dp
-                                    call nullify_ilut_part (DiagParts(:,i), j)
-                                else if (tEnhanceRemainder) then
-                                    NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
-                                    iter_data%nborn(j) = iter_data%nborn(j) &
-                                              + OccupiedThresh - abs(SignTemp(j))
-                                    SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
-                                    call encode_part_sign (DiagParts(:,i), SignTemp(j), j)
-                                end if
-                            end if
+                        ! RT_M_Merge: Removed initiator case
+                        ! Either the determinant has never been an initiator,
+                        ! or we want to treat them all the same, as before.
+                        ! this is for the real-coefficient.. if its 
+                        ! below 1.0_dp eg.. also not of concern yet 
+                        if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
+                           ! We remove this walker with probability 1-RealSignTemp
+                           pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
+                           r = genrand_real2_dSFMT ()
+                           if (pRemove > r) then
+                              ! Remove this walker.
+                              NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
+                              !Annihilated = Annihilated + abs(SignTemp(j))
+                              !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+                              iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                   + abs(SignTemp(j))
+                              SignTemp(j) = 0.0_dp
+                              call nullify_ilut_part (DiagParts(:,i), j)
+                           else! if (tEnhanceRemainder) then
+                              NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
+                              iter_data%nborn(j) = iter_data%nborn(j) &
+                                   + OccupiedThresh - abs(SignTemp(j))
+                              SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
+                              call encode_part_sign (DiagParts(:,i), SignTemp(j), j)
+                           end if
                         end if
                     end do
 
@@ -408,7 +389,7 @@ contains
                         call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ)
                     end if
 
-                else
+                 else
                     ! Running the full, non-initiator scheme.
                     ! Determinant in newly spawned list is not found in
                     ! CurrentDets. If coeff <1, apply removal criterion.
@@ -432,7 +413,7 @@ contains
                                                       + abs(SignTemp(j))
                                 SignTemp(j) = 0
                                 call nullify_ilut_part (DiagParts(:,i), j)
-                            else if (tEnhanceRemainder) then
+                             else !if (tEnhanceRemainder) then
                                 NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
                                 iter_data%nborn(j) = iter_data%nborn(j) &
                                             + OccupiedThresh - abs(SignTemp(j))
@@ -457,10 +438,10 @@ contains
                     end if
                 end if
 
-                if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
+!                if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
                     ! We must use the instantaneous value for the off-diagonal contribution.
-                    call check_fillRDM_DiDj(rdms, i, SpawnedParts(0:NifTot,i), SignTemp)
-                end if 
+!                call check_fillRDM_DiDj(rdms, i, SpawnedParts(0:NifTot,i), SignTemp)
+!                end if 
             end if
 
         end do
@@ -667,25 +648,6 @@ contains
                     end if
                 end do
             end if
-
-            if (tWeakInitiators) then
-                call stop_all(this_routine, &
-                    "weak initiator not yet implemented in the rt-fciqmc!")
-! 
-!               if(test_flag(ilutI, flag_initiator(part_type))) then
-!                 r = genrand_real2_dSFMT()
-!                         if(weakthresh > r) then
-!                              call set_flag(SpawnedParts(:, valid_diag_spawn_list(proc)), flag_weak_initiator(part_type))
-!                         else
-!                              call set_flag(SpawnedParts(:, valid_diag_spawn_list(proc)), flag_weak_initiator(part_type),.false.)
-!                         endif
-!               else
-!                 call set_flag(SpawnedParts(:, valid_diag_spawn_list(proc)), flag_weak_initiator(part_type),.false.)
-!               endif
-! 
-
-!             endif
-            end if
         end if
 
         if (tFillingStochRDMonFly) then
@@ -809,12 +771,13 @@ contains
             ! but right now, as calced above they are treated as annihilations!
             ! to deal with it later in the annihilation step as nborns and 
             ! ndied mark them as diagonal particles here.. 
+#ifdef __REALTIME
             do i = 1, lenof_sign
                 if (abs(real_sign_new(i)) > EPS) then
                     call set_flag(SpawnedParts(:,ind), flag_diag_spawn(i))
                 end if
             end do
-
+#endif
             ! Set the initiator flags appropriately.
             ! If this determinant (on this replica) has already been spawned to
             ! then set the initiator flag. Also if this child was spawned from
@@ -912,12 +875,14 @@ contains
 
             ! to correctly account nborn and ndied stats set a flag which marks
             ! these particles as diagonal "spawns"
+#ifdef __REALTIME
             do i = 1, lenof_sign
                 if (abs(diag_sign(i)) > EPS) then
                     call set_flag(SpawnedParts(:,ValidSpawnedList(proc)), &
                         flag_diag_spawn(i))
                 end if
             end do
+#endif
 
             ! If the parent was an initiator then set the initiator flag for the
             ! child, to allow it to survive.
@@ -1314,16 +1279,16 @@ contains
             end if
         else
             ! All walkers died.
-            if(tFillingStochRDMonFly) then
-                do irdm = 1, nrdms
-                    call det_removed_fill_diag_rdm(rdms(irdm), irdm, CurrentDets(:,DetPosition), DetPosition)
-                end do
+!            if(tFillingStochRDMonFly) then
+!                do irdm = 1, nrdms
+!                    call det_removed_fill_diag_rdm(rdms(irdm), irdm, CurrentDets(:,DetPosition), DetPosition)
+!                end do
                 ! Set the average sign and occupation iteration to zero, so
                 ! that the same contribution will not be added in in
                 ! CalcHashTableStats, if this determinant is not overwritten
                 ! before then
-                global_determinant_data(:, DetPosition) = 0.0_dp
-            endif
+!                global_determinant_data(:, DetPosition) = 0.0_dp
+!            endif
 
             if (tTruncInitiator) then
                 ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
@@ -1509,7 +1474,9 @@ contains
 
             ! We actually want to calculate Hji - take the complex conjugate, 
             ! rather than swap around DetCurr and nJ.
+#ifdef __REALTIME
             rh_used = conjg(rh)
+#endif
 
             ! have to loop over the tgt_cpt similar to the complex implo
             ! if the Hamiltonian has real and imaginary components do it 
@@ -1520,13 +1487,14 @@ contains
                 if (part_type == 2 .and. inum_runs == 1) component = 3 - tgt_cpt
 
                 walkerweight = sign(1.0_dp,RealwSign(part_type)) 
-
+#ifdef __REALTIME
                 if (component == 1) then
                     MatEl = real(aimag(rh_used),dp)
                 else 
                     MatEl = real(rh_used,dp)
                     if (part_type == 2) walkerweight = -walkerweight
                 end if
+#endif
 
                 nSpawn = - tau * MatEl * walkerweight / prob
 
@@ -1875,7 +1843,7 @@ contains
         ! popsfile_dets the left hand <y(0)| by applying the corresponding 
         ! creation or annihilation operator
         character(*), parameter :: this_routine = "create_perturbed_ground"
-        integer(int64) :: tmp_totwalkers
+        integer :: tmp_totwalkers
         integer :: ierr
 
         tmp_totwalkers = TotWalkers_orig
@@ -1885,10 +1853,8 @@ contains
 
 
         allocate(perturbed_ground(0:niftot,TotWalkers_orig), stat = ierr)
-
         call apply_perturbation(overlap_pert(1), tmp_totwalkers, popsfile_dets,&
             perturbed_ground)
-
         TotWalkers_pert = int(tmp_totwalkers, int64)
 
         print *, "Walkers remaining in perturbed ground state:" , TotWalkers_pert
@@ -1899,5 +1865,4 @@ contains
 
 
     end subroutine create_perturbed_ground
-
 end module real_time_procs

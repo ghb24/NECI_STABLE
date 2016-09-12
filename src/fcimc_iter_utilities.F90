@@ -563,19 +563,19 @@ contains
         low = upp + 1; upp = low + sizes(30) - 1; AllNoDied_1 = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(31) - 1; AllNoAtDoubs_1 = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(32) - 1; AllAnnihilated_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(33) - 1; AllNoAddedInitiators_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(34) - 1; AllNoInitDets_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(35) - 1; AllNoNonInitDets_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(36) - 1; AllInitRemoved_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(33) - 1; AllNoAddedInitiators_1 = nint(recv_arr(low:upp), int64);
+        low = upp + 1; upp = low + sizes(34) - 1; AllNoInitDets_1 = nint(recv_arr(low:upp), int64);
+        low = upp + 1; upp = low + sizes(35) - 1; AllNoNonInitDets_1 = nint(recv_arr(low:upp), int64);
+        low = upp + 1; upp = low + sizes(36) - 1; AllInitRemoved_1 = nint(recv_arr(low:upp), int64);
         low = upp + 1; upp = low + sizes(37) - 1; AllNoAborted_1 = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(38) - 1; AllNoRemoved_1 = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(39) - 1; AllNoNonInitWalk_1 = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(40) - 1; AllNoInitWalk_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(41) - 1; all_bloom_count_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(41) - 1; all_bloom_count_1 = nint(recv_arr(low:upp));
         low = upp + 1; upp = low + sizes(42) - 1; AllSumWalkersCyc_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(43) - 1; nspawned_tot_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(43) - 1; nspawned_tot_1 = nint(recv_arr(low));
         low = upp + 1; upp = low + sizes(44) - 1; AllTotParts_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(45) - 1; AllTotWalkers_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(45) - 1; AllTotWalkers_1 = nint(recv_arr(low), int64);
 #endif
 
         ! Communicate HElement_t variables:

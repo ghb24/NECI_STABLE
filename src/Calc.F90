@@ -2510,100 +2510,41 @@ contains
 !             ENDIF
 
              if(tFCIMC) then
-                 call FciMCPar(final_energy)
-                 if ((.not.tMolpro) .and. (.not.tMolproMimic)) then
-                     if (allocated(final_energy)) then
-                         do i = 1, size(final_energy)
-                             write(6,'(1X,"Final energy estimate for state",1X,'//int_fmt(i)//',":",g25.14)') &
-                                 i, final_energy(i)
-                         end do
-                     end if
-                 end if
+                call FciMCPar(final_energy)
+                if ((.not.tMolpro) .and. (.not.tMolproMimic)) then
+                   if (allocated(final_energy)) then
+                      do i = 1, size(final_energy)
+                         write(6,'(1X,"Final energy estimate for state",1X,'//int_fmt(i)//',":",g25.14)') &
+                              i, final_energy(i)
+                      end do
+                   end if
+                end if
              elseif(tRPA_QBA) then
                 call RunRPA_QBA(WeightDum,EnerDum)
                 WRITE(6,*) "Summed approx E(Beta)=",EnerDum
              elseif(tKP_FCIQMC) then
-                 if (tExcitedStateKP) then
-                     call perform_subspace_fciqmc(kp)
-                 else
-                     call perform_kp_fciqmc(kp)
-                 end if
-<<<<<<< HEAD
-
+                if (tExcitedStateKP) then
+                   call perform_subspace_fciqmc(kp)
+                else
+                   call perform_kp_fciqmc(kp)
+                end if
+                ! RT_M_Merge: Real time step added, deprecated cases removed
              else if (t_real_time_fciqmc) then
-                 call perform_real_time_fciqmc()
-
-             else
-                 WRITE(6,*) "Calculating ",NPATHS," W_Is..."
-                 iunit =get_free_unit()
-                 IF(BTEST(ILOGGING,1)) THEN
-                    IF(I_HMAX.EQ.-10) THEN
-                       OPEN(iunit,FILE="MCSUMMARY",STATUS="UNKNOWN")
-                       WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
-                       CLOSE(iunit)
-                    ELSE
-                       OPEN(iunit,FILE="MCPATHS",STATUS="UNKNOWN")
-                       WRITE(iunit,*) "Calculating ",NPATHS," W_Is..."
-                       CLOSE(iunit)
-                    ENDIF
-                 ENDIF
-                 IF(NTAY(1).GT.0) THEN
-                    WRITE(6,*) "Using list of determinants."
-                    WRITE(6,*) "Using approx RHOs generated on the fly,NTAY=",NTAY(1)
-    !C.. we haven't calculated the energy, so we're calculating the weights
-    !C.. with approx RHOs
-                    IF(TENERGY) THEN
-    !C.. If we've generated a list of dets
-    !C.. Instead of NMAX, we put ARR
-                         CALL CALCRHOPII2(BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,               &
-         &                 NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,          &
-         &                 RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
-         &                 DETINV,TSPECDET,SPECDET)
-    !                      WRITE(6,*) "Out Here 2"
-    !                      CALL neci_flush(6)
-                    ELSE
-                       IF(TCSFOLD) THEN
-                          IF(.NOT.TSPECDET) THEN
-                             WRITE(6,*) "SPECDET not specified. Using Fermi determinant ONLY"
-                             TSPECDET=.TRUE.
-                             CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
-                          ENDIF
-                       ENDIF
-                      IF(TPARITY) THEN
-                          WRITE(6,*) "Using symmetry restriction:"
-                          CALL WRITEALLSYM(6,SymRestrict,.TRUE.)
-                      ENDIF
-                      IF(TSPN) THEN
-                          WRITE(6,*) "Using spin restriction:",LMS
-                      ENDIF
-    !C.. Instead of NMAX we have ARR 
-                      CALL CALCRHOPII3(BETA,I_P,I_HMAX,I_VMAX,NEL,                         &
-         &               NBASISMAX,G1,nBasis,BRR,NMSH,FCK,ARR,ALAT,UMAT,NTAY,              &
-         &               RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,               &
-         &               DETINV,TSPN,LMS2,TPARITY,SymRestrict,TSPECDET,SPECDET,            &
-         &               nActiveBasis)
-                    ENDIF
-                 ELSE
-                     WRITE(6,*) "Invalid combination of NTAY and TENERGY.  No NPATHS calculated"
-                     WRITE(6,*) "NTAY: ",NTAY(1)," TENERGY: ",TENERGY
-                 ENDIF
-=======
->>>>>>> 0510b74a29483a2abd107e624b5029674d8e25ff
-              ENDIF
-          endif
-          IF(TMONTE.and..not.tMP2Standalone) THEN
-!             DBRAT=0.01
-!             DBETA=DBRAT*BETA
-             WRITE(6,*) "I_HMAX:",I_HMAX
-             WRITE(6,*) "Calculating MC Energy..."
-             CALL neci_flush(6)
-             IF(NTAY(1).GT.0) THEN
-                WRITE(6,*) "Using approx RHOs generated on the fly, NTAY=",NTAY(1)
-!C.. NMAX is now ARR
-                call stop_all(this_routine, "DMONTECARLO2 is now non-functional.")
-             ELSEIF(NTAY(1).EQ.0) THEN
-                IF(TENERGY) THEN
-                   WRITE(6,*) "Using exact RHOs generated on the fly"
+                call perform_real_time_fciqmc()
+             endif
+             IF(TMONTE.and..not.tMP2Standalone) THEN
+                !             DBRAT=0.01
+                !             DBETA=DBRAT*BETA
+                WRITE(6,*) "I_HMAX:",I_HMAX
+                WRITE(6,*) "Calculating MC Energy..."
+                CALL neci_flush(6)
+                IF(NTAY(1).GT.0) THEN
+                   WRITE(6,*) "Using approx RHOs generated on the fly, NTAY=",NTAY(1)
+                   !C.. NMAX is now ARR
+                   call stop_all(this_routine, "DMONTECARLO2 is now non-functional.")
+                ELSEIF(NTAY(1).EQ.0) THEN
+                   IF(TENERGY) THEN
+                      WRITE(6,*) "Using exact RHOs generated on the fly"
 !C.. NTAY=0 signifying we're going to calculate the RHO values when we
 !C.. need them from the list of eigenvalues.   
 !C.. Hide NMSH=NEVAL
@@ -2612,16 +2553,17 @@ contains
 !C..         UMAT=NDET
 !C..         ALAT=NMRKS
 !C..         NMAX=ARR
-                call stop_all(this_routine, "DMONTECARLO2 is now non-functional.")
+                      call stop_all(this_routine, "DMONTECARLO2 is now non-functional.")
 !                   EN=DMONTECARLO2(MCDET,I_P,BETA,DBETA,I_HMAX,I_VMAX,IMCSTEPS,             &
 !     &                G1,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS,                                 &
 !     &                NEVAL,W,CK,ARR,NMRKS,NDET,NTAY,RHOEPS,NWHTAY,ILOGGING,ECORE,BETAEQ)
-                ELSE
-                   call stop_all(this_routine, "TENERGY not set, but NTAY=0" )
+                   ELSE
+                      call stop_all(this_routine, "TENERGY not set, but NTAY=0" )
+                   ENDIF
                 ENDIF
-             ENDIF
-             WRITE(6,*) "MC Energy:",EN
+                WRITE(6,*) "MC Energy:",EN
 !CC           WRITE(12,*) DBRAT,EN
+             ENDIF
           ENDIF
          
 !C.. /AJWT

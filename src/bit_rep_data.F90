@@ -53,12 +53,13 @@ module bit_rep_data
                           flag_trial = 2, &
                           flag_connected = 3, &
                           flag_has_been_initiator(1) = 4, &
-#ifdef __REALTIME
+                          ! RT_M_Merge: These should only be adressed with __REALTIME
                           ! use these unused to mark diagonal "spawns"
+#ifdef __REALTIME
                           flag_diag_spawn(lenof_sign) = (/5, 6/)
 #else
-                          flag_unused1 = 5, & 
-                          flag_unused2 = 6
+    flag_unused_1 = 5,&
+         flag_unused_2 = 6
 #endif
 
 #ifdef __PROG_NUMRUNS

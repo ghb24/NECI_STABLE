@@ -366,8 +366,11 @@ contains
     subroutine init_real_time_iteration(iter_data, iter_data2)
         ! routine to reinitialize all the necessary variables and pointers 
         ! for a sucessful real-time fciqmc iteration
+      ! RT_M_Merge: Added dummy argument for rezero_iter_stats_each_iter
+      use rdm_data, only: rdm_definitions_t
         type(fcimc_iter_data), intent(inout) :: iter_data
         type(fcimc_iter_data), intent(inout), optional :: iter_data2
+        type(rdm_definitions_t) :: dummy
 !         integer, intent(out) :: n_determ_states
         character(*), parameter :: this_routine = "init_real_time_iteration"
 
@@ -398,10 +401,10 @@ contains
         ! Clear the hash table for the spawning array.
         call clear_hash_table(spawn_ht)
 
-        call rezero_iter_stats_each_iter(iter_data)
+        call rezero_iter_stats_each_iter(iter_data, dummy)
 
         if (present(iter_data2)) then
-            call rezero_iter_stats_each_iter(iter_data2)
+            call rezero_iter_stats_each_iter(iter_data2, dummy)
         end if
 
         ! additionaly i have to copy the CurrentDets array and all the 
@@ -431,7 +434,7 @@ contains
                     unused_sign(lenof_sign), unused_rdm_real, diag_sign(lenof_sign)
         logical :: tParentIsDeterm, tParentUnoccupied, tParity, tChildIsDeterm
         HElement_t(dp) :: HelGen
-        integer(int64) :: TotWalkersNew
+        integer :: TotWalkersNew
 
         ! declare this is the second runge kutta step
         runge_kutta_step = 2
@@ -625,7 +628,7 @@ contains
                     unused_sign(lenof_sign), unused_rdm_real, tmp_norm
         logical :: tParentIsDeterm, tParentUnoccupied, tParity, tChildIsDeterm
         HElement_t(dp) :: HelGen
-        integer(int64) :: TotWalkersNew
+        integer :: TotWalkersNew
 
         ! declare this is the first runge kutta step
         runge_kutta_step = 1
@@ -830,7 +833,7 @@ contains
         character(*), parameter :: this_routine = "perform_real_time_iteration"
 
         integer :: idet !, n_determ_states 
-        integer(int64) :: TotWalkersNew
+        integer :: TotWalkersNew
         real(dp) :: tmp_sign(lenof_sign)
 
         ! 0)
