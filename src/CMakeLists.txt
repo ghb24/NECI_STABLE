@@ -117,6 +117,10 @@ set( SRC_FILES
     readinput.F90
     readint.F90
     read_psi.F
+    real_time_data.F90
+    real_time.F90
+    real_time_procs.F90
+    real_time_init.F90
     readri.F90
     replica_data.F90
     rhodiag.F
