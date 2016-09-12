@@ -2528,7 +2528,6 @@ MODULE GenRandSymExcitNUMod
     ! Based around a very simple generation algorithm: find unique i, j, a, b, then reject
     ! Currently not working
     SUBROUTINE CreateExcitLattice2(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
-        Use SystemData , only : NMAXX,NMAXY,NMAXZ
 
         INTEGER :: Elec1, Elec2, Hole1, Hole2,ms_sum
         INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ExcitMat(2,2),rejections
@@ -3062,6 +3061,14 @@ MODULE GenRandSymExcitNUMod
             allocate(store%virt_list(maxval(OrbClassCount), Scratchsize1))
         endif
 
+        if (tBuildSpinSepLists) then
+            allocate(store%nI_alpha(nel))
+            allocate(store%nI_beta(nel))
+            allocate(store%nI_alpha_inds(nel))
+            allocate(store%nI_beta_inds(nel))
+            !store%nel_alpha = 0
+        endif
+
         if (tSpinProject) then
             allocate(store%dorder_i(nel))
             allocate(store%dorder_j(nel))
@@ -3119,8 +3126,7 @@ SUBROUTINE SpinOrbSymSetup()
     use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel, &
                                SymTableLabels, KPntInvSymOrb
     use GenRandSymExcitNUMod , only : ClassCountInd
-    use SymData, only: nSymLabels,TwoCycleSymGens,SymClasses
-    use SymData, only: SymLabelList,SymLabelCounts,SymConjTab,SymLabels
+    use SymData, only: nSymLabels, SymClasses, SymLabels
     use SystemData , only : NMAXZ,tFixLz,iMaxLz,nBasis,tUEG,tKPntSym,G1,tHub,nBasisMax,NEl
     use SystemData , only : Symmetry,tHPHF,tSpn,tISKFuncs,Arr,tNoSymGenRandExcits, Elecpairs
     use SystemData , only : MaxABPairs, tUEG2, kvec
@@ -3525,46 +3531,56 @@ SUBROUTINE SpinOrbSymSetup()
 END SUBROUTINE SpinOrbSymSetup
 
 
+logical function IsMomAllowedDet(nJ)
+    use SystemData, only : nEl
+    use FciMCData , only : HFSym
+    implicit none
+    logical :: IsMomAllowedDetAnyParent
+    integer :: nJ(nEl)
+    IsMomAllowedDet = IsMomAllowedDetAnyParent(nJ, HFSym%Sym)
+end function IsMomAllowedDet
 
-LOGICAL FUNCTION IsMomAllowedDet(nJ)
+LOGICAL FUNCTION IsMomAllowedDetAnyParent(nJ, parentSym)
     use sym_mod
     use SystemData , only : G1,NEl,Symmetry,nBasisMax,BasisFN
-    use FciMCData , only : HFSym
 !    use GenRandSymExcitNUMod , only : Counter
     IMPLICIT NONE
     Type(Symmetry) :: SYM1
+    Type(Symmetry) :: parentSym
     Type(BasisFN) :: iSym
     INTEGER :: i,nJ(NEl),KPnt(3)
+
+    IsMomAllowedDetAnyParent = .false.
 
     SYM1%S=0
     do i=1,NEl
         SYM1=SYMPROD(SYM1,G1(nJ(i))%Sym)
     enddo
 
-    IF(SYM1%S.ne.HFSym%Sym%S) THEN
+    IF(SYM1%S.ne.parentSym%S) THEN
         WRITE(6,*) "nJ: ",nJ(:)
-        WRITE(6,*) "HFSym,SYM1: ",HFSym%Sym%S,SYM1%S
+        WRITE(6,*) "parentSym,SYM1: ",parentSym%S,SYM1%S
 !        WRITE(6,*) "Counter: ",Counter
         CALL DecomposeAbelianSym(SYM1%S,KPnt)
         WRITE(6,"(A,3I5)") "KPnt for nJ: ",KPnt(1),KPnt(2),KPnt(3)
         CALL Stop_All("IsMomAllowedDet","Momentum forbidden excitation created1.")
     ELSE
-        IsMomAllowedDet=.true.
+        IsMomAllowedDetAnyParent=.true.
     ENDIF
 
     CALL GETSYM(nJ,NEl,G1,nBasisMax,iSym)
 
-    IF(iSym%Sym%S.ne.HFSym%Sym%S) THEN
+    IF(iSym%Sym%S.ne.parentSym%S) THEN
         WRITE(6,*) "nJ: ",nJ(:)
-        WRITE(6,*) "HFSym,SYM1: ",HFSym%Sym%S,iSym%Sym%S
+        WRITE(6,*) "parentSym,SYM1: ",parentSym%S,iSym%Sym%S
 !        WRITE(6,*) "Counter: ",Counter
         CALL DecomposeAbelianSym(iSym%Sym%S,KPnt)
         WRITE(6,"(A,3I5)") "KPnt for nJ: ",KPnt(1),KPnt(2),KPnt(3)
         CALL Stop_All("IsMomAllowedDet","Momentum forbidden excitation created2.")
     ELSE
-        IsMomAllowedDet=.true.
+        IsMomAllowedDetAnyParent=.true.
     ENDIF
 
-END FUNCTION IsMomAllowedDet
+END FUNCTION IsMomAllowedDetAnyParent
 
 

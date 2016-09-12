@@ -6,6 +6,12 @@ nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 
+[kmneci/*/]
+program = kmneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
 [mneci/*/*/]
 program = mneci
 nprocs = 2
@@ -16,6 +22,14 @@ max_nprocs = 2
 max_nprocs = 1
 
 [neci/parallel/*/]
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+[neci/rdm_singlerun/serial/*]
+max_nprocs = 1
+
+[neci/rdm_singlerun/parallel/*]
 nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
@@ -38,20 +52,24 @@ tolerance = (5e-10, None, 'energy_summed')
 
 [mneci/kpfciqmc/fci_all_sym/]
 program = mneci
-tolerance = (2e-8, None, 'hamil_sum')
+tolerance = (2e-8, None, 'overlap_sum')
 
 [mneci/ftlm/hub_6/]
 program = mneci
-tolerance = (2e-9, None, 'overlap_sum')
+tolerance = (2e-9, None, 'hamil_sum')
 
 [mneci/cfqmc/HeHe_5_states/]
 program = mneci
-tolerance = (3e-8, None, 'hamil_sum'), (2e-7, None, 'overlap_sum')
+tolerance = (3e-8, None, 'overlap_sum'), (2e-7, None, 'hamil_sum')
 
 [mneci/cfqmc/HeHe_5_states_exact_hamil/]
 program = mneci
-tolerance = (5.01e-8, None, 'hamil_sum'), (3.01e-7, None, 'overlap_sum')
+tolerance = (5.01e-8, None, 'overlap_sum'), (3.01e-7, None, 'hamil_sum')
+
+[mneci/excited_state/Ne_hphf_2_states_rdm_transition/]
+program = mneci
+tolerance = (5e-8, None, 'sum_error_rdm_2'), (5e-8, None, 'sum_diff_trdm_1_2(1)'), (5e-8, None, 'sum_diff_trdm_1_2(2)')
 
 [categories]
 
-_default_ = neci kneci mneci
+_default_ = neci kneci mneci kmneci

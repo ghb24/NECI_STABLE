@@ -1,0 +1,45 @@
+title
+
+system read
+electrons 4
+nonuniformrandexcits 4ind-weighted
+system-replicas 8
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+
+lanczos-max-subspace-size 30
+lanczos-energy-precision 6
+lanczos-ritz-overlap-precision 3
+
+memoryfacspawn 20.0
+memoryfacpart 20.0
+diagshift 0.5 2.0 2.0 2.0 2.5 3.0 3.0 3.5
+totalwalkers 1000
+tau 0.01
+startsinglepart 300
+shiftdamp 0.5
+stepsshift 10
+nmcyc 4000
+allrealcoeff
+realspawncutoff 0.01
+orthogonalise-replicas
+doubles-init
+semi-stochastic
+doubles-core
+trial-wavefunction 1000
+pops-trial 200
+load-balance-blocks off
+seed 10
+endcalc
+
+integral
+endint
+
+logging
+popsfile -1
+endlog
+end

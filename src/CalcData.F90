@@ -113,9 +113,7 @@ logical :: tAllRealCoeff, tUseRealCoeffs
 logical :: tRealSpawnCutoff
 logical :: tRealCoeffByExcitLevel
 integer :: RealCoeffExcitThresh
-real(dp) :: RealSpawnCutoff, OccupiedThresh, InitiatorOccupiedThresh
-logical :: tEnhanceRemainder
-logical :: tInitOccThresh
+real(dp) :: RealSpawnCutoff, OccupiedThresh
 logical :: tRPA_QBA     !RPA calculation with QB approximation
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
 logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
@@ -141,7 +139,7 @@ real(dp), allocatable :: InitialPartVec(:)
 INTEGER :: OccCASorbs,VirtCASorbs,iAnnInterval
 integer :: iPopsFileNoRead, iPopsFileNoWrite,iRestartWalkNum
 real(dp) :: iWeightPopRead
-integer :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
+real(dp) :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
 INTEGER(int64) :: HFPopThresh
 real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo
 
@@ -171,6 +169,15 @@ real(dp), allocatable :: TargetGrowRate(:)
 integer(int64), allocatable :: TargetGrowRateWalk(:)
 integer(int64) :: iExitWalkers  !Exit criterion, based on total walker number
 
+! Lanczos initialisation of the wavefunctions
+logical :: t_lanczos_init
+logical :: t_lanczos_store_vecs
+logical :: t_lanczos_orthogonalise
+integer :: lanczos_max_restarts
+integer :: lanczos_max_vecs
+integer :: lanczos_energy_precision
+integer :: lanczos_ritz_overlap_precision
+
 
 !// additional from NECI.F
 INTEGER, Allocatable :: MCDet(:)
@@ -184,8 +191,7 @@ LOGICAL tUseProcsAsNodes  !Set if we treat each processor as its own node.
 INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of at most this size.
                           ! 0 means use physical nodes.
 
-    logical :: tJumpShift, tPopsJumpShift
-    logical :: tShiftProjectGrowth = .false.
+logical :: tJumpShift, tPopsJumpShift
 
 ! Perform a Davidson calculation if true.
 logical :: tDavidson
@@ -249,23 +255,6 @@ logical :: tWritePopsNorm
 real(dp) :: pops_norm
 integer :: pops_norm_unit
 
-! What is the maximum energy, above which all particles are treated as
-! initiators
-real(dp) :: InitiatorCutoffEnergy, InitiatorCutoffWalkNo
-
-! Should we aggregate particle counts across all of the simulations in
-! determining which sites are initiators (in system-replica mode).
-logical :: tMultiReplicaInitiators = .false.
-
-! Do we make sites into initiators if they have survived more than a certain
-! period of time?
-logical :: tSurvivalInitiatorThreshold, tSurvivalInitMultThresh
-real(dp) :: im_time_init_thresh, init_survival_mult
-
-! Do we make sites into initiators depending on the number of spawns to them?
-logical :: tSpawnCountInitiatorThreshold
-integer :: init_spawn_thresh
-
 ! Are we orthogonalising replicas?
 logical :: tOrthogonaliseReplicas, tReplicaSingleDetStart
 logical :: tOrthogonaliseSymmetric
@@ -324,17 +313,13 @@ logical :: tMultiRefShift = .false.
 ! Keep track of where in the calculation sequence we are.
 integer :: calc_seq_no
 
-!Weak initiator extension
-logical :: tWeakInitiators
-real(dp) :: weakthresh
+! introduce a min_tau value to set a minimum of tau for the automated tau
+! search 
+logical :: t_min_tau = .false. 
+real(dp) :: min_tau_global = 1.0e-7_dp
 
-! During annihilation, do we need the coefficient on the parent site? If so
-! then attach it here
-logical :: tBroadcastParentCoeff = .false.
-
-logical :: tInterpolateInitThresh = .false.
-real(dp) :: init_interp_min, init_interp_max, init_interp_exponent
-
-logical :: tMP2FixedNode = .false.
+! alis suggestion: have an option after restarting to keep the time-step 
+! fixed to the values obtained from the POPSFILE 
+logical :: t_keep_tau_fixed = .false.
 
 end module CalcData

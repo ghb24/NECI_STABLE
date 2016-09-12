@@ -269,7 +269,7 @@ contains
 
         character(*), intent(in) :: nm
         %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
-        integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2)
+        integer(int64), intent(in) :: dims((len_trim('%(dim)s') + 1) / 2)
         integer, intent(in),optional :: node
         character(len_trim(nm) + 10) :: name_tmp
 
@@ -282,7 +282,7 @@ contains
         call conv_name (nm, name_tmp, node)
         name_tmp = trim(name_tmp)//c_null_char
 
-        sz = %(sizeof)s * product(int(dims,int64))
+        sz = %(sizeof)s * product(dims)
 
         ! Allocate the shared memory
         call alloc_shared_worker (name_tmp, tmp, int(sz, kind=c_size_t), &
@@ -294,7 +294,7 @@ contains
         ptr => ptr_tmp
         nullify(ptr_tmp)
 
-        write (6, '("Allocated ", i10, &
+        write (6, '("Allocated ", i18, &
                   &" bytes of shared memory named: ", a)') sz, nm
 
 #else

@@ -29,13 +29,14 @@ MODULE FciMCData
       integer :: fcimcstats_unit2 ! FCIMCStats
       integer :: initiatorstats_unit ! INITIATORStats
       integer :: ComplexStats_unit ! COMPLEXStats
+      integer :: mswalkercounts_unit
       integer :: Tot_Unique_Dets_Unit 
 
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVecKP(:,:), SpawnVecKP2(:,:)
 
-      ! Hash table to spawning array. Currently only used in (parts of) KP-FCIQMC.
+      ! Hash table to spawning array. Currently not used by default, except in KP-FCIQMC.
       type(ll_node), pointer :: spawn_ht(:)
       ! The number of unique hash values in the spawning hash table.
       integer :: nhashes_spawn
@@ -67,13 +68,14 @@ MODULE FciMCData
       REAL(dp) :: SumSigns, SumSpawns
       real(dp), allocatable :: AvNoatHF(:)
       LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly
+      logical :: tTransitionRDMsStarted = .false.
       logical :: tFill_RDM
       integer :: IterLastRDMFill
       integer :: Spawned_Parts_Zero, HFInd
       integer :: IterRDMStart
       integer, allocatable :: IterRDM_HF(:)
       real(dp), allocatable :: InstNoatHf(:)
-      logical :: tFinalRDMEnergy
+
 
       INTEGER(KIND=n_int) , ALLOCATABLE :: TempSpawnedParts(:,:)
       INTEGER :: TempSpawnedPartsTag, TempSpawnedPartsInd, TempSpawnedPartsSize
@@ -109,7 +111,7 @@ MODULE FciMCData
 !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying, and
                                      !the instantaneous shift, including the number of aborted as though they had lived.
 
-      real(dp) :: DiagSftRe,DiagSftIm     !For complex walkers - this is just for info - not used for population control.
+      real(dp), allocatable :: DiagSftRe(:), DiagSftIm(:)     !For complex walkers - this is just for info - not used for population control.
     
       INTEGER , ALLOCATABLE :: HFDet(:), HFDet_True(:)       !This will store the HF determinant
       INTEGER(TagIntType) :: HFDetTag=0
@@ -265,6 +267,7 @@ MODULE FciMCData
       ! The approximate fraction of singles and doubles. This is calculated
       ! using the HF determinant, if using non-uniform random excitations.
       real(dp) :: pDoubles, pSingles, pParallel
+      real(dp) :: pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
       integer :: nSingles, nDoubles
       ! The number of determinants connected to the Hartree-Fock determinant.
       integer :: HFConn
@@ -427,7 +430,7 @@ MODULE FciMCData
       ! only used for the code for the Davidson method and semi-stochastic method.
       real(dp), allocatable, dimension(:,:) :: hamiltonian
 
-      integer(TagIntType) :: HamTag, DavidsonTag
+      integer(TagIntType) :: HamTag, DavidsonTag, LanczosTag
 
       ! Semi-stochastic data.
 
@@ -557,6 +560,14 @@ MODULE FciMCData
 
       type(perturbation), allocatable :: pops_pert(:)
 
-      real(dp), allocatable :: replica_overlaps(:,:)
+      real(dp), allocatable :: replica_overlaps_real(:,:)
+#ifdef __CMPLX
+      real(dp), allocatable :: replica_overlaps_imag(:,:)
+#endif
 
-END MODULE FciMCData
+
+      ! counting the total walker population all determinants of each ms value
+      real(dp), allocatable :: walkPopByMsReal(:), walkPopByMsImag(:)
+
+
+end module FciMCData

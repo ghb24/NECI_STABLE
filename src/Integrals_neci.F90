@@ -1,7 +1,7 @@
 #include "macros.h"
 module Integrals_neci
 
-    use SystemData, only: tStoreSpinOrbs, tStarStore, nBasisMax, iSpinSkip, &
+    use SystemData, only: tStoreSpinOrbs, nBasisMax, iSpinSkip, &
                           tFixLz, nBasis, G1, Symmetry, tCacheFCIDUMPInts, &
                           tRIIntegrals, tVASP,tComplexOrbs_RealInts, NEl, LMS, ECore
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
@@ -18,6 +18,7 @@ module Integrals_neci
     use Parallel_neci, only: iProcIndex
     use bit_reps, only: init_bit_rep
     use procedure_pointers, only: get_umat_el, get_umat_el_secondary
+    use constants
 
     implicit none
 
@@ -88,7 +89,7 @@ contains
 
     SUBROUTINE IntReadInput()
       USE input_neci
-      use SystemData , only : NEL,TUSEBRILLOUIN,tStarStore,OrbOrder,NMSH,BasisFN
+      use SystemData, only: NEL, TUSEBRILLOUIN, OrbOrder, BasisFN
       use UMatCache, only: tReadInCache,nSlotsInit,nMemInit,iDumpCacheFlag,iDFMethod
       IMPLICIT NONE
       LOGICAL eof
@@ -271,7 +272,7 @@ contains
 ! two ways of specifying open orbitals
 ! if orborder2(I,1) is integral, then if it's odd, we have a single
 ! open orbital
-               IF(ORBORDER2(I).EQ.INT(ORBORDER2(I))) THEN
+               IF(abs(ORBORDER2(I) - INT(ORBORDER2(I))) < 1.0e-12_dp) THEN
                   ORBORDER(I,1)=IAND(INT(ORBORDER2(I)),65534)
                   IF((INT(ORBORDER2(I))-ORBORDER(I,1)).GT.0) THEN
 ! we have an open orbital
@@ -348,24 +349,24 @@ contains
     Subroutine IntInit(iCacheFlag)
 !who knows what for
       Use global_utilities
-      use constants, only: dp
-      Use OneEInts, only: SetupTMat!,GetTMatEl
+      Use OneEInts, only: SetupTMat
       USE UMatCache, only : FreezeTransfer, CreateInvBRR, GetUMatSize, SetupUMat2D_df
-      Use UMatCache, only: InitStarStoreUMat,SetupUMatCache!,GTID,UMatInd
+      Use UMatCache, only: SetupUMatCache
       use SystemData, only : nBasisMax, Alpha,BHub, BRR,nmsh,nEl
       use SystemData, only : Ecore,G1,iSpinSkip,nBasis,nMax,nMaxZ
       use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER,tRIIntegrals
-      use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP,tStarStore
-      use SystemData, only: uhub, arr,alat,treal,tCacheFCIDUMPInts
+      use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP, tPickVirtUniform
+      use SystemData, only: uhub, arr,alat,treal,tCacheFCIDUMPInts, tReltvy
+      use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
       use MemoryManager, only: TagIntType
       use sym_mod, only: GenSymStatePairs
       use read_fci
-      use constants, only: Pi, Pi2, THIRD
       INTEGER iCacheFlag
       complex(dp),ALLOCATABLE :: ZIA(:)
       INTEGER(TagIntType),SAVE :: tagZIA=0
       INTEGER i!,j,k,l,idi,idj,idk,idl,Index1
-      INTEGER TmatInt,UMatInt
+      INTEGER TmatInt
+      integer(int64) :: UMatInt
       real(dp) :: UMatMem
       integer iErr
       character(25), parameter :: this_routine='IntInit'
@@ -399,14 +400,14 @@ contains
       IF(TCPMD) THEN
 !.. We don't need to do init any 4-index integrals, but we do need to init the 2-index
          WRITE(6,*) " *** INITIALIZING CPMD 2-index integrals ***"
-         call shared_allocate ("umat", umat, (/1/))
+         call shared_allocate ("umat", umat, (/1_int64/))
          !Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
          CALL GENSymStatePairs(nBasis/2,.false.)
          CALL SetupTMAT(nBasis,2,TMATINT)
          CALL CPMDINIT2INDINT(nBasis,I,G1,NEL,ECORE,THFORDER,ARR,BRR,iCacheFlag)
       ELSEIF(tVASP) THEN
-         call shared_allocate ("umat", umat, (/1/))
+         call shared_allocate ("umat", umat, (/1_int64/))
          !Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
          CALL GENSymStatePairs(nBasis/2,.false.)
@@ -419,14 +420,14 @@ contains
 !read in integral and put in cache
 !change flag to read integrals from cache
       ELSEIF(TREADINT.AND.TDFREAD) THEN
-         call shared_allocate ("umat", umat, (/1/))
+         call shared_allocate ("umat", umat, (/1_int64/))
          !Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
          CALL SetupTMAT(nBasis,2,TMATINT)
          Call ReadDalton1EIntegrals(G1,nBasis,ECore)
          Call ReadDF2EIntegrals(nBasis,I)
       ELSEIF(TREADINT.AND.tRIIntegrals) THEN
-         call shared_allocate ("umat", umat, (/1/))
+         call shared_allocate ("umat", umat, (/1_int64/))
          !Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
 !Why is this called twice here?!
@@ -438,7 +439,7 @@ contains
          NBASISMAX(2,3)=0
          WRITE(6,*) ' ECORE=',ECORE
       ELSEIF(tReadInt.and.tCacheFCIDUMPInts) THEN
-         call shared_allocate ("umat", umat, (/1/))
+         call shared_allocate ("umat", umat, (/1_int64/))
          !ALLOCATE(UMat(1),stat=ierr)
          LogAlloc(ierr,'UMat',1,HElement_t_SizeB,tagUMat)
          CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
@@ -468,29 +469,6 @@ contains
 !This is generally iSpinSkp, but stupidly, needs to be .le.0 to indicate that we want to look up the integral.
          NBASISMAX(2,3)=0   
          WRITE(6,*) ' ECORE=',ECORE
-      ELSEIF(TREADINT.AND.TSTARSTORE) THEN
-         WRITE(6,'(A)') '*** READING DOUBLES 2-VERTEX INTEGRALS FROM FCIDUMP ***'
-         NBASISMAX(2,3)=2
-         !NBASIS/nBasis is number of spin-orbitals
-         CALL GENSymStatePairs(nBasis/2,.false.)
-         !CALL WRITESYMORBS(nBasis,G1)
-         !NBASISMAX(5,2)+1 is the number of irreps
-         CALL SetupTMAT(nBasis,2,TMATINT)
-         CALL CREATEINVBRR(BRR,nBasis)
-         Call InitStarStoreUMat(nEl/2, nBasis/2)
-         CALL GetUMatSize(nBasis,nEl,UMATINT)
-         call shared_allocate ("umat", umat, (/UMatInt/))
-         !Allocate(UMat(UMatInt), stat=ierr)
-         LogAlloc(ierr, 'UMat', UMatInt,HElement_t_SizeB, tagUMat)
-         if (iprocindex == 0) UMat = 0.0_dp
-         CALL SETUPUMAT2D_DF()
-         IF(TBIN) THEN
-             CALL READFCIINTBIN(UMAT,ECORE)
-         ELSE
-             CALL READFCIINT(UMAT,NBASIS,ECORE,.false.)
-         ENDIF
-         WRITE(6,*) ' ECORE=',ECORE
-         ISPINSKIP=2
       ELSEIF(TREADINT) THEN
          WRITE(6,'(A)') '*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***'
 !.. Generate the 2e integrals (UMAT)
@@ -504,7 +482,7 @@ contains
          call neci_flush(6)
          call shared_allocate ("umat", umat, (/UMatInt/))
          !Allocate(UMat(UMatInt), stat=ierr)
-         LogAlloc(ierr, 'UMat', UMatInt,HElement_t_SizeB, tagUMat)
+         LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
          if (iprocindex == 0) UMat = 0.0_dp
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
          CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
@@ -526,7 +504,7 @@ contains
                   CALL GetUMatSize(nBasis,nEl,UMATINT)
                   call shared_allocate ("umat", umat, (/UMatInt/))
                   !Allocate(UMat(UMatInt), stat=ierr)
-                  LogAlloc(ierr, 'UMat', UMatInt,HElement_t_SizeB, tagUMat)
+                  LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
                   UMat = 0.0_dp
                   WRITE(6,*) "Size of UMat is: ",UMATINT
                   CALL CALCUMATHUBREAL(NBASIS,UHUB,UMAT)
@@ -537,7 +515,7 @@ contains
                   CALL GetUMatSize(nBasis,nEl,UMATINT)
                   call shared_allocate ("umat", umat, (/UMatInt/))
                   !Allocate(UMat(UMatInt), stat=ierr)
-                  LogAlloc(ierr, 'UMat', UMatInt,HElement_t_SizeB, tagUMat)
+                  LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
                   UMat = 0.0_dp
     !!C.. Non-periodic hubbard (mom space)
                   call gen_coul_hubnpbc
@@ -548,7 +526,7 @@ contains
                      ISPINSKIP=-1
                      NBASISMAX(2,3)=-1
                      WRITE(6,*) "Not precomputing HUBBARD 2-e integrals"
-                     call shared_allocate ("umat", umat, (/1/))
+                     call shared_allocate ("umat", umat, (/1_int64/))
                      !Allocate(UMat(1), stat=ierr)
                      LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
                      UMAT(1)=UHUB/OMEGA
@@ -578,7 +556,7 @@ contains
                CALL GetUMatSize(nBasis,nEl,UMATINT)
                call shared_allocate ("umat", umat, (/UMatInt/))
                !Allocate(UMat(UMatInt), stat=ierr)
-               LogAlloc(ierr, 'UMat', UMatInt,HElement_t_SizeB, tagUMat)
+               LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
                UMat = 0.0_dp
                CALL GEN_COUL(NBASISMAX,nBasis,G1,NMSH,NMAX,FCK,UMAT,ZIA)
                deallocate(ZIA)
@@ -588,7 +566,7 @@ contains
             ENDIF
          ELSE
             WRITE(6,*) "Not precomputing 2-e integrals"
-            call shared_allocate ("umat", umat, (/1/))
+            call shared_allocate ("umat", umat, (/1_int64/))
             !Allocate(UMat(1), stat=ierr)
             LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
          ENDIF
@@ -607,6 +585,11 @@ contains
             CALL CALCTMATUEG(NBASIS,ALAT,G1,CST,NBASISMAX(1,1).LE.0,OMEGA)
          ENDIF
       ENDIF
+
+      if ((tPickVirtUniform .and. tBuildSpinSepLists .and. tBuildOccVirtList) .and. .not. tReltvy) then
+        call stop_all(this_routine, "pick-virt-uniform-mag option needs TREL=.TRUE. in FCIDUMP")
+      endif
+
       !ENDIF
 
 !      WRITE(6,*) "ONE ELECTRON"
@@ -624,7 +607,7 @@ contains
 !                     IDj = GTID(j)
 !                     IDk = GTID(k)
 !                     IDl = GTID(l)
-!                     Index1=UMatInd(idi,idj,idk,idl,0,0)
+!                     Index1=UMatInd(idi,idj,idk,idl)
 !                     WRITE(37,"(9I5,G25.10)") i,j,k,l,
 !idi,idj,idk,idl,Index1,GetUMatEl(NBasisMax,UMAT,ALAT,nBasis,ISpinSkip,G1,idi,idj,idk,idl)
 !                 enddo
@@ -641,13 +624,11 @@ contains
 
         
     Subroutine IntFreeze
-      use SystemData, only: Alat,Brr,CoulDampOrb,ECore,fCoulDampMu
+      use SystemData, only: Brr,CoulDampOrb,ECore,fCoulDampMu
       use SystemData, only: G1,iSpinSkip
       use SystemData, only: nBasis,nEl,arr,nbasismax
       use UMatCache, only: GetUMatSize
-      use constants, only: dp,bits_n_int
       use SymData , only : TwoCycleSymGens
-      use FciMCData , only : tDebug
       use MemoryManager, only: TagIntType
       use global_utilities
       character(25), parameter ::this_routine='IntFreeze'            
@@ -655,12 +636,12 @@ contains
       HElement_t(dp), pointer :: UMAT2(:)
       INTEGER(TagIntType) tagUMat2
       INTEGER nOcc
-      integer UMATInt
+      integer(int64) :: UMATInt
       integer nHG
 
       nHG=nBasis
             
-      CHEMPOT=(ARR(NEL,1)+ARR(NEL+1,1))/2.0_dp
+      if(NEL+1<nBasis) CHEMPOT=(ARR(NEL,1)+ARR(NEL+1,1))/2.0_dp
 !      WRITE(6,*) "Chemical Potential: ",CHEMPOT
       IF(NTFROZEN.LT.0) THEN
          WRITE(6,*) "NTFROZEN<0.  Leaving ", -NTFROZEN," unfrozen virtuals."
@@ -695,11 +676,11 @@ contains
             CALL GetUMatSize(nBasis,(nEl-NFROZEN-NFROZENIN),UMATINT)
             call shared_allocate ("umat2", umat2, (/UMatInt/))
             !Allocate(UMat2(UMatInt), stat=ierr)
-            LogAlloc(ierr, 'UMat2', UMatInt,HElement_t_SizeB, tagUMat2)
+            LogAlloc(ierr, 'UMat2', int(UMatInt),HElement_t_SizeB, tagUMat2)
             UMAT2 = 0.0_dp
          ELSE
 !!C.. we don't precompute 4-e integrals, so don't allocate a large UMAT
-            call shared_allocate ("umat2", umat2, (/1/))
+            call shared_allocate ("umat2", umat2, (/1_int64/))
             !Allocate(UMat2(1), stat=ierr)
             LogAlloc(ierr, 'UMat2', 1,HElement_t_SizeB, tagUMat2)
          ENDIF 
@@ -756,7 +737,6 @@ contains
 
 
     subroutine IntCleanup (iCacheFlag)
-        use SystemData, only: G1, nBasis
         use UMatCache, only: iDumpCacheFlag, tReadInCache, nStates, &
                              nStatesDump, DumpUMatCache, DestroyUMatCache, &
                              WriteUMatCacheStats
@@ -794,8 +774,7 @@ contains
 !This routine takes the frozen orbitals and modifies ECORE, UMAT, BRR etc accordingly.
     SUBROUTINE IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE,           &
    &         G1,NBASISMAX,ISS,BRR,NFROZEN,NTFROZEN,NFROZENIN,NTFROZENIN,NEL)
-       use constants, only: dp
-       use SystemData, only: Symmetry,BasisFN,BasisFNSize,arr,tagarr,tHub
+       use SystemData, only: Symmetry, BasisFN, arr, tagarr
        use OneEInts
        USE UMatCache, only: FreezeTransfer,UMatCacheData,UMatInd,TUMat2D
        Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
@@ -964,31 +943,6 @@ contains
           IF(GG(I).NE.0) ARR2(GG(I),2)=ARR(I,2)
        ENDDO
 
-       IF(TSTARSTORE.or.tCPMDSymTMat) THEN
-          IF(NFROZENIN.gt.0.or.NTFROZENIN.gt.0)             &
-!The symmetry routines (GETSYM etc) required for StarStore or CPMD are a bit confusing, so these have not been set 
-!up to cope with freezing the inner orbitals as it is not expected to be done with these options much.
-!Can remove this restriction and modify the symmetry routines if needed.
-  &           CALL Stop_All("IntFreezeBasis","Freezing from the inner is not set up to cope &
-                            &with StarStore or CPMDSymTMat.")
-!C.. Now setup the default symmetry to include the frozen electrons
-!C.. BRR(1:NFROZEN) is effectively the det of the frozens, so we get its sym
-          IF (NFROZEN>0) THEN
-             ! if no orbitals are frozen then the symmetry of the "frozen"
-             ! orbitals is already initialised as totally symmetric.
-             CALL GETSYM(BRR,NFROZEN,G1,NBASISMAX,KSym)
-             CALL SetupFreezeAllSym(KSYM)
-          END IF
-!C.. Freeze the sym labels
-          !SYMCLASSES2 gives the new symmetry of the frozen set of orbitals
-          CALL FREEZESYMLABELS(NHG,NBASIS,GG,.true.)
-!C.. Copy the new G1 over the old ones
-          do i=1,nbasis
-              G1(i)=G2(i)
-          enddo
-          !Redo SYMLABELCOUNTS
-          CALL GENSymStatePairs(NBASIS/2,.true.)
-       ENDIF
        CALL SetupTMAT2(NBASIS,2,iSize)
 
 !C.. First deal with Ecore
@@ -1086,7 +1040,7 @@ contains
                     JB=BRR(JP)
                     JPB=GG(JB)
                     IDJ = GTID(JB)
-                    IF(TSTARSTORE.or.tCPMDSymTMat) THEN
+                    IF(tCPMDSymTMat) THEN
                        TMATSYM2(NEWTMATInd(IPB,JPB))=GetTMATEl(IB,JB)
                     ELSE
                        IF(IPB.eq.0.or.JPB.eq.0) THEN
@@ -1110,7 +1064,7 @@ contains
 !C                IF(IB.GT.AB) SGN=-SGN
 !C                IF(JB.GT.AB) SGN=-SGN
                        IF(G1(IB)%MS.EQ.G1(JB)%MS) THEN
-                          IF(TSTARSTORE.or.tCPMDSymTMat) THEN
+                          IF(tCPMDSymTMat) THEN
                              TMATSYM2(NEWTMATInd(IPB,JPB))=                  &
    &                         GetNEWTMATEl(IPB,JPB) + get_umat_el(IDA,IDI,IDA,IDJ)
                           ELSE
@@ -1131,7 +1085,7 @@ contains
 !C.. If we have spin-independent integrals, ISS.EQ.2.OR
 !C.. if the spins are the same
                        IF(G1(IB)%MS.EQ.G1(AB)%MS.AND.G1(AB)%MS.EQ.G1(JB)%MS) THEN
-                          IF(TSTARSTORE.or.tCPMDSymTMat) THEN
+                          IF(tCPMDSymTMat) THEN
                              TMATSYM2(NEWTMATInd(IPB,JPB))=GetNEWTMATEl(IPB,JPB) &
    &                          - get_umat_el(IDA,IDI,IDJ,IDA)        
                           ELSE
@@ -1160,7 +1114,7 @@ contains
 !C                IF(IB.GT.AB) SGN=-SGN
 !C                IF(JB.GT.AB) SGN=-SGN
                        IF(G1(IB)%MS.EQ.G1(JB)%MS) THEN
-                          IF(TSTARSTORE.or.tCPMDSymTMat) THEN
+                          IF(tCPMDSymTMat) THEN
                              TMATSYM2(NEWTMATInd(IPB,JPB))=                  &
    &                         GetNEWTMATEl(IPB,JPB) + get_umat_el(IDA,IDI,IDA,IDJ)
                           ELSE
@@ -1181,7 +1135,7 @@ contains
 !C.. If we have spin-independent integrals, ISS.EQ.2.OR
 !C.. if the spins are the same
                        IF(G1(IB)%MS.EQ.G1(AB)%MS.AND.G1(AB)%MS.EQ.G1(JB)%MS) THEN
-                          IF(TSTARSTORE.or.tCPMDSymTMat) THEN
+                          IF(tCPMDSymTMat) THEN
                              TMATSYM2(NEWTMATInd(IPB,JPB))=GetNEWTMATEl(IPB,JPB) &
    &                          - get_umat_el(IDA,IDI,IDJ,IDA)        
                           ELSE
@@ -1210,8 +1164,6 @@ contains
        ENDDO
 
        IF(NBASISMAX(1,3).GE.0.AND.ISS.NE.0) THEN
-
-          if (tStarStore) CALL CREATEINVBRR2(BRR2,NBASIS)
 
 !CC Only do the below if we've a stored UMAT
 !C.. Now copy the relevant matrix elements of UMAT across
@@ -1281,25 +1233,8 @@ contains
                                                  IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
                                                     IDL = GTID(LB)
                                                     IDLP = GTID(LPB)
-                                                    IF(TSTARSTORE) THEN
-                                                       IF(.NOT.TUMAT2D) call stop_all(this_routine, 'UMAT2D should be on')
-                                                       IF((IDI.eq.IDJ.and.IDI.eq.IDK.and.IDI.eq.IDL).or.    &
-                   &                                        (IDI.eq.IDK.and.IDJ.eq.IDL).or.                 &
-                   &                                        (IDI.eq.IDL.and.IDJ.eq.IDK).or.                 &
-                   &                                        (IDI.eq.IDJ.and.IDK.eq.IDL)) THEN
-                                                          CONTINUE
-                                                       ELSE
-                                                          IF(((I+FROZENBELOWZ).gt.NEL).or.((J+FROZENBELOWZ).gt.NEL)) THEN
-                                                             CONTINUE
-                                                          ELSE
-                                                             UMAT2(UMatInd(IDIP,IDJP,IDKP,IDLP,0,(NEL-NFROZEN-NFROZENIN)/2))=  &
-                   &                                                          UMAT(UMatInd(IDI,IDJ,IDK,IDL,NHG/2,0))
-                                                          ENDIF
-                                                       ENDIF
-                                                    ELSE
-                                                       UMAT2(UMatInd(IDIP,IDJP,IDKP,IDLP,0,0))=             &
-                   &                                                 UMAT(UMatInd(IDI,IDJ,IDK,IDL,NHG/2,0))
-                                                    ENDIF
+                                                    UMAT2(UMatInd(IDIP,IDJP,IDKP,IDLP)) = &
+                   &                                             UMAT(UMatInd(IDI,IDJ,IDK,IDL))
                                                  ENDIF
                                               ENDIF
                                          ENDDO
@@ -1316,7 +1251,6 @@ contains
           CALL neci_flush(11)
           CALL neci_flush(12)
  
-          IF(TSTARSTORE) CALL FreezeUMAT2D(NHG,NBASIS,GG,2)
        ELSEIF(Associated(UMatCacheData)) THEN
 !.. We've a UMAT2D and a UMATCACHE.  Go and Freeze them
 !C.. NHG contains the old number of orbitals
@@ -1330,27 +1264,25 @@ contains
 !           WRITE(6,*) i,G2(i)%Sym%S
 !       enddo
 
-       IF(.NOT.TSTARSTORE) THEN
-          IF(NFROZENIN.gt.0) THEN
+       IF(NFROZENIN.gt.0) THEN
 !             CALL GETSYM(BRR,NFROZEN,BRR((NEL-NFROZENIN+1):NEL),G1,NBASISMAX,KSym)
 !This is slightly dodgey... I have commented out the above routine that finds the symmetry of the frozen orbitals.
 !There is already a test to check we are not freezing in the middle of degenracies, so the symmetry should always come
 !out as 0 anyway, unless we are breaking up a set of symmetry irreps somehow ... I think.
-             WRITE(6,*) "WARNING: Setting the symmetry of the frozen orbitals to 0. This will be incorrect &
-                        &if orbitals are frozen in the middle of a degenerate set of the same symmetery irrep."
-             KSym%Sym%S=0
-             CALL SetupFREEZEALLSYM(KSym)
-          ELSEIF(NFROZEN>0) THEN
-             CALL GETSYM(BRR,NFROZEN,G1,NBASISMAX,KSym)
-!             WRITE(6,*) '************'
-!             WRITE(6,*) 'KSym',KSym
-             CALL SetupFREEZEALLSYM(KSym)
-          END IF
-          CALL FREEZESYMLABELS(NHG,NBASIS,GG,.false.)
-          do i=1,NBASIS
-              G1(i)=G2(i)
-          enddo
-       ENDIF 
+          WRITE(6,*) "WARNING: Setting the symmetry of the frozen orbitals to 0. This will be incorrect &
+                     &if orbitals are frozen in the middle of a degenerate set of the same symmetery irrep."
+          KSym%Sym%S=0
+          CALL SetupFREEZEALLSYM(KSym)
+       ELSEIF(NFROZEN>0) THEN
+          CALL GETSYM(BRR,NFROZEN,G1,NBASISMAX,KSym)
+!              WRITE(6,*) '************'
+!              WRITE(6,*) 'KSym',KSym
+          CALL SetupFREEZEALLSYM(KSym)
+       END IF
+       CALL FREEZESYMLABELS(NHG,NBASIS,GG,.false.)
+       do i=1,NBASIS
+           G1(i)=G2(i)
+       enddo
 
        FREEZETRANSFER=.false.
 !C.. Copy the new BRR and ARR over the old ones
@@ -1378,7 +1310,6 @@ contains
        !    I,J,A,B: indices of integral.  These are in spin indices in
        !    unrestricted calculations and spatial indices in restricted.
        ! Returns <ij|ab>
-       use SystemData, only: ALAT,G1,iSpinSkip,nBasis,nBasisMax
        implicit none
        HElement_t(dp) GetUMatEl2
        integer :: I,J,A,B
@@ -1390,7 +1321,6 @@ contains
     subroutine init_getumatel_fn_pointers ()
 
         integer :: iss
-        character(*), parameter :: this_routine = 'init_getumatel_fn_pointers'
 
         if (nBasisMax(1,3) >= 0) then
             ! This is a hack. iss is not what it should be. grr.
@@ -1686,7 +1616,9 @@ contains
         HElement_t(dp) :: hel
         type(Symmetry) :: SymX,SymY,SymX_C,symtot,sym_sym
 !        integer, dimension(3) :: ksymx,ksymy,ksymx_c
+#ifdef __CMPLX
         character(len=*), parameter :: t_r='get_umat_el_comporb_spinorbs'
+#endif
 
         ! If we have complex orbitals, then <ij|kl> != <kj|il> necessarily, since we
         ! have complex orbitals (though real integrals) and want to ensure
@@ -1743,7 +1675,9 @@ contains
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
         type(Symmetry) :: SymX,SymY,SymX_C,symtot,sym_sym
+#ifdef __CMPLX
         character(len=*), parameter :: t_r='get_umat_el_comporb_notspinorbs'
+#endif
         
         ! If we have complex orbitals, then <ij|kl> != <kj|il> necessarily, since we
         ! have complex orbitals (though real integrals) and want to ensure
@@ -1846,67 +1780,15 @@ contains
         integer, intent(in) :: idi, idj, idk, idl
         HElement_t(dp) :: hel
 
-        hel = UMAT (UMatInd(idi, idj, idk, idl, 0, 0))
+        hel = UMAT (UMatInd(idi, idj, idk, idl))
 #ifdef __CMPLX
         hel = UMatConj(idi, idj, idk, idl, hel)
 #endif
 
     end function
 
-    function get_umat_el_starstore (idi, idj, idk, idl) result(hel)
-
-        ! Obtains the Coulomb integral <ij|kl>.
-
-        ! This version is for the case when tStarStore (so <ij|ab> is only
-        ! stored when i,j are occupied orbitals of the HF determinant and a,b
-        ! are virtual orbitals) and tUMat2D (so <ij|ij> and <ij|ji> integrals
-        ! are stored seperately) are set.
-
-        ! It is safest to use the get_umat_el wrapper function to access
-        ! get_umat_el_* functions.
-
-        ! In:
-        !    idi,idj,idk,idl: orbital indices. These refer to spin orbitals in
-        !      unrestricted calculations and spatial orbitals in restricted
-        !      calculations.
-
-        integer, intent(in) :: idi, idj, idk, idl
-        integer :: i, j
-        HElement_t(dp) :: hel
-
-        if ( (idi == idj) .and. (idi == idk) .and. (idi == idl) ) then
-            hel = umat2d (idi, idi)
-        else if ( (idi == idk) .and. (idj == idl) ) then
-            i = min (idi, idj)
-            j = max (idi, idj)
-            hel = umat2d (i, j)
-        else if ( (idi == idl) .and. (idj == idk) ) then
-            i = max (idi, idj)
-            j = min (idi, idj)
-            hel = umat2d (i, j)
-        else if ( (idi == idj) .and. (idk == idl) ) then
-            i = max (idi, idk)
-            j = min (idi, idk)
-            hel = umat2d (i, j)
-        else
-            i = UMatInd (idi, idj, idk, idl, nBasis/2, 0)
-            if (i == -1) then
-                hel = get_nan ()
-            else
-                hel = UMAT (i)
-#ifdef __CMPLX
-                hel = UMatConj(idi, idj, idk, idl, hel)
-#endif
-            endif
-        endif
-    end function
-
-
-
     SUBROUTINE WRITESYMCLASSES(NBASIS)
-      use constants, only: dp
-      use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-      use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+      use SystemData, only: BasisFN, Symmetry
       USE UMatCache
       use SymData, only: SymClasses,SymLabelCounts,nSymLabels
       use util_mod, only: get_free_unit
@@ -1951,8 +1833,8 @@ contains
             do k = 2,i,2
                 do j = 2,nBasis,2
                     do l = 2,j,2
-                        if((abs(real(umat(umatind(i/2,j/2,k/2,l/2,0,0)),dp))).gt.1.0e-9_dp) then
-                            write(iunit,'(F21.12,4I3)') REAL(UMat(UMatInd(i/2,j/2,k/2,l/2,0,0)),dp),i/2,k/2,j/2,l/2
+                        if((abs(real(umat(umatind(i/2,j/2,k/2,l/2)),dp))).gt.1.0e-9_dp) then
+                            write(iunit,'(F21.12,4I3)') REAL(UMat(UMatInd(i/2,j/2,k/2,l/2)),dp),i/2,k/2,j/2,l/2
                         endif
                     enddo
                 enddo
@@ -2004,7 +1886,7 @@ END MODULE Integrals_neci
 SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   use constants, only: dp
   use SystemData, only: BasisFN, k_offset, iPeriodicDampingType, kvec, k_lattice_constant
-  USE OneEInts, only : SetupTMAT,TMAT2D,TSTARSTORE
+  USE OneEInts, only : SetupTMAT,TMAT2D
   use util_mod, only: get_free_unit
   use SystemData, only: tUEG2
   IMPLICIT NONE
@@ -2025,7 +1907,6 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
       iunit = get_free_unit()
 
       OPEN(iunit,FILE='TMAT',STATUS='UNKNOWN')
-          IF(TSTARSTORE) call stop_all(this_routine, 'Cannot use TSTARSTORE with UEG')
           CALL SetupTMAT(NBASIS,2,iSIZE)
           DO I=1,NBASIS
               !K_OFFSET in cartesian coordinates
@@ -2044,7 +1925,6 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   IF(TPERIODIC) WRITE(6,*) "Periodic UEG"
   iunit = get_free_unit()
   OPEN(iunit,FILE='TMAT',STATUS='UNKNOWN')
-  IF(TSTARSTORE) call stop_all(this_routine, 'Cannot use TSTARSTORE with UEG')
   CALL SetupTMAT(NBASIS,2,iSIZE)
 
   DO I=1,NBASIS

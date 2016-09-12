@@ -6,9 +6,10 @@ MODULE System
                         occCASorbs, virtCASorbs, tPairedReplicas
 
     use sort_mod
-    use SymExcitDataMod, only: tBuildOccVirtList
+    use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use constants
     use iso_c_hack
+    use read_fci, only: FCIDUMP_name
     use util_mod, only: error_function, error_function_c
 
     IMPLICIT NONE
@@ -30,6 +31,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tReltvy = .false.
       tComplexOrbs_RealInts = .false.
       tReadFreeFormat=.true.
       tMolproMimic=.false.
@@ -59,7 +61,6 @@ MODULE System
       tNoSymGenRandExcits=.false.
       tNonUniRandExcits=.true. 
       tCycleOrbs=.false.
-      TSTARSTORE=.false.
       TSTARBIN=.false.
       TREADINT=.false.
       THFORDER=.false.
@@ -181,7 +182,11 @@ MODULE System
 
 #ifdef __PROG_NUMRUNS
       inum_runs = 1
+#ifdef __CMPLX
+      lenof_sign = 2
+#else
       lenof_sign = 1
+#endif
 #endif
 
 !Feb08 defaults:
@@ -212,32 +217,6 @@ MODULE System
       call readu(w)
       select case(w)
 
-! The following systems are retained for backward compatibility:
-! StarStoreRead, StarBinRead, DFRead, BinRead.  For these "systems", 
-! the system should be given as Read and the appropriate option given
-! in the main System section.
-! At some point, these four options will be removed.
-      case("STARSTOREREAD")      ! Instead, specify StarStore within the system block.
-          TSTARSTORE = .true.
-          TREADINT = .true.
-          call readu(w)
-          select case(w)
-          case("ORDER")
-              THFORDER = .true.
-          case("NOORDER")
-              THFNOORDER = .true.
-          end select
-      case("STARBINREAD")        ! Instead, specify StarStore Binary within the system block.
-          TSTARSTORE=.true.
-          TBIN=.true.
-          TREADINT=.true.
-          call readu(w)
-          select case(w)
-          case("ORDER")
-              THFORDER=.true.
-          case("NOORDER")
-              THFNOORDER = .true.
-          end select
       case("DFREAD")             ! Instead, specify DensityFitted within the system block.
           TREADINT = .true.
           TDFREAD = .true.
@@ -302,15 +281,6 @@ system: do
 
         ! Options for molecular (READ) systems: control how the integral file 
         ! is read in.
-        case("STARSTORE")
-            tStarStore=.true.
-            if (item.lt.nitems) then
-                call readu(w)
-                select case(w)
-                case("BINARY")
-                    tBin=.true.
-                end select
-            end if
         case("BINARY")
             tBin=.true.
         case("DENSITYFITTED")
@@ -873,6 +843,13 @@ system: do
                         ! (symrandexcit3.F90)
                         tPickVirtUniform = .true.
                         tBuildOccVirtList = .true.
+                    case("PICK-VIRT-UNIFORM-MAG")
+                        ! Pick virtual orbitals randomly and uniformly in the
+                        ! 3rd generation of random excitation generators
+                        ! (symrandexcit3.F90)
+                        tPickVirtUniform = .true.
+                        tBuildOccVirtList = .true.
+                        tBuildSpinSepLists = .true.
                     case("HEL-WEIGHTED-SLOW")
                         ! Pick excitations from any site with a generation
                         ! probability proportional to the connectiong HElement
@@ -975,6 +952,10 @@ system: do
             !Mimic the run-time behaviour of molpros NECI implementation
             tMolpro=.true.
             tMolproMimic=.true.
+        case("READ_ROFCIDUMP")
+            ! Overwrite current FCIDUMP name, and instead look for a file
+            ! called "ROFCIDUMP".
+            FCIDUMP_name = 'ROFCIDUMP'
         case("COMPLEXORBS_REALINTS")
             !We have complex orbitals, but real integrals. This means that we only have 4x permutational symmetry,
             !so we need to check the (momentum) symmetry before we look up any integrals
@@ -987,7 +968,11 @@ system: do
 #ifdef __PROG_NUMRUNS
             call readi(inum_runs)
             tMultiReplicas = .true.
+#ifdef __CMPLX
+            lenof_sign = 2*inum_runs
+#else
             lenof_sign = inum_runs
+#endif
             if (inum_runs > inum_runs_max) then
                 write(6,*) 'Maximum SYSTEM-REPLICAS: ', inum_runs_max
                 call stop_all(t_r, 'SYSTEM-REPLICAS is greater than maximum &
@@ -1250,9 +1235,6 @@ system: do
                 WRITE(6,'(A)') "  High-spin restricted calculation. Seriously Cave Arthropodia.  "
             ENDIF
          ELSE
-            IF(TSTARSTORE) THEN
-                WRITE(6,'(A)') "  Reading 2-vertex integrals of double excitations only  "
-            ENDIF
             LMSBASIS=LMS
 !            WRITE(6,*) "TBIN:",tBin
             CALL INITFROMFCID(NEL,NBASISMAX,LEN,LMSBASIS,TBIN)
@@ -1512,7 +1494,6 @@ system: do
           IF(NEL.GT.NBASIS) call stop_all(this_routine, 'MORE ELECTRONS THAN BASIS FUNCTIONS')
           CALL neci_flush(6)    
 
-      !This is used in a test in UMatInd
           NOCC=NEl/2 
           IF(TREADINT) THEN
       !C.. we're reading in integrals and have a molpro symmetry table
@@ -1898,7 +1879,6 @@ system: do
          NBASISMAX(2,3)=1
       ENDIF      
 
-      !This is used in a test in UMatInd
       NOCC=NEl/2 
       IF(TREADINT) THEN
 !C.. we're reading in integrals and have a molpro symmetry table

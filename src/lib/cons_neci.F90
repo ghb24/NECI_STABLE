@@ -42,15 +42,44 @@ integer, parameter :: sizeof_sp = 4
 ! Give ourselves the option of lenof_sign/inum_runs being a runtime
 ! variable, rather than a compile-time constant
 #if defined(__PROG_NUMRUNS)
+#if defined(__CMPLX)
+!Complex integrals, (arbitrary, run-time) multiple replicas
+    integer :: nreplicas = 1    !1 or 2   (for replica sampling, not multiple states)
+    integer :: lenof_sign       !2 x inum_runs (2 for complex x number of seperate wavefuncs sampled)
+    integer :: inum_runs        !nreplicas x nstates
+    integer :: lenof_sign_kp
+    integer, parameter :: lenof_sign_max = 20
+    integer, parameter :: inum_runs_max = 20
+    integer, parameter :: sizeof_helement = 16
+    HElement_t(dp), parameter :: HEl_zero = cmplx(0.0_dp, 0.0_dp, dp)
+#else
+!Real integrals, (arbitrary, run-time) multiple replicas
+!Also, define MULTI_RUN below, to mean real (not complex) double or multiple run code
+#define MULTI_RUN
     integer :: nreplicas = 1
     integer :: lenof_sign
     integer :: inum_runs
     integer :: lenof_sign_kp
     integer, parameter :: lenof_sign_max = 20
     integer, parameter :: inum_runs_max = 20
-    integer, parameter :: sizeof_helement = 8
+    integer, parameter :: sizeof_helement = 16
     real(dp), parameter :: HEl_zero = 0.0_dp
+#endif
+
 #elif defined(__DOUBLERUN)
+#if defined(__CMPLX)
+!Complex integrals, double replica
+    integer, parameter :: nreplicas = 2
+    integer, parameter :: lenof_sign = 4
+    integer, parameter :: inum_runs = 2          
+    integer, parameter :: lenof_sign_kp = 4
+    integer, parameter :: lenof_sign_max = lenof_sign
+    integer, parameter :: inum_runs_max = inum_runs
+    integer, parameter :: sizeof_helement = 16
+    HElement_t(dp), parameter :: HEl_zero = cmplx(0.0_dp, 0.0_dp, dp)
+#else
+!Real integrals, double replica
+#define MULTI_RUN
     integer, parameter :: nreplicas = 2
     integer, parameter :: lenof_sign = 2
     integer, parameter :: inum_runs = lenof_sign
@@ -59,7 +88,11 @@ integer, parameter :: sizeof_sp = 4
     integer, parameter :: inum_runs_max = inum_runs
     integer, parameter :: sizeof_helement = 8
     real(dp), parameter :: HEl_zero = 0.0_dp
-#elif defined(__CMPLX)
+#endif
+
+#else
+#if defined(__CMPLX)
+!Complex integrals, single replica
     integer, parameter :: nreplicas = 1
     integer, parameter :: lenof_sign = 2
     integer, parameter :: inum_runs = 1
@@ -69,6 +102,7 @@ integer, parameter :: sizeof_sp = 4
     integer, parameter :: sizeof_helement = 16
     complex(dp), parameter :: HEl_zero = cmplx(0.0_dp, 0.0_dp, dp)
 #else
+!Real, single replica
     integer, parameter :: nreplicas = 1
     integer, parameter :: lenof_sign = 1
     integer, parameter :: inum_runs = 1
@@ -78,6 +112,8 @@ integer, parameter :: sizeof_sp = 4
     integer, parameter :: sizeof_helement = 8
     real(dp), parameter :: HEl_zero = 0.0_dp
 #endif
+#endif
+
 real(dp), dimension(lenof_sign_max), parameter :: null_part = 0.0_dp
 
 !This is the integer type which is used in MPI call arguments
@@ -90,11 +126,15 @@ integer, parameter :: MPIArg=int32
 integer, parameter :: n_int=int64
 logical :: build_64bit = .true.
 
+integer, parameter :: int_rdm=int64
+
 #else
 
 ! Kind parameter for 32-bit integers.
 integer, parameter :: n_int=int32
 logical :: build_64bit = .false.
+
+integer, parameter :: int_rdm=int32
 
 #endif
 
@@ -107,6 +147,14 @@ integer, parameter :: bits_n_int = bit_size(temp3)
 integer, parameter :: size_n_int = bits_n_int/8
 ! Index of last bit in an n_int integer (bits are indexed 0,1,...,bits_n_int-1).
 integer, parameter :: end_n_int = bits_n_int - 1
+
+! Number of bits in an int_rdm integer.
+integer(int_rdm) :: temp4=0
+integer, parameter :: bits_int_rdm = bit_size(temp4)
+! Number of bytes in an int_rdm integer.
+integer, parameter :: size_int_rdm = bits_int_rdm/8
+! Index of last bit in an int_rdm integer (bits are indexed 0,1,...,bits_n_int-1).
+integer, parameter :: end_int_rdm = bits_int_rdm - 1
 
 #ifdef MOLPRO
     include "common/tapes"

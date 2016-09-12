@@ -81,6 +81,14 @@ contains
           tSearchTauOption = .true.
           tSearchTauDeath = .false.
 
+          t_lanczos_init = .false.
+          t_lanczos_store_vecs = .true.
+          t_lanczos_orthogonalise = .false.
+          lanczos_max_restarts = 10
+          lanczos_max_vecs = 40
+          lanczos_energy_precision = 8
+          lanczos_ritz_overlap_precision = 4
+
           tTimeExit=.false.
           MaxTimeExit=0.0_dp
           tMaxBloom=.false.
@@ -237,17 +245,12 @@ contains
           tReadPopsRestart = .false.
           iLogicalNodeSize = 0 !Meaning use the physical node size
           tAllRealCoeff=.false.
-          tWeakInitiators=.false.
-          weakthresh= 1.0_dp
-          tEnhanceRemainder=.true.
           tUseRealCoeffs = .false.
           tRealCoeffByExcitLevel=.false.
           RealCoeffExcitThresh=2
           tRealSpawnCutoff=.false.
           RealSpawnCutoff=1.0e-5_dp
           OccupiedThresh=1.0_dp
-          tInitOccThresh=.false.
-          InitiatorOccupiedThresh=0.1_dp
           tJumpShift = .true.
 !Feb 08 default set.
           IF(Feb08) THEN
@@ -302,17 +305,7 @@ contains
 
           pParallel = 0.5_dp
 
-          InitiatorCutoffEnergy = 99.99e99_dp
-          InitiatorCutoffWalkNo = 99.0_dp
-
-          tSurvivalInitiatorThreshold = .false.
-          tSurvivalInitMultThresh = .false.
-          tSpawnCountInitiatorThreshold = .false.
-          init_spawn_thresh = 5
-          im_time_init_thresh = 0.1_dp
-          init_survival_mult = 3.0_dp
           MaxTau = 1.0_dp
-          tMultiReplicaInitiators = .false.
           pop_change_min = 50
           tOrthogonaliseReplicas = .false.
           tOrthogonaliseSymmetric = .false.
@@ -388,6 +381,25 @@ contains
                 TENERGY = .true.
                 TCALCHMAT = .true.
                 tLogDets=.true.
+            case("LANCZOS-STORE-VECTORS")
+                ! default
+                t_lanczos_init = .true.
+            case("LANCZOS-STORE-VECTORS-ORTHOGONALISE")
+                t_lanczos_init = .true.
+                t_lanczos_orthogonalise = .true.
+            case("LANCZOS-NO-STORE-VECTORS")
+                t_lanczos_init = .true.
+                t_lanczos_store_vecs = .true.
+            case("LANCZOS-MAX-SUBSPACE-SIZE")
+                call readi(lanczos_max_vecs)
+            case("LANCZOS-MAX-RESTARTS")
+                call readi(lanczos_max_restarts)
+            case("LANCZOS-ENERGY-PRECISION")
+                call readi(lanczos_energy_precision)
+            case("LANCZOS-RITZ-OVERLAP-PRECISION")
+                call readi(lanczos_ritz_overlap_precision)
+
+
             case("LANCZOS")
 !Sets the diagonaliser for the GraphMorph algorithm to be Lanczos
                 tLanczos=.true.
@@ -998,9 +1010,35 @@ contains
                 ! a limit to prevent craziness at the start of a calculation
                 call getf(MaxTau)
 
+            case("MIN-TAU")
+                ! introduce a minimum value of tau for the automated 
+                ! tau-search to limit the lower bound of the automated 
+                ! tau-search 
+                t_min_tau = .true. 
+
+                if (item < nitems) then
+                    call getf(min_tau_global)
+                end if
+
+                ! also only use that if the automated tau-search is used 
+                ! so enable the automated tau search here 
+                tSearchTau = .true. 
+                tSearchTauOption = .true.
+
+            case("KEEPTAUFIXED")
+                ! option for a restarted run to keep the tau, read in from the 
+                ! POPSFILE and other parameters, as pSingles, pParallel 
+                ! fixed for the remainder of the run, even if we keep 
+                ! growing the walkers 
+                t_keep_tau_fixed = .true.
+
+                ! here i need to turn off the tau-search option
+                tSearchTau = .false.
+                tSearchTauOption = .false.
+
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
-                call geti(MaxWalkerBloom)
+                call getf(MaxWalkerBloom)
             case("SHIFTDAMP")
 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
                 call getf(SftDamp)
@@ -1576,8 +1614,7 @@ contains
                 !
                 ! Specify both a threshold an an addtoinitiator value for
                 ! varying the thresholds
-                call getf(InitiatorCutoffEnergy)
-                call getf(InitiatorCutoffWalkNo)
+                call stop_all(t_r,'Deprecated Option')
 
             case("SPAWNONLYINIT", "SPAWNONLYINITGROWTH")
                 call stop_all(t_r, 'Option (SPAWNONLYINIT) deprecated')
@@ -1822,8 +1859,7 @@ contains
                 !This adaptation is applied stochastically with probability weakthresh
                 !Hence weakthresh = 1 --> Always on where applicable.
                 !weakthresh = 0 --> The original initiator scheme is maintained.
-                tWeakInitiators=.true.
-                call Getf(weakthresh)
+                call stop_all(t_r,'Deprecated option')
 
             case("ALLREALCOEFF")
                 tAllRealCoeff=.true.
@@ -1835,19 +1871,14 @@ contains
                 tUseRealCoeffs = .true.
                 call readi(RealCoeffExcitThresh)
             case("KEEPWALKSMALL")
-                tEnhanceRemainder=.false.
-                !When we do the removal step with AllRealCoeff, on the occasions where these pops are *not* removed,
-                !Keep their population the same, rather than resetting as a value of 1 (which is technically correct)
-                !This "bug" produced initiator-like (no plateau) behaviour, so may be of interest
+                call stop_all(t_r,'Deprecated Option')
             case("REALSPAWNCUTOFF")
                 tRealSpawnCutoff=.true.
                 call Getf(RealSpawnCutoff)
             case("SETOCCUPIEDTHRESH")
                 call Getf(OccupiedThresh)
             case("SETINITOCCUPIEDTHRESH")
-                tInitOccThresh=.true.
-                tAllRealCoeff=.true.
-                call Getf(InitiatorOccupiedThresh)
+                call stop_all(t_r,'Deprecated option')
 
             case("JUMP-SHIFT")
                 ! When variable shift is enabled, jump the shift to the value
@@ -2072,29 +2103,20 @@ contains
                 ! iterations, it should be treated as an initiator.
                 ! --> Soft expand the range of the initiators in the Hilbert
                 !     space
-                tSurvivalInitiatorThreshold = .true.
-                if (item < nitems) then
-                    call readf(im_time_init_thresh)
-                end if
+                call stop_all(t_r,'Deprecated option')
 
             case("INITIATOR-SURVIVAL-MULTIPLIER")
                 ! If a site survives for a certain multiple of how long it
                 ! would _expect_ to have survived, then it should be treated
                 ! as an initiator
                 ! --> A more flexible version of INITIATOR-SURVIVAL-CRITERION
-                tSurvivalInitMultThresh = .true.
-                if (item < nitems) then
-                    call readf(init_survival_mult)
-                end if
+                call stop_all(t_r,'Deprecated option')
 
             case("INITIATOR-SPAWN-CRITERION")
                 ! A site becomes an initiator once a certain number of
                 ! spawns have occurred to it (these must be independent
                 ! spawns, rather than a certain magnitude of spawning)
-                tSpawnCountInitiatorThreshold = .true.
-                if (item < nitems) then
-                    call readi(init_spawn_thresh)
-                end if
+                call stop_all(t_r,'Deprecated option')
 
             case("MULTI-REPLICA-INITIATORS")
                 ! Aggregate particle counts across all of the simulation
@@ -2102,7 +2124,7 @@ contains
                 ! initiators.
                 ! Obviously, this only does anything with system-replicas
                 ! set...
-                tMultiReplicaInitiators = .true.
+                call stop_all(t_r,'Option Deprecated')
 
             case("ORTHOGONALISE-REPLICAS")
                 ! Apply Gram Schmidt ortgogonalisation to replicas, starting
@@ -2193,7 +2215,7 @@ contains
                 tMultiRefShift = .true.
 
             case("MP2-FIXED-NODE")
-                tMP2FixedNode = .true.
+                call stop_all(t_r,'Deprecated option')
 
             case("INTERPOLATE-INITIATOR")
                 ! Implement interpolation between aborting particles
@@ -2210,23 +2232,13 @@ contains
                 ! i)   alpha_min (0.0)
                 ! ii)  alpha_max (1.0)
                 ! iii) gamma     (1.0)
-
-                tBroadcastParentCoeff = .true.
-                tInterpolateInitThresh = .true.
-
-                init_interp_min = 0.0_dp
-                init_interp_max = 1.0_dp
-                init_interp_exponent = 1.0_dp
-                if (item < nitems) call readf(init_interp_min)
-                if (item < nitems) call readf(init_interp_max)
-                if (item < nitems) call readf(init_interp_exponent)
-
+                call stop_all(t_r,'Deprecated option')
             case("SHIFT-PROJECT-GROWTH")
                 ! Extrapolate the expected number of walkers at the end of the
                 ! _next_ update cycle for calculating the shift. i.e. use
                 !
                 ! log((N_t + (N_t - N_(t-1))) / N_t)
-                tShiftProjectGrowth = .true.
+                call stop_all(t_r,'Option deprecated')
 
             case default
                 call report("Keyword "                                &
@@ -2438,7 +2450,7 @@ contains
     
     
     
-        Subroutine CalcDoCalc(kp)
+        subroutine CalcDoCalc(kp)
           use SystemData, only: Alat, Arr,Brr, Beta, ECore, G1, LMS, LMS2, nBasis,NMSH, nBasisMax
           use SystemData, only: SymRestrict, tCSFOLD, tParity, tSpn, ALat, Beta,tMolpro,tMolproMimic
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB,nEl
@@ -2453,35 +2465,38 @@ contains
           use Parallel_Calc
           use util_mod, only: get_free_unit, NECI_ICOPY
           use sym_mod
+          use davidson_neci, only: DavidsonCalcType, DestroyDavidsonCalc
           use davidson_neci, only: davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
-          use davidson_neci, only: direct_ci_type
+          use hamiltonian_linalg, only: direct_ci_type
           use kp_fciqmc, only: perform_kp_fciqmc, perform_subspace_fciqmc
           use kp_fciqmc_data_mod, only: tExcitedStateKP
           use kp_fciqmc_procs, only: kp_fciqmc_data
+!<<<<<<< HEAD
+! RT_M_Merge: There seems to be no conflict here, so use both
           use real_time, only: perform_real_time_fciqmc
+!=======
+          use util_mod, only: int_fmt
+!>>>>>>> 0510b74a29483a2abd107e624b5029674d8e25ff
 
-!Calls
-!          real(dp) DMonteCarlo2
-!Local Vars
-          real(dp) EN,WeightDum,EnerDum
-          integer iSeed,iunit
+          real(dp) :: EN,WeightDum, EnerDum
+          real(dp), allocatable :: final_energy(:)
+          integer :: iSeed, iunit, i
           type(kp_fciqmc_data), intent(inout) :: kp
           character(*), parameter :: this_routine = 'CalcDoCalc'
-          iSeed=7 
+          type(DavidsonCalcType) :: davidsonCalc
 
-!C.. we need to calculate a value for RHOEPS, so we approximate that
-!C.. RHO_II~=exp(-BETA*H_II/p).  RHOEPS is a %ge of this 
-!C.. If we haven't already calced RHOEPS, do it now
-          Call DoExactVertexCalc()
+          iSeed = 7
 
           IF (tMP2Standalone) then
               call ParMP2(FDet)
 ! Parallal 2v sum currently for testing only.
 !          call Par2vSum(FDet)
           ELSE IF(tDavidson) then
-              call davidson_direct_ci_init()
-              call perform_davidson(direct_ci_type, .true.)
-              call davidson_direct_ci_end()
+              davidsonCalc = davidson_direct_ci_init(.true.)
+              call perform_davidson(davidsonCalc, direct_ci_type, .true.)
+              call davidson_direct_ci_end(davidsonCalc)
+              call DestroyDavidsonCalc(davidsonCalc)
+
           ELSE IF(NPATHS.NE.0.OR.DETINV.GT.0) THEN
 !Old and obsiolecte
 !             IF(TRHOIJND) THEN
@@ -2495,9 +2510,15 @@ contains
 !             ENDIF
 
              if(tFCIMC) then
-                 call FciMCPar(WeightDum,EnerDum)
-
-                 if((.not.tMolpro).and.(.not.tMolproMimic)) WRITE(6,*) "Summed approx E(Beta)=",EnerDum
+                 call FciMCPar(final_energy)
+                 if ((.not.tMolpro) .and. (.not.tMolproMimic)) then
+                     if (allocated(final_energy)) then
+                         do i = 1, size(final_energy)
+                             write(6,'(1X,"Final energy estimate for state",1X,'//int_fmt(i)//',":",g25.14)') &
+                                 i, final_energy(i)
+                         end do
+                     end if
+                 end if
              elseif(tRPA_QBA) then
                 call RunRPA_QBA(WeightDum,EnerDum)
                 WRITE(6,*) "Summed approx E(Beta)=",EnerDum
@@ -2507,6 +2528,7 @@ contains
                  else
                      call perform_kp_fciqmc(kp)
                  end if
+<<<<<<< HEAD
 
              else if (t_real_time_fciqmc) then
                  call perform_real_time_fciqmc()
@@ -2565,6 +2587,8 @@ contains
                      WRITE(6,*) "Invalid combination of NTAY and TENERGY.  No NPATHS calculated"
                      WRITE(6,*) "NTAY: ",NTAY(1)," TENERGY: ",TENERGY
                  ENDIF
+=======
+>>>>>>> 0510b74a29483a2abd107e624b5029674d8e25ff
               ENDIF
           endif
           IF(TMONTE.and..not.tMP2Standalone) THEN
@@ -2603,117 +2627,6 @@ contains
 !C.. /AJWT
         End Subroutine CalcDoCalc
 
-        Subroutine DoExactVertexCalc()
-          use SystemData, only: Alat, Beta, Brr, ECORE, G1, nBasis, nBasisMax,nMsh, Arr,nEl
-          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB
-          use IntegralsData, only: fck, nMax, UMat,nTay
-          Use DetCalc, only: cK, nDet, nEval, tEnergy, tRead, W, NMRKS, DetInv
-          Use Determinants, only: specdet, tSpecDet
-          Use LoggingData, only: iLogging
-          Use util_mod, only: get_free_unit
-          Use DetCalc, only: tFindDets
-          use sym_mod
-          real(dp) flri, flsi
-          real(dp) En, ExEn, GSEn
-          real(dp) RH
-          INTEGER iDeg, III, iunit
-          Type(BasisFN) iSym
-          LOGICAL tWarn
-          character(*), parameter :: this_routine = 'DoExactVertexCalc'
-          
-          real(dp) CalcMCEn, CalcDLWDB, DoExMC
-            
-          IF(TENERGY.and.(.not.tFindDets)) THEN
-             RHOEPS=RHOEPSILON*EXP(-BETA*(W(1))/I_P)
-!            WRITE(6,*) "RHOEPS:",RHOEPS
-             IF(TREAD) THEN
-                EXEN=CALCMCEN(NEVAL,W,BETA)
-                WRITE(6,"(A,F19.5)") "EXACT E(BETA)=",EXEN
-                GSEN=CALCDLWDB(1,NDET,NEVAL,CK,W,BETA)
-                WRITE(6,"(A,F19.5)") "EXACT DLWDB(D0)=",GSEN
-             ENDIF
-             iunit = get_free_unit()
-             OPEN(iunit,FILE='RHOPIIex',STATUS='UNKNOWN')
-             IF(NDETWORK.EQ.0.OR.NDETWORK.GT.NDET) NDETWORK=NDET
-             DO III=1,NDETWORK
-             
-                CALL CALCRHOPII(III,NDET,NEVAL,CK,W,BETA,I_P,FLRI,FLSI,TWARN)
-                IF(TWARN) THEN
-                   IF(III.EQ.1) THEN
-                      WRITE(6,*) "Warning received from CALCRHOPII."
-                      IF(TREAD) THEN
-                         WRITE(6,*) "TREAD set. Cannot calculate RHOII."
-                      ELSE
-                      WRITE(6,*) "Calculating RHOII using 1st order Taylor."
-                      ENDIF
-                   ENDIF
-                   IF(.NOT.TREAD) THEN
-                   CALL CALCRHO2(NMRKS(1:NEl,III),NMRKS(1:NEl,III),BETA,I_P,NEL, G1,NBASIS,NMSH, &
-                    FCK,NMAX,ALAT,UMAT,RH,1,0,ECORE)
-!C                   WRITE(6,*) RH
-                   FLRI=LOG(RH)
-                   FLSI=FLSI-I_P*FLRI
-                   ENDIF
-                ENDIF
-                call write_det (iunit, NMRKS(:,III), .false.)
-                GSEN=CALCDLWDB(III,NDET,NEVAL,CK,W,BETA)
-                CALL GETSYM(NMRKS(:,III),NEL,G1,NBASISMAX,ISYM)
-                CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
-                WRITE(iunit,"(4G25.16,I5)") EXP(FLSI+I_P*FLRI),FLRI*I_P,FLSI,GSEN,IDEG
-             ENDDO
-!C             CLOSE(17)
-             CLOSE(iunit)
-          ENDIF
-        
-          IF(TMONTE.AND.TENERGY.AND.NTAY(1).EQ.-1) THEN
-             WRITE(6,*) "Calculating Exact MC Energy..."
-             EN=DOEXMC(NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,0.0_dp,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS)
-          ENDIF
-          IF(TBEGRAPH) THEN
-             call stop_all(this_routine, 'BEGRAPH not implemented')
-             IF(TENERGY) THEN
-                IF(NTAY(1).NE.0) THEN
-!                   CALL DOBEGRAPH(NDET,NEVAL,CK,W,I_P,ILOGGING,G1,NMRKS,nEl,NBASISMAX,nBasis,BRR)
-                ELSE
-!C..     NTAY=0 signifying we're going to calculate the RHO values when we
-!C..     need them from the list of eigenvalues.   
-!C..     Hide NMSH=NEVAL
-!C..          FCK=W
-!C..          ZIA=CK
-!C..          UMAT=NDET
-!C..          ALAT=NMRKS        
-!                   CALL DOBEGRAPHAP(I_P,I_HMAX,I_VMAX,NEL,NDET,             &
-!     &                NBASISMAX,G1,nBasis,BRR,NEVAL,W,CK,NMAX,NMRKS,NDET,      &
-!     &                NTAY,RHOEPS,NWHTAY,NPATHS,ILOGGING)
-                ENDIF
-             ELSE
-!                CALL DOBEGRAPHAP(I_P,I_HMAX,I_VMAX,NEL,NDET,                &
-!     &                NBASISMAX,G1,nBasis,BRR,NMSH,FCK,NMAX,ALAT,UMAT,         &
-!     &                NTAY,RHOEPS,NWHTAY,NPATHS,ILOGGING)
-             ENDIF
-          ENDIF
-          IF(NTAY(1).EQ.0.AND.TENERGY) THEN
-              WRITE(6,*) "Using exact RHOs generated on the fly"
-!C.. we've calculated energies, and we're passing them through to
-!C.. calculate the exact RHOS
-!C.. NTAY=0 signifying we're going to calculate the RHO values when we
-!C.. need them from the list of eigenvalues.   
-!C.. Hide NMSH=NEVAL
-!C..          FCK=W
-!C..          ZIA=CK
-!C..          UMAT=NDET
-!C..          ALAT=NMRKS
-!C..          NMAX=ARR
-!              CALL CALCRHOPII2(BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,                        &
-!     &               NBASISMAX,G1,nBasis,BRR,NEVAL,W,CK,ARR,NMRKS,NDET,NTAY,           &
-!     &                RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,           &
-!     &                DETINV,TSPECDET,SPECDET)
-!a
-              call stop_all("DoExactVertexCalc","DoExactVertexCalc non-functional.")
-          endif
-            
-        End Subroutine DoExactVertexCalc
-
         Subroutine CalcCleanup()
            != Clean up (e.g. via deallocation) mess from Calc routines.
            use global_utilities
@@ -2731,7 +2644,6 @@ contains
       subroutine inpgetmethod(I_HMAX,NWHTAY,I_V)
          use constants
          use input_neci
-         use UMatCache, only: tStarStore
          use CalcData, only: calcp_sub2vstar, calcp_logWeight, tMCDirectSum, &
                              g_multiweight, g_vmc_fac, tMPTheory, StarProd, &
                              tDiagNodes, tStarStars, tGraphMorph, tStarTrips, &
@@ -2870,9 +2782,6 @@ contains
                         IF(I_HMAX.NE.-21)  call report(        &
      &                     "Error - cannot use ADDSINGLES"     &
      &                     //" without STAR NEW",.true.)
-                        IF(TSTARSTORE) call report("Error - "  &
-     &                   //"can only use STARSTOREREAD with "  &
-     &                   //"double excitations of HF",.true.)
                      case("DIAG")
                          NWHTAY=IBCLR(NWHTAY,0)
                      case("POLY")

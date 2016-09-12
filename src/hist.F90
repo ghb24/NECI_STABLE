@@ -20,7 +20,9 @@ module hist
     use constants, only: n_int, bits_n_int, size_n_int, lenof_sign
     use bit_rep_data, only: NIfTot, NIfD, extract_sign
     use bit_reps, only: encode_sign, extract_bit_rep, NOffSgn, &
-                        decode_bit_det, flag_initiator, test_flag
+                        decode_bit_det, flag_initiator, test_flag, &
+                        get_initiator_flag, &
+                        any_run_is_initiator
     use parallel_neci
     use csf, only: get_num_csfs, csf_coeff, csf_get_yamas, write_yama, &
                    extract_dorder
@@ -406,11 +408,6 @@ contains
         integer, intent(out) :: PartInd
         logical , intent(out) :: tSuccess
 
-        integer :: open_orbs
-        integer(n_int) :: ilut_sym(0:NIfTot)
-        real(dp) :: delta(lenof_sign)
-        character(*), parameter :: t_r = 'add_hist_spawn'
-
         tSuccess = .false.
         if (ExcitLevel == nel) then
             call BinSearchParts2 (ilut,  FCIDetIndex(ExcitLevel), det, PartInd,&
@@ -436,12 +433,17 @@ contains
         real(dp), intent(in) :: HDiag
         integer :: bin
         character(*), parameter :: t_r = "add_hist_energies"
+
+        integer(n_int) :: iUnused
         
         bin = int(HDiag / BinRange) + 1
         if (bin > iNoBins) &
             call stop_all (t_r, "Histogramming energies higher than the &
                          &arrays can cope with. Increase iNoBins or BinRange")
         HistogramEnergy(bin) = HistogramEnergy(bin) + sum(abs(Sign))
+
+        ! Avoid compiler warnings
+        iUnused = ilut(0)
 
     end subroutine
 
@@ -457,7 +459,7 @@ contains
 
         integer :: nopen, ntot, S, ncsf, off, flg, j, k, epos
         integer :: dorder(nel), nI(nel)
-        real(dp) :: coeff, S_coeffs(LMS:nel), norm, S2, S22
+        real(dp) :: coeff, S_coeffs(LMS:nel), norm, S2
         real(dp) :: sgn(lenof_sign)
         real(dp) :: AllNode_S_coeffs(LMS:nel)
 
@@ -646,8 +648,8 @@ contains
 
         ssq = 0
         do i = 1, int(TotWalkers,sizeof_int)
-            if ((test_flag(CurrentDets(:,i), flag_initiator(1)) .or. &
-                 test_flag(CurrentDets(:,i), flag_initiator(lenof_sign)))&
+            if ((test_flag(CurrentDets(:,i), get_initiator_flag(1)) .or. &
+                 test_flag(CurrentDets(:,i), get_initiator_flag(lenof_sign)))&
                  .and. .not. TestClosedShellDet(CurrentDets(:,i))) then
                 ssq = ssq + ssquared_contrib (CurrentDets(:,i), only_init)
             end if
@@ -658,7 +660,7 @@ contains
         ssq = tmp
 
         do run = 1, inum_runs
-            if (all_norm_psi_squared(run) == 0) then
+            if (abs(all_norm_psi_squared(run)) < 1.0e-10_dp) then
                 ssq(run) = 0.0_dp
             else
 
@@ -703,7 +705,7 @@ contains
         integer(n_int), pointer :: detcurr(:)
         integer(n_int) :: splus(0:NIfTot), sminus(0:NIfTot)
         logical :: running, any_running
-        real(dp), dimension(inum_runs) :: ssq, Allssq, tmp
+        real(dp), dimension(inum_runs) :: ssq, tmp
         integer :: max_per_proc, max_spawned, run
         real(dp) :: sgn1(lenof_sign), sgn2(lenof_sign)
 
@@ -814,7 +816,7 @@ contains
         ssq = tmp
 
         do run = 1, inum_runs
-            if (all_norm_psi_squared(run) == 0) then
+            if (abs(all_norm_psi_squared(run)) < 1.0e-10_dp) then
                 ssq(run) = 0.0_dp
             else
                 ssq(run) = ssq(run) / all_norm_psi_squared(run)
@@ -872,10 +874,7 @@ contains
                             ! Break up the list into correctly sized chunks
                             if (nsend == max_per_proc) exit
 
-                            if (test_flag(CurrentDets(:,i), &
-                                          flag_initiator(1)) .or. &
-                                test_flag(CurrentDets(:,i), &
-                                          flag_initiator(lenof_sign))) then
+                            if (any_run_is_initiator(CurrentDets(:,i))) then
                                 nsend = nsend + 1
                                 recv_dets(:,nsend) = CurrentDets(:,i)
 
@@ -940,7 +939,7 @@ contains
         ssq_sum=All_ssq_sum
 
         do run = 1, inum_runs
-            if (psi_squared(run) == 0) then
+            if (abs(psi_squared(run)) < 1.0e-10_dp) then
                 ssq(run) = 0.0_dp
             else
                 ssq(run) = real(ssq_sum(run),dp) / psi_squared(run)
@@ -1031,15 +1030,7 @@ contains
                             ! are projecting onto an initiator...
                             inc = .true.
                             if (tTruncInitiator .and. only_init) then
-                                if (test_flag(CurrentDets(:,pos), &
-                                              flag_initiator(1)) .or. &
-                                    test_flag(CurrentDets(:,pos), &
-                                              flag_initiator(lenof_sign)))&
-                                                                    then
-                                    inc = .true.
-                                else
-                                    inc = .false.
-                                end if
+                                inc = (any_run_is_initiator(CurrentDets(:,pos)))
                             end if
 
                             call extract_sign (CurrentDets(:,pos), sgn2)

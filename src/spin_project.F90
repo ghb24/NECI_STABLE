@@ -5,9 +5,11 @@ module spin_project
                         tRealCoeffByExcitLevel, RealCoeffExcitThresh
     use SymExcitDataMod, only: scratchsize
     use bit_rep_data, only: extract_sign
-    use bit_reps, only: NIfD, NIfTot, flag_initiator, test_flag, set_flag
+    use bit_reps, only: NIfD, NIfTot, flag_initiator, test_flag, set_flag, &
+                        get_initiator_flag_by_run
     use csf, only: csf_get_yamas, get_num_csfs, csf_coeff, random_spin_permute
-    use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int, int32,sizeof_int
+    use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int, int32,sizeof_int, &
+                        inum_runs
     use FciMCData, only: TotWalkers, CurrentDets, fcimc_iter_data, &
                          yama_global, excit_gen_store_type, &
                          fcimc_excit_gen_store
@@ -325,8 +327,8 @@ contains
 
         integer, intent(in) :: nopen, dorder(nopen)
         integer, pointer :: yamas(:,:)
-        integer :: i, ncsf, ind
-        real(dp) :: ret, tmp, r
+        integer :: i, ncsf
+        real(dp) :: ret, tmp
 
         ! Generate the list of CSFs
         !ncsf = ubound(yamas, 1)
@@ -366,12 +368,12 @@ contains
         integer, intent(in) :: ic, ex(2,2)
         logical, intent(in) :: tParity
         HElement_t(dp), intent(in) :: HElGen
-        HElement_t(dp) :: hel, tmp
+        HElement_t(dp) :: hel
         
         integer :: iUnused
         integer(n_int) :: iUnused2
         logical :: lUnused
-        integer, pointer :: dorder_i(:), dorder_j(:)
+        HElement_t(dp) :: hUnused
 #ifdef __DEBUG
         character(*), parameter :: this_routine = 'get_spawn_helement_spin_proj'
 #endif
@@ -396,7 +398,8 @@ ASSERT(count_open_orbs(ilutI) /= 0)
 
         ! Avoid warnings
         lUnused = tParity; iUnused = IC; iUnused = ex(1,1)
-        iUnused2 = iLutI(0); iUnused2 = iLutJ(0)
+        iUnused2 = iLutI(0); iUnused2 = iLutJ(0); iUnused=nI(1)
+        iUnused=nJ(1); hUnused=helgen
 
     end function get_spawn_helement_spin_proj
 
@@ -516,9 +519,9 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         ! If we are in initiator mode, then we may want to make all of the
         ! children into initiators as well
         if (tTruncInitiator) then
-            do i = 1, lenof_sign
+            do i = 1, inum_runs
                 ! We always want our particles to survive.
-                call set_flag (ilutJ, flag_initiator(i))
+                call set_flag (ilutJ, get_initiator_flag_by_run(i))
             enddo
         endif
 
@@ -533,7 +536,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
 
         ! Protect against compiler warnings
         ex(1,1) = ex(1,1); IC = IC; iUnused = exFlag; tParity = tParity
-        HelGen = HelGen
+        HelGen = HelGen; iUnused=store%nopen
 
     end subroutine generate_excit_spin_proj
 
@@ -546,7 +549,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         integer, intent(in) :: WalkExcitLevel
 
         real(dp) :: elem, r, rat, rUnused
-        integer :: i
+        integer :: i, iUnused
 
         ! If we are not allowing death, or we are below the cutoff for 
         ! consideration, then the particle cannot die
@@ -588,60 +591,9 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         endif
 
         ! Protect against compiler warnings
-        rUnused = Kii
+        rUnused = Kii; iUnused = nI(1)
 
     end function attempt_die_spin_proj
-
-
-    subroutine generate_excit_hamil_proj (nI, iLutI, nJ, iLutJ, exFlag, IC, &
-                                         ex, tParity, pGen, HElGen, store)
-
-        integer, intent(in) :: nI(nel)
-        integer(kind=n_int), intent(in) :: iLutI(0:niftot)
-        integer, intent(in) :: exFlag
-        integer, intent(out) :: nJ(nel) 
-        integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
-        integer, intent(out) :: ic, ex(2,2)
-        real(dp), intent(out) :: pGen
-        logical, intent(out) :: tParity
-        HElement_t(dp), intent(out) :: HElGen
-        type(excit_gen_store_type), intent(inout), target :: store
-
-        integer :: nopen
-        character(*), parameter :: this_routine = 'generate_excit_hamil_proj'
-
-        !Remove warnings
-        nJ(:)=0
-        iLutJ(:)=0
-        ic=0
-        ex(:,:)=0
-        pGen=0.0_dp
-        HElGen=0.0_dp
-        tParity=.true.
-
-        ! Unpaired electron/Ms properties.
-        !nopen = count_open_orbs (ilutI)
-        !nup = (nopen + LMS) / 2
-        !ndets = int(choose(nopen, nup))
-
-        !if (ndets == 0) then
-        !    nJ(1) = 0
-        !    return
-        !endif
-
-
-        !! n.b. exclude current determinant...
-
-        !! Generation probability
-        !pGen = real(1, dp) / (ndets - 1)
-
-
-
-
-
-
-
-    end subroutine
 
 
 end module

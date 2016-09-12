@@ -15,8 +15,12 @@ MODULE Logging
     use errors, only: Errordebug 
     use LoggingData
     use spectral_data, only: tPrint_sl_eigenvecs
+
+! RT_M_Merge: There seems to be no conflict here, so use both
     use real_time_data, only: n_real_time_copies, t_prepare_real_time, &
                               cnt_real_time_copies
+    use rdm_data, only: nrdms_transition_input, states_for_transition_rdm
+    use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
 
     IMPLICIT NONE
 
@@ -121,7 +125,7 @@ MODULE Logging
       tPrintRODump=.false.
       IterRDMonFly=0
       RDMExcitLevel=1
-      tDo_Not_Calc_RDMEnergy = .false.
+      tDo_Not_Calc_2RDM_est = .false.
       tExplicitAllRDM = .false.
       twrite_normalised_RDMs = .true. 
       tWriteSpinFreeRDM = .false.
@@ -178,10 +182,13 @@ MODULE Logging
 
         ! Read the logging section from the input file
 
-        logical eof
-        integer :: i, ierr
+        logical :: eof
+        logical tUseOnlySingleReplicas
+        integer :: i, line, ierr
         character(100) :: w
         character(*), parameter :: t_r = 'LogReadInput'
+
+      tUseOnlySingleReplicas = .false.
 
       ILogging=iLoggingDef
 
@@ -498,6 +505,15 @@ MODULE Logging
             tHistInitPops=.true.
             call readi(HistInitPopsIter)
 
+        case("UNPAIRED-REPLICAS")
+            tUseOnlySingleReplicas = .true.
+#if defined(__PROG_NUMRUNS)
+            tPairedReplicas = .false.
+            nreplicas = 1
+#elif defined(__DOUBLERUN)
+            call stop_all(t_r, "The unpaired-replicas option cannot be used with the dneci.x executable.")
+#endif
+
         case("CALCRDMONFLY")
 !This keyword sets the calculation to calculate the reduced density matrix on the fly.  
 !This starts at IterRDMonFly iterations after the shift changes.
@@ -511,8 +527,10 @@ MODULE Logging
 
 #if defined(__PROG_NUMRUNS)
             ! With this option, we want to use pairs of replicas.
-            tPairedReplicas = .true.
-            nreplicas = 2
+            if (.not. tUseOnlySingleReplicas) then
+                tPairedReplicas = .true.
+                nreplicas = 2
+            end if
 #elif defined(__DOUBLERUN)
             tPairedReplicas = .true.
 #endif
@@ -522,6 +540,36 @@ MODULE Logging
 
             if (IterRDMOnFly < trial_shift_iter) call stop_all(t_r,"Trial wavefunctions needs to be turned on before &
                                                                         &RDMs are turned on.")
+
+        case("OLDRDMS")
+! Accumulate RDMs using the old RDM code.
+            tOldRDMs = .true.
+
+        case("RDM-MAIN-SIZE-FAC")
+            call readf(rdm_main_size_fac)
+        case("RDM-SPAWN-SIZE-FAC")
+            call readf(rdm_spawn_size_fac)
+        case("RDM-RECV-SIZE-FAC")
+            call readf(rdm_recv_size_fac)
+
+        case("TRANSITION-RDMS")
+            tTransitionRDMs = .true.
+            call readi(nrdms_transition_input)
+            allocate(states_for_transition_rdm(2, nrdms_transition_input), stat=ierr)
+
+            do line = 1, nrdms_transition_input
+                call read_line(eof)
+                do i = 1, 2
+                    call geti(states_for_transition_rdm(i, line))
+                end do
+            end do
+
+        case("PRINT-1RDMS-FROM-2RDM-POPS")
+            tPrint1RDMsFrom2RDMPops = .true.
+            tReadRDMs = .true.
+
+        case("PRINT-1RDMS-FROM-SPINFREE")
+            tPrint1RDMsFromSpinfree = .true.
 
         case("DIAGFLYONERDM")
 !This sets the calculation to diagonalise the *1* electron reduced density matrix.   
@@ -603,6 +651,11 @@ MODULE Logging
             tDipoles = .true.
 
         case("CALCRDMENERGY")
+            call stop_all(t_r, "The CALCRDMENERGY option has been replaced by CALC-2RDM-ESTIMATES. &
+                               &The 2-RDM energy is calculated by default when 2-RDMs are being &
+                               &sampled, so this option is only needed if one wants to turn this off.")
+
+        case("CALC-2RDM-ESTIMATES")
 !This takes the 1 and 2 electron RDM and calculates the energy using the RDM expression.            
 !For this to be calculated, RDMExcitLevel must be = 3, so there is a check to make sure this 
 !is so if the CALCRDMENERGY keyword is present.
@@ -610,10 +663,10 @@ MODULE Logging
                 call readu(w)
                 select case(w)
                     case("OFF")
-                        tDo_Not_Calc_RDMEnergy=.true.
+                        tDo_Not_Calc_2RDM_est = .true.
                 end select
             ELSE
-                tDo_Not_Calc_RDMEnergy=.false.
+                tDo_Not_Calc_2RDM_est = .false.
             ENDIF
         
         case("NORDMINSTENERGY")
@@ -830,8 +883,6 @@ MODULE Logging
 ! WavevectorPrint MC steps. However, this is slower.
             TCalcWavevector=.true.
             call readi(WavevectorPrint)
-        case("MCPATHS")
-            ILOGGING = IOR(ILOGGING,2**1)
         case("BLOCKING")
             ILOGGING = IOR(ILOGGING,2**13)
         case("PREVAR")

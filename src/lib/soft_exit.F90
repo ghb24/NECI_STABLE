@@ -154,7 +154,9 @@ module soft_exit
     use load_balance_calcnodes, only: DetermineDetNode
     use hist_data, only: Histogram, tHistSpawn
     use Parallel_neci
+
     use real_time_data, only: n_real_time_copies, t_prepare_real_time
+
     implicit none
 
     logical, volatile :: tSoftExitFound = .false.
@@ -306,9 +308,6 @@ contains
         real(dp) :: hfScaleFactor
         character(len=100) :: w
 
-        integer(MPIArg) :: ierr, ierr2, len
-        character(1000) :: message
-
         ! Test if the changevars file exists, and broadcast to all nodes.
         any_exist=.false.
         inquire (file='CHANGEVARS', exist=exists)
@@ -427,9 +426,13 @@ contains
                             tPopsFile = .true.
                             tPrintPopsDefault = .false.
                             tIncrementPops = .true.
+#ifdef __REALTIME
                             t_prepare_real_time = .true.
+#endif
                             if (item < nitems) then
+#ifdef __REALTIME
                                 call readi(n_real_time_copies)
+#endif
                                 call readi(iWritePopsEvery)
                             else
                                 iWritePopsEvery = 1

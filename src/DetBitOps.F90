@@ -690,32 +690,37 @@ module DetBitOps
         logical :: open_shell
 
         iLut(:)=0
-        nopen = 0
-        open_shell = .false.
-        if (tCSF .and. iscsf (nI)) then
-            do i=1,nel
-                ! THe first non-paired orbital has yama symbol = 1
-                if ((.not. open_shell) .and. &
-                    btest(nI(i), csf_yama_bit)) open_shell = .true.
+        if (tCSF) then
+            if(iscsf (nI)) then
+                nopen = 0
+                open_shell = .false.
+                do i=1,nel
+                    ! THe first non-paired orbital has yama symbol = 1
+                    if ((.not. open_shell) .and. &
+                        btest(nI(i), csf_yama_bit)) open_shell = .true.
 
-                ! Set the bit in the bit representation
-                det = iand(nI(i), csf_orbital_mask)
-                iLut((det-1)/bits_n_int) = ibset(iLut((det-1)/bits_n_int),mod(det-1,bits_n_int))
+                    ! Set the bit in the bit representation
+                    det = iand(nI(i), csf_orbital_mask)
+                    iLut((det-1)/bits_n_int) = ibset(iLut((det-1)/bits_n_int),mod(det-1,bits_n_int))
 
-                if (open_shell) then
-                    if (btest(nI(i), csf_yama_bit)) then
-                        pos = NIfD + 1 + (nopen/bits_n_int)
-                        iLut(pos) = ibset(iLut(pos), mod(nopen,bits_n_int))
+                    if (open_shell) then
+                        if (btest(nI(i), csf_yama_bit)) then
+                            pos = NIfD + 1 + (nopen/bits_n_int)
+                            iLut(pos) = ibset(iLut(pos), mod(nopen,bits_n_int))
+                        endif
+                        nopen = nopen + 1
                     endif
-                    nopen = nopen + 1
-                endif
-            enddo
-        else
-            do i=1,nel
-                pos = (nI(i) - 1) / bits_n_int
-                iLut(pos)=ibset(iLut(pos),mod(nI(i)-1,bits_n_int))
-            enddo
+                enddo
+                return
+            endif
         endif
+
+        !Decode determinant
+        do i=1,nel
+            pos = (nI(i) - 1) / bits_n_int
+            iLut(pos)=ibset(iLut(pos),mod(nI(i)-1,bits_n_int))
+        enddo
+
     end subroutine EncodeBitDet
 
 
@@ -759,10 +764,11 @@ module DetBitOps
         !      ExcitMat(2,2)   - Excitation Matrix
         ! Out: iLutnJ (0:NIfD) - New bit det
 
-        integer, intent(in) :: IC, ExcitMat(2,2)
+        integer, intent(in) :: IC
+        integer, intent(in) :: ExcitMat(2,2)
         integer(kind=n_int), intent(in) :: iLutnI (0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ (0:NIfTot)
-        integer :: pos(2,2), bit(2,2), i
+        integer :: pos(2,2), bit(2,2), i, ic_tmp
 
         iLutnJ = iLutnI
         if (IC == 0) then
@@ -774,8 +780,17 @@ module DetBitOps
             pos = (excitmat - 1) / bits_n_int
             bit = mod(excitmat - 1, bits_n_int)
 
+            ic_tmp = ic
+            if (ic==3) then
+                ! single excitation: only one populated column in ExcitMat
+                ic_tmp=1
+            elseif (ic==4 .or. ic==5) then
+                ! double excitation: both columns populated in ExcitMat
+                ic_tmp=2
+            endif
+
             ! Clear bits for excitation source, and set bits for target
-            do i=1,IC
+            do i=1,ic_tmp
                 iLutnJ(pos(1,i)) = ibclr(iLutnJ(pos(1,i)), bit(1,i))
                 iLutnJ(pos(2,i)) = ibset(iLutnJ(pos(2,i)), bit(2,i))
             enddo
@@ -887,7 +902,6 @@ module DetBitOps
     ! Routine to count number of open *SPATIAL* orbitals in a bit-string 
     ! representation of a determinant.
     ! ************************
-    ! BROKEN
     ! NOTE: This function name is misleading
     !       It counts the number of unpaired Beta electrons (ignores Alpha)
     !       --> Returns nopen/2 <==> Ms=0
@@ -901,16 +915,12 @@ module DetBitOps
         iLutAlpha(:)=0
         iLutBeta(:)=0
 
-        do i=0,NIfD     
-                    
-            iLutAlpha(i)=IAND(iLut(i),MaskAlpha)    !Seperate the alpha and beta bit strings
-            iLutBeta(i)=IAND(iLut(i),MaskBeta)
-            iLutAlpha(i)=ISHFT(iLutAlpha(i),-1)     !Shift all alpha bits to the left by one.
+        iLutAlpha(:)=IAND(iLut(:),MaskAlpha)    !Seperate the alpha and beta bit strings
+        iLutBeta(:)=IAND(iLut(:),MaskBeta)
+        iLutAlpha(:)=ISHFT(iLutAlpha(:),-1)     !Shift all alpha bits to the left by one.
 
-            iLutAlpha(i)=NOT(iLutAlpha(i))              ! This NOT means that set bits are now represented by 0s, not 1s
-            iLutAlpha(i)=IAND(iLutAlpha(i),iLutBeta(i)) ! Now, only the 1s in the beta string will be counted.
-
-        enddo
+        iLutAlpha(:)=NOT(iLutAlpha(:))              ! This NOT means that set bits are now represented by 0s, not 1s
+        iLutAlpha(:)=IAND(iLutAlpha(:),iLutBeta(:)) ! Now, only the 1s in the beta string will be counted.
 
         OpenOrbs = CountBits(iLutAlpha,NIfD,NEl)
     END SUBROUTINE CalcOpenOrbs
@@ -1072,7 +1082,6 @@ end module
         integer :: i, j, iexcit1, iexcit2, perm, iel1, iel2, max_excit
         integer :: set_bits
         logical :: testI, testJ
-        integer :: num_set_bits
 
         tSign=.true.
         max_excit = Ex(1,1)
@@ -1176,6 +1185,10 @@ end module
         INTEGER :: LargestOrb, NIfD,i,j
         INTEGER(KIND=n_int) :: iLut(0:NIfD)
 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = 'LargestBitSet'
+#endif
+
 !        do i=NIfD,0,-1
 !!Count down through the integers in the bit string.
 !!The largest set bit is equal to INT(log_2 (N))
@@ -1186,14 +1199,18 @@ end module
 !        enddo
 !        LargestOrb=LargestOrb+(i*32)
 
-        outer: do i=NIfD,0,-1
-            do j=end_n_int,0,-1
-                IF(BTEST(iLut(i),j)) THEN
-                    EXIT outer
-                ENDIF
+        ! Initialise with invalid value (in case being erroniously called on empty bit-string).
+        ASSERT(.not. all(ilut == 0))
+        LargestOrb = 99999
+
+        do i = NIfD, 0, -1
+            do j = end_n_int, 0, -1
+                if (btest(iLut(i), j)) then
+                    LargestOrb = (i * bits_n_int) + j + 1
+                    return
+                end if
             enddo
-        enddo outer
-        LargestOrb=(i*bits_n_int)+j+1
+        enddo
 
     END SUBROUTINE LargestBitSet
 

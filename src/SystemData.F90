@@ -20,7 +20,7 @@ logical :: tHPHF, tHPHFInts, tUHF, tSPN, tParity, tUseBrillouin, tExch, tReal
 logical :: tTilt, tOneElIntMax, tOnePartOrbEnMax, tROHF, tBrillouinsDefault
 logical :: tNoBrillouin, tVirtCoulombMax, tVirtExchangeMin, tHijSqrdMin
 logical :: tDiagonalizehij, tHFSingDoubExcMax, tSpinOrbs, tReadInCoeff
-logical :: tUseMP2VarDenMat, tAlpha, tStoreAsExcitations, tBin, tStarStore
+logical :: tUseMP2VarDenMat, tAlpha, tStoreAsExcitations, tBin
 logical :: tVASP, tOffDiagSqrdMin, tOffDiagSqrdMax, tOffDiagmax, tShakeDelay
 logical :: tSeparateOccVirt, tExactSizeSpace, tRotatedOrbs
 logical :: tImportanceSample, tERLocalization, tOffDiagMin, tFindCINatOrbs
@@ -34,7 +34,7 @@ logical :: tRotatedOrbsReal     !This means we are reading in a complex FCIDUMP,
                                 !kpoints to be at the gamma point or BZ boundary.
                                 !At the reading in, the integrals will be converted to reals,
                                 !but kpoint symmetry can still be used.
-logical :: tReadFreeFormat
+logical :: tReadFreeFormat,tReltvy
 
 logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
 logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in 

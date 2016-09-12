@@ -18,6 +18,9 @@
 #define get_beta(orb) (ibclr(orb-1,0)+1)
 #define get_alpha(orb) (ibset(orb-1,0)+1)
 
+! Do the two orbitals have the same spin?
+#define same_spin(orb1, orb2) (mod(orb1,2) == mod(orb2,2))
+
 ! Get the index of the replica that is paired with ind:
 #define paired_replica(ind) (ind+2*mod(ind,2)-1)
 
@@ -72,7 +75,7 @@ endif
 ! Make Re / Cplx builds easier
 #ifdef __CMPLX
 #ifdef __PROG_NUMRUNS
-#define ARR_RE_OR_CPLX(arr,index) cmplx(arr(2*(index-1)+1), arr(2*(index-1+)2), dp)
+#define ARR_RE_OR_CPLX(arr,index) cmplx(arr(2*index-1), arr(2*index), dp)
 #else
 #define ARR_RE_OR_CPLX(arr,index) cmplx(arr(1), arr(2), dp)
 #endif
@@ -85,32 +88,44 @@ endif
 #endif
 
 #ifdef __CMPLX
+! 1->1 ,2->1, 3->2 ...
+#define part_type_to_run(pt) (1+((pt)-1)/2)
 #ifdef __PROG_NUMRUNS
-#define part_type_to_run(pt) 99999
-#define min_part_type(run) 99999
-#define max_part_type(run) 99999
+#define min_part_type(run) (2*(run)-1)
+#define max_part_type(run) (2*(run))
+#define mag_of_run(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp
+#define is_run_unnocc(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp <1.0e-12_dp 
 #else
-#define part_type_to_run(pt) 1
+#ifdef __DOUBLERUN
+#define min_part_type(run) (2*(run)-1)
+#define max_part_type(run) (2*(run))
+#define mag_of_run(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp
+#define is_run_unnocc(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp <1.0e-12_dp 
+#else
 #define min_part_type(run) 1
 #define max_part_type(run) 2
+#define mag_of_run(signs, run) (signs(1)**2 + signs(1)**2)**5e-1_dp
+#define is_run_unnocc(signs, run) (signs(1)**2 + signs(1)**2)**5e-1_dp <1.0e-12_dp 
+#endif
 #endif
 #else
-#ifdef __PROG_NUMRUNS
+! 1->1 ,2->2, 3->3 ...
 #define part_type_to_run(pt) pt
+#ifdef __PROG_NUMRUNS
 #define min_part_type(run) run
 #define max_part_type(run) run
 #else
-#define part_type_to_run(pt) 1
 #ifdef __DOUBLERUN
-#define min_part_type(run) 1
-#define max_part_type(run) 2
+#define min_part_type(run) run
+#define max_part_type(run) run
 #else
 #define min_part_type(run) 1
 #define max_part_type(run) 1
 #endif
 #endif
+#define mag_of_run(signs, run) abs(signs(run)) 
+#define is_run_unnocc(signs, run) abs(signs(run))<1.0e-12_dp 
 #endif
-
 
 
 ! Define types for C pointers to work between various compilers with
@@ -144,3 +159,42 @@ endif
 #define MPI_IN_PLACE (C_NULL_PTR)
 #endif
 #endif
+
+! To make sure conjugations of both real and complex realisations of HElement_t behave on all compilers:
+#ifdef __CMPLX
+#define h_conjg(z) conjg(z)
+#else
+#define h_conjg(z) z
+#endif
+
+! The following is useful for converting from HElement_t to an array of the appropriate length
+#ifdef __CMPLX
+#define h_to_array(z) (/dble(z), dimag(z)/)
+#else
+#define h_to_array(z) (/ z /)
+#endif
+
+! Cast a real value to HElement_t
+#ifdef __CMPLX
+#define h_cast(val) cmplx(val,0.0_dp)
+#else
+#define h_cast(val) val
+#endif
+
+! these macros check allocation status before performing heap management
+! _e suffix indicates the use of an error stream
+#define safe_free(arr) if(allocated(arr)) deallocate(arr)
+#define safe_free_e(arr,ierr) if(allocated(arr)) deallocate(arr, stat=ierr)
+#define safe_malloc(arr,shape) if(.not.allocated(arr)) allocate(arr shape)
+#define safe_malloc_e(arr,shape,ierr) if(.not.allocated(arr)) allocate(arr shape, stat=ierr)
+#define safe_realloc(arr,shape) if(allocated(arr)) deallocate(arr); allocate(arr shape)
+#define safe_realloc_e(arr,shape,ierr) if(allocated(arr)) deallocate(arr); allocate(arr shape, stat=ierr)
+#define safe_calloc(arr,shape,zero) if(.not.allocated(arr)) allocate(arr shape); arr=zero
+#define safe_calloc_e(arr,shape,zero,ierr) if(.not.allocated(arr)) allocate(arr shape, stat=ierr); arr=zero
+! this one doesn't have a C counterpart but it may be useful
+#define safe_recalloc(arr,shape,zero) if(allocated(arr)) deallocate(arr); allocate(arr shape); arr=zero
+
+! Handy debugging snippets
+#define debug_line(unit, msg) write(unit,*) __LINE__, __FILE__, char(9), msg ; flush(unit)
+#define debug_out(unit, msg) write(unit,*), char(9), msg
+

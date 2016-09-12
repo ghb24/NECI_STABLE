@@ -1,0 +1,34 @@
+title
+
+system read
+electrons 4
+hphf 0
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+memoryfacspawn 20.0
+memoryfacpart 3.0
+totalwalkers 1000
+startsinglepart 10
+stepsshift 10
+tau 0.01
+shiftdamp 0.05
+allrealcoeff
+realspawncutoff 0.01
+nmcyc 12000
+load-balance-blocks off
+endcalc
+
+integral
+endint
+
+logging
+popsfile -1
+calcrdmonfly 3 4000 100
+printonerdm
+write-spin-free-rdm
+endlog
+end
