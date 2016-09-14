@@ -430,7 +430,7 @@ MODULE FciMCData
       ! only used for the code for the Davidson method and semi-stochastic method.
       real(dp), allocatable, dimension(:,:) :: hamiltonian
 
-      integer(TagIntType) :: HamTag, DavidsonTag
+      integer(TagIntType) :: HamTag, DavidsonTag, LanczosTag
 
       ! Semi-stochastic data.
 

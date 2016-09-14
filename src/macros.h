@@ -160,6 +160,41 @@ endif
 #endif
 #endif
 
+! To make sure conjugations of both real and complex realisations of HElement_t behave on all compilers:
+#ifdef __CMPLX
+#define h_conjg(z) conjg(z)
+#else
+#define h_conjg(z) z
+#endif
+
+! The following is useful for converting from HElement_t to an array of the appropriate length
+#ifdef __CMPLX
+#define h_to_array(z) (/dble(z), dimag(z)/)
+#else
+#define h_to_array(z) (/ z /)
+#endif
+
+! Cast a real value to HElement_t
+#ifdef __CMPLX
+#define h_cast(val) cmplx(val,0.0_dp)
+#else
+#define h_cast(val) val
+#endif
+
+! these macros check allocation status before performing heap management
+! _e suffix indicates the use of an error stream
+#define safe_free(arr) if(allocated(arr)) deallocate(arr)
+#define safe_free_e(arr,ierr) if(allocated(arr)) deallocate(arr, stat=ierr)
+#define safe_malloc(arr,shape) if(.not.allocated(arr)) allocate(arr shape)
+#define safe_malloc_e(arr,shape,ierr) if(.not.allocated(arr)) allocate(arr shape, stat=ierr)
+#define safe_realloc(arr,shape) if(allocated(arr)) deallocate(arr); allocate(arr shape)
+#define safe_realloc_e(arr,shape,ierr) if(allocated(arr)) deallocate(arr); allocate(arr shape, stat=ierr)
+#define safe_calloc(arr,shape,zero) if(.not.allocated(arr)) allocate(arr shape); arr=zero
+#define safe_calloc_e(arr,shape,zero,ierr) if(.not.allocated(arr)) allocate(arr shape, stat=ierr); arr=zero
+! this one doesn't have a C counterpart but it may be useful
+#define safe_recalloc(arr,shape,zero) if(allocated(arr)) deallocate(arr); allocate(arr shape); arr=zero
+
+! Handy debugging snippets
 #define debug_line(unit, msg) write(unit,*) __LINE__, __FILE__, char(9), msg ; flush(unit)
 #define debug_out(unit, msg) write(unit,*), char(9), msg
 

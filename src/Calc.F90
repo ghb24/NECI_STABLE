@@ -80,6 +80,14 @@ contains
           tSearchTauOption = .true.
           tSearchTauDeath = .false.
 
+          t_lanczos_init = .false.
+          t_lanczos_store_vecs = .true.
+          t_lanczos_orthogonalise = .false.
+          lanczos_max_restarts = 10
+          lanczos_max_vecs = 40
+          lanczos_energy_precision = 8
+          lanczos_ritz_overlap_precision = 4
+
           tTimeExit=.false.
           MaxTimeExit=0.0_dp
           tMaxBloom=.false.
@@ -369,6 +377,25 @@ contains
                 TENERGY = .true.
                 TCALCHMAT = .true.
                 tLogDets=.true.
+            case("LANCZOS-STORE-VECTORS")
+                ! default
+                t_lanczos_init = .true.
+            case("LANCZOS-STORE-VECTORS-ORTHOGONALISE")
+                t_lanczos_init = .true.
+                t_lanczos_orthogonalise = .true.
+            case("LANCZOS-NO-STORE-VECTORS")
+                t_lanczos_init = .true.
+                t_lanczos_store_vecs = .true.
+            case("LANCZOS-MAX-SUBSPACE-SIZE")
+                call readi(lanczos_max_vecs)
+            case("LANCZOS-MAX-RESTARTS")
+                call readi(lanczos_max_restarts)
+            case("LANCZOS-ENERGY-PRECISION")
+                call readi(lanczos_energy_precision)
+            case("LANCZOS-RITZ-OVERLAP-PRECISION")
+                call readi(lanczos_ritz_overlap_precision)
+
+
             case("LANCZOS")
 !Sets the diagonaliser for the GraphMorph algorithm to be Lanczos
                 tLanczos=.true.
@@ -2434,8 +2461,9 @@ contains
           use Parallel_Calc
           use util_mod, only: get_free_unit, NECI_ICOPY
           use sym_mod
+          use davidson_neci, only: DavidsonCalcType, DestroyDavidsonCalc
           use davidson_neci, only: davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
-          use davidson_neci, only: direct_ci_type
+          use hamiltonian_linalg, only: direct_ci_type
           use kp_fciqmc, only: perform_kp_fciqmc, perform_subspace_fciqmc
           use kp_fciqmc_data_mod, only: tExcitedStateKP
           use kp_fciqmc_procs, only: kp_fciqmc_data
@@ -2446,6 +2474,7 @@ contains
           integer :: iSeed, iunit, i
           type(kp_fciqmc_data), intent(inout) :: kp
           character(*), parameter :: this_routine = 'CalcDoCalc'
+          type(DavidsonCalcType) :: davidsonCalc
 
           iSeed = 7
 
@@ -2454,9 +2483,11 @@ contains
 ! Parallal 2v sum currently for testing only.
 !          call Par2vSum(FDet)
           ELSE IF(tDavidson) then
-              call davidson_direct_ci_init()
-              call perform_davidson(direct_ci_type, .true.)
-              call davidson_direct_ci_end()
+              davidsonCalc = davidson_direct_ci_init(.true.)
+              call perform_davidson(davidsonCalc, direct_ci_type, .true.)
+              call davidson_direct_ci_end(davidsonCalc)
+              call DestroyDavidsonCalc(davidsonCalc)
+
           ELSE IF(NPATHS.NE.0.OR.DETINV.GT.0) THEN
 !Old and obsiolecte
 !             IF(TRHOIJND) THEN

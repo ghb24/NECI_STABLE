@@ -93,7 +93,7 @@ contains
         logical :: tPopHPHF, tPopLz, tPop64Bit
         integer :: iPopLenof_sign, iPopIter, PopNIfD, PopNIfY, PopNIfSgn, PopNIfFlag
         integer :: PopNIfTot, PopBlockingIter, read_nnodes, Popinum_runs
-        integer :: PopRandomHash(1024)
+        integer :: PopRandomHash(2056)
         integer(int64) :: iPopAllTotWalkers
         real(dp) :: PopDiagSft(inum_runs), read_tau, read_psingles
         real(dp) :: read_pparallel
@@ -812,7 +812,7 @@ r_loop: do while(.not.tStoreDet)
         integer :: iPopLenof_sign, PopNel, iPopIter, PopNIfD, PopNIfY, WalkerListSize
         integer :: PopNIfSgn, PopNIfFlag, PopNIfTot, PopBlockingIter, read_nnodes
         integer :: Popinum_runs
-        integer :: PopRandomHash(1024)
+        integer :: PopRandomHash(2056)
         logical :: formpops, binpops
         logical :: tPopHPHF, tPop64Bit, tPopLz
         integer(int64) :: iPopAllTotWalkers
@@ -1220,13 +1220,13 @@ r_loop: do while(.not.tStoreDet)
         integer, intent(out) :: iPopLenof_sign, iPopNel, iPopIter, PopNIfD
         integer, intent(out) :: PopNIfY, PopNIfSgn, PopNIfFlag, PopNIfTot
         integer, intent(out) :: PopBlockingIter, read_nnodes, Popinum_runs
-        integer, intent(out) :: PopRandomHash(1024), PopBalanceBlocks
+        integer, intent(out) :: PopRandomHash(2056), PopBalanceBlocks
         integer(int64), intent(out) :: read_walkers_on_nodes(0:nProcessors-1)
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft(inum_runs),read_tau, read_psingles
         real(dp), intent(out) :: PopSumNoatHF_out(lenof_sign)
-        real(dp) :: PopSumNoatHF(1024), PopMultiSft(1024)
-        real(dp) :: PopMultiSumENum(1024), PopMultiSumNoatHF(1024)
+        real(dp) :: PopSumNoatHF(2056), PopMultiSft(2056)
+        real(dp) :: PopMultiSumENum(2056), PopMultiSumNoatHF(2056)
         real(dp), intent(out) :: read_pparallel
         HElement_t(dp) , intent(out) :: PopAllSumENum(inum_runs)
         integer :: PopsVersion
