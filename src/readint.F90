@@ -238,9 +238,9 @@ contains
          LOGICAL TBIN
          ! RT_M_Merge: Adjusted declarations from real-time branch to current master
          logical :: uhf, tRel
-#ifdef __REALTIME
+
          real(dp) :: real_time_Z
-#endif
+
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
 
 #ifdef _MOLCAS_
@@ -435,7 +435,7 @@ contains
                     Z = dcmplx(real_time_Z, 0.0_dp)
                 end if
 #elif defined(__CMPLX) && !defined(__REALTIME)
-1               READ(iunit,*,END=99) real_time_Z,I,J,K,L
+1               READ(iunit,*,END=99) Z,I,J,K,L
 #else
 1               CONTINUE
                 !It is possible that the FCIDUMP can be written out in complex notation, but still only
@@ -660,9 +660,9 @@ contains
          integer :: start_ind, end_ind
          integer, parameter :: chunk_size = 1000000
          ! RT_M_Merge: Adjusted declarations from real-time branch
-#ifdef __REALTIME
+
          real(dp) :: real_time_Z
-#endif
+
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
 
 #ifdef _MOLCAS_
@@ -763,16 +763,16 @@ contains
              ! This means it won't work with more than 999 basis
              ! functions...
 #if defined(__CMPLX) && defined(__REALTIME)
-101          if (t_complex_ints) then
+101            if (t_complex_ints) then
                 READ(iunit,*,END=199) Z,I,J,K,L
-            else 
-                read(iunit,*,END=199) real_time_Z,I,J,K,L
+             else 
+               read(iunit,*,END=199) real_time_Z,I,J,K,L
                 Z = dcmplx(real_time_Z, 0.0_dp)
             end if
 #elif defined(__CMPLX) && !defined(__REALTIME)
-101          READ(iunit,*,END=199) Z,I,J,K,L
+101           READ(iunit,*,END=199) Z,I,J,K,L
 #else
-101          CONTINUE
+101           CONTINUE
              !It is possible that the FCIDUMP can be written out in complex notation, but still only
              !have real orbitals. This occurs with solid systems, where all kpoints are at the 
              !gamma point or BZ boundary and have been appropriately rotated. In this case, all imaginary

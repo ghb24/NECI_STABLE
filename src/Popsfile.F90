@@ -1446,6 +1446,7 @@ r_loop: do while(.not.tStoreDet)
             iunithead=get_free_unit()
             call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
             inquire(file=popsfile,exist=formpops)
+            
             if(formpops) then
                 open(iunithead,file=popsfile,status='old')
                 binpops=.false.

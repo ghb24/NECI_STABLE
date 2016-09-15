@@ -107,6 +107,7 @@ contains
         integer(n_int) :: sgn(lenof_sign)
 
         sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
+        ! transfer operates elementwise
         real_sgn = transfer(sgn, real_sgn)
 
     end subroutine extract_sign

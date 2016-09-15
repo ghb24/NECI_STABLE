@@ -56,7 +56,7 @@ module real_time_procs
     use Parallel_neci, only: nProcessors, MPIAlltoAll, MPIAlltoAllv
     use LoggingData, only: tNoNewRDMContrib
     use AnnihilationMod, only: test_abort_spawn
-    use load_balance, only: AddNewHashDet, CalcHashTableStats
+    use load_balance, only: AddNewHashDet, CalcHashTableStats, adjust_load_balance, test_hash_table
 
     implicit none
 
@@ -76,7 +76,10 @@ contains
 
         ! do i also need to send all the particle to the correct processor? 
         ! yes i think i do.. but i have to change the routine 
+
         call SendProcNewParts_diag(MaxIndex, tSingleProc)
+        
+        ! maybe compression is required
 
         ! do i need to compress these DiagParts? i do not thinks so.. 
         ! since it should get stored contigously.. hm..
@@ -88,8 +91,9 @@ contains
         ! also should update the hashtable stats, specific for this diagonal 
         ! spawning event, but the original one should work also for this 
         ! since it only takes CurrentDets into account! 
-        call CalcHashTableStats(TotWalkersNew, iter_data)
-
+        
+        call CalcHashTableStats(TotWalkersNew,iter_data)
+        
         ! this should be it..
         
     end subroutine DirectAnnihilation_diag
@@ -109,7 +113,8 @@ contains
         integer :: ExcitLevel, DetHash, nJ(nel)
         logical :: tSuccess, tSuc, tPrevOcc, tDetermState
         integer :: run       
-
+        integer :: nI(nel)
+        
         ! rewrite the original Annihilation routine to fit the new 
         ! requirements here
 
@@ -196,6 +201,7 @@ contains
                                     call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
                                 end if
                             end if
+                            
                         else if (SignProd(j) < 0) then
                             ! in the real-time for the final combination
                             ! y(n) + k2 i have to check if the "spawned" 
@@ -266,7 +272,7 @@ contains
                         end if
 
                     end do ! Over all components of the sign.
-
+                    
                     if (.not. tDetermState) then
                         call extract_sign (CurrentDets(:,PartInd), SignTemp)
                         if (IsUnoccDet(SignTemp)) then
@@ -340,6 +346,7 @@ contains
                             call encode_part_sign (DiagParts(:,i), SignTemp(j), j)
 
                         end if
+
                         
                         ! RT_M_Merge: Removed initiator case
                         ! Either the determinant has never been an initiator,
@@ -368,7 +375,6 @@ contains
                            end if
                         end if
                     end do
-
                     if (.not. IsUnoccDet(SignTemp)) then
                         ! Walkers have not been aborted and so we should copy the
                         ! determinant straight over to the main list. We do not
@@ -382,6 +388,7 @@ contains
                         ! atleast it can never be a death, as it is not 
                         ! found in the main list..
                         ! for now, just count them as birth
+
                         iter_data%nborn = iter_data%nborn + abs(SignTemp)
 
                         NoBorn(1) = NoBorn(1) + sum(abs(SignTemp))
@@ -430,11 +437,12 @@ contains
                         ! same one as was generated at the beginning of the loop.
                         ! also here treat those new walkers as born particles
 
+
                         iter_data%nborn = iter_data%nborn + abs(SignTemp)
 
                         NoBorn(1) = NoBorn(1) + sum(abs(SignTemp))
+                        call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ)
 
-                        call AddNewHashDet(TotWalkersNew, SpawnedParts(:,i), DetHash, nJ)
                     end if
                 end if
 
@@ -1636,7 +1644,7 @@ contains
         ! stored CurrentDets list!
         call clear_hash_table(HashIndex)
         call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, &
-            int(TotWalkers_orig, sizeof_int), .true.)
+            int(TotWalkers, sizeof_int), .true.)
 
 !         call copy_hash_table(temp_det_hash, HashIndex)
 !         HashIndex = temp_det_hash
@@ -1699,7 +1707,7 @@ contains
         if(ierr.ne.0) call stop_all(this_routine,"Error in allocation")
 
         ! and init it
-        temp_det_list(0:tmp_siz1,1:tmp_siz2) = 0
+        temp_det_list(0:tmp_siz1-1,1:tmp_siz2) = 0
         
         ! and point to it 
         temp_det_pointer => temp_det_list

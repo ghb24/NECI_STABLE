@@ -18,7 +18,7 @@ module real_time_init
                               AllAnnihilated_1, AllNoAborted_1, AllNoRemoved_1, &
                               AllNoAddedInitiators_1, AllNoInitDets_1, AllNoNonInitDets_1, &
                               AllNoInitWalk_1, AllNoNonInitWalk_1, AllInitRemoved_1, &
-                              AccRat_1, AllNoatDoubs_1, AllSumWalkersCyc_1
+                              AccRat_1, AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_perturbed_norm
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
@@ -201,6 +201,7 @@ contains
         print *, " Allocating greensfunction and wavefunction norm arrays!"
         allocate(gf_overlap(lenof_sign,0:real_time_info%n_time_steps), stat = ierr)
         allocate(wf_norm(0:real_time_info%n_time_steps), stat = ierr)
+        allocate(current_overlap(1:lenof_sign),stat=ierr)
 
         gf_overlap = 0.0_dp
 

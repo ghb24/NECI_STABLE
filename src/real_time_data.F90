@@ -34,7 +34,9 @@ module real_time_data
     real(dp), allocatable :: wf_norm(:)
 
     ! also store the current overlap of the cycle.. 
-    real(dp) :: current_overlap(lenof_sign)
+
+    real(dp), allocatable :: current_overlap(:)
+
 
     ! also store the norm of the perturbed ground state to adjust the 
     real(dp) :: pert_norm

@@ -647,7 +647,7 @@ module AnnihilationMod
                         ! runge-kutta stats seperately -> also NoBorn values
                         ! etc..
 #if defined(__REALTIME)
-                        if (abs(CurrentSign(2*(run)-1+j)) < 1.e-12_dp) then
+                        if (abs(CurrentSign(j)) < 1.e-12_dp) then
 #else
                         if (is_run_unnocc(CurrentSign,run)) then
 #endif

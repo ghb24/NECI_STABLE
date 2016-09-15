@@ -45,6 +45,7 @@ module real_time
     use fcimc_initialisation, only: CalcApproxpDoubles
     use LoggingData, only: tPopsFile
     use PopsFileMod, only: WriteToPopsfileParOneArr
+    use load_balance, only: test_hash_table
 
     implicit none
 
@@ -173,6 +174,7 @@ module real_time
 ! 4) do the actual real time propagation! 
 
 contains
+
 
     subroutine perform_real_time_fciqmc
         ! main real-time calculation routine
@@ -487,8 +489,8 @@ contains
             ! actually dont need to update this here since nothing gets merged
             ! at the end.. only k2 gets created
             if (tParentUnoccupied) then
-                iEndFreeSlot = iEndFreeSlot + 1
-                FreeSlot(iEndFreeSlot) = idet
+               !iEndFreeSlot = iEndFreeSlot + 1
+               ! FreeSlot(iEndFreeSlot) = idet
                 cycle
             end if
 
@@ -835,12 +837,12 @@ contains
         integer :: idet !, n_determ_states 
         integer :: TotWalkersNew
         real(dp) :: tmp_sign(lenof_sign)
-
         ! 0)
         ! do all the necessary preperation(resetting pointers etc.)
         ! concerning the statistics: i could use the "normal" iter_data
         ! for the first spawn, except change it for the new death-step, as 
         ! there the particles also change from Re <-> Im 
+
         call init_real_time_iteration(iter_data_fciqmc, second_spawn_iter_data)
         ! 1)
         ! do a "normal" spawning step and combination to y(n) + k1/2
@@ -857,7 +859,6 @@ contains
         print *, "TotParts and totDets after first spawn: ", TotParts, TotWalkers
         print *, "=========================="
 
-        
 
         ! for now update the iter data here, although in the final 
         ! implementation i only should do that after the 2nd RK step
@@ -882,16 +883,17 @@ contains
 !         iStartFreeSlot = 1
 !         iEndFreeSlot = 0
 !         FreeSlot = 0
-
+        
         call second_real_time_spawn()
         call extract_sign(CurrentDets(:,1), tmp_sign)
         print *, "hf occ after second spawn:", tmp_sign
-
         ! 3) 
         ! reload stored temp_det_list y(n) into CurrentDets 
         ! have to figure out how to effectively save the previous hash_table
         ! or maybe just use two with different types of update functions..
+        call test_hash_table("Now loading")
         call reload_current_dets()
+        call test_hash_table("Finished reloading")
 
         call extract_sign(CurrentDets(:,1), tmp_sign)
         print *, "hf occ after reload:", tmp_sign
@@ -918,15 +920,15 @@ contains
         ! also to correctly keep the stats of the events! 
         TotWalkersNew = int(TotWalkers, sizeof_int)
 
-        call DirectAnnihilation_diag(TotWalkersNew, second_spawn_iter_data, .false.)
 
+        call DirectAnnihilation_diag(TotWalkersNew, second_spawn_iter_data, .false.)
         ! also have to set the SumWalkersCyc before the "proper" annihilaiton 
         SumWalkersCyc = SumWalkersCyc + sum(TotParts)
 
         call extract_sign(CurrentDets(:,1), tmp_sign)
         print *, "hf occ after second death:", tmp_sign
 !         TotWalkersNew = int(TotWalkersNew, sizeof_int)
-
+        
         ! and then do the "normal" annihilation with the SpawnedParts array!
         ! Annihilation is done after loop over walkers
         call DirectAnnihilation (TotWalkersNew, second_spawn_iter_data, .false.)

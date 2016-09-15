@@ -39,6 +39,32 @@ module load_balance
 
 contains
 
+
+ subroutine test_hash_table(info,except)
+    use hash, only :hash_table_lookup
+    use FciMCData, only :HashIndex
+    use bit_rep_data, only : nifdbo
+    use bit_reps, only : decode_bit_det
+    character(len=*), intent(in) :: info
+    integer, intent(in), optional :: except
+    integer :: i,dind,dh,nI(nel)
+    real(dp) :: CurrentSign(lenof_sign)
+    logical :: test
+    do i=1,TotWalkers
+       if(present(except)) then
+          if(i == except) cycle
+       endif
+       call decode_bit_det(nI,CurrentDets(:,i))
+       call extract_sign(CurrentDets(:,i),CurrentSign)
+       call hash_table_lookup(nI,CurrentDets(:,i),NIfDBO,HashIndex,&
+            CurrentDets,dind,dh,test)
+       if((.not. test) .and. sum(abs(CurrentSign)) >= 1.e-12_dp) then
+          call stop_all("Hash_test", "Entry missing in hashtable")
+       endif
+    end do
+    print *,info
+  end subroutine test_hash_table
+
     subroutine init_load_balance()
 
         ! Initialise the load balancing.
@@ -400,7 +426,6 @@ contains
         ! list length, copying it across, updating its flag, adding its diagonal
         ! helement (if neccessary). We also need to update the hash table to
         ! point at it correctly.
-
         integer, intent(inout) :: TotWalkersNew 
         integer(n_int), intent(inout) :: iLutCurr(0:NIfTot)
         integer, intent(in) :: DetHash, nJ(nel)
@@ -408,12 +433,11 @@ contains
         HElement_t(dp) :: HDiag
         HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
-        character(len=*), parameter :: t_r = "AddNewHashDet"
+        character(len=*), parameter :: t_r = "AddNewHashDet"   
 
         if (iStartFreeSlot <= iEndFreeSlot) then
             ! We can slot it into a free slot in the main list, rather than increase its length
             DetPosition = FreeSlot(iStartFreeSlot)
-            CurrentDets(:, DetPosition) = iLutCurr(:)
             iStartFreeSlot = iStartFreeSlot + 1
         else
             ! We must increase the length of the main list to slot the new walker in
@@ -421,9 +445,9 @@ contains
             DetPosition = TotWalkersNew
             if (TotWalkersNew >= MaxWalkersPart) then
                 call stop_all(t_r, "Not enough memory to merge walkers into main list. Increase MemoryFacPart")
-            end if
-            CurrentDets(:,DetPosition) = iLutCurr(:)
+             end if
         end if
+        CurrentDets(:,DetPosition) = iLutCurr(:)
 
         ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
         if (tHPHF) then
@@ -478,7 +502,10 @@ contains
         end if
 
         ! Add the new determinant to the hash table.
+
         call add_hash_table_entry(HashIndex, DetPosition, DetHash)
+
+        
 
     end subroutine AddNewHashDet
 
@@ -515,13 +542,15 @@ contains
                 call extract_sign(CurrentDets(:,i),CurrentSign)
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
 
-                if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
-                    AnnihilatedDet = AnnihilatedDet + 1 
+                if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then                   
+                   AnnihilatedDet = AnnihilatedDet + 1 
                 else
 
                     do j=1, lenof_sign
                         run = part_type_to_run(j)
                         if (.not. tIsStateDeterm) then
+                           ! This is only relevant if non-integer CurrentSign is used (which
+                           ! will most likely be the case for rotated time)
                             if ((abs(CurrentSign(j)) > 1.e-12_dp) .and. (abs(CurrentSign(j)) < OccupiedThresh)) then
                                 !We remove this walker with probability 1-RealSignTemp
                                 pRemove=(OccupiedThresh-abs(CurrentSign(j)))/OccupiedThresh
@@ -612,7 +641,9 @@ contains
         ! of particles after the first RK step
         if (runge_kutta_step == 1) TotParts_1 = TotParts
 #endif
-
+        ! RT_M_Merge: i have to ask werner why this check makes sense
+        ! AnnihilatedDet is only affected by empty dets and emptying a det increses HolesInList
+        ! But adding a new det decreases HolesInList and does not affect AnnihilatedDet ->?
         if (AnnihilatedDet /= HolesInList) then
             write(6,*) "TotWalkersNew: ", TotWalkersNew
             write(6,*) "AnnihilatedDet: ", AnnihilatedDet
@@ -620,7 +651,6 @@ contains
             write(6,*) "TotParts: ", TotParts
             call stop_all(t_r, "Error in determining annihilated determinants")
         end if
-
     end subroutine CalcHashTableStats
     
 

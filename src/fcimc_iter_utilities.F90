@@ -773,7 +773,7 @@ contains
                  AllGrowRate = (sum(AllSumWalkersCyc)/real(StepsSft,dp)) &
                       /sum(OldAllAvWalkersCyc)
 #ifdef __REALTIME
-                 print *, "toto: am i here?"
+                 ! print *, "toto: am i here?"
                  AllGrowRate_1 = (sum(AllSumWalkersCyc_1)/real(StepsSft,dp))  & 
                       / sum(OldAllAvWalkersCyc_1)
 #endif
