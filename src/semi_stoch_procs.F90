@@ -1020,7 +1020,7 @@ contains
         ! Send the components to the correct processors using the following
         ! array as temporary space.
         allocate(temp_determ_vec(determ_sizes(iProcIndex)))
-        call MPIScatterV(dble(davidson_eigenvector), determ_sizes, determ_displs, &
+        call MPIScatterV(real(davidson_eigenvector, dp), determ_sizes, determ_displs, &
                          temp_determ_vec, determ_sizes(iProcIndex), ierr)
 
         ! Finally, copy these amplitudes across to the corresponding states in CurrentDets.
