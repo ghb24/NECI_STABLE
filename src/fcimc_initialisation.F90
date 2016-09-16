@@ -839,6 +839,9 @@ contains
         norm_psi = 0
         tSoftExitFound = .false.
 
+        ! Set the flag to indicate that no shift adjustment has been made
+        tfirst_cycle = .true.
+
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp
         iter_data_fciqmc%update_iters = 0

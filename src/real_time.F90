@@ -7,10 +7,10 @@ module real_time
                                reload_current_dets, walker_death_realtime, &
                                walker_death_spawn, attempt_die_realtime, &
                                create_diagonal_as_spawn, count_holes_in_currentDets, &
-                               DirectAnnihilation_diag
+                               DirectAnnihilation_diag, check_update_growth
     use real_time_data, only: gf_type, temp_freeslot, temp_iendfreeslot, wf_norm, &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
-                              current_overlap, SumWalkersCyc_1
+                              current_overlap, SumWalkersCyc_1, real_time_info
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
                         tChangeProjEDet, tInstGrowthRate
@@ -175,12 +175,26 @@ module real_time
 
 contains
 
+  subroutine check_walker_number(iter_data, message)
+    implicit none
+    type(fcimc_iter_data), intent(in) :: iter_data
+    character(len=*), intent(in) :: message
+    real(dp) :: growth(lenof_sign)
+    
+    growth = iter_data%nborn &
+         - iter_data%ndied - iter_data%nannihil &
+         - iter_data%naborted - iter_data%nremoved
+    
+    print *, message, "Iter data growth:", growth
+    
+  end subroutine check_walker_number
+
 
     subroutine perform_real_time_fciqmc
         ! main real-time calculation routine
         ! do all the setup, read-in and calling of the "new" real-time MC loop
         use real_time_procs, only: update_gf_overlap
-        use real_time_data, only: gf_overlap
+        use real_time_data, only: gf_overlap, AllTotWalkersOld_1
         implicit none
 
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
@@ -246,6 +260,7 @@ contains
             ! steps involved...
             call set_timer(walker_time)
 
+            ! this is a bad implementation : iter should be local
             iter = iter + 1
 
             ! perform the actual iteration(excitation generation etc.) 
@@ -257,6 +272,7 @@ contains
                 gf_overlap(2,iter-1) / wf_norm(iter-1), gf_overlap(2,iter-1)
 
             ! update various variables.. time-step, initiator criteria etc.
+
             call update_real_time_iteration()
 
             ! update, print and log all the global variables and interesting 
@@ -268,12 +284,17 @@ contains
             call check_real_time_iteration()
 
             if (tSoftExitFound) exit fciqmc_loop
+            ! we have to stop here since the gf_overlap array is now full
+            if (iter == real_time_info%n_time_steps) exit fciqmc_loop
 
 !             if (iter == 1000) call stop_all(this_routine, "stop for now to avoid endless loop")
 
         end do fciqmc_loop
         
         if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
+
+        ! rt_iter_adapt : avoid memleaks
+        !call dealloc_real_time_memory()
 
     end subroutine perform_real_time_fciqmc
 
@@ -832,6 +853,7 @@ contains
 
     subroutine perform_real_time_iteration()
         ! routine which performs one real-time fciqmc iteration
+      implicit none
         character(*), parameter :: this_routine = "perform_real_time_iteration"
 
         integer :: idet !, n_determ_states 
@@ -847,6 +869,7 @@ contains
         ! 1)
         ! do a "normal" spawning step and combination to y(n) + k1/2
         ! into CurrentDets: 
+
         
         print *, "nruns: ", inum_runs
 
@@ -859,6 +882,9 @@ contains
         print *, "TotParts and totDets after first spawn: ", TotParts, TotWalkers
         print *, "=========================="
 
+#ifdef __DEBUG
+        call check_update_growth(iter_data_fciqmc,"Error in first RK step")
+#endif
 
         ! for now update the iter data here, although in the final 
         ! implementation i only should do that after the 2nd RK step
@@ -891,9 +917,7 @@ contains
         ! reload stored temp_det_list y(n) into CurrentDets 
         ! have to figure out how to effectively save the previous hash_table
         ! or maybe just use two with different types of update functions..
-        call test_hash_table("Now loading")
         call reload_current_dets()
-        call test_hash_table("Finished reloading")
 
         call extract_sign(CurrentDets(:,1), tmp_sign)
         print *, "hf occ after reload:", tmp_sign
@@ -920,8 +944,7 @@ contains
         ! also to correctly keep the stats of the events! 
         TotWalkersNew = int(TotWalkers, sizeof_int)
 
-
-        call DirectAnnihilation_diag(TotWalkersNew, second_spawn_iter_data, .false.)
+         call DirectAnnihilation_diag(TotWalkersNew, second_spawn_iter_data, .false.)
         ! also have to set the SumWalkersCyc before the "proper" annihilaiton 
         SumWalkersCyc = SumWalkersCyc + sum(TotParts)
 
@@ -937,6 +960,9 @@ contains
         print *, "hf occ after second annihil:", tmp_sign
         TotWalkers = int(TotWalkersNew, sizeof_int)
 
+#ifdef __DEBUG
+        call check_update_growth(second_spawn_iter_data,"Error in second RK step")
+#endif
         ! also do the update on the second_spawn_iter_data to combine both of 
         ! them outside this function 
         call update_iter_data(second_spawn_iter_data)

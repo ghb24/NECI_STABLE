@@ -18,7 +18,8 @@ module real_time_init
                               AllAnnihilated_1, AllNoAborted_1, AllNoRemoved_1, &
                               AllNoAddedInitiators_1, AllNoInitDets_1, AllNoNonInitDets_1, &
                               AllNoInitWalk_1, AllNoNonInitWalk_1, AllInitRemoved_1, &
-                              AccRat_1, AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap
+                              AccRat_1, AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap, &
+                              TotPartsStorage
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_perturbed_norm
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
@@ -270,6 +271,7 @@ contains
         second_spawn_iter_data%tot_parts_old = TotParts
         second_spawn_iter_data%update_iters = 0
 
+        TotPartsStorage = TotParts
 
         ! also intitialize the 2nd spawning array to deal with the 
         ! diagonal death step in the 2nd rt-fciqmc loop
@@ -331,6 +333,7 @@ contains
         AllInitRemoved_1 = 0
         AccRat_1 = 0.0_dp
         AllSumWalkersCyc_1 = 0.0_dp
+
 
     end subroutine setup_real_time_fciqmc
 
@@ -678,6 +681,12 @@ contains
 
     end subroutine read_popsfile_real_time
 
-
+    subroutine dealloc_real_time_memory
+      implicit none
+      
+      integer :: ierr
+      
+      deallocate(WalkVecDets,stat=ierr)
+    end subroutine dealloc_real_time_memory
 
 end module real_time_init

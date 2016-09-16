@@ -132,7 +132,7 @@ module real_time_data
                 NoNonInitWalk_1(:), NoatHF_1(:), AllNoInitWalk_1(:), &
                 AllNoNonInitWalk_1(:), SumWalkersCyc_1(:), AllTotParts_1(:), &
                 AllTotPartsOld_1(:), TotParts_1(:), AllNoatHF_1(:), AllSumWalkersCyc_1(:), &
-                OldAllAvWalkersCyc_1(:)
+                OldAllAvWalkersCyc_1(:), TotPartsStorage(:)
 
     integer(int64), allocatable :: NoAddedInitiators_1(:),InitRemoved_1(:), &
                 NoInitDets_1(:), NoNonInitDets_1(:), AllNoAddedInitiators_1(:), &

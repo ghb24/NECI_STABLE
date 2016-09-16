@@ -101,6 +101,8 @@ MODULE FciMCData
     integer(int64), allocatable :: AllGrowRateAbort(:)
 
       logical :: tHFInitiator, tPrintHighPop, tcurr_initiator
+      logical :: tfirst_cycle ! control flag for the iter_utilities for comparing with data
+      ! from previous iterations
 
       integer, allocatable :: FreeSlot(:)   !List of the free slots in the main list
       integer :: iStartFreeSlot     !=1 at the beginning of an iteration, will increment

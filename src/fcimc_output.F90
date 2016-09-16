@@ -588,8 +588,8 @@ contains
 
 #ifdef __REALTIME 
             ! also output the overlaps and norm.. 
-            call stats_out(state,.false.,current_overlap(1), 'Re. <y(0)|y(t)>')
-            call stats_out(state,.false.,current_overlap(2), 'Im. <y(0)|y(t)>')
+            call stats_out(state,.true.,current_overlap(1), 'Re. <y(0)|y(t)>')
+            call stats_out(state,.true.,current_overlap(2), 'Im. <y(0)|y(t)>')
 #endif
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these

@@ -684,48 +684,24 @@ contains
             end if
         end if
         
+
 #ifdef __DEBUG
-#ifdef __REALTIME
-        ! change that here in the real-time to handle it correctly for the 2 
-        ! distinct RK steps..
-        if ((iProcIndex == root) .and. .not. tSpinProject .and. &
-            ! iter_data is the first step -> so i neet info about the first totparts
-            ! i "just" could change the input so that second_spawn_iter_data 
-            ! is the iter_data input -> so the correct info is stored and 
-            ! handled in the same way..
-            all(abs(iter_data_fciqmc%update_growth_tot - &
-                (AllTotParts_1 - AllTotPartsOld_1)) > 1.0e-5)) then
-            write(iout,*) " wrong info in the FIRST Runge-Kutta step: "
-            write(iout,*) "update_growth: ", iter_data_fciqmc%update_growth_tot
-            write(iout,*) "AllTotParts: ", AllTotParts_1
-            write(iout,*) "AllTotPartsOld: ", AllTotPartsOld_1
-            call stop_all(this_routine, &
-                "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
-        end if
+        if(.not. tfirst_cycle) then
+#ifndef __REALTIME
+           ! realtime case is handled seperately with the check_update_growth function
+           ! as each RK step has to be monitored separately
 
-        if ((iProcIndex == root) .and. .not. tSpinProject .and. &
-            all(abs(iter_data%update_growth_tot - &
-            (AllTotParts - AllTotPartsOld)) > 1.0e-5)) then
-            write(iout,*) " wrong info in the SECOND Runge-Kutta step: "
-            write(iout,*) "update_growth: ", iter_data%update_growth_tot
-            write(iout,*) "AllTotParts: ", AllTotParts
-            write(iout,*) "AllTotPartsOld: ", AllTotPartsOld
-            call stop_all(this_routine, &
-                "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
-        end if
-
-#else
-
-        ! Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
-        if ((iProcIndex == root) .and. .not. tSpinProject .and. &
-         all(abs(iter_data%update_growth_tot-(AllTotParts-AllTotPartsOld)) > 1.0e-5)) then
-            write(iout,*) "update_growth: ",iter_data%update_growth_tot
-            write(iout,*) "AllTotParts: ",AllTotParts
-            write(iout,*) "AllTotPartsOld: ", AllTotPartsOld
-            call stop_all (this_routine, &
-                "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
-        endif
+           ! Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
+           if ((iProcIndex == root) .and. .not. tSpinProject .and. &
+                all(abs(iter_data%update_growth_tot-(AllTotParts-AllTotPartsOld)) > 1.0e-5)) then
+              write(iout,*) "update_growth: ",iter_data%update_growth_tot
+              write(iout,*) "AllTotParts: ",AllTotParts
+              write(iout,*) "AllTotPartsOld: ", AllTotPartsOld
+              call stop_all (this_routine, &
+                   "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
+           endif
 #endif
+        endif
 #endif
     
     end subroutine collate_iter_data
@@ -1061,6 +1037,8 @@ contains
 #ifdef __REALTIME 
         AllTotPartsOld_1 = AllTotParts_1
         AllTotWalkersOld_1 = AllTotWalkers_1
+        iter_data_fciqmc%update_growth = 0.0_dp
+        iter_data_fciqmc%update_iters = 0
         ! do i need old det numner and aborted number? 
 #endif
 
@@ -1073,6 +1051,8 @@ contains
 
         cont_spawn_attempts = 0
         cont_spawn_success = 0
+
+        tfirst_cycle = .false.
 
     end subroutine rezero_iter_stats_update_cycle
 

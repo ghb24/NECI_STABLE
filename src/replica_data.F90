@@ -40,6 +40,7 @@ contains
 
                  TotParts(lenof_sign), AllTotParts(lenof_sign), &
                  TotPartsOld(lenof_sign), AllTotPartsOld(lenof_sign), &
+                 TotPartsStorage(lenof_sign), &
                  ! n.b. AllHFCyc is in inum_runs, with different type
                  HFCyc(lenof_sign), &
                  proje_denominator_cyc(lenof_sign), &

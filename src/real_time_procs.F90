@@ -173,8 +173,9 @@ contains
                     ! i changed the sign of the child_sign when filling up 
                     ! the diag_parts list.. so i have to change that here 
                     ! again.. 
-                    iter_data%ndied = iter_data%ndied + &
-                        min(-SpawnedSign,abs(CurrentSign))
+                    ! rt_iter_adapt : this will be counted below
+                    ! iter_data%ndied = iter_data%ndied + &
+                    !    min(-SpawnedSign,abs(CurrentSign))
                     
                     ! how does that combine with the nAborted below..? todo
                     do j = 1, lenof_sign
@@ -200,6 +201,13 @@ contains
                                     iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
                                     call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
                                 end if
+                             else
+                                ! rt_iter_adapt : also count those spawned onto an initiator
+                                ! this is not necessary in the normal version as walkers are
+                                ! counted there on spawn
+                                iter_data%nborn(j) = iter_data%nborn(j) + &
+                                     abs(SpawnedSign(j))
+                                NoBorn(run) = NoBorn(run) + abs(SpawnedSign(j))
                             end if
                             
                         else if (SignProd(j) < 0) then
@@ -218,6 +226,7 @@ contains
                             ! and borns
                             ! remember the - sign when filling up the DiagParts
                             ! list -> so opposite sign here means a death! 
+
                             iter_data%ndied(j) = iter_data%ndied(j) + &
                                 min(abs(CurrentSign(j)),abs(SpawnedSign(j)))
 
@@ -226,6 +235,7 @@ contains
 
                             ! and if the Spawned sign magnitude is even higher
                             ! then the currentsign -> born anti-particles
+
                             iter_data%nborn(j) = iter_data%nborn(j) + &
                                 max(abs(SpawnedSign(j)) - abs(CurrentSign(j)), 0.0_dp) 
 
@@ -266,8 +276,8 @@ contains
                             ! if it has the same sign i have to keep track of 
                             ! the born particles, or as in the original 
                             ! walker_death, reduce the number of died parts
-                            iter_data%ndied(j) = iter_data%ndied(j) - &
-                                abs(SpawnedSign(j))
+                           iter_data%ndied(j) = iter_data%ndied(j) - &
+                           abs(SpawnedSign(j))
                             
                         end if
 
@@ -304,7 +314,7 @@ contains
 
             end if
                 
-            if ( (.not.tSuccess) .or. (tSuccess .and. sum(abs(CurrentSign)) < 1.e-12_dp .and. (.not. tDetermState)) ) then
+            if ((.not.tSuccess) .or. (tSuccess .and. sum(abs(CurrentSign)) < 1.e-12_dp .and. (.not. tDetermState))) then
 
                 ! Determinant in newly spawned list is not found in CurrentDets.
                 ! Usually this would mean the walkers just stay in this list and
@@ -389,11 +399,11 @@ contains
                         ! found in the main list..
                         ! for now, just count them as birth
 
-                        iter_data%nborn = iter_data%nborn + abs(SignTemp)
+                       iter_data%nborn = iter_data%nborn + abs(SignTemp)
+                       
+                       NoBorn(1) = NoBorn(1) + sum(abs(SignTemp))
 
-                        NoBorn(1) = NoBorn(1) + sum(abs(SignTemp))
-
-                        call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ)
+                       call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ)
                     end if
 
                  else
@@ -437,11 +447,10 @@ contains
                         ! same one as was generated at the beginning of the loop.
                         ! also here treat those new walkers as born particles
 
-
-                        iter_data%nborn = iter_data%nborn + abs(SignTemp)
-
-                        NoBorn(1) = NoBorn(1) + sum(abs(SignTemp))
-                        call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ)
+                       iter_data%nborn = iter_data%nborn + abs(SignTemp)
+                       
+                       NoBorn(1) = NoBorn(1) + sum(abs(SignTemp))
+                       call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ)
 
                     end if
                 end if
@@ -1186,7 +1195,8 @@ contains
             ! also do it independent of the damping and also consider the 
             ! diagonal switch between Re <-> Im as born or died particles
 
-        iter_data%ndied = iter_data%ndied + min(ndie, abs(RealwSign))
+        ! rt_iter_adapt: this will be counted below
+        !iter_data%ndied = iter_data%ndied + min(ndie, abs(RealwSign))
 
         ! this routine only gets called in the first runge-kutta step -> 
         ! so only update the stats for the first here!
@@ -1663,6 +1673,9 @@ contains
         ! i think that has to be done in the reset_spawned_list
 !         n_determ_states = 1
 
+#ifdef __DEBUG
+        call reset_tot_parts()
+#endif        
 
     end subroutine reload_current_dets
 
@@ -1873,4 +1886,49 @@ contains
 
 
     end subroutine create_perturbed_ground
+    
+    subroutine check_update_growth(iter_data, message)
+      use Parallel_neci, only : iProcIndex, MPISumAll, root
+      use spin_project, only : tSpinProject
+      use real_time_data, only : TotPartsStorage
+      implicit none
+      character(len=*), intent(in) :: message
+      type(fcimc_iter_data), intent(in) :: iter_data
+      real(dp) :: growth(lenof_sign), growth_tot(lenof_sign)
+      real(dp) :: allWalkers(lenof_sign), allWalkersOld(lenof_sign)
+      growth = iter_data%nborn &
+         - iter_data%ndied - iter_data%nannihil &
+         - iter_data%naborted - iter_data%nremoved
+
+      call MPISumAll(growth,growth_tot)
+      call MPISumAll(TotParts,allWalkers)
+      call MPIsumAll(TotPartsStorage,allWalkersOld)
+      TotPartsStorage = TotParts
+
+      if((iProcIndex == root) .and. .not. tSpinProject .and. &
+           all(abs(growth_tot - (allWalkers - allWalkersOld)) > 1.0e-5_dp)) then
+         write(iout,*) message
+         write(iout,*) "update_growth: ", growth_tot
+         write(iout,*) "AllTotParts: ", allWalkers
+         write(iout,*) "AllTotPartsOld: ", allWalkersOld
+         call stop_all("check_update_growth", &
+              "Assertation failed: all(iter_data_fciqmc%update_growth_tot.eq.AllTotParts_1-AllTotPartsOld_1)")
+      end if
+
+    end subroutine check_update_growth
+
+    subroutine reset_tot_parts()
+      ! if the second RK step is to be compared, the reference has to be reset
+      ! -> recount the TotParts from the restored data
+      use real_time_data, only : TotPartsStorage
+      implicit none
+      integer :: i
+      real(dp) :: CurrentSign(lenof_sign)
+      TotParts = 0.0_dp
+      do i=1, TotWalkers
+         call extract_sign(CurrentDets(:,i),CurrentSign)
+         TotParts = TotParts + abs(CurrentSign)
+      end do
+      TotPartsStorage = TotParts
+    end subroutine reset_tot_parts
 end module real_time_procs
