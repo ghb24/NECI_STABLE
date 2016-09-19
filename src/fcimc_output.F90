@@ -34,7 +34,7 @@ module fcimc_output
     use real_time_data, only: AllNoBorn_1, AllNoAborted_1, AllAnnihilated_1, &
                               AllNoDied_1, AllTotWalkers_1, nspawned_tot_1,  &
                               AllTotParts_1, AccRat_1, AllGrowRate_1, &
-                              current_overlap
+                              current_overlap, t_real_time_fciqmc
 #endif
 
 
@@ -428,17 +428,17 @@ contains
         end if
         
 
-        if (tReadPops) then
+        if (tReadPops .and. .not. t_real_time_fciqmc) then
 
             ! If we are reading from a POPSFILE, then we want to continue an
             ! existing fciqmc_stats file if it exists.
             open(funit, file=filename, status='unknown', position='append')
-
         else
 
             ! If we are doing a normal calculation, move existing fciqmc_stats
             ! files so that they are not overwritten, and then create a new one
             inquire(file=filename, exist=exists)
+
             if (exists) then
 
                 ! Loop until we find an available spot to move the existing

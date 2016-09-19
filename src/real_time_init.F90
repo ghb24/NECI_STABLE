@@ -240,7 +240,7 @@ contains
         tFCIMCStats2 = .true.
 
         if (tFCIMCStats2) then
-            call write_fcimcstats2(iter_data_fciqmc, initial = .true.)
+           call write_fcimcstats2(iter_data_fciqmc, initial = .true.)
         else
             call WriteFciMCStatsHeader()
         end if

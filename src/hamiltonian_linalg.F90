@@ -473,7 +473,6 @@ module hamiltonian_linalg
         complex(dp), intent(out) :: output_vector(:)
         integer :: i, j, ierr
 
-
         ! Use output_vector as temporary space.
         output_vector = input_vector
 
