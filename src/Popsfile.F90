@@ -1096,7 +1096,10 @@ r_loop: do while(.not.tStoreDet)
             AllSumNoatHF(inum_runs)=PopSumNoatHF(1)
         elseif(lenof_sign.eq.2) then
             AllSumNoatHF(1)=PopSumNoatHF(1)
-            AllSumNoatHF(lenof_sign)=PopSumNoatHF(lenof_sign)
+            if (inum_runs /= 2) &
+                call stop_all(this_routine, "not yet implemented")
+            ASSERT(inum_runs == 2)
+            AllSumNoatHF(lenof_sign)=PopSumNoatHF(min(lenof_sign, ubound(PopSumNoatHF, 1)))
         else
             AllSumNoatHF(1)=PopSumNoatHF(1)
         endif

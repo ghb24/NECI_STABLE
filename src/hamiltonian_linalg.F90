@@ -417,7 +417,7 @@ module hamiltonian_linalg
 
         do i = 1, space_size
             do j = 1, sparse_ham(i)%num_elements
-                output_vector(i) = output_vector(i) + dble(sparse_ham(i)%elements(j)*input_vector(sparse_ham(i)%positions(j)))
+                output_vector(i) = output_vector(i) + real(sparse_ham(i)%elements(j)*input_vector(sparse_ham(i)%positions(j)), dp)
             end do
         end do
 
@@ -464,7 +464,7 @@ module hamiltonian_linalg
             end do
         end do
         ! this templated routine forbids mixing real and complex arrays
-        call MPIGatherV(dble(this%partial_H_ket), output_vector, this%space_sizes, this%partial_H_ket_disps, ierr)
+        call MPIGatherV(real(this%partial_H_ket, dp), output_vector, this%space_sizes, this%partial_H_ket_disps, ierr)
     end subroutine mult_hamil_vector_par_sparse_real
 
     subroutine mult_hamil_vector_par_sparse_complex(this, input_vector, output_vector)

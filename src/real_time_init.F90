@@ -686,7 +686,7 @@ contains
       
       integer :: ierr
       
-      deallocate(WalkVecDets,stat=ierr)
+     ! deallocate(WalkVecDets,stat=ierr)
     end subroutine dealloc_real_time_memory
 
 end module real_time_init

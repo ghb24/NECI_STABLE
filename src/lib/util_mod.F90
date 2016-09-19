@@ -836,10 +836,15 @@ contains
         ! Avoid timing inaccuracies from using cpu_time on cerebro.
         ret = etime(time)
 #else
+#ifdef BLUEGENE_HACKS
+        time = 0
+        ret = 0
+#else
         ! Use Fortran95 timing intrinsic
         call cpu_time(ret)
         time(1) = ret
         time(2) = real(0.0,sp)
+#endif
 #endif
 
     end function neci_etime
@@ -917,6 +922,8 @@ end module
         call getarg(i, str)
 #elif defined(MOLPRO) && !defined(MOLPRO_f2003)
         call getarg(i, str)
+#elif defined(BLUEGENE_HACKS)
+        call getarg(int(i, 4), str)
 #elif defined(__OPEN64__) || defined(__PATHSCALE__)
         j = i
         call get_command_argument (j, str)
@@ -984,7 +991,7 @@ end module
     function hostnm (nm) result(ret)
         implicit none
         integer :: ret, hostnm_
-        character(8) :: nm
+        character(255) :: nm
         ret = hostnm_(nm)
     end function
 

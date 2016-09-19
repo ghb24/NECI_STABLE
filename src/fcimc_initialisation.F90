@@ -3288,7 +3288,7 @@ contains
                 else
                     abstr='FCIMCStats.'//adjustl(abstr)
                 endif
-                inquire(file=abstr,exist=exists)
+                inquire(file=trim(adjustl(abstr)),exist=exists)
                 if(.not.exists) exit
                 extension=extension+1
                 if(extension.gt.10000) then
@@ -3302,9 +3302,9 @@ contains
 !            stat = neci_system(trim(command))
 
             if(tMolpro) then
-                call rename('FCIQMCStats',abstr)
+                call rename('FCIQMCStats',trim(adjustl(abstr)))
             else
-                call rename('FCIMCStats',abstr)
+                call rename('FCIMCStats',trim(adjustl(abstr)))
             endif
             !Doesn't like the stat argument
 !            if(stat.ne.0) then

@@ -658,11 +658,11 @@ contains
          real(dp) :: diff
          logical :: tbad,tRel
          integer :: start_ind, end_ind
-         integer, parameter :: chunk_size = 1000000
          ! RT_M_Merge: Adjusted declarations from real-time branch
 
          real(dp) :: real_time_Z
 
+         integer(int64), parameter :: chunk_size = 1000000
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
 
 #ifdef _MOLCAS_

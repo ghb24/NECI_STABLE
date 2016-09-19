@@ -34,8 +34,7 @@ module FciMCParMod
     use semi_stoch_gen, only: write_most_pop_core_at_end, init_semi_stochastic
     use semi_stoch_procs, only: is_core_state, check_determ_flag, &
                                 determ_projection, average_determ_vector
-    use trial_wf_gen, only: update_compare_trial_file, &
-                            update_compare_trial_file, init_trial_wf
+    use trial_wf_gen, only: update_compare_trial_file, init_trial_wf
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
                              orthogonalise_replica_pairs
@@ -473,8 +472,12 @@ module FciMCParMod
             endif
 
             ! If requested and on a correct iteration, update the COMPARETRIAL file.
-            if (tCompareTrialAmps .and. mod(Iter, compare_amps_period) == 0) &
-                call update_compare_trial_file(.false.)
+            if (tCompareTrialAmps) then
+                ASSERT(compare_amps_period /= 0)
+                if (mod(Iter, compare_amps_period) == 0) then
+                    call update_compare_trial_file(.false.)
+                endif
+            endif
 
             Iter=Iter+1
             if(tFillingStochRDMonFly) iRDMSamplingIter = iRDMSamplingIter + 1 

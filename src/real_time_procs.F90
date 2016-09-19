@@ -147,7 +147,7 @@ contains
 
 !            WRITE(6,*) 'i,DiagParts(:,i)',i,DiagParts(:,i)
             
-            if (tSuccess) then
+            if (.true. .and. tSuccess) then
 
                 ! Our DiagParts determinant is found in CurrentDets.
 
@@ -160,8 +160,8 @@ contains
 
                 if (sum(abs(CurrentSign)) >= 1.e-12_dp .or. tDetermState) then
                     ! Transfer new sign across.
-                    call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
-                    call encode_sign(DiagParts(:,i), null_part)
+                   call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
+                   call encode_sign(DiagParts(:,i), null_part)
 
                     ! If we are spawning onto a site and growing it, then
                     ! count that spawn for initiator purposes.
@@ -190,26 +190,27 @@ contains
                         ! initiators..
                         ! for now, stick to the distinction! but ask ali! 
                         if (abs(CurrentSign(j)) < 1.e-12_dp) then
-                            ! This determinant is actually *unoccupied* for the
-                            ! walker type/set we're considering. We need to
-                            ! decide whether to abort it or not.
-                            if (tTruncInitiator) then
-                                if (.not. test_flag (DiagParts(:,i), flag_initiator(j)) .and. &
-                                     .not. tDetermState) then
-                                    ! Walkers came from outside initiator space.
-                                    NoAborted(run) = NoAborted(run) + abs(SpawnedSign(j))
-                                    iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
-                                    call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
-                                end if
-                             else
-                                ! rt_iter_adapt : also count those spawned onto an initiator
-                                ! this is not necessary in the normal version as walkers are
-                                ! counted there on spawn
-                                iter_data%nborn(j) = iter_data%nborn(j) + &
-                                     abs(SpawnedSign(j))
-                                NoBorn(run) = NoBorn(run) + abs(SpawnedSign(j))
-                            end if
-                            
+                           ! This determinant is actually *unoccupied* for the
+                           ! walker type/set we're considering. We need to
+                           ! decide whether to abort it or not.
+                           if (tTruncInitiator .and. .not. test_flag (DiagParts(:,i), &
+                                flag_initiator(j)) .and. .not. tDetermState) then
+                              ! Walkers came from outside initiator space.
+                              NoAborted(run) = NoAborted(run) + abs(SpawnedSign(j))
+                              ! rt_iter_adapt:
+                              ! these must not be counted as they never were considered born
+                              ! iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
+                              call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
+                           else
+                              ! rt_iter_adapt : also count those spawned onto an initiator
+                              ! this is not necessary in the normal version as walkers are
+                              ! counted there on spawn
+                              ! also, they are born for any sign
+                              iter_data%nborn(j) = iter_data%nborn(j) + &
+                                   abs(SpawnedSign(j))
+                              NoBorn(run) = NoBorn(run) + abs(SpawnedSign(j))
+                           end if
+
                         else if (SignProd(j) < 0) then
                             ! in the real-time for the final combination
                             ! y(n) + k2 i have to check if the "spawned" 
@@ -225,8 +226,7 @@ contains
                             ! walker_death routine on how to count the deaths
                             ! and borns
                             ! remember the - sign when filling up the DiagParts
-                            ! list -> so opposite sign here means a death! 
-
+                            ! list -> so opposite sign here means a death!
                             iter_data%ndied(j) = iter_data%ndied(j) + &
                                 min(abs(CurrentSign(j)),abs(SpawnedSign(j)))
 
@@ -277,7 +277,7 @@ contains
                             ! the born particles, or as in the original 
                             ! walker_death, reduce the number of died parts
                            iter_data%ndied(j) = iter_data%ndied(j) - &
-                           abs(SpawnedSign(j))
+                                abs(SpawnedSign(j))
                             
                         end if
 
@@ -314,7 +314,7 @@ contains
 
             end if
                 
-            if ((.not.tSuccess) .or. (tSuccess .and. sum(abs(CurrentSign)) < 1.e-12_dp .and. (.not. tDetermState))) then
+            if (((.not.tSuccess) .or. (tSuccess .and. sum(abs(CurrentSign)) < 1.e-12_dp .and. (.not. tDetermState)))) then
 
                 ! Determinant in newly spawned list is not found in CurrentDets.
                 ! Usually this would mean the walkers just stay in this list and
@@ -346,7 +346,8 @@ contains
 
                             ! Walkers came from outside initiator space.
                             NoAborted(run) = NoAborted(run) + abs(SignTemp(j))
-                            iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
+                            ! rt_iter_adapt : As above, aborted walkers must not be counted
+                            ! iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
                             ! We've already counted the walkers where SpawnedSign
                             ! become zero in the compress, and in the merge, all
                             ! that's left is those which get aborted which are
@@ -372,8 +373,10 @@ contains
                               NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
                               !Annihilated = Annihilated + abs(SignTemp(j))
                               !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                              iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                   + abs(SignTemp(j))
+                              
+                              !rt_iter_adapt : see above
+                              !iter_data%nremoved(j) = iter_data%nremoved(j) &
+                              !     + abs(SignTemp(j))
                               SignTemp(j) = 0.0_dp
                               call nullify_ilut_part (DiagParts(:,i), j)
                            else! if (tEnhanceRemainder) then
@@ -424,10 +427,11 @@ contains
                             if (pRemove  >  r) then
                                 ! Remove this walker.
                                 NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
+                                ! rt_iter_adapt : see above
                                 !Annihilated = Annihilated + abs(SignTemp(j))
                                 !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                                iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                                      + abs(SignTemp(j))
+                                !iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                !+ abs(SignTemp(j))
                                 SignTemp(j) = 0
                                 call nullify_ilut_part (DiagParts(:,i), j)
                              else !if (tEnhanceRemainder) then
@@ -1904,13 +1908,13 @@ contains
       call MPISumAll(TotParts,allWalkers)
       call MPIsumAll(TotPartsStorage,allWalkersOld)
       TotPartsStorage = TotParts
-
-      if((iProcIndex == root) .and. .not. tSpinProject .and. &
-           all(abs(growth_tot - (allWalkers - allWalkersOld)) > 1.0e-5_dp)) then
-         write(iout,*) message
          write(iout,*) "update_growth: ", growth_tot
          write(iout,*) "AllTotParts: ", allWalkers
          write(iout,*) "AllTotPartsOld: ", allWalkersOld
+      if((iProcIndex == root) .and. .not. tSpinProject .and. &
+           any(abs(growth_tot - (allWalkers - allWalkersOld)) > 1.0e-5_dp)) then
+         write(iout,*) message
+
          call stop_all("check_update_growth", &
               "Assertation failed: all(iter_data_fciqmc%update_growth_tot.eq.AllTotParts_1-AllTotPartsOld_1)")
       end if

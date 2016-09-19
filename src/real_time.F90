@@ -944,7 +944,7 @@ contains
         ! also to correctly keep the stats of the events! 
         TotWalkersNew = int(TotWalkers, sizeof_int)
 
-         call DirectAnnihilation_diag(TotWalkersNew, second_spawn_iter_data, .false.)
+        call DirectAnnihilation_diag(TotWalkersNew, second_spawn_iter_data, .false.)
         ! also have to set the SumWalkersCyc before the "proper" annihilaiton 
         SumWalkersCyc = SumWalkersCyc + sum(TotParts)
 
@@ -956,13 +956,14 @@ contains
         ! Annihilation is done after loop over walkers
         call DirectAnnihilation (TotWalkersNew, second_spawn_iter_data, .false.)
 
+#ifdef __DEBUG
+        call check_update_growth(second_spawn_iter_data,"Error in second RK step")
+#endif
+
         call extract_sign(CurrentDets(:,1), tmp_sign)
         print *, "hf occ after second annihil:", tmp_sign
         TotWalkers = int(TotWalkersNew, sizeof_int)
 
-#ifdef __DEBUG
-        call check_update_growth(second_spawn_iter_data,"Error in second RK step")
-#endif
         ! also do the update on the second_spawn_iter_data to combine both of 
         ! them outside this function 
         call update_iter_data(second_spawn_iter_data)
