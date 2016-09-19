@@ -334,7 +334,7 @@ module davidson_neci
         if (iProcIndex == root) then
             ! Multiply the new basis_vector by the hamiltonian and store the result in
             ! multiplied_basis_vectors.
-            call multiply_hamil_and_vector(this%super, real(this%super%basis_vectors(:,basis_index)), &
+            call multiply_hamil_and_vector(this%super, real(this%super%basis_vectors(:,basis_index), dp), &
                 this%multiplied_basis_vectors(:,basis_index))
 
             ! Now multiply U^T by (H U) to find projected_hamil. The projected Hamiltonian will
