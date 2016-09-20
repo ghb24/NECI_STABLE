@@ -14,7 +14,7 @@ module real_time_data
 
     ! for the actual calculation: 
     ! global flag indicating real-time calculation
-    logical :: t_real_time_fciqmc
+    logical :: t_real_time_fciqmc, t_new_stats_file
 
     ! also use a second iter_data type to keep track of the 2 distinct 
     ! spawning events

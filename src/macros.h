@@ -90,6 +90,7 @@ endif
 #ifdef __CMPLX
 ! 1->1 ,2->1, 3->2 ...
 #define part_type_to_run(pt) (1+((pt)-1)/2)
+#define rotate_part(pt) ((pt) - 1 + 2*mod((pt),2))
 #ifdef __PROG_NUMRUNS
 #define min_part_type(run) (2*(run)-1)
 #define max_part_type(run) (2*(run))

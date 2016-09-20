@@ -52,21 +52,15 @@ module bit_rep_data
                           flag_determ_parent = 1, &
                           flag_trial = 2, &
                           flag_connected = 3, &
-                          flag_has_been_initiator(1) = 4, &
+                          flag_has_been_initiator(1) = 4
                           ! RT_M_Merge: These should only be adressed with __REALTIME
                           ! use these unused to mark diagonal "spawns"
-#ifdef __REALTIME
-                          flag_diag_spawn(lenof_sign) = (/5, 6/)
-#else
-    flag_unused_1 = 5,&
-         flag_unused_2 = 6
-#endif
-
 #ifdef __PROG_NUMRUNS
     integer, parameter :: flag_initiator(lenof_sign_max) &
-                            = (/ 7,  8,  9, 10, 11, 12, 13, 14, 15, &
-                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26/), &
-                                num_flags = 27
+                            = (/ 5, 6, 7,  8,  9, 10, 11, 12, 13, 14, 15, &
+                                16, 17, 18, 19, 20, 21, 22, 23, 24/), &
+                                num_flags = 25
+    ! rmneci_setup: removed flag_diag_spawn as it was unused
 #else 
     integer, parameter :: flag_initiator(2) = (/7,8/), &
          num_flags = 9

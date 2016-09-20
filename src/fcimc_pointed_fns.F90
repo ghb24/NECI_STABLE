@@ -396,26 +396,30 @@ module fcimc_pointed_fns
         ! stats of the 2 distinct RK loops .. use a global variable for the step
         ! RT_M_Merge: Merge conflict with master due to introduction of kmneci resolved. 
         ! For rmneci, the __REALTIME case will have to be adapted to inum_runs>1
+
+        ! rmneci_setup: Added multirun support for real-time case
 #if defined(__REALTIME) 
-        if (runge_kutta_step == 1) then
-            NoBorn_1(1) = NoBorn_1(1) + sum(abs(child))
-            if (ic == 1) SpawnFromSing_1(1) = SpawnFromSing_1(1) + sum(abs(child))
+        do run = 1, inum_runs
+           if (runge_kutta_step == 1) then
+              NoBorn_1(run) = NoBorn_1(run) + sum(abs(child))
+              if (ic == 1) SpawnFromSing_1(run) = SpawnFromSing_1(run) + sum(abs(child))
 
-            if (sum(abs(child)) > InitiatorWalkNo) then
-                bloom_count_1(ic) = bloom_count_1(ic) + 1
-                bloom_sizes_1(ic) = max(real(sum(abs(child)),dp), bloom_sizes_1(ic))
-            end if
+              if (sum(abs(child)) > InitiatorWalkNo) then
+                 bloom_count_1(ic) = bloom_count_1(ic) + 1
+                 bloom_sizes_1(ic) = max(real(sum(abs(child)),dp), bloom_sizes_1(ic))
+              end if
 
-        else if (runge_kutta_step == 2) then
-            NoBorn(1) = NoBorn(1) + sum(abs(child))
-            if (ic == 1) SpawnFromSing(1) = SpawnFromSing(1) + sum(abs(child))
-            
-            ! Count particle blooms, and their sources
-            if (sum(abs(child)) > InitiatorWalkNo) then
-                bloom_count(ic) = bloom_count(ic) + 1
-                bloom_sizes(ic) = max(real(sum(abs(child)), dp), bloom_sizes(ic))
-            end if
-        end if
+           else if (runge_kutta_step == 2) then
+              NoBorn(run) = NoBorn(run) + sum(abs(child))
+              if (ic == 1) SpawnFromSing(run) = SpawnFromSing(run) + sum(abs(child))
+
+              ! Count particle blooms, and their sources
+              if (sum(abs(child)) > InitiatorWalkNo) then
+                 bloom_count(ic) = bloom_count(ic) + 1
+                 bloom_sizes(ic) = max(real(sum(abs(child)), dp), bloom_sizes(ic))
+              end if
+           end if
+        enddo
 #elif defined( __CMPLX) && !defined(__REALTIME)
         do run = 1, inum_runs
             NoBorn(run) = NoBorn(run) + sum(abs(child(min_part_type(run):max_part_type(run))))

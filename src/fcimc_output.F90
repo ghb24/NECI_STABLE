@@ -30,12 +30,11 @@ module fcimc_output
     use constants
     use sort_mod
     use util_mod
-#ifdef __REALTIME 
     use real_time_data, only: AllNoBorn_1, AllNoAborted_1, AllAnnihilated_1, &
                               AllNoDied_1, AllTotWalkers_1, nspawned_tot_1,  &
                               AllTotParts_1, AccRat_1, AllGrowRate_1, &
                               current_overlap, t_real_time_fciqmc
-#endif
+
 
 
 

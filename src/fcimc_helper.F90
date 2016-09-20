@@ -115,8 +115,10 @@ contains
 
         !Ensure no cross spawning between runs - run of child same as run of
         !parent
-#ifdef __DEBUG
+        
+        ! this surely does not work - run has to be passed as an argument
         run = part_type_to_run(part_type)
+#ifdef __DEBUG
         ASSERT(sum(abs(child))-sum(abs(child(min_part_type(run):max_part_type(run)))) < 1.0e-12_dp)
 #endif
 
@@ -171,6 +173,7 @@ contains
         ! Sum the number of created children to use in acceptance ratio.
         ! Note that if child is an array, it should only have one non-zero
         ! element which has changed.
+        ! rmneci_setup: clarified dependence of run on part_type
         run = part_type_to_run(part_type)
         acceptances(run) = acceptances(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
 
@@ -274,19 +277,19 @@ contains
                     end do
 
                 else
-                    ! here only Re -> Im and v.v. spawns
-                    ! part_type is the type of the parent particle! 
-                    ! 3 - part_type gives me the child partivle type in this 
-                    ! case 
-                    if (abs(real_sign_old(3-part_type)) > EPS .or. &
+                   ! here only Re -> Im and v.v. spawns
+                   ! part_typeis the type of the parent particle! 
+                   ! rotate_part() gives me 
+                   ! the child partivle type in this case
+                   if (abs(real_sign_old(rotate_part(part_type))) > EPS .or. &
                         test_flag(ilut_parent, flag_initiator(part_type))) then
-                        
-                        ! then set the child as initiator
-                        call set_flag(SpawnedParts(:,ind), flag_initiator(3-part_type))
 
-                    end if
+                      ! then set the child as initiator
+                      call set_flag(SpawnedParts(:,ind), flag_initiator(rotate_part(part_type)))
+
+                   end if
                 end if
-            end if
+             end if
 #else
             if (tTruncInitiator) then
                 if (abs(real_sign_old(part_type)) > 1.e-12_dp .or. test_flag(ilut_parent, get_initiator_flag(part_type))) &
@@ -337,7 +340,7 @@ contains
                     ! only Re -> Im and v.v. spawning
                     if (test_flag(ilut_parent, flag_initiator(part_type))) then
                         call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), &
-                            flag_initiator(3-part_type))
+                            flag_initiator(rotate_part(part_type)))
                     end if
                 end if
             end if
@@ -357,15 +360,18 @@ contains
         ! in the rt-fciqmc i have to track the stats of the 2 RK steps 
         ! seperately
         ! RT_M_Merge: Merge
+        ! rmneci_setup: introduced multirun support, fixed issue in non
+        ! real-time scheme
+        run = part_type_to_run(part_type)
 #if defined(__REALTIME)
         if (runge_kutta_step == 1) then
-            acceptances_1(1) = acceptances_1(1) + sum(abs(child_sign))
+           acceptances_1(run) = acceptances_1(run) + sum(abs(child_sign))
         else 
-            acceptances(1) = acceptances(1) + sum(abs(child_sign))
+           acceptances(run) = acceptances(run) + sum(abs(child_sign))
         end if
 #else
-        acceptances(part_type_to_run(part_type)) = &
-            acceptances(part_type_to_run(part_type)) + maxval(abs(child_sign))
+        acceptances(run) = &
+             acceptances(run) + maxval(abs(child_sign))
 #endif
 
     end subroutine create_particle_with_hash_table
@@ -511,22 +517,24 @@ contains
             ! determinants must also be included in the energy values
             ! along with the doubles
            ! RT_M_Merge: Adjusted to kmneci
+           ! rmneci_setup: Added multirun functionality for real-time
             if (ExcitLevel_local == 2) then
+               do run = 1, inum_runs
 #if defined(__REALTIME) 
-                if (runge_kutta_step == 1) then
-                    NoatDoubs(1) = NoatDoubs(1) + sum(abs(RealwSign))
-                else
-                    NoatDoubs_1(1) = NoatDoubs_1(1) + sum(abs(RealwSign))
-                endif
+
+                  if (runge_kutta_step == 1) then
+                     NoatDoubs(run) = NoatDoubs(run) + sum(abs(RealwSign))
+                  else
+                     NoatDoubs_1(run) = NoatDoubs_1(run) + sum(abs(RealwSign))
+                  endif
+
 #elif defined(__CMPLX) && !defined(__REALTIME)
-            do run = 1, inum_runs
-                NoatDoubs(run) = NoatDoubs(run) + sum(abs(RealwSign(min_part_type(run):max_part_type(run))))
-            enddo
+                  NoatDoubs(run) = NoatDoubs(run) + sum(abs(RealwSign &
+                       (min_part_type(run):max_part_type(run))))
 #else
-            do run = 1, inum_runs
-               NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
-            end do
+                  NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
 #endif
+               enddo
             end if
             ! Obtain off-diagonal element
             if (tHPHF) then

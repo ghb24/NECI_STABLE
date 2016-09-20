@@ -19,9 +19,6 @@ module real_time_procs
                          sizeof_int, MPIArg
     use bit_reps, only: decode_bit_det, test_flag, flag_initiator, encode_sign, &
                         set_flag, encode_bit_rep, extract_bit_rep, &
-#ifdef __REALTIME
-                        flag_diag_spawn, &
-#endif
                         flag_has_been_initiator, flag_deterministic, encode_part_sign, &
                         nullify_ilut_part
 
@@ -404,7 +401,7 @@ contains
 
                        iter_data%nborn = iter_data%nborn + abs(SignTemp)
                        
-                       NoBorn(1) = NoBorn(1) + sum(abs(SignTemp))
+                       NoBorn(run) = NoBorn(run) + sum(abs(SignTemp))
 
                        call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ)
                     end if
@@ -453,7 +450,7 @@ contains
 
                        iter_data%nborn = iter_data%nborn + abs(SignTemp)
                        
-                       NoBorn(1) = NoBorn(1) + sum(abs(SignTemp))
+                       NoBorn(run) = NoBorn(run) + sum(abs(SignTemp))
                        call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ)
 
                     end if
@@ -647,12 +644,14 @@ contains
         ! in the real-time, depending if damping is present or not both 
         ! particle types can or can't spawn to both types of child-particles
         if (tTruncInitiator) then
+           ! rmneci_setup: changed 1,2 -> max/min_part_type(run)
+           ! for rotated time: real_time_info%damping -> tRotateTime
             if (real_time_info%damping > EPS) then
                 ! both particle spawns possible -> check for both initiator flags! 
                 do i = 1, lenof_sign
                     if (abs(diag_sign(i)) > EPS) then
-                        if (test_flag(ilut, flag_initiator(1)) .or. &
-                            test_flag(ilut, flag_initiator(2))) then
+                        if (test_flag(ilut, flag_initiator(min_part_type(run))) .or. &
+                            test_flag(ilut, flag_initiator(max_part_type(run)))) then
                             call set_flag(DiagParts(:,valid_diag_spawn_list(proc)), &
                                 flag_initiator(i))
                         end if
@@ -663,7 +662,7 @@ contains
                 ! possible! check for the init of the other parent type 
                 do i = 1, lenof_sign
                     if (abs(diag_sign(i)) > EPS .and. test_flag(ilut, &
-                        flag_initiator(3-i))) then
+                        flag_initiator(rotate_part(i)))) then
                         call set_flag(DiagParts(:, valid_diag_spawn_list(proc)), &
                             flag_initiator(i))
                     end if
@@ -792,13 +791,6 @@ contains
             ! but right now, as calced above they are treated as annihilations!
             ! to deal with it later in the annihilation step as nborns and 
             ! ndied mark them as diagonal particles here.. 
-#ifdef __REALTIME
-            do i = 1, lenof_sign
-                if (abs(real_sign_new(i)) > EPS) then
-                    call set_flag(SpawnedParts(:,ind), flag_diag_spawn(i))
-                end if
-            end do
-#endif
             ! Set the initiator flags appropriately.
             ! If this determinant (on this replica) has already been spawned to
             ! then set the initiator flag. Also if this child was spawned from
@@ -813,6 +805,8 @@ contains
                 ! i can still check if only a real hamiltonian is used, so 
                 ! i know all the diagonal "spawns" come from the other particle
                 ! type
+
+               ! rotated_time: this will need adaption
                 if (real_time_info%damping > EPS) then
                     ! update: i am stupid! there are no complex diagonal 
                     ! elements! duh.. hermiticity!!
@@ -827,8 +821,8 @@ contains
                     do i = 1, lenof_sign
                         if (abs(real_sign_new(i)) > EPS) then
                             if (abs(real_sign_old(i)) > EPS .or. &
-                                test_flag(ilut,flag_initiator(i)) .or. &
-                                test_flag(ilut,flag_initiator(i))) then
+                                test_flag(ilut,flag_initiator(min_part_type(i))) .or. &
+                                test_flag(ilut,flag_initiator(max_part_type(i)))) then
 
                                 call set_flag(SpawnedParts(:,ind),flag_initiator(i))
                             end if
@@ -847,7 +841,7 @@ contains
                         if (abs(real_sign_new(i)) > EPS) then
                             ! then i know there is something left on the det
                             if (abs(real_sign_old(i)) > EPS .or. &
-                                test_flag(ilut, flag_initiator(3-i))) then
+                                test_flag(ilut, flag_initiator(rotate_part(i)))) then
                                 ! if 2 spawns to the same, or parent (of 
                                 ! opposite part. type) was initiator
                                 call set_flag(SpawnedParts(:,ind), flag_initiator(i))
@@ -894,17 +888,6 @@ contains
             call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), &
                 ilut(0:NIfDBO), diag_sign, flags)
 
-            ! to correctly account nborn and ndied stats set a flag which marks
-            ! these particles as diagonal "spawns"
-#ifdef __REALTIME
-            do i = 1, lenof_sign
-                if (abs(diag_sign(i)) > EPS) then
-                    call set_flag(SpawnedParts(:,ValidSpawnedList(proc)), &
-                        flag_diag_spawn(i))
-                end if
-            end do
-#endif
-
             ! If the parent was an initiator then set the initiator flag for the
             ! child, to allow it to survive.
             if (tTruncInitiator) then
@@ -915,8 +898,8 @@ contains
                     ! progeny and check initiator flags of both parent parts.
                     do i = 1, lenof_sign
                         if (abs(diag_sign(i)) > EPS) then
-                            if (test_flag(ilut,flag_initiator(1)) .or. &
-                                test_flag(ilut,flag_initiator(2))) then
+                            if (test_flag(ilut,flag_initiator(max_part_type(i))) .or. &
+                                test_flag(ilut,flag_initiator(min_part_type(i)))) then
                                 call set_flag(SpawnedParts(:,ValidSpawnedList(proc)), &
                                     flag_initiator(i))
                             end if
@@ -928,7 +911,7 @@ contains
                     do i = 1, lenof_sign
                         ! i have to check if the specific element is > 0
                         if (abs(diag_sign(i)) > EPS .and. &
-                            test_flag(ilut, flag_initiator(3-i))) then
+                            test_flag(ilut, flag_initiator(rotate_part(i)))) then
                             
                             call set_flag(SpawnedParts(:,ValidSpawnedList(proc)),&
                                 flag_initiator(i))
@@ -954,13 +937,15 @@ contains
         ! the real and complex walkers for the diagonal death/cloning step 
         ! since i need that for both 1st and 2nd loop of RK, but at different 
         ! points 
+      implicit none
         integer, intent(in) :: DetCurr(nel) 
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         real(dp), intent(in) :: Kii
         real(dp), dimension(lenof_sign) :: ndie
         real(dp), dimension(lenof_sign) :: CopySign
         integer, intent(in) :: walkExcitLevel
-        integer :: i, irdm
+        integer :: run, irdm
+        ! each run needs its own fac, since the shift varies
         real(dp) :: fac(lenof_sign), rat, r
 
         character(*), parameter :: this_routine = "attempt_die_realtime"
@@ -970,7 +955,9 @@ contains
 
         ! do i need a minus sign here?? just from the convention
         ! in the rest of the neci code? yes!
-        fac(1) = -tau * (Kii - DiagSft(1))
+        do run = 1, inum_runs
+           fac(min_part_type(run)) = -tau * (Kii - DiagSft(run))
+        enddo
 
         if (real_time_info%damping < EPS) then
             ! in this case there is only Re <-> Im 
@@ -992,8 +979,8 @@ contains
                         ! searching deal with it
                         write(iout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
                         write(iout, '("** WARNING ** Truncating spawn to ensure stability")')
-                        do i = 1, inum_runs
-                            fac(i) = min(2.0_dp, fac(i))
+                        do run = 1, inum_runs
+                            fac(run) = min(2.0_dp, fac(run))
                         end do
                     else
                         call stop_all(this_routine, "Death probability > 2: Algorithm unstable. Reduce timestep.")
@@ -1001,50 +988,53 @@ contains
                 else
                     write(iout,'("** WARNING ** Death probability > 1: Creating Antiparticles. "&
                         & //"Timestep errors possible: ")',advance='no')
-                    do i = 1, inum_runs
-                        write(iout,'(1X,f13.7)',advance='no') fac(i)
+                    do run = 1, inum_runs
+                        write(iout,'(1X,f13.7)',advance='no') fac(run)
                     end do
                     write(iout,'()')
                 endif
             endif
+            do run = 1, inum_runs
+               if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
+                    .or. tAllRealCoeff ) then
 
-            if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
-                .or. tAllRealCoeff ) then
+                  ! i exact.. just get the weights, this should also still work.
+                  ! but have to exchange the weights to come from the other 
+                  ! type of particles..
+                  ! the number of deaths has +sign from Im -> Re
+                  ! dont use abs() here compared to the old code, but already 
+                  ! here include the sign of the walkers on the determinant
+                  ndie(min_part_type(run)) = fac(min_part_type(run)) * realwSign(max_part_type(run))
+                  ! and - from Re -> Im
+                  ! does this give the correct sign compared to the parent sign?
+                  ndie(max_part_type(run)) = -fac(min_part_type(run)) * realwSign(min_part_type(run))
 
-                ! i exact.. just get the weights, this should also still work.
-                ! but have to exchange the weights to come from the other 
-                ! type of particles..
-                ! the number of deaths has +sign from Im -> Re
-                ! dont use abs() here compared to the old code, but already 
-                ! here include the sign of the walkers on the determinant
-                ndie(1) = fac(1) * realwSign(2)
-                ! and - from Re -> Im
-                ! does this give the correct sign compared to the parent sign?
-                ndie(2) = -fac(1) * realwSign(1)
+               else 
+                  ! if not exact i have to round stochastically
+                  ! Re -> Im
+                  rat = fac(min_part_type(run)) * RealwSign(max_part_type(run))
 
-            else 
-                ! if not exact i have to round stochastically
-                ! Re -> Im
-                rat = fac(1) * RealwSign(2)
+                  ndie(min_part_type(run)) = real(int(rat), dp) 
+                  rat = rat - ndie(min_part_type(run))
 
-                ndie(1) = real(int(rat), dp) 
-                rat = rat - ndie(1)
+                  r = genrand_real2_dSFMT() 
+                  if (abs(rat) > r) ndie(min_part_type(run)) = &
+                       ndie(min_part_type(run)) + real(nint(sign(1.0_dp,rat)),dp)
 
-                r = genrand_real2_dSFMT() 
-                if (abs(rat) > r) ndie(1) = ndie(1) + real(nint(sign(1.0_dp,rat)),dp)
-
-                ! Im -> Re
-                rat = -fac(1) * RealwSign(1)
-                ndie(2) = real(int(rat), dp)
-                rat = rat - ndie(2)
-                r = genrand_real2_dSFMT()
-                if (abs(rat) > r) ndie(2) = ndie(2) + real(nint(sign(1.0_dp,rat)),dp)
-            end if
+                  ! Im -> Re
+                  rat = -fac(min_part_type(run)) * RealwSign(max_part_type(run))
+                  ndie(max_part_type(run)) = real(int(rat), dp)
+                  rat = rat - ndie(max_part_type(run))
+                  r = genrand_real2_dSFMT()
+                  if (abs(rat) > r) ndie(max_part_type(run)) = &
+                       ndie(max_part_type(run)) + real(nint(sign(1.0_dp,rat)),dp)
+               end if
+            enddo
 
             ! here i only have influence from the other type of walkers, which 
             ! is already stored in the ndie() array
         else
-            ! there is an imaginary energy damping factor.. 
+            ! there is an imaginary energy damping factor.. -> rotated time
             ! so i have mixed influences for the diagonal step
             ! n_i' = -e n_i + H_ii c_i
             ! c_i' = -e c_i - H_ii n_i
@@ -1053,8 +1043,9 @@ contains
             ! not sure about the sign of this fac factor but the 2nd entry
             ! as it is implemented right now has to have the opposite sign 
             ! of the first on above
-            fac(2) = tau * real_time_info%damping 
-
+           do run = 1, inum_runs
+              fac(max_part_type(run)) = tau * real_time_info%damping 
+           end do
             ! here i am definetly not sure about the logging of the death
             ! magnitude.. 
             ! but also with damping.. the death is only related to the 
@@ -1070,8 +1061,8 @@ contains
                         ! searching deal with it
                         write(iout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
                         write(iout, '("** WARNING ** Truncating spawn to ensure stability")')
-                        do i = 1, inum_runs
-                            fac(i) = min(2.0_dp, fac(i))
+                        do run = 1, inum_runs
+                            fac(run) = min(2.0_dp, fac(run))
                         end do
                     else
                         call stop_all(this_routine, "Death probability > 2: Algorithm unstable. Reduce timestep.")
@@ -1079,49 +1070,58 @@ contains
                 else
                     write(iout,'("** WARNING ** Death probability > 1: Creating Antiparticles. "&
                         & //"Timestep errors possible: ")',advance='no')
-                    do i = 1, inum_runs
-                        write(iout,'(1X,f13.7)',advance='no') fac(i)
+                    do run = 1, inum_runs
+                        write(iout,'(1X,f13.7)',advance='no') fac(run)
                     end do
                     write(iout,'()')
                 endif
             endif
+            do run = 1, inum_runs
+               if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
+                    .or. tAllRealCoeff ) then
 
-            if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
-                .or. tAllRealCoeff ) then
+                  ! i exact.. just get the weights, this should also still work.
+                  ! but have to exchange the weights to come from the other 
+                  ! type of particles..
+                  ! the number of deaths has +sign from Im -> Re
+                  ! can i just add the other contribution here? 
+                  ! and also include the sign of the parent occupation here
+                  ! already.
+                  ndie(min_part_type(run)) = fac(min_part_type(run)) &
+                       * realwSign(max_part_type(run)) + &
+                       fac(max_part_type(run)) * realwSign(min_part_type(run))
+                  ! and - from Re -> Im
+                  ! does this give the correct sign compared to the parent sign?
+                  ndie(max_part_type(run)) = -fac(min_part_type(run)) * &
+                       abs(realwSign(min_part_type(run))) + &
+                       fac(max_part_type(run)) * abs(RealwSign(max_part_type(run)))
 
-                ! i exact.. just get the weights, this should also still work.
-                ! but have to exchange the weights to come from the other 
-                ! type of particles..
-                ! the number of deaths has +sign from Im -> Re
-                ! can i just add the other contribution here? 
-                ! and also include the sign of the parent occupation here
-                ! already.
-                ndie(1) = fac(1) * realwSign(2) + fac(2) * realwSign(1)
-                ! and - from Re -> Im
-                ! does this give the correct sign compared to the parent sign?
-                ndie(2) = -fac(1) * abs(realwSign(1)) + fac(2) * abs(RealwSign(2))
+               else 
+                  ! if not exact i have to round stochastically
+                  ! is this ok here to just add the second contribution? todo
+                  ! Re -> Im
+                  rat = fac(min_part_type(run)) * RealwSign(max_part_type(run)) &
+                       + fac(max_part_type(run)) * RealwSign(1)
 
-            else 
-                ! if not exact i have to round stochastically
-                ! is this ok here to just add the second contribution? todo
-                ! Re -> Im
-                rat = fac(1) * RealwSign(2) + fac(2) * RealwSign(1)
+                  ndie(min_part_type(run)) = real(int(rat), dp) 
+                  rat = rat - ndie(min_part_type(run))
 
-                ndie(1) = real(int(rat), dp) 
-                rat = rat - ndie(1)
+                  r = genrand_real2_dSFMT() 
+                  if (abs(rat) > r) ndie(min_part_type(run)) = ndie(min_part_type(run)) &
+                       + real(nint(sign(1.0_dp,rat)),dp)
 
-                r = genrand_real2_dSFMT() 
-                if (abs(rat) > r) ndie(1) = ndie(1) + real(nint(sign(1.0_dp,rat)),dp)
+                  ! Im -> Re
+                  rat = -fac(min_part_type(run)) * RealwSign(min_part_type(run)) &
+                  + fac(max_part_type(run)) * RealwSign(max_part_type(run))
 
-                ! Im -> Re
-                rat = -fac(1) * RealwSign(1) + fac(2) * RealwSign(2)
+                  ndie(max_part_type(run)) = real(int(rat), dp)
+                  rat = rat - ndie(max_part_type(run))
 
-                ndie(2) = real(int(rat), dp)
-                rat = rat - ndie(2)
-
-                r = genrand_real2_dSFMT()
-                if (abs(rat) > r) ndie(2) = ndie(2) + real(nint(sign(1.0_dp,rat)),dp)
-            end if
+                  r = genrand_real2_dSFMT()
+                  if (abs(rat) > r) ndie(max_part_type(run)) = &
+                       ndie(max_part_type(run)) + real(nint(sign(1.0_dp,rat)),dp)
+               end if
+            enddo
         end if
 
     end function attempt_die_realtime
@@ -1212,7 +1212,8 @@ contains
                 iter_data%ndied(i) = iter_data%ndied(i) + &
                     abs(min(abs(RealwSign(i)),abs(ndie(i))))
 
-                NoDied_1(1) = NoDied_1(1) + abs(min(abs(ndie(i)),abs(RealwSign(i))))
+                NoDied_1(part_type_to_run(i)) = NoDied_1(part_type_to_run(i)) &
+                     + abs(min(abs(ndie(i)),abs(RealwSign(i))))
                 ! if ndie is bigger than the original occupation i am actually
                 ! spawning 'anti-particles' which i have to count as born
                 ! and reduce the ndied number.. or not? 
@@ -1223,13 +1224,15 @@ contains
                     max(abs(ndie(i)) - abs(RealwSign(i)), 0.0_dp)
 
                 ! not sure if i even need this quantity..
-                NoBorn_1(1) = NoBorn_1(1) + max(abs(ndie(i)) - abs(RealwSign(i)), 0.0_dp)
+                NoBorn_1(part_type_to_run(i)) = NoBorn_1(part_type_to_run(i)) + &
+                     max(abs(ndie(i)) - abs(RealwSign(i)), 0.0_dp)
             else
                 ! if they have opposite sign, as in the original algorithm
                 ! reduce the number of ndied by that amount 
                 iter_data%ndied(i) = iter_data%ndied(i) - abs(ndie(i))
 
-                NoDied_1(1) = NoDied_1(1) - abs(ndie(i))
+                NoDied_1(part_type_to_run(i)) = NoDied_1(part_type_to_run(i)) &
+                     - abs(ndie(i))
 
             end if
         end do
@@ -1288,7 +1291,7 @@ contains
                 ! threshhold it should also become one
                 do i = 1, lenof_sign
                     ! other particle type
-                    j = 3 - i
+                    j = rotate_part(i)
                     if (abs(CopySign(j)) > EPS .and. test_flag(ilut, flag_initiator(i))) then
                         set_init(j) = .true.
                     end if

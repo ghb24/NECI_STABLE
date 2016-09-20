@@ -647,6 +647,9 @@ module AnnihilationMod
                         ! runge-kutta stats seperately -> also NoBorn values
                         ! etc..
 #if defined(__REALTIME)
+                        ! in the real-time case, complex and real walkers
+                        ! are treated separately, thus, it is enough if
+                        ! one of them is unoccupied
                         if (abs(CurrentSign(j)) < 1.e-12_dp) then
 #else
                         if (is_run_unnocc(CurrentSign,run)) then
