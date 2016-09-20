@@ -650,8 +650,9 @@ contains
                 ! both particle spawns possible -> check for both initiator flags! 
                 do i = 1, lenof_sign
                     if (abs(diag_sign(i)) > EPS) then
-                        if (test_flag(ilut, flag_initiator(min_part_type(run))) .or. &
-                            test_flag(ilut, flag_initiator(max_part_type(run)))) then
+                       ! rmneci_setup: these are the flags for the corresponding run
+                        if (test_flag(ilut, flag_initiator((1+i)/2)) .or. &
+                            test_flag(ilut, flag_initiator(1+(1+i)/2))) then
                             call set_flag(DiagParts(:,valid_diag_spawn_list(proc)), &
                                 flag_initiator(i))
                         end if
@@ -1444,7 +1445,7 @@ contains
         if (.not. t_complex_ints) then
             ! if it is a pure real-hamiltonian there is only spawing from 
             ! real to complex walkers and v.v.
-            tgt_cpt = 3 - part_type
+            tgt_cpt = rotate_part(part_type)
             walkerweight = sign(1.0_dp,RealwSign(part_type))
             MatEl = real(rh,dp)
 

@@ -112,6 +112,7 @@ endif
 #else
 ! 1->1 ,2->2, 3->3 ...
 #define part_type_to_run(pt) pt
+#define rotate_part(pt) pt
 #ifdef __PROG_NUMRUNS
 #define min_part_type(run) run
 #define max_part_type(run) run

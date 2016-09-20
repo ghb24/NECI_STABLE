@@ -1751,7 +1751,9 @@ contains
         InitialPartVec = 0.0_dp
         do run=1,inum_runs
             InitialPartVec(min_part_type(run))=InitialPart
+#ifdef __CMPLX
             InitialPartVec(max_part_type(run))=0
+#endif
         enddo
 
         !Setup initial walker local variables for HF walkers start
@@ -1797,8 +1799,10 @@ contains
                     InitialSign(min_part_type(run)) = InitWalkers
                     TotParts(min_part_type(run)) = real(InitWalkers,dp)
                     TotPartsOld(min_part_type(run)) = real(InitWalkers,dp)
+#ifdef __CMPLX
                     TotParts(max_part_type(run)) = 0.0_dp
                     TotPartsOld(max_part_type(run)) = 0.0_dp
+#endif
                 enddo
             endif
 

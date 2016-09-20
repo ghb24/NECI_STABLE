@@ -195,6 +195,7 @@ contains
         ! do all the setup, read-in and calling of the "new" real-time MC loop
         use real_time_procs, only: update_gf_overlap
         use real_time_data, only: gf_overlap, AllTotWalkersOld_1
+        use Systemdata, only: tCSF
         implicit none
 
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
