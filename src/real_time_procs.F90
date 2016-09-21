@@ -71,17 +71,11 @@ contains
         integer(n_int), pointer :: PointTemp(:,:)
         integer :: MaxIndex
 
-        ! do i also need to send all the particle to the correct processor? 
-        ! yes i think i do.. but i have to change the routine 
-
-        call SendProcNewParts_diag(MaxIndex, tSingleProc)
-        
-        ! maybe compression is required
-
-        ! do i need to compress these DiagParts? i do not thinks so.. 
-        ! since it should get stored contigously.. hm..
-        ! try it without for now.. and if it doesnt work implement it..
-        ! the maxindex var. would get changed it the compress subroutine 
+        ! As only diagonal events are considered here, no communication
+        ! is required
+        ! Also, this eliminates the need for compression as all dets are
+        ! already stored contigously and in the right orde
+        ! (no annihilation inside DiagParts can occur)
 
         call AnnihilateDiagParts(MaxIndex, TotWalkersNew, iter_data)
 
@@ -130,6 +124,9 @@ contains
         do i = 1, ValidSpawned
 
             call decode_bit_det(nJ, DiagParts(:,i)) 
+            print *, nJ
+            call stop_all("DEBUG","DEBUG")
+
             ! Search the hash table HashIndex for the determinant defined by
             ! nJ and DiagParts(:,i). If it is found, tSuccess will be
             ! returned .true. and PartInd will hold the position of the
@@ -603,6 +600,7 @@ contains
         ! new routine to create diagonal particles into new DiagParts 
         ! array to distinguish between spawns and diagonal events in the 
         ! combination y(n) + k2
+      use Parallel_neci, only :iProcIndex
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:niftot)
         real(dp), intent(in) :: diag_sign(lenof_sign)
@@ -615,6 +613,7 @@ contains
 
         ! Determine which processor the particle should end up on in the
         ! DirectAnnihilation algorithm.
+        ! Note that this is a diagonal event, no communication is needed
         proc = DetermineDetNode(nel,nI,0)    ! (0 -> nNodes-1)
 
         ! Check that the position described by valid_diag_spawn_list is acceptable.

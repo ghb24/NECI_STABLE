@@ -200,12 +200,14 @@ contains
 
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
         integer :: n_determ_states
+        integer :: i
 
         print *, " ========================================================== "
         print *, " ------------------ Real-time FCIQMC ---------------------- "
         print *, " ========================================================== "
 
         ! call the real-time setup routine and all the initialization
+       
         call init_real_time_calc_single()
 
         print *, " Real-time FCIQMC initialized! "
@@ -626,7 +628,7 @@ contains
                 
                 if (any(abs(diag_sign) > EPS)) then
 
-                    call create_diagonal_as_spawn(nI_parent, ilut_parent, &
+                   call create_diagonal_as_spawn(nI_parent, ilut_parent, &
                         diag_sign, second_spawn_iter_data)
                 end if
 

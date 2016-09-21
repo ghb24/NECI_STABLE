@@ -80,7 +80,6 @@ contains
 
         ! then call the setup routine, which set all remaining needed quantities
         call setup_real_time_fciqmc()
-
         ! definetly read-in stored popsfile here. 
         ! need to store both <y(0)| and also create a_j y(0)> during read-in!
 !         call read_popsfile_real_time()
