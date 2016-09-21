@@ -10,7 +10,8 @@ module real_time
                                DirectAnnihilation_diag, check_update_growth
     use real_time_data, only: gf_type, temp_freeslot, temp_iendfreeslot, wf_norm, &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
-                              current_overlap, SumWalkersCyc_1, real_time_info
+                              current_overlap, SumWalkersCyc_1, real_time_info, DiagParts, &
+                              valid_diag_spawn_list
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
                         tChangeProjEDet, tInstGrowthRate
@@ -634,7 +635,7 @@ contains
 
             end if
 
-        end do ! Over all determinants.
+        end do ! Over all determinants.  
 
         if (tSemiStochastic) call determ_projection()
 
@@ -914,6 +915,7 @@ contains
 !         FreeSlot = 0
         
         call second_real_time_spawn()
+
         call extract_sign(CurrentDets(:,1), tmp_sign)
         print *, "hf occ after second spawn:", tmp_sign
         ! 3) 

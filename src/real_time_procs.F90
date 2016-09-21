@@ -49,7 +49,7 @@ module real_time_procs
     use hash, only: remove_hash_table_entry
     use dSFMT_interface, only: genrand_real2_dSFMT
     use load_balance_calcnodes, only: DetermineDetNode
-    use ParallelHelper, only: nNodes, bNodeRoot, ProcNode, NodeRoots, MPIBarrier
+    use ParallelHelper, only: nNodes, bNodeRoot, ProcNode, NodeRoots, MPIBarrier, iProcIndex
     use Parallel_neci, only: nProcessors, MPIAlltoAll, MPIAlltoAllv
     use LoggingData, only: tNoNewRDMContrib
     use AnnihilationMod, only: test_abort_spawn
@@ -67,9 +67,7 @@ contains
         type(fcimc_iter_data), intent(inout) :: iter_data
         logical, intent(in) :: tSingleProc
         character(*), parameter :: this_routine = "DirectAnnihilation_diag"
-
-        integer(n_int), pointer :: PointTemp(:,:)
-        integer :: MaxIndex
+        integer :: numSpawns
 
         ! As only diagonal events are considered here, no communication
         ! is required
@@ -77,7 +75,8 @@ contains
         ! already stored contigously and in the right orde
         ! (no annihilation inside DiagParts can occur)
 
-        call AnnihilateDiagParts(MaxIndex, TotWalkersNew, iter_data)
+        numSpawns = valid_diag_spawn_list(iProcIndex)
+        call AnnihilateDiagParts(numSpawns, TotWalkersNew, iter_data)
 
         ! also should update the hashtable stats, specific for this diagonal 
         ! spawning event, but the original one should work also for this 
@@ -111,7 +110,6 @@ contains
 
         ! this routine updated the NoDied variables etc.. for the 2nd RK step
         ! so i dont think i need to change much here
-
         ! Only node roots to do this.
         if (.not. bNodeRoot) return
 
@@ -121,11 +119,9 @@ contains
 
 !         call set_timer(BinSearch_time,45)
 
-        do i = 1, ValidSpawned
+        do i = InitialSpawnedSlots(iProcIndex), ValidSpawned
 
-            call decode_bit_det(nJ, DiagParts(:,i)) 
-            print *, nJ
-            call stop_all("DEBUG","DEBUG")
+           call decode_bit_det(nJ, DiagParts(:,i)) 
 
             ! Search the hash table HashIndex for the determinant defined by
             ! nJ and DiagParts(:,i). If it is found, tSuccess will be
@@ -475,104 +471,6 @@ contains
 
     end subroutine AnnihilateDiagParts
 
-    subroutine SendProcNewParts_diag(MaxIndex, tSingleProc)
-        ! new routine to deal with the valid_spawned list for diagonal 
-        ! "spawns"
-        ! have to check if i can still use the same InitialSpawnedSlots 
-        ! simultaniously for the original spawn and the diagonal spawn
-        integer, intent(out) :: MaxIndex
-        logical, intent(in) :: tSingleProc
-        character(*), parameter :: this_routine = "SendProcNewParts_diag"
-
-        integer :: i, error
-        integer(MPIArg), dimension(nProcessors) :: sendcounts, disps, &
-                                                   recvcounts, recvdisps
-        integer :: MaxSendIndex
-        integer(MPIArg) :: SpawnedPartsWidth
-
-        if (tSingleProc) then
-            ! Put all particles and gap on one proc.
-
-            ! valid_diag_spawn_list(0:nNodes-1) indicates the next free index for each
-            ! processor (for spawnees from this processor) i.e. the list of spawned
-            ! particles has already been arranged so that newly spawned particles are 
-            ! grouped according to the processor they go to.
-
-            ! sendcounts(1:) indicates the number of spawnees to send to each processor.
-            ! disps(1:) is the index into the spawned list of the beginning of the list
-            ! to send to each processor (0-based).
-           sendcounts(1)=int(valid_diag_spawn_list(0)-1,MPIArg)
-           disps(1)=0
-           if (nNodes>1) then
-              sendcounts(2:nNodes)=0
-              ! n.b. work around PGI bug.
-              do i = 2, nNodes
-                  disps(i) = int(valid_diag_spawn_list(1), MPIArg)
-              end do
-              !disps(2:nNodes)=int(valid_diag_spawn_list(1),MPIArg)
-           end if
-                                                                       
-        else
-          ! Distribute the gaps on all procs.
-           do i = 0 ,nProcessors-1
-               if (NodeRoots(ProcNode(i)) == i) then
-                  sendcounts(i+1) = int(valid_diag_spawn_list(ProcNode(i)) - &
-                        InitialSpawnedSlots(ProcNode(i)),MPIArg)
-                  ! disps is zero-based, but InitialSpawnedSlots is 1-based.
-                  disps(i+1)=int(InitialSpawnedSlots(ProcNode(i))-1,MPIArg)
-               else
-                  sendcounts(i+1) = 0
-                  disps(i+1) = disps(i)
-               end if
-           end do
-        end if
-
-        MaxSendIndex = valid_diag_spawn_list(nNodes-1) - 1
-
-        ! We now need to calculate the recvcounts and recvdisps - this is a
-        ! job for AlltoAll
-        recvcounts(1:nProcessors) = 0
-        
-        call MPIBarrier(error)
-!         call set_timer(Comms_Time,30)
-
-        call MPIAlltoAll(sendcounts,1,recvcounts,1,error)
-
-        ! Set this global data - the total number of spawned determants.
-        ! change that to a global diag spawn var.
-        n_diag_spawned = sum(recvcounts)
-
-        ! We can now get recvdisps from recvcounts, since we want the data to
-        ! be contiguous after the move.
-        recvdisps(1) = 0
-        do i = 2, nProcessors
-            recvdisps(i) = recvdisps(i-1) + recvcounts(i-1)
-        end do
-        MaxIndex = recvdisps(nProcessors) + recvcounts(nProcessors)
-
-        SpawnedPartsWidth = int(size(DiagParts, 1), MPIArg)
-        do i = 1, nProcessors
-            recvdisps(i) = recvdisps(i)*SpawnedPartsWidth
-            recvcounts(i) = recvcounts(i)*SpawnedPartsWidth
-            sendcounts(i) = sendcounts(i)*SpawnedPartsWidth
-            disps(i) = disps(i)*SpawnedPartsWidth
-        end do
-
-        ! Max index is the largest occupied index in the array of hashes to be
-        ! ordered in each processor 
-        if (MaxIndex > (0.9_dp*MaxSpawned)) then
-            write(6,*) MaxIndex,MaxSpawned
-            call Warning_neci("SendProcNewParts","Maximum index of newly-spawned array is " &
-            & //"close to maximum length after annihilation send. Increase MemoryFacSpawn")
-        end if
-
-        ! do i have initialized everything correctly here? 
-        call MPIAlltoAllv(DiagParts,sendcounts,disps,DiagParts2,recvcounts,recvdisps,error)
-
-!         call halt_timer(Comms_Time)
-
-    end subroutine SendProcNewParts_diag
-
     function count_holes_in_currentDets() result(holes)
         integer :: holes 
         integer(n_int), pointer :: ilut_parent(:)
@@ -614,13 +512,12 @@ contains
         ! Determine which processor the particle should end up on in the
         ! DirectAnnihilation algorithm.
         ! Note that this is a diagonal event, no communication is needed
-        proc = DetermineDetNode(nel,nI,0)    ! (0 -> nNodes-1)
+        proc = iProcIndex    ! (0 -> nNodes-1)
 
         ! Check that the position described by valid_diag_spawn_list is acceptable.
         ! If we have filled up the memory that would be acceptable, then
         ! kill the calculation hard (i.e. stop_all) with a descriptive
         ! error message.
-        ! i have to change that here to the diag_valid spawn list 
         list_full = .false.
         if (proc == nNodes - 1) then
             if (valid_diag_spawn_list(proc) > MaxSpawned) list_full = .true.
@@ -1704,6 +1601,8 @@ contains
         ! also reset the diagonal specific valid spawn list.. i think i 
         ! can just reuse the InitialSpawnedSlots also
         valid_diag_spawn_list = InitialSpawnedSlots
+
+        print *, "valid_diag_spawn_list", valid_diag_spawn_list
 
         ! also save the number of particles from this spawning to calc. 
         ! first step specific acceptance rate
