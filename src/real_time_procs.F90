@@ -13,7 +13,7 @@ module real_time_procs
                               temp_det_hash, temp_totWalkers, pert_norm, &
                               valid_diag_spawn_list, DiagParts, n_diag_spawned, &
                               DiagParts2, NoDied_1, NoBorn_1, SumWalkersCyc_1, &
-                              current_overlap
+                              t_rotated_time
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
                          sizeof_int, MPIArg
@@ -49,8 +49,9 @@ module real_time_procs
     use hash, only: remove_hash_table_entry
     use dSFMT_interface, only: genrand_real2_dSFMT
     use load_balance_calcnodes, only: DetermineDetNode
-    use ParallelHelper, only: nNodes, bNodeRoot, ProcNode, NodeRoots, MPIBarrier, iProcIndex
-    use Parallel_neci, only: nProcessors, MPIAlltoAll, MPIAlltoAllv
+    use ParallelHelper, only: nNodes, bNodeRoot, ProcNode, NodeRoots, MPIBarrier, &
+         iProcIndex, MPI_SUM, root
+    use Parallel_neci, only: nProcessors, MPIAlltoAll, MPIAlltoAllv, MPIReduce
     use LoggingData, only: tNoNewRDMContrib
     use AnnihilationMod, only: test_abort_spawn
     use load_balance, only: AddNewHashDet, CalcHashTableStats, adjust_load_balance, test_hash_table
@@ -112,7 +113,6 @@ contains
         ! so i dont think i need to change much here
         ! Only node roots to do this.
         if (.not. bNodeRoot) return
-
 !         call set_timer(AnnMain_time, 30)
 
 !         if (tHistSpawn) HistMinInd2(1:nEl) = FCIDetIndex(1:nEl)
@@ -1277,7 +1277,7 @@ contains
         logical :: tRealSpawning
         HElement_t(dp) :: rh, rh_used
 
-        ! Just in case
+        ! This is crucial
         child = 0.0_dp
 
         ! If each walker does not have exactly one spawning attempt
@@ -1339,7 +1339,7 @@ contains
         ! or? talk to ali..
         ! yes this is exactly what is done already.. now implement that 
         ! also for the additional -i in the real-time walker dynamics
-        if (.not. t_complex_ints) then
+        if (.not. t_complex_ints .and. .not. t_rotated_time) then
             ! if it is a pure real-hamiltonian there is only spawing from 
             ! real to complex walkers and v.v.
             tgt_cpt = rotate_part(part_type)
@@ -1348,7 +1348,7 @@ contains
 
             ! spawn from real-parent to imaginary child: no sign change
             ! from imaginary to real -> sign change
-            if (part_type == 2) walkerweight = -walkerweight
+            if (mod(part_type,2) == 0) walkerweight = -walkerweight
 
             nSpawn = - tau * MatEl * walkerweight / prob
 
@@ -1404,18 +1404,18 @@ contains
             ! have to loop over the tgt_cpt similar to the complex implo
             ! if the Hamiltonian has real and imaginary components do it 
             ! similarily to complex implementation with H <-> J switched
-            ! change this (lenof/inum) below .. todo
+            ! rmneci_setup: adjusted for multirun, fixed complex -> real spawns
             do tgt_cpt = 1, (lenof_sign/inum_runs)
                 component = tgt_cpt
-                if (part_type == 2 .and. inum_runs == 1) component = 3 - tgt_cpt
+                ! if (part_type == 2 .and. inum_runs == 1) component = 3 - tgt_cpt !?
 
                 walkerweight = sign(1.0_dp,RealwSign(part_type)) 
+                if (mod(part_type,2) == 2) walkerweight = -walkerweight
 #ifdef __REALTIME
-                if (component == 1) then
+                if (component /= mod(part_type,2)) then
                     MatEl = real(aimag(rh_used),dp)
                 else 
                     MatEl = real(rh_used,dp)
-                    if (part_type == 2) walkerweight = -walkerweight
                 end if
 #endif
 
@@ -1672,31 +1672,6 @@ contains
 
     end subroutine setup_temp_det_list
 
-    subroutine new_child_stats_realtime(iter_data, ilutI, nJ, ilutJ, ic, &
-                walkExLevel, child, parent_flags, part_type) 
-        ! new realtime fciqmc specific spawn statistics gathering routine 
-        ! due to the different algorithm in the real-time fciqmc, with 2 
-        ! application of the Hamiltonian in one cycle, the bookkeeping 
-        ! function also have to be changed majorly! 
-        ! the change is not so much, mainly that the particles spawn to the 
-        ! other type of particles (Re <-> Im) all the time if a pure real
-        ! Hamiltonian is used. and both if the Hamiltonian has complex entries
-        ! but i guess for the complex run this is also wrongly implemented 
-        ! in the old code, as this is not considered..
-        ! NO! its correctly considered in the old routine.. doh! 
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        integer, intent(in) :: ic, walkExLevel, parent_flags, nJ(nel) 
-        integer, intent(in) :: part_type
-        real(dp), intent(in) :: child(lenof_sign)
-        type(fcimc_iter_data), intent(inout) :: iter_data
-        character(*), parameter :: this_routine = "new_child_stats_realtime"
-
-!         NoBorn(1) = NoBorn(1) + sum(abs(child))
-!         if (ic == 1) SpawnFromSing(1) = SpawnFromSing(1) + sum(abs(child))
-
-        !... nah its correct in the original routine... duh..
-    end subroutine new_child_stats_realtime
-
     ! subroutine to calculate the overlap of the current y(t) = a_j(a^+_j)(t)y(0)>
     ! time evolved wavefunction to the saved <y(0)|a^+_i(a_i) 
     subroutine update_gf_overlap() 
@@ -1726,20 +1701,28 @@ contains
                 HashIndex, CurrentDets, det_ind, hash_val, tDetFound)
 
             if (tDetFound) then
-                ! since the original gound state is pure real... (atleast thats
-                ! what we assume for now -> we only need the real part of 
-                ! the time-evolved wf
+               ! both real and imaginary part of the time-evolved wf are required
                 call extract_sign(CurrentDets(:,det_ind), real_sign_2)
 
                 do i = 1, lenof_sign
-                    overlap(i) = overlap(i) + real_sign_1(1) * real_sign_2(i)
+                   if(mod(i,2)==0) then
+                   ! imaginary part of the overlap
+                    overlap(i) = overlap(i) + &
+                         real_sign_1(min_part_type(i)) * real_sign_2(max_part_type(i)) - &
+                         real_sign_2(min_part_type(i)) * real_sign_1(max_part_type(i))
+                    else 
+                       ! real part of the overlap
+                       overlap(i) = overlap(i) + &
+                         real_sign_1(min_part_type(i)) * real_sign_2(min_part_type(i)) + &
+                         real_sign_2(max_part_type(i)) * real_sign_1(max_part_type(i)) 
+                    endif
                 end do
             end if
         end do
 
-        ! need the timestep here... or the cycle of the current real-time loop
-        gf_overlap(:,iter) = overlap 
-
+        ! rmneci_setup: the overlap has to be reduced as each proc
+        ! only computes its own part
+        call MPIReduce(overlap,MPI_SUM,gf_overlap(:,iter))
 
     end subroutine update_gf_overlap
 
@@ -1758,7 +1741,7 @@ contains
             call extract_sign(perturbed_ground(:,idet), tmp_sign)
 
             ! for now assume real-only groundstates from which we start 
-            pert_norm = pert_norm + tmp_sign(1)**2
+            pert_norm = pert_norm + tmp_sign(1)**2 + tmp_sign(2)**2
 
         end do
 

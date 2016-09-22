@@ -47,6 +47,8 @@ module real_time
     use LoggingData, only: tPopsFile
     use PopsFileMod, only: WriteToPopsfileParOneArr
     use load_balance, only: test_hash_table
+    use Parallel_neci, only: MPIReduce
+    use ParallelHelper, only: MPI_SUM, iProcIndex, root
 
     implicit none
 
@@ -228,14 +230,17 @@ contains
         ! shouldnt geourge have some of those routines..
 
         call update_gf_overlap()
-        print *, "test on overlap at t = 0: "
-        if (gf_type == -1) then
-            print *, " for lesser GF  <y(0)| a^+_i a_j |y(0) >; i,j: ", &
-                overlap_pert(1)%ann_orbs(1), pops_pert(1)%ann_orbs(1)
-        else if (gf_type == 1) then
-            print *, " for greater GF <y(0)| a_i a^+_j |y(0)> ; i,j: ", &
-                overlap_pert(1)%crtn_orbs(1), pops_pert(1)%crtn_orbs(1)
-        end if
+        if(iProcIndex == root) then
+           print *, "test on overlap at t = 0: "
+           if (gf_type == -1) then
+              print *, " for lesser GF  <y(0)| a^+_i a_j |y(0) >; i,j: ", &
+                   overlap_pert(1)%ann_orbs(1), pops_pert(1)%ann_orbs(1)
+           else if (gf_type == 1) then
+              print *, " for greater GF <y(0)| a_i a^+_j |y(0)> ; i,j: ", &
+                   overlap_pert(1)%crtn_orbs(1), pops_pert(1)%crtn_orbs(1)
+           end if
+           print *, "Current GF:", gf_overlap(:,0) / pert_norm
+        endif
 
 !         print *, " overlap: ",  sqrt(gf_overlap(0)) / sqrt(pops_norm) 
 !         print *, " overlap2:", sqrt(gf_overlap(0)) / sqrt(wf_norm(0))
@@ -272,8 +277,8 @@ contains
 
             current_overlap = gf_overlap(:,iter-1) / wf_norm(iter - 1)
 
-            !print *, "overlap: ", gf_overlap(1,iter-1) / wf_norm(iter-1), &
-!                gf_overlap(2,iter-1) / wf_norm(iter-1), gf_overlap(2,iter-1)
+            print *, "overlap: ", gf_overlap(1,iter-1) / wf_norm(iter-1), &
+                gf_overlap(2,iter-1) / wf_norm(iter-1)
 
             ! update various variables.. time-step, initiator criteria etc.
 
@@ -654,7 +659,7 @@ contains
         integer(n_int), pointer :: ilut_parent(:) 
         integer(n_int) :: ilut_child(0:niftot)
         real(dp) :: parent_sign(lenof_sign), parent_hdiag, prob, child_sign(lenof_sign), &
-                    unused_sign(lenof_sign), unused_rdm_real, tmp_norm
+                    unused_sign(lenof_sign), unused_rdm_real, tmp_norm, norm_buf
         logical :: tParentIsDeterm, tParentUnoccupied, tParity, tChildIsDeterm
         HElement_t(dp) :: HelGen
         integer :: TotWalkersNew
@@ -722,10 +727,10 @@ contains
             end if
 
             ! add up norm here: 
-!             do i = 1, lenof_sign
-!                 tmp_norm = tmp_norm + parent_sign(i)**2
-!             end do
-            tmp_norm = tmp_norm + sum(parent_sign**2)
+            ! rmneci_setup: adjust for multirun!
+             do i = 1, 2
+                 tmp_norm = tmp_norm + parent_sign(i)**2
+             end do
 
             ! The current diagonal matrix element is stored persistently.
             parent_hdiag = det_diagH(idet)
@@ -851,8 +856,10 @@ contains
 
         TotWalkers = int(TotWalkersNew, sizeof_int)
 
+        ! communicate the norm as it is the sum over all walkers
+        call MPIReduce(tmp_norm,MPI_SUM,norm_buf)
         ! also store the new norm information 
-        wf_norm(iter-1) = sqrt(pert_norm * tmp_norm)
+        wf_norm(iter-1) = sqrt(pert_norm * norm_buf)
 
 
     end subroutine first_real_time_spawn

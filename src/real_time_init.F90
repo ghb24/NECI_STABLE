@@ -23,8 +23,8 @@ module real_time_init
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_perturbed_norm
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
-    use Parallel_neci, only: nProcessors
-    use ParallelHelper, only: iProcIndex, root, MPIbarrier, nNodes
+    use Parallel_neci, only: nProcessors, MPIReduce
+    use ParallelHelper, only: iProcIndex, root, MPIbarrier, nNodes, MPI_SUM
     use util_mod, only: get_unique_filename
     use Logging, only: tIncrementPops
     use kp_fciqmc_data_mod, only: scaling_factor, tMultiplePopStart, tScalePopulation, &
@@ -95,7 +95,7 @@ contains
         ! number of copies etc. sets up the final needed quantities to run 
         ! a simulation
         character(*), parameter :: this_routine = "setup_real_time_fciqmc"
-
+        real(dp) :: norm_buf
         integer :: ierr
 
         ! also need to create the perturbed ground state to calculate the 
@@ -105,9 +105,15 @@ contains
         ! time evolved y(t) will be stored in the CurrentDets array
         call create_perturbed_ground()
 
+        pert_norm = 1.0_dp
         ! calc. the norm of this perturbed ground-state
-        pert_norm = calc_perturbed_norm()
+        norm_buf = calc_perturbed_norm()
+        ! the norm (squared) can be obtained by reduction over all processes
+        call MPIReduce(norm_buf,MPI_SUM,pert_norm)
+        if(iProcIndex == root) print *, "Initial norm", pert_norm
 
+        ! if(bNodeRoot)  
+        print *, "Norm of initial state:", pert_norm
         ! change the flags dependent on the real-time input 
         if (real_time_info%t_equidistant_time) then
             print *, " The equdistant time step option is set for the real-time calculation"
