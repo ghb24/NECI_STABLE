@@ -214,6 +214,20 @@ if (HAVE_HDF5)
     list(APPEND _conditional_libraries ${HDF5_NECI_LIBRARIES} )
 endif()
 
+# ---------------------------------------------------------------------------------
+
+set( _library_link_libs
+    "${LAPACK_NECI_LIBRARIES}"
+    "${LIBRT_LIBRARIES}"
+    "${_conditional_libraries}" )
+
+if( HAVE_SHARED )
+    set( _link_type SHARED )
+    set( _exe_link_libs "" )
+else()
+    set( _link_type STATIC )
+    set( _exe_link_libs "${_library_link_libs}" )
+endif()
 
 # ---------------------------------------------------------------------------------
 # Build the main parts as static libraries
@@ -226,7 +240,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
     neci_add_library(
     
         TARGET lib${_config}
-        TYPE STATIC
+        TYPE ${_link_type}
         OUTPUT_NAME ${_config}
         SOURCES ${SRC_FILES}
         TEMPLATED_SOURCES ${TEMPLATED_SRC_FILES}
@@ -241,17 +255,17 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
             "${${PROJECT_NAME}_${_config}_DEFINITIONS}"
             "${HDF5_NECI_DEFINITIONS}"
 
-        LIBS
-            "${LAPACK_NECI_LIBRARIES}"
-            "${LIBRT_LIBRARIES}"
-            "${_conditional_libraries}"
+        LIBS "${_library_link_libs}"
     )
 
     message(STATUS "Adding executable for configuration ${_config}")
     neci_add_executable(
         TARGET ${_config}
         SOURCES necimain.F90
-        LIBS lib${_config}
+        LIBS
+            lib${_config}
+            "${_exe_link_libs}"
+
         LINKER_LANGUAGE Fortran
     )
 

@@ -1743,7 +1743,10 @@ contains
 
         InitialPartVec = 0.0_dp
         do run=1,inum_runs
-            InitialPartVec(run)=InitialPart
+            InitialPartVec(min_part_type(run))=InitialPart
+#ifdef __CMPLX
+            InitialPartVec(max_part_type(run))=0.0_dp
+#endif
         enddo
 
         !Setup initial walker local variables for HF walkers start
@@ -1786,9 +1789,13 @@ contains
                 TotPartsOld(:) = InitialPartVec(:)
             else
                 do run=1, inum_runs
-                    InitialSign(run) = InitWalkers
-                    TotParts(run) = real(InitWalkers,dp)
-                    TotPartsOld(run) = real(InitWalkers,dp)
+                   InitialSign(min_part_type(run)) = InitWalkers
+                   TotParts(min_part_type(run)) = real(InitWalkers,dp)
+                   TotPartsOld(min_part_type(run)) = real(InitWalkers,dp)
+#ifdef __CMPLX
+                   TotParts(max_part_type(run)) = 0.0_dp
+                   TotPartsOld(max_part_type(run)) = 0.0_dp
+#endif
                 enddo
             endif
 
@@ -3278,7 +3285,7 @@ contains
                 else
                     abstr='FCIMCStats.'//adjustl(abstr)
                 endif
-                inquire(file=abstr,exist=exists)
+                inquire(file=trim(adjustl(abstr)),exist=exists)
                 if(.not.exists) exit
                 extension=extension+1
                 if(extension.gt.10000) then
@@ -3292,9 +3299,9 @@ contains
 !            stat = neci_system(trim(command))
 
             if(tMolpro) then
-                call rename('FCIQMCStats',abstr)
+                call rename('FCIQMCStats',trim(adjustl(abstr)))
             else
-                call rename('FCIMCStats',abstr)
+                call rename('FCIMCStats',trim(adjustl(abstr)))
             endif
             !Doesn't like the stat argument
 !            if(stat.ne.0) then

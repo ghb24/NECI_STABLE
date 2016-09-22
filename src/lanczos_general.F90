@@ -234,7 +234,7 @@ module lanczos_general
 
             do i = 1, n_states
                 write(6, *) det_list(:,lowest_energy_det_indices(i))
-                this%lanczos_vector(lowest_energy_det_indices(i)) = 1.0_dp/sqrt(dble(n_states))
+                this%lanczos_vector(lowest_energy_det_indices(i)) = 1.0_dp/sqrt(real(n_states, dp))
             enddo
             
             this%lanczos_vector(:) = this%lanczos_vector(:)/euclidean_norm(this%lanczos_vector(:))
@@ -286,13 +286,13 @@ module lanczos_general
                         largest_overlap = abs(overlap)
                     endif
                     if (abs(overlap) > this%orthog_tolerance) then
-                        write(6, '(" Largest Ritz vector overlap: "5ES16.7)') largest_overlap
+                        write(6, '(" Largest Ritz vector overlap: ", 5ES16.7)') largest_overlap
                         call stop_all(t_r, "Ritz vector overlap is unacceptably large") 
                     endif
                 enddo
             enddo
-            write(6, '(" Largest Ritz vector overlap: "5ES16.7)') largest_overlap
-            write(6, '(" Ritz vectors are mutually orthogonal to a tolerance of "5ES16.7)') this%orthog_tolerance
+            write(6, '(" Largest Ritz vector overlap: ", 5ES16.7)') largest_overlap
+            write(6, '(" Ritz vectors are mutually orthogonal to a tolerance of ", 5ES16.7)') this%orthog_tolerance
         endif
     end subroutine perform_orthogonality_test
 
@@ -463,7 +463,7 @@ module lanczos_general
         real(dp) :: ms
         ms = 0.0_dp
         do i = 1, size(vec)
-            ms = ms+dble(get_det_ms(det_list(:,i)))*abs(vec(i))**2.0_dp
+            ms = ms+real(get_det_ms(det_list(:,i)), dp)*abs(vec(i))**2.0_dp
         enddo        
         ms = ms*0.5_dp
     end function
@@ -553,7 +553,7 @@ module lanczos_general
                         overlap = real(dot_product(this%current_v, this%lanczos_vector),dp)
                         call setAlpha(this, k, overlap)
                         call addVec(this, k+1, this%lanczos_vector-getAlpha(this, k)*current_v)
-                        call setBeta(this, k+1, sqrt(dble(dot_product(current_v, current_v))))
+                        call setBeta(this, k+1, sqrt(real(dot_product(current_v, current_v), dp)))
                         current_v = current_v / getBeta(this, k+1)
                     endif
 
@@ -654,7 +654,7 @@ module lanczos_general
 
         if (check_deltas(this, k)) then
             if (print_info) then
-                write(6, '(i2" eigenvalues(s) were successfully converged to within "5ES16.7)') &
+                write(6, '(i2" eigenvalues(s) were successfully converged to within ",5ES16.7)') &
                     this%n_states, this%convergence_error
                 call neci_flush(6)
             endif

@@ -54,7 +54,7 @@ MODULE ReadInput_neci
         cTitle=""
         idDef=idDefault                 !use the Default defaults (pre feb08)
         ir=get_free_unit()              !default to a free unit which we'll open below
-        If(cFilename.ne.'') Then
+        If(trim(adjustl(cFilename)) .ne. '') Then
             Write(6,*) "Reading from file: ", Trim(cFilename)
 #ifdef _MOLCAS_
            allocate(tmparr(10))
@@ -74,7 +74,12 @@ MODULE ReadInput_neci
 #endif
         ElseIf(neci_iArgC().gt.0) then
     ! We have some arguments we can process instead
+#ifdef BLUEGENE_HACKS
+            call neci_GetArg(neci_iArgC(), cInp)
+#else
             Call neci_GetArg(1,cInp)      !Read argument 1 into inp
+#endif
+            write(6,*) "Processing arguments", cinp
             Write(6,*) "Reading from file: ", Trim(cInp)
             inquire(file=cInp,exist=tExists)
             if (.not.tExists) call stop_all('ReadInputMain','File '//Trim(cInp)//' does not exist.')

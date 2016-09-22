@@ -48,6 +48,11 @@ neci_add_option(
     DEFAULT OFF
     DESCRIPTION "Build NECI with molcas functionality" )
 
+neci_add_option(
+    FEATURE SHARED
+    DEFAULT OFF
+    DESCRIPTION "Build using shared libraries, rather than static linking" )
+
 # Special option overrides
 
 if( HAVE_SHARED_MEMORY AND CMAKE_Fortran_COMPILER_ID STREQUAL "PGI" )
