@@ -205,6 +205,9 @@ contains
 
         gf_overlap = 0.0_dp
 
+        ! why bother with an imaginary shift?
+        DiagSft = 0.0_dp
+
         ! to avoid dividing by 0 if not all entries get filled
         wf_norm = 1.0_dp
 

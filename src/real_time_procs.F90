@@ -853,7 +853,8 @@ contains
         ! do i need a minus sign here?? just from the convention
         ! in the rest of the neci code? yes!
         do run = 1, inum_runs
-           fac(min_part_type(run)) = -tau * (Kii - DiagSft(run))
+           ! rmneci_setup: there is no reason to use an imaginary shift
+           fac(min_part_type(run)) = -tau * (Kii)
         enddo
 
         if (real_time_info%damping < EPS) then
@@ -1602,8 +1603,6 @@ contains
         ! can just reuse the InitialSpawnedSlots also
         valid_diag_spawn_list = InitialSpawnedSlots
 
-        print *, "valid_diag_spawn_list", valid_diag_spawn_list
-
         ! also save the number of particles from this spawning to calc. 
         ! first step specific acceptance rate
         ! changed that! this has to be done BEFORE the annihilation step! 
@@ -1810,13 +1809,12 @@ contains
       call MPISumAll(TotParts,allWalkers)
       call MPIsumAll(TotPartsStorage,allWalkersOld)
       TotPartsStorage = TotParts
-         write(iout,*) "update_growth: ", growth_tot
-         write(iout,*) "AllTotParts: ", allWalkers
-         write(iout,*) "AllTotPartsOld: ", allWalkersOld
       if((iProcIndex == root) .and. .not. tSpinProject .and. &
            any(abs(growth_tot - (allWalkers - allWalkersOld)) > 1.0e-5_dp)) then
          write(iout,*) message
-
+         write(iout,*) "update_growth: ", growth_tot
+         write(iout,*) "AllTotParts: ", allWalkers
+         write(iout,*) "AllTotPartsOld: ", allWalkersOld
          call stop_all("check_update_growth", &
               "Assertation failed: all(iter_data_fciqmc%update_growth_tot.eq.AllTotParts_1-AllTotPartsOld_1)")
       end if

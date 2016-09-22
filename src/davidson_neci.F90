@@ -171,7 +171,7 @@ module davidson_neci
             safe_calloc(this%eigenvector_proj, (max_num_davidson_iters), 0.0_dp)
             if (print_info) write(6,'(1x,"allocating array to hold the residual vector (",'&
                 //int_fmt(residual_mem_reqd,0)//',1x,"mb).",/)') residual_mem_reqd; call neci_flush(6)
-            safe_calloc(this%residual, (max_num_davidson_iters), 0.0_dp)
+            safe_calloc(this%residual, (space_size), 0.0_dp)
 
             ! for the initial basis vector, choose the hartree-fock state:
             this%super%basis_vectors(hfindex, 1) = 1.0_dp

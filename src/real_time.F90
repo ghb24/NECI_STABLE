@@ -14,7 +14,7 @@ module real_time
                               valid_diag_spawn_list
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
-                        tChangeProjEDet, tInstGrowthRate
+                        tChangeProjEDet, tInstGrowthRate, DiagSft
     use FciMCData, only: pops_pert, walker_time, iter, ValidSpawnedList, &
                          spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot, &
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
@@ -272,8 +272,8 @@ contains
 
             current_overlap = gf_overlap(:,iter-1) / wf_norm(iter - 1)
 
-            print *, "overlap: ", gf_overlap(1,iter-1) / wf_norm(iter-1), &
-                gf_overlap(2,iter-1) / wf_norm(iter-1), gf_overlap(2,iter-1)
+            !print *, "overlap: ", gf_overlap(1,iter-1) / wf_norm(iter-1), &
+!                gf_overlap(2,iter-1) / wf_norm(iter-1), gf_overlap(2,iter-1)
 
             ! update various variables.. time-step, initiator criteria etc.
 
@@ -340,6 +340,8 @@ contains
         if (mod(iter, StepsSft) == 0) then
             call calculate_new_shift_wrapper(second_spawn_iter_data, totParts, &
                 tPairedReplicas)
+            ! an imaginary shift does not help
+            DiagSft = 0.0_dp
         end if
 ! 
 !         if (mod(iter, StepsSft) == 0) then
@@ -873,18 +875,17 @@ contains
         ! 1)
         ! do a "normal" spawning step and combination to y(n) + k1/2
         ! into CurrentDets: 
-
         
-        print *, "nruns: ", inum_runs
+        !print *, "nruns: ", inum_runs
 
-        print *, "TotParts and totDets before first spawn: ", TotParts, TotWalkers
-        call extract_sign(CurrentDets(:,1), tmp_sign)
-        print *, "hf occ before first spawn:", tmp_sign
+        !print *, "TotParts and totDets before first spawn: ", TotParts, TotWalkers
+!        call extract_sign(CurrentDets(:,1), tmp_sign)
+!        print *, "hf occ before first spawn:", tmp_sign
         call first_real_time_spawn()
-        call extract_sign(CurrentDets(:,1), tmp_sign)
-        print *, "hf occ after first spawn:", tmp_sign
-        print *, "TotParts and totDets after first spawn: ", TotParts, TotWalkers
-        print *, "=========================="
+!        call extract_sign(CurrentDets(:,1), tmp_sign)
+!        print *, "hf occ after first spawn:", tmp_sign
+!        print *, "TotParts and totDets after first spawn: ", TotParts, TotWalkers
+        !print *, "=========================="
 
 #ifdef __DEBUG
         call check_update_growth(iter_data_fciqmc,"Error in first RK step")
@@ -916,16 +917,16 @@ contains
         
         call second_real_time_spawn()
 
-        call extract_sign(CurrentDets(:,1), tmp_sign)
-        print *, "hf occ after second spawn:", tmp_sign
+!        call extract_sign(CurrentDets(:,1), tmp_sign)
+!        print *, "hf occ after second spawn:", tmp_sign
         ! 3) 
         ! reload stored temp_det_list y(n) into CurrentDets 
         ! have to figure out how to effectively save the previous hash_table
         ! or maybe just use two with different types of update functions..
         call reload_current_dets()
 
-        call extract_sign(CurrentDets(:,1), tmp_sign)
-        print *, "hf occ after reload:", tmp_sign
+!        call extract_sign(CurrentDets(:,1), tmp_sign)
+!        print *, "hf occ after reload:", tmp_sign
 
         ! 4)
         ! for the death_step for now: loop once again over the walker list 
@@ -953,8 +954,8 @@ contains
         ! also have to set the SumWalkersCyc before the "proper" annihilaiton 
         SumWalkersCyc = SumWalkersCyc + sum(TotParts)
 
-        call extract_sign(CurrentDets(:,1), tmp_sign)
-        print *, "hf occ after second death:", tmp_sign
+!        call extract_sign(CurrentDets(:,1), tmp_sign)
+!        print *, "hf occ after second death:", tmp_sign
 !         TotWalkersNew = int(TotWalkersNew, sizeof_int)
         
         ! and then do the "normal" annihilation with the SpawnedParts array!
@@ -966,7 +967,7 @@ contains
 #endif
 
         call extract_sign(CurrentDets(:,1), tmp_sign)
-        print *, "hf occ after second annihil:", tmp_sign
+        !print *, "hf occ after second annihil:", tmp_sign
         TotWalkers = int(TotWalkersNew, sizeof_int)
 
         ! also do the update on the second_spawn_iter_data to combine both of 
