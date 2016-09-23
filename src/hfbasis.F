@@ -805,16 +805,21 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
 
           ! Generate an initial determinant of specified spin.
           use SystemData, only: BasisFN, tMolpro, brr, g1, nbasis, lms,
-     &                          nel, tGiovannisBrokenInit
+     &                          nel, tGiovannisBrokenInit, SymRestrict, 
+     &                          tHub, nBasisMax
           use util_mod, only: int_fmt
           use sort_mod
+          use sym_mod, only: checkMomentumInvalidity, MomPbcSym
           implicit none
 
           integer, intent(out) :: fdet(nel)
+          logical :: invalid
 
           ! Working space
           INTEGER NELS(2)
           INTEGER NELR, IREAL, IS, ISPN, NSBASIS,I
+          integer, dimension(3) :: totK
+          logical :: sr
 
           ! eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
           ! vector unless transposed
@@ -841,32 +846,59 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
               return
           endif
           NEL=0
+          totK= 0
+          sr = .false.
           DO IS=1,2
               IF(LMS.GE.0) THEN
                   ISPN=3-IS
               ELSE
                   ISPN=IS
               ENDIF
+              if(is == 2) sr = .true.
               IREAL=1
               DO I=1,NSBASIS
-                  if (ireal > nbasis) exit
-                  DO WHILE(G1(BRR(IREAL))%Ms.NE.(-3+2*ISPN))
+                 if (ireal > nbasis) exit
+                  ! maybe a flag should be introduced to enable checking of k
+                  if(tHub) then
+                  ! here we make sure the right total momentum is hit
+                     invalid = .true.
+                     do while(invalid)
+                        invalid = checkMomentumInvalidity(ireal, totK,
+&                                 SymRestrict%k, nels(1)+nels(2)-nel,
+&                                 sr, (-3+2*ISPN))
+
+                        ! only determinants with matching momentum and spin are taken
+                        invalid = invalid .or. (G1(BRR(IREAL))%Ms.NE.
+&                            (-3+2*ISPN))
+                        ! in any other case, go on
+                        if(invalid) ireal=ireal+1
+                        if(ireal > nbasis) exit
+                     enddo
+                  else
+                     DO WHILE(G1(BRR(IREAL))%Ms.NE.(-3+2*ISPN))
                       IREAL=IREAL+1
                       if (ireal > nbasis) exit
-                  ENDDO
+                     ENDDO
+                  endif
+                  ! the check loops can increase ireal, so better check again
+                  if (ireal > nbasis) exit
                   NELR=(BRR(IREAL)-1)/2+1
                   IF(I.LE.NELS(IS)) THEN
                       NEL=NEL+1
                       FDET(NEL)=BRR(IREAL)
+                      totK = totK + G1(brr(ireal))%k
+                      call MomPbcSym(totK,nBasisMax)
                   ENDIF
                   IREAL=IREAL+1
               ENDDO
           ENDDO
           call sort (fDet(1:nel))
+          print *, "Demanded k", SymRestrict%k
+          print *, "Given k", totK
+          print *, "fDet", fDet
+          stop
       END
-
-
-
+     
 C.. Generate an initial determinant of specified spin
       SUBROUTINE GLM_BROKEN_GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
          use SystemData, only: BasisFN,tMolpro, IPARITY, nbasisMax,

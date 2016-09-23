@@ -2097,4 +2097,46 @@ contains
 
     END FUNCTION RandExcitSymLabelProd
 
+    ! this function checks whether a determinant nI can appear if the 
+    ! total momentum is to be targetK and determinants with momentum
+    ! cK have already been picked. rEls is the number of electrons that can
+    ! still be distributed
+    function checkMomentumInvalidity(nI,cK,targetK,rEls,sr,spin) result(momcheck)
+      use SystemData, only: G1, nbasis, nBasisMax, brr
+      implicit none
+      integer, intent(in) :: nI, rEls
+      integer, dimension(3), intent(in) :: cK
+      integer, dimension(3), intent(in) :: targetK
+      ! if sr == true, only dets with spin qn of 1 are considered
+      logical, intent(in) :: sr
+      integer, intent(in) :: spin
+      integer, dimension(3) :: bufK, initK
+      logical :: momcheck
+      integer :: lI
+      
+      ! returns true if nI can not appear
+      momcheck = .true.
+      ! this is the momentum from which we want to reach targetK
+      initK = cK + G1(brr(nI))%k
+      call MomPbcSym(initK,nBasisMax)
+      ! for the last electron, the total momentum has to be hit
+      if(rEls == 1) then
+         if(all(abs(initK - targetK) == 0)) momcheck = .false.
+         return
+      endif
+      ! try if the target momentum can still be reached
+      ! this requires 
+      do lI = 1, nbasis
+         if(sr .and. G1(brr(lI))%Ms /= spin) cycle
+         if(G1(brr(lI))%Ms == spin .and. lI < nI) cycle
+         if(lI == nI) cycle
+         bufK = initK + G1(brr(lI))%k
+         call MomPbcSym(bufK,nBasisMax)
+         if(all((bufK - targetK) == 0)) then
+            momcheck = .false.
+            return
+         endif
+      enddo
+    end function checkMomentumInvalidity
+
 end module sym_mod
