@@ -110,7 +110,6 @@ contains
         norm_buf = calc_perturbed_norm()
         ! the norm (squared) can be obtained by reduction over all processes
         call MPIReduce(norm_buf,MPI_SUM,pert_norm)
-        if(iProcIndex == root) print *, "Initial norm", pert_norm
 
         ! if(bNodeRoot)  
         print *, "Norm of initial state:", pert_norm

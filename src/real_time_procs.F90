@@ -137,7 +137,7 @@ contains
 
 !            WRITE(6,*) 'i,DiagParts(:,i)',i,DiagParts(:,i)
             
-            if (.true. .and. tSuccess) then
+            if (tSuccess) then
 
                 ! Our DiagParts determinant is found in CurrentDets.
 
@@ -842,8 +842,8 @@ contains
         real(dp), dimension(lenof_sign) :: CopySign
         integer, intent(in) :: walkExcitLevel
         integer :: run, irdm
-        ! each run needs its own fac, since the shift varies
-        real(dp) :: fac(lenof_sign), rat, r
+        ! fac is independent of the run -> only 2 components
+        real(dp) :: fac(2), rat, r
 
         character(*), parameter :: this_routine = "attempt_die_realtime"
 
@@ -852,10 +852,8 @@ contains
 
         ! do i need a minus sign here?? just from the convention
         ! in the rest of the neci code? yes!
-        do run = 1, inum_runs
-           ! rmneci_setup: there is no reason to use an imaginary shift
-           fac(min_part_type(run)) = -tau * (Kii)
-        enddo
+        ! rmneci_setup: there is no reason to use an imaginary shift
+        fac(1) = -tau * (Kii)
 
         if (real_time_info%damping < EPS) then
             ! in this case there is only Re <-> Im 
@@ -877,9 +875,9 @@ contains
                         ! searching deal with it
                         write(iout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
                         write(iout, '("** WARNING ** Truncating spawn to ensure stability")')
-                        do run = 1, inum_runs
-                            fac(run) = min(2.0_dp, fac(run))
-                        end do
+                        do run = 1, 2
+                           fac(run) = min(2.0_dp, fac(run))
+                        end  do
                     else
                         call stop_all(this_routine, "Death probability > 2: Algorithm unstable. Reduce timestep.")
                     end if
@@ -902,15 +900,16 @@ contains
                   ! the number of deaths has +sign from Im -> Re
                   ! dont use abs() here compared to the old code, but already 
                   ! here include the sign of the walkers on the determinant
-                  ndie(min_part_type(run)) = fac(min_part_type(run)) * realwSign(max_part_type(run))
+                  ndie(min_part_type(run)) = fac(1) * realwSign(max_part_type(run))
                   ! and - from Re -> Im
                   ! does this give the correct sign compared to the parent sign?
-                  ndie(max_part_type(run)) = -fac(min_part_type(run)) * realwSign(min_part_type(run))
+                  ! additional -1 is added in postprocessing to convert ndie -> nborn
+                  ndie(max_part_type(run)) = -fac(1) * realwSign(min_part_type(run))
 
                else 
                   ! if not exact i have to round stochastically
-                  ! Re -> Im
-                  rat = fac(min_part_type(run)) * RealwSign(max_part_type(run))
+                  ! Im -> Re
+                  rat =  fac(1) * RealwSign(max_part_type(run))
 
                   ndie(min_part_type(run)) = real(int(rat), dp) 
                   rat = rat - ndie(min_part_type(run))
@@ -919,8 +918,8 @@ contains
                   if (abs(rat) > r) ndie(min_part_type(run)) = &
                        ndie(min_part_type(run)) + real(nint(sign(1.0_dp,rat)),dp)
 
-                  ! Im -> Re
-                  rat = -fac(min_part_type(run)) * RealwSign(max_part_type(run))
+                  ! Re -> Im
+                  rat = - fac(1) * RealwSign(min_part_type(run))
                   ndie(max_part_type(run)) = real(int(rat), dp)
                   rat = rat - ndie(max_part_type(run))
                   r = genrand_real2_dSFMT()
@@ -941,9 +940,7 @@ contains
             ! not sure about the sign of this fac factor but the 2nd entry
             ! as it is implemented right now has to have the opposite sign 
             ! of the first on above
-           do run = 1, inum_runs
-              fac(max_part_type(run)) = tau * real_time_info%damping 
-           end do
+              fac(2) = tau * real_time_info%damping 
             ! here i am definetly not sure about the logging of the death
             ! magnitude.. 
             ! but also with damping.. the death is only related to the 
@@ -959,7 +956,7 @@ contains
                         ! searching deal with it
                         write(iout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
                         write(iout, '("** WARNING ** Truncating spawn to ensure stability")')
-                        do run = 1, inum_runs
+                        do run = 1, 2
                             fac(run) = min(2.0_dp, fac(run))
                         end do
                     else
@@ -985,21 +982,21 @@ contains
                   ! can i just add the other contribution here? 
                   ! and also include the sign of the parent occupation here
                   ! already.
-                  ndie(min_part_type(run)) = fac(min_part_type(run)) &
+                  ndie(min_part_type(run)) = fac(1) &
                        * realwSign(max_part_type(run)) + &
-                       fac(max_part_type(run)) * realwSign(min_part_type(run))
+                       fac(2) * realwSign(min_part_type(run))
                   ! and - from Re -> Im
                   ! does this give the correct sign compared to the parent sign?
-                  ndie(max_part_type(run)) = -fac(min_part_type(run)) * &
+                  ndie(max_part_type(run)) = -fac(1) * &
                        abs(realwSign(min_part_type(run))) + &
-                       fac(max_part_type(run)) * abs(RealwSign(max_part_type(run)))
+                       fac(2) * abs(RealwSign(max_part_type(run)))
 
                else 
                   ! if not exact i have to round stochastically
                   ! is this ok here to just add the second contribution? todo
-                  ! Re -> Im
-                  rat = fac(min_part_type(run)) * RealwSign(max_part_type(run)) &
-                       + fac(max_part_type(run)) * RealwSign(1)
+                  ! Im -> Re
+                  rat = fac(1) * RealwSign(max_part_type(run)) &
+                       + fac(2) * RealwSign(min_part_type(run))
 
                   ndie(min_part_type(run)) = real(int(rat), dp) 
                   rat = rat - ndie(min_part_type(run))
@@ -1008,9 +1005,9 @@ contains
                   if (abs(rat) > r) ndie(min_part_type(run)) = ndie(min_part_type(run)) &
                        + real(nint(sign(1.0_dp,rat)),dp)
 
-                  ! Im -> Re
-                  rat = -fac(min_part_type(run)) * RealwSign(min_part_type(run)) &
-                  + fac(max_part_type(run)) * RealwSign(max_part_type(run))
+                  ! Re -> Im
+                  rat = -fac(1) * RealwSign(min_part_type(run)) &
+                  + fac(2) * RealwSign(max_part_type(run))
 
                   ndie(max_part_type(run)) = real(int(rat), dp)
                   rat = rat - ndie(max_part_type(run))
@@ -1686,11 +1683,6 @@ contains
 
             call extract_sign(perturbed_ground(:,idet), real_sign_1) 
 
-            ! why should i store zero valued dets in the perturbed_gs? 
-            ! and i have to expand that to complex code later on..
-            ! although.. the perturbed ground state wavefunction is always
-            ! real-valued -> so i only need the actual real-part of the 
-            ! time evolved wavefunction! 
             if (IsUnoccDet(real_sign_1)) cycle
 
             call decode_bit_det(nI, perturbed_ground(:,idet))
@@ -1706,7 +1698,7 @@ contains
 
                 do i = 1, lenof_sign
                    if(mod(i,2)==0) then
-                   ! imaginary part of the overlap
+                      ! imaginary part of the overlap
                     overlap(i) = overlap(i) + &
                          real_sign_1(min_part_type(i)) * real_sign_2(max_part_type(i)) - &
                          real_sign_2(min_part_type(i)) * real_sign_1(max_part_type(i))

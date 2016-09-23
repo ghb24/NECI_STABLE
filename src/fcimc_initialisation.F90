@@ -1750,7 +1750,6 @@ contains
 
         InitialPartVec = 0.0_dp
         do run=1,inum_runs
-            InitialPartVec(max_part_type(run))=0
             InitialPartVec(min_part_type(run))=InitialPart
         enddo
 

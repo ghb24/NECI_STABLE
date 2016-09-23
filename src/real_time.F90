@@ -275,10 +275,13 @@ contains
             ! perform the actual iteration(excitation generation etc.) 
             call perform_real_time_iteration() 
 
-            current_overlap = gf_overlap(:,iter-1) / wf_norm(iter - 1)
+            ! only determinants that are occupied in the beginning
+            ! can contribute to the gf -> normalize using only these
+            current_overlap = gf_overlap(:,iter-1) / pert_norm
 
-            print *, "overlap: ", gf_overlap(1,iter-1) / wf_norm(iter-1), &
-                gf_overlap(2,iter-1) / wf_norm(iter-1)
+            if(iProcIndex == root) print *, "overlap: ", &
+                 gf_overlap(1,iter-1) / pert_norm, &
+                 gf_overlap(2,iter-1) / pert_norm
 
             ! update various variables.. time-step, initiator criteria etc.
 
@@ -652,6 +655,7 @@ contains
         ! routine which first loops over the CurrentDets array and creates the 
         ! first spawning list k1 and combines it to y(n) + k1/2
 !         integer, intent(inout) :: n_determ_states
+      implicit none
         character(*), parameter :: this_routine = "first_real_time_spawn"
         integer :: idet, parent_flags, nI_parent(nel), unused_flags, ex_level_to_ref, &
                    ms_parent, ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,2), &
@@ -859,7 +863,7 @@ contains
         ! communicate the norm as it is the sum over all walkers
         call MPIReduce(tmp_norm,MPI_SUM,norm_buf)
         ! also store the new norm information 
-        wf_norm(iter-1) = sqrt(pert_norm * norm_buf)
+        wf_norm(iter-1) = sqrt(norm_buf)
 
 
     end subroutine first_real_time_spawn
@@ -884,15 +888,18 @@ contains
         ! into CurrentDets: 
         
         !print *, "nruns: ", inum_runs
-
-        !print *, "TotParts and totDets before first spawn: ", TotParts, TotWalkers
-!        call extract_sign(CurrentDets(:,1), tmp_sign)
-!        print *, "hf occ before first spawn:", tmp_sign
+if(iProcIndex == root .and. .false.) then
+        print *, "TotParts and totDets before first spawn: ", TotParts, TotWalkers
+        call extract_sign(CurrentDets(:,1), tmp_sign)
+        print *, "hf occ before first spawn:", tmp_sign
+endif
         call first_real_time_spawn()
-!        call extract_sign(CurrentDets(:,1), tmp_sign)
-!        print *, "hf occ after first spawn:", tmp_sign
-!        print *, "TotParts and totDets after first spawn: ", TotParts, TotWalkers
-        !print *, "=========================="
+if(iProcIndex == root .and. .false.) then
+        call extract_sign(CurrentDets(:,1), tmp_sign)
+        print *, "hf occ after first spawn:", tmp_sign
+        print *, "TotParts and totDets after first spawn: ", TotParts, TotWalkers
+        print *, "=========================="
+endif
 
 #ifdef __DEBUG
         call check_update_growth(iter_data_fciqmc,"Error in first RK step")
@@ -902,7 +909,9 @@ contains
         ! implementation i only should do that after the 2nd RK step
         ! or keep track of two different iter_datas for first and second 
         ! spawning..
+
         call update_iter_data(iter_data_fciqmc)
+
         ! 2)
         ! reset the spawned list and do a second spawning step to create 
         ! the spawend list k2 
@@ -910,6 +919,7 @@ contains
         ! if i want to keep track of the two distinct spawns in 2 different 
         ! iter_datas i probably have to reset some values before the 
         ! second spawn.. to then keep the new values in the 2nd list
+
         call reset_spawned_list() 
 
         ! create a second spawned list from y(n) + k1/2
@@ -930,6 +940,7 @@ contains
         ! reload stored temp_det_list y(n) into CurrentDets 
         ! have to figure out how to effectively save the previous hash_table
         ! or maybe just use two with different types of update functions..
+
         call reload_current_dets()
 
 !        call extract_sign(CurrentDets(:,1), tmp_sign)
@@ -955,6 +966,7 @@ contains
         ! annihilation events, first with the diagonal list and then with 
         ! the actual spawned particles, to best mimick the old algorithm and 
         ! also to correctly keep the stats of the events! 
+
         TotWalkersNew = int(TotWalkers, sizeof_int)
 
         call DirectAnnihilation_diag(TotWalkersNew, second_spawn_iter_data, .false.)
@@ -963,7 +975,7 @@ contains
 
 !        call extract_sign(CurrentDets(:,1), tmp_sign)
 !        print *, "hf occ after second death:", tmp_sign
-!         TotWalkersNew = int(TotWalkersNew, sizeof_int)
+         TotWalkersNew = int(TotWalkersNew, sizeof_int)
         
         ! and then do the "normal" annihilation with the SpawnedParts array!
         ! Annihilation is done after loop over walkers
@@ -973,12 +985,14 @@ contains
         call check_update_growth(second_spawn_iter_data,"Error in second RK step")
 #endif
 
-        call extract_sign(CurrentDets(:,1), tmp_sign)
+!        call extract_sign(CurrentDets(:,1), tmp_sign)
         !print *, "hf occ after second annihil:", tmp_sign
+
         TotWalkers = int(TotWalkersNew, sizeof_int)
 
         ! also do the update on the second_spawn_iter_data to combine both of 
         ! them outside this function 
+
         call update_iter_data(second_spawn_iter_data)
 
     end subroutine perform_real_time_iteration
