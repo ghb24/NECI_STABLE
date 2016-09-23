@@ -818,6 +818,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
           ! Working space
           INTEGER NELS(2)
           INTEGER NELR, IREAL, IS, ISPN, NSBASIS,I
+          integer :: nspins(2)
           integer, dimension(3) :: totK
           logical :: sr
 
@@ -847,56 +848,56 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
           endif
           NEL=0
           totK= 0
+          nspins = 0
           sr = .false.
+          if(tHub) then
+             ! here, a momentum eigenstate for a given total momentum is constructed
+          do ireal = 1, nbasis
+             if(is==2) sr = .true.
+             ! invalid is true if the desired total momentum cannot be reached anymore
+             invalid = checkMomentumInvalidity(ireal, totK,
+&                      SymRestrict%k, nels(1)+nels(2)-nel)
+             if(invalid) cycle
+             ! is ==1 if the spin is -1 and is==2 if it is 1
+             is = (3+(G1(brr(ireal))%Ms))/2
+             if(nspins(is) .le. nels(is)) then
+                nel = nel + 1
+                nspins(is) = nspins(is) + 1
+                fdet(nel) = brr(ireal)
+                totK = totK + G1(brr(ireal))%k
+                print *, "Contribution", brr(ireal), G1(brr(ireal))%k
+                call MomPbcSym(totK,nBasisMax)      
+             endif
+          enddo
+          else
           DO IS=1,2
               IF(LMS.GE.0) THEN
                   ISPN=3-IS
               ELSE
                   ISPN=IS
               ENDIF
-              if(is == 2) sr = .true.
               IREAL=1
               DO I=1,NSBASIS
-                 if (ireal > nbasis) exit
-                  ! maybe a flag should be introduced to enable checking of k
-                  if(tHub) then
-                  ! here we make sure the right total momentum is hit
-                     invalid = .true.
-                     do while(invalid)
-                        invalid = checkMomentumInvalidity(ireal, totK,
-&                                 SymRestrict%k, nels(1)+nels(2)-nel,
-&                                 sr, (-3+2*ISPN))
-
-                        ! only determinants with matching momentum and spin are taken
-                        invalid = invalid .or. (G1(BRR(IREAL))%Ms.NE.
-&                            (-3+2*ISPN))
-                        ! in any other case, go on
-                        if(invalid) ireal=ireal+1
-                        if(ireal > nbasis) exit
-                     enddo
-                  else
-                     DO WHILE(G1(BRR(IREAL))%Ms.NE.(-3+2*ISPN))
+                  if (ireal > nbasis) exit
+                  DO WHILE(G1(BRR(IREAL))%Ms.NE.(-3+2*ISPN))
                       IREAL=IREAL+1
                       if (ireal > nbasis) exit
-                     ENDDO
-                  endif
-                  ! the check loops can increase ireal, so better check again
-                  if (ireal > nbasis) exit
+                  ENDDO
                   NELR=(BRR(IREAL)-1)/2+1
                   IF(I.LE.NELS(IS)) THEN
                       NEL=NEL+1
                       FDET(NEL)=BRR(IREAL)
-                      totK = totK + G1(brr(ireal))%k
-                      call MomPbcSym(totK,nBasisMax)
                   ENDIF
                   IREAL=IREAL+1
               ENDDO
           ENDDO
+          endif
           call sort (fDet(1:nel))
-          print *, "Demanded k", SymRestrict%k
-          print *, "Given k", totK
-          print *, "fDet", fDet
-          stop
+#ifdef __DEBUG
+          print *, "Total momentum", totK
+          print *, "Requested momentum", SymRestrict%k
+          print *, "fDet", fdet
+#endif
       END
      
 C.. Generate an initial determinant of specified spin
