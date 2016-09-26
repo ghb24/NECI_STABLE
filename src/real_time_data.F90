@@ -33,7 +33,7 @@ module real_time_data
     ! for tests now only make it of length 1
     real(dp), allocatable :: gf_overlap(:,:)
     ! also store the norm of the time-evolved wavefunction
-    real(dp), allocatable :: wf_norm(:)
+    real(dp), allocatable :: wf_norm(:,:)
 
     ! also store the current overlap of the cycle.. 
 
@@ -41,7 +41,7 @@ module real_time_data
 
 
     ! also store the norm of the perturbed ground state to adjust the 
-    real(dp) :: pert_norm
+    real(dp), allocatable :: pert_norm(:)
 
     ! need additional info of the original walker number and the number of 
     ! walkers remaining in the perturbed ground state

@@ -13,7 +13,7 @@ module real_time_procs
                               temp_det_hash, temp_totWalkers, pert_norm, &
                               valid_diag_spawn_list, DiagParts, n_diag_spawned, &
                               DiagParts2, NoDied_1, NoBorn_1, SumWalkersCyc_1, &
-                              t_rotated_time
+                              t_rotated_time, wf_norm
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
                          sizeof_int, MPIArg
@@ -1673,11 +1673,14 @@ contains
     ! time evolved wavefunction to the saved <y(0)|a^+_i(a_i) 
     subroutine update_gf_overlap() 
         ! this routine only deals with globally defined variables
-        integer :: idet, nI(nel), det_ind, hash_val, i
-        real(dp) :: overlap(lenof_sign), real_sign_1(lenof_sign), real_sign_2(lenof_sign)
+      implicit none
+        integer :: idet, nI(nel), det_ind, hash_val, i, run
+        real(dp) :: overlap(lenof_sign), real_sign_1(lenof_sign), real_sign_2(lenof_sign), &
+             tmp_norm(inum_runs), norm_buf(inum_runs)
         logical :: tDetFound
 
         overlap = 0.0_dp
+        tmp_norm = 0.0_dp
 
         do idet = 1, size(perturbed_ground, dim = 2)
 
@@ -1708,6 +1711,8 @@ contains
                          real_sign_1(min_part_type(i)) * real_sign_2(min_part_type(i)) + &
                          real_sign_2(max_part_type(i)) * real_sign_1(max_part_type(i)) 
                     endif
+                    tmp_norm(part_type_to_run(i)) = tmp_norm(part_type_to_run(i)) &
+                         + real_sign_2(i)**2
                 end do
             end if
         end do
@@ -1715,29 +1720,40 @@ contains
         ! rmneci_setup: the overlap has to be reduced as each proc
         ! only computes its own part
         call MPIReduce(overlap,MPI_SUM,gf_overlap(:,iter))
+        ! communicate the norm as it is the sum over all walkers
+        call MPIReduce(tmp_norm,MPI_SUM,norm_buf)
+        ! also store the new norm information 
+        do run = 1, inum_runs
+           wf_norm(run,iter) = sqrt(norm_buf(run) * pert_norm(run))
+        end do
 
     end subroutine update_gf_overlap
 
-    function calc_perturbed_norm() result(pert_norm) 
+    function calc_norm(dets, num_dets) result(pert_norm) 
+      ! the first dimension of dets has to be inum_runs
         ! function to calculate the norm of the left-hand <y(0)|
-        real(dp) :: pert_norm
+        real(dp) :: pert_norm(inum_runs)
+        integer(dp) :: dets(:,:)
+        integer, intent(in) :: num_dets
         character(*), parameter :: this_routine = "calc_perturbed_norm"
 
-        integer :: idet 
+        integer :: idet, run
         real(dp) :: tmp_sign(lenof_sign)
 
         pert_norm = 0.0_dp
 
-        do idet = 1, TotWalkers_pert
 
-            call extract_sign(perturbed_ground(:,idet), tmp_sign)
+        do idet = 1, num_dets
+           do run = 1,inum_runs
 
-            ! for now assume real-only groundstates from which we start 
-            pert_norm = pert_norm + tmp_sign(1)**2 + tmp_sign(2)**2
+              call extract_sign(dets(:,idet), tmp_sign)
 
-        end do
+              pert_norm(run) = pert_norm(run) + tmp_sign(min_part_type(run))**2 + tmp_sign(max_part_type(run))**2
 
-    end function calc_perturbed_norm
+           end do
+        end do 
+
+    end function calc_norm
 
     subroutine create_perturbed_ground()
         ! routine to create from the already read in popsfile info in 
@@ -1752,10 +1768,10 @@ contains
         print *, "Creating the wavefunction to projected on!"
         print *, "Initial number of walkers: ", tmp_totwalkers
 
-
+        
         allocate(perturbed_ground(0:niftot,TotWalkers_orig), stat = ierr)
         call apply_perturbation(overlap_pert(1), tmp_totwalkers, popsfile_dets,&
-            perturbed_ground)
+           perturbed_ground)
         TotWalkers_pert = int(tmp_totwalkers, int64)
 
         print *, "Walkers remaining in perturbed ground state:" , TotWalkers_pert

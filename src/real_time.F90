@@ -2,7 +2,7 @@
 
 module real_time
 
-    use real_time_init, only: init_real_time_calc_single
+    use real_time_init, only: init_real_time_calc_single, dealloc_real_time_memory
     use real_time_procs, only: save_current_dets, reset_spawned_list, &
                                reload_current_dets, walker_death_realtime, &
                                walker_death_spawn, attempt_die_realtime, &
@@ -228,7 +228,7 @@ contains
         ! should write a routine which calulated the overlap of CurrentDets
         ! with the perturbed groundstate and stores it in a pre-allocated list
         ! shouldnt geourge have some of those routines..
-
+        
         call update_gf_overlap()
         if(iProcIndex == root) then
            print *, "test on overlap at t = 0: "
@@ -239,30 +239,15 @@ contains
               print *, " for greater GF <y(0)| a_i a^+_j |y(0)> ; i,j: ", &
                    overlap_pert(1)%crtn_orbs(1), pops_pert(1)%crtn_orbs(1)
            end if
-           print *, "Current GF:", gf_overlap(:,0) / pert_norm
+           print *, "Current GF:", gf_overlap(:,0) / pert_norm(1)
         endif
 
 !         print *, " overlap: ",  sqrt(gf_overlap(0)) / sqrt(pops_norm) 
 !         print *, " overlap2:", sqrt(gf_overlap(0)) / sqrt(wf_norm(0))
 !         print *, pops_norm, pert_norm, wf_norm(0)
 
-        ! main part of the initialization, concerning the walker lists 
-        ! and operator application works now.. 
-        ! so next step is to finish up the whole initialization to be able 
-        ! to run a (mk)neci with the new walker dynamics provided by the 
-        ! real-time Schroedinger equation
-
         ! enter the main real-time fciqmc loop here
         fciqmc_loop: do while (.true.)
-
-            ! update the overlap each time step.. could do that in some of 
-            ! the loops down there too.. but for now do it here seperately 
-            ! to make it more organized
-
-            call update_gf_overlap()
-
-            ! do also need to update the norm of the wavefunction, but this 
-            ! i should definetly do in the first RK loop over the CurrentDets
 
             ! the timing stuff has to be done a bit differently in the 
             ! real-time fciqmc, since there are 2 spawing and annihilation 
@@ -270,19 +255,26 @@ contains
             call set_timer(walker_time)
 
             ! this is a bad implementation : iter should be local
-            iter = iter + 1
 
             ! perform the actual iteration(excitation generation etc.) 
+            iter = iter + 1
             call perform_real_time_iteration() 
+
+            ! update the overlap each time
+            ! rmneci_setup: computation of instantaneous projected norm is shifted to here
+            call update_gf_overlap()
 
             ! only determinants that are occupied in the beginning
             ! can contribute to the gf -> normalize using only these
-            current_overlap = gf_overlap(:,iter-1) / pert_norm
+            ! current overlap is now the one after iteration
+            current_overlap = gf_overlap(:,iter) / pert_norm(1)
 
             if(iProcIndex == root) print *, "overlap: ", &
-                 gf_overlap(1,iter-1) / pert_norm, &
-                 gf_overlap(2,iter-1) / pert_norm
-
+                 gf_overlap(1,iter) / wf_norm(1,iter), &
+                 gf_overlap(2,iter) / wf_norm(1,iter)
+           if(iProcIndex == root) print *, "overlap with const normalization: ", &
+                 gf_overlap(1,iter) / pert_norm(1), &
+                 gf_overlap(2,iter) / pert_norm(1)
             ! update various variables.. time-step, initiator criteria etc.
 
             call update_real_time_iteration()
@@ -306,7 +298,7 @@ contains
         if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
 
         ! rt_iter_adapt : avoid memleaks
-        !call dealloc_real_time_memory()
+        call dealloc_real_time_memory()
 
     end subroutine perform_real_time_fciqmc
 
@@ -663,16 +655,13 @@ contains
         integer(n_int), pointer :: ilut_parent(:) 
         integer(n_int) :: ilut_child(0:niftot)
         real(dp) :: parent_sign(lenof_sign), parent_hdiag, prob, child_sign(lenof_sign), &
-                    unused_sign(lenof_sign), unused_rdm_real, tmp_norm, norm_buf
+                    unused_sign(lenof_sign), unused_rdm_real
         logical :: tParentIsDeterm, tParentUnoccupied, tParity, tChildIsDeterm
         HElement_t(dp) :: HelGen
-        integer :: TotWalkersNew
+        integer :: TotWalkersNew, run
 
         ! declare this is the first runge kutta step
         runge_kutta_step = 1
-
-        ! also calculate the norm of the current y(n) 
-        tmp_norm = 0.0_dp
 
         ! use part of nicks code, and remove the parts, that dont matter 
         do idet = 1, int(TotWalkers, sizeof_int)
@@ -731,9 +720,9 @@ contains
             end if
 
             ! add up norm here: 
-            ! rmneci_setup: adjust for multirun!
-             do i = 1, 2
-                 tmp_norm = tmp_norm + parent_sign(i)**2
+            ! rmneci_setup: adjusted for multirun
+             do i = 1, lenof_sign
+                
              end do
 
             ! The current diagonal matrix element is stored persistently.
@@ -859,12 +848,6 @@ contains
         call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
 
         TotWalkers = int(TotWalkersNew, sizeof_int)
-
-        ! communicate the norm as it is the sum over all walkers
-        call MPIReduce(tmp_norm,MPI_SUM,norm_buf)
-        ! also store the new norm information 
-        wf_norm(iter-1) = sqrt(norm_buf)
-
 
     end subroutine first_real_time_spawn
 

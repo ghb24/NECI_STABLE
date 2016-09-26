@@ -19,23 +19,24 @@ module real_time_init
                               AllNoAddedInitiators_1, AllNoInitDets_1, AllNoNonInitDets_1, &
                               AllNoInitWalk_1, AllNoNonInitWalk_1, AllInitRemoved_1, &
                               AccRat_1, AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap, &
-                              TotPartsStorage
+                              TotPartsStorage, TotWalkers_pert
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
-                               calc_perturbed_norm
+                               calc_norm
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
     use Parallel_neci, only: nProcessors, MPIReduce
     use ParallelHelper, only: iProcIndex, root, MPIbarrier, nNodes, MPI_SUM
     use util_mod, only: get_unique_filename
     use Logging, only: tIncrementPops
     use kp_fciqmc_data_mod, only: scaling_factor, tMultiplePopStart, tScalePopulation, &
-                                  tOverlapPert, overlap_pert
+                                  tOverlapPert, overlap_pert, perturbed_ground
     use CalcData, only: tChangeProjEDet, tReadPops, tRestartHighPop, tFCIMC, &
                         tStartSinglePart, tau, nmcyc, iPopsFileNoRead, tWritePopsNorm, &
                         tWalkContGrow, diagSft, pops_norm
     use FciMCData, only: tSearchTau, alloc_popsfile_dets, pops_pert, tPopsAlreadyRead, &
                          tSinglePartPhase, iter_data_fciqmc, iter, PreviousCycles, &
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
-                         MaxSpawned, InitialSpawnedSlots, tSearchTauOption
+                         MaxSpawned, InitialSpawnedSlots, tSearchTauOption, TotWalkers, &
+                         CurrentDets
     use SystemData, only: nBasis, lms
     use perturbations, only: init_perturbation_annihilation, &
                              init_perturbation_creation
@@ -71,7 +72,8 @@ contains
         call SetupParameters()
 
         ! have to think about the the order about the above setup routines! 
-        ! within this Init a readpops is called.. and 
+        ! within this Init a readpops is called
+        ! this function already produces the correctly perturbed ground state
         call InitFCIMCCalcPar()
 
         ! also init pointer here, and think about what options and defaults 
@@ -95,8 +97,8 @@ contains
         ! number of copies etc. sets up the final needed quantities to run 
         ! a simulation
         character(*), parameter :: this_routine = "setup_real_time_fciqmc"
-        real(dp) :: norm_buf
-        integer :: ierr
+        real(dp) :: norm_buf(inum_runs), tzero_norm(inum_runs)
+        integer :: ierr, run
 
         ! also need to create the perturbed ground state to calculate the 
         ! overlaps to |y(t)> 
@@ -105,14 +107,6 @@ contains
         ! time evolved y(t) will be stored in the CurrentDets array
         call create_perturbed_ground()
 
-        pert_norm = 1.0_dp
-        ! calc. the norm of this perturbed ground-state
-        norm_buf = calc_perturbed_norm()
-        ! the norm (squared) can be obtained by reduction over all processes
-        call MPIReduce(norm_buf,MPI_SUM,pert_norm)
-
-        ! if(bNodeRoot)  
-        print *, "Norm of initial state:", pert_norm
         ! change the flags dependent on the real-time input 
         if (real_time_info%t_equidistant_time) then
             print *, " The equdistant time step option is set for the real-time calculation"
@@ -204,9 +198,11 @@ contains
         ! allocate the according quantities! 
         ! n_time_steps have to be set here!
         print *, " Allocating greensfunction and wavefunction norm arrays!"
-        allocate(gf_overlap(lenof_sign,0:real_time_info%n_time_steps), stat = ierr)
-        allocate(wf_norm(0:real_time_info%n_time_steps), stat = ierr)
-        allocate(current_overlap(1:lenof_sign),stat=ierr)
+        ! allocate an additional slot for initial values
+        allocate(gf_overlap(lenof_sign,0:(real_time_info%n_time_steps+1)), stat = ierr)
+        allocate(wf_norm(inum_runs,0:(real_time_info%n_time_steps+1)), stat = ierr)
+        allocate(pert_norm(inum_runs),stat = ierr)
+        allocate(current_overlap(lenof_sign),stat=ierr)
 
         gf_overlap = 0.0_dp
 
@@ -216,8 +212,20 @@ contains
         ! to avoid dividing by 0 if not all entries get filled
         wf_norm = 1.0_dp
 
+        pert_norm = 1.0_dp
+        ! calc. the norm of this perturbed ground-state
+        norm_buf = calc_norm(perturbed_ground,int(TotWalkers_pert))
+        ! the norm (squared) can be obtained by reduction over all processes
+        call MPIReduce(norm_buf,MPI_SUM,pert_norm)
+        
+        ! and the same thing again for the initial state
+        norm_buf = calc_norm(CurrentDets,TotWalkers)
+        call MPIReduce(norm_buf,MPI_SUM,tzero_norm)
+
         ! set the fist value here for now
-        wf_norm(0) = sqrt(pops_norm * pert_norm)
+        do run = 1,inum_runs
+           wf_norm(run,0) = sqrt(tzero_norm(run) * pert_norm(run))
+        end do
 
         ! check for set lms.. i think that does not quite work yet 
         print *, "mz spin projection: ", lms
@@ -689,11 +697,20 @@ contains
     end subroutine read_popsfile_real_time
 
     subroutine dealloc_real_time_memory
+      use replica_data, only: clean_iter_data
       implicit none
       
       integer :: ierr
       
-     ! deallocate(WalkVecDets,stat=ierr)
+      deallocate(valid_diag_spawn_list,stat=ierr)
+      deallocate(DiagVec,stat=ierr)
+      call clean_iter_data(second_spawn_iter_data)
+      deallocate(current_overlap,stat=ierr)
+      deallocate(pert_norm,stat=ierr)
+      deallocate(wf_norm,stat=ierr)
+      deallocate(gf_overlap,stat=ierr)
+      
+
     end subroutine dealloc_real_time_memory
 
 end module real_time_init
