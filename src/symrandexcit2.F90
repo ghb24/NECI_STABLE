@@ -2321,11 +2321,11 @@ MODULE GenRandSymExcitNUMod
         ! Find the new determinant
         call make_double (nI, nJ, elec1ind, elec2ind, Hole1BasisNum, &
                           Hole2BasisNum, ExcitMat, tParity)
-                
+               
         IF(tHub) THEN
             ! Debug to test the resultant determinant
             IF(.not.(IsMomentumAllowed(nJ)))THEN
-                CALL Stop_All("CreateDoubExcitLattice","Incorrect kb generated -- momentum not conserved")
+               CALL Stop_All("CreateDoubExcitLattice","Incorrect kb generated -- momentum not conserved")
             ENDIF
         ENDIF
 
@@ -3180,7 +3180,7 @@ SUBROUTINE SpinOrbSymSetup()
     do i=1,nBasis
         if(tNoSymGenRandExcits.or.tUEG) then
             SpinOrbSymLabel(i)=0
-        elseif(tKPntSym.or.tHUB) then
+        elseif(tKPntSym .or. tHub) then
             SpinOrbSymLabel(i)=SymClasses(((i+1)/2))-1        !This ensures that the symmetry labels go from 0 -> nSymLabels-1
         else
             SpinOrbSymLabel(i)=INT(G1(i)%Sym%S,4)

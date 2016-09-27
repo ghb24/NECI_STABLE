@@ -267,7 +267,7 @@ contains
             ! only determinants that are occupied in the beginning
             ! can contribute to the gf -> normalize using only these
             ! current overlap is now the one after iteration
-            current_overlap = gf_overlap(:,iter) / pert_norm(1)
+            current_overlap = gf_overlap(:,iter) / wf_norm(1,iter)
 
             if(iProcIndex == root) print *, "overlap: ", &
                  gf_overlap(1,iter) / wf_norm(1,iter), &

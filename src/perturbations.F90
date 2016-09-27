@@ -122,6 +122,7 @@ contains
         integer :: nI(nel)
 
         ! If the perturbation is the identity operator then just return.
+        ! rneci_consitency: Possible optimization: Define behaviour in this case as copying
         if (perturb%nannihilate == 0 .and. perturb%ncreate == 0) return
 
         nremoved = 0

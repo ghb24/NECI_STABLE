@@ -944,6 +944,7 @@ r_loop: do while(.not.tStoreDet)
             call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, TotParts, NoatHF, &
                                   CurrentDets, MaxWalkersPart, pops_nnodes, pops_walkers, PopNIfSgn, &
                                   PopNel, PopBalanceBlocks, tCalcExtraInfo=.false.)
+            if (t_real_time_fciqmc) TotWalkers_orig = TotWalkers
         end if
 
         call fill_in_diag_helements()

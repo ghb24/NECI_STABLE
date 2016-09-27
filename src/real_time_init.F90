@@ -37,7 +37,9 @@ module real_time_init
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
                          MaxSpawned, InitialSpawnedSlots, tSearchTauOption, TotWalkers, &
                          CurrentDets
-    use SystemData, only: nBasis, lms
+    use SystemData, only: nBasis, lms, G1, nBasisMax, tHub
+    use SymExcitDataMod, only: kTotal
+    use sym_mod, only: MomPbcSym
     use perturbations, only: init_perturbation_annihilation, &
                              init_perturbation_creation
     use fcimc_initialisation, only: SetupParameters, InitFCIMCCalcPar, &
@@ -88,6 +90,15 @@ contains
         ! actually the InitFCIMCCalcPar should do that now correctly already
 
         ! do an MPIbarrier here.. although don't quite know why
+        if(tHub) then
+           if(allocated(pops_pert)) then
+              if(pops_pert(1)%nannihilate == 1) kTotal = kTotal &
+                   - G1(pops_pert(1)%ann_orbs(1))%k
+              if(pops_pert(1)%ncreate == 1) kTotal = kTotal &
+                   + G1(pops_pert(1)%crtn_orbs(1))%k
+              call MomPbcSym(kTotal,nBasisMax)
+           endif
+        endif
         call MPIBarrier(ierr)
 
     end subroutine init_real_time_calc_single
@@ -424,8 +435,9 @@ contains
             ! of the greensfunction to be calculated(lesser,greater) eg:
             ! lesser i j : <y(0)| a^+_i a_j |y(0)> 
             case ("LESSER")
+               alloc_popsfile_dets = .true.
                 ! lesser GF -> photo emission: apply a annihilation operator
-                alloc_popsfile_dets = .true.
+                
                 tOverlapPert = .true.
                 tWritePopsNorm = .true.
                 ! i probably also can use the overlap-perturbed routines 
@@ -438,13 +450,14 @@ contains
 
                 ! store the information of the type of greensfunction 
                 gf_type = lesser
+               
 
                 ! probably have to loop over spin-orbitals dont i? yes!
 
                 ! if no specific orbital is specified-> loop over all j! 
                 ! but only do that later: input is a SPINORBITAL!
                 if (item < nitems) then
-                    ! allocate the perturbation object
+                    !allocate the perturbation object
                     allocate(pops_pert(1))
                     ! and also the lefthand perturbation object for overlap
                     allocate(overlap_pert(1))
@@ -458,7 +471,6 @@ contains
                     ! read left hand operator first
                     call readi(overlap_pert(1)%ann_orbs(1))
                     call readi(pops_pert(1)%ann_orbs(1))
-
 
                     call init_perturbation_annihilation(overlap_pert(1))
                     call init_perturbation_annihilation(pops_pert(1)) 

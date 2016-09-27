@@ -1770,8 +1770,12 @@ contains
 
         
         allocate(perturbed_ground(0:niftot,TotWalkers_orig), stat = ierr)
-        call apply_perturbation(overlap_pert(1), tmp_totwalkers, popsfile_dets,&
-           perturbed_ground)
+        if(allocated(overlap_pert)) then
+           call apply_perturbation(overlap_pert(1), tmp_totwalkers, popsfile_dets,&
+                perturbed_ground)
+        else
+           perturbed_ground = CurrentDets
+        endif
         TotWalkers_pert = int(tmp_totwalkers, int64)
 
         print *, "Walkers remaining in perturbed ground state:" , TotWalkers_pert
@@ -1782,6 +1786,7 @@ contains
 
 
     end subroutine create_perturbed_ground
+
     
     subroutine check_update_growth(iter_data, message)
       use Parallel_neci, only : iProcIndex, MPISumAll, root
