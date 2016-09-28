@@ -19,7 +19,7 @@ module real_time_init
                               AllNoAddedInitiators_1, AllNoInitDets_1, AllNoNonInitDets_1, &
                               AllNoInitWalk_1, AllNoNonInitWalk_1, AllInitRemoved_1, &
                               AccRat_1, AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap, &
-                              TotPartsStorage, TotWalkers_pert
+                              TotPartsStorage, TotWalkers_pert, t_rotated_time
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
@@ -36,8 +36,8 @@ module real_time_init
                          tSinglePartPhase, iter_data_fciqmc, iter, PreviousCycles, &
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
                          MaxSpawned, InitialSpawnedSlots, tSearchTauOption, TotWalkers, &
-                         CurrentDets
-    use SystemData, only: nBasis, lms, G1, nBasisMax, tHub
+                         CurrentDets, popsfile_dets
+    use SystemData, only: nBasis, lms, G1, nBasisMax, tHub, nel
     use SymExcitDataMod, only: kTotal
     use sym_mod, only: MomPbcSym
     use perturbations, only: init_perturbation_annihilation, &
@@ -49,6 +49,7 @@ module real_time_init
     use fcimc_output, only: write_fcimcstats2, WriteFciMCStatsHeader
     use replica_data, only: allocate_iter_data
     use bit_rep_data, only: nifbcast
+    use bit_reps, only: decode_bit_det
 
     implicit none
 
@@ -62,6 +63,7 @@ contains
         character(*), parameter :: this_routine = "init_real_time_calc_single"
 
         integer :: ierr
+        integer :: nI(nel), kt(3)
 
         print *, " Entering real-time FCIQMC initialisation "
         ! think about what variables have to be set for a succesful calc.
@@ -77,13 +79,13 @@ contains
         ! within this Init a readpops is called
         ! this function already produces the correctly perturbed ground state
         call InitFCIMCCalcPar()
-
         ! also init pointer here, and think about what options and defaults 
         ! should be set for a succsesfull init
         call init_fcimc_fn_pointers()
 
         ! then call the setup routine, which set all remaining needed quantities
         call setup_real_time_fciqmc()
+
         ! definetly read-in stored popsfile here. 
         ! need to store both <y(0)| and also create a_j y(0)> during read-in!
 !         call read_popsfile_real_time()
@@ -359,6 +361,9 @@ contains
         AllInitRemoved_1 = 0
         AccRat_1 = 0.0_dp
         AllSumWalkersCyc_1 = 0.0_dp
+
+        ! setup_rotated_time: by default, pure real time is used
+        t_rotated_time = .false.
 
 
     end subroutine setup_real_time_fciqmc

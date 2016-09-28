@@ -2321,6 +2321,7 @@ MODULE GenRandSymExcitNUMod
         ! Find the new determinant
         call make_double (nI, nJ, elec1ind, elec2ind, Hole1BasisNum, &
                           Hole2BasisNum, ExcitMat, tParity)
+
                
         IF(tHub) THEN
             ! Debug to test the resultant determinant

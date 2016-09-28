@@ -239,7 +239,10 @@ contains
               print *, " for greater GF <y(0)| a_i a^+_j |y(0)> ; i,j: ", &
                    overlap_pert(1)%crtn_orbs(1), pops_pert(1)%crtn_orbs(1)
            end if
-           print *, "Current GF:", gf_overlap(:,0) / pert_norm(1)
+           do i=1, inum_runs
+              print *, "Current GF:", gf_overlap(min_part_type(i):max_part_type(i),0)&
+                   / pert_norm(i)
+           enddo
         endif
 
 !         print *, " overlap: ",  sqrt(gf_overlap(0)) / sqrt(pops_norm) 
@@ -267,7 +270,9 @@ contains
             ! only determinants that are occupied in the beginning
             ! can contribute to the gf -> normalize using only these
             ! current overlap is now the one after iteration
-            current_overlap = gf_overlap(:,iter) / wf_norm(1,iter)
+            do i = 1, lenof_sign
+               current_overlap(i) = gf_overlap(i,iter) / wf_norm(part_type_to_run(i),iter)
+            enddo
 
             if(iProcIndex == root) print *, "overlap: ", &
                  gf_overlap(1,iter) / wf_norm(1,iter), &

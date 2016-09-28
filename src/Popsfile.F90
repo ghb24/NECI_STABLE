@@ -772,7 +772,7 @@ r_loop: do while(.not.tStoreDet)
                 new_sgn(inum_runs)=sgn(1)
             else
                 do k=1,lenof_sign
-                    new_sgn(k)=sgn(k)
+                   new_sgn(k)=sgn(k)
                 enddo
             endif
 
@@ -1319,7 +1319,6 @@ r_loop: do while(.not.tStoreDet)
 
         PopParBias = 0.0_dp
         PopPParallel = 0.0_dp
-        PopMultiSft = 0.0_dp
         PopBalanceBlocks = -1
         if(iProcIndex.eq.root) then
             read(iunithead,POPSHEAD)
@@ -1412,11 +1411,11 @@ r_loop: do while(.not.tStoreDet)
                 else
                     ! Previously we only had a single run, now we are
                     ! restarting with double run
-                    PopDiagSft(1) = PopSft
+                   PopDiagSft(1) = PopSft
                     PopDiagSft(inum_runs) = PopSft
                 endif
             else
-                PopDiagSft(1:inum_runs) = PopSft
+                PopDiagSft = PopSft
             endif
             PopAllSumENum(1:inum_runs) = PopSumENum
             PopSumNoatHF_out = PopSumNoatHF(1:lenof_sign)

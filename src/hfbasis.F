@@ -806,7 +806,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
           ! Generate an initial determinant of specified spin.
           use SystemData, only: BasisFN, tMolpro, brr, g1, nbasis, lms,
      &                          nel, tGiovannisBrokenInit, SymRestrict, 
-     &                          tHub, nBasisMax
+     &                          tSymSet, nBasisMax
           use util_mod, only: int_fmt
           use sort_mod
           use sym_mod, only: checkMomentumInvalidity, MomPbcSym
@@ -851,7 +851,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
           nspins = 0
           totSpin = 0
           sr = .false.
-          if(tHub) then
+          if(tSymSet) then
              ! here, a momentum eigenstate for a given total momentum is constructed
           do ireal = 1, nbasis
              ! invalid is true if the desired total momentum cannot be reached anymore

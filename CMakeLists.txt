@@ -74,7 +74,7 @@ set(${PROJECT_NAME}_mneci_DEFINITIONS HElement_t=real __PROG_NUMRUNS)
 set(${PROJECT_NAME}_kdneci_DEFINITIONS HElement_t=complex __CMPLX __DOUBLERUN)
 set(${PROJECT_NAME}_kmneci_DEFINITIONS HElement_t=complex __CMPLX __PROG_NUMRUNS)
 # RT_M_Merge: Added rneci target in the newer version
-set(${PROJECT_NAME}_rneci_DEFINITIONS HElement_t=complex __CMPLX __REALTIME)
+set(${PROJECT_NAME}_rneci_DEFINITIONS HElement_t=complex __CMPLX __REALTIME __PROG_NUMRUNS)
 
 # Global (always on) defines
 

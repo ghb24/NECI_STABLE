@@ -718,8 +718,8 @@ contains
                     do i = 1, lenof_sign
                         if (abs(real_sign_new(i)) > EPS) then
                             if (abs(real_sign_old(i)) > EPS .or. &
-                                test_flag(ilut,flag_initiator(min_part_type(i))) .or. &
-                                test_flag(ilut,flag_initiator(max_part_type(i)))) then
+                                test_flag(ilut,flag_initiator(i)) .or. &
+                                test_flag(ilut,flag_initiator(i))) then
 
                                 call set_flag(SpawnedParts(:,ind),flag_initiator(i))
                             end if
@@ -795,8 +795,8 @@ contains
                     ! progeny and check initiator flags of both parent parts.
                     do i = 1, lenof_sign
                         if (abs(diag_sign(i)) > EPS) then
-                            if (test_flag(ilut,flag_initiator(max_part_type(i))) .or. &
-                                test_flag(ilut,flag_initiator(min_part_type(i)))) then
+                            if (test_flag(ilut,flag_initiator((i))) .or. &
+                                test_flag(ilut,flag_initiator((i)))) then
                                 call set_flag(SpawnedParts(:,ValidSpawnedList(proc)), &
                                     flag_initiator(i))
                             end if
@@ -1398,7 +1398,7 @@ contains
             rh_used = conjg(rh)
 #endif
 
-            ! have to loop over the tgt_cpt similar to the complex implo
+            ! have to loop over the tgt_cpt similar to the complex impl
             ! if the Hamiltonian has real and imaginary components do it 
             ! similarily to complex implementation with H <-> J switched
             ! rmneci_setup: adjusted for multirun, fixed complex -> real spawns
@@ -1407,9 +1407,11 @@ contains
                 ! if (part_type == 2 .and. inum_runs == 1) component = 3 - tgt_cpt !?
 
                 walkerweight = sign(1.0_dp,RealwSign(part_type)) 
-                if (mod(part_type,2) == 2) walkerweight = -walkerweight
+                if (mod(part_type,2) == 0) walkerweight = -walkerweight
 #ifdef __REALTIME
-                if (component /= mod(part_type,2)) then
+                ! part_type is given as input, for that part_type, the real part of
+                ! the HElement is used if rotation occurs and the imaginary part else
+                if (component == mod(part_type,2)) then
                     MatEl = real(aimag(rh_used),dp)
                 else 
                     MatEl = real(rh_used,dp)
@@ -1700,16 +1702,17 @@ contains
                 call extract_sign(CurrentDets(:,det_ind), real_sign_2)
 
                 do i = 1, lenof_sign
+                   run = part_type_to_run(i)
                    if(mod(i,2)==0) then
                       ! imaginary part of the overlap
                     overlap(i) = overlap(i) + &
-                         real_sign_1(min_part_type(i)) * real_sign_2(max_part_type(i)) - &
-                         real_sign_2(min_part_type(i)) * real_sign_1(max_part_type(i))
+                         real_sign_1(min_part_type(run)) * real_sign_2(max_part_type(run)) - &
+                         real_sign_2(min_part_type(run)) * real_sign_1(max_part_type(run))
                     else 
                        ! real part of the overlap
                        overlap(i) = overlap(i) + &
-                         real_sign_1(min_part_type(i)) * real_sign_2(min_part_type(i)) + &
-                         real_sign_2(max_part_type(i)) * real_sign_1(max_part_type(i)) 
+                         real_sign_1(min_part_type(run)) * real_sign_2(min_part_type(run)) + &
+                         real_sign_2(max_part_type(run)) * real_sign_1(max_part_type(run)) 
                     endif
                     tmp_norm(part_type_to_run(i)) = tmp_norm(part_type_to_run(i)) &
                          + real_sign_2(i)**2
