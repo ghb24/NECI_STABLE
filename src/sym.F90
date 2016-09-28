@@ -2097,4 +2097,46 @@ contains
 
     END FUNCTION RandExcitSymLabelProd
 
+    ! this function checks whether a determinant nI can appear if the 
+    ! total momentum is to be targetK and determinants with momentum
+    ! cK have already been picked. rEls is the number of electrons that can
+    ! still be distributed
+    recursive function checkMomentumInvalidity(nI,cK,targetK,rElsUp, &
+         rElsDown) result(momcheck)
+      use SystemData, only: G1, nbasis, nBasisMax, brr
+      implicit none
+      integer, intent(in) :: nI, rElsUp, rElsDown
+      integer, dimension(3), intent(in) :: cK
+      integer, dimension(3), intent(in) :: targetK
+      integer, dimension(3) :: bufK
+      logical :: momcheck
+      integer :: lI, rElsUpNew, rElsDownNew
+      
+      ! returns true if nI can not appear
+      momcheck = .true.
+      if(G1(brr(nI))%Ms == -1) then
+         rElsUpNew = rElsUp - 1
+         rElsDownNew = rElsDown
+      else
+         rElsDownNew = rElsDown -1
+         rElsUpNew = rElsUp
+      endif
+      ! in case there are no electrons left matching the spin of nI
+      if(rElsUpNew < 0 .or. rElsDownNew < 0) return
+      ! this is the momentum from which we want to reach targetK
+      bufK = cK + G1(brr(nI))%k
+      call MomPbcSym(bufK,nBasisMax)
+      ! for the last electron, the total momentum has to be hit
+      if((rElsUpNew + rElsDownNew) == 0) then
+         if(all(abs(bufK - targetK) == 0)) momcheck = .false.
+         return
+      endif
+      ! try if the target momentum can still be reached
+      ! this requires some computational effort, but the number of orbitals is not that large
+      do lI = nI+1, nbasis
+         momcheck = checkMomentumInvalidity(lI,bufK,targetK,rElsUpNew,rElsDownNew)
+         if(.not. momcheck) return
+      enddo
+    end function checkMomentumInvalidity
+
 end module sym_mod
