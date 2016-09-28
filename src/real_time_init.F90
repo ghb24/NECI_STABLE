@@ -66,6 +66,7 @@ contains
         integer :: nI(nel), kt(3)
 
         print *, " Entering real-time FCIQMC initialisation "
+
         ! think about what variables have to be set for a succesful calc.
 
         ! do a last test if all he input is compatible and correctly set
@@ -101,6 +102,7 @@ contains
               call MomPbcSym(kTotal,nBasisMax)
            endif
         endif
+        print *, "New total momentum", kTotal
         call MPIBarrier(ierr)
 
     end subroutine init_real_time_calc_single

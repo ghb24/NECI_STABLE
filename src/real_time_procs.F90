@@ -51,10 +51,10 @@ module real_time_procs
     use load_balance_calcnodes, only: DetermineDetNode
     use ParallelHelper, only: nNodes, bNodeRoot, ProcNode, NodeRoots, MPIBarrier, &
          iProcIndex, MPI_SUM, root
-    use Parallel_neci, only: nProcessors, MPIAlltoAll, MPIAlltoAllv, MPIReduce
+    use Parallel_neci, only: nProcessors, MPIReduce, MPISumAll
     use LoggingData, only: tNoNewRDMContrib
     use AnnihilationMod, only: test_abort_spawn
-    use load_balance, only: AddNewHashDet, CalcHashTableStats, adjust_load_balance, test_hash_table
+    use load_balance, only: AddNewHashDet, CalcHashTableStats, test_hash_table
 
     implicit none
 
@@ -1764,6 +1764,7 @@ contains
         ! creation or annihilation operator
         character(*), parameter :: this_routine = "create_perturbed_ground"
         integer :: tmp_totwalkers
+        integer(int64) :: TotWalkers_orig_max
         integer :: ierr
 
         tmp_totwalkers = TotWalkers_orig
@@ -1771,8 +1772,9 @@ contains
         print *, "Creating the wavefunction to projected on!"
         print *, "Initial number of walkers: ", tmp_totwalkers
 
-        
-        allocate(perturbed_ground(0:niftot,TotWalkers_orig), stat = ierr)
+        call MPISumAll(TotWalkers_orig,TotWalkers_orig_max)
+        allocate(perturbed_ground(0:niftot,TotWalkers_orig_max), stat = ierr)
+        print *, "Read-in dets", TotWalkers_orig_max
         if(allocated(overlap_pert)) then
            call apply_perturbation(overlap_pert(1), tmp_totwalkers, popsfile_dets,&
                 perturbed_ground)
@@ -1792,7 +1794,6 @@ contains
 
     
     subroutine check_update_growth(iter_data, message)
-      use Parallel_neci, only : iProcIndex, MPISumAll, root
       use spin_project, only : tSpinProject
       use real_time_data, only : TotPartsStorage
       implicit none
