@@ -2,7 +2,7 @@ module sym_mod
 
 use constants, only: dp,int64,sizeof_int
 use SymExcitDataMod, only: SymTableLabels
-use SystemData, only: tKpntSym, tNoSymGenRandExcits
+use SystemData, only: tKpntSym, tNoSymGenRandExcits, tHub
 implicit none
 
 contains
