@@ -868,7 +868,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
                 totK = totK + G1(brr(ireal))%k
                 totSpin = totSpin + G1(brr(ireal))%Ms
 !                print *, "Contribution", brr(ireal), G1(brr(ireal))%k
-                call MomPbcSym(totK,nBasisMax)      
+                if(tHub) call MomPbcSym(totK,nBasisMax)      
              endif
           enddo
           else
