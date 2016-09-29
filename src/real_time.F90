@@ -277,7 +277,7 @@ contains
             ! can contribute to the gf -> normalize using only these
             ! current overlap is now the one after iteration
             do i = 1, lenof_sign
-               current_overlap(i) = gf_overlap(i,iter) / wf_norm(part_type_to_run(i),iter)
+               current_overlap(i) = gf_overlap(i,iter) / pert_norm(part_type_to_run(i))
             enddo
 
             if(iProcIndex == root) print *, "overlap: ", &

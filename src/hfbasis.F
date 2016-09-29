@@ -806,7 +806,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
           ! Generate an initial determinant of specified spin.
           use SystemData, only: BasisFN, tMolpro, brr, g1, nbasis, lms,
      &                          nel, tGiovannisBrokenInit, SymRestrict, 
-     &                          tSymSet, nBasisMax
+     &                          tSymSet, nBasisMax, tHub
           use util_mod, only: int_fmt
           use sort_mod
           use sym_mod, only: checkMomentumInvalidity, MomPbcSym
@@ -868,7 +868,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
                 totK = totK + G1(brr(ireal))%k
                 totSpin = totSpin + G1(brr(ireal))%Ms
 !                print *, "Contribution", brr(ireal), G1(brr(ireal))%k
-                call MomPbcSym(totK,nBasisMax)      
+                if(tHub) call MomPbcSym(totK,nBasisMax)      
              endif
           enddo
           else

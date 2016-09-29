@@ -2,7 +2,7 @@ module sym_mod
 
 use constants, only: dp,int64,sizeof_int
 use SymExcitDataMod, only: SymTableLabels
-use SystemData, only: tKpntSym, tNoSymGenRandExcits
+use SystemData, only: tKpntSym, tNoSymGenRandExcits, tHub
 implicit none
 
 contains
@@ -2125,7 +2125,7 @@ contains
       if(rElsUpNew < 0 .or. rElsDownNew < 0) return
       ! this is the momentum from which we want to reach targetK
       bufK = cK + G1(brr(nI))%k
-      call MomPbcSym(bufK,nBasisMax)
+      if(tHub) call MomPbcSym(bufK,nBasisMax)
       ! for the last electron, the total momentum has to be hit
       if((rElsUpNew + rElsDownNew) == 0) then
          if(all(abs(bufK - targetK) == 0)) momcheck = .false.
