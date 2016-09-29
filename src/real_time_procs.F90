@@ -903,16 +903,18 @@ contains
                   ! the number of deaths has +sign from Im -> Re
                   ! dont use abs() here compared to the old code, but already 
                   ! here include the sign of the walkers on the determinant
-                  ndie(min_part_type(run)) =  - fac(1) * realwSign(max_part_type(run))
+                  ndie(min_part_type(run)) =  - fac(min_part_type(run)) &
+                       * realwSign(max_part_type(run))
                   ! and - from Re -> Im
                   ! does this give the correct sign compared to the parent sign?
                   ! additional -1 is added in postprocessing to convert ndie -> nborn
-                  ndie(max_part_type(run)) = fac(1) * realwSign(min_part_type(run))
+                  ndie(max_part_type(run)) = fac(min_part_type(run)) &
+                       * realwSign(min_part_type(run))
 
                else 
                   ! if not exact i have to round stochastically
                   ! Im -> Re
-                  rat =  - fac(1) * RealwSign(max_part_type(run))
+                  rat =  - fac(min_part_type(run)) * RealwSign(max_part_type(run))
 
                   ndie(min_part_type(run)) = real(int(rat), dp) 
                   rat = rat - ndie(min_part_type(run))
@@ -922,7 +924,7 @@ contains
                        ndie(min_part_type(run)) + real(nint(sign(1.0_dp,rat)),dp)
 
                   ! Re -> Im
-                  rat =   fac(1) * RealwSign(min_part_type(run))
+                  rat =   fac(min_part_type(run)) * RealwSign(min_part_type(run))
                   ndie(max_part_type(run)) = real(int(rat), dp)
                   rat = rat - ndie(max_part_type(run))
                   r = genrand_real2_dSFMT()
@@ -945,9 +947,9 @@ contains
             ! of the first on above
             ! the diagnonal matrix elements are always real, so there is
             ! no contribution from tau_real via Kii (and no influence of
-            ! tau_imag on fac(1)
+            ! tau_imag on fac(min_part_type(run))
            do run = 1, inum_runs
-              fac(max_part_type(run)) = tau_real * real_time_info%damping &
+              fac(max_part_type(run)) = + tau_real * real_time_info%damping &
                    + tau_imag*(Kii - DiagSft(run))
            enddo
             ! but also with damping.. the death is only related to the 
@@ -989,21 +991,21 @@ contains
                   ! can i just add the other contribution here? 
                   ! and also include the sign of the parent occupation here
                   ! already.
-                  ndie(min_part_type(run)) =  - fac(1) &
+                  ndie(min_part_type(run)) =  - fac(min_part_type(run)) &
                        * realwSign(max_part_type(run)) - &
-                       fac(2) * realwSign(min_part_type(run))
+                       fac(max_part_type(run)) * realwSign(min_part_type(run))
                   ! and - from Re -> Im
                   ! does this give the correct sign compared to the parent sign?
-                  ndie(max_part_type(run)) = fac(1) * &
+                  ndie(max_part_type(run)) = fac(min_part_type(run)) * &
                        (realwSign(min_part_type(run))) - &
-                       fac(2) * (RealwSign(max_part_type(run)))
+                       fac(max_part_type(run)) * (RealwSign(max_part_type(run)))
 
                else 
                   ! if not exact i have to round stochastically
                   ! is this ok here to just add the second contribution? todo
                   ! Im -> Re
-                  rat = -fac(1) * RealwSign(max_part_type(run)) &
-                       - fac(2) * RealwSign(min_part_type(run))
+                  rat = -fac(min_part_type(run)) * RealwSign(max_part_type(run)) &
+                       - fac(max_part_type(run)) * RealwSign(min_part_type(run))
 
                   ndie(min_part_type(run)) = real(int(rat), dp) 
                   rat = rat - ndie(min_part_type(run))
@@ -1013,8 +1015,8 @@ contains
                        + real(nint(sign(1.0_dp,rat)),dp)
 
                   ! Re -> Im
-                  rat = fac(1) * RealwSign(min_part_type(run)) &
-                  - fac(2) * RealwSign(max_part_type(run))
+                  rat = fac(min_part_type(run)) * RealwSign(min_part_type(run)) &
+                  - fac(max_part_type(run)) * RealwSign(max_part_type(run))
 
                   ndie(max_part_type(run)) = real(int(rat), dp)
                   rat = rat - ndie(max_part_type(run))

@@ -371,7 +371,7 @@ contains
     subroutine rotate_time()
       ! to avoid code multiplication
       if(t_rotated_time) then
-         tau_imag = sin(time_angle)*tau
+         tau_imag = - sin(time_angle)*tau
          tau_real = cos(time_angle)*tau
       else
          tau_imag = 0.0_dp
