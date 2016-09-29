@@ -199,7 +199,7 @@ contains
             else if (pops_nnodes == nProcessors .and. PopsVersion == 4 .and. &
                      (balance_blocks == PopBalanceBlocks .or. &
                       (.not. tLoadBalanceBlocks .and. PopBalanceBlocks == -1))) then
-                CurrWalkers = read_pops_nnodes (iunit, PopNel, TempnI, BinPops, Dets, &
+               CurrWalkers = read_pops_nnodes (iunit, PopNel, TempnI, BinPops, Dets, &
                                                 DetsLen, read_walkers_on_nodes, &
                                                 PopNIfSgn, trimmed_parts)
             else
@@ -351,7 +351,7 @@ contains
         if (any(read_walkers_on_nodes > max_dets)) &
             call stop_all(this_routine, "Insufficient particle storage &
                          &allocated to store particles in POPSFILE")
-
+        
         ! If we are on the root processor, then we do the reading in. Otherwise
         ! we just need to wait to have particles sent in!
         if (iProcIndex == root) then
@@ -361,7 +361,7 @@ contains
             ! allocates things bigger than the stacksize on the heap...
             allocate(buffer(0:NIfTot, max_dets), stat=ierr)
             if (ierr /= 0) &
-                call stop_all(this_routine, 'Allocation of read buffer failed')
+                 call stop_all(this_routine, 'Allocation of read buffer failed')
 
             ! Similarly, allocate the buffer for currentH
             if (ierr /= 0) &
@@ -1397,7 +1397,8 @@ r_loop: do while(.not.tStoreDet)
         read_nnodes = PopNNodes
         TotImagTime = PopTotImagTime
 
-        if (tReplicaReferencesDiffer) then
+        ! this is written if multiple replicas are used -> read it also in these cases
+        if (tMultiReplicas) then
             PopDiagSft = PopMultiSft(1:inum_runs)
             PopAllSumENum = PopMultiSumENum(1:inum_runs)
             PopSumNoatHF_out = PopMultiSumNoatHF(1:lenof_sign)

@@ -19,11 +19,12 @@ module real_time_init
                               AllNoAddedInitiators_1, AllNoInitDets_1, AllNoNonInitDets_1, &
                               AllNoInitWalk_1, AllNoNonInitWalk_1, AllInitRemoved_1, &
                               AccRat_1, AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap, &
-                              TotPartsStorage, TotWalkers_pert, t_rotated_time
+                              TotPartsStorage, TotWalkers_pert, t_rotated_time, time_angle, &
+                              tau_imag, tau_real, elapsedRealTime, elapsedImagTime
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
-    use Parallel_neci, only: nProcessors, MPIReduce
+    use Parallel_neci
     use ParallelHelper, only: iProcIndex, root, MPIbarrier, nNodes, MPI_SUM
     use util_mod, only: get_unique_filename
     use Logging, only: tIncrementPops
@@ -221,9 +222,6 @@ contains
 
         gf_overlap = 0.0_dp
 
-        ! why bother with an imaginary shift?
-        DiagSft = 0.0_dp
-
         ! to avoid dividing by 0 if not all entries get filled
         wf_norm = 1.0_dp
 
@@ -363,12 +361,23 @@ contains
         AllInitRemoved_1 = 0
         AccRat_1 = 0.0_dp
         AllSumWalkersCyc_1 = 0.0_dp
+        elapsedRealTime = 0.0_dp
+        elapsedImagTime = 0.0_dp
 
-        ! setup_rotated_time: by default, pure real time is used
-        t_rotated_time = .false.
-
+        call rotate_time()
 
     end subroutine setup_real_time_fciqmc
+
+    subroutine rotate_time()
+      ! to avoid code multiplication
+      if(t_rotated_time) then
+         tau_imag = sin(time_angle)*tau
+         tau_real = cos(time_angle)*tau
+      else
+         tau_imag = 0.0_dp
+         tau_real = tau
+      endif
+    end subroutine rotate_time
 
     ! need a real-time calc read_input routine to seperate that as much 
     ! from the rest of the code as possible! 
@@ -429,6 +438,13 @@ contains
                 ! Hilbert space a small imaginery energy can be introduced in
                 ! the Schroedinger equation id/dt y(t) = (H-E0-ie)y(t)
                 call readf(real_time_info%damping)
+
+             case("ROTATE-TIME")
+                ! If the time is to be rotated by some angle time_angle to increase 
+                ! stability, this can be set here
+                t_rotated_time = .true.
+                tWalkContGrow = .false.
+                call readf(time_angle)
 
             ! use nicks perturbation & kp-fciqmc stuff here as much as 
             ! possible too
@@ -599,6 +615,7 @@ contains
 
         ! but to ensure that the shift does not vary anymore, since there is 
         ! no such concept as the varying shift in the real-time fciqmc
+        ! exception: when using rotated times, the shift still has to be considered
         tWalkContGrow = .true.
         ! tSinglePartPhase is not yet allocated during readinput!
 !         tSinglePartPhase = .true.
@@ -636,6 +653,9 @@ contains
         ! probably should zero the projected energy, since its a total 
         ! different system 
         tZeroProjE = .true.
+
+        ! setup_rotated_time: by default, pure real time is used
+        t_rotated_time = .false.
 
     end subroutine set_real_time_defaults
 

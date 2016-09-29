@@ -13,7 +13,7 @@ module real_time_procs
                               temp_det_hash, temp_totWalkers, pert_norm, &
                               valid_diag_spawn_list, DiagParts, n_diag_spawned, &
                               DiagParts2, NoDied_1, NoBorn_1, SumWalkersCyc_1, &
-                              t_rotated_time, wf_norm
+                              t_rotated_time, wf_norm, tau_imag, tau_real
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
                          sizeof_int, MPIArg
@@ -51,7 +51,7 @@ module real_time_procs
     use load_balance_calcnodes, only: DetermineDetNode
     use ParallelHelper, only: nNodes, bNodeRoot, ProcNode, NodeRoots, MPIBarrier, &
          iProcIndex, MPI_SUM, root
-    use Parallel_neci, only: nProcessors, MPIReduce, MPISumAll
+    use Parallel_neci
     use LoggingData, only: tNoNewRDMContrib
     use AnnihilationMod, only: test_abort_spawn
     use load_balance, only: AddNewHashDet, CalcHashTableStats, test_hash_table
@@ -842,8 +842,7 @@ contains
         real(dp), dimension(lenof_sign) :: CopySign
         integer, intent(in) :: walkExcitLevel
         integer :: run, irdm
-        ! fac is independent of the run -> only 2 components
-        real(dp) :: fac(2), rat, r
+        real(dp) :: fac(lenof_sign), rat, r
 
         character(*), parameter :: this_routine = "attempt_die_realtime"
 
@@ -853,9 +852,13 @@ contains
         ! do i need a minus sign here?? just from the convention
         ! in the rest of the neci code? yes!
         ! rmneci_setup: there is no reason to use an imaginary shift
-        fac(1) = -tau * (Kii)
+        ! except if when dealing with rotated times)
+        do run = 1, inum_runs
+           fac(min_part_type(run)) = tau_real * (Kii - DiagSft(run))
+        enddo
 
-        if (real_time_info%damping < EPS) then
+        if (real_time_info%damping < EPS .and. .not. t_rotated_time) then
+
             ! in this case there is only Re <-> Im 
             ! n_i' =  H_ii c_i 
             ! c_i' = -H_ii n_i
@@ -900,16 +903,16 @@ contains
                   ! the number of deaths has +sign from Im -> Re
                   ! dont use abs() here compared to the old code, but already 
                   ! here include the sign of the walkers on the determinant
-                  ndie(min_part_type(run)) = fac(1) * realwSign(max_part_type(run))
+                  ndie(min_part_type(run)) =  - fac(1) * realwSign(max_part_type(run))
                   ! and - from Re -> Im
                   ! does this give the correct sign compared to the parent sign?
                   ! additional -1 is added in postprocessing to convert ndie -> nborn
-                  ndie(max_part_type(run)) = -fac(1) * realwSign(min_part_type(run))
+                  ndie(max_part_type(run)) = fac(1) * realwSign(min_part_type(run))
 
                else 
                   ! if not exact i have to round stochastically
                   ! Im -> Re
-                  rat =  fac(1) * RealwSign(max_part_type(run))
+                  rat =  - fac(1) * RealwSign(max_part_type(run))
 
                   ndie(min_part_type(run)) = real(int(rat), dp) 
                   rat = rat - ndie(min_part_type(run))
@@ -919,7 +922,7 @@ contains
                        ndie(min_part_type(run)) + real(nint(sign(1.0_dp,rat)),dp)
 
                   ! Re -> Im
-                  rat = - fac(1) * RealwSign(min_part_type(run))
+                  rat =   fac(1) * RealwSign(min_part_type(run))
                   ndie(max_part_type(run)) = real(int(rat), dp)
                   rat = rat - ndie(max_part_type(run))
                   r = genrand_real2_dSFMT()
@@ -940,9 +943,13 @@ contains
             ! not sure about the sign of this fac factor but the 2nd entry
             ! as it is implemented right now has to have the opposite sign 
             ! of the first on above
-              fac(2) = tau * real_time_info%damping 
-            ! here i am definetly not sure about the logging of the death
-            ! magnitude.. 
+            ! the diagnonal matrix elements are always real, so there is
+            ! no contribution from tau_real via Kii (and no influence of
+            ! tau_imag on fac(1)
+           do run = 1, inum_runs
+              fac(max_part_type(run)) = tau_real * real_time_info%damping &
+                   + tau_imag*(Kii - DiagSft(run))
+           enddo
             ! but also with damping.. the death is only related to the 
             ! damping and not on shift or diagonal matrix element..
             ! so i dont think i need it here! 
@@ -982,21 +989,21 @@ contains
                   ! can i just add the other contribution here? 
                   ! and also include the sign of the parent occupation here
                   ! already.
-                  ndie(min_part_type(run)) = fac(1) &
-                       * realwSign(max_part_type(run)) + &
+                  ndie(min_part_type(run)) =  - fac(1) &
+                       * realwSign(max_part_type(run)) - &
                        fac(2) * realwSign(min_part_type(run))
                   ! and - from Re -> Im
                   ! does this give the correct sign compared to the parent sign?
-                  ndie(max_part_type(run)) = -fac(1) * &
-                       abs(realwSign(min_part_type(run))) + &
-                       fac(2) * abs(RealwSign(max_part_type(run)))
+                  ndie(max_part_type(run)) = fac(1) * &
+                       (realwSign(min_part_type(run))) - &
+                       fac(2) * (RealwSign(max_part_type(run)))
 
                else 
                   ! if not exact i have to round stochastically
                   ! is this ok here to just add the second contribution? todo
                   ! Im -> Re
-                  rat = fac(1) * RealwSign(max_part_type(run)) &
-                       + fac(2) * RealwSign(min_part_type(run))
+                  rat = -fac(1) * RealwSign(max_part_type(run)) &
+                       - fac(2) * RealwSign(min_part_type(run))
 
                   ndie(min_part_type(run)) = real(int(rat), dp) 
                   rat = rat - ndie(min_part_type(run))
@@ -1006,8 +1013,8 @@ contains
                        + real(nint(sign(1.0_dp,rat)),dp)
 
                   ! Re -> Im
-                  rat = -fac(1) * RealwSign(min_part_type(run)) &
-                  + fac(2) * RealwSign(max_part_type(run))
+                  rat = fac(1) * RealwSign(min_part_type(run)) &
+                  - fac(2) * RealwSign(max_part_type(run))
 
                   ndie(max_part_type(run)) = real(int(rat), dp)
                   rat = rat - ndie(max_part_type(run))
@@ -1268,7 +1275,8 @@ contains
         HElement_t(dp) , intent(in) :: HElGen
         character(*), parameter :: this_routine = 'attempt_create_realtime'
 
-        real(dp) :: rat, r, walkerweight, pSpawn, nSpawn, MatEl, p_spawn_rdmfac
+        real(dp) :: rat, r, walkerweight, pSpawn, nSpawn, MatEl, p_spawn_rdmfac, &
+             sepSign
         integer :: extracreate, tgt_cpt, component, i, iUnused
         integer :: TargetExcitLevel
         logical :: tRealSpawning
@@ -1404,21 +1412,26 @@ contains
             ! rmneci_setup: adjusted for multirun, fixed complex -> real spawns
             do tgt_cpt = 1, (lenof_sign/inum_runs)
                 component = tgt_cpt
+                ! keep track of the sign due to the kind of spawn event
+                sepSign = 1.0_dp
                 ! if (part_type == 2 .and. inum_runs == 1) component = 3 - tgt_cpt !?
 
                 walkerweight = sign(1.0_dp,RealwSign(part_type)) 
-                if (mod(part_type,2) == 0) walkerweight = -walkerweight
+                if (mod(part_type,2) == 0 .and. component == 1) &
+                     sepSign = (-1.0_dp)
 #ifdef __REALTIME
                 ! part_type is given as input, for that part_type, the real part of
-                ! the HElement is used if rotation occurs and the imaginary part else
-                if (component == mod(part_type,2)) then
-                    MatEl = real(aimag(rh_used),dp)
+                ! the HElement is used if rotation occurs and the imaginary part if not
+                if (mod(component,2) == mod(part_type,2)) then
+                   ! spawn part_type -> part_type
+                    MatEl = - real(aimag(rh_used),dp)*tau_real - real(rh_used,dp)*tau_imag
                 else 
-                    MatEl = real(rh_used,dp)
+                   ! spawn part_type -> rotate_part(part_type)
+                    MatEl = real(rh_used,dp)*tau_real - real(aimag(rh_used),dp)*tau_imag
                 end if
 #endif
 
-                nSpawn = - tau * MatEl * walkerweight / prob
+                nSpawn = - sepSign * MatEl * walkerweight / prob
 
                 ! n.b. if we ever end up with |walkerweight| /= 1, then this
                 !      will need to ffed further through.

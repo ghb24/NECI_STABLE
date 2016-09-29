@@ -2,7 +2,8 @@
 
 module real_time
 
-    use real_time_init, only: init_real_time_calc_single, dealloc_real_time_memory
+    use real_time_init, only: init_real_time_calc_single, dealloc_real_time_memory, &
+         rotate_time
     use real_time_procs, only: save_current_dets, reset_spawned_list, &
                                reload_current_dets, walker_death_realtime, &
                                walker_death_spawn, attempt_die_realtime, &
@@ -11,7 +12,8 @@ module real_time
     use real_time_data, only: gf_type, temp_freeslot, temp_iendfreeslot, wf_norm, &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
                               current_overlap, SumWalkersCyc_1, real_time_info, DiagParts, &
-                              valid_diag_spawn_list
+                              valid_diag_spawn_list, elapsedRealTime, elapsedImagTime,&
+                              tau_real, tau_imag, t_rotated_time
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
                         tChangeProjEDet, tInstGrowthRate, DiagSft
@@ -20,7 +22,7 @@ module real_time
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
                          TotWalkers, fcimc_excit_gen_store, ilutRef, max_calc_ex_level, &
                          iLutHF_true, indices_of_determ_states, partial_determ_vecs, &
-                         exFlag, CurrentDets, TotParts, ilutHF, SumWalkersCyc
+                         exFlag, CurrentDets, TotParts, ilutHF, SumWalkersCyc, IterTime
     use kp_fciqmc_data_mod, only: overlap_pert
     use timing_neci, only: set_timer, halt_timer
     use FciMCParMod, only: rezero_iter_stats_each_iter
@@ -47,7 +49,8 @@ module real_time
     use LoggingData, only: tPopsFile
     use PopsFileMod, only: WriteToPopsfileParOneArr
     use load_balance, only: test_hash_table
-    use Parallel_neci, only: MPIReduce
+    use Parallel_neci
+    use util_mod, only : neci_etime
     use ParallelHelper, only: MPI_SUM, iProcIndex, root
 
     implicit none
@@ -204,6 +207,7 @@ contains
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
         integer :: n_determ_states
         integer :: i
+        real(sp) :: s_start, s_end, tstart(2), tend(2)
 
         print *, " ========================================================== "
         print *, " ------------------ Real-time FCIQMC ---------------------- "
@@ -257,6 +261,8 @@ contains
             ! steps involved...
             call set_timer(walker_time)
 
+            if(iProcIndex == root) s_start = neci_etime(tstart)
+
             ! this is a bad implementation : iter should be local
 
             ! perform the actual iteration(excitation generation etc.) 
@@ -291,6 +297,11 @@ contains
 
             ! check if somthing happpened to stop the iteration or something
             call check_real_time_iteration()
+
+            if(iProcIndex == root) then
+               s_end = neci_etime(tend)
+               IterTime = IterTime + (s_end - s_start)
+            endif
 
             if (tSoftExitFound) exit fciqmc_loop
             ! we have to stop here since the gf_overlap array is now full
@@ -345,8 +356,7 @@ contains
         if (mod(iter, StepsSft) == 0) then
             call calculate_new_shift_wrapper(second_spawn_iter_data, totParts, &
                 tPairedReplicas)
-            ! an imaginary shift does not help
-            DiagSft = 0.0_dp
+            call rotate_time()
         end if
 ! 
 !         if (mod(iter, StepsSft) == 0) then
@@ -445,6 +455,11 @@ contains
         ! associated pointers and hashtable related stuff to the 
         ! temporary 2nd list 
         call save_current_dets() 
+
+        ! bookkeeping of timestats
+        ! each iteration step constist of two tau-steps -> factor of 2
+        elapsedRealTime = elapsedRealTime + tau_real*2.0_dp
+        elapsedImagTime = elapsedImagTime + tau_imag*2.0_dp
 
     end subroutine init_real_time_iteration
 
@@ -846,7 +861,10 @@ contains
         ! have to call end_iter_stats to get correct acceptance rate
 !         call end_iter_stats(TotWalkersNew)
         ! but end iter stats for me is only uses to get SumWalkersCyc .. 
-        SumWalkersCyc_1 = SumWalkersCyc_1 + sum(TotParts)
+        do run = 1, inum_runs
+           SumWalkersCyc_1(run) = SumWalkersCyc_1(run) + &
+                sum(TotParts(min_part_type(run):max_part_type(run)))
+        enddo
 
         ! the number TotWalkersNew changes below in annihilation routine
         ! Annihilation is done after loop over walkers
@@ -862,7 +880,7 @@ contains
         character(*), parameter :: this_routine = "perform_real_time_iteration"
 
         integer :: idet !, n_determ_states 
-        integer :: TotWalkersNew
+        integer :: TotWalkersNew, run
         real(dp) :: tmp_sign(lenof_sign)
         ! 0)
         ! do all the necessary preperation(resetting pointers etc.)
@@ -959,7 +977,10 @@ endif
 
         call DirectAnnihilation_diag(TotWalkersNew, second_spawn_iter_data, .false.)
         ! also have to set the SumWalkersCyc before the "proper" annihilaiton 
-        SumWalkersCyc = SumWalkersCyc + sum(TotParts)
+        do run = 1, inum_runs
+           SumWalkersCyc(run) = SumWalkersCyc(run) + &
+                sum(TotParts(min_part_type(run):max_part_type(run)))
+        enddo
 
 !        call extract_sign(CurrentDets(:,1), tmp_sign)
 !        print *, "hf occ after second death:", tmp_sign

@@ -749,7 +749,6 @@ contains
                  AllGrowRate = (sum(AllSumWalkersCyc)/real(StepsSft,dp)) &
                       /sum(OldAllAvWalkersCyc)
 #ifdef __REALTIME
-                 ! print *, "toto: am i here?"
                  AllGrowRate_1 = (sum(AllSumWalkersCyc_1)/real(StepsSft,dp))  & 
                       / sum(OldAllAvWalkersCyc_1)
 #endif
@@ -757,6 +756,10 @@ contains
                  do run=1,inum_runs
                     AllGrowRate(run) = (AllSumWalkersCyc(run)/real(StepsSft,dp)) &
                          /OldAllAvWalkersCyc(run)
+#ifdef __REALTIME
+                 AllGrowRate_1(run) = ((AllSumWalkersCyc_1(run))/real(StepsSft,dp))  & 
+                      / (OldAllAvWalkersCyc_1(run))
+#endif
                  enddo
               endif
            end if
@@ -809,7 +812,9 @@ contains
                             DiagSft(run) = real(proje_iter(run),dp)
                             defer_update(run) = .true.
                         end if
-                    elseif (abs_sign(AllNoatHF(lb:ub)) < (MaxNoatHF - HFPopThresh)) then
+                        ! if RezeroShift is already enabled, this will not do anything here
+                    elseif (abs_sign(AllNoatHF(lb:ub)) < (MaxNoatHF - HFPopThresh) .and. &
+                         .not. tReZeroShift(run)) then
                         write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
                                      &single particle growth phase on iteration',iter + PreviousCycles,' - particle number &
                                      &may grow again.'

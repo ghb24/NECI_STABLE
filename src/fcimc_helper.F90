@@ -61,7 +61,7 @@ module fcimc_helper
     use real_time_data, only: t_complex_ints, acceptances_1, runge_kutta_step, &
                         NoInitDets_1, NoNonInitDets_1, NoInitWalk_1, NoNonInitWalk_1, &
                         InitRemoved_1, NoAborted_1, NoRemoved_1, NoatHF_1, NoatDoubs_1, &
-                        NoatHF_1, NoatDoubs_1
+                        NoatHF_1, NoatDoubs_1, t_rotated_time
 
 !=======
 !>>>>>>> 0510b74a29483a2abd107e624b5029674d8e25ff
@@ -196,8 +196,10 @@ contains
         integer, parameter :: flags = 0
         character(*), parameter :: this_routine = 'create_particle_with_hash_table'
         
-        !Only one element of child should be non-zero
-        ASSERT((sum(abs(child_sign))-maxval(abs(child_sign)))<1.0e-12_dp)
+        !Only one element of child should be non-zero except for real-time evolution
+        if(.not. t_rotated_time) then
+           ASSERT((sum(abs(child_sign))-maxval(abs(child_sign)))<1.0e-12_dp)
+        endif
 
         call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, &
             SpawnedParts, ind, hash_val, tSuccess)

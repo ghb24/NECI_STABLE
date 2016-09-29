@@ -27,6 +27,14 @@ module real_time_data
     ! timestep, which orbitals are manipulated etc. in it 
     integer :: gf_type      ! -1 indicates a the lesser, 1 the greater GF
 
+    ! the angle used for rotation of time into complex plane
+    ! it is better readable to use new variables for real and imaginary part
+    ! of the rotated time
+    real(dp) :: time_angle
+    real(dp) :: tau_imag, tau_real
+    ! logging the total elapsed time on both axes
+    real(dp) :: elapsedRealTime, elapsedImagTime
+
     ! need a global variable for the overlap <y(0)|y(t)> 
     ! determined by the max. cycle
 !     real(dp), allocatable :: gf_overlap(:)

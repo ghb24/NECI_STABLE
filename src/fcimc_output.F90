@@ -33,7 +33,8 @@ module fcimc_output
     use real_time_data, only: AllNoBorn_1, AllNoAborted_1, AllAnnihilated_1, &
                               AllNoDied_1, AllTotWalkers_1, nspawned_tot_1,  &
                               AllTotParts_1, AccRat_1, AllGrowRate_1, &
-                              current_overlap, t_real_time_fciqmc
+                              current_overlap, t_real_time_fciqmc, elapsedRealTime, &
+                              elapsedImagTime
 
 
 
@@ -529,13 +530,15 @@ contains
                 call stats_out(state,.true., sum(abs(AllTotParts_1)), 'Tot. parts 1st RK')
 #endif
                 call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
-#ifdef __CMPLX
+#ifndef __REALTIME
+#ifdef __COMPLEX
                 call stats_out(state,.true., real(proje_iter_tot), 'Re Proj. E')
                 call stats_out(state,.true., aimag(proje_iter_tot), 'Im Proj. E')
 #else
                 call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
 #endif
-                call stats_out(state,.true., sum(DiagSft / inum_runs), 'Shift. (cyc)')
+#endif
+                call stats_out(state,.true., DiagSft(1), 'Shift. (cyc)')
                 call stats_out(state,.false., sum(AllNoBorn), 'No. born')
                 call stats_out(state,.false., sum(AllNoDied), 'No. died')
                 call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
@@ -548,6 +551,7 @@ contains
                 call stats_out(state,.false., AllGrowRate_1(1), 'Growth fac. 1st RK')
                 call stats_out(state,.false., AccRat_1(1), 'Acc. rate 1st RK')
 #endif
+#ifndef __REALTIME
 #ifdef __CMPLX
                 call stats_out(state,.true., real(proje_iter_tot) + Hii, &
                                'Tot. Proj. E')
@@ -556,6 +560,7 @@ contains
 #else
                 call stats_out(state,.true., proje_iter_tot + Hii, &
                                'Tot. Proj. E')
+#endif
 #endif
             end if
             call stats_out(state,.true., AllTotWalkers, 'Dets occ.')
@@ -567,7 +572,8 @@ contains
 
             call stats_out(state,.true., IterTime, 'Iter. time')
 #ifdef __REALTIME 
-            call stats_out(state, .false., TotImagTime, 'Re. time')
+            call stats_out(state, .true., elapsedRealTime, 'Re. time')
+            call stats_out(state, .true., elapsedImagTime, 'Im. time')
 #else
             call stats_out(state,.false., TotImagTime, 'Im. time')
 #endif
@@ -587,8 +593,11 @@ contains
 
 #ifdef __REALTIME 
             ! also output the overlaps and norm.. 
-            call stats_out(state,.true.,current_overlap(1), 'Re. <y(0)|y(t)>')
-            call stats_out(state,.true.,current_overlap(2), 'Im. <y(0)|y(t)>')
+            do p = 1, inum_runs
+                write(tmpc, '(i5)') p
+               call stats_out(state,.true.,current_overlap(min_part_type(p)), 'Re. <y(0)|y(t)>(' // trim(adjustl(tmpc)) // ")")
+               call stats_out(state,.true.,current_overlap(max_part_type(p)), 'Im. <y(0)|y(t)>(' // trim(adjustl(tmpc)) // ")")
+            enddo
 #endif
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
