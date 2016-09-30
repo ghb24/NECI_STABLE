@@ -22,7 +22,7 @@ module real_time
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
                          TotWalkers, fcimc_excit_gen_store, ilutRef, max_calc_ex_level, &
                          iLutHF_true, indices_of_determ_states, partial_determ_vecs, &
-                         exFlag, CurrentDets, TotParts, ilutHF, SumWalkersCyc, IterTime
+                         exFlag, CurrentDets, TotParts, ilutHF, SumWalkersCyc, IterTime, HFCyc
     use kp_fciqmc_data_mod, only: overlap_pert
     use timing_neci, only: set_timer, halt_timer
     use FciMCParMod, only: rezero_iter_stats_each_iter
@@ -373,7 +373,7 @@ contains
 ! !                 second_real_time_spawn%update_growth_tot) 
 !             ! change the collate iter data more, to do that update..
 !             call iter_diagnostics()
-!             call population_check()
+!             call population_check() this is also done in the shift wrapper
 !             ! do i need the update_shift routine? 
 !             call update_shift(second_spawn_iter_data)
 !             if (tPrintDataTables
@@ -682,7 +682,6 @@ contains
 
         ! declare this is the first runge kutta step
         runge_kutta_step = 1
-
         ! use part of nicks code, and remove the parts, that dont matter 
         do idet = 1, int(TotWalkers, sizeof_int)
 
@@ -845,7 +844,6 @@ contains
             end if
 
         end do ! Over all determinants.
-
         if (tSemiStochastic) call determ_projection()
 
         ! also update the temp. variables to reuse in y(n) + k2 comb.

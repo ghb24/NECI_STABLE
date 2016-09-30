@@ -534,8 +534,9 @@ contains
 #ifdef __COMPLEX
                 call stats_out(state,.true., real(proje_iter_tot), 'Re Proj. E')
                 call stats_out(state,.true., aimag(proje_iter_tot), 'Im Proj. E')
-#else
+#ifndef __COMPLEX
                 call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
+#endif
 #endif
 #endif
                 call stats_out(state,.true., DiagSft(1), 'Shift. (cyc)')
@@ -551,7 +552,6 @@ contains
                 call stats_out(state,.false., AllGrowRate_1(1), 'Growth fac. 1st RK')
                 call stats_out(state,.false., AccRat_1(1), 'Acc. rate 1st RK')
 #endif
-#ifndef __REALTIME
 #ifdef __CMPLX
                 call stats_out(state,.true., real(proje_iter_tot) + Hii, &
                                'Tot. Proj. E')
@@ -560,7 +560,6 @@ contains
 #else
                 call stats_out(state,.true., proje_iter_tot + Hii, &
                                'Tot. Proj. E')
-#endif
 #endif
             end if
             call stats_out(state,.true., AllTotWalkers, 'Dets occ.')

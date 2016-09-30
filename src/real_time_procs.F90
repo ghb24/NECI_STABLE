@@ -854,7 +854,8 @@ contains
         ! rmneci_setup: there is no reason to use an imaginary shift
         ! except if when dealing with rotated times)
         do run = 1, inum_runs
-           fac(min_part_type(run)) = tau_real * (Kii - DiagSft(run))
+           fac(min_part_type(run)) = tau_real * (Kii)
+           fac(max_part_type(run)) = 0.0_dp
         enddo
 
         if (real_time_info%damping < EPS .and. .not. t_rotated_time) then
@@ -878,7 +879,7 @@ contains
                         ! searching deal with it
                         write(iout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
                         write(iout, '("** WARNING ** Truncating spawn to ensure stability")')
-                        do run = 1, 2
+                        do run = 1, lenof_sign
                            fac(run) = min(2.0_dp, fac(run))
                         end  do
                     else
@@ -952,9 +953,6 @@ contains
               fac(max_part_type(run)) = + tau_real * real_time_info%damping &
                    + tau_imag*(Kii - DiagSft(run))
            enddo
-            ! but also with damping.. the death is only related to the 
-            ! damping and not on shift or diagonal matrix element..
-            ! so i dont think i need it here! 
 
             ! and also about the fac restrictions.. for now but it here anyway..
             if(any(fac > 1.0_dp)) then
@@ -1071,7 +1069,7 @@ contains
 
         ilut => CurrentDets(:,DetPosition)
 
-        ndie = attempt_die_realtime(DetCurr, Kii, RealwSign, walkExcitLevel)
+        ndie = attempt_die_realtime(DetCurr, Kii, realwSign, walkExcitLevel)
         ! combine in here old walker_death() and attempt_die() routines..
         ! update: no dont! because i need the attempt_die in the 2nd RK loop 
         ! alone
@@ -1300,7 +1298,8 @@ contains
                                  tParity, HElGen)
 
         !write(6,*) 'p,rh', prob, rh
-
+!        print *, "Spawn event with mat el", rh, "sign", RealwSign, &
+!             "timestep", tau, "probability", prob
         ! The following is useful for debugging the contributions of single
         ! excitations, and double excitations of spin-paired/opposite
         ! electron pairs to the value of tau.

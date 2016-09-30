@@ -87,7 +87,7 @@ contains
 
         ! then call the setup routine, which set all remaining needed quantities
         call setup_real_time_fciqmc()
-
+        
         ! definetly read-in stored popsfile here. 
         ! need to store both <y(0)| and also create a_j y(0)> during read-in!
 !         call read_popsfile_real_time()
@@ -364,6 +364,10 @@ contains
         elapsedRealTime = 0.0_dp
         elapsedImagTime = 0.0_dp
 
+        ! if the rotated time is used, the shift has to be varied from the beginning
+        ! to guarantee a stable walker number
+        tSinglePartPhase = .false.
+
         call rotate_time()
 
     end subroutine setup_real_time_fciqmc
@@ -621,7 +625,7 @@ contains
 !         tSinglePartPhase = .true.
 
         ! probably not change reference anymore.. but check
-        tChangeProjEDet = .false.
+        tChangeProjEDet = .true.
 
         ! and dont only restart on the highly populated dets
         tRestartHighPop = .false.
@@ -652,7 +656,7 @@ contains
 
         ! probably should zero the projected energy, since its a total 
         ! different system 
-        tZeroProjE = .true.
+        tZeroProjE = .false.
 
         ! setup_rotated_time: by default, pure real time is used
         t_rotated_time = .false.

@@ -1500,16 +1500,16 @@ contains
         endif
 
         ! How many children should we spawn given an excitation?
-        if (tTruncCas .or. tTruncSpace .or. &
+        if (t_real_time_fciqmc) then
+            attempt_create => attempt_create_realtime
+         else if (tTruncCas .or. tTruncSpace .or. &
             tPartFreezeCore .or. tPartFreezeVirt .or. tFixLz .or. &
             (tUEG .and. .not. tLatticeGens) .or. tTruncNOpen) then
             if (tHPHF .or. tCSF .or. tSemiStochastic) then
                 attempt_create => attempt_create_trunc_spawn
             else
                 attempt_create => att_create_trunc_spawn_enc
-            endif
-        else if (t_real_time_fciqmc) then
-            attempt_create => attempt_create_realtime
+            endif        
         else
             attempt_create => attempt_create_normal
         endif

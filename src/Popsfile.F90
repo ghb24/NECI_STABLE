@@ -752,7 +752,7 @@ r_loop: do while(.not.tStoreDet)
                         read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
                                                    sgn_int, flg_read
                     else
-                        read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
+                       read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
                                                    sgn_int
                     end if
                 end if
@@ -1021,7 +1021,7 @@ r_loop: do while(.not.tStoreDet)
         integer(int64) , intent(in) :: iPopAllTotWalkers
         real(dp) , intent(in) :: PopDiagSft(inum_runs),read_tau
         real(dp), intent(in) :: read_psingles, read_pparallel
-        real(dp) , dimension(lenof_sign/inum_runs) , intent(in) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign) , intent(in) :: PopSumNoatHF
         HElement_t(dp) , intent(in) :: PopAllSumENum(inum_runs)
         integer, intent(in) :: perturb_ncreate, perturb_nann
         integer , intent(out) :: WalkerListSize
@@ -1094,12 +1094,12 @@ r_loop: do while(.not.tStoreDet)
         AllSumENum(1:inum_runs) = PopAllSumENum
         if(inum_runs.eq.2) then
             AllSumNoatHF(1)=PopSumNoatHF(1)
-            AllSumNoatHF(inum_runs)=PopSumNoatHF(1)
+            AllSumNoatHF(inum_runs)=PopSumNoatHF(1) ! rotate_time_setup: !? really?
         elseif(lenof_sign.eq.2) then
             AllSumNoatHF(1)=PopSumNoatHF(1)
             AllSumNoatHF(lenof_sign)=PopSumNoatHF(lenof_sign)
         else
-            AllSumNoatHF(1)=PopSumNoatHF(1)
+            AllSumNoatHF(:)=PopSumNoatHF(:)
         endif
 
         
