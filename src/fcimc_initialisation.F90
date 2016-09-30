@@ -1820,7 +1820,8 @@ contains
             IF(iProcIndex.eq.root) THEN
                 OldAllNoatHF=InitialPartVec
                 do run=1,inum_runs
-                    OldAllAvWalkersCyc(run) = InitialPartVec(run)
+                    OldAllAvWalkersCyc(run) = sum(InitialPartVec(&
+                         min_part_type(run):max_part_type(run)))
                 enddo
                 AllNoatHF=InitialPartVec
                 InstNoatHF = InitialPartVec
