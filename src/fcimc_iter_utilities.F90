@@ -813,8 +813,7 @@ contains
                             defer_update(run) = .true.
                         end if
                         ! if RezeroShift is already enabled, this will not do anything here
-                    elseif (abs_sign(AllNoatHF(lb:ub)) < (MaxNoatHF - HFPopThresh) .and. &
-                         .not. tReZeroShift(run)) then
+                    elseif (abs_sign(AllNoatHF(lb:ub)) < (MaxNoatHF - HFPopThresh)) then
                         write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
                                      &single particle growth phase on iteration',iter + PreviousCycles,' - particle number &
                                      &may grow again.'

@@ -37,7 +37,7 @@ module real_time_init
                          tSinglePartPhase, iter_data_fciqmc, iter, PreviousCycles, &
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
                          MaxSpawned, InitialSpawnedSlots, tSearchTauOption, TotWalkers, &
-                         CurrentDets, popsfile_dets
+                         CurrentDets, popsfile_dets, MaxWalkersPart
     use SystemData, only: nBasis, lms, G1, nBasisMax, tHub, nel
     use SymExcitDataMod, only: kTotal
     use sym_mod, only: MomPbcSym
@@ -57,6 +57,7 @@ module real_time_init
 contains
 
     subroutine init_real_time_calc_single()
+      use real_time_procs, only: get_tot_parts
         ! this routine takes care of the correct setup of the real-time 
         ! calculation. like reading the popsfiles and preparing the start 
         ! of the calculation and setting certain global variables
@@ -134,6 +135,7 @@ contains
                 tau = real_time_info%time_step
             else
                 print *, " No specific time-step is chosen by input! Use tau from Popsfile!"
+                !tSearchTau = .false.
                 real_time_info%time_step = tau
             end if
 
@@ -219,6 +221,7 @@ contains
         allocate(wf_norm(inum_runs,0:(real_time_info%n_time_steps+1)), stat = ierr)
         allocate(pert_norm(inum_runs),stat = ierr)
         allocate(current_overlap(lenof_sign),stat=ierr)
+        allocate(temp_freeslot(MaxWalkersPart),stat=ierr)
 
         gf_overlap = 0.0_dp
 
@@ -256,7 +259,6 @@ contains
         print *, "allocated(temp_det_list)?", allocated(temp_det_list)
         print *, "associated(temp_det_pointer)?", associated(temp_det_pointer)
         print *, "associated(temp_det_hash)?", associated(temp_det_hash)
-        print *, "allocated(temp_freeslot)?", allocated(temp_freeslot)
 
         print *, "associated(spawn_ht)?", associated(spawn_ht)
 
@@ -364,10 +366,6 @@ contains
         elapsedRealTime = 0.0_dp
         elapsedImagTime = 0.0_dp
 
-        ! if the rotated time is used, the shift has to be varied from the beginning
-        ! to guarantee a stable walker number
-        tSinglePartPhase = .false.
-
         call rotate_time()
 
     end subroutine setup_real_time_fciqmc
@@ -464,7 +462,6 @@ contains
             case ("LESSER")
                alloc_popsfile_dets = .true.
                 ! lesser GF -> photo emission: apply a annihilation operator
-                
                 tOverlapPert = .true.
                 tWritePopsNorm = .true.
                 ! i probably also can use the overlap-perturbed routines 
@@ -519,8 +516,7 @@ contains
                         call init_perturbation_annihilation(pops_pert(i))
 
                     end do
-                end if
-
+                endif
             case ("GREATER")
                 ! greater GF -> photo absorption: apply a creation operator
                 alloc_popsfile_dets = .true.
@@ -580,6 +576,19 @@ contains
 
             case ("SCALE-POPULATION")
                 tScalePopulation = .true.
+
+             case ("FULLY-ROTATED")
+                ! for testing purposes, it is useful to do pure imaginary
+                ! time evolution with the rotated time algorithm -> this is
+                ! enabled by this keyword 
+                ! in addition, this disables the usage of input POPSFILEs for
+                ! more efficient ground state search (the real-time POPSFILE 
+                ! read-in settings are not useful for ground state search)
+                tReadPops = .false.
+                tStartSinglePart = .true.
+                t_rotated_time = .true.
+                tWalkContGrow = .false.
+                time_angle = 4*atan(1.0_dp)/2.0_dp
                 
             case ("COMPLEX-INTEGRALS")
                 ! in the real-time implementation, since we need the complex 
@@ -602,13 +611,14 @@ contains
 
     ! write a routine which sets the defauls values, and maybe even turns off
     ! certain otherwise non-compatible variable to the appropriate values
+    ! problem: this is called after most of the input is read
     subroutine set_real_time_defaults()
         implicit none
 
         ! todo: figure out quantities
 
         ! for the start definetly not change tau
-        tSearchTau = .false.
+        tSearchTau = .true.
 
         ! also set readpops to get the <y(0)| reference from the "normal"
         ! neci init routines
@@ -622,7 +632,7 @@ contains
         ! exception: when using rotated times, the shift still has to be considered
         tWalkContGrow = .true.
         ! tSinglePartPhase is not yet allocated during readinput!
-!         tSinglePartPhase = .true.
+        tSinglePartPhase = .true.
 
         ! probably not change reference anymore.. but check
         tChangeProjEDet = .true.

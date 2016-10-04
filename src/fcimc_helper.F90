@@ -261,7 +261,7 @@ contains
             if (tTruncInitiator) then
                 ! i have to check if complex ints are provided.. then i have
                 ! spawning to both types of particles
-                if (t_complex_ints) then
+                if (t_complex_ints .or. t_rotated_time) then
                     ! in the complex ints case i have spawns to both Re and Im
                     ! parts of the child determinant
                     ! i have to check which type is spawned actually if no 
@@ -328,7 +328,7 @@ contains
 #ifdef __REALTIME
             ! also have to change this for the real-time implementation
             if (tTruncInitiator) then
-                if (t_complex_ints) then
+                if (t_complex_ints .or. t_rotated_time) then
                     ! both types of particles can get spawned -> check if
                     if (test_flag(ilut_parent, flag_initiator(part_type))) then
                         do i = 1,lenof_sign

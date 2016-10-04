@@ -9,7 +9,7 @@ module real_time_procs
     use SystemData, only: nel
     use real_time_data, only: gf_overlap, TotWalkers_orig, TotWalkers_pert, &
                               t_complex_ints, real_time_info, temp_freeslot, & 
-                              temp_iendfreeslot, temp_det_list, temp_det_pointer, &
+                              temp_det_list, temp_det_pointer,  temp_iendfreeslot, &
                               temp_det_hash, temp_totWalkers, pert_norm, &
                               valid_diag_spawn_list, DiagParts, n_diag_spawned, &
                               DiagParts2, NoDied_1, NoBorn_1, SumWalkersCyc_1, &
@@ -76,7 +76,10 @@ contains
         ! already stored contigously and in the right orde
         ! (no annihilation inside DiagParts can occur)
 
-        numSpawns = valid_diag_spawn_list(iProcIndex)
+        ! valid_diag_spawn_list gets increased after the spawn
+        ! to DiagParts(:,valid_diag_spawn_list) -> highest index is
+        ! actually valid_diag_spawn_list-1 
+        numSpawns = valid_diag_spawn_list(iProcIndex)-1
         call AnnihilateDiagParts(numSpawns, TotWalkersNew, iter_data)
 
         ! also should update the hashtable stats, specific for this diagonal 
@@ -179,7 +182,7 @@ contains
                         ! which distinguished between real and imaginary 
                         ! initiators..
                         ! for now, stick to the distinction! but ask ali! 
-                        if (abs(CurrentSign(j)) < 1.e-12_dp) then
+                        if (is_run_unnocc(CurrentSign,run)) then
                            ! This determinant is actually *unoccupied* for the
                            ! walker type/set we're considering. We need to
                            ! decide whether to abort it or not.
@@ -1431,7 +1434,6 @@ contains
                     MatEl = real(rh_used,dp)*tau_real - real(aimag(rh_used),dp)*tau_imag
                 end if
 #endif
-
                 nSpawn = - sepSign * MatEl * walkerweight / prob
 
                 ! n.b. if we ever end up with |walkerweight| /= 1, then this
@@ -1582,12 +1584,11 @@ contains
         ! first spawn loop, as the empty entries get determined there! 
         ! and i only want to do an additional annihilation step to combine 
         ! y(n) + k2
-        FreeSlot = temp_freeslot
-        ! setting this to one is enough
+        ! also reload the positions of empty slots in the ensemble
         iStartFreeSlot = 1
         iEndFreeSlot = temp_iendfreeslot
-        ! not sure if i have to reset this here, or in the routine to reset 
-        ! the spawned list
+        FreeSlot = temp_freeslot
+
         ! i think that has to be done in the reset_spawned_list
 !         n_determ_states = 1
 
@@ -1652,14 +1653,6 @@ contains
         do i = 1, tmp_siz1
             temp_det_hash(i)%ind = 0
         end do
-
-        ! also need a corresponding freeslot array
-        tmp_siz1 = size(freeslot)
-        allocate(temp_freeslot(tmp_siz1), stat = ierr)
-        if(ierr.ne.0) call stop_all(this_routine,"Error in allocation")
-
-        ! and init it
-        temp_freeslot = 0
 
         ! also use the spawn_ht hash table, so also allocate it here! 
 
@@ -1818,7 +1811,7 @@ contains
       growth = iter_data%nborn &
          - iter_data%ndied - iter_data%nannihil &
          - iter_data%naborted - iter_data%nremoved
-
+      
       call MPISumAll(growth,growth_tot)
       call MPISumAll(TotParts,allWalkers)
       call MPIsumAll(TotPartsStorage,allWalkersOld)
@@ -1840,13 +1833,22 @@ contains
       ! -> recount the TotParts from the restored data
       use real_time_data, only : TotPartsStorage
       implicit none
-      integer :: i
-      real(dp) :: CurrentSign(lenof_sign)
-      TotParts = 0.0_dp
-      do i=1, TotWalkers
-         call extract_sign(CurrentDets(:,i),CurrentSign)
-         TotParts = TotParts + abs(CurrentSign)
-      end do
+      TotParts = get_tot_parts()
       TotPartsStorage = TotParts
     end subroutine reset_tot_parts
+
+    function get_tot_parts() result(allWalkersSummed)
+      ! if the second RK step is to be compared, the reference has to be reset
+      ! -> recount the TotParts from the restored data
+      use real_time_data, only : TotPartsStorage
+      implicit none
+      integer :: i
+      real(dp) :: CurrentSign(lenof_sign)
+      real(dp) :: allWalkersSummed(lenof_sign)
+      allWalkersSummed = 0.0_dp
+      do i=1, TotWalkers
+         call extract_sign(CurrentDets(:,i),CurrentSign)
+         allWalkersSummed = allWalkersSummed + abs(CurrentSign)
+      end do
+    end function get_tot_parts
 end module real_time_procs

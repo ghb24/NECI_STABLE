@@ -8,12 +8,14 @@ module real_time
                                reload_current_dets, walker_death_realtime, &
                                walker_death_spawn, attempt_die_realtime, &
                                create_diagonal_as_spawn, count_holes_in_currentDets, &
-                               DirectAnnihilation_diag, check_update_growth
-    use real_time_data, only: gf_type, temp_freeslot, temp_iendfreeslot, wf_norm, &
+                               DirectAnnihilation_diag, check_update_growth, &
+                               get_tot_parts
+    use real_time_data, only: gf_type, wf_norm, &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
                               current_overlap, SumWalkersCyc_1, real_time_info, DiagParts, &
                               valid_diag_spawn_list, elapsedRealTime, elapsedImagTime,&
-                              tau_real, tau_imag, t_rotated_time
+                              tau_real, tau_imag, t_rotated_time, temp_iendfreeslot, &
+                              temp_freeslot
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
                         tChangeProjEDet, tInstGrowthRate, DiagSft
@@ -41,7 +43,8 @@ module real_time
     use procedure_pointers, only: generate_excitation, encode_child, &
                                   attempt_create, new_child_stats
     use bit_rep_data, only: tUseFlags, nOffFlag, niftot, extract_sign
-    use bit_reps, only: set_flag, flag_deterministic, flag_determ_parent
+    use bit_reps, only: set_flag, flag_deterministic, flag_determ_parent, get_initiator_flag, &
+         test_flag
     use fcimc_iter_utils, only: update_iter_data, collate_iter_data, iter_diagnostics, &
                                 population_check, update_shift, calculate_new_shift_wrapper
     use soft_exit, only: ChangeVars, tSoftExitFound
@@ -217,6 +220,7 @@ contains
        
         call init_real_time_calc_single()
 
+
         print *, " Real-time FCIQMC initialized! "
         ! rewrite the major original neci core loop here and adapt it to 
         ! the new necessary real-time stuff
@@ -289,7 +293,6 @@ contains
             ! update various variables.. time-step, initiator criteria etc.
 
             call update_real_time_iteration()
-
             ! update, print and log all the global variables and interesting 
             ! quantities -> combine that functionality in the above 
             ! update_ routine !
@@ -431,13 +434,13 @@ contains
         FreeSlot(1:iEndFreeSlot) = 0
         iStartFreeSlot = 1
         iEndFreeSlot = 0
+        temp_freeslot = 0
+        temp_iendfreeslot = 0
 
         ! also reset the temporary variables
         ! this probably has not to be done, since at the end of the first 
         ! spawn i set it to the freeslot array anyway..
         ! with changed temp_ var. usage i have to reset them! 
-        temp_freeslot(1:temp_iendfreeslot) = 0
-        temp_iendfreeslot = 0
 
         ! Index for counting deterministic states.
 !         n_determ_states = 1
@@ -513,32 +516,16 @@ contains
             tParentIsDeterm = check_determ_flag(ilut_parent)
             tParentUnoccupied = IsUnoccDet(parent_sign)
 
-            ! If this determinant is in the deterministic space then store the relevant
-            ! data in arrays for later use.
-            ! do not use the deterministic option yet in the rt-fciqmc, as i
-            ! am not yet sure how to do the deterministic projection with the 
-            ! new -i H walker dynamics... todo!
-!             if (tParentIsDeterm) then
-!                 ! Store the index of this state, for use in annihilation later.
-!                 indices_of_determ_states(n_determ_states) = idet
-!                 ! Add the amplitude to the deterministic vector.
-!                 partial_determ_vecs(:,n_determ_states) = parent_sign
-!                 n_determ_states = n_determ_states + 1
-! 
-!                 ! The deterministic states are always kept in CurrentDets, even when
-!                 ! the amplitude is zero. Hence we must check if the amplitude is zero
-!                 ! and, if so, skip the state.
-!                 if (tParentUnoccupied) cycle
-!             end if
-
             ! If this slot is unoccupied (and also not a core determinant) then add it to
             ! the list of free slots and cycle.
             ! actually dont need to update this here since nothing gets merged
             ! at the end.. only k2 gets created
             if (tParentUnoccupied) then
-               !iEndFreeSlot = iEndFreeSlot + 1
-               ! FreeSlot(iEndFreeSlot) = idet
-                cycle
+               ! this is not even allowed to be done as in the end, the merge is done 
+               ! with the original ensemble, with the original FreeSlots
+!               iEndFreeSlot = iEndFreeSlot + 1
+!               FreeSlot(iEndFreeSlot) = idet
+               cycle
             end if
 
             ! The current diagonal matrix element is stored persistently.
@@ -624,7 +611,6 @@ contains
 
                         call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
                                                                ireplica, ilut_parent, second_spawn_iter_data)
-
                     end if ! If a child was spawned.
 
                 end do ! Over mulitple particles on same determinant.
@@ -683,6 +669,7 @@ contains
         ! declare this is the first runge kutta step
         runge_kutta_step = 1
         ! use part of nicks code, and remove the parts, that dont matter 
+
         do idet = 1, int(TotWalkers, sizeof_int)
 
             ! The 'parent' determinant from which spawning is to be attempted.
@@ -707,34 +694,13 @@ contains
             tParentIsDeterm = check_determ_flag(ilut_parent)
             tParentUnoccupied = IsUnoccDet(parent_sign)
 
-            ! If this determinant is in the deterministic space then store the relevant
-            ! data in arrays for later use.
-            ! for now, do not use deterministic option in the real-time fciqmc
-            ! add that later.. todo!
-!             if (tParentIsDeterm) then
-!                 ! Store the index of this state, for use in annihilation later.
-!                 indices_of_determ_states(n_determ_states) = idet
-!                 ! Add the amplitude to the deterministic vector.
-!                 partial_determ_vecs(:,n_determ_states) = parent_sign
-!                 n_determ_states = n_determ_states + 1
-! 
-!                 ! The deterministic states are always kept in CurrentDets, even when
-!                 ! the amplitude is zero. Hence we must check if the amplitude is zero
-!                 ! and, if so, skip the state.
-!                 if (tParentUnoccupied) cycle
-!             end if
-
             ! If this slot is unoccupied (and also not a core determinant) then add it to
             ! the list of free slots and cycle.
             if (tParentUnoccupied) then
                 iEndFreeSlot = iEndFreeSlot + 1
                 FreeSlot(iEndFreeSlot) = idet
-
-                ! also update the temporary variables here, as the also get 
-                ! influenced in the death-step below
                 temp_iendfreeslot = temp_iendfreeslot + 1
                 temp_freeslot(temp_iendfreeslot) = idet
-
                 cycle
             end if
 
@@ -806,7 +772,6 @@ contains
                         child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
                                             nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
                                             ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
-
                     else
                         child_sign = 0.0_dp
                     end if
@@ -866,7 +831,9 @@ contains
 
         ! the number TotWalkersNew changes below in annihilation routine
         ! Annihilation is done after loop over walkers
+
         call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
+
 
         TotWalkers = int(TotWalkersNew, sizeof_int)
 
@@ -878,7 +845,7 @@ contains
         character(*), parameter :: this_routine = "perform_real_time_iteration"
 
         integer :: idet !, n_determ_states 
-        integer :: TotWalkersNew, run
+        integer :: TotWalkersNew, run, test
         real(dp) :: tmp_sign(lenof_sign)
         ! 0)
         ! do all the necessary preperation(resetting pointers etc.)
@@ -887,6 +854,7 @@ contains
         ! there the particles also change from Re <-> Im 
 
         call init_real_time_iteration(iter_data_fciqmc, second_spawn_iter_data)
+if(.false.) then
         ! 1)
         ! do a "normal" spawning step and combination to y(n) + k1/2
         ! into CurrentDets: 
@@ -898,13 +866,13 @@ if(iProcIndex == root .and. .false.) then
         print *, "hf occ before first spawn:", tmp_sign
 endif
         call first_real_time_spawn()
+
 if(iProcIndex == root .and. .false.) then
         call extract_sign(CurrentDets(:,1), tmp_sign)
         print *, "hf occ after first spawn:", tmp_sign
         print *, "TotParts and totDets after first spawn: ", TotParts, TotWalkers
         print *, "=========================="
-endif
-
+     endif
 #ifdef __DEBUG
         call check_update_growth(iter_data_fciqmc,"Error in first RK step")
 #endif
@@ -915,7 +883,6 @@ endif
         ! spawning..
 
         call update_iter_data(iter_data_fciqmc)
-
         ! 2)
         ! reset the spawned list and do a second spawning step to create 
         ! the spawend list k2 
@@ -923,7 +890,8 @@ endif
         ! if i want to keep track of the two distinct spawns in 2 different 
         ! iter_datas i probably have to reset some values before the 
         ! second spawn.. to then keep the new values in the 2nd list
-
+endif
+if(.true.) then
         call reset_spawned_list() 
 
         ! create a second spawned list from y(n) + k1/2
@@ -931,12 +899,8 @@ endif
         ! information into the spawned k2 list..
         ! quick solution would be to loop again over reloaded y(n)
         ! and do a death step for wach walker
-
-!         iStartFreeSlot = 1
-!         iEndFreeSlot = 0
-!         FreeSlot = 0
         
-        call second_real_time_spawn()
+         call second_real_time_spawn()
 
 !        call extract_sign(CurrentDets(:,1), tmp_sign)
 !        print *, "hf occ after second spawn:", tmp_sign
@@ -944,7 +908,6 @@ endif
         ! reload stored temp_det_list y(n) into CurrentDets 
         ! have to figure out how to effectively save the previous hash_table
         ! or maybe just use two with different types of update functions..
-
         call reload_current_dets()
 
 !        call extract_sign(CurrentDets(:,1), tmp_sign)
@@ -992,7 +955,7 @@ endif
         call check_update_growth(second_spawn_iter_data,"Error in second RK step")
 #endif
 
-!        call extract_sign(CurrentDets(:,1), tmp_sign)
+        !call extract_sign(CurrentDets(:,1), tmp_sign)
         !print *, "hf occ after second annihil:", tmp_sign
 
         TotWalkers = int(TotWalkersNew, sizeof_int)
@@ -1001,7 +964,12 @@ endif
         ! them outside this function 
 
         call update_iter_data(second_spawn_iter_data)
-
+else
+        do run = 1, inum_runs
+           SumWalkersCyc(run) = SumWalkersCyc(run) + &
+                sum(TotParts(min_part_type(run):max_part_type(run)))
+        enddo
+endif
     end subroutine perform_real_time_iteration
 
 end module real_time

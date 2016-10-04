@@ -101,12 +101,6 @@ module real_time_data
     integer :: temp_n_hashes
     real(dp) :: temp_hash_frac 
 
-    ! also need the freeslot quantitiy 
-    integer, allocatable :: temp_freeslot(:)
-    ! also need temporary variables to store the iStart- and iEndFreeSlot 
-    ! variables(actually dont need tmp_start var.)
-    integer :: temp_iEndFreeslot
-
     ! also need to store the original number of determinants(and walkers maybe)
     ! of the y(n) list to reload correctly
     integer :: temp_totWalkers
@@ -122,7 +116,8 @@ module real_time_data
     ! i dont think i need a hash table to go with that..
     ! but i need this valid_spawned list thingy.. 
     ! which holds the next free slot to spawn to.. for each proc
-    integer, allocatable :: valid_diag_spawn_list(:)
+    integer, allocatable :: valid_diag_spawn_list(:), temp_freeslot(:)
+    integer :: temp_iendfreeslot
 
     ! also keep a global var. of the number of diag-spawns in a cycle
     integer :: n_diag_spawned
