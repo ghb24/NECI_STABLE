@@ -1089,6 +1089,14 @@ contains
 
         type(fcimc_iter_data), intent(inout) :: iter_data
 
+!        print *, '===================================='
+!        print *, 'Nborn', iter_data%nborn, NoBorn
+!        print *, 'Ndied', iter_data%ndied, NoDied
+!        print *, 'Nannihil', iter_data%nannihil, Annihilated
+!        print *, 'Nabrt', iter_data%naborted, NoAborted
+!        print *, 'Nremvd', iter_data%nremoved, NoRemoved
+!        print *, '===================================='
+
         iter_data%update_growth = iter_data%update_growth + iter_data%nborn &
                                 - iter_data%ndied - iter_data%nannihil &
                                 - iter_data%naborted - iter_data%nremoved

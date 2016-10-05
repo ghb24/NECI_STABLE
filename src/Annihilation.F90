@@ -17,7 +17,7 @@ module AnnihilationMod
     use bit_rep_data
     use bit_reps, only: decode_bit_det, &
                         encode_sign, test_flag, set_flag, &
-                        flag_initiator, encode_part_sign, &
+                        encode_part_sign, &
                         extract_part_sign, extract_bit_rep, &
                         nullify_ilut_part, &
                         encode_flags, bit_parent_zero, get_initiator_flag
@@ -47,6 +47,7 @@ module AnnihilationMod
 
         ! This routine will send all the newly-spawned particles to their
         ! correct processor. 
+
         call SendProcNewParts(MaxIndex,tSingleProc)
 
         ! CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
@@ -658,12 +659,12 @@ module AnnihilationMod
                                     ! have to also keep track which RK step
 #ifdef __REALTIME 
                                     if (runge_kutta_step == 1) then
-                                        NoAborted_1(run) = NoAborted_1(run) + abs(SpawnedSign(j))
+                                        NoAborted_1(j) = NoAborted_1(j) + abs(SpawnedSign(j))
                                     else if (runge_kutta_step == 2) then
-                                        NoAborted(run) = NoAborted(run) + abs(SpawnedSign(j))
+                                        NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
                                     end if
 #else
-                                    NoAborted(run) = NoAborted(run) + abs(SpawnedSign(j))
+                                    NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
 #endif
                                     iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
                                     call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
@@ -682,14 +683,18 @@ module AnnihilationMod
                             ! In this case we just need to update some statistics:
                             ! in the real-time fciqmc i have to keep track of 
                             ! the runge-kutta-step
+
 #ifdef __REALTIME
                             if (runge_kutta_step == 1) then
-                                Annihilated_1(run) = Annihilated_1(run) + 2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
+                                Annihilated_1(run) = Annihilated_1(run) + &
+                                     2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
                             else if (runge_kutta_step == 2) then
-                                Annihilated(run) = Annihilated(run) + 2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
+                                Annihilated(run) = Annihilated(run) + &
+                                     2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
                             end if
 #else
-                            Annihilated(run) = Annihilated(run) + 2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
+                            Annihilated(run) = Annihilated(run) + &
+                                 2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
 #endif
                             iter_data%nannihil(j) = iter_data%nannihil(j) + &
                                 2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
@@ -781,14 +786,15 @@ module AnnihilationMod
                             ! in the real-time keep track which RK step
 #ifdef __REALTIME
                             if (runge_kutta_step == 1) then
-                                NoAborted_1(run) = NoAborted_1(run) + abs(SignTemp(j))
+                                NoAborted_1(j) = NoAborted_1(j) + abs(SignTemp(j))
                             else
-                                NoAborted(run) = NoAborted(run) + abs(SignTemp(j))
+                                NoAborted(j) = NoAborted(j) + abs(SignTemp(j))
                             end if
 #else
                             NoAborted(run) = NoAborted(run) + abs(SignTemp(j))
 #endif
                             iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
+
                             ! We've already counted the walkers where SpawnedSign
                             ! become zero in the compress, and in the merge, all
                             ! that's left is those which get aborted which are

@@ -17,10 +17,10 @@ module real_time_procs
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
                          sizeof_int, MPIArg
-    use bit_reps, only: decode_bit_det, test_flag, flag_initiator, encode_sign, &
+    use bit_reps, only: decode_bit_det, test_flag, encode_sign, &
                         set_flag, encode_bit_rep, extract_bit_rep, &
                         flag_has_been_initiator, flag_deterministic, encode_part_sign, &
-                        nullify_ilut_part
+                        nullify_ilut_part, get_initiator_flag, get_initiator_flag_by_run
 
                         
     use bit_rep_data, only: extract_sign, nifdbo, niftot
@@ -187,7 +187,7 @@ contains
                            ! walker type/set we're considering. We need to
                            ! decide whether to abort it or not.
                            if (tTruncInitiator .and. .not. test_flag (DiagParts(:,i), &
-                                flag_initiator(j)) .and. .not. tDetermState) then
+                                get_initiator_flag(j)) .and. .not. tDetermState) then
                               ! Walkers came from outside initiator space.
                               NoAborted(run) = NoAborted(run) + abs(SpawnedSign(j))
                               ! rt_iter_adapt:
@@ -341,11 +341,6 @@ contains
                             NoAborted(run) = NoAborted(run) + abs(SignTemp(j))
                             ! rt_iter_adapt : As above, aborted walkers must not be counted
                             ! iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
-                            ! We've already counted the walkers where SpawnedSign
-                            ! become zero in the compress, and in the merge, all
-                            ! that's left is those which get aborted which are
-                            ! counted here only if the sign was not already zero
-                            ! (when it already would have been counted).
                             SignTemp(j) = 0.0_dp
                             call encode_part_sign (DiagParts(:,i), SignTemp(j), j)
 
@@ -544,30 +539,16 @@ contains
         ! particle types can or can't spawn to both types of child-particles
         if (tTruncInitiator) then
            ! rmneci_setup: changed 1,2 -> max/min_part_type(run)
-           ! for rotated time: real_time_info%damping -> tRotateTime
-            if (real_time_info%damping > EPS) then
-                ! both particle spawns possible -> check for both initiator flags! 
-                do i = 1, lenof_sign
-                    if (abs(diag_sign(i)) > EPS) then
-                       ! rmneci_setup: these are the flags for the corresponding run
-                        if (test_flag(ilut, flag_initiator((1+i)/2)) .or. &
-                            test_flag(ilut, flag_initiator(1+(1+i)/2))) then
-                            call set_flag(DiagParts(:,valid_diag_spawn_list(proc)), &
-                                flag_initiator(i))
-                        end if
-                    end if
-                end do
-            else
-                ! in this case only spawns to the other type of particle are 
-                ! possible! check for the init of the other parent type 
-                do i = 1, lenof_sign
-                    if (abs(diag_sign(i)) > EPS .and. test_flag(ilut, &
-                        flag_initiator(rotate_part(i)))) then
-                        call set_flag(DiagParts(:, valid_diag_spawn_list(proc)), &
-                            flag_initiator(i))
-                    end if
-                end do
-            end if
+           ! both particle spawns possible -> check for both initiator flags! 
+           do i = 1, lenof_sign
+              if (abs(diag_sign(i)) > EPS) then
+                 ! rmneci_setup: these are the flags for the corresponding run
+                 if (test_flag(ilut, get_initiator_flag(i))) then
+                    call set_flag(DiagParts(:,valid_diag_spawn_list(proc)), &
+                         get_initiator_flag(i))
+                 end if
+              end if
+           end do
         end if
 
         if (tFillingStochRDMonFly) then
@@ -593,32 +574,6 @@ contains
 !                                   SignCurr(part_type))
 !         end if
 
-! #ifdef __CMPLX
-!         if (tTruncInitiator) then
-!             ! With complex walkers, things are a little more tricky.
-!             ! We want to transfer the flag for all particles created (both
-!             ! real and imag) from the specific type of parent particle. This
-!             ! can mean real walker flags being transfered to imaginary
-!             ! children and vice versa.
-!             ! This is unneccesary for real walkers.
-!             ! Test the specific flag corresponding to the parent, of type
-!             ! 'part_type'
-!             ! ok.. here it is obvious that the childs get all the flags from
-!             ! the parent and not only one type..
-!             ! but i essentially do that above, by checking both! 
-!             ! so this is redundant
-!             parent_init = test_flag(SpawnedParts(:,valid_diag_spawn_list(proc)), &
-!                                     flag_initiator(part_type))
-!             ! Assign this flag to all spawned children.
-!             do j=1,lenof_sign
-!                 if (child(j) /= 0) then
-!                     call set_flag (SpawnedParts(:,valid_diag_spawn_list(proc)), &
-!                                    flag_initiator(j), parent_init)
-!                 endif
-!             enddo
-!         end if
-! #endif
-
         valid_diag_spawn_list(proc) = valid_diag_spawn_list(proc) + 1
         
         ! Sum the number of created children to use in acceptance ratio.
@@ -627,209 +582,6 @@ contains
 !         acceptances(1) = acceptances(1) + sum(abs(diag_sign))
 
     end subroutine create_diagonal_as_spawn
-
-    subroutine create_diagonal_as_spawn_old(nI, ilut, diag_sign, iter_data)
-        ! routine to treat the diagonal death/cloning step in the 2nd 
-        ! RK loop as spawned particles, with using hash table too
-        ! have to write this routine, since i also need the old one
-        ! in the "normal" spawnings of the rt-fciqmc
-        ! only need the currently looped over determinant! and probably 
-        ! also just have to copy all the sign(or just store the original 
-        ! parent_ilut in the hash table
-        ! it does a simultanious spawning of real and complex walkers! 
-        ! UPDATE: change the way this "diagonal spawning" is done to store
-        ! it in a seperate SpawnedPartsDiag array! so its easier to keep 
-        ! track of the 2 seperate processes death/cloning and spawning
-        ! the good thing here is that i do not need to check if a diagonal 
-        ! spawn is already in the hash-list of "spawned" parts. since its 
-        ! only diagonal! and when i write a new "annihilation" routine i 
-        ! can treat those particles just as "normal" death or birth processes
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(in) :: ilut(0:niftot)
-        real(dp), intent(in) :: diag_sign(lenof_sign)
-        type(fcimc_iter_data), intent(inout) :: iter_data
-        character(*), parameter :: this_routine = "create_diagonal_as_spawn_old"
-
-        integer :: proc, ind, hash_val, i
-        integer(n_int) :: int_sign(lenof_sign)
-        real(dp) :: real_sign_old(lenof_sign), real_sign_new(lenof_sign)
-        real(dp) :: sgn_prod(lenof_sign)
-        logical :: list_full, tSuccess
-        integer, parameter :: flags = 0       
-
-        ! i have to work with the DiagParts array here, not the Spawned Parts
-        ! i do not need to use a hash, as only diagonal events happen
-        
-        call hash_table_lookup(nI, ilut, nifdbo, spawn_ht, SpawnedParts, ind, &
-            hash_val, tSuccess)
-
-        if (tSuccess) then
-            ! If the spawned child is already in the spawning array.
-            ! Extract the old sign.
-            call extract_sign(SpawnedParts(:,ind), real_sign_old)
-
-            ! If the new child has an opposite sign to that of walkers already
-            ! on the site, then annihilation occurs. The stats for this need
-            ! accumulating.
-            sgn_prod = real_sign_old * diag_sign
-            ! this annihilation is kinda right.. it annihilates previously 
-            ! spawned particles in the spawned array...
-            do i = 1, lenof_sign
-                if (sgn_prod(i) < 0.0_dp) then
-                    iter_data%nannihil(i) = iter_data%nannihil(i) + &
-                        2*min( abs(real_sign_old(i)), abs(diag_sign(i)) )
-                end if
-            end do
-
-            ! Find the total new sign.
-            real_sign_new = real_sign_old + diag_sign
-            ! Encode the new sign.
-            call encode_sign(SpawnedParts(:,ind), real_sign_new)
-
-            ! i also have to keep track of the nDied and nBorn in here if 
-            ! i treat these diagonal terms as "spawns" ...
-            ! but right now, as calced above they are treated as annihilations!
-            ! to deal with it later in the annihilation step as nborns and 
-            ! ndied mark them as diagonal particles here.. 
-            ! Set the initiator flags appropriately.
-            ! If this determinant (on this replica) has already been spawned to
-            ! then set the initiator flag. Also if this child was spawned from
-            ! an initiator, set the initiator flag.
-            ! in this routine i do a simultanious spawning of real and complex 
-            ! walkers -> and here i just considere the diagonal "spawn" of 
-            ! already occupied dets..
-            ! shouldnt i also check if this didt annihilate all the walkers? 
-            ! or is this handled later in the annihilation/calchashtable 
-            ! routines?
-            if (tTruncInitiator) then
-                ! i can still check if only a real hamiltonian is used, so 
-                ! i know all the diagonal "spawns" come from the other particle
-                ! type
-
-               ! rotated_time: this will need adaption
-                if (real_time_info%damping > EPS) then
-                    ! update: i am stupid! there are no complex diagonal 
-                    ! elements! duh.. hermiticity!!
-                    ! BUT there is still the damping factor, which leads to 
-                    ! 'spawns' to both particle type from each particle
-                    ! both spawns possible
-                    ! can i do that with the simultanious spawn? since i have 
-                    ! no information left here what the parent was ..
-                    ! fuck.. -> so for now dont consider those pesky complex
-                    ! Hamiltonians! 
-                    ! see update above! 
-                    do i = 1, lenof_sign
-                        if (abs(real_sign_new(i)) > EPS) then
-                            if (abs(real_sign_old(i)) > EPS .or. &
-                                test_flag(ilut,flag_initiator(i)) .or. &
-                                test_flag(ilut,flag_initiator(i))) then
-
-                                call set_flag(SpawnedParts(:,ind),flag_initiator(i))
-                            end if
-                        end if
-                    end do
-
-!                     call stop_all(this_routine, &
-!                         "i loose track of what the parent det is, if i do the death step simultaniously!")
-                else
-                    ! this routine gets called only if some part of the 
-                    ! child is non-zero, so i am sure there was some entry
-                    ! non-zero in the child.. but since the spawns of 
-                    ! both particle types are done simultaniously i need to 
-                    ! check still.. 
-                    do i = 1, lenof_sign 
-                        if (abs(real_sign_new(i)) > EPS) then
-                            ! then i know there is something left on the det
-                            if (abs(real_sign_old(i)) > EPS .or. &
-                                test_flag(ilut, flag_initiator(rotate_part(i)))) then
-                                ! if 2 spawns to the same, or parent (of 
-                                ! opposite part. type) was initiator
-                                call set_flag(SpawnedParts(:,ind), flag_initiator(i))
-                            end if
-                        end if
-                    end do
-                end if
-            end if
-        else
-            ! Determine which processor the particle should end up on in the
-            ! DirectAnnihilation algorithm.
-            proc = DetermineDetNode(nel, nI, 0)
-
-            ! i also have to count the born/died walkers here! 
-            ! i will later on annihilate this spawned list with the original
-            ! y(n) list.. where it would be treated as an annihilation again
-            ! but here i know that this is an diagonal step actually... 
-
-            ! fuck! by the way: also with damping i have the spawn to both 
-            ! particle types from each type of walker...
-            ! todo: i have to rework this diagonal step.. because already 
-            ! with damping only i loose track of the parent type.. 
-            ! maybe also the 'regular' death step in the first loop of the 
-            ! real-time fciqmc...
-
-            ! Check that the position described by ValidSpawnedList is acceptable.
-            ! If we have filled up the memory that would be acceptable, then
-            ! kill the calculation hard (i.e. stop_all) with a descriptive
-            ! error message.
-            list_full = .false.
-            if (proc == nNodes - 1) then
-                if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
-            else
-                if (ValidSpawnedList(proc) > InitialSpawnedSlots(proc+1)) &
-                    list_full=.true.
-            end if
-            if (list_full) then
-                write(6,*) "Attempting to spawn particle onto processor: ", proc
-                write(6,*) "No memory slots available for this spawn."
-                write(6,*) "Please increase MEMORYFACSPAWN"
-                call stop_all(this_routine, "Out of memory for spawned particles")
-            end if
-
-            call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), &
-                ilut(0:NIfDBO), diag_sign, flags)
-
-            ! If the parent was an initiator then set the initiator flag for the
-            ! child, to allow it to survive.
-            if (tTruncInitiator) then
-                ! i have to consider the 'other particle type as parent.. 
-                ! so check that initiator flag! 
-                if (real_time_info%damping > EPS) then
-                    ! for now assume that both of the parents contribute some
-                    ! progeny and check initiator flags of both parent parts.
-                    do i = 1, lenof_sign
-                        if (abs(diag_sign(i)) > EPS) then
-                            if (test_flag(ilut,flag_initiator((i))) .or. &
-                                test_flag(ilut,flag_initiator((i)))) then
-                                call set_flag(SpawnedParts(:,ValidSpawnedList(proc)), &
-                                    flag_initiator(i))
-                            end if
-                        end if
-                    end do
-!                     call stop_all(this_routine, &
-!                         "i loose info on which the parent is if i do the death_as_spawn simultaniously for both types!")
-                else
-                    do i = 1, lenof_sign
-                        ! i have to check if the specific element is > 0
-                        if (abs(diag_sign(i)) > EPS .and. &
-                            test_flag(ilut, flag_initiator(rotate_part(i)))) then
-                            
-                            call set_flag(SpawnedParts(:,ValidSpawnedList(proc)),&
-                                flag_initiator(i))
-                        end if
-                    end do
-                end if
-            end if
-
-            call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
-
-            ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
-        end if
-        
-        ! Sum the number of created children to use in acceptance ratio.
-        ! how is this done in the rt-fciqmc??
-        acceptances(1) = acceptances(1) + sum(abs(diag_sign))
-
-    end subroutine create_diagonal_as_spawn_old
 
     function attempt_die_realtime(DetCurr, Kii, RealwSign, walkExcitLevel) &
             result(ndie)
@@ -1152,30 +904,6 @@ contains
         ! try to 'just' apply the rest of the code here.. 
 
         CopySign = RealwSign - nDie
-        ! Calculate new number of signed particles on the det.
-!         CopySign = RealwSign + (nDie * sign(1.0_dp, RealwSign))
-!         CopySign = RealwSign - (nDie * sign(1.0_dp, RealwSign))
-!         CopySign = RealwSign + ([nDie(1)* sign(1.0_dp, RealwSign(2)), &
-!             ndie(2)*sign(1.0_dp,RealwSign(1))])
-
-        ! In the initiator approximation, abort any anti-particles.
-        ! do i want to do that also in the rt-fciqmc? 
-        ! thats all a different .. and no i dont think this should be 
-        ! aborted in this case..
-        if (tTruncInitiator .and. any(CopySign /= 0)) then
-            do i = 1, lenof_sign
-                if (sign(1.0_dp, CopySign(i)) /= &
-                        sign(1.0_dp, RealwSign(i))) then
-!                     print *, "anti-particle even! but do not cancel this in the rt-fciqmc!"
-!                     NoAborted = NoAborted + abs(CopySign(i))
-!                     iter_data%naborted(i) = iter_data%naborted(i) &
-!                                           + abs(CopySign(i))
-!                     if (test_flag(ilutCurr, flag_initiator(i))) &
-!                         NoAddedInitiators = NoAddedInitiators - 1
-!                     CopySign(i) = 0
-                end if
-            end do
-        end if
 
         ! i also have to update initiator information, since there is a lot 
         ! of population/depopulation between the Re <-> Im parts of an 
@@ -1189,24 +917,8 @@ contains
             ! big (de)population beteen real and complex walker populations..
             ! and i also have to deal with allowed anti-particles in the 
             ! rt-fciqmc even with the initiator method in use! 
-            if (tTruncInitiator) then
-                ! if the other particle type was an initiator, the newly 
-                ! spawned child should also become an initiator
-                ! or only if the occupation rises above the initiator 
-                ! threshhold it should also become one
-                do i = 1, lenof_sign
-                    ! other particle type
-                    j = rotate_part(i)
-                    if (abs(CopySign(j)) > EPS .and. test_flag(ilut, flag_initiator(i))) then
-                        set_init(j) = .true.
-                    end if
-                end do
-                do i = 1, lenof_sign
-                    if (set_init(i)) then
-                        call set_flag(ilut,flag_initiator(i))
-                    end if
-                end do
-            end if
+            ! rotated_time_setup: there is only one initiator flag for
+            ! both complex and real walkers -> initiator flag is kept
         else
             ! All walkers died.
 !            if(tFillingStochRDMonFly) then
@@ -1222,11 +934,11 @@ contains
 
             if (tTruncInitiator) then
                 ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
-                if (test_flag(iLutCurr,flag_initiator(1))) then
-                    NoAddedInitiators = NoAddedInitiators - 1
-                else if (test_flag(iLutCurr,flag_initiator(lenof_sign))) then
-                    NoAddedInitiators(inum_runs) = NoAddedInitiators(inum_runs) - 1
-                end if
+               do j = 1, inum_runs
+                  if (test_flag(iLutCurr,get_initiator_flag_by_run(j))) then
+                     NoAddedInitiators(j) = NoAddedInitiators(j) - 1
+                  end if
+               enddo
             end if
 
             ! Remove the determinant from the indexing list
@@ -1811,6 +1523,7 @@ contains
       growth = iter_data%nborn &
          - iter_data%ndied - iter_data%nannihil &
          - iter_data%naborted - iter_data%nremoved
+
       
       call MPISumAll(growth,growth_tot)
       call MPISumAll(TotParts,allWalkers)

@@ -574,7 +574,7 @@ contains
             call stats_out(state, .true., elapsedRealTime, 'Re. time')
             call stats_out(state, .true., elapsedImagTime, 'Im. time')
 #else
-            call stats_out(state,.false., TotImagTime, 'Im. time')
+            call stats_out(state,.true., TotImagTime, 'Im. time')
 #endif
 
             ! Put the conditional columns at the end, so that the column
@@ -673,6 +673,9 @@ contains
                                 AllNoAtDoubs(p), &
                                 'Doubs (' // trim(adjustl(tmpc)) // ")")
             end do
+
+            call stats_out(state,.false.,all_max_cyc_spawn, &
+                 'MaxCycSpawn')
 
             ! Print overlaps between replicas at the end.
             do p = 1, inum_runs

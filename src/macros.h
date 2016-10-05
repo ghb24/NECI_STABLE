@@ -105,8 +105,8 @@ endif
 #else
 #define min_part_type(run) 1
 #define max_part_type(run) 2
-#define mag_of_run(signs, run) (signs(1)**2 + signs(1)**2)**5e-1_dp
-#define is_run_unnocc(signs, run) (signs(1)**2 + signs(1)**2)**5e-1_dp <1.0e-12_dp 
+#define mag_of_run(signs, run) (signs(1)**2 + signs(2)**2)**5e-1_dp
+#define is_run_unnocc(signs, run) (signs(1)**2 + signs(2)**2)**5e-1_dp <1.0e-12_dp 
 #endif
 #endif
 #else

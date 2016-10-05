@@ -311,7 +311,6 @@ contains
             if (iter == real_time_info%n_time_steps) exit fciqmc_loop
 
 !             if (iter == 1000) call stop_all(this_routine, "stop for now to avoid endless loop")
-
         end do fciqmc_loop
         
         if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
@@ -523,11 +522,10 @@ contains
             if (tParentUnoccupied) then
                ! this is not even allowed to be done as in the end, the merge is done 
                ! with the original ensemble, with the original FreeSlots
-!               iEndFreeSlot = iEndFreeSlot + 1
-!               FreeSlot(iEndFreeSlot) = idet
+               !iEndFreeSlot = iEndFreeSlot + 1
+               ! FreeSlot(iEndFreeSlot) = idet
                cycle
             end if
-
             ! The current diagonal matrix element is stored persistently.
             parent_hdiag = det_diagH(idet)
 
@@ -560,6 +558,7 @@ contains
             ! then there will be no determinants to spawn to, so don't attempt spawning.
             ! thats a really specific condition.. shouldnt be checked each 
             ! cycle.. since this is only input dependent..
+
             do ireplica = 1, lenof_sign
 
                 call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
@@ -595,7 +594,6 @@ contains
                         child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
                                             nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
                                             ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
-
                     else
                         child_sign = 0.0_dp
                     end if
@@ -608,7 +606,6 @@ contains
                         call new_child_stats (second_spawn_iter_data, ilut_parent, &
                                               nI_child, ilut_child, ic, ex_level_to_ref, &
                                               child_sign, parent_flags, ireplica)
-
                         call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
                                                                ireplica, ilut_parent, second_spawn_iter_data)
                     end if ! If a child was spawned.
@@ -616,7 +613,6 @@ contains
                 end do ! Over mulitple particles on same determinant.
 
             end do ! Over the replicas on the same determinant.
-
             ! If this is a core-space determinant then the death step is done in
             ! determ_projection.
             if (.not. tParentIsDeterm) then
@@ -636,7 +632,6 @@ contains
                     parent_sign, ex_level_to_ref)
                 
                 if (any(abs(diag_sign) > EPS)) then
-
                    call create_diagonal_as_spawn(nI_parent, ilut_parent, &
                         diag_sign, second_spawn_iter_data)
                 end if
@@ -644,8 +639,8 @@ contains
             end if
 
         end do ! Over all determinants.  
-
         if (tSemiStochastic) call determ_projection()
+
 
     end subroutine second_real_time_spawn
 
@@ -703,12 +698,6 @@ contains
                 temp_freeslot(temp_iendfreeslot) = idet
                 cycle
             end if
-
-            ! add up norm here: 
-            ! rmneci_setup: adjusted for multirun
-             do i = 1, lenof_sign
-                
-             end do
 
             ! The current diagonal matrix element is stored persistently.
             parent_hdiag = det_diagH(idet)
@@ -854,7 +843,7 @@ contains
         ! there the particles also change from Re <-> Im 
 
         call init_real_time_iteration(iter_data_fciqmc, second_spawn_iter_data)
-if(.false.) then
+
         ! 1)
         ! do a "normal" spawning step and combination to y(n) + k1/2
         ! into CurrentDets: 
@@ -890,8 +879,7 @@ if(iProcIndex == root .and. .false.) then
         ! if i want to keep track of the two distinct spawns in 2 different 
         ! iter_datas i probably have to reset some values before the 
         ! second spawn.. to then keep the new values in the 2nd list
-endif
-if(.true.) then
+
         call reset_spawned_list() 
 
         ! create a second spawned list from y(n) + k1/2
@@ -899,9 +887,7 @@ if(.true.) then
         ! information into the spawned k2 list..
         ! quick solution would be to loop again over reloaded y(n)
         ! and do a death step for wach walker
-        
          call second_real_time_spawn()
-
 !        call extract_sign(CurrentDets(:,1), tmp_sign)
 !        print *, "hf occ after second spawn:", tmp_sign
         ! 3) 
@@ -936,13 +922,13 @@ if(.true.) then
 
         TotWalkersNew = int(TotWalkers, sizeof_int)
 
-        call DirectAnnihilation_diag(TotWalkersNew, second_spawn_iter_data, .false.)
         ! also have to set the SumWalkersCyc before the "proper" annihilaiton 
         do run = 1, inum_runs
            SumWalkersCyc(run) = SumWalkersCyc(run) + &
                 sum(TotParts(min_part_type(run):max_part_type(run)))
         enddo
 
+        call DirectAnnihilation_diag(TotWalkersNew, second_spawn_iter_data, .false.)
 !        call extract_sign(CurrentDets(:,1), tmp_sign)
 !        print *, "hf occ after second death:", tmp_sign
          TotWalkersNew = int(TotWalkersNew, sizeof_int)
@@ -964,12 +950,6 @@ if(.true.) then
         ! them outside this function 
 
         call update_iter_data(second_spawn_iter_data)
-else
-        do run = 1, inum_runs
-           SumWalkersCyc(run) = SumWalkersCyc(run) + &
-                sum(TotParts(min_part_type(run):max_part_type(run)))
-        enddo
-endif
     end subroutine perform_real_time_iteration
 
 end module real_time

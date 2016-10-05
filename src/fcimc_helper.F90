@@ -61,7 +61,7 @@ module fcimc_helper
     use real_time_data, only: t_complex_ints, acceptances_1, runge_kutta_step, &
                         NoInitDets_1, NoNonInitDets_1, NoInitWalk_1, NoNonInitWalk_1, &
                         InitRemoved_1, NoAborted_1, NoRemoved_1, NoatHF_1, NoatDoubs_1, &
-                        NoatHF_1, NoatDoubs_1, t_rotated_time
+                        NoatHF_1, NoatDoubs_1, t_rotated_time, Annihilated_1
 
 !=======
 !>>>>>>> 0510b74a29483a2abd107e624b5029674d8e25ff
@@ -203,7 +203,7 @@ contains
 
         call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, &
             SpawnedParts, ind, hash_val, tSuccess)
-
+       
         if (tSuccess) then
             ! If the spawned child is already in the spawning array.
             ! Extract the old sign.
@@ -240,8 +240,23 @@ contains
             ! distinguish here, as only "proper" spawns are treated here!
             sgn_prod = real_sign_old * child_sign
 
+
             do i = 1, lenof_sign
                 if (sgn_prod(i) < 0.0_dp) then
+                    run = part_type_to_run(i)
+#ifdef __REALTIME
+                    if(runge_kutta_step == 1) then
+                       Annihilated_1(run) = Annihilated_1(run) + &
+                            2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
+                    else if(runge_kutta_step == 2) then
+                       Annihilated(run) = Annihilated(run) + &
+                            2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
+                    endif
+#else
+                    Annihilated(run) = Annihilated(run) + &
+                         2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
+#endif
+                    
                     iter_data%nannihil(i) = iter_data%nannihil(i) + 2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
                 end if
             end do
@@ -257,47 +272,12 @@ contains
             ! this is not correctly considered for the real-time or complex 
             ! code .. probably nobody thought about using this in the __cmplx
             ! implementation..
-#ifdef __REALTIME
+
             if (tTruncInitiator) then
-                ! i have to check if complex ints are provided.. then i have
-                ! spawning to both types of particles
-                if (t_complex_ints .or. t_rotated_time) then
-                    ! in the complex ints case i have spawns to both Re and Im
-                    ! parts of the child determinant
-                    ! i have to check which type is spawned actually if no 
-                    ! particles of a certain type got spawned -> no need to 
-                    ! set init flag
-                    do i = 1, lenof_sign
-                        if (abs(child_sign(i)) > EPS) then
-                            if (abs(real_sign_old(i)) > EPS .or. &
-                                test_flag(ilut_parent, flag_initiator(part_type))) then
-
-                                call set_flag(SpawnedParts(:,ind), flag_initiator(i))
-
-                            end if
-                        end if
-                    end do
-
-                else
-                   ! here only Re -> Im and v.v. spawns
-                   ! part_typeis the type of the parent particle! 
-                   ! rotate_part() gives me 
-                   ! the child partivle type in this case
-                   if (abs(real_sign_old(rotate_part(part_type))) > EPS .or. &
-                        test_flag(ilut_parent, flag_initiator(part_type))) then
-
-                      ! then set the child as initiator
-                      call set_flag(SpawnedParts(:,ind), flag_initiator(rotate_part(part_type)))
-
-                   end if
-                end if
-             end if
-#else
-            if (tTruncInitiator) then
-                if (abs(real_sign_old(part_type)) > 1.e-12_dp .or. test_flag(ilut_parent, get_initiator_flag(part_type))) &
+                if (abs(real_sign_old(part_type)) > 1.e-12_dp .or. test_flag(ilut_parent, get_initiator_flag(part_type))) then
                     call set_flag(SpawnedParts(:,ind), get_initiator_flag(part_type))
+                 endif
             end if
-#endif
         else
             ! Determine which processor the particle should end up on in the
             ! DirectAnnihilation algorithm.
@@ -325,33 +305,13 @@ contains
             ! If the parent was an initiator then set the initiator flag for the
             ! child, to allow it to survive.
 
-#ifdef __REALTIME
-            ! also have to change this for the real-time implementation
+
             if (tTruncInitiator) then
-                if (t_complex_ints .or. t_rotated_time) then
-                    ! both types of particles can get spawned -> check if
-                    if (test_flag(ilut_parent, flag_initiator(part_type))) then
-                        do i = 1,lenof_sign
-                            if (abs(child_sign(i)) > EPS) then
-                                call set_flag(SpawnedParts(:,ValidSpawnedList(proc)), &
-                                    flag_initiator(i))
-                            end if
-                        end do
-                    end if
-                else
-                    ! only Re -> Im and v.v. spawning
-                    if (test_flag(ilut_parent, flag_initiator(part_type))) then
-                        call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), &
-                            flag_initiator(rotate_part(part_type)))
-                    end if
-                end if
+                if (test_flag(ilut_parent, get_initiator_flag(part_type))) then
+                   call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), &
+                        get_initiator_flag(part_type))
+                endif
             end if
-#else
-            if (tTruncInitiator) then
-                if (test_flag(ilut_parent, get_initiator_flag(part_type))) &
-                    call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type))
-            end if
-#endif
 
             call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
 
@@ -557,7 +517,6 @@ contains
 #ifdef __REALTIME
         if (runge_kutta_step == 2) return
 #endif
-
 
         ! Sum in energy contribution
         do run=1, inum_runs
@@ -1820,7 +1779,7 @@ contains
         if (tTruncInitiator .and. any(abs(CopySign) > 1.0e-12_dp)) then
             do i = 1, lenof_sign
                 if (CopySign(i) > 0.0_dp .neqv. RealwSign(i) > 0.0_dp) then
-                    NoAborted = NoAborted + abs(CopySign(i))
+                    NoAborted(i) = NoAborted(i) + abs(CopySign(i))
                     iter_data%naborted(i) = iter_data%naborted(i) &
                                           + abs(CopySign(i))
                     if (test_flag(ilutCurr, get_initiator_flag(i))) &
