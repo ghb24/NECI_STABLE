@@ -9,13 +9,13 @@ module real_time
                                walker_death_spawn, attempt_die_realtime, &
                                create_diagonal_as_spawn, count_holes_in_currentDets, &
                                DirectAnnihilation_diag, check_update_growth, &
-                               get_tot_parts
+                               get_tot_parts, update_gf_overlap
     use real_time_data, only: gf_type, wf_norm, &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
                               current_overlap, SumWalkersCyc_1, real_time_info, DiagParts, &
                               valid_diag_spawn_list, elapsedRealTime, elapsedImagTime,&
                               tau_real, tau_imag, t_rotated_time, temp_iendfreeslot, &
-                              temp_freeslot
+                              temp_freeslot, overlap_real, overlap_imag
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
                         tChangeProjEDet, tInstGrowthRate, DiagSft
@@ -202,7 +202,6 @@ contains
     subroutine perform_real_time_fciqmc
         ! main real-time calculation routine
         ! do all the setup, read-in and calling of the "new" real-time MC loop
-        use real_time_procs, only: update_gf_overlap
         use real_time_data, only: gf_overlap, AllTotWalkersOld_1
         use Systemdata, only: tCSF
         implicit none
@@ -276,7 +275,6 @@ contains
             ! update the overlap each time
             ! rmneci_setup: computation of instantaneous projected norm is shifted to here
             call update_gf_overlap()
-
             ! only determinants that are occupied in the beginning
             ! can contribute to the gf -> normalize using only these
             ! current overlap is now the one after iteration
@@ -284,6 +282,12 @@ contains
                current_overlap(i) = gf_overlap(i,iter) / pert_norm(part_type_to_run(i))
             enddo
 
+            do i = 1, lenof_sign/inum_runs
+               overlap_real = sum(gf_overlap(::2,iter))/sum(pert_norm(:))
+               overlap_imag = sum(gf_overlap(2::2,iter))/sum(pert_norm(:))
+            enddo
+
+if(.true.) then
             if(iProcIndex == root) print *, "overlap: ", &
                  gf_overlap(1,iter) / wf_norm(1,iter), &
                  gf_overlap(2,iter) / wf_norm(1,iter)
@@ -291,6 +295,7 @@ contains
                  gf_overlap(1,iter) / pert_norm(1), &
                  gf_overlap(2,iter) / pert_norm(1)
             ! update various variables.. time-step, initiator criteria etc.
+endif
 
             call update_real_time_iteration()
             ! update, print and log all the global variables and interesting 
@@ -300,6 +305,11 @@ contains
 
             ! check if somthing happpened to stop the iteration or something
             call check_real_time_iteration()
+
+            ! load balancing
+            if(tLoadBalanceBlocks .and. mod(iter,1000) == 0) then
+               call adjust_load_balance(iter_data_fciqmc)
+            endif
 
             if(iProcIndex == root) then
                s_end = neci_etime(tend)
@@ -478,8 +488,7 @@ contains
         ! annihilation step at the end! 
         integer :: idet, parent_flags, nI_parent(nel), unused_flags, ex_level_to_ref, &
                    ms_parent, ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,2), &
-                   ex_level_to_hf
-        integer(n_int), pointer :: ilut_parent(:) 
+                   ex_level_to_hf 
         integer(n_int) :: ilut_child(0:niftot)
         real(dp) :: parent_sign(lenof_sign), parent_hdiag, prob, child_sign(lenof_sign), &
                     unused_sign(lenof_sign), unused_rdm_real, diag_sign(lenof_sign)
@@ -493,8 +502,6 @@ contains
         ! use part of nicks code, and remove the parts, that dont matter 
         do idet = 1, int(TotWalkers, sizeof_int)
 
-            ! The 'parent' determinant from which spawning is to be attempted.
-            ilut_parent => CurrentDets(:,idet)
             parent_flags = 0_n_int
 
             ! Indicate that the scratch storage used for excitation generation from the
@@ -502,17 +509,18 @@ contains
             ! particle on a determinant).
             fcimc_excit_gen_store%tFilled = .false.
 
-            call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
+            call extract_bit_rep(CurrentDets(:,idet), nI_parent, parent_sign, unused_flags, &
                                   fcimc_excit_gen_store)
 
-            ex_level_to_ref = FindBitExcitLevel(iLutRef, ilut_parent, max_calc_ex_level)
+            ex_level_to_ref = FindBitExcitLevel(iLutRef, CurrentDets(:,idet), max_calc_ex_level)
             if(tRef_Not_HF) then
-                ex_level_to_hf = FindBitExcitLevel (iLutHF_true, ilut_parent, max_calc_ex_level)
+                ex_level_to_hf = FindBitExcitLevel (iLutHF_true, CurrentDets(:,idet), &
+                     max_calc_ex_level)
             else
                 ex_level_to_hf = ex_level_to_ref
             endif
 
-            tParentIsDeterm = check_determ_flag(ilut_parent)
+            tParentIsDeterm = check_determ_flag(CurrentDets(:,idet))
             tParentUnoccupied = IsUnoccDet(parent_sign)
 
             ! If this slot is unoccupied (and also not a core determinant) then add it to
@@ -522,8 +530,8 @@ contains
             if (tParentUnoccupied) then
                ! this is not even allowed to be done as in the end, the merge is done 
                ! with the original ensemble, with the original FreeSlots
-               !iEndFreeSlot = iEndFreeSlot + 1
-               ! FreeSlot(iEndFreeSlot) = idet
+               iEndFreeSlot = iEndFreeSlot + 1
+               FreeSlot(iEndFreeSlot) = idet
                cycle
             end if
             ! The current diagonal matrix element is stored persistently.
@@ -531,14 +539,9 @@ contains
 
             if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
 
-            ! do i need to calc. the energy contributions in the rt-fciqmc?
-            ! leavi it for now.. and figure out later..
-            ! definetly do not need it in the second spawn, since it is only 
-            ! an intermediate list, and not an actual representation of the 
-            ! wavefunction
             ! UPDATE: call this routine anyway to update info on noathf 
             ! and noatdoubs, for the intermediate step
-            call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
+            call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, CurrentDets(:,idet), &
                               parent_hdiag, 1.0_dp, tPairedReplicas, idet)
 
             ! If we're on the Hartree-Fock, and all singles and
@@ -562,20 +565,17 @@ contains
             do ireplica = 1, lenof_sign
 
                 call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
-                
                 do ispawn = 1, nspawn
 
                     ! Zero the bit representation, to ensure no extraneous data gets through.
                     ilut_child = 0_n_int
-
-                    call generate_excitation (nI_parent, ilut_parent, nI_child, &
+                    call generate_excitation (nI_parent, CurrentDets(:,idet), nI_child, &
                                         ilut_child, exFlag, ic, ex, tParity, prob, &
                                         HElGen, fcimc_excit_gen_store)
-
                     ! If a valid excitation.
                     if (.not. IsNullDet(nI_child)) then
 
-                        call encode_child (ilut_parent, ilut_child, ic, ex)
+                        call encode_child (CurrentDets(:,idet), ilut_child, ic, ex)
                         if (tUseFlags) ilut_child(nOffFlag) = 0_n_int
 
                         if (tSemiStochastic) then
@@ -591,7 +591,7 @@ contains
                             end if
                         end if
 
-                        child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
+                        child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                                             nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
                                             ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
                     else
@@ -603,11 +603,12 @@ contains
 
                         ! not quite sure about how to collect the child
                         ! stats in the new rt-fciqmc ..
-                        call new_child_stats (second_spawn_iter_data, ilut_parent, &
+                        call new_child_stats (second_spawn_iter_data, CurrentDets(:,idet), &
                                               nI_child, ilut_child, ic, ex_level_to_ref, &
                                               child_sign, parent_flags, ireplica)
                         call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
-                                                               ireplica, ilut_parent, second_spawn_iter_data)
+                                                               ireplica, CurrentDets(:,idet), &
+                                                               second_spawn_iter_data)
                     end if ! If a child was spawned.
 
                 end do ! Over mulitple particles on same determinant.
@@ -632,7 +633,7 @@ contains
                     parent_sign, ex_level_to_ref)
                 
                 if (any(abs(diag_sign) > EPS)) then
-                   call create_diagonal_as_spawn(nI_parent, ilut_parent, &
+                   call create_diagonal_as_spawn(nI_parent, CurrentDets(:,idet), &
                         diag_sign, second_spawn_iter_data)
                 end if
 
@@ -640,7 +641,6 @@ contains
 
         end do ! Over all determinants.  
         if (tSemiStochastic) call determ_projection()
-
 
     end subroutine second_real_time_spawn
 
@@ -708,7 +708,7 @@ contains
             ! leave it for now.. and figure out later..
             call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
                                parent_hdiag, 1.0_dp, tPairedReplicas, idet)
-
+            
             ! If we're on the Hartree-Fock, and all singles and
             ! doubles are in the core space, then there will be
             ! no stochastic spawning from this determinant, so
@@ -847,8 +847,6 @@ contains
         ! 1)
         ! do a "normal" spawning step and combination to y(n) + k1/2
         ! into CurrentDets: 
-        
-        !print *, "nruns: ", inum_runs
 if(iProcIndex == root .and. .false.) then
         print *, "TotParts and totDets before first spawn: ", TotParts, TotWalkers
         call extract_sign(CurrentDets(:,1), tmp_sign)
@@ -887,17 +885,15 @@ if(iProcIndex == root .and. .false.) then
         ! information into the spawned k2 list..
         ! quick solution would be to loop again over reloaded y(n)
         ! and do a death step for wach walker
+
          call second_real_time_spawn()
-!        call extract_sign(CurrentDets(:,1), tmp_sign)
-!        print *, "hf occ after second spawn:", tmp_sign
+
         ! 3) 
         ! reload stored temp_det_list y(n) into CurrentDets 
         ! have to figure out how to effectively save the previous hash_table
         ! or maybe just use two with different types of update functions..
-        call reload_current_dets()
 
-!        call extract_sign(CurrentDets(:,1), tmp_sign)
-!        print *, "hf occ after reload:", tmp_sign
+        call reload_current_dets()
 
         ! 4)
         ! for the death_step for now: loop once again over the walker list 
@@ -929,8 +925,6 @@ if(iProcIndex == root .and. .false.) then
         enddo
 
         call DirectAnnihilation_diag(TotWalkersNew, second_spawn_iter_data, .false.)
-!        call extract_sign(CurrentDets(:,1), tmp_sign)
-!        print *, "hf occ after second death:", tmp_sign
          TotWalkersNew = int(TotWalkersNew, sizeof_int)
         
         ! and then do the "normal" annihilation with the SpawnedParts array!
@@ -941,8 +935,6 @@ if(iProcIndex == root .and. .false.) then
         call check_update_growth(second_spawn_iter_data,"Error in second RK step")
 #endif
 
-        !call extract_sign(CurrentDets(:,1), tmp_sign)
-        !print *, "hf occ after second annihil:", tmp_sign
 
         TotWalkers = int(TotWalkersNew, sizeof_int)
 
@@ -950,6 +942,7 @@ if(iProcIndex == root .and. .false.) then
         ! them outside this function 
 
         call update_iter_data(second_spawn_iter_data)
+
     end subroutine perform_real_time_iteration
 
 end module real_time

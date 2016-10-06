@@ -20,7 +20,8 @@ module real_time_init
                               AllNoInitWalk_1, AllNoNonInitWalk_1, AllInitRemoved_1, &
                               AccRat_1, AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap, &
                               TotPartsStorage, TotWalkers_pert, t_rotated_time, time_angle, &
-                              tau_imag, tau_real, elapsedRealTime, elapsedImagTime
+                              tau_imag, tau_real, elapsedRealTime, elapsedImagTime, &
+                              TotWalkers_orig
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
@@ -88,7 +89,7 @@ contains
 
         ! then call the setup routine, which set all remaining needed quantities
         call setup_real_time_fciqmc()
-        
+
         ! definetly read-in stored popsfile here. 
         ! need to store both <y(0)| and also create a_j y(0)> during read-in!
 !         call read_popsfile_real_time()
@@ -229,8 +230,8 @@ contains
         wf_norm = 1.0_dp
 
         pert_norm = 1.0_dp
-        ! calc. the norm of this perturbed ground-state
-        norm_buf = calc_norm(perturbed_ground,int(TotWalkers_pert))
+        ! calc. the norm of the perturbed ground states
+        norm_buf = calc_norm(popsfile_dets,int(TotWalkers_orig))
         ! the norm (squared) can be obtained by reduction over all processes
         call MPIReduce(norm_buf,MPI_SUM,pert_norm)
         
@@ -669,7 +670,8 @@ contains
         tZeroProjE = .false.
 
         ! setup_rotated_time: by default, pure real time is used
-        t_rotated_time = .false.
+        t_rotated_time = .true.
+        time_angle = 0.0_dp
 
     end subroutine set_real_time_defaults
 

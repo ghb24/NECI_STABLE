@@ -208,7 +208,6 @@ contains
             ! If the spawned child is already in the spawning array.
             ! Extract the old sign.
             call extract_sign(SpawnedParts(:,ind), real_sign_old)
-
             ! If the new child has an opposite sign to that of walkers already
             ! on the site, then annihilation occurs. The stats for this need
             ! accumulating.
@@ -515,7 +514,7 @@ contains
         ! first RK step, and doing it on the intermediate step would 
         ! be meaningless
 #ifdef __REALTIME
-        if (runge_kutta_step == 2) return
+!        if (runge_kutta_step == 2) return
 #endif
 
         ! Sum in energy contribution
@@ -1762,6 +1761,7 @@ contains
 
         ! Count any antiparticles
         iter_data%nborn = iter_data%nborn + max(iDie - abs(RealwSign), 0.0_dp)
+
 #ifdef __CMPLX
         do run = 1, inum_runs
             NoBorn(run) = NoBorn(run) &

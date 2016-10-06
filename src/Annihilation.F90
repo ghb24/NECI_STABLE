@@ -79,7 +79,7 @@ module AnnihilationMod
         CALL set_timer(Sort_Time,30)
         call CalcHashTableStats(TotWalkersNew, iter_data) 
         CALL halt_timer(Sort_Time)
-
+        
     end subroutine DirectAnnihilation
 
     subroutine SendProcNewParts(MaxIndex,tSingleProc)

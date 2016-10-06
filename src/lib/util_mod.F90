@@ -79,7 +79,7 @@ contains
 
         i = int(r)
         res = r - real(i, dp)
-
+        
         if (abs(res) >= 1.0e-12_dp) then
             if (abs(res) > genrand_real2_dSFMT()) &
                 i = i + nint(sign(1.0_dp, r))

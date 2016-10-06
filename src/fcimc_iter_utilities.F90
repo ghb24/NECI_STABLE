@@ -967,7 +967,7 @@ contains
                             / sum(all_sum_proje_denominator(1:inum_runs))
             proje_iter_tot = sum(AllENumCyc(1:inum_runs)) &
                            / sum(all_cyc_proje_denominator(1:inum_runs))
-
+      
         endif ! iProcIndex == root
 
         ! Broadcast the shift from root to all the other processors
@@ -1088,7 +1088,7 @@ contains
     subroutine update_iter_data(iter_data)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
-
+        
 !        print *, '===================================='
 !        print *, 'Nborn', iter_data%nborn, NoBorn
 !        print *, 'Ndied', iter_data%ndied, NoDied

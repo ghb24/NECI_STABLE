@@ -937,17 +937,14 @@ module FciMCParMod
                 ! up by AvMCExcits if attempting multiple excitations from 
                 ! each walker (default 1.0_dp).
                 call decide_num_to_spawn(SignCurr(part_type), AvMCExcits, WalkersToSpawn)
-
                 do p = 1, WalkersToSpawn
                     ! Zero the bit representation, to ensure no extraneous
                     ! data gets through.
                     ilutnJ = 0_n_int
-
                     ! Generate a (random) excitation
                     call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
                                         ilutnJ, exFlag, IC, ex, tParity, prob, &
                                         HElGen, fcimc_excit_gen_store)
-                    
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
 
@@ -980,7 +977,6 @@ module FciMCParMod
                                             ! Note these last two, AvSignCurr and 
                                             ! RDMBiasFacCurr are not used unless we're 
                                             ! doing an RDM calculation.
-                                            
                     else
                         child = 0.0_dp
                     endif
@@ -1121,7 +1117,6 @@ module FciMCParMod
             call communicate_rdm_spawn_t(two_rdm_spawn, two_rdm_recv)
             call add_rdm_1_to_rdm_2(two_rdm_recv, two_rdm_main)
         end if
-
     end subroutine PerformFCIMCycPar
 
     subroutine test_routine()

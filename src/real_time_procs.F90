@@ -225,7 +225,6 @@ contains
 
                             NoDied(run) = NoDied(run) + min(abs(CurrentSign(j)), &
                                 abs(SpawnedSign(j)))
-
                             ! and if the Spawned sign magnitude is even higher
                             ! then the currentsign -> born anti-particles
 
@@ -389,7 +388,6 @@ contains
                         ! atleast it can never be a death, as it is not 
                         ! found in the main list..
                         ! for now, just count them as birth
-
                        iter_data%nborn = iter_data%nborn + abs(SignTemp)
                        
                        NoBorn(run) = NoBorn(run) + sum(abs(SignTemp))
@@ -440,7 +438,6 @@ contains
                         ! also here treat those new walkers as born particles
 
                        iter_data%nborn = iter_data%nborn + abs(SignTemp)
-                       
                        NoBorn(run) = NoBorn(run) + sum(abs(SignTemp))
                        call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ)
 
@@ -777,6 +774,7 @@ contains
                   r = genrand_real2_dSFMT()
                   if (abs(rat) > r) ndie(max_part_type(run)) = &
                        ndie(max_part_type(run)) + real(nint(sign(1.0_dp,rat)),dp)
+
                end if
             enddo
         end if
@@ -1126,8 +1124,8 @@ contains
             ! if the Hamiltonian has real and imaginary components do it 
             ! similarily to complex implementation with H <-> J switched
             ! rmneci_setup: adjusted for multirun, fixed complex -> real spawns
-            do tgt_cpt = 1, (lenof_sign/inum_runs)
-                component = tgt_cpt
+            do component = 1, (lenof_sign/inum_runs)
+               tgt_cpt = min_part_type(part_type_to_run(part_type)) - 1 + component
                 ! keep track of the sign due to the kind of spawn event
                 sepSign = 1.0_dp
                 ! if (part_type == 2 .and. inum_runs == 1) component = 3 - tgt_cpt !?
@@ -1186,7 +1184,7 @@ contains
                     nSpawn = real(stochastic_round (nSpawn), dp)
                     
                 endif
-                ! And create the parcticles
+                ! And create the parcticles (in the correct run)
                 child(tgt_cpt) = nSpawn
             end do
         end if
@@ -1433,8 +1431,8 @@ contains
                          real_sign_1(min_part_type(run)) * real_sign_2(min_part_type(run)) + &
                          real_sign_2(max_part_type(run)) * real_sign_1(max_part_type(run)) 
                     endif
-                    tmp_norm(part_type_to_run(i)) = tmp_norm(part_type_to_run(i)) &
-                         + real_sign_2(i)**2
+!                    tmp_norm(run) = tmp_norm(run) &
+!                        + real_sign_2(i)**2
                 end do
             end if
         end do
@@ -1443,6 +1441,7 @@ contains
         ! only computes its own part
         call MPIReduce(overlap,MPI_SUM,gf_overlap(:,iter))
         ! communicate the norm as it is the sum over all walkers
+        tmp_norm = calc_norm(CurrentDets,TotWalkers)
         call MPIReduce(tmp_norm,MPI_SUM,norm_buf)
         ! also store the new norm information 
         do run = 1, inum_runs
@@ -1451,10 +1450,10 @@ contains
 
     end subroutine update_gf_overlap
 
-    function calc_norm(dets, num_dets) result(pert_norm) 
-      ! the first dimension of dets has to be inum_runs
-        ! function to calculate the norm of the left-hand <y(0)|
-        real(dp) :: pert_norm(inum_runs)
+    function calc_norm(dets, num_dets) result(cd_norm) 
+      ! the first dimension of dets has to be lenof_sign
+        ! function to calculate the norm of the left-hand <y(0)| (general function)
+        real(dp) :: cd_norm(inum_runs)
         integer(dp) :: dets(:,:)
         integer, intent(in) :: num_dets
         character(*), parameter :: this_routine = "calc_perturbed_norm"
@@ -1462,15 +1461,15 @@ contains
         integer :: idet, run
         real(dp) :: tmp_sign(lenof_sign)
 
-        pert_norm = 0.0_dp
+        cd_norm = 0.0_dp
 
 
         do idet = 1, num_dets
+
+           call extract_sign(dets(:,idet), tmp_sign)
            do run = 1,inum_runs
 
-              call extract_sign(dets(:,idet), tmp_sign)
-
-              pert_norm(run) = pert_norm(run) + tmp_sign(min_part_type(run))**2 + tmp_sign(max_part_type(run))**2
+              cd_norm(run) = cd_norm(run) + tmp_sign(min_part_type(run))**2 + tmp_sign(max_part_type(run))**2
 
            end do
         end do 
@@ -1553,7 +1552,6 @@ contains
     function get_tot_parts() result(allWalkersSummed)
       ! if the second RK step is to be compared, the reference has to be reset
       ! -> recount the TotParts from the restored data
-      use real_time_data, only : TotPartsStorage
       implicit none
       integer :: i
       real(dp) :: CurrentSign(lenof_sign)

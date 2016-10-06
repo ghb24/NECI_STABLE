@@ -34,7 +34,7 @@ module fcimc_output
                               AllNoDied_1, AllTotWalkers_1, nspawned_tot_1,  &
                               AllTotParts_1, AccRat_1, AllGrowRate_1, &
                               current_overlap, t_real_time_fciqmc, elapsedRealTime, &
-                              elapsedImagTime
+                              elapsedImagTime, overlap_real, overlap_imag
 
 
 
@@ -525,21 +525,22 @@ contains
             state%mc_out = tMCOutput
             call stats_out(state,.true., iter + PreviousCycles, 'Iter.')
             if (.not. tOrthogonaliseReplicas) then
-                call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. parts')
+                call stats_out(state,.true., (abs(AllTotParts(1))), 'Tot. parts')
 #ifdef __REALTIME 
-                call stats_out(state,.true., sum(abs(AllTotParts_1)), 'Tot. parts 1st RK')
+                call stats_out(state,.true., abs(AllTotParts(2)), 'Tot. parts Imag')
 #endif
                 call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
 #ifndef __REALTIME
 #ifdef __COMPLEX
-                call stats_out(state,.true., real(proje_iter_tot), 'Re Proj. E')
-                call stats_out(state,.true., aimag(proje_iter_tot), 'Im Proj. E')
+                call stats_out(state,.false., real(proje_iter_tot), 'Re Proj. E')
+                call stats_out(state,.false., aimag(proje_iter_tot), 'Im Proj. E')
 #ifndef __COMPLEX
-                call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
+                call stats_out(state,.false., proje_iter_tot, 'Proj. E (cyc)')
 #endif
 #endif
 #endif
                 call stats_out(state,.true., DiagSft(1), 'Shift. (cyc)')
+                call stats_out(state, .true., sqrt(AllNoatHF(1)**2) / norm_psi(1), 'HF Weight')
                 call stats_out(state,.false., sum(AllNoBorn), 'No. born')
                 call stats_out(state,.false., sum(AllNoDied), 'No. died')
                 call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
@@ -562,14 +563,14 @@ contains
                                'Tot. Proj. E')
 #endif
             end if
-            call stats_out(state,.true., AllTotWalkers, 'Dets occ.')
-            call stats_out(state,.true., nspawned_tot, 'Dets spawned')
+            call stats_out(state,.false., AllTotWalkers, 'Dets occ.')
+            call stats_out(state,.false., nspawned_tot, 'Dets spawned')
 #ifdef __REALTIME
-            call stats_out(state,.true., AllTotWalkers_1, 'Dets occ. 1st RK')
-            call stats_out(state,.true., nspawned_tot_1, 'Dets spawned 1st RK')
+            call stats_out(state,.false., AllTotWalkers_1, 'Dets occ. 1st RK')
+            call stats_out(state,.false., nspawned_tot_1, 'Dets spawned 1st RK')
 #endif
 
-            call stats_out(state,.true., IterTime, 'Iter. time')
+            call stats_out(state,.false., IterTime, 'Iter. time')
 #ifdef __REALTIME 
             call stats_out(state, .true., elapsedRealTime, 'Re. time')
             call stats_out(state, .true., elapsedImagTime, 'Im. time')
@@ -592,10 +593,12 @@ contains
 
 #ifdef __REALTIME 
             ! also output the overlaps and norm.. 
+            call stats_out(state,.true., overlap_real, 'Re. <y(0)|y(t)>')
+            call stats_out(state,.true., overlap_imag, 'Im. <y(0)|y(t)>')
             do p = 1, inum_runs
                 write(tmpc, '(i5)') p
-               call stats_out(state,.true.,current_overlap(min_part_type(p)), 'Re. <y(0)|y(t)>(' // trim(adjustl(tmpc)) // ")")
-               call stats_out(state,.true.,current_overlap(max_part_type(p)), 'Im. <y(0)|y(t)>(' // trim(adjustl(tmpc)) // ")")
+               call stats_out(state,.false.,current_overlap(min_part_type(p)), 'Re. <y(0)|y(t)>(' // trim(adjustl(tmpc)) // ")")
+               call stats_out(state,.false.,current_overlap(max_part_type(p)), 'Im. <y(0)|y(t)>(' // trim(adjustl(tmpc)) // ")")
             enddo
 #endif
             ! If we are running multiple (replica) simulations, then we
