@@ -193,10 +193,11 @@ module fcimc_pointed_fns
 
 
 #if defined(__CMPLX) && (defined(__PROG_NUMRUNS) || defined(__DOUBLERUN))
-            component = part_type+tgt_cpt-1
-            if (.not. btest(part_type,0)) then
+            if (mod(part_type,2) == tgt_cpt) then
                 ! even part_type => imag replica =>  map 4->3,4 ; 6->5,6 etc.
-                component = part_type - tgt_cpt + 1
+                component = 1
+             else
+                component = 2
             endif
 #else
             component = tgt_cpt
@@ -205,16 +206,15 @@ module fcimc_pointed_fns
 
             ! Get the correct part of the matrix element
             walkerweight = sign(1.0_dp, RealwSign(part_type))
-            if (btest(component,0)) then
+            if (mod(component,2) == 1) then
                 ! real component
                 MatEl = real(rh_used, dp)
             else
 #ifdef __CMPLX
                 MatEl = real(aimag(rh_used), dp)
                 ! n.b. In this case, spawning is of opposite sign.
-                if (.not. btest(part_type,0)) then
-                    ! imaginary parent -> imaginary child
-                    walkerweight = -walkerweight
+                if(mod(part_type,2) == 0) then
+                   walkerweight = - walkerweight
                 endif
 #endif
             end if
@@ -222,7 +222,6 @@ module fcimc_pointed_fns
             nSpawn = - tau * MatEl * walkerweight / prob
 !            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
 !            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
-
             
             ! n.b. if we ever end up with |walkerweight| /= 1, then this
             !      will need to ffed further through.
