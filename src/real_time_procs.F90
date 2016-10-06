@@ -186,23 +186,13 @@ contains
                            ! This determinant is actually *unoccupied* for the
                            ! walker type/set we're considering. We need to
                            ! decide whether to abort it or not.
-                           if (tTruncInitiator .and. .not. test_flag (DiagParts(:,i), &
-                                get_initiator_flag(j)) .and. .not. tDetermState) then
-                              ! Walkers came from outside initiator space.
-                              NoAborted(run) = NoAborted(run) + abs(SpawnedSign(j))
-                              ! rt_iter_adapt:
-                              ! these must not be counted as they never were considered born
-                              ! iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
-                              call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
-                           else
                               ! rt_iter_adapt : also count those spawned onto an initiator
                               ! this is not necessary in the normal version as walkers are
                               ! counted there on spawn
                               ! also, they are born for any sign
-                              iter_data%nborn(j) = iter_data%nborn(j) + &
-                                   abs(SpawnedSign(j))
-                              NoBorn(run) = NoBorn(run) + abs(SpawnedSign(j))
-                           end if
+                           iter_data%nborn(j) = iter_data%nborn(j) + &
+                                abs(SpawnedSign(j))
+                           NoBorn(run) = NoBorn(run) + abs(SpawnedSign(j))
 
                         else if (SignProd(j) < 0) then
                             ! in the real-time for the final combination
@@ -308,147 +298,58 @@ contains
                 
             if (((.not.tSuccess) .or. (tSuccess .and. sum(abs(CurrentSign)) < 1.e-12_dp .and. (.not. tDetermState)))) then
 
-                ! Determinant in newly spawned list is not found in CurrentDets.
-                ! Usually this would mean the walkers just stay in this list and
-                ! get merged later - but in this case we want to check where the
-                ! walkers came from - because if the newly spawned walkers are
-                ! from a parent outside the active space they should be killed,
-                ! as they have been spawned on an unoccupied determinant.
+               ! Running the full, non-initiator scheme.
+               ! Determinant in newly spawned list is not found in
+               ! CurrentDets. If coeff <1, apply removal criterion.
+               call extract_sign (DiagParts(:,i), SignTemp)
 
-                ! this can also happen in the rt-fciqmc, if this is a diagonal
-                ! spawn from a excitation in the first loop.. 
-                ! can think about specific rules here.. maybe i dont want 
-                ! to do that here or use some different kind of initiator
-                ! criteria, to do this spawn... todo and talk with ali! 
-                if (tTruncInitiator) then
+               tPrevOcc = .false.
+               if (.not. IsUnoccDet(SignTemp)) tPrevOcc = .true. 
 
-                    call extract_sign (DiagParts(:,i), SignTemp)
+               do j = 1, lenof_sign
+                  run = part_type_to_run(j)
+                  if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
+                     ! We remove this walker with probability 1-RealSignTemp.
+                     pRemove = (OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
+                     r = genrand_real2_dSFMT ()
+                     if (pRemove  >  r) then
+                        ! Remove this walker.
+                        NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
+                        ! rt_iter_adapt : see above
+                        !Annihilated = Annihilated + abs(SignTemp(j))
+                        !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+                        !iter_data%nremoved(j) = iter_data%nremoved(j) &
+                        !+ abs(SignTemp(j))
+                        SignTemp(j) = 0
+                        call nullify_ilut_part (DiagParts(:,i), j)
+                     else !if (tEnhanceRemainder) then
+                        NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
+                        iter_data%nborn(j) = iter_data%nborn(j) &
+                             + OccupiedThresh - abs(SignTemp(j))
+                        SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
+                        call encode_part_sign (DiagParts(:,i), SignTemp(j), j)
+                     end if
+                  end if
+               end do
 
-                    tPrevOcc = .false.
-                    if (.not. IsUnoccDet(SignTemp)) tPrevOcc=.true.   
-                        
-                    do j = 1, lenof_sign
-                        run = part_type_to_run(j)
+               if (.not. IsUnoccDet(SignTemp)) then
+                  ! Walkers have not been aborted and so we should copy the
+                  ! determinant straight over to the main list. We do not
+                  ! need to recompute the hash, since this should be the
+                  ! same one as was generated at the beginning of the loop.
+                  ! also here treat those new walkers as born particles
 
-                        if (test_abort_spawn(DiagParts(:, i), j)) then
+                  iter_data%nborn = iter_data%nborn + abs(SignTemp)
+                  NoBorn(run) = NoBorn(run) + sum(abs(SignTemp))
+                  call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ)
 
-                            ! If this option is on, include the walker to be
-                            ! cancelled in the trial energy estimate.
-!                             if (tIncCancelledInitEnergy) call add_trial_energy_contrib(DiagParts(:,i), SignTemp(j), j)
-
-                            ! Walkers came from outside initiator space.
-                            NoAborted(run) = NoAborted(run) + abs(SignTemp(j))
-                            ! rt_iter_adapt : As above, aborted walkers must not be counted
-                            ! iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
-                            SignTemp(j) = 0.0_dp
-                            call encode_part_sign (DiagParts(:,i), SignTemp(j), j)
-
-                        end if
-
-                        
-                        ! RT_M_Merge: Removed initiator case
-                        ! Either the determinant has never been an initiator,
-                        ! or we want to treat them all the same, as before.
-                        ! this is for the real-coefficient.. if its 
-                        ! below 1.0_dp eg.. also not of concern yet 
-                        if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
-                           ! We remove this walker with probability 1-RealSignTemp
-                           pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
-                           r = genrand_real2_dSFMT ()
-                           if (pRemove > r) then
-                              ! Remove this walker.
-                              NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
-                              !Annihilated = Annihilated + abs(SignTemp(j))
-                              !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                              
-                              !rt_iter_adapt : see above
-                              !iter_data%nremoved(j) = iter_data%nremoved(j) &
-                              !     + abs(SignTemp(j))
-                              SignTemp(j) = 0.0_dp
-                              call nullify_ilut_part (DiagParts(:,i), j)
-                           else! if (tEnhanceRemainder) then
-                              NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
-                              iter_data%nborn(j) = iter_data%nborn(j) &
-                                   + OccupiedThresh - abs(SignTemp(j))
-                              SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
-                              call encode_part_sign (DiagParts(:,i), SignTemp(j), j)
-                           end if
-                        end if
-                    end do
-                    if (.not. IsUnoccDet(SignTemp)) then
-                        ! Walkers have not been aborted and so we should copy the
-                        ! determinant straight over to the main list. We do not
-                        ! need to recompute the hash, since this should be the
-                        ! same one as was generated at the beginning of the loop.
-                        ! but here i have to keep track of the number of born
-                        ! and died particles... or? 
-                        ! hm.. in the first spawn.. i count them as spawns or..
-                        ! so can i here count them as born.. deaths..
-                        ! and if it is not found here .. 
-                        ! atleast it can never be a death, as it is not 
-                        ! found in the main list..
-                        ! for now, just count them as birth
-                       iter_data%nborn = iter_data%nborn + abs(SignTemp)
-                       
-                       NoBorn(run) = NoBorn(run) + sum(abs(SignTemp))
-
-                       call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ)
-                    end if
-
-                 else
-                    ! Running the full, non-initiator scheme.
-                    ! Determinant in newly spawned list is not found in
-                    ! CurrentDets. If coeff <1, apply removal criterion.
-                    call extract_sign (DiagParts(:,i), SignTemp)
-                    
-                    tPrevOcc = .false.
-                    if (.not. IsUnoccDet(SignTemp)) tPrevOcc = .true. 
-                    
-                    do j = 1, lenof_sign
-                        run = part_type_to_run(j)
-                        if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
-                            ! We remove this walker with probability 1-RealSignTemp.
-                            pRemove = (OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
-                            r = genrand_real2_dSFMT ()
-                            if (pRemove  >  r) then
-                                ! Remove this walker.
-                                NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
-                                ! rt_iter_adapt : see above
-                                !Annihilated = Annihilated + abs(SignTemp(j))
-                                !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                                !iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                !+ abs(SignTemp(j))
-                                SignTemp(j) = 0
-                                call nullify_ilut_part (DiagParts(:,i), j)
-                             else !if (tEnhanceRemainder) then
-                                NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
-                                iter_data%nborn(j) = iter_data%nborn(j) &
-                                            + OccupiedThresh - abs(SignTemp(j))
-                                SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
-                                call encode_part_sign (DiagParts(:,i), SignTemp(j), j)
-                            end if
-                        end if
-                    end do
-                    
-                    if (.not. IsUnoccDet(SignTemp)) then
-                        ! Walkers have not been aborted and so we should copy the
-                        ! determinant straight over to the main list. We do not
-                        ! need to recompute the hash, since this should be the
-                        ! same one as was generated at the beginning of the loop.
-                        ! also here treat those new walkers as born particles
-
-                       iter_data%nborn = iter_data%nborn + abs(SignTemp)
-                       NoBorn(run) = NoBorn(run) + sum(abs(SignTemp))
-                       call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ)
-
-                    end if
-                end if
-
-!                if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
-                    ! We must use the instantaneous value for the off-diagonal contribution.
-!                call check_fillRDM_DiDj(rdms, i, SpawnedParts(0:NifTot,i), SignTemp)
-!                end if 
+               end if
             end if
+
+            !                if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
+            ! We must use the instantaneous value for the off-diagonal contribution.
+            !                call check_fillRDM_DiDj(rdms, i, SpawnedParts(0:NifTot,i), SignTemp)
+            !                end if 
 
         end do
 
@@ -529,24 +430,6 @@ contains
 
         call encode_bit_rep(DiagParts(:, valid_diag_spawn_list(proc)), ilut, &
                             diag_sign, flags)
-
-        ! If the parent was an initiator then set the initiator flag for the
-        ! child, to allow it to survive.
-        ! in the real-time, depending if damping is present or not both 
-        ! particle types can or can't spawn to both types of child-particles
-        if (tTruncInitiator) then
-           ! rmneci_setup: changed 1,2 -> max/min_part_type(run)
-           ! both particle spawns possible -> check for both initiator flags! 
-           do i = 1, lenof_sign
-              if (abs(diag_sign(i)) > EPS) then
-                 ! rmneci_setup: these are the flags for the corresponding run
-                 if (test_flag(ilut, get_initiator_flag(i))) then
-                    call set_flag(DiagParts(:,valid_diag_spawn_list(proc)), &
-                         get_initiator_flag(i))
-                 end if
-              end if
-           end do
-        end if
 
         if (tFillingStochRDMonFly) then
             call stop_all(this_routine, "RDM not yet implemented in the rt-fciqmc!")
@@ -1431,8 +1314,7 @@ contains
                          real_sign_1(min_part_type(run)) * real_sign_2(min_part_type(run)) + &
                          real_sign_2(max_part_type(run)) * real_sign_1(max_part_type(run)) 
                     endif
-!                    tmp_norm(run) = tmp_norm(run) &
-!                        + real_sign_2(i)**2
+                    tmp_norm(run) = tmp_norm(run) + real_sign_2(i)**2
                 end do
             end if
         end do
@@ -1441,7 +1323,6 @@ contains
         ! only computes its own part
         call MPIReduce(overlap,MPI_SUM,gf_overlap(:,iter))
         ! communicate the norm as it is the sum over all walkers
-        tmp_norm = calc_norm(CurrentDets,TotWalkers)
         call MPIReduce(tmp_norm,MPI_SUM,norm_buf)
         ! also store the new norm information 
         do run = 1, inum_runs
