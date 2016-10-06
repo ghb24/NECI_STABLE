@@ -856,8 +856,8 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
           do ireal = 1, nbasis
              ! invalid is true if the desired total momentum cannot be reached anymore
              invalid = checkMomentumInvalidity(ireal, totK,
-&                      SymRestrict%k, nels(1)-nspins(1), nels(2) - 
-&                      nspins(2))
+     &                 SymRestrict%k, nels(1)-nspins(1), nels(2) -
+     &                 nspins(2))
              if(invalid) cycle
              ! is ==1 if the spin is -1 and is==2 if it is 1
              is = (3+(G1(brr(ireal))%Ms))/2
