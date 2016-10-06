@@ -34,7 +34,7 @@ module fcimc_output
                               AllNoDied_1, AllTotWalkers_1, nspawned_tot_1,  &
                               AllTotParts_1, AccRat_1, AllGrowRate_1, &
                               current_overlap, t_real_time_fciqmc, elapsedRealTime, &
-                              elapsedImagTime, overlap_real, overlap_imag
+                              elapsedImagTime, overlap_real, overlap_imag, dyn_norm_psi
 
 
 
@@ -540,7 +540,9 @@ contains
 #endif
 #endif
                 call stats_out(state,.true., DiagSft(1), 'Shift. (cyc)')
-                call stats_out(state, .true., sqrt(AllNoatHF(1)**2) / norm_psi(1), 'HF Weight')
+#ifdef __REALTIME
+                call stats_out(state, .true., sum(dyn_norm_psi)/inum_runs, '|psi|^2')
+#endif
                 call stats_out(state,.false., sum(AllNoBorn), 'No. born')
                 call stats_out(state,.false., sum(AllNoDied), 'No. died')
                 call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')

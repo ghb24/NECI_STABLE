@@ -9,13 +9,13 @@ module real_time
                                walker_death_spawn, attempt_die_realtime, &
                                create_diagonal_as_spawn, count_holes_in_currentDets, &
                                DirectAnnihilation_diag, check_update_growth, &
-                               get_tot_parts, update_gf_overlap
+                               get_tot_parts, update_gf_overlap, calc_norm
     use real_time_data, only: gf_type, wf_norm, &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
                               current_overlap, SumWalkersCyc_1, real_time_info, DiagParts, &
                               valid_diag_spawn_list, elapsedRealTime, elapsedImagTime,&
                               tau_real, tau_imag, t_rotated_time, temp_iendfreeslot, &
-                              temp_freeslot, overlap_real, overlap_imag
+                              temp_freeslot, overlap_real, overlap_imag, dyn_norm_psi
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
                         tChangeProjEDet, tInstGrowthRate, DiagSft
@@ -24,7 +24,8 @@ module real_time
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
                          TotWalkers, fcimc_excit_gen_store, ilutRef, max_calc_ex_level, &
                          iLutHF_true, indices_of_determ_states, partial_determ_vecs, &
-                         exFlag, CurrentDets, TotParts, ilutHF, SumWalkersCyc, IterTime, HFCyc
+                         exFlag, CurrentDets, TotParts, ilutHF, SumWalkersCyc, IterTime, &
+                         HFCyc, norm_psi
     use kp_fciqmc_data_mod, only: overlap_pert
     use timing_neci, only: set_timer, halt_timer
     use FciMCParMod, only: rezero_iter_stats_each_iter
@@ -43,8 +44,7 @@ module real_time
     use procedure_pointers, only: generate_excitation, encode_child, &
                                   attempt_create, new_child_stats
     use bit_rep_data, only: tUseFlags, nOffFlag, niftot, extract_sign
-    use bit_reps, only: set_flag, flag_deterministic, flag_determ_parent, get_initiator_flag, &
-         test_flag
+    use bit_reps, only: set_flag, flag_deterministic, flag_determ_parent, test_flag
     use fcimc_iter_utils, only: update_iter_data, collate_iter_data, iter_diagnostics, &
                                 population_check, update_shift, calculate_new_shift_wrapper
     use soft_exit, only: ChangeVars, tSoftExitFound
@@ -279,7 +279,7 @@ contains
             ! can contribute to the gf -> normalize using only these
             ! current overlap is now the one after iteration
             do i = 1, lenof_sign
-               current_overlap(i) = gf_overlap(i,iter) / pert_norm(part_type_to_run(i))
+               current_overlap(i) = gf_overlap(i,iter) / wf_norm(part_type_to_run(i),iter)
             enddo
 
             do i = 1, lenof_sign/inum_runs
@@ -337,7 +337,7 @@ endif
         ! two iter_data vars, i have to combine the general updated 
         ! statistics for the actual time step
         character(*), parameter :: this_routine = "update_real_time_iteration"
-        real(dp) :: tot_parts_new_all(lenof_sign)
+        real(dp) :: tot_parts_new_all(lenof_sign), norm_buf(inum_runs)
 
         ! how to combine those 2? 
         ! in iter_data_fciqmc the info on the born, died, aborted, removed and 
@@ -366,6 +366,9 @@ endif
 
         ! combine log_real_time into this routine too! 
         if (mod(iter, StepsSft) == 0) then
+           ! get the norm of the state
+           norm_buf = calc_norm(CurrentDets,TotWalkers)
+           call MPIReduce(norm_buf,MPI_SUM,dyn_norm_psi)
             call calculate_new_shift_wrapper(second_spawn_iter_data, totParts, &
                 tPairedReplicas)
             call rotate_time()
@@ -843,7 +846,6 @@ endif
         ! there the particles also change from Re <-> Im 
 
         call init_real_time_iteration(iter_data_fciqmc, second_spawn_iter_data)
-
         ! 1)
         ! do a "normal" spawning step and combination to y(n) + k1/2
         ! into CurrentDets: 
@@ -863,7 +865,6 @@ if(iProcIndex == root .and. .false.) then
 #ifdef __DEBUG
         call check_update_growth(iter_data_fciqmc,"Error in first RK step")
 #endif
-
         ! for now update the iter data here, although in the final 
         ! implementation i only should do that after the 2nd RK step
         ! or keep track of two different iter_datas for first and second 

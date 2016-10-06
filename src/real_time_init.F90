@@ -21,7 +21,7 @@ module real_time_init
                               AccRat_1, AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap, &
                               TotPartsStorage, TotWalkers_pert, t_rotated_time, time_angle, &
                               tau_imag, tau_real, elapsedRealTime, elapsedImagTime, &
-                              TotWalkers_orig
+                              TotWalkers_orig, dyn_norm_psi
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
@@ -221,6 +221,7 @@ contains
         allocate(gf_overlap(lenof_sign,0:(real_time_info%n_time_steps+1)), stat = ierr)
         allocate(wf_norm(inum_runs,0:(real_time_info%n_time_steps+1)), stat = ierr)
         allocate(pert_norm(inum_runs),stat = ierr)
+        allocate(dyn_norm_psi(inum_runs),stat = ierr)
         allocate(current_overlap(lenof_sign),stat=ierr)
         allocate(temp_freeslot(MaxWalkersPart),stat=ierr)
 
@@ -231,7 +232,7 @@ contains
 
         pert_norm = 1.0_dp
         ! calc. the norm of the perturbed ground states
-        norm_buf = calc_norm(popsfile_dets,int(TotWalkers_orig))
+        norm_buf = calc_norm(perturbed_ground,int(TotWalkers_pert))
         ! the norm (squared) can be obtained by reduction over all processes
         call MPIReduce(norm_buf,MPI_SUM,pert_norm)
         

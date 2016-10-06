@@ -43,7 +43,10 @@ module real_time_data
     ! for tests now only make it of length 1
     real(dp), allocatable :: gf_overlap(:,:)
     ! also store the norm of the time-evolved wavefunction
+    ! both the reduced norm (wf_norm) for the greensfunction and
+    ! the full norm for consistency checks
     real(dp), allocatable :: wf_norm(:,:)
+    real(dp), allocatable :: dyn_norm_psi(:)
 
     ! also store the current overlap of the cycle.. 
 
