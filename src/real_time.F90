@@ -51,7 +51,7 @@ module real_time
     use fcimc_initialisation, only: CalcApproxpDoubles
     use LoggingData, only: tPopsFile
     use PopsFileMod, only: WriteToPopsfileParOneArr
-    use load_balance, only: test_hash_table
+    use load_balance, only: test_hash_table, tLoadBalanceBlocks, adjust_load_balance
     use Parallel_neci
     use util_mod, only : neci_etime
     use ParallelHelper, only: MPI_SUM, iProcIndex, root
