@@ -8,7 +8,7 @@ module fcimc_helper
                           tLatticeGens, nBasis, tHistSpinDist, tRef_Not_HF
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use semi_stoch_procs, only: recalc_core_hamil_diag
-    use bit_reps, only: NIfTot, flag_initiator, test_flag, extract_flags, &
+    use bit_reps, only: NIfTot, test_flag, extract_flags, &
                         encode_bit_rep, NIfD, set_flag_general, NIfDBO, &
                         extract_sign, set_flag, encode_sign, &
                         flag_trial, flag_connected, flag_deterministic, &
@@ -304,6 +304,22 @@ contains
             ! If the parent was an initiator then set the initiator flag for the
             ! child, to allow it to survive.
 
+#ifdef __REALTIME
+            ! for real-time testing purpose: if the spawn is already populated, also
+            ! set the initiator flag to prevent abort due to the RK reset
+            if(tTruncInitiator) then
+               ! check whether the target is already populated
+               call hash_table_lookup(nI_child, ilut_child, NIfDBO, HashIndex, &
+                    CurrentDets, ind, hash_val, tSuccess)
+               if(tSuccess) then
+                  call extract_sign(CurrentDets(:,ind), sgn_prod)
+                  if(.not. is_run_unnocc(sgn_prod,part_type_to_run(part_type))) then
+                     call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), &
+                          get_initiator_flag(part_type))
+                  endif
+               endif
+            endif
+#endif
 
             if (tTruncInitiator) then
                 if (test_flag(ilut_parent, get_initiator_flag(part_type))) then
