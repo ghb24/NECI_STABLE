@@ -625,7 +625,7 @@ contains
          HElement_t(dp), intent(out) :: UMAT(:)
          HElement_t(dp) Z
          COMPLEX(dp) :: CompInt
-         INTEGER ZeroedInt,NonZeroInt, LzDisallowed
+         INTEGER(int64) :: ZeroedInt,NonZeroInt, LzDisallowed
          INTEGER I,J,K,L,X,Y,iSpinType, iunit
          INTEGER NORB,NELEC,MS2,ISYM,SYML(1000)
          integer(int64) ORBSYM(1000)
@@ -638,7 +638,7 @@ contains
          character(len=*), parameter :: t_r='READFCIINT'
          real(dp) :: diff
          logical :: tbad,tRel
-         integer :: start_ind, end_ind
+         integer(int64) :: start_ind, end_ind
          integer(int64), parameter :: chunk_size = 1000000
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
 
@@ -1094,7 +1094,8 @@ contains
       integer :: i,j,k,l,iunit
       integer :: NORB,NELEC,MS2,ISYM,SYML(1000),IUHF
       integer(int64) :: ORBSYM(1000)
-      integer :: iSpins,ispn,SYMLZ(1000),ZeroedInt
+      integer :: iSpins,ispn,SYMLZ(1000)
+      integer(int64) :: ZeroedInt
       integer :: IntSize
       real(dp) :: diff, core
       character(len=100) :: file_name

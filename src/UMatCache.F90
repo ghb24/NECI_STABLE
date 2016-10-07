@@ -908,7 +908,9 @@ MODULE UMatCache
           use SystemData, only : UMatEps
           use constants, only: dp
           IMPLICIT NONE
-          INTEGER :: I,J,K,L,CacheInd(nPairs),ZeroedInt,NonZeroInt,A,B
+          INTEGER :: I,J,K,L,CacheInd(nPairs)
+          INTEGER(int64) :: ZeroedInt,NonZeroInt
+          INTEGER :: A,B
           HElement_t(dp) :: Z
 
           IF(abs(Z).lt.UMatEps) THEN

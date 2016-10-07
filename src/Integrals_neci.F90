@@ -367,7 +367,7 @@ contains
       INTEGER(TagIntType),SAVE :: tagZIA=0
       INTEGER i!,j,k,l,idi,idj,idk,idl,Index1
       INTEGER TmatInt
-      integer(int64) :: UMatInt
+      integer(int64) :: UMatInt,ii
       real(dp) :: UMatMem
       integer iErr
       character(25), parameter :: this_routine='IntInit'
@@ -477,14 +477,23 @@ contains
          IF(ISPINSKIP.le.0) call stop_all(this_routine, 'NBASISMAX(2,3) ISpinSkip unset')
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
          CALL GetUMatSize(nBasis,nEl,UMATINT)
-!         WRITE(6,*) "UMatSize: ",UMATINT
+         WRITE(6,*) "UMatSize: ",UMATINT
          UMatMem=REAL(UMatInt,dp)*REAL(HElement_t_sizeB,dp)*(9.536743164e-7_dp)
          WRITE(6,"(A,G20.10,A)") "Memory required for integral storage: ",UMatMem, " Mb/Shared Memory"
          call neci_flush(6)
          call shared_allocate ("umat", umat, (/UMatInt/))
          !Allocate(UMat(UMatInt), stat=ierr)
          LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
-         if (iprocindex == 0) UMat = 0.0_dp
+         if (iprocindex == 0) then
+!for very large UMats, the intrinic zeroing can cause a crash. In that case do an explicit zeroing
+             if(UMatInt.le.1000000000) then
+                 UMat = 0.0_dp
+             else
+                 do ii=1,UMatInt
+                     UMat(ii) = 0.0_dp
+                 enddo
+             endif
+         endif
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
          CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
          IF(TBIN) THEN
