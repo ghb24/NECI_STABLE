@@ -540,21 +540,14 @@ contains
 #endif
 #endif
                 call stats_out(state,.true., DiagSft(1), 'Shift. (cyc)')
+                call stats_out(state,.true., sum(TotPartsPos)/inum_runs, 'Tot Parts pos')
+                call stats_out(state,.true., sum(TotPartsNeg)/inum_runs, 'Tot Parts neg')
 #ifdef __REALTIME
                 call stats_out(state, .true., sum(dyn_norm_psi)/inum_runs, '|psi|^2')
 #endif
                 call stats_out(state,.false., sum(AllNoBorn), 'No. born')
                 call stats_out(state,.false., sum(AllNoDied), 'No. died')
                 call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
-#ifdef __REALTIME 
-                call stats_out(state,.false., sum(AllNoBorn_1), 'No. born 1st RK')
-                call stats_out(state,.false., sum(AllNoDied_1), 'No. died 1st RK')
-                call stats_out(state,.false., sum(AllAnnihilated_1), 'No. annihil 1st RK')
-                call stats_out(state,.false., AllGrowRate(1), 'Growth fac.')
-                call stats_out(state,.false., AccRat(1), 'Acc. rate')
-                call stats_out(state,.false., AllGrowRate_1(1), 'Growth fac. 1st RK')
-                call stats_out(state,.false., AccRat_1(1), 'Acc. rate 1st RK')
-#endif
 #ifdef __CMPLX
                 call stats_out(state,.true., real(proje_iter_tot) + Hii, &
                                'Tot. Proj. E')
@@ -567,10 +560,6 @@ contains
             end if
             call stats_out(state,.false., AllTotWalkers, 'Dets occ.')
             call stats_out(state,.false., nspawned_tot, 'Dets spawned')
-#ifdef __REALTIME
-            call stats_out(state,.false., AllTotWalkers_1, 'Dets occ. 1st RK')
-            call stats_out(state,.false., nspawned_tot_1, 'Dets spawned 1st RK')
-#endif
 
             call stats_out(state,.false., IterTime, 'Iter. time')
 #ifdef __REALTIME 
@@ -609,74 +598,74 @@ contains
             do p = 1, inum_runs
                 write(tmpc, '(i5)') p
                 call stats_out (state, .false., AllTotParts(p), &
-                                'Parts (' // trim(adjustl(tmpc)) // ")")
+                                'Parts (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., AllNoatHF(p), &
-                                'Ref (' // trim(adjustl(tmpc)) // ")")
+                                'Ref (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., DiagSft(p) + Hii, &
-                                'Shift (' // trim(adjustl(tmpc)) // ")")
+                                'Shift (' // trim(adjustl(tmpc)) // ')')
 #ifdef __CMPLX
                 call stats_out (state, .false., real(proje_iter(p) + Hii), &
-                                'Tot ProjE real (' // trim(adjustl(tmpc)) // ")")
+                                'Tot ProjE real (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., aimag(proje_iter(p) + Hii), &
-                                'Tot ProjE imag (' // trim(adjustl(tmpc)) // ")")
+                                'Tot ProjE imag (' // trim(adjustl(tmpc)) // ')')
 
                 call stats_out (state, .false., real(AllHFCyc(p) / StepsSft), &
-                                'ProjE Denom real (' // trim(adjustl(tmpc)) // ")")
+                                'ProjE Denom real (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., aimag(AllHFCyc(p) / StepsSft), &
-                                'ProjE Denom imag (' // trim(adjustl(tmpc)) // ")")
+                                'ProjE Denom imag (' // trim(adjustl(tmpc)) // ')')
 
                 call stats_out (state, .false., &
                                 real((AllENumCyc(p) + Hii*AllHFCyc(p))) / StepsSft,&
-                                'ProjE Num real (' // trim(adjustl(tmpc)) // ")")
+                                'ProjE Num real (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., &
                                 aimag((AllENumCyc(p) + Hii*AllHFCyc(p))) / StepsSft,&
-                                'ProjE Num imag (' // trim(adjustl(tmpc)) // ")")
+                                'ProjE Num imag (' // trim(adjustl(tmpc)) // ')')
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     call stats_out (state, .false., &
                                     real(tot_trial_numerator(p) / StepsSft), &
-                                    'TrialE Num real (' // trim(adjustl(tmpc)) // ")")
+                                    'TrialE Num real (' // trim(adjustl(tmpc)) // ')')
                     call stats_out (state, .false., &
                                     aimag(tot_trial_numerator(p) / StepsSft), &
-                                    'TrialE Num imag (' // trim(adjustl(tmpc)) // ")")
+                                    'TrialE Num imag (' // trim(adjustl(tmpc)) // ')')
 
                     call stats_out (state, .false., &
                                     real(tot_trial_denom(p) / StepsSft), &
-                                    'TrialE Denom real (' // trim(adjustl(tmpc)) // ")")
+                                    'TrialE Denom real (' // trim(adjustl(tmpc)) // ')')
                     call stats_out (state, .false., &
                                     aimag(tot_trial_denom(p) / StepsSft), &
-                                    'TrialE Denom imag (' // trim(adjustl(tmpc)) // ")")
+                                    'TrialE Denom imag (' // trim(adjustl(tmpc)) // ')')
                 end if
 #else
                 call stats_out (state, .false., proje_iter(p) + Hii, &
-                                'Tot ProjE (' // trim(adjustl(tmpc)) // ")")
+                                'Tot ProjE (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., AllHFCyc(p) / StepsSft, &
-                                'ProjE Denom (' // trim(adjustl(tmpc)) // ")")
+                                'ProjE Denom (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., &
                                 (AllENumCyc(p) + Hii*AllHFCyc(p)) / StepsSft,&
-                                'ProjE Num (' // trim(adjustl(tmpc)) // ")")
+                                'ProjE Num (' // trim(adjustl(tmpc)) // ')')
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     call stats_out (state, .false., &
                                     tot_trial_numerator(p) / StepsSft, &
-                                    'TrialE Num (' // trim(adjustl(tmpc)) // ")")
+                                    'TrialE Num (' // trim(adjustl(tmpc)) // ')')
                     call stats_out (state, .false., &
                                     tot_trial_denom(p) / StepsSft, &
-                                    'TrialE Denom (' // trim(adjustl(tmpc)) // ")")
+                                    'TrialE Denom (' // trim(adjustl(tmpc)) // ')')
                 end if
 #endif
 
 
                 call stats_out (state, .false., &
                                 AllNoBorn(p), &
-                                'Born (' // trim(adjustl(tmpc)) // ")")
+                                'Born (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., &
                                 AllNoDied(p), &
-                                'Died (' // trim(adjustl(tmpc)) // ")")
+                                'Died (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., &
                                 AllAnnihilated(p), &
-                                'Annihil (' // trim(adjustl(tmpc)) // ")")
+                                'Annihil (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., &
                                 AllNoAtDoubs(p), &
-                                'Doubs (' // trim(adjustl(tmpc)) // ")")
+                                'Doubs (' // trim(adjustl(tmpc)) // ')')
             end do
 
             call stats_out(state,.false.,all_max_cyc_spawn, &

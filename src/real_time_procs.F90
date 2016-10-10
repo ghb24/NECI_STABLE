@@ -636,7 +636,7 @@ contains
                else 
                   ! if not exact i have to round stochastically
                   ! is this ok here to just add the second contribution? todo
-                  ! Im -> Re
+                  !  -> Re
                   rat = -fac(min_part_type(run)) * RealwSign(max_part_type(run)) &
                        - fac(max_part_type(run)) * RealwSign(min_part_type(run))
 
@@ -647,7 +647,7 @@ contains
                   if (abs(rat) > r) ndie(min_part_type(run)) = ndie(min_part_type(run)) &
                        + real(nint(sign(1.0_dp,rat)),dp)
 
-                  ! Re -> Im
+                  !  -> Im
                   rat = fac(min_part_type(run)) * RealwSign(min_part_type(run)) &
                   - fac(max_part_type(run)) * RealwSign(max_part_type(run))
 
@@ -1280,9 +1280,11 @@ contains
         real(dp) :: overlap(lenof_sign), real_sign_1(lenof_sign), real_sign_2(lenof_sign), &
              tmp_norm(inum_runs), norm_buf(inum_runs)
         logical :: tDetFound
+        real(dp) :: contParts(lenof_sign)
 
         overlap = 0.0_dp
         tmp_norm = 0.0_dp
+        contParts = 0.0_dp
 
         do idet = 1, size(perturbed_ground, dim = 2)
 
@@ -1300,6 +1302,8 @@ contains
             if (tDetFound) then
                ! both real and imaginary part of the time-evolved wf are required
                 call extract_sign(CurrentDets(:,det_ind), real_sign_2)
+                
+                contParts = contParts + abs(real_sign_2)
 
                 do i = 1, lenof_sign
                    run = part_type_to_run(i)
@@ -1328,6 +1332,8 @@ contains
         do run = 1, inum_runs
            wf_norm(run,iter) = sqrt(norm_buf(run) * pert_norm(run))
         end do
+
+        print *, "RELEVANT WALKERS ON PROC", iProcIndex, contParts
 
     end subroutine update_gf_overlap
 

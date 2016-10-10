@@ -226,7 +226,7 @@ contains
         allocate(temp_freeslot(MaxWalkersPart),stat=ierr)
 
         gf_overlap = 0.0_dp
-
+        
         ! to avoid dividing by 0 if not all entries get filled
         wf_norm = 1.0_dp
 
@@ -762,6 +762,7 @@ contains
       deallocate(DiagVec,stat=ierr)
       call clean_iter_data(second_spawn_iter_data)
       deallocate(current_overlap,stat=ierr)
+      deallocate(dyn_norm_psi,stat=ierr)
       deallocate(pert_norm,stat=ierr)
       deallocate(wf_norm,stat=ierr)
       deallocate(gf_overlap,stat=ierr)

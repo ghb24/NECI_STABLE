@@ -273,7 +273,8 @@ contains
             ! implementation..
 
             if (tTruncInitiator) then
-                if (abs(real_sign_old(part_type)) > 1.e-12_dp .or. test_flag(ilut_parent, get_initiator_flag(part_type))) then
+                if (.not. is_run_unnocc(real_sign_old,part_type_to_run(part_type)) &
+                     .or. test_flag(ilut_parent, get_initiator_flag(part_type))) then
                     call set_flag(SpawnedParts(:,ind), get_initiator_flag(part_type))
                  endif
             end if
@@ -307,12 +308,13 @@ contains
 #ifdef __REALTIME
             ! for real-time testing purpose: if the spawn is already populated, also
             ! set the initiator flag to prevent abort due to the RK reset
-            if(tTruncInitiator) then
-               ! check whether the target is already populated
+            if(tTruncInitiator .and. runge_kutta_step == 2) then
+               ! check whether the target is already in CurrentDets
                call hash_table_lookup(nI_child, ilut_child, NIfDBO, HashIndex, &
                     CurrentDets, ind, hash_val, tSuccess)
                if(tSuccess) then
                   call extract_sign(CurrentDets(:,ind), sgn_prod)
+                  ! check whether the target is populated in this run
                   if(.not. is_run_unnocc(sgn_prod,part_type_to_run(part_type))) then
                      call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), &
                           get_initiator_flag(part_type))
@@ -530,7 +532,7 @@ contains
         ! first RK step, and doing it on the intermediate step would 
         ! be meaningless
 #ifdef __REALTIME
-!        if (runge_kutta_step == 2) return
+        if (runge_kutta_step == 2) return
 #endif
 
         ! Sum in energy contribution

@@ -128,6 +128,8 @@ MODULE FciMCData
       real(dp), allocatable :: norm_psi(:)
       ! The norm of the wavefunction in just the semi-stochastic space.
       real(dp), allocatable :: norm_semistoch(:)
+      ! The number of parts per sign to track down sign problems
+      real(dp), allocatable :: TotPartsPos(:), TotPartsNeg(:)
 
       INTEGER :: exFlag=3
       

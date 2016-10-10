@@ -13,7 +13,7 @@ module load_balance
     use bit_reps, only: set_flag, nullify_ilut_part, &
                         encode_part_sign, nullify_ilut
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
-                         tFillingStochRDMOnFly, full_determ_vecs
+                         tFillingStochRDMOnFly, full_determ_vecs, TotPartsPos, TotPartsNeg
     use searching, only: hash_search_trial, bin_search_trial
     use Determinants, only: get_helement, write_det
     use LoggingData, only: tOutputLoadDistribution
@@ -536,6 +536,9 @@ contains
         tIsStateDeterm = .false.
         InstNoAtHf = 0.0_dp
 
+        TotPartsPos = 0.0_dp
+        TotPartsNeg = 0.0_dp
+
         if (TotWalkersNew > 0) then
             do i=1,TotWalkersNew
 
@@ -577,6 +580,11 @@ contains
                                 end if
                             end if
                         end if
+                        if(CurrentSign(j) > 0.0_dp) then
+                           TotPartsPos(j) = TotPartsPos(j) + CurrentSign(j)
+                        else
+                           TotPartsNeg(j) = TotPartsNeg(j) + CurrentSign(j)
+                        endif
                     end do
 
                     TotParts = TotParts + abs(CurrentSign)
