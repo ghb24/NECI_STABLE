@@ -31,7 +31,7 @@ module real_time_procs
                          tSearchTau, tFillingStochRDMonFly, fcimc_iter_data, &
                          NoAddedInitiators, SpawnedParts, acceptances, TotWalkers, &
                          nWalkerHashes, iter, fcimc_excit_gen_store, NoDied, &
-                         NoBorn, NoAborted, NoRemoved, HolesInList, TotParts
+                         NoBorn, NoAborted, NoRemoved, HolesInList, TotParts, Hii
     use perturbations, only: apply_perturbation
     use util_mod, only: int_fmt
     use CalcData, only: AvMCExcits, tAllRealCoeff, tRealCoeffByExcitLevel, &
@@ -489,7 +489,7 @@ contains
         ! rmneci_setup: there is no reason to use an imaginary shift
         ! except if when dealing with rotated times)
         do run = 1, inum_runs
-           fac(min_part_type(run)) = tau_real * (Kii)
+           fac(min_part_type(run)) = tau_real * (Kii + Hii)
            fac(max_part_type(run)) = 0.0_dp
         enddo
 
@@ -1280,11 +1280,9 @@ contains
         real(dp) :: overlap(lenof_sign), real_sign_1(lenof_sign), real_sign_2(lenof_sign), &
              tmp_norm(inum_runs), norm_buf(inum_runs)
         logical :: tDetFound
-        real(dp) :: contParts(lenof_sign)
 
         overlap = 0.0_dp
         tmp_norm = 0.0_dp
-        contParts = 0.0_dp
 
         do idet = 1, size(perturbed_ground, dim = 2)
 
@@ -1303,8 +1301,6 @@ contains
                ! both real and imaginary part of the time-evolved wf are required
                 call extract_sign(CurrentDets(:,det_ind), real_sign_2)
                 
-                contParts = contParts + abs(real_sign_2)
-
                 do i = 1, lenof_sign
                    run = part_type_to_run(i)
                    if(mod(i,2)==0) then
@@ -1332,8 +1328,6 @@ contains
         do run = 1, inum_runs
            wf_norm(run,iter) = sqrt(norm_buf(run) * pert_norm(run))
         end do
-
-        print *, "RELEVANT WALKERS ON PROC", iProcIndex, contParts
 
     end subroutine update_gf_overlap
 
