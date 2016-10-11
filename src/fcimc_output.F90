@@ -525,9 +525,9 @@ contains
             state%mc_out = tMCOutput
             call stats_out(state,.true., iter + PreviousCycles, 'Iter.')
             if (.not. tOrthogonaliseReplicas) then
-                call stats_out(state,.true., (abs(AllTotParts(1))), 'Tot. parts')
+                call stats_out(state,.true., sum(abs(AllTotParts(1::2))), 'Tot. parts real')
 #ifdef __REALTIME 
-                call stats_out(state,.true., abs(AllTotParts(2)), 'Tot. parts Imag')
+                call stats_out(state,.true., sum(abs(AllTotParts(2::2))), 'Tot. parts imag')
 #endif
                 call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
 #ifndef __REALTIME
@@ -548,6 +548,8 @@ contains
                 call stats_out(state,.false., sum(AllNoBorn), 'No. born')
                 call stats_out(state,.false., sum(AllNoDied), 'No. died')
                 call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
+                call stats_out(state,.false., sum(AllNoRemoved), 'No. removed')
+                call stats_out(state,.false., sum(AllNoAborted), 'No aborted')
 #ifdef __CMPLX
                 call stats_out(state,.true., real(proje_iter_tot) + Hii, &
                                'Tot. Proj. E')

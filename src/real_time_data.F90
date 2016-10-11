@@ -47,6 +47,7 @@ module real_time_data
     ! the full norm for consistency checks
     real(dp), allocatable :: wf_norm(:,:)
     real(dp), allocatable :: dyn_norm_psi(:)
+    real(dp), allocatable :: gs_energy(:)
 
     ! also store the current overlap of the cycle.. 
 

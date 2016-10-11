@@ -134,10 +134,10 @@ contains
     ! routine to calculation the absolute magnitude of a complex integer 
     ! variable (to nearest integer)
     pure real(dp) function abs_int4_sign(sgn)
-        integer(int32), intent(in) :: sgn(lenof_sign)
+        integer(int32), intent(in) :: sgn(lenof_sign/inum_runs)
 
 #ifdef __CMPLX
-            abs_int4_sign=real(int(sqrt(real(sgn(1),dp)**2+real(sgn(lenof_sign),dp)**2)),dp)
+            abs_int4_sign=real(int(sqrt(real(sgn(1),dp)**2+real(sgn(2),dp)**2)),dp)
             ! The integerisation here is an approximation, but one that is 
             ! used in the integer algorithm, so is retained in this real 
             ! version of the algorithm
@@ -148,17 +148,17 @@ contains
 
 !routine to calculation the absolute magnitude of a complex integer(int64) variable (to nearest integer)
     pure integer(kind=int64) function abs_int8_sign(wsign)
-        integer(kind=int64), dimension(lenof_sign), intent(in) :: wsign
+        integer(kind=int64), dimension(lenof_sign/inum_runs), intent(in) :: wsign
 
 #ifdef __CMPLX
-            abs_int8_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(lenof_sign),dp)**2),int64)
+            abs_int8_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(2),dp)**2),int64)
 #else
             abs_int8_sign=abs(wsign(1))
 #endif
     end function abs_int8_sign
 
     pure real(dp) function abs_real_sign (sgn)
-        real(dp), intent(in) :: sgn(lenof_sign)
+        real(dp), intent(in) :: sgn(lenof_sign/inum_runs)
 #ifdef __CMPLX
             abs_real_sign = real(nint(sqrt(sum(sgn ** 2))), dp)
 #else
