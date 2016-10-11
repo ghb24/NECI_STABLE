@@ -26,7 +26,8 @@ module real_time
                          TotWalkers, fcimc_excit_gen_store, ilutRef, max_calc_ex_level, &
                          iLutHF_true, indices_of_determ_states, partial_determ_vecs, &
                          exFlag, CurrentDets, TotParts, ilutHF, SumWalkersCyc, IterTime, &
-                         HFCyc, norm_psi, NoatHF, TotPartsPos, TotPartsNeg
+                         HFCyc, norm_psi, NoatHF, TotPartsPos, TotPartsNeg, NoDied, &
+                         Annihilated, NoBorn
     use kp_fciqmc_data_mod, only: overlap_pert
     use timing_neci, only: set_timer, halt_timer
     use FciMCParMod, only: rezero_iter_stats_each_iter
@@ -236,7 +237,7 @@ contains
         ! should write a routine which calulated the overlap of CurrentDets
         ! with the perturbed groundstate and stores it in a pre-allocated list
         ! shouldnt geourge have some of those routines..
-        
+
         call update_gf_overlap()
         if(iProcIndex == root) then
            print *, "test on overlap at t = 0: "
@@ -263,6 +264,7 @@ contains
             ! the timing stuff has to be done a bit differently in the 
             ! real-time fciqmc, since there are 2 spawing and annihilation 
             ! steps involved...
+            
             call set_timer(walker_time)
 
             if(iProcIndex == root) s_start = neci_etime(tstart)
@@ -288,7 +290,7 @@ contains
                overlap_imag = sum(gf_overlap(2::2,iter))/sum(pert_norm(:))
             enddo
 
-            if(.false.) then
+            if(.true.) then
                if(iProcIndex == root) print *, "overlap: ", &
                     gf_overlap(1,iter) / wf_norm(1,iter), &
                     gf_overlap(2,iter) / wf_norm(1,iter)
@@ -474,8 +476,8 @@ contains
 
         ! bookkeeping of timestats
         ! each iteration step constist of two tau-steps -> factor of 2
-        elapsedRealTime = elapsedRealTime + tau_real*2.0_dp
-        elapsedImagTime = elapsedImagTime + tau_imag*2.0_dp
+        elapsedRealTime = elapsedRealTime + tau_real
+        elapsedImagTime = elapsedImagTime + tau_imag
 
     end subroutine init_real_time_iteration
 
@@ -486,7 +488,6 @@ contains
         ! step influence to combine it with the original y(n) 
 !         integer, intent(inout) :: n_determ_states
         character(*), parameter :: this_routine = "second_real_time_spawn"
-        integer :: diagonalEvents
 
         ! mimic the most of this routine to the already written first
         ! spawning step, but with a different death step and without the 
@@ -503,7 +504,6 @@ contains
 
         ! declare this is the second runge kutta step
         runge_kutta_step = 2
-        diagonalEvents = 0
 
         ! use part of nicks code, and remove the parts, that dont matter 
         do idet = 1, int(TotWalkers, sizeof_int)
@@ -542,7 +542,6 @@ contains
             end if
             ! The current diagonal matrix element is stored persistently.
             parent_hdiag = det_diagH(idet)
-            if(iProcIndex == 2) print *, "KII", parent_hdiag, parent_sign
 
             if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
 
@@ -638,7 +637,6 @@ contains
                 diag_sign = -attempt_die_realtime(nI_parent, parent_hdiag, &
                     parent_sign, ex_level_to_ref)
                 if (any(abs(diag_sign) > EPS)) then
-                   diagonalEvents = diagonalEvents + 1
                    call create_diagonal_as_spawn(nI_parent, CurrentDets(:,idet), &
                         diag_sign, second_spawn_iter_data)
                 end if
@@ -648,12 +646,6 @@ contains
         end do ! Over all determinants.  
 
         if (tSemiStochastic) call determ_projection()
-
-        do ireplica=0,4
-           if(iProcIndex == ireplica) print *, "DIAGONAL EVENTS", &
-                diagonalEvents, iProcIndex
-           call MPIBarrier(err)
-        enddo
 
     end subroutine second_real_time_spawn
 
@@ -878,9 +870,9 @@ if(iProcIndex == root .and. .false.) then
         print *, "TotParts and totDets after first spawn: ", TotParts, TotWalkers
         print *, "=========================="
      endif
-#ifdef __DEBUG
+
         call check_update_growth(iter_data_fciqmc,"Error in first RK step")
-#endif
+
         ! for now update the iter data here, although in the final 
         ! implementation i only should do that after the 2nd RK step
         ! or keep track of two different iter_datas for first and second 
@@ -898,6 +890,10 @@ if(rktwo) then
         ! second spawn.. to then keep the new values in the 2nd list
 
         call reset_spawned_list() 
+
+        NoBorn = 0
+        Annihilated = 0
+        NoDied = 0
 
         ! create a second spawned list from y(n) + k1/2
         ! have to think to exclude death_step here and store this 
@@ -952,9 +948,9 @@ endif
         ! Annihilation is done after loop over walkers
         call DirectAnnihilation (TotWalkersNew, second_spawn_iter_data, .false.)
 
-#ifdef __DEBUG
+
         call check_update_growth(second_spawn_iter_data,"Error in second RK step")
-#endif
+
 
         ! for debugging comfort: if the second step is to be used on its own
         if(.not. both) then

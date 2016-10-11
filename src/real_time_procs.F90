@@ -488,6 +488,10 @@ contains
         ! in the rest of the neci code? yes!
         ! rmneci_setup: there is no reason to use an imaginary shift
         ! except if when dealing with rotated times)
+        ! TODO: Energies should be taken with respect to the N-particle ground state energy
+        
+        ! important: the matrix element Kii does not contain the reference energy,
+        ! therefore it has to be added manually
         do run = 1, inum_runs
            fac(min_part_type(run)) = tau_real * (Kii + Hii)
            fac(max_part_type(run)) = 0.0_dp
@@ -1185,9 +1189,7 @@ contains
         ! i think that has to be done in the reset_spawned_list
 !         n_determ_states = 1
 
-#ifdef __DEBUG
         call reset_tot_parts()
-#endif        
 
     end subroutine reload_current_dets
 

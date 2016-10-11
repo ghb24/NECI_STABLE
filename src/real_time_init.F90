@@ -21,7 +21,7 @@ module real_time_init
                               AccRat_1, AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap, &
                               TotPartsStorage, TotWalkers_pert, t_rotated_time, time_angle, &
                               tau_imag, tau_real, elapsedRealTime, elapsedImagTime, &
-                              TotWalkers_orig, dyn_norm_psi
+                              TotWalkers_orig, dyn_norm_psi, gs_energy
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
@@ -222,8 +222,9 @@ contains
         allocate(wf_norm(inum_runs,0:(real_time_info%n_time_steps+1)), stat = ierr)
         allocate(pert_norm(inum_runs),stat = ierr)
         allocate(dyn_norm_psi(inum_runs),stat = ierr)
-        allocate(current_overlap(lenof_sign),stat=ierr)
-        allocate(temp_freeslot(MaxWalkersPart),stat=ierr)
+        allocate(gs_energy(inum_runs),stat = ierr)
+        allocate(current_overlap(lenof_sign),stat = ierr)
+        allocate(temp_freeslot(MaxWalkersPart),stat = ierr)
 
         gf_overlap = 0.0_dp
         
@@ -762,6 +763,7 @@ contains
       deallocate(DiagVec,stat=ierr)
       call clean_iter_data(second_spawn_iter_data)
       deallocate(current_overlap,stat=ierr)
+      deallocate(gs_energy,stat=ierr)
       deallocate(dyn_norm_psi,stat=ierr)
       deallocate(pert_norm,stat=ierr)
       deallocate(wf_norm,stat=ierr)
