@@ -234,7 +234,7 @@ contains
             if (tReplicaReferencesDiffer) then
                 pop_change = FracLargerDet * abs_sign(AllNoAtHF(min_part_type(run):max_part_type(run)))
             else
-                pop_change = FracLargerDet * abs_sign(AllNoAtHF(1:lenof_sign))
+                pop_change = FracLargerDet * abs_sign(AllNoAtHF(1:(lenof_sign/inum_runs)))
             endif
 #else
             if (tReplicaReferencesDiffer) then
@@ -252,7 +252,8 @@ contains
                     ! Write out info!
                     changed_any = .true.
                     root_print 'Highest weighted determinant on run', run, &
-                               'not reference det: ', pop_highest, abs_sign(AllNoAtHF)
+                         'not reference det: ', pop_highest, abs_sign(AllNoAtHF( &
+                         min_part_type(run):max_part_type(run)))
 
                     !
                     ! Here we are changing the reference det on the fly.
