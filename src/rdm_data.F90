@@ -181,6 +181,7 @@ module rdm_data
         real(dp), allocatable :: energy_2_num(:)
         real(dp), allocatable :: energy_num(:)
         real(dp), allocatable :: spin_num(:)
+        real(dp), allocatable :: property(:,:)
 
         ! Arrays used to hold estimates from the RDM over the *previous
         ! sampling block only*.
@@ -190,6 +191,7 @@ module rdm_data
         real(dp), allocatable :: energy_2_num_inst(:)
         real(dp), allocatable :: energy_num_inst(:)
         real(dp), allocatable :: spin_num_inst(:)
+        real(dp), allocatable :: property_inst(:,:)
 
         ! Hermiticity errors, i.e. \Gamma_{ij,kl} - \Gamma_{kl,ij}^*.
         ! The max_* array holds the maximum such error.
