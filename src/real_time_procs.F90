@@ -12,8 +12,10 @@ module real_time_procs
                               temp_det_list, temp_det_pointer,  temp_iendfreeslot, &
                               temp_det_hash, temp_totWalkers, pert_norm, &
                               valid_diag_spawn_list, DiagParts, n_diag_spawned, &
-                              DiagParts2, NoDied_1, NoBorn_1, SumWalkersCyc_1, &
-                              t_rotated_time, wf_norm, tau_imag, tau_real
+                              NoDied_1, NoBorn_1, SumWalkersCyc_1, &
+                              t_rotated_time, wf_norm, tau_imag, tau_real, gs_energy, &
+                              dyn_norm_psi, shift_damping, MaxSpawnedDiag, & 
+                              InitialSpawnedSlotsDiag
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
                          sizeof_int, MPIArg
@@ -122,7 +124,7 @@ contains
 
 !         call set_timer(BinSearch_time,45)
 
-        do i = InitialSpawnedSlots(iProcIndex), ValidSpawned
+        do i = InitialSpawnedSlotsDiag(iProcIndex), ValidSpawned
 
            call decode_bit_det(nJ, DiagParts(:,i)) 
 
@@ -323,9 +325,7 @@ contains
                         SignTemp(j) = 0
                         call nullify_ilut_part (DiagParts(:,i), j)
                      else !if (tEnhanceRemainder) then
-                        NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
-                        iter_data%nborn(j) = iter_data%nborn(j) &
-                             + OccupiedThresh - abs(SignTemp(j))
+                        ! Birth event is counted below
                         SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
                         call encode_part_sign (DiagParts(:,i), SignTemp(j), j)
                      end if
@@ -416,15 +416,16 @@ contains
         ! error message.
         list_full = .false.
         if (proc == nNodes - 1) then
-            if (valid_diag_spawn_list(proc) > MaxSpawned) list_full = .true.
+            if (valid_diag_spawn_list(proc) > MaxSpawnedDiag) list_full = .true.
         else
-            if (valid_diag_spawn_list(proc) >= InitialSpawnedSlots(proc+1)) &
+            if (valid_diag_spawn_list(proc) >= InitialSpawnedSlotsDiag(proc+1)) &
                 list_full=.true.
         end if
         if (list_full) then
             write(6,*) "Attempting to spawn particle onto processor: ", proc
             write(6,*) "No memory slots available for this spawn."
             write(6,*) "Please increase MEMORYFACSPAWN"
+            write(6,*) "VALID DIAG SPAWN LIST", valid_diag_spawn_list
             call stop_all(this_routine, "Out of memory for spawned particles")
         end if
 
@@ -493,7 +494,7 @@ contains
         ! important: the matrix element Kii does not contain the reference energy,
         ! therefore it has to be added manually
         do run = 1, inum_runs
-           fac(min_part_type(run)) = tau_real * (Kii + Hii)
+           fac(min_part_type(run)) = tau_real * (Kii + Hii - gs_energy(run) )
            fac(max_part_type(run)) = 0.0_dp
         enddo
 
@@ -589,8 +590,10 @@ contains
             ! no contribution from tau_real via Kii (and no influence of
             ! tau_imag on fac(min_part_type(run))
            do run = 1, inum_runs
-              fac(max_part_type(run)) = + tau_real * real_time_info%damping &
-                   + tau_imag*(Kii - DiagSft(run))
+              ! tau_real and tau_imag have opposite signs -> shift changed sign
+              ! when moved from imaginary to real part
+              fac(max_part_type(run)) =  tau_real * (real_time_info%damping &
+                   + DiagSft(run) ) + tau_imag*(Kii + Hii - gs_energy(run))
            enddo
 
             ! and also about the fac restrictions.. for now but it here anyway..
@@ -1210,7 +1213,7 @@ contains
 
         ! also reset the diagonal specific valid spawn list.. i think i 
         ! can just reuse the InitialSpawnedSlots also
-        valid_diag_spawn_list = InitialSpawnedSlots
+        valid_diag_spawn_list = InitialSpawnedSlotsDiag
 
         ! also save the number of particles from this spawning to calc. 
         ! first step specific acceptance rate
@@ -1316,7 +1319,8 @@ contains
                          real_sign_1(min_part_type(run)) * real_sign_2(min_part_type(run)) + &
                          real_sign_2(max_part_type(run)) * real_sign_1(max_part_type(run)) 
                     endif
-                    tmp_norm(run) = tmp_norm(run) + real_sign_2(i)**2
+                    tmp_norm(run) = tmp_norm(run) + real_sign_2(min_part_type(run))**2 + &
+                         real_sign_2(max_part_type(run))**2
                 end do
             end if
         end do
@@ -1422,6 +1426,13 @@ contains
       end if
 
     end subroutine check_update_growth
+
+    subroutine update_shift_damping()
+      implicit none
+! sign convention for imaginary and real time differ
+      shift_damping = shift_damping - tau_real * DiagSft
+
+    end subroutine update_shift_damping
 
     subroutine reset_tot_parts()
       ! if the second RK step is to be compared, the reference has to be reset

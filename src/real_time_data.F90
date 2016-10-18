@@ -16,7 +16,7 @@ module real_time_data
     ! global flag indicating real-time calculation
     ! rotated_time_setup: flag to indicate whether pure real time is
     ! used or not
-    logical :: t_real_time_fciqmc, t_new_stats_file, t_rotated_time
+    logical :: t_real_time_fciqmc, t_new_stats_file, t_rotated_time, t_noshift
 
     ! also use a second iter_data type to keep track of the 2 distinct 
     ! spawning events
@@ -47,7 +47,10 @@ module real_time_data
     ! the full norm for consistency checks
     real(dp), allocatable :: wf_norm(:,:)
     real(dp), allocatable :: dyn_norm_psi(:)
+    ! the ground state energy of the N-particle problem which is added as a global shift
     real(dp), allocatable :: gs_energy(:)
+    ! the damping due to the DiagSft contribution in the imaginary time propagation
+    real(dp), allocatable :: shift_damping(:)
 
     ! also store the current overlap of the cycle.. 
 
@@ -109,12 +112,12 @@ module real_time_data
 
     ! also need to store the original number of determinants(and walkers maybe)
     ! of the y(n) list to reload correctly
-    integer :: temp_totWalkers
+    integer :: temp_totWalkers, MaxSpawnedDiag, MemoryFacDiag
 
     ! also start to store the diagonal "spawns" in the second rt-fciqmc loop
     ! in a seperate Spawned Parts array, to better keep track of stats and 
     ! do seperate different distinct processes
-    integer(n_int), pointer :: DiagParts(:,:), DiagParts2(:,:)
+    integer(n_int), pointer :: DiagParts(:,:)
 
     ! also need the associated actual arrays to point to
     integer(n_int), allocatable, target :: DiagVec(:,:), DiagVec2(:,:)
@@ -123,6 +126,7 @@ module real_time_data
     ! but i need this valid_spawned list thingy.. 
     ! which holds the next free slot to spawn to.. for each proc
     integer, allocatable :: valid_diag_spawn_list(:), temp_freeslot(:)
+    integer, allocatable :: InitialSpawnedSlotsDiag(:)
     integer :: temp_iendfreeslot
 
     ! also keep a global var. of the number of diag-spawns in a cycle

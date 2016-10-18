@@ -9,17 +9,18 @@ module real_time
                                walker_death_spawn, attempt_die_realtime, &
                                create_diagonal_as_spawn, count_holes_in_currentDets, &
                                DirectAnnihilation_diag, check_update_growth, &
-                               get_tot_parts, update_gf_overlap, calc_norm
+                               get_tot_parts, update_gf_overlap, calc_norm, &
+                               update_shift_damping
     use real_time_data, only: gf_type, wf_norm, &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
                               current_overlap, SumWalkersCyc_1, real_time_info, DiagParts, &
                               valid_diag_spawn_list, elapsedRealTime, elapsedImagTime,&
                               tau_real, tau_imag, t_rotated_time, temp_iendfreeslot, &
                               temp_freeslot, overlap_real, overlap_imag, dyn_norm_psi, &
-                              NoatHF_1
+                              NoatHF_1, shift_damping, t_noshift
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
-                        tChangeProjEDet, tInstGrowthRate, DiagSft
+                        tChangeProjEDet, DiagSft
     use FciMCData, only: pops_pert, walker_time, iter, ValidSpawnedList, &
                          spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot, &
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
@@ -27,7 +28,7 @@ module real_time
                          iLutHF_true, indices_of_determ_states, partial_determ_vecs, &
                          exFlag, CurrentDets, TotParts, ilutHF, SumWalkersCyc, IterTime, &
                          HFCyc, norm_psi, NoatHF, TotPartsPos, TotPartsNeg, NoDied, &
-                         Annihilated, NoBorn
+                         Annihilated, NoBorn, tSinglePartPhase
     use kp_fciqmc_data_mod, only: overlap_pert
     use timing_neci, only: set_timer, halt_timer
     use FciMCParMod, only: rezero_iter_stats_each_iter
@@ -273,6 +274,7 @@ contains
 
             ! perform the actual iteration(excitation generation etc.) 
             iter = iter + 1
+
             call perform_real_time_iteration() 
 
             ! update the overlap each time
@@ -281,16 +283,20 @@ contains
             ! only determinants that are occupied in the beginning
             ! can contribute to the gf -> normalize using only these
             ! current overlap is now the one after iteration
+            ! update the normalization due to the shift
+            call update_shift_damping()
             do i = 1, lenof_sign
                current_overlap(i) = gf_overlap(i,iter) / wf_norm(part_type_to_run(i),iter)
             enddo
 
             do i = 1, lenof_sign/inum_runs
-               overlap_real = sum(gf_overlap(::2,iter))/sum(pert_norm(:))
-               overlap_imag = sum(gf_overlap(2::2,iter))/sum(pert_norm(:))
+               overlap_real = sum(gf_overlap(::2,iter))/sum(pert_norm(:)) * &
+                    sum(exp(shift_damping))/inum_runs
+               overlap_imag = sum(gf_overlap(2::2,iter))/sum(pert_norm(:)) * &
+                    sum(exp(shift_damping))/inum_runs
             enddo
 
-            if(.true.) then
+            if(.false.) then
                if(iProcIndex == root) print *, "overlap: ", &
                     gf_overlap(1,iter) / wf_norm(1,iter), &
                     gf_overlap(2,iter) / wf_norm(1,iter)
@@ -301,6 +307,7 @@ contains
             endif
 
             call update_real_time_iteration()
+
             ! update, print and log all the global variables and interesting 
             ! quantities -> combine that functionality in the above 
             ! update_ routine !
@@ -478,6 +485,8 @@ contains
         ! each iteration step constist of two tau-steps -> factor of 2
         elapsedRealTime = elapsedRealTime + tau_real
         elapsedImagTime = elapsedImagTime + tau_imag
+
+        if(t_noshift) DiagSft = 0.0_dp
 
     end subroutine init_real_time_iteration
 

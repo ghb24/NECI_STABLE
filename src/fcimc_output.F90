@@ -525,9 +525,11 @@ contains
             state%mc_out = tMCOutput
             call stats_out(state,.true., iter + PreviousCycles, 'Iter.')
             if (.not. tOrthogonaliseReplicas) then
-                call stats_out(state,.true., sum(abs(AllTotParts(1::2))), 'Tot. parts real')
+                call stats_out(state,.true., sum(abs(AllTotParts(1::2)))/inum_runs, &
+                     'Tot. parts real')
 #ifdef __REALTIME 
-                call stats_out(state,.true., sum(abs(AllTotParts(2::2))), 'Tot. parts imag')
+                call stats_out(state,.true., sum(abs(AllTotParts(2::2)))/inum_runs, & 
+                     'Tot. parts imag')
 #endif
                 call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
 #ifndef __REALTIME
@@ -539,7 +541,7 @@ contains
 #endif
 #endif
 #endif
-                call stats_out(state,.true., DiagSft(1), 'Shift. (cyc)')
+                call stats_out(state,.true., sum(DiagSft)/inum_runs, 'Shift. (cyc)')
                 call stats_out(state,.true., sum(TotPartsPos)/inum_runs, 'Tot Parts pos')
                 call stats_out(state,.true., sum(TotPartsNeg)/inum_runs, 'Tot Parts neg')
 #ifdef __REALTIME
@@ -548,7 +550,7 @@ contains
                 call stats_out(state,.false., sum(AllNoBorn), 'No. born')
                 call stats_out(state,.false., sum(AllNoDied), 'No. died')
                 call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
-                call stats_out(state,.false., sum(AllNoRemoved), 'No. removed')
+                call stats_out(state,.false., sum(AllSumWalkersCyc), 'SumWalkersCyc')
                 call stats_out(state,.false., sum(AllNoAborted), 'No aborted')
 #ifdef __CMPLX
                 call stats_out(state,.true., real(proje_iter_tot) + Hii, &
@@ -577,13 +579,6 @@ contains
             ! frequently).
             ! This also makes column contiguity on resumes as likely as
             ! possible.
-            if (tTruncInitiator) then 
-                call stats_out(state,.false., AllNoAborted(1), 'No. aborted')
-#ifdef __REALTIME 
-                call stats_out(state,.false., AllNoAborted_1(1), 'No. aborted 1st RK')
-#endif
-            end if
-
 #ifdef __REALTIME 
             ! also output the overlaps and norm.. 
             call stats_out(state,.true., overlap_real, 'Re. <y(0)|y(t)>')
@@ -596,7 +591,7 @@ contains
 #endif
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
-#ifdef __PROG_NUMRUNS
+#if defined __PROG_NUMRUNS && !defined __REALTIME
             do p = 1, inum_runs
                 write(tmpc, '(i5)') p
                 call stats_out (state, .false., AllTotParts(p), &

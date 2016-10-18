@@ -2025,7 +2025,10 @@ contains
 
             ! All of the shift energies are relative to Hii, so they need to
             ! be offset
+#ifndef __REALTIME
             DiagSft = DiagSft + old_hii - hii
+#endif
+            ! not true in real-time evolution as there, the reference energy is eliminated
 
         end if ! run == 1
 
