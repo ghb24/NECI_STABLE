@@ -9,7 +9,8 @@ module guga_excitations
                           current_stepvector, currentOcc_ilut, currentOcc_int, &
                           currentB_ilut, currentB_int, current_cum_list, &
                           tGen_guga_weighted, ref_stepvector, ref_b_vector_real, & 
-                          ref_occ_vector, ref_b_vector_int, t_full_guga_tests
+                          ref_occ_vector, ref_b_vector_int, t_full_guga_tests, &
+                          nBasisMax, tHub
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_, iout, int64, inum_runs
     use bit_reps, only: niftot, decode_bit_det, encode_det, encode_part_sign, &
@@ -44,7 +45,7 @@ module guga_excitations
                         binary_search_first_ge, abs_l1
     use sort_mod, only: sort
     use symrandexcit3, only: pick_elec_pair
-    use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
+    use GenRandSymExcitNUMod, only: RandExcitSymLabelProd, IsMomentumAllowed
     use SymExcitDataMod, only: SpinOrbSymLabel, OrbClassCount, SymLabelCounts2, &
                                SymLabelList2, KPointToBasisFn, sym_label_list_spat
     use sym_general_mod, only: ClassCountInd
@@ -58,6 +59,7 @@ module guga_excitations
     use timing_neci, only: timer, set_timer, halt_timer, get_total_time
     use guga_types, only: weight_obj
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
+    use sym_mod, only: MomPbcSym
 
     ! variables
     implicit none
@@ -2989,6 +2991,11 @@ contains
             call convert_ilut_toNECI(excitation, ilutJ, HElgen)
             call decode_bit_det(nJ, ilutJ)
 
+            if (tHub) then 
+                if (.not.(IsMomentumAllowed(nJ))) then
+                    call stop_all(this_routine, "Momentum not allowed!")
+                end if
+            end if
         end if
 
 
@@ -21914,8 +21921,8 @@ contains
         ! Pick a pair of electrons (i,j) to generate from.
         ! This uses a triangular mapping to pick them uniformly.
         ind = 1 + int(ElecPairs * genrand_real2_dSFMT())
-        eleci = ceiling((1 + sqrt(1 + 8*real(ind, dp))) / 2)
-        elecj = ind - ((eleci - 1) * (eleci - 2)) / 2
+        elecj = ceiling((1 + sqrt(1 + 8*real(ind, dp))) / 2)
+        eleci = ind - ((elecj - 1) * (elecj - 2)) / 2
         pelec = 1.0_dp / real(ElecPairs, dp)
 
         ! i pick spatial orbitals out of occupied spin-orbitals -> 
@@ -21927,10 +21934,15 @@ contains
         occ_orbs(1) = nI(eleci)
         occ_orbs(2) = nI(elecj)
 
+        print *, "(i,j): ", eleci, elecj
+
         call gen_ab_cum_list_ueg(ilut, occ_orbs, cum_arr, excit_arr, orb_arr)
 
         ! then pick a orbital randomly and consider a <> b contribution
         cum_sum = cum_arr(nSpatOrbs)
+
+        print *, "cum_sum: ", cum_sum
+
         if (cum_sum < EPS) then
             excitInfo%valid = .false.
             return
@@ -22034,6 +22046,10 @@ contains
 
         ki = G1(occ_orbs(1))%k
         kj = G1(occ_orbs(2))%k
+
+        print *, "gen list 1_1:"
+        print *, "ki: ", ki
+        print *, "kj: ", kj
 
         cum_sum = 0.0_dp
         orb_arr = 0
@@ -22327,14 +22343,23 @@ contains
         ki = G1(occ_orbs(1))%k
         kj = G1(occ_orbs(2))%k
 
+        print *, "gen list (3,3):"
+        print *, "ki: ", ki
+        print *, "kj: ", kj
+
         cum_sum = 0.0_dp
         orb_arr = 0
         
         n_id = gtID(occ_orbs)
+        print *, "n_id: ", n_id
+
         ! due to k-point symmetry alot of excitation types: 
         ! eg. if i and j are seperate a and b also have to be! 
         ! not true! ki + kj = 2*ka can defo be!
         do orb_a = 1, n_id(1) - 1
+
+            print *, "orb_a:", orb_a
+
             contrib = 0.0_dp
             excitInfo%valid = .false.
             
@@ -22343,21 +22368,36 @@ contains
                 ka = G1(2*orb_a)%k
                 kb = ki + kj - ka 
 
+                print *, "ka: ", ka
+                print *, "kb: ", kb
+
+                call MomPbcSym(kb, nBasisMax)
+
+                print *, "kb'", kb
+
                 ! is b allowed by the size of space? -> TODO: what does that mean?
-                testE = real(sum(kb**2),dp)
-                if (abs(kb(1)) <= nmaxx .and. abs(kb(2)) <= nmaxy .and. &
-                    abs(kb(3)) <= nmaxz .and. &
-                    (.not. (tOrbECutoff .and. (testE > orbECutOff)))) then
+!                 testE = real(sum(kb**2),dp)
+!                 if (abs(kb(1)) <= nmaxx .and. abs(kb(2)) <= nmaxy .and. &
+!                     abs(kb(3)) <= nmaxz .and. &
+!                     (.not. (tOrbECutoff .and. (testE > orbECutOff)))) then
 
                 orb_b = gtID(KPointToBasisFn(kb(1), kb(2), 1, 1))
 
+                print *, "orb_b:", orb_b
+
                 ! just check if k-point restriction works as i thought 
+                if (orb_b == n_id(1) .or. orb_b == n_id(2)) then 
+                    print *, "k-point restriction didnt work as i thought!!"
+                    call stop_all(this_routine, "have to think about other implo!")
+                end if
                 ASSERT(orb_b /= n_id(1) .and. orb_b /= n_id(2))
                 
                 ! check guga restrictions todo
                 if (current_stepvector(orb_b) /= 3) then
                     ! no additional restrictions or?...
                     contrib = get_guga_integral_contrib(occ_orbs, orb_a, orb_b)
+
+                    print *, "contrib: ", contrib
 
                     if (orb_b > n_id(2)) then 
                         ! _R(a) > _LR(i) > ^RL(j) > ^L(b)
@@ -22390,7 +22430,7 @@ contains
                             0,4,1.0_dp,1.0_dp)
                     end if
                 end if
-                end if
+!                 end if
             end if
             cum_sum = cum_sum + contrib
             cum_arr(orb_a) = cum_sum
@@ -22404,6 +22444,9 @@ contains
         end if
 
         do orb_a = n_id(1) + 1, n_id(2) - 1
+
+            print *, "orb_a: ", orb_a
+
             contrib = 0.0_dp
             excitInfo%valid = .false.
             
@@ -22412,19 +22455,34 @@ contains
                 ka = G1(2*orb_a)%k
                 kb = ki + kj - ka 
 
-                ! is b allowed by the size of space? -> TODO: what does that mean?
-                testE = real(sum(kb**2),dp)
-                if (abs(kb(1)) <= nmaxx .and. abs(kb(2)) <= nmaxy .and. &
-                    abs(kb(3)) <= nmaxz .and. &
-                    (.not. (tOrbECutoff .and. (testE > orbECutOff)))) then
+                print *, "ka: ", ka 
+                print *, "kb: ", kb
 
+                call MomPbcSym(kb, nBasisMax)
+
+                print *, "kb'", kb
+
+                ! is b allowed by the size of space? -> TODO: what does that mean?
+!                 testE = real(sum(kb**2),dp)
+!                 if (abs(kb(1)) <= nmaxx .and. abs(kb(2)) <= nmaxy .and. &
+!                     abs(kb(3)) <= nmaxz .and. &
+!                     (.not. (tOrbECutoff .and. (testE > orbECutOff)))) then
+! 
                 orb_b = gtID(KPointToBasisFn(kb(1), kb(2), 1, 1))
+
+                print *, "orb_b: ", orb_b
                 
+                if (orb_b == n_id(1) .or. orb_b == n_id(2)) then 
+                    print *, "k-point restriction didnt work as i thought!!"
+                    call stop_all(this_routine, "have to think about other implo!")
+                end if
                 ASSERT(orb_b /= n_id(1) .and. orb_b /= n_id(2))
                 ! check guga restrictions todo
                 if (current_stepvector(orb_b) /= 3) then
                     ! no additional restrictions or?...
                     contrib = get_guga_integral_contrib(occ_orbs, orb_a, orb_b)
+
+                    print *, "contrib: ", contrib
 
                     if (orb_b < n_id(1)) then
                         ! _R(b) > _LR(i) > ^LR(a) > ^R(j)
@@ -22456,7 +22514,7 @@ contains
                         end if
                     end if
                 end if
-                end if
+!                 end if
             end if
             cum_sum = cum_sum + contrib
             cum_arr(orb_a) = cum_sum
@@ -22468,28 +22526,47 @@ contains
         cum_arr(n_id(2)) = cum_arr(n_id(2)-1)
 
         do orb_a = n_id(2) + 1, nSpatOrbs
+
+            print *, "orb_a: ", orb_a
+
             contrib = 0.0_dp
             excitInfo%valid = .false.
             if (current_stepvector(orb_a) /= 3) then
                 ka = G1(2*orb_a)%k
                 kb = ki + kj - ka 
 
-                testE = real(sum(kb**2),dp)
-                if (abs(kb(1)) <= nmaxx .and. abs(kb(2)) <= nmaxy .and. &
-                    abs(kb(3)) <= nmaxz .and. &
-                    (.not. (tOrbECutoff .and. (testE > orbECutOff)))) then
+                print *, "ka: ", ka 
+                print *, "kb: ", kb
+
+                call MomPbcSym(kb, nBasisMax)
+
+                print *, "kb'", kb
+
+!                 testE = real(sum(kb**2),dp)
+!                 if (abs(kb(1)) <= nmaxx .and. abs(kb(2)) <= nmaxy .and. &
+!                     abs(kb(3)) <= nmaxz .and. &
+!                     (.not. (tOrbECutoff .and. (testE > orbECutOff)))) then
 
                     ! there is no "spin" restriction in the guga case 
                     ! so both possible b orbs have to be checked 
                     ! its actually NOT possible that ka = ki !! so do not have
                     ! to check that case! 
                     orb_b = gtID(KPointToBasisFn(kb(1), kb(2), 1, 1))
+
+                    print *, "orb_b:" , orb_b
+
+                    if (orb_b == n_id(1) .or. orb_b == n_id(2)) then 
+                        print *, "k-point restriction didnt work as i thought!!"
+                        call stop_all(this_routine, "have to think about other implo!")
+                    end if
                     ! this should work as we pick beta orbital first 
                     ASSERT(orb_b /= n_id(1) .and. orb_b /= n_id(2))
 
                     if (current_stepvector(orb_b) /= 3) then
                         ! only then its a possible excitation
                         contrib = get_guga_integral_contrib(occ_orbs, orb_a, orb_b)
+
+                        print *, "contrib: ", contrib
                         
                         ! check type of excitation
                         if (orb_b < n_id(1)) then
@@ -22520,7 +22597,7 @@ contains
                                 0,4,1.0_dp,1.0_dp)
                         end if
                     end if
-                end if
+!                 end if
             end if
             cum_sum = cum_sum + contrib 
             cum_arr(orb_a) = cum_sum
@@ -22544,17 +22621,18 @@ contains
         type(excitationInformation), intent(out) :: excit_arr(nSpatOrbs)
         character(*), parameter :: this_routine = "gen_ab_cum_list_3"
 
-        integer :: ki(3), kj(3), ka(3), kb(3), orb_a, orb_b, en, st, orb_i
+        integer :: ki(3), kj(3), ka(3), kb(3), a, b, en, st, i
         real(dp) :: cum_sum, contrib, testE
         type(excitationInformation) :: excitInfo
 
         ki = G1(occ_orbs(1))%k
         kj = G1(occ_orbs(2))%k
 
+        print *, "gen list 3:"
         print *, "ki:",ki
         print *, "kj:",kj
         
-        orb_i = gtID(occ_orbs(1))
+        i = gtID(occ_orbs(1))
         ! redo this!
         cum_sum = 0.0_dp
         orb_arr = 0
@@ -22567,118 +22645,173 @@ contains
         ! NO! 2ki = ka + kb -> kann trotzdem noch mehrere möglichkeiten geben!
         ! change that! (but maybe reuse it for 3 3 case
         ! aber vl. doch spatial orbitals...
-        do orb_a = 1, orb_i - 1
+        do a = 1, i - 1
+
+            print *, "orb_a: ", a
+
             contrib = 0.0_dp
             excitInfo%valid = .false.
 
-            if (current_stepvector(orb_a) /= 3) then
+            if (current_stepvector(a) /= 3) then
                 ! determine fiting b by k-point restrictions -> 
                 ! and only allow b > a 
-                ka = G1(2*orb_a)%k
+                ka = G1(2*a)%k
                 kb = ki + kj - ka
 
+                print *, "ka: ", ka 
+                print *, "kb: ", kb
+
+                call MomPbcSym(kb,nBasisMax)
+
+                print *, "kb'", kb
+
                 ! is b allowed by the size of space? -> TODO: what does that mean?
-                testE = real(sum(kb**2),dp)
-                if (abs(kb(1)) <= nmaxx .and. abs(kb(2)) <= nmaxy .and. &
-                    abs(kb(3)) <= nmaxz .and. &
-                    (.not. (tOrbECutoff .and. (testE > orbECutOff)))) then
+                ! this is specific for the UEG.. so i do not need it for the 
+                ! Hubbard model i am implementing right now..
+!                 testE = real(sum(kb**2),dp)
+!                 if (abs(kb(1)) <= nmaxx .and. abs(kb(2)) <= nmaxy .and. &
+!                     abs(kb(3)) <= nmaxz .and. &
+!                     (.not. (tOrbECutoff .and. (testE > orbECutOff)))) then
 
                     ! there is no "spin" restriction in the guga case 
                     ! so both possible b orbs have to be checked 
                     ! its actually NOT possible that ka = ki !! so do not have
                     ! to check that case! 
-                    orb_b = gtID(KPointToBasisFn(kb(1), kb(2), 1, 1))
-                    ! this should work as we pick beta orbital first 
+                b = gtID(KPointToBasisFn(kb(1), kb(2), 1, 1))
 
-                    ! orb_a should not be equal orb_b due to k point restrictions
-                    ASSERT(orb_a /= orb_b)
+                print *, "orb_b: ", b
+                ! this should work as we pick beta orbital first 
 
-                    if (current_stepvector(orb_b) /= 3) then
+                ! orb_a should not be equal orb_b due to k point restrictions
+                ! hm... it could happen i guess.. but i have to check it 
+                ! since i did not include this in the possibilities 
+                ! below.. 
+                ! ok so i just realised this case can happen... 
+                ! so i have to fix that and take all the possible 
+                ! combinations into account..
+                if (a == b) then 
+                    ! then orb a has to be empty!
+                    if (current_stepvector(a) == 0) then
+                        ! _RR_(ab) > ^RR^(ij)
+                        excitInfo = assign_excitInfo_values(22,1,1,1,1,1,&
+                            a,i,a,i,a,a,i,i,0,2,1.0_dp,1.0_dp)
+
+                        contrib = get_guga_integral_contrib(occ_orbs, a, b)
+
+                        print *, "contrib: ", contrib
+                    end if 
+
+                else 
+                    if (current_stepvector(b) /= 3) then
                         ! only then its a possible excitation
-                        contrib = get_guga_integral_contrib(occ_orbs, orb_a, orb_b)
+                        contrib = get_guga_integral_contrib(occ_orbs, a, b)
+
+                        print *, "contrib: ", contrib
 
                         ! then have to determine the order of orbitals 
-                        if (orb_b > orb_i) then
+                        if (b > i) then
                             ! _R(a) > ^RL_(ij) > ^L(b)
                             excitInfo = assign_excitInfo_values(7,-1,1,1,1,-1,&
-                                orb_b,orb_i,orb_a,orb_i,orb_a,orb_i,orb_i,orb_b,&
+                                b,i,a,i,a,i,i,b,&
                                 0,2,1.0_dp,1.0_dp,1)
                             
                         else
                             ! only the extrema count
-                            st = min(orb_a,orb_b)
-                            en = max(orb_a,orb_b)
+                            st = min(a,b)
+                            en = max(a,b)
                             ! _R(min) > _RR(max) > ^RR^(ij)
                             excitInfo = assign_excitInfo_values(17,1,1,1,1,1,&
-                                st,orb_i,en,orb_i,st,en,orb_i,orb_i,0,2,1.0_dp,1.0_dp)
+                                st,i,en,i,st,en,i,i,0,2,1.0_dp,1.0_dp)
                         end if
                     end if
                 end if
             end if
             cum_sum = cum_sum + contrib 
-            cum_arr(orb_a) = cum_sum 
-            excit_arr(orb_a) = excitInfo
-            orb_arr(orb_a) = orb_b
+            cum_arr(a) = cum_sum 
+            excit_arr(a) = excitInfo
+            orb_arr(a) = b
         end do
         ! zero out orbital (i)
-        if (orb_i == 1) then
-            cum_arr(orb_i) = 0.0_dp
+        if (i == 1) then
+            cum_arr(i) = 0.0_dp
         else
-            cum_arr(orb_i) = cum_arr(orb_i - 1)
+            cum_arr(i) = cum_arr(i - 1)
         end if
 
-        do orb_a = orb_i + 1, nSpatOrbs
+        do a = i + 1, nSpatOrbs
+
+            print *, "orb_a: ", a
+
             contrib = 0.0_dp
             excitInfo%valid = .false.
-            if (current_stepvector(orb_a) /= 3) then
-                ka = G1(2*orb_a)%k
+            if (current_stepvector(a) /= 3) then
+                ka = G1(2*a)%k
                 kb = ki + kj - ka 
 
-                testE = real(sum(kb**2),dp)
-                if (abs(kb(1)) <= nmaxx .and. abs(kb(2)) <= nmaxy .and. &
-                    abs(kb(3)) <= nmaxz .and. &
-                    (.not. (tOrbECutoff .and. (testE > orbECutOff)))) then
+                print *, "(ka,kb):", ka, kb
+
+                call MomPbcSym(kb, nBasisMax)
+
+                print *, "kb'", kb
+
+!                 testE = real(sum(kb**2),dp)
+!                 if (abs(kb(1)) <= nmaxx .and. abs(kb(2)) <= nmaxy .and. &
+!                     abs(kb(3)) <= nmaxz .and. &
+!                     (.not. (tOrbECutoff .and. (testE > orbECutOff)))) then
 
                     ! there is no "spin" restriction in the guga case 
                     ! so both possible b orbs have to be checked 
                     ! its actually NOT possible that ka = ki !! so do not have
                     ! to check that case! 
-                    orb_b = gtID(KPointToBasisFn(kb(1), kb(2), 1, 1))
-                    ! this should work as we pick beta orbital first 
-                    ASSERT(orb_a /= orb_b)
+                b = gtID(KPointToBasisFn(kb(1), kb(2), 1, 1))
 
-                    if (current_stepvector(orb_b) /= 3) then
+                print *, "orb_b:", b
+
+                ! this should work as we pick beta orbital first 
+                ! as i realised this possibility below is possible!
+                if (a == b) then
+                    if (current_stepvector(a) == 0) then
+                        ! _LL_(ij) > ^LL^(ab) 
+                        excitInfo = assign_excitInfo_values(22,-1,-1,-1,-1,-1,&
+                            a,i,a,i,i,i,a,a,0,2,1.0_dp,1.0_dp)
+
+                        contrib = get_guga_integral_contrib(occ_orbs, a, a)
+
+                    end if
+                else
+                    if (current_stepvector(b) /= 3) then
                         ! only then its a possible excitation
-                        contrib = get_guga_integral_contrib(occ_orbs, orb_a, orb_b)
+                        contrib = get_guga_integral_contrib(occ_orbs, a, b)
                         
+                        print *, "contrib:" , contrib
+
                         ! now we know a is bigger than (i)
-                        if (orb_b < orb_i) then
+                        if (b < i) then
                             ! _R(b) > ^RL_(ij) > ^L(a)
                             excitInfo = assign_excitInfo_values(7,-1,1,1,1,-1,&
-                                orb_a,orb_i,orb_b,orb_i,orb_b,orb_i,orb_i,orb_a,&
+                                a,i,b,i,b,i,i,a,&
                                 0,2,1.0_dp,1.0_dp,1)
 
                         else
                             ! only extrema count
-                            st = min(orb_a,orb_b)
-                            en = max(orb_a,orb_b)
+                            st = min(a,b)
+                            en = max(a,b)
                             ! _LL_(ij) > ^LL(min) > ^L(max)
                             excitInfo = assign_excitInfo_values(18,-1,-1,-1,-1,-1,&
-                                st,orb_i,en,orb_i,orb_i,orb_i,st,en,0,2,1.0_dp,1.0_dp)
+                                st,i,en,i,i,i,st,en,0,2,1.0_dp,1.0_dp)
                         end if
                     end if
                 end if
             end if
-
             ! update the cumsum
             cum_sum = cum_sum + contrib
-            cum_arr(orb_a) = cum_sum
-            excit_arr(orb_a) = excitInfo
-            orb_arr(orb_a) = orb_b
+            cum_arr(a) = cum_sum
+            excit_arr(a) = excitInfo
+            orb_arr(a) = b
         end do
 
         excitInfo%valid = .false. 
-        excit_arr(orb_i) = excitInfo
+        excit_arr(i) = excitInfo
 
     end subroutine gen_ab_cum_list_3
 

@@ -146,7 +146,7 @@ module FciMCParMod
         ! helpful to do it here.
         call population_check()
 #ifndef __CMPLX
-         if ((tGen_4ind_2 .or. tGen_4ind_weighted) .and. t_test_excit_gen) then
+         if ((tGen_4ind_2 .or. tGen_4ind_weighted .or. tLatticeGens) .and. t_test_excit_gen) then
              call run_test_excit_gen_det()
          end if
 #endif

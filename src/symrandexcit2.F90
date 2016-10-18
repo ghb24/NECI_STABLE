@@ -2210,10 +2210,10 @@ MODULE GenRandSymExcitNUMod
         !=============================================
 
         ! kb is now uniquely defined
-            ki=G1(nI(Elec1Ind))%k
-            kj=G1(nI(Elec2Ind))%k
-            ka=G1(Hole1BasisNum)%k
-            kb=ki+kj-ka
+        ki=G1(nI(Elec1Ind))%k
+        kj=G1(nI(Elec2Ind))%k
+        ka=G1(Hole1BasisNum)%k
+        kb=ki+kj-ka
 
         ! Find the spin of b
         IF(iSpn.eq.2)THEN ! alpha/beta required, therefore b has to be opposite spin to a

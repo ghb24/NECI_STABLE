@@ -27,6 +27,8 @@ module guga_testsuite
     use bit_reps
     use FciMCData
     use dsfmt_interface, only: dsfmt_init
+    use genrandsymexcitnumod, only: testgenrandsymexcitnu
+    use symrandexcit3, only: test_sym_excit3
     implicit none
 
     real(dp), parameter :: tol = 1.0e-10_dp
@@ -115,17 +117,55 @@ contains
         character(*), parameter :: this_routine = "run_test_excit_gen_det"
         
 !         call dsfmt_init(0)
+! 
+!         call run_test_excit_gen_4ind_multiple([1,2,3,4,5,6,7,8])
+!         call run_test_excit_gen_4ind_multiple([9,10,11,12,13,14,15,16])
+!         call run_test_excit_gen_4ind_multiple([1,3,5,7,10,12,14,16])
+!         call run_test_excit_gen_4ind_multiple([1,4,5,8,9,12,13,16])
+!         call run_test_excit_gen_4ind_multiple([1,3,6,7,10,11,14,16])
 
-        call run_test_excit_gen_4ind_multiple([1,2,3,4,5,6,7,8])
-        call run_test_excit_gen_4ind_multiple([9,10,11,12,13,14,15,16])
-        call run_test_excit_gen_4ind_multiple([1,3,5,7,10,12,14,16])
-        call run_test_excit_gen_4ind_multiple([1,4,5,8,9,12,13,16])
-        call run_test_excit_gen_4ind_multiple([1,3,6,7,10,11,14,16])
+        if (tUEG .or. tHUB) then
+            call run_test_excit_gen_hubbard(fdet)
+        else
+            call run_test_excit_gen_4ind_multiple(fdet)
+        end if
 
         call stop_all(this_routine, "stop after tests!")
 
     end subroutine run_test_excit_gen_det
         
+    subroutine run_test_excit_gen_hubbard(nI)
+        ! also write a excitation generation testcode for the hubbard/ueg 
+        ! excitation generator... or maybe finally write a general excitation
+        ! generator testcode
+        integer, intent(in), optional :: nI(nel)
+        integer :: test_det(nel)
+        integer(n_int) :: ilut(0:niftot)
+        integer :: nExcits, nTest
+        integer(n_int), pointer :: excitations(:,:)
+        character(*), parameter :: this_routine = "run_test_excit_gen_hubbard"
+
+        pSingles = 0.0_dp
+        pDoubles = 1.0_dp
+
+        if (present(nI)) then
+            test_det = nI 
+        else 
+            test_det = fdet 
+        end if
+
+        call EncodeBitDet(test_det, ilut)
+
+        ! try the "old" excitation generator test routines already provided..
+
+        call test_sym_excit3(nI,1000,1.0_dp,2)
+
+        call testgenrandsymexcitnu(nI,1000,1.0_dp,2)
+
+        call stop_all(this_routine, "for now")
+        
+    end subroutine run_test_excit_gen_hubbard
+
     ! also write a test runner for the 4ind-weighted excit gen to compare 
     ! the frequency of the mat_ele/pgen ratios 
     subroutine run_test_excit_gen_4ind_multiple(nI)
@@ -194,8 +234,13 @@ contains
 
     subroutine run_test_excit_gen_guga
 
-        pSingles = 0.1_dp
-        pDoubles = 1.0_dp - pSingles
+        if (tUEG .or. tHUB) then
+            pSingles = 0.0_dp
+            pDoubles = 1.0_dp
+        else
+            pSingles = 0.1_dp
+            pDoubles = 1.0_dp - pSingles
+        end if
 
 !         pExcit4 = (1.0_dp - 1.0_dp / real(nSpatOrbs,dp))
         pExcit4 = 0.5_dp
