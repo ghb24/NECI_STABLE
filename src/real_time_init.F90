@@ -8,7 +8,7 @@ module real_time_init
                               t_complex_ints, gf_overlap, wf_norm, temp_det_list, &
                               temp_det_pointer, temp_det_hash, temp_freeslot, &
                               pert_norm, second_spawn_iter_data, DiagParts, &
-                              DiagParts2, DiagVec, DiagVec2, valid_diag_spawn_list, &
+                              MemoryFacDiag, DiagVec, DiagVec2, valid_diag_spawn_list, &
                               NoatHF_1, Annihilated_1, Acceptances_1, NoBorn_1, &
                               SpawnFromSing_1, NoDied_1, NoAborted_1, NoRemoved_1, &
                               NoAddedInitiators_1, NoInitDets_1, NoNonInitDets_1, &
@@ -21,7 +21,8 @@ module real_time_init
                               AccRat_1, AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap, &
                               TotPartsStorage, TotWalkers_pert, t_rotated_time, time_angle, &
                               tau_imag, tau_real, elapsedRealTime, elapsedImagTime, &
-                              TotWalkers_orig, dyn_norm_psi, gs_energy
+                              TotWalkers_orig, dyn_norm_psi, gs_energy, shift_damping, &
+                              t_noshift, MaxSpawnedDiag, InitialSpawnedSlotsDiag
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
@@ -33,11 +34,11 @@ module real_time_init
                                   tOverlapPert, overlap_pert, perturbed_ground
     use CalcData, only: tChangeProjEDet, tReadPops, tRestartHighPop, tFCIMC, &
                         tStartSinglePart, tau, nmcyc, iPopsFileNoRead, tWritePopsNorm, &
-                        tWalkContGrow, diagSft, pops_norm
+                        tWalkContGrow, diagSft, pops_norm, InitWalkers, MemoryFacSpawn
     use FciMCData, only: tSearchTau, alloc_popsfile_dets, pops_pert, tPopsAlreadyRead, &
                          tSinglePartPhase, iter_data_fciqmc, iter, PreviousCycles, &
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
-                         MaxSpawned, InitialSpawnedSlots, tSearchTauOption, TotWalkers, &
+                         MaxSpawned, tSearchTauOption, TotWalkers, &
                          CurrentDets, popsfile_dets, MaxWalkersPart
     use SystemData, only: nBasis, lms, G1, nBasisMax, tHub, nel
     use SymExcitDataMod, only: kTotal
@@ -54,6 +55,8 @@ module real_time_init
     use bit_reps, only: decode_bit_det
 
     implicit none
+
+    logical :: tmemoryfacdiagset
 
 contains
 
@@ -95,7 +98,6 @@ contains
 !         call read_popsfile_real_time()
         ! actually the InitFCIMCCalcPar should do that now correctly already
 
-        ! do an MPIbarrier here.. although don't quite know why
         if(tHub) then
            if(allocated(pops_pert)) then
               if(pops_pert(1)%nannihilate == 1) kTotal = kTotal &
@@ -106,6 +108,8 @@ contains
            endif
         endif
         print *, "New total momentum", kTotal
+
+        ! do an MPIbarrier here.. although don't quite know why        
         call MPIBarrier(ierr)
 
     end subroutine init_real_time_calc_single
@@ -116,7 +120,8 @@ contains
         ! a simulation
         character(*), parameter :: this_routine = "setup_real_time_fciqmc"
         real(dp) :: norm_buf(inum_runs), tzero_norm(inum_runs)
-        integer :: ierr, run
+        integer :: ierr, run, j
+        real(dp) :: gap
 
         ! also need to create the perturbed ground state to calculate the 
         ! overlaps to |y(t)> 
@@ -225,8 +230,13 @@ contains
         allocate(gs_energy(inum_runs),stat = ierr)
         allocate(current_overlap(lenof_sign),stat = ierr)
         allocate(temp_freeslot(MaxWalkersPart),stat = ierr)
+        allocate(shift_damping(inum_runs), stat = ierr)
 
         gf_overlap = 0.0_dp
+
+!        gs_energy = -20.79364
+        gs_energy = -22.56838
+        shift_damping = 0.0_dp
         
         ! to avoid dividing by 0 if not all entries get filled
         wf_norm = 1.0_dp
@@ -306,30 +316,32 @@ contains
 
         TotPartsStorage = TotParts
 
+        ! if nothing was specified as memoryfacdiag, use memoryfacspawn
+        if(.not. tmemoryfacdiagset) MemoryFacDiag = MemoryFacSpawn
+
         ! also intitialize the 2nd spawning array to deal with the 
         ! diagonal death step in the 2nd rt-fciqmc loop
-        ! have to make this list as large as the original walker list? 
-        ! hm, probably not, as due to the tau multiplicative factor 
-        ! for not hihgly populated dets also a succesful death step is not 
-        ! so likely.. make it as big as MaxSpawned for now, maybe increase 
-        ! later if this turns out to be to small..
-        allocate(DiagVec(0:nifbcast, MaxSpawned), DiagVec2(0:nifbcast, MaxSpawned),&
-            stat = ierr)
+        MaxSpawnedDiag = int(MemoryFacDiag*InitWalkers*inum_runs)
+        allocate(DiagVec(0:nifbcast, MaxSpawnedDiag), stat = ierr)
 
         DiagVec = 0
-        DiagVec2 = 0
 
         DiagParts => DiagVec
-        DiagParts2 => DiagVec2
 
         ! also need to setup this valid spawn list and crap..
+        allocate(InitialSpawnedSlotsDiag(0:nNodes-1), stat = ierr)
         allocate(valid_diag_spawn_list(0:nNodes-1), stat = ierr)
+
+        Gap = real(MaxSpawnedDiag,dp)/real(nNodes,dp)
+        do j = 0,nNodes-1
+           InitialSpawnedSlotsDiag(j) = nint(Gap*j) + 1
+        enddo
 
         ! and the initial_spawn_slots equivalent
         ! although i think i can reuse the initialSpawnedSlots..
 !         allocate(initial_diag_spawn_list(0:nNodes-1), stat = ierr) 
 
-        valid_diag_spawn_list(:) = InitialSpawnedSlots(:)
+        valid_diag_spawn_list(:) = InitialSpawnedSlotsDiag(:)
 
         ! also initialize all the relevant first RK step quantities.. 
         NoatHF_1 = 0.0_dp 
@@ -448,8 +460,13 @@ contains
                 ! If the time is to be rotated by some angle time_angle to increase 
                 ! stability, this can be set here
                 t_rotated_time = .true.
-                tWalkContGrow = .false.
                 call readf(time_angle)
+
+             case("MEMORYFACDIAG")
+                ! usually, the diagonal spawning array needs to be larger than
+                ! the offdiagonal one, thus an extra factor is introduced
+                tmemoryfacdiagset = .true.
+                call readi(MemoryFacDiag)
 
             ! use nicks perturbation & kp-fciqmc stuff here as much as 
             ! possible too
@@ -592,6 +609,13 @@ contains
                 t_rotated_time = .true.
                 tWalkContGrow = .false.
                 time_angle = 4*atan(1.0_dp)/2.0_dp
+
+             case("NOSHIFT")
+                ! disabling the shift gives higher precision results as no
+                ! renormalization of the norm by a dynamic factor is made
+                ! note that the walker number will grow exponentially in this
+                ! scenario, however
+                t_noshift = .true.
                 
             case ("COMPLEX-INTEGRALS")
                 ! in the real-time implementation, since we need the complex 
@@ -634,7 +658,6 @@ contains
         ! no such concept as the varying shift in the real-time fciqmc
         ! exception: when using rotated times, the shift still has to be considered
         tWalkContGrow = .true.
-        ! tSinglePartPhase is not yet allocated during readinput!
         tSinglePartPhase = .true.
 
         ! probably not change reference anymore.. but check
@@ -674,6 +697,8 @@ contains
         ! setup_rotated_time: by default, pure real time is used
         t_rotated_time = .true.
         time_angle = 0.0_dp
+        ! usually, the walker number shall be controlled
+        t_noshift = .false.
 
     end subroutine set_real_time_defaults
 
@@ -762,6 +787,8 @@ contains
       deallocate(valid_diag_spawn_list,stat=ierr)
       deallocate(DiagVec,stat=ierr)
       call clean_iter_data(second_spawn_iter_data)
+      deallocate(shift_damping, stat=ierr)
+      deallocate(temp_freeslot, stat=ierr)
       deallocate(current_overlap,stat=ierr)
       deallocate(gs_energy,stat=ierr)
       deallocate(dyn_norm_psi,stat=ierr)
