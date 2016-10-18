@@ -12,6 +12,8 @@ import operator
 import optparse
 import re
 import sys
+import matplotlib
+matplotlib.use('TkAgg')
 try:
     import pylab
     PYLAB = True
@@ -321,7 +323,7 @@ If plotfile is given, then the graph is saved to the specifed file rather than b
                 se = [stat.se for stat in data.stats]
                 se_error = [stat.se_error for stat in data.stats]
                 pylab.semilogx(blocks, se, 'g-', basex=2, label=r'$\sigma(X_{%s})$' % (data.data_col))
-                pylab.errorbar(blocks, se, yerr=se_error, fmt=None, ecolor='g')
+                pylab.errorbar(blocks, se, yerr=se_error, fmt="None", ecolor='g')
                 xmax = 2**pylab.ceil(pylab.log2(blocks[0]+1))
                 pylab.xlim(xmax, 1)
                 pylab.ylabel('Standard error')
@@ -335,6 +337,8 @@ If plotfile is given, then the graph is saved to the specifed file rather than b
                 pylab.savefig(plotfile)
             else:
                 pylab.draw()
+#                 pylab.plot()
+#                 pylab.ion()
                 pylab.show()
 
 def parse_options(args):
