@@ -22070,7 +22070,7 @@ contains
                     abs(kb(3)) <= nmaxz .and. &
                     (.not. (tOrbECutoff .and. (testE > orbECutOff)))) then
 
-                orb_b = gtID(KPointToBasisFn(kb(1), kb(2), kb(3), 1))
+                orb_b = gtID(KPointToBasisFn(kb(1), kb(2), 1, 1))
 
                 ! just check if k-point restriction works as i thought 
                 ASSERT(orb_b /= n_id(1) .and. orb_b /= n_id(2))
@@ -22167,7 +22167,7 @@ contains
                     abs(kb(3)) <= nmaxz .and. &
                     (.not. (tOrbECutoff .and. (testE > orbECutOff)))) then
 
-                orb_b = gtID(KPointToBasisFn(kb(1), kb(2), kb(3), 1))
+                orb_b = gtID(KPointToBasisFn(kb(1), kb(2), 1, 1))
                 
                 ASSERT(orb_b /= n_id(1) .and. orb_b /= n_id(2))
                 ! check guga restrictions todo
@@ -22262,7 +22262,7 @@ contains
                     ! so both possible b orbs have to be checked 
                     ! its actually NOT possible that ka = ki !! so do not have
                     ! to check that case! 
-                    orb_b = gtID(KPointToBasisFn(kb(1), kb(2), kb(3), 1))
+                    orb_b = gtID(KPointToBasisFn(kb(1), kb(2), 1, 1))
                     ! this should work as we pick beta orbital first 
                     ASSERT(orb_b /= n_id(1) .and. orb_b /= n_id(2))
 
@@ -22349,7 +22349,7 @@ contains
                     abs(kb(3)) <= nmaxz .and. &
                     (.not. (tOrbECutoff .and. (testE > orbECutOff)))) then
 
-                orb_b = gtID(KPointToBasisFn(kb(1), kb(2), kb(3), 1))
+                orb_b = gtID(KPointToBasisFn(kb(1), kb(2), 1, 1))
 
                 ! just check if k-point restriction works as i thought 
                 ASSERT(orb_b /= n_id(1) .and. orb_b /= n_id(2))
@@ -22418,7 +22418,7 @@ contains
                     abs(kb(3)) <= nmaxz .and. &
                     (.not. (tOrbECutoff .and. (testE > orbECutOff)))) then
 
-                orb_b = gtID(KPointToBasisFn(kb(1), kb(2), kb(3), 1))
+                orb_b = gtID(KPointToBasisFn(kb(1), kb(2), 1, 1))
                 
                 ASSERT(orb_b /= n_id(1) .and. orb_b /= n_id(2))
                 ! check guga restrictions todo
@@ -22483,7 +22483,7 @@ contains
                     ! so both possible b orbs have to be checked 
                     ! its actually NOT possible that ka = ki !! so do not have
                     ! to check that case! 
-                    orb_b = gtID(KPointToBasisFn(kb(1), kb(2), kb(3), 1))
+                    orb_b = gtID(KPointToBasisFn(kb(1), kb(2), 1, 1))
                     ! this should work as we pick beta orbital first 
                     ASSERT(orb_b /= n_id(1) .and. orb_b /= n_id(2))
 
@@ -22550,6 +22550,9 @@ contains
 
         ki = G1(occ_orbs(1))%k
         kj = G1(occ_orbs(2))%k
+
+        print *, "ki:",ki
+        print *, "kj:",kj
         
         orb_i = gtID(occ_orbs(1))
         ! redo this!
@@ -22584,7 +22587,7 @@ contains
                     ! so both possible b orbs have to be checked 
                     ! its actually NOT possible that ka = ki !! so do not have
                     ! to check that case! 
-                    orb_b = gtID(KPointToBasisFn(kb(1), kb(2), kb(3), 1))
+                    orb_b = gtID(KPointToBasisFn(kb(1), kb(2), 1, 1))
                     ! this should work as we pick beta orbital first 
 
                     ! orb_a should not be equal orb_b due to k point restrictions
@@ -22640,7 +22643,7 @@ contains
                     ! so both possible b orbs have to be checked 
                     ! its actually NOT possible that ka = ki !! so do not have
                     ! to check that case! 
-                    orb_b = gtID(KPointToBasisFn(kb(1), kb(2), kb(3), 1))
+                    orb_b = gtID(KPointToBasisFn(kb(1), kb(2), 1, 1))
                     ! this should work as we pick beta orbital first 
                     ASSERT(orb_a /= orb_b)
 
