@@ -1833,18 +1833,20 @@ contains
         ! routine to write a file with the H_ij/pgen ratio frequencies 
         integer :: iunit, i, max_size, old_size
         character(255) :: filename
-        integer, allocatable :: all_frequency_bins(:)
+        integer :: all_frequency_bins(n_frequency_bins)
         real(dp) :: step_size
         real(dp), allocatable :: all_frequency_bounds(:)
+        real(dp) :: norm
+        integer :: sum_all
         ! i can test how to deal with the MPI stuff here to get the same 
         ! results as in the single runs
         ! first i need the maximum length of all processors
 
         call comm_frequency_histogram(all_frequency_bins)
 
-        max_size = size(all_frequency_bins)
-
         if (iProcIndex == 0) then
+            max_size = size(all_frequency_bins)
+
 !             allocate(all_frequency_bounds(max_size))
 !             all_frequency_bounds = [(frq_step_size * i, i = 1, max_size)]
 
@@ -1854,13 +1856,37 @@ contains
 
 
             do i = 1, max_size
-                write(iunit, "(i12)", advance = "no") all_frequency_bins(i)
-                write(iunit, "(f16.7)") frq_step_size * i
+                write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                write(iunit, "(i12)") all_frequency_bins(i)
             end do
 
             close(iunit)
 
-            deallocate(all_frequency_bins)
+            ! and print out normed frequency histogram if possible
+            sum_all = sum(all_frequency_bins)
+            if (.not. sum_all < 0) then 
+                ! we have a int overflow.. 
+                ! how to deal with that?? hm.. 
+                norm = real(sum_all,dp)
+
+                iunit = get_free_unit() 
+                call get_unique_filename("frequency_histogram_normed", .true., &
+                    .true., 1, filename) 
+                open(iunit, file = filename, status = "unknown")
+
+                ! and change x and y axis finally
+                do i = 1, max_size
+                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
+                    write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
+                end do
+                close(iunit)
+
+            else
+                write(iout,*) "Integer overflow in normed frequency histogram!"
+                write(iout,*) "Do no print it!"
+
+            end if
+
 !             deallocate(all_frequency_bounds)
         end if
 

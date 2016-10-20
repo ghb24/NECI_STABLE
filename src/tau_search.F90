@@ -7,7 +7,7 @@ module tau_search
                           AB_hole_pairs, par_hole_pairs, tGen_4ind_reverse, &
                           nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, &
                           tGen_nosym_guga, nSpatOrbs, t_consider_diff_bias, &
-                          tGUGA, tGen_sym_guga_mol
+                          tGUGA, tGen_sym_guga_mol, tHub, tGen_sym_guga_ueg
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, max_permitted_spawn, &
                     gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt,&
@@ -228,7 +228,6 @@ contains
             allocate(frequency_bins_doubles(n_frequency_bins))
             frequency_bins_doubles = 0
 
-
             ! actually the noysm tau search is in a different module..
         else if (tGen_nosym_guga) then
             call stop_all(this_routine, &
@@ -237,6 +236,8 @@ contains
         else 
             ! for any other excitation generator just use one histogram 
             ! for all the excitations
+            ! i could use this also for the UEG guga excitation generator, 
+            ! since there are only double excitations in this case ..
             allocate(frequency_bins(n_frequency_bins))
             frequency_bins = 0
 
@@ -505,7 +506,7 @@ contains
         ! If the calculated tau is less than the current tau, we should ALWAYS
         ! update it. Once we have a reasonable sample of excitations, then we
         ! can permit tau to increase if we have started too low.
-        if (tau_new < tau .or. ((tUEG .or. enough_sing) .and. enough_doub))then
+        if (tau_new < tau .or. (((tUEG .or. tHub) .or. enough_sing) .and. enough_doub))then
 
             ! Make the final tau smaller than tau_new by a small amount
             ! so that we don't get spawns exactly equal to the
@@ -598,22 +599,25 @@ contains
         enough_doub_hist = mpi_ltmp
 
         ! singles is always used.. 
-!         print *, "toto singles", size(frequency_bins_singles)
-        call integrate_frequency_histogram_spec(size(frequency_bins_singles), &
-            frequency_bins_singles, ratio_singles) 
+        ! thats not quite right.. for the hubbard/UEG case it is not.. 
+        if (.not. (tUEG .or. tHub)) then
+    !         print *, "toto singles", size(frequency_bins_singles)
+            call integrate_frequency_histogram_spec(size(frequency_bins_singles), &
+                frequency_bins_singles, ratio_singles) 
 
-        ! if i have a integer overflow i should probably deal here with it..
-        if (ratio_singles < 0.0_dp) then 
-            ! this means i had an int overflow and should stop the tau-searching
-            root_print "The single excitation histogram is full!"
-            root_print "stop the hist_tau_search with last time-step: ", tau
-            root_print "and pSingles and pDoubles:", pSingles, pDoubles
-            t_hist_tau_search = .false. 
+            ! if i have a integer overflow i should probably deal here with it..
+            if (ratio_singles < 0.0_dp) then 
+                ! this means i had an int overflow and should stop the tau-searching
+                root_print "The single excitation histogram is full!"
+                root_print "stop the hist_tau_search with last time-step: ", tau
+                root_print "and pSingles and pDoubles:", pSingles, pDoubles
+                t_hist_tau_search = .false. 
 
-            return 
+                return 
+            end if
+
+            ratio_singles = ratio_singles * pSingles
         end if
-
-        ratio_singles = ratio_singles * pSingles
 
         if (tGen_4ind_weighted .or. tGen_4ind_2) then 
 
@@ -741,6 +745,23 @@ contains
             ! for any other excitation generator just use one histogram
             call integrate_frequency_histogram(ratio)
 
+            if (ratio < 0.0_dp) then
+                root_print "Excitation histogram is full!" 
+                root_print "Stop the hist_tau_search with last time-step: ", tau
+                t_hist_tau_search = .false.
+
+                return
+            end if
+
+            ! use enough_doub_hist in this case to determine if we have enough
+            ! excitations..
+            if (enough_doub_hist) then
+
+                tau_new = max_permitted_spawn / ratio
+
+            end if
+            ! and do stuff... todo!
+
         end if
 
         ! to deatch check again and finally update time-step
@@ -764,7 +785,7 @@ contains
         ! If the calculated tau is less than the current tau, we should ALWAYS
         ! update it. Once we have a reasonable sample of excitations, then we
         ! can permit tau to increase if we have started too low.
-        if (tau_new < tau .or. ((tUEG .or. enough_sing_hist) .and. enough_doub_hist))then
+        if (tau_new < tau .or. (((tUEG .or. tHub) .or. enough_sing_hist) .and. enough_doub_hist))then
 
             ! Make the final tau smaller than tau_new by a small amount
             ! so that we don't get spawns exactly equal to the
@@ -1709,6 +1730,7 @@ contains
         ! to use even more histograms, but that should be fine.
         real(dp), intent(in) :: mat_ele, pgen 
         character(*), parameter :: this_routine = "fill_frequency_histogram"
+        integer, parameter :: cnt_threshold = 50
 
         real(dp) :: ratio
         integer :: ind, new_n_bins, i, old_n_bins
@@ -1765,7 +1787,11 @@ contains
         if (ratio < max_frequency_bound) then
             ! the ratio fits in to the bins now i just have to find the 
             ! correct one
-!             ind = binary_search_first_ge(frequency_bounds, ratio) 
+            if (.not. enough_doub_hist) then
+                cnt_doub_hist = cnt_doub_hist + 1
+                if (cnt_doub_hist > cnt_threshold) enough_doub_hist = .true.
+            end if
+
             ind = int(ratio / frq_step_size) + 1
             
             ! increase counter 
@@ -1865,44 +1891,46 @@ contains
     subroutine comm_frequency_histogram(all_frequency_bins)
         ! routine to communicate the frequency histogram data across all 
         ! processors
-        integer, allocatable, intent(out) :: all_frequency_bins(:)
+        integer, intent(out) :: all_frequency_bins(n_frequency_bins)
         character(*), parameter :: this_routine = "comm_frequency_histogram"
 
-        integer :: core_size, max_size
-        integer, allocatable :: temp_bins(:)
+        ! do the new implementation! with fixed sizes of the frequency bins
+        all_frequency_bins = 0
+
+        call MPIAllReduce(frequency_bins, MPI_SUM, all_frequency_bins)
 
         ! first try to "just" add it without getting them to the same 
         ! length.. 
         ! although still have to make the all list the longest.. 
-        core_size = size(frequency_bins) 
-
-        call MPIAllReduce(core_size, MPI_MAX, max_size) 
-
-        ! allocate the temp list to the max_size
-        allocate(all_frequency_bins(max_size)) 
-
-        ! and then try first without changing the other lists to sum it up
-
-        ! i have to adjust the sizes of the frequency_bins.. 
-        if (core_size < max_size) then 
-
-            ! first save: 
-            allocate(temp_bins(max_size))
-
-            temp_bins = 0
-
-            temp_bins(1:core_size) = frequency_bins
-
-        else
-            ASSERT(core_size == max_size)
-
-            allocate(temp_bins(max_size))
-
-            temp_bins = frequency_bins
-
-        end if
-
-        call MPIAllReduce(temp_bins, MPI_SUM, all_frequency_bins)
+!         core_size = size(frequency_bins) 
+! 
+!         call MPIAllReduce(core_size, MPI_MAX, max_size) 
+! 
+!         ! allocate the temp list to the max_size
+!         allocate(all_frequency_bins(max_size)) 
+! 
+!         ! and then try first without changing the other lists to sum it up
+! 
+!         ! i have to adjust the sizes of the frequency_bins.. 
+!         if (core_size < max_size) then 
+! 
+!             ! first save: 
+!             allocate(temp_bins(max_size))
+! 
+!             temp_bins = 0
+! 
+!             temp_bins(1:core_size) = frequency_bins
+! 
+!         else
+!             ASSERT(core_size == max_size)
+! 
+!             allocate(temp_bins(max_size))
+! 
+!             temp_bins = frequency_bins
+! 
+!         end if
+! 
+!         call MPIAllReduce(temp_bins, MPI_SUM, all_frequency_bins)
 
     end subroutine comm_frequency_histogram
 
@@ -1963,7 +1991,7 @@ contains
         real(dp), intent(out) :: ratio 
         character(*), parameter :: this_routine = "integrate_frequency_histogram"
 
-        integer, allocatable :: all_frequency_bins(:)
+        integer :: all_frequency_bins(n_frequency_bins)
         integer :: i, threshold, n_bins, n_elements, cnt
 
         ! have to communicate all the histograms across all cores 
@@ -1977,8 +2005,15 @@ contains
         if (n_elements == 0) then
             ratio = 0.0_dp
             return
+
+        else if (n_elements < 0) then 
+            ! integer overflow -> stop the hist search!
+            ratio = -1.0_dp
+            t_fill_frequency_hists = .false.
+            return
         end if
-        threshold = int(0.9_dp * real(n_elements, dp))
+
+        threshold = int(frq_ratio_cutoff * real(n_elements, dp))
 
         cnt = 0
         i = 0
