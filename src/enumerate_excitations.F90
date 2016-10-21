@@ -326,10 +326,11 @@ contains
         logical, intent(in), optional :: tSinglesOnlyOpt
         character(*), parameter :: this_routine = "generate_connected_space"
 
-        if (tGUGA .and. tKPntSym) then
-            call stop_all(this_routine, &
-                "k-point symmetry and GUGA + semi-stochastic or trial-wavefunction not yet implemented!")
-        end if
+        ! this restriction does not apply anymore: 
+!         if (tGUGA .and. tKPntSym) then
+!             call stop_all(this_routine, &
+!                 "k-point symmetry and GUGA + semi-stochastic or trial-wavefunction not yet implemented!")
+!         end if
 
         if (tKPntSym) then
             call generate_connected_space_kpnt(original_space_size, original_space, &
@@ -512,6 +513,17 @@ contains
         ! (regardless of the system being studied), otherwise it will generate all connected
         ! determinants.
 
+#ifndef __CMPLX
+        use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
+        use guga_excitations, only: actHamiltonian
+        use bit_reps, only: nifguga
+        use SystemData, only: tGUGA
+        
+        integer :: nexcit, j
+        integer(n_int) :: ilutG(0:nifguga)
+        integer(n_int), pointer :: excitations(:,:)
+#endif
+
         integer, intent(in) :: original_space_size
         integer(n_int), intent(in) :: original_space(0:NIfTot, original_space_size)
         integer, intent(inout) :: connected_space_size
@@ -524,7 +536,7 @@ contains
         integer :: nStore(6)
         integer, allocatable :: excit_gen(:)
         logical :: tStoreConnSpace, tSinglesOnly, tTempUseBrill, tAllExcitFound
-
+        character(*), parameter :: this_routine = "generate_connected_space_kpnt"
 
         if (present(connected_space)) then
             tStoreConnSpace = .true.
@@ -544,26 +556,55 @@ contains
 
             call decode_bit_det(nI, original_space(:,i))
 
-            call init_generate_connected_space(nI, ex_flag, tAllExcitFound, &
-                excit, excit_gen, nstore, tTempUseBrill)
+#ifndef __CMPLX
+            ! GUGA changes:
+            ! my actHamiltonian routine seems to satisfy the k-point symmetry
+            ! so it should be straight forward to implemt it here too
+            if (tGUGA) then
+                if (tSinglesOnly) call stop_all(this_routine,"don't use tSinglesOnly with GUGA")
 
-            if (tSinglesOnly) ex_flag = 1
+                call convert_ilut_toGUGA(original_space(:,i), ilutG)
 
-            do while(.true.)
-
-                call generate_connection_kpnt(nI, original_space(:,i), nJ, &
-                    ilutJ, ex_flag, tAllExcitFound, nStore, excit_gen, &
-                    ncon=connected_space_size)
-
-                if (tAllExcitFound) exit
+                call actHamiltonian(ilutG, excitations, nexcit)
 
                 if (tStoreConnSpace) then
-                    connected_space(0:NIfD, connected_space_size) = ilutJ(0:NIfD)
+                    do j = 1, nexcit
+                        call convert_ilut_toNECI(excitations(:,j), &
+                            connected_space(:, connected_space_size + j))
+                    end do
                 end if
 
-            end do
+                connected_space_size = connected_space_size + nexcit
 
-            deallocate(excit_gen)
+                deallocate(excitations)
+                call LogMemDealloc(this_routine, tag_excitations)
+
+            else
+#endif 
+                call init_generate_connected_space(nI, ex_flag, tAllExcitFound, &
+                    excit, excit_gen, nstore, tTempUseBrill)
+
+                if (tSinglesOnly) ex_flag = 1
+
+                do while(.true.)
+
+                    call generate_connection_kpnt(nI, original_space(:,i), nJ, &
+                        ilutJ, ex_flag, tAllExcitFound, nStore, excit_gen, &
+                        ncon=connected_space_size)
+
+                    if (tAllExcitFound) exit
+
+                    if (tStoreConnSpace) then
+                        connected_space(0:NIfD, connected_space_size) = ilutJ(0:NIfD)
+                    end if
+
+                end do
+
+                deallocate(excit_gen)
+
+#ifndef __CMPLX
+            end if !tGUGA
+#endif
 
         end do
 
