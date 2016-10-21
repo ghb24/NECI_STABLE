@@ -141,7 +141,7 @@ module fcimc_initialisation
 #ifndef __CMPLX
     use guga_data, only: bVectorRef_ilut, bVectorRef_nI, projE_replica
     use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut, convert_ilut_toNECI, &
-                              convert_ilut_toGUGA, getDeltaB, write_det_guga
+                              convert_ilut_toGUGA, getDeltaB, write_det_guga, write_guga_list
     use guga_excitations, only: generate_excitation_guga, create_projE_list, &
                                 actHamiltonian, calc_csf_info
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGUGA_nI
@@ -3531,10 +3531,17 @@ contains
                     ! info?? 
                     ! i think my exact hamil application routine does not 
                     ! deal with symmetry at all... 
-                    call actHamiltonian(ilutHF, excitations, n_excits, .true.) 
+                    if (tHUB .or. tUEG .or. .not.(tNoBrillouin)) then
+                        call actHamiltonian(ilutHF, excitations, n_excits)
+                    else
+                        call actHamiltonian(ilutHF, excitations, n_excits, .true.) 
+                    end if
 
                     ! if no excitations possible... there is something wrong
                     if (.not.(n_excits > 0) .or. n_excits < inum_runs-1) then 
+                        print *, "n_excits: ", n_excits
+                        print *, "requested excited states:", inum_runs-1
+                        call write_guga_list(6, excitations(:,1:n_excits))
                         call stop_all(this_routine, "not enough excitations from HF!")
                     end if
 
