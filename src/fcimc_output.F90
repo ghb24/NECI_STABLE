@@ -525,6 +525,8 @@ contains
             state%mc_out = tMCOutput
             call stats_out(state,.true., iter + PreviousCycles, 'Iter.')
             if (.not. tOrthogonaliseReplicas) then
+               ! note that due to the averaging, the printed value is not necessarily
+               ! an integer
                 call stats_out(state,.true., sum(abs(AllTotParts(1::2)))/inum_runs, &
                      'Tot. parts real')
 #ifdef __REALTIME 

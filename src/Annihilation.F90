@@ -579,11 +579,11 @@ module AnnihilationMod
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(inout) :: TotWalkersNew
         integer, intent(inout) :: ValidSpawned 
-        integer :: PartInd, i, j, PartIndex
+        integer :: PartInd, i, j, PartIndex,m
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
         real(dp) :: pRemove, r
-        integer :: ExcitLevel, DetHash, nJ(nel)
+        integer :: ExcitLevel, DetHash, nJ(nel), ratio(lenof_sign)
         logical :: tSuccess, tSuc, tDetermState
         integer :: run
 
@@ -814,25 +814,37 @@ module AnnihilationMod
                         ! it is deprecated, so i removed it
                             ! Either the determinant has never been an initiator,
                             ! or we want to treat them all the same, as before.
-                        if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
+                        
+                        if( ( (.not. is_run_unnocc(SignTemp, run)) .and. &
+                             (mag_of_run(SignTemp, run) < OccupiedThresh) ) ) then
                            ! We remove this walker with probability 1-RealSignTemp
+
                            pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
                            r = genrand_real2_dSFMT ()
                            if (pRemove > r) then
                               ! Remove this walker.
-                              NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
+                              NoRemoved(run) = NoRemoved(run) + sum(abs(SignTemp( &
+                                   min_part_type(run):max_part_type(run))))
                               !Annihilated = Annihilated + abs(SignTemp(j))
                               !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                              iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                   + abs(SignTemp(j))
-                              SignTemp(j) = 0.0_dp
-                              call nullify_ilut_part (SpawnedParts(:,i), j)
+                              do m=min_part_type(run),max_part_type(run)
+                                 iter_data%nremoved(m) = iter_data%nremoved(m) &
+                                      + abs(SignTemp(m))
+                                 SignTemp(m) = 0.0_dp
+                                 call nullify_ilut_part (SpawnedParts(:,i), m)
+                              enddo
                            else !if (tEnhanceRemainder) then
-                              NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
-                              iter_data%nborn(j) = iter_data%nborn(j) &
-                                   + OccupiedThresh - abs(SignTemp(j))
-                              SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
-                              call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
+                              do m=min_part_type(run),max_part_type(run)
+                                 ! do not change the phase of the population
+                                 ratio(m) = abs(SignTemp(m))/mag_of_run(SignTemp,run)
+                                 iter_data%nborn(m) = iter_data%nborn(m) &
+                                      + OccupiedThresh*ratio(m) - abs(SignTemp(m))
+                                 NoBorn(run) = NoBorn(run) + OccupiedThresh*ratio(m) &
+                                      - abs(CurrentSign(m))
+                                 SignTemp(m) = sign(OccupiedThresh*ratio(m), SignTemp(m))
+                                 call encode_part_sign (SpawnedParts(:,i), SignTemp(m), m)
+                              enddo
+
                            end if
                         end if
                     end do
@@ -853,26 +865,37 @@ module AnnihilationMod
                     
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
-                        if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
-                            ! We remove this walker with probability 1-RealSignTemp.
-                            pRemove = (OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
-                            r = genrand_real2_dSFMT ()
-                            if (pRemove  >  r) then
-                                ! Remove this walker.
-                                NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
-                                !Annihilated = Annihilated + abs(SignTemp(j))
-                                !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                                iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                                      + abs(SignTemp(j))
-                                SignTemp(j) = 0
-                                call nullify_ilut_part (SpawnedParts(:,i), j)
-                            else
-                                NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
-                                iter_data%nborn(j) = iter_data%nborn(j) &
-                                            + OccupiedThresh - abs(SignTemp(j))
-                                SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
-                                call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
-                            end if
+                        if( ( (.not. is_run_unnocc(SignTemp, run)) .and. &
+                             (mag_of_run(SignTemp, run) < OccupiedThresh) ) ) then
+                           ! We remove this walker with probability 1-RealSignTemp
+
+                           pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
+                           r = genrand_real2_dSFMT ()
+                           if (pRemove > r) then
+                              ! Remove this walker.
+                              NoRemoved(run) = NoRemoved(run) + sum(abs(SignTemp( &
+                                   min_part_type(run):max_part_type(run))))
+                              !Annihilated = Annihilated + abs(SignTemp(j))
+                              !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+                              do m=min_part_type(run),max_part_type(run)
+                                 iter_data%nremoved(m) = iter_data%nremoved(m) &
+                                      + abs(SignTemp(m))
+                                 SignTemp(m) = 0.0_dp
+                                 call nullify_ilut_part (SpawnedParts(:,i), m)
+                              enddo
+                           else !if (tEnhanceRemainder) then
+                              do m=min_part_type(run),max_part_type(run)
+                                 ! do not change the phase of the population
+                                 ratio(m) = abs(SignTemp(m))/mag_of_run(SignTemp,run)
+                                 iter_data%nborn(m) = iter_data%nborn(m) &
+                                      + OccupiedThresh*ratio(m) - abs(SignTemp(m))
+                                 NoBorn(run) = NoBorn(run) + OccupiedThresh*ratio(m) &
+                                      - abs(CurrentSign(m))
+                                 SignTemp(m) = sign(OccupiedThresh*ratio(m), SignTemp(m))
+                                 call encode_part_sign (SpawnedParts(:,i), SignTemp(m), m)
+                              enddo
+
+                           end if
                         end if
                     end do
                     
@@ -907,7 +930,7 @@ module AnnihilationMod
         call halt_timer(AnnMain_time)
 
     end subroutine AnnihilateSpawnedParts
-    
+  
     pure function test_abort_spawn(ilut_spwn, part_type) result(abort)
 
         ! Should this spawn be aborted (according to the initiator

@@ -519,7 +519,7 @@ contains
         type(fcimc_iter_data), intent(inout) :: iter_data
 
         integer :: i, j, AnnihilatedDet, lbnd, ubnd
-        real(dp) :: CurrentSign(lenof_sign)
+        real(dp) :: CurrentSign(lenof_sign), ratio(lenof_sign)
         real(dp) :: pRemove, r
         integer :: nI(nel), run, ic
         logical :: tIsStateDeterm
@@ -549,22 +549,29 @@ contains
                    AnnihilatedDet = AnnihilatedDet + 1 
                 else
 
-                    do j=1, lenof_sign
-                        run = part_type_to_run(j)
+                    do run=1, inum_runs
                         if (.not. tIsStateDeterm) then
                            ! This is only relevant if non-integer CurrentSign is used (which
                            ! will most likely be the case for rotated time)
-                            if ((abs(CurrentSign(j)) > 1.e-12_dp) .and. (abs(CurrentSign(j)) < OccupiedThresh)) then
+
+                           ! The stochastic round preventing walker weights <1 is done here
+                             if( ( (.not. is_run_unnocc(CurrentSign, run)) .and. &
+                                  (mag_of_run(CurrentSign, run) < OccupiedThresh) ) ) then
                                 !We remove this walker with probability 1-RealSignTemp
-                                pRemove=(OccupiedThresh-abs(CurrentSign(j)))/OccupiedThresh
+
+                                pRemove=(OccupiedThresh-mag_of_run(CurrentSign, run))&
+                                     /OccupiedThresh
                                 r = genrand_real2_dSFMT ()
                                 if (pRemove  >  r) then
                                     !Remove this walker
-                                    NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
-                                    iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                                          + abs(CurrentSign(j))
-                                    CurrentSign(j) = 0.0_dp
-                                    call nullify_ilut_part(CurrentDets(:,i), j)
+                                    NoRemoved(run) = NoRemoved(run) + sum(abs(CurrentSign(&
+                                         min_part_type(run):max_part_type(run))))
+                                    do j=min_part_type(run),max_part_type(run)
+                                       iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                            + abs(CurrentSign(j))
+                                       CurrentSign(j) = 0.0_dp
+                                       call nullify_ilut_part(CurrentDets(:,i), j)
+                                    enddo
                                     call decode_bit_det(nI, CurrentDets(:,i))
                                     if (IsUnoccDet(CurrentSign)) then
                                         call remove_hash_table_entry(HashIndex, nI, i)
@@ -572,19 +579,27 @@ contains
                                         FreeSlot(iEndFreeSlot)=i
                                     end if
                                 else
-                                    NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(CurrentSign(j))
-                                    iter_data%nborn(j) = iter_data%nborn(j) &
-                                         + OccupiedThresh - abs(CurrentSign(j))
-                                    CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
-                                    call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
+                                    do j=min_part_type(run),max_part_type(run)
+                                       ! do not change the phase of the population
+                                       ratio(j) = abs(CurrentSign(j))/mag_of_run(CurrentSign,run)
+                                       NoBorn(run) = NoBorn(run) + OccupiedThresh*ratio(j) &
+                                            - abs(CurrentSign(j))
+                                       iter_data%nborn(j) = iter_data%nborn(j) &
+                                            + OccupiedThresh*ratio(j) - abs(CurrentSign(j))
+                                       CurrentSign(j) = sign(OccupiedThresh*ratio(j), CurrentSign(j))
+                                       call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
+                                    enddo
+
                                 end if
                             end if
                         end if
-                        if(CurrentSign(j) > 0.0_dp) then
-                           TotPartsPos(j) = TotPartsPos(j) + CurrentSign(j)
-                        else
-                           TotPartsNeg(j) = TotPartsNeg(j) + CurrentSign(j)
-                        endif
+                        do j=min_part_type(run),max_part_type(run)
+                           if(CurrentSign(j) > 0.0_dp) then
+                              TotPartsPos(j) = TotPartsPos(j) + CurrentSign(j)
+                           else
+                              TotPartsNeg(j) = TotPartsNeg(j) + CurrentSign(j)
+                           endif
+                        enddo
                     end do
 
                     TotParts = TotParts + abs(CurrentSign)

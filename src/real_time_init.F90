@@ -57,6 +57,7 @@ module real_time_init
     implicit none
 
     logical :: tmemoryfacdiagset
+    real(dp) :: benchmarkEnergy
 
 contains
 
@@ -234,8 +235,8 @@ contains
 
         gf_overlap = 0.0_dp
 
-!        gs_energy = -20.79364
-        gs_energy = -22.56838
+        gs_energy = benchmarkEnergy
+!        gs_energy = -22.56838
         shift_damping = 0.0_dp
         
         ! to avoid dividing by 0 if not all entries get filled
@@ -380,6 +381,7 @@ contains
         AllSumWalkersCyc_1 = 0.0_dp
         elapsedRealTime = 0.0_dp
         elapsedImagTime = 0.0_dp
+        benchmarkEnergy = 0.0_dp
 
         call rotate_time()
 
@@ -616,6 +618,11 @@ contains
                 ! note that the walker number will grow exponentially in this
                 ! scenario, however
                 t_noshift = .true.
+
+             case("ENERGY-BENCHMARK")
+                ! one can specify an energy which shall be added as a global shift
+                ! to the hamiltonian. Useful for getting transition energies
+                call readf(benchmarkEnergy)
                 
             case ("COMPLEX-INTEGRALS")
                 ! in the real-time implementation, since we need the complex 

@@ -305,33 +305,6 @@ contains
                ! CurrentDets. If coeff <1, apply removal criterion.
                call extract_sign (DiagParts(:,i), SignTemp)
 
-               tPrevOcc = .false.
-               if (.not. IsUnoccDet(SignTemp)) tPrevOcc = .true. 
-
-               do j = 1, lenof_sign
-                  run = part_type_to_run(j)
-                  if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
-                     ! We remove this walker with probability 1-RealSignTemp.
-                     pRemove = (OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
-                     r = genrand_real2_dSFMT ()
-                     if (pRemove  >  r) then
-                        ! Remove this walker.
-                        NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
-                        ! rt_iter_adapt : see above
-                        !Annihilated = Annihilated + abs(SignTemp(j))
-                        !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                        !iter_data%nremoved(j) = iter_data%nremoved(j) &
-                        !+ abs(SignTemp(j))
-                        SignTemp(j) = 0
-                        call nullify_ilut_part (DiagParts(:,i), j)
-                     else !if (tEnhanceRemainder) then
-                        ! Birth event is counted below
-                        SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
-                        call encode_part_sign (DiagParts(:,i), SignTemp(j), j)
-                     end if
-                  end if
-               end do
-
                if (.not. IsUnoccDet(SignTemp)) then
                   ! Walkers have not been aborted and so we should copy the
                   ! determinant straight over to the main list. We do not
@@ -340,7 +313,10 @@ contains
                   ! also here treat those new walkers as born particles
 
                   iter_data%nborn = iter_data%nborn + abs(SignTemp)
-                  NoBorn(run) = NoBorn(run) + sum(abs(SignTemp))
+                  do run=1, inum_runs
+                     NoBorn(run) = NoBorn(run) + sum(abs(SignTemp(&
+                          min_part_type(run):max_part_type(run))))
+                  enddo
                   call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ)
 
                end if
@@ -426,6 +402,7 @@ contains
             write(6,*) "No memory slots available for this spawn."
             write(6,*) "Please increase MEMORYFACSPAWN"
             write(6,*) "VALID DIAG SPAWN LIST", valid_diag_spawn_list
+            write(6,*) "NUMBER OF OCCUPIED DETS", TotWalkers
             call stop_all(this_routine, "Out of memory for spawned particles")
         end if
 
@@ -592,8 +569,8 @@ contains
            do run = 1, inum_runs
               ! tau_real and tau_imag have opposite signs -> shift changed sign
               ! when moved from imaginary to real part
-              fac(max_part_type(run)) =  tau_real * (real_time_info%damping &
-                   + DiagSft(run) ) + tau_imag*(Kii + Hii - gs_energy(run))
+              fac(max_part_type(run)) =  tau_real * (real_time_info%damping) &
+                  + tau_imag*(Kii + Hii - gs_energy(run) - DiagSft(run) )
            enddo
 
             ! and also about the fac restrictions.. for now but it here anyway..
@@ -1319,8 +1296,7 @@ contains
                          real_sign_1(min_part_type(run)) * real_sign_2(min_part_type(run)) + &
                          real_sign_2(max_part_type(run)) * real_sign_1(max_part_type(run)) 
                     endif
-                    tmp_norm(run) = tmp_norm(run) + real_sign_2(min_part_type(run))**2 + &
-                         real_sign_2(max_part_type(run))**2
+                    tmp_norm(run) = tmp_norm(run) + real_sign_2(i)**2
                 end do
             end if
         end do
@@ -1356,7 +1332,8 @@ contains
            call extract_sign(dets(:,idet), tmp_sign)
            do run = 1,inum_runs
 
-              cd_norm(run) = cd_norm(run) + tmp_sign(min_part_type(run))**2 + tmp_sign(max_part_type(run))**2
+              cd_norm(run) = cd_norm(run) + tmp_sign(min_part_type(run))**2 &
+                   + tmp_sign(max_part_type(run))**2
 
            end do
         end do 
@@ -1430,7 +1407,7 @@ contains
     subroutine update_shift_damping()
       implicit none
 ! sign convention for imaginary and real time differ
-      shift_damping = shift_damping - tau_real * DiagSft
+      shift_damping = shift_damping + tau_imag * DiagSft
 
     end subroutine update_shift_damping
 
