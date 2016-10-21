@@ -464,16 +464,16 @@ module FciMCParMod
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
 
         ! if i want to do the histogramming output the info now
-        if (t_frequency_analysis) then
-            if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_sym_guga_mol) then
-                if (.not. tGen_nosym_guga) then
-                    call print_frequency_histogram_spec()
-                end if
-            else if (tGen_sym_guga_ueg .or. tLatticeGens) then
-                call print_frequency_histogram()
-            end if
-            call MPIBarrier(error)
-        end if
+!         if (t_frequency_analysis) then
+!             if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_sym_guga_mol) then
+!                 if (.not. tGen_nosym_guga) then
+!                     call print_frequency_histogram_spec()
+!                 end if
+!             else if (tGen_sym_guga_ueg .or. tLatticeGens) then
+!                 call print_frequency_histogram()
+!             end if
+!             call MPIBarrier(error)
+!         end if
 
 #ifndef __CMPLX
         if (tGUGA) then 
