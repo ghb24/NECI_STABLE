@@ -2324,7 +2324,9 @@ MODULE GenRandSymExcitNUMod
                 
         IF(tHub) THEN
             ! Debug to test the resultant determinant
-            IF(.not.(IsMomentumAllowed(nJ)))THEN
+            ! i think i also have to check here if kpoint symmetry is turned
+            ! on... or is it generally turned on in the hubbard case?? 
+            IF(.not.(IsMomentumAllowed(nJ)) .and. tKPntSym)THEN
                 CALL Stop_All("CreateDoubExcitLattice","Incorrect kb generated -- momentum not conserved")
             ENDIF
         ENDIF

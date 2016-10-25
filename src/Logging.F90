@@ -186,6 +186,11 @@ MODULE Logging
         call readu(w)
         select case(w)
 
+        case ("PRINT-FREQUENCY-HISTOGRAMS")
+            ! in this case print the frequency histograms to analyze the 
+            ! matrix element vs. pgen ratios
+            t_print_frq_histograms = .true.
+
         case("REBLOCKSHIFT")
             !Abort all other calculations, and just block data again with given equilibration time (in iterations)
             tJustBlocking = .true.

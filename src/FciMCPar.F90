@@ -19,7 +19,7 @@ module FciMCParMod
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, &
-                           write_end_core_size
+                           write_end_core_size, t_print_frq_histograms
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -464,16 +464,16 @@ module FciMCParMod
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
 
         ! if i want to do the histogramming output the info now
-!         if (t_frequency_analysis) then
-!             if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_sym_guga_mol) then
-!                 if (.not. tGen_nosym_guga) then
-!                     call print_frequency_histogram_spec()
-!                 end if
-!             else if (tGen_sym_guga_ueg .or. tLatticeGens) then
-!                 call print_frequency_histogram()
-!             end if
-!             call MPIBarrier(error)
-!         end if
+        if (t_frequency_analysis .and. t_print_frq_histograms) then
+            if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_sym_guga_mol) then
+                if (.not. tGen_nosym_guga) then
+                    call print_frequency_histogram_spec()
+                end if
+            else if (tGen_sym_guga_ueg .or. tLatticeGens) then
+                call print_frequency_histogram()
+            end if
+            call MPIBarrier(error)
+        end if
 
 #ifndef __CMPLX
         if (tGUGA) then 

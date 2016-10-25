@@ -1887,9 +1887,20 @@ system: do
              ENDDO
            ENDDO
          ENDDO
+         print *, "arr(:,1)", arr(:,1)
+         print *, "arr(:,2)", arr(:,2)
+         print *, "brr: ", brr
 !C..Check to see if all's well
          WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
          NBASIS=IG
+
+         ! try to order all of the stuff in ascending orbital number.. 
+         ! but this could mean a lot of changes in other parts of the code.. 
+         ! first i would have to sort.. 
+
+         do i = 1, nbasis
+
+
          IF(LEN.NE.IG) THEN
             IF(OrbECutoff.gt.-1e20_dp) then
                write(6,*) " Have removed ", LEN-IG, " high energy orbitals "
@@ -1913,7 +1924,6 @@ system: do
          ENDIF
          if (.not. tHub) CALL GENMOLPSYMTABLE(1,G1,NBASIS)
       ENDIF
-
       IF(tFixLz) THEN
           WRITE(6,'(A)') "****** USING Lz SYMMETRY *******"
           WRITE(6,'(A,I5)') "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot

@@ -104,4 +104,6 @@ module LoggingData
     logical :: tOutputLoadDistribution
 
     logical :: tHDF5PopsRead, tHDF5PopsWrite
+
+    logical :: t_print_frq_histograms = .false.
 end module LoggingData
