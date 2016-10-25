@@ -1123,6 +1123,9 @@ system: do
 !     UEG2
       integer :: AllocateStatus
       real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024_dp
+#ifndef __CMPLX
+      integer, allocatable :: temp_sym_vecs(:,:)
+#endif
 
 
 !      write (6,*)
@@ -1490,7 +1493,6 @@ system: do
 !C..Check to see if all's well
               WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
               NBASIS=IG
-
               ! calculate k-vectors in cartesian coordinates	      
               allocate(kvec(NBASIS, 3), STAT = AllocateStatus)
               IG=0
@@ -1887,9 +1889,6 @@ system: do
              ENDDO
            ENDDO
          ENDDO
-         print *, "arr(:,1)", arr(:,1)
-         print *, "arr(:,2)", arr(:,2)
-         print *, "brr: ", brr
 !C..Check to see if all's well
          WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
          NBASIS=IG
@@ -1898,8 +1897,48 @@ system: do
          ! but this could mean a lot of changes in other parts of the code.. 
          ! first i would have to sort.. 
 
-         do i = 1, nbasis
+          ! what about reordering the basis functions and the associated 
+          ! k-points in ascending single particle energy order? 
+          ! for the guga implementation this would be beneficiary for 
+          ! the efficiency of the code.. 
 
+          ! for now implement it only for the GUGA case to not mess to 
+          ! much with the rest of the code..
+#ifndef __CMPLX
+          if (tGUGA) then
+              ! i have to sort the alpha and betas seperately, due the 
+              ! possible degeneracies
+              call sort(arr(:,1), brr, nskip = 2)
+              call sort(arr(2:nBasis,1), brr(2:nBasis), nskip = 2)
+              call sort(arr(:,2))
+              ! i have to make a copy of the G1 array i guess to temporarily
+              ! save the symmetry information.. 
+              allocate(temp_sym_vecs(nBasis,4))
+
+              do i = 1, nBasis 
+                  temp_sym_vecs(i,1) = G1(i)%k(1)
+                  temp_sym_vecs(i,2) = G1(i)%k(2)
+                  temp_sym_vecs(i,3) = G1(i)%k(3)
+                  temp_sym_vecs(i,4) = G1(i)%ms
+              end do
+
+              ! and now restore the information in the G1 
+              do i = 1, nBasis
+                  G1(i)%k(1) = temp_sym_vecs(brr(i),1)
+                  G1(i)%k(2) = temp_sym_vecs(brr(i),2)
+                  G1(i)%k(3) = temp_sym_vecs(brr(i),3)
+                  G1(i)%ms = temp_sym_vecs(brr(i),4)
+                  ! now it is okay to sort brr ascending or?
+                  brr(i) = i
+              end do
+              ! hm.. and what about degeneracies and the connected 
+              ! k-vectors.. is it enough to just leave them as they are, 
+              ! since they are degenerate anyway... in the "normal" 
+              ! implementation it also does not seem like there is any 
+              ! change in the association with the k-vectors, although 
+              ! the brr and arr arrays are sorted again.. 
+          end if
+#endif
 
          IF(LEN.NE.IG) THEN
             IF(OrbECutoff.gt.-1e20_dp) then
