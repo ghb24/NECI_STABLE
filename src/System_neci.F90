@@ -352,6 +352,11 @@ system: do
             t_guga_unit_tests = .true.
             t_full_guga_tests = .true.
 
+
+        case ("GUGA-NOREORDER")
+            ! do not reorder the orbitals in the hubbard + guga implementation
+            t_guga_noreorder = .true.
+
         case("CSF")
             if(item.lt.nitems) then
                call geti(STOT)
@@ -1919,7 +1924,7 @@ system: do
           ! for now implement it only for the GUGA case to not mess to 
           ! much with the rest of the code..
 #ifndef __CMPLX
-          if (tGUGA) then
+          if (tGUGA .and. (.not. t_guga_noreorder)) then
               ! i have to sort the alpha and betas seperately, due the 
               ! possible degeneracies
               call sort(arr(:,1), brr, nskip = 2)

@@ -273,6 +273,10 @@ logical :: t_test_excit_gen = .false.
 logical :: t_twisted_bc = .false.
 real(dp) :: twisted_bc(2) = 0.0_dp
 
+! put in a logical to not reorder the orbitals in the guga + hubbard case 
+! to directly compare it with the determinental implementation, even if
+! this might decrease the efficiency of the guga implmenetation
+logical :: t_guga_noreorder = .false.
 
 ! Operators for type(symmetry)
 interface assignment (=)
