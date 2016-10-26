@@ -114,7 +114,7 @@ MODULE FciMCData
                                      !the instantaneous shift, including the number of aborted as though they had lived.
 
       real(dp), allocatable :: DiagSftRe(:), DiagSftIm(:)     !For complex walkers - this is just for info - not used for population control.
-    
+      
       INTEGER , ALLOCATABLE :: HFDet(:), HFDet_True(:)       !This will store the HF determinant
       INTEGER(TagIntType) :: HFDetTag=0
 

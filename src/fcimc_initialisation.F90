@@ -1275,6 +1275,8 @@ contains
                     " particles to be spawned in any one iteration per core."
             allocate(SpawnVec(0:NIfBCast, MaxSpawned), &
                      SpawnVec2(0:NIfBCast, MaxSpawned), stat=ierr)
+            ! there is no need in the real-time application to allocate SpawnVec2 -> add
+            ! condition
             log_alloc(SpawnVec, SpawnVecTag, ierr)
             log_alloc(SpawnVec2, SpawnVec2Tag, ierr)
 

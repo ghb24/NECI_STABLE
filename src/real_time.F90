@@ -10,7 +10,7 @@ module real_time
                                create_diagonal_as_spawn, count_holes_in_currentDets, &
                                DirectAnnihilation_diag, check_update_growth, &
                                get_tot_parts, update_gf_overlap, calc_norm, &
-                               update_shift_damping
+                               update_shift_damping, real_time_determ_projection
     use real_time_data, only: gf_type, wf_norm, &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
                               current_overlap, SumWalkersCyc_1, real_time_info, DiagParts, &
@@ -317,7 +317,7 @@ contains
             call check_real_time_iteration()
 
             ! load balancing
-            if(tLoadBalanceBlocks .and. mod(iter,1000) == 0) then
+            if(tLoadBalanceBlocks .and. mod(iter,1000) == 0 .and. (.not. tSemiStochastic)) then
                call adjust_load_balance(iter_data_fciqmc)
             endif
 
@@ -509,10 +509,13 @@ contains
                     unused_sign(lenof_sign), unused_rdm_real, diag_sign(lenof_sign)
         logical :: tParentIsDeterm, tParentUnoccupied, tParity, tChildIsDeterm
         HElement_t(dp) :: HelGen
-        integer :: TotWalkersNew, err
+        integer :: TotWalkersNew, err, determ_index
 
         ! declare this is the second runge kutta step
         runge_kutta_step = 2
+
+        ! index for counting deterministic states
+        determ_index = 1
 
         ! use part of nicks code, and remove the parts, that dont matter 
         do idet = 1, int(TotWalkers, sizeof_int)
@@ -537,6 +540,15 @@ contains
 
             tParentIsDeterm = check_determ_flag(CurrentDets(:,idet))
             tParentUnoccupied = IsUnoccDet(parent_sign)
+            
+            if(tParentIsDeterm) then
+               indices_of_determ_states(determ_index) = idet
+               partial_determ_vecs(:,determ_index) = parent_sign
+               determ_index = determ_index + 1
+               if(IsUnoccDet(parent_sign)) cycle
+            endif
+
+            if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
 
             ! If this slot is unoccupied (and also not a core determinant) then add it to
             ! the list of free slots and cycle.
@@ -552,7 +564,6 @@ contains
             ! The current diagonal matrix element is stored persistently.
             parent_hdiag = det_diagH(idet)
 
-            if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
 
             ! UPDATE: call this routine anyway to update info on noathf 
             ! and noatdoubs, for the intermediate step
@@ -652,9 +663,12 @@ contains
 
             end if
 
-        end do ! Over all determinants.  
+        end do ! Over all determinants. 
 
-        if (tSemiStochastic) call determ_projection()
+        ! the deterministic time evoulution is performed here according to the 
+        ! RK scheme (annihilation is done separately as deterministic_annihilation)
+
+        if (tSemiStochastic) call real_time_determ_projection() 
 
     end subroutine second_real_time_spawn
 
@@ -672,11 +686,13 @@ contains
                     unused_sign(lenof_sign), unused_rdm_real
         logical :: tParentIsDeterm, tParentUnoccupied, tParity, tChildIsDeterm
         HElement_t(dp) :: HelGen
-        integer :: TotWalkersNew, run
+        integer :: TotWalkersNew, run, determ_index
 
         ! declare this is the first runge kutta step
         runge_kutta_step = 1
         ! use part of nicks code, and remove the parts, that dont matter 
+
+        determ_index = 1
 
         do idet = 1, int(TotWalkers, sizeof_int)
 
@@ -701,6 +717,13 @@ contains
 
             tParentIsDeterm = check_determ_flag(CurrentDets(:,idet))
             tParentUnoccupied = IsUnoccDet(parent_sign)
+
+            if(tParentIsDeterm) then
+               indices_of_determ_states(determ_index) = idet
+               partial_determ_vecs(:,determ_index) = parent_sign
+               determ_index = determ_index + 1
+               if(tParentUnoccupied) cycle
+            endif
 
             ! If this slot is unoccupied (and also not a core determinant) then add it to
             ! the list of free slots and cycle.
@@ -812,7 +835,8 @@ contains
             end if
 
         end do ! Over all determinants.
-        if (tSemiStochastic) call determ_projection()
+
+        if (tSemiStochastic) call real_time_determ_projection()
 
         ! also update the temp. variables to reuse in y(n) + k2 comb.
         ! this should be done before the annihilaiton step, as there these 

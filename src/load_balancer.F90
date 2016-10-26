@@ -562,6 +562,7 @@ contains
                                 pRemove=(OccupiedThresh-mag_of_run(CurrentSign, run))&
                                      /OccupiedThresh
                                 r = genrand_real2_dSFMT ()
+
                                 if (pRemove  >  r) then
                                     !Remove this walker
                                     NoRemoved(run) = NoRemoved(run) + sum(abs(CurrentSign(&

@@ -761,7 +761,7 @@ module AnnihilationMod
 
             end if
                 
-            if ( (.not.tSuccess) .or. (tSuccess .and. IsUnoccDet(CurrentSign) .and. (.not. tDetermState)) ) then
+            if ( (.not.tSuccess) .or. ((tSuccess .and. IsUnoccDet(CurrentSign) .and. (.not. tDetermState))) ) then
 
                 ! Determinant in newly spawned list is not found in CurrentDets.
                 ! Usually this would mean the walkers just stay in this list and

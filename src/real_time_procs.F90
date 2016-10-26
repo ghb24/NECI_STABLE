@@ -33,7 +33,9 @@ module real_time_procs
                          tSearchTau, tFillingStochRDMonFly, fcimc_iter_data, &
                          NoAddedInitiators, SpawnedParts, acceptances, TotWalkers, &
                          nWalkerHashes, iter, fcimc_excit_gen_store, NoDied, &
-                         NoBorn, NoAborted, NoRemoved, HolesInList, TotParts, Hii
+                         NoBorn, NoAborted, NoRemoved, HolesInList, TotParts, Hii, &
+                         determ_sizes, determ_displs, determ_space_size, core_space
+    use sparse_arrays, only: sparse_core_ham
     use perturbations, only: apply_perturbation
     use util_mod, only: int_fmt
     use CalcData, only: AvMCExcits, tAllRealCoeff, tRealCoeffByExcitLevel, &
@@ -81,6 +83,7 @@ contains
         ! valid_diag_spawn_list gets increased after the spawn
         ! to DiagParts(:,valid_diag_spawn_list) -> highest index is
         ! actually valid_diag_spawn_list-1 
+
         numSpawns = valid_diag_spawn_list(iProcIndex)-1
         call AnnihilateDiagParts(numSpawns, TotWalkersNew, iter_data)
 
@@ -90,7 +93,8 @@ contains
         
         call CalcHashTableStats(TotWalkersNew,iter_data)
         
-        ! this should be it..
+        ! this should be it, deterministic annihilation is carried out in the next
+        ! step, within the 'regular' annihilation
         
     end subroutine DirectAnnihilation_diag
 
@@ -1076,6 +1080,7 @@ contains
     end function attempt_create_realtime
 
     subroutine save_current_dets() 
+      use real_time_data, only: TotPartsStorage
         ! routine to copy the currentDets array and all the associated 
         ! pointers an hashtable related quantities to the 2nd temporary 
         ! list, from which the first spawn and y(n) + k1/2 addition is done 
@@ -1118,6 +1123,12 @@ contains
         
         ! also have to save current number of determinants! (maybe totparts too?)
         temp_totWalkers = TotWalkers
+        
+        ! And save the old TotParts value, as this might have changed and iter_data is reset
+        ! (some weird scenario in which CalcHashTableStats is called at the end of the 
+        ! time-step and and then modifies both TotParts and iter_data correctly, but iter_data
+        ! is reset at the beginning of the iteration, so TotParts also has to)
+        TotPartsStorage = TotParts
 
     end subroutine save_current_dets
 
@@ -1340,10 +1351,121 @@ contains
 
     end function calc_norm
 
+    subroutine real_time_determ_projection()
+
+        ! This subroutine gathers together partial_determ_vecs from each processor so
+        ! that the full vector for the whole deterministic space is stored on each processor.
+        ! It then performs the deterministic multiplication of the projector on this full vector.
+
+        use FciMCData, only: partial_determ_vecs, full_determ_vecs, SemiStoch_Comms_Time
+        use FciMCData, only: SemiStoch_Multiply_Time
+        use Parallel_neci, only: MPIBarrier, MPIAllGatherV
+
+        integer :: i, j, ierr, run, part_type
+
+        call MPIBarrier(ierr)
+
+        call set_timer(SemiStoch_Comms_Time)
+
+        call MPIAllGatherV(partial_determ_vecs, full_determ_vecs, &
+                            determ_sizes, determ_displs)
+
+        call halt_timer(SemiStoch_Comms_Time)
+
+        call set_timer(SemiStoch_Multiply_Time)
+
+        if (determ_sizes(iProcIndex) >= 1) then
+
+            ! For the moment, we're only adding in these contributions when we need the energy
+            ! This will need refinement if we want to continue with the option of inst vs true full RDMs
+            ! (as in another CMO branch).
+
+            ! Perform the multiplication.
+
+            partial_determ_vecs = 0.0_dp
+
+            do i = 1, determ_sizes(iProcIndex)
+                do j = 1, sparse_core_ham(i)%num_elements
+                    do run = 1, inum_runs
+                       ! real part of the 'spawn'
+                       partial_determ_vecs(min_part_type(run),i) = &
+                            partial_determ_vecs(min_part_type(run),i) + &
+
+                            tau_real*Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(&
+                            min_part_type(run),sparse_core_ham(i)%positions(j)) +&
+
+                            tau_real*Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(&
+                            max_part_type(run),sparse_core_ham(i)%positions(j)) +&
+                            
+                            tau_imag*Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(&
+                            min_part_type(run),sparse_core_ham(i)%positions(j)) -&
+
+                            tau_imag*Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(&
+                            max_part_type(run),sparse_core_ham(i)%positions(j))
+
+                       ! imaginary part
+                       partial_determ_vecs(max_part_type(run),i) = &
+                            partial_determ_vecs(max_part_type(run),i) - &
+
+                            tau_real*Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(&
+                            min_part_type(run),sparse_core_ham(i)%positions(j)) +&
+
+                            tau_real*Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(&
+                            max_part_type(run),sparse_core_ham(i)%positions(j)) +&
+
+                            tau_imag*Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(&
+                            max_part_type(run),sparse_core_ham(i)%positions(j)) +&
+
+                            tau_imag*Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(&
+                            min_part_type(run),sparse_core_ham(i)%positions(j))
+                        
+                    end do
+                end do
+            end do
+
+            ! Now add shift*full_determ_vecs to account for the shift, not stored in
+            ! sparse_core_ham.
+            do i = 1, determ_sizes(iProcIndex)
+                do run  = 1, inum_runs 
+                   ! real part
+                   partial_determ_vecs(min_part_type(run),i) = &
+                        partial_determ_vecs(min_part_type(run),i) + &
+                        (Hii - gs_energy(run)) * full_determ_vecs(max_part_type(run),i + &
+                        determ_displs(iProcIndex)) * &
+                        tau_real + tau_imag * full_determ_vecs(min_part_type(run),i + &
+                        determ_displs(iProcIndex)) * (Hii - gs_energy(run) - DiagSft(run))
+
+                   ! imaginary part
+                   partial_determ_vecs(max_part_type(run),i) = &
+                        partial_determ_vecs(max_part_type(run),i) + tau_imag * &
+                        (Hii - gs_energy(run) - DiagSft(run)) * full_determ_vecs(& 
+                        max_part_type(run),i + determ_displs(iProcIndex)) - tau_real &
+                        * (Hii - gs_energy(run)) * full_determ_vecs(min_part_type(run),i &
+                        + determ_displs(iProcIndex)) 
+                enddo
+            end do
+        end if
+
+        call halt_timer(SemiStoch_Multiply_Time)
+
+    end subroutine real_time_determ_projection
+
+    subroutine refresh_semistochastic_space()
+      use CalcData, only: ss_space_in
+      use semi_stoch_gen, only: init_semi_stochastic
+      use semi_stoch_procs, only: end_semistoch
+      implicit none
+      ! as the important determinants might change during time evolution, this
+      ! resets the semistochastic space taking the current population to get it
+      call end_semistoch()
+      call init_semi_stochastic(ss_space_in)
+    end subroutine refresh_semistochastic_space
+
     subroutine create_perturbed_ground()
         ! routine to create from the already read in popsfile info in 
         ! popsfile_dets the left hand <y(0)| by applying the corresponding 
         ! creation or annihilation operator
+      implicit none
         character(*), parameter :: this_routine = "create_perturbed_ground"
         integer :: tmp_totwalkers
         integer(int64) :: TotWalkers_orig_max
