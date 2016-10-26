@@ -701,6 +701,7 @@ contains
             ! And we are done
             write(state%funit, *)
             if (tMCOutput) write(iout, *)
+
             call neci_flush(state%funit)
             call neci_flush(iout)
 

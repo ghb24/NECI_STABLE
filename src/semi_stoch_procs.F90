@@ -728,9 +728,8 @@ contains
         type(ll_node), pointer :: temp_node
         logical :: tSuccess
         character(*), parameter :: this_routine = 'add_core_states_currentdet'
-
+        
         nwalkers = int(TotWalkers,sizeof_int)
-
         ! Test that SpawnedParts is going to be big enough
         if (determ_sizes(iProcIndex) > MaxSpawned) then
             write(6,*) 'Spawned parts array will not be big enough for &
@@ -768,7 +767,7 @@ contains
                 call encode_sign(SpawnedParts(:,i), walker_sign)
             else
                 ! This will be a new state added to CurrentDets.
-                nwalkers = nwalkers + 1
+               nwalkers = nwalkers + 1
             end if
 
         end do
@@ -796,7 +795,7 @@ contains
         ! Now copy all the core states in SpawnedParts into CurrentDets.
         ! Note that the amplitude in CurrentDets was copied across, so this is fine.
         do i = 1, nwalkers
-            CurrentDets(:,i) = SpawnedParts(0:NIfTot,i)
+           CurrentDets(:,i) = SpawnedParts(0:NIfTot,i)
         end do
 
         call clear_hash_table(HashIndex)

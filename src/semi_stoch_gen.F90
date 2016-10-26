@@ -55,6 +55,7 @@ contains
             call adjust_load_balance(iter_data_fciqmc)
         end if
 
+
 !#ifdef __CMPLX
 !        call stop_all(t_r, "Semi-stochastic has not been implemented with complex coefficients.")
 !#endif

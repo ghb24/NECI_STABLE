@@ -22,8 +22,8 @@ module real_time_procs
     use bit_reps, only: decode_bit_det, test_flag, encode_sign, &
                         set_flag, encode_bit_rep, extract_bit_rep, &
                         flag_has_been_initiator, flag_deterministic, encode_part_sign, &
-                        nullify_ilut_part, get_initiator_flag, get_initiator_flag_by_run
-
+                        nullify_ilut_part, get_initiator_flag, get_initiator_flag_by_run, &
+                        clr_flag
                         
     use bit_rep_data, only: extract_sign, nifdbo, niftot
     use FciMCData, only: CurrentDets, HashIndex, popsfile_dets, MaxWalkersPart, &
@@ -1456,10 +1456,23 @@ contains
       use semi_stoch_procs, only: end_semistoch
       implicit none
       ! as the important determinants might change during time evolution, this
-      ! resets the semistochastic space taking the current population to get it
+      ! resets the semistochastic space taking the current population to get a new one
+
       call end_semistoch()
+      call reset_core_space()
       call init_semi_stochastic(ss_space_in)
+
     end subroutine refresh_semistochastic_space
+
+    subroutine reset_core_space()
+      implicit none
+      integer :: i
+      
+      do i=1, TotWalkers
+         call clr_flag(CurrentDets(:,i),flag_deterministic)
+      enddo
+      
+    end subroutine reset_core_space
 
     subroutine create_perturbed_ground()
         ! routine to create from the already read in popsfile info in 

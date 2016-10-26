@@ -10,7 +10,8 @@ module real_time
                                create_diagonal_as_spawn, count_holes_in_currentDets, &
                                DirectAnnihilation_diag, check_update_growth, &
                                get_tot_parts, update_gf_overlap, calc_norm, &
-                               update_shift_damping, real_time_determ_projection
+                               update_shift_damping, real_time_determ_projection, &
+                               refresh_semistochastic_space
     use real_time_data, only: gf_type, wf_norm, &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
                               current_overlap, SumWalkersCyc_1, real_time_info, DiagParts, &
@@ -320,6 +321,8 @@ contains
             if(tLoadBalanceBlocks .and. mod(iter,1000) == 0 .and. (.not. tSemiStochastic)) then
                call adjust_load_balance(iter_data_fciqmc)
             endif
+
+            if(mod(iter,20) == 0 .and. tSemiStochastic) call refresh_semistochastic_space()
 
             if(iProcIndex == root) then
                s_end = neci_etime(tend)
