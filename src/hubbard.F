@@ -29,12 +29,16 @@ C..quatum numbers (i,j,k) for Hubbard model of
 C..lengths (LX,LY,LZ) PBC.
 C..Returned in sum
       use constants, only: Pi, Pi2, THIRD,dp
+      use SystemData, only: twisted_bc
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
       INTEGER nBasisMax(5,*),AX,AY
       INTEGER LX,LY,LZ,K,J,I
       LOGICAL TTILT,TREAL
       real(dp) :: TOTSUM,BHUB
+      real(dp) :: tb_x, tb_y
+      tb_x = twisted_bc(1)
+      tb_y = twisted_bc(2)
       LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
       LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
       LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
@@ -47,10 +51,11 @@ C..Returned in sum
 CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
          LX=NBASISMAX(1,5)
          LX=(LX*(AX*AX+AY*AY))
-         TOTSUM=COS(2*PI*(I*AX+J*AY)/LX)+COS(2*PI*(I*AY-J*AX)/LX)
+         TOTSUM=COS(2*PI*((I+tb_x)*AX+(J+tb_y)*AY)/LX)
+         TOTSUM=TOTSUM+COS(2*PI*((I+tb_x)*AY-(J+tb_y)*AX)/LX)
        ELSE
-         IF(LX.GT.1) TOTSUM=COS(2*PI*I/(LX))
-         IF(LY.GT.1) TOTSUM=TOTSUM+COS(2*PI*J/(LY))
+         IF(LX.GT.1) TOTSUM=COS(2*PI*(I + twisted_bc(1))/(LX))
+         IF(LY.GT.1) TOTSUM=TOTSUM+COS(2*PI*(J + twisted_bc(2))/(LY))
          IF(LZ.GT.1) TOTSUM=TOTSUM+COS(2*PI*K/(LZ))
        ENDIF
        TOTSUM=TOTSUM*2.0_dp*BHUB

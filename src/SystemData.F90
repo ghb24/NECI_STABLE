@@ -268,6 +268,12 @@ real(dp), allocatable :: current_cum_list(:)
 ! use a flag for only running the excitation generator test in the dets case
 logical :: t_test_excit_gen = .false.
 
+! try to implement twisted boundary conditions while dealing with the 
+! hubbard model
+logical :: t_twisted_bc = .false.
+real(dp) :: twisted_bc(2) = 0.0_dp
+
+
 ! Operators for type(symmetry)
 interface assignment (=)
     module procedure SymAssign

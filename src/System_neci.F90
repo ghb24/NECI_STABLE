@@ -33,6 +33,7 @@ MODULE System
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
       ! implementation of spin adapted GUGA approach
+      t_twisted_bc = .false.
       tGUGA = .false. 
       t_guga_unit_tests = .false.
       t_full_guga_tests = .false.
@@ -527,6 +528,19 @@ system: do
             TREAL = .true.
         case("APERIODIC")
             TPBC = .false.
+
+        case ("TWISTED-BC")
+            ! first try at implementing twisted bounday conditions
+            ! comments will folllow TODO
+            t_twisted_bc = .true.
+            call getf(twisted_bc(1))
+            if (item < nitems) then
+                call getf(twisted_bc(2))
+            else
+                ! if only one input apply the same shift to both x and y!
+                twisted_bc(2) = twisted_bc(1)
+            end if
+
         case("UEG-OFFSET")
             tUEGOffset=.true.
             call getf(k_offset(1))
