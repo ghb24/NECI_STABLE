@@ -16,7 +16,8 @@ module real_time_data
     ! global flag indicating real-time calculation
     ! rotated_time_setup: flag to indicate whether pure real time is
     ! used or not
-    logical :: t_real_time_fciqmc, t_new_stats_file, t_rotated_time, t_noshift
+    logical :: t_real_time_fciqmc, t_new_stats_file, t_rotated_time, t_noshift, &
+         tDynamicCoreSpace
 
     ! also use a second iter_data type to keep track of the 2 distinct 
     ! spawning events
@@ -125,9 +126,8 @@ module real_time_data
     ! i dont think i need a hash table to go with that..
     ! but i need this valid_spawned list thingy.. 
     ! which holds the next free slot to spawn to.. for each proc
-    integer, allocatable :: valid_diag_spawn_list(:), temp_freeslot(:)
-    integer, allocatable :: InitialSpawnedSlotsDiag(:)
-    integer :: temp_iendfreeslot
+    integer, allocatable :: temp_freeslot(:)
+    integer :: temp_iendfreeslot, valid_diag_spawns
 
     ! also keep a global var. of the number of diag-spawns in a cycle
     integer :: n_diag_spawned

@@ -8,7 +8,7 @@ module real_time_init
                               t_complex_ints, gf_overlap, wf_norm, temp_det_list, &
                               temp_det_pointer, temp_det_hash, temp_freeslot, &
                               pert_norm, second_spawn_iter_data, DiagParts, &
-                              MemoryFacDiag, DiagVec, DiagVec2, valid_diag_spawn_list, &
+                              MemoryFacDiag, DiagVec, DiagVec2, valid_diag_spawns, &
                               NoatHF_1, Annihilated_1, Acceptances_1, NoBorn_1, &
                               SpawnFromSing_1, NoDied_1, NoAborted_1, NoRemoved_1, &
                               NoAddedInitiators_1, NoInitDets_1, NoNonInitDets_1, &
@@ -22,7 +22,7 @@ module real_time_init
                               TotPartsStorage, TotWalkers_pert, t_rotated_time, time_angle, &
                               tau_imag, tau_real, elapsedRealTime, elapsedImagTime, &
                               TotWalkers_orig, dyn_norm_psi, gs_energy, shift_damping, &
-                              t_noshift, MaxSpawnedDiag, InitialSpawnedSlotsDiag
+                              t_noshift, MaxSpawnedDiag, tDynamicCoreSpace
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
@@ -329,20 +329,11 @@ contains
 
         DiagParts => DiagVec
 
-        ! also need to setup this valid spawn list and crap..
-        allocate(InitialSpawnedSlotsDiag(0:nNodes-1), stat = ierr)
-        allocate(valid_diag_spawn_list(0:nNodes-1), stat = ierr)
-
-        Gap = real(MaxSpawnedDiag,dp)/real(nNodes,dp)
-        do j = 0,nNodes-1
-           InitialSpawnedSlotsDiag(j) = nint(Gap*j) + 1
-        enddo
-
         ! and the initial_spawn_slots equivalent
         ! although i think i can reuse the initialSpawnedSlots..
 !         allocate(initial_diag_spawn_list(0:nNodes-1), stat = ierr) 
 
-        valid_diag_spawn_list(:) = InitialSpawnedSlotsDiag(:)
+        valid_diag_spawns = 1
 
         ! also initialize all the relevant first RK step quantities.. 
         NoatHF_1 = 0.0_dp 
@@ -623,6 +614,9 @@ contains
                 ! one can specify an energy which shall be added as a global shift
                 ! to the hamiltonian. Useful for getting transition energies
                 call readf(benchmarkEnergy)
+
+             case("DYNAMIC-CORE")
+                tDynamicCoreSpace = .true.
                 
             case ("COMPLEX-INTEGRALS")
                 ! in the real-time implementation, since we need the complex 
@@ -707,6 +701,8 @@ contains
         ! usually, the walker number shall be controlled
         t_noshift = .false.
 
+        ! and in case of semistochastic approach, the core space shall be static
+        tDynamicCoreSpace = .false.
     end subroutine set_real_time_defaults
 
     subroutine check_input_real_time()
@@ -791,7 +787,6 @@ contains
       
       integer :: ierr
       
-      deallocate(valid_diag_spawn_list,stat=ierr)
       deallocate(DiagVec,stat=ierr)
       call clean_iter_data(second_spawn_iter_data)
       deallocate(shift_damping, stat=ierr)

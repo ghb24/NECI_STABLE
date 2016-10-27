@@ -11,11 +11,10 @@ module real_time_procs
                               t_complex_ints, real_time_info, temp_freeslot, & 
                               temp_det_list, temp_det_pointer,  temp_iendfreeslot, &
                               temp_det_hash, temp_totWalkers, pert_norm, &
-                              valid_diag_spawn_list, DiagParts, n_diag_spawned, &
+                              valid_diag_spawns, DiagParts, n_diag_spawned, &
                               NoDied_1, NoBorn_1, SumWalkersCyc_1, &
                               t_rotated_time, wf_norm, tau_imag, tau_real, gs_energy, &
-                              dyn_norm_psi, shift_damping, MaxSpawnedDiag, & 
-                              InitialSpawnedSlotsDiag
+                              dyn_norm_psi, shift_damping, MaxSpawnedDiag
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
                          sizeof_int, MPIArg
@@ -80,11 +79,11 @@ contains
         ! already stored contigously and in the right orde
         ! (no annihilation inside DiagParts can occur)
 
-        ! valid_diag_spawn_list gets increased after the spawn
-        ! to DiagParts(:,valid_diag_spawn_list) -> highest index is
-        ! actually valid_diag_spawn_list-1 
+        ! valid_diag_spawns gets increased after the spawn
+        ! to DiagParts(:,valid_diag_spawns) -> highest index is
+        ! actually valid_diag_spawns-1 
 
-        numSpawns = valid_diag_spawn_list(iProcIndex)-1
+        numSpawns = valid_diag_spawns-1
         call AnnihilateDiagParts(numSpawns, TotWalkersNew, iter_data)
 
         ! also should update the hashtable stats, specific for this diagonal 
@@ -128,7 +127,7 @@ contains
 
 !         call set_timer(BinSearch_time,45)
 
-        do i = InitialSpawnedSlotsDiag(iProcIndex), ValidSpawned
+        do i = 1, ValidSpawned
 
            call decode_bit_det(nJ, DiagParts(:,i)) 
 
@@ -381,36 +380,29 @@ contains
         type(fcimc_iter_data), intent(inout) :: iter_data
         character(*), parameter :: this_routine = "create_diagonal_as_spawn"
 
-        integer :: proc, i
+        integer :: i
         logical :: list_full
         integer, parameter :: flags = 0
 
         ! Determine which processor the particle should end up on in the
         ! DirectAnnihilation algorithm.
         ! Note that this is a diagonal event, no communication is needed
-        proc = iProcIndex    ! (0 -> nNodes-1)
 
         ! Check that the position described by valid_diag_spawn_list is acceptable.
         ! If we have filled up the memory that would be acceptable, then
         ! kill the calculation hard (i.e. stop_all) with a descriptive
         ! error message.
         list_full = .false.
-        if (proc == nNodes - 1) then
-            if (valid_diag_spawn_list(proc) > MaxSpawnedDiag) list_full = .true.
-        else
-            if (valid_diag_spawn_list(proc) >= InitialSpawnedSlotsDiag(proc+1)) &
-                list_full=.true.
-        end if
+        if (valid_diag_spawns > MaxSpawnedDiag) list_full = .true.
         if (list_full) then
-            write(6,*) "Attempting to spawn particle onto processor: ", proc
+            write(6,*) "Attempting to spawn particle onto processor: ", iProcIndex
             write(6,*) "No memory slots available for this spawn."
             write(6,*) "Please increase MEMORYFACSPAWN"
-            write(6,*) "VALID DIAG SPAWN LIST", valid_diag_spawn_list
-            write(6,*) "NUMBER OF OCCUPIED DETS", TotWalkers
+            write(6,*) "VALID DIAG SPAWN LIST", valid_diag_spawns
             call stop_all(this_routine, "Out of memory for spawned particles")
         end if
 
-        call encode_bit_rep(DiagParts(:, valid_diag_spawn_list(proc)), ilut, &
+        call encode_bit_rep(DiagParts(:, valid_diag_spawns), ilut, &
                             diag_sign, flags)
 
         if (tFillingStochRDMonFly) then
@@ -427,16 +419,7 @@ contains
 
         end if
 
-        ! If we are storing the parent coefficient with the particle, then
-        ! do that it this point
-!         if (tBroadcastParentCoeff) then
-!             ! n.b. SignCurr(part_type) --> this breaks with CPLX
-!             call stop_all(this_routine, 'Not implemented (yet)')
-!             call set_parent_coeff(DiagParts(:, valid_diag_spawn_list(proc)), &
-!                                   SignCurr(part_type))
-!         end if
-
-        valid_diag_spawn_list(proc) = valid_diag_spawn_list(proc) + 1
+        valid_diag_spawns = valid_diag_spawns + 1
         
         ! Sum the number of created children to use in acceptance ratio.
         ! i dont need to do acceptances here, since diagonal events are not 
@@ -1201,7 +1184,7 @@ contains
 
         ! also reset the diagonal specific valid spawn list.. i think i 
         ! can just reuse the InitialSpawnedSlots also
-        valid_diag_spawn_list = InitialSpawnedSlotsDiag
+        valid_diag_spawns = 1
 
         ! also save the number of particles from this spawning to calc. 
         ! first step specific acceptance rate
@@ -1457,8 +1440,9 @@ contains
       implicit none
       ! as the important determinants might change during time evolution, this
       ! resets the semistochastic space taking the current population to get a new one
-
       call end_semistoch()
+      ! the flag_deterministic flag has to be cleared from all determinants as it is
+      ! assumed that no states have that flag when init_semi_stochastic starts
       call reset_core_space()
       call init_semi_stochastic(ss_space_in)
 

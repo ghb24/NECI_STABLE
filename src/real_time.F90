@@ -15,10 +15,10 @@ module real_time
     use real_time_data, only: gf_type, wf_norm, &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
                               current_overlap, SumWalkersCyc_1, real_time_info, DiagParts, &
-                              valid_diag_spawn_list, elapsedRealTime, elapsedImagTime,&
+                              elapsedRealTime, elapsedImagTime,&
                               tau_real, tau_imag, t_rotated_time, temp_iendfreeslot, &
                               temp_freeslot, overlap_real, overlap_imag, dyn_norm_psi, &
-                              NoatHF_1, shift_damping, t_noshift
+                              NoatHF_1, shift_damping, t_noshift, tDynamicCoreSpace
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
                         tChangeProjEDet, DiagSft
@@ -322,7 +322,8 @@ contains
                call adjust_load_balance(iter_data_fciqmc)
             endif
 
-            if(mod(iter,20) == 0 .and. tSemiStochastic) call refresh_semistochastic_space()
+            if(mod(iter,400) == 0 .and. tSemiStochastic .and. tDynamicCoreSpace) &
+                 call refresh_semistochastic_space()
 
             if(iProcIndex == root) then
                s_end = neci_etime(tend)
