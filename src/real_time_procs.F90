@@ -384,8 +384,6 @@ contains
         logical :: list_full
         integer, parameter :: flags = 0
 
-        ! Determine which processor the particle should end up on in the
-        ! DirectAnnihilation algorithm.
         ! Note that this is a diagonal event, no communication is needed
 
         ! Check that the position described by valid_diag_spawn_list is acceptable.
@@ -1307,27 +1305,35 @@ contains
 
     end subroutine update_gf_overlap
 
-    function calc_norm(dets, num_dets) result(cd_norm) 
+    function calc_norm(dets, num_dets, offset) result(cd_norm) 
       ! the first dimension of dets has to be lenof_sign
         ! function to calculate the norm of the left-hand <y(0)| (general function)
         real(dp) :: cd_norm(inum_runs)
         integer(dp) :: dets(:,:)
         integer, intent(in) :: num_dets
+        integer, intent(in), optional :: offset
         character(*), parameter :: this_routine = "calc_perturbed_norm"
 
-        integer :: idet, run
+        integer :: idet, run, targetRun, ref
         real(dp) :: tmp_sign(lenof_sign)
 
         cd_norm = 0.0_dp
 
+        if(present(offset)) then
+           ref = offset
+        else
+           ref = 0   
+        endif
 
         do idet = 1, num_dets
 
            call extract_sign(dets(:,idet), tmp_sign)
            do run = 1,inum_runs
+              targetRun = mod(run+ref-1,inum_runs)+1
 
-              cd_norm(run) = cd_norm(run) + tmp_sign(min_part_type(run))**2 &
-                   + tmp_sign(max_part_type(run))**2
+              cd_norm(run) = cd_norm(run) + tmp_sign(min_part_type(run)) &
+                   * tmp_sign(min_part_type(targetRun)) + tmp_sign(max_part_type(run)) &
+              *tmp_sign(max_part_type(targetRun))
 
            end do
         end do 
@@ -1356,6 +1362,8 @@ contains
         call halt_timer(SemiStoch_Comms_Time)
 
         call set_timer(SemiStoch_Multiply_Time)
+
+#ifdef __CMPLX
 
         if (determ_sizes(iProcIndex) >= 1) then
 
@@ -1429,6 +1437,7 @@ contains
             end do
         end if
 
+#endif
         call halt_timer(SemiStoch_Multiply_Time)
 
     end subroutine real_time_determ_projection
