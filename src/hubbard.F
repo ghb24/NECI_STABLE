@@ -283,6 +283,7 @@ C     &         *((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
 
 !Generate the Sym table for a Hubbard Lattice
       Subroutine GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
+         use constants, only: int64
          use global_utilities
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -336,7 +337,7 @@ C.. place the sym label of each state in SymClasses(ISTATE).
                SymClasses(I)=nSyms
             ENDIF
 C.. list the symmetry string of each sym label
-            SymLabels(I)%s=2**(I-1)
+            SymLabels(I)%s=2_int64**(I-1)
          ENDDO
 C.. Setup the symmetry product table
          if (allocated(SymTable)) then
