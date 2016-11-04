@@ -2,7 +2,7 @@ module gen_coul_ueg_mod
     use UMatCache, only: UMatInd, GTID
     use SystemData, only: BasisFN, nel, nBasisMax, nBasis, G1, NMSH, nMax, &
                           iSpinSkip, tHub, uHub, omega, iPeriodicDampingType,&
-                          ALAT
+                          ALAT, btHub
     use IntegralsData, only: UMat, FCK
     use global_utilities
     use constants, only: sp, dp, pi, pi2, THIRD
@@ -326,9 +326,11 @@ contains
  
     function get_hub_umat_el (i, j, k, l) result(hel)
         use sym_mod, only: roundsym, addelecsym, setupsym, lchksym
+        use constants, only: pi
         integer, intent(in) :: i, j, k, l
-        HElement_t(dp) :: hel
+        HElement_t(dp) :: hel, breathingCont
         type(BasisFn) :: ka, kb
+        integer :: tgt, q(3), li, m
 
         call SetupSym (ka)
         call SetupSym (kb)
@@ -338,12 +340,32 @@ contains
         call AddElecSym (j*2, G1, nBasisMax, kb)
         call RoundSym (ka, nBasisMax)
         call RoundSym (kb, nBasisMax)
+
+        ! to get the breathing effect, we need to know the exchanged momentum
+        ! therefore, compare the momentum of i to that of k/l with the matching
+        ! spin
+        if(G1(i)%MS == G1(k)%MS) then
+           tgt = k
+        else
+           tgt = l
+        endif
+        q = G1(i)%k - G1(tgt)%k
+
+        ! get the term describing breathing
+        breathingCont = 0.0_dp
+        do m=1,3
+           li = nBasisMax(m,2) - nBasisMax(m,1) + 1
+           if(li.gt.1) breathingCont = breathingCont + cos(2*pi/li*q(m))
+        end do
+        breathingCont = 2*btHub/OMEGA * breathingCont
+
         if (lChkSym (ka, kb)) then
-            hel = UMat (1)
+            hel = UMat (1) - breathingCont 
         else
             hel = 0.0_dp
         endif
     end function
+     
 
     function get_ueg_umat_el (idi, idj, idk, idl) result(hel)
 
