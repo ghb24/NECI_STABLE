@@ -40,7 +40,7 @@ module real_time_init
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
                          MaxSpawned, tSearchTauOption, TotWalkers, &
                          CurrentDets, popsfile_dets, MaxWalkersPart
-    use SystemData, only: nBasis, lms, G1, nBasisMax, tHub, nel
+    use SystemData, only: nBasis, lms, G1, nBasisMax, tHub, nel, tComplexWalkers_RealInts
     use SymExcitDataMod, only: kTotal
     use sym_mod, only: MomPbcSym
     use perturbations, only: init_perturbation_annihilation, &
@@ -226,7 +226,7 @@ contains
         ! allocate an additional slot for initial values
         allocate(gf_overlap(lenof_sign,0:(real_time_info%n_time_steps+1)), stat = ierr)
         allocate(wf_norm(inum_runs,0:(real_time_info%n_time_steps+1)), stat = ierr)
-        allocate(pert_norm(inum_runs),stat = ierr)
+        allocate(pert_norm((inum_runs**2)/2),stat = ierr)
         allocate(dyn_norm_psi(inum_runs),stat = ierr)
         allocate(gs_energy(inum_runs),stat = ierr)
         allocate(current_overlap(lenof_sign),stat = ierr)
@@ -249,7 +249,7 @@ contains
         call MPIReduce(norm_buf,MPI_SUM,pert_norm)
         
         ! and the same thing again for the initial state
-        norm_buf = calc_norm(CurrentDets,TotWalkers)
+        norm_buf = calc_norm(CurrentDets,TotWalkers,1)
         call MPIReduce(norm_buf,MPI_SUM,tzero_norm)
 
         ! set the fist value here for now
@@ -703,6 +703,10 @@ contains
 
         ! and in case of semistochastic approach, the core space shall be static
         tDynamicCoreSpace = .false.
+
+        ! usually, systems with real integrals will be considered, but the walkers will
+        ! always be complex
+        tComplexWalkers_RealInts = .true.
     end subroutine set_real_time_defaults
 
     subroutine check_input_real_time()

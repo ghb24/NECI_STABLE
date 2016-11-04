@@ -33,6 +33,7 @@ MODULE System
 !     specifying a new set of DEFAULTS.
       tReltvy = .false.
       tComplexOrbs_RealInts = .false.
+      tComplexWalkers_RealInts = .false.
       tReadFreeFormat=.true.
       tMolproMimic=.false.
       tNoSingExcits=.false.
@@ -99,6 +100,7 @@ MODULE System
       TEXCH=.true.
       UHUB = 4
       BHUB = -1
+      btHub = 0.0_dp
       TREAL = .false.
       tUEGTrueEnergies = .false.
       tUEGSpecifyMomentum = .false.
@@ -471,6 +473,8 @@ system: do
             call getf(UHUB)
         case("B")
             call getf(BHUB)
+         case("C")
+            call getf(btHub)
         case("REAL")
             TREAL = .true.
         case("APERIODIC")
@@ -960,6 +964,11 @@ system: do
             !We have complex orbitals, but real integrals. This means that we only have 4x permutational symmetry,
             !so we need to check the (momentum) symmetry before we look up any integrals
             tComplexOrbs_RealInts = .true.
+
+         case("COMPLEXWALKERS-REALINTS")
+            ! In case complex walkers shall be used but not complex basis functions,
+            ! such that the integrals are real and have full symmetry
+            tComplexWalkers_RealInts = .true. 
 
         case("SYSTEM-REPLICAS")
             ! How many copies of the simulation do we want to run in parallel?

@@ -381,7 +381,7 @@ contains
         ! combine log_real_time into this routine too! 
         if (mod(iter, StepsSft) == 0) then
            ! get the norm of the state
-           norm_buf = calc_norm(CurrentDets,TotWalkers)
+           norm_buf = calc_norm(CurrentDets,TotWalkers,1)
            call MPIReduce(norm_buf,MPI_SUM,dyn_norm_psi)
             call calculate_new_shift_wrapper(second_spawn_iter_data, totParts, &
                 tPairedReplicas)

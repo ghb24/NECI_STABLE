@@ -535,17 +535,17 @@ contains
 #endif
                 call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
 #ifndef __REALTIME
-#ifdef __COMPLEX
+#ifdef __CMPLX
                 call stats_out(state,.false., real(proje_iter_tot), 'Re Proj. E')
                 call stats_out(state,.false., aimag(proje_iter_tot), 'Im Proj. E')
-#ifndef __COMPLEX
+#ifndef __CMPLX
                 call stats_out(state,.false., proje_iter_tot, 'Proj. E (cyc)')
 #endif
 #endif
 #endif
                 call stats_out(state,.true., sum(DiagSft)/inum_runs, 'Shift. (cyc)')
-                call stats_out(state,.true., sum(TotPartsPos)/inum_runs, 'Tot Parts pos')
-                call stats_out(state,.true., sum(TotPartsNeg)/inum_runs, 'Tot Parts neg')
+!                call stats_out(state,.true., sum(TotPartsPos)/inum_runs, 'Tot Parts pos')
+!                call stats_out(state,.true., sum(TotPartsNeg)/inum_runs, 'Tot Parts neg')
 #ifdef __REALTIME
                 call stats_out(state, .true., sum(dyn_norm_psi)/inum_runs, '|psi|^2')
 #endif
@@ -558,7 +558,7 @@ contains
                 call stats_out(state,.true., real(proje_iter_tot) + Hii, &
                                'Tot. Proj. E')
                 call stats_out(state,.true., aimag(proje_iter_tot) + Hii, &
-                               'Tot. Proj. E')
+                               'Im. Tot. Proj. E')
 #else
                 call stats_out(state,.true., proje_iter_tot + Hii, &
                                'Tot. Proj. E')
