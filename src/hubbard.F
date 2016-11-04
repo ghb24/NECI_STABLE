@@ -385,7 +385,7 @@ C.. Setup the symmetry product table
             WRITE(6,*) I,SymConjTab(I)
          ENDDO
       End
-
+     
 !Hubbard Sym Reps are different from normal ones.  In hubbard, we have split degenerate sets into 1D subcomponents,
 !  but a complete degenerate set will count as a sym rep (i.e. if it is filled, its sym can be discounted),
 !  not just one of the subcomponents

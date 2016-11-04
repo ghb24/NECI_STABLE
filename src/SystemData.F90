@@ -112,6 +112,11 @@ integer, allocatable :: kvec(:,:)
 integer ::  Highest_orb_index
 integer :: dimen
 
+! Matrix elements for the modified hubbard model (including breathing effect)
+real(dp), allocatable :: breathingCont(:)
+integer, allocatable :: momIndexTable(:,:,:,:)
+logical :: tmodHub
+
 ! For the UEG, we damp the exchange interactions.
 !    0 means none
 !    1 means screened (using an erfc)

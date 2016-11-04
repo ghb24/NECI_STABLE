@@ -11,6 +11,7 @@ MODULE System
     use iso_c_hack
     use read_fci, only: FCIDUMP_name
     use util_mod, only: error_function, error_function_c
+    use breathing_Hub, only: setupMomIndexTable, setupBreathingCont
 
     IMPLICIT NONE
 
@@ -178,6 +179,7 @@ MODULE System
       tUEGNewGenerator = .false.
       tGen_4ind_2 = .false.
       tGen_4ind_2_symmetric = .false.
+      tmodHub = .false.
 
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
@@ -475,6 +477,7 @@ system: do
             call getf(BHUB)
          case("C")
             call getf(btHub)
+            tmodHub = .true.
         case("REAL")
             TREAL = .true.
         case("APERIODIC")
@@ -1796,6 +1799,8 @@ system: do
                   IF((THUB.AND.(TREAL.OR..NOT.TPBC)).OR.KALLOWED(G,NBASISMAX)) THEN
                     IF(THUB) THEN
 !C..Note for the Hubbard model, the t is defined by ALAT(1)!
+                       call setupMomIndexTable()
+                       call setupBreathingCont(2*btHub/OMEGA)
                        IF(TPBC) THEN
                        CALL HUBKIN(I,J,K,NBASISMAX,BHUB,TTILT,SUM,TREAL)
                        ELSE

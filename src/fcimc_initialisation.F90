@@ -11,7 +11,8 @@ module fcimc_initialisation
                           tRotatedOrbs, MolproID, nBasis, arr, brr, nel, tCSF,&
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
-                          tUEGNewGenerator, tGen_4ind_2, tReltvy
+                          tUEGNewGenerator, tGen_4ind_2, tReltvy, breathingCont, &
+                          momIndexTable
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
@@ -1691,6 +1692,11 @@ contains
                 endif
             ENDIF
         ENDIF
+
+        if(tHub) then
+           if(allocated(momIndexTable)) deallocate(momIndexTable)
+           deallocate(breathingCont)
+        endif
 
         if (tRDMonFly) then
             call dealloc_global_rdm_data()
@@ -3410,7 +3416,7 @@ contains
         end do
 
     end subroutine assign_reference_dets
-
+    
     subroutine init_cont_time()
 
         integer :: ierr
