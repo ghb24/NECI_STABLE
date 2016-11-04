@@ -5,10 +5,10 @@
 module real_time_init
 
     use real_time_data, only: t_real_time_fciqmc, gf_type, real_time_info, &
-                              t_complex_ints, gf_overlap, wf_norm, temp_det_list, &
+                              t_complex_ints, gf_overlap, temp_det_list, &
                               temp_det_pointer, temp_det_hash, temp_freeslot, &
                               pert_norm, second_spawn_iter_data, DiagParts, &
-                              MemoryFacDiag, DiagVec, DiagVec2, valid_diag_spawns, &
+                              MemoryFacDiag, DiagVec, normsize, valid_diag_spawns, &
                               NoatHF_1, Annihilated_1, Acceptances_1, NoBorn_1, &
                               SpawnFromSing_1, NoDied_1, NoAborted_1, NoRemoved_1, &
                               NoAddedInitiators_1, NoInitDets_1, NoNonInitDets_1, &
@@ -119,8 +119,9 @@ contains
         ! this is the last setup routine, which depending on compilation,
         ! number of copies etc. sets up the final needed quantities to run 
         ! a simulation
+      implicit none
         character(*), parameter :: this_routine = "setup_real_time_fciqmc"
-        real(dp) :: norm_buf(inum_runs), tzero_norm(inum_runs)
+        complex(dp), allocatable :: norm_buf(:)
         integer :: ierr, run, j
         real(dp) :: gap
 
@@ -129,6 +130,7 @@ contains
 
         ! so have to call this routine before the InitFCIMCCalcPar, where the 
         ! time evolved y(t) will be stored in the CurrentDets array
+
         call create_perturbed_ground()
 
         ! change the flags dependent on the real-time input 
@@ -224,39 +226,30 @@ contains
         ! n_time_steps have to be set here!
         print *, " Allocating greensfunction and wavefunction norm arrays!"
         ! allocate an additional slot for initial values
-        allocate(gf_overlap(lenof_sign,0:(real_time_info%n_time_steps+1)), stat = ierr)
-        allocate(wf_norm(inum_runs,0:(real_time_info%n_time_steps+1)), stat = ierr)
-        allocate(pert_norm((inum_runs**2)/2),stat = ierr)
-        allocate(dyn_norm_psi(inum_runs),stat = ierr)
+        normsize = inum_runs**2
+        allocate(gf_overlap(normsize,0:(real_time_info%n_time_steps+1)), stat = ierr)
+        allocate(pert_norm(normsize),stat = ierr)
+        allocate(dyn_norm_psi(normsize),stat = ierr)
         allocate(gs_energy(inum_runs),stat = ierr)
-        allocate(current_overlap(lenof_sign),stat = ierr)
+        allocate(current_overlap(normsize),stat = ierr)
         allocate(temp_freeslot(MaxWalkersPart),stat = ierr)
         allocate(shift_damping(inum_runs), stat = ierr)
 
         gf_overlap = 0.0_dp
 
         gs_energy = benchmarkEnergy
-!        gs_energy = -22.56838
         shift_damping = 0.0_dp
         
         ! to avoid dividing by 0 if not all entries get filled
-        wf_norm = 1.0_dp
-
+        allocate(norm_buf(normsize),stat=ierr)
         pert_norm = 1.0_dp
         ! calc. the norm of the perturbed ground states
         norm_buf = calc_norm(perturbed_ground,int(TotWalkers_pert))
         ! the norm (squared) can be obtained by reduction over all processes
         call MPIReduce(norm_buf,MPI_SUM,pert_norm)
+
+        deallocate(norm_buf)
         
-        ! and the same thing again for the initial state
-        norm_buf = calc_norm(CurrentDets,TotWalkers,1)
-        call MPIReduce(norm_buf,MPI_SUM,tzero_norm)
-
-        ! set the fist value here for now
-        do run = 1,inum_runs
-           wf_norm(run,0) = sqrt(tzero_norm(run) * pert_norm(run))
-        end do
-
         ! check for set lms.. i think that does not quite work yet 
         print *, "mz spin projection: ", lms
 
@@ -799,7 +792,6 @@ contains
       deallocate(gs_energy,stat=ierr)
       deallocate(dyn_norm_psi,stat=ierr)
       deallocate(pert_norm,stat=ierr)
-      deallocate(wf_norm,stat=ierr)
       deallocate(gf_overlap,stat=ierr)
       
 

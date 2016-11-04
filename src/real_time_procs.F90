@@ -13,8 +13,8 @@ module real_time_procs
                               temp_det_hash, temp_totWalkers, pert_norm, &
                               valid_diag_spawns, DiagParts, n_diag_spawned, &
                               NoDied_1, NoBorn_1, SumWalkersCyc_1, &
-                              t_rotated_time, wf_norm, tau_imag, tau_real, gs_energy, &
-                              dyn_norm_psi, shift_damping, MaxSpawnedDiag
+                              t_rotated_time, tau_imag, tau_real, gs_energy, &
+                              dyn_norm_psi, shift_damping, MaxSpawnedDiag, normsize
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
                          sizeof_int, MPIArg
@@ -1250,13 +1250,12 @@ contains
     subroutine update_gf_overlap() 
         ! this routine only deals with globally defined variables
       implicit none
-        integer :: idet, nI(nel), det_ind, hash_val, i, run
-        real(dp) :: overlap(lenof_sign), real_sign_1(lenof_sign), real_sign_2(lenof_sign), &
-             tmp_norm(inum_runs), norm_buf(inum_runs)
+        integer :: idet, nI(nel), det_ind, hash_val, runA, runB
+        real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
+        complex(dp) :: overlap(normsize)
         logical :: tDetFound
 
         overlap = 0.0_dp
-        tmp_norm = 0.0_dp
 
         do idet = 1, size(perturbed_ground, dim = 2)
 
@@ -1275,20 +1274,14 @@ contains
                ! both real and imaginary part of the time-evolved wf are required
                 call extract_sign(CurrentDets(:,det_ind), real_sign_2)
                 
-                do i = 1, lenof_sign
-                   run = part_type_to_run(i)
-                   if(mod(i,2)==0) then
-                      ! imaginary part of the overlap
-                    overlap(i) = overlap(i) + &
-                         real_sign_1(min_part_type(run)) * real_sign_2(max_part_type(run)) - &
-                         real_sign_2(min_part_type(run)) * real_sign_1(max_part_type(run))
-                    else 
-                       ! real part of the overlap
-                       overlap(i) = overlap(i) + &
-                         real_sign_1(min_part_type(run)) * real_sign_2(min_part_type(run)) + &
-                         real_sign_2(max_part_type(run)) * real_sign_1(max_part_type(run)) 
-                    endif
-                    tmp_norm(run) = tmp_norm(run) + real_sign_2(i)**2
+                do runA = 1, inum_runs
+                   do runB = 1, inum_runs
+                      ! overlap is now treated as complex type
+                      overlap(overlap_index(runA,runB)) = overlap(overlap_index(runA,runB)) &
+                           +conjg(cmplx(real_sign_1(min_part_type(runA)), &
+                           real_sign_1(max_part_type(runA)))) &
+                           *cmplx(real_sign_2(min_part_type(runB)),real_sign_2(max_part_type(runB)))
+                   end do
                 end do
             end if
         end do
@@ -1297,44 +1290,39 @@ contains
         ! only computes its own part
         call MPIReduce(overlap,MPI_SUM,gf_overlap(:,iter))
         ! communicate the norm as it is the sum over all walkers
-        call MPIReduce(tmp_norm,MPI_SUM,norm_buf)
-        ! also store the new norm information 
-        do run = 1, inum_runs
-           wf_norm(run,iter) = sqrt(norm_buf(run) * pert_norm(run))
-        end do
 
     end subroutine update_gf_overlap
 
-    function calc_norm(dets, num_dets, offset) result(cd_norm) 
+    function calc_norm(dets, num_dets) result(cd_norm)
       ! the first dimension of dets has to be lenof_sign
         ! function to calculate the norm of the left-hand <y(0)| (general function)
-        real(dp) :: cd_norm(inum_runs)
+        complex(dp) :: cd_norm(normsize)
         integer(dp) :: dets(:,:)
         integer, intent(in) :: num_dets
-        integer, intent(in), optional :: offset
         character(*), parameter :: this_routine = "calc_perturbed_norm"
 
-        integer :: idet, run, targetRun, ref
+        integer :: idet, run, targetRun
         real(dp) :: tmp_sign(lenof_sign)
 
         cd_norm = 0.0_dp
-
-        if(present(offset)) then
-           ref = offset
-        else
-           ref = 0   
-        endif
 
         do idet = 1, num_dets
 
            call extract_sign(dets(:,idet), tmp_sign)
            do run = 1,inum_runs
-              targetRun = mod(run+ref-1,inum_runs)+1
-
-              cd_norm(run) = cd_norm(run) + tmp_sign(min_part_type(run)) &
-                   * tmp_sign(min_part_type(targetRun)) + tmp_sign(max_part_type(run)) &
-              *tmp_sign(max_part_type(targetRun))
-
+              ! we calculate the overlap between any two replicas, including the norm
+              ! of each individually
+              do targetRun = 1,run
+                 cd_norm(overlap_index(run,targetRun)) = cd_norm(overlap_index(run,targetRun)) &
+                      + conjg(cmplx(tmp_sign(min_part_type(run)),tmp_sign(max_part_type(run)))) &
+                      * cmplx(tmp_sign(min_part_type(targetRun)),tmp_sign(&
+                      max_part_type(targetRun)))
+              end do
+           end do
+           do run = 1, inum_runs
+              do targetRun = run+1, inum_runs
+                 cd_norm(overlap_index(run,targetRun)) = conjg(cd_norm(overlap_index(targetRun,run)))
+              end do
            end do
         end do 
 

@@ -27,6 +27,7 @@ module real_time_data
     ! create a type like nick did, to store all the general information like 
     ! timestep, which orbitals are manipulated etc. in it 
     integer :: gf_type      ! -1 indicates a the lesser, 1 the greater GF
+    integer :: normsize ! number of combinations avaliable for calculating overlaps
     
     ! the angle used for rotation of time into complex plane
     ! it is better readable to use new variables for real and imaginary part
@@ -42,12 +43,9 @@ module real_time_data
     ! determined by the max. cycle
 !     real(dp), allocatable :: gf_overlap(:)
     ! for tests now only make it of length 1
-    real(dp), allocatable :: gf_overlap(:,:)
+    complex(dp), allocatable :: gf_overlap(:,:)
     ! also store the norm of the time-evolved wavefunction
-    ! both the reduced norm (wf_norm) for the greensfunction and
-    ! the full norm for consistency checks
-    real(dp), allocatable :: wf_norm(:,:)
-    real(dp), allocatable :: dyn_norm_psi(:)
+    complex(dp), allocatable :: dyn_norm_psi(:)
     ! the ground state energy of the N-particle problem which is added as a global shift
     real(dp), allocatable :: gs_energy(:)
     ! the damping due to the DiagSft contribution in the imaginary time propagation
@@ -55,11 +53,11 @@ module real_time_data
 
     ! also store the current overlap of the cycle.. 
 
-    real(dp), allocatable :: current_overlap(:)
+    complex(dp), allocatable :: current_overlap(:)
 
 
     ! also store the norm of the perturbed ground state to adjust the 
-    real(dp), allocatable :: pert_norm(:)
+    complex(dp), allocatable :: pert_norm(:)
 
     ! need additional info of the original walker number and the number of 
     ! walkers remaining in the perturbed ground state
@@ -121,7 +119,7 @@ module real_time_data
     integer(n_int), pointer :: DiagParts(:,:)
 
     ! also need the associated actual arrays to point to
-    integer(n_int), allocatable, target :: DiagVec(:,:), DiagVec2(:,:)
+    integer(n_int), allocatable, target :: DiagVec(:,:)
 
     ! i dont think i need a hash table to go with that..
     ! but i need this valid_spawned list thingy.. 

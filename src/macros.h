@@ -129,6 +129,7 @@ endif
 #define is_run_unnocc(signs, run) abs(signs(run))<1.0e-12_dp 
 #endif
 
+#define overlap_index(runA, runB) (runA)+inum_runs*((runB)-1)
 
 ! Define types for C pointers to work between various compilers with
 ! differing levels of brokenness.

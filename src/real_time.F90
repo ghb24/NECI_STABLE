@@ -12,13 +12,14 @@ module real_time
                                get_tot_parts, update_gf_overlap, calc_norm, &
                                update_shift_damping, real_time_determ_projection, &
                                refresh_semistochastic_space
-    use real_time_data, only: gf_type, wf_norm, &
+    use real_time_data, only: gf_type,  &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
                               current_overlap, SumWalkersCyc_1, real_time_info, DiagParts, &
                               elapsedRealTime, elapsedImagTime,&
                               tau_real, tau_imag, t_rotated_time, temp_iendfreeslot, &
                               temp_freeslot, overlap_real, overlap_imag, dyn_norm_psi, &
-                              NoatHF_1, shift_damping, t_noshift, tDynamicCoreSpace
+                              NoatHF_1, shift_damping, t_noshift, tDynamicCoreSpace, &
+                              normsize
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
                         tChangeProjEDet, DiagSft
@@ -214,6 +215,7 @@ contains
         integer :: n_determ_states
         integer :: i
         real(sp) :: s_start, s_end, tstart(2), tend(2)
+        complex(dp) :: overlap_buf
 
         print *, " ========================================================== "
         print *, " ------------------ Real-time FCIQMC ---------------------- "
@@ -250,15 +252,11 @@ contains
               print *, " for greater GF <y(0)| a_i a^+_j |y(0)> ; i,j: ", &
                    overlap_pert(1)%crtn_orbs(1), pops_pert(1)%crtn_orbs(1)
            end if
-           do i=1, inum_runs
-              print *, "Current GF:", gf_overlap(min_part_type(i):max_part_type(i),0)&
+           do i=1, normsize
+              print *, "Current GF:", gf_overlap(i,0)&
                    / pert_norm(i)
            enddo
         endif
-
-!         print *, " overlap: ",  sqrt(gf_overlap(0)) / sqrt(pops_norm) 
-!         print *, " overlap2:", sqrt(gf_overlap(0)) / sqrt(wf_norm(0))
-!         print *, pops_norm, pert_norm, wf_norm(0)
 
         ! enter the main real-time fciqmc loop here
         fciqmc_loop: do while (.true.)
@@ -286,21 +284,19 @@ contains
             ! current overlap is now the one after iteration
             ! update the normalization due to the shift
             call update_shift_damping()
-            do i = 1, lenof_sign
-               current_overlap(i) = gf_overlap(i,iter) / wf_norm(part_type_to_run(i),iter)
-            enddo
 
-            do i = 1, lenof_sign/inum_runs
-               overlap_real = sum(gf_overlap(::2,iter))/sum(pert_norm(:)) * &
-                    sum(exp(shift_damping))/inum_runs
-               overlap_imag = sum(gf_overlap(2::2,iter))/sum(pert_norm(:)) * &
-                    sum(exp(shift_damping))/inum_runs
-            enddo
+            do i = 1, normsize
+               current_overlap(i) = gf_overlap(i,iter)/pert_norm(i)
+            end do
+
+            !normalize the greens function
+            overlap_buf = sum(gf_overlap(:,iter))/sum(pert_norm(:)) * &
+                 sum(exp(shift_damping))/inum_runs
+
+            overlap_real = real(overlap_buf)
+            overlap_imag = aimag(overlap_buf)
 
             if(.false.) then
-               if(iProcIndex == root) print *, "overlap: ", &
-                    gf_overlap(1,iter) / wf_norm(1,iter), &
-                    gf_overlap(2,iter) / wf_norm(1,iter)
                if(iProcIndex == root) print *, "overlap with const normalization: ", &
                     gf_overlap(1,iter) / pert_norm(1), &
                     gf_overlap(2,iter) / pert_norm(1)
@@ -351,7 +347,8 @@ contains
         ! two iter_data vars, i have to combine the general updated 
         ! statistics for the actual time step
         character(*), parameter :: this_routine = "update_real_time_iteration"
-        real(dp) :: tot_parts_new_all(lenof_sign), norm_buf(inum_runs)
+        real(dp) :: tot_parts_new_all(lenof_sign)
+        complex(dp) :: norm_buf(normsize)
 
         ! how to combine those 2? 
         ! in iter_data_fciqmc the info on the born, died, aborted, removed and 
@@ -381,7 +378,7 @@ contains
         ! combine log_real_time into this routine too! 
         if (mod(iter, StepsSft) == 0) then
            ! get the norm of the state
-           norm_buf = calc_norm(CurrentDets,TotWalkers,1)
+           norm_buf = calc_norm(CurrentDets,TotWalkers)
            call MPIReduce(norm_buf,MPI_SUM,dyn_norm_psi)
             call calculate_new_shift_wrapper(second_spawn_iter_data, totParts, &
                 tPairedReplicas)

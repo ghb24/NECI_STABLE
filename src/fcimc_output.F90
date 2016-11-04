@@ -32,7 +32,7 @@ module fcimc_output
     use util_mod
     use real_time_data, only: AllNoBorn_1, AllNoAborted_1, AllAnnihilated_1, &
                               AllNoDied_1, AllTotWalkers_1, nspawned_tot_1,  &
-                              AllTotParts_1, AccRat_1, AllGrowRate_1, &
+                              AllTotParts_1, AccRat_1, AllGrowRate_1, normsize, &
                               current_overlap, t_real_time_fciqmc, elapsedRealTime, &
                               elapsedImagTime, overlap_real, overlap_imag, dyn_norm_psi
 
@@ -547,7 +547,7 @@ contains
 !                call stats_out(state,.true., sum(TotPartsPos)/inum_runs, 'Tot Parts pos')
 !                call stats_out(state,.true., sum(TotPartsNeg)/inum_runs, 'Tot Parts neg')
 #ifdef __REALTIME
-                call stats_out(state, .true., sum(dyn_norm_psi)/inum_runs, '|psi|^2')
+                call stats_out(state, .true., real(sum(dyn_norm_psi))/inum_runs, '|psi|^2')
 #endif
                 call stats_out(state,.false., sum(AllNoBorn), 'No. born')
                 call stats_out(state,.false., sum(AllNoDied), 'No. died')
@@ -585,10 +585,10 @@ contains
             ! also output the overlaps and norm.. 
             call stats_out(state,.true., overlap_real, 'Re. <y(0)|y(t)>')
             call stats_out(state,.true., overlap_imag, 'Im. <y(0)|y(t)>')
-            do p = 1, inum_runs
+            do p = 1, normsize
                 write(tmpc, '(i5)') p
-               call stats_out(state,.false.,current_overlap(min_part_type(p)), 'Re. <y(0)|y(t)>(' // trim(adjustl(tmpc)) // ")")
-               call stats_out(state,.false.,current_overlap(max_part_type(p)), 'Im. <y(0)|y(t)>(' // trim(adjustl(tmpc)) // ")")
+               call stats_out(state,.false.,real(current_overlap(p)), 'Re. <y(0)|y(t)>(' // trim(adjustl(tmpc)) // ")")
+               call stats_out(state,.false.,aimag(current_overlap(p)), 'Im. <y(0)|y(t)>(' // trim(adjustl(tmpc)) // ")")
             enddo
 #endif
             ! If we are running multiple (replica) simulations, then we
