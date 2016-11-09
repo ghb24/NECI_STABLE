@@ -14,24 +14,25 @@ module real_time_init
                               NoAddedInitiators_1, NoInitDets_1, NoNonInitDets_1, &
                               NoInitWalk_1, NoNonInitWalk_1, InitRemoved_1, &
                               AllNoatHF_1, AllNoatHF_1, AllGrowRate_1, AllGrowRateAbort_1, &
-                              AllNoBorn_1, AllSpawnFromSing_1, AllNoDied_1, &
+                              AllNoBorn_1, AllSpawnFromSing_1, AllNoDied_1, gf_count, &
                               AllAnnihilated_1, AllNoAborted_1, AllNoRemoved_1, &
                               AllNoAddedInitiators_1, AllNoInitDets_1, AllNoNonInitDets_1, &
                               AllNoInitWalk_1, AllNoNonInitWalk_1, AllInitRemoved_1, &
                               AccRat_1, AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap, &
-                              TotPartsStorage, TotWalkers_pert, t_rotated_time, time_angle, &
+                              TotPartsStorage,  t_rotated_time, time_angle, &
                               tau_imag, tau_real, elapsedRealTime, elapsedImagTime, &
                               TotWalkers_orig, dyn_norm_psi, gs_energy, shift_damping, &
-                              t_noshift, MaxSpawnedDiag, tDynamicCoreSpace
+                              t_noshift, MaxSpawnedDiag, tDynamicCoreSpace, overlap_states, &
+                              overlap_real, overlap_imag, allGfs
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
-                               calc_norm
+                               calc_norm, clean_overlap_states
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
     use Parallel_neci
     use ParallelHelper, only: iProcIndex, root, MPIbarrier, nNodes, MPI_SUM
     use util_mod, only: get_unique_filename
     use Logging, only: tIncrementPops
     use kp_fciqmc_data_mod, only: scaling_factor, tMultiplePopStart, tScalePopulation, &
-                                  tOverlapPert, overlap_pert, perturbed_ground
+                                  tOverlapPert, overlap_pert
     use CalcData, only: tChangeProjEDet, tReadPops, tRestartHighPop, tFCIMC, &
                         tStartSinglePart, tau, nmcyc, iPopsFileNoRead, tWritePopsNorm, &
                         tWalkContGrow, diagSft, pops_norm, InitWalkers, MemoryFacSpawn
@@ -40,7 +41,7 @@ module real_time_init
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
                          MaxSpawned, tSearchTauOption, TotWalkers, &
                          CurrentDets, popsfile_dets, MaxWalkersPart
-    use SystemData, only: nBasis, lms, G1, nBasisMax, tHub, nel, tComplexWalkers_RealInts
+    use SystemData, only: lms, G1, nBasisMax, tHub, nel, tComplexWalkers_RealInts
     use SymExcitDataMod, only: kTotal
     use sym_mod, only: MomPbcSym
     use perturbations, only: init_perturbation_annihilation, &
@@ -106,9 +107,9 @@ contains
               if(pops_pert(1)%ncreate == 1) kTotal = kTotal &
                    + G1(pops_pert(1)%crtn_orbs(1))%k
               call MomPbcSym(kTotal,nBasisMax)
+              print *, "New total momentum", kTotal
            endif
         endif
-        print *, "New total momentum", kTotal
 
         ! do an MPIbarrier here.. although don't quite know why        
         call MPIBarrier(ierr)
@@ -227,11 +228,12 @@ contains
         print *, " Allocating greensfunction and wavefunction norm arrays!"
         ! allocate an additional slot for initial values
         normsize = inum_runs**2
-        allocate(gf_overlap(normsize,0:(real_time_info%n_time_steps+1)), stat = ierr)
-        allocate(pert_norm(normsize),stat = ierr)
+        allocate(overlap_real(gf_count),overlap_imag(gf_count))
+        allocate(gf_overlap(normsize,0:(real_time_info%n_time_steps+1),gf_count), stat = ierr)
+        allocate(pert_norm(normsize,gf_count),stat = ierr)
         allocate(dyn_norm_psi(normsize),stat = ierr)
         allocate(gs_energy(inum_runs),stat = ierr)
-        allocate(current_overlap(normsize),stat = ierr)
+        allocate(current_overlap(normsize,gf_count),stat = ierr)
         allocate(temp_freeslot(MaxWalkersPart),stat = ierr)
         allocate(shift_damping(inum_runs), stat = ierr)
 
@@ -243,10 +245,12 @@ contains
         ! to avoid dividing by 0 if not all entries get filled
         allocate(norm_buf(normsize),stat=ierr)
         pert_norm = 1.0_dp
-        ! calc. the norm of the perturbed ground states
-        norm_buf = calc_norm(perturbed_ground,int(TotWalkers_pert))
-        ! the norm (squared) can be obtained by reduction over all processes
-        call MPIReduce(norm_buf,MPI_SUM,pert_norm)
+        do j = 1,gf_count
+           ! calc. the norm of the perturbed ground states
+           norm_buf = calc_norm(overlap_states(j)%dets,overlap_states(j)%nDets)
+           ! the norm (squared) can be obtained by reduction over all processes
+           call MPIReduce(norm_buf,MPI_SUM,pert_norm(:,j))
+        enddo
 
         deallocate(norm_buf)
         
@@ -315,7 +319,7 @@ contains
 
         ! also intitialize the 2nd spawning array to deal with the 
         ! diagonal death step in the 2nd rt-fciqmc loop
-        MaxSpawnedDiag = int(MemoryFacDiag*InitWalkers*inum_runs)
+        MaxSpawnedDiag = int(MemoryFacDiag*InitWalkers)
         allocate(DiagVec(0:nifbcast, MaxSpawnedDiag), stat = ierr)
 
         DiagVec = 0
@@ -366,6 +370,7 @@ contains
         elapsedRealTime = 0.0_dp
         elapsedImagTime = 0.0_dp
         benchmarkEnergy = 0.0_dp
+        allGfs = 0
 
         call rotate_time()
 
@@ -452,7 +457,7 @@ contains
                 ! usually, the diagonal spawning array needs to be larger than
                 ! the offdiagonal one, thus an extra factor is introduced
                 tmemoryfacdiagset = .true.
-                call readi(MemoryFacDiag)
+                call readf(MemoryFacDiag)
 
             ! use nicks perturbation & kp-fciqmc stuff here as much as 
             ! possible too
@@ -486,44 +491,36 @@ contains
 
                 ! if no specific orbital is specified-> loop over all j! 
                 ! but only do that later: input is a SPINORBITAL!
-                if (item < nitems) then
-                    !allocate the perturbation object
-                    allocate(pops_pert(1))
-                    ! and also the lefthand perturbation object for overlap
-                    allocate(overlap_pert(1))
+                if(item < nitems) then
+                   allocate(pops_pert(1))
+                   pops_pert%nannihilate = 1
+                   allocate(pops_pert(1)%ann_orbs(1))
+                   call readi(pops_pert(1)%ann_orbs(1))
+                   call init_perturbation_annihilation(pops_pert(1)) 
+                else 
+                   call stop_all(this_routine, "Invalid input for Green's function")  
+                endif 
+                if (nitems == 3) then
+                   gf_count = 1
+                   !allocate the perturbation object
 
-                    pops_pert%nannihilate = 1
-                    overlap_pert%nannihilate = 1
+                   ! and also the lefthand perturbation object for overlap
+                   allocate(overlap_pert(1))
+                   overlap_pert%nannihilate = 1
+                   allocate(overlap_pert(1)%ann_orbs(1))
 
-                    allocate(pops_pert(1)%ann_orbs(1))
-                    allocate(overlap_pert(1)%ann_orbs(1))
-
-                    ! read left hand operator first
-                    call readi(overlap_pert(1)%ann_orbs(1))
-                    call readi(pops_pert(1)%ann_orbs(1))
-
-                    call init_perturbation_annihilation(overlap_pert(1))
-                    call init_perturbation_annihilation(pops_pert(1)) 
+                   ! read left hand operator first
+                   call readi(overlap_pert(1)%ann_orbs(1))
+                   call init_perturbation_annihilation(overlap_pert(1))
 
                 else
-                    ! otherwise the whole possible orbitals are to be applied
-
-                    print *, "no specific annihilation orbitals specified! loop over all!"
-                    call stop_all(this_routine, "not yet implemented!")
-
-                    allocate(pops_pert(nBasis))
-
-                    do i = 1, nBasis
-                        pops_pert(i)%nannihilate = 1
-                        allocate(pops_pert(i)%ann_orbs(1))
-
-                        pops_pert(i)%ann_orbs(1) = i 
-
-                        call init_perturbation_annihilation(pops_pert(i))
-
-                    end do
+                   if(nitems == 2) then
+                      allGfs = 1
+                   else
+                      call stop_all(this_routine, "Invalid input for Green's function")   
+                   endif
                 endif
-            case ("GREATER")
+             case ("GREATER")
                 ! greater GF -> photo absorption: apply a creation operator
                 alloc_popsfile_dets = .true.
                 tOverlapPert = .true.
@@ -542,43 +539,29 @@ contains
 
                 ! if no specific orbital is specified-> loop over all j! 
                 ! but only do that later
-                if (item < nitems) then
-                    ! allocate the perturbation object
-                    allocate(pops_pert(1))
-                    allocate(overlap_pert(1))
-
+                if(item < nitems) then
+                    allocate(pops_pert(1))                   
                     pops_pert%ncreate = 1
-                    overlap_pert%ncreate = 1
-
                     allocate(pops_pert(1)%crtn_orbs(1))
-                    allocate(overlap_pert(1)%crtn_orbs(1))
-
-                    call readi(overlap_pert(1)%crtn_orbs(1))
                     call readi(pops_pert(1)%crtn_orbs(1))
-
-
-                    call init_perturbation_creation(overlap_pert(1))
                     call init_perturbation_creation(pops_pert(1)) 
-
+                 else
+                    call stop_all(this_routine, "Invalid input for Green's function")   
+                endif
+                if (nitems == 3) then
+                    ! allocate the perturbation object
+                    allocate(overlap_pert(1))
+                    overlap_pert%ncreate = 1
+                    allocate(overlap_pert(1)%crtn_orbs(1))
+                    call readi(overlap_pert(1)%crtn_orbs(1))
+                    call init_perturbation_creation(overlap_pert(1))
                 else
-                    ! otherwise the whole possible orbitals are to be applied
-                    ! input is a SPINORBITAL!
-                    allocate(pops_pert(nBasis))
-
-                    print *, "no specific creation orbital specified! loop over all!"
-                    call stop_all(this_routine, "not yet implented!")
-
-                    do i = 1, nBasis
-                        pops_pert(i)%ncreate = 1
-                        allocate(pops_pert(i)%crtn_orbs(1))
-
-                        pops_pert(i)%crtn_orbs(1) = i 
-
-                        call init_perturbation_creation(pops_pert(i))
-
-                    end do
-                end if
-
+                   if(nitems == 2) then
+                      allGfs = 2
+                   else
+                      call stop_all(this_routine, "Invalid input for Green's function")   
+                endif
+             endif
 
             case ("SCALE-POPULATION")
                 tScalePopulation = .true.
@@ -602,6 +585,12 @@ contains
                 ! note that the walker number will grow exponentially in this
                 ! scenario, however
                 t_noshift = .true.
+
+             case("START-HF")
+                ! do not read in an initial state from a POPSFILE and apply a perturbation
+                ! but start right away in the HF as the initial state does not matter in 
+                ! principle for the spectrum
+                tReadPops = .false.
 
              case("ENERGY-BENCHMARK")
                 ! one can specify an energy which shall be added as a global shift
@@ -793,6 +782,7 @@ contains
       deallocate(dyn_norm_psi,stat=ierr)
       deallocate(pert_norm,stat=ierr)
       deallocate(gf_overlap,stat=ierr)
+      call clean_overlap_states()
       
 
     end subroutine dealloc_real_time_memory

@@ -31,7 +31,7 @@ module fcimc_output
     use sort_mod
     use util_mod
     use real_time_data, only: AllNoBorn_1, AllNoAborted_1, AllAnnihilated_1, &
-                              AllNoDied_1, AllTotWalkers_1, nspawned_tot_1,  &
+                              AllNoDied_1, AllTotWalkers_1, nspawned_tot_1,  gf_count, &
                               AllTotParts_1, AccRat_1, AllGrowRate_1, normsize, &
                               current_overlap, t_real_time_fciqmc, elapsedRealTime, &
                               elapsedImagTime, overlap_real, overlap_imag, dyn_norm_psi
@@ -480,8 +480,8 @@ contains
         ! Use a state type to keep things compact and tidy below.
         type(write_state_t), save :: state
         logical, save :: inited = .false.
-        character(5) :: tmpc, tmpc2
-        integer :: p, q
+        character(5) :: tmpc, tmpc2, tmgf
+        integer :: p, q, iGf
         logical :: init
 
         ! Provide default 'initial' option
@@ -583,12 +583,19 @@ contains
             ! possible.
 #ifdef __REALTIME 
             ! also output the overlaps and norm.. 
-            call stats_out(state,.true., overlap_real, 'Re. <y(0)|y(t)>')
-            call stats_out(state,.true., overlap_imag, 'Im. <y(0)|y(t)>')
-            do p = 1, normsize
-                write(tmpc, '(i5)') p
-               call stats_out(state,.false.,real(current_overlap(p)), 'Re. <y(0)|y(t)>(' // trim(adjustl(tmpc)) // ")")
-               call stats_out(state,.false.,aimag(current_overlap(p)), 'Im. <y(0)|y(t)>(' // trim(adjustl(tmpc)) // ")")
+            do iGf = 1, gf_count
+               write(tmgf, '(i5)') iGf
+               call stats_out(state,.true., overlap_real(iGf), 'Re. <y(0)|y(t)> (' // &
+                    trim(adjustl(tmgf)) // ')' )
+               call stats_out(state,.true., overlap_imag(iGf), 'Im. <y(0)|y(t)> (' // &
+                    trim(adjustl(tmgf)) // ')' )
+               do p = 1, normsize
+                  write(tmpc, '(i5)') p
+                  call stats_out(state,.false.,real(current_overlap(p,iGf)), 'Re. <y(0)|y(t)>(' // &
+                       trim(adjustl(tmpc)) // ';' // trim(adjustl(tmgf)) // ')')
+                  call stats_out(state,.false.,aimag(current_overlap(p,iGf)), 'Im. <y(0)|y(t)>(' // &
+                       trim(adjustl(tmpc)) // ';' // trim(adjustl(tmgf)) // ')')
+               enddo
             enddo
 #endif
             ! If we are running multiple (replica) simulations, then we

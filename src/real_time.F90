@@ -19,7 +19,7 @@ module real_time
                               tau_real, tau_imag, t_rotated_time, temp_iendfreeslot, &
                               temp_freeslot, overlap_real, overlap_imag, dyn_norm_psi, &
                               NoatHF_1, shift_damping, t_noshift, tDynamicCoreSpace, &
-                              normsize
+                              normsize, gf_count
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
                         tChangeProjEDet, DiagSft
@@ -213,9 +213,9 @@ contains
 
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
         integer :: n_determ_states
-        integer :: i
+        integer :: i,j
         real(sp) :: s_start, s_end, tstart(2), tend(2)
-        complex(dp) :: overlap_buf
+        complex(dp), allocatable :: overlap_buf(:)
 
         print *, " ========================================================== "
         print *, " ------------------ Real-time FCIQMC ---------------------- "
@@ -242,6 +242,8 @@ contains
         ! with the perturbed groundstate and stores it in a pre-allocated list
         ! shouldnt geourge have some of those routines..
 
+        allocate(overlap_buf(gf_count),stat = i)
+
         call update_gf_overlap()
         if(iProcIndex == root) then
            print *, "test on overlap at t = 0: "
@@ -252,10 +254,8 @@ contains
               print *, " for greater GF <y(0)| a_i a^+_j |y(0)> ; i,j: ", &
                    overlap_pert(1)%crtn_orbs(1), pops_pert(1)%crtn_orbs(1)
            end if
-           do i=1, normsize
-              print *, "Current GF:", gf_overlap(i,0)&
-                   / pert_norm(i)
-           enddo
+              print *, "Current GF:", gf_overlap(1,0,1)&
+                   / pert_norm(1,1)
         endif
 
         ! enter the main real-time fciqmc loop here
@@ -285,23 +285,18 @@ contains
             ! update the normalization due to the shift
             call update_shift_damping()
 
-            do i = 1, normsize
-               current_overlap(i) = gf_overlap(i,iter)/pert_norm(i)
-            end do
+            do j = 1, gf_count
+               do i = 1, normsize
+                  current_overlap(i,j) = gf_overlap(i,iter,j)/pert_norm(i,j)
+               end do
 
             !normalize the greens function
-            overlap_buf = sum(gf_overlap(:,iter))/sum(pert_norm(:)) * &
+            overlap_buf(j) = sum(gf_overlap(:,iter,j))/sum(pert_norm(:,j)) * &
                  sum(exp(shift_damping))/inum_runs
 
-            overlap_real = real(overlap_buf)
-            overlap_imag = aimag(overlap_buf)
-
-            if(.false.) then
-               if(iProcIndex == root) print *, "overlap with const normalization: ", &
-                    gf_overlap(1,iter) / pert_norm(1), &
-                    gf_overlap(2,iter) / pert_norm(1)
-               ! update various variables.. time-step, initiator criteria etc.
-            endif
+            overlap_real(j) = real(overlap_buf(j))
+            overlap_imag(j) = aimag(overlap_buf(j))
+         end do
 
             call update_real_time_iteration()
 
@@ -334,6 +329,8 @@ contains
         end do fciqmc_loop
         
         if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
+        
+        deallocate(overlap_buf, stat = i)
 
         ! rt_iter_adapt : avoid memleaks
         call dealloc_real_time_memory()

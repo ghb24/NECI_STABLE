@@ -28,6 +28,8 @@ module real_time_data
     ! timestep, which orbitals are manipulated etc. in it 
     integer :: gf_type      ! -1 indicates a the lesser, 1 the greater GF
     integer :: normsize ! number of combinations avaliable for calculating overlaps
+    integer :: gf_count ! number of different Green's functions to be evaluated
+    integer :: allGfs ! 0 -> only one GF, 1 -> all lesser GFs, 2 -> all greater GFs
     
     ! the angle used for rotation of time into complex plane
     ! it is better readable to use new variables for real and imaginary part
@@ -37,13 +39,13 @@ module real_time_data
     ! logging the total elapsed time on both axes
     real(dp) :: elapsedRealTime, elapsedImagTime
     ! averaged overlaps
-    real(dp) :: overlap_real, overlap_imag
+    real(dp), allocatable :: overlap_real(:), overlap_imag(:)
 
     ! need a global variable for the overlap <y(0)|y(t)> 
     ! determined by the max. cycle
 !     real(dp), allocatable :: gf_overlap(:)
     ! for tests now only make it of length 1
-    complex(dp), allocatable :: gf_overlap(:,:)
+    complex(dp), allocatable :: gf_overlap(:,:,:)
     ! also store the norm of the time-evolved wavefunction
     complex(dp), allocatable :: dyn_norm_psi(:)
     ! the ground state energy of the N-particle problem which is added as a global shift
@@ -53,15 +55,23 @@ module real_time_data
 
     ! also store the current overlap of the cycle.. 
 
-    complex(dp), allocatable :: current_overlap(:)
+    complex(dp), allocatable :: current_overlap(:,:)
 
 
-    ! also store the norm of the perturbed ground state to adjust the 
-    complex(dp), allocatable :: pert_norm(:)
+    ! also store the norm of the perturbed ground state to adjust the overlap 
+    complex(dp), allocatable :: pert_norm(:,:)
 
     ! need additional info of the original walker number and the number of 
     ! walkers remaining in the perturbed ground state
-    integer(int64) :: TotWalkers_pert, TotWalkers_orig
+    integer(int64) :: TotWalkers_orig
+
+    type perturbed_state
+       ! type for a state that is used as a reference state for the overlap
+       integer :: nDets
+       integer(n_int), allocatable :: dets(:,:)
+    end type perturbed_state
+
+    type(perturbed_state), allocatable :: overlap_states(:)
 
     type real_time_type
         ! number of starting vectors = number of parallel mneci calculations
@@ -111,7 +121,8 @@ module real_time_data
 
     ! also need to store the original number of determinants(and walkers maybe)
     ! of the y(n) list to reload correctly
-    integer :: temp_totWalkers, MaxSpawnedDiag, MemoryFacDiag
+    integer :: temp_totWalkers, MaxSpawnedDiag
+    real(dp) :: MemoryFacDiag
 
     ! also start to store the diagonal "spawns" in the second rt-fciqmc loop
     ! in a seperate Spawned Parts array, to better keep track of stats and 

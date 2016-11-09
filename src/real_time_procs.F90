@@ -6,13 +6,13 @@
 module real_time_procs
     use hash, only: hash_table_lookup, init_hash_table, clear_hash_table, &
                     add_hash_table_entry, fill_in_hash_table
-    use SystemData, only: nel
-    use real_time_data, only: gf_overlap, TotWalkers_orig, TotWalkers_pert, &
+    use SystemData, only: nel, nBasis
+    use real_time_data, only: gf_overlap, TotWalkers_orig, overlap_states,&
                               t_complex_ints, real_time_info, temp_freeslot, & 
                               temp_det_list, temp_det_pointer,  temp_iendfreeslot, &
-                              temp_det_hash, temp_totWalkers, pert_norm, &
+                              temp_det_hash, temp_totWalkers, pert_norm, allGfs, &
                               valid_diag_spawns, DiagParts, n_diag_spawned, &
-                              NoDied_1, NoBorn_1, SumWalkersCyc_1, &
+                              NoDied_1, NoBorn_1, SumWalkersCyc_1, gf_count, &
                               t_rotated_time, tau_imag, tau_real, gs_energy, &
                               dyn_norm_psi, shift_damping, MaxSpawnedDiag, normsize
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
@@ -27,7 +27,7 @@ module real_time_procs
     use bit_rep_data, only: extract_sign, nifdbo, niftot
     use FciMCData, only: CurrentDets, HashIndex, popsfile_dets, MaxWalkersPart, &
                          WalkVecDets, freeslot, spawn_ht, nhashes_spawn, MaxSpawned, &
-                         iStartFreeSlot, iEndFreeSlot, ValidSpawnedList, &
+                         iStartFreeSlot, iEndFreeSlot, ValidSpawnedList, pops_pert, &
                          InitialSpawnedSlots, iLutRef, inum_runs, max_cyc_spawn, &
                          tSearchTau, tFillingStochRDMonFly, fcimc_iter_data, &
                          NoAddedInitiators, SpawnedParts, acceptances, TotWalkers, &
@@ -35,11 +35,12 @@ module real_time_procs
                          NoBorn, NoAborted, NoRemoved, HolesInList, TotParts, Hii, &
                          determ_sizes, determ_displs, determ_space_size, core_space
     use sparse_arrays, only: sparse_core_ham
-    use perturbations, only: apply_perturbation
+    use perturbations, only: apply_perturbation, init_perturbation_creation, &
+         init_perturbation_annihilation
     use util_mod, only: int_fmt
     use CalcData, only: AvMCExcits, tAllRealCoeff, tRealCoeffByExcitLevel, &
                         tRealSpawnCutoff, RealSpawnCutoff, tau, RealCoeffExcitThresh, &
-                        DiagSft, tTruncInitiator, OccupiedThresh
+                        DiagSft, tTruncInitiator, OccupiedThresh, tReadPops
     use DetBitOps, only: FindBitExcitLevel
     use procedure_pointers, only: get_spawn_helement
     use util_mod, only: stochastic_round
@@ -58,8 +59,9 @@ module real_time_procs
     use LoggingData, only: tNoNewRDMContrib
     use AnnihilationMod, only: test_abort_spawn
     use load_balance, only: AddNewHashDet, CalcHashTableStats, test_hash_table
-
     implicit none
+
+    integer :: TotWalkers_orig_max
 
 contains
 
@@ -393,10 +395,11 @@ contains
         list_full = .false.
         if (valid_diag_spawns > MaxSpawnedDiag) list_full = .true.
         if (list_full) then
-            write(6,*) "Attempting to spawn particle onto processor: ", iProcIndex
-            write(6,*) "No memory slots available for this spawn."
-            write(6,*) "Please increase MEMORYFACSPAWN"
-            write(6,*) "VALID DIAG SPAWN LIST", valid_diag_spawns
+            print *, "Attempting to spawn particle onto processor: ", iProcIndex
+            print *, "No memory slots available for this spawn."
+            print *, "Please increase MEMORYFACSPAWN"
+            print *, "VALID DIAG SPAWN LIST", valid_diag_spawns
+            print *, "NUMBER OF OCC DETERMINANTS", TotWalkers
             call stop_all(this_routine, "Out of memory for spawned particles")
         end if
 
@@ -1250,52 +1253,55 @@ contains
     subroutine update_gf_overlap() 
         ! this routine only deals with globally defined variables
       implicit none
-        integer :: idet, nI(nel), det_ind, hash_val, runA, runB
+        integer :: idet, nI(nel), det_ind, hash_val, runA, runB, iGf
         real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
         complex(dp) :: overlap(normsize)
         logical :: tDetFound
 
         overlap = 0.0_dp
 
-        do idet = 1, size(perturbed_ground, dim = 2)
+        do iGf = 1, gf_count
+           do idet = 1, overlap_states(iGf)%nDets
 
-            call extract_sign(perturbed_ground(:,idet), real_sign_1) 
+              call extract_sign(overlap_states(iGf)%dets(:,idet), real_sign_1) 
 
-            if (IsUnoccDet(real_sign_1)) cycle
+              if (IsUnoccDet(real_sign_1)) cycle
 
-            call decode_bit_det(nI, perturbed_ground(:,idet))
+              call decode_bit_det(nI, overlap_states(iGf)%dets(:,idet))
 
-            ! search for the hash table associated with the time evolved 
-            ! wavefunction -> is this already initialized correctly? 
-            call hash_table_lookup(nI, perturbed_ground(:,idet), nifdbo, &
-                HashIndex, CurrentDets, det_ind, hash_val, tDetFound)
+              ! search for the hash table associated with the time evolved 
+              ! wavefunction -> is this already initialized correctly? 
+              call hash_table_lookup(nI, overlap_states(iGf)%dets(:,idet), nifdbo, &
+                   HashIndex, CurrentDets, det_ind, hash_val, tDetFound)
 
-            if (tDetFound) then
-               ! both real and imaginary part of the time-evolved wf are required
-                call extract_sign(CurrentDets(:,det_ind), real_sign_2)
-                
-                do runA = 1, inum_runs
-                   do runB = 1, inum_runs
-                      ! overlap is now treated as complex type
-                      overlap(overlap_index(runA,runB)) = overlap(overlap_index(runA,runB)) &
-                           +conjg(cmplx(real_sign_1(min_part_type(runA)), &
-                           real_sign_1(max_part_type(runA)))) &
-                           *cmplx(real_sign_2(min_part_type(runB)),real_sign_2(max_part_type(runB)))
-                   end do
-                end do
-            end if
-        end do
+              if (tDetFound) then
+                 ! both real and imaginary part of the time-evolved wf are required
+                 call extract_sign(CurrentDets(:,det_ind), real_sign_2)
+
+                 do runA = 1, inum_runs
+                    do runB = 1, inum_runs
+                       ! overlap is now treated as complex type
+                       overlap(overlap_index(runA,runB)) = overlap(overlap_index(runA,runB)) &
+                            +conjg(cmplx(real_sign_1(min_part_type(runA)), &
+                            real_sign_1(max_part_type(runA)))) &
+                            *cmplx(real_sign_2(min_part_type(runB)),real_sign_2(max_part_type(runB)))
+                    end do
+                 end do
+              end if
+           end do
 
         ! rmneci_setup: the overlap has to be reduced as each proc
         ! only computes its own part
-        call MPIReduce(overlap,MPI_SUM,gf_overlap(:,iter))
+           call MPIReduce(overlap,MPI_SUM,gf_overlap(:,iter,iGf))
+        enddo
         ! communicate the norm as it is the sum over all walkers
 
     end subroutine update_gf_overlap
 
     function calc_norm(dets, num_dets) result(cd_norm)
       ! the first dimension of dets has to be lenof_sign
-        ! function to calculate the norm of the left-hand <y(0)| (general function)
+      ! function to calculate the norm of a state and 
+      ! the overlap between replicas(general function)
         complex(dp) :: cd_norm(normsize)
         integer(dp) :: dets(:,:)
         integer, intent(in) :: num_dets
@@ -1462,26 +1468,42 @@ contains
       implicit none
         character(*), parameter :: this_routine = "create_perturbed_ground"
         integer :: tmp_totwalkers
-        integer(int64) :: TotWalkers_orig_max
-        integer :: ierr
+        integer :: ierr, i
+        integer(n_int), allocatable :: perturbed_buf(:,:)
 
-        tmp_totwalkers = TotWalkers_orig
+        if(tReadPops) then
+           tmp_totwalkers = TotWalkers_orig
+        else
+           tmp_totwalkers = TotWalkers
+        endif
 
         print *, "Creating the wavefunction to projected on!"
         print *, "Initial number of walkers: ", tmp_totwalkers
 
-        call MPISumAll(TotWalkers_orig,TotWalkers_orig_max)
-        allocate(perturbed_ground(0:niftot,TotWalkers_orig_max), stat = ierr)
-        print *, "Read-in dets", TotWalkers_orig_max
-        if(allocated(overlap_pert)) then
-           call apply_perturbation(overlap_pert(1), tmp_totwalkers, popsfile_dets,&
-                perturbed_ground)
-        else
-           perturbed_ground = CurrentDets
-        endif
-        TotWalkers_pert = int(tmp_totwalkers, int64)
+        call MPISumAll(tmp_totwalkers,TotWalkers_orig_max)
 
-        print *, "Walkers remaining in perturbed ground state:" , TotWalkers_pert
+        if(.not. allGfs == 0) call setup_pert_array(allGfs)
+        
+        allocate(overlap_states(gf_count), stat = ierr)
+        allocate(perturbed_buf(0:niftot,TotWalkers_orig_max), stat = ierr)
+        print *, "Read-in dets", TotWalkers_orig
+        do i = 1, gf_count
+           if(allocated(overlap_pert)) then
+              if(tReadPops) then
+                 call apply_perturbation(overlap_pert(i),TotWalkers_orig_max, popsfile_dets,&
+                      perturbed_buf)
+              else
+                 call apply_perturbation(overlap_pert(i), tmp_totwalkers, CurrentDets, &
+                      perturbed_buf)
+              endif
+           else
+              perturbed_buf = CurrentDets
+           endif
+           call write_overlap_state(perturbed_buf,i)
+        enddo
+
+        print *, "Determinants remaining in perturbed ground state:" , overlap_states(1)%nDets
+        deallocate(perturbed_buf,stat=ierr)
 
         ! also need to create and associated hash table to this list 
 !         call clear_hash_table(perturbed_ground_ht)
@@ -1489,6 +1511,27 @@ contains
 
 
     end subroutine create_perturbed_ground
+
+    subroutine write_overlap_state(state, index)
+      implicit none
+      integer(n_int), intent(in) :: state(0:nIfTot,TotWalkers_orig_max)
+      integer, intent(in) :: index
+      integer :: nOccDets, i
+      real(dp) :: tmp_sign(lenof_sign)
+
+      ! check how many determinants are stored for this state on this core
+      do i=1, TotWalkers_orig_max
+         call extract_sign(state(:,i), tmp_sign)
+         nOccDets = i
+         if(IsUnoccDet(tmp_sign)) then
+            exit
+         endif
+      enddo
+      ! copy them to overlap_states
+      allocate(overlap_states(index)%dets(0:nIfTot,nOccDets))
+      overlap_states(index)%dets = state(:,1:nOccDets)
+      overlap_states(index)%nDets = nOccDets
+    end subroutine write_overlap_state
 
     
     subroutine check_update_growth(iter_data, message)
@@ -1527,6 +1570,29 @@ contains
 
     end subroutine update_shift_damping
 
+    subroutine setup_pert_array(ctrn_index)
+      implicit none
+      integer, intent(in) :: ctrn_index
+      integer :: i
+
+      gf_count = nBasis
+      allocate(overlap_pert(nBasis))
+      do i = 1,nBasis
+         if(ctrn_index == 2) then
+            overlap_pert(i)%ncreate = 1
+            allocate(overlap_pert(i)%crtn_orbs(1))
+            overlap_pert(i)%crtn_orbs(1) = i
+            call init_perturbation_creation(overlap_pert(i))
+         else
+            overlap_pert(i)%nannihilate = 1
+            allocate(overlap_pert(i)%ann_orbs(1))
+            overlap_pert(i)%ann_orbs(1) = i
+            call init_perturbation_annihilation(overlap_pert(i))
+         endif
+      end do
+
+    end subroutine setup_pert_array
+
     subroutine reset_tot_parts()
       ! if the second RK step is to be compared, the reference has to be reset
       ! -> recount the TotParts from the restored data
@@ -1549,4 +1615,13 @@ contains
          allWalkersSummed = allWalkersSummed + abs(CurrentSign)
       end do
     end function get_tot_parts
+
+    subroutine clean_overlap_states()
+      implicit none
+      integer :: i, ierr
+      do i = 1,gf_count
+         deallocate(overlap_states(i)%dets, stat=ierr)
+      enddo
+      deallocate(overlap_states, stat=ierr)
+    end subroutine clean_overlap_states
 end module real_time_procs
