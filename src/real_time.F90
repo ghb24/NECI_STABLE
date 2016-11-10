@@ -209,6 +209,7 @@ contains
         ! do all the setup, read-in and calling of the "new" real-time MC loop
         use real_time_data, only: gf_overlap, AllTotWalkersOld_1
         use Systemdata, only: tCSF
+        use FciMCData, only : TotImagTime
         implicit none
 
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
@@ -216,6 +217,9 @@ contains
         integer :: i,j
         real(sp) :: s_start, s_end, tstart(2), tend(2)
         complex(dp), allocatable :: overlap_buf(:)
+        character (255) :: rtPOPSFILE_name
+
+        rtPOPSFILE_name = 'TIME_EVOLVED_POP'
 
         print *, " ========================================================== "
         print *, " ------------------ Real-time FCIQMC ---------------------- "
@@ -328,7 +332,14 @@ contains
 !             if (iter == 1000) call stop_all(this_routine, "stop for now to avoid endless loop")
         end do fciqmc_loop
         
-        if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
+        if (tPopsFile) then 
+           ! here, we store the elapsed real time in the popsfile instead of the imaginary
+           ! time
+           ! in case we ever want to change alpha, it would be best to silently substitute one of
+           ! the variables in the popsfile with the elapsed imaginary time
+           TotImagTime = elapsedRealTime
+           call WriteToPopsfileParOneArr(CurrentDets,TotWalkers,rtPOPSFILE_name)
+        endif
         
         deallocate(overlap_buf, stat = i)
 

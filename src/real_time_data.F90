@@ -17,7 +17,7 @@ module real_time_data
     ! rotated_time_setup: flag to indicate whether pure real time is
     ! used or not
     logical :: t_real_time_fciqmc, t_new_stats_file, t_rotated_time, t_noshift, &
-         tDynamicCoreSpace
+         tDynamicCoreSpace, tRealTimePopsfile
 
     ! also use a second iter_data type to keep track of the 2 distinct 
     ! spawning events

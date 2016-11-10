@@ -27,7 +27,7 @@ module real_time_procs
     use bit_rep_data, only: extract_sign, nifdbo, niftot
     use FciMCData, only: CurrentDets, HashIndex, popsfile_dets, MaxWalkersPart, &
                          WalkVecDets, freeslot, spawn_ht, nhashes_spawn, MaxSpawned, &
-                         iStartFreeSlot, iEndFreeSlot, ValidSpawnedList, pops_pert, &
+                         iStartFreeSlot, iEndFreeSlot, ValidSpawnedList, &
                          InitialSpawnedSlots, iLutRef, inum_runs, max_cyc_spawn, &
                          tSearchTau, tFillingStochRDMonFly, fcimc_iter_data, &
                          NoAddedInitiators, SpawnedParts, acceptances, TotWalkers, &

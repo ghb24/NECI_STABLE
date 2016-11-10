@@ -508,11 +508,11 @@ contains
             ! Only do the actual outputting on the head node.
 
             ! Don't treat the header line as data. Add padding to align the
-            ! other columns. We also add a # to the first line of data, so
-            ! that there aren't repeats if starting from POPSFILES
+            ! other columns. We do not add a # to the first line of data 
+            ! since we also need that datapoint for Green's functions
             if (state%init .or. state%prepend) then
                 write(state%funit, '("#")', advance='no')
-                if (tMCOutput) write(iout, '("#")', advance='no')
+                if (tMCOutput) write(iout, '(" ")', advance='no')
                 state%prepend = state%init
             else if (.not. state%prepend) then
                 write(state%funit, '(" ")', advance='no')
@@ -585,18 +585,20 @@ contains
             ! also output the overlaps and norm.. 
             do iGf = 1, gf_count
                write(tmgf, '(i5)') iGf
-               call stats_out(state,.true., overlap_real(iGf), 'Re. <y(0)|y(t)> (' // &
+               call stats_out(state,.true., overlap_real(iGf), 'Re. <y_i(0)|y(t)> (i=' // &
                     trim(adjustl(tmgf)) // ')' )
-               call stats_out(state,.true., overlap_imag(iGf), 'Im. <y(0)|y(t)> (' // &
+               call stats_out(state,.true., overlap_imag(iGf), 'Im. <y_i(0)|y(t)> (i=' // &
                     trim(adjustl(tmgf)) // ')' )
+            enddo
+            if(gf_count == 1) then
                do p = 1, normsize
                   write(tmpc, '(i5)') p
-                  call stats_out(state,.false.,real(current_overlap(p,iGf)), 'Re. <y(0)|y(t)>(' // &
-                       trim(adjustl(tmpc)) // ';' // trim(adjustl(tmgf)) // ')')
-                  call stats_out(state,.false.,aimag(current_overlap(p,iGf)), 'Im. <y(0)|y(t)>(' // &
-                       trim(adjustl(tmpc)) // ';' // trim(adjustl(tmgf)) // ')')
+                  call stats_out(state,.false.,real(current_overlap(p,iGf)), 'Re. <y(0)|y(t)>(rep ' // &
+                       trim(adjustl(tmpc)) //  ')')
+                  call stats_out(state,.false.,aimag(current_overlap(p,iGf)), 'Im. <y(0)|y(t)>(rep ' // &
+                       trim(adjustl(tmpc)) // ')')
                enddo
-            enddo
+            endif
 #endif
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these

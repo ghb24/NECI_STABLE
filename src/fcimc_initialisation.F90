@@ -1151,7 +1151,7 @@ contains
         Popinum_runs=1
 
         if(tReadPops .and. .not. (tPopsAlreadyRead .or. tHDF5PopsRead)) then
-            call open_pops_head(iunithead,formpops,binpops)
+           call open_pops_head(iunithead,formpops,binpops)
             PopsVersion=FindPopsfileVersion(iunithead)
             if(iProcIndex.eq.root) close(iunithead)
             write(iout,*) "POPSFILE VERSION ",PopsVersion," detected."
@@ -1332,7 +1332,7 @@ contains
 
             ! If we have a popsfile, read the walkers in now.
             if(tReadPops .and. .not.tPopsAlreadyRead) then
-                call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, iPopNel, read_nnodes, &
+               call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, iPopNel, read_nnodes, &
                                     read_walkers_on_nodes, pops_pert, &
                                     PopBalanceBLocks, PopDiagSft)
             else
