@@ -8,7 +8,7 @@ module real_time_init
                               t_complex_ints, gf_overlap, temp_det_list, &
                               temp_det_pointer, temp_det_hash, temp_freeslot, &
                               pert_norm, second_spawn_iter_data, DiagParts, &
-                              MemoryFacDiag, DiagVec, normsize, valid_diag_spawns, &
+                              DiagVec, normsize, valid_diag_spawns, &
                               NoatHF_1, Annihilated_1, Acceptances_1, NoBorn_1, &
                               SpawnFromSing_1, NoDied_1, NoAborted_1, NoRemoved_1, &
                               NoAddedInitiators_1, NoInitDets_1, NoNonInitDets_1, &
@@ -51,7 +51,7 @@ module real_time_init
     use kp_fciqmc_init, only: create_overlap_pert_vec
     use LoggingData, only: tZeroProjE, tFCIMCStats2
     use fcimc_output, only: write_fcimcstats2, WriteFciMCStatsHeader
-    use replica_data, only: allocate_iter_data
+    use replica_data, only: allocate_iter_data, set_initial_global_data
     use bit_rep_data, only: nifbcast
     use bit_reps, only: decode_bit_det
 
@@ -113,6 +113,8 @@ contains
 
         ! do an MPIbarrier here.. although don't quite know why        
         call MPIBarrier(ierr)
+
+        if(.not. tReadPops) call set_initial_global_data(TotWalkers, CurrentDets)
 
     end subroutine init_real_time_calc_single
 
@@ -316,13 +318,9 @@ contains
 
         TotPartsStorage = TotParts
 
-        ! if nothing was specified as memoryfacdiag, use memoryfacspawn
-        if(.not. tmemoryfacdiagset) MemoryFacDiag = MemoryFacSpawn
-
         ! also intitialize the 2nd spawning array to deal with the 
         ! diagonal death step in the 2nd rt-fciqmc loop
-        MaxSpawnedDiag = int(MemoryFacDiag*InitWalkers)
-        allocate(DiagVec(0:nifbcast, MaxSpawnedDiag), stat = ierr)
+        allocate(DiagVec(0:nifbcast, MaxWalkersPart), stat = ierr)
 
         DiagVec = 0
 
@@ -369,11 +367,7 @@ contains
         AllInitRemoved_1 = 0
         AccRat_1 = 0.0_dp
         AllSumWalkersCyc_1 = 0.0_dp
-        elapsedRealTime = 0.0_dp
-        elapsedImagTime = 0.0_dp
         benchmarkEnergy = 0.0_dp
-        allGfs = 0
-        gf_count = 1
 
         call rotate_time()
 
@@ -455,12 +449,6 @@ contains
                 ! stability, this can be set here
                 t_rotated_time = .true.
                 call readf(time_angle)
-
-             case("MEMORYFACDIAG")
-                ! usually, the diagonal spawning array needs to be larger than
-                ! the offdiagonal one, thus an extra factor is introduced
-                tmemoryfacdiagset = .true.
-                call readf(MemoryFacDiag)
 
             ! use nicks perturbation & kp-fciqmc stuff here as much as 
             ! possible too
@@ -697,6 +685,15 @@ contains
         ! usually, systems with real integrals will be considered, but the walkers will
         ! always be complex
         tComplexWalkers_RealInts = .true.
+
+        ! if no gf kind is specified, only the overlap with the initial state will
+        ! be considered -> only one overlap is obtained
+        gf_count = 1
+        allGfs = 0
+        
+        ! if starting a new calculation, we start at time 0 (arbitrary)
+        elapsedRealTime = 0.0_dp
+        elapsedImagTime = 0.0_dp
 
         ! by default, the initial state is taken from an ordinary popsfile
         ! if a time evolved state is desired, a second popsfile has to be supplied

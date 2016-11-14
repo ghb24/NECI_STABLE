@@ -14,7 +14,7 @@ module real_time_procs
                               valid_diag_spawns, DiagParts, n_diag_spawned, &
                               NoDied_1, NoBorn_1, SumWalkersCyc_1, gf_count, &
                               t_rotated_time, tau_imag, tau_real, gs_energy, &
-                              dyn_norm_psi, shift_damping, MaxSpawnedDiag, normsize
+                              dyn_norm_psi, shift_damping, normsize
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
                          sizeof_int, MPIArg
@@ -62,6 +62,7 @@ module real_time_procs
     implicit none
 
     integer :: TotWalkers_orig_max
+    type(timer) :: calc_gf_time
 
 contains
 
@@ -393,7 +394,7 @@ contains
         ! kill the calculation hard (i.e. stop_all) with a descriptive
         ! error message.
         list_full = .false.
-        if (valid_diag_spawns > MaxSpawnedDiag) list_full = .true.
+        if (valid_diag_spawns > MaxWalkersPart) list_full = .true.
         if (list_full) then
             print *, "Attempting to spawn particle onto processor: ", iProcIndex
             print *, "No memory slots available for this spawn."
@@ -1252,13 +1253,17 @@ contains
     ! time evolved wavefunction to the saved <y(0)|a^+_i(a_i) 
     subroutine update_gf_overlap() 
         ! this routine only deals with globally defined variables
+      use timing_neci, only: timer, get_total_time
       implicit none
         integer :: idet, nI(nel), det_ind, hash_val, runA, runB, iGf
         real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
         complex(dp) :: overlap(normsize)
         logical :: tDetFound
+        real(sp) :: gf_time
 
         overlap = 0.0_dp
+
+        call set_timer(calc_gf_time)
 
         do iGf = 1, gf_count
            do idet = 1, overlap_states(iGf)%nDets
@@ -1294,6 +1299,10 @@ contains
         ! only computes its own part
            call MPIReduce(overlap,MPI_SUM,gf_overlap(:,iter,iGf))
         enddo
+
+        call halt_timer(calc_gf_time)
+        gf_time = get_total_time(calc_gf_time)
+        if(iProcIndex == root) print *, "OVERLAP COMPUTATION TOOK", gf_time
         ! communicate the norm as it is the sum over all walkers
 
     end subroutine update_gf_overlap
@@ -1502,7 +1511,8 @@ contains
            call write_overlap_state(perturbed_buf,i)
         enddo
 
-        print *, "Determinants remaining in perturbed ground state:" , overlap_states(1)%nDets
+        if(allocated(overlap_states)) print *, &
+             "Determinants remaining in perturbed ground state:" , overlap_states(1)%nDets
         deallocate(perturbed_buf,stat=ierr)
 
         ! also need to create and associated hash table to this list 

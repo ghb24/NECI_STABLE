@@ -593,9 +593,9 @@ contains
             if(gf_count == 1) then
                do p = 1, normsize
                   write(tmpc, '(i5)') p
-                  call stats_out(state,.false.,real(current_overlap(p,iGf)), 'Re. <y(0)|y(t)>(rep ' // &
+                  call stats_out(state,.false.,real(current_overlap(p,1)), 'Re. <y(0)|y(t)>(rep ' // &
                        trim(adjustl(tmpc)) //  ')')
-                  call stats_out(state,.false.,aimag(current_overlap(p,iGf)), 'Im. <y(0)|y(t)>(rep ' // &
+                  call stats_out(state,.false.,aimag(current_overlap(p,1)), 'Im. <y(0)|y(t)>(rep ' // &
                        trim(adjustl(tmpc)) // ')')
                enddo
             endif

@@ -1681,7 +1681,7 @@ r_loop: do while(.not.tStoreDet)
             ! With a normal popsfile, the header is written at the start.
             ! Thus we need to do that now.
             if (.not. tBinPops) then
-                call get_unique_filename(identifier, tIncrementPops, .true., &
+                call get_unique_filename(trim(identifier), tIncrementPops, .true., &
                                          iPopsFileNoWrite, popsfile)
                 iunit = get_free_unit()
                 ! We set recl=50000, which allows the line length written to be
