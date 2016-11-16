@@ -260,10 +260,11 @@ C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
      &    iMinElec1, iMaxElec1,G1,SymProdInd,SymProds,nI,nEl)
          use SystemData, only: Symmetry,BasisFN,SymmetrySize
          use sym_mod
+         use constants, only: int64
          IMPLICIT NONE
          INTEGER nPairs
          INTEGER ORBPAIRS(2,nPairs)
-         INTEGER nPr
+         INTEGER(int64) nPr
          INTEGER iMinElec1, iMaxElec1,nEl,nI(nEl)
          TYPE(Symmetry) SymProds(0:*)
          INTEGER I,J,K,L
