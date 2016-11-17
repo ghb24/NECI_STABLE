@@ -482,6 +482,19 @@ system: do
             TREAL = .true.
         case("APERIODIC")
             TPBC = .false.
+
+        case("TWISTED-BC")
+            ! use of twisted boundary conditions for the cubic and tilted 
+            ! hubbard lattice model 
+            t_twisted_bc = .true. 
+            call getf(twisted_bc(1)) 
+            if (item < nitems) then
+                call getf(twisted_bc(2))
+            else
+                ! if only one input apply same twist in x and y direction 
+                twisted_bc(2) = twisted_bc(1)
+            end if
+
         case("UEG-OFFSET")
             tUEGOffset=.true.
             call getf(k_offset(1))

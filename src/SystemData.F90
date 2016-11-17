@@ -237,6 +237,13 @@ logical :: tSymSet = .false.
 
 logical :: tGiovannisBrokenInit
 
+! twisted boundary implementation for the hubbard model: 
+! use keyword twisted-bc [real, real] in System Block of input 
+! twist value is in values of periodicity (2*pi/L) for cubic and (pi/L) for 
+! tilted lattice
+logical :: t_twisted_bc = .false. 
+real(dp) :: twisted_bc(2) = 0.0_dp
+
 ! Operators for type(symmetry)
 interface assignment (=)
     module procedure SymAssign
