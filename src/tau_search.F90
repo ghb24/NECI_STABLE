@@ -223,7 +223,6 @@ contains
             allocate(frequency_bins_singles(n_frequency_bins))
             frequency_bins_singles = 0
 
-
             ! for now use only pSingles and pDoubles for GUGA implo
             allocate(frequency_bins_doubles(n_frequency_bins))
             frequency_bins_doubles = 0
@@ -599,7 +598,6 @@ contains
         ! singles is always used.. 
         ! thats not quite right.. for the hubbard/UEG case it is not.. 
         if (.not. (tUEG .or. tHub)) then
-    !         print *, "toto singles", size(frequency_bins_singles)
             call integrate_frequency_histogram_spec(size(frequency_bins_singles), &
                 frequency_bins_singles, ratio_singles) 
 
@@ -699,7 +697,6 @@ contains
 
         else if (tGen_sym_guga_mol) then
             ! here i only use doubles for now
-!             print *, "toto doubles:", size(frequency_bins_doubles)
             call integrate_frequency_histogram_spec(size(frequency_bins_doubles), &
                 frequency_bins_doubles, ratio_doubles)
 

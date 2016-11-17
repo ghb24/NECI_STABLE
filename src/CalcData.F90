@@ -366,8 +366,8 @@ logical :: t_frequency_analysis = .false. ! flag to initiate the new analysis
 ! 0.1 and ignore all the frequency ratios above that.. and assume these 
 ! happen really seldomly and would be cut-off anyway with the integration 
 ! technique.. 
-integer :: n_frequency_bins = 1000000 ! optional input to adjust the number of bins
-real(dp) :: max_frequency_bound = 100000.0_dp
+integer :: n_frequency_bins = 100000 ! optional input to adjust the number of bins
+real(dp) :: max_frequency_bound = 10000.0_dp
 ! and also store data for the MPI communication
 real(dp) :: all_max_bound = 0.0_dp
 integer :: all_n_bins = 0

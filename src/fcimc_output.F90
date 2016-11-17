@@ -1397,16 +1397,16 @@ contains
         ! double(para/anti) histograms and a combined one of all of them
         integer :: iunit, i, max_size, old_size
         character(255) :: filename 
-        integer :: all_frequency_bins_s(n_frequency_bins), &
-                   all_frequency_bins_d(n_frequency_bins), &
-                   all_frequency_bins_p(n_frequency_bins), &
-                   all_frequency_bins_a(n_frequency_bins), &
-                   all_frequency_bins(n_frequency_bins), &
-                   all_frequency_bins_2(n_frequency_bins), &
-                   all_frequency_bins_2_d(n_frequency_bins), &
-                   all_frequency_bins_3(n_frequency_bins), &
-                   all_frequency_bins_3_d(n_frequency_bins), &
-                   all_frequency_bins_4(n_frequency_bins)
+        integer :: all_frequency_bins_s(n_frequency_bins)
+        integer :: all_frequency_bins_d(n_frequency_bins)
+        integer :: all_frequency_bins_p(n_frequency_bins)
+        integer :: all_frequency_bins_a(n_frequency_bins)
+        integer :: all_frequency_bins(n_frequency_bins)
+        integer :: all_frequency_bins_2(n_frequency_bins)
+        integer :: all_frequency_bins_2_d(n_frequency_bins)
+        integer :: all_frequency_bins_3(n_frequency_bins)
+        integer :: all_frequency_bins_3_d(n_frequency_bins)
+        integer :: all_frequency_bins_4(n_frequency_bins)
         real(dp) :: step_size, norm
 !         real(dp), allocatable :: all_frequency_bounds(:) 
         character(*), parameter :: this_routine = "print_frequency_histogram_spec"
@@ -1415,8 +1415,13 @@ contains
 
         ! this is only called in the 4ind weighted or GUGA case so singles 
         ! are always there so do them first 
-        call comm_frequency_histogram_spec(size(frequency_bins_singles), &
-            frequency_bins_singles, all_frequency_bins_s) 
+        ! why does it crash here? and not on my laptop... compiler issue i 
+        ! guess.. too much memory requested... lol
+        all_frequency_bins_s = 0
+        call MPIReduce(frequency_bins_singles, MPI_SUM, all_frequency_bins_s)
+
+!         call comm_frequency_histogram_spec(size(frequency_bins_singles), &
+!             frequency_bins_singles, all_frequency_bins_s) 
 
         if (iProcIndex == 0) then
             max_size = size(all_frequency_bins_s) 
@@ -1826,9 +1831,9 @@ contains
 !                 deallocate(all_frequency_bins)
             end if
         end if
-
+! 
     end subroutine print_frequency_histogram_spec
-
+! 
     subroutine print_frequency_histogram 
         ! routine to write a file with the H_ij/pgen ratio frequencies 
         integer :: iunit, i, max_size, old_size
@@ -1841,7 +1846,6 @@ contains
         ! i can test how to deal with the MPI stuff here to get the same 
         ! results as in the single runs
         ! first i need the maximum length of all processors
-
         call comm_frequency_histogram(all_frequency_bins)
 
         if (iProcIndex == 0) then

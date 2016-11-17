@@ -131,6 +131,15 @@ integer :: nIfP     ! Size appended to nIfD in CASSTAR calculations. Keeps
 ! From NECICB
 integer :: lmsBasis
 
+! hm.. for hubbard/UEG systems with >= 64 orbitals we need more integers 
+! to store since 2^63-1 is the max 64bit integer. but i dont know yet what 
+! changes that introduces in the rest of the code... additionally this change
+! does not only depend on the number of orbitals, but on the number of 
+! symmetry labels, since for molecular systems this is usually much smaller 
+! than the number of orbitals.. so in this case no change is necessary..
+! and the problem here is, we do not know yet the number of orbitals in 
+! the compilation stage.. so i would have to make it allocatable.. 
+! hm.. can i think of a nice workaround?? 
 TYPE Symmetry
    SEQUENCE
    integer(int64) :: S

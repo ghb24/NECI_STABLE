@@ -15,7 +15,7 @@ module FciMCParMod
                         ss_space_in, s_global_start, tContTimeFCIMC, &
                         trial_shift_iter, tStartTrialLater, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
-                        t_frequency_analysis, t_guga_mat_eles, frequency_bins_singles
+                        t_frequency_analysis, t_guga_mat_eles
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, &
@@ -64,6 +64,7 @@ module FciMCParMod
     use FciMCData
     use constants
     use guga_data, only: tNewDet
+    use tau_search, only: comm_frequency_histogram_spec
 
 #ifndef __CMPLX
     use guga_testsuite, only: run_test_excit_gen_det
@@ -116,6 +117,7 @@ module FciMCParMod
         character(6), parameter :: excit_descriptor(0:2) = &
                                         (/"IC0   ", "single", "double"/)
 
+        
         if (tJustBlocking) then
             ! Just reblock the current data, and do not perform an fcimc calculation.
             write(6,"(A)") "Skipping FCIQMC calculation and simply reblocking previous output"
@@ -467,7 +469,7 @@ module FciMCParMod
         if (t_frequency_analysis .and. t_print_frq_histograms) then
             if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_sym_guga_mol) then
                 if (.not. tGen_nosym_guga) then
-                    call print_frequency_histogram_spec()
+                    call print_frequency_histogram_spec
                 end if
             else if (tGen_sym_guga_ueg .or. tLatticeGens) then
                 call print_frequency_histogram()
