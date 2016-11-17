@@ -586,6 +586,7 @@ contains
             call enumerate_sing_doub_kpnt(exflag, .false., nSingles, nDoubles, .false.)
         ENDIF
         HFConn=nSingles+nDoubles
+        print *, "enumeration?"
 
         ! Initialise random number seed - since the seeds need to be different
         ! on different processors, subract processor rank from random number

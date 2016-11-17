@@ -2,7 +2,7 @@ module sym_mod
 
 use constants, only: dp,int64,sizeof_int
 use SymExcitDataMod, only: SymTableLabels
-use SystemData, only: tKpntSym, tNoSymGenRandExcits
+use SystemData, only: tKpntSym, tNoSymGenRandExcits, thub
 implicit none
 
 contains
@@ -28,7 +28,7 @@ contains
          FUNCTION SYMPROD(ISYM1,ISYM2)
          use SystemData, only: Symmetry
          use SystemData, only: BasisFN
-         use SymData, only: SymTable,nProp,tAbelian,TwoCycleSymGens
+         use SymData, only: SymTable,nProp,tAbelian,TwoCycleSymGens, nSymLabels
          IMPLICIT NONE
          TYPE(Symmetry) ISYM1, ISYM2
          TYPE(Symmetry) SYMPROD
@@ -60,23 +60,31 @@ contains
              IS1=ISYM1
              I=1
              SYMPROD%s=0
-             DO WHILE(IS1%s.NE.0)
-                IF(BTEST(IS1%s,0)) THEN
-                   IS2=ISYM2
-                   J=1
-                   DO WHILE(IS2%s.NE.0)
-                      IF(BTEST(IS2%s,0)) THEN
-                         SYMPROD%s=IOR(SYMPROD%s,SYMTABLE(I,J)%s)
-                      ENDIF
-!  RSHIFT(,1)
-                      IS2%s=ISHFT(IS2%s,-1)
-                      J=J+1
-                   ENDDO
-                ENDIF
-!RSHIFT(,1)
-                IS1%s=ISHFT(IS1%s,-1)
-                I=I+1
-             ENDDO
+             if (tHub .or. tKPntSym) then
+                 ! try new hubbard kpoint symmetry storage..
+                 if (isym1%s > nSymLabels .or. isym2%s > nSymLabels) then
+                     return
+                 endif
+                 symprod = SYMTABLE(isym1%s,isym2%s)
+             else
+                 DO WHILE(IS1%s.NE.0)
+                    IF(BTEST(IS1%s,0)) THEN
+                       IS2=ISYM2
+                       J=1
+                       DO WHILE(IS2%s.NE.0)
+                          IF(BTEST(IS2%s,0)) THEN
+                             SYMPROD%s=IOR(SYMPROD%s,SYMTABLE(I,J)%s)
+                          ENDIF
+    !  RSHIFT(,1)
+                          IS2%s=ISHFT(IS2%s,-1)
+                          J=J+1
+                       ENDDO
+                    ENDIF
+    !RSHIFT(,1)
+                    IS1%s=ISHFT(IS1%s,-1)
+                    I=I+1
+                 ENDDO
+             end if
          end if
          RETURN
       END FUNCTION SYMPROD

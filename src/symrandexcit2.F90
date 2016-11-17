@@ -3126,7 +3126,7 @@ SUBROUTINE SpinOrbSymSetup()
     use SystemData , only : MaxABPairs, tUEG2, kvec
     use Determinants, only : FDet
     use umatcache, only: gtID
-    use sym_mod, only: mompbcsym,SymProd
+    use sym_mod, only: mompbcsym,SymProd, writesym
     use constants, only: dp
 
     IMPLICIT NONE
@@ -3182,6 +3182,7 @@ SUBROUTINE SpinOrbSymSetup()
         endif
     enddo
 #ifdef __DEBUG
+    print *, "nSymLabels: ", nSymLabels
     WRITE(6,*) "SpinOrbSymLabel: "
     do i=1,nBasis
         WRITE(6,*) i,SpinOrbSymLabel(i)
@@ -3196,6 +3197,7 @@ SUBROUTINE SpinOrbSymSetup()
                 SymI=SymLabels(i+1)        !Convert to the other symlabel convention to use SymLabels - 
                                         !TODO: I will fix this to make them consistent when working (ghb24)!
                 SymJ=SymLabels(j+1)
+
                 SymProduct=SymProd(SymI,SymJ)
                 !Now, we need to find the label according to this symmetry!
                 !Run through all symmetries to make working (this could be far more efficient, but its only once, so sod it...
