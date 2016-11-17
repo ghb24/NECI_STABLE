@@ -962,7 +962,11 @@ contains
                 comm, err)
         ierr = err
 #else
+#if %(ndim)s != 0
+        Ret() = v(1:size(Ret,%(ndim)s))
+#else
         Ret = v
+#endif
         ierr = 0
 #endif
     end subroutine
@@ -1289,8 +1293,10 @@ contains
                 rt, comm, err)
         ierr = err
 #else
+        !The length is divided by the dimensionality of
+        !the array, as it is a total number of elements.
         Ret(:) = v(lbound(v,%(ndim)s+1):&
-                  (lbound(v,%(ndim)s+1)+Length-1))
+                  (lbound(v,%(ndim)s+1)+(Length/(1+%(ndim)s))-1))
         ierr = 0
 #endif
     end subroutine

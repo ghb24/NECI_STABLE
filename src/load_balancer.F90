@@ -483,12 +483,14 @@ contains
 
         use DetBitOps, only: FindBitExcitLevel
         use hphf_integrals, only: hphf_off_diag_helement
-        use FciMCData, only: ProjEDet
+        use FciMCData, only: ProjEDet, CurrentDets
+        use LoggingData, only: FCIMCDebug
+        use bit_rep_data, only: NOffSgn 
 
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
 
-        integer :: i, j, AnnihilatedDet, lbnd, ubnd
+        integer :: i, j, AnnihilatedDet, lbnd, ubnd, part_type
         real(dp) :: CurrentSign(lenof_sign)
         real(dp) :: pRemove, r
         integer :: nI(nel), run, ic
@@ -603,6 +605,24 @@ contains
 
             end do
         end if
+        
+        IFDEBUGTHEN(FCIMCDebug,6)
+            write(6,*) "After annihilation: "
+            write(6,*) "TotWalkersNew: ", TotWalkersNew
+            write(6,*) "AnnihilatedDet: ", AnnihilatedDet
+            write(6,*) "HolesInList: ", HolesInList
+            write(iout,"(A,I12)") "Walker list length: ",TotWalkersNew
+            write(iout,"(A)") "TW: Walker  Det"
+            do j = 1, int(TotWalkersNew,sizeof_int)
+                CurrentSign = transfer(CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,j),CurrentSign)
+                write(iout, "(A,I10,a)", advance='no') 'TW:', j, '['
+                do part_type = 1, lenof_sign
+                    write(iout, "(f16.3)", advance='no') CurrentSign(part_type)
+                end do
+                call WriteBitDet(iout,CurrentDets(:,j),.true.)
+                call neci_flush(iout) 
+            enddo
+        ENDIFDEBUG
 
         if (AnnihilatedDet /= HolesInList) then
             write(6,*) "TotWalkersNew: ", TotWalkersNew

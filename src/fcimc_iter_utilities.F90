@@ -175,7 +175,7 @@ contains
                 ! growth
                 TempSpawnedPartsSize = maxval(iHighestPop) * 1.5
                 allocate_temp_parts = .true.
-                write(6,*) 1.5 * maxval(iHighestPop), TempSpawnedPartsSize
+                !write(6,*) 1.5 * maxval(iHighestPop), TempSpawnedPartsSize
             end if
 
             ! If we need to allocate this array, then do so.
