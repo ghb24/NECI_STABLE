@@ -1269,7 +1269,7 @@ contains
            do idet = 1, overlap_states(iGf)%nDets
 
               call extract_sign(overlap_states(iGf)%dets(:,idet), real_sign_1) 
-
+             
               if (IsUnoccDet(real_sign_1)) cycle
 
               call decode_bit_det(nI, overlap_states(iGf)%dets(:,idet))
@@ -1499,7 +1499,7 @@ contains
         do i = 1, gf_count
            if(allocated(overlap_pert)) then
               if(tReadPops) then
-                 call apply_perturbation(overlap_pert(i),TotWalkers_orig_max, popsfile_dets,&
+                 call apply_perturbation(overlap_pert(i),tmp_totwalkers, popsfile_dets,&
                       perturbed_buf)
               else
                  call apply_perturbation(overlap_pert(i), tmp_totwalkers, CurrentDets, &
@@ -1528,15 +1528,20 @@ contains
       integer, intent(in) :: index
       integer :: nOccDets, i
       real(dp) :: tmp_sign(lenof_sign)
+      character(*), parameter :: this_routine = "write_overlap_state"
 
       ! check how many determinants are stored for this state on this core
+      nOccDets = 0
       do i=1, TotWalkers_orig_max
          call extract_sign(state(:,i), tmp_sign)
-         nOccDets = i
          if(IsUnoccDet(tmp_sign)) then
             exit
          endif
+         nOccDets = i
       enddo
+
+      if(nOccDets==0) call stop_all(this_routine,'No walkers survived perturbation')
+      
       ! copy them to overlap_states
       allocate(overlap_states(index)%dets(0:nIfTot,nOccDets))
       overlap_states(index)%dets = state(:,1:nOccDets)
