@@ -8,7 +8,7 @@ module real_time_init
                               t_complex_ints, gf_overlap, temp_det_list, &
                               temp_det_pointer, temp_det_hash, temp_freeslot, &
                               pert_norm, second_spawn_iter_data, DiagParts, &
-                              MemoryFacDiag, DiagVec, normsize, valid_diag_spawns, &
+                              DiagVec, normsize, valid_diag_spawns, &
                               NoatHF_1, Annihilated_1, Acceptances_1, NoBorn_1, &
                               SpawnFromSing_1, NoDied_1, NoAborted_1, NoRemoved_1, &
                               NoAddedInitiators_1, NoInitDets_1, NoNonInitDets_1, &
@@ -23,13 +23,13 @@ module real_time_init
                               tau_imag, tau_real, elapsedRealTime, elapsedImagTime, &
                               TotWalkers_orig, dyn_norm_psi, gs_energy, shift_damping, &
                               t_noshift, MaxSpawnedDiag, tDynamicCoreSpace, overlap_states, &
-                              overlap_real, overlap_imag, allGfs
+                              overlap_real, overlap_imag, allGfs, tRealTimePopsfile
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
     use Parallel_neci
     use ParallelHelper, only: iProcIndex, root, MPIbarrier, nNodes, MPI_SUM
-    use util_mod, only: get_unique_filename
+    use util_mod, only: get_unique_filename, get_free_unit
     use Logging, only: tIncrementPops
     use kp_fciqmc_data_mod, only: scaling_factor, tMultiplePopStart, tScalePopulation, &
                                   tOverlapPert, overlap_pert
@@ -51,7 +51,7 @@ module real_time_init
     use kp_fciqmc_init, only: create_overlap_pert_vec
     use LoggingData, only: tZeroProjE, tFCIMCStats2
     use fcimc_output, only: write_fcimcstats2, WriteFciMCStatsHeader
-    use replica_data, only: allocate_iter_data
+    use replica_data, only: allocate_iter_data, set_initial_global_data
     use bit_rep_data, only: nifbcast
     use bit_reps, only: decode_bit_det
 
@@ -114,6 +114,8 @@ contains
         ! do an MPIbarrier here.. although don't quite know why        
         call MPIBarrier(ierr)
 
+        if(.not. tReadPops) call set_initial_global_data(TotWalkers, CurrentDets)
+
     end subroutine init_real_time_calc_single
 
     subroutine setup_real_time_fciqmc()
@@ -133,6 +135,8 @@ contains
         ! time evolved y(t) will be stored in the CurrentDets array
 
         call create_perturbed_ground()
+
+        if(tRealTimePopsfile) call readTimeEvolvedState()
 
         ! change the flags dependent on the real-time input 
         if (real_time_info%t_equidistant_time) then
@@ -314,13 +318,9 @@ contains
 
         TotPartsStorage = TotParts
 
-        ! if nothing was specified as memoryfacdiag, use memoryfacspawn
-        if(.not. tmemoryfacdiagset) MemoryFacDiag = MemoryFacSpawn
-
         ! also intitialize the 2nd spawning array to deal with the 
         ! diagonal death step in the 2nd rt-fciqmc loop
-        MaxSpawnedDiag = int(MemoryFacDiag*InitWalkers)
-        allocate(DiagVec(0:nifbcast, MaxSpawnedDiag), stat = ierr)
+        allocate(DiagVec(0:nifbcast, MaxWalkersPart), stat = ierr)
 
         DiagVec = 0
 
@@ -367,10 +367,7 @@ contains
         AllInitRemoved_1 = 0
         AccRat_1 = 0.0_dp
         AllSumWalkersCyc_1 = 0.0_dp
-        elapsedRealTime = 0.0_dp
-        elapsedImagTime = 0.0_dp
         benchmarkEnergy = 0.0_dp
-        allGfs = 0
 
         call rotate_time()
 
@@ -452,12 +449,6 @@ contains
                 ! stability, this can be set here
                 t_rotated_time = .true.
                 call readf(time_angle)
-
-             case("MEMORYFACDIAG")
-                ! usually, the diagonal spawning array needs to be larger than
-                ! the offdiagonal one, thus an extra factor is introduced
-                tmemoryfacdiagset = .true.
-                call readf(MemoryFacDiag)
 
             ! use nicks perturbation & kp-fciqmc stuff here as much as 
             ! possible too
@@ -606,6 +597,11 @@ contains
                 ! program, that the FCIDUMP input is complex
                 ! the default is that they are real! 
                 t_complex_ints = .true.
+                
+             case("RT-POPS")
+                ! in addition to the 'normal' popsfile, a second one is supplied
+                ! containing a time evolved state
+                tRealTimePopsfile = .true.
 
             case ("ENDREALTIME")
                 exit real_time
@@ -689,6 +685,19 @@ contains
         ! usually, systems with real integrals will be considered, but the walkers will
         ! always be complex
         tComplexWalkers_RealInts = .true.
+
+        ! if no gf kind is specified, only the overlap with the initial state will
+        ! be considered -> only one overlap is obtained
+        gf_count = 1
+        allGfs = 0
+        
+        ! if starting a new calculation, we start at time 0 (arbitrary)
+        elapsedRealTime = 0.0_dp
+        elapsedImagTime = 0.0_dp
+
+        ! by default, the initial state is taken from an ordinary popsfile
+        ! if a time evolved state is desired, a second popsfile has to be supplied
+        tRealTimePopsfile = .false.
     end subroutine set_real_time_defaults
 
     subroutine check_input_real_time()
@@ -767,6 +776,64 @@ contains
 
     end subroutine read_popsfile_real_time
 
+    subroutine readTimeEvolvedState()
+      use PopsfileMod, only : FindPopsfileVersion, ReadPopsHeadv4, InitFCIMC_pops, &
+           open_pops_head
+      implicit none
+      
+        integer :: iunit, popsversion, iPopLenof_Sign, iPopNel, iPopIter, &
+                   PopNIfD, PopNIfY, PopNIfSgn, PopNIfFlag, PopNIfTot, &
+                   PopBlockingIter, Popinum_runs, PopRandomHash(2056), &
+                   read_nnodes, PopBalanceBlocks
+        logical :: formpops, binpops, tPop64Bit, tPopHPHF, tPopLz
+        integer(int64) :: iPopAllTotWalkers, read_walkers_on_nodes(0:nProcessors-1)
+        real(dp) :: PopDiagSft(inum_runs), read_tau, PopSumNoatHF(lenof_sign), &
+                    read_psingles, read_pparallel
+        HElement_t(dp) :: PopAllSumENum(inum_runs)
+        character(255) :: popsfile
+
+        character(255) :: rtPOPSFILE_name
+        character(*), parameter :: this_routine = "readTimeEvolvedState"
+
+        binpops = .false.
+        
+        rtPOPSFILE_name = 'TIME_EVOLVED_POP'
+  
+        ! get the file containing the time evolved state
+        call open_pops_head(iunit, formpops, binpops, rtPOPSFILE_name)
+       
+        popsversion = FindPopsfileVersion(iunit)
+        if(popsversion /= 4) call stop_all(this_routine, "wrong popsfile version of TIME_EVOLVED_POP")
+       
+        call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+             PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs, PopNIfFlag,PopNIfTot, &
+             read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
+             read_pparallel, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
+
+        ! at this point, we do not want to perturb the state and have no use for the 
+        ! pops_pert variable anymore -> deallocate it
+        call clear_pops_pert()
+        
+        ! read in the time evolved state and use it as initial state
+        call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, iPopNel, read_nnodes, &
+             read_walkers_on_nodes, pops_pert, &
+             PopBalanceBLocks, PopDiagSft, rtPOPSFILE_name)
+
+        call set_initial_times()
+      
+    end subroutine readTimeEvolvedState
+
+    subroutine set_initial_times()
+      use FciMCData, only : TotImagTime
+      implicit none
+      
+      ! usually, alpha is small. This is why TIME_EVOLVED_POP contain the elapsed real
+      ! time as PopTotImagTime instead of the elapsed imaginary time
+      elapsedImagTime = TotImagTime * tan(time_angle)
+      elapsedRealTime = TotImagTime 
+    end subroutine set_initial_times
+
     subroutine dealloc_real_time_memory
       use replica_data, only: clean_iter_data
       implicit none
@@ -783,8 +850,20 @@ contains
       deallocate(pert_norm,stat=ierr)
       deallocate(gf_overlap,stat=ierr)
       call clean_overlap_states()
-      
+      call clear_pops_pert()
 
     end subroutine dealloc_real_time_memory
 
+    subroutine clear_pops_pert()
+      implicit none
+      integer :: i
+      if(allocated(pops_pert)) then
+         do i = 1, gf_count
+            if(allocated(pops_pert(i)%crtn_orbs)) deallocate(pops_pert(i)%crtn_orbs)
+            if(allocated(pops_pert(i)%ann_orbs)) deallocate(pops_pert(i)%ann_orbs)
+         enddo
+         deallocate(pops_pert)
+      endif
+    end subroutine clear_pops_pert
+    
 end module real_time_init

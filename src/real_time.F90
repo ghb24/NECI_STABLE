@@ -19,7 +19,7 @@ module real_time
                               tau_real, tau_imag, t_rotated_time, temp_iendfreeslot, &
                               temp_freeslot, overlap_real, overlap_imag, dyn_norm_psi, &
                               NoatHF_1, shift_damping, t_noshift, tDynamicCoreSpace, &
-                              normsize, gf_count
+                              normsize, gf_count, tRealTimePopsfile
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
                         tChangeProjEDet, DiagSft
@@ -209,6 +209,7 @@ contains
         ! do all the setup, read-in and calling of the "new" real-time MC loop
         use real_time_data, only: gf_overlap, AllTotWalkersOld_1
         use Systemdata, only: tCSF
+        use FciMCData, only : TotImagTime
         implicit none
 
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
@@ -216,6 +217,9 @@ contains
         integer :: i,j
         real(sp) :: s_start, s_end, tstart(2), tend(2)
         complex(dp), allocatable :: overlap_buf(:)
+        character (255) :: rtPOPSFILE_name
+
+        rtPOPSFILE_name = 'TIME_EVOLVED_POP'
 
         print *, " ========================================================== "
         print *, " ------------------ Real-time FCIQMC ---------------------- "
@@ -245,7 +249,7 @@ contains
         allocate(overlap_buf(gf_count),stat = i)
 
         call update_gf_overlap()
-        if(iProcIndex == root) then
+        if(iProcIndex == root .and. .not. tRealTimePopsfile) then
            print *, "test on overlap at t = 0: "
            if (gf_type == -1) then
               print *, " for lesser GF  <y(0)| a^+_i a_j |y(0) >; i,j: ", &
@@ -287,7 +291,8 @@ contains
 
             do j = 1, gf_count
                do i = 1, normsize
-                  current_overlap(i,j) = gf_overlap(i,iter,j)/pert_norm(i,j)
+                  current_overlap(i,j) = gf_overlap(i,iter,j)/pert_norm(i,j) * &
+                       exp(shift_damping(((i-1)/inum_runs+1)))
                end do
 
             !normalize the greens function
@@ -328,7 +333,14 @@ contains
 !             if (iter == 1000) call stop_all(this_routine, "stop for now to avoid endless loop")
         end do fciqmc_loop
         
-        if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
+        if (tPopsFile) then 
+           ! here, we store the elapsed real time in the popsfile instead of the imaginary
+           ! time
+           ! in case we ever want to change alpha, it would be best to silently substitute one of
+           ! the variables in the popsfile with the elapsed imaginary time
+           TotImagTime = elapsedRealTime
+           call WriteToPopsfileParOneArr(CurrentDets,TotWalkers,rtPOPSFILE_name)
+        endif
         
         deallocate(overlap_buf, stat = i)
 
@@ -902,7 +914,9 @@ if(iProcIndex == root .and. .false.) then
         print *, "=========================="
      endif
 
+#ifdef __DEBUG
         call check_update_growth(iter_data_fciqmc,"Error in first RK step")
+#endif
 
         ! for now update the iter data here, although in the final 
         ! implementation i only should do that after the 2nd RK step
@@ -979,8 +993,9 @@ endif
         ! Annihilation is done after loop over walkers
         call DirectAnnihilation (TotWalkersNew, second_spawn_iter_data, .false.)
 
-
+#ifdef __DEBUG
         call check_update_growth(second_spawn_iter_data,"Error in second RK step")
+#endif
 
 
         ! for debugging comfort: if the second step is to be used on its own

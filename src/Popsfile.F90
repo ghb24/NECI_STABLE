@@ -66,7 +66,7 @@ contains
     subroutine ReadFromPopsfile(EndPopsList, ReadBatch, CurrWalkers, &
                                 CurrParts, CurrHF, Dets, DetsLen, &
                                 pops_nnodes, pops_walkers, PopNifSgn, &
-                                PopNel, PopBalanceBlocks, tCalcExtraInfo)
+                                PopNel, PopBalanceBlocks, tCalcExtraInfo, filename_stem)
 
         integer(int64) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
         integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
@@ -104,8 +104,9 @@ contains
         integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
         integer, intent(in) :: DetsLen
         INTEGER(kind=n_int), intent(out) :: Dets(0:nIfTot,DetsLen)
+        character(*), intent(in), optional :: filename_stem
         character(12) :: tmp_num
-        character(255) :: tmp_char
+        character(255) :: tmp_char, identifier
         HElement_t(dp) :: PopAllSumENum(inum_runs)
         integer, allocatable :: TempnI(:)
         logical :: trimmed_parts
@@ -115,6 +116,11 @@ contains
         ! Tme the overall popsfile read in
         read_timer%timer_name = 'POPS-read'
         process_timer%timer_name = 'POPS-process'
+        if(present(filename_stem)) then
+           identifier = filename_stem
+        else
+           identifier = 'POPSFILE'
+        endif
         call set_timer(read_timer)
 
         if (tHDF5PopsRead) then
@@ -123,7 +129,7 @@ contains
 
         else
 
-            call open_pops_head(iunit,formpops,binpops)
+            call open_pops_head(iunit,formpops,binpops,identifier)
             ! Determine version number.
             PopsVersion=FindPopsfileVersion(iunit)
             IF(FormPops) THEN
@@ -873,7 +879,7 @@ r_loop: do while(.not.tStoreDet)
 
     subroutine InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, PopNel, &
                               pops_nnodes, pops_walkers, perturbs, &
-                              PopBalanceBlocks, PopDiagSft)
+                              PopBalanceBlocks, PopDiagSft, source_name)
 
         use CalcData, only : iReadWalkersRoot
         use hash, only: clear_hash_table, fill_in_hash_table
@@ -892,10 +898,12 @@ r_loop: do while(.not.tStoreDet)
         ! Perturbation operators to apply to the determinants after they have
         ! been read in.
         type(perturbation), intent(in), allocatable, optional :: perturbs(:)
+        character(*), intent(in), optional :: source_name
         integer(int64) :: tot_walkers
         integer :: run, ReadBatch
         logical :: apply_pert
         integer :: TotWalkersIn
+        character(255) :: identifier
 
         if (iReadWalkersRoot == 0) then
             ! ReadBatch is the number of walkers to read in from the 
@@ -916,6 +924,12 @@ r_loop: do while(.not.tStoreDet)
             
          end if
 
+         if(present(source_name)) then
+            identifier = source_name
+         else
+            identifier = 'POPSFILE'
+         endif
+
         ! If applying perturbations, read the popsfile into the array
         ! popsfile_dets and then apply the perturbations to the determinants
         ! in this array.
@@ -923,7 +937,8 @@ r_loop: do while(.not.tStoreDet)
         if (apply_pert) then
             call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, TotParts, NoatHF, &
                                   popsfile_dets, MaxWalkersPart, pops_nnodes, pops_walkers, PopNIfSgn, &
-                                  PopNel, PopBalanceBlocks, tCalcExtraInfo=.false.)
+                                  PopNel, PopBalanceBlocks, tCalcExtraInfo=.false., &
+                                  filename_stem = identifier)
 
             print *, "Applying perturbation to read-in walker confguration!"
             print *, "Total number of walkers before perturbation: ", TotWalkers
@@ -943,7 +958,8 @@ r_loop: do while(.not.tStoreDet)
         else
             call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, TotParts, NoatHF, &
                                   CurrentDets, MaxWalkersPart, pops_nnodes, pops_walkers, PopNIfSgn, &
-                                  PopNel, PopBalanceBlocks, tCalcExtraInfo=.false.)
+                                  PopNel, PopBalanceBlocks, tCalcExtraInfo=.false., &
+                                  filename_stem = identifier)
             if (t_real_time_fciqmc) TotWalkers_orig = TotWalkers
         end if
 
@@ -1438,14 +1454,20 @@ r_loop: do while(.not.tStoreDet)
     end subroutine ReadPopsHeadv4
     
     !NOTE: This should only be used for the v3 POPSFILEs, since we only open the POPSFILE on the head node.
-    subroutine open_pops_head(iunithead,formpops,binpops)
+    subroutine open_pops_head(iunithead,formpops,binpops,identifier)
         integer , intent(out) :: iunithead
         logical, intent(out) :: formpops,binpops
         character(255) :: popsfile
+        character(*), intent(in), optional :: identifier
 
         if(iProcIndex.eq.root) then
             iunithead=get_free_unit()
-            call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+            if(.not. present(identifier)) then
+               call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+            else
+               call get_unique_filename(trim(identifier),tIncrementPops,.false.,&
+                    iPopsFileNoRead,popsfile)
+            endif
             inquire(file=popsfile,exist=formpops)
             
             if(formpops) then
@@ -1540,12 +1562,13 @@ r_loop: do while(.not.tStoreDet)
 ! recieves the data from the other processors.
 !This routine will write out to a popsfile. It transfers all walkers to the 
 ! head node sequentially, so does not want to be called too often
-    SUBROUTINE WriteToPopsfileParOneArr(Dets,nDets)
+    SUBROUTINE WriteToPopsfileParOneArr(Dets,nDets,filename_stem)
         use constants, only: size_n_int,n_int
         use CalcData, only: iPopsFileNoWrite
         use MemoryManager, only: TagIntType
         integer(int64),intent(in) :: nDets !The number of occupied entries in Dets
         integer(kind=n_int),intent(in) :: Dets(0:nIfTot,1:nDets)
+        character(255), intent(in), optional :: filename_stem
         INTEGER :: error
         integer(int64) :: WalkersonNodes(0:nNodes-1),writeoutdet
         integer(int64) :: node_write_attempts(0:nNodes-1)
@@ -1560,12 +1583,19 @@ r_loop: do while(.not.tStoreDet)
         character(255) :: popsfile
         real(dp) :: TempSign(lenof_sign)
         character(1024) :: out_tmp
+        character(255) :: identifier
         character(12) :: num_tmp
         type(timer), save :: write_timer
 
         ! Tme the overall popsfile read in
         write_timer%timer_name = 'POPS-write'
         call set_timer(write_timer)
+
+        if(present(filename_stem)) then
+           identifier = filename_stem
+        else
+           identifier = 'POPSFILE'
+        endif
 
         ! If we are using the new popsfile format, then use it!
         if (tHDF5PopsWrite) then
@@ -1651,7 +1681,7 @@ r_loop: do while(.not.tStoreDet)
             ! With a normal popsfile, the header is written at the start.
             ! Thus we need to do that now.
             if (.not. tBinPops) then
-                call get_unique_filename('POPSFILE', tIncrementPops, .true., &
+                call get_unique_filename(trim(identifier), tIncrementPops, .true., &
                                          iPopsFileNoWrite, popsfile)
                 iunit = get_free_unit()
                 ! We set recl=50000, which allows the line length written to be

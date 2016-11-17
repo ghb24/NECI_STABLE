@@ -17,7 +17,7 @@ module real_time_data
     ! rotated_time_setup: flag to indicate whether pure real time is
     ! used or not
     logical :: t_real_time_fciqmc, t_new_stats_file, t_rotated_time, t_noshift, &
-         tDynamicCoreSpace
+         tDynamicCoreSpace, tRealTimePopsfile
 
     ! also use a second iter_data type to keep track of the 2 distinct 
     ! spawning events
@@ -122,7 +122,6 @@ module real_time_data
     ! also need to store the original number of determinants(and walkers maybe)
     ! of the y(n) list to reload correctly
     integer :: temp_totWalkers, MaxSpawnedDiag
-    real(dp) :: MemoryFacDiag
 
     ! also start to store the diagonal "spawns" in the second rt-fciqmc loop
     ! in a seperate Spawned Parts array, to better keep track of stats and 
