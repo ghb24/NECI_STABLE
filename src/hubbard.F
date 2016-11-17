@@ -337,8 +337,10 @@ C.. place the sym label of each state in SymClasses(ISTATE).
                SymClasses(I)=nSyms
             ENDIF
 C.. list the symmetry string of each sym label
-C..            SymLabels(I)%s=2_int64**(I-1)
-            SymLabels(i)%s = i
+            SymLabels(I)%s=2_int64**(I-1)
+            if (SymLabels(i)%s < 0) then
+                call stop_all(this_routine,"too many orbitals!")
+            end if
          ENDDO
 C.. Setup the symmetry product table
          if (allocated(SymTable)) then
