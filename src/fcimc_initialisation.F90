@@ -1356,7 +1356,7 @@ contains
                         WRITE(iout,"(A,I10,A,F9.3,A,I15)") "Initial number of particles set to ",int(InitialPart), &
                             " and shift will be held at ",DiagSft(1)," until particle number gets to ", int(InitWalkers*nNodes)
                     else
-                        write(iout,"(A,I16)") "Initial number of walkers per processor chosen to be: ", InitWalkers
+                        write(iout,"(A,I16)") "Initial number of walkers per processor chosen to be: ", nint(InitWalkers)
                     endif
                    
                     call InitFCIMC_HF()

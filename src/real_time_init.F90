@@ -19,7 +19,7 @@ module real_time_init
                               AllNoAddedInitiators_1, AllNoInitDets_1, AllNoNonInitDets_1, &
                               AllNoInitWalk_1, AllNoNonInitWalk_1, AllInitRemoved_1, &
                               AccRat_1, AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap, &
-                              TotPartsStorage,  t_rotated_time, time_angle, &
+                              TotPartsStorage,  t_rotated_time, &
                               tau_imag, tau_real, elapsedRealTime, elapsedImagTime, &
                               TotWalkers_orig, dyn_norm_psi, gs_energy, shift_damping, &
                               t_noshift, MaxSpawnedDiag, tDynamicCoreSpace, overlap_states, &
@@ -376,8 +376,8 @@ contains
     subroutine rotate_time()
       ! to avoid code multiplication
       if(t_rotated_time) then
-         tau_imag = - sin(time_angle)*tau
-         tau_real = cos(time_angle)*tau
+         tau_imag = - sin(real_time_info%time_angle)*tau
+         tau_real = cos(real_time_info%time_angle)*tau
       else
          tau_imag = 0.0_dp
          tau_real = tau
@@ -448,7 +448,7 @@ contains
                 ! If the time is to be rotated by some angle time_angle to increase 
                 ! stability, this can be set here
                 t_rotated_time = .true.
-                call readf(time_angle)
+                call readf(real_time_info%time_angle)
 
             ! use nicks perturbation & kp-fciqmc stuff here as much as 
             ! possible too
@@ -568,7 +568,7 @@ contains
                 tStartSinglePart = .true.
                 t_rotated_time = .true.
                 tWalkContGrow = .false.
-                time_angle = 4*atan(1.0_dp)/2.0_dp
+                real_time_info%time_angle = 4*atan(1.0_dp)/2.0_dp
 
              case("NOSHIFT")
                 ! disabling the shift gives higher precision results as no
@@ -590,6 +590,9 @@ contains
 
              case("DYNAMIC-CORE")
                 tDynamicCoreSpace = .true.
+                ! if dynamic core is set, the core space for semistochastic treatment is 
+                ! updated every few hundred iterations according to the currently most
+                ! occupied determinants
                 
             case ("COMPLEX-INTEGRALS")
                 ! in the real-time implementation, since we need the complex 
@@ -659,6 +662,9 @@ contains
         ! format -> so i probably have to set tIncrementPops and the count
         tIncrementPops = .true.
         iPopsFileNoRead = -1
+        ! this will always result in *.0 being chosen as name, was rethought and
+        ! decided to be good - this way, no files will be overwritten and 
+        ! the read-in file is always the same
 
         ! have to set, that popsfile is not yet read in:
         tPopsAlreadyRead = .false.
@@ -674,8 +680,7 @@ contains
         tZeroProjE = .false.
 
         ! setup_rotated_time: by default, pure real time is used
-        t_rotated_time = .true.
-        time_angle = 0.0_dp
+        t_rotated_time = .false.
         ! usually, the walker number shall be controlled
         t_noshift = .false.
 
@@ -830,7 +835,7 @@ contains
       
       ! usually, alpha is small. This is why TIME_EVOLVED_POP contain the elapsed real
       ! time as PopTotImagTime instead of the elapsed imaginary time
-      elapsedImagTime = TotImagTime * tan(time_angle)
+      elapsedImagTime = - TotImagTime * tan(real_time_info%time_angle)
       elapsedRealTime = TotImagTime 
     end subroutine set_initial_times
 

@@ -34,7 +34,6 @@ module real_time_data
     ! the angle used for rotation of time into complex plane
     ! it is better readable to use new variables for real and imaginary part
     ! of the rotated time
-    real(dp) :: time_angle
     real(dp) :: tau_imag, tau_real
     ! logging the total elapsed time on both axes
     real(dp) :: elapsedRealTime, elapsedImagTime
@@ -100,6 +99,7 @@ module real_time_data
         ! Hilbert space a small imaginery energy can be introduced in
         ! the Schroedinger equation id/dt y(t) = (H-E0-ie)y(t)
         real(dp) :: damping = 0.0_dp
+        real(dp) :: time_angle = 0.0_dp
 
     end type real_time_type
 

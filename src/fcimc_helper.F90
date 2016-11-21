@@ -1765,7 +1765,13 @@ contains
         iDie = attempt_die (DetCurr, Kii, realwSign, WalkExcitLevel)
 
         IFDEBUG(FCIMCDebug,3) then 
-            if (sum(abs(iDie)) > 1.0e-10_dp) write(iout,"(A,2f10.5)") "Death: ",iDie(:)
+            if (sum(abs(iDie)) > 1.0e-10_dp) then
+                write(iout,"(A)",advance='no') "Death: "
+                do i = 1,lenof_sign-1
+                    write(iout,"(f10.5)",advance='no') iDie(i)
+                enddo
+                write(iout,"(f10.5)") iDie(i)
+            endif
         endif
 
         ! Update death counter

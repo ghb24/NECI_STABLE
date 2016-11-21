@@ -1471,6 +1471,7 @@ r_loop: do while(.not.tStoreDet)
             inquire(file=popsfile,exist=formpops)
             
             if(formpops) then
+               print *, "READING", popsfile, tIncrementPops
                 open(iunithead,file=popsfile,status='old')
                 binpops=.false.
             else
@@ -1683,6 +1684,7 @@ r_loop: do while(.not.tStoreDet)
             if (.not. tBinPops) then
                 call get_unique_filename(trim(identifier), tIncrementPops, .true., &
                                          iPopsFileNoWrite, popsfile)
+                print *, "WRITING", popsfile, tIncrementPops
                 iunit = get_free_unit()
                 ! We set recl=50000, which allows the line length written to be
                 ! up to 50000 characters long. This allows popsfiles to be

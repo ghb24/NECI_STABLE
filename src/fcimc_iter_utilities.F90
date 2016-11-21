@@ -196,7 +196,7 @@ contains
                 ! growth
                 TempSpawnedPartsSize = maxval(iHighestPop) * 1.5
                 allocate_temp_parts = .true.
-                write(6,*) 1.5 * maxval(iHighestPop), TempSpawnedPartsSize
+                !write(6,*) 1.5 * maxval(iHighestPop), TempSpawnedPartsSize
             end if
 
             ! If we need to allocate this array, then do so.
@@ -273,8 +273,8 @@ contains
                     ! Write out info!
                     changed_any = .true.
                     root_print 'Highest weighted determinant on run', run, &
-                               'not reference det: ', pop_highest, &
-                               abs_sign(AllNoAtHF(1:(lenof_sign/inum_runs)))
+                         'not reference det: ', pop_highest, abs_sign(AllNoAtHF( &
+                         min_part_type(run):max_part_type(run)))
 
                     !
                     ! Here we are changing the reference det on the fly.

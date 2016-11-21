@@ -1270,6 +1270,7 @@ contains
                 init_trial_in%tRead = .true.
             case("FCI-INIT")
                 init_trial_in%tFCI = .true.
+                tStartSinglePart = .false.
             case("HEISENBERG-FCI-INIT")
                 init_trial_in%tHeisenbergFCI = .true.
             case("START-FROM-HF")
