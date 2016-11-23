@@ -1526,7 +1526,7 @@ contains
       implicit none
       integer(n_int), intent(in) :: state(0:nIfTot,TotWalkers_orig_max)
       integer, intent(in) :: index
-      integer :: nOccDets, i
+      integer :: nOccDets, i, totNOccDets
       real(dp) :: tmp_sign(lenof_sign)
       character(*), parameter :: this_routine = "write_overlap_state"
 
@@ -1540,14 +1540,14 @@ contains
          nOccDets = i
       enddo
 
-      if(nOccDets==0) call stop_all(this_routine,'No walkers survived perturbation')
+      call MPISumAll(nOccDets,totNOccDets)
+      if(totNOccDets==0) call stop_all(this_routine,'No walkers survived perturbation')
       
       ! copy them to overlap_states
       allocate(overlap_states(index)%dets(0:nIfTot,nOccDets))
       overlap_states(index)%dets = state(:,1:nOccDets)
       overlap_states(index)%nDets = nOccDets
     end subroutine write_overlap_state
-
     
     subroutine check_update_growth(iter_data, message)
       use spin_project, only : tSpinProject

@@ -444,6 +444,7 @@ contains
             TotWalkersNew = TotWalkersNew + 1
             DetPosition = TotWalkersNew
             if (TotWalkersNew >= MaxWalkersPart) then
+               write(6,*) "Memory available:", MaxWalkersPart, " Reqired:", TotWalkersNew
                 call stop_all(t_r, "Not enough memory to merge walkers into main list. Increase MemoryFacPart")
              end if
         end if
@@ -520,13 +521,8 @@ contains
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
 
-<<<<<<< HEAD
-        integer :: i, j, AnnihilatedDet, lbnd, ubnd
-        real(dp) :: CurrentSign(lenof_sign), ratio(lenof_sign)
-=======
         integer :: i, j, AnnihilatedDet, lbnd, ubnd, part_type
-        real(dp) :: CurrentSign(lenof_sign)
->>>>>>> 6ee117ebca15847304e66e20b5bad918d37a9a18
+        real(dp) :: CurrentSign(lenof_sign), ratio(lenof_sign)
         real(dp) :: pRemove, r
         integer :: nI(nel), run, ic
         logical :: tIsStateDeterm

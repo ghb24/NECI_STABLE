@@ -34,7 +34,7 @@ module fcimc_initialisation
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, &
-                        tMultipleInitialStates, initial_states
+                        tMultipleInitialStates, initial_states, tDynamicInitThresh
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -852,6 +852,7 @@ contains
 !                write(mswalkercounts_unit, "(A)") "# ms real    imag    magnitude"
 !            endif
 
+        if(tDynamicInitThresh) WalkerNumberLastCyc = 0.0_dp
  
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)) THEN
             ALLOCATE(HistMinInd(NEl))
@@ -1275,6 +1276,8 @@ contains
 
             write(iout,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned, &
                     " particles to be spawned in any one iteration per core."
+            print *, "Memory requirement ", NIfBcast*8.0_dp*( &
+                 MaxSpawned/1048576.0_dp), "MB"
             allocate(SpawnVec(0:NIfBCast, MaxSpawned), &
                      SpawnVec2(0:NIfBCast, MaxSpawned), stat=ierr)
             ! there is no need in the real-time application to allocate SpawnVec2 -> add

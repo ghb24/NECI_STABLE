@@ -11,7 +11,7 @@ module fcimc_iter_utils
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
-                        qmc_trial_wf
+                        qmc_trial_wf, tDynamicInitThresh
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables
     use semi_stoch_procs, only: recalc_core_hamil_diag
@@ -1087,6 +1087,23 @@ contains
         call rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
 
     end subroutine calculate_new_shift_wrapper
+
+    subroutine update_initiator_threshold()
+
+      implicit none
+      real(dp), parameter :: initAdaptThresh = 80
+      ! if the walker number grew too rapidly, increase the initiator threshold
+      ! and thereby suppress the spawnrate
+      if(WalkerNumberLastCyc/sum(AllSumWalkersCyc) < initAdaptThresh) then
+         InitiatorWalkNo = InitiatorWalkNo + 1
+      endif
+      WalkerNumberLastCyc = sum(AllSumWalkersCyc)
+      ! it is more problematic to find a criterium that determines how to decrease
+      ! the initiator threshold again, as the only real constraint is 'the results have
+      ! to be right'
+      
+    end subroutine update_initiator_threshold
+
 
     subroutine update_iter_data(iter_data)
 

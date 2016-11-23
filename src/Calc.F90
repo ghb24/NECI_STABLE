@@ -234,6 +234,7 @@ contains
           tAddtoInitiator=.false.
           InitiatorWalkNo=3.0_dp
           tInitIncDoubs=.false.
+          tDynamicInitThresh = .false.
           MaxNoatHF=0.0_dp
           HFPopThresh=0
           tSpatialOnlyHash = .false.
@@ -1603,6 +1604,12 @@ contains
 !were from outside the space, they would've been aborted.
 !                tKeepDoubleSpawns=.true.
 !This option is now on permanently by default and cannot be turned off.
+
+            case("DYNAMIC-INIT-THRESHOLD")
+               ! enables automatic adjustment of the initiator threshold, 
+               ! possibly leading to better control over the walker number
+               tDynamicInitThresh = .true.
+
 
             case("ADDTOINITIATOR")
 !This option means that if a determinant outside the initiator space becomes significantly populated - 

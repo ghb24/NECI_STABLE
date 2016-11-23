@@ -230,6 +230,9 @@ MODULE FciMCData
       ! phase where the shift is fixed and particle numbers are growing
       logical, allocatable :: tSinglePartPhase(:)
 
+      ! Walker number buffer for the dynamic initiator updating scheme
+      real(dp):: WalkerNumberLastCyc
+
 !      INTEGER :: mpilongintegertype               !This is used to create an MPI derived type to cope with 8 byte integers
 
       LOGICAL :: TDebug                           !Debugging flag

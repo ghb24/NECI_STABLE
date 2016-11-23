@@ -35,7 +35,8 @@ module real_time_init
                                   tOverlapPert, overlap_pert
     use CalcData, only: tChangeProjEDet, tReadPops, tRestartHighPop, tFCIMC, &
                         tStartSinglePart, tau, nmcyc, iPopsFileNoRead, tWritePopsNorm, &
-                        tWalkContGrow, diagSft, pops_norm, InitWalkers, MemoryFacSpawn
+                        tWalkContGrow, diagSft, pops_norm, InitWalkers, MemoryFacSpawn, &
+                        tDynamicInitThresh
     use FciMCData, only: tSearchTau, alloc_popsfile_dets, pops_pert, tPopsAlreadyRead, &
                          tSinglePartPhase, iter_data_fciqmc, iter, PreviousCycles, &
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
@@ -703,6 +704,8 @@ contains
         ! by default, the initial state is taken from an ordinary popsfile
         ! if a time evolved state is desired, a second popsfile has to be supplied
         tRealTimePopsfile = .false.
+        ! by default, the initiator threshold is fixed at the beginning
+        tDynamicInitThresh = .false.
     end subroutine set_real_time_defaults
 
     subroutine check_input_real_time()
