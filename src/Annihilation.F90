@@ -181,6 +181,13 @@ module AnnihilationMod
             & //"close to maximum length after annihilation send. Increase MemoryFacSpawn")
         end if
 
+        ! for debugging
+        !call MPIBarrier(error)
+        !write(6,*) "SIZECHECK", size(SpawnedParts,2), size(SpawnedParts2,2), &
+        !     size(SpawnedParts,1), size(SpawnedParts2,1)
+        !write(6,*) "DISPS", disps, recvdisps
+        !write(6,*) "COUNTS", sendcounts, recvcounts
+        
         call MPIAlltoAllv(SpawnedParts,sendcounts,disps,SpawnedParts2,recvcounts,recvdisps,error)
 
         call halt_timer(Comms_Time)

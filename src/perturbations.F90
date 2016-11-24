@@ -128,7 +128,6 @@ contains
         nremoved = 0
         ! Reset the spawning slot positions in SpawnedParts.
         ValidSpawnedList = InitialSpawnedSlots
-
         do i = 1, ndets
             ! Copy the ilut so that we don't alter the input list.
             ilut = dets_in(:,i)
@@ -146,12 +145,14 @@ contains
 
         ndets = ndets - nremoved
 
+
         ! Send perturbed determinants to their new processors.
         call SendProcNewParts(ndets, tSingleProc=.false.)
  
         ! The result of SendProcNewParts is now stored in an array pointed to
         ! by SpawnedParts2. We want it in an array pointed to by SpawnedParts,
         ! so swap the pointers around.
+        ! Why not just use SpawnedParts2 below?
         PointTemp => SpawnedParts2
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
@@ -161,7 +162,6 @@ contains
         do i = 1, ndets
             dets_out(:,i) = SpawnedParts(:,i)
         end do
-
         call sort(dets_out(:, 1:ndets), ilut_lt, ilut_gt)
 
     end subroutine apply_perturbation

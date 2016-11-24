@@ -1302,7 +1302,7 @@ contains
 
         call halt_timer(calc_gf_time)
         gf_time = get_total_time(calc_gf_time)
-        if(iProcIndex == root) print *, "OVERLAP COMPUTATION TOOK", gf_time
+        !if(iProcIndex == root) print *, "OVERLAP COMPUTATION TOOK", gf_time
         ! communicate the norm as it is the sum over all walkers
 
     end subroutine update_gf_overlap

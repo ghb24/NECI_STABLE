@@ -30,7 +30,7 @@ module real_time
                          iLutHF_true, indices_of_determ_states, partial_determ_vecs, &
                          exFlag, CurrentDets, TotParts, ilutHF, SumWalkersCyc, IterTime, &
                          HFCyc, norm_psi, NoatHF, TotPartsPos, TotPartsNeg, NoDied, &
-                         Annihilated, NoBorn, tSinglePartPhase
+                         Annihilated, NoBorn, tSinglePartPhase, AllSumNoatHF
     use kp_fciqmc_data_mod, only: overlap_pert
     use timing_neci, only: set_timer, halt_timer
     use FciMCParMod, only: rezero_iter_stats_each_iter
@@ -250,18 +250,22 @@ contains
         allocate(overlap_buf(gf_count),stat = i)
 
         call update_gf_overlap()
-        if(iProcIndex == root .and. .not. tRealTimePopsfile) then
+        if(iProcIndex == root) then
            print *, "test on overlap at t = 0: "
-           if (gf_type == -1) then
-              print *, " for lesser GF  <y(0)| a^+_i a_j |y(0) >; i,j: ", &
-                   overlap_pert(1)%ann_orbs(1), pops_pert(1)%ann_orbs(1)
-           else if (gf_type == 1) then
-              print *, " for greater GF <y(0)| a_i a^+_j |y(0)> ; i,j: ", &
-                   overlap_pert(1)%crtn_orbs(1), pops_pert(1)%crtn_orbs(1)
-           end if
+           if(.not. tRealTimePopsfile) then
+              if (gf_type == -1) then
+                 print *, " for lesser GF  <y(0)| a^+_i a_j |y(0) >; i,j: ", &
+                      overlap_pert(1)%ann_orbs(1), pops_pert(1)%ann_orbs(1)
+              else if (gf_type == 1) then
+                 print *, " for greater GF <y(0)| a_i a^+_j |y(0)> ; i,j: ", &
+                      overlap_pert(1)%crtn_orbs(1), pops_pert(1)%crtn_orbs(1)
+              end if
+           endif
               print *, "Current GF:", gf_overlap(1,0,1)&
                    / pert_norm(1,1)
+              print *, "Normalization ", pert_norm(1,1)
         endif
+
 
         ! enter the main real-time fciqmc loop here
         fciqmc_loop: do while (.true.)
@@ -345,6 +349,9 @@ contains
            ! in case we ever want to change alpha, it would be best to silently substitute one of
            ! the variables in the popsfile with the elapsed imaginary time
            TotImagTime = elapsedRealTime
+           ! THIS IS A HACK: We dont want to alter the POPSFILE functions themselves
+           ! so we sneak in the shift_damping into some slot unimportant to rneci
+           AllSumNoatHF(1:inum_runs) = shift_damping
            call WriteToPopsfileParOneArr(CurrentDets,TotWalkers,rtPOPSFILE_name)
         endif
         

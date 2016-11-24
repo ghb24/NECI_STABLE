@@ -121,6 +121,7 @@ contains
         else
            identifier = 'POPSFILE'
         endif
+
         call set_timer(read_timer)
 
         if (tHDF5PopsRead) then
@@ -1471,7 +1472,7 @@ r_loop: do while(.not.tStoreDet)
             inquire(file=popsfile,exist=formpops)
             
             if(formpops) then
-               print *, "READING", popsfile, tIncrementPops
+               print *, "READING", popsfile
                 open(iunithead,file=popsfile,status='old')
                 binpops=.false.
             else
@@ -1615,7 +1616,7 @@ r_loop: do while(.not.tStoreDet)
 ! ,AllSumNoatHF and AllSumENum...
 !Calculate the energy by summing all on HF and doubles - convert number at HF
 !  to a real since no int*8 MPI data type
-        CALL MPISum(SumNoatHF,1,AllSumNoatHF)
+        if(.not. t_real_time_fciqmc) CALL MPISum(SumNoatHF,1,AllSumNoatHF)
         CALL MPISum(SumENum,1,AllSumENum)
 
         Tag=125

@@ -950,7 +950,6 @@ contains
 #endif
 
         call GetComm (Comm, Node)
-
 !        call MPI_Alltoallv (val_in, cbind_loc(SendSizes), &
         call MPI_Alltoallv (val_in, SendSizes, &
                 SendOffsets, &

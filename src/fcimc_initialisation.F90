@@ -1280,8 +1280,9 @@ contains
                  MaxSpawned/1048576.0_dp), "MB"
             allocate(SpawnVec(0:NIfBCast, MaxSpawned), &
                      SpawnVec2(0:NIfBCast, MaxSpawned), stat=ierr)
-            ! there is no need in the real-time application to allocate SpawnVec2 -> add
-            ! condition
+            if(.not. allocated(SpawnVec2)) call stop_all(this_routine,&
+                 "ERROR IN ALLOCATING SPAWNVEC2")
+            if(ierr .ne. 0) call stop_all(this_routine,"ERRONEOUS STAT IN ALLOCATION")
             log_alloc(SpawnVec, SpawnVecTag, ierr)
             log_alloc(SpawnVec2, SpawnVec2Tag, ierr)
 

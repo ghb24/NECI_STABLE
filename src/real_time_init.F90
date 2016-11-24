@@ -240,12 +240,14 @@ contains
         allocate(gs_energy(inum_runs),stat = ierr)
         allocate(current_overlap(normsize,gf_count),stat = ierr)
         allocate(temp_freeslot(MaxWalkersPart),stat = ierr)
-        allocate(shift_damping(inum_runs), stat = ierr)
+        if(.not. allocated(shift_damping)) then 
+           allocate(shift_damping(inum_runs), stat = ierr)
+           shift_damping = 0.0_dp
+        endif
 
         gf_overlap = 0.0_dp
 
         gs_energy = benchmarkEnergy
-        shift_damping = 0.0_dp
         
         ! to avoid dividing by 0 if not all entries get filled
         allocate(norm_buf(normsize),stat=ierr)
@@ -799,6 +801,7 @@ contains
                     read_psingles, read_pparallel
         HElement_t(dp) :: PopAllSumENum(inum_runs)
         character(255) :: popsfile
+        integer :: ierr
 
         character(255) :: rtPOPSFILE_name
         character(*), parameter :: this_routine = "readTimeEvolvedState"
@@ -821,6 +824,11 @@ contains
 
         ! at this point, we do not want to perturb the state and have no use for the 
         ! pops_pert variable anymore -> deallocate it
+
+        ! read in the hacked shift_damping
+        if(.not. allocated(shift_damping)) allocate(shift_damping(inum_runs),stat=ierr)
+        shift_damping = PopSumNoatHF(1:inum_runs)
+
         call clear_pops_pert()
         
         ! read in the time evolved state and use it as initial state
