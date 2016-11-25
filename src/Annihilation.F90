@@ -27,10 +27,9 @@ module AnnihilationMod
                             CalcHashTableStats
     use searching
     use hash
-#ifdef __REALTIME
     use real_time_data, only: NoAborted_1, Annihilated_1, runge_kutta_step, &
-                              nspawned_1
-#endif
+                              nspawned_1, tRegulateSpawns, t_real_time_fciqmc
+
 
     implicit none
 
@@ -174,11 +173,13 @@ module AnnihilationMod
         end do
 
         ! Max index is the largest occupied index in the array of hashes to be
-        ! ordered in each processor 
+        ! ordered in each processor
+        if(t_real_time_fciqmc .and. MaxIndex < 0.7_dp*MaxSpawned) tRegulateSpawns = .false.
         if (MaxIndex > (0.9_dp*MaxSpawned)) then
             write(6,*) MaxIndex,MaxSpawned
             call Warning_neci("SendProcNewParts","Maximum index of newly-spawned array is " &
             & //"close to maximum length after annihilation send. Increase MemoryFacSpawn")
+            if(t_real_time_fciqmc) tRegulateSpawns = .true.
         end if
 
         ! for debugging

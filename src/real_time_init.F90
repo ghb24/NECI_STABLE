@@ -8,7 +8,7 @@ module real_time_init
                               t_complex_ints, gf_overlap, temp_det_list, &
                               temp_det_pointer, temp_det_hash, temp_freeslot, &
                               pert_norm, second_spawn_iter_data, DiagParts, &
-                              DiagVec, normsize, valid_diag_spawns, &
+                              DiagVec, normsize, valid_diag_spawns, tStabilizerShift, &
                               NoatHF_1, Annihilated_1, Acceptances_1, NoBorn_1, &
                               SpawnFromSing_1, NoDied_1, NoAborted_1, NoRemoved_1, &
                               NoAddedInitiators_1, NoInitDets_1, NoNonInitDets_1, &
@@ -19,11 +19,12 @@ module real_time_init
                               AllNoAddedInitiators_1, AllNoInitDets_1, AllNoNonInitDets_1, &
                               AllNoInitWalk_1, AllNoNonInitWalk_1, AllInitRemoved_1, &
                               AccRat_1, AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap, &
-                              TotPartsStorage,  t_rotated_time, &
+                              TotPartsStorage,  t_rotated_time, TotPartsPeak, &
                               tau_imag, tau_real, elapsedRealTime, elapsedImagTime, &
                               TotWalkers_orig, dyn_norm_psi, gs_energy, shift_damping, &
                               t_noshift, MaxSpawnedDiag, tDynamicCoreSpace, overlap_states, &
-                              overlap_real, overlap_imag, allGfs, tRealTimePopsfile
+                              overlap_real, overlap_imag, allGfs, tRealTimePopsfile, &
+                              tRegulateSpawns
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
@@ -240,13 +241,14 @@ contains
         allocate(gs_energy(inum_runs),stat = ierr)
         allocate(current_overlap(normsize,gf_count),stat = ierr)
         allocate(temp_freeslot(MaxWalkersPart),stat = ierr)
+        allocate(TotPartsPeak(inum_runs),stat = ierr)
         if(.not. allocated(shift_damping)) then 
            allocate(shift_damping(inum_runs), stat = ierr)
            shift_damping = 0.0_dp
         endif
 
         gf_overlap = 0.0_dp
-
+        TotPartsPeak = 0.0_dp
         gs_energy = benchmarkEnergy
         
         ! to avoid dividing by 0 if not all entries get filled
@@ -585,6 +587,11 @@ contains
                 ! but start right away in the HF as the initial state does not matter in 
                 ! principle for the spectrum
                 tReadPops = .false.
+               
+             case("STABILIZE-WALKERS")
+                ! enabling this activates the dynamic shift as soon as the walker number drops
+                ! below 70% of the peak value
+                tStabilizerShift = .true.
 
              case("ENERGY-BENCHMARK")
                 ! one can specify an energy which shall be added as a global shift
@@ -630,7 +637,7 @@ contains
         ! todo: figure out quantities
 
         ! for the start definetly not change tau
-        tSearchTau = .true.
+        tSearchTau = .false.
 
         ! also set readpops to get the <y(0)| reference from the "normal"
         ! neci init routines
@@ -708,6 +715,10 @@ contains
         tRealTimePopsfile = .false.
         ! by default, the initiator threshold is fixed at the beginning
         tDynamicInitThresh = .false.
+        tStabilizerShift = .false.
+        ! the merging of spawning events is done entirely automatically and therfore can not
+        ! be switched on manually
+        tRegulateSpawns = .false.
     end subroutine set_real_time_defaults
 
     subroutine check_input_real_time()
@@ -865,6 +876,7 @@ contains
       deallocate(dyn_norm_psi,stat=ierr)
       deallocate(pert_norm,stat=ierr)
       deallocate(gf_overlap,stat=ierr)
+      deallocate(TotPartsPeak,stat=ierr)
       call clean_overlap_states()
       call clear_pops_pert()
 

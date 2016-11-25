@@ -4,22 +4,23 @@ module real_time
 
     use real_time_init, only: init_real_time_calc_single, dealloc_real_time_memory, &
          rotate_time
-    use real_time_procs, only: save_current_dets, reset_spawned_list, &
+    use real_time_procs, only: save_current_dets, reset_spawned_list, merge_spawn, &
                                reload_current_dets, walker_death_realtime, &
                                walker_death_spawn, attempt_die_realtime, &
                                create_diagonal_as_spawn, count_holes_in_currentDets, &
                                DirectAnnihilation_diag, check_update_growth, &
                                get_tot_parts, update_gf_overlap, calc_norm, &
                                update_shift_damping, real_time_determ_projection, &
-                               refresh_semistochastic_space
+                               refresh_semistochastic_space, update_peak_walker_number
     use real_time_data, only: gf_type,  &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
                               current_overlap, SumWalkersCyc_1, real_time_info, DiagParts, &
-                              elapsedRealTime, elapsedImagTime,&
+                              elapsedRealTime, elapsedImagTime, TotPartsPeak, &
                               tau_real, tau_imag, t_rotated_time, temp_iendfreeslot, &
                               temp_freeslot, overlap_real, overlap_imag, dyn_norm_psi, &
                               NoatHF_1, shift_damping, t_noshift, tDynamicCoreSpace, &
-                              normsize, gf_count, tRealTimePopsfile
+                              normsize, gf_count, tRealTimePopsfile, tStabilizerShift, &
+                              tRegulateSpawns
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
                         tChangeProjEDet, DiagSft, tDynamicInitThresh
@@ -30,7 +31,7 @@ module real_time
                          iLutHF_true, indices_of_determ_states, partial_determ_vecs, &
                          exFlag, CurrentDets, TotParts, ilutHF, SumWalkersCyc, IterTime, &
                          HFCyc, norm_psi, NoatHF, TotPartsPos, TotPartsNeg, NoDied, &
-                         Annihilated, NoBorn, tSinglePartPhase, AllSumNoatHF
+                         Annihilated, NoBorn, tSinglePartPhase, AllSumNoatHF, AllTotParts
     use kp_fciqmc_data_mod, only: overlap_pert
     use timing_neci, only: set_timer, halt_timer
     use FciMCParMod, only: rezero_iter_stats_each_iter
@@ -371,6 +372,7 @@ contains
         character(*), parameter :: this_routine = "update_real_time_iteration"
         real(dp) :: tot_parts_new_all(lenof_sign)
         complex(dp) :: norm_buf(normsize)
+        integer :: run
 
         ! how to combine those 2? 
         ! in iter_data_fciqmc the info on the born, died, aborted, removed and 
@@ -405,6 +407,22 @@ contains
             call calculate_new_shift_wrapper(second_spawn_iter_data, totParts, &
                 tPairedReplicas)
             call rotate_time()
+            if(tStabilizerShift) then
+               if(iProcIndex == Root) then
+                  ! check if the walker number started to decay uncontrolled
+                  call update_peak_walker_number()
+                  do run = 1,inum_runs
+                     if((AllTotParts(min_part_type(run))+ AllTotParts(max_part_type(run)))&
+                          < 0.7*TotPartsPeak(run) .and. tSinglePartPhase(run)) then
+                        ! if it is, enable dynamic shift to enforce a sufficiently high walker number
+                        tSinglePartPhase(run) = .false.
+                        write(6,*) "Walker number dropped below threshold, enabling dynamic shift"
+                     end if
+                  end do
+               end if
+               ! and do not forget to communicate the decision
+               call MPIBcast(tSinglePartPhase)
+            end if
         end if
 ! 
 !         if (mod(iter, StepsSft) == 0) then
@@ -533,13 +551,14 @@ contains
         logical :: tParentIsDeterm, tParentUnoccupied, tParity, tChildIsDeterm
         HElement_t(dp) :: HelGen
         integer :: TotWalkersNew, err, determ_index
+        real(dp) :: prefactor
 
         ! declare this is the second runge kutta step
         runge_kutta_step = 2
 
         ! index for counting deterministic states
         determ_index = 1
-
+        prefactor = 1.0_dp
         ! use part of nicks code, and remove the parts, that dont matter 
         do idet = 1, int(TotWalkers, sizeof_int)
 
@@ -613,6 +632,7 @@ contains
             do ireplica = 1, lenof_sign
 
                 call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
+                if(tRegulateSpawns) call merge_spawn(nspawn,prefactor)
                 do ispawn = 1, nspawn
 
                     ! Zero the bit representation, to ensure no extraneous data gets through.
@@ -642,6 +662,7 @@ contains
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                                             nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
                                             ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
+                        if(tRegulateSpawns) child_sign = child_sign*prefactor
                     else
                         child_sign = 0.0_dp
                     end if
@@ -706,7 +727,7 @@ contains
                    ex_level_to_hf, i
         integer(n_int) :: ilut_child(0:niftot)
         real(dp) :: parent_sign(lenof_sign), parent_hdiag, prob, child_sign(lenof_sign), &
-                    unused_sign(lenof_sign), unused_rdm_real
+                    unused_sign(lenof_sign), prefactor, unused_rdm_real
         logical :: tParentIsDeterm, tParentUnoccupied, tParity, tChildIsDeterm
         HElement_t(dp) :: HelGen
         integer :: TotWalkersNew, run, determ_index
@@ -714,7 +735,7 @@ contains
         ! declare this is the first runge kutta step
         runge_kutta_step = 1
         ! use part of nicks code, and remove the parts, that dont matter 
-
+        prefactor = 1.0_dp
         determ_index = 1
 
         do idet = 1, int(TotWalkers, sizeof_int)
@@ -788,7 +809,7 @@ contains
             do ireplica = 1, lenof_sign
 
                 call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
-                
+                if(tRegulateSpawns) call merge_spawn(nspawn,prefactor)
                 do ispawn = 1, nspawn
 
                     ! Zero the bit representation, to ensure no extraneous data gets through.
@@ -820,6 +841,7 @@ contains
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                                             nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
                                             ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
+                        if(tRegulateSpawns) child_sign = child_sign*prefactor
                     else
                         child_sign = 0.0_dp
                     end if

@@ -14,7 +14,8 @@ module real_time_procs
                               valid_diag_spawns, DiagParts, n_diag_spawned, &
                               NoDied_1, NoBorn_1, SumWalkersCyc_1, gf_count, &
                               t_rotated_time, tau_imag, tau_real, gs_energy, &
-                              dyn_norm_psi, shift_damping, normsize
+                              dyn_norm_psi, shift_damping, normsize, tStabilizerShift, &
+                              TotPartsPeak
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
                          sizeof_int, MPIArg
@@ -1608,6 +1609,21 @@ contains
 
     end subroutine setup_pert_array
 
+    subroutine merge_spawn(nspawn,prefactor)
+      use FciMCData, only: MaxSpawned
+      implicit none
+      integer :: nspawn, nspawnMax
+      real(dp) :: prefactor
+      
+      nspawnMax = 50*(MaxSpawned/TotWalkers)
+      if(nspawn > nspawnMax) then
+         prefactor = nspawnMax/10.0_dp
+         nspawn = nspawn/prefactor
+      else
+         prefactor = 1.0_dp
+      endif
+    end subroutine merge_spawn
+
     subroutine reset_tot_parts()
       ! if the second RK step is to be compared, the reference has to be reset
       ! -> recount the TotParts from the restored data
@@ -1629,7 +1645,24 @@ contains
          call extract_sign(CurrentDets(:,i),CurrentSign)
          allWalkersSummed = allWalkersSummed + abs(CurrentSign)
       end do
+      if(tStabilizerShift) then
+         do i=1, inum_runs
+            TotPartsPeak(i) = max(allWalkersSummed(min_part_type(i)) + &
+                 allWalkersSummed(max_part_type(i)),TotPartsPeak(i))
+         end do
+      end if
     end function get_tot_parts
+
+    subroutine update_peak_walker_number()
+      use FciMCData, only: AllTotParts
+      implicit none
+      integer :: run
+
+      do run = 1,inum_runs
+         TotPartsPeak(run) = max(AllTotParts(min_part_type(run))+AllTotParts(max_part_type(run)) &
+              , TotPartsPeak(run))
+      end do
+    end subroutine update_peak_walker_number
 
     subroutine clean_overlap_states()
       implicit none
