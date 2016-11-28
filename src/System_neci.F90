@@ -1884,6 +1884,10 @@ system: do
         end if
 
          IG=0
+         print *, "I:", NBASISMAX(1,1), NBASISMAX(1,2)
+         print *, "J:", NBASISMAX(2,1), NBASISMAX(2,2)
+         print *, "K:", NBASISMAX(3,1), NBASISMAX(3,2)
+         print *, "L:", NBASISMAX(4,1),NBASISMAX(4,2)
          DO I=NBASISMAX(1,1),NBASISMAX(1,2)
            DO J=NBASISMAX(2,1),NBASISMAX(2,2)
              DO K=NBASISMAX(3,1),NBASISMAX(3,2)
