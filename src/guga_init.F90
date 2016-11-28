@@ -12,7 +12,7 @@ module guga_init
                           current_stepvector, currentOcc_ilut, currentOcc_int, &
                           currentB_ilut, currentB_int, current_cum_list, &
                           ref_stepvector, ref_b_vector_int, ref_occ_vector, &
-                          ref_b_vector_real
+                          ref_b_vector_real, treal, tHUB
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
                 t_guga_mat_eles
     use hist_data, only: tHistSpawn
@@ -37,7 +37,8 @@ module guga_init
                         pick_first_orbital_nosym_guga_uniform, orb_pgen_contrib_type_2_diff, &
                         orb_pgen_contrib_type_3_diff, orb_pgen_contrib_type_2_uniform, &
                         orb_pgen_contrib_type_3_uniform, temp_step_i, temp_step_j, &
-                        temp_delta_b, temp_occ_i, temp_b_real_i, calc_off_diag_guga_ref_direct
+                        temp_delta_b, temp_occ_i, temp_b_real_i, calc_off_diag_guga_ref_direct, &
+                        pickOrbs_real_hubbard_single, pickOrbs_real_hubbard_double
     use guga_matrixElements, only: calc_off_diag_guga_ref_list
     use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same
     use constants, only: dp
@@ -52,15 +53,23 @@ contains
         ! this routine, depending on the input set the orbital pickers 
         ! to differentiate between the different excitation generators
 
+        ! now i have to differentiate between the real- and momentum space
+        ! hubbard models..
         if (tGen_sym_guga_ueg) then
-            pickOrbitals_single => pickOrbs_sym_uniform_ueg_single
-            pickOrbitals_double => pickOrbs_sym_uniform_ueg_double
-            calc_mixed_contr => calc_mixed_contr_sym
-            calc_orbital_pgen_contr => calc_orbital_pgen_contr_ueg
-            calc_mixed_start_r2l_contr => calc_mixed_x2x_ueg
-            calc_mixed_start_l2r_contr => calc_mixed_x2x_ueg
-            calc_mixed_end_r2l_contr => calc_mixed_x2x_ueg
-            calc_mixed_end_l2r_contr => calc_mixed_x2x_ueg
+            if (.not. treal) then
+                pickOrbitals_single => pickOrbs_sym_uniform_ueg_single
+                pickOrbitals_double => pickOrbs_sym_uniform_ueg_double
+                calc_mixed_contr => calc_mixed_contr_sym
+                calc_orbital_pgen_contr => calc_orbital_pgen_contr_ueg
+                calc_mixed_start_r2l_contr => calc_mixed_x2x_ueg
+                calc_mixed_start_l2r_contr => calc_mixed_x2x_ueg
+                calc_mixed_end_r2l_contr => calc_mixed_x2x_ueg
+                calc_mixed_end_l2r_contr => calc_mixed_x2x_ueg
+            else
+                pickOrbitals_single => pickOrbs_real_hubbard_single
+                pickOrbitals_double => pickOrbs_real_hubbard_double
+                ! what about the contributions? do i need dummy functions?
+            end if
             
         else if (tGen_sym_guga_mol) then
 !             pickOrbitals_single => pickOrbitals_nosym_single
@@ -286,15 +295,15 @@ contains
         ! i need symmetry actually!! or otherwise its wrong 
         ! have to somehow find out how to check if k-point symmetry is 
         ! provided 
-        if (tGen_sym_guga_ueg .and. lNoSymmetry) then
+        if (tGen_sym_guga_ueg .and. lNoSymmetry .and. .not. treal) then
             call stop_all(this_routine, &
                 "UEG/Hubbard implementation of GUGA excitation generator needs symmetry but NOSYMMETRY set! abort!")
         end if
 
-        if (tGen_sym_guga_mol .and. lNoSymmetry) then
-            call stop_all(this_routine, &
-                "symmetric molecular GUGA excitation generator chosen, but NOSYMMETRY set! check input!")
-        end if
+!         if (tGen_sym_guga_mol .and. lNoSymmetry) then
+!             call stop_all(this_routine, &
+!                 "symmetric molecular GUGA excitation generator chosen, but NOSYMMETRY set! check input!")
+!         end if
         
         if (tExactSizeSpace) then
             call stop_all(this_routine, &

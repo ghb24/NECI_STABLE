@@ -499,6 +499,8 @@ contains
                IF(THUB.AND.TREAL) THEN
     !!C.. Real space hubbard
     !!C.. we pre-compute the 2-e integrals
+    ! i am not sure if we really need to precompute the 2 e integrals..
+    ! they are anyways the same all the time.. hm.
                   WRITE(6,*) "Generating 2e integrals"
     !!C.. Generate the 2e integrals (UMAT)
                   CALL GetUMatSize(nBasis,nEl,UMATINT)

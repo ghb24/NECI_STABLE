@@ -10,7 +10,7 @@ module guga_excitations
                           currentB_ilut, currentB_int, current_cum_list, &
                           tGen_guga_weighted, ref_stepvector, ref_b_vector_real, & 
                           ref_occ_vector, ref_b_vector_int, t_full_guga_tests, &
-                          nBasisMax, tHub
+                          nBasisMax, tHub, treal
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_, iout, int64, inum_runs
     use bit_reps, only: niftot, decode_bit_det, encode_det, encode_part_sign, &
@@ -440,6 +440,27 @@ contains
 
             return
         end if
+
+        ! for the hubbard model implementation, depending if it is in the 
+        ! momentum- or real-space i can get out of here if we identify 
+        ! excitation types which are definetly 0
+        ! i could do that more efficiently if we identify it already 
+        ! earlier but for now do it here! 
+        if (tHub) then 
+            if (treal) then
+                if (excitInfo%typ /= 0) then 
+                    ! only singles in the real-space hubbard!
+                    mat_ele = 0.0_dp
+                    return
+                end if
+            else 
+                if (excitInfo%typ == 0) then
+                    ! only double excitations in the momentum-space hubbard!
+                    mat_ele = 0.0_dp
+                    return
+                end if
+            end if
+        endif
 
         ! depending on the type of usage i have to init some csf information 
         select case (calc_type) 
@@ -2991,9 +3012,14 @@ contains
             ASSERT(isProperCSF_ilut(excitation, .true.))
             ! otherwise extract H element and convert to 0
             call convert_ilut_toNECI(excitation, ilutJ, HElgen)
+
+!             call write_det_guga(6,ilut)
+!             call write_det_guga(6,excitation)
+!             call print_excitInfo(global_excitInfo)
+
             call decode_bit_det(nJ, ilutJ)
 
-            if (tHub) then 
+            if (tHub .and. .not. treal) then 
                 if (.not.(IsMomentumAllowed(nJ))) then
                     call write_det_guga(6, excitation)
 !                     call stop_all(this_routine, "Momentum not allowed!")
@@ -21365,6 +21391,7 @@ contains
 !     
 !     end subroutine startDoubleExcitation
 !     
+
     subroutine pickOrbs_sym_uniform_mol_single(ilut, nI, excitInfo, pgen)
         ! new implementation to pick single orbitals, more similar to the 
         ! other neci implementations
@@ -21395,9 +21422,10 @@ contains
         ! again
         cc_i = ClassCountInd(1, SpinOrbSymLabel(orb_i), G1(orb_i)%Ml)
 
-        ! get the number of orbitals in this spin sector
+        ! get the number of orbitals in this symmetry sector
         nOrb = OrbClassCount(cc_i)
         allocate(cum_arr(nOrb), stat = ierr)
+
         ! actually only need one of the symmetry list, but then just have to 
         ! only check if one of the two spin-orbitals is empty
         ! now have to have specific picking routines depending on the 
@@ -21471,6 +21499,250 @@ contains
         end if
 
     end subroutine pickOrbs_sym_uniform_mol_single
+
+    subroutine gen_cum_list_real_hub_1(nI, orb_i, cum_arr) 
+        integer, intent(in) :: nI(nel) 
+        integer, intent(in) :: orb_i
+        real(dp), intent(out) :: cum_arr(nSpatOrbs)
+        character(*), parameter :: this_routine = "gen_cum_list_real_hub_1"
+
+        real(dp) :: cum_sum
+        integer :: i, lower, upper
+        ! for the case of d(i) = 1 i need to exclude d(j) = 1 when there 
+        ! is no switch possible in the middle 
+
+        cum_sum = 0.0_dp 
+
+        call find_switches(orb_i, lower, upper)
+
+        ! so from 1 to lower-1 d=1 is possible and allowed! 
+        ! if lower = 1 (default if no switch is found) no accessing loop anyway
+
+        do i = 1, lower - 1 
+            ! this means in this regime only doubly occupied orbs get 
+            ! excluded (i cant be orb_i also, since lower is strictly lower
+            ! or 1, which means the loop is not entered!)
+
+            if (current_stepvector(i) == 3) then 
+                cum_arr(i) = cum_sum 
+            else
+                cum_sum = cum_sum + abs(GetTMatEl(2*orb_i,2*i))
+                cum_arr(i) = cum_sum 
+            end if
+        end do
+
+        ! do i loop from lower to upper now? or until orb_i - 1 ? 
+        ! i can loop until upper already, since d(i) = 1, which means it 
+        ! get excluded here anyway! 
+
+        do i = lower, upper
+            ! here d = 1 and d = 3 are excluded! 
+            if (mod(current_stepvector(i),2) == 1) then 
+                cum_arr(i) = cum_sum
+            else
+                cum_sum = cum_sum + abs(GetTMatEl(2*orb_i, 2*i))
+                cum_arr(i) = cum_sum
+            end if
+        end do
+
+        ! from upper+1 until end everything except d = 3 is allowed again
+        do i = upper + 1, nSpatOrbs
+            if (current_stepvector(i) == 3) then 
+                cum_arr(i) = cum_sum 
+            else
+                cum_sum = cum_sum + abs(GetTMatEl(2*orb_i,2*i))
+                cum_arr(i) = cum_sum 
+            end if
+        end do
+
+
+    end subroutine gen_cum_list_real_hub_1
+
+    subroutine gen_cum_list_real_hub_2(nI, orb_i, cum_arr) 
+        integer, intent(in) :: nI(nel) 
+        integer, intent(in) :: orb_i
+        real(dp), intent(out) :: cum_arr(nSpatOrbs)
+        character(*), parameter :: this_routine = "gen_cum_list_real_hub_2"
+
+        real(dp) :: cum_sum
+        integer :: i, lower, upper
+        ! similar to the case above except the switch restrictrion.. 
+
+        call find_switches(orb_i, lower, upper)
+
+        cum_sum = 0.0_dp
+
+        do i = 1, lower - 1 
+
+            if (current_stepvector(i) == 3) then 
+                cum_arr(i) = cum_sum 
+            else
+                cum_sum = cum_sum + abs(GetTMatEl(2*orb_i,2*i))
+                cum_arr(i) = cum_sum 
+            end if
+        end do
+
+        do i = lower, upper
+            ! here d = 2 and d = 3 are excluded! 
+            if (current_stepvector(i) > 1) then 
+                cum_arr(i) = cum_sum
+            else
+                cum_sum = cum_sum + abs(GetTMatEl(2*orb_i, 2*i))
+                cum_arr(i) = cum_sum
+            end if
+        end do
+
+        do i = upper + 1, nSpatOrbs
+            if (current_stepvector(i) == 3) then 
+                cum_arr(i) = cum_sum 
+            else
+                cum_sum = cum_sum + abs(GetTMatEl(2*orb_i,2*i))
+                cum_arr(i) = cum_sum 
+            end if
+        end do
+
+    end subroutine gen_cum_list_real_hub_2
+
+    subroutine gen_cum_list_real_hub_3(nI, orb_i, cum_arr) 
+        integer, intent(in) :: nI(nel) 
+        integer, intent(in) :: orb_i
+        real(dp), intent(out) :: cum_arr(nSpatOrbs)
+        character(*), parameter :: this_routine = "gen_cum_list_real_hub_3"
+
+        real(dp) :: cum_sum
+        integer :: i 
+        ! no real restrictions here..
+        ! notice change to similar molecular routines: here the input is 
+        ! already in spatial orbitals!
+
+        cum_sum = 0.0_dp
+
+        do i = 1, nSpatOrbs
+
+            ! actually this case is also excluded already since i know it 
+            ! is d(i) = 3..
+!             if (i == orb_i) then
+!                 cum_arr(i) = cum_sum
+!                 cycle 
+!             end if
+
+            ! actually the matrix element is also always the same ... 
+            ! i dont actually need this weighting here.. 
+!             hel = 0.0_dp
+
+            ! actually i only need to cycle if the stepvector is 3 otherwise 
+            ! just give it the same pgen increment 
+            ! no wait a minute.. i know the matrix element.. or? 
+            ! i have and should check if those are connected through a 
+            ! hopping possibility.. otherwise it would not make much sense..
+            ! but remember: only spin-parallel hops allowed: so access TMAT 
+            ! always with the same spin-orbital index
+            if (current_stepvector(i) == 3) then 
+                cum_arr(i) = cum_sum
+            else 
+                cum_sum = cum_sum + abs(GetTMatEl(2*orb_i,2*i))
+                cum_arr(i) = cum_sum 
+            end if
+        end do
+
+    end subroutine gen_cum_list_real_hub_3
+
+    subroutine pickOrbs_real_hubbard_double(ilut, nI, excitInfo, pgen) 
+        integer(n_int), intent(in) :: ilut(0:nifguga) 
+        integer, intent(in) :: nI(nel) 
+        type(excitationInformation), intent(out) :: excitInfo
+        real(dp), intent(out) :: pgen
+        character(*), parameter :: this_routine = "pickOrbs_real_hubbard_double" 
+
+        ! should not be here in the real-space hubbard implementation! 
+        print *, "psingles, pDoubles: ", pSingles, pDoubles
+        call stop_all(this_routine, &
+            "should not be at double excitations in the real-space hubbard model!")
+
+    end subroutine pickOrbs_real_hubbard_double
+
+    subroutine pickOrbs_real_hubbard_single(ilut, nI, excitInfo, pgen) 
+        ! write a specialized orbital picker for the real-space hubbard 
+        ! implementation, since we do not need all the symmetry stuff and 
+        ! we have to take the correct TMAT values for the ml-spin values 
+        integer(n_int), intent(in) :: ilut(0:nifguga) 
+        integer, intent(in) :: nI(nel)
+        type(excitationInformation), intent(out) :: excitInfo
+        real(dp), intent(out) :: pgen 
+        character(*), parameter :: this_routine = "pickOrbs_real_hubbard_single"
+
+        integer :: elec, orb_i, orb_a
+        real(dp) :: cum_arr(nSpatOrbs), elec_factor, cum_sum, r
+        ! first pick electron randomly: 
+        elec = 1 + floor(genrand_real2_dSFMT() * nel)
+
+        orb_i = gtID(nI(elec))
+
+        ! still use cum arrays to enable applying guga restrictions!
+        ! but all orbitals are possible now of course
+
+        select case (current_stepvector(orb_i))
+
+            case (1) 
+                ! i need a switch possibility for other d = 1 values 
+                call gen_cum_list_real_hub_1(nI, orb_i, cum_arr) 
+
+                elec_factor = 1.0_dp
+
+            case (2) 
+                ! i need a switch possibility for other d = 2 values 
+                call gen_cum_list_real_hub_2(nI, orb_i, cum_arr) 
+
+                elec_factor = 1.0_dp
+
+            case (3) 
+                ! no restrictions actually 
+                call gen_cum_list_real_hub_3(nI, orb_i, cum_arr) 
+
+                ! but twice the chance to have picked this spatial orbital: 
+                elec_factor = 2.0_dp
+
+            case default
+                call stop_all(this_routine,"should not have picked empty orb!")
+
+        end select 
+
+        cum_sum = cum_arr(nSpatOrbs)
+
+        if (cum_sum < EPS) then 
+            orb_a = 0
+            excitInfo%valid = .false. 
+            return 
+        else
+            r = genrand_real2_dSFMT() * cum_sum
+            orb_a = binary_search_first_ge(cum_arr,r)
+
+            if (orb_a == 1) then 
+                pgen = cum_arr(1) / cum_sum
+            else
+                pgen = (cum_arr(orb_a) - cum_arr(orb_a - 1)) / cum_sum
+                
+            end if
+        end if
+
+        ASSERT(orb_a /= orb_i) 
+
+        pgen = pgen * elec_factor / real(nel,dp)
+
+        if (orb_a < orb_i) then
+            ! raising generator
+            excitInfo = assign_excitInfo_values_single(1, orb_a, orb_i, orb_a, orb_i)
+
+        else
+            ! lowering generator
+            excitInfo = assign_excitInfo_values_single(-1, orb_a, orb_i, orb_i, orb_a)
+
+        end if
+
+
+    end subroutine pickOrbs_real_hubbard_single
+
+
 
     subroutine gen_cum_list_guga_single_1(nI, orb_i, cc_i, cum_arr)
         ! specific single orbital picker if stepvector of electron (i) is 1
@@ -21595,7 +21867,6 @@ contains
 
                 case (2) 
                     ! no restrictions for 2 -> 1 excitations
-
                     hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
                     ! do the loop over all the other electrons 
                     ! (is this always symmetrie allowed?..)

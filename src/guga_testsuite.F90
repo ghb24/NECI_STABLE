@@ -125,7 +125,14 @@ contains
 !         call run_test_excit_gen_4ind_multiple([1,3,6,7,10,11,14,16])
 
         if (tUEG .or. tHUB) then
-            call run_test_excit_gen_hubbard(fdet)
+            if (.not. treal) then 
+                call run_test_excit_gen_hubbard_mom(fdet)
+            else
+                call stop_all(this_routine, &
+                    "test code not yet written for real-space hubbard!")
+
+!                 call run_test_excit_gen_hubbard_real(fdet)
+            end if
         else
             call run_test_excit_gen_4ind_multiple(fdet)
         end if
@@ -134,7 +141,7 @@ contains
 
     end subroutine run_test_excit_gen_det
         
-    subroutine run_test_excit_gen_hubbard(nI)
+    subroutine run_test_excit_gen_hubbard_mom(nI)
         ! also write a excitation generation testcode for the hubbard/ueg 
         ! excitation generator... or maybe finally write a general excitation
         ! generator testcode
@@ -143,7 +150,7 @@ contains
         integer(n_int) :: ilut(0:niftot)
         integer :: nExcits, nTest
         integer(n_int), pointer :: excitations(:,:)
-        character(*), parameter :: this_routine = "run_test_excit_gen_hubbard"
+        character(*), parameter :: this_routine = "run_test_excit_gen_hubbard_mom"
 
         pSingles = 0.0_dp
         pDoubles = 1.0_dp
@@ -164,7 +171,7 @@ contains
 
         call stop_all(this_routine, "for now")
         
-    end subroutine run_test_excit_gen_hubbard
+    end subroutine run_test_excit_gen_hubbard_mom
 
     ! also write a test runner for the 4ind-weighted excit gen to compare 
     ! the frequency of the mat_ele/pgen ratios 
@@ -235,8 +242,13 @@ contains
     subroutine run_test_excit_gen_guga
 
         if (tUEG .or. tHUB) then
-            pSingles = 0.0_dp
-            pDoubles = 1.0_dp
+            if (.not. treal) then
+                pSingles = 0.0_dp
+                pDoubles = 1.0_dp
+            else
+                pSingles = 1.0_dp
+                pDoubles = 0.0_dp
+            end if
         else
             pSingles = 0.1_dp
             pDoubles = 1.0_dp - pSingles
