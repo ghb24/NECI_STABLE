@@ -110,6 +110,7 @@ C          IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          use SystemData, only: BasisFN
          USE OneEInts, only: TMat2D,TMATSYM,SetupTMAT
          USE Parallel_neci, only : iProcIndex
+         use sym_mod, only: mompbcsym
          IMPLICIT NONE
          INTEGER NBASIS,nBasisMax(5,*)
          TYPE(BasisFN) G1(nBasis)
@@ -119,6 +120,7 @@ C          IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          INTEGER DX,DY,DZ,LX,LY,LZ
          LOGICAL TTILT,TREAL,TPBC
          real(dp) TOTSUM
+         integer temp_k(3)
          character(*), parameter :: this_routine = 'CALCTMATHUB'
          IF(iProcIndex.eq.0) OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
          CALL SetupTMAT(NBASIS,2,iSize)
@@ -126,6 +128,8 @@ C          IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          LX=NBASISMAX(1,2)-NBASISMAX(1,1)
          LY=NBASISMAX(2,2)-NBASISMAX(2,1)
          LZ=NBASISMAX(3,2)-NBASISMAX(3,1)
+         ! here i have to make some changes in the real-space tilted
+         ! case to construct the correct TMAT 
          IF(LY.EQ.0) LY=-1
          IF(LZ.EQ.0) LZ=-1
          IF(TREAL) THEN
@@ -134,6 +138,9 @@ C          IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
                   DX=ABS(G1(I)%k(1)-G1(J)%k(1))
                   DY=ABS(G1(I)%k(2)-G1(J)%k(2))
                   DZ=ABS(G1(I)%k(3)-G1(J)%k(3))
+                  temp_k = [DX,DY,DZ]
+                  call mompbcsym(temp_k,NBASISMAX)
+                  temp_k = abs(temp_k)
                   TOTSUM=BHUB
                   IF(TPBC) THEN
 !This bit is only for if the hubbard lattice only has one site in a certain dimension
@@ -150,11 +157,21 @@ C          IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
                         IF(LZ.EQ.1) TOTSUM=TOTSUM+BHUB
                      ENDIF
                   ENDIF
-                  IF(DX+DY+DZ.EQ.1.AND.G1(I)%Ms.EQ.G1(J)%MS) THEN
+                  IF((DX+DY+DZ.EQ.1).or.sum(temp_k) == 1) then
+                      if (G1(I)%Ms.EQ.G1(J)%MS) THEN
 !This is for if the site can interact with a periodic image.
+                      ! i have to change that condition for the tilted 
+                      ! real-space since now it only accomodates for a
+                      ! non-pbc model
                     TMAT2D(I,J)=TOTSUM
                     IF(iProcIndex.eq.0) WRITE(10,*) I,J,TOTSUM
+                    endif
                   ENDIF
+                  ! try the change for the tilted square lattice.. 
+                  ! if (sum(temp_k) == 1 .and. G1(i)%ms == G1(j)%ms) then
+                  !   TMAT2D(I,J)=TOTSUM
+                  !   IF(iProcIndex.eq.0) WRITE(10,*) I,J,TOTSUM
+                  ! ENDIF
                ENDDO
             ENDDO
          ELSE

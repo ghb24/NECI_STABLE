@@ -1882,12 +1882,7 @@ system: do
         else
          WRITE(6,*) "Creating plane wave basis."
         end if
-
          IG=0
-         print *, "I:", NBASISMAX(1,1), NBASISMAX(1,2)
-         print *, "J:", NBASISMAX(2,1), NBASISMAX(2,2)
-         print *, "K:", NBASISMAX(3,1), NBASISMAX(3,2)
-         print *, "L:", NBASISMAX(4,1),NBASISMAX(4,2)
          DO I=NBASISMAX(1,1),NBASISMAX(1,2)
            DO J=NBASISMAX(2,1),NBASISMAX(2,2)
              DO K=NBASISMAX(3,1),NBASISMAX(3,2)
@@ -1896,7 +1891,14 @@ system: do
                   G%k(2)=J
                   G%k(3)=K
                   G%Ms=L
-                  IF((THUB.AND.(TREAL.OR..NOT.TPBC)).OR.KALLOWED(G,NBASISMAX)) THEN
+                  ! i have to change this condition to accomodate both real
+                  ! and k-space hubbard models for the tilted and cubic 
+                  ! lattice
+                  ! aperiodic does not work anyway and is not really needed..
+                  ! if tilted i want to check if k is allowed otherwise 
+                  if ((treal .and. .not. ttilt) .or. kAllowed(G,NBASISMAX)) then
+!                   IF((THUB.AND.(TREAL.OR..NOT.TPBC)).and.KALLOWED(G,NBASISMAX)) THEN
+!                   IF((THUB.AND.(TREAL.OR..NOT.TPBC)).or.KALLOWED(G,NBASISMAX)) THEN
                     IF(THUB) THEN
 !C..Note for the Hubbard model, the t is defined by ALAT(1)!
                        IF(TPBC) THEN
