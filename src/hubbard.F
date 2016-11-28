@@ -37,16 +37,16 @@ C..Returned in sum
       LOGICAL TTILT,TREAL
       real(dp) :: TOTSUM,BHUB
       real(dp) :: tb_x, tb_y
-      tb_x = twisted_bc(1)
-      tb_y = twisted_bc(2)
-      LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
-      LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
-      LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
-      AX=NBASISMAX(1,4)
-      AY=NBASISMAX(2,4)
       IF(TREAL) THEN
          TOTSUM=0.0_dp
       ELSE
+       tb_x = twisted_bc(1)
+       tb_y = twisted_bc(2)
+       LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
+       LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
+       LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
+       AX=NBASISMAX(1,4)
+       AY=NBASISMAX(2,4)
        IF(TTILT) THEN
 CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
          LX=NBASISMAX(1,5)
@@ -76,29 +76,33 @@ C..Returned in sum
       LOGICAL TTILT,TREAL
       INTEGER II,JJ,KK,K,J,I,LZ,LX,LY
       real(dp) :: BHUB,TOTSUM
-      LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
-      LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
-      LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
-      AX=NBASISMAX(1,4)
-      AY=NBASISMAX(2,4)
-      IF(TTILT) THEN
+      IF(TREAL) then
+        TOTSUM=0.0_dp
+        return
+      else
+       LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
+       LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
+       LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
+       AX=NBASISMAX(1,4)
+       AY=NBASISMAX(2,4)
+       IF(TTILT) THEN
 CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
-         LX=NBASISMAX(1,5)
-         LX=(LX*(AX*AX+AY*AY))
-         TOTSUM=COS(PI*(I*AX-J*AY)/(LX+1))+COS(PI*(I*AY+J*AX)/(LX+1))
-      ELSE
-         II=I-NBASISMAX(1,1)+1
-         JJ=J-NBASISMAX(2,1)+1
-         KK=K-NBASISMAX(3,1)+1
-         IF(LX.GT.1) TOTSUM=COS(PI*II/(LX+1))
-         IF(LY.GT.1) TOTSUM=TOTSUM+COS(PI*JJ/(LY+1))
-         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*KK/(LZ+1))
-C         IF(LY.GT.1) TOTSUM=TOTSUM+COS(PI*J/(LY+1))
-C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
-      ENDIF
-      TOTSUM=TOTSUM*2.0_dp*BHUB
-      IF(TREAL) TOTSUM=0.0_dp
-      RETURN
+          LX=NBASISMAX(1,5)
+          LX=(LX*(AX*AX+AY*AY))
+          TOTSUM=COS(PI*(I*AX-J*AY)/(LX+1))+COS(PI*(I*AY+J*AX)/(LX+1))
+       ELSE
+          II=I-NBASISMAX(1,1)+1
+          JJ=J-NBASISMAX(2,1)+1
+          KK=K-NBASISMAX(3,1)+1
+          IF(LX.GT.1) TOTSUM=COS(PI*II/(LX+1))
+          IF(LY.GT.1) TOTSUM=TOTSUM+COS(PI*JJ/(LY+1))
+          IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*KK/(LZ+1))
+C          IF(LY.GT.1) TOTSUM=TOTSUM+COS(PI*J/(LY+1))
+C          IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
+       ENDIF
+       TOTSUM=TOTSUM*2.0_dp*BHUB
+       RETURN
+      endif
       END
 
       SUBROUTINE CALCTMATHUB(NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,TPBC)

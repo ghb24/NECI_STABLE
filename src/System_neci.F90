@@ -531,6 +531,10 @@ system: do
             call getf(BHUB)
         case("REAL")
             TREAL = .true.
+            ! i think for the real-space i have to specifically turn off 
+            ! the symmetry and make other changes in the code to never try 
+            ! to set up the symmetry
+            lNoSymmetry = .true.
         case("APERIODIC")
             TPBC = .false.
 
@@ -1731,7 +1735,7 @@ system: do
              WRITE(6,*) ' Y-LENGTH OF HUBBARD CHAIN:', NMAXY
              WRITE(6,*) ' Z-LENGTH OF HUBBARD CHAIN:', NMAXZ
              WRITE(6,*) ' Periodic Boundary Conditions:',TPBC
-!              WRITE(6,*) ' Real space basis:',TREAL
+             WRITE(6,*) ' Real space basis:',TREAL
              IF(TTILT.AND.THUB) THEN
                 OMEGA=real(NMAXX,dp)*NMAXY*(ITILTX*ITILTX+ITILTY*ITILTY)
              ELSE
@@ -1781,7 +1785,9 @@ system: do
           IF(THUB) THEN
              IF(TTILT) THEN
                 CALL SETBASISLIM_HUBTILT(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,TPBC,ITILTX,ITILTY)
-                IF(TREAL) call stop_all(this_routine, 'REAL TILTED HUBBARD NOT SUPPORTED')
+                ! why is tilted real-space lattice not supported??
+                ! hm.. try.. anyway
+!                 IF(TREAL) call stop_all(this_routine, 'REAL TILTED HUBBARD NOT SUPPORTED')
               ELSE
                 CALL SETBASISLIM_HUB(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,TPBC,TREAL)
              ENDIF
@@ -1868,7 +1874,15 @@ system: do
          ENDIF
       ELSE
 !C.. Create plane wave basis functions
+! here we are also when we are using a real-space basis.. 
+! this should be changed.. todo
+! i have to change stuff here for the real-space hubbard model
+        if (treal) then
+         WRITE(6,*) "Creating real-space basis."
+        else
          WRITE(6,*) "Creating plane wave basis."
+        end if
+
          IG=0
          DO I=NBASISMAX(1,1),NBASISMAX(1,2)
            DO J=NBASISMAX(2,1),NBASISMAX(2,2)
@@ -1980,7 +1994,19 @@ system: do
                call stop_all(this_routine, ' LEN NE IG ')
             endif
          ENDIF
-         if (.not. tHub) CALL GENMOLPSYMTABLE(1,G1,NBASIS)
+         if (thub .and. treal) then
+             WRITE(6,*) "Turning Symmetry off for real-space hubbard"
+              DO I=1,nBasis
+                  G1(I)%Sym%s=0
+              ENDDO
+              CALL GENMOLPSYMTABLE(1,G1,NBASIS)
+              DO I=1,nBasis
+                  G1(I)%Sym%s=0
+              ENDDO
+        endif
+
+         if (.not. tHub ) CALL GENMOLPSYMTABLE(1,G1,NBASIS)
+
       ENDIF
       IF(tFixLz) THEN
           WRITE(6,'(A)') "****** USING Lz SYMMETRY *******"

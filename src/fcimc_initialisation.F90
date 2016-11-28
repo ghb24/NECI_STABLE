@@ -3049,11 +3049,13 @@ contains
                 WRITE(iout,*) "Since we are using a real-space hubbard model, only single excitations are connected &
                 &   and will be generated."
                 pDoubles=0.0_dp
+                pSingles = 1.0_dp
                 return
             ELSE
                 WRITE(iout,*) "Since we are using a momentum-space hubbard model/UEG, only double excitaitons &
      &                          are connected and will be generated."
                 pDoubles=1.0_dp
+                pSingles = 0.0_dp
                 return
             ENDIF
         elseif(tNoSingExcits) then
