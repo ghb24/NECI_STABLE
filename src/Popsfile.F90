@@ -1144,19 +1144,7 @@ r_loop: do while(.not.tStoreDet)
             iBlockingIter = PreviousCycles
         else
 #ifdef __REALTIME 
-            ! its a bit different in the real-time, since i do not 
-            ! want to use tau-search for now! 
-            ! but still leave the option open and also reuse the read-in 
-            ! time-step if no time-step is specified in the real-time option 
-            ! block! 
-            if (real_time_info%time_step < 0.0_dp) then
-                ! no real-time time-step input is given -> so use the popsfile
-                print *, " no real-time time-step is provided! use POPSFILE tau!"
-                tau = read_tau
-            else
-                print *, " real-time time-step is provided! use it! "
-                tau = real_time_info%time_step
-            end if
+
             ! also use the adjusted pSingle etc. if provided
             if (read_psingles /= 0.0_dp) then
                 pSingles = read_psingles

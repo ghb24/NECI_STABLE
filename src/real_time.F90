@@ -18,9 +18,9 @@ module real_time
                               elapsedRealTime, elapsedImagTime, TotPartsPeak, &
                               tau_real, tau_imag, t_rotated_time, temp_iendfreeslot, &
                               temp_freeslot, overlap_real, overlap_imag, dyn_norm_psi, &
-                              NoatHF_1, shift_damping, t_noshift, tDynamicCoreSpace, &
+                              NoatHF_1, shift_damping, tDynamicCoreSpace, &
                               normsize, gf_count, tRealTimePopsfile, tStabilizerShift, &
-                              tRegulateSpawns
+                              tRegulateSpawns, tStaticShift, asymptoticShift
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
                         tChangeProjEDet, DiagSft, tDynamicInitThresh
@@ -483,6 +483,7 @@ contains
         type(rdm_definitions_t) :: dummy
 !         integer, intent(out) :: n_determ_states
         character(*), parameter :: this_routine = "init_real_time_iteration"
+        integer :: run
 
         ! reuse parts of nicks routine and add additional real-time fciqmc
         ! specific quantities
@@ -527,7 +528,11 @@ contains
         elapsedRealTime = elapsedRealTime + tau_real
         elapsedImagTime = elapsedImagTime + tau_imag
 
-        if(t_noshift) DiagSft = 0.0_dp
+        if(tStaticShift) then
+           do run = 1, inum_runs
+              if(.not. tSinglePartPhase(run)) DiagSft(run) = asymptoticShift
+           enddo
+        endif
 
     end subroutine init_real_time_iteration
 
@@ -597,7 +602,7 @@ contains
             ! actually dont need to update this here since nothing gets merged
             ! at the end.. only k2 gets created
             if (tParentUnoccupied) then
-               ! this is not even allowed to be done as in the end, the merge is done 
+               ! this is unnecessary in the end, the merge is done 
                ! with the original ensemble, with the original FreeSlots
                iEndFreeSlot = iEndFreeSlot + 1
                FreeSlot(iEndFreeSlot) = idet
@@ -658,11 +663,10 @@ contains
                                 if (tChildIsDeterm) call set_flag(ilut_child, flag_deterministic)
                             end if
                         end if
-
+                        if(tRegulateSpawns) prob = prob*prefactor
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                                             nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
                                             ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
-                        if(tRegulateSpawns) child_sign = child_sign*prefactor
                     else
                         child_sign = 0.0_dp
                     end if

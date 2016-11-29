@@ -16,7 +16,7 @@ module real_time_data
     ! global flag indicating real-time calculation
     ! rotated_time_setup: flag to indicate whether pure real time is
     ! used or not
-    logical :: t_real_time_fciqmc, t_new_stats_file, t_rotated_time, t_noshift, &
+    logical :: t_real_time_fciqmc, t_new_stats_file, t_rotated_time, tStaticShift, &
          tDynamicCoreSpace, tRealTimePopsfile, tStabilizerShift, tRegulateSpawns
 
     ! also use a second iter_data type to keep track of the 2 distinct 
@@ -37,6 +37,8 @@ module real_time_data
     real(dp) :: tau_imag, tau_real
     ! logging the total elapsed time on both axes
     real(dp) :: elapsedRealTime, elapsedImagTime
+    ! value of static shift if enabled
+    real(dp) :: asymptoticShift
     ! averaged overlaps
     real(dp), allocatable :: overlap_real(:), overlap_imag(:)
 
@@ -81,8 +83,6 @@ module real_time_data
         ! use a equidistant time-step -> this turns off automated time-step
         ! optimization. but this way i can define a specific end time 
         logical :: t_equidistant_time = .false.
-        ! this input should also be provided with a predefined time-step
-        real(dp) :: time_step = -1.0_dp
         ! and a end time to stop the simulation afterwards
         real(dp) :: max_time = -1.0_dp
         ! also store the number of time-steps to be calculated

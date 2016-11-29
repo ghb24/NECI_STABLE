@@ -19,10 +19,10 @@ module real_time_init
                               AllNoAddedInitiators_1, AllNoInitDets_1, AllNoNonInitDets_1, &
                               AllNoInitWalk_1, AllNoNonInitWalk_1, AllInitRemoved_1, &
                               AccRat_1, AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap, &
-                              TotPartsStorage,  t_rotated_time, TotPartsPeak, &
+                              TotPartsStorage,  t_rotated_time, TotPartsPeak, asymptoticShift, &
                               tau_imag, tau_real, elapsedRealTime, elapsedImagTime, &
                               TotWalkers_orig, dyn_norm_psi, gs_energy, shift_damping, &
-                              t_noshift, MaxSpawnedDiag, tDynamicCoreSpace, overlap_states, &
+                              tStaticShift, MaxSpawnedDiag, tDynamicCoreSpace, overlap_states, &
                               overlap_real, overlap_imag, allGfs, tRealTimePopsfile, &
                               tRegulateSpawns
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
@@ -146,16 +146,7 @@ contains
             tSearchTau = .false.
             ! also have to turn off:
             tSearchTauOption = .false.
-            if (real_time_info%time_step > 0.0_dp) then
-                print *, " A specific time-step is chosen by input!"
-                tau = real_time_info%time_step
-            else
-                print *, " No specific time-step is chosen by input! Use tau from Popsfile!"
-                !tSearchTau = .false.
-                real_time_info%time_step = tau
-            end if
-
-            print *, " time-step: ", real_time_info%time_step
+            print *, " time-step: ", tau
         end if
 
         ! initialize the storage containers for the calculated overlaps
@@ -204,18 +195,18 @@ contains
                 ! no do it here, since in check_input the popsfile tau is not 
                 ! yet known! 
                 if (real_time_info%max_time > 0.0_dp) then
-                    if (real(real_time_info%n_time_steps,dp)*real_time_info%time_step &
+                    if (real(real_time_info%n_time_steps,dp)*tau &
                         /= real_time_info%max_time) then
                         print *, " number of timesteps and time step not congruent with max_time!"
                         real_time_info%max_time = real(real_time_info%n_time_steps,dp) &
-                            * real_time_info%time_step
+                            * tau
                         print *, " setting max_time to: ", real_time_info%max_time
                     end if
                 else 
                     ! set max_time! 
                     print *, " no max_time inputted! set it to be congruent with time-steps"
                     real_time_info%max_time = real(real_time_info%n_time_steps,dp) &
-                        * real_time_info%time_step
+                        * tau
                     print *, " setting max_time to: ", real_time_info%max_time
                 end if
             else
@@ -427,9 +418,6 @@ contains
                 real_time_info%t_equidistant_time = .true.
 
                 ! its possible to input the wanted time-step here too
-                if (item < nitems) then
-                    call readf(real_time_info%time_step)
-                end if
 
             case ("MAX-TIME")
                 ! input the targeted end time 
@@ -580,7 +568,10 @@ contains
                 ! renormalization of the norm by a dynamic factor is made
                 ! note that the walker number will grow exponentially in this
                 ! scenario, however
-                t_noshift = .true.
+                asymptoticShift = 0.0_dp
+                ! might want to set DiagSft = 0.0_dp but there migth also be some cases
+                ! in which this is unwanted
+                tStaticShift = .true.
 
              case("START-HF")
                 ! do not read in an initial state from a POPSFILE and apply a perturbation
@@ -592,6 +583,10 @@ contains
                 ! enabling this activates the dynamic shift as soon as the walker number drops
                 ! below 70% of the peak value
                 tStabilizerShift = .true.
+                if(item < nitems) then
+                   call readf(asymptoticShift)
+                   tStaticShift = .true.
+                endif
 
              case("ENERGY-BENCHMARK")
                 ! one can specify an energy which shall be added as a global shift
@@ -637,7 +632,7 @@ contains
         ! todo: figure out quantities
 
         ! for the start definetly not change tau
-        tSearchTau = .false.
+        tSearchTau = .true.
 
         ! also set readpops to get the <y(0)| reference from the "normal"
         ! neci init routines
@@ -692,7 +687,8 @@ contains
         ! setup_rotated_time: by default, pure real time is used
         t_rotated_time = .false.
         ! usually, the walker number shall be controlled
-        t_noshift = .false.
+        tStaticShift = .false.
+        asymptoticShift = 0.0_dp
 
         ! and in case of semistochastic approach, the core space shall be static
         tDynamicCoreSpace = .false.

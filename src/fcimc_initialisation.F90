@@ -1151,6 +1151,8 @@ contains
         !default
         Popinum_runs=1
 
+        call sleep(25)
+
         if(tReadPops .and. .not. (tPopsAlreadyRead .or. tHDF5PopsRead)) then
            call open_pops_head(iunithead,formpops,binpops)
             PopsVersion=FindPopsfileVersion(iunithead)

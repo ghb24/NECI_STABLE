@@ -1536,9 +1536,9 @@ contains
       do i=1, TotWalkers_orig_max
          call extract_sign(state(:,i), tmp_sign)
          if(IsUnoccDet(tmp_sign)) then
-            exit
+            cycle
          endif
-         nOccDets = i
+         nOccDets = nOccDets + 1
       enddo
 
       call MPISumAll(nOccDets,totNOccDets)
@@ -1568,7 +1568,7 @@ contains
       call MPIsumAll(TotPartsStorage,allWalkersOld)
       TotPartsStorage = TotParts
       if((iProcIndex == root) .and. .not. tSpinProject .and. &
-           any(abs(growth_tot - (allWalkers - allWalkersOld)) > 1.0e-5_dp)) then
+           any(abs(growth_tot - (allWalkers - allWalkersOld)) > 1.0e-4_dp)) then
          write(iout,*) message
          write(iout,*) "update_growth: ", growth_tot
          write(iout,*) "AllTotParts: ", allWalkers
@@ -1582,7 +1582,8 @@ contains
     subroutine update_shift_damping()
       implicit none
 ! sign convention for imaginary and real time differ
-      shift_damping = shift_damping + tau_imag * DiagSft
+      shift_damping = shift_damping + tau_imag * DiagSft + tau_real &
+           * real_time_info%damping
 
     end subroutine update_shift_damping
 
@@ -1615,10 +1616,10 @@ contains
       integer :: nspawn, nspawnMax
       real(dp) :: prefactor
       
-      nspawnMax = 50*(MaxSpawned/TotWalkers)
+      nspawnMax = 5*(MaxSpawned/TotWalkers)
       if(nspawn > nspawnMax) then
-         prefactor = nspawnMax/10.0_dp
-         nspawn = nspawn/prefactor
+         prefactor = nspawn/real(nspawnMax,dp)
+         nspawn = nspawnMax
       else
          prefactor = 1.0_dp
       endif

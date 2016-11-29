@@ -95,6 +95,8 @@ module AnnihilationMod
         integer :: MaxSendIndex
         integer(MPIArg) :: SpawnedPartsWidth
 
+        character(*), parameter :: this_routine = "SendProcNewParts"
+
         if (tSingleProc) then
             ! Put all particles and gap on one proc.
 
@@ -174,21 +176,24 @@ module AnnihilationMod
 
         ! Max index is the largest occupied index in the array of hashes to be
         ! ordered in each processor
-        if(t_real_time_fciqmc .and. MaxIndex < 0.7_dp*MaxSpawned) tRegulateSpawns = .false.
+        if(t_real_time_fciqmc) then
+           if(MaxIndex < 0.7_dp*MaxSpawned) then 
+              tRegulateSpawns = .false.
+           else
+              tRegulateSpawns = .true.
+           endif
+        endif
         if (MaxIndex > (0.9_dp*MaxSpawned)) then
             write(6,*) MaxIndex,MaxSpawned
-            call Warning_neci("SendProcNewParts","Maximum index of newly-spawned array is " &
+            call Warning_neci(this_routine,"Maximum index of newly-spawned array is " &
             & //"close to maximum length after annihilation send. Increase MemoryFacSpawn")
-            if(t_real_time_fciqmc) tRegulateSpawns = .true.
         end if
+        if(MaxIndex > MaxSpawned) then
+           call stop_all(this_routine,"Maximum index of newly-spawned array exceeding "&
+                & //"maximum length of spawning array")
+        endif
 
-        ! for debugging
-        !call MPIBarrier(error)
-        !write(6,*) "SIZECHECK", size(SpawnedParts,2), size(SpawnedParts2,2), &
-        !     size(SpawnedParts,1), size(SpawnedParts2,1)
-        !write(6,*) "DISPS", disps, recvdisps
-        !write(6,*) "COUNTS", sendcounts, recvcounts
-        
+        ! maybe: add additional buffers to prevent failure in communication
         call MPIAlltoAllv(SpawnedParts,sendcounts,disps,SpawnedParts2,recvcounts,recvdisps,error)
 
         call halt_timer(Comms_Time)
