@@ -14,7 +14,7 @@ module real_time
                                refresh_semistochastic_space, update_peak_walker_number
     use real_time_data, only: gf_type,  &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
-                              current_overlap, SumWalkersCyc_1, real_time_info, DiagParts, &
+                              current_overlap, SumWalkersCyc_1, DiagParts, &
                               elapsedRealTime, elapsedImagTime, TotPartsPeak, &
                               tau_real, tau_imag, t_rotated_time, temp_iendfreeslot, &
                               temp_freeslot, overlap_real, overlap_imag, dyn_norm_psi, &
@@ -23,7 +23,7 @@ module real_time
                               tRegulateSpawns, tStaticShift, asymptoticShift
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
-                        tChangeProjEDet, DiagSft, tDynamicInitThresh
+                        tChangeProjEDet, DiagSft, tDynamicInitThresh, nmcyc
     use FciMCData, only: pops_pert, walker_time, iter, ValidSpawnedList, &
                          spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot, &
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
@@ -286,30 +286,33 @@ contains
 
             call perform_real_time_iteration() 
 
-            ! update the overlap each time
-            ! rmneci_setup: computation of instantaneous projected norm is shifted to here
-            call update_gf_overlap()
             ! only determinants that are occupied in the beginning
             ! can contribute to the gf -> normalize using only these
             ! current overlap is now the one after iteration
             ! update the normalization due to the shift
             call update_shift_damping()
 
-            do j = 1, gf_count
-               do i = 1, normsize
-                  current_overlap(i,j) = gf_overlap(i,iter,j)/pert_norm(i,j) * &
-                       exp(shift_damping(((i-1)/inum_runs+1)))
+            ! update the overlap each time
+            ! rmneci_setup: computation of instantaneous projected norm is shifted to here
+            if(mod(iter, StepsSft) == 0) then 
+               call update_gf_overlap()
+
+               do j = 1, gf_count
+                  do i = 1, normsize
+                     current_overlap(i,j) = gf_overlap(i,iter/StepsSft,j)/pert_norm(i,j) * &
+                          exp(shift_damping(((i-1)/inum_runs+1)))
+                  end do
+
+                  !normalize the greens function
+                  overlap_buf(j) = sum(gf_overlap(:,iter/StepsSft,j))/sum(pert_norm(:,j)) * &
+                       sum(exp(shift_damping))/inum_runs
+
+                  overlap_real(j) = real(overlap_buf(j))
+                  overlap_imag(j) = aimag(overlap_buf(j))
                end do
 
-               !normalize the greens function
-               overlap_buf(j) = sum(gf_overlap(:,iter,j))/sum(pert_norm(:,j)) * &
-                    sum(exp(shift_damping))/inum_runs
-
-               overlap_real(j) = real(overlap_buf(j))
-               overlap_imag(j) = aimag(overlap_buf(j))
-            end do
-
-            call update_real_time_iteration()
+               call update_real_time_iteration()
+            endif
 
             ! update, print and log all the global variables and interesting 
             ! quantities -> combine that functionality in the above 
@@ -339,9 +342,8 @@ contains
 
             if (tSoftExitFound) exit fciqmc_loop
             ! we have to stop here since the gf_overlap array is now full
-            if (iter == real_time_info%n_time_steps) exit fciqmc_loop
+            if (iter == nmcyc) exit fciqmc_loop
 
-!             if (iter == 1000) call stop_all(this_routine, "stop for now to avoid endless loop")
         end do fciqmc_loop
         
         if (tPopsFile) then 
@@ -400,54 +402,28 @@ contains
         ! still have to do more combination of necessary data..
 
         ! combine log_real_time into this routine too! 
-        if (mod(iter, StepsSft) == 0) then
-           ! get the norm of the state
-           norm_buf = calc_norm(CurrentDets,TotWalkers)
-           call MPIReduce(norm_buf,MPI_SUM,dyn_norm_psi)
-            call calculate_new_shift_wrapper(second_spawn_iter_data, totParts, &
-                tPairedReplicas)
-            call rotate_time()
-            if(tStabilizerShift) then
-               if(iProcIndex == Root) then
-                  ! check if the walker number started to decay uncontrolled
-                  call update_peak_walker_number()
-                  do run = 1,inum_runs
-                     if((AllTotParts(min_part_type(run))+ AllTotParts(max_part_type(run)))&
-                          < 0.7*TotPartsPeak(run) .and. tSinglePartPhase(run)) then
-                        ! if it is, enable dynamic shift to enforce a sufficiently high walker number
-                        tSinglePartPhase(run) = .false.
-                        write(6,*) "Walker number dropped below threshold, enabling dynamic shift"
-                     end if
-                  end do
-               end if
-               ! and do not forget to communicate the decision
-               call MPIBcast(tSinglePartPhase)
-            end if
-        end if
-! 
-!         if (mod(iter, StepsSft) == 0) then
-!             call collate_iter_data(iter_data_fciqmc, TotParts, tot_parts_new_all, .false.)
-!             ! in the collate_iter_data the second_spawning_iter_data does not 
-!             ! get updated .. do that out here.. 
-!             ! and also for the totParts after the first RK step -> i should 
-!             ! save that information before
-!             ! and wait a minute... most of the actual info is in the 
-!             ! second_spawn_iter_data, like in the usual NoDied etc. vars. 
-!             ! whereas the first step info is in iter_data_fciqmc and in the 
-!             ! NoDied_1 and etc. vars...
-! !             call MPIReduce(second_spawn_iter_data%update_growth, MPI_SUM, &
-! !                 second_real_time_spawn%update_growth_tot) 
-!             ! change the collate iter data more, to do that update..
-!             call iter_diagnostics()
-!             call population_check() this is also done in the shift wrapper
-!             ! do i need the update_shift routine? 
-!             call update_shift(second_spawn_iter_data)
-!             if (tPrintDataTables
-!             
-!             
-!         end if
-! 
-!         
+        ! get the norm of the state
+        norm_buf = calc_norm(CurrentDets,TotWalkers)
+        call MPIReduce(norm_buf,MPI_SUM,dyn_norm_psi)
+        call calculate_new_shift_wrapper(second_spawn_iter_data, totParts, &
+             tPairedReplicas)
+        call rotate_time()
+        if(tStabilizerShift) then
+           if(iProcIndex == Root) then
+              ! check if the walker number started to decay uncontrolled
+              call update_peak_walker_number()
+              do run = 1,inum_runs
+                 if((AllTotParts(min_part_type(run))+ AllTotParts(max_part_type(run)))&
+                      < 0.7*TotPartsPeak(run) .and. tSinglePartPhase(run)) then
+                    ! if it is, enable dynamic shift to enforce a sufficiently high walker number
+                    tSinglePartPhase(run) = .false.
+                    write(6,*) "Walker number dropped below threshold, enabling dynamic shift"
+                 end if
+              end do
+           end if
+           ! and do not forget to communicate the decision
+           call MPIBcast(tSinglePartPhase)
+        end if     
     end subroutine update_real_time_iteration
 
     subroutine log_real_time_iteration()
@@ -563,6 +539,7 @@ contains
 
         ! index for counting deterministic states
         determ_index = 1
+        ! prefactor for unbiasing if the number of spawns is cut off
         prefactor = 1.0_dp
         ! use part of nicks code, and remove the parts, that dont matter 
         do idet = 1, int(TotWalkers, sizeof_int)
@@ -663,10 +640,11 @@ contains
                                 if (tChildIsDeterm) call set_flag(ilut_child, flag_deterministic)
                             end if
                         end if
-                        if(tRegulateSpawns) prob = prob*prefactor
+                        ! unbias if the number of spawns was truncated
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                                             nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
                                             ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
+                        if(tRegulateSpawns) child_sign = prefactor*child_sign
                     else
                         child_sign = 0.0_dp
                     end if
