@@ -10,7 +10,7 @@ MODULE PopsfileMod
                         iWeightPopRead, iPopsFileNoRead, Tau, &
                         InitiatorWalkNo, MemoryFacPart, tLetInitialPopDie, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
-                        pops_norm, tWritePopsNorm, t_keep_tau_fixed
+                        pops_norm, tWritePopsNorm, t_keep_tau_fixed, tSpecifiedTau
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
@@ -42,7 +42,7 @@ MODULE PopsfileMod
                              add_pops_norm_contrib
     use util_mod
 
-    use real_time_data, only: t_real_time_fciqmc, TotWalkers_orig, real_time_info
+    use real_time_data, only: t_real_time_fciqmc, TotWalkers_orig, tRealTimePopsfile
 
 
     implicit none
@@ -1145,6 +1145,10 @@ r_loop: do while(.not.tStoreDet)
         else
 #ifdef __REALTIME 
 
+           ! if reading from a real-time popsfile, also read in tau
+           ! this works because the real-time popsfile is read last
+           if(.not. tSpecifiedTau) tau = read_tau
+
             ! also use the adjusted pSingle etc. if provided
             if (read_psingles /= 0.0_dp) then
                 pSingles = read_psingles
@@ -1168,32 +1172,16 @@ r_loop: do while(.not.tStoreDet)
                 endif
                 Tau=read_tau
                 write(6,"(A)") "Using timestep specified in POPSFILE, although continuing to dynamically adjust to optimise this"
-
+                write(6,*) "Timestep is tau=", tau
                 ! If we have been searching for tau, we may have been searching
                 ! for psingles (it is done at the same time).
-                if (abs(read_psingles) > 1.0e-12_dp) then
-                    if (tCSF) then ! .or. tSpinProjDets) then
-                        call stop_all(this_routine, "pSingles storage not yet &
-                                      &implemented for CSFs")
-                    end if
-                    pSingles = read_psingles
-                    if (.not. tReltvy) &
-                    pDoubles = 1.0_dp - pSingles
-                end if
-
                 if (abs(read_pparallel) > 1.0e-12_dp) then
                     pParallel = read_pparallel
                 end if
             else if (t_keep_tau_fixed) then 
                 write(6,"(A)") "Using timestep specified in POPSFILE, without continuing to dynammically adjust it!"
+                write(6,*) "Timestep is tau=", tau
                 tau = read_tau 
-
-                if (abs(read_psingles) > 1.0e-12_dp) then
-                    pSingles = read_psingles
-                    if (.not. tReltvy) then
-                        pDoubles = 1.0_dp - pSingles
-                    end if
-                end if
 
                 if (abs(read_pparallel) > 1.0e-12_dp) then
                     pParallel = read_pparallel
@@ -1208,6 +1196,18 @@ r_loop: do while(.not.tStoreDet)
                     
                 endif
             endif
+            if (abs(read_psingles) > 1.0e-12_dp) then
+               if (tCSF) then ! .or. tSpinProjDets) then
+                  call stop_all(this_routine, "pSingles storage not yet &
+                       &implemented for CSFs")
+               end if
+               pSingles = read_psingles
+               if (.not. tReltvy) &
+                    pDoubles = 1.0_dp - pSingles
+               write(6,*) "Using read-in pSingles=", pSingles
+               write(6,*) "Using read-in pDoubles=", pDoubles
+            end if
+
 #endif
             iBlockingIter = PopBlockingIter
         endif

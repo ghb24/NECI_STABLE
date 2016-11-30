@@ -1615,7 +1615,9 @@ contains
       implicit none
       integer :: nspawn, nspawnMax
       real(dp) :: prefactor
-      
+      ! truncate the number of spawns from a single determinant
+      ! for now, use as a threshold a multiple of the average population
+      ! for a full SpawnVec
       nspawnMax = 5*(MaxSpawned/TotWalkers)
       if(nspawn > nspawnMax) then
          prefactor = nspawn/real(nspawnMax,dp)
@@ -1623,6 +1625,7 @@ contains
       else
          prefactor = 1.0_dp
       endif
+      ! the prefactor is used to unbias therefor
     end subroutine merge_spawn
 
     subroutine reset_tot_parts()

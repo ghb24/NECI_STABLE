@@ -37,7 +37,7 @@ module real_time_init
     use CalcData, only: tChangeProjEDet, tReadPops, tRestartHighPop, tFCIMC, &
                         tStartSinglePart, tau, nmcyc, iPopsFileNoRead, tWritePopsNorm, &
                         tWalkContGrow, diagSft, pops_norm, InitWalkers, MemoryFacSpawn, &
-                        tDynamicInitThresh
+                        tDynamicInitThresh, StepsSft
     use FciMCData, only: tSearchTau, alloc_popsfile_dets, pops_pert, tPopsAlreadyRead, &
                          tSinglePartPhase, iter_data_fciqmc, iter, PreviousCycles, &
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
@@ -78,10 +78,6 @@ contains
         print *, " Entering real-time FCIQMC initialisation "
 
         ! think about what variables have to be set for a succesful calc.
-
-        ! do a last test if all he input is compatible and correctly set
-        ! and abort calculation if incompatible input is detected
-        call check_input_real_time()
 
         ! also call the "normal" NECI setup routines to allow calculation
         call SetupParameters()
@@ -140,93 +136,13 @@ contains
 
         if(tRealTimePopsfile) call readTimeEvolvedState()
 
-        ! change the flags dependent on the real-time input 
-        if (real_time_info%t_equidistant_time) then
-            print *, " The equdistant time step option is set for the real-time calculation"
-            tSearchTau = .false.
-            ! also have to turn off:
-            tSearchTauOption = .false.
-            print *, " time-step: ", tau
-        end if
-
-        ! initialize the storage containers for the calculated overlaps
-        ! depending on the input 
-        if (real_time_info%n_time_steps < 0) then
-            ! if no specific number if iterations is inputted
-            print *, " No specific number of time-steps is chosen by input!"
-
-            if (real_time_info%t_equidistant_time) then
-                ! if the max-time is set in input calculate from that the number 
-                ! of elements 
-                if (real_time_info%max_time > 0.0_dp) then
-                    print *, " A maximum time is chosen by input: ", real_time_info%max_time
-                    real_time_info%n_time_steps = int(real_time_info%max_time / tau )
-                    print *, " this leads to n_time_steps of: ", real_time_info%n_time_steps
-                else
-                    ! otherwise calculate it from the number of iterations
-                    print *, " No maximum time is chosen by input! "
-                    real_time_info%n_time_steps = nmcyc
-                    print *, " Use maximum cycle number as n_time_steps: ", nmcyc
-                    real_time_info%max_time = real(nmcyc,dp) * tau 
-                    print *, " This leads to maximum time: ", real_time_info%max_time
-                end if
-            else
-                ! if the time-step is not fixed, we can only limit the calculation
-                ! by the maximum number of cycles. 
-                ! we could essentially also define a maximum time, but we cannot 
-                ! initialize the gf overlap and wf norm variables depending on it
-                ! so we have to ensure that a nmcyc is defined if the equidistant 
-                ! time flag is set to false! 
-                print *, " Use maximum cycle number as n_time_steps: ", nmcyc
-                real_time_info%n_time_steps = nmcyc
-                if (real_time_info%max_time > 0.0_dp) then
-                    print *, " Maximum time is chosen by input: ", real_time_info%max_time
-                    print *, " Stop simulation at whatever is reached first: n_time_steps or max_time!"
-                else
-                    print *, " No maximum time is chosen by input! Stop simulation after n_time_steps! "
-                end if
-            end if
-        else
-            print *, " A specific number of time-steps is chosen by input! "
-            print *, " n_time_steps: ", real_time_info%n_time_steps
-            if (real_time_info%t_equidistant_time) then
-                ! check if input is consistent.. although already do that 
-                ! in check_input routine! 
-                ! no do it here, since in check_input the popsfile tau is not 
-                ! yet known! 
-                if (real_time_info%max_time > 0.0_dp) then
-                    if (real(real_time_info%n_time_steps,dp)*tau &
-                        /= real_time_info%max_time) then
-                        print *, " number of timesteps and time step not congruent with max_time!"
-                        real_time_info%max_time = real(real_time_info%n_time_steps,dp) &
-                            * tau
-                        print *, " setting max_time to: ", real_time_info%max_time
-                    end if
-                else 
-                    ! set max_time! 
-                    print *, " no max_time inputted! set it to be congruent with time-steps"
-                    real_time_info%max_time = real(real_time_info%n_time_steps,dp) &
-                        * tau
-                    print *, " setting max_time to: ", real_time_info%max_time
-                end if
-            else
-                print *, " non-equidistant time-step used!" 
-                if (real_time_info%max_time > 0.0_dp) then
-                    print *, " Stop simulation at whatever is reached first: n_time_steps or max_time!"
-                    print *, " max_time: ", real_time_info%max_time
-                else
-                    print *, " stop simulation after n_time_steps is reached!"
-                end if
-            end if
-        end if
-
         ! allocate the according quantities! 
         ! n_time_steps have to be set here!
         print *, " Allocating greensfunction and wavefunction norm arrays!"
         ! allocate an additional slot for initial values
         normsize = inum_runs**2
         allocate(overlap_real(gf_count),overlap_imag(gf_count))
-        allocate(gf_overlap(normsize,0:(real_time_info%n_time_steps+1),gf_count), stat = ierr)
+        allocate(gf_overlap(normsize,0:(nmcyc/StepsSft+1),gf_count), stat = ierr)
         allocate(pert_norm(normsize,gf_count),stat = ierr)
         allocate(dyn_norm_psi(normsize),stat = ierr)
         allocate(gs_energy(inum_runs),stat = ierr)
@@ -408,28 +324,6 @@ contains
 
             select case (w)
             ! have to enter all the different input options here
-
-            case ("EQUIDISTANT-TIME")
-                ! use equidistant time: do this for the beginning 
-                ! thats probably helpful is i calculate the GFs for 
-                ! different orbitals, to calculate the spectrum from all 
-                ! different contributions
-                ! set tau-search to false later on dependent on that! 
-                real_time_info%t_equidistant_time = .true.
-
-                ! its possible to input the wanted time-step here too
-
-            case ("MAX-TIME")
-                ! input the targeted end time 
-                ! a specified   
-                call readf(real_time_info%max_time)
-
-            case ("NUM-TIMESTEPS")
-                ! also able to directly input the number of calculated 
-                ! gf time-steps
-                ! this option is compatible with and without tau-search
-                ! but not directly with the max-time option
-                call readi(real_time_info%n_time_steps)
 
             case ("DAMPING")
                 ! to reduce the explosive spread of walkers through the 
@@ -716,22 +610,6 @@ contains
         ! be switched on manually
         tRegulateSpawns = .false.
     end subroutine set_real_time_defaults
-
-    subroutine check_input_real_time()
-        ! routine to ensure all calculation parameter are set up correctly
-        ! and abort otherwise 
-        character(*), parameter :: this_routine = "check_input_real_time"
-
-        ! if non-equidistant time-steps are used we have to either have 
-        ! nmcyc or the n_time_steps quantity set to be able to allocate 
-        ! the gf overlap and wf norm quantities
-        if (.not. real_time_info%t_equidistant_time) then
-            ASSERT(nmcyc > 0 .or. real_time_info%n_time_steps > 0)
-        end if
-
-
-
-    end subroutine check_input_real_time
 
     ! need a specific popsfile read function for the real-time calculation
     ! based upon georges previous implementation, but changed to handle 

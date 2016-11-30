@@ -76,17 +76,8 @@ module real_time_data
     type(perturbed_state), allocatable :: overlap_states(:)
 
     type real_time_type
-        ! number of starting vectors = number of parallel mneci calculations
-        ! also necessary to have atleast that many popsfile.n
-        integer :: n_starting_vec = 1
-
-        ! use a equidistant time-step -> this turns off automated time-step
-        ! optimization. but this way i can define a specific end time 
-        logical :: t_equidistant_time = .false.
         ! and a end time to stop the simulation afterwards
         real(dp) :: max_time = -1.0_dp
-        ! also store the number of time-steps to be calculated
-        integer :: n_time_steps = -1
 
         ! later also store the type of operators and spinorbitals in this 
         ! type! 

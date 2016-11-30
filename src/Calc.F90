@@ -988,6 +988,7 @@ contains
                 ! simulation. It is a constant which will increase/decrease
                 ! the rate of spawning/death for a given iteration.
                 call getf(Tau)
+                tSpecifiedTau = .true.
 
                 ! If SEARCH is provided, use this value as the starting value
                 ! for tau searching
@@ -1608,6 +1609,7 @@ contains
             case("DYNAMIC-INIT-THRESHOLD")
                ! enables automatic adjustment of the initiator threshold, 
                ! possibly leading to better control over the walker number
+               ! IS CURRENTLY NOT A THING (EXPERIMENT FOR REAL-TIME EVOLUTION)
                tDynamicInitThresh = .true.
 
 
@@ -2886,3 +2888,4 @@ contains
          ENDDO
          RETURN
       END FUNCTION CALCT2
+
