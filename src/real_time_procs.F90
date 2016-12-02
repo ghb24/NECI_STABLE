@@ -465,8 +465,7 @@ contains
            fac(max_part_type(run)) = 0.0_dp
         enddo
 
-        if (real_time_info%damping < EPS .and. .not. t_rotated_time) then
-
+        if (abs(real_time_info%damping) < EPS .and. .not. t_rotated_time) then
             ! in this case there is only Re <-> Im 
             ! n_i' =  H_ii c_i 
             ! c_i' = -H_ii n_i
@@ -474,7 +473,6 @@ contains
             ! that probably has to change too..
             ! an actual death is only done when the damping factor is present
             ! as otherwise we 'only' spawn to the other particle type
-!             call log_death_magnitude(Kii - DiagSft(1))
 
             ! and also not sure about this criteria.. if that applies in the 
             ! rt-fciqmc..
@@ -1427,13 +1425,15 @@ contains
                         partial_determ_vecs(min_part_type(run),i) + &
                         (Hii - gs_energy(run)) * full_determ_vecs(max_part_type(run),i + &
                         determ_displs(iProcIndex)) * &
-                        tau_real + tau_imag * full_determ_vecs(min_part_type(run),i + &
-                        determ_displs(iProcIndex)) * (Hii - gs_energy(run) - DiagSft(run))
+                        tau_real + (tau_imag * (Hii - gs_energy(run) - DiagSft(run)) + &
+                        tau_real * real_time_info%damping) * full_determ_vecs( &
+                        min_part_type(run),i + determ_displs(iProcIndex))
 
                    ! imaginary part
                    partial_determ_vecs(max_part_type(run),i) = &
-                        partial_determ_vecs(max_part_type(run),i) + tau_imag * &
-                        (Hii - gs_energy(run) - DiagSft(run)) * full_determ_vecs(& 
+                        partial_determ_vecs(max_part_type(run),i) + (tau_imag * &
+                        (Hii - gs_energy(run) - DiagSft(run)) + tau_real &
+                        * real_time_info%damping) * full_determ_vecs( & 
                         max_part_type(run),i + determ_displs(iProcIndex)) - tau_real &
                         * (Hii - gs_energy(run)) * full_determ_vecs(min_part_type(run),i &
                         + determ_displs(iProcIndex)) 

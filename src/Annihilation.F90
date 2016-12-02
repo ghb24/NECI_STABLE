@@ -149,9 +149,12 @@ module AnnihilationMod
         ! again in the realtime i have to distinguish between the 2 RK steps
 #ifdef __REALTIME 
         if (runge_kutta_step == 1) then
-            nspawned_1 = sum(recvcounts)
+           ! we are more interested in the number of spawn events from a core
+           ! than in the number of spawns onto a core in the real-time case
+           ! (for memory management)
+            nspawned_1 = sum(sendcounts)
         else
-            nspawned = sum(recvcounts)
+            nspawned = sum(sendcounts)
         end if
 #else
         nspawned = sum(recvcounts)

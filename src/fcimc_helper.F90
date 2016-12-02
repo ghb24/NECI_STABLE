@@ -231,8 +231,6 @@ contains
             ! worked on y(n) + k1/2 list
             ! and it would be nicer to seperate those 2 steps as they are 
             ! essentially smth different...
-            ! and i also wouldnt need those additional flags to keep track of
-            ! what a diagonal spawn was and what not..
 
             ! UPDATE! decided to store the diagonal particles in the 2nd 
             ! RK loop in a seperate DiagParts array -> so no need to 
