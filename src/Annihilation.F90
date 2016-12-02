@@ -28,7 +28,7 @@ module AnnihilationMod
     use searching
     use hash
     use real_time_data, only: NoAborted_1, Annihilated_1, runge_kutta_step, &
-                              nspawned_1, tRegulateSpawns, t_real_time_fciqmc
+                              nspawned_1, t_real_time_fciqmc
 
 
     implicit none
@@ -176,13 +176,6 @@ module AnnihilationMod
 
         ! Max index is the largest occupied index in the array of hashes to be
         ! ordered in each processor
-        if(t_real_time_fciqmc) then
-           if(MaxIndex < 0.7_dp*MaxSpawned) then 
-              tRegulateSpawns = .false.
-           else
-              tRegulateSpawns = .true.
-           endif
-        endif
         if (MaxIndex > (0.9_dp*MaxSpawned)) then
             write(6,*) MaxIndex,MaxSpawned
             call Warning_neci(this_routine,"Maximum index of newly-spawned array is " &

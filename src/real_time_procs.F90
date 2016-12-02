@@ -15,7 +15,7 @@ module real_time_procs
                               NoDied_1, NoBorn_1, SumWalkersCyc_1, gf_count, &
                               t_rotated_time, tau_imag, tau_real, gs_energy, &
                               dyn_norm_psi, shift_damping, normsize, tStabilizerShift, &
-                              TotPartsPeak
+                              TotPartsPeak, numCycShiftExcess, shiftLimit
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
                          sizeof_int, MPIArg
@@ -558,7 +558,7 @@ contains
             ! tau_imag on fac(min_part_type(run))
            do run = 1, inum_runs
               ! tau_real and tau_imag have opposite signs -> shift changed sign
-              ! when moved from imaginary to real part
+              ! when moved from real to imaginary part
               fac(max_part_type(run)) =  tau_real * (real_time_info%damping) &
                   + tau_imag*(Kii + Hii - gs_energy(run) - DiagSft(run) )
            enddo
@@ -693,7 +693,6 @@ contains
         ! walker which already occupy the determinant..
         ! but i have to integrate that above, since have unmix the both 
         ! influences.. 
-!         if (real_time_info%damping > EPS) then
             ! and only if there is damping -> otherwise no 'death' 
             ! or do i have to check if the spawn from Re <-> Im caused 
             ! annihilated particles?!
@@ -1252,10 +1251,11 @@ contains
 
     ! subroutine to calculate the overlap of the current y(t) = a_j(a^+_j)(t)y(0)>
     ! time evolved wavefunction to the saved <y(0)|a^+_i(a_i) 
-    subroutine update_gf_overlap() 
+    subroutine update_gf_overlap(index) 
         ! this routine only deals with globally defined variables
       use timing_neci, only: timer, get_total_time
       implicit none
+      integer, intent(in) :: index
         integer :: idet, nI(nel), det_ind, hash_val, runA, runB, iGf
         real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
         complex(dp) :: overlap(normsize)
@@ -1298,7 +1298,7 @@ contains
 
         ! rmneci_setup: the overlap has to be reduced as each proc
         ! only computes its own part
-           call MPIReduce(overlap,MPI_SUM,gf_overlap(:,iter,iGf))
+           call MPIReduce(overlap,MPI_SUM,gf_overlap(:,index,iGf))
         enddo
 
         call halt_timer(calc_gf_time)
@@ -1582,7 +1582,7 @@ contains
     subroutine update_shift_damping()
       implicit none
 ! sign convention for imaginary and real time differ
-      shift_damping = shift_damping + tau_imag * DiagSft + tau_real &
+      shift_damping = shift_damping + tau_imag * DiagSft - tau_real &
            * real_time_info%damping
 
     end subroutine update_shift_damping
@@ -1612,13 +1612,13 @@ contains
 
     subroutine merge_spawn(nspawn,prefactor)
       use FciMCData, only: MaxSpawned
+      use real_time_data, only: nspawnMax
       implicit none
-      integer :: nspawn, nspawnMax
+      integer :: nspawn
       real(dp) :: prefactor
       ! truncate the number of spawns from a single determinant
       ! for now, use as a threshold a multiple of the average population
       ! for a full SpawnVec
-      nspawnMax = 5*(MaxSpawned/TotWalkers)
       if(nspawn > nspawnMax) then
          prefactor = nspawn/real(nspawnMax,dp)
          nspawn = nspawnMax
@@ -1627,6 +1627,24 @@ contains
       endif
       ! the prefactor is used to unbias therefor
     end subroutine merge_spawn
+
+    subroutine trunc_shift()
+      implicit none
+      integer :: run
+      
+      do run = 1, inum_runs
+         ! remember that shiftLimit is the absolute value, but we are only
+         ! interested in shifts that are too small
+         if(DiagSft(run) < -1.0_dp*shiftLimit) then
+            ! count the number of successive times the limit was broken
+            numCycShiftExcess(run) = numCycShiftExcess(run) + 1
+            if(numCycShiftExcess(run) > 100) call stop_all("trunc_shift",&
+                 "Shift exceeds threshold, run is unstable, aborting")
+         else
+            numCycShiftExcess(run) = 0
+         endif
+      enddo
+    end subroutine trunc_shift
 
     subroutine reset_tot_parts()
       ! if the second RK step is to be compared, the reference has to be reset

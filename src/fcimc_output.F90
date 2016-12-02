@@ -510,14 +510,14 @@ contains
             ! Don't treat the header line as data. Add padding to align the
             ! other columns. We do not add a # to the first line of data 
             ! since we also need that datapoint for Green's functions
-            if (state%init .or. state%prepend) then
-                write(state%funit, '("#")', advance='no')
-                if (tMCOutput) write(iout, '(" ")', advance='no')
-                state%prepend = state%init
-            else if (.not. state%prepend) then
-                write(state%funit, '(" ")', advance='no')
-                if (tMCOutput) write(iout, '(" ")', advance='no')
-            end if
+           if (state%init .or. state%prepend) then
+              write(state%funit, '("#")', advance='no')
+              if (tMCOutput) write(iout, '(" ")', advance='no')
+              state%prepend = state%init
+           else if (.not. state%prepend) then
+              write(state%funit, '(" ")', advance='no')
+              if (tMCOutput) write(iout, '(" ")', advance='no')
+           end if
 
             ! And output the actual data!
             state%cols = 0

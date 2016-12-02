@@ -6,7 +6,7 @@ module real_time
          rotate_time
     use real_time_procs, only: save_current_dets, reset_spawned_list, merge_spawn, &
                                reload_current_dets, walker_death_realtime, &
-                               walker_death_spawn, attempt_die_realtime, &
+                               walker_death_spawn, attempt_die_realtime, trunc_shift, &
                                create_diagonal_as_spawn, count_holes_in_currentDets, &
                                DirectAnnihilation_diag, check_update_growth, &
                                get_tot_parts, update_gf_overlap, calc_norm, &
@@ -20,7 +20,7 @@ module real_time
                               temp_freeslot, overlap_real, overlap_imag, dyn_norm_psi, &
                               NoatHF_1, shift_damping, tDynamicCoreSpace, &
                               normsize, gf_count, tRealTimePopsfile, tStabilizerShift, &
-                              tRegulateSpawns, tStaticShift, asymptoticShift
+                              tLimitShift, tStaticShift, asymptoticShift
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
                         tChangeProjEDet, DiagSft, tDynamicInitThresh, nmcyc
@@ -208,15 +208,13 @@ contains
     subroutine perform_real_time_fciqmc
         ! main real-time calculation routine
         ! do all the setup, read-in and calling of the "new" real-time MC loop
-        use real_time_data, only: gf_overlap, AllTotWalkersOld_1
-        use Systemdata, only: tCSF
+        use real_time_data, only: gf_overlap
         use FciMCData, only : TotImagTime
         use fcimc_iter_utils, only: update_initiator_threshold
         implicit none
 
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
-        integer :: n_determ_states
-        integer :: i,j
+        integer :: cOverlapIndex, j, i
         real(sp) :: s_start, s_end, tstart(2), tend(2)
         complex(dp), allocatable :: overlap_buf(:)
         character (255) :: rtPOPSFILE_name
@@ -250,7 +248,7 @@ contains
 
         allocate(overlap_buf(gf_count),stat = i)
 
-        call update_gf_overlap()
+        call update_gf_overlap(0)
         if(iProcIndex == root) then
            print *, "test on overlap at t = 0: "
            if(.not. tRealTimePopsfile) then
@@ -264,7 +262,6 @@ contains
            endif
               print *, "Current GF:", gf_overlap(1,0,1)&
                    / pert_norm(1,1)
-              print *, "Normalization ", pert_norm(1,1)
         endif
 
 
@@ -285,26 +282,28 @@ contains
             iter = iter + 1
 
             call perform_real_time_iteration() 
-
-            ! only determinants that are occupied in the beginning
-            ! can contribute to the gf -> normalize using only these
-            ! current overlap is now the one after iteration
-            ! update the normalization due to the shift
+            ! if a threshold value is set, check it
+            if(tLimitShift) call trunc_shift()
+            ! update the normalization of the greensfunction according to damping (dynamic)
             call update_shift_damping()
 
             ! update the overlap each time
             ! rmneci_setup: computation of instantaneous projected norm is shifted to here
             if(mod(iter, StepsSft) == 0) then 
-               call update_gf_overlap()
-
+               cOverlapIndex = iter/StepsSft
+               ! only determinants that are occupied in the beginning
+               ! can contribute to the gf -> normalize using only these
+               ! current overlap is now the one after iteration
+               ! update the normalization due to the shift
+               call update_gf_overlap(cOverlapIndex)
                do j = 1, gf_count
                   do i = 1, normsize
-                     current_overlap(i,j) = gf_overlap(i,iter/StepsSft,j)/pert_norm(i,j) * &
+                     current_overlap(i,j) = gf_overlap(i,cOverlapIndex,j)/pert_norm(i,j) * &
                           exp(shift_damping(((i-1)/inum_runs+1)))
                   end do
 
                   !normalize the greens function
-                  overlap_buf(j) = sum(gf_overlap(:,iter/StepsSft,j))/sum(pert_norm(:,j)) * &
+                  overlap_buf(j) = sum(gf_overlap(:,cOverlapIndex,j))/sum(pert_norm(:,j)) * &
                        sum(exp(shift_damping))/inum_runs
 
                   overlap_real(j) = real(overlap_buf(j))
@@ -372,7 +371,6 @@ contains
         ! two iter_data vars, i have to combine the general updated 
         ! statistics for the actual time step
         character(*), parameter :: this_routine = "update_real_time_iteration"
-        real(dp) :: tot_parts_new_all(lenof_sign)
         complex(dp) :: norm_buf(normsize)
         integer :: run
 
@@ -403,7 +401,7 @@ contains
 
         ! combine log_real_time into this routine too! 
         ! get the norm of the state
-        norm_buf = calc_norm(CurrentDets,TotWalkers)
+        norm_buf = calc_norm(CurrentDets,int(TotWalkers))
         call MPIReduce(norm_buf,MPI_SUM,dyn_norm_psi)
         call calculate_new_shift_wrapper(second_spawn_iter_data, totParts, &
              tPairedReplicas)
@@ -614,7 +612,7 @@ contains
             do ireplica = 1, lenof_sign
 
                 call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
-                if(tRegulateSpawns) call merge_spawn(nspawn,prefactor)
+                call merge_spawn(nspawn,prefactor)
                 do ispawn = 1, nspawn
 
                     ! Zero the bit representation, to ensure no extraneous data gets through.
@@ -644,7 +642,7 @@ contains
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                                             nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
                                             ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
-                        if(tRegulateSpawns) child_sign = prefactor*child_sign
+                        child_sign = prefactor*child_sign
                     else
                         child_sign = 0.0_dp
                     end if
@@ -706,7 +704,7 @@ contains
         character(*), parameter :: this_routine = "first_real_time_spawn"
         integer :: idet, parent_flags, nI_parent(nel), unused_flags, ex_level_to_ref, &
                    ms_parent, ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,2), &
-                   ex_level_to_hf, i
+                   ex_level_to_hf
         integer(n_int) :: ilut_child(0:niftot)
         real(dp) :: parent_sign(lenof_sign), parent_hdiag, prob, child_sign(lenof_sign), &
                     unused_sign(lenof_sign), prefactor, unused_rdm_real
@@ -791,7 +789,7 @@ contains
             do ireplica = 1, lenof_sign
 
                 call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
-                if(tRegulateSpawns) call merge_spawn(nspawn,prefactor)
+                call merge_spawn(nspawn,prefactor)
                 do ispawn = 1, nspawn
 
                     ! Zero the bit representation, to ensure no extraneous data gets through.
@@ -823,7 +821,7 @@ contains
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                                             nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
                                             ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
-                        if(tRegulateSpawns) child_sign = child_sign*prefactor
+                        child_sign = child_sign*prefactor
                     else
                         child_sign = 0.0_dp
                     end if
@@ -897,8 +895,7 @@ contains
         ! routine which performs one real-time fciqmc iteration
       implicit none
         character(*), parameter :: this_routine = "perform_real_time_iteration"
-
-        integer :: idet !, n_determ_states 
+        
         integer :: TotWalkersNew, run, test
         real(dp) :: tmp_sign(lenof_sign)
         logical :: both, rkone, rktwo

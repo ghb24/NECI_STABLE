@@ -24,7 +24,7 @@ module real_time_init
                               TotWalkers_orig, dyn_norm_psi, gs_energy, shift_damping, &
                               tStaticShift, MaxSpawnedDiag, tDynamicCoreSpace, overlap_states, &
                               overlap_real, overlap_imag, allGfs, tRealTimePopsfile, &
-                              tRegulateSpawns
+                              tLimitShift, nspawnMax, shiftLimit, numCycShiftExcess
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
@@ -37,7 +37,7 @@ module real_time_init
     use CalcData, only: tChangeProjEDet, tReadPops, tRestartHighPop, tFCIMC, &
                         tStartSinglePart, tau, nmcyc, iPopsFileNoRead, tWritePopsNorm, &
                         tWalkContGrow, diagSft, pops_norm, InitWalkers, MemoryFacSpawn, &
-                        tDynamicInitThresh, StepsSft
+                        tDynamicInitThresh, StepsSft, tSemiStochastic
     use FciMCData, only: tSearchTau, alloc_popsfile_dets, pops_pert, tPopsAlreadyRead, &
                          tSinglePartPhase, iter_data_fciqmc, iter, PreviousCycles, &
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
@@ -73,7 +73,6 @@ contains
         character(*), parameter :: this_routine = "init_real_time_calc_single"
 
         integer :: ierr
-        integer :: nI(nel), kt(3)
 
         print *, " Entering real-time FCIQMC initialisation "
 
@@ -98,17 +97,6 @@ contains
 !         call read_popsfile_real_time()
         ! actually the InitFCIMCCalcPar should do that now correctly already
 
-        if(tHub) then
-           if(allocated(pops_pert)) then
-              if(pops_pert(1)%nannihilate == 1) kTotal = kTotal &
-                   - G1(pops_pert(1)%ann_orbs(1))%k
-              if(pops_pert(1)%ncreate == 1) kTotal = kTotal &
-                   + G1(pops_pert(1)%crtn_orbs(1))%k
-              call MomPbcSym(kTotal,nBasisMax)
-              print *, "New total momentum", kTotal
-           endif
-        endif
-
         ! do an MPIbarrier here.. although don't quite know why        
         call MPIBarrier(ierr)
 
@@ -123,8 +111,7 @@ contains
       implicit none
         character(*), parameter :: this_routine = "setup_real_time_fciqmc"
         complex(dp), allocatable :: norm_buf(:)
-        integer :: ierr, run, j
-        real(dp) :: gap
+        integer :: ierr,  j
 
         ! also need to create the perturbed ground state to calculate the 
         ! overlaps to |y(t)> 
@@ -133,6 +120,21 @@ contains
         ! time evolved y(t) will be stored in the CurrentDets array
 
         call create_perturbed_ground()
+
+        ! the new total momentum has to be constructed before the 
+        ! time-evolved state is read in, as the latter deletes the 
+        ! pops_pert, because perturbation and read-in are done in one
+        ! function (dependencies...)
+        if(tHub) then
+           if(allocated(pops_pert)) then
+              if(pops_pert(1)%nannihilate == 1) kTotal = kTotal &
+                   - G1(pops_pert(1)%ann_orbs(1))%k
+              if(pops_pert(1)%ncreate == 1) kTotal = kTotal &
+                   + G1(pops_pert(1)%crtn_orbs(1))%k
+              call MomPbcSym(kTotal,nBasisMax)
+              print *, "New total momentum", kTotal
+           endif
+        endif
 
         if(tRealTimePopsfile) call readTimeEvolvedState()
 
@@ -152,6 +154,10 @@ contains
         if(.not. allocated(shift_damping)) then 
            allocate(shift_damping(inum_runs), stat = ierr)
            shift_damping = 0.0_dp
+        endif
+        if(tLimitShift) then 
+           allocate(numCycShiftExcess(inum_runs), stat = ierr)
+           numCycShiftExcess = 0
         endif
 
         gf_overlap = 0.0_dp
@@ -281,6 +287,8 @@ contains
         AllSumWalkersCyc_1 = 0.0_dp
         benchmarkEnergy = 0.0_dp
 
+        numCycShiftExcess = 0
+
         call rotate_time()
 
     end subroutine setup_real_time_fciqmc
@@ -304,8 +312,6 @@ contains
         logical :: eof
         character(100) :: w
         character(*), parameter :: this_routine = "real_time_read_input"
-
-        integer :: i
         integer, parameter :: lesser = -1, greater = 1
 
         ! set the flag that this is a real time calculation
@@ -500,10 +506,22 @@ contains
                 ! the default is that they are real! 
                 t_complex_ints = .true.
                 
+             case("NSPAWNMAX")
+                ! specify a maximum number of spawn attempts per determinant in
+                ! regulation mode (i.e. for large number of spawns)
+                call readi(nspawnMax)
+                
              case("RT-POPS")
                 ! in addition to the 'normal' popsfile, a second one is supplied
                 ! containing a time evolved state
                 tRealTimePopsfile = .true.
+
+             case("LIMIT-SHIFT")
+                ! limits the shift to some maximum value. On short times, the threshold
+                ! can be exceeded.
+                tLimitShift = .true.
+                ! optional argument: threshold value (absolute value!). Default is 3
+                if(item < nitems) call readf(shiftLimit)
 
             case ("ENDREALTIME")
                 exit real_time
@@ -524,6 +542,9 @@ contains
         implicit none
 
         ! todo: figure out quantities
+        ! maximum number of spawn attempts per determinant if the number of
+        ! total spawns exceeds some threshold
+        nspawnMax = 1000
 
         ! for the start definetly not change tau
         tSearchTau = .true.
@@ -608,7 +629,8 @@ contains
         tStabilizerShift = .false.
         ! the merging of spawning events is done entirely automatically and therfore can not
         ! be switched on manually
-        tRegulateSpawns = .false.
+        tLimitShift = .false.
+        shiftLimit = 3.0_dp
     end subroutine set_real_time_defaults
 
     ! need a specific popsfile read function for the real-time calculation
@@ -674,6 +696,10 @@ contains
     subroutine readTimeEvolvedState()
       use PopsfileMod, only : FindPopsfileVersion, ReadPopsHeadv4, InitFCIMC_pops, &
            open_pops_head
+      use semi_stoch_gen, only: init_semi_stochastic
+      use semi_stoch_procs, only: end_semistoch
+      use real_time_procs, only: reset_core_space
+      use CalcData, only: ss_space_in
       implicit none
       
         integer :: iunit, popsversion, iPopLenof_Sign, iPopNel, iPopIter, &
@@ -685,11 +711,17 @@ contains
         real(dp) :: PopDiagSft(inum_runs), read_tau, PopSumNoatHF(lenof_sign), &
                     read_psingles, read_pparallel
         HElement_t(dp) :: PopAllSumENum(inum_runs)
-        character(255) :: popsfile
         integer :: ierr
 
         character(255) :: rtPOPSFILE_name
         character(*), parameter :: this_routine = "readTimeEvolvedState"
+
+        if(tSemiStochastic) then
+           ! if semi-stochastic mode is enabled, it has to be disabled for read-in again
+           ! as load balancing has to be performed
+           call end_semistoch()
+           call reset_core_space()
+        endif
 
         binpops = .false.
         
@@ -722,6 +754,9 @@ contains
              PopBalanceBLocks, PopDiagSft, rtPOPSFILE_name)
 
         call set_initial_times()
+
+        ! if we disabled semi-stochastic mode temporarily, reenable it now
+        if(tSemiStochastic) call init_semi_stochastic(ss_space_in)
       
     end subroutine readTimeEvolvedState
 
@@ -741,6 +776,7 @@ contains
       
       integer :: ierr
       
+      if(allocated(numCycShiftExcess)) deallocate(numCycShiftExcess, stat=ierr)
       deallocate(DiagVec,stat=ierr)
       call clean_iter_data(second_spawn_iter_data)
       deallocate(shift_damping, stat=ierr)
