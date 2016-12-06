@@ -17,7 +17,7 @@ module real_time_data
     ! rotated_time_setup: flag to indicate whether pure real time is
     ! used or not
     logical :: t_real_time_fciqmc, t_new_stats_file, t_rotated_time, tStaticShift, &
-         tDynamicCoreSpace, tRealTimePopsfile, tStabilizerShift, tLimitShift
+         tDynamicCoreSpace, tRealTimePopsfile, tStabilizerShift, tLimitShift, tDynamicAlpha
 
     ! also use a second iter_data type to keep track of the 2 distinct 
     ! spawning events
@@ -30,6 +30,8 @@ module real_time_data
     integer :: normsize ! number of combinations avaliable for calculating overlaps
     integer :: gf_count ! number of different Green's functions to be evaluated
     integer :: allGfs ! 0 -> only one GF, 1 -> all lesser GFs, 2 -> all greater GFs
+    integer :: stepsAlpha ! number of cycles after which the rotation angle is updated
+    real(dp) :: alphaDamping ! prefactor for adjustment of rotation angle
     
     ! the angle used for rotation of time into complex plane
     ! it is better readable to use new variables for real and imaginary part
@@ -44,12 +46,15 @@ module real_time_data
     integer, allocatable :: numCycShiftExcess(:)
     ! averaged overlaps
     real(dp), allocatable :: overlap_real(:), overlap_imag(:)
-
+    ! and dynamic reduced norm
+    complex(dp), allocatable :: dyn_norm_red(:,:)
+    ! norms are complex because they are taken between different replicas
+    ! -> not necesserily entirely real
     ! need a global variable for the overlap <y(0)|y(t)> 
     ! determined by the max. cycle
 !     real(dp), allocatable :: gf_overlap(:)
     ! for tests now only make it of length 1
-    complex(dp), allocatable :: gf_overlap(:,:,:)
+    complex(dp), allocatable :: gf_overlap(:,:)
     ! also store the norm of the time-evolved wavefunction
     complex(dp), allocatable :: dyn_norm_psi(:)
     ! the ground state energy of the N-particle problem which is added as a global shift
@@ -151,7 +156,7 @@ module real_time_data
                 NoNonInitWalk_1(:), NoatHF_1(:), AllNoInitWalk_1(:), &
                 AllNoNonInitWalk_1(:), SumWalkersCyc_1(:), AllTotParts_1(:), &
                 AllTotPartsOld_1(:), TotParts_1(:), AllNoatHF_1(:), AllSumWalkersCyc_1(:), &
-                OldAllAvWalkersCyc_1(:), TotPartsStorage(:)
+                OldAllAvWalkersCyc_1(:), TotPartsStorage(:), TotPartsLastAlpha(:)
 
     integer(int64), allocatable :: NoAddedInitiators_1(:),InitRemoved_1(:), &
                 NoInitDets_1(:), NoNonInitDets_1(:), AllNoAddedInitiators_1(:), &

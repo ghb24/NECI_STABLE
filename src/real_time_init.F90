@@ -5,14 +5,14 @@
 module real_time_init
 
     use real_time_data, only: t_real_time_fciqmc, gf_type, real_time_info, &
-                              t_complex_ints, gf_overlap, temp_det_list, &
+                              t_complex_ints, gf_overlap, temp_det_list, dyn_norm_red, &
                               temp_det_pointer, temp_det_hash, temp_freeslot, &
-                              pert_norm, second_spawn_iter_data, DiagParts, &
+                              pert_norm, second_spawn_iter_data, DiagParts, stepsAlpha, &
                               DiagVec, normsize, valid_diag_spawns, tStabilizerShift, &
                               NoatHF_1, Annihilated_1, Acceptances_1, NoBorn_1, &
                               SpawnFromSing_1, NoDied_1, NoAborted_1, NoRemoved_1, &
                               NoAddedInitiators_1, NoInitDets_1, NoNonInitDets_1, &
-                              NoInitWalk_1, NoNonInitWalk_1, InitRemoved_1, &
+                              NoInitWalk_1, NoNonInitWalk_1, InitRemoved_1, tDynamicAlpha, &
                               AllNoatHF_1, AllNoatHF_1, AllGrowRate_1, AllGrowRateAbort_1, &
                               AllNoBorn_1, AllSpawnFromSing_1, AllNoDied_1, gf_count, &
                               AllAnnihilated_1, AllNoAborted_1, AllNoRemoved_1, &
@@ -24,7 +24,8 @@ module real_time_init
                               TotWalkers_orig, dyn_norm_psi, gs_energy, shift_damping, &
                               tStaticShift, MaxSpawnedDiag, tDynamicCoreSpace, overlap_states, &
                               overlap_real, overlap_imag, allGfs, tRealTimePopsfile, &
-                              tLimitShift, nspawnMax, shiftLimit, numCycShiftExcess
+                              tLimitShift, nspawnMax, shiftLimit, numCycShiftExcess, &
+                              TotPartsLastAlpha, alphaDamping
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
@@ -144,9 +145,11 @@ contains
         ! allocate an additional slot for initial values
         normsize = inum_runs**2
         allocate(overlap_real(gf_count),overlap_imag(gf_count))
-        allocate(gf_overlap(normsize,0:(nmcyc/StepsSft+1),gf_count), stat = ierr)
+        allocate(gf_overlap(normsize,gf_count), stat = ierr)
         allocate(pert_norm(normsize,gf_count),stat = ierr)
         allocate(dyn_norm_psi(normsize),stat = ierr)
+        dyn_norm_psi = 1.0_dp
+        allocate(dyn_norm_red(normsize,gf_count), stat = ierr)
         allocate(gs_energy(inum_runs),stat = ierr)
         allocate(current_overlap(normsize,gf_count),stat = ierr)
         allocate(temp_freeslot(MaxWalkersPart),stat = ierr)
@@ -173,6 +176,7 @@ contains
            ! the norm (squared) can be obtained by reduction over all processes
            call MPIReduce(norm_buf,MPI_SUM,pert_norm(:,j))
         enddo
+        dyn_norm_red = pert_norm
 
         deallocate(norm_buf)
         
@@ -235,6 +239,7 @@ contains
         second_spawn_iter_data%update_iters = 0
 
         TotPartsStorage = TotParts
+        TotPartsLastAlpha = TotParts
 
         ! also intitialize the 2nd spawning array to deal with the 
         ! diagonal death step in the 2nd rt-fciqmc loop
@@ -516,6 +521,13 @@ contains
                 ! containing a time evolved state
                 tRealTimePopsfile = .true.
 
+             case("DYNAMIC-ROTATION")
+                ! this automatically adjusts the temporal rotation to find a minimal 
+                ! alpha guaranteeing a fixed walker number
+                tDynamicAlpha = .true.
+                if(item < nitems) call readi(stepsAlpha)
+                if(item < nitems) call readf(alphaDamping)
+
              case("LIMIT-SHIFT")
                 ! limits the shift to some maximum value. On short times, the threshold
                 ! can be exceeded.
@@ -631,6 +643,11 @@ contains
         ! be switched on manually
         tLimitShift = .false.
         shiftLimit = 3.0_dp
+
+        ! default values for dynamic rotation angle updating (it is not enabled by default)
+        tDynamicAlpha = .false.
+        stepsAlpha = 20
+        alphaDamping = 0.01
     end subroutine set_real_time_defaults
 
     ! need a specific popsfile read function for the real-time calculation
@@ -700,6 +717,7 @@ contains
       use semi_stoch_procs, only: end_semistoch
       use real_time_procs, only: reset_core_space
       use CalcData, only: ss_space_in
+      use FciMCData, only : TotImagTime
       implicit none
       
         integer :: iunit, popsversion, iPopLenof_Sign, iPopNel, iPopIter, &
@@ -753,21 +771,22 @@ contains
              read_walkers_on_nodes, pops_pert, &
              PopBalanceBLocks, PopDiagSft, rtPOPSFILE_name)
 
-        call set_initial_times()
+        call set_initial_times(read_tau, TotImagTime)
 
         ! if we disabled semi-stochastic mode temporarily, reenable it now
         if(tSemiStochastic) call init_semi_stochastic(ss_space_in)
       
     end subroutine readTimeEvolvedState
 
-    subroutine set_initial_times()
-      use FciMCData, only : TotImagTime
+    subroutine set_initial_times(real_time, imag_time)
       implicit none
+      real(dp), intent(in) :: real_time, imag_time
       
-      ! usually, alpha is small. This is why TIME_EVOLVED_POP contain the elapsed real
-      ! time as PopTotImagTime instead of the elapsed imaginary time
-      elapsedImagTime = - TotImagTime * tan(real_time_info%time_angle)
-      elapsedRealTime = TotImagTime 
+      ! with the inclusion of dynamic alpha, both, the real and the imaginary part
+      ! have to be stored in the time-evolved popsfile
+      ! the 
+      elapsedImagTime = imag_time
+      elapsedRealTime = real_time
     end subroutine set_initial_times
 
     subroutine dealloc_real_time_memory
@@ -783,6 +802,7 @@ contains
       deallocate(temp_freeslot, stat=ierr)
       deallocate(current_overlap,stat=ierr)
       deallocate(gs_energy,stat=ierr)
+      deallocate(dyn_norm_red,stat=ierr)
       deallocate(dyn_norm_psi,stat=ierr)
       deallocate(pert_norm,stat=ierr)
       deallocate(gf_overlap,stat=ierr)

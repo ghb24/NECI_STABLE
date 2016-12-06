@@ -13,7 +13,7 @@ module load_balance
     use bit_reps, only: set_flag, nullify_ilut_part, &
                         encode_part_sign, nullify_ilut
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
-                         tFillingStochRDMOnFly, full_determ_vecs, TotPartsPos, TotPartsNeg
+                         tFillingStochRDMOnFly, full_determ_vecs
     use searching, only: hash_search_trial, bin_search_trial
     use Determinants, only: get_helement, write_det
     use LoggingData, only: tOutputLoadDistribution
@@ -539,9 +539,6 @@ contains
         tIsStateDeterm = .false.
         InstNoAtHf = 0.0_dp
 
-        TotPartsPos = 0.0_dp
-        TotPartsNeg = 0.0_dp
-
         if (TotWalkersNew > 0) then
             do i=1,TotWalkersNew
 
@@ -593,18 +590,11 @@ contains
                                        CurrentSign(j) = sign(OccupiedThresh*ratio(j), CurrentSign(j))
                                        call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                                     enddo
-
-                                end if
-                            end if
-                        end if
-                        do j=min_part_type(run),max_part_type(run)
-                           if(CurrentSign(j) > 0.0_dp) then
-                              TotPartsPos(j) = TotPartsPos(j) + CurrentSign(j)
-                           else
-                              TotPartsNeg(j) = TotPartsNeg(j) + CurrentSign(j)
-                           endif
-                        enddo
-                    end do
+                                    
+                                 end if
+                              end if
+                           end if
+                        end do
 
                     TotParts = TotParts + abs(CurrentSign)
 #if defined(__CMPLX)

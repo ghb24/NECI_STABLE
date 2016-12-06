@@ -34,11 +34,8 @@ module fcimc_output
                               AllNoDied_1, AllTotWalkers_1, nspawned_tot_1,  gf_count, &
                               AllTotParts_1, AccRat_1, AllGrowRate_1, normsize, &
                               current_overlap, t_real_time_fciqmc, elapsedRealTime, &
-                              elapsedImagTime, overlap_real, overlap_imag, dyn_norm_psi
-
-
-
-
+                              elapsedImagTime, overlap_real, overlap_imag, dyn_norm_psi,&
+                              dyn_norm_red, real_time_info
     implicit none
 
 contains
@@ -527,11 +524,10 @@ contains
             if (.not. tOrthogonaliseReplicas) then
                ! note that due to the averaging, the printed value is not necessarily
                ! an integer
-                call stats_out(state,.true., sum(abs(AllTotParts(1::2)))/inum_runs, &
+                call stats_out(state,.true., sum(abs(AllTotParts))/inum_runs, &
                      'Tot. parts real')
 #ifdef __REALTIME 
-                call stats_out(state,.true., sum(abs(AllTotParts(2::2)))/inum_runs, & 
-                     'Tot. parts imag')
+                call stats_out(state,.true., real_time_info%time_angle,'Time rot. angle')
 #endif
                 call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
 #ifndef __REALTIME
@@ -544,10 +540,8 @@ contains
 #endif
 #endif
                 call stats_out(state,.true., sum(DiagSft)/inum_runs, 'Shift. (cyc)')
-!                call stats_out(state,.true., sum(TotPartsPos)/inum_runs, 'Tot Parts pos')
-!                call stats_out(state,.true., sum(TotPartsNeg)/inum_runs, 'Tot Parts neg')
 #ifdef __REALTIME
-                call stats_out(state, .true., real(sum(dyn_norm_psi))/inum_runs, '|psi|^2')
+                call stats_out(state, .true., real(sum(dyn_norm_psi))/normsize, '|psi|^2')
 #endif
                 call stats_out(state,.false., sum(AllNoBorn), 'No. born')
                 call stats_out(state,.false., sum(AllNoDied), 'No. died')
@@ -566,8 +560,11 @@ contains
             end if
             call stats_out(state,.false., AllTotWalkers, 'Dets occ.')
             call stats_out(state,.false., nspawned_tot, 'Dets spawned')
-
+#ifdef __REALTIME
+            call stats_out(state,.false., real(sum(dyn_norm_red(:,1))/normsize),'GF normalization')
+#else
             call stats_out(state,.false., IterTime, 'Iter. time')
+#endif
 #ifdef __REALTIME 
             call stats_out(state, .true., elapsedRealTime, 'Re. time')
             call stats_out(state, .true., elapsedImagTime, 'Im. time')

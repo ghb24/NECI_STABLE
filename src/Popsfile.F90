@@ -42,7 +42,8 @@ MODULE PopsfileMod
                              add_pops_norm_contrib
     use util_mod
 
-    use real_time_data, only: t_real_time_fciqmc, TotWalkers_orig, tRealTimePopsfile
+    use real_time_data, only: t_real_time_fciqmc, TotWalkers_orig, tRealTimePopsfile, &
+         real_time_info
 
 
     implicit none
@@ -1147,7 +1148,14 @@ r_loop: do while(.not.tStoreDet)
 
            ! if reading from a real-time popsfile, also read in tau
            ! this works because the real-time popsfile is read last
-           if(.not. tSpecifiedTau) tau = read_tau
+           if(.not. tSpecifiedTau) then
+              if(.not. tRealTimePopsfile) then 
+                 tau = read_tau
+              else
+                 ! now, read_tau is the total elapsed real time
+                 tau = read_tau/(cos(real_time_info%time_angle)*PreviousCycles)
+              endif
+           endif
 
             ! also use the adjusted pSingle etc. if provided
             if (read_psingles /= 0.0_dp) then

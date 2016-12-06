@@ -9,28 +9,28 @@ module real_time
                                walker_death_spawn, attempt_die_realtime, trunc_shift, &
                                create_diagonal_as_spawn, count_holes_in_currentDets, &
                                DirectAnnihilation_diag, check_update_growth, &
-                               get_tot_parts, update_gf_overlap, calc_norm, &
+                               get_tot_parts, update_gf_overlap, calc_norm, adjust_angle, &
                                update_shift_damping, real_time_determ_projection, &
                                refresh_semistochastic_space, update_peak_walker_number
     use real_time_data, only: gf_type,  &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
-                              current_overlap, SumWalkersCyc_1, DiagParts, &
+                              current_overlap, SumWalkersCyc_1, DiagParts, stepsAlpha, &
                               elapsedRealTime, elapsedImagTime, TotPartsPeak, &
                               tau_real, tau_imag, t_rotated_time, temp_iendfreeslot, &
                               temp_freeslot, overlap_real, overlap_imag, dyn_norm_psi, &
-                              NoatHF_1, shift_damping, tDynamicCoreSpace, &
+                              NoatHF_1, shift_damping, tDynamicCoreSpace, dyn_norm_red, &
                               normsize, gf_count, tRealTimePopsfile, tStabilizerShift, &
-                              tLimitShift, tStaticShift, asymptoticShift
+                              tLimitShift, tStaticShift, asymptoticShift, tDynamicAlpha
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
-                        tChangeProjEDet, DiagSft, tDynamicInitThresh, nmcyc
+                        tChangeProjEDet, DiagSft, tDynamicInitThresh, nmcyc, tau
     use FciMCData, only: pops_pert, walker_time, iter, ValidSpawnedList, &
                          spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot, &
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
                          TotWalkers, fcimc_excit_gen_store, ilutRef, max_calc_ex_level, &
                          iLutHF_true, indices_of_determ_states, partial_determ_vecs, &
                          exFlag, CurrentDets, TotParts, ilutHF, SumWalkersCyc, IterTime, &
-                         HFCyc, norm_psi, NoatHF, TotPartsPos, TotPartsNeg, NoDied, &
+                         HFCyc, norm_psi, NoatHF, NoDied, &
                          Annihilated, NoBorn, tSinglePartPhase, AllSumNoatHF, AllTotParts
     use kp_fciqmc_data_mod, only: overlap_pert
     use timing_neci, only: set_timer, halt_timer
@@ -217,6 +217,7 @@ contains
         integer :: cOverlapIndex, j, i
         real(sp) :: s_start, s_end, tstart(2), tend(2)
         complex(dp), allocatable :: overlap_buf(:)
+        complex(dp), allocatable :: norm_buf(:)
         character (255) :: rtPOPSFILE_name
 
         rtPOPSFILE_name = 'TIME_EVOLVED_POP'
@@ -246,9 +247,12 @@ contains
         ! with the perturbed groundstate and stores it in a pre-allocated list
         ! shouldnt geourge have some of those routines..
 
+        ! normsize and gf_count are initialized in init_real_time_calc_single
+        ! -> cannot be used before
         allocate(overlap_buf(gf_count),stat = i)
+        allocate(norm_buf(normsize), stat = i)
 
-        call update_gf_overlap(0)
+        call update_gf_overlap()
         if(iProcIndex == root) then
            print *, "test on overlap at t = 0: "
            if(.not. tRealTimePopsfile) then
@@ -260,8 +264,9 @@ contains
                       overlap_pert(1)%crtn_orbs(1), pops_pert(1)%crtn_orbs(1)
               end if
            endif
-              print *, "Current GF:", gf_overlap(1,0,1)&
+              print *, "Current GF:", gf_overlap(1,1)&
                    / pert_norm(1,1)
+              print *, "Normalization", real(sum(pert_norm(:,1))/normsize)
         endif
 
 
@@ -290,20 +295,21 @@ contains
             ! update the overlap each time
             ! rmneci_setup: computation of instantaneous projected norm is shifted to here
             if(mod(iter, StepsSft) == 0) then 
-               cOverlapIndex = iter/StepsSft
                ! only determinants that are occupied in the beginning
                ! can contribute to the gf -> normalize using only these
                ! current overlap is now the one after iteration
                ! update the normalization due to the shift
-               call update_gf_overlap(cOverlapIndex)
+               norm_buf = calc_norm(CurrentDets,int(TotWalkers))
+               call MPIReduce(norm_buf,MPI_SUM,dyn_norm_psi)
+               call update_gf_overlap()
                do j = 1, gf_count
                   do i = 1, normsize
-                     current_overlap(i,j) = gf_overlap(i,cOverlapIndex,j)/pert_norm(i,j) * &
+                     current_overlap(i,j) = gf_overlap(i,j)/dyn_norm_red(i,j) * &
                           exp(shift_damping(((i-1)/inum_runs+1)))
                   end do
 
                   !normalize the greens function
-                  overlap_buf(j) = sum(gf_overlap(:,cOverlapIndex,j))/sum(pert_norm(:,j)) * &
+                  overlap_buf(j) = sum(gf_overlap(:,j))/sum(dyn_norm_red(:,j)) * &
                        sum(exp(shift_damping))/inum_runs
 
                   overlap_real(j) = real(overlap_buf(j))
@@ -312,11 +318,6 @@ contains
 
                call update_real_time_iteration()
             endif
-
-            ! update, print and log all the global variables and interesting 
-            ! quantities -> combine that functionality in the above 
-            ! update_ routine !
-!             call log_real_time_iteration() 
 
             ! check if somthing happpened to stop the iteration or something
             call check_real_time_iteration()
@@ -346,17 +347,20 @@ contains
         end do fciqmc_loop
         
         if (tPopsFile) then 
-           ! here, we store the elapsed real time in the popsfile instead of the imaginary
-           ! time
-           ! in case we ever want to change alpha, it would be best to silently substitute one of
-           ! the variables in the popsfile with the elapsed imaginary time
-           TotImagTime = elapsedRealTime
+           ! as both the elapsed real-time and the elapsed imaginary time are required
+           ! for dynamic alpha, both are stored. That is, the total elapsed real time
+           ! is now stored instead of tau. If no tau is supplied upon read-in of the
+           ! generated popsfile, it is estimated using the number of cycles, the current
+           ! angle of rotation and the total elapsed real time
+           TotImagTime = elapsedImagTime
+           tau = elapsedRealTime
            ! THIS IS A HACK: We dont want to alter the POPSFILE functions themselves
            ! so we sneak in the shift_damping into some slot unimportant to rneci
            AllSumNoatHF(1:inum_runs) = shift_damping
            call WriteToPopsfileParOneArr(CurrentDets,TotWalkers,rtPOPSFILE_name)
         endif
         
+        deallocate(norm_buf, stat = i)
         deallocate(overlap_buf, stat = i)
 
         ! rt_iter_adapt : avoid memleaks
@@ -371,7 +375,6 @@ contains
         ! two iter_data vars, i have to combine the general updated 
         ! statistics for the actual time step
         character(*), parameter :: this_routine = "update_real_time_iteration"
-        complex(dp) :: norm_buf(normsize)
         integer :: run
 
         ! how to combine those 2? 
@@ -401,11 +404,13 @@ contains
 
         ! combine log_real_time into this routine too! 
         ! get the norm of the state
-        norm_buf = calc_norm(CurrentDets,int(TotWalkers))
-        call MPIReduce(norm_buf,MPI_SUM,dyn_norm_psi)
+
+        ! get the latest number of walkers
+        ! this is done in the annihilation routine at the end of the iteration
+        !TotParts = get_tot_parts()
+
         call calculate_new_shift_wrapper(second_spawn_iter_data, totParts, &
              tPairedReplicas)
-        call rotate_time()
         if(tStabilizerShift) then
            if(iProcIndex == Root) then
               ! check if the walker number started to decay uncontrolled
@@ -422,6 +427,11 @@ contains
            ! and do not forget to communicate the decision
            call MPIBcast(tSinglePartPhase)
         end if     
+
+        if(mod(iter,stepsAlpha)==0 .and. tDynamicAlpha) then
+           call adjust_angle()
+        endif
+        call rotate_time()
     end subroutine update_real_time_iteration
 
     subroutine log_real_time_iteration()

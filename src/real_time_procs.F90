@@ -13,9 +13,9 @@ module real_time_procs
                               temp_det_hash, temp_totWalkers, pert_norm, allGfs, &
                               valid_diag_spawns, DiagParts, n_diag_spawned, &
                               NoDied_1, NoBorn_1, SumWalkersCyc_1, gf_count, &
-                              t_rotated_time, tau_imag, tau_real, gs_energy, &
-                              dyn_norm_psi, shift_damping, normsize, tStabilizerShift, &
-                              TotPartsPeak, numCycShiftExcess, shiftLimit
+                              t_rotated_time, tau_imag, tau_real, gs_energy, TotPartsLastAlpha, &
+                              shift_damping, normsize, tStabilizerShift, dyn_norm_psi, &
+                              TotPartsPeak, numCycShiftExcess, shiftLimit, dyn_norm_red
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
                          sizeof_int, MPIArg
@@ -1249,11 +1249,10 @@ contains
 
     ! subroutine to calculate the overlap of the current y(t) = a_j(a^+_j)(t)y(0)>
     ! time evolved wavefunction to the saved <y(0)|a^+_i(a_i) 
-    subroutine update_gf_overlap(index) 
+    subroutine update_gf_overlap() 
         ! this routine only deals with globally defined variables
       use timing_neci, only: timer, get_total_time
       implicit none
-      integer, intent(in) :: index
         integer :: idet, nI(nel), det_ind, hash_val, runA, runB, iGf
         real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
         complex(dp) :: overlap(normsize)
@@ -1296,13 +1295,14 @@ contains
 
         ! rmneci_setup: the overlap has to be reduced as each proc
         ! only computes its own part
-           call MPIReduce(overlap,MPI_SUM,gf_overlap(:,index,iGf))
+           call MPIReduce(overlap,MPI_SUM,gf_overlap(:,iGf))
+           do runA = 1, inum_runs
+              dyn_norm_red(runA,iGf) = sqrt(dyn_norm_psi(runA) * pert_norm(runA,iGf))
+           enddo
         enddo
 
         call halt_timer(calc_gf_time)
         gf_time = get_total_time(calc_gf_time)
-        !if(iProcIndex == root) print *, "OVERLAP COMPUTATION TOOK", gf_time
-        ! communicate the norm as it is the sum over all walkers
 
     end subroutine update_gf_overlap
 
@@ -1645,6 +1645,23 @@ contains
          endif
       enddo
     end subroutine trunc_shift
+
+
+    subroutine adjust_angle()
+      use FciMCData, only: AllTotParts
+      use real_time_data, only: alphaDamping
+      implicit none
+      real(dp) :: allWalkersOld(lenof_sign)
+      real(dp) :: deltaAlpha
+
+      call MPISumAll(TotPartsLastAlpha,allWalkersOld)
+      ! compare the walker number the last time the angle was adjusted to
+      ! the walker number now
+      deltaAlpha = alphaDamping * atan(sum(TotParts)/real(sum(TotPartsLastAlpha),dp) - 1)
+      real_time_info%time_angle = real_time_info%time_angle + deltaAlpha
+      TotPartsLastAlpha = TotParts
+      
+    end subroutine adjust_angle
 
     subroutine reset_tot_parts()
       ! if the second RK step is to be compared, the reference has to be reset
