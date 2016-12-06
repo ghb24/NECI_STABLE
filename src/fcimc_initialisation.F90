@@ -3533,6 +3533,8 @@ contains
                     ! info?? 
                     ! i think my exact hamil application routine does not 
                     ! deal with symmetry at all... 
+                    ! i guess i have to change that for the real-space 
+                    ! hubbard model implementation!
                     if (tHUB .or. tUEG .or. .not.(tNoBrillouin)) then
                         call actHamiltonian(ilutHF, excitations, n_excits)
                     else

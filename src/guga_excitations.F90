@@ -2941,10 +2941,10 @@ contains
 !             call print_excitInfo(excitInfo)
 !         end if
 ! ! 
-
-
-        ! also add a sanity check for excitations from the reference 
-        ! determinant..
+! 
+! 
+!         ! also add a sanity check for excitations from the reference 
+!         ! determinant..
 !         if (DetBitEq(ilutI,ilutRef(0:niftot,1))) then
 !             tmp_mat = calc_off_diag_guga_ref_direct(ilutJ, exlevel = tmp_ex1)
 !             tmp_mat1 = calc_off_diag_guga_ref_list(ilutJ, exlevel = tmp_ex2)
@@ -10659,15 +10659,16 @@ contains
 
             ! how to modifiy the values? 
             ! one of it is just additional
-            integral = integral + get_umat_el(i,iO,j,iO) * currentOcc_ilut(iO)
+            if (.not. treal) then
+                integral = integral + get_umat_el(i,iO,j,iO) * currentOcc_ilut(iO)
 
-            ! but the r_k part confuses me a bit ... 
-            step = current_stepvector(iO)
-            step2 = getStepvalue(exc,iO)
+                ! but the r_k part confuses me a bit ... 
+                step = current_stepvector(iO)
+                step2 = getStepvalue(exc,iO)
 
-            integral = integral + get_umat_el(i,iO,iO,j) * &
-                getDoubleContribution(step2, step, deltaB, gen, currentB_ilut(iO))
-
+                integral = integral + get_umat_el(i,iO,iO,j) * &
+                    getDoubleContribution(step2, step, deltaB, gen, currentB_ilut(iO))
+            end if
         end do
 
         ! the end step should be easy in this case. since due to the 
@@ -10687,9 +10688,16 @@ contains
         ! do all the integral calulation afterwards.. 
         ! since it depends on the created excitation.
         ! updates integral variable:
-        call calc_integral_contribution_single(ilut, exc, i, j,st, en, integral)
+        ! should i intermediately but a if-statement for the real-space 
+        ! hubbard model here? or should i write a more efficient 
+        ! single-excitation creator? i guess i should.. 
+        ! and also for the matrix element calculation maybe..
+        if (.not. treal) then
+            call calc_integral_contribution_single(ilut, exc, i, j,st, en, integral)
+        end if
 
         call update_matrix_element(exc, integral, 1)
+
 
         if (abs(extract_matrix_element(exc, 1)) < EPS) then
             pgen = 0.0_dp
@@ -12081,6 +12089,9 @@ contains
 
         ! single excitations:
 !         if (pSingles > 0.0_dp) then
+        ! does it help to not calculate stuff if not necessary.. 
+        ! probably yes.. 
+        if (.not.(thub .and. .not.treal)) then
         do i = 1, nSpatOrbs
             do j = 1, nSpatOrbs
                 if (i == j) cycle ! do not calc. diagonal elements here
@@ -12123,7 +12134,7 @@ contains
 
             end do
         end do
-!         end if
+        end if
 
 !         write(iout,"(A)") "singles done!"
         ! print out all single excitations:
@@ -12140,6 +12151,7 @@ contains
         ! do it really primitive for now. -> make it more elaborate later
 !         if (pDoubles > 0.0_dp) then
         if (.not. t_temp_singles) then
+        if (.not. (thub .and. treal)) then
         do i = 1, nSpatOrbs
             do j = 1, nSpatOrbs
                 do k = 1, nSpatOrbs
@@ -12258,6 +12270,7 @@ contains
                 end do
             end do
         end do
+        end if
         end if
 
 !         write(iout, "(A)") "doubles done!"
