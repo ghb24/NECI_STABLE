@@ -466,8 +466,7 @@ contains
         ! Perform normal projection onto reference determinant
         if (ExcitLevel_local == 0) then
 
-            if (iter > NEquilSteps) &
-                SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
+
             ! for the real-time i have to distinguish between the first and 
             ! second RK step, if i want to keep track of the statistics 
             ! seperately: in the first loop i analyze the the wavefunction 
@@ -475,14 +474,19 @@ contains
 #ifdef __REALTIME 
             if (runge_kutta_step == 1) then
                 NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
+                HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
+                if (iter > NEquilSteps) &
+                     SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
             else
                 NoatHF_1(1:lenof_sign) = NoatHF_1(1:lenof_sign) + RealwSign
             end if
 #else
+            HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
             NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
+            if (iter > NEquilSteps) &
+                SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
 #endif
             ! Number at HF * sign over course of update cycle
-            HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
 
         elseif (ExcitLevel_local == 2 .or. &
                 (ExcitLevel_local == 1 .and. tNoBrillouin)) then

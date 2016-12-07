@@ -304,12 +304,12 @@ contains
                call update_gf_overlap()
                do j = 1, gf_count
                   do i = 1, normsize
-                     current_overlap(i,j) = gf_overlap(i,j)/dyn_norm_red(i,j) * &
+                     current_overlap(i,j) = gf_overlap(i,j)/pert_norm(i,j) * &
                           exp(shift_damping(((i-1)/inum_runs+1)))
                   end do
 
                   !normalize the greens function
-                  overlap_buf(j) = sum(gf_overlap(:,j))/sum(dyn_norm_red(:,j)) * &
+                  overlap_buf(j) = sum(gf_overlap(:,j))/sum(pert_norm(:,j)) * &
                        sum(exp(shift_damping))/inum_runs
 
                   overlap_real(j) = real(overlap_buf(j))

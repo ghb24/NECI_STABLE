@@ -546,7 +546,11 @@ contains
                 call stats_out(state,.false., sum(AllNoBorn), 'No. born')
                 call stats_out(state,.false., sum(AllNoDied), 'No. died')
                 call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
+#ifdef __REALTIME
+                call stats_out(state,.false., TotImagTime, 'Elapsed complex time')
+#else
                 call stats_out(state,.false., sum(AllSumWalkersCyc), 'SumWalkersCyc')
+#endif
                 call stats_out(state,.false., sum(AllNoAborted), 'No aborted')
 #ifdef __CMPLX
                 call stats_out(state,.true., real(proje_iter_tot) + Hii, &

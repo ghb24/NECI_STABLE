@@ -462,11 +462,10 @@ contains
                 ! in addition, this disables the usage of input POPSFILEs for
                 ! more efficient ground state search (the real-time POPSFILE 
                 ! read-in settings are not useful for ground state search)
-                tReadPops = .false.
                 tStartSinglePart = .true.
                 t_rotated_time = .true.
-                tWalkContGrow = .false.
-                real_time_info%time_angle = 4*atan(1.0_dp)/2.0_dp
+                tWalkContGrow = .true.
+                real_time_info%time_angle = 2*atan(1.0_dp)
 
              case("NOSHIFT")
                 ! disabling the shift gives higher precision results as no
@@ -525,6 +524,7 @@ contains
                 ! this automatically adjusts the temporal rotation to find a minimal 
                 ! alpha guaranteeing a fixed walker number
                 tDynamicAlpha = .true.
+                t_rotated_time = .true.
                 if(item < nitems) call readi(stepsAlpha)
                 if(item < nitems) call readf(alphaDamping)
 
