@@ -189,7 +189,7 @@ contains
                     ! | x x x x x     |
                     ! |_x x x x x x  _|
 
-                    overlaps_real(tgt_run, run) = overlaps_imag(tgt_run, run) &
+                    overlaps_real(tgt_run, run) = overlaps_real(tgt_run, run) &
                                            + sgn(min_part_type(run))*sgn(min_part_type(tgt_run)) &
                                            + sgn(max_part_type(run))*sgn(max_part_type(tgt_run))
                     overlaps_imag(tgt_run, run) = overlaps_imag(tgt_run, run) &

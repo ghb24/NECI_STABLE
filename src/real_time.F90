@@ -9,9 +9,10 @@ module real_time
                                walker_death_spawn, attempt_die_realtime, trunc_shift, &
                                create_diagonal_as_spawn, count_holes_in_currentDets, &
                                DirectAnnihilation_diag, check_update_growth, &
-                               get_tot_parts, update_gf_overlap, calc_norm, adjust_angle, &
+                               get_tot_parts, update_gf_overlap, calc_norm, adjust_decay_channels, &
                                update_shift_damping, real_time_determ_projection, &
-                               refresh_semistochastic_space, update_peak_walker_number
+                               refresh_semistochastic_space, update_peak_walker_number, &
+                               rescale_wavefunction
     use real_time_data, only: gf_type,  &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
                               current_overlap, SumWalkersCyc_1, DiagParts, stepsAlpha, &
@@ -20,10 +21,11 @@ module real_time
                               temp_freeslot, overlap_real, overlap_imag, dyn_norm_psi, &
                               NoatHF_1, shift_damping, tDynamicCoreSpace, dyn_norm_red, &
                               normsize, gf_count, tRealTimePopsfile, tStabilizerShift, &
-                              tLimitShift, tStaticShift, asymptoticShift, tDynamicAlpha
+                              tLimitShift, tStaticShift, asymptoticShift, tDynamicAlpha, &
+                              tRescaleWavefunction, scalingFactor, tDynamicDamping
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
-                        tChangeProjEDet, DiagSft, tDynamicInitThresh, nmcyc, tau
+                        tChangeProjEDet, DiagSft, tDynamicInitThresh, nmcyc, tau, InitWalkers
     use FciMCData, only: pops_pert, walker_time, iter, ValidSpawnedList, &
                          spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot, &
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
@@ -304,12 +306,12 @@ contains
                call update_gf_overlap()
                do j = 1, gf_count
                   do i = 1, normsize
-                     current_overlap(i,j) = gf_overlap(i,j)/pert_norm(i,j) * &
+                     current_overlap(i,j) = gf_overlap(i,j)/dyn_norm_red(i,j) * &
                           exp(shift_damping(((i-1)/inum_runs+1)))
                   end do
 
                   !normalize the greens function
-                  overlap_buf(j) = sum(gf_overlap(:,j))/sum(pert_norm(:,j)) * &
+                  overlap_buf(j) = sum(gf_overlap(:,j))/sum(dyn_norm_red(:,j)) * &
                        sum(exp(shift_damping))/inum_runs
 
                   overlap_real(j) = real(overlap_buf(j))
@@ -407,10 +409,12 @@ contains
 
         ! get the latest number of walkers
         ! this is done in the annihilation routine at the end of the iteration
-        !TotParts = get_tot_parts()
 
         call calculate_new_shift_wrapper(second_spawn_iter_data, totParts, &
              tPairedReplicas)
+        if(tRescaleWavefunction .and. sum(AllTotParts)/inum_runs > InitWalkers*nProcessors) then
+           call rescale_wavefunction(scalingFactor)
+        endif
         if(tStabilizerShift) then
            if(iProcIndex == Root) then
               ! check if the walker number started to decay uncontrolled
@@ -428,8 +432,8 @@ contains
            call MPIBcast(tSinglePartPhase)
         end if     
 
-        if(mod(iter,stepsAlpha)==0 .and. tDynamicAlpha) then
-           call adjust_angle()
+        if(mod(iter,stepsAlpha)==0 .and. (tDynamicAlpha .or. tDynamicDamping)) then
+           call adjust_decay_channels()
         endif
         call rotate_time()
     end subroutine update_real_time_iteration

@@ -17,7 +17,9 @@ module real_time_data
     ! rotated_time_setup: flag to indicate whether pure real time is
     ! used or not
     logical :: t_real_time_fciqmc, t_new_stats_file, t_rotated_time, tStaticShift, &
-         tDynamicCoreSpace, tRealTimePopsfile, tStabilizerShift, tLimitShift, tDynamicAlpha
+         tDynamicCoreSpace, tRealTimePopsfile, tStabilizerShift, tLimitShift, &
+         tDynamicAlpha, tRescaleWavefunction, tRescaledLastCyc, tDynamicDamping, &
+         tStartVariation
 
     ! also use a second iter_data type to keep track of the 2 distinct 
     ! spawning events
@@ -31,7 +33,9 @@ module real_time_data
     integer :: gf_count ! number of different Green's functions to be evaluated
     integer :: allGfs ! 0 -> only one GF, 1 -> all lesser GFs, 2 -> all greater GFs
     integer :: stepsAlpha ! number of cycles after which the rotation angle is updated
-    real(dp) :: alphaDamping ! prefactor for adjustment of rotation angle
+    ! prefactors for rescaling of the wavefunction, if enabled
+    real(dp) :: globalScale, scalingFactor
+    real(dp) :: alphaDamping, etaDamping ! prefactors for adjustment of rotation angle and damping
     
     ! the angle used for rotation of time into complex plane
     ! it is better readable to use new variables for real and imaginary part

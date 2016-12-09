@@ -25,7 +25,9 @@ module real_time_init
                               tStaticShift, MaxSpawnedDiag, tDynamicCoreSpace, overlap_states, &
                               overlap_real, overlap_imag, allGfs, tRealTimePopsfile, &
                               tLimitShift, nspawnMax, shiftLimit, numCycShiftExcess, &
-                              TotPartsLastAlpha, alphaDamping
+                              TotPartsLastAlpha, alphaDamping, tRescaleWavefunction, &
+                              scalingFactor, globalScale, tRescaledLastCyc, tDynamicDamping, &
+                              etaDamping, tStartVariation
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
@@ -519,14 +521,33 @@ contains
                 ! in addition to the 'normal' popsfile, a second one is supplied
                 ! containing a time evolved state
                 tRealTimePopsfile = .true.
+                
+             case("RESCALE")
+                ! if enabled, the wavefunction will be rescaled by a constant
+                tRescaleWavefunction = .true.
+                if(item < nitems) call readf(scalingFactor)
 
              case("DYNAMIC-ROTATION")
                 ! this automatically adjusts the temporal rotation to find a minimal 
                 ! alpha guaranteeing a fixed walker number
                 tDynamicAlpha = .true.
                 t_rotated_time = .true.
-                if(item < nitems) call readi(stepsAlpha)
+                ! if the rotation angle is adjusted on the fly, the shift must be held
+                ! constant not to absorb the rotation
+                tStaticShift = .true.
+                asymptoticShift = 0.0_dp
                 if(item < nitems) call readf(alphaDamping)
+
+             case ("STEPSALPHA")
+                ! number of steps after which the decay channels are updated
+                ! i.e. angle of rotation and damping
+                call readi(stepsAlpha)
+
+             case("DYNAMIC-DAMPING")
+                ! allow the damping to be time-dependent 
+                ! optional: damping parameter for the adjustment of eta
+                tDynamicDamping = .true.
+                if(item < nitems) call readf(etaDamping)
 
              case("LIMIT-SHIFT")
                 ! limits the shift to some maximum value. On short times, the threshold
@@ -646,8 +667,19 @@ contains
 
         ! default values for dynamic rotation angle updating (it is not enabled by default)
         tDynamicAlpha = .false.
-        stepsAlpha = 20
-        alphaDamping = 0.01
+        stepsAlpha = 10
+        alphaDamping = 0.05
+
+        ! defaults for rescaling of the wavefunction
+        tRescaleWavefunction = .false.
+        scalingFactor = 10.0_dp
+        globalScale = 1.0_dp
+        tRescaledLastCyc = .false.
+        tStartVariation = .false.
+
+        ! the damping is constant by default
+        tDynamicDamping = .false.
+        etaDamping = 0.01
     end subroutine set_real_time_defaults
 
     ! need a specific popsfile read function for the real-time calculation

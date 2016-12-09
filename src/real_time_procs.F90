@@ -12,10 +12,11 @@ module real_time_procs
                               temp_det_list, temp_det_pointer,  temp_iendfreeslot, &
                               temp_det_hash, temp_totWalkers, pert_norm, allGfs, &
                               valid_diag_spawns, DiagParts, n_diag_spawned, &
-                              NoDied_1, NoBorn_1, SumWalkersCyc_1, gf_count, &
+                              NoDied_1, NoBorn_1, SumWalkersCyc_1, gf_count, globalScale, &
                               t_rotated_time, tau_imag, tau_real, gs_energy, TotPartsLastAlpha, &
                               shift_damping, normsize, tStabilizerShift, dyn_norm_psi, &
-                              TotPartsPeak, numCycShiftExcess, shiftLimit, dyn_norm_red
+                              TotPartsPeak, numCycShiftExcess, shiftLimit, dyn_norm_red, &
+                              tRescaledLastCyc, tDynamicAlpha, tDynamicDamping, stepsAlpha
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
                          sizeof_int, MPIArg
@@ -1296,9 +1297,13 @@ contains
         ! rmneci_setup: the overlap has to be reduced as each proc
         ! only computes its own part
            call MPIReduce(overlap,MPI_SUM,gf_overlap(:,iGf))
-           do runA = 1, inum_runs
-              dyn_norm_red(runA,iGf) = sqrt(dyn_norm_psi(runA) * pert_norm(runA,iGf))
-           enddo
+           if(tRescaledLastCyc) then
+              tRescaledLastCyc = .false.
+              do runA = 1, inum_runs
+                 dyn_norm_red(runA,iGf) = sqrt(dyn_norm_psi(runA) * pert_norm(runA,iGf))
+              enddo
+           endif
+           gf_overlap = gf_overlap * globalScale
         enddo
 
         call halt_timer(calc_gf_time)
@@ -1646,22 +1651,66 @@ contains
       enddo
     end subroutine trunc_shift
 
-
-    subroutine adjust_angle()
+    subroutine adjust_decay_channels()
       use FciMCData, only: AllTotParts
-      use real_time_data, only: alphaDamping
+      use CalcData, only: InitWalkers
+      use Parallel_neci, only: nProcessors
+      use real_time_data, only: alphaDamping, etaDamping, tStartVariation
       implicit none
-      real(dp) :: allWalkersOld(lenof_sign)
-      real(dp) :: deltaAlpha
+      real(dp) :: allWalkersOld(lenof_sign), walkersOld(lenof_sign)
+      real(dp) :: deltaAlpha, deltaEta
 
-      call MPISumAll(TotPartsLastAlpha,allWalkersOld)
-      ! compare the walker number the last time the angle was adjusted to
-      ! the walker number now
-      deltaAlpha = alphaDamping * atan(sum(TotParts)/real(sum(TotPartsLastAlpha),dp) - 1)
-      real_time_info%time_angle = real_time_info%time_angle + deltaAlpha
+      ! once the walker number exceeds the total walkers set in the input, start
+      ! adjusting the damping and the real/imag timestep ratio
+      if(sum(AllTotParts)/inum_runs > InitWalkers*nProcessors) tStartVariation = .true.
+      ! once started, we have to do so forever, else we might kill all walkers
+      
+      if(tStartVariation) then
+         call MPIReduce(TotPartsLastAlpha,MPI_Sum,allWalkersOld)
+         if(iProcIndex == root) then
+            ! compare the walker number the last time the angle was adjusted to
+            ! the walker number now
+            if(tDynamicAlpha) then
+               deltaAlpha = alphaDamping * atan(sum(AllTotParts)/real(sum(allWalkersOld),dp) - 1)
+               real_time_info%time_angle = real_time_info%time_angle + deltaAlpha
+            endif
+            if(tDynamicDamping) then
+               deltaEta = etaDamping * log(sum(AllTotParts)/real(sum(allWalkersOld),dp)) / &
+                    (tau_real * stepsAlpha)
+               real_time_info%damping = real_time_info%damping - deltaEta
+            endif               
+         endif
+         if(tDynamicAlpha) call MPIBCast(real_time_info%time_angle)
+         if(tDynamicDamping) call MPIBCast(real_time_info%damping)
+      endif
       TotPartsLastAlpha = TotParts
       
-    end subroutine adjust_angle
+    end subroutine adjust_decay_channels
+
+    subroutine rescale_wavefunction(factor)
+      use CalcData, only: OccupiedThresh, tSemiStochastic
+      use load_balance, only: truncate_occupation
+      implicit none
+      real(dp), intent(in) :: factor
+      real(dp) :: CurrentSign(lenof_sign)
+      integer :: i
+      logical :: tStateDeterm
+      
+      tStateDeterm = .false.
+      TotParts = 0.0_dp
+      do i = 1, int(TotWalkers, sizeof_int)
+         call extract_sign(CurrentDets(:,i),CurrentSign)
+         CurrentSign = CurrentSign / factor
+         if(tSemiStochastic) tStateDeterm = test_flag(CurrentDets(:,i),flag_deterministic)
+         if(.not. tStateDeterm) call truncate_occupation(CurrentSign,i)
+         TotParts = TotParts + abs(CurrentSign)
+         call encode_sign(CurrentDets(:,i),CurrentSign)
+      enddo
+      globalScale = globalScale * factor
+      !tRescaledLastCyc = .true.
+      TotPartsLastAlpha = TotParts
+      
+    end subroutine rescale_wavefunction
 
     subroutine reset_tot_parts()
       ! if the second RK step is to be compared, the reference has to be reset
