@@ -12,7 +12,7 @@ module guga_init
                           current_stepvector, currentOcc_ilut, currentOcc_int, &
                           currentB_ilut, currentB_int, current_cum_list, &
                           ref_stepvector, ref_b_vector_int, ref_occ_vector, &
-                          ref_b_vector_real, treal, tHUB
+                          ref_b_vector_real, treal, tHUB, t_guga_noreorder
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
                 t_guga_mat_eles
     use hist_data, only: tHistSpawn
@@ -300,6 +300,8 @@ contains
                 "UEG/Hubbard implementation of GUGA excitation generator needs symmetry but NOSYMMETRY set! abort!")
         end if
 
+        ! in the real-space do not reorder the orbitals! 
+        if (treal) t_guga_noreorder = .true.
 !         if (tGen_sym_guga_mol .and. lNoSymmetry) then
 !             call stop_all(this_routine, &
 !                 "symmetric molecular GUGA excitation generator chosen, but NOSYMMETRY set! check input!")

@@ -287,6 +287,11 @@ real(dp) :: twisted_bc(2) = 0.0_dp
 ! this might decrease the efficiency of the guga implmenetation
 logical :: t_guga_noreorder = .false.
 
+! introduce new flag to specifify open  boundary condition in certain 
+! lattice dimensions. 
+logical :: t_open_BC_x = .false.
+logical :: t_open_BC_y = .false.
+
 ! Operators for type(symmetry)
 interface assignment (=)
     module procedure SymAssign

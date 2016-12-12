@@ -107,7 +107,7 @@ C          IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
 
       SUBROUTINE CALCTMATHUB(NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,TPBC)
          use constants, only: dp
-         use SystemData, only: BasisFN
+         use SystemData, only: BasisFN, t_open_bc_x, t_open_bc_y
          USE OneEInts, only: TMat2D,TMATSYM,SetupTMAT
          USE Parallel_neci, only : iProcIndex
          use sym_mod, only: mompbcsym
@@ -144,11 +144,11 @@ C          IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
                   TOTSUM=BHUB
                   IF(TPBC) THEN
 !This bit is only for if the hubbard lattice only has one site in a certain dimension
-                     IF(DX.EQ.LX) THEN
+                     IF(DX.EQ.LX .and. .not. t_open_bc_x) THEN
                         DX=1
                         IF(LX.EQ.1) TOTSUM=TOTSUM+BHUB
                      ENDIF
-                     IF(DY.EQ.LY) THEN
+                     IF(DY.EQ.LY .and. .not. t_open_bc_y) THEN
                         DY=1
                         IF(LY.EQ.1) TOTSUM=TOTSUM+BHUB
                      ENDIF
@@ -157,16 +157,32 @@ C          IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
                         IF(LZ.EQ.1) TOTSUM=TOTSUM+BHUB
                      ENDIF
                   ENDIF
-                  IF((DX+DY+DZ.EQ.1).or.sum(temp_k) == 1) then
-                      if (G1(I)%Ms.EQ.G1(J)%MS) THEN
+                  ! here the changes for the open-BC have to occur!
+                  if (.not. t_open_bc_x .and. .not. t_open_bc_y) then
+                      IF((DX+DY+DZ.EQ.1).or.sum(temp_k) == 1) then
+                          if (G1(I)%Ms.EQ.G1(J)%MS) THEN
 !This is for if the site can interact with a periodic image.
-                      ! i have to change that condition for the tilted 
-                      ! real-space since now it only accomodates for a
-                      ! non-pbc model
-                    TMAT2D(I,J)=TOTSUM
-                    IF(iProcIndex.eq.0) WRITE(10,*) I,J,TOTSUM
-                    endif
-                  ENDIF
+                          ! i have to change that condition for the tilted 
+                          ! real-space since now it only accomodates for a
+                          ! non-pbc model
+                        TMAT2D(I,J)=TOTSUM
+                        IF(iProcIndex.eq.0) WRITE(10,*) I,J,TOTSUM
+                        endif
+                      ENDIF
+                  else 
+                      ! otherwise change to old determination of BCs 
+                      ! without momentum mirrored basis states
+                      if (DX + DY + DZ == 1) then
+                          if (G1(I)%Ms.EQ.G1(J)%MS) THEN
+!This is for if the site can interact with a periodic image.
+                          ! i have to change that condition for the tilted 
+                          ! real-space since now it only accomodates for a
+                          ! non-pbc model
+                            TMAT2D(I,J)=TOTSUM
+                            IF(iProcIndex.eq.0) WRITE(10,*) I,J,TOTSUM
+                        endif
+                      ENDIF
+                  end if
                   ! try the change for the tilted square lattice.. 
                   ! if (sum(temp_k) == 1 .and. G1(i)%ms == G1(j)%ms) then
                   !   TMAT2D(I,J)=TOTSUM

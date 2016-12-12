@@ -538,6 +538,39 @@ system: do
         case("APERIODIC")
             TPBC = .false.
 
+        case ("OPEN-BC")
+            ! make an new keyword to apply open boundary conditions in the 
+            ! real-space case with an option to only specify a certain 
+            ! dimension restricted to open BC
+            ! for simplicity always use fully-open BC in the tilted case, 
+            ! since there it is hard to define what the x/y dimensions are 
+            ! and it seems unnecessary to implement that. 
+            ! also, do not do it for the momentum-space model, since 
+            ! everything breaks down then, and it does not make sense to 
+            ! do use a plane wave-basis in this case!
+            call readu(w)
+
+            select case (w)
+            case ("X")
+                ! only open BC in x-dimension
+                t_open_BC_x = .true.
+
+            case ("Y") 
+                ! only open BC in y-dimension 
+                t_open_BC_y = .true.
+
+            case ("XY")
+                ! open BC in both lattice dimensions
+                t_open_BC_y = .true.
+                t_open_BC_x = .true.
+
+            case default
+                ! default case is also open BC in both directions! 
+                t_open_BC_y = .true.
+                t_open_BC_x = .true.
+
+            end select
+
         case ("TWISTED-BC")
             ! first try at implementing twisted bounday conditions
             ! comments will folllow TODO
