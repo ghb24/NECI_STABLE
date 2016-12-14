@@ -230,6 +230,13 @@ logical :: tSymSet = .false.
 
 logical :: tGiovannisBrokenInit
 
+! flags for the use of open boundary conditions in the real-space 
+! hubbard model. 
+! for the cubic lattice the can be set separately, for the tilted only 
+! full open BC are implemented
+logical :: t_open_bc_x = .false.
+logical :: t_open_bc_y = .false.
+
 ! Operators for type(symmetry)
 interface assignment (=)
     module procedure SymAssign
