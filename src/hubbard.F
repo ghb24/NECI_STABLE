@@ -136,6 +136,7 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
                   ! resulting basis state is in the extendend BZ
                   temp_k = [DX,DY,DZ]
                   call MOMPBCSYM(temp_k,nBasisMax)
+                  temp_k = abs(temp_k)
                   TOTSUM=BHUB
                   IF(TPBC) THEN
 !This bit is only for if the hubbard lattice only has one site in a certain dimension
