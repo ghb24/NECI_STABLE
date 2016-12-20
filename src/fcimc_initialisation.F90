@@ -34,7 +34,7 @@ module fcimc_initialisation
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, &
-                        tMultipleInitialStates, initial_states, tDynamicInitThresh
+                        tMultipleInitialStates, initial_states
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -852,8 +852,6 @@ contains
 !                write(mswalkercounts_unit, "(A)") "# ms real    imag    magnitude"
 !            endif
 
-        if(tDynamicInitThresh) WalkerNumberLastCyc = 0.0_dp
- 
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)) THEN
             ALLOCATE(HistMinInd(NEl))
             ALLOCATE(HistMinInd2(NEl))

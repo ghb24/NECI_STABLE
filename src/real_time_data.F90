@@ -33,6 +33,7 @@ module real_time_data
     integer :: gf_count ! number of different Green's functions to be evaluated
     integer :: allGfs ! 0 -> only one GF, 1 -> all lesser GFs, 2 -> all greater GFs
     integer :: stepsAlpha ! number of cycles after which the rotation angle is updated
+    integer :: rotThresh ! number of walkers on which variation of alpha starts
     ! prefactors for rescaling of the wavefunction, if enabled
     real(dp) :: globalScale, scalingFactor
     real(dp) :: alphaDamping, etaDamping ! prefactors for adjustment of rotation angle and damping

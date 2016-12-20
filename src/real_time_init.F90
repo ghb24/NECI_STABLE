@@ -27,7 +27,7 @@ module real_time_init
                               tLimitShift, nspawnMax, shiftLimit, numCycShiftExcess, &
                               TotPartsLastAlpha, alphaDamping, tRescaleWavefunction, &
                               scalingFactor, globalScale, tRescaledLastCyc, tDynamicDamping, &
-                              etaDamping, tStartVariation
+                              etaDamping, tStartVariation, rotThresh
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
@@ -40,7 +40,7 @@ module real_time_init
     use CalcData, only: tChangeProjEDet, tReadPops, tRestartHighPop, tFCIMC, &
                         tStartSinglePart, tau, nmcyc, iPopsFileNoRead, tWritePopsNorm, &
                         tWalkContGrow, diagSft, pops_norm, InitWalkers, MemoryFacSpawn, &
-                        tDynamicInitThresh, StepsSft, tSemiStochastic
+                        StepsSft, tSemiStochastic
     use FciMCData, only: tSearchTau, alloc_popsfile_dets, pops_pert, tPopsAlreadyRead, &
                          tSinglePartPhase, iter_data_fciqmc, iter, PreviousCycles, &
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
@@ -521,9 +521,24 @@ contains
                 ! in addition to the 'normal' popsfile, a second one is supplied
                 ! containing a time evolved state
                 tRealTimePopsfile = .true.
+
+             case("OVERPOPULATE")
+                ! enabling sets the options for time-dependent shift and rotation 
+                ! such that a positive shift will occur with a stable walker number
+                t_rotated_time = .true.
+                tDynamicAlpha = .true.
+                ! this is done by pinning the shift to some positive value and
+                ! then auto-adjusting the rotation
+                tStaticShift = .true.
+                if(item < nitems) then
+                   call readf(asymptoticShift)
+                else
+                   asymptoticShift = 2.0_dp
+                endif
                 
              case("RESCALE")
-                ! if enabled, the wavefunction will be rescaled by a constant
+                ! if enabled, the wavefunction will be rescaled by a constant if
+                ! the walker number grows too big. Inevitably leads to instability
                 tRescaleWavefunction = .true.
                 if(item < nitems) call readf(scalingFactor)
 
@@ -534,12 +549,17 @@ contains
                 t_rotated_time = .true.
                 ! if the rotation angle is adjusted on the fly, the shift must be held
                 ! constant not to absorb the rotation
-                tStaticShift = .true.
-                asymptoticShift = 0.0_dp
+                ! tStaticShift = .true.
+                ! asymptoticShift = 0.0_dp
                 if(item < nitems) call readf(alphaDamping)
 
+             case("ROTATION-THRESHOLD")
+                ! number of walkers at which the variation of rotation angle starts
+                ! 0 by default
+                call readi(rotThresh)
+
              case ("STEPSALPHA")
-                ! number of steps after which the decay channels are updated
+                ! length of the decay channel update cycle (in timesteps)
                 ! i.e. angle of rotation and damping
                 call readi(stepsAlpha)
 
@@ -657,8 +677,6 @@ contains
         ! by default, the initial state is taken from an ordinary popsfile
         ! if a time evolved state is desired, a second popsfile has to be supplied
         tRealTimePopsfile = .false.
-        ! by default, the initiator threshold is fixed at the beginning
-        tDynamicInitThresh = .false.
         tStabilizerShift = .false.
         ! the merging of spawning events is done entirely automatically and therfore can not
         ! be switched on manually
@@ -669,6 +687,7 @@ contains
         tDynamicAlpha = .false.
         stepsAlpha = 10
         alphaDamping = 0.05
+        rotThresh = 0
 
         ! defaults for rescaling of the wavefunction
         tRescaleWavefunction = .false.

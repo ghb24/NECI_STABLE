@@ -11,7 +11,7 @@ module fcimc_iter_utils
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
-                        qmc_trial_wf, tDynamicInitThresh
+                        qmc_trial_wf
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables
     use semi_stoch_procs, only: recalc_core_hamil_diag
@@ -1088,34 +1088,17 @@ contains
 
     end subroutine calculate_new_shift_wrapper
 
-    subroutine update_initiator_threshold()
-
-      implicit none
-      real(dp), parameter :: initAdaptThresh = 80
-      ! if the walker number grew too rapidly, increase the initiator threshold
-      ! and thereby suppress the spawnrate
-      if(WalkerNumberLastCyc/sum(AllSumWalkersCyc) < initAdaptThresh) then
-         InitiatorWalkNo = InitiatorWalkNo + 1
-      endif
-      WalkerNumberLastCyc = sum(AllSumWalkersCyc)
-      ! it is more problematic to find a criterium that determines how to decrease
-      ! the initiator threshold again, as the only real constraint is 'the results have
-      ! to be right'
-      
-    end subroutine update_initiator_threshold
-
-
     subroutine update_iter_data(iter_data)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         
-!        print *, '===================================='
-!        print *, 'Nborn', iter_data%nborn, NoBorn
-!        print *, 'Ndied', iter_data%ndied, NoDied
-!        print *, 'Nannihil', iter_data%nannihil, Annihilated
-!        print *, 'Nabrt', iter_data%naborted, NoAborted
-!        print *, 'Nremvd', iter_data%nremoved, NoRemoved
-!        print *, '===================================='
+!        write(6,*) '===================================='
+!        write(6,*) 'Nborn', iter_data%nborn, NoBorn
+!        write(6,*) 'Ndied', iter_data%ndied, NoDied
+!        write(6,*) 'Nannihil', iter_data%nannihil, Annihilated
+!        write(6,*) 'Nabrt', iter_data%naborted, NoAborted
+!        write(6,*) 'Nremvd', iter_data%nremoved, NoRemoved
+!        write(6,*) '===================================='
 
         iter_data%update_growth = iter_data%update_growth + iter_data%nborn &
                                 - iter_data%ndied - iter_data%nannihil &

@@ -1655,14 +1655,14 @@ contains
       use FciMCData, only: AllTotParts
       use CalcData, only: InitWalkers
       use Parallel_neci, only: nProcessors
-      use real_time_data, only: alphaDamping, etaDamping, tStartVariation
+      use real_time_data, only: alphaDamping, etaDamping, tStartVariation, rotThresh
       implicit none
       real(dp) :: allWalkersOld(lenof_sign), walkersOld(lenof_sign)
       real(dp) :: deltaAlpha, deltaEta
 
       ! once the walker number exceeds the total walkers set in the input, start
       ! adjusting the damping and the real/imag timestep ratio
-      if(sum(AllTotParts)/inum_runs > InitWalkers*nProcessors) tStartVariation = .true.
+      if(sum(AllTotParts)/inum_runs > rotThresh) tStartVariation = .true.
       ! once started, we have to do so forever, else we might kill all walkers
       
       if(tStartVariation) then
@@ -1674,12 +1674,14 @@ contains
                deltaAlpha = alphaDamping * atan(sum(AllTotParts)/real(sum(allWalkersOld),dp) - 1)
                real_time_info%time_angle = real_time_info%time_angle + deltaAlpha
             endif
+            ! if the damping is also to be adjusted on the fly, do so here
             if(tDynamicDamping) then
                deltaEta = etaDamping * log(sum(AllTotParts)/real(sum(allWalkersOld),dp)) / &
                     (tau_real * stepsAlpha)
                real_time_info%damping = real_time_info%damping - deltaEta
             endif               
          endif
+         ! communicate the updated quantities
          if(tDynamicAlpha) call MPIBCast(real_time_info%time_angle)
          if(tDynamicDamping) call MPIBCast(real_time_info%damping)
       endif

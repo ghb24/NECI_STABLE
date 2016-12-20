@@ -25,7 +25,7 @@ module real_time
                               tRescaleWavefunction, scalingFactor, tDynamicDamping
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
-                        tChangeProjEDet, DiagSft, tDynamicInitThresh, nmcyc, tau, InitWalkers
+                        tChangeProjEDet, DiagSft, nmcyc, tau, InitWalkers
     use FciMCData, only: pops_pert, walker_time, iter, ValidSpawnedList, &
                          spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot, &
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
@@ -212,7 +212,6 @@ contains
         ! do all the setup, read-in and calling of the "new" real-time MC loop
         use real_time_data, only: gf_overlap
         use FciMCData, only : TotImagTime
-        use fcimc_iter_utils, only: update_initiator_threshold
         implicit none
 
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
@@ -331,12 +330,6 @@ contains
 
             if(mod(iter,400) == 0 .and. tSemiStochastic .and. tDynamicCoreSpace) &
                  call refresh_semistochastic_space()
-            ! if desired, the initiator threshold is adapted during runtime
-            ! this should happen on a larger timescale, as it has a high impact
-            ! and therefore should not be done too often.
-            if(mod(iter,100*stepsSft) == 0 .and. tDynamicInitThresh) &
-                 call update_initiator_threshold()
-
             if(iProcIndex == root) then
                s_end = neci_etime(tend)
                IterTime = IterTime + (s_end - s_start)

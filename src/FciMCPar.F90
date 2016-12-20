@@ -692,7 +692,7 @@ module FciMCParMod
         use rdm_data, only: rdm_definitions
         use rdm_data_utils, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2
         use symrandexcit_Ex_Mag, only: test_sym_excit_ExMag 
-        
+
         ! Iteration specific data
         type(fcimc_iter_data), intent(inout) :: iter_data
 
@@ -717,7 +717,6 @@ module FciMCParMod
         type(ll_node), pointer :: TempNode
 
         integer :: ms
-
 
         call set_timer(Walker_Time,30)
 
@@ -929,7 +928,6 @@ module FciMCParMod
             !                 --> OR double run
             !                 --> part_type == 1, 2; population sets 1 and 2, both real
             do part_type = 1, lenof_sign
-            
                 TempSpawnedPartsInd = 0
 
                 ! Loop over all the particles of a given type on the 
@@ -1085,6 +1083,7 @@ module FciMCParMod
         CALL halt_timer(Annihil_Time)
         IFDEBUG(FCIMCDebug,2) WRITE(iout,*) "Finished Annihilation step"
         
+
         ! If we are orthogonalising the replica wavefunctions, to generate
         ! excited states, then do that here.
         if (tOrthogonaliseReplicas .and. iter > orthogonalise_iter) then
