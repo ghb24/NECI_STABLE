@@ -19,7 +19,7 @@ module real_time_data
     logical :: t_real_time_fciqmc, t_new_stats_file, t_rotated_time, tStaticShift, &
          tDynamicCoreSpace, tRealTimePopsfile, tStabilizerShift, tLimitShift, &
          tDynamicAlpha, tRescaleWavefunction, tRescaledLastCyc, tDynamicDamping, &
-         tStartVariation
+         tStartVariation, tOverpopulate
 
     ! also use a second iter_data type to keep track of the 2 distinct 
     ! spawning events
@@ -37,6 +37,7 @@ module real_time_data
     ! prefactors for rescaling of the wavefunction, if enabled
     real(dp) :: globalScale, scalingFactor
     real(dp) :: alphaDamping, etaDamping ! prefactors for adjustment of rotation angle and damping
+    real(dp) :: stabilizerThresh
     
     ! the angle used for rotation of time into complex plane
     ! it is better readable to use new variables for real and imaginary part
@@ -51,7 +52,8 @@ module real_time_data
     integer, allocatable :: numCycShiftExcess(:)
     ! averaged overlaps
     real(dp), allocatable :: overlap_real(:), overlap_imag(:)
-    ! and dynamic reduced norm
+    ! and dynamic reduced norm, used only when rescaling the wave function
+    ! i.e. outdated feature
     complex(dp), allocatable :: dyn_norm_red(:,:)
     ! norms are complex because they are taken between different replicas
     ! -> not necesserily entirely real

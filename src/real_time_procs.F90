@@ -11,7 +11,7 @@ module real_time_procs
                               t_complex_ints, real_time_info, temp_freeslot, & 
                               temp_det_list, temp_det_pointer,  temp_iendfreeslot, &
                               temp_det_hash, temp_totWalkers, pert_norm, allGfs, &
-                              valid_diag_spawns, DiagParts, n_diag_spawned, &
+                              valid_diag_spawns, DiagParts, n_diag_spawned, tOverpopulate, &
                               NoDied_1, NoBorn_1, SumWalkersCyc_1, gf_count, globalScale, &
                               t_rotated_time, tau_imag, tau_real, gs_energy, TotPartsLastAlpha, &
                               shift_damping, normsize, tStabilizerShift, dyn_norm_psi, &
@@ -1652,7 +1652,7 @@ contains
     end subroutine trunc_shift
 
     subroutine adjust_decay_channels()
-      use FciMCData, only: AllTotParts
+      use FciMCData, only: AllTotParts, tSinglePartPhase
       use CalcData, only: InitWalkers
       use Parallel_neci, only: nProcessors
       use real_time_data, only: alphaDamping, etaDamping, tStartVariation, rotThresh

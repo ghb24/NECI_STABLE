@@ -22,7 +22,8 @@ module real_time
                               NoatHF_1, shift_damping, tDynamicCoreSpace, dyn_norm_red, &
                               normsize, gf_count, tRealTimePopsfile, tStabilizerShift, &
                               tLimitShift, tStaticShift, asymptoticShift, tDynamicAlpha, &
-                              tRescaleWavefunction, scalingFactor, tDynamicDamping
+                              tRescaleWavefunction, scalingFactor, tDynamicDamping, &
+                              stabilizerThresh
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
                         tChangeProjEDet, DiagSft, nmcyc, tau, InitWalkers
@@ -296,6 +297,8 @@ contains
             ! update the overlap each time
             ! rmneci_setup: computation of instantaneous projected norm is shifted to here
             if(mod(iter, StepsSft) == 0) then 
+               ! for TESTING purposes
+               write(6,*) "SHIFT USED", DiagSft
                ! only determinants that are occupied in the beginning
                ! can contribute to the gf -> normalize using only these
                ! current overlap is now the one after iteration
@@ -414,7 +417,7 @@ contains
               call update_peak_walker_number()
               do run = 1,inum_runs
                  if((AllTotParts(min_part_type(run))+ AllTotParts(max_part_type(run)))&
-                      < 0.7*TotPartsPeak(run) .and. tSinglePartPhase(run)) then
+                      < stabilizerThresh*TotPartsPeak(run) .and. tSinglePartPhase(run)) then
                     ! if it is, enable dynamic shift to enforce a sufficiently high walker number
                     tSinglePartPhase(run) = .false.
                     write(6,*) "Walker number dropped below threshold, enabling dynamic shift"

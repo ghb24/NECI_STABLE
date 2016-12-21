@@ -6,7 +6,7 @@ module real_time_init
 
     use real_time_data, only: t_real_time_fciqmc, gf_type, real_time_info, &
                               t_complex_ints, gf_overlap, temp_det_list, dyn_norm_red, &
-                              temp_det_pointer, temp_det_hash, temp_freeslot, &
+                              temp_det_pointer, temp_det_hash, temp_freeslot, tOverpopulate, &
                               pert_norm, second_spawn_iter_data, DiagParts, stepsAlpha, &
                               DiagVec, normsize, valid_diag_spawns, tStabilizerShift, &
                               NoatHF_1, Annihilated_1, Acceptances_1, NoBorn_1, &
@@ -27,7 +27,7 @@ module real_time_init
                               tLimitShift, nspawnMax, shiftLimit, numCycShiftExcess, &
                               TotPartsLastAlpha, alphaDamping, tRescaleWavefunction, &
                               scalingFactor, globalScale, tRescaledLastCyc, tDynamicDamping, &
-                              etaDamping, tStartVariation, rotThresh
+                              etaDamping, tStartVariation, rotThresh, stabilizerThresh
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
@@ -487,7 +487,7 @@ contains
                
              case("STABILIZE-WALKERS")
                 ! enabling this activates the dynamic shift as soon as the walker number drops
-                ! below 70% of the peak value
+                ! below 80% of the peak value
                 tStabilizerShift = .true.
                 if(item < nitems) then
                    call readf(asymptoticShift)
@@ -530,6 +530,14 @@ contains
                 ! this is done by pinning the shift to some positive value and
                 ! then auto-adjusting the rotation
                 tStaticShift = .true.
+                ! here, rotation and shift variation have to start at the same point 
+                ! (in principle, it is only required that the rotation does not start 
+                ! before shift variation) to prevent the rotation from converging on
+                ! its own, circumventing the overpopulation via positive shift
+                tOverpopulate = .true.
+                ! it is most efficient to turn on the shift after equilibration of the angle
+                ! so this is done via the stabilize-walkers feature
+                tStabilizerShift = .true.
                 if(item < nitems) then
                    call readf(asymptoticShift)
                 else
@@ -678,6 +686,9 @@ contains
         ! if a time evolved state is desired, a second popsfile has to be supplied
         tRealTimePopsfile = .false.
         tStabilizerShift = .false.
+        ! threshold population (in relation to the peak walker number) for activation of
+        ! stabilizer shift
+        stabilizerThresh = 0.8
         ! the merging of spawning events is done entirely automatically and therfore can not
         ! be switched on manually
         tLimitShift = .false.
@@ -688,6 +699,7 @@ contains
         stepsAlpha = 10
         alphaDamping = 0.05
         rotThresh = 0
+        tOverpopulate = .false.
 
         ! defaults for rescaling of the wavefunction
         tRescaleWavefunction = .false.
