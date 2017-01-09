@@ -185,7 +185,7 @@ contains
         ! first check if it is not the same ilut! 
         if (DetBitEQ(ilutI, ilutJ)) then 
             ! do diagonal element or return if i do not need the diagonals.. 
-            print *, "or ever here?"
+!             print *, "or ever here?"
             return
         else
 

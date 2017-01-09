@@ -4,6 +4,7 @@
 #ifndef __CMPLX
 module guga_excitations
     ! modules
+    use CalcData, only: t_guga_mat_eles
     use SystemData, only: nEl, nBasis, t_guga_unit_tests, ElecPairs, G1, nmaxx, &
                           nmaxy, nmaxz, OrbECutoff, tOrbECutoff, nSpatOrbs, &
                           current_stepvector, currentOcc_ilut, currentOcc_int, &
@@ -40,7 +41,7 @@ module guga_excitations
 !     use Determinants, only: write_bit_rep
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, ilutRef, &
-                         pExcit4, pExcit2, pExcit2_same, pExcit3_same
+                         pExcit4, pExcit2, pExcit2_same, pExcit3_same, ilutHF
     use util_mod, only: get_free_unit, binary_search, get_unique_filename, &
                         binary_search_first_ge, abs_l1
     use sort_mod, only: sort
@@ -300,6 +301,10 @@ contains
         integer(n_int) :: tmp_ilut(0:niftot) 
         type(excitationInformation) :: excitInfo 
 
+        ! hm.. why is the calc_type always set to 2?? 
+        ! thats a waste of effort actually and can improve the code quite a 
+        ! bit if i change that back! but only, if i have the test-code 
+        ! setup and working properly! 
         if (present(run)) then 
             tmp_ilut = ilutRef(0:niftot,run) 
             if (run == 1) then 
@@ -2599,8 +2604,9 @@ contains
         logical, allocatable :: generated_list(:)
         logical :: par
         real(dp) :: contrib, pgen, sum_helement, sum_pgens
-        HElement_t(dp) :: helgen
+        HElement_t(dp) :: helgen, diff, temp_mat
         character(255) :: filename
+        type(excitationInformation) :: excitInfo
 
         ! Decode the determiant
         call decode_bit_det (src_det, ilut)
@@ -2626,7 +2632,31 @@ contains
 
         do i = 1, nexcit
             call convert_ilut_toNECI(excitations(:,i), det_list(:,i), helgen)
-!             call write_bit_rep(6, det_list(:,i), .true.)
+
+            ! if i use guga-mateles keyword, should i also test for the 
+            ! matrix element here? since i am using those routines to 
+            ! calculate the reference energy.. and not actually the 
+            ! actHamiltonian routine.. i probably should.. but this is quite 
+            ! costly.. hm.. init_csf_information is already called in 
+            ! acthamiltonian.. 
+            if (t_guga_mat_eles) then
+                call calc_guga_matrix_element(ilut, excitations(:,i), excitInfo, &
+                    temp_mat, .true., 2)
+
+                diff = abs(helgen - temp_mat)
+
+                if (diff < 1.0e-10_dp) diff = 0.0_dp
+
+                if (diff > EPS) then 
+                    print *, "different matrix elements for CSFs: "
+                    call write_det_guga(6,ilut)
+                    call write_det_guga(6,excitations(:,i))
+                    print *, "actHamiltonian result: ", helgen
+                    print *, "calc_guga_matrix_element result: ", temp_mat
+                    call stop_all(this_routine, &
+                        "actHamiltonian and calc_guga_matrix_element give different result!")
+                end if
+            end if
         end do
 
         ! Sort the dets, so they are easy to find by binary searching
@@ -2908,44 +2938,49 @@ contains
         ! for now add a sanity check to compare the stochastic obtained 
         ! matrix elements with the exact calculation.. 
         ! since something is going obviously wrong.. 
-! 
-!         call convert_ilut_toNECI(excitation, ilutJ, HElgen)
-! ! 
-!         call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, tmp_mat, &
-!             .true., 2)
-! 
-!         diff = abs(HElGen - tmp_mat)
-!         if (diff > 1.0e-10_dp) then 
-!             print *, "WARNING: differing stochastic and exact matrix elements!"
-!             call write_det_guga(6, ilutI, .true.)
-!             call write_det_guga(6, ilutJ, .true.)
-!             print *, "mat eles and diff:", HElGen, tmp_mat, diff
-!             print *, " pgen: ", pgen
-!             call print_excitInfo(excitInfo)
-!         end if
-! 
-!         ! is the other order also fullfilled? 
-!         call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, tmp_mat1, &
-!             .true., 2)
-! 
-!         diff = abs(tmp_mat1 - tmp_mat) 
-!         if (diff > 1.0e-10_dp) then 
-!             print *, "WARNING: differing sign in matrix elements!"
-!             call write_det_guga(6, ilutI, .true.)
-!             call write_det_guga(6, ilutJ, .true.)
-!             print *, "mat eles and diff:", tmp_mat, tmp_mat1, diff
-!             print *, "<I|H|J> excitInfo:"
-!             call print_excitInfo(excitInfo)
-!             excitInfo = identify_excitation(ilutI, ilutJ)
-!             print *, "<J|H|I> excitInfo:"
-!             call print_excitInfo(excitInfo)
-!         end if
-! ! 
-! 
-! 
+#ifdef __DEBUG 
+        if (.not. pgen < EPS) then
+            call convert_ilut_toNECI(excitation, ilutJ, HElgen)
+    ! 
+            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, tmp_mat, &
+                .true., 2)
+
+            diff = abs(HElGen - tmp_mat)
+            if (diff > 1.0e-10_dp) then 
+                print *, "WARNING: differing stochastic and exact matrix elements!"
+                call write_det_guga(6, ilutI, .true.)
+                call write_det_guga(6, ilutJ, .true.)
+                print *, "mat eles and diff:", HElGen, tmp_mat, diff
+                print *, " pgen: ", pgen
+                call print_excitInfo(excitInfo)
+            end if
+
+            ! is the other order also fullfilled? 
+            call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, tmp_mat1, &
+                .true., 2)
+
+            diff = abs(tmp_mat1 - tmp_mat) 
+            if (diff > 1.0e-10_dp) then 
+                print *, "WARNING: differing sign in matrix elements!"
+                call write_det_guga(6, ilutI, .true.)
+                call write_det_guga(6, ilutJ, .true.)
+                print *, "mat eles and diff:", tmp_mat, tmp_mat1, diff
+                print *, "<I|H|J> excitInfo:"
+                call print_excitInfo(excitInfo)
+                excitInfo = identify_excitation(ilutI, ilutJ)
+                print *, "<J|H|I> excitInfo:"
+                call print_excitInfo(excitInfo)
+            end if
+    ! 
+        end if
+#endif __DEBUG
+
+
 !         ! also add a sanity check for excitations from the reference 
 !         ! determinant..
-!         if (DetBitEq(ilutI,ilutRef(0:niftot,1))) then
+!         ! what is wrong now with the 2nd index of ilutref?? it does not seem
+!         ! to know ilutref here.. not initiatlized yet??
+!         if (DetBitEq(ilutI,ilutHF(0:niftot,1))) then
 !             tmp_mat = calc_off_diag_guga_ref_direct(ilutJ, exlevel = tmp_ex1)
 !             tmp_mat1 = calc_off_diag_guga_ref_list(ilutJ, exlevel = tmp_ex2)
 ! 

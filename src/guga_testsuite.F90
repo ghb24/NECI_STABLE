@@ -491,6 +491,7 @@ contains
                 call write_det_guga(6,ex(:,i),.true.)
                 call print_excitInfo(excitInfo)
                 print *, "spin change: ", excitInfo%spin_change
+                call stop_all(this_routine, "wrong matrix element!")
             end if
             ! how do i test non-possible excitations? 
             ! do i apply the hamiltonian once more? and then check in the 
@@ -498,6 +499,8 @@ contains
 !             call actHamiltonian(ex(:,i), two_ex, nex_2) 
 
         end do
+
+        print *, "connected determinants correct!"
 
         ! also do the tests on non-connected CSFs.. 
         ! maybe apply the hamiltonian a second time to the list of generated 
@@ -559,6 +562,7 @@ contains
                     if (ind < 0 .and. (.not. DetBitEQ(two_ex(0:nifd,j),ilutI(0:nifd)))) then 
 
                         print *, "something wrong!"
+                        call stop_all(this_routine, "matrix element should be 0!")
 
                     else if (ind > 0) then
 
@@ -579,6 +583,8 @@ contains
                             print *, "step: ", temp_step_j
                             print *, "db: ", temp_delta_b 
 
+                            call stop_all(this_routine, "incorrect sign!")
+
                         end if
 !                         print *, extract_matrix_element(ex(:,ind),1), mat_ele, diff
 
@@ -598,13 +604,14 @@ contains
 
         end do
 
+        print *, "non-connected determinants correctly 0!"
+
         ! i should also test more than double excitaitons to see if i correctly 
         ! identify impossible excitations
 
-        call deinit_csf_information()
+!         call deinit_csf_information()
 
-        call stop_all(this_routine, "!")
-
+        print *, "test_identify_excitation_and_matrix_element passed!"
 
     end subroutine test_identify_excitation_and_matrix_element
 
@@ -625,6 +632,8 @@ contains
 
         call check_calcDiagExchange_nI
         call check_calcDiagMatEleGUGA_nI
+
+        call test_identify_excitation_and_matrix_element()
 
         print *, " guga_matrixElements tests passed!"
 
@@ -2867,7 +2876,7 @@ contains
         pExcit2_same = 0.9_dp
         pExcit3_same = 0.9_dp
 
-        print *, "running: test_excit_gen_guga(ilut,n_guga_excit_gen)"
+        print *, "running: test_excit_gen_guga_S0(ilut,n_guga_excit_gen)"
         print *, "pSingles set to: ", pSingles
         print *, "pDoubles set to: ", pDoubles
 
@@ -7836,7 +7845,6 @@ contains
         ! make a valid ilut:
         call EncodeBitDet_guga(det,ilut)
 
-        print *, "***"
         print *, " Testing ",testFun
         ASSERT(.not.isZero(ilut,1))
         ASSERT(.not.isZero(ilut,2))
