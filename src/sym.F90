@@ -56,6 +56,12 @@ contains
                 SYMPROD%s=0
                 RETURN
              ENDIF
+             ! fix if all symmetries are set to 1
+!              if (isym1%s == isym2%s .and. isym1%s == 1) then
+!                  symprod%s = 1
+!                  return
+!              end if
+             ! change for the real-space hubbard
              IF (.not.allocated(SYMTABLE)) call stop_all(this_routine, 'SYMMETRY TABLE NOT ALLOCATED')
              IS1=ISYM1
              I=1
@@ -166,7 +172,7 @@ contains
 !   A1 corresponds to bit 0 (i.e. irrep 1)
       SUBROUTINE GENMOLPSYMTABLE(NSYMMAX,G1,NBASIS)
          use SystemData, only: Symmetry,SymmetrySize
-         use SystemData, only: BasisFN, tUEG, tHUB
+         use SystemData, only: BasisFN, tUEG, tHUB, treal
          use SymData, only: nProp,SymClasses,nSymLabels
          use SymData, only: tAbelian,SymLabels, TwoCycleSymGens
          use SymData, only: tagSymLabels,tagSymClasses
@@ -226,8 +232,9 @@ contains
                 ! real.
                 SymConjTab(I) = I
              ENDDO
-         else if (.not.tHUB) then
+         else if (.not.tHUB .or. treal) then
              ! Hubbard symmetry info set up in GenHubMomIrrepsSymTable.
+             ! except for the real-space lattice!
              symlabels(:)%s = -1
              do i = 1, nbasis, 2
                  do ilabel = 1, nsymlabels
@@ -766,7 +773,7 @@ contains
 
 
       SUBROUTINE GETSYM(NI2,NEL,G1,NBASISMAX,ISYM)
-         use SystemData, only: Symmetry, BasisFN, tFixLz
+         use SystemData, only: Symmetry, BasisFN, tFixLz, lNoSymmetry
          use SymData, only: SymReps,tAbelian
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),nBasisMax(5,*)
@@ -774,6 +781,10 @@ contains
          INTEGER I,J,NI2(NEL)
          INTEGER NREPS(NEL),NELECS(NEL),SSYM
          LOGICAL iscsf_old,ISC
+         if (lNoSymmetry) then
+             isym%sym%s = 0
+             return
+         end if
          I=1
          NREPS(1:NEL)=0
          CALL SETUPSYM(ISYM)
@@ -1986,10 +1997,11 @@ contains
           ! changes according to whether we're using Abelian/k-point
           ! symmetry or the standard symmetry.  It's just a matter of
           ! convenience, rather than some deep theoretical insight!
-          use SystemData, only: Symmetry, BasisFN,tUEG
+          use SystemData, only: Symmetry, BasisFN,tUEG,tReal
           use SymData, only: tAbelian
           implicit none
           Type(Symmetry) TotSymRep 
+!           if (TAbelian.or.tUEG.or.treal) then
           if (TAbelian.or.tUEG) then
               TotSymRep%s=0
           else

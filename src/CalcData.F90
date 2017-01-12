@@ -323,4 +323,8 @@ real(dp) :: min_tau_global = 1.0e-7_dp
 ! fixed to the values obtained from the POPSFILE 
 logical :: t_keep_tau_fixed = .false.
 
+logical :: tPopsAlias = .false.
+character(255) :: aliasStem
+
+
 end module CalcData

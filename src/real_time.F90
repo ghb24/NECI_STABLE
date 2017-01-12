@@ -297,8 +297,6 @@ contains
             ! update the overlap each time
             ! rmneci_setup: computation of instantaneous projected norm is shifted to here
             if(mod(iter, StepsSft) == 0) then 
-               ! for TESTING purposes
-               write(6,*) "SHIFT USED", DiagSft
                ! only determinants that are occupied in the beginning
                ! can contribute to the gf -> normalize using only these
                ! current overlap is now the one after iteration

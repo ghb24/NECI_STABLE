@@ -4,10 +4,10 @@ MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, &
                           AB_elec_pairs, par_elec_pairs, tMultiReplicas, tReltvy
-    use CalcData, only: DiagSft, tWalkContGrow, nEquilSteps, &
+    use CalcData, only: DiagSft, tWalkContGrow, nEquilSteps, aliasStem, &
                         ScaleWalkers, tReadPopsRestart, tPopsJumpShift, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
-                        iWeightPopRead, iPopsFileNoRead, Tau, &
+                        iWeightPopRead, iPopsFileNoRead, Tau, tPopsAlias, &
                         InitiatorWalkNo, MemoryFacPart, tLetInitialPopDie, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
                         pops_norm, tWritePopsNorm, t_keep_tau_fixed, tSpecifiedTau
@@ -929,7 +929,11 @@ r_loop: do while(.not.tStoreDet)
          if(present(source_name)) then
             identifier = source_name
          else
-            identifier = 'POPSFILE'
+            if(tPopsAlias) then
+               identifier = aliasStem
+            else
+               identifier = 'POPSFILE'
+            endif
          endif
 
         ! If applying perturbations, read the popsfile into the array
@@ -2053,7 +2057,7 @@ r_loop: do while(.not.tStoreDet)
         integer :: NIfWriteOut, pos, orb, PopsVersion, iunit, run
         real(dp) :: r, FracPart, Gap, DiagSftTemp, tmp_dp
         HElement_t(dp) :: HElemTemp
-        character(255) :: popsfile,FirstLine
+        character(255) :: popsfile,FirstLine,stem
         character(len=24) :: junk,junk2,junk3,junk4
         LOGICAL :: tPop64BitDets,tPopHPHF,tPopLz,tPopInitiator
         integer(n_int) :: ilut_largest(0:NIfTot, inum_runs)
@@ -2073,7 +2077,13 @@ r_loop: do while(.not.tStoreDet)
         DiagSft=0.0_dp
         Tag=124             !Set Tag
 
-        call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+        if(tPopsAlias) then
+           stem = aliasStem
+        else
+           stem = 'POPSFILE'
+        endif
+
+        call get_unique_filename(stem,tIncrementPops,.false.,iPopsFileNoRead,popsfile)
         iunit = get_free_unit()
         INQUIRE(FILE=popsfile,EXIST=exists)
         IF(exists) THEN

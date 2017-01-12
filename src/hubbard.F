@@ -39,14 +39,14 @@ C..Returned in sum
       real(dp) :: tb_x, tb_y
       tb_x = twisted_bc(1)
       tb_y = twisted_bc(2)
-      LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
-      LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
-      LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
-      AX=NBASISMAX(1,4)
-      AY=NBASISMAX(2,4)
       IF(TREAL) THEN
          TOTSUM=0.0_dp
       ELSE
+       LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
+       LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
+       LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
+       AX=NBASISMAX(1,4)
+       AY=NBASISMAX(2,4)
        IF(TTILT) THEN
 CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
          LX=NBASISMAX(1,5)
@@ -76,12 +76,17 @@ C..Returned in sum
       LOGICAL TTILT,TREAL
       INTEGER II,JJ,KK,K,J,I,LZ,LX,LY
       real(dp) :: BHUB,TOTSUM
-      LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
-      LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
-      LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
-      AX=NBASISMAX(1,4)
-      AY=NBASISMAX(2,4)
+      if (tReal) then
+          TOTSUM = 0.0_dp
+          return
+      else
       IF(TTILT) THEN
+       LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
+       LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
+       LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
+       AX=NBASISMAX(1,4)
+       AY=NBASISMAX(2,4)
+
 CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
          LX=NBASISMAX(1,5)
          LX=(LX*(AX*AX+AY*AY))
@@ -97,15 +102,16 @@ C         IF(LY.GT.1) TOTSUM=TOTSUM+COS(PI*J/(LY+1))
 C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
       ENDIF
       TOTSUM=TOTSUM*2.0_dp*BHUB
-      IF(TREAL) TOTSUM=0.0_dp
       RETURN
+      endif
       END
 
       SUBROUTINE CALCTMATHUB(NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,TPBC)
          use constants, only: dp
-         use SystemData, only: BasisFN
+         use SystemData, only: BasisFN, t_open_bc_x, t_open_bc_y
          USE OneEInts, only: TMat2D,TMATSYM,SetupTMAT
          USE Parallel_neci, only : iProcIndex
+         use sym_mod, only: MOMPBCSYM
          IMPLICIT NONE
          INTEGER NBASIS,nBasisMax(5,*)
          TYPE(BasisFN) G1(nBasis)
@@ -116,6 +122,7 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          LOGICAL TTILT,TREAL,TPBC
          real(dp) TOTSUM
          character(*), parameter :: this_routine = 'CALCTMATHUB'
+         integer :: temp_k(3)
          IF(iProcIndex.eq.0) OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
          CALL SetupTMAT(NBASIS,2,iSize)
          TOTSUM=0.0_dp
@@ -130,14 +137,19 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
                   DX=ABS(G1(I)%k(1)-G1(J)%k(1))
                   DY=ABS(G1(I)%k(2)-G1(J)%k(2))
                   DZ=ABS(G1(I)%k(3)-G1(J)%k(3))
+                  ! to implement the real-space tilted, check if
+                  ! resulting basis state is in the extendend BZ
+                  temp_k = [DX,DY,DZ]
+                  call MOMPBCSYM(temp_k,nBasisMax)
+                  temp_k = abs(temp_k)
                   TOTSUM=BHUB
                   IF(TPBC) THEN
 !This bit is only for if the hubbard lattice only has one site in a certain dimension
-                     IF(DX.EQ.LX) THEN
+                     IF(DX.EQ.LX .and. .not. t_open_bc_x) THEN
                         DX=1
                         IF(LX.EQ.1) TOTSUM=TOTSUM+BHUB
                      ENDIF
-                     IF(DY.EQ.LY) THEN
+                     IF(DY.EQ.LY .and. .not. t_open_bc_y) THEN
                         DY=1
                         IF(LY.EQ.1) TOTSUM=TOTSUM+BHUB
                      ENDIF
@@ -146,11 +158,22 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
                         IF(LZ.EQ.1) TOTSUM=TOTSUM+BHUB
                      ENDIF
                   ENDIF
-                  IF(DX+DY+DZ.EQ.1.AND.G1(I)%Ms.EQ.G1(J)%MS) THEN
+                  ! make this more general to also use open BC and a 
+                  ! tilted real-space lattice
+                  if (.not. t_open_bc_x .and. .not. t_open_bc_y) then
+                      IF(DX+DY+DZ.EQ.1..or.sum(temp_k) == 1) then
+                          if (G1(I)%Ms.EQ.G1(J)%MS) THEN
 !This is for if the site can interact with a periodic image.
-                    TMAT2D(I,J)=TOTSUM
-                    IF(iProcIndex.eq.0) WRITE(10,*) I,J,TOTSUM
-                  ENDIF
+                            TMAT2D(I,J)=TOTSUM
+                            IF(iProcIndex.eq.0) WRITE(10,*) I,J,TOTSUM
+                           end if
+                      ENDIF
+                  else 
+                      if (DX+DY+DZ==1.and.G1(I)%Ms.EQ.G1(J)%MS) THEN 
+                        TMAT2D(I,J)=TOTSUM
+                        IF(iProcIndex.eq.0) WRITE(10,*) I,J,TOTSUM
+                      end if
+                  end if
                ENDDO
             ENDDO
          ELSE

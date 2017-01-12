@@ -26,8 +26,8 @@ module fcimc_initialisation
                         trunc_nopen_max, MemoryFacInit, MaxNoatHF, HFPopThresh, &
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
-                        RealCoeffExcitThresh, TargetGrowRate, &
-                        TargetGrowRateWalk, InputTargetGrowRate, &
+                        RealCoeffExcitThresh, TargetGrowRate, tPopsAlias, &
+                        TargetGrowRateWalk, InputTargetGrowRate, aliasStem, &
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
                         use_spawn_hash_table, tReplicaSingleDetStart, &
                         ss_space_in, trial_space_in, init_trial_in, &
@@ -1145,12 +1145,19 @@ contains
         HElement_t(dp) :: PopAllSumENum(1:inum_runs)
         integer :: perturb_ncreate, perturb_nannihilate
         integer :: nrdms_standard, nrdms_transition
+        character(255) :: identifier
         
         !default
         Popinum_runs=1
 
+        if(tPopsAlias) then
+           identifier = aliasStem
+        else
+           identifier = 'POPSFILE'
+        endif
+
         if(tReadPops .and. .not. (tPopsAlreadyRead .or. tHDF5PopsRead)) then
-           call open_pops_head(iunithead,formpops,binpops)
+           call open_pops_head(iunithead,formpops,binpops,identifier)
             PopsVersion=FindPopsfileVersion(iunithead)
             if(iProcIndex.eq.root) close(iunithead)
             write(iout,*) "POPSFILE VERSION ",PopsVersion," detected."
@@ -1171,7 +1178,7 @@ contains
 !Set the maximum number of walkers allowed
             if(tReadPops .and. .not. (tPopsAlreadyRead .or. tHDF5PopsRead)) then
                 !Read header.
-                call open_pops_head(iunithead,formpops,binpops)
+                call open_pops_head(iunithead,formpops,binpops,identifier)
                 if(PopsVersion.eq.3) then
                     call ReadPopsHeadv3(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &

@@ -1304,6 +1304,12 @@ contains
                     iPopsFileNoWrite = iPopsFileNoRead
                     iPopsFileNoRead = -iPopsFileNoRead-1
                 end if
+
+             case("POPS-ALIAS")
+                !use a given popsfile instead of the default POPSFILE.
+                tPopsAlias = .true.
+                call reada(aliasStem)
+
             case("WALKERREADBATCH")
                 !The number of walkers to read in on the head node in each batch during a popsread
                 call readi(iReadWalkersRoot)
