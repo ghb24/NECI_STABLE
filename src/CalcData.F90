@@ -428,6 +428,9 @@ real(dp) :: n_truncate_spawns = 1.0_dp
 ! iteration 
 logical :: t_guga_mat_eles = .false. 
 
+! introduce a flag to read the pSingles/pDoubles quantity even though the 
+! tau-search may be turned off
+logical :: t_read_probs = .false.
 ! also need multiple new specific excitation type probabilites, but they are 
 ! defined in FciMCdata module! 
 end module CalcData

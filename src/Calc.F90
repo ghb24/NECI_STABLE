@@ -1021,6 +1021,12 @@ contains
                 ! a limit to prevent craziness at the start of a calculation
                 call getf(MaxTau)
 
+            case ("READ-PROBABILITIES")
+                ! introduce a new flag to read pSingles/pParallel etc. from 
+                ! a popsfile even if the tau-search is not turned on, since 
+                ! this scenario often shows up in my restarted calculations
+                t_read_probs = .true.
+
             case ("FREQUENCY-ANALYSIS")
                 ! new option to analyze the frequency of the H_ij/pgen ratios 
                 ! and to use that information to adjust the time-step 

@@ -10,7 +10,7 @@ MODULE PopsfileMod
                         iWeightPopRead, iPopsFileNoRead, Tau, &
                         InitiatorWalkNo, MemoryFacPart, tLetInitialPopDie, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
-                        pops_norm, tWritePopsNorm
+                        pops_norm, tWritePopsNorm, t_read_probs
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
@@ -1104,7 +1104,7 @@ r_loop: do while(.not.tStoreDet)
             iBlockingIter = PreviousCycles
         else
             !Using popsfile v.4, where tau is written out and read in
-            if(tSearchTau) then
+            if(tSearchTau .or. t_read_probs) then
                 if((.not.tSinglePartPhase(1)).or.(.not.tSinglePartPhase(inum_runs))) then
                     tSearchTau=.false.
                 endif
@@ -1120,10 +1120,15 @@ r_loop: do while(.not.tStoreDet)
                     end if
                     pSingles = read_psingles
                     pDoubles = 1.0_dp - pSingles
+                    write(6,"(A)") "Using pSingles and pDoubles from POPSFILE: "
+                    write(6,"(A,F12.8)") "pSingles: ", pSingles
+                    write(6,"(A,F12.8)") "pDoubles: ", pDoubles
                 end if
 
                 if (abs(read_pparallel) > 1.0e-12_dp) then
                     pParallel = read_pparallel
+                    write(6,"(A)") "Using pParallel from POPSFILE: "
+                    write(6,"(A,F12.8)") "pParallel: ", pParallel
                 end if
             else
                 !Tau specified. if it is different, write this here.
