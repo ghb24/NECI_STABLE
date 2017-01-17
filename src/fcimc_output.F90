@@ -507,11 +507,10 @@ contains
             ! Don't treat the header line as data. Add padding to align the
             ! other columns. We do not add a # to the first line of data 
             ! since we also need that datapoint for Green's functions
-           if (state%init .or. state%prepend) then
+           if (state%init) then
               write(state%funit, '("#")', advance='no')
               if (tMCOutput) write(iout, '(" ")', advance='no')
-              state%prepend = state%init
-           else if (.not. state%prepend) then
+           else
               write(state%funit, '(" ")', advance='no')
               if (tMCOutput) write(iout, '(" ")', advance='no')
            end if
@@ -529,7 +528,7 @@ contains
 #ifdef __REALTIME 
                 call stats_out(state,.true., real_time_info%time_angle,'Time rot. angle')
 #endif
-                call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
+                call stats_out(state,.true., sum(abs(AllNoatHF))/inum_runs, 'Tot. ref')
 #ifndef __REALTIME
 #ifdef __CMPLX
                 call stats_out(state,.false., real(proje_iter_tot), 'Re Proj. E')
@@ -556,8 +555,9 @@ contains
 #ifdef __CMPLX
                 call stats_out(state,.true., real(proje_iter_tot) + Hii, &
                                'Tot. Proj. E')
-                call stats_out(state,.true., aimag(proje_iter_tot) + Hii, &
-                               'Im. Tot. Proj. E')
+                !call stats_out(state,.true., aimag(proje_iter_tot) + Hii, &
+                 !              'Im. Tot. Proj. E')
+                call stats_out(state,.false.,allDoubleSpawns,'Double spawns')
 #else
                 call stats_out(state,.true., proje_iter_tot + Hii, &
                                'Tot. Proj. E')

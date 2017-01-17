@@ -307,7 +307,7 @@ contains
     end function sltcnd_0
 
     function sltcnd_1 (nI, ex, tSign) result(hel)
-
+      use OneEInts, only: TMat2D
         ! Calculate the  by the Slater-Condon Rules when the two
         ! determinants differ by one orbital exactly.
 
@@ -331,7 +331,6 @@ contains
                 endif
             enddo
         endif
-
         ! Exchange contribution is only considered if tExch set.
         ! This is only separated from the above loop to keep "if (tExch)" out
         ! of the tight loop for efficiency.
@@ -345,12 +344,10 @@ contains
                 endif
             enddo
         endif
-
         ! consider the non-diagonal part of the kinetic energy -
         ! <psi_a|T|psi_a'> where a, a' are the only basis fns that differ in
         ! nI, nJ
         hel = hel + GetTMATEl(ex(1), ex(2))
-
         if (tSign) hel = -hel
     end function sltcnd_1
     

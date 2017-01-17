@@ -285,10 +285,6 @@ contains
 
             ! this is a bad implementation : iter should be local
 
-            ! perform the actual iteration(excitation generation etc.) 
-            iter = iter + 1
-
-            call perform_real_time_iteration() 
             ! if a threshold value is set, check it
             if(tLimitShift) call trunc_shift()
             ! update the normalization of the greensfunction according to damping (dynamic)
@@ -320,6 +316,11 @@ contains
 
                call update_real_time_iteration()
             endif
+
+            ! perform the actual iteration(excitation generation etc.) 
+            iter = iter + 1
+
+            call perform_real_time_iteration() 
 
             ! check if somthing happpened to stop the iteration or something
             call check_real_time_iteration()

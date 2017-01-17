@@ -130,6 +130,7 @@ contains
         ! function (dependencies...)
         if(tHub) then
            if(allocated(pops_pert)) then
+
               if(pops_pert(1)%nannihilate == 1) kTotal = kTotal &
                    - G1(pops_pert(1)%ann_orbs(1))%k
               if(pops_pert(1)%ncreate == 1) kTotal = kTotal &

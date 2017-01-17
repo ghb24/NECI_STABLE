@@ -326,5 +326,4 @@ logical :: t_keep_tau_fixed = .false.
 logical :: tPopsAlias = .false.
 character(255) :: aliasStem
 
-
 end module CalcData

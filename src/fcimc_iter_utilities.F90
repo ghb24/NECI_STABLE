@@ -466,6 +466,7 @@ contains
         sizes(44) = size(TotParts_1)
         sizes(45) = 1 ! TotWalkersTemp_1
 #endif
+        if(tTruncInitiator) sizes(46) = 1 ! doubleSpawns
         if (sum(sizes(1:NoArrs)) > real_arr_size) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
                                                         & the size of the send_arr and recv_arr arrays in the source code.")
 
@@ -519,6 +520,8 @@ contains
         low = upp + 1; upp = low + sizes(44) - 1; send_arr(low:upp) = TotParts_1;
         low = upp + 1; upp = low + sizes(45) - 1; send_arr(low:upp) = TotWalkersTemp_1;
 #endif
+        if(tTruncInitiator) &
+             low = upp + 1; upp = low + sizes(46) -1; send_arr(low:upp) = doubleSpawns;
 
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
@@ -578,6 +581,10 @@ contains
         low = upp + 1; upp = low + sizes(44) - 1; AllTotParts_1 = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(45) - 1; AllTotWalkers_1 = nint(recv_arr(low), int64);
 #endif
+        if(tTruncInitiator) then
+           low = upp + 1; upp = low + sizes(46) - 1; allDoubleSpawns = nint(recv_arr(low));
+           doubleSpawns = 0
+        endif
 
         ! Communicate HElement_t variables:
 

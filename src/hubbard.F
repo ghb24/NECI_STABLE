@@ -4,8 +4,8 @@ C ===================================================================
          use constants, only: dp
          IMPLICIT NONE
          INTEGER NBASIS
-         real(dp) UMAT(*)
-         real(dp) UHUB
+         HElement_t(dp) UMAT(*)
+         HElement_t(dp) UHUB
          INTEGER I,IC
          OPEN(10,FILE='UMAT',STATUS='UNKNOWN')
          IC=1
@@ -16,7 +16,7 @@ C ===================================================================
 !            UMAT(UMatInd(I+1,I,I+1,I))=UHUB
 !            UMAT(I,I+1,I,I+1)=UHUB
 !            UMAT(I+1,I,I+1,I)=UHUB
-            WRITE(10,'(4I7,F19.9)') I,I,I,I,UHUB
+            WRITE(10,*) I,I,I,I,UHUB, UMatInd(I,I,I,I)
          ENDDO
          CLOSE(10)
          RETURN

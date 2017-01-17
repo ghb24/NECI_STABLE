@@ -2322,7 +2322,7 @@ MODULE GenRandSymExcitNUMod
         call make_double (nI, nJ, elec1ind, elec2ind, Hole1BasisNum, &
                           Hole2BasisNum, ExcitMat, tParity)
 
-               
+              
         IF(tHub) THEN
             ! Debug to test the resultant determinant
             IF(.not.(IsMomentumAllowed(nJ)))THEN
@@ -2700,7 +2700,7 @@ MODULE GenRandSymExcitNUMod
                                             ! a value to within a reciproval lattice vector.
             IF(ktrial(1).eq.kTotal(1).and.ktrial(2).eq.kTotal(2)) THEN
                 IsMomentumAllowed=.true.
-            ENDIF
+             ENDIF
         ENDIF
 
     END FUNCTION IsMomentumAllowed

@@ -100,6 +100,9 @@ MODULE FciMCData
     integer(int64), allocatable :: AllNoExtraInitDoubs(:), AllInitRemoved(:)
     integer(int64), allocatable :: AllGrowRateAbort(:)
 
+    integer :: doubleSpawns = 0
+    integer :: allDoubleSpawns
+
       logical :: tHFInitiator, tPrintHighPop, tcurr_initiator
       logical :: tfirst_cycle ! control flag for the iter_utilities for comparing with data
       ! from previous iterations

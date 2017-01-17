@@ -61,7 +61,7 @@ module fcimc_helper
     use real_time_data, only: t_complex_ints, acceptances_1, runge_kutta_step, &
                         NoInitDets_1, NoNonInitDets_1, NoInitWalk_1, NoNonInitWalk_1, &
                         InitRemoved_1, NoAborted_1, NoRemoved_1, NoatHF_1, NoatDoubs_1, &
-                        NoatHF_1, NoatDoubs_1, t_rotated_time, Annihilated_1
+                        NoatHF_1, NoatDoubs_1, t_rotated_time, Annihilated_1, t_real_time_fciqmc
 
 !=======
 !>>>>>>> 0510b74a29483a2abd107e624b5029674d8e25ff
@@ -274,6 +274,10 @@ contains
                 if (.not. is_run_unnocc(real_sign_old,part_type_to_run(part_type)) &
                      .or. test_flag(ilut_parent, get_initiator_flag(part_type))) then
                     call set_flag(SpawnedParts(:,ind), get_initiator_flag(part_type))
+
+                    if(.not. is_run_unnocc(real_sign_old,part_type_to_run(part_type))) then
+                       doubleSpawns = doubleSpawns + 1
+                    endif
                  endif
             end if
         else
@@ -906,7 +910,7 @@ contains
 
             ! If det. is the HF det, or it
             ! is in the deterministic space, then it must remain an initiator.
-            if ( .not. (DetBitEQ(ilut, iLutRef(:,run), NIfDBO)) &
+            if ( (.not. (DetBitEQ(ilut, iLutRef(:,run), NIfDBO))) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
                 .and. (tot_sgn <= InitiatorWalkNo )) then
                 ! Population has fallen too low. Initiator status 
