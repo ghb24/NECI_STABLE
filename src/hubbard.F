@@ -1,17 +1,18 @@
+#include "macros.h"
 C ===================================================================
       SUBROUTINE CALCUMATHUBREAL(NBASIS,UHUB, UMAT)
          use UMatCache , only : UMatInd
          use constants, only: dp
          IMPLICIT NONE
          INTEGER NBASIS
-         real(dp) UMAT(*)
+         HElement_t(dp) UMAT(*)
          real(dp) UHUB
          INTEGER I,IC
          OPEN(10,FILE='UMAT',STATUS='UNKNOWN')
          IC=1
 !Only do this for each spatial orbital.
          DO I=1,NBASIS/2
-            UMAT(UMatInd(I,I,I,I))=UHUB
+            UMAT(UMatInd(I,I,I,I))=h_cast(UHUB)
 !            UMAT(UMatInd(I,I+1,I,I+1))=UHUB
 !            UMAT(UMatInd(I+1,I,I+1,I))=UHUB
 !            UMAT(I,I+1,I,I+1)=UHUB
