@@ -14,7 +14,7 @@ module guga_init
                           ref_stepvector, ref_b_vector_int, ref_occ_vector, &
                           ref_b_vector_real, treal, tHUB, t_guga_noreorder
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
-                t_guga_mat_eles
+                t_guga_mat_eles, t_hist_tau_search
     use hist_data, only: tHistSpawn
     use LoggingData, only: tCalcFCIMCPsi, tPrintOrbOcc
     use spin_project, only: tSpinProject
@@ -40,7 +40,7 @@ module guga_init
                         temp_delta_b, temp_occ_i, temp_b_real_i, calc_off_diag_guga_ref_direct, &
                         pickOrbs_real_hubbard_single, pickOrbs_real_hubbard_double
     use guga_matrixElements, only: calc_off_diag_guga_ref_list
-    use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same
+    use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same, tSearchTau
     use constants, only: dp
     use ParallelHelper, only: iProcIndex
 
@@ -392,6 +392,12 @@ contains
             end if
         end if
         
+        ! avoid using both the old and the new tau search functionality
+        if (tSearchTau .and. t_hist_tau_search) then
+            call stop_all(this_routine, &
+                "can't use both the old and the new tau search option at the same time!")
+        end if
+
         ! assert that tUseFlags is set, to be able to encode deltaB values
         ! in the ilut representation for excitation generation
         !if (.not.tUseFlags) then
