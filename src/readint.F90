@@ -1,6 +1,6 @@
 module read_fci
 
-    character(len=64) :: FCIDUMP_name
+    character(len=1024) :: FCIDUMP_name
 
 contains
 
