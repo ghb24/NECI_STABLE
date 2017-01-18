@@ -426,11 +426,16 @@ real(dp) :: n_truncate_spawns = 1.0_dp
 ! by applying the full hamiltonian(the old way) or use the new guga matrix 
 ! element calculation routines. to compare the influence on the time per 
 ! iteration 
-logical :: t_guga_mat_eles = .false. 
+logical :: t_guga_mat_eles = .true.
 
 ! introduce a flag to read the pSingles/pDoubles quantity even though the 
 ! tau-search may be turned off
-logical :: t_read_probs = .false.
+! do i want to change this to the default behavior? and indicate it 
+! with "no-read_probs?" to do otherwise? i think so, because why wouldn't 
+! i always use that, since we are always using tau-search, and even if 
+! we dont use it, the pSingles etc. are stored anyway, and if the are not 
+! stored they are 0, and in this case they are not read in anyway! 
+logical :: t_read_probs = .true.
 ! also need multiple new specific excitation type probabilites, but they are 
 ! defined in FciMCdata module! 
 end module CalcData

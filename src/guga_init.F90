@@ -259,6 +259,15 @@ contains
 
         end if
 
+        ! also if i restart from a POPSFILE in the GUGA case, always 
+        ! read in the pSingles etc. quantities, as a default
+        ! is there anycase, where i do not want to do this? hm.. 
+        ! i think when i want to tau-search again.. although i never 
+        ! actually use that.. but just to be safe, but this in
+        ! UPDATE: changed the default behavior to always read those 
+        ! probabilities except turned off in the input!
+!         if (.not. t_hist_tau_search) t_read_probs = .true.
+
     end subroutine init_guga
   
     subroutine checkInputGUGA()

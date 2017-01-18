@@ -1027,6 +1027,12 @@ contains
                 ! this scenario often shows up in my restarted calculations
                 t_read_probs = .true.
 
+            case ("NO-READ-PROBABILITIES")
+                ! change the default behavior to always read in the 
+                ! pSingles etc. quantities! and only turn that off with this 
+                ! keyword
+                t_read_probs = .false.
+
             case ("FREQUENCY-ANALYSIS")
                 ! new option to analyze the frequency of the H_ij/pgen ratios 
                 ! and to use that information to adjust the time-step 
@@ -1096,6 +1102,12 @@ contains
                 ! like the projected energy, semi-stochastic initialization 
                 ! and trail-wavefunction creation 
                 t_guga_mat_eles = .true. 
+
+            case ("NO-GUGA-MATELES")
+                ! changed the default setting to always use the new direct 
+                ! way to calculate the guga matrix elements. This keyword 
+                ! changes the behavior back to the old way
+                t_guga_mat_eles = .false.
 
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
