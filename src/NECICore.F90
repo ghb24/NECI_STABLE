@@ -236,9 +236,7 @@ subroutine NECICodeEnd(tCPMD,tVASP)
 
 #ifdef PARALLEL
 ! Tell Molpro plugin server that we have finished
-    CALL MPI_Comm_rank(MPI_COMM_WORLD, rank, ierr)
-    if (molpro_plugin.gt.0.and.rank.eq.0)  &
-         CALL MPI_Send(0,1,MPI_Int,0,0,molpro_plugin_intercomm,ierr)
+    CALL MolproPluginTerm(0)
 ! CPMD and VASP have their own MPI initialisation and termination routines.
     call MPIEnd(molpro_plugin.gt.0.or.(tMolpro.and.(.not.tMolproMimic)).or.tCPMD.or.tVASP.or.tMolcas) 
 #endif
