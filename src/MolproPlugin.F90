@@ -3,7 +3,7 @@ MODULE MolproPlugin
  INTEGER :: molpro_plugin_intercomm
  INTEGER :: molpro_plugin
  CHARACTER(1024) :: molpro_plugin_fcidumpname, molpro_plugin_datafilename
- LOGICAL :: molpro_plugin_redirect_output = .FALSE. ! normally .true., maybe .false. for debugging crashes
+ LOGICAL :: molpro_plugin_redirect_output = .TRUE. ! normally .true., maybe .false. for debugging crashes
 CONTAINS
 SUBROUTINE MolproPluginInit (tMolpro)
  USE iso_c_binding, ONLY : c_null_char

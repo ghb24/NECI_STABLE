@@ -87,6 +87,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
             MolproID = ''
             if(iProcIndex.eq.Root) then
             !Now, extract the unique identifier for the input file that is read in.
+#ifdef old_and_buggy
                 i=14
                 j=1
                 do while(filename(i:i).ne.' ')
@@ -94,6 +95,11 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
                     i=i+1
                     j=j+1
                 enddo
+#else
+                i=INDEX(filename,'/',.TRUE.)+1
+                j=INDEX(filename(i:),'NECI'); IF (j.NE.0) i=i+j-1
+                MolproID=filename(i:MIN(i+LEN(MolproID)-1,LEN(filename)))
+#endif
                 write(iout,"(A,A)") "Molpro unique filename suffix: ",MolproID
             endif
         endif
