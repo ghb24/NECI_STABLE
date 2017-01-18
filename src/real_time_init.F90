@@ -25,9 +25,9 @@ module real_time_init
                               tStaticShift, MaxSpawnedDiag, tDynamicCoreSpace, overlap_states, &
                               overlap_real, overlap_imag, allGfs, tRealTimePopsfile, &
                               tLimitShift, nspawnMax, shiftLimit, numCycShiftExcess, &
-                              TotPartsLastAlpha, alphaDamping, tRescaleWavefunction, &
-                              scalingFactor, globalScale, tRescaledLastCyc, tDynamicDamping, &
-                              etaDamping, tStartVariation, rotThresh, stabilizerThresh
+                              TotPartsLastAlpha, alphaDamping, tDynamicDamping, &
+                              etaDamping, tStartVariation, rotThresh, stabilizerThresh, &
+                              tInfInit
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
@@ -35,12 +35,12 @@ module real_time_init
     use ParallelHelper, only: iProcIndex, root, MPIbarrier, nNodes, MPI_SUM
     use util_mod, only: get_unique_filename, get_free_unit
     use Logging, only: tIncrementPops
-    use kp_fciqmc_data_mod, only: scaling_factor, tMultiplePopStart, tScalePopulation, &
-                                  tOverlapPert, overlap_pert
+    use kp_fciqmc_data_mod, only: tMultiplePopStart, tScalePopulation, &
+                                  tOverlapPert, overlap_pert, scaling_factor
     use CalcData, only: tChangeProjEDet, tReadPops, tRestartHighPop, tFCIMC, &
                         tStartSinglePart, tau, nmcyc, iPopsFileNoRead, tWritePopsNorm, &
                         tWalkContGrow, diagSft, pops_norm, InitWalkers, MemoryFacSpawn, &
-                        StepsSft, tSemiStochastic
+                        StepsSft, tSemiStochastic, tTruncInitiator, tAddToInitiator
     use FciMCData, only: tSearchTau, alloc_popsfile_dets, pops_pert, tPopsAlreadyRead, &
                          tSinglePartPhase, iter_data_fciqmc, iter, PreviousCycles, &
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
@@ -544,13 +544,7 @@ contains
                 else
                    asymptoticShift = 2.0_dp
                 endif
-                
-             case("RESCALE")
-                ! if enabled, the wavefunction will be rescaled by a constant if
-                ! the walker number grows too big. Inevitably leads to instability
-                tRescaleWavefunction = .true.
-                if(item < nitems) call readf(scalingFactor)
-
+               
              case("DYNAMIC-ROTATION")
                 ! this automatically adjusts the temporal rotation to find a minimal 
                 ! alpha guaranteeing a fixed walker number
@@ -584,6 +578,16 @@ contains
                 tLimitShift = .true.
                 ! optional argument: threshold value (absolute value!). Default is 3
                 if(item < nitems) call readf(shiftLimit)
+
+             case("INFINITE-INIT")
+                ! use the initiator adaptiation without any inititators - works well
+                ! in some real-time applications
+                ! this is not equivalent to switching on initiators without the
+                ! addtoinitiator keyword as infinite-init will also remove all
+                ! existing inititators
+                tInfInit = .true.
+                tAddtoInitiator = .true.
+                tTruncInitiator = .true.
 
             case ("ENDREALTIME")
                 exit real_time
@@ -693,7 +697,7 @@ contains
         ! the merging of spawning events is done entirely automatically and therfore can not
         ! be switched on manually
         tLimitShift = .false.
-        shiftLimit = 3.0_dp
+        shiftLimit = 0.7_dp
 
         ! default values for dynamic rotation angle updating (it is not enabled by default)
         tDynamicAlpha = .false.
@@ -701,17 +705,14 @@ contains
         alphaDamping = 0.05
         rotThresh = 0
         tOverpopulate = .false.
-
-        ! defaults for rescaling of the wavefunction
-        tRescaleWavefunction = .false.
-        scalingFactor = 10.0_dp
-        globalScale = 1.0_dp
-        tRescaledLastCyc = .false.
         tStartVariation = .false.
 
         ! the damping is constant by default
         tDynamicDamping = .false.
         etaDamping = 0.01
+
+        ! and we allow normal usage of inititators
+        tInfInit = .false.
     end subroutine set_real_time_defaults
 
     ! need a specific popsfile read function for the real-time calculation

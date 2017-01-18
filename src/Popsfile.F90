@@ -602,7 +602,6 @@ r_loop: do while (.not. tReadAllPops)
                                               .true., nread, &
                                               trimmed_parts=trimmed_parts)
                     det_attempt = det_attempt + nread
-
                     ! When we have got to the end of the file, we are done.
                     if (tEOF) then
                         if (det_attempt <= EndPopsList) then

@@ -18,8 +18,7 @@ module real_time_data
     ! used or not
     logical :: t_real_time_fciqmc, t_new_stats_file, t_rotated_time, tStaticShift, &
          tDynamicCoreSpace, tRealTimePopsfile, tStabilizerShift, tLimitShift, &
-         tDynamicAlpha, tRescaleWavefunction, tRescaledLastCyc, tDynamicDamping, &
-         tStartVariation, tOverpopulate
+         tDynamicAlpha, tDynamicDamping, tInfInit, tStartVariation, tOverpopulate
 
     ! also use a second iter_data type to keep track of the 2 distinct 
     ! spawning events
@@ -35,7 +34,6 @@ module real_time_data
     integer :: stepsAlpha ! number of cycles after which the rotation angle is updated
     integer :: rotThresh ! number of walkers on which variation of alpha starts
     ! prefactors for rescaling of the wavefunction, if enabled
-    real(dp) :: globalScale, scalingFactor
     real(dp) :: alphaDamping, etaDamping ! prefactors for adjustment of rotation angle and damping
     real(dp) :: stabilizerThresh
     

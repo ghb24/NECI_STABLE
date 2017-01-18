@@ -374,7 +374,7 @@ contains
 #if defined __REALTIME
         integer, parameter :: real_arr_size = 2000
         integer, parameter :: hel_arr_size = 200
-        integer, parameter :: NoArrs = 43
+        integer, parameter :: NoArrs = 46
         integer(int64) :: TotWalkersTemp_1
 #else
         integer, parameter :: real_arr_size = 1000

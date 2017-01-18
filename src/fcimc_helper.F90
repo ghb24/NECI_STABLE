@@ -32,7 +32,7 @@ module fcimc_helper
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
                         tAddToInitiator, InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
-                        tRealCoeffByExcitLevel, &
+                        tRealCoeffByExcitLevel, tKeepDoubSpawns, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
                         MaxWalkerBloom, &
                         NMCyc, iSampleRDMIters, &
@@ -271,7 +271,8 @@ contains
             ! implementation..
 
             if (tTruncInitiator) then
-                if (.not. is_run_unnocc(real_sign_old,part_type_to_run(part_type)) &
+                if ((.not. is_run_unnocc(real_sign_old,part_type_to_run(part_type)) &
+                     .and. tKeepDoubSpawns) & 
                      .or. test_flag(ilut_parent, get_initiator_flag(part_type))) then
                     call set_flag(SpawnedParts(:,ind), get_initiator_flag(part_type))
 

@@ -12,11 +12,11 @@ module real_time_procs
                               temp_det_list, temp_det_pointer,  temp_iendfreeslot, &
                               temp_det_hash, temp_totWalkers, pert_norm, allGfs, &
                               valid_diag_spawns, DiagParts, n_diag_spawned, tOverpopulate, &
-                              NoDied_1, NoBorn_1, SumWalkersCyc_1, gf_count, globalScale, &
+                              NoDied_1, NoBorn_1, SumWalkersCyc_1, gf_count, &
                               t_rotated_time, tau_imag, tau_real, gs_energy, TotPartsLastAlpha, &
                               shift_damping, normsize, tStabilizerShift, dyn_norm_psi, &
                               TotPartsPeak, numCycShiftExcess, shiftLimit, dyn_norm_red, &
-                              tRescaledLastCyc, tDynamicAlpha, tDynamicDamping, stepsAlpha
+                              tDynamicAlpha, tDynamicDamping, stepsAlpha
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
                          sizeof_int, MPIArg
@@ -1297,13 +1297,6 @@ contains
         ! rmneci_setup: the overlap has to be reduced as each proc
         ! only computes its own part
            call MPIReduce(overlap,MPI_SUM,gf_overlap(:,iGf))
-           if(tRescaledLastCyc) then
-              tRescaledLastCyc = .false.
-              do runA = 1, inum_runs
-                 dyn_norm_red(runA,iGf) = sqrt(dyn_norm_psi(runA) * pert_norm(runA,iGf))
-              enddo
-           endif
-           gf_overlap = gf_overlap * globalScale
         enddo
 
         call halt_timer(calc_gf_time)
@@ -1641,10 +1634,8 @@ contains
          ! remember that shiftLimit is the absolute value, but we are only
          ! interested in shifts that are too small
          if(DiagSft(run) < -1.0_dp*shiftLimit) then
-            ! count the number of successive times the limit was broken
             numCycShiftExcess(run) = numCycShiftExcess(run) + 1
-            if(numCycShiftExcess(run) > 100) call stop_all("trunc_shift",&
-                 "Shift exceeds threshold, run is unstable, aborting")
+            if(numCycShiftExcess(run) > 20) DiagSft(run) = - 0.95_dp * shiftLimit
          else
             numCycShiftExcess(run) = 0
          endif
@@ -1688,31 +1679,6 @@ contains
       TotPartsLastAlpha = TotParts
       
     end subroutine adjust_decay_channels
-
-    subroutine rescale_wavefunction(factor)
-      use CalcData, only: OccupiedThresh, tSemiStochastic
-      use load_balance, only: truncate_occupation
-      implicit none
-      real(dp), intent(in) :: factor
-      real(dp) :: CurrentSign(lenof_sign)
-      integer :: i
-      logical :: tStateDeterm
-      
-      tStateDeterm = .false.
-      TotParts = 0.0_dp
-      do i = 1, int(TotWalkers, sizeof_int)
-         call extract_sign(CurrentDets(:,i),CurrentSign)
-         CurrentSign = CurrentSign / factor
-         if(tSemiStochastic) tStateDeterm = test_flag(CurrentDets(:,i),flag_deterministic)
-         if(.not. tStateDeterm) call truncate_occupation(CurrentSign,i)
-         TotParts = TotParts + abs(CurrentSign)
-         call encode_sign(CurrentDets(:,i),CurrentSign)
-      enddo
-      globalScale = globalScale * factor
-      !tRescaledLastCyc = .true.
-      TotPartsLastAlpha = TotParts
-      
-    end subroutine rescale_wavefunction
 
     subroutine reset_tot_parts()
       ! if the second RK step is to be compared, the reference has to be reset

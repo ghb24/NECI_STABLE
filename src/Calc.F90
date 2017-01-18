@@ -231,6 +231,7 @@ contains
           TLADDER=.false. 
           tDefineDet=.false.
           tTruncInitiator=.false.
+          tKeepDoubSpawns = .true.
           tAddtoInitiator=.false.
           InitiatorWalkNo=3.0_dp
           tInitIncDoubs=.false.
@@ -1610,6 +1611,10 @@ contains
 !were from outside the space, they would've been aborted.
 !                tKeepDoubleSpawns=.true.
 !This option is now on permanently by default and cannot be turned off.
+
+! for testing purposes, it can now be turned off, using the following keyword
+            case("DISCARDDOUBSPAWNS")
+               tKeepDoubSpawns = .false.
 
             case("ADDTOINITIATOR")
 !This option means that if a determinant outside the initiator space becomes significantly populated - 
