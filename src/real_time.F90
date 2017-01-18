@@ -11,8 +11,7 @@ module real_time
                                DirectAnnihilation_diag, check_update_growth, &
                                get_tot_parts, update_gf_overlap, calc_norm, adjust_decay_channels, &
                                update_shift_damping, real_time_determ_projection, &
-                               refresh_semistochastic_space, update_peak_walker_number, &
-                               rescale_wavefunction
+                               refresh_semistochastic_space, update_peak_walker_number
     use real_time_data, only: gf_type,  &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
                               current_overlap, SumWalkersCyc_1, DiagParts, stepsAlpha, &
@@ -22,11 +21,10 @@ module real_time
                               NoatHF_1, shift_damping, tDynamicCoreSpace, dyn_norm_red, &
                               normsize, gf_count, tRealTimePopsfile, tStabilizerShift, &
                               tLimitShift, tStaticShift, asymptoticShift, tDynamicAlpha, &
-                              tRescaleWavefunction, scalingFactor, tDynamicDamping, &
-                              stabilizerThresh
+                              tDynamicDamping, stabilizerThresh, tInfInit
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
-                        tChangeProjEDet, DiagSft, nmcyc, tau, InitWalkers
+                        tChangeProjEDet, DiagSft, nmcyc, tau, InitWalkers, InitiatorWalkNo
     use FciMCData, only: pops_pert, walker_time, iter, ValidSpawnedList, &
                          spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot, &
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
@@ -285,8 +283,6 @@ contains
 
             ! this is a bad implementation : iter should be local
 
-            ! if a threshold value is set, check it
-            if(tLimitShift) call trunc_shift()
             ! update the normalization of the greensfunction according to damping (dynamic)
             call update_shift_damping()
 
@@ -316,6 +312,9 @@ contains
 
                call update_real_time_iteration()
             endif
+
+            ! if a threshold value is set, check it
+            if(tLimitShift) call trunc_shift()
 
             ! perform the actual iteration(excitation generation etc.) 
             iter = iter + 1
@@ -404,12 +403,8 @@ contains
 
         ! get the latest number of walkers
         ! this is done in the annihilation routine at the end of the iteration
-
         call calculate_new_shift_wrapper(second_spawn_iter_data, totParts, &
              tPairedReplicas)
-        if(tRescaleWavefunction .and. sum(AllTotParts)/inum_runs > InitWalkers*nProcessors) then
-           call rescale_wavefunction(scalingFactor)
-        endif
         if(tStabilizerShift) then
            if(iProcIndex == Root) then
               ! check if the walker number started to decay uncontrolled
@@ -516,6 +511,9 @@ contains
               if(.not. tSinglePartPhase(run)) DiagSft(run) = asymptoticShift
            enddo
         endif
+
+        ! cheap way of removing all initiators (save for the HF)
+        if(tInfInit) InitiatorWalkNo = TotWalkers + 1
 
     end subroutine init_real_time_iteration
 
