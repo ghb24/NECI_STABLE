@@ -1977,6 +1977,8 @@ contains
 
 
     subroutine MPIStopAll(error_str)
+    use iso_c_binding, only : c_int
+    use MolproPlugin, only : molpro_plugin, molpro_plugin_intercomm
 
         !  Abort all processors.
         !  
@@ -1985,10 +1987,24 @@ contains
         !                to STOP.
 
         character(3) :: error_str
+	interface
+	subroutine sleep(seconds) bind(C,name="sleep")
+        import
+	integer(c_int), value :: seconds
+        end subroutine sleep
+	end interface
         integer(MPIArg) :: error_code, ierr
+        integer(MPIArg) :: rank
 
         error_code=0
 #ifdef PARALLEL
+        IF (molpro_plugin.GT.0) THEN
+! Graceful exit if Molpro server
+         CALL MPI_Comm_rank(MPI_COMM_WORLD, rank, ierr)
+         IF (rank.EQ.0)  &
+              CALL MPI_Send(-1,1,MPI_Int,0,0,molpro_plugin_intercomm,ierr)
+	 CALL sleep(1_c_int) ! give the message time to arrive
+        END IF
 
         ! errorcode: Error returned to invoking environment.
         ! ierror: error status (of abort: was abort successful?)
