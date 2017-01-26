@@ -792,10 +792,10 @@ contains
          INTEGER I,J,NI2(NEL)
          INTEGER NREPS(NEL),NELECS(NEL),SSYM
          LOGICAL iscsf_old,ISC
-         if (lnosymmetry) then
-             isym%sym%s = 0
-             return
-         end if
+!          if (lnosymmetry) then
+!              isym%sym%s = 0
+!              return
+!          end if
          I=1
          NREPS(1:NEL)=0
          CALL SETUPSYM(ISYM)
