@@ -771,7 +771,6 @@ contains
                  enddo
               endif
            end if
-
             ! For complex case, obtain both Re and Im parts
 #ifdef __CMPLX
             do run = 1, inum_runs
@@ -894,7 +893,6 @@ contains
                             DiagSft(run) = DiagSft(run) - (log(AllHFGrowRate(run)) * SftDamp) / &
                                                 (Tau * StepsSft)
                         else
-                            !"WRITE(6,*) "AllGrowRate, TargetGrowRate", AllGrowRate, TargetGrowRate
                             DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp) / &
                                                 (Tau * StepsSft)
                         endif
@@ -1115,5 +1113,19 @@ contains
         iter_data%update_iters = iter_data%update_iters + 1
 
     end subroutine update_iter_data
+
+    function get_occ_dets() result(nOccDets)
+      implicit none
+      integer :: nOccDets
+      integer :: i
+      real(dp) :: check_sign(lenof_sign)
+
+      nOccDets = 0
+      do i = 1, TotWalkers
+         call extract_sign(CurrentDets(:,i),check_sign)
+         if(.not. IsUnoccDet(check_sign)) nOccDets = nOccDets + 1
+      enddo
+      
+    end function get_occ_dets
 
 end module fcimc_iter_utils

@@ -275,7 +275,6 @@ contains
                      .and. tKeepDoubSpawns) & 
                      .or. test_flag(ilut_parent, get_initiator_flag(part_type))) then
                     call set_flag(SpawnedParts(:,ind), get_initiator_flag(part_type))
-
                     if(.not. is_run_unnocc(real_sign_old,part_type_to_run(part_type))) then
                        doubleSpawns = doubleSpawns + 1
                     endif
@@ -307,6 +306,7 @@ contains
             end if
 
             call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), ilut_child(0:NIfDBO), child_sign, flags)
+
             ! If the parent was an initiator then set the initiator flag for the
             ! child, to allow it to survive.
 
@@ -336,7 +336,6 @@ contains
             end if
 
             call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
-
             ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
         end if
         
@@ -841,7 +840,7 @@ contains
 
                 ! Update the parent flag as required.
                 call set_flag (CurrentDets(:,j), get_initiator_flag_by_run(run), parent_init)
-
+                
             enddo
 
         endif
@@ -911,7 +910,7 @@ contains
 
             ! If det. is the HF det, or it
             ! is in the deterministic space, then it must remain an initiator.
-            if ( (.not. (DetBitEQ(ilut, iLutRef(:,run), NIfDBO))) &
+            if ( (t_real_time_fciqmc .or. .not. (DetBitEQ(ilut, iLutRef(:,run), NIfDBO))) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
                 .and. (tot_sgn <= InitiatorWalkNo )) then
                 ! Population has fallen too low. Initiator status 
@@ -919,7 +918,6 @@ contains
                 initiator = .false.
                 NoAddedInitiators = NoAddedInitiators - 1
             endif
-
         end if
 
     end function TestInitiator

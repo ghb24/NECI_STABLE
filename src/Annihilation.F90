@@ -5,7 +5,8 @@ module AnnihilationMod
     use SystemData, only: NEl, tHPHF
     use CalcData, only:   tTruncInitiator, OccupiedThresh, tSemiStochastic, &
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
-                          tContTimeFull, InitiatorWalkNo, tOrthogonaliseReplicas
+                          tContTimeFull, InitiatorWalkNo, tOrthogonaliseReplicas, &
+                          tKeepDoubSpawns
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -497,7 +498,8 @@ module AnnihilationMod
         ! Also set the initiator flag if the new walker has its initiator flag
         ! set.
         if (tTruncInitiator) then
-            if ((abs(cum_sgn) > 1.e-12_dp .and. abs(new_sgn) > 1.e-12_dp) .or. &
+            if ((abs(cum_sgn) > 1.e-12_dp .and. abs(new_sgn) > 1.e-12_dp &
+                 .and. tKeepDoubSpawns) .or. &
                  test_flag(new_det, get_initiator_flag(part_type))) &
                 call set_flag(cum_det, get_initiator_flag(part_type))
         end if

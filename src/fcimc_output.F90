@@ -527,8 +527,10 @@ contains
                      'Tot. parts real')
 #ifdef __REALTIME 
                 call stats_out(state,.true., real_time_info%time_angle,'Time rot. angle')
-#endif
+                call stats_out(state,.false., sum(abs(AllTotParts_1))/inum_runs ,'Tot. parts RK1')
+#else
                 call stats_out(state,.true., sum(abs(AllNoatHF))/inum_runs, 'Tot. ref')
+#endif
 #ifndef __REALTIME
 #ifdef __CMPLX
                 call stats_out(state,.false., real(proje_iter_tot), 'Re Proj. E')

@@ -1785,7 +1785,8 @@ contains
 
             ! Set reference determinant as an initiator if
             ! tTruncInitiator is set, for both imaginary and real flags
-            if (tTruncInitiator) then
+            ! in real-time calculations, the reference does not have any special role
+            if (tTruncInitiator .and. .not. t_real_time_fciqmc) then
                 do run = 1, inum_runs
                     call set_flag (CurrentDets(:,1), get_initiator_flag_by_run(run))
                 enddo

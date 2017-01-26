@@ -478,20 +478,20 @@ contains
             ! and also not sure about this criteria.. if that applies in the 
             ! rt-fciqmc..
             if(any(fac > 1.0_dp)) then
-                if (any(fac > 2.0_dp)) then
-                    if (tSearchTau) then
-                        ! If we are early in the calculation, and are using tau
-                        ! searching, then this is not a big deal. Just let the
-                        ! searching deal with it
-                        write(iout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
-                        write(iout, '("** WARNING ** Truncating spawn to ensure stability")')
-                        do run = 1, lenof_sign
-                           fac(run) = min(2.0_dp, fac(run))
-                        end  do
-                    else
-                        call stop_all(this_routine, "Death probability > 2: Algorithm unstable. Reduce timestep.")
-                    end if
-                else
+               if (any(fac > 2.0_dp)) then
+                  if(tSearchTau) then
+                     ! If we are early in the calculation, and are using tau
+                     ! searching, then this is not a big deal. Just let the
+                     ! searching deal with it
+                     write(iout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
+                     write(iout, '("** WARNING ** Truncating spawn to ensure stability")')
+                     do run = 1, lenof_sign
+                        fac(run) = min(2.0_dp, fac(run))
+                     end  do
+                  else
+                     call stop_all(this_routine, "Death probability > 2: Algorithm unstable. Reduce timestep.")
+                  end if
+               else
                     write(iout,'("** WARNING ** Death probability > 1: Creating Antiparticles. "&
                         & //"Timestep errors possible: ")',advance='no')
                     do run = 1, inum_runs
@@ -564,7 +564,7 @@ contains
 
             ! and also about the fac restrictions.. for now but it here anyway..
             if(any(fac > 1.0_dp)) then
-                if (any(fac > 2.0_dp)) then
+                if (any(fac > 2.0_dp)) then                   
                     if (tSearchTau) then
                         ! If we are early in the calculation, and are using tau
                         ! searching, then this is not a big deal. Just let the

@@ -44,7 +44,7 @@ module real_time_init
     use FciMCData, only: tSearchTau, alloc_popsfile_dets, pops_pert, tPopsAlreadyRead, &
                          tSinglePartPhase, iter_data_fciqmc, iter, PreviousCycles, &
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
-                         MaxSpawned, tSearchTauOption, TotWalkers, &
+                         MaxSpawned, tSearchTauOption, TotWalkers, SumWalkersCyc, &
                          CurrentDets, popsfile_dets, MaxWalkersPart
     use SystemData, only: lms, G1, nBasisMax, tHub, nel, tComplexWalkers_RealInts
     use SymExcitDataMod, only: kTotal
@@ -104,7 +104,7 @@ contains
         call MPIBarrier(ierr)
 
         if(.not. tReadPops) call set_initial_global_data(TotWalkers, CurrentDets)
-
+        
     end subroutine init_real_time_calc_single
 
     subroutine setup_real_time_fciqmc()
@@ -114,7 +114,7 @@ contains
       implicit none
         character(*), parameter :: this_routine = "setup_real_time_fciqmc"
         complex(dp), allocatable :: norm_buf(:)
-        integer :: ierr,  j
+        integer :: ierr,  j, run
 
         ! also need to create the perturbed ground state to calculate the 
         ! overlaps to |y(t)> 
@@ -258,6 +258,11 @@ contains
 
         valid_diag_spawns = 1
 
+        do run = 1, inum_runs
+           SumWalkersCyc(run) = SumWalkersCyc(run) + &
+                sum(TotParts(min_part_type(run):max_part_type(run)))
+        enddo
+
         ! also initialize all the relevant first RK step quantities.. 
         NoatHF_1 = 0.0_dp 
         Annihilated_1 = 0.0_dp
@@ -294,7 +299,6 @@ contains
         AccRat_1 = 0.0_dp
         AllSumWalkersCyc_1 = 0.0_dp
         benchmarkEnergy = 0.0_dp
-
         numCycShiftExcess = 0
 
         call rotate_time()
@@ -550,10 +554,6 @@ contains
                 ! alpha guaranteeing a fixed walker number
                 tDynamicAlpha = .true.
                 t_rotated_time = .true.
-                ! if the rotation angle is adjusted on the fly, the shift must be held
-                ! constant not to absorb the rotation
-                ! tStaticShift = .true.
-                ! asymptoticShift = 0.0_dp
                 if(item < nitems) call readf(alphaDamping)
 
              case("ROTATION-THRESHOLD")
