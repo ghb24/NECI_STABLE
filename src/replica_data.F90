@@ -305,7 +305,11 @@ contains
             OldAllAvWalkersCyc(run) = sum(AllTotParts(min_part_type(run):max_part_type(run)))
         enddo
 #else
+#ifdef __CMPLX
+        OldAllAvWalkersCyc = sum(AllTotParts)
+#else
         OldAllAvWalkersCyc = AllTotParts
+#endif
 #endif
 
         do run = 1, inum_runs

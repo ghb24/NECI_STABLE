@@ -1004,7 +1004,7 @@ r_loop: do while(.not.tStoreDet)
         integer(int64) , intent(in) :: iPopAllTotWalkers
         real(dp) , intent(in) :: PopDiagSft(inum_runs),read_tau
         real(dp), intent(in) :: read_psingles, read_pparallel
-        real(dp) , dimension(lenof_sign/inum_runs) , intent(in) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign) , intent(in) :: PopSumNoatHF
         HElement_t(dp) , intent(in) :: PopAllSumENum(inum_runs)
         integer, intent(in) :: perturb_ncreate, perturb_nann
         integer , intent(out) :: WalkerListSize
@@ -1072,18 +1072,7 @@ r_loop: do while(.not.tStoreDet)
         endif
 
         AllSumENum(1:inum_runs) = PopAllSumENum
-        if(inum_runs.eq.2) then
-            AllSumNoatHF(1)=PopSumNoatHF(1)
-            AllSumNoatHF(inum_runs)=PopSumNoatHF(1)
-        elseif(lenof_sign.eq.2) then
-            AllSumNoatHF(1)=PopSumNoatHF(1)
-            if (inum_runs /= 2) &
-                call stop_all(this_routine, "not yet implemented")
-            ASSERT(inum_runs == 2)
-            AllSumNoatHF(lenof_sign)=PopSumNoatHF(min(lenof_sign, ubound(PopSumNoatHF, 1)))
-        else
-            AllSumNoatHF(1)=PopSumNoatHF(1)
-        endif
+        AllSumNoatHF(1:lenof_sign) = PopSumNoatHF
 
         
         PreviousCycles=iPopIter
@@ -1341,28 +1330,33 @@ r_loop: do while(.not.tStoreDet)
         read_nnodes = PopNNodes
         TotImagTime = PopTotImagTime
 
-        if (tReplicaReferencesDiffer) then
+        ! in output generation, these fields are used when tMultiReplicas is set, so this should be 
+        ! used here, too (not tReplicaReferencesDiffer), given that the number of runs did not
+        ! change (this would break the read)
+        if (tMultiReplicas) then
             PopDiagSft = PopMultiSft(1:inum_runs)
             PopAllSumENum = PopMultiSumENum(1:inum_runs)
             PopSumNoatHF_out = PopMultiSumNoatHF(1:lenof_sign)
         else
-            ! If we want the walker number to be stable, take the shift
-            ! from the POPSFILE, otherwise, keep the input value.
-            if (inum_runs.eq.2) then
-                if(Popinum_runs.eq.2) then
-                    PopDiagSft(1) = PopSft
-                    PopDiagSft(inum_runs) = PopSft2
-                else
-                    ! Previously we only had a single run, now we are
-                    ! restarting with double run
-                    PopDiagSft(1) = PopSft
-                    PopDiagSft(inum_runs) = PopSft
-                endif
-            else
-                PopDiagSft(1:inum_runs) = PopSft
-            endif
-            PopAllSumENum(1:inum_runs) = PopSumENum
-            PopSumNoatHF_out = PopSumNoatHF(1:lenof_sign)
+           ! If we want the walker number to be stable, take the shift
+           ! from the POPSFILE, otherwise, keep the input value.
+           if (inum_runs.eq.2) then
+              if(Popinum_runs.eq.2) then
+                 PopDiagSft(1) = PopSft
+                 PopDiagSft(inum_runs) = PopSft2
+              else
+                 ! Previously we only had a single run, now we are
+                 ! restarting with double run
+                 PopDiagSft(1) = PopSft       
+                 PopDiagSft(inum_runs) = PopSft
+                 ! I do not think this works, because PopSumNoatHF will not be of size lenof_sign
+              endif
+           else
+              PopDiagSft(1:inum_runs) = PopSft
+           endif
+           PopAllSumENum(1:inum_runs) = PopSumENum
+           ! Here, lenof_sign = lenof_sign/inum_runs
+           PopSumNoatHF_out = PopSumNoatHF(1:lenof_sign)
         end if
         call MPIBCast(PopSumNoatHF_out)
 
@@ -1811,7 +1805,8 @@ r_loop: do while(.not.tStoreDet)
         
         if (.not. tMultiReplicas) then
             write(iunit, *) 'PopSft=', DiagSft(1)
-            write(iunit, *) 'PopSumNoatHF=', AllSumNoatHF(1)
+            ! if tMultiReplicas is not set, inum_runs=1, so this will write AllSumNoatHF
+            write(iunit, *) 'PopSumNoatHF=', AllSumNoatHF(1:lenof_sign/inum_runs)
             write(iunit, *) 'PopSumENum=', AllSumENum(1)
         else
             write(iunit, *) 'PopMultiSft=', DiagSft(1:inum_runs)
