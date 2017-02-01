@@ -46,7 +46,7 @@ module real_time_init
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
                          MaxSpawned, tSearchTauOption, TotWalkers, SumWalkersCyc, &
                          CurrentDets, popsfile_dets, MaxWalkersPart
-    use SystemData, only: lms, G1, nBasisMax, tHub, nel, tComplexWalkers_RealInts
+    use SystemData, only: lms, G1, nBasisMax, tHub, nel, tComplexWalkers_RealInts, nBasis
     use SymExcitDataMod, only: kTotal
     use sym_mod, only: MomPbcSym
     use perturbations, only: init_perturbation_annihilation, &
@@ -173,13 +173,17 @@ contains
         ! to avoid dividing by 0 if not all entries get filled
         allocate(norm_buf(normsize),stat=ierr)
         pert_norm = 1.0_dp
+        norm_buf = calc_norm(CurrentDets,int(TotWalkers))
+        call MPIReduce(norm_buf,MPI_SUM,dyn_norm_psi)
         do j = 1,gf_count
            ! calc. the norm of the perturbed ground states
            norm_buf = calc_norm(overlap_states(j)%dets,overlap_states(j)%nDets)
            ! the norm (squared) can be obtained by reduction over all processes
            call MPIReduce(norm_buf,MPI_SUM,pert_norm(:,j))
+           ! for diagonal green's functions, this is the same as pert_norm, but 
+           ! in general, this general normalization is required.
+           dyn_norm_red(:,j) = sqrt(pert_norm(:,j)*dyn_norm_psi(:))
         enddo
-        dyn_norm_red = pert_norm
 
         deallocate(norm_buf)
         
@@ -879,12 +883,9 @@ contains
 
     subroutine clear_pops_pert()
       implicit none
-      integer :: i
       if(allocated(pops_pert)) then
-         do i = 1, gf_count
-            if(allocated(pops_pert(i)%crtn_orbs)) deallocate(pops_pert(i)%crtn_orbs)
-            if(allocated(pops_pert(i)%ann_orbs)) deallocate(pops_pert(i)%ann_orbs)
-         enddo
+         if(allocated(pops_pert(1)%crtn_orbs)) deallocate(pops_pert(1)%crtn_orbs)
+         if(allocated(pops_pert(1)%ann_orbs)) deallocate(pops_pert(1)%ann_orbs)
          deallocate(pops_pert)
       endif
     end subroutine clear_pops_pert

@@ -15,7 +15,7 @@ module real_time_procs
                               NoDied_1, NoBorn_1, SumWalkersCyc_1, gf_count, &
                               t_rotated_time, tau_imag, tau_real, gs_energy, TotPartsLastAlpha, &
                               shift_damping, normsize, tStabilizerShift, dyn_norm_psi, &
-                              TotPartsPeak, numCycShiftExcess, shiftLimit, dyn_norm_red, &
+                              TotPartsPeak, numCycShiftExcess, shiftLimit, &
                               tDynamicAlpha, tDynamicDamping, stepsAlpha
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
@@ -1260,11 +1260,10 @@ contains
         logical :: tDetFound
         real(sp) :: gf_time
 
-        overlap = 0.0_dp
-
         call set_timer(calc_gf_time)
 
         do iGf = 1, gf_count
+           overlap = cmplx(0.0_dp,0.0_dp,dp)
            do idet = 1, overlap_states(iGf)%nDets
 
               call extract_sign(overlap_states(iGf)%dets(:,idet), real_sign_1) 
@@ -1475,7 +1474,7 @@ contains
         ! creation or annihilation operator
       implicit none
         character(*), parameter :: this_routine = "create_perturbed_ground"
-        integer :: tmp_totwalkers
+        integer :: tmp_totwalkers, totwalkers_backup
         integer :: ierr, i
         integer(n_int), allocatable :: perturbed_buf(:,:)
 
@@ -1496,8 +1495,10 @@ contains
         allocate(perturbed_buf(0:niftot,TotWalkers_orig_max), stat = ierr)
         print *, "Read-in dets", TotWalkers_orig
         do i = 1, gf_count
+           totwalkers_backup = tmp_totwalkers
            if(allocated(overlap_pert)) then
               if(tReadPops) then
+                 perturbed_buf = 0.0_dp
                  call apply_perturbation(overlap_pert(i),tmp_totwalkers, popsfile_dets,&
                       perturbed_buf)
               else
@@ -1508,6 +1509,7 @@ contains
               perturbed_buf = CurrentDets
            endif
            call write_overlap_state(perturbed_buf,i)
+           tmp_totwalkers = totwalkers_backup
         enddo
 
         if(allocated(overlap_states)) print *, &
@@ -1540,8 +1542,13 @@ contains
       enddo
 
       call MPISumAll(nOccDets,totNOccDets)
-      if(totNOccDets==0) call stop_all(this_routine,'No walkers survived perturbation')
-      
+      if(totNOccDets==0) then 
+         if(gf_count == 1) then
+            call stop_all(this_routine,'No walkers survived perturbation')
+         else
+            write(6,*) "WARNING, EMPTY PERTURBED STATE WITH INDEX", index
+         endif
+      endif
       ! copy them to overlap_states
       allocate(overlap_states(index)%dets(0:nIfTot,nOccDets))
       overlap_states(index)%dets = state(:,1:nOccDets)
