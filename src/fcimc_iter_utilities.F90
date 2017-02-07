@@ -122,6 +122,7 @@ contains
         if(tRestart) then
             ! a restart not wanted in the real-time fciqmc.. 
 #ifdef __REALTIME 
+           write(6,*) "NUMBER OF WALKERS", AllTotParts
             call stop_all(this_routine, &
                 "a restart due to all died walkers not wanted in the real-time fciqmc!")
 #endif

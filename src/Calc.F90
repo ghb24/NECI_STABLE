@@ -1615,6 +1615,11 @@ contains
 ! for testing purposes, it can now be turned off, using the following keyword
             case("DISCARDDOUBSPAWNS")
                tKeepDoubSpawns = .false.
+               
+! manually set the number of simultaneous spawns required for keeping a spawn from a 
+! non-inititator to an unoccupied determinant
+            case("MULTISPAWN-THRESHOLD")
+               call geti(multiSpawnThreshold)
 
             case("ADDTOINITIATOR")
 !This option means that if a determinant outside the initiator space becomes significantly populated - 

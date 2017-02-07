@@ -171,6 +171,7 @@ contains
         gs_energy = benchmarkEnergy
         
         ! to avoid dividing by 0 if not all entries get filled
+        call equalize_initial_phase()
         allocate(norm_buf(normsize),stat=ierr)
         pert_norm = 1.0_dp
         norm_buf = calc_norm(CurrentDets,int(TotWalkers))
@@ -857,6 +858,41 @@ contains
       elapsedImagTime = imag_time
       elapsedRealTime = real_time
     end subroutine set_initial_times
+
+    subroutine equalize_initial_phase()
+      use FciMCData, only: AllSumNoatHF
+      use bit_rep_data, only: extract_sign
+      use bit_reps, only: encode_sign
+      implicit none
+      
+      integer :: i, signs(lenof_sign), iGf
+      real(dp) :: tmp_sgn(lenof_sign)
+      logical :: tSuccess
+
+      signs = 1
+      do i = 1, lenof_sign
+         if(AllSumNoatHF(i)/AllSumNoatHF(1) < 0) then
+            signs(i) = -1
+         else
+            signs(i) = 1
+         endif
+      enddo
+      if(any(signs<0)) then
+         do i = 1, TotWalkers
+            call extract_sign(CurrentDets(:,i),tmp_sgn)
+            tmp_sgn = tmp_sgn * signs
+            call encode_sign(CurrentDets(:,i),tmp_sgn)
+         end do 
+         do iGf = 1, gf_count
+            do i = 1, overlap_states(iGf)%nDets
+               call extract_sign(overlap_states(iGf)%dets(:,i),tmp_sgn)
+               tmp_sgn = tmp_sgn * signs
+               call encode_sign(overlap_states(iGf)%dets(:,i),tmp_sgn)
+            end do
+         end do
+      endif
+         
+    end subroutine equalize_initial_phase
 
     subroutine dealloc_real_time_memory
       use replica_data, only: clean_iter_data
