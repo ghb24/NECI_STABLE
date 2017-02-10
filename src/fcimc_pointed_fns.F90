@@ -293,6 +293,7 @@ module fcimc_pointed_fns
                 ! excitation type would be cool too.. but how do i get it 
                 ! to here?? do i still have global_excitInfo??
                 call print_excitInfo(global_excitInfo)
+                call neci_flush(iout)
             end if
             end if
 #endif

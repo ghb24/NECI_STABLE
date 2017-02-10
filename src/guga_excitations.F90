@@ -2953,6 +2953,7 @@ contains
                 print *, "mat eles and diff:", HElGen, tmp_mat, diff
                 print *, " pgen: ", pgen
                 call print_excitInfo(excitInfo)
+                call neci_flush(6)
             end if
 
             ! is the other order also fullfilled? 
@@ -2970,6 +2971,7 @@ contains
                 excitInfo = identify_excitation(ilutI, ilutJ)
                 print *, "<J|H|I> excitInfo:"
                 call print_excitInfo(excitInfo)
+                call neci_flush(6)
             end if
     ! 
         end if
@@ -3676,11 +3678,20 @@ contains
                     above_cpt, below_cpt
         type(weight_obj) :: weights
         logical :: above_flag, below_flag
+        real(dp) :: temp_int
 
         ! also need the pgen contributions from all other index combinations
         ! shich could lead to this excitation
         first = findFirstSwitch(ilut, t, excitInfo%fullStart, excitInfo%fullEnd)
         last = findLastSwitch(ilut, t, first, excitInfo%fullEnd)
+
+!         print *, "Test on type 23 excitations:"
+!         call write_det_guga(6,ilut)
+!         call write_det_guga(6,t)
+!         call print_excitInfo(excitInfo)
+! 
+!         print *, "first: ", first
+!         print *, "last: ", last
 
         below_flag = .false.
         above_flag = .false.
@@ -3691,7 +3702,7 @@ contains
         inter = 1.0_dp
         integral = 0.0_dp
 
-        ! calculate the always involved intermediadet matrix element from 
+        ! calculate the always involved intermediate matrix element from 
         ! first switch to last switch
         do i = first + 1, last - 1
             if (currentOcc_int(i) /= 1) cycle
@@ -3753,6 +3764,7 @@ contains
             do i = first, 1, -1
                 if (currentOcc_int(i) /= 1) cycle
          
+                temp_int = 0.0_dp
                 ! this is the only difference for molecular/hubbard/ueg 
                 ! calculations 
                 call calc_orbital_pgen_contr(ilut, [2*i, 2*j], above_cpt, &
@@ -3761,6 +3773,8 @@ contains
 !                 print *, "calc orb pgen", i,j, (above_cpt + below_cpt) / real(ElecPairs,dp)
                 ! yes they can, and then this orbital does not contribute to the 
                 ! obtained excitaiton -> cycle..
+                ! only from the names.. shouldnt here be below_cpt?
+                ! ah ok below is the below_flag! 
                 if (above_cpt < EPS) cycle
 
                 ! if the bottom stepvector d = 1 and b = 1 there is no 
@@ -4038,27 +4052,38 @@ contains
                 call getMixedFullStop(step2,step1,deltaB(j-1),currentB_ilut(j),&
                     x1_element = tempWeight_1)
 
-                ! and multiply and add up all contribution elements
-                integral = integral + tempWeight * tempWeight_1 * inter * &
+                temp_int = tempWeight * tempWeight_1 * inter * &
                     (get_umat_el(i,j,j,i) + get_umat_el(j,i,i,j))/2.0_dp
+
+
+                ! and multiply and add up all contribution elements
+                integral = integral + temp_int
+!                 integral = integral + tempWeight * tempWeight_1 * inter * &
+!                     (get_umat_el(i,j,j,i) + get_umat_el(j,i,i,j))/2.0_dp
 
                 ! add up pgen contributions.. 
 
-                pgen = pgen + (below_cpt + above_cpt) * branch_weight
+                ! quick fix: only consider non-zero contributions!
+!                 if (abs(temp_int) > EPS) then
+                    pgen = pgen + (below_cpt + above_cpt) * branch_weight
+!                 end if
 
 !                 print *, "calc bra pgen", i, j, branch_weight
 
                 ! check if i deal with that correctly...
-!                 if (below_flag) exit
+                if (below_flag) exit
             end do
             ! todo: i cant use tthat like that.. or else some combinations 
             ! of i and j get left out! i have to reinit it somehow..
             ! not yet sure how..
-!             if (above_flag) exit
+            if (above_flag) exit
         end do
 
         ! multiply by always same probability to pick the 2 electrons
         pgen = pgen / real(ElecPairs,dp)
+
+!         print *, "pgen: ", pgen
+!         print *, "integral: ", integral
 
     end subroutine calc_mixed_contr_sym
 
