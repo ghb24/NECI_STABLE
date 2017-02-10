@@ -2745,6 +2745,7 @@ contains
         write(iunit,*) "=============================="
         do i = 1, nexcit
             call convert_ilut_toGUGA(det_list(:,i), ilutG)
+            call setDeltaB(excitTyp(i),ilutG)
             call write_det_guga(iunit, ilutG, .false.)
             write(iunit,"(f16.7)", advance='no') contrib_list(i) / real(iterations, dp)
             write(iunit, "(f16.7)", advance='no') pgen_list(i)
@@ -8116,6 +8117,9 @@ contains
         call update_matrix_element(t, (get_umat_el(st,en,se,st) + &
             get_umat_el(en,st,st,se))/2.0_dp + integral, 1)
 
+!         print *, "mat_ele: ", extract_matrix_element(t,1)
+!         call neci_flush(6)
+
     end subroutine calcFullStartR2L_stochastic
 
     subroutine calc_mixed_start_r2l_contr_nosym(ilut, t, excitInfo, branch_pgen, &
@@ -8698,6 +8702,9 @@ contains
         call update_matrix_element(t, (get_umat_el(st,se,en,st) + &
             get_umat_el(se,st,st,en))/2.0_dp + integral, 1)
 
+!         print *, "mat_ele: ", extract_matrix_element(t,1)
+!         call neci_flush(6)
+
     end subroutine calcFullStartL2R_stochastic
 
     subroutine calc_mixed_x2x_ueg(ilut, t, excitInfo, branch_pgen, pgen, integral)
@@ -8753,6 +8760,15 @@ contains
         end if
 
         sw = findFirstSwitch(ilut,t, st, se)
+
+!         print *, "Test on type 20 and 21 excitations:"
+!         call write_det_guga(6,ilut)
+!         call write_det_guga(6,t)
+!         call print_excitInfo(excitInfo)
+! 
+!         print *, "switch: ", sw
+!         print *, "initial branch_pgen: ", branch_pgen
+        
 ! 
 !         if (st == 5 .and. se == 6 .and. isTwo(ilut,5) .and. isOne(t,5)) then 
 !             call write_det_guga(6,ilut,.true.)
@@ -8802,6 +8818,7 @@ contains
                 start_weight = zero_weight/(zero_weight + switch_weight)
 
             else 
+
                 bot_cont = -sqrt(2.0_dp/((currentB_ilut(st) - 1.0_dp) * &
                     (currentB_ilut(st) + 1.0_dp)))
 
@@ -8809,8 +8826,10 @@ contains
                     currentB_ilut(st))
 
                 start_weight = switch_weight/(zero_weight + switch_weight)
+
             end if
         else
+
             switch_weight = weights%proc%minus(negSwitches(st), &
                 currentB_ilut(st), weights%dat)
 
@@ -8839,10 +8858,13 @@ contains
 
         ! divide out the original starting weight: 
         branch_pgen = branch_pgen / start_weight
+!         if (st == 1 .and. sw == 3) print *, "orig start weight:", start_weight
 
         ! loop from start backwards so i can abort at a d=1 & b=1 stepvalue
         ! also consider if bot_cont < EPS to avoid unnecarry calculations
         if (abs(bot_cont) > EPS) then
+
+!             if (st == 1 .and. sw == 3) print *, "am i here??"
 
             mat_ele = 1.0_dp
             below_flag = .false.
@@ -8996,6 +9018,8 @@ contains
             ! check if orb_pgen is non-zero
             ! still have to update matrix element in this case..
             ! so do the cycle only afterwards..
+!             if (st == 1 .and. sw == 3) print *, "orb_pgen(2): ", orb_pgen
+
             if (orb_pgen < EPS) cycle
 
             ! and also get starting contribution 
@@ -9027,13 +9051,20 @@ contains
             start_weight = zero_weight/(zero_weight + switch_weight)
 
             ! and update probWeight
-
-            branch_pgen = branch_pgen * start_weight / stay_weight
+!             branch_pgen = branch_pgen * start_weight / stay_weight
+            ! i think i should not put in the intermediate start_weight 
+            ! permanently..
+            branch_pgen = branch_pgen / stay_weight
 
             ! and add up correctly 
-            pgen = pgen + orb_pgen * branch_pgen
+            pgen = pgen + orb_pgen * branch_pgen * start_weight
 
         end do
+
+!         if (st == 1 .and. sw == 3) then
+!             print *, "pgen(2): ", pgen
+!             print *, "branch_pgen(2): ", branch_pgen
+!         end if
 
         ! handle switch seperately (but only if switch > start) 
         if (sw > st) then
@@ -9041,6 +9072,8 @@ contains
             ! check orb_pgen otherwise no influencce
             call calc_orbital_pgen_contrib_start(ilut, [2*sw, 2*elecInd], holeInd,&
                 orb_pgen)
+!             if (st == 1 .and. sw == 3) print *, "orb_pgen(3): ", orb_pgen
+
 
             if (orb_pgen > EPS) then
                 
@@ -9089,9 +9122,19 @@ contains
 
                 pgen = pgen + orb_pgen * branch_pgen * start_weight / stay_weight
 
+!                 if (st == 1 .and. sw == 3) then
+!                     print *, "branch_pgen(3): ",branch_pgen * start_weight / stay_weight
+!                     print *, "start_weight(3): ", start_weight
+!                     print *, "stay_weight(3): ", stay_weight
+!                     print *, "zero weight(3): ", zero_weight
+!                     print *, "switch_weight(3): ", switch_weight
+!                     print *, "staying prob: ", calcStayingProb(zero_weight,switch_weight, &
+!                         currentB_ilut(sw))
+!                 end if
             end if
         end if
 
+!         print *, "pgen: ", pgen
         ! i also need to consider the electron pair picking probability.. 
         pgen = pgen / real(ElecPairs, dp) 
 
