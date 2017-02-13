@@ -11,7 +11,7 @@ module guga_excitations
                           currentB_ilut, currentB_int, current_cum_list, &
                           tGen_guga_weighted, ref_stepvector, ref_b_vector_real, & 
                           ref_occ_vector, ref_b_vector_int, t_full_guga_tests, &
-                          nBasisMax, tHub, treal
+                          nBasisMax, tHub, treal, t_guga_testsuite
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_, iout, int64, inum_runs
     use bit_reps, only: niftot, decode_bit_det, encode_det, encode_part_sign, &
@@ -2727,7 +2727,7 @@ contains
         write(6, '("Averaged contribution: ", f15.10)') &
                 contrib / (real(nexcit,dp) * iterations)
 
-        if (t_full_guga_tests) then 
+        if (t_full_guga_tests .or. t_guga_testsuite) then 
             ! do asserts in case of full guga tests to be certain no basic 
             ! bugs remain. but what should the threshold be??
             ASSERT(abs((contrib / (real(nexcit,dp) * iterations)) -1.0_dp) < 0.01_dp)
@@ -2789,13 +2789,13 @@ contains
 
             end do
             ! abort in the full-tests case! 
-            if (t_full_guga_tests) then
+            if (t_full_guga_tests .or. t_guga_testsuite) then
                 call stop_all(this_routine, &
                     "all excitations should be created in the full test setup!")
             end if
         end if
         ! also do this again in the full-test case:
-        if (t_full_guga_tests) then
+        if (t_full_guga_tests .or. t_guga_testsuite) then
             ! is 0.1 a small enough threshold?
             if (any(abs(contrib_list / real(iterations,dp) - 1.0_dp) > 0.05_dp)) &
             call stop_all(this_routine, "Insufficiently uniform generation")
@@ -2807,7 +2807,7 @@ contains
                 print *, "incorrect matrix element! for excitation: "
                 call write_det_guga(6, excitations(:,i),.false.)
                 print *, "stoch. <H>: ", matEle_list(i)
-                if (t_full_guga_tests) then
+                if (t_full_guga_tests .or. t_guga_testsuite) then
                     call stop_all(this_routine,"incorrect matrix element!")
                 end if
             end if

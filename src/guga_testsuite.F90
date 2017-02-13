@@ -109,7 +109,10 @@ contains
         print *, " All tests passed! You are awesome!"
         print *, "============================================================"
 
-        if (.not. t_full_guga_tests) then
+        if (.not. (t_full_guga_tests .or. t_guga_testsuite)) then
+            ! in case of the testsuite or full-guga tests do not stop here,
+            ! but continue the run to be able to check the results at the 
+            ! end
             call stop_all(this_routine, "stop after GUGA tests")
         end if
 
@@ -724,8 +727,11 @@ contains
 
         call actHamiltonian(ilut, ex, nEx)
 
-!         nTest = min(nEx,20)
-        nTest = nEx
+        if (t_full_guga_tests .or. t_guga_testsuite) then
+            nTest = nEx
+        else
+            nTest = min(nEx,20)
+        end if
 
         print *, "running tests on nExcits: ", nTest
         call write_guga_list(6, ex(:,1:nEx))

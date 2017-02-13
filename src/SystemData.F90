@@ -248,6 +248,8 @@ logical :: tGUGA ! flag to indicate usage of GUGA
 ! be tested! 
 logical :: t_guga_unit_tests, t_full_guga_tests
 integer :: n_guga_excit_gen
+! introduce a new flag to indicate the testsuite is running!
+logical :: t_guga_testsuite = .false.
 
 
 ! use new flags for the new guga excitation generator implementations

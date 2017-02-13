@@ -352,6 +352,18 @@ system: do
             t_guga_unit_tests = .true.
             t_full_guga_tests = .true.
 
+        case("GUGA-TESTSUITE")
+            ! introduce a new flag to indicate the testsuite is running
+            ! this enforces more strict tolerances
+            if (item < nitems) then
+                call geti(n_guga_excit_gen)
+            else
+                n_guga_excit_gen = 1000000
+            end if
+
+            t_guga_unit_tests = .true.
+
+            t_guga_testsuite = .true.
 
         case ("GUGA-NOREORDER")
             ! do not reorder the orbitals in the hubbard + guga implementation
