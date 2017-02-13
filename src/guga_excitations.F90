@@ -2748,8 +2748,8 @@ contains
             call setDeltaB(excitTyp(i),ilutG)
             call write_det_guga(iunit, ilutG, .false.)
             write(iunit,"(f16.7)", advance='no') contrib_list(i) / real(iterations, dp)
-            write(iunit, "(f16.7)", advance='no') pgen_list(i)
-            write(iunit, "(f16.7)") matEle_list(i)
+            write(iunit, "(e16.7)", advance='no') pgen_list(i)
+            write(iunit, "(e16.7)") matEle_list(i)
         end do
         close(iunit)
 
@@ -2762,8 +2762,8 @@ contains
         call write_det_guga(iunit, ilutG)
 
         do i = 1, nExcit
-            write(iunit, "(f16.7)", advance = 'no') pgen_list(i) !/sum_pgens
-            write(iunit, "(f16.7)", advance = 'no') matEle_list(i) !/sum_helement
+            write(iunit, "(e16.7)", advance = 'no') pgen_list(i) !/sum_pgens
+            write(iunit, "(e16.7)", advance = 'no') matEle_list(i) !/sum_helement
             write(iunit, "(f16.7)", advance = 'no') contrib_list(i) / real(iterations,dp)
             write(iunit, "(i3)") excitTyp(i)
         end do
@@ -2771,11 +2771,6 @@ contains
 
         ! Check that all of the determinants were generated!!!
         if (.not. all(generated_list)) then
-            ! abort in the full-tests case! 
-            if (t_full_guga_tests) then
-                call stop_all(this_routine, &
-                    "all excitations should be created in the full test setup!")
-            end if
 
             write(6,*) count(.not.generated_list), '/', size(generated_list), &
                        'not generated'
@@ -2802,7 +2797,7 @@ contains
         ! also do this again in the full-test case:
         if (t_full_guga_tests) then
             ! is 0.1 a small enough threshold?
-            if (any(abs(contrib_list / iterations - 1.0_dp) > 0.1_dp)) &
+            if (any(abs(contrib_list / real(iterations,dp) - 1.0_dp) > 0.05_dp)) &
             call stop_all(this_routine, "Insufficiently uniform generation")
         end if
 
