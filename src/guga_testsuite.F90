@@ -722,8 +722,8 @@ contains
 
         call actHamiltonian(ilut, ex, nEx)
 
-        nTest = min(nEx,20)
-!         nTest = nEx
+!         nTest = min(nEx,20)
+        nTest = nEx
 
         print *, "running tests on nExcits: ", nTest
         call write_guga_list(6, ex(:,1:nEx))
