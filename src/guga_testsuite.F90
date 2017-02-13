@@ -90,11 +90,11 @@ contains
             ! why the S = 2???
             call run_test_excit_gen_guga_S0
 
-            deallocate(currentB_ilut)
-            deallocate(currentOcc_ilut)
-            deallocate(currentOcc_int)
-            deallocate(current_stepvector)
-            deallocate(currentB_int)
+!             deallocate(currentB_ilut)
+!             deallocate(currentOcc_ilut)
+!             deallocate(currentOcc_int)
+!             deallocate(current_stepvector)
+!             deallocate(currentB_int)
 
         else 
             print *, " only run the excitation generator tests!"
@@ -109,7 +109,9 @@ contains
         print *, " All tests passed! You are awesome!"
         print *, "============================================================"
 
-        call stop_all(this_routine, "stop after GUGA tests")
+        if (.not. t_full_guga_tests) then
+            call stop_all(this_routine, "stop after GUGA tests")
+        end if
 
     end subroutine runTestsGUGA
      
