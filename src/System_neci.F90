@@ -2531,6 +2531,7 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
   use sort_mod
   use util_mod, only: NECI_ICOPY
   use constants, only: dp
+  use sym_mod, only: GENMOLPSYMTABLE
   implicit none
   INTEGER NBASIS,BRR(NBASIS),ORBORDER(8,2),nBasisMax(5,*)
   INTEGER BRR2(NBASIS)
@@ -2584,6 +2585,8 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
            ARR2(ITOT,1)=ARR(I,1)
         ENDIF
      ENDDO
+     ! what are those doing?
+     ! ok those are copying the newly obtained arr2 and brr2 into arr and brr
      CALL NECI_ICOPY(NBASIS,BRR2,1,BRR,1)
      CALL DCOPY(NBASIS,ARR2(1,1),1,ARR(1,1),1) 
   ENDIF
@@ -2634,6 +2637,8 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
           G1(i) = temp_sym(brr(i))
           brr(i) = i
       end do
+      ! could i just do a new molpsymtable here??
+      CALL GENMOLPSYMTABLE(NBASISMAX(5,2)+1,G1,NBASIS)
   end if
 
 END subroutine ORDERBASIS

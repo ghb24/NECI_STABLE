@@ -216,11 +216,11 @@ contains
 
 !   Now generate a list of sym labels.
          NSYMLABELS=NSYMMAX
-         allocate(SymLabels(nSymLabels))
+         if (.not. allocated(SymLabels)) allocate(SymLabels(nSymLabels))
          call LogMemAlloc('SymLabels',nSymLabels,SymmetrySize,this_routine,tagSymLabels)
-         allocate(SymClasses(nBasis))
+         if (.not. associated(SymClasses)) allocate(SymClasses(nBasis))
          call LogMemAlloc('SymClasses',nBasis,4,this_routine,tagSymClasses)
-         allocate(SymConjTab(nSymlabels))
+         if (.not. allocated(SymConjTab)) allocate(SymConjTab(nSymlabels))
          call LogMemAlloc('SymConjTab',nSymlabels,4,this_routine,tagSymConjTab)
          if (TwoCycleSymGens .or. tUEG) then
              DO I=1,NBASIS,2
