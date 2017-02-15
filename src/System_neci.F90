@@ -2527,7 +2527,7 @@ END SUBROUTINE WRITEBASIS
 
 
 SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
-  use SystemData, only: BasisFN
+  use SystemData, only: BasisFN, t_guga_noreorder
   use sort_mod
   use util_mod, only: NECI_ICOPY
   use constants, only: dp
@@ -2539,6 +2539,7 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
   INTEGER IDONE,I,J,IBFN,ITOT,ITYPE,ISPIN
   real(dp) OEN
   character(*), parameter :: this_routine = 'ORDERBASIS'
+  type(basisfn), pointer :: temp_sym(:)
   IDONE=0
   ITOT=0
 !.. copy the default ordered energies.
@@ -2549,9 +2550,13 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
   WRITE(6,"(A,8I4)") "Ordering Basis (Open  ): ", (ORBORDER(I,2),I=1,8)
   IF(NBASISMAX(3,3).EQ.1) THEN
 !.. we use the symmetries of the spatial orbitals
+! actually this is never really used below here it seems.. since orborder 
+! is only zeros, according to output. check that!
+! and that is independent of the GUGA implementation TODO: check orborder!
      DO ITYPE=1,2
         IBFN=1
         DO I=1,8
+            ! 8 probably because at most D2h symmetry giovanni told me about.
            DO J=1,ORBORDER(I,ITYPE)
               DO WHILE(IBFN.LE.NBASIS.AND.(G1(IBFN)%SYM%s.LT.I-1.OR.BRR(IBFN).EQ.0))
                  IBFN=IBFN+1
@@ -2582,6 +2587,8 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
      CALL NECI_ICOPY(NBASIS,BRR2,1,BRR,1)
      CALL DCOPY(NBASIS,ARR2(1,1),1,ARR(1,1),1) 
   ENDIF
+  ! i think this is the only reached point: and this means i can make it 
+  ! similar to the Hubbard implementation to not reorder!
 ! beta sort
   call sort (arr(idone+1:nbasis,1), brr(idone+1:nbasis), nskip=2)
 ! alpha sort
@@ -2617,6 +2624,18 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
 ! i is now nBasis+2
      call sort (brr(i-itot:i-2), arr(i-itot:i-2,1), nskip=2)
   ENDDO
+  if (t_guga_noreorder) then
+      ! this probably does not work so easy:
+      allocate(temp_sym(nBasis))
+      do i = 1, nBasis
+        temp_sym(i) = G1(i)
+      end do
+      do i = 1, nBasis
+          G1(i) = temp_sym(brr(i))
+          brr(i) = i
+      end do
+  end if
+
 END subroutine ORDERBASIS
 
 
