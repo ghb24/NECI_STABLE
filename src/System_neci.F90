@@ -1,4 +1,5 @@
 #include "macros.h"
+
 MODULE System
 
     use SystemData
@@ -2527,7 +2528,7 @@ END SUBROUTINE WRITEBASIS
 
 
 SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
-  use SystemData, only: BasisFN, t_guga_noreorder
+  use SystemData, only: BasisFN, t_guga_noreorder, lNoSymmetry
   use sort_mod
   use util_mod, only: NECI_ICOPY
   use constants, only: dp
@@ -2638,7 +2639,8 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
           brr(i) = i
       end do
       ! could i just do a new molpsymtable here??
-      CALL GENMOLPSYMTABLE(NBASISMAX(5,2)+1,G1,NBASIS)
+      ! but only do it if symmetry is not turned off explicetyl! 
+      if (.not. lNoSymmetry) CALL GENMOLPSYMTABLE(NBASISMAX(5,2)+1,G1,NBASIS)
   end if
 
 END subroutine ORDERBASIS
