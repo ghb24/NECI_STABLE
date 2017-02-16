@@ -69,6 +69,8 @@ program = guga_unit_tests
 [guga_unit_tests/h6/2A_rhf/*/]
 program = guga_unit_tests
 
+[guga_unit_tests/h6/2A_localised/*/*/]
+program = guga_unit_tests
 
 [categories]
 
