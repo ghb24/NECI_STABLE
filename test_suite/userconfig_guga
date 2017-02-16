@@ -17,17 +17,17 @@ vcs = git
 extract_program = ./tools/extract.py
 
 [csfoh]
-exe = /home/dobrautz/bin/compare_all_excitations.py
+exe = ./tools/guga_tests/compare_all_excitations.py
 vcs = git
 extract_program = ./tools/extract.py
 
 [guga_unit_tests]
-exe = /home/dobrautz/bin/run_NECI_and_CSFOH.py
+exe = ./tools/guga_tests/run_NECI_and_CSFOH.py
 vcs = git
 extract_program = ./tools/guga_tests/extract_guga.py
 
 [user]
 diff = vimdiff
 default_program = neci
-benchmark = csfoh-.neci-70d5cba.guga_unit_tests-.kneci-70d5cba.mneci-70d5cba
+benchmark = csfoh-0ac5428.neci-0ac5428.guga_unit_tests-0ac5428.kneci-0ac5428.mneci-0ac5428 csfoh-.neci-70d5cba.guga_unit_tests-.kneci-70d5cba.mneci-70d5cba
 

@@ -25,15 +25,19 @@ map(os.remove, glob.glob('pgen_vs_*'))
 machine = socket.gethostname()
 if machine == 'baloo-X1-Carbon':
     neci_exe = '/home/dobrautz/bin/neci.x'
+    compare_exe = '/home/dobrautz/cloud/doktorat/neci/neci/test_suite/tools/guga_tests/compare_all_excitations.py'
 
 elif machine == 'pcal008': 
     neci_exe = '/home/dobrautz/bin/neci.x'
+    compare_exe = '/home/dobrautz/cloud/doktorat/neci/neci/test_suite/tools/guga_tests/compare_all_excitations.py'
 
 elif machine == 'allogin1':
     neci_exe = '/home/dobrautz/bin/neci.cluster.x'
+    compare_exe = '/home/dobrautz/cloud/doktorat/neci/neci/test_suite/tools/guga_tests/compare_all_excitations.py'
 
 elif machine == 'altest':
     neci_exe = '/home/dobrautz/bin/neci.x'
+    compare_exe = '/home/dobrautz/cloud/doktorat/neci/neci/test_suite/tools/guga_tests/compare_all_excitations.py'
 
 else:
     print 'incorrect hostname! check setup!'
@@ -44,6 +48,9 @@ if not os.path.isfile(neci_exe):
     print 'neci exe not found!'
     raise SystemExit()
 
+if not os.path.isfile(compare_exe): 
+    print 'neci exe not found!'
+    raise SystemExit()
 process_neci = subprocess.Popen([neci_exe,'input.inp'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 output_neci, error_neci = process_neci.communicate()
@@ -65,7 +72,7 @@ if error_neci == '':
 
     # and then try to call my compare_all python script.. 
 
-    process_dmrg = subprocess.Popen(['/home/dobrautz/bin/compare_all_excitations.py'], stdout=subprocess.PIPE, \
+    process_dmrg = subprocess.Popen([compare_exe], stdout=subprocess.PIPE, \
             stderr=subprocess.PIPE)
 
     output_dmrg, error_dmrg = process_dmrg.communicate()
