@@ -728,7 +728,14 @@ contains
         call actHamiltonian(ilut, ex, nEx)
 
         if (t_full_guga_tests .or. t_guga_testsuite) then
-            nTest = nEx
+            ! in this case also check if not too many n_guga_excits are 
+            ! asked for.. otherwise it takes forever! 
+            ! if 1B are asked for only do 1 CSF
+            if (n_guga_excit_gen < 1000000000) then
+                nTest = nEx
+            else
+                nTest = 1
+            end if
         else
             nTest = min(nEx,20)
         end if

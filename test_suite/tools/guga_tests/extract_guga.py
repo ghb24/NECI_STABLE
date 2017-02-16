@@ -1,11 +1,14 @@
 #!/usr/bin/env python
-'''extract.py [options] file
 
-Extract test suite data and output it in a format which can be used by
-testcode2.'''
+''' extract_guga.py [options] file 
+
+Extract specific guga test suite data and output it in a format which can be used by testcode2.'''
 
 import optparse
 import sys
+
+# specific output analysis for my guga "unit test" testsuite, which also compares the matrix elements with 
+# Sandeeps Block code! 
 
 # Test data to be searched for.
 # Each element in this list is a list with information about a single test
@@ -15,25 +18,16 @@ import sys
 # specifies whether the quantity should be repeated multiple times in the
 # output file, if multiple simulations are being performed (i.e., replicas
 # or excited states).
+
+# i have to additionally test for succesfull NECI and CSFOH runs: 
 test_data = [
-    ['energy_ground','GROUND', -1, False],
     ['ref_energy','<D0|H|D0>', -1, False],
     ['final_energy','Final energy estimate', -1, True],
-    ['energy_rdm','*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*', -1, True],
-    ['max_error_rdm','MAX ABS ERROR IN HERMITICITY', 1, True],
-    ['sum_error_rdm','SUM ABS ERROR IN HERMITICITY', 1, True],
-    ['1_rdm_diag_sum', 'SUM OF 1-RDM', -1, False],
-    ['no_occ_sum', 'SUM OF THE N LARGEST NO OCCUPATION NUMBERS', -1, False],
-    ['corr_entropy', 'CORRELATION ENTROPY  ', -1, False],
-    ['hamil_sum','Sum of H', -1, False],
-    ['overlap_sum','Sum of overlap matrix', -1, False],
-    ['spec_low','Spectral weight at the lowest', -1, False],
-    ['spec_high','Spectral weight at the highest', -1, False],
-    ['ft_low','FT energy at lowest', -1, False],
-    ['ft_high','FT energy at highest', -1, False],
     ['neci_success','NECI Run successful:',-1,False],
     ['csfoh_success','CSFOH Run succesful:',-1,False]
 ]
+
+# i am not yet sure about the simulation labels:
 
 # The following are strings to be searched for which specify which simulation
 # or estimate is about to be printed. For example, when using replica tricks

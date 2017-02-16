@@ -2628,20 +2628,20 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
 ! i is now nBasis+2
      call sort (brr(i-itot:i-2), arr(i-itot:i-2,1), nskip=2)
   ENDDO
-  if (t_guga_noreorder) then
-      ! this probably does not work so easy:
-      allocate(temp_sym(nBasis))
-      do i = 1, nBasis
-        temp_sym(i) = G1(i)
-      end do
-      do i = 1, nBasis
-          G1(i) = temp_sym(brr(i))
-          brr(i) = i
-      end do
-      ! could i just do a new molpsymtable here??
-      ! but only do it if symmetry is not turned off explicetyl! 
-      if (.not. lNoSymmetry) CALL GENMOLPSYMTABLE(NBASISMAX(5,2)+1,G1,NBASIS)
-  end if
+!   if (t_guga_noreorder) then
+!       ! this probably does not work so easy:
+!       allocate(temp_sym(nBasis))
+!       do i = 1, nBasis
+!         temp_sym(i) = G1(i)
+!       end do
+!       do i = 1, nBasis
+!           G1(i) = temp_sym(brr(i))
+!           brr(i) = i
+!       end do
+!       ! could i just do a new molpsymtable here??
+!       ! but only do it if symmetry is not turned off explicetyl! 
+!       if (.not. lNoSymmetry) CALL GENMOLPSYMTABLE(NBASISMAX(5,2)+1,G1,NBASIS)
+!   end if
 
 END subroutine ORDERBASIS
 

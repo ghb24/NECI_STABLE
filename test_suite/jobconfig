@@ -12,10 +12,10 @@ nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 
-[neci/serial/*/]
+[neci/serial/*/*/]
 max_nprocs = 1
 
-[neci/parallel/*/]
+[neci/parallel/*/*/]
 nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
@@ -60,6 +60,13 @@ tolerance = (3e-8, None, 'overlap_sum'), (2e-7, None, 'hamil_sum')
 program = mneci
 tolerance = (5.01e-8, None, 'overlap_sum'), (3.01e-7, None, 'hamil_sum')
 
+[csfoh/]
+program = csfoh
+
+[guga_unit_tests/*/*/*/*/]
+program = guga_unit_tests
+
 [categories]
 
-_default_ = neci kneci mneci
+_default_ = neci kneci mneci 
+

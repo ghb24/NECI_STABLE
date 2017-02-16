@@ -240,6 +240,13 @@ contains
                 ! real.
                 SymConjTab(I) = I
              ENDDO
+#ifdef __DEBUG
+            WRITE(6,*) "Label, Sym, SymConjLabel, SymConj, SymProd"
+            do i=1,nsymlabels
+                WRITE(6,"(5I12)") i,symlabels(i),SymConjTab(i),symlabels(SymConjTab(i)),&
+                             SYMPROD(symlabels(i),symlabels(SymConjTab(i)))
+            enddo
+#endif
          else if (.not.tHUB .or. treal) then
              ! Hubbard symmetry info set up in GenHubMomIrrepsSymTable.
              ! except for the real-space lattice!
@@ -267,11 +274,13 @@ contains
                      end if
                  end do
              end do
-!             WRITE(6,*) "Label, Sym, SymConjLabel, SymConj, SymProd"
-!             do i=1,nsymlabels
-!                 WRITE(6,"(5I12)") i,symlabels(i),SymConjTab(i),symlabels(SymConjTab(i)),
-!SYMPROD(symlabels(i),symlabels(SymConjTab(i)))
-!             enddo
+#ifdef __DEBUG
+            WRITE(6,*) "Label, Sym, SymConjLabel, SymConj, SymProd"
+            do i=1,nsymlabels
+                WRITE(6,"(5I12)") i,symlabels(i),SymConjTab(i),symlabels(SymConjTab(i)),&
+                             SYMPROD(symlabels(i),symlabels(SymConjTab(i)))
+            enddo
+#endif
          end if
       END SUBROUTINE GENMOLPSYMTABLE
 
