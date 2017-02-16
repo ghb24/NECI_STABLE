@@ -27,7 +27,7 @@ if machine == 'baloo-X1-Carbon':
     neci_exe = '/home/dobrautz/bin/neci.x'
     compare_exe = '/home/dobrautz/cloud/doktorat/neci/neci/test_suite/tools/guga_tests/compare_all_excitations.py'
 
-elif machine == 'pcal008': 
+elif machine.startswith('pcal'):
     neci_exe = '/home/dobrautz/bin/neci.x'
     compare_exe = '/home/dobrautz/cloud/doktorat/neci/neci/test_suite/tools/guga_tests/compare_all_excitations.py'
 

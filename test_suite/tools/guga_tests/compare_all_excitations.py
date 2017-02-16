@@ -17,7 +17,7 @@ machine = socket.gethostname()
 if machine == 'baloo-X1-Carbon':
     csfoh_exe = '/home/dobrautz/bin/CSFOH'
 
-elif machine == 'pcal008': 
+elif machine.startswith('pcal'):
     csfoh_exe = '/home/dobrautz/bin/CSFOH'
 
 elif machine == 'allogin1':

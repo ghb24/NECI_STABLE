@@ -5,7 +5,7 @@ electrons  6
 nonuniformrandexcits mol_guga_weighted
 guga 2
 (guga-tests 1000000000
-guga-testsuite 10000000
+guga-testsuite 100000000
 (system-replicas 3
 endsys
  
