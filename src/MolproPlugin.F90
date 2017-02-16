@@ -101,12 +101,13 @@ SUBROUTINE MolproPluginTerm(signal)
        CALL MPI_Send(signal,1,MPI_Int,0,0,molpro_plugin_intercomm,ierr)
   ! without this print, then MPI gets lost ???
   WRITE (6,*) 'Stopping Molpro plugin, signal =',signal; FLUSH(6)
-  IF (signal.EQ.0) THEN
-   CALL MPI_Barrier(MPI_COMM_WORLD,ierr)
-  ELSE
+! doesn't look like slave threads ever make it here, so do not have a barrier
+!  IF (signal.EQ.0) THEN
+!   CALL MPI_Barrier(MPI_COMM_WORLD,ierr)
+!  ELSE
   ! for abnormal termination, signal.lt.0, and then don't risk a barrier
    CALL fsleep(1_c_int) ! give the message time to arrive
-  END IF
+!  END IF
  END IF
 END SUBROUTINE MolproPluginTerm
 
