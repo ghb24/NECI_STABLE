@@ -63,8 +63,12 @@ tolerance = (5.01e-8, None, 'overlap_sum'), (3.01e-7, None, 'hamil_sum')
 [csfoh/]
 program = csfoh
 
-[guga_unit_tests/*/*/*/*/]
+[guga_unit_tests/unit_test/*/]
 program = guga_unit_tests
+
+[guga_unit_tests/h6/2A_rhf/*/]
+program = guga_unit_tests
+
 
 [categories]
 

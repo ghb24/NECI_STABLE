@@ -31,7 +31,7 @@ else:
     raise SystemExit()
 
 # check if exe exists
-if .not. os.path.isfile(csfoh_exe): 
+if not os.path.isfile(csfoh_exe): 
     print 'CSFOH exe not found!'
     raise SystemExit()
 
