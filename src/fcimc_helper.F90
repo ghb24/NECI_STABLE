@@ -1935,7 +1935,8 @@ contains
         ! Update the reference used for a particular run to the one specified.
         ! Update the HPHF flipped arrays, and adjust the stored diagonal
         ! energies to account for the change if necessary.
-
+      use SystemData, only: BasisFn, nBasisMax
+      use sym_mod, only: writesym, getsym
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: run
         character(*), parameter :: this_routine = 'update_run_reference'
@@ -1944,6 +1945,7 @@ contains
         real(dp) :: old_hii
         integer :: i, det(nel)
         logical :: tSwapped
+        Type(BasisFn) :: isym
 
         iLutRef(:, run) = 0
         iLutRef(0:NIfDBO, run) = ilut(0:NIfDBO)
@@ -1952,6 +1954,9 @@ contains
               &energy reference determinant for run', run, &
               ' on the next update cycle to: '
         call write_det (iout, ProjEDet(:, run), .true.)
+        call GetSym(ProjEDet(:,run),nEl,G1,nBasisMax,isym)
+        write(6,"(A)",advance='no') " Symmetry: "
+        call writeSym(6,isym%sym,.true.)
 
         if(tHPHF) then
             if(.not.Allocated(RefDetFlip)) then
