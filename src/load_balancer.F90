@@ -333,7 +333,7 @@ contains
 
         
     subroutine move_block(block, tgt_proc)
-
+      use real_time_aux, only: move_overlap_block
         integer, intent(in) :: block, tgt_proc
         integer :: src_proc, ierr, nsend, nelem, j, det_block, hash_val
         integer :: det(nel), TotWalkersTmp
@@ -411,6 +411,11 @@ contains
 
         end if
 
+#ifdef __REALTIME
+        ! in real-time, also load balance the corresponding states in the overlap states
+        call move_overlap_block(block,tgt_proc)
+#endif
+
         ! Adjust the load balancing mapping
         LoadBalanceMapping(block) = tgt_proc
 
@@ -418,7 +423,6 @@ contains
         call MPIBarrier(ierr)
 
     end subroutine
-
 
     subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ)
 

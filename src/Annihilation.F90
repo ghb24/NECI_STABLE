@@ -145,7 +145,6 @@ module AnnihilationMod
         call set_timer(Comms_Time,30)
 
         call MPIAlltoAll(sendcounts,1,recvcounts,1,error)
-
         ! Set this global data - the total number of spawned determants.
         ! again in the realtime i have to distinguish between the 2 RK steps
 #ifdef __REALTIME 
@@ -189,10 +188,8 @@ module AnnihilationMod
            call stop_all(this_routine,"Maximum index of newly-spawned array exceeding "&
                 & //"maximum length of spawning array")
         endif
-
         ! maybe: add additional buffers to prevent failure in communication
         call MPIAlltoAllv(SpawnedParts,sendcounts,disps,SpawnedParts2,recvcounts,recvdisps,error)
-
         call halt_timer(Comms_Time)
 
     end subroutine SendProcNewParts

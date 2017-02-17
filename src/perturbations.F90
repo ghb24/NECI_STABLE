@@ -107,7 +107,7 @@ contains
         use DetBitOps, only: ilut_lt, ilut_gt
         use load_balance_calcnodes, only: DetermineDetNode
         use FciMCData, only: HashIndex, SpawnedParts, SpawnedParts2
-        use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots
+        use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots, MaxSpawned
         use sort_mod, only: sort
         use SystemData, only: nel
 
@@ -142,7 +142,10 @@ contains
                 ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
             end if
         end do
-
+        
+        if(allocated(perturb%ann_orbs) .and. allocated(perturb%crtn_orbs))&
+             write(6,*) "Transfering from orbital ", perturb%ann_orbs(1), &
+             " to ", perturb%crtn_orbs(1)
         ndets = ndets - nremoved
 
 

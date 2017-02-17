@@ -594,15 +594,16 @@ contains
                call stats_out(state,.true., overlap_imag(iGf), 'Im. <y_i(0)|y(t)> (i=' // &
                     trim(adjustl(tmgf)) // ')' )
             enddo
-            if(gf_count == 1) then
+            do iGf = 1, gf_count
+               write(tmgf, '(i5)') iGf
                do p = 1, normsize
                   write(tmpc, '(i5)') p
-                  call stats_out(state,.false.,real(current_overlap(p,1)), 'Re. <y(0)|y(t)>(rep ' // &
-                       trim(adjustl(tmpc)) //  ')')
-                  call stats_out(state,.false.,aimag(current_overlap(p,1)), 'Im. <y(0)|y(t)>(rep ' // &
-                       trim(adjustl(tmpc)) // ')')
+                  call stats_out(state,.false.,real(current_overlap(p,iGf)), 'Re. <y(0)|y(t)>(rep ' // &
+                       trim(adjustl(tmpc)) // ' i=' // trim(adjustl(tmgf)) //  ')')
+                  call stats_out(state,.false.,aimag(current_overlap(p,iGf)), 'Im. <y(0)|y(t)>(rep ' // &
+                       trim(adjustl(tmpc)) // ' i=' // trim(adjustl(tmgf)) //')')
                enddo
-            endif
+            enddo
 #endif
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these

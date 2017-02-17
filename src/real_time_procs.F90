@@ -17,6 +17,7 @@ module real_time_procs
                               shift_damping, normsize, tStabilizerShift, dyn_norm_psi, &
                               TotPartsPeak, numCycShiftExcess, shiftLimit, &
                               tDynamicAlpha, tDynamicDamping, stepsAlpha
+    use real_time_aux, only: write_overlap_state
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
                          sizeof_int, MPIArg
@@ -1475,7 +1476,7 @@ contains
       implicit none
         character(*), parameter :: this_routine = "create_perturbed_ground"
         integer :: tmp_totwalkers, totwalkers_backup
-        integer :: ierr, i
+        integer :: ierr, i, totNOccDets
         integer(n_int), allocatable :: perturbed_buf(:,:)
 
         if(tReadPops) then
@@ -1508,7 +1509,15 @@ contains
            else
               perturbed_buf = CurrentDets
            endif
-           call write_overlap_state(perturbed_buf,i)
+           call write_overlap_state(perturbed_buf,TotWalkers_orig_max,i)
+           call MPISumAll(overlap_states(i)%nDets,totNOccDets)
+           if(totNOccDets==0) then 
+              if(gf_count == 1) then
+                 call stop_all('create_perturbed_ground','No walkers survived perturbation')
+              else
+                 write(6,*) "WARNING, EMPTY PERTURBED STATE WITH INDEX", i
+              endif
+           endif
            tmp_totwalkers = totwalkers_backup
         enddo
 
@@ -1523,38 +1532,6 @@ contains
 
     end subroutine create_perturbed_ground
 
-    subroutine write_overlap_state(state, index)
-      implicit none
-      integer(n_int), intent(in) :: state(0:nIfTot,TotWalkers_orig_max)
-      integer, intent(in) :: index
-      integer :: nOccDets, i, totNOccDets
-      real(dp) :: tmp_sign(lenof_sign)
-      character(*), parameter :: this_routine = "write_overlap_state"
-
-      ! check how many determinants are stored for this state on this core
-      nOccDets = 0
-      do i=1, TotWalkers_orig_max
-         call extract_sign(state(:,i), tmp_sign)
-         if(IsUnoccDet(tmp_sign)) then
-            cycle
-         endif
-         nOccDets = nOccDets + 1
-      enddo
-
-      call MPISumAll(nOccDets,totNOccDets)
-      if(totNOccDets==0) then 
-         if(gf_count == 1) then
-            call stop_all(this_routine,'No walkers survived perturbation')
-         else
-            write(6,*) "WARNING, EMPTY PERTURBED STATE WITH INDEX", index
-         endif
-      endif
-      ! copy them to overlap_states
-      allocate(overlap_states(index)%dets(0:nIfTot,nOccDets))
-      overlap_states(index)%dets = state(:,1:nOccDets)
-      overlap_states(index)%nDets = nOccDets
-    end subroutine write_overlap_state
-    
     subroutine check_update_growth(iter_data, message)
       use spin_project, only : tSpinProject
       use real_time_data, only : TotPartsStorage

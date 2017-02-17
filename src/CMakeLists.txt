@@ -122,6 +122,7 @@ set( SRC_FILES
     real_time.F90
     real_time_procs.F90
     real_time_init.F90
+    real_time_aux.F90
     readri.F90
     replica_data.F90
     rhodiag.F
