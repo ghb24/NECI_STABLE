@@ -5,7 +5,7 @@ electrons  6
 nonuniformrandexcits mol_guga_weighted
 guga 2
 (guga-tests 1000000000
-guga-testsuite 100000000
+guga-testsuite 1000000000
 (system-replicas 3
 endsys
  
@@ -31,7 +31,7 @@ totalwalkers   10000
 allrealcoeff
 max-tau 0.01
 
-nmcyc 20000
+nmcyc 1
 semi-stochastic 100
 pops-core 10
 
