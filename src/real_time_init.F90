@@ -363,6 +363,31 @@ contains
             ! use nicks perturbation & kp-fciqmc stuff here as much as 
             ! possible too
 
+            ! just compute the time-evolution of a singly excited state (with
+            ! reference to the ground state. This gives the contribution of
+            ! this state to the spectrum
+             case("SINGLE")
+                alloc_popsfile_dets = .true.
+                tWritePopsNorm = .true.
+                allocate(pops_pert(1))
+                pops_pert%nannihilate = 1
+                pops_pert%ncreate = 1
+                allocate(pops_pert(1)%crtn_orbs(1))
+                allocate(pops_pert(1)%ann_orbs(1))
+                call readi(pops_pert(1)%ann_orbs(1))
+                call readi(pops_pert(1)%crtn_orbs(1))
+                call init_perturbation_annihilation(pops_pert(1))
+                call init_perturbation_creation(pops_pert(1))
+                allocate(overlap_pert(1))
+                overlap_pert%nannihilate = 1
+                overlap_pert%ncreate = 1
+                allocate(overlap_pert(1)%crtn_orbs(1))
+                allocate(overlap_pert(1)%ann_orbs(1))
+                overlap_pert(1)%crtn_orbs(1)=pops_pert(1)%crtn_orbs(1)
+                overlap_pert(1)%ann_orbs(1)=pops_pert(1)%ann_orbs(1)
+                call init_perturbation_annihilation(overlap_pert(1))
+                call init_perturbation_creation(overlap_pert(1))
+                
             ! the most important info is if it is the photoemmission(lesser GF)
             ! or photoabsorption (greater GF) and the orbital we want the 
             ! corresponding operator apply on 
