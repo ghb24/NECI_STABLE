@@ -1006,6 +1006,11 @@ MODULE Logging
             ! there are _many_ blocks.
             tOutputLoadDistribution = .true.
 
+        case ("PRINT-UMAT")
+            ! output umat also in the momentum space hubbard to be able to 
+            ! create a FCIDUMP file to compare GUGA matrix elements with 
+            ! DMRG results!
+            t_umat_output = .true.
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)
         end select

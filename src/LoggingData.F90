@@ -106,4 +106,7 @@ module LoggingData
     logical :: tHDF5PopsRead, tHDF5PopsWrite
 
     logical :: t_print_frq_histograms = .false.
+
+    ! output umat also in the case of the momentum space hubbard
+    logical :: t_umat_output = .false.
 end module LoggingData
