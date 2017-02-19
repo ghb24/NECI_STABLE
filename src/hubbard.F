@@ -573,3 +573,42 @@ C.. we have a new rep
          IFINDBASISFN=0
          RETURN
       END FUNCTION IFINDBASISFN
+
+      subroutine write_kspace_umat() 
+          ! subroutine to output the umat also in the case of the 
+          ! momentum space hubbard model, to be easier able to compare it 
+          ! with the DMRG calculations for the GUGA matrix elements!
+          use SystemData, only: G1, nSpatOrbs, nBasisMax, uHub, omega
+          use sym_mod, only: mompbcsym
+          use UMatCache, only: gtid
+          character(*), parameter :: this_routine = "write_kspace_umat"
+
+          integer :: i, j, k, l, k_in(3), k_out(3)
+          open(10, file="UMAT", status="unknown")
+          ! do it really naively and just loop over all the indices and 
+          ! check if the momentum consercation is fullfilled! 
+          ! actually it is more efficient to loop over the spatial orbitals 
+          ! only! and check the momentum for the spin-orbs!
+          do i = 1, nSpatOrbs
+              do j = 1, nSpatOrbs
+                  do k = 1, nSpatOrbs 
+                      do l = 1, nSpatOrbs
+                          ! have to figure out which orbitals to compare in 
+                          ! the physicist notation! 
+                          ! and convert to fake spin-orbtitals
+                          k_in = G1(2*i)%k + G1(2*k)%k
+                          k_out = G1(2*j)%k + G1(2*l)%k
+                          ! apply periodic BC
+                          call mompbcsym(k_in, nBasisMax)
+                          call mompbcsym(k_out, nBasisMax)
+                          if (all(k_in == k_out)) then 
+                              write(10, '(4i7, f19.9)') i,j,k,l,
+     &                          uHub/Omega
+                          end if
+                      end do
+                  end do
+              end do
+          end do
+          close(10)
+
+      end subroutine write_kspace_umat

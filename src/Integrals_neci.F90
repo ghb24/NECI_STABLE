@@ -21,6 +21,7 @@ module Integrals_neci
     use procedure_pointers, only: get_umat_el, get_umat_el_secondary
     use constants
 
+
     implicit none
 
 contains
@@ -361,6 +362,7 @@ contains
       use MemoryManager, only: TagIntType
       use sym_mod, only: GenSymStatePairs
       use read_fci
+      use LoggingData, only: t_umat_output
       INTEGER iCacheFlag
       complex(dp),ALLOCATABLE :: ZIA(:)
       INTEGER(TagIntType),SAVE :: tagZIA=0
@@ -532,6 +534,9 @@ contains
                      !Allocate(UMat(1), stat=ierr)
                      LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
                      UMAT(1)=UHUB/OMEGA
+                     ! try to output the UMat anyway. to apply dmrg comparison
+                     if (t_umat_output) call write_kspace_umat()
+
                   ENDIF
     !!C.. The UEG doesn't store coul integrals
                ENDIF

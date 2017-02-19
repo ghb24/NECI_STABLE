@@ -6,10 +6,11 @@ cell 1 1 1
 real 
 b -1 
 u 16
+open-bc xy
 nonuniformrandexcits ueg_guga
 electrons 8
 guga 2
-guga-testsuite 10000000
+guga-testsuite 1000000
 endsys
 
 calc 
@@ -24,13 +25,13 @@ frequency-analysis
 new-tau-search 0.999
 truncate-spawns 2
 
-totalwalkers 10000
+totalwalkers 1000
 
 max-tau 0.001
 allrealcoeff
 
-nmcyc 100000
-(nmcyc 10000
+(nmcyc 1
+nmcyc 50000
 
 semi-stochastic 100
 pops-core 100

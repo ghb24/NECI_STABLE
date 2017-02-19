@@ -1,14 +1,14 @@
 title
 
 system hubbard
-tilt 2 2 
-cell 1 1 1 
+(tilt 1 1 
+cell 3 4 1 
 real 
 b -1 
 u 16
 nonuniformrandexcits ueg_guga
-electrons 8
-guga 2
+electrons 11
+guga 3
 guga-testsuite 10000000
 endsys
 
@@ -29,7 +29,7 @@ totalwalkers 10000
 max-tau 0.001
 allrealcoeff
 
-nmcyc 100000
+nmcyc 50000
 (nmcyc 10000
 
 semi-stochastic 100
@@ -38,10 +38,8 @@ pops-core 100
 trial-wavefunction 100
 pops-trial 10
 
-definedet 1 3 6 7 10 11 14 15
+definedet 1 4 5 8 9 12 13 16 17 21 23
 
-truncinitiator
-addtoinitiator 3
 shiftdamp 0.1
 stepsshift 10
 

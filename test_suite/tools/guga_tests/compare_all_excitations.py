@@ -145,7 +145,7 @@ for filename in fileList:
     cnt = 0
     for i, item in enumerate(ref_mat_eles):
         print item, mat_eles[i]
-        if (abs(item) - abs(mat_eles[i]))/abs(item) > 0.001:
+        if abs((abs(item) - abs(mat_eles[i]))/abs(mat_eles[i])) > 0.001:
             print " Incorrect matrix element for excitation:"
             print excitations[i]
             print " DMRG: ", item, " GUGA: ", mat_eles[i]
