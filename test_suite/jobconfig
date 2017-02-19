@@ -74,6 +74,10 @@ program = guga_unit_tests
 
 [guga_unit_tests/h6/4A_localised/*/*/]
 program = guga_unit_tests
+
+[guga_unit_tests/hubbard/*/*/*/*/*/]
+program = guga_unit_tests
+
 [categories]
 
 _default_ = neci kneci mneci 
