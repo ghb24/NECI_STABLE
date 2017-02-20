@@ -1,16 +1,15 @@
 title
 
 system hubbard
-tilt 2 2 
-cell 1 1 1 
+cell 3 4 1 
 b -1 
 u 1
 nonuniformrandexcits ueg_guga
-electrons 8
+electrons 10
 kpoints
-guga 4
+guga 2
 twisted-bc 0.25 0.25
-guga-testsuite 
+guga-testsuite 10000000
 endsys
 
 calc 
@@ -30,7 +29,6 @@ totalwalkers 1000
 max-tau 0.001
 allrealcoeff
 
-(nmcyc 1
 nmcyc 80000
 
 semi-stochastic 100
@@ -39,7 +37,7 @@ pops-core 100
 trial-wavefunction 100
 pops-trial 10
 
-definedet  1 2 3 5 7 8 11 13
+definedet 1 2 3 4 5 6 7 9 19 20
 
 truncinitiator
 addtoinitiator 3
@@ -50,7 +48,7 @@ endcalc
 
 logging
 popsfile -1
-(print-umat
+print-umat
 endlog
 
 end
