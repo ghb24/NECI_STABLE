@@ -85,6 +85,7 @@ module real_time_aux
             else if (iProcIndex == tgt_proc) then
                ! here we have to expand the overlap state array, so we need a buffer
                call MPIRecv(nsend,1,src_proc,mpi_tag_nsend,ierr)
+               nelem = nsend * (1 + niftot)
                call MPIRecv(SpawnedParts,nelem,src_proc,mpi_tag_dets,ierr)
 
                offset = overlap_states(iGf)%nDets
