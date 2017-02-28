@@ -62,7 +62,7 @@ print error_neci
 # successful!
 # do some testing if neci did not throw an error!
 # ok neci does not quite properly work with the errorcodes.. so i could try to check if the error_message is empty:
-if error_neci == '': 
+if error_neci == '' or error_neci == '#': 
     # if neci worked do the dmrg_comparison
     print "******************************************"
     print " finished NECI calculation!"

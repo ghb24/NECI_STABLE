@@ -69,16 +69,55 @@ program = guga_unit_tests
 [guga_unit_tests/h6/2A_rhf/*/]
 program = guga_unit_tests
 
+[guga_unit_tests/h6/2A_rhf_open/*/]
+program = guga_unit_tests
+
 [guga_unit_tests/h6/2A_localised/*/*/]
 program = guga_unit_tests
 
 [guga_unit_tests/h6/4A_localised/*/*/]
 program = guga_unit_tests
 
-[guga_unit_tests/hubbard/*/*/*/*/*/]
+[guga_unit_tests/hubbard/real_space/3x4/nel_12/periodic/*/*/]
 program = guga_unit_tests
 
-[categories]
+[guga_unit_tests/hubbard/real_space/3x4/nel_12/full-open/*/]
+program = guga_unit_tests
+
+[guga_unit_tests/hubbard/real_space/3x4/nel_12/open-x/*/]
+program = guga_unit_tests
+
+[guga_unit_tests/hubbard/real_space/3x4/nel_12/open-y/*/]
+program = guga_unit_tests
+
+[guga_unit_tests/hubbard/real_space/3x4/nel_11/periodic/*/*/]
+program = guga_unit_tests
+
+[guga_unit_tests/hubbard/real_space/3x4/nel_11/full-open/*/]
+program = guga_unit_tests
+
+[guga_unit_tests/hubbard/real_space/3x4/nel_11/open-x/*/]
+program = guga_unit_tests
+
+[guga_unit_tests/hubbard/real_space/3x4/nel_11/open-y/*/]
+program = guga_unit_tests
+
+[guga_unit_tests/hubbard/real_space/tilt_2x2/periodic/*/*/]
+program = guga_unit_tests
+
+[guga_unit_tests/hubbard/real_space/tilt_2x2/open/*/]
+program = guga_unit_tests
+
+[guga_unit_tests/hubbard/momentum_space/tilt_2x2/*/*/]
+program = guga_unit_tests
+
+[guga_unit_tests/hubbard/momentum_space/3x4/*/*/*/]
+program = guga_unit_tests
+
+[guga_unit_tests/N2/*/*/]
+program = guga_unit_tests
+
+[categories/]
 
 _default_ = neci kneci mneci 
 
