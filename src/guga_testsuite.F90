@@ -731,9 +731,19 @@ contains
             ! in this case also check if not too many n_guga_excits are 
             ! asked for.. otherwise it takes forever! 
             ! if 1B are asked for only do 1 CSF
-            if (n_guga_excit_gen < 1000000000) then
-                nTest = nEx
+            if (n_guga_excit_gen < 1000000) then
+                ! under a million do all the excits
+                nTest = nex
+            else if (n_guga_excit_gen < 10000000) then
+                ! for a million do 100 excits
+                nTest = min(nex,1000)
+            else if (n_guga_excit_gen < 100000000) then
+                nTest = min(nex,100)
+            else if (n_guga_excit_gen < 1000000000) then
+                ! for 100 million do only 10
+                nTest = min(nex,10)
             else
+                ! for more do only the reference!
                 nTest = 1
             end if
         else

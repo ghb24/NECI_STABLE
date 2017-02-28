@@ -9,7 +9,7 @@ electrons 10
 kpoints
 guga 2
 twisted-bc 0.0 0.0
-guga-testsuite 
+guga-testsuite 100000000
 endsys
 
 calc 

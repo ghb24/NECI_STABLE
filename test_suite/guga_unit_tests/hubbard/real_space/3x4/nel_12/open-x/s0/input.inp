@@ -21,13 +21,13 @@ methods
 method vertex fcimc
 endmethods
 
-frequency-analysis
-new-tau-search 0.999
+(frequency-analysis
+(new-tau-search 0.999
 truncate-spawns 2
 
 totalwalkers 10000
 
-max-tau 0.001
+tau 0.001
 allrealcoeff
 
 nmcyc 50000

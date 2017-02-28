@@ -9,7 +9,7 @@ u 16
 nonuniformrandexcits ueg_guga
 electrons 11
 guga 5
-guga-testsuite 10000000
+guga-testsuite 100000000
 endsys
 
 calc 

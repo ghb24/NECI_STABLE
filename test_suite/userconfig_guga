@@ -29,5 +29,5 @@ extract_program = ./tools/guga_tests/extract_guga.py
 [user]
 diff = vimdiff
 default_program = neci
-benchmark = csfoh-c0ce57e.neci-c0ce57e.guga_unit_tests-c0ce57e.kneci-c0ce57e.mneci-c0ce57e csfoh-0734847.neci-0734847.guga_unit_tests-0734847.kneci-0734847.mneci-0734847 csfoh-b801b16.neci-b801b16.guga_unit_tests-b801b16.kneci-b801b16.mneci-b801b16 csfoh-0ac5428.neci-0ac5428.guga_unit_tests-0ac5428.kneci-0ac5428.mneci-0ac5428 csfoh-.neci-70d5cba.guga_unit_tests-.kneci-70d5cba.mneci-70d5cba
+benchmark = csfoh-08704c3.neci-08704c3.guga_unit_tests-08704c3.kneci-08704c3.mneci-08704c3 csfoh-c0ce57e.neci-c0ce57e.guga_unit_tests-c0ce57e.kneci-c0ce57e.mneci-c0ce57e csfoh-0734847.neci-0734847.guga_unit_tests-0734847.kneci-0734847.mneci-0734847 csfoh-b801b16.neci-b801b16.guga_unit_tests-b801b16.kneci-b801b16.mneci-b801b16 csfoh-0ac5428.neci-0ac5428.guga_unit_tests-0ac5428.kneci-0ac5428.mneci-0ac5428 csfoh-.neci-70d5cba.guga_unit_tests-.kneci-70d5cba.mneci-70d5cba
 

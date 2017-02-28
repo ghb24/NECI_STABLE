@@ -6,7 +6,7 @@ nonuniformrandexcits mol_guga_weighted
 (guga-noreorder
 (nonuniformrandexcits 4ind-weighted-2
 guga 4
-(guga-testsuite  1000000000
+guga-testsuite  1000000000
 (system-replicas 3
 endsys
  
