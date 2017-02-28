@@ -39,7 +39,7 @@ neci_add_option(
 
 neci_add_option(
     FEATURE HDF5
-    DEFAULT off
+    DEFAULT ON
     DESCRIPTION "Use shared memory to store integrals"
     REQUIRED_PACKAGES HDF5_NECI ) # HDF5_NECI adds the Fortran COMPONENT to the default (and the ability to build)
 
