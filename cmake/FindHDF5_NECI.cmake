@@ -12,6 +12,11 @@
 # HDF5_NECI_LIBRARIES
 # HDF5_NECI_DEFINITIONS
 
+neci_add_option(
+    FEATURE BUILD_HDF5
+    DEFAULT off
+    DESCRIPTION "Build HDF5 in the source tree, for compatibility with the build configuration" )
+
 if ( HAVE_BUILD_HDF5 )
 
     # If we are searching for HDF5, we want to create the pseudo-target to build hdf5.
