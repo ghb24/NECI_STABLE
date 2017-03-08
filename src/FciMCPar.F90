@@ -524,6 +524,7 @@ module FciMCParMod
             IF(tTruncInitiator) CLOSE(initiatorstats_unit)
             IF(tLogComplexPops) CLOSE(complexstats_unit)
             if (tWritePopsNorm) close(pops_norm_unit)
+            if (tLogEXLEVELStats) close(EXLEVELStats_unit)
         ENDIF
         IF(TDebug) CLOSE(11)
 
