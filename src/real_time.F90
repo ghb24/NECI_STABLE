@@ -11,7 +11,8 @@ module real_time
                                DirectAnnihilation_diag, check_update_growth, &
                                get_tot_parts, update_gf_overlap, calc_norm, adjust_decay_channels, &
                                update_shift_damping, real_time_determ_projection, &
-                               refresh_semistochastic_space, update_peak_walker_number
+                               refresh_semistochastic_space, update_peak_walker_number, &
+                               makePopSnapshot
     use real_time_data, only: gf_type,  &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
                               current_overlap, SumWalkersCyc_1, DiagParts, stepsAlpha, &
@@ -21,7 +22,7 @@ module real_time
                               NoatHF_1, shift_damping, tDynamicCoreSpace, dyn_norm_red, &
                               normsize, gf_count, tRealTimePopsfile, tStabilizerShift, &
                               tLimitShift, tStaticShift, asymptoticShift, tDynamicAlpha, &
-                              tDynamicDamping, stabilizerThresh, tInfInit
+                              tDynamicDamping, stabilizerThresh, tInfInit, popSnapshot
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
                         tChangeProjEDet, DiagSft, nmcyc, tau, InitWalkers, InitiatorWalkNo
@@ -323,7 +324,7 @@ contains
             call check_real_time_iteration()
 
             ! load balancing
-            if(tLoadBalanceBlocks .and. mod(iter,1000) == 0 .and. (.not. tSemiStochastic)) then
+            if(tLoadBalanceBlocks .and. mod(iter,100) == 0 .and. (.not. tSemiStochastic)) then
                call adjust_load_balance(iter_data_fciqmc)
             endif
 
@@ -484,6 +485,9 @@ contains
 
         ! Index for counting deterministic states.
 !         n_determ_states = 1
+
+        ! reset population snapshot
+        popSnapshot = 0
 
         ! Clear the hash table for the spawning array.
         call clear_hash_table(spawn_ht)
@@ -732,6 +736,9 @@ contains
             ! same walker has not been filled (it is filled when we excite from the first
             ! particle on a determinant).
             fcimc_excit_gen_store%tFilled = .false.
+
+            ! get new population of observed orbitals
+            call makePopSnapshot(idet)
 
             call extract_bit_rep(CurrentDets(:,idet), nI_parent, parent_sign, unused_flags, &
                                   fcimc_excit_gen_store)

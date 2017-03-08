@@ -35,7 +35,7 @@ module fcimc_output
                               AllTotParts_1, AccRat_1, AllGrowRate_1, normsize, &
                               current_overlap, t_real_time_fciqmc, elapsedRealTime, &
                               elapsedImagTime, overlap_real, overlap_imag, dyn_norm_psi,&
-                              dyn_norm_red, real_time_info
+                              dyn_norm_red, real_time_info, popSnapshot, numSnapshotOrbs
     implicit none
 
 contains
@@ -604,6 +604,12 @@ contains
                        trim(adjustl(tmpc)) // ' i=' // trim(adjustl(tmgf)) //')')
                enddo
             enddo
+            do p = 1, numSnapshotOrbs
+               ! if any orbitals are monitored, output their population
+               write(tmpc, '(i5)') p
+               call stats_out(state,.false.,popSnapshot(p),'Population of orbital ' &
+                    // trim(adjustl(tmpc)))
+            end do
 #endif
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these

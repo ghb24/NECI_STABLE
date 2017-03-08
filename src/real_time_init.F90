@@ -27,7 +27,7 @@ module real_time_init
                               tLimitShift, nspawnMax, shiftLimit, numCycShiftExcess, &
                               TotPartsLastAlpha, alphaDamping, tDynamicDamping, &
                               etaDamping, tStartVariation, rotThresh, stabilizerThresh, &
-                              tInfInit
+                              tInfInit,  popSnapshot, snapshotOrbs, numSnapshotOrbs
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
@@ -147,6 +147,10 @@ contains
         print *, " Allocating greensfunction and wavefunction norm arrays!"
         ! allocate an additional slot for initial values
         normsize = inum_runs**2
+        if(numSnapshotOrbs>0) then 
+           allocate(popSnapshot(numSnapshotOrbs),stat=ierr)
+           popSnapshot = 0
+        endif
         allocate(overlap_real(gf_count),overlap_imag(gf_count))
         allocate(gf_overlap(normsize,gf_count), stat = ierr)
         allocate(pert_norm(normsize,gf_count),stat = ierr)
@@ -330,6 +334,7 @@ contains
         character(100) :: w
         character(*), parameter :: this_routine = "real_time_read_input"
         integer, parameter :: lesser = -1, greater = 1
+	integer, allocatable :: buffer(:)
 
         ! set the flag that this is a real time calculation
         t_real_time_fciqmc = .true.
@@ -503,6 +508,24 @@ contains
                 t_rotated_time = .true.
                 tWalkContGrow = .true.
                 real_time_info%time_angle = 2*atan(1.0_dp)
+                
+             case("PRINT-POP")
+                ! include the time-dependent population of targeted orbitals into
+                ! the output. This requires them to be evaluated on the fly
+                numSnapShotOrbs = 0
+                allocate(buffer(nBasis))
+                do
+                   if(item < nitems) then
+                      numSnapShotOrbs = numSnapShotOrbs + 1
+                      if(numSnapShotOrbs > nBasis) exit
+                      call readi(buffer(numSnapShotOrbs))
+                   else
+                      exit
+                   endif
+                end do
+                allocate(snapShotOrbs(numSnapShotOrbs))
+                snapShotOrbs(1:numSnapShotOrbs) = buffer(1:numSnapShotOrbs)
+                deallocate(buffer)
 
              case("NOSHIFT")
                 ! disabling the shift gives higher precision results as no
@@ -673,6 +696,9 @@ contains
         ! set the multiple popsstart with the number of replicas of mneci
         ! provided
         tMultiplePopStart = .false.
+        
+        ! by default, do not output any population of orbitals
+        numSnapshotOrbs = 0
 
         ! from my way of outputting popsfiles i always do it in popsfile.n
         ! format -> so i probably have to set tIncrementPops and the count
@@ -925,6 +951,7 @@ contains
       
       integer :: ierr
       
+      if(numSnapshotOrbs>0) deallocate(snapShotOrbs,stat=ierr)
       if(allocated(numCycShiftExcess)) deallocate(numCycShiftExcess, stat=ierr)
       deallocate(DiagVec,stat=ierr)
       call clean_iter_data(second_spawn_iter_data)

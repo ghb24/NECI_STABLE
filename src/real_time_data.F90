@@ -48,6 +48,9 @@ module real_time_data
     ! maximum shift that can be used and counter to track the cycles
     real(dp) :: shiftLimit
     integer, allocatable :: numCycShiftExcess(:)
+    integer, allocatable :: popSnapshot(:)
+    integer, allocatable :: snapshotOrbs(:)
+    integer :: numSnapshotOrbs
     ! averaged overlaps
     real(dp), allocatable :: overlap_real(:), overlap_imag(:)
     ! and dynamic reduced norm, used only when rescaling the wave function

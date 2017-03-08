@@ -1340,6 +1340,22 @@ contains
 
     end function calc_norm
 
+    subroutine makePopSnapshot(i)
+      use real_time_data, only: popSnapshot, snapshotOrbs, numSnapshotOrbs
+      
+      implicit none
+      integer, intent(in) :: i
+      integer :: iOrb, nI(nel), iEl
+
+      call decode_bit_det(nI,CurrentDets(:,i))
+      do iOrb = 1, numSnapshotOrbs
+         do iEl = 1, nel
+            if(nI(iEl) .eq. snapshotOrbs(iOrb)) popSnapshot(iOrb) = popSnapshot(iOrb) + 1
+         end do
+      end do
+      
+    end subroutine makePopSnapshot
+
     subroutine real_time_determ_projection()
 
         ! This subroutine gathers together partial_determ_vecs from each processor so
