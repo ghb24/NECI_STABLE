@@ -707,12 +707,6 @@ contains
                             DiagSft(run) = real(proje_iter(run),dp)
                             defer_update(run) = .true.
                         end if
-                    elseif (abs_sign(AllNoatHF(lb:ub)) < (MaxNoatHF - HFPopThresh)) then
-                        write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
-                                     &single particle growth phase on iteration',iter + PreviousCycles,' - particle number &
-                                     &may grow again.'
-                        tSinglePartPhase(run) = .true.
-                        tReZeroShift(run) = .true.
                     endif
 #else
                     start_varying_shift = .false.
@@ -741,15 +735,24 @@ contains
                             DiagSft(run) = real(proje_iter(run),dp)
                             defer_update(run) = .true.
                         end if
-                    elseif (abs(AllNoatHF(run)) < (MaxNoatHF - HFPopThresh)) then
+                    endif
+#endif
+                else ! .not.tSinglePartPhase(run)
+
+#ifdef __CMPLX
+                    if (abs_sign(AllNoatHF(lb:ub)) < MaxNoatHF-HFPopThresh) then
+#else
+                    if (abs(AllNoatHF(run)) < MaxNoatHF-HFPopThresh) then
+#endif
                         write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
                                      &single particle growth phase on iteration',iter + PreviousCycles,' - particle number &
                                      &may grow again.'
                         tSinglePartPhase(run) = .true.
                         tReZeroShift(run) = .true.
                     endif
-#endif
-                endif
+
+                endif ! tSinglePartPhase(run) or not
+
                 ! How should the shift change for the entire ensemble of walkers 
                 ! over all processors.
                 if (((.not. tSinglePartPhase(run)).or.(TargetGrowRate(run).ne.0.0_dp)) .and.&
