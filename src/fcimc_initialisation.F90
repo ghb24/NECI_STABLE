@@ -258,7 +258,8 @@ contains
             ENDIF
             if (tLogEXLEVELStats) then
                 EXLEVELStats_unit = get_free_unit()
-                open (EXLEVELStats_unit, file='EXLEVELStats', status='unknown')
+                open (EXLEVELStats_unit, file='EXLEVELStats', &
+                      status='unknown', position='append')
             endif
         ENDIF
 

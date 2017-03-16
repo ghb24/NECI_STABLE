@@ -182,6 +182,8 @@ module FciMCParMod
                 if (inum_runs == 2) &
                     write(fcimcstats_unit2, '("#")', advance='no')
                 write (initiatorstats_unit,'("#")', advance='no')
+                if (tLogEXLEVELStats) &
+                      write(EXLEVELStats_unit,'("#")', advance='no')
             end if
             call WriteFCIMCStats()
         end if

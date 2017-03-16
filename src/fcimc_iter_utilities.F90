@@ -112,7 +112,7 @@ contains
                 if (inum_runs.eq.2) CLOSE(fcimcstats_unit2)
                 IF(tTruncInitiator) CLOSE(initiatorstats_unit)
                 IF(tLogComplexPops) CLOSE(complexstats_unit)
-                IF(tLogEXLEVELStats) CLOSE(EXLEVELStats_unit)
+                if (tLogEXLEVELStats) close(EXLEVELStats_unit)
             ENDIF
             IF(TDebug) CLOSE(11)
             CALL SetupParameters()
@@ -132,6 +132,8 @@ contains
                 end if
                 call WriteFCIMCStats()
             end if
+            if (iProcIndex==root .and. tLogEXLEVELStats) &
+                  write(EXLEVELStats_unit,'("#")', advance='no')
             return
         endif
 
