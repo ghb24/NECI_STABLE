@@ -25,14 +25,15 @@ module real_time
                               tDynamicDamping, stabilizerThresh, tInfInit, popSnapshot
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
-                        tChangeProjEDet, DiagSft, nmcyc, tau, InitWalkers, InitiatorWalkNo
+                        tChangeProjEDet, DiagSft, nmcyc, tau, InitWalkers, InitiatorWalkNo, &
+                        s_global_start, StepsSft
     use FciMCData, only: pops_pert, walker_time, iter, ValidSpawnedList, &
                          spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot, &
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
                          TotWalkers, fcimc_excit_gen_store, ilutRef, max_calc_ex_level, &
                          iLutHF_true, indices_of_determ_states, partial_determ_vecs, &
                          exFlag, CurrentDets, TotParts, ilutHF, SumWalkersCyc, IterTime, &
-                         HFCyc, norm_psi, NoatHF, NoDied, &
+                         HFCyc, norm_psi, NoatHF, NoDied, tTimeExit, maxTimeExit, &
                          Annihilated, NoBorn, tSinglePartPhase, AllSumNoatHF, AllTotParts
     use kp_fciqmc_data_mod, only: overlap_pert
     use timing_neci, only: set_timer, halt_timer
@@ -217,6 +218,7 @@ contains
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
         integer :: cOverlapIndex, j, i
         real(sp) :: s_start, s_end, tstart(2), tend(2)
+        real(dp) :: totalTime
         complex(dp), allocatable :: overlap_buf(:)
         complex(dp), allocatable :: norm_buf(:)
         character (255) :: rtPOPSFILE_name
@@ -283,7 +285,6 @@ contains
             if(iProcIndex == root) s_start = neci_etime(tstart)
 
             ! this is a bad implementation : iter should be local
-
             ! update the normalization of the greensfunction according to damping (dynamic)
             call update_shift_damping()
 
@@ -292,9 +293,12 @@ contains
             if(mod(iter, StepsSft) == 0) then 
                ! current overlap is now the one after iteration
                ! update the normalization due to the shift
+
                norm_buf = calc_norm(CurrentDets,int(TotWalkers))
                call MPIReduce(norm_buf,MPI_SUM,dyn_norm_psi)
+
                call update_gf_overlap()
+
                do j = 1, gf_count
                   do i = 1, normsize
                      current_overlap(i,j) = gf_overlap(i,j)/dyn_norm_red(i,j) * &
@@ -308,7 +312,6 @@ contains
                   overlap_real(j) = real(overlap_buf(j))
                   overlap_imag(j) = aimag(overlap_buf(j))
                end do
-
                call update_real_time_iteration()
             endif
 
@@ -316,15 +319,27 @@ contains
             if(tLimitShift) call trunc_shift()
 
             ! perform the actual iteration(excitation generation etc.) 
-            iter = iter + 1
-
+            iter = iter + 1           
             call perform_real_time_iteration() 
 
             ! check if somthing happpened to stop the iteration or something
             call check_real_time_iteration()
 
+            if(iProcIndex.eq.root) then 
+               s_end = neci_etime(tend)
+               totalTime = real(s_end - s_global_start, dp)
+            endif
+            call MPIBcast(totalTime)
+
+            if(tTimeExit .and. totalTime > MaxTimeExit) then
+               ! reset the maximum number of iterations to the index of the next one
+               NMCyc = Iter + StepsSft
+               ! to prevent NMCyc from being updated
+               tTimeExit = .false.
+            endif
+
             ! load balancing
-            if(tLoadBalanceBlocks .and. mod(iter,100) == 0 .and. (.not. tSemiStochastic)) then
+            if(tLoadBalanceBlocks .and. mod(iter,1000) == 0 .and. (.not. tSemiStochastic)) then
                call adjust_load_balance(iter_data_fciqmc)
             endif
 
@@ -404,6 +419,7 @@ contains
         ! this is done in the annihilation routine at the end of the iteration
         call calculate_new_shift_wrapper(second_spawn_iter_data, totParts, &
              tPairedReplicas)
+
         if(tStabilizerShift) then
            if(iProcIndex == Root) then
               ! check if the walker number started to decay uncontrolled
@@ -420,7 +436,7 @@ contains
            ! and do not forget to communicate the decision
            call MPIBcast(tSinglePartPhase)
         end if     
-
+        
         if(mod(iter,stepsAlpha)==0 .and. (tDynamicAlpha .or. tDynamicDamping)) then
            call adjust_decay_channels()
         endif
@@ -588,8 +604,8 @@ contains
             if (tParentUnoccupied) then
                ! this is unnecessary in the end, the merge is done 
                ! with the original ensemble, with the original FreeSlots
-               iEndFreeSlot = iEndFreeSlot + 1
-               FreeSlot(iEndFreeSlot) = idet
+               ! iEndFreeSlot = iEndFreeSlot + 1
+               ! FreeSlot(iEndFreeSlot) = idet
                cycle
             end if
             ! The current diagonal matrix element is stored persistently.
@@ -908,8 +924,8 @@ contains
       implicit none
         character(*), parameter :: this_routine = "perform_real_time_iteration"
         
-        integer :: TotWalkersNew, run, test
-        real(dp) :: tmp_sign(lenof_sign)
+        integer :: TotWalkersNew, run, test, ierr
+        real(dp) :: tmp_sign(lenof_sign), tau_real_tmp, tau_imag_tmp
         logical :: both, rkone, rktwo
         rkone = .true.
         rktwo = .true.
@@ -931,7 +947,18 @@ if(iProcIndex == root .and. .false.) then
         call extract_sign(CurrentDets(:,1), tmp_sign)
         print *, "hf occ before first spawn:", tmp_sign
 endif
+
+if(both) then
+        tau_real_tmp = tau_real
+        tau_imag_tmp = tau_imag
+        tau_real = tau_real/2.0
+        tau_imag = tau_imag/2.0
+endif
         call first_real_time_spawn()
+if(both) then
+        tau_real = tau_real_tmp
+        tau_imag = tau_imag_tmp
+endif
 
 if(iProcIndex == root .and. .false.) then
         call extract_sign(CurrentDets(:,1), tmp_sign)

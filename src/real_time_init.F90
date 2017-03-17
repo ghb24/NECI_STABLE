@@ -513,11 +513,13 @@ contains
                 ! include the time-dependent population of targeted orbitals into
                 ! the output. This requires them to be evaluated on the fly
                 numSnapShotOrbs = 0
-                allocate(buffer(nBasis))
+                allocate(buffer(nitems+1))
                 do
                    if(item < nitems) then
                       numSnapShotOrbs = numSnapShotOrbs + 1
-                      if(numSnapShotOrbs > nBasis) exit
+                      ! nBasis is not defined at this point, so we cannot check if
+                      ! there are too many items given - no serious input will contain
+                      ! more arguments than basis states anyway
                       call readi(buffer(numSnapShotOrbs))
                    else
                       exit

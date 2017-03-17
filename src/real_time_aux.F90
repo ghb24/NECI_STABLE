@@ -98,10 +98,11 @@ module real_time_aux
                enddo
 
                deallocate(overlap_states(iGf)%dets)
-               allocate(overlap_states(iGf)%dets(0:niftot,offset+nsend))
+               allocate(overlap_states(iGf)%dets(0:niftot,tmp_totwalkers),stat=ierr)
+               if(ierr /= 0) print *, "WARNING: Allocation failed in overlap_states load balancing"
                overlap_states(iGf)%dets(:,1:tmp_totwalkers) = perturbed_buf(:,1:tmp_totwalkers)
                deallocate(perturbed_buf)
-               overlap_states(iGf)%nDets = offset + nsend
+               overlap_states(iGf)%nDets = tmp_totwalkers
             endif
             call MPIBarrier(ierr)
          enddo

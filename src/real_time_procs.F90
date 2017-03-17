@@ -77,7 +77,7 @@ contains
         type(fcimc_iter_data), intent(inout) :: iter_data
         logical, intent(in) :: tSingleProc
         character(*), parameter :: this_routine = "DirectAnnihilation_diag"
-        integer :: numSpawns
+        integer :: numSpawns, ierr
 
         ! As only diagonal events are considered here, no communication
         ! is required
@@ -95,7 +95,7 @@ contains
         ! also should update the hashtable stats, specific for this diagonal 
         ! spawning event, but the original one should work also for this 
         ! since it only takes CurrentDets into account! 
-        
+
         call CalcHashTableStats(TotWalkersNew,iter_data)
         
         ! this should be it, deterministic annihilation is carried out in the next
@@ -1646,7 +1646,8 @@ contains
       use FciMCData, only: AllTotParts, tSinglePartPhase
       use CalcData, only: InitWalkers
       use Parallel_neci, only: nProcessors
-      use real_time_data, only: alphaDamping, etaDamping, tStartVariation, rotThresh
+      use real_time_data, only: alphaDamping, etaDamping, tStartVariation, rotThresh, &
+           numSnapShotOrbs
       implicit none
       real(dp) :: allWalkersOld(lenof_sign), walkersOld(lenof_sign)
       real(dp) :: deltaAlpha, deltaEta
@@ -1670,7 +1671,7 @@ contains
                deltaEta = etaDamping * log(sum(AllTotParts)/real(sum(allWalkersOld),dp)) / &
                     (tau_real * stepsAlpha)
                real_time_info%damping = real_time_info%damping - deltaEta
-            endif               
+            endif 
          endif
          ! communicate the updated quantities
          if(tDynamicAlpha) call MPIBCast(real_time_info%time_angle)
