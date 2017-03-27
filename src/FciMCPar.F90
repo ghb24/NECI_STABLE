@@ -182,6 +182,8 @@ module FciMCParMod
                 if (inum_runs == 2) &
                     write(fcimcstats_unit2, '("#")', advance='no')
                 write (initiatorstats_unit,'("#")', advance='no')
+                if (tLogEXLEVELStats) &
+                      write(EXLEVELStats_unit,'("#")', advance='no')
             end if
             call WriteFCIMCStats()
         end if
@@ -524,6 +526,7 @@ module FciMCParMod
             IF(tTruncInitiator) CLOSE(initiatorstats_unit)
             IF(tLogComplexPops) CLOSE(complexstats_unit)
             if (tWritePopsNorm) close(pops_norm_unit)
+            if (tLogEXLEVELStats) close(EXLEVELStats_unit)
         ENDIF
         IF(TDebug) CLOSE(11)
 

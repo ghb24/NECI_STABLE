@@ -67,7 +67,27 @@ macro( neci_add_option )
 
     # check if user provided value
 
-    if ( DEFINED ENABLE_${_p_FEATURE} )
+    get_property( _in_cache CACHE ENABLE_${_p_FEATURE} PROPERTY VALUE )
+
+    if ( ENABLE_${_p_FEATURE} MATCHES "REQUIRE" )
+      set( ENABLE_${_p_FEATURE} ON CACHE BOOL "" FORCE )
+      message( STATUS "Option ENABLE_${_p_FEATURE} was required" )
+      set( ${_p_FEATURE}_user_provided_input 1 CACHE BOOL "" FORCE )
+    elseif ( NOT "${ENABLE_${_p_FEATURE}}" STREQUAL "") # AND _in_cache )
+      message( STATUS "Option ENABLE_${_p_FEATURE} was found in the cache" )
+      set( ${_p_FEATURE}_user_provided_input 1 CACHE BOOL "" )
+    else()
+      message( STATUS "Option ENABLE_${_p_FEATURE} was not found in the cache" )
+      set( ${_p_FEATURE}_user_provided_input 0 CACHE BOOL "" )
+    endif()
+
+    mark_as_advanced( ${_p_FEATURE}_user_provided_input )
+
+    # And set a parameter to determine if we have it. Note that we change the name to HAVE_<feature>
+    # as ENABLE_<feature> is for the user provided option, and we want to reserve the right to have
+    # some logic between these values
+
+    if ( ${${_p_FEATURE}_user_provided_input} )
       set ( HAVE_${_p_FEATURE} ${ENABLE_${_p_FEATURE}} )
     else()
       set ( HAVE_${_p_FEATURE} ${_p_DEFAULT} )

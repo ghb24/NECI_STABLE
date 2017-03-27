@@ -28,7 +28,7 @@ module fcimc_helper
                            RDMEnergyIter, tFullHFAv, tLogComplexPops, &
                            nHistEquilSteps, tCalcFCIMCPsi, StartPrintOrbOcc, &
                            HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
-                           FciMCDebug
+                           FciMCDebug, tLogEXLEVELStats
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
                         tAddToInitiator, InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
@@ -289,6 +289,7 @@ contains
 #endif
 
         real(dp) :: amps(size(current_trial_amps,1))
+        real(dp) :: w(0:2)
 
         if (tReplicaReferencesDiffer) then
             call SumEContrib_different_refs(nI, realWSign, ilut, dProbFin, tPairedReplicas, ind)
@@ -412,6 +413,24 @@ contains
 
         endif ! ExcitLevel_local == 1, 2, 3
 
+        ! L_{0,1,2} norms of walker weights by excitation level.
+        if (tLogEXLEVELStats) then
+            do run = 1, inum_runs
+#ifdef __CMPLX
+                w(0) = real(1 + max_part_type(run) - min_part_type(run), dp)
+                w(1) = sum(abs(RealwSign(min_part_type(run):&
+                                         max_part_type(run))))
+                w(2) = sum(RealwSign(min_part_type(run):&
+                                     max_part_type(run))**2)
+#else
+                w(0) = 1_dp
+                w(1) = abs(RealwSign(run))
+                w(2) = RealwSign(run)**2
+#endif
+                EXLEVEL_WNorm(0:2,ExcitLevel,run) = &
+                      EXLEVEL_WNorm(0:2,ExcitLevel,run) + w(0:2)
+            enddo ! run
+        endif ! tLogEXLEVELStats
 
         ! Sum in energy contribution
         do run=1, inum_runs
@@ -814,6 +833,7 @@ contains
         NoRemoved = 0.0_dp
         NoatHF = 0.0_dp
         NoatDoubs = 0.0_dp
+        if (tLogEXLEVELStats) EXLEVEL_WNorm = 0.0_dp
 
         iter_data%nborn = 0
         iter_data%ndied = 0
