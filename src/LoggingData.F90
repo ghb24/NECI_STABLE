@@ -123,4 +123,13 @@ module LoggingData
     ! The name of the integral file for each of the property to be estimated
     character(100), allocatable :: EstPropFile(:)
 
+    ! like rdms, as it is a bit similar, access the double occupancy 
+    ! measurement in the logging section!
+    logical :: t_calc_double_occ = .false. 
+    ! I essentially only need a local and a global storage for the 
+    ! the expectation vaulue <n_u n_d> 
+    ! and also some storage for the instantaneous, averaged, summed over 
+    ! stuff etc.. 
+!     real(dp) :: n_double_occ_loc, n_double_occ_all
+
 end module LoggingData
