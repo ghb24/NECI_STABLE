@@ -6,12 +6,17 @@ module double_occ_mod
 
     use SystemData, only: nel, nbasis
     use bit_rep_data, only: nifd, nOffSgn, niftot
-    use constants, only: n_int, lenof_sign, write_state_t, dp
+    use constants, only: n_int, lenof_sign, write_state_t, dp, int_rdm
     use ParallelHelper, only: iProcIndex, root
     use CalcData, only: tReadPops
     use LoggingData, only: tMCOutput
     use util_mod
     use FciMCData, only: iter, PreviousCycles, norm_psi, totwalkers
+    use rdm_data, only: rdm_list_t
+    use Parallel_neci, only: iProcIndex, nProcessors
+    use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm
+    use UMatCache, only: spatial
+    use sort_mod, only: sort
     implicit none
 
     ! data storage part: 
@@ -181,4 +186,76 @@ contains
 
     end subroutine init_double_occ_output
         
+    subroutine calc_double_occ_from_rdm(rdm, rdm_trace, nrdms_to_print)
+        ! also write a routine which calculates the double occupancy from the 
+        ! 2-rdm, if it has been calculated! 
+        type(rdm_list_t), intent(inout) :: rdm
+        real(dp), intent(in) :: rdm_trace(rdm%sign_length)
+        integer, intent(in) :: nrdms_to_print
+        character(*), parameter :: this_routine = "calc_double_occ_from_rdm"
+
+        integer :: ielem, ij, kl, i, j, k, l, p, q, r, s, iproc, irdm, ierr
+        integer(int_rdm) :: ijkl 
+        real(dp) :: rdm_sign(rdm%sign_length)
+        real(dp) :: double_occ(rdm%sign_length)
+
+        double_occ = 0.0_dp
+        ! todo: find out about the flags to ensure the rdm was actually 
+        ! calculated! 
+        
+        call sort(rdm%elements(:,1:rdm%nelements))
+
+        ! i have to do that over all processors i guess since the rdms are 
+        ! stored in a distributed way! 
+        ! although i could do that with an MPI communication
+        ! seperately on all processors do this summation and then 
+        ! communicate the results in the end.. 
+        ! TODO
+        do iproc = 0, nProcessors - 1
+            ! and over all the rdms to print.. but i do not quite now 
+            ! what that means..
+            do irdm = 1, nrdms_to_print
+                if (iproc == iProcIndex) then
+
+                    do ielem = 1, rdm%nelements
+                        ijkl = rdm%elements(0,ielem)
+                        call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+                        call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+
+                        ! normalise 
+                        rdm_sign = rdm_sign / rdm_trace 
+
+                        ! convert to spatial orbitals:
+                        p = spatial(i)
+                        q = spatial(j) 
+                        r = spatial(k)
+                        s = spatial(l)
+
+                        ! only consider the diagonal elements! 
+                        if (p == q .and. p == r .and. p == s) then
+                            ASSERT(is_alpha(i) .and. is_beta(j) .and. is_alpha(k) .and. is_beta(l))
+
+                            ! add up all the diagonal contributions
+                            double_occ(irdm) = double_occ(irdm) + rdm_sign(irdm)
+
+                        end if
+                    end do
+                end if
+            end do
+        end do
+
+        ! at the end average over the spatial orbitals 
+        double_occ = double_occ / (real(nbasis, dp) / 2.0_dp)
+
+        print *, "======"
+        print *, "Double occupancy from RDM: ", double_occ
+        print *, "======"
+        ! and i guess i should write it to a file too
+!         open(iunit, file = 'double_occ_from_rdm', status = 'unknown', iostat = ierr)
+!         write(
+
+
+    end subroutine calc_double_occ_from_rdm
+
+
 end module double_occ_mod
