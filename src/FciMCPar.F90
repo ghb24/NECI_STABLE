@@ -64,7 +64,8 @@ module FciMCParMod
     use constants
     
     use double_occ_mod, only: get_double_occupancy, inst_double_occ, &
-                        rezero_double_occ_stats, write_double_occ_stats
+                        rezero_double_occ_stats, write_double_occ_stats, & 
+                        sum_double_occ, sum_norm_psi_squared
 
 #ifdef MOLPRO
     use outputResult
@@ -526,6 +527,15 @@ module FciMCParMod
         IF(tPrintOrbOcc) THEN
             CALL PrintOrbOccs(OrbOccs)
         ENDIF
+
+        if (t_calc_double_occ) then 
+            ! also output the final estimates from the summed up 
+            ! variable: 
+            print *, " ===== " 
+            print *, " Double occupancy from direct measurement: ", & 
+                sum_double_occ / sum_norm_psi_squared
+            print *, " ===== "
+        end if
 
         if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) then
             call finalise_rdms(rdm_definitions, one_rdms, two_rdm_main, two_rdm_recv, two_rdm_recv_2, two_rdm_spawn, rdm_estimates)

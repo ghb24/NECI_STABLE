@@ -6,23 +6,40 @@ module double_occ_mod
 
     use SystemData, only: nel, nbasis
     use bit_rep_data, only: nifd, nOffSgn, niftot
-    use constants, only: n_int, lenof_sign, write_state_t, dp, int_rdm
+    use constants, only: n_int, lenof_sign, write_state_t, dp, int_rdm, inum_runs
     use ParallelHelper, only: iProcIndex, root
     use CalcData, only: tReadPops
     use LoggingData, only: tMCOutput
     use util_mod
-    use FciMCData, only: iter, PreviousCycles, norm_psi, totwalkers
+    use FciMCData, only: iter, PreviousCycles, norm_psi, totwalkers, all_norm_psi_squared
     use rdm_data, only: rdm_list_t
-    use Parallel_neci, only: iProcIndex, nProcessors
+    use Parallel_neci, only: iProcIndex, nProcessors, MPISumAll
     use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm
     use UMatCache, only: spatial
     use sort_mod, only: sort
+
+#ifdef __DEBUG
+!     use Determinants, only: writedetbit
+#endif
+
     implicit none
 
     ! data storage part: 
     ! i need local and global storage containers for <n_u n_d> 
     ! and maybe also instantaneous, averaged, summed over quantities
-    real(dp) :: inst_double_occ = 0.0_dp
+    
+    ! instantaneous quantities: they are just used to see the progress of 
+    ! the double occupancy, they are reset every iteration
+    real(dp) :: inst_double_occ = 0.0_dp, all_inst_double_occ = 0.0_dp
+
+    ! summed over quantities: after the shift has set in this quantitiy 
+    ! is used to calculate the double occupancy of the converged WF
+    ! i could also print this at every step over the summed norm to see the 
+    ! convergence progress of this quantitiy
+    real(dp) :: sum_double_occ = 0.0_dp, all_sum_double_occ = 0.0_dp
+
+    ! it seems there is no record of the averaged norm hm..
+    real(dp) :: sum_norm_psi_squared = 0.0_dp
 
 contains 
 
@@ -30,17 +47,22 @@ contains
         ! returns the number of doubly occupied orbitals for a given 
         ! determinant. 
         use DetBitOps, only: count_open_orbs
-        integer(n_int), intent(in) :: ilut(0:nifd) 
+        integer(n_int), intent(in) :: ilut(0:niftot) 
         integer :: n_double_orbs 
         character(*), parameter :: this_routine = "count_double_occupancy"
 
         integer :: n_open_orbs
 
-        n_open_orbs = count_open_orbs(ilut)
+        n_open_orbs = count_open_orbs(ilut(0:nifd))
 
         ! the doubly occupied orbitals are just the number of electrons 
         ! minus the number of open orbitals divided by 2
         n_double_orbs = (nel - n_open_orbs)/2
+#ifdef __DEBUG
+        print *, "double occupied orbs for determinant:", n_double_orbs
+        call writedetbit(6, ilut, .true.)
+#endif
+
     end function count_double_orbs
 
     
@@ -48,7 +70,7 @@ contains
         ! function to get the contribution to the double occupancy for a 
         ! given determinant, by calculating the 
         ! |C_I|^2 *\sum_i <n_iu n_id>/n_spatial_orbs
-        integer(n_int), intent(in) :: ilut(NIfTot)
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
         real(dp), intent(in) :: real_sgn(lenof_sign)
         real(dp) :: double_occ
         character(*), parameter :: this_routine = "get_double_occupancy"
@@ -78,7 +100,17 @@ contains
 
         ! do i want to do that for complex walkers also?? i guess so..
         ! to get it running do it only for  single run for now! 
-        double_occ = abs(real_sgn(1))**2 * frac_double_orbs / norm_psi(1)
+        ! do not do the division here, but only in the output! 
+#ifdef __PROG_NUMRUNS
+#ifdef __CMPLX 
+        ! todo
+#else
+        ! i essentially only need two runs! 
+        double_occ = real_sgn(1) * real_sgn(2) * frac_double_orbs
+#endif
+#else
+        double_occ = abs(real_sgn(1))**2 * frac_double_orbs 
+#endif
 
     end function get_double_occupancy
 
@@ -128,9 +160,20 @@ contains
             state%cols = 0
             state%cols_mc = 0 
             state%mc_out = tMCOutput
-        
+       
+#ifdef __DEBUG
+            print *, "double_occ: ", all_inst_double_occ
+            print *, "norm: ", all_norm_psi_squared
+            print *, "inum_runs: ", real(inum_runs,dp)
+            print *, "summed double occ: ", sum_double_occ
+            print *, "summed norm: ", sum_norm_psi_squared
+#endif
+
             call stats_out(state,.true., iter + PreviousCycles, 'Iter.')
-            call stats_out(state, .true., inst_double_occ/totwalkers, 'Double Occ.')
+            call stats_out(state,.true., all_inst_double_occ / & 
+                sum(all_norm_psi_squared) / real(inum_runs, dp), 'Double Occ.')
+!             call stats_out(state, .true., inst_double_occ / norm_psi(1), 'Double Occ.')
+            call stats_out(state,.true., sum_double_occ / sum_norm_psi_squared, 'DoubOcc Av')
 
             ! And we are done
             write(state%funit, *)
@@ -197,7 +240,7 @@ contains
         integer :: ielem, ij, kl, i, j, k, l, p, q, r, s, iproc, irdm, ierr
         integer(int_rdm) :: ijkl 
         real(dp) :: rdm_sign(rdm%sign_length)
-        real(dp) :: double_occ(rdm%sign_length)
+        real(dp) :: double_occ(rdm%sign_length), all_double_occ(rdm%sign_length)
 
         double_occ = 0.0_dp
         ! todo: find out about the flags to ensure the rdm was actually 
@@ -211,45 +254,41 @@ contains
         ! seperately on all processors do this summation and then 
         ! communicate the results in the end.. 
         ! TODO
-        do iproc = 0, nProcessors - 1
-            ! and over all the rdms to print.. but i do not quite now 
-            ! what that means..
-            do irdm = 1, nrdms_to_print
-                if (iproc == iProcIndex) then
+        do ielem = 1, rdm%nelements
+            ijkl = rdm%elements(0,ielem)
+            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+            call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
 
-                    do ielem = 1, rdm%nelements
-                        ijkl = rdm%elements(0,ielem)
-                        call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
-                        call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+            ! normalise 
+            rdm_sign = rdm_sign / rdm_trace 
 
-                        ! normalise 
-                        rdm_sign = rdm_sign / rdm_trace 
+            ! convert to spatial orbitals:
+            p = spatial(i)
+            q = spatial(j) 
+            r = spatial(k)
+            s = spatial(l)
 
-                        ! convert to spatial orbitals:
-                        p = spatial(i)
-                        q = spatial(j) 
-                        r = spatial(k)
-                        s = spatial(l)
+            ! only consider the diagonal elements! 
+            if (p == q .and. p == r .and. p == s) then
+                ASSERT(is_alpha(i) .and. is_beta(j) .and. is_alpha(k) .and. is_beta(l))
 
-                        ! only consider the diagonal elements! 
-                        if (p == q .and. p == r .and. p == s) then
-                            ASSERT(is_alpha(i) .and. is_beta(j) .and. is_alpha(k) .and. is_beta(l))
+                ! add up all the diagonal contributions
+                double_occ = double_occ + rdm_sign
 
-                            ! add up all the diagonal contributions
-                            double_occ(irdm) = double_occ(irdm) + rdm_sign(irdm)
-
-                        end if
-                    end do
-                end if
-            end do
+            end if
         end do
 
         ! at the end average over the spatial orbitals 
         double_occ = double_occ / (real(nbasis, dp) / 2.0_dp)
 
-        print *, "======"
-        print *, "Double occupancy from RDM: ", double_occ
-        print *, "======"
+        ! MPI communicate: 
+        call MPISumAll(double_occ, all_double_occ)
+
+        if (iProcIndex == root) then
+            print *, "======"
+            print *, "Double occupancy from RDM: ", all_double_occ
+            print *, "======"
+        end if
         ! and i guess i should write it to a file too
 !         open(iunit, file = 'double_occ_from_rdm', status = 'unknown', iostat = ierr)
 !         write(
