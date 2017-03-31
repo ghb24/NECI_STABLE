@@ -171,7 +171,7 @@ contains
 
             call stats_out(state,.true., iter + PreviousCycles, 'Iter.')
             call stats_out(state,.true., all_inst_double_occ / & 
-                sum(all_norm_psi_squared) / real(inum_runs, dp), 'Double Occ.')
+                (sum(all_norm_psi_squared) / real(inum_runs, dp)), 'Double Occ.')
 !             call stats_out(state, .true., inst_double_occ / norm_psi(1), 'Double Occ.')
             call stats_out(state,.true., sum_double_occ / sum_norm_psi_squared, 'DoubOcc Av')
 
@@ -245,7 +245,7 @@ contains
         double_occ = 0.0_dp
         ! todo: find out about the flags to ensure the rdm was actually 
         ! calculated! 
-        
+
         call sort(rdm%elements(:,1:rdm%nelements))
 
         ! i have to do that over all processors i guess since the rdms are 
@@ -253,7 +253,6 @@ contains
         ! although i could do that with an MPI communication
         ! seperately on all processors do this summation and then 
         ! communicate the results in the end.. 
-        ! TODO
         do ielem = 1, rdm%nelements
             ijkl = rdm%elements(0,ielem)
             call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
