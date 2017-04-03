@@ -101,9 +101,10 @@ contains
         ! do i want to do that for complex walkers also?? i guess so..
         ! to get it running do it only for  single run for now! 
         ! do not do the division here, but only in the output! 
-#ifdef __PROG_NUMRUNS
+#if defined __PROG_NUMRUNS || defined __DOUBLERUN
 #ifdef __CMPLX 
-        ! todo
+        call stop_all(this_routine, &
+            "complex double occupancy measurement not yet implemented!")
 #else
         ! i essentially only need two runs! 
         double_occ = real_sgn(1) * real_sgn(2) * frac_double_orbs
