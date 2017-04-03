@@ -305,6 +305,10 @@ contains
             ! in terms of symmetry. This allows the diagonalisation of the RDMs
             ! to be done in symmetry blocks (a lot quicker/easier).
 
+            print *, "toto1:"
+            print *, "NoSymLabelCounts: ", NoSymLabelCounts
+            print *, "NoOrbs: ", NoOrbs
+
             if (.not. allocated(SymLabelCounts2_rot)) allocate(SymLabelCounts2_rot(2, NoSymLabelCounts), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, 'Problem allocating SymLabelCounts2_rot array,')
             call LogMemAlloc('SymLabelCounts2_rot', 2*NoSymLabelCounts, 4, t_r, SymLabelCounts2_rotTag, ierr)
@@ -477,6 +481,7 @@ contains
                 else
                     Symi = SymOrbs_rot(i)
                 end if
+                print *, "sym_orbs: ", SymOrbs_rot
                 SymLabelCounts2_rot(2,(Symi+1)) = SymLabelCounts2_rot(2,(Symi+1)) + 1
                 if (Symi /= SymCurr) then
                     do j = SymCurr + 1, Symi
