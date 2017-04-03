@@ -20,7 +20,7 @@ module fcimc_iter_utils
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: set_det_diagH
     use Determinants, only: get_helement
-    use LoggingData, only: tFCIMCStats2, t_calc_double_occ
+    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av
     use tau_search, only: update_tau
     use Parallel_neci
     use fcimc_initialisation
@@ -613,7 +613,7 @@ contains
         
 
         ! quick fix for the double occupancy: 
-        if (t_calc_double_occ) then 
+        if (t_calc_double_occ_av) then 
             ! sum up the squared norm after shift has set in TODO
             ! and use the mean value if multiple runs are used
             ! still thinking about if i only want to calc it after 

@@ -16,7 +16,8 @@ module FciMCParMod
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
-                           write_end_core_size, t_calc_double_occ
+                           write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
+                           equi_iter_double_occ
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -229,6 +230,13 @@ module FciMCParMod
                 if ((Iter - maxval(VaryShiftIter)) == semistoch_shift_iter + 1) then
                     tSemiStochastic = .true.
                     call init_semi_stochastic(ss_space_in)
+                end if
+            end if
+
+            ! turn on double occ measurement after equilibration
+            if (equi_iter_double_occ /= 0 .and. all(.not. tSinglePartPhase)) then
+                if ((iter - maxval(VaryShiftIter)) == equi_iter_double_occ + 1) then
+                    t_calc_double_occ_av = .true.
                 end if
             end if
 

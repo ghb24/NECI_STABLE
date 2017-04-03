@@ -1084,7 +1084,12 @@ MODULE Logging
             ! quantity differs in a biased and unbiased calculation
 
             t_calc_double_occ = .true.
+            t_calc_double_occ_av = .true.
 
+            if (item < nitems) then
+                t_calc_double_occ_av = .false.
+                call geti(equi_iter_double_occ)
+            end if
 
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)

@@ -9,7 +9,7 @@ module double_occ_mod
     use constants, only: n_int, lenof_sign, write_state_t, dp, int_rdm, inum_runs
     use ParallelHelper, only: iProcIndex, root
     use CalcData, only: tReadPops
-    use LoggingData, only: tMCOutput
+    use LoggingData, only: tMCOutput, t_calc_double_occ_av
     use util_mod
     use FciMCData, only: iter, PreviousCycles, norm_psi, totwalkers, all_norm_psi_squared
     use rdm_data, only: rdm_list_t
@@ -169,11 +169,15 @@ contains
             print *, "summed norm: ", sum_norm_psi_squared
 #endif
 
-            call stats_out(state,.true., iter + PreviousCycles, 'Iter.')
-            call stats_out(state,.true., all_inst_double_occ / & 
+            call stats_out(state,.false., iter + PreviousCycles, 'Iter.')
+            call stats_out(state,.false., all_inst_double_occ / & 
                 (sum(all_norm_psi_squared) / real(inum_runs, dp)), 'Double Occ.')
 !             call stats_out(state, .true., inst_double_occ / norm_psi(1), 'Double Occ.')
-            call stats_out(state,.true., sum_double_occ / sum_norm_psi_squared, 'DoubOcc Av')
+            if (t_calc_double_occ_av) then
+                call stats_out(state,.false., sum_double_occ / sum_norm_psi_squared, 'DoubOcc Av')
+            else
+                call stats_out(state,.false.,0.0_dp, 'DoubOcc Av')
+            end if
 
             ! And we are done
             write(state%funit, *)
