@@ -58,6 +58,9 @@ module real_time_aux
 
       if(allocated(overlap_states)) then 
          call MPIBarrier(ierr)
+
+         if(iProcIndex == root) print *, "Moving overlap states"
+
          src_proc = LoadBalanceMapping(block)
          ! send the corresponding block
          do iGf = 1, gf_count
@@ -84,6 +87,7 @@ module real_time_aux
                call write_overlap_state(overlap_states(iGf)%dets,overlap_states(iGf)%nDets,iGf)
             else if (iProcIndex == tgt_proc) then
                ! here we have to expand the overlap state array, so we need a buffer
+
                call MPIRecv(nsend,1,src_proc,mpi_tag_nsend,ierr)
                nelem = nsend * (1 + niftot)
                call MPIRecv(SpawnedParts,nelem,src_proc,mpi_tag_dets,ierr)

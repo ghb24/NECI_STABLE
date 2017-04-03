@@ -2700,6 +2700,8 @@ MODULE GenRandSymExcitNUMod
                                             ! a value to within a reciproval lattice vector.
             IF(ktrial(1).eq.kTotal(1).and.ktrial(2).eq.kTotal(2)) THEN
                 IsMomentumAllowed=.true.
+             else
+                print *, "ERRONEOUS MOMENTUM: ", ktrial, ktotal
              ENDIF
         ENDIF
 

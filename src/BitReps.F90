@@ -1020,7 +1020,8 @@ contains
         endif
     end subroutine decode_bit_det_bitwise
 
-    subroutine add_ilut_lists(ndets_1, ndets_2, sorted_lists, list_1, list_2, list_out, ndets_out)
+    subroutine add_ilut_lists(ndets_1, ndets_2, sorted_lists, list_1, list_2, list_out, &
+         ndets_out,phase)
 
         ! WARNING 1: This routine assumes that both list_1 and list_2 contain no
         ! repeated iluts, even if one of the repeated iluts has zero amplitude.
@@ -1041,6 +1042,7 @@ contains
         integer(n_int), intent(inout) :: list_2(0:,1:)
         integer(n_int), intent(inout) :: list_out(0:,1:)
         integer, intent(out) :: ndets_out
+        real(dp), intent(in), optional :: phase ! phase of list_2 relative to list_1
 
         integer :: i, pos, min_ind
         real(dp) :: sign_1(lenof_sign), sign_2(lenof_sign), sign_out(lenof_sign)

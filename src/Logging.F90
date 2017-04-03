@@ -112,6 +112,7 @@ MODULE Logging
       HistInitPopsIter=100000
       hist_spin_dist_iter = 1000
       tLogDets=.false.
+      tLogEXLEVELStats=.false.
       tCalcInstantS2 = .false.
       tCalcInstantS2Init = .false.
       tCalcInstSCpts = .false.
@@ -990,7 +991,8 @@ MODULE Logging
             tLogDets=.true.
         case("DETERMINANTS")
             tLogDets=.true.
-
+        case("EXLEVEL")
+            tLogEXLEVELStats=.true.
         case ("INSTANT-S2-FULL")
             ! Calculate an instantaneous value for S^2, and output it to the
             ! relevant column in the FCIMCStats file.

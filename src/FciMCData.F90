@@ -31,6 +31,7 @@ MODULE FciMCData
       integer :: ComplexStats_unit ! COMPLEXStats
       integer :: mswalkercounts_unit
       integer :: Tot_Unique_Dets_Unit 
+      integer :: EXLEVELStats_unit ! EXLEVELStats
 
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
@@ -172,6 +173,9 @@ MODULE FciMCData
       ! The (instantaneous) number of particles on the Reference det
       real(dp), allocatable :: NoatHF(:)
       real(dp), allocatable :: NoatDoubs(:)
+      ! L_{0,1,2} norms of weights per excitation level (i.e., extension of
+      ! NoatHF / NoatDoubs, which are L1 norms at two excitation levels).
+      real(dp), allocatable :: EXLEVEL_WNorm(:,:,:)
       ! Number of accepted spawns (separately on each node)
       real(dp), allocatable :: Acceptances(:)
       ! Acceptance ratio (on each node) over the update cycle
@@ -215,6 +219,7 @@ MODULE FciMCData
       real(dp), allocatable :: AllAnnihilated(:)
       real(dp), allocatable :: AllNoAtDoubs(:)
       real(dp), allocatable :: AllNoatHF(:)
+      real(dp), allocatable :: AllEXLEVEL_WNorm(:,:,:)
       HElement_t(dp), allocatable :: sum_proje_denominator(:)
       HElement_t(dp), allocatable :: all_sum_proje_denominator(:)
       HElement_t(dp), allocatable :: cyc_proje_denominator(:)

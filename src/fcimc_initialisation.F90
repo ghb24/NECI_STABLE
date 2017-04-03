@@ -52,7 +52,7 @@ module fcimc_initialisation
                            HistInitPops, AllHistInitPops, OffDiagMax, &
                            OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
-                           tTransitionRDMs
+                           tTransitionRDMs, tLogEXLEVELStats
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
@@ -258,6 +258,11 @@ contains
                 ComplexStats_unit = get_free_unit()
                 OPEN(ComplexStats_unit,file='COMPLEXStats',status='unknown')
             ENDIF
+            if (tLogEXLEVELStats) then
+                EXLEVELStats_unit = get_free_unit()
+                open (EXLEVELStats_unit, file='EXLEVELStats', &
+                      status='unknown', position='append')
+            endif
         ENDIF
 
 !Store information specifically for the HF determinant
@@ -806,6 +811,7 @@ contains
         AllSumENum(:)=0.0_dp
         AllNoatHF(:)=0.0_dp
         AllNoatDoubs(:)=0.0_dp
+        if (tLogEXLEVELStats) AllEXLEVEL_WNorm(:,:,:)=0.0_dp
         AllSumNoatHF(:)=0.0_dp
         AllGrowRate(:)=0.0_dp
         AllGrowRateAbort(:)=0
@@ -3486,6 +3492,7 @@ subroutine ChangeRefDet(DetCurr)
         if(inum_runs.eq.2) CLOSE(fcimcstats_unit2)
         IF(tTruncInitiator) CLOSE(initiatorstats_unit)
         IF(tLogComplexPops) CLOSE(complexstats_unit)
+        if (tLogEXLEVELStats) close(EXLEVELStats_unit)
     ENDIF
     IF(TDebug) CLOSE(11)
     CALL SetupParameters()

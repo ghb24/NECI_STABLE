@@ -2,7 +2,7 @@
 
 MODULE PopsfileMod
 
-    use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, &
+    use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, tReal, &
                           AB_elec_pairs, par_elec_pairs, tMultiReplicas, tReltvy
     use CalcData, only: DiagSft, tWalkContGrow, nEquilSteps, aliasStem, &
                         ScaleWalkers, tReadPopsRestart, tPopsJumpShift, &
@@ -43,7 +43,7 @@ MODULE PopsfileMod
     use util_mod
 
     use real_time_data, only: t_real_time_fciqmc, TotWalkers_orig, tRealTimePopsfile, &
-         real_time_info
+         real_time_info, t_kspace_operators, phase_factors
 
 
     implicit none
@@ -954,9 +954,17 @@ r_loop: do while(.not.tStoreDet)
             TotWalkersIn = int(TotWalkers, sizeof_int)
 
             ! also store this original value
-            if (t_real_time_fciqmc) TotWalkers_orig = TotWalkersIn
-
-            call apply_perturbation_array(perturbs, TotWalkersIn, popsfile_dets, CurrentDets)
+            if (t_real_time_fciqmc) then 
+               TotWalkers_orig = TotWalkersIn
+               if(t_kspace_operators .and. tReal) then
+                  call apply_perturbation_array(perturbs, TotWalkersIn, popsfile_dets, &
+                       CurrentDets, phase_factors)
+               else
+                  call apply_perturbation_array(perturbs, TotWalkersIn, popsfile_dets, &
+                       CurrentDets)
+               endif
+               call apply_perturbation_array(perturbs, TotWalkersIn, popsfile_dets, CurrentDets)
+            endif
             TotWalkers = int(TotWalkersIn, int64)
 
             print *, "Total number of walkers after perturbation: ", TotWalkers

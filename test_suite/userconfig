@@ -1,29 +1,35 @@
-[neci]
-exe = ../build/bin/neci
-inputs_args = ('*.inp', '')
-vcs = git
-extract_program = ./tools/extract.py
-
 [mneci]
 exe = ../build/bin/mneci
-inputs_args = ('*.inp', '')
 vcs = git
+inputs_args = ('*.inp', '')
+extract_program = ./tools/extract.py
+
+[neci]
+exe = ../build/bin/neci
+vcs = git
+inputs_args = ('*.inp', '')
+extract_program = ./tools/extract.py
+
+[dneci]
+exe = ../build/bin/dneci
+vcs = git
+inputs_args = ('*.inp', '')
+extract_program = ./tools/extract.py
+
+[user]
+benchmark = kmneci-aac7313.dneci-aac7313.mneci-aac7313.kneci-aac7313.neci-aac7313 kmneci-dd80491.neci-dd80491.kneci-dd80491.mneci-dd80491
+default_program = neci
+diff = vimdiff
+
+[kmneci]
+exe = ../build/bin/kmneci
+vcs = git
+inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
 
 [kneci]
 exe = ../build/bin/kneci
-inputs_args = ('*.inp', '')
 vcs = git
-extract_program = ./tools/extract.py
-
-[kmneci]
-exe = ../build/bin/kmneci
 inputs_args = ('*.inp', '')
-vcs = git
 extract_program = ./tools/extract.py
-
-[user]
-diff = vimdiff
-default_program = neci
-benchmark = kmneci-dd80491.neci-dd80491.kneci-dd80491.mneci-dd80491
 

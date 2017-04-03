@@ -41,7 +41,7 @@ contains
 
     end subroutine init_perturbation_creation
 
-    subroutine apply_perturbation_array(perturbs, ndets, dets_in, dets_out)
+    subroutine apply_perturbation_array(perturbs, ndets, dets_in, dets_out,phase)
 
         use bit_rep_data, only: NIfTot
         use bit_reps, only: add_ilut_lists
@@ -51,7 +51,8 @@ contains
         integer, intent(inout) :: ndets
         integer(n_int), intent(in) :: dets_in(0:,:) ! First dimension must be 0:NIfTot
         integer(n_int), intent(out) :: dets_out(0:,:) ! First dimension must be 0:NIfTot
-
+        real(dp), intent(in), optional :: phase(:) ! Phase factors of the perturbation operators
+        ! size of phase must be equal to that of perturbs
         integer :: i, ndets_init, ndets_pert_1, ndets_pert_2
         integer(n_int), allocatable :: temp_dets_1(:,:), temp_dets_2(:,:)
 
@@ -66,12 +67,20 @@ contains
             ! Apply the first perturbation.
             ndets_pert_1 = ndets_init
             ! Note that ndets_pert_1 is altered by this routine.
-            call apply_perturbation(perturbs(1), ndets_pert_1, dets_in, temp_dets_1)
+            if(present(phase)) then
+               call apply_perturbation(perturbs(1), ndets_pert_1, dets_in, temp_dets_1,phase(1))
+            else
+               call apply_perturbation(perturbs(1), ndets_pert_1, dets_in, temp_dets_1)
+            endif
 
             do i = 2, size(perturbs)
                 ndets_pert_2 = ndets_init
                 ! Note that ndets_pert_2 is altered by this routine.
-                call apply_perturbation(perturbs(i), ndets_pert_2, dets_in, temp_dets_2)
+                if(present(phase)) then
+                   call apply_perturbation(perturbs(i), ndets_pert_2, dets_in, temp_dets_2,phase(i))
+                else
+                   call apply_perturbation(perturbs(i), ndets_pert_2, dets_in, temp_dets_2)        
+                endif
                 call add_ilut_lists(ndets_pert_1, ndets_pert_2, .false., temp_dets_1, temp_dets_2, dets_out, ndets)
                 ! If we still have more perturbations to apply, copy the result
                 ! to temp_dets_1. Else, exit the final result in dets_out.
@@ -86,12 +95,13 @@ contains
         else if (size(perturbs) == 1) then
             ! Simply apply the single perturbation using the final input and
             ! output arrays.
+            ! Ignore any given phase argument
             call apply_perturbation(perturbs(1), ndets, dets_in, dets_out)
         end if
 
     end subroutine apply_perturbation_array
 
-    subroutine apply_perturbation(perturb, ndets, dets_in, dets_out)
+    subroutine apply_perturbation(perturb, ndets, dets_in, dets_out,phase)
 
         ! Take in a list of determinants (dets_in) and apply a pertubation
         ! to each determinant. As we go we shuffle down determinants to fill in
@@ -115,11 +125,13 @@ contains
         integer, intent(inout) :: ndets
         integer(n_int), intent(in) :: dets_in(0:,:) ! First dimension must be 0:NIfTot
         integer(n_int), intent(out) :: dets_out(0:,:) ! First dimension must be 0:NIfTot
+        real(dp), intent(in) :: phase ! add some phase to the perturbation
 
         integer(n_int) :: ilut(0:NIfTot)
         integer(n_int), pointer :: PointTemp(:,:)
-        integer :: i, nremoved, proc
+        integer :: i, nremoved, proc, run
         integer :: nI(nel)
+        real(dp) :: tmp_sign(lenof_sign), tmp_real
 
         ! If the perturbation is the identity operator then just return.
         ! rneci_consitency: Possible optimization: Define behaviour in this case as copying
@@ -138,6 +150,18 @@ contains
             else
                 call decode_bit_det(nI, ilut)
                 proc = DetermineDetNode(nel,nI,0)
+                ! If a phase factor is to be added, do it now
+                if(present(phase)) then
+                   call extract_sign(ilut,tmp_sign)
+                   do run = 1, inum_runs
+                      ! multiply by exp(i*phase)
+                      tmp_real = tmp_sign(min_part_type(run))
+                      tmp_sign(min_part_type(run)) = cos(phase)*tmp_sign(min_part_type(run)) &
+                           - sin(phase) * tmp_sign(max_part_type(run))
+                      tmp_sign(max_part_type(run)) = sin(phase)*tmp_real + cos(phase) *&
+                           max_part_type(run)
+                   end do
+                endif
                 SpawnedParts(:, ValidSpawnedList(proc)) = ilut
                 ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
             end if
@@ -206,7 +230,7 @@ contains
             ! destroy the determinant encoded in ilut.
 
             do i = 1, perturb%nannihilate
-                if ( .not. btest(ilut(a_elems(i)), a_bits(i)) ) then
+               if ( .not. btest(ilut(a_elems(i)), a_bits(i)) ) then
                     ilut(0:NIfDBO) = 0_n_int
                     return
                 end if

@@ -27,7 +27,8 @@ module real_time_init
                               tLimitShift, nspawnMax, shiftLimit, numCycShiftExcess, &
                               TotPartsLastAlpha, alphaDamping, tDynamicDamping, &
                               etaDamping, tStartVariation, rotThresh, stabilizerThresh, &
-                              tInfInit,  popSnapshot, snapshotOrbs, numSnapshotOrbs
+                              tInfInit,  popSnapshot, snapshotOrbs, phase_factors, &
+			      numSnapshotOrbs, tLowerThreshold, t_kspace_operators
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
@@ -46,7 +47,7 @@ module real_time_init
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
                          MaxSpawned, tSearchTauOption, TotWalkers, SumWalkersCyc, &
                          CurrentDets, popsfile_dets, MaxWalkersPart
-    use SystemData, only: lms, G1, nBasisMax, tHub, nel, tComplexWalkers_RealInts, nBasis
+    use SystemData, only: lms, G1, nBasisMax, tHub, nel, tComplexWalkers_RealInts, nBasis, tReal
     use SymExcitDataMod, only: kTotal
     use sym_mod, only: MomPbcSym
     use perturbations, only: init_perturbation_annihilation, &
@@ -114,7 +115,7 @@ contains
       implicit none
         character(*), parameter :: this_routine = "setup_real_time_fciqmc"
         complex(dp), allocatable :: norm_buf(:)
-        integer :: ierr,  j, run
+        integer :: ierr,  j, run, indicator
 
         ! also need to create the perturbed ground state to calculate the 
         ! overlaps to |y(t)> 
@@ -334,6 +335,7 @@ contains
         character(100) :: w
         character(*), parameter :: this_routine = "real_time_read_input"
         integer, parameter :: lesser = -1, greater = 1
+        integer :: i,j
 	integer, allocatable :: buffer(:)
 
         ! set the flag that this is a real time calculation
@@ -372,6 +374,7 @@ contains
             ! reference to the ground state. This gives the contribution of
             ! this state to the spectrum
              case("SINGLE")
+            ! deprecated, replace by MULTI
                 alloc_popsfile_dets = .true.
                 tWritePopsNorm = .true.
                 allocate(pops_pert(1))
@@ -392,6 +395,71 @@ contains
                 overlap_pert(1)%ann_orbs(1)=pops_pert(1)%ann_orbs(1)
                 call init_perturbation_annihilation(overlap_pert(1))
                 call init_perturbation_creation(overlap_pert(1))
+
+            ! TODO: MAJOR: Add feature for applying multiple annihilation operators
+            ! AND: Add feature for applying momentum annihilators to states in the
+            ! real-space basis
+
+             case("KSPACE")
+                ! Apply the perturbations in kspace. This only does something for real
+                ! space hubbard, else it is the default
+                t_kspace_operators = .true.
+
+             ! Arbitrary perturbation on the initial state, always get the overlap
+             ! with the initial state
+             case("MULTI")
+                alloc_popsfile_dets = .true.
+                tWritePopsNorm = .true.
+                allocate(pops_pert(1))
+                allocate(overlap_pert(1))
+                allocate(buffer(nel))
+                j=0
+                ! first, read all orbitals to which particles shall be added
+                do
+                   if(item==nitems) exit
+                   call readi(i)
+                   ! -1 is the terminator for creation and indicates that all following 
+                   ! orbitals are to be annihilated
+                   if(i==-1) exit
+                   j=j+1
+                   ! as the size of pops_pert is unknown, use a buffer
+                   buffer(j)=i
+                enddo
+                ! allocate creation operators
+                if(j>0) then
+                   pops_pert%ncreate = j
+                   allocate(pops_pert(1)%crtn_orbs(j))
+                ! we take the overlap with the initial state, so overlap_pert == pops_pert
+                   overlap_pert%ncreate = j
+                   allocate(overlap_pert(1)%crtn_orbs(j))
+                   do i=1,j
+                      pops_pert(1)%crtn_orbs(i)=buffer(i)
+                      overlap_pert(1)%crtn_orbs(i)=pops_pert(1)%crtn_orbs(i)
+                   end do
+                endif
+                j=0
+                ! now, read in all orbitals from which particles shall be removed
+                do
+                   if(item==nitems) exit
+                   j=j+1
+                   call readi(buffer(j))
+                enddo
+                ! again, allocate annihilation operators
+                if(j>0) then
+                   pops_pert%nannihilate = j
+                   overlap_pert%nannihilate = j
+                   allocate(pops_pert(1)%ann_orbs(j))
+                   allocate(overlap_pert(1)%ann_orbs(j))
+                   do i=1,j
+                      pops_pert(1)%ann_orbs(i)=buffer(i)
+                      overlap_pert(1)%ann_orbs(i)=pops_pert(1)%ann_orbs(i)
+                   end do
+                endif
+                call init_perturbation_annihilation(pops_pert(1))
+                call init_perturbation_creation(pops_pert(1))
+                call init_perturbation_annihilation(overlap_pert(1))
+                call init_perturbation_creation(overlap_pert(1))
+                deallocate(buffer)
                 
             ! the most important info is if it is the photoemmission(lesser GF)
             ! or photoabsorption (greater GF) and the orbital we want the 
@@ -496,6 +564,9 @@ contains
 
             case ("SCALE-POPULATION")
                 tScalePopulation = .true.
+		
+	    case("LOWER-THRESHOLD")
+		tLowerThreshold = .true.
 
              case ("FULLY-ROTATED")
                 ! for testing purposes, it is useful to do pure imaginary
@@ -762,6 +833,7 @@ contains
         stepsAlpha = 10
         alphaDamping = 0.05
         rotThresh = 0
+	tLowerThreshold = .false.
         tOverpopulate = .false.
         tStartVariation = .false.
 
@@ -946,6 +1018,61 @@ contains
       endif
          
     end subroutine equalize_initial_phase
+
+
+    ! here, we convert the real-space annihilation/creation operators to momentum space
+    subroutine setup_momentum_operators()
+      use SystemData, only: G1
+      implicit none
+      
+      integer :: k(3),state, momentum_state,spin, i
+    
+      if(gf_type == -1) then
+         momentum_state = pops_pert(1)%ann_orbs(1)
+      else if(gf_type == 1)
+         momentum_state = pops_pert(1)%crtn_orbs(1)
+      else
+         call stop_all("Equalize initial phase","Invalid momentum space green's function")
+      endif
+      allocate(phase_factors(nBasis/2))
+      k = G1(momentum_state)%k
+      spin = G1(momentum_state)%ms
+      call clean_overlap_states()
+      allocate(pops_pert(nBasis/2))
+      allocate(overlap_pert(nBasis/2))
+      i = 0
+      do state = 1, nBasis
+         if(G1(state)%ms /= spin) cycle
+         i = i + 1
+         phase_factor(i) = 0
+         do j = 1,3
+            phase_factor(i) = phase_factor(i) + G1(state)%k(i) * k(i)
+         end do
+         call setup_single_perturbation(i,state,gf_type)
+      end do
+    end subroutine setup_momentum_operators
+
+    subroutine setup_single_perturbation(pos,orbital,type)
+      implicit none
+
+      integer, intent(in) :: pos, orbital, type
+      
+      if(type == 1) then
+         allocate(pops_pert(pos)%crtn_orbs(1)) 
+         allocate(overlap_pert(pos)%crtn_orbs(1)) 
+         overlap_pert(pos)%ncreate = 1
+         pops_pert(pos)%ncreate = 1
+         pops_pert(pos)%crtn_orbs(1) = orbital
+         overlap_pert(pos)%crtn_orbs(1) = orbital
+      else
+         allocate(pops_pert(pos)%ann_orbs(1)) 
+         allocate(overlap_pert(orbital)%ann_orbs(1)) 
+         overlap_pert(pos)%nannihilate = 1
+         pops_pert(pos)%nannihilate = 1
+         pops_pert(pos)%ann_orbs(1) = orbital
+         overlap_pert(pos)%ann_orbs(1) = orbital
+      end if
+    end subroutine setup_single_perturbation
 
     subroutine dealloc_real_time_memory
       use replica_data, only: clean_iter_data

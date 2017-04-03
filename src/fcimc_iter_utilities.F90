@@ -13,7 +13,7 @@ module fcimc_iter_utils
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
                         qmc_trial_wf
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
-    use LoggingData, only: tFCIMCStats2, tPrintDataTables
+    use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats
     use semi_stoch_procs, only: recalc_core_hamil_diag
     use fcimc_helper, only: update_run_reference
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
@@ -134,6 +134,7 @@ contains
                 if (inum_runs.eq.2) CLOSE(fcimcstats_unit2)
                 IF(tTruncInitiator) CLOSE(initiatorstats_unit)
                 IF(tLogComplexPops) CLOSE(complexstats_unit)
+                if (tLogEXLEVELStats) close(EXLEVELStats_unit)
             ENDIF
             IF(TDebug) CLOSE(11)
             CALL SetupParameters()
@@ -153,6 +154,8 @@ contains
                 end if
                 call WriteFCIMCStats()
             end if
+            if (iProcIndex==root .and. tLogEXLEVELStats) &
+                  write(EXLEVELStats_unit,'("#")', advance='no')
             return
         endif
 
@@ -393,6 +396,9 @@ contains
         ! Equivalent arrays for HElement_t variables.
         HElement_t(dp) :: send_arr_helem(hel_arr_size)
         HElement_t(dp) :: recv_arr_helem(hel_arr_size)
+        ! Equivalent arrays for EXLEVELStats (of exactly required size).
+        real(dp) :: send_arr_WNorm(3*(NEl+1)*inum_runs), &
+                    recv_arr_WNorm(3*(NEl+1)*inum_runs)
         ! Allow room for 100 different arrays to be communicated.
         integer :: sizes(size_arr_size)
         integer :: low, upp, run
@@ -623,6 +629,17 @@ contains
         if (tTrialWavefunction) then
             low = upp + 1; upp = low + sizes(6) - 1; tot_trial_numerator = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(7) - 1; tot_trial_denom = recv_arr_helem(low:upp);
+        end if
+
+        ! Optionally communicate EXLEVEL_WNorm.
+        if (tLogEXLEVELStats) then
+            upp = size(EXLEVEL_WNorm)
+            send_arr_WNorm(1:upp) = reshape(EXLEVEL_WNorm, (/upp/))
+            call MPISumAll (send_arr_WNorm(1:upp), recv_arr_WNorm(1:upp))
+            AllEXLEVEL_WNorm = reshape(recv_arr_WNorm(1:upp), &
+                                       shape(AllEXLEVEL_WNorm))
+            ! Apply square root for L2 norm.
+            AllEXLEVEL_WNorm(2,:,:) = sqrt(AllEXLEVEL_WNorm(2,:,:))
         end if
 
         ! Do some processing of the received data.
@@ -859,15 +876,24 @@ contains
                             DiagSft(run) = real(proje_iter(run),dp)
                             defer_update(run) = .true.
                         end if
-                    elseif (abs(AllNoatHF(run)) < (MaxNoatHF - HFPopThresh)) then
+                    endif
+#endif
+                else ! .not.tSinglePartPhase(run)
+
+#ifdef __CMPLX
+                    if (abs_sign(AllNoatHF(lb:ub)) < MaxNoatHF-HFPopThresh) then
+#else
+                    if (abs(AllNoatHF(run)) < MaxNoatHF-HFPopThresh) then
+#endif
                         write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
                                      &single particle growth phase on iteration',iter + PreviousCycles,' - particle number &
                                      &may grow again.'
                         tSinglePartPhase(run) = .true.
                         tReZeroShift(run) = .true.
                     endif
-#endif
-                endif
+
+                endif ! tSinglePartPhase(run) or not
+
                 ! How should the shift change for the entire ensemble of walkers 
                 ! over all processors.
                 if (((.not. tSinglePartPhase(run)).or.(TargetGrowRate(run).ne.0.0_dp)) .and.&

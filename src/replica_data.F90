@@ -8,6 +8,9 @@ module replica_data
     use util_mod
     use kp_fciqmc_data_mod
     use real_time_data
+    use SystemData, only : NEl
+    use IntegralsData, only : NFrozen
+    use LoggingData, only : tLogEXLEVELStats
     implicit none
 
 contains
@@ -126,6 +129,12 @@ contains
                  DiagSftRe(inum_runs), &
                  DiagSftIm(inum_runs), &
                  tSinglePartPhase(inum_runs), stat=ierr)
+
+        ! Variables which are only used conditionally.
+        ! NB, NFrozen has not been subtracted from NEl yet!
+        if (tLogEXLEVELStats) allocate (&
+              EXLEVEL_WNorm(0:2,0:NEl-NFrozen,inum_runs), &
+              AllEXLEVEL_WNorm(0:2,0:NEl-NFrozen,inum_runs), stat=ierr)
 
         ! Iteration data
         call allocate_iter_data(iter_data_fciqmc)
@@ -267,6 +276,8 @@ contains
                        NoatDoubs_1, AllNoatDoubs_1, AccRat_1, AllGrowRate_1, &
                        AllGrowRateAbort_1)
 #endif
+        if (tLogEXLEVELStats) deallocate(EXLEVEL_WNorm, AllEXLEVEL_WNorm)
+
 
         call clean_iter_data(iter_data_fciqmc)
 

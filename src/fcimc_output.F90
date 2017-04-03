@@ -7,7 +7,7 @@ module fcimc_output
                            instant_s2_multiplier, tPrintFCIMCPsi, &
                            iWriteHistEvery, tDiagAllSpaceEver, OffDiagMax, &
                            OffDiagBinRange, tCalcVariationalEnergy, &
-                           iHighPopWrite
+                           iHighPopWrite, tLogEXLEVELStats
     use hist_data, only: Histogram, AllHistogram, InstHist, AllInstHist, &
                          BeforeNormHist, iNoBins, BinRange, HistogramEnergy, &
                          AllHistogramEnergy
@@ -41,6 +41,9 @@ module fcimc_output
 contains
 
     SUBROUTINE WriteFciMCStatsHeader()
+        integer i, j, k, run
+        character(256) label
+        character(32) tchar_r, tchar_i, tchar_j, tchar_k
 
         IF(iProcIndex.eq.root) THEN
 !Print out initial starting configurations
@@ -54,6 +57,31 @@ contains
                 WRITE(complexstats_unit,"(A)") '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      " &
                 & //"6.RealTotParts      7.ImTotParts'
             ENDIF
+            if (tLogEXLEVELStats) then
+                write (EXLEVELStats_unit, '(a)', advance='no') '# 1.Step'
+                k = 1
+                do run = 1, inum_runs
+                    tchar_r = ''
+                    if (inum_runs>1) then
+                        write(tchar_r,*)run
+                        tchar_r = '(run='//trim(adjustl(tchar_r))//')'
+                    endif
+                    do i = 0, 2
+                        write(tchar_i,*)i
+                        do j = 0, NEl
+                            k = k + 1
+                            write(tchar_j,*)j
+                            write(tchar_k,*)k
+                            write (EXLEVELStats_unit, '(1x,a)', &
+                                   advance='no') trim(adjustl(tchar_k))// &
+                                   &'.W'//trim(adjustl(tchar_j))//'^'// &
+                                   trim(adjustl(tchar_i))// &
+                                   trim(adjustl(tchar_r))
+                        enddo ! j
+                    enddo ! i
+                enddo ! run
+                write (EXLEVELStats_unit, '()', advance='yes')
+            endif ! tLogEXLEVELStats
 
 #ifdef __CMPLX
             if(tMCOutput) then
@@ -151,7 +179,7 @@ contains
     END SUBROUTINE WriteFciMCStatsHeader
 
     subroutine WriteFCIMCStats()
-        INTEGER :: i, run
+        INTEGER :: i, j, run
         real(dp),dimension(inum_runs) :: FracFromSing
 
         ! What is the current value of S2
@@ -392,6 +420,19 @@ contains
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1)
             endif
 #endif
+            if (tLogEXLEVELStats) then
+                write (EXLEVELStats_unit, '(i12)', advance='no') &
+                      &Iter + PreviousCycles
+                do run = 1, inum_runs
+                    do i = 0, 2
+                        do j = 0, NEl
+                            write (EXLEVELStats_unit, '(1x,G18.9e3)', &
+                                   advance='no') AllEXLEVEL_WNorm(i,j,run)
+                        enddo ! j
+                    enddo ! i
+                enddo ! run
+                write (EXLEVELStats_unit, '()', advance='yes')
+            endif ! tLogEXLEVELStats
 
 
             if(tMCOutput) then
@@ -399,6 +440,7 @@ contains
             endif
             call neci_flush(fcimcstats_unit)
             if (inum_runs.eq.2) call neci_flush(fcimcstats_unit2)
+            if (tLogEXLEVELStats) call neci_flush(EXLEVELStats_unit)
             
         endif
 

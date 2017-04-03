@@ -45,6 +45,7 @@ module LoggingData
     LOGICAL :: tBlockEveryIteration
     LOGICAL tLogDets       ! Write out the DETS and SymDETS files.
     LOGICAL tLogComplexPops     ! Write out complex walker information 
+    LOGICAL tLogEXLEVELStats    ! Write L_{0,1,2} norms of weights by exlevel
     LOGICAL tMCOutput
     logical :: tDumpForcesInfo
     logical :: tPrintLagrangian  !Print out the 1RDM,2RDM and Lagrangian to file at the end of a run as long as 2RDM is calculated

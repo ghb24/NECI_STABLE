@@ -333,8 +333,8 @@ contains
 
             if(tTimeExit .and. totalTime > MaxTimeExit) then
                ! reset the maximum number of iterations to the index of the next one
-               NMCyc = Iter + StepsSft
-               ! to prevent NMCyc from being updated
+               nmcyc = Iter + StepsSft
+               ! to prevent nmcyc from being updated
                tTimeExit = .false.
             endif
 

@@ -20,6 +20,7 @@ module real_time_data
          tDynamicCoreSpace, tRealTimePopsfile, tStabilizerShift, tLimitShift, &
          tDynamicAlpha, tDynamicDamping, tInfInit, tStartVariation, tOverpopulate
 
+    logical :: tLowerThreshold
     ! also use a second iter_data type to keep track of the 2 distinct 
     ! spawning events
     type(fcimc_iter_data) :: second_spawn_iter_data
@@ -115,6 +116,11 @@ module real_time_data
 
     ! info if the FCIDUMP integrals are complex 
     logical :: t_complex_ints
+
+    ! for hubbard model: Info if the perturbation operators are in k-space
+    logical :: t_kspace_operators
+    ! and the corresponding phases for the fourier transformation
+    real(dp) :: phase_factors
 
     ! need a 2nd list to combine y(n) + k1/2 in the 2nd order RK method
     ! from this list the spawns k2 are created, which can be stored in a 

@@ -1580,7 +1580,8 @@ contains
     subroutine update_shift_damping()
       implicit none
 ! sign convention for imaginary and real time differ
-      shift_damping = shift_damping + tau_imag * DiagSft - tau_real &
+      shift_damping = shift_damping + tau_imag * DiagSft
+      if(tDynamicDamping) shift_damping = shift_damping - tau_real &
            * real_time_info%damping
 
     end subroutine update_shift_damping
@@ -1647,14 +1648,23 @@ contains
       use CalcData, only: InitWalkers
       use Parallel_neci, only: nProcessors
       use real_time_data, only: alphaDamping, etaDamping, tStartVariation, rotThresh, &
-           numSnapShotOrbs
+           numSnapShotOrbs, tLowerThreshold
       implicit none
       real(dp) :: allWalkersOld(lenof_sign), walkersOld(lenof_sign)
       real(dp) :: deltaAlpha, deltaEta
 
       ! once the walker number exceeds the total walkers set in the input, start
       ! adjusting the damping and the real/imag timestep ratio
+      if(.not. tStartVariation) then
       if(sum(AllTotParts)/inum_runs > rotThresh) tStartVariation = .true.
+      if(tLowerThreshold) then
+          if(tStartVariation) then
+	       tStartVariation = .false.
+          else
+	       tStartVariation = .true.
+	  endif
+      endif
+      endif
       ! once started, we have to do so forever, else we might kill all walkers
       
       if(tStartVariation) then
