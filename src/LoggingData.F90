@@ -109,4 +109,10 @@ module LoggingData
 
     ! output umat also in the case of the momentum space hubbard
     logical :: t_umat_output = .false.
+
+    ! double occupancy measurements: 
+    logical :: t_calc_double_occ = .false.
+    logical :: t_calc_double_occ_av = .false. 
+    integer :: equi_iter_double_occ = 0
+
 end module LoggingData

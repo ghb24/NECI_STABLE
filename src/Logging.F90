@@ -1011,6 +1011,16 @@ MODULE Logging
             ! create a FCIDUMP file to compare GUGA matrix elements with 
             ! DMRG results!
             t_umat_output = .true.
+
+        case("DOUBLE-OCCUPANCY")
+            t_calc_double_occ = .true.
+            t_calc_double_occ_av = .true.
+
+            if (item < nitems) then
+                t_calc_double_occ_av = .false. 
+                call geti(equi_iter_double_occ)
+            end if
+
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)
         end select
