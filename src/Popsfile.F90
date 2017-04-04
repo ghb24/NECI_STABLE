@@ -10,7 +10,7 @@ MODULE PopsfileMod
                         iWeightPopRead, iPopsFileNoRead, Tau, &
                         InitiatorWalkNo, MemoryFacPart, tLetInitialPopDie, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
-                        pops_norm, tWritePopsNorm, t_keep_tau_fixed
+                        pops_norm, tWritePopsNorm, t_keep_tau_fixed, t_hist_tau_search
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
@@ -1099,12 +1099,16 @@ r_loop: do while(.not.tStoreDet)
             iBlockingIter = PreviousCycles
         else
             !Using popsfile v.4, where tau is written out and read in
-            if (tSearchTau) then
+            ! [Werner Dobrautz 4.4.2017:]
+            ! Are we sure we want to stop searching if we are in the 
+            ! variable shift mode? TODO
+            if (tSearchTau .or. t_hist_tau_search) then
                 if((.not.tSinglePartPhase(1)).or.(.not.tSinglePartPhase(inum_runs))) then
                     tSearchTau=.false.
                 endif
                 Tau=read_tau
                 write(6,"(A)") "Using timestep specified in POPSFILE, although continuing to dynamically adjust to optimise this"
+                write(iout,"(A,F12.8)") " read-in time-step: ", tau
 
                 ! If we have been searching for tau, we may have been searching
                 ! for psingles (it is done at the same time).
@@ -1116,11 +1120,19 @@ r_loop: do while(.not.tStoreDet)
                     pSingles = read_psingles
                     if (.not. tReltvy) &
                     pDoubles = 1.0_dp - pSingles
+
+                    write(iout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
+                    write(iout,"(A,F12.8)") " pSingles: ", pSingles
+                    write(iout,"(A,F12.8)") " pDoubles: ", pDoubles
+
                 end if
 
                 if (abs(read_pparallel) > 1.0e-12_dp) then
                     pParallel = read_pparallel
+                    write(iout,"(A)") "Using pParallel from POPSFILE: " 
+                    write(iout,"(A,F12.8)") " pParallel: ", pParallel
                 end if
+
             else if (t_keep_tau_fixed) then 
                 write(6,"(A)") "Using timestep specified in POPSFILE, without continuing to dynammically adjust it!"
                 tau = read_tau 
@@ -1130,10 +1142,16 @@ r_loop: do while(.not.tStoreDet)
                     if (.not. tReltvy) then
                         pDoubles = 1.0_dp - pSingles
                     end if
+                    write(iout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
+                    write(iout,"(A,F12.8)") " pSingles: ", pSingles
+                    write(iout,"(A,F12.8)") " pDoubles: ", pDoubles
+
                 end if
 
                 if (abs(read_pparallel) > 1.0e-12_dp) then
                     pParallel = read_pparallel
+                    write(iout,"(A)") "Using pParallel from POPSFILE: " 
+                    write(iout,"(A,F12.8)") " pParallel: ", pParallel
                 end if
             else
                 !Tau specified. if it is different, write this here.

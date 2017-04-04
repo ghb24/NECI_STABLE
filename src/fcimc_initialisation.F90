@@ -33,7 +33,7 @@ module fcimc_initialisation
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, &
-                        tMultipleInitialStates, initial_states
+                        tMultipleInitialStates, initial_states, t_hist_tau_search
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -139,6 +139,8 @@ module fcimc_initialisation
     use sym_mod
     use HElem
     use constants
+
+    use tau_search_hist, only: init_hist_tau_search
 
     implicit none
 
@@ -994,6 +996,17 @@ contains
 !                       ^ Removed by GLM as believed not necessary
         if (tSearchTau) then
             call init_tau_search()
+
+            ! [Werner Dobrautz 4.4.2017:]
+            if (t_hist_tau_search) then 
+                ! some setup went wrong! 
+                call Stop_All(t_r, &
+                    "Input error! both standard AND Histogram tau-search chosen!")
+            end if
+
+        else if (t_hist_tau_search) then 
+            call init_hist_tau_search()
+
         else
             ! Add a couple of checks for sanity
             if (nOccAlpha == 0 .or. nOccBeta == 0) then

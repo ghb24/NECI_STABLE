@@ -11,7 +11,7 @@ module fcimc_iter_utils
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
-                        qmc_trial_wf
+                        qmc_trial_wf, t_hist_tau_search, t_hist_tau_search_option
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats
     use semi_stoch_procs, only: recalc_core_hamil_diag
@@ -29,6 +29,8 @@ module fcimc_iter_utils
     use FciMCData
     use constants
     use util_mod
+
+    use tau_search_hist, only: update_tau_hist
 
     implicit none
 
@@ -579,6 +581,11 @@ contains
 
         if ((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. .not. tFillingStochRDMOnFly) then   
             call update_tau()
+
+        ! [Werner Dobrautz 4.4.2017:]
+        else if (((t_hist_tau_search .or. (t_hist_tau_search_option .and. tSearchTauDeath)) &
+            .and. (.not. tFillingStochRDMonFly))) then
+            call update_tau_hist()
         end if
 
         if (tTrialWavefunction) then

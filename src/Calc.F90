@@ -1032,6 +1032,64 @@ contains
                 tSearchTau = .false.
                 tSearchTauOption = .false.
 
+            case("HIST-TAU-SEARCH","NEW-TAU-SEARCH")
+                ! [Werner Dobrautz, 4.4.2017:]
+                ! the new tau search method using histograms of the 
+                ! H_ij / pgen ratio and integrating the histograms up to 
+                ! a certain value, to obtain the time-step and not using 
+                ! only the worst case H_ij / pgen ration
+                
+                ! this option has 3 possible input parameters: 
+                ! 1) the integration cutoff in percentage [0.999 default]
+                ! 2) the number of bins used [100000 default]
+                ! 3) the upper bound of the bins [10000.0 default]
+                t_hist_tau_search = .true.
+                t_hist_tau_search_option = .true.
+                t_fill_frequency_hists = .true.
+
+                ! turn off the other tau-search, if by mistake both were 
+                ! chosen! 
+                if (tSearchTau .or. tSearchTauOption) then 
+                   write(iout, &
+                       '("WARNING: both the histogramming and standard tau&
+                       &-search option were chosen! \n TURNING STANDARD VERSION OFF!")')
+                   tSearchTau = .false.
+                   tSearchTauOption = .false.
+               end if
+
+               if (item < nitems) then
+                   call getf(frq_ratio_cutoff)
+               end if
+
+               if (item < nitems) then 
+                   call geti(n_frequency_bins)
+                   
+                   ! check that not too many bins are used which may crash 
+                   ! the MPI communication of the histograms! 
+                   if (n_frequency_bins > 1000000) then 
+                       write(iout, &
+                           '("WARNING: maybe too many bins used for the &
+                           &histograms! This might cause MPI problems!")')
+                   end if
+               end if
+
+               if (item < nitems) then 
+                   call getf(max_frequency_bound) 
+               end if
+
+            case("TRUNCATE-SPAWNS")
+                ! [Werner Dobrautz, 4.4.2017:]
+                ! in combination with the above HIST-TAU-SEARCH option I 
+                ! also introduced a truncation keyword for spawning events
+                ! which are missed by the integrated time-step. 
+                ! to limit the effect of these possible large blooms I 
+                ! implemented a truncation of those. But this might be an 
+                ! uncontrolled approximation, so be careful! 
+                t_truncate_spawns = .true. 
+                if (item < nitems) then 
+                    call getf(n_truncate_spawns)
+                end if
+                
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
                 call getf(MaxWalkerBloom)

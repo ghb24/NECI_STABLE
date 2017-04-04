@@ -12,11 +12,12 @@ module FciMCParMod
                         tDetermHFSpawning, use_spawn_hash_table, &
                         ss_space_in, s_global_start, tContTimeFCIMC, &
                         trial_shift_iter, tStartTrialLater, &
-                        tTrialWavefunction, tSemiStochastic, ntrial_ex_calc
+                        tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
+                        t_hist_tau_search_option
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
-                           write_end_core_size
+                           write_end_core_size, t_print_frq_histograms
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -62,6 +63,8 @@ module FciMCParMod
     use fcimc_output
     use FciMCData
     use constants
+
+    use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
 
 #ifdef MOLPRO
     use outputResult
@@ -470,6 +473,18 @@ module FciMCParMod
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
         write(iout,*) 'Total loop-time: ', stop_time - start_time
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
+
+        ! [Werner Dobrautz 4.4.2017] 
+        ! for now always print out the frequency histograms for the 
+        ! tau-search.. maybe change that later to be an option 
+        ! to be turned off
+        if (t_print_frq_histograms .and. t_hist_tau_search_option) then
+            call print_frequency_histograms()
+
+            ! also deallocate here after no use of the histograms anymore
+            call deallocate_histograms()
+        end if
+
 
         ! Remove the signal handlers now that there is no way for the
         ! soft-exit part to work

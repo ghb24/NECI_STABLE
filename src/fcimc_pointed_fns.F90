@@ -2,11 +2,12 @@
 
 module fcimc_pointed_fns
 
-    use SystemData, only: nel
+    use SystemData, only: nel, tGen_4ind_2, tGen_4ind_weighted, tHub, tUEG
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
-                        tRealCoeffByExcitLevel, InitiatorWalkNo
+                        tRealCoeffByExcitLevel, InitiatorWalkNo, &
+                        t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -19,6 +20,10 @@ module fcimc_pointed_fns
     use util_mod
     use FciMCData
     use constants
+    
+    use tau_search_hist, only: fill_frequency_histogram_4ind, &
+                               fill_frequency_histogram_sd, &
+                               fill_frequency_histogram
 
     implicit none
 
@@ -113,6 +118,7 @@ module fcimc_pointed_fns
         integer :: TargetExcitLevel
         logical :: tRealSpawning
         HElement_t(dp) :: rh, rh_used
+        logical :: t_par
 
         ! Just in case
         child = 0.0_dp
@@ -144,6 +150,27 @@ module fcimc_pointed_fns
 !            write(6,*) 'IC1', rh, prob
 !        end if
 
+        ! fill in the frequency histograms here! 
+        ! [Werner Dobrautz 4.4.2017:]
+        if (t_fill_frequency_hists) then 
+            if (tHUB .or. tUEG) then 
+                call fill_frequency_histogram(abs(rh), prob / AvMCExcits)
+            else 
+
+                if (tGen_4ind_2 .or. tGen_4ind_weighted) then 
+                    t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
+
+                    ! not sure about the AvMCExcits!! TODO
+                    call fill_frequency_histogram_4ind(abs(rh), prob / AvMCExcits, &
+                        ic, t_par)
+
+                else
+
+                    call fill_frequency_histogram_sd(abs(rh), prob / AvMCExcits, ic)
+                    
+                end if
+            end if
+        end if
         ! Are we doing real spawning?
         
         tRealSpawning = .false.
@@ -219,6 +246,16 @@ module fcimc_pointed_fns
 !            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
 !            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
 
+
+            ! [Werner Dobrautz 4.4.2017:]
+            ! apply the spawn truncation, when using histogramming tau-search
+            if (t_truncate_spawns .and. abs(nspawn) > n_truncate_spawns) then
+                ! TODO: add some additional output if this event happens
+                nSpawn = sign(n_truncate_spawns, nspawn)
+
+                write(iout,*) "Truncating spawn from: ", nspawn, " to ", n_truncate_spawns
+
+            end if
             
             ! n.b. if we ever end up with |walkerweight| /= 1, then this
             !      will need to ffed further through.
