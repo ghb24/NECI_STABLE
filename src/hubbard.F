@@ -355,7 +355,8 @@ C.. place the sym label of each state in SymClasses(ISTATE).
                SymClasses(I)=nSyms
             ENDIF
 C.. list the symmetry string of each sym label
-            SymLabels(I)%s=2**(I-1)
+!             SymLabels(I)%s=2**(I-1)
+            SymLabels(I)%s=i
          ENDDO
 C.. Setup the symmetry product table
          if (allocated(SymTable)) then
