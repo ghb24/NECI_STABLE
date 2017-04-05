@@ -1051,8 +1051,8 @@ contains
                 ! chosen! 
                 if (tSearchTau .or. tSearchTauOption) then 
                    write(iout, &
-                       '("WARNING: both the histogramming and standard tau&
-                       &-search option were chosen! \n TURNING STANDARD VERSION OFF!")')
+                       '("(WARNING: both the histogramming and standard tau&
+                       &-search option were chosen! TURNING STANDARD VERSION OFF!")')
                    tSearchTau = .false.
                    tSearchTauOption = .false.
                end if

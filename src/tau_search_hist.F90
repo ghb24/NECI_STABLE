@@ -94,7 +94,7 @@ contains
         ! Do this logic here, so that if we add opposite spin bias to more
         ! excitation generators, then there is only one place that this logic
         ! needs to be updated!
-        if (tGen_4ind_weighted .or. tGen_4ind_2 ) then
+        if (tGen_4ind_weighted .or. tGen_4ind_2) then
             consider_par_bias = .true.
         else if (tGen_4ind_reverse) then
             consider_par_bias = .true.
@@ -325,7 +325,7 @@ contains
 
             ratio_singles = ratio_singles * pSingles
 
-            if (tGen_4ind_weighted .or. tGen_4ind_2) then 
+            if (tGen_4ind_weighted .or. tGen_4ind_2 .or. tGen_4ind_reverse) then 
 
                 ASSERT(consider_par_bias)
 
@@ -835,7 +835,7 @@ contains
             all_frequency_bins_spec = 0
 
             ! do the cases where there is antiparallel or parallel
-            if (tGen_4ind_weighted .or. tGen_4ind_2) then 
+            if (tGen_4ind_weighted .or. tGen_4ind_2 .or. tGen_4ind_reverse) then 
 
                 ! then the parallel:
                 call MPIAllReduce(frequency_bins_para, MPI_SUM, all_frequency_bins_spec)
