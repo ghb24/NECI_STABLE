@@ -8,7 +8,7 @@ module fcimc_pointed_fns
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo, t_frequency_analysis, &
-                        t_fill_frequency_hists, t_hist_tau_search_option, t_truncate_spawns, & 
+                        t_fill_frequency_hists, t_truncate_spawns, & 
                         n_truncate_spawns
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, log_spawn_magnitude
