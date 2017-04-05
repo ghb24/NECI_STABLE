@@ -6,19 +6,18 @@ module tau_search_hist
                           tGen_4ind_reverse, nOccAlpha, nOccBeta, tUEG, tGen_4ind_2
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, &                
-                        t_min_tau, min_tau_global, frequency_bins, & 
-                        max_frequency_bound, n_frequency_bins, frq_step_size, &
-                        frequency_bins_singles, frequency_bins_anti, frequency_bins_doubles, &
-                        frq_ratio_cutoff, t_hist_tau_search,  enough_sing_hist, &
-                        enough_doub_hist, enough_par_hist, enough_opp_hist, & 
+                        t_min_tau, min_tau_global, & 
+                        max_frequency_bound, n_frequency_bins, &
+                        frq_ratio_cutoff, t_hist_tau_search,  &
                         t_fill_frequency_hists, t_hist_tau_search_option, &
-                        t_truncate_spawns, frequency_bins_para
+                        t_truncate_spawns
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          MaxTau, tSearchTau, tSearchTauOption, tSearchTauDeath
     use Parallel_neci, only: MPIAllReduce, MPI_MAX, MPI_SUM, MPIAllLORLogical
     use ParallelHelper, only: iprocindex
     use constants, only: dp, EPS, iout
     use tau_search, only: FindMaxTauDoubs
+    use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
     implicit none
     ! variables which i might have to define differently:
     logical :: consider_par_bias
@@ -27,6 +26,17 @@ module tau_search_hist
     ! do i have to define this here or in the CalcData:??
     integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_par_hist
     integer :: above_max_singles, above_max_para, above_max_anti, above_max_doubles
+    logical :: enough_sing_hist, enough_doub_hist, enough_par_hist, enough_opp_hist
+
+    ! store the necessary quantities here and not in CalcData! 
+    real(dp) :: frq_step_size = 0.1_dp
+
+    ! i need bin arrays for all types of possible spawns: 
+    integer, allocatable :: frequency_bins_singles(:), frequency_bins_para(:), &
+                            frequency_bins_anti(:), frequency_bins_doubles(:), &
+                            frequency_bins(:)
+
+    integer(TagIntType) :: mem_tag_histograms = 0
 
 contains
 
@@ -34,6 +44,8 @@ contains
         ! split the new and old tau-search routines up, to no mix up 
         ! too much stuff 
         character(*), parameter :: this_routine = "init_hist_tau_search"
+
+        integer :: ierr
 
         ! at the beginning to some inut checking: 
         if (tSearchTauOption .or. tSearchTau) then 
@@ -48,8 +60,8 @@ contains
         ! if no truncating spawns is chosen warn here againg that that might 
         ! cause problems! 
         if (.not. t_truncate_spawns) then 
-            write(iout, '("WARNING: NO spawn truncation chosen with keyword:\n&
-                &truncate-spawns [float] \n in input! \n this might cause &
+            write(iout, '("WARNING: NO spawn truncation chosen with keyword: &
+                &truncate-spawns [float] in input! this might cause &
                 &bloom problems with histogramming tau-search! BE CAUTIOUS!")')
         end if
 
@@ -66,7 +78,7 @@ contains
         print *, "Setup of the Histogramming tau-search: "
         print *, "  Integration cut-off: ", frq_ratio_cutoff
         print *, "  Number of bins: ", n_frequency_bins
-        print *, "  Max. ration: ", max_frequency_bound
+        print *, "  Max. ratio: ", max_frequency_bound
 
         ! do the initialization of the frequency analysis here.. 
         ! i think otherwise it is not done on all the nodes.. 
@@ -74,7 +86,7 @@ contains
         ! determine the global and fixed step-size quantitiy! 
         frq_step_size = max_frequency_bound / real(n_frequency_bins, dp)
 
-        print *, " Bin-width: ", frq_step_size
+        print *, "  Bin-width: ", frq_step_size
 
         ! and do the rest of the initialisation:
 
@@ -111,10 +123,11 @@ contains
 
         cnt_sing_hist = 0
         enough_sing_hist = .false.
+        above_max_singles = 0
 
         cnt_doub_hist = 0 
         enough_doub_hist = .false.
-
+        above_max_doubles = 0
         ! dependent if we use pParallel or not init specific hists
         if (consider_par_bias) then
             
@@ -124,67 +137,87 @@ contains
             enough_par_hist = .false. 
             enough_opp_hist = .false. 
 
+            above_max_para = 0
+            above_max_anti = 0
+
             ! i always use the singles histogram dont I? i think so.. 
             ! Log the memory here! TODO
-            allocate(frequency_bins_singles(n_frequency_bins))
+            allocate(frequency_bins_singles(n_frequency_bins), stat = ierr)
             frequency_bins_singles = 0
 
-            allocate(frequency_bins_para(n_frequency_bins))
+            allocate(frequency_bins_para(n_frequency_bins), stat = ierr)
             frequency_bins_para = 0
 
-            allocate(frequency_bins_anti(n_frequency_bins))
+            allocate(frequency_bins_anti(n_frequency_bins), stat = ierr)
             frequency_bins_anti = 0
 
+            call LogMemAlloc('frequency_bins', n_frequency_bins * 3, 4, &
+                this_routine, mem_tag_histograms, ierr)
+
         else 
-            ! i always use the singles histogram dont I? i think so.. 
-            allocate(frequency_bins_singles(n_frequency_bins))
-            frequency_bins_singles = 0
+            if (tHub .or. tUEG) then
+                ! only one histogram is used! 
+                allocate(frequency_bins(n_frequency_bins), stat = ierr)
 
-            ! for now use only pSingles and pDoubles for GUGA implo
-            allocate(frequency_bins_doubles(n_frequency_bins))
-            frequency_bins_doubles = 0
+                call LogMemAlloc('frequency_bins', n_frequency_bins, 4, &
+                    this_routine, mem_tag_histograms, ierr)
 
+            else
+
+                ! i always use the singles histogram dont I? i think so.. 
+                allocate(frequency_bins_singles(n_frequency_bins), stat = ierr)
+                frequency_bins_singles = 0
+
+                ! for now use only pSingles and pDoubles for GUGA implo
+                allocate(frequency_bins_doubles(n_frequency_bins), stat = ierr)
+                frequency_bins_doubles = 0
+
+                call LogMemAlloc('frequency_bins', n_frequency_bins * 2, 4, &
+                    this_routine, mem_tag_histograms, ierr)
+            end if
         end if
 
         ! also need to setup all the other quantities necessary for the 
         ! "normal" tau-search if they have not yet been setup if we only 
         ! use the new tau-search 
-        if (.not. tSearchTauOption) then 
 
-            ! And what is the maximum death-component found
-            max_death_cpt = 0
+        ! And what is the maximum death-component found
+        max_death_cpt = 0
 
-            ! And the counts are used to make sure we don't update anything too
-            ! early
-            ! should we use the same variables in both tau-searches?? 
+        ! And the counts are used to make sure we don't update anything too
+        ! early
+        ! should we use the same variables in both tau-searches?? 
 
-            ! Unless it is already specified, set an initial value for tau
-            if (.not. tRestart .and. .not. tReadPops .and. tau == 0) &
-                call FindMaxTauDoubs()
+        ! Unless it is already specified, set an initial value for tau
+        if (.not. tRestart .and. .not. tReadPops .and. tau < EPS) then
+            call FindMaxTauDoubs()
+        end if
+        if (tReadPops) then
+            write(iout,*) "Using time-step from POPSFILE!"
+        else
             write(6,*) 'Using initial time-step: ', tau
-     
-            ! Set the maximum spawn size
-            if (MaxWalkerBloom == -1) then
-                ! No maximum manually specified, so we set the limit of spawn
-                ! size to either the initiator criterion, or to 5 otherwise
-                if (tTruncInitiator) then
-                    max_permitted_spawn = InitiatorWalkNo
-                else
-                    ! change here to the "old" algorithm, since the time-step
-                    ! will be orders of magnitude larger we should limit 
-                    ! the max_permitted_spawn to 1. (or 2 maybe.. lets see!)
-                    max_permitted_spawn = 1.0_dp
-                end if
+        end if
+ 
+        ! Set the maximum spawn size
+        if (MaxWalkerBloom == -1) then
+            ! No maximum manually specified, so we set the limit of spawn
+            ! size to either the initiator criterion, or to 5 otherwise
+            if (tTruncInitiator) then
+                max_permitted_spawn = InitiatorWalkNo
             else
-                ! This is specified manually
-                max_permitted_spawn = real(MaxWalkerBloom, dp)
+                ! change here to the "old" algorithm, since the time-step
+                ! will be orders of magnitude larger we should limit 
+                ! the max_permitted_spawn to 1. (or 2 maybe.. lets see!)
+                max_permitted_spawn = 1.0_dp
             end if
+        else
+            ! This is specified manually
+            max_permitted_spawn = real(MaxWalkerBloom, dp)
+        end if
 
-            if (.not. (tReadPops .and. .not. tWalkContGrow)) then
-                write(iout, "(a,f10.5)") "Will dynamically update timestep to &
-                             &limit spawning probability to", max_permitted_spawn
-            end if
-
+        if (.not. (tReadPops .and. .not. tWalkContGrow)) then
+            write(iout, "(a,f10.5)") "Will dynamically update timestep to &
+                         &limit spawning probability to", max_permitted_spawn
         end if
 
     end subroutine init_hist_tau_search
@@ -889,7 +922,7 @@ contains
 
             do i = 1, n_frequency_bins
                 write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
-                write(iunit, "(i12)") real(all_frequency_bins(i),dp) / norm
+                write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
             end do
 
             close(iunit)
@@ -904,6 +937,7 @@ contains
         ! TODO: also do mem-logging here and in the allocation!
         character(*), parameter :: this_routine = "deallocate_histograms"
 
+        call LogMemDealloc(this_routine, mem_tag_histograms)
         if (allocated(frequency_bins)) deallocate(frequency_bins)
         if (allocated(frequency_bins_singles)) deallocate(frequency_bins_singles)
         if (allocated(frequency_bins_doubles)) deallocate(frequency_bins_doubles)
@@ -911,5 +945,14 @@ contains
         if (allocated(frequency_bins_anti)) deallocate(frequency_bins_anti)
 
     end subroutine deallocate_histograms
+
+    subroutine read_frequency_histograms
+        ! also write a routine, which in case of a restart reads in 
+        ! saved frequency histograms and calculates time-step and 
+        ! psingles etc. from it! although i am not sure if this is 
+        ! possible without prior knowledge of the psingles etc..
+        character(*), parameter :: this_routine = "read_frequency_histograms"
+
+    end subroutine read_frequency_histograms
 
 end module
