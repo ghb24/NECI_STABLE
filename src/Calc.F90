@@ -1090,6 +1090,19 @@ contains
                     call getf(n_truncate_spawns)
                 end if
                 
+            case("MIX-RATIOS")
+                ! pablos idea: mix the old and new contributions and not 
+                ! only take the new ones, since we are doing a stochastic 
+                ! process now, maybe make that the default behavior..
+                t_mix_ratios = .true.
+
+                if (item < nitems) then
+                    call getf(mix_ratio)
+                else
+                    ! if no additional input default it to 0.7
+                    mix_ratio = 0.7_dp
+                end if
+
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
                 call getf(MaxWalkerBloom)

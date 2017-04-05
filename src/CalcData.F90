@@ -326,6 +326,14 @@ logical :: t_keep_tau_fixed = .false.
 logical :: t_hist_tau_search = .false., t_hist_tau_search_option = .false.
 logical :: t_fill_frequency_hists = .false.
 
+! maybe also introduce a mixing between the old and new quantities in the 
+! histogramming tau-search, since it is a stochastic process now
+logical :: t_mix_ratios = .false.
+! and choose a mixing ration p_new = (1-mix_ratio)*p_old + mix_ratio * p_new
+! for now default it to 1.0_dp, meaning if it is not inputted, i only 
+! take the new contribution, like it is already done, and if it is 
+! inputted, without an additional argument default it to 0.7_dp
+real(dp) :: mix_ratio = 1.0_dp
 ! use default values for bin-width and number of bins and a max ratio:
 integer :: n_frequency_bins = 100000
 real(dp) :: max_frequency_bound = 10000_dp

@@ -10,7 +10,7 @@ module tau_search_hist
                         max_frequency_bound, n_frequency_bins, &
                         frq_ratio_cutoff, t_hist_tau_search,  &
                         t_fill_frequency_hists, t_hist_tau_search_option, &
-                        t_truncate_spawns
+                        t_truncate_spawns, t_mix_ratios, mix_ratio
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          MaxTau, tSearchTau, tSearchTauOption, tSearchTauDeath
     use Parallel_neci, only: MPIAllReduce, MPI_MAX, MPI_SUM, MPIAllLORLogical
@@ -300,6 +300,9 @@ contains
                 ! indicate enough spawning events! 
                 tau_new = max_permitted_spawn / ratio
 
+                ! and use the mixing now: 
+                tau_new = (1.0_dp - mix_ratio) * tau + mix_ratio * tau_new
+
             else 
                 ! what do i do in the case if not enough spawns.. 
                 ! nothing i guess.. 
@@ -363,11 +366,23 @@ contains
                 ! also calculate new time-step through this method and 
                 ! check the difference to the old method 
                 if (enough_sing_hist .and. enough_doub_hist) then 
+                    ! puh.. for the mixing i am not sure how to exactly do 
+                    ! that.. since all of the ratios depend on each other..
+                    ! test that!
                     pparallel_new = ratio_para / (ratio_anti + ratio_para)
+
+                    pparallel_new = (1.0_dp - mix_ratio) * pParallel + &
+                                    mix_ratio * pparallel_new
+
                     psingles_new = ratio_singles * pparallel_new / &
                         (ratio_para + ratio_singles * pparallel_new) 
 
+                    psingles_new = (1.0_dp - mix_ratio) * psingles + & 
+                                    mix_ratio * psingles_new
+
                     tau_new = psingles_new * max_permitted_spawn / ratio_singles
+
+                    tau_new = (1.0_dp - mix_ratio) * tau + mix_ratio * tau_new
 
                     if (psingles_new > 1e-5_dp .and. &
                         psingles_new < (1.0_dp - 1e-5_dp)) then
@@ -398,6 +413,9 @@ contains
                     pparallel_new = pParallel
                     psingles_new = pSingles
                     ! im not sure if this possible division by 0 is cool...
+                    ! and if this is somehow cool in the histogramming 
+                    ! approach.. this again is some kind of worst case 
+                    ! adaptation.. hm.. todo
                     tau_new = max_permitted_spawn * min(&
                         pSingles / ratio_singles, &
                         pDoubles * pParallel / ratio_para, &
@@ -425,7 +443,13 @@ contains
 
                 if (enough_sing_hist .and. enough_doub_hist) then 
                     psingles_new = ratio_singles / (ratio_doubles + ratio_singles)
+
+                    psingles_new = (1.0_dp - mix_ratio) * pSingles + &
+                                    mix_ratio * psingles_new
+
                     tau_new = max_permitted_spawn / (ratio_doubles + ratio_singles)
+
+                    tau_new = (1.0_dp - mix_ratio) * tau + mix_ratio * tau_new
 
                     if (psingles_new > 1e-5_dp .and. &
                         psingles_new < (1.0_dp - 1e-5_dp)) then
@@ -523,7 +547,10 @@ contains
         integer, intent(in) :: ic 
         logical, intent(in) :: t_parallel
         character(*), parameter :: this_routine = "fill_frequency_histogram_4ind"
-        integer, parameter :: cnt_threshold = 50
+        ! i think in my histogramming tau-search i have to increase this 
+        ! threshold by a LOT to avoid fluctuating behavior at the 
+        ! beginning of the calculation
+        integer, parameter :: cnt_threshold = 5000
 
         real(dp) :: ratio
         integer :: ind
