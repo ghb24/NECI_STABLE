@@ -503,6 +503,7 @@ contains
                     + gamma_three_mixed + gamma_four
         end if
 
+        ! change: already unbiased in the histogram:
         pBranch2 = pDoubles * (1.0_dp - pExcit4) * pExcit2
         pBranch3 = pDoubles * (1.0_dp - pExcit4) * (1.0_dp - pExcit2)
         
@@ -733,7 +734,8 @@ contains
             return 
         end if
 
-        ratio_singles = ratio_singles * pSingles
+        ! change: already unbiased in histogram
+!         ratio_singles = ratio_singles * pSingles
 
         pBranch2 = pDoubles * (1.0_dp - pExcit4) * pExcit2
         pBranch3 = pDoubles * (1.0_dp - pExcit4) * (1.0_dp - pExcit2)
@@ -811,20 +813,21 @@ contains
                 return 
             end if
 
-            ratio_type2 = ratio_type2 * pDoubles * (1.0_dp - pExcit4) * pExcit2 * &
-                pExcit2_same
-
-            ratio_type2_diff = ratio_type2_diff * pDoubles * (1.0_dp - pExcit4) * pExcit2 * &
-                (1.0_dp - pExcit2_same)
-
-            ratio_type3 = ratio_type3 * pDoubles * (1.0_dp - pExcit4) * &
-                (1.0_dp - pExcit2) * pExcit3_same
-
-            ratio_type3_diff = ratio_type3_diff * pDoubles * (1.0_dp - pExcit4) * &
-                (1.0_dp - pExcit2) * (1.0_dp - pExcit3_same)
-
-            ratio_type4 = ratio_type4 * pDoubles * pExcit4
-
+            ! unbias already in histograms!
+!             ratio_type2 = ratio_type2 * pDoubles * (1.0_dp - pExcit4) * pExcit2 * &
+!                 pExcit2_same
+! 
+!             ratio_type2_diff = ratio_type2_diff * pDoubles * (1.0_dp - pExcit4) * pExcit2 * &
+!                 (1.0_dp - pExcit2_same)
+! 
+!             ratio_type3 = ratio_type3 * pDoubles * (1.0_dp - pExcit4) * &
+!                 (1.0_dp - pExcit2) * pExcit3_same
+! 
+!             ratio_type3_diff = ratio_type3_diff * pDoubles * (1.0_dp - pExcit4) * &
+!                 (1.0_dp - pExcit2) * (1.0_dp - pExcit3_same)
+! 
+!             ratio_type4 = ratio_type4 * pDoubles * pExcit4
+! 
             ratio_doubles = ratio_type2 + ratio_type2_diff + ratio_type3 + &
                 ratio_type3_diff + ratio_type4
 
@@ -936,12 +939,13 @@ contains
                 return 
             end if
 
-            ratio_type2 = ratio_type2 * pDoubles * (1.0_dp - pExcit4) * pExcit2 
-
-            ratio_type3 = ratio_type3 * pDoubles * (1.0_dp - pExcit4) * &
-                (1.0_dp - pExcit2)
-
-            ratio_type4 = ratio_type4 * pDoubles * pExcit4
+            ! unbias already in the histograms!
+!             ratio_type2 = ratio_type2 * pDoubles * (1.0_dp - pExcit4) * pExcit2 
+! 
+!             ratio_type3 = ratio_type3 * pDoubles * (1.0_dp - pExcit4) * &
+!                 (1.0_dp - pExcit2)
+! 
+!             ratio_type4 = ratio_type4 * pDoubles * pExcit4
 
             ratio_doubles = ratio_type2 + ratio_type3 + ratio_type4
 

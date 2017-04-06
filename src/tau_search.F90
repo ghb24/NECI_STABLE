@@ -612,7 +612,8 @@ contains
                 return 
             end if
 
-            ratio_singles = ratio_singles * pSingles
+            ! change: already unbias it in the histograms:
+!             ratio_singles = ratio_singles * pSingles
         end if
 
         if (tGen_4ind_weighted .or. tGen_4ind_2) then 
@@ -647,8 +648,9 @@ contains
             end if
 
             ! to compare the influences on the time-step:
-            ratio_para = ratio_para * pDoubles * pParallel
-            ratio_anti = ratio_anti * pDoubles * (1.0_dp - pParallel)
+            ! change: already unbiased in the histograms:
+!             ratio_para = ratio_para * pDoubles * pParallel
+!             ratio_anti = ratio_anti * pDoubles * (1.0_dp - pParallel)
 
             ! also calculate new time-step through this method and 
             ! check the difference to the old method 
@@ -711,7 +713,8 @@ contains
             end if
 
             ! to compare the influences on the time-step:
-            ratio_doubles = ratio_doubles * pDoubles
+            ! change: already unbiased in the histograms:
+!             ratio_doubles = ratio_doubles * pDoubles
 
             if (enough_sing_hist .and. enough_doub_hist) then 
                 psingles_new = ratio_singles / (ratio_doubles + ratio_singles)
@@ -1018,6 +1021,9 @@ contains
 
         if (ic == 1) then 
 
+            ! IMPORTANT change: unbias the stored ratios!! 
+            ratio = ratio * pSingles
+
             ! if i ignore the ratios above the upper limit i also can 
             ! only count these excitations if they do not get ignored..
 
@@ -1086,6 +1092,9 @@ contains
             ! check if parallel or anti-parallel 
             if (t_parallel) then 
 
+                ! unbias:
+                ratio = ratio * pDoubles * pParallel
+
                 ! parallel excitation 
 !                 old_n_bins = size(frequency_bins_para) 
 
@@ -1124,6 +1133,9 @@ contains
 
                 end if
             else 
+
+                ! unbias:
+                ratio = ratio * pDoubles * (1.0_dp - pParallel)
 
                 ! anti-parallel excitation
 !                 old_n_bins = size(frequency_bins_anti)
@@ -1199,6 +1211,9 @@ contains
 
         if (ic == 1) then 
 
+            ! unbias: 
+            ratio = ratio * pSingles
+
 !             old_n_bins = size(frequency_bins_singles)
 ! 
 !             if (ratio > frq_step_size * old_n_bins) then
@@ -1235,6 +1250,9 @@ contains
 
             end if
         else 
+
+            ! unbias: 
+            ratio = ratio * pDoubles
 
 !             old_n_bins = size(frequency_bins_doubles)
 ! 
@@ -1291,6 +1309,8 @@ contains
         integer, allocatable :: save_bins(:) 
         integer, parameter :: cnt_threshold = 50
 
+        real(dp) :: pBranch2, pBranch3
+
         ASSERT(pgen > EPS)
         ASSERT(ic == 1 .or. ic == 2) 
         ASSERT(typ == 2 .or. typ == 3 .or. typ == 4) 
@@ -1302,6 +1322,8 @@ contains
 
         if (ic == 1) then
             ! single excitation 
+            ratio = ratio * pSingles
+
 !             old_n_bins = size(frequency_bins_singles)
 ! 
 !             if (ratio > frq_step_size * old_n_bins) then
@@ -1341,7 +1363,11 @@ contains
         else
             ! double excitation -> check type 
             if (typ == 2) then
+                pBranch2 = pDoubles * (1.0_dp - pExcit4) * pExcit2
                 if (diff == 1) then
+
+                    ratio = ratio * pBranch2 * (1.0_dp - pExcit2_same)
+
                     ! diff = 1 means alike generators! 
 !                     old_n_bins = size(frequency_bins_type2) 
 ! 
@@ -1378,6 +1404,9 @@ contains
 
                     end if
                 else if (diff == 0) then 
+
+                    ratio = ratio * pBranch2 * pExcit2_same
+
 !                     old_n_bins = size(frequency_bins_type2_diff)
 ! 
 !                     if (ratio > frq_step_size * old_n_bins) then
@@ -1418,7 +1447,10 @@ contains
 
             else if (typ == 3) then 
 
+                pBranch3 = pDoubles * (1.0_dp - pExcit4) * (1.0_dp - pExcit2)
                 if (diff == 1) then
+                    ratio = ratio * pBranch3 * (1.0_dp - pExcit3_same)
+
 !                     old_n_bins = size(frequency_bins_type3) 
 ! 
 !                     if (ratio > frq_step_size * old_n_bins) then 
@@ -1453,6 +1485,8 @@ contains
 
                     end if
                 else if (diff == 0) then
+                    ratio = ratio * pBranch3 * pExcit3_same
+
 !                     old_n_bins = size(frequency_bins_type3_diff)
 ! 
 !                     if (ratio > frq_step_size * old_n_bins) then
@@ -1491,6 +1525,8 @@ contains
                 if (enough_three_same .and. enough_three_mixed) enough_three = .true.
 
             else if (typ == 4) then
+                ratio = ratio * pDoubles * pExcit4
+
 !                 old_n_bins = size(frequency_bins_type4) 
 ! 
 !                 if (ratio > frq_step_size * old_n_bins) then 
@@ -1561,6 +1597,7 @@ contains
 
         if (ic == 1) then
             ! single excitation 
+            ratio = ratio * pSingles
 !             old_n_bins = size(frequency_bins_singles)
 ! 
 !             if (ratio > frq_step_size * old_n_bins) then
@@ -1598,6 +1635,8 @@ contains
         else
             ! double excitation -> check type 
             if (typ == 2) then
+                ratio = ratio * pDoubles * (1.0_dp - pExcit4) * pExcit2
+
 !                 old_n_bins = size(frequency_bins_type2) 
 ! 
 !                 if (ratio > frq_step_size * old_n_bins) then 
@@ -1633,6 +1672,8 @@ contains
                 end if
 
             else if (typ == 3) then 
+                ratio = ratio * pDoubles * (1.0_dp - pExcit4) * (1.0_dp - pExcit2)
+
 !                 old_n_bins = size(frequency_bins_type3) 
 ! 
 !                 if (ratio > frq_step_size * old_n_bins) then 
@@ -1668,6 +1709,8 @@ contains
                 end if
 
             else if (typ == 4) then
+                ratio = ratio * pDoubles * pExcit4
+
 !                 old_n_bins = size(frequency_bins_type4) 
 ! 
 !                 if (ratio > frq_step_size * old_n_bins) then 
