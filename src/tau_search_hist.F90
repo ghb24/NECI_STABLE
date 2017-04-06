@@ -301,7 +301,9 @@ contains
                 tau_new = max_permitted_spawn / ratio
 
                 ! and use the mixing now: 
-                tau_new = (1.0_dp - mix_ratio) * tau + mix_ratio * tau_new
+                if (t_mix_ratios) then
+                    tau_new = (1.0_dp - mix_ratio) * tau + mix_ratio * tau_new
+                end if
 
             else 
                 ! what do i do in the case if not enough spawns.. 
@@ -314,6 +316,10 @@ contains
             call integrate_frequency_histogram_spec(frequency_bins_singles, &
                 ratio_singles) 
 
+            ! for analyis print this also out: 
+#ifdef __DEBUG
+            print *, "ratio_singles: ", ratio_singles
+#endif
             ! if i have a integer overflow i should probably deal here with it..
             if (ratio_singles < 0.0_dp) then 
                 ! TODO: and also print out in this case! 
@@ -326,7 +332,9 @@ contains
                 return 
             end if
 
-            ratio_singles = ratio_singles * pSingles
+            ! change the storage of the ratios so that they are already 
+            ! unbiased!
+!             ratio_singles = ratio_singles * pSingles
 
             if (tGen_4ind_weighted .or. tGen_4ind_2 .or. tGen_4ind_reverse) then 
 
@@ -335,6 +343,9 @@ contains
                 ! sum up all 3 ratios: single, parallel and anti-parallel
                 call integrate_frequency_histogram_spec(frequency_bins_para, &
                     ratio_para)
+#ifdef __DEBUG
+                print *, " ratio_para: ", ratio_para
+#endif
 
                 if (ratio_para < 0.0_dp) then 
                     root_print "The parallel excitation histogram is full!" 
@@ -348,6 +359,9 @@ contains
 
                 call integrate_frequency_histogram_spec(frequency_bins_anti, &
                     ratio_anti)
+#ifdef __DEBUG
+                print *, "ratio_anti: ", ratio_anti
+#endif
 
                 if (ratio_anti < 0.0_dp) then 
                     root_print "The anti-parallel excitation histogram is full!" 
@@ -360,8 +374,10 @@ contains
                 end if
 
                 ! to compare the influences on the time-step:
-                ratio_para = ratio_para * pDoubles * pParallel
-                ratio_anti = ratio_anti * pDoubles * (1.0_dp - pParallel)
+                ! change that the ratios are already stored in an unbiased 
+                ! way, so no feedback happens!
+!                 ratio_para = ratio_para * pDoubles * pParallel
+!                 ratio_anti = ratio_anti * pDoubles * (1.0_dp - pParallel)
 
                 ! also calculate new time-step through this method and 
                 ! check the difference to the old method 
@@ -371,18 +387,24 @@ contains
                     ! test that!
                     pparallel_new = ratio_para / (ratio_anti + ratio_para)
 
-                    pparallel_new = (1.0_dp - mix_ratio) * pParallel + &
-                                    mix_ratio * pparallel_new
+                    if (t_mix_ratios) then
+                        pparallel_new = (1.0_dp - mix_ratio) * pParallel + &
+                                        mix_ratio * pparallel_new
+                    end if
 
                     psingles_new = ratio_singles * pparallel_new / &
                         (ratio_para + ratio_singles * pparallel_new) 
 
-                    psingles_new = (1.0_dp - mix_ratio) * psingles + & 
-                                    mix_ratio * psingles_new
+                    if (t_mix_ratios) then
+                        psingles_new = (1.0_dp - mix_ratio) * psingles + & 
+                                        mix_ratio * psingles_new
+                    end if 
 
                     tau_new = psingles_new * max_permitted_spawn / ratio_singles
 
-                    tau_new = (1.0_dp - mix_ratio) * tau + mix_ratio * tau_new
+                    if (t_mix_ratios) then
+                        tau_new = (1.0_dp - mix_ratio) * tau + mix_ratio * tau_new
+                    end if
 
                     if (psingles_new > 1e-5_dp .and. &
                         psingles_new < (1.0_dp - 1e-5_dp)) then
@@ -438,18 +460,26 @@ contains
                     return
                 end if
 
+#ifdef __DEBUG
+                print *, "ratio_doubles: ", ratio_doubles
+#endif
                 ! to compare the influences on the time-step:
-                ratio_doubles = ratio_doubles * pDoubles
+                ! change that so it does store the ratio unbiased
+!                 ratio_doubles = ratio_doubles * pDoubles
 
                 if (enough_sing_hist .and. enough_doub_hist) then 
                     psingles_new = ratio_singles / (ratio_doubles + ratio_singles)
 
-                    psingles_new = (1.0_dp - mix_ratio) * pSingles + &
-                                    mix_ratio * psingles_new
+                    if (t_mix_ratios) then
+                        psingles_new = (1.0_dp - mix_ratio) * pSingles + &
+                                        mix_ratio * psingles_new
+                    end if
 
                     tau_new = max_permitted_spawn / (ratio_doubles + ratio_singles)
 
-                    tau_new = (1.0_dp - mix_ratio) * tau + mix_ratio * tau_new
+                    if (t_mix_ratios) then
+                        tau_new = (1.0_dp - mix_ratio) * tau + mix_ratio * tau_new
+                    end if
 
                     if (psingles_new > 1e-5_dp .and. &
                         psingles_new < (1.0_dp - 1e-5_dp)) then
@@ -550,7 +580,7 @@ contains
         ! i think in my histogramming tau-search i have to increase this 
         ! threshold by a LOT to avoid fluctuating behavior at the 
         ! beginning of the calculation
-        integer, parameter :: cnt_threshold = 5000
+        integer, parameter :: cnt_threshold = 50
 
         real(dp) :: ratio
         integer :: ind
@@ -568,6 +598,12 @@ contains
 
             ! if i ignore the ratios above the upper limit i also can 
             ! only count these excitations if they do not get ignored..
+
+            ! i have to change the way how we store those excitations in the 
+            ! histograms! i have to unbias it against the psingles, etc. 
+            ! quantities, so the histograms do not have feedback! 
+
+            ratio = ratio * pSingles
 
             if (ratio < max_frequency_bound) then
 
@@ -589,12 +625,18 @@ contains
             else
                 ! store the number of excitation which exceed the upper limit!
                 above_max_singles = above_max_singles + 1
+                print *, "Warning: single excitation H_ij/pgen above max_frequency_bound!" 
+                print *, " H_ij/pgen: ", ratio, " ; bound: ", max_frequency_bound
+                print *, " Consider increasing the bound!"
 
             end if
 
         else
             ! check if parallel or anti-parallel 
             if (t_parallel) then 
+
+                ratio = ratio * (pDoubles * pParallel)
+
                if (ratio < max_frequency_bound) then
                     if (.not. enough_par_hist) then 
                         cnt_par_hist = cnt_par_hist + 1
@@ -606,8 +648,14 @@ contains
                     frequency_bins_para(ind) = frequency_bins_para(ind) + 1
                 else
                     above_max_para = above_max_para + 1
+                    print *, "Warning: parallel excitation H_ij/pgen above max_frequency_bound!" 
+                    print *, " H_ij/pgen: ", ratio, " ; bound: ", max_frequency_bound
+                    print *, " Consider increasing the bound!"
                 end if
             else 
+
+                ratio = ratio * (pDoubles * (1.0_dp - pParallel))
+
                 if (ratio < max_frequency_bound) then
                     if (.not. enough_opp_hist) then 
                         cnt_opp_hist = cnt_opp_hist + 1
@@ -620,6 +668,9 @@ contains
 
                 else 
                     above_max_anti = above_max_anti + 1
+                    print *, "Warning: anti-parallel excitation H_ij/pgen above max_frequency_bound!" 
+                    print *, " H_ij/pgen: ", ratio, " ; bound: ", max_frequency_bound
+                    print *, " Consider increasing the bound!"
                 end if
             end if
             ! combine par and opp into enough_doub
@@ -655,6 +706,10 @@ contains
         ratio = mat_ele / pgen 
 
         if (ic == 1) then 
+
+            ! change to unbias the stored ratios: 
+            ratio = ratio * pSingles
+
             if (ratio < max_frequency_bound) then
 
                 if (.not. enough_sing_hist) then 
@@ -668,8 +723,14 @@ contains
 
             else
                 above_max_singles = above_max_singles + 1
+                print *, "Warning: single excitation H_ij/pgen above max_frequency_bound!" 
+                print *, " H_ij/pgen: ", ratio, " ; bound: ", max_frequency_bound
+                print *, " Consider increasing the bound!"
             end if
         else 
+
+            ratio = ratio * pDoubles
+
             if (ratio < max_frequency_bound) then
 
                 if (.not. enough_doub_hist) then 
@@ -683,6 +744,9 @@ contains
 
             else 
                 above_max_doubles = above_max_doubles + 1
+                print *, "Warning: double excitation H_ij/pgen above max_frequency_bound!" 
+                print *, " H_ij/pgen: ", ratio, " ; bound: ", max_frequency_bound
+                print *, " Consider increasing the bound!"
             end if
         end if
 
@@ -739,6 +803,9 @@ contains
 
         else
             above_max_doubles = above_max_doubles + 1
+            print *, "Warning: excitation H_ij/pgen above max_frequency_bound!" 
+            print *, " H_ij/pgen: ", ratio, " ; bound: ", max_frequency_bound
+            print *, " Consider increasing the bound!"
         end if
 
     end subroutine fill_frequency_histogram
