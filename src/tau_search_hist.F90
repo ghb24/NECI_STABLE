@@ -301,7 +301,9 @@ contains
                 tau_new = max_permitted_spawn / ratio
 
                 ! and use the mixing now: 
-                tau_new = (1.0_dp - mix_ratio) * tau + mix_ratio * tau_new
+                if (t_mix_ratios) then
+                    tau_new = (1.0_dp - mix_ratio) * tau + mix_ratio * tau_new
+                end if
 
             else 
                 ! what do i do in the case if not enough spawns.. 
@@ -371,18 +373,25 @@ contains
                     ! test that!
                     pparallel_new = ratio_para / (ratio_anti + ratio_para)
 
-                    pparallel_new = (1.0_dp - mix_ratio) * pParallel + &
-                                    mix_ratio * pparallel_new
+                    if (t_mix_ratios) then 
+                        pparallel_new = (1.0_dp - mix_ratio) * pParallel + &
+                                        mix_ratio * pparallel_new
+                    end if
+
 
                     psingles_new = ratio_singles * pparallel_new / &
                         (ratio_para + ratio_singles * pparallel_new) 
 
-                    psingles_new = (1.0_dp - mix_ratio) * psingles + & 
-                                    mix_ratio * psingles_new
+                    if (t_mix_ratios) then
+                        psingles_new = (1.0_dp - mix_ratio) * psingles + & 
+                                        mix_ratio * psingles_new
+                    end if
 
                     tau_new = psingles_new * max_permitted_spawn / ratio_singles
 
-                    tau_new = (1.0_dp - mix_ratio) * tau + mix_ratio * tau_new
+                    if (t_mix_ratios) then
+                        tau_new = (1.0_dp - mix_ratio) * tau + mix_ratio * tau_new
+                    end if
 
                     if (psingles_new > 1e-5_dp .and. &
                         psingles_new < (1.0_dp - 1e-5_dp)) then
@@ -444,12 +453,16 @@ contains
                 if (enough_sing_hist .and. enough_doub_hist) then 
                     psingles_new = ratio_singles / (ratio_doubles + ratio_singles)
 
-                    psingles_new = (1.0_dp - mix_ratio) * pSingles + &
-                                    mix_ratio * psingles_new
+                    if (t_mix_ratios) then
+                        psingles_new = (1.0_dp - mix_ratio) * pSingles + &
+                                        mix_ratio * psingles_new
+                    end if
 
                     tau_new = max_permitted_spawn / (ratio_doubles + ratio_singles)
 
-                    tau_new = (1.0_dp - mix_ratio) * tau + mix_ratio * tau_new
+                    if (t_mix_ratios) then
+                        tau_new = (1.0_dp - mix_ratio) * tau + mix_ratio * tau_new
+                    end if
 
                     if (psingles_new > 1e-5_dp .and. &
                         psingles_new < (1.0_dp - 1e-5_dp)) then
@@ -550,7 +563,7 @@ contains
         ! i think in my histogramming tau-search i have to increase this 
         ! threshold by a LOT to avoid fluctuating behavior at the 
         ! beginning of the calculation
-        integer, parameter :: cnt_threshold = 5000
+        integer, parameter :: cnt_threshold = 50
 
         real(dp) :: ratio
         integer :: ind
