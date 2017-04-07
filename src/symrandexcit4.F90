@@ -864,7 +864,8 @@ contains
             ! n.b. This can only be used for the case <ij|ba> == 0.
             ida = gtID(orba)
             idb = gtID(orbb)
-            contrib = max(sqrt(abs(get_umat_el(indi, indj, ida, idb))), 0.0001_dp)
+!             contrib = max(sqrt(abs(get_umat_el(indi, indj, ida, idb))), 0.0001_dp)
+            contrib = sqrt(abs(get_umat_el(indi, indj, ida, idb)))
         else if (tGen_4ind_lin_exact) then
             if (orbb > 0) then
                 ! Include a contribution of abs(<ij|ab>)

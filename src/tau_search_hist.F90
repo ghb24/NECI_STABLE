@@ -3,7 +3,8 @@
 module tau_search_hist
 
     use SystemData, only: tGen_4ind_weighted, AB_hole_pairs, par_hole_pairs,tHub, & 
-                          tGen_4ind_reverse, nOccAlpha, nOccBeta, tUEG, tGen_4ind_2
+                          tGen_4ind_reverse, nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, &
+                          UMatEps
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, &                
                         t_min_tau, min_tau_global, & 
@@ -587,7 +588,7 @@ contains
         ASSERT(pgen > EPS) 
         ASSERT(ic == 1 .or. ic == 2)
 
-        if (mat_ele < EPS) return 
+        if (mat_ele < UMatEps) return 
 
         ratio = mat_ele / pgen
 
