@@ -7,7 +7,8 @@ module tau_search
                           AB_hole_pairs, par_hole_pairs, tGen_4ind_reverse, &
                           nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, &
                           tGen_nosym_guga, nSpatOrbs, t_consider_diff_bias, &
-                          tGUGA, tGen_sym_guga_mol, tHub, tGen_sym_guga_ueg
+                          tGUGA, tGen_sym_guga_mol, tHub, tGen_sym_guga_ueg, & 
+                          umateps
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, max_permitted_spawn, &
                     gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt,&
@@ -1205,7 +1206,7 @@ contains
         ASSERT(pgen > EPS) 
         ASSERT( ic == 1 .or. ic == 2)
 
-        if (mat_ele < EPS) return
+        if (mat_ele < umateps) return
 
         ratio = mat_ele / pgen 
 
