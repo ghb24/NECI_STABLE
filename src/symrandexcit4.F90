@@ -865,6 +865,7 @@ contains
             ida = gtID(orba)
             idb = gtID(orbb)
 !             contrib = max(sqrt(abs(get_umat_el(indi, indj, ida, idb))), 0.0001_dp)
+!             contrib = sqrt(abs(get_umat_el(indi, indj, ida, idb)))
             contrib = abs(get_umat_el(indi, indj, ida, idb))
         else if (tGen_4ind_lin_exact) then
             if (orbb > 0) then
@@ -904,7 +905,7 @@ contains
 !                                 - get_umat_el(indi, indj, idb, ida))), 0.00001_dp)
 !             contrib = sqrt(abs(get_umat_el(indi, indj, ida, idb) &
 !                                 - get_umat_el(indi, indj, idb, ida)))
-            contrib = (abs(get_umat_el(indi, indj, ida, idb) &
+            contrib = abs(get_umat_el(indi, indj, ida, idb) &
                                 - get_umat_el(indi, indj, idb, ida))
         else if (tGen_4ind_lin_exact) then
             if (orbb > 0) then
