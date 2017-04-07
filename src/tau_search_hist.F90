@@ -19,6 +19,10 @@ module tau_search_hist
     use constants, only: dp, EPS, iout
     use tau_search, only: FindMaxTauDoubs
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
+
+    use procedure_pointers, only: get_umat_el
+    use UMatCache, only: gtid, UMat2d
+    use util_mod, only: abs_l1
     implicit none
     ! variables which i might have to define differently:
     logical :: consider_par_bias
@@ -555,7 +559,7 @@ contains
     end subroutine update_tau_hist
 
    
-    subroutine fill_frequency_histogram_4ind(mat_ele, pgen, ic, t_parallel)
+    subroutine fill_frequency_histogram_4ind(mat_ele, pgen, ic, t_parallel, ex)
         ! this is the specific routine to fill up the frequency histograms 
         ! for the 4ind-weighted excitation generators, which use pParallel too
         ! (do they always by default?? check that! todo! 
@@ -576,6 +580,7 @@ contains
         real(dp), intent(in) :: mat_ele, pgen 
         integer, intent(in) :: ic 
         logical, intent(in) :: t_parallel
+        integer, intent(in), optional :: ex(2,2)
         character(*), parameter :: this_routine = "fill_frequency_histogram_4ind"
         ! i think in my histogramming tau-search i have to increase this 
         ! threshold by a LOT to avoid fluctuating behavior at the 
@@ -584,6 +589,7 @@ contains
 
         real(dp) :: ratio
         integer :: ind
+        integer :: indi,indj,inda,indb
 
         ASSERT(pgen > EPS) 
         ASSERT(ic == 1 .or. ic == 2)
@@ -637,6 +643,31 @@ contains
 
                 ratio = ratio * (pDoubles * pParallel)
 
+                ! analyse the really low and really high ratios: 
+                if (ratio < 0.2_dp) then 
+                    print *, "******************"
+                    print *, "parallel excitation:"
+                    print *, "ratio: ", ratio
+                    print *, "mat_ele: ", mat_ele
+                    print *, "pgen: ", pgen
+                    print *, "ex-maxtrix: ", ex
+                    indi = gtid(ex(1,1))
+                    indj = gtid(ex(1,2))
+                    inda = gtid(ex(2,1))
+                    indb = gtid(ex(2,2))
+                    print *, "umat (ij|ab) ", get_umat_el(indi,indj,inda,indb)
+                    print *, "umat (ij|ba) ", get_umat_el(indi,indj,indb,inda)
+                    print *, "diff: ", abs(get_umat_el(indi,indj,inda,indb) - &
+                        get_umat_el(indi,indj,indb,inda))
+                    print *, "(ii|aa) + (jj|aa): ",& 
+                        sqrt(abs_l1(UMat2d(max(indi,inda),min(indi,inda)))) & 
+                       +sqrt(abs_l1(UMat2d(max(indj,inda),min(indj,inda))))
+                    print *, "(ii|bb) + (jj|bb): ", &
+                        sqrt(abs_l1(UMat2d(max(indi,indb),min(indi,indb)))) & 
+                       +sqrt(abs_l1(UMat2d(max(indj,indb),min(indj,indb))))
+                    print *, "******************"
+
+                end if
                if (ratio < max_frequency_bound) then
                     if (.not. enough_par_hist) then 
                         cnt_par_hist = cnt_par_hist + 1

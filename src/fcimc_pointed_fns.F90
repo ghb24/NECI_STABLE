@@ -162,7 +162,7 @@ module fcimc_pointed_fns
 
                     ! not sure about the AvMCExcits!! TODO
                     call fill_frequency_histogram_4ind(abs(rh), prob / AvMCExcits, &
-                        ic, t_par)
+                        ic, t_par, ex)
 
                 else
 
