@@ -1,3 +1,4 @@
+#include "macros.h"
 module perturbations
 
     use constants
@@ -86,6 +87,8 @@ contains
                 ! to temp_dets_1. Else, exit the final result in dets_out.
                 if (i /= size(perturbs)) then
                     ndets_pert_1 = ndets
+                    ! this is very inefficient, but it is only performed at the beginning
+                    ! so leave it for now
                     temp_dets_1(:,1:ndets) = dets_out(:,1:ndets)
                 end if
             end do
@@ -125,7 +128,7 @@ contains
         integer, intent(inout) :: ndets
         integer(n_int), intent(in) :: dets_in(0:,:) ! First dimension must be 0:NIfTot
         integer(n_int), intent(out) :: dets_out(0:,:) ! First dimension must be 0:NIfTot
-        real(dp), intent(in) :: phase ! add some phase to the perturbation
+        real(dp), intent(in), optional :: phase ! add some phase to the perturbation
 
         integer(n_int) :: ilut(0:NIfTot)
         integer(n_int), pointer :: PointTemp(:,:)
@@ -153,14 +156,16 @@ contains
                 ! If a phase factor is to be added, do it now
                 if(present(phase)) then
                    call extract_sign(ilut,tmp_sign)
-                   do run = 1, inum_runs
-                      ! multiply by exp(i*phase)
-                      tmp_real = tmp_sign(min_part_type(run))
-                      tmp_sign(min_part_type(run)) = cos(phase)*tmp_sign(min_part_type(run)) &
-                           - sin(phase) * tmp_sign(max_part_type(run))
-                      tmp_sign(max_part_type(run)) = sin(phase)*tmp_real + cos(phase) *&
-                           max_part_type(run)
-                   end do
+                   if(present(phase)) then
+                      do run = 1, inum_runs
+                         ! multiply by exp(i*phase)
+                         tmp_real = tmp_sign(min_part_type(run))
+                         tmp_sign(min_part_type(run)) = cos(phase)*tmp_sign(min_part_type(run)) &
+                              - sin(phase) * tmp_sign(max_part_type(run))
+                         tmp_sign(max_part_type(run)) = sin(phase)*tmp_real + cos(phase) *&
+                              max_part_type(run)
+                      end do
+                endif
                 endif
                 SpawnedParts(:, ValidSpawnedList(proc)) = ilut
                 ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1

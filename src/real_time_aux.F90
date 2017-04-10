@@ -32,7 +32,7 @@ module real_time_aux
          nOccDets = nOccDets + 1
          buffer(:,nOccDets) = state(:,i)
       enddo
-
+     
       ! copy them to overlap_states
       if(allocated(overlap_states(index)%dets)) deallocate(overlap_states(index)%dets)
       allocate(overlap_states(index)%dets(0:nIfTot,nOccDets))

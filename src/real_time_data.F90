@@ -120,7 +120,7 @@ module real_time_data
     ! for hubbard model: Info if the perturbation operators are in k-space
     logical :: t_kspace_operators
     ! and the corresponding phases for the fourier transformation
-    real(dp) :: phase_factors
+    real(dp), allocatable :: phase_factors(:)
 
     ! need a 2nd list to combine y(n) + k1/2 in the 2nd order RK method
     ! from this list the spawns k2 are created, which can be stored in a 

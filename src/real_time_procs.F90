@@ -15,8 +15,8 @@ module real_time_procs
                               NoDied_1, NoBorn_1, SumWalkersCyc_1, gf_count, &
                               t_rotated_time, tau_imag, tau_real, gs_energy, TotPartsLastAlpha, &
                               shift_damping, normsize, tStabilizerShift, dyn_norm_psi, &
-                              TotPartsPeak, numCycShiftExcess, shiftLimit, &
-                              tDynamicAlpha, tDynamicDamping, stepsAlpha
+                              TotPartsPeak, numCycShiftExcess, shiftLimit, t_kspace_operators, &
+                              tDynamicAlpha, tDynamicDamping, stepsAlpha, phase_factors
     use real_time_aux, only: write_overlap_state
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
@@ -39,7 +39,7 @@ module real_time_procs
                          determ_sizes, determ_displs, determ_space_size, core_space
     use sparse_arrays, only: sparse_core_ham
     use perturbations, only: apply_perturbation, init_perturbation_creation, &
-         init_perturbation_annihilation
+         init_perturbation_annihilation, apply_perturbation_array
     use util_mod, only: int_fmt
     use CalcData, only: AvMCExcits, tAllRealCoeff, tRealCoeffByExcitLevel, &
                         tRealSpawnCutoff, RealSpawnCutoff, tau, RealCoeffExcitThresh, &
@@ -64,7 +64,6 @@ module real_time_procs
     use load_balance, only: AddNewHashDet, CalcHashTableStats, test_hash_table
     implicit none
 
-    integer :: TotWalkers_orig_max
     type(timer) :: calc_gf_time
 
 contains
@@ -1491,7 +1490,7 @@ contains
         ! creation or annihilation operator
       implicit none
         character(*), parameter :: this_routine = "create_perturbed_ground"
-        integer :: tmp_totwalkers, totwalkers_backup
+        integer :: tmp_totwalkers, totwalkers_backup, TotWalkers_orig_max
         integer :: ierr, i, totNOccDets
         integer(n_int), allocatable :: perturbed_buf(:,:)
 
@@ -1504,7 +1503,11 @@ contains
         print *, "Creating the wavefunction to projected on!"
         print *, "Initial number of walkers: ", tmp_totwalkers
 
-        call MPISumAll(tmp_totwalkers,TotWalkers_orig_max)
+        if(allocated(overlap_pert)) then
+           call MPISumAll(tmp_totwalkers,TotWalkers_orig_max)
+        else
+           TotWalkers_orig_max = MaxWalkersPart
+        endif
 
         if(.not. allGfs == 0) call setup_pert_array(allGfs)
         
@@ -1514,13 +1517,26 @@ contains
         do i = 1, gf_count
            totwalkers_backup = tmp_totwalkers
            if(allocated(overlap_pert)) then
-              if(tReadPops) then
-                 perturbed_buf = 0.0_dp
-                 call apply_perturbation(overlap_pert(i),tmp_totwalkers, popsfile_dets,&
-                      perturbed_buf)
+              if(.not. t_kspace_operators) then
+                 if(tReadPops) then
+                    perturbed_buf = 0.0_dp
+                    call apply_perturbation(overlap_pert(i),tmp_totwalkers, popsfile_dets,&
+                         perturbed_buf)
+                 else
+                    call apply_perturbation(overlap_pert(i), tmp_totwalkers, CurrentDets, &
+                         perturbed_buf)
+                 endif
               else
-                 call apply_perturbation(overlap_pert(i), tmp_totwalkers, CurrentDets, &
-                      perturbed_buf)
+                 if(gf_count > 1) call stop_all("create_perturbed_ground",&
+                      "Unable to use momentum operators for multiple correlation functions")
+                 if(tReadPops) then
+                    perturbed_buf = 0.0_dp
+                    call apply_perturbation_array(overlap_pert,tmp_totwalkers, popsfile_dets,&
+                         perturbed_buf,phase_factors)
+                 else
+                    call apply_perturbation_array(overlap_pert, tmp_totwalkers, CurrentDets, &
+                         perturbed_buf,phase_factors)
+                 endif
               endif
            else
               perturbed_buf = CurrentDets
@@ -1734,9 +1750,11 @@ contains
     subroutine clean_overlap_states()
       implicit none
       integer :: i, ierr
-      do i = 1,gf_count
-         deallocate(overlap_states(i)%dets, stat=ierr)
-      enddo
-      deallocate(overlap_states, stat=ierr)
+      if(allocated(overlap_states)) then
+         do i = 1,gf_count
+            if(allocated(overlap_states(i)%dets)) deallocate(overlap_states(i)%dets, stat=ierr)
+         enddo
+         deallocate(overlap_states, stat=ierr)
+      endif
     end subroutine clean_overlap_states
 end module real_time_procs

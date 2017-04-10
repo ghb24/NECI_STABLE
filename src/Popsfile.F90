@@ -963,6 +963,7 @@ r_loop: do while(.not.tStoreDet)
                   call apply_perturbation_array(perturbs, TotWalkersIn, popsfile_dets, &
                        CurrentDets)
                endif
+            else
                call apply_perturbation_array(perturbs, TotWalkersIn, popsfile_dets, CurrentDets)
             endif
             TotWalkers = int(TotWalkersIn, int64)

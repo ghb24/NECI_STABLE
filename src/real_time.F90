@@ -267,9 +267,8 @@ contains
                       overlap_pert(1)%crtn_orbs(1), pops_pert(1)%crtn_orbs(1)
               end if
            endif
-              print *, "Current GF:", gf_overlap(1,1)&
-                   / pert_norm(1,1)
-              print *, "Normalization", real(sum(pert_norm(:,1))/normsize)
+              print *, "Current GF:", gf_overlap(1,1)/pert_norm(1,1), pert_norm(1,1), normsize
+              print *, "Normalization", pert_norm(1,1), dyn_norm_red(1,1)
         endif
 
 

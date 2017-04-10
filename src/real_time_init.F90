@@ -85,6 +85,9 @@ contains
         ! also call the "normal" NECI setup routines to allow calculation
         call SetupParameters()
 
+        ! for real-space hubbard, we conver to momentum operators if desired
+        if(t_kspace_operators) call setup_momentum_operators()
+
         ! have to think about the the order about the above setup routines! 
         ! within this Init a readpops is called
         ! this function already produces the correctly perturbed ground state
@@ -175,20 +178,26 @@ contains
         TotPartsPeak = 0.0_dp
         gs_energy = benchmarkEnergy
         
-        ! to avoid dividing by 0 if not all entries get filled
-        call equalize_initial_phase()
+        ! if a ground-state POPSFILE is used, we need to ensure coherence between the replicas
+        if(.not. tRealTimePopsfile) call equalize_initial_phase()
         allocate(norm_buf(normsize),stat=ierr)
+        ! to avoid dividing by 0 if not all entries get filled
         pert_norm = 1.0_dp
         norm_buf = calc_norm(CurrentDets,int(TotWalkers))
         call MPIReduce(norm_buf,MPI_SUM,dyn_norm_psi)
         do j = 1,gf_count
            ! calc. the norm of the perturbed ground states
            norm_buf = calc_norm(overlap_states(j)%dets,overlap_states(j)%nDets)
+           print *, "CHECKSUM", TotWalkers, overlap_states(j)%nDets
            ! the norm (squared) can be obtained by reduction over all processes
            call MPIReduce(norm_buf,MPI_SUM,pert_norm(:,j))
            ! for diagonal green's functions, this is the same as pert_norm, but 
            ! in general, this general normalization is required.
-           dyn_norm_red(:,j) = sqrt(pert_norm(:,j)*dyn_norm_psi(:))
+           if(tRealTimePopsfile) then
+              dyn_norm_red(:,j) = pert_norm(:,j)
+           else
+              dyn_norm_red(:,j) = sqrt(pert_norm(:,j)*dyn_norm_psi(:))
+           endif
         enddo
 
         deallocate(norm_buf)
@@ -806,6 +815,9 @@ contains
         ! usually, systems with real integrals will be considered, but the walkers will
         ! always be complex
         tComplexWalkers_RealInts = .true.
+        
+        ! by default, the perturbation operators are in the same basis as the wavefunction
+        t_kspace_operators = .false.
 
         ! if no gf kind is specified, only the overlap with the initial state will
         ! be considered -> only one overlap is obtained
@@ -959,7 +971,7 @@ contains
         if(.not. allocated(shift_damping)) allocate(shift_damping(inum_runs),stat=ierr)
         shift_damping = PopSumNoatHF(1:inum_runs)
 
-        call clear_pops_pert()
+        call clear_pops_pert(pops_pert)
         
         ! read in the time evolved state and use it as initial state
         call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, iPopNel, read_nnodes, &
@@ -1025,11 +1037,11 @@ contains
       use SystemData, only: G1
       implicit none
       
-      integer :: k(3),state, momentum_state,spin, i
+      integer :: k(3),state, momentum_state,spin, i, j
     
       if(gf_type == -1) then
          momentum_state = pops_pert(1)%ann_orbs(1)
-      else if(gf_type == 1)
+      else if(gf_type == 1) then
          momentum_state = pops_pert(1)%crtn_orbs(1)
       else
          call stop_all("Equalize initial phase","Invalid momentum space green's function")
@@ -1037,16 +1049,17 @@ contains
       allocate(phase_factors(nBasis/2))
       k = G1(momentum_state)%k
       spin = G1(momentum_state)%ms
-      call clean_overlap_states()
+      call clear_pops_pert(pops_pert)
+      call clear_pops_pert(overlap_pert)
       allocate(pops_pert(nBasis/2))
       allocate(overlap_pert(nBasis/2))
       i = 0
       do state = 1, nBasis
          if(G1(state)%ms /= spin) cycle
          i = i + 1
-         phase_factor(i) = 0
+         phase_factors(i) = 0
          do j = 1,3
-            phase_factor(i) = phase_factor(i) + G1(state)%k(i) * k(i)
+            phase_factors(i) = phase_factors(i) + G1(state)%k(j) * k(j)
          end do
          call setup_single_perturbation(i,state,gf_type)
       end do
@@ -1064,13 +1077,17 @@ contains
          pops_pert(pos)%ncreate = 1
          pops_pert(pos)%crtn_orbs(1) = orbital
          overlap_pert(pos)%crtn_orbs(1) = orbital
+         call init_perturbation_creation(overlap_pert(pos))
+         call init_perturbation_creation(pops_pert(pos))
       else
          allocate(pops_pert(pos)%ann_orbs(1)) 
-         allocate(overlap_pert(orbital)%ann_orbs(1)) 
+         allocate(overlap_pert(pos)%ann_orbs(1)) 
          overlap_pert(pos)%nannihilate = 1
          pops_pert(pos)%nannihilate = 1
          pops_pert(pos)%ann_orbs(1) = orbital
          overlap_pert(pos)%ann_orbs(1) = orbital
+         call init_perturbation_annihilation(overlap_pert(pos))
+         call init_perturbation_annihilation(pops_pert(pos))
       end if
     end subroutine setup_single_perturbation
 
@@ -1094,16 +1111,24 @@ contains
       deallocate(gf_overlap,stat=ierr)
       deallocate(TotPartsPeak,stat=ierr)
       call clean_overlap_states()
-      call clear_pops_pert()
+      call clear_pops_pert(pops_pert)
+      call clear_pops_pert(overlap_pert)
 
     end subroutine dealloc_real_time_memory
 
-    subroutine clear_pops_pert()
+    subroutine clear_pops_pert(perturbs)
+      use FciMCData, only : perturbation
       implicit none
-      if(allocated(pops_pert)) then
-         if(allocated(pops_pert(1)%crtn_orbs)) deallocate(pops_pert(1)%crtn_orbs)
-         if(allocated(pops_pert(1)%ann_orbs)) deallocate(pops_pert(1)%ann_orbs)
-         deallocate(pops_pert)
+      
+      type(perturbation), intent(inout), allocatable :: perturbs(:)
+      integer :: j
+
+      if(allocated(perturbs)) then
+         do j = 1, gf_count
+            if(allocated(perturbs(j)%crtn_orbs)) deallocate(perturbs(j)%crtn_orbs)
+            if(allocated(perturbs(j)%ann_orbs)) deallocate(perturbs(j)%ann_orbs)
+            deallocate(perturbs)
+         end do
       endif
     end subroutine clear_pops_pert
     
