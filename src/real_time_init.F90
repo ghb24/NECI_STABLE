@@ -193,11 +193,7 @@ contains
            call MPIReduce(norm_buf,MPI_SUM,pert_norm(:,j))
            ! for diagonal green's functions, this is the same as pert_norm, but 
            ! in general, this general normalization is required.
-           if(tRealTimePopsfile) then
-              dyn_norm_red(:,j) = pert_norm(:,j)
-           else
-              dyn_norm_red(:,j) = sqrt(pert_norm(:,j)*dyn_norm_psi(:))
-           endif
+           dyn_norm_red(:,j) = pert_norm(:,j)
         enddo
 
         deallocate(norm_buf)
