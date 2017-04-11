@@ -384,6 +384,7 @@ module FciMCParMod
                 if((PopsfileTimer.gt.0.0_dp).and.((iPopsTimers*PopsfileTimer).lt.(TotalTime8/3600.0_dp))) then
                     !Write out a POPSFILE every PopsfileTimer hours
                     if(iProcIndex.eq.Root) then
+                        CALL RENAME('popsfile.h5','popsfile.h5.bk')
                         write(iout,"(A,F7.3,A)") "Writing out a popsfile after ",iPopsTimers*PopsfileTimer, " hours..."
                     endif
                     call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
