@@ -183,6 +183,8 @@ module FciMCParMod
                 if (inum_runs == 2) &
                     write(fcimcstats_unit2, '("#")', advance='no')
                 write (initiatorstats_unit,'("#")', advance='no')
+                if (tLogEXLEVELStats) &
+                      write(EXLEVELStats_unit,'("#")', advance='no')
             end if
             call WriteFCIMCStats()
         end if
@@ -383,6 +385,9 @@ module FciMCParMod
                 if((PopsfileTimer.gt.0.0_dp).and.((iPopsTimers*PopsfileTimer).lt.(TotalTime8/3600.0_dp))) then
                     !Write out a POPSFILE every PopsfileTimer hours
                     if(iProcIndex.eq.Root) then
+                        CALL RENAME('popsfile.h5','popsfile.h5.bk')
+                        CALL RENAME('POPSFILEBIN','POPSFILEBIN.bk')
+                        CALL RENAME('POPSFILEHEAD','POPSFILEHEAD.bk')
                         write(iout,"(A,F7.3,A)") "Writing out a popsfile after ",iPopsTimers*PopsfileTimer, " hours..."
                     endif
                     call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
@@ -525,6 +530,7 @@ module FciMCParMod
             IF(tTruncInitiator) CLOSE(initiatorstats_unit)
             IF(tLogComplexPops) CLOSE(complexstats_unit)
             if (tWritePopsNorm) close(pops_norm_unit)
+            if (tLogEXLEVELStats) close(EXLEVELStats_unit)
         ENDIF
         IF(TDebug) CLOSE(11)
 

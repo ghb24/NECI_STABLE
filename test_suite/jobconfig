@@ -18,6 +18,12 @@ nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 
+[dneci/*/*/]
+program = dneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
 [neci/serial/*/]
 max_nprocs = 1
 
