@@ -90,6 +90,7 @@ set( SRC_FILES
     Makefile
     matmul.F
     MolproPlugin.F90
+    PluginGuestF.F90
     NatOrbs.F90
     NECICore.F90
     neci_intfce.F90
