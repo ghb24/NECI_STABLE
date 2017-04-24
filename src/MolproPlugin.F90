@@ -23,12 +23,11 @@ MODULE MolproPlugin
   END FUNCTION PluginGuestMaster
   FUNCTION PluginGuestSend(value) BIND(C, name='PluginGuestSend')
    USE iso_c_binding
-   CHARACTER(c_char), DIMENSION(:), INTENT(in) :: value
+   CHARACTER(c_char), DIMENSION(*), INTENT(in) :: value
    INTEGER(c_int) :: PluginGuestSend
   END FUNCTION PluginGuestSend
   FUNCTION PluginGuestReceive() BIND(C, name='PluginGuestReceive')
    USE iso_c_binding
-   !CHARACTER(c_char), DIMENSION(:), ALLOCATABLE :: PluginGuestReceive
    TYPE(c_ptr) :: PluginGuestReceive
   END FUNCTION PluginGuestReceive
   SUBROUTINE PluginGuestClose() BIND(C, name='PluginGuestClose')
