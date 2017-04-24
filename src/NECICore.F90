@@ -70,7 +70,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
     toverride_input=.false.
 #ifndef _MOLCAS_
     if(tMolpro) then
-      IF (molpro_plugin.GT.0) THEN
+      IF (molpro_plugin) THEN
         FCIDUMP_name = TRIM(molpro_plugin_fcidumpname)
        ELSE
         FCIDUMP_name = adjustl(int_name)
@@ -79,7 +79,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
         if(toverride_input) then
             Filename="FCIQMC_input_override"
         else
-          IF (molpro_plugin.GT.0) THEN
+          IF (molpro_plugin) THEN
             filename=TRIM(molpro_plugin_datafilename)
           ELSE
             filename=filename_in
@@ -238,7 +238,7 @@ subroutine NECICodeEnd(tCPMD,tVASP)
 ! Tell Molpro plugin server that we have finished
     CALL MolproPluginTerm(0)
 ! CPMD and VASP have their own MPI initialisation and termination routines.
-    call MPIEnd(molpro_plugin.gt.0.or.(tMolpro.and.(.not.tMolproMimic)).or.tCPMD.or.tVASP.or.tMolcas) 
+    call MPIEnd(molpro_plugin.or.(tMolpro.and.(.not.tMolproMimic)).or.tCPMD.or.tVASP.or.tMolcas) 
 #endif
 
 !    CALL N_MEMORY_CHECK
