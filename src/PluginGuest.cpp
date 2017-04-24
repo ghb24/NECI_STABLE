@@ -5,9 +5,10 @@
 #include <iostream>
 #include <stdexcept>
 #include <sstream>
-PluginGuest::PluginGuest(std::string host, MPI_Comm world)
+PluginGuest::PluginGuest(const std::string host, const MPI_Comm world)
+  : m_world(world)
 {
-  MPI_Comm_rank(world,&m_rank);
+  MPI_Comm_rank(m_world,&m_rank);
   m_active=0;
   MPI_Comm_get_parent(&m_intercomm);
   if (m_rank==0 && m_intercomm != MPI_COMM_NULL) {
@@ -30,36 +31,57 @@ PluginGuest::PluginGuest(std::string host, MPI_Comm world)
                 perror("Error in opening plugin output file");
             }
           int size;
-          MPI_Comm_size(world,&size);
+          MPI_Comm_size(m_world,&size);
           std::cout << "Plugin for "<<m_host<<" version "<<m_hostVersion<<" running with "<<size<<" processes"<<std::endl;
         }
-    }
-  MPI_Bcast(&m_active,1,MPI_INT,0,world);
+  }
+  {
+    MPI_Bcast(&m_active,1,MPI_INT,0,m_world);
+    int length=m_host.size();
+    MPI_Bcast(&length,1,MPI_INT,0,m_world);
+    if (m_rank!=0) m_host.resize(length);
+    MPI_Bcast(&m_host[0],length,MPI_CHAR,0,m_world);
+  }
+  {
+    int length=m_hostVersion.size();
+    MPI_Bcast(&length,1,MPI_INT,0,m_world);
+    if (m_rank!=0) m_hostVersion.resize(length);
+    MPI_Bcast(&m_hostVersion[0],length,MPI_CHAR,0,m_world);
+  }
 }
 
 bool PluginGuest::send(const std::string value) const
 {
-  if (m_rank>0 || ! m_active) return true;
-  int length=value.size();
-  MPI_Send(&length,1,MPI_INT,0,0,m_intercomm);
-  if (!length) return true;
+  if (! m_active) return true;
   int answer;
-  MPI_Status status;
-  MPI_Recv(&answer,1,MPI_INT,0,0,m_intercomm,&status); // receive accept or reject
-  if (answer) // 'yes' answer received
-    MPI_Send(value.c_str(),length,MPI_CHAR,0,1,m_intercomm);
-  return answer>0;
+  int length=value.size();
+  MPI_Bcast(&length,1,MPI_INT,0,m_world);
+  if (m_rank==0)
+    MPI_Send(&length,1,MPI_INT,0,0,m_intercomm);
+  if (!length) return true;
+  if (m_rank==0) {
+    MPI_Status status;
+    MPI_Recv(&answer,1,MPI_INT,0,0,m_intercomm,&status); // receive accept or reject
+    if (answer) // 'yes' answer received
+      MPI_Send(value.c_str(),length,MPI_CHAR,0,1,m_intercomm);
+  }
+  MPI_Bcast(&answer,1,MPI_INT,0,m_world);
+  return answer>0 || length==0 ;
 }
 
 std::string PluginGuest::receive() const
 {
-  if (m_rank>0 || ! m_active) return "";
+  if (! m_active) return "";
   MPI_Status status;
   int length;
-  MPI_Recv(&length,1,MPI_INT,0,0,m_intercomm,&status);
+  if (m_rank==0)
+    MPI_Recv(&length,1,MPI_INT,0,0,m_intercomm,&status);
+  MPI_Bcast(&length,1,MPI_INT,0,m_world);
   if (length==0) throw std::logic_error("plugin request has failed");
   std::string result(length,' ');
-  MPI_Recv(&result[0],length,MPI_CHAR,0,1,m_intercomm,&status);
+  if (m_rank==0)
+    MPI_Recv(&result[0],length,MPI_CHAR,0,1,m_intercomm,&status);
+  MPI_Bcast(&result[0],length,MPI_CHAR,0,m_world);
   return result;
 }
 
@@ -73,13 +95,8 @@ void PluginGuest::close()
 // pure C interface
 #include <memory>
 static std::shared_ptr<PluginGuest> guest = nullptr;
-void PluginGuestOpen(char* host) { guest = std::make_shared<PluginGuest>(std::string(host)); }
+void PluginGuestOpen(const char* host) { guest = std::make_shared<PluginGuest>(std::string(host)); }
 int PluginGuestActive() { return guest!=nullptr && guest->active() ? 1 : 0;}
-int PluginGuestMaster() {
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  return rank==0;
-}
 int PluginGuestSend(const char* value) { return guest->send(std::string(value)) ? 1 : 0 ; }
 const char* PluginGuestReceive() { return guest->receive().c_str(); }
 void PluginGuestClose() { guest->close(); }

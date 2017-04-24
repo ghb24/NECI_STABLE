@@ -27,9 +27,9 @@ public:
   /*!
    * \brief Construct a plugin guest instance
    * \param host is the name that the host program is expected to offer to identify itself. If the parameter is not given, then no check is performed.
-   * \param world is the world MPI communicator. This function is collective across all processes in this communicator.
+   * \param world is the world MPI communicator. All functions are collective across all processes in this communicator.
    */
-  PluginGuest(std::string host="",MPI_Comm world=MPI_COMM_WORLD);
+  PluginGuest(const std::string host="", const MPI_Comm world=MPI_COMM_WORLD);
   ~PluginGuest() { close(); }
   bool active() const { return m_active;} ///< Whether the plugin is active or not
   std::string receive() const; ///< Receive a string from the host.
@@ -45,6 +45,7 @@ public:
   void close();
 private:
   MPI_Comm m_intercomm; ///< the intercommunicator to the parent
+  MPI_Comm m_world; ///< the guest's world communicator
   int m_active; ///< whether this Molpro plugin framework is active
   int m_rank; ///< rank of process. All that matters is that one of the processes has m_rank=0
   std::string m_host; ///< the name of the host program
@@ -54,9 +55,8 @@ private:
 
 // pure C interface
 extern "C" {
-  void PluginGuestOpen(char* host);
+  void PluginGuestOpen(const char* host);
   int PluginGuestActive();
-  int PluginGuestMaster();
   int PluginGuestSend(const char* value);
   const char* PluginGuestReceive();
   void PluginGuestClose();

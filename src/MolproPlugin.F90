@@ -17,10 +17,6 @@ MODULE MolproPlugin
    USE iso_c_binding
    INTEGER(c_int) :: PluginGuestActive
   END FUNCTION PluginGuestActive
-  FUNCTION PluginGuestMaster() BIND(C, name='PluginGuestMaster')
-   USE iso_c_binding
-   INTEGER(c_int) :: PluginGuestMaster
-  END FUNCTION PluginGuestMaster
   FUNCTION PluginGuestSend(value) BIND(C, name='PluginGuestSend')
    USE iso_c_binding
    CHARACTER(c_char), DIMENSION(*), INTENT(in) :: value
@@ -64,7 +60,6 @@ CONTAINS
   DEALLOCATE(cstring)
  END FUNCTION PluginGuestSendF
 SUBROUTINE MolproPluginInit (tMolpro)
- USE Parallel_neci, ONLY : MPIBcast
  IMPLICIT NONE
  LOGICAL, INTENT(inout) :: tMolpro
  CHARACTER(1024) :: id
@@ -76,29 +71,24 @@ SUBROUTINE MolproPluginInit (tMolpro)
  IF (.NOT. tMolpro) RETURN
  molpro_plugin=.TRUE.
  
- IF (PluginGuestMaster().NE.0) THEN
 ! ask for an FCIDUMP
-  IF (.NOT. PluginGuestSendF('GIVE OPERATOR HAMILTONIAN FCIDUMP')) STOP 'plugin request has failed'
-  molpro_plugin_fcidumpname = PluginGuestReceiveF()
- END IF
- CALL MPIBcast(molpro_plugin_fcidumpname)
+ IF (.NOT. PluginGuestSendF('GIVE OPERATOR HAMILTONIAN FCIDUMP')) STOP 'plugin request has failed'
+ molpro_plugin_fcidumpname = PluginGuestReceiveF()
 
- IF (PluginGuestMaster().NE.0) THEN
 ! ask for a data file
-  IF (.NOT. PluginGuestSendF('GIVE INPUT NECI')) STOP 'plugin request has failed'
-  molpro_plugin_datafilename = PluginGuestReceiveF()
-   IF (.FALSE.) THEN
-    WRITE (6, '(''Input file: '',A)') TRIM(molpro_plugin_datafilename)
-    OPEN(1,file=molpro_plugin_datafilename,status='OLD')
-    DO WHILE (.TRUE.)
-     READ(1,'(A)',END=99) id
-     WRITE (6, '(A)') TRIM(id)
-    END DO
-99  CLOSE(1)
-   END IF
-  END IF
-  CALL MPIBcast(molpro_plugin_datafilename)
-  
+ IF (.NOT. PluginGuestSendF('GIVE INPUT NECI')) STOP 'plugin request has failed'
+ molpro_plugin_datafilename = PluginGuestReceiveF()
+
+ IF (.FALSE.) THEN ! debugging
+  WRITE (6, '(''Input file: '',A)') TRIM(molpro_plugin_datafilename)
+  OPEN(1,file=molpro_plugin_datafilename,status='OLD')
+  DO WHILE (.TRUE.)
+   READ(1,'(A)',END=99) id
+   WRITE (6, '(A)') TRIM(id)
+  END DO
+99 CLOSE(1)
+ END IF
+ 
  END SUBROUTINE MolproPluginInit
 
 SUBROUTINE MolproPluginTerm(signal)
@@ -112,7 +102,7 @@ SUBROUTINE MolproPluginTerm(signal)
  END INTERFACE
  IF (PluginGuestActive().NE.0) THEN
 ! Graceful exit if Molpro server
-  IF (PluginGuestMaster().NE.0) CALL PluginGuestClose
+  CALL PluginGuestClose
   ! without this print, then MPI gets lost ???
   WRITE (6,*) 'Stopping Molpro plugin, signal =',signal; FLUSH(6)
 ! doesn't look like slave threads ever make it here, so do not have a barrier
@@ -131,7 +121,6 @@ SUBROUTINE MolproPluginResult(property,values)
  DOUBLE PRECISION, INTENT(in), DIMENSION(:) :: values
  CHARACTER(:), ALLOCATABLE :: buffer
  IF (PluginGuestActive().EQ.0) RETURN
- IF (PluginGuestMaster().EQ.0) RETURN
  IF (PluginGuestSendF('TAKE PROPERTY '//TRIM(property)//c_null_char)) THEN
   ALLOCATE(CHARACTER(24*size(values)) :: buffer)
   WRITE (buffer,'(1000(G23.16,1X))') values
