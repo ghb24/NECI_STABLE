@@ -594,7 +594,22 @@ contains
         ASSERT(pgen > EPS) 
         ASSERT(ic == 1 .or. ic == 2)
 
-        if (mat_ele < UMatEps) return 
+        ! i can't make this exception here without changing alot in the 
+        ! other parts of the code.. and i have to talk to ali first about 
+        ! that
+        if (mat_ele < EPS) return 
+        if (pgen < EPS) then
+            print *, "zero pgen! should not be here!" 
+            print *, "mat_ele: ", mat_ele
+            print *, "pgen: ", pgen 
+            print *, "ic: ", ic
+            print *, "parallel? ", t_parallel
+            print *, "ex-matrix: ", ex
+            
+            ! i think i have to stop all.. since walkers will explode.. 
+            call stop_all(this_routine, "zero pgen! how did this happen?")
+
+        end if
 
         ratio = mat_ele / pgen
 
@@ -632,6 +647,8 @@ contains
                 ! store the number of excitation which exceed the upper limit!
                 above_max_singles = above_max_singles + 1
                 print *, "Warning: single excitation H_ij/pgen above max_frequency_bound!" 
+                print *, " H_ij: ", mat_ele, ", pgen: ", pgen, ", pSingles: ", pSingles
+                print *, " excitation-matrix: ", ex
                 print *, " H_ij/pgen: ", ratio, " ; bound: ", max_frequency_bound
                 print *, " Consider increasing the bound!"
 
@@ -644,7 +661,7 @@ contains
                 ratio = ratio * (pDoubles * pParallel)
 
                 ! analyse the really low and really high ratios: 
-                if (ratio < 0.2_dp) then 
+                if (ratio < 0.1_dp) then 
                     print *, "******************"
                     print *, "parallel excitation:"
                     print *, "ratio: ", ratio
@@ -659,12 +676,10 @@ contains
                     print *, "umat (ij|ba) ", get_umat_el(indi,indj,indb,inda)
                     print *, "diff: ", abs(get_umat_el(indi,indj,inda,indb) - &
                         get_umat_el(indi,indj,indb,inda))
-                    print *, "(ii|aa) + (jj|aa): ",& 
-                        sqrt(abs_l1(UMat2d(max(indi,inda),min(indi,inda)))) & 
-                       +sqrt(abs_l1(UMat2d(max(indj,inda),min(indj,inda))))
-                    print *, "(ii|bb) + (jj|bb): ", &
-                        sqrt(abs_l1(UMat2d(max(indi,indb),min(indi,indb)))) & 
-                       +sqrt(abs_l1(UMat2d(max(indj,indb),min(indj,indb))))
+                    print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
+                    print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
+                    print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
+                    print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
                     print *, "******************"
 
                 end if
@@ -686,6 +701,29 @@ contains
             else 
 
                 ratio = ratio * (pDoubles * (1.0_dp - pParallel))
+                ! analyse the really low and really high ratios: 
+                if (ratio < 0.1_dp) then 
+                    print *, "******************"
+                    print *, "anti-parallel excitation:"
+                    print *, "ratio: ", ratio
+                    print *, "mat_ele: ", mat_ele
+                    print *, "pgen: ", pgen
+                    print *, "ex-maxtrix: ", ex
+                    indi = gtid(ex(1,1))
+                    indj = gtid(ex(1,2))
+                    inda = gtid(ex(2,1))
+                    indb = gtid(ex(2,2))
+                    print *, "umat (ij|ab) ", get_umat_el(indi,indj,inda,indb)
+                    print *, "umat (ij|ba) ", get_umat_el(indi,indj,indb,inda)
+                    print *, "diff: ", abs(get_umat_el(indi,indj,inda,indb) - &
+                        get_umat_el(indi,indj,indb,inda))
+                    print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
+                    print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
+                    print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
+                    print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
+                    print *, "******************"
+
+                end if
 
                 if (ratio < max_frequency_bound) then
                     if (.not. enough_opp_hist) then 
@@ -733,6 +771,12 @@ contains
         ASSERT( ic == 1 .or. ic == 2)
 
         if (mat_ele < EPS) return
+
+        if (pgen < EPS) then
+            ! something went wrong then or?? but what exactly? 
+            call stop_all(this_routine, "pgen is zero! something went wrong!")
+
+        end if
 
         ratio = mat_ele / pgen 
 

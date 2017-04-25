@@ -550,11 +550,11 @@ contains
         ASSERT(tExch)
 
         ! Construct the cumulative list of strengths
-        cum_sum = 0
+        cum_sum = 0.0_dp
         do i = 1, norb
 
             orb = SymLabelList2(label_index + i - 1)
-            hel = 0
+            hel = 0.0_dp
             if (IsNotOcc(ilut, orb)) then
                 ASSERT(G1(orb)%Ms == G1(src)%Ms)
                 ASSERT(G1(orb)%Ml == G1(src)%Ml)
