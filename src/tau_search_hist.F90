@@ -611,6 +611,19 @@ contains
 
         end if
 
+        if (isnan(pgen)) then
+            print *, "pgen is nan for some reason.." 
+            print *, "mat_ele: ", mat_ele
+            print *, "pgen: ", pgen 
+            print *, "ic: ", ic
+            print *, "parallel? ", t_parallel
+            print *, "ex-matrix: ", ex
+
+            call stop_all(this_routine, "pgen is nan! what happened?")
+        end if
+            
+
+
         ratio = mat_ele / pgen
 
         ! then i have to decide which histogram to fill 

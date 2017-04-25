@@ -428,6 +428,7 @@ contains
         integer, intent(out) :: ex(2,2)
         logical, intent(out) :: par
         real(dp), intent(out) :: pgen
+        character(*), parameter :: this_routine = "gen_single_4ind_ex"
 
         integer :: elec, src, tgt, cc_index
 
@@ -451,6 +452,12 @@ contains
             return
         end if
 
+        if (isnan(pgen)) then
+            print *, "nI:", nI
+            print *, "src: ", src
+            print *, "tgt: ", tgt 
+            call stop_all(this_routine, "pgen is nan!")
+        end if
         ! Construct the new determinant, excitation matrix and parity
         call make_single (nI, nJ, elec, tgt, ex, par)
 
@@ -588,7 +595,8 @@ contains
 
         ! Select a particular orbital to use, or abort.
         if (cum_sum == 0) then
-            orb = 0
+            orb = 0.0_dp
+            pgen = 0.0_dp
         else
             r = genrand_real2_dSFMT() * cum_sum
             orb_index = binary_search_first_ge(cumulative_arr, r)
