@@ -597,7 +597,19 @@ contains
         ! i can't make this exception here without changing alot in the 
         ! other parts of the code.. and i have to talk to ali first about 
         ! that
-        if (mat_ele < EPS) return 
+        if (mat_ele < EPS) then
+#ifdef __DEBUG
+            print *, "zero matele should not be here!"
+            print *, "mat_ele: ", mat_ele
+            print *, "pgen: ", pgen 
+            print *, "ic: ", ic
+            print *, "parallel: ", t_parallel
+            print *, "ex-matrix: ", ex
+#endif
+            return 
+        end if
+
+#ifdef __DEBUG
         if (pgen < EPS) then
             print *, "zero pgen! should not be here!" 
             print *, "mat_ele: ", mat_ele
@@ -621,8 +633,7 @@ contains
 
             call stop_all(this_routine, "pgen is nan! what happened?")
         end if
-            
-
+#endif
 
         ratio = mat_ele / pgen
 
@@ -672,15 +683,15 @@ contains
             if (t_parallel) then 
 
                 ratio = ratio * (pDoubles * pParallel)
-
+#ifdef __DEBUG
                 ! analyse the really low and really high ratios: 
-                if (ratio < 0.1_dp) then 
+                if (ratio < 0.001_dp) then 
                     print *, "******************"
                     print *, "parallel excitation:"
                     print *, "ratio: ", ratio
                     print *, "mat_ele: ", mat_ele
                     print *, "pgen: ", pgen
-                    print *, "ex-maxtrix: ", ex
+                    print *, "ex-maxtrix: ", gtid(ex)
                     indi = gtid(ex(1,1))
                     indj = gtid(ex(1,2))
                     inda = gtid(ex(2,1))
@@ -696,6 +707,7 @@ contains
                     print *, "******************"
 
                 end if
+#endif
                if (ratio < max_frequency_bound) then
                     if (.not. enough_par_hist) then 
                         cnt_par_hist = cnt_par_hist + 1
@@ -715,7 +727,8 @@ contains
 
                 ratio = ratio * (pDoubles * (1.0_dp - pParallel))
                 ! analyse the really low and really high ratios: 
-                if (ratio < 0.1_dp) then 
+#ifdef __DEBUG
+                if (ratio < 0.001_dp) then 
                     print *, "******************"
                     print *, "anti-parallel excitation:"
                     print *, "ratio: ", ratio
@@ -735,8 +748,8 @@ contains
                     print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
                     print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
                     print *, "******************"
-
                 end if
+#endif
 
                 if (ratio < max_frequency_bound) then
                     if (.not. enough_opp_hist) then 

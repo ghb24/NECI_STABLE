@@ -58,6 +58,9 @@ contains
                                      tParity, pGen)
             pgen = pgen * pSingles
 
+            if (isnan(pgen)) then
+                call stop_all(this_routine, "here nan already!")
+            end if
         else
 
             ! OK, we want to do a double excitation
@@ -112,6 +115,8 @@ contains
             ! _reverse excitation generators
             pgen = pSingles * pgen_single_4ind (nI, ilutI, ex(1,1), ex(2,1))
 
+            if (isnan(pgen)) call stop_all(this_routine, "here nan already, singles")
+
         else if (ic == 2) then
 
             ! This is a double excitation...
@@ -131,6 +136,8 @@ contains
 
             ! Select a pair of electrons in a weighted fashion
             pgen = pgen * pgen_weighted_elecs(nI, src)
+
+            if (isnan(pgen)) call stop_all(this_routine, "here nan already, 140")
 
             ! Obtain the probability components of picking the electrons in
             ! either A--B or B--A order.
@@ -160,10 +167,29 @@ contains
                 sum_pair(2) = 1.0_dp
             end if
 
+            ! i think i also have to deal with divisions by zero here
+            ! in a correct way, when removing the lower pgen threshold. 
+            if (any(cum_sums < EPS)) then
+                cum_sums = 1.0_dp
+                int_cpt = 0.0_dp
+            end if
+
+            if (any(sum_pair < EPS)) then
+                sum_pair = 1.0_dp
+                cpt_pair = 0.0_dp
+            end if
+
             ! And adjust the probability for the components
             pgen = pgen * (product(int_cpt) / product(cum_sums) + &
                            product(cpt_pair) / product(sum_pair))
 
+            if (isnan(pgen)) then
+                print *, "check cum_sums: ", cum_sums
+                print *, "check sum_pair: ", sum_pair
+                print *, "int_cpt: ", int_cpt
+                print *, "cpt_pair: ", cpt_pair
+                call stop_all(this_routine, "179")
+            end if
         else
 
             ! Deal with some outsider cases that can leak through the HPHF
@@ -313,6 +339,10 @@ contains
             cum_sum = cum_sum + cpt
             cum_arr(orb) = cum_sum
         end do
+
+!         if (srcid(1) == 2 .and. srcid(2) == 3 .and. parallel) then
+!             print *, "cum_sum(a|ij): ", cum_arr
+!         end if
 
     end subroutine
 

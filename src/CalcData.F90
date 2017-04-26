@@ -366,5 +366,8 @@ real(dp) :: n_truncate_spawns = 3.0_dp
 ! previous runs: 
 logical :: t_read_probs = .true.
 
+! introduce a cutoff for the matrix elements, to be more consistent with 
+! UMATEPS (let the default be zero, so no matrix elements are ignored!)
+real(dp) :: matele_cutoff = 1.0e-16_dp
 
 end module CalcData

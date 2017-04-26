@@ -6,7 +6,9 @@ module excit_gens_int_weighted
                           nOccBeta, tExch, AA_elec_pairs, BB_elec_pairs, &
                           AB_elec_pairs, par_elec_pairs, AA_hole_pairs, &
                           par_hole_pairs, AB_hole_pairs, iMaxLz, &
-                          tGen_4ind_part_exact, tGen_4ind_lin_exact
+                          tGen_4ind_part_exact, tGen_4ind_lin_exact, &
+                          tGen_4ind_unbound
+    use CalcData, only: matele_cutoff
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
                                pDoubNew, ScratchSize, SpinOrbSymLabel, &
@@ -477,6 +479,7 @@ contains
         integer, intent(in) :: nI(nel), src, tgt
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         real(dp) :: pgen
+        character(*), parameter :: this_routine = "pgen_single_4ind"
 
         integer :: cc_index, label_index, norb, n_id(nel), id_src, id_tgt
         integer :: i, j, orb
@@ -529,6 +532,10 @@ contains
             pgen = pgen * cpt_tgt / cum_sum
         end if
 
+        if (isnan(pgen)) then
+            call stop_all(this_routine, "here nan already!")
+        end if
+
     end function
 
 
@@ -546,6 +553,7 @@ contains
         integer :: orb, norb, label_index, orb_index, i, j
         integer :: n_id(nel), id_src, id
         HElement_t(dp) :: hel
+        real(dp) :: cpt
         
         ! How many orbitals of the correct symmetry are there?
         norb = OrbClassCount(cc_index)
@@ -587,7 +595,10 @@ contains
             end if
 
             ! And store the values for later searching
-            cpt_arr(i) = abs_l1(hel)
+            cpt = abs_l1(hel) 
+            if (cpt < matele_cutoff) cpt = 0.0_dp
+
+            cpt_arr(i) = cpt
             cum_sum = cum_sum + cpt_arr(i)
             cumulative_arr(i) = cum_sum
 
@@ -872,9 +883,12 @@ contains
             ! n.b. This can only be used for the case <ij|ba> == 0.
             ida = gtID(orba)
             idb = gtID(orbb)
-!             contrib = max(sqrt(abs(get_umat_el(indi, indj, ida, idb))), 0.0001_dp)
+            if (tGen_4ind_unbound) then
+                contrib = abs(get_umat_el(indi, indj, ida, idb))
+            else
+                contrib = max(sqrt(abs(get_umat_el(indi, indj, ida, idb))), 0.0001_dp)
+            end if
 !             contrib = sqrt(abs(get_umat_el(indi, indj, ida, idb)))
-            contrib = abs(get_umat_el(indi, indj, ida, idb))
         else if (tGen_4ind_lin_exact) then
             if (orbb > 0) then
                 ! Include a contribution of abs(<ij|ab>)
@@ -891,6 +905,8 @@ contains
             ida = gtID(orba)
             contrib = sqrt(abs_l1(UMat2D(max(indi, ida), min(indi, ida))))
         end if
+
+        if (contrib < matele_cutoff) contrib = 0.0_dp
 
     end function
 
@@ -909,12 +925,15 @@ contains
             ! sqrt(abs(<ij|ab> - <ij|ba>))
             ida = gtID(orba)
             idb = gtID(orbb)
-!             contrib = max(sqrt(abs(get_umat_el(indi, indj, ida, idb) &
-!                                 - get_umat_el(indi, indj, idb, ida))), 0.00001_dp)
+            if (tGen_4ind_unbound) then
+                contrib = abs(get_umat_el(indi, indj, ida, idb) &
+                                - get_umat_el(indi, indj, idb, ida))
+            else
+                contrib = max(sqrt(abs(get_umat_el(indi, indj, ida, idb) &
+                                - get_umat_el(indi, indj, idb, ida))), 0.00001_dp)
+            end if
 !             contrib = sqrt(abs(get_umat_el(indi, indj, ida, idb) &
 !                                 - get_umat_el(indi, indj, idb, ida)))
-            contrib = abs(get_umat_el(indi, indj, ida, idb) &
-                                - get_umat_el(indi, indj, idb, ida))
         else if (tGen_4ind_lin_exact) then
             if (orbb > 0) then
                 ! Include a contribution of:
@@ -936,6 +955,8 @@ contains
             !sqrt(abs_l1(get_umat_el(srcid(1), srcid(1), ida, ida))) + &
             !sqrt(abs_l1(get_umat_el(srcid(2), srcid(2), ida, ida)))
         end if
+
+        if (contrib < matele_cutoff) contrib = 0.0_dp
 
     end function
 

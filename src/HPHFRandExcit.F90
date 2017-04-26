@@ -140,6 +140,7 @@ MODULE HPHFRandExcitMod
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HEl
         type(excit_gen_store_type), intent(inout), target :: store
+        character(*), parameter :: this_routine = "gen_hphf_excit"
 
         integer(kind=n_int) :: iLutnJ2(0:niftot)
         integer :: openOrbsI, openOrbsJ, nJ2(nel), ex2(2,2), excitLevel 
@@ -244,6 +245,9 @@ MODULE HPHFRandExcitMod
                                     store%ClassCountUnocc, pDoubles, pGen2)
 !!We cannot guarentee that the pGens are going to be the same - in fact, generally, they wont be.
                 pGen=pGen+pGen2
+                if (isnan(pgen2)) then
+                    call stop_all(this_routine, "pgen nan already here!")
+                end if
 
                 IF(tGenMatHEl) THEN
 !Generate matrix element to open shell excitation
@@ -914,6 +918,8 @@ MODULE HPHFRandExcitMod
         ! and call the correct routine in each case.
         ASSERT(.not. (tCSF)) ! .or. tSpinProjDets
 
+        pgen = 0.0_dp
+
         if (tLatticeGens) then
             if (ic == 2) then
                 call CalcPGenLattice (ex, pGen)
@@ -922,6 +928,10 @@ MODULE HPHFRandExcitMod
             end if
         else if (tGen_4ind_2) then
             pgen = calc_pgen_4ind_weighted2(nI, ilutI, ex, ic)
+
+            if (isnan(pgen)) then
+                call stop_all(this_routine, "here nan already!")
+            end if
         else if (tGen_4ind_weighted) then
             pgen = calc_pgen_4ind_weighted (nI, ilutI, ex, ic, &
                                             ClassCountUnocc2)

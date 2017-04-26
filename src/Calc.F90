@@ -1103,6 +1103,17 @@ contains
                     mix_ratio = 0.7_dp
                 end if
 
+            case("MATRIX-CUTOFF")
+                ! [Werner Dobrautz 26.4.2017:]
+                ! introduce a matrix element cutoff similar to the 
+                ! UMATEPS quantity when ignoring 2-body integrals
+                if (item < nitems) then
+                    call getf(matele_cutoff)
+                else
+                    matele_cutoff = 1.0e-8_dp
+                end if
+
+
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
                 call getf(MaxWalkerBloom)
