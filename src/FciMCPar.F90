@@ -947,18 +947,6 @@ module FciMCParMod
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
 
-#ifdef __DEBUG
-                        if (isnan(prob)) then
-                            print *, "ni: ", DetCurr
-                            print *, "nJ: ", nJ
-                            print *, "ic:", ic
-                            print *, "ex: ", ex
-                            print *, "helgen: ", Helgen
-                            print *, "nel: ", nel
-                            call stop_all(this_routine, "here nan already!")
-                        end if
-#endif
-
                         if (tSemiStochastic) then
                             call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
 

@@ -645,32 +645,6 @@ contains
             return 
         end if
 
-#ifdef __DEBUG
-        if (pgen < EPS) then
-            print *, "zero pgen! should not be here!" 
-            print *, "mat_ele: ", mat_ele
-            print *, "pgen: ", pgen 
-            print *, "ic: ", ic
-            print *, "parallel? ", t_parallel
-            print *, "ex-matrix: ", ex
-            
-            ! i think i have to stop all.. since walkers will explode.. 
-            call stop_all(this_routine, "zero pgen! how did this happen?")
-
-        end if
-
-        if (isnan(pgen)) then
-            print *, "pgen is nan for some reason.." 
-            print *, "mat_ele: ", mat_ele
-            print *, "pgen: ", pgen 
-            print *, "ic: ", ic
-            print *, "parallel? ", t_parallel
-            print *, "ex-matrix: ", ex
-
-            call stop_all(this_routine, "pgen is nan! what happened?")
-        end if
-#endif
-
         ratio = mat_ele / pgen
 
         ! then i have to decide which histogram to fill 
@@ -832,12 +806,23 @@ contains
         ASSERT(pgen > EPS) 
         ASSERT( ic == 1 .or. ic == 2)
 
-        if (mat_ele < EPS) return
-
-        if (pgen < EPS) then
-            ! something went wrong then or?? but what exactly? 
-            call stop_all(this_routine, "pgen is zero! something went wrong!")
-
+        if (mat_ele < matele_cutoff) then
+#ifdef __DEBUG
+            print *, "zero matele should not be here!"
+            print *, "mat_ele: ", mat_ele
+            print *, "pgen: ", pgen 
+            print *, "ic: ", ic
+            print *, "parallel: ", t_parallel
+            print *, "ex-matrix: ", ex
+#endif
+ 
+            select case(ic)
+            case(1)
+                zero_singles = zero_singles + 1
+            case(2)
+                zero_doubles = zero_doubles + 1
+            end select
+            return
         end if
 
         ratio = mat_ele / pgen 
@@ -920,7 +905,13 @@ contains
 
         ! if the matrix element is 0, no excitation will or would be done 
         ! and if the pgen is 0 i also shouldnt be here i guess.. so assert that
-        if (mat_ele < EPS) return
+        if (mat_ele < matele_cutoff) then
+            
+            ! misuse doubles for the counting here
+            zero_doubles = zero_doubles + 1
+
+            return
+        end if
 
         ! then i have to first check if i have to make the histogram bigger...
         ratio = mat_ele / pgen
@@ -1012,7 +1003,8 @@ contains
         integer :: all_frequency_bins(n_frequency_bins)
         integer :: iunit, i, max_size
         real(dp) :: step_size, norm
-        integer(int64) :: sum_all, tmp_int
+        integer(int64) :: sum_all
+        integer :: tmp_int
 
         all_frequency_bins = 0
 
@@ -1035,12 +1027,22 @@ contains
                     .true., 1, filename)
                 open(iunit, file = filename, status = 'unknown')
 
+                write(iout,*) "writing frequency histogram..."
                 do i = 1, n_frequency_bins
                     write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
                     write(iunit, "(i12)") all_frequency_bins(i)
                 end do
-
                 close(iunit)
+                write(iout,*) "Done!"
+
+                tmp_int = 0
+                call MPIAllReduce(zero_doubles, MPI_SUM, tmp_int)
+                write(iout,*) "Number of zero-valued excitations: ", tmp_int
+                sum_all = sum(all_frequency_bins) 
+                write(iout,*) "Number of valid excitations: ", sum_all
+                write(iout,*), "ratio of zero-valued excitations: ", &
+                    real(tmp_int, dp) / real(sum_all, dp)
+
             end if
 
         else 
@@ -1162,12 +1164,22 @@ contains
                         .true., 1, filename)
                     open(iunit, file = filename, status = 'unknown')
 
+                    write(iout,*) "writing doubles frequency histogram..."
                     do i = 1, n_frequency_bins
                         write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
                         write(iunit, "(i12)") all_frequency_bins_spec(i)
                     end do
-
                     close(iunit)
+                    write(iout,*) "Done!"
+
+                    tmp_int = 0
+                    call MPIAllReduce(zero_doubles, MPI_SUM, tmp_int)
+                    write(iout,*) "Number of zero-valued double excitations: ", tmp_int
+                    sum_all = sum(all_frequency_bins_spec)
+                    write(iout,*) "Number of valid double excitations: ", sum_all
+                    write(iout,*) "ratio of zero-valued double excitations: ", &
+                        real(tmp_int, dp) / real(sum_all, dp)
+
 
                     ! and add them up for the final normed one
                     all_frequency_bins = all_frequency_bins + all_frequency_bins_spec 

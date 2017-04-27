@@ -245,9 +245,6 @@ MODULE HPHFRandExcitMod
                                     store%ClassCountUnocc, pDoubles, pGen2)
 !!We cannot guarentee that the pGens are going to be the same - in fact, generally, they wont be.
                 pGen=pGen+pGen2
-                if (isnan(pgen2)) then
-                    call stop_all(this_routine, "pgen nan already here!")
-                end if
 
                 IF(tGenMatHEl) THEN
 !Generate matrix element to open shell excitation
@@ -929,9 +926,6 @@ MODULE HPHFRandExcitMod
         else if (tGen_4ind_2) then
             pgen = calc_pgen_4ind_weighted2(nI, ilutI, ex, ic)
 
-            if (isnan(pgen)) then
-                call stop_all(this_routine, "here nan already!")
-            end if
         else if (tGen_4ind_weighted) then
             pgen = calc_pgen_4ind_weighted (nI, ilutI, ex, ic, &
                                             ClassCountUnocc2)

@@ -454,12 +454,6 @@ contains
             return
         end if
 
-        if (isnan(pgen)) then
-            print *, "nI:", nI
-            print *, "src: ", src
-            print *, "tgt: ", tgt 
-            call stop_all(this_routine, "pgen is nan!")
-        end if
         ! Construct the new determinant, excitation matrix and parity
         call make_single (nI, nJ, elec, tgt, ex, par)
 
@@ -532,9 +526,6 @@ contains
             pgen = pgen * cpt_tgt / cum_sum
         end if
 
-        if (isnan(pgen)) then
-            call stop_all(this_routine, "here nan already!")
-        end if
 
     end function
 

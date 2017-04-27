@@ -58,9 +58,6 @@ contains
                                      tParity, pGen)
             pgen = pgen * pSingles
 
-            if (isnan(pgen)) then
-                call stop_all(this_routine, "here nan already!")
-            end if
         else
 
             ! OK, we want to do a double excitation
@@ -115,8 +112,6 @@ contains
             ! _reverse excitation generators
             pgen = pSingles * pgen_single_4ind (nI, ilutI, ex(1,1), ex(2,1))
 
-            if (isnan(pgen)) call stop_all(this_routine, "here nan already, singles")
-
         else if (ic == 2) then
 
             ! This is a double excitation...
@@ -136,8 +131,6 @@ contains
 
             ! Select a pair of electrons in a weighted fashion
             pgen = pgen * pgen_weighted_elecs(nI, src)
-
-            if (isnan(pgen)) call stop_all(this_routine, "here nan already, 140")
 
             ! Obtain the probability components of picking the electrons in
             ! either A--B or B--A order.
@@ -183,13 +176,6 @@ contains
             pgen = pgen * (product(int_cpt) / product(cum_sums) + &
                            product(cpt_pair) / product(sum_pair))
 
-            if (isnan(pgen)) then
-                print *, "check cum_sums: ", cum_sums
-                print *, "check sum_pair: ", sum_pair
-                print *, "int_cpt: ", int_cpt
-                print *, "cpt_pair: ", cpt_pair
-                call stop_all(this_routine, "179")
-            end if
         else
 
             ! Deal with some outsider cases that can leak through the HPHF
