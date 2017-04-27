@@ -11,7 +11,7 @@ module tau_search_hist
                         max_frequency_bound, n_frequency_bins, &
                         frq_ratio_cutoff, t_hist_tau_search,  &
                         t_fill_frequency_hists, t_hist_tau_search_option, &
-                        t_truncate_spawns, t_mix_ratios, mix_ratio
+                        t_truncate_spawns, t_mix_ratios, mix_ratio, matele_cutoff
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          MaxTau, tSearchTau, tSearchTauOption, tSearchTauDeath
     use Parallel_neci, only: MPIAllReduce, MPI_MAX, MPI_SUM, MPIAllLORLogical
@@ -42,6 +42,14 @@ module tau_search_hist
                             frequency_bins(:)
 
     integer(TagIntType) :: mem_tag_histograms = 0
+
+    ! also start to keep track of the aborted excitations, having 0 matrix 
+    ! element although they have been chosen as excitations, for the 
+    ! different type of excitations! 
+    ! do i need to communicate this?
+    ! if i have to communicate this i just have to do it at the end.. 
+    ! so i do not need to keep track of this during simulation
+    integer :: zero_singles, zero_para, zero_anti, zero_doubles
 
 contains
 
@@ -130,9 +138,14 @@ contains
         enough_sing_hist = .false.
         above_max_singles = 0
 
+        zero_singles = 0
+
         cnt_doub_hist = 0 
         enough_doub_hist = .false.
         above_max_doubles = 0
+
+        zero_doubles = 0
+
         ! dependent if we use pParallel or not init specific hists
         if (consider_par_bias) then
             
@@ -144,6 +157,9 @@ contains
 
             above_max_para = 0
             above_max_anti = 0
+
+            zero_para = 0
+            zero_anti = 0
 
             ! i always use the singles histogram dont I? i think so.. 
             ! Log the memory here! TODO
@@ -597,7 +613,12 @@ contains
         ! i can't make this exception here without changing alot in the 
         ! other parts of the code.. and i have to talk to ali first about 
         ! that
-        if (mat_ele < EPS) then
+        ! but with my cutoff change i should change this here to keep 
+        ! track of the excitations above matele cutoff or?? hm.. 
+        ! and in the rest of the code i have to abort these excitations really!
+        ! talk to ali about that!
+!         if (mat_ele < EPS) then
+        if (mat_ele < matele_cutoff) then
 #ifdef __DEBUG
             print *, "zero matele should not be here!"
             print *, "mat_ele: ", mat_ele
@@ -606,6 +627,21 @@ contains
             print *, "parallel: ", t_parallel
             print *, "ex-matrix: ", ex
 #endif
+            ! but i still should keep track of these events! 
+            select case (ic)
+            case (1)
+                ! what if i get an int overflow here? should i also 
+                ! stop histogramming? 
+                zero_singles = zero_singles + 1
+
+            case (2) 
+                if (t_parallel) then 
+                    zero_para = zero_para + 1 
+                else
+                    zero_anti = zero_anti + 1
+                end if
+            end select
+
             return 
         end if
 
@@ -976,9 +1012,13 @@ contains
         integer :: all_frequency_bins(n_frequency_bins)
         integer :: iunit, i, max_size
         real(dp) :: step_size, norm
-        integer(int64) :: sum_all
+        integer(int64) :: sum_all, tmp_int
 
         all_frequency_bins = 0
+
+        ! also do additional output here.. to get information about the 
+        ! number of ratios above the threshold and about the number of 
+        ! zero excitations and stuff
 
         ! maybe first check if we have only singles or only doubles like in 
         ! the real-space or momentum space hubbard: 
@@ -1015,6 +1055,7 @@ contains
                     .true., 1, filename)
                 open(iunit, file = filename, status = 'unknown')
 
+                write(iout,*) "writing singles frequency histogram..."
                 do i = 1, n_frequency_bins
                     write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
                     write(iunit, "(i12)") all_frequency_bins_spec(i)
@@ -1022,6 +1063,18 @@ contains
 
                 close(iunit)
 
+                write(iout,*) "Done!" 
+
+                tmp_int = 0
+
+                call MPIAllReduce(zero_singles, MPI_SUM, tmp_int)
+                write(iout,*) "Number of zero-valued single excitations: ", tmp_int
+                ! maybe also check the number of valid excitations
+                sum_all = sum(all_frequency_bins_spec)
+                write(iout,*) "Number of valid single excitations: ", sum_all
+                write(iout,*) "ratio of zero-valued single excitations: ", &
+                    real(tmp_int,dp) / real(sum_all, dp)
+                
                 ! and add them up for the final normed one
                 all_frequency_bins = all_frequency_bins_spec 
 
@@ -1041,12 +1094,24 @@ contains
                         .true., 1, filename)
                     open(iunit, file = filename, status = 'unknown')
 
+                    write(iout,*) "writing parallel frequency histogram..."
                     do i = 1, n_frequency_bins
                         write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
                         write(iunit, "(i12)") all_frequency_bins_spec(i)
                     end do
 
                     close(iunit)
+
+                    write(iout,*) "Done!"
+
+                    tmp_int = 0
+                    call MPIAllReduce(zero_para, MPI_SUM, tmp_int)
+
+                    write(iout,*) "Number of zero-valued parallel excitations: ", tmp_int
+                    sum_all = sum(all_frequency_bins_spec)
+                    write(iout,*) "Number of valid parallel excitations: ", sum_all
+                    write(iout,*) "ratio of zero-valued parallel excitations: ", &
+                        real(tmp_int, dp) / real(sum_all, dp)
 
                     ! and add them up for the final normed one
                     all_frequency_bins = all_frequency_bins + all_frequency_bins_spec 
@@ -1063,12 +1128,22 @@ contains
                         .true., 1, filename)
                     open(iunit, file = filename, status = 'unknown')
 
+                    write(iout,*) "writing anti-parallel frequency histogram..."
                     do i = 1, n_frequency_bins
                         write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
                         write(iunit, "(i12)") all_frequency_bins_spec(i)
                     end do
-
                     close(iunit)
+
+                    write(iout,*) "Done!"
+
+                    tmp_int = 0
+                    call MPIAllReduce(zero_anti, MPI_SUM, tmp_int)
+                    write(iout,*) "Number of zero-valued anti-parallel excitations: ", tmp_int
+                    sum_all = sum(all_frequency_bins_spec)
+                    write(iout,*) "Number of valid anti-parallel excitations: ", sum_all
+                    write(iout,*) "ratio of zero-valued anti-parallel excitations: ", &
+                        real(tmp_int, dp) / real(sum_all, dp)
 
                     ! and add them up for the final normed one
                     all_frequency_bins = all_frequency_bins + all_frequency_bins_spec 
