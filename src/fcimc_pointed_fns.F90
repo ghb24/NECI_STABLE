@@ -8,7 +8,8 @@ module fcimc_pointed_fns
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
-                        t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns
+                        t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
+                        t_matele_cutoff, matele_cutoff
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -202,6 +203,9 @@ module fcimc_pointed_fns
         tgt_cpt = part_type
         walkerweight = sign(1.0_dp, RealwSign(part_type))
         matEl = real(rh_used, dp)
+        if (t_matele_cutoff) then
+            if (abs(matEl) < matele_cutoff) matel = 0.0_dp
+        end if
 #else
         do tgt_cpt = 1, (lenof_sign/inum_runs)
 
@@ -231,9 +235,15 @@ module fcimc_pointed_fns
             if (btest(component,0)) then
                 ! real component
                 MatEl = real(rh_used, dp)
+                if (t_matele_cutoff) then
+                    if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
+                end if
             else
 #ifdef __CMPLX
                 MatEl = real(aimag(rh_used), dp)
+                if (t_matele_cutoff) then
+                    if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
+                end if
                 ! n.b. In this case, spawning is of opposite sign.
                 if (.not. btest(part_type,0)) then
                     ! imaginary parent -> imaginary child

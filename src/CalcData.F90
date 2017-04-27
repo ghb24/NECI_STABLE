@@ -368,6 +368,7 @@ logical :: t_read_probs = .true.
 
 ! introduce a cutoff for the matrix elements, to be more consistent with 
 ! UMATEPS (let the default be zero, so no matrix elements are ignored!)
+logical :: t_matele_cutoff = .false.
 real(dp) :: matele_cutoff = EPS
 
 end module CalcData

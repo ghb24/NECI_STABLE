@@ -7,7 +7,7 @@ MODULE Calc
                           BB_elec_pairs, par_elec_pairs, AB_elec_pairs, &
                           AA_hole_pairs, BB_hole_pairs, AB_hole_pairs, &
                           par_hole_pairs, hole_pairs, nholes_a, nholes_b, &
-                          nholes
+                          nholes, UMATEPS
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, tSpinProject, &
                             spin_proj_gamma, spin_proj_shift, &
@@ -1107,10 +1107,13 @@ contains
                 ! [Werner Dobrautz 26.4.2017:]
                 ! introduce a matrix element cutoff similar to the 
                 ! UMATEPS quantity when ignoring 2-body integrals
+                t_matele_cutoff = .true.
                 if (item < nitems) then
                     call getf(matele_cutoff)
                 else
-                    matele_cutoff = 1.0e-8_dp
+                    ! does this work? is umateps already defined properly?
+                    matele_cutoff = UMATEPS
+                    print *, "TEST cutoff: ", matele_cutoff
                 end if
 
 

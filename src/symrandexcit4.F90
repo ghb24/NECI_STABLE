@@ -8,7 +8,7 @@ module excit_gens_int_weighted
                           par_hole_pairs, AB_hole_pairs, iMaxLz, &
                           tGen_4ind_part_exact, tGen_4ind_lin_exact, &
                           tGen_4ind_unbound
-    use CalcData, only: matele_cutoff
+    use CalcData, only: matele_cutoff, t_matele_cutoff
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
                                pDoubNew, ScratchSize, SpinOrbSymLabel, &
@@ -596,7 +596,10 @@ contains
 
             ! And store the values for later searching
             cpt = abs_l1(hel) 
-            if (cpt < matele_cutoff) cpt = 0.0_dp
+
+            if (t_matele_cutoff) then
+                if (cpt < matele_cutoff) cpt = 0.0_dp
+            end if
 
             cpt_arr(i) = cpt
             cum_sum = cum_sum + cpt_arr(i)
@@ -887,8 +890,8 @@ contains
                 contrib = abs(get_umat_el(indi, indj, ida, idb))
             else
                 contrib = max(sqrt(abs(get_umat_el(indi, indj, ida, idb))), 0.0001_dp)
+!                 contrib = sqrt(abs(get_umat_el(indi, indj, ida, idb)))
             end if
-!             contrib = sqrt(abs(get_umat_el(indi, indj, ida, idb)))
         else if (tGen_4ind_lin_exact) then
             if (orbb > 0) then
                 ! Include a contribution of abs(<ij|ab>)
@@ -906,7 +909,9 @@ contains
             contrib = sqrt(abs_l1(UMat2D(max(indi, ida), min(indi, ida))))
         end if
 
-        if (contrib < matele_cutoff) contrib = 0.0_dp
+        if (t_matele_cutoff) then
+            if (contrib < matele_cutoff) contrib = 0.0_dp
+        end if
 
     end function
 
@@ -929,11 +934,12 @@ contains
                 contrib = abs(get_umat_el(indi, indj, ida, idb) &
                                 - get_umat_el(indi, indj, idb, ida))
             else
+                ! finally get rid of this arbitrary thresholds..
                 contrib = max(sqrt(abs(get_umat_el(indi, indj, ida, idb) &
                                 - get_umat_el(indi, indj, idb, ida))), 0.00001_dp)
-            end if
-!             contrib = sqrt(abs(get_umat_el(indi, indj, ida, idb) &
+!                 contrib = sqrt(abs(get_umat_el(indi, indj, ida, idb) &
 !                                 - get_umat_el(indi, indj, idb, ida)))
+            end if
         else if (tGen_4ind_lin_exact) then
             if (orbb > 0) then
                 ! Include a contribution of:
@@ -956,7 +962,9 @@ contains
             !sqrt(abs_l1(get_umat_el(srcid(2), srcid(2), ida, ida)))
         end if
 
-        if (contrib < matele_cutoff) contrib = 0.0_dp
+        if (t_matele_cutoff) then
+            if (contrib < matele_cutoff) contrib = 0.0_dp
+        end if
 
     end function
 
