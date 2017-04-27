@@ -14,7 +14,8 @@ module tau_search_hist
                         t_truncate_spawns, t_mix_ratios, mix_ratio, matele_cutoff
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          MaxTau, tSearchTau, tSearchTauOption, tSearchTauDeath
-    use Parallel_neci, only: MPIAllReduce, MPI_MAX, MPI_SUM, MPIAllLORLogical
+    use Parallel_neci, only: MPIAllReduce, MPI_MAX, MPI_SUM, MPIAllLORLogical, &
+                            MPISumAll
     use ParallelHelper, only: iprocindex
     use constants, only: dp, EPS, iout
     use tau_search, only: FindMaxTauDoubs
@@ -1069,7 +1070,8 @@ contains
 
                 tmp_int = 0
 
-                call MPIAllReduce(zero_singles, MPI_SUM, tmp_int)
+                call MPISumAll(zero_singles, tmp_int)
+!                 call MPIAllReduce(zero_singles, MPI_SUM, tmp_int)
                 write(iout,*) "Number of zero-valued single excitations: ", tmp_int
                 ! maybe also check the number of valid excitations
                 sum_all = sum(all_frequency_bins_spec)
@@ -1107,7 +1109,8 @@ contains
                     write(iout,*) "Done!"
 
                     tmp_int = 0
-                    call MPIAllReduce(zero_para, MPI_SUM, tmp_int)
+                    call MPISumAll(zero_para, tmp_int)
+!                     call MPIAllReduce(zero_para, MPI_SUM, tmp_int)
 
                     write(iout,*) "Number of zero-valued parallel excitations: ", tmp_int
                     sum_all = sum(all_frequency_bins_spec)
@@ -1140,7 +1143,8 @@ contains
                     write(iout,*) "Done!"
 
                     tmp_int = 0
-                    call MPIAllReduce(zero_anti, MPI_SUM, tmp_int)
+                    call MPISumAll(zero_anti, tmp_int)
+!                     call MPIAllReduce(zero_anti, MPI_SUM, tmp_int)
                     write(iout,*) "Number of zero-valued anti-parallel excitations: ", tmp_int
                     sum_all = sum(all_frequency_bins_spec)
                     write(iout,*) "Number of valid anti-parallel excitations: ", sum_all
