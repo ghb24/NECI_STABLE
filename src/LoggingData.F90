@@ -123,4 +123,9 @@ module LoggingData
     ! The name of the integral file for each of the property to be estimated
     character(100), allocatable :: EstPropFile(:)
 
+    ! [Werner Dobrautz 4.4.2017]
+    ! changes belonging to the histogram tau-search
+    ! for now always print out the histograms at the end, maybe change that 
+    ! behavior in the future
+    logical :: t_print_frq_histograms = .true.
 end module LoggingData

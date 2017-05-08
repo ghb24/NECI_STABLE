@@ -7,7 +7,7 @@ MODULE Calc
                           BB_elec_pairs, par_elec_pairs, AB_elec_pairs, &
                           AA_hole_pairs, BB_hole_pairs, AB_hole_pairs, &
                           par_hole_pairs, hole_pairs, nholes_a, nholes_b, &
-                          nholes
+                          nholes, UMATEPS
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, tSpinProject, &
                             spin_proj_gamma, spin_proj_shift, &
@@ -1037,6 +1037,91 @@ contains
                 ! here i need to turn off the tau-search option
                 tSearchTau = .false.
                 tSearchTauOption = .false.
+
+            case("HIST-TAU-SEARCH","NEW-TAU-SEARCH")
+                ! [Werner Dobrautz, 4.4.2017:]
+                ! the new tau search method using histograms of the 
+                ! H_ij / pgen ratio and integrating the histograms up to 
+                ! a certain value, to obtain the time-step and not using 
+                ! only the worst case H_ij / pgen ration
+                
+                ! this option has 3 possible input parameters: 
+                ! 1) the integration cutoff in percentage [0.999 default]
+                ! 2) the number of bins used [100000 default]
+                ! 3) the upper bound of the bins [10000.0 default]
+                t_hist_tau_search = .true.
+                t_hist_tau_search_option = .true.
+                t_fill_frequency_hists = .true.
+
+                ! turn off the other tau-search, if by mistake both were 
+                ! chosen! 
+                if (tSearchTau .or. tSearchTauOption) then 
+                   write(iout, &
+                       '("(WARNING: both the histogramming and standard tau&
+                       &-search option were chosen! TURNING STANDARD VERSION OFF!")')
+                   tSearchTau = .false.
+                   tSearchTauOption = .false.
+               end if
+
+               if (item < nitems) then
+                   call getf(frq_ratio_cutoff)
+               end if
+
+               if (item < nitems) then 
+                   call geti(n_frequency_bins)
+                   
+                   ! check that not too many bins are used which may crash 
+                   ! the MPI communication of the histograms! 
+                   if (n_frequency_bins > 1000000) then 
+                       write(iout, &
+                           '("WARNING: maybe too many bins used for the &
+                           &histograms! This might cause MPI problems!")')
+                   end if
+               end if
+
+               if (item < nitems) then 
+                   call getf(max_frequency_bound) 
+               end if
+
+            case("TRUNCATE-SPAWNS")
+                ! [Werner Dobrautz, 4.4.2017:]
+                ! in combination with the above HIST-TAU-SEARCH option I 
+                ! also introduced a truncation keyword for spawning events
+                ! which are missed by the integrated time-step. 
+                ! to limit the effect of these possible large blooms I 
+                ! implemented a truncation of those. But this might be an 
+                ! uncontrolled approximation, so be careful! 
+                t_truncate_spawns = .true. 
+                if (item < nitems) then 
+                    call getf(n_truncate_spawns)
+                end if
+                
+            case("MIX-RATIOS")
+                ! pablos idea: mix the old and new contributions and not 
+                ! only take the new ones, since we are doing a stochastic 
+                ! process now, maybe make that the default behavior..
+                t_mix_ratios = .true.
+
+                if (item < nitems) then
+                    call getf(mix_ratio)
+                else
+                    ! if no additional input default it to 0.7
+                    mix_ratio = 0.7_dp
+                end if
+
+            case("MATRIX-CUTOFF")
+                ! [Werner Dobrautz 26.4.2017:]
+                ! introduce a matrix element cutoff similar to the 
+                ! UMATEPS quantity when ignoring 2-body integrals
+                t_matele_cutoff = .true.
+                if (item < nitems) then
+                    call getf(matele_cutoff)
+                else
+                    ! does this work? is umateps already defined properly?
+                    matele_cutoff = UMATEPS
+                    print *, "TEST cutoff: ", matele_cutoff
+                end if
+
 
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.

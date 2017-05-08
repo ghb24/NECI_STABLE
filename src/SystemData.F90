@@ -251,6 +251,10 @@ real(dp) :: twisted_bc(2) = 0.0_dp
 logical :: t_open_bc_x = .false.
 logical :: t_open_bc_y = .false.
 
+! use an intermediate flag for a new implementation of the newest excitation
+! generator
+logical :: tGen_4ind_unbound = .false.
+
 ! Operators for type(symmetry)
 interface assignment (=)
     module procedure SymAssign

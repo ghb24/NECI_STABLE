@@ -1,0 +1,37 @@
+title
+
+system read
+electrons 54
+spin-restrict 0
+nonuniformrandexcits 4ind-weighted-part-exact
+nobrillouintheorem
+molpromimic
+endsys
+
+calc
+time 0.25
+methods
+method vertex fcimc
+endmethods
+diagshift 0.0
+shiftdamp 0.1
+ totalwalkers  2e6
+ walkcontgrow
+(readpops
+proje-changeref 1.2
+truncinitiator
+maxwalkerbloom 0.5
+allrealcoeff
+realspawncutoff 0.3
+memoryfacpart  5.0
+memoryfacspawn  5.0
+stepsshift 10
+jump-shift
+endcalc
+
+logging
+popsfiletimer 0.001
+binarypops
+(hdf5-pops
+endlog
+end

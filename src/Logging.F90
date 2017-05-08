@@ -1053,6 +1053,11 @@ MODULE Logging
             ! varying excitation levels from the Hartree--Fock.
             tHistExcitToFrom = .true.
 
+!         case("PRINT-FREQUENCY-HISTOGRAMS")
+!             ! option to print out the histograms used in the tau-search! 
+!             ! note: but for now they are always printed by default
+!             t_print_frq_histograms = .true.
+
         case("ENDLOG")
             exit logging
 

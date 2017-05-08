@@ -160,6 +160,18 @@ contains
                 sum_pair(2) = 1.0_dp
             end if
 
+            ! i think i also have to deal with divisions by zero here
+            ! in a correct way, when removing the lower pgen threshold. 
+            if (any(cum_sums < EPS)) then
+                cum_sums = 1.0_dp
+                int_cpt = 0.0_dp
+            end if
+
+            if (any(sum_pair < EPS)) then
+                sum_pair = 1.0_dp
+                cpt_pair = 0.0_dp
+            end if
+
             ! And adjust the probability for the components
             pgen = pgen * (product(int_cpt) / product(cum_sums) + &
                            product(cpt_pair) / product(sum_pair))
@@ -313,6 +325,10 @@ contains
             cum_sum = cum_sum + cpt
             cum_arr(orb) = cum_sum
         end do
+
+!         if (srcid(1) == 2 .and. srcid(2) == 3 .and. parallel) then
+!             print *, "cum_sum(a|ij): ", cum_arr
+!         end if
 
     end subroutine
 
