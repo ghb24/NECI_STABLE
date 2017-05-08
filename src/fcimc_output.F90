@@ -520,8 +520,9 @@ contains
         type(write_state_t), save :: state
         logical, save :: inited = .false.
         character(5) :: tmpc, tmpc2, tmgf
-        integer :: p, q, iGf
+        integer :: p, q, iGf, run
         logical :: init
+        real(dp) :: l1_norm
 
         ! Provide default 'initial' option
         if (present(initial)) then
@@ -561,6 +562,14 @@ contains
             state%cols = 0
             state%cols_mc = 0
             state%mc_out = tMCOutput
+
+#ifdef __REALTIME
+            l1_norm = 0.0
+            do run = 1, inum_runs
+               l1_norm = l1_norm + abs(cmplx(AllTotParts(min_part_type(run)), &
+                    AllTotParts(max_part_type(run))))
+            end do
+#endif            
             call stats_out(state,.true., iter + PreviousCycles, 'Iter.')
             if (.not. tOrthogonaliseReplicas) then
                ! note that due to the averaging, the printed value is not necessarily
@@ -569,7 +578,7 @@ contains
                      'Tot. parts real')
 #ifdef __REALTIME 
                 call stats_out(state,.true., real_time_info%time_angle,'Time rot. angle')
-                call stats_out(state,.false., sum(abs(AllTotParts_1))/inum_runs ,'Tot. parts RK1')
+                call stats_out(state,.false., l1_norm/inum_runs ,'L1 Norm')
 #else
                 call stats_out(state,.true., sum(abs(AllNoatHF))/inum_runs, 'Tot. ref')
 #endif

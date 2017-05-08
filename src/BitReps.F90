@@ -1021,7 +1021,7 @@ contains
     end subroutine decode_bit_det_bitwise
 
     subroutine add_ilut_lists(ndets_1, ndets_2, sorted_lists, list_1, list_2, list_out, &
-         ndets_out,phase)
+         ndets_out,prefactor)
 
         ! WARNING 1: This routine assumes that both list_1 and list_2 contain no
         ! repeated iluts, even if one of the repeated iluts has zero amplitude.
@@ -1042,7 +1042,7 @@ contains
         integer(n_int), intent(inout) :: list_2(0:,1:)
         integer(n_int), intent(inout) :: list_out(0:,1:)
         integer, intent(out) :: ndets_out
-        real(dp), intent(in), optional :: phase ! phase of list_2 relative to list_1
+        real(dp), intent(in), optional :: prefactor ! prefactor of list_2 relative to list_1 (real)
 
         integer :: i, pos, min_ind
         real(dp) :: sign_1(lenof_sign), sign_2(lenof_sign), sign_out(lenof_sign)
@@ -1072,7 +1072,7 @@ contains
                 ndets_out = ndets_out + 1
                 call extract_sign(list_1(:, min_ind+pos-1), sign_1)
                 call extract_sign(list_2(:,i), sign_2)
-                sign_out = sign_1 + sign_2
+                sign_out = sign_1 + prefactor*sign_2
                 list_out(:,ndets_out) = list_2(:,i)
                 call encode_sign(list_out(:,ndets_out), sign_out)
 
@@ -1087,6 +1087,8 @@ contains
                 ndets_out = ndets_out - pos
 
                 list_out(:,ndets_out) = list_2(:,i)
+                call extract_sign(list_out(:,ndets_out),sign_2)
+                call encode_sign(list_out(:,ndets_out),sign_2*prefactor)
 
                 ! Search a smaller section of list_1 next time.
                 min_ind = min_ind - pos - 1

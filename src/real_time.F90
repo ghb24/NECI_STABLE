@@ -636,7 +636,7 @@ contains
             do ireplica = 1, lenof_sign
 
                 call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
-                call merge_spawn(nspawn,prefactor)
+                !call merge_spawn(nspawn,prefactor)
                 do ispawn = 1, nspawn
 
                     ! Zero the bit representation, to ensure no extraneous data gets through.
@@ -816,7 +816,7 @@ contains
             do ireplica = 1, lenof_sign
 
                 call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
-                call merge_spawn(nspawn,prefactor)
+                !call merge_spawn(nspawn,prefactor)
                 do ispawn = 1, nspawn
 
                     ! Zero the bit representation, to ensure no extraneous data gets through.
@@ -1066,6 +1066,23 @@ else
 endif
 
     end subroutine perform_real_time_iteration
+
+    subroutine perform_verlet_iteration
+      implicit none
+
+      call init_verlet_iteration()
+
+      ! load H^2 psi into spawnedParts
+      call obtain_h2_psi()
+      
+      ! merge delta_psi and spawnedParts into the new delta_psi (which is stored in
+      ! spawnedParts)
+      call update_delta_psi()
+
+      ! merge delta_psi (now spawnedParts) into CurrentDets 
+      call AnnihilateSpawnedParts(spawnBufSize,TotWalkers,iter_data_fcimc)
+      
+    end subroutine perform_verlet_iteration
 
 end module real_time
 

@@ -1308,7 +1308,7 @@ contains
       ! function to calculate the norm of a state and 
       ! the overlap between replicas(general function)
         complex(dp) :: cd_norm(normsize)
-        integer(dp) :: dets(:,:)
+        integer(dp) :: dets(0:,1:)
         integer, intent(in) :: num_dets
         character(*), parameter :: this_routine = "calc_perturbed_norm"
 
@@ -1381,10 +1381,6 @@ contains
 #ifdef __CMPLX
 
         if (determ_sizes(iProcIndex) >= 1) then
-
-            ! For the moment, we're only adding in these contributions when we need the energy
-            ! This will need refinement if we want to continue with the option of inst vs true full RDMs
-            ! (as in another CMO branch).
 
             ! Perform the multiplication.
 

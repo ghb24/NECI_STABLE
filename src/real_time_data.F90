@@ -76,6 +76,13 @@ module real_time_data
 
     complex(dp), allocatable :: current_overlap(:,:)
 
+    ! buffers for the verlet scheme
+    integer(n_int), allocatable :: spawnBuf(:,:)
+    integer :: spawnBufSize
+
+    ! cache for delta psi
+    integer(n_int), allocatable :: dpsi_cache(:,:)
+    integer :: dpsi_size
 
     ! also store the norm of the perturbed ground state to adjust the overlap 
     complex(dp), allocatable :: pert_norm(:,:)
