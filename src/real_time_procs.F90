@@ -12,11 +12,12 @@ module real_time_procs
                               temp_det_list, temp_det_pointer,  temp_iendfreeslot, &
                               temp_det_hash, temp_totWalkers, pert_norm, allGfs, &
                               valid_diag_spawns, DiagParts, n_diag_spawned, tOverpopulate, &
-                              NoDied_1, NoBorn_1, SumWalkersCyc_1, gf_count, &
+                              NoDied_1, NoBorn_1, SumWalkersCyc_1, gf_count, tVerletSweep, &
                               t_rotated_time, tau_imag, tau_real, gs_energy, TotPartsLastAlpha, &
                               shift_damping, normsize, tStabilizerShift, dyn_norm_psi, &
                               TotPartsPeak, numCycShiftExcess, shiftLimit, t_kspace_operators, &
                               tDynamicAlpha, tDynamicDamping, stepsAlpha, phase_factors
+    use verlet_aux, only: end_verlet_sweep
     use real_time_aux, only: write_overlap_state
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
@@ -164,6 +165,8 @@ contains
                 if (sum(abs(CurrentSign)) >= 1.e-12_dp .or. tDetermState) then
                     ! Transfer new sign across.
                    call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
+                   ! I dont see why DiagParts has to be nullified. In the verlet scheme 
+                   ! warmup, we might want to use DiagParts afterwards
                    call encode_sign(DiagParts(:,i), null_part)
 
                     ! If we are spawning onto a site and growing it, then
@@ -374,7 +377,7 @@ contains
 
     end function count_holes_in_currentDets
 
-    subroutine create_diagonal_as_spawn(nI, ilut, diag_sign, iter_data)
+    subroutine create_diagonal_as_spawn(nI, ilut, diag_sign, iter_data, targetArray)
         ! new routine to create diagonal particles into new DiagParts 
         ! array to distinguish between spawns and diagonal events in the 
         ! combination y(n) + k2
@@ -1685,7 +1688,8 @@ contains
             ! compare the walker number the last time the angle was adjusted to
             ! the walker number now
             if(tDynamicAlpha) then
-               deltaAlpha = alphaDamping * atan(sum(AllTotParts)/real(sum(allWalkersOld),dp) - 1)
+               deltaAlpha = alphaDamping * atan(sum(AllTotParts)/(real(sum(allWalkersOld),dp) &
+                    * stepsAlpha)- 1)
                real_time_info%time_angle = real_time_info%time_angle + deltaAlpha
             endif
             ! if the damping is also to be adjusted on the fly, do so here
@@ -1700,6 +1704,7 @@ contains
          if(tDynamicDamping) call MPIBCast(real_time_info%damping)
       endif
       TotPartsLastAlpha = TotParts
+      if(tVerletScheme) call end_verlet_sweep()
       
     end subroutine adjust_decay_channels
 

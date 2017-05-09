@@ -3,9 +3,95 @@
 ! module for auxiliary routines used in the third order verlet algorithm
 
 module verlet_aux
-  use real_time_data, only: spawnBuf, spawnBufSize
+
+  use constants, only: n_int, lenof_sign, dp, EPS, inum_runs, null_part
+  use AnnihilationMod, only: DirectAnnihilation, SendProcNewParts, CompressSpawnedList
+  use hash, only: clear_hash_table, hash_table_lookup, add_hash_table_entry
+  use bit_rep_data, only: niftot, nifdbo, extract_sign
+  use bit_reps, only: decode_bit_det, set_flag, get_initiator_flag_by_run, encode_sign
+  use real_time_data, only: spawnBuf, spawnBufSize, dpsi_cache, dpsi_size, max_cache_size, &
+       backup_size, temp_det_list
+  use SystemData, only: nel 
+  use FciMCData, only: CurrentDets, HashIndex, maxSpawned, iStartFreeSlot, iEndFreeSlot, &
+                        inum_runs, SpawnedParts, TotWalkers, spawn_ht, iter_data_fciqmc, &
+                        InitialSpawnedSlots, ValidSpawnedList, fcimc_excit_gen_store, &
+                        indices_of_determ_states, partial_determ_vecs
+  use CalcData, only: tTruncInitiator
+  use procedure_pointers, only: attempt_create, attempt_die, generate_excitation
+  use Determinants, only: get_helement
+  use fcimc_pointed_fns, only: attempt_create_normal
+  use fcimc_helper, only: CalcParentFlag, decide_num_to_spawn, create_particle_with_hash_table
+  use semi_stoch_procs, only: check_determ_flag
+
+  implicit none
+       
   
   contains
+
+    subroutine init_verlet_sweep()
+      ! here, we initiate the first dpsi_cache from a runge-kutta calculation
+      implicit none
+      character(*), parameter :: this_routine = "init_"
+
+      call build_initial_delta_psi()
+      ! rescale the timestep
+      tau = iterInit * tau
+      tau_imag = iterInit * tau_imag
+      tau_real = iterInit * tau_real
+
+    end subroutine init_verlet_scheme
+
+    subroutine check_verlet_sweep(iterRK)
+      implicit none
+      integer, intent(inout) :: iterRK
+      ! if iterInit iterations were done in the runge-Kutta, switch to verlet scheme
+      if(tDynamicAlpha) then
+         if(iterRK .eq. iterInit) then
+            tVerletSweep = .true.
+            iterRK = 0
+         endif
+      endif
+    end subroutine check_verlet_sweep
+
+    subroutine end_verlet_sweep()
+      implicit none
+      ! switch back to runge-kutta after adjusting alpha to get a new delta_psi
+      tVerletSweep = .false.
+      tau = tau/iterInit
+    end subroutine end_verlet_sweep
+
+    subroutine build_initial_delta_psi()
+      ! build delta_psi as  psi(delta_t) - psi(0), where psi(delta_t) is the current population
+      ! and psi(0) the backup stored in popsfile_dets
+      if(allocated(popsfile_dets)) then
+         call add_ilut_lists(TotWalkers, backup_size,.true. , CurrentDets, popsfile_dets, &
+              dpsi_cache, dpsi_size, -1.0)
+      
+         ! we do not need popsfile dets anymore
+         deallocate(popsfile_dets)
+      else
+         call stop_all(this_routine, "Backup buffer not allocated")
+      endif
+    end subroutine build_initial_delta_psi
+
+    subroutine setup_delta_psi()
+      ! temp_det_list is sufficient as a cache
+      ! note that therefore, dpsi_cache also has a hashtable (temp_det_hash)
+      dpsi_cache => temp_det_list
+      max_cache_size = size(WalkVecDets,dim=2)
+    end subroutine setup_delta_psi
+    
+    subroutine backup_initial_state()
+      implicit none
+      character(*), parameter :: this_routine  = "backup_initial_state"
+      
+      ! popsfile_dets is certainly large enough to house CurrentDets, so use it if available
+      if(.not. allocated(popsfile_dets)) allocate(popsfile_dets(0:niftot,TotWalkers))
+      popsfile_dets(:,1:TotWalkers) = CurrentDets(:,1:TotWalkers)
+      ! number of initial walkers
+      backup_size = TotWalkers
+
+    end subroutine backup_initial_state
 
     subroutine init_verlet_iteration()
       implicit none         
@@ -49,14 +135,13 @@ module verlet_aux
       implicit none
       integer, intent(in) :: population(0:,1:), popsize
       ! store the free slots in population
-      integer, intent(out) :: spawnVec(0:,1:)
       logical, intent(in) :: tGetInitflags, tGetFreeSlots
       integer :: idet, nI(nel), determ_index
       real(dp) :: parent_sign(lenof_sign), unused_diagH
       logical :: tEmptyDet, tCoreDet
       
       ! where to put this?
-      attempt_create => attempt_create_normal
+      ! attempt_create => attempt_create_normal
 
       ValidSpawnedList = InitialSpawnedSlots
 
@@ -69,7 +154,7 @@ module verlet_aux
               fcimc_excit_gen_store)
 
          tEmptyDet = IsUnoccDet(parent_sign)
-         ! we do not collect freeSlots here, this is done before
+         ! we collect free slots only in the first application
          if(tEmptyDet) then
             if(tGetFreeSlots) then
                iEndFreeSlot = iEndFreeSlot + 1
@@ -78,9 +163,12 @@ module verlet_aux
             cycle
          endif
 
+         ! also, initiator flags are only reset in the first iteration
+         ! when using the initiator criterium
+         ! else, we just let the flags be
          if(tGetInitFlags) call CalcParentFlag(idet, unused_flags, unused_diagH)
          
-         tCoreDet = check_determ_flat(population(:,idet))
+         tCoreDet = check_determ_flag(population(:,idet))
 
          if(tCoreDet) then
             indices_of_determ_states(determ_index) = idet
@@ -101,7 +189,7 @@ module verlet_aux
       integer, intent(in) :: nI(nel)
       integer(n_int), intent(in) :: ilut_parent(0:niftot)
       integer :: part, nspawn, ispawn, nI_child(nel), ic, ex(2,2), unused_ex_level
-      integer(n_int) :: ilut_child(0:niftot)
+      integer(n_int) :: ilut_child(0:niftot)!, ilut_parent_init(0:niftot)
       real(dp) :: prob, child_sign(lenof_sign), hdiag
       logical :: tParity
       HElement_t(dp) :: HElGen
@@ -131,9 +219,16 @@ module verlet_aux
 
          end do ! Over mulitple particles on same determinant.
          
-         diag_sign = -attempt_die_normal(nI,hdiag,parent_sign,unused_excit_level)
-         if(any(abs(diag_sign)) > EPS) &
-            call create_diagonal_as_spawn(nI_parent, iLut_parent, diag_sing, iter_data_fciqmc)
+         diag_sign = -attempt_die_realtime(nI,hdiag,parent_sign,unused_excit_level)
+         if(any(abs(diag_sign)) > EPS) then
+            ! diagonal events are treated the same way as offdiagonal ones, 
+            ! except for an extra flag indicating the diagonal spawn
+            !ilut_parent_init = ilut_parent
+            !call set_flag(ilut_parent_init,get_initiator_flag(part_type))
+            ! we have to think about whether diagonal spawns get special treatment
+            call create_particle_with_hash_table(nI_parent, iLut_parent, diag_sing, &
+            part, population(:,idet), iter_data_fciqmc)
+         endif
       end do
 
     end subroutine perform_spawn
@@ -144,8 +239,7 @@ module verlet_aux
       
       call SendProcNewParts(spawnBufSize,.false.)
       call CompressSpawnedList(spawnBufSize,iter_data_fciqmc)
-      spawnBuf(:,1:MaxIndex) = SpawnedParts(:,1:MaxIndex)
-      spawnBufSize = MaxIndex
+      spawnBuf(:,1:spawnBufSize) = SpawnedParts(:,1:spawnBufSize)
     end subroutine generate_spawn_buf
 
     subroutine merge_ilut_lists(listA, listB, hashTable, sizeA, sizeB, maxSizeA)
@@ -157,6 +251,7 @@ module verlet_aux
       integer :: nI(nel), nJ(nel), hashIndex, ilutIndex, hashValue, i, j, run
       integer :: signA(lenof_sign), signB(lenof_sign), insertPos
       logical :: tSuccess
+      character(*), parameter :: this_routine = "merge_ilut_lists"
       
       ! this merges listB into listA. In the current form, empty slots in listA are 
       ! not exploited, because it should not make a difference currently (optimization follows)
@@ -194,11 +289,14 @@ module verlet_aux
       ! this might cause trouble as stochastic error is not averaged out, 
       ! but we just carry over the error from the last iteration
       implicit none
+      character(*), parameter :: this_routine = "update_delta_psi"
       
       ! add up delta_psi from the last iteration and spawnedParts (i.e. H^2 psi)
-      call merge_ilut_list(spawnedParts, dpsi_cache, spawn_ht, spawnBufSize, &
+      call merge_ilut_lists(spawnedParts, dpsi_cache, spawn_ht, spawnBufSize, &
            dpsi_size, maxSpawned)
       ! cache delta_psi for the next iteration
+      if(spawnBufSize > max_cache_size) call stop_all(this_routine, &
+           "Insufficient memory for creating delta_psi")
       dpsi_cache(:,spawnBufSize) = spawnedParts(:,spawnBufSize)
       dpsi_size = spawnBufSize
       ! for now, consider all entries in delta_psi as safe spawns for the next iteration

@@ -13,16 +13,18 @@ module real_time
                                update_shift_damping, real_time_determ_projection, &
                                refresh_semistochastic_space, update_peak_walker_number, &
                                makePopSnapshot
-    use real_time_data, only: gf_type,  &
+    use real_time_data, only: gf_type,  tVerletSweep, &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
                               current_overlap, SumWalkersCyc_1, DiagParts, stepsAlpha, &
-                              elapsedRealTime, elapsedImagTime, TotPartsPeak, &
+                              elapsedRealTime, elapsedImagTime, TotPartsPeak, tVerletScheme, &
                               tau_real, tau_imag, t_rotated_time, temp_iendfreeslot, &
                               temp_freeslot, overlap_real, overlap_imag, dyn_norm_psi, &
                               NoatHF_1, shift_damping, tDynamicCoreSpace, dyn_norm_red, &
                               normsize, gf_count, tRealTimePopsfile, tStabilizerShift, &
                               tLimitShift, tStaticShift, asymptoticShift, tDynamicAlpha, &
                               tDynamicDamping, stabilizerThresh, tInfInit, popSnapshot
+    use verlet_aux, only: init_verlet_iteration, obtain_h2_psi, update_delta_psi, &
+         init_verlet_sweep, check_verlet_sweep
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
                         tChangeProjEDet, DiagSft, nmcyc, tau, InitWalkers, InitiatorWalkNo, &
@@ -216,7 +218,7 @@ contains
         implicit none
 
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
-        integer :: cOverlapIndex, j, i
+        integer :: cOverlapIndex, j, i, iterRK
         real(sp) :: s_start, s_end, tstart(2), tend(2)
         real(dp) :: totalTime
         complex(dp), allocatable :: overlap_buf(:)
@@ -233,7 +235,10 @@ contains
        
         call init_real_time_calc_single()
 
-
+        ! counts the number of iterations in Runge-Kutta when creating 
+        ! initial states for verlet
+        iterRK = 0
+        
         print *, " Real-time FCIQMC initialized! "
         ! rewrite the major original neci core loop here and adapt it to 
         ! the new necessary real-time stuff
@@ -318,8 +323,13 @@ contains
             if(tLimitShift) call trunc_shift()
 
             ! perform the actual iteration(excitation generation etc.) 
-            iter = iter + 1           
-            call perform_real_time_iteration() 
+            if(iterRK .eq. 0) iter = iter + 1
+            if(tVerletScheme .and. .not. tVerletSweep) iterRK = iterRK + 1            
+            if(tVerletScheme) then
+               if(tVerletSweep) call perform_verlet_iteration()
+            else
+               call perform_real_time_iteration() 
+            endif
 
             ! check if somthing happpened to stop the iteration or something
             call check_real_time_iteration()
@@ -377,12 +387,13 @@ contains
 
     end subroutine perform_real_time_fciqmc
 
-    subroutine update_real_time_iteration()
+    subroutine update_real_time_iteration(iterRK)
         ! routine to update certain global variables each loop iteration in 
         ! the real-time fciqmc 
         ! from the 2 distince spawn/death/cloning info stored in the 
         ! two iter_data vars, i have to combine the general updated 
         ! statistics for the actual time step
+        integer, intent(inout) :: iterRK
         character(*), parameter :: this_routine = "update_real_time_iteration"
         integer :: run
 
@@ -418,6 +429,8 @@ contains
         ! this is done in the annihilation routine at the end of the iteration
         call calculate_new_shift_wrapper(second_spawn_iter_data, totParts, &
              tPairedReplicas)
+
+        if(tVerletScheme) call check_verlet_sweep(iterRK)
 
         if(tStabilizerShift) then
            if(iProcIndex == Root) then

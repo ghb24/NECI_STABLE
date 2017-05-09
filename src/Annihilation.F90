@@ -29,7 +29,7 @@ module AnnihilationMod
     use searching
     use hash
     use real_time_data, only: NoAborted_1, Annihilated_1, runge_kutta_step, &
-                              nspawned_1, t_real_time_fciqmc
+                              nspawned_1, t_real_time_fciqmc, tVerletScheme
 
 
     implicit none
@@ -586,7 +586,7 @@ module AnnihilationMod
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(inout) :: TotWalkersNew
-        integer, intent(inout) :: ValidSpawned 
+        integer, intent(in) :: ValidSpawned 
         integer :: PartInd, i, j, PartIndex,m
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd

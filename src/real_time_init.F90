@@ -27,10 +27,11 @@ module real_time_init
                               tLimitShift, nspawnMax, shiftLimit, numCycShiftExcess, &
                               TotPartsLastAlpha, alphaDamping, tDynamicDamping, &
                               etaDamping, tStartVariation, rotThresh, stabilizerThresh, &
-                              tInfInit,  popSnapshot, snapshotOrbs, phase_factors, &
-			      numSnapshotOrbs, tLowerThreshold, t_kspace_operators
+                              tInfInit,  popSnapshot, snapshotOrbs, phase_factors, tVerletSweep, &
+			      numSnapshotOrbs, tLowerThreshold, t_kspace_operators, tVerletScheme
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states
+    use verlet_aux, only: backup_initial_state, setup_delta_psi
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
     use Parallel_neci
     use ParallelHelper, only: iProcIndex, root, MPIbarrier, nNodes, MPI_SUM
@@ -46,7 +47,7 @@ module real_time_init
                          tSinglePartPhase, iter_data_fciqmc, iter, PreviousCycles, &
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
                          MaxSpawned, tSearchTauOption, TotWalkers, SumWalkersCyc, &
-                         CurrentDets, popsfile_dets, MaxWalkersPart
+                         CurrentDets, popsfile_dets, MaxWalkersPart, WalkVecDets
     use SystemData, only: lms, G1, nBasisMax, tHub, nel, tComplexWalkers_RealInts, nBasis, tReal
     use SymExcitDataMod, only: kTotal
     use sym_mod, only: MomPbcSym
@@ -173,6 +174,8 @@ contains
            allocate(numCycShiftExcess(inum_runs), stat = ierr)
            numCycShiftExcess = 0
         endif
+        ! allocate spawn buffer for verlet scheme
+        if(tVerletScheme) allocate(spawnBuf(0:niftot,1:maxSpawned))
 
         gf_overlap = 0.0_dp
         TotPartsPeak = 0.0_dp
@@ -316,7 +319,13 @@ contains
         benchmarkEnergy = 0.0_dp
         numCycShiftExcess = 0
 
-        call rotate_time()
+        tVerletSweep = .false.
+        if(tVerletScheme) then 
+           call setup_delta_psi()
+           call backup_initial_state()
+        endif
+
+        call rotate_time()           
 
     end subroutine setup_real_time_fciqmc
 
@@ -359,6 +368,11 @@ contains
 
             select case (w)
             ! have to enter all the different input options here
+
+            case("VERLET")
+               ! using a verlet algorithm instead of the second order runge-kutta
+               tVerletScheme = .true.
+               if(item < nitems) call readi(iterInit)
 
             case ("DAMPING")
                 ! to reduce the explosive spread of walkers through the 
@@ -738,6 +752,10 @@ contains
     subroutine set_real_time_defaults()
         implicit none
 
+        ! by default, use runge-kutta instead of verlet
+        tVerletScheme = .false.
+        iterInit = 1
+
         ! todo: figure out quantities
         ! maximum number of spawn attempts per determinant if the number of
         ! total spawns exceeds some threshold
@@ -1106,6 +1124,7 @@ contains
       deallocate(pert_norm,stat=ierr)
       deallocate(gf_overlap,stat=ierr)
       deallocate(TotPartsPeak,stat=ierr)
+      deallocate(temp_det_list,stat=ierr)
       call clean_overlap_states()
       call clear_pops_pert(pops_pert)
       call clear_pops_pert(overlap_pert)
