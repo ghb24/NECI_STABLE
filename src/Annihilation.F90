@@ -29,7 +29,7 @@ module AnnihilationMod
     use searching
     use hash
     use real_time_data, only: NoAborted_1, Annihilated_1, runge_kutta_step, &
-                              nspawned_1, t_real_time_fciqmc, tVerletScheme
+                              nspawned_1, t_real_time_fciqmc
 
 
     implicit none

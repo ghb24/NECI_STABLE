@@ -22,9 +22,10 @@ module real_time
                               NoatHF_1, shift_damping, tDynamicCoreSpace, dyn_norm_red, &
                               normsize, gf_count, tRealTimePopsfile, tStabilizerShift, &
                               tLimitShift, tStaticShift, asymptoticShift, tDynamicAlpha, &
-                              tDynamicDamping, stabilizerThresh, tInfInit, popSnapshot
+                              tDynamicDamping, stabilizerThresh, tInfInit, popSnapshot, &
+                              spawnBufSize
     use verlet_aux, only: init_verlet_iteration, obtain_h2_psi, update_delta_psi, &
-         init_verlet_sweep, check_verlet_sweep
+         init_verlet_sweep, check_verlet_sweep, end_verlet_sweep
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
                         tChangeProjEDet, DiagSft, nmcyc, tau, InitWalkers, InitiatorWalkNo, &
@@ -42,7 +43,7 @@ module real_time
     use FciMCParMod, only: rezero_iter_stats_each_iter
     use hash, only: clear_hash_table
     use constants, only: int64, sizeof_int, n_int, lenof_sign, dp, EPS, inum_runs
-    use AnnihilationMod, only: DirectAnnihilation
+    use AnnihilationMod, only: DirectAnnihilation, AnnihilateSpawnedParts
     use bit_reps, only: extract_bit_rep
     use SystemData, only: nel, tRef_Not_HF, tAllSymSectors, nOccAlpha, nOccBeta, &
                           nbasis
@@ -316,7 +317,7 @@ contains
                   overlap_real(j) = real(overlap_buf(j))
                   overlap_imag(j) = aimag(overlap_buf(j))
                end do
-               call update_real_time_iteration()
+               call update_real_time_iteration(iterRK)
             endif
 
             ! if a threshold value is set, check it
@@ -451,6 +452,9 @@ contains
         
         if(mod(iter,stepsAlpha)==0 .and. (tDynamicAlpha .or. tDynamicDamping)) then
            call adjust_decay_channels()
+           ! the verlet scheme only works for constant time step, hence, upon adjusting
+           ! the time step, we need to do another iteration of RK2
+           if(tVerletScheme) call end_verlet_sweep()
         endif
         call rotate_time()
     end subroutine update_real_time_iteration
@@ -1082,6 +1086,7 @@ endif
 
     subroutine perform_verlet_iteration
       implicit none
+      integer :: TotWalkersNew
 
       call init_verlet_iteration()
 
@@ -1093,7 +1098,11 @@ endif
       call update_delta_psi()
 
       ! merge delta_psi (now spawnedParts) into CurrentDets 
-      call AnnihilateSpawnedParts(spawnBufSize,TotWalkers,iter_data_fcimc)
+      ! We need to cast TotWalkers to a regular int to pass it to the annihilation
+      ! as it is modified, we need to pass an lvalue and cannot just pass int(TotWalkers)
+      TotWalkersNew = int(TotWalkers,sizeof_int)
+      call AnnihilateSpawnedParts(spawnBufSize,TotWalkersNew,iter_data_fciqmc)
+      TotWalkers = TotWalkersNew
       
     end subroutine perform_verlet_iteration
 

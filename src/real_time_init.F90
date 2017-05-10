@@ -9,7 +9,7 @@ module real_time_init
                               temp_det_pointer, temp_det_hash, temp_freeslot, tOverpopulate, &
                               pert_norm, second_spawn_iter_data, DiagParts, stepsAlpha, &
                               DiagVec, normsize, valid_diag_spawns, tStabilizerShift, &
-                              NoatHF_1, Annihilated_1, Acceptances_1, NoBorn_1, &
+                              NoatHF_1, Annihilated_1, Acceptances_1, NoBorn_1, spawnBuf, &
                               SpawnFromSing_1, NoDied_1, NoAborted_1, NoRemoved_1, &
                               NoAddedInitiators_1, NoInitDets_1, NoNonInitDets_1, &
                               NoInitWalk_1, NoNonInitWalk_1, InitRemoved_1, tDynamicAlpha, &
@@ -25,7 +25,7 @@ module real_time_init
                               tStaticShift, MaxSpawnedDiag, tDynamicCoreSpace, overlap_states, &
                               overlap_real, overlap_imag, allGfs, tRealTimePopsfile, &
                               tLimitShift, nspawnMax, shiftLimit, numCycShiftExcess, &
-                              TotPartsLastAlpha, alphaDamping, tDynamicDamping, &
+                              TotPartsLastAlpha, alphaDamping, tDynamicDamping, iterInit, &
                               etaDamping, tStartVariation, rotThresh, stabilizerThresh, &
                               tInfInit,  popSnapshot, snapshotOrbs, phase_factors, tVerletSweep, &
 			      numSnapshotOrbs, tLowerThreshold, t_kspace_operators, tVerletScheme
@@ -59,7 +59,7 @@ module real_time_init
     use LoggingData, only: tZeroProjE, tFCIMCStats2
     use fcimc_output, only: write_fcimcstats2, WriteFciMCStatsHeader
     use replica_data, only: allocate_iter_data, set_initial_global_data
-    use bit_rep_data, only: nifbcast
+    use bit_rep_data, only: nifbcast, niftot
     use bit_reps, only: decode_bit_det
 
     implicit none

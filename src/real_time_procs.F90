@@ -17,7 +17,6 @@ module real_time_procs
                               shift_damping, normsize, tStabilizerShift, dyn_norm_psi, &
                               TotPartsPeak, numCycShiftExcess, shiftLimit, t_kspace_operators, &
                               tDynamicAlpha, tDynamicDamping, stepsAlpha, phase_factors
-    use verlet_aux, only: end_verlet_sweep
     use real_time_aux, only: write_overlap_state
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
@@ -377,7 +376,7 @@ contains
 
     end function count_holes_in_currentDets
 
-    subroutine create_diagonal_as_spawn(nI, ilut, diag_sign, iter_data, targetArray)
+    subroutine create_diagonal_as_spawn(nI, ilut, diag_sign, iter_data)
         ! new routine to create diagonal particles into new DiagParts 
         ! array to distinguish between spawns and diagonal events in the 
         ! combination y(n) + k2
@@ -1704,7 +1703,6 @@ contains
          if(tDynamicDamping) call MPIBCast(real_time_info%damping)
       endif
       TotPartsLastAlpha = TotParts
-      if(tVerletScheme) call end_verlet_sweep()
       
     end subroutine adjust_decay_channels
 

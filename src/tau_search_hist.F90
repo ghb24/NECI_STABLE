@@ -827,8 +827,6 @@ contains
             print *, "mat_ele: ", mat_ele
             print *, "pgen: ", pgen 
             print *, "ic: ", ic
-            print *, "parallel: ", t_parallel
-            print *, "ex-matrix: ", ex
 #endif
  
             select case(ic)
