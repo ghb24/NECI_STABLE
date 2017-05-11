@@ -173,6 +173,7 @@ integer(int64) :: iExitWalkers  !Exit criterion, based on total walker number
 logical :: t_lanczos_init
 logical :: t_lanczos_store_vecs
 logical :: t_lanczos_orthogonalise
+logical :: t_force_lanczos
 integer :: lanczos_max_restarts
 integer :: lanczos_max_vecs
 integer :: lanczos_energy_precision

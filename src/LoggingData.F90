@@ -128,4 +128,8 @@ module LoggingData
     ! for now always print out the histograms at the end, maybe change that 
     ! behavior in the future
     logical :: t_print_frq_histograms = .true.
+
+    ! if this is true, force moving fcimcstats and initiatorstats files, and accumulate stats in new files
+    logical :: no_append_stats = .false.
+
 end module LoggingData

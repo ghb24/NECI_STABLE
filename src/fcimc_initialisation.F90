@@ -109,7 +109,7 @@ module fcimc_initialisation
                                  null_encode_child, attempt_die_normal
     use csf_data, only: csf_orbital_mask
     use initial_trial_states, only: calc_trial_states_lanczos, &
-                                    set_trial_populations, set_trial_states
+                                    set_trial_populations, set_trial_states, calc_trial_states_direct
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
                                set_spawn_rate

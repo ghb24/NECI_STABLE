@@ -33,8 +33,3 @@ vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
 
-[user]
-diff = vimdiff
-default_program = neci
-benchmark = kmneci-293e16a.neci-293e16a.kneci-293e16a.mneci-293e16a kmneci-dd80491.neci-dd80491.kneci-dd80491.mneci-dd80491
-
