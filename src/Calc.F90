@@ -1077,6 +1077,14 @@ contains
                    call getf(max_frequency_bound) 
                end if
 
+            case("RESTART-HIST-TAU-SEARCH", "RESTART-NEW-TAU-SEARCH")
+                ! [Werner Dobrautz 5.5.2017:]
+                ! a keyword, which in case of a continued run from a 
+                ! previous hist-tau-search run restarts the histogramming 
+                ! tau-search anyway, in case the tau-search is not yet 
+                ! converged enough
+                t_restart_hist_tau = .true.
+
             case("TRUNCATE-SPAWNS")
                 ! [Werner Dobrautz, 4.4.2017:]
                 ! in combination with the above HIST-TAU-SEARCH option I 

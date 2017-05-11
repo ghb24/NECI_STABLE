@@ -326,6 +326,16 @@ logical :: t_keep_tau_fixed = .false.
 logical :: t_hist_tau_search = .false., t_hist_tau_search_option = .false.
 logical :: t_fill_frequency_hists = .false.
 
+! also use a logical, read-in in the case of a continued run, which turns 
+! off the tau-search independent of the input and uses the time-step 
+! pSingles and pDoubles values from the previous calculation. 
+logical :: t_previous_hist_tau = .false.
+
+! it can be forced to do a tau-search again, if one provides an additional 
+! input restart-hist-tau-search in addition to the the hist-tau-search 
+! keyword in case the tau-search is not converged enough
+logical :: t_restart_hist_tau = .false. 
+
 ! maybe also introduce a mixing between the old and new quantities in the 
 ! histogramming tau-search, since it is a stochastic process now
 logical :: t_mix_ratios = .false.

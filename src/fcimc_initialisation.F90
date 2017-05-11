@@ -33,7 +33,8 @@ module fcimc_initialisation
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, &
-                        tMultipleInitialStates, initial_states, t_hist_tau_search
+                        tMultipleInitialStates, initial_states, t_hist_tau_search, &
+                        t_previous_hist_tau, t_fill_frequency_hists
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -994,6 +995,20 @@ contains
 
 !        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
 !                       ^ Removed by GLM as believed not necessary
+
+        ! [Werner Dobrautz 5.5.2017:]
+        ! if this is a continued run from a histogramming tau-search 
+        ! and a restart of the tau-search is not forced by input, turn 
+        ! both the new and the old tau-search off! 
+        if (t_previous_hist_tau) then
+            ! i have to check for tau-search option and stuff also, so that 
+            ! the death tau adaption is still used atleast! todo! 
+            tSearchTau = .false.
+            t_hist_tau_search = .false.
+            t_fill_frequency_hists = .false.
+            Write(iout,*) "Turning OFF the tau-search, since continued run!"
+        end if 
+
         if (tSearchTau) then
             call init_tau_search()
 
