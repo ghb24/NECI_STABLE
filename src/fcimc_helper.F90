@@ -58,7 +58,7 @@ module fcimc_helper
 !<<<<<<< HEAD
 ! RT_M_Merge: There seems to be no conflict here, so use both
 
-    use real_time_data, only: t_complex_ints, acceptances_1, runge_kutta_step, &
+    use real_time_data, only: t_complex_ints, acceptances_1, runge_kutta_step, tVerletSweep,&
                         NoInitDets_1, NoNonInitDets_1, NoInitWalk_1, NoNonInitWalk_1, &
                         InitRemoved_1, NoAborted_1, NoRemoved_1, NoatHF_1, NoatDoubs_1, &
                         NoatHF_1, NoatDoubs_1, t_rotated_time, Annihilated_1, t_real_time_fciqmc
@@ -197,7 +197,7 @@ contains
         character(*), parameter :: this_routine = 'create_particle_with_hash_table'
         
         !Only one element of child should be non-zero except for real-time evolution
-        if(.not. t_rotated_time) then
+        if(.not. (t_rotated_time .or. tVerletSweep)) then
            ASSERT((sum(abs(child_sign))-maxval(abs(child_sign)))<1.0e-12_dp)
         endif
 

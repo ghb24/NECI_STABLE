@@ -316,7 +316,6 @@ contains
         AllInitRemoved_1 = 0
         AccRat_1 = 0.0_dp
         AllSumWalkersCyc_1 = 0.0_dp
-        benchmarkEnergy = 0.0_dp
         numCycShiftExcess = 0
 
         tVerletSweep = .false.
@@ -373,6 +372,7 @@ contains
                ! using a verlet algorithm instead of the second order runge-kutta
                tVerletScheme = .true.
                if(item < nitems) call readi(iterInit)
+               if(stepsAlpha .eq. 1) write(6,*) "Warning: STEPSALPHA is 1. Ignoring VERLET keyword"
 
             case ("DAMPING")
                 ! to reduce the explosive spread of walkers through the 
@@ -634,6 +634,7 @@ contains
                 ! but start right away in the HF as the initial state does not matter in 
                 ! principle for the spectrum
                 tReadPops = .false.
+                tStartSinglePart = .true.
                
              case("STABILIZE-WALKERS")
                 ! enabling this activates the dynamic shift as soon as the walker number drops
@@ -710,6 +711,9 @@ contains
                 ! length of the decay channel update cycle (in timesteps)
                 ! i.e. angle of rotation and damping
                 call readi(stepsAlpha)
+                if(stepsAlpha .eq. 1 .and. tVerletScheme) write(6,*) &
+                     "Warning: STEPSALPHA is 1. Ignoring VERLET keyword"
+                
 
              case("DYNAMIC-DAMPING")
                 ! allow the damping to be time-dependent 
@@ -760,6 +764,9 @@ contains
         ! maximum number of spawn attempts per determinant if the number of
         ! total spawns exceeds some threshold
         nspawnMax = 1000
+
+        ! energy offset
+        benchmarkEnergy = 0.0_dp
 
         ! for the start definetly not change tau
         tSearchTau = .true.

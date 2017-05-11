@@ -9,10 +9,10 @@ module real_time
                                walker_death_spawn, attempt_die_realtime, trunc_shift, &
                                create_diagonal_as_spawn, count_holes_in_currentDets, &
                                DirectAnnihilation_diag, check_update_growth, &
-                               get_tot_parts, update_gf_overlap, calc_norm, adjust_decay_channels, &
+                               update_gf_overlap, calc_norm, adjust_decay_channels, &
                                update_shift_damping, real_time_determ_projection, &
                                refresh_semistochastic_space, update_peak_walker_number, &
-                               makePopSnapshot
+                               makePopSnapshot, update_elapsed_time
     use real_time_data, only: gf_type,  tVerletSweep, &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
                               current_overlap, SumWalkersCyc_1, DiagParts, stepsAlpha, &
@@ -21,16 +21,15 @@ module real_time
                               temp_freeslot, overlap_real, overlap_imag, dyn_norm_psi, &
                               NoatHF_1, shift_damping, tDynamicCoreSpace, dyn_norm_red, &
                               normsize, gf_count, tRealTimePopsfile, tStabilizerShift, &
-                              tLimitShift, tStaticShift, asymptoticShift, tDynamicAlpha, &
-                              tDynamicDamping, stabilizerThresh, tInfInit, popSnapshot, &
-                              spawnBufSize
+                              tLimitShift, tDynamicAlpha, dpsi_cache, dpsi_size, &
+                              tDynamicDamping, stabilizerThresh, popSnapshot, spawnBufSize
     use verlet_aux, only: init_verlet_iteration, obtain_h2_psi, update_delta_psi, &
          init_verlet_sweep, check_verlet_sweep, end_verlet_sweep
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
-                        tChangeProjEDet, DiagSft, nmcyc, tau, InitWalkers, InitiatorWalkNo, &
+                        tChangeProjEDet, DiagSft, nmcyc, tau, InitWalkers, &
                         s_global_start, StepsSft
-    use FciMCData, only: pops_pert, walker_time, iter, ValidSpawnedList, &
+    use FciMCData, only: pops_pert, walker_time, iter, ValidSpawnedList, spawnedParts, &
                          spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot, &
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
                          TotWalkers, fcimc_excit_gen_store, ilutRef, max_calc_ex_level, &
@@ -42,7 +41,7 @@ module real_time
     use timing_neci, only: set_timer, halt_timer
     use FciMCParMod, only: rezero_iter_stats_each_iter
     use hash, only: clear_hash_table
-    use constants, only: int64, sizeof_int, n_int, lenof_sign, dp, EPS, inum_runs
+    use constants, only: int64, sizeof_int, n_int, lenof_sign, dp, EPS, inum_runs, bits_n_int
     use AnnihilationMod, only: DirectAnnihilation, AnnihilateSpawnedParts
     use bit_reps, only: extract_bit_rep
     use SystemData, only: nel, tRef_Not_HF, tAllSymSectors, nOccAlpha, nOccBeta, &
@@ -52,7 +51,7 @@ module real_time
     use global_det_data, only: det_diagH
     use fcimc_helper, only: CalcParentFlag, decide_num_to_spawn, &
                             create_particle_with_hash_table, walker_death, &
-                            SumEContrib
+                            SumEContrib, end_iter_stats
     use procedure_pointers, only: generate_excitation, encode_child, &
                                   attempt_create, new_child_stats
     use bit_rep_data, only: tUseFlags, nOffFlag, niftot, extract_sign
@@ -63,7 +62,8 @@ module real_time
     use fcimc_initialisation, only: CalcApproxpDoubles
     use LoggingData, only: tPopsFile
     use PopsFileMod, only: WriteToPopsfileParOneArr
-    use load_balance, only: test_hash_table, tLoadBalanceBlocks, adjust_load_balance
+    use load_balance, only: test_hash_table, tLoadBalanceBlocks, adjust_load_balance, &
+         CalcHashTableStats
     use Parallel_neci
     use util_mod, only : neci_etime
     use ParallelHelper, only: MPI_SUM, iProcIndex, root
@@ -319,15 +319,16 @@ contains
                end do
                call update_real_time_iteration(iterRK)
             endif
+            if(tVerletScheme) call check_verlet_sweep(iterRK)
 
             ! if a threshold value is set, check it
             if(tLimitShift) call trunc_shift()
-
+            
             ! perform the actual iteration(excitation generation etc.) 
             if(iterRK .eq. 0) iter = iter + 1
             if(tVerletScheme .and. .not. tVerletSweep) iterRK = iterRK + 1            
-            if(tVerletScheme) then
-               if(tVerletSweep) call perform_verlet_iteration()
+            if(tVerletSweep) then
+               call perform_verlet_iteration()
             else
                call perform_real_time_iteration() 
             endif
@@ -431,8 +432,6 @@ contains
         call calculate_new_shift_wrapper(second_spawn_iter_data, totParts, &
              tPairedReplicas)
 
-        if(tVerletScheme) call check_verlet_sweep(iterRK)
-
         if(tStabilizerShift) then
            if(iProcIndex == Root) then
               ! check if the walker number started to decay uncontrolled
@@ -534,22 +533,9 @@ contains
         ! associated pointers and hashtable related stuff to the 
         ! temporary 2nd list 
         call save_current_dets() 
-
-        ! bookkeeping of timestats
-        ! each iteration step constist of two tau-steps -> factor of 2
-        elapsedRealTime = elapsedRealTime + tau_real
-        elapsedImagTime = elapsedImagTime + tau_imag
-
-        if(tStaticShift) then
-           do run = 1, inum_runs
-              if(.not. tSinglePartPhase(run)) DiagSft(run) = asymptoticShift
-           enddo
-        endif
-
-        ! cheap way of removing all initiators (save for the HF)
-        if(tInfInit) InitiatorWalkNo = TotWalkers + 1
-
+        call update_elapsed_time()
     end subroutine init_real_time_iteration
+
 
     subroutine second_real_time_spawn()
         ! routine for the second spawning step in the 2nd order RK method
@@ -689,7 +675,7 @@ contains
                     end if
 
                     ! If any (valid) children have been spawned.
-                    if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
+                    if ((any(abs(child_sign) > EPS)) .and. (ic /= 0) .and. (ic <= 2)) then
 
                         ! not quite sure about how to collect the child
                         ! stats in the new rt-fciqmc ..
@@ -1091,19 +1077,29 @@ endif
       call init_verlet_iteration()
 
       ! load H^2 psi into spawnedParts
+
       call obtain_h2_psi()
       
       ! merge delta_psi and spawnedParts into the new delta_psi (which is stored in
       ! spawnedParts)
-      call update_delta_psi()
 
+      call update_delta_psi()
+      
       ! merge delta_psi (now spawnedParts) into CurrentDets 
       ! We need to cast TotWalkers to a regular int to pass it to the annihilation
       ! as it is modified, we need to pass an lvalue and cannot just pass int(TotWalkers)
       TotWalkersNew = int(TotWalkers,sizeof_int)
+      call end_iter_stats(TotWalkersNew)
       call AnnihilateSpawnedParts(spawnBufSize,TotWalkersNew,iter_data_fciqmc)
+      ! Updating the statistics is usually done in the annihilation, but since we
+      ! explicitly carry out the annihilation, this has to be included explicitly
+      ! (We can not use DirectAnnihilation because we need the communicated spawnedParts
+      !  in between to update delta_psi)
+      call CalcHashTableStats(TotWalkersNew,iter_data_fciqmc)
       TotWalkers = TotWalkersNew
       
+      call update_elapsed_time()
+      call update_iter_data(iter_data_fciqmc)
     end subroutine perform_verlet_iteration
 
 end module real_time

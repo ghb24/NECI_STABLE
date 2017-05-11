@@ -7,7 +7,7 @@ module real_time_procs
     use hash, only: hash_table_lookup, init_hash_table, clear_hash_table, &
                     add_hash_table_entry, fill_in_hash_table
     use SystemData, only: nel, nBasis
-    use real_time_data, only: gf_overlap, TotWalkers_orig, overlap_states,&
+    use real_time_data, only: gf_overlap, TotWalkers_orig, overlap_states, tInfInit, &
                               t_complex_ints, real_time_info, temp_freeslot, & 
                               temp_det_list, temp_det_pointer,  temp_iendfreeslot, &
                               temp_det_hash, temp_totWalkers, pert_norm, allGfs, &
@@ -16,7 +16,8 @@ module real_time_procs
                               t_rotated_time, tau_imag, tau_real, gs_energy, TotPartsLastAlpha, &
                               shift_damping, normsize, tStabilizerShift, dyn_norm_psi, &
                               TotPartsPeak, numCycShiftExcess, shiftLimit, t_kspace_operators, &
-                              tDynamicAlpha, tDynamicDamping, stepsAlpha, phase_factors
+                              tDynamicAlpha, tDynamicDamping, stepsAlpha, phase_factors, &
+                              elapsedImagTime, elapsedRealTime, tStaticShift, asymptoticShift
     use real_time_aux, only: write_overlap_state
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
@@ -36,14 +37,15 @@ module real_time_procs
                          NoAddedInitiators, SpawnedParts, acceptances, TotWalkers, &
                          nWalkerHashes, iter, fcimc_excit_gen_store, NoDied, &
                          NoBorn, NoAborted, NoRemoved, HolesInList, TotParts, Hii, &
-                         determ_sizes, determ_displs, determ_space_size, core_space
+                         determ_sizes, determ_displs, determ_space_size, core_space, &
+                         tSinglePartPhase
     use sparse_arrays, only: sparse_core_ham
     use perturbations, only: apply_perturbation, init_perturbation_creation, &
          init_perturbation_annihilation, apply_perturbation_array
     use util_mod, only: int_fmt
     use CalcData, only: AvMCExcits, tAllRealCoeff, tRealCoeffByExcitLevel, &
                         tRealSpawnCutoff, RealSpawnCutoff, tau, RealCoeffExcitThresh, &
-                        DiagSft, tTruncInitiator, OccupiedThresh, tReadPops
+                        DiagSft, tTruncInitiator, OccupiedThresh, tReadPops, InitiatorWalkNo
     use DetBitOps, only: FindBitExcitLevel
     use procedure_pointers, only: get_spawn_helement
     use util_mod, only: stochastic_round
@@ -503,8 +505,8 @@ contains
                 endif
             endif
             do run = 1, inum_runs
-               if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
-                    .or. tAllRealCoeff ) then
+               if (((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
+                    .or. tAllRealCoeff )) then
 
                   ! i exact.. just get the weights, this should also still work.
                   ! but have to exchange the weights to come from the other 
@@ -589,9 +591,10 @@ contains
                 endif
             endif
             do run = 1, inum_runs
-               if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
-                    .or. tAllRealCoeff ) then
-
+               if (((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
+                    .or. tAllRealCoeff) .and. .not. tVerletSweep ) then
+                  ! this gives a huge overhead in the verlet scheme, as all diagonal
+                  ! events are classified as valid -> #spawns ~ #dets
                   ! i exact.. just get the weights, this should also still work.
                   ! but have to exchange the weights to come from the other 
                   ! type of particles..
@@ -1064,6 +1067,24 @@ contains
         iUnused = walkExcitLevel
 
     end function attempt_create_realtime
+
+    subroutine update_elapsed_time()
+      implicit none
+      integer :: run
+      ! bookkeeping of timestats
+      ! each iteration step constist of two tau-steps -> factor of 2
+      elapsedRealTime = elapsedRealTime + tau_real
+      elapsedImagTime = elapsedImagTime + tau_imag
+      if(tStaticShift) then
+         do run = 1, inum_runs
+            if(.not. tSinglePartPhase(run)) DiagSft(run) = asymptoticShift
+         enddo
+      endif
+
+      ! cheap way of removing all initiators (save for the HF)
+      if(tInfInit) InitiatorWalkNo = TotWalkers + 1
+
+    end subroutine update_elapsed_time
 
     subroutine save_current_dets() 
       use real_time_data, only: TotPartsStorage
