@@ -51,7 +51,7 @@ module fcimc_initialisation
                            HistInitPops, AllHistInitPops, OffDiagMax, &
                            OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
-                           tTransitionRDMs, tLogEXLEVELStats
+                           tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
@@ -205,7 +205,7 @@ contains
         IF(iProcIndex.eq.Root) THEN
             if (.not. tFCIMCStats2) then
                 fcimcstats_unit = get_free_unit()
-                if (tReadPops) then
+                if (tReadPops .and. .not. t_no_append_stats) then
                     ! Restart calculation.  Append to stats file (if it exists).
                     if(tMolpro .and. .not. tMolproMimic) then
                         filename = 'FCIQMCStats_' // adjustl(MolproID)
@@ -226,7 +226,7 @@ contains
 #ifndef __PROG_NUMRUNS
             if(inum_runs.eq.2) then
                 fcimcstats_unit2 = get_free_unit()
-                if (tReadPops) then
+                if (tReadPops .and. .not. t_no_append_stats) then
                     ! Restart calculation.  Append to stats file (if it exists).
                     if(tMolpro .and. .not. tMolproMimic) then
                         filename2 = 'FCIQMCStats2_' // adjustl(MolproID)
@@ -247,7 +247,7 @@ contains
 
             IF(tTruncInitiator) THEN
                 initiatorstats_unit = get_free_unit()
-                if (tReadPops) then
+                if (tReadPops .and. .not. t_no_append_stats) then
 ! Restart calculation.  Append to stats file (if it exists)
                     OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted',position='append')
                 else
