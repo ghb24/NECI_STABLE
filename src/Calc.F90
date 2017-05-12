@@ -83,6 +83,7 @@ contains
           t_lanczos_init = .false.
           t_lanczos_store_vecs = .true.
           t_lanczos_orthogonalise = .false.
+          t_force_lanczos = .false.
           lanczos_max_restarts = 10
           lanczos_max_vecs = 40
           lanczos_energy_precision = 8
@@ -386,6 +387,8 @@ contains
             case("LANCZOS-NO-STORE-VECTORS")
                 t_lanczos_init = .true.
                 t_lanczos_store_vecs = .true.
+            case("LANCZOS-FORCE")
+                t_force_lanczos = .true.
             case("LANCZOS-MAX-SUBSPACE-SIZE")
                 call readi(lanczos_max_vecs)
             case("LANCZOS-MAX-RESTARTS")

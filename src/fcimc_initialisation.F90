@@ -52,7 +52,7 @@ module fcimc_initialisation
                            HistInitPops, AllHistInitPops, OffDiagMax, &
                            OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
-                           tTransitionRDMs, tLogEXLEVELStats
+                           tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
@@ -110,7 +110,7 @@ module fcimc_initialisation
                                  null_encode_child, attempt_die_normal
     use csf_data, only: csf_orbital_mask
     use initial_trial_states, only: calc_trial_states_lanczos, &
-                                    set_trial_populations, set_trial_states
+                                    set_trial_populations, set_trial_states, calc_trial_states_direct
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
                                set_spawn_rate
@@ -206,7 +206,7 @@ contains
         IF(iProcIndex.eq.Root) THEN
             if (.not. tFCIMCStats2) then
                 fcimcstats_unit = get_free_unit()
-                if (tReadPops) then
+                if (tReadPops .and. .not. t_no_append_stats) then
                     ! Restart calculation.  Append to stats file (if it exists).
                     if(tMolpro .and. .not. tMolproMimic) then
                         filename = 'FCIQMCStats_' // adjustl(MolproID)
@@ -227,7 +227,7 @@ contains
 #ifndef __PROG_NUMRUNS
             if(inum_runs.eq.2) then
                 fcimcstats_unit2 = get_free_unit()
-                if (tReadPops) then
+                if (tReadPops .and. .not. t_no_append_stats) then
                     ! Restart calculation.  Append to stats file (if it exists).
                     if(tMolpro .and. .not. tMolproMimic) then
                         filename2 = 'FCIQMCStats2_' // adjustl(MolproID)
@@ -248,7 +248,7 @@ contains
 
             IF(tTruncInitiator) THEN
                 initiatorstats_unit = get_free_unit()
-                if (tReadPops) then
+                if (tReadPops .and. .not. t_no_append_stats) then
 ! Restart calculation.  Append to stats file (if it exists)
                     OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted',position='append')
                 else

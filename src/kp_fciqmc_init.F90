@@ -582,6 +582,7 @@ contains
             ! Create the trial excited states.
             call calc_trial_states_lanczos(kp_trial_space_in, nexcit, ndets_this_proc, SpawnedParts, &
                                            evecs_this_proc, evals, space_sizes, space_displs)
+
             ! Set the populations of these states to the requested value.
             call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
             ! Set the trial excited states as the FCIQMC wave functions.
@@ -596,6 +597,7 @@ contains
             ! Create the trial excited states.
             call calc_trial_states_lanczos(kp_trial_space_in, nexcit, ndets_this_proc, SpawnedParts, &
                                            evecs_this_proc, evals, space_sizes, space_displs)
+
             ! Extract the desried initial excited states and average them.
             call create_init_excited_state(ndets_this_proc, evecs_this_proc, kpfciqmc_ex_labels, kpfciqmc_ex_weights, init_vecs)
             ! Set the populations of these states to the requested value.
