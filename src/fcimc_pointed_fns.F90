@@ -261,9 +261,9 @@ module fcimc_pointed_fns
             ! apply the spawn truncation, when using histogramming tau-search
             if (t_truncate_spawns .and. abs(nspawn) > n_truncate_spawns) then
                 ! TODO: add some additional output if this event happens
+!                 write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
                 nSpawn = sign(n_truncate_spawns, nspawn)
 
-                write(iout,*) "Truncating spawn from: ", nspawn, " to ", n_truncate_spawns
 
             end if
             

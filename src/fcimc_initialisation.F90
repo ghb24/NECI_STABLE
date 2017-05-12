@@ -1000,6 +1000,7 @@ contains
         ! if this is a continued run from a histogramming tau-search 
         ! and a restart of the tau-search is not forced by input, turn 
         ! both the new and the old tau-search off! 
+        ! i cannot do it here, since this is called before the popsfile read-in
         if (t_previous_hist_tau) then
             ! i have to check for tau-search option and stuff also, so that 
             ! the death tau adaption is still used atleast! todo! 

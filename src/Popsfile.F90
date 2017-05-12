@@ -42,6 +42,7 @@ MODULE PopsfileMod
     use hdf5_popsfile, only: write_popsfile_hdf5, read_popsfile_hdf5, &
                              add_pops_norm_contrib
     use util_mod
+    use tau_search_hist, only: deallocate_histograms
 
     implicit none
 
@@ -1103,12 +1104,15 @@ r_loop: do while(.not.tStoreDet)
             ! [Werner Dobrautz 4.4.2017:]
             ! Are we sure we want to stop searching if we are in the 
             ! variable shift mode? TODO
-            if (tSearchTau .or. t_hist_tau_search) then
+            if ((tSearchTau .or. t_hist_tau_search) .or. t_previous_hist_tau) then
                 if((.not.tSinglePartPhase(1)).or.(.not.tSinglePartPhase(inum_runs))) then
                     tSearchTau=.false.
                 endif
                 Tau=read_tau
-                write(6,"(A)") "Using timestep specified in POPSFILE, although continuing to dynamically adjust to optimise this"
+                write(6,"(A)") "Using timestep specified in POPSFILE!"
+                if (tSearchTau .or. t_hist_tau_search) then 
+                    write(6,"(A)") "But continuing to dynamically adjust to optimise this"
+                end if
                 write(iout,"(A,F12.8)") " read-in time-step: ", tau
 
                 ! If we have been searching for tau, we may have been searching
@@ -1356,7 +1360,23 @@ r_loop: do while(.not.tStoreDet)
         ! the run is continued from a run, where the histogramming tau-search
         ! was already performed! 
         if (.not. t_restart_hist_tau) then
+            Write(iout,*) "Turning OFF the tau-search, since continued run!"
             t_previous_hist_tau = PopPreviousHistTau
+
+            if (t_previous_hist_tau) then
+                ! can i turn off the tau-seach here? 
+                ! try it: 
+                tSearchTau = .false.
+                tSearchTauOption = .false.
+
+                ! if histogramming tau-search was used, also deallocate the 
+                ! histograms! 
+                if (t_hist_tau_search) then 
+                    call deallocate_histograms()
+                    t_hist_tau_search = .false.
+                    t_fill_frequency_hists = .false.
+                end if
+            end if
         end if
 
         ! in output generation, these fields are used when tMultiReplicas is set, so this should be 
@@ -1891,8 +1911,11 @@ r_loop: do while(.not.tStoreDet)
         ! POPSFILEHeader so that in a continued run neither of the 
         ! old or new tau-search is performed, except forced in the input
         ! with the restart-hist-tau-search keyword: 
-
-        if (t_hist_tau_search .and. (.not. t_fill_frequency_hists)) then
+        ! intermediate: always print that to test if the restart works! 
+!         if (t_hist_tau_search .and. (.not. t_fill_frequency_hists)) then
+        ! i also have to continue the writing of this flag, if i continue 
+        ! runs more than once!
+        if (t_hist_tau_search .or. t_previous_hist_tau) then
             write(iunit, *) "PopPreviousHistTau=", .true.
         end if
 
