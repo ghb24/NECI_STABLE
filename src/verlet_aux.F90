@@ -13,7 +13,7 @@ module verlet_aux
   use real_time_data, only: spawnBuf, spawnBufSize, dpsi_cache, dpsi_size, max_cache_size, &
        backup_size, temp_det_list, tau_real, tau_imag, iterInit, tDynamicAlpha, tVerletSweep, &
        runge_kutta_step
-  use real_time_procs, only: attempt_die_realtime, update_elapsed_time
+  use real_time_procs, only: attempt_die_realtime, real_time_determ_projection
   use real_time_aux, only: check_valid_spawned_list
   use SystemData, only: nel 
   use FciMCData, only: CurrentDets, HashIndex, maxSpawned, iStartFreeSlot, iEndFreeSlot, &
@@ -21,17 +21,20 @@ module verlet_aux
                         InitialSpawnedSlots, ValidSpawnedList, fcimc_excit_gen_store, &
                         indices_of_determ_states, partial_determ_vecs, FreeSlot, ll_node, &
                         popsfile_dets, WalkVecDets, exFlag, max_calc_ex_level, ilutRef, Hii, &
-                        fcimc_iter_data
-  use CalcData, only: tTruncInitiator, tau, AvMCExcits, tPairedReplicas, tKeepDoubSpawns
+                        fcimc_iter_data, determ_sizes, partial_determ_vecs
+  use CalcData, only: tTruncInitiator, tau, AvMCExcits, tPairedReplicas, tKeepDoubSpawns, &
+       tSemiStochastic
   use procedure_pointers, only: attempt_create, attempt_die, generate_excitation, &
        encode_child
   use DetBitOps, only: FindBitExcitLevel
   use Determinants, only: get_helement
   use fcimc_pointed_fns, only: attempt_create_normal
   use fcimc_helper, only: CalcParentFlag, decide_num_to_spawn, create_particle_with_hash_table, &
-       SumEContrib
+       SumEContrib, check_semistoch_flags
   use semi_stoch_procs, only: check_determ_flag
   use load_balance_calcnodes, only: DetermineDetNode
+  use ParallelHelper, only: iProcIndex
+  use FciMCParMod, only: rezero_iter_stats_each_iter
 
   implicit none
        
@@ -117,18 +120,20 @@ module verlet_aux
       popsfile_dets(:,1:TotWalkers) = CurrentDets(:,1:TotWalkers)
       ! number of initial walkers
       backup_size = TotWalkers
-
     end subroutine backup_initial_state
 
     subroutine init_verlet_iteration()
+      use rdm_data, only: rdm_definitions_t
       implicit none         
+      type(rdm_definitions_t) :: dummy
 
       FreeSlot(1:iEndFreeSlot) = 0
       iStartFreeSlot = 1
       iEndFreeSlot = 0
 
       ! verlet always uses a spawn hashtable
-      call clear_hash_table(spawn_ht)      
+      call clear_hash_table(spawn_ht)     
+      call rezero_iter_stats_each_iter(iter_data_fciqmc,dummy)
 
     end subroutine init_verlet_iteration
 
@@ -180,6 +185,8 @@ module verlet_aux
       ValidSpawnedList = InitialSpawnedSlots
       ! we do not know what is in spawn_ht, but we clearly want it to be empty now
       call clear_hash_table(spawn_ht)
+      
+      determ_index = 1
 
       do idet = 1, popsize
          ! apply spawn and death for each walker
@@ -222,10 +229,11 @@ module verlet_aux
          endif
 
          ! the initiator flags are set upon the first iteration
-         
-         ! TODO: implement semi-stochastic approach
+        
          call perform_spawn(population(:,idet),nI,parent_sign,hdiag,tCoreDet)
       end do
+
+      if(tSemiStochastic) call real_time_determ_projection()
     end subroutine apply_hamiltonian
 
 !-----------------------------------------------------------------------------------------------!
@@ -239,7 +247,7 @@ module verlet_aux
       integer :: part, nspawn, ispawn, nI_child(nel), ic, ex(2,2), unused_ex_level
       integer(n_int) :: ilut_child(0:niftot)!, ilut_parent_init(0:niftot)
       real(dp) :: prob, child_sign(lenof_sign), unused_rdm_real, unused_sign(nel)
-      logical :: tParity
+      logical :: tParity, break
       HElement_t(dp) :: HElGen
       
       unused_ex_level = 0
@@ -254,6 +262,16 @@ module verlet_aux
             if(.not. IsNullDet(nI_child)) then
                call encode_child(ilut_parent, ilut_child, ic, ex)
                if(tUseFlags) ilut_child(nOffFlag) = 0_n_int
+
+               ! treating semi-stochastic space
+               ! note that diagonal event either are not in the core space at all
+               ! or from the core space to the core space, i.e. they are covered fully
+               ! by this branching
+               if(tSemiStochastic) then
+                  break = check_semistoch_flags(ilut_child, nI_child, tCoreDet)
+                  if(break) cycle
+               endif
+
                child_sign = attempt_create(nI,iLut_parent,parent_sign,nI_child,iLut_child, &
                     prob, HElGen, ic, ex, tParity, unused_ex_level, part, &
                     unused_sign, unused_rdm_real)
@@ -268,15 +286,17 @@ module verlet_aux
 
          end do ! Over mulitple particles on same determinant.
       end do
-      child_sign = -attempt_die_realtime(nI,hdiag,parent_sign,unused_ex_level)
-      if(any(abs(child_sign) > EPS)) then
-         ! diagonal events are treated the same way as offdiagonal ones, 
-         ! except for an extra flag indicating the diagonal spawn
-         !ilut_parent_init = ilut_parent
-         !call set_flag(ilut_parent_init,get_initiator_flag(part_type))
-         ! we have to think about whether diagonal spawns get special treatment
-         ! I think they should be subject to the same rules as offdiagonal spawns
-         call create_diagonal_with_hashtable(nI, iLut_parent, child_sign)
+      if(.not. tCoreDet) then
+         child_sign = -attempt_die_realtime(nI,hdiag,parent_sign,unused_ex_level)
+         if(any(abs(child_sign) > EPS)) then
+            ! diagonal events are treated the same way as offdiagonal ones, 
+            ! except for an extra flag indicating the diagonal spawn
+            !ilut_parent_init = ilut_parent
+            !call set_flag(ilut_parent_init,get_initiator_flag(part_type))
+            ! we have to think about whether diagonal spawns get special treatment
+            ! I think they should be subject to the same rules as offdiagonal spawns
+            call create_diagonal_with_hashtable(nI, iLut_parent, child_sign)
+         endif
       endif
 
     end subroutine perform_spawn
@@ -339,8 +359,51 @@ module verlet_aux
       
       call SendProcNewParts(spawnBufSize,.false.)
       call CompressSpawnedList(spawnBufSize,iter_data_fciqmc)
+
+      if(tSemiStochastic) call add_semistoch_spawns(spawnedParts,spawnBufSize, spawn_ht, &
+           maxSpawned, CurrentDets)
+
       spawnBuf(:,1:spawnBufSize) = SpawnedParts(:,1:spawnBufSize)
     end subroutine generate_spawn_buf
+
+!-----------------------------------------------------------------------------------------------!
+
+    subroutine add_semistoch_spawns(population, populationSize, hashTable, maxSize, &
+         sourcePopulation)
+      integer(n_int), intent(inout) :: population(:,:)
+      integer, intent(inout) :: populationSize
+      type(ll_node), pointer, intent(inout) :: hashTable(:)
+      integer, intent(in) :: maxSize
+      integer(n_int), intent(in) :: sourcePopulation(:,:)
+
+      integer :: i, hashValue, ilutindex, nI(nel)
+      real(dp) :: sign(lenof_sign)
+      logical :: tSuccess
+      character(*), parameter :: this_routine = "add_semistoch_spawns"
+      
+      do i = 1, determ_sizes(iProcIndex)
+         ! check if the core-space determinant was already spawned upon
+         call decode_bit_det(nI, sourcePopulation(:,indices_of_determ_states(i)))
+         call hash_table_lookup(nI, sourcePopulation(:,indices_of_determ_states(i)), nifdbo, &
+              hashTable, population, ilutindex, hashValue, tSuccess)
+       
+         if(tSuccess) then
+            ! if it is found, add the signs
+            call extract_sign(population(:,ilutIndex),sign)
+            call encode_sign(population(:,ilutIndex),sign+partial_determ_vecs(:,i))
+         else
+            ! the spawn is new, add it to population 
+            populationSize = populationSize + 1
+            if(populationSize > maxSize) call stop_all(this_routine, &
+                 "Out of memory for adding semistochastic spawns")
+            population(:,populationSize) = sourcePopulation(:,indices_of_determ_states(i))
+            call encode_sign(population(:,populationSize), partial_determ_vecs(:,i))
+            ! add the hash table entry for the new determinant
+            call add_hash_table_entry(hashTable,populationSize,hashValue)
+         end if
+      end do
+
+    end subroutine add_semistoch_spawns
 
 !-----------------------------------------------------------------------------------------------!
 
@@ -369,7 +432,7 @@ module verlet_aux
             ! -> add up the signs
             call extract_sign(listA(:,ilutIndex), signA)
             call extract_sign(listB(:,i), signB)
-            
+
             ! we do not fill up empty slots, so we do not care if signA == 0
             ! this differs from AnnihilateSpawnedParts
             call encode_sign(listA(:,ilutIndex),signA+signB)      
@@ -380,7 +443,7 @@ module verlet_aux
             sizeA = sizeA + 1
             insertPos = sizeA
             if( sizeA > maxSizeA) &
-               call stop_all(this_routine, "Out of memory for merging ilut lists")
+                 call stop_all(this_routine, "Out of memory for merging ilut lists")
             listA(:,insertPos) = listB(:,i)
             call add_hash_table_entry(hashTable,insertPos,hashValue)
          end if
@@ -395,18 +458,25 @@ module verlet_aux
       ! but we just carry over the error from the last iteration
       implicit none
       character(*), parameter :: this_routine = "update_delta_psi"
-      
+
       ! add up delta_psi from the last iteration and spawnedParts (i.e. H^2 psi)
       call merge_ilut_lists(spawnedParts, dpsi_cache, spawn_ht, spawnBufSize, &
            dpsi_size, maxSpawned)
+      ! if semistochastic mode is run, we add the semistochastic spawns now
+      ! because they have to be included in delta psi
+
+      if(tSemiStochastic) call add_semistoch_spawns(spawnedParts, spawnBufSize, &
+           spawn_ht, maxSpawned, spawnBuf)
+
       ! cache delta_psi for the next iteration
       if(spawnBufSize > max_cache_size) call stop_all(this_routine, &
            "Insufficient memory for creating delta_psi")
-
-      dpsi_cache(:,spawnBufSize) = spawnedParts(:,spawnBufSize)
+          
+      dpsi_cache(:,1:spawnBufSize) = spawnedParts(:,1:spawnBufSize)
       dpsi_size = spawnBufSize
+         
       ! for now, consider all entries in delta_psi as safe spawns for the next iteration
-      call set_initiator_flags_array(dpsi_cache,dpsi_size)
+      if(tTruncInitiator) call set_initiator_flags_array(dpsi_cache,dpsi_size)
     end subroutine update_delta_psi
 
 !-----------------------------------------------------------------------------------------------!

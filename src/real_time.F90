@@ -42,16 +42,17 @@ module real_time
     use FciMCParMod, only: rezero_iter_stats_each_iter
     use hash, only: clear_hash_table
     use constants, only: int64, sizeof_int, n_int, lenof_sign, dp, EPS, inum_runs, bits_n_int
-    use AnnihilationMod, only: DirectAnnihilation, AnnihilateSpawnedParts
-    use bit_reps, only: extract_bit_rep
+    use AnnihilationMod, only: DirectAnnihilation, AnnihilateSpawnedParts, &
+         deterministic_annihilation
+    use bit_reps, only: extract_bit_rep, decode_bit_det
     use SystemData, only: nel, tRef_Not_HF, tAllSymSectors, nOccAlpha, nOccBeta, &
                           nbasis
     use DetBitOps, only: FindBitExcitLevel, return_ms
-    use semi_stoch_procs, only: check_determ_flag, is_core_state, determ_projection
+    use semi_stoch_procs, only: check_determ_flag, determ_projection
     use global_det_data, only: det_diagH
     use fcimc_helper, only: CalcParentFlag, decide_num_to_spawn, &
                             create_particle_with_hash_table, walker_death, &
-                            SumEContrib, end_iter_stats
+                            SumEContrib, end_iter_stats, check_semistoch_flags
     use procedure_pointers, only: generate_excitation, encode_child, &
                                   attempt_create, new_child_stats
     use bit_rep_data, only: tUseFlags, nOffFlag, niftot, extract_sign
@@ -277,7 +278,6 @@ contains
               print *, "Normalization", pert_norm(1,1), dyn_norm_red(1,1)
         endif
 
-
         ! enter the main real-time fciqmc loop here
         fciqmc_loop: do while (.true.)
 
@@ -289,6 +289,8 @@ contains
 
             if(iProcIndex == root) s_start = neci_etime(tstart)
 
+            ! the iter data is used in updating the shift, so it has to be reset before 
+            ! output
             ! this is a bad implementation : iter should be local
             ! update the normalization of the greensfunction according to damping (dynamic)
             call update_shift_damping()
@@ -523,8 +525,7 @@ contains
         ! Clear the hash table for the spawning array.
         call clear_hash_table(spawn_ht)
 
-        call rezero_iter_stats_each_iter(iter_data, dummy)
-
+        call rezero_iter_stats_each_iter(iter_data,dummy)
         if (present(iter_data2)) then
             call rezero_iter_stats_each_iter(iter_data2, dummy)
         end if
@@ -554,7 +555,7 @@ contains
         integer(n_int) :: ilut_child(0:niftot)
         real(dp) :: parent_sign(lenof_sign), parent_hdiag, prob, child_sign(lenof_sign), &
                     unused_sign(lenof_sign), unused_rdm_real, diag_sign(lenof_sign)
-        logical :: tParentIsDeterm, tParentUnoccupied, tParity, tChildIsDeterm
+        logical :: tParentIsDeterm, tParentUnoccupied, tParity, break
         HElement_t(dp) :: HelGen
         integer :: TotWalkersNew, err, determ_index
         real(dp) :: prefactor
@@ -654,17 +655,9 @@ contains
                         if (tUseFlags) ilut_child(nOffFlag) = 0_n_int
 
                         if (tSemiStochastic) then
-                            tChildIsDeterm = is_core_state(ilut_child, nI_child)
-
-                            ! Is the parent state in the core space?
-                            if (tParentIsDeterm) then
-                                ! If spawning is both from and to the core space, cancel it.
-                                if (tChildIsDeterm) cycle
-                                call set_flag(ilut_child, flag_determ_parent)
-                            else
-                                if (tChildIsDeterm) call set_flag(ilut_child, flag_deterministic)
-                            end if
-                        end if
+                           break = check_semistoch_flags(ilut_child, nI_child, tParentIsDeterm)
+                           if(break) cycle
+                        endif
                         ! unbias if the number of spawns was truncated
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                                             nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
@@ -735,7 +728,7 @@ contains
         integer(n_int) :: ilut_child(0:niftot)
         real(dp) :: parent_sign(lenof_sign), parent_hdiag, prob, child_sign(lenof_sign), &
                     unused_sign(lenof_sign), prefactor, unused_rdm_real
-        logical :: tParentIsDeterm, tParentUnoccupied, tParity, tChildIsDeterm
+        logical :: tParentIsDeterm, tParentUnoccupied, tParity, break
         HElement_t(dp) :: HelGen
         integer :: TotWalkersNew, run, determ_index
 
@@ -836,17 +829,9 @@ contains
                         if (tUseFlags) ilut_child(nOffFlag) = 0_n_int
 
                         if (tSemiStochastic) then
-                            tChildIsDeterm = is_core_state(ilut_child, nI_child)
-
-                            ! Is the parent state in the core space?
-                            if (tParentIsDeterm) then
-                                ! If spawning is both from and to the core space, cancel it.
-                                if (tChildIsDeterm) cycle
-                                call set_flag(ilut_child, flag_determ_parent)
-                            else
-                                if (tChildIsDeterm) call set_flag(ilut_child, flag_deterministic)
-                            end if
-                        end if
+                           break = check_semistoch_flags(ilut_child, nI_child, tParentIsDeterm)
+                           if(break) cycle
+                        endif
 
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                                             nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
@@ -1073,8 +1058,11 @@ endif
     subroutine perform_verlet_iteration
       implicit none
       integer :: TotWalkersNew
+            integer :: i, ni(nel)
+      real(dp) :: tmp(lenof_sign)
 
       call init_verlet_iteration()
+      call update_elapsed_time()
 
       ! load H^2 psi into spawnedParts
 
@@ -1090,6 +1078,8 @@ endif
       ! as it is modified, we need to pass an lvalue and cannot just pass int(TotWalkers)
       TotWalkersNew = int(TotWalkers,sizeof_int)
       call end_iter_stats(TotWalkersNew)
+      ! for semistochastic method, we add in the core -> core spawns
+      ! if(tSemiStochastic) call deterministic_annihilation(iter_data_fciqmc)
       call AnnihilateSpawnedParts(spawnBufSize,TotWalkersNew,iter_data_fciqmc)
       ! Updating the statistics is usually done in the annihilation, but since we
       ! explicitly carry out the annihilation, this has to be included explicitly
@@ -1098,7 +1088,6 @@ endif
       call CalcHashTableStats(TotWalkersNew,iter_data_fciqmc)
       TotWalkers = TotWalkersNew
       
-      call update_elapsed_time()
       call update_iter_data(iter_data_fciqmc)
     end subroutine perform_verlet_iteration
 

@@ -1147,33 +1147,33 @@ r_loop: do while(.not.tStoreDet)
             write(6,*) "Old popsfile detected."
             write(6,*) "Therefore automatic blocking will only start from current run"
             iBlockingIter = PreviousCycles
-        else
+         else
 #ifdef __REALTIME 
 
-           ! if reading from a real-time popsfile, also read in tau
-           ! this works because the real-time popsfile is read last
-           if(.not. tSpecifiedTau) then
-              if(.not. tRealTimePopsfile) then 
-                 tau = read_tau
-              else
-                 ! now, read_tau is the total elapsed real time
-                 tau = read_tau/(cos(real_time_info%time_angle)*PreviousCycles)
-              endif
-           endif
+            ! if reading from a real-time popsfile, also read in tau
+            ! this works because the real-time popsfile is read last
+            if(.not. tSpecifiedTau) then
+               if(.not. tRealTimePopsfile) then 
+                  tau = read_tau
+               else
+                  ! now, read_tau is the total elapsed real time
+                  tau = read_tau/(cos(real_time_info%time_angle)*PreviousCycles)
+               endif
+            endif
 
             ! also use the adjusted pSingle etc. if provided
             if (read_psingles /= 0.0_dp) then
-                pSingles = read_psingles
-                pDoubles = 1.0_dp - pSingles
-                print *, " use pSingles and pDoubles provided by POPSFILE!"
-                print *, " pSingles set to: ", pSingles
-                print *, " pDoubles set to: ", pDoubles
+               pSingles = read_psingles
+               pDoubles = 1.0_dp - pSingles
+               print *, " use pSingles and pDoubles provided by POPSFILE!"
+               print *, " pSingles set to: ", pSingles
+               print *, " pDoubles set to: ", pDoubles
             end if
 
             ! also do that for pParallel
             if (read_pparallel /= 0.0_dp) then
-                print *, " use pParallel provided by POPSFILE: ", read_pparallel
-                pParallel = read_pparallel
+               print *, " use pParallel provided by POPSFILE: ", read_pparallel
+               pParallel = read_pparallel
             end if
 #else
 
@@ -1182,67 +1182,66 @@ r_loop: do while(.not.tStoreDet)
             ! Are we sure we want to stop searching if we are in the 
             ! variable shift mode? TODO
             if (tSearchTau .or. t_hist_tau_search) then
-                if((.not.tSinglePartPhase(1)).or.(.not.tSinglePartPhase(inum_runs))) then
-                    tSearchTau=.false.
-                endif
-                Tau=read_tau
-                write(6,"(A)") "Using timestep specified in POPSFILE, although continuing to dynamically adjust to optimise this"
-                write(iout,"(A,F12.8)") " read-in time-step: ", tau
+               if((.not.tSinglePartPhase(1)).or.(.not.tSinglePartPhase(inum_runs))) then
+                  tSearchTau=.false.
+               endif
+               Tau=read_tau
+               write(6,"(A)") "Using timestep specified in POPSFILE, although continuing to dynamically adjust to optimise this"
+               write(iout,"(A,F12.8)") " read-in time-step: ", tau
 
-                ! If we have been searching for tau, we may have been searching
-                ! for psingles (it is done at the same time).
-                if (abs(read_psingles) > 1.0e-12_dp) then
-                    if (tCSF) then ! .or. tSpinProjDets) then
-                        call stop_all(this_routine, "pSingles storage not yet &
-                                      &implemented for CSFs")
-                    end if
-                    pSingles = read_psingles
-                    if (.not. tReltvy) &
-                    pDoubles = 1.0_dp - pSingles
+               ! If we have been searching for tau, we may have been searching
+               ! for psingles (it is done at the same time).
+               if (abs(read_psingles) > 1.0e-12_dp) then
+                  if (tCSF) then ! .or. tSpinProjDets) then
+                     call stop_all(this_routine, "pSingles storage not yet &
+                          &implemented for CSFs")
+                  end if
+                  pSingles = read_psingles
+                  if (.not. tReltvy) &
+                       pDoubles = 1.0_dp - pSingles
 
-                    write(iout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
-                    write(iout,"(A,F12.8)") " pSingles: ", pSingles
-                    write(iout,"(A,F12.8)") " pDoubles: ", pDoubles
+                  write(iout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
+                  write(iout,"(A,F12.8)") " pSingles: ", pSingles
+                  write(iout,"(A,F12.8)") " pDoubles: ", pDoubles
 
-                end if
+               end if
 
->>>>>>> 57af3a8e701f35f487c818d0e2810e9b15634c62
-                if (abs(read_pparallel) > 1.0e-12_dp) then
-                    pParallel = read_pparallel
-                    write(iout,"(A)") "Using pParallel from POPSFILE: " 
-                    write(iout,"(A,F12.8)") " pParallel: ", pParallel
-                end if
+               if (abs(read_pparallel) > 1.0e-12_dp) then
+                  pParallel = read_pparallel
+                  write(iout,"(A)") "Using pParallel from POPSFILE: " 
+                  write(iout,"(A,F12.8)") " pParallel: ", pParallel
+               end if
 
             else if (t_keep_tau_fixed) then 
-                write(6,"(A)") "Using timestep specified in POPSFILE, without continuing to dynammically adjust it!"
-                write(6,*) "Timestep is tau=", tau
-                tau = read_tau 
+               write(6,"(A)") "Using timestep specified in POPSFILE, without continuing to dynammically adjust it!"
+               write(6,*) "Timestep is tau=", tau
+               tau = read_tau 
 
-                if (abs(read_psingles) > 1.0e-12_dp) then
-                    pSingles = read_psingles
-                    if (.not. tReltvy) then
-                        pDoubles = 1.0_dp - pSingles
-                    end if
-                    write(iout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
-                    write(iout,"(A,F12.8)") " pSingles: ", pSingles
-                    write(iout,"(A,F12.8)") " pDoubles: ", pDoubles
+               if (abs(read_psingles) > 1.0e-12_dp) then
+                  pSingles = read_psingles
+                  if (.not. tReltvy) then
+                     pDoubles = 1.0_dp - pSingles
+                  end if
+                  write(iout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
+                  write(iout,"(A,F12.8)") " pSingles: ", pSingles
+                  write(iout,"(A,F12.8)") " pDoubles: ", pDoubles
 
-                end if
+               end if
 
-                if (abs(read_pparallel) > 1.0e-12_dp) then
-                    pParallel = read_pparallel
-                    write(iout,"(A)") "Using pParallel from POPSFILE: " 
-                    write(iout,"(A,F12.8)") " pParallel: ", pParallel
-                end if
+               if (abs(read_pparallel) > 1.0e-12_dp) then
+                  pParallel = read_pparallel
+                  write(iout,"(A)") "Using pParallel from POPSFILE: " 
+                  write(iout,"(A,F12.8)") " pParallel: ", pParallel
+               end if
             else
-                !Tau specified. if it is different, write this here.
-                if(abs(read_tau-Tau).gt.1.0e-5_dp) then
-                    call warning_neci(this_routine,"Timestep specified in input file is different to that in the popsfile.")
-                    
-                    write(6,"(A,F12.8)") "Old timestep: ",read_tau
-                    write(6,"(A,F12.8)") "New timestep: ",tau
-                    
-                endif
+               !Tau specified. if it is different, write this here.
+               if(abs(read_tau-Tau).gt.1.0e-5_dp) then
+                  call warning_neci(this_routine,"Timestep specified in input file is different to that in the popsfile.")
+
+                  write(6,"(A,F12.8)") "Old timestep: ",read_tau
+                  write(6,"(A,F12.8)") "New timestep: ",tau
+
+               endif
             endif
             if (abs(read_psingles) > 1.0e-12_dp) then
                if (tCSF) then ! .or. tSpinProjDets) then
@@ -1258,7 +1257,7 @@ r_loop: do while(.not.tStoreDet)
 
 #endif
             iBlockingIter = PopBlockingIter
-        endif
+         endif
     
     end subroutine CheckPopsParams
 

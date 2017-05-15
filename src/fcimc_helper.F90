@@ -7,13 +7,13 @@ module fcimc_helper
     use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
                           tLatticeGens, nBasis, tHistSpinDist, tRef_Not_HF
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
-    use semi_stoch_procs, only: recalc_core_hamil_diag
+    use semi_stoch_procs, only: recalc_core_hamil_diag, is_core_state
     use bit_reps, only: NIfTot, test_flag, extract_flags, &
                         encode_bit_rep, NIfD, set_flag_general, NIfDBO, &
                         extract_sign, set_flag, encode_sign, &
                         flag_trial, flag_connected, flag_deterministic, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
-                        get_initiator_flag, get_initiator_flag_by_run
+                        get_initiator_flag, get_initiator_flag_by_run, flag_determ_parent
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
@@ -2123,6 +2123,22 @@ contains
         write(6,*) 'Calculated instantaneous projected energy', proje_iter
 
     end subroutine
+
+    function check_semistoch_flags(ilut_child, nI_child, tCoreDet) result(break)
+      integer(n_int), intent(inout) :: ilut_child(0:niftot)
+      integer, intent(in) :: nI_child(nel)
+      logical, intent(in) :: tCoreDet
+      logical :: tChildIsDeterm
+      logical :: break
+      break = .false.
+      tChildIsDeterm = is_core_state(ilut_child, nI_child)
+      if(tCoreDet) then
+         if(tChildIsDeterm) break = .true.
+         call set_flag(ilut_child, flag_determ_parent)
+      else
+         if(tChildIsDeterm) call set_flag(ilut_child, flag_deterministic)
+      endif
+    end function check_semistoch_flags
 
     subroutine verify_pop(BackupDets)
       use bit_reps, only: extract_bit_rep

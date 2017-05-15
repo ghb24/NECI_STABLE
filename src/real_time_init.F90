@@ -39,7 +39,7 @@ module real_time_init
     use Logging, only: tIncrementPops
     use kp_fciqmc_data_mod, only: tMultiplePopStart, tScalePopulation, &
                                   tOverlapPert, overlap_pert, scaling_factor
-    use CalcData, only: tChangeProjEDet, tReadPops, tRestartHighPop, tFCIMC, &
+    use CalcData, only: tChangeProjEDet, tReadPops, tRestartHighPop, tFCIMC, tJumpShift, &
                         tStartSinglePart, tau, nmcyc, iPopsFileNoRead, tWritePopsNorm, &
                         tWalkContGrow, diagSft, pops_norm, InitWalkers, MemoryFacSpawn, &
                         StepsSft, tSemiStochastic, tTruncInitiator, tAddToInitiator
@@ -777,6 +777,9 @@ contains
 
         ! startsinglepart does not work with popsfile and is not wanted too
         tStartSinglePart = .false.
+        ! also, the shift is something infamous in real-time, so definitely no
+        ! jumpshift
+        tJumpShift = .false.
 
         ! but to ensure that the shift does not vary anymore, since there is 
         ! no such concept as the varying shift in the real-time fciqmc

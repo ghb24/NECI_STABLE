@@ -1074,6 +1074,7 @@ contains
         OldAllAvWalkersCyc = AllSumWalkersCyc/real(StepsSft,dp)
 
 #ifdef __REALTIME
+        if(iter .eq. 0) OldAllAvWalkersCyc = AllSumWalkersCyc
         OldAllAvWalkersCyc_1 = AllSumWalkersCyc_1 / real(StepsSft,dp)
 #endif
 
