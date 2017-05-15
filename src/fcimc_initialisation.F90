@@ -2037,7 +2037,8 @@ contains
 
         HElement_t(dp) :: largest_coeff, sgn
         integer(n_int) :: largest_det(0:NIfTot)
-        integer :: run, j, proc_highest
+        integer :: run, j
+        integer(int32) :: proc_highest
         integer(n_int) :: ilut(0:NIfTot)
         integer(int32) :: int_tmp(2)
 #ifdef __DEBUG
@@ -2063,11 +2064,15 @@ contains
 
                 ! Find the largest det on any processor (n.b. discard the
                 ! non-integer part. This isn't all that important).
+                ! [W.D. 15.5.2017:]
+                ! for the test suite problems, maybe it is important.. 
+                ! because there seems to be some compiler dependent 
+                ! differences..
                 call MPIAllReduceDatatype(&
                     (/int(abs(largest_coeff), int32), int(iProcIndex, int32)/), 1, &
                     MPI_MAXLOC, MPI_2INTEGER, int_tmp)
                 proc_highest = int_tmp(2)
-                call MPIBCast(largest_det, NIfTot+1, proc_highest)
+                call MPIBCast(largest_det, NIfTot+1, int(proc_highest,n_int))
 
                 write(6,*) 'Setting ref', run
                 call writebitdet(6, largest_det, .true.)

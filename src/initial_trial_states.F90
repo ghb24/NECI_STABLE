@@ -293,6 +293,9 @@ contains
             space_displs(i) = sum(space_sizes(:i-1))
         end do
 
+        ! [W.D. 15.5.2017:]
+        ! is the sort behaving different, depending on the compiler? 
+        ! since different references for different compilers..??
         call sort(trial_iluts(:,1:ndets_this_proc), ilut_lt, ilut_gt)
 
         if (iProcIndex == root) then
