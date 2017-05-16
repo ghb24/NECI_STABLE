@@ -279,7 +279,7 @@ contains
 !                     call MPIBcast (HighestPopDet(0:NIfTot, run), NIfTot+1, &
 !                                    int(proc_highest(run),n_int))
                     call MPIBcast (HighestPopDet(0:NIfTot, run), NIfTot+1, &
-                                   proc_highest(run))
+                                   int(proc_highest(run),sizeof_int))
 
                     call update_run_reference(HighestPopDet(:, run), run)
 
@@ -320,7 +320,7 @@ contains
 !                     call MPIBcast (HighestPopDet(:,run), NIfTot+1, &
 !                                    int(proc_highest(run),n_int))
                     call MPIBcast (HighestPopDet(:,run), NIfTot+1, &
-                                   proc_highest(run))
+                                   int(proc_highest(run),sizeof_int))
 
                     call update_run_reference(HighestPopDet(:, run), run)
                     
