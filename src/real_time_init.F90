@@ -59,7 +59,7 @@ module real_time_init
     use LoggingData, only: tZeroProjE, tFCIMCStats2
     use fcimc_output, only: write_fcimcstats2, WriteFciMCStatsHeader
     use replica_data, only: allocate_iter_data, set_initial_global_data
-    use bit_rep_data, only: nifbcast, niftot
+    use bit_rep_data, only: nifbcast, niftot, extract_sign
     use bit_reps, only: decode_bit_det
 
     implicit none

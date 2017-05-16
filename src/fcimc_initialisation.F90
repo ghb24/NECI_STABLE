@@ -1165,7 +1165,7 @@ contains
         integer :: perturb_ncreate, perturb_nannihilate
         integer :: nrdms_standard, nrdms_transition
         character(255) :: identifier
-        
+        real(dp) :: dummy(lenof_sign)        
         !default
         Popinum_runs=1
 

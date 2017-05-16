@@ -28,7 +28,7 @@ module real_time
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
                         tChangeProjEDet, DiagSft, nmcyc, tau, InitWalkers, &
-                        s_global_start, StepsSft
+                        s_global_start, StepsSft, semistoch_shift_iter
     use FciMCData, only: pops_pert, walker_time, iter, ValidSpawnedList, spawnedParts, &
                          spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot, &
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
@@ -49,6 +49,7 @@ module real_time
                           nbasis
     use DetBitOps, only: FindBitExcitLevel, return_ms
     use semi_stoch_procs, only: check_determ_flag, determ_projection
+    use semi_stoch_gen, only: init_semi_stochastic
     use global_det_data, only: det_diagH
     use fcimc_helper, only: CalcParentFlag, decide_num_to_spawn, &
                             create_particle_with_hash_table, walker_death, &
@@ -480,6 +481,13 @@ contains
             if (tWritePopsFound) call WriteToPopsfileParOneArr(CurrentDets, TotWalkers)
             if (tSingBiasChange) call CalcApproxpDoubles()
         end if
+
+        if(semistoch_shift_iter/=0 .and. all(.not. tSinglePartPhase)) then
+           if(Iter == semistoch_shift_iter + 1) then
+              tSemiStochastic = .true.
+              call init_semi_stochastic(ss_space_in)
+           endif
+        endif
 
     end subroutine check_real_time_iteration
 
@@ -1058,8 +1066,6 @@ endif
     subroutine perform_verlet_iteration
       implicit none
       integer :: TotWalkersNew
-            integer :: i, ni(nel)
-      real(dp) :: tmp(lenof_sign)
 
       call init_verlet_iteration()
       call update_elapsed_time()
