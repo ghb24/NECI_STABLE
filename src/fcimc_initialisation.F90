@@ -2072,7 +2072,8 @@ contains
                     (/int(abs(largest_coeff), int32), int(iProcIndex, int32)/), 1, &
                     MPI_MAXLOC, MPI_2INTEGER, int_tmp)
                 proc_highest = int_tmp(2)
-                call MPIBCast(largest_det, NIfTot+1, int(proc_highest,n_int))
+!                 call MPIBCast(largest_det, NIfTot+1, int(proc_highest,n_int))
+                call MPIBCast(largest_det, NIfTot+1, proc_highest)
 
                 write(6,*) 'Setting ref', run
                 call writebitdet(6, largest_det, .true.)
