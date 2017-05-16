@@ -576,6 +576,9 @@ MODULE Logging
         case("PRINT-1RDMS-FROM-SPINFREE")
             tPrint1RDMsFromSpinfree = .true.
 
+        case("NO-APPEND-STATS")
+            t_no_append_stats = .true.
+
         case("DIAGFLYONERDM")
 !This sets the calculation to diagonalise the *1* electron reduced density matrix.   
 !The eigenvalues give the occupation numbers of the natural orbitals (eigenfunctions).

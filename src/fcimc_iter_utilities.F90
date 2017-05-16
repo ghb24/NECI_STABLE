@@ -167,7 +167,7 @@ contains
 
         use HPHFRandExcitMod, only: ReturnAlphaOpenDet
 
-        integer :: pop_highest(inum_runs), proc_highest(inum_runs)
+        integer(int32) :: pop_highest(inum_runs), proc_highest(inum_runs)
         real(dp) :: pop_change, old_Hii
         integer :: det(nel), i, error, ierr, run
         integer(int32) :: int_tmp(2)
@@ -228,6 +228,9 @@ contains
         ! in each of the runs.
         ! n.b. the use of int(iHighestPop) obviously introduces a small amount
         !      of error here, by ignoring the fractional part...
+        ! [Werner Dobrautz 15.5.2017:]
+        ! maybe this samll error here is the cause of the failed test_suite
+        ! runs.. 
         if (tReplicaReferencesDiffer) then
 
             do run = 1, inum_runs
@@ -272,7 +275,10 @@ contains
 #endif
 !            write(iout,*) "***",AllNoAtHF,FracLargerDet,pop_change, pop_highest,proc_highest
             ! Do we need to do a change?
-            if (pop_change < pop_highest(run) .and. pop_highest(run) > pop_change_min) then
+            ! is this a valid comparison?? we ware comparing a real(dp) pop_change 
+            ! with a (now) 32 bit integer..
+            if (pop_change < real(pop_highest(run),dp) .and. & 
+                real(pop_highest(run),dp) > pop_change_min) then
 
                 if (tChangeProjEDet) then
 
@@ -288,18 +294,22 @@ contains
                     !
 
                     ! Communicate the change to all dets and print out.
+                    ! [W.D. 15.5.2017:]
+                    ! we are typecasting here too.. 
+                    ! we are casting a 32 bit int to a 64 bit ... 
+                    ! that could cause troubles! 
                     call MPIBcast (HighestPopDet(0:NIfTot, run), NIfTot+1, &
-                                   proc_highest(run))
+                                   int(proc_highest(run),n_int))
 
                     call update_run_reference(HighestPopDet(:, run), run)
 
                     ! Reset averages
-                    SumENum = 0
-                    sum_proje_denominator = 0
-                    cyc_proje_denominator = 0
+                    SumENum = 0.0_dp
+                    sum_proje_denominator = 0.0_dp
+                    cyc_proje_denominator = 0.0_dp
                     SumNoatHF = 0.0_dp
                     VaryShiftCycles = 0
-                    SumDiagSft = 0
+                    SumDiagSft = 0.0_dp
                     root_print 'Zeroing all energy estimators.'
 
                     !Since we have a new reference, we must block only from after this point
@@ -328,7 +338,7 @@ contains
                     
                     ! Broadcast the changed det to all processors
                     call MPIBcast (HighestPopDet(:,run), NIfTot+1, &
-                                   proc_highest(run))
+                                   int(proc_highest(run),n_int))
 
                     call update_run_reference(HighestPopDet(:, run), run)
                     
@@ -835,7 +845,10 @@ contains
                         VaryShiftIter(run) = Iter
                         iBlockingIter(run) = Iter + PreviousCycles
                         tSinglePartPhase(run) = .false.
-                        if(TargetGrowRate(run).ne.0.0_dp) then
+                        ! [W.D.15.5.2017:]
+                        ! we should remove these equal 0 comparisons..
+!                         if(TargetGrowRate(run).ne.0.0_dp) then
+                        if(abs(TargetGrowRate(run)) > EPS) then
                             write(iout,"(A)") "Setting target growth rate to 1."
                             TargetGrowRate=0.0_dp
                         endif
@@ -872,7 +885,10 @@ contains
                         VaryShiftIter(run) = Iter
                         iBlockingIter(run) = Iter + PreviousCycles
                         tSinglePartPhase(run) = .false.
-                        if(TargetGrowRate(run).ne.0.0_dp) then
+                        ! [W.D. 15.5.2017]
+                        ! change equal 0 comps
+!                         if(TargetGrowRate(run).ne.0.0_dp) then
+                        if(abs(TargetGrowRate(run)) > EPS) then
                             write(iout,"(A)") "Setting target growth rate to 1."
                             TargetGrowRate(run)=0.0_dp
                         endif
@@ -908,7 +924,9 @@ contains
 
                     !In case we want to continue growing, TargetGrowRate > 0.0_dp
                     ! New shift value
-                    if(TargetGrowRate(run).ne.0.0_dp) then
+!                     if(TargetGrowRate(run).ne.0.0_dp) then
+                    ! [W.D. 15.5.2017]
+                    if(abs(TargetGrowRate(run)) > EPS) then
 #ifdef __CMPLX
                         if(sum(AllTotParts(lb:ub)).gt.TargetGrowRateWalk(run)) then
 #else
@@ -986,9 +1004,12 @@ contains
 
                  ! Calculate the projected energy.
 #ifdef __CMPLX
-                 if (any(AllSumNoatHF(lb:ub) /= 0.0)) then
+                ! [W.D. 15.5.2017:]
+!                  if (any(AllSumNoatHF(lb:ub) /= 0.0_dp)) then
+                 if (any(abs(AllSumNoatHF(lb:ub)) > EPS)) then
 #else
-                 if ((AllSumNoatHF(run) /= 0.0)) then
+!                  if ((AllSumNoatHF(run) /= 0.0_dp)) then
+                 if (abs(AllSumNoatHF(run)) > EPS) then
 #endif
                          ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
                                           + proje_ref_energy_offsets(run)
@@ -999,10 +1020,10 @@ contains
                 endif
                 ! If we are re-zeroing the shift
                 if (tReZeroShift(run)) then
-                    DiagSft(run) = 0
+                    DiagSft(run) = 0.0_dp
                     VaryShiftCycles(run) = 0
-                    SumDiagSft(run) = 0
-                    AvDiagSft(run) = 0
+                    SumDiagSft(run) = 0.0_dp
+                    AvDiagSft(run) = 0.0_dp
                 endif
             enddo
 
@@ -1035,17 +1056,17 @@ contains
         
         ! Zero all of the variables which accumulate for each iteration.
 
-        IterTime = 0.0
+        IterTime = 0.0_sp
         SumWalkersCyc(:)=0.0_dp
-        Annihilated = 0
-        Acceptances = 0
-        NoBorn = 0
-        SpawnFromSing = 0
-        NoDied = 0
-        ENumCyc = 0
-        ENumCycAbs = 0
+        Annihilated = 0.0_dp
+        Acceptances = 0.0_dp
+        NoBorn = 0.0_dp
+        SpawnFromSing = 0.0_dp
+        NoDied = 0.0_dp
+        ENumCyc = 0.0_dp
+        ENumCycAbs = 0.0_dp
         HFCyc = 0.0_dp
-        cyc_proje_denominator=0
+        cyc_proje_denominator=0.0_dp
         trial_numerator = 0.0_dp
         trial_denom = 0.0_dp
 
@@ -1096,7 +1117,7 @@ contains
         iter_data%update_iters = 0
         iter_data%tot_parts_old = tot_parts_new_all
 
-        max_cyc_spawn = 0
+        max_cyc_spawn = 0.0_dp
 
         cont_spawn_attempts = 0
         cont_spawn_success = 0

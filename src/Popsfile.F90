@@ -10,8 +10,8 @@ MODULE PopsfileMod
                         iWeightPopRead, iPopsFileNoRead, Tau, tPopsAlias, &
                         InitiatorWalkNo, MemoryFacPart, tLetInitialPopDie, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
-                        pops_norm, tWritePopsNorm, t_keep_tau_fixed, tSpecifiedTau, &
-                        t_hist_tau_search
+                        pops_norm, tWritePopsNorm, t_keep_tau_fixed, t_hist_tau_search, &
+                        t_restart_hist_tau, t_fill_frequency_hists, t_previous_hist_tau
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
@@ -42,6 +42,7 @@ MODULE PopsfileMod
     use hdf5_popsfile, only: write_popsfile_hdf5, read_popsfile_hdf5, &
                              add_pops_norm_contrib
     use util_mod
+    use tau_search_hist, only: deallocate_histograms
 
     use real_time_data, only: t_real_time_fciqmc, TotWalkers_orig, tRealTimePopsfile, &
          real_time_info, t_kspace_operators, phase_factors
@@ -1181,36 +1182,40 @@ r_loop: do while(.not.tStoreDet)
             ! [Werner Dobrautz 4.4.2017:]
             ! Are we sure we want to stop searching if we are in the 
             ! variable shift mode? TODO
-            if (tSearchTau .or. t_hist_tau_search) then
-               if((.not.tSinglePartPhase(1)).or.(.not.tSinglePartPhase(inum_runs))) then
-                  tSearchTau=.false.
-               endif
-               Tau=read_tau
-               write(6,"(A)") "Using timestep specified in POPSFILE, although continuing to dynamically adjust to optimise this"
-               write(iout,"(A,F12.8)") " read-in time-step: ", tau
 
-               ! If we have been searching for tau, we may have been searching
-               ! for psingles (it is done at the same time).
-               if (abs(read_psingles) > 1.0e-12_dp) then
-                  if (tCSF) then ! .or. tSpinProjDets) then
-                     call stop_all(this_routine, "pSingles storage not yet &
-                          &implemented for CSFs")
-                  end if
-                  pSingles = read_psingles
-                  if (.not. tReltvy) &
-                       pDoubles = 1.0_dp - pSingles
+            if ((tSearchTau .or. t_hist_tau_search) .or. t_previous_hist_tau) then
+                if((.not.tSinglePartPhase(1)).or.(.not.tSinglePartPhase(inum_runs))) then
+                    tSearchTau=.false.
+                endif
+                Tau=read_tau
+                write(6,"(A)") "Using timestep specified in POPSFILE!"
+                if (tSearchTau .or. t_hist_tau_search) then 
+                    write(6,"(A)") "But continuing to dynamically adjust to optimise this"
+                end if
+                write(iout,"(A,F12.8)") " read-in time-step: ", tau
 
-                  write(iout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
-                  write(iout,"(A,F12.8)") " pSingles: ", pSingles
-                  write(iout,"(A,F12.8)") " pDoubles: ", pDoubles
+                ! If we have been searching for tau, we may have been searching
+                ! for psingles (it is done at the same time).
+                if (abs(read_psingles) > 1.0e-12_dp) then
+                    if (tCSF) then ! .or. tSpinProjDets) then
+                        call stop_all(this_routine, "pSingles storage not yet &
+                                      &implemented for CSFs")
+                    end if
+                    pSingles = read_psingles
+                    if (.not. tReltvy) &
+                    pDoubles = 1.0_dp - pSingles
 
-               end if
+                    write(iout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
+                    write(iout,"(A,F12.8)") " pSingles: ", pSingles
+                    write(iout,"(A,F12.8)") " pDoubles: ", pDoubles
 
-               if (abs(read_pparallel) > 1.0e-12_dp) then
-                  pParallel = read_pparallel
-                  write(iout,"(A)") "Using pParallel from POPSFILE: " 
-                  write(iout,"(A,F12.8)") " pParallel: ", pParallel
-               end if
+                end if
+
+                if (abs(read_pparallel) > 1.0e-12_dp) then
+                    pParallel = read_pparallel
+                    write(iout,"(A)") "Using pParallel from POPSFILE: " 
+                    write(iout,"(A,F12.8)") " pParallel: ", pParallel
+                end if
 
             else if (t_keep_tau_fixed) then 
                write(6,"(A)") "Using timestep specified in POPSFILE, without continuing to dynammically adjust it!"
@@ -1346,6 +1351,7 @@ r_loop: do while(.not.tStoreDet)
         real(dp) :: PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
         real(dp) :: PopTotImagTime, PopSft2, PopParBias        
         real(dp) :: PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2
+        logical :: PopPreviousHistTau
         character(*), parameter :: t_r = 'ReadPopsHeadv4'
 #ifdef __REALTIME
         ! need dummy read-in variable, since we start from a converged real 
@@ -1364,7 +1370,8 @@ r_loop: do while(.not.tStoreDet)
                     PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt, &
                     PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2, &
                     PopTotImagTime, Popinum_runs, PopParBias, PopMultiSft, &
-                    PopMultiSumNoatHF, PopMultiSumENum, PopBalanceBlocks
+                    PopMultiSumNoatHF, PopMultiSumENum, PopBalanceBlocks, &
+                    PopPreviousHistTau
 
         PopsVersion=FindPopsfileVersion(iunithead)
         if(PopsVersion.ne.4) call stop_all("ReadPopsfileHeadv4","Wrong popsfile version for this routine.")
@@ -1450,7 +1457,31 @@ r_loop: do while(.not.tStoreDet)
         TotImagTime = PopTotImagTime
 
 
+
         ! this is written if multiple replicas are used -> read it also in these cases
+        ! [Werner Dobrautz 5.5.2017:]
+        ! turn off the histogramming and the default old tau-search if 
+        ! the run is continued from a run, where the histogramming tau-search
+        ! was already performed! 
+        if (.not. t_restart_hist_tau) then
+            Write(iout,*) "Turning OFF the tau-search, since continued run!"
+            t_previous_hist_tau = PopPreviousHistTau
+
+            if (t_previous_hist_tau) then
+                ! can i turn off the tau-seach here? 
+                ! try it: 
+                tSearchTau = .false.
+                tSearchTauOption = .false.
+
+                ! if histogramming tau-search was used, also deallocate the 
+                ! histograms! 
+                if (t_hist_tau_search) then 
+                    call deallocate_histograms()
+                    t_hist_tau_search = .false.
+                    t_fill_frequency_hists = .false.
+                end if
+            end if
+        end if
 
         ! in output generation, these fields are used when tMultiReplicas is set, so this should be 
         ! used here, too (not tReplicaReferencesDiffer), given that the number of runs did not
@@ -1994,6 +2025,20 @@ r_loop: do while(.not.tStoreDet)
                 write(iunit, '(i16,",")', advance='no') WalkersOnNodes(i)
             end do
             write(iunit, *)
+        end if
+
+        ! [Werner Dobrautz 5.5.2017:]
+        ! in case of a histogramming tau-search and if the 
+        ! histograms have been filled already, indicate that in the 
+        ! POPSFILEHeader so that in a continued run neither of the 
+        ! old or new tau-search is performed, except forced in the input
+        ! with the restart-hist-tau-search keyword: 
+        ! intermediate: always print that to test if the restart works! 
+!         if (t_hist_tau_search .and. (.not. t_fill_frequency_hists)) then
+        ! i also have to continue the writing of this flag, if i continue 
+        ! runs more than once!
+        if (t_hist_tau_search .or. t_previous_hist_tau) then
+            write(iunit, *) "PopPreviousHistTau=", .true.
         end if
 
         ! Store the random hash in the header to allow later processing

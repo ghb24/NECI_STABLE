@@ -373,7 +373,12 @@ contains
                 ! then check that this determinant is actually connected to it!
                 if (only_keep_conn) then
                     HEl = get_helement(HFDet, nI, ilutHF, ilut)
-                    if (abs(real(HEl,dp)) < 1.e-12_dp) cycle
+                    ! [W.D. 15.5.2017:]
+                    ! is this still enough, even for Hamiltonians containing
+                    ! complex entries?? 
+                    ! and why is the cast to real(dp) done here?? 
+!                     if (abs(real(HEl,dp)) < 1.e-12_dp) cycle
+                    if (abs(HEl) < 1.e-12_dp) cycle
                 end if
                 call add_state_to_space(ilut, ilut_list, space_size, nI)
             end do

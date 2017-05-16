@@ -1331,27 +1331,29 @@ contains
 
         ! and the norm then is the same for all cases:
 
-        ! also print out a normed version for comparison
-        sum_all = sum(all_frequency_bins)
+        if (iprocindex == root) then
+            ! also print out a normed version for comparison
+            sum_all = sum(all_frequency_bins)
 
-        ! check if integer overflow:
-        if (.not. sum_all < 0) then
-            norm = real(sum_all, dp)
+            ! check if integer overflow:
+            if (.not. sum_all < 0) then
+                norm = real(sum_all, dp)
 
-            iunit = get_free_unit()
-            call get_unique_filename('frequency_histogram_normed', .true., &
-                .true., 1, filename)
-            open(iunit, file = filename, status = 'unknown')
+                iunit = get_free_unit()
+                call get_unique_filename('frequency_histogram_normed', .true., &
+                    .true., 1, filename)
+                open(iunit, file = filename, status = 'unknown')
 
-            do i = 1, n_frequency_bins
-                write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
-                write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
-            end do
+                do i = 1, n_frequency_bins
+                    write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
+                    write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
+                end do
 
-            close(iunit)
-        else
-            write(iout,*) "Integer overflow in normed frequency histogram!" 
-            write(iout,*) "DO NOT PRINT IT!"
+                close(iunit)
+            else
+                write(iout,*) "Integer overflow in normed frequency histogram!" 
+                write(iout,*) "DO NOT PRINT IT!"
+            end if
         end if
 
     end subroutine print_frequency_histograms

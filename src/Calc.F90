@@ -84,6 +84,7 @@ contains
           t_lanczos_init = .false.
           t_lanczos_store_vecs = .true.
           t_lanczos_orthogonalise = .false.
+          t_force_lanczos = .false.
           lanczos_max_restarts = 10
           lanczos_max_vecs = 40
           lanczos_energy_precision = 8
@@ -391,6 +392,8 @@ contains
             case("LANCZOS-NO-STORE-VECTORS")
                 t_lanczos_init = .true.
                 t_lanczos_store_vecs = .true.
+            case("LANCZOS-FORCE")
+                t_force_lanczos = .true.
             case("LANCZOS-MAX-SUBSPACE-SIZE")
                 call readi(lanczos_max_vecs)
             case("LANCZOS-MAX-RESTARTS")
@@ -1082,6 +1085,14 @@ contains
                if (item < nitems) then 
                    call getf(max_frequency_bound) 
                end if
+
+            case("RESTART-HIST-TAU-SEARCH", "RESTART-NEW-TAU-SEARCH")
+                ! [Werner Dobrautz 5.5.2017:]
+                ! a keyword, which in case of a continued run from a 
+                ! previous hist-tau-search run restarts the histogramming 
+                ! tau-search anyway, in case the tau-search is not yet 
+                ! converged enough
+                t_restart_hist_tau = .true.
 
             case("TRUNCATE-SPAWNS")
                 ! [Werner Dobrautz, 4.4.2017:]

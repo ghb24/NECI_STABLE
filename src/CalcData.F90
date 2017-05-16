@@ -176,6 +176,7 @@ integer(int64) :: iExitWalkers  !Exit criterion, based on total walker number
 logical :: t_lanczos_init
 logical :: t_lanczos_store_vecs
 logical :: t_lanczos_orthogonalise
+logical :: t_force_lanczos
 integer :: lanczos_max_restarts
 integer :: lanczos_max_vecs
 integer :: lanczos_energy_precision
@@ -330,6 +331,16 @@ character(255) :: aliasStem
 ! new tau-search using HISTOGRAMS: 
 logical :: t_hist_tau_search = .false., t_hist_tau_search_option = .false.
 logical :: t_fill_frequency_hists = .false.
+
+! also use a logical, read-in in the case of a continued run, which turns 
+! off the tau-search independent of the input and uses the time-step 
+! pSingles and pDoubles values from the previous calculation. 
+logical :: t_previous_hist_tau = .false.
+
+! it can be forced to do a tau-search again, if one provides an additional 
+! input restart-hist-tau-search in addition to the the hist-tau-search 
+! keyword in case the tau-search is not converged enough
+logical :: t_restart_hist_tau = .false. 
 
 ! maybe also introduce a mixing between the old and new quantities in the 
 ! histogramming tau-search, since it is a stochastic process now
