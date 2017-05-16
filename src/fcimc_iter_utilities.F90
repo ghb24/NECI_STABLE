@@ -298,8 +298,10 @@ contains
                     ! we are typecasting here too.. 
                     ! we are casting a 32 bit int to a 64 bit ... 
                     ! that could cause troubles! 
+!                     call MPIBcast (HighestPopDet(0:NIfTot, run), NIfTot+1, &
+!                                    int(proc_highest(run),n_int))
                     call MPIBcast (HighestPopDet(0:NIfTot, run), NIfTot+1, &
-                                   int(proc_highest(run),n_int))
+                                   int(proc_highest(run),sizeof_int))
 
                     call update_run_reference(HighestPopDet(:, run), run)
 
@@ -337,8 +339,10 @@ contains
                     !
                     
                     ! Broadcast the changed det to all processors
+!                     call MPIBcast (HighestPopDet(:,run), NIfTot+1, &
+!                                    int(proc_highest(run),n_int))
                     call MPIBcast (HighestPopDet(:,run), NIfTot+1, &
-                                   int(proc_highest(run),n_int))
+                                   int(proc_highest(run),sizeof_int))
 
                     call update_run_reference(HighestPopDet(:, run), run)
                     
