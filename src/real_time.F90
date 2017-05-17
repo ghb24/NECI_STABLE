@@ -482,7 +482,7 @@ contains
             if (tSingBiasChange) call CalcApproxpDoubles()
         end if
 
-        if(semistoch_shift_iter/=0 .and. all(.not. tSinglePartPhase)) then
+        if(semistoch_shift_iter/=0) then
            if(Iter == semistoch_shift_iter + 1) then
               tSemiStochastic = .true.
               call init_semi_stochastic(ss_space_in)

@@ -322,6 +322,7 @@ contains
         if(tVerletScheme) then 
            call setup_delta_psi()
            call backup_initial_state()
+           tau = tau/iterInit
         endif
 
         call rotate_time()           
@@ -742,8 +743,7 @@ contains
                 exit real_time
 
             case default
-                ! copy from george: write possible options if a false input
-                ! is given. todo
+               call report("Keyword "//trim(w)//" not recognized in REALTIME block",.true.)
 
             end select 
         end do real_time

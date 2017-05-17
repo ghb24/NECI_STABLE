@@ -1591,6 +1591,8 @@ contains
       type(fcimc_iter_data), intent(in) :: iter_data
       real(dp) :: growth(lenof_sign), growth_tot(lenof_sign)
       real(dp) :: allWalkers(lenof_sign), allWalkersOld(lenof_sign)
+      real(dp) :: allDied(lenof_sign), allBorn(lenof_sign), allAnnihil(lenof_sign),&
+           allAbrt(lenof_sign), allRmv(lenof_sign)
       growth = iter_data%nborn &
          - iter_data%ndied - iter_data%nannihil &
          - iter_data%naborted - iter_data%nremoved
@@ -1599,6 +1601,12 @@ contains
       call MPISumAll(growth,growth_tot)
       call MPISumAll(TotParts,allWalkers)
       call MPIsumAll(TotPartsStorage,allWalkersOld)
+      
+      call MPISumAll(iter_data%nborn,allBorn)
+      call MPISumAll(iter_data%ndied,allDied)
+      call MPISumAll(iter_data%nannihil,allAnnihil)
+      call MPISumAll(iter_data%naborted,allAbrt)
+      call MPISumAll(iter_data%nremoved,allRmv)
       TotPartsStorage = TotParts
       if((iProcIndex == root) .and. .not. tSpinProject .and. &
            any(abs(growth_tot - (allWalkers - allWalkersOld)) > 1.0e-4_dp)) then
@@ -1606,6 +1614,12 @@ contains
          write(iout,*) "update_growth: ", growth_tot
          write(iout,*) "AllTotParts: ", allWalkers
          write(iout,*) "AllTotPartsOld: ", allWalkersOld
+         write(6,*) "nborn", allBorn
+         write(6,*) "ndied", allDied
+         write(6,*) "nannihil", allAnnihil
+         write(6,*) "naborted", allAbrt
+         write(6,*) "nremoved", allRmv
+         
          call stop_all("check_update_growth", &
               "Assertation failed: all(iter_data_fciqmc%update_growth_tot.eq.AllTotParts_1-AllTotPartsOld_1)")
       end if
