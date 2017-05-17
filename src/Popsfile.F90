@@ -1438,6 +1438,8 @@ r_loop: do while(.not.tStoreDet)
         call MPIBcast(PopMaxDeathCpt)
         call MPIBcast(PopRandomHash)
         call MPIBcast(PopBalanceBlocks)
+        call MPIBCast(PopPreviousHistTau)
+
         tPop64Bit=Pop64Bit
         tPopHPHF=PopHPHF
         tPopLz=PopLz
@@ -1478,6 +1480,7 @@ r_loop: do while(.not.tStoreDet)
                 if (t_hist_tau_search) then 
                     call deallocate_histograms()
                     t_hist_tau_search = .false.
+                    t_hist_tau_search_option = .false.
                     t_fill_frequency_hists = .false.
                 end if
             end if
