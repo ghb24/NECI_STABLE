@@ -1926,7 +1926,9 @@ r_loop: do while(.not.tStoreDet)
 !         if (t_hist_tau_search .and. (.not. t_fill_frequency_hists)) then
         ! i also have to continue the writing of this flag, if i continue 
         ! runs more than once!
-        if (t_hist_tau_search .or. t_previous_hist_tau) then
+        ! i have to use the keyword _option or? 
+        ! since the other gets turned off if the histograms are full? 
+        if (t_hist_tau_search_option .or. t_previous_hist_tau) then
             write(iunit, *) "PopPreviousHistTau=", .true.
         end if
 
