@@ -35,6 +35,10 @@ contains
          IUHF = 0
          TREL = .false.
          SYMLZ(:) = 0
+         ! [W.D. 15.5.2017:]
+         ! with the new relativistic calculations, withoug a ms value in the 
+         ! FCIDUMP, we have to set some more defaults..
+         MS2 = 0
          IF(iProcIndex.eq.0) THEN
 #ifdef _MOLCAS_
            call f_Inquire('FCIDMP',tExists)

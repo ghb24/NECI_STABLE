@@ -12,12 +12,13 @@ module FciMCParMod
                         tDetermHFSpawning, use_spawn_hash_table, &
                         ss_space_in, s_global_start, tContTimeFCIMC, &
                         trial_shift_iter, tStartTrialLater, &
-                        tTrialWavefunction, tSemiStochastic, ntrial_ex_calc
+                        tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
+                        t_hist_tau_search_option
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
-                           equi_iter_double_occ
+                           equi_iter_double_occ, t_print_frq_histograms
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -67,6 +68,8 @@ module FciMCParMod
     use double_occ_mod, only: get_double_occupancy, inst_double_occ, &
                         rezero_double_occ_stats, write_double_occ_stats, & 
                         sum_double_occ, sum_norm_psi_squared
+
+    use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
 
 #ifdef MOLPRO
     use outputResult
@@ -408,6 +411,9 @@ module FciMCParMod
                 if((PopsfileTimer.gt.0.0_dp).and.((iPopsTimers*PopsfileTimer).lt.(TotalTime8/3600.0_dp))) then
                     !Write out a POPSFILE every PopsfileTimer hours
                     if(iProcIndex.eq.Root) then
+                        CALL RENAME('popsfile.h5','popsfile.h5.bk')
+                        CALL RENAME('POPSFILEBIN','POPSFILEBIN.bk')
+                        CALL RENAME('POPSFILEHEAD','POPSFILEHEAD.bk')
                         write(iout,"(A,F7.3,A)") "Writing out a popsfile after ",iPopsTimers*PopsfileTimer, " hours..."
                     endif
                     call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
@@ -494,6 +500,18 @@ module FciMCParMod
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
         write(iout,*) 'Total loop-time: ', stop_time - start_time
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
+
+        ! [Werner Dobrautz 4.4.2017] 
+        ! for now always print out the frequency histograms for the 
+        ! tau-search.. maybe change that later to be an option 
+        ! to be turned off
+        if (t_print_frq_histograms .and. t_hist_tau_search_option) then
+            call print_frequency_histograms()
+
+            ! also deallocate here after no use of the histograms anymore
+            call deallocate_histograms()
+        end if
+
 
         ! Remove the signal handlers now that there is no way for the
         ! soft-exit part to work

@@ -33,7 +33,8 @@ module fcimc_initialisation
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, &
-                        tMultipleInitialStates, initial_states
+                        tMultipleInitialStates, initial_states, t_hist_tau_search, &
+                        t_previous_hist_tau, t_fill_frequency_hists
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -51,7 +52,7 @@ module fcimc_initialisation
                            HistInitPops, AllHistInitPops, OffDiagMax, &
                            OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
-                           tTransitionRDMs, tLogEXLEVELStats
+                           tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
@@ -109,7 +110,7 @@ module fcimc_initialisation
                                  null_encode_child, attempt_die_normal
     use csf_data, only: csf_orbital_mask
     use initial_trial_states, only: calc_trial_states_lanczos, &
-                                    set_trial_populations, set_trial_states
+                                    set_trial_populations, set_trial_states, calc_trial_states_direct
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
                                set_spawn_rate
@@ -139,6 +140,8 @@ module fcimc_initialisation
     use sym_mod
     use HElem
     use constants
+
+    use tau_search_hist, only: init_hist_tau_search
 
     implicit none
 
@@ -203,7 +206,7 @@ contains
         IF(iProcIndex.eq.Root) THEN
             if (.not. tFCIMCStats2) then
                 fcimcstats_unit = get_free_unit()
-                if (tReadPops) then
+                if (tReadPops .and. .not. t_no_append_stats) then
                     ! Restart calculation.  Append to stats file (if it exists).
                     if(tMolpro .and. .not. tMolproMimic) then
                         filename = 'FCIQMCStats_' // adjustl(MolproID)
@@ -224,7 +227,7 @@ contains
 #ifndef __PROG_NUMRUNS
             if(inum_runs.eq.2) then
                 fcimcstats_unit2 = get_free_unit()
-                if (tReadPops) then
+                if (tReadPops .and. .not. t_no_append_stats) then
                     ! Restart calculation.  Append to stats file (if it exists).
                     if(tMolpro .and. .not. tMolproMimic) then
                         filename2 = 'FCIQMCStats2_' // adjustl(MolproID)
@@ -245,7 +248,7 @@ contains
 
             IF(tTruncInitiator) THEN
                 initiatorstats_unit = get_free_unit()
-                if (tReadPops) then
+                if (tReadPops .and. .not. t_no_append_stats) then
 ! Restart calculation.  Append to stats file (if it exists)
                     OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted',position='append')
                 else
@@ -992,8 +995,34 @@ contains
 
 !        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
 !                       ^ Removed by GLM as believed not necessary
+
+        ! [Werner Dobrautz 5.5.2017:]
+        ! if this is a continued run from a histogramming tau-search 
+        ! and a restart of the tau-search is not forced by input, turn 
+        ! both the new and the old tau-search off! 
+        ! i cannot do it here, since this is called before the popsfile read-in
+        if (t_previous_hist_tau) then
+            ! i have to check for tau-search option and stuff also, so that 
+            ! the death tau adaption is still used atleast! todo! 
+            tSearchTau = .false.
+            t_hist_tau_search = .false.
+            t_fill_frequency_hists = .false.
+            Write(iout,*) "Turning OFF the tau-search, since continued run!"
+        end if 
+
         if (tSearchTau) then
             call init_tau_search()
+
+            ! [Werner Dobrautz 4.4.2017:]
+            if (t_hist_tau_search) then 
+                ! some setup went wrong! 
+                call Stop_All(t_r, &
+                    "Input error! both standard AND Histogram tau-search chosen!")
+            end if
+
+        else if (t_hist_tau_search) then 
+            call init_hist_tau_search()
+
         else
             ! Add a couple of checks for sanity
             if (nOccAlpha == 0 .or. nOccBeta == 0) then
@@ -2008,7 +2037,8 @@ contains
 
         HElement_t(dp) :: largest_coeff, sgn
         integer(n_int) :: largest_det(0:NIfTot)
-        integer :: run, j, proc_highest
+        integer :: run, j
+        integer(int32) :: proc_highest
         integer(n_int) :: ilut(0:NIfTot)
         integer(int32) :: int_tmp(2)
 #ifdef __DEBUG
@@ -2034,11 +2064,16 @@ contains
 
                 ! Find the largest det on any processor (n.b. discard the
                 ! non-integer part. This isn't all that important).
+                ! [W.D. 15.5.2017:]
+                ! for the test suite problems, maybe it is important.. 
+                ! because there seems to be some compiler dependent 
+                ! differences..
                 call MPIAllReduceDatatype(&
                     (/int(abs(largest_coeff), int32), int(iProcIndex, int32)/), 1, &
                     MPI_MAXLOC, MPI_2INTEGER, int_tmp)
                 proc_highest = int_tmp(2)
-                call MPIBCast(largest_det, NIfTot+1, proc_highest)
+                call MPIBCast(largest_det, NIfTot+1, int(proc_highest,sizeof_int))
+!                 call MPIBCast(largest_det, NIfTot+1, proc_highest)
 
                 write(6,*) 'Setting ref', run
                 call writebitdet(6, largest_det, .true.)

@@ -50,3 +50,4 @@ build*/
 *.swo
 *.swp
 fort.7
+frequency_hist*

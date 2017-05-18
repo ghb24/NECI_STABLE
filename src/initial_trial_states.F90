@@ -8,13 +8,16 @@ module initial_trial_states
 
     implicit none
 
+    ! if the space is smaller than this parameter, use LAPACK instead
+    integer, parameter :: lanczos_space_size_cutoff=2000
+
 contains
 
     subroutine calc_trial_states_lanczos(space_in, nexcit, ndets_this_proc, trial_iluts, evecs_this_proc, evals, &
                                          space_sizes, space_displs, reorder)
 
         use bit_reps, only: decode_bit_det
-        use CalcData, only: subspace_in
+        use CalcData, only: subspace_in, t_force_lanczos
         use DetBitOps, only: ilut_lt, ilut_gt
         use FciMCData, only: ilutHF
         use lanczos_wrapper, only: frsblk_wrapper
@@ -89,6 +92,13 @@ contains
         ndets_this_proc_mpi = int(ndets_this_proc, MPIArg)
         call MPIAllGather(ndets_this_proc_mpi, space_sizes, ierr)
         ndets_all_procs = sum(space_sizes)
+
+        if (ndets_all_procs < lanczos_space_size_cutoff .and. .not. t_force_lanczos) then
+            write(6,*) " Aborting Lanczos and initialising trial states with direct diagonalisation"
+            call calc_trial_states_direct(space_in, nexcit, ndets_this_proc, trial_iluts, evecs_this_proc, evals, &
+                                         space_sizes, space_displs, reorder)
+            return
+        endif
 
         if (ndets_all_procs < nexcit) call stop_all(t_r, "The number of excited states that you have asked &
             &for is larger than the size of the trial space used to create the excited states. Since this &
@@ -283,6 +293,9 @@ contains
             space_displs(i) = sum(space_sizes(:i-1))
         end do
 
+        ! [W.D. 15.5.2017:]
+        ! is the sort behaving different, depending on the compiler? 
+        ! since different references for different compilers..??
         call sort(trial_iluts(:,1:ndets_this_proc), ilut_lt, ilut_gt)
 
         if (iProcIndex == root) then

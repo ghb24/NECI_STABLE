@@ -136,5 +136,14 @@ module LoggingData
     ! and also some storage for the instantaneous, averaged, summed over 
     ! stuff etc.. 
 !     real(dp) :: n_double_occ_loc, n_double_occ_all
+    ! [Werner Dobrautz 4.4.2017]
+    ! changes belonging to the histogram tau-search
+    ! for now always print out the histograms at the end, maybe change that 
+    ! behavior in the future
+    logical :: t_print_frq_histograms = .true.
+
+    ! if this is true, force moving fcimcstats and initiatorstats files, and accumulate stats in new files
+    logical :: t_no_append_stats = .false.
+>>>>>>> origin/master
 
 end module LoggingData

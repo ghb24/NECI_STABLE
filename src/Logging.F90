@@ -567,6 +567,9 @@ MODULE Logging
         case("PRINT-1RDMS-FROM-SPINFREE")
             tPrint1RDMsFromSpinfree = .true.
 
+        case("NO-APPEND-STATS")
+            t_no_append_stats = .true.
+
         case("DIAGFLYONERDM")
 !This sets the calculation to diagonalise the *1* electron reduced density matrix.   
 !The eigenvalues give the occupation numbers of the natural orbitals (eigenfunctions).
@@ -1043,6 +1046,11 @@ MODULE Logging
             ! Histogram how many particles are spawned between sites with
             ! varying excitation levels from the Hartree--Fock.
             tHistExcitToFrom = .true.
+
+!         case("PRINT-FREQUENCY-HISTOGRAMS")
+!             ! option to print out the histograms used in the tau-search! 
+!             ! note: but for now they are always printed by default
+!             t_print_frq_histograms = .true.
 
         case("ENDLOG")
             exit logging
