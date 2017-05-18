@@ -123,6 +123,19 @@ module LoggingData
     ! The name of the integral file for each of the property to be estimated
     character(100), allocatable :: EstPropFile(:)
 
+    ! like rdms, as it is a bit similar, access the double occupancy 
+    ! measurement in the logging section!
+    logical :: t_calc_double_occ = .false. 
+    ! also use a optional input parameter to start averaging the 
+    ! double occupancy only after a certain number of steps after the 
+    ! shift changes
+    integer :: equi_iter_double_occ = 0
+    logical :: t_calc_double_occ_av = .false.
+    ! I essentially only need a local and a global storage for the 
+    ! the expectation vaulue <n_u n_d> 
+    ! and also some storage for the instantaneous, averaged, summed over 
+    ! stuff etc.. 
+!     real(dp) :: n_double_occ_loc, n_double_occ_all
     ! [Werner Dobrautz 4.4.2017]
     ! changes belonging to the histogram tau-search
     ! for now always print out the histograms at the end, maybe change that 

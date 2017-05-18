@@ -11,7 +11,8 @@ module fcimc_iter_utils
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
-                        qmc_trial_wf, t_hist_tau_search, t_hist_tau_search_option
+                        qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
+                        t_hist_tau_search_option
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats
     use semi_stoch_procs, only: recalc_core_hamil_diag
@@ -20,7 +21,7 @@ module fcimc_iter_utils
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: set_det_diagH
     use Determinants, only: get_helement
-    use LoggingData, only: tFCIMCStats2
+    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av
     use tau_search, only: update_tau
     use Parallel_neci
     use fcimc_initialisation
@@ -29,6 +30,8 @@ module fcimc_iter_utils
     use FciMCData
     use constants
     use util_mod
+    use double_occ_mod, only: inst_double_occ, all_inst_double_occ, sum_double_occ, &
+                              sum_norm_psi_squared
 
     use tau_search_hist, only: update_tau_hist
 
@@ -386,7 +389,8 @@ contains
         integer(int64) :: TotWalkersTemp
         real(dp) :: bloom_sz_tmp(0:2)
         real(dp) :: RealAllHFCyc(max(lenof_sign,inum_runs))
-        real(dp) :: all_norm_psi_squared(inum_runs), all_norm_semistoch_squared(inum_runs)
+!         real(dp) :: all_norm_psi_squared(inum_runs)
+        real(dp) :: all_norm_semistoch_squared(inum_runs)
         character(len=*), parameter :: t_r = 'communicate_estimates'
 
         ! Remove the holes in the main list when wanting the number of uniquely
@@ -428,6 +432,9 @@ contains
         sizes(24) = size(NoAtHF)
         sizes(25) = size(SumWalkersCyc)
         sizes(26) = 1 ! nspawned (single int, not an array)
+        ! communicate the inst_double_occ
+        sizes(27) = 1
+
 
         if (sum(sizes(1:26)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
                                                         & the size of the send_arr and recv_arr arrays in the source code.")
@@ -461,6 +468,8 @@ contains
         low = upp + 1; upp = low + sizes(24) - 1; send_arr(low:upp) = NoAtHF;
         low = upp + 1; upp = low + sizes(25) - 1; send_arr(low:upp) = SumWalkersCyc;
         low = upp + 1; upp = low + sizes(26) - 1; send_arr(low:upp) = nspawned;
+        ! double occ change:
+        low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = inst_double_occ
 
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
@@ -499,6 +508,8 @@ contains
         low = upp + 1; upp = low + sizes(24) - 1; AllNoAtHf = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(25) - 1; AllSumWalkersCyc = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low));
+        ! double occ: 
+        low = upp + 1; upp = low + sizes(27) - 1; all_inst_double_occ = recv_arr(low);
 
         ! Communicate HElement_t variables:
 
@@ -622,6 +633,22 @@ contains
             end if
         end if
         
+
+        ! quick fix for the double occupancy: 
+        if (t_calc_double_occ_av) then 
+            ! sum up the squared norm after shift has set in TODO
+            ! and use the mean value if multiple runs are used
+            ! still thinking about if i only want to calc it after 
+            ! equilibration
+!             if (iter > nEquilSteps) then
+                sum_norm_psi_squared = sum_norm_psi_squared + & 
+                    sum(all_norm_psi_squared)/real(inum_runs,dp)
+
+                ! and also sum up the double occupancy: 
+                sum_double_occ = sum_double_occ + all_inst_double_occ
+!             end if
+        end if
+
 #ifdef __DEBUG
         ! Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
         if ((iProcIndex == root) .and. .not. tSpinProject .and. &
