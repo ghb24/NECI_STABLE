@@ -66,9 +66,9 @@ contains
              IS1=ISYM1
              I=1
              SYMPROD%s=0
-             if (thub .or. tKpntSym) then
-                 symprod = SYMTABLE(isym1%s, isym2%s)
-             else
+!              if (thub .or. tKpntSym) then
+!                  symprod = SYMTABLE(isym1%s, isym2%s)
+!              else
                  DO WHILE(IS1%s.NE.0)
                     IF(BTEST(IS1%s,0)) THEN
                        IS2=ISYM2
@@ -86,7 +86,7 @@ contains
                     IS1%s=ISHFT(IS1%s,-1)
                     I=I+1
                  ENDDO
-             end if
+!              end if
          end if
          RETURN
       END FUNCTION SYMPROD

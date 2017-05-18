@@ -1,0 +1,39 @@
+title
+
+system hubbard 
+nonuniformrandexcits nosymgen
+real
+electrons 4 
+cell 2 2 1
+b -1
+u 16
+system-replicas 2
+endsys
+
+calc
+
+methods
+method vertex fcimc
+endmethods
+
+definedet 1 4 5 8
+
+allrealcoeff
+
+tau 0.001
+truncinitiator
+addtoinitiator 3
+totalwalkers 100
+shiftdamp 0.1
+stepsshift 10
+
+rdmsamplingiters 10000
+endcalc
+
+logging
+double-occupancy
+calcrdmonfly 3 100 100
+printonerdm
+endlog
+
+end 
