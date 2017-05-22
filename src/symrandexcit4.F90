@@ -599,8 +599,8 @@ contains
         end do
 
         ! Select a particular orbital to use, or abort.
-        if (cum_sum == 0) then
-            orb = 0.0_dp
+        if (cum_sum < EPS) then
+            orb = 0
             pgen = 0.0_dp
         else
             r = genrand_real2_dSFMT() * cum_sum
@@ -996,7 +996,7 @@ contains
 
             ! Both of the electrons have the same spin. Therefore we need to
             ! include both electron-hole interactions.
-            cum_sum = 0
+            cum_sum = 0.0_dp
             srcid = gtID(src)
             do i = 1, norb
             
@@ -1021,7 +1021,7 @@ contains
                 srcid(2) = gtID(src(1))
             end if
 
-            cum_sum = 0
+            cum_sum = 0.0_dp
             do i = 1, norb
 
                 orb = SymLabelList2(label_index + i - 1)
@@ -1037,7 +1037,7 @@ contains
 
 
         ! If there are no available orbitals to pair with, we need to abort
-        if (cum_sum == 0) then
+        if (cum_sum < EPS) then
             orb = 0
             return
         end if
