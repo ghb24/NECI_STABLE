@@ -1081,6 +1081,24 @@ MODULE Logging
             ! there are _many_ blocks.
             tOutputLoadDistribution = .true.
 
+        case("DOUBLE-OCCUPANCY")
+            ! new functionality to measure the mean double occupancy 
+            ! as this is a only diagonal quantitity i decided to detach it 
+            ! from the RDM calculation, although it could be calculated 
+            ! from the RDMs and this should be used to test this functionality!
+            ! Also, as it is a diagonal quantity, we need to unbias the 
+            ! quantitiy by using the replica trick, just like for the 
+            ! RDMs! Also this should be tested, to what extend the 
+            ! quantity differs in a biased and unbiased calculation
+
+            t_calc_double_occ = .true.
+            t_calc_double_occ_av = .true.
+
+            if (item < nitems) then
+                t_calc_double_occ_av = .false.
+                call geti(equi_iter_double_occ)
+            end if
+
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)
         end select

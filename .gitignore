@@ -51,3 +51,4 @@ build*/
 *.swp
 fort.7
 frequency_hist*
+double_occupancy_stat*

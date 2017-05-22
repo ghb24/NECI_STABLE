@@ -12,7 +12,7 @@ module excit_gen_5
     use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel, ScratchSize
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
     use SystemData, only: G1, tUHF, tStoreSpinOrbs, nbasis, nel, &
-                          tGen_4ind_part_exact, tGen_4ind_2_symmetric
+                          tGen_4ind_part_exact, tGen_4ind_2_symmetric, tHPHF
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use GenRandSymExcitNUMod, only: init_excit_gen_store
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
@@ -27,6 +27,7 @@ module excit_gen_5
     use constants
     use sort_mod
     use util_mod
+    use hphf_integrals, only: hphf_off_diag_helement
     implicit none
 
 contains
@@ -46,6 +47,10 @@ contains
 
         real(dp) :: pgen2
         real(dp) :: cum_arr(nbasis)
+
+#ifdef __DEBUG 
+        HElement_t(dp) :: temp_hel
+#endif
 
         HElGen = HEl_zero
 
@@ -71,6 +76,11 @@ contains
         ! And a careful check!
 #ifdef __DEBUG
         if (.not. IsNullDet(nJ)) then
+            if (tHPHF) then
+                temp_hel = hphf_off_diag_helement(nI,nJ,ilutI,ilutJ)
+            else
+                temp_hel = get_helement(nI, nJ, ilutI, ilutJ)
+            end if
             pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
             if (abs(pgen - pgen2) > 1.0e-6_dp) then
                 write(6,*) 'Calculated and actual pgens differ.'
@@ -82,6 +92,7 @@ contains
                            ExcitMat(2,1:ic)
                 write(6,*) 'Generated pGen:  ', pgen
                 write(6,*) 'Calculated pGen: ', pgen2
+                write(6,*) 'matrix element: ', temp_hel
                 call stop_all(this_routine, "Invalid pGen")
             end if
         end if
@@ -228,9 +239,17 @@ contains
         ASSERT((.not. (is_beta(orbs(2)) .and. .not. is_beta(orbs(1)))) .or. tGen_4ind_2_symmetric)
         if (any(orbs == 0)) then
             nJ(1) = 0
+            pgen = 0.0_dp
             return
         end if
 
+        ! can i exit right away if this happens??
+        ! i am pretty sure this means 
+        if (any(cum_sum < EPS)) then 
+           cum_sum = 1.0_dp
+           int_cpt = 0.0_dp
+        end if
+        
         ! Calculate the pgens. Note that all of these excitations can be
         ! selected as both A--B or B--A. So these need to be calculated
         ! explicitly.
@@ -241,9 +260,15 @@ contains
             call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
                                  cpt_pair(2), sum_pair(2))
         else
-            cpt_pair = 0
-            sum_Pair = 1
+            cpt_pair = 0.0_dp
+            sum_Pair = 1.0_dp
         end if
+
+        if (any(sum_pair < EPS)) then 
+            cpt_pair = 0.0_dp
+            sum_pair = 1.0_dp
+        end if
+
         pgen = pgen * (product(int_cpt) / product(cum_sum) + &
                        product(cpt_pair) / product(sum_pair))
 
@@ -428,7 +453,7 @@ contains
         ! calculating HPHF components) then we should ensure that the
         ! pgen contribution is 0.0, whilst avoiding a divide by zero error.
         cum_sum = cum_arr(nbasis)
-        if (cum_sum == 0) then
+        if (cum_sum < EPS) then
             cpt = 0.0_dp
             cum_sum = 1.0_dp
             return

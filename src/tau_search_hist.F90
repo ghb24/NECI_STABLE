@@ -350,9 +350,6 @@ contains
                 ratio_singles) 
 
             ! for analyis print this also out: 
-#ifdef __DEBUG
-            print *, "ratio_singles: ", ratio_singles
-#endif
             ! if i have a integer overflow i should probably deal here with it..
             if (ratio_singles < 0.0_dp) then 
                 ! TODO: and also print out in this case! 
@@ -376,9 +373,6 @@ contains
                 ! sum up all 3 ratios: single, parallel and anti-parallel
                 call integrate_frequency_histogram_spec(frequency_bins_para, &
                     ratio_para)
-#ifdef __DEBUG
-                print *, " ratio_para: ", ratio_para
-#endif
 
                 if (ratio_para < 0.0_dp) then 
                     root_print "The parallel excitation histogram is full!" 
@@ -392,9 +386,6 @@ contains
 
                 call integrate_frequency_histogram_spec(frequency_bins_anti, &
                     ratio_anti)
-#ifdef __DEBUG
-                print *, "ratio_anti: ", ratio_anti
-#endif
 
                 if (ratio_anti < 0.0_dp) then 
                     root_print "The anti-parallel excitation histogram is full!" 
@@ -619,7 +610,14 @@ contains
         integer :: ind
         integer :: indi,indj,inda,indb
 
-        ASSERT(pgen > EPS) 
+#ifdef __DEBUG
+        if (pgen < EPS) then
+            print *, "pgen: ", pgen
+            print *, "matrix element: ", mat_ele
+        end if
+#endif
+
+!         ASSERT(pgen > EPS) 
         ASSERT(ic == 1 .or. ic == 2)
 
         ! i can't make this exception here without changing alot in the 
@@ -631,14 +629,14 @@ contains
         ! talk to ali about that!
 !         if (mat_ele < EPS) then
         if (mat_ele < matele_cutoff) then
-#ifdef __DEBUG
-            print *, "zero matele should not be here!"
-            print *, "mat_ele: ", mat_ele
-            print *, "pgen: ", pgen 
-            print *, "ic: ", ic
-            print *, "parallel: ", t_parallel
-            print *, "ex-matrix: ", ex
-#endif
+! #ifdef __DEBUG
+!             print *, "zero matele should not be here!"
+!             print *, "mat_ele: ", mat_ele
+!             print *, "pgen: ", pgen 
+!             print *, "ic: ", ic
+!             print *, "parallel: ", t_parallel
+!             print *, "ex-matrix: ", ex
+! #endif
             ! but i still should keep track of these events! 
             select case (ic)
             case (1)
@@ -826,12 +824,12 @@ contains
         ASSERT( ic == 1 .or. ic == 2)
 
         if (mat_ele < matele_cutoff) then
-#ifdef __DEBUG
-            print *, "zero matele should not be here!"
-            print *, "mat_ele: ", mat_ele
-            print *, "pgen: ", pgen 
-            print *, "ic: ", ic
-#endif
+! #ifdef __DEBUG
+! !             print *, "zero matele should not be here!"
+! !             print *, "mat_ele: ", mat_ele
+! !             print *, "pgen: ", pgen 
+! !             print *, "ic: ", ic
+! #endif
  
             select case(ic)
             case(1)
