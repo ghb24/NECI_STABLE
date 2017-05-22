@@ -27,7 +27,6 @@ module excit_gen_5
     use constants
     use sort_mod
     use util_mod
-    use hphf_integrals, only: hphf_off_diag_helement
     implicit none
 
 contains
@@ -77,7 +76,9 @@ contains
 #ifdef __DEBUG
         if (.not. IsNullDet(nJ)) then
             if (tHPHF) then
-                temp_hel = hphf_off_diag_helement(nI,nJ,ilutI,ilutJ)
+                print *, "due to circular dependence, no matrix element calc
+                possible!"
+!                 temp_hel = hphf_off_diag_helement(nI,nJ,ilutI,ilutJ)
             else
                 temp_hel = get_helement(nI, nJ, ilutI, ilutJ)
             end if
