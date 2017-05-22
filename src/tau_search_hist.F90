@@ -16,7 +16,7 @@ module tau_search_hist
                          MaxTau, tSearchTau, tSearchTauOption, tSearchTauDeath
     use Parallel_neci, only: MPIAllReduce, MPI_MAX, MPI_SUM, MPIAllLORLogical, &
                             MPISumAll, MPISUM, mpireduce
-    use ParallelHelper, only: iprocindex
+    use ParallelHelper, only: iprocindex, root
     use constants, only: dp, EPS, iout
     use tau_search, only: FindMaxTauDoubs
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
@@ -92,11 +92,13 @@ contains
             ! and also output the read-in or calculated quantities here! 
         end if
 
-        ! print out the standard quantities: 
-        print *, "Setup of the Histogramming tau-search: "
-        print *, "  Integration cut-off: ", frq_ratio_cutoff
-        print *, "  Number of bins: ", n_frequency_bins
-        print *, "  Max. ratio: ", max_frequency_bound
+        if (iProcIndex == root) then
+            ! print out the standard quantities: 
+            print *, "Setup of the Histogramming tau-search: "
+            print *, "  Integration cut-off: ", frq_ratio_cutoff
+            print *, "  Number of bins: ", n_frequency_bins
+            print *, "  Max. ratio: ", max_frequency_bound
+        end if
 
         ! do the initialization of the frequency analysis here.. 
         ! i think otherwise it is not done on all the nodes.. 
@@ -104,7 +106,9 @@ contains
         ! determine the global and fixed step-size quantitiy! 
         frq_step_size = max_frequency_bound / real(n_frequency_bins, dp)
 
-        print *, "  Bin-width: ", frq_step_size
+        if (iProcIndex == root) then
+            print *, "  Bin-width: ", frq_step_size
+        end if
 
         ! and do the rest of the initialisation:
 

@@ -1280,6 +1280,7 @@ r_loop: do while(.not.tStoreDet)
         PopPParallel = 0.0_dp
         PopMultiSft = 0.0_dp
         PopBalanceBlocks = -1
+        PopPreviousHistTau = .false.
         if(iProcIndex.eq.root) then
             read(iunithead,POPSHEAD)
         endif

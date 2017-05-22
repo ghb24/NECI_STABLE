@@ -80,6 +80,4 @@ tolerance = (5.01e-8, None, 'overlap_sum'), (3.01e-7, None, 'hamil_sum')
 program = mneci
 tolerance = (5e-8, None, 'sum_error_rdm_2'), (5e-8, None, 'sum_diff_trdm_1_2(1)'), (5e-8, None, 'sum_diff_trdm_1_2(2)')
 
-[categories]
-
 _default_ = neci kneci mneci kmneci
