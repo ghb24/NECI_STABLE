@@ -33,5 +33,6 @@ endint
 logging
 popsfile -1
 hdf5-pops-read
+no-append-stats
 endlog
 end

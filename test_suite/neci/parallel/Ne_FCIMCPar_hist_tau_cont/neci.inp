@@ -31,5 +31,6 @@ endint
 
 logging
 popsfile -1
+no-append-stats
 endlog
 end
