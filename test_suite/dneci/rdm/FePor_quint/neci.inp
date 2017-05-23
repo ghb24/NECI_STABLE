@@ -42,8 +42,9 @@ rdmsamplingiters 50
 endcalc
  
 logging
-HDF5-POPS 
+HDF5-POPS-read
 Highlypopwrite 50
+popsfile -1
 printonerdm
 diagflyonerdm
 calcrdmonfly          3     50    10
