@@ -75,15 +75,15 @@ contains
         ! And a careful check!
 #ifdef __DEBUG
         if (.not. IsNullDet(nJ)) then
-            if (tHPHF) then
-                print *, "due to circular dependence, no matrix element calc
-                possible!"
-!                 temp_hel = hphf_off_diag_helement(nI,nJ,ilutI,ilutJ)
-            else
-                temp_hel = get_helement(nI, nJ, ilutI, ilutJ)
-            end if
-            pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
+             pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
             if (abs(pgen - pgen2) > 1.0e-6_dp) then
+                if (tHPHF) then
+                    print *, "due to circular dependence, no matrix element calc possible!"
+    !                 temp_hel = hphf_off_diag_helement(nI,nJ,ilutI,ilutJ)
+                else
+                    temp_hel = get_helement(nI, nJ, ilutI, ilutJ)
+                end if
+
                 write(6,*) 'Calculated and actual pgens differ.'
                 write(6,*) 'This will break HPHF calculations'
                 call write_det(6, nI, .false.)

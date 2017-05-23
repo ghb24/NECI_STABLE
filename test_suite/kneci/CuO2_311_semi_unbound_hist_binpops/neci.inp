@@ -43,5 +43,6 @@ endint
 logging
 popsfile -1
 (binarypops
+no-append-stats
 endlog
 end
