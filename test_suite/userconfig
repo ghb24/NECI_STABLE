@@ -35,5 +35,6 @@ extract_program = ./tools/extract.py
 
 [skip]
 exe = ./tools/skip.py
+vsc = git
 extract_program = ./tools/extract.py
 
