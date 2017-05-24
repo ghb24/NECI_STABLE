@@ -48,5 +48,6 @@ popsfile -1
 printonerdm
 diagflyonerdm
 calcrdmonfly          3     50    10
+no-append-stats
 endlog
 end

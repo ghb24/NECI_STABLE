@@ -33,5 +33,6 @@ logging
 popsfiletimer 0.001
 binarypops
 hdf5-pops
+no-append-stats
 endlog
 end
