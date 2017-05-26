@@ -1,3 +1,10 @@
+# USAGE notes:
+#
+# If shared linking is used, the following build command will be needed (modified as appropriate):
+
+# LD_LIBRARY_PATH=/bgsys/drivers/ppcfloor/comm/lib make neci
+
+
 set( CMAKE_SYSTEM_NAME Linux)
 set( CMAKE_Fortran_COMPILER mpixlf90_r )
 set( CMAKE_CXX_COMPILER mpixlcxx_r )
@@ -35,7 +42,7 @@ set( NECI_FIND_LibRT_NECI OFF )
 # Compile flags
 
 set( FORCE_CXX_FLAGS_DEBUG "-O0 -g" )
-set( FORCE_Fortran_FLAGS_DEBUG "-O0 -g -qdpcl -qcheck -qextchk -qdbg" )
+set( FORCE_Fortran_FLAGS_DEBUG "-O0 -g -qdpcl -qcheck -qextchk -qdbg -qnostaticlink" )
 set( FORCE_C_FLAGS_DEBUG "-O0 -g" )
 
 set( FORCE_CXX_FLAGS_RELEASE "-O3 -qhot -qarch=qp -qtune=qp -lmass -lvmass -lmass_simd" )
@@ -47,8 +54,13 @@ set( FORCE_C_FLAGS_RELEASE "-O3 -qhot -qarch=qp -qtune=qp -qessl" )
 set(  FORCE_CXX_LINKER_FLAGS -Wl,--allow-multiple-definition)
 set(  FORCE_Fortran_LINKER_FLAGS -Wl,--allow-multiple-definition)
 
+set( CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS} -g -qnostaticlink" )
+set( CMAKE_STATIC_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS} -g" )
+set( CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS} -g -qnostaticlink" )
+
 # Linker libraries
 
 set( NECI_Fortran_STATIC_LINK_LIBRARIES stdc++ )
+set( NECI_Fortran_SHARED_LINK_LIBRARIES stdc++ )
 
 set( NECI_DISABLE_SSE2 ON )

@@ -11,16 +11,17 @@ module fcimc_iter_utils
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
-                        qmc_trial_wf
+                        qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
+                        t_hist_tau_search_option
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
-    use LoggingData, only: tFCIMCStats2, tPrintDataTables
+    use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats
     use semi_stoch_procs, only: recalc_core_hamil_diag
     use fcimc_helper, only: update_run_reference
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: set_det_diagH
     use Determinants, only: get_helement
-    use LoggingData, only: tFCIMCStats2
+    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av
     use tau_search, only: update_tau
     use Parallel_neci
     use fcimc_initialisation
@@ -29,6 +30,10 @@ module fcimc_iter_utils
     use FciMCData
     use constants
     use util_mod
+    use double_occ_mod, only: inst_double_occ, all_inst_double_occ, sum_double_occ, &
+                              sum_norm_psi_squared
+
+    use tau_search_hist, only: update_tau_hist
 
     implicit none
 
@@ -112,6 +117,7 @@ contains
                 if (inum_runs.eq.2) CLOSE(fcimcstats_unit2)
                 IF(tTruncInitiator) CLOSE(initiatorstats_unit)
                 IF(tLogComplexPops) CLOSE(complexstats_unit)
+                if (tLogEXLEVELStats) close(EXLEVELStats_unit)
             ENDIF
             IF(TDebug) CLOSE(11)
             CALL SetupParameters()
@@ -131,6 +137,8 @@ contains
                 end if
                 call WriteFCIMCStats()
             end if
+            if (iProcIndex==root .and. tLogEXLEVELStats) &
+                  write(EXLEVELStats_unit,'("#")', advance='no')
             return
         endif
 
@@ -140,7 +148,7 @@ contains
 
         use HPHFRandExcitMod, only: ReturnAlphaOpenDet
 
-        integer :: pop_highest(inum_runs), proc_highest(inum_runs)
+        integer(int32) :: pop_highest(inum_runs), proc_highest(inum_runs)
         real(dp) :: pop_change, old_Hii
         integer :: det(nel), i, error, ierr, run
         integer(int32) :: int_tmp(2)
@@ -175,7 +183,7 @@ contains
                 ! growth
                 TempSpawnedPartsSize = maxval(iHighestPop) * 1.5
                 allocate_temp_parts = .true.
-                write(6,*) 1.5 * maxval(iHighestPop), TempSpawnedPartsSize
+                !write(6,*) 1.5 * maxval(iHighestPop), TempSpawnedPartsSize
             end if
 
             ! If we need to allocate this array, then do so.
@@ -201,6 +209,9 @@ contains
         ! in each of the runs.
         ! n.b. the use of int(iHighestPop) obviously introduces a small amount
         !      of error here, by ignoring the fractional part...
+        ! [Werner Dobrautz 15.5.2017:]
+        ! maybe this samll error here is the cause of the failed test_suite
+        ! runs.. 
         if (tReplicaReferencesDiffer) then
 
             do run = 1, inum_runs
@@ -234,7 +245,7 @@ contains
             if (tReplicaReferencesDiffer) then
                 pop_change = FracLargerDet * abs_sign(AllNoAtHF(min_part_type(run):max_part_type(run)))
             else
-                pop_change = FracLargerDet * abs_sign(AllNoAtHF(1:lenof_sign))
+                pop_change = FracLargerDet * abs_sign(AllNoAtHF(1:(lenof_sign/inum_runs)))
             endif
 #else
             if (tReplicaReferencesDiffer) then
@@ -245,14 +256,18 @@ contains
 #endif
 !            write(iout,*) "***",AllNoAtHF,FracLargerDet,pop_change, pop_highest,proc_highest
             ! Do we need to do a change?
-            if (pop_change < pop_highest(run) .and. pop_highest(run) > pop_change_min) then
+            ! is this a valid comparison?? we ware comparing a real(dp) pop_change 
+            ! with a (now) 32 bit integer..
+            if (pop_change < real(pop_highest(run),dp) .and. & 
+                real(pop_highest(run),dp) > pop_change_min) then
 
                 if (tChangeProjEDet) then
 
                     ! Write out info!
                     changed_any = .true.
                     root_print 'Highest weighted determinant on run', run, &
-                               'not reference det: ', pop_highest, abs_sign(AllNoAtHF)
+                         'not reference det: ', pop_highest, abs_sign(AllNoAtHF( &
+                         min_part_type(run):max_part_type(run)))
 
                     !
                     ! Here we are changing the reference det on the fly.
@@ -260,18 +275,24 @@ contains
                     !
 
                     ! Communicate the change to all dets and print out.
+                    ! [W.D. 15.5.2017:]
+                    ! we are typecasting here too.. 
+                    ! we are casting a 32 bit int to a 64 bit ... 
+                    ! that could cause troubles! 
+!                     call MPIBcast (HighestPopDet(0:NIfTot, run), NIfTot+1, &
+!                                    int(proc_highest(run),n_int))
                     call MPIBcast (HighestPopDet(0:NIfTot, run), NIfTot+1, &
-                                   proc_highest(run))
+                                   int(proc_highest(run),sizeof_int))
 
                     call update_run_reference(HighestPopDet(:, run), run)
 
                     ! Reset averages
-                    SumENum = 0
-                    sum_proje_denominator = 0
-                    cyc_proje_denominator = 0
+                    SumENum = 0.0_dp
+                    sum_proje_denominator = 0.0_dp
+                    cyc_proje_denominator = 0.0_dp
                     SumNoatHF = 0.0_dp
                     VaryShiftCycles = 0
-                    SumDiagSft = 0
+                    SumDiagSft = 0.0_dp
                     root_print 'Zeroing all energy estimators.'
 
                     !Since we have a new reference, we must block only from after this point
@@ -299,8 +320,10 @@ contains
                     !
                     
                     ! Broadcast the changed det to all processors
+!                     call MPIBcast (HighestPopDet(:,run), NIfTot+1, &
+!                                    int(proc_highest(run),n_int))
                     call MPIBcast (HighestPopDet(:,run), NIfTot+1, &
-                                   proc_highest(run))
+                                   int(proc_highest(run),sizeof_int))
 
                     call update_run_reference(HighestPopDet(:, run), run)
                     
@@ -356,6 +379,9 @@ contains
         ! Equivalent arrays for HElement_t variables.
         HElement_t(dp) :: send_arr_helem(100)
         HElement_t(dp) :: recv_arr_helem(100)
+        ! Equivalent arrays for EXLEVELStats (of exactly required size).
+        real(dp) :: send_arr_WNorm(3*(NEl+1)*inum_runs), &
+                    recv_arr_WNorm(3*(NEl+1)*inum_runs)
         ! Allow room for 100 different arrays to be communicated.
         integer :: sizes(100)
         integer :: low, upp, run
@@ -363,7 +389,8 @@ contains
         integer(int64) :: TotWalkersTemp
         real(dp) :: bloom_sz_tmp(0:2)
         real(dp) :: RealAllHFCyc(max(lenof_sign,inum_runs))
-        real(dp) :: all_norm_psi_squared(inum_runs), all_norm_semistoch_squared(inum_runs)
+!         real(dp) :: all_norm_psi_squared(inum_runs)
+        real(dp) :: all_norm_semistoch_squared(inum_runs)
         character(len=*), parameter :: t_r = 'communicate_estimates'
 
         ! Remove the holes in the main list when wanting the number of uniquely
@@ -405,6 +432,9 @@ contains
         sizes(24) = size(NoAtHF)
         sizes(25) = size(SumWalkersCyc)
         sizes(26) = 1 ! nspawned (single int, not an array)
+        ! communicate the inst_double_occ
+        sizes(27) = 1
+
 
         if (sum(sizes(1:26)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
                                                         & the size of the send_arr and recv_arr arrays in the source code.")
@@ -438,6 +468,8 @@ contains
         low = upp + 1; upp = low + sizes(24) - 1; send_arr(low:upp) = NoAtHF;
         low = upp + 1; upp = low + sizes(25) - 1; send_arr(low:upp) = SumWalkersCyc;
         low = upp + 1; upp = low + sizes(26) - 1; send_arr(low:upp) = nspawned;
+        ! double occ change:
+        low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = inst_double_occ
 
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
@@ -476,6 +508,8 @@ contains
         low = upp + 1; upp = low + sizes(24) - 1; AllNoAtHf = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(25) - 1; AllSumWalkersCyc = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low));
+        ! double occ: 
+        low = upp + 1; upp = low + sizes(27) - 1; all_inst_double_occ = recv_arr(low);
 
         ! Communicate HElement_t variables:
 
@@ -513,6 +547,17 @@ contains
         if (tTrialWavefunction) then
             low = upp + 1; upp = low + sizes(6) - 1; tot_trial_numerator = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(7) - 1; tot_trial_denom = recv_arr_helem(low:upp);
+        end if
+
+        ! Optionally communicate EXLEVEL_WNorm.
+        if (tLogEXLEVELStats) then
+            upp = size(EXLEVEL_WNorm)
+            send_arr_WNorm(1:upp) = reshape(EXLEVEL_WNorm, (/upp/))
+            call MPISumAll (send_arr_WNorm(1:upp), recv_arr_WNorm(1:upp))
+            AllEXLEVEL_WNorm = reshape(recv_arr_WNorm(1:upp), &
+                                       shape(AllEXLEVEL_WNorm))
+            ! Apply square root for L2 norm.
+            AllEXLEVEL_WNorm(2,:,:) = sqrt(AllEXLEVEL_WNorm(2,:,:))
         end if
 
         ! Do some processing of the received data.
@@ -561,6 +606,11 @@ contains
 
         if ((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. .not. tFillingStochRDMOnFly) then   
             call update_tau()
+
+        ! [Werner Dobrautz 4.4.2017:]
+        else if (((t_hist_tau_search .or. (t_hist_tau_search_option .and. tSearchTauDeath)) &
+            .and. (.not. tFillingStochRDMonFly))) then
+            call update_tau_hist()
         end if
 
         if (tTrialWavefunction) then
@@ -583,6 +633,22 @@ contains
             end if
         end if
         
+
+        ! quick fix for the double occupancy: 
+        if (t_calc_double_occ_av) then 
+            ! sum up the squared norm after shift has set in TODO
+            ! and use the mean value if multiple runs are used
+            ! still thinking about if i only want to calc it after 
+            ! equilibration
+!             if (iter > nEquilSteps) then
+                sum_norm_psi_squared = sum_norm_psi_squared + & 
+                    sum(all_norm_psi_squared)/real(inum_runs,dp)
+
+                ! and also sum up the double occupancy: 
+                sum_double_occ = sum_double_occ + all_inst_double_occ
+!             end if
+        end if
+
 #ifdef __DEBUG
         ! Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
         if ((iProcIndex == root) .and. .not. tSpinProject .and. &
@@ -678,7 +744,10 @@ contains
                         VaryShiftIter(run) = Iter
                         iBlockingIter(run) = Iter + PreviousCycles
                         tSinglePartPhase(run) = .false.
-                        if(TargetGrowRate(run).ne.0.0_dp) then
+                        ! [W.D.15.5.2017:]
+                        ! we should remove these equal 0 comparisons..
+!                         if(TargetGrowRate(run).ne.0.0_dp) then
+                        if(abs(TargetGrowRate(run)) > EPS) then
                             write(iout,"(A)") "Setting target growth rate to 1."
                             TargetGrowRate=0.0_dp
                         endif
@@ -689,12 +758,6 @@ contains
                             DiagSft(run) = real(proje_iter(run),dp)
                             defer_update(run) = .true.
                         end if
-                    elseif (abs_sign(AllNoatHF(lb:ub)) < (MaxNoatHF - HFPopThresh)) then
-                        write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
-                                     &single particle growth phase on iteration',iter + PreviousCycles,' - particle number &
-                                     &may grow again.'
-                        tSinglePartPhase(run) = .true.
-                        tReZeroShift(run) = .true.
                     endif
 #else
                     start_varying_shift = .false.
@@ -712,7 +775,10 @@ contains
                         VaryShiftIter(run) = Iter
                         iBlockingIter(run) = Iter + PreviousCycles
                         tSinglePartPhase(run) = .false.
-                        if(TargetGrowRate(run).ne.0.0_dp) then
+                        ! [W.D. 15.5.2017]
+                        ! change equal 0 comps
+!                         if(TargetGrowRate(run).ne.0.0_dp) then
+                        if(abs(TargetGrowRate(run)) > EPS) then
                             write(iout,"(A)") "Setting target growth rate to 1."
                             TargetGrowRate(run)=0.0_dp
                         endif
@@ -723,15 +789,24 @@ contains
                             DiagSft(run) = real(proje_iter(run),dp)
                             defer_update(run) = .true.
                         end if
-                    elseif (abs(AllNoatHF(run)) < (MaxNoatHF - HFPopThresh)) then
+                    endif
+#endif
+                else ! .not.tSinglePartPhase(run)
+
+#ifdef __CMPLX
+                    if (abs_sign(AllNoatHF(lb:ub)) < MaxNoatHF-HFPopThresh) then
+#else
+                    if (abs(AllNoatHF(run)) < MaxNoatHF-HFPopThresh) then
+#endif
                         write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
                                      &single particle growth phase on iteration',iter + PreviousCycles,' - particle number &
                                      &may grow again.'
                         tSinglePartPhase(run) = .true.
                         tReZeroShift(run) = .true.
                     endif
-#endif
-                endif
+
+                endif ! tSinglePartPhase(run) or not
+
                 ! How should the shift change for the entire ensemble of walkers 
                 ! over all processors.
                 if (((.not. tSinglePartPhase(run)).or.(TargetGrowRate(run).ne.0.0_dp)) .and.&
@@ -739,7 +814,9 @@ contains
 
                     !In case we want to continue growing, TargetGrowRate > 0.0_dp
                     ! New shift value
-                    if(TargetGrowRate(run).ne.0.0_dp) then
+!                     if(TargetGrowRate(run).ne.0.0_dp) then
+                    ! [W.D. 15.5.2017]
+                    if(abs(TargetGrowRate(run)) > EPS) then
 #ifdef __CMPLX
                         if(sum(AllTotParts(lb:ub)).gt.TargetGrowRateWalk(run)) then
 #else
@@ -818,9 +895,12 @@ contains
 
                  ! Calculate the projected energy.
 #ifdef __CMPLX
-                 if (any(AllSumNoatHF(lb:ub) /= 0.0)) then
+                ! [W.D. 15.5.2017:]
+!                  if (any(AllSumNoatHF(lb:ub) /= 0.0_dp)) then
+                 if (any(abs(AllSumNoatHF(lb:ub)) > EPS)) then
 #else
-                 if ((AllSumNoatHF(run) /= 0.0)) then
+!                  if ((AllSumNoatHF(run) /= 0.0_dp)) then
+                 if (abs(AllSumNoatHF(run)) > EPS) then
 #endif
                          ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
                                           + proje_ref_energy_offsets(run)
@@ -831,10 +911,10 @@ contains
                 endif
                 ! If we are re-zeroing the shift
                 if (tReZeroShift(run)) then
-                    DiagSft(run) = 0
+                    DiagSft(run) = 0.0_dp
                     VaryShiftCycles(run) = 0
-                    SumDiagSft(run) = 0
-                    AvDiagSft(run) = 0
+                    SumDiagSft(run) = 0.0_dp
+                    AvDiagSft(run) = 0.0_dp
                 endif
             enddo
 
@@ -867,17 +947,17 @@ contains
         
         ! Zero all of the variables which accumulate for each iteration.
 
-        IterTime = 0.0
+        IterTime = 0.0_sp
         SumWalkersCyc(:)=0.0_dp
-        Annihilated = 0
-        Acceptances = 0
-        NoBorn = 0
-        SpawnFromSing = 0
-        NoDied = 0
-        ENumCyc = 0
-        ENumCycAbs = 0
+        Annihilated = 0.0_dp
+        Acceptances = 0.0_dp
+        NoBorn = 0.0_dp
+        SpawnFromSing = 0.0_dp
+        NoDied = 0.0_dp
+        ENumCyc = 0.0_dp
+        ENumCycAbs = 0.0_dp
         HFCyc = 0.0_dp
-        cyc_proje_denominator=0
+        cyc_proje_denominator=0.0_dp
         trial_numerator = 0.0_dp
         trial_denom = 0.0_dp
 
@@ -904,7 +984,7 @@ contains
         iter_data%update_iters = 0
         iter_data%tot_parts_old = tot_parts_new_all
 
-        max_cyc_spawn = 0
+        max_cyc_spawn = 0.0_dp
 
         cont_spawn_attempts = 0
         cont_spawn_success = 0

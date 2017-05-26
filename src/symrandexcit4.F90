@@ -6,7 +6,9 @@ module excit_gens_int_weighted
                           nOccBeta, tExch, AA_elec_pairs, BB_elec_pairs, &
                           AB_elec_pairs, par_elec_pairs, AA_hole_pairs, &
                           par_hole_pairs, AB_hole_pairs, iMaxLz, &
-                          tGen_4ind_part_exact, tGen_4ind_lin_exact
+                          tGen_4ind_part_exact, tGen_4ind_lin_exact, &
+                          tGen_4ind_unbound
+    use CalcData, only: matele_cutoff, t_matele_cutoff
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
                                pDoubNew, ScratchSize, SpinOrbSymLabel, &
@@ -428,6 +430,7 @@ contains
         integer, intent(out) :: ex(2,2)
         logical, intent(out) :: par
         real(dp), intent(out) :: pgen
+        character(*), parameter :: this_routine = "gen_single_4ind_ex"
 
         integer :: elec, src, tgt, cc_index
 
@@ -470,6 +473,7 @@ contains
         integer, intent(in) :: nI(nel), src, tgt
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         real(dp) :: pgen
+        character(*), parameter :: this_routine = "pgen_single_4ind"
 
         integer :: cc_index, label_index, norb, n_id(nel), id_src, id_tgt
         integer :: i, j, orb
@@ -522,6 +526,7 @@ contains
             pgen = pgen * cpt_tgt / cum_sum
         end if
 
+
     end function
 
 
@@ -539,6 +544,7 @@ contains
         integer :: orb, norb, label_index, orb_index, i, j
         integer :: n_id(nel), id_src, id
         HElement_t(dp) :: hel
+        real(dp) :: cpt
         
         ! How many orbitals of the correct symmetry are there?
         norb = OrbClassCount(cc_index)
@@ -550,11 +556,11 @@ contains
         ASSERT(tExch)
 
         ! Construct the cumulative list of strengths
-        cum_sum = 0
+        cum_sum = 0.0_dp
         do i = 1, norb
 
             orb = SymLabelList2(label_index + i - 1)
-            hel = 0
+            hel = 0.0_dp
             if (IsNotOcc(ilut, orb)) then
                 ASSERT(G1(orb)%Ms == G1(src)%Ms)
                 ASSERT(G1(orb)%Ml == G1(src)%Ml)
@@ -580,15 +586,22 @@ contains
             end if
 
             ! And store the values for later searching
-            cpt_arr(i) = abs_l1(hel)
+            cpt = abs_l1(hel) 
+
+            if (t_matele_cutoff) then
+                if (cpt < matele_cutoff) cpt = 0.0_dp
+            end if
+
+            cpt_arr(i) = cpt
             cum_sum = cum_sum + cpt_arr(i)
             cumulative_arr(i) = cum_sum
 
         end do
 
         ! Select a particular orbital to use, or abort.
-        if (cum_sum == 0) then
+        if (cum_sum < EPS) then
             orb = 0
+            pgen = 0.0_dp
         else
             r = genrand_real2_dSFMT() * cum_sum
             orb_index = binary_search_first_ge(cumulative_arr, r)
@@ -864,7 +877,12 @@ contains
             ! n.b. This can only be used for the case <ij|ba> == 0.
             ida = gtID(orba)
             idb = gtID(orbb)
-            contrib = max(sqrt(abs(get_umat_el(indi, indj, ida, idb))), 0.0001)
+            if (tGen_4ind_unbound) then
+                contrib = abs(get_umat_el(indi, indj, ida, idb))
+            else
+                contrib = max(sqrt(abs(get_umat_el(indi, indj, ida, idb))), 0.0001_dp)
+!                 contrib = sqrt(abs(get_umat_el(indi, indj, ida, idb)))
+            end if
         else if (tGen_4ind_lin_exact) then
             if (orbb > 0) then
                 ! Include a contribution of abs(<ij|ab>)
@@ -880,6 +898,10 @@ contains
             ! Include the contribution of this term sqrt(<ia|ia>)
             ida = gtID(orba)
             contrib = sqrt(abs_l1(UMat2D(max(indi, ida), min(indi, ida))))
+        end if
+
+        if (t_matele_cutoff) then
+            if (contrib < matele_cutoff) contrib = 0.0_dp
         end if
 
     end function
@@ -899,8 +921,16 @@ contains
             ! sqrt(abs(<ij|ab> - <ij|ba>))
             ida = gtID(orba)
             idb = gtID(orbb)
-            contrib = max(sqrt(abs(get_umat_el(indi, indj, ida, idb) &
-                                - get_umat_el(indi, indj, idb, ida))), 0.00001)
+            if (tGen_4ind_unbound) then
+                contrib = abs(get_umat_el(indi, indj, ida, idb) &
+                                - get_umat_el(indi, indj, idb, ida))
+            else
+                ! finally get rid of this arbitrary thresholds..
+                contrib = max(sqrt(abs(get_umat_el(indi, indj, ida, idb) &
+                                - get_umat_el(indi, indj, idb, ida))), 0.00001_dp)
+!                 contrib = sqrt(abs(get_umat_el(indi, indj, ida, idb) &
+!                                 - get_umat_el(indi, indj, idb, ida)))
+            end if
         else if (tGen_4ind_lin_exact) then
             if (orbb > 0) then
                 ! Include a contribution of:
@@ -921,6 +951,10 @@ contains
                     + sqrt(abs_l1(UMat2D(max(indj, ida), min(indj, ida))))
             !sqrt(abs_l1(get_umat_el(srcid(1), srcid(1), ida, ida))) + &
             !sqrt(abs_l1(get_umat_el(srcid(2), srcid(2), ida, ida)))
+        end if
+
+        if (t_matele_cutoff) then
+            if (contrib < matele_cutoff) contrib = 0.0_dp
         end if
 
     end function
@@ -962,7 +996,7 @@ contains
 
             ! Both of the electrons have the same spin. Therefore we need to
             ! include both electron-hole interactions.
-            cum_sum = 0
+            cum_sum = 0.0_dp
             srcid = gtID(src)
             do i = 1, norb
             
@@ -987,7 +1021,7 @@ contains
                 srcid(2) = gtID(src(1))
             end if
 
-            cum_sum = 0
+            cum_sum = 0.0_dp
             do i = 1, norb
 
                 orb = SymLabelList2(label_index + i - 1)
@@ -1003,7 +1037,7 @@ contains
 
 
         ! If there are no available orbitals to pair with, we need to abort
-        if (cum_sum == 0) then
+        if (cum_sum < EPS) then
             orb = 0
             return
         end if

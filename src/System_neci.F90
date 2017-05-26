@@ -473,8 +473,42 @@ system: do
             call getf(BHUB)
         case("REAL")
             TREAL = .true.
+            ! in case of the real-space lattice also turn off symmetries
+            lNoSymmetry = .true.
         case("APERIODIC")
             TPBC = .false.
+
+        case ("OPEN-BC")
+            ! open boundary implementation for the real-space hubbard 
+            ! model
+            ! only applicable for 1 and 2 dimensional lattices! 
+            ! for the square lattice on can specify mixed boundary conditions
+            ! (periodic + open) but not in the tilted where always full
+            ! open boundary conditions are used if this keyword is present!
+
+            if (item < nitems) then
+                call readu(w)
+
+                select case (w)
+                case ("X")
+                    ! onl open in x-direction
+                    t_open_bc_x = .true.
+
+                case ("Y")
+                    ! only open in y-direction 
+                    t_open_bc_y = .true.
+
+                case ("XY")
+                    ! open in both directions
+                    t_open_bc_x = .true.
+                    t_open_bc_y = .true.
+
+                end select 
+            else
+                t_open_bc_x = .true.
+                t_open_bc_y = .true.
+            end if
+
         case("UEG-OFFSET")
             tUEGOffset=.true.
             call getf(k_offset(1))
@@ -895,6 +929,17 @@ system: do
                         tGen_4ind_2 = .true.
                         tGen_4ind_part_exact = .true.
                         tGen_4ind_2_symmetric = .false.
+
+                    case("4IND-WEIGHTED-UNBOUND")
+                        ! [Werner Dobrautz 26.4.2017:]
+                        ! new tests for optimizations for the latest 
+                        ! excitation generator implementation, without using
+                        ! the artificial lower bounds for the energy
+                        tGen_4ind_2 = .true.
+                        tGen_4ind_part_exact = .true.
+                        tGen_4ind_2_symmetric = .false.
+                        tGen_4ind_unbound = .true.
+
                     case("4IND-WEIGHTED-2-SYMMETRIC")
                         ! The other version of this generator. This permits
                         ! selecting orbitals in both directions
@@ -1381,6 +1426,7 @@ system: do
       
           ELSE
 !C.. Create plane wave basis functions
+
               WRITE(6,*) "Creating plane wave basis."     
               IG=0
               DO I=NBASISMAX(1,1),NBASISMAX(1,2)
@@ -1637,7 +1683,7 @@ system: do
              WRITE(6,*) ' Y-LENGTH OF HUBBARD CHAIN:', NMAXY
              WRITE(6,*) ' Z-LENGTH OF HUBBARD CHAIN:', NMAXZ
              WRITE(6,*) ' Periodic Boundary Conditions:',TPBC
-!              WRITE(6,*) ' Real space basis:',TREAL
+             WRITE(6,*) ' Real space basis:',TREAL
              IF(TTILT.AND.THUB) THEN
                 OMEGA=real(NMAXX,dp)*NMAXY*(ITILTX*ITILTX+ITILTY*ITILTY)
              ELSE
@@ -1687,7 +1733,8 @@ system: do
           IF(THUB) THEN
              IF(TTILT) THEN
                 CALL SETBASISLIM_HUBTILT(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,TPBC,ITILTX,ITILTY)
-                IF(TREAL) call stop_all(this_routine, 'REAL TILTED HUBBARD NOT SUPPORTED')
+                ! is supported now!
+!                 IF(TREAL) call stop_all(this_routine, 'REAL TILTED HUBBARD NOT SUPPORTED')
               ELSE
                 CALL SETBASISLIM_HUB(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,TPBC,TREAL)
              ENDIF
@@ -1774,7 +1821,11 @@ system: do
          ENDIF
       ELSE
 !C.. Create plane wave basis functions
+        if (treal) then
+         WRITE(6,*) "Creating real-space basis."
+        else
          WRITE(6,*) "Creating plane wave basis."
+        end if
          IG=0
          DO I=NBASISMAX(1,1),NBASISMAX(1,2)
            DO J=NBASISMAX(2,1),NBASISMAX(2,2)
@@ -1784,7 +1835,9 @@ system: do
                   G%k(2)=J
                   G%k(3)=K
                   G%Ms=L
-                  IF((THUB.AND.(TREAL.OR..NOT.TPBC)).OR.KALLOWED(G,NBASISMAX)) THEN
+                  ! change to implement the tilted real-space
+                  if ((treal .and. .not. ttilt) .or. KALLOWED(G,nBasisMax))then
+!                   IF((THUB.AND.(TREAL.OR..NOT.TPBC)).OR.KALLOWED(G,NBASISMAX)) THEN
                     IF(THUB) THEN
 !C..Note for the Hubbard model, the t is defined by ALAT(1)!
                        IF(TPBC) THEN
@@ -1838,6 +1891,17 @@ system: do
                call stop_all(this_routine, ' LEN NE IG ')
             endif
          ENDIF
+         ! also turn off symmetries for the real-space basis
+         if (thub .and. treal) then
+             WRITE(6,*) "Turning Symmetry off for the real-space Hubbard"
+             DO I = 1,nBasis
+                 G1(I)%Sym%s = 0
+             end do
+             call GENMOLPSYMTABLE(1,G1,NBASIS)
+             DO I = 1, nBasis
+                 G1(I)%Sym%s = 0
+             end do
+         end if
          if (.not. tHub) CALL GENMOLPSYMTABLE(1,G1,NBASIS)
       ENDIF
 

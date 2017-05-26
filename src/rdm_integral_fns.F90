@@ -34,4 +34,14 @@ contains
 
     end function two_elec_int
 
+    function GetPropInts(i,j,iprop) result(integral)
+        
+        use OneEInts, only: OneEPropInts
+        integer, intent(in) :: i, j, iprop
+        real(dp) :: integral
+
+        integral = OneEPropInts(i,j,iprop)
+
+    end function
+
 end module rdm_integral_fns

@@ -50,11 +50,6 @@ contains
         real(dp) :: temp_energies(nexcit_calc)
         character (len=*), parameter :: t_r = "init_trial_wf"
 
-!#ifdef __CMPLX
-!        call stop_all(t_r, "Trial wave function-based estimators have not been implemented with &
-!                           &complex coefficients.")
-!#endif
-
         ! Perform checks.
         if (tIncCancelledInitEnergy .and. (.not. tTrialHash)) &
             call stop_all(t_r, "The inc-cancelled-init-energy option cannot be used with the &
@@ -81,20 +76,17 @@ contains
 
         write(6,'("Generating the trial space...")'); call neci_flush(6)
 
-#ifdef __CMPLX
-             call calc_trial_states_direct(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
-                                           temp_energies, trial_counts, trial_displs, trial_est_reorder)
-#else
         if (qmc_trial_wf) then
+#ifdef __CMPLX
+            call stop_all(t_r, "QMC trial state initiation not supported for complex wavefunctions.")
+#else
             call calc_trial_states_qmc(trial_in, nexcit_keep, CurrentDets, HashIndex, replica_pairs, &
                                        trial_space_size, trial_space, trial_wfs, trial_counts, trial_displs)
+#endif
         else
             call calc_trial_states_lanczos(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
                                            temp_energies, trial_counts, trial_displs, trial_est_reorder)
-!           call calc_trial_states_direct(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
-!                                         temp_energies, trial_counts, trial_displs, trial_est_reorder)
         end if
-#endif
 
         write(6,'("Size of trial space on this processor:",1X,i8)') trial_space_size; call neci_flush(6)
 

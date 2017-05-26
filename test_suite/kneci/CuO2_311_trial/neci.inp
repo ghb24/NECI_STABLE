@@ -42,6 +42,7 @@ integral
 endint
 
 logging
+no-append-stats
 popsfile -1
 endlog
 end

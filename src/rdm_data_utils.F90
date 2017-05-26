@@ -382,7 +382,7 @@ contains
         integer(int_rdm), intent(in) :: ijkl
         integer, intent(out) :: ij, kl, i, j, k, l ! spin or spatial orbitals
 
-        kl = mod(ijkl-1, nbasis**2) + 1
+        kl = mod(ijkl-1, int(nbasis, int_rdm)**2) + 1
         ij = (ijkl - kl)/(nbasis**2) + 1
 
         j = mod(ij-1, nbasis) + 1

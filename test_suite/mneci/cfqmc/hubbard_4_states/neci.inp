@@ -12,6 +12,9 @@ electrons 12
 endsys
 
 calc
+lanczos-max-subspace-size 30
+lanczos-energy-precision 6
+lanczos-ritz-overlap-precision 3
 tau 0.01
 totalwalkers 18000
 startsinglepart 20000

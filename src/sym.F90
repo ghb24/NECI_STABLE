@@ -2,7 +2,7 @@ module sym_mod
 
 use constants, only: dp,int64,sizeof_int
 use SymExcitDataMod, only: SymTableLabels
-use SystemData, only: tKpntSym, tNoSymGenRandExcits
+use SystemData, only: tKpntSym, tNoSymGenRandExcits, tHub
 implicit none
 
 contains
@@ -56,27 +56,37 @@ contains
                 SYMPROD%s=0
                 RETURN
              ENDIF
+             ! fix if all symmetries are set to 1
+!              if (isym1%s == isym2%s .and. isym1%s == 1) then
+!                  symprod%s = 1
+!                  return
+!              end if
+             ! change for the real-space hubbard
              IF (.not.allocated(SYMTABLE)) call stop_all(this_routine, 'SYMMETRY TABLE NOT ALLOCATED')
              IS1=ISYM1
              I=1
              SYMPROD%s=0
-             DO WHILE(IS1%s.NE.0)
-                IF(BTEST(IS1%s,0)) THEN
-                   IS2=ISYM2
-                   J=1
-                   DO WHILE(IS2%s.NE.0)
-                      IF(BTEST(IS2%s,0)) THEN
-                         SYMPROD%s=IOR(SYMPROD%s,SYMTABLE(I,J)%s)
-                      ENDIF
-!  RSHIFT(,1)
-                      IS2%s=ISHFT(IS2%s,-1)
-                      J=J+1
-                   ENDDO
-                ENDIF
-!RSHIFT(,1)
-                IS1%s=ISHFT(IS1%s,-1)
-                I=I+1
-             ENDDO
+!              if (thub .or. tKpntSym) then
+!                  symprod = SYMTABLE(isym1%s, isym2%s)
+!              else
+                 DO WHILE(IS1%s.NE.0)
+                    IF(BTEST(IS1%s,0)) THEN
+                       IS2=ISYM2
+                       J=1
+                       DO WHILE(IS2%s.NE.0)
+                          IF(BTEST(IS2%s,0)) THEN
+                             SYMPROD%s=IOR(SYMPROD%s,SYMTABLE(I,J)%s)
+                          ENDIF
+    !  RSHIFT(,1)
+                          IS2%s=ISHFT(IS2%s,-1)
+                          J=J+1
+                       ENDDO
+                    ENDIF
+    !RSHIFT(,1)
+                    IS1%s=ISHFT(IS1%s,-1)
+                    I=I+1
+                 ENDDO
+!              end if
          end if
          RETURN
       END FUNCTION SYMPROD
@@ -166,7 +176,7 @@ contains
 !   A1 corresponds to bit 0 (i.e. irrep 1)
       SUBROUTINE GENMOLPSYMTABLE(NSYMMAX,G1,NBASIS)
          use SystemData, only: Symmetry,SymmetrySize
-         use SystemData, only: BasisFN, tUEG, tHUB
+         use SystemData, only: BasisFN, tUEG, tHUB, treal
          use SymData, only: nProp,SymClasses,nSymLabels
          use SymData, only: tAbelian,SymLabels, TwoCycleSymGens
          use SymData, only: tagSymLabels,tagSymClasses
@@ -226,8 +236,9 @@ contains
                 ! real.
                 SymConjTab(I) = I
              ENDDO
-         else if (.not.tHUB) then
+         else if (.not.tHUB .or. treal) then
              ! Hubbard symmetry info set up in GenHubMomIrrepsSymTable.
+             ! except for the real-space lattice!
              symlabels(:)%s = -1
              do i = 1, nbasis, 2
                  do ilabel = 1, nsymlabels
@@ -766,7 +777,7 @@ contains
 
 
       SUBROUTINE GETSYM(NI2,NEL,G1,NBASISMAX,ISYM)
-         use SystemData, only: Symmetry, BasisFN, tFixLz
+         use SystemData, only: Symmetry, BasisFN, tFixLz, lNoSymmetry
          use SymData, only: SymReps,tAbelian
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),nBasisMax(5,*)
@@ -1986,10 +1997,11 @@ contains
           ! changes according to whether we're using Abelian/k-point
           ! symmetry or the standard symmetry.  It's just a matter of
           ! convenience, rather than some deep theoretical insight!
-          use SystemData, only: Symmetry, BasisFN,tUEG
+          use SystemData, only: Symmetry, BasisFN,tUEG,tReal
           use SymData, only: tAbelian
           implicit none
           Type(Symmetry) TotSymRep 
+!           if (TAbelian.or.tUEG.or.treal) then
           if (TAbelian.or.tUEG) then
               TotSymRep%s=0
           else
@@ -2096,5 +2108,47 @@ contains
         ENDIF
 
     END FUNCTION RandExcitSymLabelProd
+
+    ! this function checks whether a determinant nI can appear if the 
+    ! total momentum is to be targetK and determinants with momentum
+    ! cK have already been picked. rEls is the number of electrons that can
+    ! still be distributed
+    recursive function checkMomentumInvalidity(nI,cK,targetK,rElsUp, &
+         rElsDown) result(momcheck)
+      use SystemData, only: G1, nbasis, nBasisMax, brr
+      implicit none
+      integer, intent(in) :: nI, rElsUp, rElsDown
+      integer, dimension(3), intent(in) :: cK
+      integer, dimension(3), intent(in) :: targetK
+      integer, dimension(3) :: bufK
+      logical :: momcheck
+      integer :: lI, rElsUpNew, rElsDownNew
+      
+      ! returns true if nI can not appear
+      momcheck = .true.
+      if(G1(brr(nI))%Ms == -1) then
+         rElsUpNew = rElsUp - 1
+         rElsDownNew = rElsDown
+      else
+         rElsDownNew = rElsDown -1
+         rElsUpNew = rElsUp
+      endif
+      ! in case there are no electrons left matching the spin of nI
+      if(rElsUpNew < 0 .or. rElsDownNew < 0) return
+      ! this is the momentum from which we want to reach targetK
+      bufK = cK + G1(brr(nI))%k
+      if(tHub) call MomPbcSym(bufK,nBasisMax)
+      ! for the last electron, the total momentum has to be hit
+      if((rElsUpNew + rElsDownNew) == 0) then
+         if(all(abs(bufK - targetK) == 0)) momcheck = .false.
+         return
+      endif
+      ! try if the target momentum can still be reached
+      ! this requires some computational effort, but the number of orbitals is not that large
+      do lI = nI+1, nbasis
+         momcheck = checkMomentumInvalidity(lI,bufK,targetK,rElsUpNew,rElsDownNew)
+         if(.not. momcheck) return
+      enddo
+    end function checkMomentumInvalidity
 
 end module sym_mod

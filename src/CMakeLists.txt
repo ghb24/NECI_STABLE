@@ -55,6 +55,7 @@ set( SRC_FILES
     gndts.F90
     gndwork.F90
     hash.F90
+	hamiltonian_linalg.F90
     hdf5_popsfile.F90
     hdiag.F
     HElem.F90
@@ -78,6 +79,7 @@ set( SRC_FILES
     kp_fciqmc_init.F90
     kp_fciqmc_procs.F90
     kp_fciqmc_proj_est.F90
+    lanczos_general.F90
     lanczos_wrapper.F90
     legacy_data.F90
     lineup.F
@@ -158,6 +160,8 @@ set( SRC_FILES
     vasp_init.F90
     vasp_interface.F90
     vasp_neci_interface_stub.F90
+    double_occ.F90
+    tau_search_hist.F90
 
     lib/allocate_shared_worker.cpp
     lib/backtrace.cpp
@@ -212,6 +216,20 @@ if (HAVE_HDF5)
     list(APPEND _conditional_libraries ${HDF5_NECI_LIBRARIES} )
 endif()
 
+# ---------------------------------------------------------------------------------
+
+set( _library_link_libs
+    "${LAPACK_NECI_LIBRARIES}"
+    "${LIBRT_LIBRARIES}"
+    "${_conditional_libraries}" )
+
+if( HAVE_SHARED )
+    set( _link_type SHARED )
+    set( _exe_link_libs "" )
+else()
+    set( _link_type STATIC )
+    set( _exe_link_libs "${_library_link_libs}" )
+endif()
 
 # ---------------------------------------------------------------------------------
 # Build the main parts as static libraries
@@ -224,7 +242,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
     neci_add_library(
     
         TARGET lib${_config}
-        TYPE STATIC
+        TYPE ${_link_type}
         OUTPUT_NAME ${_config}
         SOURCES ${SRC_FILES}
         TEMPLATED_SOURCES ${TEMPLATED_SRC_FILES}
@@ -239,17 +257,17 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
             "${${PROJECT_NAME}_${_config}_DEFINITIONS}"
             "${HDF5_NECI_DEFINITIONS}"
 
-        LIBS
-            "${LAPACK_NECI_LIBRARIES}"
-            "${LIBRT_LIBRARIES}"
-            "${_conditional_libraries}"
+        LIBS "${_library_link_libs}"
     )
 
     message(STATUS "Adding executable for configuration ${_config}")
     neci_add_executable(
         TARGET ${_config}
         SOURCES necimain.F90
-        LIBS lib${_config}
+        LIBS
+            lib${_config}
+            "${_exe_link_libs}"
+
         LINKER_LANGUAGE Fortran
     )
 

@@ -63,8 +63,10 @@ if ( HAVE_BUILD_HDF5 )
 		hdf5
 		# -- Download step ---
 		PREFIX ${HDF_DIR}-prefix
-		URL http://www.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.15-patch1/src/hdf5-1.8.15-patch1.tar.gz
-		URL_MD5 4467c25ed9c0b126b194a4d9d66c29ac
+        URL http://support.hdfgroup.org/ftp/HDF5/current18/src/hdf5-1.8.18.tar.gz
+        URL_MD5 dd2148b740713ca0295442ec683d7b1c
+        # URL http://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.15-patch1/src/hdf5-1.8.15-patch1.tar.gz
+		# URL_MD5 4467c25ed9c0b126b194a4d9d66c29ac
 		# -- Configure step --
 		SOURCE_DIR ${HDF_DIR}
 		CONFIGURE_COMMAND env ${_configure_override} ${HDF_DIR}/configure --enable-parallel --enable-fortran --enable-fortran2003 --prefix=${HDF_DIR}

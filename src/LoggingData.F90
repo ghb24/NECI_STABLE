@@ -45,6 +45,7 @@ module LoggingData
     LOGICAL :: tBlockEveryIteration
     LOGICAL tLogDets       ! Write out the DETS and SymDETS files.
     LOGICAL tLogComplexPops     ! Write out complex walker information 
+    LOGICAL tLogEXLEVELStats    ! Write L_{0,1,2} norms of weights by exlevel
     LOGICAL tMCOutput
     logical :: tDumpForcesInfo
     logical :: tPrintLagrangian  !Print out the 1RDM,2RDM and Lagrangian to file at the end of a run as long as 2RDM is calculated
@@ -115,5 +116,33 @@ module LoggingData
     ! If true, then read in spinfree 2-RDM files and then output 1-RDMs
     ! calculated directly from these.
     logical :: tPrint1RDMsFromSpinfree = .false.
+
+    ! Whether we are calculating the estimates of properties
+    logical ::  tCalcPropEst
+    integer :: iNumPropToEst
+    ! The name of the integral file for each of the property to be estimated
+    character(100), allocatable :: EstPropFile(:)
+
+    ! like rdms, as it is a bit similar, access the double occupancy 
+    ! measurement in the logging section!
+    logical :: t_calc_double_occ = .false. 
+    ! also use a optional input parameter to start averaging the 
+    ! double occupancy only after a certain number of steps after the 
+    ! shift changes
+    integer :: equi_iter_double_occ = 0
+    logical :: t_calc_double_occ_av = .false.
+    ! I essentially only need a local and a global storage for the 
+    ! the expectation vaulue <n_u n_d> 
+    ! and also some storage for the instantaneous, averaged, summed over 
+    ! stuff etc.. 
+!     real(dp) :: n_double_occ_loc, n_double_occ_all
+    ! [Werner Dobrautz 4.4.2017]
+    ! changes belonging to the histogram tau-search
+    ! for now always print out the histograms at the end, maybe change that 
+    ! behavior in the future
+    logical :: t_print_frq_histograms = .true.
+
+    ! if this is true, force moving fcimcstats and initiatorstats files, and accumulate stats in new files
+    logical :: t_no_append_stats = .false.
 
 end module LoggingData
