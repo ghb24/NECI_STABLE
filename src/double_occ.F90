@@ -58,10 +58,6 @@ contains
         ! the doubly occupied orbitals are just the number of electrons 
         ! minus the number of open orbitals divided by 2
         n_double_orbs = (nel - n_open_orbs)/2
-#ifdef __DEBUG
-        print *, "double occupied orbs for determinant:", n_double_orbs
-        call writedetbit(6, ilut, .true.)
-#endif
 
     end function count_double_orbs
 
@@ -161,15 +157,7 @@ contains
             state%cols = 0
             state%cols_mc = 0 
             state%mc_out = tMCOutput
-       
-#ifdef __DEBUG
-            print *, "double_occ: ", all_inst_double_occ
-            print *, "norm: ", all_norm_psi_squared
-            print *, "inum_runs: ", real(inum_runs,dp)
-            print *, "summed double occ: ", sum_double_occ
-            print *, "summed norm: ", sum_norm_psi_squared
-#endif
-
+      
             call stats_out(state,.false., iter + PreviousCycles, 'Iter.')
             call stats_out(state,.false., all_inst_double_occ / & 
                 (sum(all_norm_psi_squared) / real(inum_runs, dp)), 'Double Occ.')
