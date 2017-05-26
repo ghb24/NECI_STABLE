@@ -84,19 +84,19 @@ tolerance = (5e-8, None, 'sum_error_rdm_2'), (5e-8, None, 'sum_diff_trdm_1_2(1)'
 program = kmneci
 tolerance = (1e-7, None, 'final_energy_2')
 
+[hdf5/dneci/*/*/]
+program = dneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+[hdf5/neci/*/]
+program = neci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
 _default_ = neci kneci mneci kmneci
 
 # add new hdf5 class so this is not tested standardly on altest currently, since there is a problem compiling hdf5
-#[hdf5/dneci/*/*/]
-#program = dneci
-#nprocs = 2
-#min_nprocs = 2
-#max_nprocs = 2
-
-#[hdf5/neci/*/]
-#program = neci
-#nprocs = 2
-#min_nprocs = 2
-#max_nprocs = 2
-
 
