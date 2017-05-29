@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 module OneEInts
 
 ! For calculating, storing and retrieving the one electron integrals, <i|h|j>, where 
@@ -36,6 +33,11 @@ HElement_t(dp), dimension(:,:), POINTER :: TMAT2D
 HElement_t(dp), dimension(:), POINTER :: TMATSYM2
 HElement_t(dp), dimension(:,:), POINTER :: TMAT2D2
 
+! One electron integrals corresponding to properties that would be estimated
+! using 1 body RDM
+HElement_t(dp), dimension(:,:,:), pointer :: OneEPropInts
+real(dp), dimension(:), pointer :: PropCore
+
 ! True if using TMatSym in CPMD (currently only if using k-points, which form
 ! an Abelian group).
 logical tCPMDSymTMat
@@ -46,6 +48,9 @@ logical tOneElecDiag    !Indicates that the one-electron integral matrix is diag
 integer(TagIntType) :: tagTMat2D=0
 integer(TagIntType) :: tagTMat2D2=0
 integer(TagIntType) :: tagTMATSYM=0,tagTMATSYM2=0
+integer(TagIntType) :: tagOneEPropInts=0
+integer(TagIntType) :: tagPropCore=0
+
 
 contains
 
@@ -461,6 +466,29 @@ contains
     
       END SUBROUTINE SetupTMAT
 
+      subroutine SetupPropInts(nBasis)
+ 
+        use HElem, only: HElement_t_size
+        use LoggingData, only: iNumPropToEst
+        use MemoryManager, only: LogMemalloc
+ 
+        implicit none
+        integer, intent(in) :: nBasis
+        integer :: ierr,iSize
+        character(*),parameter :: t_r = 'SetupPropertyInts'
+ 
+        ! Using a square array to hold <i|h|j> (incl. elements which are
+        ! zero by symmetry).
+        Allocate(OneEPropInts(nBasis,nBasis,iNumPropToEst),STAT=ierr)
+        iSize = NBasis*NBasis*iNumPropToEst
+        call LogMemAlloc('OneEPropInts',nBasis*nBasis*iNumPropToEst,HElement_t_size*8,t_r,tagOneEPropInts)
+        OneEPropInts = (0.0_dp)
+        Allocate(PropCore(iNumPropToEst),STAT=ierr)
+        call LogMemAlloc('PropCore',iNumPropToEst,dp,t_r,tagPropCore)
+        PropCore = 0.0d0
+ 
+      end subroutine SetupPropInts
+
 
      
       SUBROUTINE SetupTMAT2(nBASISFRZ,iSS,iSize)
@@ -603,6 +631,18 @@ contains
             ENDIF
         ENDIF
       END SUBROUTINE DestroyTMat
+
+      SUBROUTINE DestroyPropInts()
+ 
+        use MemoryManager, only: LogMemDealloc
+        implicit none
+        character(*),parameter :: t_r = 'DestroyPropInts'
+
+        Deallocate(OneEPropInts)
+        call LogMemDealloc(t_r,tagOneEPropInts)
+        Deallocate(PropCore)
+ 
+      END SUBROUTINE DestroyPropInts
 
       SUBROUTINE SwapTMat(NBASIS,NHG,GG)
         ! In:

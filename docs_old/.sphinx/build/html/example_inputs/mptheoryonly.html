@@ -1,0 +1,167 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Standalone MP2 calculations &mdash; NECI v0.1 documentation</title>
+    <link rel="stylesheet" href="../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="NECI v0.1 documentation" href="../index.html" />
+    <link rel="up" title="Example Input Files" href="index.html" />
+    <link rel="next" title="References" href="../references.html" />
+    <link rel="prev" title="Example Input Files" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../references.html" title="References"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Example Input Files"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Example Input Files</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h3><a href="../index.html">Table Of Contents</a></h3>
+            <ul>
+<li><a class="reference external" href="#">Standalone MP2 calculations</a><ul>
+<li><a class="reference external" href="#cpmd">CPMD</a></li>
+<li><a class="reference external" href="#molecular-systems">Molecular systems</a></li>
+</ul>
+</li>
+</ul>
+
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="index.html"
+                                  title="previous chapter">Example Input Files</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="../references.html"
+                                  title="next chapter">References</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="../_sources/example_inputs/mptheoryonly.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="../search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="standalone-mp2-calculations">
+<span id="input-examples"></span><h1>Standalone MP2 calculations<a class="headerlink" href="#standalone-mp2-calculations" title="Permalink to this headline">¶</a></h1>
+<p>The <strong>CALC</strong> block is simply:</p>
+<div class="highlight-python"><pre>Calc
+    MPTheory only
+EndCalc</pre>
+</div>
+<div class="section" id="cpmd">
+<h2>CPMD<a class="headerlink" href="#cpmd" title="Permalink to this headline">¶</a></h2>
+<p>For a straight-forward <strong>CPMD</strong>-based calculation using, say, 200 spin-virtuals, the input file is:</p>
+<div class="highlight-python"><pre>System CPMD
+EndSys
+
+Calc
+    MPTheory only
+EndCalc
+
+Integrals
+    UMatCache MB 750
+    Freeze 0,-200
+EndInt</pre>
+</div>
+<p>where we have also allocatabed a maximum of 750MB to be used in caching the integrals.</p>
+<p>If we wish to ignore the single excitations of the reference (Kohn&#8211;Sham) determinant, then we can use:</p>
+<div class="highlight-python"><pre>System CPMD
+EndSys
+
+Calc
+    MPTheory only
+    Excitations doubles
+EndCalc
+
+Integrals
+    UMatCache MB 750
+    Freeze 0,-200
+EndInt</pre>
+</div>
+</div>
+<div class="section" id="molecular-systems">
+<h2>Molecular systems<a class="headerlink" href="#molecular-systems" title="Permalink to this headline">¶</a></h2>
+<p>Similarly, for molecular systems, a valid input file is of the form:</p>
+<div class="highlight-python"><pre>System READ
+    Electrons 36
+EndSys
+
+Calc
+    MPTheory only
+EndCalc</pre>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../references.html" title="References"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Example Input Files"
+             >previous</a> |</li>
+        <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" >Example Input Files</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright 2010, Alavi Group.
+      Last updated on Feb 20, 2010.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.4.
+    </div>
+  </body>
+</html>

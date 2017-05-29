@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 #include "macros.h"
 
 ! Some general procedures, created for the semi-stochastic (and trial wavefunction) code.
@@ -951,8 +948,8 @@ contains
     subroutine start_walkers_from_core_ground(tPrintInfo)
 
         use bit_reps, only: encode_sign
-        use davidson_neci, only: davidson_eigenvalue, parallel_sparse_hamil_type, perform_davidson
-        use davidson_neci, only: davidson_eigenvector
+        use hamiltonian_linalg, only: parallel_sparse_hamil_type
+        use davidson_neci, only: DavidsonCalcType, perform_davidson, DestroyDavidsonCalc
         use FciMCData, only: core_ham_diag, DavidsonTag
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
         use Parallel_neci, only: MPIScatterV
@@ -960,11 +957,16 @@ contains
         use sparse_arrays, only: deallocate_sparse_ham, sparse_ham, hamil_diag, HDiagTag
         use sparse_arrays, only: SparseHamilTags, allocate_sparse_ham_row
 
+        use hamiltonian_linalg, only: sparse_hamil_type
+        use lanczos_general, only: LanczosCalcType, DestroyLanczosCalc
+        use lanczos_general, only: perform_lanczos
+
         logical, intent(in) :: tPrintInfo
         integer :: i, counter, ierr
         real(dp) :: eigenvec_pop, pop_sign(lenof_sign)
         real(dp), allocatable :: temp_determ_vec(:)
         character(len=*), parameter :: t_r = "start_walkers_from_core_ground"
+        type(DavidsonCalcType) :: davidsonCalc
 
         ! Create the arrays used by the Davidson routine.
         ! First, the whole Hamiltonian in sparse form.
@@ -989,7 +991,11 @@ contains
         end if
 
         ! Call the Davidson routine to find the ground state of the core space. 
-        call perform_davidson(parallel_sparse_hamil_type, .false.)
+        call perform_davidson(davidsonCalc, parallel_sparse_hamil_type, .false.)
+        associate( &
+            davidson_eigenvector => davidsonCalc%davidson_eigenvector, &
+            davidson_eigenvalue => davidsonCalc%davidson_eigenvalue &
+        )
 
         if (tPrintInfo) then
             write(6,'(a30)') "Davidson calculation complete."
@@ -1014,7 +1020,7 @@ contains
         ! Send the components to the correct processors using the following
         ! array as temporary space.
         allocate(temp_determ_vec(determ_sizes(iProcIndex)))
-        call MPIScatterV(davidson_eigenvector, determ_sizes, determ_displs, &
+        call MPIScatterV(real(davidson_eigenvector, dp), determ_sizes, determ_displs, &
                          temp_determ_vec, determ_sizes(iProcIndex), ierr)
 
         ! Finally, copy these amplitudes across to the corresponding states in CurrentDets.
@@ -1027,12 +1033,13 @@ contains
             end if
         end do
 
-        deallocate(davidson_eigenvector)
+        call DestroyDavidsonCalc(davidsonCalc)
         call LogMemDealloc(t_r, DavidsonTag, ierr)
         deallocate(hamil_diag, stat=ierr)
         call LogMemDealloc(t_r, HDiagTag, ierr)
         call deallocate_sparse_ham(sparse_ham, 'sparse_ham', SparseHamilTags)
         deallocate(temp_determ_vec)
+        end associate
 
     end subroutine start_walkers_from_core_ground
 

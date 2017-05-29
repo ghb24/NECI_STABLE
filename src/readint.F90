@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 module read_fci
 
     character(len=64) :: FCIDUMP_name
@@ -38,6 +35,10 @@ contains
          IUHF = 0
          TREL = .false.
          SYMLZ(:) = 0
+         ! [W.D. 15.5.2017:]
+         ! with the new relativistic calculations, withoug a ms value in the 
+         ! FCIDUMP, we have to set some more defaults..
+         MS2 = 0
          IF(iProcIndex.eq.0) THEN
 #ifdef _MOLCAS_
            call f_Inquire('FCIDMP',tExists)
@@ -628,7 +629,7 @@ contains
          HElement_t(dp), intent(out) :: UMAT(:)
          HElement_t(dp) Z
          COMPLEX(dp) :: CompInt
-         INTEGER ZeroedInt,NonZeroInt, LzDisallowed
+         INTEGER(int64) :: ZeroedInt,NonZeroInt, LzDisallowed
          INTEGER I,J,K,L,X,Y,iSpinType, iunit
          INTEGER NORB,NELEC,MS2,ISYM,SYML(1000)
          integer(int64) ORBSYM(1000)
@@ -641,8 +642,8 @@ contains
          character(len=*), parameter :: t_r='READFCIINT'
          real(dp) :: diff
          logical :: tbad,tRel
-         integer :: start_ind, end_ind
-         integer, parameter :: chunk_size = 1000000
+         integer(int64) :: start_ind, end_ind
+         integer(int64), parameter :: chunk_size = 1000000
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
 
 #ifdef _MOLCAS_
@@ -1080,5 +1081,114 @@ contains
 !         ENDIF
          RETURN
       END SUBROUTINE READFCIINTBIN
+
+      SUBROUTINE ReadPropInts(iProp,nBasis)
+ 
+      use constants, only: dp, int64
+      use util_mod, only: get_free_unit
+      use SymData, only: PropBitLen,nProp
+      use SystemData, only: UMatEps, tROHF, tReltvy
+      use Parallel_neci, only : iProcIndex,MPIBcast
+      use LoggingData, only:iNumPropToEst, EstPropFile 
+      use OneEInts, only: OneEPropInts, PropCore
+ 
+      implicit none
+      integer, intent(in) :: iProp, nBasis
+      HElement_t(dp) z
+      integer :: i,j,k,l,iunit
+      integer :: NORB,NELEC,MS2,ISYM,SYML(1000),IUHF
+      integer(int64) :: ORBSYM(1000)
+      integer :: iSpins,ispn,SYMLZ(1000)
+      integer(int64) :: ZeroedInt
+      integer :: IntSize
+      real(dp) :: diff, core
+      character(len=100) :: file_name
+      logical :: TREL,UHF
+      character(*), parameter :: t_r='ReadPropInts'
+      NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
+ 
+      ZeroedInt = 0
+      UHF = .false.
+ 
+      if(iProcIndex.eq.0) then
+          iunit = get_free_unit()
+          file_name = EstPropFile(iProp) 
+          write(*,*) 'Reading integral from the file:', trim(file_name)
+          open(iunit,FILE=file_name,STATUS='OLD')
+          read(iunit,FCI)
+      end if
+
+!Now broadcast these values to the other processors (the values are only read in on root)
+      CALL MPIBCast(NORB,1)
+      CALL MPIBCast(NELEC,1)
+      CALL MPIBCast(MS2,1)
+      CALL MPIBCast(ORBSYM,1000)
+      CALL MPIBCast(SYML,1000)
+      CALL MPIBCast(SYMLZ,1000)
+      CALL MPIBCast(ISYM,1)
+      CALL MPIBCast(IUHF,1)
+      CALL MPIBCast(UHF)
+      CALL MPIBCast(TREL)
+      CALL MPIBCast(PROPBITLEN,1)
+      CALL MPIBCast(NPROP,3)
+ 
+      iSpins=2
+      IF((UHF.and.(.not.tROHF)).or.tReltvy) ISPINS=1
+ 
+      if(iProcIndex.eq.0) then
+101       continue
+          read(iunit,*,END=199) z,i,j,k,l
+  
+          ! Remove integrals that are too small
+          if (abs(z) < UMatEps) then
+              if (ZeroedInt < 100) then
+                  write(6,'(a,2i4,a,2i4,a)', advance='no') &
+                      'Ignoring integral (chem. notation) (', i, j, '|', k, &
+                     l, '): '
+                  write(6,*) z
+              else if (ZeroedInt == 100) then
+                  write(6,*) 'Ignored more than 100 integrals.'
+                  write(6,*) 'Further threshold truncations not reported explicitly'
+              end if
+              ZeroedInt = ZeroedInt + 1
+              goto 101
+          end if
+ 
+          if (i.eq.0) then
+! Reading the zero-electron part of the integrals
+              core=real(z,dp)
+          elseif (k.eq.0) then
+! Reading the one-electron part of the integrals
+              do ispn=1,iSpins
+                  ! Have read in T_ij.  Check it's consistent with T_ji
+                  ! (if T_ji has been read in).
+                  diff = abs(OneEPropInts(iSpins*i-ispn+1,iSpins*j-ispn+1,iprop)-z)
+                  if(abs(OneEPropInts(iSpins*i-ispn+1,iSpins*j-ispn+1,iprop)).gt. 0.0d-6 .and. diff > 1.0e-7_dp) then
+                  write(6,*) i,j,z,OneEPropInts(iSpins*i-ispn+1,iSpins*j-ispn+1,iprop)
+                  call Stop_All(t_R,"Error filling OneEPropInts - different values for same orbitals")
+                  endif
+ 
+                  OneEPropInts(iSpins*I-ispn+1,iSpins*J-ispn+1,iprop)=z
+#ifdef __CMPLX
+                  OneEPropInts(iSpins*J-ispn+1,iSpins*I-ispn+1,iprop)=conjg(z)
+#else
+                  OneEPropInts(iSpins*J-ispn+1,iSpins*I-ispn+1,iprop)=z
+#endif
+              enddo
+
+          else
+              call stop_all(t_r,'Cannot currently deal with two-electron properties')
+          endif
+          goto 101
+      endif
+199       continue
+      if(iProcIndex.eq.0) close(iunit)
+
+      PropCore(iProp) = core
+      call MPIBCast(PropCore(iProp),1)
+      IntSize = nBasis*nBasis
+      call MPIBCast(OneEPropInts(:,:,iProp),IntSize)
+
+      END SUBROUTINE ReadPropInts
 
 end module read_fci

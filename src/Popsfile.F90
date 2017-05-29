@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 #include "macros.h"
 
 MODULE PopsfileMod
@@ -13,7 +10,9 @@ MODULE PopsfileMod
                         iWeightPopRead, iPopsFileNoRead, Tau, &
                         InitiatorWalkNo, MemoryFacPart, tLetInitialPopDie, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
-                        pops_norm, tWritePopsNorm, t_keep_tau_fixed
+                        pops_norm, tWritePopsNorm, t_keep_tau_fixed, t_hist_tau_search, &
+                        t_restart_hist_tau, t_fill_frequency_hists, t_previous_hist_tau, &
+                        t_hist_tau_search_option
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
@@ -30,7 +29,8 @@ MODULE PopsfileMod
     use LoggingData, only: iWritePopsEvery, tPopsFile, iPopsPartEvery, tBinPops, &
                        tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
-                       binarypops_min_weight, tHDF5PopsRead, tHDF5PopsWrite
+                       binarypops_min_weight, tHDF5PopsRead, tHDF5PopsWrite, &
+                       t_print_frq_histograms
     use sort_mod
     use util_mod, only: get_free_unit,get_unique_filename
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
@@ -44,6 +44,7 @@ MODULE PopsfileMod
     use hdf5_popsfile, only: write_popsfile_hdf5, read_popsfile_hdf5, &
                              add_pops_norm_contrib
     use util_mod
+    use tau_search_hist, only: deallocate_histograms
 
     implicit none
 
@@ -96,7 +97,7 @@ contains
         logical :: tPopHPHF, tPopLz, tPop64Bit
         integer :: iPopLenof_sign, iPopIter, PopNIfD, PopNIfY, PopNIfSgn, PopNIfFlag
         integer :: PopNIfTot, PopBlockingIter, read_nnodes, Popinum_runs
-        integer :: PopRandomHash(1024)
+        integer :: PopRandomHash(2056)
         integer(int64) :: iPopAllTotWalkers
         real(dp) :: PopDiagSft(inum_runs), read_tau, read_psingles
         real(dp) :: read_pparallel
@@ -815,7 +816,7 @@ r_loop: do while(.not.tStoreDet)
         integer :: iPopLenof_sign, PopNel, iPopIter, PopNIfD, PopNIfY, WalkerListSize
         integer :: PopNIfSgn, PopNIfFlag, PopNIfTot, PopBlockingIter, read_nnodes
         integer :: Popinum_runs
-        integer :: PopRandomHash(1024)
+        integer :: PopRandomHash(2056)
         logical :: formpops, binpops
         logical :: tPopHPHF, tPop64Bit, tPopLz
         integer(int64) :: iPopAllTotWalkers
@@ -1007,7 +1008,7 @@ r_loop: do while(.not.tStoreDet)
         integer(int64) , intent(in) :: iPopAllTotWalkers
         real(dp) , intent(in) :: PopDiagSft(inum_runs),read_tau
         real(dp), intent(in) :: read_psingles, read_pparallel
-        real(dp) , dimension(lenof_sign/inum_runs) , intent(in) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign) , intent(in) :: PopSumNoatHF
         HElement_t(dp) , intent(in) :: PopAllSumENum(inum_runs)
         integer, intent(in) :: perturb_ncreate, perturb_nann
         integer , intent(out) :: WalkerListSize
@@ -1075,15 +1076,7 @@ r_loop: do while(.not.tStoreDet)
         endif
 
         AllSumENum(1:inum_runs) = PopAllSumENum
-        if(inum_runs.eq.2) then
-            AllSumNoatHF(1)=PopSumNoatHF(1)
-            AllSumNoatHF(inum_runs)=PopSumNoatHF(1)
-        elseif(lenof_sign.eq.2) then
-            AllSumNoatHF(1)=PopSumNoatHF(1)
-            AllSumNoatHF(lenof_sign)=PopSumNoatHF(lenof_sign)
-        else
-            AllSumNoatHF(1)=PopSumNoatHF(1)
-        endif
+        AllSumNoatHF(1:lenof_sign) = PopSumNoatHF
 
         
         PreviousCycles=iPopIter
@@ -1110,12 +1103,19 @@ r_loop: do while(.not.tStoreDet)
             iBlockingIter = PreviousCycles
         else
             !Using popsfile v.4, where tau is written out and read in
-            if (tSearchTau) then
+            ! [Werner Dobrautz 4.4.2017:]
+            ! Are we sure we want to stop searching if we are in the 
+            ! variable shift mode? TODO
+            if ((tSearchTau .or. t_hist_tau_search) .or. t_previous_hist_tau) then
                 if((.not.tSinglePartPhase(1)).or.(.not.tSinglePartPhase(inum_runs))) then
                     tSearchTau=.false.
                 endif
                 Tau=read_tau
-                write(6,"(A)") "Using timestep specified in POPSFILE, although continuing to dynamically adjust to optimise this"
+                write(6,"(A)") "Using timestep specified in POPSFILE!"
+                if (tSearchTau .or. t_hist_tau_search) then 
+                    write(6,"(A)") "But continuing to dynamically adjust to optimise this"
+                end if
+                write(iout,"(A,F12.8)") " read-in time-step: ", tau
 
                 ! If we have been searching for tau, we may have been searching
                 ! for psingles (it is done at the same time).
@@ -1127,11 +1127,19 @@ r_loop: do while(.not.tStoreDet)
                     pSingles = read_psingles
                     if (.not. tReltvy) &
                     pDoubles = 1.0_dp - pSingles
+
+                    write(iout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
+                    write(iout,"(A,F12.8)") " pSingles: ", pSingles
+                    write(iout,"(A,F12.8)") " pDoubles: ", pDoubles
+
                 end if
 
                 if (abs(read_pparallel) > 1.0e-12_dp) then
                     pParallel = read_pparallel
+                    write(iout,"(A)") "Using pParallel from POPSFILE: " 
+                    write(iout,"(A,F12.8)") " pParallel: ", pParallel
                 end if
+
             else if (t_keep_tau_fixed) then 
                 write(6,"(A)") "Using timestep specified in POPSFILE, without continuing to dynammically adjust it!"
                 tau = read_tau 
@@ -1141,10 +1149,16 @@ r_loop: do while(.not.tStoreDet)
                     if (.not. tReltvy) then
                         pDoubles = 1.0_dp - pSingles
                     end if
+                    write(iout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
+                    write(iout,"(A,F12.8)") " pSingles: ", pSingles
+                    write(iout,"(A,F12.8)") " pDoubles: ", pDoubles
+
                 end if
 
                 if (abs(read_pparallel) > 1.0e-12_dp) then
                     pParallel = read_pparallel
+                    write(iout,"(A)") "Using pParallel from POPSFILE: " 
+                    write(iout,"(A,F12.8)") " pParallel: ", pParallel
                 end if
             else
                 !Tau specified. if it is different, write this here.
@@ -1223,13 +1237,13 @@ r_loop: do while(.not.tStoreDet)
         integer, intent(out) :: iPopLenof_sign, iPopNel, iPopIter, PopNIfD
         integer, intent(out) :: PopNIfY, PopNIfSgn, PopNIfFlag, PopNIfTot
         integer, intent(out) :: PopBlockingIter, read_nnodes, Popinum_runs
-        integer, intent(out) :: PopRandomHash(1024), PopBalanceBlocks
+        integer, intent(out) :: PopRandomHash(2056), PopBalanceBlocks
         integer(int64), intent(out) :: read_walkers_on_nodes(0:nProcessors-1)
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft(inum_runs),read_tau, read_psingles
         real(dp), intent(out) :: PopSumNoatHF_out(lenof_sign)
-        real(dp) :: PopSumNoatHF(1024), PopMultiSft(1024)
-        real(dp) :: PopMultiSumENum(1024), PopMultiSumNoatHF(1024)
+        real(dp) :: PopSumNoatHF(2056), PopMultiSft(2056)
+        real(dp) :: PopMultiSumENum(2056), PopMultiSumNoatHF(2056)
         real(dp), intent(out) :: read_pparallel
         HElement_t(dp) , intent(out) :: PopAllSumENum(inum_runs)
         integer :: PopsVersion
@@ -1244,6 +1258,7 @@ r_loop: do while(.not.tStoreDet)
         real(dp) :: PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
         real(dp) :: PopTotImagTime, PopSft2, PopParBias        
         real(dp) :: PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2
+        logical :: PopPreviousHistTau
         character(*), parameter :: t_r = 'ReadPopsHeadv4'
         HElement_t(dp) :: PopSumENum
         namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl, &
@@ -1255,7 +1270,8 @@ r_loop: do while(.not.tStoreDet)
                     PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt, &
                     PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2, &
                     PopTotImagTime, Popinum_runs, PopParBias, PopMultiSft, &
-                    PopMultiSumNoatHF, PopMultiSumENum, PopBalanceBlocks
+                    PopMultiSumNoatHF, PopMultiSumENum, PopBalanceBlocks, &
+                    PopPreviousHistTau
 
         PopsVersion=FindPopsfileVersion(iunithead)
         if(PopsVersion.ne.4) call stop_all("ReadPopsfileHeadv4","Wrong popsfile version for this routine.")
@@ -1264,6 +1280,7 @@ r_loop: do while(.not.tStoreDet)
         PopPParallel = 0.0_dp
         PopMultiSft = 0.0_dp
         PopBalanceBlocks = -1
+        PopPreviousHistTau = .false.
         if(iProcIndex.eq.root) then
             read(iunithead,POPSHEAD)
         endif
@@ -1323,6 +1340,8 @@ r_loop: do while(.not.tStoreDet)
         call MPIBcast(PopMaxDeathCpt)
         call MPIBcast(PopRandomHash)
         call MPIBcast(PopBalanceBlocks)
+        call MPIBCast(PopPreviousHistTau)
+
         tPop64Bit=Pop64Bit
         tPopHPHF=PopHPHF
         tPopLz=PopLz
@@ -1341,28 +1360,64 @@ r_loop: do while(.not.tStoreDet)
         read_nnodes = PopNNodes
         TotImagTime = PopTotImagTime
 
-        if (tReplicaReferencesDiffer) then
+        ! [Werner Dobrautz 5.5.2017:]
+        ! turn off the histogramming and the default old tau-search if 
+        ! the run is continued from a run, where the histogramming tau-search
+        ! was already performed! 
+        if (.not. t_restart_hist_tau) then
+            t_previous_hist_tau = PopPreviousHistTau
+
+            if (t_previous_hist_tau) then
+                Write(iout,*) "Turning OFF the tau-search, since continued run!"
+                ! can i turn off the tau-seach here? 
+                ! try it: 
+                tSearchTau = .false.
+                tSearchTauOption = .false.
+
+                ! if histogramming tau-search was used, also deallocate the 
+                ! histograms! 
+                if (t_hist_tau_search) then 
+                    call deallocate_histograms()
+                    t_hist_tau_search = .false.
+                    t_fill_frequency_hists = .false.
+
+                    ! i still want to do the death tau search.. so enable 
+                    ! this:
+                    t_hist_tau_search_option = .true.
+                    ! but i do not want to print the frq_hists, since there 
+                    ! is nothing to print..
+                    t_print_frq_histograms = .false.
+                end if
+            end if
+        end if
+
+        ! in output generation, these fields are used when tMultiReplicas is set, so this should be 
+        ! used here, too (not tReplicaReferencesDiffer), given that the number of runs did not
+        ! change (this would break the read)
+        if (tMultiReplicas) then
             PopDiagSft = PopMultiSft(1:inum_runs)
             PopAllSumENum = PopMultiSumENum(1:inum_runs)
             PopSumNoatHF_out = PopMultiSumNoatHF(1:lenof_sign)
         else
-            ! If we want the walker number to be stable, take the shift
-            ! from the POPSFILE, otherwise, keep the input value.
-            if (inum_runs.eq.2) then
-                if(Popinum_runs.eq.2) then
-                    PopDiagSft(1) = PopSft
-                    PopDiagSft(inum_runs) = PopSft2
-                else
-                    ! Previously we only had a single run, now we are
-                    ! restarting with double run
-                    PopDiagSft(1) = PopSft
-                    PopDiagSft(inum_runs) = PopSft
-                endif
-            else
-                PopDiagSft(1:inum_runs) = PopSft
-            endif
-            PopAllSumENum(1:inum_runs) = PopSumENum
-            PopSumNoatHF_out = PopSumNoatHF(1:lenof_sign)
+           ! If we want the walker number to be stable, take the shift
+           ! from the POPSFILE, otherwise, keep the input value.
+           if (inum_runs.eq.2) then
+              if(Popinum_runs.eq.2) then
+                 PopDiagSft(1) = PopSft
+                 PopDiagSft(inum_runs) = PopSft2
+              else
+                 ! Previously we only had a single run, now we are
+                 ! restarting with double run
+                 PopDiagSft(1) = PopSft       
+                 PopDiagSft(inum_runs) = PopSft
+                 ! I do not think this works, because PopSumNoatHF will not be of size lenof_sign
+              endif
+           else
+              PopDiagSft(1:inum_runs) = PopSft
+           endif
+           PopAllSumENum(1:inum_runs) = PopSumENum
+           ! Here, lenof_sign = lenof_sign/inum_runs
+           PopSumNoatHF_out = PopSumNoatHF(1:lenof_sign)
         end if
         call MPIBCast(PopSumNoatHF_out)
 
@@ -1811,7 +1866,8 @@ r_loop: do while(.not.tStoreDet)
         
         if (.not. tMultiReplicas) then
             write(iunit, *) 'PopSft=', DiagSft(1)
-            write(iunit, *) 'PopSumNoatHF=', AllSumNoatHF(1)
+            ! if tMultiReplicas is not set, inum_runs=1, so this will write AllSumNoatHF
+            write(iunit, *) 'PopSumNoatHF=', AllSumNoatHF(1:lenof_sign/inum_runs)
             write(iunit, *) 'PopSumENum=', AllSumENum(1)
         else
             write(iunit, *) 'PopMultiSft=', DiagSft(1:inum_runs)
@@ -1859,6 +1915,22 @@ r_loop: do while(.not.tStoreDet)
                 write(iunit, '(i16,",")', advance='no') WalkersOnNodes(i)
             end do
             write(iunit, *)
+        end if
+
+        ! [Werner Dobrautz 5.5.2017:]
+        ! in case of a histogramming tau-search and if the 
+        ! histograms have been filled already, indicate that in the 
+        ! POPSFILEHeader so that in a continued run neither of the 
+        ! old or new tau-search is performed, except forced in the input
+        ! with the restart-hist-tau-search keyword: 
+        ! intermediate: always print that to test if the restart works! 
+!         if (t_hist_tau_search .and. (.not. t_fill_frequency_hists)) then
+        ! i also have to continue the writing of this flag, if i continue 
+        ! runs more than once!
+        ! i have to use the keyword _option or? 
+        ! since the other gets turned off if the histograms are full? 
+        if (t_hist_tau_search_option .or. t_previous_hist_tau) then
+            write(iunit, *) "PopPreviousHistTau=", .true.
         end if
 
         ! Store the random hash in the header to allow later processing

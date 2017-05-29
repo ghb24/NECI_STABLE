@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 
 MODULE UMatCache
     use constants, only: dp,sizeof_int,int64
@@ -911,7 +908,9 @@ MODULE UMatCache
           use SystemData, only : UMatEps
           use constants, only: dp
           IMPLICIT NONE
-          INTEGER :: I,J,K,L,CacheInd(nPairs),ZeroedInt,NonZeroInt,A,B
+          INTEGER :: I,J,K,L,CacheInd(nPairs)
+          INTEGER(int64) :: ZeroedInt,NonZeroInt
+          INTEGER :: A,B
           HElement_t(dp) :: Z
 
           IF(abs(Z).lt.UMatEps) THEN

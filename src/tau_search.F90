@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 #include "macros.h"
 
 module tau_search
@@ -80,10 +77,11 @@ contains
         enough_par = .false.
 
         ! Unless it is already specified, set an initial value for tau
-        if (.not. tRestart .and. .not. tReadPops .and. tau == 0) &
+        if (.not. tRestart .and. .not. tReadPops .and. tau == 0) then
             call FindMaxTauDoubs()
-        write(6,*) 'Using initial time-step: ', tau
+        end if
 
+        write(6,*) 'Using initial time-step: ', tau
         
         ! Set the maximum spawn size
         if (MaxWalkerBloom == -1) then
@@ -620,7 +618,7 @@ contains
             if(tSameFunc) cycle
             if(MagHel.gt.0.0_dp) then
                 pGenFac = pGen*nAddFac/MagHel
-                if(Tau.gt.pGenFac) then
+                if(Tau.gt.pGenFac .and. pGenFac > EPS) then
                     Tau = pGenFac
                 endif
             endif
@@ -646,7 +644,7 @@ contains
             if(tSameFunc) cycle
             if(MagHel.gt.0.0_dp) then
                 pGenFac = pGen*nAddFac/MagHel
-                if(Tau.gt.pGenFac) then
+                if(Tau.gt.pGenFac .and. pGenFac > EPS) then
                     Tau = pGenFac
                 endif
             endif

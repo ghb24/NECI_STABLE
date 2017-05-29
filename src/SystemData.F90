@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 module SystemData
 
     use constants, only: n_int,int64,dp
@@ -232,6 +229,17 @@ logical :: tMultiReplicas
 logical :: tSymSet = .false.
 
 logical :: tGiovannisBrokenInit
+
+! flags for the use of open boundary conditions in the real-space 
+! hubbard model. 
+! for the cubic lattice the can be set separately, for the tilted only 
+! full open BC are implemented
+logical :: t_open_bc_x = .false.
+logical :: t_open_bc_y = .false.
+
+! use an intermediate flag for a new implementation of the newest excitation
+! generator
+logical :: tGen_4ind_unbound = .false.
 
 ! Operators for type(symmetry)
 interface assignment (=)

@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 #include "macros.h"
 module Integrals_neci
 
@@ -352,7 +349,7 @@ contains
     Subroutine IntInit(iCacheFlag)
 !who knows what for
       Use global_utilities
-      Use OneEInts, only: SetupTMat
+      Use OneEInts, only: SetupTMat,SetupPropInts
       USE UMatCache, only : FreezeTransfer, CreateInvBRR, GetUMatSize, SetupUMat2D_df
       Use UMatCache, only: SetupUMatCache
       use SystemData, only : nBasisMax, Alpha,BHub, BRR,nmsh,nEl
@@ -361,6 +358,7 @@ contains
       use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP, tPickVirtUniform
       use SystemData, only: uhub, arr,alat,treal,tCacheFCIDUMPInts, tReltvy
       use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
+      use LoggingData, only:tCalcPropEst, iNumPropToEst
       use MemoryManager, only: TagIntType
       use sym_mod, only: GenSymStatePairs
       use read_fci
@@ -369,7 +367,7 @@ contains
       INTEGER(TagIntType),SAVE :: tagZIA=0
       INTEGER i!,j,k,l,idi,idj,idk,idl,Index1
       INTEGER TmatInt
-      integer(int64) :: UMatInt
+      integer(int64) :: UMatInt,ii
       real(dp) :: UMatMem
       integer iErr
       character(25), parameter :: this_routine='IntInit'
@@ -479,14 +477,23 @@ contains
          IF(ISPINSKIP.le.0) call stop_all(this_routine, 'NBASISMAX(2,3) ISpinSkip unset')
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
          CALL GetUMatSize(nBasis,nEl,UMATINT)
-!         WRITE(6,*) "UMatSize: ",UMATINT
+         WRITE(6,*) "UMatSize: ",UMATINT
          UMatMem=REAL(UMatInt,dp)*REAL(HElement_t_sizeB,dp)*(9.536743164e-7_dp)
          WRITE(6,"(A,G20.10,A)") "Memory required for integral storage: ",UMatMem, " Mb/Shared Memory"
          call neci_flush(6)
          call shared_allocate ("umat", umat, (/UMatInt/))
          !Allocate(UMat(UMatInt), stat=ierr)
          LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
-         if (iprocindex == 0) UMat = 0.0_dp
+         if (iprocindex == 0) then
+!for very large UMats, the intrinic zeroing can cause a crash. In that case do an explicit zeroing
+             if(UMatInt.le.1000000000) then
+                 UMat = 0.0_dp
+             else
+                 do ii=1,UMatInt
+                     UMat(ii) = 0.0_dp
+                 enddo
+             endif
+         endif
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
          CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
          IF(TBIN) THEN
@@ -495,6 +502,12 @@ contains
             CALL READFCIINT(UMAT,NBASIS,ECORE,.false.)
          ENDIF
          WRITE(6,*) 'ECORE=',ECORE
+         IF(tCalcPropEst) THEN
+           call SetupPropInts(nBasis)
+           do i=1,iNumPropToEst
+             call ReadPropInts(i,nBasis)
+           end do
+         ENDIF
       ELSE
          ISPINSKIP=NBASISMAX(2,3)
          IF(NBASISMAX(1,3).GE.0) THEN

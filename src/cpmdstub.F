@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 C.. A stub containing dummy functions in CPMD, which will appear on linking appropriately.
 
       SUBROUTINE INITFINDXI(I,J,K,L,UMATEL,gen2ints)

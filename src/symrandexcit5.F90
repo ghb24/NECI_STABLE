@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 #include "macros.h"
 
 module excit_gen_5
@@ -15,7 +12,7 @@ module excit_gen_5
     use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel, ScratchSize
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
     use SystemData, only: G1, tUHF, tStoreSpinOrbs, nbasis, nel, &
-                          tGen_4ind_part_exact, tGen_4ind_2_symmetric
+                          tGen_4ind_part_exact, tGen_4ind_2_symmetric, tHPHF
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use GenRandSymExcitNUMod, only: init_excit_gen_store
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
@@ -50,6 +47,10 @@ contains
         real(dp) :: pgen2
         real(dp) :: cum_arr(nbasis)
 
+#ifdef __DEBUG 
+        HElement_t(dp) :: temp_hel
+#endif
+
         HElGen = HEl_zero
 
         ! Choose if we want to do a single or a double excitation
@@ -74,8 +75,15 @@ contains
         ! And a careful check!
 #ifdef __DEBUG
         if (.not. IsNullDet(nJ)) then
-            pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
+             pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
             if (abs(pgen - pgen2) > 1.0e-6_dp) then
+                if (tHPHF) then
+                    print *, "due to circular dependence, no matrix element calc possible!"
+    !                 temp_hel = hphf_off_diag_helement(nI,nJ,ilutI,ilutJ)
+                else
+                    temp_hel = get_helement(nI, nJ, ilutI, ilutJ)
+                end if
+
                 write(6,*) 'Calculated and actual pgens differ.'
                 write(6,*) 'This will break HPHF calculations'
                 call write_det(6, nI, .false.)
@@ -85,6 +93,7 @@ contains
                            ExcitMat(2,1:ic)
                 write(6,*) 'Generated pGen:  ', pgen
                 write(6,*) 'Calculated pGen: ', pgen2
+                write(6,*) 'matrix element: ', temp_hel
                 call stop_all(this_routine, "Invalid pGen")
             end if
         end if
@@ -163,6 +172,18 @@ contains
                 sum_pair(2) = 1.0_dp
             end if
 
+            ! i think i also have to deal with divisions by zero here
+            ! in a correct way, when removing the lower pgen threshold. 
+            if (any(cum_sums < EPS)) then
+                cum_sums = 1.0_dp
+                int_cpt = 0.0_dp
+            end if
+
+            if (any(sum_pair < EPS)) then
+                sum_pair = 1.0_dp
+                cpt_pair = 0.0_dp
+            end if
+
             ! And adjust the probability for the components
             pgen = pgen * (product(int_cpt) / product(cum_sums) + &
                            product(cpt_pair) / product(sum_pair))
@@ -219,9 +240,17 @@ contains
         ASSERT((.not. (is_beta(orbs(2)) .and. .not. is_beta(orbs(1)))) .or. tGen_4ind_2_symmetric)
         if (any(orbs == 0)) then
             nJ(1) = 0
+            pgen = 0.0_dp
             return
         end if
 
+        ! can i exit right away if this happens??
+        ! i am pretty sure this means 
+        if (any(cum_sum < EPS)) then 
+           cum_sum = 1.0_dp
+           int_cpt = 0.0_dp
+        end if
+        
         ! Calculate the pgens. Note that all of these excitations can be
         ! selected as both A--B or B--A. So these need to be calculated
         ! explicitly.
@@ -232,9 +261,15 @@ contains
             call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
                                  cpt_pair(2), sum_pair(2))
         else
-            cpt_pair = 0
-            sum_Pair = 1
+            cpt_pair = 0.0_dp
+            sum_Pair = 1.0_dp
         end if
+
+        if (any(sum_pair < EPS)) then 
+            cpt_pair = 0.0_dp
+            sum_pair = 1.0_dp
+        end if
+
         pgen = pgen * (product(int_cpt) / product(cum_sum) + &
                        product(cpt_pair) / product(sum_pair))
 
@@ -316,6 +351,10 @@ contains
             cum_sum = cum_sum + cpt
             cum_arr(orb) = cum_sum
         end do
+
+!         if (srcid(1) == 2 .and. srcid(2) == 3 .and. parallel) then
+!             print *, "cum_sum(a|ij): ", cum_arr
+!         end if
 
     end subroutine
 
@@ -415,7 +454,7 @@ contains
         ! calculating HPHF components) then we should ensure that the
         ! pgen contribution is 0.0, whilst avoiding a divide by zero error.
         cum_sum = cum_arr(nbasis)
-        if (cum_sum == 0) then
+        if (cum_sum < EPS) then
             cpt = 0.0_dp
             cum_sum = 1.0_dp
             return

@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 module RotateOrbsData
 
     ! This contains variables which need to be used in particular in NatOrbsMod.

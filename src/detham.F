@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
       SUBROUTINE DETHAM(NDET,NEL,NMRKS, HAMIL,LAB,NROW,TCOUNT, 
      &  ICMAX,GC,TMC)
       use global_utilities

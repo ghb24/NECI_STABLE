@@ -1,7 +1,4 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
-#include  "macros.h"
+#include "macros.h"
 
 ! This module contains a type and routines for defining and creating a sparse Hamiltonian.
 ! The type created to store this information is sparse_matrix_real. For an N-by-N matrix,
@@ -175,7 +172,7 @@ contains
                 sparse_ham(sparse_ham(i)%positions(j))%&
                     &positions(indices(sparse_ham(i)%positions(j))) = i
                 sparse_ham(sparse_ham(i)%positions(j))%&
-                    &elements(indices(sparse_ham(i)%positions(j))) = sparse_ham(i)%elements(j)
+                    &elements(indices(sparse_ham(i)%positions(j))) = h_conjg(sparse_ham(i)%elements(j))
 
                 indices(sparse_ham(i)%positions(j)) = indices(sparse_ham(i)%positions(j)) + 1
 
@@ -212,13 +209,13 @@ contains
             disps(i) = sum(num_states(:i-1))
         end do
 
-        allocate(sparse_ham(num_states(iProcIndex)))
-        allocate(SparseHamilTags(2, num_states(iProcIndex)))
-        allocate(hamiltonian_row(num_states_tot), stat=ierr)
+        safe_realloc_e(sparse_ham, (num_states(iProcIndex)), ierr)
+        safe_realloc_e(SparseHamilTags, (2, num_states(iProcIndex)), ierr)
+        safe_realloc_e(hamiltonian_row, (num_states_tot), ierr)
         call LogMemAlloc('hamiltonian_row', num_states_tot, 8, t_r, HRTag, ierr)
-        allocate(hamil_diag(num_states(iProcIndex)), stat=ierr)
+        safe_realloc_e(hamil_diag, (num_states(iProcIndex)), ierr)
         call LogMemAlloc('hamil_diag', int(num_states(iProcIndex),sizeof_int), 8, t_r, HDiagTag, ierr)
-        allocate(temp_store(0:NIfTot, num_states_tot), stat=ierr)
+        safe_realloc_e(temp_store, (0:NIfTot, num_states_tot), ierr)
         call LogMemAlloc('temp_store', num_states_tot*(NIfTot+1), 8, t_r, TempStoreTag, ierr)
 
         ! Stick together the determinants from all processors, on all processors.

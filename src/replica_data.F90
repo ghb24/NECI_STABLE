@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 #include "macros.h"
 
 module replica_data
@@ -10,6 +7,9 @@ module replica_data
     use CalcData
     use util_mod
     use kp_fciqmc_data_mod
+    use SystemData, only : NEl
+    use IntegralsData, only : NFrozen
+    use LoggingData, only : tLogEXLEVELStats
     implicit none
 
 contains
@@ -128,6 +128,12 @@ contains
                  DiagSftIm(inum_runs), &
                  tSinglePartPhase(inum_runs), stat=ierr)
 
+        ! Variables which are only used conditionally.
+        ! NB, NFrozen has not been subtracted from NEl yet!
+        if (tLogEXLEVELStats) allocate (&
+              EXLEVEL_WNorm(0:2,0:NEl-NFrozen,inum_runs), &
+              AllEXLEVEL_WNorm(0:2,0:NEl-NFrozen,inum_runs), stat=ierr)
+
         ! Iteration data
         call allocate_iter_data(iter_data_fciqmc)
 
@@ -223,6 +229,8 @@ contains
                    AllTotPartsInit, &
                    tSinglePartPhaseKPInit)
 
+        if (tLogEXLEVELStats) deallocate(EXLEVEL_WNorm, AllEXLEVEL_WNorm)
+
         call clean_iter_data(iter_data_fciqmc)
 
     end subroutine
@@ -308,7 +316,11 @@ contains
             OldAllAvWalkersCyc(run) = sum(AllTotParts(min_part_type(run):max_part_type(run)))
         enddo
 #else
+#ifdef __CMPLX
+        OldAllAvWalkersCyc = sum(AllTotParts)
+#else
         OldAllAvWalkersCyc = AllTotParts
+#endif
 #endif
 
         do run = 1, inum_runs

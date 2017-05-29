@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 module rdm_nat_orbs
 
     ! This contains routines related to natural orbitals calculations from the
@@ -37,6 +34,7 @@ contains
         real(dp) :: SumDiag
         character(len=*), parameter :: t_r = 'find_nat_orb_occ_numbers'
 
+        ierr=0
         if (iProcIndex .eq. 0) then
             
             ! Diagonalises the 1-RDM. rdm%matrix goes in as the 1-RDM, comes out
@@ -50,10 +48,14 @@ contains
             if (tPrintRODump .and. tROHF) then               
                 write(6,*) 'ROFCIDUMP not implemented for ROHF. Skip generation of ROFCIDUMP file.'
             else if (tPrintRODump) then
+                write(6,"(A,F10.5,A)") "This will require at least ",(real(NoOrbs,dp)**4)*8/10**9,"Gb to be available on head node"
                 allocate(FourIndInts(NoOrbs, NoOrbs, NoOrbs, NoOrbs), stat=ierr)
                 call LogMemAlloc('FourIndInts',(NoOrbs**4), 8, t_r, &
                                                         FourIndIntsTag, ierr)
-                if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating FourIndInts array,')
+                if (ierr .ne. 0) then
+                    write(6,*) "ierr: ",ierr
+                    call Stop_All(t_r, 'Problem allocating FourIndInts array,')
+                endif
 
                 ! Then, transform2ElInts.
                 write(6,*) ''

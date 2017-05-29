@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 #include "macros.h"
 
 module fcimc_initialisation
@@ -36,7 +33,8 @@ module fcimc_initialisation
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, &
-                        tMultipleInitialStates, initial_states
+                        tMultipleInitialStates, initial_states, t_hist_tau_search, &
+                        t_previous_hist_tau, t_fill_frequency_hists
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -54,7 +52,7 @@ module fcimc_initialisation
                            HistInitPops, AllHistInitPops, OffDiagMax, &
                            OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
-                           tTransitionRDMs
+                           tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
@@ -63,7 +61,7 @@ module fcimc_initialisation
                             flag_deterministic
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det, nullify_ilut, encode_part_sign, &
-                        extract_part_sign, tBuildSpinSepLists , &
+                        extract_run_sign, tBuildSpinSepLists , &
                         get_initiator_flag, &
                         get_initiator_flag_by_run
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
@@ -112,7 +110,7 @@ module fcimc_initialisation
                                  null_encode_child, attempt_die_normal
     use csf_data, only: csf_orbital_mask
     use initial_trial_states, only: calc_trial_states_lanczos, &
-                                    set_trial_populations, set_trial_states
+                                    set_trial_populations, set_trial_states, calc_trial_states_direct
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
                                set_spawn_rate
@@ -142,6 +140,8 @@ module fcimc_initialisation
     use sym_mod
     use HElem
     use constants
+
+    use tau_search_hist, only: init_hist_tau_search
 
     implicit none
 
@@ -206,7 +206,7 @@ contains
         IF(iProcIndex.eq.Root) THEN
             if (.not. tFCIMCStats2) then
                 fcimcstats_unit = get_free_unit()
-                if (tReadPops) then
+                if (tReadPops .and. .not. t_no_append_stats) then
                     ! Restart calculation.  Append to stats file (if it exists).
                     if(tMolpro .and. .not. tMolproMimic) then
                         filename = 'FCIQMCStats_' // adjustl(MolproID)
@@ -227,7 +227,7 @@ contains
 #ifndef __PROG_NUMRUNS
             if(inum_runs.eq.2) then
                 fcimcstats_unit2 = get_free_unit()
-                if (tReadPops) then
+                if (tReadPops .and. .not. t_no_append_stats) then
                     ! Restart calculation.  Append to stats file (if it exists).
                     if(tMolpro .and. .not. tMolproMimic) then
                         filename2 = 'FCIQMCStats2_' // adjustl(MolproID)
@@ -248,7 +248,7 @@ contains
 
             IF(tTruncInitiator) THEN
                 initiatorstats_unit = get_free_unit()
-                if (tReadPops) then
+                if (tReadPops .and. .not. t_no_append_stats) then
 ! Restart calculation.  Append to stats file (if it exists)
                     OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted',position='append')
                 else
@@ -259,6 +259,11 @@ contains
                 ComplexStats_unit = get_free_unit()
                 OPEN(ComplexStats_unit,file='COMPLEXStats',status='unknown')
             ENDIF
+            if (tLogEXLEVELStats) then
+                EXLEVELStats_unit = get_free_unit()
+                open (EXLEVELStats_unit, file='EXLEVELStats', &
+                      status='unknown', position='append')
+            endif
         ENDIF
 
 !Store information specifically for the HF determinant
@@ -807,6 +812,7 @@ contains
         AllSumENum(:)=0.0_dp
         AllNoatHF(:)=0.0_dp
         AllNoatDoubs(:)=0.0_dp
+        if (tLogEXLEVELStats) AllEXLEVEL_WNorm(:,:,:)=0.0_dp
         AllSumNoatHF(:)=0.0_dp
         AllGrowRate(:)=0.0_dp
         AllGrowRateAbort(:)=0
@@ -989,8 +995,34 @@ contains
 
 !        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
 !                       ^ Removed by GLM as believed not necessary
+
+        ! [Werner Dobrautz 5.5.2017:]
+        ! if this is a continued run from a histogramming tau-search 
+        ! and a restart of the tau-search is not forced by input, turn 
+        ! both the new and the old tau-search off! 
+        ! i cannot do it here, since this is called before the popsfile read-in
+        if (t_previous_hist_tau) then
+            ! i have to check for tau-search option and stuff also, so that 
+            ! the death tau adaption is still used atleast! todo! 
+            tSearchTau = .false.
+            t_hist_tau_search = .false.
+            t_fill_frequency_hists = .false.
+            Write(iout,*) "Turning OFF the tau-search, since continued run!"
+        end if 
+
         if (tSearchTau) then
             call init_tau_search()
+
+            ! [Werner Dobrautz 4.4.2017:]
+            if (t_hist_tau_search) then 
+                ! some setup went wrong! 
+                call Stop_All(t_r, &
+                    "Input error! both standard AND Histogram tau-search chosen!")
+            end if
+
+        else if (t_hist_tau_search) then 
+            call init_hist_tau_search()
+
         else
             ! Add a couple of checks for sanity
             if (nOccAlpha == 0 .or. nOccBeta == 0) then
@@ -1136,7 +1168,7 @@ contains
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
-        integer :: PopRandomHash(1024), PopBalanceBlocks
+        integer :: PopRandomHash(2056), PopBalanceBlocks
         integer(int64) :: iPopAllTotWalkers
         integer :: i, run
         real(dp) :: PopDiagSft(1:inum_runs)
@@ -1351,7 +1383,7 @@ contains
                         WRITE(iout,"(A,I10,A,F9.3,A,I15)") "Initial number of particles set to ",int(InitialPart), &
                             " and shift will be held at ",DiagSft(1)," until particle number gets to ", int(InitWalkers*nNodes)
                     else
-                        write(iout,"(A,I16)") "Initial number of walkers per processor chosen to be: ", InitWalkers
+                        write(iout,"(A,I16)") "Initial number of walkers per processor chosen to be: ", nint(InitWalkers)
                     endif
                    
                     call InitFCIMC_HF()
@@ -1746,7 +1778,10 @@ contains
 
         InitialPartVec = 0.0_dp
         do run=1,inum_runs
-            InitialPartVec(run)=InitialPart
+            InitialPartVec(min_part_type(run))=InitialPart
+#ifdef __CMPLX
+            InitialPartVec(max_part_type(run))=0.0_dp
+#endif
         enddo
 
         !Setup initial walker local variables for HF walkers start
@@ -1789,9 +1824,13 @@ contains
                 TotPartsOld(:) = InitialPartVec(:)
             else
                 do run=1, inum_runs
-                    InitialSign(run) = InitWalkers
-                    TotParts(run) = real(InitWalkers,dp)
-                    TotPartsOld(run) = real(InitWalkers,dp)
+                   InitialSign(min_part_type(run)) = InitWalkers
+                   TotParts(min_part_type(run)) = real(InitWalkers,dp)
+                   TotPartsOld(min_part_type(run)) = real(InitWalkers,dp)
+#ifdef __CMPLX
+                   TotParts(max_part_type(run)) = 0.0_dp
+                   TotPartsOld(max_part_type(run)) = 0.0_dp
+#endif
                 enddo
             endif
 
@@ -1958,7 +1997,7 @@ contains
         integer :: nexcit, ndets_this_proc, i, det(nel)
         type(basisfn) :: sym
         real(dp) :: evals(inum_runs/nreplicas)
-        real(dp), allocatable :: evecs_this_proc(:,:)
+        HElement_t(dp), allocatable :: evecs_this_proc(:,:)
         integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
         character(*), parameter :: this_routine = 'InitFCIMC_trial'
 
@@ -1996,16 +2035,16 @@ contains
         ! det with the largest coefficient, rather than the currently guessed
         ! one...
 
-        real(dp) :: largest_coeff, sgn
+        HElement_t(dp) :: largest_coeff, sgn
         integer(n_int) :: largest_det(0:NIfTot)
-        integer :: run, j, proc_highest
+        integer :: run, j
+        integer(int32) :: proc_highest
         integer(n_int) :: ilut(0:NIfTot)
         integer(int32) :: int_tmp(2)
 #ifdef __DEBUG
         character(*), parameter :: this_routine = 'set_initial_run_references'
 #endif
 
-        ASSERT(inum_runs == lenof_sign)
         do run = 1, inum_runs
 
             if (tMultipleInitialRefs) then
@@ -2014,22 +2053,27 @@ contains
                 call update_run_reference(ilut, run)
             else
                 ! Find the largest det on this processor
-                largest_coeff = 0
+                largest_coeff = h_cast(0.0_dp)
                 do j = 1, TotWalkers
-                    sgn = extract_part_sign(CurrentDets(:,j), run)
-                    if (abs(sgn) > largest_coeff) then
-                        largest_coeff = abs(sgn)
+                    sgn = extract_run_sign(CurrentDets(:,j), run)
+                    if (abs(sgn) > abs(largest_coeff)) then
+                        largest_coeff = sgn
                         largest_det = CurrentDets(:,j)
                     end if
                 end do
 
                 ! Find the largest det on any processor (n.b. discard the
                 ! non-integer part. This isn't all that important).
+                ! [W.D. 15.5.2017:]
+                ! for the test suite problems, maybe it is important.. 
+                ! because there seems to be some compiler dependent 
+                ! differences..
                 call MPIAllReduceDatatype(&
-                    (/int(largest_coeff, int32), int(iProcIndex, int32)/), 1, &
+                    (/int(abs(largest_coeff), int32), int(iProcIndex, int32)/), 1, &
                     MPI_MAXLOC, MPI_2INTEGER, int_tmp)
                 proc_highest = int_tmp(2)
-                call MPIBCast(largest_det, NIfTot+1, proc_highest)
+                call MPIBCast(largest_det, NIfTot+1, int(proc_highest,sizeof_int))
+!                 call MPIBCast(largest_det, NIfTot+1, proc_highest)
 
                 write(6,*) 'Setting ref', run
                 call writebitdet(6, largest_det, .true.)
@@ -3282,7 +3326,7 @@ contains
                 else
                     abstr='FCIMCStats.'//adjustl(abstr)
                 endif
-                inquire(file=abstr,exist=exists)
+                inquire(file=trim(adjustl(abstr)),exist=exists)
                 if(.not.exists) exit
                 extension=extension+1
                 if(extension.gt.10000) then
@@ -3296,9 +3340,9 @@ contains
 !            stat = neci_system(trim(command))
 
             if(tMolpro) then
-                call rename('FCIQMCStats',abstr)
+                call rename('FCIQMCStats',trim(adjustl(abstr)))
             else
-                call rename('FCIMCStats',abstr)
+                call rename('FCIMCStats',trim(adjustl(abstr)))
             endif
             !Doesn't like the stat argument
 !            if(stat.ne.0) then
@@ -3462,6 +3506,7 @@ subroutine ChangeRefDet(DetCurr)
         if(inum_runs.eq.2) CLOSE(fcimcstats_unit2)
         IF(tTruncInitiator) CLOSE(initiatorstats_unit)
         IF(tLogComplexPops) CLOSE(complexstats_unit)
+        if (tLogEXLEVELStats) close(EXLEVELStats_unit)
     ENDIF
     IF(TDebug) CLOSE(11)
     CALL SetupParameters()

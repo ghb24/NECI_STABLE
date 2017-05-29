@@ -8,6 +8,9 @@ spin-restrict 0
 endsys
 
 calc
+lanczos-max-subspace-size 30
+lanczos-energy-precision 6
+lanczos-ritz-overlap-precision 3
 tau 0.005
 totalwalkers 500
 startsinglepart 600

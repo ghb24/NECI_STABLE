@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 module rdm_explicit
 
     ! Routines used for calculating the RDM for a pair of FCIQMC wave functions

@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 C ========================================================
       SUBROUTINE SLATCOULFOU(G1,G2,G1P,G2P,N,
      &     CK,NMAX,ZIA,OUT)

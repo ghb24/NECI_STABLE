@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 !A simple module with some interfaces to avoid compilation warnings. Ignore.
 module neci_intfce
  interface

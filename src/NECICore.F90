@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,filename_in)
     != NECICore is the main outline of the NECI Program.
     != It provides a route for calling NECI when accessed as a library, rather
@@ -328,13 +325,14 @@ subroutine NECICalcEnd(iCacheFlag)
     use shared_alloc, only: cleanup_shared_alloc
 #endif
     use replica_data, only: clean_replica_arrays
-    use OneEInts, only: DestroyTMat
+    use OneEInts, only: DestroyTMat, DestroyPropInts
     use Parallel_neci, only: clean_parallel
     use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel
     use SystemData, only: arr, brr, g1, tagArr, tagBrr, tagG1
     use Determinants, only: FDet, tagFDet
     use MemoryManager
     use FciMCData, only:ValidSpawnedList,InitialSpawnedSlots 
+    use LoggingData, only: tCalcPropEst
 
     implicit none
     integer,intent(in) :: iCacheFlag
@@ -345,6 +343,7 @@ subroutine NECICalcEnd(iCacheFlag)
     call IntCleanup(iCacheFlag)
     call DestroyTMAT(.true.)
     call DestroyTMAT(.false.)
+    if(tCalcPropEst) call DestroyPropInts
     call SysCleanup()
 #ifdef __SHARED_MEM
     call cleanup_shared_alloc ()

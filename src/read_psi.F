@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
       SUBROUTINE READ_PSI(BOX,BOA,COA,NDET,NEVAL,
      &        NBASISMAX,NEL,CK,W)
 !      IMPLICIT real(dp) (A-H,O-Z)

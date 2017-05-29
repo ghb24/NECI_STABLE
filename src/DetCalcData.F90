@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 ! Contain data used by other modules after DetCalc has done its stuff
 module DetCalcData
       use constants, only: dp,n_int

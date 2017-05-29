@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 ! Lowdin Orthoganalize
 ! for any non-singular R, let S=R RT
 ! P = S^(-1/2) R is orthogonal.

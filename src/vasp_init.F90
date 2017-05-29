@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 subroutine VaspSystemInit(ArrLEN)
    use global_utilities
    use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB

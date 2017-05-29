@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 #include "macros.h"
 MODULE DetCalc
         use constants, only: dp,n_int
@@ -468,6 +465,7 @@ CONTAINS
             ENDDO
             CLOSE(iunit)
          ENDIF
+         print *, "toto2:"
         WRITE(6,*) '<D0|H|D0>=',real(GETHELEMENT(IFDET,IFDET,HAMIL,LAB,NROW,NDET), dp)
         WRITE(6,*) '<D0|T|D0>=',CALCT(NMRKS(1,IFDET),NEL)
         CALL neci_flush(6)

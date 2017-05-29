@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 C==========================================================
 C.. Routines needed for the initialisation of the Fourier 
 C.. Method of evaluating the Coulomb integrals

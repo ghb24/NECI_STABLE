@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 module rdm_integral_fns
 
     use constants
@@ -36,5 +33,15 @@ contains
         integral = real(sltcnd_2(ex, .false.), dp)
 
     end function two_elec_int
+
+    function GetPropInts(i,j,iprop) result(integral)
+        
+        use OneEInts, only: OneEPropInts
+        integer, intent(in) :: i, j, iprop
+        real(dp) :: integral
+
+        integral = OneEPropInts(i,j,iprop)
+
+    end function
 
 end module rdm_integral_fns

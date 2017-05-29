@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 #include "macros.h"
 
 module hdf5_popsfile
@@ -117,6 +114,9 @@ module hdf5_popsfile
             nm_pdoubles = 'pdoubles', &
             nm_pparallel = 'pparallel', &
             nm_tau = 'tau', &
+            ! [W.D.]: 
+            ! can i just add another entry without breaking anything?
+            nm_hist_tau = 'hist_tau_search', &
 
             nm_acc_grp = 'accumulators', &
             nm_sum_no_ref = 'sum_no_ref', &
@@ -359,7 +359,7 @@ contains
                               enough_par, cnt_sing, cnt_doub, cnt_opp, &
                               cnt_par, max_death_cpt
         use FciMCData, only: pSingles, pDoubles, pParallel
-        use CalcData, only: tau
+        use CalcData, only: tau, t_hist_tau_search_option, t_previous_hist_tau
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: tau_grp, err
@@ -431,10 +431,18 @@ contains
         call write_dp_scalar(tau_grp, nm_pparallel, all_ppar)
         call write_dp_scalar(tau_grp, nm_tau, all_tau)
 
+        ! [W.D.]:
+        ! for the new hist-tau search i essentially only need to indicat 
+        ! that a histogramming tau-search was used: 
+        if (t_hist_tau_search_option .or. t_previous_hist_tau) then 
+            call write_log_scalar(tau_grp, nm_hist_tau, .true.)
+        end if
+
         ! Clear up
         call h5gclose_f(tau_grp, err)
 
     end subroutine write_tau_opt
+
 
     subroutine write_accumulator_data(parent)
 
@@ -465,9 +473,9 @@ contains
     subroutine read_calc_data(parent)
 
         use load_balance_calcnodes, only: RandomOrbIndex
-        use FciMCData, only: PreviousCycles, Hii, TotImagTime, tSearchTauOption
-        use CalcData, only: DiagSft, tWalkContGrow
-
+        use FciMCData, only: PreviousCycles, Hii, TotImagTime, tSearchTauOption, &
+                             tSearchTau, pSingles, pDoubles, pParallel
+        use CalcData, only: DiagSft, tWalkContGrow, tau, t_hist_tau_search
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id, err
         logical :: exists
@@ -502,12 +510,34 @@ contains
             tSinglePartPhase = .true.
         end if
 
-        if (tSearchTauOption) then
-            call read_tau_opt(grp_id)
+        ! [W.D.]:
+        ! i think i also want to read in pSingles etc. even if we do not 
+        ! tau-search anymore in a restarted run..
+        ! but i guess i have to be careful to set the appropriate 
+        ! default, if no tau-search was used and then is restarted..
+        ! well, even if the tau-search is not turned on, the 
+        ! values are written anyway.. so i can also read them in, but 
+        ! not use the read-in tau, but the one specified in the input! 
+        ! except the hist_tau was used the we want to use the 
+        ! one in the popsfile all the time
+!         if (tSearchTauOption) then
+        call read_tau_opt(grp_id)
+!         else
+!             write(6,*) 'Skipping tau optimisation data as tau optimisation is &
+!                        &disabled'
+!         end if
+        ! and also output some info: 
+        write(6,*) "read-in tau optimization data: "
+        write(6,*) "time-step: ", tau 
+        write(6,*) "pSingles: ", pSingles
+        write(6,*) "pDoubles: ", pDoubles
+        write(6,*) "pParallel: ", pParallel
+        if (tSearchTau .or. t_hist_tau_search) then
+            write(6,*) "continuing tau-search!"
         else
-            write(6,*) 'Skipping tau optimisation data as tau optimisation is &
-                       &disabled'
+            write(6,*) "Do not continue tau-search!"
         end if
+
         call read_accumulator_data(grp_id)
 
         ! TODO: Read nbasis, nel, ms2, etc.
@@ -524,15 +554,22 @@ contains
                               enough_sing, enough_doub, enough_opp, &
                               enough_par, cnt_sing, cnt_doub, cnt_opp, &
                               cnt_par, max_death_cpt, update_tau
-        use FciMCData, only: pSingles, pDoubles, pParallel
-        use CalcData, only: tau
+        use FciMCData, only: pSingles, pDoubles, pParallel, tSearchTau, &
+                             tSearchTauOption 
+        use CalcData, only: tau, t_previous_hist_tau, t_restart_hist_tau, &
+                            t_hist_tau_search, t_hist_tau_search_option, &
+                            t_fill_frequency_hists
+        use LoggingData, only: t_print_frq_histograms
+        use tau_search_hist, only: deallocate_histograms
 
         ! Read accumulator values for the timestep optimisation
         ! TODO: Add an option to reset these values...
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id, err
-        logical :: ppar_set, tau_set
+        logical :: ppar_set, tau_set, hist_tau, temp_previous
+
+        real(dp) :: temp_tau
 
         call h5gopen_f(parent, nm_tau_grp, grp_id, err)
 
@@ -555,15 +592,56 @@ contains
         call read_dp_scalar(grp_id, nm_psingles, psingles)
         call read_dp_scalar(grp_id, nm_pdoubles, pdoubles)
         call read_dp_scalar(grp_id, nm_pparallel, pparallel, exists=ppar_set)
-        call read_dp_scalar(grp_id, nm_tau, tau, exists=tau_set)
+        ! here i want to make the distinction if we want to tau-search 
+        ! or not
+        call read_dp_scalar(grp_id, nm_tau, temp_tau, exists=tau_set)
+
+        call read_log_scalar(grp_id, nm_hist_tau, temp_previous, &
+            exists = hist_tau)
 
         call h5gclose_f(grp_id, err)
+
+        if (tSearchTauOption .and. tau_set) then
+           tau = temp_tau 
+        end if
+
+        ! also set if previous hist-tau
+        if (hist_tau) then
+            tau = temp_tau
+            ! and turn off if i dont want to force restart! 
+            if (.not. t_restart_hist_tau) then
+                t_previous_hist_tau = temp_previous
+
+                if (t_previous_hist_tau) then
+                    tSearchTau = .false.
+                    tSearchTauOption = .false.
+
+                    if (t_hist_tau_search) then
+                        call deallocate_histograms()
+                        t_hist_tau_search = .false.
+                        t_fill_frequency_hists = .false.
+
+                        t_hist_tau_search_option = .true.
+                        t_print_frq_histograms = .false.
+                    end if
+                end if
+            end if
+        end if
+
+        ! if tau is 0, because no input provided, use the one here too
+        if (tau < EPS .and. (.not. temp_tau < EPS)) then 
+            tau = temp_tau
+        end if
 
         ! Deal with a previous bug, that leads to popsfiles existing with all
         ! the optimising parameters excluding tau, such that the first
         ! iteration results in chaos
-        if (ppar_set .and. .not. tau_set) &
-            call update_tau()
+        ! [W.D]: this if should suffice or?
+        if (.not. hist_tau) then
+            t_previous_hist_tau = .false.
+            if (ppar_set .and. .not. tau_set) &
+                call update_tau()
+        end if
 
     end subroutine
 

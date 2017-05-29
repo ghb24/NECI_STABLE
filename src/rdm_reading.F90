@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 module rdm_reading
 
     ! Routines to read in various RDMS (1-RDM or 2-RDMs POPSFILES or spinfree

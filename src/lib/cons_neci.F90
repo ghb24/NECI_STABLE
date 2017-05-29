@@ -20,6 +20,7 @@ real(dp), parameter ::  PI    = 3.1415926535897932384626433832795028841971693993
 real(dp), parameter ::  PI2   = 9.8696044010893586188344909998761511353136994072408_dp
 real(dp), parameter ::  THIRD = 0.3333333333333333333333333333333333333333333333333_dp
 real(dp), parameter ::  Root2 = 1.4142135623730950488016887242096980785696718753769_dp
+real(dp), parameter :: EPS = 0.0000000000001_dp
 !real(dp), parameter ::  Root2 = sqrt(2.0_dp)   !Removed since sun comiler didn't like this: bug 3853 
 
 integer :: temp

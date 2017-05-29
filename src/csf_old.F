@@ -1,6 +1,3 @@
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
 !CSFs - brief docs from old INPUT_DOC
 !
 !CSF code is mostly functional, but only operates with spin csfs (not symmetry ones),

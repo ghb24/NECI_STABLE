@@ -18,18 +18,28 @@ nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 
+[dneci/*/*/]
+program = dneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
 [neci/serial/*/]
+program = neci
 max_nprocs = 1
 
 [neci/parallel/*/]
+program = neci
 nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 
 [neci/rdm_singlerun/serial/*]
+program = neci
 max_nprocs = 1
 
 [neci/rdm_singlerun/parallel/*]
+program = neci
 nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
@@ -70,6 +80,23 @@ tolerance = (5.01e-8, None, 'overlap_sum'), (3.01e-7, None, 'hamil_sum')
 program = mneci
 tolerance = (5e-8, None, 'sum_error_rdm_2'), (5e-8, None, 'sum_diff_trdm_1_2(1)'), (5e-8, None, 'sum_diff_trdm_1_2(2)')
 
-[categories]
+[kmneci/Rn_lanczos_dci_init/]
+program = kmneci
+tolerance = (1e-7, None, 'final_energy_2')
+
+[hdf5/dneci/*/*/]
+program = dneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+[hdf5/neci/*/]
+program = neci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
 
 _default_ = neci kneci mneci kmneci
+
+# add new hdf5 class so this is not tested standardly on altest currently, since there is a problem compiling hdf5
+
