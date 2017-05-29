@@ -11,7 +11,8 @@ module fcimc_iter_utils
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
-                        qmc_trial_wf, t_hist_tau_search, t_hist_tau_search_option
+                        qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
+                        t_hist_tau_search_option
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats
     use semi_stoch_procs, only: recalc_core_hamil_diag
@@ -20,7 +21,7 @@ module fcimc_iter_utils
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: set_det_diagH
     use Determinants, only: get_helement
-    use LoggingData, only: tFCIMCStats2
+    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av
     use tau_search, only: update_tau
     use Parallel_neci
     use fcimc_initialisation
@@ -40,6 +41,8 @@ module fcimc_iter_utils
         AllTotParts_1, AllTotPartsOld_1, TotWalkers_1, AllTotWalkers_1, &
         AllTotWalkersOld_1, AllSumWalkersCyc_1, OldAllAvWalkersCyc_1
 #endif 
+    use double_occ_mod, only: inst_double_occ, all_inst_double_occ, sum_double_occ, &
+                              sum_norm_psi_squared
 
     use tau_search_hist, only: update_tau_hist
 
@@ -394,12 +397,12 @@ contains
 #if defined __REALTIME
         integer, parameter :: real_arr_size = 2000
         integer, parameter :: hel_arr_size = 200
-        integer, parameter :: NoArrs = 46
+        integer, parameter :: NoArrs = 47
         integer(int64) :: TotWalkersTemp_1
 #else
         integer, parameter :: real_arr_size = 1000
         integer, parameter :: hel_arr_size = 100
-        integer, parameter :: NoArrs = 26
+        integer, parameter :: NoArrs = 28
 #endif
         integer, parameter :: size_arr_size = 100
         ! RT_M_Merge: Doubled all array sizes since there are now two
@@ -422,7 +425,8 @@ contains
         integer(int64) :: TotWalkersTemp
         real(dp) :: bloom_sz_tmp(0:2)
         real(dp) :: RealAllHFCyc(max(lenof_sign,inum_runs))
-        real(dp) :: all_norm_psi_squared(inum_runs), all_norm_semistoch_squared(inum_runs)
+!         real(dp) :: all_norm_psi_squared(inum_runs)
+        real(dp) :: all_norm_semistoch_squared(inum_runs)
         character(len=*), parameter :: t_r = 'communicate_estimates'
 
         ! Remove the holes in the main list when wanting the number of uniquely
@@ -468,9 +472,9 @@ contains
         sizes(25) = size(SumWalkersCyc)
         sizes(26) = 1 ! nspawned (single int, not an array)
         ! RT_M_Merge: Added real-time data
+        sizes(27) = 1 ! inst_double_occ
+        if(tTruncInitiator) sizes(28) = 1 ! doubleSpawns
 #ifdef __REALTIME
-        sizes(27) = size(SpawnFromSing_1)
-        sizes(28) = size(iter_data_fciqmc%update_growth)
         sizes(29) = size(NoBorn_1)
         sizes(30) = size(NoDied_1)
         sizes(31) = size(NoAtDoubs_1)
@@ -488,10 +492,13 @@ contains
         sizes(43) = 1 ! nspawned_1
         sizes(44) = size(TotParts_1)
         sizes(45) = 1 ! TotWalkersTemp_1
+        sizes(46) = size(SpawnFromSing_1)
+        sizes(47) = size(iter_data_fciqmc%update_growth)
 #endif
-        if(tTruncInitiator) sizes(46) = 1 ! doubleSpawns
-        if (sum(sizes(1:NoArrs)) > real_arr_size) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
-                                                        & the size of the send_arr and recv_arr arrays in the source code.")
+
+        if (sum(sizes(1:NoArrs)) > real_arr_size) call stop_all(t_r, &
+             "No space left in arrays for communication of estimates. Please increase &
+             & the size of the send_arr and recv_arr arrays in the source code.")
 
         low = upp + 1; upp = low + sizes(1 ) - 1; send_arr(low:upp) = SpawnFromSing;
         low = upp + 1; upp = low + sizes(2 ) - 1; send_arr(low:upp) = iter_data%update_growth;
@@ -522,9 +529,11 @@ contains
         low = upp + 1; upp = low + sizes(24) - 1; send_arr(low:upp) = NoAtHF;
         low = upp + 1; upp = low + sizes(25) - 1; send_arr(low:upp) = SumWalkersCyc;
         low = upp + 1; upp = low + sizes(26) - 1; send_arr(low:upp) = nspawned;
+        ! double occ change:
+        low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = inst_double_occ
+        if(tTruncInitiator) &
+             low = upp + 1; upp = low + sizes(28) -1; send_arr(low:upp) = doubleSpawns;
 #ifdef __REALTIME
-        low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = SpawnFromSing_1;
-        low = upp + 1; upp = low + sizes(28) - 1; send_arr(low:upp) = iter_data_fciqmc%update_growth;
         low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = NoBorn_1;
         low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = NoDied_1;
         low = upp + 1; upp = low + sizes(31) - 1; send_arr(low:upp) = NoAtDoubs_1;
@@ -542,9 +551,9 @@ contains
         low = upp + 1; upp = low + sizes(43) - 1; send_arr(low:upp) = nspawned_1;
         low = upp + 1; upp = low + sizes(44) - 1; send_arr(low:upp) = TotParts_1;
         low = upp + 1; upp = low + sizes(45) - 1; send_arr(low:upp) = TotWalkersTemp_1;
+        low = upp + 1; upp = low + sizes(46) - 1; send_arr(low:upp) = SpawnFromSing_1;
+        low = upp + 1; upp = low + sizes(47) - 1; send_arr(low:upp) = iter_data_fciqmc%update_growth;
 #endif
-        if(tTruncInitiator) &
-             low = upp + 1; upp = low + sizes(46) -1; send_arr(low:upp) = doubleSpawns;
 
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
@@ -583,9 +592,13 @@ contains
         low = upp + 1; upp = low + sizes(24) - 1; AllNoAtHf = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(25) - 1; AllSumWalkersCyc = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low));
+        ! double occ: 
+        low = upp + 1; upp = low + sizes(27) - 1; all_inst_double_occ = recv_arr(low);
+        if(tTruncInitiator) then
+           low = upp + 1; upp = low + sizes(28) - 1; allDoubleSpawns = nint(recv_arr(low));
+           doubleSpawns = 0
+        endif
 #ifdef __REALTIME
-        low = upp + 1; upp = low + sizes(27) - 1; AllSpawnFromSing_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(28) - 1; iter_data_fciqmc%update_growth_tot = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(29) - 1; AllNoBorn_1 = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(30) - 1; AllNoDied_1 = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(31) - 1; AllNoAtDoubs_1 = recv_arr(low:upp);
@@ -603,11 +616,9 @@ contains
         low = upp + 1; upp = low + sizes(43) - 1; nspawned_tot_1 = nint(recv_arr(low));
         low = upp + 1; upp = low + sizes(44) - 1; AllTotParts_1 = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(45) - 1; AllTotWalkers_1 = nint(recv_arr(low), int64);
+        low = upp + 1; upp = low + sizes(46) - 1; AllSpawnFromSing_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(47) - 1; iter_data_fciqmc%update_growth_tot = recv_arr(low:upp);
 #endif
-        if(tTruncInitiator) then
-           low = upp + 1; upp = low + sizes(46) - 1; allDoubleSpawns = nint(recv_arr(low));
-           doubleSpawns = 0
-        endif
 
         ! Communicate HElement_t variables:
 
@@ -731,6 +742,20 @@ contains
             end if
         end if
         
+        ! quick fix for the double occupancy: 
+        if (t_calc_double_occ_av) then 
+            ! sum up the squared norm after shift has set in TODO
+            ! and use the mean value if multiple runs are used
+            ! still thinking about if i only want to calc it after 
+            ! equilibration
+!             if (iter > nEquilSteps) then
+                sum_norm_psi_squared = sum_norm_psi_squared + & 
+                    sum(all_norm_psi_squared)/real(inum_runs,dp)
+
+                ! and also sum up the double occupancy: 
+                sum_double_occ = sum_double_occ + all_inst_double_occ
+!             end if
+        end if
 
 #ifdef __DEBUG
         if(.not. tfirst_cycle) then

@@ -167,6 +167,7 @@ set( SRC_FILES
     vasp_interface.F90
     vasp_neci_interface_stub.F90
     verlet_aux.F90
+    double_occ.F90
     tau_search_hist.F90
 
     lib/allocate_shared_worker.cpp

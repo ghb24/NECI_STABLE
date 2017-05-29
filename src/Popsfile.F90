@@ -11,7 +11,8 @@ MODULE PopsfileMod
                         InitiatorWalkNo, MemoryFacPart, tLetInitialPopDie, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
                         pops_norm, tWritePopsNorm, t_keep_tau_fixed, t_hist_tau_search, &
-                        t_restart_hist_tau, t_fill_frequency_hists, t_previous_hist_tau
+                        t_restart_hist_tau, t_fill_frequency_hists, t_previous_hist_tau, &
+                        t_hist_tau_search_option
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
@@ -28,7 +29,8 @@ MODULE PopsfileMod
     use LoggingData, only: iWritePopsEvery, tPopsFile, iPopsPartEvery, tBinPops, &
                        tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
-                       binarypops_min_weight, tHDF5PopsRead, tHDF5PopsWrite
+                       binarypops_min_weight, tHDF5PopsRead, tHDF5PopsWrite, &
+                       t_print_frq_histograms
     use sort_mod
     use util_mod, only: get_free_unit,get_unique_filename
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
@@ -1379,6 +1381,7 @@ r_loop: do while(.not.tStoreDet)
         PopParBias = 0.0_dp
         PopPParallel = 0.0_dp
         PopBalanceBlocks = -1
+        PopPreviousHistTau = .false.
         if(iProcIndex.eq.root) then
             read(iunithead,POPSHEAD)
         endif
@@ -1466,10 +1469,10 @@ r_loop: do while(.not.tStoreDet)
         ! the run is continued from a run, where the histogramming tau-search
         ! was already performed! 
         if (.not. t_restart_hist_tau) then
-            Write(iout,*) "Turning OFF the tau-search, since continued run!"
             t_previous_hist_tau = PopPreviousHistTau
 
             if (t_previous_hist_tau) then
+                Write(iout,*) "Turning OFF the tau-search, since continued run!"
                 ! can i turn off the tau-seach here? 
                 ! try it: 
                 tSearchTau = .false.
@@ -1480,8 +1483,14 @@ r_loop: do while(.not.tStoreDet)
                 if (t_hist_tau_search) then 
                     call deallocate_histograms()
                     t_hist_tau_search = .false.
-                    t_hist_tau_search_option = .false.
                     t_fill_frequency_hists = .false.
+
+                    ! i still want to do the death tau search.. so enable 
+                    ! this:
+                    t_hist_tau_search_option = .true.
+                    ! but i do not want to print the frq_hists, since there 
+                    ! is nothing to print..
+                    t_print_frq_histograms = .false.
                 end if
             end if
         end if
@@ -2040,7 +2049,9 @@ r_loop: do while(.not.tStoreDet)
 !         if (t_hist_tau_search .and. (.not. t_fill_frequency_hists)) then
         ! i also have to continue the writing of this flag, if i continue 
         ! runs more than once!
-        if (t_hist_tau_search .or. t_previous_hist_tau) then
+        ! i have to use the keyword _option or? 
+        ! since the other gets turned off if the histograms are full? 
+        if (t_hist_tau_search_option .or. t_previous_hist_tau) then
             write(iunit, *) "PopPreviousHistTau=", .true.
         end if
 

@@ -229,6 +229,7 @@ contains
         use semi_stoch_gen
         use sort_mod, only: sort
         use SystemData, only: nel, tAllSymSectors
+        use lanczos_wrapper, only: frsblk_wrapper
 
         type(subspace_in) :: space_in
         integer, intent(in) :: nexcit
@@ -329,9 +330,18 @@ contains
             evec_abs = 0.0_dp
             
 
-! Perform a direct diagonalisation in the trial space.
+            ! [W.D.] 
+            ! here the change to the previous implementation comes.. 
+            ! previously frsblk_wrapper was called..
+            ! try to brint that back??
+            ! yes that was the problem! so bring it back for non-complex
+            ! problems atleast
 
-! First to build the Hamiltonian matrix
+
+            ! Perform a direct diagonalisation in the trial space.
+
+#ifdef __CMPLX
+            ! First to build the Hamiltonian matrix
             ndets_int=int(ndets_all_procs,sizeof_int)
             allocate(H_tmp(ndets_all_procs,ndets_all_procs), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, "Error allocating H_tmp array")
@@ -359,13 +369,10 @@ contains
              work = 0.0_dp
             allocate(evals_all(ndets_all_procs),stat=ierr)
              evals_all=0.0_dp
-#ifdef __CMPLX
+
             allocate(rwork(3*ndets_all_procs),stat=ierr)
             call zheev('V','L',ndets_int,H_tmp,ndets_int,evals_all,work,3*ndets_int,rwork,info)
             deallocate(rwork)
-#else
-            call dsyev('V','L',ndets_int,H_tmp,ndets_int,evals_all,work,3*ndets_int,info)
-#endif
 ! copy H_tmp to evecs, and keep only the first nexcit entries of evalvs_all
             do i=1,nexcit
               evals(i)=evals_all(i)
@@ -378,6 +385,12 @@ contains
 
             deallocate(H_tmp)
             deallocate(ilut_list)
+#else
+
+            call frsblk_wrapper(det_list, int(ndets_all_procs, sizeof_int), &
+                nexcit, evals, evecs)
+!             call dsyev('V','L',ndets_int,H_tmp,ndets_int,evals_all,work,3*ndets_int,info)
+#endif
             ! For consistency between compilers, enforce a rule for the sign of
             ! the eigenvector. To do this, make sure that the largest component
             ! of each vector is positive. The largest component is found using
@@ -407,6 +420,7 @@ contains
                 call sort(temp_reorder, evecs)
             end if
 
+!             print *, "eigen-values: ", evals 
             ! Unfortunately to perform the MPIScatterV call we need the transpose
             ! of the eigenvector array.
             allocate(evecs_transpose(nexcit, ndets_all_procs), stat=ierr)

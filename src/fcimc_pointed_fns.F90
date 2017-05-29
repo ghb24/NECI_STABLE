@@ -141,6 +141,29 @@ module fcimc_pointed_fns
         rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
                                  tParity, HElGen)
 
+        ! We actually want to calculate Hji - take the complex conjugate, 
+        ! rather than swap around DetCurr and nJ.
+#ifdef __CMPLX
+        rh_used = conjg(rh)
+#else
+        rh_used = rh
+#endif
+        
+        ! [W.D.]
+        ! if the matrix element happens to be zero, i guess i should 
+        ! abort as early as possible? so check that here already, or even 
+        ! earlier.. 
+!         if (abs(rh_used) < EPS) then 
+!             child = 0.0_dp
+!             return
+!         end if
+! 
+!         if (t_matele_cutoff) then
+!             if (abs(rh_used) < EPS) then
+!                 child = 0.0_dp
+!             end if
+!         end if
+
         !write(6,*) 'p,rh', prob, rh
 
         ! The following is useful for debugging the contributions of single
@@ -160,18 +183,18 @@ module fcimc_pointed_fns
         ! [Werner Dobrautz 4.4.2017:]
         if (t_fill_frequency_hists) then 
             if (tHUB .or. tUEG) then 
-                call fill_frequency_histogram(abs(rh), prob / AvMCExcits)
+                call fill_frequency_histogram(abs(rh_used), prob / AvMCExcits)
             else 
                 if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then 
                     t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
 
                     ! not sure about the AvMCExcits!! TODO
-                    call fill_frequency_histogram_4ind(abs(rh), prob / AvMCExcits, &
+                    call fill_frequency_histogram_4ind(abs(rh_used), prob / AvMCExcits, &
                         ic, t_par, ex)
 
                 else
 
-                    call fill_frequency_histogram_sd(abs(rh), prob / AvMCExcits, ic)
+                    call fill_frequency_histogram_sd(abs(rh_used), prob / AvMCExcits, ic)
                     
                 end if
             end if
@@ -187,14 +210,6 @@ module fcimc_pointed_fns
                 tRealSpawning = .true.
         endif
 
-        ! We actually want to calculate Hji - take the complex conjugate, 
-        ! rather than swap around DetCurr and nJ.
-#ifdef __CMPLX
-        rh_used = conjg(rh)
-#else
-        rh_used = rh
-#endif
-        
         ! Spawn to real and imaginary particles. Note that spawning from
         ! imaginary parent particles has slightly different rules:
         !       - Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P

@@ -25,13 +25,14 @@ MODULE HPHFRandExcitMod
                          FindBitExcitLevel, MaskAlpha, MaskBeta, &
                          TestClosedShellDet, CalcOpenOrbs, IsAllowedHPHF
     use FciMCData, only: pDoubles, excit_gen_store_type
-    use constants, only: dp,n_int
+    use constants, only: dp,n_int, EPS
     use sltcnd_mod, only: sltcnd_excit
     use bit_reps, only: NIfD, NIfDBO, NIfTot
     use SymExcitDataMod, only: excit_gen_store_type
     use excit_gen_5, only: calc_pgen_4ind_weighted2, gen_excit_4ind_weighted2
     use sort_mod
     use HElem
+    use CalcData, only: t_matele_cutoff, matele_cutoff
     IMPLICIT NONE
 !    SAVE
 !    INTEGER :: Count=0
@@ -367,6 +368,25 @@ MODULE HPHFRandExcitMod
             ENDIF
             
         ENDIF
+
+        ! [W.D.]
+        ! i should also abort here already if the matrix element 
+        ! if below a threshold to optimize the calculation
+!         if (abs(Hel) < EPS) then
+!             nJ(1) = 0
+!             pgen = 0.0_dp 
+!             Hel = 0.0_dp
+!             return 
+!         end if
+! 
+!         if (t_matele_cutoff) then
+!             if (abs(Hel) < matele_cutoff) then
+!                 Hel = 0.0_dp
+!                 nJ(1) = 0
+!                 pgen = 0.0_dp
+!                 return
+!             end if
+!         end if
 
 !        CALL HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl2)
 !        IF((MatEl2-MatEl).gt.1.0e-7_dp_dp) THEN

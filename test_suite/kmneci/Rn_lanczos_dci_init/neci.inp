@@ -18,6 +18,7 @@ lanczos-store-vectors
 
 doubles-init
 orthogonalise-replicas
+targetgrowrate 0.01 100
 
 methods
 method vertex fcimc
