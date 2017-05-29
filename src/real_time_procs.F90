@@ -1722,8 +1722,7 @@ contains
             ! compare the walker number the last time the angle was adjusted to
             ! the walker number now
             if(tDynamicAlpha) then
-               deltaAlpha = alphaDamping * atan(sum(AllTotParts)/(real(sum(allWalkersOld),dp) &
-                    * stepsAlpha)- 1)
+               deltaAlpha = alphaDamping * atan(sum(AllTotParts)/real(sum(allWalkersOld),dp) - 1)
                real_time_info%time_angle = real_time_info%time_angle + deltaAlpha
             endif
             ! if the damping is also to be adjusted on the fly, do so here
