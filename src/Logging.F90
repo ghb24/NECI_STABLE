@@ -1099,6 +1099,11 @@ MODULE Logging
                 call geti(equi_iter_double_occ)
             end if
 
+        case ("DOUBLE-OCC-VECTOR")
+            ! just a quick insert of spatial resolved double occupancy 
+            ! measurement
+            t_spatial_double_occ = .true.
+
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)
         end select

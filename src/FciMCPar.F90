@@ -18,7 +18,8 @@ module FciMCParMod
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
-                           equi_iter_double_occ, t_print_frq_histograms
+                           equi_iter_double_occ, t_print_frq_histograms, &
+                           t_spatial_double_occ
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -67,7 +68,7 @@ module FciMCParMod
     
     use double_occ_mod, only: get_double_occupancy, inst_double_occ, &
                         rezero_double_occ_stats, write_double_occ_stats, & 
-                        sum_double_occ, sum_norm_psi_squared
+                        sum_double_occ, sum_norm_psi_squared, finalize_double_occ_and_spin_diff
 
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
 
@@ -561,6 +562,10 @@ module FciMCParMod
             print *, " Double occupancy from direct measurement: ", & 
                 sum_double_occ / sum_norm_psi_squared
             print *, " ===== "
+        end if
+
+        if (t_spatial_double_occ) then 
+            call finalize_double_occ_and_spin_diff()
         end if
 
         if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) then

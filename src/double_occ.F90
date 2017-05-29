@@ -9,11 +9,11 @@ module double_occ_mod
     use constants, only: n_int, lenof_sign, write_state_t, dp, int_rdm, inum_runs
     use ParallelHelper, only: iProcIndex, root
     use CalcData, only: tReadPops
-    use LoggingData, only: tMCOutput, t_calc_double_occ_av
+    use LoggingData, only: tMCOutput, t_calc_double_occ_av, t_spatial_double_occ
     use util_mod
     use FciMCData, only: iter, PreviousCycles, norm_psi, totwalkers, all_norm_psi_squared
     use rdm_data, only: rdm_list_t
-    use Parallel_neci, only: iProcIndex, nProcessors, MPISumAll
+    use Parallel_neci, only: iProcIndex, nProcessors, MPISumAll, MPIAllreduce
     use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm
     use UMatCache, only: spatial
     use sort_mod, only: sort
@@ -41,7 +41,257 @@ module double_occ_mod
     ! it seems there is no record of the averaged norm hm..
     real(dp) :: sum_norm_psi_squared = 0.0_dp
 
+    ! 
+    real(dp), allocatable :: spin_up_occ(:), spin_down_occ(:), spin_diff(:), &
+                             double_occ_vec(:)
+
 contains 
+
+    subroutine init_spin_measurements() 
+        ! routine to initialize spin measurement vectors 
+        character(*), parameter :: this_routine = "init_spin_measurements"
+        integer :: ierr
+
+        if (allocated(spin_up_occ))   deallocate(spin_up_occ)
+        if (allocated(spin_down_occ)) deallocate(spin_down_occ)
+        if (allocated(spin_diff))     deallocate(spin_diff)
+        if (allocated(double_occ_vec))deallocate(double_occ_vec)
+
+        allocate(spin_up_occ(nbasis/2))
+        allocate(spin_down_occ(nBasis/2))
+        allocate(spin_diff(nBasis/2))
+        allocate(double_occ_vec(nBasis/2))
+
+    end subroutine init_spin_measurements
+
+    subroutine deallocate_spin_measurements() 
+        ! deallocate the spin occupation measurement vectors
+        character(*), parameter :: this_routine = "deallocate_spin_measurements"
+
+        if (allocated(spin_up_occ))   deallocate(spin_up_occ)
+        if (allocated(spin_down_occ)) deallocate(spin_down_occ)
+        if (allocated(spin_diff))     deallocate(spin_diff)
+        if (allocated(double_occ_vec))deallocate(double_occ_vec)
+
+    end subroutine deallocate_spin_measurements
+
+    subroutine measure_double_occ_and_spin_diff(ilut, nI, real_sgn)
+        ! routine to measure double occupancy and spin difference for each 
+        ! orbital 
+        use UMatCache, only: gtid
+        integer(n_int), intent(in) :: ilut(0:niftot)
+        integer, intent(in) :: ni(nel)
+        real(dp), intent(in) :: real_sgn(lenof_sign)
+        character(*), parameter :: this_routine = "measure_double_occ_and_spin_diff"
+
+        integer :: i, spin_orb, spat_orb(nel)
+        real(dp) :: contrib 
+
+        ASSERT(allocated(spin_diff))
+        ASSERT(allocated(double_occ_vec))
+
+        ! i can calculate the C_i^2 at the beginning already since it is 
+        ! always the same and i guess i have atleast on contribution atleast 
+        ! for each occupied orbital 
+#if defined __PROG_NUMRUNS || defined __DOUBLERUN 
+#ifdef __CMPLX 
+        ! i do not want to deal with complex runs for now.. 
+        call stop_all(this_routine, &
+            "complex double occupancy measurement not yet implemented!")
+#else 
+        contrib = real_sgn(1) * real_sgn(2)
+#endif
+#else
+        contrib = real_sgn(1)**2
+#endif 
+
+        spat_orb = gtid(nI)
+
+        i = 1 
+        do while (i < nel + 1)
+            spin_orb = nI(i)
+            if (is_beta(spin_orb)) then 
+                ! check if it is a doubly occupied orb 
+                if (IsDoub(ilut,spin_orb)) then 
+                    ! then we want to add to the double_occ vector
+                    double_occ_vec(spat_orb(i)) = double_occ_vec(spat_orb(i)) + &
+                        contrib
+                    
+                    ! and we can skip the even alpha orbital in nI
+                    i = i + 2
+                else
+                    ! beta spin contributes negatively! 
+                    spin_diff(spat_orb(i)) = spin_diff(spat_orb(i)) - contrib
+
+                    i = i + 1
+                end if
+
+            else 
+                ! the way i plan to set it up, we check beta spins in the 
+                ! same orbital first.. so it can't be doubly occupied at 
+                ! this point! 
+                spin_diff(spat_orb(i)) = spin_diff(spat_orb(i)) + contrib
+
+                i = i + 1
+            end if
+        end do
+
+        ! this should be it or?
+    end subroutine measure_double_occ_and_spin_diff
+
+    subroutine finalize_double_occ_and_spin_diff()
+        ! routine to communicate all the data from all nodes and also 
+        ! print out the information i guess.. 
+        character(*), parameter :: this_routine = "finalize_double_occ_and_spin_diff"
+
+        real(dp), allocatable :: all_double_occ_vec(:), all_spin_diff(:)
+
+
+        allocate(all_double_occ_vec(nBasis/2))
+        allocate(all_spin_diff(nBasis/2)) 
+
+        call MPIAllreduce(spin_diff, MPI_SUM, all_spin_diff)
+        call MPIAllreduce(double_occ_vec, MPI_SUM, all_double_occ_vec)
+
+        if (iProcIndex == Root) then 
+            ! first ouput the double occupancy and spin difference for each
+            ! spatial orbital
+            print *, "double occupancy for each orbital: "
+            print *, all_double_occ_vec / sum_norm_psi_squared
+
+            print *, "spin difference for each orbital: " 
+            print *, all_spin_diff / sum_norm_psi_squared
+
+            ! and also calculate the summed value over all orbitals to 
+            ! compare it with the other method and two_rdms
+
+            print *, "total double double occupancy: "
+            print *, 2.0_dp * sum(all_double_occ_vec) / (sum_norm_psi_squared * real(nBasis,dp))
+
+            print *, "total spin difference (should have to do with Ms!)"
+            print *, 2.0_dp * sum(all_spin_diff) / (sum_norm_psi_squared * real(nbasis,dp))
+
+        end if
+
+        call deallocate_spin_measurements()
+
+        deallocate(all_double_occ_vec)
+        deallocate(all_spin_diff)
+
+    end subroutine finalize_double_occ_and_spin_diff
+
+    subroutine measure_spin_occupation_ilut(ilut, real_sgn) 
+        ! routine to measure the spin occupation for each spatial orbital 
+        ! individually
+        ! for now it is done in a really slow fashion, if this ends up 
+        ! to be interesting it should be optimized
+        ! this is done for ilut inputs..
+        use DetBitOps, only: MaskBeta, MaskAlpha
+        integer(n_int), intent(in) :: ilut(0:niftot)
+        real(dp), intent(in) :: real_sgn(lenof_sign)
+        character(*), parameter :: this_routine = "measure_spin_occupation_ilut"
+
+        integer(n_int) :: alpha(0:niftot), beta(0:niftot)
+        integer :: i, x, y
+
+        ! first check the alpha and beta occupations: 
+        alpha = iand(ilut, MaskAlpha)
+        beta = iand(ilut, MaskBeta)
+
+        ! i have to take care about how many integers are used to encode 
+        ! the orbitals
+        do i = 1, nBasis/2 
+            ! i have to determine how to convert (i) to the correct 
+            ! index in the ilut.. 
+            ! x = which integer? 
+            ! y = which position in integer?
+            if (btest(alpha(x),y)) then 
+#if defined __PROG_NUMRUNS || defined __DOUBLERUN
+#ifdef __CMPLX 
+            call stop_all(this_routine, &
+                "complex double occupancy measurement not yet implemented!")
+!                 spin_up_occ(i) = spin_up_occ(i) + &
+!                     conjg(cmplx(real_sgn(1),real_sgn(2),dp)) * &
+!                     cmplx(real_sgn(3),real_sgn(4),dp) 
+
+#else 
+                spin_up_occ(i) = spin_up_occ(i) + real_sgn(1) * real_sgn(2) 
+#endif
+#else 
+                spin_up_occ(i) = spin_up_occ(i) + abs(real_sgn(1))**2 
+#endif
+            end if
+
+            if (btest(beta(x),y)) then 
+#if defined __PROG_NUMRUNS || defined __DOUBLERUN
+#ifdef __CMPLX 
+            call stop_all(this_routine, &
+                "complex double occupancy measurement not yet implemented!")
+!                 spin_down_occ(i) = spin_down_occ(i) + &
+!                     conjg(cmplx(real_sgn(1),real_sgn(2),dp)) * &
+!                     cmplx(real_sgn(3),real_sgn(4),dp) 
+
+#else 
+                spin_down_occ(i) = spin_down_occ(i) + real_sgn(1) * real_sgn(2) 
+#endif
+#else 
+                spin_down_occ(i) = spin_down_occ(i) + abs(real_sgn(1))**2 
+#endif
+            end if
+        end do
+
+    end subroutine measure_spin_occupation_ilut
+
+    subroutine measure_spin_occupation_nI(nI, real_sgn) 
+        ! routine same as above, but for nI input of the determinant 
+        use UMatCache, only: gtid
+        integer, intent(in) :: nI(nel) 
+        real(dp), intent(in) :: real_sgn(lenof_sign)
+        character(*), parameter :: this_routine = "measure_spin_occupation_nI"
+        integer :: i, spin_orb, spat_orb
+
+        ! in this routine i loop over the nI and check if and which spins 
+        ! are occupied
+
+        do i = 1, nel 
+            spin_orb = nI(i)
+            spat_orb = gtid(spin_orb)
+            if (is_alpha(spin_orb)) then 
+#if defined __PROG_NUMRUNS || defined __DOUBLERUN
+#ifdef __CMPLX 
+            call stop_all(this_routine, &
+                "complex double occupancy measurement not yet implemented!")
+!                 spin_up_occ(spat_orb) = spin_up_occ(spat_orb) + &
+!                     conjg(cmplx(real_sgn(1),real_sgn(2),dp)) * &
+!                     cmplx(real_sgn(3),real_sgn(4),dp) 
+
+#else 
+                spin_up_occ(spat_orb) = spin_up_occ(spat_orb) + real_sgn(1) * real_sgn(2) 
+#endif
+#else 
+                spin_up_occ(spat_orb) = spin_up_occ(spat_orb) + abs(real_sgn(1))**2 
+#endif
+            end if
+            if (is_beta(spin_orb)) then 
+#if defined __PROG_NUMRUNS || defined __DOUBLERUN
+#ifdef __CMPLX 
+            call stop_all(this_routine, &
+                "complex double occupancy measurement not yet implemented!")
+!                 spin_down_occ(spat_orb) = spin_down_occ(spat_orb) + &
+!                     conjg(cmplx(real_sgn(1),real_sgn(2),dp)) * &
+!                     cmplx(real_sgn(3),real_sgn(4),dp) 
+
+#else 
+                spin_down_occ(spat_orb) = spin_down_occ(spat_orb) + real_sgn(1) * real_sgn(2) 
+#endif
+#else 
+                spin_down_occ(spat_orb) = spin_up_occ(spat_orb) + abs(real_sgn(1))**2 
+#endif
+            end if
+        end do
+
+    end subroutine measure_spin_occupation_nI
+
 
     function count_double_orbs(ilut) result(n_double_orbs) 
         ! returns the number of doubly occupied orbitals for a given 
@@ -101,6 +351,12 @@ contains
 #ifdef __CMPLX 
         call stop_all(this_routine, &
             "complex double occupancy measurement not yet implemented!")
+        ! i in the case of complex runs i guess that the double_occ 
+        ! can be complex too.. atleast in the case of doubleruns.. 
+!         double_occ = conjg(real_sgn(1)) * real_sgn(2) * frac_double_orbs
+        ! i hope this works..
+!         double_occ = conjg(cmplx(real_sgn(1),real_sgn(2),dp)) * & 
+!                     cmplx(real_sgn(3),real_sgn(4),dp) * frac_double_orbs
 #else
         ! i essentially only need two runs! 
         double_occ = real_sgn(1) * real_sgn(2) * frac_double_orbs
@@ -234,8 +490,15 @@ contains
         integer(int_rdm) :: ijkl 
         real(dp) :: rdm_sign(rdm%sign_length)
         real(dp) :: double_occ(rdm%sign_length), all_double_occ(rdm%sign_length)
+        real(dp), allocatable :: spatial_double_occ(:)
 
         double_occ = 0.0_dp
+        ! just a quick addition to calculate spatially resolved double 
+        ! occupancy
+        if (t_spatial_double_occ) then
+            allocate(spatial_double_occ(nBasis/2))
+            spatial_double_occ = 0.0_dp
+        end if
         ! todo: find out about the flags to ensure the rdm was actually 
         ! calculated! 
 
@@ -266,6 +529,8 @@ contains
 
                 ! add up all the diagonal contributions
                 double_occ = double_occ + rdm_sign
+                
+                if (t_spatial_double_occ) spatial_double_occ(p) = rdm_sign(1)
 
             end if
         end do
@@ -280,6 +545,13 @@ contains
             print *, "======"
             print *, "Double occupancy from RDM: ", all_double_occ
             print *, "======"
+
+            if (t_spatial_double_occ) then
+                print *, "======"
+                print *, "spatially resolved double occupancy from RDM: "
+                print *, spatial_double_occ
+                print *, "======"
+            end if
         end if
         ! and i guess i should write it to a file too
 !         open(iunit, file = 'double_occ_from_rdm', status = 'unknown', iostat = ierr)
