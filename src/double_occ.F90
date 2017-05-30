@@ -8,9 +8,8 @@ module double_occ_mod
     use bit_rep_data, only: nifd, nOffSgn, niftot
     use constants, only: n_int, lenof_sign, write_state_t, dp, int_rdm, inum_runs
     use ParallelHelper, only: iProcIndex, root
-    use CalcData, only: tReadPops
-    use LoggingData, only: tMCOutput, t_calc_double_occ_av, t_spatial_double_occ, &
-                            t_inst_spin_diff
+    use CalcData, only: tReadPops, StepsSft
+    use LoggingData, only: tMCOutput, t_calc_double_occ_av, t_spin_measurements
     use util_mod
     use FciMCData, only: iter, PreviousCycles, norm_psi, totwalkers, all_norm_psi_squared
     use rdm_data, only: rdm_list_t
@@ -41,12 +40,14 @@ module double_occ_mod
 
     ! it seems there is no record of the averaged norm hm..
     real(dp) :: sum_norm_psi_squared = 0.0_dp
-
-    ! 
+      
     real(dp), allocatable :: spin_up_occ(:), spin_down_occ(:), spin_diff(:), &
                              double_occ_vec(:)
 
     real(dp), allocatable :: inst_spin_diff(:), all_inst_spin_diff(:)
+    real(dp), allocatable :: inst_spatial_doub_occ(:), all_inst_spatial_doub_occ(:), &
+                             sum_double_occ_vec(:), sum_spin_diff(:)
+
 contains 
 
     subroutine init_spin_measurements() 
@@ -54,12 +55,16 @@ contains
         character(*), parameter :: this_routine = "init_spin_measurements"
         integer :: ierr
 
-        if (allocated(spin_up_occ))        deallocate(spin_up_occ)
-        if (allocated(spin_down_occ))      deallocate(spin_down_occ)
-        if (allocated(spin_diff))          deallocate(spin_diff)
-        if (allocated(double_occ_vec))     deallocate(double_occ_vec)
-        if (allocated(inst_spin_diff))     deallocate(inst_spin_diff)
-        if (allocated(all_inst_spin_diff)) deallocate(all_inst_spin_diff)
+        if (allocated(spin_up_occ))               deallocate(spin_up_occ)
+        if (allocated(spin_down_occ))             deallocate(spin_down_occ)
+        if (allocated(spin_diff))                 deallocate(spin_diff)
+        if (allocated(double_occ_vec))            deallocate(double_occ_vec)
+        if (allocated(inst_spin_diff))            deallocate(inst_spin_diff)
+        if (allocated(all_inst_spin_diff))        deallocate(all_inst_spin_diff)
+        if (allocated(inst_spatial_doub_occ))     deallocate(inst_spatial_doub_occ)
+        if (allocated(all_inst_spatial_doub_occ)) deallocate(all_inst_spatial_doub_occ)
+        if (allocated(sum_double_occ_vec))        deallocate(sum_double_occ_vec)
+        if (allocated(sum_spin_diff))             deallocate(sum_spin_diff)
 
         allocate(spin_up_occ(nbasis/2))
         allocate(spin_down_occ(nBasis/2))
@@ -67,6 +72,10 @@ contains
         allocate(double_occ_vec(nBasis/2))
         allocate(inst_spin_diff(nBasis/2))
         allocate(all_inst_spin_diff(nBasis/2))
+        allocate(inst_spatial_doub_occ(nBasis/2))
+        allocate(all_inst_spatial_doub_occ(nBasis/2))
+        allocate(sum_double_occ_vec(nBasis/2))
+        allocate(sum_spin_diff(nBasis/2))
 
         spin_up_occ = 0.0_dp
         spin_down_occ = 0.0_dp
@@ -74,6 +83,10 @@ contains
         double_occ_vec = 0.0_dp
         inst_spin_diff = 0.0_dp
         all_inst_spin_diff = 0.0_dp
+        inst_spatial_doub_occ = 0.0_dp
+        all_inst_spatial_doub_occ = 0.0_dp
+        sum_double_occ_vec = 0.0_dp
+        sum_spin_diff = 0.0_dp
 
     end subroutine init_spin_measurements
 
@@ -87,6 +100,9 @@ contains
         if (allocated(double_occ_vec))     deallocate(double_occ_vec)
         if (allocated(inst_spin_diff))     deallocate(inst_spin_diff)
         if (allocated(all_inst_spin_diff)) deallocate(all_inst_spin_diff)
+        if (allocated(inst_spatial_doub_occ)) deallocate(inst_spatial_doub_occ)
+        if (allocated(all_inst_spatial_doub_occ)) deallocate(all_inst_spatial_doub_occ)
+        if (allocated(sum_double_occ_vec)) deallocate(sum_double_occ_vec)
 
     end subroutine deallocate_spin_measurements
 
@@ -123,44 +139,38 @@ contains
         spat_orb = gtid(nI)
 
         i = 1 
-!         print *, "nI: ", nI
-!         print *, "spat orb: ", spat_orb
         do while (i < nel + 1)
             spin_orb = nI(i)
             if (is_beta(spin_orb)) then 
                 ! check if it is a doubly occupied orb 
                 if (IsDoub(ilut,spin_orb)) then 
-!                     print *, "double?", i
                     ! then we want to add to the double_occ vector
-                    double_occ_vec(spat_orb(i)) = double_occ_vec(spat_orb(i)) + &
-                        contrib
+!                     double_occ_vec(spat_orb(i)) = double_occ_vec(spat_orb(i)) + &
+!                         contrib
+
+                    inst_spatial_doub_occ(spat_orb(i)) = &
+                        inst_spatial_doub_occ(spat_orb(i)) + contrib
                     
                     ! and we can skip the even alpha orbital in nI
                     i = i + 2
                 else
-!                     print *, "beta?", i
                     ! beta spin contributes negatively! 
-                    spin_diff(spat_orb(i)) = spin_diff(spat_orb(i)) - contrib
+!                     spin_diff(spat_orb(i)) = spin_diff(spat_orb(i)) - contrib
 
-                    if (t_inst_spin_diff) then 
-                        inst_spin_diff(spat_orb(i)) = inst_spin_diff(spat_orb(i)) &
-                                                      - contrib
-                    end if
+                    inst_spin_diff(spat_orb(i)) = inst_spin_diff(spat_orb(i)) &
+                                                  - contrib
 
                     i = i + 1
                 end if
 
             else 
-!                 print *, "alpha?", i
                 ! the way i plan to set it up, we check beta spins in the 
                 ! same orbital first.. so it can't be doubly occupied at 
                 ! this point! 
-                spin_diff(spat_orb(i)) = spin_diff(spat_orb(i)) + contrib
+!                 spin_diff(spat_orb(i)) = spin_diff(spat_orb(i)) + contrib
 
-                if (t_inst_spin_diff) then 
-                    inst_spin_diff(spat_orb(i)) = inst_spin_diff(spat_orb(i)) &
-                                                  + contrib
-                end if
+                inst_spin_diff(spat_orb(i)) = inst_spin_diff(spat_orb(i)) &
+                                              + contrib
 
                 i = i + 1
             end if
@@ -174,39 +184,54 @@ contains
         ! print out the information i guess.. 
         character(*), parameter :: this_routine = "finalize_double_occ_and_spin_diff"
 
-        real(dp), allocatable :: all_double_occ_vec(:), all_spin_diff(:)
+        real(dp), allocatable :: all_double_occ_vec(:), all_spin_diff(:), &
+                                 all_sum_double_occ_vec(:), all_sum_spin_diff(:)
 
 
         allocate(all_double_occ_vec(nBasis/2))
         allocate(all_spin_diff(nBasis/2)) 
+        allocate(all_sum_double_occ_vec(nBasis/2))
+        allocate(all_sum_spin_diff(nBasis/2))
 
         all_double_occ_vec = 0.0_dp
         all_spin_diff = 0.0_dp
+        all_sum_double_occ_vec = 0.0_dp
+        all_sum_spin_diff = 0.0_dp
 
         call MPIAllreduce(spin_diff, MPI_SUM, all_spin_diff)
         call MPIAllreduce(double_occ_vec, MPI_SUM, all_double_occ_vec)
+        call MPIAllreduce(sum_double_occ_vec, MPI_SUM, all_sum_double_occ_vec)
+        call MPIAllreduce(sum_spin_diff, MPI_SUM, all_sum_spin_diff)
 
         if (iProcIndex == Root) then 
             ! first ouput the double occupancy and spin difference for each
             ! spatial orbital
-            print *, "norms:"
-            print *, "sum_norm_psi_squared: ", sum_norm_psi_squared
-            print *, "all_norm_psi_squared: ", all_norm_psi_squared
-
             print *, "double occupancy for each orbital: "
-            print *, all_double_occ_vec / sum_norm_psi_squared
+            print *, sum_double_occ_vec / (sum_norm_psi_squared * real(StepsSft,dp))
+
+!             print *, all_double_occ_vec / (sum_norm_psi_squared * real(StepsSft,dp))
+
+!             print *, "yet another.."
 
             print *, "spin difference for each orbital: " 
-            print *, all_spin_diff / sum_norm_psi_squared
+            print *, sum_spin_diff / (sum_norm_psi_squared * real(StepsSft,dp))
+
+!             print *, all_spin_diff / sum_norm_psi_squared
+!             print *, "different calc:"
 
             ! and also calculate the summed value over all orbitals to 
             ! compare it with the other method and two_rdms
 
             print *, "total double double occupancy: "
-            print *, 2.0_dp * sum(all_double_occ_vec) / (sum_norm_psi_squared * real(nBasis,dp))
+            print *, 2.0_dp * sum(sum_double_occ_vec) / &
+                (sum_norm_psi_squared * real(nBasis,dp) * real(StepsSft,dp))
 
             print *, "total spin difference (should have to do with Ms!)"
-            print *, 2.0_dp * sum(all_spin_diff) / (sum_norm_psi_squared * real(nbasis,dp))
+            print *, 2.0_dp * sum(sum_spin_diff) / &
+                (sum_norm_psi_squared * real(nbasis,dp) * real(StepsSft,dp))
+
+!             print *, "different calc:"
+!             print *, 2.0_dp * sum(all_sum_spin_diff) / (sum_norm_psi_squared * real(nbasis,dp))
 
         end if
 
@@ -214,6 +239,7 @@ contains
 
         deallocate(all_double_occ_vec)
         deallocate(all_spin_diff)
+        deallocate(all_sum_double_occ_vec)
 
     end subroutine finalize_double_occ_and_spin_diff
 
@@ -412,6 +438,10 @@ contains
         ! there is more stuff to come..
         inst_double_occ = 0.0_dp
 
+        if (t_spin_measurements) then 
+            inst_spatial_doub_occ = 0.0_dp
+        end if
+
     end subroutine rezero_double_occ_stats
 
     subroutine rezero_spin_diff()
@@ -463,7 +493,7 @@ contains
                 write(num, '(i12)') i
                 
                 call stats_out(state,.false., all_inst_spin_diff(i)/ &
-                    (sum(all_norm_psi_squared) / real(inum_runs,dp)), &
+                    (sum(all_norm_psi_squared) / real(inum_runs,dp) * real(StepsSft,dp)), &
                     'orbital ' // trim(adjustl(num)))
 
             end do
@@ -514,6 +544,111 @@ contains
         end if
 
     end subroutine init_spin_diff_output
+
+    subroutine init_spat_doub_occ_stats(funit)
+        ! i need a routine to initialize the additional output, which I 
+        ! think should go into a seperate file for now! 
+        integer, intent(in) :: funit
+        character(*), parameter :: this_routine = "init_spat_doub_occ_stats"
+        character(30) :: filename
+        character(43) :: filename2
+        character(12) :: num
+        logical :: exists
+        integer :: i, ierr
+
+        filename = "spatial_double_occupancy_stats"
+
+        if (tReadPops) then 
+            open(funit, file = filename, status = 'unknown', position = 'append')
+
+        else
+
+            inquire(file=filename, exist = exists)
+
+            ! rename the existing file an create a new one
+            if (exists) then 
+
+                i = 1
+                do while(exists)
+                    write(num, '(i12)') i 
+                    filename2 = trim(adjustl(filename)) // "." // &
+                                trim(adjustl(num))
+
+                    inquire(file=filename2, exist = exists) 
+                    if (i > 10000) call stop_all(this_routine, &
+                            "error finding free spatial_double_occupancy_stats")
+
+                    i = i + 1
+                end do
+
+                ! i am not sure where this routine is defined:
+                call rename(filename, filename2)
+            end if
+
+            open(funit, file=filename, status='unknown', iostat=ierr)
+
+        end if
+
+
+    end subroutine init_spat_doub_occ_stats
+
+    subroutine write_spat_doub_occ_stats(iter_data, initial)
+        ! routine to write out the double occupancy data
+        type(fcimc_iter_data), intent(in) :: iter_data
+        logical, intent(in), optional :: initial
+        character(*), parameter :: this_routine = "write_double_occ_stats"
+
+        type(write_state_t), save :: state
+        logical, save :: inited = .false.
+        integer :: i 
+        character(12) :: num
+
+        ! Provide default 'initial' option
+        if (present(initial)) then
+            state%init = initial
+        else
+            state%init = .false.
+        end if
+
+        ! If the output file hasn't been opened yet, then create it.
+        if (iProcIndex == Root .and. .not. inited) then
+            state%funit = get_free_unit()
+            call init_spat_doub_occ_stats(state%funit)
+            inited = .true.
+        end if
+
+        if (iProcIndex == root) then 
+            if (state%init .or. state%prepend) then 
+                write(state%funit, '("#")', advance = 'no')
+                state%prepend = state%init
+
+            else if (.not. state%prepend) then 
+                write(state%funit, '(" ")', advance = 'no')
+                
+            end if
+
+            state%cols = 0
+            state%cols_mc = 0 
+            state%mc_out = tMCOutput
+      
+            call stats_out(state,.false., iter + PreviousCycles, 'Iter.')
+
+            do i = 1, nBasis/2 
+                write(num, '(i12)') i
+                
+                call stats_out(state,.false., all_inst_spatial_doub_occ(i)/ &
+                    (sum(all_norm_psi_squared) / real(inum_runs,dp) * real(StepsSft,dp)), &
+                    'orbital ' // trim(adjustl(num)))
+
+            end do
+
+            ! And we are done
+            write(state%funit, *)
+            call neci_flush(state%funit)
+
+        end if
+
+    end subroutine write_spat_doub_occ_stats
 
     subroutine write_double_occ_stats(iter_data, initial)
         ! routine to write out the double occupancy data
@@ -633,7 +768,7 @@ contains
         double_occ = 0.0_dp
         ! just a quick addition to calculate spatially resolved double 
         ! occupancy
-        if (t_spatial_double_occ) then
+        if (t_spin_measurements) then
             allocate(spatial_double_occ(nBasis/2))
             allocate(all_spatial_double_occ(nBasis/2))
             spatial_double_occ = 0.0_dp
@@ -670,7 +805,7 @@ contains
                 ! add up all the diagonal contributions
                 double_occ = double_occ + rdm_sign
                 
-                if (t_spatial_double_occ) spatial_double_occ(p) = rdm_sign(1)
+                if (t_spin_measurements) spatial_double_occ(p) = rdm_sign(1)
 
             end if
         end do
@@ -681,7 +816,7 @@ contains
         ! MPI communicate: 
         call MPISumAll(double_occ, all_double_occ)
 
-        if (t_spatial_double_occ) then
+        if (t_spin_measurements) then
             call MPIAllreduce(spatial_double_occ, MPI_SUM, all_spatial_double_occ)
         end if
 
@@ -690,7 +825,7 @@ contains
             print *, "Double occupancy from RDM: ", all_double_occ
             print *, "======"
 
-            if (t_spatial_double_occ) then
+            if (t_spin_measurements) then
 
                 print *, "======"
                 print *, "spatially resolved double occupancy from RDM: "
@@ -698,10 +833,6 @@ contains
                 print *, "======"
             end if
         end if
-        ! and i guess i should write it to a file too
-!         open(iunit, file = 'double_occ_from_rdm', status = 'unknown', iostat = ierr)
-!         write(
-
 
     end subroutine calc_double_occ_from_rdm
 

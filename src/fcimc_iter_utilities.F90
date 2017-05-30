@@ -15,7 +15,7 @@ module fcimc_iter_utils
                         t_hist_tau_search_option
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats, &
-                           t_inst_spin_diff
+                           t_spin_measurements
     use semi_stoch_procs, only: recalc_core_hamil_diag
     use fcimc_helper, only: update_run_reference
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
@@ -32,7 +32,10 @@ module fcimc_iter_utils
     use constants
     use util_mod
     use double_occ_mod, only: inst_double_occ, all_inst_double_occ, sum_double_occ, &
-                              sum_norm_psi_squared, inst_spin_diff, all_inst_spin_diff
+                              sum_norm_psi_squared, inst_spin_diff, all_inst_spin_diff, &
+                              inst_spatial_doub_occ, all_inst_spatial_doub_occ, &
+                              sum_double_occ_vec, sum_spin_diff, rezero_spin_diff, &
+                              rezero_double_occ_stats
 
     use tau_search_hist, only: update_tau_hist
 
@@ -433,16 +436,18 @@ contains
         sizes(24) = size(NoAtHF)
         sizes(25) = size(SumWalkersCyc)
         sizes(26) = 1 ! nspawned (single int, not an array)
+        ! [W.D]
         ! communicate the inst_double_occ
         sizes(27) = 1
         ! communicate the instant spin diff.. although i am not sure if this 
         ! gets too big..
-        if (t_inst_spin_diff) then 
+        if (t_spin_measurements) then 
             sizes(28) = nBasis/2
+            sizes(29) = nBasis/2
         end if
 
 
-        if (sum(sizes(1:26)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
+        if (sum(sizes(1:29)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
                                                         & the size of the send_arr and recv_arr arrays in the source code.")
 
         low = upp + 1; upp = low + sizes(1 ) - 1; send_arr(low:upp) = SpawnFromSing;
@@ -476,8 +481,9 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; send_arr(low:upp) = nspawned;
         ! double occ change:
         low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = inst_double_occ
-        if (t_inst_spin_diff) then 
+        if (t_spin_measurements) then
             low = upp + 1; upp = low + sizes(28) -1; send_arr(low:upp) = inst_spin_diff
+            low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = inst_spatial_doub_occ
         end if
 
         ! Perform the communication.
@@ -519,8 +525,9 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low));
         ! double occ: 
         low = upp + 1; upp = low + sizes(27) - 1; all_inst_double_occ = recv_arr(low);
-        if (t_inst_spin_diff) then 
+        if (t_spin_measurements) then
             low = upp + 1; upp = low + sizes(28) - 1; all_inst_spin_diff = recv_arr(low:upp)
+            low = upp + 1; upp = low + sizes(29) - 1; all_inst_spatial_doub_occ = recv_arr(low:upp)
         end if
 
         ! Communicate HElement_t variables:
@@ -646,19 +653,24 @@ contains
         end if
         
 
+        ! [W.D]
         ! quick fix for the double occupancy: 
         if (t_calc_double_occ_av) then 
             ! sum up the squared norm after shift has set in TODO
             ! and use the mean value if multiple runs are used
             ! still thinking about if i only want to calc it after 
             ! equilibration
-!             if (iter > nEquilSteps) then
-                sum_norm_psi_squared = sum_norm_psi_squared + & 
-                    sum(all_norm_psi_squared)/real(inum_runs,dp)
+            sum_norm_psi_squared = sum_norm_psi_squared + & 
+                sum(all_norm_psi_squared)/real(inum_runs,dp)
 
-                ! and also sum up the double occupancy: 
-                sum_double_occ = sum_double_occ + all_inst_double_occ
-!             end if
+            ! and also sum up the double occupancy: 
+            sum_double_occ = sum_double_occ + all_inst_double_occ
+            ! the averaging is also controlled by the t_calc_double_occ_av
+            ! logical.. maybe change that in the future to be more clear
+            if (t_spin_measurements) then 
+                sum_double_occ_vec = sum_double_occ_vec + all_inst_spatial_doub_occ
+                sum_spin_diff = sum_spin_diff + all_inst_spin_diff
+            end if
         end if
 
 #ifdef __DEBUG
@@ -1000,6 +1012,13 @@ contains
 
         cont_spawn_attempts = 0
         cont_spawn_success = 0
+
+        if (t_calc_double_occ) then
+            call rezero_double_occ_stats()
+            if (t_spin_measurements) then
+                call rezero_spin_diff()
+            end if
+        end if
 
     end subroutine rezero_iter_stats_update_cycle
 

@@ -53,7 +53,7 @@ module fcimc_initialisation
                            OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
                            tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
-                           t_spatial_double_occ
+                           t_spin_measurements
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
@@ -1035,7 +1035,7 @@ contains
             end if
         end if
 
-        if (t_spatial_double_occ) then 
+        if (t_spin_measurements) then
             call init_spin_measurements()
         end if
 

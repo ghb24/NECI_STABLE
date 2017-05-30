@@ -1099,13 +1099,31 @@ MODULE Logging
                 call geti(equi_iter_double_occ)
             end if
 
-        case ("DOUBLE-OCC-VECTOR")
-            ! just a quick insert of spatial resolved double occupancy 
-            ! measurement
-            t_spatial_double_occ = .true.
+        case ("SPIN-MEASUREMENTS")
+            ! combine all the spatially resolved double occupancy and 
+            ! spin-difference measurements into one functionality to 
+            ! have a better overview
+            ! this also includes the "standard" double occupancy measurement
+            ! although leave the option to only do the old double occ meas.
+            t_calc_double_occ = .true.
+            t_calc_double_occ_av = .true. 
+            t_spin_measurements = .true.
 
-        case ("INSTANT-SPIN-DIFF")
-            t_inst_spin_diff = .true.
+            if (item < nitems) then 
+                t_calc_double_occ_av = .false.
+                call geti(equi_iter_double_occ)
+            end if
+
+!         case ("DOUBLE-OCC-VECTOR")
+!             ! just a quick insert of spatial resolved double occupancy 
+!             ! measurement
+!             t_spatial_double_occ = .true.
+! 
+!         case ("INSTANT-SPIN-DIFF")
+!             t_inst_spin_diff = .true.
+! 
+!         case ("INSTANT-SPATIAL-DOUB-OCC")
+!             t_inst_spat_doub_occ = .true.
 
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)

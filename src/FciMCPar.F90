@@ -19,7 +19,7 @@ module FciMCParMod
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
                            equi_iter_double_occ, t_print_frq_histograms, &
-                           t_spatial_double_occ, t_inst_spin_diff
+                           t_spin_measurements
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -70,7 +70,8 @@ module FciMCParMod
                         rezero_double_occ_stats, write_double_occ_stats, & 
                         sum_double_occ, sum_norm_psi_squared, finalize_double_occ_and_spin_diff, &
                         measure_double_occ_and_spin_diff, rezero_spin_diff, &
-                        write_spin_diff_stats
+                        write_spin_diff_stats, write_spat_doub_occ_stats, &
+                        all_sum_double_occ
 
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
 
@@ -203,11 +204,15 @@ module FciMCParMod
         if (t_calc_double_occ) then 
             call write_double_occ_stats(iter_data_fciqmc, initial = .true.)
             call write_double_occ_stats(iter_data_fciqmc)
-        end if
+            if (t_spin_measurements) then
 
-        if (t_inst_spin_diff) then
-            call write_spin_diff_stats(iter_data_fciqmc, initial = .true.)
-            call write_spin_diff_stats(iter_data_fciqmc)
+                call write_spin_diff_stats(iter_data_fciqmc, initial = .true.)
+                call write_spin_diff_stats(iter_data_fciqmc)
+
+                call write_spat_doub_occ_stats(iter_data_fciqmc, initial = .true.)
+                call write_spat_doub_occ_stats(iter_data_fciqmc)
+
+            end if
         end if
         ! Put a barrier here so all processes synchronise before we begin.
         call MPIBarrier(error)
@@ -350,12 +355,11 @@ module FciMCParMod
                 ! so for now do it here for double occupancy
                 if (t_calc_double_occ) then 
                     call write_double_occ_stats(iter_data_fciqmc)
+                    if (t_spin_measurements) then
+                        call write_spin_diff_stats(iter_data_fciqmc)
+                        call write_spat_doub_occ_stats(iter_data_fciqmc)
+                    end if
                 end if
-
-                if (t_inst_spin_diff) then 
-                    call write_spin_diff_stats(iter_data_fciqmc)
-                end if
-
                 if(tRestart) cycle
 
                 IF((tTruncCAS.or.tTruncSpace.or.tTruncInitiator).and.(Iter.gt.iFullSpaceIter)&
@@ -568,14 +572,15 @@ module FciMCParMod
         if (t_calc_double_occ) then 
             ! also output the final estimates from the summed up 
             ! variable: 
-            print *, " ===== " 
-            print *, " Double occupancy from direct measurement: ", & 
-                sum_double_occ / sum_norm_psi_squared
-            print *, " ===== "
-        end if
-
-        if (t_spatial_double_occ) then 
-            call finalize_double_occ_and_spin_diff()
+            if (iProcIndex == root) then
+                print *, " ===== " 
+                print *, " Double occupancy from direct measurement: ", & 
+                    sum_double_occ / (sum_norm_psi_squared * real(StepsSft,dp))
+                print *, " ===== "
+            end if
+            if (t_spin_measurements) then
+                call finalize_double_occ_and_spin_diff()
+            end if
         end if
 
         if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) then
@@ -791,14 +796,16 @@ module FciMCParMod
         
         call rezero_iter_stats_each_iter(iter_data, rdm_definitions)
 
+        ! [W.D] i should not rezero in here or?
+        ! otherwise i waste calculated stuff..
         ! quick and dirty double occupancy measurement: 
-        if (t_calc_double_occ) then 
-            call rezero_double_occ_stats()
-        end if
+!         if (t_calc_double_occ) then 
+!             call rezero_double_occ_stats()
+!         end if
 
-        if (t_inst_spin_diff) then 
-            call rezero_spin_diff()
-        end if
+!         if (t_inst_spin_diff) then 
+!             call rezero_spin_diff()
+!         end if
 
         ! The processor with the HF determinant on it will have to check 
         ! through each determinant until it's found. Once found, tHFFound is
@@ -978,7 +985,7 @@ module FciMCParMod
                 inst_double_occ = inst_double_occ + &
                     get_double_occupancy(CurrentDets(:,j), SignCurr)
 
-                if (t_spatial_double_occ) then 
+                if (t_spin_measurements) then
                     call measure_double_occ_and_spin_diff(CurrentDets(:,j), &
                         DetCurr, SignCurr)
                 end if
