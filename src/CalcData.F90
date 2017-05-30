@@ -351,6 +351,7 @@ real(dp) :: max_frequency_bound = 10000_dp
 ! also use a sensible default integration cut-off: 99.9%
 real(dp) :: frq_ratio_cutoff = 0.999_dp
 
+logical :: t_test_hist_tau = .false.
 ! real(dp) :: frq_step_size = 0.1_dp
 ! 
 ! 

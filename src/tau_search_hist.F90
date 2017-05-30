@@ -11,7 +11,8 @@ module tau_search_hist
                         max_frequency_bound, n_frequency_bins, &
                         frq_ratio_cutoff, t_hist_tau_search,  &
                         t_fill_frequency_hists, t_hist_tau_search_option, &
-                        t_truncate_spawns, t_mix_ratios, mix_ratio, matele_cutoff
+                        t_truncate_spawns, t_mix_ratios, mix_ratio, matele_cutoff, &
+                        t_test_hist_tau
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          MaxTau, tSearchTau, tSearchTauOption, tSearchTauDeath
     use Parallel_neci, only: MPIAllReduce, MPI_MAX, MPI_SUM, MPIAllLORLogical, &
@@ -972,6 +973,7 @@ contains
         integer :: all_frequency_bins(n_frequency_bins)
         integer :: i, threshold
         integer :: n_elements, cnt
+        real(dp) :: test_ratio, all_test_ratio
 
         ! MPI communicate
         all_frequency_bins = 0
@@ -1009,6 +1011,38 @@ contains
         end do
 
         ratio = i * frq_step_size
+
+        ! test a change to the tau-search by now integrating on each 
+        ! processor seperately and communicate the maximas 
+        if (t_test_hist_tau) then 
+!             print *, "all_elements: ", n_elements
+            n_elements = sum(spec_frequency_bins) 
+!             print *, "n_elements: ", n_elements
+            if (n_elements == 0) then
+                test_ratio = 0.0_dp
+                
+            else if (n_elements < 0) then
+                test_ratio = -1.0_dp
+            end if
+
+            threshold = int(frq_ratio_cutoff * real(n_elements,dp))
+            cnt = 0
+            i = 0
+            do while(cnt < threshold)
+                i = i + 1
+                cnt = cnt + spec_frequency_bins(i)
+            end do
+
+            test_ratio = i * frq_step_size
+
+            print *, "test_ratio on node: ", test_ratio
+
+            all_test_ratio = 0.0_dp
+            call MPIAllReduce(test_ratio, MPI_MAX, all_test_ratio)
+
+            print *, "all_test_ratio: ", all_test_ratio
+            print *, "orig ratio: ", ratio
+        end if
 
     end subroutine integrate_frequency_histogram_spec
 

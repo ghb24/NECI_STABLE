@@ -1088,6 +1088,11 @@ contains
                 ! converged enough
                 t_restart_hist_tau = .true.
 
+            case ("TEST-HIST-TAU")
+                ! test a change to the tau search to avoid those nasty 
+                ! MPI communications each iteration
+                t_test_hist_tau = .true. 
+
             case("TRUNCATE-SPAWNS")
                 ! [Werner Dobrautz, 4.4.2017:]
                 ! in combination with the above HIST-TAU-SEARCH option I 
