@@ -14,7 +14,8 @@ module fcimc_iter_utils
                         qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
                         t_hist_tau_search_option
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
-    use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats
+    use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats, &
+                           t_inst_spin_diff
     use semi_stoch_procs, only: recalc_core_hamil_diag
     use fcimc_helper, only: update_run_reference
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
@@ -31,7 +32,7 @@ module fcimc_iter_utils
     use constants
     use util_mod
     use double_occ_mod, only: inst_double_occ, all_inst_double_occ, sum_double_occ, &
-                              sum_norm_psi_squared
+                              sum_norm_psi_squared, inst_spin_diff, all_inst_spin_diff
 
     use tau_search_hist, only: update_tau_hist
 
@@ -434,6 +435,11 @@ contains
         sizes(26) = 1 ! nspawned (single int, not an array)
         ! communicate the inst_double_occ
         sizes(27) = 1
+        ! communicate the instant spin diff.. although i am not sure if this 
+        ! gets too big..
+        if (t_inst_spin_diff) then 
+            sizes(28) = nBasis/2
+        end if
 
 
         if (sum(sizes(1:26)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
@@ -470,6 +476,9 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; send_arr(low:upp) = nspawned;
         ! double occ change:
         low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = inst_double_occ
+        if (t_inst_spin_diff) then 
+            low = upp + 1; upp = low + sizes(28) -1; send_arr(low:upp) = inst_spin_diff
+        end if
 
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
@@ -510,6 +519,9 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low));
         ! double occ: 
         low = upp + 1; upp = low + sizes(27) - 1; all_inst_double_occ = recv_arr(low);
+        if (t_inst_spin_diff) then 
+            low = upp + 1; upp = low + sizes(28) - 1; all_inst_spin_diff = recv_arr(low:upp)
+        end if
 
         ! Communicate HElement_t variables:
 

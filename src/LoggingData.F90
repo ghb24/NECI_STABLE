@@ -147,4 +147,6 @@ module LoggingData
     ! if this is true, force moving fcimcstats and initiatorstats files, and accumulate stats in new files
     logical :: t_no_append_stats = .false.
 
+    logical :: t_inst_spin_diff = .false.
+
 end module LoggingData

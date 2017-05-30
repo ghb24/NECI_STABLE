@@ -19,7 +19,7 @@ module FciMCParMod
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
                            equi_iter_double_occ, t_print_frq_histograms, &
-                           t_spatial_double_occ
+                           t_spatial_double_occ, t_inst_spin_diff
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -68,7 +68,9 @@ module FciMCParMod
     
     use double_occ_mod, only: get_double_occupancy, inst_double_occ, &
                         rezero_double_occ_stats, write_double_occ_stats, & 
-                        sum_double_occ, sum_norm_psi_squared, finalize_double_occ_and_spin_diff
+                        sum_double_occ, sum_norm_psi_squared, finalize_double_occ_and_spin_diff, &
+                        measure_double_occ_and_spin_diff, rezero_spin_diff, &
+                        write_spin_diff_stats
 
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
 
@@ -203,6 +205,10 @@ module FciMCParMod
             call write_double_occ_stats(iter_data_fciqmc)
         end if
 
+        if (t_inst_spin_diff) then
+            call write_spin_diff_stats(iter_data_fciqmc, initial = .true.)
+            call write_spin_diff_stats(iter_data_fciqmc)
+        end if
         ! Put a barrier here so all processes synchronise before we begin.
         call MPIBarrier(error)
         
@@ -344,6 +350,10 @@ module FciMCParMod
                 ! so for now do it here for double occupancy
                 if (t_calc_double_occ) then 
                     call write_double_occ_stats(iter_data_fciqmc)
+                end if
+
+                if (t_inst_spin_diff) then 
+                    call write_spin_diff_stats(iter_data_fciqmc)
                 end if
 
                 if(tRestart) cycle
@@ -786,6 +796,10 @@ module FciMCParMod
             call rezero_double_occ_stats()
         end if
 
+        if (t_inst_spin_diff) then 
+            call rezero_spin_diff()
+        end if
+
         ! The processor with the HF determinant on it will have to check 
         ! through each determinant until it's found. Once found, tHFFound is
         ! true, and it no longer needs to be checked.
@@ -964,6 +978,10 @@ module FciMCParMod
                 inst_double_occ = inst_double_occ + &
                     get_double_occupancy(CurrentDets(:,j), SignCurr)
 
+                if (t_spatial_double_occ) then 
+                    call measure_double_occ_and_spin_diff(CurrentDets(:,j), &
+                        DetCurr, SignCurr)
+                end if
             end if
 
             ! If we're on the Hartree-Fock, and all singles and doubles are in

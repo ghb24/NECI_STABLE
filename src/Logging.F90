@@ -1104,6 +1104,9 @@ MODULE Logging
             ! measurement
             t_spatial_double_occ = .true.
 
+        case ("INSTANT-SPIN-DIFF")
+            t_inst_spin_diff = .true.
+
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)
         end select
