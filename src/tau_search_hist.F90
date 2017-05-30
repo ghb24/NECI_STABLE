@@ -975,6 +975,48 @@ contains
         integer :: n_elements, cnt
         real(dp) :: test_ratio, all_test_ratio
 
+        ! test a change to the tau-search by now integrating on each 
+        ! processor seperately and communicate the maximas 
+        if (t_test_hist_tau) then 
+            test_ratio = 0.0_dp
+            n_elements = sum(spec_frequency_bins) 
+            if (n_elements == 0) then
+                test_ratio = 0.0_dp
+                
+            else if (n_elements < 0) then
+                test_ratio = -1.0_dp
+                ! if any of the frequency_ratios is full i guess i should 
+                ! also end the histogramming tau-search or?
+                t_fill_frequency_hists = .false.
+
+            else
+
+                threshold = int(frq_ratio_cutoff * real(n_elements,dp))
+                cnt = 0
+                i = 0
+                do while(cnt < threshold)
+                    i = i + 1
+                    cnt = cnt + spec_frequency_bins(i)
+                end do
+
+                test_ratio = i * frq_step_size
+
+            end if
+
+            if (test_ratio < 0.0_dp) then
+                ! i have to tell all processes to end the hist-tau-search
+                ratio = -1.0_dp
+                return
+            else
+                all_test_ratio = 0.0_dp
+                call MPIAllReduce(test_ratio, MPI_MAX, all_test_ratio)
+
+                ratio = all_test_ratio
+            end if
+
+            return
+        end if
+
         ! MPI communicate
         all_frequency_bins = 0
         call MPIAllReduce(spec_frequency_bins, MPI_SUM, all_frequency_bins)
@@ -1011,39 +1053,6 @@ contains
         end do
 
         ratio = i * frq_step_size
-
-        ! test a change to the tau-search by now integrating on each 
-        ! processor seperately and communicate the maximas 
-        if (t_test_hist_tau) then 
-!             print *, "all_elements: ", n_elements
-            n_elements = sum(spec_frequency_bins) 
-!             print *, "n_elements: ", n_elements
-            if (n_elements == 0) then
-                test_ratio = 0.0_dp
-                
-            else if (n_elements < 0) then
-                test_ratio = -1.0_dp
-            end if
-
-            threshold = int(frq_ratio_cutoff * real(n_elements,dp))
-            cnt = 0
-            i = 0
-            do while(cnt < threshold)
-                i = i + 1
-                cnt = cnt + spec_frequency_bins(i)
-            end do
-
-            test_ratio = i * frq_step_size
-
-            print *, "test_ratio on node: ", test_ratio
-
-            all_test_ratio = 0.0_dp
-            call MPIAllReduce(test_ratio, MPI_MAX, all_test_ratio)
-
-            print *, "all_test_ratio: ", all_test_ratio
-            print *, "orig ratio: ", ratio
-        end if
-
     end subroutine integrate_frequency_histogram_spec
 
     ! also provide the printing routines here: 
@@ -1060,7 +1069,9 @@ contains
         integer :: all_frequency_bins(n_frequency_bins)
         integer :: iunit, i, max_size
         real(dp) :: step_size, norm
-        integer(int64) :: sum_all
+!         integer(int64) :: sum_all
+        ! sashas tip: why do i not just use a real as summation?
+        real(dp) :: sum_all
         integer :: tmp_int, cnt, threshold, j
         real(dp) :: max_tmp
 
@@ -1087,6 +1098,7 @@ contains
                 ! also outout the obtained ratio integration here for now! 
                 sum_all = sum(all_frequency_bins) 
                 threshold = int(frq_ratio_cutoff * real(sum_all, dp))
+
 
 
                 iunit = get_free_unit()
