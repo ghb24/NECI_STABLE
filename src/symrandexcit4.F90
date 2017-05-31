@@ -8,7 +8,7 @@ module excit_gens_int_weighted
                           par_hole_pairs, AB_hole_pairs, iMaxLz, &
                           tGen_4ind_part_exact, tGen_4ind_lin_exact, &
                           tGen_4ind_unbound
-    use CalcData, only: matele_cutoff, t_matele_cutoff
+    use CalcData, only: matele_cutoff, t_matele_cutoff, t_back_spawn
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
                                pDoubNew, ScratchSize, SpinOrbSymLabel, &
@@ -19,8 +19,8 @@ module excit_gens_int_weighted
     use dSFMT_interface, only: genrand_real2_dSFMT
     use Determinants, only: get_helement, write_det
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
-    use bit_rep_data, only: NIfTot, NIfD
-    use bit_reps, only: decode_bit_det
+    use bit_rep_data, only: NIfTot, NIfD, test_flag
+    use bit_reps, only: decode_bit_det, get_initiator_flag
     use symdata, only: nSymLabels
     use procedure_pointers, only: get_umat_el
     use UMatCache, only: gtid, UMat2d
@@ -34,6 +34,7 @@ module excit_gens_int_weighted
     use get_excit, only: make_double, make_single
     use sort_mod
     use util_mod
+    use back_spawn, only: pick_virtual_electron_single
     implicit none
     save
 
@@ -433,6 +434,7 @@ contains
         character(*), parameter :: this_routine = "gen_single_4ind_ex"
 
         integer :: elec, src, tgt, cc_index
+        real(dp) :: pgen_elec
 
         ! In this version of the excitation generator, we pick an electron
         ! at random. Then we construct a list of connection
@@ -440,7 +442,13 @@ contains
 
         ! We could pick the electron based on the number of orbitals available.
         ! Currently, it is just picked uniformly.
-        elec = 1 + floor(genrand_real2_dSFMT() * nel)
+        if (t_back_spawn .and. .not. test_flag(ilutI, get_initiator_flag(1))) then
+            call pick_virtual_electron_single(nI, elec, pgen_elec)
+            ! i also need to check if there is a possible elec or?
+        else 
+            elec = 1 + floor(genrand_real2_dSFMT() * nel)
+        end if
+
         src = nI(elec)
 
         ! What is the symmetry category?
@@ -463,7 +471,12 @@ contains
         set_orb (ilutJ, tgt)
 
         ! And the generation probability
-        pgen = pgen / real(nel, dp)
+
+        if (t_back_spawn .and. .not. test_flag(ilutI, get_initiator_flag(1))) then
+            pgen = pgen * pgen_elec
+        else
+            pgen = pgen / real(nel, dp)
+        end if
 
     end subroutine
 

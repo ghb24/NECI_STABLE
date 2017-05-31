@@ -2333,6 +2333,14 @@ contains
                 ! log((N_t + (N_t - N_(t-1))) / N_t)
                 call stop_all(t_r,'Option deprecated')
 
+            case ("BACK-SPAWN")
+                ! Alis idea to increase the chance of non-initiators to spawn
+                ! to occupied determinants
+                ! and out of laziness this is only introduced for 
+                ! 4ind-weighted-2 and above excitation generators! 
+                ! maybe for hubbard model too, but lets see..
+                t_back_spawn = .true.
+
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)

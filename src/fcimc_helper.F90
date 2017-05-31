@@ -36,7 +36,7 @@ module fcimc_helper
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
                         MaxWalkerBloom, &
                         NMCyc, iSampleRDMIters, &
-                        tOrthogonaliseReplicas, tPairedReplicas
+                        tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
@@ -55,6 +55,7 @@ module fcimc_helper
     use global_det_data, only: get_av_sgn_tot, set_av_sgn_tot, set_det_diagH, &
                                global_determinant_data, det_diagH
     use searching, only: BinSearchParts2
+    use back_spawn, only: setup_virtual_mask
     implicit none
     save
 
@@ -1933,6 +1934,11 @@ contains
         endif
         proje_ref_energy_offsets(run) = real(h_tmp, dp) - Hii
 
+        ! [W.D] need to also change the virtual mask
+        if (t_back_spawn) then 
+            call setup_virtual_mask()
+        end if
+        
     end subroutine update_run_reference
 
     subroutine calc_inst_proje()

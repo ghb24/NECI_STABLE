@@ -20,13 +20,15 @@ module excit_gen_5
     use dSFMT_interface, only: genrand_real2_dSFMT
     use procedure_pointers, only: get_umat_el
     use sym_general_mod, only: ClassCountInd
-    use bit_rep_data, only: NIfTot, NIfD
-    use bit_reps, only: decode_bit_det
+    use bit_rep_data, only: NIfTot, NIfD, test_flag
+    use bit_reps, only: decode_bit_det, get_initiator_flag
     use get_excit, only: make_double
     use UMatCache, only: gtid
     use constants
     use sort_mod
     use util_mod
+    use CalcData, only: t_back_spawn
+    use back_spawn, only: pick_virtual_electrons_double
     implicit none
 
 contains
@@ -221,9 +223,16 @@ contains
         real(dp) :: scratch_cpt, scratch_sm
         integer :: scratch_orb
 
-        ! Pick the electrons in a weighted fashion
-        call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
+        ! if non-initiator and back-spawning active pick electrons differently
+        if (t_back_spawn .and. .not. test_flag(ilutI,get_initiator_flag(1))) then
+            call pick_virtual_electrons_double(nI, elecs, src, sym_product, ispn,&
+                                                sum_ml, pgen)
+
+        else
+            ! Pick the electrons in a weighted fashion
+            call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
                                  pgen)
+        end if
         !call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
 
         orbs(1) = pick_a_orb(ilutI, src, iSpn, int_cpt(1), cum_sum(1), cum_arr)

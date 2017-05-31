@@ -382,4 +382,7 @@ logical :: t_read_probs = .true.
 logical :: t_matele_cutoff = .false.
 real(dp) :: matele_cutoff = EPS
 
+! alis new idea to increase the chance of non-initiators to spawn to 
+! already occupied determinant
+logical :: t_back_spawn = .false.
 end module CalcData
