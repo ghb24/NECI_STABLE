@@ -385,4 +385,7 @@ real(dp) :: matele_cutoff = EPS
 ! alis new idea to increase the chance of non-initiators to spawn to 
 ! already occupied determinant
 logical :: t_back_spawn = .false.
+! also use an integer to maybe start the backspawning later, or otherwise 
+! it may never correctly grow
+integer :: back_spawn_delay = 0
 end module CalcData

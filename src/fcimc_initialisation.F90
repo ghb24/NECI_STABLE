@@ -34,7 +34,7 @@ module fcimc_initialisation
                         initial_refs, trial_init_reorder, tStartTrialLater, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, &
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
-                        t_previous_hist_tau, t_fill_frequency_hists
+                        t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -142,6 +142,7 @@ module fcimc_initialisation
     use constants
 
     use tau_search_hist, only: init_hist_tau_search
+    use back_spawn, only: init_back_spawn
 
     implicit none
 
@@ -1139,6 +1140,10 @@ contains
             write(iout, '("Truncating determinant space at a maximum of ",i3," &
                     &unpaired electrons.")') trunc_nopen_max
         endif
+
+        if (t_back_spawn) then 
+            call init_back_spawn
+        end if
 
 !        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.0_dp)
 !        TotDets=1.0_dp

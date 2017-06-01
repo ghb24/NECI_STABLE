@@ -228,6 +228,11 @@ contains
             call pick_virtual_electrons_double(nI, elecs, src, sym_product, ispn,&
                                                 sum_ml, pgen)
 
+            if (elecs(1) == 0) then 
+                ! not enough valid double excitations found - abort
+                nJ(1) = 0
+                return
+            end if
         else
             ! Pick the electrons in a weighted fashion
             call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &

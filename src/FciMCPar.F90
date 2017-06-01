@@ -13,7 +13,7 @@ module FciMCParMod
                         ss_space_in, s_global_start, tContTimeFCIMC, &
                         trial_shift_iter, tStartTrialLater, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
-                        t_hist_tau_search_option
+                        t_hist_tau_search_option, t_back_spawn, back_spawn_delay
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
@@ -70,6 +70,7 @@ module FciMCParMod
                         sum_double_occ, sum_norm_psi_squared
 
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
+    use back_spawn, only: init_back_spawn
 
 #ifdef MOLPRO
     use outputResult
@@ -243,6 +244,13 @@ module FciMCParMod
                 end if
             end if
 
+            ! [W.D]
+            ! option to enable back-spawning after a certain number of iterations
+            ! but this should be independent if the shift is varied already (or?)
+            if (back_spawn_delay /= 0 .and. iter == back_spawn_delay + 1) then
+                t_back_spawn = .true. 
+                call init_back_spawn()
+            end if
             ! Is this an iteration where trial-wavefunction estimators are
             ! turned on?
             if (tStartTrialLater .and. all(.not. tSinglePartPhase)) then

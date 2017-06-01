@@ -106,7 +106,11 @@ contains
         ! pick two random orbitals out of those! 
         ! check the routine in symrandexcit3.f90 this does the job i guess..
 
+!         print *, "test picking 2 virtual electrons:"
+!         print *, "nI: ", nI
+!         print *, "mask_virt_ni: ", mask_virt_ni
         n_valid = 0
+
         do i = 1, nel
             if (any(nI(i) == mask_virt_ni)) then
                 ! the electron is in the virtual of the 
@@ -114,10 +118,17 @@ contains
             end if
         end do
 
-        if (n_valid == 0) then
+!         print *, "n_valid: ", n_valid
+        if (n_valid < 2) then
             ! something went wrong
-            call stop_all(this_routine, & 
-                "something went wront, did not find valid virtual single electron!")
+            ! in this case i have to abort as no valid double excitation 
+            ! could have been found
+            elecs = 0
+            src = 0
+            pgen = 0.0_dp
+            return
+!             call stop_all(this_routine, & 
+!                 "something went wront, did not find 2 valid virtual electrons!")
         end if
 
         allocate(virt_elecs(n_valid)) 
@@ -130,8 +141,12 @@ contains
             end if
         end do
 
+!         print *, "virt_elecs: ", virt_elecs
         ! determine how many valid pairs there are now
         n_valid_pairs = (n_valid * (n_valid - 1)) / 2
+
+        ! and the pgen is now: 
+        pgen = 1.0_dp / real(n_valid_pairs, dp)
 
         ! and is it now enough to do is just like in the symrandexcit3 routine:
         ind = 1 + int(n_valid_pairs * genrand_real2_dSFMT())
@@ -142,11 +157,15 @@ contains
         elecs(1) = virt_elecs(ind_1)
         elecs(2) = virt_elecs(ind_2)
 
+!         print *, "ind_1, ind_2: ", ind_1, ind_2
+
         ! hm.. test this tomorrow
         
         ! now i have to pick two random ones from the list! 
         ! all the symmetry related stuff at the end:
         src = nI(elecs)
+
+!         print *, "src: ", src
         
         if (is_beta(src(1)) .eqv. is_beta(src(2))) then
             if (is_beta(src(1))) then
@@ -209,6 +228,14 @@ contains
         ind = 1 + floor(genrand_real2_dSFMT() * n_valid) 
 
         elec = virt_elecs(ind)
+
+#ifdef __DEBUG
+        print *, "test picking single virtual elec:"
+        print *, "nI: ", nI 
+        print *, "mask_virt_ni: ", mask_virt_ni
+        print *, "virt_elecs", virt_elecs
+        print *, "elec: ", elec
+#endif
 
         pgen_elec = 1.0_dp / real(n_valid, dp)
 

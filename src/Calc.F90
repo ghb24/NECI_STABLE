@@ -2341,6 +2341,11 @@ contains
                 ! maybe for hubbard model too, but lets see..
                 t_back_spawn = .true.
 
+                if (item < nitems) then 
+                    t_back_spawn = .false.
+                    call geti(back_spawn_delay)
+                end if
+
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
