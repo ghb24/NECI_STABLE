@@ -974,6 +974,7 @@ contains
         integer :: i, threshold
         integer :: n_elements, cnt
         real(dp) :: test_ratio, all_test_ratio
+        logical :: mpi_ltmp
 
         ! test a change to the tau-search by now integrating on each 
         ! processor seperately and communicate the maximas 
@@ -987,6 +988,9 @@ contains
                 test_ratio = -1.0_dp
                 ! if any of the frequency_ratios is full i guess i should 
                 ! also end the histogramming tau-search or?
+                ! yes i have to communicate that.. or else it gets 
+                ! fucked up.. 
+
                 t_fill_frequency_hists = .false.
 
             else
@@ -1003,11 +1007,23 @@ contains
 
             end if
 
-            if (test_ratio < 0.0_dp) then
-                ! i have to tell all processes to end the hist-tau-search
+            ! how do i best deal with the mpi communication. 
+            ! i could use a mpialllor on (.not. t_fill_frequency_hists) to 
+            ! check if one of them is false on any processor..
+            call MPIAllLORLogical(.not.t_fill_frequency_hists,mpi_ltmp)
+            if (mpi_ltmp) then
+                ! then i know one of the frequency histograms is full.. so 
+                ! stop on all nodes! 
+                t_fill_frequency_hists = .false.
                 ratio = -1.0_dp
                 return
             else
+! 
+!             if (test_ratio < 0.0_dp) then
+!                 ! i have to tell all processes to end the hist-tau-search
+!                 ratio = -1.0_dp
+!                 return
+!             else
                 all_test_ratio = 0.0_dp
                 call MPIAllReduce(test_ratio, MPI_MAX, all_test_ratio)
 
@@ -1072,8 +1088,10 @@ contains
 !         integer(int64) :: sum_all
         ! sashas tip: why do i not just use a real as summation?
         real(dp) :: sum_all
-        integer :: tmp_int, cnt, threshold, j
+        integer :: tmp_int, j
+        real(dp) :: cnt, threshold
         real(dp) :: max_tmp
+        real(dp) :: temp_bins(n_frequency_bins)
 
         all_frequency_bins = 0
 
@@ -1093,29 +1111,34 @@ contains
             max_tmp = 0.0_dp
             call mpiallreduce(gamma_doub, MPI_MAX, max_tmp)
 
+
             if (iProcIndex == root) then
 
                 ! also outout the obtained ratio integration here for now! 
-                sum_all = sum(all_frequency_bins) 
-                threshold = int(frq_ratio_cutoff * real(sum_all, dp))
-
-
+!                 sum_all = sum(all_frequency_bins) 
+                temp_bins = real(all_frequency_bins,dp)
+                sum_all = sum(temp_bins)
+                threshold = frq_ratio_cutoff * sum_all
 
                 iunit = get_free_unit()
                 call get_unique_filename('frequency_histogram', .true., &
                     .true., 1, filename)
                 open(iunit, file = filename, status = 'unknown')
 
-                cnt = 0
+                cnt = 0.0_dp
 
                 write(iout,*) "writing frequency histogram..."
                 do i = 1, n_frequency_bins
                     write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
                     write(iunit, "(i12)") all_frequency_bins(i)
                     if (cnt < threshold) then
-                        cnt = cnt + all_frequency_bins(i)
+!                         cnt = cnt + all_frequency_bins(i)
+                        cnt = cnt + temp_bins(i)
                         j = i
                     end if
+                    ! also print only as far as necessary until largest 
+                    ! H_ij/pgen ratio
+                    if (frq_step_size * i > max_tmp) exit
                 end do
                 close(iunit)
                 write(iout,*) "Done!"
@@ -1126,14 +1149,14 @@ contains
                 write(iout,*) "Number of zero-valued excitations: ", tmp_int
                 write(iout,*) "Number of valid excitations: ", sum_all
                 write(iout,*), "ratio of zero-valued excitations: ", &
-                    real(tmp_int, dp) / real(sum_all, dp)
+                    real(tmp_int, dp) / sum_all
                 ! i guess i should also output the number of excitations 
                 ! above the threshold! 
                 tmp_int = 0
                 call mpisum(above_max_doubles, 0, tmp_int) 
                 write(iout,*) "Number of excitations above threshold: ", tmp_int
                 write(iout,*) "ratio of excitations above threshold: ", &
-                    real(tmp_int, dp) / real(sum_all) 
+                    real(tmp_int, dp) / sum_all 
 
                 ! also output the obtained integrated threshold and the 
                 ! maximum values H_ij/pgen ratio for this type of excitation:
@@ -1159,24 +1182,28 @@ contains
 
             if (iProcIndex == root) then
 
-                sum_all = sum(all_frequency_bins_spec)
-                threshold = int(frq_ratio_cutoff * real(sum_all, dp))
+!                 sum_all = sum(all_frequency_bins_spec)
+                temp_bins = real(all_frequency_bins_spec,dp)
+                sum_all = sum(temp_bins)
+                threshold = frq_ratio_cutoff * sum_all
 
                 iunit = get_free_unit()
                 call get_unique_filename('frequency_histogram_singles', .true., &
                     .true., 1, filename)
                 open(iunit, file = filename, status = 'unknown')
 
-                cnt = 0
+                cnt = 0.0_dp
                 ! also output here the integrated ratio!
                 write(iout,*) "writing singles frequency histogram..."
                 do i = 1, n_frequency_bins
                     write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
                     write(iunit, "(i12)") all_frequency_bins_spec(i)
                     if (cnt < threshold) then
-                        cnt = cnt + all_frequency_bins_spec(i)
+!                         cnt = cnt + all_frequency_bins_spec(i)
+                        cnt = cnt + temp_bins(i)
                         j = i
                     end if
+                    if (frq_step_size * i > max_tmp) exit
                 end do
                 close(iunit)
                 write(iout,*) "Done!" 
@@ -1188,13 +1215,13 @@ contains
                 ! maybe also check the number of valid excitations
                 write(iout,*) "Number of valid single excitations: ", sum_all
                 write(iout,*) "ratio of zero-valued single excitations: ", &
-                    real(tmp_int,dp) / real(sum_all, dp)
+                    real(tmp_int,dp) / sum_all
 
                 tmp_int = 0 
                 call mpisum(above_max_singles, 0, tmp_int)
                 write(iout,*) "Number of single excitations above threshold: ", tmp_int
                 write(iout,*) "ratio of single excitations above threshold: ", &
-                    real(tmp_int, dp) / real(sum_all, dp)
+                    real(tmp_int, dp) / sum_all
                 write(iout,*) "integrated singles H_ij/pgen ratio: ", j * frq_step_size
                 write(iout,*) "for ", frq_ratio_cutoff, " percent coverage!"
 
@@ -1221,24 +1248,29 @@ contains
 
                 if (iProcIndex == root) then
 
-                    sum_all = sum(all_frequency_bins_spec)
-                    threshold = int(frq_ratio_cutoff * real(sum_all,dp))
+!                     sum_all = sum(all_frequency_bins_spec)
+                    temp_bins = real(all_frequency_bins_spec,dp)
+                    sum_all = sum(temp_bins)
+
+                    threshold = frq_ratio_cutoff * sum_all
 
                     iunit = get_free_unit()
                     call get_unique_filename('frequency_histogram_para', .true., &
                         .true., 1, filename)
                     open(iunit, file = filename, status = 'unknown')
 
-                    cnt = 0
+                    cnt = 0.0_dp
 
                     write(iout,*) "writing parallel frequency histogram..."
                     do i = 1, n_frequency_bins
                         write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
                         write(iunit, "(i12)") all_frequency_bins_spec(i)
                         if (cnt < threshold) then
-                            cnt = cnt + all_frequency_bins_spec(i)
+!                             cnt = cnt + all_frequency_bins_spec(i)
+                            cnt = cnt + temp_bins(i)
                             j = i
                         end if
+                        if (frq_step_size * i > max_tmp) exit
                     end do
                     close(iunit)
                     write(iout,*) "Done!"
@@ -1249,12 +1281,12 @@ contains
                     write(iout,*) "Number of zero-valued parallel excitations: ", tmp_int
                     write(iout,*) "Number of valid parallel excitations: ", sum_all
                     write(iout,*) "ratio of zero-valued parallel excitations: ", &
-                        real(tmp_int, dp) / real(sum_all, dp)
+                        real(tmp_int, dp) / sum_all
                     tmp_int = 0
                     call mpisum(above_max_para, 0, tmp_int) 
                     write(iout,*) "Number of parallel excitations above threshold: ", tmp_int
                     write(iout,*) "ratio of parallel excitations above threshold: ", &
-                        real(tmp_int, dp) / real(sum_all, dp)
+                        real(tmp_int, dp) / sum_all
                     write(iout,*) "integrated parallel H_ij/pgen ratio: ", j * frq_step_size
                     write(iout,*) "for ", frq_ratio_cutoff, " percent coverage!"
 
@@ -1276,24 +1308,28 @@ contains
 
                 if (iProcIndex == root) then
 
-                    sum_all = sum(all_frequency_bins_spec)
-                    threshold = int(frq_ratio_cutoff * real(sum_all,dp))
+!                     sum_all = sum(all_frequency_bins_spec)
+                    temp_bins = real(all_frequency_bins_spec,dp)
+                    sum_all = sum(temp_bins)
+                    threshold = frq_ratio_cutoff * sum_all
 
                     iunit = get_free_unit()
                     call get_unique_filename('frequency_histogram_anti', .true., &
                         .true., 1, filename)
                     open(iunit, file = filename, status = 'unknown')
 
-                    cnt = 0
+                    cnt = 0.0_dp
 
                     write(iout,*) "writing anti-parallel frequency histogram..."
                     do i = 1, n_frequency_bins
                         write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
                         write(iunit, "(i12)") all_frequency_bins_spec(i)
                         if (cnt < threshold) then
-                            cnt = cnt + all_frequency_bins_spec(i)
+!                             cnt = cnt + all_frequency_bins_spec(i)
+                            cnt = cnt + temp_bins(i)
                             j = i
                         end if
+                        if (frq_step_size * i > max_tmp) exit
                     end do
                     close(iunit)
                     write(iout,*) "Done!"
@@ -1303,13 +1339,13 @@ contains
                     write(iout,*) "Number of zero-valued anti-parallel excitations: ", tmp_int
                     write(iout,*) "Number of valid anti-parallel excitations: ", sum_all
                     write(iout,*) "ratio of zero-valued anti-parallel excitations: ", &
-                        real(tmp_int, dp) / real(sum_all, dp)
+                        real(tmp_int, dp) / sum_all
                     tmp_int = 0
                     call mpisum(above_max_anti, 0, tmp_int) 
                     write(iout,*) "Number of anti-parallel excitations above threshold: ", &
                         tmp_int
                     write(iout,*) "ratio of anti-parallel excitations above threshold: ", &
-                        real(tmp_int, dp) / real(sum_all, dp) 
+                        real(tmp_int, dp) / sum_all
                     write(iout,*) "integrated anti-parallel H_ij/pgen ratio: ", j * frq_step_size
                     write(iout,*) "for ", frq_ratio_cutoff, " percent coverage!"
 
@@ -1333,24 +1369,28 @@ contains
 
                 if (iProcIndex == root) then
 
-                    sum_all = sum(all_frequency_bins_spec)
-                    threshold = int(frq_step_size * real(sum_all,dp))
+!                     sum_all = sum(all_frequency_bins_spec)
+                    temp_bins = real(all_frequency_bins_spec,dp)
+                    sum_all = sum(temp_bins)
+                    threshold = frq_step_size * sum_all
 
                     iunit = get_free_unit()
                     call get_unique_filename('frequency_histogram_doubles', .true., &
                         .true., 1, filename)
                     open(iunit, file = filename, status = 'unknown')
 
-                    cnt = 0
+                    cnt = 0.0_dp
 
                     write(iout,*) "writing doubles frequency histogram..."
                     do i = 1, n_frequency_bins
                         write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
                         write(iunit, "(i12)") all_frequency_bins_spec(i)
                         if (cnt < threshold) then
-                            cnt = cnt + all_frequency_bins_spec(i)
+!                             cnt = cnt + all_frequency_bins_spec(i)
+                            cnt = cnt + temp_bins(i)
                             j = i
                         end if
+                        if (frq_step_size * i > max_tmp) exit
                     end do
                     close(iunit)
                     write(iout,*) "Done!"
@@ -1360,11 +1400,11 @@ contains
                     write(iout,*) "Number of zero-valued double excitations: ", tmp_int
                     write(iout,*) "Number of valid double excitations: ", sum_all
                     write(iout,*) "ratio of zero-valued double excitations: ", &
-                        real(tmp_int, dp) / real(sum_all, dp)
+                        real(tmp_int, dp) / sum_all
                     call mpisum(above_max_doubles, 0, tmp_int) 
                     write(iout,*) "Number of excitations above threshold: ", tmp_int
                     write(iout,*) "ratio of excitations above threshold: ", &
-                        real(tmp_int, dp) / real(sum_all) 
+                        real(tmp_int, dp) / sum_all
                     write(iout,*) "integrated doubles H_ij/pgen ratio: ", j * frq_step_size
                     write(iout,*) "for ", frq_ratio_cutoff, " percent coverage!"
 
@@ -1381,11 +1421,12 @@ contains
 
         if (iprocindex == root) then
             ! also print out a normed version for comparison
-            sum_all = sum(all_frequency_bins)
+!             sum_all = sum(all_frequency_bins)
+            temp_bins = real(all_frequency_bins,dp)
+            sum_all = sum(temp_bins)
 
             ! check if integer overflow:
-            if (.not. sum_all < 0) then
-                norm = real(sum_all, dp)
+            if (.not. sum_all < 0.0_dp) then
 
                 iunit = get_free_unit()
                 call get_unique_filename('frequency_histogram_normed', .true., &
@@ -1393,8 +1434,10 @@ contains
                 open(iunit, file = filename, status = 'unknown')
 
                 do i = 1, n_frequency_bins
+                    ! only print if above threshold
+                    if (temp_bins(i) / sum_all < EPS) cycle
                     write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
-                    write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
+                    write(iunit, "(f16.7)") temp_bins(i) / sum_all
                 end do
 
                 close(iunit)
