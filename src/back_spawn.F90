@@ -183,6 +183,81 @@ contains
 !                                          SpinOrbSymLabel(src(2)))
 
     end subroutine pick_virtual_electrons_double
+    
+    subroutine pick_virtual_electrons_double_hubbard(nI, elecs, src, ispn, pgen)
+        ! specific routine to pick 2 electrons in the k-space hubbard, 
+        ! since apparently it is important to allow all orderings of 
+        ! electrons possible.. although this could just be a artifact of the 
+        ! old hubbard excitation generation
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: elecs(2), src(2), ispn
+        real(dp), intent(out) :: pgen
+        character(*), parameter :: this_routine = "pick_virtual_electrons_double_hubbard"
+
+        integer :: n_valid, i, j, n_valid_pairs, ind_1, ind_2
+        integer, allocatable :: virt_elecs(:)
+        logical :: t_beta, t_alpha
+        ! but it is also good to to it here so i can do it more cleanly
+        n_valid = 0
+
+        do i = 1, nel
+            if (any(nI(i) == mask_virt_ni)) then
+                if (is_beta(nI(i)))  t_beta = .true.
+                if (is_alpha(nI(i))) t_alpha = .true.
+                ! the electron is in the virtual of the 
+                n_valid = n_valid + 1
+            end if
+        end do
+
+        ! in the hubbard case i also have to check if there is atleast on 
+        ! pair possible with opposite spin
+        if (n_valid < 2 .or. .not.(t_alpha .and. t_beta)) then
+            ! something went wrong
+            ! in this case i have to abort as no valid double excitation 
+            ! could have been found
+            elecs = 0
+            src = 0
+            pgen = 0.0_dp
+            return
+!             call stop_all(this_routine, & 
+!                 "something went wront, did not find 2 valid virtual electrons!")
+        end if
+
+        allocate(virt_elecs(n_valid)) 
+
+        j = 1
+        do i = 1, nel
+            if (any(nI(i) == mask_virt_ni)) then
+                virt_elecs(j) = i
+                j = j + 1
+            end if
+        end do
+
+        ! apparently i have to have both ordering of the electrons in 
+        ! the hubbard excitation generator 
+        ! but it must be easier to do that... and more efficient
+        do 
+            ind_1 = 1 + int(n_valid * genrand_real2_dSFMT())
+
+            do 
+                ind_2 = 1 + int(n_valid * genrand_real2_dSFMT())
+
+                if (ind_1 /= ind_2) exit
+            end do
+
+            elecs(1) = virt_elecs(ind_1)
+            elecs(2) = virt_elecs(ind_2)
+            src = nI(elecs)
+
+            if (is_beta(src(1)) .neqv. is_beta(src(2))) then
+                ispn = 2
+                exit
+            end if
+        end do
+        
+        pgen = 1.0_dp / real(n_valid * (n_valid - 1), dp)
+
+    end subroutine pick_virtual_electrons_double_hubbard
 
     subroutine pick_virtual_electron_single(nI, elec, pgen_elec)
         ! same as above for a single excitation
