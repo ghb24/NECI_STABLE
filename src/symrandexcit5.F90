@@ -203,6 +203,9 @@ contains
 
     subroutine gen_double_4ind_ex2 (nI, ilutI, nJ, ilutJ, ex, par, pgen)
 
+        use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
+        use SymExcitDataMod, only: SpinOrbSymLabel
+
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ex(2,2)
@@ -228,6 +231,10 @@ contains
             call pick_virtual_electrons_double(nI, elecs, src, sym_product, ispn,&
                                                 sum_ml, pgen)
 
+            ! due to circular dependencies calc the sym_prod here:
+            sym_product = RandExcitSymLabelProd(SpinOrbSymLabel(src(1)), &
+                                             SpinOrbSymLabel(src(2)))
+
             if (elecs(1) == 0) then 
                 ! not enough valid double excitations found - abort
                 nJ(1) = 0
@@ -237,6 +244,8 @@ contains
             ! Pick the electrons in a weighted fashion
             call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
                                  pgen)
+
+
         end if
         !call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
 

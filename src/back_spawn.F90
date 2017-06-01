@@ -7,8 +7,6 @@ module back_spawn
     use constants, only: n_int, dp
     use bit_rep_data, only: nifd
     use fcimcdata, only: projedet
-    use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
-    use SymExcitDataMod, only: SpinOrbSymLabel
     use dSFMT_interface, only: genrand_real2_dSFMT
 
     implicit none
@@ -181,8 +179,8 @@ contains
         sum_ml = sum(G1(src)%Ml)
 
         ! And the spatial symmetries
-        sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(src(1)), &
-                                         SpinOrbSymLabel(src(2)))
+!         sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(src(1)), &
+!                                          SpinOrbSymLabel(src(2)))
 
     end subroutine pick_virtual_electrons_double
 

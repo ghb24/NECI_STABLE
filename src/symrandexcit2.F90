@@ -2359,7 +2359,7 @@ MODULE GenRandSymExcitNUMod
         use CalcData, only: t_back_spawn
         use bit_rep_data, only: test_flag
         use bit_reps, only: get_initiator_flag
-!         use back_spawn, only: pick_virtual_electrons_double
+        use back_spawn, only: pick_virtual_electrons_double
 
         INTEGER :: i,j ! Loop variables
         INTEGER :: Elec1, Elec2
@@ -2371,7 +2371,7 @@ MODULE GenRandSymExcitNUMod
         real(dp) :: r(2),pGen,pAIJ
         INTEGER, ALLOCATABLE :: Excludedk(:,:)
         character(*), parameter :: this_routine = "CreateExcitLattice"
-        integer :: elecs, src, sym_prod, sum_ml
+        integer :: elecs(2), src(2), sym_prod, sum_ml
         real(dp) :: pgen_back
 
 !        CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,-1)
@@ -2383,30 +2383,54 @@ MODULE GenRandSymExcitNUMod
         kazrange = 0
         kayrange = 0
 
+        i = 0
         ! [W.D]
         ! are we here in the hubbard model??
-!         if (t_back_spawn .and. .not. test_flag(ilutI, get_initiator_flag(1))) then
-! 
-! #ifdef __DEBUG 
-!             print *, "am i actually ever here??"
-! #endif
-!             do 
-!                 call pick_virtual_electrons_double(nI, elecs, src, sym_prod, ispn, &
-!                                                 sum_ml, pgen_back)
-! 
-!                 i = i + 1
-!                 ! i hope i do not get stuck in here??
-!                 if ((tHub .and. iSpn == 2).or.(tUEG)) then
-!                     Elec1Ind = elecs(1)
-!                     Elec2Ind = elecs(2)
-!                     exit 
-!                 end if
-! 
-!                 if (i > 100000) call Stop_All(this_routine, &
-!                     "cant fint proper virtual electron pair!")
-! 
-!             end do
-!         else
+        if (t_back_spawn .and. .not. test_flag(ilutnI, get_initiator_flag(1))) then
+
+#ifdef __DEBUG 
+            print *, "am i actually ever here??"
+#endif
+            do 
+                call pick_virtual_electrons_double(nI, elecs, src, sym_prod, ispn, &
+                                                sum_ml, pgen_back)
+
+                ! check if enogh electrons are in the virtual
+                if (elecs(1) == 0) then
+                    nJ(1) = 0
+                    pgen = 0.0_dp
+                    return
+                end if
+
+                if (pgen_back == 1.0_dp .and. iSpn /= 2) then
+                    ! this means i have incompatible spins and only 2 
+                    ! possible electrons -> also abort!
+                    nJ(1) = 0
+                    pgen = 0.0_dp
+                    return
+                end if
+
+                i = i + 1
+                ! i hope i do not get stuck in here??
+                if ((tHub .and. iSpn == 2).or.(tUEG)) then
+                    Elec1Ind = elecs(1)
+                    Elec2Ind = elecs(2)
+                    exit 
+                end if
+
+                if (i > 1000) then 
+                    ! i guess at this point i should abort, as there 
+                    ! are no spin fitting electrons in the reference 
+                    ! virtual
+!                     call Stop_All(this_routine, &
+!                         "cant fint proper virtual electron pair!")
+                    nJ(1) = 0
+                    pgen = 0.0_dp
+                    return
+                end if
+
+            end do
+        else
 
             DO
                 r(1) = genrand_real2_dSFMT()
@@ -2429,7 +2453,7 @@ MODULE GenRandSymExcitNUMod
                 ENDIF
                 IF((tHub.and.iSpn.eq.2).or.(tUEG)) EXIT ! alpha/beta pairs are the only pairs generated for the hubbard model
             ENDDO
-!         end if
+        end if
 
         IF(tNoFailAb)THEN ! pGen is calculated first because there might be no excitations available for this ij pair
 
@@ -2548,19 +2572,19 @@ MODULE GenRandSymExcitNUMod
         pAIJ=1.0_dp/(KaXRange*KaYRange*KaZRange-iElecInExcitRange) 
         ! pBIJ is zero for this kind of excitation generator for antiparallel spins
         ! but is equal to pAIJ for parallel spins.
-!         if (t_back_spawn .and. .not. test_flag(ilutI, get_initiator_flag(1))) then
-!             IF(G1(nI(Elec1Ind))%Ms.ne.G1(nI(Elec2Ind))%Ms) THEN
-!                 pGen=2.0_dp*pgen_back*pAIJ ! Spins not equal
-!             ELSE
-!                 pGen=2.0_dp*pgen_back*2.0*pAIJ ! Spins equal
-!             ENDIF
-!         else
+        if (t_back_spawn .and. .not. test_flag(ilutnI, get_initiator_flag(1))) then
+            IF(G1(nI(Elec1Ind))%Ms.ne.G1(nI(Elec2Ind))%Ms) THEN
+                pGen=1.0_dp*pgen_back*pAIJ ! Spins not equal
+            ELSE
+                pGen=2.0_dp*pgen_back*2.0*pAIJ ! Spins equal
+            ENDIF
+        else
             IF(G1(nI(Elec1Ind))%Ms.ne.G1(nI(Elec2Ind))%Ms) THEN
                 pGen=2.0_dp/(NEl*(NEl-1))*pAIJ ! Spins not equal
             ELSE
                 pGen=2.0_dp/(NEl*(NEl-1))*2.0*pAIJ ! Spins equal
             ENDIF
-!         end if
+        end if
  
         IF(pAIJ.le.0.0_dp) CALL Stop_All("CreateExcitLattice","pAIJ is less than 0")
 
