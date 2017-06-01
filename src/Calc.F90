@@ -1088,7 +1088,7 @@ contains
                 ! converged enough
                 t_restart_hist_tau = .true.
 
-            case ("TEST-HIST-TAU")
+            case ("TEST-HIST-TAU", "LESS-MPI-HEAVY")
                 ! test a change to the tau search to avoid those nasty 
                 ! MPI communications each iteration
                 t_test_hist_tau = .true. 
