@@ -9,12 +9,13 @@ module fcimc_pointed_fns
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
-                        t_matele_cutoff, matele_cutoff
+                        t_matele_cutoff, matele_cutoff, t_back_spawn
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
-    use bit_rep_data, only: NIfTot
+    use bit_rep_data, only: NIfTot, test_flag
+    use bit_reps, only: get_initiator_flag
     use tau_search, only: log_death_magnitude, log_spawn_magnitude
     use rdm_general, only: calc_rdmbiasfac
     use hist, only: add_hist_excit_tofrom
@@ -121,6 +122,7 @@ module fcimc_pointed_fns
         logical :: tRealSpawning
         HElement_t(dp) :: rh, rh_used
         logical :: t_par
+        real(dp) :: temp_prob
 
         ! Just in case
         child = 0.0_dp
@@ -184,8 +186,23 @@ module fcimc_pointed_fns
                 if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then 
                     t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
 
+                    ! in the back-spawning i have to readapt the generation 
+                    ! probability
+                    if (t_back_spawn .and. .not. test_flag(iLutCurr, &
+                        get_initiator_flag(1))) then 
+                        if (ic == 2) then 
+                            temp_prob = prob * real(walkExcitLevel * (walkExcitLevel - 1),dp) &
+                                               / real(nel * (nel - 1), dp)
+                        else 
+                            temp_prob = prob * real(walkExcitLevel,dp) / real(nel, dp)
+
+                        end if
+
+                    else 
+                        temp_prob = prob
+                    end if
                     ! not sure about the AvMCExcits!! TODO
-                    call fill_frequency_histogram_4ind(abs(rh_used), prob / AvMCExcits, &
+                    call fill_frequency_histogram_4ind(abs(rh_used), temp_prob / AvMCExcits, &
                         ic, t_par, ex)
 
                 else
@@ -284,8 +301,24 @@ module fcimc_pointed_fns
             
             ! n.b. if we ever end up with |walkerweight| /= 1, then this
             !      will need to ffed further through.
-            if (tSearchTau .and. (.not. tFillingStochRDMonFly)) &
-                call log_spawn_magnitude (ic, ex, matel, prob)
+            if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
+                ! in the back-spawning i have to adapt the probabilites 
+                ! back, to be sure the time-step covers the changed 
+                ! non-initiators spawns! 
+                if (t_back_spawn .and. .not. test_flag(iLutCurr, &
+                    get_initiator_flag(1))) then
+                    if (ic == 2) then
+                        temp_prob = prob * real(walkExcitLevel * (walkExcitLevel - 1), dp) & 
+                                            / real(nel * (nel - 1), dp)
+                    else 
+                        temp_prob = prob * real(walkExcitLevel,dp) / real(nel,dp)
+                    end if
+
+                else 
+                    temp_prob = prob
+                end if
+                call log_spawn_magnitude (ic, ex, matel, temp_prob)
+            end if
 
             ! Keep track of the biggest spawn this cycle
             max_cyc_spawn = max(abs(nSpawn), max_cyc_spawn)

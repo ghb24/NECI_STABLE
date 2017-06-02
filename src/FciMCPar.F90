@@ -41,10 +41,10 @@ module FciMCParMod
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
                              orthogonalise_replica_pairs
     use load_balance, only: tLoadBalanceBlocks, adjust_load_balance
-    use bit_reps, only: set_flag, clr_flag, add_ilut_lists
+    use bit_reps, only: set_flag, clr_flag, add_ilut_lists, get_initiator_flag
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
-    use bit_rep_data, only: nOffFlag, flag_determ_parent
+    use bit_rep_data, only: nOffFlag, flag_determ_parent, test_flag
     use errors, only: standalone_errors, error_analysis
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use AnnihilationMod, only: DirectAnnihilation
@@ -757,6 +757,8 @@ module FciMCParMod
         type(ll_node), pointer :: TempNode
 
         integer :: ms
+        logical :: t_back_spawn_temp
+        real(dp) :: back_spawn_factor
 
 
         call set_timer(Walker_Time,30)
@@ -840,6 +842,9 @@ module FciMCParMod
 
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
+
+            ! reset this flag for each det:
+            t_back_spawn_temp = .false.
 
             ! Indicate that the scratch storage used for excitation generation
             ! from the same walker has not been filled (it is filled when we
@@ -980,6 +985,21 @@ module FciMCParMod
             !                 --> part_type == 1, 2; real and complex walkers
             !                 --> OR double run
             !                 --> part_type == 1, 2; population sets 1 and 2, both real
+
+            ! alis additional idea to skip the number of attempted excitations
+            ! for noninititators in the back-spawning approach
+            if (t_back_spawn .and. .not. tcoredet .and. & 
+                (.not. test_flag(CurrentDets(:,j), get_initiator_flag(1)))) then
+
+                t_back_spawn_temp = .true.
+                back_spawn_factor = 2.0_dp * real(walkExcitLevel,dp) / real(nel,dp)
+
+            else 
+                t_back_spawn_temp = .false.
+                back_spawn_factor = 1.0_dp
+            end if
+
+
             do part_type = 1, lenof_sign
             
                 TempSpawnedPartsInd = 0
@@ -991,6 +1011,12 @@ module FciMCParMod
                 call decide_num_to_spawn(SignCurr(part_type), AvMCExcits, WalkersToSpawn)
 
                 do p = 1, WalkersToSpawn
+
+                    if (t_back_spawn_temp) then 
+                        if (genrand_real2_dSFMT() < back_spawn_factor) cycle
+                    end if
+
+
                     ! Zero the bit representation, to ensure no extraneous
                     ! data gets through.
                     ilutnJ = 0_n_int
@@ -1033,6 +1059,11 @@ module FciMCParMod
                                             ! RDMBiasFacCurr are not used unless we're 
                                             ! doing an RDM calculation.
                                             
+                        ! and rescale in the back-spawning algorithm.
+                        ! this should always be a factor of 1 in the other 
+                        ! cases so it is safe to rescale all i guess
+                        child = child / back_spawn_factor
+
                     else
                         child = 0.0_dp
                     endif
