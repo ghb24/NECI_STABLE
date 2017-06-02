@@ -4,7 +4,7 @@ module tau_search_hist
 
     use SystemData, only: tGen_4ind_weighted, AB_hole_pairs, par_hole_pairs,tHub, & 
                           tGen_4ind_reverse, nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, &
-                          UMatEps
+                          UMatEps, nBasis
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, &                
                         t_min_tau, min_tau_global, & 
@@ -58,6 +58,57 @@ module tau_search_hist
     real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par
 
 contains
+
+    subroutine optimize_hubbard_time_step() 
+        ! routine to set the optimal time-step for the hubbard model, 
+        ! where the pgens and matrix elements are set
+        character(*), parameter :: this_routine = "optimize_hubbard_time_step"
+
+        ! first of all write down the notes here.. 
+
+!         if (tReal) then 
+!             ! in the real-space hubbard model the electron is picked 
+!             ! uniformly
+!             p_elec = 1.0_dp / real(nel, dp)
+!             ! and the hole should be picked from the neighbors:
+!             p_hole = 1.0_dp / (2.0_dp * real(dims, dp))
+! 
+!             ! and the matrix element is always just -t 
+!             mat_ele = -t
+! 
+!             ! so the off-diagonal time-step should be 
+!             time_step = p_elec * p_hole / mat_ele
+! 
+!             ! but one has to also consider the diagonal part for the 
+!             ! death probability (to limit it to < 1)
+!             ! there can be at most half the number of electrons double 
+!             ! occupied sites! 
+!             death_prob = U * nel / 2
+! 
+!         else 
+!             ! in the momentum space hubbard the electrons fix the the holes 
+!             ! to be picked! atleast if one is picked the 2nd hole is also 
+!             ! chosen! 
+!             p_elec = 2.0_dp / real(nOccAlpha * nOccBeta, dp)
+! 
+!             ! and the holes are all the remaining possible ones
+!             p_hole = 1.0_dp / real(nbasis - nel, dp)
+! 
+!             ! the matrix element is always U (or U/2 ?? ) check!
+!             mat_ele = U 
+! 
+!             time_step = p_elec * p_hole / mat_ele
+! 
+!             ! the diagonal element is -2t cos(k_vec)
+!             death_prob = 2 * t 
+! 
+!         end if
+!         
+        ! with this stuff i can make the optimal time-step! 
+        ! but for the real-space hubbard i have to first implement the 
+        ! better choosing of only neighboring holes!
+
+    end subroutine optimize_hubbard_time_step
 
     subroutine init_hist_tau_search 
         ! split the new and old tau-search routines up, to no mix up 
