@@ -33,6 +33,12 @@ contains
         ! init routine
         character(*), parameter :: this_routine = "init_back_spawn"
 
+        ! also add some output so people know we use this method
+        print *, "BACK-SPAWNING method in use! "
+        print *, "For non-initiators we only pick electrons from the virtual"
+        print *, " orbitals of the reference determinant!"
+        print *, " so non-initiators only lower or keep the excitation level constant!"
+
         ! first it only makes sense if we actually use the initiator method
         if (.not. tTruncInitiator) then 
             call stop_all(this_routine, &
@@ -196,14 +202,18 @@ contains
 
         integer :: n_valid, i, j, n_valid_pairs, ind_1, ind_2
         integer, allocatable :: virt_elecs(:)
-        logical :: t_beta, t_alpha
+        integer :: n_beta, n_alpha
         ! but it is also good to to it here so i can do it more cleanly
         n_valid = 0
 
+        n_beta = 0
+        n_alpha = 0
+        ! actually for the correct generation probabilities i have to count 
+        ! the number of valid alpha and beta electrons!
         do i = 1, nel
             if (any(nI(i) == mask_virt_ni)) then
-                if (is_beta(nI(i)))  t_beta = .true.
-                if (is_alpha(nI(i))) t_alpha = .true.
+                if (is_beta(nI(i)))  n_beta = n_beta + 1
+                if (is_alpha(nI(i))) n_alpha = n_alpha + 1
                 ! the electron is in the virtual of the 
                 n_valid = n_valid + 1
             end if
@@ -211,7 +221,7 @@ contains
 
         ! in the hubbard case i also have to check if there is atleast on 
         ! pair possible with opposite spin
-        if (n_valid < 2 .or. .not.(t_alpha .and. t_beta)) then
+        if (n_valid < 2 .or. n_beta == 0 .or. n_alpha == 0) then
             ! something went wrong
             ! in this case i have to abort as no valid double excitation 
             ! could have been found
@@ -236,10 +246,10 @@ contains
         ! apparently i have to have both ordering of the electrons in 
         ! the hubbard excitation generator 
         ! but it must be easier to do that... and more efficient
-        do 
+        do i = 1, 1000
             ind_1 = 1 + int(n_valid * genrand_real2_dSFMT())
 
-            do 
+            do j = 1, 1000
                 ind_2 = 1 + int(n_valid * genrand_real2_dSFMT())
 
                 if (ind_1 /= ind_2) exit
@@ -254,8 +264,16 @@ contains
                 exit
             end if
         end do
+
+        if (i > 999 .or. j > 999) then 
+            print *, "something went wrong, did not find two valid electrons!"
+            print *, "nI: ", nI
+            print *, "mask_virt_ni:", mask_virt_ni
+            print *, "virt_elecs: ", virt_elecs
+        end if
+
         
-        pgen = 1.0_dp / real(n_valid * (n_valid - 1), dp)
+        pgen = 1.0_dp / real(n_alpha * n_beta, dp)
 
     end subroutine pick_virtual_electrons_double_hubbard
 

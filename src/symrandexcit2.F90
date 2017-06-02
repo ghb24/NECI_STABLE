@@ -2387,9 +2387,6 @@ MODULE GenRandSymExcitNUMod
         ! are we here in the hubbard model??
         if (t_back_spawn .and. .not. test_flag(ilutnI, get_initiator_flag(1))) then
 
-#ifdef __DEBUG 
-            print *, "am i actually ever here??"
-#endif
             call pick_virtual_electrons_double_hubbard(nI, elecs, src, ispn,&
                                                         pgen_back)
             ! check if enogh electrons are in the virtual
@@ -2559,6 +2556,10 @@ MODULE GenRandSymExcitNUMod
                 CALL Stop_All("CreateExcitLattice","Failure to generate a valid excitation from an electron pair combination")
             ENDIF
             CALL CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
+            ! now adapt the pgen in the case of the back-spawning
+            if (t_back_spawn .and. .not. test_flag(ilutnI, get_initiator_flag(1))) then
+                pgen = pgen * real(nOccBeta*nOccAlpha,dp) * pgen_back
+            end if
             IF (.not.tNoFailAb) RETURN 
             IF (nJ(1).ne.0) EXIT ! i.e. if we are using the NoFail algorithm only exit on successful nJ(1)!=0
         ENDDO
@@ -2573,7 +2574,7 @@ MODULE GenRandSymExcitNUMod
         if (t_back_spawn .and. .not. test_flag(ilutnI, get_initiator_flag(1))) then
             IF(G1(nI(Elec1Ind))%Ms.ne.G1(nI(Elec2Ind))%Ms) THEN
                 ! thats the only case which is covered for now..
-                pGen=1.0_dp*pgen_back*pAIJ ! Spins not equal
+                pGen=2.0_dp*pgen_back*pAIJ ! Spins not equal
             ELSE
                 pGen=2.0_dp*pgen_back*2.0*pAIJ ! Spins equal
             ENDIF
