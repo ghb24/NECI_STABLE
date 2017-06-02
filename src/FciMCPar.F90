@@ -1013,7 +1013,7 @@ module FciMCParMod
                 do p = 1, WalkersToSpawn
 
                     if (t_back_spawn_temp) then 
-                        if (genrand_real2_dSFMT() < back_spawn_factor) cycle
+                        if (genrand_real2_dSFMT() > back_spawn_factor) cycle
                     end if
 
 
