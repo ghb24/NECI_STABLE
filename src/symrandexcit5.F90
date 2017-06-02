@@ -27,8 +27,8 @@ module excit_gen_5
     use constants
     use sort_mod
     use util_mod
-    use CalcData, only: t_back_spawn
-    use back_spawn, only: pick_virtual_electrons_double
+    use CalcData, only: t_back_spawn, t_back_spawn_occ_virt
+    use back_spawn, only: pick_virtual_electrons_double, pick_occupied_orbital
     implicit none
 
 contains
@@ -225,9 +225,12 @@ contains
 
         real(dp) :: scratch_cpt, scratch_sm
         integer :: scratch_orb
+        logical :: t_back_spawn_temp
 
+        t_back_spawn_temp = .false.
         ! if non-initiator and back-spawning active pick electrons differently
         if (t_back_spawn .and. .not. test_flag(ilutI,get_initiator_flag(1))) then
+            t_back_spawn_temp = .true.
             call pick_virtual_electrons_double(nI, elecs, src, sym_product, ispn,&
                                                 sum_ml, pgen)
 
@@ -240,6 +243,7 @@ contains
                 nJ(1) = 0
                 return
             end if
+
         else
             ! Pick the electrons in a weighted fashion
             call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
@@ -249,7 +253,12 @@ contains
         end if
         !call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
 
-        orbs(1) = pick_a_orb(ilutI, src, iSpn, int_cpt(1), cum_sum(1), cum_arr)
+        if (t_back_spawn_temp .and. t_back_spawn_occ_virt) then
+            call pick_occupied_orbital(nI, src, ispn, int_cpt(1), cum_sum(1), &
+                                        orbs(1))
+        else
+            orbs(1) = pick_a_orb(ilutI, src, iSpn, int_cpt(1), cum_sum(1), cum_arr)
+        end if
 
         ! Select the B orbital, in the same way as before!!
         ! The symmetry of this second orbital depends on that of the first.

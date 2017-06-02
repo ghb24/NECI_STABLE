@@ -3,13 +3,14 @@
 module fcimc_pointed_fns
 
     use SystemData, only: nel, tGen_4ind_2, tGen_4ind_weighted, tHub, tUEG, &
-                          tGen_4ind_reverse
+                          tGen_4ind_reverse,  nBasis
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
-                        t_matele_cutoff, matele_cutoff, t_back_spawn
+                        t_matele_cutoff, matele_cutoff, t_back_spawn, &
+                        t_back_spawn_occ_virt
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -27,6 +28,8 @@ module fcimc_pointed_fns
     use tau_search_hist, only: fill_frequency_histogram_4ind, &
                                fill_frequency_histogram_sd, &
                                fill_frequency_histogram
+
+    use excit_gen_5, only: pgen_select_a_orb
 
     implicit none
 
@@ -122,7 +125,8 @@ module fcimc_pointed_fns
         logical :: tRealSpawning
         HElement_t(dp) :: rh, rh_used
         logical :: t_par
-        real(dp) :: temp_prob
+        real(dp) :: temp_prob, pgen_a, dummy_arr(nBasis), cum_sum
+        integer :: ispn
 
         ! Just in case
         child = 0.0_dp
@@ -193,14 +197,40 @@ module fcimc_pointed_fns
                         if (ic == 2) then 
                             temp_prob = prob * real(walkExcitLevel * (walkExcitLevel - 1),dp) &
                                                / real(nel * (nel - 1), dp)
+
+                            if (t_back_spawn_occ_virt) then 
+                                ! i am not sure where the first orb is stored..
+                                ! is it always in the same place or are they 
+                                ! ordered??
+                                if (t_par) then 
+                                    if (is_beta(ex(1,1))) then 
+                                        ispn = 1 
+                                    else 
+                                        ispn = 3
+                                    end if
+                                else 
+                                    ispn = 2
+                                end if
+
+                                call pgen_select_a_orb(iLutCurr, ex(1,:), ex(2,1), &
+                                                ispn, pgen_a, cum_sum, dummy_arr, .true.)
+
+                                ! adapt the probability
+                                temp_prob = temp_prob * real(walkExcitLevel, dp) / pgen_a
+
+                            end if
+
                         else 
                             temp_prob = prob * real(walkExcitLevel,dp) / real(nel, dp)
 
                         end if
-
                     else 
                         temp_prob = prob
                     end if
+
+                    ! if the virtual is also modified i have to account for 
+                    ! that too.. 
+
                     ! not sure about the AvMCExcits!! TODO
                     call fill_frequency_histogram_4ind(abs(rh_used), temp_prob / AvMCExcits, &
                         ic, t_par, ex)
@@ -310,6 +340,29 @@ module fcimc_pointed_fns
                     if (ic == 2) then
                         temp_prob = prob * real(walkExcitLevel * (walkExcitLevel - 1), dp) & 
                                             / real(nel * (nel - 1), dp)
+
+                        if (t_back_spawn_occ_virt) then 
+                            ! i am not sure where the first orb is stored..
+                            ! is it always in the same place or are they 
+                            ! ordered??
+                            if (t_par) then 
+                                if (is_beta(ex(1,1))) then 
+                                    ispn = 1 
+                                else 
+                                    ispn = 3
+                                end if
+                            else 
+                                ispn = 2
+                            end if
+
+                            call pgen_select_a_orb(iLutCurr, ex(1,:), ex(2,1), &
+                                            ispn, pgen_a, cum_sum, dummy_arr, .true.)
+
+                            ! adapt the probability
+                            temp_prob = temp_prob * real(walkExcitLevel, dp) / pgen_a
+
+                        end if
+
                     else 
                         temp_prob = prob * real(walkExcitLevel,dp) / real(nel,dp)
                     end if

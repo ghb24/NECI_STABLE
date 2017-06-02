@@ -3,7 +3,7 @@ module FciMCParMod
 
     ! This module contains the main loop for FCIMC calculations, and the
     ! main per-iteration processing loop.
-    use SystemData, only: nel, tUEG2, hist_spin_dist_iter, tReltvy
+    use SystemData, only: nel, tUEG2, hist_spin_dist_iter, tReltvy, tHub
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
@@ -989,7 +989,8 @@ module FciMCParMod
             ! alis additional idea to skip the number of attempted excitations
             ! for noninititators in the back-spawning approach
             if (t_back_spawn .and. .not. tcoredet .and. & 
-                (.not. test_flag(CurrentDets(:,j), get_initiator_flag(1)))) then
+                (.not. test_flag(CurrentDets(:,j), get_initiator_flag(1))) &
+                .and. .not. tHub) then
 
                 t_back_spawn_temp = .true.
                 back_spawn_factor = 2.0_dp * real(walkExcitLevel,dp) / real(nel,dp)
@@ -1078,7 +1079,6 @@ module FciMCParMod
                         call write_det(6, nJ, .true.)
                         call neci_flush(iout) 
                     endif
-
 
                     ! Children have been chosen to be spawned.
                     if (any(child /= 0)) then

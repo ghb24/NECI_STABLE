@@ -2,8 +2,9 @@
 
 module back_spawn
 
-    use CalcData, only: t_back_spawn, tTruncInitiator
-    use SystemData, only: nel, nbasis, G1
+    use CalcData, only: t_back_spawn, tTruncInitiator, t_back_spawn_occ_virt
+    use SystemData, only: nel, nbasis, G1, tGen_4ind_2, tGen_4ind_2_symmetric, & 
+                          tHub
     use constants, only: n_int, dp
     use bit_rep_data, only: nifd
     use fcimcdata, only: projedet
@@ -39,10 +40,28 @@ contains
         print *, " orbitals of the reference determinant!"
         print *, " so non-initiators only lower or keep the excitation level constant!"
 
+        if (t_back_spawn_occ_virt) then 
+            print *, "additionally option to pick the first orbital (a) from " 
+            print *, " the occupied manifold of the reference is activated!"
+!             print *, " this excludes these type of excitations from the " 
+!             print *, " automated tau-search, as pgens are not easily recalculated!"
+        end if
         ! first it only makes sense if we actually use the initiator method
         if (.not. tTruncInitiator) then 
             call stop_all(this_routine, &
                 "back spawning makes only sense in the initiator method!")
+        end if
+
+        if (.not. tGen_4ind_2) then 
+            if (.not. tHub) then
+                call stop_all(this_routine, &
+                    "for molecular systems this back-spawning need 4ind-weighted-2 or above!")
+            end if
+        end if
+
+        if (tGen_4ind_2_symmetric) then 
+            call stop_all(this_routine, &
+                "back-spawning not compatible with symmetric excitation generator!")
         end if
 
         ! first use the most simple implementation of an nI style 
@@ -190,6 +209,75 @@ contains
 
     end subroutine pick_virtual_electrons_double
     
+    subroutine pick_occupied_orbital(nI, src, ispn, cpt, cum_sum, orb)
+        integer, intent(in) :: nI(nel), src(2), ispn
+        real(dp), intent(out) :: cpt, cum_sum
+        integer, intent(out) :: orb
+        ! routine to pick an orbital of the occupied manifold of the 
+        ! reference determinant uniformly 
+        ! to be compatible with the rest of the 4ind-weighted-2 
+        ! excitation generators i have to be carefull with the cum_lists 
+        ! and stuff..
+        character(*), parameter :: this_routine = "pick_occupied_orbital"
+        logical :: parallel, beta
+        integer :: occ_orbs(nel), n_valid, j, ind, i
+
+        ! soo what do i need? 
+        ! i have to check if any of the possible orbitals for nI is occupied
+        ! in the reference determinant! 
+
+        ! better idea: 
+        n_valid = 0
+        j = 1
+        occ_orbs = 0
+        ! loop over ref det 
+        do i = 1, nel 
+            ! check if ref-det electron is NOT in nI
+            if (.not. any(projedet(i,1) == nI)) then 
+                ! check the symmetry here.. or atleast the spin..
+                ! if we are parallel i have to ensure the orbital has the 
+                ! same spin 
+                if (ispn /= 2) then 
+                    if (is_beta(projedet(i,1)) .eqv. is_beta(src(1))) then
+                        ! this is a valid orbital i guess.. 
+                        n_valid = n_valid + 1 
+                        occ_orbs(j) = projedet(i,1) 
+                        j = j + 1
+                    end if
+                else 
+                    ! there is some weird shenanigan in the gen_a_orb_cum_list
+                    ! if the spins are anti-parallel.. why?
+                    ! this "only" has to do with the weighting of the 
+                    ! matrix element.. so it does not affect me here i guess
+                    ! so here all the orbitals are alowed..
+                    n_valid = n_valid + 1
+                    occ_orbs(j) = projedet(i,1)
+                    j = j + 1
+                end if
+            end if
+        end do
+        
+        ! so now we have a list of the possible orbitals in occ_orbs
+        ! this has to be atleast 2, or otherwise we won't find a second 
+        ! orbital.. well no! since the second orbital can be picked from 
+        ! all the orbitals! 
+        if (n_valid == 0) then 
+            orb = 0 
+            cpt = 0.0_dp
+            return
+        end if
+
+        ind = 1 + int(genrand_real2_dSFMT() * n_valid) 
+
+        orb = occ_orbs(ind)
+
+        ! and now the cum_sums and pgens.. 
+        cpt = 1.0_dp / real(n_valid, dp)
+        cum_sum = 1.0_dp
+
+
+    end subroutine pick_occupied_orbital
+
     subroutine pick_virtual_electrons_double_hubbard(nI, elecs, src, ispn, pgen)
         ! specific routine to pick 2 electrons in the k-space hubbard, 
         ! since apparently it is important to allow all orderings of 
