@@ -196,38 +196,43 @@ module fcimc_pointed_fns
 
                     ! in the back-spawning i have to readapt the generation 
                     ! probability
+                    ! for now DO NOT histogram the non-inititor spawns
                     if (t_back_spawn .and. .not. test_flag(iLutCurr, &
                         get_initiator_flag(1))) then 
-                        if (ic == 2) then 
-                            temp_prob = prob * real(walkExcitLevel * (walkExcitLevel - 1),dp) &
-                                               / real(nel * (nel - 1), dp)
 
-                            if (t_back_spawn_occ_virt) then 
-                                ! i am not sure where the first orb is stored..
-                                ! is it always in the same place or are they 
-                                ! ordered??
-                                if (t_par) then 
-                                    if (is_beta(ex(1,1))) then 
-                                        ispn = 1 
-                                    else 
-                                        ispn = 3
-                                    end if
-                                else 
-                                    ispn = 2
-                                end if
-
-                                call pgen_select_a_orb(iLutCurr, ex(1,:), ex(2,1), &
-                                                ispn, pgen_a, cum_sum, dummy_arr, .true.)
-
-                                ! adapt the probability
-                                temp_prob = temp_prob * real(walkExcitLevel, dp) / pgen_a
-
-                            end if
-
-                        else 
-                            temp_prob = prob * real(walkExcitLevel,dp) / real(nel, dp)
-
-                        end if
+                        ! a quick hack to not log zero prob excitations.
+                        temp_prob = 0.0_dp
+! 
+!                         if (ic == 2) then 
+!                             temp_prob = prob * real(walkExcitLevel * (walkExcitLevel - 1),dp) &
+!                                                / real(nel * (nel - 1), dp)
+! 
+!                             if (t_back_spawn_occ_virt) then 
+!                                 ! i am not sure where the first orb is stored..
+!                                 ! is it always in the same place or are they 
+!                                 ! ordered??
+!                                 if (t_par) then 
+!                                     if (is_beta(ex(1,1))) then 
+!                                         ispn = 1 
+!                                     else 
+!                                         ispn = 3
+!                                     end if
+!                                 else 
+!                                     ispn = 2
+!                                 end if
+! 
+!                                 call pgen_select_a_orb(iLutCurr, ex(1,:), ex(2,1), &
+!                                                 ispn, pgen_a, cum_sum, dummy_arr, .true.)
+! 
+!                                 ! adapt the probability
+!                                 temp_prob = temp_prob * real(walkExcitLevel, dp) / pgen_a
+! 
+!                             end if
+! 
+!                         else 
+!                             temp_prob = prob * real(walkExcitLevel,dp) / real(nel, dp)
+! 
+!                         end if
                     else 
                         temp_prob = prob
                     end if
@@ -339,42 +344,45 @@ module fcimc_pointed_fns
                 ! in the back-spawning i have to adapt the probabilites 
                 ! back, to be sure the time-step covers the changed 
                 ! non-initiators spawns! 
-                if (t_back_spawn .and. .not. test_flag(iLutCurr, &
-                    get_initiator_flag(1))) then
-                    if (ic == 2) then
-                        temp_prob = prob * real(walkExcitLevel * (walkExcitLevel - 1), dp) & 
-                                            / real(nel * (nel - 1), dp)
+!                 if (t_back_spawn .and. .not. test_flag(iLutCurr, &
+!                     get_initiator_flag(1))) then
+! 
+!                     if (ic == 2) then
+!                         temp_prob = prob * real(walkExcitLevel * (walkExcitLevel - 1), dp) & 
+!                                             / real(nel * (nel - 1), dp)
+! 
+!                         if (t_back_spawn_occ_virt) then 
+!                             ! i am not sure where the first orb is stored..
+!                             ! is it always in the same place or are they 
+!                             ! ordered??
+!                             if (t_par) then 
+!                                 if (is_beta(ex(1,1))) then 
+!                                     ispn = 1 
+!                                 else 
+!                                     ispn = 3
+!                                 end if
+!                             else 
+!                                 ispn = 2
+!                             end if
+! 
+!                             call pgen_select_a_orb(iLutCurr, ex(1,:), ex(2,1), &
+!                                             ispn, pgen_a, cum_sum, dummy_arr, .true.)
+! 
+!                             ! adapt the probability
+!                             temp_prob = temp_prob * real(walkExcitLevel, dp) / pgen_a
+! 
+!                         end if
+! 
+!                     else 
+!                         temp_prob = prob * real(walkExcitLevel,dp) / real(nel,dp)
+!                     end if
+! 
+!                 else 
+!                     temp_prob = prob
+!                 end if
 
-                        if (t_back_spawn_occ_virt) then 
-                            ! i am not sure where the first orb is stored..
-                            ! is it always in the same place or are they 
-                            ! ordered??
-                            if (t_par) then 
-                                if (is_beta(ex(1,1))) then 
-                                    ispn = 1 
-                                else 
-                                    ispn = 3
-                                end if
-                            else 
-                                ispn = 2
-                            end if
+                call log_spawn_magnitude (ic, ex, matel, prob)
 
-                            call pgen_select_a_orb(iLutCurr, ex(1,:), ex(2,1), &
-                                            ispn, pgen_a, cum_sum, dummy_arr, .true.)
-
-                            ! adapt the probability
-                            temp_prob = temp_prob * real(walkExcitLevel, dp) / pgen_a
-
-                        end if
-
-                    else 
-                        temp_prob = prob * real(walkExcitLevel,dp) / real(nel,dp)
-                    end if
-
-                else 
-                    temp_prob = prob
-                end if
-                call log_spawn_magnitude (ic, ex, matel, temp_prob)
             end if
 
             ! Keep track of the biggest spawn this cycle

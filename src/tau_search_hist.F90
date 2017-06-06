@@ -709,6 +709,8 @@ contains
         end if
 #endif
 
+        if (pgen < EPS) return
+
 !         ASSERT(pgen > EPS) 
         ASSERT(ic == 1 .or. ic == 2)
 
@@ -932,6 +934,8 @@ contains
             return
         end if
 
+        if (pgen < EPS) return
+
         ratio = mat_ele / pgen 
 
         if (ic == 1) then 
@@ -1025,6 +1029,8 @@ contains
 
             return
         end if
+
+        if (pgen < EPS) return
 
         ! then i have to first check if i have to make the histogram bigger...
         ratio = mat_ele / pgen

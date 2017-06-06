@@ -10,7 +10,7 @@ module excit_gen_5
                                        pick_weighted_elecs, select_orb, &
                                        pgen_select_orb, pgen_weighted_elecs
     use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel, ScratchSize
-    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
+    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, projedet
     use SystemData, only: G1, tUHF, tStoreSpinOrbs, nbasis, nel, &
                           tGen_4ind_part_exact, tGen_4ind_2_symmetric, tHPHF
     use SymExcit3, only: CountExcitations3, GenExcitations3
@@ -288,10 +288,34 @@ contains
         ! explicitly.
         ASSERT(tGen_4ind_part_exact)
         if ((is_beta(orbs(1)) .eqv. is_beta(orbs(2))) .or. tGen_4ind_2_symmetric) then
-            call pgen_select_a_orb(ilutI, src, orbs(2), iSpn, cpt_pair(1), &
-                                   sum_pair(1), cum_arr, .false.)
-            call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
+            ! i have to adjust for the other way around here in the case I 
+            ! restricted orbital (a) to the occupied reference manifold
+            ! i have to check if (b) is in the occupied manifold
+            if (t_back_spawn_temp .and. t_back_spawn_occ_virt) then 
+                if (any(orbs(2) == projedet)) then 
+                    ! if (b) is also in the occupied manifold i could have 
+                    ! picked the other way around.. 
+                    ! with the same uniform probability: 
+                    cpt_pair(1) = int_cpt(1)
+                    sum_pair(1) = cum_sum(1) 
+                    ! and then (a) would have been picked according to the 
+                    ! "normal" procedure
+                    call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
                                  cpt_pair(2), sum_pair(2))
+                else
+                    ! if (b) is not in the occupied this does not work or? 
+                    ! since i am forcing (a) to be in the occupied.. 
+                    ! so remove this pgen:
+                    cpt_pair = 0.0_dp
+                    sum_pair = 1.0_dp
+                end if
+            else
+                ! otherwise "normal"
+                call pgen_select_a_orb(ilutI, src, orbs(2), iSpn, cpt_pair(1), &
+                                       sum_pair(1), cum_arr, .false.)
+                call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
+                                     cpt_pair(2), sum_pair(2))
+            end if
         else
             cpt_pair = 0.0_dp
             sum_Pair = 1.0_dp
