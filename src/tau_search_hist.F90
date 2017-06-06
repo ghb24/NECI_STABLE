@@ -62,51 +62,85 @@ contains
     subroutine optimize_hubbard_time_step() 
         ! routine to set the optimal time-step for the hubbard model, 
         ! where the pgens and matrix elements are set
+        use SystemData, only: uhub, bhub, nel, omega, treal
         character(*), parameter :: this_routine = "optimize_hubbard_time_step"
+
+        real(dp) :: p_elec, p_hole, time_step, mat_ele, death_prob
 
         ! first of all write down the notes here.. 
 
-!         if (tReal) then 
-!             ! in the real-space hubbard model the electron is picked 
-!             ! uniformly
-!             p_elec = 1.0_dp / real(nel, dp)
-!             ! and the hole should be picked from the neighbors:
+        ! the first implementation should just use the non-optimized values 
+        ! from the current implementation.. 
+        ! afterwards i want to optimize especially the real-space hubbard 
+        ! implementation, since this is done really inefficient right now!
+        ! although it is just wrong how it is done currently in the 
+        ! real-space hubbard model.. damn..
+        ! are my results still valid??
+
+        if (tReal) then 
+            ! in the real-space hubbard model the electron is picked 
+            ! uniformly
+            p_elec = 1.0_dp / real(nel, dp)
+            ! and the hole should be picked from the neighbors:
 !             p_hole = 1.0_dp / (2.0_dp * real(dims, dp))
-! 
-!             ! and the matrix element is always just -t 
-!             mat_ele = -t
-! 
-!             ! so the off-diagonal time-step should be 
-!             time_step = p_elec * p_hole / mat_ele
-! 
-!             ! but one has to also consider the diagonal part for the 
-!             ! death probability (to limit it to < 1)
-!             ! there can be at most half the number of electrons double 
-!             ! occupied sites! 
-!             death_prob = U * nel / 2
-! 
-!         else 
-!             ! in the momentum space hubbard the electrons fix the the holes 
-!             ! to be picked! atleast if one is picked the 2nd hole is also 
-!             ! chosen! 
-!             p_elec = 2.0_dp / real(nOccAlpha * nOccBeta, dp)
-! 
-!             ! and the holes are all the remaining possible ones
-!             p_hole = 1.0_dp / real(nbasis - nel, dp)
-! 
-!             ! the matrix element is always U (or U/2 ?? ) check!
-!             mat_ele = U 
-! 
-!             time_step = p_elec * p_hole / mat_ele
-! 
-!             ! the diagonal element is -2t cos(k_vec)
-!             death_prob = 2 * t 
-! 
-!         end if
+
+            p_hole = min(1.0_dp / real(nBasis/2 - nOccAlpha, dp), &
+                         1.0_dp / real(nBasis/2 - nOccBeta, dp))
+
+            ! and the matrix element is always just -t 
+            mat_ele = bhub
+
+            ! so the off-diagonal time-step should be 
+            time_step = p_elec * p_hole / abs(mat_ele)
+
+            ! but one has to also consider the diagonal part for the 
+            ! death probability (to limit it to < 1)
+            ! there can be at most half the number of electrons double 
+            ! occupied sites! 
+            death_prob = Uhub * nel / 2.0_dp
+
+            print *, "optimized time-step for real-space hubbard: ", time_step
+
+        else 
+            ! in the momentum space hubbard the electrons fix the the holes 
+            ! to be picked! atleast if one is picked the 2nd hole is also 
+            ! chosen! 
+            p_elec = 2.0_dp / real(nOccAlpha * nOccBeta, dp)
+
+            ! and the holes are all the remaining possible ones
+            p_hole = 1.0_dp / real(nbasis - nel, dp)
+
+            ! the matrix element is always U (or U/2 ?? ) check!
+            mat_ele = uhub / omega
+
+            time_step = p_elec * p_hole / abs(mat_ele)
+
+            ! the diagonal element is -2t cos(k_vec)
+            death_prob = 2.0_dp * abs(bhub)
+
+            print *, "optimized time-step for the momentum space hubbard: ", time_step
+
+        end if
 !         
         ! with this stuff i can make the optimal time-step! 
         ! but for the real-space hubbard i have to first implement the 
         ! better choosing of only neighboring holes!
+        if (tau > time_step) then 
+            print *, "initial guessed or input-provided time-step too large!" 
+        else
+            print *, "initial guessed or input-provided time-step too small!"
+        end if
+        tau = 0.1_dp * time_step
+        print *, "setting time-step to 0.1 * optimal: ", tau
+        print *, "and turning tau-search OFF!"
+        tSearchTau = .false. 
+        t_hist_tau_search = .false.
+        t_fill_frequency_hists = .false.
+        t_test_hist_tau = .false.
+
+        ! what should i do with the death prob..
+!         tSearchTauOption = .false.
+!         t_hist_tau_search_option = .false.
 
     end subroutine optimize_hubbard_time_step
 
@@ -142,6 +176,11 @@ contains
             ! here if a histogram is present and then calculating the 
             ! time-step and psingles etc. from it! 
             ! and also output the read-in or calculated quantities here! 
+        end if
+
+        if (tHub) then 
+            call optimize_hubbard_time_step()
+            return
         end if
 
         if (iProcIndex == root) then
@@ -243,6 +282,7 @@ contains
             if (tHub .or. tUEG) then
                 ! only one histogram is used! 
                 allocate(frequency_bins(n_frequency_bins), stat = ierr)
+                frequency_bins = 0
 
                 call LogMemAlloc('frequency_bins', n_frequency_bins, 4, &
                     this_routine, mem_tag_histograms, ierr)
@@ -362,11 +402,11 @@ contains
             ! here i could implement the summing in the case of Hubbard 
             ! and UEG models.. although I could "just" implement the 
             ! optimal time-step in the case of Hubbard models! 
-            if (tHub) then
-                call stop_all(this_routine, &
-                    "in the case of the Hubbard model there is a optimal time-step &
-                    &analytically calculatable! So do this!")
-            end if
+!             if (tHub) then
+!                 call stop_all(this_routine, &
+!                     "in the case of the Hubbard model there is a optimal time-step &
+!                     &analytically calculatable! So do this!")
+!             end if
             ! for UEG not i guess.. 
             call integrate_frequency_histogram_spec(frequency_bins, ratio)
 
@@ -1143,6 +1183,8 @@ contains
         real(dp) :: cnt, threshold
         real(dp) :: max_tmp
         real(dp) :: temp_bins(n_frequency_bins)
+
+        if (thub) return
 
         all_frequency_bins = 0
 

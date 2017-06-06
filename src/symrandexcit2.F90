@@ -1436,6 +1436,13 @@ MODULE GenRandSymExcitNUMod
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
 !        pGen=(1.0_dp-pDoubNew)*(1.0_dp/real(NEl,dp))*(1.0_dp/real(NExcit,dp))*((real(NEl,dp))/(real((NEl-ElecsWNoExcits),dp)))
         pGen=(1.0_dp-pDoubNew)/(REAL((NExcit*(NEl-ElecsWNoExcits)),dp))
+!         print *, "nI: ", nI
+!         print *, "elec: ", nI(eleci)
+!         print *, "orb: ", orb
+!         print *, "nexcit: ", nExcit
+!         print *, "ElecsWNoExcits: ", ElecsWNoExcits
+!         print *, "pgen: ", pgen
+!         print *, "ClassCountUnocc2:" , ClassCountUnocc2
 
 !        WRITE(6,*) "ElecsWNoExcits: ",ElecsWNoExcits
 
