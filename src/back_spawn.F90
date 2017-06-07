@@ -336,9 +336,16 @@ contains
                     ! this "only" has to do with the weighting of the 
                     ! matrix element.. so it does not affect me here i guess
                     ! so here all the orbitals are alowed..
-                    n_valid = n_valid + 1
-                    occ_orbs(j) = projedet(i,1)
-                    j = j + 1
+                    ! UPDATE: nope this also implies that (a) is always a 
+                    ! beta orbital for anti-parallel spin excitations
+                    ! i do not know why exactly, but somebody decided to do 
+                    ! it this way.. so just to be sure, also do it like that 
+                    ! in the back-spawn method
+                    if (is_beta(projedet(i,1))) then 
+                        n_valid = n_valid + 1
+                        occ_orbs(j) = projedet(i,1)
+                        j = j + 1
+                    end if
                 end if
             end if
         end do
