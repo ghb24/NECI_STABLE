@@ -488,7 +488,6 @@ contains
         set_orb (ilutJ, tgt)
 
         ! And the generation probability
-
         if (t_back_spawn .and. .not. temp_init) then
             pgen = pgen * pgen_elec
 

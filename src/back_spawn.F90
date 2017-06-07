@@ -172,7 +172,7 @@ contains
         character(*), parameter :: this_routine = "pick_virtual_electrons_double"
 
         integer :: i, n_valid, j, ind, n_valid_pairs, ind_1, ind_2
-        integer, allocatable :: virt_elecs(:)
+        integer :: virt_elecs(nel)
 
         ! i guess for now i only want to choose uniformly from all the 
         ! available electron in the virtual orbitals of the reference
@@ -182,15 +182,14 @@ contains
         ! pick two random orbitals out of those! 
         ! check the routine in symrandexcit3.f90 this does the job i guess..
 
-!         print *, "test picking 2 virtual electrons:"
-!         print *, "nI: ", nI
-!         print *, "mask_virt_ni: ", mask_virt_ni
         n_valid = 0
-
+        j = 1
         do i = 1, nel
             if (any(nI(i) == mask_virt_ni)) then
                 ! the electron is in the virtual of the 
                 n_valid = n_valid + 1
+                virt_elecs(j) = i 
+                j = j + 1
             end if
         end do
 
@@ -206,16 +205,6 @@ contains
 !             call stop_all(this_routine, & 
 !                 "something went wront, did not find 2 valid virtual electrons!")
         end if
-
-        allocate(virt_elecs(n_valid)) 
-
-        j = 1
-        do i = 1, nel
-            if (any(nI(i) == mask_virt_ni)) then
-                virt_elecs(j) = i
-                j = j + 1
-            end if
-        end do
 
 !         print *, "virt_elecs: ", virt_elecs
         ! determine how many valid pairs there are now
@@ -554,16 +543,19 @@ contains
         character(*), parameter :: this_routine = "pick_virtual_electron_single"
 
         integer :: i, n_valid, j, ind
-        integer, allocatable :: virt_elecs(:)
+        integer:: virt_elecs(nel)
 
         ! what do we need here? 
         ! count all the electrons in the virtual of the reference, then 
         ! create a list of them and pick one uniformly
         n_valid = 0
+        j = 1
         do i = 1, nel
             if (any(nI(i) == mask_virt_ni)) then
                 ! the electron is in the virtual of the 
                 n_valid = n_valid + 1
+                virt_elecs(j) = i
+                j = j + 1
             end if
         end do
 
@@ -572,16 +564,6 @@ contains
             call stop_all(this_routine, & 
                 "something went wront, did not find valid virtual single electron!")
         end if
-
-        allocate(virt_elecs(n_valid)) 
-
-        j = 1
-        do i = 1, nel
-            if (any(nI(i) == mask_virt_ni)) then
-                virt_elecs(j) = i
-                j = j + 1
-            end if
-        end do
 
         ! and now pick a random number: 
         ind = 1 + floor(genrand_real2_dSFMT() * n_valid) 
