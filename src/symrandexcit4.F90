@@ -8,7 +8,8 @@ module excit_gens_int_weighted
                           par_hole_pairs, AB_hole_pairs, iMaxLz, &
                           tGen_4ind_part_exact, tGen_4ind_lin_exact, &
                           tGen_4ind_unbound
-    use CalcData, only: matele_cutoff, t_matele_cutoff, t_back_spawn, t_back_spawn_flex
+    use CalcData, only: matele_cutoff, t_matele_cutoff, t_back_spawn, t_back_spawn_flex, &
+                        t_back_spawn_occ_virt, occ_virt_level
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
                                pDoubNew, ScratchSize, SpinOrbSymLabel, &
@@ -466,10 +467,24 @@ contains
                                   G1(src)%Ml)
 
         ! Select the target orbital by approximate connection strength
-        if (t_back_spawn_flex .and. .not. temp_init .and. loc == 2) then 
-            ! in this case pick the orbital from the occupied manifold of ref
+        ! i also should think about maybe using the occ-virt keyword 
+        ! also in the case of single excitaitons or? 
+        if (t_back_spawn_occ_virt .and. .not. temp_init) then 
+
             call pick_occupied_orbital_single(nI, src, cc_index, pgen, tgt)
 
+        else if (t_back_spawn_flex .and. .not. temp_init ) then
+        
+            if (loc == 2) then 
+                ! in this case pick the orbital from the occupied manifold of ref
+                call pick_occupied_orbital_single(nI, src, cc_index, pgen, tgt)
+            else 
+                if (occ_virt_level == 2) then 
+                    call pick_occupied_orbital_single(nI, src, cc_index, pgen, tgt)
+                else 
+                    tgt = select_orb_sing (nI, ilutI, src, cc_index, pgen)
+                end if
+            end if
         else 
             tgt = select_orb_sing (nI, ilutI, src, cc_index, pgen)
         end if
@@ -490,13 +505,6 @@ contains
         ! And the generation probability
         if (t_back_spawn .and. .not. temp_init) then
             pgen = pgen * pgen_elec
-
-        else if (t_back_spawn_flex .and. .not. temp_init .and. loc == 2) then 
-            ! first electron was picked random in this case but hole 
-            ! was picked from the occupied manifold in the reference
-            ! but this is already saved in the pgen from the special 
-            ! routine above
-            pgen = pgen / real(nel,dp)
 
         else
             pgen = pgen / real(nel, dp)
