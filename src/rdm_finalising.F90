@@ -638,6 +638,8 @@ contains
 
         use hash, only: clear_hash_table
         use rdm_Data, only: rdm_definitions_t
+        use LoggingData, only: t_calc_double_occ
+        use double_occ_mod, only: calc_double_occ_from_rdm
 
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_list_t), intent(in) :: rdm
@@ -657,6 +659,10 @@ contains
         ! Only print non-transition RDMs, for now.
         nrdms_to_print = rdm_defs%nrdms_standard
         call print_rdms_with_spin(rdm_defs, nrdms_to_print, rdm_recv_2, rdm_trace, open_shell)
+        ! intermediate hack: 
+        if (t_calc_double_occ) then 
+            call calc_double_occ_from_rdm(rdm_recv_2, rdm_trace, nrdms_to_print)
+        end if
 
     end subroutine print_rdms_spin_sym_wrapper
 

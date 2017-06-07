@@ -1,0 +1,683 @@
+ Number of processors:                     2
+ Processor                     1 /                    2  as head node.
+ Sum:                     3
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on May 17 2017 at 15:20:02
+ Compiled using configuration:
+     cmake-GNU-par-RELEASE
+ VCS BASE repository version:
+     ab96a432d78bc0e1f779b125f0d60e5a173aa40e
+ Working directory: 
+     /home/dobrautz/cloud/doktorat/neci/neci/test_suite/neci/parallel/Ne_FCIMCPar_hist_tau_cont_restart
+ Running on: baloo-X1-Carbon
+ Started running on 17/05/2017 at 18:33:27
+ ================================================================
+
+ Processing argumentsneci.inp                                                                                                                                                                                                                                                       
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read
+electrons 10
+nonuniformrandexcits 4ind-weighted
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+nmcyc 2000
+totalwalkers 20000
+(tau 0.001 search
+new-tau-search 0.9999
+(WARNING: both the histogramming and standard tau-search option were chosen! TURNING STANDARD VERSION OFF!
+max-tau 0.02
+restart-hist-tau-search
+readpops
+startsinglepart
+truncinitiator
+addtoinitiator 3
+shiftdamp 0.03
+stepsshift 25
+jump-shift
+load-balance-blocks off
+maxwalkerbloom 3.0
+endcalc
+
+integral
+freeze 2,0
+endint
+
+logging
+popsfile -1
+endlog
+end
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ I am the node root for node                     0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :    10
+  No restriction on the spin state of the system, TSPN :  F
+  GLOBAL MS :                     0
+  *** GENERIC SYSTEM ***  
+  NUMBER OF SPIN ORBITALS IN BASIS :    46
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   8
+  Generating abelian symmetry table with  3 generators
+  Number of symmetry classes: 8
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0      -32.794950868      -32.794950868
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0      -32.794950868      -32.794950868
+      3      3      0      0      0     -1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879
+      4      4      0      0      0      1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879
+      5     17      0      0      0     -1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138
+      6     18      0      0      0      1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138
+      7     23      0      0      0     -1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138
+      8     24      0      0      0      1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138
+      9     33      0      0      0     -1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138
+     10     34      0      0      0      1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138
+     11      5      0      0      0     -1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     12      6      0      0      0      1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     13     19      0      0      0     -1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     14     20      0      0      0      1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     15     25      0      0      0     -1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     16     26      0      0      0      1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     17     35      0      0      0     -1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     18     36      0      0      0      1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     19      7      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     20      8      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     21      9      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     22     10      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     23     29      0      0      0     -1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     24     30      0      0      0      1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     25     39      0      0      0     -1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     26     40      0      0      0      1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     27     43      0      0      0     -1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     28     44      0      0      0      1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     29     21      0      0      0     -1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     30     22      0      0      0      1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     31     27      0      0      0     -1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     32     28      0      0      0      1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     33     37      0      0      0     -1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     34     38      0      0      0      1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     35     11      0      0      0     -1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     36     12      0      0      0      1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     37     13      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     38     14      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     39     15      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     40     16      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     41     31      0      0      0     -1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     42     32      0      0      0      1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     43     41      0      0      0     -1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     44     42      0      0      0      1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     45     45      0      0      0     -1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+     46     46      0      0      0      1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                 38226
+Memory required for integral storage:     0.2916412353     Mb/Shared Memory
+Allocated             305808 bytes of shared memory named: umat
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+Ignoring integral (chem. notation) (   0   0|   0   0):    0.0000000000000000     
+ Number of removed two-index integrals:                     1
+ Number of non-zero integrals:                  4806
+ ECORE=   0.0000000000000000     
+ Setting normal GetUMatEl routine
+ N_alpha: 5 ; N_beta: 5 ; LMS: 0 ; NEl:10
+ Fermi det (D0):(    1,    2,    3,    4,   17,   18,   23,   24,   33,   34)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:  -74.588984324264047     
+======== FREEZING ORBITALS ==========
+Allocated             257048 bytes of shared memory named: umat2
+ Freezing                     2  core orbitals.
+ Freezing                     0  virtual orbitals.
+ Post-Freeze Fermi det (D0):(    1,    2,   15,   16,   21,   22,   31,   32)
+ Symmetry:  ( 0, 0, 0) 0
+ ECORE now  -93.848901545480004     
+ Number of orbitals remaining:                    44
+ Number of active electrons:                    8
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879 #
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879 #
+      3     15      0      0      0     -1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138 #
+      4     16      0      0      0      1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138 #
+      5     21      0      0      0     -1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138 #
+      6     22      0      0      0      1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138 #
+      7     31      0      0      0     -1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138 #
+      8     32      0      0      0      1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138 #
+      9      3      0      0      0     -1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     10      4      0      0      0      1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     11     17      0      0      0     -1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     12     18      0      0      0      1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     13     23      0      0      0     -1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     14     24      0      0      0      1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     15     33      0      0      0     -1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     16     34      0      0      0      1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     17      5      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     18      6      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     19      7      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     20      8      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     21     27      0      0      0     -1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     22     28      0      0      0      1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     23     37      0      0      0     -1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     24     38      0      0      0      1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     25     41      0      0      0     -1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     26     42      0      0      0      1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     27     19      0      0      0     -1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     28     20      0      0      0      1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     29     25      0      0      0     -1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     30     26      0      0      0      1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     31     35      0      0      0     -1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     32     36      0      0      0      1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     33      9      0      0      0     -1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     34     10      0      0      0      1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     35     11      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     36     12      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     37     13      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     38     14      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     39     29      0      0      0     -1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     40     30      0      0      0      1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     41     39      0      0      0     -1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     42     40      0      0      0      1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     43     43      0      0      0     -1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+     44     44      0      0      0      1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+ Setting normal GetUMatEl routine
+ Number of simultaneous walker distributions:                     1
+ Number of sign components in bit representation of determinant:                     1
+Setting integer length of determinants as bit-strings to:      3
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+                   28  Symmetry PAIRS
+                    8  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ <D0|H|D0>=  -128.49634973032460     
+ <D0|T|D0>=  -60.295813781004199     
+ FDet has     4 alpha electrons, and     4 beta electrons.
+                         6  alpha-alpha occupied electron pairs
+                         6  beta-beta occupied electron pairs
+                        16  alpha-beta occupied electron pairs
+                       153 alpha-alpha (vacant) hole pairs
+                       153 beta-beta (vacant) hole pairs
+                       324 alpha-beta (vacant) hole pairs
+
+ Performing Parallel FCIQMC....
+
+ Generated reference determinants:
+(    1,    2,   15,   16,   21,   22,   31,   32) E =   -128.496349730
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:            7
+Reference Energy set to:      -128.4963497303
+Highest energy determinant is (approximately):     -75.3862942834926    
+Corresponding to a correlation energy of:      53.1100554468320    
+Brillouin theorem in use for calculation of projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+    960 double excitations, and      24 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.975610
+ pSingles set to:       0.024390
+WARNING: NO spawn truncation chosen with keyword: truncate-spawns [float] in input! this might cause bloom problems with histogramming tau-search! BE CAUTIOUS!
+ Setup of the Histogramming tau-search: 
+   Integration cut-off:   0.99990000000000001     
+   Number of bins:                100000
+   Max. ratio:    10000.000000000000     
+   Bin-width:   0.10000000000000001     
+ Using time-step from POPSFILE!
+
+WARNING.  Error in SetupParameters
+ReadPOPS cannot work with StartSinglePart: ignoring StartSinglePart
+
+ Connectivity of HF determinant is:                   984
+ POPSFILE VERSION                     4  detected.
+ Number of iterations in previous simulation:                  3500
+Using timestep specified in POPSFILE!
+But continuing to dynamically adjust to optimise this
+ read-in time-step:   0.02000000
+Using pSingles and pDoubles from POPSFILE: 
+ pSingles:   0.07749830
+ pDoubles:   0.92250170
+Using pParallel from POPSFILE: 
+ pParallel:   0.16875461
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         655360
+ Determinant related persistent storage requires:       5.000000 Mb / processor
+Spawning vectors allowing for a total of        30000 particles to be spawned in any one iteration per core.
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:            7000
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        1
+Initial reference is: (    1,    2,   15,   16,   21,   22,   31,   32)
+Reading in a total of           10450 configurations from POPSFILE.
+ CurrWalkers:                  5128
+ Initial memory (without excitgens + temp arrays) consists of :      16.373291 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ 
+        Step    Shift           WalkerCng       GrowRate        TotWalkers      Annihil         NoDied          NoBorn          Proj.E          Av.Shift        Proj.E.Cyc      NoatHF          NoatDoubs       AccRat        UniqueDets    NumDetsSpawned   IterTime
+        3500  -0.2161768        0.000000        0.000000        20629.00        0.000000        0.000000        0.000000      -0.2134010        0.000000        0.000000        1720.000        0.000000        0.000000           10450           0   0.0000    
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        5 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.4149659863945588E-002 , pDoubles =   0.92585034013605438      in: update_tau_hist
+ Updating parallel-spin bias; new pParallel =   0.16825863335782515      in: update_tau_hist
+        3525  -0.2167082        39.00000        1.008896        20668.00        32216.00        91551.00        247190.0      -0.2134529        0.000000      -0.2172657        1707.000        6780.000       0.4672019           10507        8631  0.23594E-01
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        1 blooms occurred.
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        4 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+ Updating parallel-spin bias; new pParallel =   0.16875460574797346      in: update_tau_hist
+        3550  -0.2153145       -174.0000       0.9770407        20494.00        31172.00        89177.00        240169.0      -0.2134358        0.000000      -0.2121535        1697.000        6703.000       0.4646027           10443        8583  0.23667E-01
+Bloom of more than n_add on double excit: A max of       5.00 particles created.        6 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        3575  -0.2158872        167.0000        1.009590        20661.00        31634.00        89976.00        243995.0      -0.2134728        0.000000      -0.2163058        1678.000        6776.000       0.4673670           10524        8758  0.25537E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        6 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        3600  -0.2152061       -530.0000       0.9887129        20131.00        31224.00        88935.00        240057.0      -0.2134838        0.000000      -0.2143414        1672.000        6618.000       0.4644277           10263        8467  0.22443E-01
+Bloom of more than n_add on double excit: A max of       5.00 particles created.        5 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        3625  -0.2139679       -679.0000       0.9795743        19452.00        30626.00        87420.00        235401.0      -0.2134598        0.000000      -0.2115588        1665.000        6407.000       0.4667284            9995        8334  0.22662E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        4 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        3650  -0.2130880        459.0000       0.9854431        19911.00        29628.00        86141.00        232020.0      -0.2134253        0.000000      -0.2106453        1685.000        6543.000       0.4670351           10080        8301  0.22424E-01
+Bloom of more than n_add on double excit: A max of       6.00 particles created.        9 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        3675  -0.2139925        136.0000        1.015188        20047.00        30356.00        87539.00        235522.0      -0.2134145        0.000000      -0.2125365        1652.000        6586.000       0.4681394           10222        8349  0.22893E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        6 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7288135593220342E-002 , pDoubles =   0.92271186440677966      in: update_tau_hist
+ Updating parallel-spin bias; new pParallel =   0.16825863335782515      in: update_tau_hist
+        3700  -0.2139418       -288.0000       0.9991554        19759.00        30758.00        86616.00        235722.0      -0.2134100        0.000000      -0.2130381        1635.000        6596.000       0.4673725           10046        8297  0.22566E-01
+Bloom of more than n_add on double excit: A max of       5.00 particles created.        8 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7288135593220342E-002 , pDoubles =   0.92271186440677966      in: update_tau_hist
+        3725  -0.2134247       -349.0000       0.9914182        19410.00        29740.00        86087.00        233939.0      -0.2134352        0.000000      -0.2155984        1612.000        6418.000       0.4670214            9896        8134  0.22476E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        2 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+ Updating parallel-spin bias; new pParallel =   0.16875460574797346      in: update_tau_hist
+        3750  -0.2127234       -25.00000       0.9883801        19385.00        29498.00        85390.00        230621.0      -0.2134491        0.000000      -0.2146770        1594.000        6308.000       0.4653843            9971        8134  0.22890E-01
+Bloom of more than n_add on double excit: A max of       5.00 particles created.        1 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        3775  -0.2123522        119.0000       0.9938322        19504.00        29080.00        84714.00        229593.0      -0.2134567        0.000000      -0.2141417        1589.000        6361.000       0.4661845           10018        8282  0.21585E-01
+Bloom of more than n_add on double excit: A max of       5.00 particles created.        5 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        3800  -0.2114274       -547.0000       0.9847048        18957.00        28766.00        83534.00        225418.0      -0.2134608        0.000000      -0.2138299        1579.000        6318.000       0.4651419            9717        8017  0.22786E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        5 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.8124999999999986E-002 , pDoubles =   0.92187500000000000      in: update_tau_hist
+        3825  -0.2105864       -208.0000       0.9860811        18749.00        28296.00        82341.00        222970.0      -0.2134564        0.000000      -0.2130467        1583.000        6262.000       0.4679631            9604        7921  0.21721E-01
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        3850  -0.2121357        637.0000        1.026158        19386.00        28342.00        84396.00        229061.0      -0.2134495        0.000000      -0.2128184        1611.000        6340.000       0.4683655            9991        8174  0.22279E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        5 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        3875  -0.2116952       -302.0000       0.9926867        19084.00        28348.00        83849.00        226889.0      -0.2134198        0.000000      -0.2106717        1597.000        6322.000       0.4663069            9759        8039  0.21650E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        3 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        3900  -0.2116314        219.0000       0.9989365        19303.00        28504.00        83807.00        226176.0      -0.2134358        0.000000      -0.2149454        1595.000        6424.000       0.4637643            9904        8010  0.22437E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        4 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        3925  -0.2122345       -76.00000        1.010103        19227.00        29142.00        84329.00        229055.0      -0.2134617        0.000000      -0.2159339        1589.000        6257.000       0.4663061            9917        8097  0.22559E-01
+Bloom of more than n_add on double excit: A max of       5.00 particles created.        5 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        3950  -0.2112622       -237.0000       0.9839252        18990.00        28478.00        83023.00        224629.0      -0.2134003        0.000000      -0.2075001        1602.000        6320.000       0.4664208            9655        7925  0.22887E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        2 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        3975  -0.2115339       -557.0000        1.004539        18433.00        29206.00        83471.00        225684.0      -0.2134062        0.000000      -0.2139837        1569.000        6136.000       0.4639577            9499        7786  0.33247E-01
+Bloom of more than n_add on double excit: A max of       5.00 particles created.        6 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4000  -0.2105158        445.0000       0.9831749        18878.00        28010.00        82508.00        222513.0      -0.2134120        0.000000      -0.2139940        1585.000        6341.000       0.4648136            9553        7926  0.22699E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        5 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4025  -0.2118151        162.0000        1.021890        19040.00        28380.00        83826.00        226695.0      -0.2134267        0.000000      -0.2148979        1575.000        6258.000       0.4641283            9660        8006  0.22103E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        4 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4050  -0.2112456        3.000000       0.9905539        19043.00        28496.00        83324.00        225393.0      -0.2134494        0.000000      -0.2157689        1565.000        6242.000       0.4664302            9638        7936  0.21296E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        4 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4075  -0.2113659       -328.0000        1.002006        18715.00        28854.00        82968.00        225802.0      -0.2134805        0.000000      -0.2166913        1559.000        6219.000       0.4674005            9556        7803  0.21864E-01
+Bloom of more than n_add on double excit: A max of       5.00 particles created.       11 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4100  -0.2106819        129.0000       0.9886657        18844.00        28292.00        82244.00        223290.0      -0.2134860        0.000000      -0.2140646        1547.000        6249.000       0.4662781            9722        8046  0.22546E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        6 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4125  -0.2093354       -174.0000       0.9778067        18670.00        26956.00        80789.00        218207.0      -0.2134696        0.000000      -0.2117128        1559.000        6091.000       0.4648402            9532        7780  0.21587E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        4 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4150  -0.2105842        237.0000        1.021032        18907.00        28158.00        82351.00        222742.0      -0.2134549        0.000000      -0.2119033        1582.000        6235.000       0.4672379            9746        7982  0.21166E-01
+Bloom of more than n_add on double excit: A max of       6.00 particles created.        5 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4175  -0.2114602        469.0000        1.014708        19376.00        28350.00        83007.00        225867.0      -0.2134848        0.000000      -0.2166456        1596.000        6422.000       0.4626008            9905        8160  0.21914E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        5 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4200  -0.2113219       -319.0000       0.9976968        19057.00        28640.00        83096.00        224804.0      -0.2134851        0.000000      -0.2135215        1579.000        6263.000       0.4659389            9723        7931  0.21407E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        2 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4225  -0.2107679       -526.0000       0.9908103        18531.00        28180.00        82417.00        223295.0      -0.2134414        0.000000      -0.2087211        1584.000        6131.000       0.4660443            9480        7871  0.21680E-01
+Bloom of more than n_add on double excit: A max of       6.00 particles created.        8 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4250  -0.2099941       -9.000000       0.9871856        18522.00        28302.00        81429.00        221059.0      -0.2134210        0.000000      -0.2111977        1588.000        6192.000       0.4679565            9409        7738  0.21174E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        4 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4275  -0.2105611        359.0000        1.009494        18881.00        28146.00        81843.00        222904.0      -0.2134049        0.000000      -0.2116342        1576.000        6198.000       0.4661662            9654        8051  0.22150E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        5 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4300  -0.2113722        567.0000        1.013610        19448.00        28866.00        83056.00        226382.0      -0.2133947        0.000000      -0.2122706        1591.000        6494.000       0.4679732            9844        8162  0.21427E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        2 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4325  -0.2122057        86.00000        1.013988        19534.00        29220.00        84283.00        228562.0      -0.2133923        0.000000      -0.2131239        1618.000        6508.000       0.4675590            9914        8206  0.22095E-01
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        1 blooms occurred.
+Bloom of more than n_add on double excit: A max of       5.00 particles created.       12 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4350  -0.2130085        84.00000        1.013470        19618.00        29384.00        85379.00        231305.0      -0.2133706        0.000000      -0.2109984        1639.000        6475.000       0.4647900           10039        8268  0.21874E-01
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        2 blooms occurred.
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        6 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4375  -0.2140388        86.00000        1.017320        19704.00        30200.00        87255.00        235959.0      -0.2133657        0.000000      -0.2128222        1609.000        6577.000       0.4650280           10035        8349  0.22594E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        5 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4400  -0.2128316       -379.0000       0.9800813        19325.00        29418.00        85502.00        231082.0      -0.2133873        0.000000      -0.2158408        1603.000        6373.000       0.4677437            9842        8260  0.23224E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        7 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4425  -0.2123674        2.000000       0.9922933        19327.00        29210.00        84715.00        229780.0      -0.2134132        0.000000      -0.2164042        1584.000        6334.000       0.4686344            9905        8070  0.21840E-01
+Bloom of more than n_add on double excit: A max of       6.00 particles created.       11 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4450  -0.2115483       -224.0000       0.9864401        19103.00        28990.00        83258.00        226863.0      -0.2134151        0.000000      -0.2136408        1577.000        6262.000       0.4687519            9775        8021  0.22232E-01
+Bloom of more than n_add on double excit: A max of       6.00 particles created.        6 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4475  -0.2111484       -61.00000       0.9933583        19042.00        28804.00        82697.00        224956.0      -0.2134098        0.000000      -0.2127751        1567.000        6229.000       0.4681884            9774        7971  0.21259E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        5 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+Beginning to average shift value on iteration:           4500
+        4500  -0.2113335        500.0000        1.003089        19542.00        28166.00        82954.00        225320.0      -0.2134004      -0.2113335      -0.2122702        1564.000        6409.000       0.4659198           10005        8212  0.21789E-01
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        1 blooms occurred.
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        1 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4525  -0.2118657       -715.0000        1.008910        18827.00        29178.00        83882.00        228016.0      -0.2134317      -0.2115996      -0.2172246        1586.000        6247.000       0.4676758            9543        7919  0.31845E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        7 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4550  -0.2117943        710.0000       0.9988103        19537.00        28396.00        83666.00        227253.0      -0.2134272      -0.2116645      -0.2128865        1581.000        6391.000       0.4664664            9925        8195  0.33940E-01
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        1 blooms occurred.
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        2 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4575  -0.2130417        339.0000        1.021008        19876.00        30116.00        85250.00        232852.0      -0.2134422      -0.2120088      -0.2152568        1608.000        6415.000       0.4680008           10155        8411  0.28586E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        2 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4600  -0.2129568       -317.0000       0.9985862        19559.00        29564.00        85518.00        231557.0      -0.2134575      -0.2121984      -0.2153251        1600.000        6445.000       0.4641928            9990        8316  0.22225E-01
+Bloom of more than n_add on double excit: A max of       5.00 particles created.        3 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4625  -0.2124270       -422.0000       0.9912087        19137.00        29030.00        85013.00        229139.0      -0.2134679      -0.2122365      -0.2147270        1626.000        6374.000       0.4668051            9707        7902  0.23339E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        3 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4650  -0.2127834        691.0000        1.005957        19828.00        28998.00        85629.00        230963.0      -0.2134498      -0.2123146      -0.2112583        1632.000        6474.000       0.4648375           10105        8236  0.22990E-01
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        3 blooms occurred.
+Bloom of more than n_add on double excit: A max of       5.00 particles created.        9 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4675  -0.2142087       -173.0000        1.024039        19655.00        30938.00        87475.00        237002.0      -0.2134625      -0.2125514      -0.2149984        1649.000        6467.000       0.4652501           10014        8311  0.23535E-01
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        1 blooms occurred.
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        2 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4700  -0.2138398        343.0000       0.9938708        19998.00        30010.00        87102.00        234880.0      -0.2134728      -0.2126946      -0.2147466        1634.000        6635.000       0.4643415           10196        8413  0.22579E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        8 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4725  -0.2141740       -268.0000        1.005586        19730.00        30512.00        87234.00        236370.0      -0.2134777      -0.2128425      -0.2140817        1639.000        6399.000       0.4676608           10054        8283  0.22715E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        9 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4750  -0.2136496        73.00000       0.9912970        19803.00        29848.00        86442.00        234346.0      -0.2134468      -0.2129159      -0.2096060        1653.000        6504.000       0.4656489           10016        8357  0.21615E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        7 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4775  -0.2140635        318.0000        1.006923        20121.00        30310.00        87406.00        236288.0      -0.2134277      -0.2130115      -0.2110733        1683.000        6592.000       0.4665290           10234        8472  0.23086E-01
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        1 blooms occurred.
+Bloom of more than n_add on double excit: A max of       5.00 particles created.        6 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4800  -0.2145067       -110.0000        1.007413        20011.00        30660.00        88114.00        237722.0      -0.2134150      -0.2131265      -0.2118347        1680.000        6597.000       0.4648989           10167        8459  0.22734E-01
+Bloom of more than n_add on double excit: A max of       5.00 particles created.       14 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4825  -0.2140194        414.0000       0.9919114        20425.00        30280.00        87044.00        235581.0      -0.2133741      -0.2131903      -0.2083017        1696.000        6715.000       0.4663217           10351        8597  0.22129E-01
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        1 blooms occurred.
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        5 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4850  -0.2152693        50.00000        1.021051        20475.00        31322.00        89007.00        240280.0      -0.2133736      -0.2133289      -0.2133109        1685.000        6722.000       0.4644500           10462        8749  0.26692E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        6 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4875  -0.2155582       -503.0000        1.004827        19972.00        31060.00        89814.00        241984.0      -0.2133722      -0.2134682      -0.2131967        1671.000        6631.000       0.4669883           10224        8335  0.26253E-01
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        2 blooms occurred.
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        6 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4900  -0.2143121        141.0000       0.9794450        20113.00        30362.00        87977.00        237042.0      -0.2133623      -0.2135179      -0.2120926        1696.000        6665.000       0.4676926           10267        8501  0.24968E-01
+Bloom of more than n_add on double excit: A max of       5.00 particles created.        6 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4925  -0.2147812        29.00000        1.007849        20142.00        30778.00        88601.00        238678.0      -0.2133467      -0.2135881      -0.2113607        1682.000        6595.000       0.4643975           10309        8555  0.24848E-01
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        1 blooms occurred.
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        6 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4950  -0.2153537       -60.00000        1.009588        20082.00        30958.00        89164.00        241038.0      -0.2133615      -0.2136810      -0.2152763        1675.000        6535.000       0.4631578           10230        8545  0.26570E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        6 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        4975  -0.2139426       -228.0000       0.9767564        19854.00        30254.00        86788.00        234878.0      -0.2133330      -0.2136941      -0.2095783        1674.000        6486.000       0.4642091           10111        8366  0.29435E-01
+Bloom of more than n_add on double excit: A max of       5.00 particles created.       10 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5000  -0.2140647        162.0000        1.002037        20016.00        30776.00        86955.00        235963.0      -0.2133148      -0.2137117      -0.2109188        1665.000        6620.000       0.4660302           10147        8410  0.25170E-01
+Bloom of more than n_add on double excit: A max of       5.00 particles created.        4 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5025  -0.2140562       -372.0000       0.9998574        19644.00        30358.00        87401.00        236193.0      -0.2133055      -0.2137274      -0.2120500        1657.000        6527.000       0.4658633            9912        8358  0.22692E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        4 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5050  -0.2135714        196.0000       0.9919529        19840.00        29948.00        86752.00        234154.0      -0.2132905      -0.2137206      -0.2112715        1655.000        6562.000       0.4655369           10109        8413  0.24015E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        6 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5075  -0.2133014       -29.00000       0.9955104        19811.00        29568.00        86398.00        232697.0      -0.2132736      -0.2137031      -0.2109657        1657.000        6533.000       0.4651869           10080        8361  0.23804E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        5 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5100  -0.2133758       -296.0000        1.001241        19515.00        30008.00        86226.00        233332.0      -0.2132613      -0.2136900      -0.2115619        1643.000        6535.000       0.4660004            9886        8228  0.23360E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        2 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5125  -0.2137749        534.0000        1.006674        20049.00        30654.00        86429.00        234325.0      -0.2132739      -0.2136933      -0.2150311        1643.000        6639.000       0.4636561           10179        8477  0.22973E-01
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        1 blooms occurred.
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        3 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5150  -0.2144031        11.00000        1.010525        20060.00        30470.00        87725.00        237273.0      -0.2132975      -0.2137196      -0.2166008        1651.000        6575.000       0.4662512           10231        8448  0.22971E-01
+Bloom of more than n_add on double excit: A max of       5.00 particles created.        6 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5175  -0.2141311       -117.0000       0.9954764        19943.00        30724.00        87520.00        236345.0      -0.2133266      -0.2137343      -0.2174450        1656.000        6570.000       0.4656026           10190        8506  0.22385E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.       10 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5200  -0.2146328        135.0000        1.008396        20078.00        30590.00        88088.00        238649.0      -0.2133262      -0.2137653      -0.2132742        1657.000        6539.000       0.4675333           10283        8533  0.22705E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        4 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5225  -0.2142330       -210.0000       0.9933588        19868.00        29644.00        87475.00        236052.0      -0.2132874      -0.2137809      -0.2077239        1650.000        6506.000       0.4663139           10171        8318  0.23109E-01
+Bloom of more than n_add on double excit: A max of       6.00 particles created.        4 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5250  -0.2129496       -274.0000       0.9788377        19594.00        29812.00        85810.00        231106.0      -0.2132575      -0.2137540      -0.2089518        1646.000        6395.000       0.4646726            9937        8203  0.23676E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        7 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5275  -0.2128625       -146.0000       0.9985493        19448.00        29138.00        85772.00        231125.0      -0.2132453      -0.2137262      -0.2114648        1632.000        6422.000       0.4639359            9940        8261  0.25573E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        9 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5300  -0.2132050        432.0000        1.005725        19880.00        29964.00        85874.00        233576.0      -0.2132416      -0.2137104      -0.2126917        1636.000        6507.000       0.4679565           10074        8207  0.26004E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        2 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5325  -0.2141609        105.0000        1.016059        19985.00        30542.00        87373.00        237573.0      -0.2132684      -0.2137236      -0.2172594        1619.000        6510.000       0.4678675           10191        8603  0.24161E-01
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        1 blooms occurred.
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        7 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5350  -0.2135358       -411.0000       0.9896348        19574.00        30360.00        86455.00        234601.0      -0.2132763      -0.2137183      -0.2144763        1609.000        6293.000       0.4681070           10026        8266  0.25990E-01
+Bloom of more than n_add on double excit: A max of       5.00 particles created.       11 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5375  -0.2120429       -366.0000       0.9754254        19208.00        29278.00        84287.00        228281.0      -0.2132701      -0.2136717      -0.2123208        1618.000        6382.000       0.4690922            9711        8180  0.25929E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        2 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5400  -0.2123023        385.0000        1.004333        19593.00        29128.00        84807.00        229112.0      -0.2132480      -0.2136347      -0.2098988        1644.000        6419.000       0.4670809            9910        8261  0.26657E-01
+Bloom of more than n_add on double excit: A max of       5.00 particles created.        8 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5425  -0.2136446        280.0000        1.022624        19873.00        29768.00        86473.00        234454.0      -0.2132314      -0.2136350      -0.2107235        1645.000        6537.000       0.4675436           10152        8402  0.23771E-01
+Bloom of more than n_add on double excit: A max of       5.00 particles created.        3 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5450  -0.2134851       -166.0000       0.9973443        19707.00        29910.00        86959.00        233790.0      -0.2132436      -0.2136311      -0.2151131        1638.000        6478.000       0.4662301           10026        8268  0.22530E-01
+Bloom of more than n_add on double excit: A max of       5.00 particles created.        5 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5475  -0.2133938        276.0000       0.9984810        19983.00        29620.00        86339.00        233119.0      -0.2132530      -0.2136252      -0.2146914        1647.000        6607.000       0.4659522           10210        8378  0.22670E-01
+Bloom of more than n_add on double excit: A max of       4.00 particles created.        3 blooms occurred.
+ Updating singles/doubles bias. pSingles =    7.7498300475866755E-002 , pDoubles =   0.92250169952413330      in: update_tau_hist
+        5500  -0.2139472       -281.0000        1.009266        19702.00        30098.00        87456.00        235250.0      -0.2132655      -0.2136331      -0.2151829        1671.000        6463.000       0.4663014           10047        8306  0.24644E-01
+Total iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:    47.375817582011223     
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ writing singles frequency histogram...
+ Done!
+ Number of zero-valued single excitations:                     0
+ Number of valid single excitations:               3021971
+ ratio of zero-valued single excitations:    0.0000000000000000     
+ Number of single excitations above threshold:                     0
+ ratio of single excitations above threshold:    0.0000000000000000     
+ integrated singles H_ij/pgen ratio:    11.400000000000000     
+ for   0.99990000000000001       percent coverage!
+ maximum singles H_ij/pgen ratio:    14.413723991190720     
+ singles maximum/integrated ratio:    1.2643617536132210     
+ writing parallel frequency histogram...
+ Done!
+ Number of zero-valued parallel excitations:                     0
+ Number of valid parallel excitations:               5346418
+ ratio of zero-valued parallel excitations:    0.0000000000000000     
+ Number of parallel excitations above threshold:                     0
+ ratio of parallel excitations above threshold:    0.0000000000000000     
+ integrated parallel H_ij/pgen ratio:    22.900000000000002     
+ for   0.99990000000000001       percent coverage!
+ maximum parallel H_ij/pgen ratio:    27.518409690432005     
+ maximum/integrated parallel ratio:    1.2016772790581660     
+ writing anti-parallel frequency histogram...
+ Done!
+ Number of zero-valued anti-parallel excitations:                     0
+ Number of valid anti-parallel excitations:              28013693
+ ratio of zero-valued anti-parallel excitations:    0.0000000000000000     
+ Number of anti-parallel excitations above threshold:                     0
+ ratio of anti-parallel excitations above threshold:    0.0000000000000000     
+ integrated anti-parallel H_ij/pgen ratio:    112.80000000000001     
+ for   0.99990000000000001       percent coverage!
+ maximum anti-parallel H_ij/pgen ratio:    208.63367155008001     
+ maximum/integrated anti-parallel ratio:    1.8495892867914892     
+ 
+Current reference: 
+(    1,    2,   15,   16,   21,   22,   31,   32)
+11000000000000110000110000000011000000000000
+
+Input DEFINEDET line (includes frozen orbs):
+definedet   1   2   3   4  17  18  23  24  33  34 
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+ Excitation   ExcitLevel   Seniority    Walkers    Weight    Init?   Proc
+11000000000000110000110000000011000000000000    0    0    1676.000      0.97892  Y      1
+11000000000000110000100001000001001000000000    2    4    55.00000      0.03212  Y      0
+11000000000000000011110000000011000000000000    2    0   -54.00000      0.03154  Y      1
+11000000000000110000000011000011000000000000    2    0   -50.00000      0.02920  Y      1
+11000000000000110000110000000000001100000000    2    0   -48.00000      0.02804  Y      1
+11000000000000100001110000000001001000000000    2    4    46.00000      0.02687  Y      0
+11000000000000010010100001000011000000000000    2    4    44.00000      0.02570  Y      1
+11000000000000100001010010000011000000000000    2    4    42.00000      0.02453  Y      0
+11000000000000010010110000000010000100000000    2    4    42.00000      0.02453  Y      1
+11000000000000010010010010000011000000000000    2    4   -41.00000      0.02395  Y      0
+11000000000000100001110000000010000100000000    2    4   -38.00000      0.02220  Y      1
+11000000000000001001110000000011000000000000    2    2   -38.00000      0.02220  Y      1
+10000000010000110000110000000001001000000000    2    4    37.00000      0.02161  Y      0
+11000000000000100001100001000011000000000000    2    4   -37.00000      0.02161  Y      1
+11000000000000110000110000000000011000000000    2    2    36.00000      0.02103  Y      0
+ 
+
+ Load balancing information based on the last iteration:
+ Mean number of determinants/process    5382.0000000000
+ Min number of determinants/process               5348
+ Max number of determinants/process               5416
+
+
+Calculating approximate errorbar for energy estimates...
+
+Attempting automatic reblocking analysis on data from iteration:         1925
+Reading back in FCIMCStats datafile...
+Number of comment lines found in file:            3
+Number of data points found in file:           80
+Number of useable data points:           80
+Relaxation time for projected energy estimated to be        8 update cycles.
+Relaxation time for shift estimated to be        8 update cycles.
+WARNING: Error increases monotonically on the blocking graph for *denominator of projected energy*
+         whilst performing Flyvbjerg and Petersen blocking analysis.
+         Inspect BLOCKING files carefully. Manual reblocking may be necessary.
+Number of blocks assumed for calculation of error in projected energy denominator:       9
+WARNING: Error increases monotonically on the blocking graph for *numerator of projected energy*
+         whilst performing Flyvbjerg and Petersen blocking analysis.
+         Inspect BLOCKING files carefully. Manual reblocking may be necessary.
+Number of blocks assumed for calculation of error in projected energy numerator:       9
+WARNING: Error increases monotonically on the blocking graph for *shift*
+         whilst performing Flyvbjerg and Petersen blocking analysis.
+         Inspect BLOCKING files carefully. Manual reblocking may be necessary.
+Number of blocks assumed for calculation of error in shift:       9
+ProjE_denominator:       1620.5350000000 +/-        12.028236     Relative error:       0.7422386080E-02
+ProjE_numerator:         -345.3248551878 +/-        2.2659272     Relative error:       0.6561726477E-02
+ Current reference energy                            -128.496349730325
+ Projected correlation energy                          -0.213093117512
+ Estimated error in Projected correlation energy        0.000779537036
+ Shift correlation energy                              -0.212751837500
+ Estimated error in shift correlation energy            0.000425469480
+
+ Projected and shift energy estimates agree within errorbars: EDiff =      0.00034128
+
+ Total projected energy        -128.70944285 +/-    0.779537E-03
+ Total shift energy            -128.70910157 +/-    0.425469E-03
+
+
+ Final energy estimate for state 1:     -128.70961524269    
+ Warning: attempting to log deallocation but never logged allocation.
+
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :      22.8
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar   15.0MB
+ global_determinantinit_global_det_datclean_global_det_da   5.0MB
+ frequency_bins    init_hist_tau_searcdeallocate_histogra   1.1MB
+ SpawnVec          InitFCIMCPar       DeallocFciMCMemPar  703.1KB
+ SpawnVec2         InitFCIMCPar       DeallocFciMCMemPar  703.1KB
+ UMat              IntInit            IntFreeze           298.6KB
+ UMat2             IntFreeze          IntCleanup          251.0KB
+ TMAT2D            SetupTMAT          DestroyTMat          16.5KB
+ TMAT2D2           SetupTMAT2         not deallocated      15.1KB
+ umat2d            DetCalcInit        DESTROYUMATCACHE      3.8KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+
+ Procedure                    Calls       CPU    system     total
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                    2000     33.63      0.00     33.63
+ SyncTime                      2007      6.67      0.00      6.67
+ AnnMainTime                   2000      3.89      0.00      3.89
+ Compress Sort interface       2000      1.93      0.00      1.93
+ NECICUBE                         1      0.94      0.00      0.94
+ Compression interface         2000      0.59      0.00      0.59
+ SortTime                      2000      0.37      0.00      0.37
+ StatsCommsTime                  80      0.20      0.00      0.20
+ CommsTime                     2000      0.09      0.00      0.09
+ POPS-read                        1      0.03      0.00      0.03
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                  48.34      0.00     48.34
+
+ Global CPU time         48.46
+ Global system time       0.00
+ Global total time       48.46
+ ================================================================
+ Calculation ended 17/05/2017 at 18:34:16
+ ================================================================

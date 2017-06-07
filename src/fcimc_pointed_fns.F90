@@ -2,11 +2,14 @@
 
 module fcimc_pointed_fns
 
-    use SystemData, only: nel
+    use SystemData, only: nel, tGen_4ind_2, tGen_4ind_weighted, tHub, tUEG, &
+                          tGen_4ind_reverse
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
-                        tRealCoeffByExcitLevel, InitiatorWalkNo
+                        tRealCoeffByExcitLevel, InitiatorWalkNo, &
+                        t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
+                        t_matele_cutoff, matele_cutoff
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -19,6 +22,10 @@ module fcimc_pointed_fns
     use util_mod
     use FciMCData
     use constants
+    
+    use tau_search_hist, only: fill_frequency_histogram_4ind, &
+                               fill_frequency_histogram_sd, &
+                               fill_frequency_histogram
 
     implicit none
 
@@ -113,6 +120,7 @@ module fcimc_pointed_fns
         integer :: TargetExcitLevel
         logical :: tRealSpawning
         HElement_t(dp) :: rh, rh_used
+        logical :: t_par
 
         ! Just in case
         child = 0.0_dp
@@ -129,6 +137,29 @@ module fcimc_pointed_fns
         rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
                                  tParity, HElGen)
 
+        ! We actually want to calculate Hji - take the complex conjugate, 
+        ! rather than swap around DetCurr and nJ.
+#ifdef __CMPLX
+        rh_used = conjg(rh)
+#else
+        rh_used = rh
+#endif
+        
+        ! [W.D.]
+        ! if the matrix element happens to be zero, i guess i should 
+        ! abort as early as possible? so check that here already, or even 
+        ! earlier.. 
+!         if (abs(rh_used) < EPS) then 
+!             child = 0.0_dp
+!             return
+!         end if
+! 
+!         if (t_matele_cutoff) then
+!             if (abs(rh_used) < EPS) then
+!                 child = 0.0_dp
+!             end if
+!         end if
+
         !write(6,*) 'p,rh', prob, rh
 
         ! The following is useful for debugging the contributions of single
@@ -144,6 +175,26 @@ module fcimc_pointed_fns
 !            write(6,*) 'IC1', rh, prob
 !        end if
 
+        ! fill in the frequency histograms here! 
+        ! [Werner Dobrautz 4.4.2017:]
+        if (t_fill_frequency_hists) then 
+            if (tHUB .or. tUEG) then 
+                call fill_frequency_histogram(abs(rh_used), prob / AvMCExcits)
+            else 
+                if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then 
+                    t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
+
+                    ! not sure about the AvMCExcits!! TODO
+                    call fill_frequency_histogram_4ind(abs(rh_used), prob / AvMCExcits, &
+                        ic, t_par, ex)
+
+                else
+
+                    call fill_frequency_histogram_sd(abs(rh_used), prob / AvMCExcits, ic)
+                    
+                end if
+            end if
+        end if
         ! Are we doing real spawning?
         
         tRealSpawning = .false.
@@ -155,14 +206,6 @@ module fcimc_pointed_fns
                 tRealSpawning = .true.
         endif
 
-        ! We actually want to calculate Hji - take the complex conjugate, 
-        ! rather than swap around DetCurr and nJ.
-#ifdef __CMPLX
-        rh_used = conjg(rh)
-#else
-        rh_used = rh
-#endif
-        
         ! Spawn to real and imaginary particles. Note that spawning from
         ! imaginary parent particles has slightly different rules:
         !       - Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P
@@ -175,6 +218,9 @@ module fcimc_pointed_fns
         tgt_cpt = part_type
         walkerweight = sign(1.0_dp, RealwSign(part_type))
         matEl = real(rh_used, dp)
+        if (t_matele_cutoff) then
+            if (abs(matEl) < matele_cutoff) matel = 0.0_dp
+        end if
 #else
         do tgt_cpt = 1, (lenof_sign/inum_runs)
 
@@ -204,9 +250,15 @@ module fcimc_pointed_fns
             if (btest(component,0)) then
                 ! real component
                 MatEl = real(rh_used, dp)
+                if (t_matele_cutoff) then
+                    if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
+                end if
             else
 #ifdef __CMPLX
                 MatEl = real(aimag(rh_used), dp)
+                if (t_matele_cutoff) then
+                    if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
+                end if
                 ! n.b. In this case, spawning is of opposite sign.
                 if (.not. btest(part_type,0)) then
                     ! imaginary parent -> imaginary child
@@ -219,6 +271,16 @@ module fcimc_pointed_fns
 !            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
 !            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
 
+
+            ! [Werner Dobrautz 4.4.2017:]
+            ! apply the spawn truncation, when using histogramming tau-search
+            if (t_truncate_spawns .and. abs(nspawn) > n_truncate_spawns) then
+                ! TODO: add some additional output if this event happens
+!                 write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
+                nSpawn = sign(n_truncate_spawns, nspawn)
+
+
+            end if
             
             ! n.b. if we ever end up with |walkerweight| /= 1, then this
             !      will need to ffed further through.

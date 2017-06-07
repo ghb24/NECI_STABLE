@@ -7,6 +7,9 @@ module replica_data
     use CalcData
     use util_mod
     use kp_fciqmc_data_mod
+    use SystemData, only : NEl
+    use IntegralsData, only : NFrozen
+    use LoggingData, only : tLogEXLEVELStats
     implicit none
 
 contains
@@ -125,6 +128,12 @@ contains
                  DiagSftIm(inum_runs), &
                  tSinglePartPhase(inum_runs), stat=ierr)
 
+        ! Variables which are only used conditionally.
+        ! NB, NFrozen has not been subtracted from NEl yet!
+        if (tLogEXLEVELStats) allocate (&
+              EXLEVEL_WNorm(0:2,0:NEl-NFrozen,inum_runs), &
+              AllEXLEVEL_WNorm(0:2,0:NEl-NFrozen,inum_runs), stat=ierr)
+
         ! Iteration data
         call allocate_iter_data(iter_data_fciqmc)
 
@@ -219,6 +228,8 @@ contains
                    TotPartsInit, &
                    AllTotPartsInit, &
                    tSinglePartPhaseKPInit)
+
+        if (tLogEXLEVELStats) deallocate(EXLEVEL_WNorm, AllEXLEVEL_WNorm)
 
         call clean_iter_data(iter_data_fciqmc)
 

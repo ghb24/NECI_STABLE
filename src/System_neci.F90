@@ -929,6 +929,17 @@ system: do
                         tGen_4ind_2 = .true.
                         tGen_4ind_part_exact = .true.
                         tGen_4ind_2_symmetric = .false.
+
+                    case("4IND-WEIGHTED-UNBOUND")
+                        ! [Werner Dobrautz 26.4.2017:]
+                        ! new tests for optimizations for the latest 
+                        ! excitation generator implementation, without using
+                        ! the artificial lower bounds for the energy
+                        tGen_4ind_2 = .true.
+                        tGen_4ind_part_exact = .true.
+                        tGen_4ind_2_symmetric = .false.
+                        tGen_4ind_unbound = .true.
+
                     case("4IND-WEIGHTED-2-SYMMETRIC")
                         ! The other version of this generator. This permits
                         ! selecting orbitals in both directions

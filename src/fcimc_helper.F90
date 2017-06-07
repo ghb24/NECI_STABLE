@@ -28,7 +28,7 @@ module fcimc_helper
                            RDMEnergyIter, tFullHFAv, tLogComplexPops, &
                            nHistEquilSteps, tCalcFCIMCPsi, StartPrintOrbOcc, &
                            HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
-                           FciMCDebug
+                           FciMCDebug, tLogEXLEVELStats
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
                         tAddToInitiator, InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
@@ -289,13 +289,14 @@ contains
 #endif
 
         real(dp) :: amps(size(current_trial_amps,1))
+        real(dp) :: w(0:2)
 
         if (tReplicaReferencesDiffer) then
             call SumEContrib_different_refs(nI, realWSign, ilut, dProbFin, tPairedReplicas, ind)
             return
         endif
 
-        HOffDiag = 0
+        HOffDiag = 0.0_dp
 
         ! Add in the contributions to the numerator and denominator of the trial
         ! estimator, if it is being used.
@@ -412,6 +413,24 @@ contains
 
         endif ! ExcitLevel_local == 1, 2, 3
 
+        ! L_{0,1,2} norms of walker weights by excitation level.
+        if (tLogEXLEVELStats) then
+            do run = 1, inum_runs
+#ifdef __CMPLX
+                w(0) = real(1 + max_part_type(run) - min_part_type(run), dp)
+                w(1) = sum(abs(RealwSign(min_part_type(run):&
+                                         max_part_type(run))))
+                w(2) = sum(RealwSign(min_part_type(run):&
+                                     max_part_type(run))**2)
+#else
+                w(0) = 1_dp
+                w(1) = abs(RealwSign(run))
+                w(2) = RealwSign(run)**2
+#endif
+                EXLEVEL_WNorm(0:2,ExcitLevel,run) = &
+                      EXLEVEL_WNorm(0:2,ExcitLevel,run) + w(0:2)
+            enddo ! run
+        endif ! tLogEXLEVELStats
 
         ! Sum in energy contribution
         do run=1, inum_runs
@@ -610,7 +629,7 @@ contains
             sgn_run = sgn(run)
 #endif
 
-            hoffdiag = 0
+            hoffdiag = 0.0_dp
             if (exlevel == 0) then
 
                 if (iter > nEquilSteps) then
@@ -701,10 +720,10 @@ contains
 
                 ! Update counters as required.
                 if (parent_init) then
-                    NoInitDets = NoInitDets + 1
+                    NoInitDets = NoInitDets + 1_int64
                     NoInitWalk = NoInitWalk + mag_of_run(CurrentSign, run)
                 else
-                    NoNonInitDets = NoNonInitDets + 1
+                    NoNonInitDets = NoNonInitDets + 1_int64
                     NoNonInitWalk = NoNonInitWalk + mag_of_run(CurrentSign, run)
                 endif
 
@@ -769,7 +788,7 @@ contains
             !   population to become an initiator.
             if (tot_sgn > InitiatorWalkNo) then
                 initiator = .true.
-                NoAddedInitiators = NoAddedInitiators + 1
+                NoAddedInitiators = NoAddedInitiators + 1_int64
             endif
 
         else
@@ -786,7 +805,7 @@ contains
                 ! Population has fallen too low. Initiator status 
                 ! removed.
                 initiator = .false.
-                NoAddedInitiators = NoAddedInitiators - 1
+                NoAddedInitiators = NoAddedInitiators - 1_int64
             endif
 
         end if
@@ -804,22 +823,23 @@ contains
         real(dp) :: prev_AvNoatHF(len_av_sgn_tot), AllInstNoatHF(lenof_sign)
         integer :: irdm, av_ind_1, av_ind_2, part_type
 
-        NoInitDets = 0
-        NoNonInitDets = 0
+        NoInitDets = 0_int64
+        NoNonInitDets = 0_int64
         NoInitWalk = 0.0_dp
         NoNonInitWalk = 0.0_dp
-        InitRemoved = 0
+        InitRemoved = 0_int64
 
         NoAborted = 0.0_dp
         NoRemoved = 0.0_dp
         NoatHF = 0.0_dp
         NoatDoubs = 0.0_dp
+        if (tLogEXLEVELStats) EXLEVEL_WNorm = 0.0_dp
 
-        iter_data%nborn = 0
-        iter_data%ndied = 0
-        iter_data%nannihil = 0
-        iter_data%naborted = 0
-        iter_data%nremoved = 0
+        iter_data%nborn = 0.0_dp
+        iter_data%ndied = 0.0_dp
+        iter_data%nannihil = 0.0_dp
+        iter_data%naborted = 0.0_dp
+        iter_data%nremoved = 0.0_dp
 
         call InitHistMin()
 
@@ -1063,22 +1083,28 @@ contains
         IF(TotWalkersNew.gt.0) THEN
             call extract_sign(CurrentDets(:,HighPopNeg),TempSign)
         ELSE
-            TempSign(:)=0
+            TempSign(:)=0.0_dp
         ENDIF
 
         HighPopInNeg(1) = TempSign(1)
-        HighPopInNeg(2)=int(iProcIndex,int32)
+        ! [W.D. 15.5.2017:]
+        ! why cast to int32?? and not real(dp)
+!         HighPopInNeg(2)= int(iProcIndex,int32)
+        HighPopInNeg(2)= real(iProcIndex,dp)
 
         CALL MPIAllReduceDatatype(HighPopinNeg,1,MPI_MINLOC,MPI_2DOUBLE_PRECISION,HighPopoutNeg)
 
         IF(TotWalkersNew.gt.0) THEN
             call extract_sign(CurrentDets(:,HighPopPos),TempSign)
         ELSE
-            TempSign(:)=0
+            TempSign(:)=0.0_dp
         ENDIF
 
         HighPopInPos(1) = TempSign(1)
-        HighPopInPos(2)=int(iProcIndex,int32)
+        ! [W.D. 15.5.2017:]
+        ! why cast to int32?? and not real(dp)
+!         HighPopInPos(2)=int(iProcIndex,int32)
+        HighPopInPos(2)=real(iProcIndex,dp)
 
         CALL MPIAllReduceDatatype(HighPopinPos,1,MPI_MAXLOC,MPI_2DOUBLE_PRECISION,HighPopoutPos)
 
@@ -1668,7 +1694,7 @@ contains
                     iter_data%naborted(i) = iter_data%naborted(i) &
                                           + abs(CopySign(i))
                     if (test_flag(ilutCurr, get_initiator_flag(i))) &
-                        NoAddedInitiators = NoAddedInitiators - 1
+                        NoAddedInitiators = NoAddedInitiators - 1_int64
                     CopySign(i) = 0
                 end if
             end do
@@ -1702,7 +1728,7 @@ contains
                 ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
                 do i = 1, lenof_sign
                     if (test_flag(iLutCurr,get_initiator_flag(i))) then
-                        NoAddedInitiators(i) = NoAddedInitiators(i) - 1
+                        NoAddedInitiators(i) = NoAddedInitiators(i) - 1_int64
                     endif
                 enddo
             end if
@@ -1799,7 +1825,7 @@ contains
         integer :: i, det(nel)
         logical :: tSwapped
 
-        iLutRef(:, run) = 0
+        iLutRef(:, run) = 0_n_int
         iLutRef(0:NIfDBO, run) = ilut(0:NIfDBO)
         call decode_bit_det (ProjEDet(:, run), iLutRef(:, run))
         write (iout, '(a,i3,a)', advance='no') 'Changing projected &
@@ -1812,7 +1838,7 @@ contains
                 allocate(RefDetFlip(NEl, inum_runs), &
                          ilutRef(0:NifTot, inum_runs))
                 RefDetFlip = 0
-                iLutRefFlip = 0
+                iLutRefFlip = 0_n_int
             endif
             if(.not. TestClosedShellDet(iLutRef(:, run))) then
                 ! Complications. We are now effectively projecting
@@ -1919,8 +1945,8 @@ contains
         real(dp) :: sgn(lenof_sign)
 
         ! Reset the accumulators
-        HFCyc = 0
-        ENumCyc = 0
+        HFCyc = 0.0_dp
+        ENumCyc = 0.0_dp
 
         ! Main loop
         do j = 1, int(TotWalkers, sizeof_int)

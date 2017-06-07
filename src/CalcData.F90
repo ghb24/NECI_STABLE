@@ -173,6 +173,7 @@ integer(int64) :: iExitWalkers  !Exit criterion, based on total walker number
 logical :: t_lanczos_init
 logical :: t_lanczos_store_vecs
 logical :: t_lanczos_orthogonalise
+logical :: t_force_lanczos
 integer :: lanczos_max_restarts
 integer :: lanczos_max_vecs
 integer :: lanczos_energy_precision
@@ -321,5 +322,64 @@ real(dp) :: min_tau_global = 1.0e-7_dp
 ! alis suggestion: have an option after restarting to keep the time-step 
 ! fixed to the values obtained from the POPSFILE 
 logical :: t_keep_tau_fixed = .false.
+
+! new tau-search using HISTOGRAMS: 
+logical :: t_hist_tau_search = .false., t_hist_tau_search_option = .false.
+logical :: t_fill_frequency_hists = .false.
+
+! also use a logical, read-in in the case of a continued run, which turns 
+! off the tau-search independent of the input and uses the time-step 
+! pSingles and pDoubles values from the previous calculation. 
+logical :: t_previous_hist_tau = .false.
+
+! it can be forced to do a tau-search again, if one provides an additional 
+! input restart-hist-tau-search in addition to the the hist-tau-search 
+! keyword in case the tau-search is not converged enough
+logical :: t_restart_hist_tau = .false. 
+
+! maybe also introduce a mixing between the old and new quantities in the 
+! histogramming tau-search, since it is a stochastic process now
+logical :: t_mix_ratios = .false.
+! and choose a mixing ration p_new = (1-mix_ratio)*p_old + mix_ratio * p_new
+! for now default it to 1.0_dp, meaning if it is not inputted, i only 
+! take the new contribution, like it is already done, and if it is 
+! inputted, without an additional argument default it to 0.7_dp
+real(dp) :: mix_ratio = 1.0_dp
+! use default values for bin-width and number of bins and a max ratio:
+integer :: n_frequency_bins = 100000
+real(dp) :: max_frequency_bound = 10000_dp
+! also use a sensible default integration cut-off: 99.9%
+real(dp) :: frq_ratio_cutoff = 0.999_dp
+
+! real(dp) :: frq_step_size = 0.1_dp
+! 
+! 
+! ! i need bin arrays for all types of possible spawns: 
+! integer, allocatable :: frequency_bins_singles(:), frequency_bins_para(:), &
+!                         frequency_bins_anti(:), frequency_bins_doubles(:), &
+!                         frequency_bins(:)
+! 
+! ! for the rest of the tau-search, reuse the quantities from the "standard" 
+! ! tau search, like enough_sing, etc. although they are not global yet.. 
+! ! so maybe define new ones to not get confused
+! integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_para_hist
+! 
+! logical :: enough_sing_hist, enough_doub_hist, enough_par_hist, enough_opp_hist
+
+! and i also need to truncate the spawns maybe: 
+logical :: t_truncate_spawns = .false. 
+real(dp) :: n_truncate_spawns = 3.0_dp
+
+! integer :: above_max_singles = 0, above_max_para = 0, above_max_anti = 0, &
+!            above_max_doubles = 0
+
+! and make the change to always read the psingles etc. quantity from 
+! previous runs: 
+logical :: t_read_probs = .true.
+
+! introduce a cutoff for the matrix elements, to be more consistent with 
+! UMATEPS (let the default be zero, so no matrix elements are ignored!)
+logical :: t_matele_cutoff = .false.
+real(dp) :: matele_cutoff = EPS
 
 end module CalcData

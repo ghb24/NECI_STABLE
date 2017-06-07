@@ -103,6 +103,7 @@ MODULE Logging
       HistInitPopsIter=100000
       hist_spin_dist_iter = 1000
       tLogDets=.false.
+      tLogEXLEVELStats=.false.
       tCalcInstantS2 = .false.
       tCalcInstantS2Init = .false.
       tCalcInstSCpts = .false.
@@ -566,6 +567,9 @@ MODULE Logging
         case("PRINT-1RDMS-FROM-SPINFREE")
             tPrint1RDMsFromSpinfree = .true.
 
+        case("NO-APPEND-STATS")
+            t_no_append_stats = .true.
+
         case("DIAGFLYONERDM")
 !This sets the calculation to diagonalise the *1* electron reduced density matrix.   
 !The eigenvalues give the occupation numbers of the natural orbitals (eigenfunctions).
@@ -981,7 +985,8 @@ MODULE Logging
             tLogDets=.true.
         case("DETERMINANTS")
             tLogDets=.true.
-
+        case("EXLEVEL")
+            tLogEXLEVELStats=.true.
         case ("INSTANT-S2-FULL")
             ! Calculate an instantaneous value for S^2, and output it to the
             ! relevant column in the FCIMCStats file.
@@ -1042,6 +1047,11 @@ MODULE Logging
             ! varying excitation levels from the Hartree--Fock.
             tHistExcitToFrom = .true.
 
+!         case("PRINT-FREQUENCY-HISTOGRAMS")
+!             ! option to print out the histograms used in the tau-search! 
+!             ! note: but for now they are always printed by default
+!             t_print_frq_histograms = .true.
+
         case("ENDLOG")
             exit logging
 
@@ -1070,6 +1080,24 @@ MODULE Logging
             ! particles between blocks, as for any reasonable sized system
             ! there are _many_ blocks.
             tOutputLoadDistribution = .true.
+
+        case("DOUBLE-OCCUPANCY")
+            ! new functionality to measure the mean double occupancy 
+            ! as this is a only diagonal quantitity i decided to detach it 
+            ! from the RDM calculation, although it could be calculated 
+            ! from the RDMs and this should be used to test this functionality!
+            ! Also, as it is a diagonal quantity, we need to unbias the 
+            ! quantitiy by using the replica trick, just like for the 
+            ! RDMs! Also this should be tested, to what extend the 
+            ! quantity differs in a biased and unbiased calculation
+
+            t_calc_double_occ = .true.
+            t_calc_double_occ_av = .true.
+
+            if (item < nitems) then
+                t_calc_double_occ_av = .false.
+                call geti(equi_iter_double_occ)
+            end if
 
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)

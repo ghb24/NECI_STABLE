@@ -1,0 +1,22 @@
+# POPSFILE VERSION 4
+&POPSHEAD Pop64Bit=T
+PopHPHF=T,PopLz=F,PopLensign= 2,PopNEl= 10,
+PopTotwalk=          28641
+ PopSft=  -5.7790861779618083     
+ PopSumNoatHF=   185479.37424756048        2928.0282745153713     
+ PopSumENum= ( -1014727.3918494799     , -1126.2420797162647     )
+PopCyc=            3000,PopNIfD= 0,PopNIfY= 0,PopNIfSgn= 2,
+PopNIfFlag= 1,PopNIfTot= 3,PopTau=    0.002251745102,
+PopiBlockingIter=             340
+PopPSingles=    0.013060121594,PopPParallel=    0.215149441022
+,PopPDoubles=    0.986939878406,PopPSing_spindiff1=    0.000000000000
+,PopPDoub_spindiff1=    0.000000000000,PopPDoub_spindiff2=    0.000000000000
+PopTotImagTime=    6.696388192157
+PopGammaSing= 0.00000000000    ,PopGammaDoub= 0.00000000000    ,PopGammaOpp= 0.00000000000    ,PopGammaPar= 0.00000000000    ,PopMaxDeathCpt= 43.1115420486    
+,PopGammaSing_spindiff1= 0.00000000000    ,PopGammaDoub_spindiff1= 0.00000000000    ,PopGammaDoub_spindiff2= 0.00000000000    
+PopBalanceBlocks=    200
+PopNNodes=     2
+PopWalkersOnNodes=           14379,           14262,
+ PopPreviousHistTau= T
+PopRandomHash=        44031,       56697,       32062,       20992,       34270,       51796,       51852,       47114,       22794,       28981,       51981,       25416,        4022,       32828,       54311,       39651,       31484,       59841,       56709,       25024,       21281,       47807,        1490,        7885,        2582,       33228,       17870,       31989,       49028,       23809,        4346,       58701,       10266,        8476,       24623,       26676,       13987,       33916,        5375,       42389,       24503,       32642,       53836,       19878,        2733,       19208,       58114,       46660,        5907,       11455,       52437,       29945,       49607,       41346,       43043,        3798,       19871,        6645,       25784,       58372,
+ &END

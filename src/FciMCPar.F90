@@ -12,11 +12,13 @@ module FciMCParMod
                         tDetermHFSpawning, use_spawn_hash_table, &
                         ss_space_in, s_global_start, tContTimeFCIMC, &
                         trial_shift_iter, tStartTrialLater, &
-                        tTrialWavefunction, tSemiStochastic, ntrial_ex_calc
+                        tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
+                        t_hist_tau_search_option
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
-                           write_end_core_size
+                           write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
+                           equi_iter_double_occ, t_print_frq_histograms
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -62,6 +64,12 @@ module FciMCParMod
     use fcimc_output
     use FciMCData
     use constants
+    
+    use double_occ_mod, only: get_double_occupancy, inst_double_occ, &
+                        rezero_double_occ_stats, write_double_occ_stats, & 
+                        sum_double_occ, sum_norm_psi_squared
+
+    use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
 
 #ifdef MOLPRO
     use outputResult
@@ -182,8 +190,16 @@ module FciMCParMod
                 if (inum_runs == 2) &
                     write(fcimcstats_unit2, '("#")', advance='no')
                 write (initiatorstats_unit,'("#")', advance='no')
+                if (tLogEXLEVELStats) &
+                      write(EXLEVELStats_unit,'("#")', advance='no')
             end if
             call WriteFCIMCStats()
+        end if
+
+        ! double occupancy: 
+        if (t_calc_double_occ) then 
+            call write_double_occ_stats(iter_data_fciqmc, initial = .true.)
+            call write_double_occ_stats(iter_data_fciqmc)
         end if
 
         ! Put a barrier here so all processes synchronise before we begin.
@@ -217,6 +233,13 @@ module FciMCParMod
                 if ((Iter - maxval(VaryShiftIter)) == semistoch_shift_iter + 1) then
                     tSemiStochastic = .true.
                     call init_semi_stochastic(ss_space_in)
+                end if
+            end if
+
+            ! turn on double occ measurement after equilibration
+            if (equi_iter_double_occ /= 0 .and. all(.not. tSinglePartPhase)) then
+                if ((iter - maxval(VaryShiftIter)) == equi_iter_double_occ + 1) then
+                    t_calc_double_occ_av = .true.
                 end if
             end if
 
@@ -316,6 +339,12 @@ module FciMCParMod
                 call calculate_new_shift_wrapper (iter_data_fciqmc, TotParts, tPairedReplicas)
                 call halt_timer(Stats_Comms_Time)
 
+                ! in calculate_new_shift_wrapper output is plotted too! 
+                ! so for now do it here for double occupancy
+                if (t_calc_double_occ) then 
+                    call write_double_occ_stats(iter_data_fciqmc)
+                end if
+
                 if(tRestart) cycle
 
                 IF((tTruncCAS.or.tTruncSpace.or.tTruncInitiator).and.(Iter.gt.iFullSpaceIter)&
@@ -382,6 +411,9 @@ module FciMCParMod
                 if((PopsfileTimer.gt.0.0_dp).and.((iPopsTimers*PopsfileTimer).lt.(TotalTime8/3600.0_dp))) then
                     !Write out a POPSFILE every PopsfileTimer hours
                     if(iProcIndex.eq.Root) then
+                        CALL RENAME('popsfile.h5','popsfile.h5.bk')
+                        CALL RENAME('POPSFILEBIN','POPSFILEBIN.bk')
+                        CALL RENAME('POPSFILEHEAD','POPSFILEHEAD.bk')
                         write(iout,"(A,F7.3,A)") "Writing out a popsfile after ",iPopsTimers*PopsfileTimer, " hours..."
                     endif
                     call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
@@ -469,6 +501,18 @@ module FciMCParMod
         write(iout,*) 'Total loop-time: ', stop_time - start_time
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
 
+        ! [Werner Dobrautz 4.4.2017] 
+        ! for now always print out the frequency histograms for the 
+        ! tau-search.. maybe change that later to be an option 
+        ! to be turned off
+        if (t_print_frq_histograms .and. t_hist_tau_search_option) then
+            call print_frequency_histograms()
+
+            ! also deallocate here after no use of the histograms anymore
+            call deallocate_histograms()
+        end if
+
+
         ! Remove the signal handlers now that there is no way for the
         ! soft-exit part to work
         call clear_signals()
@@ -510,6 +554,15 @@ module FciMCParMod
             CALL PrintOrbOccs(OrbOccs)
         ENDIF
 
+        if (t_calc_double_occ) then 
+            ! also output the final estimates from the summed up 
+            ! variable: 
+            print *, " ===== " 
+            print *, " Double occupancy from direct measurement: ", & 
+                sum_double_occ / sum_norm_psi_squared
+            print *, " ===== "
+        end if
+
         if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) then
             call finalise_rdms(rdm_definitions, one_rdms, two_rdm_main, two_rdm_recv, two_rdm_recv_2, two_rdm_spawn, rdm_estimates)
             if (tOldRDMs) call FinaliseRDMs_old(rdms, one_rdms_old, rdm_estimates_old)
@@ -524,6 +577,7 @@ module FciMCParMod
             IF(tTruncInitiator) CLOSE(initiatorstats_unit)
             IF(tLogComplexPops) CLOSE(complexstats_unit)
             if (tWritePopsNorm) close(pops_norm_unit)
+            if (tLogEXLEVELStats) close(EXLEVELStats_unit)
         ENDIF
         IF(TDebug) CLOSE(11)
 
@@ -722,6 +776,11 @@ module FciMCParMod
         
         call rezero_iter_stats_each_iter(iter_data, rdm_definitions)
 
+        ! quick and dirty double occupancy measurement: 
+        if (t_calc_double_occ) then 
+            call rezero_double_occ_stats()
+        end if
+
         ! The processor with the HF determinant on it will have to check 
         ! through each determinant until it's found. Once found, tHFFound is
         ! true, and it no longer needs to be checked.
@@ -894,6 +953,13 @@ module FciMCParMod
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
             call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
+
+            ! double occupancy measurement: quick and dirty for now
+            if (t_calc_double_occ) then
+                inst_double_occ = inst_double_occ + &
+                    get_double_occupancy(CurrentDets(:,j), SignCurr)
+
+            end if
 
             ! If we're on the Hartree-Fock, and all singles and doubles are in
             ! the core space, then there will be no stochastic spawning from
