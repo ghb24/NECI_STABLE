@@ -1528,7 +1528,7 @@ contains
         ! connected to the reference det or not (so no ex. level above 2 is
         ! required). Except in some cases where we need to know the maximum
         ! excitation level
-        if (tTruncSpace .or. tHistSpawn .or. tCalcFCIMCPsi .or. t_back_spawn) then
+        if (tTruncSpace .or. tHistSpawn .or. tCalcFCIMCPsi) then
             max_calc_ex_level = nel
         else
             max_calc_ex_level = 2

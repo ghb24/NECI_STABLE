@@ -2361,6 +2361,17 @@ contains
                     call geti(back_spawn_delay)
                 end if
 
+            case("BACK-SPAWN-FLEX")
+                t_back_spawn_flex = .true. 
+                t_back_spawn_flex_option = .true.
+
+                if (item < nitems) then 
+                    t_back_spawn_flex_option = .true.
+                    t_back_spawn_flex = .false.
+
+                    call geti(back_spawn_delay)
+                end if
+
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)

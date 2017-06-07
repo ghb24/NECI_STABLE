@@ -8,7 +8,7 @@ module excit_gens_int_weighted
                           par_hole_pairs, AB_hole_pairs, iMaxLz, &
                           tGen_4ind_part_exact, tGen_4ind_lin_exact, &
                           tGen_4ind_unbound
-    use CalcData, only: matele_cutoff, t_matele_cutoff, t_back_spawn
+    use CalcData, only: matele_cutoff, t_matele_cutoff, t_back_spawn, t_back_spawn_flex
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
                                pDoubNew, ScratchSize, SpinOrbSymLabel, &
@@ -34,7 +34,8 @@ module excit_gens_int_weighted
     use get_excit, only: make_double, make_single
     use sort_mod
     use util_mod
-    use back_spawn, only: pick_virtual_electron_single
+    use back_spawn, only: pick_virtual_electron_single, check_electron_location, &
+                          pick_occupied_orbital_single
     implicit none
     save
 
@@ -435,6 +436,8 @@ contains
 
         integer :: elec, src, tgt, cc_index
         real(dp) :: pgen_elec
+        logical :: temp_init
+        integer :: loc, dummy_src(2)
 
         ! In this version of the excitation generator, we pick an electron
         ! at random. Then we construct a list of connection
@@ -442,21 +445,35 @@ contains
 
         ! We could pick the electron based on the number of orbitals available.
         ! Currently, it is just picked uniformly.
-        if (t_back_spawn .and. .not. test_flag(ilutI, get_initiator_flag(1))) then
+        temp_init = test_flag(ilutI, get_initiator_flag(1))
+        if (t_back_spawn .and. .not. temp_init) then
             call pick_virtual_electron_single(nI, elec, pgen_elec)
             ! i also need to check if there is a possible elec or?
         else 
             elec = 1 + floor(genrand_real2_dSFMT() * nel)
+
         end if
 
         src = nI(elec)
+        ! back-spawn flexible is not compatible with old back-spawn
+        if (t_back_spawn_flex .and. .not. temp_init) then 
+            dummy_src(1) = src
+            call check_electron_location(dummy_src, 1, loc)
+        end if
 
         ! What is the symmetry category?
         cc_index = ClassCountInd (get_spin(src), SpinOrbSymLabel(src), &
                                   G1(src)%Ml)
 
         ! Select the target orbital by approximate connection strength
-        tgt = select_orb_sing (nI, ilutI, src, cc_index, pgen)
+        if (t_back_spawn_flex .and. .not. temp_init .and. loc == 2) then 
+            ! in this case pick the orbital from the occupied manifold of ref
+            call pick_occupied_orbital_single(nI, src, cc_index, pgen, tgt)
+
+        else 
+            tgt = select_orb_sing (nI, ilutI, src, cc_index, pgen)
+        end if
+
         if (tgt == 0) then
             nJ(1) = 0
             return
@@ -472,8 +489,16 @@ contains
 
         ! And the generation probability
 
-        if (t_back_spawn .and. .not. test_flag(ilutI, get_initiator_flag(1))) then
+        if (t_back_spawn .and. .not. temp_init) then
             pgen = pgen * pgen_elec
+
+        else if (t_back_spawn_flex .and. .not. temp_init .and. loc == 2) then 
+            ! first electron was picked random in this case but hole 
+            ! was picked from the occupied manifold in the reference
+            ! but this is already saved in the pgen from the special 
+            ! routine above
+            pgen = pgen / real(nel,dp)
+
         else
             pgen = pgen / real(nel, dp)
         end if

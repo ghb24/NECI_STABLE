@@ -2,13 +2,16 @@
 
 module back_spawn
 
-    use CalcData, only: t_back_spawn, tTruncInitiator, t_back_spawn_occ_virt
+    use CalcData, only: t_back_spawn, tTruncInitiator, t_back_spawn_occ_virt, &
+                        t_back_spawn_flex
     use SystemData, only: nel, nbasis, G1, tGen_4ind_2, tGen_4ind_2_symmetric, & 
                           tHub
     use constants, only: n_int, dp
     use bit_rep_data, only: nifd
-    use fcimcdata, only: projedet
+    use fcimcdata, only: projedet, max_calc_ex_level
     use dSFMT_interface, only: genrand_real2_dSFMT
+    use SymExcitDataMod, only: OrbClassCount, SymLabelCounts2, SymLabelList2, &
+                               SpinOrbSymLabel
 
     implicit none
 
@@ -36,9 +39,15 @@ contains
 
         ! also add some output so people know we use this method
         print *, "BACK-SPAWNING method in use! "
-        print *, "For non-initiators we only pick electrons from the virtual"
-        print *, " orbitals of the reference determinant!"
-        print *, " so non-initiators only lower or keep the excitation level constant!"
+        if (t_back_spawn_flex) then
+            print *, "Flex option in use: we pick the electrons randomly" 
+            print *, " and then decide, where to pick the orbitals from "
+            print *, " depending where the electrons are relative to the ref"
+        else
+            print *, "For non-initiators we only pick electrons from the virtual"
+            print *, " orbitals of the reference determinant!"
+            print *, " so non-initiators only lower or keep the excitation level constant!"
+        end if
 
         if (t_back_spawn_occ_virt) then 
             print *, "additionally option to pick the first orbital (a) from " 
@@ -80,6 +89,9 @@ contains
 
         call setup_virtual_mask()
 
+        ! also change the max excitation level calculated
+        max_calc_ex_level = nel
+
     end subroutine init_back_spawn
 
     subroutine setup_virtual_mask()
@@ -105,6 +117,47 @@ contains
         end do
 
     end subroutine setup_virtual_mask
+
+    subroutine check_electron_location(elecs, ic, loc)
+        ! routine which determines where the electrons of of an determinant 
+        ! are located with respect to the reference determinant to 
+        ! then decide where to pick the orbitals from.. 
+        integer, intent(in) :: elecs(2), ic
+        integer, intent(out) :: loc
+        character(*), parameter :: this_routine = "check_electron_location"
+
+        integer :: i 
+        ! the output integer encodes: 
+        ! 0 ... both electrons are in the virtual space of the reference
+        ! 1 ... the electrons are mixed in occupied and virtual manifold
+        ! 2 ... electron(s) are/is in the refernce determinant 
+
+        if (ic == 1) then 
+            ! single exctitation 
+            if (any(elecs(1) == projedet(:,1))) then 
+                ! this means the electron is in the reference determinant
+                ! which means we should pick a hole also in the 
+                ! reference determinant, or otherwise we definetly 
+                ! increase the excitation level 
+                loc = 2 
+
+            else
+                ! only option 1 and 3 for single excitations!
+                loc = 0
+            end if
+        else if (ic == 2) then 
+
+            ! for double excitations we have to check both
+            loc = 0
+            do i = 1, 2
+                if (any(elecs(i) == projedet(:,1))) then 
+                    loc = loc + 1
+                end if
+            end do
+        end if
+
+    end subroutine check_electron_location
+
 
     subroutine pick_virtual_electrons_double(nI, elecs, src, sym_prod, ispn, &
                                                 sum_ml, pgen)
@@ -209,6 +262,50 @@ contains
 
     end subroutine pick_virtual_electrons_double
     
+
+    subroutine pick_occupied_orbital_single(nI, src, cc_index, pgen, orb)
+        integer, intent(in) :: nI(nel), src, cc_index 
+        real(dp), intent(out) :: pgen
+        integer, intent(out) :: orb
+        ! routine to pick an orbital from the occupied manifold in the 
+        ! reference determinant for single excitations
+        ! i have to take symmetry into account now..  that complicates 
+        ! things.. and spin.. 
+        character(*), parameter :: this_routine = "pick_occupied_orbital_single"
+
+        integer :: n_valid, j, occ_orbs(nel), i, ind
+
+        j = 1
+        occ_orbs = 0
+
+        do i = 1, nel
+            if (.not. any(projedet(i,1) == nI)) then 
+                ! i also have to check spin and symmetry now.. 
+                if (is_beta(src) .eqv. is_beta(projedet(i,1)) .and. &
+                    SpinOrbSymLabel(src) == SpinOrbSymLabel(projedet(i,1))) then
+
+                    occ_orbs(j) = projedet(i,1)
+                    j = j + 1
+                end if
+            end if
+        end do
+
+        n_valid = j - 1
+
+        if (n_valid == 0) then 
+            orb = 0
+            pgen = 0.0_dp
+            return
+        end if
+
+        ! else pick uniformly from that available list..
+        ind = 1 + int(genrand_real2_dSFMT() * n_valid)
+        orb = occ_orbs(ind)
+
+        pgen = 1.0_dp / real(n_valid, dp)
+
+    end subroutine pick_occupied_orbital_single
+
     subroutine pick_occupied_orbital(nI, src, ispn, cpt, cum_sum, orb)
         integer, intent(in) :: nI(nel), src(2), ispn
         real(dp), intent(out) :: cpt, cum_sum
@@ -277,6 +374,89 @@ contains
 
 
     end subroutine pick_occupied_orbital
+
+    subroutine pick_second_occupied_orbital(nI, src, cc_b, orb_a, ispn, cpt, cum_sum, &
+                                            orb) 
+        ! routine which picks second orbital from the occupied manifold for 
+        ! a double excitation. this function gets called if we have picked 
+        ! two electrons also from the occupied manifold in the flex version 
+        ! of the back-spawning method. to ensure we keep the excitation 
+        ! level the same but also increase the flexibility of the method
+        ! this now has to take symmetries into account, which makes it a 
+        ! bit more complicated
+        integer, intent(in) :: nI(nel), src(2), cc_b, orb_a, ispn
+        real(dp), intent(out) :: cpt, cum_sum
+        integer, intent(out) :: orb
+        character(*), parameter :: this_routine = "pick_second_occupied_orbitals"
+
+        integer :: label_index, norb, sym_orbs(OrbClassCount(cc_b))
+        integer :: i, n_valid, occ_orbs(nel), j, ind
+        ! i need to take symmetry and spin into account for the valid 
+        ! "occupied" orbitals. 
+        ! because we have picked the first indepenent of spin and symmetry
+        
+        ! i could compare the reference det and the symmetry allowed list 
+        ! of orbitals
+        label_index = SymLabelCounts2(1, cc_b)
+        norb = OrbClassCount(cc_b) 
+
+        ! create the symmetry allowed orbital list
+        do i = 1, norb
+            sym_orbs(i) = SymLabelList2(label_index + i - 1)
+        end do
+
+        j = 1
+        ! check which occupied orbitals fit all the restrictions:
+        ! or i guess this is already covered in the symlabel list!
+        ! check that!
+        if (ispn == 2) then
+            ! then we want the opposite spin of orb_a!
+            do i = 1, nel 
+                ! check if in occupied manifold
+                if (.not. any(projedet(i,1) == nI)) then 
+                    ! check if symmetry fits
+                    if (any(projedet(i,1) == sym_orbs)) then 
+                        ! and check if spin is opposit 
+                        if (.not. (is_beta(orb_a) .eqv. is_beta(projedet(i,1)))) then 
+                            occ_orbs(j) = projedet(i,1)
+                            j = j + 1
+                        end if
+                    end if
+                end if
+            end do
+        else
+            ! otherwise we want the same spin but have to ensure it is not 
+            ! already picked orbital (a)
+            do i = 1, nel
+                if (.not. any(projedet(i,1) == nI)) then 
+                    if (any(projedet(i,1) == sym_orbs)) then 
+                        if (is_beta(orb_a) .eqv. is_beta(projedet(i,1)) .and. &
+                            orb_a /= projedet(i,1)) then 
+
+                            occ_orbs(j) = projedet(i,1) 
+                            j = j + 1
+                        end if
+                    end if
+                end if
+            end do
+        end if
+
+        n_valid = j - 1
+
+        if (n_valid == 0) then 
+            orb = 0
+            cpt = 0.0_dp
+            cum_sum = 1.0_dp
+            return
+        end if
+
+        ind = 1 + int(genrand_real2_dSFMT() * n_valid)
+
+        orb = occ_orbs(ind)
+        cpt = 1.0_dp / real(n_valid, dp)
+        cum_sum = 1.0_dp
+
+    end subroutine pick_second_occupied_orbital
 
     subroutine pick_virtual_electrons_double_hubbard(nI, elecs, src, ispn, pgen)
         ! specific routine to pick 2 electrons in the k-space hubbard, 

@@ -27,8 +27,9 @@ module excit_gen_5
     use constants
     use sort_mod
     use util_mod
-    use CalcData, only: t_back_spawn, t_back_spawn_occ_virt
-    use back_spawn, only: pick_virtual_electrons_double, pick_occupied_orbital
+    use CalcData, only: t_back_spawn, t_back_spawn_occ_virt, t_back_spawn_flex
+    use back_spawn, only: pick_virtual_electrons_double, pick_occupied_orbital, &
+                          check_electron_location, pick_second_occupied_orbital
     implicit none
 
 contains
@@ -225,11 +226,13 @@ contains
 
         real(dp) :: scratch_cpt, scratch_sm
         integer :: scratch_orb
-        logical :: t_back_spawn_temp
+        logical :: t_temp_init, t_back_spawn_temp
+        integer :: loc
 
         t_back_spawn_temp = .false.
+        t_temp_init = test_flag(ilutI,get_initiator_flag(1))
         ! if non-initiator and back-spawning active pick electrons differently
-        if (t_back_spawn .and. .not. test_flag(ilutI,get_initiator_flag(1))) then
+        if (t_back_spawn .and. .not. t_temp_init) then
             t_back_spawn_temp = .true.
             call pick_virtual_electrons_double(nI, elecs, src, sym_product, ispn,&
                                                 sum_ml, pgen)
@@ -249,11 +252,20 @@ contains
             call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
                                  pgen)
 
-
         end if
         !call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
 
-        if (t_back_spawn_temp .and. t_back_spawn_occ_virt) then
+        if (t_back_spawn_flex .and. .not. t_temp_init) then 
+            call check_electron_location(src, 2, loc) 
+        else
+            loc = -1
+        end if
+
+        if (t_back_spawn_temp .and. t_back_spawn_occ_virt .or. &
+            (t_back_spawn_flex .and. loc > 0 .and. .not. t_temp_init)) then
+            ! if we have one of the electrons in the occupied manifold 
+            ! pick atleast one hole also from this manifold to not increase 
+            ! the excitation level!
             call pick_occupied_orbital(nI, src, ispn, int_cpt(1), cum_sum(1), &
                                         orbs(1))
         else
@@ -265,8 +277,18 @@ contains
         if (orbs(1) /= 0) then
             cc_a = ClasSCountInd(orbs(1))
             cc_b = get_paired_cc_ind(cc_a, sym_product, sum_ml, iSpn)
-            orbs(2) = select_orb (ilutI, src, cc_b, orbs(1), int_cpt(2), &
+
+            if (t_back_spawn_flex .and. loc == 2 .and. .not. t_temp_init) then 
+                ! in this case i have to pick the second orbital also from the 
+                ! occupied list, but now also considering symmetries
+                call pick_second_occupied_orbital(nI, src, cc_b, orbs(1), ispn,&
+                        int_cpt(2), cum_sum(2), orbs(2))
+
+            else
+
+                orbs(2) = select_orb (ilutI, src, cc_b, orbs(1), int_cpt(2), &
                                   cum_sum(2))
+            end if
         end if
 
         ASSERT((.not. (is_beta(orbs(2)) .and. .not. is_beta(orbs(1)))) .or. tGen_4ind_2_symmetric)
@@ -292,7 +314,7 @@ contains
             ! restricted orbital (a) to the occupied reference manifold
             ! i have to check if (b) is in the occupied manifold
             if (t_back_spawn_temp .and. t_back_spawn_occ_virt) then 
-                if (any(orbs(2) == projedet)) then 
+                if (any(orbs(2) == projedet(:,1))) then 
                     ! if (b) is also in the occupied manifold i could have 
                     ! picked the other way around.. 
                     ! with the same uniform probability: 
@@ -309,7 +331,48 @@ contains
                     cpt_pair = 0.0_dp
                     sum_pair = 1.0_dp
                 end if
+
+                ! and with this flex algorithm i also have to think how to 
+                ! correctly get the pgens in this case..
+            else if (t_back_spawn_flex .and. .not. t_temp_init) then 
+                if (loc == 0) then 
+                    ! everything should be "normal"
+                    call pgen_select_a_orb(ilutI, src, orbs(2), iSpn, cpt_pair(1), &
+                                           sum_pair(1), cum_arr, .false.)
+                    call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
+                                         cpt_pair(2), sum_pair(2))
+
+                else if (loc == 1) then 
+                    ! then one whole was restricted to the occupied 
+                    ! manifold.. 
+                    if (any(orbs(2) == projedet(:,1))) then
+                       ! if (b) is also in the occupied manifold i could have 
+                        ! picked the other way around.. 
+                        ! with the same uniform probability: 
+                        cpt_pair(1) = int_cpt(1)
+                        sum_pair(1) = cum_sum(1) 
+                        ! and then (a) would have been picked according to the 
+                        ! "normal" procedure
+                        call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
+                                     cpt_pair(2), sum_pair(2))
+                    else
+                        ! if (b) is not in the occupied this does not work or? 
+                        ! since i am forcing (a) to be in the occupied.. 
+                        ! so remove this pgen:
+                        cpt_pair = 0.0_dp
+                        sum_pair = 1.0_dp
+                    end if
+
+                else if (loc == 2) then 
+                    ! then both are restricted to the occupied ones.. 
+                    ! but then i can just reuse the already obtained ones..
+                    ! always
+                    cpt_pair = int_cpt
+                    sum_pair = cum_sum
+                end if
+
             else
+
                 ! otherwise "normal"
                 call pgen_select_a_orb(ilutI, src, orbs(2), iSpn, cpt_pair(1), &
                                        sum_pair(1), cum_arr, .false.)

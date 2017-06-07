@@ -13,7 +13,8 @@ module FciMCParMod
                         ss_space_in, s_global_start, tContTimeFCIMC, &
                         trial_shift_iter, tStartTrialLater, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
-                        t_hist_tau_search_option, t_back_spawn, back_spawn_delay
+                        t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
+                        t_back_spawn_flex, t_back_spawn_flex_option
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
@@ -248,7 +249,11 @@ module FciMCParMod
             ! option to enable back-spawning after a certain number of iterations
             ! but this should be independent if the shift is varied already (or?)
             if (back_spawn_delay /= 0 .and. iter == back_spawn_delay + 1) then
-                t_back_spawn = .true. 
+                if (t_back_spawn_flex_option) then 
+                    t_back_spawn_flex = .true.
+                else
+                    t_back_spawn = .true. 
+                end if
                 call init_back_spawn()
             end if
             ! Is this an iteration where trial-wavefunction estimators are
@@ -988,7 +993,7 @@ module FciMCParMod
 
             ! alis additional idea to skip the number of attempted excitations
             ! for noninititators in the back-spawning approach
-            if (t_back_spawn .and. .not. tcoredet .and. & 
+            if ((t_back_spawn .or. t_back_spawn_flex) .and. .not. tcoredet .and. & 
                 (.not. test_flag(CurrentDets(:,j), get_initiator_flag(1))) &
                 .and. .not. tHub) then
 

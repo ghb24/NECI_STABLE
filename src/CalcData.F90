@@ -391,4 +391,8 @@ logical :: t_back_spawn_occ_virt = .false.
 ! also use an integer to maybe start the backspawning later, or otherwise 
 ! it may never correctly grow
 integer :: back_spawn_delay = 0
+
+! new more flexible implementation: 
+logical :: t_back_spawn_flex = .false., t_back_spawn_flex_option = .false.
+
 end module CalcData
