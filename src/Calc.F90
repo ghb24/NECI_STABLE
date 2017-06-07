@@ -2372,6 +2372,10 @@ contains
                     call geti(back_spawn_delay)
                 end if
 
+                if (item < nitems) then 
+                    call geti(occ_virt_level)
+                end if
+
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)

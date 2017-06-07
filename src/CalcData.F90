@@ -394,5 +394,8 @@ integer :: back_spawn_delay = 0
 
 ! new more flexible implementation: 
 logical :: t_back_spawn_flex = .false., t_back_spawn_flex_option = .false.
+! also make an combination of the flexible with occ-virt with an additional 
+! integer which manages the degree of how much you want to de-excite
+integer :: occ_virt_level = 0
 
 end module CalcData
