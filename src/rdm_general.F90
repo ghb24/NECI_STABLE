@@ -39,7 +39,7 @@ contains
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
         use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
-        use SystemData, only: tStoreSpinOrbs, tHPHF, tFixLz, iMaxLz, tROHF
+        use SystemData, only: tStoreSpinOrbs, tHPHF, tFixLz, iMaxLz, tROHF, LMS
         use MemoryManager, only: LogMemAlloc
 
         integer, intent(in) :: nrdms_standard, nrdms_transition
@@ -62,7 +62,7 @@ contains
             call stop_all(t_r, '2-RDM calculations not set up for systems stored as spin orbitals.')
         end if
 
-        if (tROHF .or. tStoreSpinOrbs) then
+        if (tROHF .or. tStoreSpinOrbs.or.LMS.ne.0) then
             tOpenShell = .true.
         else
             tOpenShell = .false.
