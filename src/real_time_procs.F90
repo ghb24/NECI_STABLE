@@ -496,8 +496,8 @@ contains
                      call stop_all(this_routine, "Death probability > 2: Algorithm unstable. Reduce timestep.")
                   end if
                else
-                    write(iout,'("** WARNING ** Death probability > 1: Creating Antiparticles. "&
-                        & //"Timestep errors possible: ")',advance='no')
+                  !write(iout,'("** WARNING ** Death probability > 1: Creating Antiparticles. "&
+                  !     & //"Timestep errors possible: ")',advance='no')
                     do run = 1, inum_runs
                         write(iout,'(1X,f13.7)',advance='no') fac(run)
                     end do
@@ -582,8 +582,8 @@ contains
                         call stop_all(this_routine, "Death probability > 2: Algorithm unstable. Reduce timestep.")
                     end if
                 else
-                    write(iout,'("** WARNING ** Death probability > 1: Creating Antiparticles. "&
-                        & //"Timestep errors possible: ")',advance='no')
+                   !write(iout,'("** WARNING ** Death probability > 1: Creating Antiparticles. "&
+                   !     & //"Timestep errors possible: ")',advance='no')
                     do run = 1, inum_runs
                         write(iout,'(1X,f13.7)',advance='no') fac(run)
                     end do
@@ -1560,6 +1560,7 @@ contains
            else
               perturbed_buf = CurrentDets
            endif
+
            call write_overlap_state(perturbed_buf,TotWalkers_orig_max,i)
            call MPISumAll(overlap_states(i)%nDets,totNOccDets)
            if(totNOccDets==0) then 

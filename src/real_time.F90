@@ -49,7 +49,7 @@ module real_time
                           nbasis
     use DetBitOps, only: FindBitExcitLevel, return_ms
     use semi_stoch_procs, only: check_determ_flag, determ_projection
-    use semi_stoch_gen, only: init_semi_stochastic
+    use semi_stoch_gen, only: init_semi_stochastic, write_most_pop_core_at_end
     use global_det_data, only: det_diagH
     use fcimc_helper, only: CalcParentFlag, decide_num_to_spawn, &
                             create_particle_with_hash_table, walker_death, &
@@ -62,7 +62,7 @@ module real_time
                                 population_check, update_shift, calculate_new_shift_wrapper
     use soft_exit, only: ChangeVars, tSoftExitFound
     use fcimc_initialisation, only: CalcApproxpDoubles
-    use LoggingData, only: tPopsFile
+    use LoggingData, only: tPopsFile, write_end_core_size, tWriteCoreEnd
     use PopsFileMod, only: WriteToPopsfileParOneArr
     use load_balance, only: test_hash_table, tLoadBalanceBlocks, adjust_load_balance, &
          CalcHashTableStats
@@ -383,6 +383,8 @@ contains
            AllSumNoatHF(1:inum_runs) = shift_damping
            call WriteToPopsfileParOneArr(CurrentDets,TotWalkers,rtPOPSFILE_name)
         endif
+
+        if(tWriteCoreEnd) call write_most_pop_core_at_end(write_end_core_size)
         
         deallocate(norm_buf, stat = i)
         deallocate(overlap_buf, stat = i)
@@ -666,6 +668,7 @@ contains
                            break = check_semistoch_flags(ilut_child, nI_child, tParentIsDeterm)
                            if(break) cycle
                         endif
+
                         ! unbias if the number of spawns was truncated
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                                             nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
