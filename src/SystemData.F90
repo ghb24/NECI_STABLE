@@ -241,6 +241,12 @@ logical :: t_open_bc_y = .false.
 ! generator
 logical :: tGen_4ind_unbound = .false.
 
+! implement a more efficient real-space hubbard implementation 
+logical :: t_new_real_space_hubbard = .false.
+character(20) :: lattice_type
+! i need 
+integer :: length_x = 0, length_y = 0
+
 ! Operators for type(symmetry)
 interface assignment (=)
     module procedure SymAssign

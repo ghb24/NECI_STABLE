@@ -249,6 +249,7 @@ MODULE System
       case("HUBBARD")
           THUB = .true.
           TPBC=.true.
+                  
       case("RIINTEGRALS")
           tRIIntegrals = .true.
           tReadInt=.true.
@@ -507,6 +508,38 @@ system: do
             else
                 t_open_bc_x = .true.
                 t_open_bc_y = .true.
+            end if
+
+        case("LATTICE") 
+            ! new hubbard implementation
+            ! but maybe think of a better way to init that..
+            ! the input has to be like: 
+            ! lattice [type] [len_1] [*len_2]
+            ! where length to is optional if it is necessary to input it.
+            tHub = .true.
+            treal = .true.
+            lNoSymmetry = .true.
+            t_new_real_space_hubbard = .true.
+
+            ! set some defaults: 
+            lattice_type = "square"
+
+            length_x = 2
+            length_y = 2
+
+            tPBC = .true.
+
+            if (item < nitems) then 
+               ! use only new hubbard flags in this case 
+               call getu(lattice_type)
+            end if
+
+            if (item < nitems) then 
+                call geti(length_x) 
+            end if
+
+            if (item < nitems) then 
+                call geti(length_y)
             end if
 
         case("UEG-OFFSET")
