@@ -22,7 +22,7 @@ contains
         use LoggingData, only: tDiagRDM, tDumpForcesInfo, tDipoles, tPrint1RDM
         use LoggingData, only: tRDMInstEnergy, tReadRDMs, tPopsfile, tno_RDMs_to_read
         use LoggingData, only: twrite_RDMs_to_read, tPrint1RDMsFrom2RDMPops
-        use LoggingData, only: tPrint1RDMsFromSpinfree
+        use LoggingData, only: tPrint1RDMsFromSpinfree, t_spin_resolved_rdms
         use Parallel_neci, only: iProcIndex, nProcessors
         use rdm_data, only: rdm_estimates, one_rdms, two_rdm_spawn, two_rdm_main, two_rdm_recv
         use rdm_data, only: two_rdm_recv_2, tOpenShell, print_2rdm_est, Sing_ExcDjs, Doub_ExcDjs
@@ -62,7 +62,7 @@ contains
             call stop_all(t_r, '2-RDM calculations not set up for systems stored as spin orbitals.')
         end if
 
-        if (tROHF .or. tStoreSpinOrbs) then
+        if (tROHF .or. tStoreSpinOrbs.or.t_spin_resolved_rdms) then
             tOpenShell = .true.
         else
             tOpenShell = .false.

@@ -145,4 +145,7 @@ module LoggingData
     ! if this is true, force moving fcimcstats and initiatorstats files, and accumulate stats in new files
     logical :: t_no_append_stats = .false.
 
+    ! for giovanni introduce a new keyword to print out the spin-resolved 
+    ! 2-rdms, especially for systems with ms /= 0
+    logical :: t_spin_resolved_rdms = .false.
 end module LoggingData

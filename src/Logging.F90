@@ -1108,6 +1108,11 @@ MODULE Logging
                 call geti(equi_iter_double_occ)
             end if
 
+        case ("PRINT-SPIN-RESOLVED-RDMS")
+            ! for giovanni enable the output of the spin-resolved rdms not 
+            ! only for ROHF calculations
+            t_spin_resolved_rdms = .true.
+
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)
         end select
