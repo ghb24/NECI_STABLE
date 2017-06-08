@@ -310,10 +310,12 @@ C     &         *((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
          use SymData, only: tagSymConjTab,tagSymClasses,tagSymLabels
          use SymData, only: tagSymTable
          use sym_mod, only: RoundSym, AddElecSym
+         use constants, only: int64
          IMPLICIT NONE
          INTEGER nBasis,nBasisMax(*)
          TYPE(BasisFN) G1(nBasis)
-         INTEGER I,J,nSyms,K
+         INTEGER J,nSyms,K
+         integer(int64) :: I
          TYPE(BasisFN) NQNS,S
          INTEGER iFindBasisFn
          character(*),parameter:: this_routine='GenHubMomIrrepsSymTable'
@@ -355,7 +357,7 @@ C.. place the sym label of each state in SymClasses(ISTATE).
                SymClasses(I)=nSyms
             ENDIF
 C.. list the symmetry string of each sym label
-            SymLabels(I)%s=2**(I-1)
+            SymLabels(I)%s=2_int64**(I-1_int64)
 !             SymLabels(I)%s=i
          ENDDO
 C.. Setup the symmetry product table
