@@ -113,32 +113,4 @@ module real_time_aux
       endif
 
     end subroutine move_overlap_block
-
-    subroutine check_valid_spawned_list(proc,this_routine)
-      ! Check that the position described by ValidSpawnedList is acceptable.
-      ! If we have filled up the memory that would be acceptable, then
-      ! kill the calculation hard (i.e. stop_all) with a descriptive
-      ! error message.
-      implicit none
-      integer, intent(in) :: proc
-      character(*), intent(in) :: this_routine
-      logical :: list_full
-      
-      list_full = .false.
-      if (proc == nNodes - 1) then
-         if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
-      else
-         if (ValidSpawnedList(proc) > InitialSpawnedSlots(proc+1)) &
-              list_full=.true.
-      end if
-      if (list_full) then
-         write(6,*) "Attempting to spawn particle onto processor: ", proc
-         write(6,*) "No memory slots available for this spawn."
-         write(6,*) "Please increase MEMORYFACSPAWN"
-         write(6,*) "VALIDSPAWNEDLIST", ValidSpawnedList
-         write(6,*) "INITIALSPAWNEDSLOTS", InitialSpawnedSlots
-         call stop_all(this_routine, "Out of memory for spawned particles")
-      end if
-    end subroutine check_valid_spawned_list
-
 end module real_time_aux

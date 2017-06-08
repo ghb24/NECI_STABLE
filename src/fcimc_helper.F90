@@ -130,19 +130,7 @@ contains
         ! If we have filled up the memory that would be acceptable, then
         ! kill the calculation hard (i.e. stop_all) with a descriptive
         ! error message.
-        list_full = .false.
-        if (proc == nNodes - 1) then
-            if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
-        else
-            if (ValidSpawnedList(proc) >= InitialSpawnedSlots(proc+1)) &
-                list_full=.true.
-        end if
-        if (list_full) then
-            write(6,*) "Attempting to spawn particle onto processor: ", proc
-            write(6,*) "No memory slots available for this spawn."
-            write(6,*) "Please increase MEMORYFACSPAWN"
-            call stop_all(this_routine, "Out of memory for spawned particles")
-        end if
+        call checkValidSpawnedList(proc,this_routine)
 
         !We initially encode no flags
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
@@ -289,21 +277,7 @@ contains
             ! If we have filled up the memory that would be acceptable, then
             ! kill the calculation hard (i.e. stop_all) with a descriptive
             ! error message.
-            list_full = .false.
-            if (proc == nNodes - 1) then
-                if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
-            else
-                if (ValidSpawnedList(proc) > InitialSpawnedSlots(proc+1)) &
-                    list_full=.true.
-            end if
-            if (list_full) then
-                write(6,*) "Attempting to spawn particle onto processor: ", proc
-                write(6,*) "No memory slots available for this spawn."
-                write(6,*) "Please increase MEMORYFACSPAWN"
-                write(6,*) "VALIDSPAWNEDLIST", ValidSpawnedList
-                write(6,*) "INITIALSPAWNEDSLOTS", InitialSpawnedSlots
-                call stop_all(this_routine, "Out of memory for spawned particles")
-            end if
+            call checkValidSpawnedList(proc,this_routine)
 
             call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), ilut_child(0:NIfDBO), child_sign, flags)
 
@@ -358,6 +332,26 @@ contains
 #endif
 
     end subroutine create_particle_with_hash_table
+
+    subroutine checkValidSpawnedList(proc,source)
+      implicit none
+      character(*), intent(in) :: source
+      integer, intent(in) :: proc
+      logical :: list_full
+      list_full = .false.
+      if (proc == nNodes - 1) then
+         if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
+      else
+         if (ValidSpawnedList(proc) >= InitialSpawnedSlots(proc+1)) &
+              list_full=.true.
+      end if
+      if (list_full) then
+         write(6,*) "Attempting to spawn particle onto processor: ", proc
+         write(6,*) "No memory slots available for this spawn."
+         write(6,*) "Please increase MEMORYFACSPAWN"
+         call stop_all(source, "Out of memory for spawned particles")
+      end if
+    end subroutine checkValidSpawnedList
 
     ! This routine sums in the energy contribution from a given walker and 
     ! updates stats such as mean excit level AJWT added optional argument 

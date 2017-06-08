@@ -3,6 +3,7 @@ module perturbations
 
     use constants
     use FciMCData, only: perturbation
+    use fcimc_helper, only: checkValidSpawnedList
 
 contains
 
@@ -135,6 +136,7 @@ contains
         integer :: i, nremoved, proc, run
         integer :: nI(nel)
         real(dp) :: tmp_sign(lenof_sign), tmp_real
+        character(*), parameter :: this_routine = 'apply_perturbation'
 
         ! If the perturbation is the identity operator then just return.
         ! rneci_consitency: Possible optimization: Define behaviour in this case as copying
@@ -169,6 +171,7 @@ contains
                 endif
                 SpawnedParts(:, ValidSpawnedList(proc)) = ilut
                 ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
+                call checkValidSpawnedList(proc,this_routine)
             end if
         end do
         

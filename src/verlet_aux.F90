@@ -14,7 +14,6 @@ module verlet_aux
        backup_size, temp_det_list, tau_real, tau_imag, iterInit, tDynamicAlpha, tVerletSweep, &
        runge_kutta_step
   use real_time_procs, only: attempt_die_realtime, real_time_determ_projection
-  use real_time_aux, only: check_valid_spawned_list
   use SystemData, only: nel 
   use FciMCData, only: CurrentDets, HashIndex, maxSpawned, iStartFreeSlot, iEndFreeSlot, &
                         inum_runs, SpawnedParts, TotWalkers, spawn_ht, iter_data_fciqmc, &
@@ -30,7 +29,7 @@ module verlet_aux
   use Determinants, only: get_helement
   use fcimc_pointed_fns, only: attempt_create_normal
   use fcimc_helper, only: CalcParentFlag, decide_num_to_spawn, create_particle_with_hash_table, &
-       SumEContrib, check_semistoch_flags
+       SumEContrib, check_semistoch_flags, checkValidSpawnedList
   use semi_stoch_procs, only: check_determ_flag
   use load_balance_calcnodes, only: DetermineDetNode
   use ParallelHelper, only: iProcIndex
@@ -334,7 +333,7 @@ module verlet_aux
       else
          proc = DetermineDetNode(nel, nI, 0)
          
-         call check_valid_spawned_list(proc,this_routine)
+         call checkValidSpawnedList(proc,this_routine)
 
          call encode_bit_rep(SpawnedParts(:,ValidSpawnedList(proc)),ilut(0:nifdbo), &
               sign, flags)
