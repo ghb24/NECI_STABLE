@@ -30,6 +30,7 @@ module fcimc_pointed_fns
                                fill_frequency_histogram
 
     use excit_gen_5, only: pgen_select_a_orb
+    use back_spawn, only: back_spawn_factor
 
     implicit none
 
@@ -201,7 +202,7 @@ module fcimc_pointed_fns
                         get_initiator_flag(1))) then 
 
                         ! a quick hack to not log zero prob excitations.
-                        temp_prob = 0.0_dp
+                        temp_prob = prob * back_spawn_factor
 ! 
 !                         if (ic == 2) then 
 !                             temp_prob = prob * real(walkExcitLevel * (walkExcitLevel - 1),dp) &
@@ -344,8 +345,10 @@ module fcimc_pointed_fns
                 ! in the back-spawning i have to adapt the probabilites 
                 ! back, to be sure the time-step covers the changed 
                 ! non-initiators spawns! 
-!                 if (t_back_spawn .and. .not. test_flag(iLutCurr, &
-!                     get_initiator_flag(1))) then
+                if (t_back_spawn .and. .not. test_flag(iLutCurr, &
+                    get_initiator_flag(1))) then
+
+                    temp_prob = prob * back_spawn_factor
 ! 
 !                     if (ic == 2) then
 !                         temp_prob = prob * real(walkExcitLevel * (walkExcitLevel - 1), dp) & 
@@ -377,11 +380,11 @@ module fcimc_pointed_fns
 !                         temp_prob = prob * real(walkExcitLevel,dp) / real(nel,dp)
 !                     end if
 ! 
-!                 else 
-!                     temp_prob = prob
-!                 end if
+                else 
+                    temp_prob = prob
+                end if
 
-                call log_spawn_magnitude (ic, ex, matel, prob)
+                call log_spawn_magnitude (ic, ex, matel, temp_prob)
 
             end if
 

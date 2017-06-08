@@ -71,7 +71,7 @@ module FciMCParMod
                         sum_double_occ, sum_norm_psi_squared
 
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
-    use back_spawn, only: init_back_spawn
+    use back_spawn, only: init_back_spawn, back_spawn_factor
 
 #ifdef MOLPRO
     use outputResult
@@ -763,7 +763,6 @@ module FciMCParMod
 
         integer :: ms
         logical :: t_back_spawn_temp
-        real(dp) :: back_spawn_factor
 
 
         call set_timer(Walker_Time,30)

@@ -30,6 +30,8 @@ module back_spawn
     ! and i guess it could also be wise to do it in a spatial resolved way.
     integer, allocatable :: mask_virt_spat(:)
 
+    real(dp) :: back_spawn_factor
+
 contains
 
     ! what do i need..
