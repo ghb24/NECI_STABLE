@@ -997,8 +997,8 @@ module FciMCParMod
                 .and. .not. tHub) then
 
                 t_back_spawn_temp = .true.
-                back_spawn_factor = 2.0_dp * real(walkExcitLevel,dp) / real(nel,dp)
-!                 back_spawn_factor = 1.0_dp
+!                 back_spawn_factor = 2.0_dp * real(walkExcitLevel,dp) / real(nel,dp)
+                back_spawn_factor = 1.0_dp
 
             else 
                 t_back_spawn_temp = .false.
