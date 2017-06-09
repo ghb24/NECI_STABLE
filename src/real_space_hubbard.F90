@@ -10,6 +10,8 @@
 ! is done right now..
 ! and for the beginning i should probably stick to the already working 
 ! lattices in NECI
+! and i also want to make it compatible to restart old runs with this new 
+! implementation
 
 module real_space_hubbard
 
@@ -18,7 +20,11 @@ module real_space_hubbard
     implicit none 
 
 
+    ! some general needed quantities 
     integer :: n_dim, n_sites, n_connect_max
+
+    ! i also want to have a linked list of neighbors for each site
+    ! need a new type for that 
 contains 
 
     ! some brainstorming: 
