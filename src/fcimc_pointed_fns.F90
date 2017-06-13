@@ -198,11 +198,11 @@ module fcimc_pointed_fns
                     ! in the back-spawning i have to readapt the generation 
                     ! probability
                     ! for now DO NOT histogram the non-inititor spawns
-                    if (t_back_spawn .and. .not. test_flag(iLutCurr, &
-                        get_initiator_flag(1))) then 
-
-                        ! a quick hack to not log zero prob excitations.
-                        temp_prob = prob * back_spawn_factor
+!                     if (t_back_spawn .and. .not. test_flag(iLutCurr, &
+!                         get_initiator_flag(1))) then 
+! 
+!                         ! a quick hack to not log zero prob excitations.
+!                         temp_prob = prob * back_spawn_factor
 ! 
 !                         if (ic == 2) then 
 !                             temp_prob = prob * real(walkExcitLevel * (walkExcitLevel - 1),dp) &
@@ -234,15 +234,15 @@ module fcimc_pointed_fns
 !                             temp_prob = prob * real(walkExcitLevel,dp) / real(nel, dp)
 ! 
 !                         end if
-                    else 
-                        temp_prob = prob
-                    end if
+!                     else 
+!                         temp_prob = prob
+!                     end if
 
                     ! if the virtual is also modified i have to account for 
                     ! that too.. 
 
                     ! not sure about the AvMCExcits!! TODO
-                    call fill_frequency_histogram_4ind(abs(rh_used), temp_prob / AvMCExcits, &
+                    call fill_frequency_histogram_4ind(abs(rh_used), prob / AvMCExcits, &
                         ic, t_par, ex)
 
                 else
@@ -345,10 +345,10 @@ module fcimc_pointed_fns
                 ! in the back-spawning i have to adapt the probabilites 
                 ! back, to be sure the time-step covers the changed 
                 ! non-initiators spawns! 
-                if (t_back_spawn .and. .not. test_flag(iLutCurr, &
-                    get_initiator_flag(1))) then
-
-                    temp_prob = prob * back_spawn_factor
+!                 if (t_back_spawn .and. .not. test_flag(iLutCurr, &
+!                     get_initiator_flag(1))) then
+! 
+!                     temp_prob = prob * back_spawn_factor
 ! 
 !                     if (ic == 2) then
 !                         temp_prob = prob * real(walkExcitLevel * (walkExcitLevel - 1), dp) & 
@@ -380,11 +380,11 @@ module fcimc_pointed_fns
 !                         temp_prob = prob * real(walkExcitLevel,dp) / real(nel,dp)
 !                     end if
 ! 
-                else 
-                    temp_prob = prob
-                end if
+!                 else 
+!                     temp_prob = prob
+!                 end if
 
-                call log_spawn_magnitude (ic, ex, matel, temp_prob)
+                call log_spawn_magnitude (ic, ex, matel, prob)
 
             end if
 
