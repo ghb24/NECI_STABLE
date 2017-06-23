@@ -396,6 +396,8 @@ integer :: back_spawn_delay = 0
 logical :: t_back_spawn_flex = .false., t_back_spawn_flex_option = .false.
 ! also make an combination of the flexible with occ-virt with an additional 
 ! integer which manages the degree of how much you want to de-excite
+! change now: we also want to enable to increase the excitation by possibly 
+! 1 -> maybe I should rename this than so that minus indicates de-excitation?!
 integer :: occ_virt_level = 0
 
 end module CalcData

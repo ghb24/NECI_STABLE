@@ -475,7 +475,8 @@ contains
 
         else if (t_back_spawn_flex .and. .not. temp_init ) then
         
-            if (loc == 2) then 
+            ! also allow one level of excitation.. requested by ali..
+            if (loc == 2 .and. occ_virt_level /= -1) then 
                 ! in this case pick the orbital from the occupied manifold of ref
                 call pick_occupied_orbital_single(nI, src, cc_index, pgen, tgt)
             else 

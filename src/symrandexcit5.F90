@@ -273,13 +273,23 @@ contains
 
         else if (t_back_spawn_flex .and. .not. t_temp_init) then
             ! now we have to decide on the flex-spawn + occ-virt implo:
-            if (loc > 0) then 
+            if (loc == 1) then 
+                ! the new option to excite on level
+                if (occ_virt_level == -1) then
+                    orbs(1) = pick_a_orb(ilutI, src, iSpn, int_cpt(1), cum_sum(1), cum_arr)
+                else
+                    call pick_occupied_orbital(nI, src, ispn, int_cpt(1), cum_sum(1), &
+                                        orbs(1))
+                end if
+
+
+            else if (loc == 2) then 
                 ! then we always pick an occupied orbital
                 call pick_occupied_orbital(nI, src, ispn, int_cpt(1), cum_sum(1), &
                                         orbs(1))
             else 
                 ! depending on the occ_virt_level
-                if (occ_virt_level == 0) then 
+                if (occ_virt_level < 1) then 
                     ! just pick normal:
                     orbs(1) = pick_a_orb(ilutI, src, iSpn, int_cpt(1), cum_sum(1), cum_arr)
                 else 
@@ -306,8 +316,15 @@ contains
                 if (loc == 2) then 
                     ! now also mix the occ-virt with this back-spawning
                     ! for loc 2 always do it
-                    call pick_second_occupied_orbital(nI, src, cc_b, orbs(1), ispn,&
-                        int_cpt(2), cum_sum(2), orbs(2))
+                    ! except specified by occ_virt_level= -1
+                    if (occ_virt_level == -1) then
+                        orbs(2) = select_orb (ilutI, src, cc_b, orbs(1), int_cpt(2), &
+                                  cum_sum(2))
+                    else
+                        call pick_second_occupied_orbital(nI, src, cc_b, orbs(1), ispn,&
+                            int_cpt(2), cum_sum(2), orbs(2))
+                    end if
+
                 else if (loc == 1 .and. occ_virt_level == 2) then 
                     call pick_second_occupied_orbital(nI, src, cc_b, orbs(1), ispn,&
                         int_cpt(2), cum_sum(2), orbs(2))
@@ -376,7 +393,7 @@ contains
                 ! now we also have to add the occ_virt_level functionality
                 ! into the recalculated pgen..
                 if (loc == 0) then 
-                    if (occ_virt_level == 0) then
+                    if (occ_virt_level < 1) then
                     ! everything should be "normal"
                         call pgen_select_a_orb(ilutI, src, orbs(2), iSpn, cpt_pair(1), &
                                            sum_pair(1), cum_arr, .false.)
@@ -399,6 +416,7 @@ contains
                 else if (loc == 1) then 
                     ! then one hole was restricted to the occupied 
                     ! manifold.. 
+                    if (occ_virt_level == -1) then 
                     if (occ_virt_level < 2) then
                         if (any(orbs(2) == projedet(:,1))) then
                            ! if (b) is also in the occupied manifold i could have 
