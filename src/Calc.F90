@@ -796,7 +796,6 @@ contains
             case("FINDGUIDINGFUNCTION")
 ! At the end of a calculation, this keyword sets the spawning calculation to print out the iGuideDets
 ! most populated determinants, to be read in as a guiding (or annihilating) function in a following calculation.
-cc
                 CALL Stop_All(t_r,"FINDGUIDINGFUNCTION option depreciated")
 !                tFindGuide=.true.
 !                call geti(iGuideDets)

@@ -417,7 +417,20 @@ contains
                     ! then one hole was restricted to the occupied 
                     ! manifold.. 
                     if (occ_virt_level == -1) then 
-                    if (occ_virt_level < 2) then
+                        ! everything should be calculated normally 
+                        call pgen_select_a_orb(ilutI, src, orbs(2), iSpn, cpt_pair(1), &
+                                       sum_pair(1), cum_arr, .false.)
+                        call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
+                                     cpt_pair(2), sum_pair(2))
+
+                     else if (occ_virt_level == 2) then 
+                        ! in this case both holes were restricted to the 
+                        ! occupied manifold 
+                        cpt_pair = int_cpt
+                        sum_pair = cum_sum
+
+                        
+                    else if (occ_virt_level < 2) then
                         if (any(orbs(2) == projedet(:,1))) then
                            ! if (b) is also in the occupied manifold i could have 
                             ! picked the other way around.. 
@@ -435,19 +448,40 @@ contains
                             cpt_pair = 0.0_dp
                             sum_pair = 1.0_dp
                         end if
-                    else 
-                        ! in this case both holes were restricted to the 
-                        ! occupied manifold 
-                        cpt_pair = int_cpt
-                        sum_pair = cum_sum
                     end if
 
                 else if (loc == 2) then 
                     ! then both are restricted to the occupied ones.. 
                     ! but then i can just reuse the already obtained ones..
                     ! always
-                    cpt_pair = int_cpt
-                    sum_pair = cum_sum
+                    ! except we have the occ_virt_level == -1 
+                    if (occ_virt_level == -1) then 
+                        ! then only the first is restricted to the occupied 
+                        ! manifold.. but then we have to be sure that it is 
+                        ! possible to pick it the other way around.. 
+
+                       if (any(orbs(2) == projedet(:,1))) then 
+                            ! if (b) is also in the occupied manifold i could have 
+                            ! picked the other way around.. 
+                            ! with the same uniform probability: 
+                            cpt_pair(1) = int_cpt(1)
+                            sum_pair(1) = cum_sum(1) 
+                            ! and then (a) would have been picked according to the 
+                            ! "normal" procedure
+                            call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
+                                         cpt_pair(2), sum_pair(2))
+                        else
+                            ! if (b) is not in the occupied this does not work or? 
+                            ! since i am forcing (a) to be in the occupied.. 
+                            ! so remove this pgen:
+                            cpt_pair = 0.0_dp
+                            sum_pair = 1.0_dp
+                        end if
+
+                    else
+                        cpt_pair = int_cpt
+                        sum_pair = cum_sum
+                    end if
                 end if
 
             else
