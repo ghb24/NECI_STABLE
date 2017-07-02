@@ -9,8 +9,7 @@ module fcimc_pointed_fns
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
-                        t_matele_cutoff, matele_cutoff, t_back_spawn, &
-                        t_back_spawn_occ_virt
+                        t_matele_cutoff, matele_cutoff 
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -30,7 +29,6 @@ module fcimc_pointed_fns
                                fill_frequency_histogram
 
     use excit_gen_5, only: pgen_select_a_orb
-    use back_spawn, only: back_spawn_factor
 
     implicit none
 
@@ -195,52 +193,6 @@ module fcimc_pointed_fns
                 if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then 
                     t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
 
-                    ! in the back-spawning i have to readapt the generation 
-                    ! probability
-                    ! for now DO NOT histogram the non-inititor spawns
-!                     if (t_back_spawn .and. .not. test_flag(iLutCurr, &
-!                         get_initiator_flag(1))) then 
-! 
-!                         ! a quick hack to not log zero prob excitations.
-!                         temp_prob = prob * back_spawn_factor
-! 
-!                         if (ic == 2) then 
-!                             temp_prob = prob * real(walkExcitLevel * (walkExcitLevel - 1),dp) &
-!                                                / real(nel * (nel - 1), dp)
-! 
-!                             if (t_back_spawn_occ_virt) then 
-!                                 ! i am not sure where the first orb is stored..
-!                                 ! is it always in the same place or are they 
-!                                 ! ordered??
-!                                 if (t_par) then 
-!                                     if (is_beta(ex(1,1))) then 
-!                                         ispn = 1 
-!                                     else 
-!                                         ispn = 3
-!                                     end if
-!                                 else 
-!                                     ispn = 2
-!                                 end if
-! 
-!                                 call pgen_select_a_orb(iLutCurr, ex(1,:), ex(2,1), &
-!                                                 ispn, pgen_a, cum_sum, dummy_arr, .true.)
-! 
-!                                 ! adapt the probability
-!                                 temp_prob = temp_prob * real(walkExcitLevel, dp) / pgen_a
-! 
-!                             end if
-! 
-!                         else 
-!                             temp_prob = prob * real(walkExcitLevel,dp) / real(nel, dp)
-! 
-!                         end if
-!                     else 
-!                         temp_prob = prob
-!                     end if
-
-                    ! if the virtual is also modified i have to account for 
-                    ! that too.. 
-
                     ! not sure about the AvMCExcits!! TODO
                     call fill_frequency_histogram_4ind(abs(rh_used), prob / AvMCExcits, &
                         ic, t_par, ex)
@@ -345,44 +297,6 @@ module fcimc_pointed_fns
                 ! in the back-spawning i have to adapt the probabilites 
                 ! back, to be sure the time-step covers the changed 
                 ! non-initiators spawns! 
-!                 if (t_back_spawn .and. .not. test_flag(iLutCurr, &
-!                     get_initiator_flag(1))) then
-! 
-!                     temp_prob = prob * back_spawn_factor
-! 
-!                     if (ic == 2) then
-!                         temp_prob = prob * real(walkExcitLevel * (walkExcitLevel - 1), dp) & 
-!                                             / real(nel * (nel - 1), dp)
-! 
-!                         if (t_back_spawn_occ_virt) then 
-!                             ! i am not sure where the first orb is stored..
-!                             ! is it always in the same place or are they 
-!                             ! ordered??
-!                             if (t_par) then 
-!                                 if (is_beta(ex(1,1))) then 
-!                                     ispn = 1 
-!                                 else 
-!                                     ispn = 3
-!                                 end if
-!                             else 
-!                                 ispn = 2
-!                             end if
-! 
-!                             call pgen_select_a_orb(iLutCurr, ex(1,:), ex(2,1), &
-!                                             ispn, pgen_a, cum_sum, dummy_arr, .true.)
-! 
-!                             ! adapt the probability
-!                             temp_prob = temp_prob * real(walkExcitLevel, dp) / pgen_a
-! 
-!                         end if
-! 
-!                     else 
-!                         temp_prob = prob * real(walkExcitLevel,dp) / real(nel,dp)
-!                     end if
-! 
-!                 else 
-!                     temp_prob = prob
-!                 end if
 
                 call log_spawn_magnitude (ic, ex, matel, prob)
 

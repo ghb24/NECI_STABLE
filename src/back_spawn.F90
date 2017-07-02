@@ -297,6 +297,43 @@ contains
 
     end subroutine pick_occupied_orbital_single
 
+    subroutine pick_occupied_orbital_hubbard(nI, pgen, orb) 
+        ! routine to pick one possible orbital from the occupied manifold 
+        ! thats the easiest of all implementations actually.. 
+        integer, intent(in) :: nI(nel) 
+        real(dp), intent(out) :: pgen 
+        integer, intent(out) :: orb 
+        character(*), parameter :: this_routine = "pick_occupied_orbital_hubbard"
+        integer :: n_valid, j, occ_orbs(nel), ind, i
+
+        n_valid = 0
+        j = 1
+        occ_orbs = 0
+        
+        do i = 1, nel 
+            if (.not. any(projedet(i,1) == nI)) then 
+                n_valid = n_valid + 1
+                occ_orbs(j) = i 
+                j = j + 1
+            end if 
+        end do
+
+        if (n_valid == 0) then 
+            orb = 0
+            pgen = 0.0_dp
+            return
+        end if
+
+        ind = 1 + int(n_valid * genrand_real2_dSFMT())
+
+        orb = occ_orbs(ind)
+
+        pgen = 1.0_dp / real(n_valid, dp)
+
+
+    end subroutine pick_occupied_orbital_hubbard 
+
+
     subroutine pick_occupied_orbital(nI, src, ispn, cpt, cum_sum, orb)
         integer, intent(in) :: nI(nel), src(2), ispn
         real(dp), intent(out) :: cpt, cum_sum
@@ -467,7 +504,7 @@ contains
         character(*), parameter :: this_routine = "pick_virtual_electrons_double_hubbard"
 
         integer :: n_valid, i, j, n_valid_pairs, ind_1, ind_2
-        integer, allocatable :: virt_elecs(:)
+        integer :: virt_elecs(nel)
         integer :: n_beta, n_alpha
         ! but it is also good to to it here so i can do it more cleanly
         n_valid = 0
@@ -476,12 +513,15 @@ contains
         n_alpha = 0
         ! actually for the correct generation probabilities i have to count 
         ! the number of valid alpha and beta electrons!
+        j = 1
         do i = 1, nel
             if (any(nI(i) == mask_virt_ni)) then
                 if (is_beta(nI(i)))  n_beta = n_beta + 1
                 if (is_alpha(nI(i))) n_alpha = n_alpha + 1
                 ! the electron is in the virtual of the 
                 n_valid = n_valid + 1
+                virt_elecs(j) = i
+                j = j + 1
             end if
         end do
 
@@ -498,16 +538,6 @@ contains
 !             call stop_all(this_routine, & 
 !                 "something went wront, did not find 2 valid virtual electrons!")
         end if
-
-        allocate(virt_elecs(n_valid)) 
-
-        j = 1
-        do i = 1, nel
-            if (any(nI(i) == mask_virt_ni)) then
-                virt_elecs(j) = i
-                j = j + 1
-            end if
-        end do
 
         ! apparently i have to have both ordering of the electrons in 
         ! the hubbard excitation generator 
@@ -590,6 +620,6 @@ contains
         pgen_elec = 1.0_dp / real(n_valid, dp)
 
     end subroutine pick_virtual_electron_single
-    
-end module back_spawn
+
+  end module back_spawn
 

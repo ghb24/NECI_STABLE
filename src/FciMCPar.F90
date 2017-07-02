@@ -71,7 +71,7 @@ module FciMCParMod
                         sum_double_occ, sum_norm_psi_squared
 
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
-    use back_spawn, only: init_back_spawn, back_spawn_factor
+    use back_spawn, only: init_back_spawn
 
 #ifdef MOLPRO
     use outputResult
@@ -762,7 +762,6 @@ module FciMCParMod
         type(ll_node), pointer :: TempNode
 
         integer :: ms
-        logical :: t_back_spawn_temp
 
 
         call set_timer(Walker_Time,30)
@@ -848,7 +847,7 @@ module FciMCParMod
             !      of walkers.
 
             ! reset this flag for each det:
-            t_back_spawn_temp = .false.
+            ! W.D. remove this option for now..
 
             ! Indicate that the scratch storage used for excitation generation
             ! from the same walker has not been filled (it is filled when we
@@ -992,20 +991,8 @@ module FciMCParMod
 
             ! alis additional idea to skip the number of attempted excitations
             ! for noninititators in the back-spawning approach
-            if ((t_back_spawn .or. t_back_spawn_flex) .and. .not. tcoredet .and. & 
-                (.not. test_flag(CurrentDets(:,j), get_initiator_flag(1))) &
-                .and. .not. tHub) then
-
-                t_back_spawn_temp = .true.
-!                 back_spawn_factor = 2.0_dp * real(walkExcitLevel,dp) / real(nel,dp)
-                back_spawn_factor = 1.0_dp
-
-            else 
-                t_back_spawn_temp = .false.
-                back_spawn_factor = 1.0_dp
-            end if
-
-
+            ! remove that for now
+           
             do part_type = 1, lenof_sign
             
                 TempSpawnedPartsInd = 0
@@ -1017,11 +1004,6 @@ module FciMCParMod
                 call decide_num_to_spawn(SignCurr(part_type), AvMCExcits, WalkersToSpawn)
 
                 do p = 1, WalkersToSpawn
-
-                    if (t_back_spawn_temp) then 
-                        if (genrand_real2_dSFMT() > back_spawn_factor) cycle
-                    end if
-
 
                     ! Zero the bit representation, to ensure no extraneous
                     ! data gets through.
@@ -1069,7 +1051,8 @@ module FciMCParMod
                         ! and rescale in the back-spawning algorithm.
                         ! this should always be a factor of 1 in the other 
                         ! cases so it is safe to rescale all i guess
-                        child = child / back_spawn_factor
+                        ! (remove this option for now!)
+                        child = child 
 
                     else
                         child = 0.0_dp

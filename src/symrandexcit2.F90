@@ -2106,37 +2106,76 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
         Use SystemData , only : NMAXX,NMAXY,NMAXZ,tOrbECutoff,OrbECutoff, kvec, TUEG2
         use sym_mod, only: mompbcsym
+        use bit_rep_data, only: test_flag
+        use bit_reps, only: get_initiator_flag
+        use CalcData, only: t_back_spawn_flex
+        use back_spawn, only: pick_occupied_orbital_hubbard, check_electron_location
 
         INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,iSpn,kb_ms
         INTEGER(KIND=n_int) :: iLutnI(0:NIfTot)
         INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,2),iSpinIndex,TestEnergyB
         LOGICAL :: tAllowedExcit,tParity
         real(dp) :: r,pGen,pAIJ
+
+        integer :: elecs(2), loc
        
         ! This chooses an a of the correct spin, excluding occupied orbitals
         ! This currently allows b orbitals to be created that are disallowed
         hole2basisnum = 0
-        DO 
-            r = genrand_real2_dSFMT()
-            ! Choose a 
-            IF (iSpn.eq.2) THEN ! alpha/beta combination
-                ChosenUnocc=INT(nBasis*r)+1
-            ELSE ! alpha/alpha, beta/beta
-                ChosenUnocc=2*(INT(nBasis/2*r)+1) & ! 2*(a number between 1 and nbasis/2) gives the alpha spin
-                & -(1-(iSpn/3)) ! alpha numbered even, iSpn/3 returns 1 for alpha/alpha, 0 for beta/beta
-            ENDIF
-            ! Check a isn't occupied
-            IF(.not.(BTEST(iLutnI((ChosenUnocc-1)/bits_n_int),MOD(ChosenUnocc-1,bits_n_int)))) THEN
-            !Orbital not in nI. Accept.
-                EXIT
-            ENDIF
-        ENDDO
+        ! introduce the flex option here too.. 
+        ! but in the k-space hubbard i cannot garuantee to always reduce or 
+        ! keep the IC level the same, but like in the newest flex implementation
+        ! it could be increased by 1, depending on the electrons picked
+        ! t_back_spawn_flex is only implemented for the hubbard lattice model 
+        ! not the UEG! -> assert that in the init(already did that!)
+        if (t_back_spawn_flex .and. .not. test_flag(ilutnI, get_initiator_flag(1))) then 
+            elecs = [Elec1Ind,Elec2Ind]
+
+            call check_electron_location(elecs, 2, loc)
+
+            if (loc == 0) then 
+                ! then we can pick any orbitals.. 
+                do 
+                    ChosenUnocc = int(nBasis * genrand_real2_dSFMT()) + 1
+                    if (IsNotOcc(ilutnI,ChosenUnocc)) exit
+
+                end do
+
+                ! set the p(a|ij) here already. .
+                pAIJ=1.0_dp/(nBasis-Nel)
+            else
+                ! otherwise i have to pick a "occupied orbital" to ensure to 
+                ! not increase IC by 2
+                ! but in this case there isn't the restriction in which order 
+                ! the electrons are picked, so i guess i have to write a new 
+                ! function for the hubbard model too in this case.. 
+                call pick_occupied_orbital_hubbard(nI, pAIJ, ChosenUnocc)
+
+            end if 
+
+        else
+
+            DO 
+                r = genrand_real2_dSFMT()
+                ! Choose a 
+                IF (iSpn.eq.2) THEN ! alpha/beta combination
+                    ChosenUnocc=INT(nBasis*r)+1
+                ELSE ! alpha/alpha, beta/beta
+                    ChosenUnocc=2*(INT(nBasis/2*r)+1) & ! 2*(a number between 1 and nbasis/2) gives the alpha spin
+                    & -(1-(iSpn/3)) ! alpha numbered even, iSpn/3 returns 1 for alpha/alpha, 0 for beta/beta
+                ENDIF
+                ! Check a isn't occupied
+                IF(.not.(BTEST(iLutnI((ChosenUnocc-1)/bits_n_int),MOD(ChosenUnocc-1,bits_n_int)))) THEN
+                !Orbital not in nI. Accept.
+                    EXIT
+                ENDIF
+            ENDDO
+        end if
 
         Hole1BasisNum=ChosenUnocc
         IF((Hole1BasisNum.le.0).or.(Hole1BasisNum.gt.nBasis)) THEN
             CALL Stop_All("CreateDoubExcitLattice","Incorrect basis function generated") 
         ENDIF
-
 
         !=============================================
         if (tUEG2) then
@@ -2338,7 +2377,10 @@ MODULE GenRandSymExcitNUMod
 
         !Calculate generation probabilities
         IF (iSpn.eq.2) THEN
-            pAIJ=1.0_dp/(nBasis-Nel)
+            if (.not.(t_back_spawn_flex .and. .not. test_flag(iLutnI, get_initiator_flag(1)))) then
+                ! otherwise take the pAIJ set above
+                pAIJ=1.0_dp/(nBasis-Nel)
+            end if
         ELSEIF (iSpn.eq.1) THEN
             pAIJ=1.0_dp/(nBasis/2-nOccBeta)
         ELSE
@@ -2396,6 +2438,7 @@ MODULE GenRandSymExcitNUMod
 
             call pick_virtual_electrons_double_hubbard(nI, elecs, src, ispn,&
                                                         pgen_back)
+
             ! check if enogh electrons are in the virtual
             if (elecs(1) == 0) then
                 nJ(1) = 0
@@ -2406,32 +2449,6 @@ MODULE GenRandSymExcitNUMod
             Elec1Ind = elecs(1)
             Elec2Ind = elecs(2)
 
-!                 if (pgen_back == 1.0_dp .and. iSpn /= 2) then
-!                     ! this means i have incompatible spins and only 2 
-!                     ! possible electrons -> also abort!
-!                     nJ(1) = 0
-!                     pgen = 0.0_dp
-!                     return
-!                 end if
-
-!                 i = i + 1
-!                 ! i hope i do not get stuck in here??
-!                 if ((tHub .and. iSpn == 2).or.(tUEG)) then
-!                     exit 
-!                 end if
-! 
-!                 if (i > 1000) then 
-!                     ! i guess at this point i should abort, as there 
-!                     ! are no spin fitting electrons in the reference 
-!                     ! virtual
-! !                     call Stop_All(this_routine, &
-! !                         "cant fint proper virtual electron pair!")
-!                     nJ(1) = 0
-!                     pgen = 0.0_dp
-!                     return
-!                 end if
-! 
-!             end do
         else
 
             DO
@@ -2558,7 +2575,7 @@ MODULE GenRandSymExcitNUMod
             IF(i.eq.10000) THEN ! Arbitrary termination of the loop to prevent hanging
                                 ! due to no excitations being allowed from a certain ij pair
                 write(6,*) "nI:", nI
-                write(6,*) "i & j", nI(Elec1),nI(Elec2)
+                write(6,*) "i & j", nI(Elec1Ind),nI(Elec2Ind)
                 write(6,*) "Allowed Excitations", iAllowedExcites
                 CALL Stop_All("CreateExcitLattice","Failure to generate a valid excitation from an electron pair combination")
             ENDIF
