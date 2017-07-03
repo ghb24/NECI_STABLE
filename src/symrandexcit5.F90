@@ -405,8 +405,18 @@ contains
                         sum_pair(1) = cum_sum(1)
 
                         if (occ_virt_level == 1) then 
-                            call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
+                            ! do i have to test if the picking in this 
+                            ! direction is actually possible?? it seems so or? 
+                            ! yes i do.. since it is the same as above.. 
+                            if (any(orbs(2) == projedet(:,1))) then 
+
+                                call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
                                          cpt_pair(2), sum_pair(2))
+                            else 
+                                cpt_pair = 0.0_dp
+                                sum_pair = 1.0_dp
+                            end if
+
                          else
                              cpt_pair(2) = int_cpt(2)
                              sum_pair(2) = cum_sum(2)

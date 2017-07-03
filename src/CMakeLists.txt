@@ -163,6 +163,7 @@ set( SRC_FILES
     double_occ.F90
     tau_search_hist.F90
     back_spawn.F90
+    back_spawn_excit_gen.F90
 
     lib/allocate_shared_worker.cpp
     lib/backtrace.cpp
