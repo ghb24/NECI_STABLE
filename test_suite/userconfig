@@ -17,7 +17,7 @@ inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
 
 [user]
-benchmark = mneci-51eede5.skip-.neci-51eede5.dneci-51eede5.kmneci-51eede5.kneci-51eede5 mneci-08ff419.skip-.neci-08ff419.dneci-08ff419.kmneci-08ff419.kneci-08ff419 kmneci-abf67de.dneci-abf67de.mneci-abf67de.kneci-abf67de.neci-abf67de kmneci-bf9c185.dneci-bf9c185.mneci-bf9c185.kneci-bf9c185.neci-bf9c185 kmneci-ab96a43.dneci-ab96a43.mneci-ab96a43.kneci-ab96a43.neci-ab96a43 kmneci-e109282.dneci-e109282.mneci-e109282.kneci-e109282.neci-e109282 kmneci-e698a6f.dneci-e698a6f.mneci-e698a6f.kneci-e698a6f.neci-e698a6f
+benchmark = mneci-b4e327a.skip-b4e327a.neci-b4e327a.dneci-b4e327a.kmneci-b4e327a.kneci-b4e327a mneci-51eede5.skip-.neci-51eede5.dneci-51eede5.kmneci-51eede5.kneci-51eede5 mneci-08ff419.skip-.neci-08ff419.dneci-08ff419.kmneci-08ff419.kneci-08ff419 kmneci-abf67de.dneci-abf67de.mneci-abf67de.kneci-abf67de.neci-abf67de kmneci-bf9c185.dneci-bf9c185.mneci-bf9c185.kneci-bf9c185.neci-bf9c185 kmneci-ab96a43.dneci-ab96a43.mneci-ab96a43.kneci-ab96a43.neci-ab96a43 kmneci-e109282.dneci-e109282.mneci-e109282.kneci-e109282.neci-e109282 kmneci-e698a6f.dneci-e698a6f.mneci-e698a6f.kneci-e698a6f.neci-e698a6f
 default_program = neci
 diff = vimdiff
 
