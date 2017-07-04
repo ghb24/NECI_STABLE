@@ -385,7 +385,7 @@ real(dp) :: matele_cutoff = EPS
 
 ! alis new idea to increase the chance of non-initiators to spawn to 
 ! already occupied determinant
-logical :: t_back_spawn = .false.
+logical :: t_back_spawn = .false., t_back_spawn_option = .false.
 ! logical to control where first orbital is chosen from
 logical :: t_back_spawn_occ_virt = .false.
 ! also use an integer to maybe start the backspawning later, or otherwise 

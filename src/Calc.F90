@@ -2345,6 +2345,7 @@ contains
                 ! 4ind-weighted-2 and above excitation generators! 
                 ! maybe for hubbard model too, but lets see..
                 t_back_spawn = .true.
+                t_back_spawn_option = .true.
 
                 if (item < nitems) then 
                     t_back_spawn = .false.
@@ -2355,6 +2356,8 @@ contains
                 t_back_spawn = .true.
                 t_back_spawn_occ_virt = .true.
                 
+                t_back_spawn_option = .true.
+
                 if (item < nitems) then 
                     t_back_spawn = .false.
 

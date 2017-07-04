@@ -14,7 +14,8 @@ module FciMCParMod
                         trial_shift_iter, tStartTrialLater, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
-                        t_back_spawn_flex, t_back_spawn_flex_option
+                        t_back_spawn_flex, t_back_spawn_flex_option, &
+                        t_back_spawn_option
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
@@ -251,7 +252,7 @@ module FciMCParMod
             if (back_spawn_delay /= 0 .and. iter == back_spawn_delay + 1) then
                 if (t_back_spawn_flex_option) then 
                     t_back_spawn_flex = .true.
-                else
+                else if (t_back_spawn_option) then
                     t_back_spawn = .true. 
                 end if
                 call init_back_spawn()

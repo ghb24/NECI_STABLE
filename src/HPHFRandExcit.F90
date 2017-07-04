@@ -32,7 +32,8 @@ MODULE HPHFRandExcitMod
     use excit_gen_5, only: calc_pgen_4ind_weighted2, gen_excit_4ind_weighted2
     use sort_mod
     use HElem
-    use CalcData, only: t_matele_cutoff, matele_cutoff
+    use CalcData, only: t_matele_cutoff, matele_cutoff, t_back_spawn, t_back_spawn_flex
+    use back_spawn_excit_gen, only: gen_excit_back_spawn, calc_pgen_back_spawn
     IMPLICIT NONE
 !    SAVE
 !    INTEGER :: Count=0
@@ -153,8 +154,15 @@ MODULE HPHFRandExcitMod
         ! Avoid warnings
         tParity = .false.
 
+        ! [W.D] this whole hphf should be optimized.. and cleaned up 
+        ! because it is a mess really.. 
         ! Generate a normal excitation.
-        if (tGen_4ind_weighted) then
+        
+        if (t_back_spawn .or. t_back_spawn_flex) then 
+            call gen_excit_back_spawn(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
+                                      ExcitMat, tSignOrig, pgen, Hel, store)
+
+        else if (tGen_4ind_weighted) then
             call gen_excit_4ind_weighted (nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pGen, Hel,&
                                           store)
@@ -937,7 +945,10 @@ MODULE HPHFRandExcitMod
 
         pgen = 0.0_dp
 
-        if (tLatticeGens) then
+        if (t_back_spawn .or. t_back_spawn_flex) then 
+            pgen = calc_pgen_back_spawn(nI, ilutI, ex, ic)
+
+        else if (tLatticeGens) then
             if (ic == 2) then
                 call CalcPGenLattice (ex, pGen)
             else

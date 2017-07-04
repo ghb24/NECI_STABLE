@@ -6,8 +6,8 @@ module back_spawn
                         t_back_spawn_flex
     use SystemData, only: nel, nbasis, G1, tGen_4ind_2, tGen_4ind_2_symmetric, & 
                           tHub
-    use constants, only: n_int, dp
-    use bit_rep_data, only: nifd
+    use constants, only: n_int, dp, bits_n_int
+    use bit_rep_data, only: nifd, niftot
     use fcimcdata, only: projedet, max_calc_ex_level
     use dSFMT_interface, only: genrand_real2_dSFMT
     use SymExcitDataMod, only: OrbClassCount, SymLabelCounts2, SymLabelList2, &
@@ -161,7 +161,7 @@ contains
     end subroutine check_electron_location
 
 
-    subroutine pick_virtual_electrons_double(nI, elecs, src, sym_prod, ispn, &
+    subroutine pick_virtual_electrons_double(nI, elecs, src, ispn, &
                                                 sum_ml, pgen)
         ! this is the important routine! 
         ! for non-initiator determinants this pick electrons only from the 
@@ -169,7 +169,7 @@ contains
         ! chance to de-excite and to spawn to an already occupied 
         ! determinant from an non-initiator!
         integer, intent(in) :: nI(nel)
-        integer, intent(out) :: elecs(2), src(2), sym_prod, ispn, sum_ml
+        integer, intent(out) :: elecs(2), src(2), ispn, sum_ml
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pick_virtual_electrons_double"
 
@@ -254,8 +254,9 @@ contains
     end subroutine pick_virtual_electrons_double
     
 
-    subroutine pick_occupied_orbital_single(nI, src, cc_index, pgen, orb)
+    subroutine pick_occupied_orbital_single(nI, ilut, src, cc_index, pgen, orb)
         integer, intent(in) :: nI(nel), src, cc_index 
+        integer(n_int), intent(in) :: ilut(0:niftot)
         real(dp), intent(out) :: pgen
         integer, intent(out) :: orb
         ! routine to pick an orbital from the occupied manifold in the 
@@ -264,22 +265,38 @@ contains
         ! things.. and spin.. 
         character(*), parameter :: this_routine = "pick_occupied_orbital_single"
 
-        integer :: n_valid, j, occ_orbs(nel), i, ind
+        integer :: n_valid, j, occ_orbs(nel), i, ind, norb, label_index
 
         j = 1
         occ_orbs = 0
 
-        do i = 1, nel
-            if (.not. any(projedet(i,1) == nI)) then 
-                ! i also have to check spin and symmetry now.. 
-                if (is_beta(src) .eqv. is_beta(projedet(i,1)) .and. &
-                    SpinOrbSymLabel(src) == SpinOrbSymLabel(projedet(i,1))) then
+        norb = OrbClassCount(cc_index)
+        label_index = SymLabelCounts2(1, cc_index)
 
-                    occ_orbs(j) = projedet(i,1)
-                    j = j + 1
-                end if
-            end if
+        ! damn i did not include symmetries todo
+        ! ok do it now with symmetries
+        do i = 1, norb 
+            orb = SymLabelList2(label_index + i - 1)
+            if (any(orb == projedet(:,1)) .and. IsNotOcc(ilut,orb)) then 
+
+                ASSERT(SpinOrbSymLabel(orb) == SpinOrbSymLabel(src))
+
+                occ_orbs(j) = orb 
+                j = j + 1
+            end if 
         end do
+
+!         do i = 1, nel
+!             if (.not. any(projedet(i,1) == nI)) then 
+!                 ! i also have to check spin and symmetry now.. 
+!                 if (is_beta(src) .eqv. is_beta(projedet(i,1)) .and. &
+!                     SpinOrbSymLabel(src) == SpinOrbSymLabel(projedet(i,1))) then
+! 
+!                     occ_orbs(j) = projedet(i,1)
+!                     j = j + 1
+!                 end if
+!             end if
+!         end do
 
         n_valid = j - 1
 
@@ -608,14 +625,6 @@ contains
         ind = 1 + floor(genrand_real2_dSFMT() * n_valid) 
 
         elec = virt_elecs(ind)
-
-#ifdef __DEBUG
-        print *, "test picking single virtual elec:"
-        print *, "nI: ", nI 
-        print *, "mask_virt_ni: ", mask_virt_ni
-        print *, "virt_elecs", virt_elecs
-        print *, "elec: ", elec
-#endif
 
         pgen_elec = 1.0_dp / real(n_valid, dp)
 
