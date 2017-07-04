@@ -402,6 +402,10 @@ contains
         pgen = pgen * (product(int_cpt) / product(cum_sum) + &
                        product(cpt_pair) / product(sum_pair))
 
+!         print *, "loc?", loc
+!         print *, "src: ", src
+!         print *, "orbs: ", orbs
+!         print *, "nI: ", nI
         ! And generate the actual excitation
         call make_double (nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), &
                           ex, tpar)

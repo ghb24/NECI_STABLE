@@ -35,7 +35,8 @@ module fcimc_initialisation
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, &
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
-                        t_back_spawn_option, t_back_spawn_flex_option
+                        t_back_spawn_option, t_back_spawn_flex_option, &
+                        t_back_spawn_flex
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -1143,7 +1144,7 @@ contains
                     &unpaired electrons.")') trunc_nopen_max
         endif
 
-        if (t_back_spawn) then 
+        if (t_back_spawn .or. t_back_spawn_flex) then 
             call init_back_spawn
         end if
 

@@ -474,8 +474,9 @@ contains
                     ! check if symmetry fits
                     if (any(projedet(i,part_type_to_run(run)) == sym_orbs)) then 
                         ! and check if spin is opposit 
-                        if (.not. (is_beta(orb_a) .eqv. is_beta(projedet(i,1)))) then 
-                            occ_orbs(j) = projedet(i,1)
+                        if (.not. (is_beta(orb_a) .eqv. &
+                            is_beta(projedet(i,part_type_to_run(run))))) then 
+                            occ_orbs(j) = projedet(i,part_type_to_run(run))
                             j = j + 1
                         end if
                     end if
