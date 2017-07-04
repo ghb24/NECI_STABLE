@@ -427,7 +427,8 @@ contains
         character(*), parameter :: this_routine = "calc_pgen_back_spawn"
 
         integer :: dummy, ssrc, stgt, cc_index, src(2), tgt(2), dummy_elecs(2), &
-                dummy_orbs(2), ispn, loc, sum_ml, sym_prod, cc_a, cc_b
+                   dummy_orbs(2), ispn, loc, sum_ml, sym_prod, cc_a, cc_b, &
+                   dummy_ispn, dummy_sum_ml
         real(dp) :: elec_pgen, orb_pgen, int_cpt(2), cum_sum(2), cpt_pair(2), &
                     sum_pair(2), cum_arr(nbasis)
         logical :: t_gen_list, t_in_ref, t_par
@@ -499,6 +500,7 @@ contains
                 src = ex(1,:)
                 tgt = ex(2,:)
 
+                ! get all the necessary symmetry info at the beginning
                 if (is_beta(src(1)) .eqv. is_beta(src(2))) then
                     if (is_beta(src(1))) then
                         iSpn = 1
@@ -508,6 +510,10 @@ contains
                 else
                     iSpn = 2
                 end if
+                sum_ml = sum(G1(src)%ml)
+
+                sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(src(1)), &
+                                                 SpinOrbSymLabel(src(2)))
 
                 if (t_back_spawn_flex_option) then 
 
@@ -518,7 +524,7 @@ contains
                 else 
 
                     call pick_virtual_electrons_double(nI, run, dummy_elecs, &
-                        dummy_orbs, ispn, sum_ml, elec_pgen) 
+                        dummy_orbs, dummy_ispn, dummy_sum_ml, elec_pgen) 
 
                     loc = -1
 
