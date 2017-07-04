@@ -6,7 +6,7 @@ module back_spawn
                         t_back_spawn_flex
     use SystemData, only: nel, nbasis, G1, tGen_4ind_2, tGen_4ind_2_symmetric, & 
                           tHub
-    use constants, only: n_int, dp, bits_n_int
+    use constants, only: n_int, dp, bits_n_int, lenof_sign, inum_runs
     use bit_rep_data, only: nifd, niftot
     use fcimcdata, only: projedet, max_calc_ex_level
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -25,7 +25,7 @@ module back_spawn
     integer(n_int), allocatable :: mask_virt_ilut(:)
 
     ! or i could use a list of orbitals in the nI format
-    integer, allocatable :: mask_virt_ni(:)
+    integer, allocatable :: mask_virt_ni(:,:)
 
     ! and i guess it could also be wise to do it in a spatial resolved way.
     integer, allocatable :: mask_virt_spat(:)
@@ -79,7 +79,8 @@ contains
         ! virtual orbital indication:
         if (allocated(mask_virt_ni)) deallocate(mask_virt_ni)
 
-        allocate(mask_virt_ni(nBasis - nel))
+        ! i need to adapt that for replica runs
+        allocate(mask_virt_ni(nBasis - nel, inum_runs))
 
         ! and assure that this routine is called after the first HFDET is 
         ! already assigned
@@ -102,7 +103,7 @@ contains
         ! for non-initiator determinants
         ! for now this is only done for single-runs! not dneci, mneci for now!
         character(*), parameter :: this_routine = "setup_virtual_mask"
-        integer :: i, j
+        integer :: i, j, k
 
         ASSERT(allocated(projedet))
 
@@ -110,22 +111,25 @@ contains
         ! spin-orbitals and only write an entry if this orbital is not 
         ! occupied in the reference
         j = 1
-        do i = 1, nbasis
-            ! if (i) is in the reference cycle
-            if (any(i == projedet)) cycle
-            ! otherwise fill up the virtual mask
-            mask_virt_ni(j) = i
-            j = j + 1
+        do k = 1, inum_runs
+            do i = 1, nbasis
+                ! if (i) is in the reference cycle
+                if (any(i == projedet(:,k))) cycle
+                ! otherwise fill up the virtual mask
+                mask_virt_ni(j,k) = i
+                j = j + 1
+            end do
         end do
 
     end subroutine setup_virtual_mask
 
-    subroutine check_electron_location(elecs, ic, loc)
+    function check_electron_location(elecs, ic, run) result(loc)
         ! routine which determines where the electrons of of an determinant 
         ! are located with respect to the reference determinant to 
         ! then decide where to pick the orbitals from.. 
         integer, intent(in) :: elecs(2), ic
-        integer, intent(out) :: loc
+        integer, intent(in) :: run
+        integer :: loc
         character(*), parameter :: this_routine = "check_electron_location"
 
         integer :: i 
@@ -136,7 +140,7 @@ contains
 
         if (ic == 1) then 
             ! single exctitation 
-            if (any(elecs(1) == projedet(:,1))) then 
+            if (any(elecs(1) == projedet(:,part_type_to_run(run)))) then 
                 ! this means the electron is in the reference determinant
                 ! which means we should pick a hole also in the 
                 ! reference determinant, or otherwise we definetly 
@@ -152,23 +156,23 @@ contains
             ! for double excitations we have to check both
             loc = 0
             do i = 1, 2
-                if (any(elecs(i) == projedet(:,1))) then 
+                if (any(elecs(i) == projedet(:,part_type_to_run(run)))) then 
                     loc = loc + 1
                 end if
             end do
         end if
 
-    end subroutine check_electron_location
+    end function check_electron_location
 
 
-    subroutine pick_virtual_electrons_double(nI, elecs, src, ispn, &
+    subroutine pick_virtual_electrons_double(nI, run, elecs, src, ispn, &
                                                 sum_ml, pgen)
         ! this is the important routine! 
         ! for non-initiator determinants this pick electrons only from the 
         ! virtual orbitals of the reference determinant to increase the 
         ! chance to de-excite and to spawn to an already occupied 
         ! determinant from an non-initiator!
-        integer, intent(in) :: nI(nel)
+        integer, intent(in) :: nI(nel), run
         integer, intent(out) :: elecs(2), src(2), ispn, sum_ml
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pick_virtual_electrons_double"
@@ -187,7 +191,7 @@ contains
         n_valid = 0
         j = 1
         do i = 1, nel
-            if (any(nI(i) == mask_virt_ni)) then
+            if (any(nI(i) == mask_virt_ni(:,part_type_to_run(run)))) then
                 ! the electron is in the virtual of the 
                 n_valid = n_valid + 1
                 virt_elecs(j) = i 
@@ -254,8 +258,8 @@ contains
     end subroutine pick_virtual_electrons_double
     
 
-    subroutine pick_occupied_orbital_single(nI, ilut, src, cc_index, pgen, orb)
-        integer, intent(in) :: nI(nel), src, cc_index 
+    subroutine pick_occupied_orbital_single(nI, ilut, src, cc_index, run, pgen, orb)
+        integer, intent(in) :: nI(nel), src, cc_index, run
         integer(n_int), intent(in) :: ilut(0:niftot)
         real(dp), intent(out) :: pgen
         integer, intent(out) :: orb
@@ -277,7 +281,7 @@ contains
         ! ok do it now with symmetries
         do i = 1, norb 
             orb = SymLabelList2(label_index + i - 1)
-            if (any(orb == projedet(:,1)) .and. IsNotOcc(ilut,orb)) then 
+            if (any(orb == projedet(:,part_type_to_run(run))) .and. IsNotOcc(ilut,orb)) then 
 
                 ASSERT(SpinOrbSymLabel(orb) == SpinOrbSymLabel(src))
 
@@ -314,10 +318,10 @@ contains
 
     end subroutine pick_occupied_orbital_single
 
-    subroutine pick_occupied_orbital_hubbard(nI, pgen, orb) 
+    subroutine pick_occupied_orbital_hubbard(nI, run, pgen, orb) 
         ! routine to pick one possible orbital from the occupied manifold 
         ! thats the easiest of all implementations actually.. 
-        integer, intent(in) :: nI(nel) 
+        integer, intent(in) :: nI(nel), run
         real(dp), intent(out) :: pgen 
         integer, intent(out) :: orb 
         character(*), parameter :: this_routine = "pick_occupied_orbital_hubbard"
@@ -328,7 +332,7 @@ contains
         occ_orbs = 0
         
         do i = 1, nel 
-            if (.not. any(projedet(i,1) == nI)) then 
+            if (.not. any(projedet(i,part_type_to_run(run)) == nI)) then 
                 n_valid = n_valid + 1
                 occ_orbs(j) = i 
                 j = j + 1
@@ -351,8 +355,8 @@ contains
     end subroutine pick_occupied_orbital_hubbard 
 
 
-    subroutine pick_occupied_orbital(nI, src, ispn, cpt, cum_sum, orb)
-        integer, intent(in) :: nI(nel), src(2), ispn
+    subroutine pick_occupied_orbital(nI, src, ispn, run, cpt, cum_sum, orb)
+        integer, intent(in) :: nI(nel), src(2), ispn, run
         real(dp), intent(out) :: cpt, cum_sum
         integer, intent(out) :: orb
         ! routine to pick an orbital of the occupied manifold of the 
@@ -375,15 +379,16 @@ contains
         ! loop over ref det 
         do i = 1, nel 
             ! check if ref-det electron is NOT in nI
-            if (.not. any(projedet(i,1) == nI)) then 
+            if (.not. any(projedet(i,part_type_to_run(run)) == nI)) then 
                 ! check the symmetry here.. or atleast the spin..
                 ! if we are parallel i have to ensure the orbital has the 
                 ! same spin 
                 if (ispn /= 2) then 
-                    if (is_beta(projedet(i,1)) .eqv. is_beta(src(1))) then
+                    if (is_beta(projedet(i,part_type_to_run(run))) .eqv. &
+                        is_beta(src(1))) then
                         ! this is a valid orbital i guess.. 
                         n_valid = n_valid + 1 
-                        occ_orbs(j) = projedet(i,1) 
+                        occ_orbs(j) = projedet(i,part_type_to_run(run)) 
                         j = j + 1
                     end if
                 else 
@@ -397,9 +402,9 @@ contains
                     ! i do not know why exactly, but somebody decided to do 
                     ! it this way.. so just to be sure, also do it like that 
                     ! in the back-spawn method
-                    if (is_beta(projedet(i,1))) then 
+                    if (is_beta(projedet(i,part_type_to_run(run)))) then 
                         n_valid = n_valid + 1
-                        occ_orbs(j) = projedet(i,1)
+                        occ_orbs(j) = projedet(i,part_type_to_run(run))
                         j = j + 1
                     end if
                 end if
@@ -427,7 +432,7 @@ contains
 
     end subroutine pick_occupied_orbital
 
-    subroutine pick_second_occupied_orbital(nI, src, cc_b, orb_a, ispn, cpt, cum_sum, &
+    subroutine pick_second_occupied_orbital(nI, src, cc_b, orb_a, ispn, run, cpt, cum_sum, &
                                             orb) 
         ! routine which picks second orbital from the occupied manifold for 
         ! a double excitation. this function gets called if we have picked 
@@ -436,10 +441,10 @@ contains
         ! level the same but also increase the flexibility of the method
         ! this now has to take symmetries into account, which makes it a 
         ! bit more complicated
-        integer, intent(in) :: nI(nel), src(2), cc_b, orb_a, ispn
+        integer, intent(in) :: nI(nel), src(2), cc_b, orb_a, ispn, run
         real(dp), intent(out) :: cpt, cum_sum
         integer, intent(out) :: orb
-        character(*), parameter :: this_routine = "pick_second_occupied_orbitals"
+        character(*), parameter :: this_routine = "pick_second_occupied_orbital"
 
         integer :: label_index, norb, sym_orbs(OrbClassCount(cc_b))
         integer :: i, n_valid, occ_orbs(nel), j, ind
@@ -465,9 +470,9 @@ contains
             ! then we want the opposite spin of orb_a!
             do i = 1, nel 
                 ! check if in occupied manifold
-                if (.not. any(projedet(i,1) == nI)) then 
+                if (.not. any(projedet(i,part_type_to_run(run)) == nI)) then 
                     ! check if symmetry fits
-                    if (any(projedet(i,1) == sym_orbs)) then 
+                    if (any(projedet(i,part_type_to_run(run)) == sym_orbs)) then 
                         ! and check if spin is opposit 
                         if (.not. (is_beta(orb_a) .eqv. is_beta(projedet(i,1)))) then 
                             occ_orbs(j) = projedet(i,1)
@@ -480,12 +485,13 @@ contains
             ! otherwise we want the same spin but have to ensure it is not 
             ! already picked orbital (a)
             do i = 1, nel
-                if (.not. any(projedet(i,1) == nI)) then 
-                    if (any(projedet(i,1) == sym_orbs)) then 
-                        if (is_beta(orb_a) .eqv. is_beta(projedet(i,1)) .and. &
-                            orb_a /= projedet(i,1)) then 
+                if (.not. any(projedet(i,part_type_to_run(run)) == nI)) then 
+                    if (any(projedet(i,part_type_to_run(run)) == sym_orbs)) then 
+                        if (is_beta(orb_a) .eqv. &
+                            is_beta(projedet(i,part_type_to_run(run))) .and. &
+                            orb_a /= projedet(i,part_type_to_run(run))) then 
 
-                            occ_orbs(j) = projedet(i,1) 
+                            occ_orbs(j) = projedet(i,part_type_to_run(run)) 
                             j = j + 1
                         end if
                     end if
@@ -510,12 +516,12 @@ contains
 
     end subroutine pick_second_occupied_orbital
 
-    subroutine pick_virtual_electrons_double_hubbard(nI, elecs, src, ispn, pgen)
+    subroutine pick_virtual_electrons_double_hubbard(nI, run, elecs, src, ispn, pgen)
         ! specific routine to pick 2 electrons in the k-space hubbard, 
         ! since apparently it is important to allow all orderings of 
         ! electrons possible.. although this could just be a artifact of the 
         ! old hubbard excitation generation
-        integer, intent(in) :: nI(nel)
+        integer, intent(in) :: nI(nel), run
         integer, intent(out) :: elecs(2), src(2), ispn
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pick_virtual_electrons_double_hubbard"
@@ -532,7 +538,7 @@ contains
         ! the number of valid alpha and beta electrons!
         j = 1
         do i = 1, nel
-            if (any(nI(i) == mask_virt_ni)) then
+            if (any(nI(i) == mask_virt_ni(:,part_type_to_run(run)))) then
                 if (is_beta(nI(i)))  n_beta = n_beta + 1
                 if (is_alpha(nI(i))) n_alpha = n_alpha + 1
                 ! the electron is in the virtual of the 
@@ -581,7 +587,7 @@ contains
         if (i > 999 .or. j > 999) then 
             print *, "something went wrong, did not find two valid electrons!"
             print *, "nI: ", nI
-            print *, "mask_virt_ni:", mask_virt_ni
+            print *, "mask_virt_ni:", mask_virt_ni(:,part_type_to_run(run))
             print *, "virt_elecs: ", virt_elecs
         end if
 
@@ -590,10 +596,10 @@ contains
 
     end subroutine pick_virtual_electrons_double_hubbard
 
-    subroutine pick_virtual_electron_single(nI, elec, pgen_elec)
+    subroutine pick_virtual_electron_single(nI, run, elec, pgen_elec)
         ! same as above for a single excitation
         ! remember: elec is really just the number in the ilut!
-        integer, intent(in) :: nI(nel)
+        integer, intent(in) :: nI(nel), run
         integer, intent(out) :: elec
         real(dp), intent(out) :: pgen_elec
         character(*), parameter :: this_routine = "pick_virtual_electron_single"
@@ -607,7 +613,7 @@ contains
         n_valid = 0
         j = 1
         do i = 1, nel
-            if (any(nI(i) == mask_virt_ni)) then
+            if (any(nI(i) == mask_virt_ni(:,part_type_to_run(run)))) then
                 ! the electron is in the virtual of the 
                 n_valid = n_valid + 1
                 virt_elecs(j) = i

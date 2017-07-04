@@ -161,7 +161,7 @@ MODULE HPHFRandExcitMod
         
         if (t_back_spawn .or. t_back_spawn_flex) then 
             call gen_excit_back_spawn(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
-                                      ExcitMat, tSignOrig, pgen, Hel, store)
+                                      ExcitMat, tSignOrig, pgen, Hel, store, run)
 
         else if (tGen_4ind_weighted) then
             call gen_excit_4ind_weighted (nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
@@ -252,7 +252,7 @@ MODULE HPHFRandExcitMod
                 ENDIF
                 CALL CalcNonUniPGen(nI, ilutnI, Ex2, ExcitLevel, &
                                     store%ClassCountOcc, &
-                                    store%ClassCountUnocc, pDoubles, pGen2)
+                                    store%ClassCountUnocc, pDoubles, pGen2, run)
 !!We cannot guarentee that the pGens are going to be the same - in fact, generally, they wont be.
                 pGen=pGen+pGen2
 
@@ -914,7 +914,7 @@ MODULE HPHFRandExcitMod
 
 
     subroutine CalcNonUniPGen(nI, ilutI, ex, ic, ClassCount2, &
-                              ClassCountUnocc2, pDoub, pGen)
+                              ClassCountUnocc2, pDoub, pGen, run)
 
         ! This routine will calculate the PGen between two connected
         ! determinants, nI and nJ which are IC excitations of each other, using
@@ -938,6 +938,7 @@ MODULE HPHFRandExcitMod
         integer, intent(in) :: ClassCountUnocc2(ScratchSize)
         real(dp), intent(in) :: pDoub
         real(dp), intent(out) :: pGen
+        integer, intent(in), optional :: run
         character(*), parameter :: this_routine = 'CalcNonUniPGen'
 
         ! We need to consider which of the excitation generators are in use,
@@ -947,7 +948,7 @@ MODULE HPHFRandExcitMod
         pgen = 0.0_dp
 
         if (t_back_spawn .or. t_back_spawn_flex) then 
-            pgen = calc_pgen_back_spawn(nI, ilutI, ex, ic)
+            pgen = calc_pgen_back_spawn(nI, ilutI, ex, ic, run)
 
         else if (tLatticeGens) then
             if (ic == 2) then

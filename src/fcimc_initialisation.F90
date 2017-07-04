@@ -1504,7 +1504,8 @@ contains
         ! Select the excitation generator.
         if (tHPHF) then
             generate_excitation => gen_hphf_excit
-        elseif (t_back_spawn_option .or. t_back_spawn_flex_option) then 
+        elseif ((t_back_spawn_option .or. t_back_spawn_flex_option) .and. &
+                .not. tHub) then 
             generate_excitation => gen_excit_back_spawn
         elseif (tUEGNewGenerator) then
             generate_excitation => gen_ueg_excit

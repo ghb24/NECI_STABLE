@@ -86,7 +86,7 @@ MODULE GenRandSymExcitNUMod
         HElGen = 0.0_dp
 
         IF((tUEG.and.tLatticeGens) .or. (tHub.and.tLatticeGens)) THEN
-            call CreateExcitLattice(nI,iLut,nJ,tParity,ExcitMat,pGen)
+            call CreateExcitLattice(nI,iLut,nJ,tParity,ExcitMat,pGen,run)
             IC=2
             RETURN
         ENDIF       
@@ -2105,7 +2105,7 @@ MODULE GenRandSymExcitNUMod
 
 ! For a given ij pair in the UEG or Hubbard model, this generates ab as a double excitation efficiently.
 ! This takes into account the momentum conservation rule, i.e. that kb=ki+ki-ka(+G).
-    SUBROUTINE CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
+    SUBROUTINE CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn,run)
         Use SystemData , only : NMAXX,NMAXY,NMAXZ,tOrbECutoff,OrbECutoff, kvec, TUEG2
         use sym_mod, only: mompbcsym
         use bit_rep_data, only: test_flag
@@ -2118,6 +2118,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,2),iSpinIndex,TestEnergyB
         LOGICAL :: tAllowedExcit,tParity
         real(dp) :: r,pGen,pAIJ
+        integer, intent(in), optional :: run
 
         integer :: elecs(2), loc
        
@@ -2130,10 +2131,10 @@ MODULE GenRandSymExcitNUMod
         ! it could be increased by 1, depending on the electrons picked
         ! t_back_spawn_flex is only implemented for the hubbard lattice model 
         ! not the UEG! -> assert that in the init(already did that!)
-        if (t_back_spawn_flex .and. .not. test_flag(ilutnI, get_initiator_flag(1))) then 
+        if (t_back_spawn_flex .and. .not. test_flag(ilutnI, get_initiator_flag(run))) then 
             elecs = [Elec1Ind,Elec2Ind]
 
-            call check_electron_location(elecs, 2, loc)
+            loc = check_electron_location(elecs, 2, run)
 
             if (loc == 0) then 
                 ! then we can pick any orbitals.. 
@@ -2151,7 +2152,7 @@ MODULE GenRandSymExcitNUMod
                 ! but in this case there isn't the restriction in which order 
                 ! the electrons are picked, so i guess i have to write a new 
                 ! function for the hubbard model too in this case.. 
-                call pick_occupied_orbital_hubbard(nI, pAIJ, ChosenUnocc)
+                call pick_occupied_orbital_hubbard(nI, run, pAIJ, ChosenUnocc)
 
             end if 
 
@@ -2379,7 +2380,7 @@ MODULE GenRandSymExcitNUMod
 
         !Calculate generation probabilities
         IF (iSpn.eq.2) THEN
-            if (.not.(t_back_spawn_flex .and. .not. test_flag(iLutnI, get_initiator_flag(1)))) then
+            if (.not.(t_back_spawn_flex .and. .not. test_flag(iLutnI, get_initiator_flag(run)))) then
                 ! otherwise take the pAIJ set above
                 pAIJ=1.0_dp/(nBasis-Nel)
             end if
@@ -2405,7 +2406,7 @@ MODULE GenRandSymExcitNUMod
     ! For UEG there is a more sophisticated algorithm that allows more ijab choices to be 
     !rejected before going back to the main
     ! code.
-    SUBROUTINE CreateExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
+    SUBROUTINE CreateExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,run)
         Use SystemData , only : NMAXX,NMAXY,NMAXZ, tUEG2, kvec
         use CalcData, only: t_back_spawn
         use bit_rep_data, only: test_flag
@@ -2420,6 +2421,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: KaXLowerLimit,KaXUpperLimit,KaXRange,KaYLowerLimit,KaYUpperLimit,KaYRange,KaZLowerLimit,KaZUpperLimit,KaZRange
         LOGICAL :: tParity,tDoubleCount,tExtraPoint
         real(dp) :: r(2),pGen,pAIJ
+        integer, intent(in), optional :: run
         INTEGER, ALLOCATABLE :: Excludedk(:,:)
         character(*), parameter :: this_routine = "CreateExcitLattice"
         integer :: elecs(2), src(2), sym_prod, sum_ml
@@ -2436,9 +2438,9 @@ MODULE GenRandSymExcitNUMod
 
         ! [W.D]
         ! are we here in the hubbard model??
-        if (t_back_spawn .and. .not. test_flag(ilutnI, get_initiator_flag(1))) then
+        if (t_back_spawn .and. .not. test_flag(ilutnI, get_initiator_flag(run))) then
 
-            call pick_virtual_electrons_double_hubbard(nI, elecs, src, ispn,&
+            call pick_virtual_electrons_double_hubbard(nI, run, elecs, src, ispn,&
                                                         pgen_back)
 
             ! check if enogh electrons are in the virtual
@@ -2581,9 +2583,9 @@ MODULE GenRandSymExcitNUMod
                 write(6,*) "Allowed Excitations", iAllowedExcites
                 CALL Stop_All("CreateExcitLattice","Failure to generate a valid excitation from an electron pair combination")
             ENDIF
-            CALL CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn)
+            CALL CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn,run)
             ! now adapt the pgen in the case of the back-spawning
-            if (t_back_spawn .and. .not. test_flag(ilutnI, get_initiator_flag(1))) then
+            if (t_back_spawn .and. .not. test_flag(ilutnI, get_initiator_flag(run))) then
                 pgen = pgen * real(nOccBeta*nOccAlpha,dp) * pgen_back
             end if
             IF (.not.tNoFailAb) RETURN 
@@ -2597,7 +2599,7 @@ MODULE GenRandSymExcitNUMod
         pAIJ=1.0_dp/(KaXRange*KaYRange*KaZRange-iElecInExcitRange) 
         ! pBIJ is zero for this kind of excitation generator for antiparallel spins
         ! but is equal to pAIJ for parallel spins.
-        if (t_back_spawn .and. .not. test_flag(ilutnI, get_initiator_flag(1))) then
+        if (t_back_spawn .and. .not. test_flag(ilutnI, get_initiator_flag(run))) then
             IF(G1(nI(Elec1Ind))%Ms.ne.G1(nI(Elec2Ind))%Ms) THEN
                 ! thats the only case which is covered for now..
                 pGen=2.0_dp*pgen_back*pAIJ ! Spins not equal

@@ -46,7 +46,7 @@ contains
         ! i also have to consider that back-spawn gets turned on later on 
         ! so i have to check if back-spawn is active already or not..
         temp_back_spawn = ((t_back_spawn_flex .or. t_back_spawn) .and. .not. &
-            test_flag(ilutI, get_initiator_flag(1)))
+            test_flag(ilutI, get_initiator_flag(run)))
 
         if (temp_back_spawn) then 
 
@@ -54,14 +54,14 @@ contains
             if (genrand_real2_dSFMT() < pSingles) then 
                 
                 ic = 1
-                call gen_single_back_spawn(nI, ilutI, nJ, ilutJ, ExcitMat, &
+                call gen_single_back_spawn(nI, ilutI, run, nJ, ilutJ, ExcitMat, &
                     tParity, pgen)
                 pgen = pgen * pSingles 
 
             else 
                 
                 ic = 2 
-                call gen_double_back_spawn(nI, ilutI, nJ, ilutJ, ExcitMat, &
+                call gen_double_back_spawn(nI, ilutI, run, nJ, ilutJ, ExcitMat, &
                     tParity, pgen) 
                 pgen = pgen * pDoubles 
 
@@ -89,12 +89,13 @@ contains
 
     end subroutine gen_excit_back_spawn
 
-    subroutine gen_single_back_spawn(nI, ilutI, nJ, ilutJ, ex, tPar, pgen) 
+    subroutine gen_single_back_spawn(nI, ilutI, run, nJ, ilutJ, ex, tPar, pgen) 
         ! specialised single excitation routine for the back-spawn method
         ! for the moment i still have to decide, which back-spawn method is 
         ! in use.. 
         integer, intent(in) :: nI(nel) 
         integer(n_int), intent(in) :: ilutI(0:niftot)
+        integer, intent(in) :: run
         integer, intent(out) :: nJ(nel), ex(2,2)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tPar
@@ -108,11 +109,11 @@ contains
         if (t_back_spawn_flex) then 
             elec = 1 + floor(genrand_real2_dSFMT() * nel)
 
-            call check_electron_location([nI(elec),0], 1, loc)
+            loc = check_electron_location([nI(elec),0], 1, run)
 
             pgen_elec = 1.0_dp/real(nel, dp)
         else
-            call pick_virtual_electron_single(nI, elec, pgen_elec)
+            call pick_virtual_electron_single(nI, run, elec, pgen_elec)
         end if
 
         src = nI(elec)
@@ -128,7 +129,7 @@ contains
         if ((t_back_spawn_occ_virt) .or. (t_back_spawn_flex .and. (&
             (loc == 2 .and. occ_virt_level /= -1) .or. occ_virt_level == 2))) then 
 
-            call pick_occupied_orbital_single(nI, ilutI, src, cc_index, pgen, tgt)
+            call pick_occupied_orbital_single(nI, ilutI, src, cc_index, run, pgen, tgt)
 
         else 
 
@@ -171,10 +172,11 @@ contains
 
     end subroutine gen_single_back_spawn
 
-    subroutine gen_double_back_spawn(nI, ilutI, nJ, ilutJ, ex, tPar, pgen) 
+    subroutine gen_double_back_spawn(nI, ilutI, run, nJ, ilutJ, ex, tPar, pgen) 
         ! the double excitation routine for the back-spawn method 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: run
         integer, intent(out) :: nJ(nel), ex(2,2)
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         logical, intent(out) :: tpar
@@ -191,10 +193,10 @@ contains
             call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
                                  pgen)
 
-            call check_electron_location(src, 2, loc)
+            loc = check_electron_location(src, 2, run)
 
         else
-            call pick_virtual_electrons_double(nI, elecs, src, ispn,&
+            call pick_virtual_electrons_double(nI, run, elecs, src, ispn,&
                                                 sum_ml, pgen)
 
             ! here it could be that there are no valid electrons.. 
@@ -222,7 +224,7 @@ contains
             (loc == 1 .and. occ_virt_level /= -1) .or. (loc == 2) .or. &
             (loc == 0 .and. occ_virt_level >= 1)))) then 
 
-            call pick_occupied_orbital(nI, src, ispn, int_cpt(1), cum_sum(1), &
+            call pick_occupied_orbital(nI, src, ispn, run, int_cpt(1), cum_sum(1), &
                                         orbs(1))
 
         else 
@@ -283,7 +285,7 @@ contains
                 (occ_virt_level == 2))) then 
 
                 call pick_second_occupied_orbital(nI, src, cc_b, orbs(1), ispn,&
-                    int_cpt(2), cum_sum(2), orbs(2))
+                    run, int_cpt(2), cum_sum(2), orbs(2))
 
             else 
 
@@ -349,7 +351,7 @@ contains
                 .or. (loc == 2 .and. occ_virt_level == -1) .or. &
                 (loc == 0 .and. occ_virt_level == 1)))) then 
 
-                if (any(orbs(2) == projedet(:,1))) then
+                if (any(orbs(2) == projedet(:,part_type_to_run(run)))) then
                    ! if (b) is also in the occupied manifold i could have 
                     ! picked the other way around.. 
                     ! with the same uniform probability: 
@@ -412,14 +414,14 @@ contains
 
     end subroutine gen_double_back_spawn
 
-    function calc_pgen_back_spawn(nI, ilutI, ex, ic) result(pgen)
+    function calc_pgen_back_spawn(nI, ilutI, ex, ic, run) result(pgen)
         ! to use HPHF keyword and also the test if the pgens are correct 
         ! or just to be able and to be sure and more save i need a way to 
         ! recalculate the generation probability also for a back-spawn 
         ! excitation from a non-initiator determinant
         ! so although thats a hassle implement it, otherwise i cannot be 
         ! quite sure about the method
-        integer, intent(in) :: nI(nel), ex(2,2), ic
+        integer, intent(in) :: nI(nel), ex(2,2), ic, run
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
         character(*), parameter :: this_routine = "calc_pgen_back_spawn"
@@ -434,7 +436,7 @@ contains
         ! so here i should then go to 4ind-2 pgen calculator if it is a 
         ! inititator 
 
-        if (test_flag(ilutI, get_initiator_flag(1))) then 
+        if (test_flag(ilutI, get_initiator_flag(run))) then 
 
             pgen = calc_pgen_4ind_weighted2(nI, ilutI, ex, ic)
 
@@ -458,14 +460,14 @@ contains
                 if (t_back_spawn_flex_option) then 
                     elec_pgen = 1.0_dp / real(nel, dp) 
 
-                    call check_electron_location([ssrc,0], 1, loc)
+                    loc = check_electron_location([ssrc,0], 1, run)
 
 
                 else 
                     ! it is slow anyway.. so just do the dummy implementation
                     ! as Ali mentioned in the HPHF implementation it is not 
                     ! that common to have a doubly connected HPHF det
-                    call pick_virtual_electron_single(nI, dummy, elec_pgen) 
+                    call pick_virtual_electron_single(nI, run, dummy, elec_pgen) 
 
                 end if
 
@@ -479,7 +481,7 @@ contains
 
                     ! reuse the routine.. 
                     call pick_occupied_orbital_single(nI, ilutI, ssrc, cc_index, &
-                        orb_pgen, dummy)
+                        run, orb_pgen, dummy)
 
                 else 
 
@@ -511,11 +513,11 @@ contains
 
                     elec_pgen = pgen_weighted_elecs(nI, src)
 
-                    call check_electron_location(src, 2, loc)
+                    loc = check_electron_location(src, 2, run)
 
                 else 
 
-                    call pick_virtual_electrons_double(nI, dummy_elecs, &
+                    call pick_virtual_electrons_double(nI, run, dummy_elecs, &
                         dummy_orbs, ispn, sum_ml, elec_pgen) 
 
                     loc = -1
@@ -532,7 +534,7 @@ contains
                 ! orbital.. is this also the case in HPHF?? argh i hate that 
                 ! stuff 
                 ! do this testing here once
-                t_in_ref = (any(tgt(2) == projedet(:,1)))
+                t_in_ref = (any(tgt(2) == projedet(:,part_type_to_run(run))))
                 t_par = (is_beta(tgt(1)) .eqv. is_beta(tgt(2)))
 
                 ! for some back_spawn_flex it can happen that we have no 
@@ -541,7 +543,7 @@ contains
                     ((loc == 1 .and. occ_virt_level /= -1) .or. loc == 2 .or. &
                     (loc == 0.and. occ_virt_level >= 1)))) then 
 
-                    call pick_occupied_orbital(nI, src, ispn, int_cpt(1),&
+                    call pick_occupied_orbital(nI, src, ispn, run, int_cpt(1),&
                         cum_sum(1), dummy_orbs(1))
 
                     ! i can atleast do some stuff for picking it the other
@@ -571,7 +573,7 @@ contains
                         cc_b = get_paired_cc_ind(cc_a, sym_prod, sum_ml, ispn)
 
                         call pick_second_occupied_orbital(nI, src, cc_b, tgt(1), &
-                            ispn, int_cpt(2), cum_sum(2), dummy_orbs(2))
+                            ispn, run, int_cpt(2), cum_sum(2), dummy_orbs(2))
 
                         ! and ofc both probs are the same if the spin-fits
                         if (t_par) then 
