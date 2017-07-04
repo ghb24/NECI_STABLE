@@ -43,7 +43,7 @@ module excit_gens_int_weighted
 contains
 
     subroutine gen_excit_hel_weighted (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                       ExcitMat, tParity, pGen, HelGen, store)
+                                       ExcitMat, tParity, pGen, HelGen, store, run)
 
         ! A really laborious, slow, explicit and brute force method to
         ! generating all excitations in proportion to their connection
@@ -57,6 +57,8 @@ contains
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: run
+
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'gen_excit_hel_weighted'
 
@@ -154,7 +156,7 @@ contains
     !
 
     subroutine gen_excit_4ind_weighted (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                        ExcitMat, tParity, pGen, HelGen, store)
+                                        ExcitMat, tParity, pGen, HelGen, store, run)
 
         ! TODO: description
         !
@@ -169,6 +171,8 @@ contains
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        integer, intent(in), optional :: run
+
         character(*), parameter :: this_routine = 'gen_excit_4ind_weighted'
         integer :: orb
         real(dp) :: pgen2
@@ -1104,7 +1108,7 @@ contains
 
 
     subroutine gen_excit_4ind_reverse (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                       ExcitMat, tParity, pGen, HelGen, store)
+                                       ExcitMat, tParity, pGen, HelGen, store, run)
 
         ! TODO: description
         !
@@ -1119,6 +1123,8 @@ contains
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        integer, intent(in), optional :: run
+
         character(*), parameter :: this_routine = 'gen_excit_4ind_reverse'
 
         integer :: orb

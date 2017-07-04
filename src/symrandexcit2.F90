@@ -56,7 +56,7 @@ MODULE GenRandSymExcitNUMod
     contains
 
     subroutine gen_rand_excit (nI, ilut, nJ, ilutnJ, exFlag, IC, ExcitMat, &
-                               tParity, pGen, HElGen, store)
+                               tParity, pGen, HElGen, store, run)
 
         ! This routine is the same as GenRandSymexcitNu, but you can pass in 
         ! the class count arrays so that they do not have to be recalculated 
@@ -75,6 +75,8 @@ MODULE GenRandSymExcitNUMod
         ! Not used
         integer(n_int), intent(out) :: ilutnJ(0:niftot)
         HElement_t(dp), intent(out) :: HElGen
+
+        integer, intent(in), optional :: run
 
         real(dp) :: r
         character(*), parameter :: this_routine = 'gen_rand_excit'

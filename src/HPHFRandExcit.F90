@@ -117,7 +117,7 @@ MODULE HPHFRandExcitMod
     end subroutine CalcPGenHPHF
 
     subroutine gen_hphf_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                               tParity, pGen, HEl, store)
+                               tParity, pGen, HEl, store, run)
 
         use FciMCData, only: tGenMatHEl
 
@@ -142,6 +142,7 @@ MODULE HPHFRandExcitMod
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HEl
         type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: run
         character(*), parameter :: this_routine = "gen_hphf_excit"
 
         integer(kind=n_int) :: iLutnJ2(0:niftot)

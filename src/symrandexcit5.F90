@@ -36,7 +36,7 @@ module excit_gen_5
 contains
 
     subroutine gen_excit_4ind_weighted2 (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                     ExcitMat, tParity, pGen, HelGen, store)
+                                     ExcitMat, tParity, pGen, HelGen, store, run)
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
@@ -46,6 +46,7 @@ contains
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        integer, intent(in), optional :: run
         character(*), parameter :: this_routine = 'gen_excit_4ind_weighted2'
 
         real(dp) :: pgen2

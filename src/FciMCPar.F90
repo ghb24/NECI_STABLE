@@ -1011,9 +1011,9 @@ module FciMCParMod
                     ilutnJ = 0_n_int
 
                     ! Generate a (random) excitation
-                    call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
+                    call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
                                         ilutnJ, exFlag, IC, ex, tParity, prob, &
-                                        HElGen, fcimc_excit_gen_store)
+                                        HElGen, fcimc_excit_gen_store, part_type)
                     
 
                     ! If a valid excitation, see if we should spawn children.

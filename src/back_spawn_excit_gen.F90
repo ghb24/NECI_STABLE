@@ -29,7 +29,7 @@ contains
     ! also write a wrapper-like routine for an excitation generator if 
     ! back-spawn is activated.. to not mess up all the old functions too much. 
     subroutine gen_excit_back_spawn(nI, ilutI, nJ, ilutJ, exFlag, ic, &
-            ExcitMat, tParity, pgen, HelGen, store) 
+            ExcitMat, tParity, pgen, HelGen, store, run) 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2) 
@@ -38,6 +38,7 @@ contains
         real(dp), intent(out) :: pgen 
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store 
+        integer, intent(in), optional :: run
         character(*), parameter :: this_routine = "gen_excit_back_spawn"
 
         logical :: temp_back_spawn 
