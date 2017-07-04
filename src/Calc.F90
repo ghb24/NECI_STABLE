@@ -2369,13 +2369,12 @@ contains
                 t_back_spawn_flex_option = .true.
 
                 if (item < nitems) then 
-                    t_back_spawn_flex_option = .true.
                     t_back_spawn_flex = .false.
 
                     call geti(back_spawn_delay)
                 end if
 
-                ! can be value: -1, 0(default, 1, 2) 
+                ! can be value: -1, 0(default), 1, 2) 
                 ! to indicate (de-)excitation
                 if (item < nitems) then 
                     call geti(occ_virt_level)

@@ -110,8 +110,8 @@ contains
         ! i guess the easiest way to do that is to loop over all the 
         ! spin-orbitals and only write an entry if this orbital is not 
         ! occupied in the reference
-        j = 1
         do k = 1, inum_runs
+            j = 1
             do i = 1, nbasis
                 ! if (i) is in the reference cycle
                 if (any(i == projedet(:,k))) cycle
