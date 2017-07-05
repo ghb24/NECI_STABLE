@@ -432,8 +432,10 @@ contains
                     if (psingles_new > 1e-5_dp .and. &
                         psingles_new < (1.0_dp - 1e-5_dp)) then
 
-                        root_print "Updating singles/doubles bias. pSingles = ", &
-                            psingles_new, ", pDoubles = ", 1.0_dp - psingles_new, "in: ", this_routine
+                        if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
+                            root_print "Updating singles/doubles bias. pSingles = ", &
+                                psingles_new, ", pDoubles = ", 1.0_dp - psingles_new, "in: ", this_routine
+                        end if
 
                         pSingles = psingles_new
                         pDoubles = 1.0_dp - pSingles
