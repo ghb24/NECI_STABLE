@@ -15,6 +15,8 @@ elif [ "pgi-simple" == "$@" ]; then
 	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_SHARED_MEMORY=off ..
 elif [ "pgi-simple -g" == "$@" ]; then
 	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Debug -DENABLE_SHARED_MEMORY=off ..
+elif [ "fkf-ifort hdf5" == "$@" ]; then 
+	cmake -DENABLE_BUILD_HDF5=ON -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Release ..
 else
 	echo "Module not executed"
 fi
