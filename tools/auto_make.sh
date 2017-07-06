@@ -9,6 +9,6 @@ echo "Calling make for $@"
 if [ "fkf-ifort hdf5" == "$@" ]; then 
 	make VERBOSE=1 -j2 hdf5 neci mneci kneci kmneci dneci test_neci test_mneci test_kneci test_kmneci test_dneci
 else
-	make VERBOSE=1 -j2 hdf5 neci mneci kneci kmneci dneci test_neci test_mneci test_kneci test_kmneci test_dneci
+	make VERBOSE=1 -j2 neci mneci kneci kmneci dneci test_neci test_mneci test_kneci test_kmneci test_dneci
 fi
 
