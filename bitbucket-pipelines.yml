@@ -13,6 +13,7 @@ pipelines:
       - rm -rf * 
       - cd .. 
       - rmdir build_docker_test
+
  custom:
   test:
    - step:
@@ -28,3 +29,31 @@ pipelines:
       - rmdir build_docker_test
       - echo "done!"
 
+  test_suite: 
+   - step: 
+      script: 
+       - echo "test to run test_suite:"
+       - rm -rf build
+       - mkdir build 
+       - cd build 
+       - cmake .. 
+       - make -j
+       - cd ../test_suite 
+       - testcode.py 
+       - echo "the question is does this flag it as succesfull only if it passes??"
+
+   test_suite_single: 
+   - step: 
+      script: 
+       - echo "test to run test_suite:"
+       - rm -rf build
+       - mkdir build 
+       - cd build 
+       - cmake .. 
+       - make -j
+       - cd ../test_suite 
+       - testcode.py -c neci/parallel/C_solid
+       - echo "the question is does this flag it as succesfull only if it passes??"
+
+
+       
