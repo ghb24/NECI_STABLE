@@ -1,0 +1,20 @@
+image: dobrautz/neci_base:v1
+
+pipelines:
+ default: 
+  - step: 
+     script: 
+      - echo "test this"
+      #- rm -rf build_docker_test
+      #- mkdir build_docker_test 
+      #- cd build_docker_test 
+      #- cmake ..
+      #- make neci
+      #- rm -rf * 
+      #- cd .. 
+      #- rmdir build_docker_test
+ custom:
+  test:
+   - step:
+      script:
+       - echo "test manual"
