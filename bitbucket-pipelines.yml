@@ -1,4 +1,4 @@
-image: dobrautz/neci_base:v1
+image: dobrautz/neci_base:testsuite
 
 pipelines:
  default: 
@@ -50,9 +50,9 @@ pipelines:
        - mkdir build 
        - cd build 
        - cmake .. 
-       - make -j
+       - make -j neci
        - cd ../test_suite 
-       - testcode.py -c neci/parallel/C_solid
+       - /testcode/bin/testcode.py -c neci/parallel/C_solid
        - echo "the question is does this flag it as succesfull only if it passes??"
 
 
