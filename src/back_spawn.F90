@@ -12,6 +12,7 @@ module back_spawn
     use dSFMT_interface, only: genrand_real2_dSFMT
     use SymExcitDataMod, only: OrbClassCount, SymLabelCounts2, SymLabelList2, &
                                SpinOrbSymLabel
+    use Parallel_neci, only: iprocindex
 
     implicit none
 
@@ -40,22 +41,20 @@ contains
         character(*), parameter :: this_routine = "init_back_spawn"
 
         ! also add some output so people know we use this method
-        print *, "BACK-SPAWNING method in use! "
+        root_print "BACK-SPAWNING method in use! "
         if (t_back_spawn_flex) then
-            print *, "Flex option in use: we pick the electrons randomly" 
-            print *, " and then decide, where to pick the orbitals from "
-            print *, " depending where the electrons are relative to the ref"
+            root_print "Flex option in use: we pick the electrons randomly" 
+            root_print " and then decide, where to pick the orbitals from "
+            root_print " depending where the electrons are relative to the ref"
         else
-            print *, "For non-initiators we only pick electrons from the virtual"
-            print *, " orbitals of the reference determinant!"
-            print *, " so non-initiators only lower or keep the excitation level constant!"
+            root_print "For non-initiators we only pick electrons from the virtual"
+            root_print " orbitals of the reference determinant!"
+            root_print " so non-initiators only lower or keep the excitation level constant!"
         end if
 
         if (t_back_spawn_occ_virt) then 
-            print *, "additionally option to pick the first orbital (a) from " 
-            print *, " the occupied manifold of the reference is activated!"
-!             print *, " this excludes these type of excitations from the " 
-!             print *, " automated tau-search, as pgens are not easily recalculated!"
+            root_print "additionally option to pick the first orbital (a) from " 
+            root_print " the occupied manifold of the reference is activated!"
         end if
         ! first it only makes sense if we actually use the initiator method
         if (.not. tTruncInitiator) then 
@@ -199,7 +198,6 @@ contains
             end if
         end do
 
-!         print *, "n_valid: ", n_valid
         if (n_valid < 2) then
             ! something went wrong
             ! in this case i have to abort as no valid double excitation 
@@ -212,7 +210,6 @@ contains
 !                 "something went wront, did not find 2 valid virtual electrons!")
         end if
 
-!         print *, "virt_elecs: ", virt_elecs
         ! determine how many valid pairs there are now
         n_valid_pairs = (n_valid * (n_valid - 1)) / 2
 
@@ -228,15 +225,12 @@ contains
         elecs(1) = virt_elecs(ind_1)
         elecs(2) = virt_elecs(ind_2)
 
-!         print *, "ind_1, ind_2: ", ind_1, ind_2
-
         ! hm.. test this tomorrow
         
         ! now i have to pick two random ones from the list! 
         ! all the symmetry related stuff at the end:
         src = nI(elecs)
 
-!         print *, "src: ", src
         
         if (is_beta(src(1)) .eqv. is_beta(src(2))) then
             if (is_beta(src(1))) then

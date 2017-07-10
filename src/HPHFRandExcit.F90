@@ -23,8 +23,9 @@ MODULE HPHFRandExcitMod
                                        calc_pgen_4ind_reverse
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel, MaskAlpha, MaskBeta, &
-                         TestClosedShellDet, CalcOpenOrbs, IsAllowedHPHF
-    use FciMCData, only: pDoubles, excit_gen_store_type
+                         TestClosedShellDet, CalcOpenOrbs, IsAllowedHPHF, &
+                         DetBitEQ
+    use FciMCData, only: pDoubles, excit_gen_store_type, ilutRef
     use constants, only: dp,n_int, EPS
     use sltcnd_mod, only: sltcnd_excit
     use bit_reps, only: NIfD, NIfDBO, NIfTot
@@ -941,14 +942,25 @@ MODULE HPHFRandExcitMod
         integer, intent(in), optional :: run
         character(*), parameter :: this_routine = 'CalcNonUniPGen'
 
+        integer :: temp_run 
+
         ! We need to consider which of the excitation generators are in use,
         ! and call the correct routine in each case.
         ASSERT(.not. (tCSF)) ! .or. tSpinProjDets
 
         pgen = 0.0_dp
 
-        if (t_back_spawn .or. t_back_spawn_flex) then 
-            pgen = calc_pgen_back_spawn(nI, ilutI, ex, ic, run)
+        ! i have to make sure to catch all this call to this function correctly
+        if (present(run)) then 
+            temp_run = run
+        else
+            temp_run = 1
+        end if
+
+        ! does it help to avoid recalculating for the reference?
+        if ((t_back_spawn .or. t_back_spawn_flex) .and. .not. & 
+           DetBitEq(ilutI,ilutRef(:,temp_run),nifdbo)) then 
+            pgen = calc_pgen_back_spawn(nI, ilutI, ex, ic, temp_run)
 
         else if (tLatticeGens) then
             if (ic == 2) then
