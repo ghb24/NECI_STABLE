@@ -42,7 +42,7 @@ pipelines:
        - testcode.py 
        - echo "the question is does this flag it as succesfull only if it passes??"
 
-   test_suite_single: 
+  test_suite_single: 
    - step: 
       script: 
        - echo "test to run test_suite:"
