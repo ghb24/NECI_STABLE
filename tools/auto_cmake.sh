@@ -7,7 +7,7 @@
 
 echo "Calling cmake for: $@"
 
-if [ "gfortran-simple" == "$@" ] || [ "fkf-ifort" == "$@" ]; then
+if [ "gfortran-simple" == "$@" ] || [ "fkf-ifort" == "$@" ] || [ "fkf-ifort-new" == "$@" ]; then
 	cmake -DENABLE_HDF5=ON -DCMAKE_BUILD_TYPE=Release ..
 elif [ "gfortran-simple -g" == "$@" ] || [ "fkf-ifort -g" == "$@" ]; then
 	cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_HDF5=ON ..
