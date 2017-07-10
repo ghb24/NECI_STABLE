@@ -9,7 +9,7 @@ pipelines:
       - mkdir build_docker_test 
       - cd build_docker_test 
       - cmake ..
-      - make neci
+      - make -j neci
       - rm -rf * 
       - cd .. 
       - rmdir build_docker_test
@@ -98,5 +98,30 @@ pipelines:
         - su -c "/testcode/bin/testcode.py" -s /bin/sh temp
         - echo "debug build + test_suite passed!"
 
+
+  build_docker_image:
+    - step:
+       script:
+         - docker version
+         # i have to figure out how to safely store my credentials in env variables.. 
+         #- docker build -t dobrautz/neci_base:testsuite .
+         #- docker login --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
+         #- docker push dobrautz/neci_base:testsuite
+
+  build_hdf5:
+    - step:
+       script: 
+         # test to build neci + hdf5 (without using a docker image with hdf5.. 
+         # caching this hdf5 dependency(since the cache gets deleted every week any way would 
+         # be an optimal combination.. 
+        - rm -rf build 
+        - mkdir build 
+        - cd build 
+        - cmake -DENABLE_BUILD_HDF5=ON -DENABLE_HDF5=ON ..
+        - make -j hdf5 
+        - make -j neci 
+
+options:
+  docker: true
 
       
