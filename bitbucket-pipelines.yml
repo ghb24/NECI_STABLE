@@ -68,4 +68,3 @@ pipelines:
         - /testcode/bin/testcode.py -c neci/serial/2x2_real_space_hubbard
         - echo "the question is does this flag it as succesfull only if it passes??"
 
-
