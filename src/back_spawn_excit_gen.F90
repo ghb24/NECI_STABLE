@@ -402,10 +402,6 @@ contains
         pgen = pgen * (product(int_cpt) / product(cum_sum) + &
                        product(cpt_pair) / product(sum_pair))
 
-!         print *, "loc?", loc
-!         print *, "src: ", src
-!         print *, "orbs: ", orbs
-!         print *, "nI: ", nI
         ! And generate the actual excitation
         call make_double (nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), &
                           ex, tpar)
@@ -462,6 +458,7 @@ contains
                 ssrc = ex(1,1)
                 stgt = ex(2,1)
 
+
                 if (t_back_spawn_flex_option) then 
                     elec_pgen = 1.0_dp / real(nel, dp) 
 
@@ -472,9 +469,14 @@ contains
                     ! it is slow anyway.. so just do the dummy implementation
                     ! as Ali mentioned in the HPHF implementation it is not 
                     ! that common to have a doubly connected HPHF det
+
                     call pick_virtual_electron_single(nI, run, dummy, elec_pgen) 
 
+
+                    loc = -1
+
                 end if
+
 
                 if ((t_back_spawn_occ_virt) .or. (t_back_spawn_flex_option .and.&
                     ((loc == 2 .and. occ_virt_level /= -1) .or. occ_virt_level == 2))) then 
@@ -490,16 +492,20 @@ contains
 
                 else 
 
+
                     ! reuse the other pgen single function 
                     ! but i have to multiply out the electron pgen
                     orb_pgen = pgen_single_4ind(nI, ilutI, ssrc, stgt) * &
                         real(nel, dp)
 
+
                 end if
 
                 pgen = pSingles * elec_pgen * orb_pgen
 
+
             else if (ic == 2) then 
+
 
                 src = ex(1,:)
                 tgt = ex(2,:)
@@ -525,10 +531,12 @@ contains
 
                     loc = check_electron_location(src, 2, run)
 
+
                 else 
 
                     call pick_virtual_electrons_double(nI, run, dummy_elecs, &
                         dummy_orbs, dummy_ispn, dummy_sum_ml, elec_pgen) 
+
 
                     loc = -1
 

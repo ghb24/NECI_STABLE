@@ -1014,6 +1014,12 @@ contains
             Write(iout,*) "Turning OFF the tau-search, since continued run!"
         end if 
 
+        ! [W.D.] I guess I want to initialize that beforehand.. 
+        if (t_back_spawn .or. t_back_spawn_flex) then 
+            call init_back_spawn
+        end if
+
+
         if (tSearchTau) then
             call init_tau_search()
 
@@ -1143,10 +1149,6 @@ contains
             write(iout, '("Truncating determinant space at a maximum of ",i3," &
                     &unpaired electrons.")') trunc_nopen_max
         endif
-
-        if (t_back_spawn .or. t_back_spawn_flex) then 
-            call init_back_spawn
-        end if
 
 !        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.0_dp)
 !        TotDets=1.0_dp
