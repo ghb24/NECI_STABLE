@@ -52,7 +52,10 @@ pipelines:
        - cmake .. 
        - make -j neci
        - cd ../test_suite 
-       - /testcode/bin/testcode.py -c neci/parallel/C_Solid
+         # i have to run mpi as non root.. do some workaround
+       - adduser temp
+       - su -c "/testcode/bin/testcode.py -c neci/parallel/C_Solid" -s /bin/sh temp
+         # - /testcode/bin/testcode.py -c neci/parallel/C_Solid
        - echo "the question is does this flag it as succesfull only if it passes??"
 
   test_suite_single_serial:
