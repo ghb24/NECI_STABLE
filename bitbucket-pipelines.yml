@@ -1,4 +1,4 @@
-image: dobrautz/neci_base:testsuite
+image: dobrautz/neci_base:hdf5
 
 pipelines:
  default: 
@@ -92,7 +92,7 @@ pipelines:
         - mkdir build 
         - cd build 
         - cmake -DCMAKE_BUILD_TYPE=Debug ..
-        - make -j 
+        - make -j neci mneci kneci kmneci dneci
         - cd ../test_suite
         - adduser temp
         - su -c "/testcode/bin/testcode.py" -s /bin/sh temp

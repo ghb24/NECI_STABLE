@@ -21,6 +21,9 @@ RUN apt-get install -y python-minimal
 RUN apt-get install -y openmpi-bin
 RUN apt-get install -y libopenmpi-dev
 RUN apt-get install -y git
+# to enable hdf5 compilation with cmake we also need: 
+RUN apt-get install -y libpng-dev
+RUN apt-get install -y zlib1g-dev
 
 RUN git clone https://github.com/jsspencer/testcode /testcode
 
