@@ -1,4 +1,4 @@
-image: dobrautz/neci_base:hdf5
+image: dobrautz/neci_base:14.04
 
 pipelines:
  default: 
