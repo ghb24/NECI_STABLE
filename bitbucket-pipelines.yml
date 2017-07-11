@@ -1,4 +1,4 @@
-image: dobrautz/neci_base:testsuite
+image: dobrautz/neci_base:14.04
 
 pipelines:
  default: 
@@ -91,8 +91,8 @@ pipelines:
         - rm -rf build 
         - mkdir build 
         - cd build 
-        - cmake -DCMAKE_BUILD_TYPE=Debug ..
-        - make -j 
+        - cmake -DENABLE_BUILD_HDF5=On -DENABLE_HDF5=On -DCMAKE_BUILD_TYPE=Debug ..
+        - make -j neci mneci kneci kmneci dneci
         - cd ../test_suite
         - adduser temp
         - su -c "/testcode/bin/testcode.py" -s /bin/sh temp
@@ -120,6 +120,44 @@ pipelines:
         - cmake -DENABLE_BUILD_HDF5=ON -DENABLE_HDF5=ON ..
         - make -j hdf5 
         - make -j neci 
+
+  unit_tests: 
+    # give it a go with also including the unit-tests in the pipelin
+    - step:
+       script:
+        - rm -rf build
+        - mkdir build 
+        - cd build 
+        - cmake ..
+        - make -j 
+          # maybe i can call the unit_tests more elegantly..
+        - ctest 
+
+  full:
+    # do the full testing i acutally want to do for every commit to master.. 
+    - step: 
+       script:
+         # first do the debug build + hdf5 
+        - echo "building debug version + hdf5!"
+        - rm -rf build 
+        - mkdir build 
+        - cd build 
+        - cmake -DENABLE_BUILD_HDF5=On -DENABLE_HDF5=On -DCMAKE_BUILD_TYPE=Debug ..
+        - make -j neci mneci kneci kmneci dneci
+        - echo "done building debug version. clean up!"
+        - rm -rf * 
+        - echo "building release version + hdf5!"
+        - cmake -DENABLE_BUILD_HDF5=ON -DENABLE_HDF5=ON ..
+        - make -j 
+        - echo "done building release version + hdf5!"
+        - echo "running unit tests"
+        - ctest
+        - echo "unit tests passed"
+        - echo "running limited test_suite(to save build-minutes)"
+        - adduser temp
+        - su -c "/testcode/bin/testcode.py -c dneci/double_occ/hub_2x2 -c kmneci/Rn_lanczos_dci_init -c kneci/C_221_int -c mneci/cfqmc/HeHe_5_states -c neci/parallel/C_Solid" -s /bin/sh temp
+
+
 
 options:
   docker: true

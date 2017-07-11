@@ -53,5 +53,6 @@ fort.7
 frequency_hist*
 double_occupancy_stat*
 .nfs*
-RDM_POPSFILE
 UMAT
+popsfile.h5*
+RDM_POPSFILE
