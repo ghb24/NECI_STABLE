@@ -8,7 +8,6 @@ echo "Calling make for $@"
 
 if [ "fkf-ifort-hdf5" == "$@" ]; then
 	make VERBOSE=1 hdf5 
-	make VERBOSE=1 neci
 elif [ "gfortran-hdf5" == "$@" ]; then 
 	make VERBOSE=1 hdf5
 else
