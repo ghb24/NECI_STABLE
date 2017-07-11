@@ -88,6 +88,8 @@ if ( HAVE_BUILD_HDF5 )
     # Add the appropriate variable components
     
     set( HDF5_FOUND on )
+    # [W.D]: here is a problem.. on some configurations the libs get installes to lib64/ with the new 1.8.19 hdf5..
+    # but how do i detect this beforehand? or try to add both?? or make sure it gets installed to the same place all the time?
     set( HDF5_LIBRARIES ${HDF_DIR}/lib/libhdf5.a dl ${ZLIB_LIBRARIES} )
     set( HDF5_Fortran_LIBRARIES  ${HDF_DIR}/lib/libhdf5_fortran.a )
     set( HDF5_INCLUDE_DIRS  ${HDF_DIR}/include )
