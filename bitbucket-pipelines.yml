@@ -1,4 +1,7 @@
-image: dobrautz/neci_base:14.04
+#image: dobrautz/neci_base:14.04
+# i have two more images, which mimick the office setting, prepared now: 
+image: dobrautz/neci_base:opensuse13.2
+# image: dobrautz/neci_base:opensuse42.2
 
 pipelines:
  default: 
