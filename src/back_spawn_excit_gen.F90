@@ -42,6 +42,10 @@ contains
         character(*), parameter :: this_routine = "gen_excit_back_spawn"
 
         logical :: temp_back_spawn 
+#ifdef __DEBUG
+        HElement_t(dp) :: temp_hel
+        real(dp) :: pgen2
+#endif
         ! check the non-initiator criteria beforehand 
         ! i also have to consider that back-spawn gets turned on later on 
         ! so i have to check if back-spawn is active already or not..
@@ -67,6 +71,30 @@ contains
 
             end if
 
+#ifdef __DEBUG
+            if (.not. IsNullDet(nJ)) then
+                pgen2 = calc_pgen_back_spawn(nI, ilutI, ExcitMat, ic, run) 
+                if (abs(pgen - pgen2) > 1.0e-6_dp) then 
+                    if (tHPHF) then 
+                        temp_hel = hphf_off_diag_helement(nI,nJ,ilutI,ilutJ)
+                    else
+                        temp_hel = get_helement(nI,nJ,ilutI,ilutJ)
+                    endif
+
+                    write(6,*) 'Calculated and actual pgens differ.'
+                    write(6,*) 'This will break HPHF calculations'
+                    call write_det(6, nI, .false.)
+                    write(6, '(" --> ")', advance='no')
+                    call write_det(6, nJ, .true.)
+                    write(6,*) 'Excitation matrix: ', ExcitMat(1,1:ic), '-->', &
+                               ExcitMat(2,1:ic)
+                    write(6,*) 'Generated pGen:  ', pgen
+                    write(6,*) 'Calculated pGen: ', pgen2
+                    write(6,*) 'matrix element: ', temp_hel
+                    call stop_all(this_routine, "Invalid pGen")
+                end if
+            end if
+#endif
         else 
  
             ! do the "normal" excitation type if it is an initiator
@@ -85,6 +113,31 @@ contains
                 pgen = pgen * pDoubles
 
             end if
+#ifdef __DEBUG
+            if (.not. IsNullDet(nJ)) then
+                 pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
+                if (abs(pgen - pgen2) > 1.0e-6_dp) then
+                    if (tHPHF) then
+                        print *, "due to circular dependence, no matrix element calc possible!"
+                        temp_hel = hphf_off_diag_helement(nI,nJ,ilutI,ilutJ)
+                    else
+                        temp_hel = get_helement(nI, nJ, ilutI, ilutJ)
+                    end if
+
+                    write(6,*) 'Calculated and actual pgens differ.'
+                    write(6,*) 'This will break HPHF calculations'
+                    call write_det(6, nI, .false.)
+                    write(6, '(" --> ")', advance='no')
+                    call write_det(6, nJ, .true.)
+                    write(6,*) 'Excitation matrix: ', ExcitMat(1,1:ic), '-->', &
+                               ExcitMat(2,1:ic)
+                    write(6,*) 'Generated pGen:  ', pgen
+                    write(6,*) 'Calculated pGen: ', pgen2
+                    write(6,*) 'matrix element: ', temp_hel
+                    call stop_all(this_routine, "Invalid pGen")
+                end if
+            end if
+#endif
        end if
 
     end subroutine gen_excit_back_spawn
