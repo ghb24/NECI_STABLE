@@ -17,6 +17,8 @@ elif [ "fkf-ifort-hdf5" == "$@" ]; then
 	module load ifort/15.0.3 mpi.intel/5.0.3
 elif [ "gfortran-hdf5" == "$@" ]; then 
 	module load gnu-openmpi/1.7.2
+elif [ "fkf-ifort-latest" == "$@" ]; then 
+	module load fkf-ifort mpi.intel
 else
 	echo "Module configuration not set"
 fi
