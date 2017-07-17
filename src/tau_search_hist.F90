@@ -4,14 +4,15 @@ module tau_search_hist
 
     use SystemData, only: tGen_4ind_weighted, AB_hole_pairs, par_hole_pairs,tHub, & 
                           tGen_4ind_reverse, nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, &
-                          UMatEps
+                          UMatEps, nBasis
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, &                
                         t_min_tau, min_tau_global, & 
                         max_frequency_bound, n_frequency_bins, &
                         frq_ratio_cutoff, t_hist_tau_search,  &
                         t_fill_frequency_hists, t_hist_tau_search_option, &
-                        t_truncate_spawns, t_mix_ratios, mix_ratio, matele_cutoff
+                        t_truncate_spawns, t_mix_ratios, mix_ratio, matele_cutoff, &
+                        t_test_hist_tau
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          MaxTau, tSearchTau, tSearchTauOption, tSearchTauDeath
     use Parallel_neci, only: MPIAllReduce, MPI_MAX, MPI_SUM, MPIAllLORLogical, &
@@ -58,6 +59,91 @@ module tau_search_hist
 
 contains
 
+    subroutine optimize_hubbard_time_step() 
+        ! routine to set the optimal time-step for the hubbard model, 
+        ! where the pgens and matrix elements are set
+        use SystemData, only: uhub, bhub, nel, omega, treal
+        character(*), parameter :: this_routine = "optimize_hubbard_time_step"
+
+        real(dp) :: p_elec, p_hole, time_step, mat_ele, death_prob
+
+        ! first of all write down the notes here.. 
+
+        ! the first implementation should just use the non-optimized values 
+        ! from the current implementation.. 
+        ! afterwards i want to optimize especially the real-space hubbard 
+        ! implementation, since this is done really inefficient right now!
+        ! although it is just wrong how it is done currently in the 
+        ! real-space hubbard model.. damn..
+        ! are my results still valid??
+
+        if (tReal) then 
+            ! in the real-space hubbard model the electron is picked 
+            ! uniformly
+            p_elec = 1.0_dp / real(nel, dp)
+            ! and the hole should be picked from the neighbors:
+!             p_hole = 1.0_dp / (2.0_dp * real(dims, dp))
+
+            p_hole = min(1.0_dp / real(nBasis/2 - nOccAlpha, dp), &
+                         1.0_dp / real(nBasis/2 - nOccBeta, dp))
+
+            ! and the matrix element is always just -t 
+            mat_ele = bhub
+
+            ! so the off-diagonal time-step should be 
+            time_step = p_elec * p_hole / abs(mat_ele)
+
+            ! but one has to also consider the diagonal part for the 
+            ! death probability (to limit it to < 1)
+            ! there can be at most half the number of electrons double 
+            ! occupied sites! 
+            death_prob = Uhub * nel / 2.0_dp
+
+            print *, "optimized time-step for real-space hubbard: ", time_step
+
+        else 
+            ! in the momentum space hubbard the electrons fix the the holes 
+            ! to be picked! atleast if one is picked the 2nd hole is also 
+            ! chosen! 
+            p_elec = 2.0_dp / real(nOccAlpha * nOccBeta, dp)
+
+            ! and the holes are all the remaining possible ones
+            p_hole = 1.0_dp / real(nbasis - nel, dp)
+
+            ! the matrix element is always U (or U/2 ?? ) check!
+            mat_ele = uhub / omega
+
+            time_step = p_elec * p_hole / abs(mat_ele)
+
+            ! the diagonal element is -2t cos(k_vec)
+            death_prob = 2.0_dp * abs(bhub)
+
+            print *, "optimized time-step for the momentum space hubbard: ", time_step
+
+        end if
+!         
+        ! with this stuff i can make the optimal time-step! 
+        ! but for the real-space hubbard i have to first implement the 
+        ! better choosing of only neighboring holes!
+        if (tau > time_step) then 
+            print *, "initial guessed or input-provided time-step too large!" 
+        else
+            print *, "initial guessed or input-provided time-step too small!"
+        end if
+        tau = 0.1_dp * time_step
+        print *, "setting time-step to 0.1 * optimal: ", tau
+        print *, "and turning tau-search OFF!"
+        tSearchTau = .false. 
+        t_hist_tau_search = .false.
+        t_fill_frequency_hists = .false.
+        t_test_hist_tau = .false.
+
+        ! what should i do with the death prob..
+!         tSearchTauOption = .false.
+!         t_hist_tau_search_option = .false.
+
+    end subroutine optimize_hubbard_time_step
+
     subroutine init_hist_tau_search 
         ! split the new and old tau-search routines up, to no mix up 
         ! too much stuff 
@@ -90,6 +176,11 @@ contains
             ! here if a histogram is present and then calculating the 
             ! time-step and psingles etc. from it! 
             ! and also output the read-in or calculated quantities here! 
+        end if
+
+        if (tHub) then 
+            call optimize_hubbard_time_step()
+            return
         end if
 
         if (iProcIndex == root) then
@@ -191,6 +282,7 @@ contains
             if (tHub .or. tUEG) then
                 ! only one histogram is used! 
                 allocate(frequency_bins(n_frequency_bins), stat = ierr)
+                frequency_bins = 0
 
                 call LogMemAlloc('frequency_bins', n_frequency_bins, 4, &
                     this_routine, mem_tag_histograms, ierr)
@@ -310,11 +402,11 @@ contains
             ! here i could implement the summing in the case of Hubbard 
             ! and UEG models.. although I could "just" implement the 
             ! optimal time-step in the case of Hubbard models! 
-            if (tHub) then
-                call stop_all(this_routine, &
-                    "in the case of the Hubbard model there is a optimal time-step &
-                    &analytically calculatable! So do this!")
-            end if
+!             if (tHub) then
+!                 call stop_all(this_routine, &
+!                     "in the case of the Hubbard model there is a optimal time-step &
+!                     &analytically calculatable! So do this!")
+!             end if
             ! for UEG not i guess.. 
             call integrate_frequency_histogram_spec(frequency_bins, ratio)
 
@@ -432,8 +524,10 @@ contains
                     if (psingles_new > 1e-5_dp .and. &
                         psingles_new < (1.0_dp - 1e-5_dp)) then
 
-                        root_print "Updating singles/doubles bias. pSingles = ", &
-                            psingles_new, ", pDoubles = ", 1.0_dp - psingles_new, "in: ", this_routine
+                        if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
+                            root_print "Updating singles/doubles bias. pSingles = ", &
+                                psingles_new, ", pDoubles = ", 1.0_dp - psingles_new, "in: ", this_routine
+                        end if
 
                         pSingles = psingles_new
                         pDoubles = 1.0_dp - pSingles
@@ -616,6 +710,8 @@ contains
             print *, "matrix element: ", mat_ele
         end if
 #endif
+
+        if (pgen < EPS) return
 
 !         ASSERT(pgen > EPS) 
         ASSERT(ic == 1 .or. ic == 2)
@@ -840,6 +936,8 @@ contains
             return
         end if
 
+        if (pgen < EPS) return
+
         ratio = mat_ele / pgen 
 
         if (ic == 1) then 
@@ -934,6 +1032,8 @@ contains
             return
         end if
 
+        if (pgen < EPS) return
+
         ! then i have to first check if i have to make the histogram bigger...
         ratio = mat_ele / pgen
        
@@ -972,6 +1072,65 @@ contains
         integer :: all_frequency_bins(n_frequency_bins)
         integer :: i, threshold
         integer :: n_elements, cnt
+        real(dp) :: test_ratio, all_test_ratio
+        logical :: mpi_ltmp
+
+        ! test a change to the tau-search by now integrating on each 
+        ! processor seperately and communicate the maximas 
+        if (t_test_hist_tau) then 
+            test_ratio = 0.0_dp
+            n_elements = sum(spec_frequency_bins) 
+            if (n_elements == 0) then
+                test_ratio = 0.0_dp
+                
+            else if (n_elements < 0) then
+                test_ratio = -1.0_dp
+                ! if any of the frequency_ratios is full i guess i should 
+                ! also end the histogramming tau-search or?
+                ! yes i have to communicate that.. or else it gets 
+                ! fucked up.. 
+
+                t_fill_frequency_hists = .false.
+
+            else
+
+                threshold = int(frq_ratio_cutoff * real(n_elements,dp))
+                cnt = 0
+                i = 0
+                do while(cnt < threshold)
+                    i = i + 1
+                    cnt = cnt + spec_frequency_bins(i)
+                end do
+
+                test_ratio = i * frq_step_size
+
+            end if
+
+            ! how do i best deal with the mpi communication. 
+            ! i could use a mpialllor on (.not. t_fill_frequency_hists) to 
+            ! check if one of them is false on any processor..
+            call MPIAllLORLogical(.not.t_fill_frequency_hists,mpi_ltmp)
+            if (mpi_ltmp) then
+                ! then i know one of the frequency histograms is full.. so 
+                ! stop on all nodes! 
+                t_fill_frequency_hists = .false.
+                ratio = -1.0_dp
+                return
+            else
+! 
+!             if (test_ratio < 0.0_dp) then
+!                 ! i have to tell all processes to end the hist-tau-search
+!                 ratio = -1.0_dp
+!                 return
+!             else
+                all_test_ratio = 0.0_dp
+                call MPIAllReduce(test_ratio, MPI_MAX, all_test_ratio)
+
+                ratio = all_test_ratio
+            end if
+
+            return
+        end if
 
         ! MPI communicate
         all_frequency_bins = 0
@@ -1009,7 +1168,6 @@ contains
         end do
 
         ratio = i * frq_step_size
-
     end subroutine integrate_frequency_histogram_spec
 
     ! also provide the printing routines here: 
@@ -1026,9 +1184,15 @@ contains
         integer :: all_frequency_bins(n_frequency_bins)
         integer :: iunit, i, max_size
         real(dp) :: step_size, norm
-        integer(int64) :: sum_all
-        integer :: tmp_int, cnt, threshold, j
+!         integer(int64) :: sum_all
+        ! sashas tip: why do i not just use a real as summation?
+        real(dp) :: sum_all
+        integer :: tmp_int, j
+        real(dp) :: cnt, threshold
         real(dp) :: max_tmp
+        real(dp) :: temp_bins(n_frequency_bins)
+
+        if (thub) return
 
         all_frequency_bins = 0
 
@@ -1048,28 +1212,34 @@ contains
             max_tmp = 0.0_dp
             call mpiallreduce(gamma_doub, MPI_MAX, max_tmp)
 
+
             if (iProcIndex == root) then
 
                 ! also outout the obtained ratio integration here for now! 
-                sum_all = sum(all_frequency_bins) 
-                threshold = int(frq_ratio_cutoff * real(sum_all, dp))
-
+!                 sum_all = sum(all_frequency_bins) 
+                temp_bins = real(all_frequency_bins,dp)
+                sum_all = sum(temp_bins)
+                threshold = frq_ratio_cutoff * sum_all
 
                 iunit = get_free_unit()
                 call get_unique_filename('frequency_histogram', .true., &
                     .true., 1, filename)
                 open(iunit, file = filename, status = 'unknown')
 
-                cnt = 0
+                cnt = 0.0_dp
 
                 write(iout,*) "writing frequency histogram..."
                 do i = 1, n_frequency_bins
                     write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
                     write(iunit, "(i12)") all_frequency_bins(i)
                     if (cnt < threshold) then
-                        cnt = cnt + all_frequency_bins(i)
+!                         cnt = cnt + all_frequency_bins(i)
+                        cnt = cnt + temp_bins(i)
                         j = i
                     end if
+                    ! also print only as far as necessary until largest 
+                    ! H_ij/pgen ratio
+                    if (frq_step_size * i > max_tmp) exit
                 end do
                 close(iunit)
                 write(iout,*) "Done!"
@@ -1080,14 +1250,14 @@ contains
                 write(iout,*) "Number of zero-valued excitations: ", tmp_int
                 write(iout,*) "Number of valid excitations: ", sum_all
                 write(iout,*), "ratio of zero-valued excitations: ", &
-                    real(tmp_int, dp) / real(sum_all, dp)
+                    real(tmp_int, dp) / sum_all
                 ! i guess i should also output the number of excitations 
                 ! above the threshold! 
                 tmp_int = 0
                 call mpisum(above_max_doubles, 0, tmp_int) 
                 write(iout,*) "Number of excitations above threshold: ", tmp_int
                 write(iout,*) "ratio of excitations above threshold: ", &
-                    real(tmp_int, dp) / real(sum_all) 
+                    real(tmp_int, dp) / sum_all 
 
                 ! also output the obtained integrated threshold and the 
                 ! maximum values H_ij/pgen ratio for this type of excitation:
@@ -1113,24 +1283,28 @@ contains
 
             if (iProcIndex == root) then
 
-                sum_all = sum(all_frequency_bins_spec)
-                threshold = int(frq_ratio_cutoff * real(sum_all, dp))
+!                 sum_all = sum(all_frequency_bins_spec)
+                temp_bins = real(all_frequency_bins_spec,dp)
+                sum_all = sum(temp_bins)
+                threshold = frq_ratio_cutoff * sum_all
 
                 iunit = get_free_unit()
                 call get_unique_filename('frequency_histogram_singles', .true., &
                     .true., 1, filename)
                 open(iunit, file = filename, status = 'unknown')
 
-                cnt = 0
+                cnt = 0.0_dp
                 ! also output here the integrated ratio!
                 write(iout,*) "writing singles frequency histogram..."
                 do i = 1, n_frequency_bins
                     write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
                     write(iunit, "(i12)") all_frequency_bins_spec(i)
                     if (cnt < threshold) then
-                        cnt = cnt + all_frequency_bins_spec(i)
+!                         cnt = cnt + all_frequency_bins_spec(i)
+                        cnt = cnt + temp_bins(i)
                         j = i
                     end if
+                    if (frq_step_size * i > max_tmp) exit
                 end do
                 close(iunit)
                 write(iout,*) "Done!" 
@@ -1142,13 +1316,13 @@ contains
                 ! maybe also check the number of valid excitations
                 write(iout,*) "Number of valid single excitations: ", sum_all
                 write(iout,*) "ratio of zero-valued single excitations: ", &
-                    real(tmp_int,dp) / real(sum_all, dp)
+                    real(tmp_int,dp) / sum_all
 
                 tmp_int = 0 
                 call mpisum(above_max_singles, 0, tmp_int)
                 write(iout,*) "Number of single excitations above threshold: ", tmp_int
                 write(iout,*) "ratio of single excitations above threshold: ", &
-                    real(tmp_int, dp) / real(sum_all, dp)
+                    real(tmp_int, dp) / sum_all
                 write(iout,*) "integrated singles H_ij/pgen ratio: ", j * frq_step_size
                 write(iout,*) "for ", frq_ratio_cutoff, " percent coverage!"
 
@@ -1175,24 +1349,29 @@ contains
 
                 if (iProcIndex == root) then
 
-                    sum_all = sum(all_frequency_bins_spec)
-                    threshold = int(frq_ratio_cutoff * real(sum_all,dp))
+!                     sum_all = sum(all_frequency_bins_spec)
+                    temp_bins = real(all_frequency_bins_spec,dp)
+                    sum_all = sum(temp_bins)
+
+                    threshold = frq_ratio_cutoff * sum_all
 
                     iunit = get_free_unit()
                     call get_unique_filename('frequency_histogram_para', .true., &
                         .true., 1, filename)
                     open(iunit, file = filename, status = 'unknown')
 
-                    cnt = 0
+                    cnt = 0.0_dp
 
                     write(iout,*) "writing parallel frequency histogram..."
                     do i = 1, n_frequency_bins
                         write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
                         write(iunit, "(i12)") all_frequency_bins_spec(i)
                         if (cnt < threshold) then
-                            cnt = cnt + all_frequency_bins_spec(i)
+!                             cnt = cnt + all_frequency_bins_spec(i)
+                            cnt = cnt + temp_bins(i)
                             j = i
                         end if
+                        if (frq_step_size * i > max_tmp) exit
                     end do
                     close(iunit)
                     write(iout,*) "Done!"
@@ -1203,12 +1382,12 @@ contains
                     write(iout,*) "Number of zero-valued parallel excitations: ", tmp_int
                     write(iout,*) "Number of valid parallel excitations: ", sum_all
                     write(iout,*) "ratio of zero-valued parallel excitations: ", &
-                        real(tmp_int, dp) / real(sum_all, dp)
+                        real(tmp_int, dp) / sum_all
                     tmp_int = 0
                     call mpisum(above_max_para, 0, tmp_int) 
                     write(iout,*) "Number of parallel excitations above threshold: ", tmp_int
                     write(iout,*) "ratio of parallel excitations above threshold: ", &
-                        real(tmp_int, dp) / real(sum_all, dp)
+                        real(tmp_int, dp) / sum_all
                     write(iout,*) "integrated parallel H_ij/pgen ratio: ", j * frq_step_size
                     write(iout,*) "for ", frq_ratio_cutoff, " percent coverage!"
 
@@ -1230,24 +1409,28 @@ contains
 
                 if (iProcIndex == root) then
 
-                    sum_all = sum(all_frequency_bins_spec)
-                    threshold = int(frq_ratio_cutoff * real(sum_all,dp))
+!                     sum_all = sum(all_frequency_bins_spec)
+                    temp_bins = real(all_frequency_bins_spec,dp)
+                    sum_all = sum(temp_bins)
+                    threshold = frq_ratio_cutoff * sum_all
 
                     iunit = get_free_unit()
                     call get_unique_filename('frequency_histogram_anti', .true., &
                         .true., 1, filename)
                     open(iunit, file = filename, status = 'unknown')
 
-                    cnt = 0
+                    cnt = 0.0_dp
 
                     write(iout,*) "writing anti-parallel frequency histogram..."
                     do i = 1, n_frequency_bins
                         write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
                         write(iunit, "(i12)") all_frequency_bins_spec(i)
                         if (cnt < threshold) then
-                            cnt = cnt + all_frequency_bins_spec(i)
+!                             cnt = cnt + all_frequency_bins_spec(i)
+                            cnt = cnt + temp_bins(i)
                             j = i
                         end if
+                        if (frq_step_size * i > max_tmp) exit
                     end do
                     close(iunit)
                     write(iout,*) "Done!"
@@ -1257,13 +1440,13 @@ contains
                     write(iout,*) "Number of zero-valued anti-parallel excitations: ", tmp_int
                     write(iout,*) "Number of valid anti-parallel excitations: ", sum_all
                     write(iout,*) "ratio of zero-valued anti-parallel excitations: ", &
-                        real(tmp_int, dp) / real(sum_all, dp)
+                        real(tmp_int, dp) / sum_all
                     tmp_int = 0
                     call mpisum(above_max_anti, 0, tmp_int) 
                     write(iout,*) "Number of anti-parallel excitations above threshold: ", &
                         tmp_int
                     write(iout,*) "ratio of anti-parallel excitations above threshold: ", &
-                        real(tmp_int, dp) / real(sum_all, dp) 
+                        real(tmp_int, dp) / sum_all
                     write(iout,*) "integrated anti-parallel H_ij/pgen ratio: ", j * frq_step_size
                     write(iout,*) "for ", frq_ratio_cutoff, " percent coverage!"
 
@@ -1287,24 +1470,28 @@ contains
 
                 if (iProcIndex == root) then
 
-                    sum_all = sum(all_frequency_bins_spec)
-                    threshold = int(frq_step_size * real(sum_all,dp))
+!                     sum_all = sum(all_frequency_bins_spec)
+                    temp_bins = real(all_frequency_bins_spec,dp)
+                    sum_all = sum(temp_bins)
+                    threshold = frq_step_size * sum_all
 
                     iunit = get_free_unit()
                     call get_unique_filename('frequency_histogram_doubles', .true., &
                         .true., 1, filename)
                     open(iunit, file = filename, status = 'unknown')
 
-                    cnt = 0
+                    cnt = 0.0_dp
 
                     write(iout,*) "writing doubles frequency histogram..."
                     do i = 1, n_frequency_bins
                         write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
                         write(iunit, "(i12)") all_frequency_bins_spec(i)
                         if (cnt < threshold) then
-                            cnt = cnt + all_frequency_bins_spec(i)
+!                             cnt = cnt + all_frequency_bins_spec(i)
+                            cnt = cnt + temp_bins(i)
                             j = i
                         end if
+                        if (frq_step_size * i > max_tmp) exit
                     end do
                     close(iunit)
                     write(iout,*) "Done!"
@@ -1314,11 +1501,11 @@ contains
                     write(iout,*) "Number of zero-valued double excitations: ", tmp_int
                     write(iout,*) "Number of valid double excitations: ", sum_all
                     write(iout,*) "ratio of zero-valued double excitations: ", &
-                        real(tmp_int, dp) / real(sum_all, dp)
+                        real(tmp_int, dp) / sum_all
                     call mpisum(above_max_doubles, 0, tmp_int) 
                     write(iout,*) "Number of excitations above threshold: ", tmp_int
                     write(iout,*) "ratio of excitations above threshold: ", &
-                        real(tmp_int, dp) / real(sum_all) 
+                        real(tmp_int, dp) / sum_all
                     write(iout,*) "integrated doubles H_ij/pgen ratio: ", j * frq_step_size
                     write(iout,*) "for ", frq_ratio_cutoff, " percent coverage!"
 
@@ -1335,11 +1522,12 @@ contains
 
         if (iprocindex == root) then
             ! also print out a normed version for comparison
-            sum_all = sum(all_frequency_bins)
+!             sum_all = sum(all_frequency_bins)
+            temp_bins = real(all_frequency_bins,dp)
+            sum_all = sum(temp_bins)
 
             ! check if integer overflow:
-            if (.not. sum_all < 0) then
-                norm = real(sum_all, dp)
+            if (.not. sum_all < 0.0_dp) then
 
                 iunit = get_free_unit()
                 call get_unique_filename('frequency_histogram_normed', .true., &
@@ -1347,8 +1535,10 @@ contains
                 open(iunit, file = filename, status = 'unknown')
 
                 do i = 1, n_frequency_bins
+                    ! only print if above threshold
+                    if (temp_bins(i) / sum_all < EPS) cycle
                     write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
-                    write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
+                    write(iunit, "(f16.7)") temp_bins(i) / sum_all
                 end do
 
                 close(iunit)

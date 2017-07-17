@@ -34,7 +34,9 @@ module fcimc_initialisation
                         initial_refs, trial_init_reorder, tStartTrialLater, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, &
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
-                        t_previous_hist_tau, t_fill_frequency_hists
+                        t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
+                        t_back_spawn_option, t_back_spawn_flex_option, &
+                        t_back_spawn_flex
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -142,6 +144,8 @@ module fcimc_initialisation
     use constants
 
     use tau_search_hist, only: init_hist_tau_search
+    use back_spawn, only: init_back_spawn
+    use back_spawn_excit_gen, only: gen_excit_back_spawn
 
     implicit none
 
@@ -1010,6 +1014,12 @@ contains
             Write(iout,*) "Turning OFF the tau-search, since continued run!"
         end if 
 
+        ! [W.D.] I guess I want to initialize that beforehand.. 
+        if (t_back_spawn .or. t_back_spawn_flex) then 
+            call init_back_spawn
+        end if
+
+
         if (tSearchTau) then
             call init_tau_search()
 
@@ -1497,6 +1507,9 @@ contains
         ! Select the excitation generator.
         if (tHPHF) then
             generate_excitation => gen_hphf_excit
+        elseif ((t_back_spawn_option .or. t_back_spawn_flex_option) .and. &
+                .not. tHub) then 
+            generate_excitation => gen_excit_back_spawn
         elseif (tUEGNewGenerator) then
             generate_excitation => gen_ueg_excit
         elseif (tCSF) then

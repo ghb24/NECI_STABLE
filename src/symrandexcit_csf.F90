@@ -27,7 +27,7 @@ module GenRandSymExcitCSF
 contains
 
     subroutine gen_csf_excit (nI, iLut, nJ, ilutnJ, exFlag, IC, &
-                              excitMat, tParity, pGen, HElGen, store)
+                              excitMat, tParity, pGen, HElGen, store, run)
 
         ! Generate an excitation from a CSF at random, as specified by exFlag,
         ! and return the Excitation matrix and the probability of generating
@@ -50,6 +50,7 @@ contains
         logical, intent(out)   :: tParity
         real(dp),  intent(out)   :: pGen
         type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: run
 
         ! Unused:
         integer(kind=n_int), intent(out) :: iLutnJ(0:niftot)

@@ -246,6 +246,12 @@ logical :: t_new_real_space_hubbard = .false.
 character(20) :: lattice_type
 ! i need 
 integer :: length_x = 0, length_y = 0
+! also implement a next-nearest neighbor Hubbard model implementation: 
+! for k-space hubbard, this only affects the diagonal part! 
+real(dp) :: nn_bhub = 0.0_dp
+
+! i have to merge the twisted bc into master i just realized!
+logical :: t_twisted_bc = .false.
 
 ! Operators for type(symmetry)
 interface assignment (=)

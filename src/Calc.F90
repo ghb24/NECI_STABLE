@@ -7,7 +7,7 @@ MODULE Calc
                           BB_elec_pairs, par_elec_pairs, AB_elec_pairs, &
                           AA_hole_pairs, BB_hole_pairs, AB_hole_pairs, &
                           par_hole_pairs, hole_pairs, nholes_a, nholes_b, &
-                          nholes, UMATEPS
+                          nholes, UMATEPS, tHub
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, tSpinProject, &
                             spin_proj_gamma, spin_proj_shift, &
@@ -1087,6 +1087,11 @@ contains
                 ! tau-search anyway, in case the tau-search is not yet 
                 ! converged enough
                 t_restart_hist_tau = .true.
+
+            case ("TEST-HIST-TAU", "LESS-MPI-HEAVY")
+                ! test a change to the tau search to avoid those nasty 
+                ! MPI communications each iteration
+                t_test_hist_tau = .true. 
 
             case("TRUNCATE-SPAWNS")
                 ! [Werner Dobrautz, 4.4.2017:]
@@ -2332,6 +2337,48 @@ contains
                 !
                 ! log((N_t + (N_t - N_(t-1))) / N_t)
                 call stop_all(t_r,'Option deprecated')
+
+            case ("BACK-SPAWN")
+                ! Alis idea to increase the chance of non-initiators to spawn
+                ! to occupied determinants
+                ! and out of laziness this is only introduced for 
+                ! 4ind-weighted-2 and above excitation generators! 
+                ! maybe for hubbard model too, but lets see..
+                t_back_spawn = .true.
+                t_back_spawn_option = .true.
+
+                if (item < nitems) then 
+                    t_back_spawn = .false.
+                    call geti(back_spawn_delay)
+                end if
+
+            case ("BACK-SPAWN-OCC-VIRT")
+                t_back_spawn = .true.
+                t_back_spawn_occ_virt = .true.
+                
+                t_back_spawn_option = .true.
+
+                if (item < nitems) then 
+                    t_back_spawn = .false.
+
+                    call geti(back_spawn_delay)
+                end if
+
+            case("BACK-SPAWN-FLEX")
+                t_back_spawn_flex = .true. 
+                t_back_spawn_flex_option = .true.
+
+                if (item < nitems) then 
+                    t_back_spawn_flex = .false.
+
+                    call geti(back_spawn_delay)
+                end if
+
+                ! can be value: -1, 0(default), 1, 2) 
+                ! to indicate (de-)excitation
+                if (item < nitems) then 
+                    call geti(occ_virt_level)
+                end if
 
             case default
                 call report("Keyword "                                &

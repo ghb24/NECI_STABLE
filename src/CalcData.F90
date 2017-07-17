@@ -351,6 +351,7 @@ real(dp) :: max_frequency_bound = 10000_dp
 ! also use a sensible default integration cut-off: 99.9%
 real(dp) :: frq_ratio_cutoff = 0.999_dp
 
+logical :: t_test_hist_tau = .false.
 ! real(dp) :: frq_step_size = 0.1_dp
 ! 
 ! 
@@ -381,5 +382,22 @@ logical :: t_read_probs = .true.
 ! UMATEPS (let the default be zero, so no matrix elements are ignored!)
 logical :: t_matele_cutoff = .false.
 real(dp) :: matele_cutoff = EPS
+
+! alis new idea to increase the chance of non-initiators to spawn to 
+! already occupied determinant
+logical :: t_back_spawn = .false., t_back_spawn_option = .false.
+! logical to control where first orbital is chosen from
+logical :: t_back_spawn_occ_virt = .false.
+! also use an integer to maybe start the backspawning later, or otherwise 
+! it may never correctly grow
+integer :: back_spawn_delay = 0
+
+! new more flexible implementation: 
+logical :: t_back_spawn_flex = .false., t_back_spawn_flex_option = .false.
+! also make an combination of the flexible with occ-virt with an additional 
+! integer which manages the degree of how much you want to de-excite
+! change now: we also want to enable to increase the excitation by possibly 
+! 1 -> maybe I should rename this than so that minus indicates de-excitation?!
+integer :: occ_virt_level = 0
 
 end module CalcData
