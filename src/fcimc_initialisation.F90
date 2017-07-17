@@ -1014,9 +1014,19 @@ contains
             Write(iout,*) "Turning OFF the tau-search, since continued run!"
         end if 
 
-        ! [W.D.] I guess I want to initialize that beforehand.. 
+        ! [W.D.] I guess I want to initialize that before the tau-search, 
+        ! or otherwise some pgens get calculated incorrectly
         if (t_back_spawn .or. t_back_spawn_flex) then 
-            call init_back_spawn
+            call init_back_spawn()
+        end if
+
+        ! also i should warn the user if this is a restarted run with a 
+        ! set delay in the back-spawning method: 
+        ! is there actually a use-case where someone really wants to delay 
+        ! a back-spawn in a restarted run? 
+        if (tReadPops .and. back_spawn_delay /= 0) then 
+            call Warning_neci(t_r, &
+                "Do you really want a delayed back-spawn in a restarted run?")
         end if
 
 
