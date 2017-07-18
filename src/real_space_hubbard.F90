@@ -25,6 +25,39 @@ module real_space_hubbard
 
     ! i also want to have a linked list of neighbors for each site
     ! need a new type for that 
+    type lattice_site
+        ! what do i want to store here? 
+        ! this could be optimized really neatly with bit-storing and 
+        ! packing.. but do not optimize prematurely! 
+        ! essentially i need a vector of vectors (of integers) 
+        ! i will create this type nbasis times in a vector of types! 
+        ! but also store the number of neighbors for each of these
+        integer :: n_next_neighbors = 0
+        integer, allocatable :: next_neighbor_list(:) 
+
+        ! and it would be easy to generalize this for next-nearest neigbors 
+        ! and stuff 
+        ! and maybe for the AIM i could store flags here if this is a 
+        ! impurity site or not.. 
+        ! maybe i want to rename this type "lattice" 
+        ! but do not implement unnecessary stuff for now! 
+
+    end type lattice_site
+
+    type lattice 
+        ! create a type which contains general information about the 
+        ! lattice structure 
+        logical :: t_init = .false. 
+        integer :: num_sites = 0 
+
+        type(lattice_site), allocatable :: site(:)
+
+    end type lattice
+
+    ! and i guess i want to have a global lattice type.. to make it 
+    ! easier accessible.. 
+    type(lattice) :: global_lattice
+
 contains 
 
     ! some brainstorming: 
@@ -41,9 +74,18 @@ contains
     end subroutine init_real_space_hubbard
 
     ! then i have to think of how to set up the lattice.. 
-    subroutine init_lattice() 
+    subroutine init_lattice()
         ! routine which sets up the lattice, like TMAT of nearest neighbors
         ! and creating the indexing of the neighbors of each site 
+        ! lets break the convention of using a million of global 
+        ! variables in neci.. and try to start using more and more 
+        ! explicit variables, or atleast enable optional input 
+        ! variables to unit-test the function more easily
+        ! although i just realized that this bloats this whole 
+        ! function way too much, with 3 variables for each input:
+        ! a optional input one, a used on in this routine and 
+        ! the global one which is used if no input is provided.. 
+        ! argh.. fortran gets annoying..
         character(*), parameter :: this_routine = "init_lattice"
 
         ! what are the possible ones:
@@ -98,6 +140,13 @@ contains
         ! already provided initialisation and only set up the additional 
         ! necessary stuff here.
 
+        ! i have to setup up the set_nearest neighbor routine
+        if (global_lattice%t_init) then 
+            ! if it has already been initialized before deinit all the 
+            ! components 
+        end if
+
+        call create_neighbor_list(n_sites, 
     end subroutine init_lattice
     
     subroutine init_tmat() 
@@ -109,12 +158,20 @@ contains
 
     end subroutine init_tmat
 
-    subroutine create_neighbor_list()
+    subroutine create_neighbor_list(n_sit, lat_type, len_x, len_y, t_periodic)
         ! i want to index the neigbors of each lattice site with a linked 
         ! list. this will be helpful especially for the kagome lattice 
         ! where sites can have a differing amount of neighbors 
         ! and with open boundary conditions this also happens..
+        integer, intent(in) :: n_sit
+        character(*), intent(in) :: lat_type 
+        integer, intent(in) :: len_x, len_y 
+        logical, intent(in) :: t_periodic
+
         character(*), parameter :: this_routine = "create_neighbor_list"
+    
+        ! i have to get the data_type running 
+        if (allocated(global_lattice)) deallocate(global_lattice)
 
     end subroutine create_neighbor_list
 
