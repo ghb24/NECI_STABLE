@@ -542,7 +542,7 @@ system: do
 
             if (item < nitems) then 
                ! use only new hubbard flags in this case 
-               call getu(lattice_type)
+               call readu(lattice_type)
             end if
 
             if (item < nitems) then 

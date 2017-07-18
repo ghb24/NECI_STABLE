@@ -91,7 +91,7 @@ contains
             print *, "Incorrect lattice type provided! Choose:"
             print *, "chain, square, tilted, triangular, kagome"
             call stop_all(this_routine, "Incorrect lattice type!")
-        end if
+        end select
 
         ! i also have to set a lot of the other necessary stuff.. 
         ! but maybe i can avoid that by still using a lot of the 
