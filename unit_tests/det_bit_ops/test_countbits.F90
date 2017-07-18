@@ -51,6 +51,7 @@ contains
         TEST1(test_max_bits, proc)
         TEST1(test_nlast_restriction, proc)
         TEST1(test_max_bits2, proc)
+
     end subroutine
 
     subroutine test_zero_bits(proc)

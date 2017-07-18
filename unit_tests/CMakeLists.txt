@@ -9,3 +9,6 @@ add_subdirectory( fruit_src )
 # And start adding tests
 
 add_subdirectory( det_bit_ops )
+
+# finally get unit testing integrated in software projects 
+add_subdirectory( real_space_hubbard )
