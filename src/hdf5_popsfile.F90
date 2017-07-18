@@ -231,8 +231,8 @@ contains
                        access_prp=plist_id)
 
         call read_metadata(file_id)
-        call read_calc_data(file_id)
         call read_walkers(file_id, dets, CurrWalkers)
+        call read_calc_data(file_id)
 
         ! And we are done
         call h5pclose_f(plist_id, err)
@@ -508,6 +508,7 @@ contains
             write(6,*) 'Initial shift: ', DiagSft
         else
             tSinglePartPhase = .true.
+            
         end if
 
         ! [W.D.]:
@@ -1126,7 +1127,7 @@ contains
         real(dp), intent(in) :: norm(lenof_sign), parts(lenof_sign)
         character(*), parameter :: t_r = 'check_read_particles'
 
-        integer(int64) :: all_read_walkers
+        integer(int64) :: all_read_walkers, tot_walkers
         real(dp) :: all_norm(lenof_sign), all_parts(lenof_sign)
 
         ! Have all the sites been correctly read in from the file
@@ -1165,6 +1166,14 @@ contains
 
         ! If the absolute sum, and the sum of the squares is correct, we can
         ! be fairly confident that they have all been read in!...
+        
+        ! [W.D.]
+        ! on behalf of sasha bring back the feature that turns off the walker 
+        ! grow even if walkcontgrow was set unintentionally but the number of 
+        ! read-in walkers already exceeds or is close to the target number 
+        ! so i guess it is enough to set the global AllTotParts here 
+        ! of walkers 
+        AllTotParts = all_parts
 
     end subroutine
 #endif
