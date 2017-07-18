@@ -347,7 +347,7 @@ logical :: t_mix_ratios = .false.
 real(dp) :: mix_ratio = 1.0_dp
 ! use default values for bin-width and number of bins and a max ratio:
 integer :: n_frequency_bins = 100000
-real(dp) :: max_frequency_bound = 10000_dp
+real(dp) :: max_frequency_bound = 10000.0_dp
 ! also use a sensible default integration cut-off: 99.9%
 real(dp) :: frq_ratio_cutoff = 0.999_dp
 
