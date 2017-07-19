@@ -7,7 +7,7 @@ module excit_gens_int_weighted
                           AB_elec_pairs, par_elec_pairs, AA_hole_pairs, &
                           par_hole_pairs, AB_hole_pairs, iMaxLz, &
                           tGen_4ind_part_exact, tGen_4ind_lin_exact, &
-                          tGen_4ind_unbound
+                          tGen_4ind_unbound, t_iiaa, t_ratio
     use CalcData, only: matele_cutoff, t_matele_cutoff, t_back_spawn, t_back_spawn_flex, &
                         t_back_spawn_occ_virt, occ_virt_level
     use SymExcit3, only: CountExcitations3, GenExcitations3
@@ -947,7 +947,38 @@ contains
         else
             ! Include the contribution of this term sqrt(<ia|ia>)
             ida = gtID(orba)
-            contrib = sqrt(abs_l1(UMat2D(max(indi, ida), min(indi, ida))))
+            
+            if (t_iiaa .and. t_ratio) then 
+                ! ok.. maybe i have to talk to ali about that, what he 
+                ! meant with this splitting of p(a|ij) = p(j)*p(a|i) 
+                ! because i am not sure about that ..
+                ! althoug i should be carefull if we do not divide by 
+                ! 0 here.. 
+
+                contrib = sqrt(abs(get_umat_el(indi, indi, ida, ida) / & 
+                           max(abs(get_umat_el(indj, indj, ida, ida)), 0.0001_dp))) &
+                        + sqrt(abs(get_umat_el(indj, indj, ida, ida) / & 
+                           max(abs(get_umat_el(indi, indi, ida, ida)), 0.0001_dp)))
+
+            else if (t_iiaa) then 
+                
+                contrib = sqrt(abs(get_umat_el(indi, indi, ida, ida)))
+
+            else if (t_ratio) then 
+                ! also here i have to check if i actually should take care 
+                ! of the indj influence.. 
+
+                contrib = sqrt(abs(UMat2D(max(indi, ida), min(indi, ida))) / & 
+                           max(abs(UMat2D(max(indj, ida), min(indj, ida))), 0.0001_dp)) &
+                        + sqrt(abs(UMat2D(max(indj, ida), min(indj, ida))) / & 
+                           max(abs(UMat2D(max(indi, ida), min(indi, ida))), 0.0001_dp))
+
+            else 
+
+                contrib = sqrt(abs_l1(UMat2D(max(indi, ida), min(indi, ida))))
+                
+            end if
+
         end if
 
         if (t_matele_cutoff) then
@@ -997,8 +1028,40 @@ contains
             ! Include a contribution of (orb can be a or b):
             ! sqrt((ii|aa) + (jj|aa))
             ida = gtID(orba)
-            contrib = sqrt(abs_l1(UMat2D(max(indi, ida), min(indi, ida))))&
-                    + sqrt(abs_l1(UMat2D(max(indj, ida), min(indj, ida))))
+
+            if (t_iiaa .and. t_ratio) then 
+                ! ok.. maybe i have to talk to ali about that, what he 
+                ! meant with this splitting of p(a|ij) = p(j)*p(a|i) 
+                ! because i am not sure about that ..
+                ! althoug i should be carefull if we do not divide by 
+                ! 0 here.. 
+
+                contrib = sqrt(abs(get_umat_el(indi, indi, ida, ida) / & 
+                           max(abs(get_umat_el(indj, indj, ida, ida)), 0.0001_dp))) &
+                        + sqrt(abs(get_umat_el(indj, indj, ida, ida) / & 
+                           max(abs(get_umat_el(indi, indi, ida, ida)), 0.0001_dp)))
+
+            else if (t_iiaa) then 
+                
+                contrib = sqrt(abs(get_umat_el(indi, indi, ida, ida))) & 
+                        + sqrt(abs(get_umat_el(indj, indj, ida, ida)))
+
+            else if (t_ratio) then 
+                ! also here i have to check if i actually should take care 
+                ! of the indj influence.. 
+
+                contrib = sqrt(abs(UMat2D(max(indi, ida), min(indi, ida))) / & 
+                           max(abs(UMat2D(max(indj, ida), min(indj, ida))), 0.0001_dp)) &
+                        + sqrt(abs(UMat2D(max(indj, ida), min(indj, ida))) / & 
+                           max(abs(UMat2D(max(indi, ida), min(indi, ida))), 0.0001_dp))
+                print *, "test"
+
+            else 
+
+
+                contrib = sqrt(abs_l1(UMat2D(max(indi, ida), min(indi, ida))))&
+                        + sqrt(abs_l1(UMat2D(max(indj, ida), min(indj, ida))))
+            end if
             !sqrt(abs_l1(get_umat_el(srcid(1), srcid(1), ida, ida))) + &
             !sqrt(abs_l1(get_umat_el(srcid(2), srcid(2), ida, ida)))
         end if
