@@ -450,49 +450,16 @@ contains
 
         ! We could pick the electron based on the number of orbitals available.
         ! Currently, it is just picked uniformly.
-!         temp_init = test_flag(ilutI, get_initiator_flag(1))
-!         if (t_back_spawn .and. .not. temp_init) then
-!             call pick_virtual_electron_single(nI, elec, pgen_elec)
-            ! i also need to check if there is a possible elec or?
-!         else 
-            elec = 1 + floor(genrand_real2_dSFMT() * nel)
-
-!         end if
+        elec = 1 + floor(genrand_real2_dSFMT() * nel)
 
         src = nI(elec)
-        ! back-spawn flexible is not compatible with old back-spawn
-!         if (t_back_spawn_flex .and. .not. temp_init) then 
-!             dummy_src(1) = src
-!             call check_electron_location(dummy_src, 1, loc)
-!         end if
 
         ! What is the symmetry category?
         cc_index = ClassCountInd (get_spin(src), SpinOrbSymLabel(src), &
                                   G1(src)%Ml)
 
         ! Select the target orbital by approximate connection strength
-        ! i also should think about maybe using the occ-virt keyword 
-        ! also in the case of single excitaitons or? 
-!         if (t_back_spawn_occ_virt .and. .not. temp_init) then 
-! 
-!             call pick_occupied_orbital_single(nI, src, cc_index, pgen, tgt)
-! 
-!         else if (t_back_spawn_flex .and. .not. temp_init ) then
-!         
-!             ! also allow one level of excitation.. requested by ali..
-!             if (loc == 2 .and. occ_virt_level /= -1) then 
-!                 ! in this case pick the orbital from the occupied manifold of ref
-!                 call pick_occupied_orbital_single(nI, src, cc_index, pgen, tgt)
-!             else 
-!                 if (occ_virt_level == 2) then 
-!                     call pick_occupied_orbital_single(nI, src, cc_index, pgen, tgt)
-!                 else 
-!                     tgt = select_orb_sing (nI, ilutI, src, cc_index, pgen)
-!                 end if
-!             end if
-!         else 
-            tgt = select_orb_sing (nI, ilutI, src, cc_index, pgen)
-!         end if
+        tgt = select_orb_sing (nI, ilutI, src, cc_index, pgen)
 
         if (tgt == 0) then
             nJ(1) = 0
@@ -507,13 +474,7 @@ contains
         clr_orb (ilutJ, src)
         set_orb (ilutJ, tgt)
 
-        ! And the generation probability
-!         if (t_back_spawn .and. .not. temp_init) then
-!             pgen = pgen * pgen_elec
-! 
-!         else
-            pgen = pgen / real(nel, dp)
-!         end if
+        pgen = pgen / real(nel, dp)
 
     end subroutine
 
