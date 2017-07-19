@@ -165,6 +165,7 @@ set( SRC_FILES
     real_space_hubbard.F90
     back_spawn.F90
     back_spawn_excit_gen.F90
+    lattice_mod.F90
 
     lib/allocate_shared_worker.cpp
     lib/backtrace.cpp

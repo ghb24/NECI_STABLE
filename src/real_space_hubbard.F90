@@ -17,6 +17,7 @@ module real_space_hubbard
 
     use SystemData, only: t_new_real_space_hubbard, lattice_type, length_x, &
                           length_y
+    use lattice_mod, only: chain, lattice, constructor
     implicit none 
 
 
@@ -44,19 +45,19 @@ module real_space_hubbard
 
     end type lattice_site
 
-    type lattice 
-        ! create a type which contains general information about the 
-        ! lattice structure 
-        logical :: t_init = .false. 
-        integer :: num_sites = 0 
-
-        type(lattice_site), allocatable :: site(:)
-
-    end type lattice
+!     type lattice 
+!         ! create a type which contains general information about the 
+!         ! lattice structure 
+!         logical :: t_init = .false. 
+!         integer :: num_sites = 0 
+! 
+!         type(lattice_site), allocatable :: site(:)
+! 
+!     end type lattice
 
     ! and i guess i want to have a global lattice type.. to make it 
     ! easier accessible.. 
-    type(lattice) :: global_lattice
+!     type(lattice) :: global_lattice
 
 contains 
 
@@ -88,6 +89,13 @@ contains
         ! argh.. fortran gets annoying..
         character(*), parameter :: this_routine = "init_lattice"
 
+        class(lattice), allocatable :: lat
+        class(lattice), pointer :: lat2
+        type(chain), pointer :: lat3
+        type(lattice) :: x
+        
+
+!         type(lattice) :: lat
         ! what are the possible ones:
         ! the ones already in NECI (do them first!)
         ! CHAIN: just needs number of sites or length and if open-bc 
@@ -108,6 +116,19 @@ contains
             n_sites = length_x
             ! the maximum connection is necessary for the time-step
             n_connect_max = 2
+
+            allocate(chain::lat)
+
+            call lat%initialize(1)
+
+            x = lattice(1)
+
+            allocate(chain::lat2)
+            lat2 => chain(1)
+
+!             lat3 => chain(1)
+
+!             lat = lattice(1)
 
         case ("square", "SQUARE")
             n_dim = 2
@@ -132,6 +153,10 @@ contains
         case default 
             print *, "Incorrect lattice type provided! Choose:"
             print *, "chain, square, tilted, triangular, kagome"
+
+            allocate(lattice::lat) 
+            call lat%initialize(1)
+
             call stop_all(this_routine, "Incorrect lattice type!")
         end select
 
@@ -141,12 +166,11 @@ contains
         ! necessary stuff here.
 
         ! i have to setup up the set_nearest neighbor routine
-        if (global_lattice%t_init) then 
+!         if (global_lattice%t_init) then 
             ! if it has already been initialized before deinit all the 
             ! components 
-        end if
+!         end if
 
-        call create_neighbor_list(n_sites, 
     end subroutine init_lattice
     
     subroutine init_tmat() 
@@ -171,7 +195,7 @@ contains
         character(*), parameter :: this_routine = "create_neighbor_list"
     
         ! i have to get the data_type running 
-        if (allocated(global_lattice)) deallocate(global_lattice)
+!         if (allocated(global_lattice)) deallocate(global_lattice)
 
     end subroutine create_neighbor_list
 
