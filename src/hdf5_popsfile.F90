@@ -475,7 +475,8 @@ contains
         use load_balance_calcnodes, only: RandomOrbIndex
         use FciMCData, only: PreviousCycles, Hii, TotImagTime, tSearchTauOption, &
                              tSearchTau, pSingles, pDoubles, pParallel
-        use CalcData, only: DiagSft, tWalkContGrow, tau, t_hist_tau_search
+        use CalcData, only: DiagSft, tWalkContGrow, tau, t_hist_tau_search, &
+                            hdf5_diagsft
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id, err
         logical :: exists
@@ -509,6 +510,11 @@ contains
         else
             tSinglePartPhase = .true.
             
+            ! i still want to capture the diagshift in a temporary file 
+            ! atleast 
+            call read_dp_1d_dataset(grp_id, nm_shift, hdf5_diagsft, required=.true.)
+            hdf5_diagsft = hdf5_diagsft - Hii
+
         end if
 
         ! [W.D.]:

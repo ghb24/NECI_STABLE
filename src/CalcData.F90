@@ -159,6 +159,9 @@ real(dp) :: MemoryFacSpawn,SinglesBias,TauFactor,StepsSftImag
 real(dp) :: MemoryFacInit
 
 real(dp), allocatable, target :: DiagSft(:)
+! for consistency with forgetting the walkcontgrow keyword and hdf5 read-in 
+! use a temporary storage of the read-in diags-shift 
+real(dp), allocatable :: hdf5_diagsft(:)
 
 real(dp) :: GraphEpsilon
 real(dp) :: PGenEpsilon
