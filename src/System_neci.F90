@@ -958,7 +958,6 @@ system: do
                             select case (w) 
                             case ("IIAA")
                                 ! weight with <ii|aa> instead of <ia|ia> 
-                                print *, "!! TEST !! "
                                 t_iiaa = .true. 
 
                             case ("RATIO") 

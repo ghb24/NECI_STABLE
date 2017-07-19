@@ -947,31 +947,34 @@ contains
         else
             ! Include the contribution of this term sqrt(<ia|ia>)
             ida = gtID(orba)
-            
-            if (t_iiaa .and. t_ratio) then 
-                ! ok.. maybe i have to talk to ali about that, what he 
-                ! meant with this splitting of p(a|ij) = p(j)*p(a|i) 
-                ! because i am not sure about that ..
-                ! althoug i should be carefull if we do not divide by 
-                ! 0 here.. 
+!             
+!             if (t_iiaa .and. t_ratio) then 
+!                 ! ok.. maybe i have to talk to ali about that, what he 
+!                 ! meant with this splitting of p(a|ij) = p(j)*p(a|i) 
+!                 ! because i am not sure about that ..
+!                 ! althoug i should be carefull if we do not divide by 
+!                 ! 0 here.. 
+!                 ! NOTE: by testing it was seen that the ratio approach causes the 
+!                 ! pgens to be much too low and thus the H_ij/pgen ratios to 
+!                 ! explode
+! 
+!                 contrib = sqrt(abs(get_umat_el(indi, indi, ida, ida) / & 
+!                            max(abs(get_umat_el(indj, indj, ida, ida)), 0.0001_dp))) &
+!                         + sqrt(abs(get_umat_el(indj, indj, ida, ida) / & 
+!                            max(abs(get_umat_el(indi, indi, ida, ida)), 0.0001_dp)))
 
-                contrib = sqrt(abs(get_umat_el(indi, indi, ida, ida) / & 
-                           max(abs(get_umat_el(indj, indj, ida, ida)), 0.0001_dp))) &
-                        + sqrt(abs(get_umat_el(indj, indj, ida, ida) / & 
-                           max(abs(get_umat_el(indi, indi, ida, ida)), 0.0001_dp)))
-
-            else if (t_iiaa) then 
+            if (t_iiaa) then 
                 
                 contrib = sqrt(abs(get_umat_el(indi, indi, ida, ida)))
 
-            else if (t_ratio) then 
-                ! also here i have to check if i actually should take care 
-                ! of the indj influence.. 
-
-                contrib = sqrt(abs(UMat2D(max(indi, ida), min(indi, ida))) / & 
-                           max(abs(UMat2D(max(indj, ida), min(indj, ida))), 0.0001_dp)) &
-                        + sqrt(abs(UMat2D(max(indj, ida), min(indj, ida))) / & 
-                           max(abs(UMat2D(max(indi, ida), min(indi, ida))), 0.0001_dp))
+!             else if (t_ratio) then 
+!                 ! also here i have to check if i actually should take care 
+!                 ! of the indj influence.. 
+! 
+!                 contrib = sqrt(abs(UMat2D(max(indi, ida), min(indi, ida))) / & 
+!                            max(abs(UMat2D(max(indj, ida), min(indj, ida))), 0.0001_dp)) &
+!                         + sqrt(abs(UMat2D(max(indj, ida), min(indj, ida))) / & 
+!                            max(abs(UMat2D(max(indi, ida), min(indi, ida))), 0.0001_dp))
 
             else 
 
@@ -1054,7 +1057,6 @@ contains
                            max(abs(UMat2D(max(indj, ida), min(indj, ida))), 0.0001_dp)) &
                         + sqrt(abs(UMat2D(max(indj, ida), min(indj, ida))) / & 
                            max(abs(UMat2D(max(indi, ida), min(indi, ida))), 0.0001_dp))
-                print *, "test"
 
             else 
 
