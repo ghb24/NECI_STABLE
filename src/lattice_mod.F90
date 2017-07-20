@@ -10,7 +10,7 @@ module lattice_mod
 
     implicit none 
     private 
-    public :: lattice, chain
+    public :: lattice, deconstructor
 
     type :: site 
         ! the basic site type for my lattice
@@ -28,6 +28,7 @@ module lattice_mod
     contains 
         private 
         procedure, public :: get_neighbors
+        procedure :: nullify_neighbors
 
     end type site 
 
@@ -53,7 +54,7 @@ module lattice_mod
         ! generally in the whole program, i have to provide all the 
         ! functionality already for the lattice.. atleast in a dummy 
         ! way.. hm.. maybe there is a better way to do it.. 
-        type(site), allocatable :: sites(:)
+        class(site), allocatable :: sites(:)
 
     contains 
         private
@@ -69,6 +70,9 @@ module lattice_mod
         procedure, public :: is_periodic
         procedure, public :: get_length => get_length_lattice
 
+        ! i definetly also want to have a print function! 
+        procedure, public :: print 
+
         ! maybe i want set routines too? 
         ! but i guess i want the private, because there is no need of 
         ! them being used outside of this module 
@@ -79,6 +83,10 @@ module lattice_mod
         procedure :: set_periodic 
         procedure :: set_length => set_length_lattice
         procedure :: calc_nsites => calc_nsites_lattice
+        procedure :: allocate_sites
+        procedure :: initialize_sites
+
+        procedure :: deallocate_sites
 
     end type lattice 
 
@@ -95,6 +103,7 @@ module lattice_mod
         private
 
         procedure, public :: get_length => get_length_chain
+
         procedure :: set_length => set_length_chain
         procedure :: calc_nsites => calc_nsites_chain
 
@@ -144,8 +153,9 @@ contains
 
         call this%set_nsites(n_sites) 
         call this%set_periodic(t_periodic)
-
         call this%set_length(length_x, length_y)
+
+        call this%allocate_sites(n_sites) 
 
     end subroutine initialize
 
@@ -178,6 +188,59 @@ contains
         call this%initialize(length_x, length_y, t_periodic)
 
     end function constructor
+
+    subroutine allocate_sites(this, n_sites) 
+        ! do we want to 
+        class(lattice) :: this 
+        integer, intent(in) :: n_sites 
+        character(*), parameter :: this_routine = "allocate_sites" 
+
+        if (allocated(this%sites)) then 
+            call stop_all(this_routine, "sites are already allocated!")
+        end if
+            
+        if (n_sites < 1) then 
+            call stop_all(this_routine, "0 or negative number of sites!")
+
+        else 
+            ! for now it is fine to allocate the sites just as "normal" 
+            ! sites and not as bath/impurity sites.. 
+            ! BUT: keep this in mind! 
+
+            allocate(this%sites(n_sites)) 
+
+        end if
+
+    end subroutine allocate_sites
+
+
+    subroutine deallocate_sites(this) 
+        class(lattice) :: this
+        integer :: i
+        ! do i need an extra deallocater for the sites? 
+        if (allocated(this%sites)) then 
+            ! i have to run over all the sites and deallocate/nullify the 
+            ! neighbor pointers! 
+            do i = 1, this%get_nsites() 
+                this%sites(1)%nullify_neighbors() 
+            end do
+
+            deallocate(this%sites)
+        end if
+
+    end subroutine deallocate_sites
+
+    subroutine deconstructor(this) 
+        ! routine to nullify the pointer to a lattice class 
+        class(lattice), pointer :: this 
+
+        ! first be sure that no sites are allocated 
+        call this%deallocate_sites() 
+
+        nullify(this) 
+
+    end subroutine deconstructor
+    
 
     function get_neighbors(this) result(neighbors) 
         ! this is a generic routine to get the neighbors of a site 
@@ -331,6 +394,28 @@ contains
         get_nsites = this%n_sites
 
     end function get_nsites
+
+    subroutine print(this) 
+        class(lattice) :: this 
+
+        ! depending on the type print specific lattice information
+        select type (this)
+        class is (lattice) 
+
+            call stop_all("lattice%print()", &
+                "'lattice type should never be directly instantiated!")
+
+        class is (chain) 
+        
+            print *, "Lattice type is: 'chain' "
+            print *, " number of dimensions: ", this%get_ndim()
+            print *, " max-number of neighbors: ", this%get_nconnect() 
+            print *, " number of sites of chain: ", this%get_nsites() 
+            print *, " is the chain periodic: ", this%is_periodic()
+
+        end select 
+
+    end subroutine print
 
     ! general non-type bound routines
 !     subroutine get_lattice_type(this, string) 
