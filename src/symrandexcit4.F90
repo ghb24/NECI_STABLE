@@ -944,7 +944,7 @@ contains
 
             if (t_iiaa) then 
                 
-                contrib = sqrt(abs(get_umat_el(indi, indi, ida, ida)))
+                contrib = sqrt(abs(get_umat_el(indi, inda, idi, ida)))
 
 !             else if (t_ratio) then 
 !                 ! also here i have to check if i actually should take care 
@@ -1018,15 +1018,15 @@ contains
                 ! althoug i should be carefull if we do not divide by 
                 ! 0 here.. 
 
-                contrib = sqrt(abs(get_umat_el(indi, indi, ida, ida) / & 
-                           max(abs(get_umat_el(indj, indj, ida, ida)), 0.0001_dp))) &
-                        + sqrt(abs(get_umat_el(indj, indj, ida, ida) / & 
-                           max(abs(get_umat_el(indi, indi, ida, ida)), 0.0001_dp)))
+                contrib = sqrt(abs(get_umat_el(indi, inda, idi, ida) / & 
+                           max(abs(get_umat_el(indj, inda, idj, ida)), 0.0001_dp))) &
+                        + sqrt(abs(get_umat_el(indj, inda, idj, ida) / & 
+                           max(abs(get_umat_el(indi, inda, idi, ida)), 0.0001_dp)))
 
             else if (t_iiaa) then 
                 
-                contrib = sqrt(abs(get_umat_el(indi, indi, ida, ida))) & 
-                        + sqrt(abs(get_umat_el(indj, indj, ida, ida)))
+                contrib = sqrt(abs(get_umat_el(indi, inda, idi, ida))) & 
+                        + sqrt(abs(get_umat_el(indj, inda, idj, ida)))
 
             else if (t_ratio) then 
                 ! also here i have to check if i actually should take care 
