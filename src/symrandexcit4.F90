@@ -610,15 +610,15 @@ contains
         end do
 
         !  for testing purposes: 
-        if (cum_sum < UMatEps) then 
-            print *, "===================================="
-            print *, "single excitation: "
-            print *, "norb: ", norb 
-            print *, "cum_sum: ", cum_sum
-            print *, " cumulative_arr: ", cumulative_arr
-            print *, "nI: ", nI 
-            print *, "src: ", src
-        end if
+!         if (cum_sum < UMatEps) then 
+!             print *, "===================================="
+!             print *, "single excitation: "
+!             print *, "norb: ", norb 
+!             print *, "cum_sum: ", cum_sum
+!             print *, " cumulative_arr: ", cumulative_arr
+!             print *, "nI: ", nI 
+!             print *, "src: ", src
+!         end if
 
         ! Select a particular orbital to use, or abort.
         ! ok i really think we have to be consistent with this matrix element 
@@ -1143,19 +1143,19 @@ contains
             return
         end if
 
-        if (cum_sum < 1.0e-4_dp) then 
-            print *, "========================================"
-            if (t_par) then 
-                print *, "parallel double excitation: "
-            else 
-                print *, "opposite double excitation: "
-            end if
-            print *, "norb: ", norb
-            print *, "cum_sum: ", cum_sum
-            print *, "cumulative_arr: ", cumulative_arr
-            print *, "(i,j): ", src
-            print *, "(a): ", orb_pair
-        end if
+!         if (cum_sum < 1.0e-4_dp) then 
+!             print *, "========================================"
+!             if (t_par) then 
+!                 print *, "parallel double excitation: "
+!             else 
+!                 print *, "opposite double excitation: "
+!             end if
+!             print *, "norb: ", norb
+!             print *, "cum_sum: ", cum_sum
+!             print *, "cumulative_arr: ", cumulative_arr
+!             print *, "(i,j): ", src
+!             print *, "(a): ", orb_pair
+!         end if
 
         ! Binary search within this list to choose a value.
         r = genrand_real2_dSFMT() * cum_sum
