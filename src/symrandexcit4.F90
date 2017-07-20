@@ -899,33 +899,33 @@ contains
 
         integer, intent(in) :: indi, indj, orba, orbb
         real(dp) :: contrib
-        integer :: ida, idb
+        integer :: inda, indb
 
         if (tGen_4ind_part_exact .and. orbb > 0) then
             ! Include a contribution of: sqrt(abs(<ij|ab>))
             ! n.b. This can only be used for the case <ij|ba> == 0.
-            ida = gtID(orba)
-            idb = gtID(orbb)
+            inda = gtID(orba)
+            indb = gtID(orbb)
             if (tGen_4ind_unbound) then
-                contrib = abs(get_umat_el(indi, indj, ida, idb))
+                contrib = abs(get_umat_el(indi, indj, inda, indb))
             else
-                contrib = max(sqrt(abs(get_umat_el(indi, indj, ida, idb))), 0.0001_dp)
-!                 contrib = sqrt(abs(get_umat_el(indi, indj, ida, idb)))
+                contrib = max(sqrt(abs(get_umat_el(indi, indj, inda, indb))), 0.0001_dp)
+!                 contrib = sqrt(abs(get_umat_el(indi, indj, inda, indb)))
             end if
         else if (tGen_4ind_lin_exact) then
             if (orbb > 0) then
                 ! Include a contribution of abs(<ij|ab>)
                 ! n.b. This can only be used for the case <ij|ba> == 0.
-                ida = gtID(orba)
-                idb = gtID(orbb)
-                contrib = abs(get_umat_el(indi, indj, ida, idb))
+                inda = gtID(orba)
+                indb = gtID(orbb)
+                contrib = abs(get_umat_el(indi, indj, inda, indb))
             else
                 ! Select first orbital linearly
                 contrib = 1.0_dp
             end if
         else
             ! Include the contribution of this term sqrt(<ia|ia>)
-            ida = gtID(orba)
+            inda = gtID(orba)
 !             
 !             if (t_iiaa .and. t_ratio) then 
 !                 ! ok.. maybe i have to talk to ali about that, what he 
@@ -937,27 +937,27 @@ contains
 !                 ! pgens to be much too low and thus the H_ij/pgen ratios to 
 !                 ! explode
 ! 
-!                 contrib = sqrt(abs(get_umat_el(indi, indi, ida, ida) / & 
-!                            max(abs(get_umat_el(indj, indj, ida, ida)), 0.0001_dp))) &
-!                         + sqrt(abs(get_umat_el(indj, indj, ida, ida) / & 
-!                            max(abs(get_umat_el(indi, indi, ida, ida)), 0.0001_dp)))
+!                 contrib = sqrt(abs(get_umat_el(indi, inda, indi, inda) / & 
+!                            max(abs(get_umat_el(indj, inda, indj, inda)), 0.0001_dp))) &
+!                         + sqrt(abs(get_umat_el(indj, inda, indi, inda) / & 
+!                            max(abs(get_umat_el(indi, inda, indj, inda)), 0.0001_dp)))
 
             if (t_iiaa) then 
                 
-                contrib = sqrt(abs(get_umat_el(indi, inda, idi, ida)))
+                contrib = sqrt(abs(get_umat_el(indi, inda, indi, inda)))
 
 !             else if (t_ratio) then 
 !                 ! also here i have to check if i actually should take care 
 !                 ! of the indj influence.. 
 ! 
-!                 contrib = sqrt(abs(UMat2D(max(indi, ida), min(indi, ida))) / & 
-!                            max(abs(UMat2D(max(indj, ida), min(indj, ida))), 0.0001_dp)) &
-!                         + sqrt(abs(UMat2D(max(indj, ida), min(indj, ida))) / & 
-!                            max(abs(UMat2D(max(indi, ida), min(indi, ida))), 0.0001_dp))
+!                 contrib = sqrt(abs(UMat2D(max(indi, inda), min(indi, inda))) / & 
+!                            max(abs(UMat2D(max(indj, inda), min(indj, inda))), 0.0001_dp)) &
+!                         + sqrt(abs(UMat2D(max(indj, inda), min(indj, inda))) / & 
+!                            max(abs(UMat2D(max(indi, inda), min(indi, inda))), 0.0001_dp))
 
             else 
 
-                contrib = sqrt(abs_l1(UMat2D(max(indi, ida), min(indi, ida))))
+                contrib = sqrt(abs_l1(UMat2D(max(indi, inda), min(indi, inda))))
                 
             end if
 
@@ -977,31 +977,31 @@ contains
 
         integer, intent(in) :: indi, indj, orba, orbb
         real(dp) :: contrib
-        integer :: ida, idb
+        integer :: inda, indb
 
         if (tGen_4ind_part_exact .and. orbb > 0) then
             ! Include a contribution of:
             ! sqrt(abs(<ij|ab> - <ij|ba>))
-            ida = gtID(orba)
-            idb = gtID(orbb)
+            inda = gtID(orba)
+            indb = gtID(orbb)
             if (tGen_4ind_unbound) then
-                contrib = abs(get_umat_el(indi, indj, ida, idb) &
-                                - get_umat_el(indi, indj, idb, ida))
+                contrib = abs(get_umat_el(indi, indj, inda, indb) &
+                                - get_umat_el(indi, indj, indb, inda))
             else
                 ! finally get rid of this arbitrary thresholds..
-                contrib = max(sqrt(abs(get_umat_el(indi, indj, ida, idb) &
-                                - get_umat_el(indi, indj, idb, ida))), 0.00001_dp)
-!                 contrib = sqrt(abs(get_umat_el(indi, indj, ida, idb) &
-!                                 - get_umat_el(indi, indj, idb, ida)))
+                contrib = max(sqrt(abs(get_umat_el(indi, indj, inda, indb) &
+                                - get_umat_el(indi, indj, indb, inda))), 0.00001_dp)
+!                 contrib = sqrt(abs(get_umat_el(indi, indj, inda, indb) &
+!                                 - get_umat_el(indi, indj, indb, inda)))
             end if
         else if (tGen_4ind_lin_exact) then
             if (orbb > 0) then
                 ! Include a contribution of:
                 ! abs(<ij|ab> - <ij|ba>)
-                ida = gtID(orba)
-                idb = gtID(orbb)
-                contrib = abs(get_umat_el(indi, indj, ida, idb) &
-                            - get_umat_el(indi, indj, idb, ida))
+                inda = gtID(orba)
+                indb = gtID(orbb)
+                contrib = abs(get_umat_el(indi, indj, inda, indb) &
+                            - get_umat_el(indi, indj, indb, inda))
             else
                 ! Select first orbital linearly.
                 contrib = 1.0_dp
@@ -1009,7 +1009,7 @@ contains
         else
             ! Include a contribution of (orb can be a or b):
             ! sqrt((ii|aa) + (jj|aa))
-            ida = gtID(orba)
+            inda = gtID(orba)
 
             if (t_iiaa .and. t_ratio) then 
                 ! ok.. maybe i have to talk to ali about that, what he 
@@ -1018,33 +1018,33 @@ contains
                 ! althoug i should be carefull if we do not divide by 
                 ! 0 here.. 
 
-                contrib = sqrt(abs(get_umat_el(indi, inda, idi, ida) / & 
-                           max(abs(get_umat_el(indj, inda, idj, ida)), 0.0001_dp))) &
-                        + sqrt(abs(get_umat_el(indj, inda, idj, ida) / & 
-                           max(abs(get_umat_el(indi, inda, idi, ida)), 0.0001_dp)))
+                contrib = sqrt(abs(get_umat_el(indi, inda, indi, inda) / & 
+                           max(abs(get_umat_el(indj, inda, indj, inda)), 0.0001_dp))) &
+                        + sqrt(abs(get_umat_el(indj, inda, indj, inda) / & 
+                           max(abs(get_umat_el(indi, inda, indi, inda)), 0.0001_dp)))
 
             else if (t_iiaa) then 
                 
-                contrib = sqrt(abs(get_umat_el(indi, inda, idi, ida))) & 
-                        + sqrt(abs(get_umat_el(indj, inda, idj, ida)))
+                contrib = sqrt(abs(get_umat_el(indi, inda, indi, inda))) & 
+                        + sqrt(abs(get_umat_el(indj, inda, indj, inda)))
 
             else if (t_ratio) then 
                 ! also here i have to check if i actually should take care 
                 ! of the indj influence.. 
 
-                contrib = sqrt(abs(UMat2D(max(indi, ida), min(indi, ida))) / & 
-                           max(abs(UMat2D(max(indj, ida), min(indj, ida))), 0.0001_dp)) &
-                        + sqrt(abs(UMat2D(max(indj, ida), min(indj, ida))) / & 
-                           max(abs(UMat2D(max(indi, ida), min(indi, ida))), 0.0001_dp))
+                contrib = sqrt(abs(UMat2D(max(indi, inda), min(indi, inda))) / & 
+                           max(abs(UMat2D(max(indj, inda), min(indj, inda))), 0.0001_dp)) &
+                        + sqrt(abs(UMat2D(max(indj, inda), min(indj, inda))) / & 
+                           max(abs(UMat2D(max(indi, inda), min(indi, inda))), 0.0001_dp))
 
             else 
 
 
-                contrib = sqrt(abs_l1(UMat2D(max(indi, ida), min(indi, ida))))&
-                        + sqrt(abs_l1(UMat2D(max(indj, ida), min(indj, ida))))
+                contrib = sqrt(abs_l1(UMat2D(max(indi, inda), min(indi, inda))))&
+                        + sqrt(abs_l1(UMat2D(max(indj, inda), min(indj, inda))))
             end if
-            !sqrt(abs_l1(get_umat_el(srcid(1), srcid(1), ida, ida))) + &
-            !sqrt(abs_l1(get_umat_el(srcid(2), srcid(2), ida, ida)))
+            !sqrt(abs_l1(get_umat_el(srcid(1), srcid(1), inda, inda))) + &
+            !sqrt(abs_l1(get_umat_el(srcid(2), srcid(2), inda, inda)))
         end if
 
         if (t_matele_cutoff) then
