@@ -17,7 +17,7 @@ module real_space_hubbard
 
     use SystemData, only: t_new_real_space_hubbard, lattice_type, length_x, &
                           length_y
-    use lattice_mod, only: chain, lattice, constructor
+    use lattice_mod, only: lattice
     implicit none 
 
 
@@ -90,8 +90,7 @@ contains
         character(*), parameter :: this_routine = "init_lattice"
 
         class(lattice), allocatable :: lat
-        class(lattice), pointer :: lat2
-        type(chain), pointer :: lat3
+        class(lattice), pointer :: lat2, ptr
         type(lattice) :: x
         
 
@@ -109,6 +108,7 @@ contains
         ! KAGOME: probably also stick to one length parameter and also 
         !           think about the BC
 
+        ptr => lattice('chain',2,1,.true.)
         select case (lattice_type) 
         case ("chain", "CHAIN")
             ! determine some basic values
@@ -116,16 +116,17 @@ contains
             n_sites = length_x
             ! the maximum connection is necessary for the time-step
             n_connect_max = 2
+! 
+!             allocate(chain::lat)
+! 
+!             call lat%initialize(1)
+! 
+! !             x = lattice(1)
+! 
+!             allocate(chain::lat2)
+!             lat2 => chain(1)
 
-            allocate(chain::lat)
-
-            call lat%initialize(1)
-
-            x = lattice(1)
-
-            allocate(chain::lat2)
-            lat2 => chain(1)
-
+            
 !             lat3 => chain(1)
 
 !             lat = lattice(1)
@@ -154,8 +155,8 @@ contains
             print *, "Incorrect lattice type provided! Choose:"
             print *, "chain, square, tilted, triangular, kagome"
 
-            allocate(lattice::lat) 
-            call lat%initialize(1)
+!             allocate(lattice::lat) 
+!             call lat%initialize(1)
 
             call stop_all(this_routine, "Incorrect lattice type!")
         end select
@@ -182,22 +183,22 @@ contains
 
     end subroutine init_tmat
 
-    subroutine create_neighbor_list(n_sit, lat_type, len_x, len_y, t_periodic)
-        ! i want to index the neigbors of each lattice site with a linked 
-        ! list. this will be helpful especially for the kagome lattice 
-        ! where sites can have a differing amount of neighbors 
-        ! and with open boundary conditions this also happens..
-        integer, intent(in) :: n_sit
-        character(*), intent(in) :: lat_type 
-        integer, intent(in) :: len_x, len_y 
-        logical, intent(in) :: t_periodic
-
-        character(*), parameter :: this_routine = "create_neighbor_list"
-    
-        ! i have to get the data_type running 
-!         if (allocated(global_lattice)) deallocate(global_lattice)
-
-    end subroutine create_neighbor_list
+!     subroutine create_neighbor_list(n_sit, lat_type, len_x, len_y, t_periodic)
+!         ! i want to index the neigbors of each lattice site with a linked 
+!         ! list. this will be helpful especially for the kagome lattice 
+!         ! where sites can have a differing amount of neighbors 
+!         ! and with open boundary conditions this also happens..
+!         integer, intent(in) :: n_sit
+!         character(*), intent(in) :: lat_type 
+!         integer, intent(in) :: len_x, len_y 
+!         logical, intent(in) :: t_periodic
+! 
+!         character(*), parameter :: this_routine = "create_neighbor_list"
+!     
+!         ! i have to get the data_type running 
+! !         if (allocated(global_lattice)) deallocate(global_lattice)
+! 
+!     end subroutine create_neighbor_list
 
     subroutine determine_optimal_time_step()
         ! move this time-step determination to this routine for the real
