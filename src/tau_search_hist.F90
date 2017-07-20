@@ -537,8 +537,11 @@ contains
                         psingles_new < (1.0_dp - 1e-5_dp)) then
 
                         if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
-                            root_print "Updating singles/doubles bias. pSingles = ", &
-                                psingles_new, ", pDoubles = ", 1.0_dp - psingles_new, "in: ", this_routine
+                            if (iProcIndex == root) then 
+                                write(iout,'(a, g20.12, a, g20.12, 2a)') &
+                                    "Updating singles/doubles bias. pSingles = ", &
+                                    psingles_new, ", pDoubles = ", 1.0_dp - psingles_new, " in: ", this_routine
+                            end if
                         end if
 
                         pSingles = psingles_new
@@ -552,8 +555,10 @@ contains
                         ! true.. so this if statement makes no sense 
                         ! and otherwise pParallel_new is the same as before
                         if (abs(pparallel_new-pParallel) / pParallel > 0.0001_dp) then
-                            root_print "Updating parallel-spin bias; new pParallel = ", &
-                                pParallel_new, "in: ", this_routine
+                            if (iProcIndex == root) then 
+                                write(iout, '(a, g20.12, 2a)') "Updating parallel-spin bias; new pParallel = ", &
+                                    pParallel_new, "in: ", this_routine
+                            end if
                         end if
                         ! in this new implementation the weighting make pParallel 
                         ! smaller and smaller.. so also limit it to some lower bound
@@ -614,8 +619,11 @@ contains
                         psingles_new < (1.0_dp - 1e-5_dp)) then
 
                         if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
-                            root_print "Updating singles/doubles bias. pSingles = ", &
-                                psingles_new, ", pDoubles = ", 1.0_dp - psingles_new, "in: ", this_routine
+                            if (iProcIndex == root) then 
+                                write (iout, '(a, g20.12, a, g20.12, 2a)') &
+                                    "Updating singles/doubles bias. pSingles = ", &
+                                    psingles_new, ", pDoubles = ", 1.0_dp - psingles_new, " in: ", this_routine
+                            end if
                         end if
 
                         pSingles = psingles_new
@@ -671,11 +679,16 @@ contains
                         tau_new = min_tau_global
 
                     else 
-                        root_print "Updating time-step. New time-step = ", tau_new, "in: ", this_routine
+                        if (iProcIndex == root) then 
+                            write(iout,'(a, g20.12, 2a)') &
+                                "Updating time-step. New time-step = ", tau_new, "in: ", this_routine
+                        end if
                     end if
                 else
-                    root_print "Updating time-step. New time-step = ", tau_new, "in: ", this_routine
-
+                    if (iProcIndex == root) then
+                        write(iout,'(a, g20.12, 2a)') &
+                            "Updating time-step. New time-step = ", tau_new, "in: ", this_routine
+                    end if
                 end if
             end if
             tau = tau_new
