@@ -148,4 +148,11 @@ module LoggingData
     ! for giovanni introduce a new keyword to print out the spin-resolved 
     ! 2-rdms, especially for systems with ms /= 0
     logical :: t_spin_resolved_rdms = .false.
+
+    ! Alis idea to histogram bad p(a|ij) with the triplet (aij) 
+    logical :: t_log_ija = .false. 
+    ! i need bins of (nbasis,nbasis,nbasis) size (although i guess spatial 
+    ! orbitals would be enough)
+    integer, allocatable :: ija_bins(:,:,:) 
+
 end module LoggingData
