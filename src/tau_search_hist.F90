@@ -60,7 +60,7 @@ module tau_search_hist
     real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par
     real(dp) :: min_sing, min_doub, min_opp, min_par
 
-    real(dp), parameter :: thresh = 1.0e-3_dp
+    real(dp), parameter :: thresh = 1.0e-6_dp
 contains
 
     subroutine optimize_hubbard_time_step() 
@@ -764,6 +764,8 @@ contains
         end if
 
         if (mat_ele < thresh) then
+            ! maybe it would be better to measure if the ratio is 
+            ! below the thresh 
             select case (ic) 
             case (1) 
                 below_thresh_singles = below_thresh_singles + 1
@@ -809,6 +811,10 @@ contains
                 ind = int(ratio / frq_step_size) + 1
                 frequency_bins_singles(ind) = frequency_bins_singles(ind) + 1
 
+                ! for now also test if the actually ratio is below the 
+                ! threshold, although.. i already now the minumum ratio, 
+                ! which is not so small.. just too many of those happen! 
+                ! we have to avoid that! 
             else
                 ! store the number of excitation which exceed the upper limit!
                 above_max_singles = above_max_singles + 1

@@ -7,7 +7,7 @@ module excit_gens_int_weighted
                           AB_elec_pairs, par_elec_pairs, AA_hole_pairs, &
                           par_hole_pairs, AB_hole_pairs, iMaxLz, &
                           tGen_4ind_part_exact, tGen_4ind_lin_exact, &
-                          tGen_4ind_unbound, t_iiaa, t_ratio
+                          tGen_4ind_unbound, t_iiaa, t_ratio, UMatEps
     use CalcData, only: matele_cutoff, t_matele_cutoff, t_back_spawn, t_back_spawn_flex, &
                         t_back_spawn_occ_virt, occ_virt_level
     use SymExcit3, only: CountExcitations3, GenExcitations3
@@ -609,7 +609,22 @@ contains
 
         end do
 
+        !  for testing purposes: 
+        if (cum_sum < UMatEps) then 
+            print *, "===================================="
+            print *, "single excitation: "
+            print *, "norb: ", norb 
+            print *, "cum_sum: ", cum_sum
+            print *, " cumulative_arr: ", cumulative_arr
+            print *, "nI: ", nI 
+            print *, "src: ", src
+        end if
+
         ! Select a particular orbital to use, or abort.
+        ! ok i really think we have to be consistent with this matrix element 
+        ! cutoff.. because i think by ignoring some, we allow other excitations 
+        ! which should have 0 matrix element to slip through and cause major 
+        ! headache..
         if (cum_sum < EPS) then
             orb = 0
             pgen = 0.0_dp
@@ -823,6 +838,8 @@ contains
         integer :: cc_index, ms
         real(dp) :: tmp
 
+        logical :: t_par
+
         ! How many orbitals are available with the given symmetry?
         cc_index = ClassCountInd(get_spin(tgt), SpinOrbSymLabel(tgt), &
                                  G1(tgt)%Ml)
@@ -832,6 +849,7 @@ contains
         ! We perform different sums depending on the relative spins :-(
         cum_sum = 0
         if (is_beta(src(1)) .eqv. is_beta(src(2))) then
+            t_par = .true.
             ! Both electrons have the same spin. So we need to include both
             ! electron-hole interactions.
             srcid = gtID(src)
@@ -845,6 +863,7 @@ contains
                 end if
             end do
         else
+            t_par = .false.
             
             ! The two electrons have differing spin. Therefore, only the
             ! electron-hole interaction with the same spin is required
@@ -866,7 +885,6 @@ contains
                 end if
             end do
         end if
-
 
     end subroutine
 
@@ -1055,6 +1073,7 @@ contains
         ! the correct symmetry.
         real(dp) :: cumulative_arr(OrbClassCount(cc_index)), r
 
+        logical :: t_par = .false.
         ! How many orbitals are there with the given symmetry?
         !cc_index = ClassCountInd(spin, sym, 0)
         label_index = SymLabelCounts2(1, cc_index)
@@ -1070,6 +1089,7 @@ contains
 
         if (G1(src(1))%Ms == G1(src(2))%Ms) then
 
+            t_par = .true.
             ! Both of the electrons have the same spin. Therefore we need to
             ! include both electron-hole interactions.
             cum_sum = 0.0_dp
@@ -1087,6 +1107,7 @@ contains
 
         else
             
+            t_par = .false.
             ! The two electrons have differing spin. Therefore, only the 
             ! electron-hole interaction with the same spin is required.
             ms = class_count_ms(cc_index)
@@ -1112,10 +1133,28 @@ contains
         end if
 
 
+        ! also check here ig the problem is overall low pgens for certain 
+        ! excitations 
+
+
         ! If there are no available orbitals to pair with, we need to abort
         if (cum_sum < EPS) then
             orb = 0
             return
+        end if
+
+        if (cum_sum < 1.0e-4_dp) then 
+            print *, "========================================"
+            if (t_par) then 
+                print *, "parallel double excitation: "
+            else 
+                print *, "opposite double excitation: "
+            end if
+            print *, "norb: ", norb
+            print *, "cum_sum: ", cum_sum
+            print *, "cumulative_arr: ", cumulative_arr
+            print *, "(i,j): ", src
+            print *, "(a): ", orb_pair
         end if
 
         ! Binary search within this list to choose a value.

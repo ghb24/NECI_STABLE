@@ -239,79 +239,16 @@ contains
         logical :: t_temp_init, t_back_spawn_temp
         integer :: loc
 
-!         t_back_spawn_temp = .false.
-!         t_temp_init = test_flag(ilutI,get_initiator_flag(1))
-!         ! if non-initiator and back-spawning active pick electrons differently
-!         if (t_back_spawn .and. .not. t_temp_init) then
-!             t_back_spawn_temp = .true.
-!             call pick_virtual_electrons_double(nI, elecs, src, sym_product, ispn,&
-!                                                 sum_ml, pgen)
-! 
-!             ! due to circular dependencies calc the sym_prod here:
-!             sym_product = RandExcitSymLabelProd(SpinOrbSymLabel(src(1)), &
-!                                              SpinOrbSymLabel(src(2)))
-! 
-!             if (elecs(1) == 0) then 
-!                 ! not enough valid double excitations found - abort
-!                 nJ(1) = 0
-!                 return
-!             end if
-! 
-!         else
-            ! Pick the electrons in a weighted fashion
-            call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
+        ! Pick the electrons in a weighted fashion
+        call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
                                  pgen)
 
-!         end if
-        !call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
-
-!         if (t_back_spawn_flex .and. .not. t_temp_init) then 
-!             call check_electron_location(src, 2, loc) 
-!         else
-!             loc = -1
-!         end if
-
-!         if (t_back_spawn_temp .and. t_back_spawn_occ_virt) then
-!  
-!             ! if we have one of the electrons in the occupied manifold 
-!             ! pick atleast one hole also from this manifold to not increase 
-!             ! the excitation level!
-!            
-!             call pick_occupied_orbital(nI, src, ispn, int_cpt(1), cum_sum(1), &
-!                                         orbs(1))
-! 
-!         else if (t_back_spawn_flex .and. .not. t_temp_init) then
-!             ! now we have to decide on the flex-spawn + occ-virt implo:
-!             if (loc == 1) then 
-!                 ! the new option to excite on level
-!                 if (occ_virt_level == -1) then
-!                     orbs(1) = pick_a_orb(ilutI, src, iSpn, int_cpt(1), cum_sum(1), cum_arr)
-!                 else
-!                     call pick_occupied_orbital(nI, src, ispn, int_cpt(1), cum_sum(1), &
-!                                         orbs(1))
-!                 end if
-! 
-! 
-!             else if (loc == 2) then 
-!                 ! then we always pick an occupied orbital
-!                 call pick_occupied_orbital(nI, src, ispn, int_cpt(1), cum_sum(1), &
-!                                         orbs(1))
-!             else 
-!                 ! depending on the occ_virt_level
-!                 if (occ_virt_level < 1) then 
-!                     ! just pick normal:
-!                     orbs(1) = pick_a_orb(ilutI, src, iSpn, int_cpt(1), cum_sum(1), cum_arr)
-!                 else 
-!                     ! otherwise if it is 1 or 2, we want to pick the (a) also
-!                     ! from the occupied manifold
-! 
-!                     call pick_occupied_orbital(nI, src, ispn, int_cpt(1), cum_sum(1), &
-!                                         orbs(1))
-!                 end if
-!             end if
-!         else 
-            orbs(1) = pick_a_orb(ilutI, src, iSpn, int_cpt(1), cum_sum(1), cum_arr)
-!         end if
+        ! then first pick (a) orbital: 
+        ! for opposite spin excitations (a) is restricted to be a beta orbital! 
+        ! and the probability is split p(a|ij) = p(j)*p(a|i) 
+        ! except in the symmetric excitation generator, which isn't used 
+        ! ever anyway..
+        orbs(1) = pick_a_orb(ilutI, src, iSpn, int_cpt(1), cum_sum(1), cum_arr)
 
         ! Select the B orbital, in the same way as before!!
         ! The symmetry of this second orbital depends on that of the first.
@@ -319,38 +256,10 @@ contains
             cc_a = ClasSCountInd(orbs(1))
             cc_b = get_paired_cc_ind(cc_a, sym_product, sum_ml, iSpn)
 
-!             if (t_back_spawn_flex  .and. .not. t_temp_init) then 
-!                 ! in this case i have to pick the second orbital also from the 
-!                 ! occupied list, but now also considering symmetries
-!                 if (loc == 2) then 
-!                     ! now also mix the occ-virt with this back-spawning
-!                     ! for loc 2 always do it
-!                     ! except specified by occ_virt_level= -1
-!                     if (occ_virt_level == -1) then
-!                         orbs(2) = select_orb (ilutI, src, cc_b, orbs(1), int_cpt(2), &
-!                                   cum_sum(2))
-!                     else
-!                         call pick_second_occupied_orbital(nI, src, cc_b, orbs(1), ispn,&
-!                             int_cpt(2), cum_sum(2), orbs(2))
-!                     end if
-! 
-!                 else if (loc == 1 .and. occ_virt_level == 2) then 
-!                     call pick_second_occupied_orbital(nI, src, cc_b, orbs(1), ispn,&
-!                         int_cpt(2), cum_sum(2), orbs(2))
-! 
-!                 else if (loc == 0 .and. occ_virt_level == 2) then 
-!                     call pick_second_occupied_orbital(nI, src, cc_b, orbs(1), ispn,&
-!                         int_cpt(2), cum_sum(2), orbs(2))
-!                 else
-!                     orbs(2) = select_orb (ilutI, src, cc_b, orbs(1), int_cpt(2), &
-!                                   cum_sum(2))
-!                 end if
-! 
-!             else
-! 
-                orbs(2) = select_orb (ilutI, src, cc_b, orbs(1), int_cpt(2), &
-                                  cum_sum(2))
-!             end if
+            ! pick the last orbitals weighted with the exact matrix 
+            ! element 
+            orbs(2) = select_orb (ilutI, src, cc_b, orbs(1), int_cpt(2), &
+                              cum_sum(2))
         end if
 
         ! what does this assert do?  do i have to pick the electrons in a 
@@ -374,143 +283,16 @@ contains
         ! explicitly.
         ASSERT(tGen_4ind_part_exact)
         if ((is_beta(orbs(1)) .eqv. is_beta(orbs(2))) .or. tGen_4ind_2_symmetric) then
-            ! i have to adjust for the other way around here in the case I 
-            ! restricted orbital (a) to the occupied reference manifold
-            ! i have to check if (b) is in the occupied manifold
-!             if (t_back_spawn_temp .and. t_back_spawn_occ_virt) then 
-!                 if (any(orbs(2) == projedet(:,1))) then 
-!                     ! if (b) is also in the occupied manifold i could have 
-!                     ! picked the other way around.. 
-!                     ! with the same uniform probability: 
-!                     cpt_pair(1) = int_cpt(1)
-!                     sum_pair(1) = cum_sum(1) 
-!                     ! and then (a) would have been picked according to the 
-!                     ! "normal" procedure
-!                     call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
-!                                  cpt_pair(2), sum_pair(2))
-!                 else
-!                     ! if (b) is not in the occupied this does not work or? 
-!                     ! since i am forcing (a) to be in the occupied.. 
-!                     ! so remove this pgen:
-!                     cpt_pair = 0.0_dp
-!                     sum_pair = 1.0_dp
-!                 end if
-! 
-!                 ! and with this flex algorithm i also have to think how to 
-!                 ! correctly get the pgens in this case..
-!             else if (t_back_spawn_flex .and. .not. t_temp_init) then 
-!                 ! now we also have to add the occ_virt_level functionality
-!                 ! into the recalculated pgen..
-!                 if (loc == 0) then 
-!                     if (occ_virt_level < 1) then
-!                     ! everything should be "normal"
-!                         call pgen_select_a_orb(ilutI, src, orbs(2), iSpn, cpt_pair(1), &
-!                                            sum_pair(1), cum_arr, .false.)
-!                         call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
-!                                          cpt_pair(2), sum_pair(2))
-!                      else
-! 
-!                         cpt_pair(1) = int_cpt(1)
-!                         sum_pair(1) = cum_sum(1)
-! 
-!                         if (occ_virt_level == 1) then 
-!                             ! do i have to test if the picking in this 
-!                             ! direction is actually possible?? it seems so or? 
-!                             ! yes i do.. since it is the same as above.. 
-!                             if (any(orbs(2) == projedet(:,1))) then 
-! 
-!                                 call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
-!                                          cpt_pair(2), sum_pair(2))
-!                             else 
-!                                 cpt_pair = 0.0_dp
-!                                 sum_pair = 1.0_dp
-!                             end if
-! 
-!                          else
-!                              cpt_pair(2) = int_cpt(2)
-!                              sum_pair(2) = cum_sum(2)
-!                          end if
-!                      end if
-! 
-!                 else if (loc == 1) then 
-!                     ! then one hole was restricted to the occupied 
-!                     ! manifold.. 
-!                     if (occ_virt_level == -1) then 
-!                         ! everything should be calculated normally 
-!                         call pgen_select_a_orb(ilutI, src, orbs(2), iSpn, cpt_pair(1), &
-!                                        sum_pair(1), cum_arr, .false.)
-!                         call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
-!                                      cpt_pair(2), sum_pair(2))
-! 
-!                      else if (occ_virt_level == 2) then 
-!                         ! in this case both holes were restricted to the 
-!                         ! occupied manifold 
-!                         cpt_pair = int_cpt
-!                         sum_pair = cum_sum
-! 
-!                         
-!                     else if (occ_virt_level < 2) then
-!                         if (any(orbs(2) == projedet(:,1))) then
-!                            ! if (b) is also in the occupied manifold i could have 
-!                             ! picked the other way around.. 
-!                             ! with the same uniform probability: 
-!                             cpt_pair(1) = int_cpt(1)
-!                             sum_pair(1) = cum_sum(1) 
-!                             ! and then (a) would have been picked according to the 
-!                             ! "normal" procedure
-!                             call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
-!                                          cpt_pair(2), sum_pair(2))
-!                         else
-!                             ! if (b) is not in the occupied this does not work or? 
-!                             ! since i am forcing (a) to be in the occupied.. 
-!                             ! so remove this pgen:
-!                             cpt_pair = 0.0_dp
-!                             sum_pair = 1.0_dp
-!                         end if
-!                     end if
-! 
-!                 else if (loc == 2) then 
-!                     ! then both are restricted to the occupied ones.. 
-!                     ! but then i can just reuse the already obtained ones..
-!                     ! always
-!                     ! except we have the occ_virt_level == -1 
-!                     if (occ_virt_level == -1) then 
-!                         ! then only the first is restricted to the occupied 
-!                         ! manifold.. but then we have to be sure that it is 
-!                         ! possible to pick it the other way around.. 
-! 
-!                        if (any(orbs(2) == projedet(:,1))) then 
-!                             ! if (b) is also in the occupied manifold i could have 
-!                             ! picked the other way around.. 
-!                             ! with the same uniform probability: 
-!                             cpt_pair(1) = int_cpt(1)
-!                             sum_pair(1) = cum_sum(1) 
-!                             ! and then (a) would have been picked according to the 
-!                             ! "normal" procedure
-!                             call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
-!                                          cpt_pair(2), sum_pair(2))
-!                         else
-!                             ! if (b) is not in the occupied this does not work or? 
-!                             ! since i am forcing (a) to be in the occupied.. 
-!                             ! so remove this pgen:
-!                             cpt_pair = 0.0_dp
-!                             sum_pair = 1.0_dp
-!                         end if
-! 
-!                     else
-!                         cpt_pair = int_cpt
-!                         sum_pair = cum_sum
-!                     end if
-!                 end if
-! 
-!             else
 
-                ! otherwise "normal"
-                call pgen_select_a_orb(ilutI, src, orbs(2), iSpn, cpt_pair(1), &
-                                       sum_pair(1), cum_arr, .false.)
-                call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
-                                     cpt_pair(2), sum_pair(2))
-!             end if
+            ! in the case of parallel spin excitations or symmetrice excitation 
+            ! generation(but does actually someone use that?) we have to 
+            ! calculate the probability of picking the holes the other 
+            ! way around 
+            call pgen_select_a_orb(ilutI, src, orbs(2), iSpn, cpt_pair(1), &
+                                   sum_pair(1), cum_arr, .false.)
+            call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
+                                 cpt_pair(2), sum_pair(2))
+
         else
             cpt_pair = 0.0_dp
             sum_Pair = 1.0_dp
