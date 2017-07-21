@@ -3,7 +3,7 @@
 module back_spawn
 
     use CalcData, only: t_back_spawn, tTruncInitiator, t_back_spawn_occ_virt, &
-                        t_back_spawn_flex, tReadPops
+                        t_back_spawn_flex, tReadPops, back_spawn_delay
     use SystemData, only: nel, nbasis, G1, tGen_4ind_2, tGen_4ind_2_symmetric, & 
                           tHub
     use constants, only: n_int, dp, bits_n_int, lenof_sign, inum_runs
@@ -79,6 +79,7 @@ contains
                 root_print "WARNING: "
                 root_print "Restarting from POPSFILE but using a delayed back-spawn! "
                 root_print " Are you sure? "
+            end if
         end if
 
         ! first use the most simple implementation of an nI style 

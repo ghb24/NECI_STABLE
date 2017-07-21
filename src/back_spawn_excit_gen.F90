@@ -3,9 +3,10 @@
 module back_spawn_excit_gen
 
     use constants, only: dp, n_int, EPS, bits_n_int
-    use SystemData, only: nel, G1, nbasis, tHPHF
+    use SystemData, only: nel, G1, nbasis, tHPHF, NMAXX, NMAXY, NMAXZ, &
+                          tOrbECutoff, OrbECutoff, nOccBeta, nOccAlpha
     use bit_rep_data, only: niftot
-    use SymExcitDataMod, only: excit_gen_store_type, SpinOrbSymLabel
+    use SymExcitDataMod, only: excit_gen_store_type, SpinOrbSymLabel, kPointToBasisFn
     use bit_reps, only: test_flag, get_initiator_flag
     use FciMCData, only: pSingles, projedet, pDoubles
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -16,18 +17,232 @@ module back_spawn_excit_gen
                         calc_pgen_4ind_weighted2
     use CalcData, only: t_back_spawn_flex, t_back_spawn_occ_virt, t_back_spawn, &
                         occ_virt_level, t_back_spawn_flex_option, t_back_spawn_option
-    use GenRandSymExcitNUMod, only: ClassCountInd, RandExcitSymLabelProd
+    use GenRandSymExcitNUMod, only: ClassCountInd, RandExcitSymLabelProd, &
+                        CreateExcitLattice
     use back_spawn, only: check_electron_location, pick_virtual_electrons_double, & 
                           pick_occupied_orbital_single, pick_virtual_electron_single, &
                           pick_occupied_orbital, pick_second_occupied_orbital
     use get_excit, only: make_single, make_double
     use Determinants, only: write_det, get_helement
+
 !     use hphf_integrals, only: hphf_off_diag_helement
 
     implicit none
 
 contains
 
+    ! to disentangle the mess of excitation generators also implement an new
+    ! one for the UEG and the hubbard model seperately 
+    subroutine gen_excit_back_spawn_ueg(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+            ExcitMat, tParity, pgen, HelGen, store, run) 
+        ! if back-spawn and ueg is turned on point to this excitation 
+        ! generator! check if we hit all the relevant parts in the code though
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:niftot)
+        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2) 
+        integer(n_int), intent(out) :: ilutJ(0:niftot)
+        logical, intent(out) :: tParity 
+        real(dp), intent(out) :: pgen 
+        HElement_t(dp), intent(out) :: HElGen
+        type(excit_gen_store_type), intent(inout), target :: store 
+        integer, intent(in), optional :: run
+        character(*), parameter :: this_routine = "gen_excit_back_spawn_ueg"
+ 
+        logical :: temp_back_spawn
+        ! so now pack everything necessary for a ueg excitation generator. 
+
+        ilutJ(0) = -1 
+        HElGen = 0.0_dp 
+        ic = 2
+
+        ! this function gets pointed to if tUEG, t_back_spawn_flex and tLatticeGens
+        ! is set 
+        ! BUT: again: we also need to take care of the HPHF keyword.. 
+        ! which is a mess 
+        temp_back_spawn = (t_back_spawn_flex .and. .not. &
+            test_flag(ilutI, get_initiator_flag(run))) 
+
+        ! implement it for now without this tNoFailAb flag
+        ASSERT(.not. tNoFailAb)
+
+        if (temp_back_spawn) then 
+
+            call gen_double_back_spawn_ueg(nI, ilutI, nJ, ilutJ, tParity, ExcitMat, & 
+                pgen) 
+
+        else 
+            ! do i want to rewrite the old on or just reuse? for now reuse: 
+            call CreateExcitLattice(nI, ilutI, nJ, tParity, ExcitMat, pgen, run) 
+
+        end if
+
+
+
+    end subroutine gen_excit_back_spawn_ueg
+
+    subroutine gen_double_back_spawn_ueg(nI, ilutI, nJ, ilutJ, tParity, ExcitMat, & 
+                pgen, run) 
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:niftot)
+        integer, intent(out) :: nJ(nel), ExcitMat(2,2) 
+        integer(n_int), intent(out) :: ilutJ(0:niftot)
+        logical, intent(out) :: tParity 
+        real(dp), intent(out) :: pgen 
+        integer, optional :: run
+        character(*), parameter :: this_routine = "gen_double_back_spawn_ueg"
+
+        integer :: kaxrange, kayrange, kazrange, ielecinexcitrange, Elec1, & 
+                   Elec2, Elec1Ind, Elec2Ind, iSpn, hole2basisnum, elecs(2), &
+                   loc, temp_run, ki(3), kj(3), ka(3), kb(3), kb_ms, TestEnergyB, &
+                   iSpinIndex, ChosenUnocc, hole1basisnum
+        real(dp) :: r(2), x, pAIJ, dummy
+        logical :: tAllowedExcit
+
+        if (present(run)) then 
+            temp_run = run 
+        else 
+            temp_run = 1
+        end if
+
+        kaxrange = 0
+        kayrange = 0
+        kazrange = 0
+        ielecinexcitrange = 0
+
+        ! i know here that back-spawn is on and this is a non-inititator: 
+        ! so for the beginning implementation we pick the two electrons 
+        ! randomly 
+        ! i should make this to a function below: maybe with the hubbard 
+        ! flag as additional input to provide us with two independent 
+        ! electrons in any order possible!
+        DO
+            r(1) = genrand_real2_dSFMT()
+            Elec1=INT(r(1)*NEl+1)
+            DO
+                r(2) = genrand_real2_dSFMT()
+                Elec2=INT(r(2)*NEl+1)
+                IF(Elec2.ne.Elec1) EXIT
+            ENDDO
+            Elec1Ind=Elec1
+            Elec2Ind=Elec2
+            IF((G1(nI(Elec1Ind))%Ms.eq.-1).and.(G1(nI(Elec2Ind))%Ms.eq.-1)) THEN
+                iSpn=1
+            ELSE
+                IF((G1(nI(Elec1Ind))%Ms.eq.1).and.(G1(nI(Elec2Ind))%Ms.eq.1)) THEN 
+                    iSpn=3
+                ELSE
+                    iSpn=2
+                ENDIF
+            ENDIF
+        ENDDO
+
+        ! i should make it more efficient to pick the hole.. 
+        hole2basisnum = 0
+        elecs = [Elec1Ind, Elec2Ind]
+
+        loc = check_electron_location(elecs, 2, temp_run)
+        
+        if (loc == 2) then 
+            do 
+                x = genrand_real2_dSFMT() 
+                if (iSpn == 2) then 
+                    ChosenUnocc = int(nBasis * x) + 1
+
+                else 
+                    ChosenUnocc=2*(INT(nBasis/2*x)+1) & ! 2*(a number between 1 and nbasis/2) gives the alpha spin
+                    & -(1-(iSpn/3)) ! alpha numbered even, iSpn/3 returns 1 for alpha/alpha, 0 for beta/beta
+                end if
+                
+                if (IsNotOcc(ilutI, ChosenUnocc)) exit 
+            end do
+            pAIJ = 1.0_dp / real(nBasis - nel, dp) 
+
+        else 
+            ! i think i need a new one for the ueg also.. since there is not 
+            ! such a spin restriction as in the hubbard model
+            ! i think just using the "normal" occupied picker should be fine
+            call pick_occupied_orbital_ueg(nI, elecs, ispn, temp_run, pAIJ, &
+                     dummy, ChosenUnocc)
+
+        end if
+
+        ! i guess this is not necessary, but anyway..
+        Hole1BasisNum=ChosenUnocc
+        IF((Hole1BasisNum.le.0).or.(Hole1BasisNum.gt.nBasis)) THEN
+            CALL Stop_All("CreateDoubExcitLattice","Incorrect basis function generated") 
+        ENDIF
+
+        ! kb is now uniquely defined
+        ki=G1(nI(Elec1Ind))%k
+        kj=G1(nI(Elec2Ind))%k
+        ka=G1(Hole1BasisNum)%k
+        kb=ki+kj-ka
+
+        ! Find the spin of b
+        IF(iSpn.eq.2)THEN ! alpha/beta required, therefore b has to be opposite spin to a
+            kb_ms=1-((G1(Hole1BasisNum)%Ms+1)/2)*2
+        ELSE ! b is the same spin as a
+            kb_ms=G1(Hole1BasisNum)%Ms
+        ENDIF
+
+        ! Is kb allowed by the size of the space?
+        ! Currently only applies when NMAXX etc. are set by the CELL keyword
+        ! Not sure what happens when an energy cutoff is set
+        tAllowedExcit=.true.
+        IF(ABS(kb(1)).gt.NMAXX) tAllowedExcit=.false.
+        IF(ABS(kb(2)).gt.NMAXY) tAllowedExcit=.false.
+        IF(ABS(kb(3)).gt.NMAXZ) tAllowedExcit=.false.
+        TestEnergyB=kb(1)**2+kb(2)**2+kb(3)**2
+        IF(tOrbECutoff.and.(TestEnergyB.gt.OrbECutoff)) tAllowedExcit=.false.
+        IF(.not.tAllowedExcit) THEN
+            nJ(1)=0
+            RETURN
+        ENDIF
+               
+        iSpinIndex=(kb_ms+1)/2+1
+        Hole2BasisNum=kPointToBasisFn(kb(1),kb(2),kb(3),iSpinIndex)
+       
+        IF(Hole2BasisNum==-1.or.Hole1BasisNum.eq.Hole2BasisNum) THEN
+            nJ(1)=0 
+            RETURN
+        ENDIF
+
+        ! Is b occupied?
+        IF(BTEST(iLutI((Hole2BasisNum-1)/bits_n_int),MOD(Hole2BasisNum-1,bits_n_int))) THEN
+        !Orbital is in nI. Reject.
+            tAllowedExcit=.false.
+        ENDIF
+        
+        IF(.not.tAllowedExcit) THEN
+            nJ(1)=0
+            RETURN
+        ENDIF
+
+        ! Find the new determinant
+        call make_double (nI, nJ, elec1ind, elec2ind, Hole1BasisNum, &
+                          Hole2BasisNum, ExcitMat, tParity)
+                
+        ! we knoe it is back-spawn + UEG remember! so pAIJ is already above
+        !Calculate generation probabilities
+        if (loc /= 2) then
+            IF (iSpn.eq.2) THEN
+                ! otherwise take the pAIJ set above
+                pAIJ=1.0_dp/(nBasis-Nel)
+            ELSEIF (iSpn.eq.1) THEN
+                pAIJ=1.0_dp/(nBasis/2-nOccBeta)
+            ELSE
+                !iSpn = 3
+                pAIJ=1.0_dp/(nBasis/2-nOccAlpha)
+            ENDIF
+        end if
+        ! Note, p(b|ij)=p(a|ij) for this system
+        pGen=2.0_dp/(NEl*(NEl-1))*2.0_dp*pAIJ
+
+        ! pgens at the end.. 
+
+    end subroutine gen_double_back_spawn_ueg
+
+    
     ! also write a wrapper-like routine for an excitation generator if 
     ! back-spawn is activated.. to not mess up all the old functions too much. 
     subroutine gen_excit_back_spawn(nI, ilutI, nJ, ilutJ, exFlag, ic, &
@@ -472,6 +687,63 @@ contains
 
     end subroutine gen_double_back_spawn
 
+    function calc_pgen_back_spawn_hubbard(nI, ilutI, ex, ic, run) result(pgen)
+        integer, intent(in) :: nI(nel), ex(2,2), ic, run
+        integer(n_int), intent(in) :: ilutI(0:niftot)
+        real(dp) :: pgen
+        character(*), parameter :: this_routine = "calc_pgen_back_spawn"
+
+        ! the hubbard pgen recalculation is pretty similar to the ueg one
+        ! below..
+
+    end function calc_pgen_back_spawn_hubbard
+
+    function calc_pgen_back_spawn_ueg(nI, ilutI, ex, ic, run) result(pgen)
+        integer, intent(in) :: nI(nel), ex(2,2), ic, run
+        integer(n_int), intent(in) :: ilutI(0:niftot)
+        real(dp) :: pgen
+        character(*), parameter :: this_routine = "calc_pgen_back_spawn"
+
+        real(dp) :: cum_sum 
+        integer :: dummy_orb, ispn, loc, src(2)
+
+        ! i have to write a generation probability calculator for the hphf 
+        ! implementation this should only be called if it is a non-init 
+        ! and back-spawn is on.. otherwise just use the already provided 
+        ! ones
+        if (test_flag(ilutI, get_initiator_flag(run))) then 
+            
+            ! i have to do some symmetry setup beforehand.. 
+            ! or i do it by hand to avoid the unnecessary overhead.. 
+!             call calc_pgen_symrandexcit2(nI, ex, 2, 
+        else 
+            ! do the back-spawn pgen.. 
+            ! elec were picked randomly(but in both orders!) 
+            ! and then we have to check the electron location, to know if 
+            ! there was a restriction on the first orbitals 
+            loc = check_electron_location(src, 2, run) 
+
+            ! and with the implementation right now it is only restricted 
+            ! if both were in the occup
+            if (loc == 2) then 
+            
+                ! i could just call  the orbital picking routine.. 
+                ! although this is inefficient.. 
+                ! and i have to see if it would have been possible the 
+                ! other way around too.. 
+                call pick_occupied_orbital(nI, src, ispn, run, pgen, cum_sum, &
+                    dummy_orb)
+
+            else 
+                ! otherwise the orbital (a) is free 
+                ! so it is the number of available orbitals, depending on 
+                ! the spin 
+                
+            end if
+        end if
+
+    end function calc_pgen_back_spawn_ueg
+
     function calc_pgen_back_spawn(nI, ilutI, ex, ic, run) result(pgen)
         ! to use HPHF keyword and also the test if the pgens are correct 
         ! or just to be able and to be sure and more save i need a way to 
@@ -515,7 +787,6 @@ contains
                 ! _option keywords..
                 ssrc = ex(1,1)
                 stgt = ex(2,1)
-
 
                 if (t_back_spawn_flex_option) then 
                     elec_pgen = 1.0_dp / real(nel, dp) 

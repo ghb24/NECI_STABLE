@@ -2144,8 +2144,11 @@ MODULE GenRandSymExcitNUMod
 
             loc = check_electron_location(elecs, 2, temp_run)
 
-            if (loc == 0) then 
+            if (loc == 2) then 
                 ! then we can pick any orbitals.. 
+                ! no... i think i made a mistake: 
+                ! loc = 0 means both electrons are in the virtual 
+                ! 
                 do 
                     ChosenUnocc = int(nBasis * genrand_real2_dSFMT()) + 1
                     if (IsNotOcc(ilutnI,ChosenUnocc)) exit
@@ -2267,10 +2270,10 @@ MODULE GenRandSymExcitNUMod
         !=============================================
 
         ! kb is now uniquely defined
-            ki=G1(nI(Elec1Ind))%k
-            kj=G1(nI(Elec2Ind))%k
-            ka=G1(Hole1BasisNum)%k
-            kb=ki+kj-ka
+        ki=G1(nI(Elec1Ind))%k
+        kj=G1(nI(Elec2Ind))%k
+        ka=G1(Hole1BasisNum)%k
+        kb=ki+kj-ka
 
         ! Find the spin of b
         IF(iSpn.eq.2)THEN ! alpha/beta required, therefore b has to be opposite spin to a
