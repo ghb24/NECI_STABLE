@@ -153,6 +153,9 @@ module LoggingData
     logical :: t_log_ija = .false. 
     ! i need bins of (nbasis,nbasis,nbasis) size (although i guess spatial 
     ! orbitals would be enough)
-    integer, allocatable :: ija_bins(:,:,:) 
+    integer, allocatable :: ija_bins(:,:,:), all_ija_bins(:,:,:)
+
+    ! also use a use defined threshold
+    real(dp) :: Thresh = 1.0e-4_dp
 
 end module LoggingData

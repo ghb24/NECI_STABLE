@@ -25,6 +25,8 @@ module tau_search_hist
     use procedure_pointers, only: get_umat_el
     use UMatCache, only: gtid, UMat2d
     use util_mod, only: abs_l1
+    use LoggingData, only: t_log_ija, ija_bins, all_ija_bins
+
     implicit none
     ! variables which i might have to define differently:
     logical :: consider_par_bias
@@ -357,6 +359,12 @@ contains
                          &limit spawning probability to", max_permitted_spawn
         end if
 
+        if (t_log_ija) then 
+             ! allocate the new bins (although i am not sure i should do this 
+             ! here.. 
+             allocate(ija_bins(nBasis,nBasis,nBasis))
+
+        end if
     end subroutine init_hist_tau_search
 
 
@@ -789,6 +797,7 @@ contains
                 else
                     below_thresh_anti = below_thresh_anti + 1
                 end if 
+
             end select
         end if
 
@@ -1249,7 +1258,7 @@ contains
 !         integer(int64) :: sum_all
         ! sashas tip: why do i not just use a real as summation?
         real(dp) :: sum_all
-        integer :: tmp_int, j
+        integer :: tmp_int, j, k
         real(dp) :: cnt, threshold
         real(dp) :: max_tmp, min_tmp
         real(dp) :: temp_bins(n_frequency_bins)
@@ -1711,6 +1720,36 @@ contains
                 write(iout,*) "Integer overflow in normed frequency histogram!" 
                 write(iout,*) "DO NOT PRINT IT!"
             end if
+        end if
+
+        ! why am i misusing the hist-tau-search also for these method?
+        ! because i want to have even more info on the dead-end excitations!
+        if (t_log_ija) then 
+            ! i hope this mpiallreduce works.. 
+            allocate(all_ija_bins(nBasis, nBasis, nBasis)) 
+
+            do i = 1, nBasis
+                call MPIAllReduce(ija_bins(i,:,:), MPI_SUM, all_ija_bins(i,:,:)) 
+            end do
+        end if
+        if (iprocindex == root) then
+            iunit = get_free_unit() 
+            call get_unique_filename('ija_bins', .true., .true., 1, filename)
+            open(iunit, file = filename, status = 'unknown') 
+
+            do k = 1, nBasis 
+                do j = 1, nbasis 
+                    do i = 1, nBasis 
+                        if (all_ija_bins(i,j,k) /= 0) cycle 
+                        write(iunit, '(3a,i12)') i, j, k, all_ija_bins(i,j,k)
+                    end do
+                end do
+            end do
+
+            close (iunit)
+
+            deallocate(all_ija_bins)
+            deallocate(ija_bins)
         end if
 
     end subroutine print_frequency_histograms

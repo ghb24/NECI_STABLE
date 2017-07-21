@@ -37,6 +37,8 @@ module excit_gens_int_weighted
     use util_mod
     use back_spawn, only: pick_virtual_electron_single, check_electron_location, &
                           pick_occupied_orbital_single
+    use LoggingData, only: t_log_ija, ija_bins, thresh
+
     implicit none
     save
 
@@ -1086,7 +1088,6 @@ contains
         ! --> The L1-norm is used when complex integrals are being used, as
         !     the cumulative spawning rate is related to the sum of the values
         !     rather than the norm of the complex number.
-
         if (G1(src(1))%Ms == G1(src(2))%Ms) then
 
             t_par = .true.
@@ -1143,6 +1144,11 @@ contains
             return
         end if
 
+        ! the dead end we want to log are here actually.. 
+        if (t_log_ija .and. cum_sum < thresh) then 
+            ija_bins(src(1),src(2),orb_pair) = ija_bins(src(1),src(2),orb_pair) + 1
+        end if
+        
 !         if (cum_sum < 1.0e-4_dp) then 
 !             print *, "========================================"
 !             if (t_par) then 
