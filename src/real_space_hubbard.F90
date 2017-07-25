@@ -91,8 +91,6 @@ contains
 
         class(lattice), allocatable :: lat
         class(lattice), pointer :: lat2, ptr
-        type(lattice) :: x
-        
 
 !         type(lattice) :: lat
         ! what are the possible ones:
@@ -108,7 +106,7 @@ contains
         ! KAGOME: probably also stick to one length parameter and also 
         !           think about the BC
 
-        ptr => lattice('chain',2,1,.true.)
+        ptr => lattice('chain',2,1,.true.,.true.)
         select case (lattice_type) 
         case ("chain", "CHAIN")
             ! determine some basic values

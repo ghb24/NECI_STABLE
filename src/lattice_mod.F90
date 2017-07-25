@@ -10,7 +10,7 @@ module lattice_mod
 
     implicit none 
     private 
-    public :: lattice, deconstructor
+    public :: lattice, lattice_deconstructor
 
     type :: site 
         ! the basic site type for my lattice
@@ -19,21 +19,52 @@ module lattice_mod
         ! and i think i want to store this data contigous in memory to 
         ! speed up cache, access
         private 
+        ! to i want to have an index, which gives me the number?
+        ! i might not even need that? 
+        ! in the mean-time use an index.. 
+        integer :: ind = -1 
         integer :: n_neighbors = -1 
         ! ah.. here it is important: neighbors are also sites.. is this 
         ! possible? and i have to be flexible to allow different types of 
         ! site neighbors 
-        class(site), pointer :: neighbors(:) 
+        ! and i am not even sure if i want pointers here.. maybe a vector 
+        ! of neighbor indices is enough and even better.. 
+        ! i cant really make it this way without another type since 
+        ! fortran does not like arrays of pointers or atleast does not 
+        ! intepret is as that from the beginning.. 
+        ! but i think this would be perfect or? 
+        ! recursive types are only allowed in the fortran 2008 standard.. 
+        ! so i have to go over an intermediate type
+        ! (which has the advantage to have an array of pointers.. 
+        ! ok i realize this whole shabang is too much.. 
+        ! so just make a list of indices of the neighbors
+        integer, allocatable :: neighbors(:) 
+!         class(neighbor), allocatable :: neighbors(:) 
+        ! or can i point to the other sites here? hm.. 
+        ! and maybe i want to store on-site repulsion here too.. lets see 
 
     contains 
         private 
-        procedure, public :: get_neighbors
-        procedure :: nullify_neighbors
+
+        procedure :: allocate_neighbors
+        procedure :: deallocate_neighbors
+
+        procedure :: get_neighbors => get_neighbors_site
+        ! maybe i do not need a initializer? 
+        ! or maybe yes i do.. i would like to have something like a 
+        ! with the lattice.. but now i want something optional.. 
+        procedure :: initialize => init_site
+
+        procedure :: set_index 
+        procedure :: get_index
+        procedure :: set_num_neighbors 
+        procedure :: get_num_neighbors 
+        procedure :: set_neighbors
 
     end type site 
 
     ! maybe make this abstract.. what are the benefits? 
-    type :: lattice 
+    type, abstract :: lattice 
         private 
         ! base class of lattice 
         ! i think i want to try to store all this contigous in memory to 
@@ -41,7 +72,10 @@ module lattice_mod
         integer :: n_sites = -1
         integer :: n_connect_max = -1 
         integer :: n_dim = -1
-        logical :: t_periodic = .true. 
+        ! actually i want to have more flexibility: maybe periodic in x 
+        ! but not y.. 
+        logical :: t_periodic_x = .true. 
+        logical :: t_periodic_y = .true. 
         ! and i think additionally i want to store which type of lattice 
         ! this is in a string or? so i do not always have to 
         ! use the select type functionality 
@@ -54,6 +88,11 @@ module lattice_mod
         ! generally in the whole program, i have to provide all the 
         ! functionality already for the lattice.. atleast in a dummy 
         ! way.. hm.. maybe there is a better way to do it.. 
+        ! maybe i have to use pointer attribute below to make it possible 
+        ! to call an constructor of class(type) .. 
+        ! well this also does not work as i like to have it.. 
+        ! since it is not interpreted as an array of pointer, but as a 
+        ! pointer to an array of class(sites), so redo this in the end!
         class(site), allocatable :: sites(:)
 
     contains 
@@ -63,12 +102,16 @@ module lattice_mod
         ! type definition, so all of those function can get called 
         ! but i need specifice ones then for each sub-class 
         ! how do i do that? 
-        procedure, public :: initialize 
+        procedure, public :: initialize => init_lattice
         procedure, public :: get_nsites
         procedure, public :: get_ndim
         procedure, public :: get_nconnect
-        procedure, public :: is_periodic
+        procedure, public :: is_periodic_x, is_periodic_y
+        procedure, public :: is_periodic => is_periodic_lattice
         procedure, public :: get_length => get_length_lattice
+        procedure, public :: get_site_index
+        ! make the get neighbors function public on the lattice level 
+        procedure, public :: get_neighbors => get_neighbors_lattice
 
         ! i definetly also want to have a print function! 
         procedure, public :: print 
@@ -84,7 +127,7 @@ module lattice_mod
         procedure :: set_length => set_length_lattice
         procedure :: calc_nsites => calc_nsites_lattice
         procedure :: allocate_sites
-        procedure :: initialize_sites
+        procedure :: initialize_sites => init_sites_lattice
 
         procedure :: deallocate_sites
 
@@ -103,25 +146,164 @@ module lattice_mod
         private
 
         procedure, public :: get_length => get_length_chain
+        procedure, public :: is_periodic => is_periodic_chain
 
         procedure :: set_length => set_length_chain
         procedure :: calc_nsites => calc_nsites_chain
+        procedure :: initialize_sites => init_sites_chain
 
     end type chain
 
     interface lattice
-        procedure constructor 
+        procedure lattice_constructor 
     end interface
 
+    interface site
+        procedure site_constructor
+    end interface
+
+    interface assignment (=) 
+        module procedure site_assign 
+        module procedure lattice_assign
+    end interface 
     integer, parameter :: DIM_CHAIN = 1, N_CONNECT_MAX_CHAIN = 2
 contains 
 
-    subroutine initialize(this, length_x, length_y, t_periodic) 
+    subroutine set_num_neighbors(this, n_neighbors) 
+        class(site) :: this 
+        integer, intent(in) :: n_neighbors
+
+        this%n_neighbors = n_neighbors 
+
+    end subroutine set_num_neighbors
+
+    pure integer function get_num_neighbors(this) 
+        class(site), intent(in) :: this 
+
+        get_num_neighbors = this%n_neighbors
+
+    end function get_num_neighbors
+
+    integer function get_site_index(this, ind)
+        ! for now.. since i have not checked how efficient this whole 
+        ! data-structure is to it in the nicest, safest way.. until i profile!
+        class(lattice) :: this 
+        integer, intent(in) :: ind
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "get_site_index"
+#endif
+
+        ASSERT(ind <= this%get_nsites()) 
+        ASSERT(allocated(this%sites))
+
+        get_site_index = this%sites(ind)%get_index()
+
+    end function get_site_index
+
+    subroutine init_sites_lattice(this) 
+        ! these are the important routines.. which set up the connectivity 
+        ! of the lattice sites. or atleast call the specific init-routines! 
+        class(lattice) :: this
+
+    end subroutine init_sites_lattice
+
+    subroutine site_assign(lhs, rhs) 
+        type(site), intent(out) :: lhs 
+        type(site), intent(in), pointer :: rhs 
+
+        ! argh.. on every change in the site constructor i have to make 
+        ! the change here too.. annoying.. 
+        ! but make i OOP style! 
+        call lhs%set_index( rhs%get_index() )
+        call lhs%set_num_neighbors( rhs%get_num_neighbors() )
+        call lhs%allocate_neighbors( rhs%get_num_neighbors() ) 
+        call lhs%set_neighbors( rhs%get_neighbors() )
+
+    end subroutine site_assign
+
+    subroutine lattice_assign(lhs, rhs) 
+        ! specific lattice assigner to not have to use pointers.. 
+        class(lattice), intent(out) :: lhs 
+        class(lattice), intent(in), pointer :: rhs 
+
+        character(*), parameter :: this_routine = "lattice_assign"
+
+        ! here i have to copy all the specific values! 
+        ! this is annoying but make the code more readable, and i do not 
+        ! have to use pointers so much.. 
+        ! todo although.. since i cannot use class(lattice) in the main 
+        ! program without allocatable or pointer attribute anyway.. 
+        ! i think there is no need of an assignment overload!
+        call stop_all(this_routine, "not yet implemented!")
+        
+    end subroutine lattice_assign
+
+    subroutine init_sites_chain(this) 
+        class(chain) :: this 
+
+        integer :: i
+        ! ok what exactly do i do here?? 
+        ! and i think i want to write a constructor for the sites.. to do 
+        ! nice initialization for AIM sites etc. 
+
+        ! do i insist that other stuff is already set in the lattice type? 
+        ! or do i take it as input here? 
+        ! i think i inisist that it is set already! 
+        ! and i have to deal with the edge case of a one-sited lattice 
+
+
+        ! but how to i deal with the geometry here..
+        ! i know it is a chain and i know how many sites and i know if it 
+        ! is periodic or not.. 
+        ! so just create the "lattice" 
+        ! 1 - 2 - 3 - 4 - 5 - ... 
+        ! maybe us an associate structure here to not always type so much.
+
+        ! deal with the first and last sites specifically! 
+        ! this initializes the site class with the index dummy variable:
+        ! ok.. fortran does not really like arrays of pointers.. 
+        ! i could make a workaround with yet another type or do i more 
+        ! explicit here ..
+
+        if (this%get_nsites() == 1) then 
+            this%sites(1) = site(ind = 1, n_neighbors = 0, neighbors = [integer :: ])
+            return 
+        end if
+
+        if (this%is_periodic()) then 
+
+            ! use more concise site contructors!
+            this%sites(1) = site(1, 2, [this%get_nsites(), 2])
+            this%sites(this%get_nsites()) = site(this%get_nsites(), 2, & 
+                [this%get_nsites() - 1, 1])
+
+        else 
+            ! open boundary conditions: 
+            ! first site:
+            this%sites(1) = site(1, 1, [2])
+
+            ! last site: 
+            this%sites(this%get_nsites()) = site(this%get_nsites(), 1, & 
+                [this%get_nsites() - 1]) 
+
+        end if 
+
+        ! and do the rest inbetween which is always the same 
+        do i = 2, this%get_nsites() - 1
+
+            ! if periodic and first or last: already dealt with above
+            this%sites(i) = site(i, N_CONNECT_MAX_CHAIN, [i - 1, i + 1])
+
+        end do
+
+    end subroutine init_sites_chain
+
+    subroutine init_lattice(this, length_x, length_y, t_periodic_x, t_periodic_y) 
         ! and write the first dummy initialize 
         class(lattice) :: this 
         integer, intent(in) :: length_x, length_y
-        logical, intent(in) :: t_periodic
-        character(*), parameter :: this_routine = "initialize"
+        logical, intent(in) :: t_periodic_x, t_periodic_y
+        character(*), parameter :: this_routine = "init_lattice"
 
         integer :: n_sites
 
@@ -152,22 +334,30 @@ contains
         n_sites = this%calc_nsites(length_x, length_y)
 
         call this%set_nsites(n_sites) 
-        call this%set_periodic(t_periodic)
+        call this%set_periodic(t_periodic_x, t_periodic_y)
         call this%set_length(length_x, length_y)
 
+        ! do i want to allocate sites here or in the initializer? 
+        ! well the specific site initializer will be different for all the 
+        ! types of lattices.. so best would be to do everything which is 
+        ! common to all routine here! 
         call this%allocate_sites(n_sites) 
 
-    end subroutine initialize
+        call this%initialize_sites() 
 
-    function constructor(lat_typ, length_x, length_y, t_periodic) result(this)
-        ! write a general public constructor for lattices 
+    end subroutine init_lattice
+
+
+    function lattice_constructor(lat_typ, length_x, length_y, t_periodic_x , &
+            t_periodic_y) result(this)
+        ! write a general public lattice_constructor for lattices 
         ! the number of inputs are still undecided.. do we always have 
         ! the same number or differing number of inputs? 
         ! i guess, since we will be using global variables which are either 
         ! read in or set as default to init it.. 
         character(*), intent(in) :: lat_typ
         integer, intent(in) :: length_x, length_y
-        logical, intent(in) :: t_periodic
+        logical, intent(in) :: t_periodic_x, t_periodic_y
         class(lattice), pointer :: this 
 
         ! depending on the string input defining lattice type 
@@ -175,19 +365,97 @@ contains
         select case (lat_typ) 
         case ('chain') 
 
-            allocate(chain::this) 
+            allocate(chain :: this) 
 
         case default 
             ! stop here because a incorrect lattice type was given 
-            call stop_all('lattice%constructor', & 
-                'incorrect lattice type provided in lattice constructor!')
+            call stop_all('lattice_constructor', & 
+                'incorrect lattice type provided in lattice_constructor!')
 
         end select 
 
         ! the initializer deals with the different types then.. 
-        call this%initialize(length_x, length_y, t_periodic)
+        call this%initialize(length_x, length_y, t_periodic_x, t_periodic_y)
 
-    end function constructor
+    end function lattice_constructor
+
+    function site_constructor(ind, n_neighbors, neighbors, site_type) & 
+            result(this) 
+        ! similar to the lattice constructor i want to have a site 
+        ! constructor, which depending on some input constructs the 
+        ! specific sites on a lattice 
+        ! for now the index is the only necessary input.. 
+        ! include more in this site constructor here
+        integer, intent(in) :: ind 
+        integer, intent(in) :: n_neighbors 
+        integer, intent(in) :: neighbors(n_neighbors)
+        character(*), intent(in), optional :: site_type 
+        ! i think i have to use pointers again.. 
+        ! but maybe this is really bad to deal with in the rest of the code.. 
+        class(site), pointer :: this 
+
+        if (present(site_type)) then 
+            ! not yet implementetd or to do.. so wait.. 
+
+        else 
+            ! this is the default case 
+            allocate(site :: this) 
+
+        end if
+
+        call this%initialize(ind, n_neighbors, neighbors)
+
+    end function site_constructor
+
+    subroutine init_site(this, ind, n_neighbors, neighbors) 
+        ! for now only use the index in the initalization 
+        class(site) :: this 
+        integer, intent(in) :: ind, n_neighbors
+        integer, intent(in) :: neighbors(n_neighbors)
+
+        ! for the beginning i do not need more than to set the index.. 
+        ! independent of the type 
+        call this%set_index(ind)
+        call this%set_num_neighbors(n_neighbors)
+        call this%allocate_neighbors(n_neighbors)
+        call this%set_neighbors(neighbors)
+
+    end subroutine init_site
+
+    subroutine set_neighbors(this, neighbors) 
+        class(site) :: this 
+        integer, intent(in) :: neighbors(this%n_neighbors)
+
+        this%neighbors = neighbors
+
+    end subroutine set_neighbors
+
+    subroutine allocate_neighbors(this, n_neighbors) 
+        class(site) :: this 
+        integer, intent(in) :: n_neighbors
+
+        ! the procedure bound routine already checks if neighbors is 
+        ! allocated.
+        call this%deallocate_neighbors()
+
+        allocate(this%neighbors(n_neighbors)) 
+
+    end subroutine allocate_neighbors
+
+    subroutine set_index(this, ind) 
+        class(site) :: this 
+        integer, intent(in) :: ind 
+
+        this%ind = ind
+
+    end subroutine set_index
+
+    integer function get_index(this) 
+        class(site) :: this 
+
+        get_index = this%ind 
+
+    end function get_index
 
     subroutine allocate_sites(this, n_sites) 
         ! do we want to 
@@ -222,7 +490,7 @@ contains
             ! i have to run over all the sites and deallocate/nullify the 
             ! neighbor pointers! 
             do i = 1, this%get_nsites() 
-                this%sites(1)%nullify_neighbors() 
+                call this%sites(i)%deallocate_neighbors() 
             end do
 
             deallocate(this%sites)
@@ -230,7 +498,14 @@ contains
 
     end subroutine deallocate_sites
 
-    subroutine deconstructor(this) 
+    subroutine deallocate_neighbors(this) 
+        class(site) :: this 
+
+        if (allocated(this%neighbors)) deallocate(this%neighbors) 
+
+    end subroutine deallocate_neighbors
+
+    subroutine lattice_deconstructor(this) 
         ! routine to nullify the pointer to a lattice class 
         class(lattice), pointer :: this 
 
@@ -239,16 +514,57 @@ contains
 
         nullify(this) 
 
-    end subroutine deconstructor
+    end subroutine lattice_deconstructor
     
-
-    function get_neighbors(this) result(neighbors) 
+    function get_neighbors_site(this) result(neighbors) 
         ! this is a generic routine to get the neighbors of a site 
         class(site) :: this 
+        ! i need assumed array shape and size here or? check how i do that!
+        ! can i use the stored number of neighbors in the type?
+        ! i can use n_neighbors directly but not the function which gets me 
+        ! n_neighbors.. strange and unfortunate.. 
+        integer :: neighbors(this%n_neighbors)
 
-        class(site), pointer :: neighbors(:)
+        neighbors = this%neighbors
 
-    end function get_neighbors
+    end function get_neighbors_site
+
+    function get_neighbors_lattice(this, ind) result(neighbors)
+        class(lattice) :: this
+        integer, intent(in) :: ind
+        ! i can't really use the stored information here, since it is 
+        ! input dependent and this can be out of bound.. exactly what i 
+        ! want to avoid.. so allocate it here!
+!         integer :: neighbors(this%sites(ind)%n_neighbors)
+        integer, allocatable :: neighbors(:)
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "get_neighbors_lattice"
+#endif 
+
+        ! make all assert on a seperate line, so we exactly know what is 
+        ! going wrong.. 
+        ASSERT(ind <= this%get_nsites())
+        ASSERT(ind > 0)
+        ASSERT(allocated(this%sites))
+        ASSERT(allocated(this%sites(ind)%neighbors))
+
+        ! why doesn't this work?
+!         neighbors = this%sites(ind)%get_neighbors() 
+
+        ! apparently i have to access the data directly.. 
+        if (this%get_nsites() == 1) then 
+            ! output -1 to indicate that there are no neighbors, since the 
+            ! lattice is too small and catch errors early.. or i could 
+            ! users not allow to initialize such a lattice.. woudl also 
+            ! make sense!
+            allocate(neighbors(1)) 
+            neighbors = -1
+        else 
+            allocate(neighbors(this%sites(ind)%get_num_neighbors())) 
+            neighbors = this%sites(ind)%neighbors
+        end if
+
+    end function get_neighbors_lattice
 
     function calc_nsites_chain(this, length_x, length_y) result(n_sites) 
         ! i acually do not want to rely on the previous calculated 
@@ -265,8 +581,6 @@ contains
         if (max(length_x,length_y) < 1 .or. min(length_x, length_y) > 1 .or. & 
             min(length_x,length_y) < 0) then 
             n_sites = -1 
-            print *, "length_x: ", length_x
-            print *, "length_y: ", length_y
             call stop_all(this_routine, "something went wrong in lenght input!")
 
         else 
@@ -343,21 +657,24 @@ contains
 
     end subroutine set_nconnect_max
 
-    subroutine set_periodic(this, t_periodic) 
+    subroutine set_periodic(this, t_periodic_x, t_periodic_y) 
         class(lattice) :: this 
-        logical, intent(in) :: t_periodic
+        logical, intent(in) :: t_periodic_x, t_periodic_y
 
-        this%t_periodic = t_periodic
+        ! how do we decide which periodic flag to take? 
+        ! well we just set it like that! the user has to be specific! 
+        ! well.. but we do not want to ask if this x or y is periodic in 
+        ! the 1dim case or? 
+        ! periodic is the default.. and we want to turn off periodic by 
+        ! inputting open-bc.. and in the case of the cain + open-bc this 
+        ! means immediately that it is NOT periodic.. so only if both inputs 
+        ! are true (which is the default case) the chain is set to be 
+        ! periodic! (or in the is_periodic procedure, we check if 
+        ! both are true!
+        this%t_periodic_x = t_periodic_x
+        this%t_periodic_y = t_periodic_y
 
     end subroutine set_periodic
-
-!     subroutine set_length(this, length)
-!         class(chain) :: this 
-!         integer, intent(in) :: length
-! 
-!         this%length = length 
-! 
-!     end subroutine set_length
 
     integer function get_nconnect(this) 
         class(lattice) :: this 
@@ -366,20 +683,45 @@ contains
 
     end function get_nconnect
 
-    function get_length_chain(this) result(length)
+    integer function get_length_chain(this) 
         class(chain) :: this 
-        integer :: length
 
-        length = this%length
+        get_length_chain = this%length
 
     end function get_length_chain
 
-    logical function is_periodic(this) 
+    logical function is_periodic_chain(this)
+        class(chain) :: this 
+
+        ! the chain is only treated as periodic if both the flags are set 
+        ! to be periodic!
+        is_periodic_chain = (this%is_periodic_x() .and. this%is_periodic_y())
+
+    end function is_periodic_chain
+
+    logical function is_periodic_lattice(this)
+        class(lattice) :: this 
+        character(*), parameter :: this_routine = "is_periodic_lattice"
+        call stop_all(this_routine, &
+            "lattice should not be directly instantiated!")
+
+
+    end function is_periodic_lattice
+
+    logical function is_periodic_x(this) 
         class(lattice) :: this 
 
-        is_periodic = this%t_periodic
+        is_periodic_x = this%t_periodic_x
 
-    end function is_periodic
+    end function is_periodic_x
+
+    logical function is_periodic_y(this) 
+        class(lattice) :: this 
+
+        is_periodic_y = this%t_periodic_y
+
+    end function is_periodic_y
+
 
     integer function get_ndim(this) 
         class(lattice) :: this 
