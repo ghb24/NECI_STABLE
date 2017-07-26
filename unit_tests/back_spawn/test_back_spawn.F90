@@ -80,6 +80,7 @@ contains
 
         call assert_true(allocated(mask_virt_ni))
         call assert_equals(size(mask_virt_ni, 1), nBasis - nel)
+        call assert_equals([nBasis - nel, inum_runs], shape(mask_virt_ni), 2)
         do j = 1, inum_runs
             call assert_equals(mask_virt_ni(:,j), [7, 8, 9, 10, 11, 12], 2)
         end do
