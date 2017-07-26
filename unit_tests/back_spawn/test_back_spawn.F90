@@ -33,6 +33,7 @@ contains
         call run_test_case(test_pick_vitual_electrons_double_hubbard, &
             "test_pick_vitual_electrons_double_hubbard")
         call run_test_case(test_pick_vitual_electron_single, "test_pick_vitual_electron_single")
+        call run_test_case(test_get_ispn, "test_get_ispn")
 
     end subroutine back_spawn_test_driver 
 
@@ -394,10 +395,28 @@ contains
         ! i have to consider ispn here too and that the first picked 
         ! orbital always should be a beta orbital!
         ! apparently even numbers are beta orbitals! since when? 
+        ! check that again.. because i am pretty sure odd are beta orbitals..
+        ! nah i am just entering the first if-statement of the routine with 
+        ! these settings.. 
         projedet(1,1) = 2
         ispn = 1
         call pick_occupied_orbital(nI, src, ispn, run, pgen, cum_sum, orb)
         call assert_equals(2, orb)
+        call assert_equals(1.0_dp, pgen)
+        call assert_equals(1.0_dp, cum_sum)
+
+        ! do also a test with ispn = 2 
+        ispn = 2 
+        call pick_occupied_orbital(nI, src, ispn, run, pgen, cum_sum, orb)
+        call assert_equals(0, orb)
+        call assert_equals(0.0_dp, pgen)
+        call assert_equals(1.0_dp, cum_sum)
+
+        ! and a succesful one.. 
+        projedet(1,1) = 1
+        nI = 2
+        call pick_occupied_orbital(nI, src, ispn, run, pgen, cum_sum, orb)
+        call assert_equals(1, orb)
         call assert_equals(1.0_dp, pgen)
         call assert_equals(1.0_dp, cum_sum)
 
@@ -561,4 +580,16 @@ contains
 
 
     end subroutine test_pick_vitual_electron_single
+
+    subroutine test_get_ispn
+
+        print *, "" 
+        print *, "testing: get_ispn()" 
+
+        call assert_equals(1, get_ispn([1,1]))
+        call assert_equals(2, get_ispn([1,2]))
+        call assert_equals(3, get_ispn([2,2]))
+
+    end subroutine test_get_ispn
+
 end program test_back_spawn
