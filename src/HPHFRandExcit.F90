@@ -167,7 +167,10 @@ MODULE HPHFRandExcitMod
             if (tUEG .and. tLatticeGens) then 
                 call gen_excit_back_spawn_ueg(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
                                           ExcitMat, tSignOrig, pgen, Hel, store, run)
-            else 
+            else if (tHUB .and. tLatticeGens) then
+                call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat,&
+                                 tSignOrig, pGen, HEl, store)
+            else
                 call gen_excit_back_spawn(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
                                           ExcitMat, tSignOrig, pgen, Hel, store, run)
             end if
