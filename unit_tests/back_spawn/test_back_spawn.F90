@@ -29,10 +29,10 @@ contains
         call run_test_case(test_pick_occupied_orbital_single, "test_pick_occupied_orbital_single")
         call run_test_case(test_pick_occupied_orbital_hubbard, "test_pick_occupied_orbital_hubbard")
         call run_test_case(test_pick_occupied_orbital, "test_pick_occupied_orbital") 
-!         call run_test_case(test_pick_second_occupied_orbital, "test_pick_second_occupied_orbital")
-!         call run_test_case(test_pick_vitual_electrons_double_hubbard, &
-!             "test_pick_vitual_electrons_double_hubbard")
-!         call run_test_case(test_pick_vitual_electron_single, "test_pick_vitual_electron_single")
+        call run_test_case(test_pick_second_occupied_orbital, "test_pick_second_occupied_orbital")
+        call run_test_case(test_pick_vitual_electrons_double_hubbard, &
+            "test_pick_vitual_electrons_double_hubbard")
+        call run_test_case(test_pick_vitual_electron_single, "test_pick_vitual_electron_single")
 
     end subroutine back_spawn_test_driver 
 
@@ -291,7 +291,6 @@ contains
         print *, ""
         print *, "now with additional global data: "
         print *, "dSFMT_init() "
-
         call dSFMT_init(123)
 
         projedet(1,1) = 1
@@ -314,6 +313,7 @@ contains
         use SystemData, only: nel 
         use fcimcdata, only: projedet
         use constants, only: dp
+        use dSFMT_interface, only: dSFMT_init
 
         integer :: nI(1) = 1, run = 1
         real(dp) :: pgen 
@@ -334,6 +334,7 @@ contains
 
         print *, "now with additional global data: "
         print *, "dSFMT_init()"
+        call dSFMT_init(123)
 
         nI = 2
         call pick_occupied_orbital_hubbard(nI, run, pgen, orb) 
@@ -348,6 +349,7 @@ contains
         use SystemData, only: nel 
         use fcimcdata, only: projedet
         use constants, only: dp
+        use dSFMT_interface, only: dSFMT_init
 
         integer :: src(2) = 0, ispn = 0, run = 1
         integer, allocatable :: nI(:)
@@ -371,16 +373,179 @@ contains
 
         call assert_equals(orb, 0)
         call assert_equals(pgen, 0.0_dp)
-        call assert_equals(cum_sum, 0.0_dp)
+        call assert_equals(cum_sum, 1.0_dp)
 
         print *, "now with additional global data: "
         print *, "dSFMT_init()"
-
+        call dSFMT_init(123)
+        ! i have to consider ispn here too and that the first picked 
+        ! orbital always should be a beta orbital!
+        ! apparently even numbers are beta orbitals! since when? 
+        projedet(1,1) = 2
+        ispn = 1
         call pick_occupied_orbital(nI, src, ispn, run, pgen, cum_sum, orb)
-        call assert_equals(orb, 1)
-        call assert_equals(pgen, 1.0_dp) 
-        call assert_equals(cum_sum, 1.0_dp)
+        call assert_equals(2, orb)
+        call assert_equals(1.0_dp, pgen)
+        call assert_equals(1.0_dp, cum_sum)
+
+        ! todo: i should do more tests here
+        nel = -1
+        deallocate(projedet)
 
     end subroutine test_pick_occupied_orbital
 
+    subroutine test_pick_second_occupied_orbital
+        use SymExcitDataMod, only: SymLabelCounts2, OrbClassCount, SymLabelList2
+        use fcimcdata, only: projedet
+        use constants, only: dp 
+        use dSFMT_interface, only: dSFMT_init
+        use SystemData, only: nel 
+
+        integer, allocatable :: nI(:) 
+        integer :: src(2) = 0, cc_b = 1, orb_a = 1, ispn = 0, run = 1
+        real(dp) :: cpt, cum_sum 
+        integer :: orb
+
+        nel = 1
+
+        ! allocate and initialite the necessary data
+        allocate(OrbClassCount(1));     OrbClassCount(1) = 1
+        allocate(SymLabelCounts2(1,1)); SymLabelCounts2(1,1) = 1
+        allocate(SymLabelList2(1));     SymLabelList2(1) = 1
+
+        allocate(projedet(1,1));        projedet(1,1) = 1
+
+        print *, "" 
+        print *, "testing: pick_second_occupied_orbital() " 
+        print *, "with necessary global data: "
+        print *, "nel: ", nel 
+        print *, "SymLabelCounts2: ", SymLabelCounts2
+        print *, "OrbClassCount: ", OrbClassCount
+        print *, "SymLabelList2: ", SymLabelList2
+        print *, "projedet: ", projedet
+        allocate(nI(nel)); nI = 1
+
+        call pick_second_occupied_orbital(nI, src, cc_b, orb_a, ispn, run, &
+            cpt, cum_sum, orb)
+
+        call assert_equals(0, orb) 
+        call assert_equals(0.0_dp, cpt) 
+        call assert_equals(1.0_dp, cum_sum)
+
+        ! now do a test with one fixed output: 
+        nI = 2
+        orb_a = 3
+
+        print *, "now with additional global data: "
+        print *, "dSFMT_init()" 
+        call dSFMT_init(123)
+
+        call pick_second_occupied_orbital(nI, src, cc_b, orb_a, ispn, run, &
+            cpt, cum_sum, orb)
+
+        call assert_equals(1, orb) 
+        call assert_equals(1.0_dp, cpt)
+        call assert_equals(1.0_dp, cum_sum)
+
+
+        ! deallocate:
+        deallocate(projedet)
+        deallocate(OrbClassCount)
+        deallocate(SymLabelCounts2)
+        deallocate(SymLabelList2)
+        nel = -1 
+
+    end subroutine test_pick_second_occupied_orbital
+    
+    subroutine test_pick_vitual_electrons_double_hubbard
+        use SystemData, only: nel
+        use constants, only: dp
+        use dSFMT_interface, only: dSFMT_init
+
+        integer, allocatable :: nI(:)
+        integer :: run = 1, elecs(2), src(2), ispn
+        real(dp) :: pgen 
+
+        nel = 1
+        allocate(mask_virt_ni(1,1)); mask_virt_ni(1,1) = 1
+
+        print *, ""
+        print *, "testing: pick_virtual_electrons_double_hubbard() "
+        print *, "with necessary global data: "
+        print *, "nel: ", nel 
+        print *, "mask_virt_ni: ", mask_virt_ni
+
+        allocate(nI(nel)); nI = 1
+
+        call pick_virtual_electrons_double_hubbard(nI, run, elecs, src, ispn, pgen)
+        call assert_equals([0,0], elecs, 2)
+        call assert_equals([0,0], src, 2) 
+        call assert_equals(0, ispn)
+        call assert_equals(0.0_dp, pgen)
+
+        print *, "now with additional global data: "
+        print *, "dSFMT_init()" 
+        call dSFMT_init(123)
+
+        deallocate(nI)
+        nel = 2
+        allocate(nI(nel)); nI = [1,2] 
+
+        deallocate(mask_virt_ni)
+        allocate(mask_virt_ni(2,1)); mask_virt_ni(:,1) = [1,2]
+
+        call pick_virtual_electrons_double_hubbard(nI, run, elecs, src, ispn, pgen)
+
+        call assert_equals(2, ispn)
+        call assert_equals(1.0_dp, pgen) 
+        ! the electrons can be in any order now.. how to test that?
+        call assert_true( all(elecs == [1,2]) .or. all(elecs == [2,1]))
+        call assert_true( all(src == [1,2]) .or. all(src == [2,1]))
+
+        ! todo: more tests.. 
+        nel = -1 
+        deallocate(mask_virt_ni)
+
+    end subroutine test_pick_vitual_electrons_double_hubbard
+
+    subroutine test_pick_vitual_electron_single
+        use SystemData, only: nel 
+        use constants, only: dp 
+        use dSFMT_interface, only: dSFMT_init
+
+        integer, allocatable :: nI(:) 
+        integer :: run = 1, elec
+        real(dp) :: pgen
+
+        nel = 1
+        allocate(mask_virt_ni(1,1)); mask_virt_ni(1,1) = 2
+
+        print *, "" 
+        print *, "testing: pick_virtual_electron_single() " 
+        print *, "with necessary global data: "
+        print *, "nel: ", nel 
+        print *, "mask_virt_ni: ", mask_virt_ni
+
+        allocate(nI(nel)); nI = 1
+
+        call pick_virtual_electron_single(nI, run, elec, pgen) 
+        
+        call assert_equals(0, elec)
+        call assert_equals(0.0_dp, pgen) 
+
+        print *, "now with additional global data: "
+        print *, "dSFMT_init()" 
+        call dSFMT_init(123)
+
+        nI = 2 
+        call pick_virtual_electron_single(nI, run, elec, pgen) 
+
+        call assert_equals(1, elec) 
+        call assert_equals(1.0_dp, pgen)
+
+        nel = -1 
+        deallocate(mask_virt_ni)
+
+
+    end subroutine test_pick_vitual_electron_single
 end program test_back_spawn

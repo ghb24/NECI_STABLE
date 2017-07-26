@@ -423,7 +423,7 @@ contains
             orb = 0 
             cpt = 0.0_dp
             ! can i set cum_sum to 0 here, or does this invoke divisions by zero?
-            cum_sum = 0.0_dp
+            cum_sum = 1.0_dp
             return
         end if
 
@@ -511,6 +511,8 @@ contains
         if (n_valid == 0) then 
             orb = 0
             cpt = 0.0_dp
+            ! ok here i decide to output it to 1.0.. so do it in all the 
+            ! other routines too.. 
             cum_sum = 1.0_dp
             return
         end if
@@ -564,6 +566,8 @@ contains
             elecs = 0
             src = 0
             pgen = 0.0_dp
+            ! what is ispn on return?? argh too many uninitialized vars.
+            ispn = 0
             return
 !             call stop_all(this_routine, & 
 !                 "something went wront, did not find 2 valid virtual electrons!")
@@ -630,8 +634,14 @@ contains
 
         if (n_valid == 0) then
             ! something went wrong
-            call stop_all(this_routine, & 
-                "something went wront, did not find valid virtual single electron!")
+            ! yes.. this means it was called on the hartree fock.. 
+            ! but i think aborting the excitation is enough.. i do not 
+            ! need to stop_all or? but this could catch some bugs.. 
+            elec = 0 
+            pgen_elec = 0.0_dp
+            return
+!             call stop_all(this_routine, & 
+!                 "something went wront, did not find valid virtual single electron!")
         end if
 
         ! and now pick a random number: 
