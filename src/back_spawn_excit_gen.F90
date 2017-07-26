@@ -18,10 +18,11 @@ module back_spawn_excit_gen
     use CalcData, only: t_back_spawn_flex, t_back_spawn_occ_virt, t_back_spawn, &
                         occ_virt_level, t_back_spawn_flex_option, t_back_spawn_option
     use GenRandSymExcitNUMod, only: ClassCountInd, RandExcitSymLabelProd, &
-                        CreateExcitLattice
+                        CreateExcitLattice, CalcPGenLattice
     use back_spawn, only: check_electron_location, pick_virtual_electrons_double, & 
                           pick_occupied_orbital_single, pick_virtual_electron_single, &
-                          pick_occupied_orbital, pick_second_occupied_orbital
+                          pick_occupied_orbital, pick_second_occupied_orbital, &
+                          get_ispn
     use get_excit, only: make_single, make_double
     use Determinants, only: write_det, get_helement
 
@@ -95,8 +96,7 @@ contains
         integer, optional :: run
         character(*), parameter :: this_routine = "gen_double_back_spawn_ueg"
 
-        integer :: kaxrange, kayrange, kazrange, ielecinexcitrange, Elec1, & 
-                   Elec2, Elec1Ind, Elec2Ind, iSpn, hole2basisnum, elecs(2), &
+        integer :: Elec1Ind, Elec2Ind, iSpn, hole2basisnum, src(2), &
                    loc, temp_run, ki(3), kj(3), ka(3), kb(3), kb_ms, TestEnergyB, &
                    iSpinIndex, ChosenUnocc, hole1basisnum
         real(dp) :: r(2), x, pAIJ, dummy
@@ -108,11 +108,6 @@ contains
             temp_run = 1
         end if
 
-        kaxrange = 0
-        kayrange = 0
-        kazrange = 0
-        ielecinexcitrange = 0
-
         ! i know here that back-spawn is on and this is a non-inititator: 
         ! so for the beginning implementation we pick the two electrons 
         ! randomly 
@@ -121,30 +116,22 @@ contains
         ! electrons in any order possible!
         DO
             r(1) = genrand_real2_dSFMT()
-            Elec1=INT(r(1)*NEl+1)
+            Elec1Ind=INT(r(1)*NEl+1)
             DO
                 r(2) = genrand_real2_dSFMT()
-                Elec2=INT(r(2)*NEl+1)
-                IF(Elec2.ne.Elec1) EXIT
+                Elec2Ind=INT(r(2)*NEl+1)
+                IF(Elec2Ind.ne.Elec1Ind) EXIT
             ENDDO
-            Elec1Ind=Elec1
-            Elec2Ind=Elec2
-            IF((G1(nI(Elec1Ind))%Ms.eq.-1).and.(G1(nI(Elec2Ind))%Ms.eq.-1)) THEN
-                iSpn=1
-            ELSE
-                IF((G1(nI(Elec1Ind))%Ms.eq.1).and.(G1(nI(Elec2Ind))%Ms.eq.1)) THEN 
-                    iSpn=3
-                ELSE
-                    iSpn=2
-                ENDIF
-            ENDIF
         ENDDO
+
+        iSpn = get_ispn([nI(Elec1Ind),nI(Elec2Ind)])
 
         ! i should make it more efficient to pick the hole.. 
         hole2basisnum = 0
-        elecs = [Elec1Ind, Elec2Ind]
+        src = nI([Elec1Ind, Elec2Ind])
 
-        loc = check_electron_location(elecs, 2, temp_run)
+        ! i need to call nI(elecs)
+        loc = check_electron_location(src, 2, temp_run)
         
         if (loc == 2) then 
             do 
@@ -166,7 +153,7 @@ contains
             ! such a spin restriction as in the hubbard model
             ! i think just using the "normal" occupied picker should be fine
             ! how does this compile even??
-            call pick_occupied_orbital(nI, elecs, ispn, temp_run, pAIJ, &
+            call pick_occupied_orbital(nI, src, ispn, temp_run, pAIJ, &
                      dummy, ChosenUnocc)
 
         end if
@@ -709,7 +696,7 @@ contains
         real(dp) :: pgen
         character(*), parameter :: this_routine = "calc_pgen_back_spawn"
 
-        real(dp) :: cum_sum 
+        real(dp) :: cum_sum, pAIJ
         integer :: dummy_orb, ispn, loc, src(2)
 
         ! i have to write a generation probability calculator for the hphf 
@@ -721,13 +708,24 @@ contains
             ! i have to do some symmetry setup beforehand.. 
             ! or i do it by hand to avoid the unnecessary overhead.. 
 !             call calc_pgen_symrandexcit2(nI, ex, 2, 
+            ! nope.. i actually only need: 
+            ! although i should not land here i guess..
+            ! this functionality i could actually unit-test.. damn..
+            if (ic == 2) then 
+                call CalcPGenLattice(ex, pgen)
+            else 
+                pgen = 0.0_dp
+            end if
         else 
             ! do the back-spawn pgen.. 
             ! elec were picked randomly(but in both orders!) 
             ! and then we have to check the electron location, to know if 
             ! there was a restriction on the first orbitals 
+            ! the electrons are in the first column or? 
+            src = ex(:,1) 
             loc = check_electron_location(src, 2, run) 
 
+            ispn = get_ispn(src)
             ! and with the implementation right now it is only restricted 
             ! if both were in the occup
             if (loc == 2) then 
@@ -736,15 +734,26 @@ contains
                 ! although this is inefficient.. 
                 ! and i have to see if it would have been possible the 
                 ! other way around too.. 
-                call pick_occupied_orbital(nI, src, ispn, run, pgen, cum_sum, &
+                ! i need ispn here..
+                src = get_src(ex)
+                call pick_occupied_orbital(nI, src, ispn, run, pAIJ, cum_sum, &
                     dummy_orb)
 
             else 
                 ! otherwise the orbital (a) is free 
                 ! so it is the number of available orbitals, depending on 
                 ! the spin 
+                ! here i can just use the formulas for the standard ueg..
+                if (ispn == 1) then
+                    pAIJ=1.0_dp/(nBasis/2-nOccBeta)
+                else if (ispn == 3) then 
+                    pAIJ=1.0_dp/(nBasis/2-nOccAlpha)
+                else 
+                    pAIJ=1.0_dp/(nBasis-Nel)
+                end if
                 
             end if
+            pGen=2.0_dp/(NEl*(NEl-1))*2.0_dp*pAIJ
         end if
 
     end function calc_pgen_back_spawn_ueg
