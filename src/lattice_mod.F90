@@ -95,6 +95,7 @@ module lattice_mod
         ! pointer to an array of class(sites), so redo this in the end!
         class(site), allocatable :: sites(:)
 
+        procedure(test), pointer :: a
     contains 
         private
 
@@ -132,7 +133,6 @@ module lattice_mod
         procedure :: deallocate_sites
 
     end type lattice 
-
     ! and the plan is than to extend this with the specific lattices 
 
     type, extends(lattice) :: chain
@@ -156,6 +156,20 @@ module lattice_mod
 
     interface lattice
         procedure lattice_constructor 
+    end interface
+
+    ! can i make an abstract interface for the dummy procedures above?
+    ! no not really.. since i would need class(lattice) in the interface 
+    ! definition, but need the interface above already..or?
+    ! maybe i do not have to declare the this argument here.. 
+    ! since it is a proc ptr.. 
+    ! ok.. this works now.. but i dont know for what yet.. 
+
+    abstract interface 
+        real function test(this) 
+            import :: lattice
+            class(lattice) :: this 
+        end function test
     end interface
 
     interface site
