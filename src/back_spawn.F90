@@ -660,5 +660,21 @@ contains
 
     end subroutine pick_virtual_electron_single
 
+    function get_ispn(src) result(ispn)
+        ! it is annoying to write this over and over again.. 
+        integer, intent(in) :: src(2) 
+        integer :: ispn 
+
+        if (is_beta(src(1)) .eqv. is_beta(src(2))) then 
+            if (is_beta(src(1))) then 
+                ispn = 1
+            else 
+                ispn = 3
+            end if
+        else 
+            ispn = 2 
+        end if
+    end function get_ispn
+        
 end module back_spawn
 

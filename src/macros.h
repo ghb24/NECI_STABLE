@@ -4,6 +4,10 @@
 #define log_dealloc(tag) LogDealloc(tag)
 #define IsNullDet(nI) (nI(1).eq.0)
 
+! i am too stupid to remember where the src and tgt is in ex(2,2)
+#define get_src(ex) ex(1,:)
+#define get_tgt(ex) ex(2,:)
+
 ! Is the specified orbital occupied or not?
 ! TODO: Use ilut_int/ilut_off here?
 #define IsOcc(ilut,orb) btest(ilut((orb-1)/bits_n_int), mod(orb-1,bits_n_int))
