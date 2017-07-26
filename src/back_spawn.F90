@@ -147,13 +147,20 @@ contains
 
         if (ic == 1) then 
             ! single exctitation 
+            ! for complex code part_type_to_run does not actually do 
+            ! what i need it to do.. 
+            ! the run input here goes from 1 to lenof_sign.. 
+            ! in a single non-complex run: 
+            ! lenof_sign = 1
+            ! inum_runs = 1 
+            ! so there everything is fine i actually have to change the 
+            ! unit-tests
             if (any(elecs(1) == projedet(:,part_type_to_run(run)))) then 
                 ! this means the electron is in the reference determinant
                 ! which means we should pick a hole also in the 
                 ! reference determinant, or otherwise we definetly 
                 ! increase the excitation level 
                 loc = 2 
-
             else
                 ! only option 1 and 3 for single excitations!
                 loc = 0

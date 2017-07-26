@@ -153,25 +153,37 @@ contains
         ! i need a projedet in this case.. 
         use fcimcdata, only: projedet
 
-        integer :: i
+        integer :: i, run2
 
         allocate(projedet(4,2))
         projedet(:,1) = [(i,i=1,4)]
         projedet(:,2) = [(i,i=5,8)]
 
+        ! this test does not yet work with the complex code..
+        ! maybe i misuse the run variable.. this is good to know, 
+        ! since this may cause other parts of the code to break.. 
+        ! todo
         print *, "" 
         print *, "testing: check_electron_location() on a system with required global data:"
         print *, "projedet(:,1): ", projedet(:,1)
         print *, "projedet(:,2): ", projedet(:,2)
 
+        ! i have to take into account if it is complex.. since 
+        ! in the excitation generator i loop over the lenof_sign which 
+        ! usually is 2 * inum_runs .. and 2 is mapped to 1 in the 
+        ! check_electron_location function.. 
         call assert_equals(check_electron_location([1,2],1,1), 2)
-        call assert_equals(check_electron_location([1,2],1,2), 0)
-
         call assert_equals(check_electron_location([1,2],2,1), 2)
-        call assert_equals(check_electron_location([1,2],2,2), 0)
-
         call assert_equals(check_electron_location([1,5],2,1), 1)
-        call assert_equals(check_electron_location([1,5],2,2), 1)
+
+#ifdef __CMPLX 
+        run2 = 3
+#else 
+        run2 = 2
+#endif
+        call assert_equals(check_electron_location([1,2],1,run2), 0)
+        call assert_equals(check_electron_location([1,2],2,run2), 0)
+        call assert_equals(check_electron_location([1,5],2,run2), 1)
 
         deallocate(projedet)
 
