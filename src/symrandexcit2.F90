@@ -2713,27 +2713,40 @@ MODULE GenRandSymExcitNUMod
     !Only the excitation matrix is needed (1,*) are the i,j orbs, and (2,*) are the a,b orbs
     !This routine does it for the lattice models: UEG and hubbard model
     SUBROUTINE CalcPGenLattice(Ex,pGen)
+        use back_spawn, only: get_ispn
         
         INTEGER :: Ex(2,2),iSpin,jSpin
         real(dp) :: pGen,pAIJ
+        character(*), parameter :: this_routine = "CalcPGenLattice"
 
-        IF(tNoFailAb) CALL Stop_All("CalcPGenLattice","Cannot use this calculation of pgen with this excitation generator")
+        ASSERT(.not. tNoFailAb)
+!         IF(tNoFailAb) CALL Stop_All("CalcPGenLattice","Cannot use this calculation of pgen with this excitation generator")
         
-        iSpin=G1(Ex(1,1))%Ms
-        jSpin=G1(Ex(1,2))%Ms
-        IF (iSpin.eq.-1) THEN ! i is a beta spin
-            IF (jSpin.eq.-1) THEN ! ij is beta/beta
-                pAIJ=1.0_dp/(nBasis/2-nOccBeta)
-            ELSE !ij is alpha/beta
-                pAIJ=1.0_dp/(nBasis-Nel)
-            ENDIF
-        ELSE ! i is an alpha spin
-            IF (jSpin.eq.1) THEN ! ij is alpha/alpha
-                pAIJ=1.0_dp/(nBasis/2-nOccAlpha)
-            ELSE
-                pAIJ=1.0_dp/(nBasis-Nel)
-            ENDIF
-        ENDIF
+        ! can i make this easier? 
+        iSpin = get_ispn(get_src(ex))
+        if (iSpin == 1) then 
+            pAIJ=1.0_dp/(nBasis/2-nOccBeta)
+        else if (iSpin == 2) then 
+            pAIJ=1.0_dp/(nBasis-Nel)
+        else if (iSpin == 3) then 
+            pAIJ=1.0_dp/(nBasis/2-nOccAlpha)
+        end if
+
+!         iSpin=G1(Ex(1,1))%Ms
+!         jSpin=G1(Ex(1,2))%Ms
+!         IF (iSpin.eq.-1) THEN ! i is a beta spin
+!             IF (jSpin.eq.-1) THEN ! ij is beta/beta
+!                 pAIJ=1.0_dp/(nBasis/2-nOccBeta)
+!             ELSE !ij is alpha/beta
+!                 pAIJ=1.0_dp/(nBasis-Nel)
+!             ENDIF
+!         ELSE ! i is an alpha spin
+!             IF (jSpin.eq.1) THEN ! ij is alpha/alpha
+!                 pAIJ=1.0_dp/(nBasis/2-nOccAlpha)
+!             ELSE
+!                 pAIJ=1.0_dp/(nBasis-Nel)
+!             ENDIF
+!         ENDIF
         ! Note, p(b|ij)=p(a|ij) for this system
         if (tUEG) then
             pGen=2.0_dp/(NEl*(NEl-1))*2.0_dp*pAIJ
