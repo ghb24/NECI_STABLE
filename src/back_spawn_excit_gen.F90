@@ -165,7 +165,8 @@ contains
             ! i think i need a new one for the ueg also.. since there is not 
             ! such a spin restriction as in the hubbard model
             ! i think just using the "normal" occupied picker should be fine
-            call pick_occupied_orbital_ueg(nI, elecs, ispn, temp_run, pAIJ, &
+            ! how does this compile even??
+            call pick_occupied_orbital(nI, elecs, ispn, temp_run, pAIJ, &
                      dummy, ChosenUnocc)
 
         end if
@@ -1007,5 +1008,12 @@ contains
         
 
     end function calc_pgen_back_spawn
+
+    subroutine test_gen_excit_back_spawn() 
+        ! i need to write a routine, which tests the back spawn 
+        ! excitation generator! like in the guga case with all the 
+        ! pgen ratios and such.. 
+
+    end subroutine test_gen_excit_back_spawn
 
 end module back_spawn_excit_gen
