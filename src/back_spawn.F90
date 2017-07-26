@@ -82,13 +82,6 @@ contains
             end if
         end if
 
-        ! first use the most simple implementation of an nI style 
-        ! virtual orbital indication:
-        if (allocated(mask_virt_ni)) deallocate(mask_virt_ni)
-
-        ! i need to adapt that for replica runs
-        allocate(mask_virt_ni(nBasis - nel, inum_runs))
-
         ! and assure that this routine is called after the first HFDET is 
         ! already assigned
         ASSERT(allocated(projedet))
@@ -113,6 +106,13 @@ contains
         integer :: i, j, k
 
         ASSERT(allocated(projedet))
+
+        ! first use the most simple implementation of an nI style 
+        ! virtual orbital indication:
+        if (allocated(mask_virt_ni)) deallocate(mask_virt_ni)
+
+        ! i need to adapt that for replica runs
+        allocate(mask_virt_ni(nBasis - nel, inum_runs))
 
         ! i guess the easiest way to do that is to loop over all the 
         ! spin-orbitals and only write an entry if this orbital is not 
@@ -213,6 +213,10 @@ contains
             elecs = 0
             src = 0
             pgen = 0.0_dp
+            ! can i set defaults here which do not break the rest of the 
+            ! code?..
+            iSpn = -1
+            sum_ml = -1
             return
 !             call stop_all(this_routine, & 
 !                 "something went wront, did not find 2 valid virtual electrons!")
@@ -353,9 +357,7 @@ contains
 
         pgen = 1.0_dp / real(n_valid, dp)
 
-
     end subroutine pick_occupied_orbital_hubbard 
-
 
     subroutine pick_occupied_orbital(nI, src, ispn, run, cpt, cum_sum, orb)
         integer, intent(in) :: nI(nel), src(2), ispn, run
@@ -420,6 +422,8 @@ contains
         if (n_valid == 0) then 
             orb = 0 
             cpt = 0.0_dp
+            ! can i set cum_sum to 0 here, or does this invoke divisions by zero?
+            cum_sum = 0.0_dp
             return
         end if
 

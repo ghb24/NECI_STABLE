@@ -7,5 +7,7 @@ include_directories( ${CMAKE_CURRENT_SOURCE_DIR} )
 add_subdirectory( fruit_src )
 
 # And start adding tests
-
 add_subdirectory( det_bit_ops )
+
+# finally do some unit-testing also with my newly added features 
+add_subdirectory( back_spawn )

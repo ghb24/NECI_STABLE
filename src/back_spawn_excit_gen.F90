@@ -27,6 +27,10 @@ module back_spawn_excit_gen
 
 !     use hphf_integrals, only: hphf_off_diag_helement
 
+#ifdef __DEBUG 
+    use SystemData, only: tNoFailAb
+#endif
+
     implicit none
 
 contains
