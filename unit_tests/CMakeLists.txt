@@ -11,3 +11,5 @@ add_subdirectory( det_bit_ops )
 
 # finally do some unit-testing also with my newly added features 
 add_subdirectory( back_spawn )
+
+add_subdirectory( back_spawn_excit_gen ) 
