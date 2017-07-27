@@ -129,7 +129,7 @@ contains
 
         call assert_true(is_in_virt_mask(1))
         call assert_true(is_in_virt_mask(1,1))
-        call assert_true(is_in_virt_mask(2,2))
+        call assert_true(is_in_virt_mask(2,run))
 
         call assert_true(.not. is_in_virt_mask(2,1))
 
@@ -168,9 +168,8 @@ contains
         allocate(ilutref(0:niftot,inum_runs))
         do j = 1, inum_runs
             projedet(:,j) = [(i, i = 1, nel)]
-            call EncodeBitDet(projedet, ilutref)
+            call EncodeBitDet(projedet(:,j), ilutref(:,j))
         end do
-
 
         tTruncInitiator = .true. 
         tGen_4ind_2 = .true. 
@@ -239,7 +238,7 @@ contains
         allocate(ilutref(0:niftot,inum_runs))
         do j = 1, inum_runs
             projedet(:,j) = [(i, i = 1, nel)]
-            call EncodeBitDet(projedet, ilutref)
+            call EncodeBitDet(projedet(:,j), ilutref(:,j))
         end do
 
         print *, "" 

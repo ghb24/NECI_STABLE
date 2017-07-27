@@ -30,11 +30,12 @@ contains
         ! indirectly i can also test calcpgenlattice with this unit test.. 
         ! since it is part of calc_pgen_back_spawn_ueg
         use SystemData, only: nel, tUEG, nOccBeta, nOccAlpha, tNoFailAb, nBasis
-        use FciMCData, only: projedet
+        use FciMCData, only: projedet, ilutref
         use dSFMT_interface, only: dSFMT_init
         use constants, only: dp, n_int
         use bit_reps, only: set_flag, get_initiator_flag, test_flag
         use bit_rep_data, only: niftot, noffflag, tUseflags
+        use detbitops, only: encodebitdet
 
         integer, allocatable :: nI(:) 
         integer(n_int), allocatable :: ilut(:)
@@ -50,7 +51,9 @@ contains
         tUseflags = .true. 
         nBasis = 4
 
-        allocate(projedet(1,1)); projedet(1,1) = 1
+        allocate(projedet(nel,1)); projedet(:,1) = [1,2]
+        allocate(ilutref(0:niftot,1))
+        call encodebitdet(projedet, ilutref)
  
         print *, ""
         print *, "testing: calc_pgen_back_spawn_ueg "
@@ -113,7 +116,10 @@ contains
         ! and then with 
         ! electrons outside the occupied manifold 
         ic = 2
-        projedet = 3
+        deallocate(projedet); allocate(projedet(nel,1)); projedet(:,1) = [3,4,5,6]
+        deallocate(ilutref);  allocate(ilutref(0:niftot,1)); 
+        call encodebitdet(projedet, ilutref)
+
         ! so this is now same as the above beta pgen
         call assert_equals(1.0_dp/6.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
         ex(1,1) = 2 
