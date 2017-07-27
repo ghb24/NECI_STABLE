@@ -2110,7 +2110,7 @@ MODULE GenRandSymExcitNUMod
         use sym_mod, only: mompbcsym
         use bit_rep_data, only: test_flag
         use bit_reps, only: get_initiator_flag
-        use CalcData, only: t_back_spawn_flex
+        use CalcData, only: t_back_spawn_flex, occ_virt_level
         use back_spawn, only: pick_occupied_orbital_hubbard, check_electron_location
 
         INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,iSpn,kb_ms
@@ -2144,7 +2144,17 @@ MODULE GenRandSymExcitNUMod
 
             loc = check_electron_location(elecs, 2, temp_run)
 
-            if (loc == 2) then 
+            if ((loc == 2) .or. (loc == 1 .and. occ_virt_level /= -1) .or. & 
+                (loc == 0 .and. occ_virt_level >= 1 ))then 
+                ! otherwise i have to pick a "occupied orbital" to ensure to 
+                ! not increase IC by 2
+                ! but in this case there isn't the restriction in which order 
+                ! the electrons are picked, so i guess i have to write a new 
+                ! function for the hubbard model too in this case.. 
+                call pick_occupied_orbital_hubbard(nI, ilutni, temp_run, pAIJ, ChosenUnocc)
+
+
+            else
                 ! then we can pick any orbitals.. 
                 ! no... i think i made a mistake: 
                 ! loc = 0 means both electrons are in the virtual 
@@ -2157,14 +2167,6 @@ MODULE GenRandSymExcitNUMod
 
                 ! set the p(a|ij) here already. .
                 pAIJ=1.0_dp/(nBasis-Nel)
-            else
-                ! otherwise i have to pick a "occupied orbital" to ensure to 
-                ! not increase IC by 2
-                ! but in this case there isn't the restriction in which order 
-                ! the electrons are picked, so i guess i have to write a new 
-                ! function for the hubbard model too in this case.. 
-                call pick_occupied_orbital_hubbard(nI, ilutni, temp_run, pAIJ, ChosenUnocc)
-
             end if 
 
         else
