@@ -394,6 +394,71 @@ contains
 
     end subroutine pick_occupied_orbital_hubbard 
 
+    subroutine pick_occupied_orbital_ueg(nI, ilutI, src, ispn, run, cpt, cum_sum, orb)
+        integer, intent(in) :: nI(nel), src(2), ispn, run
+        integer(n_int), intent(in) :: ilutI(0:niftot)
+        real(dp), intent(out) :: cpt, cum_sum
+        integer, intent(out) :: orb
+        character(*), parameter :: this_routine = "pick_occupied_orbital_ueg"
+
+        integer :: occ_orbs(nel), n_valid, j, ind, i
+        ! the only difference in the ueg orbital picker is that it is not 
+        ! restricted to pick a beta-orbital first in the case of 
+        ! a opposite spin excitation
+
+        ! better idea: 
+        n_valid = 0
+        j = 1
+        occ_orbs = 0
+        ! loop over ref det 
+        do i = 1, nel 
+            ! check if ref-det electron is NOT in nI
+            if (IsNotOcc(ilutI,projedet(i,part_type_to_run(run)))) then
+!             if (.not. any(projedet(i,part_type_to_run(run)) == nI)) then 
+                ! check the symmetry here.. or atleast the spin..
+                ! if we are parallel i have to ensure the orbital has the 
+                ! same spin 
+                if (ispn /= 2) then 
+                    if (is_beta(projedet(i,part_type_to_run(run))) .eqv. &
+                        is_beta(src(1))) then
+                        ! this is a valid orbital i guess.. 
+                        n_valid = n_valid + 1 
+                        occ_orbs(j) = projedet(i,part_type_to_run(run)) 
+                        j = j + 1
+                    end if
+                else 
+                    ! in the ueg case we can pick the first orbital freely 
+                    ! for a ispn == 2 excitation.. 
+                    n_valid = n_valid + 1
+                    occ_orbs(j) = projedet(i,part_type_to_run(run))
+                    j = j + 1
+                end if
+            end if
+        end do
+        
+        ! so now we have a list of the possible orbitals in occ_orbs
+        ! this has to be atleast 2, or otherwise we won't find a second 
+        ! orbital.. well no! since the second orbital can be picked from 
+        ! all the orbitals! 
+        if (n_valid == 0) then 
+            orb = 0 
+            cpt = 0.0_dp
+            ! can i set cum_sum to 0 here, or does this invoke divisions by zero?
+            cum_sum = 1.0_dp
+            return
+        end if
+
+        ind = 1 + int(genrand_real2_dSFMT() * n_valid) 
+
+        orb = occ_orbs(ind)
+
+        ! and now the cum_sums and pgens.. 
+        cpt = 1.0_dp / real(n_valid, dp)
+        cum_sum = 1.0_dp
+
+    end subroutine pick_occupied_orbital_ueg
+    
+
     subroutine pick_occupied_orbital(nI, ilutI, src, ispn, run, cpt, cum_sum, orb)
         integer, intent(in) :: nI(nel), src(2), ispn, run
         integer(n_int), intent(in) :: ilutI(0:niftot)
@@ -405,7 +470,6 @@ contains
         ! excitation generators i have to be carefull with the cum_lists 
         ! and stuff..
         character(*), parameter :: this_routine = "pick_occupied_orbital"
-        logical :: parallel, beta
         integer :: occ_orbs(nel), n_valid, j, ind, i
 
         ! soo what do i need? 

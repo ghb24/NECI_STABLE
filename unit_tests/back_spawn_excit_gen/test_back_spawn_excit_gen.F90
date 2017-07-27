@@ -20,6 +20,7 @@ contains
     subroutine back_spawn_excit_gen_test_driver
 
         call run_test_case(calc_pgen_back_spawn_ueg_test, "calc_pgen_back_spawn_ueg_test")
+        call run_test_case(calc_pgen_back_spawn_hubbard_test, "calc_pgen_back_spawn_hubbard_test")
 
     end subroutine back_spawn_excit_gen_test_driver
 
@@ -36,6 +37,7 @@ contains
         use bit_reps, only: set_flag, get_initiator_flag, test_flag
         use bit_rep_data, only: niftot, noffflag, tUseflags
         use detbitops, only: encodebitdet
+        use CalcData, only: occ_virt_level
 
         integer, allocatable :: nI(:) 
         integer(n_int), allocatable :: ilut(:)
@@ -50,6 +52,7 @@ contains
         noffflag = 1
         tUseflags = .true. 
         nBasis = 4
+        occ_virt_level = 0
 
         allocate(projedet(nel,1)); projedet(:,1) = [1,2]
         allocate(ilutref(0:niftot,1))
@@ -135,10 +138,54 @@ contains
         ! but this is actually maybe not even true in the UEG and hubbard 
         ! case.. it depends 
 
+        ! i guess i got it right now.. so get it done.. 
+        ! i want both electrons in the occupied manifold 
+        ! i know these setting make no sense but atleast this way i can 
+        ! check it
+        ex(2,:) = 5
+        ! i need ni and ilut 
+        deallocate(nI); allocate(nI(nel)); nI = [1,2,3,4]
+        call EncodeBitDet(nI, ilut)
+
+        ex(1,:) = 3
+        call assert_equals(4.0_dp/12.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+
+        ex(1,:) = 4 
+        call assert_equals(4.0_dp/12.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+
+        ex(1,:) = [3,4]
+        call assert_equals(2.0_dp/12.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
 
 
+        ! and now with b outside occupied range
+        ex(2,:) = 7
+
+        ex(1,:) = 3
+        call assert_equals(2.0_dp/12.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+
+        ex(1,:) = 4 
+        call assert_equals(2.0_dp/12.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+
+        ex(1,:) = [3,4]
+        call assert_equals(1.0_dp/12.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+
+
+        ! this mimicks a beta-beta excitation with orb b also in the 
+        ! occupied manifold.. 
+        ! oh damn.. i just realized.. i do not need the restriction to pick 
+        ! a beta orbital first in the UEG case! damn.. 
+        ! so i need a extra ueg orbital picker.. 
+        ! ok.. so are we finished with the prep? 
+        
 
     end subroutine calc_pgen_back_spawn_ueg_test
+
+    subroutine calc_pgen_back_spawn_hubbard_test
+
+        print *, "" 
+        print *, "testing: calc_pgen_back_spawn_hubbard" 
+
+    end subroutine calc_pgen_back_spawn_hubbard_test
 
 end program test_back_spawn_excit_gen
 

@@ -22,7 +22,7 @@ module back_spawn_excit_gen
     use back_spawn, only: check_electron_location, pick_virtual_electrons_double, & 
                           pick_occupied_orbital_single, pick_virtual_electron_single, &
                           pick_occupied_orbital, pick_second_occupied_orbital, &
-                          get_ispn
+                          get_ispn, is_in_ref, pick_occupied_orbital_ueg
     use get_excit, only: make_single, make_double
     use Determinants, only: write_det, get_helement
 
@@ -81,8 +81,6 @@ contains
 
         end if
 
-
-
     end subroutine gen_excit_back_spawn_ueg
 
     subroutine gen_double_back_spawn_ueg(nI, ilutI, nJ, ilutJ, tParity, ExcitMat, & 
@@ -96,10 +94,10 @@ contains
         integer, optional :: run
         character(*), parameter :: this_routine = "gen_double_back_spawn_ueg"
 
-        integer :: Elec1Ind, Elec2Ind, iSpn, hole2basisnum, src(2), &
+        integer :: elec_i, elec_j, iSpn, orb_b, src(2), &
                    loc, temp_run, ki(3), kj(3), ka(3), kb(3), kb_ms, TestEnergyB, &
-                   iSpinIndex, ChosenUnocc, hole1basisnum
-        real(dp) :: r(2), x, pAIJ, dummy
+                   iSpinIndex, orb_a
+        real(dp) :: x, pAIJ, dummy
         logical :: tAllowedExcit
 
         if (present(run)) then 
@@ -114,67 +112,68 @@ contains
         ! i should make this to a function below: maybe with the hubbard 
         ! flag as additional input to provide us with two independent 
         ! electrons in any order possible!
-        DO
-            r(1) = genrand_real2_dSFMT()
-            Elec1Ind=INT(r(1)*NEl+1)
-            DO
-                r(2) = genrand_real2_dSFMT()
-                Elec2Ind=INT(r(2)*NEl+1)
-                IF(Elec2Ind.ne.Elec1Ind) EXIT
-            ENDDO
-        ENDDO
+        do
+            elec_i = 1 + int(genrand_real2_dsfmt() * nel)
+            do
+                elec_j = 1 + int(genrand_real2_dsfmt() * nel)
+                if(elec_j.ne.elec_i) exit
+            enddo
+        enddo
 
-        iSpn = get_ispn([nI(Elec1Ind),nI(Elec2Ind)])
-
-        ! i should make it more efficient to pick the hole.. 
-        hole2basisnum = 0
-        src = nI([Elec1Ind, Elec2Ind])
+        src = nI([elec_i, elec_j])
+        iSpn = get_ispn(src)
 
         ! i need to call nI(elecs)
         loc = check_electron_location(src, 2, temp_run)
         
-        if (loc == 2) then 
-            do 
-                x = genrand_real2_dSFMT() 
-                if (iSpn == 2) then 
-                    ChosenUnocc = int(nBasis * x) + 1
-
-                else 
-                    ChosenUnocc=2*(INT(nBasis/2*x)+1) & ! 2*(a number between 1 and nbasis/2) gives the alpha spin
-                    & -(1-(iSpn/3)) ! alpha numbered even, iSpn/3 returns 1 for alpha/alpha, 0 for beta/beta
-                end if
-                
-                if (IsNotOcc(ilutI, ChosenUnocc)) exit 
-            end do
-            pAIJ = 1.0_dp / real(nBasis - nel, dp) 
-
-        else 
+        ! wait a minute.. thats incorrect or? 
+        ! if we have both in the occupied manifold we want to restrict 
+        ! our orbital choice..
+        ! i can decide based on the occ_virt_level or? 
+        if ((loc == 2) .or. (loc == 1 .and. occ_virt_level /= -1) .or. & 
+            (loc == 0 .and. occ_virt_level >= 1)) then
             ! i think i need a new one for the ueg also.. since there is not 
             ! such a spin restriction as in the hubbard model
             ! i think just using the "normal" occupied picker should be fine
             ! how does this compile even??
-            call pick_occupied_orbital(nI, ilutI, src, ispn, temp_run, pAIJ, &
-                     dummy, ChosenUnocc)
+            ! no.. write a new one without the spin-restriction
+            call pick_occupied_orbital_ueg(nI, ilutI, src, ispn, temp_run, pAIJ, &
+                     dummy, orb_a)
 
+        else 
+            ! otherwise pick freely..
+            do 
+                x = genrand_real2_dSFMT() 
+                if (iSpn == 2) then 
+                    orb_a = int(nBasis * x) + 1
+
+                else 
+                    orb_a=2*(INT(nBasis/2*x)+1) & ! 2*(a number between 1 and nbasis/2) gives the alpha spin
+                    & -(1-(iSpn/3)) ! alpha numbered even, iSpn/3 returns 1 for alpha/alpha, 0 for beta/beta
+                end if
+                
+                if (IsNotOcc(ilutI, orb_a)) exit 
+            end do
+            pAIJ = 1.0_dp / real(nBasis - nel, dp) 
+        
         end if
 
         ! i guess this is not necessary, but anyway..
-        Hole1BasisNum=ChosenUnocc
-        IF((Hole1BasisNum.le.0).or.(Hole1BasisNum.gt.nBasis)) THEN
+        IF((orb_a < 0).or.(orb_a  > nBasis)) THEN
             CALL Stop_All("CreateDoubExcitLattice","Incorrect basis function generated") 
         ENDIF
 
         ! kb is now uniquely defined
-        ki=G1(nI(Elec1Ind))%k
-        kj=G1(nI(Elec2Ind))%k
-        ka=G1(Hole1BasisNum)%k
+        ki=G1(nI(elec_i))%k
+        kj=G1(nI(elec_j))%k
+        ka=G1(orb_a)%k
         kb=ki+kj-ka
 
         ! Find the spin of b
         IF(iSpn.eq.2)THEN ! alpha/beta required, therefore b has to be opposite spin to a
-            kb_ms=1-((G1(Hole1BasisNum)%Ms+1)/2)*2
+            kb_ms=1-((G1(orb_a)%Ms+1)/2)*2
         ELSE ! b is the same spin as a
-            kb_ms=G1(Hole1BasisNum)%Ms
+            kb_ms=G1(orb_a)%Ms
         ENDIF
 
         ! Is kb allowed by the size of the space?
@@ -192,45 +191,41 @@ contains
         ENDIF
                
         iSpinIndex=(kb_ms+1)/2+1
-        Hole2BasisNum=kPointToBasisFn(kb(1),kb(2),kb(3),iSpinIndex)
+        orb_b = kPointToBasisFn(kb(1),kb(2),kb(3),iSpinIndex)
        
-        IF(Hole2BasisNum==-1.or.Hole1BasisNum.eq.Hole2BasisNum) THEN
+        IF(orb_b == -1 .or. orb_a == orb_b) THEN
             nJ(1)=0 
+            pgen = 0.0_dp
             RETURN
         ENDIF
 
         ! Is b occupied?
-        IF(BTEST(iLutI((Hole2BasisNum-1)/bits_n_int),MOD(Hole2BasisNum-1,bits_n_int))) THEN
-        !Orbital is in nI. Reject.
-            tAllowedExcit=.false.
-        ENDIF
-        
-        IF(.not.tAllowedExcit) THEN
-            nJ(1)=0
-            RETURN
-        ENDIF
+        if (.not. tAllowedExcit .or. IsOcc(ilutI, orb_b)) then 
+            nj(1) = 0
+            pgen = 0.0_dp
+            return
+        end if
 
         ! Find the new determinant
-        call make_double (nI, nJ, elec1ind, elec2ind, Hole1BasisNum, &
-                          Hole2BasisNum, ExcitMat, tParity)
+        call make_double (nI, nJ, elec_i, elec_j, orb_a, &
+                          orb_b, ExcitMat, tParity)
                 
-        ! we knoe it is back-spawn + UEG remember! so pAIJ is already above
-        !Calculate generation probabilities
+        ! we knoe it is back-spawn + ueg remember! so paij is already above
+        !calculate generation probabilities
         if (loc /= 2) then
-            IF (iSpn.eq.2) THEN
-                ! otherwise take the pAIJ set above
-                pAIJ=1.0_dp/(nBasis-Nel)
-            ELSEIF (iSpn.eq.1) THEN
-                pAIJ=1.0_dp/(nBasis/2-nOccBeta)
-            ELSE
-                !iSpn = 3
-                pAIJ=1.0_dp/(nBasis/2-nOccAlpha)
-            ENDIF
+            if (ispn.eq.2) then
+                ! otherwise take the paij set above
+                paij=1.0_dp/(nbasis-nel)
+            elseif (ispn.eq.1) then
+                paij=1.0_dp/(nbasis/2-noccbeta)
+            else
+                !ispn = 3
+                paij=1.0_dp/(nbasis/2-noccalpha)
+            endif
         end if
-        ! Note, p(b|ij)=p(a|ij) for this system
-        pGen=2.0_dp/(NEl*(NEl-1))*2.0_dp*pAIJ
+        ! note, p(b|ij)=p(a|ij) for this system
+        pgen=2.0_dp/(nel*(nel-1))*2.0_dp*paij
 
-        ! pgens at the end.. 
 
     end subroutine gen_double_back_spawn_ueg
 
@@ -697,7 +692,7 @@ contains
         character(*), parameter :: this_routine = "calc_pgen_back_spawn"
 
         real(dp) :: cum_sum, pAIJ
-        integer :: dummy_orb, ispn, loc, src(2)
+        integer :: dummy_orb, ispn, loc, src(2), tgt(2)
 
         ! i have to write a generation probability calculator for the hphf 
         ! implementation this should only be called if it is a non-init 
@@ -728,7 +723,9 @@ contains
 
             ! and with the implementation right now it is only restricted 
             ! if both were in the occup
-            if (loc == 2) then 
+            ! we extend this also in the ueg for occ_virt_level 
+            if ((loc == 2) .or. (loc == 1 .and. occ_virt_level /= -1) .or. & 
+                (loc == 0 .and. occ_virt_level >= 1)) then
             
                 ! i could just call  the orbital picking routine.. 
                 ! although this is inefficient.. 
@@ -736,7 +733,7 @@ contains
                 ! other way around too.. 
                 ! i need ispn here..
                 ispn = get_ispn(src)
-                call pick_occupied_orbital(nI, ilutI, src, ispn, run, pAIJ, cum_sum, &
+                call pick_occupied_orbital_ueg(nI, ilutI, src, ispn, run, pAIJ, cum_sum, &
                     dummy_orb)
 
                 ! i think i can't just use 2*p(a|ij) since this assumption 
@@ -744,7 +741,17 @@ contains
                 ! default if we exclude a to the occupied manifold.. 
                 ! i actually have to check if b is also in the 
                 ! occupied 
-                pGen=2.0_dp/(NEl*(NEl-1))*2.0_dp*pAIJ
+                ! only mult by 2 if b is also in the occupied manifolf and 
+                ! thus it would have been possible to pick it the other 
+                ! way around
+                pgen = 2.0_dp * pAIJ / real(nel * (nel - 1), dp)
+                ! i should check the hole location too.. 
+                tgt = get_tgt(ex)
+                ! is tgt(1) always the first picked? yes it is!
+                if (is_in_ref(tgt(2), run)) then
+                    ! in this case we can recalc p(b|ij)
+                    pgen = 2.0_dp * pgen 
+                end if
 
             else 
                 ! otherwise the orbital (a) is free 

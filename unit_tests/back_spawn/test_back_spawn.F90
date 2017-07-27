@@ -36,6 +36,7 @@ contains
             "test_pick_virtual_electrons_double_hubbard")
         call run_test_case(test_pick_virtual_electron_single, "test_pick_virtual_electron_single")
         call run_test_case(test_get_ispn, "test_get_ispn")
+        call run_test_case( test_pick_occupied_orbital_ueg, "test_pick_occupied_orbital_ueg")
 
     end subroutine back_spawn_test_driver 
 
@@ -807,4 +808,88 @@ contains
         call assert_equals(3, get_ispn([2,2]))
 
     end subroutine test_get_ispn
+
+    subroutine test_pick_occupied_orbital_ueg
+        use SystemData, only: nel 
+        use fcimcdata, only: projedet, ilutref
+        use constants, only: dp, n_int
+        use dSFMT_interface, only: dSFMT_init
+        use bit_rep_data, only: niftot
+        use DetBitOps, only: EncodeBitDet
+        use CalcData, only: occ_virt_level
+
+        integer, allocatable :: nI(:) 
+        integer(n_int), allocatable :: ilutI(:) 
+        real(dp) :: pgen, cum_sum
+        integer :: src(2) = 0, ispn = 0, run = 1, orb
+
+        nel = 1
+        niftot = 1
+        allocate(projedet(1,1)); projedet = 1
+        allocate(ilutref(0:niftot,1)) 
+        call EncodeBitDet(projedet, ilutref)
+
+        print *, "" 
+        print *, "testing pick_occupied_orbital_ueg() "
+        print *, "with necessary global data: "
+        print *, "nel: ", nel
+        print *, "niftot: ", niftot
+        print *, "projedet: ", projedet
+        print *, "ilutref: ", ilutref
+
+        allocate(nI(nel)); nI = 1
+        allocate(ilutI(0:niftot))
+        call EncodeBitDet(nI, ilutI)
+
+        call pick_occupied_orbital_ueg(nI, ilutI, src, ispn, run, pgen, cum_sum, orb)
+
+        call assert_equals(orb, 0)
+        call assert_equals(pgen, 0.0_dp)
+        call assert_equals(cum_sum, 1.0_dp)
+
+        print *, "now with additional global data: "
+        print *, "dSFMT_init()"
+        call dSFMT_init(123)
+        ! i have to consider ispn here too and that the first picked 
+        ! orbital always should be a beta orbital!
+        ! apparently even numbers are beta orbitals! since when? 
+        ! check that again.. because i am pretty sure odd are beta orbitals..
+        ! nah i am just entering the first if-statement of the routine with 
+        ! these settings.. 
+        projedet(1,1) = 2
+        call EncodeBitDet(projedet, ilutref)
+
+        ispn = 1
+        call pick_occupied_orbital_ueg(nI, ilutI, src, ispn, run, pgen, cum_sum, orb)
+        call assert_equals(2, orb)
+        call assert_equals(1.0_dp, pgen)
+        call assert_equals(1.0_dp, cum_sum)
+
+        ! do also a test with ispn = 2 
+        ! in the ueg case this works now without the a = beta first restriction
+        ispn = 2 
+        call pick_occupied_orbital_ueg(nI, ilutI, src, ispn, run, pgen, cum_sum, orb)
+        call assert_equals(2, orb)
+        call assert_equals(1.0_dp, pgen)
+        call assert_equals(1.0_dp, cum_sum)
+
+        ! and a succesful one.. 
+        projedet(1,1) = 1
+        call EncodeBitDet(projedet, ilutref)
+
+        nI = 2
+        call EncodeBitDet(nI, ilutI)
+        call pick_occupied_orbital_ueg(nI, ilutI, src, ispn, run, pgen, cum_sum, orb)
+        call assert_equals(1, orb)
+        call assert_equals(1.0_dp, pgen)
+        call assert_equals(1.0_dp, cum_sum)
+
+        ! todo: i should do more tests here
+        nel = -1
+        niftot = -1
+        deallocate(projedet)
+        deallocate(ilutref)
+
+    end subroutine test_pick_occupied_orbital_ueg
+
 end program test_back_spawn
