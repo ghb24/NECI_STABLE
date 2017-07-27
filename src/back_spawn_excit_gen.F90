@@ -153,7 +153,7 @@ contains
             ! such a spin restriction as in the hubbard model
             ! i think just using the "normal" occupied picker should be fine
             ! how does this compile even??
-            call pick_occupied_orbital(nI, src, ispn, temp_run, pAIJ, &
+            call pick_occupied_orbital(nI, ilutI, src, ispn, temp_run, pAIJ, &
                      dummy, ChosenUnocc)
 
         end if
@@ -489,7 +489,7 @@ contains
             (loc == 1 .and. occ_virt_level /= -1) .or. (loc == 2) .or. &
             (loc == 0 .and. occ_virt_level >= 1)))) then 
 
-            call pick_occupied_orbital(nI, src, ispn, run, int_cpt(1), cum_sum(1), &
+            call pick_occupied_orbital(nI, ilutI, src, ispn, run, int_cpt(1), cum_sum(1), &
                                         orbs(1))
 
         else 
@@ -549,7 +549,7 @@ contains
             if (t_back_spawn_flex .and.((loc == 2 .and. occ_virt_level /= -1) .or. &
                 (occ_virt_level == 2))) then 
 
-                call pick_second_occupied_orbital(nI, src, cc_b, orbs(1), ispn,&
+                call pick_second_occupied_orbital(nI, ilutI, src, cc_b, orbs(1), ispn,&
                     run, int_cpt(2), cum_sum(2), orbs(2))
 
             else 
@@ -703,6 +703,11 @@ contains
         ! implementation this should only be called if it is a non-init 
         ! and back-spawn is on.. otherwise just use the already provided 
         ! ones
+        if (ic /= 2) then 
+            pgen = 0.0_dp
+            return
+        end if
+
         if (test_flag(ilutI, get_initiator_flag(run))) then 
             
             ! i have to do some symmetry setup beforehand.. 
@@ -711,21 +716,16 @@ contains
             ! nope.. i actually only need: 
             ! although i should not land here i guess..
             ! this functionality i could actually unit-test.. damn..
-            if (ic == 2) then 
-                call CalcPGenLattice(ex, pgen)
-            else 
-                pgen = 0.0_dp
-            end if
+            call CalcPGenLattice(ex, pgen)
         else 
             ! do the back-spawn pgen.. 
             ! elec were picked randomly(but in both orders!) 
             ! and then we have to check the electron location, to know if 
             ! there was a restriction on the first orbitals 
             ! the electrons are in the first column or? 
-            src = ex(:,1) 
+            src = get_src(ex)
             loc = check_electron_location(src, 2, run) 
 
-            ispn = get_ispn(src)
             ! and with the implementation right now it is only restricted 
             ! if both were in the occup
             if (loc == 2) then 
@@ -735,25 +735,25 @@ contains
                 ! and i have to see if it would have been possible the 
                 ! other way around too.. 
                 ! i need ispn here..
-                src = get_src(ex)
-                call pick_occupied_orbital(nI, src, ispn, run, pAIJ, cum_sum, &
+                ispn = get_ispn(src)
+                call pick_occupied_orbital(nI, ilutI, src, ispn, run, pAIJ, cum_sum, &
                     dummy_orb)
+
+                ! i think i can't just use 2*p(a|ij) since this assumption 
+                ! comes from p(b|ij) = p(a|ij) which is not true by 
+                ! default if we exclude a to the occupied manifold.. 
+                ! i actually have to check if b is also in the 
+                ! occupied 
+                pGen=2.0_dp/(NEl*(NEl-1))*2.0_dp*pAIJ
 
             else 
                 ! otherwise the orbital (a) is free 
                 ! so it is the number of available orbitals, depending on 
                 ! the spin 
                 ! here i can just use the formulas for the standard ueg..
-                if (ispn == 1) then
-                    pAIJ=1.0_dp/(nBasis/2-nOccBeta)
-                else if (ispn == 3) then 
-                    pAIJ=1.0_dp/(nBasis/2-nOccAlpha)
-                else 
-                    pAIJ=1.0_dp/(nBasis-Nel)
-                end if
-                
+                ! or just use the above provided routine 
+                call CalcPGenLattice(ex, pgen)
             end if
-            pGen=2.0_dp/(NEl*(NEl-1))*2.0_dp*pAIJ
         end if
 
     end function calc_pgen_back_spawn_ueg
@@ -904,7 +904,7 @@ contains
                     ((loc == 1 .and. occ_virt_level /= -1) .or. loc == 2 .or. &
                     (loc == 0.and. occ_virt_level >= 1)))) then 
 
-                    call pick_occupied_orbital(nI, src, ispn, run, int_cpt(1),&
+                    call pick_occupied_orbital(nI, ilutI, src, ispn, run, int_cpt(1),&
                         cum_sum(1), dummy_orbs(1))
 
                     ! i can atleast do some stuff for picking it the other
@@ -933,7 +933,7 @@ contains
                         cc_a = ClassCountInd(tgt(1)) 
                         cc_b = get_paired_cc_ind(cc_a, sym_prod, sum_ml, ispn)
 
-                        call pick_second_occupied_orbital(nI, src, cc_b, tgt(1), &
+                        call pick_second_occupied_orbital(nI, ilutI, src, cc_b, tgt(1), &
                             ispn, run, int_cpt(2), cum_sum(2), dummy_orbs(2))
 
                         ! and ofc both probs are the same if the spin-fits

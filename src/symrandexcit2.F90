@@ -2163,7 +2163,7 @@ MODULE GenRandSymExcitNUMod
                 ! but in this case there isn't the restriction in which order 
                 ! the electrons are picked, so i guess i have to write a new 
                 ! function for the hubbard model too in this case.. 
-                call pick_occupied_orbital_hubbard(nI, temp_run, pAIJ, ChosenUnocc)
+                call pick_occupied_orbital_hubbard(nI, ilutni, temp_run, pAIJ, ChosenUnocc)
 
             end if 
 

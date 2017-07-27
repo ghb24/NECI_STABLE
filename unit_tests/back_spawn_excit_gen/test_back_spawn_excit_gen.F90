@@ -85,7 +85,51 @@ contains
 
         ic = 2 
         call assert_equals(1.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
-        ! apparently thats it.. 
+
+        ! now do a bit more advanced tests.. 
+        nel = 4 
+        nBasis = 8 
+        nOccBeta = 2 
+        nOccAlpha = 2
+
+        ! i am not quite sure why this can be called since nI is too short 
+        ! now actually..  but not used.. so maybe thats the reason
+        call assert_equals(1.0_dp/12.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+
+        ! change to alpha excitation: 
+        ex(1,1) = 2
+        call assert_equals(1.0_dp/6.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+        ! no beta:
+        ex(1,:) = 1
+        call assert_equals(1.0_dp/6.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+
+        ! and now test with back-spawn:
+        call set_flag(ilut, get_initiator_flag(run), .false.)
+
+        ! first check with ic = 1
+        ic = 1 
+        call assert_equals(0.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+
+        ! and then with 
+        ! electrons outside the occupied manifold 
+        ic = 2
+        projedet = 3
+        ! so this is now same as the above beta pgen
+        call assert_equals(1.0_dp/6.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+        ex(1,1) = 2 
+        call assert_equals(1.0_dp/12.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+        ex(1,2) = 2
+        call assert_equals(1.0_dp/6.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+
+        ! and now actually test with recalculated pgen.. 
+        ! and now think hard.. is the formula actually 
+        ! accurate why is there a factor of 4 for the UEG?
+        ! i think it is because of the possibility to pick both electrons 
+        ! in either order.. and the second 2 is because p(b|ij) = p(a|ij) 
+        ! but this is actually maybe not even true in the UEG and hubbard 
+        ! case.. it depends 
+
+
 
 
     end subroutine calc_pgen_back_spawn_ueg_test
