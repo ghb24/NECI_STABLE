@@ -659,10 +659,10 @@ contains
                         tau_new = min_tau_global
 
                     else 
-                        root_print "Updating time-step. New time-step = ", tau_new, "in: ", this_routine
+                        root_print "Updating time-step. New time-step = ", tau_new, " in: ", this_routine
                     end if
                 else
-                    root_print "Updating time-step. New time-step = ", tau_new, "in: ", this_routine
+                    root_print "Updating time-step. New time-step = ", tau_new, " in: ", this_routine
 
                 end if
             end if
