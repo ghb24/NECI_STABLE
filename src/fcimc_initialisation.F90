@@ -145,7 +145,8 @@ module fcimc_initialisation
 
     use tau_search_hist, only: init_hist_tau_search
     use back_spawn, only: init_back_spawn
-    use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg
+    use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
+                                    gen_excit_back_spawn_hubbard
 
     implicit none
 
@@ -1518,10 +1519,10 @@ contains
         if (tHPHF) then
             generate_excitation => gen_hphf_excit
         elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then 
-            if (tHUB) then 
+            if (tHUB .and. tLatticeGens) then 
                 ! for now the hubbard + back-spawn still uses the old 
                 ! genrand excit gen
-                generate_excitation => gen_rand_excit
+                generate_excitation => gen_excit_back_spawn_hubbard
             else if (tUEG .and. tLatticeGens) then 
                 generate_excitation => gen_excit_back_spawn_ueg
             else 

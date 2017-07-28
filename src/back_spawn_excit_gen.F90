@@ -22,7 +22,8 @@ module back_spawn_excit_gen
     use back_spawn, only: check_electron_location, pick_virtual_electrons_double, & 
                           pick_occupied_orbital_single, pick_virtual_electron_single, &
                           pick_occupied_orbital, pick_second_occupied_orbital, &
-                          get_ispn, is_in_ref, pick_occupied_orbital_ueg
+                          get_ispn, is_in_ref, pick_occupied_orbital_ueg, &
+                          pick_virtual_electrons_double_hubbard, pick_occupied_orbital_hubbard
     use get_excit, only: make_single, make_double
     use Determinants, only: write_det, get_helement
 
@@ -35,6 +36,278 @@ module back_spawn_excit_gen
     implicit none
 
 contains
+
+    subroutine gen_excit_back_spawn_hubbard(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+            ExcitMat, tParity, pgen, HelGen, store, run) 
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:niftot)
+        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2) 
+        integer(n_int), intent(out) :: ilutJ(0:niftot)
+        logical, intent(out) :: tParity 
+        real(dp), intent(out) :: pgen 
+        HElement_t(dp), intent(out) :: HElGen
+        type(excit_gen_store_type), intent(inout), target :: store 
+        integer, intent(in), optional :: run
+        character(*), parameter :: this_routine = "gen_excit_back_spawn_hubbard"
+ 
+        logical :: temp_back_spawn
+        ! so now pack everything necessary for a ueg excitation generator. 
+
+        ilutJ(0) = -1 
+        HElGen = 0.0_dp 
+        ic = 2
+
+        ! this function gets pointed to if tUEG, t_back_spawn_flex and tLatticeGens
+        ! is set 
+        ! BUT: again: we also need to take care of the HPHF keyword.. 
+        ! which is a mess 
+        temp_back_spawn = (t_back_spawn_flex .and. .not. &
+            test_flag(ilutI, get_initiator_flag(run))) 
+
+        ! implement it for now without this tNoFailAb flag
+        ASSERT(.not. tNoFailAb)
+
+        if (temp_back_spawn) then 
+
+            call gen_double_back_spawn_hubbard(nI, ilutI, nJ, ilutJ, tParity, ExcitMat, & 
+                pgen) 
+
+        else 
+            ! do i want to rewrite the old on or just reuse? for now reuse: 
+            call CreateExcitLattice(nI, ilutI, nJ, tParity, ExcitMat, pgen, run) 
+
+        end if
+
+    end subroutine gen_excit_back_spawn_hubbard
+
+    subroutine gen_double_back_spawn_hubbard(nI, ilutI, nJ, ilutJ, tParity, ExcitMat, & 
+                pgen, run) 
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:niftot)
+        integer, intent(out) :: nJ(nel), ExcitMat(2,2) 
+        integer(n_int), intent(out) :: ilutJ(0:niftot)
+        logical, intent(out) :: tParity 
+        real(dp), intent(out) :: pgen 
+        integer, optional :: run
+        character(*), parameter :: this_routine = "gen_double_back_spawn_hubbard"
+
+        integer :: elec_i, elec_j, iSpn, orb_b, src(2), elecs(2), &
+                   loc, temp_run, ki(3), kj(3), ka(3), kb(3), kb_ms, TestEnergyB, &
+                   iSpinIndex, orb_a
+        real(dp) :: x, pAIJ, dummy, mult, pgen_elec
+        logical :: tAllowedExcit, t_temp_back_spawn =.false.
+
+        if (present(run)) then 
+            temp_run = run 
+        else 
+            temp_run = 1
+        end if
+
+        ! i know here that back-spawn is on and this is a non-inititator: 
+        ! so for the beginning implementation we pick the two electrons 
+        ! randomly 
+        ! i should make this to a function below: maybe with the hubbard 
+        ! flag as additional input to provide us with two independent 
+        ! electrons in any order possible!
+        ! maybe for now.. i still want to retain the original 
+        ! back-spawn functionality
+        if (t_back_spawn) then  
+            call pick_virtual_electrons_double_hubbard(nI, temp_run, elecs, src, ispn,&
+                                                        pgen_elec)
+            ! check if enogh electrons are in the virtual
+            if (elecs(1) == 0) then
+                nJ(1) = 0
+                pgen = 0.0_dp
+                return
+            end if
+
+            elec_i = elecs(1)
+            elec_j = elecs(2)
+
+        else
+
+            do
+                elec_i = 1 + int(genrand_real2_dsfmt() * nel)
+                do
+                    elec_j = 1 + int(genrand_real2_dsfmt() * nel)
+                    if(elec_j.ne.elec_i) exit
+                enddo
+                ispn = get_ispn([nI(elec_i),nI(elec_j)])
+
+                ! i need opposite spin-excitations in the hubbard model
+                if (iSpn == 2) exit
+            enddo
+
+            ! do i need 2* here?
+            pgen_elec = 1.0_dp / real(nOccBeta * nOccAlpha, dp)
+
+        end if
+
+        src = nI([elec_i, elec_j])
+
+        ! i need to call nI(elecs)
+        loc = check_electron_location(src, 2, temp_run)
+        ! this test should be fine since, if back_spawn is active loc should 
+        ! always be 0 so we are not risking of picking occupied orbitals 
+        ! below..
+        
+        ! wait a minute.. thats incorrect or? 
+        ! if we have both in the occupied manifold we want to restrict 
+        ! our orbital choice..
+        ! i can decide based on the occ_virt_level or? 
+        if ((loc == 2) .or. (loc == 1 .and. occ_virt_level /= -1) .or. & 
+            (loc == 0 .and. occ_virt_level >= 1)) then
+            t_temp_back_spawn = .true. 
+            ! i think i need a new one for the ueg also.. since there is not 
+            ! such a spin restriction as in the hubbard model
+            ! i think just using the "normal" occupied picker should be fine
+            ! how does this compile even??
+            ! no.. write a new one without the spin-restriction
+            call pick_occupied_orbital_hubbard(nI, ilutI, temp_run, pAIJ, orb_a)
+
+        else 
+            ! otherwise pick freely..
+            ! in the hubbard case we always have iSpn = 2
+            do 
+                orb_a = int(nBasis * genrand_real2_dsfmt()) + 1
+
+                if (IsNotOcc(ilutI, orb_a)) exit 
+            end do
+
+            paij = 1.0_dp / real(nBasis - nel, dp)
+        
+        end if
+
+        ! i guess this is not necessary, but anyway..
+        IF((orb_a < 0).or.(orb_a  > nBasis)) THEN
+            CALL Stop_All("CreateDoubExcitLattice","Incorrect basis function generated") 
+        ENDIF
+
+        ! kb is now uniquely defined
+        ki=G1(nI(elec_i))%k
+        kj=G1(nI(elec_j))%k
+        ka=G1(orb_a)%k
+        kb=ki+kj-ka
+
+        ! Find the spin of b
+        IF(iSpn.eq.2)THEN ! alpha/beta required, therefore b has to be opposite spin to a
+            kb_ms=1-((G1(orb_a)%Ms+1)/2)*2
+        ELSE ! b is the same spin as a
+            kb_ms=G1(orb_a)%Ms
+        ENDIF
+
+        ! Is kb allowed by the size of the space?
+        ! Currently only applies when NMAXX etc. are set by the CELL keyword
+        ! Not sure what happens when an energy cutoff is set
+        tAllowedExcit=.true.
+        IF(ABS(kb(1)).gt.NMAXX) tAllowedExcit=.false.
+        IF(ABS(kb(2)).gt.NMAXY) tAllowedExcit=.false.
+        IF(ABS(kb(3)).gt.NMAXZ) tAllowedExcit=.false.
+        TestEnergyB=kb(1)**2+kb(2)**2+kb(3)**2
+        IF(tOrbECutoff.and.(TestEnergyB.gt.OrbECutoff)) tAllowedExcit=.false.
+        IF(.not.tAllowedExcit) THEN
+            nJ(1)=0
+            RETURN
+        ENDIF
+               
+        iSpinIndex=(kb_ms+1)/2+1
+        orb_b = kPointToBasisFn(kb(1),kb(2),kb(3),iSpinIndex)
+       
+        IF(orb_b == -1 .or. orb_a == orb_b) THEN
+            nJ(1)=0 
+            pgen = 0.0_dp
+            RETURN
+        ENDIF
+
+        ! Is b occupied?
+        if (.not. tAllowedExcit .or. IsOcc(ilutI, orb_b)) then 
+            nj(1) = 0
+            pgen = 0.0_dp
+            return
+        end if
+
+        ! Find the new determinant
+        call make_double (nI, nJ, elec_i, elec_j, orb_a, &
+                          orb_b, ExcitMat, tParity)
+                
+        ! we knoe it is back-spawn + hubbard remember! so paij is already above
+        !calculate generation probabilities
+        ! note, p(b|ij)=p(a|ij) for this system
+        ! if b is also in the occupied manifold in the case of back_spawn_flex
+        mult = 2.0_dp
+        if (t_temp_back_spawn .and. (.not. is_in_ref(orb_b, run))) then 
+            mult = 1.0_dp 
+        end if
+
+        pgen = mult * pgen_elec * pAIJ
+
+    end subroutine gen_double_back_spawn_hubbard
+
+    function calc_pgen_back_spawn_hubbard(nI, ilutI, ex, ic, run) result(pgen)
+        integer, intent(in) :: nI(nel), ex(2,2), ic, run
+        integer(n_int), intent(in) :: ilutI(0:niftot)
+        real(dp) :: pgen
+        character(*), parameter :: this_routine = "calc_pgen_back_spawn"
+
+        integer :: d_elecs(2), d_src(2), d_ispn, src(2), loc, tgt(2), d_orb
+        real(dp) :: pgen_elec, paij, mult 
+
+        ! the hubbard pgen recalculation is pretty similar to the ueg one
+        ! below..
+        if (ic /= 2) then 
+            pgen = 0.0_dp
+            return 
+        end if
+
+        if (test_flag(ilutI, get_initiator_flag(run))) then 
+
+            ! can i use the already provided routine also for hubbard models?
+            ! yes!
+            call CalcPGenLattice(ex, pgen)
+        else 
+            ! in the hubbard case it can also be that we pick the electrons
+            ! with the old back-spawn method 
+            if (t_back_spawn) then 
+
+                call pick_virtual_electrons_double_hubbard(nI, run, d_elecs, d_src, &
+                    d_ispn, pgen_elec)
+
+            else 
+
+                ! otherwise: 
+                pgen_elec = 1.0_dp / real(nOccBeta * nOccAlpha, dp) 
+
+            end if
+
+            ! otherwise i have to calculate stuff
+            src = get_src(ex)
+            loc = check_electron_location(src, 2, run)
+
+            if ((loc == 2) .or. (loc == 1 .and. occ_virt_level /= -1) .or. &
+                (loc == 0 .and. occ_virt_level >= 1)) then 
+
+                call pick_occupied_orbital_hubbard(nI, ilutI, run, paij, d_orb)
+
+                tgt = get_tgt(ex) 
+
+                if (is_in_ref(tgt(2), run)) then 
+                    mult = 2.0_dp
+                else
+                    mult = 1.0_dp
+                end if
+
+            else 
+                ! otherwise we can pick the orbital (a) freely 
+                paij = 1.0_dp / real(nbasis - nel, dp) 
+                mult = 2.0_dp 
+
+            end if
+
+            pgen = mult * paij * pgen_elec
+            
+        end if
+
+    end function calc_pgen_back_spawn_hubbard
 
     ! to disentangle the mess of excitation generators also implement an new
     ! one for the UEG and the hubbard model seperately 
@@ -97,8 +370,8 @@ contains
         integer :: elec_i, elec_j, iSpn, orb_b, src(2), &
                    loc, temp_run, ki(3), kj(3), ka(3), kb(3), kb_ms, TestEnergyB, &
                    iSpinIndex, orb_a
-        real(dp) :: x, pAIJ, dummy
-        logical :: tAllowedExcit
+        real(dp) :: x, pAIJ, dummy, mult
+        logical :: tAllowedExcit, t_temp_back_spawn = .false. 
 
         if (present(run)) then 
             temp_run = run 
@@ -112,12 +385,11 @@ contains
         ! i should make this to a function below: maybe with the hubbard 
         ! flag as additional input to provide us with two independent 
         ! electrons in any order possible!
+        ! i do not need two do loops in the case of the UEG
+        elec_i = 1 + int(genrand_real2_dsfmt() * nel)
         do
-            elec_i = 1 + int(genrand_real2_dsfmt() * nel)
-            do
-                elec_j = 1 + int(genrand_real2_dsfmt() * nel)
-                if(elec_j.ne.elec_i) exit
-            enddo
+            elec_j = 1 + int(genrand_real2_dsfmt() * nel)
+            if(elec_j.ne.elec_i) exit
         enddo
 
         src = nI([elec_i, elec_j])
@@ -132,6 +404,7 @@ contains
         ! i can decide based on the occ_virt_level or? 
         if ((loc == 2) .or. (loc == 1 .and. occ_virt_level /= -1) .or. & 
             (loc == 0 .and. occ_virt_level >= 1)) then
+            t_temp_back_spawn = .true.
             ! i think i need a new one for the ueg also.. since there is not 
             ! such a spin restriction as in the hubbard model
             ! i think just using the "normal" occupied picker should be fine
@@ -147,14 +420,18 @@ contains
                 if (iSpn == 2) then 
                     orb_a = int(nBasis * x) + 1
 
+                    pAIJ = 1.0_dp / real(nBasis - nel, dp) 
                 else 
                     orb_a=2*(INT(nBasis/2*x)+1) & ! 2*(a number between 1 and nbasis/2) gives the alpha spin
                     & -(1-(iSpn/3)) ! alpha numbered even, iSpn/3 returns 1 for alpha/alpha, 0 for beta/beta
+                    if (iSpn == 1) then 
+                        paij=1.0_dp/(nbasis/2-noccbeta)
+                    else !(ispn = 3).. 
+                        paij=1.0_dp/(nbasis/2-noccalpha)
+                    end if
                 end if
-                
                 if (IsNotOcc(ilutI, orb_a)) exit 
             end do
-            pAIJ = 1.0_dp / real(nBasis - nel, dp) 
         
         end if
 
@@ -212,20 +489,15 @@ contains
                 
         ! we knoe it is back-spawn + ueg remember! so paij is already above
         !calculate generation probabilities
-        if (loc /= 2) then
-            if (ispn.eq.2) then
-                ! otherwise take the paij set above
-                paij=1.0_dp/(nbasis-nel)
-            elseif (ispn.eq.1) then
-                paij=1.0_dp/(nbasis/2-noccbeta)
-            else
-                !ispn = 3
-                paij=1.0_dp/(nbasis/2-noccalpha)
-            endif
-        end if
         ! note, p(b|ij)=p(a|ij) for this system
-        pgen=2.0_dp/(nel*(nel-1))*2.0_dp*paij
+        ! i have to be careful.. only if b is also in the occupied manifold 
+        ! if we forced the pick.. then it is * 2
+        mult = 2.0_dp
+        if (t_temp_back_spawn .and. (.not. is_in_ref(orb_b, run))) then 
+            mult = 1.0_dp
+        end if
 
+        pgen = 2.0_dp * mult * paij / real(nel * (nel - 1), dp) 
 
     end subroutine gen_double_back_spawn_ueg
 
@@ -673,17 +945,6 @@ contains
 
 
     end subroutine gen_double_back_spawn
-
-    function calc_pgen_back_spawn_hubbard(nI, ilutI, ex, ic, run) result(pgen)
-        integer, intent(in) :: nI(nel), ex(2,2), ic, run
-        integer(n_int), intent(in) :: ilutI(0:niftot)
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_back_spawn"
-
-        ! the hubbard pgen recalculation is pretty similar to the ueg one
-        ! below..
-
-    end function calc_pgen_back_spawn_hubbard
 
     function calc_pgen_back_spawn_ueg(nI, ilutI, ex, ic, run) result(pgen)
         integer, intent(in) :: nI(nel), ex(2,2), ic, run

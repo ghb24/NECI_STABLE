@@ -37,7 +37,7 @@ MODULE HPHFRandExcitMod
     use CalcData, only: t_matele_cutoff, matele_cutoff, t_back_spawn, t_back_spawn_flex
     use back_spawn_excit_gen, only: gen_excit_back_spawn, calc_pgen_back_spawn, & 
                                     gen_excit_back_spawn_ueg, calc_pgen_back_spawn_ueg, & 
-                                    calc_pgen_back_spawn_hubbard
+                                    calc_pgen_back_spawn_hubbard, gen_excit_back_spawn_hubbard
     IMPLICIT NONE
 !    SAVE
 !    INTEGER :: Count=0
@@ -168,7 +168,7 @@ MODULE HPHFRandExcitMod
                 call gen_excit_back_spawn_ueg(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
                                           ExcitMat, tSignOrig, pgen, Hel, store, run)
             else if (tHUB .and. tLatticeGens) then
-                call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat,&
+                call gen_excit_back_spawn_hubbard (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat,&
                                  tSignOrig, pGen, HEl, store)
             else
                 call gen_excit_back_spawn(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
