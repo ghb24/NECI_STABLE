@@ -37,7 +37,7 @@ contains
         ! or try running it with the provided runner of fruit: 
         ! unnamed: 
 !         call run_test_case(test_init_lattice)
-        call run_test_case(test_init_lattice, "test_init_lattice")
+!         call run_test_case(test_init_lattice, "test_init_lattice")
 
     end subroutine real_space_hubbard_test_driver
 
@@ -50,28 +50,28 @@ contains
         ! but there should be a nice way provided by fruit already or?? 
 
         ! i could output stuff here, which only will be printed if 
-        ! the tests fail with the correct flags to ctest!
-        print *, "Testing: init_lattice():"
-
-        print *, "testing 'chain' setting: "
-        lattice_type = "chain"
-        call init_lattice
-        ! check the default values 
-        call assert_equals(n_dim, 1)
-        call assert_equals(n_connect_max, 2) 
-        call assert_equals(n_sites, length_x) 
-        call assert_equals(length_y, 1) 
-
-        print *, ""
-        print *, "testing 'square' setting:"
-        lattice_type = "square"
-        call init_lattice() 
-        call assert_equals(n_dim, 2) 
-        call assert_equals(length_x, 1)
-        call assert_equals(length_y, 1) 
-        call assert_equals(n_sites, 2) 
-        call assert_equals(n_connect_max, 4)
-
+!         ! the tests fail with the correct flags to ctest!
+!         print *, "Testing: init_lattice():"
+! 
+!         print *, "testing 'chain' setting: "
+!         lattice_type = "chain"
+!         call init_lattice
+!         ! check the default values 
+!         call assert_equals(n_dim, 1)
+!         call assert_equals(n_connect_max, 2) 
+!         call assert_equals(n_sites, length_x) 
+!         call assert_equals(length_y, 1) 
+! 
+!         print *, ""
+!         print *, "testing 'square' setting:"
+!         lattice_type = "square"
+!         call init_lattice() 
+!         call assert_equals(n_dim, 2) 
+!         call assert_equals(length_x, 1)
+!         call assert_equals(length_y, 1) 
+!         call assert_equals(n_sites, 2) 
+!         call assert_equals(n_connect_max, 4)
+! 
         ! but can i pack more then one unit test into this? 
         ! and how do i find the failing tests then? 
         ! i have to write this here as the to be tested config. so either i 
