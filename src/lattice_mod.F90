@@ -61,6 +61,12 @@ module lattice_mod
         procedure :: get_num_neighbors 
         procedure :: set_neighbors
 
+        ! i could also use finalization routines instead of manually 
+        ! deallocating everything.. 
+        ! i need atleast gcc4.9.. which i am to lazy to update now..
+        ! but will in the future!
+!         final :: finalize_site
+
     end type site 
 
     ! maybe make this abstract.. what are the benefits? 
@@ -95,7 +101,13 @@ module lattice_mod
         ! pointer to an array of class(sites), so redo this in the end!
         class(site), allocatable :: sites(:)
 
+        ! this is just a small test if we can bring classic procedure
+        ! pointers into the game.. but will be removed soon
         procedure(test), pointer :: a
+
+        ! i just want to test if i can easily setup a lattice name
+        ! no.. not yet supported in gcc4.8.. but in newer versions probably
+!         character(*), allocatable :: lattice_name
     contains 
         private
 
@@ -108,8 +120,9 @@ module lattice_mod
         procedure, public :: get_ndim
         procedure, public :: get_nconnect
         procedure, public :: is_periodic_x, is_periodic_y
-        procedure, public :: is_periodic => is_periodic_lattice
-        procedure, public :: get_length => get_length_lattice
+        procedure(is_periodic_t), public, deferred :: is_periodic
+        procedure(get_length_t), public, deferred :: get_length
+!         procedure, public :: get_length => get_length_lattice
         procedure, public :: get_site_index
         ! make the get neighbors function public on the lattice level 
         procedure, public :: get_neighbors => get_neighbors_lattice
@@ -125,10 +138,12 @@ module lattice_mod
         procedure :: set_ndim
         procedure :: set_nconnect_max
         procedure :: set_periodic 
-        procedure :: set_length => set_length_lattice
-        procedure :: calc_nsites => calc_nsites_lattice
+        procedure(set_length_t), deferred :: set_length
+!         procedure :: set_length => set_length_lattice
+        procedure(calc_nsites_t), deferred :: calc_nsites
+!         procedure :: calc_nsites => calc_nsites_lattice
         procedure :: allocate_sites
-        procedure :: initialize_sites => init_sites_lattice
+        procedure(initialize_sites_t), deferred :: initialize_sites
 
         procedure :: deallocate_sites
 
@@ -153,6 +168,60 @@ module lattice_mod
         procedure :: initialize_sites => init_sites_chain
 
     end type chain
+
+    ! i also want to have a rectangle.. 
+    ! can i store every possibility in the rectangle type? 
+    ! like also the tilted square lattice .. 
+    ! the tilted essentially is only different boundary conditions.. 
+    ! the rectangle type would be the basic 2D lattice with 4 nearest 
+    ! neighbors.. 
+    ! a square would be a special case of a rectangle with lx = ly 
+    ! and a tilted would be a special case of a rectangle 
+    ! and a tilted square? is it a special case of tilted or square? 
+    ! but this is not of concern now.. actually i should finally 
+    ! implement the rest of this code to actually work in neci! 
+!     type, extends(lattice) :: rectangle 
+!         private 
+!         integer :: length_x, length_y
+! 
+!     contains 
+! 
+!     end type rectangle
+
+    ! create the abstract interfaces for the deferred function in the base 
+    ! abstract type: lattice
+    abstract interface
+
+        function get_length_t(this) result(length)
+            import :: lattice 
+            class(lattice) :: this 
+            integer :: length
+        end function get_length_t
+
+        subroutine set_length_t(this, length_x, length_y) 
+            import :: lattice 
+            class(lattice) :: this 
+            integer, intent(in) :: length_x, length_y
+        end subroutine set_length_t
+
+        function calc_nsites_t(this, length_x, length_y) result(n_sites) 
+            import :: lattice
+            class(lattice) :: this 
+            integer, intent(in) :: length_x, length_y
+            integer :: n_sites
+        end function calc_nsites_t
+
+        logical function is_periodic_t(this) 
+            import :: lattice
+            class(lattice) :: this 
+        end function is_periodic_t
+
+        subroutine initialize_sites_t(this) 
+            import :: lattice 
+            class(lattice) :: this 
+        end subroutine initialize_sites_t
+
+    end interface
 
     interface lattice
         procedure lattice_constructor 
@@ -222,8 +291,8 @@ contains
     end subroutine init_sites_lattice
 
     subroutine site_assign(lhs, rhs) 
-        type(site), intent(out) :: lhs 
-        type(site), intent(in), pointer :: rhs 
+        class(site), intent(out) :: lhs 
+        class(site), intent(in), pointer :: rhs 
 
         ! argh.. on every change in the site constructor i have to make 
         ! the change here too.. annoying.. 
@@ -232,6 +301,8 @@ contains
         call lhs%set_num_neighbors( rhs%get_num_neighbors() )
         call lhs%allocate_neighbors( rhs%get_num_neighbors() ) 
         call lhs%set_neighbors( rhs%get_neighbors() )
+
+        ! can i work with an allocatable statement here? 
 
     end subroutine site_assign
 
@@ -518,6 +589,11 @@ contains
         if (allocated(this%neighbors)) deallocate(this%neighbors) 
 
     end subroutine deallocate_neighbors
+
+    subroutine finalize_site(this) 
+        type(site) :: this 
+        if (allocated(this%neighbors)) deallocate(this%neighbors)
+    end subroutine finalize_site
 
     subroutine lattice_deconstructor(this) 
         ! routine to nullify the pointer to a lattice class 
