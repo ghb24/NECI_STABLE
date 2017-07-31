@@ -26,7 +26,7 @@ module back_spawn_excit_gen
                           pick_virtual_electrons_double_hubbard, pick_occupied_orbital_hubbard
     use get_excit, only: make_single, make_double
     use Determinants, only: write_det, get_helement
-
+    use ueg_excit_gens, only: get_orb_from_kpoints, is_allowed_ueg_k_vector
 !     use hphf_integrals, only: hphf_off_diag_helement
 
 #ifdef __DEBUG 
@@ -92,8 +92,7 @@ contains
         character(*), parameter :: this_routine = "gen_double_back_spawn_hubbard"
 
         integer :: elec_i, elec_j, iSpn, orb_b, src(2), elecs(2), &
-                   loc, temp_run, ki(3), kj(3), ka(3), kb(3), kb_ms, TestEnergyB, &
-                   iSpinIndex, orb_a
+                   loc, temp_run, orb_a
         real(dp) :: x, pAIJ, dummy, mult, pgen_elec
         logical :: tAllowedExcit, t_temp_back_spawn =.false.
 
@@ -183,36 +182,17 @@ contains
             CALL Stop_All("CreateDoubExcitLattice","Incorrect basis function generated") 
         ENDIF
 
-        ! kb is now uniquely defined
-        ki=G1(nI(elec_i))%k
-        kj=G1(nI(elec_j))%k
-        ka=G1(orb_a)%k
-        kb=ki+kj-ka
-
-        ! Find the spin of b
-        IF(iSpn.eq.2)THEN ! alpha/beta required, therefore b has to be opposite spin to a
-            kb_ms=1-((G1(orb_a)%Ms+1)/2)*2
-        ELSE ! b is the same spin as a
-            kb_ms=G1(orb_a)%Ms
-        ENDIF
-
-        ! Is kb allowed by the size of the space?
-        ! Currently only applies when NMAXX etc. are set by the CELL keyword
-        ! Not sure what happens when an energy cutoff is set
-        tAllowedExcit=.true.
-        IF(ABS(kb(1)).gt.NMAXX) tAllowedExcit=.false.
-        IF(ABS(kb(2)).gt.NMAXY) tAllowedExcit=.false.
-        IF(ABS(kb(3)).gt.NMAXZ) tAllowedExcit=.false.
-        TestEnergyB=kb(1)**2+kb(2)**2+kb(3)**2
-        IF(tOrbECutoff.and.(TestEnergyB.gt.OrbECutoff)) tAllowedExcit=.false.
-        IF(.not.tAllowedExcit) THEN
-            nJ(1)=0
-            RETURN
-        ENDIF
+!         ! Is kb allowed by the size of the space?
+!         ! Currently only applies when NMAXX etc. are set by the CELL keyword
+!         tAllowedExcit = is_allowed_ueg_k_vector(src(1), src(2), orb_a)
+! 
+!         IF(.not.tAllowedExcit) THEN
+!             nJ(1)=0
+!             RETURN
+!         ENDIF
                
-        iSpinIndex=(kb_ms+1)/2+1
-        orb_b = kPointToBasisFn(kb(1),kb(2),kb(3),iSpinIndex)
-       
+        orb_b = get_orb_from_kpoints(src(1), src(2), orb_a)
+
         IF(orb_b == -1 .or. orb_a == orb_b) THEN
             nJ(1)=0 
             pgen = 0.0_dp
@@ -220,7 +200,7 @@ contains
         ENDIF
 
         ! Is b occupied?
-        if (.not. tAllowedExcit .or. IsOcc(ilutI, orb_b)) then 
+        if (IsOcc(ilutI, orb_b)) then 
             nj(1) = 0
             pgen = 0.0_dp
             return
@@ -440,35 +420,14 @@ contains
             CALL Stop_All("CreateDoubExcitLattice","Incorrect basis function generated") 
         ENDIF
 
-        ! kb is now uniquely defined
-        ki=G1(nI(elec_i))%k
-        kj=G1(nI(elec_j))%k
-        ka=G1(orb_a)%k
-        kb=ki+kj-ka
+        tAllowedExcit = is_allowed_ueg_k_vector(src(1), src(2), orb_a)
 
-        ! Find the spin of b
-        IF(iSpn.eq.2)THEN ! alpha/beta required, therefore b has to be opposite spin to a
-            kb_ms=1-((G1(orb_a)%Ms+1)/2)*2
-        ELSE ! b is the same spin as a
-            kb_ms=G1(orb_a)%Ms
-        ENDIF
-
-        ! Is kb allowed by the size of the space?
-        ! Currently only applies when NMAXX etc. are set by the CELL keyword
-        ! Not sure what happens when an energy cutoff is set
-        tAllowedExcit=.true.
-        IF(ABS(kb(1)).gt.NMAXX) tAllowedExcit=.false.
-        IF(ABS(kb(2)).gt.NMAXY) tAllowedExcit=.false.
-        IF(ABS(kb(3)).gt.NMAXZ) tAllowedExcit=.false.
-        TestEnergyB=kb(1)**2+kb(2)**2+kb(3)**2
-        IF(tOrbECutoff.and.(TestEnergyB.gt.OrbECutoff)) tAllowedExcit=.false.
         IF(.not.tAllowedExcit) THEN
             nJ(1)=0
             RETURN
         ENDIF
                
-        iSpinIndex=(kb_ms+1)/2+1
-        orb_b = kPointToBasisFn(kb(1),kb(2),kb(3),iSpinIndex)
+        orb_b = get_orb_from_kpoints(src(1), src(2), orb_a)
        
         IF(orb_b == -1 .or. orb_a == orb_b) THEN
             nJ(1)=0 
@@ -501,7 +460,6 @@ contains
 
     end subroutine gen_double_back_spawn_ueg
 
-    
     ! also write a wrapper-like routine for an excitation generator if 
     ! back-spawn is activated.. to not mess up all the old functions too much. 
     subroutine gen_excit_back_spawn(nI, ilutI, nJ, ilutJ, exFlag, ic, &
