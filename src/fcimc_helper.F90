@@ -36,7 +36,7 @@ module fcimc_helper
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
                         MaxWalkerBloom, &
                         NMCyc, iSampleRDMIters, &
-                        tOrthogonaliseReplicas, tPairedReplicas
+                        tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
@@ -55,16 +55,12 @@ module fcimc_helper
     use global_det_data, only: get_av_sgn_tot, set_av_sgn_tot, set_det_diagH, &
                                global_determinant_data, det_diagH
     use searching, only: BinSearchParts2
-!<<<<<<< HEAD
-! RT_M_Merge: There seems to be no conflict here, so use both
-
     use real_time_data, only: t_complex_ints, acceptances_1, runge_kutta_step, tVerletSweep,&
                         NoInitDets_1, NoNonInitDets_1, NoInitWalk_1, NoNonInitWalk_1, &
                         InitRemoved_1, NoAborted_1, NoRemoved_1, NoatHF_1, NoatDoubs_1, &
                         NoatHF_1, NoatDoubs_1, t_rotated_time, Annihilated_1, t_real_time_fciqmc
 
-!=======
-!>>>>>>> 0510b74a29483a2abd107e624b5029674d8e25ff
+    use back_spawn, only: setup_virtual_mask
     implicit none
     save
 
@@ -2084,6 +2080,11 @@ contains
         endif
         proje_ref_energy_offsets(run) = real(h_tmp, dp) - Hii
 
+        ! [W.D] need to also change the virtual mask
+        if (t_back_spawn) then 
+            call setup_virtual_mask()
+        end if
+        
     end subroutine update_run_reference
 
     subroutine calc_inst_proje()

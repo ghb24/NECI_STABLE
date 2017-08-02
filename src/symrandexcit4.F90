@@ -8,7 +8,8 @@ module excit_gens_int_weighted
                           par_hole_pairs, AB_hole_pairs, iMaxLz, &
                           tGen_4ind_part_exact, tGen_4ind_lin_exact, &
                           tGen_4ind_unbound
-    use CalcData, only: matele_cutoff, t_matele_cutoff
+    use CalcData, only: matele_cutoff, t_matele_cutoff, t_back_spawn, t_back_spawn_flex, &
+                        t_back_spawn_occ_virt, occ_virt_level
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
                                pDoubNew, ScratchSize, SpinOrbSymLabel, &
@@ -19,8 +20,8 @@ module excit_gens_int_weighted
     use dSFMT_interface, only: genrand_real2_dSFMT
     use Determinants, only: get_helement, write_det
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
-    use bit_rep_data, only: NIfTot, NIfD
-    use bit_reps, only: decode_bit_det
+    use bit_rep_data, only: NIfTot, NIfD, test_flag
+    use bit_reps, only: decode_bit_det, get_initiator_flag
     use symdata, only: nSymLabels
     use procedure_pointers, only: get_umat_el
     use UMatCache, only: gtid, UMat2d
@@ -34,13 +35,15 @@ module excit_gens_int_weighted
     use get_excit, only: make_double, make_single
     use sort_mod
     use util_mod
+    use back_spawn, only: pick_virtual_electron_single, check_electron_location, &
+                          pick_occupied_orbital_single
     implicit none
     save
 
 contains
 
     subroutine gen_excit_hel_weighted (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                       ExcitMat, tParity, pGen, HelGen, store)
+                                       ExcitMat, tParity, pGen, HelGen, store, run)
 
         ! A really laborious, slow, explicit and brute force method to
         ! generating all excitations in proportion to their connection
@@ -54,6 +57,8 @@ contains
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: run
+
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'gen_excit_hel_weighted'
 
@@ -151,7 +156,7 @@ contains
     !
 
     subroutine gen_excit_4ind_weighted (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                        ExcitMat, tParity, pGen, HelGen, store)
+                                        ExcitMat, tParity, pGen, HelGen, store, run)
 
         ! TODO: description
         !
@@ -166,6 +171,8 @@ contains
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        integer, intent(in), optional :: run
+
         character(*), parameter :: this_routine = 'gen_excit_4ind_weighted'
         integer :: orb
         real(dp) :: pgen2
@@ -433,6 +440,9 @@ contains
         character(*), parameter :: this_routine = "gen_single_4ind_ex"
 
         integer :: elec, src, tgt, cc_index
+        real(dp) :: pgen_elec
+        logical :: temp_init
+        integer :: loc, dummy_src(2)
 
         ! In this version of the excitation generator, we pick an electron
         ! at random. Then we construct a list of connection
@@ -440,15 +450,50 @@ contains
 
         ! We could pick the electron based on the number of orbitals available.
         ! Currently, it is just picked uniformly.
-        elec = 1 + floor(genrand_real2_dSFMT() * nel)
+!         temp_init = test_flag(ilutI, get_initiator_flag(1))
+!         if (t_back_spawn .and. .not. temp_init) then
+!             call pick_virtual_electron_single(nI, elec, pgen_elec)
+            ! i also need to check if there is a possible elec or?
+!         else 
+            elec = 1 + floor(genrand_real2_dSFMT() * nel)
+
+!         end if
+
         src = nI(elec)
+        ! back-spawn flexible is not compatible with old back-spawn
+!         if (t_back_spawn_flex .and. .not. temp_init) then 
+!             dummy_src(1) = src
+!             call check_electron_location(dummy_src, 1, loc)
+!         end if
 
         ! What is the symmetry category?
         cc_index = ClassCountInd (get_spin(src), SpinOrbSymLabel(src), &
                                   G1(src)%Ml)
 
         ! Select the target orbital by approximate connection strength
-        tgt = select_orb_sing (nI, ilutI, src, cc_index, pgen)
+        ! i also should think about maybe using the occ-virt keyword 
+        ! also in the case of single excitaitons or? 
+!         if (t_back_spawn_occ_virt .and. .not. temp_init) then 
+! 
+!             call pick_occupied_orbital_single(nI, src, cc_index, pgen, tgt)
+! 
+!         else if (t_back_spawn_flex .and. .not. temp_init ) then
+!         
+!             ! also allow one level of excitation.. requested by ali..
+!             if (loc == 2 .and. occ_virt_level /= -1) then 
+!                 ! in this case pick the orbital from the occupied manifold of ref
+!                 call pick_occupied_orbital_single(nI, src, cc_index, pgen, tgt)
+!             else 
+!                 if (occ_virt_level == 2) then 
+!                     call pick_occupied_orbital_single(nI, src, cc_index, pgen, tgt)
+!                 else 
+!                     tgt = select_orb_sing (nI, ilutI, src, cc_index, pgen)
+!                 end if
+!             end if
+!         else 
+            tgt = select_orb_sing (nI, ilutI, src, cc_index, pgen)
+!         end if
+
         if (tgt == 0) then
             nJ(1) = 0
             return
@@ -463,7 +508,12 @@ contains
         set_orb (ilutJ, tgt)
 
         ! And the generation probability
-        pgen = pgen / real(nel, dp)
+!         if (t_back_spawn .and. .not. temp_init) then
+!             pgen = pgen * pgen_elec
+! 
+!         else
+            pgen = pgen / real(nel, dp)
+!         end if
 
     end subroutine
 
@@ -1058,7 +1108,7 @@ contains
 
 
     subroutine gen_excit_4ind_reverse (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                       ExcitMat, tParity, pGen, HelGen, store)
+                                       ExcitMat, tParity, pGen, HelGen, store, run)
 
         ! TODO: description
         !
@@ -1073,6 +1123,8 @@ contains
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        integer, intent(in), optional :: run
+
         character(*), parameter :: this_routine = 'gen_excit_4ind_reverse'
 
         integer :: orb

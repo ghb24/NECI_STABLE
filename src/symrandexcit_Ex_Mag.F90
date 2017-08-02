@@ -39,7 +39,7 @@ contains
 
 
     subroutine gen_rand_excit_Ex_mag (nI, ilutI, nJ, ilutJ, exFlag, IC, ExcitMat, &
-                                tParity, pGen, HElGen, store)
+                                tParity, pGen, HElGen, store, run)
 
         ! This generator _requires_ store to have already been filled. This
         ! involves calling decode_bit_det_lists.
@@ -52,6 +52,7 @@ contains
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: run
         real(dp) :: r
         character(*), parameter :: this_routine = 'gen_rand_excit_Ex_Mag' 
         integer :: excitType, i

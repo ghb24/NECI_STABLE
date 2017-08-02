@@ -18,7 +18,7 @@ module ueg_excit_gens
 contains
 
     subroutine gen_ueg_excit (nI, ilutI, nJ, ilutJ, exFlag, ic, ex, tPar, &
-                              pgen, HelGen, store)
+                              pgen, HelGen, store, run)
 
         ! This is a new excitation generator, modelled on the lines of the
         ! 4ind-weighted excitation generator used for determinants
@@ -35,6 +35,7 @@ contains
         HElement_t(dp), intent(out) :: HelGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        integer, intent(in), optional :: run
 
         real(dp) :: cum_sum, cum_arr(nbasis), pelec, porb, elem, r, testE
         integer :: eleci, elecj, spnb, ind, iSpn, iUnused

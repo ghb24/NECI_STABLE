@@ -3,7 +3,7 @@ module FciMCParMod
 
     ! This module contains the main loop for FCIMC calculations, and the
     ! main per-iteration processing loop.
-    use SystemData, only: nel, tUEG2, hist_spin_dist_iter, tReltvy
+    use SystemData, only: nel, tUEG2, hist_spin_dist_iter, tReltvy, tHub
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
@@ -13,7 +13,9 @@ module FciMCParMod
                         ss_space_in, s_global_start, tContTimeFCIMC, &
                         trial_shift_iter, tStartTrialLater, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
-                        t_hist_tau_search_option
+                        t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
+                        t_back_spawn_flex, t_back_spawn_flex_option, &
+                        t_back_spawn_option
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
@@ -41,10 +43,10 @@ module FciMCParMod
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
                              orthogonalise_replica_pairs
     use load_balance, only: tLoadBalanceBlocks, adjust_load_balance
-    use bit_reps, only: set_flag, clr_flag, add_ilut_lists
+    use bit_reps, only: set_flag, clr_flag, add_ilut_lists, get_initiator_flag
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
-    use bit_rep_data, only: nOffFlag, flag_determ_parent
+    use bit_rep_data, only: nOffFlag, flag_determ_parent, test_flag
     use errors, only: standalone_errors, error_analysis
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use AnnihilationMod, only: DirectAnnihilation
@@ -71,6 +73,7 @@ module FciMCParMod
                         sum_double_occ, sum_norm_psi_squared
 
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
+    use back_spawn, only: init_back_spawn
 
 #ifdef MOLPRO
     use outputResult
@@ -244,6 +247,17 @@ module FciMCParMod
                 end if
             end if
 
+            ! [W.D]
+            ! option to enable back-spawning after a certain number of iterations
+            ! but this should be independent if the shift is varied already (or?)
+            if (back_spawn_delay /= 0 .and. iter == back_spawn_delay + 1) then
+                if (t_back_spawn_flex_option) then 
+                    t_back_spawn_flex = .true.
+                else if (t_back_spawn_option) then
+                    t_back_spawn = .true. 
+                end if
+                call init_back_spawn()
+            end if
             ! Is this an iteration where trial-wavefunction estimators are
             ! turned on?
             if (tStartTrialLater .and. all(.not. tSinglePartPhase)) then
@@ -853,6 +867,9 @@ module FciMCParMod
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
 
+            ! reset this flag for each det:
+            ! W.D. remove this option for now..
+
             ! Indicate that the scratch storage used for excitation generation
             ! from the same walker has not been filled (it is filled when we
             ! excite from the first particle on a determinant).
@@ -992,6 +1009,11 @@ module FciMCParMod
             !                 --> part_type == 1, 2; real and complex walkers
             !                 --> OR double run
             !                 --> part_type == 1, 2; population sets 1 and 2, both real
+
+            ! alis additional idea to skip the number of attempted excitations
+            ! for noninititators in the back-spawning approach
+            ! remove that for now
+           
             do part_type = 1, lenof_sign
                 TempSpawnedPartsInd = 0
 
@@ -1001,13 +1023,16 @@ module FciMCParMod
                 ! each walker (default 1.0_dp).
                 call decide_num_to_spawn(SignCurr(part_type), AvMCExcits, WalkersToSpawn)
                 do p = 1, WalkersToSpawn
+
                     ! Zero the bit representation, to ensure no extraneous
                     ! data gets through.
                     ilutnJ = 0_n_int
                     ! Generate a (random) excitation
-                    call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
+                    call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
                                         ilutnJ, exFlag, IC, ex, tParity, prob, &
-                                        HElGen, fcimc_excit_gen_store)
+
+                                        HElGen, fcimc_excit_gen_store, part_type)
+                  
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
 
@@ -1054,7 +1079,6 @@ module FciMCParMod
                         call write_det(6, nJ, .true.)
                         call neci_flush(iout) 
                     endif
-
 
                     ! Children have been chosen to be spawned.
                     if (any(child /= 0)) then

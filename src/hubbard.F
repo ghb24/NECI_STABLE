@@ -30,19 +30,20 @@ C..quatum numbers (i,j,k) for Hubbard model of
 C..lengths (LX,LY,LZ) PBC.
 C..Returned in sum
       use constants, only: Pi, Pi2, THIRD,dp
-      use SystemData, only: twisted_bc 
+      use SystemData, only: twisted_bc, nn_bhub
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
       INTEGER nBasisMax(5,*),AX,AY
       INTEGER LX,LY,LZ,K,J,I
       LOGICAL TTILT,TREAL
       real(dp) :: TOTSUM,BHUB
-      real(dp) :: tb_x, tb_y
-      tb_x = twisted_bc(1)
-      tb_y = twisted_bc(2)
+      real(dp) :: tb_x, tb_y, nn
       IF(TREAL) THEN
          TOTSUM=0.0_dp
       ELSE
+          tb_x = twisted_bc(1)
+          tb_y = twisted_bc(2)
+
        LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
        LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
        LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
@@ -52,14 +53,22 @@ C..Returned in sum
 CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
          LX=NBASISMAX(1,5)
          LX=(LX*(AX*AX+AY*AY))
-         TOTSUM=COS(2*PI*((I+tb_x)*AX+(J+tb_y)*AY)/LX)
-         TOTSUM=TOTSUM+COS(2*PI*((I+tb_x)*AY-(J+tb_y)*AX)/LX)
+         totsum=cos(2*pi*((I+tb_x)*ax + (j+tb_y)*ay)/lx)
+         totsum=totsum+cos(2*pi*((i+tb_x)*ay-(j+tb_y)*ax)/lx)
+
+         nn=cos(2*pi*(i+tb_x)*AX/lx)+cos((J+tb_y)*ay/lx)
        ELSE
-         IF(LX.GT.1) TOTSUM=COS(2*PI*(I+tb_x)/(LX))
-         IF(LY.GT.1) TOTSUM=TOTSUM+COS(2*PI*(J+tb_y)/(LY))
+         IF(LX.GT.1) then
+             TOTSUM=COS(2*PI*(I + tb_x)/LX)
+             nn = cos(2*pi*(I + tb_x + J * tb_y)/LX)
+         end if
+         IF(LY.GT.1) then 
+             TOTSUM=TOTSUM+COS(2*PI*(J + tb_y)/LY)
+             nn = cos(2*pi*(I + tb_x - (J + tb_y))/LY)
+         end if
          IF(LZ.GT.1) TOTSUM=TOTSUM+COS(2*PI*K/(LZ))
        ENDIF
-       TOTSUM=TOTSUM*2.0_dp*BHUB
+       TOTSUM=2.0_dp*(TOTSUM*BHUB + nn * nn_bhub)
       ENDIF
       RETURN
       END

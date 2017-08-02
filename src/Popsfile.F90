@@ -12,7 +12,7 @@ MODULE PopsfileMod
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
                         pops_norm, tWritePopsNorm, t_keep_tau_fixed, t_hist_tau_search, &
                         t_restart_hist_tau, t_fill_frequency_hists, t_previous_hist_tau, &
-                        t_hist_tau_search_option
+                        t_hist_tau_search_option, hdf5_diagsft
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
@@ -1012,22 +1012,33 @@ r_loop: do while(.not.tStoreDet)
             tot_walkers = int(0.95 * InitWalkers * nNodes, int64)
             do run = 1, inum_runs
 
-
 #ifdef __CMPLX
                 if ((tLetInitialPopDie .and. sum(AllTotParts(min_part_type(run):max_part_type(run))) < tot_walkers) .or. &
                     ((.not. tLetInitialPopDie) .and. sum(AllTotParts(min_part_type(run):max_part_type(run))) > tot_walkers)) then
                     write(6,'("WALKCONTGROW set in input, but simulation already exceeds target number of particles")')
                     write(6,'("Continuing with DIAGSHIFT from POPSFILE")')
+                    if (tHDF5PopsRead) then 
+                        root_print "diagshift:" , hdf5_diagsft(run)
+                        DiagSft(run) = hdf5_diagsft(run)
+                    else 
+                        root_print "diagshift:" , PopDiagSft
+                        DiagSft(run) = PopDiagSft(run)
+                    end if
                     tSinglePartPhase(run) = .false.
-                    DiagSft(run) = PopDiagSft(run)
                 end if
 #else
                 if ((tLetInitialPopDie .and. AllTotParts(run) < tot_walkers) .or. &
                     ((.not. tLetInitialPopDie) .and. AllTotParts(run) > tot_walkers)) then
                     write(6,'("WALKCONTGROW set in input, but simulation already exceeds target number of particles")')
                     write(6,'("Continuing with DIAGSHIFT from POPSFILE for run ",i4)') run
+                    if (tHDF5PopsRead) then 
+                        root_print "diagshift:" , hdf5_diagsft(run)
+                        DiagSft(run) = hdf5_diagsft(run)
+                    else 
+                        root_print "diagshift:" , PopDiagSft
+                        DiagSft(run) = PopDiagSft(run)
+                    end if
                     tSinglePartPhase(run) = .false.
-                    DiagSft(run) = PopDiagSft(run)
                 end if
 #endif
             end do

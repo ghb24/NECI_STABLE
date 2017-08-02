@@ -475,9 +475,21 @@ system: do
             call getf(UHUB)
         case("B")
             call getf(BHUB)
+
          case("C")
             call getf(btHub)
             tmodHub = .true.
+
+        case ("NEXT-NEAREST-HOPPING")
+            call getf(nn_bhub)
+
+        case ("TWISTED-BC")
+            t_twisted_bc = .true. 
+            call getf(twisted_bc(1))
+            if (item < nitems) then
+                call getf(twisted_bc(2))
+            end if
+
         case("REAL")
             TREAL = .true.
             ! in case of the real-space lattice also turn off symmetries
@@ -1685,6 +1697,10 @@ system: do
           IF(THUB) THEN
              WRITE(6,'(1X,A,F19.5)') '  HUBBARD T : ' , BHUB
              WRITE(6,'(1X,A,F19.5)') '  HUBBARD U : ' , UHUB
+             if (abs(nn_bhub) > EPS) then 
+                 WRITE(6,'(1X,A,F19.5)') '  HUBBARD T* : ' , nn_bhub
+                 print *, "Also next-nearest neighbor hopping!"
+             end if
              IF(TTILT) WRITE(6,*) ' TILTED LATTICE: ',ITILTX, ",",ITILTY
              IF(TTILT.AND.ITILTX.GT.ITILTY) call stop_all(this_routine, 'ERROR: ITILTX>ITILTY')
           ELSE

@@ -3,18 +3,19 @@
 module fcimc_pointed_fns
 
     use SystemData, only: nel, tGen_4ind_2, tGen_4ind_weighted, tHub, tUEG, &
-                          tGen_4ind_reverse
+                          tGen_4ind_reverse,  nBasis
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
-                        t_matele_cutoff, matele_cutoff
+                        t_matele_cutoff, matele_cutoff 
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
-    use bit_rep_data, only: NIfTot
+    use bit_rep_data, only: NIfTot, test_flag
+    use bit_reps, only: get_initiator_flag
     use tau_search, only: log_death_magnitude, log_spawn_magnitude
     use rdm_general, only: calc_rdmbiasfac
     use hist, only: add_hist_excit_tofrom
@@ -30,6 +31,8 @@ module fcimc_pointed_fns
     use tau_search_hist, only: fill_frequency_histogram_4ind, &
                                fill_frequency_histogram_sd, &
                                fill_frequency_histogram
+
+    use excit_gen_5, only: pgen_select_a_orb
 
     implicit none
 
@@ -125,6 +128,8 @@ module fcimc_pointed_fns
         logical :: tRealSpawning
         HElement_t(dp) :: rh, rh_used
         logical :: t_par
+        real(dp) :: temp_prob, pgen_a, dummy_arr(nBasis), cum_sum
+        integer :: ispn
 
         ! Just in case
         child = 0.0_dp
@@ -141,6 +146,10 @@ module fcimc_pointed_fns
         rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
                                  tParity, HElGen)
 
+!         if (abs(rh) > EPS) then
+!             print *, "HElGen: ", rh
+!             print *, "prob: ", prob
+!         end if
         ! We actually want to calculate Hji - take the complex conjugate, 
         ! rather than swap around DetCurr and nJ.
 #ifdef __CMPLX
@@ -286,8 +295,14 @@ module fcimc_pointed_fns
             
             ! n.b. if we ever end up with |walkerweight| /= 1, then this
             !      will need to ffed further through.
-            if (tSearchTau .and. (.not. tFillingStochRDMonFly)) &
+            if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
+                ! in the back-spawning i have to adapt the probabilites 
+                ! back, to be sure the time-step covers the changed 
+                ! non-initiators spawns! 
+
                 call log_spawn_magnitude (ic, ex, matel, prob)
+
+            end if
 
             ! Keep track of the biggest spawn this cycle
             max_cyc_spawn = max(abs(nSpawn), max_cyc_spawn)

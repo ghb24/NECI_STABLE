@@ -23,8 +23,9 @@ MODULE HPHFRandExcitMod
                                        calc_pgen_4ind_reverse
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel, MaskAlpha, MaskBeta, &
-                         TestClosedShellDet, CalcOpenOrbs, IsAllowedHPHF
-    use FciMCData, only: pDoubles, excit_gen_store_type
+                         TestClosedShellDet, CalcOpenOrbs, IsAllowedHPHF, &
+                         DetBitEQ
+    use FciMCData, only: pDoubles, excit_gen_store_type, ilutRef
     use constants, only: dp,n_int, EPS
     use sltcnd_mod, only: sltcnd_excit
     use bit_reps, only: NIfD, NIfDBO, NIfTot
@@ -32,7 +33,8 @@ MODULE HPHFRandExcitMod
     use excit_gen_5, only: calc_pgen_4ind_weighted2, gen_excit_4ind_weighted2
     use sort_mod
     use HElem
-    use CalcData, only: t_matele_cutoff, matele_cutoff
+    use CalcData, only: t_matele_cutoff, matele_cutoff, t_back_spawn, t_back_spawn_flex
+    use back_spawn_excit_gen, only: gen_excit_back_spawn, calc_pgen_back_spawn
     IMPLICIT NONE
 !    SAVE
 !    INTEGER :: Count=0
@@ -116,7 +118,7 @@ MODULE HPHFRandExcitMod
     end subroutine CalcPGenHPHF
 
     subroutine gen_hphf_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                               tParity, pGen, HEl, store)
+                               tParity, pGen, HEl, store, run)
 
         use FciMCData, only: tGenMatHEl
 
@@ -141,6 +143,7 @@ MODULE HPHFRandExcitMod
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HEl
         type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: run
         character(*), parameter :: this_routine = "gen_hphf_excit"
 
         integer(kind=n_int) :: iLutnJ2(0:niftot)
@@ -153,8 +156,15 @@ MODULE HPHFRandExcitMod
         ! Avoid warnings
         tParity = .false.
 
+        ! [W.D] this whole hphf should be optimized.. and cleaned up 
+        ! because it is a mess really.. 
         ! Generate a normal excitation.
-        if (tGen_4ind_weighted) then
+        
+        if (t_back_spawn .or. t_back_spawn_flex) then 
+            call gen_excit_back_spawn(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
+                                      ExcitMat, tSignOrig, pgen, Hel, store, run)
+
+        else if (tGen_4ind_weighted) then
             call gen_excit_4ind_weighted (nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pGen, Hel,&
                                           store)
@@ -243,7 +253,7 @@ MODULE HPHFRandExcitMod
                 ENDIF
                 CALL CalcNonUniPGen(nI, ilutnI, Ex2, ExcitLevel, &
                                     store%ClassCountOcc, &
-                                    store%ClassCountUnocc, pDoubles, pGen2)
+                                    store%ClassCountUnocc, pDoubles, pGen2, run)
 !!We cannot guarentee that the pGens are going to be the same - in fact, generally, they wont be.
                 pGen=pGen+pGen2
 
@@ -905,7 +915,7 @@ MODULE HPHFRandExcitMod
 
 
     subroutine CalcNonUniPGen(nI, ilutI, ex, ic, ClassCount2, &
-                              ClassCountUnocc2, pDoub, pGen)
+                              ClassCountUnocc2, pDoub, pGen, run)
 
         ! This routine will calculate the PGen between two connected
         ! determinants, nI and nJ which are IC excitations of each other, using
@@ -929,7 +939,10 @@ MODULE HPHFRandExcitMod
         integer, intent(in) :: ClassCountUnocc2(ScratchSize)
         real(dp), intent(in) :: pDoub
         real(dp), intent(out) :: pGen
+        integer, intent(in), optional :: run
         character(*), parameter :: this_routine = 'CalcNonUniPGen'
+
+        integer :: temp_run 
 
         ! We need to consider which of the excitation generators are in use,
         ! and call the correct routine in each case.
@@ -937,7 +950,19 @@ MODULE HPHFRandExcitMod
 
         pgen = 0.0_dp
 
-        if (tLatticeGens) then
+        ! i have to make sure to catch all this call to this function correctly
+        if (present(run)) then 
+            temp_run = run
+        else
+            temp_run = 1
+        end if
+
+        ! does it help to avoid recalculating for the reference?
+        if ((t_back_spawn .or. t_back_spawn_flex) .and. .not. & 
+           DetBitEq(ilutI,ilutRef(:,temp_run),nifdbo)) then 
+            pgen = calc_pgen_back_spawn(nI, ilutI, ex, ic, temp_run)
+
+        else if (tLatticeGens) then
             if (ic == 2) then
                 call CalcPGenLattice (ex, pGen)
             else
