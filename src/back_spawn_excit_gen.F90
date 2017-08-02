@@ -24,11 +24,11 @@ module back_spawn_excit_gen
                           pick_occupied_orbital_single, pick_virtual_electron_single, &
                           pick_occupied_orbital, pick_second_occupied_orbital, &
                           get_ispn, is_in_ref, pick_occupied_orbital_ueg, &
-                          pick_virtual_electrons_double_hubbard, pick_occupied_orbital_hubbard
+                          pick_virtual_electrons_double_hubbard, pick_occupied_orbital_hubbard, &
+                          is_allowed_ueg_k_vector, get_orb_from_kpoints
     use get_excit, only: make_single, make_double
     use Determinants, only: write_det, get_helement
-    use ueg_excit_gens, only: get_orb_from_kpoints, is_allowed_ueg_k_vector, &
-                              gen_double_ueg, create_ab_list_ueg, pick_uniform_elecs, & 
+    use ueg_excit_gens, only: gen_double_ueg, create_ab_list_ueg, pick_uniform_elecs, & 
                               calc_pgen_ueg
     use util_mod, only: binary_search_first_ge
 
@@ -55,6 +55,11 @@ contains
  
         integer :: iUnused
 
+#ifdef __DEBUG 
+        real(dp) :: pgen2
+        HElement_t(dp) :: temp_hel
+#endif
+
         ic = 2 
 
         ! do i want to implement both old and new back spawn?? 
@@ -65,10 +70,64 @@ contains
             call gen_double_back_spawn_ueg_new(nI, ilutI, run, nJ, ilutJ, tParity, &
                 ExcitMat, pgen)
 
+#ifdef __DEBUG
+            if (.not. IsNullDet(nJ)) then
+                pgen2 = calc_pgen_back_spawn_ueg_new(nI, ilutI, ExcitMat, ic, run) 
+                if (abs(pgen - pgen2) > 1.0e-6_dp) then 
+                    if (tHPHF) then 
+                        print *, "due to circular dependence, no matrix element calc possible!"
+!                         temp_hel = hphf_off_diag_helement(nI,nJ,ilutI,ilutJ)
+                        temp_hel = 0.0_dp
+                    else
+                        temp_hel = get_helement(nI,nJ,ilutI,ilutJ)
+                    endif
+
+                    write(6,*) 'Calculated and actual pgens differ. for non-initiator'
+                    write(6,*) 'This will break HPHF calculations'
+                    write(6,*) 'reference det: '
+                    call write_det(6, projedet(:,run), .true.)
+                    call write_det(6, nI, .false.)
+                    write(6, '(" --> ")', advance='no')
+                    call write_det(6, nJ, .true.)
+                    write(6,*) 'Excitation matrix: ', ExcitMat(1,1:ic), '-->', &
+                               ExcitMat(2,1:ic)
+                    write(6,*) 'Generated pGen:  ', pgen
+                    write(6,*) 'Calculated pGen: ', pgen2
+                    write(6,*) 'matrix element: ', temp_hel
+                    call stop_all(this_routine, "Invalid pGen")
+                end if
+            end if
+#endif
         else 
 
             call gen_double_ueg(nI, ilutI, nJ, ilutJ, tParity, ExcitMat, pgen)
 
+#ifdef __DEBUG
+            if (.not. IsNullDet(nJ)) then
+                pgen2 = calc_pgen_ueg(nI, ilutI, ExcitMat, ic)
+                if (abs(pgen - pgen2) > 1.0e-6_dp) then 
+                    if (tHPHF) then 
+                        print *, "due to circular dependence, no matrix element calc possible!"
+!                         temp_hel = hphf_off_diag_helement(nI,nJ,ilutI,ilutJ)
+                        temp_hel = 0.0_dp
+                    else
+                        temp_hel = get_helement(nI,nJ,ilutI,ilutJ)
+                    endif
+
+                    write(6,*) 'Calculated and actual pgens differ. for non-initiator'
+                    write(6,*) 'This will break HPHF calculations'
+                    call write_det(6, nI, .false.)
+                    write(6, '(" --> ")', advance='no')
+                    call write_det(6, nJ, .true.)
+                    write(6,*) 'Excitation matrix: ', ExcitMat(1,1:ic), '-->', &
+                               ExcitMat(2,1:ic)
+                    write(6,*) 'Generated pGen:  ', pgen
+                    write(6,*) 'Calculated pGen: ', pgen2
+                    write(6,*) 'matrix element: ', temp_hel
+                    call stop_all(this_routine, "Invalid pGen")
+                end if
+            end if
+#endif
         end if
 
     end subroutine gen_excit_back_spawn_ueg_new
@@ -84,16 +143,22 @@ contains
         integer :: elecs(2), src(2), ispn, sum_ml, loc, orb_a, orb_b
         real(dp) :: p_elec, p_orb, dummy, cum_arr(nBasis), cum_sum
 
+        logical :: t_temp_back_spawn
+
+        t_temp_back_spawn = .false.
+
         if (t_back_spawn) then 
             call pick_virtual_electrons_double(nI, run, elecs, src, ispn, &
                 sum_ml, p_elec) 
 
+            loc = -1
         else 
             call pick_uniform_elecs(elecs, p_elec)
             src = nI(elecs) 
 
             ispn = get_ispn(src)
 
+            loc = check_electron_location(src, 2, run)
         end if
 
         if (elecs(1) == 0) then 
@@ -102,13 +167,23 @@ contains
             return 
         end if
 
-        loc = check_electron_location(src, 2, run)
 
         if ((loc == 2) .or. (loc == 1 .and. occ_virt_level /= -1) .or. &
             (loc == 0 .and. occ_virt_level >= 1)) then 
 
+            t_temp_back_spawn = .true.
             call pick_occupied_orbital_ueg(nI, ilutI, src, iSpn, run, p_orb, &
                 dummy, orb_a)
+            ! it can happen that there are no valid orbitals 
+            if (orb_a == 0)then 
+                nJ(1) = 0
+                pgen = 0.0_dp
+                return
+            end if
+
+            ! i think in this case i have to multiply if both are in the 
+            ! reference or?
+            
         else
 
             ! i could refactor that in a smaller function: 
@@ -148,6 +223,10 @@ contains
 
         pgen = p_elec * p_orb
 
+        if (t_temp_back_spawn .and. is_in_ref(orb_b, run)) then 
+            pgen = 2.0_dp * pgen 
+        end if
+
     end subroutine gen_double_back_spawn_ueg_new
 
     function calc_pgen_back_spawn_ueg_new(nI, ilutI, ex, ic, run) result(pgen)
@@ -173,6 +252,7 @@ contains
         else
 
             src = get_src(ex) 
+            tgt = get_tgt(ex)
             ispn = get_ispn(src) 
 
             if (t_back_spawn) then 
@@ -192,6 +272,13 @@ contains
 
                 call pick_occupied_orbital_ueg(nI, ilutI, src, iSpn, run, p_orb, &
                     dummy, orb_a)
+
+                ! do i need to multiply if both are in the reference? 
+                ! i guess so.. since then i could have picked it in both 
+                ! orders.. 
+                if (is_in_ref(tgt(1),run) .and. is_in_ref(tgt(2),run)) then 
+                    p_orb = 2.0_dp * p_orb
+                end if
             else
 
                 ! i could refactor that in a smaller function: 
@@ -560,6 +647,10 @@ contains
         integer, intent(in), optional :: run
         character(*), parameter :: this_routine = "gen_excit_back_spawn_ueg"
  
+#ifdef __DEBUG
+        real(dp) :: pgen2
+        HElement_t(dp) :: temp_hel
+#endif
         ! so now pack everything necessary for a ueg excitation generator. 
 
         ilutJ(0) = -1 
@@ -579,9 +670,62 @@ contains
             call gen_double_back_spawn_ueg(nI, ilutI, nJ, ilutJ, tParity, ExcitMat, & 
                 pgen) 
 
+#ifdef __DEBUG
+            if (.not. IsNullDet(nJ)) then
+                pgen2 = calc_pgen_back_spawn_ueg(nI, ilutI, ExcitMat, ic, run) 
+                if (abs(pgen - pgen2) > 1.0e-6_dp) then 
+                    if (tHPHF) then 
+                        print *, "due to circular dependence, no matrix element calc possible!"
+!                         temp_hel = hphf_off_diag_helement(nI,nJ,ilutI,ilutJ)
+                        temp_hel = 0.0_dp
+                    else
+                        temp_hel = get_helement(nI,nJ,ilutI,ilutJ)
+                    endif
+
+                    write(6,*) 'Calculated and actual pgens differ. for non-initiator'
+                    write(6,*) 'This will break HPHF calculations'
+                    call write_det(6, nI, .false.)
+                    write(6, '(" --> ")', advance='no')
+                    call write_det(6, nJ, .true.)
+                    write(6,*) 'Excitation matrix: ', ExcitMat(1,1:ic), '-->', &
+                               ExcitMat(2,1:ic)
+                    write(6,*) 'Generated pGen:  ', pgen
+                    write(6,*) 'Calculated pGen: ', pgen2
+                    write(6,*) 'matrix element: ', temp_hel
+                    call stop_all(this_routine, "Invalid pGen")
+                end if
+            end if
+#endif
         else 
             ! do i want to rewrite the old on or just reuse? for now reuse: 
             call CreateExcitLattice(nI, ilutI, nJ, tParity, ExcitMat, pgen, run) 
+
+#ifdef __DEBUG
+            if (.not. IsNullDet(nJ)) then
+                call CalcPGenLattice(ExcitMat, pgen2)
+                if (abs(pgen - pgen2) > 1.0e-6_dp) then 
+                    if (tHPHF) then 
+                        print *, "due to circular dependence, no matrix element calc possible!"
+!                         temp_hel = hphf_off_diag_helement(nI,nJ,ilutI,ilutJ)
+                        temp_hel = 0.0_dp
+                    else
+                        temp_hel = get_helement(nI,nJ,ilutI,ilutJ)
+                    endif
+
+                    write(6,*) 'Calculated and actual pgens differ. for non-initiator'
+                    write(6,*) 'This will break HPHF calculations'
+                    call write_det(6, nI, .false.)
+                    write(6, '(" --> ")', advance='no')
+                    call write_det(6, nJ, .true.)
+                    write(6,*) 'Excitation matrix: ', ExcitMat(1,1:ic), '-->', &
+                               ExcitMat(2,1:ic)
+                    write(6,*) 'Generated pGen:  ', pgen
+                    write(6,*) 'Calculated pGen: ', pgen2
+                    write(6,*) 'matrix element: ', temp_hel
+                    call stop_all(this_routine, "Invalid pGen")
+                end if
+            end if
+#endif
 
         end if
 
@@ -645,6 +789,12 @@ contains
             ! no.. write a new one without the spin-restriction
             call pick_occupied_orbital_ueg(nI, ilutI, src, ispn, temp_run, pAIJ, &
                      dummy, orb_a)
+
+            if (orb_a == 0) then 
+                nJ(1) = 0
+                pgen = 0.0_dp 
+                return
+            end if
 
         else 
             ! otherwise pick freely..
@@ -1218,7 +1368,7 @@ contains
                 ! i should check the hole location too.. 
                 tgt = get_tgt(ex)
                 ! is tgt(1) always the first picked? yes it is!
-                if (is_in_ref(tgt(2), run)) then
+                if (is_in_ref(tgt(1),run) .and. is_in_ref(tgt(2), run)) then
                     ! in this case we can recalc p(b|ij)
                     pgen = 2.0_dp * pgen 
                 end if
@@ -1372,7 +1522,9 @@ contains
                 ! orbital.. is this also the case in HPHF?? argh i hate that 
                 ! stuff 
                 ! do this testing here once
-                t_in_ref = (any(tgt(2) == projedet(:,part_type_to_run(run))))
+                ! todo: i have to fix this since here i do not know anymore 
+                ! what was orb a and orb b since ex is sorted.. 
+                t_in_ref = (is_in_ref(tgt(1),run) .and. is_in_ref(tgt(2),run))
                 t_par = (is_beta(tgt(1)) .eqv. is_beta(tgt(2)))
 
                 ! for some back_spawn_flex it can happen that we have no 
@@ -1482,8 +1634,6 @@ contains
 
                 ! now i have to figure p(ab), p(ba) stuff.. and implement this 
                 ! above.. annoying..
-
-
 
             else 
 

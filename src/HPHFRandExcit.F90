@@ -12,7 +12,7 @@ MODULE HPHFRandExcitMod
     use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, &
                           tOddS_HPHF, modk_offdiag, tGen_4ind_weighted, &
                           tGen_4ind_reverse, tLatticeGens, tGen_4ind_2, tHUB, & 
-                          tUEG
+                          tUEG, tUEGNewGenerator
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
@@ -37,7 +37,8 @@ MODULE HPHFRandExcitMod
     use CalcData, only: t_matele_cutoff, matele_cutoff, t_back_spawn, t_back_spawn_flex
     use back_spawn_excit_gen, only: gen_excit_back_spawn, calc_pgen_back_spawn, & 
                                     gen_excit_back_spawn_ueg, calc_pgen_back_spawn_ueg, & 
-                                    calc_pgen_back_spawn_hubbard, gen_excit_back_spawn_hubbard
+                                    calc_pgen_back_spawn_hubbard, gen_excit_back_spawn_hubbard, &
+                                    gen_excit_back_spawn_ueg_new, calc_pgen_back_spawn_ueg_new
     IMPLICIT NONE
 !    SAVE
 !    INTEGER :: Count=0
@@ -164,7 +165,10 @@ MODULE HPHFRandExcitMod
         ! Generate a normal excitation.
         
         if (t_back_spawn .or. t_back_spawn_flex) then 
-            if (tUEG .and. tLatticeGens) then 
+            if (tUEGNewGenerator .and. tLatticeGens) then 
+                call gen_excit_back_spawn_ueg_new(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
+                                          ExcitMat, tSignOrig, pgen, Hel, store, run)
+            else if (tUEG .and. tLatticeGens) then 
                 call gen_excit_back_spawn_ueg(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
                                           ExcitMat, tSignOrig, pgen, Hel, store, run)
             else if (tHUB .and. tLatticeGens) then
@@ -975,6 +979,8 @@ MODULE HPHFRandExcitMod
             ! and the ueg model.. -> create those functions! 
             if (tHUB .and. tLatticeGens) then 
                 pgen = calc_pgen_back_spawn_hubbard(nI, ilutI, ex, ic, temp_run)
+            else if (tUEGNewGenerator .and. tLatticeGens) then 
+                pgen = calc_pgen_back_spawn_ueg_new(nI, ilutI, ex, ic, temp_run)
             else if (tUEG .and. tLatticeGens) then 
                 pgen = calc_pgen_back_spawn_ueg(nI, ilutI, ex, ic, temp_run)
             else

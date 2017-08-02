@@ -20,53 +20,11 @@ contains
 
     subroutine ueg_excit_gens_driver
 
-        call run_test_case(get_orb_from_kpoints_test, "get_orb_from_kpoints_test")
         call run_test_case(pick_uniform_elecs_test, "pick_uniform_elecs_test")
-        call run_test_case(is_allowed_ueg_k_vector_test, "is_allowed_ueg_k_vector_test")
         call run_test_case(create_ab_list_ueg_test, "create_ab_list_ueg_test")
         call run_test_case(calc_pgen_ueg_test, "calc_pgen_ueg_test")
 
     end subroutine ueg_excit_gens_driver
-
-    subroutine get_orb_from_kpoints_test
-        use SystemData, only: G1, nBasis, nel
-        use symexcitdatamod, only: KPointToBasisFn
-
-        nbasis = 4 
-        nel = 2 
-
-        allocate(G1(nbasis))
-        allocate(KPointToBasisFn(-1:2,-1:2,-1:1,2))
-
-        print *, "" 
-        print *, "testing: get_orb_from_kpoints: "
-        print *, "with necessary global data: " 
-        print *, "get_ispn"
-        print *, "G1 "
-        print *, "kpointtobasisfn" 
-        print *, "nBasis: ", nBasis
-        print *, "nel: ", nel 
-
-        ! i have to setup G1 and kpointtobasisfn correctly 
-        G1(1)%k = [1,0,0]
-        G1(2)%k = [0,1,0]
-        G1(3)%k = [0,0,1] 
-
-        KPointToBasisFn(1,1,-1,2) = 3 
-        KPointToBasisFn(2,0,-1,1) = 4
-        kpointtobasisfn(-1,2,0,2) = 5
-
-        call assert_equals(3, get_orb_from_kpoints(1,2,3)) 
-        call assert_equals(4, get_orb_from_kpoints(1,1,3))
-        call assert_equals(5, get_orb_from_kpoints(2,2,1))
-
-        nBasis = - 1
-        nel = -1 
-
-        deallocate(G1) 
-        deallocate(KPointToBasisFn)
-
-    end subroutine get_orb_from_kpoints_test
 
     subroutine pick_uniform_elecs_test
         use SystemData, only: ElecPairs 
@@ -101,45 +59,6 @@ contains
         ElecPairs = -1 
 
     end subroutine pick_uniform_elecs_test
-
-    subroutine is_allowed_ueg_k_vector_test
-        use SystemData, only: G1, nmaxx, nmaxy, nmaxz, nBasis, tOrbECutoff, & 
-                              OrbECutoff
-
-        nBasis = 4 
-
-        nmaxx = 2
-        nmaxy = 2
-        nmaxz = 2
-        tOrbECutoff = .true. 
-        OrbECutoff = 5.0_dp
-
-        allocate(G1(nBasis)) 
-
-        print *, ""
-        print *, "testing: is_allowed_ueg_k_vector" 
-        print *, "with necessary global data: "
-        print *, "nBasis: ", nBasis
-        print *, "nmaxx, nmaxy, nmaxz: ", nmaxx, nmaxy, nmaxz
-        print *, "tOrbECutoff: ", tOrbECutoff
-        print *, "OrbECutoff: ", OrbECutoff
-
-        ! set up G1: 
-        G1(1)%k = [1,0,0]
-        G1(2)%k = [0,1,0]
-        G1(3)%k = [0,0,1] 
-        G1(4)%k = [2,0,0]
-
-        call assert_true(is_allowed_ueg_k_vector(1,2,3))
-        call assert_true(is_allowed_ueg_k_vector(1,1,2))
-        call assert_true(is_allowed_ueg_k_vector(1,1,1))
-        call assert_true(.not. is_allowed_ueg_k_vector(2,3,4))
-
-        nBasis = -1 
-        OrbECutoff = -1.0_dp
-        deallocate(G1)
-
-    end subroutine is_allowed_ueg_k_vector_test
 
     subroutine create_ab_list_ueg_test
         ! i cant really test it efficiently since we would have to set 

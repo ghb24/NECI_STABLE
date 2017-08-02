@@ -5,7 +5,6 @@ module ueg_excit_gens
     use SystemData, only: nel, nbasis, tOrbECutoff, ElecPairs, OrbECutoff, &
                           nmaxx, nmaxy, nmaxz, G1
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use SymExcitDataMod, only: KPointToBasisFn
     use FciMCData, only: excit_gen_store_type
     use DeterminantData, only: write_det
     use get_excit, only: make_double
@@ -13,7 +12,7 @@ module ueg_excit_gens
     use sltcnd_mod, only: sltcnd_2
     use constants
     use util_mod
-    use back_spawn, only: get_ispn
+    use back_spawn, only: get_ispn, is_allowed_ueg_k_vector, get_orb_from_kpoints
     implicit none
 
 contains
@@ -112,54 +111,6 @@ contains
 
     end subroutine gen_double_ueg
 
-    function get_orb_from_kpoints(orbi, orbj, orba) result(orbb)
-        use sym_mod, only: mompbcsym
-        use SystemData, only: tHub, nbasismax
-        ! write a cleaner implementation of this multiple used 
-        ! functionality.. because kPointToBasisFn to basisfunction 
-        ! promises more than it actually odes 
-        integer, intent(in) :: orbi, orbj, orba
-        integer :: orbb
-
-        integer :: ki(3), kj(3), ka(3), kb(3), ispn, spnb
-
-        ispn = get_ispn([orbi,orbj])
-
-        ki = G1(orbi)%k
-        kj = G1(orbj)%k
-
-        ! Given A, calculate B in the same way as before
-        ka = G1(orba)%k
-        kb = ki + kj - ka
-        if (iSpn == 1) then
-            spnb = 1
-        elseif (iSpn == 2) then
-            ! w.d: bug found by peter jeszenski and confirmed by 
-            ! simon! 
-            ! i do not think this is so much more efficient than an 
-            ! additional if-statement which is way more clear!
-            ! messed up alpa and beta spin here.. 
-!             spnb = (-G1(orba)%Ms + 1)/2 + 1
-    !       spnb = (G1(orba)%Ms)/2 + 1
-            if (is_beta(orba)) then 
-                spnb = 2
-            else 
-                spnb = 1
-            end if
-        elseif(iSpn == 3) then
-            spnb = 2
-        end if
-
-        ! damn.. for some reason this is different treated in the 
-        ! hubbard and UEG case..
-        if (tHub) then 
-            call mompbcsym(kb, nbasismax)
-        end if
-
-        orbb = KPointToBasisFn(kb(1), kb(2), kb(3), spnb)
-
-    end function get_orb_from_kpoints
-
     subroutine pick_uniform_elecs(elecs, pelec) 
         integer, intent(out) :: elecs(2) 
         real(dp), intent(out) :: pelec
@@ -217,35 +168,8 @@ contains
         end do
 
     end subroutine create_ab_list_ueg
-  
-    function is_allowed_ueg_k_vector(orbi, orbj, orba) result(is_allowed)
-        integer, intent(in) :: orbi, orbj, orba 
-        logical :: is_allowed
 
-        integer :: ki(3), kj(3), ka(3), kb(3)
-        real(dp) :: testE
-
-        ki = G1(orbi)%k
-        kj = G1(orbj)%k
-
-        ! Obtain the new momentum vectors
-        ka = G1(orba)%k
-        kb = ki + kj - ka
-
-        ! Is kb allowed by the size of the space?
-        testE = sum(kb**2)
-        if (abs(kb(1)) <= nmaxx .and. abs(kb(2)) <= nmaxy .and. &
-            abs(kb(3)) <= nmaxz .and. &
-            (.not. (tOrbECutoff .and. (testE > OrbECutoff)))) then
-
-            is_allowed = .true. 
-        else 
-            is_allowed = .false.
-        end if
-
-    end function is_allowed_ueg_k_vector
-
-    function calc_pgen_ueg(nI, ilutI, ex, ic) result(pgen) 
+     function calc_pgen_ueg(nI, ilutI, ex, ic) result(pgen) 
         ! i also have to write a pgen recalculator for the pgens with this 
         ! new UEG excitation generator.. i am a bit confused why this has 
         ! not been done yet i have to admit.. 

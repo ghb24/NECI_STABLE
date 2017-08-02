@@ -5,7 +5,7 @@ module back_spawn
     use CalcData, only: t_back_spawn, tTruncInitiator, t_back_spawn_occ_virt, &
                         t_back_spawn_flex, tReadPops, back_spawn_delay
     use SystemData, only: nel, nbasis, G1, tGen_4ind_2, tGen_4ind_2_symmetric, & 
-                          tHub
+                          tHub, tUEG, nmaxx, nmaxy, nmaxz, tOrbECutoff, OrbECutoff
     use constants, only: n_int, dp, bits_n_int, lenof_sign, inum_runs
     use bit_rep_data, only: nifd, niftot
     use fcimcdata, only: projedet, max_calc_ex_level, ilutref
@@ -14,6 +14,7 @@ module back_spawn
                                SpinOrbSymLabel
     use Parallel_neci, only: iprocindex
     use DetBitOps, only: EncodeBitDet
+    use SymExcitDataMod, only: KPointToBasisFn
 
     implicit none
 
@@ -64,7 +65,7 @@ contains
         end if
 
         if (.not. tGen_4ind_2) then 
-            if (.not. tHub) then
+            if (.not. (tHub .or. tUEG)) then
                 call stop_all(this_routine, &
                     "for molecular systems this back-spawning need 4ind-weighted-2 or above!")
             end if
@@ -146,7 +147,6 @@ contains
                     "something went wrong in the mask_virt_ni setup")
             end if
 
-            print *, "mask_virt_ni: ", mask_virt_ni(:,k)
             ! and also encode the the ilut version
             ! oh thats true.. mask_virt_ni is not always of length(nel)
             call encode_mask_virt(mask_virt_ni(:,k), mask_virt_ilut(:,k))
@@ -380,6 +380,8 @@ contains
         j = 1
         occ_orbs = 0
         
+        ! i also have to include the whole symmetry shabang in the 
+        ! picker here or?? wtf
         do i = 1, nel 
             ! what am i testing here, actually 
             ! i want to loop over the reference det and check if it is 
@@ -415,7 +417,7 @@ contains
         integer, intent(out) :: orb
         character(*), parameter :: this_routine = "pick_occupied_orbital_ueg"
 
-        integer :: occ_orbs(nel), n_valid, j, ind, i
+        integer :: occ_orbs(nel), n_valid, j, ind, i, orb_a, orb_b
         ! the only difference in the ueg orbital picker is that it is not 
         ! restricted to pick a beta-orbital first in the case of 
         ! a opposite spin excitation
@@ -425,27 +427,38 @@ contains
         j = 1
         occ_orbs = 0
         ! loop over ref det 
+        ! in this routine i also have to check if the momentum is 
+        ! allowed! why didn't i do that before?? 
         do i = 1, nel 
+            orb_a = projedet(i, part_type_to_run(run))
             ! check if ref-det electron is NOT in nI
-            if (IsNotOcc(ilutI,projedet(i,part_type_to_run(run)))) then
+            if (IsNotOcc(ilutI, orb_a)) then
 !             if (.not. any(projedet(i,part_type_to_run(run)) == nI)) then 
                 ! check the symmetry here.. or atleast the spin..
                 ! if we are parallel i have to ensure the orbital has the 
                 ! same spin 
-                if (ispn /= 2) then 
-                    if (is_beta(projedet(i,part_type_to_run(run))) .eqv. &
-                        is_beta(src(1))) then
-                        ! this is a valid orbital i guess.. 
-                        n_valid = n_valid + 1 
-                        occ_orbs(j) = projedet(i,part_type_to_run(run)) 
-                        j = j + 1
+                if (is_allowed_ueg_k_vector(src(1), src(2), orb_a)) then
+                    ! i also have to check if orb b is not occupied ofc.. 
+                    ! what the fuck? why didn't i do that before 
+                    orb_b = get_orb_from_kpoints(src(1), src(2), orb_a)
+
+                    if (IsNotOcc(ilutI, orb_b) .and. orb_a /= orb_b) then 
+                        if (ispn /= 2) then 
+                            if (is_beta(projedet(i,part_type_to_run(run))) .eqv. &
+                                is_beta(src(1))) then
+                                ! this is a valid orbital i guess.. 
+                                n_valid = n_valid + 1 
+                                occ_orbs(j) = orb_a
+                                j = j + 1
+                            end if
+                        else 
+                            ! in the ueg case we can pick the first orbital freely 
+                            ! for a ispn == 2 excitation.. 
+                            n_valid = n_valid + 1
+                            occ_orbs(j) = orb_a
+                            j = j + 1
+                        end if
                     end if
-                else 
-                    ! in the ueg case we can pick the first orbital freely 
-                    ! for a ispn == 2 excitation.. 
-                    n_valid = n_valid + 1
-                    occ_orbs(j) = projedet(i,part_type_to_run(run))
-                    j = j + 1
                 end if
             end if
         end do
@@ -843,6 +856,83 @@ contains
 !         end associate
 
     end function is_in_virt_mask
+ 
+    function is_allowed_ueg_k_vector(orbi, orbj, orba) result(is_allowed)
+        integer, intent(in) :: orbi, orbj, orba 
+        logical :: is_allowed
+
+        integer :: ki(3), kj(3), ka(3), kb(3)
+        real(dp) :: testE
+
+        ki = G1(orbi)%k
+        kj = G1(orbj)%k
+
+        ! Obtain the new momentum vectors
+        ka = G1(orba)%k
+        kb = ki + kj - ka
+
+        ! Is kb allowed by the size of the space?
+        testE = sum(kb**2)
+        if (abs(kb(1)) <= nmaxx .and. abs(kb(2)) <= nmaxy .and. &
+            abs(kb(3)) <= nmaxz .and. &
+            (.not. (tOrbECutoff .and. (testE > OrbECutoff)))) then
+
+            is_allowed = .true. 
+        else 
+            is_allowed = .false.
+        end if
+
+    end function is_allowed_ueg_k_vector
+
+    function get_orb_from_kpoints(orbi, orbj, orba) result(orbb)
+        use sym_mod, only: mompbcsym
+        use SystemData, only: tHub, nbasismax
+        ! write a cleaner implementation of this multiple used 
+        ! functionality.. because kPointToBasisFn to basisfunction 
+        ! promises more than it actually odes 
+        integer, intent(in) :: orbi, orbj, orba
+        integer :: orbb
+
+        integer :: ki(3), kj(3), ka(3), kb(3), ispn, spnb
+
+        ispn = get_ispn([orbi,orbj])
+
+        ki = G1(orbi)%k
+        kj = G1(orbj)%k
+
+        ! Given A, calculate B in the same way as before
+        ka = G1(orba)%k
+        kb = ki + kj - ka
+        if (iSpn == 1) then
+            spnb = 1
+        elseif (iSpn == 2) then
+            ! w.d: bug found by peter jeszenski and confirmed by 
+            ! simon! 
+            ! i do not think this is so much more efficient than an 
+            ! additional if-statement which is way more clear!
+            ! messed up alpa and beta spin here.. 
+!             spnb = (-G1(orba)%Ms + 1)/2 + 1
+    !       spnb = (G1(orba)%Ms)/2 + 1
+            if (is_beta(orba)) then 
+                spnb = 2
+            else 
+                spnb = 1
+            end if
+        elseif(iSpn == 3) then
+            spnb = 2
+        end if
+
+        ! damn.. for some reason this is different treated in the 
+        ! hubbard and UEG case..
+        if (tHub) then 
+            call mompbcsym(kb, nbasismax)
+        end if
+
+        orbb = KPointToBasisFn(kb(1), kb(2), kb(3), spnb)
+
+    end function get_orb_from_kpoints
+
+
 
 end module back_spawn
 
