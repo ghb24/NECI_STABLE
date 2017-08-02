@@ -2305,7 +2305,10 @@ MODULE GenRandSymExcitNUMod
 
             ! This is the look-up table method of finding the kb orbital
             iSpinIndex=(kb_ms+1)/2+1
-            Hole2BasisNum=kPointToBasisFn(kb(1),kb(2),1,iSpinIndex)
+            ! [W.D.]
+            ! make the access to kpoint same in hubbard and ueg
+!             Hole2BasisNum=kPointToBasisFn(kb(1),kb(2),1,iSpinIndex)
+            Hole2BasisNum=kPointToBasisFn(kb(1),kb(2),kb(3),iSpinIndex)
 !Hole2BasisNum will be -1 if that orb is frozen
 
             ! Is b occupied?
@@ -3561,18 +3564,25 @@ SUBROUTINE SpinOrbSymSetup()
         kminX=0
         kmaxY=0
         kminY=0
+        ! [W.D:] can we make this the same as in the UEG: 
+        kminZ = 0
+        kmaxZ = 0
         do i=1,nBasis ! In the hubbard model with tilted lattice boundary conditions, it's unobvious what the maximum values of
                       ! kx and ky are, so this should be found
             IF(G1(i)%k(1).gt.kmaxX) kmaxX=G1(i)%k(1)
             IF(G1(i)%k(1).lt.kminX) kminX=G1(i)%k(1)
             IF(G1(i)%k(2).gt.kmaxY) kmaxY=G1(i)%k(2)
             IF(G1(i)%k(2).lt.kminY) kminY=G1(i)%k(2)
+            if (G1(i)%k(3) > kmaxz) kmaxz = g1(i)%k(3)
+            if (G1(i)%k(3) < kminz) kminz = g1(i)%k(3)
         enddo
-        ALLOCATE(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,1,2))
+!         ALLOCATE(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,1,2))
+        ALLOCATE(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,kminz:kmaxz,2))
         kPointToBasisFn=-1 !Init to invalid
+        print *, "kminz, kmaxz: ", kminz, kmaxz
         do i=1,nBasis
             iSpinIndex=(G1(i)%Ms+1)/2+1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
-            kPointToBasisFn(G1(i)%k(1),G1(i)%k(2),1,iSpinIndex)=i
+            kPointToBasisFn(G1(i)%k(1),G1(i)%k(2),G1(i)%k(3),iSpinIndex)=i
         enddo
     ENDIF
     

@@ -113,6 +113,8 @@ contains
     end subroutine gen_double_ueg
 
     function get_orb_from_kpoints(orbi, orbj, orba) result(orbb)
+        use sym_mod, only: mompbcsym
+        use SystemData, only: tHub, nbasismax
         ! write a cleaner implementation of this multiple used 
         ! functionality.. because kPointToBasisFn to basisfunction 
         ! promises more than it actually odes 
@@ -147,6 +149,13 @@ contains
         elseif(iSpn == 3) then
             spnb = 2
         end if
+
+        ! damn.. for some reason this is different treated in the 
+        ! hubbard and UEG case..
+        if (tHub) then 
+            call mompbcsym(kb, nbasismax)
+        end if
+
         orbb = KPointToBasisFn(kb(1), kb(2), kb(3), spnb)
 
     end function get_orb_from_kpoints
