@@ -1857,7 +1857,7 @@ contains
                         "Error in changing reference determinant &
                         &to open shell HPHF")
                 endif
-                write(iout,"(A)") "Now projecting onto open-shell &
+                write(iout,"(A,i3)") "Now projecting onto open-shell &
                     &HPHF as a linear combo of two determinants...&
                     & for run", run
                 tSpinCoupProjE(run) = .true.
