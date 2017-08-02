@@ -129,6 +129,7 @@ contains
         allocate(mask_virt_ilut(0:niftot,inum_runs))
 
         mask_virt_ilut = 0_n_int
+        mask_virt_ni = 0
 
         do k = 1, inum_runs
             j = 1
@@ -140,12 +141,33 @@ contains
                 mask_virt_ni(j,k) = i
                 j = j + 1
             end do
+            if (any(mask_virt_ni(:,k) == 0)) then 
+                call stop_all(this_routine, &
+                    "something went wrong in the mask_virt_ni setup")
+            end if
 
+            print *, "mask_virt_ni: ", mask_virt_ni(:,k)
             ! and also encode the the ilut version
-            call EncodeBitDet(mask_virt_ni(:,k), mask_virt_ilut(:,k))
+            ! oh thats true.. mask_virt_ni is not always of length(nel)
+            call encode_mask_virt(mask_virt_ni(:,k), mask_virt_ilut(:,k))
         end do
 
     end subroutine setup_virtual_mask
+
+    pure subroutine encode_mask_virt(nI, ilut) 
+        integer, intent(in) :: nI(nBasis -nel) 
+        integer(n_int), intent(out) :: ilut(0:niftot) 
+
+        integer :: i, pos
+
+        ilut = 0_n_int
+
+        do i = 1, nBasis - nel 
+            pos = (nI(i) - 1) / bits_n_int
+            ilut(pos) = ibset(ilut(pos), mod(nI(i) - 1, bits_n_int)) 
+        end do
+
+    end subroutine encode_mask_virt
 
     function check_electron_location(src, ic, run) result(loc)
         ! routine which determines where the electrons of of an determinant 

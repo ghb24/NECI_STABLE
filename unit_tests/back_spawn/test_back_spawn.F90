@@ -37,6 +37,7 @@ contains
         call run_test_case(test_pick_virtual_electron_single, "test_pick_virtual_electron_single")
         call run_test_case(test_get_ispn, "test_get_ispn")
         call run_test_case( test_pick_occupied_orbital_ueg, "test_pick_occupied_orbital_ueg")
+        call run_test_case(test_encode_mask_virt, "test_encode_mask_virt")
 
     end subroutine back_spawn_test_driver 
 
@@ -892,4 +893,28 @@ contains
 
     end subroutine test_pick_occupied_orbital_ueg
 
+    subroutine test_encode_mask_virt
+        ! todo!
+        use SystemData, only: nBasis, nel 
+        use bit_rep_data, only: niftot 
+        use constants, only: n_int
+
+        nBasis = 4 
+        nel = 2
+        niftot = 0
+
+        allocate(mask_virt_ni(nBasis - nel, 2)) 
+        allocate(mask_virt_ilut(0:niftot)) 
+
+        mask_virt_ni(:,1) = [1,2] 
+        mask_virt_ni(:,2) = [3,4]
+
+        call encode_mask_virt(mask_virt_ni(:,1), mask_virt_ilut(:,1)) 
+        call encode_mask_virt(mask_virt_ni(:,2), mask_virt_ilut(:,2))
+
+        call assert_true(mask_virt_ilut(:,1) /= 0_n_int)
+        call assert_true(mask_virt_ilut(:,2) /= 0_n_int) 
+        call assert_true(mask_virt_ilut(:,1) /= mask_virt_ilut(:,2))
+
+    end subroutine test_encode_mask_virt
 end program test_back_spawn
