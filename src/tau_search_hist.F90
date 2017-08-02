@@ -1740,8 +1740,8 @@ contains
             do k = 1, nBasis 
                 do j = 1, nbasis 
                     do i = 1, nBasis 
-                        if (all_ija_bins(i,j,k) /= 0) cycle 
-                        write(iunit, '(3a,i12)') i, j, k, all_ija_bins(i,j,k)
+                        if (all_ija_bins(i,j,k) == 0) cycle 
+                        write(iunit, '(3i3,i12)') i, j, k, all_ija_bins(i,j,k)
                     end do
                 end do
             end do

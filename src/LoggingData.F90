@@ -156,6 +156,6 @@ module LoggingData
     integer, allocatable :: ija_bins(:,:,:), all_ija_bins(:,:,:)
 
     ! also use a use defined threshold
-    real(dp) :: Thresh = 1.0e-4_dp
+    real(dp) :: Thresh = 1.0e-7_dp
 
 end module LoggingData
