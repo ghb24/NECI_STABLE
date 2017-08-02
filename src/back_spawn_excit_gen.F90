@@ -1018,7 +1018,6 @@ contains
         cc_index = ClassCountInd (get_spin(src), SpinOrbSymLabel(src), &
                                   G1(src)%Ml)
 
-
         ! i have to make the logic easier here at some point.. 
         ! we just need to do some extensive testing and decide on one 
         ! back-spawn method and abandon the rest.. 
@@ -1248,7 +1247,8 @@ contains
                 .or. (loc == 2 .and. occ_virt_level == -1) .or. &
                 (loc == 0 .and. occ_virt_level == 1)))) then 
 
-                if (any(orbs(2) == projedet(:,part_type_to_run(run)))) then
+                if (is_in_ref(orbs(2), run)) then
+!                 if (any(orbs(2) == projedet(:,part_type_to_run(run)))) then
                    ! if (b) is also in the occupied manifold i could have 
                     ! picked the other way around.. 
                     ! with the same uniform probability: 
@@ -1453,8 +1453,7 @@ contains
 
                 end if
 
-
-                if ((t_back_spawn_occ_virt) .or. (t_back_spawn_flex_option .and.&
+                if ((t_back_spawn_occ_virt) .or. (t_back_spawn_flex .and.&
                     ((loc == 2 .and. occ_virt_level /= -1) .or. occ_virt_level == 2))) then 
 
 
@@ -1483,40 +1482,14 @@ contains
             else if (ic == 2) then 
 
 
-                src = ex(1,:)
-                tgt = ex(2,:)
+                src = get_src(ex)
 
-                ! get all the necessary symmetry info at the beginning
-                if (is_beta(src(1)) .eqv. is_beta(src(2))) then
-                    if (is_beta(src(1))) then
-                        iSpn = 1
-                    else
-                        iSpn = 3
-                    end if
-                else
-                    iSpn = 2
-                end if
+                ispn = get_ispn(src)
+
                 sum_ml = sum(G1(src)%ml)
 
                 sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(src(1)), &
                                                  SpinOrbSymLabel(src(2)))
-
-                if (t_back_spawn_flex_option) then 
-
-                    elec_pgen = pgen_weighted_elecs(nI, src)
-
-                    loc = check_electron_location(src, 2, run)
-
-
-                else 
-
-                    call pick_virtual_electrons_double(nI, run, dummy_elecs, &
-                        dummy_orbs, dummy_ispn, dummy_sum_ml, elec_pgen) 
-
-
-                    loc = -1
-
-                end if
 
                 ! i have to be careful with the orbitals.. 
                 ! because i guess those get ordered.. and i have to check if 
@@ -1530,17 +1503,44 @@ contains
                 ! do this testing here once
                 ! todo: i have to fix this since here i do not know anymore 
                 ! what was orb a and orb b since ex is sorted.. 
+                tgt = get_tgt(ex)
                 t_in_ref = (is_in_ref(tgt(1),run) .and. is_in_ref(tgt(2),run))
                 t_par = (is_beta(tgt(1)) .eqv. is_beta(tgt(2)))
 
+                ! now i know.. for opposite spin excitations the beta orbital 
+                ! of tgt was the first picked one! so it would be best to 
+                ! switch it back, so i can correctly recalculate the 
+                ! pgen.. for parallel spin excitations the order does not 
+                ! matter 
+                if (.not. t_par) then 
+                    if (.not. is_beta(tgt(1))) then 
+                        tgt = [tgt(2),tgt(1)]
+                    end if
+                end if
+
+                if (t_back_spawn_flex) then 
+
+                    elec_pgen = pgen_weighted_elecs(nI, src)
+
+                    loc = check_electron_location(src, 2, run)
+
+
+                else 
+
+                    call pick_virtual_electrons_double(nI, run, dummy_elecs, &
+                        dummy_orbs, dummy_ispn, dummy_sum_ml, elec_pgen) 
+
+                    loc = -1
+
+                end if
                 ! for some back_spawn_flex it can happen that we have no 
                 ! restrictions on the orbitals.. but thats rare i guess..
-                if (t_back_spawn_occ_virt .or. (t_back_spawn_flex_option .and. &
+                if (t_back_spawn_occ_virt .or. (t_back_spawn_flex .and. &
                     ((loc == 1 .and. occ_virt_level /= -1) .or. loc == 2 .or. &
                     (loc == 0.and. occ_virt_level >= 1)))) then 
 
-                    call pick_occupied_orbital(nI, ilutI, src, ispn, run, int_cpt(1),&
-                        cum_sum(1), dummy_orbs(1))
+                    call pick_occupied_orbital(nI, ilutI, src, ispn,&
+                        run, int_cpt(1), cum_sum(1), dummy_orbs(1))
 
                     ! i can atleast do some stuff for picking it the other
                     ! way or?
@@ -1560,7 +1560,7 @@ contains
                     ! here i should go on to calculate p(b|aij) since in the 
                     ! other case we have everything.. 
 
-                    if (t_back_spawn_flex_option .and. (&
+                    if (t_back_spawn_flex .and. (&
                         (loc == 2 .and. occ_virt_level /= -1) .or. occ_virt_level == 2)) then
 
                         ! this is the case where orbital (b) is also restricted
@@ -1582,6 +1582,9 @@ contains
 
                     else
 
+                        ! the order should not matter or?? 
+                        ! or does it? and i always force a beta orbital 
+                        ! to be picked first.. hm.. 
                         call pgen_select_orb(ilutI, src, tgt(1), tgt(2), int_cpt(2), &
                             cum_sum(2))
 
@@ -1637,9 +1640,22 @@ contains
                 ! i only want to handle these cases, which i have not 
                 ! recalculated above already. especially for the p(b|ij) 
                 ! probability.. 
+                ! duh.. i have to actually do something with the above 
+                ! calculated pgens..
 
                 ! now i have to figure p(ab), p(ba) stuff.. and implement this 
                 ! above.. annoying..
+
+                if (any(cum_sum < EPS)) then 
+                    int_cpt = 0.0_dp
+                    cum_sum = 1.0_dp
+                end if
+                if (any(sum_pair < EPS)) then 
+                    cpt_pair = 0.0_dp 
+                    sum_pair = 1.0_dp 
+                end if
+                pgen = pDoubles * elec_pgen * (product(int_cpt) / product(cum_sum) + &
+                       product(cpt_pair) / product(sum_pair))
 
             else 
 
@@ -1647,7 +1663,6 @@ contains
 
             end if
         end if
-        
 
     end function calc_pgen_back_spawn
 
