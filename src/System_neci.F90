@@ -483,13 +483,6 @@ system: do
         case ("NEXT-NEAREST-HOPPING")
             call getf(nn_bhub)
 
-        case ("TWISTED-BC")
-            t_twisted_bc = .true. 
-            call getf(twisted_bc(1))
-            if (item < nitems) then
-                call getf(twisted_bc(2))
-            end if
-
         case("REAL")
             TREAL = .true.
             ! in case of the real-space lattice also turn off symmetries
