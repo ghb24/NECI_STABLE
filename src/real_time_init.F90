@@ -155,8 +155,13 @@ contains
         if(numSnapshotOrbs>0) then 
            allocate(popSnapshot(numSnapshotOrbs),stat=ierr)
            allocate(allPopSnapshot(numSnapshotOrbs),stat=ierr)
-           popSnapshot = 0
-           allPopSnapshot = 0
+           popSnapshot = 0.0_dp
+           allPopSnapshot = 0.0_dp
+        else
+           allocate(popSnapshot(1),stat=ierr)
+           allocate(allPopSnapshot(numSnapshotOrbs),stat=ierr)
+           popSnapshot = 0.0_dp
+           allPopSnapshot = 0.0_dp
         endif
         allocate(overlap_real(gf_count),overlap_imag(gf_count))
         allocate(gf_overlap(normsize,gf_count), stat = ierr)
@@ -172,10 +177,8 @@ contains
            allocate(shift_damping(inum_runs), stat = ierr)
            shift_damping = 0.0_dp
         endif
-        if(tLimitShift) then 
-           allocate(numCycShiftExcess(inum_runs), stat = ierr)
-           numCycShiftExcess = 0
-        endif
+        allocate(numCycShiftExcess(inum_runs), stat = ierr)
+        numCycShiftExcess = 0
         ! allocate spawn buffer for verlet scheme
         if(tVerletScheme) allocate(spawnBuf(0:niftot,1:maxSpawned))
 
@@ -318,7 +321,6 @@ contains
         AllInitRemoved_1 = 0
         AccRat_1 = 0.0_dp
         AllSumWalkersCyc_1 = 0.0_dp
-        numCycShiftExcess = 0
 
         tVerletSweep = .false.
         if(tVerletScheme) then 
@@ -792,7 +794,6 @@ contains
         ! no such concept as the varying shift in the real-time fciqmc
         ! exception: when using rotated times, the shift still has to be considered
         tWalkContGrow = .true.
-        tSinglePartPhase = .true.
 
         ! probably not change reference anymore.. but check
         tChangeProjEDet = .true.
