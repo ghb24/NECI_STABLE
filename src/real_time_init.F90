@@ -15,7 +15,7 @@ module real_time_init
                               NoInitWalk_1, NoNonInitWalk_1, InitRemoved_1, tDynamicAlpha, &
                               AllNoatHF_1, AllNoatHF_1, AllGrowRate_1, AllGrowRateAbort_1, &
                               AllNoBorn_1, AllSpawnFromSing_1, AllNoDied_1, gf_count, &
-                              AllAnnihilated_1, AllNoAborted_1, AllNoRemoved_1, &
+                              AllAnnihilated_1, AllNoAborted_1, AllNoRemoved_1, allPopSnapshot, &
                               AllNoAddedInitiators_1, AllNoInitDets_1, AllNoNonInitDets_1, &
                               AllNoInitWalk_1, AllNoNonInitWalk_1, AllInitRemoved_1, &
                               AccRat_1, AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap, &
@@ -154,7 +154,9 @@ contains
         normsize = inum_runs**2
         if(numSnapshotOrbs>0) then 
            allocate(popSnapshot(numSnapshotOrbs),stat=ierr)
+           allocate(allPopSnapshot(numSnapshotOrbs),stat=ierr)
            popSnapshot = 0
+           allPopSnapshot = 0
         endif
         allocate(overlap_real(gf_count),overlap_imag(gf_count))
         allocate(gf_overlap(normsize,gf_count), stat = ierr)
@@ -668,6 +670,11 @@ contains
                 ! specify a maximum number of spawn attempts per determinant in
                 ! regulation mode (i.e. for large number of spawns)
                 call readi(nspawnMax)
+                
+             case("COMPLEXWALKERS-COMPLEXINTS")
+                ! if we really use complex integrals, we have to tell as the
+                ! default is using real integrals with complex walkers
+                tComplexWalkers_RealInts = .false.
                 
              case("RT-POPS")
                 ! in addition to the 'normal' popsfile, a second one is supplied

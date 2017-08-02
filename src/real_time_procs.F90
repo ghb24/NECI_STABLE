@@ -1367,12 +1367,21 @@ contains
       
       implicit none
       integer, intent(in) :: i
-      integer :: iOrb, nI(nel), iEl
-
+      integer :: iOrb, nI(nel), iEl, part
+      real(dp) :: avPop, tmpSign(lenof_sign)
+      
       call decode_bit_det(nI,CurrentDets(:,i))
       do iOrb = 1, numSnapshotOrbs
          do iEl = 1, nel
-            if(nI(iEl) .eq. snapshotOrbs(iOrb)) popSnapshot(iOrb) = popSnapshot(iOrb) + 1
+            if(nI(iEl) .eq. snapshotOrbs(iOrb)) then 
+               avPop = 0
+               call extract_sign(CurrentDets(:,i),tmpSign)
+               do part = 1, lenof_sign
+                  avPop=avPop + abs(tmpSign(part))
+               enddo
+               avPop=avPop/inum_runs
+               popSnapshot(iOrb) = popSnapshot(iOrb) + avPop
+            endif
          end do
       end do
       

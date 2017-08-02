@@ -49,7 +49,7 @@ module real_time_data
     ! maximum shift that can be used and counter to track the cycles
     real(dp) :: shiftLimit
     integer, allocatable :: numCycShiftExcess(:)
-    integer, allocatable :: popSnapshot(:)
+    integer, allocatable :: popSnapshot(:), allPopSnapShot(:)
     integer, allocatable :: snapshotOrbs(:)
     integer :: numSnapshotOrbs
     ! averaged overlaps

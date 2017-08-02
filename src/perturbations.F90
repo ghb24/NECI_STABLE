@@ -158,16 +158,15 @@ contains
                 ! If a phase factor is to be added, do it now
                 if(present(phase)) then
                    call extract_sign(ilut,tmp_sign)
-                   if(present(phase)) then
-                      do run = 1, inum_runs
-                         ! multiply by exp(i*phase)
-                         tmp_real = tmp_sign(min_part_type(run))
-                         tmp_sign(min_part_type(run)) = cos(phase)*tmp_sign(min_part_type(run)) &
-                              - sin(phase) * tmp_sign(max_part_type(run))
-                         tmp_sign(max_part_type(run)) = sin(phase)*tmp_real + cos(phase) *&
-                              max_part_type(run)
-                      end do
-                endif
+                   do run = 1, inum_runs
+                      ! multiply by exp(i*phase)
+                      tmp_real = tmp_sign(min_part_type(run))
+                      tmp_sign(min_part_type(run)) = cos(phase)*tmp_sign(min_part_type(run)) &
+                           - sin(phase) * tmp_sign(max_part_type(run))
+                      tmp_sign(max_part_type(run)) = sin(phase)*tmp_real + cos(phase) *&
+                           max_part_type(run)
+                   end do
+                   call encode_sign(ilut,tmp_sign)
                 endif
                 SpawnedParts(:, ValidSpawnedList(proc)) = ilut
                 ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
@@ -180,7 +179,7 @@ contains
              " to ", perturb%crtn_orbs(1)
         ndets = ndets - nremoved
 
-
+        print *, "Communicating perturbed dets"
         ! Send perturbed determinants to their new processors.
         call SendProcNewParts(ndets, tSingleProc=.false.)
  

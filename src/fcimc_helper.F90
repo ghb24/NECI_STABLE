@@ -349,6 +349,8 @@ contains
          write(6,*) "Attempting to spawn particle onto processor: ", proc
          write(6,*) "No memory slots available for this spawn."
          write(6,*) "Please increase MEMORYFACSPAWN"
+         write(6,*) ValidSpawnedList
+         write(6,*) InitialSpawnedSlots
          call stop_all(source, "Out of memory for spawned particles")
       end if
     end subroutine checkValidSpawnedList

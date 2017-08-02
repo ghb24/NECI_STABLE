@@ -759,9 +759,6 @@ contains
             ! particle on a determinant).
             fcimc_excit_gen_store%tFilled = .false.
 
-            ! get new population of observed orbitals
-            call makePopSnapshot(idet)
-
             call extract_bit_rep(CurrentDets(:,idet), nI_parent, parent_sign, unused_flags, &
                                   fcimc_excit_gen_store)
 
@@ -792,6 +789,9 @@ contains
                 temp_freeslot(temp_iendfreeslot) = idet
                 cycle
             end if
+
+            ! get new population of observed orbitals
+            call makePopSnapshot(idet)
 
             ! The current diagonal matrix element is stored persistently.
             parent_hdiag = det_diagH(idet)

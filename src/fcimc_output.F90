@@ -35,7 +35,7 @@ module fcimc_output
                               AllTotParts_1, AccRat_1, AllGrowRate_1, normsize, snapShotOrbs, &
                               current_overlap, t_real_time_fciqmc, elapsedRealTime, &
                               elapsedImagTime, overlap_real, overlap_imag, dyn_norm_psi,&
-                              dyn_norm_red, real_time_info, popSnapshot, numSnapshotOrbs
+                              dyn_norm_red, real_time_info, allPopSnapshot, numSnapshotOrbs
     implicit none
 
 contains
@@ -658,7 +658,7 @@ contains
             do p = 1, numSnapshotOrbs
                ! if any orbitals are monitored, output their population
                write(tmpc, '(i5)') snapShotOrbs(p)
-               call stats_out(state,.false.,popSnapshot(p),'Population of ' &
+               call stats_out(state,.false.,allPopSnapshot(p),'Population of ' &
                     // trim(adjustl(tmpc)))
             end do
 #endif

@@ -38,8 +38,8 @@ module fcimc_iter_utils
         AllNoAborted_1, AllNoInitWalk_1, AllNoNonInitWalk_1, AllNoRemoved_1, &
         all_bloom_count_1, NoAddedInitiators_1, AccRat_1, SumWalkersCyc_1, &
         nspawned_1, nspawned_tot_1, second_spawn_iter_data, TotParts_1, &
-        AllTotParts_1, AllTotPartsOld_1, TotWalkers_1, AllTotWalkers_1, &
-        AllTotWalkersOld_1, AllSumWalkersCyc_1, OldAllAvWalkersCyc_1
+        AllTotParts_1, AllTotPartsOld_1, TotWalkers_1, AllTotWalkers_1, allPopSnapshot, &
+        AllTotWalkersOld_1, AllSumWalkersCyc_1, OldAllAvWalkersCyc_1, popSnapshot
 #endif 
     use double_occ_mod, only: inst_double_occ, all_inst_double_occ, sum_double_occ, &
                               sum_norm_psi_squared
@@ -397,7 +397,7 @@ contains
 #if defined __REALTIME
         integer, parameter :: real_arr_size = 2000
         integer, parameter :: hel_arr_size = 200
-        integer, parameter :: NoArrs = 47
+        integer, parameter :: NoArrs = 48
         integer(int64) :: TotWalkersTemp_1
 #else
         integer, parameter :: real_arr_size = 1000
@@ -494,6 +494,7 @@ contains
         sizes(45) = 1 ! TotWalkersTemp_1
         sizes(46) = size(SpawnFromSing_1)
         sizes(47) = size(iter_data_fciqmc%update_growth)
+        sizes(48) = size(popSnapShot)
 #endif
 
         if (sum(sizes(1:NoArrs)) > real_arr_size) call stop_all(t_r, &
@@ -553,6 +554,7 @@ contains
         low = upp + 1; upp = low + sizes(45) - 1; send_arr(low:upp) = TotWalkersTemp_1;
         low = upp + 1; upp = low + sizes(46) - 1; send_arr(low:upp) = SpawnFromSing_1;
         low = upp + 1; upp = low + sizes(47) - 1; send_arr(low:upp) = iter_data_fciqmc%update_growth;
+        low = upp + 1; upp = low + sizes(48) - 1; send_arr(low:upp) = popSnapShot;
 #endif
 
         ! Perform the communication.
@@ -618,6 +620,7 @@ contains
         low = upp + 1; upp = low + sizes(45) - 1; AllTotWalkers_1 = nint(recv_arr(low), int64);
         low = upp + 1; upp = low + sizes(46) - 1; AllSpawnFromSing_1 = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(47) - 1; iter_data_fciqmc%update_growth_tot = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(48) - 1; allPopSnapShot = recv_arr(low:upp);
 #endif
 
         ! Communicate HElement_t variables:

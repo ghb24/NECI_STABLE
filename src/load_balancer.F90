@@ -448,7 +448,7 @@ contains
             TotWalkersNew = TotWalkersNew + 1
             DetPosition = TotWalkersNew
             if (TotWalkersNew >= MaxWalkersPart) then
-               write(6,*) "Memory available:", MaxWalkersPart, " Reqired:", TotWalkersNew
+               write(6,*) "Memory available:", MaxWalkersPart, " Required:", TotWalkersNew
                 call stop_all(t_r, "Not enough memory to merge walkers into main list. Increase MemoryFacPart")
              end if
         end if
