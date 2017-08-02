@@ -367,7 +367,7 @@ contains
             if (IsNotOcc(ilutI, projedet(i,part_type_to_run(run)))) then 
 !             if (.not. any(projedet(i,part_type_to_run(run)) == nI)) then 
                 n_valid = n_valid + 1
-                occ_orbs(j) = i 
+                occ_orbs(j) = projedet(i,part_type_to_run(run)) 
                 j = j + 1
             end if 
         end do

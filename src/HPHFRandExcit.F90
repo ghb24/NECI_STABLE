@@ -169,7 +169,7 @@ MODULE HPHFRandExcitMod
                                           ExcitMat, tSignOrig, pgen, Hel, store, run)
             else if (tHUB .and. tLatticeGens) then
                 call gen_excit_back_spawn_hubbard (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat,&
-                                 tSignOrig, pGen, HEl, store)
+                                 tSignOrig, pGen, HEl, store, run)
             else
                 call gen_excit_back_spawn(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
                                           ExcitMat, tSignOrig, pgen, Hel, store, run)
