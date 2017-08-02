@@ -259,10 +259,6 @@ logical :: tGen_4ind_unbound = .false.
 ! for k-space hubbard, this only affects the diagonal part! 
 real(dp) :: nn_bhub = 0.0_dp
 
-! i have to merge the twisted bc into master i just realized!
-logical :: t_twisted_bc = .false.
-real(dp) :: twisted_bc(2) = 0.0_dp
-
 ! Operators for type(symmetry)
 interface assignment (=)
     module procedure SymAssign
