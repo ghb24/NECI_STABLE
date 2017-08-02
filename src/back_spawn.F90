@@ -271,15 +271,7 @@ contains
         src = nI(elecs)
 
         
-        if (is_beta(src(1)) .eqv. is_beta(src(2))) then
-            if (is_beta(src(1))) then
-                iSpn = 1
-            else
-                iSpn = 3
-            end if
-        else
-            iSpn = 2
-        end if
+        ispn = get_ispn(src)
 
         ! The Ml value is obtained from the orbitals
         sum_ml = sum(G1(src)%Ml)

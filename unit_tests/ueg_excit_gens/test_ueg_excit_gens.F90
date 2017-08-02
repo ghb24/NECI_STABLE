@@ -209,6 +209,7 @@ contains
         use symexcitdatamod, only: kpointtobasisfn
         use DetBitOps, only: EncodeBitDet
         use procedure_pointers, only: get_umat_el
+        use dSFMT_interface, only: dSFMT_init
 
         integer :: ic = 1, ex(2,2) 
         integer, allocatable :: nI(:)
@@ -230,13 +231,18 @@ contains
         nmaxy = 2
         nmaxz = 2
         tOrbECutoff = .false.
-        niftot = 1
         allocate(KPointToBasisFn(-nmaxx:nmaxx, -nmaxy:nmaxy, -nmaxz:nmaxz, 2))
  
         G1(1)%k = [1,0,0]
         G1(2)%k = [0,1,0]
         G1(3)%k = [1,1,0]
         G1(4)%k = [0,0,0]
+
+        ! i also have to set the ms value in G1 
+        G1(1)%ms = -1 
+        G1(2)%ms = 1 
+        G1(3)%ms = -1 
+        G1(4)%ms = 1
 
         KPointToBasisFn(0,1,0,2) = 2 ! i should get kb = [0,1,0]
         KPointToBasisFn(1,0,0,1) = 3
@@ -251,23 +257,27 @@ contains
         print *, "with necessary global data: "
         ! there is alot of setup necessary.. 
 
+        call dSFMT_init(123)
+
         call assert_equals(0.0_dp, calc_pgen_ueg(nI, ilut, ex, ic))
         ic = 2
         ! we still have spin-opposite excitations with cancelling matrix 
         ! elements.. (i guess..) 
-        call assert_equals(0.0_dp, calc_pgen_ueg(nI, ilut, ex, ic))
+        ! no i was just doing this wrong beforehand.. fix it now!
+        call assert_equals(1.0_dp, calc_pgen_ueg(nI, ilut, ex, ic))
         ! if we fake a (1,2) -> (1,2) excitation it should be fine as 
         ! above
 
         ilut = 0_n_int
         ex(2,:) = [1,2]
 
-        call assert_equals(0.5_dp, calc_pgen_ueg(nI, ilut, ex, ic))
+        call assert_equals(1.0_dp/3.0_dp, calc_pgen_ueg(nI, ilut, ex, ic))
 
         ! although this test is dangerous, since actually orb_b > orb_a is 
         ! enforced in the excitation generator.. but anyway.. 
+        ! hm.. but why does the function not capture that??
         ex(2,:) = [2,1]
-        call assert_equals(0.5_dp, calc_pgen_ueg(nI, ilut, ex, ic))
+        call assert_equals(1.0_dp/3.0_dp, calc_pgen_ueg(nI, ilut, ex, ic))
 
         get_umat_el => null() 
         nel = -1

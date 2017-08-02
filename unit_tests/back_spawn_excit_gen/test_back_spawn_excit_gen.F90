@@ -21,6 +21,7 @@ contains
 
         call run_test_case(calc_pgen_back_spawn_ueg_test, "calc_pgen_back_spawn_ueg_test")
         call run_test_case(calc_pgen_back_spawn_hubbard_test, "calc_pgen_back_spawn_hubbard_test")
+        call run_test_case(calc_pgen_back_spawn_ueg_new_test, "calc_pgen_back_spawn_ueg_new_test")
 
     end subroutine back_spawn_excit_gen_test_driver
 
@@ -333,5 +334,165 @@ contains
 
     end subroutine calc_pgen_back_spawn_hubbard_test
 
+    subroutine calc_pgen_back_spawn_ueg_new_test
+        use SystemData, only: nel, nBasis, G1, nmaxx, nmaxy, nmaxz, ElecPairs, &
+                              tOrbECutoff
+        use bit_rep_data, only: niftot, tUseflags, noffflag
+        use constants, only: dp, n_int
+        use detbitops, only: encodebitdet
+        use dSFMT_interface, only: dSFMT_init
+        use bit_reps, only: set_flag, get_initiator_flag, test_flag
+        use symexcitdatamod, only: kpointtobasisfn
+        use procedure_pointers, only: get_umat_el
+        use CalcData, only: t_back_spawn_flex, occ_virt_level
+        use ueg_excit_gens, only: create_ab_list_ueg
+        use FciMCData, only: ilutref, projedet
+
+        integer, allocatable :: nI(:) 
+        integer(n_int), allocatable :: ilut(:) 
+        integer :: ex(2,2), ic, run
+        real(dp), allocatable :: cum_arr(:)
+        real(dp) :: cum_sum
+
+        nel = 2
+        nBasis = 4
+        niftot = 1
+        noffflag = 0
+        tUseflags = .true.
+
+        allocate(cum_arr(nBasis))
+        get_umat_el => get_umat_test
+        ElecPairs = 1
+        allocate(G1(nBasis))
+
+        allocate(nI(nel)); nI = [1,2]
+        allocate(ilut(0:niftot)); call EncodeBitDet(nI, ilut)
+
+        allocate(ilutref(0:niftot,1))
+        allocate(projedet(nel,1)); projedet(:,1) = [1,2]
+        call encodebitdet(projedet(:,1), ilutref(:,1))
+        nmaxx = 2
+        nmaxy = 2
+        nmaxz = 2
+        tOrbECutoff = .false.
+        niftot = 1
+        allocate(KPointToBasisFn(-nmaxx:nmaxx, -nmaxy:nmaxy, -nmaxz:nmaxz, 2))
+ 
+        t_back_spawn_flex = .true.
+        occ_virt_level = 0
+
+        G1(1)%k = [1,0,0]
+        G1(2)%k = [0,1,0]
+        G1(3)%k = [1,1,0]
+        G1(4)%k = [0,0,0]
+
+        ! i also have to set the ms value in G1 
+        G1(1)%ms = -1 
+        G1(2)%ms = 1 
+        G1(3)%ms = -1 
+        G1(4)%ms = 1
+
+        KPointToBasisFn(0,1,0,2) = 2 ! i should get kb = [0,1,0]
+        KPointToBasisFn(1,0,0,1) = 3
+        KPointToBasisFn(0,0,0,2) = 4
+        KPointToBasisFn(1,1,0,1) = 1 
+
+        ex(1,:) = [1,2]
+        ex(2,:) = [3,4]
+        ic = 1
+        run = 1
+
+        print *, "" 
+        print *, "testing: calc_pgen_back_spawn_ueg"
+        print *, "with necessary global data: " 
+        print *, "nel: ", nel 
+        print *, "nBasis: ", nbasis
+        print *, "niftot: ", niftot
+        print *, "encodebitdet() " 
+        print *, "dSFMT_init "
+        call dSFMT_init(123)
+
+        ! here ic = 1
+        call assert_equals(0.0_dp, calc_pgen_back_spawn_ueg_new(nI, ilut, ex, ic, run))
+
+        call set_flag(ilut, get_initiator_flag(run), .true.)
+        ic = 2
+
+
+        ! here ic = 2 and inititator
+        call assert_equals(1.0_dp, calc_pgen_back_spawn_ueg_new(nI, ilut, ex, ic, run))
+
+        ex(2,:) = [1,2]
+
+        ilut = 0_n_int
+        call set_flag(ilut, get_initiator_flag(run), .true.)
+
+        call create_ab_list_ueg(ilut, [1,2], cum_arr, cum_sum)
+
+        print *, "cum_arr: ", cum_arr
+        print *, "cum_sum: ", cum_sum
+
+        ! here it should give the same result as the ueg test.. which is 
+        ! 0.5.. why doesnt it? 
+        call assert_equals(1.0_dp/3.0_dp, calc_pgen_back_spawn_ueg_new(nI, ilut, ex, ic, run))
+
+        ! although this test is dangerous, since actually orb_b > orb_a is 
+        ! enforced in the excitation generator.. but anyway.. 
+        ex(2,:) = [2,1]
+
+        ! first try if calc_pgen_ueg gets called correctly for inits
+        call assert_equals(1.0_dp/3.0_dp, calc_pgen_back_spawn_ueg_new(nI, ilut, ex, ic, run))
+
+
+        ! and now we want to test the actual back-spawn part of it.. 
+        call set_flag(ilut, get_initiator_flag(run), .false.)
+
+        ! but i need even more setup for that! 
+        ! ilutref and stuff 
+        ! start with 
+        ex(2,:) = [3,4]
+
+        call assert_equals(1.0_dp/2.0_dp, calc_pgen_back_spawn_ueg_new(nI, ilut, ex, ic, run))
+
+        ex(1,:) = [3,4]
+        ! what if both electrons are outside? 
+        ! it should be the same as above.. 
+        call assert_equals(1.0_dp/3.0_dp, calc_pgen_back_spawn_ueg_new(nI, ilut, ex, ic, run))
+
+        ex(1,:) = [1,4]
+        call assert_equals(1.0_dp/2.0_dp, calc_pgen_back_spawn_ueg_new(nI, ilut, ex, ic, run))
+
+        ex(1,:) = [1,3]
+        call assert_equals(1.0_dp, calc_pgen_back_spawn_ueg_new(nI, ilut, ex, ic, run))
+
+        projedet(:,1) = [1,3]
+        call assert_equals(1.0_dp/2.0_dp, calc_pgen_back_spawn_ueg_new(nI, ilut, ex, ic, run))
+
+        ex(1,:) = [2,4] 
+        call assert_equals(0.0_dp, calc_pgen_back_spawn_ueg_new(nI, ilut, ex, ic, run))
+
+        get_umat_el => null()
+        nel = -1
+        niftot = -1
+        ElecPairs = -1
+        nBasis = -1
+        deallocate(G1)
+        deallocate(kpointtobasisfn)
+        deallocate(ilutref) 
+        nmaxx = -1 
+        nmaxy = -1
+        nmaxz = -1
+
+
+    end subroutine calc_pgen_back_spawn_ueg_new_test
+
+    function get_umat_test(i,j,k,l) result(hel)
+        use constants, only: dp 
+        implicit none
+        integer, intent(in) :: i,j,k,l
+        HElement_t(dp) :: hel 
+
+        hel = 1.0_dp
+    end function get_umat_test
 end program test_back_spawn_excit_gen
 

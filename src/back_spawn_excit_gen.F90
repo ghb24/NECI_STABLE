@@ -4,7 +4,7 @@ module back_spawn_excit_gen
 
     use constants, only: dp, n_int, EPS, bits_n_int
     use SystemData, only: nel, G1, nbasis, tHPHF, NMAXX, NMAXY, NMAXZ, &
-                          tOrbECutoff, OrbECutoff, nOccBeta, nOccAlpha
+                          tOrbECutoff, OrbECutoff, nOccBeta, nOccAlpha, ElecPairs
     use bit_rep_data, only: niftot
     use SymExcitDataMod, only: excit_gen_store_type, SpinOrbSymLabel, kPointToBasisFn
     use bit_reps, only: test_flag, get_initiator_flag
@@ -26,8 +26,10 @@ module back_spawn_excit_gen
                           pick_virtual_electrons_double_hubbard, pick_occupied_orbital_hubbard
     use get_excit, only: make_single, make_double
     use Determinants, only: write_det, get_helement
-    use ueg_excit_gens, only: get_orb_from_kpoints, is_allowed_ueg_k_vector
-!     use hphf_integrals, only: hphf_off_diag_helement
+    use ueg_excit_gens, only: get_orb_from_kpoints, is_allowed_ueg_k_vector, &
+                              gen_double_ueg, create_ab_list_ueg, pick_uniform_elecs, & 
+                              calc_pgen_ueg
+    use util_mod, only: binary_search_first_ge
 
 #ifdef __DEBUG 
     use SystemData, only: tNoFailAb
@@ -36,6 +38,181 @@ module back_spawn_excit_gen
     implicit none
 
 contains
+
+    subroutine gen_excit_back_spawn_ueg_new(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+            ExcitMat, tParity, pgen, HelGen, store, run) 
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:niftot)
+        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2) 
+        integer(n_int), intent(out) :: ilutJ(0:niftot)
+        logical, intent(out) :: tParity 
+        real(dp), intent(out) :: pgen 
+        HElement_t(dp), intent(out) :: HElGen
+        type(excit_gen_store_type), intent(inout), target :: store 
+        integer, intent(in), optional :: run
+        character(*), parameter :: this_routine = "gen_excit_back_spawn_ueg_new"
+ 
+        integer :: iUnused
+
+        ic = 2 
+
+        ! do i want to implement both old and new back spawn?? 
+        ! no!
+        if ((t_back_spawn_flex .or. t_back_spawn) .and. & 
+            .not. test_flag(ilutI, get_initiator_flag(run))) then 
+
+            call gen_double_back_spawn_ueg_new(nI, ilutI, run, nJ, ilutJ, tParity, &
+                ExcitMat, pgen)
+
+        else 
+
+            call gen_double_ueg(nI, ilutI, nJ, ilutJ, tParity, ExcitMat, pgen)
+
+        end if
+
+    end subroutine gen_excit_back_spawn_ueg_new
+
+    subroutine gen_double_back_spawn_ueg_new(nI, ilutI, run, nJ, ilutJ, tPar, ex, pgen)
+        integer, intent(in) :: nI(nel), run
+        integer(n_int), intent(in) :: ilutI(0:niftot) 
+        integer, intent(out) :: nJ(nel), ex(2,2)
+        integer(n_int), intent(out) :: ilutJ(0:niftot)
+        logical, intent(out) :: tPar 
+        real(dp), intent(out) :: pgen 
+
+        integer :: elecs(2), src(2), ispn, sum_ml, loc, orb_a, orb_b
+        real(dp) :: p_elec, p_orb, dummy, cum_arr(nBasis), cum_sum
+
+        if (t_back_spawn) then 
+            call pick_virtual_electrons_double(nI, run, elecs, src, ispn, &
+                sum_ml, p_elec) 
+
+        else 
+            call pick_uniform_elecs(elecs, p_elec)
+            src = nI(elecs) 
+
+            ispn = get_ispn(src)
+
+        end if
+
+        if (elecs(1) == 0) then 
+            nJ(1) = 0
+            pgen = 0.0_dp 
+            return 
+        end if
+
+        loc = check_electron_location(src, 2, run)
+
+        if ((loc == 2) .or. (loc == 1 .and. occ_virt_level /= -1) .or. &
+            (loc == 0 .and. occ_virt_level >= 1)) then 
+
+            call pick_occupied_orbital_ueg(nI, ilutI, src, iSpn, run, p_orb, &
+                dummy, orb_a)
+        else
+
+            ! i could refactor that in a smaller function: 
+            call create_ab_list_ueg(ilutI, src, cum_arr, cum_sum) 
+
+            if (cum_sum < EPS) then 
+                nJ(1) = 0
+                pgen = 0.0_dp 
+                return
+            end if
+
+            orb_a = binary_search_first_ge(cum_arr, genrand_real2_dsfmt() * cum_sum)
+
+            if (orb_a == 1) then 
+                p_orb = cum_arr(1) / cum_sum 
+            else 
+                p_orb = (cum_arr(orb_a) - cum_arr(orb_a - 1)) / cum_sum
+            end if
+
+        end if
+
+        orb_b = get_orb_from_kpoints(src(1), src(2), orb_a) 
+
+        ! thats it i guess.. 
+        ! but i might have to be careful: 
+        ! in the back-spawn mechanism any order of the orbitals is possible.. 
+        ! in the new ueg by NB not.. there orb_b > orb_a is strictly 
+        ! enforced.. hm.. how should we handle that?
+        ! wait a minute.. since when is this called with the bare 
+        ! eleci and elecj?? yes it is apparently.. 
+        call make_double(nI, nJ, elecs(1), elecs(2), orb_a, orb_b, ex, tpar)
+        ilutJ = ilutI 
+        clr_orb(ilutJ, src(1))
+        clr_orb(ilutJ, src(2))
+        set_orb(ilutJ, orb_a)
+        set_orb(ilutJ, orb_b)
+
+        pgen = p_elec * p_orb
+
+    end subroutine gen_double_back_spawn_ueg_new
+
+    function calc_pgen_back_spawn_ueg_new(nI, ilutI, ex, ic, run) result(pgen)
+        ! i also need immmidiately a calc_pgen function! 
+        integer, intent(in) :: nI(nel), ex(2,2), ic, run
+        integer(n_int), intent(in) :: ilutI(0:niftot) 
+        real(dp) :: pgen
+
+        integer :: elecs(2), src(2), ispn, sum_ml, dummy_src(2), dumm_iSpn
+        integer :: orb_a, tgt(2), loc
+        real(dp) :: p_elec, p_orb, dummy, cum_arr(nBasis), cum_sum
+
+        if (ic /= 2) then 
+            pgen = 0.0_dp 
+            return 
+        end if
+
+        ! and maybe i should also enable that i call this outside of 
+        ! knowledge of the initator status.. 
+        if (test_flag(ilutI, get_initiator_flag(run))) then 
+            pgen = calc_pgen_ueg(nI, ilutI, ex, ic) 
+
+        else
+
+            src = get_src(ex) 
+            ispn = get_ispn(src) 
+
+            if (t_back_spawn) then 
+                call pick_virtual_electrons_double(nI, run, elecs, dummy_src, &
+                    dumm_iSpn, sum_ml, & 
+                    p_elec)
+                loc = -1
+            else 
+                p_elec = 1.0_dp / real(ElecPairs, dp)
+                loc = check_electron_location(src, 2, run)
+            end if
+
+            if ((loc == 2) .or. (loc == 1 .and. occ_virt_level /= -1) .or. &
+                (loc == 0 .and. occ_virt_level >= 1)) then 
+                ! argh.. wait a minute.. i have to ensure that i only do that 
+                ! for back-spawn flex!
+
+                call pick_occupied_orbital_ueg(nI, ilutI, src, iSpn, run, p_orb, &
+                    dummy, orb_a)
+            else
+
+                ! i could refactor that in a smaller function: 
+                call create_ab_list_ueg(ilutI, src, cum_arr, cum_sum) 
+
+                tgt = get_tgt(ex)
+
+                orb_a = tgt(1) 
+
+                if (orb_a == 1) then 
+                    p_orb = cum_arr(orb_a) / cum_sum 
+                else 
+                    p_orb = (cum_arr(orb_a) - cum_arr(orb_a - 1)) / cum_sum 
+                end if
+            end if
+
+            pgen = p_orb * p_elec
+
+        end if
+
+
+    end function calc_pgen_back_spawn_ueg_new
 
     subroutine gen_excit_back_spawn_hubbard(nI, ilutI, nJ, ilutJ, exFlag, ic, &
             ExcitMat, tParity, pgen, HelGen, store, run) 
@@ -50,7 +227,6 @@ contains
         integer, intent(in), optional :: run
         character(*), parameter :: this_routine = "gen_excit_back_spawn_hubbard"
  
-        logical :: temp_back_spawn
         ! so now pack everything necessary for a ueg excitation generator. 
 
         ilutJ(0) = -1 
@@ -61,13 +237,12 @@ contains
         ! is set 
         ! BUT: again: we also need to take care of the HPHF keyword.. 
         ! which is a mess 
-        temp_back_spawn = (t_back_spawn_flex .and. .not. &
-            test_flag(ilutI, get_initiator_flag(run))) 
 
         ! implement it for now without this tNoFailAb flag
         ASSERT(.not. tNoFailAb)
 
-        if (temp_back_spawn) then 
+        if ((t_back_spawn .or. t_back_spawn_flex) .and. .not. &
+            test_flag(ilutI, get_initiator_flag(run))) then
 
             call gen_double_back_spawn_hubbard(nI, ilutI, nJ, ilutJ, tParity, ExcitMat, & 
                 pgen) 
@@ -123,6 +298,7 @@ contains
             elec_i = elecs(1)
             elec_j = elecs(2)
 
+            loc = -1
         else
 
             do
@@ -140,12 +316,13 @@ contains
             ! do i need 2* here?
             pgen_elec = 1.0_dp / real(nOccBeta * nOccAlpha, dp)
 
+            src = nI([elec_i, elec_j])
+
+            loc = check_electron_location(src, 2, temp_run)
         end if
 
-        src = nI([elec_i, elec_j])
 
         ! i need to call nI(elecs)
-        loc = check_electron_location(src, 2, temp_run)
         ! this test should be fine since, if back_spawn is active loc should 
         ! always be 0 so we are not risking of picking occupied orbitals 
         ! below..
@@ -247,24 +424,27 @@ contains
         else 
             ! in the hubbard case it can also be that we pick the electrons
             ! with the old back-spawn method 
+            src = get_src(ex)
+
             if (t_back_spawn) then 
 
                 call pick_virtual_electrons_double_hubbard(nI, run, d_elecs, d_src, &
                     d_ispn, pgen_elec)
 
+                loc = -1 
             else 
 
                 ! otherwise: 
                 pgen_elec = 1.0_dp / real(nOccBeta * nOccAlpha, dp) 
 
+                loc = check_electron_location(src, 2, run)
             end if
 
             ! otherwise i have to calculate stuff
-            src = get_src(ex)
-            loc = check_electron_location(src, 2, run)
 
             if ((loc == 2) .or. (loc == 1 .and. occ_virt_level /= -1) .or. &
                 (loc == 0 .and. occ_virt_level >= 1)) then 
+                ! i only do that in the back-spawn flex case.. 
 
                 call pick_occupied_orbital_hubbard(nI, ilutI, run, paij, d_orb)
 
@@ -306,7 +486,6 @@ contains
         integer, intent(in), optional :: run
         character(*), parameter :: this_routine = "gen_excit_back_spawn_ueg"
  
-        logical :: temp_back_spawn
         ! so now pack everything necessary for a ueg excitation generator. 
 
         ilutJ(0) = -1 
@@ -317,13 +496,11 @@ contains
         ! is set 
         ! BUT: again: we also need to take care of the HPHF keyword.. 
         ! which is a mess 
-        temp_back_spawn = (t_back_spawn_flex .and. .not. &
-            test_flag(ilutI, get_initiator_flag(run))) 
 
         ! implement it for now without this tNoFailAb flag
         ASSERT(.not. tNoFailAb)
 
-        if (temp_back_spawn) then 
+        if (t_back_spawn_flex .and. .not. test_flag(ilutI, get_initiator_flag(run))) then
 
             call gen_double_back_spawn_ueg(nI, ilutI, nJ, ilutJ, tParity, ExcitMat, & 
                 pgen) 

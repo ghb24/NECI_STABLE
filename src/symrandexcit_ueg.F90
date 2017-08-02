@@ -82,8 +82,9 @@ contains
 
         ! If there are no available excitations, then we need to reject this
         ! excitation
-        if (abs(cum_sum) < 1.0e-12_dp) then
+        if (cum_sum < EPS) then 
             nJ(1) = 0
+            pgen = 0.0_dp
             return
         end if
 
@@ -252,11 +253,22 @@ contains
             return 
         end if
 
+        src = get_src(ex)
+        tgt = get_tgt(ex)
+
+        ! i should return 0 if b < a.. since those excitations 
+        ! are never created.. but are the actually called ever? hm.. 
+        ! the question is how does the ex() determination work actually? 
+        ! is it ever possible in the HPHF case eg. that b > a when 
+        ! comparing two dets? hm.. check!
+!         if (tgt(1) > tgt(2)) then 
+!             pgen = 0.0_dp 
+!             return 
+!         end if
+
         ! now the real part.. 
         p_elec = 1.0_dp /real(ElecPairs, dp) 
 
-        src = get_src(ex)
-        tgt = get_tgt(ex)
         orb_a = tgt(1)
 
         ! i need to recalct the cum_arr 
