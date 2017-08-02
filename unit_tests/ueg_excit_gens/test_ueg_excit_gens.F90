@@ -94,6 +94,12 @@ contains
         G1(3)%k = [1,1,0]
         G1(4)%k = [0,0,0]
 
+        ! i also have to set the G1%ms
+        G1(1)%ms = -1 
+        G1(2)%ms = 1
+        G1(3)%ms = -1
+        G1(4)%ms = 1
+
         src = [1,2] 
 
         KPointToBasisFn(0,1,0,2) = 2 ! i should get kb = [0,1,0]
@@ -103,8 +109,8 @@ contains
 
         call create_ab_list_ueg(ilut, src, cum_arr, cum_sum)
 
-        call assert_equals([1.0_dp, 2.0_dp, 2.0_dp, 2.0_dp], cum_arr, 4)
-        call assert_equals(2.0_dp, cum_sum)
+        call assert_equals([1.0_dp, 2.0_dp, 3.0_dp, 3.0_dp], cum_arr, 4)
+        call assert_equals(3.0_dp, cum_sum)
 
         get_umat_el => null() 
         nBasis = -1 

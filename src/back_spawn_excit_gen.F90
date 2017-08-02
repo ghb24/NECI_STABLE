@@ -469,7 +469,6 @@ contains
             loc = check_electron_location(src, 2, temp_run)
         end if
 
-
         ! i need to call nI(elecs)
         ! this test should be fine since, if back_spawn is active loc should 
         ! always be 0 so we are not risking of picking occupied orbitals 
@@ -488,6 +487,8 @@ contains
             ! how does this compile even??
             ! no.. write a new one without the spin-restriction
             call pick_occupied_orbital_hubbard(nI, ilutI, temp_run, pAIJ, orb_a)
+            ! i should take k-space symmetry into accound in picking 
+            ! orb a
 
             ! i guess we can have no possible excitations.. 
             if (orb_a == 0) then 
@@ -500,6 +501,9 @@ contains
             ! in the hubbard case we always have iSpn = 2
             do 
                 orb_a = int(nBasis * genrand_real2_dsfmt()) + 1
+
+                ! i guess it is more efficient to check if the momentum is 
+                ! correctly conserved here.. 
 
                 if (IsNotOcc(ilutI, orb_a)) exit 
             end do
@@ -524,7 +528,7 @@ contains
                
         orb_b = get_orb_from_kpoints(src(1), src(2), orb_a)
 
-        IF(orb_b == -1 .or. orb_a == orb_b) THEN
+        IF(orb_b <= 0 .or. orb_a == orb_b) THEN
             nJ(1)=0 
             pgen = 0.0_dp
             RETURN
@@ -920,6 +924,8 @@ contains
 
                     write(6,*) 'Calculated and actual pgens differ. for non-initiator'
                     write(6,*) 'This will break HPHF calculations'
+                    write(6,*) "reference determinant: " 
+                    call write_det(6, projedet(:,part_type_to_run(run)), .true.)
                     call write_det(6, nI, .false.)
                     write(6, '(" --> ")', advance='no')
                     call write_det(6, nJ, .true.)

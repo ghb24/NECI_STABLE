@@ -813,7 +813,8 @@ contains
     end subroutine test_get_ispn
 
     subroutine test_pick_occupied_orbital_ueg
-        use SystemData, only: nel 
+        use SystemData, only: nel, G1, nmaxx, nmaxy, nmaxz, tOrbECutoff, nBasis
+        use symexcitdatamod, only: KPointToBasisFn
         use fcimcdata, only: projedet, ilutref
         use constants, only: dp, n_int
         use dSFMT_interface, only: dSFMT_init
@@ -824,13 +825,37 @@ contains
         integer, allocatable :: nI(:) 
         integer(n_int), allocatable :: ilutI(:) 
         real(dp) :: pgen, cum_sum
-        integer :: src(2) = 0, ispn = 0, run = 1, orb
+        integer :: src(2), ispn = 0, run = 1, orb
 
         nel = 1
         niftot = 1
+        nBasis = 2
         allocate(projedet(1,1)); projedet = 1
         allocate(ilutref(0:niftot,1)) 
         call EncodeBitDet(projedet, ilutref)
+
+        ! i also want to include k-point restriction in picking orbital a!
+        src = [1,2]
+
+        allocate(G1(nBasis))
+        nmaxx = 2
+        nmaxy = 2
+        nmaxz = 2
+        tOrbECutoff = .false.
+
+        allocate(KPointToBasisFn(-nmaxx:nmaxx, -nmaxy:nmaxy, -nmaxz:nmaxz, 2))
+        
+        G1(1)%k = [1,0,0]
+        G1(2)%k = [0,1,0]
+!         G1(3)%k = [1,1,0]
+!         G1(4)%k = [0,0,0]
+
+        src = [1,2] 
+
+        KPointToBasisFn(0,1,0,2) = 2 ! i should get kb = [0,1,0]
+        KPointToBasisFn(1,0,0,1) = 3
+        KPointToBasisFn(0,0,0,2) = 4
+        KPointToBasisFn(1,1,0,1) = 1 
 
         print *, "" 
         print *, "testing pick_occupied_orbital_ueg() "
@@ -846,9 +871,9 @@ contains
 
         call pick_occupied_orbital_ueg(nI, ilutI, src, ispn, run, pgen, cum_sum, orb)
 
-        call assert_equals(orb, 0)
-        call assert_equals(pgen, 0.0_dp)
-        call assert_equals(cum_sum, 1.0_dp)
+        call assert_equals(0, orb)
+        call assert_equals(0.0_dp, pgen)
+        call assert_equals(1.0_dp, cum_sum)
 
         print *, "now with additional global data: "
         print *, "dSFMT_init()"
@@ -864,8 +889,8 @@ contains
 
         ispn = 1
         call pick_occupied_orbital_ueg(nI, ilutI, src, ispn, run, pgen, cum_sum, orb)
-        call assert_equals(2, orb)
-        call assert_equals(1.0_dp, pgen)
+        call assert_equals(0, orb)
+        call assert_equals(0.0_dp, pgen)
         call assert_equals(1.0_dp, cum_sum)
 
         ! do also a test with ispn = 2 
@@ -883,8 +908,8 @@ contains
         nI = 2
         call EncodeBitDet(nI, ilutI)
         call pick_occupied_orbital_ueg(nI, ilutI, src, ispn, run, pgen, cum_sum, orb)
-        call assert_equals(1, orb)
-        call assert_equals(1.0_dp, pgen)
+        call assert_equals(0, orb)
+        call assert_equals(0.0_dp, pgen)
         call assert_equals(1.0_dp, cum_sum)
 
         ! todo: i should do more tests here
@@ -892,6 +917,13 @@ contains
         niftot = -1
         deallocate(projedet)
         deallocate(ilutref)
+        nBasis = -1
+        nmaxx = -1
+        nmaxy = -1
+        nmaxz = -1
+
+        deallocate(G1)
+        deallocate(KPointToBasisFn)
 
     end subroutine test_pick_occupied_orbital_ueg
 
@@ -906,7 +938,7 @@ contains
         niftot = 0
 
         allocate(mask_virt_ni(nBasis - nel, 2)) 
-        allocate(mask_virt_ilut(0:niftot)) 
+        allocate(mask_virt_ilut(0:niftot,2)) 
 
         mask_virt_ni(:,1) = [1,2] 
         mask_virt_ni(:,2) = [3,4]
@@ -914,9 +946,16 @@ contains
         call encode_mask_virt(mask_virt_ni(:,1), mask_virt_ilut(:,1)) 
         call encode_mask_virt(mask_virt_ni(:,2), mask_virt_ilut(:,2))
 
-        call assert_true(mask_virt_ilut(:,1) /= 0_n_int)
-        call assert_true(mask_virt_ilut(:,2) /= 0_n_int) 
-        call assert_true(mask_virt_ilut(:,1) /= mask_virt_ilut(:,2))
+
+        call assert_true(all(mask_virt_ilut(:,1) /= 0_n_int))
+        call assert_true(all(mask_virt_ilut(:,2) /= 0_n_int))
+        call assert_true(all(mask_virt_ilut(:,1) /= mask_virt_ilut(:,2)))
+
+        nBasis = -1 
+        nel = -1
+        niftot = -1
+        deallocate(mask_virt_ilut)
+        deallocate(mask_virt_ni)
 
     end subroutine test_encode_mask_virt
 

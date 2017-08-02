@@ -376,6 +376,7 @@ contains
         character(*), parameter :: this_routine = "pick_occupied_orbital_hubbard"
         integer :: n_valid, j, occ_orbs(nel), ind, i
 
+        integer :: orb_a
         n_valid = 0
         j = 1
         occ_orbs = 0
@@ -383,12 +384,17 @@ contains
         ! i also have to include the whole symmetry shabang in the 
         ! picker here or?? wtf
         do i = 1, nel 
+            orb_a = projedet(i,part_type_to_run(run))
+
             ! what am i testing here, actually 
             ! i want to loop over the reference det and check if it is 
             ! no in nI! that can stay..
             ! or i could just pass also ilut into this function and then 
             ! check if ref(i) is occupied.. 
-            if (IsNotOcc(ilutI, projedet(i,part_type_to_run(run)))) then 
+            ! and i also should include k-point symmetry here or??
+            ! why didn't i do that and why does it work anyway..
+            ! nah.. in the hubbard this just works fine..
+            if (IsNotOcc(ilutI, orb_a)) then
 !             if (.not. any(projedet(i,part_type_to_run(run)) == nI)) then 
                 n_valid = n_valid + 1
                 occ_orbs(j) = projedet(i,part_type_to_run(run)) 
