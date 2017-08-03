@@ -721,7 +721,20 @@ contains
                 ! now i have to figure p(ab), p(ba) stuff.. and implement this 
                 ! above.. annoying..
 
+                if (any(cum_sum < EPS)) then 
+                    int_cpt = 0.0_dp
+                    cum_sum = 1.0_dp
+                end if
+                if (any(sum_pair < EPS)) then 
+                    cpt_pair = 0.0_dp
+                    sum_pair = 1.0_dp
+                end if
 
+                pgen = pDoubles * elec_pgen * (product(int_cpt) / product(cum_sum) + &
+                                    product(cpt_pair) / product(sum_pair))
+
+                ! just for test purposes check if this solves it:
+                pgen = 0.0_dp
 
             else 
 
