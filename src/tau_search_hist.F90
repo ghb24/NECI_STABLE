@@ -577,7 +577,7 @@ contains
                         if (abs(pparallel_new-pParallel) / pParallel > 0.0001_dp) then
                             if (iProcIndex == root) then 
                                 write(iout, '(a, g20.12, 2a)') "Updating parallel-spin bias; new pParallel = ", &
-                                    pParallel_new, "in: ", this_routine
+                                    pParallel_new, " in: ", this_routine
                             end if
                         end if
                         ! in this new implementation the weighting make pParallel 
@@ -701,13 +701,13 @@ contains
                     else 
                         if (iProcIndex == root) then 
                             write(iout,'(a, g20.12, 2a)') &
-                                "Updating time-step. New time-step = ", tau_new, "in: ", this_routine
+                                "Updating time-step. New time-step = ", tau_new, " in: ", this_routine
                         end if
                     end if
                 else
                     if (iProcIndex == root) then
                         write(iout,'(a, g20.12, 2a)') &
-                            "Updating time-step. New time-step = ", tau_new, "in: ", this_routine
+                            "Updating time-step. New time-step = ", tau_new, " in: ", this_routine
                     end if
                 end if
             end if
@@ -1324,6 +1324,7 @@ contains
         end do
 
         ratio = i * frq_step_size
+
     end subroutine integrate_frequency_histogram_spec
 
     ! also provide the printing routines here: 
