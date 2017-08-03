@@ -11,7 +11,8 @@ MODULE HPHFRandExcitMod
 
     use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, &
                           tOddS_HPHF, modk_offdiag, tGen_4ind_weighted, &
-                          tGen_4ind_reverse, tLatticeGens, tGen_4ind_2
+                          tGen_4ind_reverse, tLatticeGens, tGen_4ind_2, tHUB, & 
+                          tUEG, tUEGNewGenerator
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
@@ -34,7 +35,10 @@ MODULE HPHFRandExcitMod
     use sort_mod
     use HElem
     use CalcData, only: t_matele_cutoff, matele_cutoff, t_back_spawn, t_back_spawn_flex
-    use back_spawn_excit_gen, only: gen_excit_back_spawn, calc_pgen_back_spawn
+    use back_spawn_excit_gen, only: gen_excit_back_spawn, calc_pgen_back_spawn, & 
+                                    gen_excit_back_spawn_ueg, calc_pgen_back_spawn_ueg, & 
+                                    calc_pgen_back_spawn_hubbard, gen_excit_back_spawn_hubbard, &
+                                    gen_excit_back_spawn_ueg_new, calc_pgen_back_spawn_ueg_new
     IMPLICIT NONE
 !    SAVE
 !    INTEGER :: Count=0
@@ -161,8 +165,19 @@ MODULE HPHFRandExcitMod
         ! Generate a normal excitation.
         
         if (t_back_spawn .or. t_back_spawn_flex) then 
-            call gen_excit_back_spawn(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
-                                      ExcitMat, tSignOrig, pgen, Hel, store, run)
+            if (tUEGNewGenerator .and. tLatticeGens) then 
+                call gen_excit_back_spawn_ueg_new(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
+                                          ExcitMat, tSignOrig, pgen, Hel, store, run)
+            else if (tUEG .and. tLatticeGens) then 
+                call gen_excit_back_spawn_ueg(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
+                                          ExcitMat, tSignOrig, pgen, Hel, store, run)
+            else if (tHUB .and. tLatticeGens) then
+                call gen_excit_back_spawn_hubbard (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat,&
+                                 tSignOrig, pGen, HEl, store, run)
+            else
+                call gen_excit_back_spawn(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
+                                          ExcitMat, tSignOrig, pgen, Hel, store, run)
+            end if
 
         else if (tGen_4ind_weighted) then
             call gen_excit_4ind_weighted (nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
@@ -960,7 +975,17 @@ MODULE HPHFRandExcitMod
         ! does it help to avoid recalculating for the reference?
         if ((t_back_spawn .or. t_back_spawn_flex) .and. .not. & 
            DetBitEq(ilutI,ilutRef(:,temp_run),nifdbo)) then 
-            pgen = calc_pgen_back_spawn(nI, ilutI, ex, ic, temp_run)
+            ! i just realised this also has to be done for the hubbard 
+            ! and the ueg model.. -> create those functions! 
+            if (tHUB .and. tLatticeGens) then 
+                pgen = calc_pgen_back_spawn_hubbard(nI, ilutI, ex, ic, temp_run)
+            else if (tUEGNewGenerator .and. tLatticeGens) then 
+                pgen = calc_pgen_back_spawn_ueg_new(nI, ilutI, ex, ic, temp_run)
+            else if (tUEG .and. tLatticeGens) then 
+                pgen = calc_pgen_back_spawn_ueg(nI, ilutI, ex, ic, temp_run)
+            else
+                pgen = calc_pgen_back_spawn(nI, ilutI, ex, ic, temp_run)
+            end if
 
         else if (tLatticeGens) then
             if (ic == 2) then

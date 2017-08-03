@@ -114,7 +114,6 @@ macro( neci_add_library )
     add_library( ${_p_TARGET} ${_p_TYPE} ${_p_SOURCES} ${${_p_TARGET}_TEMPLATED_SOURCES} )
 
     # Add definitions to the compliation
-
     if (DEFINED _p_DEFINITIONS )
         get_property( _target_defs TARGET ${_p_TARGET} PROPERTY COMPILE_DEFINITIONS )
         list( APPEND _target_defs ${_p_DEFINITIONS} )
