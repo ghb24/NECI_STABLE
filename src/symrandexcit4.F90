@@ -37,7 +37,8 @@ module excit_gens_int_weighted
     use util_mod
     use back_spawn, only: pick_virtual_electron_single, check_electron_location, &
                           pick_occupied_orbital_single
-    use LoggingData, only: t_log_ija, ija_bins, ija_thresh
+    use LoggingData, only: t_log_ija, ija_bins_para, ija_bins_anti, ija_thresh, &
+                           ija_orbs_para, ija_orbs_anti, ija_bins_sing, ija_orbs_sing
 
     implicit none
     save
@@ -635,14 +636,22 @@ contains
         if (cum_sum < EPS) then
             orb = 0
             pgen = 0.0_dp
-        else
-            r = genrand_real2_dSFMT() * cum_sum
-            orb_index = binary_search_first_ge(cumulative_arr, r)
-            orb = SymLabelList2(label_index + orb_index - 1)
-
-            ! And the impact on the generation probability
-            pgen = cpt_arr(orb_index) / cum_sum
+            return
         end if
+
+        if (t_log_ija) then 
+            if (cum_sum < ija_thresh) then 
+                ija_bins_sing(id_src) = ija_bins_sing(id_src) + 1
+                ija_orbs_sing(id_src) = norb
+            end if
+        end if
+
+        r = genrand_real2_dSFMT() * cum_sum
+        orb_index = binary_search_first_ge(cumulative_arr, r)
+        orb = SymLabelList2(label_index + orb_index - 1)
+
+        ! And the impact on the generation probability
+        pgen = cpt_arr(orb_index) / cum_sum
 
     end function
 
@@ -1171,8 +1180,18 @@ contains
             ! the info if it is a parallel spin excitation or an opposite 
             ! spin excitation.. this would reduce the output amount even 
             ! farther yes! 
-            ija_bins(minval(src),maxval(src),orb_pair) = &
-                ija_bins(minval(src),maxval(src),orb_pair) + 1
+            if (t_par) then 
+                ija_bins_para(minval(srcid),maxval(srcid),gtID(orb_pair)) = &
+                    ija_bins_para(minval(srcid),maxval(srcid),gtID(orb_pair)) + 1
+
+                ija_orbs_para(minval(srcid),maxval(srcid),gtID(orb_pair)) = norb
+            else
+                ija_bins_anti(minval(srcid),maxval(srcid),gtID(orb_pair)) = &
+                    ija_bins_anti(minval(srcid),maxval(srcid),gtID(orb_pair)) + 1
+
+                ija_orbs_anti(minval(srcid),maxval(srcid),gtID(orb_pair)) = norb
+
+            end if
         end if
         
 !         if (cum_sum < 1.0e-4_dp) then 

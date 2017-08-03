@@ -155,7 +155,15 @@ module LoggingData
     ! orbitals would be enough)
     ! store more information for these.. but how do i MPI communicate that? 
     ! not now! 
-    integer, allocatable :: ija_bins(:,:,:), all_ija_bins(:,:,:)
+    ! do it seperately for singles and parallel and opposite spin excitations
+    ! and also store the number of symmetry allowed orbitals! just to check
+    integer, allocatable :: ija_bins_sing(:), all_ija_bins_sing(:), &
+                            ija_bins_para(:,:,:), all_ija_bins(:,:,:), & 
+                            ija_bins_anti(:,:,:), & 
+                            ija_orbs_sing(:), all_ija_orbs_sing(:), &
+                            ija_orbs_para(:,:,:), all_ija_orbs(:,:,:), &
+                            ija_orbs_anti(:,:,:)
+
 
     ! also use a use defined threshold
     real(dp) :: ija_thresh = 1.0e-7_dp

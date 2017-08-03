@@ -25,7 +25,10 @@ module tau_search_hist
     use procedure_pointers, only: get_umat_el
     use UMatCache, only: gtid, UMat2d
     use util_mod, only: abs_l1
-    use LoggingData, only: t_log_ija, ija_bins, all_ija_bins, ija_thresh
+    use LoggingData, only: t_log_ija, ija_bins_sing, all_ija_bins_sing, ija_thresh, &
+                            ija_bins_para, all_ija_bins, ija_bins_anti, &
+                            ija_orbs_sing, all_ija_orbs_sing, & 
+                            ija_orbs_para, all_ija_orbs, ija_orbs_anti
 
     implicit none
     ! variables which i might have to define differently:
@@ -362,7 +365,14 @@ contains
         if (t_log_ija) then 
              ! allocate the new bins (although i am not sure i should do this 
              ! here.. 
-             allocate(ija_bins(nBasis,nBasis,nBasis))
+             ! change the logging of these functions to sepereate between the 
+             ! different sorts of excitations and log them through spatial orbitals!
+             allocate(ija_bins_sing(nBasis/2)); ija_bins_sing = 0
+             allocate(ija_bins_para(nBasis/2,nBasis/2,nBasis/2)); ija_bins_para = 0
+             allocate(ija_bins_anti(nBasis/2,nBasis/2,nBasis/2)); ija_bins_anti = 0
+             allocate(ija_orbs_sing(nBasis/2)); ija_orbs_sing = 0
+             allocate(ija_orbs_para(nBasis/2,nBasis/2,nBasis/2)); ija_orbs_para = 0
+             allocate(ija_orbs_anti(nBasis/2,nBasis/2,nBasis/2)); ija_orbs_anti = 0
 
              root_print "Logging dead-end (a|ij) excitations below threshold: ", ija_thresh
 
@@ -1252,7 +1262,7 @@ contains
         
         character(*), parameter :: this_routine = "print_frequency_histograms"
         
-        character(255) :: filename 
+        character(255) :: filename
         integer :: all_frequency_bins_spec(n_frequency_bins)
         integer :: all_frequency_bins(n_frequency_bins)
         integer :: iunit, i, max_size
@@ -1728,30 +1738,105 @@ contains
         ! because i want to have even more info on the dead-end excitations!
         if (t_log_ija) then 
             ! i hope this mpiallreduce works.. 
-            allocate(all_ija_bins(nBasis, nBasis, nBasis)) 
+            allocate(all_ija_bins_sing(nBasis/2))
+            all_ija_bins_sing = 0
+            call MPIAllReduce(ija_bins_sing, MPI_SUM, all_ija_bins_sing)
 
-            do i = 1, nBasis
-                call MPIAllReduce(ija_bins(i,:,:), MPI_SUM, all_ija_bins(i,:,:)) 
+            allocate(all_ija_orbs_sing(nBasis/2))
+            all_ija_orbs_sing = 0
+            call MPIAllReduce(ija_orbs_sing, MPI_MAX, all_ija_orbs_sing) 
+
+            if (iprocindex == root) then 
+                iunit = get_free_unit() 
+                call get_unique_filename('ija_bins_sing', .true., .true., 1, filename)
+
+                open(iunit, file = filename, status = 'unknown') 
+
+                do i = 1, nBasis / 2
+                    if (all_ija_bins_sing(i) == 0) cycle
+                    write(iunit, '(i12, i6, i12)') all_ija_bins_sing(i), i, all_ija_orbs_sing(i)
+                end do
+                close(iunit)
+            end if
+
+            deallocate(all_ija_bins_sing)
+            deallocate(all_ija_orbs_sing)
+            deallocate(ija_bins_sing)
+            deallocate(ija_orbs_sing)
+
+            allocate(all_ija_bins(nBasis/2, nBasis/2, nBasis/2)) 
+            allocate(all_ija_orbs(nBasis/2, nBasis/2, nBasis/2)) 
+            all_ija_bins = 0
+            all_ija_orbs = 0
+
+            do i = 1, nBasis/2
+                call MPIAllReduce(ija_bins_para(i,:,:), MPI_SUM, all_ija_bins(i,:,:)) 
+                ! can i also communicate the number of symmetry allowed orbitals?
+                ! and can i store it in spatial orbital information? 
+                ! i could make seperate ones for parallel and anti-parallel 
+                ! excitations.. and also for singles or? 
+                call MPIAllReduce(ija_orbs_para(i,:,:), MPI_MAX, all_ija_orbs(i,:,:)) 
             end do
-        end if
-        if (iprocindex == root) then
-            iunit = get_free_unit() 
-            call get_unique_filename('ija_bins', .true., .true., 1, filename)
-            open(iunit, file = filename, status = 'unknown') 
 
-            do k = 1, nBasis 
-                do j = 1, nbasis 
-                    do i = 1, nBasis 
-                        if (all_ija_bins(i,j,k) == 0) cycle 
-                        write(iunit, '(3i3,i12)') i, j, k, all_ija_bins(i,j,k)
+            if (iprocindex == root) then
+                iunit = get_free_unit() 
+                call get_unique_filename('ija_bins_para', .true., .true., 1, filename)
+                open(iunit, file = filename, status = 'unknown') 
+
+                ! i know it is slower but loop over first row to get it 
+                ! nicely ordered in the output
+                ! and change the number of occurences to the first line 
+                ! so it can be easily sorted with bash..
+                do i = 1, nBasis/2
+                    do j = 1, nbasis/2
+                        do k = 1, nBasis/2
+                            if (all_ija_bins(i,j,k) == 0) cycle 
+                            write(iunit, '(i12,i6, 2i3, i12)') all_ija_bins(i,j,k), i, j, k, all_ija_orbs(i,j,k)
+                        end do
                     end do
                 end do
+
+                close (iunit)
+
+            end if
+
+            deallocate(ija_bins_para)
+            deallocate(ija_orbs_para)
+
+
+            all_ija_bins = 0
+            all_ija_orbs = 0
+
+            do i = 1, nBasis/2
+                call MPIAllReduce(ija_bins_anti(i,:,:), MPI_SUM, all_ija_bins(i,:,:)) 
+                ! can i also communicate the number of symmetry allowed orbitals?
+                ! and can i store it in spatial orbital information? 
+                ! i could make seperate ones for parallel and anti-parallel 
+                ! excitations.. and also for singles or? 
+                call MPIAllReduce(ija_orbs_anti(i,:,:), MPI_MAX, all_ija_orbs(i,:,:)) 
             end do
 
-            close (iunit)
+            if (iprocindex == root) then
+                iunit = get_free_unit() 
+                call get_unique_filename('ija_bins_anti', .true., .true., 1, filename)
+                open(iunit, file = filename, status = 'unknown') 
 
-            deallocate(all_ija_bins)
-            deallocate(ija_bins)
+                do i = 1, nBasis/2
+                    do j = 1, nbasis/2
+                        do k = 1, nBasis/2
+                            if (all_ija_bins(i,j,k) == 0) cycle 
+                            write(iunit, '(i12, i6, 2i3, i12)') all_ija_bins(i,j,k), i, j, k, all_ija_orbs(i,j,k)
+                        end do
+                    end do
+                end do
+
+                close (iunit)
+            end if
+
+            deallocate(ija_bins_anti)
+            deallocate(ija_orbs_anti)
+
+
         end if
 
     end subroutine print_frequency_histograms
