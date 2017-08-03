@@ -854,10 +854,29 @@ contains
                 above_max_singles = above_max_singles + 1
                 print *, "Warning: single excitation H_ij/pgen above max_frequency_bound!" 
                 print *, " H_ij: ", mat_ele, ", pgen: ", pgen, ", pSingles: ", pSingles
-                print *, " excitation-matrix: ", ex
+                print *, "ex-maxtrix: ", get_src(ex), " -> ", get_tgt(ex)
+!                 print *, " excitation-matrix: ", ex
                 print *, " H_ij/pgen: ", ratio, " ; bound: ", max_frequency_bound
                 print *, " Consider increasing the bound!"
-
+#ifdef __DEBUG
+                indi = gtid(ex(1,1))
+                indj = gtid(ex(1,2))
+                inda = gtid(ex(2,1))
+                indb = gtid(ex(2,2))
+                print *, "umat (ij|ab) ", get_umat_el(indi,indj,inda,indb)
+                print *, "umat (ij|ba) ", get_umat_el(indi,indj,indb,inda)
+                print *, "diff: ", abs(get_umat_el(indi,indj,inda,indb) - &
+                    get_umat_el(indi,indj,indb,inda))
+                print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
+                print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
+                print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
+                print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
+                print *, "(ia|ia): ", abs(get_umat_el(indi,inda,indi,inda))
+                print *, "(ja|ja): ", abs(get_umat_el(indj,inda,indj,inda))
+                print *, "(ib|ib): ", abs(get_umat_el(indi,indb,indi,indb))
+                print *, "(jb|jb): ", abs(get_umat_el(indj,indb,indj,indb))
+                print *, "******************"
+#endif
             end if
 
             ! also start to store the maximum values anyway.. 
@@ -878,7 +897,7 @@ contains
                     print *, "ratio: ", ratio
                     print *, "mat_ele: ", mat_ele
                     print *, "pgen: ", pgen
-                    print *, "ex-maxtrix: ", gtid(ex)
+                    print *, "ex-maxtrix: ", get_src(ex), " -> ", get_tgt(ex)
                     indi = gtid(ex(1,1))
                     indj = gtid(ex(1,2))
                     inda = gtid(ex(2,1))
@@ -891,6 +910,10 @@ contains
                     print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
                     print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
                     print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
+                    print *, "(ia|ia): ", abs(get_umat_el(indi,inda,indi,inda))
+                    print *, "(ja|ja): ", abs(get_umat_el(indj,inda,indj,inda))
+                    print *, "(ib|ib): ", abs(get_umat_el(indi,indb,indi,indb))
+                    print *, "(jb|jb): ", abs(get_umat_el(indj,indb,indj,indb))
                     print *, "******************"
 
                 end if
@@ -909,6 +932,29 @@ contains
                     print *, "Warning: parallel excitation H_ij/pgen above max_frequency_bound!" 
                     print *, " H_ij/pgen: ", ratio, " ; bound: ", max_frequency_bound
                     print *, " Consider increasing the bound!"
+#ifdef __DEBUG
+                    print *, "mat_ele: ", mat_ele
+                    print *, "pgen: ", pgen
+                    print *, "ex-maxtrix: ", get_src(ex), " -> ", get_tgt(ex)
+                    indi = gtid(ex(1,1))
+                    indj = gtid(ex(1,2))
+                    inda = gtid(ex(2,1))
+                    indb = gtid(ex(2,2))
+                    print *, "umat (ij|ab) ", get_umat_el(indi,indj,inda,indb)
+                    print *, "umat (ij|ba) ", get_umat_el(indi,indj,indb,inda)
+                    print *, "diff: ", abs(get_umat_el(indi,indj,inda,indb) - &
+                        get_umat_el(indi,indj,indb,inda))
+                    print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
+                    print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
+                    print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
+                    print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
+                    print *, "(ia|ia): ", abs(get_umat_el(indi,inda,indi,inda))
+                    print *, "(ja|ja): ", abs(get_umat_el(indj,inda,indj,inda))
+                    print *, "(ib|ib): ", abs(get_umat_el(indi,indb,indi,indb))
+                    print *, "(jb|jb): ", abs(get_umat_el(indj,indb,indj,indb))
+
+                    print *, "******************"
+#endif
                 end if
 
                 if (ratio > gamma_par) gamma_par = ratio
@@ -924,7 +970,7 @@ contains
                     print *, "ratio: ", ratio
                     print *, "mat_ele: ", mat_ele
                     print *, "pgen: ", pgen
-                    print *, "ex-maxtrix: ", ex
+                    print *, "ex-maxtrix: ", get_src(ex), " -> ", get_tgt(ex)
                     indi = gtid(ex(1,1))
                     indj = gtid(ex(1,2))
                     inda = gtid(ex(2,1))
@@ -937,6 +983,10 @@ contains
                     print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
                     print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
                     print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
+                    print *, "(ia|ia): ", abs(get_umat_el(indi,inda,indi,inda))
+                    print *, "(ja|ja): ", abs(get_umat_el(indj,inda,indj,inda))
+                    print *, "(ib|ib): ", abs(get_umat_el(indi,indb,indi,indb))
+                    print *, "(jb|jb): ", abs(get_umat_el(indj,indb,indj,indb))
                     print *, "******************"
                 end if
 #endif
@@ -956,6 +1006,29 @@ contains
                     print *, "Warning: anti-parallel excitation H_ij/pgen above max_frequency_bound!" 
                     print *, " H_ij/pgen: ", ratio, " ; bound: ", max_frequency_bound
                     print *, " Consider increasing the bound!"
+#ifdef __DEBUG
+                    print *, "mat_ele: ", mat_ele
+                    print *, "pgen: ", pgen
+                    print *, "ex-maxtrix: ", get_src(ex), " -> ", get_tgt(ex)
+                    indi = gtid(ex(1,1))
+                    indj = gtid(ex(1,2))
+                    inda = gtid(ex(2,1))
+                    indb = gtid(ex(2,2))
+                    print *, "umat (ij|ab) ", get_umat_el(indi,indj,inda,indb)
+                    print *, "umat (ij|ba) ", get_umat_el(indi,indj,indb,inda)
+                    print *, "diff: ", abs(get_umat_el(indi,indj,inda,indb) - &
+                        get_umat_el(indi,indj,indb,inda))
+                    print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
+                    print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
+                    print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
+                    print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
+                    print *, "(ia|ia): ", abs(get_umat_el(indi,inda,indi,inda))
+                    print *, "(ja|ja): ", abs(get_umat_el(indj,inda,indj,inda))
+                    print *, "(ib|ib): ", abs(get_umat_el(indi,indb,indi,indb))
+                    print *, "(jb|jb): ", abs(get_umat_el(indj,indb,indj,indb))
+                    print *, "******************"
+
+#endif
                 end if
 
                 if (ratio > gamma_opp) gamma_opp = ratio

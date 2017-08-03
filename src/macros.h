@@ -21,6 +21,9 @@
 ! Do the two orbitals have the same spin?
 #define same_spin(orb1, orb2) (mod(orb1,2) == mod(orb2,2))
 
+#define get_src(ex) ex(1,:)
+#define get_tgt(ex) ex(2,:)
+
 ! Get the index of the replica that is paired with ind:
 #define paired_replica(ind) (ind+2*mod(ind,2)-1)
 
