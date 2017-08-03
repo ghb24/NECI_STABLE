@@ -527,13 +527,19 @@ contains
                 end do
                 hel = hel + GetTMATEl(src, orb)
                 cpt = abs_l1(hel)
+
+                if (t_matele_cutoff) then 
+                    if (cpt < matele_cutoff) then 
+                        cpt = 0.0_dp
+                    end if
+                end if
                 cum_sum = cum_sum + cpt
                 if (orb == tgt) cpt_tgt = cpt
             end if
         end do
 
         ! Adjust the generation probability for the relevant values.
-        if (cum_sum == 0) then
+        if (cum_sum < EPS) then
             pgen = 0.0_dp
         else
             pgen = pgen * cpt_tgt / cum_sum
@@ -541,7 +547,6 @@ contains
 
 
     end function
-
 
 
     function select_orb_sing (nI, ilut, src, cc_index, pgen) result(orb)
@@ -1067,6 +1072,7 @@ contains
         real(dp), intent(out) :: cpt, cum_sum
         integer(n_int), intent(in) :: ilut(0:NifTot)
         integer :: orb
+        character(*), parameter :: this_routine = "select_orb"
 
         integer :: label_index, orb_index, norb, i, srcid(2), ms
         integer :: src_id
@@ -1136,11 +1142,23 @@ contains
         ! also check here ig the problem is overall low pgens for certain 
         ! excitations 
 
+
         ! If there are no available orbitals to pair with, we need to abort
         if (cum_sum < EPS) then
             orb = 0
             return
         end if
+
+        ! do i need the matele cutoff here too? i shouldnt.. 
+        ! check in debug mode!
+#ifdef __DEBUG
+        if (t_matele_cutoff) then 
+            if (cum_sum < matele_cutoff) then 
+                call stop_all(this_routine, &
+                    "although matrix-cutoff something slipped through..")
+            end if
+        end if
+#endif
 
         ! the dead end we want to log are here actually.. 
         if (t_log_ija .and. cum_sum < ija_thresh) then 
@@ -1248,7 +1266,6 @@ contains
 #endif
 
     end subroutine
-
 
 
     function calc_pgen_4ind_reverse (nI, ilutI, ex, ic) result(pgen)
