@@ -951,6 +951,27 @@ system: do
                         tGen_4ind_2_symmetric = .false.
                         tGen_4ind_unbound = .true.
 
+                        ! make a few small tests for the frequency histograms
+                        if (item < nitems) then 
+                            call readu(w) 
+
+                            select case (w) 
+                            case ("IIAA")
+                                ! weight with <ii|aa> instead of <ia|ia> 
+                                t_iiaa = .true. 
+
+                            case ("RATIO") 
+                                ! weigh with the ratio <ia|ia>/<ja|ja> 
+                                t_ratio = .true. 
+
+                            case ("IIAA-RATIO", "RATIO-IIAA")
+                                t_iiaa = .true. 
+                                t_ratio = .true.
+
+                            end select 
+                        end if
+
+
                     case("4IND-WEIGHTED-2-SYMMETRIC")
                         ! The other version of this generator. This permits
                         ! selecting orbitals in both directions

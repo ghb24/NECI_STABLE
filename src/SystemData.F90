@@ -249,6 +249,9 @@ real(dp) :: nn_bhub = 0.0_dp
 logical :: t_twisted_bc = .false.
 real(dp) :: twisted_bc(2) = 0.0_dp
 
+! do a quick test with different weightings of picking orbitals (a) 
+logical :: t_iiaa = .false., t_ratio = .false. 
+
 ! Operators for type(symmetry)
 interface assignment (=)
     module procedure SymAssign
