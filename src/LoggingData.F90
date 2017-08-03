@@ -153,9 +153,11 @@ module LoggingData
     logical :: t_log_ija = .false. 
     ! i need bins of (nbasis,nbasis,nbasis) size (although i guess spatial 
     ! orbitals would be enough)
+    ! store more information for these.. but how do i MPI communicate that? 
+    ! not now! 
     integer, allocatable :: ija_bins(:,:,:), all_ija_bins(:,:,:)
 
     ! also use a use defined threshold
-    real(dp) :: Thresh = 1.0e-7_dp
+    real(dp) :: ija_thresh = 1.0e-7_dp
 
 end module LoggingData

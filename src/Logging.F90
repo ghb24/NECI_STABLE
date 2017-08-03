@@ -1107,6 +1107,10 @@ MODULE Logging
         case ("LOG-IJA") 
             t_log_ija = .true. 
 
+            if (item < nitems) then 
+                call getf(ija_thresh)
+            end if
+
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)
         end select

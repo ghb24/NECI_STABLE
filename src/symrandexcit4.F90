@@ -37,7 +37,7 @@ module excit_gens_int_weighted
     use util_mod
     use back_spawn, only: pick_virtual_electron_single, check_electron_location, &
                           pick_occupied_orbital_single
-    use LoggingData, only: t_log_ija, ija_bins, thresh
+    use LoggingData, only: t_log_ija, ija_bins, ija_thresh
 
     implicit none
     save
@@ -1133,10 +1133,8 @@ contains
 
         end if
 
-
         ! also check here ig the problem is overall low pgens for certain 
         ! excitations 
-
 
         ! If there are no available orbitals to pair with, we need to abort
         if (cum_sum < EPS) then
@@ -1145,8 +1143,18 @@ contains
         end if
 
         ! the dead end we want to log are here actually.. 
-        if (t_log_ija .and. cum_sum < thresh) then 
-            ija_bins(src(1),src(2),orb_pair) = ija_bins(src(1),src(2),orb_pair) + 1
+        if (t_log_ija .and. cum_sum < ija_thresh) then 
+            ! here source is not yet sorted! 
+            ! but only take the unique (ij) combinations!
+            ! and do i want to have more information? 
+            ! maybe i want to know how many symmetry allowed orbitals there 
+            ! are for this kind of excitation... yes!
+            ! and maybe i only want to store the spatial orbitals and 
+            ! the info if it is a parallel spin excitation or an opposite 
+            ! spin excitation.. this would reduce the output amount even 
+            ! farther yes! 
+            ija_bins(minval(src),maxval(src),orb_pair) = &
+                ija_bins(minval(src),maxval(src),orb_pair) + 1
         end if
         
 !         if (cum_sum < 1.0e-4_dp) then 

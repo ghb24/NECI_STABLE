@@ -25,7 +25,7 @@ module tau_search_hist
     use procedure_pointers, only: get_umat_el
     use UMatCache, only: gtid, UMat2d
     use util_mod, only: abs_l1
-    use LoggingData, only: t_log_ija, ija_bins, all_ija_bins
+    use LoggingData, only: t_log_ija, ija_bins, all_ija_bins, ija_thresh
 
     implicit none
     ! variables which i might have to define differently:
@@ -363,6 +363,8 @@ contains
              ! allocate the new bins (although i am not sure i should do this 
              ! here.. 
              allocate(ija_bins(nBasis,nBasis,nBasis))
+
+             root_print "Logging dead-end (a|ij) excitations below threshold: ", ija_thresh
 
         end if
     end subroutine init_hist_tau_search
