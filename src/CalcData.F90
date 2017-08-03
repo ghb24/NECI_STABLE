@@ -340,6 +340,11 @@ logical :: t_previous_hist_tau = .false.
 ! keyword in case the tau-search is not converged enough
 logical :: t_restart_hist_tau = .false. 
 
+! also introduce an integer, to delay the actual changing of the time-step 
+! for a set amount of iterations
+! (in the restart case for now!)
+integer :: hist_search_delay = 0
+
 ! maybe also introduce a mixing between the old and new quantities in the 
 ! histogramming tau-search, since it is a stochastic process now
 logical :: t_mix_ratios = .false.
