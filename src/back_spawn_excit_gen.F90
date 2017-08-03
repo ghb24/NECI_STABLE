@@ -3,7 +3,7 @@
 module back_spawn_excit_gen
 
     use constants, only: dp, n_int, EPS, bits_n_int
-    use SystemData, only: nel, G1, nbasis
+    use SystemData, only: nel, G1, nbasis, tHPHF
     use bit_rep_data, only: niftot
     use SymExcitDataMod, only: excit_gen_store_type, SpinOrbSymLabel
     use bit_reps, only: test_flag, get_initiator_flag
@@ -21,6 +21,8 @@ module back_spawn_excit_gen
                           pick_occupied_orbital_single, pick_virtual_electron_single, &
                           pick_occupied_orbital, pick_second_occupied_orbital
     use get_excit, only: make_single, make_double
+    use Determinants, only: write_det, get_helement
+!     use hphf_integrals, only: hphf_off_diag_helement
 
     implicit none
 
@@ -42,6 +44,10 @@ contains
         character(*), parameter :: this_routine = "gen_excit_back_spawn"
 
         logical :: temp_back_spawn 
+#ifdef __DEBUG
+        HElement_t(dp) :: temp_hel
+        real(dp) :: pgen2
+#endif
         ! check the non-initiator criteria beforehand 
         ! i also have to consider that back-spawn gets turned on later on 
         ! so i have to check if back-spawn is active already or not..
@@ -67,6 +73,32 @@ contains
 
             end if
 
+! #ifdef __DEBUG
+!             if (.not. IsNullDet(nJ)) then
+!                 pgen2 = calc_pgen_back_spawn(nI, ilutI, ExcitMat, ic, run) 
+!                 if (abs(pgen - pgen2) > 1.0e-6_dp) then 
+!                     if (tHPHF) then 
+!                         print *, "due to circular dependence, no matrix element calc possible!"
+! !                         temp_hel = hphf_off_diag_helement(nI,nJ,ilutI,ilutJ)
+!                         temp_hel = 0.0_dp
+!                     else
+!                         temp_hel = get_helement(nI,nJ,ilutI,ilutJ)
+!                     endif
+! 
+!                     write(6,*) 'Calculated and actual pgens differ. for non-initiator'
+!                     write(6,*) 'This will break HPHF calculations'
+!                     call write_det(6, nI, .false.)
+!                     write(6, '(" --> ")', advance='no')
+!                     call write_det(6, nJ, .true.)
+!                     write(6,*) 'Excitation matrix: ', ExcitMat(1,1:ic), '-->', &
+!                                ExcitMat(2,1:ic)
+!                     write(6,*) 'Generated pGen:  ', pgen
+!                     write(6,*) 'Calculated pGen: ', pgen2
+!                     write(6,*) 'matrix element: ', temp_hel
+!                     call stop_all(this_routine, "Invalid pGen")
+!                 end if
+!             end if
+! #endif
         else 
  
             ! do the "normal" excitation type if it is an initiator
@@ -85,6 +117,32 @@ contains
                 pgen = pgen * pDoubles
 
             end if
+! #ifdef __DEBUG
+!             if (.not. IsNullDet(nJ)) then
+!                  pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
+!                 if (abs(pgen - pgen2) > 1.0e-6_dp) then
+!                     if (tHPHF) then
+!                         print *, "due to circular dependence, no matrix element calc possible!"
+! !                         temp_hel = hphf_off_diag_helement(nI,nJ,ilutI,ilutJ)
+!                         temp_hel = 0.0_dp
+!                     else
+!                         temp_hel = get_helement(nI, nJ, ilutI, ilutJ)
+!                     end if
+! 
+!                     write(6,*) 'Calculated and actual pgens differ. initiator'
+!                     write(6,*) 'This will break HPHF calculations'
+!                     call write_det(6, nI, .false.)
+!                     write(6, '(" --> ")', advance='no')
+!                     call write_det(6, nJ, .true.)
+!                     write(6,*) 'Excitation matrix: ', ExcitMat(1,1:ic), '-->', &
+!                                ExcitMat(2,1:ic)
+!                     write(6,*) 'Generated pGen:  ', pgen
+!                     write(6,*) 'Calculated pGen: ', pgen2
+!                     write(6,*) 'matrix element: ', temp_hel
+!                     call stop_all(this_routine, "Invalid pGen")
+!                 end if
+!             end if
+! #endif
        end if
 
     end subroutine gen_excit_back_spawn
