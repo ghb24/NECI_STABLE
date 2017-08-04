@@ -482,9 +482,9 @@ contains
             do i = 1, nel
                 if (.not. any(projedet(i,part_type_to_run(run)) == nI)) then 
                     if (any(projedet(i,part_type_to_run(run)) == sym_orbs)) then 
-                        if (is_beta(orb_a) .eqv. &
-                            is_beta(projedet(i,part_type_to_run(run))) .and. &
-                            orb_a /= projedet(i,part_type_to_run(run))) then 
+                        if ((is_beta(orb_a) .eqv. &
+                            is_beta(projedet(i,part_type_to_run(run)))) .and. &
+                            (orb_a /= projedet(i,part_type_to_run(run)))) then 
 
                             occ_orbs(j) = projedet(i,part_type_to_run(run)) 
                             j = j + 1
