@@ -8,8 +8,7 @@ module excit_gens_int_weighted
                           par_hole_pairs, AB_hole_pairs, iMaxLz, &
                           tGen_4ind_part_exact, tGen_4ind_lin_exact, &
                           tGen_4ind_unbound, t_iiaa, t_ratio, UMatEps
-    use CalcData, only: matele_cutoff, t_matele_cutoff, t_back_spawn, t_back_spawn_flex, &
-                        t_back_spawn_occ_virt, occ_virt_level
+    use CalcData, only: matele_cutoff, t_matele_cutoff
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
                                pDoubNew, ScratchSize, SpinOrbSymLabel, &
@@ -312,7 +311,7 @@ contains
             end do
 
             ! Andjust the probability for this symmetry stuff
-            if (cum_sum == 0) then
+            if (cum_sum < EPS) then
                 pgen = 0
                 return
             else
@@ -328,7 +327,7 @@ contains
 
             ! Deal with cases when there are no available excitations
             ! with the given pathway.
-            if (any(cum_sums == 0.0)) then
+            if (any(cum_sums < EPS)) then
                 cum_sums = 1.0
                 int_cpt = 0.0
             end if
@@ -348,7 +347,7 @@ contains
                 
                 ! Deal with cases when there are no available excitations
                 ! with the given pathway.
-                if (any(sum_pair == 0.0)) then
+                If (any(sum_pair < EPS)) then
                     sum_pair = 1.0
                     cpt_pair = 0.0
                 end if

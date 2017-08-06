@@ -948,6 +948,9 @@ MODULE HPHFRandExcitMod
         !
         ! nI is the determinant from which the excitation comes from.
 
+        use bit_reps, only: get_initiator_flag
+        use bit_rep_data, only: test_flag
+
         integer, intent(in) :: nI(nel), ex(2,2), ic
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: ClassCount2(ScratchSize)
@@ -973,8 +976,12 @@ MODULE HPHFRandExcitMod
         end if
 
         ! does it help to avoid recalculating for the reference?
-        if ((t_back_spawn .or. t_back_spawn_flex) .and. .not. & 
-           DetBitEq(ilutI,ilutRef(:,temp_run),nifdbo)) then 
+        ! do i need to  check if it is actually a non-initiator? 
+        ! i guess i do.. or i go the unnecessary way of checking again in 
+        ! the called back-spawn functions 
+        if ((t_back_spawn .or. t_back_spawn_flex) .and. &
+            (.not. DetBitEq(ilutI,ilutRef(:,temp_run),nifdbo)) .and. &
+            (.not. test_flag(ilutI, get_initiator_flag(temp_run)))) then 
             ! i just realised this also has to be done for the hubbard 
             ! and the ueg model.. -> create those functions! 
             if (tHUB .and. tLatticeGens) then 

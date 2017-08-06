@@ -236,7 +236,6 @@ contains
 
         real(dp) :: scratch_cpt, scratch_sm
         integer :: scratch_orb
-        logical :: t_temp_init, t_back_spawn_temp
         integer :: loc
 
         ! Pick the electrons in a weighted fashion
