@@ -776,7 +776,25 @@ contains
             print *, "pgen: ", pgen 
             print *, "ic: ", ic
             print *, "parallel: ", t_parallel
-            print *, "ex-matrix: ", ex
+            print *, "ex-maxtrix: ", get_src(ex), " -> ", get_tgt(ex)
+            indi = gtid(ex(1,1))
+            indj = gtid(ex(1,2))
+            inda = gtid(ex(2,1))
+            indb = gtid(ex(2,2))
+            print *, "umat (ij|ab) ", get_umat_el(indi,indj,inda,indb)
+            print *, "umat (ij|ba) ", get_umat_el(indi,indj,indb,inda)
+            print *, "diff: ", abs(get_umat_el(indi,indj,inda,indb) - &
+                get_umat_el(indi,indj,indb,inda))
+            print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
+            print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
+            print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
+            print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
+            print *, "(ia|ia): ", abs(get_umat_el(indi,inda,indi,inda))
+            print *, "(ja|ja): ", abs(get_umat_el(indj,inda,indj,inda))
+            print *, "(ib|ib): ", abs(get_umat_el(indi,indb,indi,indb))
+            print *, "(jb|jb): ", abs(get_umat_el(indj,indb,indj,indb))
+            print *, "******************"
+
 #endif
             ! but i still should keep track of these events! 
             select case (ic)
