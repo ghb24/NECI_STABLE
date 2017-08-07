@@ -7,7 +7,7 @@ fmtstr = i15
 [int64]
 type = integer(kind=int64)
 width = 20
-fmtstr = i15
+fmtstr = i16
 
 [real]
 type = real(kind=sp)
