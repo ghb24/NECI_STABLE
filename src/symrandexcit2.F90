@@ -56,7 +56,7 @@ MODULE GenRandSymExcitNUMod
     contains
 
     subroutine gen_rand_excit (nI, ilut, nJ, ilutnJ, exFlag, IC, ExcitMat, &
-                               tParity, pGen, HElGen, store, run)
+                               tParity, pGen, HElGen, store, part_type)
 
         ! This routine is the same as GenRandSymexcitNu, but you can pass in 
         ! the class count arrays so that they do not have to be recalculated 
@@ -76,7 +76,7 @@ MODULE GenRandSymExcitNUMod
         integer(n_int), intent(out) :: ilutnJ(0:niftot)
         HElement_t(dp), intent(out) :: HElGen
 
-        integer, intent(in), optional :: run
+        integer, intent(in), optional :: part_type
 
         real(dp) :: r
         character(*), parameter :: this_routine = 'gen_rand_excit'
@@ -86,7 +86,7 @@ MODULE GenRandSymExcitNUMod
         HElGen = 0.0_dp
 
         IF((tUEG.and.tLatticeGens) .or. (tHub.and.tLatticeGens)) THEN
-            call CreateExcitLattice(nI,iLut,nJ,tParity,ExcitMat,pGen,run)
+            call CreateExcitLattice(nI,iLut,nJ,tParity,ExcitMat,pGen,part_type)
             IC=2
             RETURN
         ENDIF       
@@ -2105,11 +2105,10 @@ MODULE GenRandSymExcitNUMod
 
 ! For a given ij pair in the UEG or Hubbard model, this generates ab as a double excitation efficiently.
 ! This takes into account the momentum conservation rule, i.e. that kb=ki+ki-ka(+G).
-    SUBROUTINE CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn,run)
+    SUBROUTINE CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn,part_type)
         Use SystemData , only : NMAXX,NMAXY,NMAXZ,tOrbECutoff,OrbECutoff, kvec, TUEG2
         use sym_mod, only: mompbcsym
         use bit_rep_data, only: test_flag
-        use bit_reps, only: get_initiator_flag
         use CalcData, only: t_back_spawn_flex, occ_virt_level
         use back_spawn, only: pick_occupied_orbital_hubbard, check_electron_location
 
@@ -2118,16 +2117,16 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,2),iSpinIndex,TestEnergyB
         LOGICAL :: tAllowedExcit,tParity
         real(dp) :: r,pGen,pAIJ
-        integer, intent(in), optional :: run
+        integer, intent(in), optional :: part_type
 
-        integer :: elecs(2), loc, temp_run
+        integer :: elecs(2), loc, temp_part_type
 
         ! [W.D.] just a workaround for now, after i rehaul all the lattice
         ! excitation generators, this will be more optimized
-        if (present(run)) then 
-            temp_run = run
+        if (present(part_type)) then 
+            temp_part_type = part_type
         else
-            temp_run = 1
+            temp_part_type = 1
         end if
        
         ! This chooses an a of the correct spin, excluding occupied orbitals
@@ -2424,11 +2423,10 @@ MODULE GenRandSymExcitNUMod
     ! For UEG there is a more sophisticated algorithm that allows more ijab choices to be 
     !rejected before going back to the main
     ! code.
-    SUBROUTINE CreateExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,run)
+    SUBROUTINE CreateExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,part_type)
         Use SystemData , only : NMAXX,NMAXY,NMAXZ, tUEG2, kvec
         use CalcData, only: t_back_spawn
         use bit_rep_data, only: test_flag
-        use bit_reps, only: get_initiator_flag
         use back_spawn, only: pick_virtual_electrons_double_hubbard
 
         INTEGER :: i,j ! Loop variables
@@ -2439,13 +2437,13 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: KaXLowerLimit,KaXUpperLimit,KaXRange,KaYLowerLimit,KaYUpperLimit,KaYRange,KaZLowerLimit,KaZUpperLimit,KaZRange
         LOGICAL :: tParity,tDoubleCount,tExtraPoint
         real(dp) :: r(2),pGen,pAIJ
-        integer, intent(in), optional :: run
+        integer, intent(in), optional :: part_type
         INTEGER, ALLOCATABLE :: Excludedk(:,:)
         character(*), parameter :: this_routine = "CreateExcitLattice"
         integer :: elecs(2), src(2), sym_prod, sum_ml
         real(dp) :: pgen_back
 
-        integer :: temp_run
+        integer :: temp_part_type
 !        CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,-1)
          
         ! Completely random ordering of electrons is important when considering ij->ab ij/->ba. 
@@ -2455,10 +2453,10 @@ MODULE GenRandSymExcitNUMod
         kazrange = 0
         kayrange = 0
 
-        if (present(run)) then 
-            temp_run = run
+        if (present(part_type)) then 
+            temp_part_type = part_type
         else
-            temp_run = 1
+            temp_part_type = 1
         end if
 
         ! [W.D]
@@ -2609,7 +2607,7 @@ MODULE GenRandSymExcitNUMod
                 write(6,*) "Allowed Excitations", iAllowedExcites
                 CALL Stop_All("CreateExcitLattice","Failure to generate a valid excitation from an electron pair combination")
             ENDIF
-            CALL CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn,temp_run)
+            CALL CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn,temp_part_type)
             ! now adapt the pgen in the case of the back-spawning
 !             if (t_back_spawn .and. .not. test_flag(ilutnI, get_initiator_flag(temp_run))) then
 !                 pgen = pgen * real(nOccBeta*nOccAlpha,dp) * pgen_back

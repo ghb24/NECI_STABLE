@@ -34,8 +34,6 @@ module excit_gens_int_weighted
     use get_excit, only: make_double, make_single
     use sort_mod
     use util_mod
-    use back_spawn, only: pick_virtual_electron_single, check_electron_location, &
-                          pick_occupied_orbital_single
     use LoggingData, only: t_log_ija, ija_bins_para, ija_bins_anti, ija_thresh, &
                            ija_orbs_para, ija_orbs_anti, ija_bins_sing, ija_orbs_sing
 
@@ -45,7 +43,7 @@ module excit_gens_int_weighted
 contains
 
     subroutine gen_excit_hel_weighted (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                       ExcitMat, tParity, pGen, HelGen, store, run)
+                                       ExcitMat, tParity, pGen, HelGen, store, part_type)
 
         ! A really laborious, slow, explicit and brute force method to
         ! generating all excitations in proportion to their connection
@@ -59,7 +57,7 @@ contains
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
-        integer, intent(in), optional :: run
+        integer, intent(in), optional :: part_type
 
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'gen_excit_hel_weighted'
@@ -158,7 +156,7 @@ contains
     !
 
     subroutine gen_excit_4ind_weighted (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                        ExcitMat, tParity, pGen, HelGen, store, run)
+                                        ExcitMat, tParity, pGen, HelGen, store, part_type)
 
         ! TODO: description
         !
@@ -173,7 +171,7 @@ contains
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
-        integer, intent(in), optional :: run
+        integer, intent(in), optional :: part_type
 
         character(*), parameter :: this_routine = 'gen_excit_4ind_weighted'
         integer :: orb
@@ -443,7 +441,6 @@ contains
 
         integer :: elec, src, tgt, cc_index
         real(dp) :: pgen_elec
-        logical :: temp_init
         integer :: loc, dummy_src(2)
 
         ! In this version of the excitation generator, we pick an electron
@@ -853,8 +850,6 @@ contains
         integer :: cc_index, ms
         real(dp) :: tmp
 
-        logical :: t_par
-
         ! How many orbitals are available with the given symmetry?
         cc_index = ClassCountInd(get_spin(tgt), SpinOrbSymLabel(tgt), &
                                  G1(tgt)%Ml)
@@ -864,7 +859,6 @@ contains
         ! We perform different sums depending on the relative spins :-(
         cum_sum = 0
         if (is_beta(src(1)) .eqv. is_beta(src(2))) then
-            t_par = .true.
             ! Both electrons have the same spin. So we need to include both
             ! electron-hole interactions.
             srcid = gtID(src)
@@ -878,8 +872,6 @@ contains
                 end if
             end do
         else
-            t_par = .false.
-            
             ! The two electrons have differing spin. Therefore, only the
             ! electron-hole interaction with the same spin is required
             ms = class_count_ms(cc_index)
@@ -1089,7 +1081,7 @@ contains
         ! the correct symmetry.
         real(dp) :: cumulative_arr(OrbClassCount(cc_index)), r
 
-        logical :: t_par = .false.
+        logical :: t_par
         ! How many orbitals are there with the given symmetry?
         !cc_index = ClassCountInd(spin, sym, 0)
         label_index = SymLabelCounts2(1, cc_index)
@@ -1223,7 +1215,7 @@ contains
 
 
     subroutine gen_excit_4ind_reverse (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                       ExcitMat, tParity, pGen, HelGen, store, run)
+                                       ExcitMat, tParity, pGen, HelGen, store, part_type)
 
         ! TODO: description
         !
@@ -1238,7 +1230,7 @@ contains
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
-        integer, intent(in), optional :: run
+        integer, intent(in), optional :: part_type
 
         character(*), parameter :: this_routine = 'gen_excit_4ind_reverse'
 

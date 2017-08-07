@@ -122,7 +122,7 @@ MODULE HPHFRandExcitMod
     end subroutine CalcPGenHPHF
 
     subroutine gen_hphf_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                               tParity, pGen, HEl, store, run)
+                               tParity, pGen, HEl, store, part_type)
 
         use FciMCData, only: tGenMatHEl
 
@@ -147,7 +147,7 @@ MODULE HPHFRandExcitMod
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HEl
         type(excit_gen_store_type), intent(inout), target :: store
-        integer, intent(in), optional :: run
+        integer, intent(in), optional :: part_type
         character(*), parameter :: this_routine = "gen_hphf_excit"
 
         integer(kind=n_int) :: iLutnJ2(0:niftot)
@@ -167,16 +167,16 @@ MODULE HPHFRandExcitMod
         if (t_back_spawn .or. t_back_spawn_flex) then 
             if (tUEGNewGenerator .and. tLatticeGens) then 
                 call gen_excit_back_spawn_ueg_new(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
-                                          ExcitMat, tSignOrig, pgen, Hel, store, run)
+                                          ExcitMat, tSignOrig, pgen, Hel, store, part_type)
             else if (tUEG .and. tLatticeGens) then 
                 call gen_excit_back_spawn_ueg(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
-                                          ExcitMat, tSignOrig, pgen, Hel, store, run)
+                                          ExcitMat, tSignOrig, pgen, Hel, store, part_type)
             else if (tHUB .and. tLatticeGens) then
                 call gen_excit_back_spawn_hubbard (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat,&
-                                 tSignOrig, pGen, HEl, store, run)
+                                 tSignOrig, pGen, HEl, store, part_type)
             else
                 call gen_excit_back_spawn(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
-                                          ExcitMat, tSignOrig, pgen, Hel, store, run)
+                                          ExcitMat, tSignOrig, pgen, Hel, store, part_type)
             end if
 
         else if (tGen_4ind_weighted) then
@@ -268,7 +268,7 @@ MODULE HPHFRandExcitMod
                 ENDIF
                 CALL CalcNonUniPGen(nI, ilutnI, Ex2, ExcitLevel, &
                                     store%ClassCountOcc, &
-                                    store%ClassCountUnocc, pDoubles, pGen2, run)
+                                    store%ClassCountUnocc, pDoubles, pGen2, part_type)
 !!We cannot guarentee that the pGens are going to be the same - in fact, generally, they wont be.
                 pGen=pGen+pGen2
 
@@ -930,7 +930,7 @@ MODULE HPHFRandExcitMod
 
 
     subroutine CalcNonUniPGen(nI, ilutI, ex, ic, ClassCount2, &
-                              ClassCountUnocc2, pDoub, pGen, run)
+                              ClassCountUnocc2, pDoub, pGen, part_type)
 
         ! This routine will calculate the PGen between two connected
         ! determinants, nI and nJ which are IC excitations of each other, using
@@ -957,10 +957,10 @@ MODULE HPHFRandExcitMod
         integer, intent(in) :: ClassCountUnocc2(ScratchSize)
         real(dp), intent(in) :: pDoub
         real(dp), intent(out) :: pGen
-        integer, intent(in), optional :: run
+        integer, intent(in), optional :: part_type
         character(*), parameter :: this_routine = 'CalcNonUniPGen'
 
-        integer :: temp_run 
+        integer :: temp_part_type 
 
         ! We need to consider which of the excitation generators are in use,
         ! and call the correct routine in each case.
@@ -969,10 +969,10 @@ MODULE HPHFRandExcitMod
         pgen = 0.0_dp
 
         ! i have to make sure to catch all this call to this function correctly
-        if (present(run)) then 
-            temp_run = run
+        if (present(part_type)) then 
+            temp_part_type = part_type
         else
-            temp_run = 1
+            temp_part_type = 1
         end if
 
         ! does it help to avoid recalculating for the reference?
@@ -980,18 +980,18 @@ MODULE HPHFRandExcitMod
         ! i guess i do.. or i go the unnecessary way of checking again in 
         ! the called back-spawn functions 
         if ((t_back_spawn .or. t_back_spawn_flex) .and. &
-            (.not. DetBitEq(ilutI,ilutRef(:,temp_run),nifdbo)) .and. &
-            (.not. test_flag(ilutI, get_initiator_flag(temp_run)))) then 
+            (.not. DetBitEq(ilutI,ilutRef(:,temp_part_type),nifdbo)) .and. &
+            (.not. test_flag(ilutI, get_initiator_flag(temp_part_type)))) then 
             ! i just realised this also has to be done for the hubbard 
             ! and the ueg model.. -> create those functions! 
             if (tHUB .and. tLatticeGens) then 
-                pgen = calc_pgen_back_spawn_hubbard(nI, ilutI, ex, ic, temp_run)
+                pgen = calc_pgen_back_spawn_hubbard(nI, ilutI, ex, ic, temp_part_type)
             else if (tUEGNewGenerator .and. tLatticeGens) then 
-                pgen = calc_pgen_back_spawn_ueg_new(nI, ilutI, ex, ic, temp_run)
+                pgen = calc_pgen_back_spawn_ueg_new(nI, ilutI, ex, ic, temp_part_type)
             else if (tUEG .and. tLatticeGens) then 
-                pgen = calc_pgen_back_spawn_ueg(nI, ilutI, ex, ic, temp_run)
+                pgen = calc_pgen_back_spawn_ueg(nI, ilutI, ex, ic, temp_part_type)
             else
-                pgen = calc_pgen_back_spawn(nI, ilutI, ex, ic, temp_run)
+                pgen = calc_pgen_back_spawn(nI, ilutI, ex, ic, temp_part_type)
             end if
 
         else if (tLatticeGens) then

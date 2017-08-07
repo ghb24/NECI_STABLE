@@ -41,7 +41,7 @@ module back_spawn_excit_gen
 contains
 
     subroutine gen_excit_back_spawn_ueg_new(nI, ilutI, nJ, ilutJ, exFlag, ic, &
-            ExcitMat, tParity, pgen, HelGen, store, run) 
+            ExcitMat, tParity, pgen, HelGen, store, part_type) 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2) 
@@ -50,7 +50,7 @@ contains
         real(dp), intent(out) :: pgen 
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store 
-        integer, intent(in), optional :: run
+        integer, intent(in), optional :: part_type
         character(*), parameter :: this_routine = "gen_excit_back_spawn_ueg_new"
  
         integer :: iUnused
@@ -65,14 +65,14 @@ contains
         ! do i want to implement both old and new back spawn?? 
         ! no!
         if ((t_back_spawn_flex .or. t_back_spawn) .and. & 
-            .not. test_flag(ilutI, get_initiator_flag(run))) then 
+            .not. test_flag(ilutI, get_initiator_flag(part_type))) then 
 
-            call gen_double_back_spawn_ueg_new(nI, ilutI, run, nJ, ilutJ, tParity, &
+            call gen_double_back_spawn_ueg_new(nI, ilutI, part_type, nJ, ilutJ, tParity, &
                 ExcitMat, pgen)
 
 #ifdef __DEBUG
             if (.not. IsNullDet(nJ)) then
-                pgen2 = calc_pgen_back_spawn_ueg_new(nI, ilutI, ExcitMat, ic, run) 
+                pgen2 = calc_pgen_back_spawn_ueg_new(nI, ilutI, ExcitMat, ic, part_type) 
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then 
                     if (tHPHF) then 
                         print *, "due to circular dependence, no matrix element calc possible!"
@@ -85,7 +85,7 @@ contains
                     write(6,*) 'Calculated and actual pgens differ. for non-initiator'
                     write(6,*) 'This will break HPHF calculations'
                     write(6,*) 'reference det: '
-                    call write_det(6, projedet(:,run), .true.)
+                    call write_det(6, projedet(:,part_type_to_run(part_type)), .true.)
                     call write_det(6, nI, .false.)
                     write(6, '(" --> ")', advance='no')
                     call write_det(6, nJ, .true.)
@@ -132,8 +132,8 @@ contains
 
     end subroutine gen_excit_back_spawn_ueg_new
 
-    subroutine gen_double_back_spawn_ueg_new(nI, ilutI, run, nJ, ilutJ, tPar, ex, pgen)
-        integer, intent(in) :: nI(nel), run
+    subroutine gen_double_back_spawn_ueg_new(nI, ilutI, part_type, nJ, ilutJ, tPar, ex, pgen)
+        integer, intent(in) :: nI(nel), part_type
         integer(n_int), intent(in) :: ilutI(0:niftot) 
         integer, intent(out) :: nJ(nel), ex(2,2)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
@@ -148,7 +148,7 @@ contains
         t_temp_back_spawn = .false.
 
         if (t_back_spawn) then 
-            call pick_virtual_electrons_double(nI, run, elecs, src, ispn, &
+            call pick_virtual_electrons_double(nI, part_type, elecs, src, ispn, &
                 sum_ml, p_elec) 
 
             loc = -1
@@ -158,7 +158,7 @@ contains
 
             ispn = get_ispn(src)
 
-            loc = check_electron_location(src, 2, run)
+            loc = check_electron_location(src, 2, part_type)
         end if
 
         if (elecs(1) == 0) then 
@@ -172,7 +172,7 @@ contains
             (loc == 0 .and. occ_virt_level >= 1)) then 
 
             t_temp_back_spawn = .true.
-            call pick_occupied_orbital_ueg(nI, ilutI, src, iSpn, run, p_orb, &
+            call pick_occupied_orbital_ueg(nI, ilutI, src, iSpn, part_type, p_orb, &
                 dummy, orb_a)
             ! it can happen that there are no valid orbitals 
             if (orb_a == 0)then 
@@ -223,15 +223,15 @@ contains
 
         pgen = p_elec * p_orb
 
-        if (t_temp_back_spawn .and. is_in_ref(orb_b, run)) then 
+        if (t_temp_back_spawn .and. is_in_ref(orb_b, part_type)) then 
             pgen = 2.0_dp * pgen 
         end if
 
     end subroutine gen_double_back_spawn_ueg_new
 
-    function calc_pgen_back_spawn_ueg_new(nI, ilutI, ex, ic, run) result(pgen)
+    function calc_pgen_back_spawn_ueg_new(nI, ilutI, ex, ic, part_type) result(pgen)
         ! i also need immmidiately a calc_pgen function! 
-        integer, intent(in) :: nI(nel), ex(2,2), ic, run
+        integer, intent(in) :: nI(nel), ex(2,2), ic, part_type
         integer(n_int), intent(in) :: ilutI(0:niftot) 
         real(dp) :: pgen
 
@@ -246,7 +246,7 @@ contains
 
         ! and maybe i should also enable that i call this outside of 
         ! knowledge of the initator status.. 
-        if (test_flag(ilutI, get_initiator_flag(run))) then 
+        if (test_flag(ilutI, get_initiator_flag(part_type))) then 
             pgen = calc_pgen_ueg(nI, ilutI, ex, ic) 
 
         else
@@ -256,13 +256,13 @@ contains
             ispn = get_ispn(src) 
 
             if (t_back_spawn) then 
-                call pick_virtual_electrons_double(nI, run, elecs, dummy_src, &
+                call pick_virtual_electrons_double(nI, part_type, elecs, dummy_src, &
                     dumm_iSpn, sum_ml, & 
                     p_elec)
                 loc = -1
             else 
                 p_elec = 1.0_dp / real(ElecPairs, dp)
-                loc = check_electron_location(src, 2, run)
+                loc = check_electron_location(src, 2, part_type)
             end if
 
             if ((loc == 2) .or. (loc == 1 .and. occ_virt_level /= -1) .or. &
@@ -270,13 +270,13 @@ contains
                 ! argh.. wait a minute.. i have to ensure that i only do that 
                 ! for back-spawn flex!
 
-                call pick_occupied_orbital_ueg(nI, ilutI, src, iSpn, run, p_orb, &
+                call pick_occupied_orbital_ueg(nI, ilutI, src, iSpn, part_type, p_orb, &
                     dummy, orb_a)
 
                 ! do i need to multiply if both are in the reference? 
                 ! i guess so.. since then i could have picked it in both 
                 ! orders.. 
-                if (is_in_ref(tgt(1),run) .and. is_in_ref(tgt(2),run)) then 
+                if (is_in_ref(tgt(1),part_type) .and. is_in_ref(tgt(2),part_type)) then 
                     p_orb = 2.0_dp * p_orb
                 end if
             else
@@ -303,7 +303,7 @@ contains
     end function calc_pgen_back_spawn_ueg_new
 
     subroutine gen_excit_back_spawn_hubbard(nI, ilutI, nJ, ilutJ, exFlag, ic, &
-            ExcitMat, tParity, pgen, HelGen, store, run) 
+            ExcitMat, tParity, pgen, HelGen, store, part_type) 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2) 
@@ -312,7 +312,7 @@ contains
         real(dp), intent(out) :: pgen 
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store 
-        integer, intent(in), optional :: run
+        integer, intent(in), optional :: part_type
         character(*), parameter :: this_routine = "gen_excit_back_spawn_hubbard"
  
 #ifdef __DEBUG
@@ -334,14 +334,14 @@ contains
         ASSERT(.not. tNoFailAb)
 
         if ((t_back_spawn .or. t_back_spawn_flex) .and. .not. &
-            test_flag(ilutI, get_initiator_flag(run))) then
+            test_flag(ilutI, get_initiator_flag(part_type))) then
 
             call gen_double_back_spawn_hubbard(nI, ilutI, nJ, ilutJ, tParity, ExcitMat, & 
                 pgen) 
 
 #ifdef __DEBUG
             if (.not. IsNullDet(nJ)) then
-                pgen2 = calc_pgen_back_spawn_hubbard(nI, ilutI, ExcitMat, ic, run) 
+                pgen2 = calc_pgen_back_spawn_hubbard(nI, ilutI, ExcitMat, ic, part_type) 
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then 
                     if (tHPHF) then 
                         print *, "due to circular dependence, no matrix element calc possible!"
@@ -367,7 +367,7 @@ contains
 #endif
         else 
             ! do i want to rewrite the old on or just reuse? for now reuse: 
-            call CreateExcitLattice(nI, ilutI, nJ, tParity, ExcitMat, pgen, run) 
+            call CreateExcitLattice(nI, ilutI, nJ, tParity, ExcitMat, pgen, part_type) 
 
 #ifdef __DEBUG
             if (.not. IsNullDet(nJ)) then
@@ -400,18 +400,18 @@ contains
     end subroutine gen_excit_back_spawn_hubbard
 
     subroutine gen_double_back_spawn_hubbard(nI, ilutI, nJ, ilutJ, tParity, ExcitMat, & 
-                pgen, run) 
+                pgen, part_type) 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: nJ(nel), ExcitMat(2,2) 
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity 
         real(dp), intent(out) :: pgen 
-        integer, optional :: run
+        integer, optional :: part_type
         character(*), parameter :: this_routine = "gen_double_back_spawn_hubbard"
 
         integer :: elec_i, elec_j, iSpn, orb_b, src(2), elecs(2), &
-                   loc, temp_run, orb_a
+                   loc, temp_part_type, orb_a
         real(dp) :: x, pAIJ, dummy, mult, pgen_elec
         logical :: tAllowedExcit, t_temp_back_spawn
 
@@ -419,10 +419,10 @@ contains
         ! the (save) attribut!
         t_temp_back_spawn = .false.
 
-        if (present(run)) then 
-            temp_run = run 
+        if (present(part_type)) then 
+            temp_part_type = part_type 
         else 
-            temp_run = 1
+            temp_part_type = 1
         end if
 
         ! i know here that back-spawn is on and this is a non-inititator: 
@@ -434,7 +434,7 @@ contains
         ! maybe for now.. i still want to retain the original 
         ! back-spawn functionality
         if (t_back_spawn) then  
-            call pick_virtual_electrons_double_hubbard(nI, temp_run, elecs, src, ispn,&
+            call pick_virtual_electrons_double_hubbard(nI, temp_part_type, elecs, src, ispn,&
                                                         pgen_elec)
             ! check if enogh electrons are in the virtual
             if (elecs(1) == 0) then
@@ -466,7 +466,7 @@ contains
 
             src = nI([elec_i, elec_j])
 
-            loc = check_electron_location(src, 2, temp_run)
+            loc = check_electron_location(src, 2, temp_part_type)
         end if
 
         ! i need to call nI(elecs)
@@ -486,7 +486,7 @@ contains
             ! i think just using the "normal" occupied picker should be fine
             ! how does this compile even??
             ! no.. write a new one without the spin-restriction
-            call pick_occupied_orbital_hubbard(nI, ilutI, temp_run, pAIJ, orb_a)
+            call pick_occupied_orbital_hubbard(nI, ilutI, temp_part_type, pAIJ, orb_a)
             ! i should take k-space symmetry into accound in picking 
             ! orb a
 
@@ -550,7 +550,7 @@ contains
         ! note, p(b|ij)=p(a|ij) for this system
         ! if b is also in the occupied manifold in the case of back_spawn_flex
         mult = 2.0_dp
-        if (t_temp_back_spawn .and. (.not. is_in_ref(orb_b, run))) then 
+        if (t_temp_back_spawn .and. (.not. is_in_ref(orb_b, temp_part_type))) then 
             mult = 1.0_dp 
         end if
 
@@ -558,8 +558,8 @@ contains
 
     end subroutine gen_double_back_spawn_hubbard
 
-    function calc_pgen_back_spawn_hubbard(nI, ilutI, ex, ic, run) result(pgen)
-        integer, intent(in) :: nI(nel), ex(2,2), ic, run
+    function calc_pgen_back_spawn_hubbard(nI, ilutI, ex, ic, part_type) result(pgen)
+        integer, intent(in) :: nI(nel), ex(2,2), ic, part_type
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
         character(*), parameter :: this_routine = "calc_pgen_back_spawn"
@@ -574,7 +574,7 @@ contains
             return 
         end if
 
-        if (test_flag(ilutI, get_initiator_flag(run))) then 
+        if (test_flag(ilutI, get_initiator_flag(part_type))) then 
 
             ! can i use the already provided routine also for hubbard models?
             ! yes!
@@ -586,7 +586,7 @@ contains
 
             if (t_back_spawn) then 
 
-                call pick_virtual_electrons_double_hubbard(nI, run, d_elecs, d_src, &
+                call pick_virtual_electrons_double_hubbard(nI, part_type, d_elecs, d_src, &
                     d_ispn, pgen_elec)
 
                 loc = -1 
@@ -595,7 +595,7 @@ contains
                 ! otherwise: 
                 pgen_elec = 1.0_dp / real(nOccBeta * nOccAlpha, dp) 
 
-                loc = check_electron_location(src, 2, run)
+                loc = check_electron_location(src, 2, part_type)
             end if
 
             ! otherwise i have to calculate stuff
@@ -603,7 +603,7 @@ contains
                 (loc == 0 .and. occ_virt_level >= 1)) then 
                 ! i only do that in the back-spawn flex case.. 
 
-                call pick_occupied_orbital_hubbard(nI, ilutI, run, paij, d_orb)
+                call pick_occupied_orbital_hubbard(nI, ilutI, part_type, paij, d_orb)
 
                 tgt = get_tgt(ex) 
 
@@ -615,7 +615,7 @@ contains
                 ! because when i am here, i know that atleast one is 
                 ! definetly in the reference.. and if the second also is 
                 ! i could have picked the orbitals the other way around.. 
-                if (is_in_ref(tgt(1), run) .and. is_in_ref(tgt(2), run)) then 
+                if (is_in_ref(tgt(1), part_type) .and. is_in_ref(tgt(2), part_type)) then 
                     mult = 2.0_dp
                 else
                     mult = 1.0_dp
@@ -637,7 +637,7 @@ contains
     ! to disentangle the mess of excitation generators also implement an new
     ! one for the UEG and the hubbard model seperately 
     subroutine gen_excit_back_spawn_ueg(nI, ilutI, nJ, ilutJ, exFlag, ic, &
-            ExcitMat, tParity, pgen, HelGen, store, run) 
+            ExcitMat, tParity, pgen, HelGen, store, part_type) 
         ! if back-spawn and ueg is turned on point to this excitation 
         ! generator! check if we hit all the relevant parts in the code though
         integer, intent(in) :: nI(nel), exFlag
@@ -648,7 +648,7 @@ contains
         real(dp), intent(out) :: pgen 
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store 
-        integer, intent(in), optional :: run
+        integer, intent(in), optional :: part_type
         character(*), parameter :: this_routine = "gen_excit_back_spawn_ueg"
  
 #ifdef __DEBUG
@@ -669,14 +669,14 @@ contains
         ! implement it for now without this tNoFailAb flag
         ASSERT(.not. tNoFailAb)
 
-        if (t_back_spawn_flex .and. .not. test_flag(ilutI, get_initiator_flag(run))) then
+        if (t_back_spawn_flex .and. .not. test_flag(ilutI, get_initiator_flag(part_type))) then
 
             call gen_double_back_spawn_ueg(nI, ilutI, nJ, ilutJ, tParity, ExcitMat, & 
                 pgen) 
 
 #ifdef __DEBUG
             if (.not. IsNullDet(nJ)) then
-                pgen2 = calc_pgen_back_spawn_ueg(nI, ilutI, ExcitMat, ic, run) 
+                pgen2 = calc_pgen_back_spawn_ueg(nI, ilutI, ExcitMat, ic, part_type) 
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then 
                     if (tHPHF) then 
                         print *, "due to circular dependence, no matrix element calc possible!"
@@ -702,7 +702,7 @@ contains
 #endif
         else 
             ! do i want to rewrite the old on or just reuse? for now reuse: 
-            call CreateExcitLattice(nI, ilutI, nJ, tParity, ExcitMat, pgen, run) 
+            call CreateExcitLattice(nI, ilutI, nJ, tParity, ExcitMat, pgen, part_type) 
 
 #ifdef __DEBUG
             if (.not. IsNullDet(nJ)) then
@@ -736,28 +736,28 @@ contains
     end subroutine gen_excit_back_spawn_ueg
 
     subroutine gen_double_back_spawn_ueg(nI, ilutI, nJ, ilutJ, tParity, ExcitMat, & 
-                pgen, run) 
+                pgen, part_type) 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: nJ(nel), ExcitMat(2,2) 
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity 
         real(dp), intent(out) :: pgen 
-        integer, optional :: run
+        integer, optional :: part_type
         character(*), parameter :: this_routine = "gen_double_back_spawn_ueg"
 
         integer :: elec_i, elec_j, iSpn, orb_b, src(2), &
-                   loc, temp_run, ki(3), kj(3), ka(3), kb(3), kb_ms, TestEnergyB, &
+                   loc, temp_part_type, ki(3), kj(3), ka(3), kb(3), kb_ms, TestEnergyB, &
                    iSpinIndex, orb_a
         real(dp) :: x, pAIJ, dummy, mult
         logical :: tAllowedExcit, t_temp_back_spawn 
 
         t_temp_back_spawn = .false.
 
-        if (present(run)) then 
-            temp_run = run 
+        if (present(part_type)) then 
+            temp_part_type = part_type 
         else 
-            temp_run = 1
+            temp_part_type = 1
         end if
 
         ! i know here that back-spawn is on and this is a non-inititator: 
@@ -777,7 +777,7 @@ contains
         iSpn = get_ispn(src)
 
         ! i need to call nI(elecs)
-        loc = check_electron_location(src, 2, temp_run)
+        loc = check_electron_location(src, 2, temp_part_type)
         
         ! wait a minute.. thats incorrect or? 
         ! if we have both in the occupied manifold we want to restrict 
@@ -791,7 +791,7 @@ contains
             ! i think just using the "normal" occupied picker should be fine
             ! how does this compile even??
             ! no.. write a new one without the spin-restriction
-            call pick_occupied_orbital_ueg(nI, ilutI, src, ispn, temp_run, pAIJ, &
+            call pick_occupied_orbital_ueg(nI, ilutI, src, ispn, temp_part_type, pAIJ, &
                      dummy, orb_a)
 
             if (orb_a == 0) then 
@@ -859,7 +859,7 @@ contains
         ! i have to be careful.. only if b is also in the occupied manifold 
         ! if we forced the pick.. then it is * 2
         mult = 2.0_dp
-        if (t_temp_back_spawn .and. (.not. is_in_ref(orb_b, run))) then 
+        if (t_temp_back_spawn .and. (.not. is_in_ref(orb_b, part_type))) then 
             mult = 1.0_dp
         end if
 
@@ -870,7 +870,7 @@ contains
     ! also write a wrapper-like routine for an excitation generator if 
     ! back-spawn is activated.. to not mess up all the old functions too much. 
     subroutine gen_excit_back_spawn(nI, ilutI, nJ, ilutJ, exFlag, ic, &
-            ExcitMat, tParity, pgen, HelGen, store, run) 
+            ExcitMat, tParity, pgen, HelGen, store, part_type) 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2) 
@@ -879,7 +879,7 @@ contains
         real(dp), intent(out) :: pgen 
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store 
-        integer, intent(in), optional :: run
+        integer, intent(in), optional :: part_type
         character(*), parameter :: this_routine = "gen_excit_back_spawn"
 
 #ifdef __DEBUG
@@ -891,20 +891,20 @@ contains
         ! so i have to check if back-spawn is active already or not..
 
         if ((t_back_spawn_flex .or. t_back_spawn) .and. &
-            .not. test_flag(ilutI, get_initiator_flag(run))) then 
+            .not. test_flag(ilutI, get_initiator_flag(part_type))) then 
 
             ! otherwise use custom made ones
             if (genrand_real2_dSFMT() < pSingles) then 
                 
                 ic = 1
-                call gen_single_back_spawn(nI, ilutI, run, nJ, ilutJ, ExcitMat, &
+                call gen_single_back_spawn(nI, ilutI, part_type, nJ, ilutJ, ExcitMat, &
                     tParity, pgen)
                 pgen = pgen * pSingles 
 
             else 
                 
                 ic = 2 
-                call gen_double_back_spawn(nI, ilutI, run, nJ, ilutJ, ExcitMat, &
+                call gen_double_back_spawn(nI, ilutI, part_type, nJ, ilutJ, ExcitMat, &
                     tParity, pgen) 
                 pgen = pgen * pDoubles 
 
@@ -912,7 +912,7 @@ contains
 
 #ifdef __DEBUG
             if (.not. IsNullDet(nJ)) then
-                pgen2 = calc_pgen_back_spawn(nI, ilutI, ExcitMat, ic, run) 
+                pgen2 = calc_pgen_back_spawn(nI, ilutI, ExcitMat, ic, part_type) 
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then 
                     if (tHPHF) then 
                         print *, "due to circular dependence, no matrix element calc possible!"
@@ -925,7 +925,7 @@ contains
                     write(6,*) 'Calculated and actual pgens differ. for non-initiator'
                     write(6,*) 'This will break HPHF calculations'
                     write(6,*) "reference determinant: " 
-                    call write_det(6, projedet(:,part_type_to_run(run)), .true.)
+                    call write_det(6, projedet(:,part_type_to_run(part_type)), .true.)
                     call write_det(6, nI, .false.)
                     write(6, '(" --> ")', advance='no')
                     call write_det(6, nJ, .true.)
@@ -986,13 +986,13 @@ contains
 
     end subroutine gen_excit_back_spawn
 
-    subroutine gen_single_back_spawn(nI, ilutI, run, nJ, ilutJ, ex, tPar, pgen) 
+    subroutine gen_single_back_spawn(nI, ilutI, part_type, nJ, ilutJ, ex, tPar, pgen) 
         ! specialised single excitation routine for the back-spawn method
         ! for the moment i still have to decide, which back-spawn method is 
         ! in use.. 
         integer, intent(in) :: nI(nel) 
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(in) :: run
+        integer, intent(in) :: part_type
         integer, intent(out) :: nJ(nel), ex(2,2)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tPar
@@ -1006,11 +1006,11 @@ contains
         if (t_back_spawn_flex) then 
             elec = 1 + floor(genrand_real2_dSFMT() * nel)
 
-            loc = check_electron_location([nI(elec),0], 1, run)
+            loc = check_electron_location([nI(elec),0], 1, part_type)
 
             pgen_elec = 1.0_dp/real(nel, dp)
         else
-            call pick_virtual_electron_single(nI, run, elec, pgen_elec)
+            call pick_virtual_electron_single(nI, part_type, elec, pgen_elec)
         end if
 
         src = nI(elec)
@@ -1025,7 +1025,7 @@ contains
         if ((t_back_spawn_occ_virt) .or. (t_back_spawn_flex .and. (&
             (loc == 2 .and. occ_virt_level /= -1) .or. occ_virt_level == 2))) then 
 
-            call pick_occupied_orbital_single(nI, ilutI, src, cc_index, run, pgen, tgt)
+            call pick_occupied_orbital_single(nI, ilutI, src, cc_index, part_type, pgen, tgt)
 
         else 
 
@@ -1068,11 +1068,11 @@ contains
 
     end subroutine gen_single_back_spawn
 
-    subroutine gen_double_back_spawn(nI, ilutI, run, nJ, ilutJ, ex, tPar, pgen) 
+    subroutine gen_double_back_spawn(nI, ilutI, part_type, nJ, ilutJ, ex, tPar, pgen) 
         ! the double excitation routine for the back-spawn method 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(in) :: run
+        integer, intent(in) :: part_type
         integer, intent(out) :: nJ(nel), ex(2,2)
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         logical, intent(out) :: tpar
@@ -1089,10 +1089,10 @@ contains
             call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
                                  pgen)
 
-            loc = check_electron_location(src, 2, run)
+            loc = check_electron_location(src, 2, part_type)
 
         else
-            call pick_virtual_electrons_double(nI, run, elecs, src, ispn,&
+            call pick_virtual_electrons_double(nI, part_type, elecs, src, ispn,&
                                                 sum_ml, pgen)
 
             ! here it could be that there are no valid electrons.. 
@@ -1120,7 +1120,7 @@ contains
             (loc == 1 .and. occ_virt_level /= -1) .or. (loc == 2) .or. &
             (loc == 0 .and. occ_virt_level >= 1)))) then 
 
-            call pick_occupied_orbital(nI, ilutI, src, ispn, run, int_cpt(1), cum_sum(1), &
+            call pick_occupied_orbital(nI, ilutI, src, ispn, part_type, int_cpt(1), cum_sum(1), &
                                         orbs(1))
 
         else 
@@ -1181,7 +1181,7 @@ contains
                 (occ_virt_level == 2))) then 
 
                 call pick_second_occupied_orbital(nI, ilutI, src, cc_b, orbs(1), ispn,&
-                    run, int_cpt(2), cum_sum(2), orbs(2))
+                    part_type, int_cpt(2), cum_sum(2), orbs(2))
 
             else 
 
@@ -1247,8 +1247,8 @@ contains
                 .or. (loc == 2 .and. occ_virt_level == -1) .or. &
                 (loc == 0 .and. occ_virt_level == 1)))) then 
 
-                if (is_in_ref(orbs(2), run)) then
-!                 if (any(orbs(2) == projedet(:,part_type_to_run(run)))) then
+                if (is_in_ref(orbs(2), part_type)) then
+!                 if (any(orbs(2) == projedet(:,part_type_to_run(part_type)))) then
                    ! if (b) is also in the occupied manifold i could have 
                     ! picked the other way around.. 
                     ! with the same uniform probability: 
@@ -1311,8 +1311,8 @@ contains
 
     end subroutine gen_double_back_spawn
 
-    function calc_pgen_back_spawn_ueg(nI, ilutI, ex, ic, run) result(pgen)
-        integer, intent(in) :: nI(nel), ex(2,2), ic, run
+    function calc_pgen_back_spawn_ueg(nI, ilutI, ex, ic, part_type) result(pgen)
+        integer, intent(in) :: nI(nel), ex(2,2), ic, part_type
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
         character(*), parameter :: this_routine = "calc_pgen_back_spawn"
@@ -1329,7 +1329,7 @@ contains
             return
         end if
 
-        if (test_flag(ilutI, get_initiator_flag(run))) then 
+        if (test_flag(ilutI, get_initiator_flag(part_type))) then 
             
             ! i have to do some symmetry setup beforehand.. 
             ! or i do it by hand to avoid the unnecessary overhead.. 
@@ -1345,7 +1345,7 @@ contains
             ! there was a restriction on the first orbitals 
             ! the electrons are in the first column or? 
             src = get_src(ex)
-            loc = check_electron_location(src, 2, run) 
+            loc = check_electron_location(src, 2, part_type) 
 
             ! and with the implementation right now it is only restricted 
             ! if both were in the occup
@@ -1359,7 +1359,7 @@ contains
                 ! other way around too.. 
                 ! i need ispn here..
                 ispn = get_ispn(src)
-                call pick_occupied_orbital_ueg(nI, ilutI, src, ispn, run, pAIJ, cum_sum, &
+                call pick_occupied_orbital_ueg(nI, ilutI, src, ispn, part_type, pAIJ, cum_sum, &
                     dummy_orb)
 
                 ! i think i can't just use 2*p(a|ij) since this assumption 
@@ -1374,7 +1374,7 @@ contains
                 ! i should check the hole location too.. 
                 tgt = get_tgt(ex)
                 ! is tgt(1) always the first picked? yes it is!
-                if (is_in_ref(tgt(1),run) .and. is_in_ref(tgt(2), run)) then
+                if (is_in_ref(tgt(1),part_type) .and. is_in_ref(tgt(2), part_type)) then
                     ! in this case we can recalc p(b|ij)
                     pgen = 2.0_dp * pgen 
                 end if
@@ -1391,14 +1391,14 @@ contains
 
     end function calc_pgen_back_spawn_ueg
 
-    function calc_pgen_back_spawn(nI, ilutI, ex, ic, run) result(pgen)
+    function calc_pgen_back_spawn(nI, ilutI, ex, ic, part_type) result(pgen)
         ! to use HPHF keyword and also the test if the pgens are correct 
         ! or just to be able and to be sure and more save i need a way to 
         ! recalculate the generation probability also for a back-spawn 
         ! excitation from a non-initiator determinant
         ! so although thats a hassle implement it, otherwise i cannot be 
         ! quite sure about the method
-        integer, intent(in) :: nI(nel), ex(2,2), ic, run
+        integer, intent(in) :: nI(nel), ex(2,2), ic, part_type
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
         character(*), parameter :: this_routine = "calc_pgen_back_spawn"
@@ -1414,7 +1414,7 @@ contains
         ! so here i should then go to 4ind-2 pgen calculator if it is a 
         ! inititator 
 
-        if (test_flag(ilutI, get_initiator_flag(run))) then 
+        if (test_flag(ilutI, get_initiator_flag(part_type))) then 
 
             pgen = calc_pgen_4ind_weighted2(nI, ilutI, ex, ic)
 
@@ -1438,7 +1438,7 @@ contains
                 if (t_back_spawn_flex_option) then 
                     elec_pgen = 1.0_dp / real(nel, dp) 
 
-                    loc = check_electron_location([ssrc,0], 1, run)
+                    loc = check_electron_location([ssrc,0], 1, part_type)
 
 
                 else 
@@ -1446,7 +1446,7 @@ contains
                     ! as Ali mentioned in the HPHF implementation it is not 
                     ! that common to have a doubly connected HPHF det
 
-                    call pick_virtual_electron_single(nI, run, dummy, elec_pgen) 
+                    call pick_virtual_electron_single(nI, part_type, dummy, elec_pgen) 
 
 
                     loc = -1
@@ -1463,7 +1463,7 @@ contains
 
                     ! reuse the routine.. 
                     call pick_occupied_orbital_single(nI, ilutI, ssrc, cc_index, &
-                        run, orb_pgen, dummy)
+                        part_type, orb_pgen, dummy)
 
                 else 
 
@@ -1504,7 +1504,7 @@ contains
                 ! todo: i have to fix this since here i do not know anymore 
                 ! what was orb a and orb b since ex is sorted.. 
                 tgt = get_tgt(ex)
-                t_in_ref = (is_in_ref(tgt(1),run) .and. is_in_ref(tgt(2),run))
+                t_in_ref = (is_in_ref(tgt(1),part_type) .and. is_in_ref(tgt(2),part_type))
                 t_par = (is_beta(tgt(1)) .eqv. is_beta(tgt(2)))
 
                 ! now i know.. for opposite spin excitations the beta orbital 
@@ -1522,12 +1522,12 @@ contains
 
                     elec_pgen = pgen_weighted_elecs(nI, src)
 
-                    loc = check_electron_location(src, 2, run)
+                    loc = check_electron_location(src, 2, part_type)
 
 
                 else 
 
-                    call pick_virtual_electrons_double(nI, run, dummy_elecs, &
+                    call pick_virtual_electrons_double(nI, part_type, dummy_elecs, &
                         dummy_orbs, dummy_ispn, dummy_sum_ml, elec_pgen) 
 
                     loc = -1
@@ -1540,7 +1540,7 @@ contains
                     (loc == 0.and. occ_virt_level >= 1)))) then 
 
                     call pick_occupied_orbital(nI, ilutI, src, ispn,&
-                        run, int_cpt(1), cum_sum(1), dummy_orbs(1))
+                        part_type, int_cpt(1), cum_sum(1), dummy_orbs(1))
 
                     ! i can atleast do some stuff for picking it the other
                     ! way or?
@@ -1569,7 +1569,7 @@ contains
                         cc_b = get_paired_cc_ind(cc_a, sym_prod, sum_ml, ispn)
 
                         call pick_second_occupied_orbital(nI, ilutI, src, cc_b, tgt(1), &
-                            ispn, run, int_cpt(2), cum_sum(2), dummy_orbs(2))
+                            ispn, part_type, int_cpt(2), cum_sum(2), dummy_orbs(2))
 
                         ! and ofc both probs are the same if the spin-fits
                         if (t_par) then 
