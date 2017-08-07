@@ -1,0 +1,39 @@
+title
+
+system ueg
+electrons 6
+nosymmetry
+nonuniformrandexcits ueg
+cell 2 2 2
+rs 1.0
+spin-restrict 0
+lattice-excitgen
+exchange-cutoff
+ueg-offset -0.0973803067469774 -0.0330218807719085 0.177697757238747
+ueg-scaled-energies
+endsys
+
+calc
+seed -1
+methods
+method vertex fcimc 
+endmethods
+nmcyc 3000
+truncinitiator
+addtoinitiator 3
+diagshift 0.1
+totalwalkers 10000
+tau 0.015
+regenexcitgens
+startsinglepart
+shiftdamp 0.1
+memoryfacpart 7.3
+memoryfacspawn 7.2
+stepsshift 10
+load-balance-blocks off
+endcalc
+
+logging
+popsfile -1
+endlog
+end
