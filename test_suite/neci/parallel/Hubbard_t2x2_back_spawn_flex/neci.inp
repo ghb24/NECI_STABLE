@@ -1,0 +1,39 @@
+title
+
+system hubbard 
+nonuniformrandexcits nosymgen
+lattice-excitgen
+kpoints
+electrons 8 
+cell 1 1 1
+tilt 2 2
+sym 0 0 0 0
+b -1
+u 1
+twisted-bc 0.5 0.5
+endsys
+
+calc
+
+methods
+method vertex fcimc
+endmethods
+
+back-spawn-flex
+nmcyc 12000
+max-tau 0.01
+truncinitiator
+addtoinitiator 3
+totalwalkers 5000
+shiftdamp 0.1
+stepsshift 10
+
+allrealcoeff
+
+endcalc
+
+logging
+popsfile -1
+endlog
+
+end 

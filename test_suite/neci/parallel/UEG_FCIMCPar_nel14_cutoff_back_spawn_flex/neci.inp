@@ -1,0 +1,49 @@
+title
+
+system ueg
+electrons 14
+nosymmetry
+nonuniformrandexcits nosymgen
+cell 4 4 4
+rs 1.0
+spin-restrict 0
+lattice-excitgen
+ueg-offset 0.0 0.0 0.0
+ueg-scaled-energies
+hphf
+energy-cutoff 9
+endsys
+
+calc
+seed -1
+methods
+method vertex fcimc 
+endmethods
+back-spawn-flex
+nmcyc 10000
+truncinitiator
+addtoinitiator 3
+diagshift 0.1
+totalwalkers 10000
+tau 0.002207
+regenexcitgens
+startsinglepart
+shiftdamp 0.1
+memoryfacpart 3.3
+memoryfacspawn 3.2
+stepsshift 10
+load-balance-blocks off
+endcalc
+
+integral
+freeze 0,0
+endint
+
+logging
+popsfile -10
+binarypops
+printorboccs 80000
+histinitiatorpops 10000
+endlog
+end
+
