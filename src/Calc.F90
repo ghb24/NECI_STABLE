@@ -233,6 +233,7 @@ contains
           tDefineDet=.false.
           tTruncInitiator=.false.
           tKeepDoubSpawns = .true.
+          tMultiSpawnThreshold = .false.
           tAddtoInitiator=.false.
           InitiatorWalkNo=3.0_dp
           tInitIncDoubs=.false.
@@ -1720,6 +1721,7 @@ contains
 ! manually set the number of simultaneous spawns required for keeping a spawn from a 
 ! non-inititator to an unoccupied determinant
             case("MULTISPAWN-THRESHOLD")
+               tMultiSpawnThreshold = .true.
                call geti(multiSpawnThreshold)
 
             case("ADDTOINITIATOR")

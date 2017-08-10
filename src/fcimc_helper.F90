@@ -34,7 +34,7 @@ module fcimc_helper
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tKeepDoubSpawns, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
-                        MaxWalkerBloom, &
+                        MaxWalkerBloom, tMultiSpawnThreshold, multiSpawnThreshold, &
                         NMCyc, iSampleRDMIters, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -257,7 +257,9 @@ contains
             if (tTruncInitiator) then
                 if ((.not. is_run_unnocc(real_sign_old,part_type_to_run(part_type)) &
                      .and. tKeepDoubSpawns) & 
-                     .or. test_flag(ilut_parent, get_initiator_flag(part_type))) then
+                     .or. test_flag(ilut_parent, get_initiator_flag(part_type)) .or. &
+                     (tMultiSpawnThreshold .and. mag_of_run(real_sign_new,part_type_to_run(&
+                     part_type)) >= multiSpawnThreshold)) then
                     call set_flag(SpawnedParts(:,ind), get_initiator_flag(part_type))
                     if(.not. is_run_unnocc(real_sign_old,part_type_to_run(part_type))) then
                        doubleSpawns = doubleSpawns + 1
