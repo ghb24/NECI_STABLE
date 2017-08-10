@@ -11,7 +11,7 @@ module procedure_pointers
         !
         ! Generic excitaiton generator
         subroutine generate_excitation_t (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                          ex, tParity, pGen, hel, store, run)
+                                          ex, tParity, pGen, hel, store, part_type)
 
             use SystemData, only: nel
             use bit_rep_data, only: NIfTot
@@ -27,7 +27,7 @@ module procedure_pointers
             logical, intent(out) :: tParity
             HElement_t(dp), intent(out) :: hel
             type(excit_gen_store_type), intent(inout), target :: store
-            integer, intent(in), optional :: run
+            integer, intent(in), optional :: part_type
 
         end subroutine
 

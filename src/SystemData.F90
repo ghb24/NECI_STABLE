@@ -259,6 +259,8 @@ logical :: tGen_4ind_unbound = .false.
 ! for k-space hubbard, this only affects the diagonal part! 
 real(dp) :: nn_bhub = 0.0_dp
 
+! do a quick test with different weightings of picking orbitals (a) 
+logical :: t_iiaa = .false., t_ratio = .false. 
 ! Operators for type(symmetry)
 interface assignment (=)
     module procedure SymAssign

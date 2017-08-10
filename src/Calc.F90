@@ -1095,6 +1095,10 @@ contains
                 ! converged enough
                 t_restart_hist_tau = .true.
 
+                if (item < nitems) then 
+                    call geti(hist_search_delay) 
+                end if
+
             case ("TEST-HIST-TAU", "LESS-MPI-HEAVY")
                 ! test a change to the tau search to avoid those nasty 
                 ! MPI communications each iteration
