@@ -25,7 +25,7 @@ module back_spawn_excit_gen
                           pick_occupied_orbital, pick_second_occupied_orbital, &
                           get_ispn, is_in_ref, pick_occupied_orbital_ueg, &
                           pick_virtual_electrons_double_hubbard, pick_occupied_orbital_hubbard, &
-                          is_allowed_ueg_k_vector, get_orb_from_kpoints
+                          is_allowed_ueg_k_vector, get_orb_from_kpoints, make_ilutJ
     use get_excit, only: make_single, make_double
     use Determinants, only: write_det, get_helement
     use ueg_excit_gens, only: gen_double_ueg, create_ab_list_ueg, pick_uniform_elecs, & 
@@ -60,12 +60,16 @@ contains
         HElement_t(dp) :: temp_hel
 #endif
 
+        HelGen = 0.0_dp 
+        iUnused = exFlag
+        iUnused = store%nopen
+
         ic = 2 
 
         ! do i want to implement both old and new back spawn?? 
         ! no!
         if ((t_back_spawn_flex .or. t_back_spawn) .and. & 
-            .not. test_flag(ilutI, get_initiator_flag(part_type))) then 
+            (.not. test_flag(ilutI, get_initiator_flag(part_type)))) then 
 
             call gen_double_back_spawn_ueg_new(nI, ilutI, part_type, nJ, ilutJ, tParity, &
                 ExcitMat, pgen)
@@ -314,14 +318,18 @@ contains
         integer, intent(in), optional :: part_type
         character(*), parameter :: this_routine = "gen_excit_back_spawn_hubbard"
  
+        integer :: iUnused
 #ifdef __DEBUG
         real(dp) :: pgen2 
         HElement_t(dp) :: temp_hel
 #endif
         ! so now pack everything necessary for a ueg excitation generator. 
 
-        ilutJ(0) = -1 
-        HElGen = 0.0_dp 
+        ! why is ilutJ not created here? do it!
+        HelGen = 0.0_dp 
+        iUnused = exFlag
+        iUnused = store%nopen
+
         ic = 2
 
         ! this function gets pointed to if tUEG, t_back_spawn_flex and tLatticeGens
@@ -367,6 +375,8 @@ contains
         else 
             ! do i want to rewrite the old on or just reuse? for now reuse: 
             call CreateExcitLattice(nI, ilutI, nJ, tParity, ExcitMat, pgen, part_type) 
+
+            if (.not. IsNullDet(nJ)) ilutJ = make_ilutJ(ilutI, ExcitMat, ic) 
 
 #ifdef __DEBUG
             if (.not. IsNullDet(nJ)) then
@@ -544,6 +554,8 @@ contains
         call make_double (nI, nJ, elec_i, elec_j, orb_a, &
                           orb_b, ExcitMat, tParity)
                 
+        ilutJ = make_ilutJ(ilutI, ExcitMat, 2) 
+
         ! we knoe it is back-spawn + hubbard remember! so paij is already above
         !calculate generation probabilities
         ! note, p(b|ij)=p(a|ij) for this system
@@ -650,14 +662,17 @@ contains
         integer, intent(in), optional :: part_type
         character(*), parameter :: this_routine = "gen_excit_back_spawn_ueg"
  
+        integer :: iUnused
 #ifdef __DEBUG
         real(dp) :: pgen2
         HElement_t(dp) :: temp_hel
 #endif
         ! so now pack everything necessary for a ueg excitation generator. 
 
-        ilutJ(0) = -1 
         HElGen = 0.0_dp 
+        iUnused = exFlag
+        iUnused = store%nopen
+
         ic = 2
 
         ! this function gets pointed to if tUEG, t_back_spawn_flex and tLatticeGens
@@ -702,6 +717,8 @@ contains
         else 
             ! do i want to rewrite the old on or just reuse? for now reuse: 
             call CreateExcitLattice(nI, ilutI, nJ, tParity, ExcitMat, pgen, part_type) 
+
+            if (.not. IsNullDet(nJ)) ilutJ = make_ilutJ(ilutI, ExcitMat, ic)
 
 #ifdef __DEBUG
             if (.not. IsNullDet(nJ)) then
@@ -852,6 +869,8 @@ contains
         call make_double (nI, nJ, elec_i, elec_j, orb_a, &
                           orb_b, ExcitMat, tParity)
                 
+        ilutJ = make_ilutJ(ilutI, ExcitMat, 2) 
+
         ! we knoe it is back-spawn + ueg remember! so paij is already above
         !calculate generation probabilities
         ! note, p(b|ij)=p(a|ij) for this system
@@ -1059,9 +1078,7 @@ contains
 
         call make_single(nI, nJ, elec, tgt, ex, tPar)
 
-        ilutJ = ilutI
-        clr_orb(ilutJ, src)
-        set_orb(ilutJ, tgt)
+        ilutJ = make_ilutJ(ilutI, ex, 1)
 
         pgen = pgen * pgen_elec
 
@@ -1301,12 +1318,8 @@ contains
         ! And generate the actual excitation
         call make_double (nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), &
                           ex, tpar)
-        ilutJ = ilutI
-        clr_orb (ilutJ, src(1))
-        clr_orb (ilutJ, src(2))
-        set_orb (ilutJ, orbs(1))
-        set_orb (ilutJ, orbs(2))
 
+        ilutJ = make_ilutJ(ilutI, ex, 2)
 
     end subroutine gen_double_back_spawn
 
@@ -1580,7 +1593,6 @@ contains
                         end if
 
                     else
-
                         ! the order should not matter or?? 
                         ! or does it? and i always force a beta orbital 
                         ! to be picked first.. hm.. 

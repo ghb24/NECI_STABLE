@@ -40,6 +40,7 @@ contains
         call run_test_case(test_encode_mask_virt, "test_encode_mask_virt")
         call run_test_case(is_allowed_ueg_k_vector_test, "is_allowed_ueg_k_vector_test")
         call run_test_case(get_orb_from_kpoints_test, "get_orb_from_kpoints_test")
+        call run_test_case(make_ilutJ_test, "make_ilutJ_test")
 
     end subroutine back_spawn_test_driver 
 
@@ -1038,5 +1039,42 @@ contains
         deallocate(KPointToBasisFn)
 
     end subroutine get_orb_from_kpoints_test
+
+    subroutine make_ilutJ_test
+        use constants, only: n_int 
+        use bit_rep_data, only: niftot
+
+        integer(n_int), allocatable :: ilut(:)
+        integer :: ex(2,2)
+
+        niftot = 0 
+
+        allocate(ilut(0:niftot))
+
+        print *, ""
+        print *, "testing: make_ilutJ"
+        print *, "with necessary global data:"
+        print *, "niftot: ", niftot
+
+        ilut = 0_n_int
+        ex(1,:) = [1,0]
+        ex(2,:) = [1,0]
+
+        ! i guess this test could be dependend if the machine is little or 
+        ! big endian.. 
+        ! ..01 = 1
+        call assert_equals([1], make_ilutJ(ilut, ex, 1), 1) 
+        ex(2,1) = 2
+        ! ..10 = 2
+        call assert_equals([2], make_ilutJ(ilut, ex, 1), 1)
+
+        ex(1,2) = 1 
+        ex(2,2) = 1 
+        ! ..11 = 3
+        call assert_equals([3], make_ilutJ(ilut, ex, 2), 1)
+
+        niftot = -1
+
+    end subroutine make_ilutJ_test
 
 end program test_back_spawn
