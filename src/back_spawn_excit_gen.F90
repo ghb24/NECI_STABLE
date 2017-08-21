@@ -167,7 +167,6 @@ contains
             return 
         end if
 
-
         if ((loc == 2) .or. (loc == 1 .and. occ_virt_level /= -1) .or. &
             (loc == 0 .and. occ_virt_level >= 1)) then 
 

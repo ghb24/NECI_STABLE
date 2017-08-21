@@ -5,7 +5,8 @@ module back_spawn
     use CalcData, only: t_back_spawn, tTruncInitiator, t_back_spawn_occ_virt, &
                         t_back_spawn_flex, tReadPops, back_spawn_delay
     use SystemData, only: nel, nbasis, G1, tGen_4ind_2, tGen_4ind_2_symmetric, & 
-                          tHub, tUEG, nmaxx, nmaxy, nmaxz, tOrbECutoff, OrbECutoff
+                          tHub, tUEG, nmaxx, nmaxy, nmaxz, tOrbECutoff, OrbECutoff, &
+                          tUEGNewGenerator
     use constants, only: n_int, dp, bits_n_int, lenof_sign, inum_runs
     use bit_rep_data, only: nifd, niftot
     use fcimcdata, only: projedet, max_calc_ex_level, ilutref
@@ -74,6 +75,13 @@ contains
         if (tGen_4ind_2_symmetric) then 
             call stop_all(this_routine, &
                 "back-spawning not compatible with symmetric excitation generator!")
+        end if
+
+        if (tUEG .and. t_back_spawn) then 
+            if (.not. tUEGNewGenerator) then 
+                call stop_all(this_routine, &
+                    "the old UEG excitation generator only works with back-spawn-flex")
+            end if
         end if
 
         if (tReadPops) then 

@@ -994,25 +994,28 @@ MODULE HPHFRandExcitMod
                 pgen = calc_pgen_back_spawn(nI, ilutI, ex, ic, temp_part_type)
             end if
 
-        else if (tLatticeGens) then
-            if (ic == 2) then
-                call CalcPGenLattice (ex, pGen)
-            else
-                pGen = 0
-            end if
-        else if (tGen_4ind_2) then
-            pgen = calc_pgen_4ind_weighted2(nI, ilutI, ex, ic)
+        ! this if construct is not well setup.. this can fail.. 
+        else 
+            if (tLatticeGens) then
+                if (ic == 2) then
+                    call CalcPGenLattice (ex, pGen)
+                else
+                    pGen = 0
+                end if
+            else if (tGen_4ind_2) then
+                pgen = calc_pgen_4ind_weighted2(nI, ilutI, ex, ic)
 
-        else if (tGen_4ind_weighted) then
-            pgen = calc_pgen_4ind_weighted (nI, ilutI, ex, ic, &
-                                            ClassCountUnocc2)
-        else if (tGen_4ind_reverse) then
-            pgen = calc_pgen_4ind_reverse (nI, ilutI, ex, ic)
-        else
-            ! Here we assume that the normal excitation generators in
-            ! symrandexcit2.F90 are being used.
-            call calc_pgen_symrandexcit2 (nI, ex, ic, ClassCount2, &
-                                          ClassCountUnocc2, pDoub, pGen)
+            else if (tGen_4ind_weighted) then
+                pgen = calc_pgen_4ind_weighted (nI, ilutI, ex, ic, &
+                                                ClassCountUnocc2)
+            else if (tGen_4ind_reverse) then
+                pgen = calc_pgen_4ind_reverse (nI, ilutI, ex, ic)
+            else
+                ! Here we assume that the normal excitation generators in
+                ! symrandexcit2.F90 are being used.
+                call calc_pgen_symrandexcit2 (nI, ex, ic, ClassCount2, &
+                                              ClassCountUnocc2, pDoub, pGen)
+            end if
         end if
 
     end subroutine
