@@ -1076,15 +1076,17 @@ contains
         ! i guess this test could be dependend if the machine is little or 
         ! big endian.. 
         ! ..01 = 1
-        call assert_equals([1], make_ilutJ(ilut, ex, 1), 1) 
+        ! for the intel compilers i have to cast this to a "normal" integer
+        ! so it finds the correct assert_equals routine..
+        call assert_equals([1], int(make_ilutJ(ilut, ex, 1)), 1) 
         ex(2,1) = 2
         ! ..10 = 2
-        call assert_equals([2], make_ilutJ(ilut, ex, 1), 1)
+        call assert_equals([2], int(make_ilutJ(ilut, ex, 1)), 1)
 
         ex(1,2) = 1 
         ex(2,2) = 1 
         ! ..11 = 3
-        call assert_equals([3], make_ilutJ(ilut, ex, 2), 1)
+        call assert_equals([3], int(make_ilutJ(ilut, ex, 2)), 1)
 
         niftot = -1
         nBasis = -1
