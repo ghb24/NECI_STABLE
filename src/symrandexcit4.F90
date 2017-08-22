@@ -857,7 +857,7 @@ contains
         norb = OrbClassCount(cc_index)
 
         ! We perform different sums depending on the relative spins :-(
-        cum_sum = 0
+        cum_sum = 0.0_dp
         if (is_beta(src(1)) .eqv. is_beta(src(2))) then
             ! Both electrons have the same spin. So we need to include both
             ! electron-hole interactions.
@@ -1362,7 +1362,8 @@ contains
             end do
 
             ! And account for the case where this is not a connected excitation
-            if (cum_sum == 0) then
+!             if (cum_sum == 0) then
+            if (cum_sum < EPS) then
                 pgen = 0
             else
                 pgen = pgen * cpt_tgt / cum_sum
@@ -1487,7 +1488,8 @@ contains
         end do
         
         ! Select a particulor electron, or abort
-        if (cum_sum == 0) then
+!         if (cum_sum == 0) then
+        if (cum_sum < EPS) then
             elec = 0
         else
             r = genrand_real2_dSFMT() * cum_sum

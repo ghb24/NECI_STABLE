@@ -995,7 +995,7 @@ MODULE HPHFRandExcitMod
             end if
 
         ! this if construct is not well setup.. this can fail.. 
-        else 
+        else
             if (tLatticeGens) then
                 if (ic == 2) then
                     call CalcPGenLattice (ex, pGen)

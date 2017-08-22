@@ -213,8 +213,8 @@ contains
                 ! only option 1 and 3 for single excitations!
                 loc = 0
             end if
-        else if (ic == 2) then 
 
+        else if (ic == 2) then 
             ! for double excitations we have to check both
             loc = 0
             do i = 1, 2
@@ -225,11 +225,14 @@ contains
             end do
         end if
 
+        ASSERT(loc >= 0) 
+        ASSERT(loc <= 2)
+
     end function check_electron_location
 
 
     subroutine pick_virtual_electrons_double(nI, part_type, elecs, src, ispn, &
-                                                sum_ml, pgen)
+                                                sum_ml, pgen, calc_pgen)
         ! this is the important routine! 
         ! for non-initiator determinants this pick electrons only from the 
         ! virtual orbitals of the reference determinant to increase the 
@@ -238,6 +241,7 @@ contains
         integer, intent(in) :: nI(nel), part_type
         integer, intent(out) :: elecs(2), src(2), ispn, sum_ml
         real(dp), intent(out) :: pgen
+        logical, intent(in), optional :: calc_pgen
         character(*), parameter :: this_routine = "pick_virtual_electrons_double"
 
         integer :: i, n_valid, j, ind, n_valid_pairs, ind_1, ind_2
@@ -253,6 +257,12 @@ contains
 
         n_valid = 0
         j = 1
+        virt_elecs = -1
+        elecs = -1 
+        src = -1
+        ispn = -1
+        sum_ml = -1
+
         do i = 1, nel
             if (is_in_virt_mask(nI(i),part_type)) then
 !             if (any(nI(i) == mask_virt_ni(:,part_type_to_run(part_type)))) then
@@ -282,8 +292,11 @@ contains
         ! determine how many valid pairs there are now
         n_valid_pairs = (n_valid * (n_valid - 1)) / 2
 
+        ASSERT(n_valid_pairs > 0) 
         ! and the pgen is now: 
         pgen = 1.0_dp / real(n_valid_pairs, dp)
+
+        if (present(calc_pgen) .and. calc_pgen) return
 
         ! and is it now enough to do is just like in the symrandexcit3 routine:
         ind = 1 + int(n_valid_pairs * genrand_real2_dSFMT())
@@ -313,11 +326,14 @@ contains
     end subroutine pick_virtual_electrons_double
     
 
-    subroutine pick_occupied_orbital_single(nI, ilut, src, cc_index, part_type, pgen, orb)
+    subroutine pick_occupied_orbital_single(nI, ilut, src, cc_index, part_type,&
+            pgen, orb, calc_pgen)
         integer, intent(in) :: nI(nel), src, cc_index, part_type
         integer(n_int), intent(in) :: ilut(0:niftot)
         real(dp), intent(out) :: pgen
         integer, intent(out) :: orb
+        logical, intent(in), optional :: calc_pgen
+
         ! routine to pick an orbital from the occupied manifold in the 
         ! reference determinant for single excitations
         ! i have to take symmetry into account now..  that complicates 
@@ -327,7 +343,8 @@ contains
         integer :: n_valid, j, occ_orbs(nel), i, ind, norb, label_index
 
         j = 1
-        occ_orbs = 0
+        occ_orbs = -1
+        orb = -1
 
         norb = OrbClassCount(cc_index)
         label_index = SymLabelCounts2(1, cc_index)
@@ -366,28 +383,36 @@ contains
             return
         end if
 
+        ASSERT(n_valid > 0) 
+        pgen = 1.0_dp / real(n_valid, dp)
+
+        if (present(calc_pgen) .and. calc_pgen) return
+
         ! else pick uniformly from that available list..
         ind = 1 + int(genrand_real2_dSFMT() * n_valid)
         orb = occ_orbs(ind)
 
-        pgen = 1.0_dp / real(n_valid, dp)
+        ASSERT(orb > 0) 
+
 
     end subroutine pick_occupied_orbital_single
 
-    subroutine pick_occupied_orbital_hubbard(nI, ilutI, part_type, pgen, orb) 
+    subroutine pick_occupied_orbital_hubbard(nI, ilutI, part_type, pgen, orb, calc_pgen) 
         ! routine to pick one possible orbital from the occupied manifold 
         ! thats the easiest of all implementations actually.. 
         integer, intent(in) :: nI(nel), part_type
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp), intent(out) :: pgen 
         integer, intent(out) :: orb 
+        logical, intent(in), optional :: calc_pgen
         character(*), parameter :: this_routine = "pick_occupied_orbital_hubbard"
         integer :: n_valid, j, occ_orbs(nel), ind, i
 
         integer :: orb_a
         n_valid = 0
         j = 1
-        occ_orbs = 0
+        occ_orbs = -1
+        orb = -1
         
         ! i also have to include the whole symmetry shabang in the 
         ! picker here or?? wtf
@@ -403,9 +428,8 @@ contains
             ! why didn't i do that and why does it work anyway..
             ! nah.. in the hubbard this just works fine..
             if (IsNotOcc(ilutI, orb_a)) then
-!             if (.not. any(projedet(i,part_type_to_run(part_type)) == nI)) then 
                 n_valid = n_valid + 1
-                occ_orbs(j) = projedet(i,part_type_to_run(part_type)) 
+                occ_orbs(j) = orb_a
                 j = j + 1
             end if 
         end do
@@ -416,19 +440,27 @@ contains
             return
         end if
 
-        ind = 1 + int(n_valid * genrand_real2_dSFMT())
-
-        orb = occ_orbs(ind)
+        ASSERT(n_valid > 0) 
 
         pgen = 1.0_dp / real(n_valid, dp)
+        if (present(calc_pgen) .and. calc_pgen) return
+
+        ind = 1 + int(n_valid * genrand_real2_dSFMT())
+        orb = occ_orbs(ind)
+
+        ASSERT(orb > 0) 
+        ASSERT(orb <= nbasis) 
+
 
     end subroutine pick_occupied_orbital_hubbard 
 
-    subroutine pick_occupied_orbital_ueg(nI, ilutI, src, ispn, part_type, cpt, cum_sum, orb)
+    subroutine pick_occupied_orbital_ueg(nI, ilutI, src, ispn, part_type, cpt, &
+            cum_sum, orb, calc_pgen)
         integer, intent(in) :: nI(nel), src(2), ispn, part_type
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp), intent(out) :: cpt, cum_sum
         integer, intent(out) :: orb
+        logical, intent(in), optional :: calc_pgen
         character(*), parameter :: this_routine = "pick_occupied_orbital_ueg"
 
         integer :: occ_orbs(nel), n_valid, j, ind, i, orb_a, orb_b
@@ -439,7 +471,9 @@ contains
         ! better idea: 
         n_valid = 0
         j = 1
-        occ_orbs = 0
+        occ_orbs = -1
+        orb = -1
+
         ! loop over ref det 
         ! in this routine i also have to check if the momentum is 
         ! allowed! why didn't i do that before?? 
@@ -455,7 +489,7 @@ contains
                     ! what the fuck? why didn't i do that before 
                     orb_b = get_orb_from_kpoints(src(1), src(2), orb_a)
 
-                    if (IsNotOcc(ilutI, orb_b) .and. orb_a /= orb_b) then 
+                    if (IsNotOcc(ilutI, orb_b) .and. (orb_a /= orb_b)) then 
                         if (ispn /= 2) then 
                             if (is_beta(orb_a) .eqv. is_beta(src(1))) then 
                                 ! this is a valid orbital i guess.. 
@@ -487,22 +521,30 @@ contains
             return
         end if
 
-        ind = 1 + int(genrand_real2_dSFMT() * n_valid) 
-
-        orb = occ_orbs(ind)
-
+        ASSERT(n_valid > 0) 
         ! and now the cum_sums and pgens.. 
         cpt = 1.0_dp / real(n_valid, dp)
         cum_sum = 1.0_dp
 
+        if (present(calc_pgen) .and. calc_pgen) return
+
+        ind = 1 + int(genrand_real2_dSFMT() * n_valid) 
+
+        orb = occ_orbs(ind)
+
+        ASSERT(orb > 0) 
+        ASSERT(orb <= nbasis)
+
     end subroutine pick_occupied_orbital_ueg
     
 
-    subroutine pick_occupied_orbital(nI, ilutI, src, ispn, part_type, cpt, cum_sum, orb)
+    subroutine pick_occupied_orbital(nI, ilutI, src, ispn, part_type, cpt, cum_sum, &
+            orb, calc_pgen)
         integer, intent(in) :: nI(nel), src(2), ispn, part_type
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp), intent(out) :: cpt, cum_sum
         integer, intent(out) :: orb
+        logical, intent(in), optional :: calc_pgen
         ! routine to pick an orbital of the occupied manifold of the 
         ! reference determinant uniformly 
         ! to be compatible with the rest of the 4ind-weighted-2 
@@ -518,7 +560,8 @@ contains
         ! better idea: 
         n_valid = 0
         j = 1
-        occ_orbs = 0
+        occ_orbs = -1
+        orb = -1 
         ! loop over ref det 
         do i = 1, nel 
             orb_a = projedet(i,part_type_to_run(part_type))
@@ -566,19 +609,24 @@ contains
             return
         end if
 
-        ind = 1 + int(genrand_real2_dSFMT() * n_valid) 
+        ASSERT(n_valid > 0) 
 
-        orb = occ_orbs(ind)
-
-        ! and now the cum_sums and pgens.. 
         cpt = 1.0_dp / real(n_valid, dp)
         cum_sum = 1.0_dp
+
+        if (present(calc_pgen) .and. calc_pgen) return
+
+        ind = 1 + int(genrand_real2_dSFMT() * n_valid) 
+        orb = occ_orbs(ind)
+
+        ASSERT(orb > 0) 
+        ASSERT(orb <= nbasis) 
 
 
     end subroutine pick_occupied_orbital
 
     subroutine pick_second_occupied_orbital(nI, ilutI, src, cc_b, orb_a, ispn,&
-            part_type, cpt, cum_sum, orb) 
+            part_type, cpt, cum_sum, orb, calc_pgen) 
         ! routine which picks second orbital from the occupied manifold for 
         ! a double excitation. this function gets called if we have picked 
         ! two electrons also from the occupied manifold in the flex version 
@@ -590,6 +638,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp), intent(out) :: cpt, cum_sum
         integer, intent(out) :: orb
+        logical, intent(in), optional :: calc_pgen
         character(*), parameter :: this_routine = "pick_second_occupied_orbital"
 
         integer :: label_index, norb, sym_orbs(OrbClassCount(cc_b))
@@ -609,6 +658,9 @@ contains
         end do
 
         j = 1
+        occ_orbs = -1 
+        orb = -1
+
         ! check which occupied orbitals fit all the restrictions:
         ! or i guess this is already covered in the symlabel list!
         ! check that!
@@ -621,7 +673,8 @@ contains
                     ! check if symmetry fits
                     if (any(orb_b == sym_orbs)) then 
                         ! and check if spin is opposit 
-                        if (.not. (is_beta(orb_a) .eqv. is_beta(orb_b))) then
+!                         if (.not. (is_beta(orb_a) .eqv. is_beta(orb_b))) then
+                        if (.not. same_spin(orb_a, orb_b)) then
                             occ_orbs(j) = orb_b
                             j = j + 1
                         end if
@@ -635,8 +688,9 @@ contains
                 orb_b = projedet(i, part_type_to_run(part_type))
                 if (IsNotOcc(ilutI, orb_b)) then
                     if (any(orb_b == sym_orbs)) then 
-                        if ((is_beta(orb_a) .eqv. is_beta(orb_b)) .and. &
-                            (orb_a /= orb_b)) then 
+                        if (same_spin(orb_a, orb_b) .and. (orb_a /= orb_b)) then
+!                         if ((is_beta(orb_a) .eqv. is_beta(orb_b)) .and. &
+!                             (orb_a /= orb_b)) then 
                             occ_orbs(j) = orb_b
                             j = j + 1
                         end if
@@ -656,15 +710,23 @@ contains
             return
         end if
 
-        ind = 1 + int(genrand_real2_dSFMT() * n_valid)
-
-        orb = occ_orbs(ind)
+        ASSERT(n_valid > 0) 
         cpt = 1.0_dp / real(n_valid, dp)
         cum_sum = 1.0_dp
 
+        if (present(calc_pgen) .and. calc_pgen) return
+
+        ind = 1 + int(genrand_real2_dSFMT() * n_valid)
+
+        orb = occ_orbs(ind)
+
+        ASSERT(orb > 0) 
+        ASSERT(orb <= nbasis) 
+
     end subroutine pick_second_occupied_orbital
 
-    subroutine pick_virtual_electrons_double_hubbard(nI, part_type, elecs, src, ispn, pgen)
+    subroutine pick_virtual_electrons_double_hubbard(nI, part_type, elecs, src, &
+            ispn, pgen, calc_pgen)
         ! specific routine to pick 2 electrons in the k-space hubbard, 
         ! since apparently it is important to allow all orderings of 
         ! electrons possible.. although this could just be a artifact of the 
@@ -672,6 +734,7 @@ contains
         integer, intent(in) :: nI(nel), part_type
         integer, intent(out) :: elecs(2), src(2), ispn
         real(dp), intent(out) :: pgen
+        logical, intent(in), optional :: calc_pgen
         character(*), parameter :: this_routine = "pick_virtual_electrons_double_hubbard"
 
         integer :: n_valid, i, j, n_valid_pairs, ind_1, ind_2
@@ -684,6 +747,10 @@ contains
         n_alpha = 0
         ! actually for the correct generation probabilities i have to count 
         ! the number of valid alpha and beta electrons!
+        virt_elecs = -1 
+        elecs = -1 
+        src = -1 
+
         j = 1
         do i = 1, nel
             if (is_in_virt_mask(nI(i),part_type)) then
@@ -715,6 +782,12 @@ contains
         ! apparently i have to have both ordering of the electrons in 
         ! the hubbard excitation generator 
         ! but it must be easier to do that... and more efficient
+ 
+        ASSERT(n_valid > 1)
+        pgen = 1.0_dp / real(n_alpha * n_beta, dp)
+
+        if (present(calc_pgen) .and. calc_pgen) return
+
         do i = 1, 1000
             ind_1 = 1 + int(n_valid * genrand_real2_dSFMT())
 
@@ -741,17 +814,17 @@ contains
             print *, "virt_elecs: ", virt_elecs
         end if
 
-        
-        pgen = 1.0_dp / real(n_alpha * n_beta, dp)
-
+       
     end subroutine pick_virtual_electrons_double_hubbard
 
-    subroutine pick_virtual_electron_single(nI, part_type, elec, pgen_elec)
+    subroutine pick_virtual_electron_single(nI, part_type, elec, pgen_elec, calc_pgen)
         ! same as above for a single excitation
         ! remember: elec is really just the number in the ilut!
         integer, intent(in) :: nI(nel), part_type
         integer, intent(out) :: elec
         real(dp), intent(out) :: pgen_elec
+        logical, intent(in), optional :: calc_pgen
+        
         character(*), parameter :: this_routine = "pick_virtual_electron_single"
 
         integer :: i, n_valid, j, ind
@@ -762,6 +835,9 @@ contains
         ! create a list of them and pick one uniformly
         n_valid = 0
         j = 1
+        virt_elecs = -1 
+        elec = -1
+
         do i = 1, nel
             if (is_in_virt_mask(nI(i), part_type)) then
                 ! the electron is in the virtual of the 
@@ -783,12 +859,19 @@ contains
 !                 "something went wront, did not find valid virtual single electron!")
         end if
 
-        ! and now pick a random number: 
-        ind = 1 + floor(genrand_real2_dSFMT() * n_valid) 
-
-        elec = virt_elecs(ind)
+        ! does this work with an optional logical as input: 
+        ASSERT(n_valid > 0) 
 
         pgen_elec = 1.0_dp / real(n_valid, dp)
+
+        ! if i only want to calculate the pgens i dont want to call the 
+        ! random number generator
+        if (present(calc_pgen) .and. calc_pgen) return
+
+        ! and now pick a random number: 
+        ind = 1 + floor(genrand_real2_dSFMT() * n_valid) 
+        elec = virt_elecs(ind)
+        ASSERT(elec > 0) 
 
     end subroutine pick_virtual_electron_single
 
@@ -952,8 +1035,8 @@ contains
         ! should this every be called with 0 orbitals.. i guess no.. 
         ASSERT(ex(1,1) > 0) 
         ASSERT(ex(2,1) > 0)
-        ASSERT(ex(1,1) < nbasis)
-        ASSERT(ex(2,1) < nbasis)
+        ASSERT(ex(1,1) <= nbasis)
+        ASSERT(ex(2,1) <= nbasis)
 
         ilutJ = ilutI 
         
@@ -969,8 +1052,8 @@ contains
 
             ASSERT(ex(1,2) > 0)
             ASSERT(ex(2,2) > 0)
-            ASSERT(ex(1,2) < nbasis)
-            ASSERT(ex(2,2) < nbasis)
+            ASSERT(ex(1,2) <= nbasis)
+            ASSERT(ex(2,2) <= nbasis)
 
             clr_orb(ilutJ, ij(2))
             set_orb(ilutJ, ab(2))
