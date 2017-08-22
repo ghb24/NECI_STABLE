@@ -257,8 +257,7 @@ contains
 
             if (t_back_spawn) then 
                 call pick_virtual_electrons_double(nI, part_type, elecs, dummy_src, &
-                    dumm_iSpn, sum_ml, & 
-                    p_elec)
+                    dumm_iSpn, sum_ml, p_elec, .true.)
                 loc = -1
             else 
                 p_elec = 1.0_dp / real(ElecPairs, dp)
