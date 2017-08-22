@@ -25,7 +25,7 @@ module back_spawn_excit_gen
                           pick_occupied_orbital, pick_second_occupied_orbital, &
                           get_ispn, is_in_ref, pick_occupied_orbital_ueg, &
                           pick_virtual_electrons_double_hubbard, pick_occupied_orbital_hubbard, &
-                          is_allowed_ueg_k_vector, get_orb_from_kpoints
+                          is_allowed_ueg_k_vector, get_orb_from_kpoints, make_ilutJ
     use get_excit, only: make_single, make_double
     use Determinants, only: write_det, get_helement
     use ueg_excit_gens, only: gen_double_ueg, create_ab_list_ueg, pick_uniform_elecs, & 
@@ -60,12 +60,16 @@ contains
         HElement_t(dp) :: temp_hel
 #endif
 
+        HelGen = 0.0_dp 
+        iUnused = exFlag
+        iUnused = store%nopen
+
         ic = 2 
 
         ! do i want to implement both old and new back spawn?? 
         ! no!
         if ((t_back_spawn_flex .or. t_back_spawn) .and. & 
-            .not. test_flag(ilutI, get_initiator_flag(part_type))) then 
+            (.not. test_flag(ilutI, get_initiator_flag(part_type)))) then 
 
             call gen_double_back_spawn_ueg_new(nI, ilutI, part_type, nJ, ilutJ, tParity, &
                 ExcitMat, pgen)
@@ -167,7 +171,6 @@ contains
             return 
         end if
 
-
         if ((loc == 2) .or. (loc == 1 .and. occ_virt_level /= -1) .or. &
             (loc == 0 .and. occ_virt_level >= 1)) then 
 
@@ -215,11 +218,8 @@ contains
         ! wait a minute.. since when is this called with the bare 
         ! eleci and elecj?? yes it is apparently.. 
         call make_double(nI, nJ, elecs(1), elecs(2), orb_a, orb_b, ex, tpar)
-        ilutJ = ilutI 
-        clr_orb(ilutJ, src(1))
-        clr_orb(ilutJ, src(2))
-        set_orb(ilutJ, orb_a)
-        set_orb(ilutJ, orb_b)
+        
+        ilutJ = make_ilutJ(ilutI, ex, 2)
 
         pgen = p_elec * p_orb
 
@@ -257,8 +257,7 @@ contains
 
             if (t_back_spawn) then 
                 call pick_virtual_electrons_double(nI, part_type, elecs, dummy_src, &
-                    dumm_iSpn, sum_ml, & 
-                    p_elec)
+                    dumm_iSpn, sum_ml, p_elec, .true.)
                 loc = -1
             else 
                 p_elec = 1.0_dp / real(ElecPairs, dp)
@@ -271,7 +270,7 @@ contains
                 ! for back-spawn flex!
 
                 call pick_occupied_orbital_ueg(nI, ilutI, src, iSpn, part_type, p_orb, &
-                    dummy, orb_a)
+                    dummy, orb_a, .true.)
 
                 ! do i need to multiply if both are in the reference? 
                 ! i guess so.. since then i could have picked it in both 
@@ -315,14 +314,18 @@ contains
         integer, intent(in), optional :: part_type
         character(*), parameter :: this_routine = "gen_excit_back_spawn_hubbard"
  
+        integer :: iUnused
 #ifdef __DEBUG
         real(dp) :: pgen2 
         HElement_t(dp) :: temp_hel
 #endif
         ! so now pack everything necessary for a ueg excitation generator. 
 
-        ilutJ(0) = -1 
-        HElGen = 0.0_dp 
+        ! why is ilutJ not created here? do it!
+        HelGen = 0.0_dp 
+        iUnused = exFlag
+        iUnused = store%nopen
+
         ic = 2
 
         ! this function gets pointed to if tUEG, t_back_spawn_flex and tLatticeGens
@@ -368,6 +371,8 @@ contains
         else 
             ! do i want to rewrite the old on or just reuse? for now reuse: 
             call CreateExcitLattice(nI, ilutI, nJ, tParity, ExcitMat, pgen, part_type) 
+
+            if (.not. IsNullDet(nJ)) ilutJ = make_ilutJ(ilutI, ExcitMat, ic) 
 
 #ifdef __DEBUG
             if (.not. IsNullDet(nJ)) then
@@ -545,6 +550,8 @@ contains
         call make_double (nI, nJ, elec_i, elec_j, orb_a, &
                           orb_b, ExcitMat, tParity)
                 
+        ilutJ = make_ilutJ(ilutI, ExcitMat, 2) 
+
         ! we knoe it is back-spawn + hubbard remember! so paij is already above
         !calculate generation probabilities
         ! note, p(b|ij)=p(a|ij) for this system
@@ -587,7 +594,7 @@ contains
             if (t_back_spawn) then 
 
                 call pick_virtual_electrons_double_hubbard(nI, part_type, d_elecs, d_src, &
-                    d_ispn, pgen_elec)
+                    d_ispn, pgen_elec, .true.)
 
                 loc = -1 
             else 
@@ -603,7 +610,8 @@ contains
                 (loc == 0 .and. occ_virt_level >= 1)) then 
                 ! i only do that in the back-spawn flex case.. 
 
-                call pick_occupied_orbital_hubbard(nI, ilutI, part_type, paij, d_orb)
+                call pick_occupied_orbital_hubbard(nI, ilutI, part_type, paij, &
+                    d_orb, .true.)
 
                 tgt = get_tgt(ex) 
 
@@ -651,14 +659,17 @@ contains
         integer, intent(in), optional :: part_type
         character(*), parameter :: this_routine = "gen_excit_back_spawn_ueg"
  
+        integer :: iUnused
 #ifdef __DEBUG
         real(dp) :: pgen2
         HElement_t(dp) :: temp_hel
 #endif
         ! so now pack everything necessary for a ueg excitation generator. 
 
-        ilutJ(0) = -1 
         HElGen = 0.0_dp 
+        iUnused = exFlag
+        iUnused = store%nopen
+
         ic = 2
 
         ! this function gets pointed to if tUEG, t_back_spawn_flex and tLatticeGens
@@ -703,6 +714,8 @@ contains
         else 
             ! do i want to rewrite the old on or just reuse? for now reuse: 
             call CreateExcitLattice(nI, ilutI, nJ, tParity, ExcitMat, pgen, part_type) 
+
+            if (.not. IsNullDet(nJ)) ilutJ = make_ilutJ(ilutI, ExcitMat, ic)
 
 #ifdef __DEBUG
             if (.not. IsNullDet(nJ)) then
@@ -853,6 +866,8 @@ contains
         call make_double (nI, nJ, elec_i, elec_j, orb_a, &
                           orb_b, ExcitMat, tParity)
                 
+        ilutJ = make_ilutJ(ilutI, ExcitMat, 2) 
+
         ! we knoe it is back-spawn + ueg remember! so paij is already above
         !calculate generation probabilities
         ! note, p(b|ij)=p(a|ij) for this system
@@ -902,11 +917,12 @@ contains
                 pgen = pgen * pSingles 
 
             else 
-                
+
                 ic = 2 
                 call gen_double_back_spawn(nI, ilutI, part_type, nJ, ilutJ, ExcitMat, &
                     tParity, pgen) 
                 pgen = pgen * pDoubles 
+
 
             end if
 
@@ -1011,6 +1027,8 @@ contains
             pgen_elec = 1.0_dp/real(nel, dp)
         else
             call pick_virtual_electron_single(nI, part_type, elec, pgen_elec)
+            loc = -1
+
         end if
 
         src = nI(elec)
@@ -1060,9 +1078,7 @@ contains
 
         call make_single(nI, nJ, elec, tgt, ex, tPar)
 
-        ilutJ = ilutI
-        clr_orb(ilutJ, src)
-        set_orb(ilutJ, tgt)
+        ilutJ = make_ilutJ(ilutI, ex, 1)
 
         pgen = pgen * pgen_elec
 
@@ -1172,7 +1188,6 @@ contains
 !             orbs(1) = pick_a_orb(ilutI, src, iSpn, int_cpt(1), cum_sum(1), cum_arr)
 !         end if
 
-
         if (orbs(1) /= 0) then
             cc_a = ClasSCountInd(orbs(1))
             cc_b = get_paired_cc_ind(cc_a, sym_product, sum_ml, iSpn)
@@ -1237,11 +1252,17 @@ contains
         if (any(cum_sum < EPS)) then 
            cum_sum = 1.0_dp
            int_cpt = 0.0_dp
+           if (.not. same_spin(orbs(1), orbs(2))) then 
+               nJ(1) = 0
+               pgen = 0.0_dp
+               return
+           end if
         end if
         
         ! only on parallel excitations.. and symmetric exciation generator is 
         ! turned off for now in the back-spawning
-        if (is_beta(orbs(1)) .eqv. is_beta(orbs(2)))  then
+!         if (is_beta(orbs(1)) .eqv. is_beta(orbs(2)))  then
+        if (same_spin(orbs(1), orbs(2))) then 
             if (t_back_spawn_occ_virt .or. (t_back_spawn_flex .and. (& 
                 (loc == 1 .and. (occ_virt_level == 0 .or. occ_virt_level == 1)) &
                 .or. (loc == 2 .and. occ_virt_level == -1) .or. &
@@ -1270,6 +1291,7 @@ contains
                 .or. (loc == 1 .and. occ_virt_level == 2) .or. & 
                 (loc == 2 .and. occ_virt_level /= -1))) then 
 
+                ! we have picked both in the occupied manifold
                 cpt_pair = int_cpt 
                 sum_pair = cum_sum 
                 
@@ -1294,6 +1316,12 @@ contains
         if (any(sum_pair < EPS)) then 
             cpt_pair = 0.0_dp
             sum_pair = 1.0_dp
+            ! can something like that slip through: 
+            if (any(cum_sum < EPS)) then 
+                pgen = 0.0_dp
+                nJ(1) = 0
+                return
+            end if
         end if
 
         pgen = pgen * (product(int_cpt) / product(cum_sum) + &
@@ -1302,12 +1330,8 @@ contains
         ! And generate the actual excitation
         call make_double (nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), &
                           ex, tpar)
-        ilutJ = ilutI
-        clr_orb (ilutJ, src(1))
-        clr_orb (ilutJ, src(2))
-        set_orb (ilutJ, orbs(1))
-        set_orb (ilutJ, orbs(2))
 
+        ilutJ = make_ilutJ(ilutI, ex, 2)
 
     end subroutine gen_double_back_spawn
 
@@ -1315,7 +1339,7 @@ contains
         integer, intent(in) :: nI(nel), ex(2,2), ic, part_type
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_back_spawn"
+        character(*), parameter :: this_routine = "calc_pgen_back_spawn_ueg"
 
         real(dp) :: cum_sum, pAIJ
         integer :: dummy_orb, ispn, loc, src(2), tgt(2)
@@ -1360,7 +1384,7 @@ contains
                 ! i need ispn here..
                 ispn = get_ispn(src)
                 call pick_occupied_orbital_ueg(nI, ilutI, src, ispn, part_type, pAIJ, cum_sum, &
-                    dummy_orb)
+                    dummy_orb, .true.)
 
                 ! i think i can't just use 2*p(a|ij) since this assumption 
                 ! comes from p(b|ij) = p(a|ij) which is not true by 
@@ -1446,8 +1470,7 @@ contains
                     ! as Ali mentioned in the HPHF implementation it is not 
                     ! that common to have a doubly connected HPHF det
 
-                    call pick_virtual_electron_single(nI, part_type, dummy, elec_pgen) 
-
+                    call pick_virtual_electron_single(nI, part_type, dummy, elec_pgen, .true.) 
 
                     loc = -1
 
@@ -1463,7 +1486,7 @@ contains
 
                     ! reuse the routine.. 
                     call pick_occupied_orbital_single(nI, ilutI, ssrc, cc_index, &
-                        part_type, orb_pgen, dummy)
+                        part_type, orb_pgen, dummy, .true.)
 
                 else 
 
@@ -1524,11 +1547,10 @@ contains
 
                     loc = check_electron_location(src, 2, part_type)
 
-
                 else 
 
                     call pick_virtual_electrons_double(nI, part_type, dummy_elecs, &
-                        dummy_orbs, dummy_ispn, dummy_sum_ml, elec_pgen) 
+                        dummy_orbs, dummy_ispn, dummy_sum_ml, elec_pgen, .true.) 
 
                     loc = -1
 
@@ -1539,8 +1561,19 @@ contains
                     ((loc == 1 .and. occ_virt_level /= -1) .or. loc == 2 .or. &
                     (loc == 0.and. occ_virt_level >= 1)))) then 
 
+                    ! in this case it matters which orbital was picked 
+                    ! first.. 
+                    ! in this case we can be sure that atleast on of the 
+                    ! orbitals is in the reference.. 
+                    if (t_par) then 
+                        if (.not. is_in_ref(tgt(1), part_type)) then 
+                            ! then it is incorrectly ordered.. reorder!
+                            tgt = [tgt(2), tgt(1)]
+                        end if
+                    end if
+
                     call pick_occupied_orbital(nI, ilutI, src, ispn,&
-                        part_type, int_cpt(1), cum_sum(1), dummy_orbs(1))
+                        part_type, int_cpt(1), cum_sum(1), dummy_orbs(1), .true.)
 
                     ! i can atleast do some stuff for picking it the other
                     ! way or?
@@ -1567,9 +1600,8 @@ contains
 
                         cc_a = ClassCountInd(tgt(1)) 
                         cc_b = get_paired_cc_ind(cc_a, sym_prod, sum_ml, ispn)
-
                         call pick_second_occupied_orbital(nI, ilutI, src, cc_b, tgt(1), &
-                            ispn, part_type, int_cpt(2), cum_sum(2), dummy_orbs(2))
+                            ispn, part_type, int_cpt(2), cum_sum(2), dummy_orbs(2), .true.)
 
                         ! and ofc both probs are the same if the spin-fits
                         if (t_par) then 
@@ -1581,10 +1613,13 @@ contains
                         end if
 
                     else
-
                         ! the order should not matter or?? 
                         ! or does it? and i always force a beta orbital 
                         ! to be picked first.. hm.. 
+                        ! the order does matter! and the excitation matrix 
+                        ! is always ordered at this point but during picking 
+                        ! the orbitals it is not! 
+                        ! so we have to be more careful here! 
                         call pgen_select_orb(ilutI, src, tgt(1), tgt(2), int_cpt(2), &
                             cum_sum(2))
 

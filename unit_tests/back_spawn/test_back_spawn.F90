@@ -40,6 +40,7 @@ contains
         call run_test_case(test_encode_mask_virt, "test_encode_mask_virt")
         call run_test_case(is_allowed_ueg_k_vector_test, "is_allowed_ueg_k_vector_test")
         call run_test_case(get_orb_from_kpoints_test, "get_orb_from_kpoints_test")
+        call run_test_case(make_ilutJ_test, "make_ilutJ_test")
 
     end subroutine back_spawn_test_driver 
 
@@ -487,7 +488,7 @@ contains
     end subroutine test_pick_occupied_orbital_single
 
     subroutine test_pick_occupied_orbital_hubbard
-        use SystemData, only: nel 
+        use SystemData, only: nel, nBasis
         use fcimcdata, only: projedet, ilutref
         use constants, only: dp, n_int
         use dSFMT_interface, only: dSFMT_init
@@ -501,6 +502,7 @@ contains
 
         nel = 1
         niftot = 1
+        nbasis = 1
         allocate(projedet(1,1)); projedet(1,1) = 1
         allocate(ilutref(0:niftot,1))
 
@@ -514,6 +516,7 @@ contains
         print *, "with necessary global data: "
         print *, "nel: ", nel 
         print *, "projedet: ", projedet
+        print *, "nBasis: ", nBasis
         call pick_occupied_orbital_hubbard(nI, ilutI, run, pgen, orb) 
 
         ! those 2 fail not:
@@ -534,10 +537,12 @@ contains
         deallocate(projedet)
         deallocate(ilutref)
         niftot = -1
+        nel = -1 
+        nBasis = -1 
     end subroutine test_pick_occupied_orbital_hubbard
 
     subroutine test_pick_occupied_orbital
-        use SystemData, only: nel 
+        use SystemData, only: nel, nbasis
         use fcimcdata, only: projedet, ilutref
         use constants, only: dp, n_int
         use dSFMT_interface, only: dSFMT_init
@@ -552,6 +557,7 @@ contains
 
         nel = 1
         niftot = 1
+        nbasis = 2
         allocate(projedet(1,1)); projedet(1,1) = 1
         allocate(ilutref(0:niftot,1)) 
         call EncodeBitDet(projedet, ilutref)
@@ -561,6 +567,7 @@ contains
         print *, "with necessary global data: " 
         print *, "nel: ", nel 
         print *, "projedet: ", projedet
+        print *, "nBasis: ", nBasis
 
         ! do one test with no valid orbs first..
         ! although there are various combinations with ispn and such, which 
@@ -614,6 +621,7 @@ contains
         ! todo: i should do more tests here
         nel = -1
         niftot = -1
+        nBasis = -1
         deallocate(projedet)
         deallocate(ilutref)
 
@@ -624,7 +632,7 @@ contains
         use fcimcdata, only: projedet, ilutref
         use constants, only: dp, n_int
         use dSFMT_interface, only: dSFMT_init
-        use SystemData, only: nel 
+        use SystemData, only: nel, nbasis
         use bit_rep_data, only: niftot
         use DetBitOps, only: EncodeBitDet
 
@@ -636,6 +644,7 @@ contains
 
         nel = 1
         niftot = 1
+        nbasis = 1
 
         ! allocate and initialite the necessary data
         allocate(OrbClassCount(1));     OrbClassCount(1) = 1
@@ -655,6 +664,7 @@ contains
         print *, "OrbClassCount: ", OrbClassCount
         print *, "SymLabelList2: ", SymLabelList2
         print *, "projedet: ", projedet
+        print *, "nBasis: ", nBasis
         allocate(nI(nel)); nI = 1
         allocate(ilutI(0:niftot)) 
         call EncodeBitDet(nI, ilutI)
@@ -691,6 +701,7 @@ contains
         deallocate(ilutref)
         nel = -1 
         niftot = -1
+        nbasis = -1
 
     end subroutine test_pick_second_occupied_orbital
     
@@ -1038,5 +1049,46 @@ contains
         deallocate(KPointToBasisFn)
 
     end subroutine get_orb_from_kpoints_test
+
+    subroutine make_ilutJ_test
+        use constants, only: n_int 
+        use bit_rep_data, only: niftot
+        use SystemData, only: nbasis
+
+        integer(n_int), allocatable :: ilut(:)
+        integer :: ex(2,2)
+
+        niftot = 0 
+        nBasis = 2
+
+        allocate(ilut(0:niftot))
+
+        print *, ""
+        print *, "testing: make_ilutJ"
+        print *, "with necessary global data:"
+        print *, "niftot: ", niftot
+        print *, "nBasis: ", nBasis
+
+        ilut = 0_n_int
+        ex(1,:) = [1,0]
+        ex(2,:) = [1,0]
+
+        ! i guess this test could be dependend if the machine is little or 
+        ! big endian.. 
+        ! ..01 = 1
+        call assert_equals([1], make_ilutJ(ilut, ex, 1), 1) 
+        ex(2,1) = 2
+        ! ..10 = 2
+        call assert_equals([2], make_ilutJ(ilut, ex, 1), 1)
+
+        ex(1,2) = 1 
+        ex(2,2) = 1 
+        ! ..11 = 3
+        call assert_equals([3], make_ilutJ(ilut, ex, 2), 1)
+
+        niftot = -1
+        nBasis = -1
+
+    end subroutine make_ilutJ_test
 
 end program test_back_spawn
