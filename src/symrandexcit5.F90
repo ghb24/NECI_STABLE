@@ -415,7 +415,9 @@ contains
         ! there is no selection avaialable
         call gen_a_orb_cum_list(ilut, src, ispn, cum_arr)
         cum_sum = cum_arr(nbasis)
-        if (cum_sum == 0) then
+        ! ok this equivalence is also not good.. 
+!         if (cum_sum == 0) then
+        if (cum_sum < EPS) then 
             orb = 0
             return
         end if

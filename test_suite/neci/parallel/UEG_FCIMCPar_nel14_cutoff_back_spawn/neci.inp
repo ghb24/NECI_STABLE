@@ -3,7 +3,7 @@ title
 system ueg
 electrons 14
 nosymmetry
-nonuniformrandexcits nosymgen
+nonuniformrandexcits ueg
 cell 4 4 4
 rs 1.0
 spin-restrict 0
