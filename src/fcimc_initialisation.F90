@@ -36,7 +36,7 @@ module fcimc_initialisation
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
-                        t_back_spawn_flex
+                        t_back_spawn_flex, back_spawn_delay
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -145,7 +145,8 @@ module fcimc_initialisation
 
     use tau_search_hist, only: init_hist_tau_search
     use back_spawn, only: init_back_spawn
-    use back_spawn_excit_gen, only: gen_excit_back_spawn
+    use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
+                                    gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
 
     implicit none
 
@@ -1014,9 +1015,19 @@ contains
             Write(iout,*) "Turning OFF the tau-search, since continued run!"
         end if 
 
-        ! [W.D.] I guess I want to initialize that beforehand.. 
+        ! [W.D.] I guess I want to initialize that before the tau-search, 
+        ! or otherwise some pgens get calculated incorrectly
         if (t_back_spawn .or. t_back_spawn_flex) then 
-            call init_back_spawn
+            call init_back_spawn()
+        end if
+
+        ! also i should warn the user if this is a restarted run with a 
+        ! set delay in the back-spawning method: 
+        ! is there actually a use-case where someone really wants to delay 
+        ! a back-spawn in a restarted run? 
+        if (tReadPops .and. back_spawn_delay /= 0) then 
+            call Warning_neci(t_r, &
+                "Do you really want a delayed back-spawn in a restarted run?")
         end if
 
 
@@ -1507,9 +1518,18 @@ contains
         ! Select the excitation generator.
         if (tHPHF) then
             generate_excitation => gen_hphf_excit
-        elseif ((t_back_spawn_option .or. t_back_spawn_flex_option) .and. &
-                .not. tHub) then 
-            generate_excitation => gen_excit_back_spawn
+        elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then 
+            if (tHUB .and. tLatticeGens) then 
+                ! for now the hubbard + back-spawn still uses the old 
+                ! genrand excit gen
+                generate_excitation => gen_excit_back_spawn_hubbard
+            else if (tUEGNewGenerator .and. tLatticeGens) then 
+                generate_excitation => gen_excit_back_spawn_ueg_new
+            else if (tUEG .and. tLatticeGens) then 
+                generate_excitation => gen_excit_back_spawn_ueg
+            else 
+                generate_excitation => gen_excit_back_spawn
+            end if
         elseif (tUEGNewGenerator) then
             generate_excitation => gen_ueg_excit
         elseif (tCSF) then
