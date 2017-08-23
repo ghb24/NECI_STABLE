@@ -20,45 +20,6 @@ module real_space_hubbard
     use lattice_mod, only: lattice
     implicit none 
 
-
-    ! some general needed quantities 
-    integer :: n_dim, n_sites, n_connect_max
-
-    ! i also want to have a linked list of neighbors for each site
-    ! need a new type for that 
-    type lattice_site
-        ! what do i want to store here? 
-        ! this could be optimized really neatly with bit-storing and 
-        ! packing.. but do not optimize prematurely! 
-        ! essentially i need a vector of vectors (of integers) 
-        ! i will create this type nbasis times in a vector of types! 
-        ! but also store the number of neighbors for each of these
-        integer :: n_next_neighbors = 0
-        integer, allocatable :: next_neighbor_list(:) 
-
-        ! and it would be easy to generalize this for next-nearest neigbors 
-        ! and stuff 
-        ! and maybe for the AIM i could store flags here if this is a 
-        ! impurity site or not.. 
-        ! maybe i want to rename this type "lattice" 
-        ! but do not implement unnecessary stuff for now! 
-
-    end type lattice_site
-
-!     type lattice 
-!         ! create a type which contains general information about the 
-!         ! lattice structure 
-!         logical :: t_init = .false. 
-!         integer :: num_sites = 0 
-! 
-!         type(lattice_site), allocatable :: site(:)
-! 
-!     end type lattice
-
-    ! and i guess i want to have a global lattice type.. to make it 
-    ! easier accessible.. 
-!     type(lattice) :: global_lattice
-
 contains 
 
     ! some brainstorming: 
@@ -89,10 +50,8 @@ contains
         ! argh.. fortran gets annoying..
         character(*), parameter :: this_routine = "init_lattice"
 
-        class(lattice), allocatable :: lat
-        class(lattice), pointer :: lat2, ptr
+        class(lattice), pointer :: lat
 
-!         type(lattice) :: lat
         ! what are the possible ones:
         ! the ones already in NECI (do them first!)
         ! CHAIN: just needs number of sites or length and if open-bc 
@@ -106,69 +65,8 @@ contains
         ! KAGOME: probably also stick to one length parameter and also 
         !           think about the BC
 
-        ptr => lattice('chain',2,1,.true.,.true.)
-        select case (lattice_type) 
-        case ("chain", "CHAIN")
-            ! determine some basic values
-            n_dim = 1
-            n_sites = length_x
-            ! the maximum connection is necessary for the time-step
-            n_connect_max = 2
-! 
-!             allocate(chain::lat)
-! 
-!             call lat%initialize(1)
-! 
-! !             x = lattice(1)
-! 
-!             allocate(chain::lat2)
-!             lat2 => chain(1)
-
-            
-!             lat3 => chain(1)
-
-!             lat = lattice(1)
-
-        case ("square", "SQUARE")
-            n_dim = 2
-            n_sites = length_x * length_y
-            n_connect_max = 4
-
-        case ("tilted", "TILTED")
-            n_dim = 2 
-            n_sites = 2 * length_x * length_y
-            n_connect_max = 4
-
-        case ("triangular", "TRIANGULAR") 
-            n_dim = 2
-!             n_sites = todo
-            n_connect_max = 3
-
-        case ("kagome", "KAGOME")
-            n_dim = 2
-!             n_sites = todo
-            n_connect_max = 4
-
-        case default 
-            print *, "Incorrect lattice type provided! Choose:"
-            print *, "chain, square, tilted, triangular, kagome"
-
-!             allocate(lattice::lat) 
-!             call lat%initialize(1)
-
-            call stop_all(this_routine, "Incorrect lattice type!")
-        end select
-
-        ! i also have to set a lot of the other necessary stuff.. 
-        ! but maybe i can avoid that by still using a lot of the 
-        ! already provided initialisation and only set up the additional 
-        ! necessary stuff here.
-
-        ! i have to setup up the set_nearest neighbor routine
-!         if (global_lattice%t_init) then 
-            ! if it has already been initialized before deinit all the 
-            ! components 
-!         end if
+        ! and especially for the Anderson Impurity models i need 
+        ! Anderson-chain and Anderson-star
 
     end subroutine init_lattice
     
@@ -180,23 +78,6 @@ contains
         character(*), parameter :: this_routine = "init_tmat"
 
     end subroutine init_tmat
-
-!     subroutine create_neighbor_list(n_sit, lat_type, len_x, len_y, t_periodic)
-!         ! i want to index the neigbors of each lattice site with a linked 
-!         ! list. this will be helpful especially for the kagome lattice 
-!         ! where sites can have a differing amount of neighbors 
-!         ! and with open boundary conditions this also happens..
-!         integer, intent(in) :: n_sit
-!         character(*), intent(in) :: lat_type 
-!         integer, intent(in) :: len_x, len_y 
-!         logical, intent(in) :: t_periodic
-! 
-!         character(*), parameter :: this_routine = "create_neighbor_list"
-!     
-!         ! i have to get the data_type running 
-! !         if (allocated(global_lattice)) deallocate(global_lattice)
-! 
-!     end subroutine create_neighbor_list
 
     subroutine determine_optimal_time_step()
         ! move this time-step determination to this routine for the real

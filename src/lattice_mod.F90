@@ -118,7 +118,7 @@ module lattice_mod
         procedure, public :: initialize => init_lattice
         procedure, public :: get_nsites
         procedure, public :: get_ndim
-        procedure, public :: get_nconnect
+        procedure, public :: get_nconnect_max
         procedure, public :: is_periodic_x, is_periodic_y
         procedure(is_periodic_t), public, deferred :: is_periodic
         procedure(get_length_t), public, deferred :: get_length
@@ -168,6 +168,23 @@ module lattice_mod
         procedure :: initialize_sites => init_sites_chain
 
     end type chain
+
+    ! also implement a 'star' geometry, especially to deal with the AIM models
+    type, extends(lattice) :: star
+        private
+
+    contains 
+        private 
+
+        procedure, public :: get_length => get_length_star
+        ! i can just reuse the chain calc function..
+        procedure, public :: calc_nsites => calc_nsites_star
+        procedure, public :: is_periodic => is_periodic_star
+
+        procedure :: initialize_sites => init_sites_star
+        procedure :: set_length => set_length_star
+
+    end type star
 
     ! i also want to have a rectangle.. 
     ! can i store every possibility in the rectangle type? 
@@ -225,6 +242,7 @@ module lattice_mod
 
     interface lattice
         procedure lattice_constructor 
+!         procedure aim_lattice_constructor
     end interface
 
     ! can i make an abstract interface for the dummy procedures above?
@@ -249,7 +267,11 @@ module lattice_mod
         module procedure site_assign 
         module procedure lattice_assign
     end interface 
-    integer, parameter :: DIM_CHAIN = 1, N_CONNECT_MAX_CHAIN = 2
+    integer, parameter :: DIM_CHAIN = 1, & 
+                          DIM_STAR = 1, &
+                          N_CONNECT_MAX_CHAIN = 2, &
+                          STAR_LENGTH = 1
+
 contains 
 
     subroutine set_num_neighbors(this, n_neighbors) 
@@ -323,6 +345,35 @@ contains
         
     end subroutine lattice_assign
 
+    subroutine init_sites_star(this)
+        ! create the lattice structure of the star geometry.. 
+        ! with one special pivot site with index 1, which is connected 
+        ! to all the other sites and the other sites are just connected to 
+        ! the pivot site!
+        class(star) :: this
+        character(*), parameter :: this_routine = "init_sites_star"
+
+        integer :: i 
+
+        if (this%get_nsites() <= 0) then
+            call stop_all(this_routine, & 
+                "something went wrong: negative or 0 number of sites!")
+        else if (this%get_nsites() == 1) then 
+            this%sites(1) = site(ind = 1, n_neighbors = 0, neighbors = [integer :: ])
+
+        else
+            ! first to the special pivot site in the middle of the star
+            this%sites(1) = site(ind = 1, n_neighbors = this%get_nconnect_max(), & 
+                neighbors = [ (i, i = 2, this%get_nsites()) ])
+
+            ! and all the others are just connected to the pivot
+            do i = 2, this%get_nsites()
+                this%sites(i) = site(ind = i, n_neighbors = 1, neighbors = [1])
+            end do
+        end if
+
+    end subroutine init_sites_star
+
     subroutine init_sites_chain(this) 
         class(chain) :: this 
 
@@ -392,6 +443,13 @@ contains
 
         integer :: n_sites
 
+
+        n_sites = this%calc_nsites(length_x, length_y)
+
+        ! and for the rest i can call general routines:
+        call this%set_nsites(n_sites) 
+        call this%set_periodic(t_periodic_x, t_periodic_y)
+
         select type (this) 
 
         ! well i cannot init type is (lattice) if i choose to make it 
@@ -400,7 +458,16 @@ contains
         class is (chain)
             ! set some defaults for the chain lattice type 
             call this%set_ndim(DIM_CHAIN)
-            call this%set_nconnect_max(N_CONNECT_MAX_CHAIN) 
+
+            call this%set_length(length_x, length_y)
+            ! if incorrect lenght input it is caught in the calc_nsites above..
+            if (this%get_length() == 1) then 
+                call this%set_nconnect_max(0)
+            else if (this%get_length() == 2 .and. (.not. this%is_periodic())) then 
+                call this%set_nconnect_max(1)
+            else 
+                call this%set_nconnect_max(N_CONNECT_MAX_CHAIN) 
+            end if
 
             ! the type specific routine deal with the check of the 
             ! lenghts! 
@@ -410,18 +477,23 @@ contains
             ! introduce a second routine, which first determines the 
             ! number of sites depending on the lattice type 
 
+        class is (star) 
+            call this%set_ndim(DIM_STAR)
+            call this%set_nconnect_max(n_sites - 1)
+
+            ! for the 'star' geometry the special point in the middle 
+            ! is connected to all the others.. so i need to calc n_sites here.
+            ! also check here if something went wrong in the input: 
+            if (t_periodic_x .or. t_periodic_y) then 
+                call stop_all(this_routine, &
+                "incorrect initialization info: requested periodic 'star' geometry!")
+            end if
+
+
         class default 
             call stop_all(this_routine, "unexpected lattice type!")
 
         end select
-
-        ! and for the rest i can call general routines:
-        n_sites = this%calc_nsites(length_x, length_y)
-
-        call this%set_nsites(n_sites) 
-        call this%set_periodic(t_periodic_x, t_periodic_y)
-        call this%set_length(length_x, length_y)
-
         ! do i want to allocate sites here or in the initializer? 
         ! well the specific site initializer will be different for all the 
         ! types of lattices.. so best would be to do everything which is 
@@ -432,6 +504,9 @@ contains
 
     end subroutine init_lattice
 
+!     function aim_lattice_constructor() 
+! 
+!     end function aim_lattice_constructor
 
     function lattice_constructor(lat_typ, length_x, length_y, t_periodic_x , &
             t_periodic_y) result(this)
@@ -451,6 +526,10 @@ contains
         case ('chain') 
 
             allocate(chain :: this) 
+
+        case ('star') 
+
+            allocate(star :: this) 
 
         case default 
             ! stop here because a incorrect lattice type was given 
@@ -655,6 +734,28 @@ contains
         end if
 
     end function get_neighbors_lattice
+! 
+    function calc_nsites_star(this, length_x, length_y) result(n_sites) 
+        ! the maximum of the input is used as the n_sites parameter! 
+        ! this is the same function as the one for "chain" below.. 
+        ! but i cannot use it somehow.. 
+        class(star) :: this 
+        integer, intent(in) :: length_x, length_y
+        integer :: n_sites 
+        character(*), parameter :: this_routine = "calc_nsites_star"
+
+        if (max(length_x,length_y) < 1 .or. min(length_x, length_y) > 1 .or. & 
+            min(length_x,length_y) < 0) then 
+            n_sites = -1 
+            call stop_all(this_routine, "something went wrong in lenght input!")
+
+        else 
+            n_sites = max(length_x, length_y)
+
+        end if
+
+
+    end function calc_nsites_star
 
     function calc_nsites_chain(this, length_x, length_y) result(n_sites) 
         ! i acually do not want to rely on the previous calculated 
@@ -666,7 +767,6 @@ contains
         integer, intent(in) :: length_x, length_y 
         integer :: n_sites 
         character(*), parameter :: this_routine = "calc_nsites_chain" 
-
 
         if (max(length_x,length_y) < 1 .or. min(length_x, length_y) > 1 .or. & 
             min(length_x,length_y) < 0) then 
@@ -711,6 +811,17 @@ contains
             'type(lattice) should never be actually instantiated!') 
 
     end subroutine set_length_lattice
+
+    subroutine set_length_star(this, length_x, length_y)
+        class(star) :: this 
+        integer, intent(in) :: length_x, length_y
+        character(*), parameter :: this_routine = "set_length_star"
+
+        ! actually the length of a start is not really defined.. 
+        ! maybe i should rethink if i make this part of the 
+        ! original lattice class then.. 
+        call stop_all(this_routine, "length not defined for 'star' geometry!")
+    end subroutine set_length_star
 
     subroutine set_length_chain(this, length_x, length_y) 
         class(chain) :: this 
@@ -766,12 +877,19 @@ contains
 
     end subroutine set_periodic
 
-    integer function get_nconnect(this) 
+    integer function get_nconnect_max(this) 
         class(lattice) :: this 
         
-        get_nconnect = this%n_connect_max
+        get_nconnect_max = this%n_connect_max
 
-    end function get_nconnect
+    end function get_nconnect_max
+
+    ! the star does not really have a concept of length.. 
+    ! so always ouput STAR_LENGTH
+    integer function get_length_star(this)
+        class(star) :: this 
+        get_length_star = STAR_LENGTH
+    end function get_length_star
 
     integer function get_length_chain(this) 
         class(chain) :: this 
@@ -779,6 +897,12 @@ contains
         get_length_chain = this%length
 
     end function get_length_chain
+
+    logical function is_periodic_star(this)
+        ! this is always false.. the star geometry can't be periodic
+        class(star) :: this 
+        is_periodic_star = .false.
+    end function is_periodic_star
 
     logical function is_periodic_chain(this)
         class(chain) :: this 
@@ -841,7 +965,7 @@ contains
         
             print *, "Lattice type is: 'chain' "
             print *, " number of dimensions: ", this%get_ndim()
-            print *, " max-number of neighbors: ", this%get_nconnect() 
+            print *, " max-number of neighbors: ", this%get_nconnect_max() 
             print *, " number of sites of chain: ", this%get_nsites() 
             print *, " is the chain periodic: ", this%is_periodic()
 
