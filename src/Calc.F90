@@ -1726,6 +1726,7 @@ contains
 ! non-inititator to an unoccupied determinant
             case("MULTISPAWN-THRESHOLD")
                tMultiSpawnThreshold = .true.
+               tKeepDoubSpawns = .false.
                call geti(multiSpawnThreshold)
 
             case("ADDTOINITIATOR")
