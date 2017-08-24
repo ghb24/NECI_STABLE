@@ -1362,8 +1362,9 @@ contains
             end do
 
             ! And account for the case where this is not a connected excitation
-!             if (cum_sum == 0) then
-            if (cum_sum < EPS) then
+            ! actually this comparison with 0 should be removed..
+            if (cum_sum == 0) then
+!             if (cum_sum < EPS) then
                 pgen = 0
             else
                 pgen = pgen * cpt_tgt / cum_sum
@@ -1488,8 +1489,8 @@ contains
         end do
         
         ! Select a particulor electron, or abort
-!         if (cum_sum == 0) then
-        if (cum_sum < EPS) then
+        if (cum_sum == 0) then
+!         if (cum_sum < EPS) then
             elec = 0
         else
             r = genrand_real2_dSFMT() * cum_sum
