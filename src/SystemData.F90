@@ -28,6 +28,7 @@ logical :: tNoRenormRandExcits, tAssumeSizeExcitgen, tCycleOrbs, tROIteration
 logical :: tShakeIter, tRotateOccOnly, tDoubExcMin, tUseHFOrbs, tRotateOrbs
 logical :: tNonUniRandExcits, tNoSymGenRandExcits, tLagrange, tShakeApprox
 logical :: tShake, tRotateVirtOnly, tMaxHLGap, tCacheFCIDUMPInts
+logical :: tCacheConnections, tConnectionWeightedExcitgen
 logical :: tKPntSym        !Are we using KPoint symmetry?
 logical :: tRotatedOrbsReal     !This means we are reading in a complex FCIDUMP, but all 
                                 !orbitals have been rotated to be real. This requires all
@@ -116,6 +117,10 @@ integer :: dimen
 real(dp), allocatable :: breathingCont(:)
 integer, allocatable :: momIndexTable(:,:,:,:)
 logical :: tmodHub
+
+! For some systems, we want to cache the connections between the orbitals
+integer, allocatable :: connectionCache(:,:)
+integer, allocatable :: connectivities(:)
 
 ! For the UEG, we damp the exchange interactions.
 !    0 means none

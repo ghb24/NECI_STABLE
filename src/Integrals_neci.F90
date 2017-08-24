@@ -3,7 +3,8 @@ module Integrals_neci
 
     use SystemData, only: tStoreSpinOrbs, nBasisMax, iSpinSkip, &
                           tFixLz, nBasis, G1, Symmetry, tCacheFCIDUMPInts, &
-                          tRIIntegrals, tVASP,tComplexOrbs_RealInts, NEl, LMS, ECore
+                          tRIIntegrals, tVASP,tComplexOrbs_RealInts, NEl, LMS, ECore, &
+                          tCacheConnections, connectionCache, connectivities
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
                          nTypes, gen2CPMDInts, tDFInts
@@ -634,6 +635,10 @@ contains
     ! Setup the umatel pointers as well
     call init_getumatel_fn_pointers ()
 
+    if(tCacheConnections) then
+       allocate(connectionCache(nBasis,nBasis))
+       allocate(connectivities(nBasis))
+    endif
 
     End Subroutine IntInit
         
@@ -1823,6 +1828,22 @@ contains
       WRITE(iunit,*) "******************"
       close(iunit)
     END subroutine writesymclasses
+
+    subroutine getConnections()
+      integer :: i,j, counter
+! loop over all orbitals and check the connected orbitals for each
+      do i=1,nBasis
+         counter = 0
+         do j=1,nBasis
+            if(abs(gettmatel(i,j))>1.0e-12_dp) then
+               counter = counter + 1
+               connectionCache(i,counter) = j
+            endif
+         enddo
+         connectivities(i)=j
+      enddo
+         
+    end subroutine getConnections
 
     subroutine DumpFCIDUMP()
         USE OneEInts, only : TMAT2D

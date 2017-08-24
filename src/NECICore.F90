@@ -241,8 +241,8 @@ subroutine NECICalcInit(iCacheFlag)
     !=                                calculation.
 
     use System, only : SysInit
-    use SystemData, only : tRotateOrbs,tFindCINatOrbs
-    use Integrals_neci, only : IntInit,IntFreeze,tPostFreezeHF,DumpFCIDUMP
+    use SystemData, only : tRotateOrbs,tFindCINatOrbs,tCacheConnections
+    use Integrals_neci, only : IntInit,IntFreeze,tPostFreezeHF,DumpFCIDUMP,getConnections
     use IntegralsData, only : tDumpFCIDUMP
     use DetCalc, only : DetCalcInit,DoDetCalc
     use Determinants, only : DetPreFreezeInit,DetInit
@@ -299,6 +299,11 @@ subroutine NECICalcInit(iCacheFlag)
     
     IF(tRotateOrbs.and.(.not.tFindCINatOrbs)) THEN
         CALL RotateOrbs()
+    ENDIF
+! This has to come after any potential changes to the orbitals as we now log the 
+! allowed excitations
+    IF(tCacheConnections) THEN
+       CALL getConnections()
     ENDIF
 
 
