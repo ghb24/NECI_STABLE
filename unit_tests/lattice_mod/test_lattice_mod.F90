@@ -27,9 +27,23 @@ contains
 
         call run_test_case(test_init_lattice_chain, "test_init_lattice_chain")
         call run_test_case(test_init_lattice_star, "test_init_lattice_star")
-!         call run_test_case(test_init_lattice_aim_chain, "test_init_lattice_aim_chain")
+        call run_test_case(test_init_lattice_aim_chain, "test_init_lattice_aim_chain")
+        call run_test_case(test_init_lattice_aim_star, "test_init_lattice_aim_star")
+        call run_test_case(test_init_cluster_lattice_aim, "test_init_cluster_lattice_aim")
 
     end subroutine lattice_mod_test_driver 
+
+    subroutine test_init_cluster_lattice_aim
+        class(cluster_aim), pointer :: this 
+
+        integer :: i 
+
+        print *, "" 
+        print *, "initialize a 'cluster-lattice-aim' with 1 impurity and 1 bath site"
+
+        call assert_true( .false.) 
+        
+    end subroutine test_init_cluster_lattice_aim
 
     subroutine test_init_lattice_star
         class(lattice), pointer :: ptr
@@ -89,16 +103,157 @@ contains
         call assert_equals( [(i, i = 2, 100)], ptr%get_neighbors(1),99)
 
     end subroutine test_init_lattice_star
-! 
-!     subroutine test_init_lattice_aim_chain
-!         class(lattice), pointer :: ptr 
-! 
-!         print *, "initialize a 'aim-chain' lattice with 1 bath site: "
-!         ptr => lattice('aim-chain')
-! 
-!         call assert_true(.false.)
-! 
-!     end subroutine test_init_lattice_aim_chain
+ 
+    subroutine test_init_lattice_aim_star()
+        class(aim), pointer :: ptr 
+        
+        integer :: i 
+
+        print *, "" 
+        print *, "initialize 1 site 'aim-star' geometry" 
+        ptr => aim('aim-star', 1, 1) 
+
+        call assert_equals(1, ptr%get_ndim() )
+        call assert_equals(1, ptr%get_length() ) 
+        call assert_equals(2, ptr%get_nsites() ) 
+        call assert_equals(1, ptr%get_nconnect_max() ) 
+        call assert_true( .not. ptr%is_periodic() ) 
+        call assert_equals(1, ptr%get_site_index(1) ) 
+        call assert_equals(2, ptr%get_site_index(2) )
+        call assert_equals([2], ptr%get_neighbors(1), 1)
+        call assert_equals([1], ptr%get_neighbors(2), 1) 
+
+        call assert_true( ptr%is_impurity_site(1) )
+        call assert_true( .not. ptr%is_impurity_site(2) ) 
+        call assert_true( ptr%is_bath_site(2) )
+        call assert_true( .not. ptr%is_bath_site(1) )
+
+        call aim_deconstructor(ptr)
+
+        call assert_true(.not.associated(ptr)) 
+
+        print *, "" 
+        print *, "initialize 2-bath site 'aim-star' geometry"
+        ptr => aim('star', 1, 2)
+
+        call assert_equals(1, ptr%get_ndim() )
+        call assert_equals(1, ptr%get_length() ) 
+        call assert_equals(3, ptr%get_nsites() ) 
+        call assert_equals(2, ptr%get_nconnect_max() ) 
+        call assert_true( .not. ptr%is_periodic() ) 
+        call assert_equals(1, ptr%get_site_index(1) ) 
+        call assert_equals(2, ptr%get_site_index(2) )
+        call assert_equals([2,3], ptr%get_neighbors(1), 2)
+        call assert_equals([1], ptr%get_neighbors(2), 1) 
+        call assert_equals([1], ptr%get_neighbors(3), 1) 
+
+        call assert_true( ptr%is_impurity_site(1) )
+        call assert_true( .not. ptr%is_impurity_site(2) ) 
+        call assert_true( .not. ptr%is_impurity_site(3) ) 
+        call assert_true( ptr%is_bath_site(2) )
+        call assert_true( .not. ptr%is_bath_site(1) )
+
+        call assert_true( ptr%is_bath_site(3) )
+
+        call aim_deconstructor(ptr)
+
+        call assert_true(.not.associated(ptr)) 
+
+        print *, "" 
+        print *, "initialize 100-bath site 'aim-star' geometry"
+        ptr => aim('star', 1, 100)
+
+        call assert_equals(1, ptr%get_ndim() )
+        call assert_equals(1, ptr%get_length() ) 
+        call assert_equals(101, ptr%get_nsites() ) 
+        call assert_equals(100, ptr%get_nconnect_max() ) 
+        call assert_true( .not. ptr%is_periodic() ) 
+        call assert_equals(1, ptr%get_site_index(1) ) 
+        call assert_equals(2, ptr%get_site_index(2) )
+        call assert_equals(101, ptr%get_site_index(101) )
+        call assert_equals( [ (i, i = 2, 101) ], ptr%get_neighbors(1), 100)
+        call assert_equals([1], ptr%get_neighbors(2), 1) 
+        call assert_equals([1], ptr%get_neighbors(3), 1) 
+        call assert_equals([1], ptr%get_neighbors(101), 1) 
+
+        call assert_true( ptr%is_impurity_site(1) )
+        call assert_true( .not. ptr%is_impurity_site(2) ) 
+        call assert_true( .not. ptr%is_impurity_site(101) ) 
+        call assert_true( ptr%is_bath_site(2) )
+        call assert_true( .not. ptr%is_bath_site(1) )
+
+        call assert_true( ptr%is_bath_site(3) )
+        call assert_true( ptr%is_bath_site(101) )
+
+        call aim_deconstructor(ptr)
+
+        call assert_true(.not.associated(ptr)) 
+
+
+
+
+    end subroutine test_init_lattice_aim_star
+
+    subroutine test_init_lattice_aim_chain
+        class(aim), pointer :: ptr 
+
+        integer :: i
+        ! the question is: how do i deal with U and the hopping? 
+        ! do i encode it in the lattice information? or do i just provide the 
+        ! indices here
+        print *, ""
+        print *, "initialize a 'aim-chain' lattice with 1 bath site: "
+        ptr => aim('aim-chain', 1, 1)
+
+        call assert_equals(1, ptr%get_n_imps())
+        call assert_equals(1, ptr%get_n_bath())
+        call assert_true(.not. ptr%is_periodic())
+        call assert_equals(1, ptr%get_ndim())
+        call assert_equals(2, ptr%get_nsites())
+        call assert_equals(2, ptr%get_length())
+        call assert_equals(1, ptr%get_nconnect_max())
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_true(ptr%is_impurity_site(1))
+        call assert_true(ptr%is_bath_site(2))
+        call assert_true(.not. ptr%is_bath_site(1))
+        call assert_true(.not. ptr%is_impurity_site(2))
+        call assert_equals([1], ptr%get_impurities(), 1)
+        call assert_equals([2], ptr%get_bath(), 1)
+        call assert_equals([2], ptr%get_neighbors(1), 1) 
+        call assert_equals([1], ptr%get_neighbors(2), 1)
+        
+        call aim_deconstructor(ptr) 
+
+        call assert_true(.not.associated(ptr)) 
+
+        print *, "" 
+        print *, "initialize a 'aim-chain' lattice with 100 bath sites: "
+        ptr => aim('aim-chain', 1, 100) 
+
+        call assert_equals(1, ptr%get_n_imps() )
+        call assert_equals(100, ptr%get_n_bath() )
+        call assert_true( .not. ptr%is_periodic() )
+        call assert_equals(1 , ptr%get_ndim() )
+        call assert_equals(101, ptr%get_nsites() )
+        call assert_equals(101, ptr%get_length() )
+        call assert_equals(2, ptr%get_nconnect_max() ) 
+        call assert_equals(1, ptr%get_site_index(1) )
+        call assert_equals(2, ptr%get_site_index(2) )
+        call assert_equals(101, ptr%get_site_index(101) )
+        call assert_true( ptr%is_impurity_site(1) )
+        call assert_true( .not. ptr%is_bath_site(1) )
+        call assert_true( ptr%is_bath_site(2) ) 
+        call assert_true( ptr%is_bath_site(101) )
+        call assert_true( .not. ptr%is_impurity_site(2) ) 
+        call assert_true( .not. ptr%is_impurity_site(101) )
+        call assert_equals([1], ptr%get_impurities(), 1) 
+        call assert_equals( [ (i, i = 2,101) ], ptr%get_bath(), 100)
+        call assert_equals([2], ptr%get_neighbors(1), 1) 
+        call assert_equals([1,3], ptr%get_neighbors(2), 2) 
+        call assert_equals([100], ptr%get_neighbors(101),1)
+
+    end subroutine test_init_lattice_aim_chain
 
     subroutine test_init_lattice_chain 
         ! test the specific initializers 

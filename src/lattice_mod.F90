@@ -10,7 +10,7 @@ module lattice_mod
 
     implicit none 
     private 
-    public :: lattice, lattice_deconstructor
+    public :: lattice, lattice_deconstructor, aim, aim_deconstructor
 
     type :: site 
         ! the basic site type for my lattice
@@ -43,6 +43,12 @@ module lattice_mod
         ! or can i point to the other sites here? hm.. 
         ! and maybe i want to store on-site repulsion here too.. lets see 
 
+        ! i could just hack into that i have a flag for impurities and 
+        ! bath sites.. which i do not need for "normal" calculations but 
+        ! for the AIM.. 
+        logical :: t_impurity = .false. 
+        logical :: t_bath = .false. 
+
     contains 
         private 
 
@@ -61,6 +67,11 @@ module lattice_mod
         procedure :: get_num_neighbors 
         procedure :: set_neighbors
 
+        procedure :: set_impurity 
+        procedure :: is_impurity 
+        procedure :: set_bath 
+        procedure :: is_bath
+
         ! i could also use finalization routines instead of manually 
         ! deallocating everything.. 
         ! i need atleast gcc4.9.. which i am to lazy to update now..
@@ -68,6 +79,23 @@ module lattice_mod
 !         final :: finalize_site
 
     end type site 
+
+    ! can i do something like: 
+    type, extends(site) :: impurity 
+        private
+
+    contains
+        private
+
+    end type impurity 
+
+    type, extends(site) :: bath 
+        private
+
+    contains 
+        private
+
+    end type bath
 
     ! maybe make this abstract.. what are the benefits? 
     type, abstract :: lattice 
@@ -115,7 +143,7 @@ module lattice_mod
         ! type definition, so all of those function can get called 
         ! but i need specifice ones then for each sub-class 
         ! how do i do that? 
-        procedure, public :: initialize => init_lattice
+        procedure :: initialize => init_lattice
         procedure, public :: get_nsites
         procedure, public :: get_ndim
         procedure, public :: get_nconnect_max
@@ -150,6 +178,34 @@ module lattice_mod
     end type lattice 
     ! and the plan is than to extend this with the specific lattices 
 
+    ! i think it is better to extend lattice directly for the aim
+    type, abstract, extends(lattice) :: aim 
+        private 
+
+        integer :: n_imps = -1 
+        integer :: n_bath = -1 
+
+    contains 
+        private 
+
+!         procedure :: initialize => init_aim
+
+        procedure :: set_n_imps
+        procedure :: set_n_bath
+        procedure :: calc_nsites => calc_nsites_aim
+
+        procedure, public :: is_periodic => is_periodic_aim
+
+        procedure, public :: get_n_imps
+        procedure, public :: get_n_bath
+        procedure, public :: is_impurity_site
+        procedure, public :: is_bath_site
+
+        procedure, public :: get_impurities
+        procedure, public :: get_bath
+
+    end type aim
+
     type, extends(lattice) :: chain
         private 
     
@@ -169,6 +225,23 @@ module lattice_mod
 
     end type chain
 
+    ! can i just extend the chain class to make an impurity chain? 
+    ! argh this is annoying without multiple inheritance.. 
+    type, extends(aim) :: aim_chain 
+        private 
+    
+        integer :: length = -1 
+
+    contains 
+        private 
+
+        procedure, public :: get_length => get_length_aim_chain
+        procedure :: set_length => set_length_aim_chain
+
+        procedure :: initialize_sites => init_sites_aim_chain
+
+    end type aim_chain
+
     ! also implement a 'star' geometry, especially to deal with the AIM models
     type, extends(lattice) :: star
         private
@@ -176,15 +249,30 @@ module lattice_mod
     contains 
         private 
 
+        procedure :: calc_nsites => calc_nsites_star
+        procedure :: set_length => set_length_star
+        procedure :: initialize_sites => init_sites_star
+
         procedure, public :: get_length => get_length_star
-        ! i can just reuse the chain calc function..
-        procedure, public :: calc_nsites => calc_nsites_star
         procedure, public :: is_periodic => is_periodic_star
 
-        procedure :: initialize_sites => init_sites_star
-        procedure :: set_length => set_length_star
-
     end type star
+
+    type, extends(aim) :: aim_star 
+        private 
+
+    contains 
+        private 
+
+        procedure :: set_length => set_length_aim_star
+        procedure :: calc_nsites => calc_nsites_aim_star
+        procedure :: initialize_sites => init_sites_aim_star
+
+        procedure, public :: is_periodic => is_periodic_aim_star
+        procedure, public :: get_length => get_length_aim_star
+
+
+    end type aim_star
 
     ! i also want to have a rectangle.. 
     ! can i store every possibility in the rectangle type? 
@@ -242,7 +330,10 @@ module lattice_mod
 
     interface lattice
         procedure lattice_constructor 
-!         procedure aim_lattice_constructor
+    end interface
+
+    interface aim
+        procedure aim_lattice_constructor
     end interface
 
     ! can i make an abstract interface for the dummy procedures above?
@@ -273,6 +364,232 @@ module lattice_mod
                           STAR_LENGTH = 1
 
 contains 
+
+    integer function get_length_aim_star(this) 
+        class(aim_star) :: this 
+
+        get_length_aim_star = STAR_LENGTH 
+
+    end function get_length_aim_star
+
+    subroutine set_impurity(this, flag) 
+        class(site) :: this
+        logical, intent(in) :: flag 
+
+        this%t_impurity = flag 
+
+    end subroutine set_impurity
+
+    subroutine set_bath(this, flag)
+        class(site) :: this 
+        logical, intent(in) :: flag 
+
+        this%t_bath = flag 
+
+    end subroutine set_bath
+
+    logical function is_impurity(this) 
+        class(site) :: this 
+
+        is_impurity = this%t_impurity
+
+    end function is_impurity
+
+    logical function is_bath(this) 
+        class(site) :: this 
+
+        is_bath = this%t_bath
+
+    end function is_bath
+
+    subroutine init_sites_aim_chain(this)
+        class(aim_chain) :: this
+        character(*), parameter :: this_routine = "init_sites_aim_chain"
+        ! now this is the important routine.. 
+
+        integer :: i
+
+        if (this%get_nsites() < 2) then 
+            call stop_all(this_routine, & 
+                "less than 2 sites!")
+        end if
+        ! for the chain we should assert that we only have one impurity! 
+        if (this%get_n_imps() > 1) then 
+            call stop_all(this_routine, "more than one impurity!")
+        end if
+
+        ! the first site is the impurity! 
+        this%sites(1) = site(1, 1, [2], 'impurity')
+
+        ! the bath sites are connected within each other, but not periodic!
+        do i = 1, this%get_n_bath() - 1
+            this%sites(i+1) = site(i + 1, 2, [i, i + 2], 'bath')
+        end do
+
+        ! and the last bath site only has one neighbor
+        this%sites(this%get_nsites()) = site(this%get_nsites(), 1, &
+            [this%get_nsites() - 1], 'bath')
+
+    end subroutine init_sites_aim_chain
+
+    function calc_nsites_aim(this, length_x, length_y) result(n_sites)
+        class(aim) :: this
+        integer, intent(in) :: length_x, length_y
+        integer :: n_sites
+        character(*), parameter :: this_routine = "calc_nsites_aim"
+
+        ! for AIM systems assume first length input is number of impurity 
+        ! sites and bath sites are number of path sites per impurity!!
+        if (length_x <= 0) then 
+            call stop_all(this_routine, &
+                "incorrect aim_sites input <= 0!")
+        end if
+        if (length_y <= 0) then 
+            call stop_all(this_routine, & 
+                "incorrect bath_sites input <= 0!")
+        end if
+
+        n_sites = length_x * length_y + length_x
+
+    end function calc_nsites_aim
+
+
+    logical function is_bath_site(this, ind) 
+        class(aim) :: this 
+        integer, intent(in) :: ind 
+        character(*), parameter :: this_routine = "is_bath_site" 
+        class(site), allocatable :: temp
+
+        ASSERT(ind > 0)
+        ASSERT(ind <= this%get_nsites()) 
+
+        is_bath_site = this%sites(ind)%is_bath()
+
+        ! maybe i will use inherited sites(impurity and stuff)
+
+!         allocate(temp, source=this%sites(ind))
+! !         temp => this%sites(ind)
+! !         associate(sites => this%sites(ind))
+!             select type(temp)
+! 
+!             class is (impurity)
+! 
+!                 is_bath_site = .false. 
+! 
+!             class is (bath) 
+! 
+!                 is_bath_site = .false. 
+! 
+!             class default 
+! 
+!                 call stop_all(this_routine, &
+!                     "something went wrong.. neither impurity nor bath..")
+! 
+!             end select
+!         end associate
+
+    end function is_bath_site
+
+    logical function is_impurity_site(this, ind)
+        class(aim) :: this 
+        integer, intent(in) :: ind 
+        character(*), parameter :: this_routine = "is_impurity_site"
+
+        ASSERT(ind > 0)
+        ASSERT(ind <= this%get_nsites()) 
+
+        is_impurity_site = this%sites(ind)%is_impurity()
+
+        ! just reuse is_bath_site function
+!         is_impurity_site = .not. this%is_bath_site(ind) 
+
+    end function is_impurity_site
+
+    function get_bath(this) result(bath_sites) 
+        class(aim) :: this 
+        integer :: bath_sites(this%n_bath)
+        character(*), parameter :: this_routine = "get_bath"
+
+        integer :: i, j
+        ! do i store the bath seperately or do i just loop here??
+
+        bath_sites = -1 
+        j = 1
+        do i = 1, this%get_nsites() 
+            if (this%is_bath_site(i)) then 
+                bath_sites(j) = this%get_site_index(i)
+                j = j + 1
+            end if
+        end do
+
+        ASSERT(.not. any(bath_sites == -1))
+
+    end function get_bath
+
+    function get_impurities(this) result(imp_sites) 
+        class(aim) :: this 
+        integer :: imp_sites(this%n_imps)
+        character(*), parameter :: this_routine = "get_impurities"
+
+        integer :: i, j
+
+        imp_sites = -1 
+
+        j = 1
+        do i = 1, this%get_nsites()
+            if (this%is_impurity_site(i)) then 
+                imp_sites(j) = this%get_site_index(i)
+                j = j + 1
+            end if
+        end do
+
+        ASSERT(.not. any(imp_sites == -1))
+
+    end function get_impurities
+
+    subroutine set_n_imps(this, n_imps)
+        class(aim) :: this 
+        integer, intent(in) :: n_imps
+        character(*), parameter :: this_routine = "set_n_imps"
+
+        ASSERT(n_imps > 0)
+
+        this%n_imps = n_imps 
+
+    end subroutine set_n_imps
+
+    integer function get_n_imps(this) 
+        class(aim) :: this 
+
+        get_n_imps = this%n_imps 
+
+    end function get_n_imps
+
+    subroutine set_n_bath(this, n_bath) 
+        class(aim) :: this 
+        integer, intent(in) :: n_bath 
+        character(*), parameter :: this_routine = "set_n_bath"
+
+        ASSERT(n_bath > 0) 
+
+        this%n_bath = n_bath
+
+    end subroutine set_n_bath
+
+    integer function get_n_bath(this) 
+        class(aim) :: this 
+
+        get_n_bath = this%n_bath
+
+    end function get_n_bath
+
+    ! for the beginning set the aim periodicity to false all the time! 
+    logical function is_periodic_aim(this) 
+        class(aim) :: this 
+
+        is_periodic_aim = .false.
+
+    end function is_periodic_aim
 
     subroutine set_num_neighbors(this, n_neighbors) 
         class(site) :: this 
@@ -323,6 +640,8 @@ contains
         call lhs%set_num_neighbors( rhs%get_num_neighbors() )
         call lhs%allocate_neighbors( rhs%get_num_neighbors() ) 
         call lhs%set_neighbors( rhs%get_neighbors() )
+        call lhs%set_impurity( rhs%is_impurity() )
+        call lhs%set_bath( rhs%is_bath() )
 
         ! can i work with an allocatable statement here? 
 
@@ -344,6 +663,33 @@ contains
         call stop_all(this_routine, "not yet implemented!")
         
     end subroutine lattice_assign
+
+    subroutine init_sites_aim_star(this)
+        class(aim_star) :: this 
+        character(*), parameter :: this_routine = "init_sites_aim_star" 
+
+        integer :: i 
+
+        if (this%get_nsites() < 2) then 
+            call stop_all(this_routine, & 
+                "something went wrong: less than 2 sites!") 
+        end if
+
+        if (this%get_n_imps() > 1) then 
+            call stop_all(this_routine, "more than one impurity not yet implemented!")
+        end if
+
+        ! do the first impurity 
+        ! the impurity is connected to all the bath sites! 
+        this%sites(1) = site(1, this%get_n_bath(), [(i, i = 2, this%get_nsites())], &
+            'impurity')
+
+        ! and all the bath sites are just connected to the impurity 
+        do i = 2, this%get_nsites() 
+            this%sites(i) = site(i, 1, [1], 'bath')
+        end do
+
+    end subroutine init_sites_aim_star
 
     subroutine init_sites_star(this)
         ! create the lattice structure of the star geometry.. 
@@ -434,6 +780,13 @@ contains
 
     end subroutine init_sites_chain
 
+    subroutine init_aim(this, length_x, length_y) 
+        class(aim) :: this 
+        integer, intent(in) :: length_x, length_y
+        character(*), parameter :: this_routine = "init_aim"
+
+    end subroutine init_aim
+
     subroutine init_lattice(this, length_x, length_y, t_periodic_x, t_periodic_y) 
         ! and write the first dummy initialize 
         class(lattice) :: this 
@@ -489,6 +842,52 @@ contains
                 "incorrect initialization info: requested periodic 'star' geometry!")
             end if
 
+        class is (aim_chain) 
+
+            ! do stuff
+            call this%set_ndim(DIM_CHAIN)
+            call this%set_length(length_x, length_y)
+            ! the neighbors is a bit complicated in this case.. 
+            ! although it is a chain.. so it should not have more than 
+            ! one impurity! 
+            if (length_x > 1) then 
+                call stop_all(this_routine, &
+                    "more than 1 impurity taken in tha aim_chain setup!")
+            end if
+            if (length_y == 1) then 
+                call this%set_nconnect_max(1) 
+            else 
+                call this%set_nconnect_max(N_CONNECT_MAX_CHAIN)
+            end if
+            
+            ! i can use class specific routine in this block
+            call this%set_n_imps(length_x)
+            call this%set_n_bath(length_y)
+
+        class is (aim_star) 
+            ! this is the star with only 1 impurity for now.. 
+            ! i still have to think how to efficiently setup up a 
+            ! cluster impurity.. 
+            ! i guess i have to decide on a lattice and a ab-initio 
+            ! cluster impurity! thats good yeah 
+
+            call this%set_ndim(DIM_STAR)
+            ! number of bath sites is the maximal connectivity
+            call this%set_nconnect_max(length_y) 
+
+            ! also the one-site impurity can't be periodic! 
+            if (t_periodic_x .or. t_periodic_y) then 
+                call stop_all(this_routine, & 
+                    "incorrect initialization info: requested periodic 'star' geometry!")
+            end if
+
+            if (length_x > 1) then 
+                call stop_all(this_routine, &
+                    "aim_star only implemented for one impurity!")
+            end if
+
+            call this%set_n_imps(length_x)
+            call this%set_n_bath(length_y) 
 
         class default 
             call stop_all(this_routine, "unexpected lattice type!")
@@ -504,9 +903,33 @@ contains
 
     end subroutine init_lattice
 
-!     function aim_lattice_constructor() 
-! 
-!     end function aim_lattice_constructor
+    function aim_lattice_constructor(lat_type, length_x, length_y)  result(this)
+        character(*), intent(in) :: lat_type 
+        integer, intent(in) :: length_x, length_y 
+        class(aim), pointer :: this 
+        character(*), parameter :: this_routine = "aim_lattice_constructor"
+
+        select case(lat_type)
+        case('chain','aim-chain', 'chain-aim')
+
+            allocate(aim_chain :: this) 
+
+        case ('star', 'aim-star', 'star-aim')
+
+            allocate(aim_star :: this)
+
+        case default 
+            ! stop here because a incorrect lattice type was given 
+            call stop_all(this_routine, & 
+                'incorrect lattice type provided in lattice_constructor!')
+
+        end select 
+
+        ! the initializer deals with the different types then.. 
+!         call this%initialize(length_x, length_y)
+        call this%initialize(length_x, length_y, .false., .false.)
+
+    end function aim_lattice_constructor
 
     function lattice_constructor(lat_typ, length_x, length_y, t_periodic_x , &
             t_periodic_y) result(this)
@@ -519,6 +942,7 @@ contains
         integer, intent(in) :: length_x, length_y
         logical, intent(in) :: t_periodic_x, t_periodic_y
         class(lattice), pointer :: this 
+        character(*), parameter :: this_routine = "lattice_constructor"
 
         ! depending on the string input defining lattice type 
         ! initialize corresponding lattice 
@@ -531,9 +955,13 @@ contains
 
             allocate(star :: this) 
 
+        case ('aim-chain') 
+
+            allocate(aim_chain :: this)
+
         case default 
             ! stop here because a incorrect lattice type was given 
-            call stop_all('lattice_constructor', & 
+            call stop_all(this_routine, & 
                 'incorrect lattice type provided in lattice_constructor!')
 
         end select 
@@ -557,13 +985,29 @@ contains
         ! i think i have to use pointers again.. 
         ! but maybe this is really bad to deal with in the rest of the code.. 
         class(site), pointer :: this 
+        character(*), parameter :: this_routine = "site_constructor"
 
+        allocate(site :: this) 
         if (present(site_type)) then 
             ! not yet implementetd or to do.. so wait.. 
+            select case (site_type)
+
+            case ('impurity', 'imp')
+                
+                call this%set_impurity(.true.)
+
+            case ('bath')
+
+                call this%set_bath(.true.)
+
+            case default 
+                call stop_all(this_routine, &
+                    "incorrect site type provided") 
+                
+            end select 
 
         else 
             ! this is the default case 
-            allocate(site :: this) 
 
         end if
 
@@ -685,6 +1129,15 @@ contains
 
     end subroutine lattice_deconstructor
     
+    subroutine aim_deconstructor(this) 
+        class(aim), pointer :: this 
+
+        call this%deallocate_sites()
+
+        nullify(this)
+
+    end subroutine aim_deconstructor
+
     function get_neighbors_site(this) result(neighbors) 
         ! this is a generic routine to get the neighbors of a site 
         class(site) :: this 
@@ -734,7 +1187,25 @@ contains
         end if
 
     end function get_neighbors_lattice
-! 
+
+    function calc_nsites_aim_star(this, length_x, length_y) result(n_sites) 
+        ! for the star geometry with maybe 
+        class(aim_star) :: this 
+        integer, intent(in) :: length_x, length_y
+        integer :: n_sites
+        character(*), parameter :: this_routine = "calc_nsites_aim_star"
+
+        if (length_x < 1) then 
+            call stop_all(this_routine, "n_imps < 1!") 
+        end if
+        if (length_y < 1) then 
+            call stop_all(this_routine, "n_bath < 1!")
+        end if
+
+        n_sites = length_x + length_y
+
+    end function calc_nsites_aim_star 
+
     function calc_nsites_star(this, length_x, length_y) result(n_sites) 
         ! the maximum of the input is used as the n_sites parameter! 
         ! this is the same function as the one for "chain" below.. 
@@ -756,6 +1227,13 @@ contains
 
 
     end function calc_nsites_star
+
+    logical function is_periodic_aim_star(this) 
+        class(aim_star) :: this 
+
+        is_periodic_aim_star = .false.
+
+    end function is_periodic_aim_star
 
     function calc_nsites_chain(this, length_x, length_y) result(n_sites) 
         ! i acually do not want to rely on the previous calculated 
@@ -811,6 +1289,17 @@ contains
             'type(lattice) should never be actually instantiated!') 
 
     end subroutine set_length_lattice
+
+    subroutine set_length_aim_star(this, length_x, length_y)
+        class(aim_star) :: this 
+        integer, intent(in) :: length_x, length_y
+        character(*), parameter :: this_routine = "set_length_aim_star"
+
+        ! actually the length of a start is not really defined.. 
+        ! maybe i should rethink if i make this part of the 
+        ! original lattice class then.. 
+        call stop_all(this_routine, "length not defined for 'star' geometry!")
+    end subroutine set_length_aim_star
 
     subroutine set_length_star(this, length_x, length_y)
         class(star) :: this 
@@ -897,6 +1386,23 @@ contains
         get_length_chain = this%length
 
     end function get_length_chain
+
+    integer function get_length_aim_chain(this)
+        class(aim_chain) :: this 
+
+        get_length_aim_chain = this%length
+
+    end function get_length_aim_chain
+
+    subroutine set_length_aim_chain(this, length_x, length_y) 
+        class(aim_chain) :: this 
+        integer, intent(in) :: length_x, length_y
+
+        ! as a definition make the lenght, even for multiple impurity chains 
+        ! as bath_sites + 1
+        this%length = length_y + 1
+
+    end subroutine set_length_aim_chain
 
     logical function is_periodic_star(this)
         ! this is always false.. the star geometry can't be periodic
