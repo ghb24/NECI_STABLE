@@ -388,6 +388,17 @@ module lattice_mod
 
 contains 
 
+    subroutine init_sites_cluster_aim(this)
+        class(cluster_aim) :: this 
+        ! now finally implement the actual cluster initializer, which 
+        ! reads in a given TMAT and UMAT file, or atleast the information in it
+
+        associate(n_bath => this%get_n_bath(), n_imps => this%get_n_imps())
+
+        end associate
+
+    end subroutine init_sites_cluster_aim
+
     subroutine init_sites_cluster_aim_test(this)
         class(cluster_aim) :: this 
         
