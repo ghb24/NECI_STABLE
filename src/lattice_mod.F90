@@ -185,6 +185,11 @@ module lattice_mod
         integer :: n_imps = -1 
         integer :: n_bath = -1 
 
+        ! i think i want to store the bath and impurity indices.. 
+        ! thats more efficient!
+        integer, allocatable :: impurity_sites(:) 
+        integer, allocatable :: bath_sites(:)
+
     contains 
         private 
 
@@ -273,6 +278,24 @@ module lattice_mod
 
 
     end type aim_star
+
+    ! write a general cluster aim class:
+    ! this is a bit more tricky now, since the setup and the connectivity 
+    ! in the impurity sites is input dependent
+    ! so from the TMAT in the input i have to define the neighbors of each 
+    ! impurity site within themselves 
+    ! 
+    type, extends(aim_star) :: cluster_aim 
+        private 
+
+
+    contains 
+        private 
+
+!         procedure :: initialize_sites => init_sites_cluster_aim
+        procedure :: initialize_sites => init_sites_cluster_aim_test
+
+    end type cluster_aim 
 
     ! i also want to have a rectangle.. 
     ! can i store every possibility in the rectangle type? 
@@ -364,6 +387,53 @@ module lattice_mod
                           STAR_LENGTH = 1
 
 contains 
+
+    subroutine init_sites_cluster_aim_test(this)
+        class(cluster_aim) :: this 
+        
+        integer :: i, imp_neighbors(this%n_imps - 1), j, k, l
+        ! this is the tricky part.. i have to use the read-in UMAT and TMAT 
+        ! files and setup the connectivity
+        ! for now write one dummy function which assumes that all bath sites 
+        ! are connected to each impurity and all the impurity sites are 
+        ! connected within each-other
+        
+        ! remember if we have more than one impurity i still have to set 
+        ! the dimension and n_connect_max here! 
+        
+        ! the bath sites are easier here! they are all connected to all 
+        ! impurity sites! 
+        associate(n_bath => this%get_n_bath(), n_imps => this%get_n_imps())
+
+            if (n_imps > 1) call this%set_ndim(2)
+
+            call this%set_nconnect_max(n_bath + n_imps - 1)
+
+            do i = 1, n_bath
+                this%sites(i + n_imps) = site(i + n_imps, n_imps, &
+                    [ (i, i = 1, n_imps) ], 'bath')
+            end do
+
+            do i = 1, n_imps 
+                k = 1
+                do j = 1, n_imps
+                    if (i /= j) then 
+                        imp_neighbors(k) = j
+                        k = k + 1
+                    end if 
+                end do
+
+                this%sites(i) = site(i, n_imps - 1 + n_bath, & 
+                    [imp_neighbors, (l + n_imps, l = 1, n_bath)], 'impurity')
+
+            end do
+        end associate
+
+        ! for this test function assume every impurity site connected 
+        ! within each other 
+
+
+    end subroutine init_sites_cluster_aim_test
 
     integer function get_length_aim_star(this) 
         class(aim_star) :: this 
@@ -513,16 +583,18 @@ contains
         integer :: i, j
         ! do i store the bath seperately or do i just loop here??
 
-        bath_sites = -1 
-        j = 1
-        do i = 1, this%get_nsites() 
-            if (this%is_bath_site(i)) then 
-                bath_sites(j) = this%get_site_index(i)
-                j = j + 1
-            end if
-        end do
+!         bath_sites = -1 
+!         j = 1
+!         do i = 1, this%get_nsites() 
+!             if (this%is_bath_site(i)) then 
+!                 bath_sites(j) = this%get_site_index(i)
+!                 j = j + 1
+!             end if
+!         end do
+! 
+!         ASSERT(.not. any(bath_sites == -1))
 
-        ASSERT(.not. any(bath_sites == -1))
+        bath_sites = this%bath_sites
 
     end function get_bath
 
@@ -532,18 +604,22 @@ contains
         character(*), parameter :: this_routine = "get_impurities"
 
         integer :: i, j
+! 
+!         imp_sites = -1 
+! 
+!         j = 1
+!         do i = 1, this%get_nsites()
+!             if (this%is_impurity_site(i)) then 
+!                 imp_sites(j) = this%get_site_index(i)
+!                 j = j + 1
+!             end if
+!         end do
+! 
+!         ASSERT(.not. any(imp_sites == -1))
 
-        imp_sites = -1 
-
-        j = 1
-        do i = 1, this%get_nsites()
-            if (this%is_impurity_site(i)) then 
-                imp_sites(j) = this%get_site_index(i)
-                j = j + 1
-            end if
-        end do
-
-        ASSERT(.not. any(imp_sites == -1))
+        ! i guees it is better to store the impurity and the bath 
+        ! indices
+        imp_sites = this%impurity_sites
 
     end function get_impurities
 
@@ -794,7 +870,7 @@ contains
         logical, intent(in) :: t_periodic_x, t_periodic_y
         character(*), parameter :: this_routine = "init_lattice"
 
-        integer :: n_sites
+        integer :: n_sites, i
 
 
         n_sites = this%calc_nsites(length_x, length_y)
@@ -863,6 +939,12 @@ contains
             ! i can use class specific routine in this block
             call this%set_n_imps(length_x)
             call this%set_n_bath(length_y)
+            
+            allocate(this%impurity_sites(length_x))
+            allocate(this%bath_sites(length_y))
+
+            this%impurity_sites = [(i, i = 1, length_x)]
+            this%bath_sites = [(length_x + i, i = 1, length_y)]
 
         class is (aim_star) 
             ! this is the star with only 1 impurity for now.. 
@@ -888,6 +970,41 @@ contains
 
             call this%set_n_imps(length_x)
             call this%set_n_bath(length_y) 
+ 
+            allocate(this%impurity_sites(length_x))
+            allocate(this%bath_sites(length_y))
+
+            this%impurity_sites = [(i, i = 1, length_x)]
+            this%bath_sites = [(length_x + i, i = 1, length_y)]
+
+        class is (cluster_aim) 
+
+            ! now we have to be more specific.. 
+            ! do i have to use the inputs already here? 
+            if (length_x <= 0) then 
+                call stop_all(this_routine, & 
+                    "zero or negative impurity sites requested!")
+            end if
+            if (length_y <= 0) then 
+                call stop_all(this_routine, & 
+                    "zero or negative bath orbitals requested!")
+            end if
+
+            call this%set_n_imps(length_x)
+            call this%set_n_bath(length_y) 
+
+            if (length_x == 1) then 
+                call this%set_ndim(DIM_STAR) 
+                call this%set_nconnect_max(length_y)
+            else 
+                ! otherwise i have to do this later.. 
+            end if
+ 
+            allocate(this%impurity_sites(length_x))
+            allocate(this%bath_sites(length_y))
+
+            this%impurity_sites = [(i, i = 1, length_x)]
+            this%bath_sites = [(length_x + i, i = 1, length_y)]
 
         class default 
             call stop_all(this_routine, "unexpected lattice type!")
@@ -917,6 +1034,10 @@ contains
         case ('star', 'aim-star', 'star-aim')
 
             allocate(aim_star :: this)
+
+        case('cluster', 'aim-cluster', 'cluster-aim')
+
+            allocate(cluster_aim :: this)
 
         case default 
             ! stop here because a incorrect lattice type was given 
@@ -1126,6 +1247,12 @@ contains
         call this%deallocate_sites() 
 
         nullify(this) 
+
+        select type (this)
+        class is (aim) 
+            deallocate(this%impurity_sites)
+            deallocate(this%bath_sites)
+        end select 
 
     end subroutine lattice_deconstructor
     
