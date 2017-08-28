@@ -8,6 +8,9 @@ module lattice_mod
     ! and maybe also do the same for sites.. where in the AIM then eg. 
     ! the bath and impurity sites extend the base site class 
 
+    use OneEInts, only: tmat2d
+    use UmatCache, only: gtid
+
     implicit none 
     private 
     public :: lattice, lattice_deconstructor, aim, aim_deconstructor
@@ -292,8 +295,8 @@ module lattice_mod
     contains 
         private 
 
-!         procedure :: initialize_sites => init_sites_cluster_aim
-        procedure :: initialize_sites => init_sites_cluster_aim_test
+        procedure :: initialize_sites => init_sites_cluster_aim
+!         procedure :: initialize_sites => init_sites_cluster_aim_test
 
     end type cluster_aim 
 
@@ -389,12 +392,66 @@ module lattice_mod
 contains 
 
     subroutine init_sites_cluster_aim(this)
+        use SystemData, only: nbasis
+        use OneEInts, only: tmat2d, gettmatel
+        use constants, only: EPS
         class(cluster_aim) :: this 
+        character(*), parameter :: this_routine = "init_sites_cluster_aim"
+
+
+        integer :: ind, orb, i, cnt, connections(nBasis/2), j, maximum
         ! now finally implement the actual cluster initializer, which 
         ! reads in a given TMAT and UMAT file, or atleast the information in it
 
-        associate(n_bath => this%get_n_bath(), n_imps => this%get_n_imps())
+        ! kai wrote a parser, but he has not pushed this information 
+        ! and i guess this should be independent of other functionality 
+        ! in neci.. so write it here 
+        ! set it up so that 
+        ASSERT(associated(tmat2d))
 
+        associate(n_bath => this%get_n_bath(), n_imps => this%get_n_imps())
+            ASSERT(n_imps + n_bath == nbasis/2)
+
+            if (n_imps > 1) call this%set_ndim(2)
+
+            ! no i have to do this better, loop over all the orbitals 
+            ! first the impurities
+            do i = 1, n_imps
+                ! find all the connections in the tmat 
+                connections = -1
+                cnt = 0
+                do j = 1, nBasis/2
+                    ! no diagonal terms
+                    if (i == j) cycle
+                    if (abs(gettmatel(2*i, 2*j)) > EPS) then 
+                        ! cound the number of connections
+                        cnt = cnt + 1 
+                        ! and maybe i should already store the connected 
+                        ! states
+                        connections(cnt) = j
+                    end if
+                    if (cnt > maximum) maximum = cnt
+                end do
+
+                this%sites(i) = site(i, cnt, connections(1:cnt-1), 'impurity')
+            end do
+
+            do i = n_imps + 1, nBasis/2
+                connections = -1 
+                cnt = 0
+                do j = 1, nbasis/2
+                    if (i == j) cycle 
+                    if (abs(gettmatel(2*i,2*j)) > EPS) then 
+                        cnt = cnt + 1
+                        connections(cnt) = j 
+                    end if
+                    if (cnt > maximum) maximum = cnt
+                end do
+                this%sites(i) = site(i, cnt, &
+                    connections(1:cnt), 'bath')
+            end do
+
+            call this%set_nconnect_max(maximum)
         end associate
 
     end subroutine init_sites_cluster_aim

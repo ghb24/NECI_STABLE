@@ -34,9 +34,23 @@ contains
     end subroutine lattice_mod_test_driver 
 
     subroutine test_init_cluster_lattice_aim
+        use OneEInts, only: gettmatel, tmat2d
+        use SystemData, only: nbasis
+
         class(aim), pointer :: ptr 
 
         integer :: i 
+
+        nbasis = 4
+
+        allocate(tmat2d(4,4))
+        tmat2d = 0.0
+        tmat2d(1,3) = 1.0
+        tmat2d(2,4) = 1.0
+        tmat2d(3,1) = 1.0
+        tmat2d(4,2) = 1.0
+
+        
 
         print *, "" 
         print *, "initialize a 'cluster-lattice-aim' with 1 impurity and 1 bath site"
@@ -64,6 +78,17 @@ contains
 
         call assert_true(.not.associated(ptr)) 
 
+        deallocate(tmat2d)
+        nbasis = -1
+
+        nbasis = 202
+        allocate(tmat2d(nbasis,nbasis))
+        tmat2d = 0.0
+
+        tmat2d(1,:) = 1.0
+        tmat2d(2,:) = 1.0
+        tmat2d(:,1) = 1.0
+        tmat2d(:,2) = 1.0 
         print *, "" 
         print *, "initialize 1 impurity, 100-bath site 'aim-star' geometry"
         ptr => aim('cluster', 1, 100)
@@ -98,6 +123,20 @@ contains
 
         call assert_true(.not.associated(ptr)) 
 
+        deallocate(tmat2d) 
+        nbasis = 6
+
+        allocate(tmat2d(nbasis,nbasis))
+
+        tmat2d = 0.0
+
+        tmat2d(1,:) = 1.0
+        tmat2d(2,:) = 1.0
+        tmat2d(3,:) = 1.0
+        tmat2d(4,:) = 1.0 
+        tmat2d(5,:) = 1.0
+        tmat2d(6,:) = 1.0
+
         print *, "" 
         print *, "initialize a 2 impurity 1 bath site geometry"
         ptr => aim('cluster', 2, 1) 
@@ -125,6 +164,13 @@ contains
 
         call assert_true(.not.associated(ptr)) 
         
+        deallocate(tmat2d)
+        nbasis = 208
+        allocate(tmat2d(nbasis,nbasis))
+        tmat2d = 0.0 
+        tmat2d(1:8,:) = 1.0
+        tmat2d(:,1:8) = 1.0
+
         print *, "" 
         print *, "initialize a 4 impurity 100 bath site geometry" 
         ptr => aim('cluster', 4, 100)
@@ -150,6 +196,9 @@ contains
         call assert_true( .not. ptr%is_bath_site(4) )
         call assert_equals([1,2,3,4], ptr%get_impurities() , 4)
         call assert_equals([(i, i = 5, 104)], ptr%get_bath(), 100)
+
+        deallocate(tmat2d)
+        nbasis = -1
 
     end subroutine test_init_cluster_lattice_aim
 
