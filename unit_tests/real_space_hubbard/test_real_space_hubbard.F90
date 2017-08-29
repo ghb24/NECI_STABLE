@@ -32,101 +32,172 @@ contains
     subroutine real_space_hubbard_test_driver() 
         ! this is the main function which calls all the other tests 
         
-!         call test_init_lattice() 
-
         ! or try running it with the provided runner of fruit: 
-        ! unnamed: 
-!         call run_test_case(test_init_lattice)
+        call run_test_case(get_umat_el_hub_test, "get_umat_el_hub_test")
+        call run_test_case(init_tmat_test, "init_tmat_test")
+        call run_test_case(get_helement_test, "get_helement_test")
 !         call run_test_case(test_init_lattice, "test_init_lattice")
 
     end subroutine real_space_hubbard_test_driver
 
+    subroutine get_helement_test
+        use SystemData, only: nel, tCSF, bhub, uhub, nbasis, G1
+        use bit_rep_data, only: nifd, niftot
+        use Determinants, only: get_helement
+        use constants, only: dp, n_int
+        use OneEInts, only: tmat2d
+        use procedure_pointers, only: get_umat_el
+        use lattice_mod, only: lattice
+        use detbitops, only: encodebitdet
+        
+        ! do i have to set all the flags.. 
+        class(lattice), pointer :: ptr
+        integer(n_int), allocatable :: ilutI(:), ilutJ(:)
+
+        print *, ""
+        print *, "testing get_helement for the real-space hubbard model"
+
+        nbasis = 4 
+        get_umat_el => get_umat_el_hub
+
+        nel = 2
+        bhub = 1.0
+
+        allocate(G1(nbasis))
+        G1([1,3])%ms = -1 
+        G1([2,4])%ms = 1
+
+        ptr => lattice('chain', 2, 1, .false., .false.)
+        call init_tmat(ptr)
+
+        call assert_equals(0.0_dp, get_helement([1,2],[1,2],0))
+        call assert_equals(0.0_dp, get_helement([1,2],[1,2]))
+
+        uhub = 1.0
+        call assert_equals(1.0_dp, get_helement([1,2],[1,2],0))
+        call assert_equals(1.0_dp, get_helement([1,2],[1,2]))
+
+        call assert_equals(1.0_dp, get_helement([1,2],[1,4],1))
+        call assert_equals(-1.0_dp, get_helement([1,2],[2,3],1))
+
+        call assert_equals(1.0_dp, get_helement([1,2],[1,4]))
+        call assert_equals(-1.0_dp, get_helement([1,2],[2,3]))
+
+        nbasis = 6 
+        deallocate(g1)
+        allocate(g1(nbasis))
+        g1([1,3,5])%ms = -1 
+        g1([2,4,6])%ms = 1 
+
+        ptr => lattice('chain', 3, 1, .true., .true.)
+        call init_tmat(ptr)
+
+        call assert_equals(0.0, get_helement([1,3],[1,3],0))
+        call assert_equals(0.0, get_helement([1,3],[1,3]))
+
+        call assert_equals(1.0, get_helement([1,3],[1,5],1))
+        call assert_equals(-1.0, get_helement([1,3],[3,5],1))
+
+        call assert_equals(1.0, get_helement([1,3],[1,5]))
+        call assert_equals(-1.0, get_helement([1,3],[3,5]))
+
+        niftot = 0
+        nifd = 0
+        allocate(ilutI(0:niftot))
+        allocate(ilutJ(0:niftot))
+
+        call encodebitdet([1,2],ilutI)
+        call encodebitdet([1,2],ilutJ)
+
+        call assert_equals(1.0, get_helement([1,2],[1,2],ilutI,ilutJ))
+        nel = -1 
+
+
+    end subroutine get_helement_test
+
+    subroutine init_tmat_test
+        use lattice_mod, only: lattice
+        use SystemData, only: nbasis, bhub
+        use OneEInts, only: tmat2d
+
+        class(lattice), pointer :: ptr
+
+        print *, "" 
+        print *, "testing: init_tmat" 
+
+        print *, "for a 4 site, non-periodic chain geometry"
+        nbasis = 8 
+        bhub = 1.0
+        ptr => lattice('chain', 4, 1, .false., .false.)
+
+        call init_tmat(ptr)
+
+        call assert_equals([0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0], tmat2d(1,:), 8)
+        call assert_equals([0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0], tmat2d(2,:), 8)
+        call assert_equals([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0], tmat2d(3,:), 8)
+        call assert_equals([0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0], tmat2d(4,:), 8)
+        call assert_equals([0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0], tmat2d(7,:), 8)
+        call assert_equals([0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0], tmat2d(8,:), 8)
+
+        print *, ""
+        print *, "for a 4 site periodic chain geometry: "
+        ptr => lattice('chain', 4, 1, .true., .true.)
+
+        call init_tmat(ptr)
+
+        call assert_equals([0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0], tmat2d(1,:), 8)
+        call assert_equals([0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0], tmat2d(2,:), 8)
+        call assert_equals([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0], tmat2d(3,:), 8)
+        call assert_equals([0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0], tmat2d(4,:), 8)
+        call assert_equals([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0], tmat2d(7,:), 8)
+        call assert_equals([0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0], tmat2d(8,:), 8)
+
+        ! todo: more tests for other lattices later!
+
+        nbasis = -1 
+        bhub = 0.0
+        deallocate(tmat2d)
+
+    end subroutine init_tmat_test
+
+
     subroutine test_init_lattice() 
-        ! the problem in this case is, that it tests global variables.. 
-        ! and we have the problem with the names of the function.. 
-        ! i guess i need to use simons workaround here too.. 
-
-        ! or i use the provided routine in fruit: 
-        ! but there should be a nice way provided by fruit already or?? 
-
-        ! i could output stuff here, which only will be printed if 
-!         ! the tests fail with the correct flags to ctest!
-!         print *, "Testing: init_lattice():"
-! 
-!         print *, "testing 'chain' setting: "
-!         lattice_type = "chain"
-!         call init_lattice
-!         ! check the default values 
-!         call assert_equals(n_dim, 1)
-!         call assert_equals(n_connect_max, 2) 
-!         call assert_equals(n_sites, length_x) 
-!         call assert_equals(length_y, 1) 
-! 
-!         print *, ""
-!         print *, "testing 'square' setting:"
-!         lattice_type = "square"
-!         call init_lattice() 
-!         call assert_equals(n_dim, 2) 
-!         call assert_equals(length_x, 1)
-!         call assert_equals(length_y, 1) 
-!         call assert_equals(n_sites, 2) 
-!         call assert_equals(n_connect_max, 4)
-! 
-        ! but can i pack more then one unit test into this? 
-        ! and how do i find the failing tests then? 
-        ! i have to write this here as the to be tested config. so either i 
-        ! write individual small test routines for each setup or i am 
-        ! lazy enough to do more then one test in here and hope that 
-        ! fruit provides enough output
-
+ 
     end subroutine test_init_lattice
 
-!     subroutine test_nearest_neighbors
-!         ! routine to check the nearest neighbors list for a specific 
-!         ! lattice type 
-!         ! for the square lattice 
+    subroutine get_umat_el_hub_test
+        use SystemData, only: uhub, nbasis
+
+        print *, ""
+        print *, "testing get_umat_el_hub" 
 ! 
-!         ! to make testing and the overall code more readable and 
-!         ! maintainable i should not use so many global variables.. 
-!         
-!         print *, "testing: nearest_neighbors functionality: " 
-! 
-!         print *, "'chain' setting (periodic)" 
-!         ! for the chain setting we order the orbitals left to write 
-!         ! of course. so we only have to take boundary conditions into 
-!         ! account and we still have to decide if we want to store this 
-!         ! info in spatial or spin-orbitals?! 
-!         ! the use of this will be to pick an empty orbital after an 
-!         ! electron(in spin-orbitals indication) was picked (for single 
-!         ! excitations!) 
-!         ! for a single impurity site it would also be beneficial, if 
-!         ! we have the spin-orbital neighbors. 
-!         ! for double excitations? this only happens for 
-!         ! multiple impurity sites.. but there the double excitations 
-!         ! will be treated differently anyway.. since we want to 
-!         ! distinguish between bath and impurity sites there 
-!         ! -> so store it in spin-orbitals 
-!         ! and: lets store the neighbor list in an ordered manner! 
-! 
-!         ! setup some sites and test neighbors
-!         ! 2 sites
-!         ! and i decided to test both the setup and the get routine in 
-!         ! one go, since we do actually need both here anyway
-!         t_periodic = .true.
-!         lattice_type = 'chain' 
-!         length_x = 2 
-!         ! i should call as little other functions before i test this 
-!         ! unit.. maybe only set_nearest_neighbors?
-! 
-!         call create_neighbor_list(n_sit = 2, lat_type= 'chain', len_x = 2,  & 
-!             len_y = 1, t_periodic = .true.)
-! 
-!         ! spin-orbital 1 then only has 3 as neighbor
-!         call assert_equals(get_nearest_neighbors(1), [3])
-!         call assert_equals(get_nearest_neighbors(2), [4])
-!         call assert_equals(get_nearest_neighbors(3), [1])
-! 
-!     end subroutine test_nearest_neighbors
+        ! for the mateles then..
+!         ecore = 0.0
+!         tcsf = .false. 
+!         texch = .false. 
+!         treltvy = .false. 
+!         niftot = 0
+!         ! bits_n_int .. 
+!         ! n_int .. 
+
+        uhub = 1.0
+        nbasis = 8
+
+        call assert_equals(1.0, get_umat_el_hub(1,1,1,1))
+        call assert_equals(1.0, get_umat_el_hub(2,2,2,2))
+        call assert_equals(1.0, get_umat_el_hub(3,3,3,3))
+        call assert_equals(1.0, get_umat_el_hub(4,4,4,4))
+        call assert_equals(0.0, get_umat_el_hub(1,2,3,4))
+        call assert_equals(0.0, get_umat_el_hub(1,1,1,4))
+        call assert_equals(0.0, get_umat_el_hub(2,2,3,4))
+        call assert_equals(0.0, get_umat_el_hub(3,2,3,4))
+
+        uhub = 0.0
+        nbasis = -1
+
+    end subroutine
+
+
 
 end program test_real_space_hubbard
 

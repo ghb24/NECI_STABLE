@@ -244,6 +244,7 @@ logical :: tGen_4ind_unbound = .false.
 ! implement a more efficient real-space hubbard implementation 
 logical :: t_new_real_space_hubbard = .false.
 character(20) :: lattice_type
+
 ! i need 
 integer :: length_x = 1, length_y = 1
 ! also implement a next-nearest neighbor Hubbard model implementation: 

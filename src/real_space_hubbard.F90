@@ -16,9 +16,16 @@
 module real_space_hubbard
 
     use SystemData, only: t_new_real_space_hubbard, lattice_type, length_x, &
-                          length_y
+                          length_y, uhub, nbasis, bhub, t_open_bc_x, &
+                          t_open_bc_y, G1, ecore
     use lattice_mod, only: lattice
+    use constants, only: dp
+    use procedure_pointers, only: get_umat_el
+    use OneEInts, only: tmat2d
     implicit none 
+
+! and this is the global lattice class
+    class(lattice), pointer :: lat
 
 contains 
 
@@ -30,10 +37,79 @@ contains
     subroutine init_real_space_hubbard() 
         ! routine, which does all of the necessary initialisation
         character(*), parameter :: this_routine = "init_real_space_hubbard"
-
         ! especially do some stop_all here so no wrong input is used 
 
+        ! first assert all the right input! 
+        call check_real_space_hubbard_input() 
+
+        ! which stuff do i need to initialize here? 
+        get_umat_el => get_umat_el_hub
+
+        ! i have to check if the lattice should be constructed from an fcidump 
+        ! or created internally.. 
+        if (trim(adjustl(lattice_type)) == 'read') then 
+            ! then i have to construct tmat first 
+            call init_tmat() 
+            ! and then construct the lattice 
+            lat => lattice(lattice_type, length_x, length_y, .not. t_open_bc_x, &
+                .not. t_open_bc_y)
+        else 
+            ! otherwise i have to do it the other way around 
+            lat => lattice(lattice_type, length_x, length_y, .not. t_open_bc_x, &
+                .not. t_open_bc_y)
+            call init_tmat(lat)
+
+        end if
+        
+        ! i guess i have to setup G1 also.. argh.. i hate this! 
+        allocate(G1(nbasis)) 
+        G1(1:nbasis-1:2)%ms = -1
+        G1(2:nbasis:2)%ms = 1
+
+
+        ! Ecore should default to 0, but be sure anyway! 
+        ecore = 0.0_dp
+
     end subroutine init_real_space_hubbard
+
+    subroutine check_real_space_hubbard_input() 
+        use SystemData, only: tExch, tCSF, tReltvy, tUEG, tUEG2, tHub, & 
+                              tKPntSym, tLatticeGens, tUEGNewGenerator, &
+                tGenHelWeighted, tGen_4ind_weighted, tGen_4ind_reverse, &
+                tUEGNewGenerator, tGen_4ind_part_exact, tGen_4ind_lin_exact, &
+                tGen_4ind_2, tGen_4ind_2_symmetric, tGen_4ind_unbound, tStoreSpinOrbs, &
+                tReal
+        use umatcache, only : tTransGTid
+        use OneEInts, only: tcpmdsymtmat, tOneelecdiag
+
+        character(*), parameter :: this_routine = "check_real_space_hubbard_input"
+        ! do all the input checking here, so no wrong input is used!
+
+        if (tExch)            call stop_all(this_routine, "tExch set to true!")
+        if (tCSF)             call stop_all(this_routine, "tCSF set to true!")
+        if (tReltvy)          call stop_all(this_routine, "tReltvy set to true!")
+
+        ! what else.. 
+        if (tUEG)             call stop_all(this_routine, "tUEG set to true!")
+        if (tUEG2)            call stop_all(this_routine, "tUEG2 set to true!")
+        if (tHub)             call stop_all(this_routine, "tHub set to true!")
+        if (tReal)            call stop_all(this_routine, "tReal set to true!")
+        if (tKPntSym)         call stop_all(this_routine, "tKPntSym set to true!")
+        if (tLatticeGens)     call stop_all(this_routine, "tLatticeGens set to true!")
+        if (tUEGNewGenerator) call stop_all(this_routine, "tUEGNewGenerator set to true!")
+        if (tGenHelWeighted)  call stop_all(this_routine, "tGenHelWeighted") 
+        if (tGen_4ind_weighted) call stop_all(this_routine, "tGen_4ind_weighted") 
+        if (tGen_4ind_reverse) call stop_all(this_routine, "tGen_4ind_reverse") 
+        if (tGen_4ind_part_exact) call stop_all(this_routine, "tGen_4ind_part_exact") 
+        if (tGen_4ind_2)        call stop_all(this_routine, "tGen_4ind_2") 
+        if (tGen_4ind_2_symmetric) call stop_all(this_routine, "tGen_4ind_2_symmetric") 
+        if (tGen_4ind_unbound)      call stop_all(this_routine, "tGen_4ind_unbound")
+        if (tStoreSpinOrbs)     call stop_all(this_routine, "tStoreSpinOrbs")
+        if (tTransGTid)         call stop_all(this_routine, "tTransGTid")
+        if (tcpmdsymtmat)        call stop_all(this_routine, "tcpmdsymmat")
+        if (tOneelecdiag)       call stop_all(this_routine, "tOneelecdiag")
+            
+    end subroutine check_real_space_hubbard_input
 
     ! then i have to think of how to set up the lattice.. 
     subroutine init_lattice()
@@ -70,12 +146,52 @@ contains
 
     end subroutine init_lattice
     
-    subroutine init_tmat() 
+    subroutine init_tmat(lat)
+        class(lattice), optional :: lat
+
         ! i should create a new, more flexible routine which sets up the 
         ! TMAT for the different lattice types. although i am not sure if 
         ! we need this anymore 
         ! this also depends on the boundary conditions
         character(*), parameter :: this_routine = "init_tmat"
+
+        integer :: i, ind
+        ! depending on the input i either create tmat2d here or is have to 
+        ! set it up, so it can be used to create the lattice.. 
+        ! but for the beginning i think i want to set it up here from the 
+        ! lattice structure! 
+        ! if the lattice class is alread set up and initialized, this indicates
+        ! that it was build-in created and tmat has to be calculated from it 
+        ! now!
+        if (present(lat)) then 
+            ! what do i need to do? 
+            ! loop over the indices in the lattice and get the neighbors
+            ! and i have to store it in spin-indices remember that!
+            if (associated(tmat2d)) deallocate(tmat2d)
+            allocate(tmat2d(nbasis,nbasis))
+            tmat2d = 0.0_dp
+
+            do i = 1, lat%get_nsites() 
+                ind = lat%get_site_index(i)
+                associate(next => lat%get_neighbors(i))
+                    ! beta orbitals:
+                    tmat2d(2*ind - 1, 2*next - 1) = bhub 
+                    ! alpha: 
+                    tmat2d(2*ind, 2*next) = bhub
+                    
+                    ASSERT(all(next > 0))
+                    ASSERT(all(next <= nbasis/2))
+                end associate
+                ASSERT(lat%get_nsites() == nbasis/2)
+                ASSERT(ind > 0) 
+                ASSERT(ind <= nbasis/2)
+                
+            end do
+
+        else
+            ! this indicates that tmat has to be created from an fcidump 
+            ! and the lattice is set up afterwards!
+        end if
 
     end subroutine init_tmat
 
@@ -114,6 +230,29 @@ contains
         character(*), parameter :: this_routine = "create_neel_state"
 
     end subroutine create_neel_state
+
+    function get_umat_el_hub(i,j,k,l) result(hel)
+        integer, intent(in) :: i, j, k, l
+        HElement_t(dp) :: hel 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "get_umat_el_hub"
+#endif
+        if (i == j .and. i == k .and. i == l) then 
+            hel = h_cast(uhub)
+        else 
+            hel = h_cast(0.0_dp)
+        end if
+
+        ASSERT(i > 0)
+        ASSERT(i <= nbasis/2)
+        ASSERT(j > 0) 
+        ASSERT(j <= nbasis/2)
+        ASSERT(k > 0) 
+        ASSERT(k <= nbasis/2)
+        ASSERT(l > 0) 
+        ASSERT(l <= nbasis/2)
+
+    end function get_umat_el_hub
 
 end module real_space_hubbard
     
