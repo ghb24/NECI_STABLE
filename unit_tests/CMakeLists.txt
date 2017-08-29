@@ -14,3 +14,5 @@ add_subdirectory( det_bit_ops )
 add_subdirectory( real_space_hubbard )
 
 add_subdirectory( lattice_mod )
+
+add_subdirectory( impurity_excit_gen )
