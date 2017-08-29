@@ -130,7 +130,7 @@ module lattice_mod
         ! well this also does not work as i like to have it.. 
         ! since it is not interpreted as an array of pointer, but as a 
         ! pointer to an array of class(sites), so redo this in the end!
-        class(site), allocatable :: sites(:)
+        type(site), allocatable :: sites(:)
 
         ! this is just a small test if we can bring classic procedure
         ! pointers into the game.. but will be removed soon
@@ -400,6 +400,8 @@ contains
 
 
         integer :: ind, orb, i, cnt, connections(nBasis/2), j, maximum
+
+        maximum = -1
         ! now finally implement the actual cluster initializer, which 
         ! reads in a given TMAT and UMAT file, or atleast the information in it
 
@@ -774,8 +776,8 @@ contains
     end subroutine init_sites_lattice
 
     subroutine site_assign(lhs, rhs) 
-        class(site), intent(out) :: lhs 
-        class(site), intent(in), pointer :: rhs 
+        type(site), intent(out) :: lhs 
+        type(site), intent(in) :: rhs 
 
         ! argh.. on every change in the site constructor i have to make 
         ! the change here too.. annoying.. 
@@ -1173,10 +1175,10 @@ contains
         character(*), intent(in), optional :: site_type 
         ! i think i have to use pointers again.. 
         ! but maybe this is really bad to deal with in the rest of the code.. 
-        class(site), pointer :: this 
+        type(site) :: this 
         character(*), parameter :: this_routine = "site_constructor"
 
-        allocate(site :: this) 
+!         allocate(site :: this) 
         if (present(site_type)) then 
             ! not yet implementetd or to do.. so wait.. 
             select case (site_type)
