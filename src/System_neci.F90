@@ -184,9 +184,6 @@ MODULE System
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
 
-      tCacheConnections = .false.
-      tConnectionWeightedExcitgen = .false.
-
 #ifdef __PROG_NUMRUNS
       inum_runs = 1
 #ifdef __CMPLX
@@ -1099,10 +1096,6 @@ system: do
 
             ! Looks nice, but it currently breaks lots of other stuff!
             tGiovannisBrokenInit = .true.
-
-        case("CACHE-CONNECTIONS")
-           tCacheConnections = .true.
-           tConnectionWeightedExcitgen = .true.
 
         case("ENDSYS") 
             exit system
