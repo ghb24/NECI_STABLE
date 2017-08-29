@@ -1,19 +1,34 @@
-image: dobrautz/neci_base:14.04
+#image: dobrautz/neci_base:14.04
+# i have two more images, which mimick the office setting, prepared now: 
+#image: dobrautz/neci_base:opensuse13.2
+image: dobrautz/neci_base:opensuse42.2
 
 pipelines:
  default: 
   - step: 
      script: 
-      - echo "test this"
-      - rm -rf build_docker_test
-      - mkdir build_docker_test 
-      - cd build_docker_test 
-      - cmake ..
-      - make -j neci
-      - rm -rf * 
-      - cd .. 
-      - rmdir build_docker_test
+        # first do the debug build + hdf5 
+      #- echo "building debug version + hdf5!"
+      - rm -rf build 
+      - mkdir build 
+      - cd build 
+      #- cmake -DENABLE_BUILD_HDF5=On -DENABLE_HDF5=On -DCMAKE_BUILD_TYPE=Debug ..
+      #- make -j neci mneci kneci kmneci dneci
+      #- echo "done building debug version. clean up!"
+      #- rm -rf * 
+      - echo "building release version + hdf5!"
+      - cmake -DENABLE_BUILD_HDF5=ON -DENABLE_HDF5=ON ..
+      - make -j 
+      - echo "done building release version + hdf5!"
+      - echo "running unit tests"
+      - ctest
+      - echo "unit tests passed"
+      - echo "running limited test_suite(to save build-minutes)"
+      - useradd temp
+      - cd ../test_suite
+      - su -c "/testcode/bin/testcode.py -c dneci/double_occ/hub_2x2 -c kmneci/Rn_lanczos_dci_init -c kneci/C_221_int -c mneci/cfqmc/HeHe_5_states -c neci/parallel/C_Solid" -s /bin/sh temp
 
+# [W.D.] ignore the stuff below for now, will clean up later
  custom:
   test:
    - step:

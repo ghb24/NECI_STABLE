@@ -558,6 +558,8 @@ ____EOF
       miny=$y1
       maxy=$y2
     else
+      y1=$(printf "%20.20f" "$y1")
+      y2=$(printf "%20.20f" "$y2")
       set -- $(bc -l <<<"if($miny<$y1) $miny else $y1 ;\
                          if($maxy>$y2) $maxy else $y2")
       miny=$1
