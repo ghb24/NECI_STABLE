@@ -36,9 +36,62 @@ contains
         call run_test_case(get_umat_el_hub_test, "get_umat_el_hub_test")
         call run_test_case(init_tmat_test, "init_tmat_test")
         call run_test_case(get_helement_test, "get_helement_test")
-!         call run_test_case(test_init_lattice, "test_init_lattice")
+        call run_test_case(determine_optimal_time_step_test, "determine_optimal_time_step_test")
+        call run_test_case(gen_excit_rs_hubbard_test, "gen_excit_rs_hubbard_test")
 
     end subroutine real_space_hubbard_test_driver
+
+    subroutine gen_excit_rs_hubbard_test
+
+        print *, "" 
+        print *, "testing gen_excit_rs_hubbard"
+
+        call assert_true(.false.)
+
+    end subroutine gen_excit_rs_hubbard_test
+
+    subroutine determine_optimal_time_step_test 
+        use SystemData, only: nel, nOccAlpha, nOccBeta, uhub, bhub
+        use lattice_mod, only: lattice
+
+        real(dp) :: time, time_death
+        class(lattice), pointer :: ptr
+
+        print *, ""
+        print *, "testing determine_optimal_time_step"
+
+        lat => lattice('chain', 4, 1, .true., .true.)
+
+        nel = 6
+        nOccAlpha = 3
+        nOccBeta = 3 
+        uhub = 1 
+        bhub = 1
+
+        call assert_equals(1.0_dp/real(abs(bhub) * nel * 2, dp), determine_optimal_time_step())
+
+        bhub = 2 
+        call assert_equals(1.0_dp/real(abs(bhub) * nel * 2, dp), determine_optimal_time_step())
+
+        nel = 8 
+        call assert_equals(1.0_dp/real(abs(bhub) * nel * 2, dp), determine_optimal_time_step())
+
+        bhub = -2 
+        call assert_equals(1.0_dp/real(abs(bhub) * nel * 2, dp), determine_optimal_time_step())
+
+        time = determine_optimal_time_step(time_death)
+        call assert_equals(1.0_dp/real(abs(uhub * nOccAlpha),dp), time_death)
+
+        uhub = 4
+        time = determine_optimal_time_step(time_death)
+        call assert_equals(1.0_dp/real(abs(uhub * nOccAlpha),dp), time_death)
+
+        nOccAlpha = 4 
+        time = determine_optimal_time_step(time_death)
+        call assert_equals(1.0_dp/real(abs(uhub * nOccBeta),dp), time_death)
+        
+
+    end subroutine determine_optimal_time_step_test 
 
     subroutine get_helement_test
         use SystemData, only: nel, tCSF, bhub, uhub, nbasis, G1
@@ -110,8 +163,31 @@ contains
         call encodebitdet([1,2],ilutJ)
 
         call assert_equals(1.0, get_helement([1,2],[1,2],ilutI,ilutJ))
-        nel = -1 
 
+        call encodebitdet([2,4],ilutJ)
+        call assert_equals(0.0, get_helement([1,2],[2,4],ilutI,ilutJ))
+
+        call encodebitdet([2,3],ilutJ)
+        call assert_equals(-1.0, get_helement([1,2],[2,3],ilutI,ilutJ))
+
+        call encodebitdet([1,4],ilutJ)
+        call assert_equals(1.0, get_helement([1,2],[1,4],ilutJ,ilutJ))
+
+        nel = 4 
+        call assert_equals(2.0, get_helement([1,2,3,4],[1,2,3,4]))
+        call assert_equals(2.0, get_helement([1,2,3,4],[1,2,3,4],0))
+
+        call assert_equals(1.0, get_helement([1,2,3,4],[1,2,3,6]))
+        call assert_equals(1.0, get_helement([1,2,3,4],[1,2,3,6],1))
+
+        call assert_equals(1.0, get_helement([1,2,3,4],[1,3,4,6],1))
+        call assert_equals(1.0, get_helement([1,2,3,4],[1,3,4,6]))
+        call assert_equals(-1.0, get_helement([1,2,3,4],[2,3,4,5],1))
+        call assert_equals(-1.0, get_helement([1,2,3,4],[2,3,4,5]))
+
+        nel = -1 
+        deallocate(g1) 
+        deallocate(tmat2d)
 
     end subroutine get_helement_test
 

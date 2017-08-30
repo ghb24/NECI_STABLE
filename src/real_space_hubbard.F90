@@ -17,11 +17,18 @@ module real_space_hubbard
 
     use SystemData, only: t_new_real_space_hubbard, lattice_type, length_x, &
                           length_y, uhub, nbasis, bhub, t_open_bc_x, &
-                          t_open_bc_y, G1, ecore
+                          t_open_bc_y, G1, ecore, nel, nOccAlpha, nOccBeta
     use lattice_mod, only: lattice
     use constants, only: dp
-    use procedure_pointers, only: get_umat_el
+    use procedure_pointers, only: get_umat_el, generate_excitation
     use OneEInts, only: tmat2d
+    use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption
+    use CalcData, only: t_hist_tau_search, t_hist_tau_search_option, tau
+    use procedure_pointers, only: generate_excitation
+    use tau_search, only: max_death_cpt
+    use umatcache, only: gtid
+    use dsfmt_interface, only: genrand_real2_dsfmt
+
     implicit none 
 
 ! and this is the global lattice class
@@ -69,6 +76,27 @@ contains
 
         ! Ecore should default to 0, but be sure anyway! 
         ecore = 0.0_dp
+
+        ! and i have to point to the new hubbard excitation generator
+        pSingles = 1.0_dp 
+        pDoubles = 0.0_dp
+
+        ! and i have to calculate the optimal time-step for the hubbard models. 
+        ! where i need the connectivity of the lattice i guess? 
+        generate_excitation => gen_excit_rs_hubbard
+        
+        ! i have to calculate the optimal time-step
+        tau = determine_optimal_time_step()
+
+        ! and i have to turn off the time-step search for the hubbard 
+        tsearchtau = .false.
+        ! set tsearchtauoption to true to use the death-tau search option
+        tsearchtauoption = .true.
+
+        t_hist_tau_search = .false. 
+        t_hist_tau_search_option = .false. 
+        
+        max_death_cpt = 0.0_dp
 
     end subroutine init_real_space_hubbard
 
@@ -195,18 +223,83 @@ contains
 
     end subroutine init_tmat
 
-    subroutine determine_optimal_time_step()
+    function determine_optimal_time_step(time_step_death) result(time_step)
+        real(dp), optional, intent(out) :: time_step_death
+        real(dp) :: time_step
         ! move this time-step determination to this routine for the real
         ! space hubbard to have it fully conained
         character(*), parameter :: this_routine = "determine_optimal_time_step"
 
-    end subroutine determine_optimal_time_step
+        real(dp) :: p_elec, p_hole, mat_ele, max_diag
 
-    subroutine real_space_excit_gen()
-        ! i also want a new optimized real-space excitation generator
-        character(*), parameter :: this_routine = "real_space_excit_gen"
+        ! determine the optimal hubbard time-step for an optimized 
+        ! hubbard excitation generation 
+        ! the first electron is chosen at random 
+        p_elec = 1.0_dp / real(nel, dp)
 
-    end subroutine real_space_excit_gen
+        ! and for a picked electron the possible neighbors are looked for 
+        ! open holes so the lowest probability is determined by the 
+        ! maximum numbers of connections 
+        p_hole = 1.0_dp / real(lat%get_nconnect_max(), dp) 
+
+        ! the matrix element is always just |t| 
+        mat_ele = real(abs(bhub), dp)
+
+        ! so the time-step is 
+        time_step = p_elec * p_hole / mat_ele
+
+        if (present(time_step_death)) then 
+            ! the maximum death contribution is max(H_ii) - shift 
+            ! and the maximum diagonal matrix element we know it is 
+            ! the maximum possible number of doubly occupied sites times U 
+            ! but this might be a too hard limit, since especially for high U 
+            ! such an amount of double occupations is probably never reached 
+            ! and the shift must also be included in the calculation.. 
+            max_diag = real(abs(uhub) * min(nOccAlpha, nOccBeta), dp)
+
+            time_step_death = 1.0_dp / max_diag
+        end if
+
+    end function determine_optimal_time_step
+
+    !
+    ! Generic excitaiton generator
+    subroutine gen_excit_rs_hubbard (nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                      ex, tParity, pGen, hel, store, run)
+
+        use SystemData, only: nel
+        use bit_rep_data, only: NIfTot
+        use FciMCData, only: excit_gen_store_type
+        use constants, only: n_int, dp
+        implicit none
+
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        real(dp), intent(out) :: pGen
+        logical, intent(out) :: tParity
+        HElement_t(dp), intent(out) :: hel
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: run
+
+        character(*), parameter :: this_routine = "gen_excit_rs_hubbard"
+
+        integer :: iunused, ind , elec, id
+
+        ! i only have single excitations in the hubbard model 
+        ! the first plan is to choose an electron at random 
+        ind = 1 + int(genrand_real2_dsfmt() * nel) 
+
+        ! and then from the neighbors of this electron we pick an empty 
+        ! spinorbital randomly, since all have the same matrix element 
+        elec = nI(ind) 
+
+        ! get the spatial index 
+        id = gtid(elec) 
+
+
+    end subroutine gen_excit_rs_hubbard
 
     ! also optimize the matrix element calculation
     subroutine calc_diag_mat_ele_rsh() 
