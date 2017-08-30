@@ -18,6 +18,14 @@ use util_mod_numerical, only: binary_search_first_ge
 
 implicit none 
 integer, allocatable :: bathOrbitals(:), impurityOrbitals(:)
+
+interface
+   function sumFunc(i,j)
+     use constants, only: dp
+     HElement_t(dp) :: sumFunc
+     integer, intent(in) :: i,j
+   end function sumFunc
+end interface
 contains 
 !------------------------------------------------------------------------------------------!
 
@@ -146,6 +154,36 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
+  subroutine generate_imp_single_excitation(nI,ilut,nJ,ExcitMat,tParity,pGen)
+    implicit none    
+    integer, intent(in) :: nI(nel)
+    integer, intent(out) :: nJ(nel),ExcitMat(2,2)
+    logical, intent(out) :: tParity
+    real(dp), intent(out) :: pGen
+    integer(n_int), intent(in) :: ilut(0:niftot)
+
+    integer :: iBath, iEl
+    integer :: randImp, randDest
+    logical :: occ
+    real(dp) :: r
+    
+    ! randomly pick an impurity orbital as all excitations contain at least
+    ! one impurity orbital
+    r = genrand_real2_dSFMT()
+    randImp = impurityOrbitals(INT(r*nImp)+1)
+    ! check if it is occupied
+    r = genrand_real2_dSFMT()
+    if(r .lt. pBath) then
+       call hamiltonian_weighted_pick_single_bath(randImp,randDest,pGen,ilut)
+    else
+       call hamiltonian_weighted_pick_single_imp(randImp,randDest,pGen,ilut,nI)
+    endif
+    pGen = pGen / (nImp)
+
+  end subroutine generate_imp_single_excitation
+
+!------------------------------------------------------------------------------------------!
+
   subroutine generate_imp_double_excitation(nI,nJ,ExcitMat,tParity,pGen,ilut)
     implicit none    
     integer, intent(in) :: nI(nel)
@@ -182,36 +220,6 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-  subroutine generate_imp_single_excitation(nI,ilut,nJ,ExcitMat,tParity,pGen)
-    implicit none    
-    integer, intent(in) :: nI(nel)
-    integer, intent(out) :: nJ(nel),ExcitMat(2,2)
-    logical, intent(out) :: tParity
-    real(dp), intent(out) :: pGen
-    integer(n_int), intent(in) :: ilut(0:niftot)
-
-    integer :: iBath, iEl
-    integer :: randImp, randDest
-    logical :: occ
-    real(dp) :: r
-    
-    ! randomly pick an impurity orbital as all excitations contain at least
-    ! one impurity orbital
-    r = genrand_real2_dSFMT()
-    randImp = impurityOrbitals(INT(r*nImp)+1)
-    ! check if it is occupied
-    r = genrand_real2_dSFMT()
-    if(r .lt. pBath) then
-       call hamiltonian_weighted_pick_single_bath(randImp,randDest,pGen,ilut)
-    else
-       call hamiltonian_weighted_pick_single_imp(randImp,randDest,pGen,ilut,nI)
-    endif
-    pGen = pGen / (nImp)
-
-  end subroutine generate_imp_single_excitation
-
-!------------------------------------------------------------------------------------------!
-
   subroutine hamiltonian_weighted_pick_single_imp(origin,destination,pGen,ilut,nI)
     use util_mod_numerical, only: binary_search_first_ge
     use sltcnd_mod, only: sltcnd_excit
@@ -225,9 +233,8 @@ contains
 
     integer :: i
     real(dp) :: cumSum(nImp), r
-    integer :: ex(2,2)
-
-    ex = 0
+    procedure(sumFunc), pointer :: p_getImpImpMatEl
+    p_getImpImpMatEl => getImpImpMatEl
 
     if(IsOcc(ilut,origin)) then
        ex(1,1) = origin
@@ -248,7 +255,7 @@ contains
     else
        ex(2,1) = origin
        if(IsOcc(ilut,1)) then
-          ex(2,1) = 1
+          ex(1,1) = 1
           cumSum(1) = abs(sltcnd_excit(nI,1,ex))
        else
           cumSum(1) = 0.0_dp
@@ -262,6 +269,8 @@ contains
           endif
        enddo
     endif
+
+    call create_cumulative_list(cumSum,ilut,origin,0,nImp,IsOcc(ilut,origin),p_getImpImpMatEl)
     call pick_from_cumulative_sum(destination,pGen,cumSum,nImp)
     pGen = pGen * (1-pBath)
   end subroutine hamiltonian_weighted_pick_single_imp
@@ -281,48 +290,27 @@ contains
 
     integer :: i
     real(dp) :: cumSum(nBath), r
+    procedure(sumFunc), pointer :: p_getBathImpMatEl
+    p_getTMatEl => getBathImpMatEl
 
     ! Only count holes/parts depending on whether we are considering a part/hole in the
     ! impurity
-    if(IsOcc(ilut,origin)) then
-       if(IsNotOcc(ilut,nImp+1)) then
-          cumSum(1) = abs(getTMatEl(origin,nImp+1))    
-       else
-          cumSum(1) = 0.0_dp
-       endif
-       do i = nImp+2, nBasis
-          if(IsNotOcc(ilut,i)) then
-             cumSum(i) = cumSum(i-1) + abs(getTMatEl(origin,i))
-          else
-             cumSum(i) = cumSum(i-1)
-          endif
-       end do
-    else
-       if(IsOcc(ilut,1)) then
-          cumSum(1) = abs(getTMatEl(origin,nImp+1))    
-       else
-          cumSum(1) = 0.0_dp
-       endif
-       do i = 2, nBath
-          if(IsOcc(ilut,i+nImp)) then
-             cumSum(i) = cumSum(i-1) + abs(getTMatEl(origin,i+nImp))
-          else
-             cumSum(i) = cumSum(i-1)
-          endif
-       end do
-    endif
+    call create_cumulative_list(cumSum,ilut,origin,nImp,nBath,IsOcc(ilut,origin),&
+         p_getBathImpMatEl)
     call pick_from_cumulative_sum(destination,pGen,cumSum,nBath)
     pGen = pGen * pBath
   end subroutine hamiltonian_weighted_pick_single_bath
 
 !------------------------------------------------------------------------------------------!
 
- subroutine create_cumulative_list(cumSum,ilut,offset,nTarget,occupancy,sumFunc)
+ subroutine create_cumulative_list(cumSum,ilut,origin,offset,nTarget,occupancy,sumFunc)
     implicit none    
-    integer(n_int), intent(in) :: ilut
-    integer, intent(in) :: offset, nTarget
-    real(dp), intent(out) :: cumSum
+    integer(n_int), intent(in) :: ilut(0:niftot)
+    integer, intent(in) :: offset, nTarget, origin
+    real(dp), intent(out) :: cumSum(nTarget)
     logical, intent(in) :: occupancy
+
+    integer :: i
     
     interface sf
        function sumFunc(i,j)
@@ -331,6 +319,19 @@ contains
          integer, intent(in) :: i,j
        end function sumFunc
     end interface sf
+    
+    if(occupancy .neqv. IsOcc(ilut,offset+1)) then
+       cumSum(1) = abs(sumFunc(origin,offset+1))
+    else
+       cumSum(1) = 0.0_dp
+    endif
+    do i = 2, nTarget
+       if(occupancy .neqv. IsOcc(ilut,offset+i)) then
+          cumSum(i) = cumSum(i-1) + abs(sumFunc(origin,offset+i))
+       else
+          cumSum(i) = cumSum(i-1)
+       endif
+    end do
   end subroutine create_cumulative_list
 
 !------------------------------------------------------------------------------------------!
@@ -368,5 +369,27 @@ contains
        pGen = (cumSum(destination) - cumSum(destination-1))/cumSum(nTargets)
     endif
   end subroutine pick_from_cumulative_sum
+
+  function getBathImpMatEl(i,j) result(mel)
+    use constants, only: dp
+    HElement_t(dp) :: mel
+    integer, intent(in) :: i,j
+    
+    mel = getTMatEl(i,j)
+  end function getBathImpMatEl
+
+  function getImpImpMatEl(i,j) result(mel)
+    use constants, only: dp
+    HElement_t(dp) :: mel
+    integer, intent(in) :: i,j
+
+  end function getImpImpMatEl
+
+  function getImpImpMatElDoubs(i,j) result(mel)
+    use constants, only: dp
+    HElement_t(dp) :: mel
+    integer, intent(in) :: i,j
+
+  end function getImpImpMatElDoubs
 
 end module impurityModels
