@@ -20,16 +20,17 @@ program test_impurity_excit_gen
       call init_impurity_tests
       call test_orbital_lists
       call test_bath_excitation
+      call test_imp_excitation
     end subroutine impurity_excit_gen_test_driver
 
 !------------------------------------------------------------------------------------------!
 
     subroutine init_impurity_tests
-      use SystemData, only: nBasis, nel, tReltvy, tExch, G1, basisFN
+      use SystemData, only: nBasis, nel
       use OneEInts, only: tmat2d, tCPMDSymTMat, tOneElecDiag
       use procedure_pointers, only: get_umat_el
       use Integrals_neci, only: get_umat_el_tumat2d
-      use bit_rep_data, only: niftot, tuseflags, nifdbo
+      use bit_rep_data, only: niftot, nifdbo
       use dSFMT_interface, only: dSFMT_init
       implicit none
       nel = 3
@@ -54,18 +55,6 @@ program test_impurity_excit_gen
       tmat2d(4,4) = 0.3
       tmat2d(5,5) = -0.3
       tmat2d(5,5) = -0.3
-
-      tReltvy = .false.
-      tExch = .false.
-      allocate(G1(nBasis))
-      G1(1)%Ms=1
-      G1(2)%Ms=-1
-      G1(3)%Ms=1
-      G1(4)%Ms=-1
-      G1(5)%Ms=1
-      G1(6)%Ms=-1
-
-      tuseflags = .false.
 
       get_umat_el => get_umat_el_test
       call dSFMT_init(3)
@@ -92,22 +81,65 @@ program test_impurity_excit_gen
       call assert_equals(nImp,2)
     end subroutine test_orbital_lists
 
+!------------------------------------------------------------------------------------------!
+
     subroutine test_bath_excitation
-      use constants, only: dp, lenof_sign
+      use constants, only: dp
       use bit_rep_data, only: niftot
+      use SystemData, only: nel
       implicit none
       integer(n_int) :: ilut(0:niftot)
-      integer :: dest
-      real(dp) ::  pGen
-      call generate_test_ilut(ilut)
-      call hamiltonian_weighted_pick_single_bath(1,dest,pGen,ilut)
+      integer :: dest, nI(nel)
+      real(dp) :: pGen
+
+      dest = 0
+      call generate_test_ilut(ilut,nI)
+      call hamiltonian_weighted_pick_single_bath(1,dest,pGen,ilut,nI)
       call assert_true(dest .ge. 3)
     end subroutine test_bath_excitation
 
 !------------------------------------------------------------------------------------------!
 
+    subroutine test_imp_excitation
+      use constants, only: dp
+      use bit_rep_data, only: niftot
+      use SystemData, only: nel
+      implicit none
+      integer(n_int) :: ilut(0:niftot)
+      integer :: dest, nI(nel)
+      real(dp) :: pGen
+      
+      dest = 0
+      call generate_test_ilut(ilut,nI)
+      call hamiltonian_weighted_pick_single_imp(1,dest,pGen,ilut,nI)
+      call assert_true((dest .le. 2) .and. (dest > 0))
+    end subroutine test_imp_excitation
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine test_single_excitation
+      use FciMCData, only: pBath
+      use constants, only: dp
+      use bit_rep_data, only: niftot
+      use SystemData, only: nel
+
+      implicit none
+      integer(n_int) :: ilut(0:niftot), ilutnJ(0:niftot)
+      integer :: nI(nel), nJ(nel), ExcitMat(2,2)
+      logical :: tParity
+      real(dp) :: pGen
+      
+      call generate_test_ilut(ilut,nI)
+      pBath = 1.0_dp
+      call generate_imp_single_excitation(nI,ilut,nJ,ilutnJ,ExcitMat,tParity,pGen)
+      call assert_true(nJ(1) .eq. 1)
+    end subroutine test_single_excitation
+
+!------------------------------------------------------------------------------------------!
+
     function get_umat_el_test(a,b,c,d) result(uel)
       use constants, only: dp
+
       implicit none
       integer, intent(in) :: a,b,c,d
       HElement_t(dp) :: uel
@@ -119,10 +151,13 @@ program test_impurity_excit_gen
       if(((a .eq. 2) .and. (a .eq. d)) .and. (b .eq. c) .and. (b .eq. 1)) uel = -1
     end function get_umat_el_test
 
-    subroutine generate_test_ilut(ilut)
+    subroutine generate_test_ilut(ilut,nI)
       use bit_rep_data, only: niftot
+      use SystemData, only: nel
+
       integer(n_int), intent(out) :: ilut(0:niftot)
-      integer :: nI(nel), i
+      integer,intent(out) :: nI(nel)
+      integer :: i
 
       nI = (/ 1,3,6/)
       ilut = 0
