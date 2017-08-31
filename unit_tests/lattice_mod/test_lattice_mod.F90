@@ -74,6 +74,9 @@ contains
         call assert_equals([1], ptr%get_impurities(), 1)
         call assert_equals([2], ptr%get_bath(), 1)
 
+        call assert_equals(1, ptr%get_num_neighbors(1))
+        call assert_equals(1, ptr%get_num_neighbors(2))
+
         call aim_deconstructor(ptr)
 
         call assert_true(.not.associated(ptr)) 
@@ -105,6 +108,11 @@ contains
         call assert_equals([1], ptr%get_neighbors(2), 1) 
         call assert_equals([1], ptr%get_neighbors(3), 1) 
         call assert_equals([1], ptr%get_neighbors(101), 1) 
+
+        call assert_equals(100, ptr%get_num_neighbors(1))
+        call assert_equals(1, ptr%get_num_neighbors(2))
+        call assert_equals(1, ptr%get_num_neighbors(3))
+        call assert_equals(1, ptr%get_num_neighbors(101))
 
         call assert_true( ptr%is_impurity_site(1) )
         call assert_true( .not. ptr%is_impurity_site(2) ) 
@@ -150,6 +158,11 @@ contains
         call assert_equals([2,3], ptr%get_neighbors(1), 2)
         call assert_equals([1,3], ptr%get_neighbors(2), 2)
         call assert_equals([1,2], ptr%get_neighbors(3), 2)
+
+        call assert_equals(2, ptr%get_num_neighbors(1))
+        call assert_equals(2, ptr%get_num_neighbors(2))
+        call assert_equals(2, ptr%get_num_neighbors(3))
+
         call assert_true( ptr%is_impurity_site(1) )
         call assert_true( ptr%is_impurity_site(2) )
         call assert_true( .not. ptr%is_impurity_site(3) )
@@ -186,6 +199,12 @@ contains
         call assert_equals([1, (i, i = 3, 104)], ptr%get_neighbors(2), 103)
         call assert_equals([1,2,3,4], ptr%get_neighbors(5), 4)
         call assert_equals([1,2,3,4], ptr%get_neighbors(104), 4)
+
+        call assert_equals(103, ptr%get_num_neighbors(1))
+        call assert_equals(103, ptr%get_num_neighbors(3))
+        call assert_equals(4, ptr%get_num_neighbors(5))
+        call assert_equals(4, ptr%get_num_neighbors(104))
+
         call assert_true( ptr%is_impurity_site(1) )
         call assert_true( ptr%is_impurity_site(4) )
         call assert_true( .not. ptr%is_impurity_site(5) )
@@ -238,6 +257,9 @@ contains
         call assert_equals(ptr%get_neighbors(1), [2], size(ptr%get_neighbors(1)))
         call assert_equals(ptr%get_neighbors(2), [1], size(ptr%get_neighbors(2)))
 
+        call assert_equals(1, ptr%get_num_neighbors(1))
+        call assert_equals(1, ptr%get_num_neighbors(2))
+
         call lattice_deconstructor(ptr) 
 
         call assert_true(.not.associated(ptr)) 
@@ -255,9 +277,17 @@ contains
         call assert_equals(2, ptr%get_site_index(2))
         call assert_equals(100, ptr%get_site_index(100))
 
+        call assert_equals(1, ptr%get_num_neighbors(2))
+        call assert_equals(1, ptr%get_num_neighbors(100))
+        call assert_equals(99, ptr%get_num_neighbors(1))
+
         call assert_equals([1], ptr%get_neighbors(2), 1)
         call assert_equals([1], ptr%get_neighbors(100), 1)
         call assert_equals( [(i, i = 2, 100)], ptr%get_neighbors(1),99)
+
+        call lattice_deconstructor(ptr) 
+
+        call assert_true(.not.associated(ptr)) 
 
     end subroutine test_init_lattice_star
  
@@ -267,7 +297,7 @@ contains
         integer :: i 
 
         print *, "" 
-        print *, "initialize 1 site 'aim-star' geometry" 
+        print *, "initialize 1 site 1 bath 'aim-star' geometry" 
         ptr => aim('aim-star', 1, 1) 
 
         call assert_equals(1, ptr%get_ndim() )
@@ -279,6 +309,9 @@ contains
         call assert_equals(2, ptr%get_site_index(2) )
         call assert_equals([2], ptr%get_neighbors(1), 1)
         call assert_equals([1], ptr%get_neighbors(2), 1) 
+
+        call assert_equals(1, ptr%get_num_neighbors(1))
+        call assert_equals(1, ptr%get_num_neighbors(2))
 
         call assert_true( ptr%is_impurity_site(1) )
         call assert_true( .not. ptr%is_impurity_site(2) ) 
@@ -305,6 +338,10 @@ contains
         call assert_equals([2,3], ptr%get_neighbors(1), 2)
         call assert_equals([1], ptr%get_neighbors(2), 1) 
         call assert_equals([1], ptr%get_neighbors(3), 1) 
+
+        call assert_equals(2, ptr%get_num_neighbors(1))
+        call assert_equals(1, ptr%get_num_neighbors(2))
+        call assert_equals(1, ptr%get_num_neighbors(3))
 
         call assert_true( ptr%is_impurity_site(1) )
         call assert_true( .not. ptr%is_impurity_site(2) ) 
@@ -337,6 +374,10 @@ contains
         call assert_equals([1], ptr%get_neighbors(2), 1) 
         call assert_equals([1], ptr%get_neighbors(3), 1) 
         call assert_equals([1], ptr%get_neighbors(101), 1) 
+
+        call assert_equals(100, ptr%get_num_neighbors(1))
+        call assert_equals(1, ptr%get_num_neighbors(2))
+        call assert_equals(1, ptr%get_num_neighbors(100))
 
         call assert_true( ptr%is_impurity_site(1) )
         call assert_true( .not. ptr%is_impurity_site(2) ) 
@@ -385,6 +426,9 @@ contains
         call assert_equals([2], ptr%get_neighbors(1), 1) 
         call assert_equals([1], ptr%get_neighbors(2), 1)
         
+        call assert_equals(1, ptr%get_num_neighbors(1))
+        call assert_equals(1, ptr%get_num_neighbors(2))
+
         call aim_deconstructor(ptr) 
 
         call assert_true(.not.associated(ptr)) 
@@ -414,6 +458,15 @@ contains
         call assert_equals([2], ptr%get_neighbors(1), 1) 
         call assert_equals([1,3], ptr%get_neighbors(2), 2) 
         call assert_equals([100], ptr%get_neighbors(101),1)
+
+        call assert_equals(1, ptr%get_num_neighbors(1))
+        call assert_equals(2, ptr%get_num_neighbors(2))
+        call assert_equals(2, ptr%get_num_neighbors(50))
+        call assert_equals(1, ptr%get_num_neighbors(101))
+
+        call aim_deconstructor(ptr) 
+
+        call assert_true(.not.associated(ptr)) 
 
     end subroutine test_init_lattice_aim_chain
 
@@ -469,6 +522,9 @@ contains
         call assert_equals(ptr%get_neighbors(1), [2], size(ptr%get_neighbors(1)))
         call assert_equals(ptr%get_neighbors(2), [1], size(ptr%get_neighbors(2)))
 
+        call assert_equals(1, ptr%get_num_neighbors(1))
+        call assert_equals(1, ptr%get_num_neighbors(2))
+
         call lattice_deconstructor(ptr) 
 
         call assert_true(.not. associated(ptr))
@@ -489,8 +545,15 @@ contains
         call assert_equals(ptr%get_neighbors(2), [1,3], size(ptr%get_neighbors(2)))
         call assert_equals(ptr%get_neighbors(100), [99,1], size(ptr%get_neighbors(2)))
 
+        call assert_equals(2, ptr%get_num_neighbors(1))
+        call assert_equals(2, ptr%get_num_neighbors(2))
+        call assert_equals(2, ptr%get_num_neighbors(100))
         ! i actually do not need to have the common lattice type or? 
         ! when i want to test a chain i could just use a chain or? 
+
+        call lattice_deconstructor(ptr) 
+
+        call assert_true(.not.associated(ptr)) 
 
     end subroutine test_init_lattice_chain
 

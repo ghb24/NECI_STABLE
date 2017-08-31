@@ -246,9 +246,36 @@ MODULE System
           case("NOORDER")
               THFNOORDER = .true.
           end select
+
       case("HUBBARD")
           THUB = .true.
           TPBC=.true.
+
+          if (item < nitems) then 
+              ! this indicates the new hubbard implementation
+              ! for consistency turn off the old hubbard indication 
+              ! and for now this is only done for the real-space hubbard 
+              ! not for the k-space implementation todo
+              ! and do i need to turn of tpbc also? try
+              ! use the already provided setup routine and just modify the 
+              ! necessary stuff, like excitation generators!
+              call readl(w)
+              select case (w)
+              case ('real-space','real') 
+                  treal = .true.
+                  t_new_real_space_hubbard = .true. 
+                  ! if no further input is given a provided fcidump is 
+                  ! assumed! but this still needs to be implemented
+                  ! this fcidump gives the lattice structure! 
+                  if (item < nitems) then 
+                      call readl(lattice_type)
+                  else
+                      lattice_type = 'read'
+                  end if
+              case ('momentum-space','k-space','momentum')
+                  call stop_all(t_r, "not yet implemented!")
+              end select
+          end if
                   
       case("RIINTEGRALS")
           tRIIntegrals = .true.
@@ -442,6 +469,13 @@ system: do
             call geti(NMAXY)
             call geti(NMAXZ)
 
+            ! misuse the cell keyword to set this up to also have the 
+            ! hubbard setup already provided..
+            if (t_new_real_space_hubbard) then 
+               length_x = NMAXX 
+               length_y = NMAXY
+           end if
+
        ! Options for the type of the reciprocal lattice (eg sc, fcc, bcc)
         case("REAL_LATTICE_TYPE")
             call readl(real_lattice_type) 
@@ -527,22 +561,23 @@ system: do
             ! the input has to be like: 
             ! lattice [type] [len_1] [*len_2]
             ! where length to is optional if it is necessary to input it.
-            tHub = .true.
+!             tHub = .false.
+!             treal = .false.
+!             lNoSymmetry = .true.
             treal = .true.
-            lNoSymmetry = .true.
             t_new_real_space_hubbard = .true.
 
             ! set some defaults: 
-            lattice_type = "square"
+            lattice_type = "read"
 
-            length_x = 2
-            length_y = 2
+            length_x = -1
+            length_y = -1
 
-            tPBC = .true.
+!             tPBC = .false.
 
             if (item < nitems) then 
                ! use only new hubbard flags in this case 
-               call readu(lattice_type)
+               call readl(lattice_type)
             end if
 
             if (item < nitems) then 
@@ -552,6 +587,12 @@ system: do
             if (item < nitems) then 
                 call geti(length_y)
             end if
+
+            ! maybe i have to reuse the cell input functionality or set it 
+            ! here also, so that the setup is not messed up 
+            nmaxx = length_x
+            nmaxy = length_y
+            nmaxz = 1
 
         case("UEG-OFFSET")
             tUEGOffset=.true.

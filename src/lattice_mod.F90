@@ -67,7 +67,7 @@ module lattice_mod
         procedure :: set_index 
         procedure :: get_index
         procedure :: set_num_neighbors 
-        procedure :: get_num_neighbors 
+        procedure :: get_num_neighbors => get_num_neighbors_site
         procedure :: set_neighbors
 
         procedure :: set_impurity 
@@ -157,6 +157,7 @@ module lattice_mod
         procedure, public :: get_site_index
         ! make the get neighbors function public on the lattice level 
         procedure, public :: get_neighbors => get_neighbors_lattice
+        procedure, public :: get_num_neighbors => get_num_neighbors_lattice
 
         ! i definetly also want to have a print function! 
         procedure, public :: print 
@@ -745,12 +746,12 @@ contains
 
     end subroutine set_num_neighbors
 
-    pure integer function get_num_neighbors(this) 
+    pure integer function get_num_neighbors_site(this) 
         class(site), intent(in) :: this 
 
-        get_num_neighbors = this%n_neighbors
+        get_num_neighbors_site = this%n_neighbors
 
-    end function get_num_neighbors
+    end function get_num_neighbors_site
 
     integer function get_site_index(this, ind)
         ! for now.. since i have not checked how efficient this whole 
@@ -1347,6 +1348,25 @@ contains
         neighbors = this%neighbors
 
     end function get_neighbors_site
+
+    function get_num_neighbors_lattice(this,ind) result(n_neighbors)
+        class(lattice) :: this
+        integer, intent(in) :: ind 
+        integer :: n_neighbors
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "get_num_neighbors_lattice"
+#endif
+       
+        ! make all assert on a seperate line, so we exactly know what is 
+        ! going wrong.. 
+        ASSERT(ind <= this%get_nsites())
+        ASSERT(ind > 0)
+        ASSERT(allocated(this%sites))
+        ASSERT(allocated(this%sites(ind)%neighbors))
+
+        n_neighbors = this%sites(ind)%get_num_neighbors()
+
+    end function get_num_neighbors_lattice
 
     function get_neighbors_lattice(this, ind) result(neighbors)
         class(lattice) :: this
