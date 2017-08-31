@@ -19,7 +19,7 @@ module real_space_hubbard
                           length_y, uhub, nbasis, bhub, t_open_bc_x, &
                           t_open_bc_y, G1, ecore, nel, nOccAlpha, nOccBeta
     use lattice_mod, only: lattice
-    use constants, only: dp
+    use constants, only: dp, EPS
     use procedure_pointers, only: get_umat_el, generate_excitation
     use OneEInts, only: tmat2d
     use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption
@@ -64,15 +64,20 @@ contains
             ! otherwise i have to do it the other way around 
             lat => lattice(lattice_type, length_x, length_y, .not. t_open_bc_x, &
                 .not. t_open_bc_y)
+     
+            ! if nbaiss was not yet provided:
+            if (nbasis <= 0) then 
+                nbasis = 2 * lat%get_nsites() 
+            end if
+
             call init_tmat(lat)
 
         end if
-        
+
         ! i guess i have to setup G1 also.. argh.. i hate this! 
         allocate(G1(nbasis)) 
         G1(1:nbasis-1:2)%ms = -1
         G1(2:nbasis:2)%ms = 1
-
 
         ! Ecore should default to 0, but be sure anyway! 
         ecore = 0.0_dp
@@ -136,6 +141,7 @@ contains
         if (tTransGTid)         call stop_all(this_routine, "tTransGTid")
         if (tcpmdsymtmat)        call stop_all(this_routine, "tcpmdsymmat")
         if (tOneelecdiag)       call stop_all(this_routine, "tOneelecdiag")
+        if (bhub < EPS)         call stop_all(this_routine, "bhub == 0!")
             
     end subroutine check_real_space_hubbard_input
 
@@ -212,14 +218,14 @@ contains
                 end associate
                 ASSERT(lat%get_nsites() == nbasis/2)
                 ASSERT(ind > 0) 
-                ASSERT(ind <= nbasis/2)
-                
-            end do
+            ASSERT(ind <= nbasis/2)
+            
+        end do
 
-        else
-            ! this indicates that tmat has to be created from an fcidump 
-            ! and the lattice is set up afterwards!
-        end if
+    else
+        ! this indicates that tmat has to be created from an fcidump 
+        ! and the lattice is set up afterwards!
+    end if
 
     end subroutine init_tmat
 
@@ -270,7 +276,8 @@ contains
         use SystemData, only: nel
         use bit_rep_data, only: NIfTot
         use FciMCData, only: excit_gen_store_type
-        use constants, only: n_int, dp
+        use constants, only: n_int, dp, bits_n_int
+        use get_excit, only: make_single
         implicit none
 
         integer, intent(in) :: nI(nel), exFlag
@@ -285,19 +292,65 @@ contains
 
         character(*), parameter :: this_routine = "gen_excit_rs_hubbard"
 
-        integer :: iunused, ind , elec, id
+        integer :: iunused, ind , elec, id, src, orb, n_avail, n_orbs, i
+        integer, allocatable :: neighbors(:), orbs(:)
 
+        iunused = exflag; 
+
+        ASSERT(associated(lat))
+
+        ic = 1
         ! i only have single excitations in the hubbard model 
         ! the first plan is to choose an electron at random 
-        ind = 1 + int(genrand_real2_dsfmt() * nel) 
+        elec = 1 + int(genrand_real2_dsfmt() * nel) 
 
         ! and then from the neighbors of this electron we pick an empty 
         ! spinorbital randomly, since all have the same matrix element 
-        elec = nI(ind) 
+        src = nI(elec) 
 
         ! get the spatial index 
-        id = gtid(elec) 
+        id = gtid(src) 
 
+        ! now get neighbors
+        n_orbs = lat%get_num_neighbors(id)
+        allocate(neighbors(n_orbs)) 
+        allocate(orbs(n_orbs))
+        neighbors = lat%get_neighbors(id) 
+
+        if (is_beta(src)) then 
+            neighbors = 2 * neighbors - 1
+        else 
+            neighbors = 2 * neighbors
+        end if
+
+        n_avail = 0 
+        orbs = -1 
+
+        ! check which neighbors are empty 
+        do i = 1, n_orbs 
+            if (IsNotOcc(ilutI,neighbors(i))) then 
+                n_avail = n_avail + 1 
+                orbs(n_avail) = neighbors(i)
+            end if
+        end do
+
+        if (n_avail == 0) then 
+            ! no possible hoppings! so abort 
+            nJ(1) = 0 
+            pgen = 0.0_dp 
+            return 
+        end if
+
+        ! otherwise pick a random orbital 
+        ind = 1 + int(genrand_real2_dsfmt() * n_avail) 
+        orb = orbs(ind) 
+        pgen = 1.0_dp / real(n_avail * nel, dp) 
+
+        call make_single(nI, nJ, elec, orb, ex, tParity) 
+
+        ilutJ = ilutI 
+        clr_orb(ilutJ, src)
+        set_orb(ilutJ, orb)
 
     end subroutine gen_excit_rs_hubbard
 
@@ -315,7 +368,7 @@ contains
         character(*), parameter :: this_routine = "calc_off_diag_mat_ele_rsh"
 
     end subroutine calc_off_diag_mat_ele_rsh
-    
+
     ! what else?
     subroutine create_neel_state() 
         ! probably a good idea to have a routine which creates a neel state
@@ -337,16 +390,16 @@ contains
         end if
 
         ASSERT(i > 0)
-        ASSERT(i <= nbasis/2)
-        ASSERT(j > 0) 
-        ASSERT(j <= nbasis/2)
-        ASSERT(k > 0) 
-        ASSERT(k <= nbasis/2)
-        ASSERT(l > 0) 
-        ASSERT(l <= nbasis/2)
+            ASSERT(i <= nbasis/2)
+            ASSERT(j > 0) 
+            ASSERT(j <= nbasis/2)
+            ASSERT(k > 0) 
+            ASSERT(k <= nbasis/2)
+            ASSERT(l > 0) 
+            ASSERT(l <= nbasis/2)
 
     end function get_umat_el_hub
 
 end module real_space_hubbard
-    
-    
+        
+        
