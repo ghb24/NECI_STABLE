@@ -1,0 +1,1063 @@
+ Number of processors:                     2
+ Processor                     1 /                    2  as head node.
+ Sum:                     3
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Aug 22 2017 at 17:09:53
+ Compiled using configuration:
+     cmake-GNU-par-RELEASE
+ VCS BASE repository version:
+     e99d6509f54681af3d83aec7028f527862298dcd
+ Working directory: 
+     /home/dobrautz/src/neci/test_suite/mneci/rdm/Ne_hphf_back_spawn
+ Running on: baloo-X1-Carbon
+ Started running on 22/08/2017 at 17:27:36
+ ================================================================
+
+ Processing argumentsneci.inp                                                                                                                                                                                                                                                       
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read
+electrons 10
+nonuniformrandexcits 4ind-weighted-unbound
+hphf 0
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+nmcyc 1500
+totalwalkers 20000
+tau 0.001 search
+startsinglepart 100
+truncinitiator
+addtoinitiator 3
+back-spawn
+shiftdamp 0.03
+stepsshift 25
+allrealcoeff
+realspawncutoff 0.05
+semi-stochastic 150
+pops-core 2000
+trial-wavefunction 150
+pops-trial 100
+load-balance-blocks off
+maxwalkerbloom 3.0
+endcalc
+
+integral
+freeze 2, 0
+endint
+
+logging
+popsfile -1
+calcrdmonfly 3 200 1
+endlog
+end
+
+****************************************************************
+
+ RDM on fly
+ unspecified
+ Filling RDMs without explicitly specifying the number of replica simplations
+ Defaulting to using 2 replicas
+ Allocating each processor as a separate node.
+ I am the node root for node                     0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :    10
+  No restriction on the spin state of the system, TSPN :  F
+  GLOBAL MS :                     0
+  *** GENERIC SYSTEM ***  
+  NUMBER OF SPIN ORBITALS IN BASIS :    46
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   8
+  Generating abelian symmetry table with  3 generators
+  Number of symmetry classes: 8
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0      -32.794950868      -32.794950868
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0      -32.794950868      -32.794950868
+      3      3      0      0      0     -1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879
+      4      4      0      0      0      1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879
+      5     17      0      0      0     -1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138
+      6     18      0      0      0      1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138
+      7     23      0      0      0     -1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138
+      8     24      0      0      0      1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138
+      9     33      0      0      0     -1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138
+     10     34      0      0      0      1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138
+     11      5      0      0      0     -1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     12      6      0      0      0      1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     13     19      0      0      0     -1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     14     20      0      0      0      1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     15     25      0      0      0     -1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     16     26      0      0      0      1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     17     35      0      0      0     -1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     18     36      0      0      0      1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     19      7      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     20      8      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     21      9      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     22     10      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     23     29      0      0      0     -1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     24     30      0      0      0      1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     25     39      0      0      0     -1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     26     40      0      0      0      1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     27     43      0      0      0     -1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     28     44      0      0      0      1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     29     21      0      0      0     -1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     30     22      0      0      0      1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     31     27      0      0      0     -1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     32     28      0      0      0      1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     33     37      0      0      0     -1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     34     38      0      0      0      1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     35     11      0      0      0     -1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     36     12      0      0      0      1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     37     13      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     38     14      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     39     15      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     40     16      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     41     31      0      0      0     -1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     42     32      0      0      0      1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     43     41      0      0      0     -1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     44     42      0      0      0      1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     45     45      0      0      0     -1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+     46     46      0      0      0      1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                 38226
+Memory required for integral storage:     0.2916412353     Mb/Shared Memory
+Allocated             305808 bytes of shared memory named: umat
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+Ignoring integral (chem. notation) (   0   0|   0   0):    0.0000000000000000     
+ Number of removed two-index integrals:                     1
+ Number of non-zero integrals:                  4806
+ ECORE=   0.0000000000000000     
+ Setting normal GetUMatEl routine
+ N_alpha: 5 ; N_beta: 5 ; LMS: 0 ; NEl:10
+ Fermi det (D0):(    1,    2,    3,    4,   17,   18,   23,   24,   33,   34)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:  -74.588984324264047     
+======== FREEZING ORBITALS ==========
+Allocated             257048 bytes of shared memory named: umat2
+ Freezing                     2  core orbitals.
+ Freezing                     0  virtual orbitals.
+ Post-Freeze Fermi det (D0):(    1,    2,   15,   16,   21,   22,   31,   32)
+ Symmetry:  ( 0, 0, 0) 0
+ ECORE now  -93.848901545480004     
+ Number of orbitals remaining:                    44
+ Number of active electrons:                    8
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879 #
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879 #
+      3     15      0      0      0     -1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138 #
+      4     16      0      0      0      1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138 #
+      5     21      0      0      0     -1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138 #
+      6     22      0      0      0      1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138 #
+      7     31      0      0      0     -1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138 #
+      8     32      0      0      0      1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138 #
+      9      3      0      0      0     -1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     10      4      0      0      0      1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     11     17      0      0      0     -1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     12     18      0      0      0      1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     13     23      0      0      0     -1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     14     24      0      0      0      1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     15     33      0      0      0     -1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     16     34      0      0      0      1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     17      5      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     18      6      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     19      7      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     20      8      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     21     27      0      0      0     -1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     22     28      0      0      0      1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     23     37      0      0      0     -1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     24     38      0      0      0      1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     25     41      0      0      0     -1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     26     42      0      0      0      1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     27     19      0      0      0     -1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     28     20      0      0      0      1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     29     25      0      0      0     -1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     30     26      0      0      0      1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     31     35      0      0      0     -1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     32     36      0      0      0      1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     33      9      0      0      0     -1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     34     10      0      0      0      1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     35     11      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     36     12      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     37     13      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     38     14      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     39     29      0      0      0     -1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     40     30      0      0      0      1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     41     39      0      0      0     -1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     42     40      0      0      0      1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     43     43      0      0      0     -1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+     44     44      0      0      0      1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+ Setting normal GetUMatEl routine
+ Calculation supports multiple parallel runs
+ Number of simultaneous walker distributions:                     2
+ Number of sign components in bit representation of determinant:                     2
+Setting integer length of determinants as bit-strings to:      4
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+                   28  Symmetry PAIRS
+                    8  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ <D0|H|D0>=  -128.49634973032460     
+ <D0|T|D0>=  -60.295813781004199     
+ FDet has     4 alpha electrons, and     4 beta electrons.
+                         6  alpha-alpha occupied electron pairs
+                         6  beta-beta occupied electron pairs
+                        16  alpha-beta occupied electron pairs
+                       153 alpha-alpha (vacant) hole pairs
+                       153 beta-beta (vacant) hole pairs
+                       324 alpha-beta (vacant) hole pairs
+
+ Performing Parallel FCIQMC....
+
+ Generated reference determinants:
+(    1,    2,   15,   16,   21,   22,   31,   32) E =   -128.496349730
+(    1,    2,   15,   16,   21,   22,   31,   32) E =   -128.496349730
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:            7
+Reference Energy set to:      -128.4963497303
+Highest energy determinant is (approximately):     -75.3862942834926    
+Corresponding to a correlation energy of:      53.1100554468320    
+Brillouin theorem in use for calculation of projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+    960 double excitations, and      24 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.975610
+ pSingles set to:       0.024390
+ BACK-SPAWNING method in use! 
+ For non-initiators we only pick electrons from the virtual
+  orbitals of the reference determinant!
+  so non-initiators only lower or keep the excitation level constant!
+ Using initial time-step:    1.0000000000000000E-003
+Will dynamically update timestep to limit spawning probability to   3.00000
+Initial Diagonal Shift:         0.0000000000
+ Connectivity of HF determinant is:                   984
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         524288
+ The average current signs before death will be stored for use in the RDMs.
+ Determinant related persistent storage requires:      20.000000 Mb / processor
+Spawning vectors allowing for a total of        60000 particles to be spawned in any one iteration per core.
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:            7000
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        1
+Initial reference is: (    1,    2,   15,   16,   21,   22,   31,   32)
+Initial number of particles set to        100 and shift will be held at     0.000 until particle number gets to           20000
+ Initial memory (without excitgens + temp arrays) consists of :      19.662109 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ Stochastically calculating the reduced density matrices from the FCIQMC wavefunction
+ incl. explicit connections to the following HF determinant:(    1,    2,   15,   16,   21,   22,   31,   32)
+ Calculating the energy from the reduced density matrix. This requires the 2 electron RDM from which the 1-RDM can also be constructed.
+
+ About to allocate main RDM array, size per MPI process (MB):      1.280182
+ Allocation of main RDM array complete.
+ About to allocate RDM spawning array, size per MPI process (MB):      8.534576
+ Allocation of RDM spawning array complete.
+ About to allocate RDM receiving arrays, size per MPI process (MB):      5.120743
+ Allocation of RDM receiving arrays complete.
+
+ Main RDM memory arrays consists of:      17.685776 MB per MPI process.
+ RDM memory allocation complete.
+
+ Allocating temporary array for walkers spawned from a particular Di.
+ This requires       0.007629 Mb/Processor
+# 1. Iter.             2. Tot. parts        3. Tot. ref          4. Proj. E (cyc)     5. Shift. (cyc)      9. Tot. Proj. E      10. Dets occ.        11. Dets spawned     12. Iter. time      
+#               0   200.000000000        200.000000000        0.00000000000        0.00000000000       -128.496349730                    1               0   0.00000000000     
+ Updating parallel-spin bias; new pParallel =   0.21438196953847710     
+ Updating time-step. New time-step =    5.1662696736125807E-002
+ Updating singles/doubles bias. pSingles =    2.1113308068200436E-002 , pDoubles =   0.97888669193179956     
+               25   294.168940769        200.100000000      -0.176362607875E-001   0.00000000000       -128.513985991                   84              73  0.171800015960E-002
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.4213592     1.4213592
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.3158688     1.3158688
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1994649     1.1994649
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.3213950     1.3213950
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1889447     1.1889447
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.2908016     1.2908016
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0968301     1.0968301
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.2105239     1.2105239
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.3316741     1.3316741
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.3090389     1.3090389
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.2541600     1.2541600
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1436029     1.1436029
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0169916     1.0169916
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0805261     1.0805261
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0971243     1.0971243
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.3310550     1.3310550
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1952064     1.1952064
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.3278057     1.3278057
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0941909     1.0941909
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.2151915     1.2151915
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0395826     1.0395826
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0888087     1.0888087
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0854360     1.0854360
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.2184708     1.2184708
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.3248061     1.3248061
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0962415     1.0962415
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.4268597     1.4268597
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.4317336     1.4317336
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0354213     1.0354213
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.2043381     1.2043381
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.2023165     1.2023165
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1440159     1.1440159
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0150844     1.0150844
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0988612     1.0988612
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0090297     1.0090297
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.2707479     1.2707479
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.3245665     1.3245665
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.2908533     1.2908533
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1549421     1.1549421
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1441874     1.1441874
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1039335     1.1039335
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0453107     1.0453107
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1004127     1.1004127
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.2287281     1.2287281
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0360892     1.0360892
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0331074     1.0331074
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0327683     1.0327683
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0056477     1.0056477
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.4268597     1.4268597
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1549490     1.1549490
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0273478     1.0273478
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0467780     1.0467780
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1039335     1.1039335
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.4092375     1.4092375
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0499952     1.0499952
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0048300     1.0048300
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0488582     1.0488582
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0958137     1.0958137
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1244017     1.1244017
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.6284503     1.6284503
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.5376057     1.5376057
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0399008     1.0399008
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0823291     1.0823291
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0064978     1.0064978
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1094639     1.1094639
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0486315     1.0486315
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0313953     1.0313953
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0401234     1.0401234
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.3078875     1.3078875
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.4317336     1.4317336
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.2105264     1.2105264
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0648362     1.0648362
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1521945     1.1521945
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.2682938     1.2682938
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0609882     1.0609882
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.2647156     1.2647156
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1953558     1.1953558
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.2387942     1.2387942
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0962415     1.0962415
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.4162168     1.4162168
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1438572     1.1438572
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.3278057     1.3278057
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0077925     1.0077925
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0411439     1.0411439
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1827158     1.1827158
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0379582     1.0379582
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0930312     1.0930312
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.4213592     1.4213592
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1029212     1.1029212
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1287803     1.1287803
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.4094802     1.4094802
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.3403541     1.3403541
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.5224428     1.5224428
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1026520     1.1026520
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.3535351     1.3535351
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.5713336     1.5713336
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0971534     1.0971534
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0455424     1.0455424
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1445666     1.1445666
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0764837     1.0764837
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.4634987     1.4634987
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.3036689     1.3036689
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.4262330     1.4262330
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1175833     1.1175833
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.3130427     1.3130427
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1358231     1.1358231
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0913232     1.0913232
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0020589     1.0020589
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0951115     1.0951115
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0331929     1.0331929
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1217761     1.1217761
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0908646     1.0908646
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1236562     1.1236562
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0902113     1.0902113
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1575579     1.1575579
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0375112     1.0375112
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1510689     1.1510689
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1436029     1.1436029
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0592825     1.0592825
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1449723     1.1449723
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0062097     1.0062097
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1019844     1.1019844
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0390885     1.0390885
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.2551244     1.2551244
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0266671     1.0266671
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0603679     1.0603679
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0801396     1.0801396
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0075007     1.0075007
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1683824     1.1683824
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.2286981     1.2286981
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0327702     1.0327702
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0799474     1.0799474
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.5448175     1.5448175
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1364469     1.1364469
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0502003     1.0502003
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1713577     1.1713577
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1083112     1.1083112
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0694456     1.0694456
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0566215     1.0566215
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0661828     1.0661828
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0638778     1.0638778
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1673250     1.1673250
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0375112     1.0375112
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.4534402     1.4534402
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.3278057     1.3278057
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1139759     1.1139759
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.2398516     1.2398516
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0511794     1.0511794
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.4260732     1.4260732
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1797437     1.1797437
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.3736254     1.3736254
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1094639     1.1094639
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0868818     1.0868818
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0389138     1.0389138
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0500074     1.0500074
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0850605     1.0850605
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0035301     1.0035301
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1579148     1.1579148
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1494024     1.1494024
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1010588     1.1010588
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.3667423     1.3667423
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0419744     1.0419744
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.0390885     1.0390885
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1007139     1.1007139
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.5230099     1.5230099
+** WARNING ** Death probability > 1: Creating Antiparticles. 
+
+Timestep errors possible:      1.1523192     1.1523192
+Bloom of more than n_add on single excit: A max of      24.39 particles created.      100 blooms occurred.
+Bloom of more than n_add on double excit: A max of       4.85 particles created.       68 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.28212417130778161     
+ Updating time-step. New time-step =    2.9426387834145355E-002
+ Updating singles/doubles bias. pSingles =   0.10677247060925822      , pDoubles =   0.89322752939074179     
+               50   2128.24253736        256.638647747      -0.191767375741        0.00000000000       -128.688117106                 1232            1495  0.738140009344E-002
+ Updating parallel-spin bias; new pParallel =   0.25426254156674105     
+ Updating time-step. New time-step =    2.9269378891604657E-002
+ Updating singles/doubles bias. pSingles =    9.7253470327992184E-002 , pDoubles =   0.90274652967200786     
+               75   1823.73302383        308.592960562      -0.209065304703        0.00000000000       -128.705415035                 1017            1138  0.964312069118E-002
+ Updating parallel-spin bias; new pParallel =   0.27487112593179852     
+ Updating time-step. New time-step =    2.8537211597974635E-002
+ Updating singles/doubles bias. pSingles =    9.4820695432772328E-002 , pDoubles =   0.90517930456722762     
+              100   2377.40757462        377.797987836      -0.214479702749        0.00000000000       -128.710829433                 1351            1565  0.107833193615E-001
+Bloom of more than n_add on double excit: A max of       3.59 particles created.        2 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.24035105223833836     
+ Updating time-step. New time-step =    2.5254056161359811E-002
+ Updating singles/doubles bias. pSingles =    8.3911743076130751E-002 , pDoubles =   0.91608825692386930     
+              125   2951.88837244        448.198376421      -0.212836687668        0.00000000000       -128.709186418                 1694            1994  0.132911205292E-001
+              150   3510.25515426        519.649120192      -0.211878121843        0.00000000000       -128.708227852                 2020            2283  0.160594414920E-001
+ Updating parallel-spin bias; new pParallel =   0.25138197007189822     
+ Updating time-step. New time-step =    2.4917702102651922E-002
+ Updating singles/doubles bias. pSingles =    8.2794138237661491E-002 , pDoubles =   0.91720586176233854     
+              175   4162.30613097        587.716666810      -0.212827890545        0.00000000000       -128.709177621                 2400            2718  0.192126743495E-001
+Bloom of more than n_add on double excit: A max of       3.02 particles created.        1 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.25027028625996095     
+ Updating time-step. New time-step =    2.4816595152862910E-002
+ Updating singles/doubles bias. pSingles =    8.2458189812596686E-002 , pDoubles =   0.91754181018740333     
+              200   4780.38514867        659.503489812      -0.213853081224        0.00000000000       -128.710202812                 2691            3218  0.223870854825E-001
+ Updating parallel-spin bias; new pParallel =   0.25021792174001450     
+ Updating singles/doubles bias. pSingles =    8.2442359299596507E-002 , pDoubles =   0.91755764070040347     
+              225   5889.72713244        747.289568765      -0.214545743910        0.00000000000       -128.710895474                 3417            3940  0.253885556012E-001
+              250   6529.36613288        844.629431634      -0.215139654892        0.00000000000       -128.711489385                 3768            4382  0.292393304408E-001
+              275   7683.27416891        969.933558882      -0.213371103163        0.00000000000       -128.709720833                 4401            5264  0.342605002224E-001
+              300   9158.17061686        1115.13887511      -0.214263919636        0.00000000000       -128.710613650                 5184            6390  0.401733778417E-001
+Bloom of more than n_add on single excit: A max of       3.36 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =    2.4570199177040845E-002
+ Updating singles/doubles bias. pSingles =    9.1369099102180190E-002 , pDoubles =   0.90863090089781984     
+              325   10552.9347572        1258.42764981      -0.214803705654        0.00000000000       -128.711153436                 5967            7392  0.457682237029E-001
+Bloom of more than n_add on double excit: A max of       3.07 particles created.        1 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.24603186397683377     
+ Updating time-step. New time-step =    2.4196350956213267E-002
+ Updating singles/doubles bias. pSingles =    8.9978871253726819E-002 , pDoubles =   0.91002112874627317     
+              350   11952.0970206        1442.36666764      -0.214906581033        0.00000000000       -128.711256311                 6679            8544  0.524848364294E-001
+              375   14062.3902242        1646.76664760      -0.212504606968        0.00000000000       -128.708854337                 7768           10217  0.590863786638E-001
+Bloom of more than n_add on double excit: A max of       3.20 particles created.        1 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.23410926301944926     
+ Updating time-step. New time-step =    2.3124637178128772E-002
+ Updating singles/doubles bias. pSingles =    8.5993493614196934E-002 , pDoubles =   0.91400650638580305     
+              400   15893.7702508        1858.28564639      -0.215989781290        0.00000000000       -128.712339512                 8607           11512  0.696963146329E-001
+              425   18374.4405644        2126.08007470      -0.215090463136        0.00000000000       -128.711440193                 9750           13418  0.775907933712E-001
+ Updating parallel-spin bias; new pParallel =   0.23438983409949801     
+ Updating singles/doubles bias. pSingles =    8.5964699438594902E-002 , pDoubles =   0.91403530056140514     
+              450   20979.1666884        2391.84044907      -0.214229456439        0.00000000000       -128.710579187                11050           15234  0.877093523741E-001
+              475   23639.4723787        2687.57765461      -0.211373248256        0.00000000000       -128.707722979                12208           17374  0.972721874714E-001
+              500   26813.5434222        3050.54981163      -0.211990095871        0.00000000000       -128.708339826                13472           19822  0.109053723514     
+Bloom of more than n_add on double excit: A max of       3.05 particles created.        1 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.23128810612411696     
+ Updating time-step. New time-step =    2.2742576894677281E-002
+ Updating singles/doubles bias. pSingles =    8.8705752457929415E-002 , pDoubles =   0.91129424754207056     
+              525   30240.4681524        3419.66698181      -0.213119916991        0.00000000000       -128.709469647                14954           22284  0.124638214707     
+Bloom of more than n_add on double excit: A max of       3.13 particles created.        2 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.22369723115365797     
+ Updating time-step. New time-step =    2.2046157422051228E-002
+ Updating singles/doubles bias. pSingles =    8.5989419404215228E-002 , pDoubles =   0.91401058059578477     
+              550   34211.7592151        3872.39474737      -0.212514031152        0.00000000000       -128.708863761                16480           25511  0.139419406652     
+Bloom of more than n_add on double excit: A max of       3.01 particles created.        1 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.22402690900898686     
+ Updating singles/doubles bias. pSingles =    8.5956040602576639E-002 , pDoubles =   0.91404395939742333     
+              575   38393.6131168        4324.96538382      -0.213118855880        0.00000000000       -128.709468586                18143           28676  0.158350989223     
+Exiting the single particle growth phase on iteration:           600 - Shift can now change for population1
+Exiting the single particle growth phase on iteration:           600 - Shift can now change for population2
+              600   42886.9361400        4842.50742875      -0.214082405604      -0.213126765752       -128.710432136                19749           32062  0.175094678998     
+              625   43375.2617922        4845.78733276      -0.215480271061      -0.216523742665       -128.711830001                20199           32370  0.185243993998     
+              650   42698.9351638        4793.44986334      -0.214547003580      -0.215990329030       -128.710896734                19826           31743  0.180921018124     
+              675   41936.6758474        4778.03150769      -0.211540330854      -0.215147885865       -128.707890061                19485           31267  0.179067388177     
+              700   42183.8348384        4774.77080348      -0.213294843633      -0.215042403905       -128.709644574                19532           31469  0.176969751716     
+              725   41757.2045065        4799.83498716      -0.212878164525      -0.214909513989       -128.709227895                19338           31145  0.176779627800     
+              750   42854.4994214        4827.41175367      -0.213271831094      -0.215671816625       -128.709621561                19876           31831  0.181111603975     
+
+============ Semi-stochastic initialisation ============
+Generating the deterministic space...
+Total size of deterministic space:     2000
+Size of deterministic space on this processor:      932
+Generating the Hamiltonian in the deterministic space...
+Semi-stochastic initialisation complete.
+Total time (seconds) taken for semi-stochastic initialisation:    3.388
+
+
+=========== Trial wavefunction initialisation ==========
+Generating the trial space...
+  Initialising wavefunctions by the Lanczos algorithm
+  Aborting Lanczos and initialising trial states with direct diagonalisation
+  MAXIMUM WIDTH OF HAMIL :                    68
+  TOTAL NUMBER OF NON-ZERO ELEMENTS :                  1335
+Size of trial space on this processor:       30
+Total size of the trial space:      100
+Calculating the number of states in the connected space...
+Attempting to allocate con_space. Size =        1.487 Mb
+States found on this processor, including repeats:    48724
+Generating and storing the connected space...
+Removing repeated states and sorting by processor...
+Performing MPI communication of connected states...
+Attempting to allocate temp_space. Size =        0.691 Mb
+Attempting to allocate con_space. Size =        0.691 Mb
+Total size of connected space:      38583
+Size of connected space on this processor:      19198
+Generating the vector \sum_j H_{ij} \psi^T_j...
+Energy eigenvalue(s) of the trial space:  -128.640518905     
+Trial wavefunction initialisation complete.
+Total time (seconds) taken for trial wavefunction initialisation:    1.195
+
+Bloom of more than n_add on single excit: A max of       3.96 particles created.        1 blooms occurred.
+              775   44067.7118414        4823.80794341      -0.212277515532      -0.218167262285       -128.708627246                22413           26247  0.307928770781     
+              800   44280.8396097        4810.33405608      -0.212989578220      -0.217803428006       -128.709339309                22654           26503  0.128277286887     
+ Memory requirement for spawned arrays increased from     3.6621 to     5.4932 Mb/Processor
+Calculating the 2 electron density matrix on the fly.
+Beginning to fill the RDMs during iteration       801
+              825   43999.8881234        4797.67486111      -0.213033058800      -0.217476207029       -128.709382789                22448           26230  0.623793959618     
+              850   43541.6869658        4785.92026607      -0.213017630425      -0.217290759387       -128.709367361                22206           25931  0.602990090847     
+              875   43842.7531870        4774.32241282      -0.212917741287      -0.217145962020       -128.709267472                22355           26155  0.604158639908     
+              900   43459.4191725        4763.91674821      -0.213199169435      -0.217070666004       -128.709548900                22163           25746  0.698983132839     
+Bloom of more than n_add on single excit: A max of       3.12 particles created.        1 blooms occurred.
+              925   43482.7249892        4753.24780233      -0.213005708824      -0.216894384383       -128.709355439                22436           25977  0.947653830051     
+Bloom of more than n_add on double excit: A max of       3.01 particles created.        1 blooms occurred.
+              950   43422.3429234        4742.94963956      -0.212966902103      -0.217110762049       -128.709316632                22277           25858  0.910168468952     
+              975   43290.2486648        4732.30861689      -0.213017650044      -0.216863745499       -128.709367380                22198           25738  0.603571772575     
+             1000   43158.7121278        4722.20045426      -0.212965698915      -0.216630989857       -128.709315429                22138           25595  0.610115349293     
+Bloom of more than n_add on single excit: A max of       3.96 particles created.        1 blooms occurred.
+             1025   43246.1334178        4713.05697355      -0.213127881620      -0.216361827817       -128.709477612                22162           25872  0.614243149757     
+             1050   43257.6956043        4704.51807703      -0.213089231787      -0.216558945678       -128.709438962                22174           25895  0.630863666534     
+             1075   43054.0275727        4695.54199259      -0.213077428620      -0.216474360194       -128.709427159                22088           25542  0.601193845272     
+             1100   43300.9014892        4687.25489072      -0.213287298278      -0.216360048437       -128.709637029                22249           25871  0.599664330482     
+             1125   42894.3252854        4678.97297117      -0.213103221682      -0.216402704403       -128.709452952                22112           25595  0.600111067295     
+             1150   43013.7697865        4670.53033141      -0.213098574710      -0.216297131455       -128.709448305                22156           25665  0.600953340530     
+Bloom of more than n_add on single excit: A max of       3.96 particles created.        1 blooms occurred.
+             1175   42728.6983631        4662.37376124      -0.213115047122      -0.215891247521       -128.709464777                21941           25441  0.599009990692     
+             1200   42621.6202926        4655.32435815      -0.213160913129      -0.215977101018       -128.709510643                22055           25298  0.836141347885     
+             1225   42693.7826050        4647.93686754      -0.213098958321      -0.215833717041       -128.709448689                21936           25421  0.939876735210     
+             1250   42770.1379414        4640.93183899      -0.213112377599      -0.215778704574       -128.709462108                22069           25542  0.940295398235     
+             1275   42664.2257809        4634.29318281      -0.213186333857      -0.215871683394       -128.709536064                22004           25358  0.941627204418     
+Bloom of more than n_add on single excit: A max of       3.96 particles created.        3 blooms occurred.
+             1300   42687.3465772        4627.12953539      -0.213066940223      -0.215707947319       -128.709416671                22207           25570  0.938145756721     
+             1325   42481.8533032        4620.37112999      -0.213082083464      -0.215487335165       -128.709431814                21958           25259  0.595408916473     
+             1350   42184.6357377        4613.98050284      -0.212983541853      -0.215489439049       -128.709333272                21713           25178  0.609464108944     
+             1375   41932.8447223        4607.74063357      -0.213017512828      -0.215125460675       -128.709367243                21660           25208  0.584741234779     
+Bloom of more than n_add on single excit: A max of       3.96 particles created.        3 blooms occurred.
+             1400   42136.8568227        4602.34876132      -0.213001423377      -0.215281216371       -128.709351154                21812           25214  0.592807590961     
+Bloom of more than n_add on single excit: A max of       3.96 particles created.        1 blooms occurred.
+             1425   42332.5138734        4596.89981403      -0.213129216434      -0.215270660712       -128.709478947                21823           25122  0.590639650822     
+             1450   42018.4124724        4591.69209697      -0.213177410419      -0.215082770230       -128.709527141                21601           25077  0.586438000202     
+             1475   42023.4468186        4586.72862710      -0.213135302091      -0.215196307933       -128.709485032                21864           25204  0.730402827263     
+             1500   42261.1376343        4581.03235260      -0.212931173778      -0.215163384053       -128.709280904                22038           25223  0.937314450741     
+Total iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:    572.64801141619682     
+ - - - - - - - - - - - - - - - - - - - - - - - -
+
+**** RDMs CALCULATED STOCHASTICALLY ****
+
+ == INFORMATION FOR FINAL 1-RDMS =========================================================
+
+ INFORMATION FOR 1-RDM 1:
+
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      7.9285594165514
+
+ =========================================================================================
+
+ == INFORMATION FOR FINAL 2-RDMS =========================================================
+
+ 2-RDM ESTIMATES FOR STATE 1:
+ Trace of 2-el-RDM before normalisation:  1.1121409498E+11
+ Trace of 2-el-RDM after normalisation:  2.8000000000E+01
+ Energy contribution from the 1-RDM: -5.9929963167E+01
+ Energy contribution from the 2-RDM:  2.5069404479E+01
+ *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -1.2870946023409E+02
+
+ Hermiticty error estimates:
+            1500        0.00046125760845995253     (Iteration, MAX ABS ERROR IN HERMITICITY)
+            1500        0.07987741226923437965     (Iteration, SUM ABS ERROR IN HERMITICITY)
+
+ =========================================================================================
+ 
+Current reference: 
+(    1,    2,   15,   16,   21,   22,   31,   32)
+11000000000000110000110000000011000000000000
+
+Input DEFINEDET line (includes frozen orbs):
+definedet   1   2   3   4  17  18  23  24  33  34 
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+ Excitation   ExcitLevel Seniority  Walkers(Re)   Walkers(Im)  Weight   Init?(Re)   Init?(Im)   Proc  Spin-Coup?
+11000000000000110000110000000011000000000000    0    0    2257.567        2323.280      0.48372  Y  Y      1
+11000000000000010010100001000011000000000000    2    4    78.16282        80.17296      0.01184  Y  Y      1  *
+11000000000000010010110000000010000100000000    2    4    78.03731        80.07486      0.01182  Y  Y      1  *
+11000000000000110000010010000010000100000000    2    4    77.89333        80.49797      0.01180  Y  Y      0  *
+11000000000000110000000011000011000000000000    2    0   -76.38062       -79.52228      0.01637  Y  Y      1
+11000000000000110000110000000000001100000000    2    0   -77.01753       -78.69139      0.01650  Y  Y      1
+11000000000000000011110000000011000000000000    2    0   -76.61897       -78.64411      0.01642  Y  Y      1
+01000000100000110000110000000010000100000000    2    4    59.49800        61.35640      0.00901  Y  Y      1  *
+11000000000000110000100001000010000100000000    2    4   -58.94887       -61.69507      0.00893  Y  Y      1  *
+11000000000000100001110000000010000100000000    2    4   -59.08245       -61.50148      0.00895  Y  Y      1  *
+11000000000000100001100001000011000000000000    2    4   -59.36122       -61.20470      0.00899  Y  Y      1  *
+01000000100000100001110000000011000000000000    2    4    59.49443        61.00758      0.00901  Y  Y      1  *
+01000000100000110000100001000011000000000000    2    4    59.01288        60.87975      0.00894  Y  Y      1  *
+11000000000000110000001001000011000000000000    2    2   -57.70511       -58.36228      0.00874  Y  Y      0  *
+11000000000000110000110000000000100100000000    2    2   -56.75742       -58.28136      0.00860  Y  Y      0  *
+ * = Spin-coupled function implicitly has time-reversed determinant with same weight.
+ 
+
+ Load balancing information based on the last iteration:
+ Mean number of determinants/process   11667.5000000000
+ Min number of determinants/process              11619
+ Max number of determinants/process              11716
+
+
+Calculating approximate errorbar for energy estimates...
+
+Attempting automatic reblocking analysis on data from iteration:          600
+ No FCIMCStats file found for error analysis
+ Current reference energy                            -128.496349730325
+ Projected correlation energy                          -0.213143767878
+ No automatic errorbar obtained for projected energy
+ No reliable averaged shift correlation energy could be obtained automatically
+
+ Total projected energy        -128.70949350
+
+
+ Warning: attempting to log deallocation but never logged allocation.
+ Final energy estimate for state 1:     -128.70957890648    
+ Final energy estimate for state 2:     -128.70960875555    
+ Warning: attempting to log deallocation but never logged allocation.
+
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :      78.1
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ trial_space       init_trial_wf      create_trial_hashta  30.5MB
+ global_determinantinit_global_det_datclean_global_det_da  20.0MB
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar   16.0MB
+ current_trial_ampsinit_trial_wf      end_trial_wf          4.0MB
+ SpawnVec2         realloc_SpawnedPartDeallocFciMCMemPar    2.7MB
+ SpawnVec          realloc_SpawnedPartDeallocFciMCMemPar    2.7MB
+ SpawnVec          InitFCIMCPar       realloc_SpawnedPart   1.8MB
+ SpawnVec2         InitFCIMCPar       realloc_SpawnedPart   1.8MB
+ con_space         init_trial_wf      init_trial_wf         1.5MB
+ Spawned_Parents   init_rdms          dealloc_global_rdm_   1.4MB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+
+ Procedure                    Calls       CPU    system     total
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                    1500    396.02      0.00    396.02
+ SyncTime                      2259     83.87      0.00     83.87
+ AnnMainTime                   1500     45.73      0.00     45.73
+ NECICUBE                         1     29.75      0.00     29.75
+ Compress Sort interface       1500      4.52      0.00      4.52
+ Compression interface         1500      4.29      0.00      4.29
+ SemiStochInitTime                1      3.39      0.00      3.39
+ SortTime                      1500      2.95      0.00      2.95
+ TrialInitTime                    1      1.19      0.00      1.19
+ SemiStochMultiplyTime          750      0.33      0.00      0.33
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                 572.04      0.00    572.04
+
+ Global CPU time        573.17
+ Global system time       0.00
+ Global total time      573.17
+ ================================================================
+ Calculation ended 22/08/2017 at 17:37:10
+ ================================================================
