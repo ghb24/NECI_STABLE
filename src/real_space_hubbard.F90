@@ -24,7 +24,6 @@ module real_space_hubbard
     use OneEInts, only: tmat2d
     use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption
     use CalcData, only: t_hist_tau_search, t_hist_tau_search_option, tau
-    use procedure_pointers, only: generate_excitation
     use tau_search, only: max_death_cpt
     use umatcache, only: gtid
     use dsfmt_interface, only: genrand_real2_dsfmt
@@ -42,10 +41,20 @@ contains
     ! system hubbard [lattice-type] 
 
     subroutine init_real_space_hubbard() 
+        use SystemData, only: tExch, thub, treal
         ! routine, which does all of the necessary initialisation
         character(*), parameter :: this_routine = "init_real_space_hubbard"
         ! especially do some stop_all here so no wrong input is used 
+        real(dp) :: tau_opt, tau_factor
 
+        print *, "using new real-space hubbard implementation: "
+
+        ! i do not need exchange integrals in the real-space hubbard model
+        tExch = .false.
+        ! after the whole setup i can set thub to false or? 
+        thub = .false.
+        ! and treal i can also set to false or? 
+        treal = .false.
         ! first assert all the right input! 
         call check_real_space_hubbard_input() 
 
@@ -91,7 +100,20 @@ contains
         generate_excitation => gen_excit_rs_hubbard
         
         ! i have to calculate the optimal time-step
-        tau = determine_optimal_time_step()
+        ! and maybe i have to be a bit more safe here and not be too near to 
+        ! the optimal time-step
+        tau_opt = determine_optimal_time_step()
+        if (tau < EPS) then 
+            tau_factor = 0.5_dp
+            print *, "setting time-step to optimally determined time-step: ", tau_opt
+            print *, "times: ", tau_factor
+            tau = tau_factor * tau_opt
+
+        else 
+            print *, "optimal time-step would be: ", tau_opt
+            print *, "but tau specified in input!"
+        end if
+
 
         ! and i have to turn off the time-step search for the hubbard 
         tsearchtau = .false.
@@ -106,7 +128,7 @@ contains
     end subroutine init_real_space_hubbard
 
     subroutine check_real_space_hubbard_input() 
-        use SystemData, only: tExch, tCSF, tReltvy, tUEG, tUEG2, tHub, & 
+        use SystemData, only: tCSF, tReltvy, tUEG, tUEG2, tHub, & 
                               tKPntSym, tLatticeGens, tUEGNewGenerator, &
                 tGenHelWeighted, tGen_4ind_weighted, tGen_4ind_reverse, &
                 tUEGNewGenerator, tGen_4ind_part_exact, tGen_4ind_lin_exact, &
@@ -118,7 +140,8 @@ contains
         character(*), parameter :: this_routine = "check_real_space_hubbard_input"
         ! do all the input checking here, so no wrong input is used!
 
-        if (tExch)            call stop_all(this_routine, "tExch set to true!")
+        if (thphf) call stop_all(this_routine, "hphf not yet implemented!")
+
         if (tCSF)             call stop_all(this_routine, "tCSF set to true!")
         if (tReltvy)          call stop_all(this_routine, "tReltvy set to true!")
 
@@ -141,7 +164,7 @@ contains
         if (tTransGTid)         call stop_all(this_routine, "tTransGTid")
         if (tcpmdsymtmat)        call stop_all(this_routine, "tcpmdsymmat")
         if (tOneelecdiag)       call stop_all(this_routine, "tOneelecdiag")
-        if (bhub < EPS)         call stop_all(this_routine, "bhub == 0!")
+        if (abs(bhub) < EPS)         call stop_all(this_routine, "bhub == 0!")
             
     end subroutine check_real_space_hubbard_input
 

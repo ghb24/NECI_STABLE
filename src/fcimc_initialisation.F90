@@ -11,7 +11,7 @@ module fcimc_initialisation
                           tRotatedOrbs, MolproID, nBasis, arr, brr, nel, tCSF,&
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
-                          tUEGNewGenerator, tGen_4ind_2, tReltvy
+                          tUEGNewGenerator, tGen_4ind_2, tReltvy, t_new_real_space_hubbard
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
@@ -146,6 +146,7 @@ module fcimc_initialisation
     use tau_search_hist, only: init_hist_tau_search
     use back_spawn, only: init_back_spawn
     use back_spawn_excit_gen, only: gen_excit_back_spawn
+    use real_space_hubbard, only: init_real_space_hubbard
 
     implicit none
 
@@ -1500,6 +1501,13 @@ contains
 #ifdef __CMPLX
          replica_overlaps_imag(:, :) = 0.0_dp
 #endif
+
+        ! i am not yet sure where to initialize the new real-space hubbard.. 
+        ! try it here, but this might mean that some stuff is missing 
+        ! earlier 
+        if (t_new_real_space_hubbard) then 
+            call init_real_space_hubbard()
+        end if
 
     end subroutine InitFCIMCCalcPar
 
