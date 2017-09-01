@@ -29,6 +29,7 @@ module fcimc_pointed_fns
                                fill_frequency_histogram
 
     use excit_gen_5, only: pgen_select_a_orb
+    use cepa_shifts, only: t_cepa_shift, cepa_shift
 
     implicit none
 
@@ -529,10 +530,15 @@ module fcimc_pointed_fns
 #endif        
 
         do i=1, inum_runs
-            fac(i)=tau*(Kii-DiagSft(i))
+            if (t_cepa_shift) then 
+                fac(i) = tau * (Kii - cepa_shift(i, WalkExcitLevel))
+                call log_death_magnitude(Kii - cepa_shift(i, WalkExcitLevel))
+            else
+                fac(i)=tau*(Kii-DiagSft(i))
+                ! And for tau searching purposes
+                call log_death_magnitude (Kii - DiagSft(i))
+            end if
 
-            ! And for tau searching purposes
-            call log_death_magnitude (Kii - DiagSft(i))
         enddo
 
         if(any(fac > 1.0_dp)) then

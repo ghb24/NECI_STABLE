@@ -40,10 +40,19 @@ module cepa_shifts
             integer, intent(in) :: run
             real(dp) :: cepa_shift_t
         end function cepa_shift_t
+
+!         function cepa_shift_ex_level_t(run, ex_level)
+!             use constants, only: dp 
+!             integer, intent(in) :: run, ex_level 
+!             real(dp) :: cepa_shift_ex_level_t
+!         end function cepa_shift_ex_level_t
+
     end interface
 
     procedure(cepa_shift_t), pointer :: cepa_shift_single
     procedure(cepa_shift_t), pointer :: cepa_shift_double
+
+!     procedure(cepa_shift_ex_level_t), pointer :: cepa_shift
     
 contains 
 
@@ -102,6 +111,17 @@ contains
         end select 
 
     end subroutine init_cepa_shifts
+
+    real(dp) function cepa_shift(run, ex_level) 
+        integer, intent(in) :: run, ex_level
+        if (ex_level == 1) then 
+            cepa_shift = cepa_shift_single(run) 
+        else if (ex_level == 2) then 
+            cepa_shift = cepa_shift_double(run) 
+        else
+            cepa_shift = diagsft(run)
+        end if
+    end function cepa_shift
 
     real(dp) function cepa_0(run)
         integer, intent(in) :: run
