@@ -35,6 +35,8 @@ MODULE Calc
     use spectral_lanczos, only: n_lanc_vecs_sl
     use exact_spectrum
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
+    use cepa_shifts, only: t_cepa_shift, cepa_method
+
 
     implicit none
 
@@ -2382,6 +2384,14 @@ contains
                 ! to indicate (de-)excitation
                 if (item < nitems) then 
                     call geti(occ_virt_level)
+                end if
+
+            case ("CEPA-SHIFTS", "CEPA", "CEPA-SHIFT")
+                t_cepa_shift = .true.
+                if (item < nitems) then 
+                    call readl(cepa_method)
+                else
+                    cepa_method = '0'
                 end if
 
             case default

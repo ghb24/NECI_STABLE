@@ -147,6 +147,7 @@ module fcimc_initialisation
     use back_spawn, only: init_back_spawn
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
+    use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
 
     implicit none
 
@@ -1511,6 +1512,8 @@ contains
 #ifdef __CMPLX
          replica_overlaps_imag(:, :) = 0.0_dp
 #endif
+
+        if (t_cepa_shift) call init_cepa_shifts()
 
     end subroutine InitFCIMCCalcPar
 
