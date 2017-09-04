@@ -4,7 +4,7 @@ module cepa_shifts
 
     use constants, only: dp, inum_runs
     use replica_data, only: diagsft 
-    use SystemData, only: nel
+    use SystemData, only: nel, nOccAlpha, nBasis
 
     implicit none 
 
@@ -33,7 +33,6 @@ module cepa_shifts
     ! CEPA 'method' 
 
     ! and depending on the method string determine the shifts D_ij and D_i
-
     abstract interface 
         function cepa_shift_t(run)
             use constants, only: dp 
@@ -57,12 +56,25 @@ module cepa_shifts
 contains 
 
     subroutine init_cepa_shifts() 
+        use DetBitOps, only: TestClosedShellDet
+        use FciMCData, only: projedet
 
         character(*), parameter :: this_routine = "init_cepa_shifts"
 
+        integer :: i
         ! i have to allocate it for each replica
 !         allocate(cepa_shift_single(inum_runs))
 !         allocate(cepa_shift_double(inum_runs))
+
+        if (.not. allocated(projedet)) then 
+            call stop_all(this_routine, "reference det not yet set!")
+        end if
+
+        do i = 1, inum_runs
+            if (.not. TestClosedShellDet(projedet(:,i))) then 
+                call stop_all(this_routine, "Cepa shifts only for closed shell reference!")
+            end if
+        end do
 
         select case(trim(adjustl(cepa_method))) 
 
@@ -111,6 +123,105 @@ contains
         end select 
 
     end subroutine init_cepa_shifts
+
+    function calc_number_of_excitations(n_alpha, n_beta, max_excit, n_orbs) &
+            result(n_excits)
+        ! i might want a routine which calculates the number of all possible 
+        ! excitations for each excitation level 
+        integer, intent(in) :: n_alpha, n_beta, max_excit, n_orbs
+        integer :: n_excits(max_excit)
+
+        integer :: n_parallel(max_excit,2), i, j, k
+
+        ! the number of all possible single excitations, per spin is: 
+        
+        n_parallel = 0
+        n_excits = 0
+
+        do i = 1, max_excit
+            n_parallel(i,1) = calc_n_parallel_excitations(n_alpha, n_orbs, i)
+            n_parallel(i,2) = calc_n_parallel_excitations(n_beta, n_orbs, i)
+        end do
+
+        ! i can set this up in a general way.. 
+
+        do i = 1, max_excit
+
+            ! the 2 parallel spin species always are added 
+            n_excits(i) = sum(n_parallel(i,:)) 
+
+            ! and i have to zig-zag loop over the other possible combinations 
+            ! to lead to this level of excitation.. 
+            j = i - 1 
+            k = 1 
+
+            do while (j >= k) 
+
+                n_excits(i) = n_excits(i) + n_parallel(j,1) * n_parallel(k,2) 
+
+                ! and if j /= k do it the other way around too 
+                if (j /= k) then 
+                    n_excits(i) = n_excits(i) + n_parallel(j,2) * n_parallel(k,1)
+
+                end if
+                ! and in/decrease the counters 
+                j = j - 1 
+                k = k + 1
+
+                ! in this way i calculate eg.: 
+                ! n_ij^ab = n_ij_ab(u + d) + n_i^a(u) * n_i^a(d) 
+                ! and 
+                ! n_ijk^abc = n_ijk^abc(u + d) + n_ij^ab(u) * n_i^a(d) and spin-flipped..
+
+            end do
+        end do
+
+    end function calc_number_of_excitations
+
+    function calc_n_single_excits(n_elecs, n_orbs) result(n_single_excits)
+        ! this calculates the number of possible single excitations for a 
+        ! given spin species of electrons and the number of spatial orbitals!
+        integer, intent(in) :: n_elecs, n_orbs
+        integer :: n_single_excits
+
+        ! it is the number of electrons which can be excited and the number 
+        ! of available orbitals for this spin!
+!         n_single_excits = n_elecs * (n_orbs - n_elecs)
+
+        ! with binomial it is just: 
+        n_single_excits = binomial(n_elecs, 1) * binomial(n_orbs - n_elecs, 1)
+
+    end function calc_n_single_excits
+
+    function calc_n_parallel_excitations(n_elecs, n_orbs, ic) result(n_parallel)
+        ! this function determines the number of parallel spin excitaiton 
+        ! with each electrons having the same spin for a given excitation 
+        ! level and number of electrons and available orbitals for this spin 
+        integer, intent(in) :: n_elecs, n_orbs, ic 
+        integer :: n_parallel
+
+        n_parallel = binomial(n_elecs, ic) * binomial(n_orbs - n_elecs, ic) 
+
+    end function calc_n_parallel_excitations
+
+    integer function binomial(n, k)
+        ! write a new binomial function using the fortran2008 standard 
+        ! gamma function 
+        integer, intent(in) :: n, k 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "binomial"
+#endif
+
+        ASSERT(n >= 0)
+        ASSERT(k >= 0)
+
+        if (k > n) then 
+            binomial = 0
+        else
+            binomial = nint(gamma(real(n) + 1) / (gamma(real(n - k) + 1) * gamma(real(k) + 1)))
+        end if
+
+    end function binomial 
 
     real(dp) function cepa_shift(run, ex_level) 
         integer, intent(in) :: run, ex_level
