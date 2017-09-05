@@ -2,11 +2,12 @@
 
 module cc_amplitudes 
 
-    use SystemData, only: nbasis, nel 
+    use SystemData, only: nbasis, nel, nOccAlpha, nOccBeta
     use detbitops, only: get_bit_excitmat
     use FciMCData, only: totwalkers, ilutref, currentdets, AllNoatHf
     use bit_reps, only: extract_sign
     use constants, only: dp, lenof_sign
+    use cepa_shifts, only: calc_number_of_excitations
 
     implicit none 
 
@@ -15,15 +16,147 @@ module cc_amplitudes
     ! we need the order of cluster operators..
     integer :: cc_order = 0 
 
+    ! maybe it would be nice to have a type which encodes this information 
+    ! and which gives an easy and nice way to de/encode the indices 
+    ! involved.. 
+    type cc_amplitude 
+        integer :: order 
+        integer, allocatable :: operators(:) 
+
+    contains 
+
+        procedure :: get_ex 
+        procedure :: get_ind
+
+    end type cc_amplitude
+
 contains 
+
+    function get_ex(this, ind) result(ex) 
+        ! this function gives the specific excitation, if present in the 
+        ! cc_amplitudes, which are encoded in a linear fashion 
+        ! with the convention that all the electron and orbital indices are 
+        ! always provided in an ordered(from lowest to highest) fashion
+        class(cc_amplitude), intent(in) :: this
+        integer, intent(in) :: ind
+        integer :: ex(2, this%order)
+        character(*), parameter :: this_routine = "get_ex"
+
+        ASSERT(ind > 0) 
+        select case (this%order) 
+        case (1) 
+            ASSERT(ind <= nel * (nbasis - nel))
+
+            ! it is a single excition so this is easy to decompose 
+            ! this decomposition depends on the encoding below!
+            ex(2,1) = mod(ind-1,nel)
+!             print *, "mod:", mod(ind,nel)
+            ! lets hope the integer division is done correctly.. on all compilers
+            ex(1,1) = (ind - ex(2,1))/nel + 1
+            ! and modify by nel the orbital index again to get the real 
+            ! orbital index! 
+            ex(2,1) = ex(2,1) + nel + 1
+
+        case (2) 
+            ! todo 
+
+        case default 
+            call stop_all(this_routine, "higher than cc_order 2 not yet implemented!")
+
+        end select
+
+    end function get_ex
+
+    function get_ind(this, elec_ind, orb_ind) result(ind)
+        ! depending on the cc_order this encodes all the electron and 
+        ! orbital indices of an excitation in a unique linear fashion 
+        ! we can assume the electron and orbital indices to be ordered from 
+        ! highest to lowest
+        class(cc_amplitude), intent(in) :: this 
+        integer, intent(in) :: elec_ind(this%order), orb_ind(this%order) 
+        integer :: ind
+
+        character(*), parameter :: this_routine = "get_ind"
+
+        integer :: ij, ab, nij
+
+        ind = -1 
+
+        ! to i want to access this with invalid excitations?
+        ASSERT(all(elec_ind > 0))
+        ASSERT(all(elec_ind <= nel))
+        ASSERT(all(orb_ind > nel))
+        ASSERT(all(orb_ind <= nbasis))
+
+        ! and assert ordered inputs.. 
+        ! or do we want to order it here, if it is not ordered? 
+        ! tbd!
+        ASSERT(minloc(elec_ind,1) == 1) 
+        ASSERT(maxloc(elec_ind,1) == this%order)
+
+        ASSERT(minloc(orb_ind,1) == 1) 
+        ASSERT(maxloc(orb_ind,1) == this%order)
+
+        select case (this%order)
+        case (1) 
+            ! single excitation 
+            ! the elec_ind goes from 1 to nel and the orb_ind goes from 
+            ! nel + 1 to nbasis (has nbasis - nel) possible values 
+            ! can we assume a closed shell ordered reference? 
+            ! with the nel lowest orbitals occupied? 
+            ! otherwise this is a bit more tricky.. 
+            ind = (elec_ind(1) - 1) * nel + (orb_ind(1) - nel)
+
+        case (2) 
+            ! double excitation 
+            ! first encode the ij electron index in a linear fashion
+            ASSERT(elec_ind(1) < elec_ind(2))
+            ASSERT(orb_ind(1) < orb_ind(2))
+
+            ij = (elec_ind(2) - 1)*elec_ind(2)/2 + elec_ind(1)
+            ! i shift the orb_indices by nel.. 
+            ab = (orb_ind(2) - nel - 1)*(orb_ind(2)-nel)/2 + orb_ind(1) - nel
+
+            nij = nel * (nel - 1) / 2 
+            ind = (ij - 1) * nij + ab 
+
+        case default 
+            call stop_all(this_routine, "higher than cc_order 2 not yet implemented!")
+        end select
+
+    end function get_ind
 
     subroutine calc_cc_amplitudes
         character(*), parameter :: this_routine = "calc_cc_amplitudes" 
 
-        integer :: idet 
+        integer :: idet, i
+        integer, allocatable :: n_excits(:)
+        type(cc_amplitude), allocatable :: cc_amp(:)
 
         ! i want to calculate the amplitudes up to a certain order given 
         ! in the input 
+
+        ! for this it is helpful to have an upper limit of the number of 
+        ! possible amplitudes 
+        if (allocated(n_excits)) deallocate(n_excits)
+        
+        allocate(n_excits(cc_order)) 
+
+        n_excits = calc_number_of_excitations(nOccAlpha, nOccBeta, cc_order, & 
+            nbasis/2)
+
+        allocate(cc_amp(cc_order))
+
+        ! and do a nice initialization depending on the order 
+        do i = 1, cc_order 
+
+            cc_amp(i)%order = i 
+            allocate(cc_amp(i)%operators(n_excits(i)))
+
+        end do
+
+        ! this info will give me the maximum number of cluster operators at 
+        ! each level.. 
 
         ! loop over all the determinants 
         do idet = 1, int(totwalkers)
@@ -137,7 +270,7 @@ contains
         deallocate(C2,stat=ierr)
         deallocate(C1,stat=ierr)
 ! end
-    subroutine dongxia_amplitudes
+    end subroutine dongxia_amplitudes
 
       pure integer function ind1(i,a)
 
