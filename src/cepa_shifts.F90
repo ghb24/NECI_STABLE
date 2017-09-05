@@ -57,7 +57,7 @@ contains
 
     subroutine init_cepa_shifts() 
         use DetBitOps, only: TestClosedShellDet
-        use FciMCData, only: projedet
+        use FciMCData, only: ilutref
 
         character(*), parameter :: this_routine = "init_cepa_shifts"
 
@@ -67,12 +67,12 @@ contains
 !         allocate(cepa_shift_double(inum_runs))
 
         print *, "init cepa shifts "
-        if (.not. allocated(projedet)) then 
+        if (.not. allocated(ilutref)) then 
             call stop_all(this_routine, "reference det not yet set!")
         end if
 
         do i = 1, inum_runs
-            if (.not. TestClosedShellDet(projedet(:,i))) then 
+            if (.not. TestClosedShellDet(ilutref(:,i))) then 
                 call stop_all(this_routine, "Cepa shifts only for closed shell reference!")
             end if
         end do
