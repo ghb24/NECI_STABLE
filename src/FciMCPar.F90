@@ -73,6 +73,7 @@ module FciMCParMod
 
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
     use back_spawn, only: init_back_spawn
+    use cc_amplitudes, only: t_cc_amplitudes, test_run
 
 #ifdef MOLPRO
     use outputResult
@@ -526,6 +527,10 @@ module FciMCParMod
             call deallocate_histograms()
         end if
 
+        if (t_cc_amplitudes) then 
+            ! for now just test if it works
+            call test_run()
+        end if
 
         ! Remove the signal handlers now that there is no way for the
         ! soft-exit part to work

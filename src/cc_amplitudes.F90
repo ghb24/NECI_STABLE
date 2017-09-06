@@ -3,11 +3,13 @@
 module cc_amplitudes 
 
     use SystemData, only: nbasis, nel, nOccAlpha, nOccBeta
-    use detbitops, only: get_bit_excitmat
-    use FciMCData, only: totwalkers, ilutref, currentdets, AllNoatHf
+    use detbitops, only: get_bit_excitmat, FindBitExcitLevel
+    use FciMCData, only: totwalkers, ilutref, currentdets, AllNoatHf, projedet
     use bit_reps, only: extract_sign
-    use constants, only: dp, lenof_sign
+    use constants, only: dp, lenof_sign, EPS, n_int, bits_n_int
     use cepa_shifts, only: calc_number_of_excitations
+    use bit_reps, only: niftot
+    use replica_data, only: AllEXLEVEL_WNorm
 
     implicit none 
 
@@ -16,8 +18,15 @@ module cc_amplitudes
     ! we need the order of cluster operators..
     integer :: cc_order = 0 
 
+    integer :: est_triples = 0, est_quads = 0
+    integer :: n_singles = 0, n_doubles = 0
     integer :: n_triples = 0, n_quads = 0
 
+!     interface get_amp 
+!         module procedure get_amp_ind
+!         module procedure get_amp_ex
+!     end interface
+ 
     ! maybe it would be nice to have a type which encodes this information 
     ! and which gives an easy and nice way to de/encode the indices 
     ! involved.. 
@@ -32,16 +41,116 @@ module cc_amplitudes
 
         procedure :: get_ex
         procedure :: get_ind
+        procedure :: get_amp => get_amp_ind
 
     end type cc_amplitude
 
     ! and make a global cc_ops 
     type(cc_amplitude), allocatable :: cc_ops(:)
 
+    integer, allocatable :: ind_maxtrix(:,:)
+
 contains 
+
+    ! for the singles setup a indexing matrix, since i only need 
+    ! ind(ex) in the end and not the other way around for now.. 
+    ! or just store the singles also! 
+    function get_amp_ind(this, ind) result(amp)
+        ! write an amplitude getter, which gives 0 if the index does not 
+        ! fit
+        class(cc_amplitude) :: this 
+        integer, intent(in) :: ind 
+        real(dp) :: amp 
+
+        if (ind == 0) then 
+            amp = 0.0_dp
+        else 
+            amp = this%amplitudes(ind)
+        end if
+
+    end function get_amp_ind
+
+    function get_amp_ex(this, elec_ind, orb_ind) result(ind)
+        class(cc_amplitude) :: this
+        integer, intent(in) :: elec_ind(this%order), orb_ind(this%order)
+        real(dp) :: amp
+
+        integer :: ind
+
+        ind = this%get_ind(elec_ind, orb_ind)
+
+        if (ind == 0) then 
+            amp = 0.0_dp 
+        else
+            amp = this%amplitudes(ind)
+        end if
+
+    end function get_amp_ex
+
+    subroutine setup_ind_matrix() 
+        character(*), parameter :: this_routine = "setup_ind_matrix"
+
+        integer :: i, j, k
+        integer(n_int) :: temp_ilut(0:niftot)
+
+        ASSERT(allocated(projedet))
+        ASSERT(allocated(iLutRef))
+
+        allocate(ind_maxtrix(nbasis, nbasis))
+        ind_maxtrix = 0
+
+        temp_ilut = iLutRef(:,1)
+        k =  1
+        do i = 1, nbasis
+            if (IsOcc(temp_ilut, i)) then 
+                ! the i is an electron in the reference! 
+                ! and for each electron index the virtuals 
+                do j = 1, nbasis
+                    ! and i should and can specify the spin here!
+                    if (IsNotOcc(temp_ilut,j) .and. same_spin(i,j)) then 
+                        ind_maxtrix(i,j) = k 
+                        k = k + 1
+                    end if
+                end do
+            end if
+        end do
+
+        print *, "max single index: ", k - 1
+
+    end subroutine setup_ind_matrix
 
     ! and now go to the routines to calculate the number of triples and 
     ! quadrupels 
+    subroutine test_run
+        integer :: n_excits(4)
+
+        print *, "testing the cc-amplitudes: "
+        print *, "------ test on the cc ------- "
+
+        n_excits = calc_number_of_excitations(nOccAlpha, nOccBeta, 4, & 
+            nbasis/2)
+
+        print *, "total number of possible excitations: " 
+        print *, n_excits
+
+        call setup_ind_matrix()
+
+        call fill_cc_amplitudes()
+        call calc_n_triples()
+        call calc_n_quads()
+
+        print *, "sampled singles: ", n_singles
+        print *, "sampled doubles: ", cc_ops(2)%n_ops
+
+        print *, "est. triples: ", est_triples
+        print *, "est. quads:   ", est_quads
+        print *, "act. singles: ", AllEXLEVEL_WNorm(0,1,1)
+        print *, "act. doubles: ", AllEXLEVEL_WNorm(0,2,1)
+        print *, "act. triples: ", AllEXLEVEL_WNorm(0,3,1)
+        print *, "act. quads:   ", AllEXLEVEL_WNorm(0,4,1)
+
+    end subroutine test_run
+
     subroutine calc_n_triples() 
         ! this routine calculates the number of "important" triples 
         ! from the samples singles and doubles amplitudes: 
@@ -53,18 +162,20 @@ contains
         do i = 1, cc_ops(1)%n_ops 
             ! for each t_i^a i have to check if a double excitation is 
             ! possible on top of it.. 
+            if (abs(cc_ops(1)%amplitudes(i)) < EPS) cycle
+
             ia = cc_ops(1)%get_ex(i)
 
             do j = 1, cc_ops(2)%n_ops
 
-                jk_cd = cc_ops(2)%operators(j,:,:)
+                jk_cd = cc_ops(2)%get_ex(j)
 
                 ! check if the operators fit..
                 if (any(ia(1,1) == jk_cd(1,:)) .or. any(ia(2,1) == jk_cd(2,:))) then
                     cycle
                 end if
                 ! if it fits increase the triples counter:
-                n_triples = n_triples + 1
+                est_triples = est_triples + 1
 
             end do
         end do
@@ -79,16 +190,16 @@ contains
         integer :: i, j, ij_ab(2,2), kl_cd(2,2)
 
         do i = 1, cc_ops(2)%n_ops 
-            ij_ab = cc_ops(2)%operators(i,:,:)
+            ij_ab = cc_ops(2)%get_ex(i)
 
             do j = i + 1, cc_ops(2)%n_ops 
 
-                kl_cd = cc_ops(2)%operators(j,:,:)
+                kl_cd = cc_ops(2)%get_ex(j)
 
                 ! can i just: any(a==b)
                 if (.not. any(ij_ab == kl_cd)) then 
 
-                    n_quads = n_quads + 1
+                    est_quads = est_quads + 1
 
                 end if
             end do
@@ -104,7 +215,7 @@ contains
         ! (i) and (a) 
         character(*), parameter :: this_routine = "fill_cc_amplitudes"
         
-        integer :: idet, ic, ex(2,cc_order), n_singles, n_doubles, j, i
+        integer :: idet, ic, ex(2,cc_order), j, i
         integer :: ia, ib, ja, jb, ind
         integer, allocatable :: n_excits(:)
 
@@ -127,35 +238,37 @@ contains
         end do
 
         allocate(cc_ops(1)%amplitudes(n_excits(1)))
+        allocate(cc_ops(1)%operators(n_excits(1),2,1))
 
-!         cc_ops(i)%operators = 0 
+        cc_ops(1)%operators = 0 
         cc_ops(1)%amplitudes = 0.0_dp
         cc_ops(1)%n_ops = n_excits(1)
 
         ! first figure out the number of double and fill the singles 
         ! amplitudes! 
-        n_doubles = 0 
-        n_singles = 0
 
         do idet = 1, int(totwalkers) 
-            ic = cc_order 
-            call get_bit_excitmat(iLutRef, CurrentDets(:,idet), ex, ic)
+            ! for now also count the exact number of triples and quadrupels
+            ic = FindBitExcitLevel(ilutRef, CurrentDets(:,idet))
             select case (ic) 
             case (1) 
                 n_singles = n_singles + 1 
                 call extract_sign(CurrentDets(:,idet), sign_tmp)
+                call get_bit_excitmat(iLutRef, CurrentDets(:,idet), ex, ic)
                 ind = cc_ops(1)%get_ind(ex(1,1),ex(2,1))
 
                 ! for now only do it for single runs.. do i need the normalising?
                 cc_ops(1)%amplitudes(ind) = sign_tmp(1) / AllNoatHf(1)
+                cc_ops(1)%operators(ind,:,:) = ex
 
             case (2) 
                 n_doubles = n_doubles + 1
 
-            case (0)
+            case (3)
+                n_triples = n_triples + 1
 
-            case default 
-                call stop_all(this_routine, "cc_order > 2 not yet implemented!")
+            case (4) 
+                n_quads = n_quads + 1
 
             end select
         end do
@@ -173,24 +286,26 @@ contains
         j = 1 
         do idet = 1, int(totwalkers)
 
-            ic = cc_order 
-            call get_bit_excitmat(iLutRef, CurrentDets(:,idet), ex, ic)
+            ic = FindBitExcitLevel(ilutRef, CurrentDets(:,idet))
 
             select case (ic) 
             case (2) 
                 call extract_sign(CurrentDets(:,idet), sign_tmp)
 
+                call get_bit_excitmat(iLutRef, CurrentDets(:,idet), ex, ic)
+
                 cc_ops(2)%operators(j,:,:) = ex 
+
                 ia = cc_ops(1)%get_ind(ex(1,1),ex(2,1))
                 ib = cc_ops(1)%get_ind(ex(1,1),ex(2,2))
                 ja = cc_ops(1)%get_ind(ex(1,2),ex(2,1))
                 jb = cc_ops(1)%get_ind(ex(1,2),ex(2,2))
 
-                associate(cc_1 => cc_ops(1)%amplitudes)
-                    cc_ops(2)%amplitudes(j) = sign_tmp(i)/AllNoatHf(1) + & 
-                        cc_1(ja)*cc_1(ib) - cc_1(ia)*cc_1(jb)
-                end associate
+                cc_ops(2)%amplitudes(j) = sign_tmp(1)/AllNoatHf(1) + & 
+                    cc_ops(1)%get_amp(ja)*cc_ops(1)%get_amp(ib) -  & 
+                    cc_ops(1)%get_amp(ia)*cc_ops(1)%get_amp(jb)
 
+                j = j + 1
             end select 
         end do
 
@@ -211,6 +326,12 @@ contains
         ASSERT(ind > 0) 
         select case (this%order) 
         case (1) 
+
+            ex = this%operators(ind,:,:)
+            return
+
+            ! fix this below if i want to actually encode that directly and 
+            ! not store the operators..
             ASSERT(ind <= nel * (nbasis - nel))
 
             ! it is a single excition so this is easy to decompose 
@@ -223,6 +344,12 @@ contains
             ex(2,1) = ex(2,1) + nel + 1
 
         case (2) 
+
+            ex = this%operators(ind,:,:)
+            return
+
+            ! fix this below if i want to actually encode that directly and 
+            ! not store the operators..
             call stop_all(this_routine, "still buggy for double excitations!")
             ! first we have to get ij, ab back: 
 
@@ -293,8 +420,8 @@ contains
 
         ! to i want to access this with invalid excitations?
         ASSERT(all(elec_ind > 0))
-        ASSERT(all(elec_ind <= nel))
-        ASSERT(all(orb_ind > nel))
+!         ASSERT(all(elec_ind <= nel))
+!         ASSERT(all(orb_ind > nel))
         ASSERT(all(orb_ind <= nbasis))
 
         ! and assert ordered inputs.. 
@@ -314,6 +441,9 @@ contains
             ! can we assume a closed shell ordered reference? 
             ! with the nel lowest orbitals occupied? 
             ! otherwise this is a bit more tricky.. 
+            ind = ind_maxtrix(elec_ind(1), orb_ind(1))
+            return
+
             ind = (elec_ind(1) - 1) * (nbasis - nel) + (orb_ind(1) - nel)
 
         case (2) 

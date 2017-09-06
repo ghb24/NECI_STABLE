@@ -175,7 +175,6 @@ contains
         test(2,1) = 4
         call assert_equals(test, cc(1)%get_ex(8), 2, 1)
 
-
         nel = -1 
         nbasis = -1
 

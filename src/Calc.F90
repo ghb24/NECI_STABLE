@@ -36,7 +36,7 @@ MODULE Calc
     use exact_spectrum
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
     use cepa_shifts, only: t_cepa_shift, cepa_method
-
+    use cc_amplitudes, only: t_cc_amplitudes, cc_order
 
     implicit none
 
@@ -2392,6 +2392,15 @@ contains
                     call readl(cepa_method)
                 else
                     cepa_method = '0'
+                end if
+
+            case ("CC-AMPLITUDES")
+                t_cc_amplitudes = .true. 
+                if (item < nitems) then 
+                    call geti(cc_order)
+                else 
+                    ! 2 is the default cc_order
+                    cc_order = 2
                 end if
 
             case default
