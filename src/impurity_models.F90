@@ -10,6 +10,7 @@ use dSFMT_interface, only: genrand_real2_dSFMT
 use constants, only: dp, n_int, eps, bits_n_int
 use util_mod, only: abs_l1
 use util_mod_numerical, only: binary_search_first_ge
+use get_excit, only: make_single, make_double
 ! This module contains utility for treating impurity models, i.e. systems 
 ! which are seperable into a (large) noninteracting bath and a (small) interacting
 ! impurity
@@ -130,41 +131,50 @@ contains
     real(dp), intent(out) :: pgen
     !type(excit_gen_store_type), intent(inout), target :: store
 
-    ! Not used
     integer(n_int), intent(out) :: ilutnJ(0:niftot)
     HElement_t(dp), intent(out) :: HElGen
 
     integer, intent(in), optional :: part_type
 
     real(dp) :: r
+    integer :: nImpEls
     character(*), parameter :: this_routine = 'gen_rand_excit'
 
     ! first, determine if a single or a double is created
-    r = genrand_real2_dSFMT()
-    if(r .lt. pSingles) then
-       IC = 1
-       ! for a single, check if it shall be within the impurity
-       ! or between bath and impurity
-       call generate_imp_single_excitation(nI,ilut,nJ,ilutnJ,ExcitMat,tParity,pGen)
+    ! if there are enoguh holes and electrons in the impurity, pick randomly
+    nImpEls = binary_search_first_ge(nI,nImp+1)
+    if(nImpEls > 1 .and. (nImp - nImpEls) > 1) then
+       r = genrand_real2_dSFMT()
+       if(r .lt. pSingles) then
+          IC = 1
+          ! for a single, check if it shall be within the impurity
+          ! or between bath and impurity
+          pGen = pSingles
+          call generate_imp_single_excitation(nI,ilut,nJ,ilutnJ,ExcitMat,tParity,pGen)
+       else
+          IC = 2
+          pGen = 1.0_dp - pSingles
+          call generate_imp_double_excitation(nI,ilut,nJ,ilutnJ,ExcitMat,tParity,pGen)
+       endif
     else
-       IC = 2
-       call generate_imp_double_excitation(nI,ilut,nJ,ilutnJ,ExcitMat,tParity,pGen)
+       pGen = 1.0_dp
+       call generate_imp_single_excitation(nI,ilut,nJ,ilutnJ,ExcitMat,tParity,pGen)
     endif
     
   end subroutine gen_excit_impurity_model
 
 !------------------------------------------------------------------------------------------!
 
-  subroutine generate_imp_single_excitation(nI,ilut,nJ,ilutnJ,ExcitMat,tParity,pGen)
+  subroutine generate_imp_single_excitation(nI,ilut,nJ,ilutnJ,ex,tParity,pGen)
     implicit none    
     integer, intent(in) :: nI(nel)
-    integer, intent(out) :: nJ(nel),ExcitMat(2,2)
+    integer, intent(out) :: nJ(nel),ex(2,2)
     logical, intent(out) :: tParity
-    real(dp), intent(out) :: pGen
+    real(dp), intent(inout) :: pGen
     integer(n_int), intent(in) :: ilut(0:niftot)
     integer(n_int), intent(out) :: ilutnJ(0:niftot)
 
-    integer :: randImp, randDest    
+    integer :: randImp, randDest, iElec
     real(dp) :: r
     
     ! randomly pick an impurity orbital as all excitations contain at least
@@ -173,22 +183,29 @@ contains
     randImp = impurityOrbitals(INT(r*nImp)+1)
     ! check if it is occupied
     r = genrand_real2_dSFMT()
-    pGen = pSingles
     if(r .lt. pBath) then
        call hamiltonian_weighted_pick_single_bath(randImp,randDest,pGen,ilut,nI)
     else
        call hamiltonian_weighted_pick_single_imp(randImp,randDest,pGen,ilut,nI)
     endif
     pGen = pGen / (nImp)
-    call assign_output_ilut(ExcitMat,ilut,ilutnJ,nJ,randImp,randDest)
+    if(IsOcc(ilut,randImp)) then
+       iElec = binary_search_first_ge(nI,randImp)
+       call make_single(nI,nJ,iElec,randDest,ex,tParity)
+       call assign_output_ilut(ilut,ilutnJ,randImp,randDest)
+    else
+       iElec = binary_search_first_ge(nI,randDest)
+       call make_single(nI,nJ,iElec,randImp,ex,tParity)
+       call assign_output_ilut(ilut,ilutnJ,randDest,randImp)
+    endif
   end subroutine generate_imp_single_excitation
 
 !------------------------------------------------------------------------------------------!
 
-  subroutine generate_imp_double_excitation(nI,ilut,nJ,ilutnJ,ExcitMat,tParity,pGen)
+  subroutine generate_imp_double_excitation(nI,ilut,nJ,ilutnJ,ex,tParity,pGen)
     implicit none    
     integer, intent(in) :: nI(nel)
-    integer, intent(out) :: nJ(nel),ExcitMat(2,2)
+    integer, intent(out) :: nJ(nel),ex(2,2)
     logical, intent(out) :: tParity
     real(dp), intent(inout) :: pGen
     integer(n_int), intent(in) :: ilut(0:niftot)
@@ -197,7 +214,6 @@ contains
     integer :: i,j,k,l
     procedure(sumFunc), pointer :: p_getImpImpMatElDoubs
     
-    pGen = 1.0_dp - pSingles
     ! pick the first electron from the impurity at random
     i = pick_random_occ_impurity(nI)
     ! then pick the second electron randomly from the remaining ones
@@ -213,7 +229,8 @@ contains
     p_getImpImpMatElDoubs => getImpImpMatElDoubs
     call cumulative_sum_wrapper(ilut,nI,i,0,nImp,.true.,p_getImpImpMatElDoubs,&
          pGen,l,j,k)
-    call assign_output_ilut(ExcitMat,ilut,ilutnJ,nJ,i,k,j,l)
+    call make_double(nI,nJ,i,j,k,l,ex,tparity)
+    call assign_output_ilut(ilut,ilutnJ,i,k,j,l)
   end subroutine generate_imp_double_excitation
 
 !------------------------------------------------------------------------------------------!
@@ -267,6 +284,8 @@ contains
 
   subroutine cumulative_sum_wrapper(ilut,nI,origin,offset,nTarget,occupancy,sfunc,&
        pGen,destination,aux_a,aux_b)
+    ! This wrapper function takes a given range of orbitals and create a cumulative 
+    ! list of the matrix elements with origin, using some function sfunc
     integer(n_int), intent(in) :: ilut(0:niftot)
     integer, intent(in) :: offset, nTarget, origin, nI(nel)
     logical, intent(in) :: occupancy
@@ -373,28 +392,20 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-  subroutine assign_output_ilut(ex,ilut,ilutnJ,nJ,i,j,k,l)
-    use bit_reps, only: decode_bit_det
+  subroutine assign_output_ilut(ilut,ilutnJ,i,j,k,l)
     implicit none
     integer, intent(in) :: i,j
     integer, intent(in), optional :: k,l
     integer(n_int), intent(in) :: ilut(0:niftot)
-    integer, intent(out) :: nJ(nel), ex(2,2)
     integer(n_int), intent(out) :: ilutnJ(0:niftot)
 
-    ex = 0
-    ex(1,1) = i
-    ex(1,2) = j
     ilutnJ = ilut
     clr_orb(ilutnJ,i)
     set_orb(ilutnJ,j)
     if(present(k) .and. present(l)) then
        clr_orb(ilutnJ,k)
        set_orb(ilutnJ,l)
-       ex(2,1) = k
-       ex(2,2) = l
     endif
-    call decode_bit_det(nJ,ilutnJ)
   end subroutine assign_output_ilut
 
 !------------------------------------------------------------------------------------------!
