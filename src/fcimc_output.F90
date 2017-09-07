@@ -636,7 +636,7 @@ contains
             ! frequently).
             ! This also makes column contiguity on resumes as likely as
             ! possible.
-#ifdef __REALTIME 
+if(t_real_time_fciqmc .or. tLogGreensfunction) then
             ! also output the overlaps and norm.. 
             do iGf = 1, gf_count
                write(tmgf, '(i5)') iGf
@@ -655,6 +655,7 @@ contains
                        trim(adjustl(tmpc)) // ' i=' // trim(adjustl(tmgf)) //')')
                enddo
             enddo
+#ifdef __REALTIME
             do p = 1, numSnapshotOrbs
                ! if any orbitals are monitored, output their population
                write(tmpc, '(i5)') snapShotOrbs(p)
@@ -662,6 +663,7 @@ contains
                     // trim(adjustl(tmpc)))
             end do
 #endif
+endif
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
 #if defined __PROG_NUMRUNS && !defined __REALTIME

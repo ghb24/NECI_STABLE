@@ -1528,7 +1528,6 @@ contains
 #ifdef __CMPLX
          replica_overlaps_imag(:, :) = 0.0_dp
 #endif
-
     end subroutine InitFCIMCCalcPar
 
     subroutine init_fcimc_fn_pointers()

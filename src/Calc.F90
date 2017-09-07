@@ -27,7 +27,7 @@ MODULE Calc
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
-                         alloc_popsfile_dets, tSearchTauOption
+                         alloc_popsfile_dets, tSearchTauOption, tLogGreensfunction
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -35,7 +35,8 @@ MODULE Calc
     use spectral_lanczos, only: n_lanc_vecs_sl
     use exact_spectrum
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
-    use real_time_data, only: t_real_time_fciqmc
+    use real_time_data, only: t_real_time_fciqmc, gf_type, allGfs, gf_count
+    use kp_fciqmc_data_mod, only: overlap_pert, tOverlapPert
 
     implicit none
 
@@ -305,6 +306,8 @@ contains
           tIncludeGroundSpectral = .false.
           alloc_popsfile_dets = .false.
           tDetermHFSpawning = .true.
+          tLogGreensfunction = .false.
+          tOverlapPert = .false.
 
           pParallel = 0.5_dp
 
@@ -2407,6 +2410,109 @@ contains
                 if (item < nitems) then 
                     call geti(occ_virt_level)
                 end if
+             case("LOG-GREENSFUNCTION")
+                ! Writes out the Greensfunction. Beware that this disables the 
+                ! dynamic shift (the Green's function wouldnt make a lot of sense)
+                tLogGreensfunction = .true.
+                gf_type = 0
+                gf_count = 1
+                allGfs = 0
+                
+            case ("LESSER")
+               tLogGreensfunction = .true.
+               alloc_popsfile_dets = .true.
+                ! lesser GF -> photo emission: apply a annihilation operator
+                tOverlapPert = .true.
+                tWritePopsNorm = .true.
+                ! i probably also can use the overlap-perturbed routines 
+                ! from nick
+                ! but since applying <y(0)|a^+_i for all i is way cheaper 
+                ! and should be done for all possible and allowed i. 
+                ! and creating all those vectors should be done in the init
+                ! step and stored, and then just calc. the overlap each time 
+                ! step
+
+                ! store the information of the type of greensfunction 
+                gf_type = -1
+                allGfs = 0
+
+                ! probably have to loop over spin-orbitals dont i? yes!
+
+                ! if no specific orbital is specified-> loop over all j! 
+                ! but only do that later: input is a SPINORBITAL!
+                if(item < nitems) then
+                   allocate(pops_pert(1))
+                   pops_pert%nannihilate = 1
+                   allocate(pops_pert(1)%ann_orbs(1))
+                   call readi(pops_pert(1)%ann_orbs(1))
+                   call init_perturbation_annihilation(pops_pert(1)) 
+                else 
+                   call stop_all(t_r, "Invalid input for Green's function")  
+                endif 
+                if (nitems == 3) then
+                   gf_count = 1
+                   !allocate the perturbation object
+
+                   ! and also the lefthand perturbation object for overlap
+                   allocate(overlap_pert(1))
+                   overlap_pert%nannihilate = 1
+                   allocate(overlap_pert(1)%ann_orbs(1))
+
+                   ! read left hand operator first
+                   call readi(overlap_pert(1)%ann_orbs(1))
+                   call init_perturbation_annihilation(overlap_pert(1))
+
+                else
+                   if(nitems == 2) then
+                      allGfs = 1
+                   else
+                      call stop_all(t_r, "Invalid input for Green's function")   
+                   endif
+                endif
+             case ("GREATER")
+               tLogGreensfunction = .true.
+                ! greater GF -> photo absorption: apply a creation operator
+                alloc_popsfile_dets = .true.
+                tOverlapPert = .true.
+                tWritePopsNorm = .true.
+
+                ! i probably also can use the overlap-perturbed routines 
+                ! from nick
+                ! but since applying <y(0)|a_i for all i is way cheaper 
+                ! and should be done for all possible and allowed i. 
+                ! and creating all those vectors should be done in the init
+                ! step and stored, and then just calc. the overlap each time 
+                ! step
+
+                ! store type of greensfunction
+                gf_type = 1
+                allGfs = 0
+                ! if no specific orbital is specified-> loop over all j! 
+                ! but only do that later
+                if(item < nitems) then
+                    allocate(pops_pert(1))                   
+                    pops_pert%ncreate = 1
+                    allocate(pops_pert(1)%crtn_orbs(1))
+                    call readi(pops_pert(1)%crtn_orbs(1))
+                    call init_perturbation_creation(pops_pert(1)) 
+                 else
+                    call stop_all(t_r, "Invalid input for Green's function")   
+                endif
+                if (nitems == 3) then
+                    ! allocate the perturbation object
+                    allocate(overlap_pert(1))
+                    overlap_pert%ncreate = 1
+                    allocate(overlap_pert(1)%crtn_orbs(1))
+                    call readi(overlap_pert(1)%crtn_orbs(1))
+                    call init_perturbation_creation(overlap_pert(1))
+                else
+                   if(nitems == 2) then
+                      allGfs = 2
+                   else
+                      call stop_all(t_r, "Invalid input for Green's function")   
+                endif
+             endif
+
 
             case default
                 call report("Keyword "                                &

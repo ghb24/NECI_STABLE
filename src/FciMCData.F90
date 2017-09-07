@@ -77,6 +77,8 @@ MODULE FciMCData
       integer, allocatable :: IterRDM_HF(:)
       real(dp), allocatable :: InstNoatHf(:)
 
+      logical :: tLogGreensfunction
+
 
       INTEGER(KIND=n_int) , ALLOCATABLE :: TempSpawnedParts(:,:)
       INTEGER :: TempSpawnedPartsTag, TempSpawnedPartsInd, TempSpawnedPartsSize

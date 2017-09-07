@@ -12,7 +12,8 @@ module real_time
                                update_gf_overlap, calc_norm, adjust_decay_channels, &
                                update_shift_damping, real_time_determ_projection, &
                                refresh_semistochastic_space, update_peak_walker_number, &
-                               makePopSnapshot, update_elapsed_time
+                               makePopSnapshot, update_elapsed_time, logTimeCurve, &
+                               get_current_alpha_from_cache, closeTauContourFile
     use real_time_data, only: gf_type,  tVerletSweep, &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
                               current_overlap, SumWalkersCyc_1, DiagParts, stepsAlpha, &
@@ -22,7 +23,8 @@ module real_time
                               NoatHF_1, shift_damping, tDynamicCoreSpace, dyn_norm_red, &
                               normsize, gf_count, tRealTimePopsfile, tStabilizerShift, &
                               tLimitShift, tDynamicAlpha, dpsi_cache, dpsi_size, &
-                              tDynamicDamping, stabilizerThresh, popSnapshot, spawnBufSize
+                              tDynamicDamping, stabilizerThresh, popSnapshot, spawnBufSize, &
+                              tLogTrajectory, tReadTrajectory
     use verlet_aux, only: init_verlet_iteration, obtain_h2_psi, update_delta_psi, &
          init_verlet_sweep, check_verlet_sweep, end_verlet_sweep
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
@@ -296,6 +298,9 @@ contains
             ! update the normalization of the greensfunction according to damping (dynamic)
             call update_shift_damping()
 
+            ! if the trajectory is logged, print alpha and tau here
+            if(tLogTrajectory) call logTimeCurve()
+
             ! update the overlap each time
             ! rmneci_setup: computation of instantaneous projected norm is shifted to here
             if(mod(iter, StepsSft) == 0) then 
@@ -314,6 +319,8 @@ contains
                   end do
 
                   !normalize the greens function
+                  ! averaging should probably be done over the normalized
+                  ! GFs
                   overlap_buf(j) = sum(gf_overlap(:,j))/sum(dyn_norm_red(:,j)) * &
                        sum(exp(shift_damping))/inum_runs
 
@@ -322,6 +329,15 @@ contains
                end do
                call update_real_time_iteration(iterRK)
             endif
+
+            if(mod(iter,stepsAlpha)==0 .and. (tDynamicAlpha .or. tDynamicDamping)) then
+               call adjust_decay_channels()
+               ! the verlet scheme only works for constant time step, hence, upon adjusting
+               ! the time step, we need to do another iteration of RK2
+               if(tVerletScheme) call end_verlet_sweep()
+            endif
+
+
             if(tVerletScheme) call check_verlet_sweep(iterRK)
 
             ! if a threshold value is set, check it
@@ -384,6 +400,8 @@ contains
            call WriteToPopsfileParOneArr(CurrentDets,TotWalkers,rtPOPSFILE_name)
         endif
 
+        if(tLogTrajectory) call closeTauContourFile()
+
         if(tWriteCoreEnd) call write_most_pop_core_at_end(write_end_core_size)
         
         deallocate(norm_buf, stat = i)
@@ -432,8 +450,8 @@ contains
         ! combine log_real_time into this routine too! 
         ! get the norm of the state
 
-        ! get the latest number of walkers
-        ! this is done in the annihilation routine at the end of the iteration
+        if(tReadTrajectory) call get_current_alpha_from_cache
+
         call calculate_new_shift_wrapper(second_spawn_iter_data, totParts, &
              tPairedReplicas)
 
@@ -453,13 +471,7 @@ contains
            ! and do not forget to communicate the decision
            call MPIBcast(tSinglePartPhase)
         end if     
-        
-        if(mod(iter,stepsAlpha)==0 .and. (tDynamicAlpha .or. tDynamicDamping)) then
-           call adjust_decay_channels()
-           ! the verlet scheme only works for constant time step, hence, upon adjusting
-           ! the time step, we need to do another iteration of RK2
-           if(tVerletScheme) call end_verlet_sweep()
-        endif
+
         call rotate_time()
     end subroutine update_real_time_iteration
 

@@ -28,9 +28,10 @@ module real_time_init
                               TotPartsLastAlpha, alphaDamping, tDynamicDamping, iterInit, &
                               etaDamping, tStartVariation, rotThresh, stabilizerThresh, &
                               tInfInit,  popSnapshot, snapshotOrbs, phase_factors, tVerletSweep, &
-			      numSnapshotOrbs, tLowerThreshold, t_kspace_operators, tVerletScheme
+			      numSnapshotOrbs, tLowerThreshold, t_kspace_operators, tVerletScheme, &
+                              tLogTrajectory, tReadTrajectory, alphaCache, tauCache, trajFile
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
-                               calc_norm, clean_overlap_states
+                               calc_norm, clean_overlap_states, openTauContourFile
     use verlet_aux, only: backup_initial_state, setup_delta_psi
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
     use Parallel_neci
@@ -64,7 +65,6 @@ module real_time_init
 
     implicit none
 
-    logical :: tmemoryfacdiagset
     real(dp) :: benchmarkEnergy
 
 contains
@@ -118,16 +118,8 @@ contains
         ! a simulation
       implicit none
         character(*), parameter :: this_routine = "setup_real_time_fciqmc"
-        complex(dp), allocatable :: norm_buf(:)
         integer :: ierr,  j, run, indicator
 
-        ! also need to create the perturbed ground state to calculate the 
-        ! overlaps to |y(t)> 
-
-        ! so have to call this routine before the InitFCIMCCalcPar, where the 
-        ! time evolved y(t) will be stored in the CurrentDets array
-
-        call create_perturbed_ground()
 
         ! the new total momentum has to be constructed before the 
         ! time-evolved state is read in, as the latter deletes the 
@@ -145,13 +137,10 @@ contains
            endif
         endif
 
-        if(tRealTimePopsfile) call readTimeEvolvedState()
-
         ! allocate the according quantities! 
         ! n_time_steps have to be set here!
         print *, " Allocating greensfunction and wavefunction norm arrays!"
         ! allocate an additional slot for initial values
-        normsize = inum_runs**2
         if(numSnapshotOrbs>0) then 
            allocate(popSnapshot(numSnapshotOrbs),stat=ierr)
            allocate(allPopSnapshot(numSnapshotOrbs),stat=ierr)
@@ -163,48 +152,20 @@ contains
            popSnapshot = 0.0_dp
            allPopSnapshot = 0.0_dp
         endif
-        allocate(overlap_real(gf_count),overlap_imag(gf_count))
-        allocate(gf_overlap(normsize,gf_count), stat = ierr)
-        allocate(pert_norm(normsize,gf_count),stat = ierr)
-        allocate(dyn_norm_psi(normsize),stat = ierr)
-        dyn_norm_psi = 1.0_dp
-        allocate(dyn_norm_red(normsize,gf_count), stat = ierr)
         allocate(gs_energy(inum_runs),stat = ierr)
-        allocate(current_overlap(normsize,gf_count),stat = ierr)
         allocate(temp_freeslot(MaxWalkersPart),stat = ierr)
         allocate(TotPartsPeak(inum_runs),stat = ierr)
-        if(.not. allocated(shift_damping)) then 
-           allocate(shift_damping(inum_runs), stat = ierr)
-           shift_damping = 0.0_dp
-        endif
         allocate(numCycShiftExcess(inum_runs), stat = ierr)
         numCycShiftExcess = 0
         ! allocate spawn buffer for verlet scheme
         if(tVerletScheme) allocate(spawnBuf(0:niftot,1:maxSpawned))
 
-        gf_overlap = 0.0_dp
         TotPartsPeak = 0.0_dp
         gs_energy = benchmarkEnergy
-        
-        ! if a ground-state POPSFILE is used, we need to ensure coherence between the replicas
-        if(.not. tRealTimePopsfile) call equalize_initial_phase()
-        allocate(norm_buf(normsize),stat=ierr)
-        ! to avoid dividing by 0 if not all entries get filled
-        pert_norm = 1.0_dp
-        norm_buf = calc_norm(CurrentDets,int(TotWalkers))
-        call MPIReduce(norm_buf,MPI_SUM,dyn_norm_psi)
-        do j = 1,gf_count
-           ! calc. the norm of the perturbed ground states
-           norm_buf = calc_norm(overlap_states(j)%dets,overlap_states(j)%nDets)
-           print *, "CHECKSUM", TotWalkers, overlap_states(j)%nDets
-           ! the norm (squared) can be obtained by reduction over all processes
-           call MPIReduce(norm_buf,MPI_SUM,pert_norm(:,j))
-           ! for diagonal green's functions, this is the same as pert_norm, but 
-           ! in general, this general normalization is required.
-           dyn_norm_red(:,j) = pert_norm(:,j)
-        enddo
 
-        deallocate(norm_buf)
+        call init_overlap_buffers()
+
+        if(tRealTimePopsfile) call readTimeEvolvedState()
         
         ! check for set lms.. i think that does not quite work yet 
         print *, "mz spin projection: ", lms
@@ -329,11 +290,14 @@ contains
            tau = tau/iterInit
         endif
 
+        if(tReadTrajectory) call read_in_trajectory()
+
         call rotate_time()           
 
     end subroutine setup_real_time_fciqmc
 
     subroutine rotate_time()
+      implicit none
       ! to avoid code multiplication
       if(t_rotated_time) then
          tau_imag = - sin(real_time_info%time_angle)*tau
@@ -344,420 +308,56 @@ contains
       endif
     end subroutine rotate_time
 
-    ! need a real-time calc read_input routine to seperate that as much 
-    ! from the rest of the code as possible! 
-    subroutine real_time_read_input()
-        use input_neci
-        implicit none
-        logical :: eof
-        character(100) :: w
-        character(*), parameter :: this_routine = "real_time_read_input"
-        integer, parameter :: lesser = -1, greater = 1
-        integer :: i,j
-	integer, allocatable :: buffer(:)
+    subroutine init_overlap_buffers
+      implicit none
+      ! this subroutine sets up everything required to compute green's functions
+      integer :: ierr, j
+      complex(dp), allocatable :: norm_buf(:)
 
-        ! set the flag that this is a real time calculation
-        t_real_time_fciqmc = .true.
+      normsize = inum_runs**2      
+      allocate(overlap_real(gf_count),overlap_imag(gf_count))
+      allocate(gf_overlap(normsize,gf_count), stat = ierr)
+      allocate(pert_norm(normsize,gf_count),stat = ierr)
+      allocate(dyn_norm_psi(normsize),stat = ierr)
+      dyn_norm_psi = 1.0_dp
+      allocate(dyn_norm_red(normsize,gf_count), stat = ierr)
+      allocate(current_overlap(normsize,gf_count),stat = ierr)
 
-        ! and set default values for the real-time calculation
-        call set_real_time_defaults()
+      gf_overlap = 0.0_dp
 
-        real_time: do
-            call read_line(eof)
-            if (eof) then
-                ! end of file reached
-                exit
-            end if
-            call readu(w)
+      ! also need to create the perturbed ground state to calculate the 
+      ! overlaps to |y(t)> 
+      call create_perturbed_ground()
 
-            select case (w)
-            ! have to enter all the different input options here
+      ! if a ground-state POPSFILE is used, we need to ensure coherence between the replicas
+      if(.not. tRealTimePopsfile) call equalize_initial_phase()
 
-            case("VERLET")
-               ! using a verlet algorithm instead of the second order runge-kutta
-               tVerletScheme = .true.
-               if(item < nitems) call readi(iterInit)
-               if(stepsAlpha .eq. 1) write(6,*) "Warning: STEPSALPHA is 1. Ignoring VERLET keyword"
+      allocate(norm_buf(normsize),stat=ierr)
+      ! to avoid dividing by 0 if not all entries get filled
+      pert_norm = 1.0_dp
+      norm_buf = calc_norm(CurrentDets,int(TotWalkers))
+      call MPIReduce(norm_buf,MPI_SUM,dyn_norm_psi)
+      do j = 1,gf_count
+         ! calc. the norm of the perturbed ground states
+         norm_buf = calc_norm(overlap_states(j)%dets,overlap_states(j)%nDets)
+         print *, "CHECKSUM", TotWalkers, overlap_states(j)%nDets
+         ! the norm (squared) can be obtained by reduction over all processes
+         call MPIReduce(norm_buf,MPI_SUM,pert_norm(:,j))
+         ! for diagonal green's functions, this is the same as pert_norm, but 
+         ! in general, this general normalization is required.
+         dyn_norm_red(:,j) = pert_norm(:,j)
+      enddo
 
-            case ("DAMPING")
-                ! to reduce the explosive spread of walkers through the 
-                ! Hilbert space a small imaginery energy can be introduced in
-                ! the Schroedinger equation id/dt y(t) = (H-E0-ie)y(t)
-                call readf(real_time_info%damping)
+      deallocate(norm_buf)
 
-             case("ROTATE-TIME")
-                ! If the time is to be rotated by some angle time_angle to increase 
-                ! stability, this can be set here
-                t_rotated_time = .true.
-                call readf(real_time_info%time_angle)
+      if(.not. allocated(shift_damping)) then 
+         allocate(shift_damping(inum_runs), stat = ierr)
+         shift_damping = 0.0_dp
+      endif
 
-            ! use nicks perturbation & kp-fciqmc stuff here as much as 
-            ! possible too
+      if(tLogTrajectory) call openTauContourFile()
 
-            ! just compute the time-evolution of a singly excited state (with
-            ! reference to the ground state. This gives the contribution of
-            ! this state to the spectrum
-             case("SINGLE")
-            ! deprecated, replace by MULTI
-                alloc_popsfile_dets = .true.
-                tWritePopsNorm = .true.
-                allocate(pops_pert(1))
-                pops_pert%nannihilate = 1
-                pops_pert%ncreate = 1
-                allocate(pops_pert(1)%crtn_orbs(1))
-                allocate(pops_pert(1)%ann_orbs(1))
-                call readi(pops_pert(1)%ann_orbs(1))
-                call readi(pops_pert(1)%crtn_orbs(1))
-                call init_perturbation_annihilation(pops_pert(1))
-                call init_perturbation_creation(pops_pert(1))
-                allocate(overlap_pert(1))
-                overlap_pert%nannihilate = 1
-                overlap_pert%ncreate = 1
-                allocate(overlap_pert(1)%crtn_orbs(1))
-                allocate(overlap_pert(1)%ann_orbs(1))
-                overlap_pert(1)%crtn_orbs(1)=pops_pert(1)%crtn_orbs(1)
-                overlap_pert(1)%ann_orbs(1)=pops_pert(1)%ann_orbs(1)
-                call init_perturbation_annihilation(overlap_pert(1))
-                call init_perturbation_creation(overlap_pert(1))
-
-            ! TODO: MAJOR: Add feature for applying multiple annihilation operators
-            ! AND: Add feature for applying momentum annihilators to states in the
-            ! real-space basis
-
-             case("KSPACE")
-                ! Apply the perturbations in kspace. This only does something for real
-                ! space hubbard, else it is the default
-                t_kspace_operators = .true.
-
-             ! Arbitrary perturbation on the initial state, always get the overlap
-             ! with the initial state
-             case("MULTI")
-                alloc_popsfile_dets = .true.
-                tWritePopsNorm = .true.
-                allocate(pops_pert(1))
-                allocate(overlap_pert(1))
-                allocate(buffer(nel))
-                j=0
-                ! first, read all orbitals to which particles shall be added
-                do
-                   if(item==nitems) exit
-                   call readi(i)
-                   ! -1 is the terminator for creation and indicates that all following 
-                   ! orbitals are to be annihilated
-                   if(i==-1) exit
-                   j=j+1
-                   ! as the size of pops_pert is unknown, use a buffer
-                   buffer(j)=i
-                enddo
-                ! allocate creation operators
-                if(j>0) then
-                   pops_pert%ncreate = j
-                   allocate(pops_pert(1)%crtn_orbs(j))
-                ! we take the overlap with the initial state, so overlap_pert == pops_pert
-                   overlap_pert%ncreate = j
-                   allocate(overlap_pert(1)%crtn_orbs(j))
-                   do i=1,j
-                      pops_pert(1)%crtn_orbs(i)=buffer(i)
-                      overlap_pert(1)%crtn_orbs(i)=pops_pert(1)%crtn_orbs(i)
-                   end do
-                endif
-                j=0
-                ! now, read in all orbitals from which particles shall be removed
-                do
-                   if(item==nitems) exit
-                   j=j+1
-                   call readi(buffer(j))
-                enddo
-                ! again, allocate annihilation operators
-                if(j>0) then
-                   pops_pert%nannihilate = j
-                   overlap_pert%nannihilate = j
-                   allocate(pops_pert(1)%ann_orbs(j))
-                   allocate(overlap_pert(1)%ann_orbs(j))
-                   do i=1,j
-                      pops_pert(1)%ann_orbs(i)=buffer(i)
-                      overlap_pert(1)%ann_orbs(i)=pops_pert(1)%ann_orbs(i)
-                   end do
-                endif
-                call init_perturbation_annihilation(pops_pert(1))
-                call init_perturbation_creation(pops_pert(1))
-                call init_perturbation_annihilation(overlap_pert(1))
-                call init_perturbation_creation(overlap_pert(1))
-                deallocate(buffer)
-                
-            ! the most important info is if it is the photoemmission(lesser GF)
-            ! or photoabsorption (greater GF) and the orbital we want the 
-            ! corresponding operator apply on 
-            ! the type of GF considered also changes the sign of the FT exponent
-
-            ! decision for now: input a specific GF matrix element and the type 
-            ! of the greensfunction to be calculated(lesser,greater) eg:
-            ! lesser i j : <y(0)| a^+_i a_j |y(0)> 
-            case ("LESSER")
-               alloc_popsfile_dets = .true.
-                ! lesser GF -> photo emission: apply a annihilation operator
-                tOverlapPert = .true.
-                tWritePopsNorm = .true.
-                ! i probably also can use the overlap-perturbed routines 
-                ! from nick
-                ! but since applying <y(0)|a^+_i for all i is way cheaper 
-                ! and should be done for all possible and allowed i. 
-                ! and creating all those vectors should be done in the init
-                ! step and stored, and then just calc. the overlap each time 
-                ! step
-
-                ! store the information of the type of greensfunction 
-                gf_type = lesser
-               
-
-                ! probably have to loop over spin-orbitals dont i? yes!
-
-                ! if no specific orbital is specified-> loop over all j! 
-                ! but only do that later: input is a SPINORBITAL!
-                if(item < nitems) then
-                   allocate(pops_pert(1))
-                   pops_pert%nannihilate = 1
-                   allocate(pops_pert(1)%ann_orbs(1))
-                   call readi(pops_pert(1)%ann_orbs(1))
-                   call init_perturbation_annihilation(pops_pert(1)) 
-                else 
-                   call stop_all(this_routine, "Invalid input for Green's function")  
-                endif 
-                if (nitems == 3) then
-                   gf_count = 1
-                   !allocate the perturbation object
-
-                   ! and also the lefthand perturbation object for overlap
-                   allocate(overlap_pert(1))
-                   overlap_pert%nannihilate = 1
-                   allocate(overlap_pert(1)%ann_orbs(1))
-
-                   ! read left hand operator first
-                   call readi(overlap_pert(1)%ann_orbs(1))
-                   call init_perturbation_annihilation(overlap_pert(1))
-
-                else
-                   if(nitems == 2) then
-                      allGfs = 1
-                   else
-                      call stop_all(this_routine, "Invalid input for Green's function")   
-                   endif
-                endif
-             case ("GREATER")
-                ! greater GF -> photo absorption: apply a creation operator
-                alloc_popsfile_dets = .true.
-                tOverlapPert = .true.
-                tWritePopsNorm = .true.
-
-                ! i probably also can use the overlap-perturbed routines 
-                ! from nick
-                ! but since applying <y(0)|a_i for all i is way cheaper 
-                ! and should be done for all possible and allowed i. 
-                ! and creating all those vectors should be done in the init
-                ! step and stored, and then just calc. the overlap each time 
-                ! step
-
-                ! store type of greensfunction
-                gf_type = greater
-
-                ! if no specific orbital is specified-> loop over all j! 
-                ! but only do that later
-                if(item < nitems) then
-                    allocate(pops_pert(1))                   
-                    pops_pert%ncreate = 1
-                    allocate(pops_pert(1)%crtn_orbs(1))
-                    call readi(pops_pert(1)%crtn_orbs(1))
-                    call init_perturbation_creation(pops_pert(1)) 
-                 else
-                    call stop_all(this_routine, "Invalid input for Green's function")   
-                endif
-                if (nitems == 3) then
-                    ! allocate the perturbation object
-                    allocate(overlap_pert(1))
-                    overlap_pert%ncreate = 1
-                    allocate(overlap_pert(1)%crtn_orbs(1))
-                    call readi(overlap_pert(1)%crtn_orbs(1))
-                    call init_perturbation_creation(overlap_pert(1))
-                else
-                   if(nitems == 2) then
-                      allGfs = 2
-                   else
-                      call stop_all(this_routine, "Invalid input for Green's function")   
-                endif
-             endif
-
-            case ("SCALE-POPULATION")
-                tScalePopulation = .true.
-		
-	    case("LOWER-THRESHOLD")
-		tLowerThreshold = .true.
-
-             case ("FULLY-ROTATED")
-                ! for testing purposes, it is useful to do pure imaginary
-                ! time evolution with the rotated time algorithm -> this is
-                ! enabled by this keyword 
-                ! in addition, this disables the usage of input POPSFILEs for
-                ! more efficient ground state search (the real-time POPSFILE 
-                ! read-in settings are not useful for ground state search)
-                tStartSinglePart = .true.
-                t_rotated_time = .true.
-                tWalkContGrow = .true.
-                real_time_info%time_angle = 2*atan(1.0_dp)
-                
-             case("PRINT-POP")
-                ! include the time-dependent population of targeted orbitals into
-                ! the output. This requires them to be evaluated on the fly
-                numSnapShotOrbs = 0
-                allocate(buffer(nitems+1))
-                do
-                   if(item < nitems) then
-                      numSnapShotOrbs = numSnapShotOrbs + 1
-                      ! nBasis is not defined at this point, so we cannot check if
-                      ! there are too many items given - no serious input will contain
-                      ! more arguments than basis states anyway
-                      call readi(buffer(numSnapShotOrbs))
-                   else
-                      exit
-                   endif
-                end do
-                allocate(snapShotOrbs(numSnapShotOrbs))
-                snapShotOrbs(1:numSnapShotOrbs) = buffer(1:numSnapShotOrbs)
-                deallocate(buffer)
-
-             case("NOSHIFT")
-                ! disabling the shift gives higher precision results as no
-                ! renormalization of the norm by a dynamic factor is made
-                ! note that the walker number will grow exponentially in this
-                ! scenario, however
-                asymptoticShift = 0.0_dp
-                ! might want to set DiagSft = 0.0_dp but there migth also be some cases
-                ! in which this is unwanted
-                tStaticShift = .true.
-
-             case("START-HF")
-                ! do not read in an initial state from a POPSFILE and apply a perturbation
-                ! but start right away in the HF as the initial state does not matter in 
-                ! principle for the spectrum
-                tReadPops = .false.
-                tStartSinglePart = .true.
-               
-             case("STABILIZE-WALKERS")
-                ! enabling this activates the dynamic shift as soon as the walker number drops
-                ! below 80% of the peak value
-                tStabilizerShift = .true.
-                if(item < nitems) then
-                   call readf(asymptoticShift)
-                   tStaticShift = .true.
-                endif
-
-             case("ENERGY-BENCHMARK")
-                ! one can specify an energy which shall be added as a global shift
-                ! to the hamiltonian. Useful for getting transition energies
-                call readf(benchmarkEnergy)
-
-             case("DYNAMIC-CORE")
-                tDynamicCoreSpace = .true.
-                ! if dynamic core is set, the core space for semistochastic treatment is 
-                ! updated every few hundred iterations according to the currently most
-                ! occupied determinants
-                
-            case ("COMPLEX-INTEGRALS")
-                ! in the real-time implementation, since we need the complex 
-                ! functionality anyway, we have to additionally tell the 
-                ! program, that the FCIDUMP input is complex
-                ! the default is that they are real! 
-                t_complex_ints = .true.
-                
-             case("NSPAWNMAX")
-                ! specify a maximum number of spawn attempts per determinant in
-                ! regulation mode (i.e. for large number of spawns)
-                call readi(nspawnMax)
-                
-             case("COMPLEXWALKERS-COMPLEXINTS")
-                ! if we really use complex integrals, we have to tell as the
-                ! default is using real integrals with complex walkers
-                tComplexWalkers_RealInts = .false.
-                
-             case("RT-POPS")
-                ! in addition to the 'normal' popsfile, a second one is supplied
-                ! containing a time evolved state
-                tRealTimePopsfile = .true.
-
-             case("OVERPOPULATE")
-                ! enabling sets the options for time-dependent shift and rotation 
-                ! such that a positive shift will occur with a stable walker number
-                t_rotated_time = .true.
-                tDynamicAlpha = .true.
-                ! this is done by pinning the shift to some positive value and
-                ! then auto-adjusting the rotation
-                tStaticShift = .true.
-                ! here, rotation and shift variation have to start at the same point 
-                ! (in principle, it is only required that the rotation does not start 
-                ! before shift variation) to prevent the rotation from converging on
-                ! its own, circumventing the overpopulation via positive shift
-                tOverpopulate = .true.
-                ! it is most efficient to turn on the shift after equilibration of the angle
-                ! so this is done via the stabilize-walkers feature
-                tStabilizerShift = .true.
-                if(item < nitems) then
-                   call readf(asymptoticShift)
-                else
-                   asymptoticShift = 2.0_dp
-                endif
-               
-             case("DYNAMIC-ROTATION")
-                ! this automatically adjusts the temporal rotation to find a minimal 
-                ! alpha guaranteeing a fixed walker number
-                tDynamicAlpha = .true.
-                t_rotated_time = .true.
-                if(item < nitems) call readf(alphaDamping)
-
-             case("ROTATION-THRESHOLD")
-                ! number of walkers at which the variation of rotation angle starts
-                ! 0 by default
-                call readi(rotThresh)
-
-             case ("STEPSALPHA")
-                ! length of the decay channel update cycle (in timesteps)
-                ! i.e. angle of rotation and damping
-                call readi(stepsAlpha)
-                if(stepsAlpha .eq. 1 .and. tVerletScheme) write(6,*) &
-                     "Warning: STEPSALPHA is 1. Ignoring VERLET keyword"
-                
-
-             case("DYNAMIC-DAMPING")
-                ! allow the damping to be time-dependent 
-                ! optional: damping parameter for the adjustment of eta
-                tDynamicDamping = .true.
-                if(item < nitems) call readf(etaDamping)
-
-             case("LIMIT-SHIFT")
-                ! limits the shift to some maximum value. On short times, the threshold
-                ! can be exceeded.
-                tLimitShift = .true.
-                ! optional argument: threshold value (absolute value!). Default is 3
-                if(item < nitems) call readf(shiftLimit)
-
-             case("INFINITE-INIT")
-                ! use the initiator adaptiation without any inititators - works well
-                ! in some real-time applications
-                ! this is not equivalent to switching on initiators without the
-                ! addtoinitiator keyword as infinite-init will also remove all
-                ! existing inititators
-                tInfInit = .true.
-                tAddtoInitiator = .true.
-                tTruncInitiator = .true.
-
-            case ("ENDREALTIME")
-                exit real_time
-
-            case default
-               call report("Keyword "//trim(w)//" not recognized in REALTIME block",.true.)
-
-            end select 
-        end do real_time
-
-    end subroutine real_time_read_input
+    end subroutine init_overlap_buffers
 
     ! write a routine which sets the defauls values, and maybe even turns off
     ! certain otherwise non-compatible variable to the appropriate values
@@ -887,6 +487,10 @@ contains
 
         ! and we allow normal usage of inititators
         tInfInit = .false.
+
+        ! and we do not print out the contour separately
+        tLogTrajectory = .false.
+        tReadTrajectory = .false.
     end subroutine set_real_time_defaults
 
     ! need a specific popsfile read function for the real-time calculation
@@ -1123,6 +727,8 @@ contains
       end if
     end subroutine setup_single_perturbation
 
+!------------------------------------------------------------------------------------------!
+
     subroutine dealloc_real_time_memory
       use replica_data, only: clean_iter_data
       implicit none
@@ -1146,8 +752,12 @@ contains
       call clean_overlap_states()
       call clear_pops_pert(pops_pert)
       call clear_pops_pert(overlap_pert)
+      
+      if(allocated(tauCache)) deallocate(tauCache)
 
     end subroutine dealloc_real_time_memory
+
+!------------------------------------------------------------------------------------------!
 
     subroutine clear_pops_pert(perturbs)
       use FciMCData, only : perturbation
@@ -1164,5 +774,40 @@ contains
          end do
       endif
     end subroutine clear_pops_pert
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine read_in_trajectory
+      use CalcData, only: nmcyc
+      use real_time_data, only: tauCache, alphaCache
+      implicit none
+      integer :: i, iunit
+      logical :: checkTraj
+      character(*), parameter :: this_routine = "read_in_trajectory"
+      
+      call get_unique_filename('tauContour',.false.,.false.,0,trajFile)
+      iunit = get_free_unit()
+      inquire(file=trajFile,exist=checkTraj)
+      if(.not. checkTraj) call stop_all(this_routine,"No tauContour file detected.")
+      
+
+      ! We first need to read in the number of cycles
+      open(iunit,file=trajFile,status='old',position='append')
+      backspace(iunit)
+      read(iunit,*) nmcyc
+      close(iunit)
+
+      ! Then, the cache for the values of alpha and tau is allocated
+      allocate(tauCache(nmcyc))
+      allocate(alphaCache(nmcyc))
+
+      ! And then the values for alpha/tau
+      open(iunit,file=trajFile,status='old')
+      ! Here, we read in the timesteps and alphas that shall be used
+      do i = 1,nmcyc
+         read(iunit,*) tauCache(i), alphaCache(i)
+      enddo
+      close(iunit)
+    end subroutine read_in_trajectory
     
 end module real_time_init

@@ -242,7 +242,7 @@ subroutine NECICalcInit(iCacheFlag)
 
     use System, only : SysInit
     use SystemData, only : tRotateOrbs,tFindCINatOrbs
-    use Integrals_neci, only : IntInit,IntFreeze,tPostFreezeHF,DumpFCIDUMP,getConnections
+    use Integrals_neci, only : IntInit,IntFreeze,tPostFreezeHF,DumpFCIDUMP
     use IntegralsData, only : tDumpFCIDUMP
     use DetCalc, only : DetCalcInit,DoDetCalc
     use Determinants, only : DetPreFreezeInit,DetInit

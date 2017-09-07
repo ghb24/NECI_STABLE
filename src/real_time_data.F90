@@ -201,5 +201,10 @@ module real_time_data
     ! to keep stats correclty
     integer :: runge_kutta_step
 
+    logical :: tLogTrajectory, tReadTrajectory
+    integer :: iunitCycLog
+    real(dp), allocatable :: tauCache(:), alphaCache(:)
+    character(255) :: trajFile
+    logical :: tGenerateCoreSpace
 
 end module real_time_data

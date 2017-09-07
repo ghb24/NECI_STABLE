@@ -30,6 +30,9 @@ module fcimc_iter_utils
     use FciMCData
     use constants
     use util_mod
+    use real_time_procs, only: normalize_gf_overlap
+    use real_time_data, only: current_overlap, overlap_real, overlap_imag, &
+         t_real_time_fciqmc
 #ifdef __REALTIME
     use real_time_data, only: SpawnFromSing_1, AllSpawnFromSing_1, &
         NoBorn_1, NoDied_1, AllNoBorn_1, AllNoDied_1, NoAtDoubs_1, AllNoAtDoubs_1, &
@@ -126,11 +129,11 @@ contains
         call MPIBCast(tRestart)
         if(tRestart) then
             ! a restart not wanted in the real-time fciqmc.. 
-#ifdef __REALTIME 
-           write(6,*) "NUMBER OF WALKERS", AllTotParts
-            call stop_all(this_routine, &
-                "a restart due to all died walkers not wanted in the real-time fciqmc!")
-#endif
+           if(t_real_time_fciqmc .or. tLogGreensfunction) then
+              write(6,*) "NUMBER OF WALKERS", AllTotParts
+              call stop_all(this_routine, &
+                   "a restart due to all died walkers not wanted in the real-time fciqmc!")
+           endif
 !Initialise variables for calculation on each node
             Iter=1
             CALL DeallocFCIMCMemPar()
@@ -1171,6 +1174,10 @@ contains
         if(tRestart) return
         call population_check ()
         call update_shift (iter_data)
+        if(tLogGreensfunction) then 
+           DiagSft = 0.0_dp
+           call normalize_gf_overlap(current_overlap, overlap_real, overlap_imag, .false.)
+        endif
         if (tPrintDataTables) then
             if (tFCIMCStats2) then
                 call write_fcimcstats2(iter_data_fciqmc)

@@ -8,7 +8,7 @@ module real_time_procs
                     add_hash_table_entry, fill_in_hash_table
     use SystemData, only: nel, nBasis
     use real_time_data, only: gf_overlap, TotWalkers_orig, overlap_states, tInfInit, &
-                              t_complex_ints, real_time_info, temp_freeslot, & 
+                              t_complex_ints, real_time_info, temp_freeslot, dyn_norm_red, & 
                               temp_det_list, temp_det_pointer,  temp_iendfreeslot, &
                               temp_det_hash, temp_totWalkers, pert_norm, allGfs, &
                               valid_diag_spawns, DiagParts, n_diag_spawned, tOverpopulate, &
@@ -17,7 +17,8 @@ module real_time_procs
                               shift_damping, normsize, tStabilizerShift, dyn_norm_psi, &
                               TotPartsPeak, numCycShiftExcess, shiftLimit, t_kspace_operators, &
                               tDynamicAlpha, tDynamicDamping, stepsAlpha, phase_factors, &
-                              elapsedImagTime, elapsedRealTime, tStaticShift, asymptoticShift
+                              elapsedImagTime, elapsedRealTime, tStaticShift, asymptoticShift, &
+                              iunitCycLog, trajFile, tauCache, alphaCache
     use real_time_aux, only: write_overlap_state
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
@@ -27,7 +28,7 @@ module real_time_procs
                         flag_has_been_initiator, flag_deterministic, encode_part_sign, &
                         nullify_ilut_part, get_initiator_flag, get_initiator_flag_by_run, &
                         clr_flag
-                        
+    use util_mod, only: get_free_unit, get_unique_filename
     use bit_rep_data, only: extract_sign, nifdbo, niftot
     use FciMCData, only: CurrentDets, HashIndex, popsfile_dets, MaxWalkersPart, &
                          WalkVecDets, freeslot, spawn_ht, nhashes_spawn, MaxSpawned, &
@@ -70,6 +71,8 @@ module real_time_procs
 
 contains
 
+!------------------------------------------------------------------------------------------!
+
     subroutine DirectAnnihilation_diag(TotWalkersNew, iter_data, tSingleProc)
         ! new direct annihilation routine to mimick the diagonal death step
         ! in the y(n) + k2 combination between reloaded CurrentDets and the 
@@ -103,6 +106,8 @@ contains
         ! step, within the 'regular' annihilation
         
     end subroutine DirectAnnihilation_diag
+
+!------------------------------------------------------------------------------------------!
 
     subroutine AnnihilateDiagParts(ValidSpawned, TotWalkersNew, iter_data)
         ! this is the new "annihilation" routine which mimics the actual 
@@ -169,33 +174,8 @@ contains
                    ! I dont see why DiagParts has to be nullified. In the verlet scheme 
                    ! warmup, we might want to use DiagParts afterwards
                    call encode_sign(DiagParts(:,i), null_part)
-
-                    ! If we are spawning onto a site and growing it, then
-                    ! count that spawn for initiator purposes.
-                    ! not sure if this function is even used ever
-                    ! if (any(signprod > 0)) call inc_spawn_count(PartInd)
-
-                    ! stick with the old convention on how to count deaths / 
-                    ! births in the walker_death routine
-                    ! i changed the sign of the child_sign when filling up 
-                    ! the diag_parts list.. so i have to change that here 
-                    ! again.. 
-                    ! rt_iter_adapt : this will be counted below
-                    ! iter_data%ndied = iter_data%ndied + &
-                    !    min(-SpawnedSign,abs(CurrentSign))
-                    
-                    ! how does that combine with the nAborted below..? todo
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
-                        ! here it seems, it treats both the real and complex 
-                        ! walker occupation for the same initiator criteria
-                        ! meaning if, any of the real or imaginary occupations
-                        ! is an initiator, the whole determinant is an 
-                        ! initiator.. hm.. do i want this? if yes i have 
-                        ! to change a lot of the previous implemented code 
-                        ! which distinguished between real and imaginary 
-                        ! initiators..
-                        ! for now, stick to the distinction! but ask ali! 
                         if (is_run_unnocc(CurrentSign,run)) then
                            ! This determinant is actually *unoccupied* for the
                            ! walker type/set we're considering. We need to
@@ -213,15 +193,6 @@ contains
                             ! y(n) + k2 i have to check if the "spawned" 
                             ! particle is actually a diagonal death/born
                             ! walker
-                            ! UPDATE! we changed that, so that we deal with 
-                            ! the diagonal particles specifically, so i know
-                            ! ever death/born here is a death or spawn..
-                            ! This indicates that the particle has found the
-                            ! same particle of opposite sign to annihilate with.
-                            ! In this case we just need to update some statistics:
-                            ! stick here with the convention in the original 
-                            ! walker_death routine on how to count the deaths
-                            ! and borns
                             ! remember the - sign when filling up the DiagParts
                             ! list -> so opposite sign here means a death!
                             iter_data%ndied(j) = iter_data%ndied(j) + &
@@ -237,37 +208,6 @@ contains
 
                             NoBorn(run) = NoBorn(run) + max(abs(SpawnedSign(j)) - &
                                 abs(CurrentSign(j)), 0.0_dp)
-
-!                             Annihilated(run) = Annihilated(run) + 2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
-!                             iter_data%nannihil(j) = iter_data%nannihil(j) + &
-!                                 2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
-
-!                             if (tHistSpawn) then
-!                                 ! We want to histogram where the particle
-!                                 ! annihilations are taking place.
-!                                 ExcitLevel = FindBitExcitLevel(DiagParts(:,i), iLutHF, nel)
-!                                 if (ExcitLevel == NEl) then
-!                                     call BinSearchParts2(SpawnedParts(:,i), HistMinInd2(ExcitLevel), Det, PartIndex, tSuc)
-!                                 else if (ExcitLevel == 0) then
-!                                     PartIndex = 1
-!                                     tSuc = .true.
-!                                 else
-!                                     call BinSearchParts2(SpawnedParts(:,i), HistMinInd2(ExcitLevel), &
-!                                             FCIDetIndex(ExcitLevel+1)-1, PartIndex, tSuc)
-!                                 end if
-!                                 HistMinInd2(ExcitLevel) = PartIndex
-!                                 if (tSuc) then
-!                                     AvAnnihil(j,PartIndex) = AvAnnihil(j,PartIndex)+ &
-!                                     real(2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j)))), dp)
-!                                     InstAnnihil(j,PartIndex) = InstAnnihil(j,PartIndex)+ &
-!                                     real(2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j)))), dp)
-!                                 else
-!                                     write(6,*) "***",SpawnedParts(0:NIftot,i)
-!                                     Call WriteBitDet(6,SpawnedParts(0:NIfTot,i), .true.)
-!                                     call stop_all("AnnihilateSpawnedParts","Cannot find corresponding FCI "&
-!                                         & //"determinant when histogramming")
-!                                 end if
-!                             end if
                         else
                             ! if it has the same sign i have to keep track of 
                             ! the born particles, or as in the original 
@@ -294,8 +234,6 @@ contains
                     end if
                     
                     ! RT_M_Merge: Disabled rdm functionality
-                    !if (tFillingStochRDMonFly .and. (.not.tNoNewRDMContrib)) then
-                    !call extract_sign(CurrentDets(:,PartInd), TempCurrentSign)
                         ! We must use the instantaneous value for the off-diagonal
                         ! contribution. However, we can't just use CurrentSign from
                         ! the previous iteration, as this has been subject to death
@@ -303,8 +241,6 @@ contains
                         ! we're effectively taking the instantaneous value from the
                         ! next iter. This is fine as it's from the other population,
                         ! and the Di and Dj signs are already strictly uncorrelated.
-                    !    call check_fillRDM_DiDj(rdms, i, CurrentDets(:,PartInd), TempCurrentSign)
-                    !end if 
 
                 end if
 
@@ -333,16 +269,7 @@ contains
 
                end if
             end if
-
-            !                if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
-            ! We must use the instantaneous value for the off-diagonal contribution.
-            !                call check_fillRDM_DiDj(rdms, i, SpawnedParts(0:NifTot,i), SignTemp)
-            !                end if 
-
         end do
-
-!         call halt_timer(BinSearch_time)
-
         ! Update remaining number of holes in list for walkers stats.
         if (iStartFreeSlot > iEndFreeSlot) then
             ! All slots filled
@@ -351,9 +278,9 @@ contains
             HolesInList = iEndFreeSlot - (iStartFreeSlot-1)
         endif
 
-!         call halt_timer(AnnMain_time)
-
     end subroutine AnnihilateDiagParts
+
+!------------------------------------------------------------------------------------------!
 
     function count_holes_in_currentDets() result(holes)
         integer :: holes 
@@ -377,6 +304,8 @@ contains
         end do
 
     end function count_holes_in_currentDets
+
+!------------------------------------------------------------------------------------------!
 
     subroutine create_diagonal_as_spawn(nI, ilut, diag_sign, iter_data)
         ! new routine to create diagonal particles into new DiagParts 
@@ -421,20 +350,14 @@ contains
             ! Ci.Cj to the RDM later.
             ! The parent is NIfDBO integers long, and stored in the second
             ! part of the SpawnedParts array from NIfTot+1 --> NIfTot+1+NIfDBO
-!             call store_parent_with_spawned (RDMBiasFacCurr, WalkerNo, &
-!                                             ilutI, WalkersToSpawn, ilutJ, &
-!                                             proc, part_type)
 
         end if
 
         valid_diag_spawns = valid_diag_spawns + 1
-        
-        ! Sum the number of created children to use in acceptance ratio.
-        ! i dont need to do acceptances here, since diagonal events are not 
-        ! counted in the acceptance ratio..
-!         acceptances(1) = acceptances(1) + sum(abs(diag_sign))
 
     end subroutine create_diagonal_as_spawn
+
+!------------------------------------------------------------------------------------------!
 
     function attempt_die_realtime(DetCurr, Kii, RealwSign, walkExcitLevel) &
             result(ndie)
@@ -471,16 +394,6 @@ contains
         enddo
 
         if (abs(real_time_info%damping) < EPS .and. .not. t_rotated_time) then
-            ! in this case there is only Re <-> Im 
-            ! n_i' =  H_ii c_i 
-            ! c_i' = -H_ii n_i
-            ! how should i log death_magnitudes here.. for tau-search.. 
-            ! that probably has to change too..
-            ! an actual death is only done when the damping factor is present
-            ! as otherwise we 'only' spawn to the other particle type
-
-            ! and also not sure about this criteria.. if that applies in the 
-            ! rt-fciqmc..
             if(any(fac > 1.0_dp)) then
                if (any(fac > 2.0_dp)) then
                   if(tSearchTau) then
@@ -496,8 +409,6 @@ contains
                      call stop_all(this_routine, "Death probability > 2: Algorithm unstable. Reduce timestep.")
                   end if
                else
-                  !write(iout,'("** WARNING ** Death probability > 1: Creating Antiparticles. "&
-                  !     & //"Timestep errors possible: ")',advance='no')
                     do run = 1, inum_runs
                         write(iout,'(1X,f13.7)',advance='no') fac(run)
                     end do
@@ -507,13 +418,6 @@ contains
             do run = 1, inum_runs
                if (((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
                     .or. tAllRealCoeff )) then
-
-                  ! i exact.. just get the weights, this should also still work.
-                  ! but have to exchange the weights to come from the other 
-                  ! type of particles..
-                  ! the number of deaths has +sign from Im -> Re
-                  ! dont use abs() here compared to the old code, but already 
-                  ! here include the sign of the walkers on the determinant
                   ndie(min_part_type(run)) =  - fac(min_part_type(run)) &
                        * realwSign(max_part_type(run))
                   ! and - from Re -> Im
@@ -582,8 +486,6 @@ contains
                         call stop_all(this_routine, "Death probability > 2: Algorithm unstable. Reduce timestep.")
                     end if
                 else
-                   !write(iout,'("** WARNING ** Death probability > 1: Creating Antiparticles. "&
-                   !     & //"Timestep errors possible: ")',advance='no')
                     do run = 1, inum_runs
                         write(iout,'(1X,f13.7)',advance='no') fac(run)
                     end do
@@ -642,6 +544,8 @@ contains
 
     end function attempt_die_realtime
 
+!------------------------------------------------------------------------------------------!
+
     subroutine walker_death_realtime(iter_data, DetCurr, iLutCurr, Kii, RealwSign, &
                              DetPosition, walkExcitLevel)
         ! need new walker_death routine for the real-time fciqmc, since i 
@@ -684,38 +588,6 @@ contains
         ilut => CurrentDets(:,DetPosition)
 
         ndie = attempt_die_realtime(DetCurr, Kii, realwSign, walkExcitLevel)
-        ! combine in here old walker_death() and attempt_die() routines..
-        ! update: no dont! because i need the attempt_die in the 2nd RK loop 
-        ! alone
-        ! update deatch counter..
-        ! how to do that in rt-fciqmc? use 2 different infos or only do 
-        ! that at the end of the full loop? so i wouldnt have to do 
-        ! anything here..
-
-        ! the only particles, which definetly die are the diagonal
-        ! damped particles.. the other could have the same sign as the 
-        ! walker which already occupy the determinant..
-        ! but i have to integrate that above, since have unmix the both 
-        ! influences.. 
-            ! and only if there is damping -> otherwise no 'death' 
-            ! or do i have to check if the spawn from Re <-> Im caused 
-            ! annihilated particles?!
-            ! the previous counter for died particles assumed an opposite sing
-            ! between the two.. but in the rt-fciqmc i have a mix because 
-            ! of the Re <-> Im 'diagonal' spawning.. should i count that 
-            ! as spawing or as death/cloning.. how to set intitator? 
-
-            ! different to the old algorithm i include the sign of the 
-            ! parent walker already in the ndie variable, so i have to 
-            ! consider that here.. 
-            ! and if 'anti-particles' get born the number of died particles
-            ! naturally are reduced
-
-            ! also do it independent of the damping and also consider the 
-            ! diagonal switch between Re <-> Im as born or died particles
-
-        ! rt_iter_adapt: this will be counted below
-        !iter_data%ndied = iter_data%ndied + min(ndie, abs(RealwSign))
 
         ! this routine only gets called in the first runge-kutta step -> 
         ! so only update the stats for the first here!
@@ -752,43 +624,15 @@ contains
             end if
         end do
 
-!         NoDied_1(1) = NoDied_1(1) + sum(min(iDie, abs(RealwSign)))
-
-        ! Count any antiparticles
-!         iter_data%nborn = iter_data%nborn + max(iDie - abs(RealwSign), 0.0_dp)
-
-!         end if
-! 
-        ! try to 'just' apply the rest of the code here.. 
-
         CopySign = RealwSign - nDie
 
-        ! i also have to update initiator information, since there is a lot 
-        ! of population/depopulation between the Re <-> Im parts of an 
-        ! occupied det, and i don't think this is done in any different part 
-        ! of algorithm.. todo
         if (any(CopySign /= 0)) then
             ! For the hashed walker main list, the particles don't move.
             ! Therefore just adjust the weight.
             call encode_sign (CurrentDets(:, DetPosition), CopySign)
-            ! i also have to update the initiator information, due to the 
-            ! big (de)population beteen real and complex walker populations..
-            ! and i also have to deal with allowed anti-particles in the 
-            ! rt-fciqmc even with the initiator method in use! 
             ! rotated_time_setup: there is only one initiator flag for
             ! both complex and real walkers -> initiator flag is kept
         else
-            ! All walkers died.
-!            if(tFillingStochRDMonFly) then
-!                do irdm = 1, nrdms
-!                    call det_removed_fill_diag_rdm(rdms(irdm), irdm, CurrentDets(:,DetPosition), DetPosition)
-!                end do
-                ! Set the average sign and occupation iteration to zero, so
-                ! that the same contribution will not be added in in
-                ! CalcHashTableStats, if this determinant is not overwritten
-                ! before then
-!                global_determinant_data(:, DetPosition) = 0.0_dp
-!            endif
 
             if (tTruncInitiator) then
                 ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
@@ -810,6 +654,8 @@ contains
 
 
     end subroutine walker_death_realtime
+
+!------------------------------------------------------------------------------------------!
 
     subroutine walker_death_spawn()
         ! this routine is for the 2nd RK step, in which the list k2, which 
@@ -870,24 +716,6 @@ contains
         rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
                                  tParity, HElGen)
 
-        !write(6,*) 'p,rh', prob, rh
-!        print *, "Spawn event with mat el", rh, "sign", RealwSign, &
-!             "timestep", tau, "probability", prob
-        ! The following is useful for debugging the contributions of single
-        ! excitations, and double excitations of spin-paired/opposite
-        ! electron pairs to the value of tau.
-!        if (ic == 2) then
-!            if (G1(ex(1,1))%Ms /= G1(ex(1,2))%Ms) then
-!                write(6,*) 'OPP', rh, prob
-!            else
-!                write(6,*) 'SAM', rh, prob
-!            end if
-!        else
-!            write(6,*) 'IC1', rh, prob
-!        end if
-
-        ! Are we doing real spawning?
-        
         tRealSpawning = .false.
         if (tAllRealCoeff) then
             tRealSpawning = .true.
@@ -1068,6 +896,8 @@ contains
 
     end function attempt_create_realtime
 
+!------------------------------------------------------------------------------------------!
+
     subroutine update_elapsed_time()
       implicit none
       integer :: run
@@ -1086,6 +916,8 @@ contains
 
     end subroutine update_elapsed_time
 
+!------------------------------------------------------------------------------------------!
+
     subroutine save_current_dets() 
       use real_time_data, only: TotPartsStorage
         ! routine to copy the currentDets array and all the associated 
@@ -1093,14 +925,6 @@ contains
         ! list, from which the first spawn and y(n) + k1/2 addition is done 
         ! and the k2 spawing list is created to then use CurrentDets to go to
         ! the next time-step y(n+1) = y(n) + k2
-        ! new idea to reduce the amount of rewriting of old routines:
-        ! save the CurrentDets and all associated quantities in the temporary
-        ! variables, then normally work on CurrentDets to create the k1 
-        ! spawning and also the CurrentDets = y(n) + k1 / 2 combination
-        ! then spawn again from this list to create k2 spawning array
-        ! but then before combing reload the saved CurrentDets from the 
-        ! temporary variable
-        ! probably have to think about parallelism issues here..
         character(*), parameter :: this_routine = "save_current_dets"
 
         ! save the WalkVecDets variable, i think thats the only necessary 
@@ -1109,18 +933,6 @@ contains
         
         ! for now also store the pointer, but thats not needed i guess
         temp_det_pointer => temp_det_list
-
-        ! also need the hash table and the freeslot i guess
-        ! cannot just copy the hash like that .. have to loop over it 
-        ! and initialize it correctly.. that takes some effort
-        ! do not actually have to do that here... just in the reload! 
-        ! there i have to reassign HashIndex to the stored det-list
-!         call clear_hash_table(temp_det_hash) 
-!         call fill_in_hash_table(temp_det_hash, nWalkerHashes, CurrentDets, &
-!             int(TotWalkers,sizeof_int), .true.)
-
-!         call copy_hash_table(HashIndex, temp_det_hash)
-!         temp_det_hash = HashIndex
 
         ! and the freeslot.. although this one gets reinitialized to 0 
         ! every iteration or not? yeah it is.. so i only have to reset it 
@@ -1139,10 +951,7 @@ contains
 
     end subroutine save_current_dets
 
-!     subroutine copy_hash_table()
-!         ! routine to copy the hash-table to a temporary 
-! 
-!     end subroutine copy_hash_table
+!------------------------------------------------------------------------------------------!
 
     subroutine reload_current_dets()
         ! routine to reload the saved y(n) CurrentDets array for the final
@@ -1171,9 +980,6 @@ contains
         call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, &
             int(TotWalkers, sizeof_int), .true.)
 
-!         call copy_hash_table(temp_det_hash, HashIndex)
-!         HashIndex = temp_det_hash
-
         ! for correct load Balancin i also have to reset the the freeslot var.
         ! here i have to reset the freeslot values to the values after the 
         ! first spawn loop, as the empty entries get determined there! 
@@ -1184,17 +990,16 @@ contains
         iEndFreeSlot = temp_iendfreeslot
         FreeSlot = temp_freeslot
 
-        ! i think that has to be done in the reset_spawned_list
-!         n_determ_states = 1
 
         call reset_tot_parts()
 
     end subroutine reload_current_dets
 
+!------------------------------------------------------------------------------------------!
+
     subroutine reset_spawned_list()
         ! also need a routine to reset the spawned lists before the second 
         ! spawning step for the 2nd order RK method in the rt-fciqmc
-!         integer, intent(out) :: n_determ_states
         character(*), parameter :: this_routine = "reset_spawned_list"
 
         ! Reset positions to spawn into in the spawning array.
@@ -1203,19 +1008,13 @@ contains
         ! Clear the hash table for the spawning array.
         call clear_hash_table(spawn_ht)
 
-        ! think i have to reset the deterministic counter here
-!         n_determ_states = 1
-
         ! also reset the diagonal specific valid spawn list.. i think i 
         ! can just reuse the InitialSpawnedSlots also
         valid_diag_spawns = 1
 
-        ! also save the number of particles from this spawning to calc. 
-        ! first step specific acceptance rate
-        ! changed that! this has to be done BEFORE the annihilation step! 
-!         SumWalkersCyc_1 = SumWalkersCyc_1 + sum(TotParts)
-
     end subroutine reset_spawned_list
+
+!------------------------------------------------------------------------------------------!
 
     subroutine setup_temp_det_list()
         ! setup the second list to temporaly store the list of determinants
@@ -1271,12 +1070,14 @@ contains
 
     end subroutine setup_temp_det_list
 
+!------------------------------------------------------------------------------------------!
+
+    subroutine update_gf_overlap(gCore) 
     ! subroutine to calculate the overlap of the current y(t) = a_j(a^+_j)(t)y(0)>
     ! time evolved wavefunction to the saved <y(0)|a^+_i(a_i) 
-    subroutine update_gf_overlap() 
-        ! this routine only deals with globally defined variables
       use timing_neci, only: timer, get_total_time
       implicit none
+        logical, intent(in), optional :: gCore
         integer :: idet, nI(nel), det_ind, hash_val, runA, runB, iGf
         real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
         complex(dp) :: overlap(normsize)
@@ -1326,6 +1127,38 @@ contains
 
     end subroutine update_gf_overlap
 
+!------------------------------------------------------------------------------------------!
+
+    subroutine normalize_gf_overlap(overlapList,avReal,avImag,gCore)
+      implicit none
+      complex(dp), intent(out) :: overlapList(normsize,gf_count)
+      real(dp), intent(out) :: avReal(gf_count), avImag(gf_count)
+      logical, intent(in) :: gCore
+      integer :: i,j
+      complex(dp), allocatable :: overlap_buf(:)
+
+      allocate(overlap_buf(gf_count))
+      call update_gf_overlap(gCore)
+
+      do j = 1, gf_count
+         do i = 1, normsize
+            overlapList(i,j) = gf_overlap(i,j)/dyn_norm_red(i,j) * &
+                 exp(shift_damping(((i-1)/inum_runs+1)))
+         end do
+
+         !normalize the greens function
+         overlap_buf(j) = sum(gf_overlap(:,j))/sum(dyn_norm_red(:,j)) * &
+              sum(exp(shift_damping))/inum_runs
+
+         avReal(j) = real(overlap_buf(j))
+         avImag(j) = aimag(overlap_buf(j))
+      end do
+      
+      deallocate(overlap_buf)
+    end subroutine normalize_gf_overlap
+
+!------------------------------------------------------------------------------------------!
+
     function calc_norm(dets, num_dets) result(cd_norm)
       ! the first dimension of dets has to be lenof_sign
       ! function to calculate the norm of a state and 
@@ -1362,6 +1195,8 @@ contains
 
     end function calc_norm
 
+!------------------------------------------------------------------------------------------!
+
     subroutine makePopSnapshot(i)
       use real_time_data, only: popSnapshot, snapshotOrbs, numSnapshotOrbs
       
@@ -1386,6 +1221,8 @@ contains
       end do
       
     end subroutine makePopSnapshot
+
+!------------------------------------------------------------------------------------------!
 
     subroutine real_time_determ_projection()
 
@@ -1487,6 +1324,8 @@ contains
 
     end subroutine real_time_determ_projection
 
+!------------------------------------------------------------------------------------------!
+
     subroutine refresh_semistochastic_space()
       use CalcData, only: ss_space_in
       use semi_stoch_gen, only: init_semi_stochastic
@@ -1502,6 +1341,8 @@ contains
 
     end subroutine refresh_semistochastic_space
 
+!------------------------------------------------------------------------------------------!
+
     subroutine reset_core_space()
       implicit none
       integer :: i
@@ -1511,6 +1352,8 @@ contains
       enddo
       
     end subroutine reset_core_space
+
+!------------------------------------------------------------------------------------------!
 
     subroutine create_perturbed_ground()
         ! routine to create from the already read in popsfile info in 
@@ -1586,12 +1429,9 @@ contains
              "Determinants remaining in perturbed ground state:" , overlap_states(1)%nDets
         deallocate(perturbed_buf,stat=ierr)
 
-        ! also need to create and associated hash table to this list 
-!         call clear_hash_table(perturbed_ground_ht)
-        ! or maybe not... lets see later on..
-
-
     end subroutine create_perturbed_ground
+
+!------------------------------------------------------------------------------------------!
 
     subroutine check_update_growth(iter_data, message)
       use spin_project, only : tSpinProject
@@ -1636,14 +1476,18 @@ contains
 
     end subroutine check_update_growth
 
+!------------------------------------------------------------------------------------------!
+
     subroutine update_shift_damping()
       implicit none
-! sign convention for imaginary and real time differ
+    ! sign convention for imaginary and real time differ
       shift_damping = shift_damping + tau_imag * DiagSft
       if(tDynamicDamping) shift_damping = shift_damping - tau_real &
            * real_time_info%damping
 
     end subroutine update_shift_damping
+
+!------------------------------------------------------------------------------------------!
 
     subroutine setup_pert_array(ctrn_index)
       implicit none
@@ -1668,6 +1512,8 @@ contains
 
     end subroutine setup_pert_array
 
+!------------------------------------------------------------------------------------------!
+
     subroutine merge_spawn(nspawn,prefactor)
       use FciMCData, only: MaxSpawned
       use real_time_data, only: nspawnMax
@@ -1686,6 +1532,8 @@ contains
       ! the prefactor is used to unbias therefor
     end subroutine merge_spawn
 
+!------------------------------------------------------------------------------------------!
+
     subroutine trunc_shift()
       implicit none
       integer :: run
@@ -1701,6 +1549,8 @@ contains
          endif
       enddo
     end subroutine trunc_shift
+
+!------------------------------------------------------------------------------------------!
 
     subroutine adjust_decay_channels()
       use FciMCData, only: AllTotParts, tSinglePartPhase
@@ -1728,6 +1578,10 @@ contains
       
       if(tStartVariation) then
          call MPIReduce(TotPartsLastAlpha,MPI_Sum,allWalkersOld)
+         ! as AllTotParts is only reduced for shift computation, we need to 
+         ! do it here manually (TotParts is recomputed every iteration as
+         ! a part of the RK-Scheme)
+         call MPIReduce(TotParts,MPI_Sum,AllTotParts)
          if(iProcIndex == root) then
             ! compare the walker number the last time the angle was adjusted to
             ! the walker number now
@@ -1750,6 +1604,8 @@ contains
       
     end subroutine adjust_decay_channels
 
+!------------------------------------------------------------------------------------------!
+
     subroutine reset_tot_parts()
       ! if the second RK step is to be compared, the reference has to be reset
       ! -> recount the TotParts from the restored data
@@ -1758,6 +1614,8 @@ contains
       TotParts = get_tot_parts()
       TotPartsStorage = TotParts
     end subroutine reset_tot_parts
+
+!------------------------------------------------------------------------------------------!
 
     function get_tot_parts() result(allWalkersSummed)
       ! if the second RK step is to be compared, the reference has to be reset
@@ -1779,6 +1637,8 @@ contains
       end if
     end function get_tot_parts
 
+!------------------------------------------------------------------------------------------!
+
     subroutine update_peak_walker_number()
       use FciMCData, only: AllTotParts
       implicit none
@@ -1790,6 +1650,8 @@ contains
       end do
     end subroutine update_peak_walker_number
 
+!------------------------------------------------------------------------------------------!
+
     subroutine clean_overlap_states()
       implicit none
       integer :: i, ierr
@@ -1800,4 +1662,48 @@ contains
          deallocate(overlap_states, stat=ierr)
       endif
     end subroutine clean_overlap_states
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine logTimeCurve
+      implicit none
+      character(*), parameter :: this_routine = "read_in_trajectory"
+
+      write(iunitCycLog,*) tau, real_time_info%time_angle
+
+    end subroutine logTimeCurve
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine openTauContourFile
+      implicit none
+      logical :: checkTraj
+
+      iunitCycLog = get_free_unit()
+      call get_unique_filename('tauContour',.true.,.true.,0,trajFile)
+      
+      open(iunitCycLog,file=trajFile,status='new')
+      
+    end subroutine openTauContourFile
+
+!------------------------------------------------------------------------------------------!
+    
+    subroutine closeTauContourFile
+      implicit none
+
+      write(iunitCycLog,*) iter
+      close(iunitCycLog)
+    end subroutine closeTauContourFile
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine get_current_alpha_from_cache
+      implicit none
+
+      ! the logging and reading are done before iter is updated
+      real_time_info%time_angle = alphaCache(iter+1)
+      tau = tauCache(iter+1)
+    end subroutine get_current_alpha_from_cache
+!------------------------------------------------------------------------------------------!
+
 end module real_time_procs

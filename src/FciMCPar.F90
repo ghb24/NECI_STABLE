@@ -68,6 +68,7 @@ module FciMCParMod
     use constants
     use real_time_data, only: t_prepare_real_time, n_real_time_copies, &    
                               cnt_real_time_copies    
+    use real_time_init, only: init_overlap_buffers
     use double_occ_mod, only: get_double_occupancy, inst_double_occ, &
                         rezero_double_occ_stats, write_double_occ_stats, & 
                         sum_double_occ, sum_norm_psi_squared
@@ -146,6 +147,11 @@ module FciMCParMod
 
         call SetupParameters()
         call InitFCIMCCalcPar()
+
+        if(tLogGreensfunction .and. .not. t_real_time_fciqmc) then
+           call init_overlap_buffers()
+        endif
+
         call init_fcimc_fn_pointers() 
 
         ! Attach signal handlers to give a more graceful death-mannerism
