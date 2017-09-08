@@ -36,7 +36,7 @@ MODULE Calc
     use exact_spectrum
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
     use cepa_shifts, only: t_cepa_shift, cepa_method
-    use cc_amplitudes, only: t_cc_amplitudes, cc_order
+    use cc_amplitudes, only: t_cc_amplitudes, cc_order, cc_delay
 
     implicit none
 
@@ -2398,10 +2398,21 @@ contains
                 t_cc_amplitudes = .true. 
                 if (item < nitems) then 
                     call geti(cc_order)
+                    if (item < nitems) then
+                        call geti(cc_delay)
+                    else 
+                        cc_delay = 1000
+                    end if
                 else 
                     ! 2 is the default cc_order
                     cc_order = 2
+                    ! and also have an default delay of iterations after 
+                    ! the variable shift mode is turned on, when we want 
+                    ! to do the amplitude sampling
+                    cc_delay = 1000
                 end if
+
+
 
             case default
                 call report("Keyword "                                &

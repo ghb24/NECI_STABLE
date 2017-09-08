@@ -73,7 +73,7 @@ module FciMCParMod
 
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
     use back_spawn, only: init_back_spawn
-    use cc_amplitudes, only: t_cc_amplitudes, test_run
+    use cc_amplitudes, only: t_cc_amplitudes, init_cc_amplitudes, cc_delay
 
 #ifdef MOLPRO
     use outputResult
@@ -258,6 +258,14 @@ module FciMCParMod
                 end if
                 call init_back_spawn()
             end if
+
+            if (t_cc_amplitudes .and. cc_delay /= 0 .and. all(.not. tSinglePartPhase)) then 
+                if ((iter - maxval(VaryShiftIter)) == cc_delay + 1) then
+                    ! for now just test if it works
+                    call init_cc_amplitudes()
+                end if
+            end if
+
             ! Is this an iteration where trial-wavefunction estimators are
             ! turned on?
             if (tStartTrialLater .and. all(.not. tSinglePartPhase)) then
@@ -525,11 +533,6 @@ module FciMCParMod
 
             ! also deallocate here after no use of the histograms anymore
             call deallocate_histograms()
-        end if
-
-        if (t_cc_amplitudes) then 
-            ! for now just test if it works
-            call test_run()
         end if
 
         ! Remove the signal handlers now that there is no way for the
