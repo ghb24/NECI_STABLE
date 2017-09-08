@@ -5,6 +5,8 @@ module cepa_shifts
     use constants, only: dp, inum_runs
     use replica_data, only: diagsft 
     use SystemData, only: nel, nOccAlpha, nBasis
+    use cc_amplitudes, only: t_cc_amplitudes, cc_singles_factor, & 
+                        cc_doubles_factor, cc_triples_factor, cc_quads_factor
 
     implicit none 
 
@@ -14,6 +16,7 @@ module cepa_shifts
     logical :: t_cepa_shift = .false. 
     character(4) :: cepa_method
     real(dp) :: aqcc_factor = 0.0_dp
+    logical :: t_apply_full_cepa = .false.
 
 !     real(dp), allocatable :: cepa_shift_single(:), cepa_shift_double(:)
 
@@ -40,18 +43,18 @@ module cepa_shifts
             real(dp) :: cepa_shift_t
         end function cepa_shift_t
 
-!         function cepa_shift_ex_level_t(run, ex_level)
-!             use constants, only: dp 
-!             integer, intent(in) :: run, ex_level 
-!             real(dp) :: cepa_shift_ex_level_t
-!         end function cepa_shift_ex_level_t
+        function cepa_shift_ex_level_t(run, ex_level)
+            use constants, only: dp 
+            integer, intent(in) :: run, ex_level 
+            real(dp) :: cepa_shift_ex_level_t
+        end function cepa_shift_ex_level_t
 
     end interface
 
     procedure(cepa_shift_t), pointer :: cepa_shift_single
     procedure(cepa_shift_t), pointer :: cepa_shift_double
 
-!     procedure(cepa_shift_ex_level_t), pointer :: cepa_shift
+    procedure(cepa_shift_ex_level_t), pointer :: cepa_shift
     
 contains 
 
@@ -124,121 +127,74 @@ contains
 
         end select 
 
+        ! i have to point to the cc-version or to the CISD version too.. 
+        if (t_cc_amplitudes) then 
+            cepa_shift => cepa_shift_cc
+        else
+            cepa_shift => cepa_shift_cisd
+        end if
+
     end subroutine init_cepa_shifts
 
-    function calc_number_of_excitations(n_alpha, n_beta, max_excit, n_orbs) &
-            result(n_excits)
-        ! i might want a routine which calculates the number of all possible 
-        ! excitations for each excitation level 
-        integer, intent(in) :: n_alpha, n_beta, max_excit, n_orbs
-        integer :: n_excits(max_excit)
-
-        integer :: n_parallel(max_excit,2), i, j, k
-
-        ! the number of all possible single excitations, per spin is: 
-        
-        n_parallel = 0
-        n_excits = 0
-
-        do i = 1, max_excit
-            n_parallel(i,1) = calc_n_parallel_excitations(n_alpha, n_orbs, i)
-            n_parallel(i,2) = calc_n_parallel_excitations(n_beta, n_orbs, i)
-        end do
-
-        ! i can set this up in a general way.. 
-
-        do i = 1, max_excit
-
-            ! the 2 parallel spin species always are added 
-            n_excits(i) = sum(n_parallel(i,:)) 
-
-            ! and i have to zig-zag loop over the other possible combinations 
-            ! to lead to this level of excitation.. 
-            j = i - 1 
-            k = 1 
-
-            do while (j >= k) 
-
-                n_excits(i) = n_excits(i) + n_parallel(j,1) * n_parallel(k,2) 
-
-                ! and if j /= k do it the other way around too 
-                if (j /= k) then 
-                    n_excits(i) = n_excits(i) + n_parallel(j,2) * n_parallel(k,1)
-
+    real(dp) function cepa_shift_cc(run, ex_level) 
+        ! this routine should get used when we want to adapt the cepa-shift
+        ! with biasing through the occupation of the higher order 
+        ! excitations 
+        integer, intent(in) :: run, ex_level
+        if (ex_level == 1) then
+            cepa_shift_cc = cepa_shift_single(run) * cc_singles_factor()
+        else if (ex_level == 2) then 
+            cepa_shift_cc = cepa_shift_double(run) * cc_doubles_factor()
+        else 
+            if (t_apply_full_cepa) then 
+                if (ex_level == 3) then
+                    ! i guess the shift could be the same for triples, just the 
+                    ! factor changes
+                    cepa_shift_cc = cepa_shift_double(run) * cc_triples_factor()
+                else if (ex_level == 4) then 
+                    cepa_shift_cc = cepa_shift_double(run) * cc_quads_factor()
+                else 
+                    ! the farther one goes out the less occupied the excited space 
+                    ! becomes.. so maybe it is fair to assume to apply the 
+                    ! full shift.. 
+                    cepa_shift_cc = cepa_shift_double(run) 
                 end if
-                ! and in/decrease the counters 
-                j = j - 1 
-                k = k + 1
-
-                ! in this way i calculate eg.: 
-                ! n_ij^ab = n_ij_ab(u + d) + n_i^a(u) * n_i^a(d) 
-                ! and 
-                ! n_ijk^abc = n_ijk^abc(u + d) + n_ij^ab(u) * n_i^a(d) and spin-flipped..
-
-            end do
-        end do
-
-    end function calc_number_of_excitations
-
-    function calc_n_single_excits(n_elecs, n_orbs) result(n_single_excits)
-        ! this calculates the number of possible single excitations for a 
-        ! given spin species of electrons and the number of spatial orbitals!
-        integer, intent(in) :: n_elecs, n_orbs
-        integer :: n_single_excits
-
-        ! it is the number of electrons which can be excited and the number 
-        ! of available orbitals for this spin!
-!         n_single_excits = n_elecs * (n_orbs - n_elecs)
-
-        ! with binomial it is just: 
-        n_single_excits = binomial(n_elecs, 1) * binomial(n_orbs - n_elecs, 1)
-
-    end function calc_n_single_excits
-
-    function calc_n_parallel_excitations(n_elecs, n_orbs, ic) result(n_parallel)
-        ! this function determines the number of parallel spin excitaiton 
-        ! with each electrons having the same spin for a given excitation 
-        ! level and number of electrons and available orbitals for this spin 
-        integer, intent(in) :: n_elecs, n_orbs, ic 
-        integer :: n_parallel
-
-        n_parallel = binomial(n_elecs, ic) * binomial(n_orbs - n_elecs, ic) 
-
-    end function calc_n_parallel_excitations
-
-    integer function binomial(n, k)
-        ! write a new binomial function using the fortran2008 standard 
-        ! gamma function 
-        integer, intent(in) :: n, k 
-#ifdef __DEBUG
-        character(*), parameter :: this_routine = "binomial"
-#endif
-
-        ASSERT(n >= 0)
-        ASSERT(k >= 0)
-
-        if (k > n) then 
-            binomial = 0
-        else
-            binomial = nint(gamma(real(n) + 1) / (gamma(real(n - k) + 1) * gamma(real(k) + 1)))
+            else 
+                cepa_shift_cc = 0.0_dp
+            end if
         end if
 
-    end function binomial 
+    end function cepa_shift_cc
 
-    real(dp) function cepa_shift(run, ex_level) 
+    real(dp) function cepa_shift_cisd(run, ex_level) 
+        ! this is the bare cepa shift, which would be used in a CISD calculation
+        ! with no higher excitations then doubles
         integer, intent(in) :: run, ex_level
         if (ex_level == 1) then 
-            cepa_shift = cepa_shift_single(run) 
+            cepa_shift_cisd = cepa_shift_single(run) 
         else if (ex_level == 2) then 
-            cepa_shift = cepa_shift_double(run) 
+            cepa_shift_cisd = cepa_shift_double(run) 
         else
-            cepa_shift = diagsft(run)
+            if (t_apply_full_cepa) then 
+                ! in this approach we apply the same shift, especially to 
+                ! the higher order of excitations.. 
+                ! but maybe also with an correction.. tbd
+                cepa_shift_cisd = cepa_shift_double(run) 
+            else
+                ! with the change in the death-step to - (S - D) i then have to 
+                ! set this to 0 here, if i want to apply the full shift
+!                 cepa_shift = diagsft(run)
+                cepa_shift_cisd = 0.0_dp
+            end if
         end if
-    end function cepa_shift
+    end function cepa_shift_cisd
 
     real(dp) function cepa_0(run)
         integer, intent(in) :: run
-        cepa_0 = 0.0_dp
+        ! change this back so it cancels the actual shift 
+        ! so we can adjust this outside with the cc-amplitudes estimate
+!         cepa_0 = 0.0_dp
+        cepa_0 = diagsft(run)
     end function cepa_0
 
     real(dp) function cepa_1_single(run)
@@ -248,7 +204,7 @@ contains
 
     real(dp) function cepa_1_double(run)
         integer, intent(in) :: run 
-        ! todo
+        ! tod-
     end function cepa_1_double
 
     real(dp) function cepa_3_single(run) 
@@ -264,12 +220,17 @@ contains
     real(dp) function cepa_acpf(run) 
         integer, intent(in) :: run 
         ! do i use the shift or the projected energy here?? tbd
-        cepa_acpf = 2.0_dp * diagsft(run) / real(nel, dp)
+!         cepa_acpf = 2.0_dp * diagsft(run) / real(nel, dp)
+        ! change the implementation, so that it actually gives 
+        ! S - D = 2S/N -> D = S(1 - 2/N)
+        cepa_acpf = diagsft(run)*(1.0_dp - 2.0_dp/real(nel,dp))
+    
     end function cepa_acpf
 
     real(dp) function cepa_aqcc(run) 
         integer, intent(in) :: run 
-        cepa_aqcc = aqcc_factor * diagsft(run)
+!         cepa_aqcc = aqcc_factor * diagsft(run)
+        cepa_aqcc = diagsft(run)*(1.0_dp - aqcc_factor)
     end function cepa_aqcc
 
 end module cepa_shifts

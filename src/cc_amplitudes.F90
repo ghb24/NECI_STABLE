@@ -8,7 +8,6 @@ module cc_amplitudes
                          HashIndex, CurrentDets, ll_node
     use bit_reps, only: extract_sign
     use constants, only: dp, lenof_sign, EPS, n_int, bits_n_int
-    use cepa_shifts, only: calc_number_of_excitations
     use bit_reps, only: niftot, nifdbo, decode_bit_det
     use replica_data, only: AllEXLEVEL_WNorm
     use back_spawn, only: setup_virtual_mask, mask_virt_ni
@@ -24,7 +23,7 @@ module cc_amplitudes
 
     integer :: cc_delay = 1000
 
-    integer :: est_triples = 0, est_quads = 0
+    integer :: est_triples = 0, est_quads = 0, est_doubles = 0
     integer :: n_singles = 0, n_doubles = 0
     integer :: n_triples = 0, n_quads = 0
 
@@ -79,6 +78,105 @@ module cc_amplitudes
     integer, allocatable :: elec_ind_mat(:,:), orb_ind_mat(:,:)
 
 contains 
+
+    function cc_singles_factor() result(factor) 
+        ! this function should provide the correct factor to the 
+        ! cepa-shift for the singles.. if the correct variable are not 
+        ! yet set or sampled as 0 it should default to 1
+        real(dp) :: factor
+        character(*), parameter :: this_routine = "cc_singles_factor" 
+
+        real(dp) :: fac_triples, fac_doubles, weight 
+
+        weight = 1.0_dp / 4.0_dp
+
+        ! the singles should be influenced by the triples and doubles.. 
+        ! but this i have not figured out correctly.. 
+        ! so for now return 1 always 
+        factor = 1.0_dp 
+        return
+
+        if (est_triples == 0) then 
+            fac_triples = 0.0_dp 
+
+            ! fix the weight in this case
+            weight = 1.0_dp
+
+        else 
+            ! for now just deal with the L^0 norm of the triples 
+            fac_triples = min(AllEXLEVEL_WNorm(0,3,1) / real(est_triples, dp), 1.0_dp)
+
+        end if
+
+        ! with the doubles i am scared that the estimated number of 
+        ! doubles could actually be lower then the sampled ones.. 
+        if (est_doubles == 0) then
+
+            fac_doubles = 0.0_dp
+
+            weight = 0.0_dp
+
+        else
+            ! but 1 should be the maximum..
+            fac_doubles = min(AllEXLEVEL_WNorm(0,2,1) / real(est_doubles, dp), 1.0_dp)
+        end if
+
+        ! and then we have to combine the two factors with some weighting
+        factor = 1.0_dp - (weight * fac_doubles + (1.0_dp - weight)*fac_triples)
+
+    end function cc_singles_factor
+
+    function cc_doubles_factor() result(factor) 
+        real(dp) :: factor
+        character(*), parameter :: this_routine = "cc_doubles_factor"
+
+        real(dp) :: fac_triples, fac_quads, weight
+
+        weight = 1.0_dp/4.0_dp 
+
+        ! essentiall we would need the triples influence too.. 
+        ! but Manu said this is not necessary.. hm.. lets try 
+        if (est_triples == 0) then 
+            fac_triples = 0.0_dp 
+            weight = 0.0_dp 
+        else
+            fac_triples = min(AllEXLEVEL_WNorm(0,3,1) / real(est_triples, dp), 1.0_dp)
+        end if
+
+        if (est_quads == 0) then 
+            fac_quads = 0.0_dp 
+            weight = 1.0_dp 
+        else
+            fac_quads = min(AllEXLEVEL_WNorm(0,4,1) / real(est_quads, dp), 1.0_dp)
+
+        end if
+
+        factor = 1.0_dp - (weight * fac_triples + (1.0_dp - weight)*fac_quads)
+
+    end function cc_doubles_factor
+
+    function cc_triples_factor() result(factor)
+        real(dp) :: factor 
+        character(*), parameter :: this_routine = "cc_triples_factor"
+
+        ! for now just set that to 1 
+        factor = 1.0_dp
+        
+        ! essentially we would need to have the influence of the 
+        ! quadrupels and the quintuples.. but those numbers are hard to 
+        ! estimate.. 
+        ! todo
+
+    end function cc_triples_factor
+
+    function cc_quads_factor() result(factor) 
+        real(dp) :: factor
+        character(*), parameter :: this_routine = "cc_quads_factor" 
+
+        ! see above
+        factor = 1.0_dp
+
+    end function cc_quads_factor 
 
     subroutine setup_ind_matrix_doubles()
         character(*), parameter :: this_routine = "setup_ind_matrix_doubles"
@@ -1512,5 +1610,104 @@ contains
 
       return
       end function ind2      
+
+    function calc_number_of_excitations(n_alpha, n_beta, max_excit, n_orbs) &
+            result(n_excits)
+        ! i might want a routine which calculates the number of all possible 
+        ! excitations for each excitation level 
+        integer, intent(in) :: n_alpha, n_beta, max_excit, n_orbs
+        integer :: n_excits(max_excit)
+
+        integer :: n_parallel(max_excit,2), i, j, k
+
+        ! the number of all possible single excitations, per spin is: 
+        
+        n_parallel = 0
+        n_excits = 0
+
+        do i = 1, max_excit
+            n_parallel(i,1) = calc_n_parallel_excitations(n_alpha, n_orbs, i)
+            n_parallel(i,2) = calc_n_parallel_excitations(n_beta, n_orbs, i)
+        end do
+
+        ! i can set this up in a general way.. 
+
+        do i = 1, max_excit
+
+            ! the 2 parallel spin species always are added 
+            n_excits(i) = sum(n_parallel(i,:)) 
+
+            ! and i have to zig-zag loop over the other possible combinations 
+            ! to lead to this level of excitation.. 
+            j = i - 1 
+            k = 1 
+
+            do while (j >= k) 
+
+                n_excits(i) = n_excits(i) + n_parallel(j,1) * n_parallel(k,2) 
+
+                ! and if j /= k do it the other way around too 
+                if (j /= k) then 
+                    n_excits(i) = n_excits(i) + n_parallel(j,2) * n_parallel(k,1)
+
+                end if
+                ! and in/decrease the counters 
+                j = j - 1 
+                k = k + 1
+
+                ! in this way i calculate eg.: 
+                ! n_ij^ab = n_ij_ab(u + d) + n_i^a(u) * n_i^a(d) 
+                ! and 
+                ! n_ijk^abc = n_ijk^abc(u + d) + n_ij^ab(u) * n_i^a(d) and spin-flipped..
+
+            end do
+        end do
+
+    end function calc_number_of_excitations
+
+    function calc_n_single_excits(n_elecs, n_orbs) result(n_single_excits)
+        ! this calculates the number of possible single excitations for a 
+        ! given spin species of electrons and the number of spatial orbitals!
+        integer, intent(in) :: n_elecs, n_orbs
+        integer :: n_single_excits
+
+        ! it is the number of electrons which can be excited and the number 
+        ! of available orbitals for this spin!
+!         n_single_excits = n_elecs * (n_orbs - n_elecs)
+
+        ! with binomial it is just: 
+        n_single_excits = binomial(n_elecs, 1) * binomial(n_orbs - n_elecs, 1)
+
+    end function calc_n_single_excits
+
+    function calc_n_parallel_excitations(n_elecs, n_orbs, ic) result(n_parallel)
+        ! this function determines the number of parallel spin excitaiton 
+        ! with each electrons having the same spin for a given excitation 
+        ! level and number of electrons and available orbitals for this spin 
+        integer, intent(in) :: n_elecs, n_orbs, ic 
+        integer :: n_parallel
+
+        n_parallel = binomial(n_elecs, ic) * binomial(n_orbs - n_elecs, ic) 
+
+    end function calc_n_parallel_excitations
+
+    integer function binomial(n, k)
+        ! write a new binomial function using the fortran2008 standard 
+        ! gamma function 
+        integer, intent(in) :: n, k 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "binomial"
+#endif
+
+        ASSERT(n >= 0)
+        ASSERT(k >= 0)
+
+        if (k > n) then 
+            binomial = 0
+        else
+            binomial = nint(gamma(real(n) + 1) / (gamma(real(n - k) + 1) * gamma(real(k) + 1)))
+        end if
+
+    end function binomial 
 
 end module cc_amplitudes
