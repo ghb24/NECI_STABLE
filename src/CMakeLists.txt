@@ -164,6 +164,7 @@ set( SRC_FILES
     tau_search_hist.F90
     back_spawn.F90
     back_spawn_excit_gen.F90
+    cc_amplitudes.F90
     cepa_shifts.F90
 
     lib/allocate_shared_worker.cpp

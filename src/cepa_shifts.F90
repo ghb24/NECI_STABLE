@@ -67,6 +67,7 @@ contains
 !         allocate(cepa_shift_double(inum_runs))
 
         print *, "init cepa shifts "
+
         if (.not. allocated(ilutref)) then 
             call stop_all(this_routine, "reference det not yet set!")
         end if
