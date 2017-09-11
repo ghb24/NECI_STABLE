@@ -29,9 +29,11 @@ module real_time_init
                               etaDamping, tStartVariation, rotThresh, stabilizerThresh, &
                               tInfInit,  popSnapshot, snapshotOrbs, phase_factors, tVerletSweep, &
 			      numSnapshotOrbs, tLowerThreshold, t_kspace_operators, tVerletScheme, &
-                              tLogTrajectory, tReadTrajectory, alphaCache, tauCache, trajFile
+                              tLogTrajectory, tReadTrajectory, alphaCache, tauCache, trajFile, &
+                              tGenerateCoreSpace, minFraction
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
-                               calc_norm, clean_overlap_states, openTauContourFile
+                               calc_norm, clean_overlap_states, openTauContourFile, &
+                               get_new_minCoreSpace
     use verlet_aux, only: backup_initial_state, setup_delta_psi
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
     use Parallel_neci
@@ -48,7 +50,8 @@ module real_time_init
                          tSinglePartPhase, iter_data_fciqmc, iter, PreviousCycles, &
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
                          MaxSpawned, tSearchTauOption, TotWalkers, SumWalkersCyc, &
-                         CurrentDets, popsfile_dets, MaxWalkersPart, WalkVecDets
+                         CurrentDets, popsfile_dets, MaxWalkersPart, WalkVecDets, &
+                         SpawnedParts
     use SystemData, only: lms, G1, nBasisMax, tHub, nel, tComplexWalkers_RealInts, nBasis, tReal
     use SymExcitDataMod, only: kTotal
     use sym_mod, only: MomPbcSym
@@ -56,11 +59,10 @@ module real_time_init
                              init_perturbation_creation
     use fcimc_initialisation, only: SetupParameters, InitFCIMCCalcPar, &
                                     init_fcimc_fn_pointers 
-    use kp_fciqmc_init, only: create_overlap_pert_vec
     use LoggingData, only: tZeroProjE, tFCIMCStats2
     use fcimc_output, only: write_fcimcstats2, WriteFciMCStatsHeader
     use replica_data, only: allocate_iter_data, set_initial_global_data
-    use bit_rep_data, only: nifbcast, niftot, extract_sign
+    use bit_rep_data, only: nifbcast, niftot, extract_sign, nifdbo
     use bit_reps, only: decode_bit_det
 
     implicit none
@@ -118,7 +120,7 @@ contains
         ! a simulation
       implicit none
         character(*), parameter :: this_routine = "setup_real_time_fciqmc"
-        integer :: ierr,  j, run, indicator
+        integer :: ierr,  run
 
 
         ! the new total momentum has to be constructed before the 
@@ -282,6 +284,7 @@ contains
         AllInitRemoved_1 = 0
         AccRat_1 = 0.0_dp
         AllSumWalkersCyc_1 = 0.0_dp
+        minFraction = 1.0_dp
 
         tVerletSweep = .false.
         if(tVerletScheme) then 
@@ -289,6 +292,8 @@ contains
            call backup_initial_state()
            tau = tau/iterInit
         endif
+
+        if(tGenerateCoreSpace .and. .not. tSemiStochastic) call setup_rt_core()      
 
         if(tReadTrajectory) call read_in_trajectory()
 
@@ -491,6 +496,8 @@ contains
         ! and we do not print out the contour separately
         tLogTrajectory = .false.
         tReadTrajectory = .false.
+
+        tGenerateCoreSpace = .false.
     end subroutine set_real_time_defaults
 
     ! need a specific popsfile read function for the real-time calculation
@@ -809,5 +816,81 @@ contains
       enddo
       close(iunit)
     end subroutine read_in_trajectory
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine setup_rt_core
+      use FciMCData, only: determ_space_size, determ_sizes, core_space
+      use real_time_data, only: maxDetermSize
+      use CalcData, only: ss_space_in
+      use semi_stoch_gen, only: generate_space
+      implicit none
+      integer(MPIArg) :: mpi_temp
+      integer :: i, ierr
+
+      allocate(determ_sizes(0:nProcessors-1))
+      ! generate the pops-core
+      call generate_space(ss_space_in)
+
+      mpi_temp = determ_sizes(iProcIndex)
+      call MPIAllGather(mpi_temp, determ_sizes, ierr)
+
+      determ_space_size = sum(determ_sizes)
+      ! We allocate the core space to have 
+      maxDetermSize = ceiling(real(ss_space_in%nApproxSpace*ss_space_in%npops)/real(nProcessors))
+      allocate(core_space(0:niftot,maxDetermSize))
+      core_space = 0_n_int
+
+      ! Store this cores core-space only
+      core_space(:,1:determ_sizes(iProcIndex)) = SpawnedParts(:,1:determ_sizes(iProcIndex))
+
+      call get_new_minCoreSpace()
+      do i = 1, determ_sizes(iProcIndex)
+         call set_deterministic_flag(i)
+      enddo
+    end subroutine setup_rt_core
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine calc_min_pop_fraction
+      ! Here we determine the fraction of the population that is
+      ! needed at least to get into the core-space
+      use real_time_data,only: minCoreSpacePos, minCoreSpaceWalkers
+      use FciMCData, only: determ_sizes
+      implicit none
+      integer :: i,ierr
+      real(dp) :: mpi_tmp(0:nProcessors-1)
+      real(dp) :: minFraction
+
+      call get_new_minCoreSpace()
+      call MPIAllGather(minCoreSpaceWalkers,mpi_tmp,ierr)
+      ! minFraction = min(mpi_tmp)
+    end subroutine calc_min_pop_fraction
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine set_deterministic_flag(i)
+      use FciMCData, only: HashIndex, core_space
+      use bit_rep_data, only: flag_deterministic
+      use hash, only: hash_table_lookup
+      use bit_reps, only: set_flag
+      implicit none
+      integer, intent(in) :: i
+      integer ::  nI(nel), DetHash, PartInd
+      logical :: tSuccess
+      character(*), parameter :: this_routine = "set_deterministic_flag"
+
+      ! For each core-state, we check if it is in the CurrentDets (which should
+      ! always be the case in the initialization
+      call decode_bit_det(nI,core_space(:,i))
+      call hash_table_lookup(nI,core_space(:,i),nifdbo,HashIndex,CurrentDets,PartInd,&
+           DetHash, tSuccess)
+      if(tSuccess) then
+         ! And then we set the deterministic flag
+         call set_flag(CurrentDets(:,PartInd),flag_deterministic)
+      else
+         call stop_all(this_routine,"Deterministic state not present in CurrentDets")
+      endif
+    end subroutine set_deterministic_flag
     
 end module real_time_init

@@ -638,6 +638,7 @@ contains
         ! in the real-time fciqmc i also want to keep track of the number 
         ! of particles after the first RK step
         if (runge_kutta_step == 1) TotParts_1 = TotParts
+
 #endif
         ! RT_M_Merge: i have to ask werner why this check makes sense
         ! AnnihilatedDet is only affected by empty dets and emptying a det increses HolesInList

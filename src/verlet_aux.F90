@@ -29,11 +29,10 @@ module verlet_aux
   use Determinants, only: get_helement
   use fcimc_pointed_fns, only: attempt_create_normal
   use fcimc_helper, only: CalcParentFlag, decide_num_to_spawn, create_particle_with_hash_table, &
-       SumEContrib, check_semistoch_flags, checkValidSpawnedList
+       SumEContrib, check_semistoch_flags, checkValidSpawnedList, rezero_iter_stats_each_iter
   use semi_stoch_procs, only: check_determ_flag
   use load_balance_calcnodes, only: DetermineDetNode
   use ParallelHelper, only: iProcIndex
-  use FciMCParMod, only: rezero_iter_stats_each_iter
 
   implicit none
        

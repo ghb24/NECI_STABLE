@@ -13,7 +13,8 @@ module real_time
                                update_shift_damping, real_time_determ_projection, &
                                refresh_semistochastic_space, update_peak_walker_number, &
                                makePopSnapshot, update_elapsed_time, logTimeCurve, &
-                               get_current_alpha_from_cache, closeTauContourFile
+                               get_current_alpha_from_cache, closeTauContourFile, &
+                               updateCorespace
     use real_time_data, only: gf_type,  tVerletSweep, &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
                               current_overlap, SumWalkersCyc_1, DiagParts, stepsAlpha, &
@@ -24,7 +25,7 @@ module real_time
                               normsize, gf_count, tRealTimePopsfile, tStabilizerShift, &
                               tLimitShift, tDynamicAlpha, dpsi_cache, dpsi_size, &
                               tDynamicDamping, stabilizerThresh, popSnapshot, spawnBufSize, &
-                              tLogTrajectory, tReadTrajectory
+                              tLogTrajectory, tReadTrajectory, tGenerateCoreSpace
     use verlet_aux, only: init_verlet_iteration, obtain_h2_psi, update_delta_psi, &
          init_verlet_sweep, check_verlet_sweep, end_verlet_sweep
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
@@ -50,7 +51,7 @@ module real_time
     use SystemData, only: nel, tRef_Not_HF, tAllSymSectors, nOccAlpha, nOccBeta, &
                           nbasis
     use DetBitOps, only: FindBitExcitLevel, return_ms
-    use semi_stoch_procs, only: check_determ_flag, determ_projection
+    use semi_stoch_procs, only: check_determ_flag, determ_projection, write_core_space
     use semi_stoch_gen, only: init_semi_stochastic, write_most_pop_core_at_end
     use global_det_data, only: det_diagH
     use fcimc_helper, only: CalcParentFlag, decide_num_to_spawn, &
@@ -223,7 +224,7 @@ contains
         implicit none
 
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
-        integer :: cOverlapIndex, j, i, iterRK
+        integer :: j, i, iterRK
         real(sp) :: s_start, s_end, tstart(2), tend(2)
         real(dp) :: totalTime
         complex(dp), allocatable :: overlap_buf(:)
@@ -400,9 +401,14 @@ contains
            call WriteToPopsfileParOneArr(CurrentDets,TotWalkers,rtPOPSFILE_name)
         endif
 
+        ! We finish writing any extra output files like the tauContour and
+        ! the CORESPACE file
         if(tLogTrajectory) call closeTauContourFile()
 
         if(tWriteCoreEnd) call write_most_pop_core_at_end(write_end_core_size)
+        
+        ! GENERATE-CORESPACE has precendence over WRITE-CORE-END
+        if(tGenerateCoreSpace) call write_core_space()
         
         deallocate(norm_buf, stat = i)
         deallocate(overlap_buf, stat = i)
@@ -515,7 +521,6 @@ contains
         type(rdm_definitions_t) :: dummy
 !         integer, intent(out) :: n_determ_states
         character(*), parameter :: this_routine = "init_real_time_iteration"
-        integer :: run
 
         ! reuse parts of nicks routine and add additional real-time fciqmc
         ! specific quantities
@@ -572,14 +577,14 @@ contains
         ! spawning step, but with a different death step and without the 
         ! annihilation step at the end! 
         integer :: idet, parent_flags, nI_parent(nel), unused_flags, ex_level_to_ref, &
-                   ms_parent, ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,2), &
+                   ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,2), &
                    ex_level_to_hf 
         integer(n_int) :: ilut_child(0:niftot)
         real(dp) :: parent_sign(lenof_sign), parent_hdiag, prob, child_sign(lenof_sign), &
                     unused_sign(lenof_sign), unused_rdm_real, diag_sign(lenof_sign)
         logical :: tParentIsDeterm, tParentUnoccupied, tParity, break
         HElement_t(dp) :: HelGen
-        integer :: TotWalkersNew, err, determ_index
+        integer :: determ_index
         real(dp) :: prefactor
 
         ! declare this is the second runge kutta step
@@ -611,7 +616,7 @@ contains
             endif
 
             tParentIsDeterm = check_determ_flag(CurrentDets(:,idet))
-            tParentUnoccupied = IsUnoccDet(parent_sign)
+            tParentUnoccupied = IsUnoccDet(parent_sign)            
             
             if(tParentIsDeterm) then
                indices_of_determ_states(determ_index) = idet
@@ -746,7 +751,7 @@ contains
       implicit none
         character(*), parameter :: this_routine = "first_real_time_spawn"
         integer :: idet, parent_flags, nI_parent(nel), unused_flags, ex_level_to_ref, &
-                   ms_parent, ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,2), &
+                   ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,2), &
                    ex_level_to_hf
         integer(n_int) :: ilut_child(0:niftot)
         real(dp) :: parent_sign(lenof_sign), parent_hdiag, prob, child_sign(lenof_sign), &
@@ -934,7 +939,7 @@ contains
       implicit none
         character(*), parameter :: this_routine = "perform_real_time_iteration"
         
-        integer :: TotWalkersNew, run, test, ierr
+        integer :: TotWalkersNew, run
         real(dp) :: tmp_sign(lenof_sign), tau_real_tmp, tau_imag_tmp
         logical :: both, rkone, rktwo
         rkone = .true.
@@ -1108,6 +1113,8 @@ endif
       !  in between to update delta_psi)
       call CalcHashTableStats(TotWalkersNew,iter_data_fciqmc)
       TotWalkers = TotWalkersNew
+
+      if(tGenerateCoreSpace) call updateCorespace()
       
       call update_iter_data(iter_data_fciqmc)
     end subroutine perform_verlet_iteration

@@ -1,10 +1,11 @@
 #include "macros.h"
 
 module real_time_aux
-  use real_time_data, only: overlap_states, gf_count
-  use bit_rep_data, only: extract_sign, niftot
-  use bit_reps, only: decode_bit_det
-  use FciMCData, only: SpawnedParts, ValidSpawnedList, MaxSpawned, InitialSpawnedSlots
+  use real_time_data, only: overlap_states, gf_count, minCoreSpaceWalkers, minCoreSpacePos
+  use bit_rep_data, only: extract_sign, niftot, nifdbo
+  use bit_reps, only: decode_bit_det, flag_deterministic
+  use FciMCData, only: SpawnedParts, ValidSpawnedList, MaxSpawned, InitialSpawnedSlots, &
+       core_space, determ_sizes, determ_space_size, CurrentDets, hashindex
   use SystemData, only: nel
   use constants, only: dp, lenof_sign, n_int
   use ParallelHelper, only: iProcIndex, nNodes
@@ -16,7 +17,7 @@ module real_time_aux
       implicit none
       integer(n_int), intent(in) :: state(0:nIfTot,length)
       integer, intent(in) :: index, length
-      integer :: nOccDets, i, totNOccDets, ierr
+      integer :: nOccDets, i, ierr
       integer(n_int), allocatable :: buffer(:,:)
       real(dp) :: tmp_sign(lenof_sign)
       character(*), parameter :: this_routine = "write_overlap_state"
@@ -113,4 +114,7 @@ module real_time_aux
       endif
 
     end subroutine move_overlap_block
+
+!------------------------------------------------------------------------------------------!
+
 end module real_time_aux

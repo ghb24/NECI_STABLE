@@ -3,7 +3,7 @@ module real_time_read_input_module
   use real_time_init, only: set_real_time_defaults, benchmarkenergy
   use FciMCData, only: alloc_popsfile_dets, pops_pert
   use CalcData, only: tAddToInitiator, tTruncInitiator, tWalkContGrow, tStartSinglePart, &
-       tWritePopsNorm, tReadPops
+       tWritePopsNorm, tReadPops, ss_space_in
   use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
   use kp_fciqmc_data_mod, only: tOverlapPert, overlap_pert, tScalePopulation
   use SystemData, only: nel, tComplexWalkers_RealInts
@@ -270,7 +270,7 @@ module real_time_read_input_module
                 t_rotated_time = .true.
                 tWalkContGrow = .true.
                 real_time_info%time_angle = 2*atan(1.0_dp)
-                
+
              case("PRINT-POP")
                 ! include the time-dependent population of targeted orbitals into
                 ! the output. This requires them to be evaluated on the fly
@@ -420,11 +420,18 @@ module real_time_read_input_module
                 ! and tau(iter)
                 tLogTrajectory = .true.
                 
-             case("BUILD-CORESPACE")
+             case("GENERATE-CORESPACE")
                 ! Now, we write out the most important determinants along the contour
                 ! Also, the contour is logged
                 tGenerateCoreSpace = .true.
                 tLogTrajectory = .true.
+                ! optionally, we can supply the number of states to log
+                ss_space_in%tpops = .true.
+                if(item < nitems) then 
+                   call geti(ss_space_in%npops)
+                else
+                   ss_space_in%npops = 1000
+                endif
                
              case("READ-TRAJECTORY")
                 ! This reads in a trajectory and performs the time-evolution along
