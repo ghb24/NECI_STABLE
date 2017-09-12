@@ -1496,7 +1496,9 @@ contains
         ! deterministic space, finding their processors, ordering them, inserting them into
         ! CurrentDets, calculating and storing all Hamiltonian matrix elements and initalising all
         ! arrays required to store and distribute the vectors in the deterministic space later.
-        if (tSemiStochastic) call init_semi_stochastic(ss_space_in)
+        if (tSemiStochastic .and. .not. t_real_time_fciqmc) &
+             call init_semi_stochastic(ss_space_in)
+        ! in the real-time application, this is done after the initial state is set up
 
         ! If the number of trial states to calculate hasn't been set by the
         ! user, then simply use the minimum number

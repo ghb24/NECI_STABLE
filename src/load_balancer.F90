@@ -547,12 +547,12 @@ contains
             do i=1,TotWalkersNew
 
                 call extract_sign(CurrentDets(:,i),CurrentSign)
+
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
 
                 if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then                   
                    AnnihilatedDet = AnnihilatedDet + 1 
                 else
-
                    
                    ! This is only relevant if non-integer CurrentSign is used (which
                    ! will most likely be the case for rotated time)

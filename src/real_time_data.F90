@@ -206,7 +206,7 @@ module real_time_data
     integer :: iunitCycLog
     real(dp), allocatable :: tauCache(:), alphaCache(:)
     character(255) :: trajFile
-    logical :: tGenerateCoreSpace
+    logical :: tGenerateCoreSpace, tGZero
 
     integer :: minCoreSpacePos, maxDetermSize
     real(dp) :: minCoreSpaceWalkers

@@ -15,6 +15,7 @@ module bit_reps
                                OrbClassCount, ScratchSize, SymLabelList2, &
                                SymLabelCounts2
     use sym_general_mod, only: ClassCountInd
+    use real_time_data, only: tGenerateCoreSpace
     implicit none
 
     ! Structure of a bit representation:
@@ -187,7 +188,7 @@ contains
 
         ! Do we have any flags to store?
         if (tTruncInitiator .or. tSemiStochastic .or. tTrialWavefunction .or. &
-                tStartTrialLater .or. (semistoch_shift_iter /= 0)) then
+                tStartTrialLater .or. (semistoch_shift_iter /= 0) .or. tGenerateCoreSpace) then
             tUseFlags = .true.
         else
             tUseFlags = .false.

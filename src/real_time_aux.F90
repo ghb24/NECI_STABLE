@@ -115,6 +115,4 @@ module real_time_aux
 
     end subroutine move_overlap_block
 
-!------------------------------------------------------------------------------------------!
-
 end module real_time_aux

@@ -23,7 +23,7 @@ module real_time
                               temp_freeslot, overlap_real, overlap_imag, dyn_norm_psi, &
                               NoatHF_1, shift_damping, tDynamicCoreSpace, dyn_norm_red, &
                               normsize, gf_count, tRealTimePopsfile, tStabilizerShift, &
-                              tLimitShift, tDynamicAlpha, dpsi_cache, dpsi_size, &
+                              tLimitShift, tDynamicAlpha, dpsi_cache, dpsi_size, tGZero, &
                               tDynamicDamping, stabilizerThresh, popSnapshot, spawnBufSize, &
                               tLogTrajectory, tReadTrajectory, tGenerateCoreSpace
     use verlet_aux, only: init_verlet_iteration, obtain_h2_psi, update_delta_psi, &
@@ -328,7 +328,7 @@ contains
                   overlap_real(j) = real(overlap_buf(j))
                   overlap_imag(j) = aimag(overlap_buf(j))
                end do
-               call update_real_time_iteration(iterRK)
+               call update_real_time_iteration()
             endif
 
             if(mod(iter,stepsAlpha)==0 .and. (tDynamicAlpha .or. tDynamicDamping)) then
@@ -418,13 +418,12 @@ contains
 
     end subroutine perform_real_time_fciqmc
 
-    subroutine update_real_time_iteration(iterRK)
+    subroutine update_real_time_iteration()
         ! routine to update certain global variables each loop iteration in 
         ! the real-time fciqmc 
         ! from the 2 distince spawn/death/cloning info stored in the 
         ! two iter_data vars, i have to combine the general updated 
         ! statistics for the actual time step
-        integer, intent(inout) :: iterRK
         character(*), parameter :: this_routine = "update_real_time_iteration"
         integer :: run
 
@@ -664,19 +663,20 @@ contains
             ! then there will be no determinants to spawn to, so don't attempt spawning.
             ! thats a really specific condition.. shouldnt be checked each 
             ! cycle.. since this is only input dependent..
-            do ireplica = 1, lenof_sign
+            if(.not. tGZero) then ! skip this if we only want the corespace-evolution
+               do ireplica = 1, lenof_sign
 
-                call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
-                !call merge_spawn(nspawn,prefactor)
-                do ispawn = 1, nspawn
+                  call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
+                  !call merge_spawn(nspawn,prefactor)
+                  do ispawn = 1, nspawn
 
-                    ! Zero the bit representation, to ensure no extraneous data gets through.
-                    ilut_child = 0_n_int
-                    call generate_excitation (nI_parent, CurrentDets(:,idet), nI_child, &
-                                        ilut_child, exFlag, ic, ex, tParity, prob, &
-                                        HElGen, fcimc_excit_gen_store)
-                    ! If a valid excitation.
-                    if (.not. IsNullDet(nI_child)) then
+                     ! Zero the bit representation, to ensure no extraneous data gets through.
+                     ilut_child = 0_n_int
+                     call generate_excitation (nI_parent, CurrentDets(:,idet), nI_child, &
+                          ilut_child, exFlag, ic, ex, tParity, prob, &
+                          HElGen, fcimc_excit_gen_store)
+                     ! If a valid excitation.
+                     if (.not. IsNullDet(nI_child)) then
 
                         call encode_child (CurrentDets(:,idet), ilut_child, ic, ex)
                         if (tUseFlags) ilut_child(nOffFlag) = 0_n_int
@@ -688,29 +688,30 @@ contains
 
                         ! unbias if the number of spawns was truncated
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
-                                            nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                                            ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
+                             nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
+                             ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
                         child_sign = prefactor*child_sign
-                    else
+                     else
                         child_sign = 0.0_dp
-                    end if
+                     end if
 
-                    ! If any (valid) children have been spawned.
-                    if ((any(abs(child_sign) > EPS)) .and. (ic /= 0) .and. (ic <= 2)) then
+                     ! If any (valid) children have been spawned.
+                     if ((any(abs(child_sign) > EPS)) .and. (ic /= 0) .and. (ic <= 2)) then
 
                         ! not quite sure about how to collect the child
                         ! stats in the new rt-fciqmc ..
                         call new_child_stats (second_spawn_iter_data, CurrentDets(:,idet), &
-                                              nI_child, ilut_child, ic, ex_level_to_ref, &
-                                              child_sign, parent_flags, ireplica)
+                             nI_child, ilut_child, ic, ex_level_to_ref, &
+                             child_sign, parent_flags, ireplica)
                         call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
-                                                               ireplica, CurrentDets(:,idet), &
-                                                               second_spawn_iter_data)
-                    end if ! If a child was spawned.
+                             ireplica, CurrentDets(:,idet), &
+                             second_spawn_iter_data)
+                     end if ! If a child was spawned.
 
-                end do ! Over mulitple particles on same determinant.
+                  end do ! Over mulitple particles on same determinant.
 
-            end do ! Over the replicas on the same determinant.
+               end do ! Over the replicas on the same determinant.
+            endif
             ! If this is a core-space determinant then the death step is done in
             ! determ_projection.
             if (.not. tParentIsDeterm) then
@@ -726,10 +727,10 @@ contains
                 ! the annihilation(and in the spawing routine above) the 
                 ! particles get merged with a + instead of the - in the 
                 ! original death routine for a "normal" death
-                diag_sign = -attempt_die_realtime(nI_parent, parent_hdiag, &
+                diag_sign = -attempt_die_realtime(parent_hdiag, &
                     parent_sign, ex_level_to_ref)
                 if (any(abs(diag_sign) > EPS)) then
-                   call create_diagonal_as_spawn(nI_parent, CurrentDets(:,idet), &
+                   call create_diagonal_as_spawn(CurrentDets(:,idet), &
                         diag_sign, second_spawn_iter_data)
                 end if
 
@@ -1054,7 +1055,7 @@ endif
                 sum(TotParts(min_part_type(run):max_part_type(run)))
         enddo
 
-        call DirectAnnihilation_diag(TotWalkersNew, second_spawn_iter_data, .false.)
+        call DirectAnnihilation_diag(TotWalkersNew, second_spawn_iter_data)
          TotWalkersNew = int(TotWalkersNew, sizeof_int)
         
         ! and then do the "normal" annihilation with the SpawnedParts array!
@@ -1113,10 +1114,7 @@ endif
       !  in between to update delta_psi)
       call CalcHashTableStats(TotWalkersNew,iter_data_fciqmc)
       TotWalkers = TotWalkersNew
-
-      if(tGenerateCoreSpace) call updateCorespace()
       
-      call update_iter_data(iter_data_fciqmc)
     end subroutine perform_verlet_iteration
 
 end module real_time

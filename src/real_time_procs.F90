@@ -27,7 +27,7 @@ module real_time_procs
     use bit_reps, only: decode_bit_det, test_flag, encode_sign, &
                         set_flag, encode_bit_rep, extract_bit_rep, &
                         flag_has_been_initiator, flag_deterministic, encode_part_sign, &
-                        nullify_ilut_part, get_initiator_flag, get_initiator_flag_by_run, &
+                        get_initiator_flag, get_initiator_flag_by_run, &
                         clr_flag
     use util_mod, only: get_free_unit, get_unique_filename
     use bit_rep_data, only: extract_sign, nifdbo, niftot
@@ -74,15 +74,14 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine DirectAnnihilation_diag(TotWalkersNew, iter_data, tSingleProc)
+    subroutine DirectAnnihilation_diag(TotWalkersNew, iter_data)
         ! new direct annihilation routine to mimick the diagonal death step
         ! in the y(n) + k2 combination between reloaded CurrentDets and the 
         ! DiagParts list
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
-        logical, intent(in) :: tSingleProc
         character(*), parameter :: this_routine = "DirectAnnihilation_diag"
-        integer :: numSpawns, ierr
+        integer :: numSpawns
 
         ! As only diagonal events are considered here, no communication
         ! is required
@@ -118,12 +117,11 @@ contains
         type(fcimc_iter_data), intent(inout) :: iter_data 
         character(*), parameter :: this_routine = "AnnihilateDiagParts"
 
-        integer :: PartInd, i, j, PartIndex
+        integer :: PartInd, i, j
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
-        real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
-        real(dp) :: pRemove, r
-        integer :: ExcitLevel, DetHash, nJ(nel)
-        logical :: tSuccess, tSuc, tPrevOcc, tDetermState
+        real(dp), dimension(lenof_sign) :: SignProd
+        integer :: DetHash, nJ(nel)
+        logical :: tSuccess, tDetermState
         integer :: run       
         integer :: nI(nel)
         
@@ -308,18 +306,16 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine create_diagonal_as_spawn(nI, ilut, diag_sign, iter_data)
+    subroutine create_diagonal_as_spawn(ilut, diag_sign, iter_data)
         ! new routine to create diagonal particles into new DiagParts 
         ! array to distinguish between spawns and diagonal events in the 
         ! combination y(n) + k2
       use Parallel_neci, only :iProcIndex
-        integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:niftot)
         real(dp), intent(in) :: diag_sign(lenof_sign)
         type(fcimc_iter_data), intent(inout) :: iter_data
         character(*), parameter :: this_routine = "create_diagonal_as_spawn"
 
-        integer :: i
         logical :: list_full
         integer, parameter :: flags = 0
 
@@ -360,20 +356,18 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    function attempt_die_realtime(DetCurr, Kii, RealwSign, walkExcitLevel) &
+    function attempt_die_realtime(Kii, RealwSign, walkExcitLevel) &
             result(ndie)
         ! also write a function, which calculates the new "signs"(weights) of 
         ! the real and complex walkers for the diagonal death/cloning step 
         ! since i need that for both 1st and 2nd loop of RK, but at different 
         ! points 
       implicit none
-        integer, intent(in) :: DetCurr(nel) 
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         real(dp), intent(in) :: Kii
         real(dp), dimension(lenof_sign) :: ndie
-        real(dp), dimension(lenof_sign) :: CopySign
         integer, intent(in) :: walkExcitLevel
-        integer :: run, irdm
+        integer :: run
         real(dp) :: fac(lenof_sign), rat, r
 
         character(*), parameter :: this_routine = "attempt_die_realtime"
@@ -588,7 +582,7 @@ contains
 
         ilut => CurrentDets(:,DetPosition)
 
-        ndie = attempt_die_realtime(DetCurr, Kii, realwSign, walkExcitLevel)
+        ndie = attempt_die_realtime(Kii, realwSign, walkExcitLevel)
 
         ! this routine only gets called in the first runge-kutta step -> 
         ! so only update the stats for the first here!
@@ -695,9 +689,9 @@ contains
         HElement_t(dp) , intent(in) :: HElGen
         character(*), parameter :: this_routine = 'attempt_create_realtime'
 
-        real(dp) :: rat, r, walkerweight, pSpawn, nSpawn, MatEl, p_spawn_rdmfac, &
+        real(dp) :: rat, walkerweight, pSpawn, nSpawn, MatEl, p_spawn_rdmfac, &
              sepSign
-        integer :: extracreate, tgt_cpt, component, i, iUnused
+        integer :: extracreate, tgt_cpt, component, iUnused
         integer :: TargetExcitLevel
         logical :: tRealSpawning
         HElement_t(dp) :: rh, rh_used
@@ -1553,7 +1547,7 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine adjust_decay_channels()
-      use FciMCData, only: AllTotParts, tSinglePartPhase
+      use FciMCData, only: AllTotParts
       use CalcData, only: InitWalkers
       use Parallel_neci, only: nProcessors
       use real_time_data, only: alphaDamping, etaDamping, tStartVariation, rotThresh, &

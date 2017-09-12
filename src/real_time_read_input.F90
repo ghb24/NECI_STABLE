@@ -3,10 +3,11 @@ module real_time_read_input_module
   use real_time_init, only: set_real_time_defaults, benchmarkenergy
   use FciMCData, only: alloc_popsfile_dets, pops_pert
   use CalcData, only: tAddToInitiator, tTruncInitiator, tWalkContGrow, tStartSinglePart, &
-       tWritePopsNorm, tReadPops, ss_space_in
+       tWritePopsNorm, tReadPops, ss_space_in, tSemiStochastic
   use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
   use kp_fciqmc_data_mod, only: tOverlapPert, overlap_pert, tScalePopulation
   use SystemData, only: nel, tComplexWalkers_RealInts
+  use bit_rep_data, only: tUseFlags
   use constants
 
   contains
@@ -437,6 +438,15 @@ module real_time_read_input_module
                 ! This reads in a trajectory and performs the time-evolution along
                 ! it
                 tReadTrajectory = .true.
+
+             case("CORESPACE-OVERLAP")
+                ! Get the Green's function for the corespace only. This performs the 
+                ! time-evolution only in the semistochastic space.
+                tGZero = .true.
+                ! If the corespace-greensfunction is to be obtained, semi-stochastic 
+                ! has to be turned on
+                if(.not. tSemiStochastic) call stop_all(this_routine, &
+                     "CORESPACE-OVERLAP ONLY AVAILABLE IN SEMI-STOCHASTIC MODE")
 
             case ("ENDREALTIME")
                 exit real_time

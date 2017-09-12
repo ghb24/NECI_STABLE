@@ -30,7 +30,7 @@ module real_time_init
                               tInfInit,  popSnapshot, snapshotOrbs, phase_factors, tVerletSweep, &
 			      numSnapshotOrbs, tLowerThreshold, t_kspace_operators, tVerletScheme, &
                               tLogTrajectory, tReadTrajectory, alphaCache, tauCache, trajFile, &
-                              tGenerateCoreSpace, minFraction
+                              tGenerateCoreSpace, tGZero
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states, openTauContourFile, &
                                get_new_minCoreSpace
@@ -284,7 +284,6 @@ contains
         AllInitRemoved_1 = 0
         AccRat_1 = 0.0_dp
         AllSumWalkersCyc_1 = 0.0_dp
-        minFraction = 1.0_dp
 
         tVerletSweep = .false.
         if(tVerletScheme) then 
@@ -314,6 +313,8 @@ contains
     end subroutine rotate_time
 
     subroutine init_overlap_buffers
+      use CalcData, only: tSemiStochastic, ss_space_in
+      use semi_stoch_gen, only: init_semi_stochastic
       implicit none
       ! this subroutine sets up everything required to compute green's functions
       integer :: ierr, j
@@ -333,6 +334,12 @@ contains
       ! also need to create the perturbed ground state to calculate the 
       ! overlaps to |y(t)> 
       call create_perturbed_ground()
+      if(tSemiStochastic) call init_semi_stochastic(ss_space_in)
+      ! If only the corespace time-evolution is to be taken, truncate the
+      ! initial wavefunction to the corespace
+      ! We currently do not truncate the overlap state too, but it might come
+      ! later
+      if(tGZero) call truncate_initial_state()
 
       ! if a ground-state POPSFILE is used, we need to ensure coherence between the replicas
       if(.not. tRealTimePopsfile) call equalize_initial_phase()
@@ -498,6 +505,8 @@ contains
         tReadTrajectory = .false.
 
         tGenerateCoreSpace = .false.
+        ! Get the full Green's function, not only in the corespace
+        tGZero = .false.
     end subroutine set_real_time_defaults
 
     ! need a specific popsfile read function for the real-time calculation
@@ -819,6 +828,27 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
+    subroutine truncate_initial_state
+      use semi_stoch_procs, only: check_determ_flag
+      use hash, only: hash_table_lookup, remove_hash_table_entry
+      use FciMCData, only: HashIndex
+      use bit_reps, only: nullify_ilut
+      implicit none
+      integer :: i, nI(nel), DetHash, PartInd
+      logical :: tSuccess
+      
+      do i = 1, TotWalkers
+         if(.not. check_determ_flag(CurrentDets(:,i))) then
+            call nullify_ilut(CurrentDets(:,i))
+            call hash_table_lookup(nI,CurrentDets(:,i),nifdbo,HashIndex,CurrentDets,&
+                 PartInd,DetHash,tSuccess)
+            call remove_hash_table_entry(HashIndex,nI,PartInd)
+         endif
+      enddo
+    end subroutine truncate_initial_state
+
+!------------------------------------------------------------------------------------------!
+
     subroutine setup_rt_core
       use FciMCData, only: determ_space_size, determ_sizes, core_space
       use real_time_data, only: maxDetermSize
@@ -849,23 +879,6 @@ contains
          call set_deterministic_flag(i)
       enddo
     end subroutine setup_rt_core
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine calc_min_pop_fraction
-      ! Here we determine the fraction of the population that is
-      ! needed at least to get into the core-space
-      use real_time_data,only: minCoreSpacePos, minCoreSpaceWalkers
-      use FciMCData, only: determ_sizes
-      implicit none
-      integer :: i,ierr
-      real(dp) :: mpi_tmp(0:nProcessors-1)
-      real(dp) :: minFraction
-
-      call get_new_minCoreSpace()
-      call MPIAllGather(minCoreSpaceWalkers,mpi_tmp,ierr)
-      ! minFraction = min(mpi_tmp)
-    end subroutine calc_min_pop_fraction
 
 !------------------------------------------------------------------------------------------!
 

@@ -285,7 +285,7 @@ module verlet_aux
          end do ! Over mulitple particles on same determinant.
       end do
       if(.not. tCoreDet) then
-         child_sign = -attempt_die_realtime(nI,hdiag,parent_sign,unused_ex_level)
+         child_sign = -attempt_die_realtime(hdiag,parent_sign,unused_ex_level)
          if(any(abs(child_sign) > EPS)) then
             ! diagonal events are treated the same way as offdiagonal ones, 
             ! except for an extra flag indicating the diagonal spawn
