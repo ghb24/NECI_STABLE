@@ -1155,7 +1155,7 @@ contains
 !------------------------------------------------------------------------------------------!
 
     function calc_norm(dets, num_dets) result(cd_norm)
-      ! the first dimension of dets has to be lenof_sign
+      ! the first dimension of dets has to be niftot
       ! function to calculate the norm of a state and 
       ! the overlap between replicas(general function)
         complex(dp) :: cd_norm(normsize)

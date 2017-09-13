@@ -51,7 +51,7 @@ module real_time_init
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
                          MaxSpawned, tSearchTauOption, TotWalkers, SumWalkersCyc, &
                          CurrentDets, popsfile_dets, MaxWalkersPart, WalkVecDets, &
-                         SpawnedParts
+                         SpawnedParts, determ_sizes
     use SystemData, only: lms, G1, nBasisMax, tHub, nel, tComplexWalkers_RealInts, nBasis, tReal
     use SymExcitDataMod, only: kTotal
     use sym_mod, only: MomPbcSym
@@ -315,6 +315,7 @@ contains
     subroutine init_overlap_buffers
       use CalcData, only: tSemiStochastic, ss_space_in
       use semi_stoch_gen, only: init_semi_stochastic
+      use real_time_procs, only: reset_tot_parts
       implicit none
       ! this subroutine sets up everything required to compute green's functions
       integer :: ierr, j
@@ -339,7 +340,11 @@ contains
       ! initial wavefunction to the corespace
       ! We currently do not truncate the overlap state too, but it might come
       ! later
-      if(tGZero) call truncate_initial_state()
+      if(tGZero) then
+         call truncate_initial_state()
+         call reset_tot_parts()
+         TotWalkers = determ_sizes(iProcIndex)
+      end if
 
       ! if a ground-state POPSFILE is used, we need to ensure coherence between the replicas
       if(.not. tRealTimePopsfile) call equalize_initial_phase()
@@ -357,7 +362,9 @@ contains
          call MPIReduce(norm_buf,MPI_SUM,pert_norm(:,j))
          ! for diagonal green's functions, this is the same as pert_norm, but 
          ! in general, this general normalization is required.
-         dyn_norm_red(:,j) = pert_norm(:,j)
+         do i = 1, normsize
+            dyn_norm_red(i,j) = sqrt(pert_norm(i,j)*dyn_norm_psi(i,j))
+         end do
       enddo
 
       deallocate(norm_buf)
@@ -832,7 +839,7 @@ contains
       use semi_stoch_procs, only: check_determ_flag
       use hash, only: hash_table_lookup, remove_hash_table_entry
       use FciMCData, only: HashIndex
-      use bit_reps, only: nullify_ilut
+      use bit_reps, only: nullify_ilut, decode_bit_det
       implicit none
       integer :: i, nI(nel), DetHash, PartInd
       logical :: tSuccess
@@ -840,9 +847,10 @@ contains
       do i = 1, TotWalkers
          if(.not. check_determ_flag(CurrentDets(:,i))) then
             call nullify_ilut(CurrentDets(:,i))
+            call decode_bit_det(nI,CurrentDets(:,i))
             call hash_table_lookup(nI,CurrentDets(:,i),nifdbo,HashIndex,CurrentDets,&
                  PartInd,DetHash,tSuccess)
-            call remove_hash_table_entry(HashIndex,nI,PartInd)
+            if(tSuccess) call remove_hash_table_entry(HashIndex,nI,PartInd)
          endif
       enddo
     end subroutine truncate_initial_state
