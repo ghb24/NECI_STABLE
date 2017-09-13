@@ -34,7 +34,7 @@ module fcimc_helper
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
-                        MaxWalkerBloom, &
+                        MaxWalkerBloom, tAllDoubsInitiators, &
                         NMCyc, iSampleRDMIters, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex
@@ -681,7 +681,7 @@ contains
     end subroutine SumEContrib_different_refs
 
 
-    subroutine CalcParentFlag(j, parent_flags, diagH)
+    subroutine CalcParentFlag(j, parent_flags, diagH, exLevel)
 
         ! In the CurrentDets array, the flag at NIfTot refers to whether that
         ! determinant *itself* is an initiator or not. We need to decide if 
@@ -693,6 +693,7 @@ contains
         ! *parent* is an initiator or not.
 
         integer, intent(in) :: j
+        integer, intent(in), optional :: exLevel
         integer, intent(out) :: parent_flags
         real(dp) :: CurrentSign(lenof_sign)
         real(dp), intent(in) :: diagH
@@ -720,6 +721,10 @@ contains
                                             CurrentSign, diagH, &
                                             j, run)
 
+                if(present(exLevel))then
+                   if(tAllDoubsInitiators .and. (exLevel == 2)) parent_init = .true.
+                endif
+                
                 ! Update counters as required.
                 if (parent_init) then
                     NoInitDets = NoInitDets + 1_int64

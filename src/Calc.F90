@@ -2384,6 +2384,10 @@ contains
                     call geti(occ_virt_level)
                 end if
 
+             case("ALL-DOUBS-INITIATORS")
+                ! Set all doubles to be treated as initiators
+                tAllDoubsInitiators = .true.   
+
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)

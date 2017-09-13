@@ -117,6 +117,7 @@ real(dp) :: RealSpawnCutoff, OccupiedThresh
 logical :: tRPA_QBA     !RPA calculation with QB approximation
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
 logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
+logical :: tAllDoubsInitiators
 
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
