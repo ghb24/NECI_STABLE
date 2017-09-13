@@ -318,7 +318,7 @@ contains
       use real_time_procs, only: reset_tot_parts
       implicit none
       ! this subroutine sets up everything required to compute green's functions
-      integer :: ierr, j
+      integer :: ierr, j, i
       complex(dp), allocatable :: norm_buf(:)
 
       normsize = inum_runs**2      
@@ -342,6 +342,7 @@ contains
       ! later
       if(tGZero) then
          call truncate_initial_state()
+         call truncate_overlap_states()
          call reset_tot_parts()
          TotWalkers = determ_sizes(iProcIndex)
       end if
@@ -363,7 +364,7 @@ contains
          ! for diagonal green's functions, this is the same as pert_norm, but 
          ! in general, this general normalization is required.
          do i = 1, normsize
-            dyn_norm_red(i,j) = sqrt(pert_norm(i,j)*dyn_norm_psi(i,j))
+            dyn_norm_red(i,j) = sqrt(pert_norm(i,j)*dyn_norm_psi(i))
          end do
       enddo
 
@@ -854,6 +855,36 @@ contains
          endif
       enddo
     end subroutine truncate_initial_state
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine truncate_overlap_states
+      use semi_stoch_procs, only: check_determ_flag
+      use FciMCData, only: HashIndex
+      use bit_reps, only: nullify_ilut
+      use hash, only: hash_table_lookup
+      implicit none
+      integer :: i, iGf, nI(nel), DetHash, PartInd
+      logical :: tSuccess
+
+      do iGf = 1, gf_count
+         ! For each gf, truncate the corresponding overlap state
+         do i = 1, overlap_states(iGf)%ndets
+            call decode_bit_det(nI,overlap_states(iGf)%dets(:,i))
+            call hash_table_lookup(nI,overlap_states(iGf)%dets(:,i),nifdbo,HashIndex,&
+                 CurrentDets,PartInd,DetHash,tSuccess)
+            if(tSuccess) then
+               ! In principle, there are no non-core determinants left when this
+               ! is called, but we do not want to depend on the order in which the
+               ! truncation is carried out
+               if(.not. check_determ_flag(CurrentDets(:,PartInd))) call nullify_ilut(&
+                    overlap_states(iGf)%dets(:,i))
+            else
+               call nullify_ilut(overlap_states(iGf)%dets(:,i))
+            endif
+         enddo
+      enddo
+    end subroutine truncate_overlap_states
 
 !------------------------------------------------------------------------------------------!
 
