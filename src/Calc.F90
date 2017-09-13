@@ -320,6 +320,8 @@ contains
           tPopsJumpShift = .false.
           calc_seq_no = 1
 
+          tAllDoubsInitiators = .false.
+
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
