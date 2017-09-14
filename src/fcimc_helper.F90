@@ -681,7 +681,7 @@ contains
     end subroutine SumEContrib_different_refs
 
 
-    subroutine CalcParentFlag(j, parent_flags, diagH, exLevel)
+    subroutine CalcParentFlag(j, parent_flags)
 
         ! In the CurrentDets array, the flag at NIfTot refers to whether that
         ! determinant *itself* is an initiator or not. We need to decide if 
@@ -693,11 +693,9 @@ contains
         ! *parent* is an initiator or not.
 
         integer, intent(in) :: j
-        integer, intent(in), optional :: exLevel
         integer, intent(out) :: parent_flags
         real(dp) :: CurrentSign(lenof_sign)
-        real(dp), intent(in) :: diagH
-        integer :: run, nopen
+        integer :: run, nopen, exLevel
         logical :: tDetinCAS, parent_init
         real(dp) :: init_tm, expected_lifetime, hdiag
         character(*), parameter :: this_routine = 'CalcParentFlag'
@@ -718,13 +716,8 @@ contains
                 ! Should this particle be considered to be an initiator
                 ! for spawning purposes.
                 parent_init = TestInitiator(CurrentDets(:,j), parent_init, &
-                                            CurrentSign, diagH, &
-                                            j, run)
+                                            CurrentSign, run)
 
-                if(present(exLevel))then
-                   if(tAllDoubsInitiators .and. (exLevel == 2)) parent_init = .true.
-                endif
-                
                 ! Update counters as required.
                 if (parent_init) then
                     NoInitDets = NoInitDets + 1_int64
@@ -761,7 +754,7 @@ contains
     end subroutine CalcParentFlag
 
 
-    function TestInitiator(ilut, is_init, sgn, diagH, site_idx, run) result(initiator)
+    function TestInitiator(ilut, is_init, sgn, run) result(initiator)
 
         ! For a given particle (with its given particle type), should it
         ! be considered as an initiator for the purposes of spawning.
@@ -775,20 +768,27 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         logical, intent(in) :: is_init
-        real(dp), intent(in) :: diagH
-        integer, intent(in) :: site_idx, run
+        integer, intent(in) :: run
         real(dp), intent(in) :: sgn(lenof_sign)
 
         ! the following value is either a single sgn or an aggregate
         real(dp) :: tot_sgn
         logical :: initiator
+        integer :: exLevel
 
         ! By default the particles status will stay the same
         initiator = is_init
 
         tot_sgn = mag_of_run(sgn,run)
 
-        if (.not. is_init) then
+        ! Doubles are always initiators if the corresponding flag is set
+        exLevel = 0
+        if(tAllDoubsInitiators) then
+           exLevel = FindBitExcitLevel(ilutRef(:,run),ilut)
+           if(exLevel == 2) initiator = .true.
+        endif
+
+        if (.not. initiator) then
 
             ! Determinant wasn't previously initiator 
             ! - want to test if it has now got a large enough 
@@ -808,7 +808,8 @@ contains
             ! is in the deterministic space, then it must remain an initiator.
             if ( .not. (DetBitEQ(ilut, iLutRef(:,run), NIfDBO)) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
-                .and. (tot_sgn <= InitiatorWalkNo )) then
+                .and. (tot_sgn <= InitiatorWalkNo ) .and. &
+                .not. (tAllDoubsInitiators .and. exLevel == 2)) then
                 ! Population has fallen too low. Initiator status 
                 ! removed.
                 initiator = .false.

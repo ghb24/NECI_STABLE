@@ -931,7 +931,7 @@ module FciMCParMod
             HDiagCurr = det_diagH(j)
 
             if (tTruncInitiator) &
-                call CalcParentFlag (j, parent_flags, HDiagCurr, walkExcitLevel)
+                call CalcParentFlag (j, parent_flags)
 
             ! As the main list (which is storing a hash table) no longer needs
             ! to be contiguous, we need to skip sites that are empty.

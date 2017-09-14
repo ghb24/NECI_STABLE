@@ -37,7 +37,7 @@ MODULE PopsfileMod
         gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, max_death_cpt
     use FciMcData, only : pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
     use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH
-    use fcimc_helper, only: update_run_reference, calc_inst_proje
+    use fcimc_helper, only: update_run_reference, calc_inst_proje, TestInitiator
     use replica_data, only: set_initial_global_data
     use load_balance, only: pops_init_balance_blocks
     use load_balance_calcnodes, only: tLoadBalanceBlocks, balance_blocks
@@ -1965,8 +1965,8 @@ r_loop: do while(.not.tStoreDet)
         integer, intent(in) :: iunit, iunit_2
         integer(n_int), intent(in) :: det(0:NIfTot)
         real(dp) :: real_sgn(lenof_sign), detenergy
-        integer :: flg, j, k, ex_level, nopen, nI(nel) 
-        logical :: bWritten
+        integer :: flg, j, k, ex_level, nopen, nI(nel)
+        logical :: bWritten, is_init, is_init_tmp
 
         bWritten = .false.
 
@@ -2006,23 +2006,28 @@ r_loop: do while(.not.tStoreDet)
                 write(iunit, *)
             end if
 
-            if (tPrintInitiators .and. &
-                abs(real_sgn(1)) > InitiatorWalkNo) then
-                ! Testing using the sign now, because after annihilation
-                ! the current flag will not necessarily be correct.
-                ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel)
-                nopen = count_open_orbs(det)
-                call decode_bit_det(nI, det)
-                if(tHPHF)then
-                    detenergy = hphf_diag_helement(nI, det)
-                else
-                    detenergy = get_helement(nI, nI, 0)
-                endif
-                write(iunit_2, '(f20.10,a20)', advance='no') &
-                    abs(real_sgn(1)), ''
-                call writebitdet (iunit_2, det, .false.)
-                write(iunit_2,'(i30,i30,f20.10)') ex_level, nopen, detenergy
-
+            if (tPrintInitiators) then
+               is_init = .false.
+               do k = 1, inum_runs
+                  is_init_tmp = test_flag(det,get_initiator_flag_by_run(k))
+                  is_init = is_init .or. TestInitiator(det,is_init_tmp,real_sgn,k)
+               enddo
+               if(is_init) then
+                  ! Testing using the sign now, because after annihilation
+                  ! the current flag will not necessarily be correct.
+                  ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel)
+                  nopen = count_open_orbs(det)
+                  call decode_bit_det(nI, det)
+                  if(tHPHF)then
+                     detenergy = hphf_diag_helement(nI, det)
+                  else
+                     detenergy = get_helement(nI, nI, 0)
+                  endif
+                  write(iunit_2, '(f20.10,a20)', advance='no') &
+                       abs(real_sgn(1)), ''
+                  call writebitdet (iunit_2, det, .false.)
+                  write(iunit_2,'(i30,i30,f20.10)') ex_level, nopen, detenergy
+               endif
             end if
         end if
 

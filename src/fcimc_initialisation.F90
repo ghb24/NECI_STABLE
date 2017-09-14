@@ -2505,8 +2505,7 @@ contains
 
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
-                        call CalcParentFlag(DetIndex, iInit, &
-                                            real(HDiagTemp, dp))
+                        call CalcParentFlag(DetIndex, iInit)
                     endif
 
                     DetHash = FindWalkerHash(CASFullDets(:,i), nWalkerHashes)
@@ -2701,8 +2700,7 @@ contains
 
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
-                        call CalcParentFlag(DetIndex, iInit, &
-                                            real(HDiagTemp, dp))
+                        call CalcParentFlag(DetIndex, iInit)
                     endif
 
                     DetHash = FindWalkerHash(nJ, nWalkerHashes)

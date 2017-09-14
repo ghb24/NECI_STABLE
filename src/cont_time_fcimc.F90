@@ -96,7 +96,7 @@ contains
 
             ! Calculate the flags that ought to be carried through
             if (tTruncInitiator) &
-                call CalcParentFlag(j, iunused, hdiag)
+                call CalcParentFlag(j, iunused)
 
             ! Sum in the energy terms, yeah!
             ic_hf = FindBitExcitLevel(ilutRef, CurrentDets(:,j))

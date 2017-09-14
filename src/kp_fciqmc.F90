@@ -193,7 +193,7 @@ contains
                             ! The current diagonal matrix element is stored persistently.
                             parent_hdiag = det_diagH(idet)
 
-                            if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
+                            if (tTruncInitiator) call CalcParentFlag(idet, parent_flags)
 
                             call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
                                                parent_hdiag, 1.0_dp, tPairedReplicas, idet)
@@ -554,7 +554,7 @@ contains
                         ! The current diagonal matrix element is stored persistently.
                         parent_hdiag = det_diagH(idet)
 
-                        if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
+                        if (tTruncInitiator) call CalcParentFlag(idet, parent_flags)
 
                         call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
                                            parent_hdiag, 1.0_dp, tPairedReplicas, idet)
