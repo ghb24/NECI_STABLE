@@ -22,6 +22,7 @@ program test_impurity_excit_gen
       call test_bath_excitation
       call test_imp_excitation
       call test_single_excitation
+      call test_gen_excit_impurity_model
     end subroutine impurity_excit_gen_test_driver
 
 !------------------------------------------------------------------------------------------!
@@ -156,8 +157,8 @@ program test_impurity_excit_gen
       call generate_test_ilut(ilut,nI)
       call generate_imp_double_excitation(nI,ilut,nJ,ilutnJ,ex,tParity,pGen)
       call assert_true(FindBitExcitLevel(ilut,ilutnJ)==2)
-      call assert_true(ExcitMat(2,1) <= nImp)
-      call assert_true(ExcitMat(2,2) <= nImp)
+      call assert_true(ex(2,1) <= nImp)
+      call assert_true(ex(2,2) <= nImp)
     end subroutine test_double_excitation
 
 !------------------------------------------------------------------------------------------!
@@ -166,6 +167,8 @@ program test_impurity_excit_gen
       use constants, only: dp
       use bit_rep_data, only: niftot
       use SystemData, only: nel
+      use FciMCData, only: pSingles
+      use DetBitOps, only: FindBitExcitLevel
       implicit none
 
       integer(n_int) :: ilut(0:niftot), ilutnJ(0:niftot)
@@ -175,6 +178,7 @@ program test_impurity_excit_gen
       HElement_t(dp) :: HElGen
 
       call generate_test_ilut(ilut,nI)
+      pSingles = 0.0
       call gen_excit_impurity_model(nI,ilut,nJ,ilutnJ,exFlag,IC,ex,tParity,pGen,&
            HElGen)
       ! our test model does not support double excitations, the impurity is too small
@@ -213,4 +217,6 @@ program test_impurity_excit_gen
          ilut(0) = ibset(ilut(0),nI(i)-1)
       enddo
     end subroutine generate_test_ilut
+
+
 end program test_impurity_excit_gen
