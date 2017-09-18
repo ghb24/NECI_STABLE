@@ -30,7 +30,7 @@ module real_time_init
                               tInfInit,  popSnapshot, snapshotOrbs, phase_factors, tVerletSweep, &
 			      numSnapshotOrbs, tLowerThreshold, t_kspace_operators, tVerletScheme, &
                               tLogTrajectory, tReadTrajectory, alphaCache, tauCache, trajFile, &
-                              tGenerateCoreSpace, tGZero
+                              tGenerateCoreSpace, tGZero, wn_threshold, corespace_log_interval
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states, openTauContourFile
     use verlet_aux, only: backup_initial_state, setup_delta_psi
@@ -291,7 +291,7 @@ contains
            tau = tau/iterInit
         endif
 
-        if(tGenerateCoreSpace .and. .not. tSemiStochastic) call setup_rt_core()      
+        if(tGenerateCoreSpace) call initialize_corespace_construction()      
 
         if(tReadTrajectory) call read_in_trajectory()
 
@@ -512,6 +512,8 @@ contains
         tReadTrajectory = .false.
 
         tGenerateCoreSpace = .false.
+        wn_threshold = 0.01
+        corespace_log_interval = 300
         ! Get the full Green's function, not only in the corespace
         tGZero = .false.
     end subroutine set_real_time_defaults
@@ -887,35 +889,6 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine setup_rt_core
-      use FciMCData, only: determ_space_size, determ_sizes, core_space
-      use real_time_data, only: maxDetermSize
-      use CalcData, only: ss_space_in
-      use semi_stoch_gen, only: generate_space
-      implicit none
-      integer(MPIArg) :: mpi_temp
-      integer :: i, ierr
-
-      allocate(determ_sizes(0:nProcessors-1))
-      ! generate the pops-core
-      call generate_space(ss_space_in)
-
-      mpi_temp = determ_sizes(iProcIndex)
-      call MPIAllGather(mpi_temp, determ_sizes, ierr)
-
-      determ_space_size = sum(determ_sizes)
-      ! We allocate the core space to have 
-      maxDetermSize = ceiling(real(ss_space_in%nApproxSpace*ss_space_in%npops)/real(nProcessors))
-      allocate(core_space(0:niftot,maxDetermSize))
-      core_space = 0_n_int
-
-      ! Store this cores core-space only
-      core_space(:,1:determ_sizes(iProcIndex)) = SpawnedParts(:,1:determ_sizes(iProcIndex))
-
-    end subroutine setup_rt_core
-
-!------------------------------------------------------------------------------------------!
-
     subroutine set_deterministic_flag(i)
       use FciMCData, only: HashIndex, core_space
       use bit_rep_data, only: flag_deterministic
@@ -939,5 +912,24 @@ contains
          call stop_all(this_routine,"Deterministic state not present in CurrentDets")
       endif
     end subroutine set_deterministic_flag
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine initialize_corespace_construction
+      use hash, only: init_hash_table
+      use FciMCData, only: nWalkerHashes, MaxWalkersPart
+      use real_time_data, only: ssht, core_space_buf, csbuf_size
+      implicit none
+      integer :: ierr
+
+      ! allocate the buffer for the corespace
+      allocate(core_space_buf(0:niftot,MaxWalkersPart),stat = ierr)
+      ! set the position to 0
+      csbuf_size = 0
+      ! setup the buffer hashtable
+      allocate(ssht(nWalkerHashes),stat = ierr)
+      call init_hash_table(ssht)
+
+    end subroutine initialize_corespace_construction
     
 end module real_time_init

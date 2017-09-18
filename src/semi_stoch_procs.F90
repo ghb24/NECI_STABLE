@@ -830,15 +830,18 @@ contains
 
     end subroutine add_core_states_currentdet_hash
 
-    subroutine return_most_populated_states(n_keep, largest_walkers, norm)
+    subroutine return_most_populated_states(n_keep,&
+         largest_walkers, source, source_size, norm)
 
-        ! Return the most populated states in CurrentDets on *this* processor only. 
+        ! Return the most populated states in source on *this* processor only. 
         ! Also return the norm of these states, if requested.
 
         use bit_reps, only: extract_sign
         use DetBitOps, only: sign_lt, sign_gt
         use sort_mod, only: sort
 
+        integer, intent(in) :: source_size
+        integer(n_int), intent(in) :: source(0:NIfTot, source_size)
         integer, intent(in) :: n_keep
         integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
         real(dp), intent(out), optional :: norm
@@ -852,8 +855,8 @@ contains
         if (present(norm)) norm = 0.0_dp
 
         ! Run through all walkers on process.
-        do i = 1, int(TotWalkers,sizeof_int)
-            call extract_sign(CurrentDets(:,i), sign_curr)
+        do i = 1, int(source_size,sizeof_int)
+            call extract_sign(source(:,i), sign_curr)
 
 #ifdef __CMPLX
             sign_curr_real = sqrt(sum(real(sign_curr(1:lenof_sign)**2,dp)))

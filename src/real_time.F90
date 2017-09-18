@@ -14,7 +14,7 @@ module real_time
                                refresh_semistochastic_space, update_peak_walker_number, &
                                makePopSnapshot, update_elapsed_time, logTimeCurve, &
                                get_current_alpha_from_cache, closeTauContourFile, &
-                               updateCorespace
+                               get_corespace_from_buf
     use real_time_data, only: gf_type,  tVerletSweep, &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
                               current_overlap, SumWalkersCyc_1, DiagParts, stepsAlpha, &
@@ -25,7 +25,8 @@ module real_time
                               normsize, gf_count, tRealTimePopsfile, tStabilizerShift, &
                               tLimitShift, tDynamicAlpha, dpsi_cache, dpsi_size, tGZero, &
                               tDynamicDamping, stabilizerThresh, popSnapshot, spawnBufSize, &
-                              tLogTrajectory, tReadTrajectory, tGenerateCoreSpace
+                              tLogTrajectory, tReadTrajectory, tGenerateCoreSpace, &
+                              numSnapShotOrbs, core_space_buf, csbuf_size, corespace_log_interval
     use verlet_aux, only: init_verlet_iteration, obtain_h2_psi, update_delta_psi, &
          init_verlet_sweep, check_verlet_sweep, end_verlet_sweep
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
@@ -33,7 +34,7 @@ module real_time
                         tChangeProjEDet, DiagSft, nmcyc, tau, InitWalkers, &
                         s_global_start, StepsSft, semistoch_shift_iter
     use FciMCData, only: pops_pert, walker_time, iter, ValidSpawnedList, spawnedParts, &
-                         spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot, &
+                         spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot, & 
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
                          TotWalkers, fcimc_excit_gen_store, ilutRef, max_calc_ex_level, &
                          iLutHF_true, indices_of_determ_states, partial_determ_vecs, &
@@ -221,6 +222,7 @@ contains
         ! do all the setup, read-in and calling of the "new" real-time MC loop
         use real_time_data, only: gf_overlap
         use FciMCData, only : TotImagTime
+        use real_time_procs, only: expand_corespace_buf
         implicit none
 
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
@@ -338,11 +340,13 @@ contains
                if(tVerletScheme) call end_verlet_sweep()
             endif
 
-
             if(tVerletScheme) call check_verlet_sweep(iterRK)
 
             ! if a threshold value is set, check it
             if(tLimitShift) call trunc_shift()
+
+            if(tGenerateCoreSpace .and. (mod(iter,corespace_log_interval) .eq. 0)) &
+                 call expand_corespace_buf(core_space_buf, csbuf_size)
             
             ! perform the actual iteration(excitation generation etc.) 
             if(iterRK .eq. 0) iter = iter + 1
@@ -408,7 +412,7 @@ contains
         if(tWriteCoreEnd) call write_most_pop_core_at_end(write_end_core_size)
         
         ! GENERATE-CORESPACE has precendence over WRITE-CORE-END
-        if(tGenerateCoreSpace) call write_core_space()
+        if(tGenerateCoreSpace) call get_corespace_from_buf(core_space_buf, csbuf_size)
         
         deallocate(norm_buf, stat = i)
         deallocate(overlap_buf, stat = i)
@@ -419,11 +423,14 @@ contains
     end subroutine perform_real_time_fciqmc
 
     subroutine update_real_time_iteration()
+      use real_time_data, only: core_space_buf, csbuf_size
+      use real_time_procs, only: expand_corespace_buf
         ! routine to update certain global variables each loop iteration in 
         ! the real-time fciqmc 
         ! from the 2 distince spawn/death/cloning info stored in the 
         ! two iter_data vars, i have to combine the general updated 
         ! statistics for the actual time step
+      implicit none
         character(*), parameter :: this_routine = "update_real_time_iteration"
         integer :: run
 
@@ -476,6 +483,8 @@ contains
            ! and do not forget to communicate the decision
            call MPIBcast(tSinglePartPhase)
         end if     
+        
+        write(6,*) "Corespace buffer size", csbuf_size
 
         call rotate_time()
     end subroutine update_real_time_iteration
@@ -809,7 +818,7 @@ contains
             end if
 
             ! get new population of observed orbitals
-            call makePopSnapshot(idet)
+            if(numSnapShotOrbs .gt. 0) call makePopSnapshot(idet)
 
             ! The current diagonal matrix element is stored persistently.
             parent_hdiag = det_diagH(idet)

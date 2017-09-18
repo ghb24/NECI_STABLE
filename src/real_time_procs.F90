@@ -122,7 +122,6 @@ contains
         integer :: DetHash, nJ(nel)
         logical :: tSuccess, tDetermState
         integer :: run       
-        integer :: nI(nel)
         
         ! rewrite the original Annihilation routine to fit the new 
         ! requirements here
@@ -571,13 +570,12 @@ contains
         real(dp), dimension(lenof_sign) :: ndie
         real(dp), dimension(lenof_sign) :: CopySign
         integer, intent(in) :: walkExcitLevel
-        integer :: i, irdm, j
-        real(dp) :: fac(lenof_sign), rat, r
+        integer :: i, j
+        real(dp) :: r
 
         character(len=*), parameter :: t_r = "walker_death_realtime"
 
         integer(n_int), pointer :: ilut(:)
-        logical :: set_init(lenof_sign)
 
         ilut => CurrentDets(:,DetPosition)
 
@@ -688,7 +686,7 @@ contains
         HElement_t(dp) , intent(in) :: HElGen
         character(*), parameter :: this_routine = 'attempt_create_realtime'
 
-        real(dp) :: rat, walkerweight, pSpawn, nSpawn, MatEl, p_spawn_rdmfac, &
+        real(dp) :: walkerweight, pSpawn, nSpawn, MatEl, p_spawn_rdmfac, &
              sepSign
         integer :: extracreate, tgt_cpt, component, iUnused
         integer :: TargetExcitLevel
@@ -1066,12 +1064,11 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine update_gf_overlap(gCore) 
+    subroutine update_gf_overlap() 
     ! subroutine to calculate the overlap of the current y(t) = a_j(a^+_j)(t)y(0)>
     ! time evolved wavefunction to the saved <y(0)|a^+_i(a_i) 
       use timing_neci, only: timer, get_total_time
       implicit none
-        logical, intent(in), optional :: gCore
         integer :: idet, nI(nel), det_ind, hash_val, runA, runB, iGf
         real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
         complex(dp) :: overlap(normsize)
@@ -1123,16 +1120,15 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine normalize_gf_overlap(overlapList,avReal,avImag,gCore)
+    subroutine normalize_gf_overlap(overlapList,avReal,avImag)
       implicit none
       complex(dp), intent(out) :: overlapList(normsize,gf_count)
       real(dp), intent(out) :: avReal(gf_count), avImag(gf_count)
-      logical, intent(in) :: gCore
       integer :: i,j
       complex(dp), allocatable :: overlap_buf(:)
 
       allocate(overlap_buf(gf_count))
-      call update_gf_overlap(gCore)
+      call update_gf_overlap()
 
       do j = 1, gf_count
          do i = 1, normsize
@@ -1228,7 +1224,7 @@ contains
         use FciMCData, only: SemiStoch_Multiply_Time
         use Parallel_neci, only: MPIBarrier, MPIAllGatherV
 
-        integer :: i, j, ierr, run, part_type
+        integer :: i, j, ierr, run
 
         call MPIBarrier(ierr)
 
@@ -1698,4 +1694,65 @@ contains
     end subroutine get_current_alpha_from_cache
  
 !------------------------------------------------------------------------------------------!
+
+    subroutine expand_corespace_buf(buffer, buffer_size)
+      use real_time_data, only: ssht, wn_threshold
+      use real_time_aux, only: add_semistochastic_state
+      implicit none
+      integer(n_int), intent(inout) :: buffer(0:,1:)
+      integer, intent(inout) :: buffer_size
+      integer :: i
+      real(dp) :: sgn(lenof_sign)
+      
+      do i = 1, TotWalkers
+         call extract_sign(CurrentDets(:,i),sgn)
+         if(sum(abs(sgn))/lenof_sign > wn_threshold*TotWalkers) then
+            call add_semistochastic_state(buffer, buffer_size, ssht, CurrentDets(:,i))
+         endif
+      enddo
+      
+    end subroutine expand_corespace_buf
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine get_corespace_from_buf(buffer, buffer_size)
+      use FciMCData, only: determ_sizes, determ_space_size, determ_displs
+      use CalcData, only: ss_space_in
+      use semi_stoch_gen, only: generate_space_most_populated
+      use semi_stoch_procs, only: store_whole_core_space, write_core_space
+      implicit none
+      integer, intent(in) :: buffer_size
+      integer(n_int), intent(in) :: buffer(0:NIfTot,buffer_size)
+      integer :: space_size, ierr, i
+      integer(MPIArg) :: mpi_buf
+      
+      ! Get the most populated from those determinants that exceeded the threshold once
+      space_size = 0
+      allocate(determ_sizes(0:nProcessors-1))
+      call generate_space_most_populated(ss_space_in%npops, ss_space_in%tApproxSpace, &
+           ss_space_in%nApproxSpace, SpawnedParts, space_size, buffer, buffer_size)
+
+      ! Then, communicate the number of states per core
+      mpi_buf = int(space_size,MPIArg)
+      call MPIAllGather(mpi_buf, determ_sizes, ierr)
+      determ_space_size = sum(determ_sizes)
+
+      ! Prepare the store_whole_core_space communication routine
+      allocate(determ_displs(0:nProcessors-1))
+      determ_displs(0) = 0
+      do i = 1, nProcessors-1
+         determ_displs(i) = sum(determ_sizes(:i-1))
+      enddo
+      
+      ! Communciate the newly built corespace and output it
+      call store_whole_core_space()
+
+      call write_core_space()
+      
+      ! Cleanup
+      deallocate(determ_displs)
+      deallocate(determ_sizes)
+      
+    end subroutine get_corespace_from_buf
+
 end module real_time_procs

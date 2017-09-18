@@ -118,13 +118,18 @@ module real_time_aux
 !------------------------------------------------------------------------------------------!
 
     subroutine add_semistochastic_state(ilut_list, list_size, ssht, ilut)
+      use FciMCData, only: ll_node, MaxWalkersPart
+      use hash, only: hash_table_lookup, add_hash_table_entry
+      use bit_reps, only: encode_sign
       implicit none
       type(ll_node), pointer, intent(inout) :: ssht(:)
-      integer, intent(inout) :: ilut_list(0:nifTot,:)
-      integer, intent(in) :: ilut(0:nifTot)
-      integer :: index, hash_val
+      integer(n_int), intent(inout) :: ilut_list(0:,1:)
+      integer, intent(inout) :: list_size
+      integer(n_int), intent(in) :: ilut(0:nifTot)
+      integer :: index, hash_val, nI(nel)
       logical :: tSuccess
       real(dp) :: new_sgn(lenof_sign), old_sgn(lenof_sign)
+      character(*), parameter :: this_routine = "add_semistochastic_state"
       
       call decode_bit_det(nI,ilut)
       call hash_table_lookup(nI,ilut,nifDBO,ssht,ilut_list,index,hash_val,tSuccess)
@@ -134,9 +139,11 @@ module real_time_aux
          call extract_sign(ilut,new_sgn)
          if(sum(abs(new_sgn)) > sum(abs(old_sgn))) call encode_sign(ilut_list(:,index),new_sgn)
       else
+         if(list_size > MaxWalkersPart) call stop_all(this_routine, &
+              "Out of memory for corespace construction.")
          list_size = list_size + 1
          ilut_list(:,list_size) = ilut
-         call add_hash_table_entry(ssht,ilut_size,hash_val)
+         call add_hash_table_entry(ssht,list_size,hash_val)
       endif
     end subroutine add_semistochastic_state
 

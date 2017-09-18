@@ -210,5 +210,8 @@ module real_time_data
 
     ! For corespace construction
     real(dp) :: wn_threshold
+    integer(n_int), allocatable :: core_space_buf(:,:)
+    integer :: csbuf_size, corespace_log_interval
+    type(ll_node), pointer :: ssht(:)
 
 end module real_time_data

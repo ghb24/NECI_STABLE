@@ -59,8 +59,7 @@ contains
 
         character(*), parameter :: this_routine = 'iter_diagnostics'
         character(*), parameter :: t_r = this_routine
-        real(dp) :: mean_walkers
-        integer :: part_type, run
+        integer :: run
 
         ! Update the total imaginary time passed
         TotImagTime = TotImagTime + StepsSft * Tau
@@ -175,11 +174,10 @@ contains
         use HPHFRandExcitMod, only: ReturnAlphaOpenDet
 
         integer(int32) :: pop_highest(inum_runs), proc_highest(inum_runs)
-        real(dp) :: pop_change, old_Hii
-        integer :: det(nel), i, error, ierr, run
+        real(dp) :: pop_change
+        integer :: ierr, run
         integer(int32) :: int_tmp(2)
         logical :: tSwapped, allocate_temp_parts, changed_any
-        HElement_t(dp) :: h_tmp
         character(*), parameter :: this_routine = 'population_check'
         character(*), parameter :: t_r = this_routine
 
@@ -790,10 +788,8 @@ contains
         logical, dimension(inum_runs) :: tReZeroShift
         real(dp), dimension(inum_runs) :: AllGrowRateRe, AllGrowRateIm
         real(dp), dimension(inum_runs)  :: AllHFGrowRate
-        real(dp), dimension(lenof_sign) :: denominator, all_denominator
-        integer :: error, i, proc, pos, run, lb, ub
+        integer :: i, run, lb, ub
         logical, dimension(inum_runs) :: defer_update
-        logical :: start_varying_shift
 
         ! Normally we allow the shift to vary depending on the conditions
         ! tested. Sometimes we want to defer this to the next cycle...
@@ -1173,7 +1169,7 @@ contains
         if(tSemiStochastic) call getCoreSpaceWalkers()
         if(tLogGreensfunction) then 
            DiagSft = 0.0_dp
-           call normalize_gf_overlap(current_overlap, overlap_real, overlap_imag, .false.)
+           call normalize_gf_overlap(current_overlap, overlap_real, overlap_imag)
         endif
         if (tPrintDataTables) then
             if (tFCIMCStats2) then
@@ -1225,7 +1221,7 @@ contains
 
       implicit none
       integer :: i
-      real(dp) :: sgn(lenof_sign), buf
+      real(dp) :: sgn(lenof_sign)
 
       corespaceWalkers = 0.0_dp
       do i = 1, TotWalkers

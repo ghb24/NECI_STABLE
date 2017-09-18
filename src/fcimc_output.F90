@@ -1330,7 +1330,8 @@ endif
         if(ierr.ne.0) call stop_all(t_r,"error allocating here")
 
         ! Return the most populated states in CurrentDets on *this* processor only.
-        call return_most_populated_states(iHighPopWrite, LargestWalkers, norm)
+        call return_most_populated_states(iHighPopWrite, LargestWalkers, CurrentDets, &
+             TotWalkers, norm)
 
         call MpiSum(norm,allnorm)
         norm=sqrt(allnorm)

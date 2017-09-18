@@ -429,10 +429,21 @@ module real_time_read_input_module
                 ! optionally, we can supply the number of states to log
                 ss_space_in%tpops = .true.
                 if(item < nitems) then 
-                   call geti(ss_space_in%npops)
+                   call readi(ss_space_in%npops)
                 else
                    ss_space_in%npops = 1000
                 endif
+                if(tSemiStochastic) call stop_all(this_routine, &
+                     "GENERATE-CORESPACE NOT AVAILABLE IN SEMI-STOCHASTIC MODE")
+
+             case("CORESPACE-THRESHOLD")
+                ! Set the threshold from which on a determinant is in the corespace
+                CALL readf(wn_threshold)
+                
+             case("CORESPACE-LOG-INTERVAL")
+                ! Set the number of iterations after which we get the new candidates for the 
+                ! corespace
+                call readi(corespace_log_interval)
                
              case("READ-TRAJECTORY")
                 ! This reads in a trajectory and performs the time-evolution along
