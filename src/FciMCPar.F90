@@ -14,8 +14,8 @@ module FciMCParMod
                         trial_shift_iter, tStartTrialLater, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
-                        t_back_spawn_flex, t_back_spawn_flex_option, &
-                        t_back_spawn_option
+                        t_back_spawn_flex, t_back_spawn_flex_option, allDoubsInitsDelay, &
+                        t_back_spawn_option, tAllDoubsInitiators, tDelayAllDoubsInits
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
@@ -238,6 +238,11 @@ module FciMCParMod
                     call init_semi_stochastic(ss_space_in)
                 end if
             end if
+
+            if(tDelayAllDoubsInits .and. all(.not. tSinglePartPhase)) then
+               if((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1) &
+                    tAllDoubsInitiators = .true.
+            endif
 
             ! turn on double occ measurement after equilibration
             if (equi_iter_double_occ /= 0 .and. all(.not. tSinglePartPhase)) then

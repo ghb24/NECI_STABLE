@@ -321,6 +321,8 @@ contains
           calc_seq_no = 1
 
           tAllDoubsInitiators = .false.
+          tDelayAllDoubsInits = .false.
+          allDoubsInitsDelay = 0
 
         end subroutine SetCalcDefaults
 
@@ -2390,6 +2392,11 @@ contains
                 ! Set all doubles to be treated as initiators
                 ! If truncinitiator is not set, this does nothing
                 tAllDoubsInitiators = .true.   
+                if(item < nitems) then
+                   call geti(allDoubsInitsDelay)
+                   tAllDoubsInitiators = .false.
+                   tDelayAllDoubsInits = .true.
+                endif
 
             case default
                 call report("Keyword "                                &
