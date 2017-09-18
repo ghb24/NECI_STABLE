@@ -208,8 +208,7 @@ module real_time_data
     character(255) :: trajFile
     logical :: tGenerateCoreSpace, tGZero
 
-    integer :: minCoreSpacePos, maxDetermSize
-    real(dp) :: minCoreSpaceWalkers
-    real(dp) :: minFraction
+    ! For corespace construction
+    real(dp) :: wn_threshold
 
 end module real_time_data

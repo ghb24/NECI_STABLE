@@ -32,8 +32,7 @@ module real_time_init
                               tLogTrajectory, tReadTrajectory, alphaCache, tauCache, trajFile, &
                               tGenerateCoreSpace, tGZero
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
-                               calc_norm, clean_overlap_states, openTauContourFile, &
-                               get_new_minCoreSpace
+                               calc_norm, clean_overlap_states, openTauContourFile
     use verlet_aux, only: backup_initial_state, setup_delta_psi
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs
     use Parallel_neci
@@ -913,10 +912,6 @@ contains
       ! Store this cores core-space only
       core_space(:,1:determ_sizes(iProcIndex)) = SpawnedParts(:,1:determ_sizes(iProcIndex))
 
-      call get_new_minCoreSpace()
-      do i = 1, determ_sizes(iProcIndex)
-         call set_deterministic_flag(i)
-      enddo
     end subroutine setup_rt_core
 
 !------------------------------------------------------------------------------------------!

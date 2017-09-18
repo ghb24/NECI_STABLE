@@ -18,8 +18,7 @@ module real_time_procs
                               TotPartsPeak, numCycShiftExcess, shiftLimit, t_kspace_operators, &
                               tDynamicAlpha, tDynamicDamping, stepsAlpha, phase_factors, &
                               elapsedImagTime, elapsedRealTime, tStaticShift, asymptoticShift, &
-                              iunitCycLog, trajFile, tauCache, alphaCache, minCoreSpacePos, &
-                              minCoreSpaceWalkers
+                              iunitCycLog, trajFile, tauCache, alphaCache
     use real_time_aux, only: write_overlap_state
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
@@ -1699,88 +1698,4 @@ contains
     end subroutine get_current_alpha_from_cache
  
 !------------------------------------------------------------------------------------------!
-
-    subroutine updateCorespace
-      implicit none
-      integer :: i
-      real(dp) :: CurrentSign(lenof_sign)
-      
-      do i=1,TotWalkers
-         call extract_sign(CurrentDets(:,i),CurrentSign)
-         call corespace_check(CurrentSign,i)
-      enddo
-    end subroutine updateCorespace
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine corespace_check(sign, index)
-      use semi_stoch_procs, only: check_determ_flag
-      ! Here, we check after the annihilation if a determinant has an occupation
-      ! higher than the lowest corespace population
-
-      ! if this is the case, we replace the corestate with the lowest peak population
-      implicit none
-      real(dp), intent(in) :: sign(lenof_sign)
-      integer, intent(in) :: index
-      
-      if(sum(abs(sign)) > minCoreSpaceWalkers .and. &
-           .not. check_determ_flag(CurrentDets(:,index))) then
-         call exchangeMinCoreSpaceEntry(index)
-         ! and then we have to get the newest smallest walker number in the corespace
-         call get_new_minCoreSpace()
-      endif
-    end subroutine corespace_check
-
-!------------------------------------------------------------------------------------------!
-    
-    subroutine get_new_minCoreSpace
-      use FciMCData, only: determ_sizes, AllTotParts
-      implicit none
-      integer :: i
-      real(dp) :: tmpSign(lenof_sign)
-      call extract_sign(SpawnedParts(:,1),tmpSign)
-      minCoreSpacePos = 1
-      minCoreSpaceWalkers = sum(abs(tmpSign))/sum(AllTotParts)
-      do i = 2, determ_sizes(iProcIndex)
-         call extract_sign(core_space(:,i),tmpSign)
-         if(sum(abs(tmpSign)) < minCoreSpaceWalkers) then
-            minCoreSpaceWalkers = sum(abs(tmpSign))/sum(AllTotParts)
-            minCoreSpacePos = i
-         endif
-      enddo
-    end subroutine get_new_minCoreSpace
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine exchangeMinCoreSpaceEntry(index)
-      use real_time_data, only: maxDetermSize
-      use semi_stoch_gen, only: add_state_to_space
-      use hash, only: hash_table_lookup
-      use bit_reps, only: set_flag, clr_flag
-      implicit none
-      integer, intent(in) :: index
-      integer :: nI(nel), DetHash, PartInd, insertPos
-      logical :: tSuccess
-      character(*), parameter :: this_routine = "exchangeMinCoreSpaceEntry"
-      
-      ! If the list is full, i.e.
-      if(determ_sizes(iProcIndex) >= maxDetermSize) then
-         call decode_bit_det(nI,core_space(:,minCoreSpacePos))
-         call hash_table_lookup(nI,core_space(:,index),nifdbo,HashIndex,CurrentDets, &
-              PartInd, DetHash, tSuccess)
-         if(tSuccess) then 
-            call clr_flag(CurrentDets(:,PartInd),flag_deterministic)
-         else
-            call stop_all(this_routine,"Deterministic state not present in CurrentDets")
-         endif
-         insertPos = minCoreSpacePos
-         ! Else, append the new state
-      else
-         insertPos = determ_sizes(iProcIndex) + 1
-         determ_sizes(iProcIndex) = determ_sizes(iProcIndex) + 1
-      endif
-      call add_state_to_space(CurrentDets(:,index),core_space,insertPos) 
-      call set_flag(CurrentDets(:,index),flag_deterministic)
-    end subroutine exchangeMinCoreSpaceEntry
-
 end module real_time_procs

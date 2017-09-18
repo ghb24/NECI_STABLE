@@ -13,7 +13,8 @@ module fcimc_output
                          AllHistogramEnergy
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
-                        StepsSft, tPrintReplicaOverlaps, tStartTrialLater
+                        StepsSft, tPrintReplicaOverlaps, tStartTrialLater, &
+                        tSemiStochastic, allCorespaceWalkers
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
@@ -595,13 +596,19 @@ contains
 #ifdef __REALTIME
                 call stats_out(state, .true., real(sum(dyn_norm_psi))/normsize, '|psi|^2')
 #endif
-                call stats_out(state,.false., sum(AllNoBorn), 'No. born')
+                if(.not. tSemiStochastic) then
+                   call stats_out(state,.false., sum(AllNoBorn), 'No. born')
+                else
+                   call stats_out(state,.false., allCorespaceWalkers/inum_runs, &
+                        'Walkers in corespace')
+                endif
                 call stats_out(state,.false., sum(AllNoDied), 'No. died')
-                call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
 #ifdef __REALTIME
                 call stats_out(state,.false., TotImagTime, 'Elapsed complex time')
                 call stats_out(state,.false., real_time_info%damping, 'eta')
+                call stats_out(state,.false., IterTime, 'Iter. time')
 #else
+                call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
                 call stats_out(state,.false., sum(AllSumWalkersCyc), 'SumWalkersCyc')
                 call stats_out(state,.false., sum(AllNoAborted), 'No aborted')
 #endif

@@ -37,7 +37,7 @@ module fcimc_initialisation
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
-                        t_back_spawn_flex, back_spawn_delay
+                        t_back_spawn_flex, back_spawn_delay, corespaceWalkers
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -855,6 +855,8 @@ contains
 
         ! Set the flag to indicate that no shift adjustment has been made
         tfirst_cycle = .true.
+
+        corespaceWalkers = 0.0_dp
 
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp

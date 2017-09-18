@@ -1,7 +1,7 @@
 #include "macros.h"
 
 module real_time_aux
-  use real_time_data, only: overlap_states, gf_count, minCoreSpaceWalkers, minCoreSpacePos
+  use real_time_data, only: overlap_states, gf_count
   use bit_rep_data, only: extract_sign, niftot, nifdbo
   use bit_reps, only: decode_bit_det, flag_deterministic
   use FciMCData, only: SpawnedParts, ValidSpawnedList, MaxSpawned, InitialSpawnedSlots, &
@@ -114,5 +114,32 @@ module real_time_aux
       endif
 
     end subroutine move_overlap_block
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine add_semistochastic_state(ilut_list, list_size, ssht, ilut)
+      implicit none
+      type(ll_node), pointer, intent(inout) :: ssht(:)
+      integer, intent(inout) :: ilut_list(0:nifTot,:)
+      integer, intent(in) :: ilut(0:nifTot)
+      integer :: index, hash_val
+      logical :: tSuccess
+      real(dp) :: new_sgn(lenof_sign), old_sgn(lenof_sign)
+      
+      call decode_bit_det(nI,ilut)
+      call hash_table_lookup(nI,ilut,nifDBO,ssht,ilut_list,index,hash_val,tSuccess)
+      ! If it is already in corespace, we check which population is higher
+      if(tSuccess) then
+         call extract_sign(ilut_list(:,index),old_sgn)
+         call extract_sign(ilut,new_sgn)
+         if(sum(abs(new_sgn)) > sum(abs(old_sgn))) call encode_sign(ilut_list(:,index),new_sgn)
+      else
+         list_size = list_size + 1
+         ilut_list(:,list_size) = ilut
+         call add_hash_table_entry(ssht,ilut_size,hash_val)
+      endif
+    end subroutine add_semistochastic_state
+
+!------------------------------------------------------------------------------------------!
 
 end module real_time_aux

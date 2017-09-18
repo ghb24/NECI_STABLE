@@ -12,7 +12,8 @@ module fcimc_iter_utils
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
                         qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
-                        t_hist_tau_search_option
+                        t_hist_tau_search_option, corespaceWalkers, &
+                        allCorespaceWalkers
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats
     use semi_stoch_procs, only: recalc_core_hamil_diag
@@ -41,8 +42,8 @@ module fcimc_iter_utils
         AllNoAborted_1, AllNoInitWalk_1, AllNoNonInitWalk_1, AllNoRemoved_1, &
         all_bloom_count_1, NoAddedInitiators_1, AccRat_1, SumWalkersCyc_1, &
         nspawned_1, nspawned_tot_1, second_spawn_iter_data, TotParts_1, &
-        AllTotParts_1, AllTotPartsOld_1, TotWalkers_1, AllTotWalkers_1, allPopSnapshot, &
-        AllTotWalkersOld_1, AllSumWalkersCyc_1, OldAllAvWalkersCyc_1, popSnapshot
+        AllTotParts_1, AllTotPartsOld_1, allPopSnapshot, &
+        AllSumWalkersCyc_1, OldAllAvWalkersCyc_1, popSnapshot
 #endif 
     use double_occ_mod, only: inst_double_occ, all_inst_double_occ, sum_double_occ, &
                               sum_norm_psi_squared
@@ -401,7 +402,6 @@ contains
         integer, parameter :: real_arr_size = 2000
         integer, parameter :: hel_arr_size = 200
         integer, parameter :: NoArrs = 48
-        integer(int64) :: TotWalkersTemp_1
 #else
         integer, parameter :: real_arr_size = 1000
         integer, parameter :: hel_arr_size = 100
@@ -435,9 +435,6 @@ contains
         ! Remove the holes in the main list when wanting the number of uniquely
         ! occupied determinants.
         TotWalkersTemp = TotWalkers - HolesInList
-#ifdef __REALTIME
-        TotWalkersTemp_1 = TotWalkers_1 - HolesInList
-#endif
 
         sizes = 0
 
@@ -494,7 +491,7 @@ contains
         sizes(42) = size(SumWalkersCyc_1)
         sizes(43) = 1 ! nspawned_1
         sizes(44) = size(TotParts_1)
-        sizes(45) = 1 ! TotWalkersTemp_1
+        sizes(45) = 1 ! corespaceWalkers
         sizes(46) = size(SpawnFromSing_1)
         sizes(47) = size(iter_data_fciqmc%update_growth)
         sizes(48) = size(popSnapShot)
@@ -554,7 +551,7 @@ contains
         low = upp + 1; upp = low + sizes(42) - 1; send_arr(low:upp) = SumWalkersCyc_1;
         low = upp + 1; upp = low + sizes(43) - 1; send_arr(low:upp) = nspawned_1;
         low = upp + 1; upp = low + sizes(44) - 1; send_arr(low:upp) = TotParts_1;
-        low = upp + 1; upp = low + sizes(45) - 1; send_arr(low:upp) = TotWalkersTemp_1;
+        low = upp + 1; upp = low + sizes(45) - 1; send_arr(low:upp) = corespaceWalkers;
         low = upp + 1; upp = low + sizes(46) - 1; send_arr(low:upp) = SpawnFromSing_1;
         low = upp + 1; upp = low + sizes(47) - 1; send_arr(low:upp) = iter_data_fciqmc%update_growth;
         low = upp + 1; upp = low + sizes(48) - 1; send_arr(low:upp) = popSnapShot;
@@ -620,7 +617,7 @@ contains
         low = upp + 1; upp = low + sizes(42) - 1; AllSumWalkersCyc_1 = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(43) - 1; nspawned_tot_1 = nint(recv_arr(low));
         low = upp + 1; upp = low + sizes(44) - 1; AllTotParts_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(45) - 1; AllTotWalkers_1 = nint(recv_arr(low), int64);
+        low = upp + 1; upp = low + sizes(45) - 1; allCorespaceWalkers = nint(recv_arr(low), int64);
         low = upp + 1; upp = low + sizes(46) - 1; AllSpawnFromSing_1 = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(47) - 1; iter_data_fciqmc%update_growth_tot = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(48) - 1; allPopSnapShot = recv_arr(low:upp);
@@ -1141,7 +1138,6 @@ contains
 
 #ifdef __REALTIME 
         AllTotPartsOld_1 = AllTotParts_1
-        AllTotWalkersOld_1 = AllTotWalkers_1
         iter_data_fciqmc%update_growth = 0.0_dp
         iter_data_fciqmc%update_iters = 0
         ! do i need old det numner and aborted number? 
@@ -1174,6 +1170,7 @@ contains
         if(tRestart) return
         call population_check ()
         call update_shift (iter_data)
+        if(tSemiStochastic) call getCoreSpaceWalkers()
         if(tLogGreensfunction) then 
            DiagSft = 0.0_dp
            call normalize_gf_overlap(current_overlap, overlap_real, overlap_imag, .false.)
@@ -1222,5 +1219,23 @@ contains
       enddo
       
     end function get_occ_dets
+
+    subroutine getCoreSpaceWalkers
+      use semi_stoch_procs, only: check_determ_flag
+
+      implicit none
+      integer :: i
+      real(dp) :: sgn(lenof_sign), buf
+
+      corespaceWalkers = 0.0_dp
+      do i = 1, TotWalkers
+         if(check_determ_flag(CurrentDets(:,i))) then
+            call extract_sign(CurrentDets(:,i),sgn)
+            ! Just sum up all walkers
+            corespaceWalkers = corespaceWalkers + sum(abs(sgn))
+         endif
+      enddo
+            
+    end subroutine getCoreSpaceWalkers
 
 end module fcimc_iter_utils
