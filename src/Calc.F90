@@ -2388,6 +2388,7 @@ contains
 
              case("ALL-DOUBS-INITIATORS")
                 ! Set all doubles to be treated as initiators
+                ! If truncinitiator is not set, this does nothing
                 tAllDoubsInitiators = .true.   
 
             case default

@@ -695,7 +695,7 @@ contains
         integer, intent(in) :: j
         integer, intent(out) :: parent_flags
         real(dp) :: CurrentSign(lenof_sign)
-        integer :: run, nopen, exLevel
+        integer :: run, nopen
         logical :: tDetinCAS, parent_init
         real(dp) :: init_tm, expected_lifetime, hdiag
         character(*), parameter :: this_routine = 'CalcParentFlag'
