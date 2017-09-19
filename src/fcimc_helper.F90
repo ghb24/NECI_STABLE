@@ -2022,6 +2022,7 @@ contains
       character(*), parameter :: this_routine = "generate_ref_space"
       
       ! Get the nRefs most populated determinants
+      refs_found = 0
       call generate_space_most_populated(nRefs, .false., 1, ref_buf, refs_found)
       ! Communicate the refs_found info
       call MPIAllGather(refs_found, refs_found_per_proc, ierr)

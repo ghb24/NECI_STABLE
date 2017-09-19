@@ -2405,6 +2405,9 @@ contains
                 if(item < nitems) call geti(allDoubsInitsDelay)
                 tSetDelayAllDoubsInits = .true.
                 tSetDelayAllSingsInits = .true.
+
+             case("GET-REFERENCE-DELAY")
+                call geti(allDoubsInitsDelay)
                 
              case("ALL-SINGS-INITIATORS")
                 ! Make the singles of given references initiators
