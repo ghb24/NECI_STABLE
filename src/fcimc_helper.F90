@@ -2016,8 +2016,8 @@ contains
       use semi_stoch_gen, only: generate_space_most_populated
       implicit none
       integer, intent(in) :: nRefs
-      integer :: refs_found, all_refs_found, refs_displs(0:nProcessors-1)
-      integer :: refs_found_per_proc(0:nProcessors-1), ierr, i
+      integer :: refs_found, all_refs_found, ierr, i
+      integer(MPIArg) :: refs_found_per_proc(0:nProcessors-1), refs_displs(0:nProcessors-1)
       integer(n_int) :: ref_buf(0:NIfTot,nRefs), mpi_buf(0:NIfTot,nRefs)
       character(*), parameter :: this_routine = "generate_ref_space"
       
