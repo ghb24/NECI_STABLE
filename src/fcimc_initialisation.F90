@@ -322,7 +322,9 @@ contains
 
         !iLutRef is the reference determinant for the projected energy.
         !Initially, it is chosen to be the same as the inputted reference determinant
+        call setup_adi()
         ALLOCATE(iLutRef(0:NIfTot, inum_runs, nRefs), stat=ierr)
+        ilutRef = 0
         ALLOCATE(ProjEDet(NEl, inum_runs), stat=ierr)
 
         IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for iLutRef")
@@ -3506,6 +3508,25 @@ contains
         end if
 
     end subroutine
+
+    subroutine setup_adi()
+      use CalcData, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
+           tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators
+      implicit none
+      
+      nRefs = max(nRefsDoubs, nRefsSings)
+      nRefsCurrent = 1
+
+      if(tSetDelayAllDoubsInits .and. tAllDoubsInitiators) then
+         tAllDoubsInitiators = .false.
+         tDelayAllDoubsInits = .true.
+      endif
+      if(tSetDelayAllSingsInits .and. tAllSingsInitiators) then
+         tAllSingsInitiators = .false.
+         tDelayAllSingsInits = .true.
+      endif
+
+    end subroutine setup_adi
 
 
 end module fcimc_initialisation

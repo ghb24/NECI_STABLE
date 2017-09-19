@@ -27,7 +27,7 @@ MODULE Calc
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
-                         alloc_popsfile_dets, tSearchTauOption, nRefs
+                         alloc_popsfile_dets, tSearchTauOption, nRefsDoubs, nRefsSings
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -323,8 +323,11 @@ contains
           tAllDoubsInitiators = .false.
           tDelayAllDoubsInits = .false.
           allDoubsInitsDelay = 0
+          tAllSingsInitiators = .false.
+          tDelayAllSingsInits = .false.
           ! By default, we have one reference for the purpose of all-doubs-initiators
-          nRefs = 1
+          nRefsDoubs = 1
+          nRefsSings = 1
 
         end subroutine SetCalcDefaults
 
@@ -2394,15 +2397,20 @@ contains
                 ! Set all doubles to be treated as initiators
                 ! If truncinitiator is not set, this does nothing
                 tAllDoubsInitiators = .true.   
-                if(item < nitems) then
-                   call geti(allDoubsInitsDelay)
-                   tAllDoubsInitiators = .false.
-                   tDelayAllDoubsInits = .true.
-                endif
+                ! If given, take the number of references for doubles
+                if(item < nitems) call geti(nRefsDoubs)
 
-             case("MULTI-REFERENCE-INITIATORS")
-                ! Make the doubles of multiple references to initiators
-                call geti(nRefs)
+             case("ALL-DOUBS-INITIATORS-DELAY")
+                ! Only start after equilibration with the all-doubs-initiators
+                if(item < nitems) call geti(allDoubsInitsDelay)
+                tSetDelayAllDoubsInits = .true.
+                tSetDelayAllSingsInits = .true.
+                
+             case("ALL-SINGS-INITIATORS")
+                ! Make the singles of given references initiators
+                tAllSingsInitiators = .true.
+                ! If given, take the number of references for singles
+                if(item < nitems) call geti(nRefsSings)
 
             case default
                 call report("Keyword "                                &

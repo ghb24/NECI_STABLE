@@ -11,7 +11,7 @@ module FciMCParMod
                         tOrthogonaliseReplicas, orthogonalise_iter, &
                         tDetermHFSpawning, use_spawn_hash_table, &
                         ss_space_in, s_global_start, tContTimeFCIMC, &
-                        trial_shift_iter, tStartTrialLater, &
+                        trial_shift_iter, tStartTrialLater, tDelayAllSingsInits, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, allDoubsInitsDelay, &
@@ -243,9 +243,14 @@ module FciMCParMod
                  .and. all(.not. tSinglePartPhase)) then
                ! Start the all-doubs-initiator procedure
                if(tDelayAllDoubsInits) tAllDoubsInitiators = .true.
+               ! And/or the all-sings-initiator procedure
+               if(tDelayAllSingsInits) tAllSingsInitiators = .true.
                ! If desired, we now set up the references for the purpose of the
                ! all-doubs-initiators
-               if(nRefs > 1) call generate_ref_space(nRefs)
+               if(nRefs > 1) then 
+                  call generate_ref_space(nRefs)
+                  nRefsCurrent = nRefs
+               endif
             endif
 
             ! turn on double occ measurement after equilibration

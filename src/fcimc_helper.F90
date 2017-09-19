@@ -37,7 +37,7 @@ module fcimc_helper
                         MaxWalkerBloom, tAllDoubsInitiators, &
                         NMCyc, iSampleRDMIters, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
-                        t_back_spawn_flex
+                        t_back_spawn_flex, tAllSingsInitiators
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
@@ -755,7 +755,7 @@ contains
 
 
     function TestInitiator(ilut, is_init, sgn, run) result(initiator)
-      use FciMCData, only: nRefs
+      use FciMCData, only: nRefs, nRefsDoubs, nRefsSings
       implicit none
         ! For a given particle (with its given particle type), should it
         ! be considered as an initiator for the purposes of spawning.
@@ -774,7 +774,7 @@ contains
 
         ! the following value is either a single sgn or an aggregate
         real(dp) :: tot_sgn
-        logical :: initiator, isRef
+        logical :: initiator, isRef, isSingle
         integer :: exLevel, i
 
         ! By default the particles status will stay the same
@@ -784,14 +784,21 @@ contains
 
         ! Doubles are always initiators if the corresponding flag is set
         exLevel = 0
-        if(tAllDoubsInitiators) then
-           do i = 1, nRefs
+        isSingle = .false.
+        if(tAllDoubsInitiators .or. tAllSingsInitiators) then
+           ! Important : Only compare to the already initialized reference
+           do i = 1, nRefsCurrent
               exLevel = FindBitExcitLevel(ilutRef(:,run,i),ilut)
-              if(exLevel == 2) then
+              if(exLevel == 2 .and. tAllDoubsInitiators .and. i < nRefsDoubs) then
                  initiator = .true.
                  ! We need to exit the loop here because exLevel is checked for 2 
                  ! later on, so we cannot overwrite it anymore
                  exit
+              endif
+              ! If desired, also set singles as initiators
+              if(exLevel == 1 .and. tAllSingsInitiators .and. i < nRefsSings) then
+                 initiator = .true. 
+                 isSingle = .true.
               endif
            enddo
         endif
@@ -811,8 +818,10 @@ contains
             ! The determinants become 
             ! non-initiators again if their population falls below 
             ! n_add (this is on by default).
+
+           ! All of the references stay initiators
            isRef = .false.
-           do i = 1, nRefs
+           do i = 1, nRefsCurrent
               if(DetBitEQ(ilut,ilutRef(:,run,i),NIfDBO)) isRef = .true.
            enddo
             ! If det. is the HF det, or it
@@ -820,7 +829,8 @@ contains
             if ( .not. (isRef) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
                 .and. (tot_sgn <= InitiatorWalkNo ) .and. &
-                .not. (tAllDoubsInitiators .and. exLevel == 2)) then
+                .not. (tAllDoubsInitiators .and. exLevel == 2) .and. &
+                .not. (tAllSingsInitiators .and. isSingle)) then
                 ! Population has fallen too low. Initiator status 
                 ! removed.
                 initiator = .false.

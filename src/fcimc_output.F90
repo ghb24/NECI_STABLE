@@ -1342,7 +1342,9 @@ contains
             else
                 write(iout,'(A)') "Current reference: "
                 call write_det (iout, ProjEDet(:,1), .true.)
-                call writeDetBit(iout,iLutRef(:,1,1),.true.)
+                do i = 1, nRefs
+                   call writeDetBit(iout,iLutRef(:,1,i),.true.)
+                enddo
             end if
 
             write(iout,*)
