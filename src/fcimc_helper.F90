@@ -2016,8 +2016,8 @@ contains
       use semi_stoch_gen, only: generate_space_most_populated
       implicit none
       integer, intent(in) :: nRefs
-      integer(MPIArg) :: refs_found, all_refs_found
-      integer :: ierr, i
+      integer(MPIArg) :: mpi_refs_found
+      integer :: ierr, i, all_refs_found, refs_found
       integer(MPIArg) :: refs_found_per_proc(0:nProcessors-1), refs_displs(0:nProcessors-1)
       integer(n_int) :: ref_buf(0:NIfTot,nRefs), mpi_buf(0:NIfTot,nRefs)
       character(*), parameter :: this_routine = "generate_ref_space"
@@ -2026,7 +2026,8 @@ contains
       refs_found = 0
       call generate_space_most_populated(nRefs, .false., 1, ref_buf, refs_found)
       ! Communicate the refs_found info
-      call MPIAllGather(refs_found, refs_found_per_proc, ierr)
+      mpi_refs_found = int(refs_found,MPIArg)
+      call MPIAllGather(mpi_refs_found, refs_found_per_proc, ierr)
       all_refs_found = sum(refs_found_per_proc)
       if(all_refs_found .ne. nRefs) then
          write(6,*) "all_refs_found = ", all_refs_found
