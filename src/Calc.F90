@@ -2401,7 +2401,8 @@ contains
                 if(item < nitems) call geti(nRefsDoubs)
 
              case("ALL-DOUBS-INITIATORS-DELAY")
-                ! Only start after equilibration with the all-doubs-initiators
+                ! Only start after this number of steps in variable shift mode with 
+                ! the all-doubs-initiators
                 if(item < nitems) call geti(allDoubsInitsDelay)
                 tSetDelayAllDoubsInits = .true.
                 tSetDelayAllSingsInits = .true.
