@@ -27,7 +27,7 @@ MODULE Calc
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
-                         alloc_popsfile_dets, tSearchTauOption
+                         alloc_popsfile_dets, tSearchTauOption, nRefs
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -323,6 +323,8 @@ contains
           tAllDoubsInitiators = .false.
           tDelayAllDoubsInits = .false.
           allDoubsInitsDelay = 0
+          ! By default, we have one reference for the purpose of all-doubs-initiators
+          nRefs = 1
 
         end subroutine SetCalcDefaults
 
@@ -2397,6 +2399,10 @@ contains
                    tAllDoubsInitiators = .false.
                    tDelayAllDoubsInits = .true.
                 endif
+
+             case("MULTI-REFERENCE-INITIATORS")
+                ! Make the doubles of multiple references to initiators
+                call geti(nRefs)
 
             case default
                 call report("Keyword "                                &

@@ -239,9 +239,13 @@ module FciMCParMod
                 end if
             end if
 
-            if(tDelayAllDoubsInits .and. all(.not. tSinglePartPhase)) then
-               if((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1) &
-                    tAllDoubsInitiators = .true.
+            if((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
+                 .and. all(.not. tSinglePartPhase)) then
+               ! Start the all-doubs-initiator procedure
+               if(tDelayAllDoubsInits) tAllDoubsInitiators = .true.
+               ! If desired, we now set up the references for the purpose of the
+               ! all-doubs-initiators
+               if(nRefs > 1) call generate_ref_space(nRefs)
             endif
 
             ! turn on double occ measurement after equilibration
@@ -882,7 +886,7 @@ module FciMCParMod
             ! We only need to find out if determinant is connected to the
             ! reference (so no ex. level above 2 required, 
             ! truncated etc.)
-            walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
+            walkExcitLevel = FindBitExcitLevel (iLutRef(:,1,1), CurrentDets(:,j), &
                                                 max_calc_ex_level)
             
             if(tRef_Not_HF) then

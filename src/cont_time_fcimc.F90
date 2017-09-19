@@ -99,7 +99,7 @@ contains
                 call CalcParentFlag(j, iunused)
 
             ! Sum in the energy terms, yeah!
-            ic_hf = FindBitExcitLevel(ilutRef, CurrentDets(:,j))
+            ic_hf = FindBitExcitLevel(ilutRef(:,1,1), CurrentDets(:,j))
             call SumEContrib(det, ic_hf, sgn, CurrentDets(:,j), hdiag, 1.0_dp,&
                              tPairedReplicas, j)
 

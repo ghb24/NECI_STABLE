@@ -407,10 +407,10 @@ contains
             ! Obtain off-diagonal element
             if (tHPHF) then
                 HOffDiag(1:inum_runs) = hphf_off_diag_helement (ProjEDet(:,1), nI, &
-                                                                iLutRef(:,1), ilut)
+                                                                iLutRef(:,1,1), ilut)
             else
                 HOffDiag(1:inum_runs) = get_helement (ProjEDet(:,1), nI, &
-                                                      ExcitLevel, ilutRef(:,1), ilut)
+                                                      ExcitLevel, ilutRef(:,1,1), ilut)
             endif
 
         endif ! ExcitLevel_local == 1, 2, 3
@@ -617,7 +617,7 @@ contains
         do run = 1, inum_runs
 
             ! We need to use the excitation level relevant for this run
-            exlevel = FindBitExcitLevel(ilut, ilutRef(:, run))
+            exlevel = FindBitExcitLevel(ilut, ilutRef(:, run,1))
             if (tSpinCoupProjE(run) .and. exlevel /= 0) then
                 if (exlevel <= 2) then
                     exlevel = 2
@@ -661,10 +661,10 @@ contains
                 ! Obtain the off-diagonal elements
                 if (tHPHF) then
                     hoffdiag = hphf_off_diag_helement(ProjEDet(:,run), nI, &
-                                                      iLutRef(:,run), ilut)
+                                                      iLutRef(:,run,1), ilut)
                 else
                     hoffdiag = get_helement (ProjEDet(:,run), nI, exlevel, &
-                                             ilutRef(:,run), ilut)
+                                             ilutRef(:,run,1), ilut)
                 endif
 
             end if
@@ -755,7 +755,8 @@ contains
 
 
     function TestInitiator(ilut, is_init, sgn, run) result(initiator)
-
+      use FciMCData, only: nRefs
+      implicit none
         ! For a given particle (with its given particle type), should it
         ! be considered as an initiator for the purposes of spawning.
         !
@@ -773,8 +774,8 @@ contains
 
         ! the following value is either a single sgn or an aggregate
         real(dp) :: tot_sgn
-        logical :: initiator
-        integer :: exLevel
+        logical :: initiator, isRef
+        integer :: exLevel, i
 
         ! By default the particles status will stay the same
         initiator = is_init
@@ -784,8 +785,15 @@ contains
         ! Doubles are always initiators if the corresponding flag is set
         exLevel = 0
         if(tAllDoubsInitiators) then
-           exLevel = FindBitExcitLevel(ilutRef(:,run),ilut)
-           if(exLevel == 2) initiator = .true.
+           do i = 1, nRefs
+              exLevel = FindBitExcitLevel(ilutRef(:,run,i),ilut)
+              if(exLevel == 2) then
+                 initiator = .true.
+                 ! We need to exit the loop here because exLevel is checked for 2 
+                 ! later on, so we cannot overwrite it anymore
+                 exit
+              endif
+           enddo
         endif
 
         if (.not. initiator) then
@@ -803,10 +811,13 @@ contains
             ! The determinants become 
             ! non-initiators again if their population falls below 
             ! n_add (this is on by default).
-
+           isRef = .false.
+           do i = 1, nRefs
+              if(DetBitEQ(ilut,ilutRef(:,run,i),NIfDBO)) isRef = .true.
+           enddo
             ! If det. is the HF det, or it
             ! is in the deterministic space, then it must remain an initiator.
-            if ( .not. (DetBitEQ(ilut, iLutRef(:,run), NIfDBO)) &
+            if ( .not. (isRef) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
                 .and. (tot_sgn <= InitiatorWalkNo ) .and. &
                 .not. (tAllDoubsInitiators .and. exLevel == 2)) then
@@ -1833,9 +1844,9 @@ contains
         integer :: i, det(nel)
         logical :: tSwapped
 
-        iLutRef(:, run) = 0_n_int
-        iLutRef(0:NIfDBO, run) = ilut(0:NIfDBO)
-        call decode_bit_det (ProjEDet(:, run), iLutRef(:, run))
+        iLutRef(:, run, 1) = 0_n_int
+        iLutRef(0:NIfDBO, run, 1) = ilut(0:NIfDBO)
+        call decode_bit_det (ProjEDet(:, run), iLutRef(:, run, 1))
         write (iout, '(a,i3,a)', advance='no') 'Changing projected &
               &energy reference determinant for run', run, &
               ' on the next update cycle to: '
@@ -1844,16 +1855,16 @@ contains
         if(tHPHF) then
             if(.not.Allocated(RefDetFlip)) then
                 allocate(RefDetFlip(NEl, inum_runs), &
-                         ilutRef(0:NifTot, inum_runs))
+                         ilutRefFlip(0:NifTot, inum_runs))
                 RefDetFlip = 0
                 iLutRefFlip = 0_n_int
             endif
-            if(.not. TestClosedShellDet(iLutRef(:, run))) then
+            if(.not. TestClosedShellDet(iLutRef(:, run, 1))) then
                 ! Complications. We are now effectively projecting
                 ! onto a LC of two dets. Ensure this is done correctly.
                 call ReturnAlphaOpenDet(ProjEDet(:,run), &
                                         RefDetFlip(:, run), &
-                                        iLutRef(:,run), &
+                                        iLutRef(:,run,1), &
                                         iLutRefFlip(:, run), &
                                         .true., .true., tSwapped)
                 if(tSwapped) then
@@ -1889,7 +1900,7 @@ contains
             old_Hii = Hii
             if (tHPHF) then
                 h_tmp = hphf_diag_helement (ProjEDet(:,1), &
-                                            iLutRef(:,1))
+                                            iLutRef(:,1,1))
             else
                 h_tmp = get_helement (ProjEDet(:,1), &
                                       ProjEDet(:,1), 0)
@@ -1934,7 +1945,7 @@ contains
         ! data have been updated correctly.
         if (tHPHF) then
             h_tmp = hphf_diag_helement (ProjEDet(:,run), &
-                                        ilutRef(:,run))
+                                        ilutRef(:,run,1))
         else
             h_tmp = get_helement (ProjEDet(:,run), &
                                   ProjEDet(:,run), 0)
@@ -1968,7 +1979,7 @@ contains
             call extract_sign(CurrentDets(:,j), sgn)
             if (IsUnoccDet(sgn)) cycle
 
-            ex_level = FindBitExcitLevel (iLutRef, CurrentDets(:,j))
+            ex_level = FindBitExcitLevel (iLutRef(:,1,1), CurrentDets(:,j))
 
             call decode_bit_det(det, CurrentDets(:,j))
             call SumEContrib(det, ex_level, sgn, CurrentDets(:,j), 0.0_dp, &
@@ -1988,5 +1999,89 @@ contains
         write(6,*) 'Calculated instantaneous projected energy', proje_iter
 
     end subroutine
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine generate_ref_space(nRefs)
+      use semi_stoch_gen, only: generate_space_most_populated
+      implicit none
+      integer, intent(in) :: nRefs
+      integer :: refs_found, all_refs_found, refs_displs(0:nProcessors-1)
+      integer :: refs_found_per_proc(0:nProcessors-1), ierr, i
+      integer(n_int) :: ref_buf(0:NIfTot,nRefs), mpi_buf(0:NIfTot,nRefs)
+      character(*), parameter :: this_routine = "generate_ref_space"
+      
+      ! Get the nRefs most populated determinants
+      call generate_space_most_populated(nRefs, .false., 1, ref_buf, refs_found)
+      ! Communicate the refs_found info
+      call MPIAllGather(refs_found, refs_found_per_proc, ierr)
+      all_refs_found = sum(refs_found_per_proc)
+      if(all_refs_found .ne. nRefs) then
+         write(6,*) "all_refs_found = ", all_refs_found
+         call stop_all(this_routine, &
+           "Number of references found differs from requested")
+      endif
+      refs_displs(0) = 0
+      do i = 1, nProcessors - 1
+         refs_displs(i) = sum(refs_found_per_proc(0:i-1))
+      enddo
+      ! Store them on all processors
+      call MPIAllGatherV(ref_buf(0:NIfTot, 1:refs_found), mpi_buf, refs_found_per_proc, refs_displs)
+
+      ! And write the so-merged references to ilutRef
+      call set_additional_references(mpi_buf, nRefs)
+            
+    end subroutine generate_ref_space
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine set_additional_references(mpi_buf,nRefs)
+      implicit none
+      integer, intent(in) :: nRefs
+      integer(n_int), intent(in) :: mpi_buf(0:NIfTot,nRefs)
+      integer :: i, k, run
+      real(dp) :: minOcc, tmp_sgn(lenof_sign)
+
+      ! Check if the current reference is in mpi_buf
+      ! k is the index of the current reference (-1 if not present)
+      k = -1
+      do i = 1, nRefs
+         if(DetBitEQ(ilutRef(:,1,1),mpi_buf(:,i),NIfDBO)) k = i
+      enddo
+      if(k .ne. -1) then
+         do run = 1, inum_runs
+            ! We still do this to equalize the reference across replicas, 
+            ! if necessary
+            ilutRef(:,run,1) = mpi_buf(:,k)
+            do i = 2, nRefs
+               if(i==k) then
+                  ilutRef(:,run,i) = mpi_buf(:,1)
+               else
+                  ilutRef(:,run,i) = mpi_buf(:,i)
+               endif
+            enddo
+         enddo
+      else
+         ! If the old reference is not in the new references, discard the lowest 
+         ! populated of the new references
+         k = 1
+         call extract_sign(mpi_buf(:,1), tmp_sgn)
+         minOcc = sum(abs(tmp_sgn))
+         do i = 2, nRefs
+            call extract_sign(mpi_buf(:,i),tmp_sgn)
+            if(sum(abs(tmp_sgn)) < minOcc) k = i
+         enddo
+         ! k is now the index of the lowest populated det in mpi_buf
+         do run = 1, inum_runs
+            ! For now, all replicas have the same reference
+            if(run > 1) ilutRef(:,run,1) = ilutRef(:,1,1)
+            do i = 2, nRefs
+               if(i .ne. k) ilutRef(:,run,i) = mpi_buf(:,i)
+               ! If k!=1, then we take the first entry, else we never hit this point
+               if(i .eq. k) ilutRef(:,run,i) = mpi_buf(:,1)
+            enddo
+         enddo
+      endif
+    end subroutine set_additional_references
 
 end module

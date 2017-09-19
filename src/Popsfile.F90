@@ -274,7 +274,7 @@ contains
                 call extract_sign(Dets(:,i),SignTemp)
                 
                 CurrParts=CurrParts+abs(SignTemp)
-                if(DetBitEQ(Dets(:,i),iLutRef(:,1),NIfDBO)) then
+                if(DetBitEQ(Dets(:,i),iLutRef(:,1,1),NIfDBO)) then
                     if(abs(CurrHF(1)) > 1.0e-12_dp) then
                         call stop_all(this_routine,"HF already found, but shouldn't have")
                     endif
@@ -2015,7 +2015,7 @@ r_loop: do while(.not.tStoreDet)
                   is_init = is_init .or. TestInitiator(det,is_init_tmp,real_sgn,k)
                enddo
                if(is_init) then
-                  ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel)
+                  ex_level = FindBitExcitLevel(ilutRef(:,1,1), det, nel)
                   nopen = count_open_orbs(det)
                   call decode_bit_det(nI, det)
                   if(tHPHF)then
@@ -2488,7 +2488,7 @@ r_loop: do while(.not.tStoreDet)
                 if (run /= 1 .and. .not. tReplicaReferencesDiffer) &
                     exit
 
-                if (.not. DetBitEq(ilut_largest(:,run), iLutRef(:,run))) &
+                if (.not. DetBitEq(ilut_largest(:,run), iLutRef(:,run,1))) &
                     call update_run_reference(ilut_largest(:,run), run)
 
             end do
