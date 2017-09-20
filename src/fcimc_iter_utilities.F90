@@ -59,7 +59,7 @@ contains
 
         character(*), parameter :: this_routine = 'iter_diagnostics'
         character(*), parameter :: t_r = this_routine
-        integer :: run
+        integer :: run, part_type
 
         ! Update the total imaginary time passed
         TotImagTime = TotImagTime + StepsSft * Tau
@@ -790,6 +790,7 @@ contains
         real(dp), dimension(inum_runs)  :: AllHFGrowRate
         integer :: i, run, lb, ub
         logical, dimension(inum_runs) :: defer_update
+        logical :: start_varying_shift
 
         ! Normally we allow the shift to vary depending on the conditions
         ! tested. Sometimes we want to defer this to the next cycle...
