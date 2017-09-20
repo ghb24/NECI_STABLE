@@ -155,6 +155,10 @@ module FciMCParMod
         ! helpful to do it here.
         call population_check()
 
+        ! If a popsfile was read in, get the references immediately
+        if(tReadPops .and. .not. (tDelayAllDoubsInits .or. tDelayAllSingsInits) &
+             .and. nRefs > 1) call generate_ref_space(nRefs)
+
         if(n_int.eq.4) CALL Stop_All('Setup Parameters', &
                 'Use of RealCoefficients does not work with 32 bit integers due to the use &
                 &of the transfer operation from dp reals to 64 bit integers.')
@@ -247,7 +251,8 @@ module FciMCParMod
                if(tDelayAllSingsInits) tAllSingsInitiators = .true.
                ! If desired, we now set up the references for the purpose of the
                ! all-doubs-initiators
-               if(nRefs > 1) then 
+               if(nRefs > 1 .and. (.not. tReadPops .or. tDelayAllDoubsInits .or. &
+                    tDelayAllSingsInits)) then 
                   call generate_ref_space(nRefs)
                   nRefsCurrent = nRefs
                endif

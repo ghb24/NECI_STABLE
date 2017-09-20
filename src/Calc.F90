@@ -325,6 +325,8 @@ contains
           allDoubsInitsDelay = 0
           tAllSingsInitiators = .false.
           tDelayAllSingsInits = .false.
+          tSetDelayAllSingsInits = .false.
+          tSetDelayAllDoubsInits = .false.
           ! By default, we have one reference for the purpose of all-doubs-initiators
           nRefsDoubs = 1
           nRefsSings = 1
@@ -2407,9 +2409,6 @@ contains
                 tSetDelayAllDoubsInits = .true.
                 tSetDelayAllSingsInits = .true.
 
-             case("GET-REFERENCE-DELAY")
-                call geti(allDoubsInitsDelay)
-                
              case("ALL-SINGS-INITIATORS")
                 ! Make the singles of given references initiators
                 tAllSingsInitiators = .true.

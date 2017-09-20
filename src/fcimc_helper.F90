@@ -789,14 +789,14 @@ contains
            ! Important : Only compare to the already initialized reference
            do i = 1, nRefsCurrent
               exLevel = FindBitExcitLevel(ilutRef(:,run,i),ilut)
-              if(exLevel == 2 .and. tAllDoubsInitiators .and. i < nRefsDoubs) then
+              if(exLevel == 2 .and. tAllDoubsInitiators .and. i <= nRefsDoubs) then
                  initiator = .true.
                  ! We need to exit the loop here because exLevel is checked for 2 
                  ! later on, so we cannot overwrite it anymore
                  exit
               endif
               ! If desired, also set singles as initiators
-              if(exLevel == 1 .and. tAllSingsInitiators .and. i < nRefsSings) then
+              if(exLevel == 1 .and. tAllSingsInitiators .and. i <= nRefsSings) then
                  initiator = .true. 
                  isSingle = .true.
               endif
