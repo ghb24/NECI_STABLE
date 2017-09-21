@@ -36,7 +36,7 @@ module fcimc_initialisation
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
-                        t_back_spawn_flex, back_spawn_delay
+                        t_back_spawn_flex, back_spawn_delay, tReadRefs
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -3511,7 +3511,7 @@ contains
 
     subroutine setup_adi()
       use CalcData, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
-           tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators
+           tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs
       implicit none
       
       nRefs = max(nRefsDoubs, nRefsSings)
@@ -3525,6 +3525,7 @@ contains
          tAllSingsInitiators = .false.
          tDelayAllSingsInits = .true.
       endif
+      if(.not. tReadRefs) tDelayGetRefs = .true.
 
     end subroutine setup_adi
 

@@ -3,6 +3,7 @@
 
 set( SRC_FILES 
 
+    adi_references.F90
     Annihilation.F90
     bit_rep_data.F90
     BitReps.F90

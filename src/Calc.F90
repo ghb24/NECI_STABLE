@@ -330,6 +330,9 @@ contains
           ! By default, we have one reference for the purpose of all-doubs-initiators
           nRefsDoubs = 1
           nRefsSings = 1
+          nRefsCurrent = 1
+          tReadRefs = .false.
+          tDelayGetRefs = .false.
 
         end subroutine SetCalcDefaults
 
@@ -2414,6 +2417,10 @@ contains
                 tAllSingsInitiators = .true.
                 ! If given, take the number of references for singles
                 if(item < nitems) call geti(nRefsSings)
+                
+             case("READ-REFERENCES")
+                ! Instead of generating new references, read in existing ones
+                tReadRefs = .true.
 
             case default
                 call report("Keyword "                                &

@@ -7,7 +7,7 @@ module FciMCParMod
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
-                        iFullSpaceIter, semistoch_shift_iter, &
+                        iFullSpaceIter, semistoch_shift_iter, tReadRefs, &
                         tOrthogonaliseReplicas, orthogonalise_iter, &
                         tDetermHFSpawning, use_spawn_hash_table, &
                         ss_space_in, s_global_start, tContTimeFCIMC, &
@@ -15,12 +15,13 @@ module FciMCParMod
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, allDoubsInitsDelay, &
-                        t_back_spawn_option, tAllDoubsInitiators, tDelayAllDoubsInits
+                        t_back_spawn_option, tAllDoubsInitiators, tDelayGetRefs, &
+                        tDelayAllDoubsInits, tDelayAllSingsInits
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
-                           equi_iter_double_occ, t_print_frq_histograms
+                           equi_iter_double_occ, t_print_frq_histograms, ref_filename
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -59,6 +60,7 @@ module FciMCParMod
     use ftlm_neci, only: perform_ftlm
     use hash, only: clear_hash_table
     use soft_exit, only: ChangeVars
+    use adi_references, only: generate_ref_space, read_in_refs
     use fcimc_initialisation
     use fcimc_iter_utils
     use neci_signals
@@ -156,8 +158,19 @@ module FciMCParMod
         call population_check()
 
         ! If a popsfile was read in, get the references immediately
-        if(tReadPops .and. .not. (tDelayAllDoubsInits .or. tDelayAllSingsInits) &
-             .and. nRefs > 1) call generate_ref_space(nRefs)
+        if(tReadPops .and. (.not. tDelayGetRefs &
+             .and. nRefs > 1)) then
+           call generate_ref_space(nRefs)
+           nRefsCurrent = nRefs
+        endif
+        ! If a reference file is read in however, we do overwrite references with 
+        ! the ones from the file
+        ! In this case, generate_ref_space is still called, so we can have more
+        ! references than in the file
+        if(tReadRefs) then
+           call read_in_refs(nRefs,ref_filename)
+           nRefsCurrent = nRefs
+        endif
 
         if(n_int.eq.4) CALL Stop_All('Setup Parameters', &
                 'Use of RealCoefficients does not work with 32 bit integers due to the use &
@@ -252,7 +265,8 @@ module FciMCParMod
                ! If desired, we now set up the references for the purpose of the
                ! all-doubs-initiators
                if(nRefs > 1 .and. (.not. tReadPops .or. tDelayAllDoubsInits .or. &
-                    tDelayAllSingsInits)) then 
+                    tDelayAllSingsInits) .and. .not. tReadRefs) then 
+                  ! We do not do this, if a reference space has been read in
                   call generate_ref_space(nRefs)
                   nRefsCurrent = nRefs
                endif
