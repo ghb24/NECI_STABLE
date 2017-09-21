@@ -26,7 +26,7 @@ MODULE Calc
     use FciMCData, only: tTimeExit,MaxTimeExit, InputDiagSft, tSearchTau, &
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
-                         tStartCoreGroundState, pParallel, pops_pert, &
+                         tStartCoreGroundState, pParallel, pops_pert, nRefsCurrent, &
                          alloc_popsfile_dets, tSearchTauOption, nRefsDoubs, nRefsSings
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
