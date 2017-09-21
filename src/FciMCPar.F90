@@ -60,7 +60,7 @@ module FciMCParMod
     use ftlm_neci, only: perform_ftlm
     use hash, only: clear_hash_table
     use soft_exit, only: ChangeVars
-    use adi_references, only: generate_ref_space, read_in_refs
+    use adi_references, only: generate_ref_space, read_in_refs, print_reference_notification
     use fcimc_initialisation
     use fcimc_iter_utils
     use neci_signals
@@ -162,6 +162,7 @@ module FciMCParMod
              .and. nRefs > 1)) then
            call generate_ref_space(nRefs)
            nRefsCurrent = nRefs
+           if(.not. tReadRefs) call print_reference_notification(nRefsCurrent)
         endif
         ! If a reference file is read in however, we do overwrite references with 
         ! the ones from the file
@@ -170,6 +171,7 @@ module FciMCParMod
         if(tReadRefs) then
            call read_in_refs(nRefs,ref_filename)
            nRefsCurrent = nRefs
+           call print_reference_notification(nRefsCurrent)
         endif
 
         if(n_int.eq.4) CALL Stop_All('Setup Parameters', &
@@ -269,6 +271,7 @@ module FciMCParMod
                   ! We do not do this, if a reference space has been read in
                   call generate_ref_space(nRefs)
                   nRefsCurrent = nRefs
+                  call print_reference_notification(nRefsCurrent)
                endif
             endif
 
