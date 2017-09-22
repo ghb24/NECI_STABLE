@@ -158,8 +158,7 @@ module FciMCParMod
         call population_check()
 
         ! If a popsfile was read in, get the references immediately
-        if(tReadPops .and. (.not. tDelayGetRefs &
-             .and. nRefs > 1)) then
+        if(tReadPops .and. .not. tDelayGetRefs .and. nRefs > 1) then
            call generate_ref_space(nRefs)
            nRefsCurrent = nRefs
            if(.not. tReadRefs) call print_reference_notification(nRefsCurrent)

@@ -3525,7 +3525,8 @@ contains
          tAllSingsInitiators = .false.
          tDelayAllSingsInits = .true.
       endif
-      if(.not. tReadRefs) tDelayGetRefs = .true.
+      if(.not. (tReadRefs .or. tReadPops)) tDelayGetRefs = .true.
+      if(tDelayAllSingsInits .and. tDelayAllDoubsInits) tDelayGetRefs = .true.
 
     end subroutine setup_adi
 
