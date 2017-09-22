@@ -774,7 +774,7 @@ contains
 
         ! the following value is either a single sgn or an aggregate
         real(dp) :: tot_sgn
-        logical :: initiator, isRef, isSingle
+        logical :: initiator, isRef, isSingle, isDouble
         integer :: exLevel, i
 
         ! By default the particles status will stay the same
@@ -785,6 +785,7 @@ contains
         ! Doubles are always initiators if the corresponding flag is set
         exLevel = 0
         isSingle = .false.
+        isDouble = .false.
         if(tAllDoubsInitiators .or. tAllSingsInitiators) then
            ! Important : Only compare to the already initialized reference
            do i = 1, nRefsCurrent
@@ -793,7 +794,7 @@ contains
                  initiator = .true.
                  ! We need to exit the loop here because exLevel is checked for 2 
                  ! later on, so we cannot overwrite it anymore
-                 exit
+                 isDouble = .true.
               endif
               ! If desired, also set singles as initiators
               if(exLevel == 1 .and. tAllSingsInitiators .and. i <= nRefsSings) then
@@ -829,7 +830,7 @@ contains
             if ( .not. (isRef) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
                 .and. (tot_sgn <= InitiatorWalkNo ) .and. &
-                .not. (tAllDoubsInitiators .and. exLevel == 2) .and. &
+                .not. (tAllDoubsInitiators .and. isDouble) .and. &
                 .not. (tAllSingsInitiators .and. isSingle)) then
                 ! Population has fallen too low. Initiator status 
                 ! removed.
