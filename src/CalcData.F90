@@ -117,10 +117,16 @@ real(dp) :: RealSpawnCutoff, OccupiedThresh
 logical :: tRPA_QBA     !RPA calculation with QB approximation
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
 logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
+! Flags for the alldoublesinitiators feature
 logical :: tAllDoubsInitiators, tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits
 logical :: tSetDelayAllSingsInits, tSetDelayAllDoubsInits, tDelayGetRefs
 integer :: allDoubsInitsDelay
 logical :: tReadRefs
+
+! Additional variables for giovannis check
+integer(n_int), allocatable :: g_markers(:)
+integer :: g_markers_num
+logical :: tInitiatorsSubspace
 
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.

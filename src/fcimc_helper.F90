@@ -756,6 +756,8 @@ contains
 
     function TestInitiator(ilut, is_init, sgn, run) result(initiator)
       use FciMCData, only: nRefs, nRefsDoubs, nRefsSings
+      use adi_references, only: giovannis_check
+      use CalcData, only: tInitiatorsSubspace
       implicit none
         ! For a given particle (with its given particle type), should it
         ! be considered as an initiator for the purposes of spawning.
@@ -774,7 +776,7 @@ contains
 
         ! the following value is either a single sgn or an aggregate
         real(dp) :: tot_sgn
-        logical :: initiator, isRef, isSingle, isDouble
+        logical :: initiator, isRef, isSingle, isDouble, isSubspaceInit
         integer :: exLevel, i
 
         ! By default the particles status will stay the same
@@ -786,6 +788,7 @@ contains
         exLevel = 0
         isSingle = .false.
         isDouble = .false.
+        isSubspaceInit = .false.
         if(tAllDoubsInitiators .or. tAllSingsInitiators) then
            ! Important : Only compare to the already initialized reference
            do i = 1, nRefsCurrent
@@ -802,6 +805,13 @@ contains
                  isSingle = .true.
               endif
            enddo
+        endif
+
+        if(tInitiatorsSubspace) then
+           if(giovannis_check(ilut)) then
+              initiator = .true.
+              isSubspaceInit = .true.
+           endif
         endif
 
         if (.not. initiator) then
@@ -831,7 +841,8 @@ contains
                 .and. .not. test_flag(ilut, flag_deterministic) &
                 .and. (tot_sgn <= InitiatorWalkNo ) .and. &
                 .not. (tAllDoubsInitiators .and. isDouble) .and. &
-                .not. (tAllSingsInitiators .and. isSingle)) then
+                .not. (tAllSingsInitiators .and. isSingle) .and. &
+                .not. (tInitiatorsSubspace .and. isSubspaceInit)) then
                 ! Population has fallen too low. Initiator status 
                 ! removed.
                 initiator = .false.

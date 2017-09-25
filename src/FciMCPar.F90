@@ -15,7 +15,7 @@ module FciMCParMod
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, allDoubsInitsDelay, &
-                        t_back_spawn_option, tAllDoubsInitiators, tDelayGetRefs, &
+                        t_back_spawn_option, tDelayGetRefs, &
                         tDelayAllDoubsInits, tDelayAllSingsInits
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
@@ -60,7 +60,8 @@ module FciMCParMod
     use ftlm_neci, only: perform_ftlm
     use hash, only: clear_hash_table
     use soft_exit, only: ChangeVars
-    use adi_references, only: generate_ref_space, read_in_refs, print_reference_notification
+    use adi_references, only: generate_ref_space, read_in_refs, print_reference_notification, &
+         enable_adi
     use fcimc_initialisation
     use fcimc_iter_utils
     use neci_signals
@@ -260,7 +261,7 @@ module FciMCParMod
             if((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
                  .and. all(.not. tSinglePartPhase)) then
                ! Start the all-doubs-initiator procedure
-               if(tDelayAllDoubsInits) tAllDoubsInitiators = .true.
+               if(tDelayAllDoubsInits) call enable_adi()
                ! And/or the all-sings-initiator procedure
                if(tDelayAllSingsInits) tAllSingsInitiators = .true.
                ! If desired, we now set up the references for the purpose of the

@@ -181,4 +181,91 @@ contains
       endif
     end subroutine print_reference_notification
 
+!------------------------------------------------------------------------------------------!
+
+    subroutine spin_symmetrize_references(nRefs)
+      use DetBitOps, only: spin_flip, DetBitEQ
+      ! If using HPHF, we want to have the spinflipped version of each reference, too
+      ! This is a bit cumbersome to implement, as the spinflipped version might or
+      ! might not be already in the references
+      implicit none
+      integer, intent(in) :: nRefs
+      integer :: iRef, jRef, nRefs_new, cRef, run
+      integer(n_int) :: ilutRef_new(0:NIfTot,2*nRefs), tmp_ilut(0:NIfTot)
+      logical :: missing
+      
+      cRef = 1
+      do iRef = 1 ,nRefs
+         ! First, copy the current ilut to a new buffer
+         ilutRef_new(:,cRef) = ilutRef(:,1,iRef)
+         cRef = cRef + 1
+         ! get the spinflipped determinant
+         tmp_ilut = spin_flip(ilutRef(:,1,iRef))
+         missing = .true.
+         ! check if it is already present
+         do jRef = 1, nRefs
+            if(DetBitEQ(tmp_ilut,ilutRef(:,1,jRef),NIfDBO)) missing = .false.
+         end do
+         ! If not, also add it to the list
+         if(missing) then
+            ilutRef_new(:,cRef) = tmp_ilut
+            cRef = cRef + 1
+         endif
+      enddo
+
+      ! Resize the ilutRef array
+      deallocate(ilutRef)
+      allocate(ilutRef(0:NIfTot,inum_runs,cRef))
+      ! Now, copy the newly constructed references back to the original array
+      do iRef = 1, cRef
+         do run = 1, inum_runs
+            ilutRef(:,run,iRef) = ilutRef_new(:,iRef)
+         end do
+      end do
+    end subroutine spin_symmetrize_references
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine enable_adi
+      use CalcData, only: tAllDoubsInitiators
+      use FciMCData, only: nRefsCurrent
+      implicit none
+      integer :: i
+
+      write(iout,'()') 
+      write(iout,*) "Setting all double excitations to initiators"
+      write(iout,*) "Using static references"
+      write(iout,*) "Further notification on additional references will be given"
+      write(iout,'()')
+      tAllDoubsInitiators = .true.
+      
+      ! tSinglePartPhase = .false.
+      
+    end subroutine enable_adi
+
+!------------------------------------------------------------------------------------------!
+
+    function giovannis_check(ilut) result(init)
+      use CalcData, only: g_markers, g_markers_num
+      use DetBitOps, only: CountBits
+      use bit_rep_data, only: NIfD
+      ! Very much like DetBitOps::FindBitExcitLevel, but it does the check for the active-space
+      ! initiator criterium
+      implicit none
+      integer(n_int), intent(in) :: ilut(0:NIfD)
+      integer(n_int) :: ilut_tmp(0:NIfD)
+      integer :: nOrbs
+      logical :: init
+
+      init = .false.
+      ! Get the bitwise equivalence of the input with the reference
+      ilut_tmp = NOT(IEOR(ilut,ilutRef(:,1,1)))
+      ! Now compare ilut_tmp with the markers (these are 0 for the core orbitals and 1 else)
+      ilut_tmp = IAND(ilut_tmp, g_markers)
+      nOrbs = CountBits(ilut_tmp,NIfD)
+      ! If nOrbs is the markersize, it is an initiator
+      init = (nOrbs == g_markers_num)
+
+    end function giovannis_check
+    
 end module adi_references

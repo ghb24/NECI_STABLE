@@ -25,8 +25,8 @@ module fcimc_initialisation
                         trunc_nopen_max, MemoryFacInit, MaxNoatHF, HFPopThresh, &
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
-                        RealCoeffExcitThresh, TargetGrowRate, &
-                        TargetGrowRateWalk, InputTargetGrowRate, &
+                        RealCoeffExcitThresh, TargetGrowRate, tInitiatorsSubspace, &
+                        TargetGrowRateWalk, InputTargetGrowRate, g_markers, &
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
                         use_spawn_hash_table, tReplicaSingleDetStart, &
                         ss_space_in, trial_space_in, init_trial_in, &
@@ -1514,6 +1514,8 @@ contains
          replica_overlaps_imag(:, :) = 0.0_dp
 #endif
 
+         if(tInitiatorsSubspace) call read_g_markers()
+
     end subroutine InitFCIMCCalcPar
 
     subroutine init_fcimc_fn_pointers()
@@ -1798,6 +1800,8 @@ contains
 !                CALL neci_flush(iout)
 !            ENDIF
 !        ENDIF
+
+        if(allocated(g_markers)) deallocate(g_markers)
 
     end subroutine DeallocFCIMCMemPar
 
@@ -3509,14 +3513,19 @@ contains
 
     end subroutine
 
+!------------------------------------------------------------------------------------------!
+
     subroutine setup_adi()
+      ! We initialize the flags for the adi feature
       use CalcData, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
            tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs
+      use adi_references, only: enable_adi
       implicit none
       
       nRefs = max(nRefsDoubs, nRefsSings)
       nRefsCurrent = 1
 
+      ! Check if one of the keywords is specified as delayed
       if(tSetDelayAllDoubsInits .and. tAllDoubsInitiators) then
          tAllDoubsInitiators = .false.
          tDelayAllDoubsInits = .true.
@@ -3525,10 +3534,65 @@ contains
          tAllSingsInitiators = .false.
          tDelayAllSingsInits = .true.
       endif
+      
+      ! Check if we want to get the references right away
       if(.not. (tReadRefs .or. tReadPops)) tDelayGetRefs = .true.
       if(tDelayAllSingsInits .and. tDelayAllDoubsInits) tDelayGetRefs = .true.
+      ! Give a status message
+      if(tAllDoubsInitiators) call enable_adi()
 
     end subroutine setup_adi
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine read_g_markers()
+      use CalcData, only: g_markers_num
+      use util_mod, only: get_free_unit
+      use bit_rep_data, only: NIfD
+      implicit none
+      logical :: exists
+      integer :: iunit, read_buf(nBasis/2), i, stat
+      character(*), parameter :: this_routine = "read_g_markers"
+      character(*), parameter :: filename = "INIT_SUBSPACE"
+
+      ! First, set up the array for the markers
+      allocate(g_markers(0:NIfD))
+      g_markers = 0_n_int
+      ! Then, check if the file is there
+      inquire(file = filename, exist = exists)
+      if(.not. exists) call stop_all(this_routine, "No "//filename//" file detected.")
+      
+      ! now, read in the file
+      g_markers_num = 0
+      iunit = get_free_unit()
+      open(iunit, file = filename, status = 'old')
+      
+      read_buf = -1
+      read(iunit,*) read_buf
+      if(any(read_buf(1:nBasis/2)== -1)) call stop_all(this_routine, &
+           "Number of orbitals in FCIDUMP and in "//filename//" does not agree.")
+      
+      ! We only have read in information for the spatial orbitals
+      do i = 1, nBasis/2
+         ! For each entry, check if it is 0 or 1, if it is zero, it is not in the 'active' space
+         if(read_buf(i) == 0) then
+            ! The input is in spatial orbitals, g_markers is in spin orbitals
+            g_markers = iBSET(g_markers,2*(i-1))
+            g_markers = iBSET(g_markers,2*(i-1)+1)
+            g_markers_num = g_markers_num + 2
+         endif
+      enddo
+      
+      call neci_flush(iout)
+      write(iout,'()')
+      write(iout,*) "Using an initiator subspace"
+      write(iout,*) "Read g_markers, given by" 
+      call WriteDetBit(iout, g_markers)
+      write(iout,*) "Number of initiator-active spin orbitals: ", nBasis-g_markers_num
+      write(iout,'()')
+    end subroutine read_g_markers
+
+!------------------------------------------------------------------------------------------!
 
 
 end module fcimc_initialisation

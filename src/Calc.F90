@@ -334,6 +334,9 @@ contains
           tReadRefs = .false.
           tDelayGetRefs = .false.
 
+          ! And disable the initiators subspace
+          tInitiatorsSubspace = .false.
+
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
@@ -2421,6 +2424,10 @@ contains
              case("READ-REFERENCES")
                 ! Instead of generating new references, read in existing ones
                 tReadRefs = .true.
+
+             case("INITIATORS-SUBSPACE")
+                ! Use Giovannis check to add initiators
+                tInitiatorsSubspace = .true.
 
             case default
                 call report("Keyword "                                &
