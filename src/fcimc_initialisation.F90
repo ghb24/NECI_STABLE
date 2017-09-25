@@ -3587,7 +3587,7 @@ contains
       write(iout,'()')
       write(iout,*) "Using an initiator subspace"
       write(iout,*) "Read g_markers, given by" 
-      call WriteDetBit(iout, g_markers)
+      call WriteDetBit(iout, g_markers, .true.)
       write(iout,*) "Number of initiator-active spin orbitals: ", nBasis-g_markers_num
       write(iout,'()')
     end subroutine read_g_markers
