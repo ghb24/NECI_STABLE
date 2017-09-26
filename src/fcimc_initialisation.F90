@@ -3579,8 +3579,8 @@ contains
             ! The input is in spatial orbitals, g_markers is in spin orbitals
             !g_markers = iBSET(g_markers,2*(i-1))
             !g_markers = iBSET(g_markers,2*(i-1)+1)
-            set_orb(g_markers, 2*(i-1))
-            set_orb(g_markers, 2*(i-1)+1)
+            set_orb(g_markers, 2*i-1)
+            set_orb(g_markers, 2*i)
             g_markers_num = g_markers_num + 2
          endif
       enddo
