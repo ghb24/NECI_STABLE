@@ -1703,6 +1703,7 @@ contains
     subroutine expand_corespace_buf(buffer, buffer_size)
       use real_time_data, only: ssht, wn_threshold
       use real_time_aux, only: add_semistochastic_state
+      use FciMCData, only: AllTotParts
       implicit none
       integer(n_int), intent(inout) :: buffer(0:,1:)
       integer, intent(inout) :: buffer_size

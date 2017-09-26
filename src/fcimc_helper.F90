@@ -34,7 +34,7 @@ module fcimc_helper
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tKeepDoubSpawns, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
-                        MaxWalkerBloom, tMultiSpawnThreshold, multiSpawnThreshold, &n
+                        MaxWalkerBloom, tMultiSpawnThreshold, multiSpawnThreshold, &
                         tAllDoubsInitiators, &
                         NMCyc, iSampleRDMIters, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &

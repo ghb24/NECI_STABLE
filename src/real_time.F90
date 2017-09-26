@@ -636,7 +636,7 @@ contains
                if(IsUnoccDet(parent_sign)) cycle
             endif
 
-            if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
+            if (tTruncInitiator) call CalcParentFlag(idet, parent_flags)
 
             ! If this slot is unoccupied (and also not a core determinant) then add it to
             ! the list of free slots and cycle.
@@ -826,7 +826,7 @@ contains
             ! The current diagonal matrix element is stored persistently.
             parent_hdiag = det_diagH(idet)
 
-            if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
+            if (tTruncInitiator) call CalcParentFlag(idet, parent_flags)
 
             ! do i need to calc. the energy contributions in the rt-fciqmc?
             ! leave it for now.. and figure out later..

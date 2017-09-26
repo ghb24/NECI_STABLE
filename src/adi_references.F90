@@ -43,6 +43,7 @@ contains
     subroutine generate_ref_space(nRefs)
       use semi_stoch_gen, only: generate_space_most_populated
       use LoggingData, only: ref_filename, tWriteRefs
+      use FciMCData, only: CurrentDets, TotWalkers
       implicit none
       integer, intent(in) :: nRefs
       integer(MPIArg) :: mpi_refs_found
@@ -55,7 +56,8 @@ contains
 
       ! Get the nRefs most populated determinants
       refs_found = 0
-      call generate_space_most_populated(nRefs, .false., 1, ref_buf, refs_found)
+      call generate_space_most_populated(nRefs, .false., 1, ref_buf, refs_found, &
+           CurrentDets, TotWalkers)
       ! Communicate the refs_found info
       mpi_refs_found = int(refs_found,MPIArg)
       call MPIAllGather(mpi_refs_found, refs_found_per_proc, ierr)

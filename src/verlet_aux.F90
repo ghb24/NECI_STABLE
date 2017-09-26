@@ -208,7 +208,7 @@ module verlet_aux
          ! when using the initiator criterium
          ! else, we just let the flags be
          hdiag = 0.0_dp
-         if(tGetInitFlags) call CalcParentFlag(idet, unused_flags, hdiag)
+         if(tGetInitFlags) call CalcParentFlag(idet, unused_flags)
          hdiag = get_helement(nI,nI,0) - Hii
          ! if desired, sum in the energy contribution
          if(tSumE) then 
