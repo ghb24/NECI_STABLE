@@ -1658,7 +1658,7 @@ contains
       implicit none
       character(*), parameter :: this_routine = "read_in_trajectory"
 
-      write(iunitCycLog,*) tau, real_time_info%time_angle
+      if(iProcIndex == root) write(iunitCycLog,*) tau, real_time_info%time_angle
 
     end subroutine logTimeCurve
 
@@ -1666,12 +1666,15 @@ contains
 
     subroutine openTauContourFile
       implicit none
+      
+      ! Only root writes out the trajectory
+      if(iProcIndex == root) then
+         iunitCycLog = get_free_unit()
+         call get_unique_filename('tauContour',.true.,.true.,0,trajFile)
 
-      iunitCycLog = get_free_unit()
-      call get_unique_filename('tauContour',.true.,.true.,0,trajFile)
-      
-      open(iunitCycLog,file=trajFile,status='new')
-      
+         open(iunitCycLog,file=trajFile,status='new')
+      endif
+   
     end subroutine openTauContourFile
 
 !------------------------------------------------------------------------------------------!
@@ -1679,8 +1682,10 @@ contains
     subroutine closeTauContourFile
       implicit none
 
-      write(iunitCycLog,*) iter
-      close(iunitCycLog)
+      if(iProcIndex == root) then
+         write(iunitCycLog,*) iter
+         close(iunitCycLog)
+      endif
     end subroutine closeTauContourFile
 
 !------------------------------------------------------------------------------------------!
@@ -1706,7 +1711,7 @@ contains
       
       do i = 1, TotWalkers
          call extract_sign(CurrentDets(:,i),sgn)
-         if(sum(abs(sgn))/lenof_sign > wn_threshold*TotWalkers) then
+         if(sum(abs(sgn))/inum_runs > wn_threshold*sum(abs(AllTotParts))/inum_runs) then
             call add_semistochastic_state(buffer, buffer_size, ssht, CurrentDets(:,i))
          endif
       enddo

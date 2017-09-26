@@ -223,6 +223,7 @@ contains
         use real_time_data, only: gf_overlap
         use FciMCData, only : TotImagTime
         use real_time_procs, only: expand_corespace_buf
+        use fcimc_output, only: PrintHighPops
         implicit none
 
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
@@ -345,8 +346,10 @@ contains
             ! if a threshold value is set, check it
             if(tLimitShift) call trunc_shift()
 
-            if(tGenerateCoreSpace .and. (mod(iter,corespace_log_interval) .eq. 0)) &
-                 call expand_corespace_buf(core_space_buf, csbuf_size)
+            if(tGenerateCoreSpace .and. (mod(iter,corespace_log_interval) .eq. 0)) then
+               call expand_corespace_buf(core_space_buf, csbuf_size)
+               write(6,*) "New corespace buffer size", csbuf_size
+            endif
             
             ! perform the actual iteration(excitation generation etc.) 
             if(iterRK .eq. 0) iter = iter + 1
@@ -390,6 +393,8 @@ contains
             if (iter == nmcyc) exit fciqmc_loop
 
         end do fciqmc_loop
+
+        call PrintHighPops()
         
         if (tPopsFile) then 
            ! as both the elapsed real-time and the elapsed imaginary time are required
@@ -483,8 +488,6 @@ contains
            ! and do not forget to communicate the decision
            call MPIBcast(tSinglePartPhase)
         end if     
-        
-        write(6,*) "Corespace buffer size", csbuf_size
 
         call rotate_time()
     end subroutine update_real_time_iteration

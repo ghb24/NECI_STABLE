@@ -42,6 +42,8 @@ module real_time_aux
       deallocate(buffer)
     end subroutine write_overlap_state
 
+!------------------------------------------------------------------------------------------!
+
     ! for load balancing, the load balancing blocks of the overlap states have to be
     ! communicated alongside the currentdets.
     subroutine move_overlap_block(block,tgt_proc)
