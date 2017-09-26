@@ -26,8 +26,9 @@ MODULE Calc
     use FciMCData, only: tTimeExit,MaxTimeExit, InputDiagSft, tSearchTau, &
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
-                         tStartCoreGroundState, pParallel, pops_pert, &
-                         alloc_popsfile_dets, tSearchTauOption, tLogGreensfunction
+                         tStartCoreGroundState, pParallel, pops_pert, nRefsCurrent, &
+                         alloc_popsfile_dets, tSearchTauOption, nRefsDoubs, nRefsSings, &
+                         tLogGreensfunction
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -328,6 +329,23 @@ contains
           tLoadBalanceBlocks = .true.
           tPopsJumpShift = .false.
           calc_seq_no = 1
+
+          tAllDoubsInitiators = .false.
+          tDelayAllDoubsInits = .false.
+          allDoubsInitsDelay = 0
+          tAllSingsInitiators = .false.
+          tDelayAllSingsInits = .false.
+          tSetDelayAllSingsInits = .false.
+          tSetDelayAllDoubsInits = .false.
+          ! By default, we have one reference for the purpose of all-doubs-initiators
+          nRefsDoubs = 1
+          nRefsSings = 1
+          nRefsCurrent = 1
+          tReadRefs = .false.
+          tDelayGetRefs = .false.
+
+          ! And disable the initiators subspace
+          tInitiatorsSubspace = .false.
 
         end subroutine SetCalcDefaults
 
@@ -2514,6 +2532,34 @@ contains
              endif
 
 
+             case("ALL-DOUBS-INITIATORS")
+                ! Set all doubles to be treated as initiators
+                ! If truncinitiator is not set, this does nothing
+                tAllDoubsInitiators = .true.   
+                ! If given, take the number of references for doubles
+                if(item < nitems) call geti(nRefsDoubs)
+
+             case("ALL-DOUBS-INITIATORS-DELAY")
+                ! Only start after this number of steps in variable shift mode with 
+                ! the all-doubs-initiators
+                if(item < nitems) call geti(allDoubsInitsDelay)
+                tSetDelayAllDoubsInits = .true.
+                tSetDelayAllSingsInits = .true.
+
+             case("ALL-SINGS-INITIATORS")
+                ! Make the singles of given references initiators
+                tAllSingsInitiators = .true.
+                ! If given, take the number of references for singles
+                if(item < nitems) call geti(nRefsSings)
+                
+             case("READ-REFERENCES")
+                ! Instead of generating new references, read in existing ones
+                tReadRefs = .true.
+
+             case("INITIATORS-SUBSPACE")
+                ! Use Giovannis check to add initiators
+                tInitiatorsSubspace = .true.
+
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
@@ -2745,12 +2791,8 @@ contains
           use kp_fciqmc, only: perform_kp_fciqmc, perform_subspace_fciqmc
           use kp_fciqmc_data_mod, only: tExcitedStateKP
           use kp_fciqmc_procs, only: kp_fciqmc_data
-!<<<<<<< HEAD
-! RT_M_Merge: There seems to be no conflict here, so use both
           use real_time, only: perform_real_time_fciqmc
-!=======
           use util_mod, only: int_fmt
-!>>>>>>> 0510b74a29483a2abd107e624b5029674d8e25ff
 
           real(dp) :: EN,WeightDum, EnerDum
           real(dp), allocatable :: final_energy(:)

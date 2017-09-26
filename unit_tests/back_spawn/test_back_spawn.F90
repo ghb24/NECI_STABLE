@@ -54,7 +54,7 @@ contains
         integer :: run
 
         niftot = 1
-        allocate(ilutref(0:niftot,2)); ilutref = 0_n_int
+        allocate(ilutref(0:niftot,2,1)); ilutref = 0_n_int
 
         print *, "" 
         print *, "testing: is_in_ref()" 
@@ -76,8 +76,8 @@ contains
         call assert_true(.not. is_in_ref(1,run))
 
         nel = 1
-        call EncodeBitDet([1], ilutref(:,1))
-        call EncodeBitDet([2], ilutref(:,2))
+        call EncodeBitDet([1], ilutref(:,1,1))
+        call EncodeBitDet([2], ilutref(:,2,1))
 
         call assert_true(is_in_ref(1))
         call assert_true(.not. is_in_ref(2))
@@ -88,7 +88,7 @@ contains
         ilutref = 0_n_int 
 
         nel = 2
-        call EncodeBitDet([1,2],ilutref)
+        call EncodeBitDet([1,2],ilutref(:,:,1))
 
         call assert_true(is_in_ref(1))
         call assert_true(is_in_ref(2))
@@ -170,10 +170,10 @@ contains
         inum_runs = 2
 #endif
         allocate(projedet(nel,inum_runs)) 
-        allocate(ilutref(0:niftot,inum_runs))
+        allocate(ilutref(0:niftot,inum_runs,1))
         do j = 1, inum_runs
             projedet(:,j) = [(i, i = 1, nel)]
-            call EncodeBitDet(projedet(:,j), ilutref(:,j))
+            call EncodeBitDet(projedet(:,j), ilutref(:,j,1))
         end do
 
         tTruncInitiator = .true. 
@@ -240,10 +240,10 @@ contains
 #endif
 
         allocate(projedet(nel, inum_runs)) 
-        allocate(ilutref(0:niftot,inum_runs))
+        allocate(ilutref(0:niftot,inum_runs,1))
         do j = 1, inum_runs
             projedet(:,j) = [(i, i = 1, nel)]
-            call EncodeBitDet(projedet(:,j), ilutref(:,j))
+            call EncodeBitDet(projedet(:,j), ilutref(:,j,1))
         end do
 
         print *, "" 
@@ -294,10 +294,10 @@ contains
         allocate(projedet(4,2))
         projedet(:,1) = [(i,i=1,4)]
         projedet(:,2) = [(i,i=5,8)]
-        allocate(ilutref(0:niftot,2))
+        allocate(ilutref(0:niftot,2,1))
 
-        call EncodeBitDet(projedet(:,1), ilutref(:,1))
-        call EncodeBitDet(projedet(:,2), ilutref(:,2))
+        call EncodeBitDet(projedet(:,1), ilutref(:,1,1))
+        call EncodeBitDet(projedet(:,2), ilutref(:,2,1))
         
         ! this test does not yet work with the complex code..
         ! maybe i misuse the run variable.. this is good to know, 
@@ -437,7 +437,7 @@ contains
         allocate(SpinOrbSymLabel(1));   SpinOrbSymLabel(1) = 1
 
         allocate(projedet(1,1));        projedet(1,1) = 2
-        allocate(ilutref(0:niftot,1));  ilutref = 0_n_int
+        allocate(ilutref(0:niftot,1,1));  ilutref = 0_n_int
 
         call EncodeBitDet(projedet, ilutref)
 
@@ -504,7 +504,7 @@ contains
         niftot = 1
         nbasis = 1
         allocate(projedet(1,1)); projedet(1,1) = 1
-        allocate(ilutref(0:niftot,1))
+        allocate(ilutref(0:niftot,1,1))
 
         call EncodeBitDet(projedet, ilutref)
 
@@ -559,7 +559,7 @@ contains
         niftot = 1
         nbasis = 2
         allocate(projedet(1,1)); projedet(1,1) = 1
-        allocate(ilutref(0:niftot,1)) 
+        allocate(ilutref(0:niftot,1,1)) 
         call EncodeBitDet(projedet, ilutref)
 
         print *, "" 
@@ -653,7 +653,7 @@ contains
 
         allocate(projedet(1,1));        projedet(1,1) = 1
 
-        allocate(ilutref(0:niftot,1))
+        allocate(ilutref(0:niftot,1,1))
         call EncodeBitDet(projedet, ilutref)
 
         print *, "" 
@@ -842,7 +842,7 @@ contains
         niftot = 1
         nBasis = 2
         allocate(projedet(1,1)); projedet = 1
-        allocate(ilutref(0:niftot,1)) 
+        allocate(ilutref(0:niftot,1,1)) 
         call EncodeBitDet(projedet, ilutref)
 
         ! i also want to include k-point restriction in picking orbital a!

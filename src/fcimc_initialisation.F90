@@ -28,6 +28,7 @@ module fcimc_initialisation
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
                         RealCoeffExcitThresh, TargetGrowRate, tPopsAlias, &
                         TargetGrowRateWalk, InputTargetGrowRate, aliasStem, &
+                        tInitiatorsSubspace, g_markers, &
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
                         use_spawn_hash_table, tReplicaSingleDetStart, &
                         ss_space_in, trial_space_in, init_trial_in, &
@@ -37,7 +38,7 @@ module fcimc_initialisation
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
-                        t_back_spawn_flex, back_spawn_delay, corespaceWalkers
+                        t_back_spawn_flex, back_spawn_delay, corespaceWalkers, tReadRefs
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -324,7 +325,9 @@ contains
 
         !iLutRef is the reference determinant for the projected energy.
         !Initially, it is chosen to be the same as the inputted reference determinant
-        ALLOCATE(iLutRef(0:NIfTot, inum_runs), stat=ierr)
+        call setup_adi()
+        ALLOCATE(iLutRef(0:NIfTot, inum_runs, nRefs), stat=ierr)
+        ilutRef = 0
         ALLOCATE(ProjEDet(NEl, inum_runs), stat=ierr)
 
         IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for iLutRef")
@@ -353,7 +356,7 @@ contains
             allocate(RefDetFlip(NEl, inum_runs), &
                      ilutRefFlip(0:NifTot, inum_runs))
             do run = 1, inum_runs
-                if (.not. TestClosedShellDet(ilutRef(:, run))) then
+                if (.not. TestClosedShellDet(ilutRef(:, run, 1))) then
 
                     ! If the reference determinant corresponds to an open shell
                     ! HPHF, then we need to specify the paired determinant and
@@ -363,7 +366,7 @@ contains
                     tSpinCoupProjE(run) = .true.
                     call ReturnAlphaOpenDet(ProjEDet(:, run), &
                                             RefDetFlip(:, run), &
-                                            ilutRef(:, run), &
+                                            ilutRef(:, run, 1), &
                                             ilutRefFlip(:, run), &
                                             .true., .true., tSwapped)
                     if (tSwapped) &
@@ -736,7 +739,7 @@ contains
         if (tOrthogonaliseReplicas) then
             do run = 1, inum_runs
                 if (tHPHF) then
-                    TempHii = hphf_diag_helement (ProjEDet(:,run), ilutRef(:,run))
+                    TempHii = hphf_diag_helement (ProjEDet(:,run), ilutRef(:,run, 1))
                 else
                     TempHii = get_helement (ProjEDet(:,run), ProjEDet(:,run), 0)
                 endif
@@ -1532,6 +1535,7 @@ contains
 #ifdef __CMPLX
          replica_overlaps_imag(:, :) = 0.0_dp
 #endif
+         if(tInitiatorsSubspace) call read_g_markers()
     end subroutine InitFCIMCCalcPar
 
     subroutine init_fcimc_fn_pointers()
@@ -1824,6 +1828,8 @@ contains
 !            ENDIF
 !        ENDIF
 
+        if(allocated(g_markers)) deallocate(g_markers)
+
     end subroutine DeallocFCIMCMemPar
 
     subroutine InitFCIMC_HF()
@@ -1976,7 +1982,7 @@ contains
                 ! ones. If it is not, then at the end of the loop (i == site+1)
                 repeated = .false.
                 do i = 1, site
-                    if (DetBitEQ(CurrentDets(:, i), ilutRef(:, run))) then
+                    if (DetBitEQ(CurrentDets(:, i), ilutRef(:, run, 1))) then
                         repeated = .true.
                         exit
                     end if
@@ -1985,7 +1991,7 @@ contains
 
                 if (.not. repeated) then
                     ! Add the site to the main list (unless it is already there)
-                    call encode_det(CurrentDets(:, site), ilutRef(:, run))
+                    call encode_det(CurrentDets(:, site), ilutRef(:, run, 1))
                     hash_val = FindWalkerHash(ProjEDet(:, run), nWalkerHashes)
                     call add_hash_table_entry(HashIndex, site, hash_val)
                     
@@ -2003,7 +2009,7 @@ contains
                 ! energies.
                 if (run == 1) HFInd = site
                 if (tHPHF) then
-                    hdiag = hphf_diag_helement(ProjEDet(:,run), ilutRef(:,run))
+                    hdiag = hphf_diag_helement(ProjEDet(:,run), ilutRef(:,run, 1))
                 else
                     hdiag = get_helement(ProjEDet(:, run), ProjEDet(:, run), 0)
                 endif
@@ -2506,7 +2512,7 @@ contains
 
                 if (abs(NoWalkers) > 1.0e-12_dp) then
                     call EncodeBitDet(CASFullDets(:,i),iLutnJ)
-                    if(DetBitEQ(iLutnJ, iLutRef(:,1), NIfDBO)) then
+                    if(DetBitEQ(iLutnJ, iLutRef(:,1, 1), NIfDBO)) then
                         !Check if this determinant is reference determinant, so we can count number on hf.
                         do run=1,inum_runs
                             NoatHF(run) = NoWalkers
@@ -2529,8 +2535,7 @@ contains
 
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
-                        call CalcParentFlag(DetIndex, iInit, &
-                                            real(HDiagTemp, dp))
+                        call CalcParentFlag(DetIndex, iInit)
                     endif
 
                     DetHash = FindWalkerHash(CASFullDets(:,i), nWalkerHashes)
@@ -2690,7 +2695,7 @@ contains
                 call return_mp1_amp_and_mp2_energy(nJ,iLutnJ,Ex,tParity,amp,energy_contrib)
                 amp = amp*PartFac
 
-                if (tRealCoeffByExcitLevel) ExcitLevel=FindBitExcitLevel(iLutnJ, iLutRef, nEl)
+                if (tRealCoeffByExcitLevel) ExcitLevel=FindBitExcitLevel(iLutnJ, iLutRef(:,1,1), nEl)
                 if (tAllRealCoeff .or. &
                     & (tRealCoeffByExcitLevel.and.(ExcitLevel.le.RealCoeffExcitThresh))) then
                     NoWalkers=amp
@@ -2725,8 +2730,7 @@ contains
 
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
-                        call CalcParentFlag(DetIndex, iInit, &
-                                            real(HDiagTemp, dp))
+                        call CalcParentFlag(DetIndex, iInit)
                     endif
 
                     DetHash = FindWalkerHash(nJ, nWalkerHashes)
@@ -3426,7 +3430,7 @@ contains
 
             do run = 1, inum_runs
                 ProjEDet(:, run) = initial_states(:, run)
-                call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run))
+                call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run, 1))
             end do
 
         else
@@ -3436,7 +3440,7 @@ contains
                 ! the same thing...
 
                 do run = 1, inum_runs
-                    ilutRef(:, run) = ilutHF
+                    ilutRef(:, run, 1) = ilutHF
                     ProjEDet(:, run) = HFDet
                 end do
 
@@ -3448,7 +3452,7 @@ contains
                 tReplicaReferencesDiffer = .true.
 
                 ! The first replica is just a normal FCIQMC simulation.
-                ilutRef(:, 1) = ilutHF
+                ilutRef(:, 1, 1) = ilutHF
                 ProjEDet(:, 1) = HFDet
 
                 found_orbs = 0
@@ -3489,7 +3493,7 @@ contains
                     ProjEDet(:, run) = HFDet
                     ProjEDet(i, run) = orbs(i)
                     call sort(ProjEDet(:, run))
-                    call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run))
+                    call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run, 1))
 
                 end do
 
@@ -3532,6 +3536,89 @@ contains
         end if
 
     end subroutine
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine setup_adi()
+      ! We initialize the flags for the adi feature
+      use CalcData, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
+           tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs
+      use adi_references, only: enable_adi
+      implicit none
+      
+      nRefs = max(nRefsDoubs, nRefsSings)
+      nRefsCurrent = 1
+
+      ! Check if one of the keywords is specified as delayed
+      if(tSetDelayAllDoubsInits .and. tAllDoubsInitiators) then
+         tAllDoubsInitiators = .false.
+         tDelayAllDoubsInits = .true.
+      endif
+      if(tSetDelayAllSingsInits .and. tAllSingsInitiators) then
+         tAllSingsInitiators = .false.
+         tDelayAllSingsInits = .true.
+      endif
+      
+      ! Check if we want to get the references right away
+      if(.not. (tReadRefs .or. tReadPops)) tDelayGetRefs = .true.
+      if(tDelayAllSingsInits .and. tDelayAllDoubsInits) tDelayGetRefs = .true.
+      ! Give a status message
+      if(tAllDoubsInitiators) call enable_adi()
+
+    end subroutine setup_adi
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine read_g_markers()
+      use CalcData, only: g_markers_num
+      use util_mod, only: get_free_unit
+      use bit_rep_data, only: NIfD
+      implicit none
+      logical :: exists
+      integer :: iunit, read_buf(nBasis/2), i, stat
+      character(*), parameter :: this_routine = "read_g_markers"
+      character(*), parameter :: filename = "INIT_SUBSPACE"
+
+      ! First, set up the array for the markers
+      allocate(g_markers(0:NIfD))
+      g_markers = 0_n_int
+      ! Then, check if the file is there
+      inquire(file = filename, exist = exists)
+      if(.not. exists) call stop_all(this_routine, "No "//filename//" file detected.")
+      
+      ! now, read in the file
+      g_markers_num = 0
+      iunit = get_free_unit()
+      open(iunit, file = filename, status = 'old')
+      
+      read_buf = -1
+      read(iunit,*) read_buf
+      if(any(read_buf(1:nBasis/2)== -1)) call stop_all(this_routine, &
+           "Number of orbitals in FCIDUMP and in "//filename//" does not agree.")
+      
+      ! We only have read in information for the spatial orbitals
+      do i = 1, nBasis/2
+         ! For each entry, check if it is 0 or 1, if it is zero, it is not in the 'active' space
+         if(read_buf(i) == 0) then
+            ! The input is in spatial orbitals, g_markers is in spin orbitals
+            !g_markers = iBSET(g_markers,2*(i-1))
+            !g_markers = iBSET(g_markers,2*(i-1)+1)
+            set_orb(g_markers, 2*i-1)
+            set_orb(g_markers, 2*i)
+            g_markers_num = g_markers_num + 2
+         endif
+      enddo
+      
+      call neci_flush(iout)
+      write(iout,'()')
+      write(iout,*) "Using an initiator subspace"
+      write(iout,*) "Read g_markers, given by" 
+      call WriteDetBit(iout, g_markers, .true.)
+      write(iout,*) "Number of initiator-active spin orbitals: ", nBasis-g_markers_num
+      write(iout,'()')
+    end subroutine read_g_markers
+
+!------------------------------------------------------------------------------------------!
 
 
 end module fcimc_initialisation

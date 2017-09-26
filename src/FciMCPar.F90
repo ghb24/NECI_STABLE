@@ -7,20 +7,21 @@ module FciMCParMod
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
-                        iFullSpaceIter, semistoch_shift_iter, &
+                        iFullSpaceIter, semistoch_shift_iter, tReadRefs, &
                         tOrthogonaliseReplicas, orthogonalise_iter, &
                         tDetermHFSpawning, use_spawn_hash_table, &
                         ss_space_in, s_global_start, tContTimeFCIMC, &
-                        trial_shift_iter, tStartTrialLater, &
+                        trial_shift_iter, tStartTrialLater, tDelayAllSingsInits, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
-                        t_back_spawn_flex, t_back_spawn_flex_option, &
-                        t_back_spawn_option
+                        t_back_spawn_flex, t_back_spawn_flex_option, allDoubsInitsDelay, &
+                        t_back_spawn_option, tDelayGetRefs, &
+                        tDelayAllDoubsInits, tDelayAllSingsInits
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
-                           equi_iter_double_occ, t_print_frq_histograms
+                           equi_iter_double_occ, t_print_frq_histograms, ref_filename
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -59,6 +60,8 @@ module FciMCParMod
     use ftlm_neci, only: perform_ftlm
     use hash, only: clear_hash_table
     use soft_exit, only: ChangeVars
+    use adi_references, only: generate_ref_space, read_in_refs, print_reference_notification, &
+         enable_adi
     use fcimc_initialisation
     use fcimc_iter_utils
     use neci_signals
@@ -162,6 +165,22 @@ module FciMCParMod
         ! helpful to do it here.
         call population_check()
 
+        ! If a popsfile was read in, get the references immediately
+        if(tReadPops .and. .not. tDelayGetRefs .and. nRefs > 1) then
+           call generate_ref_space(nRefs)
+           nRefsCurrent = nRefs
+           if(.not. tReadRefs) call print_reference_notification(nRefsCurrent)
+        endif
+        ! If a reference file is read in however, we do overwrite references with 
+        ! the ones from the file
+        ! In this case, generate_ref_space is still called, so we can have more
+        ! references than in the file
+        if(tReadRefs) then
+           call read_in_refs(nRefs,ref_filename)
+           nRefsCurrent = nRefs
+           call print_reference_notification(nRefsCurrent)
+        endif
+
         if(n_int.eq.4) CALL Stop_All('Setup Parameters', &
                 'Use of RealCoefficients does not work with 32 bit integers due to the use &
                 &of the transfer operation from dp reals to 64 bit integers.')
@@ -245,6 +264,23 @@ module FciMCParMod
                     call init_semi_stochastic(ss_space_in)
                 end if
             end if
+
+            if((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
+                 .and. all(.not. tSinglePartPhase)) then
+               ! Start the all-doubs-initiator procedure
+               if(tDelayAllDoubsInits) call enable_adi()
+               ! And/or the all-sings-initiator procedure
+               if(tDelayAllSingsInits) tAllSingsInitiators = .true.
+               ! If desired, we now set up the references for the purpose of the
+               ! all-doubs-initiators
+               if(nRefs > 1 .and. (.not. tReadPops .or. tDelayAllDoubsInits .or. &
+                    tDelayAllSingsInits) .and. .not. tReadRefs) then 
+                  ! We do not do this, if a reference space has been read in
+                  call generate_ref_space(nRefs)
+                  nRefsCurrent = nRefs
+                  call print_reference_notification(nRefsCurrent)
+               endif
+            endif
 
             ! turn on double occ measurement after equilibration
             if (equi_iter_double_occ /= 0 .and. all(.not. tSinglePartPhase)) then
@@ -903,7 +939,7 @@ module FciMCParMod
             ! We only need to find out if determinant is connected to the
             ! reference (so no ex. level above 2 required, 
             ! truncated etc.)
-            walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
+            walkExcitLevel = FindBitExcitLevel (iLutRef(:,1,1), CurrentDets(:,j), &
                                                 max_calc_ex_level)
             
             if(tRef_Not_HF) then
@@ -957,7 +993,7 @@ module FciMCParMod
             HDiagCurr = det_diagH(j)
 
             if (tTruncInitiator) &
-                call CalcParentFlag (j, parent_flags, HDiagCurr)
+                call CalcParentFlag (j, parent_flags)
 
             ! As the main list (which is storing a hash table) no longer needs
             ! to be contiguous, we need to skip sites that are empty.

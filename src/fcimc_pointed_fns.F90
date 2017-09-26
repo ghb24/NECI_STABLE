@@ -214,7 +214,7 @@ module fcimc_pointed_fns
         if (tAllRealCoeff) then
             tRealSpawning = .true.
         elseif (tRealCoeffByExcitLevel) then
-            TargetExcitLevel = FindBitExcitLevel (iLutRef, iLutnJ)
+            TargetExcitLevel = FindBitExcitLevel (iLutRef(:,1,1), iLutnJ)
             if (TargetExcitLevel <= RealCoeffExcitThresh) &
                 tRealSpawning = .true.
         endif

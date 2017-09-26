@@ -358,12 +358,14 @@ MODULE FciMCData
       logical :: tReplicaReferencesDiffer
 
       integer, allocatable :: ProjEDet(:, :)
-      integer(n_int), allocatable :: HighestPopDet(:,:), iLutRef(:, :)
+      integer(n_int), allocatable :: HighestPopDet(:,:), iLutRef(:, :, :)
       integer(n_int), allocatable :: iLutRefFlip(:, :)     !If we are using HPHF and projecting onto 
                                                         !an open-shell determinant, then it is useful
                                                         !to store the spin-coupled determinant, 
                                                         !so we can calculate projection onto both.
-
+      ! Number of references for all-doubs-initiators and (important) number of references 
+      ! currently to check
+      integer :: nRefs, nRefsCurrent, nRefsSings, nRefsDoubs
       ! Even with multiple reference determinants, the calculation is done
       ! relative to Hii. So we need to adjust the calculated projected energy
       ! by a different amount.

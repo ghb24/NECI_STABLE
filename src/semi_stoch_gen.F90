@@ -312,7 +312,7 @@ contains
 
         space_size = space_size + 1
         ilut_list(:, space_size) = 0_n_int
-        ilut_list(0:NIfDBO, space_size) = ilut(0:NIfDBO)
+        ilut_list(0:NIfTot, space_size) = ilut(0:NIfTot)
 
     end subroutine add_state_to_space
 
@@ -981,7 +981,7 @@ contains
         temp_ilut = 0_n_int
         do i = 1, n_states_this_proc
             ! The states in largest_states are sorted from smallest to largest.
-            temp_ilut(0:NIfDBO) = largest_states(0:NIfDBO, length_this_proc-i+1)
+            temp_ilut(0:NIfTot) = largest_states(0:NIfTot, length_this_proc-i+1)
             call add_state_to_space(temp_ilut, ilut_list, space_size)
         end do
 

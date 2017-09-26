@@ -34,10 +34,11 @@ module fcimc_helper
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tKeepDoubSpawns, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
-                        MaxWalkerBloom, tMultiSpawnThreshold, multiSpawnThreshold, &
+                        MaxWalkerBloom, tMultiSpawnThreshold, multiSpawnThreshold, &n
+                        tAllDoubsInitiators, &
                         NMCyc, iSampleRDMIters, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
-                        t_back_spawn_flex
+                        t_back_spawn_flex, tAllSingsInitiators
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
@@ -523,10 +524,10 @@ contains
             ! Obtain off-diagonal element
             if (tHPHF) then
                 HOffDiag(1:inum_runs) = hphf_off_diag_helement (ProjEDet(:,1), nI, &
-                                                                iLutRef(:,1), ilut)
+                                                                iLutRef(:,1,1), ilut)
             else
                 HOffDiag(1:inum_runs) = get_helement (ProjEDet(:,1), nI, &
-                                                      ExcitLevel, ilutRef(:,1), ilut)
+                                                      ExcitLevel, ilutRef(:,1,1), ilut)
             endif
 
         endif ! ExcitLevel_local == 1, 2, 3
@@ -741,7 +742,7 @@ contains
         do run = 1, inum_runs
 
             ! We need to use the excitation level relevant for this run
-            exlevel = FindBitExcitLevel(ilut, ilutRef(:, run))
+            exlevel = FindBitExcitLevel(ilut, ilutRef(:, run,1))
             if (tSpinCoupProjE(run) .and. exlevel /= 0) then
                 if (exlevel <= 2) then
                     exlevel = 2
@@ -785,10 +786,10 @@ contains
                 ! Obtain the off-diagonal elements
                 if (tHPHF) then
                     hoffdiag = hphf_off_diag_helement(ProjEDet(:,run), nI, &
-                                                      iLutRef(:,run), ilut)
+                                                      iLutRef(:,run,1), ilut)
                 else
                     hoffdiag = get_helement (ProjEDet(:,run), nI, exlevel, &
-                                             ilutRef(:,run), ilut)
+                                             ilutRef(:,run,1), ilut)
                 endif
 
             end if
@@ -805,7 +806,7 @@ contains
     end subroutine SumEContrib_different_refs
 
 
-    subroutine CalcParentFlag(j, parent_flags, diagH)
+    subroutine CalcParentFlag(j, parent_flags)
 
         ! In the CurrentDets array, the flag at NIfTot refers to whether that
         ! determinant *itself* is an initiator or not. We need to decide if 
@@ -819,7 +820,6 @@ contains
         integer, intent(in) :: j
         integer, intent(out) :: parent_flags
         real(dp) :: CurrentSign(lenof_sign)
-        real(dp), intent(in) :: diagH
         integer :: run, nopen
         logical :: tDetinCAS, parent_init
         real(dp) :: init_tm, expected_lifetime, hdiag
@@ -841,8 +841,7 @@ contains
                 ! Should this particle be considered to be an initiator
                 ! for spawning purposes.
                 parent_init = TestInitiator(CurrentDets(:,j), parent_init, &
-                                            CurrentSign, diagH, &
-                                            j, run)
+                                            CurrentSign, run)
 
                 ! Update counters as required.
                 if (parent_init) then
@@ -880,8 +879,11 @@ contains
     end subroutine CalcParentFlag
 
 
-    function TestInitiator(ilut, is_init, sgn, diagH, site_idx, run) result(initiator)
-
+    function TestInitiator(ilut, is_init, sgn, run) result(initiator)
+      use FciMCData, only: nRefs, nRefsDoubs, nRefsSings
+      use adi_references, only: giovannis_check
+      use CalcData, only: tInitiatorsSubspace
+      implicit none
         ! For a given particle (with its given particle type), should it
         ! be considered as an initiator for the purposes of spawning.
         !
@@ -894,20 +896,50 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         logical, intent(in) :: is_init
-        real(dp), intent(in) :: diagH
-        integer, intent(in) :: site_idx, run
+        integer, intent(in) :: run
         real(dp), intent(in) :: sgn(lenof_sign)
 
         ! the following value is either a single sgn or an aggregate
         real(dp) :: tot_sgn
-        logical :: initiator
+        logical :: initiator, isRef, isSingle, isDouble, isSubspaceInit
+        integer :: exLevel, i
 
         ! By default the particles status will stay the same
         initiator = is_init
 
         tot_sgn = mag_of_run(sgn,run)
 
-        if (.not. is_init) then
+        ! Doubles are always initiators if the corresponding flag is set
+        exLevel = 0
+        isSingle = .false.
+        isDouble = .false.
+        isSubspaceInit = .false.
+        if(tAllDoubsInitiators .or. tAllSingsInitiators) then
+           ! Important : Only compare to the already initialized reference
+           do i = 1, nRefsCurrent
+              exLevel = FindBitExcitLevel(ilutRef(:,run,i),ilut)
+              if(exLevel == 2 .and. tAllDoubsInitiators .and. i <= nRefsDoubs) then
+                 initiator = .true.
+                 ! We need to exit the loop here because exLevel is checked for 2 
+                 ! later on, so we cannot overwrite it anymore
+                 isDouble = .true.
+              endif
+              ! If desired, also set singles as initiators
+              if(exLevel == 1 .and. tAllSingsInitiators .and. i <= nRefsSings) then
+                 initiator = .true. 
+                 isSingle = .true.
+              endif
+           enddo
+        endif
+
+        if(tInitiatorsSubspace) then
+           if(giovannis_check(ilut)) then
+              initiator = .true.
+              isSubspaceInit = .true.
+           endif
+        endif
+
+        if (.not. initiator) then
 
             ! Determinant wasn't previously initiator 
             ! - want to test if it has now got a large enough 
@@ -923,11 +955,19 @@ contains
             ! non-initiators again if their population falls below 
             ! n_add (this is on by default).
 
+           ! All of the references stay initiators
+           isRef = .false.
+           do i = 1, nRefsCurrent
+              if(DetBitEQ(ilut,ilutRef(:,run,i),NIfDBO)) isRef = .true.
+           enddo
             ! If det. is the HF det, or it
             ! is in the deterministic space, then it must remain an initiator.
-            if ( (t_real_time_fciqmc .or. .not. (DetBitEQ(ilut, iLutRef(:,run), NIfDBO))) &
+            if ( .not. (isRef) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
-                .and. (tot_sgn <= InitiatorWalkNo )) then
+                .and. (tot_sgn <= InitiatorWalkNo ) .and. &
+                .not. (tAllDoubsInitiators .and. isDouble) .and. &
+                .not. (tAllSingsInitiators .and. isSingle) .and. &
+                .not. (tInitiatorsSubspace .and. isSubspaceInit)) then
                 ! Population has fallen too low. Initiator status 
                 ! removed.
                 initiator = .false.
@@ -1970,9 +2010,9 @@ contains
         logical :: tSwapped
         Type(BasisFn) :: isym
 
-        iLutRef(:, run) = 0_n_int
-        iLutRef(0:NIfDBO, run) = ilut(0:NIfDBO)
-        call decode_bit_det (ProjEDet(:, run), iLutRef(:, run))
+        iLutRef(:, run, 1) = 0_n_int
+        iLutRef(0:NIfDBO, run, 1) = ilut(0:NIfDBO)
+        call decode_bit_det (ProjEDet(:, run), iLutRef(:, run, 1))
         write (iout, '(a,i3,a)', advance='no') 'Changing projected &
               &energy reference determinant for run', run, &
               ' on the next update cycle to: '
@@ -1984,16 +2024,16 @@ contains
         if(tHPHF) then
             if(.not.Allocated(RefDetFlip)) then
                 allocate(RefDetFlip(NEl, inum_runs), &
-                         ilutRef(0:NifTot, inum_runs))
+                         ilutRefFlip(0:NifTot, inum_runs))
                 RefDetFlip = 0
                 iLutRefFlip = 0_n_int
             endif
-            if(.not. TestClosedShellDet(iLutRef(:, run))) then
+            if(.not. TestClosedShellDet(iLutRef(:, run, 1))) then
                 ! Complications. We are now effectively projecting
                 ! onto a LC of two dets. Ensure this is done correctly.
                 call ReturnAlphaOpenDet(ProjEDet(:,run), &
                                         RefDetFlip(:, run), &
-                                        iLutRef(:,run), &
+                                        iLutRef(:,run,1), &
                                         iLutRefFlip(:, run), &
                                         .true., .true., tSwapped)
                 if(tSwapped) then
@@ -2029,7 +2069,7 @@ contains
             old_Hii = Hii
             if (tHPHF) then
                 h_tmp = hphf_diag_helement (ProjEDet(:,1), &
-                                            iLutRef(:,1))
+                                            iLutRef(:,1,1))
             else
                 h_tmp = get_helement (ProjEDet(:,1), &
                                       ProjEDet(:,1), 0)
@@ -2077,7 +2117,7 @@ contains
         ! data have been updated correctly.
         if (tHPHF) then
             h_tmp = hphf_diag_helement (ProjEDet(:,run), &
-                                        ilutRef(:,run))
+                                        ilutRef(:,run,1))
         else
             h_tmp = get_helement (ProjEDet(:,run), &
                                   ProjEDet(:,run), 0)
@@ -2111,7 +2151,7 @@ contains
             call extract_sign(CurrentDets(:,j), sgn)
             if (IsUnoccDet(sgn)) cycle
 
-            ex_level = FindBitExcitLevel (iLutRef, CurrentDets(:,j))
+            ex_level = FindBitExcitLevel (iLutRef(:,1,1), CurrentDets(:,j))
 
             call decode_bit_det(det, CurrentDets(:,j))
             call SumEContrib(det, ex_level, sgn, CurrentDets(:,j), 0.0_dp, &
@@ -2132,6 +2172,8 @@ contains
 
     end subroutine
 
+!------------------------------------------------------------------------------------------!
+
     function check_semistoch_flags(ilut_child, nI_child, tCoreDet) result(break)
       integer(n_int), intent(inout) :: ilut_child(0:niftot)
       integer, intent(in) :: nI_child(nel)
@@ -2147,6 +2189,8 @@ contains
          if(tChildIsDeterm) call set_flag(ilut_child, flag_deterministic)
       endif
     end function check_semistoch_flags
+
+!------------------------------------------------------------------------------------------!
 
     subroutine verify_pop(BackupDets)
       use bit_reps, only: extract_bit_rep
@@ -2174,5 +2218,7 @@ contains
          endif
       end do
     end subroutine verify_pop
+
+!------------------------------------------------------------------------------------------!
 
 end module
