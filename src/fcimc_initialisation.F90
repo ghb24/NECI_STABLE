@@ -3577,8 +3577,10 @@ contains
          ! For each entry, check if it is 0 or 1, if it is zero, it is not in the 'active' space
          if(read_buf(i) == 0) then
             ! The input is in spatial orbitals, g_markers is in spin orbitals
-            g_markers = iBSET(g_markers,2*(i-1))
-            g_markers = iBSET(g_markers,2*(i-1)+1)
+            !g_markers = iBSET(g_markers,2*(i-1))
+            !g_markers = iBSET(g_markers,2*(i-1)+1)
+            set_orb(g_markers, 2*(i-1))
+            set_orb(g_markers, 2*(i-1)+1)
             g_markers_num = g_markers_num + 2
          endif
       enddo
