@@ -17,6 +17,7 @@ module cc_amplitudes
     implicit none 
 
     logical :: t_cc_amplitudes = .false. 
+    logical :: t_plot_cc_amplitudes = .false.
 
     ! we need the order of cluster operators..
     integer :: cc_order = 0 
@@ -78,6 +79,66 @@ module cc_amplitudes
     integer, allocatable :: elec_ind_mat(:,:), orb_ind_mat(:,:)
 
 contains 
+
+    subroutine print_cc_amplitudes 
+        ! routine to print out the cc-amplitudes to check there 
+        ! magnitude 
+        use util_mod, only: get_free_unit, get_unique_filename
+        integer :: i, j, iunit
+        character(12) :: filename
+        character(1) :: x1
+        type(cc_hash), pointer :: temp_node
+        
+        if (.not. allocated(cc_ops)) then 
+            print *, "cc amplitudes not yet allocated! cant print!"
+            return
+        end if
+
+        do i = 1, 3
+            ! open 4 files to print the cc-amps
+            iunit = get_free_unit() 
+            write(x1,'(I1)') i 
+            call get_unique_filename('cc_amps_'//trim(x1), .true., .true., 1, &
+                filename)
+            open(iunit, file = filename, status = 'unknown')
+
+            do j = 1, cc_ops(i)%n_ops
+                if (abs(cc_ops(i)%get_amp(j)) < EPS) cycle
+                write(iunit, '(f15.7)') abs(cc_ops(i)%get_amp(j))
+            end do
+
+            close(iunit)
+
+        end do
+
+        iunit = get_free_unit() 
+        call get_unique_filename('cc_amps_4', .true., .true., 1, &
+            filename)
+
+        open(iunit, file = filename, status = 'unknown')
+
+        ! i have to do the quads special since it is stored in a hash.. 
+        print *, "hash size: ", quad_hash_size
+        do i = 1, quad_hash_size
+            temp_node => quad_hash(i) 
+            
+            if (temp_node%found) then 
+                write(iunit, '(f15.7)') abs(temp_node%amp)
+            
+            end if 
+
+            do while(associated(temp_node%next)) 
+                if (temp_node%next%found) then 
+                    write(iunit, '(f15.7)') abs(temp_node%next%amp)
+                end if
+
+                temp_node => temp_node%next
+
+            end do
+        end do
+        close(iunit)
+        
+    end subroutine print_cc_amplitudes
 
     function cc_singles_factor() result(factor) 
         ! this function should provide the correct factor to the 
@@ -601,6 +662,7 @@ contains
                     end do
                 end if
             end do
+
         else 
             do i = 1, cc_ops(2)%n_ops 
                 if (cc_ops(2)%set_flag(i)) then 
@@ -725,6 +787,7 @@ contains
         nullify(temp_node)
 
     end subroutine cc_hash_add
+
 
     subroutine order_quad_indices(ij_ab, kl_cd, phase, ijab_klcd)
         integer, intent(inout) :: ij_ab(2,2), kl_cd(2,2)
