@@ -47,7 +47,7 @@ contains
       use CalcData, only: tProductReferences, nExProd
       use SystemData, only: tHPHF
       implicit none
-      integer, intent(in) :: nRefs
+      integer, intent(inout) :: nRefs
       integer(MPIArg) :: mpi_refs_found
       integer :: ierr, i, all_refs_found, refs_found
       integer(MPIArg) :: refs_found_per_proc(0:nProcessors-1), refs_displs(0:nProcessors-1)
@@ -195,7 +195,7 @@ contains
       ! This is a bit cumbersome to implement, as the spinflipped version might or
       ! might not be already in the references
       implicit none
-      integer, intent(in) :: nRefs
+      integer, intent(inout) :: nRefs
       integer :: iRef, jRef, nRefs_new, cRef, run
       integer(n_int) :: ilutRef_new(0:NIfTot,2*nRefs), tmp_ilut(0:NIfTot)
       logical :: missing
@@ -222,6 +222,7 @@ contains
       ! Resize the ilutRef array
       deallocate(ilutRefAdi)
       allocate(ilutRefAdi(0:NIfTot,inum_runs,cRef))
+      nRefs = cRef
       ! Now, copy the newly constructed references back to the original array
       do iRef = 1, cRef
          do run = 1, inum_runs
@@ -234,7 +235,8 @@ contains
 
     subroutine add_product_references(nRefs, prodLvl)
       implicit none
-      integer, intent(in) :: nRefs, prodLvl
+      integer, intent(inout) :: nRefs
+      integer, intent(in) :: prodLvl
       integer(n_int) :: ilut_tmp(0:NIfTot)
       integer(n_int), allocatable :: prod_buffer(:,:)
       integer :: nProdsMax, nProds, i, run, cLvl
@@ -271,7 +273,8 @@ contains
       ! Write the buffer to ilutRefAdi
       deallocate(ilutRefAdi)
       allocate(ilutRefAdi(0:NIfTot,inum_runs,nProds))
-      
+      ! Reassign the number of references
+      nRefs = nProds
       do run = 1, inum_runs
          ilutRefAdi(:,run,:) = prod_buffer(:,1:nProds)
       end do
@@ -288,7 +291,7 @@ contains
       integer(n_int), intent(out) :: ilut_tmp(0:NIfTot)
       logical, intent(out) :: isValid
       integer(n_int) :: tau(0:NIfTot)
-      integer :: cp
+      integer :: cp, tmp
 
       ilut_tmp = ilutRef(:,1)
       isValid = .true.
@@ -296,6 +299,7 @@ contains
       do cp = 1, cLvl
          ! Store the excitation operators in tau
          tau = IEOR(ilutRefAdi(:,1,cpIndex(i,nRefs,cp)),ilutRef(:,1))
+         tmp = cpIndex(i,nRefs,cp)
          ! And apply it on the temporary iLut
          ilut_tmp = IEOR(ilut_tmp,tau)
 
@@ -332,7 +336,7 @@ contains
       integer, intent(in) :: i, nRefs, cp
       integer :: index
       
-      index = mod(i/(nRefs**(cp-1)),nRefs)
+      index = mod(i/(nRefs**(cp-1)),nRefs)+1
     end function cpIndex
 
 !------------------------------------------------------------------------------------------!
