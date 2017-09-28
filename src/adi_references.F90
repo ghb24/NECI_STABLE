@@ -44,6 +44,8 @@ contains
     subroutine generate_ref_space(nRefs)
       use semi_stoch_gen, only: generate_space_most_populated
       use LoggingData, only: ref_filename, tWriteRefs
+      use CalcData, only: tProductReferences, nExProd
+      use SystemData, only: tHPHF
       implicit none
       integer, intent(in) :: nRefs
       integer(MPIArg) :: mpi_refs_found
@@ -75,6 +77,9 @@ contains
 
       ! And write the so-merged references to ilutRef
       call set_additional_references(mpi_buf, nRefs)
+
+      if(tProductReferences) call add_product_references(nRefs, nExProd)
+      if(tHPHF) call spin_symmetrize_references(nRefs)
 
       if(tWriteRefs) call output_reference_space(ref_filename)
       nRefsCurrent = nRefs

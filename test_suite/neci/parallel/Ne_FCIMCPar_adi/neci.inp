@@ -15,7 +15,7 @@ tau 0.005
 startsinglepart
 truncinitiator
 addtoinitiator 3
-(all-doubs-initiators
+all-doubs-initiators
 shiftdamp 0.03
 stepsshift 25
 jump-shift

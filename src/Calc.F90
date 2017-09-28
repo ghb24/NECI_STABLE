@@ -334,6 +334,8 @@ contains
           nRefs = 1
           tReadRefs = .false.
           tDelayGetRefs = .false.
+          tProductReferences = .false.
+          nExProd = 2
 
           ! And disable the initiators subspace
           tInitiatorsSubspace = .false.
@@ -2425,6 +2427,10 @@ contains
              case("READ-REFERENCES")
                 ! Instead of generating new references, read in existing ones
                 tReadRefs = .true.
+                
+             case("EXCITATION-PRODUCT-REFERENCES")
+                ! Also add all excitation products of references to the reference space
+                tProductReferences = .true.
 
              case("INITIATORS-SUBSPACE")
                 ! Use Giovannis check to add initiators
