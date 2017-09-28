@@ -161,7 +161,6 @@ module FciMCParMod
         ! If a popsfile was read in, get the references immediately
         if(tReadPops .and. .not. tDelayGetRefs .and. nRefs > 1) then
            call generate_ref_space(nRefs)
-           nRefsCurrent = nRefs
            if(.not. tReadRefs) call print_reference_notification(nRefsCurrent)
         endif
         ! If a reference file is read in however, we do overwrite references with 
@@ -170,7 +169,6 @@ module FciMCParMod
         ! references than in the file
         if(tReadRefs) then
            call read_in_refs(nRefs,ref_filename)
-           nRefsCurrent = nRefs
            call print_reference_notification(nRefsCurrent)
         endif
 
@@ -270,7 +268,6 @@ module FciMCParMod
                     tDelayAllSingsInits) .and. .not. tReadRefs) then 
                   ! We do not do this, if a reference space has been read in
                   call generate_ref_space(nRefs)
-                  nRefsCurrent = nRefs
                   call print_reference_notification(nRefsCurrent)
                endif
             endif

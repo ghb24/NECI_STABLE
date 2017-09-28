@@ -25,7 +25,7 @@ MODULE Calc
     use IntegralsData, only: tNeedsVirts
     use FciMCData, only: tTimeExit,MaxTimeExit, InputDiagSft, tSearchTau, &
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
-                         tTrialHash, tIncCancelledInitEnergy, MaxTau, &
+                         tTrialHash, tIncCancelledInitEnergy, MaxTau, nRefs, &
                          tStartCoreGroundState, pParallel, pops_pert, nRefsCurrent, &
                          alloc_popsfile_dets, tSearchTauOption, nRefsDoubs, nRefsSings
     use ras_data, only: core_ras, trial_ras
@@ -331,6 +331,7 @@ contains
           nRefsDoubs = 1
           nRefsSings = 1
           nRefsCurrent = 1
+          nRefs = 1
           tReadRefs = .false.
           tDelayGetRefs = .false.
 

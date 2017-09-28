@@ -3483,6 +3483,12 @@ contains
                 real(get_helement(ProjEDet(:, run), ProjEDet(:, run), 0), dp)
         end do
 
+        ! As we always check versus ilutRefAdi for initiator purposes, the first 
+        ! entry has to be assigned always
+        do run = 1, inum_runs
+           ilutRefAdi(:,run,1) = ilutRef(:,run)
+        end do
+
     end subroutine assign_reference_dets
 
     subroutine init_cont_time()

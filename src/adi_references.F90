@@ -1,6 +1,6 @@
 module adi_references
 use Parallel_neci
-use FciMCData, only: ilutRefAdi, ilutRef
+use FciMCData, only: ilutRefAdi, ilutRef, nRefsCurrent
 use bit_rep_data, only: niftot, nifdbo
 use constants
 
@@ -36,6 +36,7 @@ contains
     enddo
 
     close(iunit)
+    nRefsCurrent = nRefs
   end subroutine read_in_refs
 
 !------------------------------------------------------------------------------------------!
@@ -76,7 +77,7 @@ contains
       call set_additional_references(mpi_buf, nRefs)
 
       if(tWriteRefs) call output_reference_space(ref_filename)
-            
+      nRefsCurrent = nRefs
     end subroutine generate_ref_space
 
 !------------------------------------------------------------------------------------------!
