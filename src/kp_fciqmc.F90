@@ -157,7 +157,7 @@ contains
                             call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
                                                   fcimc_excit_gen_store)
 
-                            ex_level_to_ref = FindBitExcitLevel(iLutRef(:,1,1), ilut_parent, &
+                            ex_level_to_ref = FindBitExcitLevel(iLutRef(:,1), ilut_parent, &
                                  max_calc_ex_level)
                             if(tRef_Not_HF) then
                                 ex_level_to_hf = FindBitExcitLevel (iLutHF_true, ilut_parent, max_calc_ex_level)
@@ -519,7 +519,7 @@ contains
                         call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
                                               fcimc_excit_gen_store)
 
-                        ex_level_to_ref = FindBitExcitLevel(iLutRef(:,1,1), ilut_parent, &
+                        ex_level_to_ref = FindBitExcitLevel(iLutRef(:,1), ilut_parent, &
                              max_calc_ex_level)
                         if(tRef_Not_HF) then
                             ex_level_to_hf = FindBitExcitLevel (iLutHF_true, ilut_parent, max_calc_ex_level)

@@ -1,6 +1,6 @@
 module adi_references
 use Parallel_neci
-use FciMCData, only: ilutRef
+use FciMCData, only: ilutRefAdi, ilutRef
 use bit_rep_data, only: niftot, nifdbo
 use constants
 
@@ -23,7 +23,7 @@ contains
     ! Read in at most nRefs references
     do i = 1, nRefs
        ! Note that read-in references always have precedence over generated references
-       read(iunit, *, iostat=stat) ilutRef(:,1,i)
+       read(iunit, *, iostat=stat) ilutRefAdi(:,1,i)
        ! If there are no more dets to be read, exit
        if(stat < 0) exit
     enddo
@@ -31,7 +31,7 @@ contains
     ! Copy the references to all runs
     do i = 1, nRefs
        do run = 2, inum_runs
-          ilutRef(:,run,i) = ilutRef(:,1,i)
+          ilutRefAdi(:,run,i) = ilutRefAdi(:,1,i)
        end do
     enddo
 
@@ -96,7 +96,7 @@ contains
       ! k is the index of the current reference (-1 if not present)
       k = -1
       do i = 1, nRefs
-         if(DetBitEQ(ilutRef(:,1,1),mpi_buf(:,i),NIfDBO)) k = i
+         if(DetBitEQ(ilutRef(:,1),mpi_buf(:,i),NIfDBO)) k = i
       enddo
       
       ! If the reference is not at pos. 1, move it there
@@ -118,7 +118,7 @@ contains
             if(sum(abs(tmp_sgn)) < minOcc) k = i
          enddo
          tmp_ilut = mpi_buf(:,1)
-         mpi_buf(:,1) = ilutRef(:,1,1)
+         mpi_buf(:,1) = ilutRef(:,1)
          if(k > 1) mpi_buf(:,k) = tmp_ilut
       endif
       ! Now we have the main reference at position 1
@@ -129,7 +129,7 @@ contains
       ! Copy the buffer to ilutRef
       do i = 1, nRefs
          do run = 1, inum_runs
-            ilutRef(:,run,i) = mpi_buf(:,i)
+            ilutRefAdi(:,run,i) = mpi_buf(:,i)
          enddo
       enddo
     end subroutine set_additional_references
@@ -149,7 +149,7 @@ contains
          open(iunit, file = filename, status = 'replace')
          ! write the references into the file
          do i = 1, nRefs
-            write(iunit, *) ilutRef(:,1,i)
+            write(iunit, *) ilutRefAdi(:,1,i)
          enddo
          call neci_flush(iunit)
          close(iunit)
@@ -170,9 +170,9 @@ contains
          print *, "References for all-doubs-initiators set as"
          do i=1, nRefs
             ! First output the reference determinant
-            call WriteDetBit(iout,ilutRef(:,1,i),.false.)
+            call WriteDetBit(iout,ilutRefAdi(:,1,i),.false.)
             ! And then the sign
-            call extract_sign(ilutRef(:,1,i),temp_sgn)
+            call extract_sign(ilutRefAdi(:,1,i),temp_sgn)
             do j = 1, lenof_sign
                write(iout,"(G16.7)",advance='no') temp_sgn(j)
             enddo
@@ -197,14 +197,14 @@ contains
       cRef = 1
       do iRef = 1 ,nRefs
          ! First, copy the current ilut to a new buffer
-         ilutRef_new(:,cRef) = ilutRef(:,1,iRef)
+         ilutRef_new(:,cRef) = ilutRefAdi(:,1,iRef)
          cRef = cRef + 1
          ! get the spinflipped determinant
-         tmp_ilut = spin_flip(ilutRef(:,1,iRef))
+         tmp_ilut = spin_flip(ilutRefAdi(:,1,iRef))
          missing = .true.
          ! check if it is already present
          do jRef = 1, nRefs
-            if(DetBitEQ(tmp_ilut,ilutRef(:,1,jRef),NIfDBO)) missing = .false.
+            if(DetBitEQ(tmp_ilut,ilutRefAdi(:,1,jRef),NIfDBO)) missing = .false.
          end do
          ! If not, also add it to the list
          if(missing) then
@@ -214,15 +214,137 @@ contains
       enddo
 
       ! Resize the ilutRef array
-      deallocate(ilutRef)
-      allocate(ilutRef(0:NIfTot,inum_runs,cRef))
+      deallocate(ilutRefAdi)
+      allocate(ilutRefAdi(0:NIfTot,inum_runs,cRef))
       ! Now, copy the newly constructed references back to the original array
       do iRef = 1, cRef
          do run = 1, inum_runs
-            ilutRef(:,run,iRef) = ilutRef_new(:,iRef)
+            ilutRefAdi(:,run,iRef) = ilutRef_new(:,iRef)
          end do
       end do
     end subroutine spin_symmetrize_references
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine add_product_references(nRefs, prodLvl)
+      implicit none
+      integer, intent(in) :: nRefs, prodLvl
+      integer(n_int) :: ilut_tmp(0:NIfTot)
+      integer(n_int), allocatable :: prod_buffer(:,:)
+      integer :: nProdsMax, nProds, i, run, cLvl
+      logical :: t_is_valid
+
+      ! Get the maximum number of product excitations
+      nProdsMax = maxProdEx(nRefs, prodLvl)
+
+      ! Setup the buffer
+      allocate(prod_buffer(0:NifTot,nProdsMax))
+      prod_buffer(:,1:nRefs) = ilutRefAdi(:,1,1:nRefs)
+      nProds = nRefs
+
+      do cLvl = 2, prodLvl
+         ! For each product level, get all possible product excitations
+         do i = 1, nRefs**cLvl
+            ! Get the excitation product corresponding to i
+            call get_product_excitation(i, cLvl, nRefs, ilut_tmp, t_is_valid)
+            
+            ! Check, if it is already in the list (e.g. if both tau operators are those of
+            ! the reference)
+            if(t_is_valid) t_is_valid = ilut_not_in_list(ilut_tmp, prod_buffer, nProds)
+         
+            ! If all excitations were valid and the new ilut is not already in the buffer, 
+            ! add it
+            if(t_is_valid) then
+               nProds = nProds + 1
+               prod_buffer(:,nProds) = ilut_tmp
+            endif
+         end do
+         ! Do this for each targeted product level
+      end do
+            
+      ! Write the buffer to ilutRefAdi
+      deallocate(ilutRefAdi)
+      allocate(ilutRefAdi(0:NIfTot,inum_runs,nProds))
+      
+      do run = 1, inum_runs
+         ilutRefAdi(:,run,:) = prod_buffer(:,1:nProds)
+      end do
+    end subroutine add_product_references
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine get_product_excitation(i, cLvl, nRefs, ilut_tmp, isValid)
+      use DetBitOps, only: CountBits
+      use bit_rep_data, only: NIfD
+      use SystemData, only: nEl
+      implicit none
+      integer, intent(in) :: i, cLvl, nRefs
+      integer(n_int), intent(out) :: ilut_tmp(0:NIfTot)
+      logical, intent(out) :: isValid
+      integer(n_int) :: tau(0:NIfTot)
+      integer :: cp
+
+      ilut_tmp = ilutRef(:,1)
+      isValid = .true.
+      ! By getting the cLvl excitation operators that correspond to i
+      do cp = 1, cLvl
+         ! Store the excitation operators in tau
+         tau = IEOR(ilutRefAdi(:,1,cpIndex(i,nRefs,cp)),ilutRef(:,1))
+         ! And apply it on the temporary iLut
+         ilut_tmp = IEOR(ilut_tmp,tau)
+
+         ! Check if it's valid, if not, go to the next value of i
+         if(CountBits(ilut_tmp,NIfD) .ne. nEl) then
+            isValid = .false.
+            exit
+         endif
+
+      end do
+    end subroutine get_product_excitation
+
+!------------------------------------------------------------------------------------------!
+
+    pure function ilut_not_in_list(ilut, buffer, buffer_size) result(t_is_new)
+      use DetBitOps, only: DetBitEQ
+      use bit_rep_data, only: NIfD
+      implicit none
+      integer, intent(in) :: buffer_size
+      integer(n_int), intent(in) :: ilut(0:NIfTot), buffer(0:NIfTot,buffer_size)
+      logical :: t_is_new
+      integer :: i_ilut
+
+      t_is_new = .true.     
+      do i_ilut = 1, buffer_size
+         if(DetBitEQ(ilut, buffer(:,i_ilut), NIfD)) t_is_new = .false.
+      enddo
+    end function ilut_not_in_list
+
+!------------------------------------------------------------------------------------------!
+
+    function cpIndex(i,nRefs,cp) result(index)
+      implicit none
+      integer, intent(in) :: i, nRefs, cp
+      integer :: index
+      
+      index = mod(i/(nRefs**(cp-1)),nRefs)
+    end function cpIndex
+
+!------------------------------------------------------------------------------------------!
+
+    function maxProdEx(nRefs, prodLvl) result(nProdsMax)
+      implicit none
+      integer, intent(in) :: nRefs, prodLvl
+      integer :: nProdsMax
+      integer :: cLvl
+
+      ! Gets the maximum number of possible product excitations of nRefs states up 
+      ! to a product level of prodLvl
+      nProdsMax = 0
+      do cLvl = 2, prodLvl
+         nProdsMax = nProdsMax + nRefs**cLvl
+      enddo
+
+    end function maxProdEx
 
 !------------------------------------------------------------------------------------------!
 
@@ -259,7 +381,7 @@ contains
 
       init = .false.
       ! Get the bitwise equivalence of the input with the reference
-      ilut_tmp = NOT(IEOR(ilut,ilutRef(:,1,1)))
+      ilut_tmp = NOT(IEOR(ilut,ilutRef(:,1)))
       ! Now compare ilut_tmp with the markers (these are 0 for the core orbitals and 1 else)
       ilut_tmp = IAND(ilut_tmp, g_markers)
       nOrbs = CountBits(ilut_tmp,NIfD)

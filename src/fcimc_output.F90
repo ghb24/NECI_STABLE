@@ -1337,14 +1337,14 @@ contains
                 write(iout,'(A)') "Current references: "
                 do run = 1, inum_runs
                     call write_det(iout, ProjEDet(:,run), .true.)
-                    call writeDetBit(iout, ilutRef(:, run,1), .true.)
+                    call writeDetBit(iout, ilutRef(:, run), .true.)
                 end do
             else
                 write(iout,'(A)') "Current reference: "
                 call write_det (iout, ProjEDet(:,1), .true.)
                 do i = 1, nRefs
-                   call writeDetBit(iout,iLutRef(:,1,i),.false.)
-                   call extract_sign(ilutRef(:,1,i),SignCurr)
+                   call writeDetBit(iout,iLutRefAdi(:,1,i),.false.)
+                   call extract_sign(ilutRefAdi(:,1,i),SignCurr)
                    write(iout,*) SignCurr(1)
                 enddo
             end if
@@ -1399,7 +1399,7 @@ contains
             do i=1,counter
 !                call WriteBitEx(iout,iLutRef,GlobalLargestWalkers(:,i),.false.)
                 call WriteDetBit(iout,GlobalLargestWalkers(:,i),.false.)
-                Excitlev=FindBitExcitLevel(iLutRef(:,1,1),GlobalLargestWalkers(:,i),nEl)
+                Excitlev=FindBitExcitLevel(iLutRef(:,1),GlobalLargestWalkers(:,i),nEl)
                 write(iout,"(I5)",advance='no') Excitlev
                 nopen=count_open_orbs(GlobalLargestWalkers(:,i))
                 write(iout,"(I5)",advance='no') nopen

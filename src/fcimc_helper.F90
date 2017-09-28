@@ -407,10 +407,10 @@ contains
             ! Obtain off-diagonal element
             if (tHPHF) then
                 HOffDiag(1:inum_runs) = hphf_off_diag_helement (ProjEDet(:,1), nI, &
-                                                                iLutRef(:,1,1), ilut)
+                                                                iLutRef(:,1), ilut)
             else
                 HOffDiag(1:inum_runs) = get_helement (ProjEDet(:,1), nI, &
-                                                      ExcitLevel, ilutRef(:,1,1), ilut)
+                                                      ExcitLevel, ilutRef(:,1), ilut)
             endif
 
         endif ! ExcitLevel_local == 1, 2, 3
@@ -617,7 +617,7 @@ contains
         do run = 1, inum_runs
 
             ! We need to use the excitation level relevant for this run
-            exlevel = FindBitExcitLevel(ilut, ilutRef(:, run,1))
+            exlevel = FindBitExcitLevel(ilut, ilutRef(:, run))
             if (tSpinCoupProjE(run) .and. exlevel /= 0) then
                 if (exlevel <= 2) then
                     exlevel = 2
@@ -661,10 +661,10 @@ contains
                 ! Obtain the off-diagonal elements
                 if (tHPHF) then
                     hoffdiag = hphf_off_diag_helement(ProjEDet(:,run), nI, &
-                                                      iLutRef(:,run,1), ilut)
+                                                      iLutRef(:,run), ilut)
                 else
                     hoffdiag = get_helement (ProjEDet(:,run), nI, exlevel, &
-                                             ilutRef(:,run,1), ilut)
+                                             ilutRef(:,run), ilut)
                 endif
 
             end if
@@ -792,7 +792,7 @@ contains
         if(tAllDoubsInitiators .or. tAllSingsInitiators) then
            ! Important : Only compare to the already initialized reference
            do i = 1, nRefsCurrent
-              exLevel = FindBitExcitLevel(ilutRef(:,run,i),ilut)
+              exLevel = FindBitExcitLevel(ilutRefAdi(:,run,i),ilut)
               if(exLevel == 2 .and. tAllDoubsInitiators .and. i <= nRefsDoubs) then
                  initiator = .true.
                  ! We need to exit the loop here because exLevel is checked for 2 
@@ -833,7 +833,7 @@ contains
            ! All of the references stay initiators
            isRef = .false.
            do i = 1, nRefsCurrent
-              if(DetBitEQ(ilut,ilutRef(:,run,i),NIfDBO)) isRef = .true.
+              if(DetBitEQ(ilut,ilutRefAdi(:,run,i),NIfDBO)) isRef = .true.
            enddo
             ! If det. is the HF det, or it
             ! is in the deterministic space, then it must remain an initiator.
@@ -1866,9 +1866,10 @@ contains
         integer :: i, det(nel)
         logical :: tSwapped
 
-        iLutRef(:, run, 1) = 0_n_int
-        iLutRef(0:NIfDBO, run, 1) = ilut(0:NIfDBO)
-        call decode_bit_det (ProjEDet(:, run), iLutRef(:, run, 1))
+        iLutRef(:, run) = 0_n_int
+        iLutRef(0:NIfDBO, run) = ilut(0:NIfDBO)
+        if(allocated(ilutRefAdi)) ilutRefAdi(:,run,1) = ilutRef(:,run)
+        call decode_bit_det (ProjEDet(:, run), iLutRef(:, run))
         write (iout, '(a,i3,a)', advance='no') 'Changing projected &
               &energy reference determinant for run', run, &
               ' on the next update cycle to: '
@@ -1881,12 +1882,12 @@ contains
                 RefDetFlip = 0
                 iLutRefFlip = 0_n_int
             endif
-            if(.not. TestClosedShellDet(iLutRef(:, run, 1))) then
+            if(.not. TestClosedShellDet(iLutRef(:, run))) then
                 ! Complications. We are now effectively projecting
                 ! onto a LC of two dets. Ensure this is done correctly.
                 call ReturnAlphaOpenDet(ProjEDet(:,run), &
                                         RefDetFlip(:, run), &
-                                        iLutRef(:,run,1), &
+                                        iLutRef(:,run), &
                                         iLutRefFlip(:, run), &
                                         .true., .true., tSwapped)
                 if(tSwapped) then
@@ -1922,7 +1923,7 @@ contains
             old_Hii = Hii
             if (tHPHF) then
                 h_tmp = hphf_diag_helement (ProjEDet(:,1), &
-                                            iLutRef(:,1,1))
+                                            iLutRef(:,1))
             else
                 h_tmp = get_helement (ProjEDet(:,1), &
                                       ProjEDet(:,1), 0)
@@ -1967,7 +1968,7 @@ contains
         ! data have been updated correctly.
         if (tHPHF) then
             h_tmp = hphf_diag_helement (ProjEDet(:,run), &
-                                        ilutRef(:,run,1))
+                                        ilutRef(:,run))
         else
             h_tmp = get_helement (ProjEDet(:,run), &
                                   ProjEDet(:,run), 0)
@@ -2001,7 +2002,7 @@ contains
             call extract_sign(CurrentDets(:,j), sgn)
             if (IsUnoccDet(sgn)) cycle
 
-            ex_level = FindBitExcitLevel (iLutRef(:,1,1), CurrentDets(:,j))
+            ex_level = FindBitExcitLevel (iLutRef(:,1), CurrentDets(:,j))
 
             call decode_bit_det(det, CurrentDets(:,j))
             call SumEContrib(det, ex_level, sgn, CurrentDets(:,j), 0.0_dp, &

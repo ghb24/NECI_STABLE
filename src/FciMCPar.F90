@@ -913,7 +913,7 @@ module FciMCParMod
             ! We only need to find out if determinant is connected to the
             ! reference (so no ex. level above 2 required, 
             ! truncated etc.)
-            walkExcitLevel = FindBitExcitLevel (iLutRef(:,1,1), CurrentDets(:,j), &
+            walkExcitLevel = FindBitExcitLevel (iLutRef(:,1), CurrentDets(:,j), &
                                                 max_calc_ex_level)
             
             if(tRef_Not_HF) then
