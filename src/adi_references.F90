@@ -79,7 +79,7 @@ contains
       call set_additional_references(mpi_buf, nRefs)
 
       if(tProductReferences) call add_product_references(nRefs, nExProd)
-      if(tHPHF) call spin_symmetrize_references(nRefs)
+      !if(tHPHF) call spin_symmetrize_references(nRefs)
 
       if(tWriteRefs) call output_reference_space(ref_filename)
       nRefsCurrent = nRefs
