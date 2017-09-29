@@ -111,8 +111,7 @@ contains
     subroutine generate_ref_space()
       use semi_stoch_gen, only: generate_space_most_populated
       use LoggingData, only: ref_filename, tWriteRefs
-      use CalcData, only: tProductReferences, nExProd
-      use SystemData, only: tHPHF
+      use FciMCData, only: CurrentDets, TotWalkers
 
       implicit none
       integer(MPIArg) :: mpi_refs_found
@@ -241,7 +240,7 @@ contains
       integer, intent(in) :: nRefs, nRefsPrev
       integer :: i, j
       real(dp) :: temp_sgn(lenof_sign)
-      
+
       if(iProcIndex==root) then
          print *, "References for all-doubs-initiators set as"
          do i=1, nRefs
@@ -393,17 +392,24 @@ contains
       integer, intent(in) :: i, cLvl, nRefs
       integer(n_int), intent(out) :: ilut_tmp(0:NIfTot)
       logical, intent(out) :: isValid
-      integer(n_int) :: tau(0:NIfTot)
+      integer(n_int) :: tau(0:NIfTot), tau_acc
       integer :: cp, tmp
 
       ilut_tmp = ilutRef(:,1)
       isValid = .true.
+      tau_acc = 0_n_int
       ! By getting the cLvl excitation operators that correspond to i
       do cp = 1, cLvl
          ! Store the excitation operators in tau
          tau = IEOR(ilutRefAdi(:,1,cpIndex(i,nRefs,cp)),ilutRef(:,1))
+
+         ! Check if we do something invalid
+         if(any(IAND(tau,tau_acc) .ne. 0_n_int)) then
+            isValid = .false.
+            exit
+         endif
          ! And apply it on the temporary iLut
-         ilut_tmp = IEOR(ilut_tmp,tau)
+         ilut_tmp = IOR(tau_cc,tau)
 
          ! Check if it's valid, if not, go to the next value of i
          if(CountBits(ilut_tmp,NIfD) .ne. nEl) then
@@ -412,6 +418,7 @@ contains
          endif
 
       end do
+      ilut_tmp = IEOR(ilut_tmp, tau_cc)
     end subroutine get_product_excitation
 
 !------------------------------------------------------------------------------------------!

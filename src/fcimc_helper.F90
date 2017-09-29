@@ -310,7 +310,8 @@ contains
                if(tAccessibleDoubles .or. tAccessibleSingles) allowed_child = &
                     test_ref_double(ilut_child, part_type_to_run(run))
                if (allowed_child .or. test_flag(ilut_parent, get_initiator_flag(part_type))) &
-                    call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_ty
+                    call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), &
+                    get_initiator_flag(part_type))
             end if
 
             call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)

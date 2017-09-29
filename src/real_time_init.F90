@@ -63,6 +63,7 @@ module real_time_init
     use replica_data, only: allocate_iter_data, set_initial_global_data
     use bit_rep_data, only: nifbcast, niftot, extract_sign, nifdbo
     use bit_reps, only: decode_bit_det
+    use adi_references, only: setup_reference_space
 
     implicit none
 
@@ -294,6 +295,9 @@ contains
         if(tGenerateCoreSpace) call initialize_corespace_construction()      
 
         if(tReadTrajectory) call read_in_trajectory()
+        
+        ! Set up the reference space for the adi-approach
+        call setup_reference_space(tReadPops)
 
         call rotate_time()           
 

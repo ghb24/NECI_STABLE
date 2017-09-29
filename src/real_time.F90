@@ -31,10 +31,10 @@ module real_time
          init_verlet_sweep, check_verlet_sweep, end_verlet_sweep
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
-                        tChangeProjEDet, DiagSft, nmcyc, tau, InitWalkers, &
-                        s_global_start, StepsSft, semistoch_shift_iter
+                        tChangeProjEDet, DiagSft, nmcyc, tau, InitWalkers,allDoubsInitsDelay, &
+                        s_global_start, StepsSft, semistoch_shift_iter, tDelayGetRefs
     use FciMCData, only: pops_pert, walker_time, iter, ValidSpawnedList, spawnedParts, &
-                         spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot, & 
+                         spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot, nRefs, & 
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
                          TotWalkers, fcimc_excit_gen_store, ilutRef, max_calc_ex_level, &
                          iLutHF_true, indices_of_determ_states, partial_determ_vecs, &
@@ -73,6 +73,7 @@ module real_time
     use Parallel_neci
     use util_mod, only : neci_etime
     use ParallelHelper, only: MPI_SUM, iProcIndex, root
+    use adi_references, only: setup_reference_space
 
     implicit none
 
@@ -363,6 +364,10 @@ contains
             ! check if somthing happpened to stop the iteration or something
             call check_real_time_iteration()
 
+            ! If required, set up the references
+            if(Iter == allDoubsInitsDelay + 1 .and. nRefs > 1 .and. tDelayGetRefs) &
+                 call setup_reference_space(.true.)
+
             if(iProcIndex.eq.root) then 
                s_end = neci_etime(tend)
                totalTime = real(s_end - s_global_start, dp)
@@ -428,8 +433,6 @@ contains
     end subroutine perform_real_time_fciqmc
 
     subroutine update_real_time_iteration()
-      use real_time_data, only: core_space_buf, csbuf_size
-      use real_time_procs, only: expand_corespace_buf
         ! routine to update certain global variables each loop iteration in 
         ! the real-time fciqmc 
         ! from the 2 distince spawn/death/cloning info stored in the 

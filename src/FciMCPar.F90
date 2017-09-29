@@ -164,8 +164,8 @@ module FciMCParMod
         ! helpful to do it here.
         call population_check()
 
-        ! Set up the reference space for the adi-approach
-        call setup_reference_space(tReadPops)
+         ! Set up the reference space for the adi-approach
+         call setup_reference_space(tReadPops)
 
         if(n_int.eq.4) CALL Stop_All('Setup Parameters', &
                 'Use of RealCoefficients does not work with 32 bit integers due to the use &
