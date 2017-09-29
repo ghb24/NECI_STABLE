@@ -1240,6 +1240,7 @@ contains
 
     !Routine to print the highest populated determinants at the end of a run
     SUBROUTINE PrintHighPops()
+      use adi_references, only: update_ref_signs
         real(dp), dimension(lenof_sign) :: SignCurr, LowSign
         integer :: ierr,i,j,counter,ExcitLev,SmallestPos,HighPos,nopen
         integer :: full_orb, run
@@ -1342,8 +1343,9 @@ contains
             else
                 write(iout,'(A)') "Current reference: "
                 call write_det (iout, ProjEDet(:,1), .true.)
-                do i = 1, nRefs
+                do i = 1, nRefsCurrent
                    call writeDetBit(iout,iLutRefAdi(:,1,i),.false.)
+                   call update_ref_signs()
                    call extract_sign(ilutRefAdi(:,1,i),SignCurr)
                    write(iout,*) SignCurr(1)
                 enddo

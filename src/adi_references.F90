@@ -35,7 +35,10 @@ contains
     ! Then, add the product references
     if(tGen) then
        nRCOld = nRefsCurrent
-       if(tProductReferences) call add_product_references(nRefsCurrent, nExProd)
+       if(tProductReferences) then
+          call add_product_references(nRefsCurrent, nExProd)
+          call update_ref_signs()
+       endif
        ! And prompt the output message
        call print_reference_notification(nRefsCurrent, nRCOld)
     endif
@@ -255,6 +258,32 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
+    subroutine update_ref_signs()
+      use bit_reps, only: decode_bit_det, encode_sign
+      use bit_rep_data, only: NIfDBO, extract_sign
+      use hash, only: hash_table_lookup
+      use FciMCData, only: CurrentDets, HashIndex
+      use SystemData, only: nEl
+      implicit none
+      integer :: iRef, nI(nel), hash_val, index
+      real(dp) :: tmp_sgn(lenof_sign)
+      logical :: tSuccess      
+      
+      do iRef = 1, nRefsCurrent
+         call decode_bit_det(nI,ilutRefAdi(:,1,iRef))
+         call hash_table_lookup(nI, ilutRefAdi(:,1,iRef),NIfDBO,HashIndex,CurrentDets,&
+              index,hash_val,tSuccess)
+         if(tSuccess) then
+            call extract_sign(CurrentDets(:,index),tmp_sgn)
+         else
+            tmp_sgn = 0.0_dp
+         endif
+         call encode_sign(ilutRefAdi(:,1,iRef),tmp_sgn)
+      end do
+    end subroutine update_ref_signs
+
+!------------------------------------------------------------------------------------------!
+
     subroutine spin_symmetrize_references()
       use DetBitOps, only: spin_flip, DetBitEQ
       ! If using HPHF, we want to have the spinflipped version of each reference, too
@@ -365,7 +394,6 @@ contains
       do cp = 1, cLvl
          ! Store the excitation operators in tau
          tau = IEOR(ilutRefAdi(:,1,cpIndex(i,nRefs,cp)),ilutRef(:,1))
-         tmp = cpIndex(i,nRefs,cp)
          ! And apply it on the temporary iLut
          ilut_tmp = IEOR(ilut_tmp,tau)
 
