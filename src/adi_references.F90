@@ -391,25 +391,30 @@ contains
       integer, intent(in) :: i, cLvl, nRefs
       integer(n_int), intent(out) :: ilut_tmp(0:NIfTot)
       logical, intent(out) :: isValid
-      integer(n_int) :: tau(0:NIfTot)
+      integer(n_int) :: tau(0:NIfTot), tau_cc(0:NIfTot)
       integer :: cp, tmp
 
       ilut_tmp = ilutRef(:,1)
       isValid = .true.
+      tau_cc = 0_n_int
       ! By getting the cLvl excitation operators that correspond to i
       do cp = 1, cLvl
          ! Store the excitation operators in tau
          tau = IEOR(ilutRefAdi(:,1,cpIndex(i,nRefs,cp)),ilutRef(:,1))
-         ! And apply it on the temporary iLut
-         ilut_tmp = IEOR(ilut_tmp,tau)
 
-         ! Check if it's valid, if not, go to the next value of i
-         if(CountBits(ilut_tmp,NIfD) .ne. nEl) then
+         ! Check if we do not annihilate something twice
+         if(any(IAND(tau_cc(0:NIfD),tau(0:NIfD)) .ne. 0_n_int)) then
             isValid = .false.
             exit
          endif
+         ! And apply it on the temporary iLut
+         tau_cc(0:NIfD) = IEOR(tau_cc(0:NIfD),tau(0:NIfD))
 
       end do
+
+      ! Check if it's valid, if not, go to the next value of i
+      if(CountBits(ilut_tmp,NIfD) .ne. nEl) isValid = .false.
+      ilut_tmp(0:NIfD) = IEOR(ilut_tmp(0:NIfD), tau_cc(0:NIfD))
     end subroutine get_product_excitation
 
 !------------------------------------------------------------------------------------------!
