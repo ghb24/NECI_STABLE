@@ -1316,7 +1316,9 @@ contains
 !                call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
             endif
         enddo
-
+        
+        ! This has to be done by all procs
+        call update_ref_signs()
         if(iProcIndex.eq.Root) then
             !Now print out the info contained in GlobalLargestWalkers and GlobalProc
 
@@ -1345,7 +1347,6 @@ contains
                 call write_det (iout, ProjEDet(:,1), .true.)
                 do i = 1, nRefsCurrent
                    call writeDetBit(iout,iLutRefAdi(:,1,i),.false.)
-                   call update_ref_signs()
                    call extract_sign(ilutRefAdi(:,1,i),SignCurr)
                    write(iout,*) SignCurr(1)
                 enddo

@@ -335,6 +335,8 @@ contains
           tReadRefs = .false.
           tDelayGetRefs = .false.
           tProductReferences = .false.
+          tAccessibleSingles = .false.
+          tAccessibleDoubles = .false.
           nExProd = 2
 
           ! And disable the initiators subspace
@@ -2431,6 +2433,14 @@ contains
              case("EXCITATION-PRODUCT-REFERENCES")
                 ! Also add all excitation products of references to the reference space
                 tProductReferences = .true.
+
+             case("ACCESSIBLE-DOUBLES")
+                ! Allow all determinants to spawn onto the doubles of the references
+                tAccessibleDoubles = .true.
+
+             case("ACCESSIBLE-SINGLES")
+                ! Allow all determinants to spawn onto the singles of the references
+                tAccessibleSingles = .true.
 
              case("INITIATORS-SUBSPACE")
                 ! Use Giovannis check to add initiators

@@ -17,6 +17,7 @@ module fcimc_helper
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
+    use adi_references, only: test_ref_double
     use Determinants, only: get_helement, write_det
     use FciMCData
     use hist, only: test_add_hist_spin_dist_det, add_hist_spawn, &
@@ -32,10 +33,10 @@ module fcimc_helper
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
                         tAddToInitiator, InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
-                        tRealCoeffByExcitLevel, &
+                        tRealCoeffByExcitLevel, tAccessibleDoubles, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
                         MaxWalkerBloom, tAllDoubsInitiators, &
-                        NMCyc, iSampleRDMIters, &
+                        NMCyc, iSampleRDMIters, tAccessibleSingles, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tAllSingsInitiators
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -88,7 +89,6 @@ contains
         ! ValidSpawnedList
 
         ! 'type' of the particle - i.e. real/imag
-
         integer, intent(in) :: nJ(nel), part_type
         integer(n_int), intent(in) :: iLutJ(0:niftot)
         real(dp), intent(in) :: child(lenof_sign)
@@ -100,7 +100,7 @@ contains
         integer :: proc, j, run
         real(dp) :: r
         integer, parameter :: flags = 0
-        logical :: list_full
+        logical :: list_full, allowed_child
         character(*), parameter :: this_routine = 'create_particle'
 
         logical :: parent_init
@@ -141,7 +141,10 @@ contains
         ! If the parent was an initiator then set the initiator flag for the
         ! child, to allow it to survive.
         if (tTruncInitiator) then
-            if (test_flag(ilutI, get_initiator_flag(part_type))) then
+           allowed_child = .false.
+           if(tAccessibleDoubles .or. tAccessibleSingles) &
+                allowed_child = test_ref_double(ilutJ, part_type_to_run(run))
+            if (allowed_child .or. test_flag(ilutI, get_initiator_flag(part_type))) then
                 call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type))
             endif
         end if
@@ -171,7 +174,6 @@ contains
     subroutine create_particle_with_hash_table (nI_child, ilut_child, child_sign, part_type, ilut_parent, iter_data)
 
         use hash, only: hash_table_lookup, add_hash_table_entry
-
         integer, intent(in) :: nI_child(nel), part_type
         integer(n_int), intent(in) :: ilut_child(0:NIfTot), ilut_parent(0:NIfTot)
         real(dp), intent(in) :: child_sign(lenof_sign)
@@ -181,7 +183,7 @@ contains
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign_old(lenof_sign), real_sign_new(lenof_sign)
         real(dp) :: sgn_prod(lenof_sign)
-        logical :: list_full, tSuccess
+        logical :: list_full, tSuccess, allowed_child
         integer, parameter :: flags = 0
         character(*), parameter :: this_routine = 'create_particle_with_hash_table'
         
@@ -245,9 +247,12 @@ contains
             ! If the parent was an initiator then set the initiator flag for the
             ! child, to allow it to survive.
             if (tTruncInitiator) then
-                if (test_flag(ilut_parent, get_initiator_flag(part_type))) &
+               allowed_child = .false.
+               if(tAccessibleDoubles .or. tAccessibleSingles) allowed_child = &
+                    test_ref_double(ilut_child, part_type_to_run(run))
+               if (allowed_child .or. test_flag(ilut_parent, get_initiator_flag(part_type))) &
                     call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type))
-            end if
+             end if
 
             call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
 

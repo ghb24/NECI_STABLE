@@ -259,14 +259,17 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine update_ref_signs()
+      ! Get the signs of the references from the currentdets. Used both in the final
+      ! output and in generating the product excitations
       use bit_reps, only: decode_bit_det, encode_sign
       use bit_rep_data, only: NIfDBO, extract_sign
       use hash, only: hash_table_lookup
       use FciMCData, only: CurrentDets, HashIndex
       use SystemData, only: nEl
+      use Parallel_neci, only: MPISumAll
       implicit none
-      integer :: iRef, nI(nel), hash_val, index
-      real(dp) :: tmp_sgn(lenof_sign)
+      integer :: iRef, nI(nel), hash_val, index, foundOnProc
+      real(dp) :: tmp_sgn(lenof_sign), mpi_sgn(lenof_sign)
       logical :: tSuccess      
       
       do iRef = 1, nRefsCurrent
@@ -278,7 +281,10 @@ contains
          else
             tmp_sgn = 0.0_dp
          endif
-         call encode_sign(ilutRefAdi(:,1,iRef),tmp_sgn)
+         ! This does the trick of communication: We need to get the sign to all 
+         ! processors, so just sum up the individual ones
+         call MPISumAll(tmp_sgn, mpi_sgn)
+         call encode_sign(ilutRefAdi(:,1,iRef),mpi_sgn)
       end do
     end subroutine update_ref_signs
 
@@ -468,6 +474,32 @@ contains
       ! tSinglePartPhase = .false.
       
     end subroutine enable_adi
+
+!------------------------------------------------------------------------------------------!
+
+    function test_ref_double(ilut, run) result(is_accessible)
+      ! We check if a target determinant for a spawn is valid in the sense
+      ! that we allow any non-initiator to spawn there.
+      ! This is an experimental and potentially dangerous feature as it can
+      ! lead to sign instabilities
+      use CalcData, only: tAccessibleDoubles, tAccessibleSingles
+      use DetBitOps, only: FindBitExcitLevel
+      implicit none
+      integer(n_int), intent(in) :: ilut(0:NIfTot)
+      integer, intent(in) :: run
+      logical :: is_accessible
+      integer :: iRef, exLevel
+      
+      is_accessible = .false.
+      exLevel = -1
+      do iRef = 1, nRefsCurrent
+         exLevel = FindBitExcitLevel(ilutRefAdi(:,run,iRef), ilut)
+         if(exLevel == 0) is_accessible = .true.
+         if(tAccessibleDoubles .and. exLevel == 2) is_accessible = .true.
+         if(tAccessibleSingles .and. exLevel == 1) is_accessible = .true.
+         if(is_accessible) exit
+      end do
+    end function test_ref_double
 
 !------------------------------------------------------------------------------------------!
 

@@ -121,7 +121,7 @@ logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF 
 logical :: tAllDoubsInitiators, tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits
 logical :: tSetDelayAllSingsInits, tSetDelayAllDoubsInits, tDelayGetRefs
 integer :: allDoubsInitsDelay, nExProd
-logical :: tReadRefs, tProductReferences
+logical :: tReadRefs, tProductReferences, tAccessibleDoubles, tAccessibleSingles
 
 ! Additional variables for giovannis check
 integer(n_int), allocatable :: g_markers(:)
