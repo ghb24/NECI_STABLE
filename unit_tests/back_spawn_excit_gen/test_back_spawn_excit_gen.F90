@@ -65,7 +65,7 @@ contains
         tOrbECutoff = .false.
 
         allocate(projedet(nel,1)); projedet(:,1) = [1,2]
-        allocate(ilutref(0:niftot,1,1))
+        allocate(ilutref(0:niftot,1))
         call encodebitdet(projedet, ilutref)
  
         G1(1)%k = [1,0,0]
@@ -149,7 +149,7 @@ contains
         ! electrons outside the occupied manifold 
         ic = 2
         deallocate(projedet); allocate(projedet(nel,1)); projedet(:,1) = [3,4,5,6]
-        deallocate(ilutref);  allocate(ilutref(0:niftot,1,1)); 
+        deallocate(ilutref);  allocate(ilutref(0:niftot,1)); 
         call encodebitdet(projedet, ilutref)
 
         ! so this is now same as the above beta pgen
@@ -253,7 +253,7 @@ contains
         t_back_spawn = .false.
 
         allocate(projedet(nel,1)); projedet(:,1) = [1,2]
-        allocate(ilutref(0:niftot,1,1))
+        allocate(ilutref(0:niftot,1))
         call encodebitdet(projedet, ilutref)
  
         print *, ""
@@ -312,7 +312,7 @@ contains
         ! electrons outside the occupied manifold 
         ic = 2
         deallocate(projedet); allocate(projedet(nel,1)); projedet(:,1) = [3,4,5,6]
-        deallocate(ilutref);  allocate(ilutref(0:niftot,1,1)); 
+        deallocate(ilutref);  allocate(ilutref(0:niftot,1)); 
         call encodebitdet(projedet, ilutref)
 
         call assert_equals(1.0_dp/8.0_dp, calc_pgen_back_spawn_hubbard(nI, ilut, ex, ic, run))
@@ -402,9 +402,9 @@ contains
         allocate(nI(nel)); nI = [1,2]
         allocate(ilut(0:niftot)); call EncodeBitDet(nI, ilut)
 
-        allocate(ilutref(0:niftot,1,1))
+        allocate(ilutref(0:niftot,1))
         allocate(projedet(nel,1)); projedet(:,1) = [1,2]
-        call encodebitdet(projedet(:,1), ilutref(:,1,1))
+        call encodebitdet(projedet(:,1), ilutref(:,1))
         nmaxx = 2
         nmaxy = 2
         nmaxz = 2

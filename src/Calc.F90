@@ -25,7 +25,7 @@ MODULE Calc
     use IntegralsData, only: tNeedsVirts
     use FciMCData, only: tTimeExit,MaxTimeExit, InputDiagSft, tSearchTau, &
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
-                         tTrialHash, tIncCancelledInitEnergy, MaxTau, &
+                         tTrialHash, tIncCancelledInitEnergy, MaxTau, nRefs, &
                          tStartCoreGroundState, pParallel, pops_pert, nRefsCurrent, &
                          alloc_popsfile_dets, tSearchTauOption, nRefsDoubs, nRefsSings, &
                          tLogGreensfunction
@@ -341,8 +341,13 @@ contains
           nRefsDoubs = 1
           nRefsSings = 1
           nRefsCurrent = 1
+          nRefs = 1
           tReadRefs = .false.
           tDelayGetRefs = .false.
+          tProductReferences = .false.
+          tAccessibleSingles = .false.
+          tAccessibleDoubles = .false.
+          nExProd = 2
 
           ! And disable the initiators subspace
           tInitiatorsSubspace = .false.
@@ -2555,6 +2560,18 @@ contains
              case("READ-REFERENCES")
                 ! Instead of generating new references, read in existing ones
                 tReadRefs = .true.
+                
+             case("EXCITATION-PRODUCT-REFERENCES")
+                ! Also add all excitation products of references to the reference space
+                tProductReferences = .true.
+
+             case("ACCESSIBLE-DOUBLES")
+                ! Allow all determinants to spawn onto the doubles of the references
+                tAccessibleDoubles = .true.
+
+             case("ACCESSIBLE-SINGLES")
+                ! Allow all determinants to spawn onto the singles of the references
+                tAccessibleSingles = .true.
 
              case("INITIATORS-SUBSPACE")
                 ! Use Giovannis check to add initiators

@@ -338,7 +338,7 @@ contains
         do i = 1, ndets
             call extract_sign(ilut_list(:,i), real_sign)
             TotParts = TotParts + abs(real_sign)
-            if ( all(ilut_list(0:NIfDBO,i) == iLutRef(0:NIfDBO, 1,1)) ) NoAtHF = real_sign
+            if ( all(ilut_list(0:NIfDBO,i) == iLutRef(0:NIfDBO, 1)) ) NoAtHF = real_sign
 
             do run = 1, inum_runs
                 if (abs_sign(real_sign(min_part_type(run):max_part_type(run))) > iHighestPop(run)) then

@@ -980,7 +980,7 @@ MODULE HPHFRandExcitMod
         ! i guess i do.. or i go the unnecessary way of checking again in 
         ! the called back-spawn functions 
         if ((t_back_spawn .or. t_back_spawn_flex) .and. &
-            (.not. DetBitEq(ilutI,ilutRef(:,temp_part_type,1),nifdbo)) .and. &
+            (.not. DetBitEq(ilutI,ilutRef(:,temp_part_type),nifdbo)) .and. &
             (.not. test_flag(ilutI, get_initiator_flag(temp_part_type)))) then 
             ! i just realised this also has to be done for the hubbard 
             ! and the ueg model.. -> create those functions! 

@@ -326,7 +326,7 @@ contains
         !iLutRef is the reference determinant for the projected energy.
         !Initially, it is chosen to be the same as the inputted reference determinant
         call setup_adi()
-        ALLOCATE(iLutRef(0:NIfTot, inum_runs, nRefs), stat=ierr)
+        ALLOCATE(iLutRef(0:NIfTot, inum_runs), stat=ierr)
         ilutRef = 0
         ALLOCATE(ProjEDet(NEl, inum_runs), stat=ierr)
 
@@ -356,7 +356,7 @@ contains
             allocate(RefDetFlip(NEl, inum_runs), &
                      ilutRefFlip(0:NifTot, inum_runs))
             do run = 1, inum_runs
-                if (.not. TestClosedShellDet(ilutRef(:, run, 1))) then
+                if (.not. TestClosedShellDet(ilutRef(:, run))) then
 
                     ! If the reference determinant corresponds to an open shell
                     ! HPHF, then we need to specify the paired determinant and
@@ -366,7 +366,7 @@ contains
                     tSpinCoupProjE(run) = .true.
                     call ReturnAlphaOpenDet(ProjEDet(:, run), &
                                             RefDetFlip(:, run), &
-                                            ilutRef(:, run, 1), &
+                                            ilutRef(:, run), &
                                             ilutRefFlip(:, run), &
                                             .true., .true., tSwapped)
                     if (tSwapped) &
@@ -739,7 +739,7 @@ contains
         if (tOrthogonaliseReplicas) then
             do run = 1, inum_runs
                 if (tHPHF) then
-                    TempHii = hphf_diag_helement (ProjEDet(:,run), ilutRef(:,run, 1))
+                    TempHii = hphf_diag_helement (ProjEDet(:,run), ilutRef(:,run))
                 else
                     TempHii = get_helement (ProjEDet(:,run), ProjEDet(:,run), 0)
                 endif
@@ -1982,7 +1982,7 @@ contains
                 ! ones. If it is not, then at the end of the loop (i == site+1)
                 repeated = .false.
                 do i = 1, site
-                    if (DetBitEQ(CurrentDets(:, i), ilutRef(:, run, 1))) then
+                    if (DetBitEQ(CurrentDets(:, i), ilutRef(:, run))) then
                         repeated = .true.
                         exit
                     end if
@@ -1991,7 +1991,7 @@ contains
 
                 if (.not. repeated) then
                     ! Add the site to the main list (unless it is already there)
-                    call encode_det(CurrentDets(:, site), ilutRef(:, run, 1))
+                    call encode_det(CurrentDets(:, site), ilutRef(:, run))
                     hash_val = FindWalkerHash(ProjEDet(:, run), nWalkerHashes)
                     call add_hash_table_entry(HashIndex, site, hash_val)
                     
@@ -2009,7 +2009,7 @@ contains
                 ! energies.
                 if (run == 1) HFInd = site
                 if (tHPHF) then
-                    hdiag = hphf_diag_helement(ProjEDet(:,run), ilutRef(:,run, 1))
+                    hdiag = hphf_diag_helement(ProjEDet(:,run), ilutRef(:,run))
                 else
                     hdiag = get_helement(ProjEDet(:, run), ProjEDet(:, run), 0)
                 endif
@@ -2512,7 +2512,7 @@ contains
 
                 if (abs(NoWalkers) > 1.0e-12_dp) then
                     call EncodeBitDet(CASFullDets(:,i),iLutnJ)
-                    if(DetBitEQ(iLutnJ, iLutRef(:,1, 1), NIfDBO)) then
+                    if(DetBitEQ(iLutnJ, iLutRef(:,1), NIfDBO)) then
                         !Check if this determinant is reference determinant, so we can count number on hf.
                         do run=1,inum_runs
                             NoatHF(run) = NoWalkers
@@ -2695,7 +2695,7 @@ contains
                 call return_mp1_amp_and_mp2_energy(nJ,iLutnJ,Ex,tParity,amp,energy_contrib)
                 amp = amp*PartFac
 
-                if (tRealCoeffByExcitLevel) ExcitLevel=FindBitExcitLevel(iLutnJ, iLutRef(:,1,1), nEl)
+                if (tRealCoeffByExcitLevel) ExcitLevel=FindBitExcitLevel(iLutnJ, iLutRef(:,1), nEl)
                 if (tAllRealCoeff .or. &
                     & (tRealCoeffByExcitLevel.and.(ExcitLevel.le.RealCoeffExcitThresh))) then
                     NoWalkers=amp
@@ -2912,7 +2912,7 @@ contains
         implicit none
         real(dp) :: denom
         INTEGER :: iTotal
-        integer :: nSingles, nDoubles, ncsf, nSing_spindiff1, nDoub_spindiff1, nDoub_spindiff2, ierr 
+        integer :: nSingles, nDoubles, ncsf, nSing_spindiff1, nDoub_spindiff1, nDoub_spindiff2
         integer :: nTot
         integer :: hfdet_loc(nel)
         character(*), parameter :: this_routine = "CalcApproxpDoubles"
@@ -3430,7 +3430,7 @@ contains
 
             do run = 1, inum_runs
                 ProjEDet(:, run) = initial_states(:, run)
-                call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run, 1))
+                call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run))
             end do
 
         else
@@ -3440,7 +3440,7 @@ contains
                 ! the same thing...
 
                 do run = 1, inum_runs
-                    ilutRef(:, run, 1) = ilutHF
+                    ilutRef(:, run) = ilutHF
                     ProjEDet(:, run) = HFDet
                 end do
 
@@ -3452,7 +3452,7 @@ contains
                 tReplicaReferencesDiffer = .true.
 
                 ! The first replica is just a normal FCIQMC simulation.
-                ilutRef(:, 1, 1) = ilutHF
+                ilutRef(:, 1) = ilutHF
                 ProjEDet(:, 1) = HFDet
 
                 found_orbs = 0
@@ -3493,7 +3493,7 @@ contains
                     ProjEDet(:, run) = HFDet
                     ProjEDet(i, run) = orbs(i)
                     call sort(ProjEDet(:, run))
-                    call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run, 1))
+                    call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run))
 
                 end do
 
@@ -3505,6 +3505,12 @@ contains
             call write_det(6, ProjEDet(:, run), .false.)
             write(6, '(" E = ", f16.9)') &
                 real(get_helement(ProjEDet(:, run), ProjEDet(:, run), 0), dp)
+        end do
+
+        ! As we always check versus ilutRefAdi for initiator purposes, the first 
+        ! entry has to be assigned always
+        do run = 1, inum_runs
+           ilutRefAdi(:,run,1) = ilutRef(:,run)
         end do
 
     end subroutine assign_reference_dets
@@ -3548,6 +3554,8 @@ contains
       
       nRefs = max(nRefsDoubs, nRefsSings)
       nRefsCurrent = 1
+
+      allocate(ilutRefAdi(0:NifTot,inum_runs,nRefs))
 
       ! Check if one of the keywords is specified as delayed
       if(tSetDelayAllDoubsInits .and. tAllDoubsInitiators) then

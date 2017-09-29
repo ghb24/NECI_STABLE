@@ -17,6 +17,7 @@ module fcimc_helper
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
+    use adi_references, only: test_ref_double
     use Determinants, only: get_helement, write_det
     use FciMCData
     use hist, only: test_add_hist_spin_dist_det, add_hist_spawn, &
@@ -32,10 +33,10 @@ module fcimc_helper
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
                         tAddToInitiator, InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
-                        tRealCoeffByExcitLevel, tKeepDoubSpawns, &
+                        tRealCoeffByExcitLevel, tKeepDoubSpawns, tAccessibleDoubles, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
                         MaxWalkerBloom, tMultiSpawnThreshold, multiSpawnThreshold, &
-                        tAllDoubsInitiators, &
+                        tAllDoubsInitiators, tAccessibleSingles, &
                         NMCyc, iSampleRDMIters, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tAllSingsInitiators
@@ -94,7 +95,6 @@ contains
         ! ValidSpawnedList
 
         ! 'type' of the particle - i.e. real/imag
-
         integer, intent(in) :: nJ(nel), part_type
         integer(n_int), intent(in) :: iLutJ(0:niftot)
         real(dp), intent(in) :: child(lenof_sign)
@@ -106,7 +106,7 @@ contains
         integer :: proc, j, run
         real(dp) :: r
         integer, parameter :: flags = 0
-        logical :: list_full
+        logical :: list_full, allowed_child
         character(*), parameter :: this_routine = 'create_particle'
 
         logical :: parent_init
@@ -137,7 +137,10 @@ contains
         ! If the parent was an initiator then set the initiator flag for the
         ! child, to allow it to survive.
         if (tTruncInitiator) then
-            if (test_flag(ilutI, get_initiator_flag(part_type))) then
+           allowed_child = .false.
+           if(tAccessibleDoubles .or. tAccessibleSingles) &
+                allowed_child = test_ref_double(ilutJ, part_type_to_run(run))
+            if (allowed_child .or. test_flag(ilutI, get_initiator_flag(part_type))) then
                 call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type))
             endif
         end if
@@ -168,7 +171,6 @@ contains
     subroutine create_particle_with_hash_table (nI_child, ilut_child, child_sign, part_type, ilut_parent, iter_data)
 
         use hash, only: hash_table_lookup, add_hash_table_entry
-
         integer, intent(in) :: nI_child(nel), part_type
         integer(n_int), intent(in) :: ilut_child(0:NIfTot), ilut_parent(0:NIfTot)
         real(dp), intent(in) :: child_sign(lenof_sign)
@@ -178,7 +180,7 @@ contains
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign_old(lenof_sign), real_sign_new(lenof_sign)
         real(dp) :: sgn_prod(lenof_sign)
-        logical :: list_full, tSuccess
+        logical :: list_full, tSuccess, allowed_child
         integer, parameter :: flags = 0
         character(*), parameter :: this_routine = 'create_particle_with_hash_table'
         
@@ -302,12 +304,13 @@ contains
                endif
             endif
 #endif
-
+            
             if (tTruncInitiator) then
-                if (test_flag(ilut_parent, get_initiator_flag(part_type))) then
-                   call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), &
-                        get_initiator_flag(part_type))
-                endif
+               allowed_child = .false.
+               if(tAccessibleDoubles .or. tAccessibleSingles) allowed_child = &
+                    test_ref_double(ilut_child, part_type_to_run(run))
+               if (allowed_child .or. test_flag(ilut_parent, get_initiator_flag(part_type))) &
+                    call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_ty
             end if
 
             call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
@@ -524,10 +527,10 @@ contains
             ! Obtain off-diagonal element
             if (tHPHF) then
                 HOffDiag(1:inum_runs) = hphf_off_diag_helement (ProjEDet(:,1), nI, &
-                                                                iLutRef(:,1,1), ilut)
+                                                                iLutRef(:,1), ilut)
             else
                 HOffDiag(1:inum_runs) = get_helement (ProjEDet(:,1), nI, &
-                                                      ExcitLevel, ilutRef(:,1,1), ilut)
+                                                      ExcitLevel, ilutRef(:,1), ilut)
             endif
 
         endif ! ExcitLevel_local == 1, 2, 3
@@ -742,7 +745,7 @@ contains
         do run = 1, inum_runs
 
             ! We need to use the excitation level relevant for this run
-            exlevel = FindBitExcitLevel(ilut, ilutRef(:, run,1))
+            exlevel = FindBitExcitLevel(ilut, ilutRef(:, run))
             if (tSpinCoupProjE(run) .and. exlevel /= 0) then
                 if (exlevel <= 2) then
                     exlevel = 2
@@ -786,10 +789,10 @@ contains
                 ! Obtain the off-diagonal elements
                 if (tHPHF) then
                     hoffdiag = hphf_off_diag_helement(ProjEDet(:,run), nI, &
-                                                      iLutRef(:,run,1), ilut)
+                                                      iLutRef(:,run), ilut)
                 else
                     hoffdiag = get_helement (ProjEDet(:,run), nI, exlevel, &
-                                             ilutRef(:,run,1), ilut)
+                                             ilutRef(:,run), ilut)
                 endif
 
             end if
@@ -917,7 +920,7 @@ contains
         if(tAllDoubsInitiators .or. tAllSingsInitiators) then
            ! Important : Only compare to the already initialized reference
            do i = 1, nRefsCurrent
-              exLevel = FindBitExcitLevel(ilutRef(:,run,i),ilut)
+              exLevel = FindBitExcitLevel(ilutRefAdi(:,run,i),ilut)
               if(exLevel == 2 .and. tAllDoubsInitiators .and. i <= nRefsDoubs) then
                  initiator = .true.
                  ! We need to exit the loop here because exLevel is checked for 2 
@@ -958,7 +961,7 @@ contains
            ! All of the references stay initiators
            isRef = .false.
            do i = 1, nRefsCurrent
-              if(DetBitEQ(ilut,ilutRef(:,run,i),NIfDBO)) isRef = .true.
+              if(DetBitEQ(ilut,ilutRefAdi(:,run,i),NIfDBO)) isRef = .true.
            enddo
             ! If det. is the HF det, or it
             ! is in the deterministic space, then it must remain an initiator.
@@ -2010,9 +2013,10 @@ contains
         logical :: tSwapped
         Type(BasisFn) :: isym
 
-        iLutRef(:, run, 1) = 0_n_int
-        iLutRef(0:NIfDBO, run, 1) = ilut(0:NIfDBO)
-        call decode_bit_det (ProjEDet(:, run), iLutRef(:, run, 1))
+        iLutRef(:, run) = 0_n_int
+        iLutRef(0:NIfDBO, run) = ilut(0:NIfDBO)
+        if(allocated(ilutRefAdi)) ilutRefAdi(:,run,1) = ilutRef(:,run)
+        call decode_bit_det (ProjEDet(:, run), iLutRef(:, run))
         write (iout, '(a,i3,a)', advance='no') 'Changing projected &
               &energy reference determinant for run', run, &
               ' on the next update cycle to: '
@@ -2028,12 +2032,12 @@ contains
                 RefDetFlip = 0
                 iLutRefFlip = 0_n_int
             endif
-            if(.not. TestClosedShellDet(iLutRef(:, run, 1))) then
+            if(.not. TestClosedShellDet(iLutRef(:, run))) then
                 ! Complications. We are now effectively projecting
                 ! onto a LC of two dets. Ensure this is done correctly.
                 call ReturnAlphaOpenDet(ProjEDet(:,run), &
                                         RefDetFlip(:, run), &
-                                        iLutRef(:,run,1), &
+                                        iLutRef(:,run), &
                                         iLutRefFlip(:, run), &
                                         .true., .true., tSwapped)
                 if(tSwapped) then
@@ -2069,7 +2073,7 @@ contains
             old_Hii = Hii
             if (tHPHF) then
                 h_tmp = hphf_diag_helement (ProjEDet(:,1), &
-                                            iLutRef(:,1,1))
+                                            iLutRef(:,1))
             else
                 h_tmp = get_helement (ProjEDet(:,1), &
                                       ProjEDet(:,1), 0)
@@ -2117,7 +2121,7 @@ contains
         ! data have been updated correctly.
         if (tHPHF) then
             h_tmp = hphf_diag_helement (ProjEDet(:,run), &
-                                        ilutRef(:,run,1))
+                                        ilutRef(:,run))
         else
             h_tmp = get_helement (ProjEDet(:,run), &
                                   ProjEDet(:,run), 0)
@@ -2151,7 +2155,7 @@ contains
             call extract_sign(CurrentDets(:,j), sgn)
             if (IsUnoccDet(sgn)) cycle
 
-            ex_level = FindBitExcitLevel (iLutRef(:,1,1), CurrentDets(:,j))
+            ex_level = FindBitExcitLevel (iLutRef(:,1), CurrentDets(:,j))
 
             call decode_bit_det(det, CurrentDets(:,j))
             call SumEContrib(det, ex_level, sgn, CurrentDets(:,j), 0.0_dp, &

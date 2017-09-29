@@ -561,14 +561,14 @@ contains
                 !Calculate ic, tParity and Ex
                 call EncodeBitDet (nJ, iLutnJ)
                 Ex(:,:)=0
-                ic = FindBitExcitlevel(iLutnJ,iLutRef(:,1,1),2)
+                ic = FindBitExcitlevel(iLutnJ,iLutRef(:,1),2)
                 ex(1,1) = ic
                 call GetExcitation(ProjEDet(:,1),nJ,Nel,ex,tParity)
             else
                 if (tReltvy) then
                     call GenExcitations4(session, ProjEDet(:,1), nJ, exflag, ex_saved, tParity, tAllExcitFound, .false.)
                 else
-                    CALL GenExcitations3(ProjEDet(:,1),iLutRef(:,1,1),nJ,exflag,Ex_saved,tParity,tAllExcitFound,.false.)
+                    CALL GenExcitations3(ProjEDet(:,1),iLutRef(:,1),nJ,exflag,Ex_saved,tParity,tAllExcitFound,.false.)
                 endif
 
                 IF(tAllExcitFound) EXIT
@@ -593,15 +593,15 @@ contains
                     CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.true.,.true.,tSwapped)
                     if(tSwapped) then
                         !Have to recalculate the excitation matrix.
-                        ic = FindBitExcitLevel(iLutnJ, iLutRef(:,1,1), 2)
+                        ic = FindBitExcitLevel(iLutnJ, iLutRef(:,1), 2)
                         ex(:,:) = 0
                         if(ic.le.2) then
                             ex(1,1) = ic
-                            call GetBitExcitation(iLutRef(:,1,1),iLutnJ,Ex,tParity)
+                            call GetBitExcitation(iLutRef(:,1),iLutnJ,Ex,tParity)
                         endif
                     endif
                 endif
-                hel = hphf_off_diag_helement_norm(ProjEDet(:,1),nJ,iLutRef(:,1,1),iLutnJ)
+                hel = hphf_off_diag_helement_norm(ProjEDet(:,1),nJ,iLutRef(:,1),iLutnJ)
             else
                 hel = get_helement(ProjEDet(:,1),nJ,ic,ex,tParity)
             endif
@@ -610,10 +610,10 @@ contains
 
             !Find pGen (nI -> nJ)
             if(tHPHF) then
-                call CalcPGenHPHF(ProjEDet(:,1),iLutRef(:,1,1),nJ,iLutnJ,ex,store%ClassCountOcc,    &
+                call CalcPGenHPHF(ProjEDet(:,1),iLutRef(:,1),nJ,iLutnJ,ex,store%ClassCountOcc,    &
                             store%ClassCountUnocc,pDoubles,pGen,tSameFunc)
             else
-                call CalcNonUnipGen(ProjEDet(:,1),ilutRef(:,1,1),ex,ic,store%ClassCountOcc,store%ClassCountUnocc,pDoubles,pGen)
+                call CalcNonUnipGen(ProjEDet(:,1),ilutRef(:,1),ex,ic,store%ClassCountOcc,store%ClassCountUnocc,pDoubles,pGen)
             endif
             if(tSameFunc) cycle
             if(MagHel.gt.0.0_dp) then
@@ -628,13 +628,13 @@ contains
                                         store2%ClassCountUnocc)
             store2%tFilled = .true.
             if(tHPHF) then
-                ic = FindBitExcitLevel(iLutnJ, iLutRef(:,1,1), 2)
+                ic = FindBitExcitLevel(iLutnJ, iLutRef(:,1), 2)
                 ex2(:,:) = 0
                 if(ic.le.2) then
                     ex2(1,1) = ic
-                    call GetBitExcitation(iLutnJ,iLutRef(:,1,1),Ex2,tSign)
+                    call GetBitExcitation(iLutnJ,iLutRef(:,1),Ex2,tSign)
                 endif
-                call CalcPGenHPHF(nJ,iLutnJ,ProjEDet(:,1),iLutRef(:,1,1),ex2,store2%ClassCountOcc,    &
+                call CalcPGenHPHF(nJ,iLutnJ,ProjEDet(:,1),iLutRef(:,1),ex2,store2%ClassCountOcc,    &
                             store2%ClassCountUnocc,pDoubles,pGen,tSameFunc)
             else
                 ex2(1,:) = ex(2,:)

@@ -122,8 +122,8 @@ logical :: tSpecifiedTau
 ! Flags for the alldoublesinitiators feature
 logical :: tAllDoubsInitiators, tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits
 logical :: tSetDelayAllSingsInits, tSetDelayAllDoubsInits, tDelayGetRefs
-integer :: allDoubsInitsDelay
-logical :: tReadRefs
+integer :: allDoubsInitsDelay, nExProd
+logical :: tReadRefs, tProductReferences, tAccessibleDoubles, tAccessibleSingles
 
 ! Additional variables for giovannis check
 integer(n_int), allocatable :: g_markers(:)

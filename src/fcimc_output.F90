@@ -1315,6 +1315,7 @@ endif
 
     !Routine to print the highest populated determinants at the end of a run
     SUBROUTINE PrintHighPops()
+      use adi_references, only: update_ref_signs
         real(dp), dimension(lenof_sign) :: SignCurr, LowSign
         integer :: ierr,i,j,counter,ExcitLev,SmallestPos,HighPos,nopen
         integer :: full_orb, run
@@ -1391,7 +1392,9 @@ endif
 !                call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
             endif
         enddo
-
+        
+        ! This has to be done by all procs
+        call update_ref_signs()
         if(iProcIndex.eq.Root) then
             !Now print out the info contained in GlobalLargestWalkers and GlobalProc
 
@@ -1413,14 +1416,14 @@ endif
                 write(iout,'(A)') "Current references: "
                 do run = 1, inum_runs
                     call write_det(iout, ProjEDet(:,run), .true.)
-                    call writeDetBit(iout, ilutRef(:, run,1), .true.)
+                    call writeDetBit(iout, ilutRef(:, run), .true.)
                 end do
             else
                 write(iout,'(A)') "Current reference: "
                 call write_det (iout, ProjEDet(:,1), .true.)
-                do i = 1, nRefs
-                   call writeDetBit(iout,iLutRef(:,1,i),.false.)
-                   call extract_sign(ilutRef(:,1,i),SignCurr)
+                do i = 1, nRefsCurrent
+                   call writeDetBit(iout,iLutRefAdi(:,1,i),.false.)
+                   call extract_sign(ilutRefAdi(:,1,i),SignCurr)
                    write(iout,*) SignCurr(1)
                 enddo
             end if
@@ -1475,7 +1478,7 @@ endif
             do i=1,counter
 !                call WriteBitEx(iout,iLutRef,GlobalLargestWalkers(:,i),.false.)
                 call WriteDetBit(iout,GlobalLargestWalkers(:,i),.false.)
-                Excitlev=FindBitExcitLevel(iLutRef(:,1,1),GlobalLargestWalkers(:,i),nEl)
+                Excitlev=FindBitExcitLevel(iLutRef(:,1),GlobalLargestWalkers(:,i),nEl)
                 write(iout,"(I5)",advance='no') Excitlev
                 nopen=count_open_orbs(GlobalLargestWalkers(:,i))
                 write(iout,"(I5)",advance='no') nopen

@@ -908,7 +908,7 @@ contains
 
         ! there is an inefficient way to check projedet: 
 
-        temp_ilut = ilutref(:,part_type_to_run(temp_part_type),1)
+        temp_ilut = ilutref(:,part_type_to_run(temp_part_type))
         is_in_ref = (IsOcc(temp_ilut, orb))
 
         ! it would have been nice to use associate, but this is not 
