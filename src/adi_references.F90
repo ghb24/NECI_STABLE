@@ -1,15 +1,17 @@
+#include "macros.h"
 module adi_references
 use Parallel_neci
-use FciMCData, only: ilutRefAdi, ilutRef, nRefsCurrent, nRefs
+use FciMCData, only: ilutRefAdi, ilutRef, nRefsCurrent, nRefs, nIRef, signsRef
 use bit_rep_data, only: niftot, nifdbo
 use constants
+use SystemData, only: nel
 
 implicit none
 
 contains
 
   subroutine setup_reference_space(tPopPresent)
-    use CalcData, only: tReadRefs, tProductReferences, nExProd, tDelayGetRefs
+    use CalcData, only: tReadRefs, tProductReferences, nExProd
     use LoggingData, only: ref_filename
     implicit none
     logical, intent(in) :: tPopPresent
@@ -77,8 +79,7 @@ contains
        close(iunit)
 
        ! And allocate the ilutRefAdi accordingly
-       if(allocated(ilutRefAdi)) deallocate(ilutRefAdi)
-       allocate(ilutRefAdi(0:NIfTot,inum_runs,nRefs))
+       call reallocate_ilutRefAdi(nRefs)
     endif
 
     open(iunit, file=trim(filename), status = 'old')
@@ -111,8 +112,6 @@ contains
     subroutine generate_ref_space()
       use semi_stoch_gen, only: generate_space_most_populated
       use LoggingData, only: ref_filename, tWriteRefs
-      use CalcData, only: tProductReferences, nExProd
-      use SystemData, only: tHPHF
       implicit none
       integer(MPIArg) :: mpi_refs_found
       integer :: ierr, i, all_refs_found, refs_found
@@ -123,8 +122,7 @@ contains
       write(6,*) "Getting reference determinants for all-doubs-initiators"
 
       ! we need to be sure ilutRefAdi has the right size
-      if(allocated(ilutRefAdi)) deallocate(ilutRefAdi)
-      allocate(ilutRefAdi(0:NIfTot, inum_runs, nRefs))
+      call reallocate_ilutRefAdi(nRefS)
 
       ! Get the nRefs most populated determinants
       refs_found = 0
@@ -165,7 +163,9 @@ contains
       integer :: i, k, run
       integer(n_int) :: tmp_ilut(0:NIfTot)
       real(dp) :: minOcc, tmp_sgn(lenof_sign)
+      logical :: get_sign
 
+      get_sign = .false.
       ! Check if the current reference is in mpi_buf
       ! k is the index of the current reference (-1 if not present)
       k = -1
@@ -194,6 +194,9 @@ contains
          tmp_ilut = mpi_buf(:,1)
          mpi_buf(:,1) = ilutRef(:,1)
          if(k > 1) mpi_buf(:,k) = tmp_ilut
+         ! also, we now have to obtain the sign for the ilutref anew as ilutref does not
+         ! contain a sign
+         get_sign = .true.
       endif
       ! Now we have the main reference at position 1
 
@@ -206,6 +209,9 @@ contains
             ilutRefAdi(:,run,i) = mpi_buf(:,i)
          enddo
       enddo
+
+      ! if needed, update the signs of ilutRefAdi
+      if(get_sign) call update_ref_signs()
     end subroutine set_additional_references
 
 !------------------------------------------------------------------------------------------!
@@ -265,10 +271,9 @@ contains
       use bit_rep_data, only: NIfDBO, extract_sign
       use hash, only: hash_table_lookup
       use FciMCData, only: CurrentDets, HashIndex
-      use SystemData, only: nEl
       use Parallel_neci, only: MPISumAll
       implicit none
-      integer :: iRef, nI(nel), hash_val, index, foundOnProc
+      integer :: iRef, nI(nel), hash_val, index
       real(dp) :: tmp_sgn(lenof_sign), mpi_sgn(lenof_sign)
       logical :: tSuccess      
       
@@ -296,7 +301,7 @@ contains
       ! This is a bit cumbersome to implement, as the spinflipped version might or
       ! might not be already in the references
       implicit none
-      integer :: iRef, jRef, nRefs_new, cRef, run
+      integer :: iRef, jRef,  cRef, run
       integer(n_int) :: ilutRef_new(0:NIfTot,2*nRefs), tmp_ilut(0:NIfTot)
       logical :: missing
       
@@ -320,8 +325,7 @@ contains
       enddo
 
       ! Resize the ilutRef array
-      if(allocated(ilutRefAdi)) deallocate(ilutRefAdi)
-      allocate(ilutRefAdi(0:NIfTot,inum_runs,cRef))
+      call reallocate_ilutRefAdi(cRef)
       nRefs = cRef
       ! Now, copy the newly constructed references back to the original array
       do iRef = 1, cRef
@@ -371,14 +375,15 @@ contains
       end do
             
       ! Write the buffer to ilutRefAdi
-      if(allocated(ilutRefAdi)) deallocate(ilutRefAdi)
-      allocate(ilutRefAdi(0:NIfTot,inum_runs,nProds))
+      call reallocate_ilutRefAdi(nProds)
       ! Reassign the number of references (do not change the actual nRefs, as this
       ! might be important later on)
       nRefsCurrent = nProds
       do run = 1, inum_runs
          ilutRefAdi(:,run,:) = prod_buffer(:,1:nProds)
       end do
+
+      deallocate(prod_buffer)
     end subroutine add_product_references
 
 !------------------------------------------------------------------------------------------!
@@ -386,13 +391,12 @@ contains
     subroutine get_product_excitation(i, cLvl, nRefs, ilut_tmp, isValid)
       use DetBitOps, only: CountBits
       use bit_rep_data, only: NIfD
-      use SystemData, only: nEl
       implicit none
       integer, intent(in) :: i, cLvl, nRefs
       integer(n_int), intent(out) :: ilut_tmp(0:NIfTot)
       logical, intent(out) :: isValid
       integer(n_int) :: tau(0:NIfTot), tau_cc(0:NIfTot)
-      integer :: cp, tmp
+      integer :: cp
 
       ilut_tmp = ilutRef(:,1)
       isValid = .true.
@@ -416,6 +420,25 @@ contains
       if(CountBits(ilut_tmp,NIfD) .ne. nEl) isValid = .false.
       ilut_tmp(0:NIfD) = IEOR(ilut_tmp(0:NIfD), tau_cc(0:NIfD))
     end subroutine get_product_excitation
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine reallocate_ilutRefAdi(size)
+      implicit none
+      integer, intent(in) :: size
+      
+      ! reallocate first the ilutref itself
+      if(allocated(ilutRefAdi)) deallocate(ilutRefAdi)
+      allocate(ilutRefAdi(0:NIfTot,inum_runs,size))
+
+      ! and then the corresponding chaches for signs and determinants
+      if(allocated(nIRef)) deallocate(nIRef)
+      allocate(nIRef(nel,size))
+      
+      if(allocated(signsRef)) deallocate(signsRef)
+      allocate(signsRef(lenof_sign,size))
+      
+    end subroutine reallocate_ilutRefAdi
 
 !------------------------------------------------------------------------------------------!
 
@@ -465,9 +488,7 @@ contains
 
     subroutine enable_adi
       use CalcData, only: tAllDoubsInitiators
-      use FciMCData, only: nRefsCurrent
       implicit none
-      integer :: i
 
       write(iout,'()') 
       write(iout,*) "Setting all double excitations to initiators"
@@ -505,6 +526,72 @@ contains
          if(is_accessible) exit
       end do
     end function test_ref_double
+
+!------------------------------------------------------------------------------------------!
+
+    function check_sign_coherence(ilut, ilut_sign, iRef) result(is_coherent)
+      use bit_reps, only: decode_bit_det
+      use bit_rep_data, only: extract_sign
+      use Determinants, only: get_helement
+      implicit none
+      integer(n_int), intent(in) :: ilut(0:NIfTot)
+      integer, intent(in) :: iRef
+      real(dp), intent(in) :: ilut_sign(lenof_sign)
+      logical :: is_coherent
+      integer :: run, nI(nel), nJRef(nel)
+      real(dp) :: signRef(lenof_sign)
+#ifdef __CMPLX 
+      complex(dp) :: tmp
+#endif
+      HElement_t(dp) :: h_el
+      
+      is_coherent = .true.
+      ! Obviously, we need the sign to compare coherence
+      call extract_sign(ilutRefAdi(:,1,iRef), signRef)
+      
+      ! For getting the matrix element, we also need the determinants
+      call decode_bit_det(nI, ilut)
+      call decode_bit_det(nJRef, ilutRefAdi(:,1,iRef))
+
+      ! Then, get the matrix element
+      h_el = get_helement(nI,nJRef(:),ilut,ilutRefAdi(:,1,iRef))
+      ! if the determinants are not coupled, ignore them
+      if(abs(h_el) < eps) return
+
+      do run = 1, inum_runs
+         ! If the new ilut has sign 0, there is no need to do any check on this run
+         if(mag_of_run(ilut_sign,run) > eps) then
+#ifdef __CMPLX
+! The complex coherence check is more effortive, so only do it in complex builds
+            ! Get the relative phase of the signs
+            tmp = cmplx(signRef(min_part_type(run)),signRef(max_part_type(run)),dp) / &
+                 cmplx(ilut_sign(min_part_type(run)), ilut_sign(max_part_type(run)), dp)
+            ! and compare it to that of H
+            if(aimag(h_el*tmp) > eps) then
+               is_coherent = .false.
+               return
+            endif
+#else
+            ! For the real comparison, we just compare the signs
+            if(signRef(run)/ilut_sign(run) * h_el < 0.0_dp) then
+               is_coherent = .false.
+               return
+            endif
+#endif
+         endif
+      enddo
+    end function check_sign_coherence
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine reset_coherence_counter()
+      use FciMCData, only: nCoherentDoubles, nIncoherentDets, nCoherentSingles
+      implicit none
+      
+      nCoherentSingles = 0
+      nCoherentDoubles = 0
+      nIncoherentDets = 0
+   endif
 
 !------------------------------------------------------------------------------------------!
 

@@ -35,7 +35,7 @@ module fcimc_helper
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tAccessibleDoubles, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
-                        MaxWalkerBloom, tAllDoubsInitiators, &
+                        MaxWalkerBloom, tAllDoubsInitiators, tInitiatorsSubspace,&
                         NMCyc, iSampleRDMIters, tAccessibleSingles, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tAllSingsInitiators
@@ -760,9 +760,6 @@ contains
 
 
     function TestInitiator(ilut, is_init, sgn, run) result(initiator)
-      use FciMCData, only: nRefs, nRefsDoubs, nRefsSings
-      use adi_references, only: giovannis_check
-      use CalcData, only: tInitiatorsSubspace
       implicit none
         ! For a given particle (with its given particle type), should it
         ! be considered as an initiator for the purposes of spawning.
@@ -789,35 +786,7 @@ contains
 
         tot_sgn = mag_of_run(sgn,run)
 
-        ! Doubles are always initiators if the corresponding flag is set
-        exLevel = 0
-        isSingle = .false.
-        isDouble = .false.
-        isSubspaceInit = .false.
-        if(tAllDoubsInitiators .or. tAllSingsInitiators) then
-           ! Important : Only compare to the already initialized reference
-           do i = 1, nRefsCurrent
-              exLevel = FindBitExcitLevel(ilutRefAdi(:,run,i),ilut)
-              if(exLevel == 2 .and. tAllDoubsInitiators .and. i <= nRefsDoubs) then
-                 initiator = .true.
-                 ! We need to exit the loop here because exLevel is checked for 2 
-                 ! later on, so we cannot overwrite it anymore
-                 isDouble = .true.
-              endif
-              ! If desired, also set singles as initiators
-              if(exLevel == 1 .and. tAllSingsInitiators .and. i <= nRefsSings) then
-                 initiator = .true. 
-                 isSingle = .true.
-              endif
-           enddo
-        endif
-
-        if(tInitiatorsSubspace) then
-           if(giovannis_check(ilut)) then
-              initiator = .true.
-              isSubspaceInit = .true.
-           endif
-        endif
+        call adi_criterium(ilut, sgn, run, initiator, isSingle, isDouble, isSubspaceInit)
 
         if (.not. initiator) then
 
@@ -857,6 +826,78 @@ contains
         end if
 
     end function TestInitiator
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine adi_criterium(ilut, sign, run, initiator, isSingle, isDouble, isSubspaceInit) 
+      ! This is the adi-initiator criterium expansion
+      ! I expect it to grow further
+      use FciMCData, only: nRefs, nRefsDoubs, nRefsSings, nIncoherentDets, &
+           nCoherentDoubles, nCoherentSingles
+      use CalcData, only: tCoherentDoubles
+      use adi_references, only: giovannis_check, check_sign_coherence
+      implicit none
+      integer(n_int), intent(in) :: ilut(0:NIfTot)
+      real(dp), intent(in) :: sign(lenof_sign)
+      integer, intent(in) :: run
+      logical, intent(inout) :: initiator
+      logical, intent(out) :: isSingle, isDouble, isSubspaceInit
+      integer :: exLevel, i
+
+        ! Doubles are always initiators if the corresponding flag is set
+        exLevel = 0
+        isSingle = .false.
+        isDouble = .false.
+        isSubspaceInit = .false.
+
+        ! This is Giovanni's CAS-initiator criterium
+        if(tInitiatorsSubspace) then
+           if(giovannis_check(ilut)) then
+              initiator = .true.
+              isSubspaceInit = .true.
+           endif
+        endif
+
+        if(tAllDoubsInitiators .or. tAllSingsInitiators) then
+           ! Important : Only compare to the already initialized reference
+           do i = 1, nRefsCurrent
+              exLevel = FindBitExcitLevel(ilutRefAdi(:,run,i),ilut)
+              if(exLevel < 3 .and. (tAllDoubsInitiators .or. tAlLSingsInitiators)) then
+                 ! Check if we are sign-coherent if this is desired
+                 if(tCoherentDoubles) then
+                    if(.not. check_sign_coherence(ilut,sign,i)) then
+                       ! If not, do not let the determinant be an initiator
+                       ! Note that this strikes anytime, even if it is coherent with 
+                       ! the reference to which it is the double, but not with some other one
+                       ! (if we have e.g. another reference that is a single)
+                       initiator = .false.
+                       isDouble = .false.
+                       isSingle = .false.
+                       isSubspaceInit = .false.
+                       nIncoherentDets = nIncoherentDets + 1
+                       exit
+                    endif
+                 endif
+                 
+                 if(exLevel == 2 .and. tAllDoubsInitiators .and. i <= nRefsDoubs) then
+                    initiator = .true.
+                    isDouble = .true.
+                    ! also, log this event
+                    nCoherentDoubles = nCoherentDoubles + 1
+                 endif
+                 ! If desired, also set singles as initiators
+                 if(exLevel == 1 .and. tAllSingsInitiators .and. i <= nRefsSings) then
+                    initiator = .true. 
+                    isSingle = .true.
+                    nCoherentSingles = nCoherentSingles + 1
+                 endif
+              endif
+           enddo
+        endif
+
+    end subroutine adi_criterium
+
+!------------------------------------------------------------------------------------------!
 
     subroutine rezero_iter_stats_each_iter(iter_data, rdm_defs)
 
