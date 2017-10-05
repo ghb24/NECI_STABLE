@@ -120,7 +120,8 @@ logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF 
 ! Flags for the alldoublesinitiators feature
 logical :: tAllDoubsInitiators, tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits
 logical :: tSetDelayAllSingsInits, tSetDelayAllDoubsInits, tDelayGetRefs
-integer :: allDoubsInitsDelay, nExProd, tCoherentDoubles
+integer :: allDoubsInitsDelay, nExProd
+logical :: tCoherentDoubles
 logical :: tReadRefs, tProductReferences, tAccessibleDoubles, tAccessibleSingles
 
 ! Additional variables for giovannis check

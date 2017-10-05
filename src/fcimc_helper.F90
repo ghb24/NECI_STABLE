@@ -864,7 +864,7 @@ contains
               exLevel = FindBitExcitLevel(ilutRefAdi(:,run,i),ilut)
               if(exLevel < 3 .and. (tAllDoubsInitiators .or. tAlLSingsInitiators)) then
                  ! Check if we are sign-coherent if this is desired
-                 if(tCoherentDoubles .and. exLevel > 0) then
+                 if(tCoherentDoubles .and. (exLevel > 0)) then
                     if(.not. check_sign_coherence(ilut,sign,i)) then
                        ! If not, do not let the determinant be an initiator
                        ! Note that this strikes anytime, even if it is coherent with 
