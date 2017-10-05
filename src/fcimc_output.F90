@@ -1381,9 +1381,9 @@ contains
             write(iout,*) 
             if(lenof_sign.eq.1) then
                 if(tHPHF) then
-                    write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Weight    Init?   Proc  Spin-Coup?"    
+                    write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc  Spin-Coup?"    
                 else
-                    write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Weight    Init?   Proc"    
+                    write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc"    
                 endif
             else
                 if(tHPHF) then
@@ -1412,9 +1412,9 @@ contains
 #endif
                 if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then 
                     !Weight is proportional to (nw/sqrt(2))**2
-                    write(iout,"(F9.5)",advance='no') ((HighSign/sqrt(2.0_dp))/norm )**2
+                    write(iout,"(F9.5)",advance='no') ((HighSign/sqrt(2.0_dp))/norm )
                 else
-                    write(iout,"(F9.5)",advance='no') (HighSign/norm)**2
+                    write(iout,"(F9.5)",advance='no') (HighSign/norm)
                 endif
                 do j=1,lenof_sign
                     if(.not.tTruncInitiator) then
