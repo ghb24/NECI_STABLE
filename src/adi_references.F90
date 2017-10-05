@@ -146,8 +146,6 @@ contains
       ! And write the so-merged references to ilutRef
       call set_additional_references(mpi_buf)
 
-      !if(tHPHF) call spin_symmetrize_references(nRefs)
-
       if(tWriteRefs) call output_reference_space(ref_filename)
       nRefsCurrent = nRefs
     end subroutine generate_ref_space
@@ -533,6 +531,8 @@ contains
       use bit_reps, only: decode_bit_det
       use bit_rep_data, only: extract_sign
       use Determinants, only: get_helement
+      use SystemData, only: tHPHF
+      use hphf_integrals, only: hphf_off_diag_helement
       implicit none
       integer(n_int), intent(in) :: ilut(0:NIfTot)
       integer, intent(in) :: iRef
@@ -554,7 +554,11 @@ contains
       call decode_bit_det(nJRef, ilutRefAdi(:,1,iRef))
 
       ! Then, get the matrix element
-      h_el = get_helement(nI,nJRef(:),ilut,ilutRefAdi(:,1,iRef))
+      if(tHPHF) then
+         h_el = hphf_off_diag_helement(nI,nJRef(:),ilut,ilutRefAdi(:,1,iRef))
+      else
+         h_el = get_helement(nI,nJRef(:),ilut,ilutRefAdi(:,1,iRef))
+      endif
       ! if the determinants are not coupled, ignore them
       if(abs(h_el) < eps) return
 

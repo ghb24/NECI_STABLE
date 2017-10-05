@@ -779,7 +779,7 @@ contains
         ! the following value is either a single sgn or an aggregate
         real(dp) :: tot_sgn
         logical :: initiator, isRef, isSingle, isDouble, isSubspaceInit
-        integer :: exLevel, i
+        integer :: i
 
         ! By default the particles status will stay the same
         initiator = is_init
@@ -864,7 +864,7 @@ contains
               exLevel = FindBitExcitLevel(ilutRefAdi(:,run,i),ilut)
               if(exLevel < 3 .and. (tAllDoubsInitiators .or. tAlLSingsInitiators)) then
                  ! Check if we are sign-coherent if this is desired
-                 if(tCoherentDoubles) then
+                 if(tCoherentDoubles .and. exLevel > 0) then
                     if(.not. check_sign_coherence(ilut,sign,i)) then
                        ! If not, do not let the determinant be an initiator
                        ! Note that this strikes anytime, even if it is coherent with 
