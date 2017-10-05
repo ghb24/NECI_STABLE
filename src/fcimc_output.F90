@@ -1279,6 +1279,8 @@ contains
 
             ! Find highest sign on each processor. Since all lists are
             ! sorted, this is just the first nonzero value.
+           HighSign = 0.0_dp
+           HighPos = 0
             do j=iHighPopWrite,1,-1
                 call extract_sign (LargestWalkers(:,j), SignCurr)
                 if (any(LargestWalkers(:,j) /= 0)) then
