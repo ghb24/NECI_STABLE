@@ -348,7 +348,7 @@ contains
     end subroutine population_check
 
     subroutine communicate_estimates(iter_data, tot_parts_new, tot_parts_new_all)
-
+      
         ! This routine sums all estimators and stats over all processes.
 
         ! We want this to be done in as few MPI calls as possible. Therefore, all
@@ -367,7 +367,8 @@ contains
         ! in send_arr or send_arr_helem array. It is hopefully clear how to do
         ! this by analogy. You should also update the indices in the appropriate
         ! stop_all, so that it can be checked if enough memory has been assigned.
-
+      use FciMCData, only: nCoherentSingles, nCoherentDoubles, nIncoherentDets, &
+           AllCoherentDoubles, AllCoherentSingles, AllIncoherentDets
         type(fcimc_iter_data) :: iter_data
         real(dp), intent(in) :: tot_parts_new(lenof_sign)
         real(dp), intent(out) :: tot_parts_new_all(lenof_sign)
@@ -432,11 +433,14 @@ contains
         sizes(24) = size(NoAtHF)
         sizes(25) = size(SumWalkersCyc)
         sizes(26) = 1 ! nspawned (single int, not an array)
-        ! communicate the inst_double_occ
+        ! communicate the inst_double_occ and the coherence numbers
         sizes(27) = 1
+        sizes(28) = 1
+        sizes(29) = 1
+        sizes(30) = 1
 
 
-        if (sum(sizes(1:26)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
+        if (sum(sizes(1:30)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
                                                         & the size of the send_arr and recv_arr arrays in the source code.")
 
         low = upp + 1; upp = low + sizes(1 ) - 1; send_arr(low:upp) = SpawnFromSing;
@@ -470,6 +474,9 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; send_arr(low:upp) = nspawned;
         ! double occ change:
         low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = inst_double_occ
+        low = upp + 1; upp = low + sizes(28) - 1; send_arr(low:upp) = nCoherentSingles
+        low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = nCoherentDoubles
+        low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nIncoherentDets
 
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
@@ -510,6 +517,9 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low));
         ! double occ: 
         low = upp + 1; upp = low + sizes(27) - 1; all_inst_double_occ = recv_arr(low);
+        low = upp + 1; upp = low + sizes(28) - 1; AllCoherentSingles = recv_arr(low);
+        low = upp + 1; upp = low + sizes(29) - 1; AllCoherentDoubles = recv_arr(low);
+        low = upp + 1; upp = low + sizes(30) - 1; AllIncoherentDets = recv_arr(low);
 
         ! Communicate HElement_t variables:
 

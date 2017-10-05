@@ -44,9 +44,11 @@ contains
 !Print out initial starting configurations
             WRITE(iout,*) ""
             IF(tTruncInitiator) THEN
-                WRITE(initiatorstats_unit,"(A2,A10,11A20)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
+                WRITE(initiatorstats_unit,"(A2,A17,15A20)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
                 & "5.Born","6.TotUniqDets",&
-&               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks"
+&               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks", &
+               "12. Removed Dets",  "13. Coherent Singles", "14. Coherent Doubles", &
+               "15. Incoherent Dets"
             ENDIF
             IF(tLogComplexPops) THEN
                 WRITE(complexstats_unit,"(A)") '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      " &
@@ -279,11 +281,12 @@ contains
                     IterTime
             endif
             if (tTruncInitiator) then
-               write(initiatorstats_unit,"(I12,4G16.7,3I20,4G16.7)")&
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7)")&
                    Iter + PreviousCycles, sum(AllTotParts), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
-                   AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1)
+                   AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
+                   AllCoherentSingles, AllCoherentDoubles, AllIncoherentDets
             endif
             if (tLogComplexPops) then
                 write (complexstats_unit,"(I12,6G16.7)") &
@@ -408,11 +411,12 @@ contains
                     IterTime
             endif
             if (tTruncInitiator) then
-               write(initiatorstats_unit,"(I12,4G16.7,3I20,4G16.7)")&
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7)")&
                    Iter + PreviousCycles, AllTotParts(1), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
-                   AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1)
+                   AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
+                   AllCoherentSingles, AllCoherentDoubles, AllIncoherentDets
             endif
 #endif
             if (tLogEXLEVELStats) then

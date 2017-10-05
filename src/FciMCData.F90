@@ -364,7 +364,8 @@ MODULE FciMCData
       ! reconstructed on each coherence check
       integer, allocatable :: nIRef(:,:)
       real(dp), allocatable :: signsRef(:,:)
-      integer :: nIncoherentDets, nCoherentDoubles, nCoherentSingles
+      integer :: nIncoherentDets, nCoherentDoubles, nCoherentSingles, &
+          AllCoherentSingles, AllCoherentDoubles, AllIncoherentDets
       ! Even with multiple reference determinants, the calculation is done
       ! relative to Hii. So we need to adjust the calculated projected energy
       ! by a different amount.
