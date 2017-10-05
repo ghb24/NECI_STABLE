@@ -338,6 +338,7 @@ contains
           tAccessibleSingles = .false.
           tAccessibleDoubles = .false.
           nExProd = 2
+          tCoherentDoubles = .false.
 
           ! And disable the initiators subspace
           tInitiatorsSubspace = .false.
@@ -2445,6 +2446,11 @@ contains
              case("INITIATORS-SUBSPACE")
                 ! Use Giovannis check to add initiators
                 tInitiatorsSubspace = .true.
+
+             case("COHERENT-REFERENCES")
+                ! Only make those doubles/singles initiators that are sign coherent
+                ! with their reference(s)
+                tCoherentDoubles = .true.
 
             case default
                 call report("Keyword "                                &

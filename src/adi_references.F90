@@ -591,7 +591,7 @@ contains
       nCoherentSingles = 0
       nCoherentDoubles = 0
       nIncoherentDets = 0
-   endif
+    end subroutine reset_coherence_counter
 
 !------------------------------------------------------------------------------------------!
 

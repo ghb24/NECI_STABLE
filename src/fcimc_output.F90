@@ -1413,13 +1413,13 @@ contains
 #ifdef __CMPLX
                 HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
 #else
-                HighSign=real(abs(SignCurr(1)),dp)
+                HighSign=sum(real(abs(SignCurr(1)),dp))
 #endif
                 if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then 
                     !Weight is proportional to nw/sqrt(2)
-                    write(iout,"(F9.5)",advance='no') (HighSign/sqrt(2.0_dp))/norm 
+                    write(iout,"(F9.5)",advance='no') ((HighSign/sqrt(2.0_dp))/norm)**2
                 else
-                    write(iout,"(F9.5)",advance='no') HighSign/norm 
+                    write(iout,"(F9.5)",advance='no') (HighSign/norm)**2
                 endif
                 do j=1,lenof_sign
                     if(.not.tTruncInitiator) then
