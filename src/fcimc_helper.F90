@@ -2084,7 +2084,7 @@ contains
     end subroutine check_start_rdm
 
     subroutine update_run_reference(ilut, run)
-
+      use adi_references, only: update_first_reference
         ! Update the reference used for a particular run to the one specified.
         ! Update the HPHF flipped arrays, and adjust the stored diagonal
         ! energies to account for the change if necessary.
@@ -2219,6 +2219,9 @@ contains
         if (t_back_spawn .or. t_back_spawn_flex) then 
             call setup_virtual_mask()
         end if
+
+        ! Also overwrite the ilutRefAdi(:,:,1), i.e. the original reference
+        call update_first_reference(ilut)
         
     end subroutine update_run_reference
 
