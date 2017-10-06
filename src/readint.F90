@@ -645,7 +645,7 @@ contains
          integer(int64) :: start_ind, end_ind
          integer(int64), parameter :: chunk_size = 1000000
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
-         integer:: mpi_comm_inter, iProcIndex_inter, mpi_comm_intra, iProcIndex_intra
+
 #ifdef _MOLCAS_
          logical :: tExists     !test for existence of input file.
          integer :: isfreeunit  !function returning integer for free unit
@@ -961,25 +961,13 @@ contains
          IF((.not.tRIIntegrals).and.(.not.tCacheFCIDUMPInts)) THEN
              CALL GetUMATSize(nBasis,NEl,UMatSize)
 
-             !initialise intra node and inter node communicators
-             call mpi_comm_split_type(MPI_COMM_WORLD,MPI_COMM_TYPE_SHARED,0,MPI_INFO_NULL,mpi_comm_intra,ierr)
-             call mpi_comm_rank(mpi_comm_intra,iProcIndex_intra,ierr)
-
-             call mpi_comm_split(MPI_COMM_WORLD,iProcIndex_intra,iProcIndex,mpi_comm_inter,ierr)
-             call mpi_comm_rank(mpi_comm_inter,iProcIndex_inter,ierr)
-
              ! If we are on a 64bit system, the maximum dimensions for MPI are
              ! still limited by 32bit limits.
              ! --> We need to loop around this
              start_ind = 1
              end_ind = min(UMatSize, chunk_size)
              do while(start_ind <= UMatSize)
-!                 call MPIBcast(UMat(start_ind:end_ind), int(end_ind-start_ind+1,sizeof_int))
-
-                if(iProcIndex_intra.eq.0) &
-                     call mpi_bcast(UMat(start_ind),int(end_ind-start_ind+1,sizeof_int), &
-                     MPI_DOUBLE_PRECISION,0,mpi_comm_inter,ierr)
-
+                 call MPIBcast(UMat(start_ind:end_ind), int(end_ind-start_ind+1,sizeof_int))
                  start_ind = end_ind + 1
                  end_ind = min(UMatSize, end_ind + chunk_size)
              end do
