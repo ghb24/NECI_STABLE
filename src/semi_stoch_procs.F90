@@ -859,7 +859,7 @@ contains
             call extract_sign(source(:,i), sign_curr)
 
 #ifdef __CMPLX
-            sign_curr_real = sqrt(sum(real(sign_curr(1:lenof_sign)**2,dp)))
+            sign_curr_real = sqrt(sum(abs(sign_curr(1::2)))**2 + sum(abs(sign_curr(2::2)))**2)
 #else
             sign_curr_real = sum(real(abs(sign_curr),dp))
 #endif

@@ -1355,15 +1355,17 @@ endif
         do i=1,iHighPopWrite
 
             ! Find highest sign on each processor. Since all lists are
-            ! sorted, this is just teh first nonzero value.
+            ! sorted, this is just the first nonzero value.
+           HighSign = 0.0_dp
+           HighPos = 1
             do j=iHighPopWrite,1,-1
                 call extract_sign (LargestWalkers(:,j), SignCurr)
                 if (any(LargestWalkers(:,j) /= 0)) then
                     
 #ifdef __CMPLX
-                    HighSign = sqrt(SignCurr(1)**2 + SignCurr(lenof_sign)**2)
+                    HighSign = sqrt(sum(abs(SignCurr(1::2)))**2 + sum(abs(SignCurr(2::2)))**2)
 #else
-                    HighSign = real(abs(SignCurr(1)),dp)
+                    HighSign = sum(real(abs(SignCurr),dp))
 #endif
 
                     ! We have the largest sign
@@ -1403,9 +1405,9 @@ endif
                 !How many non-zero determinants do we actually have?
                 call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
 #ifdef __CMPLX
-                HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
+                HighSign = sqrt(sum(abs(SignCurr(1::2)))**2 + sum(abs(SignCurr(2::2)))**2)
 #else
-                HighSign=real(abs(SignCurr(1)),dp)
+                HighSign=sum(real(abs(SignCurr),dp))
 #endif
                 if (HighSign > 1.0e-7_dp) counter = counter + 1
             enddo
@@ -1462,9 +1464,9 @@ endif
             write(iout,*) 
             if(lenof_sign.eq.1) then
                 if(tHPHF) then
-                    write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Weight    Init?   Proc  Spin-Coup?"    
+                    write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc  Spin-Coup?"    
                 else
-                    write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Weight    Init?   Proc"    
+                    write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc"    
                 endif
             else
                 if(tHPHF) then
@@ -1487,15 +1489,15 @@ endif
                     write(iout,"(G16.7)",advance='no') SignCurr(j)
                 enddo
 #ifdef __CMPLX
-                HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
+                HighSign = sqrt(sum(abs(SignCurr(1::2)))**2 + sum(abs(SignCurr(2::2)))**2)
 #else
-                HighSign=real(abs(SignCurr(1)),dp)
+                HighSign=sum(real(abs(SignCurr),dp))
 #endif
                 if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then 
-                    !Weight is proportional to nw/sqrt(2)
-                    write(iout,"(F9.5)",advance='no') (HighSign/sqrt(2.0_dp))/norm 
+                    !Weight is proportional to (nw/sqrt(2))**2
+                    write(iout,"(F9.5)",advance='no') ((HighSign/sqrt(2.0_dp))/norm )
                 else
-                    write(iout,"(F9.5)",advance='no') HighSign/norm 
+                    write(iout,"(F9.5)",advance='no') (HighSign/norm)
                 endif
                 do j=1,lenof_sign
                     if(.not.tTruncInitiator) then
