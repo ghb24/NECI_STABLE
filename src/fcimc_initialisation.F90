@@ -3549,13 +3549,13 @@ contains
       ! We initialize the flags for the adi feature
       use CalcData, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
            tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs
-      use adi_references, only: enable_adi
+      use adi_references, only: enable_adi, reallocate_ilutRefAdi
       implicit none
       
       nRefs = max(nRefsDoubs, nRefsSings)
       nRefsCurrent = 1
 
-      allocate(ilutRefAdi(0:NifTot,inum_runs,nRefs))
+      call reallocate_ilutRefAdi(nRefs)
 
       ! Check if one of the keywords is specified as delayed
       if(tSetDelayAllDoubsInits .and. tAllDoubsInitiators) then

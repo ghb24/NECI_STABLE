@@ -36,7 +36,7 @@ module fcimc_helper
                         tRealCoeffByExcitLevel, tKeepDoubSpawns, tAccessibleDoubles, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
                         MaxWalkerBloom, tMultiSpawnThreshold, multiSpawnThreshold, &
-                        tAllDoubsInitiators, tAccessibleSingles, &
+                        tAllDoubsInitiators, tAccessibleSingles, tInitiatorsSubspace, &
                         NMCyc, iSampleRDMIters, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tAllSingsInitiators
@@ -884,9 +884,6 @@ contains
 
 
     function TestInitiator(ilut, is_init, sgn, run) result(initiator)
-      use FciMCData, only: nRefs, nRefsDoubs, nRefsSings
-      use adi_references, only: giovannis_check
-      use CalcData, only: tInitiatorsSubspace
       implicit none
         ! For a given particle (with its given particle type), should it
         ! be considered as an initiator for the purposes of spawning.
@@ -905,43 +902,17 @@ contains
 
         ! the following value is either a single sgn or an aggregate
         real(dp) :: tot_sgn
-        logical :: initiator, isRef, isSingle, isDouble, isSubspaceInit
-        integer :: exLevel, i
+        logical :: initiator, staticInit
+        integer :: i
 
         ! By default the particles status will stay the same
         initiator = is_init
 
         tot_sgn = mag_of_run(sgn,run)
-
-        ! Doubles are always initiators if the corresponding flag is set
-        exLevel = 0
-        isSingle = .false.
-        isDouble = .false.
-        isSubspaceInit = .false.
-        if(tAllDoubsInitiators .or. tAllSingsInitiators) then
-           ! Important : Only compare to the already initialized reference
-           do i = 1, nRefsCurrent
-              exLevel = FindBitExcitLevel(ilutRefAdi(:,run,i),ilut)
-              if(exLevel == 2 .and. tAllDoubsInitiators .and. i <= nRefsDoubs) then
-                 initiator = .true.
-                 ! We need to exit the loop here because exLevel is checked for 2 
-                 ! later on, so we cannot overwrite it anymore
-                 isDouble = .true.
-              endif
-              ! If desired, also set singles as initiators
-              if(exLevel == 1 .and. tAllSingsInitiators .and. i <= nRefsSings) then
-                 initiator = .true. 
-                 isSingle = .true.
-              endif
-           enddo
-        endif
-
-        if(tInitiatorsSubspace) then
-           if(giovannis_check(ilut)) then
-              initiator = .true.
-              isSubspaceInit = .true.
-           endif
-        endif
+        
+        ! If we are allowed to unset the initiator flag
+        staticInit = .false.
+        call adi_criterium(ilut, sgn, run, initiator, staticInit)
 
         if (.not. initiator) then
 
@@ -960,18 +931,14 @@ contains
             ! n_add (this is on by default).
 
            ! All of the references stay initiators
-           isRef = .false.
            do i = 1, nRefsCurrent
-              if(DetBitEQ(ilut,ilutRefAdi(:,run,i),NIfDBO)) isRef = .true.
+              if(DetBitEQ(ilut,ilutRefAdi(:,run,i),NIfDBO)) staticInit = .true.
            enddo
             ! If det. is the HF det, or it
             ! is in the deterministic space, then it must remain an initiator.
-            if ( .not. (isRef) &
+            if ( .not. (staticInit) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
-                .and. (tot_sgn <= InitiatorWalkNo ) .and. &
-                .not. (tAllDoubsInitiators .and. isDouble) .and. &
-                .not. (tAllSingsInitiators .and. isSingle) .and. &
-                .not. (tInitiatorsSubspace .and. isSubspaceInit)) then
+                .and. (tot_sgn <= InitiatorWalkNo )) then
                 ! Population has fallen too low. Initiator status 
                 ! removed.
                 initiator = .false.
@@ -980,6 +947,125 @@ contains
         end if
 
     end function TestInitiator
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine adi_criterium(ilut, sign, run, initiator, staticInit) 
+      ! This is the adi-initiator criterium expansion
+      ! I expect it to grow further
+      use adi_references, only: giovannis_check
+      implicit none
+      integer(n_int), intent(in) :: ilut(0:NIfTot)
+      real(dp), intent(in) :: sign(lenof_sign)
+      integer, intent(in) :: run
+      logical, intent(inout) :: initiator, staticInit
+      integer :: exLevel, i
+      logical :: tUseADI
+
+        ! Doubles are always initiators if the corresponding flag is set
+        if(tAllDoubsInitiators .or. tAllSingsInitiators) then
+           tUseADI = .true.
+        else
+           tUseADI = .false.
+        endif
+
+        ! This is Giovanni's CAS-initiator criterium
+        if(tInitiatorsSubspace) then
+           if(giovannis_check(ilut)) then
+              staticInit = .true.
+           endif
+        endif
+
+        if(tUseADI) then
+           exLevel = 0
+           ! Important : Only compare to the already initialized reference
+           do i = 1, nRefsCurrent
+              exLevel = FindBitExcitLevel(ilutRefAdi(:,run,i),ilut)
+              ! We only need to do this if the excitation level is below 3
+              if(exLevel < 3) then
+                 ! Check if we are sign-coherent if this is desired
+                 if(unset_incoherent_initiator(exLevel, ilut, sign, i, staticInit)) &
+                      ! If we find the determinant to be incoherent, we do not apply
+                      ! the ADI rules and instead 
+                      return
+
+                 ! Set the doubles to initiators
+                 call set_double_initiator(exLevel, i, staticInit)
+
+                 ! If desired, also set singles as initiators
+                 call set_single_initiator(exLevel, i, staticInit)
+              endif
+           enddo
+        endif
+
+        ! Now, set the initiator flag if we have a valid double
+        ! staticInt is set for doubles and singles of references and is unset (and
+        ! not reset again) for incoherent determinants
+        if(staticInit) initiator = .true.
+
+    end subroutine adi_criterium
+
+!------------------------------------------------------------------------------------------!
+
+    function unset_incoherent_initiator(exLevel, ilut, sign, iRef, &
+         staticInit) result(tSuspendADI)
+      use FciMCData, only:  nIncoherentDets
+      use CalcData, only: tCoherentDoubles
+      use adi_references, only: check_sign_coherence
+      ! This version of the coherence check now only prevents us from setting
+      ! the initiator flag via ADI, but not by regular means. So we can't remove 'normal'
+      ! initiators anymore and also not make deterministic space determinants non-initiators
+      implicit none
+      integer, intent(in) :: exLevel, iRef
+      integer(n_int), intent(in) :: ilut(0:NIfTot)
+      real(dp), intent(in) :: sign(lenof_sign)
+      logical, intent(inout) :: staticInit
+      logical :: tSuspendADI
+
+      tSuspendADI = .false.
+      if(tCoherentDoubles .and. (exLevel > 0)) then
+         if(.not. check_sign_coherence(ilut,sign,iRef)) then
+            ! If not, do not let the determinant be an initiator
+            ! Note that this strikes anytime, even if it is coherent with 
+            ! the reference to which it is the double, but not with some other one
+            ! (if we have e.g. another reference that is a single)
+            tSuspendADI = .true.
+            staticInit = .false.
+            nIncoherentDets = nIncoherentDets + 1
+         endif
+      endif
+    end function unset_incoherent_initiator
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine set_double_initiator(exLevel, iRef, staticInit)
+      use FciMCData, only: nRefsDoubs, nCoherentDoubles
+      implicit none
+      integer, intent(in) :: exLevel, iRef
+      logical, intent(inout) :: staticInit
+      
+      if(exLevel == 2 .and. tAllDoubsInitiators .and. iRef <= nRefsDoubs) then
+         staticInit = .true.
+         ! also, log this event
+         nCoherentDoubles = nCoherentDoubles + 1
+      endif
+    end subroutine set_double_initiator
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine set_single_initiator(exLevel, iRef, staticInit)
+      use FciMCData, only: nRefsSings, nCoherentSingles
+      implicit none
+      integer, intent(in) :: exLevel, iRef
+      logical, intent(out) :: staticInit
+
+      if(exLevel == 1 .and. tAllSingsInitiators .and. iRef <= nRefsSings) then
+         staticInit = .true.
+         nCoherentSingles = nCoherentSingles + 1
+      endif
+    end subroutine set_single_initiator
+
+!------------------------------------------------------------------------------------------!
 
     subroutine rezero_iter_stats_each_iter(iter_data, rdm_defs)
 

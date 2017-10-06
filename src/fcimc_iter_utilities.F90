@@ -372,7 +372,7 @@ contains
     end subroutine population_check
 
     subroutine communicate_estimates(iter_data, tot_parts_new, tot_parts_new_all)
-
+      
         ! This routine sums all estimators and stats over all processes.
 
         ! We want this to be done in as few MPI calls as possible. Therefore, all
@@ -391,7 +391,8 @@ contains
         ! in send_arr or send_arr_helem array. It is hopefully clear how to do
         ! this by analogy. You should also update the indices in the appropriate
         ! stop_all, so that it can be checked if enough memory has been assigned.
-      
+      use FciMCData, only: nCoherentSingles, nCoherentDoubles, nIncoherentDets, &
+           AllCoherentDoubles, AllCoherentSingles, AllIncoherentDets
         type(fcimc_iter_data) :: iter_data
         real(dp), intent(in) :: tot_parts_new(lenof_sign)
         real(dp), intent(out) :: tot_parts_new_all(lenof_sign)
@@ -403,7 +404,7 @@ contains
 #else
         integer, parameter :: real_arr_size = 1000
         integer, parameter :: hel_arr_size = 100
-        integer, parameter :: NoArrs = 28
+        integer, parameter :: NoArrs = 31
 #endif
         integer, parameter :: size_arr_size = 100
         ! RT_M_Merge: Doubled all array sizes since there are now two
@@ -472,11 +473,12 @@ contains
         ! RT_M_Merge: Added real-time data
         sizes(27) = 1 ! inst_double_occ
         if(tTruncInitiator) sizes(28) = 1 ! doubleSpawns
+        ! communicate the coherence numbers
+        sizes(29) = 1
+        sizes(30) = 1
+        sizes(31) = 1
 #ifdef __REALTIME
-        sizes(29) = size(NoBorn_1)
-        sizes(30) = size(NoDied_1)
-        sizes(31) = size(NoAtDoubs_1)
-        sizes(32) = size(Annihilated_1)
+        sizes(32) = size(NoAnnihilated_1)
         sizes(33) = size(NoAddedInitiators_1)
         sizes(34) = size(NoInitDets_1)
         sizes(35) = size(NoNonInitDets_1)
@@ -532,10 +534,10 @@ contains
         low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = inst_double_occ
         if(tTruncInitiator) &
              low = upp + 1; upp = low + sizes(28) -1; send_arr(low:upp) = doubleSpawns;
+        low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = nCoherentSingles
+        low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nCoherentDoubles
+        low = upp + 1; upp = low + sizes(31) - 1; send_arr(low:upp) = nIncoherentDets
 #ifdef __REALTIME
-        low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = NoBorn_1;
-        low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = NoDied_1;
-        low = upp + 1; upp = low + sizes(31) - 1; send_arr(low:upp) = NoAtDoubs_1;
         low = upp + 1; upp = low + sizes(32) - 1; send_arr(low:upp) = Annihilated_1;
         low = upp + 1; upp = low + sizes(33) - 1; send_arr(low:upp) = NoAddedInitiators_1;
         low = upp + 1; upp = low + sizes(34) - 1; send_arr(low:upp) = NoInitDets_1;
@@ -598,10 +600,10 @@ contains
            low = upp + 1; upp = low + sizes(28) - 1; allDoubleSpawns = nint(recv_arr(low));
            doubleSpawns = 0
         endif
+        low = upp + 1; upp = low + sizes(29) - 1; AllCoherentSingles = recv_arr(low);
+        low = upp + 1; upp = low + sizes(30) - 1; AllCoherentDoubles = recv_arr(low);
+        low = upp + 1; upp = low + sizes(31) - 1; AllIncoherentDets = recv_arr(low);
 #ifdef __REALTIME
-        low = upp + 1; upp = low + sizes(29) - 1; AllNoBorn_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(30) - 1; AllNoDied_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(31) - 1; AllNoAtDoubs_1 = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(32) - 1; AllAnnihilated_1 = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(33) - 1; AllNoAddedInitiators_1 = nint(recv_arr(low:upp), int64);
         low = upp + 1; upp = low + sizes(34) - 1; AllNoInitDets_1 = nint(recv_arr(low:upp), int64);
