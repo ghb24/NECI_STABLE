@@ -837,7 +837,7 @@ contains
       integer, intent(in) :: run
       logical, intent(inout) :: initiator, staticInit
       integer :: exLevel, i
-      logical :: tUseADI, tSuspendADI
+      logical :: tUseADI
 
         ! Doubles are always initiators if the corresponding flag is set
         if(tAllDoubsInitiators .or. tAllSingsInitiators) then
@@ -855,24 +855,22 @@ contains
 
         if(tUseADI) then
            exLevel = 0
-           ! If sign coherence is not present, we disable the usage of ADI for this reference
-           tSuspendADI = .false.
            ! Important : Only compare to the already initialized reference
            do i = 1, nRefsCurrent
-              if(.not. tSuspendADI) then
-                 exLevel = FindBitExcitLevel(ilutRefAdi(:,run,i),ilut)
-                 ! We only need to do this if the excitation level is below 3
-                 if(exLevel < 3) then
-                    ! Check if we are sign-coherent if this is desired
-                    call unset_incoherent_initiator(exLevel, ilut, sign, i, tSuspendADI, &
-                         staticInit)
+              exLevel = FindBitExcitLevel(ilutRefAdi(:,run,i),ilut)
+              ! We only need to do this if the excitation level is below 3
+              if(exLevel < 3) then
+                 ! Check if we are sign-coherent if this is desired
+                 if(unset_incoherent_initiator(exLevel, ilut, sign, i, staticInit)) &
+                      ! If we find the determinant to be incoherent, we do not apply
+                      ! the ADI rules and instead 
+                      return
 
-                    ! Set the doubles to initiators
-                    call set_double_initiator(exLevel, i, staticInit)
+                 ! Set the doubles to initiators
+                 call set_double_initiator(exLevel, i, staticInit)
 
-                    ! If desired, also set singles as initiators
-                    call set_single_initiator(exLevel, i, staticInit)
-                 endif
+                 ! If desired, also set singles as initiators
+                 call set_single_initiator(exLevel, i, staticInit)
               endif
            enddo
         endif
@@ -886,8 +884,8 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine unset_incoherent_initiator(exLevel, ilut, sign, iRef, &
-         tSuspendADI, staticInit)
+    function unset_incoherent_initiator(exLevel, ilut, sign, iRef, &
+         staticInit) result(tSuspendADI)
       use FciMCData, only:  nIncoherentDets
       use CalcData, only: tCoherentDoubles
       use adi_references, only: check_sign_coherence
@@ -898,8 +896,10 @@ contains
       integer, intent(in) :: exLevel, iRef
       integer(n_int), intent(in) :: ilut(0:NIfTot)
       real(dp), intent(in) :: sign(lenof_sign)
-      logical, intent(inout) :: tSuspendADI, staticInit
+      logical, intent(inout) :: staticInit
+      logical :: tSuspendADI
 
+      tSuspendADI = .false.
       if(tCoherentDoubles .and. (exLevel > 0)) then
          if(.not. check_sign_coherence(ilut,sign,iRef)) then
             ! If not, do not let the determinant be an initiator
@@ -911,7 +911,7 @@ contains
             nIncoherentDets = nIncoherentDets + 1
          endif
       endif
-    end subroutine unset_incoherent_initiator
+    end function unset_incoherent_initiator
 
 !------------------------------------------------------------------------------------------!
 

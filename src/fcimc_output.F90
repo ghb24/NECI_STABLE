@@ -44,7 +44,7 @@ contains
 !Print out initial starting configurations
             WRITE(iout,*) ""
             IF(tTruncInitiator) THEN
-                WRITE(initiatorstats_unit,"(A2,A17,15A20)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
+                WRITE(initiatorstats_unit,"(A2,A17,15A23)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
                 & "5.Born","6.TotUniqDets",&
 &               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks", &
                "12. Removed Dets",  "13. Coherent Singles", "14. Coherent Doubles", &
