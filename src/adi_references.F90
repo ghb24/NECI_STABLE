@@ -263,6 +263,17 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine update_ref_signs()
+      implicit none
+      integer :: iRef
+      
+      do iRef = 1, nRefsCurrent
+         call update_single_ref_sign(iRef)
+      enddo
+    end subroutine update_ref_signs
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine update_single_ref_sign(iRef)
       ! Get the signs of the references from the currentdets. Used both in the final
       ! output and in generating the product excitations
       use bit_reps, only: decode_bit_det, encode_sign
@@ -271,25 +282,30 @@ contains
       use FciMCData, only: CurrentDets, HashIndex
       use Parallel_neci, only: MPISumAll
       implicit none
-      integer :: iRef, nI(nel), hash_val, index
+      integer, intent(in) :: iRef
+      integer:: nI(nel), hash_val, index, run
       real(dp) :: tmp_sgn(lenof_sign), mpi_sgn(lenof_sign)
       logical :: tSuccess      
       
-      do iRef = 1, nRefsCurrent
-         call decode_bit_det(nI,ilutRefAdi(:,1,iRef))
-         call hash_table_lookup(nI, ilutRefAdi(:,1,iRef),NIfDBO,HashIndex,CurrentDets,&
-              index,hash_val,tSuccess)
-         if(tSuccess) then
-            call extract_sign(CurrentDets(:,index),tmp_sgn)
-         else
-            tmp_sgn = 0.0_dp
-         endif
-         ! This does the trick of communication: We need to get the sign to all 
-         ! processors, so just sum up the individual ones
-         call MPISumAll(tmp_sgn, mpi_sgn)
-         call encode_sign(ilutRefAdi(:,1,iRef),mpi_sgn)
-      end do
-    end subroutine update_ref_signs
+
+      call decode_bit_det(nI,ilutRefAdi(:,1,iRef))
+      call hash_table_lookup(nI, ilutRefAdi(:,1,iRef),NIfDBO,HashIndex,CurrentDets,&
+           index,hash_val,tSuccess)
+      if(tSuccess) then
+         call extract_sign(CurrentDets(:,index),tmp_sgn)
+      else
+         tmp_sgn = 0.0_dp
+      endif
+      ! This does the trick of communication: We need to get the sign to all 
+      ! processors, so just sum up the individual ones
+      call MPISumAll(tmp_sgn, mpi_sgn)
+
+      ! The sign contains information on all runs, so it is the same on all
+      do run = 1, inum_runs
+         call encode_sign(ilutRefAdi(:,run,iRef),mpi_sgn)
+      enddo
+
+    end subroutine update_single_ref_sign
 
 !------------------------------------------------------------------------------------------!
 
@@ -596,6 +612,19 @@ contains
       nCoherentDoubles = 0
       nIncoherentDets = 0
     end subroutine reset_coherence_counter
+
+!------------------------------------------------------------------------------------------!
+    
+    subroutine update_first_reference(ilut)
+      implicit none
+      integer(n_int) :: ilut(0:NIfTot)
+      integer :: run
+      
+      do run = 1, inum_runs
+         ilutRefAdi(:,run,1) = ilutRefAdi(:,1,1)
+      end do
+      call update_single_ref_sign(1)
+    end subroutine update_first_reference
 
 !------------------------------------------------------------------------------------------!
 
