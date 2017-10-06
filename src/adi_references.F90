@@ -621,7 +621,7 @@ contains
       integer :: run
       
       do run = 1, inum_runs
-         ilutRefAdi(:,run,1) = ilutRefAdi(:,1,1)
+         ilutRefAdi(:,run,1) = ilutRef(:,1)
       end do
       call update_single_ref_sign(1)
     end subroutine update_first_reference
