@@ -571,13 +571,13 @@ contains
             tmp = cmplx(signRef(min_part_type(run)),signRef(max_part_type(run)),dp) / &
                  cmplx(ilut_sign(min_part_type(run)), ilut_sign(max_part_type(run)), dp)
             ! and compare it to that of H
-            if(aimag(h_el*tmp) > eps .or. real(h_el*tmp) > 0.0_dp)) then
+            if(aimag(h_el*tmp) > eps .or. real(h_el*tmp) > 0.0_dp) then
                is_coherent = .false.
                return
             endif
 #else
             ! For the real comparison, we just compare the signs
-            if(-1.0_dp*signRef(run)/ilut_sign(run) * h_el < 0.0_dp) then
+            if(signRef(run)*ilut_sign(run) * h_el > 0.0_dp) then
                is_coherent = .false.
                return
             endif

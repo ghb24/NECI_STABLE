@@ -832,7 +832,7 @@ contains
     subroutine adi_criterium(ilut, sign, run, initiator, isSingle, isDouble, isSubspaceInit) 
       ! This is the adi-initiator criterium expansion
       ! I expect it to grow further
-      use FciMCData, only: nRefs, nRefsDoubs, nRefsSings, nIncoherentDets, &
+      use FciMCData, only: nRefs, nRefsSings, nIncoherentDets, &
            nCoherentDoubles, nCoherentSingles
       use CalcData, only: tCoherentDoubles
       use adi_references, only: giovannis_check, check_sign_coherence
@@ -878,24 +878,47 @@ contains
                        exit
                     endif
                  endif
+
+                 call set_double_initiator(exLevel, i, initiator, isDouble)
                  
-                 if(exLevel == 2 .and. tAllDoubsInitiators .and. i <= nRefsDoubs) then
-                    initiator = .true.
-                    isDouble = .true.
-                    ! also, log this event
-                    nCoherentDoubles = nCoherentDoubles + 1
-                 endif
                  ! If desired, also set singles as initiators
-                 if(exLevel == 1 .and. tAllSingsInitiators .and. i <= nRefsSings) then
-                    initiator = .true. 
-                    isSingle = .true.
-                    nCoherentSingles = nCoherentSingles + 1
-                 endif
+                 call set_single_initiator(exLevel, i, initiator, isDouble)
               endif
            enddo
         endif
 
     end subroutine adi_criterium
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine set_double_initiator(exLevel, iRef, initiator, isDouble)
+      use FciMCData, only: nRefsDoubs
+      implicit none
+      integer, intent(in) :: exLevel, iRef
+      logical, intent(out) :: initiator, isDouble
+      
+      if(exLevel == 2 .and. tAllDoubsInitiators .and. iRef <= nRefsDoubs) then
+         initiator = .true.
+         isDouble = .true.
+         ! also, log this event
+         nCoherentDoubles = nCoherentDoubles + 1
+      endif
+    end subroutine set_double_initiator
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine set_single_initiator(exLevel, iRef, initiator, isSingle)
+      use FciMCData, only: nRefsSings
+      implicit none
+      integer, intent(in) :: exLevel, iRef
+      logical, intent(out) :: initiator, isSingle
+
+      if(exLevel == 1 .and. tAllSingsInitiators .and. iRef <= nRefsSings) then
+         initiator = .true. 
+         isSingle = .true.
+         nCoherentSingles = nCoherentSingles + 1
+      endif
+    end subroutine set_single_initiator
 
 !------------------------------------------------------------------------------------------!
 
