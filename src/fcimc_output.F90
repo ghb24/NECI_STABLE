@@ -606,7 +606,7 @@ contains
                    call stats_out(state,.false., allCorespaceWalkers/inum_runs, &
                         'Walkers in corespace')
                 endif
-                call stats_out(state,.false., sum(AllNoDied), 'No. died')
+                call stats_out(state,.false., sum(AllNoInitDets), 'No. Inits')
 #ifdef __REALTIME
                 call stats_out(state,.false., TotImagTime, 'Elapsed complex time')
                 call stats_out(state,.false., real_time_info%damping, 'eta')

@@ -478,7 +478,7 @@ contains
         sizes(30) = 1
         sizes(31) = 1
 #ifdef __REALTIME
-        sizes(32) = size(NoAnnihilated_1)
+        sizes(32) = size(Annihilated_1)
         sizes(33) = size(NoAddedInitiators_1)
         sizes(34) = size(NoInitDets_1)
         sizes(35) = size(NoNonInitDets_1)
