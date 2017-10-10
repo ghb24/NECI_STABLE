@@ -626,6 +626,7 @@ contains
          ilutRefAdi(:,run,1) = ilutRef(:,1)
       end do
       call update_single_ref_sign(1)
+      call print_reference_notification(nRefsCurrent, nRefsCurrent)
     end subroutine update_first_reference
 
 !------------------------------------------------------------------------------------------!
