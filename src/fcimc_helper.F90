@@ -807,7 +807,7 @@ contains
             ! n_add (this is on by default).
 
            ! All of the references stay initiators
-           do i = 1, nRefsCurrent
+           do i = 1, nRefs
               if(DetBitEQ(ilut,ilutRefAdi(:,run,i),NIfDBO)) staticInit = .true.
            enddo
             ! If det. is the HF det, or it
@@ -856,7 +856,7 @@ contains
         if(tUseADI) then
            exLevel = 0
            ! Important : Only compare to the already initialized reference
-           do i = 1, nRefsCurrent
+           do i = 1, nRefs
               exLevel = FindBitExcitLevel(ilutRefAdi(:,run,i),ilut)
               ! We only need to do this if the excitation level is below 3
               if(exLevel < 3) then

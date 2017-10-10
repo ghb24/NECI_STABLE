@@ -1,7 +1,7 @@
 #include "macros.h"
 module adi_references
 use Parallel_neci
-use FciMCData, only: ilutRefAdi, ilutRef, nRefsCurrent, nRefs, nIRef, signsRef
+use FciMCData, only: ilutRefAdi, ilutRef, nRefs, nIRef, signsRef, nRefsSings, nRefsDoubs
 use bit_rep_data, only: niftot, nifdbo
 use constants
 use SystemData, only: nel
@@ -18,31 +18,35 @@ contains
     integer :: nRead, nRCOld
     logical :: tGen
 
+    ! A first guess at the number of references
+    nRefs = max(nRefsDoubs, nRefsSings)
+
+    call reallocate_ilutRefAdi(nRefs)
+
     ! If we actually did something
     tGen = .false.
     ! First, generate the reference space of nRefs determinants from the population (if present)
     if(tPopPresent) then
        call generate_ref_space()
        tGen = .true.
-       nRefsCurrent = nRefs
     endif
 
     if(tReadRefs) then
        ! Then, add the references from the file
        call read_in_refs(ref_filename, nRead, tPopPresent)
        ! If we added references, note this
-       if(nRead > nRefsCurrent) nRefsCurrent = nRead
+       if(nRead > nRefs) nRefs = nRead
        tGen = .true.
     endif
     ! Then, add the product references
     if(tGen) then
-       nRCOld = nRefsCurrent
+       nRCOld = nRefs
        if(tProductReferences) then
-          call add_product_references(nRefsCurrent, nExProd)
+          call add_product_references(nRefs, nExProd)
           call update_ref_signs()
        endif
        ! And prompt the output message
-       call print_reference_notification(nRefsCurrent, nRCOld)
+       call print_reference_notification(nRefs, nRCOld)
     endif
     
   end subroutine setup_reference_space
@@ -104,7 +108,7 @@ contains
 
     close(iunit)
     ! If we read in less than nRefs detererminants, we want to get more later
-    if(nRead < nRefs .and. .not. tPopPresent) tDelayGetRefs = .true.
+    if(nRead < max(nRefsSings, nRefsDoubs) .and. .not. tPopPresent) tDelayGetRefs = .true.
   end subroutine read_in_refs
 
 !------------------------------------------------------------------------------------------!
@@ -122,7 +126,7 @@ contains
       write(6,*) "Getting reference determinants for all-doubs-initiators"
 
       ! we need to be sure ilutRefAdi has the right size
-      call reallocate_ilutRefAdi(nRefS)
+      call reallocate_ilutRefAdi(nRefs)
 
       ! Get the nRefs most populated determinants
       refs_found = 0
@@ -147,7 +151,6 @@ contains
       call set_additional_references(mpi_buf)
 
       if(tWriteRefs) call output_reference_space(ref_filename)
-      nRefsCurrent = nRefs
     end subroutine generate_ref_space
 
 !------------------------------------------------------------------------------------------!
@@ -266,7 +269,7 @@ contains
       implicit none
       integer :: iRef
       
-      do iRef = 1, nRefsCurrent
+      do iRef = 1, nRefs
          call update_single_ref_sign(iRef)
       enddo
     end subroutine update_ref_signs
@@ -392,7 +395,7 @@ contains
       call reallocate_ilutRefAdi(nProds)
       ! Reassign the number of references (do not change the actual nRefs, as this
       ! might be important later on)
-      nRefsCurrent = nProds
+      nRefs = nProds
       do run = 1, inum_runs
          ilutRefAdi(:,run,:) = prod_buffer(:,1:nProds)
       end do
@@ -438,32 +441,110 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine generate_type_one_refs()
+      use FciMCData, only: CurrentDets, TotWalkers
+      use bit_reps, only: extract_sign
       implicit none
-      integer :: i, nTOne
+      integer :: i, nTOne, nBlocks, ierr
       integer(n_int), allocatable :: refBuf(:,:)
+      real(dp) :: tmp_sign(lenof_sign)
       logical :: is_tone
       integer, parameter :: allocBlock = 100
+      character(*), parameter :: this_routine = "generate_type_one_refs"
 
-      allocate(refBuf(0:NIfTot, allocBlock)
+      allocate(refBuf(0:NIfTot, allocBlock))
+      nBlocks = 1
       
+      nTOne = 0
       do i = 1, TotWalkers
-         is_tone = check_type_one_ref(CurrentDets(:,i))
+         call extract_sign(CurrentDets(:,i), tmp_sign)
+         ! Check if a determinant should be a type-1 reference
+         is_tone = check_type_one_ref(CurrentDets(:,i), tmp_sign)
+         if(is_tone) then
+            nTOne = nTOne + 1
+            ! If we exceed the memory of the buffer, add another block
+            if(nTOne > nBlocks*allocBlock) then
+               nBlocks = nBlocks + 1
+               call resize_ilut_list(refBuf, (nBlocks-1) * allocBlock ,nBlocks * allocBlock)
+               if(ierr) call stop_all(this_routine, "Unable to allocate temporary list")
+            endif
+            ! Add the determinant to the temporary list
+            refBuf(:,nTOne) = CurrentDets(:,i)
+         endif
       end do
+
+      ! And construct the array used later
+      call fill_ilutRefTOne(refBuf, nTOne)
       
     end subroutine generate_type_one_refs
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine fill_ilutRefTOne(list, listSize)
+      implicit none
+      integer, intent(in) :: listSize
+      integer(n_int), intent(in) :: list(0:NIfTot,listSize)
+      
+      ! resize the ilutRefAdi array
+      ! call resize_ilut_list(ilutRefAdi, nRefs, nRefs + listSize)
+      ! and add the new iluts
+      ilutRefAdi(:,1,(nRefs + 1):(nRefs + listSize)) = list(:,:)
+      nRefs = nRefs + listSize
+    end subroutine fill_ilutRefTOne
 
 
 !------------------------------------------------------------------------------------------!
 
-    function check_type_one_ref(ilut) result(is_tone)
+    function check_type_one_ref(ilut, ilut_sign) result(is_tone)
+      use DetBitOps, only: FindBitExcitLevel
       implicit none
-      integer(n_int), intent(in) :: ilut
+      integer(n_int), intent(in) :: ilut(0:NIfTot)
+      ! We pass the sign as an extra argument to prevent redundant extraction
+      real(dp), intent(in) :: ilut_sign(lenof_sign)
       integer :: iRef, exLevel
+      logical :: is_coherent
       logical :: is_tone
       
       is_tone = .false.
-      do iRef = 1, nRefsCurrent
+      is_coherent = .false.
+      ! Go through all t-0 references
+      do iRef = 1, nRefs
+         ! Get the excitation level, only proceed if there can be some coupling
+         exLevel = FindBitExcitLevel(ilutRefAdi(:,1,iRef), ilut)
+         if(exLevel < 3) then
+            ! If we are coherent with two or more, set the t-1 flag
+            if(is_coherent) is_tone = .true.
+            is_coherent = check_sign_coherence(ilut, ilut_sign, iRef)
+            ! If an incoherent t-0 ref is found, return .false.
+            if(.not. is_coherent) then
+               is_tone = .false.
+               return
+            endif
+         endif
+      enddo
     end function check_type_one_ref
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine resize_ilut_list(list, oldSize, newSize)
+      implicit none
+      integer, intent(in) :: newSize, oldSize
+      integer(n_int), allocatable, intent(inout) :: list(:,:)
+      integer(n_int) :: tmp(0:NIfTot,oldSize)
+      integer :: ierr
+      character(*), parameter :: this_routine = "resize_ilut_list"
+
+      ! If the list is already allocated, clear it
+      if(allocated(list)) then
+         tmp(:,:) = list(:,:)
+         deallocate(list)
+      endif
+      allocate(list(0:NIfTot,newSize), stat = ierr)
+      if(ierr) call stop_all(this_routine, "Not enough memory to resize ilut list")
+      
+      ! Write the old entries of list into the new memory
+      list(:,1:oldSize) = tmp(:,1:oldSize)
+      
+    end subroutine resize_ilut_list
 
 !------------------------------------------------------------------------------------------!
 
@@ -562,7 +643,7 @@ contains
       
       is_accessible = .false.
       exLevel = -1
-      do iRef = 1, nRefsCurrent
+      do iRef = 1, nRefs
          exLevel = FindBitExcitLevel(ilutRefAdi(:,run,iRef), ilut)
          if(exLevel == 0) is_accessible = .true.
          if(tAccessibleDoubles .and. exLevel == 2) is_accessible = .true.

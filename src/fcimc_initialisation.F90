@@ -3529,7 +3529,6 @@ contains
       implicit none
       
       nRefs = max(nRefsDoubs, nRefsSings)
-      nRefsCurrent = 1
 
       call reallocate_ilutRefAdi(nRefs)
 

@@ -26,7 +26,7 @@ MODULE Calc
     use FciMCData, only: tTimeExit,MaxTimeExit, InputDiagSft, tSearchTau, &
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, nRefs, &
-                         tStartCoreGroundState, pParallel, pops_pert, nRefsCurrent, &
+                         tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption, nRefsDoubs, nRefsSings
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
@@ -330,7 +330,6 @@ contains
           ! By default, we have one reference for the purpose of all-doubs-initiators
           nRefsDoubs = 1
           nRefsSings = 1
-          nRefsCurrent = 1
           nRefs = 1
           tReadRefs = .false.
           tDelayGetRefs = .false.

@@ -357,7 +357,7 @@ MODULE FciMCData
                                                         !so we can calculate projection onto both.
       ! Number of references for all-doubs-initiators and (important) number of references 
       ! currently to check
-      integer :: nRefs, nRefsCurrent, nRefsSings, nRefsDoubs
+      integer :: nRefs, nRefsSings, nRefsDoubs
       ! References for the purpose of the ADI scheme
       integer(n_int), allocatable :: ilutRefAdi(:,:,:)
       ! Store the signs and determinants separately, so they dont need to be 
