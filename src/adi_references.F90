@@ -437,6 +437,36 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
+    subroutine generate_type_one_refs()
+      implicit none
+      integer :: i, nTOne
+      integer(n_int), allocatable :: refBuf(:,:)
+      logical :: is_tone
+      integer, parameter :: allocBlock = 100
+
+      allocate(refBuf(0:NIfTot, allocBlock)
+      
+      do i = 1, TotWalkers
+         is_tone = check_type_one_ref(CurrentDets(:,i))
+      end do
+      
+    end subroutine generate_type_one_refs
+
+
+!------------------------------------------------------------------------------------------!
+
+    function check_type_one_ref(ilut) result(is_tone)
+      implicit none
+      integer(n_int), intent(in) :: ilut
+      integer :: iRef, exLevel
+      logical :: is_tone
+      
+      is_tone = .false.
+      do iRef = 1, nRefsCurrent
+    end function check_type_one_ref
+
+!------------------------------------------------------------------------------------------!
+
     subroutine reallocate_ilutRefAdi(size)
       implicit none
       integer, intent(in) :: size
