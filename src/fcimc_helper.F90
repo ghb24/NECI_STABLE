@@ -921,7 +921,7 @@ contains
       integer, intent(in) :: exLevel, iRef
       logical, intent(inout) :: staticInit
       
-      if(exLevel == 2 .and. tAllDoubsInitiators .and. iRef <= nRefsDoubs) then
+      if(exLevel == 2 .and. tAllDoubsInitiators) then
          staticInit = .true.
          ! also, log this event
          nCoherentDoubles = nCoherentDoubles + 1
@@ -936,7 +936,7 @@ contains
       integer, intent(in) :: exLevel, iRef
       logical, intent(out) :: staticInit
 
-      if(exLevel == 1 .and. tAllSingsInitiators .and. iRef <= nRefsSings) then
+      if(exLevel == 1 .and. tAllSingsInitiators) then
          staticInit = .true.
          nCoherentSingles = nCoherentSingles + 1
       endif
