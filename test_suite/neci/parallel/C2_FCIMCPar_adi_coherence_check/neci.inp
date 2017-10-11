@@ -1,0 +1,37 @@
+title
+
+system read
+nonuniformrandexcits
+electrons 12
+hphf
+spin-restrict 0
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+nmcyc 4000
+totalwalkers 20000
+tau 0.00075
+shiftdamp 0.1
+stepsshift 5 
+memoryfacpart 1.8
+memoryfacspawn 0.8
+truncinitiator
+addtoinitiator 3
+all-doubs-initiators
+coherent-references
+proje-changeref 1.2
+regenexcitgens
+load-balance-blocks off
+endcalc
+
+integral
+freeze 4,0
+endint
+
+logging
+popsfile -1
+endlog
+end

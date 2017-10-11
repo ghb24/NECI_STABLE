@@ -122,6 +122,7 @@ logical :: tAllDoubsInitiators, tDelayAllDoubsInits, tAllSingsInitiators, tDelay
 logical :: tSetDelayAllSingsInits, tSetDelayAllDoubsInits, tDelayGetRefs
 integer :: allDoubsInitsDelay, nExProd
 logical :: tCoherentDoubles
+real(dp) :: NoTypeN
 logical :: tReadRefs, tProductReferences, tAccessibleDoubles, tAccessibleSingles
 
 ! Additional variables for giovannis check

@@ -852,6 +852,7 @@ contains
         norm_semistoch = 0
         norm_psi = 0
         tSoftExitFound = .false.
+        tReferenceChanged = .false.
 
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp
@@ -3527,11 +3528,7 @@ contains
            tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs
       use adi_references, only: enable_adi, reallocate_ilutRefAdi
       implicit none
-      
-      nRefs = max(nRefsDoubs, nRefsSings)
-
-      call reallocate_ilutRefAdi(nRefs)
-
+ 
       ! Check if one of the keywords is specified as delayed
       if(tSetDelayAllDoubsInits .and. tAllDoubsInitiators) then
          tAllDoubsInitiators = .false.

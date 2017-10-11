@@ -1,7 +1,9 @@
 #include "macros.h"
 module adi_references
 use Parallel_neci
-use FciMCData, only: ilutRefAdi, ilutRef, nRefs, nIRef, signsRef, nRefsSings, nRefsDoubs
+use FciMCData, only: ilutRefAdi, ilutRef, nRefs, nIRef, signsRef, nRefsSings, nRefsDoubs, &
+     nTZero
+use CalcData, only: NoTypeN, InitiatorWalkNo
 use bit_rep_data, only: niftot, nifdbo
 use constants
 use SystemData, only: nel
@@ -20,8 +22,6 @@ contains
 
     ! A first guess at the number of references
     nRefs = max(nRefsDoubs, nRefsSings)
-
-    call reallocate_ilutRefAdi(nRefs)
 
     ! If we actually did something
     tGen = .false.
@@ -47,7 +47,16 @@ contains
        endif
        ! And prompt the output message
        call print_reference_notification(nRefs, nRCOld)
+    else
+       ! If we did not do anything, only take one reference
+       call reallocate_ilutRefAdi(1)
+       ilutRefAdi(:,:,1) = ilutRef(:,:)
+       nRefs = 1
+       call print_reference_notification(1,1)
     endif
+
+    ! These are now the t-0 references
+    nTZero = nRefs
     
   end subroutine setup_reference_space
 
@@ -393,8 +402,7 @@ contains
             
       ! Write the buffer to ilutRefAdi
       call reallocate_ilutRefAdi(nProds)
-      ! Reassign the number of references (do not change the actual nRefs, as this
-      ! might be important later on)
+      ! Reassign the number of references
       nRefs = nProds
       do run = 1, inum_runs
          ilutRefAdi(:,run,:) = prod_buffer(:,1:nProds)
@@ -440,7 +448,7 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine generate_type_one_refs()
+    subroutine generate_type_n_refs()
       use FciMCData, only: CurrentDets, TotWalkers
       use bit_reps, only: extract_sign
       implicit none
@@ -458,7 +466,7 @@ contains
       do i = 1, TotWalkers
          call extract_sign(CurrentDets(:,i), tmp_sign)
          ! Check if a determinant should be a type-1 reference
-         is_tone = check_type_one_ref(CurrentDets(:,i), tmp_sign)
+         is_tone = check_type_n_ref(CurrentDets(:,i), tmp_sign, 1)
          if(is_tone) then
             nTOne = nTOne + 1
             ! If we exceed the memory of the buffer, add another block
@@ -473,33 +481,33 @@ contains
       end do
 
       ! And construct the array used later
-      call fill_ilutRefTOne(refBuf, nTOne)
+      call add_type_n_refs(refBuf, nTOne)
       
-    end subroutine generate_type_one_refs
+    end subroutine generate_type_n_refs
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine fill_ilutRefTOne(list, listSize)
+    subroutine add_type_n_refs(list, listSize)
       implicit none
       integer, intent(in) :: listSize
       integer(n_int), intent(in) :: list(0:NIfTot,listSize)
       
       ! resize the ilutRefAdi array
-      ! call resize_ilut_list(ilutRefAdi, nRefs, nRefs + listSize)
+      call resize_ilutRefAdi(nRefs + listSize)
       ! and add the new iluts
-      ilutRefAdi(:,1,(nRefs + 1):(nRefs + listSize)) = list(:,:)
-      nRefs = nRefs + listSize
-    end subroutine fill_ilutRefTOne
+      ilutRefAdi(:,1,(nRefs + 1):(nRefs + listSize)) = list(:,1:listSize)
+    end subroutine add_type_n_refs
 
 
 !------------------------------------------------------------------------------------------!
 
-    function check_type_one_ref(ilut, ilut_sign) result(is_tone)
+    function check_type_n_ref(ilut, ilut_sign, run) result(is_tone)
       use DetBitOps, only: FindBitExcitLevel
       implicit none
       integer(n_int), intent(in) :: ilut(0:NIfTot)
       ! We pass the sign as an extra argument to prevent redundant extraction
       real(dp), intent(in) :: ilut_sign(lenof_sign)
+      integer, intent(in) :: run
       integer :: iRef, exLevel
       logical :: is_coherent
       logical :: is_tone
@@ -509,11 +517,12 @@ contains
       ! Go through all t-0 references
       do iRef = 1, nRefs
          ! Get the excitation level, only proceed if there can be some coupling
-         exLevel = FindBitExcitLevel(ilutRefAdi(:,1,iRef), ilut)
+         exLevel = FindBitExcitLevel(ilutRefAdi(:, run, iRef), ilut)
          if(exLevel < 3) then
             ! If we are coherent with two or more, set the t-1 flag
             if(is_coherent) is_tone = .true.
-            is_coherent = check_sign_coherence(ilut, ilut_sign, iRef)
+            ! TODO: Allow for different references on different replicas
+            is_coherent = check_sign_coherence(ilut, ilut_sign, iRef, run)
             ! If an incoherent t-0 ref is found, return .false.
             if(.not. is_coherent) then
                is_tone = .false.
@@ -521,7 +530,40 @@ contains
             endif
          endif
       enddo
-    end function check_type_one_ref
+      if(is_tone) then
+         if(mag_of_run(ilut_sign, run) < InitiatorWalkNo * NoTypeN) is_tone = .false.
+      endif
+    end function check_type_n_ref
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine resize_ilutRefAdi(newSize)
+      ! It is not a sign of good design that we need it, but I don't want to rule
+      ! out the option to have multiple replicas with different references
+      implicit none
+      integer, intent(in) :: newSize
+      integer(n_int) :: tmp(0:NIfTot,inum_runs,nRefs)
+      logical :: tUseTmp
+      integer :: ierr
+      character(*), parameter :: this_routine = "resize_ilutRefAdi"
+
+      ! We store the current ilutRefAdi in a temporary, if existent
+      tUseTmp = .false.
+      if(allocated(ilutRefAdi)) then
+         tmp = ilutRefAdi
+         deallocate(ilutRefAdi)
+         tUseTmp = .true.
+      endif
+
+      ! Then reallocate and fill in the temporary, if present
+      allocate(ilutRefAdi(0:NIfTot, inum_runs, newSize), stat = ierr)
+      if(ierr .ne. 0) call stop_all(this_routine, "Not enough memory to resize ilut list")
+      if(tUseTmp) ilutRefAdi(:,:,1:nRefs) = tmp
+
+      ! The new number of references
+      nRefs = newSize
+         
+    end subroutine resize_ilutRefAdi
 
 !------------------------------------------------------------------------------------------!
 
@@ -539,7 +581,7 @@ contains
          deallocate(list)
       endif
       allocate(list(0:NIfTot,newSize), stat = ierr)
-      if(ierr) call stop_all(this_routine, "Not enough memory to resize ilut list")
+      if(ierr .ne. 0) call stop_all(this_routine, "Not enough memory to resize ilut list")
       
       ! Write the old entries of list into the new memory
       list(:,1:oldSize) = tmp(:,1:oldSize)
@@ -654,7 +696,7 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    function check_sign_coherence(ilut, ilut_sign, iRef) result(is_coherent)
+    function check_sign_coherence(ilut, ilut_sign, iRef, run) result(is_coherent)
       use bit_reps, only: decode_bit_det
       use bit_rep_data, only: extract_sign
       use Determinants, only: get_helement
@@ -662,10 +704,10 @@ contains
       use hphf_integrals, only: hphf_off_diag_helement
       implicit none
       integer(n_int), intent(in) :: ilut(0:NIfTot)
-      integer, intent(in) :: iRef
+      integer, intent(in) :: iRef, run
       real(dp), intent(in) :: ilut_sign(lenof_sign)
       logical :: is_coherent
-      integer :: run, nI(nel), nJRef(nel)
+      integer :: nI(nel), nJRef(nel)
       real(dp) :: signRef(lenof_sign)
 #ifdef __CMPLX 
       complex(dp) :: tmp
@@ -689,28 +731,26 @@ contains
       ! if the determinants are not coupled, ignore them
       if(abs(h_el) < eps) return
 
-      do run = 1, inum_runs
-         ! If the new ilut has sign 0, there is no need to do any check on this run
-         if(mag_of_run(ilut_sign,run) > eps) then
+      ! If the new ilut has sign 0, there is no need to do any check on this run
+      if(mag_of_run(ilut_sign,run) > eps) then
 #ifdef __CMPLX
-! The complex coherence check is more effortive, so only do it in complex builds
-            ! Get the relative phase of the signs
-            tmp = cmplx(signRef(min_part_type(run)),signRef(max_part_type(run)),dp) / &
-                 cmplx(ilut_sign(min_part_type(run)), ilut_sign(max_part_type(run)), dp)
-            ! and compare it to that of H
-            if(aimag(h_el*tmp) > eps .or. real(h_el*tmp) > 0.0_dp) then
-               is_coherent = .false.
-               return
-            endif
-#else
-            ! For the real comparison, we just compare the signs
-            if(signRef(run)*ilut_sign(run) * h_el > 0.0_dp) then
-               is_coherent = .false.
-               return
-            endif
-#endif
+         ! The complex coherence check is more effortive, so only do it in complex builds
+         ! Get the relative phase of the signs
+         tmp = cmplx(signRef(min_part_type(run)),signRef(max_part_type(run)),dp) / &
+              cmplx(ilut_sign(min_part_type(run)), ilut_sign(max_part_type(run)), dp)
+         ! and compare it to that of H
+         if(aimag(h_el*tmp) > eps .or. real(h_el*tmp) > 0.0_dp) then
+            is_coherent = .false.
+            return
          endif
-      enddo
+#else
+         ! For the real comparison, we just compare the signs
+         if(signRef(run)*ilut_sign(run) * h_el > 0.0_dp) then
+            is_coherent = .false.
+            return
+         endif
+#endif
+      endif
     end function check_sign_coherence
 
 !------------------------------------------------------------------------------------------!
@@ -726,15 +766,11 @@ contains
 
 !------------------------------------------------------------------------------------------!
     
-    subroutine update_first_reference(ilut)
+    subroutine update_first_reference()
+      use FciMCData, only: tSinglePartPhase
       implicit none
-      integer(n_int) :: ilut(0:NIfTot)
-      integer :: run
-      
-      do run = 1, inum_runs
-         ilutRefAdi(:,run,1) = ilutRef(:,1)
-      end do
-      call update_single_ref_sign(1)
+
+      call setup_reference_space(all(.not. tSinglePartPhase))
     end subroutine update_first_reference
 
 !------------------------------------------------------------------------------------------!

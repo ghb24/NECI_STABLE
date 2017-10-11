@@ -760,6 +760,7 @@ contains
 
 
     function TestInitiator(ilut, is_init, sgn, run) result(initiator)
+      use adi_initiators, only: check_static_init
       implicit none
         ! For a given particle (with its given particle type), should it
         ! be considered as an initiator for the purposes of spawning.
@@ -771,7 +772,7 @@ contains
         !      This means we can call it for individual, or aggregate,
         !      particles.
 
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer(n_int), intent(inout) :: ilut(0:NIfTot)
         logical, intent(in) :: is_init
         integer, intent(in) :: run
         real(dp), intent(in) :: sgn(lenof_sign)
@@ -787,8 +788,9 @@ contains
         tot_sgn = mag_of_run(sgn,run)
         
         ! If we are allowed to unset the initiator flag
-        staticInit = .false.
-        call adi_criterium(ilut, sgn, run, initiator, staticInit)
+        staticInit = check_static_init(ilut, sgn, run)
+        ! reference-caused initiators also have the initiator flag
+        if(staticInit) initiator = .true.
 
         if (.not. initiator) then
 
@@ -825,124 +827,7 @@ contains
 
     end function TestInitiator
 
-!------------------------------------------------------------------------------------------!
 
-    subroutine adi_criterium(ilut, sign, run, initiator, staticInit) 
-      ! This is the adi-initiator criterium expansion
-      ! I expect it to grow further
-      use adi_references, only: giovannis_check
-      implicit none
-      integer(n_int), intent(in) :: ilut(0:NIfTot)
-      real(dp), intent(in) :: sign(lenof_sign)
-      integer, intent(in) :: run
-      logical, intent(inout) :: initiator, staticInit
-      integer :: exLevel, i
-      logical :: tUseADI
-
-        ! Doubles are always initiators if the corresponding flag is set
-        if(tAllDoubsInitiators .or. tAllSingsInitiators) then
-           tUseADI = .true.
-        else
-           tUseADI = .false.
-        endif
-
-        ! This is Giovanni's CAS-initiator criterium
-        if(tInitiatorsSubspace) then
-           if(giovannis_check(ilut)) then
-              staticInit = .true.
-           endif
-        endif
-
-        if(tUseADI) then
-           exLevel = 0
-           ! Important : Only compare to the already initialized reference
-           do i = 1, nRefs
-              exLevel = FindBitExcitLevel(ilutRefAdi(:,run,i),ilut)
-              ! We only need to do this if the excitation level is below 3
-              if(exLevel < 3) then
-                 ! Check if we are sign-coherent if this is desired
-                 if(unset_incoherent_initiator(exLevel, ilut, sign, i, staticInit)) &
-                      ! If we find the determinant to be incoherent, we do not apply
-                      ! the ADI rules and instead 
-                      return
-
-                 ! Set the doubles to initiators
-                 call set_double_initiator(exLevel, i, staticInit)
-
-                 ! If desired, also set singles as initiators
-                 call set_single_initiator(exLevel, i, staticInit)
-              endif
-           enddo
-        endif
-
-        ! Now, set the initiator flag if we have a valid double
-        ! staticInt is set for doubles and singles of references and is unset (and
-        ! not reset again) for incoherent determinants
-        if(staticInit) initiator = .true.
-
-    end subroutine adi_criterium
-
-!------------------------------------------------------------------------------------------!
-
-    function unset_incoherent_initiator(exLevel, ilut, sign, iRef, &
-         staticInit) result(tSuspendADI)
-      use FciMCData, only:  nIncoherentDets
-      use CalcData, only: tCoherentDoubles
-      use adi_references, only: check_sign_coherence
-      ! This version of the coherence check now only prevents us from setting
-      ! the initiator flag via ADI, but not by regular means. So we can't remove 'normal'
-      ! initiators anymore and also not make deterministic space determinants non-initiators
-      implicit none
-      integer, intent(in) :: exLevel, iRef
-      integer(n_int), intent(in) :: ilut(0:NIfTot)
-      real(dp), intent(in) :: sign(lenof_sign)
-      logical, intent(inout) :: staticInit
-      logical :: tSuspendADI
-
-      tSuspendADI = .false.
-      if(tCoherentDoubles .and. (exLevel > 0)) then
-         if(.not. check_sign_coherence(ilut,sign,iRef)) then
-            ! If not, do not let the determinant be an initiator
-            ! Note that this strikes anytime, even if it is coherent with 
-            ! the reference to which it is the double, but not with some other one
-            ! (if we have e.g. another reference that is a single)
-            tSuspendADI = .true.
-            staticInit = .false.
-            nIncoherentDets = nIncoherentDets + 1
-         endif
-      endif
-    end function unset_incoherent_initiator
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine set_double_initiator(exLevel, iRef, staticInit)
-      use FciMCData, only: nRefsDoubs, nCoherentDoubles
-      implicit none
-      integer, intent(in) :: exLevel, iRef
-      logical, intent(inout) :: staticInit
-      
-      if(exLevel == 2 .and. tAllDoubsInitiators) then
-         staticInit = .true.
-         ! also, log this event
-         nCoherentDoubles = nCoherentDoubles + 1
-      endif
-    end subroutine set_double_initiator
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine set_single_initiator(exLevel, iRef, staticInit)
-      use FciMCData, only: nRefsSings, nCoherentSingles
-      implicit none
-      integer, intent(in) :: exLevel, iRef
-      logical, intent(out) :: staticInit
-
-      if(exLevel == 1 .and. tAllSingsInitiators) then
-         staticInit = .true.
-         nCoherentSingles = nCoherentSingles + 1
-      endif
-    end subroutine set_single_initiator
-
-!------------------------------------------------------------------------------------------!
 
     subroutine rezero_iter_stats_each_iter(iter_data, rdm_defs)
 
@@ -2071,8 +1956,8 @@ contains
             call setup_virtual_mask()
         end if
 
-        ! Also overwrite the ilutRefAdi(:,:,1), i.e. the original reference
-        call update_first_reference(ilut)
+        ! Also update ilutRefAdi - this has to be done completely
+        call update_first_reference()
         
     end subroutine update_run_reference
 

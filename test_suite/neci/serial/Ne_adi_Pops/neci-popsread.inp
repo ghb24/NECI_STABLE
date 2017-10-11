@@ -22,7 +22,7 @@ truncinitiator
 addtoinitiator 3
 allrealcoeff
 realspawncutoff 0.01
-all-doubs-initiators 1
+all-doubs-initiators 3
 all-sings-initiators 3
 readpops
 load-balance-blocks off

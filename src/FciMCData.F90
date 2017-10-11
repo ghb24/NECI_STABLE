@@ -357,7 +357,7 @@ MODULE FciMCData
                                                         !so we can calculate projection onto both.
       ! Number of references for all-doubs-initiators and (important) number of references 
       ! currently to check
-      integer :: nRefs, nRefsSings, nRefsDoubs
+      integer :: nRefs, nRefsSings, nRefsDoubs, nTZero
       ! References for the purpose of the ADI scheme
       integer(n_int), allocatable :: ilutRefAdi(:,:,:)
       ! Store the signs and determinants separately, so they dont need to be 
@@ -366,6 +366,7 @@ MODULE FciMCData
       real(dp), allocatable :: signsRef(:,:)
       integer :: nIncoherentDets, nCoherentDoubles, nCoherentSingles, &
           AllCoherentSingles, AllCoherentDoubles, AllIncoherentDets
+      logical :: tReferenceChanged
       ! Even with multiple reference determinants, the calculation is done
       ! relative to Hii. So we need to adjust the calculated projected energy
       ! by a different amount.

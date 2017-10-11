@@ -337,6 +337,7 @@ contains
           tAccessibleSingles = .false.
           tAccessibleDoubles = .false.
           nExProd = 2
+          NoTypeN = 3
           tCoherentDoubles = .false.
 
           ! And disable the initiators subspace
