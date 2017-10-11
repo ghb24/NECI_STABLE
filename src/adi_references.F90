@@ -862,12 +862,15 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine assign_SIHash_TZero()
+      use hash, only: clear_hash_table
+      use FciMCData, only: SIHash
       implicit none
       integer :: iRef
       logical :: tSuccess
-      character(*), parameter :: this_routine = "Duplicate type-0 superinitiator"
+      character(*), parameter :: this_routine = "assign_SIHash_TZero"
       
       tSuccess = .false.
+      call clear_hash_table(SIHash)
       do iRef = 1, nRefs
          call add_superinitiator_to_hashtable(ilutRefAdi(:,iRef), iRef, tSuccess)
          ! By construction, there can't be duplicates within the type-0 SIs
