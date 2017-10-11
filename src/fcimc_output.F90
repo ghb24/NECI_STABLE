@@ -1352,8 +1352,8 @@ contains
                 write(iout,'(A)') "Current reference: "
                 call write_det (iout, ProjEDet(:,1), .true.)
                 do i = 1, nRefs
-                   call writeDetBit(iout,iLutRefAdi(:,1,i),.false.)
-                   call extract_sign(ilutRefAdi(:,1,i),SignCurr)
+                   call writeDetBit(iout,iLutRefAdi(:,i),.false.)
+                   call extract_sign(ilutRefAdi(:,i),SignCurr)
                    write(iout,*) SignCurr(1)
                 enddo
             end if

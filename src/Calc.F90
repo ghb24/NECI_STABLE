@@ -339,6 +339,7 @@ contains
           nExProd = 2
           NoTypeN = 3
           tCoherentDoubles = .false.
+          superInitiatorLevel = 0
 
           ! And disable the initiators subspace
           tInitiatorsSubspace = .false.
@@ -2451,6 +2452,10 @@ contains
                 ! Only make those doubles/singles initiators that are sign coherent
                 ! with their reference(s)
                 tCoherentDoubles = .true.
+
+             case("SECONDARY-SUPERINITIATORS")
+                superInitiatorLevel = 1
+                if(item < nItems) call readi(superInitiatorLevel)
 
             case default
                 call report("Keyword "                                &

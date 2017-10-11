@@ -108,7 +108,8 @@ contains
     exLevel = 0
     ! Important : Only compare to the already initialized reference
     do i = 1, nRefs
-       exLevel = FindBitExcitLevel(ilutRefAdi(:,run,i),ilut)
+       ! TODO: Check if i marks a superinitiator for the current run
+       exLevel = FindBitExcitLevel(ilutRefAdi(:,i),ilut)
        ! We only need to do this if the excitation level is below 3
        if(exLevel < 3) then
           ! Check if we are sign-coherent if this is desired
@@ -206,7 +207,7 @@ contains
     changed = .true.
 #else
     changed = .true.
-    if((test_flag(ilut, flag_positive) .eq. sgn(run) > 0)) changed = .false.
+    if((test_flag(ilut, flag_positive) .eqv. (sgn(run) > 0))) changed = .false.
 #endif
     ! If the sign changed, adjust the sign flag
     if(changed) call assign_flag_positive(ilut, sgn, run)

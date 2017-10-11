@@ -359,13 +359,14 @@ MODULE FciMCData
       ! currently to check
       integer :: nRefs, nRefsSings, nRefsDoubs, nTZero
       ! References for the purpose of the ADI scheme
-      integer(n_int), allocatable :: ilutRefAdi(:,:,:)
+      integer(n_int), allocatable :: ilutRefAdi(:,:)
       ! Store the signs and determinants separately, so they dont need to be 
       ! reconstructed on each coherence check
       integer, allocatable :: nIRef(:,:)
       real(dp), allocatable :: signsRef(:,:)
       integer :: nIncoherentDets, nCoherentDoubles, nCoherentSingles, &
-          AllCoherentSingles, AllCoherentDoubles, AllIncoherentDets
+          AllCoherentSingles, AllCoherentDoubles, AllIncoherentDets, htBlock
+      type(ll_node), pointer :: SIHash(:)
       logical :: tReferenceChanged
       ! Even with multiple reference determinants, the calculation is done
       ! relative to Hii. So we need to adjust the calculated projected energy

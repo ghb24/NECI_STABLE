@@ -46,6 +46,7 @@ module bit_rep_data
 
     ! Flags which we can store
     logical :: tUseFlags
+    integer :: flag_counter
     integer, parameter :: flag_deterministic = 0, &
                           flag_determ_parent = 1, &
                           flag_trial = 2, &

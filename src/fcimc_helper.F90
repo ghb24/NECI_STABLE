@@ -810,7 +810,7 @@ contains
 
            ! All of the references stay initiators
            do i = 1, nRefs
-              if(DetBitEQ(ilut,ilutRefAdi(:,run,i),NIfDBO)) staticInit = .true.
+              if(DetBitEQ(ilut,ilutRefAdi(:,i),NIfDBO)) staticInit = .true.
            enddo
             ! If det. is the HF det, or it
             ! is in the deterministic space, then it must remain an initiator.
@@ -1844,7 +1844,6 @@ contains
 
         iLutRef(:, run) = 0_n_int
         iLutRef(0:NIfDBO, run) = ilut(0:NIfDBO)
-        if(allocated(ilutRefAdi)) ilutRefAdi(:,run,1) = ilutRef(:,run)
         call decode_bit_det (ProjEDet(:, run), iLutRef(:, run))
         write (iout, '(a,i3,a)', advance='no') 'Changing projected &
               &energy reference determinant for run', run, &

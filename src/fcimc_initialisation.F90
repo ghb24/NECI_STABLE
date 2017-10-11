@@ -1419,6 +1419,7 @@ contains
                 & REAL(MemoryAlloc,dp)/1048576.0_dp," Mb/Processor"
             WRITE(iout,*) "Only one array of memory to store main particle list allocated..."
             WRITE(iout,*) "Initial memory allocation sucessful..."
+            WRITE(iout,*) "============================================="
             CALL neci_flush(iout)
 
         ENDIF   !End if initial walkers method
@@ -3486,9 +3487,7 @@ contains
 
         ! As we always check versus ilutRefAdi for initiator purposes, the first 
         ! entry has to be assigned always
-        do run = 1, inum_runs
-           ilutRefAdi(:,run,1) = ilutRef(:,run)
-        end do
+        ilutRefAdi(:,1) = ilutRef(:,1)
 
     end subroutine assign_reference_dets
 
@@ -3525,8 +3524,9 @@ contains
     subroutine setup_adi()
       ! We initialize the flags for the adi feature
       use CalcData, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
-           tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs
-      use adi_references, only: enable_adi, reallocate_ilutRefAdi
+           tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs, &
+           InitiatorWalkNo, NoTypeN
+      use adi_references, only: enable_adi, reallocate_ilutRefAdi, setup_SIHash
       implicit none
  
       ! Check if one of the keywords is specified as delayed
@@ -3544,6 +3544,10 @@ contains
       if(tDelayAllSingsInits .and. tDelayAllDoubsInits) tDelayGetRefs = .true.
       ! Give a status message
       if(tAllDoubsInitiators) call enable_adi()
+
+      NoTypeN = NoTypeN * InitiatorWalkNo
+      ! initialize the superinitiator hashtable
+      call setup_SIHash()
 
     end subroutine setup_adi
 
