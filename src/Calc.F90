@@ -32,7 +32,7 @@ MODULE Calc
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
          tSetDelayAllSingsInits, nExProd, tCoherentDoubles, NoTypeN, tAdiActive, tReadRefs, &
          tProductReferences, tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
-         tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay
+         tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
