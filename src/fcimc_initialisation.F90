@@ -3526,8 +3526,12 @@ contains
       use CalcData, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
            tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs, &
            InitiatorWalkNo, NoTypeN
+      use FciMCData, only: nRefs, nRefsSings, nRefsDoubs
       use adi_references, only: enable_adi, reallocate_ilutRefAdi, setup_SIHash
       implicit none
+
+      nRefs = max(nRefsDoubs, nRefsSings)
+      call reallocate_ilutRefAdi(nRefs)
  
       ! Check if one of the keywords is specified as delayed
       if(tSetDelayAllDoubsInits .and. tAllDoubsInitiators) then
