@@ -367,7 +367,7 @@ contains
         ! in send_arr or send_arr_helem array. It is hopefully clear how to do
         ! this by analogy. You should also update the indices in the appropriate
         ! stop_all, so that it can be checked if enough memory has been assigned.
-      use FciMCData, only: nCoherentSingles, nCoherentDoubles, nIncoherentDets, &
+      use adi_data, only: nCoherentSingles, nCoherentDoubles, nIncoherentDets, &
            AllCoherentDoubles, AllCoherentSingles, AllIncoherentDets
         type(fcimc_iter_data) :: iter_data
         real(dp), intent(in) :: tot_parts_new(lenof_sign)

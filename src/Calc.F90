@@ -25,9 +25,14 @@ MODULE Calc
     use IntegralsData, only: tNeedsVirts
     use FciMCData, only: tTimeExit,MaxTimeExit, InputDiagSft, tSearchTau, &
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
-                         tTrialHash, tIncCancelledInitEnergy, MaxTau, nRefs, &
+                         tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
-                         alloc_popsfile_dets, tSearchTauOption, nRefsDoubs, nRefsSings
+                         alloc_popsfile_dets, tSearchTauOption 
+    use adi_data, only: nRefsDoubs, nRefsSings, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
+         tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
+         tSetDelayAllSingsInits, nExProd, tCoherentDoubles, NoTypeN, tAdiActive, tReadRefs, &
+         tProductReferences, tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
+         tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -340,6 +345,7 @@ contains
           NoTypeN = 3
           tCoherentDoubles = .false.
           superInitiatorLevel = 0
+          tAdiActive = .false.
 
           ! And disable the initiators subspace
           tInitiatorsSubspace = .false.

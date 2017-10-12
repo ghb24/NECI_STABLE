@@ -33,12 +33,14 @@ module fcimc_helper
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
                         tAddToInitiator, InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
-                        tRealCoeffByExcitLevel, tAccessibleDoubles, &
+                        tRealCoeffByExcitLevel, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
-                        MaxWalkerBloom, tAllDoubsInitiators, tInitiatorsSubspace,&
-                        NMCyc, iSampleRDMIters, tAccessibleSingles, &
+                        MaxWalkerBloom,&
+                        NMCyc, iSampleRDMIters, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
-                        t_back_spawn_flex, tAllSingsInitiators
+                        t_back_spawn_flex
+    use adi_data, only: tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
+         tAllDoubsInitiators, tAllSingsInitiators
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
@@ -60,6 +62,11 @@ module fcimc_helper
     use back_spawn, only: setup_virtual_mask
     implicit none
     save
+
+    interface CalcParentFlag
+       module procedure CalcParentFlag_normal
+       module procedure CalcParentFlag_det
+    end interface CalcParentFlag
 
 contains
             
@@ -685,8 +692,19 @@ contains
 
     end subroutine SumEContrib_different_refs
 
+    subroutine CalcParentFlag_normal(j, parent_flags)
+      implicit none
+      integer, intent(in) :: j
+      integer, intent(out) :: parent_flags
+      integer :: nI(nel)
 
-    subroutine CalcParentFlag(j, parent_flags)
+      ! If we do not supply nI externally, get it now.
+      ! This routine mainly exists for compatibility
+      call decode_bit_det(nI, CurrentDets(:,j))
+      call CalcParentFlag_det(j, nI, parent_flags)
+    end subroutine CalcParentFlag_normal
+
+    subroutine CalcParentFlag_det(j, nI,  parent_flags)
 
         ! In the CurrentDets array, the flag at NIfTot refers to whether that
         ! determinant *itself* is an initiator or not. We need to decide if 
@@ -697,7 +715,7 @@ contains
         ! the SpawnedDets array and refers to whether or not the walkers 
         ! *parent* is an initiator or not.
 
-        integer, intent(in) :: j
+        integer, intent(in) :: j, nI(nel)
         integer, intent(out) :: parent_flags
         real(dp) :: CurrentSign(lenof_sign)
         integer :: run, nopen
@@ -720,7 +738,7 @@ contains
 
                 ! Should this particle be considered to be an initiator
                 ! for spawning purposes.
-                parent_init = TestInitiator(CurrentDets(:,j), parent_init, &
+                parent_init = TestInitiator(CurrentDets(:,j), nI, parent_init, &
                                             CurrentSign, run)
 
                 ! Update counters as required.
@@ -756,16 +774,17 @@ contains
              call HistInitPopulations (CurrentSign(1), j)
         endif
 
-    end subroutine CalcParentFlag
+      end subroutine CalcParentFlag_det
 
 
-    function TestInitiator(ilut, is_init, sgn, run) result(initiator)
+    function TestInitiator(ilut, nI, is_init, sgn, run) result(initiator)
       use adi_initiators, only: check_static_init
+      use adi_references, only: check_superinitiator
       implicit none
         ! For a given particle (with its given particle type), should it
         ! be considered as an initiator for the purposes of spawning.
         !
-        ! Inputs: The determinant, the particles sign, and if the particle
+        ! Inputs: The ilut, the determinant, the particles sign, and if the particle
         !         is currently considered to be an initiator.
 
         ! N.B. This intentionally DOES NOT directly reference part_type.
@@ -774,7 +793,7 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         logical, intent(in) :: is_init
-        integer, intent(in) :: run
+        integer, intent(in) :: run, nI(nel)
         real(dp), intent(in) :: sgn(lenof_sign)
 
         ! the following value is either a single sgn or an aggregate
@@ -788,7 +807,7 @@ contains
         tot_sgn = mag_of_run(sgn,run)
         
         ! If we are allowed to unset the initiator flag
-        staticInit = check_static_init(ilut, sgn, run)
+        staticInit = check_static_init(ilut, nI, sgn, run)
         ! reference-caused initiators also have the initiator flag
         if(staticInit) initiator = .true.
 
@@ -809,9 +828,8 @@ contains
             ! n_add (this is on by default).
 
            ! All of the references stay initiators
-           do i = 1, nRefs
-              if(DetBitEQ(ilut,ilutRefAdi(:,i),NIfDBO)) staticInit = .true.
-           enddo
+           if(DetBitEQ(ilut, ilutRef(:,run),NIfDBO)) staticInit = .true.
+           call check_superinitiator(ilut, nI, staticInit)
             ! If det. is the HF det, or it
             ! is in the deterministic space, then it must remain an initiator.
             if ( .not. (staticInit) &
@@ -1958,7 +1976,7 @@ contains
         ! Also update ilutRefAdi - this has to be done completely
         call update_first_reference()
         
-    end subroutine update_run_reference
+      end subroutine update_run_reference
 
     subroutine calc_inst_proje()
 

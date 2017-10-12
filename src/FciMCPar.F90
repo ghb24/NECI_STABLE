@@ -7,15 +7,16 @@ module FciMCParMod
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
-                        iFullSpaceIter, semistoch_shift_iter, tReadRefs, &
+                        iFullSpaceIter, semistoch_shift_iter, &
                         tOrthogonaliseReplicas, orthogonalise_iter, &
                         tDetermHFSpawning, use_spawn_hash_table, &
                         ss_space_in, s_global_start, tContTimeFCIMC, &
-                        trial_shift_iter, tStartTrialLater, tDelayAllSingsInits, &
+                        trial_shift_iter, tStartTrialLater,  &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
-                        t_back_spawn_flex, t_back_spawn_flex_option, allDoubsInitsDelay, &
-                        t_back_spawn_option, tDelayGetRefs, &
+                        t_back_spawn_flex, t_back_spawn_flex_option, &
+                        t_back_spawn_option
+    use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
@@ -157,9 +158,6 @@ module FciMCParMod
         ! helpful to do it here.
         call population_check()
 
-        ! Set up the reference space for the adi-approach
-        call setup_reference_space(tReadPops)
-
         if(n_int.eq.4) CALL Stop_All('Setup Parameters', &
                 'Use of RealCoefficients does not work with 32 bit integers due to the use &
                 &of the transfer operation from dp reals to 64 bit integers.')
@@ -243,13 +241,16 @@ module FciMCParMod
                     call init_semi_stochastic(ss_space_in)
                 end if
             end if
-
+            
             if((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
                  .and. all(.not. tSinglePartPhase)) then
                ! Start the all-doubs-initiator procedure
                if(tDelayAllDoubsInits) call enable_adi()
                ! And/or the all-sings-initiator procedure
-               if(tDelayAllSingsInits) tAllSingsInitiators = .true.
+               if(tDelayAllSingsInits) then 
+                  tAllSingsInitiators = .true.
+                  tAdiActive = .true.
+               endif
                ! If desired, we now set up the references for the purpose of the
                ! all-doubs-initiators
                if(nRefs > 1 .and. tDelayGetRefs) then 
@@ -952,7 +953,7 @@ module FciMCParMod
             HDiagCurr = det_diagH(j)
 
             if (tTruncInitiator) &
-                call CalcParentFlag (j, parent_flags)
+                call CalcParentFlag (j, DetCurr, parent_flags)
 
             ! As the main list (which is storing a hash table) no longer needs
             ! to be contiguous, we need to skip sites that are empty.

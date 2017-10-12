@@ -1,10 +1,12 @@
 #include "macros.h"
 module adi_references
 use Parallel_neci
-use FciMCData, only: ilutRefAdi, ilutRef, nRefs, nIRef, signsRef, nRefsSings, nRefsDoubs, &
-     nTZero
-use CalcData, only: NoTypeN, InitiatorWalkNo, superInitiatorLevel
+use FciMCData, only: ilutRef
+use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, nRefsSings, nRefsDoubs, &
+     nTZero, SIHash, tAdiActive, tSetupSIs, NoTypeN, superInitiatorLevel, tSetupSIs
+use CalcData, only: InitiatorWalkNo
 use bit_rep_data, only: niftot, nifdbo
+use bit_reps, only: decode_bit_det
 use constants
 use SystemData, only: nel
 
@@ -13,64 +15,68 @@ implicit none
 contains
 
   subroutine setup_reference_space(tPopPresent)
-    use CalcData, only: tReadRefs, tProductReferences, nExProd
+    use adi_data, only: tReadRefs, tProductReferences, nExProd
     use LoggingData, only: ref_filename
     implicit none
     logical, intent(in) :: tPopPresent
     integer :: nRead, nRCOld
     logical :: tGen
 
-    ! A first guess at the number of references
-    nRefs = max(nRefsDoubs, nRefsSings)
+    if(tAdiActive) then
+       ! A first guess at the number of references
+       nRefs = max(nRefsDoubs, nRefsSings)
 
-    ! If we actually did something
-    tGen = .false.
-    ! First, generate the reference space of nRefs determinants from the population (if present)
-    if(tPopPresent) then
-       call generate_ref_space()
-       tGen = .true.
-       if(.not. tReadRefs)&
-            call print_reference_notification(1,nRefs, "Superinitiators from population")
-    endif
-
-    if(tReadRefs) then
-       ! Then, add the references from the file
-       call read_in_refs(ref_filename, nRead, tPopPresent)
-       ! If we added references, note this (this means that the nRefs was not
-       ! specified and is taken from the file)
-       if(nRead > nRefs) nRefs = nRead
-       tGen = .true.
-
-       ! Print the read-in references
-       call print_reference_notification(1,nRead,"Read in superinitiators")
-       call print_reference_notification(nRead+1,nRefs,"Superinitiators from population")
-    endif
-    ! Then, add the product references
-    if(tGen) then
-       if(tProductReferences) then
-          nRCOld = nRefs
-          call add_product_references(nRefs, nExProd)
-          call update_ref_signs()
-          ! And prompt the output message
-          call print_reference_notification(nRCOld + 1, nRefs, &
-               "Superinitiators created from excitation products")
+       ! If we actually did something
+       tGen = .false.
+       ! First, generate the reference space of nRefs determinants from the population (if present)
+       if(tPopPresent) then
+          call generate_ref_space()
+          tGen = .true.
+          if(.not. tReadRefs)&
+               call print_reference_notification(1,nRefs, "Superinitiators from population")
        endif
-    else
-       ! If we did not do anything, only take one reference
-       call reallocate_ilutRefAdi(1)
-       ilutRefAdi(:,1) = ilutRef(:,1)
-       nRefs = 1
-       call print_reference_notification(1,1, &
-            "Using only the reference determinant as superinitiator")
+
+       if(tReadRefs) then
+          ! Then, add the references from the file
+          call read_in_refs(ref_filename, nRead, tPopPresent)
+          ! If we added references, note this (this means that the nRefs was not
+          ! specified and is taken from the file)
+          if(nRead > nRefs) nRefs = nRead
+          tGen = .true.
+
+          ! Print the read-in references
+          call print_reference_notification(1,nRead,"Read in superinitiators")
+          call print_reference_notification(nRead+1,nRefs,"Superinitiators from population")
+       endif
+       ! Then, add the product references
+       if(tGen) then
+          if(tProductReferences) then
+             nRCOld = nRefs
+             call add_product_references(nRefs, nExProd)
+             call update_ref_signs()
+             ! And prompt the output message
+             call print_reference_notification(nRCOld + 1, nRefs, &
+                  "Superinitiators created from excitation products")
+          endif
+       else
+          ! If we did not do anything, only take one reference
+          call reallocate_ilutRefAdi(1)
+          ilutRefAdi(:,1) = ilutRef(:,1)
+          nRefs = 1
+          call print_reference_notification(1,1, &
+               "Using only the reference determinant as superinitiator")
+       endif
+
+       call assign_SIHash_TZero()
+
+       ! These are now the t-0 references
+       nTZero = nRefs
+
+       ! If we also used t-n (n>0) references (now called superinitiators), add them now
+       if(superInitiatorLevel > 0) call add_derived_refs()
+
+       tSetupSIs = .true.
     endif
-    
-    call assign_SIHash_TZero()
-
-    ! These are now the t-0 references
-    nTZero = nRefs
-
-    ! If we also used t-n (n>0) references (now called superinitiators), add them now
-    if(superInitiatorLevel > 0) call add_derived_refs()
    
   end subroutine setup_reference_space
 
@@ -78,7 +84,7 @@ contains
 
   subroutine read_in_refs(filename, nRead, tPopPresent)
     use util_mod, only: get_free_unit
-    use CalcData, only: tDelayGetRefs
+    use adi_data, only: tDelayGetRefs
     implicit none
     integer, intent(out) :: nRead
     character(255), intent(in) :: filename
@@ -235,7 +241,6 @@ contains
     subroutine output_reference_space(filename)
       use ParallelHelper, only: root
       use util_mod, only: get_free_unit
-      use FciMCData, only: nRefs
       implicit none
       character(255), intent(in) :: filename
       integer :: iunit, i, ierr
@@ -305,7 +310,7 @@ contains
       ! Get the signs of the references from the currentdets. Used both in the final
       ! output and in generating the product excitations
       use bit_reps, only: decode_bit_det, encode_sign
-      use bit_rep_data, only: NIfDBO, extract_sign
+      use bit_rep_data, only:  extract_sign
       use hash, only: hash_table_lookup
       use FciMCData, only: CurrentDets, HashIndex
       use Parallel_neci, only: MPISumAll
@@ -315,7 +320,6 @@ contains
       real(dp) :: tmp_sgn(lenof_sign), mpi_sgn(lenof_sign)
       logical :: tSuccess      
       
-
       call decode_bit_det(nI,ilutRefAdi(:,iRef))
       call hash_table_lookup(nI, ilutRefAdi(:,iRef),NIfDBO,HashIndex,CurrentDets,&
            index,hash_val,tSuccess)
@@ -569,7 +573,7 @@ contains
       ! We pass the sign as an extra argument to prevent redundant extraction
       real(dp), intent(in) :: ilut_sign(lenof_sign)
       integer, intent(in) :: run
-      integer :: iRef, exLevel
+      integer :: iRef, exLevel, nI(nel)
       logical :: is_coherent
       logical :: is_tone
       
@@ -583,7 +587,8 @@ contains
             ! If we are coherent with two or more, set the t-1 flag
             if(is_coherent) is_tone = .true.
             ! TODO: Allow for different references on different replicas
-            is_coherent = check_sign_coherence(ilut, ilut_sign, iRef, run)
+            call decode_bit_det(nI, ilut)
+            is_coherent = check_sign_coherence(ilut, nI, ilut_sign, iRef, run)
             ! If an incoherent t-0 ref is found, return .false.
             if(.not. is_coherent) then
                is_tone = .false.
@@ -597,6 +602,64 @@ contains
     end function check_type_n_ref
 
 !------------------------------------------------------------------------------------------!
+
+    function check_sign_coherence(ilut, nI, ilut_sign, iRef, run) result(is_coherent)
+      use bit_rep_data, only: extract_sign
+      use Determinants, only: get_helement
+      use SystemData, only: tHPHF
+      use hphf_integrals, only: hphf_off_diag_helement
+      implicit none
+      integer(n_int), intent(in) :: ilut(0:NIfTot)
+      integer, intent(in) :: iRef, run, nI(nel)
+      real(dp), intent(in) :: ilut_sign(lenof_sign)
+      logical :: is_coherent
+      integer :: nJRef(nel)
+      real(dp) :: signRef(lenof_sign)
+#ifdef __CMPLX 
+      complex(dp) :: tmp
+#endif
+      HElement_t(dp) :: h_el
+      
+      is_coherent = .true.
+      ! Obviously, we need the sign to compare coherence
+      call extract_sign(ilutRefAdi(:,iRef), signRef)
+      
+      ! For getting the matrix element, we also need the determinants
+      call decode_bit_det(nJRef, ilutRefAdi(:,iRef))
+
+      ! Then, get the matrix element
+      if(tHPHF) then
+         h_el = hphf_off_diag_helement(nI,nJRef(:),ilut,ilutRefAdi(:,iRef))
+      else
+         h_el = get_helement(nI,nJRef(:),ilut,ilutRefAdi(:,iRef))
+      endif
+      ! if the determinants are not coupled, ignore them
+      if(abs(h_el) < eps) return
+
+      ! If the new ilut has sign 0, there is no need to do any check on this run
+      if(mag_of_run(ilut_sign,run) > eps) then
+#ifdef __CMPLX
+         ! The complex coherence check is more effortive, so only do it in complex builds
+         ! Get the relative phase of the signs
+         tmp = cmplx(signRef(min_part_type(run)),signRef(max_part_type(run)),dp) / &
+              cmplx(ilut_sign(min_part_type(run)), ilut_sign(max_part_type(run)), dp)
+         ! and compare it to that of H
+         if(aimag(h_el*tmp) > eps .or. real(h_el*tmp) > 0.0_dp) then
+            is_coherent = .false.
+            return
+         endif
+#else
+         ! For the real comparison, we just compare the signs
+         if(signRef(run)*ilut_sign(run) * h_el > 0.0_dp) then
+            is_coherent = .false.
+            return
+         endif
+#endif
+      endif
+    end function check_sign_coherence
+
+!------------------------------------------------------------------------------------------!
+
 
     subroutine resize_ilutRefAdi(newSize)
       implicit none
@@ -655,6 +718,8 @@ contains
       if(allocated(signsRef)) deallocate(signsRef)
       allocate(signsRef(lenof_sign,size))
       
+      tSetupSIs = .false.
+      
     end subroutine reallocate_ilutRefAdi
 
 !------------------------------------------------------------------------------------------!
@@ -704,7 +769,7 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine enable_adi
-      use CalcData, only: tAllDoubsInitiators
+      use adi_data, only: tAllDoubsInitiators, tAdiActive
       implicit none
 
       write(iout,'()') 
@@ -713,6 +778,7 @@ contains
       write(iout,*) "Further notification on additional references will be given"
       write(iout,'()')
       tAllDoubsInitiators = .true.
+      tAdiActive = .true.
       
       ! tSinglePartPhase = .false.
       
@@ -725,7 +791,7 @@ contains
       ! that we allow any non-initiator to spawn there.
       ! This is an experimental and potentially dangerous feature as it can
       ! lead to sign instabilities
-      use CalcData, only: tAccessibleDoubles, tAccessibleSingles
+      use adi_data, only: tAccessibleDoubles, tAccessibleSingles
       use DetBitOps, only: FindBitExcitLevel
       implicit none
       integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -744,69 +810,11 @@ contains
       end do
     end function test_ref_double
 
-!------------------------------------------------------------------------------------------!
-
-    function check_sign_coherence(ilut, ilut_sign, iRef, run) result(is_coherent)
-      use bit_reps, only: decode_bit_det
-      use bit_rep_data, only: extract_sign
-      use Determinants, only: get_helement
-      use SystemData, only: tHPHF
-      use hphf_integrals, only: hphf_off_diag_helement
-      implicit none
-      integer(n_int), intent(in) :: ilut(0:NIfTot)
-      integer, intent(in) :: iRef, run
-      real(dp), intent(in) :: ilut_sign(lenof_sign)
-      logical :: is_coherent
-      integer :: nI(nel), nJRef(nel)
-      real(dp) :: signRef(lenof_sign)
-#ifdef __CMPLX 
-      complex(dp) :: tmp
-#endif
-      HElement_t(dp) :: h_el
-      
-      is_coherent = .true.
-      ! Obviously, we need the sign to compare coherence
-      call extract_sign(ilutRefAdi(:,iRef), signRef)
-      
-      ! For getting the matrix element, we also need the determinants
-      call decode_bit_det(nI, ilut)
-      call decode_bit_det(nJRef, ilutRefAdi(:,iRef))
-
-      ! Then, get the matrix element
-      if(tHPHF) then
-         h_el = hphf_off_diag_helement(nI,nJRef(:),ilut,ilutRefAdi(:,iRef))
-      else
-         h_el = get_helement(nI,nJRef(:),ilut,ilutRefAdi(:,iRef))
-      endif
-      ! if the determinants are not coupled, ignore them
-      if(abs(h_el) < eps) return
-
-      ! If the new ilut has sign 0, there is no need to do any check on this run
-      if(mag_of_run(ilut_sign,run) > eps) then
-#ifdef __CMPLX
-         ! The complex coherence check is more effortive, so only do it in complex builds
-         ! Get the relative phase of the signs
-         tmp = cmplx(signRef(min_part_type(run)),signRef(max_part_type(run)),dp) / &
-              cmplx(ilut_sign(min_part_type(run)), ilut_sign(max_part_type(run)), dp)
-         ! and compare it to that of H
-         if(aimag(h_el*tmp) > eps .or. real(h_el*tmp) > 0.0_dp) then
-            is_coherent = .false.
-            return
-         endif
-#else
-         ! For the real comparison, we just compare the signs
-         if(signRef(run)*ilut_sign(run) * h_el > 0.0_dp) then
-            is_coherent = .false.
-            return
-         endif
-#endif
-      endif
-    end function check_sign_coherence
 
 !------------------------------------------------------------------------------------------!
 
     subroutine reset_coherence_counter()
-      use FciMCData, only: nCoherentDoubles, nIncoherentDets, nCoherentSingles
+      use adi_data, only: nCoherentDoubles, nIncoherentDets, nCoherentSingles
       implicit none
       
       nCoherentSingles = 0
@@ -826,7 +834,7 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine setup_SIHash()
-      use FciMCData, only: SIHash, htBlock
+      use adi_data, only:  htBlock
       use hash, only: init_hash_table
       implicit none
       
@@ -839,9 +847,7 @@ contains
 
     subroutine add_superinitiator_to_hashtable(ilut, cRef, tSuccess)
       use hash, only: add_hash_table_entry, hash_table_lookup
-      use FciMCData, only: SIHash
       use bit_reps, only: decode_bit_det
-      use bit_rep_data, only: NIfDBO
       implicit none
       integer(n_int), intent(in) :: ilut(0:NIfTot)
       integer, intent(in) :: cRef
@@ -863,7 +869,6 @@ contains
 
     subroutine assign_SIHash_TZero()
       use hash, only: clear_hash_table
-      use FciMCData, only: SIHash
       implicit none
       integer :: iRef
       logical :: tSuccess
@@ -880,9 +885,29 @@ contains
     end subroutine assign_SIHash_TZero
 
 !------------------------------------------------------------------------------------------!
+    
+    subroutine check_superinitiator(ilut, nI, staticInit) 
+      use hash, only: hash_table_lookup
+      implicit none
+      integer(n_int), intent(in) :: ilut(0:NIfTot)
+      integer, intent(in) :: nI(nel)
+      logical, intent(inout) :: staticInit
+      integer :: index, hashVal
+      logical :: tSuccess
+      
+      ! Only perform the check if the superinitiators are initialized
+      if(tSetupSIs) then
+         ! Now, look into the SI-hashtable and return whether nI is there
+         call hash_table_lookup(nI, ilut, NIfDBO, SIHash, ilutRefAdi, &
+              index, hashVal, tSuccess)
+         if(tSuccess) staticInit = .true.
+      endif
+    end subroutine check_superinitiator
+
+!------------------------------------------------------------------------------------------!
 
     function giovannis_check(ilut) result(init)
-      use CalcData, only: g_markers, g_markers_num
+      use adi_data, only: g_markers, g_markers_num
       use DetBitOps, only: CountBits
       use bit_rep_data, only: NIfD
       ! Very much like DetBitOps::FindBitExcitLevel, but it does the check for the active-space

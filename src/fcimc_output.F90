@@ -25,6 +25,8 @@ module fcimc_output
     use hist, only: calc_s_squared_star, calc_s_squared
     use fcimc_helper, only: LanczosFindGroundE
     use Determinants, only: write_det
+    use adi_data, only: AllCoherentSingles, AllCoherentDoubles, AllIncoherentDets, nRefs, &
+         ilutRefAdi
     use Parallel_neci
     use FciMCData
     use constants
