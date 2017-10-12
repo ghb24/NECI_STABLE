@@ -133,7 +133,7 @@ contains
 
   function unset_incoherent_initiator(exLevel, ilut, nI, sgn, iRef, &
        staticInit, run) result(tSuspendADI)
-    use adi_data, only: tCoherentDoubles, nIncoherentDets
+    use adi_data, only: tStrictCoherentDoubles, nIncoherentDets
     use adi_references, only: check_sign_coherence
     ! This version of the coherence check now only prevents us from setting
     ! the initiator flag via ADI, but not by regular means. So we can't remove 'normal'
@@ -147,7 +147,7 @@ contains
     logical :: tSuspendADI
 
     tSuspendADI = .false.
-    if(tCoherentDoubles .and. (exLevel > 0)) then
+    if(tStrictCoherentDoubles .and. (exLevel > 0)) then
        if(.not. check_sign_coherence(ilut,nI,sgn,iRef,run)) then
           ! If not, do not let the determinant be an initiator
           ! Note that this strikes anytime, even if it is coherent with 

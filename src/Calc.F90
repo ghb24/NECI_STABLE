@@ -344,6 +344,7 @@ contains
           nExProd = 2
           NoTypeN = 3
           tCoherentDoubles = .false.
+          tStrictCoherentDoubles = .false.
           superInitiatorLevel = 0
           tAdiActive = .false.
 
