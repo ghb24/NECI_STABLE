@@ -3,7 +3,8 @@ module adi_references
 use Parallel_neci
 use FciMCData, only: ilutRef
 use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, nRefsSings, nRefsDoubs, &
-     nTZero, SIHash, tAdiActive, tSetupSIs, NoTypeN, superInitiatorLevel, tSetupSIs
+     nTZero, SIHash, tAdiActive, tSetupSIs, NoTypeN, superInitiatorLevel, tSetupSIs, &
+     tReferenceChanged
 use CalcData, only: InitiatorWalkNo
 use bit_rep_data, only: niftot, nifdbo, extract_sign
 use bit_reps, only: decode_bit_det
@@ -76,6 +77,7 @@ contains
        if(superInitiatorLevel > 0) call add_derived_refs()
 
        tSetupSIs = .true.
+       tReferenceChanged = .true.
     endif
    
   end subroutine setup_reference_space

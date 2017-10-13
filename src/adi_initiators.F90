@@ -21,7 +21,9 @@ contains
     staticInit = .false.
     ! Doubles are always initiators if the corresponding flag is set
     if(tAdiActive) then
-       if(.not. test_flag(ilut, flag_adi_checked)) &
+       ! Only check for the adi flags if this was not done before, or
+       ! if the superinitiator pool changed
+       if(.not. test_flag(ilut, flag_adi_checked) .or. tReferenceChanged) &
           call set_adi_flags(ilut, nI, sgn)
           ! Check if the sign of the determinant changed, if yes, re-evaluate the adi flags
           ! only for this run
