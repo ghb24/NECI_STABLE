@@ -33,7 +33,7 @@ MODULE Calc
          tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, &
          tProductReferences, tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
          tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles, &
-         tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold
+         tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -348,7 +348,8 @@ contains
           tWeakCoherentDoubles = .false.
           tAvCoherentDoubles = .false.
           superInitiatorLevel = 0
-          coherenceThreshold = 0.4
+          coherenceThreshold = 0.5
+          SIThreshold = 0.95
           tAdiActive = .false.
 
           ! And disable the initiators subspace
@@ -2467,14 +2468,26 @@ contains
                    case("STRICT")
                       tStrictCoherentDoubles = .true.
                    case("WEAK")
+                      ! This is recommended, we first check if there is a sign 
+                      ! tendency and then if it agrees with the sign on the det
+                      tAvCoherentDoubles = .true.
+                      tWeakCoherentDoubles = .true.
+                   case("XI")
+                      ! This is a minimalistic version that should not
+                      ! be used unless you know what you're doing
                       tWeakCoherentDoubles = .true.
                    case("AV")
+                      ! only using av ignores sign tendency and can overestimate
+                      ! the correctness of a sign
                       tAvCoherentDoubles = .true.
                    case default
+                      ! default is WEAK
+                      tWeakCoherentDoubles = .true.
                       tWeakCoherentDoubles = .true.
                    end select
                 else
                    tWeakCoherentDoubles = .true.
+                   tAvCoherentDoubles = .true.
                 endif                   
 
              case("SECONDARY-SUPERINITIATORS")

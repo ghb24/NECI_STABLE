@@ -4,14 +4,20 @@ use Parallel_neci
 use FciMCData, only: ilutRef
 use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, nRefsSings, nRefsDoubs, &
      nTZero, SIHash, tAdiActive, tSetupSIs, NoTypeN, superInitiatorLevel, tSetupSIs, &
-     tReferenceChanged
+     tReferenceChanged, SIThreshold
 use CalcData, only: InitiatorWalkNo
 use bit_rep_data, only: niftot, nifdbo, extract_sign
 use bit_reps, only: decode_bit_det
+use DetBitOps, only: FindBitExcitLevel
 use constants
 use SystemData, only: nel
 
 implicit none
+
+interface get_sign_op
+   module procedure get_sign_op_min
+   module procedure get_sign_op_run
+end interface get_sign_op
 
 contains
 
@@ -261,14 +267,18 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine print_reference_notification(iStart, iEnd, title)      
+    subroutine print_reference_notification(iStart, iEnd, title, legend)      
       implicit none
       integer, intent(in) :: iStart, iEnd
       character(*), intent(in) :: title
+      logical, optional :: legend
       integer :: i
       
       if(iProcIndex==root) then
          write(iout,*) title
+         if(present(legend)) write(iout,"(4A25)") &
+              ! TODO: Adapt legend for multiple runs
+              "Determinant (bitwise)", "Excitation level", "Coherence parameter", "Number of walkers"
          do i=iStart, iEnd
             call print_bit_rep(ilutRefAdi(:,i))
          enddo
@@ -281,14 +291,20 @@ contains
       implicit none
       integer(n_int), intent(in) :: ilut(0:NIfTot)
       real(dp) :: temp_sgn(lenof_sign)
-      integer :: j
-
+      integer :: j, exLevel
+      ! First, print the determinant (bitwise)
       call WriteDetBit(iout,ilut,.false.)
+      ! Then, the excitation level
+      write(iout, "(5X)", advance = 'no')
+      write(iout, "(G1.4)", advance = 'no') FindBitExcitLevel(ilut, ilutRef(:,1))
+      ! And the sign coherence parameter
+      write(iout, "(G16.7)", advance = 'no') get_sign_op_min(ilut)
       ! And then the sign
       call extract_sign(ilut,temp_sgn)
       do j = 1, lenof_sign
          write(iout,"(G16.7)",advance='no') temp_sgn(j)
       enddo
+      
       write(iout,'()')
 
     end subroutine print_bit_rep
@@ -380,7 +396,7 @@ contains
       implicit none
       integer, intent(in) :: nRefsIn
       integer, intent(in) :: prodLvl
-      integer(n_int) :: ilut_tmp(0:NIfTot)
+      integer(n_int) :: tmp_ilut(0:NIfTot)
       integer(n_int), allocatable :: prod_buffer(:,:)
       integer :: nProdsMax, nProds, i, run, cLvl
       logical :: t_is_valid
@@ -397,17 +413,17 @@ contains
          ! For each product level, get all possible product excitations
          do i = 1, nRefsIn**cLvl
             ! Get the excitation product corresponding to i
-            call get_product_excitation(i, cLvl, nRefsIn, ilut_tmp, t_is_valid)
+            call get_product_excitation(i, cLvl, nRefsIn, tmp_ilut, t_is_valid)
             
             ! Check, if it is already in the list (e.g. if both tau operators are those of
             ! the reference)
-            if(t_is_valid) t_is_valid = ilut_not_in_list(ilut_tmp, prod_buffer, nProds)
+            if(t_is_valid) t_is_valid = ilut_not_in_list(tmp_ilut, prod_buffer, nProds)
          
             ! If all excitations were valid and the new ilut is not already in the buffer, 
             ! add it
             if(t_is_valid) then
                nProds = nProds + 1
-               prod_buffer(:,nProds) = ilut_tmp
+               prod_buffer(:,nProds) = tmp_ilut
             endif
          end do
          ! Do this for each targeted product level
@@ -424,17 +440,17 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine get_product_excitation(i, cLvl, nRefs, ilut_tmp, isValid)
+    subroutine get_product_excitation(i, cLvl, nRefs, tmp_ilut, isValid)
       use DetBitOps, only: CountBits
       use bit_rep_data, only: NIfD
       implicit none
       integer, intent(in) :: i, cLvl, nRefs
-      integer(n_int), intent(out) :: ilut_tmp(0:NIfTot)
+      integer(n_int), intent(out) :: tmp_ilut(0:NIfTot)
       logical, intent(out) :: isValid
       integer(n_int) :: tau(0:NIfTot), tau_cc(0:NIfTot)
       integer :: cp
 
-      ilut_tmp = ilutRef(:,1)
+      tmp_ilut = ilutRef(:,1)
       isValid = .true.
       tau_cc = 0_n_int
       ! By getting the cLvl excitation operators that correspond to i
@@ -453,8 +469,8 @@ contains
       end do
 
       ! Check if it's valid, if not, go to the next value of i
-      if(CountBits(ilut_tmp,NIfD) .ne. nEl) isValid = .false.
-      ilut_tmp(0:NIfD) = IEOR(ilut_tmp(0:NIfD), tau_cc(0:NIfD))
+      if(CountBits(tmp_ilut,NIfD) .ne. nEl) isValid = .false.
+      tmp_ilut(0:NIfD) = IEOR(tmp_ilut(0:NIfD), tau_cc(0:NIfD))
     end subroutine get_product_excitation
 
 !------------------------------------------------------------------------------------------!
@@ -480,7 +496,7 @@ contains
     subroutine generate_type_n_refs()
       use FciMCData, only: CurrentDets, TotWalkers
       implicit none
-      integer :: i, nTOne, nBlocks, ierr
+      integer :: i, nTOne, nBlocks, ierr, run
       integer(n_int), allocatable :: refBuf(:,:)
       real(dp) :: tmp_sign(lenof_sign)
       logical :: is_tone
@@ -493,8 +509,12 @@ contains
       nTOne = 0
       do i = 1, TotWalkers
          call extract_sign(CurrentDets(:,i), tmp_sign)
-         ! Check if a determinant should be a type-1 reference
-         is_tone = check_type_n_ref(CurrentDets(:,i), tmp_sign, 1)
+         ! Check if a determinant should be a type-1 reference (on any run)
+         is_tone = .false.
+         do run = 1, inum_runs
+            is_tone = is_tone .or. check_type_n_ref(CurrentDets(:,i), tmp_sign, run)
+            ! TODO: Set the flag for the corresponding run
+         enddo
          if(is_tone) then
             nTOne = nTOne + 1
             ! If we exceed the memory of the buffer, add another block
@@ -522,7 +542,7 @@ contains
       integer, intent(in) :: listSize
       integer(n_int), intent(in) :: list(0:NIfTot,listSize)
       integer(n_int), allocatable :: mpi_buf(:,:), buffer(:,:)
-      integer :: nRCOld, i, nNew, all_refs_found, ierr
+      integer :: nRCOld, i, nNew, all_refs_found, ierr, index
       integer(MPIArg) :: refs_found_per_proc(0:nProcessors-1), refs_displs(0:nProcessors-1)
       logical :: tSuccess
       integer(MPIArg) :: mpi_refs_found
@@ -558,6 +578,10 @@ contains
       call resize_ilutRefAdi(nRefs + nNew)
       ! and add the new iluts
       ilutRefAdi(:,(nRCOld + 1):(nRCOld + nNew)) = buffer(:,1:nNew)
+
+      ! and then check the self-consistency condition, keeping the old SIs
+      if(nNew  >0) call type_n_self_consistency_loop(nRCOld)
+
       deallocate(mpi_buf)
       deallocate(buffer)
     end subroutine add_type_n_refs
@@ -565,39 +589,84 @@ contains
 !------------------------------------------------------------------------------------------!
 
     function check_type_n_ref(ilut, ilut_sign, run) result(is_tone)
-      use DetBitOps, only: FindBitExcitLevel
       implicit none
       integer(n_int), intent(in) :: ilut(0:NIfTot)
       ! We pass the sign as an extra argument to prevent redundant extraction
       real(dp), intent(in) :: ilut_sign(lenof_sign)
       integer, intent(in) :: run
       integer :: iRef, exLevel, nI(nel)
+      real(dp) :: xi
       logical :: is_coherent
       logical :: is_tone
       
       is_tone = .false.
       is_coherent = .false.
-      ! Go through all t-0 references
-      do iRef = 1, nRefs
-         ! Get the excitation level, only proceed if there can be some coupling
-         exLevel = FindBitExcitLevel(ilutRefAdi(:, iRef), ilut)
-         if(exLevel < 3) then
-            ! If we are coherent with two or more, set the t-1 flag
-            if(is_coherent) is_tone = .true.
-            ! TODO: Allow for different references on different replicas
-            call decode_bit_det(nI, ilut)
-            is_coherent = check_sign_coherence(ilut, nI, ilut_sign, iRef, run)
-            ! If an incoherent t-0 ref is found, return .false.
-            if(.not. is_coherent) then
-               is_tone = .false.
-               return
-            endif
-         endif
-      enddo
+
+      ! obtain the xi-parameter
+      xi = get_sign_op_run(ilut, run) 
+      ! and compare it to the superinitiator threshold
+      if(xi> SIThreshold) is_tone = .true.
+
       if(is_tone) then
          if(mag_of_run(ilut_sign, run) < NoTypeN) is_tone = .false.
       endif
     end function check_type_n_ref
+    
+!------------------------------------------------------------------------------------------!
+
+    subroutine type_n_self_consistency_loop(nKeep)
+      implicit none
+      integer, intent(in) :: nKeep
+      integer :: i
+
+      ! we can remove at most nrefs SIs
+      do i = 1, nRefs
+         ! once we do not remove any SIs, self-consistency is reached
+         if(type_n_self_consistency_step(nKeep)) exit         
+      enddo
+
+      ! We need to setup the hashtable anew because the SIs are reordered in
+      ! the process of self-consistency loop
+      call assign_SIHash_TZero()
+    end subroutine type_n_self_consistency_loop
+
+!------------------------------------------------------------------------------------------!
+    
+    function type_n_self_consistency_step(nKeep) result(valid)
+      implicit none
+      integer, intent(in) :: nKeep
+      logical :: valid
+      integer :: iRef, min_iRef
+      real(dp) :: sub_xi, min_xi
+      
+      valid = .true.
+      min_xi = 1.0_dp
+      min_iRef = nKeep + 1
+
+      ! The first nKeep references are not touchable         
+      do iRef = nKeep + 1, nRefs
+         ! Get the minimal xi
+         sub_xi = get_sign_op_min(ilutRefAdi(:,iRef))
+         ! And the corresponding SI
+         if(sub_xi < min_xi) then
+            min_xi = sub_xi
+            min_iRef = iRef
+         endif
+      end do
+
+      ! But we need to throw something out if the first nKeep SIs fall below threshold
+      do iRef = 1, nKeep
+         if(get_sign_op_min(ilutRefAdi(:,iRef)) < SIThreshold) valid = .false.
+      enddo
+      
+      ! and throw out the SI with minimal xi if below threshold or if there is a 
+      ! threshold violation in the first nKeep entries
+      if(min_xi < SIThreshold .or. (.not. valid)) then
+         call remove_superinitiator(min_iRef)
+         valid = .false.
+      endif
+      
+    end function type_n_self_consistency_step
 
 !------------------------------------------------------------------------------------------!
 
@@ -682,6 +751,8 @@ contains
     integer :: nIRef(nel)
     real(dp) :: sgnRef(lenof_sign)
 
+    ! TODO: Only if ilutRefAdi(:,i) is a SI on this run
+
     ! Only those determinants are coupled
     if(exLevel < 3) then
        call decode_bit_det(nIRef, ilutRefAdi(:,i))
@@ -727,6 +798,7 @@ contains
        endif
 
        ! If we do averaged coherence check, we check versus the sign of the ilut
+       ! We recommend using both, av and weak
        if(tAvCoherentDoubles) then
           if(real(signedCache * sgn,dp) > 0.0_dp) staticInit = .false.
        endif
@@ -736,8 +808,22 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-  function get_sign_op(ilut, run) result(xi)
-    use DetBitOps, only: FindBitExcitLevel
+  function get_sign_op_min(ilut) result(xi)
+    implicit none
+    integer(n_int) :: ilut(0:NIfTot)
+    integer :: run
+    real(dp) :: min_xi, xi
+
+    min_xi = 1.0_dp
+    do run = 1, inum_runs
+       xi = get_sign_op(ilut, run)
+       if(xi < min_xi) min_xi = xi
+    enddo
+  end function get_sign_op_min
+
+!------------------------------------------------------------------------------------------!
+
+  function get_sign_op_run(ilut, run) result(xi)
     ! compute the sign problem indicator xi for a given determinant
     implicit none
     integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -764,7 +850,7 @@ contains
     else
        xi = 0.0_dp
     endif
-  end function get_sign_op
+  end function get_sign_op_run
 
 !------------------------------------------------------------------------------------------!
 
@@ -803,7 +889,11 @@ contains
       if(ierr .ne. 0) call stop_all(this_routine, "Not enough memory to resize ilut list")
       
       ! Write the old entries of list into the new memory
-      list(:,1:oldSize) = tmp(:,1:oldSize)
+      if(oldSize < newSize) then
+         list(:,1:oldSize) = tmp(:,1:oldSize)
+      else
+         list(:,1:newSize) = tmp(:,1:newSize)
+      endif
       
     end subroutine resize_ilut_list
 
@@ -899,7 +989,6 @@ contains
       ! This is an experimental and potentially dangerous feature as it can
       ! lead to sign instabilities
       use adi_data, only: tAccessibleDoubles, tAccessibleSingles
-      use DetBitOps, only: FindBitExcitLevel
       implicit none
       integer(n_int), intent(in) :: ilut(0:NIfTot)
       integer, intent(in) :: run
@@ -949,6 +1038,26 @@ contains
       allocate(SIHash(htBlock))
       call init_hash_table(SIHash)
     end subroutine setup_SIHash
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine remove_superinitiator(iRef)
+      use hash, only: remove_hash_table_entry
+      implicit none
+      integer, intent(in) :: iRef
+      integer :: nI(nel)
+      integer(n_int) :: tmp(0:NIfTot)
+
+      ! then, shrink ilutRefAdi
+      ! as the last entry will be deleted, move iRef to the back
+      if(iRef <  nRefs) then
+         tmp = ilutRefAdi(:,nRefs)
+         ilutRefAdi(:,nRefs) = ilutRefAdi(:,iRef)
+         ilutRefAdi(:,iRef) = tmp
+      endif
+      call resize_ilutRefAdi(nRefs - 1)
+
+    end subroutine remove_superinitiator
 
 !------------------------------------------------------------------------------------------!
 
@@ -1021,16 +1130,16 @@ contains
       ! initiator criterium
       implicit none
       integer(n_int), intent(in) :: ilut(0:NIfD)
-      integer(n_int) :: ilut_tmp(0:NIfD)
+      integer(n_int) :: tmp_ilut(0:NIfD)
       integer :: nOrbs
       logical :: init
 
       init = .false.
       ! Get the bitwise equivalence of the input with the reference
-      ilut_tmp = NOT(IEOR(ilut,ilutRef(:,1)))
-      ! Now compare ilut_tmp with the markers (these are 0 for the core orbitals and 1 else)
-      ilut_tmp = IAND(ilut_tmp, g_markers)
-      nOrbs = CountBits(ilut_tmp,NIfD)
+      tmp_ilut = NOT(IEOR(ilut,ilutRef(:,1)))
+      ! Now compare tmp_ilut with the markers (these are 0 for the core orbitals and 1 else)
+      tmp_ilut = IAND(tmp_ilut, g_markers)
+      nOrbs = CountBits(tmp_ilut,NIfD)
       ! If nOrbs is the markersize, it is an initiator
       init = (nOrbs == g_markers_num)
 
